@@ -40,8 +40,11 @@ python3 scripts/models/parakeet.py acquire
 python3 scripts/models/browser_speech.py acquire
 ```
 
-Vite verifies the pinned browser speech inventory before serving or building.
-Production builds include those files and need no developer cache. Check source
+Both sets are optional for web development and builds. Without the browser
+speech set, Vite serves and bundles only the pinned package files and Pocket TTS
+and Smart Turn are unavailable; the embedded desktop build requires it. A present
+set is verified before serving or building, and production builds include those
+files and need no developer cache. Check source
 inputs with `pnpm verify:tts-assets` from `src/frontend`; check built output with
 `pnpm verify:tts-assets -- --built-root web/dist`.
 See [Content and workers](../../../docs/frontend/architecture/content-and-workers.md)

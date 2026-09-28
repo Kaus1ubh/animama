@@ -168,6 +168,9 @@ importers:
       '@codemirror/lang-markdown':
         specifier: ^6.5.0
         version: 6.5.0
+      '@codemirror/language':
+        specifier: ^6.12.3
+        version: 6.12.3
       '@dnd-kit/core':
         specifier: ^6.3.1
         version: 6.3.1(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
@@ -180,6 +183,9 @@ importers:
       '@hookform/resolvers':
         specifier: ^5.2.2
         version: 5.2.2(react-hook-form@7.73.1(react@19.2.5))
+      '@lezer/highlight':
+        specifier: ^1.2.3
+        version: 1.2.3
       '@noble/hashes':
         specifier: 2.2.0
         version: 2.2.0

@@ -1,10 +1,10 @@
 import { z } from "zod";
+import { POCKET_VOICES } from "@/lib/speech/pocket/voice-catalog";
 
 import type {
   AnimaCreationDiagnostic,
   AnimaCreationOptions,
   ItemRevisionRef,
-  SourceRevision,
 } from "@animama/runtime-contracts/sdk";
 import { TRACKED_EMOTIONS, type TrackedEmotion } from "@/lib/emotion";
 import {
@@ -16,11 +16,12 @@ import {
 
 export const CREATION_STEPS = [
   "Avatar",
+  "Voice",
   "Identity",
   "Actions",
   "Review",
 ] as const;
-export type CreationStep = 0 | 1 | 2 | 3;
+export type CreationStep = 0 | 1 | 2 | 3 | 4;
 export const INTENSITIES = ["1", "2", "3"] as const;
 export type Intensity = (typeof INTENSITIES)[number];
 export const itemIdSchema = z
@@ -37,13 +38,13 @@ export const itemRefSchema = z.strictObject({
 });
 const sourceRevisionSchema = z.strictObject({
   kind: z.enum([
+    "voice",
     "avatar",
     "appearance",
     "gesture",
     "reaction",
     "idle_style",
     "pose",
-    "pose_clip",
     "particle_effect",
     "avatar_effect",
     "scene_effect",
@@ -52,7 +53,15 @@ const sourceRevisionSchema = z.strictObject({
   revision_sha256: revisionSchema,
 });
 export const sourceMapSchema = z.record(itemIdSchema, sourceRevisionSchema);
-export type SourceMap = Record<string, SourceRevision>;
+// Saved evidence can predate retirement. New resolution and command validation
+// always use sourceMapSchema; legacy values are retained only for recovery.
+const savedSourceMapSchema = z.record(
+  itemIdSchema,
+  sourceRevisionSchema.extend({
+    kind: z.union([sourceRevisionSchema.shape.kind, z.literal("pose_clip")]),
+  }),
+);
+export type SourceMap = z.infer<typeof savedSourceMapSchema>;
 const presentationSchema = z.strictObject({
   fit: z.enum(["cover", "contain"]),
   focal_x: z.number().min(0).max(1),
@@ -80,9 +89,47 @@ const starterPackSchema = z.strictObject({
 });
 const evidenceSchema = z.strictObject({
   source: itemRefSchema,
-  revisions: sourceMapSchema,
+  revisions: savedSourceMapSchema,
 });
 export type CreationEvidence = z.infer<typeof evidenceSchema>;
+
+/** Editable provider fields survive switching and may be temporarily incomplete. */
+export const creationVoiceDraftSchema = z.strictObject({
+  provider: z.enum(["pocket_tts", "elevenlabs"]),
+  pocket: z.discriminatedUnion("type", [
+    z.strictObject({
+      type: z.literal("preset"),
+      voice_id: z.string().max(128),
+    }),
+    z.strictObject({ type: z.literal("clone"), source: itemRefSchema }),
+  ]),
+  elevenlabs_voice_id: z.string().max(100000).nullable(),
+});
+export type CreationVoiceDraft = z.infer<typeof creationVoiceDraftSchema>;
+export const creationVoiceSchema = creationVoiceDraftSchema.superRefine(
+  (voice, context) => {
+    const pocket = voice.pocket;
+    if (
+      pocket.type === "preset" &&
+      !POCKET_VOICES.some((preset) => preset.id === pocket.voice_id)
+    )
+      context.addIssue({
+        code: "custom",
+        path: ["pocket"],
+        message: "Choose an available PocketTTS voice.",
+      });
+    if (
+      (voice.provider === "elevenlabs" || voice.elevenlabs_voice_id !== null) &&
+      !/^[A-Za-z0-9_-]{1,128}$/.test(voice.elevenlabs_voice_id ?? "")
+    )
+      context.addIssue({
+        code: "custom",
+        path: ["elevenlabs_voice_id"],
+        message:
+          "Enter an ElevenLabs voice ID using letters, numbers, underscores or hyphens.",
+      });
+  },
+);
 
 const animaSpecFields = {
   schema_version: z.literal(1),
@@ -101,6 +148,7 @@ const animaSpecFields = {
 /** Validate new commands without consulting mutable sources. */
 export const animaSpecSchema = z.strictObject({
   ...animaSpecFields,
+  voice: creationVoiceSchema,
   display_name: z.string().min(1).max(40),
 });
 export const creationRequestSchema = animaSpecSchema.extend({
@@ -110,12 +158,14 @@ export const creationRequestSchema = animaSpecSchema.extend({
 /** Frozen saved requests accept up to 120 characters for exact retry; new commands cap names at 40. */
 const frozenCreationRequestSchema = z.strictObject({
   ...animaSpecFields,
+  expected_source_revisions: savedSourceMapSchema,
+  voice: creationVoiceDraftSchema.nullable().optional(),
   display_name: z.string().min(1).max(120),
   idempotency_key: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/),
 });
 export type FrozenCreationRequest = z.infer<typeof frozenCreationRequestSchema>;
 
-export const createAnimaDraftSchema = z.strictObject({
+export const previousCreateAnimaDraftSchema = z.strictObject({
   schema_version: z.literal(2),
   draft_id: z.string().uuid(),
   step: z.number().int().min(0).max(3),
@@ -130,8 +180,8 @@ export const createAnimaDraftSchema = z.strictObject({
   reactions: reactionsSchema,
   starter_pack: starterPackSchema.nullable(),
   default_idle: itemRefSchema.nullable(),
-  idle_revisions: sourceMapSchema,
-  seed_revisions: sourceMapSchema,
+  idle_revisions: savedSourceMapSchema,
+  seed_revisions: savedSourceMapSchema,
   evidence: z.record(itemIdSchema, evidenceSchema),
   submission: z
     .strictObject({
@@ -140,7 +190,33 @@ export const createAnimaDraftSchema = z.strictObject({
     })
     .nullable(),
 });
+export const createAnimaDraftSchema = previousCreateAnimaDraftSchema.extend({
+  schema_version: z.literal(3),
+  step: z.number().int().min(0).max(4),
+  furthest_step: z.number().int().min(0).max(4),
+  voice: creationVoiceDraftSchema.nullable(),
+});
 export type CreateAnimaDraft = z.infer<typeof createAnimaDraftSchema>;
+
+/** The inserted Voice step shifts old navigation without touching frozen requests. */
+export function migratePreviousCreateAnimaDraft(
+  previous: z.infer<typeof previousCreateAnimaDraftSchema>,
+): CreateAnimaDraft {
+  return {
+    ...previous,
+    identity_markdown: previous.submission
+      ? previous.identity_markdown
+      : upgradeDefaultAnimaIdentityMarkdown(
+          previous.identity_markdown,
+          previous.display_name,
+        ),
+    schema_version: 3,
+    voice: null,
+    step: previous.step === 0 ? 0 : previous.step + 1,
+    furthest_step:
+      previous.furthest_step === 0 ? 0 : previous.furthest_step + 1,
+  };
+}
 
 /** Exact schema-v1 draft shape, read only by the explicit storage migrator. */
 export const legacyCreateAnimaDraftSchema = z.strictObject({
@@ -165,8 +241,8 @@ export const legacyCreateAnimaDraftSchema = z.strictObject({
   reactions: reactionsSchema,
   starter_pack: starterPackSchema.nullable(),
   default_idle: itemRefSchema.nullable(),
-  idle_revisions: sourceMapSchema,
-  seed_revisions: sourceMapSchema,
+  idle_revisions: savedSourceMapSchema,
+  seed_revisions: savedSourceMapSchema,
   evidence: z.record(itemIdSchema, evidenceSchema),
   submission: z
     .strictObject({
@@ -179,6 +255,7 @@ export type LegacyCreateAnimaDraft = z.infer<
   typeof legacyCreateAnimaDraftSchema
 >;
 export type CreationSourceKind =
+  | "voice"
   | "avatar"
   | "appearance"
   | "gesture"
@@ -202,7 +279,8 @@ export function emptyReactions(): CreateAnimaDraft["reactions"] {
 
 export function newCreateAnimaDraft(): CreateAnimaDraft {
   return {
-    schema_version: 2,
+    schema_version: 3,
+    voice: null,
     draft_id: crypto.randomUUID(),
     step: 0,
     furthest_step: 0,
@@ -233,31 +311,35 @@ export function migrateLegacyCreateAnimaDraft(
     legacy.portrait_pending ||
     legacy.needs_image_reselection,
   );
-  return createAnimaDraftSchema.parse({
-    schema_version: 2,
-    draft_id: legacy.draft_id,
-    step: legacy.step,
-    furthest_step: legacy.furthest_step,
-    meaningful: legacy.meaningful,
-    display_name: legacy.display_name,
-    identity_markdown: legacy.identity_markdown.trim()
-      ? upgradeDefaultAnimaIdentityMarkdown(
-          legacy.identity_markdown,
-          legacy.display_name,
-        )
-      : defaultAnimaIdentityMarkdown(legacy.display_name),
-    avatar: legacy.avatar,
-    appearance_migration: needsConfirmation ? "confirmation_required" : "none",
-    needs_file_reselection: legacy.needs_file_reselection,
-    gestures: legacy.gestures,
-    reactions: legacy.reactions,
-    starter_pack: legacy.starter_pack,
-    default_idle: legacy.default_idle,
-    idle_revisions: legacy.idle_revisions,
-    seed_revisions: legacy.seed_revisions,
-    evidence: legacy.evidence,
-    submission: legacy.submission,
-  });
+  return migratePreviousCreateAnimaDraft(
+    previousCreateAnimaDraftSchema.parse({
+      schema_version: 2,
+      draft_id: legacy.draft_id,
+      step: legacy.step,
+      furthest_step: legacy.furthest_step,
+      meaningful: legacy.meaningful,
+      display_name: legacy.display_name,
+      identity_markdown: legacy.identity_markdown.trim()
+        ? upgradeDefaultAnimaIdentityMarkdown(
+            legacy.identity_markdown,
+            legacy.display_name,
+          )
+        : defaultAnimaIdentityMarkdown(legacy.display_name),
+      avatar: legacy.avatar,
+      appearance_migration: needsConfirmation
+        ? "confirmation_required"
+        : "none",
+      needs_file_reselection: legacy.needs_file_reselection,
+      gestures: legacy.gestures,
+      reactions: legacy.reactions,
+      starter_pack: legacy.starter_pack,
+      default_idle: legacy.default_idle,
+      idle_revisions: legacy.idle_revisions,
+      seed_revisions: legacy.seed_revisions,
+      evidence: legacy.evidence,
+      submission: legacy.submission,
+    }),
+  );
 }
 
 export function sameRef(
@@ -302,6 +384,7 @@ export function canonicalJson(value: unknown): string {
 export type DraftEdit = Partial<
   Pick<
     CreateAnimaDraft,
+    | "voice"
     | "display_name"
     | "identity_markdown"
     | "appearance_migration"
@@ -356,7 +439,10 @@ export function createAnimaDraftReducer(
       // A confirmed reset may accept new Action evidence, but never changes Avatar/text.
       evidence: Object.fromEntries(
         Object.entries(draft.evidence).filter(
-          ([id]) => draft.avatar?.item_id === id,
+          ([id]) =>
+            draft.avatar?.item_id === id ||
+            (draft.voice?.pocket.type === "clone" &&
+              draft.voice.pocket.source.item_id === id),
         ),
       ),
       meaningful: draft.meaningful || action.type === "reset-actions",
@@ -399,6 +485,15 @@ export function createAnimaDraftReducer(
 /** Preserve declaring paths, including repeated Reaction assignments, for error links. */
 export function creationRoots(draft: CreateAnimaDraft): CreationRoot[] {
   return [
+    ...(draft.voice?.pocket.type === "clone"
+      ? [
+          {
+            kind: "voice" as const,
+            source: draft.voice.pocket.source,
+            path: "/voice/pocket/source",
+          },
+        ]
+      : []),
     ...(draft.avatar
       ? [{ kind: "avatar" as const, source: draft.avatar, path: "/avatar" }]
       : []),
@@ -456,6 +551,7 @@ export function buildAnimaSpec(
     display_name: draft.display_name.trim(),
     identity_markdown: normalizeIdentity(draft.identity_markdown),
     avatar: draft.avatar,
+    voice: draft.voice,
     appearance: { profile: null, background: null },
     gestures: [...draft.gestures].sort((a, b) =>
       a.semantic_key.localeCompare(b.semantic_key),
@@ -492,6 +588,15 @@ export function draftIssues(
       `Use 1–${displayNameLimit} characters without control characters.`,
     );
   if (through > 0) {
+    const voice = creationVoiceSchema.safeParse(draft.voice);
+    if (!voice.success)
+      for (const issue of voice.error.issues)
+        add(
+          `/voice/${issue.path.join("/")}`,
+          draft.voice ? issue.message : "Choose a voice for your Anima.",
+        );
+  }
+  if (through > 1) {
     if (
       !draft.identity_markdown.trim() ||
       identityBytes(draft.identity_markdown) > identityLimit ||
@@ -503,7 +608,7 @@ export function draftIssues(
         `Enter nonblank Markdown within ${identityLimit.toLocaleString()} UTF-8 bytes.`,
       );
   }
-  if (through > 1 && !draft.starter_pack)
+  if (through > 2 && !draft.starter_pack)
     add("/starter_pack", "The installation's Starter Pack needs attention.");
   return issues;
 }
@@ -511,8 +616,9 @@ export function draftIssues(
 export function issueStep(path: string): CreationStep | null {
   if (path.startsWith("/display_name")) return null;
   if (path.startsWith("/avatar")) return 0;
-  if (path.startsWith("/identity_markdown")) return 1;
-  return 2;
+  if (path.startsWith("/voice")) return 1;
+  if (path.startsWith("/identity_markdown")) return 2;
+  return 3;
 }
 
 function draftValueAtPath(draft: CreateAnimaDraft, path: string): unknown {

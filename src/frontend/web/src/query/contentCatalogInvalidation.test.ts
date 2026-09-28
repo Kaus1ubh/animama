@@ -26,6 +26,8 @@ describe("detected content changes", () => {
     const key = queryKeys.gestures.list("owner", "", "all");
     client.setQueryData(key, ["Old gesture"]);
     client.setQueryData(queryKeys.poses.list("owner"), ["Old pose"]);
+    client.setQueryData(queryKeys.voiceContent.list("owner"), ["Old clone"]);
+    client.setQueryData(queryKeys.voiceContent.list("other"), ["Other clone"]);
     client.setQueryData(queryKeys.appearanceImages.list("owner"), [
       "Old portrait",
     ]);
@@ -47,6 +49,12 @@ describe("detected content changes", () => {
     expect(
       client.getQueryState(queryKeys.poses.list("owner"))?.isInvalidated,
     ).toBe(true);
+    expect(
+      client.getQueryState(queryKeys.voiceContent.list("owner"))?.isInvalidated,
+    ).toBe(true);
+    expect(
+      client.getQueryState(queryKeys.voiceContent.list("other"))?.isInvalidated,
+    ).toBe(false);
     expect(
       client.getQueryState(queryKeys.appearanceImages.list("owner"))
         ?.isInvalidated,

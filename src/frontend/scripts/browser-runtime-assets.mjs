@@ -22,11 +22,10 @@ const defaultManifest = path.join(
   repositoryRoot,
   "models/browser-runtime/manifest.json",
 );
-// Reviewed inventory sizes: 24 acquired model files (Pocket TTS english_2026-04
-// bundle, 15 core voice states, Smart Turn) plus 11 pinned package files.
-// Downloadable voices are installed through /v1/model-assets instead.
-const RUNTIME_FILE_COUNT = 35;
-const MODEL_FILE_COUNT = 24;
+// Reviewed inventory: generation/support files, Eve/Azelma and Smart Turn,
+// plus 11 pinned package files. Other voices and Mimi install through /v1/model-assets.
+const RUNTIME_FILE_COUNT = 21;
+const MODEL_FILE_COUNT = 10;
 const packageSources = new Map([
   ["onnxruntime-web-assets", ["onnxruntime-web", "1.24.2"]],
   ["@ricky0123/vad-web", ["@ricky0123/vad-web", "0.0.30"]],
@@ -129,7 +128,10 @@ export function readBrowserRuntimeManifest(manifestPath = defaultManifest) {
   return manifest;
 }
 
-/** Resolve the immutable model revision once; Docker supplies its verified readonly mount. */
+/**
+ * Resolve the immutable model revision once; Docker supplies its verified
+ * readonly mount. Returns null only when the set was never acquired.
+ */
 function resolveModelDirectory() {
   const mounted = process.env.ANIMAMA_BROWSER_MODEL_DIR?.trim();
   if (mounted) {
@@ -137,15 +139,20 @@ function resolveModelDirectory() {
       throw new Error("ANIMAMA_BROWSER_MODEL_DIR must be absolute");
     return mounted;
   }
-  return execFileSync(
-    process.platform === "win32" ? "python" : "python3",
-    [
-      path.join(repositoryRoot, "scripts/models/browser_speech.py"),
-      "path",
-      "--offline",
-    ],
-    { encoding: "utf8", stdio: ["ignore", "pipe", "inherit"] },
-  ).trim();
+  try {
+    return execFileSync(
+      process.platform === "win32" ? "python" : "python3",
+      [
+        path.join(repositoryRoot, "scripts/models/browser_speech.py"),
+        "path",
+        "--offline",
+      ],
+      { encoding: "utf8", stdio: ["ignore", "pipe", "inherit"] },
+    ).trim();
+  } catch (error) {
+    if (error.status === 2) return null;
+    throw error;
+  }
 }
 
 /** Legacy user catalogs are separate inputs, never part of the engine manifest. */
@@ -186,8 +193,12 @@ export function resolveBrowserRuntimeAssets({
   modelDirectory,
   packagesRoot = path.join(frontendRoot, "web/node_modules"),
   builtRoot,
+  allowMissingModels = false,
 } = {}) {
   const manifest = readBrowserRuntimeManifest(manifestPath);
+  const packageEntries = manifest.files.filter(
+    (entry) => entry.source.kind === "package",
+  );
   if (builtRoot) {
     const names = [];
     const visit = (directory, prefix = "") => {
@@ -205,14 +216,19 @@ export function resolveBrowserRuntimeAssets({
       }
     };
     visit(path.join(builtRoot, "onnx"));
-    if (
-      JSON.stringify(names.sort()) !==
-      JSON.stringify(manifest.files.map((entry) => entry.path).sort())
-    )
+    const inventoryOf = (entries) =>
+      JSON.stringify(entries.map((entry) => entry.path).sort());
+    const builtNames = JSON.stringify(names.sort());
+    // A web build made without the optional model set carries packages only.
+    const expected =
+      allowMissingModels && builtNames === inventoryOf(packageEntries)
+        ? packageEntries
+        : manifest.files;
+    if (builtNames !== inventoryOf(expected))
       throw new Error(
         "Built browser runtime inventory contains missing or unlisted files",
       );
-    return manifest.files.map((entry) => {
+    return expected.map((entry) => {
       const filePath = safeFile(path.join(builtRoot, "onnx"), entry.path);
       verifyFile(filePath, entry);
       return { ...entry, filePath };
@@ -242,16 +258,26 @@ export function resolveBrowserRuntimeAssets({
   )
     throw new Error("Browser model acquisition and runtime inventories differ");
   const models = modelDirectory ?? resolveModelDirectory();
-  if (!path.isAbsolute(models))
+  if (models !== null && !path.isAbsolute(models))
     throw new Error("Browser model directory must be absolute");
-  const actualFiles = readdirSync(models).sort();
-  if (
+  const actualFiles = models === null ? [] : readdirSync(models).sort();
+  // Unacquired sets resolve to null, or in Compose to the checked-in notices
+  // directory that contains none of the model files. Partial sets still fail.
+  const modelNames = new Set(modelEntries.map((entry) => entry.source.path));
+  let entries = manifest.files;
+  if (!actualFiles.some((name) => modelNames.has(name))) {
+    if (!allowMissingModels)
+      throw new Error(
+        "Browser speech models are not acquired; run python3 scripts/models/browser_speech.py acquire",
+      );
+    entries = packageEntries;
+  } else if (
     JSON.stringify(actualFiles) !==
     JSON.stringify(modelEntries.map((entry) => entry.source.path).sort())
   )
     throw new Error("Browser model store contains missing or unlisted files");
   const packageRoots = new Map();
-  return manifest.files.map((entry) => {
+  return entries.map((entry) => {
     let root = models;
     if (entry.source.kind === "package") {
       const name = entry.source.package;

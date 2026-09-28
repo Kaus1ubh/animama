@@ -1,31 +1,60 @@
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { listModelAssetsV1ModelAssetsGet } from "@animama/runtime-contracts/sdk";
 import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
 import { queryKeys } from "@/query/keys";
+import {
+  assetAttemptKey,
+  assetAttemptStorageKey,
+  loadModelAssets,
+  readAssetAttempts,
+  retryAssetIds,
+} from "@/query/model-download-coordination";
 
-/** How often install progress is refreshed while a download runs. */
 const DOWNLOAD_POLL_MS = 1000;
 
-/**
- * Downloadable model assets and the store's free space. Polls only while a
- * download is in flight; installed state is otherwise stable.
- */
+/** Manager state owns progress; attempts only distinguish Retry after a service restart. */
 export function useModelAssets({ enabled = true }: { enabled?: boolean } = {}) {
   const ownerId = useRuntimeOwnerId();
-  return useQuery({
-    queryKey: queryKeys.modelAssets(ownerId ?? "__anon__"),
+  const owner = ownerId ?? "__anon__";
+  const client = useQueryClient();
+  const attempts = useQuery({
+    queryKey: assetAttemptKey(owner),
+    queryFn: () => readAssetAttempts(owner),
+    initialData: () => readAssetAttempts(owner),
+    staleTime: Infinity,
+    enabled: Boolean(ownerId),
+  });
+  useEffect(() => {
+    if (!ownerId) return;
+    const changed = (event: StorageEvent) => {
+      if (event.key === assetAttemptStorageKey(owner) || event.key === null) {
+        client.setQueryData(assetAttemptKey(owner), readAssetAttempts(owner));
+        // The marker only wakes reconciliation. Progress and polling still come
+        // from a fresh response by the owning backend manager.
+        void client.invalidateQueries({
+          queryKey: queryKeys.modelAssets(owner),
+          exact: true,
+        });
+      }
+    };
+    window.addEventListener("storage", changed);
+    return () => window.removeEventListener("storage", changed);
+  }, [client, owner, ownerId]);
+  const query = useQuery({
+    queryKey: queryKeys.modelAssets(owner),
     enabled: enabled && Boolean(ownerId),
-    queryFn: async ({ signal }) => {
-      const { data } = await listModelAssetsV1ModelAssetsGet({
-        signal,
-        throwOnError: true,
-      });
-      return data;
-    },
+    queryFn: ({ signal }) => loadModelAssets(client, owner, signal),
+    // A new view/recreated renderer must reconcile with the surviving manager.
+    refetchOnMount: "always",
     refetchInterval: (query) =>
       query.state.data?.assets.some((asset) => asset.status === "downloading")
         ? DOWNLOAD_POLL_MS
         : false,
   });
+  const retries = useMemo(
+    () => retryAssetIds(attempts.data, query.data?.assets),
+    [attempts.data, query.data?.assets],
+  );
+  return { ...query, retryAssetIds: retries };
 }

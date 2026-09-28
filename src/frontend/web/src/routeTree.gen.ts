@@ -30,7 +30,6 @@ import { Route as ASoundEffectsNewRouteImport } from "./routes/a/sound-effects.n
 import { Route as ASceneEffectsNewRouteImport } from "./routes/a/scene-effects.new";
 import { Route as AReactionsNewRouteImport } from "./routes/a/reactions.new";
 import { Route as AParticleEffectsNewRouteImport } from "./routes/a/particle-effects.new";
-import { Route as AMusicTracksNewRouteImport } from "./routes/a/music-tracks.new";
 import { Route as AIdleStylesNewRouteImport } from "./routes/a/idle-styles.new";
 import { Route as AGesturesNewRouteImport } from "./routes/a/gestures.new";
 import { Route as AAvatarEffectsNewRouteImport } from "./routes/a/avatar-effects.new";
@@ -41,7 +40,6 @@ import { Route as ASceneEffectsSceneEffectIdEditRouteImport } from "./routes/a/s
 import { Route as AReactionsReactionIdEditRouteImport } from "./routes/a/reactions.$reactionId.edit";
 import { Route as APosesPoseIdEditRouteImport } from "./routes/a/poses.$poseId.edit";
 import { Route as AParticleEffectsParticleEffectIdEditRouteImport } from "./routes/a/particle-effects.$particleEffectId.edit";
-import { Route as AMusicTracksMusicTrackIdEditRouteImport } from "./routes/a/music-tracks.$musicTrackId.edit";
 import { Route as AIdleStylesIdleStyleIdEditRouteImport } from "./routes/a/idle-styles.$idleStyleId.edit";
 import { Route as AGesturesGestureIdEditRouteImport } from "./routes/a/gestures.$gestureId.edit";
 import { Route as AAvatarEffectsAvatarEffectIdEditRouteImport } from "./routes/a/avatar-effects.$avatarEffectId.edit";
@@ -153,11 +151,6 @@ const AParticleEffectsNewRoute = AParticleEffectsNewRouteImport.update({
   path: "/particle-effects/new",
   getParentRoute: () => ARoute,
 } as any);
-const AMusicTracksNewRoute = AMusicTracksNewRouteImport.update({
-  id: "/music-tracks/new",
-  path: "/music-tracks/new",
-  getParentRoute: () => ARoute,
-} as any);
 const AIdleStylesNewRoute = AIdleStylesNewRouteImport.update({
   id: "/idle-styles/new",
   path: "/idle-styles/new",
@@ -212,12 +205,6 @@ const AParticleEffectsParticleEffectIdEditRoute =
     path: "/particle-effects/$particleEffectId/edit",
     getParentRoute: () => ARoute,
   } as any);
-const AMusicTracksMusicTrackIdEditRoute =
-  AMusicTracksMusicTrackIdEditRouteImport.update({
-    id: "/music-tracks/$musicTrackId/edit",
-    path: "/music-tracks/$musicTrackId/edit",
-    getParentRoute: () => ARoute,
-  } as any);
 const AIdleStylesIdleStyleIdEditRoute =
   AIdleStylesIdleStyleIdEditRouteImport.update({
     id: "/idle-styles/$idleStyleId/edit",
@@ -263,7 +250,6 @@ export interface FileRoutesByFullPath {
   "/a/avatar-effects/new": typeof AAvatarEffectsNewRoute;
   "/a/gestures/new": typeof AGesturesNewRoute;
   "/a/idle-styles/new": typeof AIdleStylesNewRoute;
-  "/a/music-tracks/new": typeof AMusicTracksNewRoute;
   "/a/particle-effects/new": typeof AParticleEffectsNewRoute;
   "/a/reactions/new": typeof AReactionsNewRoute;
   "/a/scene-effects/new": typeof ASceneEffectsNewRoute;
@@ -279,7 +265,6 @@ export interface FileRoutesByFullPath {
   "/a/avatar-effects/$avatarEffectId/edit": typeof AAvatarEffectsAvatarEffectIdEditRoute;
   "/a/gestures/$gestureId/edit": typeof AGesturesGestureIdEditRoute;
   "/a/idle-styles/$idleStyleId/edit": typeof AIdleStylesIdleStyleIdEditRoute;
-  "/a/music-tracks/$musicTrackId/edit": typeof AMusicTracksMusicTrackIdEditRoute;
   "/a/particle-effects/$particleEffectId/edit": typeof AParticleEffectsParticleEffectIdEditRoute;
   "/a/poses/$poseId/edit": typeof APosesPoseIdEditRoute;
   "/a/reactions/$reactionId/edit": typeof AReactionsReactionIdEditRoute;
@@ -300,7 +285,6 @@ export interface FileRoutesByTo {
   "/a/avatar-effects/new": typeof AAvatarEffectsNewRoute;
   "/a/gestures/new": typeof AGesturesNewRoute;
   "/a/idle-styles/new": typeof AIdleStylesNewRoute;
-  "/a/music-tracks/new": typeof AMusicTracksNewRoute;
   "/a/particle-effects/new": typeof AParticleEffectsNewRoute;
   "/a/reactions/new": typeof AReactionsNewRoute;
   "/a/scene-effects/new": typeof ASceneEffectsNewRoute;
@@ -316,7 +300,6 @@ export interface FileRoutesByTo {
   "/a/avatar-effects/$avatarEffectId/edit": typeof AAvatarEffectsAvatarEffectIdEditRoute;
   "/a/gestures/$gestureId/edit": typeof AGesturesGestureIdEditRoute;
   "/a/idle-styles/$idleStyleId/edit": typeof AIdleStylesIdleStyleIdEditRoute;
-  "/a/music-tracks/$musicTrackId/edit": typeof AMusicTracksMusicTrackIdEditRoute;
   "/a/particle-effects/$particleEffectId/edit": typeof AParticleEffectsParticleEffectIdEditRoute;
   "/a/poses/$poseId/edit": typeof APosesPoseIdEditRoute;
   "/a/reactions/$reactionId/edit": typeof AReactionsReactionIdEditRoute;
@@ -341,7 +324,6 @@ export interface FileRoutesById {
   "/a/avatar-effects/new": typeof AAvatarEffectsNewRoute;
   "/a/gestures/new": typeof AGesturesNewRoute;
   "/a/idle-styles/new": typeof AIdleStylesNewRoute;
-  "/a/music-tracks/new": typeof AMusicTracksNewRoute;
   "/a/particle-effects/new": typeof AParticleEffectsNewRoute;
   "/a/reactions/new": typeof AReactionsNewRoute;
   "/a/scene-effects/new": typeof ASceneEffectsNewRoute;
@@ -357,7 +339,6 @@ export interface FileRoutesById {
   "/a/avatar-effects/$avatarEffectId/edit": typeof AAvatarEffectsAvatarEffectIdEditRoute;
   "/a/gestures/$gestureId/edit": typeof AGesturesGestureIdEditRoute;
   "/a/idle-styles/$idleStyleId/edit": typeof AIdleStylesIdleStyleIdEditRoute;
-  "/a/music-tracks/$musicTrackId/edit": typeof AMusicTracksMusicTrackIdEditRoute;
   "/a/particle-effects/$particleEffectId/edit": typeof AParticleEffectsParticleEffectIdEditRoute;
   "/a/poses/$poseId/edit": typeof APosesPoseIdEditRoute;
   "/a/reactions/$reactionId/edit": typeof AReactionsReactionIdEditRoute;
@@ -383,7 +364,6 @@ export interface FileRouteTypes {
     | "/a/avatar-effects/new"
     | "/a/gestures/new"
     | "/a/idle-styles/new"
-    | "/a/music-tracks/new"
     | "/a/particle-effects/new"
     | "/a/reactions/new"
     | "/a/scene-effects/new"
@@ -399,7 +379,6 @@ export interface FileRouteTypes {
     | "/a/avatar-effects/$avatarEffectId/edit"
     | "/a/gestures/$gestureId/edit"
     | "/a/idle-styles/$idleStyleId/edit"
-    | "/a/music-tracks/$musicTrackId/edit"
     | "/a/particle-effects/$particleEffectId/edit"
     | "/a/poses/$poseId/edit"
     | "/a/reactions/$reactionId/edit"
@@ -420,7 +399,6 @@ export interface FileRouteTypes {
     | "/a/avatar-effects/new"
     | "/a/gestures/new"
     | "/a/idle-styles/new"
-    | "/a/music-tracks/new"
     | "/a/particle-effects/new"
     | "/a/reactions/new"
     | "/a/scene-effects/new"
@@ -436,7 +414,6 @@ export interface FileRouteTypes {
     | "/a/avatar-effects/$avatarEffectId/edit"
     | "/a/gestures/$gestureId/edit"
     | "/a/idle-styles/$idleStyleId/edit"
-    | "/a/music-tracks/$musicTrackId/edit"
     | "/a/particle-effects/$particleEffectId/edit"
     | "/a/poses/$poseId/edit"
     | "/a/reactions/$reactionId/edit"
@@ -460,7 +437,6 @@ export interface FileRouteTypes {
     | "/a/avatar-effects/new"
     | "/a/gestures/new"
     | "/a/idle-styles/new"
-    | "/a/music-tracks/new"
     | "/a/particle-effects/new"
     | "/a/reactions/new"
     | "/a/scene-effects/new"
@@ -476,7 +452,6 @@ export interface FileRouteTypes {
     | "/a/avatar-effects/$avatarEffectId/edit"
     | "/a/gestures/$gestureId/edit"
     | "/a/idle-styles/$idleStyleId/edit"
-    | "/a/music-tracks/$musicTrackId/edit"
     | "/a/particle-effects/$particleEffectId/edit"
     | "/a/poses/$poseId/edit"
     | "/a/reactions/$reactionId/edit"
@@ -642,13 +617,6 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof AParticleEffectsNewRouteImport;
       parentRoute: typeof ARoute;
     };
-    "/a/music-tracks/new": {
-      id: "/a/music-tracks/new";
-      path: "/music-tracks/new";
-      fullPath: "/a/music-tracks/new";
-      preLoaderRoute: typeof AMusicTracksNewRouteImport;
-      parentRoute: typeof ARoute;
-    };
     "/a/idle-styles/new": {
       id: "/a/idle-styles/new";
       path: "/idle-styles/new";
@@ -717,13 +685,6 @@ declare module "@tanstack/react-router" {
       path: "/particle-effects/$particleEffectId/edit";
       fullPath: "/a/particle-effects/$particleEffectId/edit";
       preLoaderRoute: typeof AParticleEffectsParticleEffectIdEditRouteImport;
-      parentRoute: typeof ARoute;
-    };
-    "/a/music-tracks/$musicTrackId/edit": {
-      id: "/a/music-tracks/$musicTrackId/edit";
-      path: "/music-tracks/$musicTrackId/edit";
-      fullPath: "/a/music-tracks/$musicTrackId/edit";
-      preLoaderRoute: typeof AMusicTracksMusicTrackIdEditRouteImport;
       parentRoute: typeof ARoute;
     };
     "/a/idle-styles/$idleStyleId/edit": {
@@ -816,7 +777,6 @@ interface ARouteChildren {
   AAvatarEffectsNewRoute: typeof AAvatarEffectsNewRoute;
   AGesturesNewRoute: typeof AGesturesNewRoute;
   AIdleStylesNewRoute: typeof AIdleStylesNewRoute;
-  AMusicTracksNewRoute: typeof AMusicTracksNewRoute;
   AParticleEffectsNewRoute: typeof AParticleEffectsNewRoute;
   AReactionsNewRoute: typeof AReactionsNewRoute;
   ASceneEffectsNewRoute: typeof ASceneEffectsNewRoute;
@@ -826,7 +786,6 @@ interface ARouteChildren {
   AAvatarEffectsAvatarEffectIdEditRoute: typeof AAvatarEffectsAvatarEffectIdEditRoute;
   AGesturesGestureIdEditRoute: typeof AGesturesGestureIdEditRoute;
   AIdleStylesIdleStyleIdEditRoute: typeof AIdleStylesIdleStyleIdEditRoute;
-  AMusicTracksMusicTrackIdEditRoute: typeof AMusicTracksMusicTrackIdEditRoute;
   AParticleEffectsParticleEffectIdEditRoute: typeof AParticleEffectsParticleEffectIdEditRoute;
   APosesPoseIdEditRoute: typeof APosesPoseIdEditRoute;
   AReactionsReactionIdEditRoute: typeof AReactionsReactionIdEditRoute;
@@ -845,7 +804,6 @@ const ARouteChildren: ARouteChildren = {
   AAvatarEffectsNewRoute: AAvatarEffectsNewRoute,
   AGesturesNewRoute: AGesturesNewRoute,
   AIdleStylesNewRoute: AIdleStylesNewRoute,
-  AMusicTracksNewRoute: AMusicTracksNewRoute,
   AParticleEffectsNewRoute: AParticleEffectsNewRoute,
   AReactionsNewRoute: AReactionsNewRoute,
   ASceneEffectsNewRoute: ASceneEffectsNewRoute,
@@ -855,7 +813,6 @@ const ARouteChildren: ARouteChildren = {
   AAvatarEffectsAvatarEffectIdEditRoute: AAvatarEffectsAvatarEffectIdEditRoute,
   AGesturesGestureIdEditRoute: AGesturesGestureIdEditRoute,
   AIdleStylesIdleStyleIdEditRoute: AIdleStylesIdleStyleIdEditRoute,
-  AMusicTracksMusicTrackIdEditRoute: AMusicTracksMusicTrackIdEditRoute,
   AParticleEffectsParticleEffectIdEditRoute:
     AParticleEffectsParticleEffectIdEditRoute,
   APosesPoseIdEditRoute: APosesPoseIdEditRoute,

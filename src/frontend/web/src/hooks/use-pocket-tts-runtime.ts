@@ -89,7 +89,10 @@ type PocketTtsCoreLike = {
     catalogCacheKey?: string | null;
   }>;
   setVoice: (voiceName: string) => void;
-  encodeVoiceFromFile: (file: File) => Promise<{ voiceName: string }>;
+  encodeVoiceFromFile: (
+    file: File,
+    options?: { signal?: AbortSignal },
+  ) => Promise<{ voiceName: string }>;
   getVoices: () => string[];
   getAudioContext?: () => AudioContext | null;
   setVolume?: (volume: number) => void;
@@ -117,6 +120,8 @@ type GeneratePocketTtsArgs = {
   voice?: string;
   animaId?: string;
   animaVoiceKey?: string;
+  /** Presence requires this exact mounted catalog; no worker fallback is allowed. */
+  assertAnimaCatalogActive?: () => void;
   signal?: AbortSignal;
   preservePlayback?: boolean;
   endStream?: boolean;
@@ -538,12 +543,15 @@ export async function preloadPocketTtsAnimaVoices(
 
 export async function encodePocketTtsVoiceFromFile(
   file: File,
+  options?: { signal?: AbortSignal },
 ): Promise<{ voiceName: string }> {
   if (!file) {
     throw new Error("No voice file provided.");
   }
 
+  options?.signal?.throwIfAborted();
   await warmupPocketTtsRuntime();
+  options?.signal?.throwIfAborted();
   const core = getOrCreateCore();
 
   updateState((prev) => ({
@@ -554,7 +562,7 @@ export async function encodePocketTtsVoiceFromFile(
   }));
 
   try {
-    const result = await core.encodeVoiceFromFile(file);
+    const result = await core.encodeVoiceFromFile(file, options);
     updateState((prev) => ({
       ...prev,
       isEncodingVoice: false,
@@ -583,8 +591,24 @@ export async function generatePocketTtsText(
   const trimmed = text.trim();
   if (!trimmed) return;
 
+  args?.assertAnimaCatalogActive?.();
   await warmupPocketTtsRuntime();
   const core = getOrCreateCore();
+
+  if (args?.assertAnimaCatalogActive) {
+    args.assertAnimaCatalogActive();
+    const catalog = args.animaId?.trim()
+      ? await core.preloadAnimaVoices?.(args.animaId.trim())
+      : null;
+    args.assertAnimaCatalogActive();
+    // The vendored worker otherwise falls back silently to its current voice.
+    // Both supported legacy catalogs and named clones contain neutral.
+    if (!catalog?.available || !catalog.voices?.includes("neutral")) {
+      throw new Error(
+        "The selected PocketTTS voice could not be loaded. Reload its content to retry.",
+      );
+    }
+  }
 
   if (args?.voice?.trim()) {
     core.setVoice(args.voice.trim());
@@ -680,7 +704,10 @@ type UsePocketTtsRuntimeResult = PocketTtsRuntimeState & {
   warmup: () => Promise<void>;
   preloadAnimaVoices: (animaRef: string) => Promise<void>;
   setVoice: (voiceName: string) => Promise<void>;
-  encodeVoiceFromFile: (file: File) => Promise<{ voiceName: string }>;
+  encodeVoiceFromFile: (
+    file: File,
+    options?: { signal?: AbortSignal },
+  ) => Promise<{ voiceName: string }>;
   generateAndWait: (
     text: string,
     args?: GeneratePocketTtsArgs,

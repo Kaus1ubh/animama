@@ -1,48 +1,51 @@
 import type { PyAnimaIdleStyle } from "@animama/runtime-contracts/api-types";
 import { TRACKED_EMOTIONS } from "@/lib/emotion";
+import { IDLE_INTENSITIES } from "@/lib/content/idleStyleDocument";
 
 export type IdleStyleAssignment = {
-  key: "default" | string;
+  key: string;
   label: string;
-  animationIds: string[];
-  animationNames: string[];
-  fallsBackToDefault: boolean;
+  gestureRefs: string[];
+  gestureNames: string[];
+  mode: "default" | "inherit" | "pool" | "none";
 };
 
-/** Convert entry-local animation IDs into the friendly mapping shown in Loadout. */
+/** Present Style-owned cells without recreating a per-Anima override layer. */
 export function presentIdleStyle(
   style: PyAnimaIdleStyle,
 ): IdleStyleAssignment[] {
   if (style.state === "empty") return [];
   const names = new Map(
-    (style.animations ?? []).map((animation) => [
-      animation.animation_id,
-      animation.name,
+    (style.gestures ?? []).map((gesture) => [
+      gesture.logical_key,
+      gesture.name,
     ]),
   );
-  const defaultPool = style.effective_default_pool ?? [];
-  const defaultNames = defaultPool.map((id) => names.get(id) ?? id);
+  const defaultPool = style.default_pool ?? [];
   return [
     {
       key: "default",
       label: "Default",
-      animationIds: defaultPool,
-      animationNames: defaultNames,
-      fallsBackToDefault: false,
+      gestureRefs: defaultPool,
+      gestureNames: defaultPool.map((ref) => names.get(ref) ?? ref),
+      mode: "default",
     },
-    ...[...TRACKED_EMOTIONS]
-      .sort((left, right) => left.localeCompare(right))
-      .map((emotion) => {
-        const explicit = style.effective_emotion_pools?.[emotion];
+    ...[...TRACKED_EMOTIONS].sort().flatMap((emotion) =>
+      IDLE_INTENSITIES.map((intensity): IdleStyleAssignment => {
+        const cell = style.cells?.[emotion]?.[intensity];
+        const pool = !cell
+          ? defaultPool
+          : cell.mode === "none"
+            ? []
+            : cell.gestures;
         return {
-          key: emotion,
-          label: emotion[0]!.toUpperCase() + emotion.slice(1),
-          animationIds: explicit ?? defaultPool,
-          animationNames: (explicit ?? defaultPool).map(
-            (id) => names.get(id) ?? id,
-          ),
-          fallsBackToDefault: !explicit,
+          key: `${emotion}:${intensity}`,
+          label: `${emotion[0]!.toUpperCase()}${emotion.slice(1)} · ${intensity}`,
+          gestureRefs: pool,
+          gestureNames: pool.map((ref) => names.get(ref) ?? ref),
+          mode: cell?.mode ?? "inherit",
         };
       }),
+    ),
   ];
 }

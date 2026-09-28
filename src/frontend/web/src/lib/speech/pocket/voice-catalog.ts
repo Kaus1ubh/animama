@@ -19,6 +19,8 @@ export type PocketVoice = {
   /** The `/v1/model-assets` ID of a downloadable voice; null for core voices. */
   readonly assetId: string | null;
   readonly sizeBytes: number;
+  /** Pinned source recording; plays without downloading or synthesizing the voice. */
+  readonly previewUrl: string;
 };
 
 export const DEFAULT_POCKET_VOICE = "eve";
@@ -34,6 +36,8 @@ export const POCKET_VOICES: readonly PocketVoice[] = [
     delivery: "core",
     assetId: null,
     sizeBytes: 7963896,
+    previewUrl:
+      "https://huggingface.co/kyutai/tts-voices/resolve/323332d33f997de8394f24a193e1a76df720e01a/vctk/p303_023_enhanced.wav",
   },
   {
     id: "clara",
@@ -41,9 +45,11 @@ export const POCKET_VOICES: readonly PocketVoice[] = [
     gender: "female",
     accent: "English",
     recommended: true,
-    delivery: "core",
-    assetId: null,
+    delivery: "download",
+    assetId: "pocket-voice-clara",
     sizeBytes: 6440248,
+    previewUrl:
+      "https://huggingface.co/kyutai/tts-voices/resolve/323332d33f997de8394f24a193e1a76df720e01a/vctk/p236_023_enhanced.wav",
   },
   {
     id: "imogen",
@@ -51,9 +57,11 @@ export const POCKET_VOICES: readonly PocketVoice[] = [
     gender: "female",
     accent: "English",
     recommended: true,
-    delivery: "core",
-    assetId: null,
+    delivery: "download",
+    assetId: "pocket-voice-imogen",
     sizeBytes: 6538552,
+    previewUrl:
+      "https://huggingface.co/kyutai/tts-voices/resolve/323332d33f997de8394f24a193e1a76df720e01a/vctk/p233_023_enhanced.wav",
   },
   {
     id: "jane",
@@ -61,9 +69,11 @@ export const POCKET_VOICES: readonly PocketVoice[] = [
     gender: "female",
     accent: "American",
     recommended: true,
-    delivery: "core",
-    assetId: null,
+    delivery: "download",
+    assetId: "pocket-voice-jane",
     sizeBytes: 7374072,
+    previewUrl:
+      "https://huggingface.co/kyutai/tts-voices/resolve/323332d33f997de8394f24a193e1a76df720e01a/vctk/p339_023_enhanced.wav",
   },
   {
     id: "lucy",
@@ -71,9 +81,11 @@ export const POCKET_VOICES: readonly PocketVoice[] = [
     gender: "female",
     accent: "British",
     recommended: true,
-    delivery: "core",
-    assetId: null,
+    delivery: "download",
+    assetId: "pocket-voice-lucy",
     sizeBytes: 7324984,
+    previewUrl:
+      "https://huggingface.co/kyutai/tts-voices/resolve/323332d33f997de8394f24a193e1a76df720e01a/vctk/s5_023_enhanced.wav",
   },
   {
     id: "olivia",
@@ -81,9 +93,11 @@ export const POCKET_VOICES: readonly PocketVoice[] = [
     gender: "female",
     accent: "American",
     recommended: true,
-    delivery: "core",
-    assetId: null,
+    delivery: "download",
+    assetId: "pocket-voice-olivia",
     sizeBytes: 7865656,
+    previewUrl:
+      "https://huggingface.co/kyutai/tts-voices/resolve/323332d33f997de8394f24a193e1a76df720e01a/vctk/p300_023_enhanced.wav",
   },
   {
     id: "thandi",
@@ -91,9 +105,11 @@ export const POCKET_VOICES: readonly PocketVoice[] = [
     gender: "female",
     accent: "South African",
     recommended: true,
-    delivery: "core",
-    assetId: null,
+    delivery: "download",
+    assetId: "pocket-voice-thandi",
     sizeBytes: 7030072,
+    previewUrl:
+      "https://huggingface.co/kyutai/tts-voices/resolve/323332d33f997de8394f24a193e1a76df720e01a/vctk/p314_023_enhanced.wav",
   },
   {
     id: "anna",
@@ -104,6 +120,8 @@ export const POCKET_VOICES: readonly PocketVoice[] = [
     delivery: "download",
     assetId: "pocket-voice-anna",
     sizeBytes: 7816440,
+    previewUrl:
+      "https://huggingface.co/kyutai/tts-voices/resolve/323332d33f997de8394f24a193e1a76df720e01a/vctk/p228_023_enhanced.wav",
   },
   {
     id: "aoife",
@@ -114,6 +132,8 @@ export const POCKET_VOICES: readonly PocketVoice[] = [
     delivery: "download",
     assetId: "pocket-voice-aoife",
     sizeBytes: 7275832,
+    previewUrl:
+      "https://huggingface.co/kyutai/tts-voices/resolve/323332d33f997de8394f24a193e1a76df720e01a/vctk/p283_023_enhanced.wav",
   },
   {
     id: "beatrice",
@@ -124,6 +144,8 @@ export const POCKET_VOICES: readonly PocketVoice[] = [
     delivery: "download",
     assetId: "pocket-voice-beatrice",
     sizeBytes: 7079224,
+    previewUrl:
+      "https://huggingface.co/kyutai/tts-voices/resolve/323332d33f997de8394f24a193e1a76df720e01a/vctk/p267_023_enhanced.wav",
   },
   {
     id: "brooke",
@@ -134,6 +156,8 @@ export const POCKET_VOICES: readonly PocketVoice[] = [
     delivery: "download",
     assetId: "pocket-voice-brooke",
     sizeBytes: 6587704,
+    previewUrl:
+      "https://huggingface.co/kyutai/tts-voices/resolve/323332d33f997de8394f24a193e1a76df720e01a/vctk/p299_023_enhanced.wav",
   },
   {
     id: "caro_davy",
@@ -144,6 +168,8 @@ export const POCKET_VOICES: readonly PocketVoice[] = [
     delivery: "download",
     assetId: "pocket-voice-caro_davy",
     sizeBytes: 5260536,
+    previewUrl:
+      "https://huggingface.co/kyutai/tts-voices/resolve/323332d33f997de8394f24a193e1a76df720e01a/voice-zero/caro_davy.wav",
   },
   {
     id: "chloe",
@@ -154,6 +180,8 @@ export const POCKET_VOICES: readonly PocketVoice[] = [
     delivery: "download",
     assetId: "pocket-voice-chloe",
     sizeBytes: 7324984,
+    previewUrl:
+      "https://huggingface.co/kyutai/tts-voices/resolve/323332d33f997de8394f24a193e1a76df720e01a/vctk/p307_023_enhanced.wav",
   },
   {
     id: "emily",
@@ -164,6 +192,8 @@ export const POCKET_VOICES: readonly PocketVoice[] = [
     delivery: "download",
     assetId: "pocket-voice-emily",
     sizeBytes: 6391096,
+    previewUrl:
+      "https://huggingface.co/kyutai/tts-voices/resolve/323332d33f997de8394f24a193e1a76df720e01a/vctk/p308_023_enhanced.wav",
   },
   {
     id: "eponine",
@@ -174,6 +204,8 @@ export const POCKET_VOICES: readonly PocketVoice[] = [
     delivery: "download",
     assetId: "pocket-voice-eponine",
     sizeBytes: 6931704,
+    previewUrl:
+      "https://huggingface.co/kyutai/tts-voices/resolve/323332d33f997de8394f24a193e1a76df720e01a/vctk/p262_023_enhanced.wav",
   },
   {
     id: "eve",
@@ -184,6 +216,8 @@ export const POCKET_VOICES: readonly PocketVoice[] = [
     delivery: "core",
     assetId: null,
     sizeBytes: 6538488,
+    previewUrl:
+      "https://huggingface.co/kyutai/tts-voices/resolve/323332d33f997de8394f24a193e1a76df720e01a/vctk/p361_023_enhanced.wav",
   },
   {
     id: "fantine",
@@ -194,6 +228,8 @@ export const POCKET_VOICES: readonly PocketVoice[] = [
     delivery: "download",
     assetId: "pocket-voice-fantine",
     sizeBytes: 6538488,
+    previewUrl:
+      "https://huggingface.co/kyutai/tts-voices/resolve/323332d33f997de8394f24a193e1a76df720e01a/vctk/p244_023_enhanced.wav",
   },
   {
     id: "florence",
@@ -204,6 +240,8 @@ export const POCKET_VOICES: readonly PocketVoice[] = [
     delivery: "download",
     assetId: "pocket-voice-florence",
     sizeBytes: 6980920,
+    previewUrl:
+      "https://huggingface.co/kyutai/tts-voices/resolve/323332d33f997de8394f24a193e1a76df720e01a/vctk/p276_023_enhanced.wav",
   },
   {
     id: "grace",
@@ -214,6 +252,8 @@ export const POCKET_VOICES: readonly PocketVoice[] = [
     delivery: "download",
     assetId: "pocket-voice-grace",
     sizeBytes: 7324984,
+    previewUrl:
+      "https://huggingface.co/kyutai/tts-voices/resolve/323332d33f997de8394f24a193e1a76df720e01a/vctk/p305_023_enhanced.wav",
   },
   {
     id: "harriet",
@@ -224,6 +264,8 @@ export const POCKET_VOICES: readonly PocketVoice[] = [
     delivery: "download",
     assetId: "pocket-voice-harriet",
     sizeBytes: 5752112,
+    previewUrl:
+      "https://huggingface.co/kyutai/tts-voices/resolve/323332d33f997de8394f24a193e1a76df720e01a/vctk/p231_023_enhanced.wav",
   },
   {
     id: "leah",
@@ -234,6 +276,8 @@ export const POCKET_VOICES: readonly PocketVoice[] = [
     delivery: "download",
     assetId: "pocket-voice-leah",
     sizeBytes: 6980920,
+    previewUrl:
+      "https://huggingface.co/kyutai/tts-voices/resolve/323332d33f997de8394f24a193e1a76df720e01a/vctk/p317_023_enhanced.wav",
   },
   {
     id: "madison",
@@ -244,6 +288,8 @@ export const POCKET_VOICES: readonly PocketVoice[] = [
     delivery: "download",
     assetId: "pocket-voice-madison",
     sizeBytes: 8357176,
+    previewUrl:
+      "https://huggingface.co/kyutai/tts-voices/resolve/323332d33f997de8394f24a193e1a76df720e01a/vctk/p294_023_enhanced.wav",
   },
   {
     id: "mary",
@@ -254,6 +300,8 @@ export const POCKET_VOICES: readonly PocketVoice[] = [
     delivery: "download",
     assetId: "pocket-voice-mary",
     sizeBytes: 6194424,
+    previewUrl:
+      "https://huggingface.co/kyutai/tts-voices/resolve/323332d33f997de8394f24a193e1a76df720e01a/vctk/p333_023_enhanced.wav",
   },
   {
     id: "niamh",
@@ -264,6 +312,8 @@ export const POCKET_VOICES: readonly PocketVoice[] = [
     delivery: "download",
     assetId: "pocket-voice-niamh",
     sizeBytes: 8062264,
+    previewUrl:
+      "https://huggingface.co/kyutai/tts-voices/resolve/323332d33f997de8394f24a193e1a76df720e01a/vctk/p238_023_enhanced.wav",
   },
   {
     id: "orla",
@@ -274,6 +324,8 @@ export const POCKET_VOICES: readonly PocketVoice[] = [
     delivery: "download",
     assetId: "pocket-voice-orla",
     sizeBytes: 6096184,
+    previewUrl:
+      "https://huggingface.co/kyutai/tts-voices/resolve/323332d33f997de8394f24a193e1a76df720e01a/vctk/p351_023_enhanced.wav",
   },
   {
     id: "siobhan",
@@ -284,6 +336,8 @@ export const POCKET_VOICES: readonly PocketVoice[] = [
     delivery: "download",
     assetId: "pocket-voice-siobhan",
     sizeBytes: 6636856,
+    previewUrl:
+      "https://huggingface.co/kyutai/tts-voices/resolve/323332d33f997de8394f24a193e1a76df720e01a/vctk/p266_023_enhanced.wav",
   },
   {
     id: "sophie",
@@ -294,6 +348,8 @@ export const POCKET_VOICES: readonly PocketVoice[] = [
     delivery: "download",
     assetId: "pocket-voice-sophie",
     sizeBytes: 7718200,
+    previewUrl:
+      "https://huggingface.co/kyutai/tts-voices/resolve/323332d33f997de8394f24a193e1a76df720e01a/vctk/p343_023_enhanced.wav",
   },
   {
     id: "bill_boerst",
@@ -301,9 +357,11 @@ export const POCKET_VOICES: readonly PocketVoice[] = [
     gender: "male",
     accent: null,
     recommended: true,
-    delivery: "core",
-    assetId: null,
+    delivery: "download",
+    assetId: "pocket-voice-bill_boerst",
     sizeBytes: 6735096,
+    previewUrl:
+      "https://huggingface.co/kyutai/tts-voices/resolve/323332d33f997de8394f24a193e1a76df720e01a/voice-zero/bill_boerst.wav",
   },
   {
     id: "javert",
@@ -311,9 +369,11 @@ export const POCKET_VOICES: readonly PocketVoice[] = [
     gender: "male",
     accent: null,
     recommended: true,
-    delivery: "core",
-    assetId: null,
+    delivery: "download",
+    assetId: "pocket-voice-javert",
     sizeBytes: 6194424,
+    previewUrl:
+      "https://huggingface.co/kyutai/tts-voices/resolve/323332d33f997de8394f24a193e1a76df720e01a/voice-donations/Butter.wav",
   },
   {
     id: "marius",
@@ -321,9 +381,11 @@ export const POCKET_VOICES: readonly PocketVoice[] = [
     gender: "male",
     accent: null,
     recommended: true,
-    delivery: "core",
-    assetId: null,
+    delivery: "download",
+    assetId: "pocket-voice-marius",
     sizeBytes: 6194424,
+    previewUrl:
+      "https://huggingface.co/kyutai/tts-voices/resolve/323332d33f997de8394f24a193e1a76df720e01a/voice-donations/Selfie.wav",
   },
   {
     id: "michael",
@@ -331,9 +393,11 @@ export const POCKET_VOICES: readonly PocketVoice[] = [
     gender: "male",
     accent: "American",
     recommended: true,
-    delivery: "core",
-    assetId: null,
+    delivery: "download",
+    assetId: "pocket-voice-michael",
     sizeBytes: 7275768,
+    previewUrl:
+      "https://huggingface.co/kyutai/tts-voices/resolve/323332d33f997de8394f24a193e1a76df720e01a/vctk/p360_023_enhanced.wav",
   },
   {
     id: "noah",
@@ -341,9 +405,11 @@ export const POCKET_VOICES: readonly PocketVoice[] = [
     gender: "male",
     accent: "American",
     recommended: true,
-    delivery: "core",
-    assetId: null,
+    delivery: "download",
+    assetId: "pocket-voice-noah",
     sizeBytes: 5948720,
+    previewUrl:
+      "https://huggingface.co/kyutai/tts-voices/resolve/323332d33f997de8394f24a193e1a76df720e01a/vctk/p334_023_enhanced.wav",
   },
   {
     id: "oliver",
@@ -351,9 +417,11 @@ export const POCKET_VOICES: readonly PocketVoice[] = [
     gender: "male",
     accent: "English",
     recommended: true,
-    delivery: "core",
-    assetId: null,
+    delivery: "download",
+    assetId: "pocket-voice-oliver",
     sizeBytes: 6243640,
+    previewUrl:
+      "https://huggingface.co/kyutai/tts-voices/resolve/323332d33f997de8394f24a193e1a76df720e01a/vctk/p232_023_enhanced.wav",
   },
   {
     id: "paul",
@@ -361,9 +429,11 @@ export const POCKET_VOICES: readonly PocketVoice[] = [
     gender: "male",
     accent: "English",
     recommended: true,
-    delivery: "core",
-    assetId: null,
+    delivery: "download",
+    assetId: "pocket-voice-paul",
     sizeBytes: 6980856,
+    previewUrl:
+      "https://huggingface.co/kyutai/tts-voices/resolve/323332d33f997de8394f24a193e1a76df720e01a/vctk/p259_023_enhanced.wav",
   },
   {
     id: "callum",
@@ -374,6 +444,8 @@ export const POCKET_VOICES: readonly PocketVoice[] = [
     delivery: "download",
     assetId: "pocket-voice-callum",
     sizeBytes: 6391096,
+    previewUrl:
+      "https://huggingface.co/kyutai/tts-voices/resolve/323332d33f997de8394f24a193e1a76df720e01a/vctk/p241_023_enhanced.wav",
   },
   {
     id: "charles",
@@ -384,6 +456,8 @@ export const POCKET_VOICES: readonly PocketVoice[] = [
     delivery: "download",
     assetId: "pocket-voice-charles",
     sizeBytes: 6194424,
+    previewUrl:
+      "https://huggingface.co/kyutai/tts-voices/resolve/323332d33f997de8394f24a193e1a76df720e01a/vctk/p254_023_enhanced.wav",
   },
   {
     id: "ethan",
@@ -394,6 +468,8 @@ export const POCKET_VOICES: readonly PocketVoice[] = [
     delivery: "download",
     assetId: "pocket-voice-ethan",
     sizeBytes: 6686008,
+    previewUrl:
+      "https://huggingface.co/kyutai/tts-voices/resolve/323332d33f997de8394f24a193e1a76df720e01a/vctk/p311_023_enhanced.wav",
   },
   {
     id: "jack",
@@ -404,5 +480,7 @@ export const POCKET_VOICES: readonly PocketVoice[] = [
     delivery: "download",
     assetId: "pocket-voice-jack",
     sizeBytes: 6686008,
+    previewUrl:
+      "https://huggingface.co/kyutai/tts-voices/resolve/323332d33f997de8394f24a193e1a76df720e01a/vctk/p326_023_enhanced.wav",
   },
 ];

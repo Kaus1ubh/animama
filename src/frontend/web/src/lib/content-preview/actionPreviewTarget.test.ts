@@ -45,7 +45,6 @@ describe("creatorActionPreviewRuntime", () => {
       background_image: null,
       profile_image: null,
       sfx: [],
-      bgm: [],
       warnings: [],
     } as AnimaRuntimeCatalogSnapshot;
 

@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "model_id": "pocket-tts-voice-cloning",
+  "license": "CC-BY-4.0",
+  "files": [
+    {
+      "path": "ATTRIBUTION.md",
+      "size": 1019,
+      "sha256": "1a50d42c509f7e0ffde9994909b1a533a18b7d37181775201d68f21152953b5a",
+      "source": {
+        "local": "ATTRIBUTION.md"
+      }
+    },
+    {
+      "path": "README.md",
+      "size": 679,
+      "sha256": "f5324ea5487fe3d56d22fd0fd72c126e2a4ce9ad8a20bbc815d8b8b9db72f677",
+      "source": {
+        "local": "README.md"
+      }
+    },
+    {
+      "path": "mimi_encoder.onnx",
+      "size": 39768446,
+      "sha256": "853e2ca623b8782d94c3745ec6133bfdff7ce33d9b11128bd29ea03f28d76e3d",
+      "source": {
+        "repository": "KevinAHM/pocket-tts-onnx",
+        "revision": "58a6d00cf13d239b6748cb0769f35c580a8f606c",
+        "path": "onnx/english_2026-04/mimi_encoder.onnx"
+      }
+    }
+  ]
+}

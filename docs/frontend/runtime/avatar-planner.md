@@ -149,25 +149,25 @@ manifest lanes. Listening, thinking, talking, and `responding_no_tts` motion
 comes from procedural policies, planner-owned pose clips, and selected
 gestures.
 
-Idle is different. While the base state is `idle`, the planner runs an
-intermittent stint policy backed by the mounted catalog. The explicit built-in
-provider adapts the production animation manifest at
-`src/frontend/web/src/assets/vrm/animations/manifest.json`, while live Anima
-routes project the exact resolved bindings:
+While the base state is `idle`, the planner schedules one intermittent authored
+occurrence after 180 seconds of quiet. The mounted Style resolves the exact
+emotion/intensity cell, or Default for neutral/inheritance. An explicit No idle
+cell or empty resolved pool leaves procedural rest active. It samples uniformly
+and avoids the last Gesture when alternatives exist. Built-in preview providers
+continue to adapt their animation manifest; live Anima routes use Style pools.
 
-- `quiet`: no planner-owned idle VRMA is active. `nextDueAtMs` marks the next
-  eligible start time.
-- `active`: one selected idle VRMA is playing through the base VRMA lane.
-- completion: when the selected clip's finite effective duration elapses, the
-  planner emits `stopVrmaLoop`, clears the base VRMA plan, and returns to
-  quiet.
+A candidate may use VRMA or `animaPoseClip`. Its finite horizon comes from the
+exact admitted timeline, positive authored speed and positive finite repetition
+count. Loading has a separate pending state: its playback clock starts only when
+the Avatar acknowledges that motion is ready. Completion returns to the full
+quiet interval. Higher-priority or manual playback interrupts the occurrence;
+interrupted pending work cannot restart or resume it. Emotion changes select the
+next occurrence rather than replacing an active motion.
 
-Eligible idle candidates are non-disabled `type: "vrma"` entries under
-`Animations.idle`. Neutral entries have an empty `emotions` map and are always
-eligible. Emotion-specific entries are eligible when any listed tracked emotion
-is active at level 1, 2, or 3; the matching level weight controls weighted
-random selection. Entries with non-finite duration are excluded so idle stints
-cannot become permanent loops.
+Idle owns its motion, expressions, effects and sound handles. Completion,
+interruption and unmount invalidate asynchronous loads and stop only that
+occurrence's resources. TTS and unrelated Sound Effects continue. Clip events at
+time zero and each intended boundary fire once, with no extra loop at completion.
 
 `user_typing` is intentionally narrow: it maps to the idle base state, but the
 procedural lane treats it like a listening-style stint so the planner can
@@ -269,11 +269,9 @@ Planner transition policies describe handoff intent:
 - `fadeIn`: enter a pose clip over a duration.
 - `fadeOut`: exit a pose clip over a duration.
 
-Natural completion is not a transition policy variant for one-shot gestures or
-pose clips. Idle VRMA stints are the exception: their authored finite duration
-is part of the stint policy, so completion emits `stopVrmaLoop` and returns the
-idle lane to quiet with a fade-out that matches the idle plan's entry crossfade
-instead of an abrupt stop. `Avatar` executes that stop by fading the mixer
+Finite idle completion is part of the occurrence policy. VRMA completion emits
+`stopVrmaLoop` and returns to quiet with the existing entry/exit fade; clip
+completion clears its occurrence with the existing pose blend. `Avatar` executes that stop by fading the mixer
 action and blending the visible base pose back to `relaxedRest` while preserving
 procedural offsets. The same Avatar-side rest blend is also used for manual VRMA
 fade-outs/stops and finite VRMA mixer completion; the planner only decides when

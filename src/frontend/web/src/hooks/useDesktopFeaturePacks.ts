@@ -1,74 +1,187 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect } from "react";
+import {
+  useIsMutating,
+  useMutation,
+  useMutationState,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 
 import type {
   FeaturePackId,
   FeaturePackStatus,
 } from "../../../shared/desktop-runtime";
 import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
+import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useModelAssets } from "@/query/hooks/useModelAssets";
+import { queryKeys } from "@/query/keys";
+import {
+  ASSET_WORK_BLOCKS_PACK,
+  PACK_WORK_BLOCKS_ASSET,
+  assertPackTransitionAllowed,
+  loadNativePackSnapshot,
+  modelAssetActionKey,
+  nativePackActionKey,
+  packIsBusy,
+  type NativePackSnapshot,
+} from "@/query/model-download-coordination";
 
-/** Only the main embedded renderer can mutate packs. All windows read API capabilities. */
+const EMPTY_PACKS: FeaturePackStatus[] = [];
+type PackAction = {
+  operation: "install" | "remove" | "cancel";
+  id: FeaturePackId;
+};
+const FAILURE =
+  "The pack change could not finish. Review its status below, then retry.";
+
+/** One owner-scoped manager snapshot survives view navigation; native IPC remains main-only. */
 export function useDesktopFeaturePacks() {
   const platform = useRuntimePlatform();
   const desktop = platform.kind === "desktop" ? platform.desktopBridge : null;
-  const [packs, setPacks] = useState<FeaturePackStatus[]>([]);
-  const [available, setAvailable] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [pending, setPending] = useState<FeaturePackId | null>(null);
-  const bridge = desktop?.featurePacks;
+  const ownerId = useRuntimeOwnerId();
+  const owner = ownerId ?? "__anon__";
+  const client = useQueryClient();
+  const key = queryKeys.desktopFeaturePacks(owner);
+  const enabled = Boolean(
+    ownerId &&
+    desktop?.featurePacks &&
+    desktop.runtime &&
+    desktop.windowRole === "main",
+  );
+  const query = useQuery({
+    queryKey: key,
+    queryFn: ({ signal }) => loadNativePackSnapshot(desktop, signal),
+    enabled,
+    refetchOnMount: "always",
+  });
+  const available = enabled && Boolean(query.data?.available);
+  const assets = useModelAssets({ enabled: available });
+  const assetRequests = useIsMutating({
+    mutationKey: modelAssetActionKey(owner),
+  });
+  const requests = useMutationState({
+    filters: { mutationKey: nativePackActionKey(owner), status: "pending" },
+    select: (mutation) => mutation.state.variables as PackAction,
+  });
 
   useEffect(() => {
-    if (!bridge || !desktop?.runtime || desktop.windowRole !== "main") return;
-    let active = true;
-    const unsubscribe = bridge.onProgress((status) => {
-      if (active)
-        setPacks((current) => [
-          ...current.filter((pack) => pack.id !== status.id),
-          status,
-        ]);
-    });
-    void desktop.runtime
-      .status()
-      .then(async (status) => {
-        if (!active || status.state === "external") return;
-        setAvailable(true);
-        const result = await bridge.list();
-        if (active) setPacks(result);
-      })
-      .catch(() => {
-        if (active)
-          setError(
-            "Feature packs are unavailable. Check runtime recovery and retry.",
-          );
+    if (!enabled || !desktop?.featurePacks || !desktop.runtime) return;
+    const progress = desktop.featurePacks.onProgress((status) => {
+      // An older list reply must not overwrite newer native progress.
+      void client.cancelQueries({
+        queryKey: queryKeys.desktopFeaturePacks(owner),
+        exact: true,
       });
+      client.setQueryData<NativePackSnapshot>(
+        queryKeys.desktopFeaturePacks(owner),
+        (current) => ({
+          available: true,
+          transitioning: current?.transitioning ?? false,
+          packs: [
+            ...(current?.packs ?? []).filter((pack) => pack.id !== status.id),
+            status,
+          ],
+        }),
+      );
+    });
+    const runtime = desktop.runtime.onStatus((status) => {
+      client.setQueryData<NativePackSnapshot>(
+        queryKeys.desktopFeaturePacks(owner),
+        (current) =>
+          current
+            ? {
+                ...current,
+                available: status.state !== "external",
+                transitioning:
+                  status.state !== "ready" && status.state !== "external",
+              }
+            : current,
+      );
+      if (status.state === "ready") {
+        void client.invalidateQueries({
+          queryKey: queryKeys.desktopFeaturePacks(owner),
+          exact: true,
+        });
+        void client.invalidateQueries({
+          queryKey: queryKeys.modelAssets(owner),
+          exact: true,
+        });
+      }
+    });
     return () => {
-      active = false;
-      unsubscribe();
+      progress();
+      runtime();
     };
-  }, [bridge, desktop]);
+  }, [client, desktop, enabled, owner]);
 
-  const run = useCallback(
-    async (operation: "install" | "remove" | "cancel", id: FeaturePackId) => {
-      if (!bridge || !available) return;
-      if (operation !== "cancel") setPending(id);
-      setError(null);
+  const action = useMutation<void, Error, PackAction>({
+    mutationKey: nativePackActionKey(owner),
+    mutationFn: async ({ operation, id }) => {
+      if (!ownerId || !available || !desktop?.featurePacks)
+        throw new Error(FAILURE);
       try {
-        await bridge[operation](id);
-      } catch {
-        // Error details from Electron exceptions can contain paths. Use bounded status codes.
-        setError(
-          "The pack change could not finish. Review its status below, then retry.",
+        if (operation !== "cancel")
+          await assertPackTransitionAllowed(client, owner, desktop);
+        await desktop.featurePacks[operation](id);
+      } catch (cause) {
+        // Native exception text can contain paths; expose only our own bounded guard messages.
+        const message = cause instanceof Error ? cause.message : "";
+        throw new Error(
+          [ASSET_WORK_BLOCKS_PACK, PACK_WORK_BLOCKS_ASSET].includes(message)
+            ? message
+            : FAILURE,
         );
-      } finally {
-        if (operation !== "cancel") setPending(null);
-        try {
-          setPacks(await bridge.list());
-        } catch {
-          /* Renderer may be reloading. */
-        }
       }
     },
-    [available, bridge],
+    onSettled: () => {
+      void client.invalidateQueries({
+        queryKey: queryKeys.desktopFeaturePacks(owner),
+        exact: true,
+      });
+      void client.invalidateQueries({
+        queryKey: queryKeys.modelAssets(owner),
+        exact: true,
+      });
+    },
+  });
+  const mutate = action.mutateAsync;
+  const run = useCallback(
+    async (operation: PackAction["operation"], id: FeaturePackId) => {
+      try {
+        await mutate({ operation, id });
+      } catch {
+        /* The initiating control reads the bounded mutation error. */
+      }
+    },
+    [mutate],
   );
-
-  return { available, packs, pending, error, run };
+  const packs = query.data?.packs ?? EMPTY_PACKS;
+  const active = packs.find(packIsBusy);
+  const pending =
+    requests.find((request) => request.operation !== "cancel")?.id ??
+    active?.id ??
+    null;
+  const busy =
+    (enabled && query.isPending) ||
+    requests.length > 0 ||
+    Boolean(active) ||
+    Boolean(query.data?.transitioning);
+  const blockedReason =
+    assetRequests > 0 ||
+    assets.data?.assets.some((asset) => asset.status === "downloading")
+      ? ASSET_WORK_BLOCKS_PACK
+      : null;
+  return {
+    available,
+    packs,
+    pending,
+    busy,
+    blockedReason,
+    run,
+    error:
+      action.error?.message ??
+      (query.error
+        ? "Feature packs are unavailable. Check runtime recovery and retry."
+        : null),
+  };
 }

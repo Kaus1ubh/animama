@@ -8,6 +8,8 @@ import remarkGfm from "remark-gfm";
 
 import { cn } from "@/lib/utils";
 
+import "./memory-markdown.css";
+
 type MemoryMarkdownPreviewProps = {
   value: string;
   children?: ReactNode;
@@ -29,33 +31,33 @@ export function MemoryMarkdownPreview({
   const markdown = value.trim() || emptyText;
 
   return (
-    <div
-      className={cn(
-        "prose prose-sm dark:prose-invert flow-root max-w-none",
-        className,
-      )}
-    >
+    <div className={cn("flow-root max-w-none", className)}>
       {children}
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeSanitize]}
-        components={{
-          ...(!allowImages
-            ? { img: ({ alt }) => <span>[Image: {alt || "not loaded"}]</span> }
-            : {}),
-          ...(externalLinks
-            ? {
-                a: ({ href, children: linkChildren }) => (
-                  <a href={href} target="_blank" rel="noreferrer">
-                    {linkChildren}
-                  </a>
-                ),
-              }
-            : {}),
-        }}
-      >
-        {markdown}
-      </ReactMarkdown>
+      {/* Caller-supplied controls stay outside the document typography. */}
+      <div className="memory-markdown-colors memory-markdown-preview prose prose-sm dark:prose-invert max-w-none">
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          rehypePlugins={[rehypeSanitize]}
+          components={{
+            ...(!allowImages
+              ? {
+                  img: ({ alt }) => <span>[Image: {alt || "not loaded"}]</span>,
+                }
+              : {}),
+            ...(externalLinks
+              ? {
+                  a: ({ href, children: linkChildren }) => (
+                    <a href={href} target="_blank" rel="noreferrer">
+                      {linkChildren}
+                    </a>
+                  ),
+                }
+              : {}),
+          }}
+        >
+          {markdown}
+        </ReactMarkdown>
+      </div>
     </div>
   );
 }

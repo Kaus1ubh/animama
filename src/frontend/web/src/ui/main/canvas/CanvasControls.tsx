@@ -9,7 +9,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/ui/components/popover";
-import { AudioVolumePanel, BgmTransportRow } from "@/ui/sound/SoundControls";
+import { AudioVolumePanel } from "@/ui/sound/SoundControls";
 
 export type CanvasMode = "avatar-chat" | "avatar" | "chat";
 
@@ -145,10 +145,6 @@ export function CanvasControls({
             >
               <h3 className="text-sm font-medium">Audio</h3>
               <AudioVolumePanel />
-              <BgmTransportRow
-                className="flex-wrap gap-2 [&>div:first-child]:min-w-16"
-                portalContainer={portalContainer}
-              />
             </section>
           </div>
         </PopoverContent>

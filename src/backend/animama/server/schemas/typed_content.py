@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import asdict, replace
 from datetime import datetime
 from pathlib import PurePosixPath
 from typing import Annotated, Literal
@@ -16,6 +17,7 @@ from animama.app.anima_creation_contract import (
     SourceRevision,
     StrictCreationModel,
 )
+from animama.app.services.content_kind_registry import idle_cells_projection
 from animama.app.services.runtime_budget_policy import MAX_RUNTIME_ENTRIES
 from animama.app.services.typed_content_batch_service import (
     BuiltinTypedRoot,
@@ -32,6 +34,7 @@ from animama.domain.content_documents import (
     AvatarEffectDocumentV1,
     GestureDocumentV1,
     IdleStyleDocumentV1,
+    IdleStyleDocumentV2,
     MusicTrackDocumentV1,
     ParticleEffectDocumentV1,
     PoseClipDocumentV1,
@@ -41,24 +44,24 @@ from animama.domain.content_documents import (
     SoundEffectDocumentV1,
     VoiceDocumentV1,
 )
+from animama.server.schemas.idle_style import PyIdleCell, PyIdlePlayback
 
 
 class PyTypedDependency(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     ref: str
+    item_id: str | None = None
     kind: Literal[
         "avatar",
         "gesture",
         "pose",
-        "pose_clip",
         "reaction",
         "particle_effect",
         "avatar_effect",
         "scene_effect",
         "sound_effect",
         "idle_style",
-        "music_track",
         "appearance",
         "voice",
     ]
@@ -163,7 +166,7 @@ class PyPose(PyTypedContentBase):
     pose_id: str
 
 
-class PyPoseClip(PyTypedContentBase):
+class _LegacyPoseClip(PyTypedContentBase):
     kind: Literal["pose_clip"] = "pose_clip"
     clip_id: str
     role: str | None = None
@@ -210,14 +213,16 @@ class PyIdleAnimation(BaseModel):
 
 class PyIdleStyle(PyTypedContentBase):
     kind: Literal["idle_style"] = "idle_style"
-    animations: list[PyIdleAnimation]
+    schema_version: Literal[1, 2] = 1
+    cells: dict[str, dict[str, PyIdleCell]] = Field(default_factory=dict)
+    animations: list[PyIdleAnimation] = Field(default_factory=list)
     default_pool: list[str]
-    emotion_pools: dict[str, list[str]]
-    cross_fade_seconds: float = Field(ge=0, le=10)
+    emotion_pools: dict[str, list[str]] = Field(default_factory=dict)
+    cross_fade_seconds: float = Field(default=0.35, ge=0, le=10)
     compatibility: dict[str, object] = Field(default_factory=dict)
 
 
-class PyMusicTrack(PyTypedContentBase):
+class _LegacyMusicTrack(PyTypedContentBase):
     kind: Literal["music_track"] = "music_track"
     duration_seconds: float = Field(ge=0)
     codec: str
@@ -252,13 +257,11 @@ PyTypedContent = Annotated[
     PyGesture
     | PyReaction
     | PyPose
-    | PyPoseClip
     | PyParticleEffect
     | PyAvatarEffect
     | PySceneEffect
     | PySoundEffect
     | PyIdleStyle
-    | PyMusicTrack
     | PyAvatarContent
     | PyAppearance
     | PyVoiceContent,
@@ -281,6 +284,7 @@ def _base(value: TypedCatalogItem) -> dict[str, object]:
         "dependencies": [
             PyTypedDependency(
                 ref=dependency.ref,
+                item_id=value.dependency_ids.get(dependency.ref),
                 kind=dependency.kind.value,
                 alias=dependency.alias,
                 config=dependency.config,
@@ -296,6 +300,40 @@ def _base(value: TypedCatalogItem) -> dict[str, object]:
             for ordinal, file in enumerate(item.files, start=1)
         ],
     }
+
+
+def legacy_saved_content_response(value: TypedCatalogItem) -> dict[str, object]:
+    """Project a stored Save snapshot without re-admitting historical dependencies."""
+
+    document = value.document
+    clean = replace(value, document=replace(document, dependencies=()))
+    base = _base(clean)
+    if isinstance(document, PoseClipDocumentV1):
+        result = _LegacyPoseClip(
+            **base, clip_id=document.clip_id, role=document.role, playback=document.playback
+        ).model_dump(mode="json")
+    elif isinstance(document, MusicTrackDocumentV1):
+        result = _LegacyMusicTrack(
+            **base,
+            duration_seconds=document.duration_seconds,
+            codec=document.codec,
+            loop=document.loop,
+            gain=document.gain,
+            autoplay=document.autoplay,
+        ).model_dump(mode="json")
+    else:
+        result = typed_content_response(clean).model_dump(mode="json")
+    result["dependencies"] = [
+        {
+            "ref": dependency.ref,
+            "item_id": None,
+            "kind": dependency.kind.value,
+            "alias": dependency.alias,
+            "config": dependency.config,
+        }
+        for dependency in document.dependencies
+    ]
+    return result
 
 
 def typed_content_response(value: TypedCatalogItem) -> PyTypedContent:
@@ -328,13 +366,6 @@ def typed_content_response(value: TypedCatalogItem) -> PyTypedContent:
         )
     if isinstance(document, PoseDocumentV1):
         return PyPose(**base, pose_id=document.pose["id"])
-    if isinstance(document, PoseClipDocumentV1):
-        return PyPoseClip(
-            **base,
-            clip_id=document.clip_id,
-            role=document.role,
-            playback=document.playback,
-        )
     if isinstance(document, ParticleEffectDocumentV1):
         return PyParticleEffect(
             **base,
@@ -362,6 +393,14 @@ def typed_content_response(value: TypedCatalogItem) -> PyTypedContent:
             codec=document.codec,
             defaults=document.defaults,
         )
+    if isinstance(document, IdleStyleDocumentV2):
+        return PyIdleStyle(
+            **base,
+            schema_version=2,
+            default_pool=list(document.default_pool),
+            cells=idle_cells_projection(document.cells),
+            compatibility=document.compatibility,
+        )
     if isinstance(document, IdleStyleDocumentV1):
         entry_root = _entry_root(value)
         file_refs_by_logical_path = {
@@ -388,15 +427,6 @@ def typed_content_response(value: TypedCatalogItem) -> PyTypedContent:
             emotion_pools={key: list(pool) for key, pool in document.emotion_pools.items()},
             cross_fade_seconds=document.cross_fade_seconds,
             compatibility=document.compatibility,
-        )
-    if isinstance(document, MusicTrackDocumentV1):
-        return PyMusicTrack(
-            **base,
-            duration_seconds=document.duration_seconds,
-            codec=document.codec,
-            loop=document.loop,
-            gain=document.gain,
-            autoplay=document.autoplay,
         )
     if isinstance(document, AvatarDocumentV1):
         return PyAvatarContent(**base, compatibility=document.compatibility)
@@ -437,12 +467,6 @@ class PyPosePage(BaseModel):
     items: list[PyPose]
 
 
-class PyPoseClipPage(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    items: list[PyPoseClip]
-
-
 class PyParticleEffectPage(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -471,12 +495,6 @@ class PyIdleStylePage(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     items: list[PyIdleStyle]
-
-
-class PyMusicTrackPage(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    items: list[PyMusicTrack]
 
 
 class PyAvatarContentPage(BaseModel):
@@ -511,6 +529,7 @@ class PyTypedContentPreview(BaseModel):
     supports: list[PyTypedContent] = Field(default_factory=list)
     files: list[PyTypedPreviewFile]
     expected_source_revisions: dict[str, SourceRevision] = Field(default_factory=dict)
+    idle_playback: dict[str, PyIdlePlayback] = Field(default_factory=dict)
 
     @classmethod
     def from_domain(cls, value: TypedContentPreview) -> PyTypedContentPreview:
@@ -528,6 +547,9 @@ class PyTypedContentPreview(BaseModel):
             item=typed_content_response(value.item),
             supports=[typed_content_response(item) for item in value.supports],
             expected_source_revisions=_source_revisions(typed_items),
+            idle_playback={
+                ref: PyIdlePlayback.model_validate(asdict(facts)) for ref, facts in value.idle_playback.items()
+            },
             files=[
                 PyTypedPreviewFile(
                     file_ref=file.file_ref,

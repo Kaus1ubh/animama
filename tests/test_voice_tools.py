@@ -312,9 +312,7 @@ def test_every_shipped_voice_is_licensed_recorded_and_credited():
     assert voices.voice_notice(sources, selection) in voices.ATTRIBUTION.read_text()
     assert selection["default"] == "eve"
     assert sum(voice["recommended"] for voice in selection["voices"]) == 14
-    assert {v["id"] for v in selection["voices"] if v["delivery"] == "core"} == {
-        v["id"] for v in selection["voices"] if v["recommended"] or v["id"] == "eve"
-    }
+    assert {v["id"] for v in selection["voices"] if v["delivery"] == "core"} == {"eve", "azelma"}
 
 
 def test_selection_rejects_unsafe_voice_ids(tmp_path):
@@ -343,3 +341,116 @@ def test_hosted_set_notices_and_core_entries_match_the_generator():
         if entry["source"].get("kind") == "release":
             assert entry["source"] == hosted_entries[name]["source"], name
             assert entry["sha256"] == hosted_entries[name]["sha256"], name
+
+
+def test_every_selected_voice_has_its_pinned_source_recording_preview():
+    """Previews resolve the reviewed recording, independently of state installation."""
+    sources, selection = voices.load_sources(), voices.load_selection()
+    origins = {voice["name"]: voice for voice in sources["kyutai_voices"]}
+    base = "https://huggingface.co/kyutai/tts-voices/resolve/323332d33f997de8394f24a193e1a76df720e01a/"
+    for voice in selection["voices"]:
+        source = voice["source"]
+        expected_path = (
+            f"vctk/{source.removeprefix('vctk-')}_023_enhanced.wav"
+            if source.startswith("vctk-")
+            else origins[source]["recording"].split()[1]
+        )
+        assert voices.voice_preview_url(sources, source) == base + expected_path, voice["id"]
+    assert voices.voice_preview_url(sources, "eve") == base + "vctk/p361_023_enhanced.wav"
+    assert voices.voice_preview_url(sources, "azelma") == base + "vctk/p303_023_enhanced.wav"
+    assert voices.voice_preview_url(sources, "javert") == base + "voice-donations/Butter.wav"
+    assert voices.voice_preview_url(sources, "marius") == base + "voice-donations/Selfie.wav"
+
+
+def test_frontend_catalog_matches_reproducible_metadata_generation():
+    """Regenerating metadata from tracked inputs requires no models, installs or network."""
+    sources, selection = voices.load_sources(), voices.load_selection()
+    candidates = {
+        candidate["id"]: candidate for candidate in json.loads(voices.INVENTORY_JSON.read_text())["candidates"]
+    }
+    entries = {
+        entry["path"]: {"entry": entry}
+        for manifest in (voices.BROWSER_MANIFEST, voices.VOICE_SET_MANIFEST)
+        for entry in json.loads(manifest.read_text())["files"]
+    }
+    by_id = {voice["id"]: entries[f"{voice['id']}.safetensors"] for voice in selection["voices"]}
+    assert voices.FRONTEND_CATALOG.read_text() == voices.frontend_catalog(selection, candidates, by_id, sources)
+
+
+@pytest.mark.parametrize(
+    "change",
+    ["repository", "revision", "path", "recording", "traversal", "license", "excluded", "unknown", "speaker"],
+)
+def test_voice_previews_reject_unreviewed_or_arbitrary_urls(change):
+    sources = voices.load_sources()
+    source = "bill_boerst"
+    origin = next(voice for voice in sources["kyutai_voices"] if voice["name"] == source)
+    if change == "repository":
+        sources["clips"]["repository"] = "example/other-voices"
+    elif change == "revision":
+        sources["clips"]["revision"] = "main"
+    elif change == "path":
+        sources["clips"]["vctk_path"] = "https://example.com/{speaker}.wav"
+        source = "vctk-p236"
+    elif change == "recording":
+        origin["recording"] = "https://example.com/sample.wav (unreviewed)"
+    elif change == "traversal":
+        origin["recording"] = "kyutai/tts-voices voice-zero/../../other.wav (unreviewed)"
+    elif change == "license":
+        origin["license"] = "NOASSERTION"
+    elif change == "excluded":
+        origin["exclude"] = "source withdrawn"
+    elif change == "unknown":
+        source = "https://example.com/sample.wav"
+    else:
+        source = "vctk-p999"
+    with pytest.raises(voices.VoiceToolError):
+        voices.voice_preview_url(sources, source)
+
+
+def test_core_delivery_excludes_optional_voices_and_cloning_encoder():
+    """Fresh speech works with two voices; recommendations do not add bundled weights."""
+    selection = voices.load_selection()
+    assert {v["id"] for v in selection["voices"] if v["delivery"] == "core"} == {"eve", "azelma"}
+    assert sum(v["delivery"] == "download" for v in selection["voices"]) == 36
+    model = json.loads(voices.BROWSER_MANIFEST.read_text())
+    runtime = json.loads(voices.RUNTIME_MANIFEST.read_text())
+    assert len(model["files"]) == 10
+    assert len(runtime["files"]) == 21
+    assert all(e["path"] != "mimi_encoder.onnx" for e in model["files"])
+    assert all(not e["path"].endswith("/mimi_encoder.onnx") for e in runtime["files"])
+
+
+def test_optional_cloning_catalog_keeps_the_existing_pinned_encoder():
+    """Moving delivery must preserve the exact reviewed bytes and their model-set binding."""
+    catalog = json.loads(voices.ASSET_CATALOG.read_text())
+    assets = [e for e in catalog["assets"] if e["id"] == "pocket-tts-voice-cloning-encoder"]
+    assert len(assets) == 1
+    asset = assets[0]
+    assert asset["size"] == 39768446
+    assert asset["sha256"] == "853e2ca623b8782d94c3745ec6133bfdff7ce33d9b11128bd29ea03f28d76e3d"
+    assert asset["url"] == (
+        f"https://downloads.animama.ai/models/pocket-tts-voice-cloning/{asset['sha256']}/mimi_encoder.onnx"
+    )
+
+
+def test_release_inputs_do_not_require_or_modify_the_previous_complete_store(tmp_path):
+    """A retained core subset can rebuild projections while optional inputs are absent."""
+    import hashlib
+
+    payload = b"generation model"
+    (tmp_path / "flow_lm_main_int8.onnx").write_bytes(payload)
+    (tmp_path / "mimi_encoder.onnx").write_bytes(b"unrelated old input")
+    entries = [{"path": "flow_lm_main_int8.onnx", "size": len(payload), "sha256": hashlib.sha256(payload).hexdigest()}]
+    assert voices.release_model_inputs(str(tmp_path), entries) == tmp_path
+    assert (tmp_path / "mimi_encoder.onnx").read_bytes() == b"unrelated old input"
+    (tmp_path / "flow_lm_main_int8.onnx").write_bytes(b"bad")
+    with pytest.raises(voices.store.ModelStoreError, match="mismatch"):
+        voices.release_model_inputs(str(tmp_path), entries)
+
+
+def test_authoring_cloning_requires_explicit_verified_encoder(monkeypatch, tmp_path):
+    """Missing producer inputs fail offline instead of downloading during encode/screen."""
+    monkeypatch.setenv("ANIMAMA_MODEL_ROOT", str(tmp_path))
+    with pytest.raises(voices.store.ModelStoreMissing):
+        voices.cloning_encoder()

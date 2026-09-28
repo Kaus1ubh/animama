@@ -30,7 +30,9 @@ Tests use explicit fixture bootstrap and dependency overrides.
 - `server/routers/settings.py`: user settings and per-anima settings.
 - `server/routers/user_profiles.py`: private local display-name reads and edits.
 - `server/routers/content.py`: neutral Included/Local catalog health, Rescan,
-  delete, package import/export, and registered-byte delivery.
+  delete and registered-byte delivery.
+- `server/routers/content_packages.py`: reviewed package import/export,
+  bounded transfer and durable operation status.
 - `server/routers/typed_content.py`: typed product List/Get/Save/Preview routes
   over the shared catalog.
 - `server/routers/anima_loadouts.py`: typed Anima loadout read plus optimistic,
@@ -191,20 +193,62 @@ Changed registered bytes return `409 content_file_changed_rescan_required`.
 Unknown, unavailable, guessed, or cross-owner references all return `404
 content_file_not_found`.
 
-Package operations are:
+### Package sharing
 
-- `POST /v1/content/items/{item_id}:export?operation_id=...`, which validates
-  the current exact typed closure, canonicalizes descriptors, rewrites every
-  installation-local reference, and streams a deterministic temporary
-  `animama-content-package/2` archive;
-- `POST /v1/content/packages:import`, which validates an untrusted archive and
-  complete dependency graph in private staging, then promotes ordinary
-  editable Local items through one journaled, recoverable operation using
-  `cancel`, `keep_both`, or explicit `replace` collision behavior. Destination
-  drift and late failure expose no partial catalog selection.
+Package sharing accepts only `.zip` files with the strict
+`animama-content-package/3` manifest. The extension does not bypass integrity or
+typed-content validation; unrelated ZIP archives are rejected. All routes below
+are under `/v1/content`:
 
-Save and Import bind an owner-scoped `operation_id` to the complete
-request and its original successful response. An identical retry returns that
+| Method and path | Behavior |
+| --- | --- |
+| `POST /package-exports:summary` | Resolve selected content or one Anima and all required content; return counts, size estimate and saved-source digest. |
+| `POST /package-exports` | Require that digest, prepare and validate exact immutable archive bytes, then return the review and export ID. |
+| `GET /package-exports/{export_id}/file` | Stream those reviewed bytes with attachment filename and SHA-256; hold the cache lease through response completion. |
+| `DELETE /package-exports/{export_id}` | Discard an inactive owned cache. |
+| `POST /package-imports` | Allocate a private stage with operation ID, filename and total byte length. |
+| `PUT /package-imports/{stage_id}/parts/{index}` | Send sequential 8 MiB binary parts (the final part may be shorter); exact retries return the original acknowledgement. |
+| `POST /package-imports/{stage_id}/review` | Seal and validate the whole archive; freeze fresh content identities, dependency copies and automatic `-2`/`-3` collision names. |
+| `GET /package-imports/{stage_id}` | Read received-byte progress and the public review; no private paths or install plan are exposed. |
+| `POST /package-imports/{stage_id}/commit` | Submit the operation ID and review digest to install the whole package through one recoverable content/Anima transaction. |
+| `GET /package-operations/{operation_id}` | Resolve the durable result or report pending/recovery state before another submission. |
+| `DELETE /package-imports/{stage_id}` | Discard inactive temporary data; refuse an active or unresolved committing stage. |
+
+Selection accepts `item_ids` or one `anima_id`. Export preparation adds
+`expected_digest`; import allocation accepts `expected_size_bytes` and
+`operation_id`. Import dependencies become independent editable Local copies.
+Sharing an Anima creates a fresh companion with its reviewed identity and
+configuration, without conversations, other memories or provider credentials.
+The [portable definition](../features/typed-content-and-marketplace.md#local-package-boundary)
+allowlists saved selections and supported configuration; receiver defaults supply
+model and voice settings.
+
+Export filenames combine a display name with a UTC timestamp and `.zip`.
+Anima exports use the Anima's display name; content exports use the installation
+owner's display name, falling back to `content` when that name is missing.
+The filename is a download label and carries no import ownership or identity.
+
+Private stages expire after 30 inactive minutes. One owner may hold two import
+and export stages combined, reserving at most 8 GiB of archive space; each
+archive and its expanded inspection are limited to 4 GiB. Packages allow at most
+2,048 content files, a 4 MiB manifest, 16 MiB of aggregate parsed metadata and a
+maximum per-file compression ratio of 200. Available disk space is checked against
+the actual archive's bounded expansion before inspection. Parts stay below the unchanged
+128 MiB request limit. Unknown required capabilities, undeclared files, unsafe
+paths, hash mismatches and invalid typed closures fail review.
+
+Active upload, inspection, commit and download leases prevent cleanup. After a
+completed or cancelled HTTP download attempt, the cache remains retryable until
+expiry, explicit discard, or quota pressure reclaims it while inactive. Ending
+the HTTP response does not prove the user saved the file.
+The Library completion action discards an acknowledged import's temporary stage.
+Expiry and discard never delete mutation journals or durable receipts. The old
+immediate export/import routes and previous package formats are not admitted.
+
+### Mutation receipts and recovery
+
+Save binds an owner-scoped `operation_id` to its complete request; Import binds
+it to the immutable submitted review digest. Both retain their original successful response. An identical retry returns that
 response before current-item or revision validation and never writes again,
 including after subsequent edits or deletion. A changed request under the same
 ID returns `409 operation_id_reused`; use a new ID for new work. An original
@@ -260,7 +304,7 @@ fallback entry. The table is bundled or replaced by
 Avatar metadata joined to valid Content Catalog models and registered
 portraits. It returns Included or Local origin without exposing paths.
 
-Gestures, Reactions, Poses, Pose Clips, effects, Sounds, Idle Styles, Music Tracks,
+Gestures, Reactions, Poses, effects, Sounds, Idle Styles,
 Avatar content, Appearance, and portable voice content expose generated typed
 contracts over the neutral catalog. Each family supports List/Get/Save/Preview
 under its own `/v1/{typed-family}` prefix; for example:
@@ -272,14 +316,27 @@ PUT    /v1/gestures/{entry_name}
 POST   /v1/gestures/{item_id}:preview
 ```
 
-Equivalent families are `reactions`, `poses`, `pose-clips`, `particle-effects`,
+Equivalent families are `reactions`, `poses`, `particle-effects`,
 `avatar-effects`, `scene-effects`, `sound-effects`, `idle-styles`,
-`music-tracks`, `avatar-content`, `appearance-content`, and `voice-content`.
+`avatar-content`, `appearance-content`, and `voice-content`.
 The closed handler for the selected kind validates the schema-versioned
 document, files, dependencies, roles, runtime projection, and portable package
 references. Unknown fields and mismatched kinds are rejected. Avatar and Scene
 definitions contain bounded renderer settings and registered logical resource
 names; external/data/Blob URLs, scripts, shaders, and host paths are rejected.
+
+Idle Style authoring accepts `schema_version: 2` Gesture pools, separate
+emotion/intensity cells and explicit No idle/inheritance. It has no companion
+motion upload or per-Anima pool override. `GET /v1/gestures/{item_id}/idle-playback`
+returns exact-media finite eligibility or a safe reason for ineligibility.
+Style Preview includes an `idle_playback` map keyed by its declared Gesture
+reference, validated against the same frozen bytes. Gesture Preview includes
+eligible finite facts for the Idle editor's candidate playback; an ordinary
+ineligible Gesture can still be previewed outside idle use. Legacy Styles remain readable
+only for local conversion/recovery, not supported typed selection or authoring.
+Dependency `item_id` values identify caller-visible targets. Clients resolve
+locator references through those identities; they must not guess a logical-key
+suffix. Raw Save receipt responses may omit this optional resolution metadata.
 
 The Pose family returns `PyPose` metadata; registered preview bytes carry the
 resolved pose values. Pose Save uses the loaded catalog revision and an operation
@@ -315,15 +372,14 @@ The owner-scoped loadout endpoints are:
 - `POST /v1/animas/{anima_id}/gestures:plan|commit`;
 - `POST /v1/animas/{anima_id}/reactions:plan|commit`;
 - `POST /v1/animas/{anima_id}/idle-style:plan|commit`;
-- `POST /v1/animas/{anima_id}/music-tracks:plan|commit`;
 - `POST /v1/animas/{anima_id}/avatar:plan|commit`;
 - `POST /v1/animas/{anima_id}/appearance:plan|commit`;
 - `POST /v1/animas/{anima_id}/voice:plan|commit`.
 
 Plan requests carry the expected loadout revision and a typed family intent.
 Commit repeats that intent with the reviewed plan digest and an idempotency
-key. Selections store logical catalog items; Pose Clips, Particle, Avatar, and
-Scene Effects plus Sounds remain compiler-managed support dependencies of
+key. Selections store logical catalog items; Particle, Avatar, and Scene
+Effects plus Sounds remain compiler-managed support dependencies of
 Gesture/Reaction roots and cannot be equipped directly.
 
 `GET /v1/animas/{anima_id}/runtime` independently compiles selected roots and
@@ -449,7 +505,7 @@ resulting aggregate revision (nullable when replaying a stored receipt without t
 ### Strict private creation
 
 These interfaces are backed by creation and starter receipt tables in the
-current baseline. The [four-step creator](../../frontend/features/custom-anima-creation.md)
+current baseline. The [five-step creator](../../frontend/features/custom-anima-creation.md)
 consumes them, and frontend-server onboarding uses the generated starter command
 rather than bulk or mutable request templates.
 
@@ -463,7 +519,7 @@ includes selected roots and all typed supports with kind/revision. New companion
 start with Idle empty; `default_idle.source` is null and its revision map is empty.
 Before the Review step, the browser obtains that map with one
 `POST /v1/content/evidence:resolve` call containing the selected Avatar,
-and Actions, then independently submits the whole spec to
+Actions and any shared voice clone, then independently submits the whole spec to
 `POST /v1/animas:validate`. The strict API retains typed profile/background
 Appearance fields, but the current browser sends both as explicit nulls and
 makes no Appearance read or Save request. This transition creates no preview

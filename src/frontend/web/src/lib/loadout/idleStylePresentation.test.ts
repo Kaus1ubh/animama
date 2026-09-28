@@ -3,33 +3,53 @@ import { describe, expect, it } from "vitest";
 import { presentIdleStyle } from "./idleStylePresentation";
 
 describe("presentIdleStyle", () => {
-  it("shows explicit mappings and Default fallback by name", () => {
+  it("distinguishes each intensity, inherited Default and explicit No idle", () => {
     const rows = presentIdleStyle({
       state: "custom",
-      animations: [
-        { animation_id: "neutral", name: "Breathing" },
-        { animation_id: "angry", name: "Angry Stance" },
+      schema_version: 2,
+      gestures: [
+        {
+          item_id: "breathing",
+          logical_key: "local:gesture:breathing",
+          name: "Breathing",
+        },
+        { item_id: "wave", logical_key: "included:gesture:wave", name: "Wave" },
       ],
-      effective_default_pool: ["neutral"],
-      effective_emotion_pools: { anger: ["angry"] },
+      default_pool: ["local:gesture:breathing"],
+      cells: {
+        joy: {
+          "1": { mode: "pool", gestures: ["included:gesture:wave"] },
+          "3": { mode: "none" },
+        },
+      },
     });
-    expect(rows.find((row) => row.key === "default")?.animationNames).toEqual([
+    expect(rows.find((row) => row.key === "default")?.gestureNames).toEqual([
       "Breathing",
     ]);
-    expect(rows.find((row) => row.key === "anger")).toMatchObject({
-      animationIds: ["angry"],
-      animationNames: ["Angry Stance"],
-      fallsBackToDefault: false,
+    expect(rows.find((row) => row.key === "joy:1")).toMatchObject({
+      gestureRefs: ["included:gesture:wave"],
+      gestureNames: ["Wave"],
+      mode: "pool",
     });
-    expect(rows.find((row) => row.key === "sadness")).toMatchObject({
-      animationNames: ["Breathing"],
-      fallsBackToDefault: true,
+    expect(rows.find((row) => row.key === "joy:2")).toMatchObject({
+      gestureNames: ["Breathing"],
+      mode: "inherit",
     });
-    expect(rows.slice(1).map((row) => row.key)).toEqual(
-      rows
-        .slice(1)
-        .map((row) => row.key)
-        .toSorted((left, right) => left.localeCompare(right)),
-    );
+    expect(rows.find((row) => row.key === "joy:3")).toMatchObject({
+      gestureRefs: [],
+      mode: "none",
+    });
+    expect(rows.filter((row) => row.key.startsWith("joy:"))).toHaveLength(3);
+  });
+
+  it("shows an empty Default without inventing a Gesture or an assignment for no Style", () => {
+    const rows = presentIdleStyle({
+      state: "custom",
+      default_pool: [],
+      cells: {},
+      gestures: [],
+    });
+    expect(rows[0]?.gestureRefs).toEqual([]);
+    expect(presentIdleStyle({ state: "empty" })).toEqual([]);
   });
 });

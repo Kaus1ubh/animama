@@ -83,12 +83,13 @@ def test_pinned_april_bundle_and_voice_states(inventory):
     assert targets["mimi_decoder.onnx"] == "models/pocket-tts/mimi_decoder.onnx"
     assert targets["bundle.json"] == "models/pocket-tts/bundle.json"
     voices = {voice["id"] for voice in shipped_voices() if voice["delivery"] == "core"}
-    assert len(voices) == 15 and {"eve", "azelma", "jane", "javert", "marius", "noah"} <= voices
+    assert voices == {"eve", "azelma"}
     assert "mary" not in voices  # Downloaded on demand since 2026-09-27.
     for voice in voices:
         assert targets[f"{voice}.safetensors"] == f"models/pocket-tts/voices/{voice}.safetensors"
     assert "voices.bin" not in targets
-    assert len(targets) == len(voices) + 9
+    assert "mimi_encoder.onnx" not in targets
+    assert len(targets) == len(voices) + 8
 
 
 def test_self_encoded_voices_come_only_from_the_release_host(inventory):
@@ -165,25 +166,16 @@ def test_parakeet_and_browser_versions_have_separate_namespaces(inventory, tmp_p
         store.load_manifest(i.path)
 
 
-def release_entry(value: dict[str, Any]) -> dict[str, Any]:
-    entry: dict[str, Any] = next(e for e in value["files"] if e["source"].get("kind") == "release")
-    return entry
-
-
 @pytest.mark.parametrize(
     "change",
-    ["release-host", "release-digest", "release-port", "unselected-voice", "noncommercial-voice", "missing-voice"],
+    ["release-source", "unselected-voice", "noncommercial-voice", "missing-voice"],
 )
 def test_manifest_rejects_unreviewed_voice_entries(inventory, change):
     i = inventory
     value = json.loads(i.path.read_bytes())
-    entry = release_entry(value)
-    if change == "release-host":
-        entry["source"]["url"] = entry["source"]["url"].replace("downloads.animama.ai", "example.com")
-    elif change == "release-digest":
-        entry["source"]["url"] = entry["source"]["url"].replace(entry["sha256"], "0" * 64)
-    elif change == "release-port":
-        entry["source"]["url"] = entry["source"]["url"].replace("animama.ai/", "animama.ai:8443/")
+    entry = next(e for e in value["files"] if e["path"] == "eve.safetensors")
+    if change == "release-source":
+        entry["source"] = {"kind": "release", "url": "https://downloads.animama.ai/models/other"}
     elif change == "unselected-voice":
         entry["path"] = "unlisted.safetensors"
         entry["target"] = "models/pocket-tts/voices/unlisted.safetensors"

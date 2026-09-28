@@ -12,7 +12,8 @@ import { useModelAssets } from "@/query/hooks/useModelAssets";
  */
 export function usePocketVoiceDownloads({ enabled }: { enabled: boolean }) {
   const assets = useModelAssets({ enabled });
-  const { mutate } = useModelAssetAction();
+  const action = useModelAssetAction();
+  const { mutate } = action;
   const availability = useMemo(
     () => pocketVoiceAvailability(assets.data?.assets),
     [assets.data],
@@ -33,5 +34,28 @@ export function usePocketVoiceDownloads({ enabled }: { enabled: boolean }) {
       ),
     [logger, mutate],
   );
-  return useMemo(() => ({ availability, install }), [availability, install]);
+  const remove = useCallback(
+    (assetId: string) => mutate({ action: "remove", assetId }),
+    [mutate],
+  );
+  const busy = action.busy || action.isPending;
+  const blockedReason = action.blockedReason;
+  const retryAssetIds = assets.retryAssetIds;
+  const error = action.isError
+    ? "The voice download change could not finish. Retry in a moment."
+    : assets.isError
+      ? "Voice downloads are unavailable. Reopen the voice browser to retry."
+      : null;
+  return useMemo(
+    () => ({
+      availability,
+      install,
+      remove,
+      busy,
+      blockedReason,
+      retryAssetIds,
+      error,
+    }),
+    [availability, install, remove, busy, blockedReason, retryAssetIds, error],
+  );
 }

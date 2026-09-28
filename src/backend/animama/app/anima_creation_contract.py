@@ -10,7 +10,7 @@ import hashlib
 import json
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from animama.domain.anima_definition import (
     ANIMA_DISPLAY_NAME_MAX_CHARACTERS,
@@ -24,13 +24,13 @@ RevisionSha256 = Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]
 IdempotencyKey = Annotated[str, Field(min_length=1, max_length=128, pattern=r"^[A-Za-z0-9][A-Za-z0-9._:-]*$")]
 SemanticKey = Annotated[str, Field(pattern=r"^[a-z0-9][a-z0-9._-]{0,127}$")]
 SourceKind = Literal[
+    "voice",
     "avatar",
     "appearance",
     "gesture",
     "reaction",
     "idle_style",
     "pose",
-    "pose_clip",
     "particle_effect",
     "avatar_effect",
     "scene_effect",
@@ -119,18 +119,43 @@ ReactionCells = dict[Literal["1", "2", "3"], ItemRevisionRef | None]
 ReactionMatrix = dict[Emotion, ReactionCells]
 
 
-class AnimaSpec(StrictCreationModel):
-    """Every choice is explicit; neither omitted fields nor URLs seed defaults."""
+class CreationPocketPreset(StrictCreationModel):
+    type: Literal["preset"]
+    voice_id: str = Field(pattern=r"^[a-z][a-z0-9_-]{0,127}$")
+
+
+class CreationPocketClone(StrictCreationModel):
+    type: Literal["clone"]
+    source: ItemRevisionRef
+
+
+class CreationVoice(StrictCreationModel):
+    """Both provider choices persist; only the selected provider needs a usable ID."""
+
+    provider: Literal["pocket_tts", "elevenlabs"]
+    pocket: Annotated[CreationPocketPreset | CreationPocketClone, Field(discriminator="type")]
+    elevenlabs_voice_id: Annotated[str, Field(pattern=r"^[A-Za-z0-9_-]{1,128}$")] | None
+
+    @model_validator(mode="after")
+    def require_active_voice(self) -> CreationVoice:
+        if self.provider == "elevenlabs" and self.elevenlabs_voice_id is None:
+            raise ValueError("Enter an ElevenLabs voice ID")
+        return self
+
+
+class _AnimaSpecFields(StrictCreationModel):
+    """Explicit creation choices; legacy voice omission retains its original default."""
 
     schema_version: Literal[1]
     display_name: str = Field(min_length=1, max_length=ANIMA_DISPLAY_NAME_MAX_CHARACTERS)
     identity_markdown: str
     avatar: ItemRevisionRef
+    # Omission preserves pre-voice commands and their exact receipt hashes.
+    voice: CreationVoice | None = None
     appearance: AnimaAppearance
     gestures: list[GestureSelection] = Field(max_length=500)
     reactions: ReactionMatrix
     starter_pack: StarterPackIdentity
-    expected_source_revisions: dict[ItemId, SourceRevision] = Field(max_length=500)
 
     @field_validator("display_name", mode="before")
     @classmethod
@@ -157,6 +182,34 @@ class AnimaSpec(StrictCreationModel):
         return value
 
 
+class AnimaSpec(_AnimaSpecFields):
+    """New creation commands can reference only currently supported content."""
+
+    expected_source_revisions: dict[ItemId, SourceRevision] = Field(max_length=500)
+
+
+class LegacySourceRevision(StrictCreationModel):
+    """Private receipt input retained for exact pre-retirement retries."""
+
+    kind: Literal["pose_clip"]
+    revision_sha256: RevisionSha256
+
+
+class LegacyAnimaSpec(_AnimaSpecFields):
+    """Decode old source maps without admitting them as new creation commands."""
+
+    expected_source_revisions: dict[ItemId, SourceRevision | LegacySourceRevision] = Field(max_length=500)
+
+
+class LegacyCreateAnimaRequest(LegacyAnimaSpec):
+    idempotency_key: IdempotencyKey
+
+    def spec(self) -> LegacyAnimaSpec:
+        """Preserve the exact normalized legacy digest before checking a receipt."""
+
+        return LegacyAnimaSpec.model_validate(self.model_dump(exclude={"idempotency_key"}))
+
+
 class CreateAnimaRequest(AnimaSpec):
     idempotency_key: IdempotencyKey
 
@@ -166,7 +219,7 @@ class CreateAnimaRequest(AnimaSpec):
         return AnimaSpec.model_validate(self.model_dump(exclude={"idempotency_key"}))
 
 
-def canonical_spec_hash(spec: AnimaSpec) -> str:
+def canonical_spec_hash(spec: AnimaSpec | LegacyAnimaSpec) -> str:
     """Hash normalized input, independent of key, owner and live source state."""
 
     def normalize_numbers(value: Any) -> Any:
@@ -179,7 +232,7 @@ def canonical_spec_hash(spec: AnimaSpec) -> str:
         return value
 
     encoded = json.dumps(
-        normalize_numbers(spec.model_dump()),
+        normalize_numbers(spec.model_dump(exclude={"voice"} if spec.voice is None else set())),
         sort_keys=True,
         separators=(",", ":"),
         ensure_ascii=False,

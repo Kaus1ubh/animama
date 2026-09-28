@@ -43,12 +43,10 @@ content/
     avatars/
     gestures/
     poses/
-    pose-clips/
     reactions/
     vfx/{particle,avatar,scene}/
     sfx/
     idle-styles/
-    music/
     appearances/
     voices/
     animas/
@@ -62,7 +60,7 @@ data/
 ```
 
 A simple self-describing leaf file is one entry, such as `avatars/mika.vrm` or
-`pose-clips/reusable-bow.json`. Creator-managed Actions use stable product
+`sfx/chime.wav`. Creator-managed Actions use stable product
 folders even when their implementation is one file:
 
 ```text
@@ -76,11 +74,16 @@ reactions/happy/
 ```
 
 The `.meta.json` file is the typed Action control document; the `.json` file is
-the actual `animaPoseClip/1.0` sequence. A one-owner Pose Clip is an Action file,
-while a deliberately reusable clip remains an independent `pose-clips/` item.
-Idle-only VRMAs live within their Idle Style. Independently reusable VFX and
+the actual `animaPoseClip/1.0` sequence owned by that Action. Idle Styles reference
+Gestures whose Action files contain their clip or VRMA. Independently reusable VFX and
 SFX remain typed dependencies and are included through the runtime/package
 closure.
+
+Old `pose-clips/` and `music/` files remain on disk for recovery and do not
+appear as supported Library content. Startup and Rescan preserve originals and
+prior binding facts under `data/internal/operations/transitions/` before
+converting Action references or removing Music bindings. A failed conversion
+retains its evidence and reports a diagnostic instead of discarding content.
 
 Standalone Poses use `poses/<entry>/<entry>.json`: a `pose` descriptor containing
 one resolved `animaPose/1.0` payload with matching identity and name. Admission
@@ -111,8 +114,8 @@ backup/reset scripts do not apply to the separate desktop profile or vault.
 ## Typed handlers, scanner, and neutral catalog
 
 `domain/content_documents.py` defines the framework-neutral, schema-versioned
-Gesture, Reaction, Pose, Pose Clip, Effect, Sound, Idle Style, Music Track, Avatar,
-Appearance, and portable voice documents. `content_kind_registry.py` is a
+Gesture, Reaction, Pose, Effect, Sound, Idle Style, Avatar, Appearance, and
+portable voice documents, plus private legacy decoders for stored Music and clip rows. `content_kind_registry.py` is a
 closed registry with one handler for every scannable kind. Each handler owns
 strict parsing, bounded media validation, dependency legality, canonical file
 roles, searchable projection, runtime projection, and package-reference
@@ -151,7 +154,7 @@ The core tables are:
   memberships;
 - `anima_loadouts`: one optimistic revision root per live Anima;
 - `anima_content_bindings`: typed logical Avatar, Gesture, Reaction, Idle
-  Style, Music, Appearance, and voice selections resolved at remount;
+  Style, Appearance, and voice selections resolved at remount;
 - `anima_loadout_mutation_receipts`: bounded idempotent commit results;
 - `anima_loadout_diagnostics`: warnings for rejected persisted or manually
   invalid equipment.
@@ -240,8 +243,6 @@ GET    /v1/content/catalog
 GET    /v1/content/items/{item_id}
 POST   /v1/content:rescan
 DELETE /v1/content/items/{item_id}?expected_revision=...
-POST   /v1/content/items/{item_id}:export
-POST   /v1/content/packages:import
 POST   /v1/content/evidence:resolve
 POST   /v1/content/previews:prepare
 GET    /v1/content/files/{file_ref}
@@ -260,9 +261,9 @@ POST   /v1/animas/{anima_id}/runtime/revisions/{revision}:renew
 GET    /v1/animas/{anima_id}/runtime/revisions/{revision}/files/{file_ref}
 ```
 
-Typed families are `gestures`, `reactions`, `poses`, `pose-clips`,
+Typed families are `gestures`, `reactions`, `poses`,
 `particle-effects`, `avatar-effects`, `scene-effects`, `sound-effects`,
-`idle-styles`, `music-tracks`, `avatar-content`, `appearance-content`, and
+`idle-styles`, `avatar-content`, `appearance-content`, and
 `voice-content`. `/v1/content` is deliberately infrastructure-only; it no
 longer accepts a generic semantic Save or Preview contract.
 
@@ -315,10 +316,8 @@ idempotent commit. The commit writes a logical item selection to
 `anima_content_bindings` and advances the Anima loadout revision. A Gesture is
 unique by effective semantic key. Reaction bindings occupy canonical
 emotion/intensity cells, while a Reaction Action may be placed in any cell
-regardless of its authored placement hint. Idle Style is singular, Music
-cannot contain duplicate tracks and permits at most one autoplay track, and
-Avatar/Appearance/voice use
-their own single-selection rules. Pose Clips, VFX, and SFX remain transitive
+regardless of its authored placement hint. Idle Style is singular, and
+Avatar/Appearance/voice use their own single-selection rules. VFX and SFX remain transitive
 dependencies and are rejected as direct equipment. No loadout write copies
 bytes or hot-swaps an active mount.
 
@@ -347,25 +346,29 @@ persistent Cache Storage, IndexedDB, or OPFS library.
 
 ## Package boundary
 
-`POST /v1/content/items/{item_id}:export` validates the current exact typed
-closure and generates a deterministic `animama-content-package/2` archive
-under `data/staging/exports`. Handlers canonicalize descriptors and rewrite
-installation-local catalog, file, user, runtime, preview, URL, and host-locator
-references. The manifest never appears in the everyday Local folder.
+The [local package contract](../features/typed-content-and-marketplace.md#local-package-boundary)
+uses `animama-content-package/3`. Export resolves saved authority and exact source
+revisions, canonicalizes descriptors and writes immutable reviewed bytes under
+`data/staging/exports`. Installation-local references are rewritten to opaque
+package entry IDs. The manifest never appears in everyday Local folders.
 
-`POST /v1/content/packages:import` treats the archive as untrusted, validates
-paths, archive/file/byte limits, manifests, hashes, licenses, handler-owned
-types, dependency kinds, reachability, cycles, budgets, rewritten references,
-and final collisions in private staging. It reserves every destination and
-then promotes the closure behind the same mutation journal and catalog
-visibility fence used by Save and Delete. A stale replace decision or late
-failure compensates the whole install; no partial package member becomes
-selectable. Collision modes
-are `cancel`, `keep_both`, and explicit `replace`. Imported provenance and
-license facts remain catalog metadata and commit with the complete result.
-Startup deterministically recovers or compensates unfinished operations before
-catalog admission; conflicting manual edits require repair with both copies
-preserved.
+Import receives sequential bounded parts directly into one private archive under
+`data/staging/imports`. Review seals its hash, validates the complete typed graph
+and freezes fresh IDs, collision suffixes, destinations, associations and any
+Anima definition. Commit verifies that same archive and plan before publishing
+new files without overwriting existing destinations. All catalog rows, provenance,
+license facts and the optional Anima aggregate commit in one SQL unit of work,
+behind the mutation journal and catalog visibility fence. No partial member
+becomes selectable; changed destinations require a fresh review.
+
+Stages and export caches have bounded quotas and leases; see the
+[HTTP limits](http-api.md#package-sharing). Temporary-byte expiry or discard never
+removes durable operation receipts. Commit and operation-status lookup consult
+receipts before requiring a stage, so a lost response can recover the original
+result even after expiry, restart, later edits or deletion. Startup recovers or
+compensates unfinished mutations before catalog admission. Conflicting manual
+edits preserve current files and original backups for operator repair; journals
+are not disposable staging data.
 
 ## Private data
 

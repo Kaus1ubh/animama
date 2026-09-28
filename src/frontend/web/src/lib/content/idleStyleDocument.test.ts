@@ -2,72 +2,56 @@ import { describe, expect, it } from "vitest";
 
 import { idleStyleSpec, type IdleStyleDocument } from "./idleStyleDocument";
 
-function file(name: string) {
-  return new File(["vrma"], name, { type: "model/gltf-binary" });
-}
+const breathing = "local:gesture:breathing";
+const wave = "included:gesture:wave";
 
 describe("idleStyleSpec", () => {
-  it("keeps direct animation ordinals and sparse emotion pools", () => {
+  it("keeps intensity pools distinct and includes each required Gesture once", () => {
     const document: IdleStyleDocument = {
-      animations: [
-        {
-          animationId: "neutral",
-          name: "Breathing",
-          file: file("neutral.vrma"),
+      defaultPool: [breathing],
+      cells: {
+        joy: {
+          "1": { mode: "pool", gestures: [wave, breathing] },
+          "3": { mode: "none" },
         },
-        {
-          animationId: "angry",
-          name: "Angry Stance",
-          file: file("angry.vrma"),
-        },
-        { animationId: "sad", name: "Downcast", file: file("sad.vrma") },
-      ],
-      defaultPool: ["neutral"],
-      emotionPools: { anger: ["angry"], sadness: ["sad"] },
-      crossFadeSeconds: 0.35,
+      },
     };
-    const spec = idleStyleSpec(document);
-    expect(spec.animations.map((row) => row.ordinal)).toEqual([1, 2, 3]);
-    expect(spec.default_pool).toEqual(["neutral"]);
-    expect(spec.emotion_pools).toMatchObject({
-      anger: ["angry"],
-      sadness: ["sad"],
+    expect(idleStyleSpec(document)).toEqual({
+      schema_version: 2,
+      default_pool: [breathing],
+      cells: document.cells,
+      dependencies: [
+        { kind: "gesture", ref: breathing },
+        { kind: "gesture", ref: wave },
+      ],
+      compatibility: { vrm_versions: ["0.x", "1.0"] },
     });
   });
 
-  it("rejects a foreign pool animation", () => {
-    expect(() =>
-      idleStyleSpec({
-        animations: [
-          { animationId: "neutral", name: "Neutral", file: file("n.vrma") },
-        ],
-        defaultPool: ["missing"],
-        emotionPools: {},
-        crossFadeSeconds: 0.35,
-      }),
-    ).toThrow("unknown animation");
+  it("accepts an empty Default and preserves No idle without inventing inherited cells", () => {
+    const spec = idleStyleSpec({
+      defaultPool: [],
+      cells: { sadness: { "2": { mode: "none" } } },
+    });
+    expect(spec.default_pool).toEqual([]);
+    expect(spec.dependencies).toEqual([]);
+    expect(spec.cells).toEqual({ sadness: { "2": { mode: "none" } } });
+    expect(spec).not.toHaveProperty("animations");
+    expect(spec).not.toHaveProperty("cross_fade_seconds");
   });
 
-  it("rejects duplicate IDs and unnamed animations", () => {
-    const shared = file("same.vrma");
+  it("rejects repeated Gesture refs and empty explicit pools", () => {
     expect(() =>
-      idleStyleSpec({
-        animations: [
-          { animationId: "same", name: "One", file: shared },
-          { animationId: "same", name: "Two", file: shared },
-        ],
-        defaultPool: ["same"],
-        emotionPools: {},
-        crossFadeSeconds: 0.35,
-      }),
+      idleStyleSpec({ defaultPool: [wave, wave], cells: {} }),
     ).toThrow("unique");
     expect(() =>
       idleStyleSpec({
-        animations: [{ animationId: "same", name: " ", file: shared }],
-        defaultPool: ["same"],
-        emotionPools: {},
-        crossFadeSeconds: 0.35,
+        defaultPool: [],
+        cells: { joy: { "1": { mode: "pool", gestures: [] } } },
       }),
-    ).toThrow("needs a name");
+    ).toThrow("at least one Gesture");
+    expect(() => idleStyleSpec({ defaultPool: [""], cells: {} })).toThrow(
+      "Gesture reference",
+    );
   });
 });

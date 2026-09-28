@@ -46,6 +46,7 @@ COPY alembic ./alembic
 COPY content/included ./content/included
 COPY src/backend/animama ./src/backend/animama
 COPY src/backend/packaging/hatch_build.py src/backend/packaging/shared_catalogs.py ./src/backend/packaging/
+COPY scripts/voices/selection.json ./scripts/voices/selection.json
 COPY src/frontend/web/src/assets/vrm/animations/manifest.json \
     ./src/frontend/web/src/assets/vrm/animations/manifest.json
 COPY src/frontend/web/src/assets/effects/vfx/catalog.json \

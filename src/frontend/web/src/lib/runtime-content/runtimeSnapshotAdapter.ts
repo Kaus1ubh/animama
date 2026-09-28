@@ -114,7 +114,6 @@ function append(
     background_image: "background_image",
     profile_image: "profile_image",
     sfx: "sfx",
-    bgm: "bgm",
   };
   const lane = laneBySlot[entry.slot];
   if (!lane) return;
@@ -171,7 +170,6 @@ export function adaptRuntimeSnapshot(
     background_image: null,
     profile_image: null,
     sfx: [],
-    bgm: [],
     warnings: [],
   } as unknown as AnimaRuntimeCatalogSnapshot;
   const avatar = object(typed.avatar);
@@ -222,6 +220,62 @@ export function adaptRuntimeSnapshot(
     append(runtime, entry);
   }
   const idleStyle = object(typed.idle_style);
+  if (
+    Array.isArray(idleStyle.gestures) &&
+    (idleStyle.schema_version === 2 || idleStyle.gestures.length > 0)
+  ) {
+    const runtimeIds = new Map<string, string>();
+    for (const raw of idleStyle.gestures) {
+      const gesture = object(raw);
+      const itemId = String(object(gesture.source).item_id ?? "");
+      const runtimeId = String(gesture.binding_id ?? `idle:${itemId}`);
+      const playback = object(gesture.idle_playback);
+      if (!itemId || playback.eligible !== true) continue;
+      runtimeIds.set(itemId, runtimeId);
+      const entry = privateEntry(
+        {
+          ...gesture,
+          runtime_root_id: idleStyle.runtime_root_id,
+          config: {
+            ...object(gesture.config),
+            idle_playback: playback,
+            duration_seconds: playback.cycle_seconds,
+            loop_type: playback.loop_type,
+            loop_count: playback.repetitions,
+            time_scale: playback.time_scale,
+            preload_tier: "tier_a",
+          },
+        },
+        "idle_animation",
+        runtimeId,
+        object(gesture.implementation).kind === "vrma"
+          ? "animation"
+          : "anima_pose_clip",
+        typed.effective_revision,
+      );
+      append(runtime, entry);
+    }
+    const ids = (value: unknown): string[] =>
+      Array.isArray(value)
+        ? value
+            .map((id) => runtimeIds.get(String(id)))
+            .filter((id): id is string => !!id)
+        : [];
+    runtime.idle_style_pools = {
+      default: ids(idleStyle.default_pool),
+      cells: Object.fromEntries(
+        Object.entries(object(idleStyle.cells)).map(([emotion, levels]) => [
+          emotion,
+          Object.fromEntries(
+            Object.entries(object(levels)).map(([level, raw]) => [
+              level,
+              object(raw).mode === "none" ? [] : ids(object(raw).gestures),
+            ]),
+          ),
+        ]),
+      ),
+    };
+  }
   const defaultPool = new Set(
     Array.isArray(idleStyle.default_pool)
       ? idleStyle.default_pool.map(String)
@@ -332,30 +386,6 @@ export function adaptRuntimeSnapshot(
     );
     if (entry) append(runtime, entry);
   }
-  for (const rawTrack of typed.music_tracks ?? []) {
-    const track = object(rawTrack);
-    const runtimeId = String(track.runtime_id ?? track.binding_id ?? "");
-    if (!runtimeId) continue;
-    const files = Array.isArray(track.files) ? track.files : [];
-    if (files.length) {
-      append(
-        runtime,
-        privateEntry(
-          track,
-          "bgm",
-          runtimeId,
-          "audio",
-          typed.effective_revision,
-        ),
-      );
-      continue;
-    }
-    runtime.warnings.push({
-      code: "music_files_unavailable",
-      slot: "bgm",
-      runtime_id: runtimeId,
-    });
-  }
   runtime.effective_revision = typed.effective_revision;
   runtime.loadout_revision = typed.loadout_revision;
   // Availability grows within one frozen revision. Retain entry identity so
@@ -378,7 +408,6 @@ export function adaptRuntimeSnapshot(
       "scene_background_vfx",
       "scene_focus_vfx",
       "sfx",
-      "bgm",
     ] as const) {
       const entries = new Map(
         previous[key].map((entry) => [entry.runtime_id, entry]),

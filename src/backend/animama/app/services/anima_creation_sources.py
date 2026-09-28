@@ -7,14 +7,22 @@ whole command. Catalog entries remain logical sources, not durable mount pins.
 from __future__ import annotations
 
 import asyncio
+import json
 from dataclasses import dataclass
+from functools import lru_cache
+from importlib.resources import files
 from pathlib import PurePosixPath
 from typing import Any, cast
 
 from animama.app.anima_creation_contract import AnimaSpec, ItemRevisionRef
 from animama.app.ports.content_catalog import ContentCatalog
 from animama.app.ports.content_store import ContentStore
-from animama.domain.anima_creation import ResolvedAnimaSpec, ResolvedAppearanceSelection, ResolvedReactionSelection
+from animama.domain.anima_creation import (
+    ResolvedAnimaSpec,
+    ResolvedAppearanceSelection,
+    ResolvedGestureSelection,
+    ResolvedReactionSelection,
+)
 from animama.domain.anima_creation_error import AnimaCreationError, AnimaCreationIssue, bounded_issues
 from animama.domain.anima_definition import (
     ANIMA_DISPLAY_NAME_MAX_CHARACTERS,
@@ -29,7 +37,13 @@ from animama.domain.content_catalog import (
     ContentSource,
     ContentStatus,
 )
-from animama.domain.content_documents import GestureDocumentV1, IdleStyleDocumentV1, ReactionDocumentV1
+from animama.domain.content_documents import (
+    GestureDocumentV1,
+    IdleStyleDocumentV1,
+    IdleStyleDocumentV2,
+    ReactionDocumentV1,
+    VoiceDocumentV1,
+)
 from animama.domain.emotions import TRACKED_EMOTIONS
 from animama.domain.runtime_content_descriptor import RuntimeContentRootSelection
 
@@ -45,6 +59,13 @@ from .runtime_budget_policy import MAX_RUNTIME_BYTES, MAX_RUNTIME_CONFIG_BYTES, 
 from .runtime_content_closure import RuntimeContentClosureCompiler
 from .starter_loadout_policy import starter_loadout_policy, starter_pack_identity
 from .typed_content_service import TypedCatalogItem, TypedContentAdmissionError, TypedContentService
+
+
+@lru_cache(maxsize=1)
+def creation_pocket_presets() -> frozenset[str]:
+    """Read the same release selection that generates the browser voice catalog."""
+    selection = json.loads(files("animama.resources").joinpath("pocket-voice-selection.json").read_text())
+    return frozenset(voice["id"] for voice in selection["voices"])
 
 
 @dataclass(frozen=True, slots=True)
@@ -177,6 +198,17 @@ class AnimaCreationSources:
             )
         visible = {item.id: item for item in await self.catalog.list_visible(user_id=user_id)}
         roots: list[tuple[str, ContentKind, ItemRevisionRef]] = [("/avatar", ContentKind.AVATAR, spec.avatar)]
+        voice = spec.voice
+        if voice and voice.pocket.type == "clone":
+            roots.append(("/voice/pocket/source", ContentKind.VOICE, voice.pocket.source))
+        elif voice and voice.pocket.type == "preset" and voice.pocket.voice_id not in creation_pocket_presets():
+            raise AnimaCreationError(
+                issues=[
+                    AnimaCreationIssue(
+                        "voice_preset_unavailable", "Choose an available PocketTTS voice.", "/voice/pocket/voice_id"
+                    )
+                ]
+            )
         for slot in ("profile", "background"):
             choice = getattr(spec.appearance, slot)
             if choice is not None:
@@ -293,6 +325,31 @@ class AnimaCreationSources:
                         )
                     ]
                 )
+        voice_source = None
+        speech_preferences = None
+        if voice:
+            if voice.pocket.type == "clone":
+                clone = typed_items[voice.pocket.source.item_id]
+                if not isinstance(clone.document, VoiceDocumentV1) or clone.document.codec != "pocket-tts-catalog-v1":
+                    raise AnimaCreationError(
+                        issues=[
+                            AnimaCreationIssue(
+                                "voice_codec_invalid",
+                                "Choose a saved PocketTTS voice clone.",
+                                "/voice/pocket/source",
+                                clone.item.id,
+                            )
+                        ]
+                    )
+                voice_source = clone.item
+            speech_preferences = {
+                "tts_provider": voice.provider,
+                "tts_pocket_anima_voice": voice.pocket.voice_id if voice.pocket.type == "preset" else "eve",
+                "tts_pocket_anima_custom_voice_available": False,
+                "elevenlabs": {"primary_voice": {"voice_id": voice.elevenlabs_voice_id}}
+                if voice.elevenlabs_voice_id
+                else {},
+            }
         descriptor = await RuntimeContentClosureCompiler(catalog=self.catalog, store=self.store).compile(
             user_id=user_id,
             loadout_revision=1,
@@ -325,7 +382,7 @@ class AnimaCreationSources:
                 if typed.item.kind is ContentKind.AVATAR:
                     avatar_version = facts["vrm_spec"]
         for typed in typed_items.values():
-            if isinstance(typed.document, IdleStyleDocumentV1):
+            if isinstance(typed.document, IdleStyleDocumentV1 | IdleStyleDocumentV2):
                 versions = typed.document.compatibility.get("vrm_versions", ["0.x", "1.0"])
                 if (
                     not isinstance(versions, list)
@@ -369,11 +426,15 @@ class AnimaCreationSources:
             )
         return CreationSources(
             resolved=ResolvedAnimaSpec(
+                speech_preferences=speech_preferences,
+                voice_source=voice_source,
                 display_name=spec.display_name,
                 identity=spec.identity_markdown,
                 avatar=typed_items[spec.avatar.item_id].item,
                 idle_style=None,
-                gestures=tuple(typed_items[choice.source.item_id].item for choice in spec.gestures),
+                gestures=tuple(
+                    ResolvedGestureSelection(typed_items[choice.source.item_id].item) for choice in spec.gestures
+                ),
                 reactions=tuple(
                     ResolvedReactionSelection(emotion, int(level), typed_items[source.item_id].item if source else None)
                     for emotion, cells in spec.reactions.items()

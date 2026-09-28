@@ -17,6 +17,8 @@ import { atomicWrite } from "../src/main-process/runtime/atomic-file.js";
 import { normalizeSchemaDump } from "../src/main-process/runtime/schema.js";
 import {
   manifestDigest,
+  MODEL_PACK_IDS,
+  modelObjectUrl,
   versionDirectory,
   PACK_METADATA,
   type PackManifest,
@@ -238,31 +240,48 @@ function seedSpeechPack(
   appVersions = ["0.1.0"],
 ) {
   const manifests = (Array.isArray(id) ? id : [id]).map(
-    (packId): PackManifest => ({
-      schema: "animama-feature-pack/1",
-      id: packId,
-      display_name: "Fixture speech",
-      version: "0.1.0",
-      app_versions: appVersions,
-      platform: "data-only",
-      architecture: "data-only",
-      url: `https://github.com/example/animama/releases/download/v0.1.0/${packId}.tar.zst`,
-      archive_bytes: 100,
-      archive_sha256: "a".repeat(64),
-      installed_bytes: 2,
-      minimum_peak_free_bytes: 100,
-      license_refs: ["fixture"],
-      signing: null,
-      files: [
-        {
-          path: "config.json",
-          size_bytes: 2,
-          sha256: createHash("sha256").update("{}").digest("hex"),
-          media_type: "application/json",
-          mode: "0644",
-        },
-      ],
-    }),
+    (packId): PackManifest => {
+      const common = {
+        display_name: "Fixture speech",
+        version: "0.1.0",
+        app_versions: appVersions,
+        platform: "data-only" as const,
+        architecture: "data-only" as const,
+        installed_bytes: 2,
+        minimum_peak_free_bytes: 100,
+        license_refs: ["fixture"],
+        signing: null,
+        files: [
+          {
+            path: "config.json",
+            size_bytes: 2,
+            sha256: createHash("sha256").update("{}").digest("hex"),
+            media_type: "application/json",
+            mode: "0644" as const,
+          },
+        ],
+      };
+      if (packId === "expanded-included-content")
+        return {
+          ...common,
+          schema: "animama-feature-pack/1",
+          id: packId,
+          url: `https://github.com/example/animama/releases/download/v0.1.0/${packId}.tar.zst`,
+          archive_bytes: 100,
+          archive_sha256: "a".repeat(64),
+        };
+      const modelId = MODEL_PACK_IDS[packId];
+      return {
+        ...common,
+        schema: "animama-model-pack/1",
+        id: packId,
+        model_id: modelId,
+        files: common.files.map((file) => ({
+          ...file,
+          url: modelObjectUrl(modelId, file),
+        })),
+      };
+    },
   );
   const roots = manifests.map((manifest) => {
     const root = path.join(

@@ -9,13 +9,19 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.routing import APIRoute
+from pydantic.json_schema import SkipJsonSchema
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from animama.adapters.repositories.sqlalchemy.anima_aggregate_uow import SQLAlchemyAnimaAggregateUnitOfWork
 from animama.adapters.repositories.sqlalchemy.anima_creation_repo import SQLAlchemyAnimaCreationRepository
 from animama.adapters.repositories.sqlalchemy.content_catalog_repo import SQLAlchemyContentCatalog
 from animama.adapters.repositories.sqlalchemy.settings_repo import SQLAlchemyUserSettingsRepository
-from animama.app.anima_creation_contract import AnimaSpec, CreateAnimaRequest, EnsureAnimaStartersRequest
+from animama.app.anima_creation_contract import (
+    AnimaSpec,
+    CreateAnimaRequest,
+    EnsureAnimaStartersRequest,
+    LegacyCreateAnimaRequest,
+)
 from animama.app.services.anima_creation_service import AnimaCreationService
 from animama.app.services.anima_creation_sources import AnimaCreationSources
 from animama.app.services.anima_starter_service import AnimaStarterService
@@ -148,7 +154,7 @@ async def validate_anima(
     "/v1/animas", response_model=AnimaCreationResult, status_code=201, responses={200: {"model": AnimaCreationResult}}
 )
 async def create_anima(
-    req: CreateAnimaRequest,
+    req: CreateAnimaRequest | SkipJsonSchema[LegacyCreateAnimaRequest],
     request: Request,
     session: Annotated[AsyncSession, Depends(get_async_session)],
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],

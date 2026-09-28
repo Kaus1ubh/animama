@@ -57,9 +57,24 @@ effective values; later source edits or deletion do not change that Gesture.
 
 ## Pose Clip
 
-A timed animation sequence of poses and optional effects or sounds. A Gesture can
-own its clip as an internal file; an independently reusable Pose Clip has its own
-catalog item. A standalone Pose has no timeline and is not Anima equipment.
+A timed sequence of poses, expressions and optional effects or sounds, stored as
+an Action-owned implementation document. Gestures and Reactions can use Pose
+Clips; clips are not independently selectable catalog items. A standalone Pose
+has no timeline and is not Anima equipment.
+
+## Idle Style
+
+Reusable content that selects finite Gestures for idle playback through a Default
+pool and optional emotion/intensity pools. An omitted cell inherits Default;
+explicit None suppresses idle playback for that cell. Selecting an Idle Style
+does not equip its Gestures for AI invocation.
+
+## Portable package
+
+A local `.zip` file containing selected content and its required dependencies,
+or one saved Anima definition and its content. An Anima package includes the
+reviewed identity and selections, not conversations or other private memory.
+Import creates independent Local content and, for an Anima package, a new companion.
 
 ## Loadout
 
@@ -118,7 +133,7 @@ such as Ollama, LM Studio, llama.cpp or any OpenAI-compatible Chat Completions
 server, in App Settings → Models. Keys never enter the database. A connection's
 **models** are either built-in (read-only templates the owner can hide) or
 owner-added. The hosted composition has no owner connections; see
-[ADR 0010](docs/adr/0010-application-owned-companion-features-and-composition-catalog-policy.md).
+[ADR 0011](docs/adr/0011-application-owned-companion-features-and-composition-catalog-policy.md).
 
 ## Model role
 

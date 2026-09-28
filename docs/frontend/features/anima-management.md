@@ -6,10 +6,11 @@ loadout used by chat.
 Routes:
 
 - `/a/create`: browse the creator hub.
-- `/a/animas/new`: Avatar → Identity → Actions → Review live creation;
+- `/a/animas/new`: Avatar → Voice → Identity → Actions → Review live creation;
   existing links and optional logical Avatar handoffs remain intact.
 - `/a/animas`: resolve to the first owned Anima or `/a/animas/new`.
 - `/a/animas/:animaId`: view the rendered `IDENTITY.md` document by default.
+- `/a/animas/:animaId?tab=memories`: read the Anima's relationship `MEMORIES.md`.
 - `/a/animas/:animaId?tab=loadout`: configure the typed loadout.
 - `/a/animas/:animaId/identity`: edit the Anima's `IDENTITY.md` memory entry.
 - `/a/:animaId`: enter the live Avatar/chat surface.
@@ -17,8 +18,8 @@ Routes:
 The [live creation journey](custom-anima-creation.md) uses stable live
 name/identity authority, atomic creation, and durable idempotency receipts.
 Installation bootstrap/repair uses backend starter specifications and preserves existing
-customization and deletion. The management Loadout has four sections; creation produces a private live
-Anima.
+customization and deletion. [Library sharing](library.md#import--export) can copy
+a reviewed saved definition to a new independent Anima.
 
 ## Identity
 
@@ -28,9 +29,24 @@ The panel renders the Anima-scoped `IDENTITY.md`; if that file is unavailable,
 the selected Avatar's starter identity is shown as a fallback. Edit identity
 opens a nested modal route and closing it returns focus to the Identity panel.
 Saving updates the shared memory-entry query used by the rendered preview and
-subsequent chat turns. Open memories selects the Anima's relationship
-`MEMORIES.md` in the Manual [memory workspace](anima-memory.md) by entry ID. It
-is hidden while that file is missing; repair it from the Anima's folder there.
+subsequent chat turns.
+
+## Memories
+
+The Memories tab renders the selected Anima's relationship `MEMORIES.md`.
+Edit memories opens that exact entry in a Markdown editor modal, preserving the
+Memories tab and returning focus to its edit button on close.
+An empty file remains editable; a missing
+file offers Repair memories, which recreates the template without overwriting
+an existing file. Load failures offer Retry.
+
+## Chat profile modal
+
+The Anima's profile modal above chat keeps Identity and Memories in tabs below
+the portrait and mood. It opens on Identity each time. Each tab's edit button
+opens the corresponding Markdown editor without leaving chat; closing the
+editor restores focus to that button and keeps the selected tab. Saving updates
+the shared document preview.
 
 ## Appearance editor
 
@@ -44,7 +60,6 @@ Profile and Background images, framing and Avatar portrait fallback.
 - a short active Gesture list;
 - a canonical emotion-by-intensity Reaction grid;
 - one emotion-aware Idle Style;
-- zero or more enabled Music Tracks with at most one autoplay track;
 - one Avatar content selection; and
 - typed profile/background Appearance Images with fit, focal point, and zoom.
 
@@ -52,8 +67,11 @@ Gestures and Reactions are complete actions. Their Particle, Avatar, and
 Scene Effects and Sound Effects are compiler-managed dependencies, so those
 ingredients never appear as separate loadout checkboxes.
 
-The Loadout panel contains Gestures, Reactions, Idle Style and Music. Avatar,
-Appearance and voice use their own focused controls.
+The Loadout panel contains Voices, Gestures, Reactions and Idle Style.
+Voices configures PocketTTS and ElevenLabs for this Anima, regardless of the
+active application provider. Avatar and Appearance use their own focused controls.
+Imported encoded-only voice clones remain selectable for speech; their original
+recording preview is unavailable because the recording is not shared.
 
 The unified Gesture list keeps ready user-created Gestures first and optionally
 reveals active or disabled Starter Gestures through the header filter menu.
@@ -71,18 +89,17 @@ Action to the clicked cell regardless of that suggested placement. Adding,
 updating, replacing, removing, reverting, or leaving a Reaction empty uses the
 same review boundary. Replacing a cell names the current occupant.
 
-An Idle Style owns named VRMA animation files and defines a Default pool plus
-optional pools for canonical emotions. The loadout presents those assignments
-as one continuous set of independently expandable emotion pools. Each pool can
-preview, add, and remove animations inline; its final animation cannot be
-removed because pools must remain non-empty. The filter can reveal emotions
-that inherit Default, and an override can restore the Included mapping. The
-active style selector can return to Starter or intentionally disable idle
-motion.
+An Idle Style owns pools of existing Gestures. Its Default pool can be empty;
+each emotion/intensity cell inherits Default, explicitly disables idle, or uses
+its own nonempty pool. Neutral uses Default. Choosing a Gesture for a Style
+does not equip it for AI invocation. Both VRMA and `animaPoseClip` Gestures need
+finite authored playback to be eligible.
 
-Music supports several enabled built-in or private tracks. Per-track loop and
-gain are persisted; at most one enabled track autoplays. Playback position,
-temporary mute, and current manual selection remain local browser state.
+The loadout chooses, previews, edits or duplicates one Style, or leaves idle
+empty. Pool edits belong to the Style editor. Editing a shared Local Style
+affects its users on their next mount; duplicate it first for independent pools.
+Customizing Included content creates a Local copy. The editor preserves its
+loaded revision when saving or recovering an interrupted Save.
 
 Appearance choices are separate typed images rather than generic files. A
 custom profile image wins over the selected Avatar content portrait; otherwise

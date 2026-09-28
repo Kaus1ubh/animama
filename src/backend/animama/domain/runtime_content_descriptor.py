@@ -78,6 +78,7 @@ class RuntimeContentRoot:
     entry_ids: tuple[str, ...]
     member_refs: tuple[str, ...]
     context: dict[str, Any] = field(default_factory=dict)
+    idle_playback: dict[str, dict[str, Any]] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)

@@ -77,10 +77,16 @@ class ContentCatalog(Protocol):
         new_item_owner_user_id: str | None,
         creator_claim: tuple[str, str] | None = None,
         active_included_mount_ids: tuple[str, ...] | None = None,
+        planned_item_ids: dict[str, str] | None = None,
     ) -> list[CatalogContentEntry]:
         raise NotImplementedError
 
     async def list_visible(self, *, user_id: str) -> list[CatalogContentEntry]:
+        raise NotImplementedError
+
+    async def record_transition_failure(self, *, user_id: str, item_id: str, expected_revision: str, code: str) -> None:
+        """Retain a safe repair diagnostic until the next authoritative rescan."""
+
         raise NotImplementedError
 
     async def get_visible_item(
@@ -112,6 +118,11 @@ class ContentCatalog(Protocol):
 
     async def item_has_runtime_references(self, *, item_id: str) -> bool:
         """Return whether an Avatar, Anima binding, or content dependency uses it."""
+
+        raise NotImplementedError
+
+    async def delete_unbound_avatar_mapping(self, *, item_id: str, user_id: str) -> None:
+        """Remove the owner's unused logical Avatar for an exact locked catalog item."""
 
         raise NotImplementedError
 

@@ -1,8 +1,11 @@
 import type { VRM } from "@pixiv/three-vrm";
 import { describe, expect, it } from "vitest";
 
-import type { AnimaPoseClip } from "./animaPoseClip";
-import { PoseController } from "./PoseController";
+import { parseAnimaPoseClip, type AnimaPoseClip } from "./animaPoseClip";
+import {
+  PoseController,
+  type AnimaPoseClipEventContext,
+} from "./PoseController";
 
 function minimalVrm(): VRM {
   return {
@@ -42,5 +45,155 @@ describe("PoseController playback observation", () => {
     controller.playAnimaPoseClip(clip);
 
     expect(controller.getClipSnapshot().firedEventIds).toEqual(["shy-sparkle"]);
+  });
+});
+
+describe("finite idle playback", () => {
+  const clip: AnimaPoseClip = {
+    schema: "animaPoseClip/1.0",
+    id: "idle-clip",
+    name: "Idle",
+    duration: 1,
+    loop: true,
+    poses: {},
+    poseKeyframes: [],
+    events: [
+      { id: "start", time: 0, kind: "sfx", cueId: "tap" },
+      { id: "end", time: 1, kind: "sfx", cueId: "tap" },
+    ],
+  };
+  it("uses authored speed, stops after N cycles and excludes the next cycle's zero event", () => {
+    const controller = new PoseController(minimalVrm());
+    const seen: string[] = [];
+    controller.setClipEventSink({
+      playSfx: (event, context) => {
+        seen.push(`${event.id}:${context.occurrenceIndex}`);
+      },
+    });
+    controller.playAnimaPoseClip(clip, {
+      finitePlayback: { timeScale: 2, repetitions: 2 },
+    });
+    controller.update(0.5);
+    expect(seen).toEqual(["start:0", "start:1", "end:0"]);
+    expect(controller.isClipActive()).toBe(true);
+    controller.update(0.5);
+    expect(seen).toEqual(["start:0", "start:1", "end:0", "end:1"]);
+    expect(controller.isClipActive()).toBe(false);
+  });
+  it("uses admitted repetitions even when the authored clip loop flag differs", () => {
+    const controller = new PoseController(minimalVrm());
+    const events: string[] = [];
+    controller.setClipEventSink({
+      playSfx: (event) => {
+        events.push(event.id);
+      },
+    });
+    controller.playAnimaPoseClip(
+      { ...clip, loop: false },
+      { finitePlayback: { timeScale: 1, repetitions: 2 } },
+    );
+    controller.update(1.5);
+    expect(controller.isClipActive()).toBe(true);
+    expect(events.filter((id) => id === "start")).toHaveLength(2);
+    controller.update(0.5);
+    expect(controller.isClipActive()).toBe(false);
+  });
+
+  it("advances the pose and expression sample on the same authored-speed clock as events", () => {
+    let happy = 0;
+    const vrm = {
+      ...minimalVrm(),
+      expressionManager: {
+        getExpression: () => ({}),
+        getValue: () => happy,
+        update: () => {},
+        setValue: (_name: string, value: number) => {
+          happy = value;
+        },
+      } as unknown as VRM["expressionManager"],
+    } as unknown as VRM;
+    const controller = new PoseController(vrm);
+    controller.playAnimaPoseClip(
+      {
+        schema: "animaPoseClip/1.0",
+        id: "expression",
+        name: "Expression",
+        duration: 1,
+        poses: {
+          start: { expressions: { happy: 0 } },
+          end: { expressions: { happy: 1 } },
+        },
+        poseKeyframes: [
+          { time: 0, pose: "start" },
+          { time: 1, pose: "end", transition: { easing: "linear" } },
+        ],
+      },
+      { finitePlayback: { timeScale: 2, repetitions: 1 } },
+    );
+    controller.update(0.25);
+    expect(happy).toBeCloseTo(0.5);
+  });
+
+  it("cancels only the occurrence's event work immediately when interrupted or replaced", () => {
+    const controller = new PoseController(minimalVrm());
+    const contexts: AnimaPoseClipEventContext[] = [];
+    controller.setClipEventSink({
+      playSfx: (_event, context) => {
+        contexts.push(context);
+      },
+    });
+    const options = { finitePlayback: { timeScale: 1, repetitions: 2 } };
+    controller.playAnimaPoseClip(clip, options);
+    controller.stopClip({ fadeOutDurationSec: 1 });
+    expect(contexts[0]?.signal?.aborted).toBe(true);
+    controller.playAnimaPoseClip(clip, options);
+    expect(contexts[1]?.signal?.aborted).toBe(false);
+    expect(contexts[1]?.appliedId).not.toBe(contexts[0]?.appliedId);
+    controller.dispose();
+    expect(contexts[1]?.signal?.aborted).toBe(true);
+  });
+});
+
+describe("finite authored timeline admission", () => {
+  const base = {
+    schema: "animaPoseClip/1.0",
+    id: "extent",
+    name: "Extent",
+    poses: {},
+    poseKeyframes: [],
+  };
+  it("plays an inferred positive event extent without including effect duration", () => {
+    const controller = new PoseController(minimalVrm());
+    const seen: string[] = [];
+    controller.setClipEventSink({
+      applyAvatarVFX: (event) => {
+        seen.push(event.id);
+      },
+    });
+    const clip = parseAnimaPoseClip({
+      ...base,
+      events: [
+        {
+          id: "end",
+          kind: "avatar_vfx",
+          effectId: "sparkle",
+          time: 0.5,
+          duration: 40,
+        },
+      ],
+    });
+    controller.playAnimaPoseClip(clip, {
+      finitePlayback: { timeScale: 2, repetitions: 1 },
+    });
+    controller.update(0.25);
+    expect(seen).toEqual(["end"]);
+    expect(controller.isClipActive()).toBe(false);
+  });
+  it("admits timed looping clips with only zero events and rejects an unknown horizon", () => {
+    const events = [{ id: "start", kind: "sfx", cueId: "tap", time: 0 }];
+    expect(() =>
+      parseAnimaPoseClip({ ...base, duration: 0.25, loop: true, events }),
+    ).not.toThrow();
+    expect(() => parseAnimaPoseClip({ ...base, events })).toThrow();
   });
 });

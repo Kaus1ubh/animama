@@ -1,5 +1,7 @@
 "use client";
 
+import { useLibrarySharingFlow } from "@/query/hooks/useLibrarySharingFlow";
+import { LibrarySharingDialog } from "./LibrarySharingDialog";
 import { LibraryBig } from "lucide-react";
 
 import type { ContentLibrarySearch } from "@/lib/content/librarySearch";
@@ -30,6 +32,7 @@ export function LibraryPage({
   search: ContentLibrarySearch;
   onSearchChange: (update: Partial<ContentLibrarySearch>) => void;
 }) {
+  const sharing = useLibrarySharingFlow();
   return (
     <AppShellPage contentClassName="gap-0">
       <header className="pb-4">
@@ -40,7 +43,10 @@ export function LibraryPage({
             </div>
             <h1 className="text-2xl font-semibold tracking-tight">Library</h1>
           </div>
-          <ContentHealth className="ml-auto" />
+          <div className="ml-auto flex items-center gap-3">
+            <ContentHealth />
+            <LibrarySharingDialog flow={sharing} />
+          </div>
         </div>
       </header>
       <nav
@@ -63,7 +69,9 @@ export function LibraryPage({
       </nav>
       {search.section === "actions" ? (
         <div className="flex flex-wrap items-center gap-2 pt-4">
-          {(["all", "gestures", "reactions", "poses"] as const).map((value) => (
+          {(
+            ["all", "gestures", "reactions", "poses", "idle-styles"] as const
+          ).map((value) => (
             <Button
               key={value}
               size="sm"
@@ -72,7 +80,9 @@ export function LibraryPage({
             >
               {value === "all"
                 ? "All"
-                : value[0].toUpperCase() + value.slice(1)}
+                : value === "idle-styles"
+                  ? "Idle Styles"
+                  : value[0].toUpperCase() + value.slice(1)}
             </Button>
           ))}
         </div>

@@ -17,9 +17,10 @@ can add your converted Mixamo motions to your ignored library. Download and
 conversion remain manual.
 
 Install Docker with Compose, Git LFS and Python 3.11 or newer. Hydrate the
-remaining checkout assets with `git lfs pull`, then acquire the pinned Parakeet
-files once into the shared model store and start development from the repository
-root:
+remaining checkout assets with `git lfs pull`, then start development from the
+repository root. The speech model acquisition is optional: without Parakeet,
+dictation reports offline speech as not installed; without the browser speech
+set, Pocket TTS and Smart Turn are unavailable.
 
 ```bash
 python3 scripts/models/parakeet.py acquire

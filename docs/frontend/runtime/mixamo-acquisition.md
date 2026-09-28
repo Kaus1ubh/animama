@@ -59,9 +59,11 @@ python3 scripts/acquire-mixamo.py --install-from data/mixamo-acquisition/convert
 
 The default destination is this checkout's ignored `content/local/` library.
 Use `--local-root /absolute/path/to/local` for a different installation.
-The result is 23 Gesture items in `gestures/mixamo-<name>/` and one six-clip
-Idle Style in `idle-styles/mixamo-starter/`. Local identities preserve the
-original motion settings without depending on Included content. The script
+The result is 29 Gesture items: 23 in `gestures/mixamo-<name>/` and six idle
+Gestures in `gestures/mixamo-idle-<name>/`. The Idle Style in
+`idle-styles/mixamo-starter/` references those six Gestures through Default and
+emotion/intensity pools. Each Gesture retains its original motion settings;
+installation does not equip it for AI invocation. The script
 prints an installation receipt with hashes.
 
 The installer checks GLB/VRMA structure, rejects symlink destinations and inputs,

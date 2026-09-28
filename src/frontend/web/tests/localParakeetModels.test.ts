@@ -88,12 +88,19 @@ describe("shared Parakeet model delivery", () => {
     expect(resolveLocalParakeetModelDir()).toBe(root);
     expect(execFileSync).not.toHaveBeenCalled();
   });
-  it("fails missing setup instead of falling back to removed tracked weights", () => {
+  it("treats an unacquired set as optional", () => {
     vi.stubEnv("VITE_CLIENT_PARAKEET_MODEL_DIR", "");
     vi.mocked(execFileSync).mockImplementation(() => {
-      throw new Error("Run parakeet.py acquire");
+      throw Object.assign(new Error("Run parakeet.py acquire"), { status: 2 });
     });
-    expect(resolveLocalParakeetModelDir).toThrow("Run parakeet.py acquire");
+    expect(resolveLocalParakeetModelDir()).toBeNull();
+  });
+  it("fails a set that does not verify", () => {
+    vi.stubEnv("VITE_CLIENT_PARAKEET_MODEL_DIR", "");
+    vi.mocked(execFileSync).mockImplementation(() => {
+      throw Object.assign(new Error("SHA-256 mismatch"), { status: 1 });
+    });
+    expect(resolveLocalParakeetModelDir).toThrow("SHA-256 mismatch");
   });
   it.each(["production", "embedded-desktop"])(
     "%s builds need no model setup",

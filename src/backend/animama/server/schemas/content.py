@@ -255,13 +255,4 @@ class PyContentPreview(BaseModel):
         )
 
 
-class PyContentPackageImportResult(BaseModel):
-    """Editable catalog entries admitted from one validated package."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    items: list[PyContentItem]
-    skipped_existing_item_ids: list[str]
-
-
 __all__ = [name for name in globals() if name.startswith("Py")]

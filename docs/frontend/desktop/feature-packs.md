@@ -2,11 +2,12 @@
 
 Feature packs add optional local capabilities. The installation owner remains
 the same when a pack is installed, removed or reinstalled. No online Animama
-account is required. **No production pack release is available.** The producer emits catalog entries
-only for active, approved exact inputs, with URLs in the release folder of the
-distribution selected at build time (see [Distribution selection](releases.md#distribution-selection)).
-The app downloads only from that distribution; a destination that is not yet
-publicly served cannot deliver packs.
+account is required. **No production pack release is available.** The producer emits
+catalog entries only for active, approved exact inputs. Parakeet packs download
+verified raw files and notices from `downloads.animama.ai/models/`, independently
+of the app's update distribution. Other packs retain their archive delivery from
+the [selected distribution](releases.md#distribution-selection). Every destination
+must serve its pinned objects publicly before a download can succeed.
 
 ## What each pack adds
 
@@ -17,10 +18,12 @@ publicly served cannot deliver packs.
 | Expanded Included content (deferred) | `expanded-included-content` | Not offered in the first release. Both core starters retain their required content.                                                  |
 | Document processing (deferred)       | `document-processing`       | Not offered in the first release. Originals can still be uploaded and stored; new extraction/indexing requests remain unavailable.   |
 
-The GPU speech encoder is offered only beside App Settings → Advanced →
-Experimental → "GPU-accelerated offline speech (WebGPU)", after the renderer
-finds a WebGPU adapter. The general pack list shows it only when its files
-remain installed, for removal or recovery. If the encoder was left inactive
+The GPU enhancement appears in setup when the renderer finds a WebGPU adapter
+and the app has a compatible approved catalog entry. In App Settings → Voice →
+Speech-to-Text it appears only for the selected Parakeet WebGPU provider. The CPU
+download remains reachable before Parakeet is available for selection. Install CPU speech first;
+the GPU action never installs it automatically. Retained GPU files remain
+removable on unsupported devices. If the encoder was left inactive
 because offline speech was missing at startup, reinstall offline speech, then
 select Retry: its retained, verified files are reactivated without downloading.
 
@@ -34,11 +37,19 @@ other packs are data only; none lets the renderer execute a downloaded command.
 
 ## Install and retry
 
-Open Settings in the main window and find **Optional feature packs**. Inspect
-the listed download size, installed size and required free space, then select
-**Install**. First-run setup can also request offline speech recognition;
-the checkbox starts unchecked. Leave it unchecked when continuing with your
-required display name to enter the app without a pack download.
+Setup and App Settings → Voice offer direct optional download controls. The
+Speech-to-Text section contains CPU speech and its separate GPU enhancement.
+Voice Clone contains the encoder download; App Settings also reuses the Anima
+voice-cloning form in this section, after Text-to-Speech. Setup has no separate
+Text-to-Speech section or preset voice browser.
+Eve and Azelma are included. The other 36 voices download individually from the
+compact picker in Anima voice selection, and
+cloning needs its separate encoder. Downloading changes neither provider nor
+selected voice. Previewing a source sample also leaves selection unchanged.
+Setup permits skipping every download, and Continue remains available while
+downloads run; native activation restores the saved setup details after reload.
+Deferred content/document packs remain in the
+general recovery list only when retained files need attention.
 
 Sizes come from the app's exact compatible catalog. Required free space includes
 temporary installation work, not just the final files. **No compatible released
@@ -46,18 +57,28 @@ pack** means there is no approved input for this app version; changing an accoun
 or pasting a download URL will not fix it. Never use a development size estimate
 as the size of a released download.
 
-Save unfinished edits and finish active work first. Activation/removal closes
+Save or discard unfinished provider-key edits and finish active work first.
+Setup retains the owner-scoped display name and age confirmation across reloads,
+but never persists provider-key drafts. Activation/removal closes
 the product windows while services switch packs, then reopens the main app at
 its previous route. Independent recovery remains available throughout.
 Your database, owner and saved local origin are preserved. The app verifies
-size, hashes and every extracted file before activating anything. Document
+every required file's size and hash, including notices, before activating anything. Document
 workers also require the pinned publisher signature on every launch.
 
-**Cancel** stops a download. A verified partial archive may be reused when you
-select Install again, including after quitting and reopening. A failed install
+**Cancel** stops a download. Desktop Parakeet downloads retain resumable progress
+at verified file boundaries; another attempt rechecks those files and safely
+resumes supported partial transfers. Archive packs retain their separate resume
+path. A failed install
 keeps the previous working version. Network errors such as `pack_download_failed`
 are retryable after connectivity recovers; never edit the catalog or disable
 verification to accept different bytes.
+
+Pocket voices and the cloning encoder use the backend downloader. Cancel or a
+service restart discards incomplete bytes, and **Retry** starts again. Closing
+the cloning dialog detaches that operation without cancelling a shared download;
+explicit Cancel stops it. Removing the encoder preserves saved clones and their
+original recordings, but creating another clone requires downloading it again.
 
 ## Remove safely
 

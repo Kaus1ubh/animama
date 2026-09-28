@@ -190,12 +190,12 @@ export class PreviewRuntimeCatalogSession
     return this.media.loadSceneVFX(kind, runtimeId);
   }
 
-  listAudio(kind: "sfx" | "bgm"): readonly RuntimeAudioDescriptor[] {
+  listAudio(kind: "sfx"): readonly RuntimeAudioDescriptor[] {
     return this.media.listAudio(kind);
   }
 
   resolveAudio(
-    kind: "sfx" | "bgm",
+    kind: "sfx",
     runtimeId: string,
   ): Promise<ResolvedRuntimeAudio | null> {
     return this.media.resolveAudio(kind, runtimeId);

@@ -1,7 +1,17 @@
 import { Link, Navigate, createFileRoute } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 
-import { useLocalRuntime } from "@web/app/local-runtime/LocalRuntimeProvider";
+import {
+  useLocalRuntime,
+  type LocalOnboardingInput,
+} from "@web/app/local-runtime/LocalRuntimeProvider";
+import {
+  clearSetupDraft,
+  readSetupDraft,
+  writeSetupDraft,
+  type SetupDraft,
+} from "@/app/local-runtime/setup-draft";
+import { VoiceDownloads } from "@/ui/settings/VoiceDownloads";
 import { Button } from "@/ui/components/button";
 import { Input } from "@/ui/components/input";
 import { Label } from "@/ui/components/label";
@@ -18,23 +28,53 @@ export const Route = createFileRoute("/setup")({
 
 function LocalSetupRoute() {
   const { state, completeOnboarding } = useLocalRuntime();
-  const [displayName, setDisplayName] = useState("");
+  if (state.status !== "ready") return null;
+  if (state.firstRunComplete) return <Navigate to="/a" replace />;
+  return (
+    <LocalSetupForm
+      key={state.principalId}
+      ownerId={state.principalId}
+      completeOnboarding={completeOnboarding}
+    />
+  );
+}
+
+/** Mount the draft only after the installation owner is known. */
+function LocalSetupForm({
+  ownerId,
+  completeOnboarding,
+}: {
+  ownerId: string;
+  completeOnboarding: (input: LocalOnboardingInput) => Promise<void>;
+}) {
+  const [draft, setDraft] = useState(() => readSetupDraft(ownerId));
+  const { displayName, adultConfirmed } = draft;
+  const [draftUnavailable, setDraftUnavailable] = useState(false);
+  const updateDraft = (change: Partial<SetupDraft>) => {
+    const next = { ...draft, ...change };
+    // Save during the event, before any credential IPC or pack action can replace this renderer.
+    setDraftUnavailable(!writeSetupDraft(ownerId, next));
+    setDraft(next);
+  };
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [providerBusy, setProviderBusy] = useState(false);
   // Unsaved API key edits would be lost by continuing; save or discard first.
   const [pendingKeys, setPendingKeys] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const featurePacks = useDesktopFeaturePacks();
-  const [installSpeech, setInstallSpeech] = useState(false);
-  const [adultConfirmed, setAdultConfirmed] = useState(false);
   const [declinedAge, setDeclinedAge] = useState(false);
-  const speechPack = featurePacks.packs.find(
-    (pack) => pack.id === "parakeet-stt",
-  );
   const normalizedName = normalizeLocalDisplayName(displayName);
 
-  if (state.status !== "ready") return null;
-  if (state.firstRunComplete) return <Navigate to="/a" replace />;
+  const draftBlockedReason = draftUnavailable
+    ? "Setup details could not be retained. Continue setup before changing API keys or speech recognition."
+    : null;
+  const downloadBlockedReason =
+    draftBlockedReason ??
+    (pendingKeys > 0
+      ? "Save or discard your API key changes before changing speech recognition."
+      : providerBusy
+        ? "Wait for your API key changes to finish."
+        : null);
 
   const submit = async (name: string) => {
     if (isSubmitting || providerBusy || pendingKeys > 0 || !adultConfirmed)
@@ -43,9 +83,7 @@ function LocalSetupRoute() {
     setError(null);
     try {
       await completeOnboarding({ displayName: name, adultConfirmed });
-      // Save first-run state before an optional pack's activation reload.
-      if (installSpeech && speechPack?.available)
-        void featurePacks.run("install", "parakeet-stt");
+      clearSetupDraft(ownerId);
     } catch {
       setError(
         "Setup could not be saved. Your local runtime may have completed it already; try again safely.",
@@ -91,7 +129,7 @@ function LocalSetupRoute() {
             disabled={isSubmitting}
             placeholder="Your name"
             onChange={(event) => {
-              setDisplayName(event.target.value);
+              updateDraft({ displayName: event.target.value });
               setError(null);
             }}
           />
@@ -99,23 +137,25 @@ function LocalSetupRoute() {
         <DesktopCredentialsPanel
           onBusyChange={setProviderBusy}
           onPendingChange={setPendingKeys}
+          blockedReason={draftBlockedReason}
         />
-        {featurePacks.available && speechPack ? (
-          <div className="space-y-2">
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={installSpeech}
-                disabled={
-                  isSubmitting ||
-                  !speechPack.available ||
-                  speechPack.state === "installed"
-                }
-                onChange={(event) => setInstallSpeech(event.target.checked)}
-              />
-              Install offline speech recognition
-            </label>
-          </div>
+        {featurePacks.available ? (
+          <section className="space-y-4" aria-label="Optional voice downloads">
+            <p className="text-muted-foreground text-sm">
+              Optional. You can continue during downloads and manage them later
+              in App Settings → Voice.
+            </p>
+            <VoiceDownloads
+              section="all"
+              blockedReason={downloadBlockedReason}
+              busy={providerBusy || isSubmitting}
+            />
+          </section>
+        ) : null}
+        {draftBlockedReason ? (
+          <p className="text-destructive text-sm" role="alert">
+            {draftBlockedReason}
+          </p>
         ) : null}
         <section
           aria-labelledby="setup-age-heading"
@@ -136,7 +176,7 @@ function LocalSetupRoute() {
               checked={adultConfirmed}
               disabled={isSubmitting}
               onChange={(event) => {
-                setAdultConfirmed(event.target.checked);
+                updateDraft({ adultConfirmed: event.target.checked });
                 setDeclinedAge(false);
               }}
             />
@@ -158,7 +198,7 @@ function LocalSetupRoute() {
               type="button"
               className="text-muted-foreground text-xs underline underline-offset-2"
               onClick={() => {
-                setAdultConfirmed(false);
+                updateDraft({ adultConfirmed: false });
                 setDeclinedAge(true);
               }}
             >

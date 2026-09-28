@@ -119,10 +119,10 @@ afterEach(async () => {
 });
 
 describe("verified browser runtime inputs", () => {
-  it("preserves all 35 reviewed target paths and independent distribution copies", () => {
+  it("preserves all 21 reviewed target paths and independent distribution copies", () => {
     const value = fixture();
     const assets = resolveBrowserRuntimeAssets(value);
-    expect(assets).toHaveLength(35);
+    expect(assets).toHaveLength(21);
     const builtRoot = path.join(value.root, "dist");
     copyBrowserRuntimeAssets(assets, builtRoot);
     rmSync(value.modelDirectory, { recursive: true });
@@ -132,7 +132,46 @@ describe("verified browser runtime inputs", () => {
         manifestPath: value.manifestPath,
         builtRoot,
       }),
-    ).toHaveLength(35);
+    ).toHaveLength(21);
+  });
+  it("builds web output with packages only when the model set is unacquired", () => {
+    const value = fixture();
+    rmSync(value.modelDirectory, { recursive: true });
+    // Compose mounts the checked-in notices directory in place of the store.
+    mkdirSync(value.modelDirectory);
+    writeFileSync(path.join(value.modelDirectory, "manifest.json"), "{}");
+    expect(() => resolveBrowserRuntimeAssets(value)).toThrow(
+      "Browser speech models are not acquired",
+    );
+    const assets = resolveBrowserRuntimeAssets({
+      ...value,
+      allowMissingModels: true,
+    });
+    expect(assets).toHaveLength(11);
+    expect(assets.every((asset) => asset.source.kind === "package")).toBe(true);
+    const builtRoot = path.join(value.root, "dist");
+    copyBrowserRuntimeAssets(assets, builtRoot);
+    expect(
+      resolveBrowserRuntimeAssets({
+        manifestPath: value.manifestPath,
+        builtRoot,
+        allowMissingModels: true,
+      }),
+    ).toHaveLength(11);
+    // Strict verification, as used for desktop and releases, still rejects it.
+    expect(() =>
+      resolveBrowserRuntimeAssets({
+        manifestPath: value.manifestPath,
+        builtRoot,
+      }),
+    ).toThrow("missing or unlisted files");
+  });
+  it("rejects a partial model set even when models are optional", () => {
+    const value = fixture();
+    rmSync(path.join(value.modelDirectory, "eve.safetensors"));
+    expect(() =>
+      resolveBrowserRuntimeAssets({ ...value, allowMissingModels: true }),
+    ).toThrow("missing or unlisted files");
   });
   it("rejects extra built bytes and unsafe output links", () => {
     const value = fixture();
@@ -190,7 +229,7 @@ describe("verified browser runtime inputs", () => {
       manifestPath: value.manifestPath,
       builtRoot,
     });
-    expect(builtAssets).toHaveLength(35);
+    expect(builtAssets).toHaveLength(21);
     const preview = await listen(builtAssets, builtRoot);
     expect(await (await fetch(`${preview}/${relative}`)).text()).toBe(
       "user-catalog",
@@ -279,7 +318,7 @@ describe("verified browser runtime inputs", () => {
     cpSync(packagePath, physical, { recursive: true });
     rmSync(packagePath, { recursive: true });
     symlinkSync(physical, packagePath, "junction");
-    expect(resolveBrowserRuntimeAssets(value)).toHaveLength(35);
+    expect(resolveBrowserRuntimeAssets(value)).toHaveLength(21);
     const payload = path.join(physical, "dist/ort.min.mjs");
     rmSync(payload);
     symlinkSync(

@@ -34,6 +34,7 @@ import {
   ELEVENLABS_TTS_MODEL_OPTIONS,
   ELEVENLABS_V3_FINALIZED_CHUNKING_OPTIONS,
   isElevenLabsFinalizedTtsModelId,
+  isParakeetWebgpuPreferred,
   mergePreferences,
   resolveElevenLabsV3FinalizedChunking,
   toElevenLabsTtsModelId,
@@ -113,7 +114,15 @@ import {
 } from "@/ui/settings/DesktopCredentialsPanel";
 import { DesktopFeaturePacksPanel } from "@/ui/settings/DesktopFeaturePacksPanel";
 import { DesktopUpdatesPanel } from "@/ui/settings/DesktopUpdatesPanel";
-import { ParakeetWebgpuSetting } from "@/ui/settings/ExperimentalSettings";
+import {
+  VoiceDownloads,
+  VoiceCloneSettings,
+} from "@/ui/settings/VoiceDownloads";
+import {
+  getSttSettingsOptions,
+  getSttSettingsPreference,
+  getSttSettingsSelection,
+} from "@/lib/speech/stt-settings";
 import {
   FLAT_SETTINGS_PANEL_CLASS_NAME,
   SettingsGroup,
@@ -246,13 +255,7 @@ const SECTION_ICONS: Record<ApplicationSettingsSection, LucideIcon> = {
 const REVEAL_HIGHLIGHT_MS = 1600;
 
 const GROUP_DESCRIPTIONS: Record<string, string> = {
-  "Defaults for Animas":
-    "Animas follow these unless they set their own value in Anima settings.",
-  "Visual style":
-    "Override colours for the mode in effect. Light and Dark keep separate colours.",
   "Desktop shortcuts": "Press to talk also supports a mouse button.",
-  Experimental: "These features may not work on every device.",
-  "Default models": "The models Animama uses for each job.",
 };
 
 const SELECT_TRIGGER_CLASS_NAME = "w-56";
@@ -289,17 +292,8 @@ const MODEL_DEFAULT_ENTRIES: ReadonlyArray<{
 function renderSettingEntries(
   entries: readonly SettingEntry[],
   highlightedEntryId: string | null,
+  section: ApplicationSettingsSection,
 ): ReactNode {
-  const blocks: Array<{ key: string; group?: string; items: SettingEntry[] }> =
-    [];
-  for (const entry of entries) {
-    const previous = blocks.at(-1);
-    if (entry.group && previous?.group === entry.group) {
-      previous.items.push(entry);
-    } else {
-      blocks.push({ key: entry.id, group: entry.group, items: [entry] });
-    }
-  }
   // The wrapper is the search reveal target; it stays a direct child of the
   // group's divider list so row separators are unchanged.
   const renderItem = (item: SettingEntry) => (
@@ -315,14 +309,30 @@ function renderSettingEntries(
       {item.render()}
     </div>
   );
+  // Theme controls form one continuous list, including expanded colours.
+  if (section === "Appearance") {
+    return <SettingsGroup>{entries.map(renderItem)}</SettingsGroup>;
+  }
+
+  const blocks: Array<{ key: string; group?: string; items: SettingEntry[] }> =
+    [];
+  for (const entry of entries) {
+    const previous = blocks.at(-1);
+    if (entry.group && previous?.group === entry.group) {
+      previous.items.push(entry);
+    } else {
+      blocks.push({ key: entry.id, group: entry.group, items: [entry] });
+    }
+  }
   return (
-    // Faint dividers separate sub-sections (groups/panels) within a section.
     <div className="[&>*:not(:first-child)]:border-border/40 flex flex-col [&>*:not(:first-child)]:mt-6 [&>*:not(:first-child)]:border-t [&>*:not(:first-child)]:pt-6">
       {blocks.map((block) =>
         block.group ? (
           <SettingsGroup
             key={block.key}
-            title={block.group}
+            title={
+              block.group === "Defaults for Animas" ? undefined : block.group
+            }
             description={GROUP_DESCRIPTIONS[block.group]}
           >
             {block.items.map(renderItem)}
@@ -379,6 +389,9 @@ export function ApplicationSettingsModal({
   );
   const [selectedSttProvider, setSelectedSttProvider] =
     useState<SttProvider | null>(null);
+  const [parakeetWebgpuPreferred, setParakeetWebgpuPreferred] = useState(
+    isParakeetWebgpuPreferred(resolvedUserPreferences),
+  );
   const [ttsEnabled, setTtsEnabled] = useState(false);
   const [ttsStreamChunks, setTtsStreamChunks] = useState(true);
   const [selectedTtsProvider, setSelectedTtsProvider] =
@@ -437,6 +450,12 @@ export function ApplicationSettingsModal({
   const savedSttProvider = toSttProvider(
     resolvedUserPreferences?.speech?.stt_provider,
   );
+  const savedParakeetWebgpuPreferred = isParakeetWebgpuPreferred(
+    resolvedUserPreferences,
+  );
+  useEffect(() => {
+    setParakeetWebgpuPreferred(savedParakeetWebgpuPreferred);
+  }, [savedParakeetWebgpuPreferred]);
   const savedTtsProvider = toTtsProvider(
     resolvedUserPreferences?.speech?.tts_provider,
   );
@@ -666,7 +685,8 @@ export function ApplicationSettingsModal({
   }, [revealRequest]);
 
   const sttProviderOptions = useMemo(
-    () => getSttProviderOptions(parakeetAvailable, platform),
+    () =>
+      getSttSettingsOptions(getSttProviderOptions(parakeetAvailable, platform)),
     [parakeetAvailable, platform],
   );
   const ttsProviderOptions = useMemo(
@@ -674,8 +694,12 @@ export function ApplicationSettingsModal({
     [platform],
   );
 
+  const selectedSttOption = getSttSettingsSelection(
+    selectedSttProvider,
+    parakeetWebgpuPreferred,
+  );
   const currentSttOption = sttProviderOptions.find(
-    (option) => option.id === selectedSttProvider,
+    (option) => option.id === selectedSttOption,
   );
   const currentTtsOption = ttsProviderOptions.find(
     (option) => option.id === selectedTtsProvider,
@@ -697,10 +721,11 @@ export function ApplicationSettingsModal({
 
   const handleSttProviderChange = useCallback(
     (value: string) => {
-      const nextProvider = toSttProvider(value);
-      if (!nextProvider || isSaving || isInitializing) return;
+      const nextSpeech = getSttSettingsPreference(value);
+      if (!nextSpeech || isSaving || isInitializing) return;
+      const nextProvider = nextSpeech.stt_provider;
       const nextOption = sttProviderOptions.find(
-        (option) => option.id === nextProvider,
+        (option) => option.id === value,
       );
       if (!nextOption || nextOption.disabled) {
         if (nextOption?.reason) {
@@ -709,14 +734,17 @@ export function ApplicationSettingsModal({
         return;
       }
       const previousProvider = selectedSttProvider;
+      const previousWebgpu = parakeetWebgpuPreferred;
       setSelectedSttProvider(nextProvider);
+      setParakeetWebgpuPreferred(
+        nextSpeech.stt_parakeet_webgpu ?? previousWebgpu,
+      );
       setIsSaving(true);
 
-      void updateUserPreferences({
-        speech: { stt_provider: nextProvider },
-      })
+      void updateUserPreferences({ speech: nextSpeech })
         .catch(() => {
           setSelectedSttProvider(previousProvider);
+          setParakeetWebgpuPreferred(previousWebgpu);
           toast.error("Failed to update STT provider.");
         })
         .finally(() => setIsSaving(false));
@@ -725,6 +753,7 @@ export function ApplicationSettingsModal({
       isInitializing,
       isSaving,
       selectedSttProvider,
+      parakeetWebgpuPreferred,
       sttProviderOptions,
       updateUserPreferences,
     ],
@@ -1131,20 +1160,11 @@ export function ApplicationSettingsModal({
       section: "General",
       group: "Audio",
       label: "Volume",
-      keywords: [
-        "sound",
-        "mute",
-        "tts",
-        "sfx",
-        "sound effects",
-        "bgm",
-        "background music",
-      ],
+      keywords: ["sound", "mute", "tts", "sfx", "sound effects"],
       render: () => (
         <AudioVolumePanel
           disabled={isAudioBusy}
           showTitle={false}
-          showBgmDetail
           className="py-3"
           volumeCardClassName={FLAT_SETTINGS_PANEL_CLASS_NAME}
         />
@@ -1218,8 +1238,8 @@ export function ApplicationSettingsModal({
       id: "appearance-mode",
       section: "Appearance",
       group: "Theme",
-      label: "Mode",
-      keywords: ["theme", "dark", "light", "system", "dark mode"],
+      label: "Theme",
+      keywords: ["theme", "mode", "dark", "light", "system", "dark mode"],
       render: () => <AppearanceModeSetting />,
     },
     ...APPEARANCE_COLOR_TOKENS.filter((token) => token.group === "basic").map(
@@ -1307,6 +1327,11 @@ export function ApplicationSettingsModal({
         "transcription",
         "parakeet",
         "voice mode",
+        "cpu",
+        "gpu",
+        "webgpu",
+        "experimental",
+        "live previews",
       ],
       render: () => (
         <SettingsRow
@@ -1314,7 +1339,7 @@ export function ApplicationSettingsModal({
           description={currentSttOption?.description}
           control={
             <Select
-              value={selectedSttProvider ?? undefined}
+              value={selectedSttOption}
               onValueChange={handleSttProviderChange}
               disabled={isBusy}
             >
@@ -1322,7 +1347,11 @@ export function ApplicationSettingsModal({
                 className={SELECT_TRIGGER_CLASS_NAME}
                 aria-label="Speech-to-Text provider"
               >
-                <SelectValue placeholder="Select provider" />
+                <SelectValue placeholder="Select provider">
+                  {selectedSttOption === "parakeet_webgpu"
+                    ? "Parakeet (WebGPU)"
+                    : currentSttOption?.label}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {sttProviderOptions.map((option) => (
@@ -1343,18 +1372,25 @@ export function ApplicationSettingsModal({
               {currentSttOption.reason}
             </p>
           ) : null}
-          {parakeetAvailable === false ? (
-            <DesktopFeaturePacksPanel
-              only="parakeet-stt"
-              className="bg-muted/20 rounded-lg border-0 p-4"
-            />
-          ) : null}
           {isInitializing ? (
             <p className="text-muted-foreground text-xs">
               Preparing provider defaults...
             </p>
           ) : null}
         </SettingsRow>
+      ),
+    },
+    {
+      id: "stt-downloads",
+      section: "Voice",
+      group: "Speech-to-Text",
+      label: "Offline speech downloads",
+      keywords: ["parakeet", "cpu", "gpu", "download", "offline"],
+      render: () => (
+        <VoiceDownloads
+          section="speech-to-text"
+          sttProvider={selectedSttOption ?? ""}
+        />
       ),
     },
     {
@@ -1411,11 +1447,11 @@ export function ApplicationSettingsModal({
       id: "tts-provider",
       section: "Voice",
       group: "Text-to-Speech",
-      label: "Text-to-Speech provider",
+      label: "Default Text-to-Speech provider",
       keywords: ["tts", "text-to-speech", "pocket", "elevenlabs", "voice"],
       render: () => (
         <SettingsRow
-          label="Provider"
+          label="Default provider"
           description={
             !ttsEnabled
               ? "Enable Text-to-Speech to select a provider."
@@ -1452,11 +1488,10 @@ export function ApplicationSettingsModal({
               {currentTtsOption.reason}
             </p>
           ) : null}
-          {ttsEnabled && selectedTtsProvider === "pocket_tts" ? (
-            <p className="text-muted-foreground text-xs">
-              Choose a Pocket voice in Anima Settings.
-            </p>
-          ) : null}
+          <p className="text-muted-foreground text-xs">
+            Used by Animas without their own provider. Choose providers and
+            voices for each Anima in Loadout → Voices.
+          </p>
         </SettingsRow>
       ),
     },
@@ -1532,6 +1567,14 @@ export function ApplicationSettingsModal({
           }
         />
       ),
+    },
+    {
+      id: "voice-clone",
+      section: "Voice",
+      group: "Voice Clone",
+      label: "Voice Clone",
+      keywords: ["pocket", "sample", "cloning", "download", "offline"],
+      render: () => <VoiceCloneSettings />,
     },
     ...shortcutRows.map(
       (row): SettingEntry => ({
@@ -1658,21 +1701,6 @@ export function ApplicationSettingsModal({
         />
       ),
     },
-    {
-      id: "parakeet-webgpu",
-      section: "Advanced",
-      group: "Experimental",
-      label: "GPU-accelerated offline speech (WebGPU)",
-      keywords: [
-        "parakeet",
-        "speech-to-text",
-        "dictation",
-        "gpu",
-        "preview",
-        "experimental",
-      ],
-      render: () => <ParakeetWebgpuSetting disabled={isBusy} />,
-    },
   ];
 
   const visibleEntries = settingEntries.filter((entry) => !entry.hidden);
@@ -1733,6 +1761,7 @@ export function ApplicationSettingsModal({
                 (!entry.collapsed || advancedColorsOpen),
             ),
             highlightedEntryId,
+            shownSection,
           )}
         </SectionedModalFrame>
       </Dialog.Portal>

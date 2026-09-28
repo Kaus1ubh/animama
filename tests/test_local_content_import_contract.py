@@ -9,7 +9,7 @@ from sqlalchemy import delete
 
 from animama.domain.content_catalog import ContentConflictError, ContentKind, ContentSource, ContentStatus
 from animama.orm.content_catalog import ORMContentCatalogItem
-from tests.content_package_helpers import package_services, save_wave, vrma
+from tests.content_package_helpers import package_services, reviewed_export, reviewed_import, save_wave, vrma
 
 
 def _happy_reaction_descriptor() -> bytes:
@@ -34,51 +34,43 @@ def _happy_pose_clip() -> bytes:
             "id": "happy",
             "name": "Happy",
             "role": "reaction",
-            "poses": {},
-            "poseKeyframes": [],
+            "duration": 1,
+            "poses": {"rest": {"ref": "relaxedRest"}},
+            "poseKeyframes": [{"time": 0, "pose": "rest"}],
         }
     ).encode()
 
 
-async def test_import_requires_an_explicit_collision_choice_and_installs_an_editable_copy(
-    async_session, tmp_path: Path
-) -> None:  # noqa: ANN001
-    paths, _catalog, content, saves, packages = package_services(async_session, tmp_path)
+async def test_import_reviews_automatic_suffix_and_installs_an_editable_copy(async_session, tmp_path: Path) -> None:  # noqa: ANN001
+    paths, catalog, content, saves, packages = package_services(async_session, tmp_path)
     try:
         saved = await save_wave(saves)
-        exported = await packages.export_item(
+        exported = await reviewed_export(
+            packages,
             user_id="package-owner",
             root_item_id=saved.item.id,
-            operation_id="export-wave-for-import",
         )
         original_path = paths.local_root / "gestures/friendly-wave.vrma"
         original_path.write_bytes(vrma("manually-edited"))
         await content.rescan(user_id="package-owner", include_included=False)
 
-        with pytest.raises(ContentConflictError, match="package_destination_exists"):
-            await packages.import_package(
-                user_id="package-owner",
-                archive_path=exported.path,
-                operation_id="import-wave-cancel",
-                collision="cancel",
-            )
-        assert original_path.read_bytes() == vrma("manually-edited")
-
-        imported = await packages.import_package(
-            user_id="package-owner",
-            archive_path=exported.path,
-            operation_id="import-wave-copy",
-            collision="keep_both",
+        command = await reviewed_import(
+            packages, user_id="package-owner", archive_path=exported.path, operation_id="import-wave-copy"
         )
+        review = await packages.imports.review(user_id="package-owner", stage_id=command["stage_id"])
+        assert review.items[0].name == "Friendly Wave-2"
+        assert original_path.read_bytes() == vrma("manually-edited")
+        imported = await packages.imports.commit(**command)
         assert len(imported.items) == 1
-        copy = imported.items[0]
-        assert copy.relative_locator.startswith("gestures/friendly-wave-copy-")
+        copy = await catalog.get_visible_item(item_id=imported.items[0].item_id, user_id="package-owner")
+        assert copy is not None
+        assert copy.relative_locator == "gestures/friendly-wave-2.vrma"
         assert copy.relative_locator.endswith(".vrma")
         assert (paths.local_root / copy.relative_locator).read_bytes() == vrma("original")
         assert copy.logical_key is not None
-        assert copy.logical_key.startswith("local:gesture:friendly-wave-copy-")
+        assert copy.logical_key != saved.item.logical_key
         assert copy.provenance["license"] == "fixture-only"
-        assert copy.provenance["import"]["package_schema"] == "animama-content-package/2"
+        assert copy.provenance["import"]["package_schema"] == "animama-content-package/3"
         rescanned = await content.rescan(user_id="package-owner", include_included=False)
         rescanned_copy = next(item for item in rescanned.items if item.id == copy.id)
         assert rescanned_copy.provenance["import"] == copy.provenance["import"]
@@ -88,8 +80,8 @@ async def test_import_requires_an_explicit_collision_choice_and_installs_an_edit
         await async_session.commit()
 
 
-async def test_import_keep_both_preserves_action_control_and_payload_names(async_session, tmp_path: Path) -> None:  # noqa: ANN001
-    paths, _catalog, _content, saves, packages = package_services(async_session, tmp_path)
+async def test_import_copy_preserves_action_control_and_payload_names(async_session, tmp_path: Path) -> None:  # noqa: ANN001
+    paths, catalog, _content, saves, packages = package_services(async_session, tmp_path)
     try:
         saved = await saves.save_descriptor(
             user_id="package-owner",
@@ -101,24 +93,23 @@ async def test_import_keep_both_preserves_action_control_and_payload_names(async
             catalog_item_id=None,
             expected_revision=None,
         )
-        exported = await packages.export_item(
+        exported = await reviewed_export(
+            packages,
             user_id="package-owner",
             root_item_id=saved.item.id,
-            operation_id="export-happy-for-import",
         )
 
-        imported = await packages.import_package(
-            user_id="package-owner",
-            archive_path=exported.path,
-            operation_id="import-happy-copy",
-            collision="keep_both",
+        command = await reviewed_import(
+            packages, user_id="package-owner", archive_path=exported.path, operation_id="import-happy-copy"
         )
+        imported = await packages.imports.commit(**command)
 
-        copy = imported.items[0]
+        copy = await catalog.get_visible_item(item_id=imported.items[0].item_id, user_id="package-owner")
+        assert copy is not None
         copy_root = paths.local_root / copy.relative_locator
         copy_name = copy_root.name
         descriptor_path = copy_root / f"{copy_name}.meta.json"
-        payload_path = copy_root / f"{copy_name}.json"
+        payload_path = copy_root / "happy.json"
         assert descriptor_path.is_file()
         assert payload_path.is_file()
         assert not list(copy_root.glob("*.pose.json"))
@@ -131,15 +122,15 @@ async def test_import_keep_both_preserves_action_control_and_payload_names(async
 
 
 def test_import_rejects_archive_traversal_before_writing_local(tmp_path: Path) -> None:
-    archive_path = tmp_path / "unsafe.animama"
+    archive_path = tmp_path / "unsafe.zip"
     with ZipFile(archive_path, "w", compression=ZIP_DEFLATED) as archive:
         archive.writestr("../escape.vrma", b"unsafe")
         archive.writestr("package.json", b'{"schema":"animama-content-package/1"}')
 
-    from animama.app.services.content_package_service import ContentPackageService
+    from tests.test_content_package_v3_archive import inspector
 
-    with pytest.raises(ContentConflictError, match="package_path_invalid"):
-        ContentPackageService._validated_archive(archive_path)
+    with pytest.raises(ContentConflictError, match="package_archive_invalid"):
+        inspector(tmp_path).inspect(archive_path, destination=tmp_path / "inspection")
 
     assert not (tmp_path / "escape.vrma").exists()
 
@@ -152,10 +143,10 @@ async def test_late_import_failure_compensates_files_and_catalog_visibility(
     paths, catalog, content, saves, packages = package_services(async_session, tmp_path)
     try:
         saved = await save_wave(saves)
-        exported = await packages.export_item(
+        exported = await reviewed_export(
+            packages,
             user_id="package-owner",
             root_item_id=saved.item.id,
-            operation_id="export-wave-for-compensation",
         )
         assert saved.item.revision_sha256 is not None
         await content.delete_item(
@@ -168,13 +159,11 @@ async def test_late_import_failure_compensates_files_and_catalog_visibility(
             raise RuntimeError("forced late catalog failure")
 
         monkeypatch.setattr(catalog, "record_import_provenance", fail_provenance)
+        command = await reviewed_import(
+            packages, user_id="package-owner", archive_path=exported.path, operation_id="import-wave-late-failure"
+        )
         with pytest.raises(RuntimeError, match="forced late catalog failure"):
-            await packages.import_package(
-                user_id="package-owner",
-                archive_path=exported.path,
-                operation_id="import-wave-late-failure",
-                collision="cancel",
-            )
+            await packages.imports.commit(**command)
 
         assert not (paths.local_root / "gestures/friendly-wave.vrma").exists()
         reconciled = await catalog.get_by_locator(

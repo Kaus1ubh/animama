@@ -136,15 +136,6 @@ export const zBodyCloneVoiceEndpointV1ElevenlabsVoicesClonePost = z.object({
 });
 
 /**
- * Body_import_content_package_v1_content_packages_import_post
- */
-export const zBodyImportContentPackageV1ContentPackagesImportPost = z.object({
-    collision: z.optional(z.string().regex(/^(cancel|keep_both|replace)$/)).default('cancel'),
-    operation_id: z.string().min(1).max(128),
-    package: z.string()
-});
-
-/**
  * Body_save_appearance_content
  */
 export const zBodySaveAppearanceContent = z.object({
@@ -300,35 +291,6 @@ export const zBodySaveIdleStyle = z.object({
 });
 
 /**
- * Body_save_music_track
- */
-export const zBodySaveMusicTrack = z.object({
-    catalog_item_id: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    companion_paths_json: z.optional(z.string()).default('[]'),
-    creation_context: z.optional(z.boolean()).default(false),
-    descriptor_json: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    expected_revision: z.optional(z.union([
-        z.string().regex(/^[0-9a-f]{64}$/),
-        z.null()
-    ])),
-    files: z.optional(z.union([
-        z.array(z.string()),
-        z.null()
-    ])),
-    metadata_json: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    operation_id: z.string().min(1).max(128)
-});
-
-/**
  * Body_save_particle_effect
  */
 export const zBodySaveParticleEffect = z.object({
@@ -361,35 +323,6 @@ export const zBodySaveParticleEffect = z.object({
  * Body_save_pose
  */
 export const zBodySavePose = z.object({
-    catalog_item_id: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    companion_paths_json: z.optional(z.string()).default('[]'),
-    creation_context: z.optional(z.boolean()).default(false),
-    descriptor_json: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    expected_revision: z.optional(z.union([
-        z.string().regex(/^[0-9a-f]{64}$/),
-        z.null()
-    ])),
-    files: z.optional(z.union([
-        z.array(z.string()),
-        z.null()
-    ])),
-    metadata_json: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    operation_id: z.string().min(1).max(128)
-});
-
-/**
- * Body_save_pose_clip
- */
-export const zBodySavePoseClip = z.object({
     catalog_item_id: z.optional(z.union([
         z.string(),
         z.null()
@@ -544,11 +477,41 @@ export const zCompanionSafetyCapability = z.object({
 });
 
 /**
+ * ContentKind
+ *
+ * Readable-library content kinds and their runtime ownership boundaries.
+ */
+export const zContentKind = z.enum([
+    'avatar',
+    'gesture',
+    'pose',
+    'pose_clip',
+    'reaction',
+    'particle_effect',
+    'avatar_effect',
+    'scene_effect',
+    'sound_effect',
+    'idle_style',
+    'music_track',
+    'appearance',
+    'voice',
+    'anima'
+]);
+
+/**
  * CreateMissingStarterRepair
  */
 export const zCreateMissingStarterRepair = z.object({
     action: z.literal('create_missing'),
     starter_id: z.enum(['starter:annie', 'starter:caitlyn'])
+});
+
+/**
+ * CreationPocketPreset
+ */
+export const zCreationPocketPreset = z.object({
+    type: z.literal('preset'),
+    voice_id: z.string().regex(/^[a-z][a-z0-9_-]{0,127}$/)
 });
 
 /**
@@ -618,6 +581,17 @@ export const zEnsureAnimaStartersResult = z.object({
 });
 
 /**
+ * ExportSelectionItem
+ */
+export const zExportSelectionItem = z.object({
+    item_id: z.string(),
+    kind: z.string(),
+    name: z.string(),
+    revision: z.string(),
+    selected: z.boolean()
+});
+
+/**
  * ImagePresentation
  */
 export const zImagePresentation = z.object({
@@ -625,6 +599,34 @@ export const zImagePresentation = z.object({
     focal_x: z.number().gte(0).lte(1),
     focal_y: z.number().gte(0).lte(1),
     zoom: z.number().gte(1).lte(4)
+});
+
+/**
+ * ImportedPackageItem
+ */
+export const zImportedPackageItem = z.object({
+    entry_id: z.string(),
+    item_id: z.string(),
+    kind: z.enum([
+        'appearance',
+        'avatar',
+        'avatar_effect',
+        'gesture',
+        'idle_style',
+        'particle_effect',
+        'pose',
+        'reaction',
+        'scene_effect',
+        'sound_effect',
+        'voice'
+    ]),
+    logical_key: z.union([
+        z.string(),
+        z.null()
+    ]),
+    name: z.string(),
+    revision_sha256: z.string(),
+    selected: z.boolean()
 });
 
 /**
@@ -672,11 +674,438 @@ export const zAnimaAppearanceOutput = z.object({
 });
 
 /**
+ * CreationPocketClone
+ */
+export const zCreationPocketClone = z.object({
+    source: zItemRevisionRef,
+    type: z.literal('clone')
+});
+
+/**
+ * CreationVoice
+ *
+ * Both provider choices persist; only the selected provider needs a usable ID.
+ */
+export const zCreationVoiceInput = z.object({
+    elevenlabs_voice_id: z.union([
+        z.string().regex(/^[A-Za-z0-9_-]{1,128}$/),
+        z.null()
+    ]),
+    pocket: z.union([
+        z.object({
+            type: z.literal('preset')
+        }).and(zCreationPocketPreset),
+        z.object({
+            type: z.literal('clone')
+        }).and(zCreationPocketClone)
+    ]),
+    provider: z.enum(['pocket_tts', 'elevenlabs'])
+});
+
+/**
+ * CreationVoice
+ *
+ * Both provider choices persist; only the selected provider needs a usable ID.
+ */
+export const zCreationVoiceOutput = z.object({
+    elevenlabs_voice_id: z.union([
+        z.string().regex(/^[A-Za-z0-9_-]{1,128}$/),
+        z.null()
+    ]),
+    pocket: z.union([
+        z.object({
+            type: z.literal('preset')
+        }).and(zCreationPocketPreset),
+        z.object({
+            type: z.literal('clone')
+        }).and(zCreationPocketClone)
+    ]),
+    provider: z.enum(['pocket_tts', 'elevenlabs'])
+});
+
+/**
  * GestureSelection
  */
 export const zGestureSelection = z.object({
     semantic_key: z.string().regex(/^[a-z0-9][a-z0-9._-]{0,127}$/),
     source: zItemRevisionRef
+});
+
+/**
+ * LegacyImportedPackageItem
+ *
+ * Historical kinds are display facts, never current package admission choices.
+ */
+export const zLegacyImportedPackageItem = z.object({
+    entry_id: z.string(),
+    item_id: z.string(),
+    kind: z.string(),
+    logical_key: z.union([
+        z.string(),
+        z.null()
+    ]),
+    name: z.string(),
+    selected: z.boolean()
+});
+
+/**
+ * LegacyPackageImportResult
+ *
+ * Safe projection of a historical completed receipt; never admits old package formats.
+ */
+export const zLegacyPackageImportResult = z.object({
+    items: z.array(zLegacyImportedPackageItem),
+    operation_id: z.string(),
+    schema_version: z.optional(z.literal(0)).default(0),
+    skipped_existing_item_ids: z.array(z.string())
+});
+
+/**
+ * LegacySourceRevision
+ *
+ * Private receipt input retained for exact pre-retirement retries.
+ */
+export const zLegacySourceRevision = z.object({
+    kind: z.literal('pose_clip'),
+    revision_sha256: z.string().regex(/^[0-9a-f]{64}$/)
+});
+
+/**
+ * PackageAvatarPortrait
+ */
+export const zPackageAvatarPortrait = z.object({
+    appearance_entry_id: z.string().min(1).max(128).regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/),
+    avatar_entry_id: z.string().min(1).max(128).regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/)
+});
+
+/**
+ * PackageDependency
+ */
+export const zPackageDependency = z.object({
+    content_type: z.enum([
+        'appearance',
+        'avatar',
+        'avatar_effect',
+        'gesture',
+        'idle_style',
+        'particle_effect',
+        'pose',
+        'reaction',
+        'scene_effect',
+        'sound_effect',
+        'voice'
+    ]),
+    ref: z.string().min(1).max(128).regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/)
+});
+
+/**
+ * PackageExportRequest
+ */
+export const zPackageExportRequest = z.object({
+    anima_id: z.optional(z.union([
+        z.string().min(1).max(128),
+        z.null()
+    ])),
+    expected_digest: z.string().regex(/^[0-9a-f]{64}$/),
+    item_ids: z.optional(z.array(z.string().min(1).max(128)).max(2048))
+});
+
+/**
+ * PackageFile
+ *
+ * Exact declared bytes and their typed role within one entry.
+ */
+export const zPackageFile = z.object({
+    archive_path: z.string(),
+    media_type: z.string().min(1).max(128),
+    ordinal: z.int().gte(1).lte(2048),
+    relative_path: z.string(),
+    role: z.string().min(1).max(64),
+    sha256: z.string().regex(/^[0-9a-f]{64}$/),
+    size_bytes: z.int().gt(0).lte(4294967296)
+});
+
+/**
+ * PackageImportCommitRequest
+ */
+export const zPackageImportCommitRequest = z.object({
+    operation_id: z.string().min(1).max(128).regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/),
+    review_digest: z.string().regex(/^[0-9a-f]{64}$/)
+});
+
+/**
+ * PackageImportCreateRequest
+ */
+export const zPackageImportCreateRequest = z.object({
+    expected_size_bytes: z.int().gt(0).lte(4294967296),
+    filename: z.string().min(1).max(255),
+    operation_id: z.string().min(1).max(128).regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/)
+});
+
+/**
+ * PackageImportResult
+ *
+ * Saved once with the catalog transaction and replayed without consulting live rows.
+ */
+export const zPackageImportResult = z.object({
+    anima_id: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    items: z.array(zImportedPackageItem),
+    operation_id: z.string(),
+    package_sha256: z.string(),
+    review_digest: z.string(),
+    schema_version: z.optional(z.literal(1)).default(1)
+});
+
+/**
+ * PackageLicense
+ *
+ * Attribution facts retained as metadata, never interpreted as permission.
+ */
+export const zPackageLicense = z.object({
+    author: z.optional(z.union([
+        z.string().min(1).max(2048),
+        z.boolean(),
+        z.array(z.string().max(512)).max(64),
+        z.null()
+    ])),
+    creator: z.optional(z.union([
+        z.string().min(1).max(2048),
+        z.boolean(),
+        z.array(z.string().max(512)).max(64),
+        z.null()
+    ])),
+    license: z.optional(z.union([
+        z.string().min(1).max(2048),
+        z.boolean(),
+        z.array(z.string().max(512)).max(64),
+        z.null()
+    ])),
+    license_name: z.optional(z.union([
+        z.string().min(1).max(2048),
+        z.boolean(),
+        z.array(z.string().max(512)).max(64),
+        z.null()
+    ])),
+    license_url: z.optional(z.union([
+        z.string().min(1).max(2048),
+        z.boolean(),
+        z.array(z.string().max(512)).max(64),
+        z.null()
+    ])),
+    redistribution: z.optional(z.union([
+        z.string().min(1).max(2048),
+        z.boolean(),
+        z.array(z.string().max(512)).max(64),
+        z.null()
+    ])),
+    redistribution_review: z.optional(z.union([
+        z.string().min(1).max(2048),
+        z.boolean(),
+        z.array(z.string().max(512)).max(64),
+        z.null()
+    ])),
+    source_url: z.optional(z.union([
+        z.string().min(1).max(2048),
+        z.boolean(),
+        z.array(z.string().max(512)).max(64),
+        z.null()
+    ]))
+});
+
+/**
+ * PackageEntry
+ */
+export const zPackageEntry = z.object({
+    dependencies: z.array(zPackageDependency).max(2048),
+    display_name: z.string().min(1).max(120),
+    files: z.array(zPackageFile).min(1).max(2048),
+    kind: z.enum([
+        'appearance',
+        'avatar',
+        'avatar_effect',
+        'gesture',
+        'idle_style',
+        'particle_effect',
+        'pose',
+        'reaction',
+        'scene_effect',
+        'sound_effect',
+        'voice'
+    ]),
+    license: z.optional(z.union([
+        zPackageLicense,
+        z.null()
+    ])),
+    logical_key: z.string().min(1).max(128).regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/),
+    package_entry_id: z.string().min(1).max(128).regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/),
+    portable_revision_sha256: z.string().regex(/^[0-9a-f]{64}$/)
+});
+
+/**
+ * PackageOperationStatus
+ */
+export const zPackageOperationStatus = z.object({
+    operation_id: z.string(),
+    result: z.optional(z.union([
+        zPackageImportResult,
+        zLegacyPackageImportResult,
+        z.null()
+    ])),
+    review_digest: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    stage_id: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    state: z.enum([
+        'pending',
+        'recovery_needed',
+        'completed',
+        'not_found'
+    ])
+});
+
+/**
+ * PackageSelectionRequest
+ */
+export const zPackageSelectionRequest = z.object({
+    anima_id: z.optional(z.union([
+        z.string().min(1).max(128),
+        z.null()
+    ])),
+    item_ids: z.optional(z.array(z.string().min(1).max(128)).max(2048))
+});
+
+/**
+ * PartAck
+ */
+export const zPartAck = z.object({
+    complete: z.boolean(),
+    index: z.int(),
+    next_part_index: z.int(),
+    received_bytes: z.int(),
+    sha256: z.string(),
+    size_bytes: z.int(),
+    stage_id: z.string()
+});
+
+/**
+ * PortableActionSelection
+ */
+export const zPortableActionSelection = z.object({
+    config: z.optional(z.record(z.string(), z.unknown())),
+    entry_id: z.string().min(1).max(128).regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/)
+});
+
+/**
+ * PortableAppearanceSelection
+ */
+export const zPortableAppearanceSelection = z.object({
+    entry_id: z.string().min(1).max(128).regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/),
+    presentation: zImagePresentation
+});
+
+/**
+ * PortableAnimaAppearance
+ */
+export const zPortableAnimaAppearance = z.object({
+    background: z.union([
+        zPortableAppearanceSelection,
+        z.null()
+    ]),
+    profile: z.union([
+        zPortableAppearanceSelection,
+        z.null()
+    ])
+});
+
+/**
+ * PortableGestureSelection
+ */
+export const zPortableGestureSelection = z.object({
+    config: z.optional(z.record(z.string(), z.unknown())),
+    entry_id: z.string().min(1).max(128).regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/),
+    semantic_key: z.string().regex(/^[a-z0-9][a-z0-9._-]{0,127}$/)
+});
+
+/**
+ * PortableAnima
+ *
+ * Every equipment choice is explicit; only reviewed identity text is copied.
+ */
+export const zPortableAnima = z.object({
+    appearance: zPortableAnimaAppearance,
+    avatar: z.string().min(1).max(128).regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/),
+    display_name: z.string().min(1).max(40),
+    gestures: z.array(zPortableGestureSelection).max(500),
+    identity_markdown: z.string(),
+    idle_style: z.union([
+        z.string().min(1).max(128).regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/),
+        z.null()
+    ]),
+    pocket_voice: z.optional(z.union([
+        z.string().min(1).max(128).regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/),
+        z.null()
+    ])),
+    reactions: z.record(z.string(), z.record(z.string(), z.union([
+        zPortableActionSelection,
+        z.null()
+    ])))
+});
+
+/**
+ * ExportSummary
+ */
+export const zExportSummary = z.object({
+    anima: z.union([
+        zPortableAnima,
+        z.null()
+    ]),
+    digest: z.string(),
+    estimated_size_bytes: z.int(),
+    items: z.array(zExportSelectionItem),
+    required_count: z.int(),
+    selected_count: z.int()
+});
+
+/**
+ * PackageManifest
+ *
+ * One complete content selection or one portable Anima, with no ambient roots.
+ */
+export const zPackageManifest = z.object({
+    anima: z.optional(z.union([
+        zPortableAnima,
+        z.null()
+    ])),
+    avatar_portraits: z.array(zPackageAvatarPortrait).max(2048),
+    capabilities: z.array(z.string().min(1).max(128)).max(128),
+    entries: z.array(zPackageEntry).min(1).max(2048),
+    kind: z.enum(['content', 'anima']),
+    root_entry_ids: z.optional(z.array(z.string().min(1).max(128).regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/)).max(2048)),
+    schema: z.literal('animama-content-package/3')
+});
+
+/**
+ * ExportReview
+ *
+ * Public review metadata for one sealed, owner-scoped immutable archive.
+ */
+export const zExportReview = z.object({
+    digest: z.string(),
+    expires_at: z.iso.datetime(),
+    export_id: z.string(),
+    filename: z.string(),
+    manifest: zPackageManifest,
+    package_sha256: z.string(),
+    required_count: z.int(),
+    selected_count: z.int(),
+    size_bytes: z.int()
 });
 
 /**
@@ -1225,34 +1654,6 @@ export const zPyAnimaAppearance = z.object({
 });
 
 /**
- * PyAnimaMusicTrack
- */
-export const zPyAnimaMusicTrack = z.object({
-    autoplay: z.boolean(),
-    binding_id: z.string(),
-    codec: z.string(),
-    description: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    duration_seconds: z.number().gte(0),
-    effective_gain: z.number().gte(0).lte(2),
-    effective_loop: z.boolean(),
-    enabled: z.boolean(),
-    gain_override: z.optional(z.union([
-        z.number().gte(0).lte(2),
-        z.null()
-    ])),
-    item_id: z.string(),
-    loop_override: z.optional(z.union([
-        z.boolean(),
-        z.null()
-    ])),
-    name: z.string(),
-    source: zPyCatalogLoadoutSource
-});
-
-/**
  * PyAppearanceIntent
  */
 export const zPyAppearanceIntent = z.object({
@@ -1436,13 +1837,13 @@ export const zPyContentDiagnostic = z.object({
  */
 export const zPyContentEvidenceRootRequest = z.object({
     kind: z.enum([
+        'voice',
         'avatar',
         'appearance',
         'gesture',
         'reaction',
         'idle_style',
         'pose',
-        'pose_clip',
         'particle_effect',
         'avatar_effect',
         'scene_effect',
@@ -1478,13 +1879,13 @@ export const zPyContentFile = z.object({
  */
 export const zPyContentPreviewRootRequest = z.object({
     kind: z.enum([
+        'voice',
         'avatar',
         'appearance',
         'gesture',
         'reaction',
         'idle_style',
         'pose',
-        'pose_clip',
         'particle_effect',
         'avatar_effect',
         'scene_effect',
@@ -1594,16 +1995,6 @@ export const zPyContentItem = z.object({
 export const zPyContentCatalog = z.object({
     items: z.array(zPyContentItem),
     scan_required: z.boolean()
-});
-
-/**
- * PyContentPackageImportResult
- *
- * Editable catalog entries admitted from one validated package.
- */
-export const zPyContentPackageImportResult = z.object({
-    items: z.array(zPyContentItem),
-    skipped_existing_item_ids: z.array(z.string())
 });
 
 /**
@@ -2032,11 +2423,88 @@ export const zPyIdleAnimationSummary = z.object({
 });
 
 /**
+ * PyIdleGestureSummary
+ */
+export const zPyIdleGestureSummary = z.object({
+    description: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    item_id: z.string(),
+    logical_key: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    name: z.string()
+});
+
+/**
+ * PyIdleNoneCell
+ */
+export const zPyIdleNoneCell = z.object({
+    mode: z.optional(z.literal('none')).default('none')
+});
+
+/**
+ * PyIdlePlayback
+ *
+ * An ineligible candidate has a safe reason; admitted occurrences have all facts.
+ */
+export const zPyIdlePlayback = z.object({
+    cycle_seconds: z.optional(z.union([
+        z.number().gt(0),
+        z.null()
+    ])),
+    duration_seconds: z.optional(z.union([
+        z.number().gt(0),
+        z.null()
+    ])),
+    eligible: z.boolean(),
+    loop_type: z.optional(z.union([
+        z.enum([
+            'once',
+            'repeat',
+            'pingpong'
+        ]),
+        z.null()
+    ])),
+    reason: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    repetitions: z.optional(z.union([
+        z.int().gt(0),
+        z.null()
+    ])),
+    time_scale: z.optional(z.union([
+        z.number().gt(0),
+        z.null()
+    ]))
+});
+
+/**
+ * PyIdlePoolCell
+ */
+export const zPyIdlePoolCell = z.object({
+    gestures: z.array(z.string()).min(1),
+    mode: z.optional(z.literal('pool')).default('pool')
+});
+
+/**
  * PyAnimaIdleStyle
  */
 export const zPyAnimaIdleStyle = z.object({
     animations: z.optional(z.array(zPyIdleAnimationSummary)),
+    cells: z.optional(z.record(z.string(), z.record(z.string(), z.union([
+        z.object({
+            mode: z.literal('none')
+        }).and(zPyIdleNoneCell),
+        z.object({
+            mode: z.literal('pool')
+        }).and(zPyIdlePoolCell)
+    ])))),
     cross_fade_seconds: z.optional(z.number()).default(0.35),
+    default_pool: z.optional(z.array(z.string())),
     description: z.optional(z.union([
         z.string(),
         z.null()
@@ -2045,11 +2513,13 @@ export const zPyAnimaIdleStyle = z.object({
     document_emotion_pools: z.optional(z.record(z.string(), z.array(z.string()))),
     effective_default_pool: z.optional(z.array(z.string())),
     effective_emotion_pools: z.optional(z.record(z.string(), z.array(z.string()))),
+    gestures: z.optional(z.array(zPyIdleGestureSummary)),
     name: z.optional(z.union([
         z.string(),
         z.null()
     ])),
     pool_overrides: z.optional(z.record(z.string(), z.array(z.string()))),
+    schema_version: z.optional(z.union([z.literal(1), z.literal(2)])),
     source: z.optional(z.union([
         zPyCatalogLoadoutSource,
         z.null()
@@ -2072,7 +2542,6 @@ export const zPyIdleStyleIntent = z.object({
         'revert',
         'leave_empty'
     ]),
-    pool_overrides: z.optional(z.record(z.string(), z.array(z.string()))),
     source: z.optional(z.union([
         zPyCatalogLoadoutSource,
         z.null()
@@ -3328,54 +3797,6 @@ export const zPyModelRemovalResult = z.object({
 });
 
 /**
- * PyMusicTrackIntent
- */
-export const zPyMusicTrackIntent = z.object({
-    autoplay: z.optional(z.boolean()).default(false),
-    binding_id: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    enabled: z.optional(z.boolean()).default(true),
-    gain: z.optional(z.union([
-        z.number().gte(0).lte(2),
-        z.null()
-    ])),
-    loop: z.optional(z.union([
-        z.boolean(),
-        z.null()
-    ])),
-    operation: z.enum([
-        'add',
-        'update',
-        'reconfigure',
-        'remove'
-    ]),
-    source: z.optional(z.union([
-        zPyCatalogLoadoutSource,
-        z.null()
-    ]))
-});
-
-/**
- * PyMusicTrackCommitRequest
- */
-export const zPyMusicTrackCommitRequest = z.object({
-    expected_revision: z.int().gte(1),
-    idempotency_key: z.string().min(1).max(128),
-    intent: zPyMusicTrackIntent,
-    plan_digest: z.string().regex(/^[0-9a-f]{64}$/)
-});
-
-/**
- * PyMusicTrackPlanRequest
- */
-export const zPyMusicTrackPlanRequest = z.object({
-    expected_revision: z.int().gte(1),
-    intent: zPyMusicTrackIntent
-});
-
-/**
  * PyOnboardingCompleteRequest
  */
 export const zPyOnboardingCompleteRequest = z.object({
@@ -3471,13 +3892,13 @@ export const zPyPreparedPreviewRoot = z.object({
     closure_item_ids: z.array(z.string()),
     item_id: z.string(),
     kind: z.enum([
+        'voice',
         'avatar',
         'appearance',
         'gesture',
         'reaction',
         'idle_style',
         'pose',
-        'pose_clip',
         'particle_effect',
         'avatar_effect',
         'scene_effect',
@@ -3542,7 +3963,6 @@ export const zPyAnimaLoadout = z.object({
     disabled_starter_gestures: z.array(z.string()),
     gestures: z.array(zPyGestureBinding),
     idle_style: zPyAnimaIdleStyle,
-    music_tracks: z.optional(z.array(zPyAnimaMusicTrack)),
     reactions: z.array(zPyReactionCell),
     revision: z.int().gte(1),
     starter_gesture_implementation_kinds: z.optional(z.record(z.string(), z.enum(['anima_clip', 'vrma']))),
@@ -3732,11 +4152,7 @@ export const zPyRuntimeFile = z.object({
 export const zPyRuntimeAction = z.object({
     binding_id: z.string(),
     config: z.optional(z.record(z.string(), z.unknown())),
-    content_type: z.enum([
-        'gesture',
-        'reaction',
-        'pose_clip'
-    ]),
+    content_type: z.enum(['gesture', 'reaction']),
     description: z.optional(z.union([
         z.string(),
         z.null()
@@ -3811,23 +4227,70 @@ export const zPyRuntimeIdleAnimation = z.object({
 });
 
 /**
+ * PyRuntimeIdleGesture
+ *
+ * A complete Action admitted for idle use, never an AI-selectable Gesture.
+ */
+export const zPyRuntimeIdleGesture = z.object({
+    binding_id: z.string(),
+    config: z.optional(z.record(z.string(), z.unknown())),
+    content_type: z.optional(z.literal('gesture')).default('gesture'),
+    description: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    emotion: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    files: z.optional(z.array(zPyRuntimeFile)),
+    idle_playback: zPyIdlePlayback,
+    implementation: zPyRuntimeActionImplementation,
+    intensity: z.optional(z.union([
+        z.int(),
+        z.null()
+    ])),
+    name: z.string(),
+    reference_map: z.optional(z.record(z.string(), z.string())),
+    runtime_root_id: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    semantic_key: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    source: zPyRuntimeCatalogItemSource
+});
+
+/**
  * PyRuntimeIdleStyle
  */
 export const zPyRuntimeIdleStyle = z.object({
-    animations: z.array(zPyRuntimeIdleAnimation),
-    cross_fade_seconds: z.number(),
+    animations: z.optional(z.array(zPyRuntimeIdleAnimation)),
+    cells: z.optional(z.record(z.string(), z.record(z.string(), z.union([
+        z.object({
+            mode: z.literal('none')
+        }).and(zPyIdleNoneCell),
+        z.object({
+            mode: z.literal('pool')
+        }).and(zPyIdlePoolCell)
+    ])))),
+    cross_fade_seconds: z.optional(z.number()).default(0.35),
     default_pool: z.array(z.string()),
     description: z.optional(z.union([
         z.string(),
         z.null()
     ])),
-    emotion_pools: z.record(z.string(), z.array(z.string())),
+    emotion_pools: z.optional(z.record(z.string(), z.array(z.string()))),
+    gestures: z.optional(z.array(zPyRuntimeIdleGesture)),
     name: z.string(),
     revision: z.string(),
     runtime_root_id: z.optional(z.union([
         z.string(),
         z.null()
     ])),
+    schema_version: z.optional(z.union([z.literal(1), z.literal(2)])),
     source: zPyRuntimeCatalogItemSource
 });
 
@@ -3952,29 +4415,6 @@ export const zPyRuntimeLease = z.object({
 });
 
 /**
- * PyRuntimeMusicTrack
- */
-export const zPyRuntimeMusicTrack = z.object({
-    binding_id: z.string(),
-    codec: z.string(),
-    config: z.record(z.string(), z.unknown()),
-    description: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    duration_seconds: z.number(),
-    files: z.optional(z.array(zPyRuntimeFile)),
-    name: z.string(),
-    revision: z.string(),
-    runtime_id: z.string(),
-    runtime_root_id: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    source: zPyRuntimeCatalogItemSource
-});
-
-/**
  * PyRuntimeSupport
  */
 export const zPyRuntimeSupport = z.object({
@@ -3998,6 +4438,24 @@ export const zPyRuntimeSupport = z.object({
     runtime_id: z.string(),
     runtime_root_ids: z.optional(z.array(z.string())),
     source: zPyRuntimeCatalogItemSource
+});
+
+/**
+ * PyRuntimeVoice
+ *
+ * One equipped Pocket catalog; original recordings remain in the library.
+ */
+export const zPyRuntimeVoice = z.object({
+    binding_id: z.string(),
+    codec: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    files: z.optional(z.array(zPyRuntimeFile)),
+    name: z.string(),
+    runtime_root_id: z.string(),
+    source: zPyRuntimeCatalogItemSource,
+    voices: z.optional(z.array(z.string()))
 });
 
 /**
@@ -4036,12 +4494,15 @@ export const zPyAnimaRuntime = z.object({
     ])),
     lease_expires_at: z.iso.datetime(),
     loadout_revision: z.int(),
-    music_tracks: z.optional(z.array(zPyRuntimeMusicTrack)),
     particle_effects: z.optional(z.array(zPyRuntimeSupport)),
     poses: z.optional(z.array(zPyRuntimeAction)),
     reactions: z.optional(z.array(zPyRuntimeAction)),
     scene_effects: z.optional(z.array(zPyRuntimeSupport)),
     sound_effects: z.optional(z.array(zPyRuntimeSupport)),
+    voice: z.optional(z.union([
+        zPyRuntimeVoice,
+        z.null()
+    ])),
     warnings: z.optional(z.array(zPyRuntimeWarning))
 });
 
@@ -4146,18 +4607,20 @@ export const zPyTypedDependency = z.object({
         z.null()
     ])),
     config: z.optional(z.record(z.string(), z.unknown())),
+    item_id: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
     kind: z.enum([
         'avatar',
         'gesture',
         'pose',
-        'pose_clip',
         'reaction',
         'particle_effect',
         'avatar_effect',
         'scene_effect',
         'sound_effect',
         'idle_style',
-        'music_track',
         'appearance',
         'voice'
     ]),
@@ -4311,9 +4774,17 @@ export const zPyGesturePage = z.object({
  * PyIdleStyle
  */
 export const zPyIdleStyle = z.object({
-    animations: z.array(zPyIdleAnimation),
+    animations: z.optional(z.array(zPyIdleAnimation)),
+    cells: z.optional(z.record(z.string(), z.record(z.string(), z.union([
+        z.object({
+            mode: z.literal('none')
+        }).and(zPyIdleNoneCell),
+        z.object({
+            mode: z.literal('pool')
+        }).and(zPyIdlePoolCell)
+    ])))),
     compatibility: z.optional(z.record(z.string(), z.unknown())),
-    cross_fade_seconds: z.number().gte(0).lte(10),
+    cross_fade_seconds: z.optional(z.number().gte(0).lte(10)).default(0.35),
     default_pool: z.array(z.string()),
     dependencies: z.optional(z.array(zPyTypedDependency)),
     description: z.optional(z.union([
@@ -4321,7 +4792,7 @@ export const zPyIdleStyle = z.object({
         z.null()
     ])),
     editable: z.boolean(),
-    emotion_pools: z.record(z.string(), z.array(z.string())),
+    emotion_pools: z.optional(z.record(z.string(), z.array(z.string()))),
     files: z.optional(z.array(zPyTypedContentFile)),
     item_id: z.string(),
     kind: z.optional(z.literal('idle_style')).default('idle_style'),
@@ -4331,6 +4802,7 @@ export const zPyIdleStyle = z.object({
     ])),
     name: z.string(),
     revision_sha256: z.string().regex(/^[0-9a-f]{64}$/),
+    schema_version: z.optional(z.union([z.literal(1), z.literal(2)])),
     source: z.enum(['included', 'local'])
 });
 
@@ -4339,40 +4811,6 @@ export const zPyIdleStyle = z.object({
  */
 export const zPyIdleStylePage = z.object({
     items: z.array(zPyIdleStyle)
-});
-
-/**
- * PyMusicTrack
- */
-export const zPyMusicTrack = z.object({
-    autoplay: z.boolean(),
-    codec: z.string(),
-    dependencies: z.optional(z.array(zPyTypedDependency)),
-    description: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    duration_seconds: z.number().gte(0),
-    editable: z.boolean(),
-    files: z.optional(z.array(zPyTypedContentFile)),
-    gain: z.number().gte(0).lte(2),
-    item_id: z.string(),
-    kind: z.optional(z.literal('music_track')).default('music_track'),
-    logical_key: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    loop: z.boolean(),
-    name: z.string(),
-    revision_sha256: z.string().regex(/^[0-9a-f]{64}$/),
-    source: z.enum(['included', 'local'])
-});
-
-/**
- * PyMusicTrackPage
- */
-export const zPyMusicTrackPage = z.object({
-    items: z.array(zPyMusicTrack)
 });
 
 /**
@@ -4432,41 +4870,6 @@ export const zPyPose = z.object({
     pose_id: z.string(),
     revision_sha256: z.string().regex(/^[0-9a-f]{64}$/),
     source: z.enum(['included', 'local'])
-});
-
-/**
- * PyPoseClip
- */
-export const zPyPoseClip = z.object({
-    clip_id: z.string(),
-    dependencies: z.optional(z.array(zPyTypedDependency)),
-    description: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    editable: z.boolean(),
-    files: z.optional(z.array(zPyTypedContentFile)),
-    item_id: z.string(),
-    kind: z.optional(z.literal('pose_clip')).default('pose_clip'),
-    logical_key: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    name: z.string(),
-    playback: z.optional(z.record(z.string(), z.unknown())),
-    revision_sha256: z.string().regex(/^[0-9a-f]{64}$/),
-    role: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    source: z.enum(['included', 'local'])
-});
-
-/**
- * PyPoseClipPage
- */
-export const zPyPoseClipPage = z.object({
-    items: z.array(zPyPoseClip)
 });
 
 /**
@@ -5102,9 +5505,6 @@ export const zPyContentPreviewsPrepareResponse = z.object({
             kind: z.literal('pose')
         }).and(zPyPose),
         z.object({
-            kind: z.literal('pose_clip')
-        }).and(zPyPoseClip),
-        z.object({
             kind: z.literal('particle_effect')
         }).and(zPyParticleEffect),
         z.object({
@@ -5119,9 +5519,6 @@ export const zPyContentPreviewsPrepareResponse = z.object({
         z.object({
             kind: z.literal('idle_style')
         }).and(zPyIdleStyle),
-        z.object({
-            kind: z.literal('music_track')
-        }).and(zPyMusicTrack),
         z.object({
             kind: z.literal('avatar')
         }).and(zPyAvatarContent),
@@ -5159,17 +5556,85 @@ export const zRecommendedAnimaActions = z.object({
 });
 
 /**
+ * ReviewedImportItem
+ */
+export const zReviewedImportItem = z.object({
+    entry_id: z.string(),
+    kind: z.enum([
+        'appearance',
+        'avatar',
+        'avatar_effect',
+        'gesture',
+        'idle_style',
+        'particle_effect',
+        'pose',
+        'reaction',
+        'scene_effect',
+        'sound_effect',
+        'voice'
+    ]),
+    name: z.string(),
+    original_name: z.string(),
+    selected: z.boolean()
+});
+
+/**
+ * ReviewedPackageImport
+ *
+ * User-visible whole-package proposal; never exposes receiver paths or reserved IDs.
+ */
+export const zReviewedPackageImport = z.object({
+    anima: z.union([
+        zPortableAnima,
+        z.null()
+    ]),
+    expires_at: z.iso.datetime(),
+    filename: z.string(),
+    items: z.array(zReviewedImportItem),
+    kind: z.enum(['content', 'anima']),
+    operation_id: z.string(),
+    package_sha256: z.string(),
+    required_count: z.int(),
+    review_digest: z.string(),
+    selected_count: z.int(),
+    size_bytes: z.int(),
+    stage_id: z.string()
+});
+
+/**
+ * PackageStageStatus
+ *
+ * Private records are projected explicitly so internal destinations stay private.
+ */
+export const zPackageStageStatus = z.object({
+    active: z.boolean(),
+    expected_size_bytes: z.int(),
+    expires_at: z.iso.datetime(),
+    filename: z.string(),
+    next_part_index: z.int(),
+    operation_id: z.string(),
+    part_size_bytes: z.int(),
+    received_bytes: z.int(),
+    review: z.optional(z.union([
+        zReviewedPackageImport,
+        z.null()
+    ])),
+    stage_id: z.string(),
+    state: z.string()
+});
+
+/**
  * SourceRevision
  */
 export const zSourceRevision = z.object({
     kind: z.enum([
+        'voice',
         'avatar',
         'appearance',
         'gesture',
         'reaction',
         'idle_style',
         'pose',
-        'pose_clip',
         'particle_effect',
         'avatar_effect',
         'scene_effect',
@@ -5195,13 +5660,13 @@ export const zAnimaCreationDefaultIdle = z.object({
 export const zPyContentEvidenceRoot = z.object({
     expected_source_revisions: z.record(z.string(), zSourceRevision),
     kind: z.enum([
+        'voice',
         'avatar',
         'appearance',
         'gesture',
         'reaction',
         'idle_style',
         'pose',
-        'pose_clip',
         'particle_effect',
         'avatar_effect',
         'scene_effect',
@@ -5229,6 +5694,7 @@ export const zPyTypedContentPreview = z.object({
     expected_source_revisions: z.optional(z.record(z.string(), zSourceRevision)),
     expires_at: z.iso.datetime(),
     files: z.array(zPyTypedPreviewFile),
+    idle_playback: z.optional(z.record(z.string(), zPyIdlePlayback)),
     item: z.union([
         z.object({
             kind: z.literal('gesture')
@@ -5239,9 +5705,6 @@ export const zPyTypedContentPreview = z.object({
         z.object({
             kind: z.literal('pose')
         }).and(zPyPose),
-        z.object({
-            kind: z.literal('pose_clip')
-        }).and(zPyPoseClip),
         z.object({
             kind: z.literal('particle_effect')
         }).and(zPyParticleEffect),
@@ -5257,9 +5720,6 @@ export const zPyTypedContentPreview = z.object({
         z.object({
             kind: z.literal('idle_style')
         }).and(zPyIdleStyle),
-        z.object({
-            kind: z.literal('music_track')
-        }).and(zPyMusicTrack),
         z.object({
             kind: z.literal('avatar')
         }).and(zPyAvatarContent),
@@ -5283,9 +5743,6 @@ export const zPyTypedContentPreview = z.object({
             kind: z.literal('pose')
         }).and(zPyPose),
         z.object({
-            kind: z.literal('pose_clip')
-        }).and(zPyPoseClip),
-        z.object({
             kind: z.literal('particle_effect')
         }).and(zPyParticleEffect),
         z.object({
@@ -5300,9 +5757,6 @@ export const zPyTypedContentPreview = z.object({
         z.object({
             kind: z.literal('idle_style')
         }).and(zPyIdleStyle),
-        z.object({
-            kind: z.literal('music_track')
-        }).and(zPyMusicTrack),
         z.object({
             kind: z.literal('avatar')
         }).and(zPyAvatarContent),
@@ -5341,7 +5795,7 @@ export const zAnimaCreationOptions = z.object({
 /**
  * AnimaSpec
  *
- * Every choice is explicit; neither omitted fields nor URLs seed defaults.
+ * New creation commands can reference only currently supported content.
  */
 export const zAnimaSpecInput = z.object({
     appearance: zAnimaAppearanceInput,
@@ -5355,13 +5809,17 @@ export const zAnimaSpecInput = z.object({
         z.null()
     ]))),
     schema_version: z.literal(1),
-    starter_pack: zStarterPackIdentity
+    starter_pack: zStarterPackIdentity,
+    voice: z.optional(z.union([
+        zCreationVoiceInput,
+        z.null()
+    ]))
 });
 
 /**
  * AnimaSpec
  *
- * Every choice is explicit; neither omitted fields nor URLs seed defaults.
+ * New creation commands can reference only currently supported content.
  */
 export const zAnimaSpecOutput = z.object({
     appearance: zAnimaAppearanceOutput,
@@ -5375,7 +5833,11 @@ export const zAnimaSpecOutput = z.object({
         z.null()
     ]))),
     schema_version: z.literal(1),
-    starter_pack: zStarterPackIdentity
+    starter_pack: zStarterPackIdentity,
+    voice: z.optional(z.union([
+        zCreationVoiceOutput,
+        z.null()
+    ]))
 });
 
 /**
@@ -5403,7 +5865,34 @@ export const zCreateAnimaRequest = z.object({
         z.null()
     ]))),
     schema_version: z.literal(1),
-    starter_pack: zStarterPackIdentity
+    starter_pack: zStarterPackIdentity,
+    voice: z.optional(z.union([
+        zCreationVoiceInput,
+        z.null()
+    ]))
+});
+
+/**
+ * LegacyCreateAnimaRequest
+ */
+export const zLegacyCreateAnimaRequest = z.object({
+    appearance: zAnimaAppearanceInput,
+    avatar: zItemRevisionRef,
+    display_name: z.string().min(1).max(40),
+    expected_source_revisions: z.record(z.string(), z.unknown()),
+    gestures: z.array(zGestureSelection).max(500),
+    idempotency_key: z.string().min(1).max(128).regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/),
+    identity_markdown: z.string(),
+    reactions: z.record(z.string(), z.record(z.string(), z.union([
+        zItemRevisionRef,
+        z.null()
+    ]))),
+    schema_version: z.literal(1),
+    starter_pack: zStarterPackIdentity,
+    voice: z.optional(z.union([
+        zCreationVoiceInput,
+        z.null()
+    ]))
 });
 
 /**
@@ -5845,32 +6334,6 @@ export const zGetAnimaLoadoutV1AnimasAnimaIdLoadoutGetData = z.object({
  * Successful Response
  */
 export const zGetAnimaLoadoutV1AnimasAnimaIdLoadoutGetResponse = zPyAnimaLoadout;
-
-export const zCommitMusicTrackV1AnimasAnimaIdMusicTracksCommitPostData = z.object({
-    body: zPyMusicTrackCommitRequest,
-    path: z.object({
-        anima_id: z.string()
-    }),
-    query: z.optional(z.never())
-});
-
-/**
- * Successful Response
- */
-export const zCommitMusicTrackV1AnimasAnimaIdMusicTracksCommitPostResponse = zPyLoadoutCommitResult;
-
-export const zPlanMusicTrackV1AnimasAnimaIdMusicTracksPlanPostData = z.object({
-    body: zPyMusicTrackPlanRequest,
-    path: z.object({
-        anima_id: z.string()
-    }),
-    query: z.optional(z.never())
-});
-
-/**
- * Successful Response
- */
-export const zPlanMusicTrackV1AnimasAnimaIdMusicTracksPlanPostResponse = zPyLoadoutPlan;
 
 export const zCommitReactionV1AnimasAnimaIdReactionsCommitPostData = z.object({
     body: zPyReactionCommitRequest,
@@ -6437,18 +6900,8 @@ export const zGetContentItemV1ContentItemsItemIdGetData = z.object({
  */
 export const zGetContentItemV1ContentItemsItemIdGetResponse = zPyContentItem;
 
-export const zExportContentPackageV1ContentItemsItemIdExportPostData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        item_id: z.string()
-    }),
-    query: z.object({
-        operation_id: z.string().min(1).max(128)
-    })
-});
-
-export const zImportContentPackageV1ContentPackagesImportPostData = z.object({
-    body: zBodyImportContentPackageV1ContentPackagesImportPost,
+export const zPreparePackageExportV1ContentPackageExportsPostData = z.object({
+    body: zPackageExportRequest,
     path: z.optional(z.never()),
     query: z.optional(z.never())
 });
@@ -6456,7 +6909,129 @@ export const zImportContentPackageV1ContentPackagesImportPostData = z.object({
 /**
  * Successful Response
  */
-export const zImportContentPackageV1ContentPackagesImportPostResponse = zPyContentPackageImportResult;
+export const zPreparePackageExportV1ContentPackageExportsPostResponse = zExportReview;
+
+export const zDiscardPackageExportV1ContentPackageExportsExportIdDeleteData = z.object({
+    body: z.optional(z.never()),
+    path: z.object({
+        export_id: z.string()
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zDiscardPackageExportV1ContentPackageExportsExportIdDeleteResponse = z.void();
+
+export const zDownloadPackageExportV1ContentPackageExportsExportIdFileGetData = z.object({
+    body: z.optional(z.never()),
+    path: z.object({
+        export_id: z.string()
+    }),
+    query: z.optional(z.never())
+});
+
+export const zSummarizePackageExportV1ContentPackageExportsSummaryPostData = z.object({
+    body: zPackageSelectionRequest,
+    path: z.optional(z.never()),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zSummarizePackageExportV1ContentPackageExportsSummaryPostResponse = zExportSummary;
+
+export const zAllocatePackageImportV1ContentPackageImportsPostData = z.object({
+    body: zPackageImportCreateRequest,
+    path: z.optional(z.never()),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zAllocatePackageImportV1ContentPackageImportsPostResponse = zPackageStageStatus;
+
+export const zDiscardPackageImportV1ContentPackageImportsStageIdDeleteData = z.object({
+    body: z.optional(z.never()),
+    path: z.object({
+        stage_id: z.string()
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zDiscardPackageImportV1ContentPackageImportsStageIdDeleteResponse = z.void();
+
+export const zGetPackageImportV1ContentPackageImportsStageIdGetData = z.object({
+    body: z.optional(z.never()),
+    path: z.object({
+        stage_id: z.string()
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zGetPackageImportV1ContentPackageImportsStageIdGetResponse = zPackageStageStatus;
+
+export const zCommitPackageImportV1ContentPackageImportsStageIdCommitPostData = z.object({
+    body: zPackageImportCommitRequest,
+    path: z.object({
+        stage_id: z.string()
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zCommitPackageImportV1ContentPackageImportsStageIdCommitPostResponse = zPackageImportResult;
+
+export const zUploadPackagePartV1ContentPackageImportsStageIdPartsIndexPutData = z.object({
+    body: z.string(),
+    path: z.object({
+        stage_id: z.string(),
+        index: z.int()
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zUploadPackagePartV1ContentPackageImportsStageIdPartsIndexPutResponse = zPartAck;
+
+export const zReviewPackageImportV1ContentPackageImportsStageIdReviewPostData = z.object({
+    body: z.optional(z.never()),
+    path: z.object({
+        stage_id: z.string()
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zReviewPackageImportV1ContentPackageImportsStageIdReviewPostResponse = zReviewedPackageImport;
+
+export const zGetPackageOperationV1ContentPackageOperationsOperationIdGetData = z.object({
+    body: z.optional(z.never()),
+    path: z.object({
+        operation_id: z.string()
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zGetPackageOperationV1ContentPackageOperationsOperationIdGetResponse = zPackageOperationStatus;
 
 export const zStreamContentPreviewFileV1ContentPreviewsPreviewIdRevisionsRevisionSha256FilesFileRefGetData = z.object({
     body: z.optional(z.never()),
@@ -6699,6 +7274,19 @@ export const zGetGestureData = z.object({
  * Successful Response
  */
 export const zGetGestureResponse = zPyGesture;
+
+export const zGetGestureIdlePlaybackData = z.object({
+    body: z.optional(z.never()),
+    path: z.object({
+        item_id: z.string()
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zGetGestureIdlePlaybackResponse = zPyIdlePlayback;
 
 export const zPreviewGestureData = z.object({
     body: z.optional(z.never()),
@@ -7299,56 +7887,6 @@ export const zGetModelRolesV1ModelRolesGetData = z.object({
  */
 export const zGetModelRolesV1ModelRolesGetResponse = zPyModelRoles;
 
-export const zListMusicTracksData = z.object({
-    body: z.optional(z.never()),
-    path: z.optional(z.never()),
-    query: z.optional(z.never())
-});
-
-/**
- * Successful Response
- */
-export const zListMusicTracksResponse = zPyMusicTrackPage;
-
-export const zSaveMusicTrackData = z.object({
-    body: zBodySaveMusicTrack,
-    path: z.object({
-        entry_name: z.string()
-    }),
-    query: z.optional(z.never())
-});
-
-/**
- * Successful Response
- */
-export const zSaveMusicTrackResponse = zPyMusicTrack;
-
-export const zGetMusicTrackData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        item_id: z.string()
-    }),
-    query: z.optional(z.never())
-});
-
-/**
- * Successful Response
- */
-export const zGetMusicTrackResponse = zPyMusicTrack;
-
-export const zPreviewMusicTrackData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        item_id: z.string()
-    }),
-    query: z.optional(z.never())
-});
-
-/**
- * Successful Response
- */
-export const zPreviewMusicTrackResponse = zPyTypedContentPreview;
-
 export const zListParticleEffectsData = z.object({
     body: z.optional(z.never()),
     path: z.optional(z.never()),
@@ -7398,56 +7936,6 @@ export const zPreviewParticleEffectData = z.object({
  * Successful Response
  */
 export const zPreviewParticleEffectResponse = zPyTypedContentPreview;
-
-export const zListPoseClipsData = z.object({
-    body: z.optional(z.never()),
-    path: z.optional(z.never()),
-    query: z.optional(z.never())
-});
-
-/**
- * Successful Response
- */
-export const zListPoseClipsResponse = zPyPoseClipPage;
-
-export const zSavePoseClipData = z.object({
-    body: zBodySavePoseClip,
-    path: z.object({
-        entry_name: z.string()
-    }),
-    query: z.optional(z.never())
-});
-
-/**
- * Successful Response
- */
-export const zSavePoseClipResponse = zPyPoseClip;
-
-export const zGetPoseClipData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        item_id: z.string()
-    }),
-    query: z.optional(z.never())
-});
-
-/**
- * Successful Response
- */
-export const zGetPoseClipResponse = zPyPoseClip;
-
-export const zPreviewPoseClipData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        item_id: z.string()
-    }),
-    query: z.optional(z.never())
-});
-
-/**
- * Successful Response
- */
-export const zPreviewPoseClipResponse = zPyTypedContentPreview;
 
 export const zListPosesData = z.object({
     body: z.optional(z.never()),

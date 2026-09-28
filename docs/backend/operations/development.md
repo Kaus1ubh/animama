@@ -215,10 +215,11 @@ The built Docker target compiles optimized React assets and copies them to
 `/opt/animama/web`. FastAPI serves those files and the API from the same
 loopback application origin; no Node or Vite server runs in this graph.
 The browser Parakeet directory is a separate read-only static mount resolved
-from the verified shared model store. Run `python3 scripts/models/parakeet.py acquire` and
-`python3 scripts/models/browser_speech.py acquire`
-before first startup; set `ANIMAMA_MODEL_ROOT` to an absolute persistent root when
-needed. `reset.sh` records that root and the exact immutable version directory.
+from the verified shared model store. Both speech model sets are optional; run
+`python3 scripts/models/parakeet.py acquire` and
+`python3 scripts/models/browser_speech.py acquire` to enable them, and set
+`ANIMAMA_MODEL_ROOT` to an absolute persistent root when needed. `reset.sh`
+records that root and the exact immutable version directory of each acquired set.
 See [model acquisition, offline reuse and recovery](model-assets.md).
 This selects build delivery, without adding accounts or network authentication.
 
@@ -1563,8 +1564,8 @@ behavior, change narration, and details already owned by another guide.
 
 `uv run pytest -q tests/test_content_migration_recovery.py` creates a unique
 PostgreSQL database per case, applies the real Alembic graph and runs installation
-bootstrap. It checks literal `.animama /2` bytes/digests, exact import retries
-across fresh services, later edits/deletions, owner denial and journal recovery
+bootstrap. It checks reviewed `/3` package bytes/digests in `.zip` files, exact
+import retries across fresh services, later edits/deletions, owner denial and journal recovery
 or fencing. It never substitutes `create_all` for migrations.
 
 Docker/testcontainers is the default. When Docker is unavailable, an explicit

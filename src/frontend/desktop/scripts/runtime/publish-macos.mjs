@@ -11,6 +11,11 @@ import {
 import { PublicationError, verifyScanReceipt } from "./publication.mjs";
 import { preflightGithub, publishGithub } from "./publish-github.mjs";
 import { preflightR2, publishR2, r2Credentials } from "./publish-r2.mjs";
+import { planReleaseModels } from "./release-models.mjs";
+import {
+  modelDistribution,
+  publishModelObjects,
+} from "./model-publication.mjs";
 import {
   acceptsRequiredNameSmoke,
   validateManualAcceptance,
@@ -51,6 +56,13 @@ async function publish() {
   if (index.app_version !== release.version)
     throw new PublicationError("Release version mismatch");
   verifyScanReceipt(directory, index.files);
+  // Validate every dependency before credentials or writes. These references
+  // come from the sealed app, including its frozen backend catalog.
+  const models = modelDistribution(release.policy);
+  const modelCandidates = planReleaseModels({
+    directory,
+    origin: models.origin,
+  });
   const dmg = `Animama-${release.version}-arm64.dmg`;
   const dmgSha256 = sha256(path.join(directory, dmg));
   const receipt = preview
@@ -101,6 +113,16 @@ async function publish() {
           sha256: sha256(path.join(directory, name)),
         })),
       ];
+  // Both app transports depend on the same immutable model origin. A failed
+  // upload or anonymous verification leaves the app and stable feed untouched.
+  const credentials = r2Credentials();
+  for (const candidate of modelCandidates)
+    await publishModelObjects({
+      directory: candidate.directory,
+      planned: candidate.planned,
+      bucket: models.bucket,
+      credentials,
+    });
   if (built.kind === "r2")
     await publishR2({
       distribution: built,
@@ -109,7 +131,7 @@ async function publish() {
       directory,
       files,
       preview,
-      credentials: r2Credentials(),
+      credentials,
     });
   else
     await publishGithub({

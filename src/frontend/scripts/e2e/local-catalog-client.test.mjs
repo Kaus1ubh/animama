@@ -26,6 +26,12 @@ test("uses same-origin CSRF metadata for exact accountless catalog operations", 
         if (url === "/v1/animas/annie-id/loadout") {
           return response(200, { anima_id: "annie-id", revision: 3 });
         }
+        if (url === "/v1/content/package-operations/import-operation") {
+          return response(200, {
+            operation_id: "import-operation",
+            state: "completed",
+          });
+        }
         if (url.includes("missing")) return response(404, {});
         return response(200, { item_id: "item-1" });
       },
@@ -54,6 +60,14 @@ test("uses same-origin CSRF metadata for exact accountless catalog operations", 
     anima_id: "annie-id",
     revision: 3,
   });
+  assert.deepEqual(await client.getPackageOperation("import-operation"), {
+    operation_id: "import-operation",
+    state: "completed",
+  });
+  await assert.rejects(
+    client.getPackageOperation("../guessed"),
+    /exact operation ID/,
+  );
   assert.deepEqual(await client.deleteItem("item-1", "a".repeat(64)), {
     status: 204,
   });
@@ -62,6 +76,7 @@ test("uses same-origin CSRF metadata for exact accountless catalog operations", 
     ["GET", "/v1/content/items/item-1"],
     ["GET", "/v1/content/items/missing"],
     ["GET", "/v1/animas/annie-id/loadout"],
+    ["GET", "/v1/content/package-operations/import-operation"],
     ["DELETE", "/v1/content/items/item-1", "a".repeat(64)],
   ]);
   await client.close();

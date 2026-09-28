@@ -93,6 +93,8 @@ class TypedBatchResolution:
 
 _SAFE_MESSAGES = {
     "root_declaration_conflict": "The same catalog source was declared with conflicting requirements.",
+    "content_kind_retired": "This content kind is no longer supported.",
+    "content_dependency_retired": "This Action needs conversion before it can be used.",
     "source_unavailable": "The selected source is unavailable.",
     "source_kind_mismatch": "The selected source has a different content kind.",
     "source_revision_changed": "The selected source revision changed.",

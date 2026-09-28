@@ -48,8 +48,8 @@ DOWNLOAD_HOSTS = {
     "cas-bridge.xethub.hf.co",
     "us.aws.cdn.hf.co",
 }
-# Animama's own release distribution (the `animama-releases` R2 bucket). Only
-# manifest entries with a `release` source may download from it.
+# Animama's own release distribution: explicit release sources and the base
+# CLI's normal shared-object projection. Upstream provenance stays in manifests.
 RELEASE_HOSTS = {"downloads.animama.ai"}
 CHUNK_SIZE = 1024 * 1024
 
@@ -408,9 +408,16 @@ def acquire(
     offline: bool = False,
     import_from: Path | None = None,
     import_field: str = "path",
+    shared_base_objects: bool = False,
     transport=None,
 ) -> Path:
-    """Reuse or atomically assemble a version; never replace an existing version."""
+    """Reuse or atomically assemble a version; never replace an existing version.
+
+    Generic callers retain their manifest sources. Only the base CLI requests
+    the derived Animama objects, with the same inventory and cache identity.
+    """
+    if shared_base_objects and manifest["model_id"] != MODEL_ID:
+        raise ModelStoreError("Shared base acquisition requires the Parakeet base inventory")
     checked_directory(root, create=True)
     parent = root / manifest["model_id"]
     checked_directory(parent, create=True)
@@ -448,6 +455,10 @@ def acquire(
                         source_path /= part
                         checked_directory(source_path)
                     stream = regular_file(source_path / relative.name)
+                elif shared_base_objects:
+                    url = f"https://downloads.animama.ai/models/{MODEL_ID}/{entry['sha256']}/{entry['path']}"
+                    validate_url(url, RELEASE_HOSTS)
+                    stream = transport(url) if transport else open_download(url, RELEASE_HOSTS)
                 elif "local" in entry["source"]:
                     stream = regular_file(manifest["directory"] / entry["path"])
                 elif entry["source"].get("kind") == "release":
@@ -470,23 +481,40 @@ def acquire(
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Print only the verified absolute model directory on success."""
+    """Print only the verified model directory, or the resolved store root for `root`."""
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("operation", choices=("acquire", "verify", "path"))
+    parser.add_argument("operation", choices=("acquire", "verify", "path", "root"))
     parser.add_argument("--root", help="absolute shared model STORE root (overrides ANIMAMA_MODEL_ROOT)")
     parser.add_argument(
         "--manifest", type=Path, default=DEFAULT_MANIFEST, help="local reviewed manifest or test fixture"
     )
     parser.add_argument("--offline", action="store_true", help="never access the network (always true for verify/path)")
     parser.add_argument("--import-from", type=Path, help="copy an existing seven-file inventory after hash validation")
+    parser.add_argument(
+        "--source",
+        choices=("animama", "upstream"),
+        help="acquire from Animama objects (default), or pinned upstream inputs for publication/build producers",
+    )
     args = parser.parse_args(argv)
     if args.import_from and args.operation != "acquire":
         parser.error("--import-from applies only to acquire")
+    if args.source and args.operation != "acquire":
+        parser.error("--source applies only to acquire")
     try:
         root = resolve_root(args.root)
+        if args.operation == "root":
+            # Callers select sibling model sets without requiring this one.
+            print(root)
+            return 0
         manifest = load_manifest(args.manifest)
         result = (
-            acquire(manifest, root, offline=args.offline, import_from=args.import_from)
+            acquire(
+                manifest,
+                root,
+                offline=args.offline,
+                import_from=args.import_from,
+                shared_base_objects=args.source != "upstream",
+            )
             if args.operation == "acquire"
             else verify(manifest, root)
         )

@@ -47,7 +47,7 @@ from animama.orm.content_catalog import (
 )
 
 LEASE = timedelta(hours=24)
-RUNTIME_PROJECTION_VERSION = 4
+RUNTIME_PROJECTION_VERSION = 5
 SNAPSHOT_CLEANUP_BATCH_SIZE = 100
 
 
@@ -422,6 +422,7 @@ class AnimaRuntimeService:
             if kind in {
                 ContentKind.POSE,
                 ContentKind.POSE_CLIP,
+                ContentKind.MUSIC_TRACK,
                 ContentKind.PARTICLE_EFFECT,
                 ContentKind.AVATAR_EFFECT,
                 ContentKind.SCENE_EFFECT,
@@ -511,13 +512,11 @@ class AnimaRuntimeService:
             ContentKind.AVATAR: 0,
             ContentKind.IDLE_STYLE: 1,
             ContentKind.GESTURE: 2,
-            ContentKind.POSE_CLIP: 3,
             ContentKind.REACTION: 4,
             ContentKind.PARTICLE_EFFECT: 5,
             ContentKind.AVATAR_EFFECT: 5,
             ContentKind.SCENE_EFFECT: 5,
             ContentKind.SOUND_EFFECT: 5,
-            ContentKind.MUSIC_TRACK: 6,
             ContentKind.APPEARANCE: 7,
             ContentKind.VOICE: 8,
             ContentKind.ANIMA: 9,

@@ -53,6 +53,26 @@ const context = {
 describe.each(["gesture", "reaction"] as const)(
   "%s accompanying audio",
   (player) => {
+    it("does not apply a visual or its sound after an idle occurrence is cancelled during loading", async () => {
+      const { sink, effect, loadAvatarVFX, applyHoverVFX, playSfx } =
+        fixture(player);
+      const abort = new AbortController();
+      let resolve!: (value: unknown) => void;
+      loadAvatarVFX.mockReturnValueOnce(
+        new Promise((done) => {
+          resolve = done;
+        }),
+      );
+      const pending = sink.applyAvatarVFX?.(
+        { id: "event", time: 0, kind: "avatar_vfx", effectId: effect.id },
+        { ...context, signal: abort.signal },
+      );
+      abort.abort();
+      resolve({ ...effect, sound: { onApply: "attached" } });
+      await pending;
+      expect(applyHoverVFX).not.toHaveBeenCalled();
+      expect(playSfx).not.toHaveBeenCalled();
+    });
     it.each([undefined, true, false])(
       "plays successful visuals with accompanying=%s",
       async (playAccompanyingSound) => {

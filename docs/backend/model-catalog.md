@@ -6,7 +6,7 @@ built-in `openai` connection come from `src/backend/animama/app/model_catalog.py
 the installation owner adds other connections and models in App Settings →
 Models ([model settings](../frontend/features/model-settings.md)). The design is
 recorded in
-[ADR 0010](../adr/0010-application-owned-companion-features-and-composition-catalog-policy.md).
+[ADR 0011](../adr/0011-application-owned-companion-features-and-composition-catalog-policy.md).
 
 The public API is:
 

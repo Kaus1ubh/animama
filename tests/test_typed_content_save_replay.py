@@ -33,6 +33,8 @@ def _entry(kind: ContentKind, *, item_id: str) -> CatalogContentEntry:
         ContentKind.GESTURE: ("vrma", "animation", "model/gltf-binary"),
         ContentKind.AVATAR: ("vrm", "model", "model/gltf-binary"),
         ContentKind.APPEARANCE: ("webp", "image", "image/webp"),
+        ContentKind.POSE_CLIP: ("json", "pose_clip", "application/json"),
+        ContentKind.MUSIC_TRACK: ("mp3", "audio", "audio/mpeg"),
     }[kind]
     locator = f"{kind.value}/{item_id}.{suffix}"
     return CatalogContentEntry(
@@ -149,3 +151,25 @@ async def test_save_replay_returns_original_typed_snapshot_after_catalog_change(
         replay = await client.put(route, data=form, files={upload_field: ("source.webp", b"original bytes")})
         assert replay.status_code == 200, replay.text
         assert replay.json() == original_response
+
+
+@pytest.mark.parametrize(
+    "kind,family", [(ContentKind.POSE_CLIP, "pose-clips"), (ContentKind.MUSIC_TRACK, "music-tracks")]
+)
+async def test_retired_family_hidden_put_replays_without_public_read_routes(monkeypatch, kind, family):
+    original = _entry(kind, item_id="saved-retired-item")
+    if kind is ContentKind.POSE_CLIP:
+        original = replace(original, metadata={**original.metadata, "schema": "animaPoseClip/1.0"})
+    application = _app(monkeypatch, original, _LiveTypedCatalog({}))
+    async with local_client(application) as client:
+        result = await client.put(
+            f"/v1/{family}/Original",
+            data={"operation_id": "completed-save"},
+            files={"files": ("original.bin", b"original bytes")},
+        )
+        assert result.status_code == 200, result.text
+        assert result.json()["kind"] == kind.value
+        assert result.json()["revision_sha256"] == "a" * 64
+        assert (await client.get(f"/v1/{family}")).status_code == 404
+        assert (await client.get(f"/v1/{family}/{original.id}")).status_code == 405
+    assert not any(family in path for path in application.openapi()["paths"])

@@ -48,7 +48,7 @@ copies; missing catalogs return 404. They are not hash-approved engine assets
 or members of the 23-file manifest. Normal uploaded catalog URLs are unaffected.
 
 Do not add public aliases for an Avatar, Gesture, Reaction, effect,
-sound, music track, Appearance, or other catalog item. All playable Included
+sound, Appearance, or other catalog item. All playable Included
 and Local entries need registered file facts and protected catalog/preview/
 runtime delivery.
 

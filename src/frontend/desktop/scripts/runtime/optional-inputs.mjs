@@ -60,10 +60,18 @@ const modelPacks = [
 
 /**
  * Tracked model sets that are published to R2 for the backend downloader but are
- * never desktop packs. Their file names come from the tracked manifest, which
- * each set's acquisition script validates against its reviewed contract.
+ * never desktop packs. Their inventory comes from the selected manifest,
+ * including a release's sealed copy; publication must not consult a newer
+ * checkout's voice selection. Acquisition still validates its reviewed source.
  */
 const publishedModelSets = [
+  {
+    id: "pocket-tts-voice-cloning",
+    label: "Pocket TTS voice cloning",
+    licenseRef: "browser-pocket",
+    modelId: "pocket-tts-voice-cloning",
+    script: "scripts/models/pocket_cloning.py",
+  },
   {
     id: "pocket-tts-voices",
     label: "Pocket TTS voices",
@@ -71,24 +79,10 @@ const publishedModelSets = [
     modelId: "pocket-tts-voices",
     script: "scripts/models/pocket_voices.py",
   },
-].map((spec) => {
-  const defaultManifest = path.join(
-    repoRoot,
-    "models",
-    spec.modelId,
-    "manifest.json",
-  );
-  return {
-    ...spec,
-    defaultManifest,
-    // Read on use, so a broken manifest never breaks importing this module.
-    get names() {
-      return readJson(defaultManifest)
-        .files.map((item) => item.path)
-        .sort();
-    },
-  };
-});
+].map((spec) => ({
+  ...spec,
+  defaultManifest: path.join(repoRoot, "models", spec.modelId, "manifest.json"),
+}));
 
 /** The model-store input spec for a tracked model ID, or undefined. */
 export const modelInputSpec = (modelId) =>
@@ -99,13 +93,30 @@ export const modelInputSpec = (modelId) =>
 /** Keep each pack payload fixed while acquisition stays outside Git. */
 export function modelManifest(spec, file) {
   const manifest = readJson(file);
+  const names = Array.isArray(manifest.files)
+    ? manifest.files.map((item) => item?.path).sort()
+    : [];
   if (
     manifest.schema_version !== 1 ||
     manifest.model_id !== spec.modelId ||
     manifest.license !== "CC-BY-4.0" ||
     !Array.isArray(manifest.files) ||
-    JSON.stringify(manifest.files.map((item) => item.path).sort()) !==
-      JSON.stringify(spec.names) ||
+    names.length > 63 ||
+    !names.includes("ATTRIBUTION.md") ||
+    !names.includes("README.md") ||
+    names.some(
+      (name) =>
+        typeof name !== "string" ||
+        !/^[A-Za-z0-9][A-Za-z0-9_.-]{0,150}$/u.test(name) ||
+        [
+          "manifest.json",
+          "release-artifacts.json",
+          "release-scan.json",
+          "SHA256SUMS.txt",
+        ].includes(name),
+    ) ||
+    new Set(names.map((name) => name.toLowerCase())).size !== names.length ||
+    (spec.names && JSON.stringify(names) !== JSON.stringify(spec.names)) ||
     manifest.files.some(
       (item) =>
         !Number.isSafeInteger(item.size) ||
@@ -123,9 +134,10 @@ export function verifyInputs(spec, root, manifest, staged = false) {
   if (!directory.isDirectory() || directory.isSymbolicLink())
     throw new Error(`${spec.label} input root must be a real directory`);
   const names = readdirSync(root).sort();
+  const manifestNames = manifest.files.map((item) => item.path).sort();
   const expected = staged
-    ? [...spec.names, "PACK-REVIEW.txt"].sort()
-    : spec.names;
+    ? [...manifestNames, "PACK-REVIEW.txt"].sort()
+    : manifestNames;
   if (JSON.stringify(names) !== JSON.stringify(expected))
     throw new Error(`${spec.label} input inventory differs from its manifest`);
   const inventory = manifest.files.map((item) => {
@@ -220,10 +232,12 @@ function stageModelPack(target, spec, manifestFile, modelRoot) {
   }
 }
 
-function manifestFiles(options) {
+/** Canonical producer paths are resolved before the TypeScript tool is bundled. */
+export function modelPackManifestFiles(options = {}) {
   return {
-    "parakeet-stt": options.manifestFile,
-    "parakeet-stt-webgpu": options.webgpuManifestFile,
+    "parakeet-stt": options.manifestFile ?? modelPacks[0].defaultManifest,
+    "parakeet-stt-webgpu":
+      options.webgpuManifestFile ?? modelPacks[1].defaultManifest,
   };
 }
 
@@ -231,7 +245,7 @@ function manifestFiles(options) {
 export function stageOptionalInputs(target, options = {}) {
   const receipt = path.join(target.output, "optional-inputs.json");
   rmSync(receipt, { force: true });
-  const manifests = manifestFiles(options);
+  const manifests = modelPackManifestFiles(options);
   const value = {
     schema: "animama-optional-inputs/1",
     document_processing: "separate-signed-worker",
@@ -256,7 +270,7 @@ export function stageOptionalInputs(target, options = {}) {
  * Returns each model pack's verified inventory; unavailable inputs are empty.
  */
 export function auditOptionalInputs(target, options = {}) {
-  const manifests = manifestFiles(options);
+  const manifests = modelPackManifestFiles(options);
   const receipt = readJson(path.join(target.output, "optional-inputs.json"));
   if (receipt.schema !== "animama-optional-inputs/1")
     throw new Error("Invalid optional input receipt");

@@ -232,7 +232,11 @@ print(values.get("ANIMAMA_MODEL_ROOT", ""))
     if [ -n "$model_root" ]; then
       model_path_args=(--root "$model_root")
     fi
-    ANIMAMA_PARAKEET_MODEL_DIR="$(python3 "${ANIMAMA_STATE_REPO_ROOT}/scripts/models/parakeet.py" path "${model_path_args[@]}")" || return
+    # An unacquired set (exit 2) is optional; Compose then mounts the notices.
+    local model_status=0
+    ANIMAMA_PARAKEET_MODEL_DIR="$(python3 "${ANIMAMA_STATE_REPO_ROOT}/scripts/models/parakeet.py" path "${model_path_args[@]}" 2>/dev/null)" || model_status=$?
+    [ "$model_status" -eq 0 ] || [ "$model_status" -eq 2 ] ||
+      animama_state_die "Parakeet models failed verification; run python3 scripts/models/parakeet.py verify"
     export ANIMAMA_PARAKEET_MODEL_DIR
   fi
   docker compose -p "$ANIMAMA_STATE_PROJECT" "$@"

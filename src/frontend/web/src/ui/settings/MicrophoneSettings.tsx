@@ -136,7 +136,7 @@ export function MicrophoneDeviceSetting({
           ? "The selected microphone isn't connected; using the system default."
           : usesSystemRecognizer
             ? `Browser speech recognition always uses the system default microphone${systemDefaultName ? ` (${systemDefaultName})` : ""}.`
-            : "Used for dictation, Voice Mode and press to talk."
+            : undefined
       }
       control={
         needsPermission ? (

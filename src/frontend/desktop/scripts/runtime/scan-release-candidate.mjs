@@ -4,6 +4,9 @@ import path from "node:path";
 import { parseArgs } from "node:util";
 import { desktopRoot } from "./common.mjs";
 import { ScanError, scanCandidate } from "./release-scan.mjs";
+import { verifyArtifactIndex } from "./release-artifacts.mjs";
+import { releaseModelCandidates } from "./release-models.mjs";
+import { modelDistribution } from "./model-publication.mjs";
 
 /**
  * Private text is supplied from this machine at scan time, never committed:
@@ -45,22 +48,39 @@ async function main() {
     throw new ScanError(
       "Pass --gitleaks or set ANIMAMA_GITLEAKS to the verified pinned scanner binary",
     );
-  const receipt = await scanCandidate({
-    directory: path.resolve(values.candidate),
+  const directory = path.resolve(values.candidate);
+  const index = verifyArtifactIndex(directory);
+  // A model-only candidate remains independently scannable. An app candidate
+  // first binds all private model directories to its sealed runtime references.
+  const directories = index.model_id
+    ? [directory]
+    : [
+        ...releaseModelCandidates({
+          directory,
+          origin: modelDistribution().origin,
+        }).map((candidate) => candidate.directory),
+        directory,
+      ];
+  const options = {
     gitleaks: path.resolve(values.gitleaks),
     config: path.resolve(values.config),
     needles: privateText(),
     workRoot: tmpdir(),
-  });
-  const summary = Object.entries(
-    Object.groupBy(receipt.findings, (item) => `${item.source}:${item.rule}`),
-  ).map(([rule, items]) => `${rule} ×${items.length}`);
-  console.log(
-    receipt.result === "pass"
-      ? `Release scan passed for ${receipt.files.length} artifacts; receipt written to release-scan.json.`
-      : `Release scan FAILED (${summary.join(", ")}). Review release-scan.json; do not publish this candidate.`,
-  );
-  if (receipt.result !== "pass") process.exitCode = 1;
+  };
+  for (const candidate of directories) {
+    const receipt = await scanCandidate({ ...options, directory: candidate });
+    const summary = Object.entries(
+      Object.groupBy(receipt.findings, (item) => `${item.source}:${item.rule}`),
+    ).map(([rule, items]) => `${rule} ×${items.length}`);
+    const label =
+      candidate === directory ? "candidate" : path.basename(candidate);
+    console.log(
+      receipt.result === "pass"
+        ? `Release scan passed for ${label}: ${receipt.files.length} artifacts; receipt written to release-scan.json.`
+        : `Release scan FAILED for ${label} (${summary.join(", ")}). Review release-scan.json; do not publish this candidate.`,
+    );
+    if (receipt.result !== "pass") process.exitCode = 1;
+  }
 }
 
 try {

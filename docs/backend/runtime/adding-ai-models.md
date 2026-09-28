@@ -17,7 +17,7 @@ Use this page together with:
 - [Model clients and providers](model-client-providers.md) for detailed runtime
   behavior.
 - [Direct chat SSE runtime](chat.md) for the public chat lifecycle.
-- [ADR 0010](../../adr/0010-application-owned-companion-features-and-composition-catalog-policy.md)
+- [ADR 0011](../../adr/0011-application-owned-companion-features-and-composition-catalog-policy.md)
   for why companion features must work on any Chat Completions model.
 
 When a change depends on current vendor behavior, verify the model ID, endpoint,

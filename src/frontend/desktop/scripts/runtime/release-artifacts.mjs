@@ -8,7 +8,7 @@ import {
 import path from "node:path";
 import { readJson, sha256, writeJson } from "./common.mjs";
 import { componentInventory } from "./inventory.mjs";
-import { validateSizeReport } from "./size.mjs";
+import { packSizeReport, validateSizeReport } from "./size.mjs";
 
 async function sha512(file) {
   const hash = createHash("sha512");
@@ -124,14 +124,7 @@ export function releaseSizes(app, directory, manifest, catalog) {
       installed_bytes,
     })),
     packs: Object.fromEntries(
-      catalog.entries.map((pack) => [
-        pack.id,
-        {
-          installed_bytes: pack.installed_bytes,
-          download_bytes: pack.archive_bytes,
-          minimum_peak_free_bytes: pack.minimum_peak_free_bytes,
-        },
-      ]),
+      catalog.entries.map((pack) => [pack.id, packSizeReport(pack)]),
     ),
   };
   report.validation = validateSizeReport(report);

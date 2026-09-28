@@ -9,6 +9,7 @@ import { RuntimeJsonBundleLoader } from "./RuntimeJsonBundleLoader";
 import { adaptRuntimeSnapshot } from "./runtimeSnapshotAdapter";
 import { AnimaRuntimeCatalog } from "./AnimaRuntimeCatalog";
 import { preparedRuntimeResourceUrls } from "./runtimeContentDelivery";
+import { resolveMountedPocketVoice } from "./mountedPocketVoice";
 
 function runtime(payloads: Uint8Array[]): PyAnimaRuntime {
   const members = payloads.map((payload, index) => ({
@@ -81,7 +82,6 @@ function runtime(payloads: Uint8Array[]): PyAnimaRuntime {
     poses: [],
     reactions: [],
     idle_style: null,
-    music_tracks: [],
     appearances: [],
     particle_effects:
       members.length > 1
@@ -109,7 +109,129 @@ function runtime(payloads: Uint8Array[]): PyAnimaRuntime {
   } as PyAnimaRuntime;
 }
 
+function voiceFixture() {
+  const payloads = ["avatar", "catalog", "original sample"].map((text) =>
+    new TextEncoder().encode(text),
+  );
+  const typed = runtime(payloads);
+  typed.gestures = [];
+  typed.particle_effects = [];
+  const catalog = typed.content_descriptor.members![1]!;
+  catalog.role = "pocket_voice_catalog";
+  const sample = typed.content_descriptor.members![2]!;
+  sample.role = "source_sample";
+  sample.filename = "original.wav";
+  typed.content_descriptor.roots = [
+    typed.content_descriptor.roots![0]!,
+    {
+      ...typed.content_descriptor.roots![1]!,
+      slot_key: "voice",
+      kind: "voice",
+      member_refs: [catalog.file_ref, sample.file_ref],
+    },
+  ];
+  typed.voice = {
+    runtime_root_id: "root-1",
+    binding_id: "voice-binding",
+    source: typed.avatar!.source,
+    name: "My voice",
+    codec: "pocket-tts-catalog-v1",
+    voices: ["neutral"],
+    files: [{ ...catalog, ordinal: 0 }],
+  };
+  const fetcher = vi.fn(
+    async (url: string | URL | Request) =>
+      new Response(payloads[Number(String(url).split("/").at(-1))]),
+  );
+  return { typed, payloads, sample, catalog, fetcher };
+}
+
 describe("RuntimeMountPreparer", () => {
+  it("prepares only the selected voice catalog with the avatar, and owns its URL until disposal", async () => {
+    const { typed, sample, catalog, fetcher } = voiceFixture();
+    const revoke = vi.fn();
+    let urlId = 0;
+    const session = new RuntimeMountPreparer({
+      loader: new VerifiedByteLoader({ fetcher }),
+      createObjectURL: () => `blob:verified-${++urlId}`,
+      revokeObjectURL: revoke,
+    }).start(typed);
+    const mount = await session.essentialReady;
+    expect(mount.data.voice?.files?.[0]?.url).toMatch(/^blob:verified-/);
+    expect(fetcher.mock.calls.map(([url]) => url)).toEqual([
+      "/files/0",
+      "/files/1",
+    ]);
+    expect(mount.files.has(sample.file_ref)).toBe(false);
+    const voiceUrl = mount.data.voice!.files![0]!.url;
+    const selected = resolveMountedPocketVoice(typed, mount);
+    expect(selected?.catalogUrl).toBe(voiceUrl);
+    expect(selected?.assertActive).not.toThrow();
+    expect(mount.data.avatar).not.toHaveProperty([
+      "logical_resource_urls",
+      catalog.filename,
+    ]);
+    await session.dispose();
+    expect(revoke).toHaveBeenCalledWith(voiceUrl);
+    expect(selected?.assertActive).toThrow("selected PocketTTS voice");
+  });
+
+  it("gives each new mount its own catalog identity while preserving legacy bin catalogs", async () => {
+    const { typed, fetcher } = voiceFixture();
+    typed.voice!.codec = null;
+    typed.voice!.files![0]!.role = "audio";
+    let urlId = 0;
+    const preparer = new RuntimeMountPreparer({
+      loader: new VerifiedByteLoader({ fetcher }),
+      createObjectURL: () => `blob:mount-${++urlId}`,
+      revokeObjectURL: vi.fn(),
+    });
+    const first = await preparer.prepare(typed);
+    const firstVoice = resolveMountedPocketVoice(typed, first)!;
+    first.dispose();
+    const second = await preparer.prepare(typed);
+    const secondVoice = resolveMountedPocketVoice(typed, second)!;
+    expect(firstVoice.catalogUrl).not.toBe(secondVoice.catalogUrl);
+    expect(firstVoice.assertActive).toThrow();
+    expect(secondVoice.assertActive).not.toThrow();
+    second.dispose();
+  });
+
+  it("keeps a failed equipped catalog unavailable instead of exposing an issued URL or default voice", async () => {
+    const { typed, catalog, fetcher } = voiceFixture();
+    catalog.sha256 = "0".repeat(64);
+    const mount = await new RuntimeMountPreparer({
+      loader: new VerifiedByteLoader({ fetcher }),
+      createObjectURL: () => "blob:verified-avatar",
+      revokeObjectURL: vi.fn(),
+    }).prepare(typed);
+    expect(mount.data.voice).toBeNull();
+    expect(mount.data.avatar).not.toBeNull();
+    const selected = resolveMountedPocketVoice(typed, mount);
+    expect(selected?.catalogUrl).toBeNull();
+    expect(selected?.assertActive).toThrow("selected PocketTTS voice");
+    mount.dispose();
+  });
+
+  it("distinguishes a broken voice binding from a removed binding or a pending runtime", () => {
+    const typed = runtime([new Uint8Array([1])]);
+    expect(resolveMountedPocketVoice(typed, null)).toBeNull();
+    expect(resolveMountedPocketVoice(null, null)?.assertActive).toThrow(
+      "loading",
+    );
+    typed.content_descriptor.diagnostics = [
+      {
+        code: "content_unavailable",
+        root_id: "missing-voice",
+        slot_key: "voice",
+        message: "Voice is unavailable",
+      },
+    ];
+    expect(resolveMountedPocketVoice(typed, null)?.assertActive).toThrow(
+      "selected PocketTTS voice",
+    );
+  });
+
   function bundledFixture() {
     const texts = [
       "avatar",
@@ -702,7 +824,7 @@ describe("RuntimeMountPreparer", () => {
     runtimeValue.poses = [
       {
         binding_id: "dependent-pose",
-        content_type: "pose_clip",
+        content_type: "gesture",
         runtime_root_id: "root-1",
         source: {
           type: "catalog_item",

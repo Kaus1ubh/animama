@@ -5,24 +5,29 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass, field
 from typing import Any
 
 from animama.app.ports.content_catalog import ContentCatalog
 from animama.app.ports.content_store import ContentStore
+from animama.app.services.content_kind_registry import RETIRED_CONTENT_KINDS
 from animama.app.services.runtime_budget_policy import (
     MAX_RUNTIME_BYTES,
     MAX_RUNTIME_CONFIG_BYTES,
     MAX_RUNTIME_ENTRIES,
 )
+from animama.app.services.typed_content_service import TypedContentService, validate_idle_style
 from animama.domain.content_catalog import (
     CatalogContentEntry,
     CatalogContentFile,
     ContentIntegrityError,
+    ContentKind,
+    ContentNotFoundError,
     ContentPathError,
     ContentSource,
     ContentStatus,
 )
+from animama.domain.content_documents import ContentDocumentError, IdleStyleDocumentV2
 from animama.domain.runtime_content_descriptor import (
     RuntimeContentDescriptor,
     RuntimeContentDiagnostic,
@@ -62,6 +67,7 @@ class _CandidateRoot:
     selection: RuntimeContentRootSelection
     entry_ids: tuple[str, ...]
     members: tuple[RuntimeContentMember, ...]
+    idle_playback: dict[str, dict[str, Any]] = field(default_factory=dict)
 
 
 class RuntimeContentClosureCompiler:
@@ -154,7 +160,11 @@ class RuntimeContentClosureCompiler:
                 if item.id in _visiting:
                     unavailable = item
                     return False
-                if item.status is not ContentStatus.VALID or item.revision_sha256 is None:
+                if (
+                    item.kind in RETIRED_CONTENT_KINDS
+                    or item.status is not ContentStatus.VALID
+                    or item.revision_sha256 is None
+                ):
                     unavailable = item
                     return False
                 _visiting.add(item.id)
@@ -215,11 +225,40 @@ class RuntimeContentClosureCompiler:
                     )
                 )
                 continue
+            idle_playback: dict[str, dict[str, Any]] = {}
+            if root.kind is ContentKind.IDLE_STYLE and root.metadata.get("schema_version") == 2:
+                try:
+                    idle_document = TypedContentService.parse(root).document
+                    assert isinstance(idle_document, IdleStyleDocumentV2)
+                    if tuple(edge.ref for edge in idle_document.dependencies) != root.dependencies:
+                        raise ContentDocumentError("idle_dependency_mismatch", "Idle dependency membership changed")
+                    facts = await validate_idle_style(document=idle_document, visible=by_id, store=self._store)
+                    if set(facts) != set(root.dependency_item_ids):
+                        raise ContentDocumentError("idle_dependency_mismatch", "Idle dependency membership changed")
+                    idle_playback = {item_id: asdict(value) for item_id, value in facts.items()}
+                except (
+                    ContentDocumentError,
+                    ContentNotFoundError,
+                    ContentIntegrityError,
+                    ContentPathError,
+                    OSError,
+                ) as exc:
+                    diagnostics.append(
+                        RuntimeContentDiagnostic(
+                            root_id=root_id,
+                            slot_key=selection.slot_key,
+                            code=exc.code if isinstance(exc, ContentDocumentError) else "idle_motion_unavailable",
+                            message="The Idle Style requires available Gestures with finite playback.",
+                            item_id=root.id,
+                        )
+                    )
+                    continue
             candidates.append(
                 _CandidateRoot(
                     selection=selection,
                     entry_ids=tuple(item.id for item in ordered),
                     members=tuple(members.values()),
+                    idle_playback=idle_playback,
                 )
             )
 
@@ -275,6 +314,7 @@ class RuntimeContentClosureCompiler:
                     entry_ids=candidate.entry_ids,
                     member_refs=tuple(member.file_ref for member in candidate.members),
                     context=dict(candidate.selection.context),
+                    idle_playback=candidate.idle_playback,
                 )
             )
 

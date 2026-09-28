@@ -139,8 +139,10 @@ services:
       CARTESIA_API_KEY: ${CARTESIA_API_KEY}
     volumes:
       - ./.animama-logs:/var/log/animama
+      # Optional Parakeet set. Without an acquired set this is the checked-in
+      # notices directory; reset.sh then reports dictation as not installed.
       - type: bind
-        source: ${ANIMAMA_PARAKEET_MODEL_DIR:?Run python3 scripts/models/parakeet.py acquire then ./reset.sh or source the generated stack record}
+        source: ${ANIMAMA_PARAKEET_MODEL_DIR:-./models/parakeet-tdt-0.6b-v2}
         target: /opt/animama/web/__client-parakeet-models
         read_only: true
         bind:

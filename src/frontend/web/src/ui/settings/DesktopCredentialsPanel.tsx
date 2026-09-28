@@ -7,6 +7,7 @@ import {
   type CredentialProvider,
   type CredentialStatus,
 } from "../../../../shared/desktop-runtime";
+import { useDesktopFeaturePacks } from "@/hooks/useDesktopFeaturePacks";
 import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
 import { cn } from "@/lib/utils";
 import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
@@ -88,6 +89,7 @@ export function DesktopCredentialsPanel({
   onPendingChange,
   className,
   showTitle = true,
+  blockedReason = null,
 }: {
   onBusyChange?: (busy: boolean) => void;
   /** Number of unsaved key edits, so a host (setup) can prevent losing them. */
@@ -95,8 +97,16 @@ export function DesktopCredentialsPanel({
   className?: string;
   /** The App Settings section already names itself "API Keys". */
   showTitle?: boolean;
+  /** Setup may block restarts when its nonsecret draft cannot be retained. */
+  blockedReason?: string | null;
 }) {
   const available = useDesktopCredentialsAvailable();
+  const packs = useDesktopFeaturePacks();
+  const transitionReason =
+    blockedReason ??
+    (packs.busy
+      ? "Wait for the speech recognition change to finish before editing API keys."
+      : null);
   const [statuses, setStatuses] = useState<CredentialStatus[]>([]);
   const [drafts, setDrafts] = useState<CredentialDrafts>({});
   const [busy, setBusy] = useState(false);
@@ -145,12 +155,13 @@ export function DesktopCredentialsPanel({
     provider: CredentialProvider,
     next: { value?: string; remove?: boolean },
   ) => {
+    if (busy || transitionReason) return;
     setDrafts((current) => ({ ...current, [provider]: next }));
     setMessage(null);
   };
 
   const save = async () => {
-    if (!bridge || busy || changes.length === 0) return;
+    if (!bridge || busy || transitionReason || changes.length === 0) return;
     // Clear typed keys before IPC; there is no read-back or browser copy.
     setDrafts({});
     // Main clears retained failures for the batch; mirror that immediately.
@@ -250,7 +261,7 @@ export function DesktopCredentialsPanel({
                   maxLength={8192}
                   className="w-56"
                   value={draft?.value ?? ""}
-                  disabled={busy}
+                  disabled={busy || Boolean(transitionReason)}
                   onChange={(event) =>
                     updateDraft(provider, { value: event.target.value })
                   }
@@ -272,7 +283,7 @@ export function DesktopCredentialsPanel({
                       type="button"
                       size="sm"
                       variant="ghost"
-                      disabled={busy}
+                      disabled={busy || Boolean(transitionReason)}
                       aria-label={`${removing ? "Undo removing" : "Remove"} ${names[provider]} key`}
                       onClick={() =>
                         updateDraft(provider, removing ? {} : { remove: true })
@@ -291,7 +302,7 @@ export function DesktopCredentialsPanel({
         <Button
           type="button"
           size="sm"
-          disabled={busy || changes.length === 0}
+          disabled={busy || Boolean(transitionReason) || changes.length === 0}
           onClick={() => void save()}
         >
           {busy
@@ -314,6 +325,11 @@ export function DesktopCredentialsPanel({
           </Button>
         ) : null}
       </div>
+      {transitionReason ? (
+        <p className="text-muted-foreground text-sm" role="status">
+          {transitionReason}
+        </p>
+      ) : null}
       <DesktopCredentialFailures statuses={statuses} />
       {message ? (
         <p className="text-sm" role="status">

@@ -2,7 +2,7 @@
 
 An Anima combines private identity/chat state with logical selections from the
 neutral Content Catalog. Its loadout may select an Avatar, Gestures, Reactions,
-an emotion-aware Idle Style, Music, and Appearance. Gesture and Reaction roots
+an emotion-aware Idle Style, and Appearance. Gesture and Reaction roots
 bring their required VFX and Sound dependencies with them; users do not equip
 those supports independently.
 
@@ -22,8 +22,8 @@ the dependency-complete current revision without changing an Anima.
 Loadout mutation is a reviewed, family-specific command. The client posts an
 intent and expected revision to `/v1/animas/{anima_id}/{family}:plan`, then
 commits that exact plan digest with an idempotency key to the matching
-`:commit` endpoint. Direct Pose Clip, VFX, and SFX equipment is invalid; those
-items remain catalog content reached through a Gesture or Reaction.
+`:commit` endpoint. VFX and SFX remain dependencies reached through an Action;
+clip sequences are files owned by that Action.
 The digest includes the Anima's aggregate revision as well as the loadout and
 source revisions: a concurrent name or identity edit invalidates a reviewed
 equipment plan. Each successful equipment edit advances aggregate and loadout
@@ -36,6 +36,32 @@ files. The service independently omits broken optional roots while keeping
 text chat available. `chat:sse` requires the issued revision. Save, filesystem
 edits, Rescan, and Equip therefore take effect on the next mount rather than
 mid-conversation.
+
+## Idle Styles
+
+Canonical Idle Styles use `schema_version: 2`. `default_pool` lists Gesture
+dependency references; `cells[emotion][intensity]` is either
+`{mode: "pool", gestures: [...]}` or `{mode: "none"}`. Omitted cells inherit
+Default. Default may be empty; an explicit pool is nonempty with unique members.
+The Style declares exactly the Gesture dependencies used by its pools. It owns
+no motion files and permits no per-Anima pool overrides. Idle membership alone
+does not add a Gesture to the AI-invocable equipment list.
+
+Save, Preview and runtime validate finite playback against registered VRMA/clip
+bytes. Duration overrides cannot repair unknown timelines. Repeat playback needs
+an explicit positive finite count; clips with phase/state/run lifetimes are not
+idle-eligible. Each Style preview carries finite facts from the same frozen
+closure as its protected bytes.
+
+Startup and explicit Rescan convert legacy Style-owned lanes into Gesture-owned
+content and materialize distinct effective Anima overrides as Styles. Local
+Style identity is retained where possible; Included sources remain unchanged and
+produce Local copies. Source bytes and prior binding facts are retained under
+private `internal/operations/transitions/`, separately from short-lived mutation
+journals. Files, bindings and the success receipt share one recoverable mutation.
+A repeated scan does not overwrite later edits or produce more copies. Invalid
+or unbounded legacy motion retains its originals with a Content Health repair
+diagnostic; fix the source and Rescan rather than resetting the installation.
 
 ## Live Anima definition
 
@@ -54,14 +80,18 @@ through `AnimaLoadoutService.initialize`.
 Aggregate, identity, and loadout revisions start at 1. It never commits,
 contacts a provider, writes files, or issues runtime. The configured active
 model row is checked locally; default ElevenLabs voice is `gJx1vCzNCD1EQHT212Ls`.
-Idle starts empty, emotion is neutral, and there is
-no Music/typed Voice binding, archive, chat or greeting. Relationship memory
-(`MEMORIES.md`) starts as the untouched template, meaning no shared history yet.
-An explicit validated internal voice choice can replace that default.
+Emotion starts neutral, with no archive, chat or greeting. A selected shared
+clone adds the typed Voice binding. Relationship memory (`MEMORIES.md`) starts
+as the untouched template, meaning no shared history yet. Direct creation and
+starter provisioning leave Idle empty; package import retains the reviewed
+nullable Idle Style selection. An explicit validated creation voice choice
+replaces the default. New browser commands include both provider configurations;
+legacy commands may omit voice.
 
 Direct creation and backend starter provisioning use this materializer through
-the strict creation service below. `/a/animas/new` uses the four-step live
-creator and submits the complete reviewed spec through `POST /v1/animas`.
+the strict creation service below. Whole-Anima package import uses it inside the
+same transaction as its newly copied content. `/a/animas/new` uses the five-step
+live creator and submits the complete reviewed spec through `POST /v1/animas`.
 
 New creation materializes the selected identity into the Anima's own memory
 entry. Missing or blank identity requires explicit repair before chat can invoke
@@ -82,13 +112,19 @@ mount, but cannot change the live name or identity.
 
 ## Strict private creation
 
-The [four-step browser creator](../../frontend/features/custom-anima-creation.md)
+The [five-step browser creator](../../frontend/features/custom-anima-creation.md)
 consumes the current [HTTP creation contract](../architecture/http-api.md#strict-private-creation).
 Authenticated
 `GET /v1/animas/creation-options` returns policy-derived recommendations/counts,
 limits, diagnostics, and source revision evidence. The nullable `default_idle`
 response contains `source: null` and an empty revision map.
 `POST /v1/animas:validate` validates a whole `AnimaSpec` without writes.
+The optional `voice` field carries `provider`, a Pocket preset ID or pinned clone
+reference, and `elevenlabs_voice_id`. Explicit voice choices write speech preferences
+and the shared voice loadout binding atomically at revision 1. Clone sources join
+the normal owner/kind/revision/dependency checks and must use the Pocket catalog
+codec. Presets use the packaged copy of the same release selection as the browser.
+Omitted legacy voice fields preserve their original receipt hashes and defaults.
 `POST /v1/animas` accepts that spec plus a body `idempotency_key`; the old
 Avatar-only direct request is rejected. The browser freezes and durably saves
 this exact request before dispatch and restores unknown outcomes before
@@ -141,14 +177,15 @@ retry retains the first result if the second fails. Spec version is metadata,
 not the stable owner/starter identity. Successful or deleted slots are never
 rewritten by a later spec version.
 
-Current defaults are Annie version 2 (`AvatarSample_A_1_New`) and Caitlyn
-version 4 (`AvatarSample_R1`), with matching Included portraits when available.
+Newly provisioned starters use Annie version 3 (`AvatarSample_A_1_New`, Eve Pocket
+voice) and Caitlyn version 5 (`AvatarSample_R1`, Azelma Pocket voice), with matching
+Included portraits when available.
 Their identities write out every section of the `IDENTITY.md` template.
 Existing ready/deleted starter receipts are preserved. Automatic adoption uses
 the historical `avt_chibi_2` identifier only to recognize existing data.
 
 Desktop staging excludes Chibi 2, `AvatarSample_R2`, their derived portraits,
-downloaded voice samples, Tokyo backgrounds/thumbnails, and BGM examples.
+downloaded voice samples, and Tokyo backgrounds/thumbnails.
 Existing Animas bound to excluded content need explicit replacement before
 moving to a bundle without those bytes; staging never rewrites owner data.
 
@@ -186,8 +223,11 @@ creation calls a provider.
 
 ## Local creation boundary
 
-Create Anima creates a live companion with editable dependencies. Live Animas
-cannot be packaged; typed `.animama` import/export handles catalog content only.
+Create Anima creates a private live companion with editable dependencies.
+Separately, [Library sharing](typed-content-and-marketplace.md#local-package-boundary)
+can export its saved definition and content as a reviewed `.zip` package.
+Import creates a new companion without copying conversations, other memories,
+provider settings or a synchronization relationship to the source Anima.
 
 The Library Avatar catalog omits retired shipped model defaults, including rows
 retained for historical Anima references. Repeatable database seeding includes

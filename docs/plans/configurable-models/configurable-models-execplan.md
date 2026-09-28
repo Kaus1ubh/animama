@@ -1532,7 +1532,7 @@ Requirements: R13 for R1–R9; acceptance evidence. Depends on Phase 5.
    `env_file`, `ANIMAMA_LOCAL_MODEL_HOST`, `host-gateway`) and `reset.sh`
    pass-through.
 5. **Glossary:** **model connection** and **model role**.
-6. **ADR 0010** (0009 was taken by `main`'s Anima memories): companion features are application-owned with provider-native
+6. **ADR 0011** (0009 and 0010 were taken on `main`): companion features are application-owned with provider-native
    fast paths; catalog policy is a composition input. Add it to the index.
 7. **Desktop release note:** the next stage re-reviews the core license
    inventory after the dependency removals.
@@ -1545,7 +1545,7 @@ Phase record: issue #170; starting source `747faf6`; commit `c04b0a4`.
 
 Implementation notes (agent, within scope):
 
-- **ADR 0010**, not 0009: `main`'s Anima memories took 0009.
+- **ADR 0011**: `main` took 0009 (Anima memories) and later 0010 (shared model distribution), so this record was renumbered at the final merge.
 - **Docs** updated across backend catalog, runtime, architecture, features and
   operations, and frontend desktop, chat and model settings, after a read-only
   audit. The Responses compaction default is documented as 10000 (the value
@@ -1976,7 +1976,7 @@ Delivered (agent), 2026-09-27: R1–R9 and R13 for Plan A.
 - Keys stay out of the database: the desktop vault per connection, environment
   names (and the optional keys file) on self-hosted web.
 - The hosted composition gains nothing configurable; policy is a composition
-  input (ADR 0010).
+  input (ADR 0011).
 
 Pending: hosted Validation, owner gates G1–G3 and merge approval.
 

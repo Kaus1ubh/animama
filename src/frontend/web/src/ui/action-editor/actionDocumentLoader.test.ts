@@ -353,6 +353,53 @@ describe("Starter action customization", () => {
 });
 
 describe("owned action reopening", () => {
+  it.each(["local", "included"])(
+    "reopens converted %s Action-owned sequence and promoted effect references",
+    async (catalogSource) => {
+      const source = privateReactionPreview();
+      const root = (source.closure as { root: Record<string, unknown> }).root;
+      root.catalog_source = catalogSource;
+      root.implementation = {
+        kind: "anima_clip",
+        technical_source: { type: "file", file_ref: "sequence-ref" },
+      };
+      const sequence = {
+        schema: "animaPoseClip/1.0",
+        id: "converted",
+        name: "Converted",
+        duration: 1,
+        poses: {},
+        poseKeyframes: [],
+        events: [
+          {
+            id: "sparkle",
+            kind: "particle_vfx",
+            time: 0,
+            effectId: "sparkle",
+            duration: 0.5,
+          },
+        ],
+      };
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () => new Response(JSON.stringify(sequence))),
+      );
+      const document = await actionDocumentFromPreview({
+        intent: "reaction",
+        item: ownedReaction(),
+        preview: source,
+        base: createReactionDocument(),
+      });
+      expect(document.sequence.events).toEqual(sequence.events);
+      expect(document.dependencies).toContainEqual(
+        expect.objectContaining({
+          alias: "sparkle",
+          content_type: "particle_effect",
+        }),
+      );
+    },
+  );
+
   it("reopens an unassigned reaction without inventing a suggestion", async () => {
     const source = privateReactionPreview();
     const closure = source.closure as { root: Record<string, unknown> };

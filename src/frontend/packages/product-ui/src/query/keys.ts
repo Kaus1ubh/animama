@@ -4,6 +4,8 @@ export const queryKeys = {
   crisisResources: (ownerId: string, locale: string) =>
     ["crisis-resources", ownerId, locale] as const,
   modelAssets: (ownerId: string) => ["model-assets", ownerId] as const,
+  desktopFeaturePacks: (ownerId: string) =>
+    ["desktop-feature-packs", ownerId] as const,
   animaCreation: {
     all: (userId: string) => ["anima-creation", userId] as const,
     options: (userId: string) =>
@@ -87,7 +89,19 @@ export const queryKeys = {
       [...queryKeys.poses.all(userId), "detail", itemId] as const,
     save: (userId: string) => [...queryKeys.poses.all(userId), "save"] as const,
   },
+  voiceContent: {
+    all: (ownerId: string) => ["voice-content", ownerId] as const,
+    list: (ownerId: string) =>
+      [...queryKeys.voiceContent.all(ownerId), "list"] as const,
+  },
   gestures: {
+    idlePlayback: (userId: string, itemId: string, revision: string) =>
+      [
+        ...queryKeys.gestures.all(userId),
+        "idle-playback",
+        itemId,
+        revision,
+      ] as const,
     all: (userId: string) => ["gestures", userId] as const,
     detail: (userId: string, itemId: string) =>
       [...queryKeys.gestures.all(userId), "detail", itemId] as const,
@@ -133,19 +147,6 @@ export const queryKeys = {
         sort,
       ] as const,
   },
-  musicTracks: {
-    all: (userId: string) => ["music-tracks", userId] as const,
-    detail: (userId: string, itemId: string) =>
-      [...queryKeys.musicTracks.all(userId), "detail", itemId] as const,
-    list: (userId: string, query: string, origin: string, sort = "name") =>
-      [
-        ...queryKeys.musicTracks.all(userId),
-        "list",
-        query,
-        origin,
-        sort,
-      ] as const,
-  },
   appearanceImages: {
     all: (userId: string) => ["appearance-images", userId] as const,
     list: (userId: string) =>
@@ -159,10 +160,12 @@ export const queryKeys = {
       ] as const,
   },
   animaLoadouts: {
+    details: (userId: string) => ["anima-loadout", userId] as const,
     detail: (userId: string, animaId: string) =>
-      ["anima-loadout", userId, animaId] as const,
+      [...queryKeys.animaLoadouts.details(userId), animaId] as const,
+    runtimes: (userId: string) => ["anima-runtime", userId] as const,
     runtime: (userId: string, animaId: string) =>
-      ["anima-runtime", userId, animaId] as const,
+      [...queryKeys.animaLoadouts.runtimes(userId), animaId] as const,
   },
   avatars: {
     all: (userId: string) => ["avatars", userId] as const,
@@ -195,6 +198,10 @@ export const queryKeys = {
       [...queryKeys.userFiles.all(userId), "list"] as const,
   },
   content: {
+    sharingInventory: (owner: string) =>
+      [...queryKeys.content.all(owner), "sharing-inventory"] as const,
+    sharingSummary: (owner: string, selection: string) =>
+      [...queryKeys.content.all(owner), "sharing-summary", selection] as const,
     all: (userId: string) => ["content", userId] as const,
     catalog: (userId: string) =>
       [...queryKeys.content.all(userId), "catalog"] as const,

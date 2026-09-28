@@ -1,10 +1,10 @@
 # Sound Runtime Guide
 
-The frontend sound runtime owns non-voice BGM and SFX playback. Live Anima
+The frontend sound runtime owns Sound Effect playback. Live Anima
 routes select audio exclusively from the mounted `AnimaRuntimeCatalog`; stable
 runtime IDs are the public control surface, while URLs remain an internal
 delivery detail. TTS orchestration and voice catalogs remain outside the typed
-Sound Effect and Music Track catalogs.
+Sound Effect catalog.
 
 Gesture and Reaction SFX tabs and Avatar/Scene FX sound pickers upload reusable
 Local Sounds from WAV, MP3 or Ogg files. Each file saves independently with its own
@@ -21,9 +21,6 @@ The visual effect and exact sound dependency closure remain intact; independent
 SFX events are unaffected. The existing event panel shows the sound name and toggle,
 and the timeline shows a speaker only when the effect has accompanying sound.
 
-`/a/music-tracks/new` creates typed Music Tracks with one long-form audio file,
-while the Anima Loadout owns enabled, autoplay, loop, and gain choices for selected
-Music Tracks.
 Gesture and Reaction Preview resolves direct Sound aliases and sounds associated
 with Avatar/Scene/Particle Effects as part of one exact closure.
 
@@ -36,26 +33,25 @@ resolves the Sound automatically and never equips it as a peer resource.
 - `web/src/lib/sound/SoundController.ts` owns low-level audio elements, gains,
   playback limits, and the UI-facing snapshot.
 - `web/src/lib/sound/audio-prefs.ts` stores versioned browser-local mute,
-  volume, and per-Anima BGM selection preferences.
+  volume preferences for TTS and SFX.
 - `web/src/lib/sound/shared-runtime.ts` keeps the controller stable across
   provider remounts without restoring route playback.
 - `web/src/ui/sound/SoundProvider.tsx` mounts an Anima media catalog, resolves
   runtime IDs, decodes prepared media when needed, and exposes React controls.
-- `web/src/ui/sound/SoundControls.tsx` renders BGM selection/transport and the
-  shared mute/volume controls.
+- `web/src/ui/sound/SoundControls.tsx` renders master mute and TTS/SFX mute/volume controls.
 - `web/src/ui/main/canvas/AvatarCanvasActor.tsx` forwards pose/reaction and
   VFX-owned SFX runtime IDs to the mounted provider.
 
 The app-wide `SoundController` survives navigation for stable volume state, but
 audio resources belong to the current Anima catalog. Replacing the catalog or
-leaving the Anima route stops BGM and SFX started from that catalog. Music is
-not resumed merely because it was playing on a different route.
+leaving the Anima route stops SFX started from that catalog. TTS keeps its
+separate run-owned playback lifecycle.
 
 ## Mounted Audio Catalog
 
-Every live SFX or BGM descriptor comes from the mounted typed runtime snapshot.
-Gesture/Reaction closures supply `sfx` entries; enabled Music Track bindings
-supply `bgm` entries. Included and Local audio bytes are verified through the application origin
+Every live SFX descriptor comes from the mounted typed runtime snapshot.
+Gesture/Reaction closures supply `sfx` entries. Included and Local audio bytes
+are verified through the application origin
 by the mounted preparation session, then decoded from prepared Blob URLs.
 A root and its sound dependencies are admitted together into one stable
 catalog; pending audio is never fetched through an alternate path. An unknown,
@@ -67,53 +63,34 @@ Live-facing APIs use runtime IDs:
 - `playSfxCue(runtimeId, options?)` is asynchronous because resolving private
   audio may require decoding a prepared Blob. Pending cues are skipped without
   being queued for later playback.
-- BGM selection and next-track behavior operate on mounted BGM descriptors.
 - Low-level URL playback stays inside `SoundController` or a clearly explicit
   standalone editor/debug adapter.
 
 Pose-clip SFX events and avatar-VFX on-apply cues use the same exact mounted
 resolution. SFX is one-shot: a looping SFX binding is rejected because clip
 events have no matching stop lifecycle. At most eight SFX instances may be
-active and at most one BGM element may play.
-
-## BGM Selection And Autoplay
-
-On an Anima mount, the provider observes incremental catalog availability without
-resetting resolved audio or restarting playback on each admission. It waits for
-the autoplay entry to become ready, or for preparation to settle, before applying
-initial selection. A track manually selected while preparing is preserved.
-The provider uses the remembered runtime ID if that entry is still present.
-Otherwise it selects the first deterministic mounted BGM entry.
-If exactly one BGM binding has `autoplay=true`, it becomes current and playback
-is attempted. Starter BGM entries do not autoplay.
-
-If the browser blocks autoplay, the controller reports `blocked` and retries
-after user activation. A route change does not carry playback intent into the
-next Anima. BGM descriptor volume and looping are combined with the user's
-global BGM controls.
+active. Finite idle/preview occurrences carry an abort signal so completion or
+interruption cancels both pending delivery and active owned SFX without stopping
+unrelated audio.
 
 ## Browser-Local Preferences
 
-Preferences use the `audioPrefs` local-storage key and version-2 data:
+Preferences use the `audioPrefs` local-storage key and version-3 data:
 
 ```json
 {
-  "version": 2,
-  "bgmMuted": false,
+  "version": 3,
   "sfxMuted": false,
   "ttsMuted": false,
-  "bgmVolume": 0.3,
   "sfxVolume": 0.5,
-  "ttsVolume": 0.5,
-  "selectedBgmRuntimeIdByAnimaId": {
-    "anima-id": "calm-theme"
-  }
+  "ttsVolume": 0.5
 }
 ```
 
-The selection map is bounded to 100 Animas. Migrating an older payload retains
-valid mute and volume settings but discards its obsolete raw BGM URL and
-persisted playback intent. `masterMuted` remains session-only.
+Older payloads retain valid TTS/SFX mute and volume settings. Retired Music
+selection, autoplay and gain fields are discarded. `masterMuted` remains
+session-only. Retired audio source files remain preserved on disk and are not
+reclassified as Sound Effects.
 
 TTS volume and mute share the preference panel but not typed-content playback
 ownership. Browser speech uses the normalized volume directly; Pocket TTS uses

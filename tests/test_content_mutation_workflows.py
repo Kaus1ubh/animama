@@ -7,7 +7,7 @@ import json
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Literal, TypedDict
+from typing import Any
 from uuid import uuid4
 
 import pytest
@@ -23,14 +23,7 @@ from animama.domain.content_catalog import CatalogContentEntry, ContentConflictE
 from animama.orm.content_catalog import ORMContentCatalogItem
 from animama.orm.content_mutation import ORMContentMutationReceipt
 from animama.server.local_runtime import LocalRuntimePaths
-from tests.content_package_helpers import package_services, vrma
-
-
-class _ImportCommand(TypedDict):
-    user_id: str
-    archive_path: Path
-    operation_id: str
-    collision: Literal["cancel", "keep_both", "replace"]
+from tests.content_package_helpers import package_services, reviewed_export, reviewed_import, vrma
 
 
 @dataclass
@@ -150,18 +143,14 @@ async def test_import_replays_its_original_result_without_installing_again(
     workflow: _Workflow, later_change: str
 ) -> None:
     saved = await workflow.saves.save_standalone(**workflow.wave_command())
-    exported = await workflow.packages.export_item(
-        user_id=workflow.owner, root_item_id=saved.item.id, operation_id="export-replay"
+    exported = await reviewed_export(workflow.packages, user_id=workflow.owner, root_item_id=saved.item.id)
+    command = await reviewed_import(
+        workflow.packages, user_id=workflow.owner, archive_path=exported.path, operation_id="import-replay"
     )
-    command: _ImportCommand = {
-        "user_id": workflow.owner,
-        "archive_path": exported.path,
-        "operation_id": "import-replay",
-        "collision": "keep_both",
-    }
-    imported = await workflow.packages.import_package(**command)
+    imported = await workflow.packages.imports.commit(**command)
     assert len(imported.items) == 1
-    item = imported.items[0]
+    item = await workflow.catalog.get_visible_item(item_id=imported.items[0].item_id, user_id=workflow.owner)
+    assert item is not None
     destination = workflow.paths.local_root / item.relative_locator
     if later_change == "edited":
         destination.write_bytes(vrma("manual edit after import"))
@@ -173,7 +162,7 @@ async def test_import_replays_its_original_result_without_installing_again(
         )
     before_retry = workflow.local_files()
 
-    replayed = await workflow.packages.import_package(**command)
+    replayed = await workflow.packages.imports.commit(**command)
 
     assert replayed == imported
     assert workflow.local_files() == before_retry
@@ -189,19 +178,21 @@ async def test_import_replays_its_original_result_without_installing_again(
 async def _export_two_entry_package(workflow: _Workflow) -> Path:
     """Create and export an actual Idle Style with one Gesture dependency."""
 
-    wave = await workflow.saves.save_standalone(**workflow.wave_command())
+    from tests.test_content_gltf import _fixture_document, _glb_source
+
+    gltf, binary = _fixture_document(buffer_uri=None)
+    wave = await workflow.saves.save_standalone(**{**workflow.wave_command(), "payload": _glb_source(gltf, binary)})
     idle = await workflow.saves.save_descriptor(
         user_id=workflow.owner,
         kind=ContentKind.IDLE_STYLE,
         entry_name="Replay Idle",
         descriptor=json.dumps(
             {
-                "schema_version": 1,
+                "schema_version": 2,
                 "content_type": "idle_style",
                 "id": "local:idle-style:replay-idle",
                 "name": "Replay Idle",
-                "animations": [{"animation_id": "wave", "name": "Wave", "dependency_ref": wave.item.logical_key}],
-                "default_pool": ["wave"],
+                "default_pool": [wave.item.logical_key],
                 "dependencies": [{"ref": wave.item.logical_key, "content_type": "gesture"}],
                 "files": [],
             }
@@ -211,9 +202,7 @@ async def _export_two_entry_package(workflow: _Workflow) -> Path:
         catalog_item_id=None,
         expected_revision=None,
     )
-    exported = await workflow.packages.export_item(
-        user_id=workflow.owner, root_item_id=idle.item.id, operation_id="export-two-entries"
-    )
+    exported = await reviewed_export(workflow.packages, user_id=workflow.owner, root_item_id=idle.item.id)
     assert exported.item_count == 2
     for item in (idle.item, wave.item):
         assert item.revision_sha256 is not None
@@ -221,6 +210,138 @@ async def _export_two_entry_package(workflow: _Workflow) -> Path:
             user_id=workflow.owner, item_id=item.id, expected_revision=item.revision_sha256
         )
     return exported.path
+
+
+async def test_idle_save_rejects_unknown_bounds_without_publishing_files_or_receipt(workflow: _Workflow) -> None:
+    """A finite-looking config cannot admit media that has no actual motion timeline."""
+    from animama.domain.content_documents import ContentDocumentError
+
+    wave = await workflow.saves.save_standalone(**workflow.wave_command())
+    before = workflow.local_files()
+    with pytest.raises(ContentDocumentError) as error:
+        await workflow.saves.save_descriptor(
+            user_id=workflow.owner,
+            kind=ContentKind.IDLE_STYLE,
+            entry_name="Unsafe Idle",
+            descriptor=json.dumps(
+                {
+                    "schema_version": 2,
+                    "content_type": "idle_style",
+                    "name": "Unsafe Idle",
+                    "default_pool": [wave.item.logical_key],
+                    "dependencies": [{"ref": wave.item.logical_key, "content_type": "gesture"}],
+                }
+            ).encode(),
+            companion_files={},
+            operation_id="unsafe-idle-save",
+            catalog_item_id=None,
+            expected_revision=None,
+        )
+    assert error.value.code == "idle_motion_invalid"
+    assert workflow.local_files() == before
+    assert await workflow.catalog.get_mutation_receipt(user_id=workflow.owner, operation_id="unsafe-idle-save") is None
+    assert not any(
+        item.kind is ContentKind.IDLE_STYLE for item in await workflow.catalog.list_visible(user_id=workflow.owner)
+    )
+
+
+async def test_idle_preview_contains_finite_facts_for_its_exact_gesture_revision(workflow: _Workflow) -> None:
+    from animama.app.services.typed_content_service import TypedContentService
+    from animama.server.schemas.typed_content import PyTypedContentPreview
+    from tests.test_content_gltf import _fixture_document, _glb_source
+
+    gltf, binary = _fixture_document(buffer_uri=None)
+    wave = await workflow.saves.save_standalone(**{**workflow.wave_command(), "payload": _glb_source(gltf, binary)})
+    idle = await workflow.saves.save_descriptor(
+        user_id=workflow.owner,
+        kind=ContentKind.IDLE_STYLE,
+        entry_name="Preview Idle",
+        descriptor=json.dumps(
+            {
+                "schema_version": 2,
+                "content_type": "idle_style",
+                "name": "Preview Idle",
+                "default_pool": [wave.item.logical_key],
+                "dependencies": [{"ref": wave.item.logical_key, "content_type": "gesture"}],
+            }
+        ).encode(),
+        companion_files={},
+        operation_id="preview-idle-save",
+        catalog_item_id=None,
+        expected_revision=None,
+    )
+    service = TypedContentService(catalog=workflow.catalog, content=workflow.content)
+    eligibility = await service.gesture_idle_playback(user_id=workflow.owner, item_id=wave.item.id)
+    assert eligibility["eligible"] is True
+    preview = await service.preview(user_id=workflow.owner, kind=ContentKind.IDLE_STYLE, item_id=idle.item.id)
+    response = PyTypedContentPreview.from_domain(preview)
+    assert wave.item.logical_key is not None
+    assert response.idle_playback[wave.item.logical_key].duration_seconds == 1
+    assert response.expected_source_revisions[wave.item.id].revision_sha256 == wave.item.revision_sha256
+
+
+@pytest.mark.parametrize("motion_kind", ["vrma", "anima_clip"])
+@pytest.mark.parametrize("finite", [True, False])
+async def test_gesture_candidate_preview_carries_only_exact_finite_idle_facts(
+    workflow: _Workflow, motion_kind: str, finite: bool
+) -> None:
+    from animama.app.services.typed_content_service import TypedContentService
+    from animama.server.schemas.typed_content import PyTypedContentPreview
+    from tests.test_content_gltf import _fixture_document, _glb_source
+
+    if motion_kind == "vrma":
+        gltf, binary = _fixture_document(buffer_uri=None)
+        filename, role, payload = "motion.vrma", "animation", _glb_source(gltf, binary)
+    else:
+        filename, role = "motion.json", "sequence"
+        payload = json.dumps(
+            {
+                "schema": "animaPoseClip/1.0",
+                "id": "candidate",
+                "name": "Candidate",
+                "poses": {"rest": {}},
+                "poseKeyframes": [{"time": 0, "pose": "rest"}],
+                "duration": 1,
+                "loop": True,
+            }
+        ).encode()
+    config = {"time_scale": 0.5, "loop_type": "repeat", **({"loop_count": 3} if finite else {})}
+    saved = await workflow.saves.save_descriptor(
+        user_id=workflow.owner,
+        kind=ContentKind.GESTURE,
+        entry_name="Idle Candidate",
+        descriptor=json.dumps(
+            {
+                "schema_version": 1,
+                "content_type": "gesture",
+                "content_id": "local:gesture:idle-candidate",
+                "name": "Idle Candidate",
+                "semantic_key": "idle-candidate",
+                "implementation": {"kind": motion_kind, "file_role": role},
+                "files": [{"path": filename, "role": role}],
+                "config": config,
+            }
+        ).encode(),
+        companion_files={filename: payload},
+        operation_id="idle-candidate-save",
+        catalog_item_id=None,
+        expected_revision=None,
+    )
+    service = TypedContentService(catalog=workflow.catalog, content=workflow.content)
+    preview = await service.preview(user_id=workflow.owner, kind=ContentKind.GESTURE, item_id=saved.item.id)
+    response = PyTypedContentPreview.from_domain(preview)
+    assert response.expected_source_revisions[saved.item.id].revision_sha256 == saved.item.revision_sha256
+    if finite:
+        assert saved.item.logical_key is not None
+        facts = response.idle_playback[saved.item.logical_key]
+        assert facts.eligible is True
+        assert facts.time_scale == 0.5
+        assert facts.repetitions == 3
+        assert facts.duration_seconds == 6
+    else:
+        # Ordinary looping Action previews remain allowed; an Idle consumer must refuse them.
+        assert response.item.kind == "gesture"
+        assert response.idle_playback == {}
 
 
 async def test_multi_entry_import_rolls_back_prior_provenance_and_all_files_after_late_failure(
@@ -239,14 +360,11 @@ async def test_multi_entry_import_rolls_back_prior_provenance_and_all_files_afte
         return item
 
     monkeypatch.setattr(workflow.catalog, "record_import_provenance", fail_second_provenance)
-    command: _ImportCommand = {
-        "user_id": workflow.owner,
-        "archive_path": package_path,
-        "operation_id": "two-entry-import",
-        "collision": "cancel",
-    }
+    command = await reviewed_import(
+        workflow.packages, user_id=workflow.owner, archive_path=package_path, operation_id="two-entry-import"
+    )
     with pytest.raises(RuntimeError, match="second entry provenance failed"):
-        await workflow.packages.import_package(**command)
+        await workflow.packages.imports.commit(**command)
 
     assert len(admitted_ids) == 2
     assert workflow.local_files() == before
@@ -256,9 +374,11 @@ async def test_multi_entry_import_rolls_back_prior_provenance_and_all_files_afte
 
     # A compensated failure leaves the exact command available for a successful retry.
     monkeypatch.setattr(workflow.catalog, "record_import_provenance", record_provenance)
-    retried = await workflow.packages.import_package(**command)
+    retried = await workflow.packages.imports.commit(**command)
     assert len(retried.items) == 2
-    assert all(item.owner_user_id == workflow.owner and "import" in item.provenance for item in retried.items)
+    for result in retried.items:
+        item = await workflow.catalog.get_visible_item(item_id=result.item_id, user_id=workflow.owner)
+        assert item is not None and item.owner_user_id == workflow.owner and "import" in item.provenance
 
 
 async def test_delete_catalog_failure_restores_original_files_and_registration(

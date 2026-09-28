@@ -326,7 +326,7 @@ export function useCreateAnimaController(
         evidence: result.draft.evidence,
       });
       if (advance)
-        next = createAnimaDraftReducer(next, { type: "step", step: 3 });
+        next = createAnimaDraftReducer(next, { type: "step", step: 4 });
       update(next);
       setIssues([]);
       setValidation({
@@ -368,7 +368,7 @@ export function useCreateAnimaController(
     if (step > latest.current.step) {
       const errors = draftIssues(
         latest.current,
-        Math.min(step - 1, 2) as CreationStep,
+        Math.min(step - 1, 3) as CreationStep,
         identityLimit,
         displayNameLimit,
       );
@@ -376,7 +376,7 @@ export function useCreateAnimaController(
         showIssues(errors);
         return;
       }
-      if (step === 3) {
+      if (step === 4) {
         void validate(true);
         return;
       }
@@ -395,7 +395,7 @@ export function useCreateAnimaController(
         : "ready",
     );
     if (
-      record.draft.step === 3 &&
+      record.draft.step === 4 &&
       record.draft.appearance_migration !== "confirmation_required"
     )
       void validate(false);
@@ -407,7 +407,7 @@ export function useCreateAnimaController(
     };
     update(next);
     setRecovery("ready");
-    if (next.step === 3) void validate(false);
+    if (next.step === 4) void validate(false);
   };
   const discard = (acknowledgeDeleted = false) => {
     try {
@@ -630,6 +630,15 @@ export function useCreateAnimaController(
             for (const intensity of ["1", "2", "3"] as const)
               if (row[intensity]?.item_id === ref.item_id) row[intensity] = ref;
           edit({
+            ...(current.voice?.pocket.type === "clone" &&
+            current.voice.pocket.source.item_id === ref.item_id
+              ? {
+                  voice: {
+                    ...current.voice,
+                    pocket: { type: "clone", source: ref },
+                  },
+                }
+              : {}),
             reactions,
             gestures: current.gestures.map((gesture) =>
               gesture.source.item_id === ref.item_id

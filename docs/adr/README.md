@@ -23,7 +23,8 @@ production readiness or publication rights.
 | 0007 | [Repository-owned specifications and execution plans](0007-repository-owned-planning.md)                                                           | accepted                              |
 | 0008 | [Non-overridable companion guardrail](0008-non-overridable-companion-guardrail.md)                                                                 | accepted                              |
 | 0009 | [Shared user memory and per-Anima relationship memory](0009-shared-user-memory-and-per-anima-relationship-memory.md)                               | accepted                              |
-| 0010 | [Application-owned companion features and composition catalog policy](0010-application-owned-companion-features-and-composition-catalog-policy.md) | accepted                              |
+| 0010 | [Shared voice model objects and optional downloads](0010-shared-model-object-distribution.md)                                                      | accepted                              |
+| 0011 | [Application-owned companion features and composition catalog policy](0011-application-owned-companion-features-and-composition-catalog-policy.md) | accepted                              |
 
 ## When and how to record a decision
 

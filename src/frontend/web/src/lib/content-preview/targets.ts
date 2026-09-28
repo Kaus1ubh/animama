@@ -83,7 +83,6 @@ function assignEntry(
     scene_background_vfx: "scene_background_vfx",
     scene_focus_vfx: "scene_focus_vfx",
     sfx: "sfx",
-    bgm: "bgm",
   };
   const lane = lanes[entry.slot];
   if (lane) (runtime[lane] as RuntimeCatalogEntry[]).push(entry);
@@ -139,7 +138,6 @@ function buildActionPreviewRuntime(
       closure.scene_focus_vfx,
     ),
     sfx: mergeEntries(current.sfx, closure.sfx),
-    bgm: mergeEntries(current.bgm, closure.bgm),
     warnings: [...current.warnings, ...closure.warnings],
   };
 }
@@ -166,7 +164,6 @@ export function buildLibraryPreviewRuntime(
     background_image: null,
     profile_image: null,
     sfx: [],
-    bgm: [],
     warnings: [],
   };
   if (target.kind !== "avatar_model") assignEntry(runtime, entry);
@@ -213,7 +210,6 @@ export function buildContentPreviewRuntime(
     scene_background_vfx: [...runtime.scene_background_vfx],
     scene_focus_vfx: [...runtime.scene_focus_vfx],
     sfx: [...runtime.sfx],
-    bgm: [...runtime.bgm],
     warnings: [...runtime.warnings],
   };
   if (entry.slot === "idle_animation")
@@ -232,9 +228,9 @@ export function buildContentPreviewRuntime(
   else if (entry.slot === "scene_focus_vfx")
     preview.scene_focus_vfx = replace(runtime.scene_focus_vfx);
   else if (entry.slot === "sfx") preview.sfx = replace(runtime.sfx);
-  else if (entry.slot === "bgm") preview.bgm = replace(runtime.bgm);
   for (const support of target.supportEntries ?? []) {
-    const lane = support.slot === "sfx" ? preview.sfx : preview.bgm;
+    if (support.slot !== "sfx") continue;
+    const lane = preview.sfx;
     if (
       !lane.some((candidate) => candidate.runtime_id === support.runtime_id)
     ) {
