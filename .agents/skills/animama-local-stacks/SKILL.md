@@ -18,6 +18,14 @@ reuse the existing task worktree rather than creating another for stack setup.
 Keep each worktree's `.venv`, `node_modules` and generated output separate while
 using uv/pnpm caches.
 
+Before starting a fresh checkout/worktree, verify tracked Git LFS assets with
+`git lfs ls-files`: `-` marks a pointer; `*` marks a hydrated file. Run
+`git lfs pull` from that checkout when assets are still pointers, then verify
+hydration before starting the stack. Required assets include the starter VRM
+avatars under `content/included/avatars/`. Hydrated assets are a prerequisite;
+repeating the pull on every restart is unnecessary. See the preparation guide's
+“Assets and dependency installation” section.
+
 Keep reusable credentials in an owner-only external file and nonsecret settings
 in the ignored worktree `.env`. Select both from the worktree root:
 
@@ -135,6 +143,12 @@ Health alone does not prove the starter's typed avatar/Idle/gesture closure.
 Inspect installation readiness, catalog diagnostics and the selected Anima's
 runtime revision before claiming a usable fixture. Do not fill missing Included
 content by copying another task's Local library.
+
+Pointer-only starter avatars can leave healthy services but installation
+readiness at `repair_required` with `starter_animas` in `failed_steps`. Restore
+the LFS assets first, then retry the supported installation bootstrap/repair
+flow once and recheck readiness. If repair remains required, inspect the failed
+steps and catalog diagnostics; do not purge the database to repair missing files.
 
 Use the accepted main model `OpenAIResponsesHTTPAgent:gpt-5.6-luna` and verify
 `dispatch_options.reasoning_effort=none` on each test turn. Existing Anima

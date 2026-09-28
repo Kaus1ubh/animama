@@ -173,8 +173,9 @@ and install again. Never edit an installed file in place.
 
 ## Optional Parakeet WebGPU encoder
 
-The experimental "GPU-accelerated offline speech (WebGPU)" setting uses an
-optional FP16 encoder set (about 1.24 GB), stored under
+The **Parakeet (WebGPU · Experimental)** provider choice under App Settings →
+**Voice** → **Speech-to-Text** uses an optional FP16 encoder set (about 1.24 GB),
+stored under
 `parakeet-tdt-0.6b-v2-webgpu/<manifest-digest>/` in the same root.
 
 - It pairs with the base Parakeet decoder, preprocessor and vocabulary, which
@@ -209,9 +210,9 @@ Where each build gets it:
 - **Vite development stacks** (including `desktop:dev`) serve this
   operator-provided set at `/__client-parakeet-webgpu-models/`. Acquire it on
   the host and rerun `reset.sh` for a running stack.
-- **Built self-host** downloads it in the app (App Settings → Advanced →
-  Experimental) as the model asset `parakeet-tdt-0.6b-v2-webgpu-encoder`, from
-  its published object under `models/` on `downloads.animama.ai`, into the
+- **Built self-host** downloads it in the app (App Settings → Voice →
+  Speech-to-Text → Provider) as the model asset
+  `parakeet-tdt-0.6b-v2-webgpu-encoder`, from its published object under `models/` on `downloads.animama.ai`, into the
   data root (see [Downloaded model assets](#downloaded-model-assets)). The
   host model store is not used, and a host that cannot reach
   `downloads.animama.ai` cannot enable WebGPU.

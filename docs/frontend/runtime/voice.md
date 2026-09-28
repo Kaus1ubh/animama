@@ -271,10 +271,12 @@ The Parakeet worker is loaded with:
 
 #### Experimental WebGPU backend
 
-App Settings → **Advanced** → **Experimental** → "GPU-accelerated offline
-speech (WebGPU)" sets `speech.stt_parakeet_webgpu`, which is off by default.
+App Settings → **Voice** → **Speech-to-Text** → **Provider** offers
+**Parakeet (CPU)** and **Parakeet (WebGPU · Experimental)**. Both store the
+`parakeet` provider; the WebGPU choice enables `speech.stt_parakeet_webgpu`,
+while the CPU choice disables it. The flag is off by default.
 
-When the setting is on, `loadClientParakeetWorker` probes
+When WebGPU is selected, `loadClientParakeetWorker` probes
 (`getParakeetWebgpuStatus`) for two things:
 
 - a WebGPU adapter;
@@ -292,11 +294,11 @@ When the setting is on, `loadClientParakeetWorker` probes
 
 `unavailable_in_build` occurs only in a Vite stack that overrides the base
 model URL; built apps always probe. With an adapter and a `model_missing`
-result, packaged desktop shows a download control below the setting when its
+result, packaged desktop shows a download control below Provider when its
 catalog includes the `parakeet-stt-webgpu` pack. It shows the download size
 and required free space, progress, cancel, retry and removal, and asks for
-offline speech recognition first when `parakeet-stt` is not installed. Turning
-the setting on without the encoder points at that control. Devices without an
+offline speech recognition first when `parakeet-stt` is not installed. Selecting
+Parakeet WebGPU without the encoder points at that control. Devices without an
 adapter are never offered the download; retained encoder files stay removable.
 
 Built self-host shows the same kind of control, backed by the backend's
