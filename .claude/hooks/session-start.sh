@@ -9,6 +9,10 @@ fi
 
 cd "$CLAUDE_PROJECT_DIR"
 
+# Commit as the repository owner instead of the cloud session's default identity.
+git config user.name "Raymond Van"
+git config user.email "raymondxvan@gmail.com"
+
 # Same dependency set as `make sync`.
 make sync
 
