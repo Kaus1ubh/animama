@@ -982,6 +982,13 @@ Unrelated baseline files were not reformatted. New Phase 6 Python files pass
 Ruff format/check and their four tests; the refreshed full backend result above
 covers the merged source.
 
+**Hosted CI:** PR #203 is open and mergeable after candidate `1006dab9` was
+pushed. GitHub reports `Portable product validation` (`validate-public.yml`) as
+`disabled_manually`; no hosted check or run was dispatched for this branch.
+Repository Actions itself is enabled. The workflow setting was left unchanged.
+Full hosted Validation is therefore unperformed, not passing or a reduced
+profile; local evidence is not an owner-approved substitute.
+
 **Runtime production:** on the supported Apple Silicon host, from
 `src/frontend` run:
 
