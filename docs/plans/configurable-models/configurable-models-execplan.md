@@ -1764,7 +1764,7 @@ while testing: adding a model already active on a connection overwrote it
    block, and delete the test connection "Scripted llama.cpp" from the task
    stack.
 
-Phase record: issue #205; starting source `5677c8f`; commits —.
+Phase record: issue #205; starting source `5677c8f`; commit `347cbe32`. Evidence: `make check-test` 2220 passed, 7 skipped; `pnpm web:test` 2033 passed; `pnpm check` and `web:lint` pass.
 
 #### Code Review #1 Findings
 
