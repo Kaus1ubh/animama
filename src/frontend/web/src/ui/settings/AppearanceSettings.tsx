@@ -80,7 +80,6 @@ export function AppearanceModeSetting() {
   return (
     <SettingsRow
       label="Mode"
-      description="System follows your operating system."
       control={
         <div
           role="radiogroup"
@@ -250,9 +249,7 @@ export function AppearanceColorSetting({
           </span>
         ) : saved ? (
           `Custom for ${mode} mode.`
-        ) : (
-          `Default for ${mode} mode.`
-        )
+        ) : null
       }
       control={
         <div className="flex items-center gap-2">

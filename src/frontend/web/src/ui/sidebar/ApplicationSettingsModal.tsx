@@ -242,10 +242,6 @@ const SECTION_ICONS: Record<ApplicationSettingsSection, LucideIcon> = {
 const REVEAL_HIGHLIGHT_MS = 1600;
 
 const GROUP_DESCRIPTIONS: Record<string, string> = {
-  "Defaults for Animas":
-    "Animas follow these unless they set their own value in Anima settings.",
-  "Visual style":
-    "Override colours for the mode in effect. Light and Dark keep separate colours.",
   "Desktop shortcuts": "Press to talk also supports a mouse button.",
   Experimental: "These features may not work on every device.",
 };
@@ -256,6 +252,7 @@ const SELECT_TRIGGER_CLASS_NAME = "w-56";
 function renderSettingEntries(
   entries: readonly SettingEntry[],
   highlightedEntryId: string | null,
+  section: ApplicationSettingsSection,
 ): ReactNode {
   const blocks: Array<{ key: string; group?: string; items: SettingEntry[] }> =
     [];
@@ -283,13 +280,23 @@ function renderSettingEntries(
     </div>
   );
   return (
-    // Faint dividers separate sub-sections (groups/panels) within a section.
-    <div className="[&>*:not(:first-child)]:border-border/40 flex flex-col [&>*:not(:first-child)]:mt-6 [&>*:not(:first-child)]:border-t [&>*:not(:first-child)]:pt-6">
+    <div
+      className={cn(
+        "flex flex-col [&>*:not(:first-child)]:mt-6 [&>*:not(:first-child)]:pt-6",
+        section !== "Appearance" &&
+          "[&>*:not(:first-child)]:border-border/40 [&>*:not(:first-child)]:border-t",
+      )}
+    >
       {blocks.map((block) =>
         block.group ? (
           <SettingsGroup
             key={block.key}
-            title={block.group}
+            title={
+              block.group === "Visual style" ||
+              block.group === "Defaults for Animas"
+                ? undefined
+                : block.group
+            }
             description={GROUP_DESCRIPTIONS[block.group]}
           >
             {block.items.map(renderItem)}
@@ -1789,6 +1796,7 @@ export function ApplicationSettingsModal({
                 (!entry.collapsed || advancedColorsOpen),
             ),
             highlightedEntryId,
+            shownSection,
           )}
         </SectionedModalFrame>
       </Dialog.Portal>

@@ -96,10 +96,7 @@ export function SafetySettingsSection({
       : "Automatic";
 
   return (
-    <SettingsGroup
-      title="Safety"
-      description="Animas are AI, not people. Choose which crisis lines you see and how often you are reminded."
-    >
+    <SettingsGroup title="Safety">
       <SettingsRow
         label="Crisis resources region"
         control={
