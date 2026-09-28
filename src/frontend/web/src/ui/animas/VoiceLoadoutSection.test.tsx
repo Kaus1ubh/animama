@@ -2,6 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AnimaVoicesEditor } from "./VoiceLoadoutSection";
 import { filteredPocketVoices, PocketVoiceList } from "./PocketVoicePicker";
+import { IDLE_VOICE_SAMPLE } from "@/lib/speech/pocket/voice-sample-player";
 
 const fixtures = vi.hoisted(() => ({
   speech: {
@@ -51,6 +52,7 @@ describe("Anima voice configuration", () => {
       fixtures.speech.tts_provider = provider;
       const html = renderToStaticMarkup(<AnimaVoicesEditor />);
       expect(html).toContain('aria-label="PocketTTS voice: Eve"');
+      expect(html).toContain('aria-label="Play Eve sample"');
       expect(html).toContain('value="saved-voice"');
       expect(html).not.toMatch(
         /<input[^>]*id="anima-elevenlabs-voice"[^>]* disabled=""/,
@@ -110,12 +112,15 @@ describe("Anima voice configuration", () => {
         }
         onDownload={() => undefined}
         onSelected={() => undefined}
+        sample={IDLE_VOICE_SAMPLE}
+        player={{ play: vi.fn(), stop: vi.fn(), dispose: vi.fn() }}
       />,
     );
     expect(html.indexOf('aria-label="Play Anna sample"')).toBeLessThan(
       html.indexOf('aria-label="Download Anna"'),
     );
-    expect(html).toContain("Samples are source recordings");
+    expect(html).not.toContain("Samples are source recordings");
+    expect(html).not.toContain("Sample sources");
     expect(html).not.toContain("Use application default");
   });
 });

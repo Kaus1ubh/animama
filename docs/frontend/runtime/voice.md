@@ -1002,10 +1002,12 @@ the public ORT 1.24.2 inventory does not replace those dependency versions.
   the active provider or TTS being enabled. The Pocket list supports name/accent
   search, Any/Female/Male filtering and Recommended only. Choosing a voice saves
   an explicit Anima value; legacy missing values keep their existing fallback.
-- Each catalog voice has a pinned upstream source recording. The play button
+- Each catalog voice has a pinned upstream source recording. Play buttons beside
+  the selected voice and inside the list share one player. Each button
   fetches that recording only on click, without credentials or referrer, and
   never installs or selects a voice. Samples require internet and can differ
-  from generated speech. Closing the picker or replacing a sample stops audio.
+  from generated speech. Opening or closing the list, changing the selected voice,
+  replacing a sample, or leaving Voices stops audio.
   The separate download button installs a voice without changing the selection.
 - Custom sample upload encodes a voice for the current runtime session. The
   sample must be uploaded again after a reload; it is not a durable voice asset.

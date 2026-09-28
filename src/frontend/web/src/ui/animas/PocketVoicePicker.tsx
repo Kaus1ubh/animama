@@ -11,6 +11,7 @@ import {
 
 import {
   POCKET_VOICES,
+  type PocketVoice,
   type PocketVoiceGender,
 } from "@/lib/speech/pocket/voice-catalog";
 import { pocketVoiceLabel } from "@/lib/speech/pocket/voice-groups";
@@ -18,6 +19,7 @@ import type { PocketVoiceAvailability } from "@/lib/speech/pocket/voice-preferen
 import {
   createVoiceSamplePlayer,
   IDLE_VOICE_SAMPLE,
+  type VoiceSampleState,
 } from "@/lib/speech/pocket/voice-sample-player";
 import { cn } from "@/lib/utils";
 import { Button } from "@/ui/components/button";
@@ -68,36 +70,63 @@ type PocketVoicePickerProps = {
   onDownload: (assetId: string) => void;
 };
 
+type VoiceSamplePlayback = {
+  sample: VoiceSampleState;
+  player: ReturnType<typeof createVoiceSamplePlayer>;
+};
+
 /** A compact selected voice opens a keyboard-accessible list with independent actions. */
 export function PocketVoicePicker(props: PocketVoicePickerProps) {
   const [open, setOpen] = useState(false);
+  const [sample, setSample] = useState(IDLE_VOICE_SAMPLE);
+  const player = useMemo(() => createVoiceSamplePlayer(setSample), []);
+  useEffect(() => () => player.dispose(), [player]);
+  useEffect(() => player.stop(), [player, props.value]);
+  const voice = POCKET_VOICES.find((item) => item.id === props.value);
+  const changeOpen = (next: boolean) => {
+    player.stop();
+    setOpen(next);
+  };
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          disabled={props.disabled}
-          className="w-full justify-between"
-          aria-label={`PocketTTS voice: ${pocketVoiceLabel(props.value)}`}
-        >
-          <span className="truncate">{pocketVoiceLabel(props.value)}</span>
-          <ChevronDown className="size-4 shrink-0 opacity-60" />
-        </Button>
-      </PopoverTrigger>
+    <Popover open={open} onOpenChange={changeOpen}>
+      <div className="flex items-center gap-2">
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            disabled={props.disabled}
+            className="min-w-0 flex-1 justify-between"
+            aria-label={`PocketTTS voice: ${pocketVoiceLabel(props.value)}`}
+          >
+            <span className="truncate">{pocketVoiceLabel(props.value)}</span>
+            <ChevronDown className="size-4 shrink-0 opacity-60" />
+          </Button>
+        </PopoverTrigger>
+        <VoiceSampleButton voice={voice} sample={sample} player={player} />
+      </div>
+      {!open && sample.error ? (
+        <p role="alert" className="text-destructive text-xs">
+          {sample.error}
+        </p>
+      ) : null}
       <PopoverContent
         align="start"
         className="flex max-h-[var(--radix-popover-content-available-height)] w-[min(30rem,var(--radix-popover-content-available-width))] flex-col p-0"
         aria-label="PocketTTS voices"
       >
         {open ? (
-          <PocketVoiceList {...props} onSelected={() => setOpen(false)} />
+          <PocketVoiceList
+            {...props}
+            sample={sample}
+            player={player}
+            onSelected={() => changeOpen(false)}
+          />
         ) : null}
       </PopoverContent>
     </Popover>
   );
 }
 
-/** Unmounting the list also releases its preview audio and pending network request. */
+/** The selected voice and list share one player, owned by the picker. */
 export function PocketVoiceList({
   value,
   disabled,
@@ -106,13 +135,12 @@ export function PocketVoiceList({
   availability,
   onDownload,
   onSelected,
-}: PocketVoicePickerProps & { onSelected: () => void }) {
+  sample,
+  player,
+}: PocketVoicePickerProps & VoiceSamplePlayback & { onSelected: () => void }) {
   const [gender, setGender] = useState<VoiceFilter["gender"]>("any");
   const [recommended, setRecommended] = useState(false);
   const [search, setSearch] = useState("");
-  const [sample, setSample] = useState(IDLE_VOICE_SAMPLE);
-  const player = useMemo(() => createVoiceSamplePlayer(setSample), []);
-  useEffect(() => () => player.dispose(), [player]);
   const voices = filteredPocketVoices({ gender, recommended, search });
   const choose = async (id: string) => {
     try {
@@ -199,9 +227,6 @@ export function PocketVoiceList({
           const download = availability(voice.id);
           const downloading = download?.status === "downloading";
           const needsDownload = download && download.status !== "installed";
-          const active =
-            sample.voiceId === voice.id &&
-            (sample.status === "playing" || sample.status === "loading");
           return (
             <div
               key={voice.id}
@@ -231,24 +256,12 @@ export function PocketVoiceList({
                   <Check className="size-4 shrink-0" />
                 ) : null}
               </button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                aria-label={`${active ? "Stop" : "Play"} ${voice.name} sample`}
-                title={`${active ? "Stop" : "Play"} ${voice.name} sample`}
-                onClick={() => void player.play(voice)}
-              >
-                {active ? (
-                  sample.status === "loading" ? (
-                    <LoaderCircle className="animate-spin motion-reduce:animate-none" />
-                  ) : (
-                    <Square />
-                  )
-                ) : (
-                  <Play />
-                )}
-              </Button>
+              <VoiceSampleButton
+                voice={voice}
+                sample={sample}
+                player={player}
+                compact
+              />
               <div className="flex w-8 shrink-0 justify-center">
                 {needsDownload ? (
                   <Button
@@ -305,25 +318,54 @@ export function PocketVoiceList({
           </Button>
         ) : null}
       </div>
-      <div className="text-muted-foreground shrink-0 space-y-1 border-t px-4 py-3 text-xs">
-        {sample.error ? (
-          <p role="alert" className="text-destructive">
-            {sample.error}
-          </p>
-        ) : null}
-        <p>
-          Samples are source recordings and require internet. PocketTTS speech
-          may sound different.{" "}
-          <a
-            className="underline"
-            href="https://huggingface.co/kyutai/tts-voices/blob/323332d33f997de8394f24a193e1a76df720e01a/README.md"
-            target="_blank"
-            rel="noreferrer"
-          >
-            Sample sources
-          </a>
+      {sample.error ? (
+        <p
+          role="alert"
+          className="text-destructive shrink-0 border-t px-4 py-3 text-xs"
+        >
+          {sample.error}
         </p>
-      </div>
+      ) : null}
     </div>
+  );
+}
+
+/** Keep play/stop feedback identical beside the selection and in each list row. */
+function VoiceSampleButton({
+  voice,
+  sample,
+  player,
+  compact = false,
+}: VoiceSamplePlayback & {
+  voice: PocketVoice | undefined;
+  compact?: boolean;
+}) {
+  const active =
+    sample.voiceId === voice?.id &&
+    (sample.status === "playing" || sample.status === "loading");
+  const label = voice
+    ? `${active ? "Stop" : "Play"} ${voice.name} sample`
+    : "No sample available for this voice";
+  return (
+    <Button
+      type="button"
+      variant={compact ? "ghost" : "outline"}
+      size={compact ? "icon-sm" : "icon"}
+      disabled={!voice}
+      className="shrink-0"
+      aria-label={label}
+      title={label}
+      onClick={() => voice && void player.play(voice)}
+    >
+      {active ? (
+        sample.status === "loading" ? (
+          <LoaderCircle className="animate-spin motion-reduce:animate-none" />
+        ) : (
+          <Square />
+        )
+      ) : (
+        <Play />
+      )}
+    </Button>
   );
 }
