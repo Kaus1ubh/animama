@@ -121,6 +121,11 @@ class ContentCatalog(Protocol):
 
         raise NotImplementedError
 
+    async def delete_unbound_avatar_mapping(self, *, item_id: str, user_id: str) -> None:
+        """Remove the owner's unused logical Avatar for an exact locked catalog item."""
+
+        raise NotImplementedError
+
     async def purge_item(self, *, item_id: str) -> None:
         """Remove one explicitly deleted catalog identity after its bytes are gone."""
 

@@ -147,6 +147,12 @@ operation. A changed destination requires a fresh review; import never replaces
 an existing item or installs only part of the package. License and provenance
 facts accompany the independent editable copies.
 
+Resource filenames inside a content directory stay unchanged so embedded image
+and texture references remain valid when the containing item receives a collision
+suffix. Avatar imports also register the logical model used by Library and Anima
+creation, even for content-only packages. Deleting an unused Local model removes
+that mapping; an Anima using the model still blocks deletion.
+
 See the [package HTTP contract](../architecture/http-api.md#package-sharing) for
 routes, limits and receipt recovery, and [Library sharing](../../frontend/features/library.md#import--export)
 for the user workflow. Package manifests exist only at the sharing boundary,

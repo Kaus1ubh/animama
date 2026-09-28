@@ -75,7 +75,8 @@ class ContentPackageImportService:
     """The stage owns reviewed bytes; one Local mutation owns files, SQL and receipt.
 
     The optional Anima unit of work must use the catalog's database session. It
-    never commits independently; content-only callers do not need an aggregate.
+    never commits independently and is required for Avatar registration as well
+    as complete Anima imports.
     """
 
     def __init__(
@@ -147,6 +148,8 @@ class ContentPackageImportService:
     async def _plan(
         self, *, user_id: str, lease: StageLease, inspected: InspectedPackage, size: int, digest: str
     ) -> ReviewedImportPlan:
+        if self._uow is None and any(entry.kind is ContentKind.AVATAR for entry in inspected.manifest.entries):
+            raise ContentConflictError("package_avatar_import_unavailable")
         visible = await self._catalog.list_visible(user_id=user_id)
         names = {(item.kind, _name_key(item.display_name)) for item in visible}
         locators = {_name_key(item.relative_locator) for item in visible}
@@ -372,6 +375,14 @@ class ContentPackageImportService:
             expected = {installed[dependency.ref].id for dependency in entry.dependencies}
             if set(installed[entry.package_entry_id].dependency_item_ids) != expected:
                 raise ContentConflictError("package_dependency_admission_failed")
+        # The Library's Avatar catalog resolves logical Avatar mappings, including
+        # standalone models. Register them in the same files/SQL/receipt mutation;
+        # full Anima materialization below reuses these exact mappings.
+        for installed_item in installed.values():
+            if installed_item.kind is ContentKind.AVATAR:
+                if self._uow is None:
+                    raise ContentConflictError("package_avatar_import_unavailable")
+                await self._uow.avatars.resolve_catalog_avatar(user_id=user_id, item=installed_item)
         anima_id = None
         if plan.anima is not None:
             assert self._uow is not None and self._default_model is not None
@@ -430,15 +441,10 @@ class ContentPackageImportService:
                     {"avatar_item_id": portraits[item.entry_id]} if item.entry_id in portraits else {}
                 )
             prepared: list[PreparedPackageFile] = []
-            original_stem = PurePosixPath(source.scanned.relative_locator).name
+            # Each descriptor gets a fresh directory. Keep its member names so
+            # embedded image/texture references still address the same resources.
             filenames = {
-                member.relative_path: (
-                    locator.name + member.relative_path[len(original_stem) :]
-                    if descriptor and member.relative_path.startswith(original_stem + ".")
-                    else member.relative_path
-                    if descriptor
-                    else locator.name
-                )
+                member.relative_path: member.relative_path if descriptor else locator.name
                 for member in entry.files
                 if member.role not in {"metadata", "descriptor"}
             }

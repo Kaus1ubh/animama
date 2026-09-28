@@ -15,6 +15,7 @@ from animama.app.services.local_content_mutations import LocalContentMutations, 
 from animama.domain.content_catalog import (
     CatalogContentEntry,
     ContentConflictError,
+    ContentKind,
     ContentNotFoundError,
     ContentPreview,
     ContentPreviewFile,
@@ -180,6 +181,8 @@ class ContentCatalogService:
                 "catalog_revision_conflict",
                 current_revision=item.revision_sha256,
             )
+        if item.kind is ContentKind.AVATAR:
+            await self._catalog.delete_unbound_avatar_mapping(item_id=item.id, user_id=user_id)
         if await self._catalog.item_has_runtime_references(item_id=item.id):
             raise ContentConflictError("catalog_item_in_use")
         await asyncio.to_thread(self._store.delete_entry, entry=item)

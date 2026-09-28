@@ -109,7 +109,7 @@ async def test_import_copy_preserves_action_control_and_payload_names(async_sess
         copy_root = paths.local_root / copy.relative_locator
         copy_name = copy_root.name
         descriptor_path = copy_root / f"{copy_name}.meta.json"
-        payload_path = copy_root / f"{copy_name}.json"
+        payload_path = copy_root / "happy.json"
         assert descriptor_path.is_file()
         assert payload_path.is_file()
         assert not list(copy_root.glob("*.pose.json"))

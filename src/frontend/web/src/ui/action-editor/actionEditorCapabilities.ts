@@ -41,6 +41,15 @@ export function actionEditorCapabilities(
   return CAPABILITIES[intent];
 }
 
+/** Choose the initial workspace for a new Action and any component handoff. */
+export function newActionEditorMode(
+  intent: ActionIntent,
+  initialComponent?: string,
+): ActionEditorMode {
+  if (intent === "gesture" && initialComponent) return "clip";
+  return actionEditorCapabilities(intent).defaultMode;
+}
+
 /** Loaded documents open without entering an inline pose edit or changing keyframes. */
 export function loadedActionEditorMode(
   intent: ActionIntent,

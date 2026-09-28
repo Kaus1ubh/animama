@@ -755,6 +755,29 @@ class SQLAlchemyContentCatalog(ContentCatalog):
         loaded = await self._load_entries([row])
         return loaded[0] if loaded else None
 
+    async def delete_unbound_avatar_mapping(self, *, item_id: str, user_id: str) -> None:
+        """Release an unused owned mapping inside the caller's catalog deletion.
+
+        The caller holds the catalog parent lock. Lock the Avatar too so a new
+        Anima's foreign-key reference cannot race the check and removal. A live
+        mapping remains and is rejected by the ordinary runtime reference check.
+        """
+        avatar = await self._session.scalar(
+            select(ORMAvatar)
+            .where(
+                ORMAvatar.catalog_item_id == item_id,
+                ORMAvatar.user_id == user_id,
+                ORMAvatar.private.is_(True),
+            )
+            .with_for_update()
+        )
+        if avatar is None:
+            return
+        if await self._session.scalar(select(ORMAnima.id).where(ORMAnima.avatar_id == avatar.id).limit(1)) is not None:
+            return
+        await self._session.delete(avatar)
+        await self._session.flush()
+
     async def item_has_runtime_references(self, *, item_id: str) -> bool:
         """Retain Avatar/Appearance bindings and supports still used by content."""
 
