@@ -197,12 +197,13 @@ no mandatory helper or policy engine is required.
 
 ## Local Stacks
 
-Before first startup, acquire the pinned shared Parakeet inputs with
-`python3 scripts/models/parakeet.py acquire` and
+Speech models are optional for local stacks. Acquire Parakeet speech-to-text with
+`python3 scripts/models/parakeet.py acquire` and Pocket TTS/Smart Turn with
 `python3 scripts/models/browser_speech.py acquire` (or import verified existing copies).
-`reset.sh` verifies the selected `ANIMAMA_MODEL_ROOT` offline and records its
-resolved immutable directory; it never downloads models or silently creates an
-empty mount. See [model setup](docs/backend/operations/model-assets.md).
+`reset.sh` verifies each acquired set in `ANIMAMA_MODEL_ROOT` offline and records its
+resolved immutable directory. A missing set only disables its own feature; a set
+that fails verification stops the reset. It never downloads models. See
+[model setup](docs/backend/operations/model-assets.md).
 
 Follow the [workspace preparation workflow](docs/backend/operations/development.md#preparing-a-task-workspace)
 for ordinary Git worktrees, dependencies and credentials. Keep reusable secrets

@@ -5,8 +5,13 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import path from "node:path";
 import type { Plugin } from "vite";
 
-/** Resolve verified shared inputs at server startup; builds need no model bytes. */
-export function resolveLocalParakeetModelDir(): string {
+/**
+ * Resolve the verified Parakeet set at server startup; builds need no model
+ * bytes. The set is optional: `null` makes its route answer 404, and reset.sh
+ * reports dictation as not installed. A present set that fails verification
+ * still blocks startup.
+ */
+export function resolveLocalParakeetModelDir(): string | null {
   // Compose passes its already verified, read-only mount. Direct host Vite uses
   // the same offline resolver as reset.sh, with ANIMAMA_MODEL_ROOT if selected.
   const mounted = process.env.VITE_CLIENT_PARAKEET_MODEL_DIR?.trim();
@@ -21,10 +26,16 @@ export function resolveLocalParakeetModelDir(): string {
   const script = fileURLToPath(
     new URL("../../../../scripts/models/parakeet.py", import.meta.url),
   );
-  return execFileSync("python3", [script, "path"], {
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "inherit"],
-  }).trim();
+  try {
+    return execFileSync("python3", [script, "path"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "inherit"],
+    }).trim();
+  } catch (error) {
+    // Exit status 2 means the set was never acquired.
+    if ((error as { status?: number }).status === 2) return null;
+    throw error;
+  }
 }
 
 /**

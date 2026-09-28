@@ -68,10 +68,30 @@ export function installBrowserRuntimeAssets(
   });
 }
 
-/** Verify before serving/building; built artifacts retain independent model copies. */
+/**
+ * Verify before serving/building; built artifacts retain independent model
+ * copies. Web builds may omit the optional browser speech set, which leaves
+ * Pocket TTS and Smart Turn unavailable; the embedded desktop requires it.
+ */
 export function browserRuntimeAssetsPlugin(): Plugin {
   let config: ResolvedConfig;
   let assets: RuntimeAsset[] = [];
+  const resolve = (builtRoot?: string) => {
+    const allowMissingModels = config.mode !== "embedded-desktop";
+    const resolved = resolveBrowserRuntimeAssets({
+      builtRoot,
+      allowMissingModels,
+    });
+    if (
+      !builtRoot &&
+      !resolved.some((asset) => asset.source.kind === "model-store")
+    )
+      config.logger.warn(
+        "Browser speech models are not acquired; Pocket TTS and Smart Turn are unavailable. " +
+          "Run python3 scripts/models/browser_speech.py acquire to enable them.",
+      );
+    return resolved;
+  };
   return {
     name: "animama-browser-runtime-assets",
     configResolved(value) {
@@ -81,23 +101,21 @@ export function browserRuntimeAssetsPlugin(): Plugin {
       if (config.publicDir) verifyOptionalBrowserCatalogs(config.publicDir);
       installBrowserRuntimeAssets(
         server,
-        resolveBrowserRuntimeAssets(),
+        resolve(),
         config.publicDir || undefined,
       );
     },
     configurePreviewServer(server) {
       installBrowserRuntimeAssets(
         server,
-        resolveBrowserRuntimeAssets({
-          builtRoot: path.resolve(config.root, config.build.outDir),
-        }),
+        resolve(path.resolve(config.root, config.build.outDir)),
         path.resolve(config.root, config.build.outDir),
       );
     },
     buildStart() {
       if (config.command === "build") {
         if (config.publicDir) verifyOptionalBrowserCatalogs(config.publicDir);
-        assets = resolveBrowserRuntimeAssets();
+        assets = resolve();
       }
     },
     closeBundle() {
@@ -106,9 +124,7 @@ export function browserRuntimeAssetsPlugin(): Plugin {
           assets,
           path.resolve(config.root, config.build.outDir),
         );
-        resolveBrowserRuntimeAssets({
-          builtRoot: path.resolve(config.root, config.build.outDir),
-        });
+        resolve(path.resolve(config.root, config.build.outDir));
       }
     },
   };

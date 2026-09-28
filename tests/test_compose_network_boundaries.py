@@ -266,10 +266,16 @@ def _run_reset(
     model_scripts.mkdir(exist_ok=True)
     (model_scripts / "parakeet.py").write_text(
         "import os, sys\n"
+        "root = sys.argv[sys.argv.index('--root') + 1] if '--root' in sys.argv else '/default-model-store'\n"
+        "if sys.argv[1] == 'root':\n"
+        "    print(root)\n"
+        "    sys.exit(0)\n"
         "if os.environ.get('ANIMAMA_TEST_MODEL_MISSING'):\n"
         "    print('Missing models; run python3 scripts/models/parakeet.py acquire', file=sys.stderr)\n"
         "    sys.exit(2)\n"
-        "root = sys.argv[sys.argv.index('--root') + 1] if '--root' in sys.argv else '/default-model-store'\n"
+        "if os.environ.get('ANIMAMA_TEST_MODEL_CORRUPT'):\n"
+        "    print('Size or SHA-256 mismatch', file=sys.stderr)\n"
+        "    sys.exit(1)\n"
         "print(root + '/parakeet-tdt-0.6b-v2/verified-version')\n"
     )
     (model_scripts / "browser_speech.py").write_text(
@@ -278,6 +284,7 @@ def _run_reset(
         .replace("parakeet-tdt-0.6b-v2", "browser-speech")
         .replace("parakeet.py", "browser_speech.py")
         .replace("ANIMAMA_TEST_MODEL_MISSING", "ANIMAMA_TEST_BROWSER_MODEL_MISSING")
+        .replace("ANIMAMA_TEST_MODEL_CORRUPT", "ANIMAMA_TEST_BROWSER_MODEL_CORRUPT")
     )
     commands = tmp_path / "commands.jsonl"
     commands.write_text("")
@@ -299,6 +306,7 @@ with open(os.environ["ANIMAMA_TEST_COMMANDS"], "a") as output:
         "args": args, "profiles": os.environ.get("COMPOSE_PROFILES", ""),
         "build_mode": os.environ.get("ANIMAMA_WEB_BUILD_MODE"), "compose_file": os.environ.get("COMPOSE_FILE"),
         "selected_files": os.environ.get("COMPOSE_ENV_FILES"),
+        "parakeet_stt_enabled": os.environ.get("ANIMAMA_PARAKEET_STT_ENABLED"),
         "fixture_credentials_preserved": all(values.get(key) == expected for key, expected in (
             ("POSTGRES_PASSWORD", "fixture-postgres-secret"), ("OPENAI_API_KEY", "fixture-provider-secret"))),
         "host_credentials_absent": all(key not in os.environ for key in ("POSTGRES_PASSWORD", "OPENAI_API_KEY"))
@@ -657,23 +665,42 @@ def test_reset_reads_model_root_from_dotenv_selector(tmp_path: Path) -> None:
     assert "export ANIMAMA_MODEL_ROOT=/dotenv-model-store" in (workspace / ".animama-stack.env").read_text()
 
 
-def test_missing_model_setup_prevents_all_reset_mutations_even_with_purge(tmp_path: Path) -> None:
-    result, commands, workspace = _run_reset(tmp_path, ["--purge"], {"ANIMAMA_TEST_MODEL_MISSING": "1"})
-    assert result.returncode != 0
+def test_missing_parakeet_models_start_without_dictation(tmp_path: Path) -> None:
+    result, commands, workspace = _run_reset(tmp_path, [], {"ANIMAMA_TEST_MODEL_MISSING": "1"})
+    assert result.returncode == 0, result.stderr
     assert "parakeet.py acquire" in result.stderr
+    started = [command for command in commands if "up" in command["args"]]
+    assert started
+    assert all(command["parakeet_stt_enabled"] == "false" for command in started)
+    record = (workspace / ".animama-stack.env").read_text()
+    assert "export ANIMAMA_PARAKEET_MODEL_DIR=''" in record
+    assert "export ANIMAMA_BROWSER_MODEL_DIR=/default-model-store/browser-speech/verified-version" in record
+
+
+def test_missing_browser_models_start_without_browser_speech(tmp_path: Path) -> None:
+    result, commands, workspace = _run_reset(tmp_path, [], {"ANIMAMA_TEST_BROWSER_MODEL_MISSING": "1"})
+    assert result.returncode == 0, result.stderr
+    assert "browser_speech.py acquire" in result.stderr
+    assert all(command["parakeet_stt_enabled"] is None for command in commands)
+    record = (workspace / ".animama-stack.env").read_text()
+    assert "export ANIMAMA_BROWSER_MODEL_DIR=''" in record
+    assert "export ANIMAMA_PARAKEET_MODEL_DIR=/default-model-store/parakeet-tdt-0.6b-v2/verified-version" in record
+
+
+@pytest.mark.parametrize(
+    ("variable", "script"),
+    [("ANIMAMA_TEST_MODEL_CORRUPT", "parakeet.py"), ("ANIMAMA_TEST_BROWSER_MODEL_CORRUPT", "browser_speech.py")],
+)
+def test_unverifiable_models_prevent_all_reset_mutations_even_with_purge(
+    tmp_path: Path, variable: str, script: str
+) -> None:
+    result, commands, workspace = _run_reset(tmp_path, ["--purge"], {variable: "1"})
+    assert result.returncode != 0
+    assert f"{script} verify" in result.stderr
     assert all("config" in command["args"] for command in commands)
     assert not (workspace / ".animama-stack.env").exists()
     assert not (workspace / "data").exists()
     assert not (workspace / "content").exists()
-
-
-def test_missing_browser_models_prevents_reset_mutation(tmp_path: Path) -> None:
-    result, commands, workspace = _run_reset(tmp_path, ["--purge"], {"ANIMAMA_TEST_BROWSER_MODEL_MISSING": "1"})
-    assert result.returncode != 0
-    assert "browser_speech.py acquire" in result.stderr
-    assert all("config" in command["args"] for command in commands)
-    assert not (workspace / ".animama-stack.env").exists()
-    assert not (workspace / "data").exists()
 
 
 def test_browser_models_are_readonly_build_and_dev_inputs() -> None:
