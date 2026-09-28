@@ -8,7 +8,10 @@ import {
   useState,
 } from "react";
 
-import type { AnimaCreationDiagnostic, ItemRevisionRef } from "@animama/runtime-contracts/sdk";
+import type {
+  AnimaCreationDiagnostic,
+  ItemRevisionRef,
+} from "@animama/runtime-contracts/sdk";
 import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
 import { creationEvidence } from "@/query/hooks/useAnimaCreation";
 import { AppShellPage } from "@/ui/app/AppShellPage";
@@ -24,6 +27,7 @@ import { useContentPreviewDock } from "@/ui/content-preview/ContentPreviewDockPr
 import { CreateAnimaActionsStep } from "./CreateAnimaActionsStep";
 import { CreateAnimaAvatarStep } from "./CreateAnimaAvatarStep";
 import { CreateAnimaCompletion } from "./CreateAnimaCompletion";
+import { CreateAnimaVoiceStep } from "./CreateAnimaVoiceStep";
 import { CreateAnimaIdentityStep } from "./CreateAnimaIdentityStep";
 import { CreateAnimaNamePlate } from "./CreateAnimaNamePlate";
 import { CreateAnimaReviewStep } from "./CreateAnimaReviewStep";
@@ -33,6 +37,7 @@ import { CreateAnimaWorkspace } from "./CreateAnimaWorkspace";
 import { creationIssueTarget } from "./createAnimaActions";
 import {
   canonicalJson,
+  CREATION_STEPS,
   issueStep,
   type CreationStep,
 } from "./createAnimaDraft";
@@ -43,11 +48,13 @@ import {
 
 const HEADINGS = [
   "Choose an Avatar",
+  "Choose a voice",
   "Define their Identity",
   "Choose Actions",
   "Review Anima",
 ];
 const DESCRIPTIONS = [
+  null,
   null,
   "Shape who they are, how they speak, and what matters to them.",
   "Choose how your Anima moves and reacts.",
@@ -193,8 +200,8 @@ function OwnedCreateAnimaPage({
     ),
   ];
   const nextStep = controller.returnToReview
-    ? 3
-    : (Math.min(3, draft.step + 1) as CreationStep);
+    ? 4
+    : (Math.min(4, draft.step + 1) as CreationStep);
 
   const storageError =
     controller.storageError || controller.conflict ? (
@@ -242,7 +249,7 @@ function OwnedCreateAnimaPage({
       >
         <div className="mb-6">
           <p className="text-muted-foreground mb-2 text-xs font-medium tracking-widest uppercase">
-            Step {draft.step + 1} of 4
+            Step {draft.step + 1} of 5
           </p>
           <h1
             ref={heading}
@@ -361,6 +368,13 @@ function OwnedCreateAnimaPage({
               onWorking={controller.setWorking}
             />
           ) : draft.step === 1 ? (
+            <CreateAnimaVoiceStep
+              draft={draft}
+              onChange={controller.edit}
+              disabled={controller.busy || controller.conflict}
+              onBusyChange={controller.setWorking}
+            />
+          ) : draft.step === 2 ? (
             <CreateAnimaIdentityStep
               draft={draft}
               readOnly={controller.busy || controller.conflict}
@@ -372,7 +386,7 @@ function OwnedCreateAnimaPage({
               errors={controller.issues.map((issue) => issue.path)}
               onChange={controller.edit}
             />
-          ) : draft.step === 2 ? (
+          ) : draft.step === 3 ? (
             <CreateAnimaActionsStep
               draft={draft}
               sources={sources}
@@ -415,23 +429,19 @@ function OwnedCreateAnimaPage({
           disabled={
             controller.busy ||
             controller.conflict ||
-            (draft.step === 3 && !controller.valid)
+            (draft.step === 4 && !controller.valid)
           }
           onClick={() =>
-            draft.step === 3
+            draft.step === 4
               ? void controller.submit()
               : controller.go(nextStep)
           }
         >
           {controller.busy
             ? "Working…"
-            : draft.step === 3
+            : draft.step === 4
               ? "Create Anima"
-              : nextStep === 3
-                ? "Continue to Review"
-                : nextStep === 2
-                  ? "Continue to Actions"
-                  : "Continue to Identity"}
+              : `Continue to ${CREATION_STEPS[nextStep]}`}
           <ArrowRight className="size-4" />
         </Button>
       </div>

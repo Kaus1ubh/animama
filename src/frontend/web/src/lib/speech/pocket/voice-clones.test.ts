@@ -25,6 +25,25 @@ beforeEach(() => {
 });
 
 describe("durable Pocket voice preparation", () => {
+  it.each([
+    [" Story.voice.WAV", "Story.voice"],
+    [".mp3", "Voice clone"],
+    ["  .ogg", "Voice clone"],
+    [`${"v".repeat(130)}.wav`, "v".repeat(120)],
+  ])(
+    "uses a bounded filename-derived name for a blank name: %s",
+    async (filename, expected) => {
+      const prepared = await prepareVoiceClone({
+        name: "  ",
+        file: new File(["recording"], filename),
+      });
+      expect(prepared.descriptor.name).toBe(expected);
+      expect(mocks.encode).toHaveBeenCalledWith(
+        expect.objectContaining({ animaName: expected }),
+      );
+    },
+  );
+
   it("retains the complete original and encodes one neutral catalog with a stable retry identity", async () => {
     const original = new File(["original recording bytes"], "Narrator.WAV", {
       type: "audio/wav",

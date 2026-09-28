@@ -138,8 +138,14 @@ describe("Anima voice configuration", () => {
     const html = renderToStaticMarkup(<AnimaVoicesEditor />);
     expect(html).toContain('aria-label="PocketTTS voice: Storyteller"');
     expect(html).toContain('aria-label="Play Storyteller sample"');
-    expect(html).toContain('aria-label="Use Narrator"');
-    expect(html).toContain("Original samples are retained.");
+    expect(html).toContain('aria-label="Delete Storyteller"');
+    expect(html.indexOf('aria-label="Play Storyteller sample"')).toBeLessThan(
+      html.indexOf('aria-label="Delete Storyteller"'),
+    );
+    expect(html).not.toContain('aria-label="Use Narrator"');
+    expect(html).not.toContain("Original samples are retained.");
+    expect(html).not.toContain("New voice name");
+    expect(html).toContain("Clone voice");
     expect(html).not.toContain('aria-label="PocketTTS voice: Eve"');
   });
 
@@ -215,6 +221,10 @@ describe("Anima voice configuration", () => {
         disabled={false}
         hasCustomVoice={false}
         onSelect={async () => undefined}
+        clones={[
+          { id: "clone:one", name: "Narrator", previewUrl: "/sample.wav" },
+        ]}
+        onDeleteClone={() => undefined}
         availability={(id) =>
           id === "anna"
             ? { assetId: "pocket-voice-anna", status: "not_installed" }
@@ -229,6 +239,10 @@ describe("Anima voice configuration", () => {
     expect(html.indexOf('aria-label="Play Anna sample"')).toBeLessThan(
       html.indexOf('aria-label="Download Anna"'),
     );
+    expect(html.indexOf('aria-label="Play Narrator sample"')).toBeLessThan(
+      html.indexOf('aria-label="Delete Narrator"'),
+    );
+    expect(html).not.toContain('aria-label="Delete Eve"');
     expect(html).not.toContain("Samples are source recordings");
     expect(html).not.toContain("Sample sources");
     expect(html).not.toContain("Use application default");

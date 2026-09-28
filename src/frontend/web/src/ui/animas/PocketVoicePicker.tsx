@@ -7,6 +7,7 @@ import {
   LoaderCircle,
   Play,
   Square,
+  Trash2,
 } from "lucide-react";
 
 import {
@@ -68,6 +69,7 @@ type PocketVoicePickerProps = {
   clones?: VoiceSampleSource[];
   unavailableSelection?: string;
   onSelect: (id: string) => Promise<void>;
+  onDeleteClone?: (id: string) => void;
   availability: (id: string) => PocketVoiceAvailability | null;
   onDownload: (assetId: string) => void;
 };
@@ -108,6 +110,24 @@ export function PocketVoicePicker(props: PocketVoicePickerProps) {
           </Button>
         </PopoverTrigger>
         <VoiceSampleButton voice={voice} sample={sample} player={player} />
+        {voice &&
+        props.clones?.some((clone) => clone.id === voice.id) &&
+        props.onDeleteClone ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            className="text-destructive hover:text-destructive"
+            aria-label={`Delete ${voice.name}`}
+            disabled={props.disabled}
+            onClick={() => {
+              player.stop();
+              props.onDeleteClone?.(voice.id);
+            }}
+          >
+            <Trash2 className="size-4" />
+          </Button>
+        ) : null}
       </div>
       {!open && sample.error ? (
         <p role="alert" className="text-destructive text-xs">
@@ -141,6 +161,7 @@ export function PocketVoiceList({
   onSelect,
   availability,
   onDownload,
+  onDeleteClone,
   onSelected,
   sample,
   player,
@@ -274,7 +295,25 @@ export function PocketVoiceList({
               player={player}
               compact
             />
-            <div className="w-8 shrink-0" />
+            {onDeleteClone ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                className="text-destructive hover:text-destructive shrink-0"
+                aria-label={`Delete ${clone.name}`}
+                disabled={disabled}
+                onClick={() => {
+                  player.stop();
+                  onSelected();
+                  onDeleteClone(clone.id);
+                }}
+              >
+                <Trash2 className="size-4" />
+              </Button>
+            ) : (
+              <div className="w-8 shrink-0" />
+            )}
           </div>
         ))}
         {matchingClones.length && voices.length ? (

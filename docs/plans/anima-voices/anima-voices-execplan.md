@@ -1,7 +1,7 @@
 # Named PocketTTS voices in Anima Loadout
 
 Source agreement: owner follow-up on 2026-09-28 to issue [#194](https://github.com/raymond-van/animama/issues/194).
-Authorized scope: the complete phase below, on the existing `feat/anima-loadout-voices` branch and PR #195.
+Authorized scope: Phases 1 and 2 below, on the existing `feat/anima-loadout-voices` branch and PR #195.
 
 ## Purpose and context
 
@@ -208,3 +208,107 @@ was necessary to expose the descriptor-member rename bug missed by the initial
 two-file mock. The existing development stack remains running for owner review at
 `http://animama-voices.localhost:8580`; task checkout/branch are retained through
 PR #195. No merge or release approval is implied.
+
+## Phase 2: choose a voice during creation
+
+Owner-authorized follow-up on 2026-09-28, tracked in [issue #196](https://github.com/raymond-van/animama/issues/196). Starting revision:
+`678a58d2d57ae5864e307093f7446288679bee96`, clean working tree, same task
+checkout and branch. The existing development stack is retained.
+
+The wizard becomes Avatar → Voice → Identity → Actions → Review. Voice reuses
+Loadout's Pocket picker and named clone library, including previews and retained
+samples. It exposes an explicit PocketTTS/ElevenLabs provider choice, shows the
+selected provider's controls, and preserves both configurations while switching.
+New drafts seed their voice from application preferences; unsupported/session-only
+Pocket choices fall back to Eve. Review summarizes the selected voice.
+
+A strict additive creation voice field saves preferences and a pinned shared
+clone binding in the existing creation transaction. Clone ownership, kind, revision,
+codec and dependencies use existing catalog admission. Selecting a clone in the
+wizard changes only the draft; saving a new clone explicitly adds it to the shared
+library even if creation is cancelled. Creation must not call a speech provider.
+
+Saved four-step drafts migrate without losing edits. Frozen pending creation
+requests retain their original payload/key, and legacy server receipt hashes stay
+unchanged when the new voice field is omitted. Explicit new choices participate
+in validation and idempotency hashing.
+
+- [x] Add backend atomic creation voice contract, admission and persistence.
+- [x] Add reusable Voice step, draft migration, validation and Review summary.
+- [x] Verify meaningful regression tests, static checks and desktop/narrow browser flows.
+- [ ] Review, commit and update PR #195 with evidence and remaining owner gates.
+
+Validation targets: creation contract/service tests (preset, clone, stale/foreign
+source, rollback, receipt replay); wizard tests (step order, both provider drafts,
+shared clone selection, legacy migration and exact retry); scoped type/lint/build
+checks; desktop browser creation and narrower layout. Existing Phase 1 voice tests
+cover clone encoding/retention, so the creation phase verifies reuse and binding.
+No native packaged or human voice-fidelity acceptance is implied.
+
+This side conversation explicitly prohibits subagents. Perform a focused local
+self-review; record independent review as outstanding rather than claiming the
+usual delegated review gate passed. The owner requested commit, push, merge and
+task cleanup on 2026-09-28; outstanding validation gates are recorded below.
+
+
+### Phase 2 verification and integration handoff
+
+The creation commit integrates the completed shared-control refinements to
+`VoiceCloneLibrary`, `PocketVoicePicker`, `VoiceLoadoutSection` and clone naming.
+The original editor task is idle and reported 37 focused tests, lint, formatting,
+browser checks and independent review without findings for those refinements.
+Its full build was blocked by creation work still in progress; the final combined
+build below passes. Optional clone names default to the recording filename,
+deletion sits beside Play, and the duplicate clone list and rename controls are
+removed. The creation-only shared-library explanation was removed at owner request.
+
+Local verification:
+
+- Backend: `tests/test_anima_creation_voice.py`, `tests/test_anima_creation.py`,
+  `tests/test_shared_backend_boundary.py`, `tests/test_pocket_voice_content.py`:
+  69 passed. New coverage includes both providers, preset/clone persistence,
+  foreign/stale sources, invalid preset/ElevenLabs ID, rollback after binding,
+  shared-original retention and legacy receipt hashing.
+- Frontend: `src/ui/create-anima`, `src/query/hooks/useAnimaCreation.test.ts`,
+  `src/ui/animas/VoiceLoadoutSection.test.tsx`,
+  `src/lib/speech/pocket/voice-clones.test.ts`: 129 passed. After final local typing
+  and test cleanup, the three affected draft/voice/storage files passed 45 tests.
+  After removing the creation explanation, the complete 129-test group passed
+  again, with targeted ESLint and Prettier checks for the Voice step.
+- `pnpm build` passed (the existing chunk-size warning remains); web TypeScript
+  ran through that build. `pnpm web:lint` passed. Backend mypy passed all 561
+  source/test files. Scoped Ruff and formatting checks passed.
+- SDK regenerated offline and public package artifacts built. The additional
+  Pocket preset resource is checked against `scripts/voices/selection.json` by
+  the existing shared-catalog boundary test.
+- Browser at the existing development origin: Avatar → Voice → Identity → Actions
+  → Review; both provider drafts survive switching; Review displays PocketTTS ·
+  Azelma; reload resumes the draft; desktop and 820px layouts checked. No sample
+  fidelity or new clone upload/encoding acceptance is claimed by this phase.
+- Automatic approval review initially blocked the final browser Create action.
+  The owner then explicitly approved creating **Voice creation QA**. Creation
+  succeeded, opened its chat without sending a message, and its Loadout displayed
+  PocketTTS with Azelma. A read of its saved speech settings also confirmed the
+  inactive ElevenLabs ID `creation-qa-voice`. The approved test Anima remains at
+  `http://animama-voices.localhost:8580/a/animas/anima-c708a59dcfcf483980955e1624964e3e`.
+  No existing Anima or clone was edited or removed.
+
+### Phase 2 self-review findings and revisions
+
+The side-conversation boundary prohibits subagents. The code-review skill explicitly
+says a self-review cannot satisfy an independent review gate. Independent review is
+therefore outstanding, not passed; Phase 2 is not marked fully complete. No hosted
+CI result, native packaged acceptance or merge is claimed.
+
+Self-review checked request hashing/replay, old schema migration, source ownership
+and transaction boundaries, selected-provider rendering, busy/navigation handling,
+and integration with the existing shared controls. During implementation, explicit
+clone reselection was made to clear its old evidence so refreshed revisions can be
+accepted; source repair also updates the draft clone reference. The five-step nav
+was adjusted after the desktop browser check showed crowded horizontal labels.
+Compiler-detected union narrowing errors and test lint findings were fixed, with
+checks refreshed. No known unresolved implementation defect remains from this
+self-review. The owner requested the combined commit and PR update followed by
+merge and cleanup. Independent creation/final integration review remains pending,
+and GitHub's `Validation` workflow remains disabled with no check on the candidate.
+These are disclosed merge gates; no exception or passing hosted result is claimed.

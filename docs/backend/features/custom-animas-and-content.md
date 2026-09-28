@@ -55,12 +55,14 @@ Aggregate, identity, and loadout revisions start at 1. It never commits,
 contacts a provider, writes files, or issues runtime. The configured active
 model row is checked locally; default ElevenLabs voice is `gJx1vCzNCD1EQHT212Ls`.
 Idle starts empty, emotion is neutral, and there is
-no Music/typed Voice binding, archive, chat or greeting. Relationship memory
+no Music binding, archive, chat or greeting. A selected shared clone adds the
+typed Voice binding. Relationship memory
 (`MEMORIES.md`) starts as the untouched template, meaning no shared history yet.
-An explicit validated internal voice choice can replace that default.
+An explicit validated creation voice choice replaces that default. New browser
+commands include both provider configurations; legacy commands may omit voice.
 
 Direct creation and backend starter provisioning use this materializer through
-the strict creation service below. `/a/animas/new` uses the four-step live
+the strict creation service below. `/a/animas/new` uses the five-step live
 creator and submits the complete reviewed spec through `POST /v1/animas`.
 
 New creation materializes the selected identity into the Anima's own memory
@@ -82,13 +84,19 @@ mount, but cannot change the live name or identity.
 
 ## Strict private creation
 
-The [four-step browser creator](../../frontend/features/custom-anima-creation.md)
+The [five-step browser creator](../../frontend/features/custom-anima-creation.md)
 consumes the current [HTTP creation contract](../architecture/http-api.md#strict-private-creation).
 Authenticated
 `GET /v1/animas/creation-options` returns policy-derived recommendations/counts,
 limits, diagnostics, and source revision evidence. The nullable `default_idle`
 response contains `source: null` and an empty revision map.
 `POST /v1/animas:validate` validates a whole `AnimaSpec` without writes.
+The optional `voice` field carries `provider`, a Pocket preset ID or pinned clone
+reference, and `elevenlabs_voice_id`. Explicit voice choices write speech preferences
+and the shared voice loadout binding atomically at revision 1. Clone sources join
+the normal owner/kind/revision/dependency checks and must use the Pocket catalog
+codec. Presets use the packaged copy of the same release selection as the browser.
+Omitted legacy voice fields preserve their original receipt hashes and defaults.
 `POST /v1/animas` accepts that spec plus a body `idempotency_key`; the old
 Avatar-only direct request is rejected. The browser freezes and durably saves
 this exact request before dispatch and restores unknown outcomes before

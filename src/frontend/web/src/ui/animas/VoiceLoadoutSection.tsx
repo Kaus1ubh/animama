@@ -1,5 +1,6 @@
 import { useRef, useState, type FormEvent } from "react";
 import { toast } from "sonner";
+import type { PyVoiceContent } from "@animama/runtime-contracts/api-types";
 
 import { usePocketTtsRuntime } from "@/hooks/use-pocket-tts-runtime";
 import { usePocketVoiceDownloads } from "@/hooks/use-pocket-voice-downloads";
@@ -75,6 +76,9 @@ export function AnimaVoicesEditor() {
   const pending = useRef(false);
   const [saving, setSaving] = useState(false);
   const [cloning, setCloning] = useState(false);
+  const [deletingClone, setDeletingClone] = useState<PyVoiceContent | null>(
+    null,
+  );
   const disabled = isLoading || isUpdating || saving || cloning || !animaId;
   const savedProvider = toTtsProvider(animaPreferences?.speech?.tts_provider);
   const configuredProvider = toTtsProvider(
@@ -242,6 +246,11 @@ export function AnimaVoicesEditor() {
                 ? "Saved voice unavailable"
                 : undefined
             }
+            onDeleteClone={(id) =>
+              setDeletingClone(
+                clones.find((clone) => `clone:${clone.item_id}` === id) ?? null,
+              )
+            }
             clones={clones.map((clone) => ({
               id: `clone:${clone.item_id}`,
               name: clone.name,
@@ -290,20 +299,13 @@ export function AnimaVoicesEditor() {
             </p>
           ) : null}
           <VoiceCloneLibrary
-            clones={clones}
-            selectedId={selectedCloneId}
+            deleting={deletingClone}
+            onDeleteClose={() => setDeletingClone(null)}
             disabled={
               isLoading || isUpdating || saving || !animaId || library.isError
             }
-            onSelect={savePocketVoice}
             onBusyChange={setCloning}
           />
-          {!selectedCloneId && isPocketCustomVoice(pocketVoice) ? (
-            <p className="text-muted-foreground text-xs">
-              This earlier custom voice is session-only. Upload and save a named
-              clone to keep it.
-            </p>
-          ) : null}
         </section>
       ) : null}
       {configuredProvider === "elevenlabs" ? (

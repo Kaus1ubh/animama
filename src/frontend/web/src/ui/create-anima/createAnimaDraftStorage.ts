@@ -1,6 +1,8 @@
 import { z } from "zod";
 import {
   createAnimaDraftSchema,
+  previousCreateAnimaDraftSchema,
+  migratePreviousCreateAnimaDraft,
   itemIdSchema,
   legacyCreateAnimaDraftSchema,
   migrateLegacyCreateAnimaDraft,
@@ -10,7 +12,7 @@ import {
 import { upgradeDefaultAnimaIdentityMarkdown } from "./createAnimaIdentity";
 
 const recordBase = {
-  schema_version: z.literal(2),
+  schema_version: z.literal(3),
   writer: z.string().uuid(),
   sequence: z.number().int().nonnegative(),
 };
@@ -75,10 +77,34 @@ export function migrateCreationRecord(raw: string): CreationRecord {
       ? record
       : { ...record, draft: { ...record.draft, identity_markdown: identity } };
   }
+  const previous = z
+    .discriminatedUnion("kind", [
+      z.strictObject({
+        ...recordBase,
+        schema_version: z.literal(2),
+        kind: z.literal("draft"),
+        draft: previousCreateAnimaDraftSchema,
+      }),
+      z.strictObject({
+        ...recordBase,
+        schema_version: z.literal(2),
+        kind: z.literal("complete"),
+        anima_id: itemIdSchema,
+      }),
+    ])
+    .safeParse(value);
+  if (previous.success)
+    return previous.data.kind === "complete"
+      ? { ...previous.data, schema_version: 3 }
+      : {
+          ...previous.data,
+          schema_version: 3,
+          draft: migratePreviousCreateAnimaDraft(previous.data.draft),
+        };
   const legacy = legacyRecordSchema.safeParse(value);
   if (legacy.success) {
     const base = {
-      schema_version: 2 as const,
+      schema_version: 3 as const,
       writer: legacy.data.writer,
       sequence: legacy.data.sequence,
     };
@@ -139,7 +165,7 @@ export class CreateAnimaDraftStorage {
 
   save(draft: CreateAnimaDraft): void {
     this.write({
-      schema_version: 2,
+      schema_version: 3,
       writer: this.writer,
       sequence: this.sequence + 1,
       kind: "draft",
@@ -149,7 +175,7 @@ export class CreateAnimaDraftStorage {
 
   complete(animaId: string): void {
     this.write({
-      schema_version: 2,
+      schema_version: 3,
       writer: this.writer,
       sequence: this.sequence + 1,
       kind: "complete",

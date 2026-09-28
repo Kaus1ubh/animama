@@ -1019,9 +1019,10 @@ the public ORT 1.24.2 inventory does not replace those dependency versions.
 - Voice Cloning saves multiple named voices in the shared Local Voice library.
   A WAV, MP3 or Ogg recording (up to 25 MiB) is retained with its encoded Pocket
   catalog. The browser encoder uses the first ten seconds; encoding runs locally.
-  Save adds the clone to the library without selecting it. Clones appear in the
-  Pocket voice picker, including a preview of their retained original recording.
-  Rename updates the shared name; deletion is blocked while any Anima uses it.
+  Clone voice adds the clone to the library without selecting it. An optional
+  name defaults to the recording filename without its extension. Clones appear
+  in the Pocket voice picker with original-recording preview and delete controls.
+  Deletion is blocked while any Anima uses the clone.
   Existing session-only `custom` selections cannot be recovered automatically:
   upload the original again and save a named clone to make it durable.
 - Clone selection uses the Anima's voice loadout binding. Chat prepares and

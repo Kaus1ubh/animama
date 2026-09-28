@@ -1,22 +1,16 @@
 import { useRef, useState, type FormEvent } from "react";
-import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import type { PyVoiceContent } from "@animama/runtime-contracts/api-types";
 
 import {
   prepareVoiceClone,
+  voiceCloneNameFromFile,
   type PreparedVoiceClone,
 } from "@/lib/speech/pocket/voice-clones";
 import { parseContentApiErrorDetail } from "@/lib/content/contentSaveErrors";
 import { useVoiceCloneActions } from "@/query/mutations/useVoiceCloneActions";
 import { Button } from "@/ui/components/button";
 import { Input } from "@/ui/components/input";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/ui/components/dropdown-menu";
 import {
   Dialog,
   DialogContent,
@@ -37,16 +31,14 @@ function cloneError(error: unknown, fallback: string): string {
 
 /** Named originals and encoded voices are saved together, independently of selection. */
 export function VoiceCloneLibrary({
-  clones,
-  selectedId,
   disabled,
-  onSelect,
+  deleting,
+  onDeleteClose,
   onBusyChange,
 }: {
-  clones: PyVoiceContent[];
-  selectedId: string | null;
   disabled: boolean;
-  onSelect: (id: string) => Promise<void>;
+  deleting: PyVoiceContent | null;
+  onDeleteClose: () => void;
   onBusyChange: (busy: boolean) => void;
 }) {
   const actions = useVoiceCloneActions();
@@ -57,9 +49,6 @@ export function VoiceCloneLibrary({
   const [file, setFile] = useState<File | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [editing, setEditing] = useState<PyVoiceContent | null>(null);
-  const [rename, setRename] = useState("");
-  const [deleting, setDeleting] = useState<PyVoiceContent | null>(null);
   const [dialogError, setDialogError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const locked = disabled || busy;
@@ -71,7 +60,7 @@ export function VoiceCloneLibrary({
 
   const save = async (event: FormEvent) => {
     event.preventDefault();
-    if (locked || pending.current || !file || !name.trim()) return;
+    if (locked || pending.current || !file) return;
     changeBusy(true);
     setError(null);
     try {
@@ -98,34 +87,13 @@ export function VoiceCloneLibrary({
     }
   };
 
-  const saveRename = async (event: FormEvent) => {
-    event.preventDefault();
-    if (!editing || !rename.trim() || locked || pending.current) return;
-    changeBusy(true);
-    setDialogError(null);
-    try {
-      await actions.renameVoiceClone.mutateAsync({
-        clone: editing,
-        name: rename.trim(),
-      });
-      setEditing(null);
-      toast.success("Voice renamed.");
-    } catch (cause) {
-      setDialogError(
-        cloneError(cause, "Voice could not be renamed. Try again."),
-      );
-    } finally {
-      changeBusy(false);
-    }
-  };
-
   const remove = async () => {
     if (!deleting || locked || pending.current) return;
     changeBusy(true);
     setDialogError(null);
     try {
       await actions.deleteVoiceClone.mutateAsync(deleting);
-      setDeleting(null);
+      onDeleteClose();
       toast.success("Voice clone deleted.");
     } catch (cause) {
       setDialogError(
@@ -138,83 +106,15 @@ export function VoiceCloneLibrary({
 
   return (
     <section className="space-y-3 pt-3" aria-labelledby="voice-cloning-heading">
-      <div>
-        <h3 id="voice-cloning-heading" className="text-sm font-semibold">
-          Voice Cloning
-        </h3>
-        <p className="text-muted-foreground mt-1 text-xs">
-          Saved locally and available to all your Animas. Original samples are
-          retained.
-        </p>
-      </div>
-      {clones.length ? (
-        <ul className="space-y-1" aria-label="Saved voice clones">
-          {clones.map((clone) => (
-            <li key={clone.item_id} className="flex items-center gap-2 py-1">
-              <span
-                className="min-w-0 flex-1 truncate text-sm"
-                title={clone.name}
-              >
-                {clone.name}
-              </span>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                disabled={locked || selectedId === clone.item_id}
-                aria-label={`Use ${clone.name}`}
-                onClick={() =>
-                  void onSelect(`clone:${clone.item_id}`).catch(() => undefined)
-                }
-              >
-                {selectedId === clone.item_id ? "Selected" : "Use"}
-              </Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    type="button"
-                    size="icon-sm"
-                    variant="ghost"
-                    disabled={locked}
-                    aria-label={`Manage ${clone.name}`}
-                  >
-                    <MoreHorizontal />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem
-                    onSelect={() => {
-                      setEditing(clone);
-                      setRename(clone.name);
-                      setDialogError(null);
-                    }}
-                  >
-                    <Pencil />
-                    Rename
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onSelect={() => {
-                      setDeleting(clone);
-                      setDialogError(null);
-                    }}
-                  >
-                    <Trash2 />
-                    Delete
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </li>
-          ))}
-        </ul>
-      ) : null}
+      <h3 id="voice-cloning-heading" className="text-sm font-semibold">
+        Voice Cloning
+      </h3>
       <form className="space-y-2" onSubmit={(event) => void save(event)}>
-        <label htmlFor="voice-clone-name" className="text-xs font-medium">
-          New voice name
-        </label>
         <Input
           id="voice-clone-name"
+          aria-label="Voice clone name"
           value={name}
-          placeholder="e.g. Storyteller"
+          placeholder="Voice name (optional)"
           maxLength={120}
           disabled={locked}
           onChange={(event) => {
@@ -243,9 +143,9 @@ export function VoiceCloneLibrary({
             type="submit"
             variant="outline"
             size="sm"
-            disabled={locked || !file || !name.trim()}
+            disabled={locked || !file}
           >
-            Save voice
+            Clone voice
           </Button>
           <input
             ref={input}
@@ -258,6 +158,7 @@ export function VoiceCloneLibrary({
               event.currentTarget.value = "";
               if (next) {
                 setFile(next);
+                if (!name.trim()) setName(voiceCloneNameFromFile(next.name));
                 prepared.current = null;
                 setError(null);
               }
@@ -280,59 +181,12 @@ export function VoiceCloneLibrary({
         ) : null}
       </form>
       <Dialog
-        open={Boolean(editing)}
-        onOpenChange={(open) => {
-          if (!open && !busy) setEditing(null);
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Rename voice</DialogTitle>
-            <DialogDescription>
-              This name appears for all your Animas.
-            </DialogDescription>
-          </DialogHeader>
-          <form
-            onSubmit={(event) => void saveRename(event)}
-            className="space-y-4"
-          >
-            <Input
-              aria-label="Voice clone name"
-              value={rename}
-              maxLength={120}
-              disabled={busy}
-              onChange={(event) => setRename(event.target.value)}
-            />
-            {dialogError ? (
-              <p role="alert" className="text-destructive text-sm">
-                {dialogError}
-              </p>
-            ) : null}
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="ghost"
-                disabled={busy}
-                onClick={() => setEditing(null)}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={
-                  busy || !rename.trim() || rename.trim() === editing?.name
-                }
-              >
-                Save name
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-      <Dialog
         open={Boolean(deleting)}
         onOpenChange={(open) => {
-          if (!open && !busy) setDeleting(null);
+          if (!open && !busy) {
+            setDialogError(null);
+            onDeleteClose();
+          }
         }}
       >
         <DialogContent>
@@ -353,7 +207,10 @@ export function VoiceCloneLibrary({
               type="button"
               variant="ghost"
               disabled={busy}
-              onClick={() => setDeleting(null)}
+              onClick={() => {
+                setDialogError(null);
+                onDeleteClose();
+              }}
             >
               Cancel
             </Button>

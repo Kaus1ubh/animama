@@ -240,7 +240,7 @@ export type AnimaCreationResult = {
 /**
  * AnimaSpec
  *
- * Every choice is explicit; neither omitted fields nor URLs seed defaults.
+ * Explicit creation choices; legacy voice omission retains its original default.
  */
 export type AnimaSpecInput = {
     appearance: AnimaAppearanceInput;
@@ -276,12 +276,13 @@ export type AnimaSpecInput = {
      */
     schema_version: 1;
     starter_pack: StarterPackIdentity;
+    voice?: CreationVoiceInput | null;
 };
 
 /**
  * AnimaSpec
  *
- * Every choice is explicit; neither omitted fields nor URLs seed defaults.
+ * Explicit creation choices; legacy voice omission retains its original default.
  */
 export type AnimaSpecOutput = {
     appearance: AnimaAppearanceOutput;
@@ -317,6 +318,7 @@ export type AnimaSpecOutput = {
      */
     schema_version: 1;
     starter_pack: StarterPackIdentity;
+    voice?: CreationVoiceOutput | null;
 };
 
 /**
@@ -1003,6 +1005,7 @@ export type CreateAnimaRequest = {
      */
     schema_version: 1;
     starter_pack: StarterPackIdentity;
+    voice?: CreationVoiceInput | null;
 };
 
 /**
@@ -1017,6 +1020,79 @@ export type CreateMissingStarterRepair = {
      * Starter Id
      */
     starter_id: 'starter:annie' | 'starter:caitlyn';
+};
+
+/**
+ * CreationPocketClone
+ */
+export type CreationPocketClone = {
+    source: ItemRevisionRef;
+    /**
+     * Type
+     */
+    type: 'clone';
+};
+
+/**
+ * CreationPocketPreset
+ */
+export type CreationPocketPreset = {
+    /**
+     * Type
+     */
+    type: 'preset';
+    /**
+     * Voice Id
+     */
+    voice_id: string;
+};
+
+/**
+ * CreationVoice
+ *
+ * Both provider choices persist; only the selected provider needs a usable ID.
+ */
+export type CreationVoiceInput = {
+    /**
+     * Elevenlabs Voice Id
+     */
+    elevenlabs_voice_id: string | null;
+    /**
+     * Pocket
+     */
+    pocket: ({
+        type: 'preset';
+    } & CreationPocketPreset) | ({
+        type: 'clone';
+    } & CreationPocketClone);
+    /**
+     * Provider
+     */
+    provider: 'pocket_tts' | 'elevenlabs';
+};
+
+/**
+ * CreationVoice
+ *
+ * Both provider choices persist; only the selected provider needs a usable ID.
+ */
+export type CreationVoiceOutput = {
+    /**
+     * Elevenlabs Voice Id
+     */
+    elevenlabs_voice_id: string | null;
+    /**
+     * Pocket
+     */
+    pocket: ({
+        type: 'preset';
+    } & CreationPocketPreset) | ({
+        type: 'clone';
+    } & CreationPocketClone);
+    /**
+     * Provider
+     */
+    provider: 'pocket_tts' | 'elevenlabs';
 };
 
 /**
@@ -3166,7 +3242,7 @@ export type PyContentEvidenceRoot = {
     /**
      * Kind
      */
-    kind: 'avatar' | 'appearance' | 'gesture' | 'reaction' | 'idle_style' | 'pose' | 'pose_clip' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect';
+    kind: 'voice' | 'avatar' | 'appearance' | 'gesture' | 'reaction' | 'idle_style' | 'pose' | 'pose_clip' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect';
     /**
      * Root Key
      */
@@ -3181,7 +3257,7 @@ export type PyContentEvidenceRootRequest = {
     /**
      * Kind
      */
-    kind: 'avatar' | 'appearance' | 'gesture' | 'reaction' | 'idle_style' | 'pose' | 'pose_clip' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect';
+    kind: 'voice' | 'avatar' | 'appearance' | 'gesture' | 'reaction' | 'idle_style' | 'pose' | 'pose_clip' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect';
     source: ItemRevisionRef;
 };
 
@@ -3341,7 +3417,7 @@ export type PyContentPreviewRootRequest = {
     /**
      * Kind
      */
-    kind: 'avatar' | 'appearance' | 'gesture' | 'reaction' | 'idle_style' | 'pose' | 'pose_clip' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect';
+    kind: 'voice' | 'avatar' | 'appearance' | 'gesture' | 'reaction' | 'idle_style' | 'pose' | 'pose_clip' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect';
     /**
      * Source
      */
@@ -5666,7 +5742,7 @@ export type PyPreparedPreviewRoot = {
     /**
      * Kind
      */
-    kind: 'avatar' | 'appearance' | 'gesture' | 'reaction' | 'idle_style' | 'pose' | 'pose_clip' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect';
+    kind: 'voice' | 'avatar' | 'appearance' | 'gesture' | 'reaction' | 'idle_style' | 'pose' | 'pose_clip' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect';
     /**
      * Root Key
      */
@@ -7587,7 +7663,7 @@ export type SourceRevision = {
     /**
      * Kind
      */
-    kind: 'avatar' | 'appearance' | 'gesture' | 'reaction' | 'idle_style' | 'pose' | 'pose_clip' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect';
+    kind: 'voice' | 'avatar' | 'appearance' | 'gesture' | 'reaction' | 'idle_style' | 'pose' | 'pose_clip' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect';
     /**
      * Revision Sha256
      */

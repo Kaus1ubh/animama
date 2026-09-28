@@ -38,6 +38,17 @@ export function voiceCloneName(name: string): string {
   return trimmed;
 }
 
+/** Use the recording name when no display name is supplied; only strip its final extension. */
+export function voiceCloneNameFromFile(filename: string): string {
+  return (
+    filename
+      .replace(/\.[^.]*$/, "")
+      .trim()
+      .slice(0, 120)
+      .trim() || "Voice clone"
+  );
+}
+
 function validateSize(file: Blob) {
   if (!file.size) {
     throw contentSaveFieldError("Choose a nonempty audio file.", "files");
@@ -52,15 +63,17 @@ function validateSize(file: Blob) {
 
 /** Encode once while retaining the full original, including audio beyond encoder trimming. */
 export async function prepareVoiceClone({
-  name,
+  name = "",
   file,
   operationId = crypto.randomUUID(),
 }: {
-  name: string;
+  name?: string;
   file: File;
   operationId?: string;
 }): Promise<PreparedVoiceClone> {
-  const displayName = voiceCloneName(name);
+  const displayName = name.trim()
+    ? voiceCloneName(name)
+    : voiceCloneNameFromFile(file.name);
   validateSize(file);
   const extension = file.name.split(".").at(-1)?.toLowerCase();
   if (!extension || !["wav", "mp3", "ogg"].includes(extension)) {

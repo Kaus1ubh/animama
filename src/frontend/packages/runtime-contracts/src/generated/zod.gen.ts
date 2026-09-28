@@ -552,6 +552,14 @@ export const zCreateMissingStarterRepair = z.object({
 });
 
 /**
+ * CreationPocketPreset
+ */
+export const zCreationPocketPreset = z.object({
+    type: z.literal('preset'),
+    voice_id: z.string().regex(/^[a-z][a-z0-9_-]{0,127}$/)
+});
+
+/**
  * CrisisContact
  */
 export const zCrisisContact = z.object({
@@ -669,6 +677,56 @@ export const zAnimaAppearanceOutput = z.object({
         zAppearanceChoice,
         z.null()
     ])
+});
+
+/**
+ * CreationPocketClone
+ */
+export const zCreationPocketClone = z.object({
+    source: zItemRevisionRef,
+    type: z.literal('clone')
+});
+
+/**
+ * CreationVoice
+ *
+ * Both provider choices persist; only the selected provider needs a usable ID.
+ */
+export const zCreationVoiceInput = z.object({
+    elevenlabs_voice_id: z.union([
+        z.string().regex(/^[A-Za-z0-9_-]{1,128}$/),
+        z.null()
+    ]),
+    pocket: z.union([
+        z.object({
+            type: z.literal('preset')
+        }).and(zCreationPocketPreset),
+        z.object({
+            type: z.literal('clone')
+        }).and(zCreationPocketClone)
+    ]),
+    provider: z.enum(['pocket_tts', 'elevenlabs'])
+});
+
+/**
+ * CreationVoice
+ *
+ * Both provider choices persist; only the selected provider needs a usable ID.
+ */
+export const zCreationVoiceOutput = z.object({
+    elevenlabs_voice_id: z.union([
+        z.string().regex(/^[A-Za-z0-9_-]{1,128}$/),
+        z.null()
+    ]),
+    pocket: z.union([
+        z.object({
+            type: z.literal('preset')
+        }).and(zCreationPocketPreset),
+        z.object({
+            type: z.literal('clone')
+        }).and(zCreationPocketClone)
+    ]),
+    provider: z.enum(['pocket_tts', 'elevenlabs'])
 });
 
 /**
@@ -1429,6 +1487,7 @@ export const zPyContentDiagnostic = z.object({
  */
 export const zPyContentEvidenceRootRequest = z.object({
     kind: z.enum([
+        'voice',
         'avatar',
         'appearance',
         'gesture',
@@ -1471,6 +1530,7 @@ export const zPyContentFile = z.object({
  */
 export const zPyContentPreviewRootRequest = z.object({
     kind: z.enum([
+        'voice',
         'avatar',
         'appearance',
         'gesture',
@@ -3002,6 +3062,7 @@ export const zPyPreparedPreviewRoot = z.object({
     closure_item_ids: z.array(z.string()),
     item_id: z.string(),
     kind: z.enum([
+        'voice',
         'avatar',
         'appearance',
         'gesture',
@@ -4712,6 +4773,7 @@ export const zRecommendedAnimaActions = z.object({
  */
 export const zSourceRevision = z.object({
     kind: z.enum([
+        'voice',
         'avatar',
         'appearance',
         'gesture',
@@ -4744,6 +4806,7 @@ export const zAnimaCreationDefaultIdle = z.object({
 export const zPyContentEvidenceRoot = z.object({
     expected_source_revisions: z.record(z.string(), zSourceRevision),
     kind: z.enum([
+        'voice',
         'avatar',
         'appearance',
         'gesture',
@@ -4890,7 +4953,7 @@ export const zAnimaCreationOptions = z.object({
 /**
  * AnimaSpec
  *
- * Every choice is explicit; neither omitted fields nor URLs seed defaults.
+ * Explicit creation choices; legacy voice omission retains its original default.
  */
 export const zAnimaSpecInput = z.object({
     appearance: zAnimaAppearanceInput,
@@ -4904,13 +4967,17 @@ export const zAnimaSpecInput = z.object({
         z.null()
     ]))),
     schema_version: z.literal(1),
-    starter_pack: zStarterPackIdentity
+    starter_pack: zStarterPackIdentity,
+    voice: z.optional(z.union([
+        zCreationVoiceInput,
+        z.null()
+    ]))
 });
 
 /**
  * AnimaSpec
  *
- * Every choice is explicit; neither omitted fields nor URLs seed defaults.
+ * Explicit creation choices; legacy voice omission retains its original default.
  */
 export const zAnimaSpecOutput = z.object({
     appearance: zAnimaAppearanceOutput,
@@ -4924,7 +4991,11 @@ export const zAnimaSpecOutput = z.object({
         z.null()
     ]))),
     schema_version: z.literal(1),
-    starter_pack: zStarterPackIdentity
+    starter_pack: zStarterPackIdentity,
+    voice: z.optional(z.union([
+        zCreationVoiceOutput,
+        z.null()
+    ]))
 });
 
 /**
@@ -4952,7 +5023,11 @@ export const zCreateAnimaRequest = z.object({
         z.null()
     ]))),
     schema_version: z.literal(1),
-    starter_pack: zStarterPackIdentity
+    starter_pack: zStarterPackIdentity,
+    voice: z.optional(z.union([
+        zCreationVoiceInput,
+        z.null()
+    ]))
 });
 
 /**
