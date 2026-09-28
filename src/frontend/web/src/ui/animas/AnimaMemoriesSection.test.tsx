@@ -1,4 +1,3 @@
-import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -13,17 +12,6 @@ vi.mock("@/query/hooks/useMemoryEntries", () => ({
 }));
 vi.mock("@/query/mutations/useRepairAnimaMemories", () => ({
   useRepairAnimaMemories: hooks.repair,
-}));
-vi.mock("@tanstack/react-router", () => ({
-  Link: ({
-    to,
-    search,
-    children,
-  }: {
-    to: string;
-    search: Record<string, string>;
-    children: ReactNode;
-  }) => <a href={`${to}?${new URLSearchParams(search)}`}>{children}</a>,
 }));
 import { AnimaMemoriesSection } from "./AnimaMemoriesSection";
 
@@ -58,15 +46,24 @@ beforeEach(() => {
 });
 
 describe("Anima memories document", () => {
-  it("renders the selected Anima's file and edits that exact entry in Manual mode", () => {
+  it("lets a surrounding tab row own the only edit action", () => {
+    const html = renderToStaticMarkup(
+      <AnimaMemoriesSection animaId="annie" showEditAction={false} />,
+    );
+    expect(html).toContain("We enjoy");
+    expect(html).not.toContain("Edit memories");
+  });
+
+  it("renders the selected Anima's file with a local editing action", () => {
     const html = render();
     expect(hooks.entry).toHaveBeenCalledWith("annie-memories");
     expect(html).toContain("<h1>Memories</h1>");
     expect(html).toContain("<strong>drawing</strong>");
     expect(html).toContain("Edit memories");
-    expect(html).toContain(
-      'href="/a/memories?tab=memory&amp;mode=manual&amp;entryId=annie-memories"',
+    expect(html).toMatch(
+      /<button[^>]*type="button"[^>]*>.*Edit memories<\/button>/,
     );
+    expect(html).not.toContain("/a/memories");
     expect(html).not.toContain("mika-memories");
     expect(html).not.toContain("overflow-auto");
     expect(html).not.toContain("bg-muted/25");

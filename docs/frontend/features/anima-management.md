@@ -34,10 +34,19 @@ subsequent chat turns.
 ## Memories
 
 The Memories tab renders the selected Anima's relationship `MEMORIES.md`.
-Edit memories opens that exact entry in the Manual
-[memory workspace](anima-memory.md). An empty file remains editable; a missing
+Edit memories opens that exact entry in a Markdown editor modal, preserving the
+Memories tab and returning focus to its edit button on close.
+An empty file remains editable; a missing
 file offers Repair memories, which recreates the template without overwriting
 an existing file. Load failures offer Retry.
+
+## Chat profile modal
+
+The Anima's profile modal above chat keeps Identity and Memories in tabs below
+the portrait and mood. It opens on Identity each time. Each tab's edit button
+opens the corresponding Markdown editor without leaving chat; closing the
+editor restores focus to that button and keeps the selected tab. Saving updates
+the shared document preview.
 
 ## Appearance editor
 

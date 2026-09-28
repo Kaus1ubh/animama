@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { useRef, useState, type Ref } from "react";
 import { FileText } from "lucide-react";
 
 import { memoryEntryErrorMessage } from "@/lib/memory-entries/errors";
@@ -8,10 +8,54 @@ import {
 } from "@/query/hooks/useMemoryEntries";
 import { useRepairAnimaMemories } from "@/query/mutations/useRepairAnimaMemories";
 import { Button } from "@/ui/components/button";
+import { MemoryEntryEditorModal } from "@/ui/memory/MemoryEntryEditorModal";
 import { MemoryMarkdownPreview } from "@/ui/memory/MemoryMarkdownPreview";
 
 /** Read the selected Anima's relationship file using its stable entry ID. */
-export function AnimaMemoriesSection({ animaId }: { animaId: string }) {
+export function AnimaMemoriesSection({
+  animaId,
+  showEditAction = true,
+}: {
+  animaId: string;
+  showEditAction?: boolean;
+}) {
+  const [editorEntryId, setEditorEntryId] = useState<string | null>(null);
+  const editTriggerRef = useRef<HTMLButtonElement>(null);
+  // Keep the editor mounted if its background preview refetch fails.
+  return (
+    <>
+      <AnimaMemoriesDocument
+        animaId={animaId}
+        showEditAction={showEditAction}
+        editTriggerRef={editTriggerRef}
+        onEdit={setEditorEntryId}
+      />
+      {editorEntryId ? (
+        <MemoryEntryEditorModal
+          entryId={editorEntryId}
+          allowedScope="anima"
+          onClose={() => setEditorEntryId(null)}
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            editTriggerRef.current?.focus({ preventScroll: true });
+          }}
+        />
+      ) : null}
+    </>
+  );
+}
+
+function AnimaMemoriesDocument({
+  animaId,
+  showEditAction,
+  editTriggerRef,
+  onEdit,
+}: {
+  animaId: string;
+  showEditAction: boolean;
+  editTriggerRef: Ref<HTMLButtonElement>;
+  onEdit: (entryId: string) => void;
+}) {
   const identities = useAnimaIdentities();
   const anima = identities.data?.identities?.find(
     (item) => item.anima_id === animaId,
@@ -81,22 +125,21 @@ export function AnimaMemoriesSection({ animaId }: { animaId: string }) {
       emptyText="_No memories recorded yet._"
       className="text-foreground/90 [overflow-wrap:anywhere]"
     >
-      <div className="not-prose float-right mb-3 ml-4 flex justify-end">
-        <Button
-          asChild
-          size="sm"
-          variant="outline"
-          className="bg-background/92 shadow-sm backdrop-blur-sm"
-        >
-          <Link
-            to="/a/memories"
-            search={{ tab: "memory", mode: "manual", entryId }}
+      {showEditAction ? (
+        <div className="not-prose float-right mb-3 ml-4 flex justify-end">
+          <Button
+            ref={editTriggerRef}
+            type="button"
+            onClick={() => onEdit(entryId)}
+            size="sm"
+            variant="outline"
+            className="bg-background/92 shadow-sm backdrop-blur-sm"
           >
             <FileText className="size-4" />
             Edit memories
-          </Link>
-        </Button>
-      </div>
+          </Button>
+        </div>
+      ) : null}
     </MemoryMarkdownPreview>
   );
 }

@@ -14,12 +14,14 @@ export function AnimaIdentitySection({
   identityError,
   fallbackIdentity,
   onEdit,
+  showEditAction = true,
 }: {
   animaId: string;
   identity: string;
   identityLoading: boolean;
   identityError: boolean;
   fallbackIdentity: string;
+  showEditAction?: boolean;
   onEdit?: (event: MouseEvent<HTMLButtonElement>) => void;
 }) {
   const previewClass = "text-foreground/90 [overflow-wrap:anywhere]";
@@ -49,11 +51,11 @@ export function AnimaIdentitySection({
       )}
     </Button>
   );
-  const identityActions = (
+  const identityActions = showEditAction ? (
     <div className="not-prose float-right mb-3 ml-4 flex flex-wrap justify-end gap-2">
       {editIdentityButton}
     </div>
-  );
+  ) : null;
 
   return (
     <div className={layoutClass}>

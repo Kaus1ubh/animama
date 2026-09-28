@@ -74,6 +74,13 @@ describe("AnimaIdentitySection plain presentation", () => {
 });
 
 describe("identity edit action", () => {
+  it("lets a surrounding tab row own the only edit action", () => {
+    const html = renderToStaticMarkup(
+      <AnimaIdentitySection {...identityProps} showEditAction={false} />,
+    );
+    expect(html).toContain("A friendly companion.");
+    expect(html).not.toContain("Edit identity");
+  });
   it("uses a real button with no navigation when a local editor callback is supplied", () => {
     const html = renderToStaticMarkup(
       <AnimaIdentitySection {...identityProps} onEdit={() => {}} />,
