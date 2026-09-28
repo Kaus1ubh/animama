@@ -1,13 +1,49 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { PyModelAssetState } from "@animama/runtime-contracts/api-types";
 
 import type { FeaturePackStatus } from "../../../../shared/desktop-runtime";
 import {
   ParakeetWebgpuAssetDownload,
+  ParakeetWebgpuDetails,
   ParakeetWebgpuDownload,
 } from "./ExperimentalSettings";
+
+const detailsState = vi.hoisted(() => ({ assets: [] as PyModelAssetState[] }));
+
+vi.mock("@/hooks/useDesktopFeaturePacks", () => ({
+  useDesktopFeaturePacks: () => ({
+    available: false,
+    packs: [],
+    pending: null,
+    run: vi.fn(),
+  }),
+}));
+vi.mock("@/lib/speech/client-parakeet/assets", () => ({
+  CLIENT_PARAKEET_WEBGPU_ENCODER: { source: "model-asset" },
+  PARAKEET_WEBGPU_ENCODER_ASSET_ID: "parakeet-tdt-0.6b-v2-webgpu-encoder",
+}));
+vi.mock("@/lib/speech/client-parakeet/client", () => ({
+  getLastClientParakeetBackendState: () => null,
+  getParakeetWebgpuStatus: vi.fn(),
+}));
+vi.mock("@/platform/RuntimePlatformProvider", () => ({
+  useRuntimePlatform: () => ({ kind: "web", isDesktop: false }),
+}));
+vi.mock("@/query/hooks/useModelAssets", () => ({
+  useModelAssets: () => ({
+    data: { assets: detailsState.assets, free_bytes: 40 * 1024 ** 3 },
+    isPending: false,
+  }),
+}));
+vi.mock("@/query/mutations/useModelAssetActions", () => ({
+  useModelAssetAction: () => ({
+    isPending: false,
+    isError: false,
+    mutate: vi.fn(),
+  }),
+}));
 
 const base: FeaturePackStatus = {
   id: "parakeet-stt",
@@ -235,5 +271,52 @@ describe("self-host GPU speech encoder download", () => {
       "Download the GPU speech encoder to use this setting.",
     );
     expect(html).toContain('role="alert"');
+  });
+});
+
+describe("GPU encoder management when another STT provider is selected", () => {
+  beforeEach(() => {
+    detailsState.assets = [];
+  });
+
+  // SSR leaves the capability probe pending, so recovery cannot depend on it.
+  const renderDetails = () =>
+    renderToStaticMarkup(<ParakeetWebgpuDetails selected={false} />);
+
+  it("hides details when there is no managed encoder", () => {
+    expect(renderDetails()).toBe("");
+    detailsState.assets = [encoder];
+    expect(renderDetails()).toBe("");
+  });
+
+  it("keeps installed encoder removal reachable before the capability probe", () => {
+    detailsState.assets = [{ ...encoder, status: "installed" }];
+    const html = renderDetails();
+    expect(html).toContain("Remove GPU encoder");
+    expect(html).not.toContain("Download GPU encoder");
+  });
+
+  it("keeps download progress and cancellation reachable before the probe", () => {
+    detailsState.assets = [
+      {
+        ...encoder,
+        status: "downloading",
+        bytes_downloaded: 0.3 * GIB,
+        total_bytes: 1.2 * GIB,
+      },
+    ];
+    const html = renderDetails();
+    expect(html).toContain('value="0.25"');
+    expect(html).toContain("Cancel");
+    expect(html).not.toContain("Download GPU encoder");
+  });
+
+  it("keeps a failed download retry reachable before the probe", () => {
+    detailsState.assets = [
+      { ...encoder, status: "failed", reason: "asset_hash_invalid" },
+    ];
+    const html = renderDetails();
+    expect(html).toContain("Retry download");
+    expect(html).toContain("did not match its checksum");
   });
 });

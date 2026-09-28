@@ -17,10 +17,10 @@ publicly served cannot deliver packs.
 | Expanded Included content (deferred) | `expanded-included-content` | Not offered in the first release. Both core starters retain their required content.                                                  |
 | Document processing (deferred)       | `document-processing`       | Not offered in the first release. Originals can still be uploaded and stored; new extraction/indexing requests remain unavailable.   |
 
-The GPU speech encoder is offered only beside App Settings → Advanced →
-Experimental → "GPU-accelerated offline speech (WebGPU)", after the renderer
-finds a WebGPU adapter. The general pack list shows it only when its files
-remain installed, for removal or recovery. If the encoder was left inactive
+The GPU speech encoder is offered only beside App Settings → Voice →
+Speech-to-Text → Provider for **Parakeet (WebGPU · Experimental)**, after the
+renderer finds a WebGPU adapter. The general pack list shows it only when its
+files remain installed, for removal or recovery. If the encoder was left inactive
 because offline speech was missing at startup, reinstall offline speech, then
 select Retry: its retained, verified files are reactivated without downloading.
 

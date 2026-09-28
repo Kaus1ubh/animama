@@ -33,6 +33,7 @@ import {
   ELEVENLABS_TTS_MODEL_OPTIONS,
   ELEVENLABS_V3_FINALIZED_CHUNKING_OPTIONS,
   isElevenLabsFinalizedTtsModelId,
+  isParakeetWebgpuPreferred,
   mergePreferences,
   resolveElevenLabsV3FinalizedChunking,
   toElevenLabsTtsModelId,
@@ -116,7 +117,12 @@ import {
 } from "@/ui/settings/DesktopCredentialsPanel";
 import { DesktopFeaturePacksPanel } from "@/ui/settings/DesktopFeaturePacksPanel";
 import { DesktopUpdatesPanel } from "@/ui/settings/DesktopUpdatesPanel";
-import { ParakeetWebgpuSetting } from "@/ui/settings/ExperimentalSettings";
+import { ParakeetWebgpuDetails } from "@/ui/settings/ExperimentalSettings";
+import {
+  getSttSettingsOptions,
+  getSttSettingsPreference,
+  getSttSettingsSelection,
+} from "@/lib/speech/stt-settings";
 import {
   FLAT_SETTINGS_PANEL_CLASS_NAME,
   SettingsGroup,
@@ -243,7 +249,6 @@ const REVEAL_HIGHLIGHT_MS = 1600;
 
 const GROUP_DESCRIPTIONS: Record<string, string> = {
   "Desktop shortcuts": "Press to talk also supports a mouse button.",
-  Experimental: "These features may not work on every device.",
 };
 
 const SELECT_TRIGGER_CLASS_NAME = "w-56";
@@ -353,6 +358,9 @@ export function ApplicationSettingsModal({
   );
   const [selectedSttProvider, setSelectedSttProvider] =
     useState<SttProvider | null>(null);
+  const [parakeetWebgpuPreferred, setParakeetWebgpuPreferred] = useState(
+    isParakeetWebgpuPreferred(resolvedUserPreferences),
+  );
   const [ttsEnabled, setTtsEnabled] = useState(false);
   const [ttsStreamChunks, setTtsStreamChunks] = useState(true);
   const [selectedTtsProvider, setSelectedTtsProvider] =
@@ -409,6 +417,12 @@ export function ApplicationSettingsModal({
   const savedSttProvider = toSttProvider(
     resolvedUserPreferences?.speech?.stt_provider,
   );
+  const savedParakeetWebgpuPreferred = isParakeetWebgpuPreferred(
+    resolvedUserPreferences,
+  );
+  useEffect(() => {
+    setParakeetWebgpuPreferred(savedParakeetWebgpuPreferred);
+  }, [savedParakeetWebgpuPreferred]);
   const savedTtsProvider = toTtsProvider(
     resolvedUserPreferences?.speech?.tts_provider,
   );
@@ -654,7 +668,8 @@ export function ApplicationSettingsModal({
   }, [revealRequest]);
 
   const sttProviderOptions = useMemo(
-    () => getSttProviderOptions(parakeetAvailable, platform),
+    () =>
+      getSttSettingsOptions(getSttProviderOptions(parakeetAvailable, platform)),
     [parakeetAvailable, platform],
   );
   const ttsProviderOptions = useMemo(
@@ -662,8 +677,12 @@ export function ApplicationSettingsModal({
     [platform],
   );
 
+  const selectedSttOption = getSttSettingsSelection(
+    selectedSttProvider,
+    parakeetWebgpuPreferred,
+  );
   const currentSttOption = sttProviderOptions.find(
-    (option) => option.id === selectedSttProvider,
+    (option) => option.id === selectedSttOption,
   );
   const currentTtsOption = ttsProviderOptions.find(
     (option) => option.id === selectedTtsProvider,
@@ -685,10 +704,11 @@ export function ApplicationSettingsModal({
 
   const handleSttProviderChange = useCallback(
     (value: string) => {
-      const nextProvider = toSttProvider(value);
-      if (!nextProvider || isSaving || isInitializing) return;
+      const nextSpeech = getSttSettingsPreference(value);
+      if (!nextSpeech || isSaving || isInitializing) return;
+      const nextProvider = nextSpeech.stt_provider;
       const nextOption = sttProviderOptions.find(
-        (option) => option.id === nextProvider,
+        (option) => option.id === value,
       );
       if (!nextOption || nextOption.disabled) {
         if (nextOption?.reason) {
@@ -697,14 +717,17 @@ export function ApplicationSettingsModal({
         return;
       }
       const previousProvider = selectedSttProvider;
+      const previousWebgpu = parakeetWebgpuPreferred;
       setSelectedSttProvider(nextProvider);
+      setParakeetWebgpuPreferred(
+        nextSpeech.stt_parakeet_webgpu ?? previousWebgpu,
+      );
       setIsSaving(true);
 
-      void updateUserPreferences({
-        speech: { stt_provider: nextProvider },
-      })
+      void updateUserPreferences({ speech: nextSpeech })
         .catch(() => {
           setSelectedSttProvider(previousProvider);
+          setParakeetWebgpuPreferred(previousWebgpu);
           toast.error("Failed to update STT provider.");
         })
         .finally(() => setIsSaving(false));
@@ -713,6 +736,7 @@ export function ApplicationSettingsModal({
       isInitializing,
       isSaving,
       selectedSttProvider,
+      parakeetWebgpuPreferred,
       sttProviderOptions,
       updateUserPreferences,
     ],
@@ -1314,6 +1338,11 @@ export function ApplicationSettingsModal({
         "transcription",
         "parakeet",
         "voice mode",
+        "cpu",
+        "gpu",
+        "webgpu",
+        "experimental",
+        "live previews",
       ],
       render: () => (
         <SettingsRow
@@ -1321,7 +1350,7 @@ export function ApplicationSettingsModal({
           description={currentSttOption?.description}
           control={
             <Select
-              value={selectedSttProvider ?? undefined}
+              value={selectedSttOption}
               onValueChange={handleSttProviderChange}
               disabled={isBusy}
             >
@@ -1329,7 +1358,11 @@ export function ApplicationSettingsModal({
                 className={SELECT_TRIGGER_CLASS_NAME}
                 aria-label="Speech-to-Text provider"
               >
-                <SelectValue placeholder="Select provider" />
+                <SelectValue placeholder="Select provider">
+                  {selectedSttOption === "parakeet_webgpu"
+                    ? "Parakeet (WebGPU)"
+                    : currentSttOption?.label}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {sttProviderOptions.map((option) => (
@@ -1350,6 +1383,9 @@ export function ApplicationSettingsModal({
               {currentSttOption.reason}
             </p>
           ) : null}
+          <ParakeetWebgpuDetails
+            selected={selectedSttOption === "parakeet_webgpu"}
+          />
           {parakeetAvailable === false ? (
             <DesktopFeaturePacksPanel
               only="parakeet-stt"
@@ -1716,21 +1752,6 @@ export function ApplicationSettingsModal({
           }
         />
       ),
-    },
-    {
-      id: "parakeet-webgpu",
-      section: "Advanced",
-      group: "Experimental",
-      label: "GPU-accelerated offline speech (WebGPU)",
-      keywords: [
-        "parakeet",
-        "speech-to-text",
-        "dictation",
-        "gpu",
-        "preview",
-        "experimental",
-      ],
-      render: () => <ParakeetWebgpuSetting disabled={isBusy} />,
     },
   ];
 
