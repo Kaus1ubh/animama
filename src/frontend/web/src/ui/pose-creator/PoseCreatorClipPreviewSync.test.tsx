@@ -12,13 +12,24 @@ const harness = vi.hoisted(() => ({
   catalog: null as unknown,
   sound: null as unknown,
   applyAvatarVFX: vi.fn().mockResolvedValue(true),
+  retainedRefs: null as Array<{ current: unknown }> | null,
+  refIndex: 0,
 }));
-vi.mock("react", async (original) => ({
-  ...(await original<typeof import("react")>()),
-  useEffect: (effect: () => void | (() => void)) => {
-    harness.effects.push(effect);
-  },
-}));
+vi.mock("react", async (original) => {
+  const actual = await original<typeof import("react")>();
+  return {
+    ...actual,
+    useEffect: (effect: () => void | (() => void)) => {
+      harness.effects.push(effect);
+    },
+    // Keep one mounted preview's ownership across manually advanced frames.
+    useRef: (value: unknown) => {
+      if (!harness.retainedRefs) return actual.useRef(value);
+      const index = harness.refIndex++;
+      return (harness.retainedRefs[index] ??= { current: value });
+    },
+  };
+});
 vi.mock("@/stores/pose-creator-store", async (original) => {
   const actual = await original<typeof import("@/stores/pose-creator-store")>();
   return {
@@ -68,6 +79,83 @@ beforeEach(() => {
   harness.effects = [];
   harness.catalog = null;
   harness.sound = null;
+  harness.retainedRefs = null;
+  harness.refIndex = 0;
+  harness.applyAvatarVFX.mockReset().mockResolvedValue(true);
+});
+
+describe("looping timeline effect ownership", () => {
+  it.each([undefined, 3])(
+    "bounds Action-lifetime effects while preserving duration=%s overlap",
+    async (duration) => {
+      const active = new Set(["unrelated-effect"]);
+      harness.retainedRefs = [];
+      harness.catalog = {
+        loadAvatarVFX: vi.fn().mockResolvedValue({ id: "shared-effect" }),
+      };
+      harness.applyAvatarVFX.mockImplementation(async ({ appliedEffectId }) => {
+        active.add(appliedEffectId);
+        return true;
+      });
+      const avatar = {
+        vfxController: {
+          removeEffect: (id: string) => active.delete(id),
+        },
+      } as unknown as NonNullable<
+        ReturnType<typeof usePoseCreatorStore.getState>["activeAvatar"]
+      >;
+      usePoseCreatorStore.setState({
+        authoringMode: "clip",
+        activeAvatar: avatar,
+        clipPlaybackPlaying: true,
+        clipDraft: createPoseCreatorClipDraftFromAnimaPoseClip(
+          {
+            schema: "animaPoseClip/1.0",
+            id: "looping-effects",
+            name: "Looping effects",
+            duration: 2,
+            loop: true,
+            poses: {},
+            poseKeyframes: [],
+            // Distinct timeline events may intentionally share an effect.
+            events: ["first", "second"].map((id) => ({
+              id,
+              kind: "avatar_vfx" as const,
+              time: 0,
+              effectId: "shared-effect",
+              ...(duration === undefined ? {} : { duration }),
+            })),
+          },
+          { fallbackBasePose: "relaxedRest" },
+        ),
+      });
+      const frame = async (time: number, playing = true) => {
+        harness.effects = [];
+        harness.refIndex = 0;
+        usePoseCreatorStore.setState({
+          clipPlaybackAbsoluteTimeSec: time,
+          clipPlaybackPlaying: playing,
+        });
+        renderToString(<PoseCreatorClipPreviewSync />);
+        harness.effects.forEach((effect) => effect());
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      };
+      await frame(0);
+      expect(active.size).toBe(3);
+      for (const time of [2.1, 4.1, 8.8]) {
+        await frame(time);
+        expect(active.size).toBe(duration === undefined ? 3 : 5);
+      }
+      // Late completion/cancellation must address only its own occurrence.
+      const appliedIds = harness.applyAvatarVFX.mock.calls.map(
+        ([request]) => request.appliedEffectId,
+      );
+      expect(new Set(appliedIds).size).toBe(appliedIds.length);
+      await frame(8.8, false);
+      expect([...active]).toEqual(["unrelated-effect"]);
+      usePoseCreatorStore.setState({ activeAvatar: null });
+    },
+  );
 });
 describe("timeline preview posture lifetime", () => {
   it.each(["relaxedRest", undefined])(
