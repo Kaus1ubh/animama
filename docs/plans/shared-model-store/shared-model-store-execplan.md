@@ -870,7 +870,8 @@ The first full desktop run could not bind fixture loopback servers in the sandbo
 The permission-adjusted run passed 374 tests and exposed nine stale Parakeet
 archive fixtures in runtime-supervisor tests; repair is recorded below. The final
 permission-adjusted full run passed all 383 tests in 24 files (5.34 seconds).
-Log: `/tmp/animama-188-p6-desktop-final.log`. Native staging is running separately.
+Log: `/tmp/animama-188-p6-desktop-final.log`. Native staging and audit also passed,
+as recorded under validation below.
 Real signed acceptance and publication still need the concrete candidate/evidence
 described below.
 
@@ -893,7 +894,7 @@ supervisor tests, desktop types and scoped formatting passed. Independent
 targeted review found no weakened assertions or regressions, and the independent
 full-suite recheck passed all 383 tests. Phase 6 implementation review passed;
 one repair round remains unused. No release, licensing approval or native
-acceptance was manufactured.
+acceptance was manufactured. Phase commit: `6a05211e`.
 
 ## Final integration review
 
@@ -909,11 +910,28 @@ Parakeet-only A1–A7 evidence as completion of A8–A11.
 
 ### Code Review #1 Findings
 
-Not started. Record reviewer, exact source, checks and stable findings.
+Fresh independent `final_integration` analysis reviewed
+`f89d3ed33012a19d7647ebe34dc6a5094104de06..6a05211eadaaa8dd7aaee46ca75e08530d6792a5`
+with a clean worktree. No actionable code findings. The reviewer traced raw
+inventory identity across desktop/self-host/release, archive exclusions, setup
+and credential recovery, cloning continuation and publication ordering, reusing
+valid phase evidence. Read-only checks independently confirmed Eve/Azelma only
+in core, 36 optional voices plus Mimi, unchanged existing payload hashes,
+matching notices for all four published sets, and exact URL/size/hash pins for
+all 37 optional backend assets. The browser inventory is 21 files and
+280,549,335 bytes. Diff checks passed.
+
+Code analysis is clear. Native staging and audit subsequently passed on unchanged
+production source. Overall release acceptance remains incomplete: signed-native
+speech/listening/cloning, authorized actual publication/reuse and hosted CI are
+reported separately.
 
 ### Code Review #1 Revisions
 
-Not started. Two repair rounds available; record fixes and reused evidence.
+No integration revisions requested; both repair rounds remain. Any production
+change caused by native staging or CI needs an affected-source recheck before
+handoff. Outstanding owner acceptance does not imply a code-review defect or
+authorize fabricated evidence.
 
 ## Validation and acceptance
 
@@ -951,6 +969,26 @@ pnpm desktop:runtime:audit -- --platform darwin --arch arm64
 These need verified inputs and applicable inventory approvals. Record produced
 catalog identity, object list, model download sizes, peak space and the absence
 of Parakeet archives. Staging/audit is not signing or installed-app acceptance.
+
+**Native evidence (macOS arm64):** both commands passed on the final implementation
+source. A slow cold dependency sync was deliberately stopped and retried using
+the existing shared package cache; verified model inputs were unchanged. The
+runtime contains 5,362 files with no missing/unexpected entries, zero starter
+content diagnostics, pgvector 0.8.6 and a passing native backup/restore check.
+Runtime build ID: `4e598bf185eca9c24c005f71b72d1db843df52687b2d7be25a7f7a948f25563a`.
+Catalog ID: `8f887acbe240d1d21b8a1e8e19d3fe5717827d01898afdca7446f9ffbeb5fe4f`.
+Four exact model manifests are sealed; no Parakeet archives were produced.
+The native browser inventory was independently hash-checked: 21 files,
+280,549,335 bytes, Eve/Azelma only and no Mimi encoder. Core installed size is
+985,470,079 bytes; the feasibility archive is 408,236,352 bytes, with no size
+failures or exceptions. These are not signed DMG/ZIP measurements.
+
+Base Parakeet reports 661,332,409 raw download/installed bytes and a
+1,389,773,682-byte peak requirement. GPU reports 1,238,962,105 raw bytes; its
+existing missing inventory approval keeps it out of the active catalog. The
+release gate remains closed with 752 pending license records. No approval
+receipt was changed. Logs: `/tmp/animama-188-p6-native-stage-cached.log` and
+`/tmp/animama-188-p6-native-audit.log`.
 
 **Model-publication acceptance (A1, A3, A4):** once a concrete release/model set is
 approved for publication, use the existing model stage/scan/publish path through
@@ -995,6 +1033,19 @@ available. Exercise first-use voice and Mimi downloads against the same backend
 asset routes, including offline failure and retry without changing saved choices.
 Record microphone and WebGPU hardware checks as pending when the
 browser cannot perform them; source assertions are not speech-fidelity evidence.
+
+**Built self-host evidence:** the same task-owned stack was switched from
+development to production using the normal reset workflow with verified inputs.
+Only FastAPI publishes the application port; PostgreSQL remains private and
+there is no frontend Node service. Both services became healthy. CUA rendered
+the actual avatar/chat and Voice settings, retaining the disposable setup name
+and Animas. The picker shows both starter voices Included and all 36 optional
+voices as individual downloads; cloning shows its 38 MB download with TTS
+disabled. No provider/voice setting or optional asset was changed. The built
+container's entire browser runtime was hash-checked against all 21 tracked files
+(280,549,335 bytes). Log: `/tmp/animama-188-built-selfhost.log`. Microphone,
+listening, actual optional-object transfers and public first-acquisition remain
+unperformed; fixture coverage is recorded separately above.
 
 **Signed desktop acceptance (A2, A6):** use the release guide's exact signed
 candidate procedure and an isolated fresh test profile/account. Install both
@@ -1131,11 +1182,13 @@ and no implementation/native/model-download tests were run.
 
 ## Outcomes & Retrospective
 
-Implementation setup completed on 2026-09-28; all six phases are authorized.
-The issue and ADR include the agreed Pocket scope, and merged #195 is integrated.
-Implementation and bounded phase review are in progress. Native hardware,
-exact-input licensing review and actual publication evidence remain separate
-execution requirements, not completed results.
+All six implementation phases and their bounded reviews are complete. The issue
+and accepted ADR include the agreed Pocket scope, and merged #195's named saved
+clones and installation-local sample previews are preserved. Fresh final
+integration analysis found no actionable code defects. Native staging/audit and
+built self-host verification passed. Exact-input licensing review, signed
+audio/desktop acceptance, actual publication and hosted CI remain separately
+recorded requirements; code completion does not establish those results.
 
 ## Implementation workspace handoff
 
@@ -1147,6 +1200,9 @@ execution requirements, not completed results.
 - Task-owned development stack: `animama-model-objects-2ca1`,
   `http://animama-model-objects-2ca1.localhost:8600`. The normal
   `check-compose-ready.mjs` probe passed after first dependency installation.
+- The retained stack now serves built production mode at that same URL; its
+  generated stack record contains the production Compose selection. The ignored
+  worktree `.env` still defaults a future plain reset to development.
 - Reduced core models imported offline into a task-owned temporary model store;
   the same isolated stack restarted successfully against the reduced inventory.
   Existing shared caches remain intact.
