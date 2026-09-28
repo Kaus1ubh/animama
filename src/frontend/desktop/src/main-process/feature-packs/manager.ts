@@ -12,8 +12,8 @@ import { RuntimeError, runtimeErrorCode } from "../runtime/errors.js";
 import {
   PACK_METADATA,
   downloadBytes,
-  packContentDigest,
   manifestDigest,
+  validateManifest,
   packId,
   readBoundedJson,
   requiredFreeBytes,
@@ -21,6 +21,12 @@ import {
   type PackCatalog,
   type PackManifest,
 } from "./catalog.js";
+import {
+  modelDownloadDirectory,
+  prepareModelDownloads,
+  stageModelFiles,
+  removeModelDownloads,
+} from "./model-files.js";
 import { downloadPack } from "./download.js";
 import { extractPack } from "./extract.js";
 import { realDirectory, syncDirectory, verifyPackFiles } from "./files.js";
@@ -117,7 +123,11 @@ export class FeaturePackManager {
   }
   private async verify(root: string, manifest: PackManifest): Promise<void> {
     const saved = await readBoundedJson(path.join(root, PACK_METADATA));
-    if (JSON.stringify(saved) !== JSON.stringify(manifest))
+    if (
+      manifest.schema === "animama-model-pack/1"
+        ? manifestDigest(validateManifest(saved)) !== manifestDigest(manifest)
+        : JSON.stringify(saved) !== JSON.stringify(manifest)
+    )
       throw new RuntimeError("pack_manifest_invalid");
     await verifyPackFiles(root, manifest);
     await (this.options.verifyExecutable ?? verifyExecutablePack)(
@@ -313,9 +323,6 @@ export class FeaturePackManager {
     return this.enqueue(id, async (signal) => {
       const manifest = this.manifest(id);
       if (!manifest) throw new RuntimeError("pack_unpublished");
-      // The next installer phase adds assembly for this new catalog transport.
-      if (manifest.schema === "animama-model-pack/1")
-        throw new RuntimeError("pack_transport_unsupported");
       // Checked inside the serialized queue, so a concurrent removal cannot race it.
       if (
         (featurePackRequires[id] ?? []).some(
@@ -325,9 +332,9 @@ export class FeaturePackManager {
         throw new RuntimeError("pack_dependency_missing");
       if (
         this.active[id] &&
-        packContentDigest(this.active[id]!.manifest) ===
-          packContentDigest(manifest)
+        manifestDigest(this.active[id]!.manifest) === manifestDigest(manifest)
       ) {
+        await this.verify(this.active[id]!.root, manifest);
         this.emit(id, {
           state: "installed",
           activeVersion: manifest.version,
@@ -360,12 +367,20 @@ export class FeaturePackManager {
           return;
         }
       }
+      const modelDownloads =
+        manifest.schema === "animama-model-pack/1"
+          ? modelDownloadDirectory(this.options.downloads, manifest)
+          : undefined;
+      const retainedBytes =
+        modelDownloads && manifest.schema === "animama-model-pack/1"
+          ? await prepareModelDownloads(modelDownloads, manifest, signal)
+          : 0;
       const free = this.options.freeBytes
         ? await this.options.freeBytes()
         : await statfs(this.options.root, { bigint: true }).then(
             (info) => info.bavail * info.bsize,
           );
-      if (free < BigInt(requiredFreeBytes(manifest)))
+      if (free < BigInt(requiredFreeBytes(manifest) - retainedBytes))
         throw new RuntimeError("pack_insufficient_disk");
       const partial = path.join(
         this.options.downloads,
@@ -378,28 +393,39 @@ export class FeaturePackManager {
       let lastProgress = 0;
       this.emit(id, { state: "downloading", progress: 0, transferredBytes: 0 });
       try {
-        await downloadPack({
-          manifest,
-          partial,
-          development: this.options.catalog.development,
-          distribution: this.options.catalog.distribution,
-          signal,
-          progress: (bytes) => {
-            if (
-              Date.now() - lastProgress > 100 ||
-              bytes === manifest.archive_bytes
-            ) {
-              lastProgress = Date.now();
-              this.emit(id, {
-                state: "downloading",
-                transferredBytes: bytes,
-                progress: Math.min(1, bytes / manifest.archive_bytes),
-              });
-            }
-          },
-        });
+        const progress = (bytes: number) => {
+          if (
+            Date.now() - lastProgress > 100 ||
+            bytes === downloadBytes(manifest)
+          ) {
+            lastProgress = Date.now();
+            this.emit(id, {
+              state: "downloading",
+              transferredBytes: bytes,
+              progress: Math.min(1, bytes / downloadBytes(manifest)),
+            });
+          }
+        };
+        if (manifest.schema === "animama-model-pack/1") {
+          await stageModelFiles({
+            directory: modelDownloads!,
+            staging,
+            manifest,
+            signal,
+            progress,
+          });
+        } else {
+          await downloadPack({
+            manifest,
+            partial,
+            development: this.options.catalog.development,
+            distribution: this.options.catalog.distribution,
+            signal,
+            progress,
+          });
+          await extractPack(partial, staging, manifest, signal);
+        }
         this.emit(id, { state: "verifying", progress: 1 });
-        await extractPack(partial, staging, manifest, signal);
         await (this.options.verifyExecutable ?? verifyExecutablePack)(
           staging,
           manifest,
@@ -446,6 +472,8 @@ export class FeaturePackManager {
           }
           throw error;
         }
+        if (modelDownloads)
+          await rm(modelDownloads, { recursive: true, force: true });
         await rm(partial, { force: true });
         await rm(`${partial}.json`, { force: true });
         this.emit(id, {
@@ -500,6 +528,12 @@ export class FeaturePackManager {
           this.retainedFiles.add(id);
           throw new RuntimeError("pack_cleanup_pending");
         }
+      }
+      try {
+        await removeModelDownloads(this.options.downloads, id);
+      } catch {
+        this.retainedFiles.add(id);
+        throw new RuntimeError("pack_cleanup_pending");
       }
       this.retainedFiles.delete(id);
       this.emit(id, { state: "not_installed" });

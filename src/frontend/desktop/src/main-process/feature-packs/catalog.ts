@@ -147,6 +147,16 @@ function keys(value: unknown, expected: string[]): void {
     throw new RuntimeError("pack_manifest_invalid");
 }
 export function manifestDigest(manifest: PackManifest): string {
+  if (manifest.schema === "animama-model-pack/1")
+    return createHash("sha256")
+      .update(
+        JSON.stringify({
+          id: manifest.id,
+          version: manifest.version,
+          content: packContentDigest(manifest),
+        }),
+      )
+      .digest("hex");
   return createHash("sha256").update(JSON.stringify(manifest)).digest("hex");
 }
 export function versionDirectory(manifest: PackManifest): string {
@@ -183,7 +193,7 @@ export function downloadBytes(manifest: PackManifest): number {
 export function requiredFreeBytes(manifest: PackManifest): number {
   return Math.max(
     manifest.minimum_peak_free_bytes,
-    downloadBytes(manifest) +
+    (manifest.schema === "animama-model-pack/1" ? 0 : downloadBytes(manifest)) +
       2 * manifest.installed_bytes +
       SAFETY_RESERVE_BYTES,
   );

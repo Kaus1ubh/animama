@@ -14,13 +14,14 @@ import { hashFile } from "./files.js";
 
 /** Which URLs this build may fetch packs from. */
 type PackSource = Pick<PackCatalog, "development" | "distribution">;
+export type ObjectUrlPolicy = (value: string, redirect?: boolean) => URL;
 
 function strongEtag(value: unknown): value is string {
   return typeof value === "string" && /^"[\x21\x23-\x7e]{1,510}"$/u.test(value);
 }
 async function responseFor(
   url: URL,
-  source: PackSource,
+  urlPolicy: ObjectUrlPolicy,
   headers: Record<string, string>,
   signal: AbortSignal,
   redirects = 0,
@@ -48,11 +49,8 @@ async function responseFor(
     if (redirects >= 5 || !response.headers.location)
       throw new RuntimeError("pack_download_redirect");
     return responseFor(
-      downloadUrl(new URL(response.headers.location, url).href, {
-        ...source,
-        redirect: true,
-      }),
-      source,
+      urlPolicy(new URL(response.headers.location, url).href, true),
+      urlPolicy,
       headers,
       signal,
       redirects + 1,
@@ -61,7 +59,7 @@ async function responseFor(
   return response;
 }
 
-/** Resume only a catalog-matched partial for which a server proves exact ETag/range identity. */
+/** Preserve the archive installer's URL authority and existing hash error contract. */
 export async function downloadPack(options: {
   manifest: ArchivePackManifest;
   partial: string;
@@ -70,7 +68,29 @@ export async function downloadPack(options: {
   signal: AbortSignal;
   progress(bytes: number): void;
 }): Promise<void> {
-  const { manifest, partial, signal, progress } = options;
+  const source: PackSource = options;
+  return downloadObject({
+    ...options,
+    object: {
+      url: options.manifest.url,
+      size_bytes: options.manifest.archive_bytes,
+      sha256: options.manifest.archive_sha256,
+    },
+    urlPolicy: (value, redirect) => downloadUrl(value, { ...source, redirect }),
+    hashError: "pack_archive_hash_invalid",
+  });
+}
+
+/** Resume only a pinned partial for which a server proves exact ETag/range identity. */
+export async function downloadObject(options: {
+  object: { url: string; size_bytes: number; sha256: string };
+  partial: string;
+  urlPolicy: ObjectUrlPolicy;
+  signal: AbortSignal;
+  progress(bytes: number): void;
+  hashError?: string;
+}): Promise<void> {
+  const { object, partial, signal, progress, urlPolicy } = options;
   const metadataFile = `${partial}.json`;
   let offset = 0;
   let etag: string | undefined;
@@ -83,10 +103,10 @@ export async function downloadPack(options: {
       unknown
     >;
     if (
-      saved.sha256 === manifest.archive_sha256 &&
-      saved.url === manifest.url &&
+      saved.sha256 === object.sha256 &&
+      saved.url === object.url &&
       strongEtag(saved.etag) &&
-      metadata.size < manifest.archive_bytes
+      metadata.size < object.size_bytes
     ) {
       offset = metadata.size;
       etag = saved.etag;
@@ -97,14 +117,10 @@ export async function downloadPack(options: {
     // A partial without validated resume metadata has no reuse authority.
   }
   signal.throwIfAborted();
-  const source = {
-    development: options.development,
-    distribution: options.distribution,
-  };
-  const url = downloadUrl(manifest.url, source);
+  const url = urlPolicy(object.url);
   let response = await responseFor(
     url,
-    source,
+    urlPolicy,
     {
       "Accept-Encoding": "identity",
       ...(offset && etag
@@ -116,23 +132,22 @@ export async function downloadPack(options: {
   const validRange =
     response.statusCode === 206 &&
     response.headers.etag === etag &&
-    response.headers["content-length"] ===
-      String(manifest.archive_bytes - offset) &&
+    response.headers["content-length"] === String(object.size_bytes - offset) &&
     (!response.headers["content-encoding"] ||
       response.headers["content-encoding"] === "identity") &&
     response.headers["content-range"] ===
-      `bytes ${offset}-${manifest.archive_bytes - 1}/${manifest.archive_bytes}`;
+      `bytes ${offset}-${object.size_bytes - 1}/${object.size_bytes}`;
   if (offset && !validRange) {
     response.destroy();
     offset = 0;
     response = await responseFor(
       url,
-      source,
+      urlPolicy,
       { "Accept-Encoding": "identity" },
       signal,
     );
   }
-  const expected = manifest.archive_bytes - offset;
+  const expected = object.size_bytes - offset;
   if (
     response.statusCode !== (offset ? 206 : 200) ||
     response.headers["content-length"] !== String(expected) ||
@@ -165,8 +180,8 @@ export async function downloadPack(options: {
       atomicWrite(
         metadataFile,
         JSON.stringify({
-          sha256: manifest.archive_sha256,
-          url: manifest.url,
+          sha256: object.sha256,
+          url: object.url,
           etag: response.headers.etag,
         }),
       );
@@ -175,12 +190,12 @@ export async function downloadPack(options: {
     for await (const chunk of response) {
       signal.throwIfAborted();
       transferred += chunk.length;
-      if (transferred > manifest.archive_bytes)
+      if (transferred > object.size_bytes)
         throw new RuntimeError("pack_download_length_invalid");
       await handle.writeFile(chunk);
       progress(transferred);
     }
-    if (transferred !== manifest.archive_bytes)
+    if (transferred !== object.size_bytes)
       throw new RuntimeError("pack_download_length_invalid");
     await handle.sync();
   } catch (error) {
@@ -192,9 +207,9 @@ export async function downloadPack(options: {
     response.destroy();
     await handle.close();
   }
-  if ((await hashFile(partial, signal)) !== manifest.archive_sha256) {
+  if ((await hashFile(partial, signal)) !== object.sha256) {
     await rm(partial, { force: true });
     await rm(metadataFile, { force: true });
-    throw new RuntimeError("pack_archive_hash_invalid");
+    throw new RuntimeError(options.hashError ?? "pack_file_hash_invalid");
   }
 }

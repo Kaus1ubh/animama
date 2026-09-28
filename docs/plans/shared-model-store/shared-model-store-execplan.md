@@ -195,7 +195,7 @@ Paths are repository-relative; inspect their current contents on resumption.
 - [x] Draft ADR 0010 and this plan. Document checks and independent plan review
       are recorded under Planning validation below.
 - [x] Phase 1: shared model references and transport contracts.
-- [ ] Phase 2: verified per-file desktop installation.
+- [x] Phase 2: verified per-file desktop installation.
 - [x] Phase 3: self-host acquisition from shared objects.
 - [x] Synchronize #188 with the accepted voice scope; integrate merged #195.
 - [x] Owner confirmed preserving #195 saved clones and source samples; pending
@@ -386,7 +386,7 @@ commit `5fd8554b` completes its implementation boundary.
 
 **Requirements:** R2, R3, R7. **Acceptance:** A2, A6.
 **Dependency:** Phase 1 contracts. **Issue:** [#198](https://github.com/raymond-van/animama/issues/198).
-**Starting source/commit:** pending execution; integrated base `f89d3ed3`.
+**Starting source/commit:** `5fd8554b` (parallel phase implementation).
 
 1. Extract the existing archive transfer's URL/size/hash handling into an
    object transfer used by both transport variants. Preserve exact range and
@@ -429,15 +429,29 @@ and preserves lifecycle behavior. Keep old active bytes until the normal atomic
 transition commits; clear only task/pack-owned invalid staging. Signed-native
 speech and lifecycle acceptance remains a separate end-to-end gate below.
 
-**Evidence and remaining gates:** not run; source tests are not signed-app proof.
+**Evidence and remaining gates:** 133 focused desktop tests passed across the
+pack lifecycle, model install/contracts and runtime packaging suites. Eleven new
+installer cases cover complete installs, compatible app catalogs, restart/range
+resume, corrupt files, disk bounds, unsafe cache entries, rollback, dependencies
+and removal leases. Initial install cases failed with the Phase 1 unsupported
+transport error before implementation, then passed. Desktop build/typecheck,
+formatting and diff checks passed. An actual cached base inventory produced a
+seven-file raw catalog and only a build report, with its existing approval hash;
+the existing unapproved GPU inventory remains review-required. No native, live
+speech or public-object acceptance is claimed.
 
 #### Code Review #1 Findings
 
-Not started; record source, checks and stable findings.
+Independent analysis of the frozen five-file Phase 2 boundary over `5fd8554b`
+found no actionable issues in raw transfer authority, resume/cache verification,
+disk credit, complete-set activation, rollback, dependencies or archive behavior.
+A separate check runner passed desktop typecheck and scoped diff checks, reusing
+the unchanged 133-test/build evidence.
 
 #### Code Review #1 Revisions
 
-Not started; two repair rounds available.
+No revisions required. Phase 2 review passed with both repair rounds unused.
+The commit carrying this record completes its implementation boundary.
 
 ### Phase 3: Self-host base acquisition from the shared store
 
@@ -511,7 +525,7 @@ and the plan-scoped Ruff checks; existing 258-test evidence was reused.
 #### Code Review #1 Revisions
 
 No revisions required. Phase 3 review passed with both repair rounds unused.
-The commit carrying this record completes the phase implementation; real
+Commit `21fe882d` completes the phase implementation; real
 public-object acquisition remains an explicitly unperformed publication gate.
 
 ### Phase 4: Pocket core split and first-use cloning acquisition
@@ -519,7 +533,7 @@ public-object acquisition remains an explicitly unperformed publication gate.
 **Requirements:** R5, R6, R9, R10, R12. **Acceptance:** A8, A9, A11.
 **Dependencies:** Phase 1 references; reconcile PR #195 before editing shared
 voice generation/runtime code. **Issue:** [#200](https://github.com/raymond-van/animama/issues/200).
-**Starting source/commit:** pending execution; integrated base `f89d3ed3`.
+**Starting source/commit:** `5fd8554b` (parallel phase implementation).
 
 1. Change `scripts/voices/selection.json` so only Eve/Azelma are core. Retain
    all voice identities, bytes, recommendation metadata and any reviewed preview
@@ -1021,4 +1035,7 @@ execution requirements, not completed results.
 - Task-owned development stack: `animama-model-objects-2ca1`,
   `http://animama-model-objects-2ca1.localhost:8600`. The normal
   `check-compose-ready.mjs` probe passed after first dependency installation.
+- Reduced core models imported offline into a task-owned temporary model store;
+  the same isolated stack restarted successfully against the reduced inventory.
+  Existing shared caches remain intact.
 - No model or app objects published.
