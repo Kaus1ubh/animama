@@ -201,7 +201,7 @@ Paths are repository-relative; inspect their current contents on resumption.
 - [x] Owner confirmed preserving #195 saved clones and source samples; pending
   download input stays in memory.
 - [x] Phase 4: two bundled Pocket voices and optional cloning encoder.
-- [ ] Phase 5: optional desktop setup and contextual settings downloads.
+- [x] Phase 5: optional desktop setup and contextual settings downloads.
 - [ ] Phase 6: release integration and current documentation (formerly Phase 4).
 - [ ] Final integration review and local acceptance.
 - [ ] Signed-native, real publication and speech checks recorded separately.
@@ -650,14 +650,15 @@ the latter fail with two preparations/one encoding/one save; restoring the
 actual source passed. Scoped lint/format and diff checks passed. No production
 repair was needed. Independent targeted review #2 passed: P4-1 is resolved,
 normal test wiring is present and the temporary transform is absent. Phase 4
-implementation review passed; one repair round remains unused.
+implementation review passed; one repair round remains unused. Commit
+`52347185` completes Phase 4.
 
 ### Phase 5: Direct optional downloads in desktop setup and Voice settings
 
 **Requirements:** R3, R9–R12. **Acceptance:** A2, A8–A11.
 **Dependencies:** Phases 2 and 4; integrated/reconciled PR #195 UI contract.
 **Issue:** [#201](https://github.com/raymond-van/animama/issues/201).
-**Starting source/commit:** pending execution; integrated base `f89d3ed3`.
+**Starting source/commit:** `52347185`; Phase 2 and Phase 4 reviews passed.
 
 1. Prepare a desktop-width visual mockup for the compact setup section and
    respective Voice settings before substantial UI edits; use the established
@@ -724,15 +725,49 @@ accessible later without changing selected voices/providers. Existing drafts,
 credentials and active verified models survive tested failures. Record the
 mockup/browser evidence and every unperformed native or hardware check.
 
-**Evidence and remaining gates:** not run; no implementation commit.
+**Evidence and remaining gates:** 344 Vitest files / 2,135 tests and 11 real
+Chromium component interactions passed, alongside the normal pose/HMR script
+checks. The browser cases cover first cloning, download-only versus selection,
+shared manager/request state, skip-all, draft recovery through key save/removal
+and failed activation, credential guards, and Continue during a transfer.
+`pnpm check` (web and desktop), `pnpm web:lint` and the 52 desktop feature-pack
+tests passed. The first `pnpm web:test` attempt overlapped `pnpm check`'s package
+build and saw temporary missing generated declarations; after the stable build,
+the complete `test:source` passed. Do not run those package-generating commands
+concurrently. Logs use `/tmp/animama-188-phase5-*`.
+
+The desktop-width mockup preceded implementation. CUA inspected the production
+components at `http://127.0.0.1:8769/` with simulated native/API/GPU responses: a
+Clara download showed progress, blocked native changes, then became Installed;
+unsupported hardware retained GPU removal. A compressed text column at 390 px
+was corrected and rechecked. Current desktop/narrow screenshots are retained
+as local visual evidence. These fixtures prove UI behavior, not signed native
+renderer replacement, real acquisition or speech fidelity.
 
 #### Code Review #1 Findings
 
-Not started; record source, checks and stable findings.
+Independent setup/credential and UI analysis over `52347185` found no
+actionable issues. Independent hooks analysis found **P5-HOOK-1 (P2):** the
+cross-window attempt notification updated only Retry hints, leaving an already
+open second view at `not_installed` while the source downloaded. A two-page
+reproduction observed GET counts [3,1], with no progress or Cancel in the second
+view. The pre-POST notification gap must also be covered.
 
 #### Code Review #1 Revisions
 
-Not started; two repair rounds available.
+Accepted P5-HOOK-1. Repair round 1 adds bounded owner-scoped begin/settled
+notifications that refresh the authoritative manager query, plus a two-window
+held-POST regression case. Four coordination browser cases and eight helper
+tests passed, with scoped type/lint/format checks. Independent targeted review
+#2 passed and independently reran the two-window held-POST/cancellation case
+(one passed). P5-HOOK-1 is resolved; one repair round remains unused.
+
+The independent check runner confirmed the full-suite logs and reran scoped
+setup ESLint, Prettier and diff checks, all passing. In the actual named stack,
+CUA completed disposable onboarding as “Model downloads test” and inspected App
+Settings → Voice: downloads remain available with TTS disabled, and Clara shows
+its 6.1 MB individual action. No optional model download was started there.
+Phase 5 implementation review passed.
 
 ### Phase 6: Release publication, reports and current guidance
 

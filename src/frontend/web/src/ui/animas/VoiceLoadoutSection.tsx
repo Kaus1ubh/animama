@@ -260,6 +260,11 @@ export function AnimaVoicesEditor() {
             onSelect={savePocketVoice}
             availability={downloads.availability}
             onDownload={downloads.install}
+            onRemove={downloads.remove}
+            downloadBusy={downloads.busy}
+            downloadBlockedReason={downloads.blockedReason}
+            downloadError={downloads.error}
+            retryAssetIds={downloads.retryAssetIds}
           />
           {!selectedCloneId && download?.status === "downloading" ? (
             <p role="status" className="text-muted-foreground text-xs">

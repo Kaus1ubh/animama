@@ -85,7 +85,7 @@ describe("GPU speech encoder download control", () => {
     const html = render();
     expect(html).toContain("1.1 GB download · 3.4 GB free space required");
     expect(html).toMatch(
-      /<button(?![^>]*disabled="")[^>]*>.*Download GPU encoder<\/button>/su,
+      /<button(?![^>]*disabled="")[^>]*>.*Download GPU enhancement<\/button>/su,
     );
   });
 
@@ -101,10 +101,10 @@ describe("GPU speech encoder download control", () => {
       basePack: { ...base, state: "not_installed", activeVersion: undefined },
     });
     expect(html).toContain(
-      "Install offline speech recognition first in General → Optional",
+      "Download offline speech recognition first using the action",
     );
     expect(html).toMatch(
-      /<button[^>]*disabled=""[^>]*>.*Download GPU encoder/su,
+      /<button[^>]*disabled=""[^>]*>.*Download GPU enhancement/su,
     );
   });
 
@@ -114,7 +114,28 @@ describe("GPU speech encoder download control", () => {
     });
     expect(html).toContain('value="0.25"');
     expect(html).toContain("Cancel");
-    expect(html).not.toContain("Download GPU encoder");
+    expect(html).not.toContain("Download GPU enhancement");
+  });
+
+  it("keeps cancellation reachable when credentials or another transition block new actions", () => {
+    const html = render({
+      busy: true,
+      blockedReason: "Save or discard the API key first.",
+      gpuPack: { ...gpu, state: "downloading", progress: 0.5 },
+      status: "unsupported",
+    });
+    expect(html).toContain("Save or discard the API key first.");
+    expect(html).toMatch(/<button(?![^>]*disabled="")[^>]*>Cancel<\/button>/u);
+    expect(html).not.toContain("Download GPU enhancement");
+  });
+
+  it("shows a failed download after GPU support disappears but will not offer a fresh install", () => {
+    const html = render({
+      status: "unsupported",
+      gpuPack: { ...gpu, state: "failed", error: "pack_download_failed" },
+    });
+    expect(html).toContain("pack_download_failed");
+    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>.*Retry download/su);
   });
 
   it("offers retry after a failure and removal once installed", () => {
@@ -132,15 +153,15 @@ describe("GPU speech encoder download control", () => {
         hasInstalledFiles: true,
       },
     });
-    expect(installed).toContain("Remove GPU encoder");
-    expect(installed).not.toContain("Download GPU encoder");
+    expect(installed).toContain("Remove GPU enhancement");
+    expect(installed).not.toContain("Download GPU enhancement");
     // Retained files stay removable even without a WebGPU adapter.
     expect(
       render({
         status: "unsupported",
         gpuPack: { ...gpu, state: "installed", hasInstalledFiles: true },
       }),
-    ).toContain("Remove GPU encoder");
+    ).toContain("Remove GPU enhancement");
   });
 
   it("treats an active version as installed after an interrupted removal", () => {
@@ -154,7 +175,7 @@ describe("GPU speech encoder download control", () => {
         hasInstalledFiles: true,
       },
     });
-    expect(html).toContain("Remove GPU encoder");
+    expect(html).toContain("Remove GPU enhancement");
     expect(html).not.toContain("Retry download");
     expect(html).not.toContain("free space required");
   });
@@ -210,7 +231,7 @@ describe("self-host GPU speech encoder download", () => {
     const html = renderAsset();
     expect(html).toContain("1.2 GB download · 40 GB free for downloads");
     expect(html).toMatch(
-      /<button(?![^>]*disabled="")[^>]*>.*Download GPU encoder<\/button>/su,
+      /<button(?![^>]*disabled="")[^>]*>.*Download GPU enhancement<\/button>/su,
     );
     expect(html).toContain("Model attribution");
     expect(html).not.toContain("reloads the app");
@@ -226,7 +247,7 @@ describe("self-host GPU speech encoder download", () => {
     const html = renderAsset({ freeBytes: 1 * GIB });
     expect(html).toContain("Not enough free space");
     expect(html).toMatch(
-      /<button[^>]*disabled=""[^>]*>.*Download GPU encoder/su,
+      /<button[^>]*disabled=""[^>]*>.*Download GPU enhancement/su,
     );
   });
 
@@ -241,7 +262,7 @@ describe("self-host GPU speech encoder download", () => {
     });
     expect(html).toContain('value="0.25"');
     expect(html).toContain("Cancel");
-    expect(html).not.toContain("Download GPU encoder");
+    expect(html).not.toContain("Download GPU enhancement");
   });
 
   it("explains a failure and offers retry", () => {
@@ -256,8 +277,8 @@ describe("self-host GPU speech encoder download", () => {
     const installed = { ...encoder, status: "installed" as const };
     for (const status of ["available", "unsupported"] as const) {
       const html = renderAsset({ status, asset: installed });
-      expect(html).toContain("Remove GPU encoder");
-      expect(html).not.toContain("Download GPU encoder");
+      expect(html).toContain("Remove GPU enhancement");
+      expect(html).not.toContain("Download GPU enhancement");
       expect(html).not.toContain("free for downloads");
     }
   });
@@ -292,8 +313,8 @@ describe("GPU encoder management when another STT provider is selected", () => {
   it("keeps installed encoder removal reachable before the capability probe", () => {
     detailsState.assets = [{ ...encoder, status: "installed" }];
     const html = renderDetails();
-    expect(html).toContain("Remove GPU encoder");
-    expect(html).not.toContain("Download GPU encoder");
+    expect(html).toContain("Remove GPU enhancement");
+    expect(html).not.toContain("Download GPU enhancement");
   });
 
   it("keeps download progress and cancellation reachable before the probe", () => {
@@ -308,7 +329,7 @@ describe("GPU encoder management when another STT provider is selected", () => {
     const html = renderDetails();
     expect(html).toContain('value="0.25"');
     expect(html).toContain("Cancel");
-    expect(html).not.toContain("Download GPU encoder");
+    expect(html).not.toContain("Download GPU enhancement");
   });
 
   it("keeps a failed download retry reachable before the probe", () => {

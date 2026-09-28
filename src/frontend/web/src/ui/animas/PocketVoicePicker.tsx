@@ -23,6 +23,7 @@ import {
   type VoiceSampleSource,
 } from "@/lib/speech/pocket/voice-sample-player";
 import { cn } from "@/lib/utils";
+import { formatFileSize } from "@/lib/user-files/uploads";
 import { Button } from "@/ui/components/button";
 import { Input } from "@/ui/components/input";
 import {
@@ -63,16 +64,34 @@ export function filteredPocketVoices({
 }
 
 type PocketVoicePickerProps = {
-  value: string;
   disabled: boolean;
-  hasCustomVoice: boolean;
-  clones?: VoiceSampleSource[];
-  unavailableSelection?: string;
-  onSelect: (id: string) => Promise<void>;
-  onDeleteClone?: (id: string) => void;
   availability: (id: string) => PocketVoiceAvailability | null;
   onDownload: (assetId: string) => void;
-};
+  onRemove?: (assetId: string) => void;
+  downloadBusy?: boolean;
+  downloadBlockedReason?: string | null;
+  downloadError?: string | null;
+  retryAssetIds?: ReadonlySet<string>;
+} & (
+  | {
+      downloadOnly?: false;
+      value: string;
+      hasCustomVoice: boolean;
+      clones?: VoiceSampleSource[];
+      unavailableSelection?: string;
+      onSelect: (id: string) => Promise<void>;
+      onDeleteClone?: (id: string) => void;
+    }
+  | {
+      downloadOnly: true;
+      value?: never;
+      hasCustomVoice?: never;
+      clones?: never;
+      unavailableSelection?: never;
+      onSelect?: never;
+      onDeleteClone?: never;
+    }
+);
 
 type VoiceSamplePlayback = {
   sample: VoiceSampleState;
@@ -90,7 +109,9 @@ export function PocketVoicePicker(props: PocketVoicePickerProps) {
     props.clones?.find((item) => item.id === props.value) ??
     POCKET_VOICES.find((item) => item.id === props.value);
   const selectedName =
-    voice?.name ?? props.unavailableSelection ?? pocketVoiceLabel(props.value);
+    voice?.name ??
+    props.unavailableSelection ??
+    pocketVoiceLabel(props.value ?? "");
   const changeOpen = (next: boolean) => {
     player.stop();
     setOpen(next);
@@ -103,13 +124,21 @@ export function PocketVoicePicker(props: PocketVoicePickerProps) {
             variant="outline"
             disabled={props.disabled}
             className="min-w-0 flex-1 justify-between"
-            aria-label={`PocketTTS voice: ${selectedName}`}
+            aria-label={
+              props.downloadOnly
+                ? "Browse PocketTTS voices"
+                : `PocketTTS voice: ${selectedName}`
+            }
           >
-            <span className="truncate">{selectedName}</span>
+            <span className="truncate">
+              {props.downloadOnly ? "Browse voices" : selectedName}
+            </span>
             <ChevronDown className="size-4 shrink-0 opacity-60" />
           </Button>
         </PopoverTrigger>
-        <VoiceSampleButton voice={voice} sample={sample} player={player} />
+        {!props.downloadOnly ? (
+          <VoiceSampleButton voice={voice} sample={sample} player={player} />
+        ) : null}
         {voice &&
         props.clones?.some((clone) => clone.id === voice.id) &&
         props.onDeleteClone ? (
@@ -155,12 +184,18 @@ export function PocketVoicePicker(props: PocketVoicePickerProps) {
 /** The selected voice and list share one player, owned by the picker. */
 export function PocketVoiceList({
   value,
+  downloadOnly,
   disabled,
   hasCustomVoice,
   clones = [],
   onSelect,
   availability,
   onDownload,
+  onRemove,
+  downloadBusy,
+  downloadBlockedReason,
+  downloadError,
+  retryAssetIds,
   onDeleteClone,
   onSelected,
   sample,
@@ -180,6 +215,7 @@ export function PocketVoiceList({
       : [];
   const count = voices.length + matchingClones.length;
   const choose = async (id: string) => {
+    if (!onSelect) return;
     try {
       await onSelect(id);
       onSelected();
@@ -323,80 +359,72 @@ export function PocketVoiceList({
         ) : null}
         {voices.map((voice) => {
           const download = availability(voice.id);
-          const downloading = download?.status === "downloading";
-          const needsDownload = download && download.status !== "installed";
+          const label = (
+            <>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium">{voice.name}</p>
+                <p className="text-muted-foreground text-xs">
+                  {[voice.accent, voice.recommended ? "Recommended" : null]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </p>
+              </div>
+              {value === voice.id ? (
+                <Check className="size-4 shrink-0" />
+              ) : null}
+            </>
+          );
           return (
             <div
               key={voice.id}
               role="listitem"
               className={cn(
-                "flex items-center gap-1 rounded-lg px-1",
+                "rounded-lg px-1 py-1",
                 value === voice.id && "bg-muted/60",
               )}
             >
-              <button
-                type="button"
-                disabled={disabled}
-                onClick={() => void choose(voice.id)}
-                aria-label={`Select ${voice.name}`}
-                aria-pressed={value === voice.id}
-                className="hover:bg-muted/40 focus-visible:ring-ring flex min-w-0 flex-1 items-center gap-2 rounded-lg px-2 py-2.5 text-left outline-none focus-visible:ring-2 disabled:opacity-50"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{voice.name}</p>
-                  <p className="text-muted-foreground text-xs">
-                    {[voice.accent, voice.recommended ? "Recommended" : null]
-                      .filter(Boolean)
-                      .join(" · ")}
-                  </p>
-                </div>
-                {value === voice.id ? (
-                  <Check className="size-4 shrink-0" />
-                ) : null}
-              </button>
-              <VoiceSampleButton
-                voice={voice}
-                sample={sample}
-                player={player}
-                compact
-              />
-              <div className="flex w-8 shrink-0 justify-center">
-                {needsDownload ? (
-                  <Button
+              <div className="flex items-center gap-1">
+                {downloadOnly ? (
+                  <div className="flex min-w-0 flex-1 items-center gap-2 px-2 py-2.5">
+                    {label}
+                  </div>
+                ) : (
+                  <button
                     type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    disabled={
-                      disabled || downloading || download.status === "unknown"
-                    }
-                    aria-label={
-                      downloading
-                        ? `Downloading ${voice.name} ${Math.round((download.progress ?? 0) * 100)}%`
-                        : download.status === "failed"
-                          ? `Retry download ${voice.name}`
-                          : `Download ${voice.name}`
-                    }
-                    title={
-                      downloading
-                        ? `Downloading ${Math.round((download.progress ?? 0) * 100)}%`
-                        : `Download ${voice.name}`
-                    }
-                    onClick={() => onDownload(download.assetId)}
+                    disabled={disabled}
+                    onClick={() => void choose(voice.id)}
+                    aria-label={`Select ${voice.name}`}
+                    aria-pressed={value === voice.id}
+                    className="hover:bg-muted/40 focus-visible:ring-ring flex min-w-0 flex-1 items-center gap-2 rounded-lg px-2 py-2.5 text-left outline-none focus-visible:ring-2 disabled:opacity-50"
                   >
-                    {downloading || download.status === "unknown" ? (
-                      <LoaderCircle className="animate-spin motion-reduce:animate-none" />
-                    ) : (
-                      <Download
-                        className={
-                          download.status === "failed"
-                            ? "text-destructive"
-                            : undefined
-                        }
-                      />
-                    )}
-                  </Button>
+                    {label}
+                  </button>
+                )}
+                <VoiceSampleButton
+                  voice={voice}
+                  sample={sample}
+                  player={player}
+                  compact
+                />
+                {!download ? (
+                  <span className="text-muted-foreground px-2 text-xs">
+                    Included
+                  </span>
                 ) : null}
               </div>
+              {download ? (
+                <PocketVoiceDownload
+                  name={voice.name}
+                  sizeBytes={voice.sizeBytes}
+                  state={download}
+                  busy={Boolean(
+                    disabled || downloadBusy || downloadBlockedReason,
+                  )}
+                  retry={retryAssetIds?.has(download.assetId) ?? false}
+                  onDownload={onDownload}
+                  onRemove={onRemove}
+                />
+              ) : null}
             </div>
           );
         })}
@@ -416,6 +444,14 @@ export function PocketVoiceList({
           </Button>
         ) : null}
       </div>
+      {downloadBlockedReason || downloadError ? (
+        <p
+          role="status"
+          className="text-muted-foreground shrink-0 border-t px-4 py-3 text-xs"
+        >
+          {downloadBlockedReason || downloadError}
+        </p>
+      ) : null}
       {sample.error ? (
         <p
           role="alert"
@@ -423,6 +459,92 @@ export function PocketVoiceList({
         >
           {sample.error}
         </p>
+      ) : null}
+    </div>
+  );
+}
+
+/** Download actions never call the picker selection callback or change its saved value. */
+function PocketVoiceDownload({
+  name,
+  sizeBytes,
+  state,
+  busy,
+  retry,
+  onDownload,
+  onRemove,
+}: {
+  name: string;
+  sizeBytes: number;
+  state: PocketVoiceAvailability;
+  busy: boolean;
+  retry: boolean;
+  onDownload: (id: string) => void;
+  onRemove?: (id: string) => void;
+}) {
+  const [confirmRemove, setConfirmRemove] = useState(false);
+  const downloading = state.status === "downloading";
+  const installed = state.status === "installed";
+  const failed = state.status === "failed" || retry;
+  return (
+    <div className="flex flex-wrap items-center gap-2 px-2 pb-2">
+      <span className="text-muted-foreground flex-1 text-xs" role="status">
+        {installed
+          ? "Installed"
+          : downloading
+            ? state.progress === 1
+              ? "Verifying…"
+              : `Downloading ${Math.round((state.progress ?? 0) * 100)}%`
+            : state.status === "unknown"
+              ? "Checking download…"
+              : `${formatFileSize(sizeBytes)}${failed ? " · Retry available" : " download"}`}
+      </span>
+      {downloading ? (
+        <progress
+          className="h-1.5 w-20"
+          max={1}
+          value={state.progress ?? undefined}
+          aria-label={`${name} download progress`}
+        />
+      ) : null}
+      {!installed && !downloading ? (
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          disabled={busy || state.status === "unknown"}
+          aria-label={`${failed ? "Retry download" : "Download"} ${name}`}
+          onClick={() => onDownload(state.assetId)}
+        >
+          {state.status === "unknown" ? (
+            <LoaderCircle className="size-3 animate-spin motion-reduce:animate-none" />
+          ) : (
+            <Download className="size-3" />
+          )}
+          {failed ? "Retry" : "Download"}
+        </Button>
+      ) : null}
+      {onRemove && (installed || downloading) ? (
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          disabled={installed && busy}
+          aria-label={`${downloading ? "Cancel download" : confirmRemove ? "Confirm removal of" : "Remove"} ${name}`}
+          onClick={() => {
+            if (installed && !confirmRemove) setConfirmRemove(true);
+            else {
+              setConfirmRemove(false);
+              onRemove(state.assetId);
+            }
+          }}
+        >
+          {downloading
+            ? "Cancel"
+            : confirmRemove
+              ? "Confirm removal"
+              : "Remove"}
+        </Button>
       ) : null}
     </div>
   );

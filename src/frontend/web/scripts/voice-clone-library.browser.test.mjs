@@ -27,6 +27,10 @@ before(async () => {
   server = await createServer({
     configFile: false,
     root: webRoot,
+    cacheDir: path.join(
+      webRoot,
+      "node_modules/.vite/voice-clone-library-tests",
+    ),
     publicDir: false,
     logLevel: "error",
     define: {
@@ -58,6 +62,83 @@ before(async () => {
 after(async () => {
   await browser?.close();
   await server?.close();
+});
+
+test("download-only browsing downloads and removes a preset without changing voice selection", async () => {
+  const page = await browser.newPage({
+    viewport: { width: 1280, height: 800 },
+  });
+  try {
+    await page.goto(`${origin}/tests/fixtures/voice-clone-library/picker.html`);
+    await page.getByRole("button", { name: "Browse PocketTTS voices" }).click();
+    assert.equal(
+      await page.getByRole("button", { name: /^Select / }).count(),
+      0,
+    );
+    assert.equal(await page.getByText("Included", { exact: true }).count(), 2);
+    assert.deepEqual(
+      await page.evaluate(() => window.voicePickerFixture.actions),
+      [],
+    );
+    await page.getByLabel("Search PocketTTS voices").fill("Clara");
+    await page
+      .getByRole("button", { name: "Download Clara", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Remove Clara", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Confirm removal of Clara", exact: true })
+      .click();
+    const result = await page.evaluate(() => window.voicePickerFixture);
+    assert.equal(result.selected, "eve");
+    assert.deepEqual(
+      result.actions.map((item) => item.operation),
+      ["download", "remove"],
+    );
+    assert.equal(result.actions[0].id, result.actions[1].id);
+  } finally {
+    await page.close();
+  }
+});
+
+test("selection mode keeps independent download actions and keyboard voice selection", async () => {
+  const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  try {
+    await page.goto(
+      `${origin}/tests/fixtures/voice-clone-library/picker.html?selection`,
+    );
+    await page
+      .getByRole("button", { name: "PocketTTS voice: Eve", exact: true })
+      .click();
+    await page.getByLabel("Search PocketTTS voices").fill("Clara");
+    const download = page.getByRole("button", {
+      name: "Download Clara",
+      exact: true,
+    });
+    await download.focus();
+    await page.keyboard.press("Enter");
+    assert.equal(
+      await page.evaluate(() => window.voicePickerFixture.selected),
+      "eve",
+    );
+    await page
+      .getByRole("button", { name: "Select Clara", exact: true })
+      .focus();
+    await page.keyboard.press("Enter");
+    assert.deepEqual(
+      await page.evaluate(() =>
+        window.voicePickerFixture.actions.map((item) => item.operation),
+      ),
+      ["download", "select"],
+    );
+    assert.equal(
+      await page.evaluate(() => window.voicePickerFixture.selected),
+      "clara",
+    );
+  } finally {
+    await page.close();
+  }
 });
 
 /** Controlled HTTP states keep real query mutations while preventing model or content writes. */
