@@ -1,7 +1,12 @@
 "use client";
 
+import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
+import { tags } from "@lezer/highlight";
+
 import { markdown } from "@codemirror/lang-markdown";
 import CodeMirror, { EditorView } from "@uiw/react-codemirror";
+
+import "./memory-markdown.css";
 
 type MemoryCodeEditorProps = {
   value: string;
@@ -15,12 +20,40 @@ type MemoryCodeEditorProps = {
   indentWithTab?: boolean;
 };
 
+/** Markdown syntax has its own palette; ordinary prose retains the app foreground. */
+const memoryMarkdownHighlight = HighlightStyle.define([
+  { tag: tags.heading, color: "var(--memory-link)", fontWeight: "600" },
+  { tag: tags.emphasis, fontStyle: "italic" },
+  { tag: tags.strong, fontWeight: "700" },
+  { tag: tags.strikethrough, textDecoration: "line-through" },
+  {
+    tag: [tags.link, tags.url],
+    color: "var(--memory-link)",
+    textDecoration: "underline",
+    textUnderlineOffset: "3px",
+  },
+  { tag: [tags.monospace, tags.labelName], color: "var(--memory-code)" },
+  {
+    tag: [tags.quote, tags.comment],
+    color: "var(--memory-marker)",
+    fontStyle: "italic",
+  },
+  // Markers stay readable but subordinate to the content they delimit.
+  {
+    tag: [tags.processingInstruction, tags.contentSeparator],
+    color: "var(--memory-marker)",
+    fontWeight: "400",
+    textDecoration: "none",
+  },
+]);
+
 const memoryCodeEditorTheme = EditorView.theme({
   "&": {
     height: "100%",
     backgroundColor: "var(--card)",
     color: "var(--foreground)",
-    fontSize: "0.9375rem",
+    fontSize: "0.875rem",
+    fontWeight: "400",
   },
   "&.cm-focused": { outline: "none" },
   ".cm-scroller": {
@@ -28,7 +61,7 @@ const memoryCodeEditorTheme = EditorView.theme({
     overflow: "auto",
     fontFamily:
       'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-    lineHeight: "1.7",
+    lineHeight: "1.6",
   },
   ".cm-content": {
     minHeight: "100%",
@@ -59,7 +92,7 @@ export function MemoryCodeEditor({
 }: MemoryCodeEditorProps) {
   return (
     <CodeMirror
-      className="h-full"
+      className="memory-markdown-colors h-full"
       value={value}
       height="100%"
       editable={!readOnly}
@@ -73,6 +106,7 @@ export function MemoryCodeEditor({
       }}
       extensions={[
         markdown(),
+        syntaxHighlighting(memoryMarkdownHighlight),
         EditorView.lineWrapping,
         memoryCodeEditorTheme,
         EditorView.contentAttributes.of({

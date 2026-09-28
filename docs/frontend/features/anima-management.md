@@ -10,6 +10,7 @@ Routes:
   existing links and optional logical Avatar handoffs remain intact.
 - `/a/animas`: resolve to the first owned Anima or `/a/animas/new`.
 - `/a/animas/:animaId`: view the rendered `IDENTITY.md` document by default.
+- `/a/animas/:animaId?tab=memories`: read the Anima's relationship `MEMORIES.md`.
 - `/a/animas/:animaId?tab=loadout`: configure the typed loadout.
 - `/a/animas/:animaId/identity`: edit the Anima's `IDENTITY.md` memory entry.
 - `/a/:animaId`: enter the live Avatar/chat surface.
@@ -28,9 +29,24 @@ The panel renders the Anima-scoped `IDENTITY.md`; if that file is unavailable,
 the selected Avatar's starter identity is shown as a fallback. Edit identity
 opens a nested modal route and closing it returns focus to the Identity panel.
 Saving updates the shared memory-entry query used by the rendered preview and
-subsequent chat turns. Open memories selects the Anima's relationship
-`MEMORIES.md` in the Manual [memory workspace](anima-memory.md) by entry ID. It
-is hidden while that file is missing; repair it from the Anima's folder there.
+subsequent chat turns.
+
+## Memories
+
+The Memories tab renders the selected Anima's relationship `MEMORIES.md`.
+Edit memories opens that exact entry in a Markdown editor modal, preserving the
+Memories tab and returning focus to its edit button on close.
+An empty file remains editable; a missing
+file offers Repair memories, which recreates the template without overwriting
+an existing file. Load failures offer Retry.
+
+## Chat profile modal
+
+The Anima's profile modal above chat keeps Identity and Memories in tabs below
+the portrait and mood. It opens on Identity each time. Each tab's edit button
+opens the corresponding Markdown editor without leaving chat; closing the
+editor restores focus to that button and keeps the selected tab. Saving updates
+the shared document preview.
 
 ## Appearance editor
 

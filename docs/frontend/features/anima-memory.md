@@ -170,8 +170,9 @@ The canonical route search state uses `tab=memory|uploads` and
 Anima file is selected by `entryId`, so renaming its Anima keeps the selection;
 a `path` such as `Animas/Annie/MEMORIES.md` resolves through the current folder
 labels and is then replaced with that file's `entryId`. Links from other pages,
-such as the Anima Identity panel's Open memories and the chat
-[memory cue](../runtime/chat.md#memory-cue)'s Open in Memories, use `entryId`.
+such as the chat [memory cue](../runtime/chat.md#memory-cue)'s Open in Memories,
+use `entryId`. The Anima management and chat profile Memories tabs instead open
+the file editor in place.
 Task prompts are not route state. File and manager-run updates replace the
 current history entry, while tab and Manual/Memory Manager mode changes push
 history. Explorer search, expansion, collapse, focus, responsive pane, drafts,

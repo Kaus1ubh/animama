@@ -33,7 +33,7 @@ import {
   type AnimaAppearanceSection,
 } from "@/ui/animas/AnimaAppearanceDialog";
 import { MemoryEntryEditorModal } from "@/ui/memory/MemoryEntryEditorModal";
-import { AnimaIdentitySection } from "@/ui/animas/AnimaIdentitySection";
+import { AnimaProfileDocuments } from "./AnimaProfileDocuments";
 import { useMemoryEntryByPath } from "@/query/hooks/useMemoryEntries";
 import { resolveAnimaIdentityContent } from "@/lib/animas/anima-management-presentation";
 import { DialogOverlay } from "@/ui/components/dialog";
@@ -189,8 +189,13 @@ function AnimaProfile({
     });
     setEmotionsOpen(false);
   };
-  const [identityEditorOpen, setIdentityEditorOpen] = useState(false);
-  const identityTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const [documentTab, setDocumentTab] = useState<"identity" | "memories">(
+    "identity",
+  );
+  const [documentEditor, setDocumentEditor] = useState<
+    { path: "IDENTITY.md" } | { entryId: string } | null
+  >(null);
+  const documentTriggerRef = useRef<HTMLButtonElement | null>(null);
   const appearanceTriggerRef = useRef<HTMLButtonElement | null>(null);
   const [appearanceSection, setAppearanceSection] =
     useState<AnimaAppearanceSection | null>(null);
@@ -264,7 +269,7 @@ function AnimaProfile({
         }}
         onEscapeKeyDown={(event) => {
           // Radix gives nested editors first refusal on Escape.
-          if (appearanceSection || identityEditorOpen) return;
+          if (appearanceSection || documentEditor) return;
           if (emotionsOpen && view === "profile") {
             event.preventDefault();
             collapseEmotions();
@@ -272,7 +277,7 @@ function AnimaProfile({
         }}
       >
         <Dialog.Description className="sr-only">
-          Appearance, emotions, identity and settings.
+          Appearance, emotions, identity, memories and settings.
         </Dialog.Description>
         <div
           ref={setProfileElement}
@@ -499,22 +504,20 @@ function AnimaProfile({
                   </motion.section>
                 ) : null}
               </AnimatePresence>
-              <section
-                className="border-border/70 mt-6 border-t pt-5"
-                aria-label="Identity"
-              >
+              <section aria-label="Anima documents">
                 {anima?.id ? (
-                  <AnimaIdentitySection
+                  <AnimaProfileDocuments
+                    tab={documentTab}
+                    onTabChange={setDocumentTab}
                     animaId={anima.id}
                     identity={identity}
                     identityLoading={identityQuery.isLoading}
                     identityError={identityQuery.isError}
                     fallbackIdentity={fallbackIdentity}
-                    onEdit={(event) => {
-                      identityTriggerRef.current = event.currentTarget;
-                      setIdentityEditorOpen(true);
+                    onEdit={(event, file) => {
+                      documentTriggerRef.current = event.currentTarget;
+                      setDocumentEditor(file);
                     }}
-                    presentation="plain"
                   />
                 ) : (
                   <p className="text-muted-foreground text-sm">
@@ -560,15 +563,15 @@ function AnimaProfile({
             </motion.section>
           ) : null}
         </AnimatePresence>
-        {anima?.id && identityEditorOpen ? (
+        {anima?.id && documentEditor ? (
           <MemoryEntryEditorModal
             animaId={anima.id}
-            path="IDENTITY.md"
+            {...documentEditor}
             allowedScope="anima"
-            onClose={() => setIdentityEditorOpen(false)}
+            onClose={() => setDocumentEditor(null)}
             onCloseAutoFocus={(event) => {
               event.preventDefault();
-              identityTriggerRef.current?.focus({ preventScroll: true });
+              documentTriggerRef.current?.focus({ preventScroll: true });
             }}
           />
         ) : null}
