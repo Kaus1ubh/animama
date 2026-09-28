@@ -32,8 +32,8 @@ function descriptor(): PyAnimaRuntime["content_descriptor"] {
   };
 }
 
-describe("typed Music Track projection", () => {
-  it("projects built-in and authorized tracks", () => {
+describe("retired Music Track projection", () => {
+  it("ignores historical built-in and Local Music without reclassifying it as SFX", () => {
     const runtime = adaptRuntimeSnapshot({
       catalog_version: 1,
       loadout_revision: 2,
@@ -105,25 +105,12 @@ describe("typed Music Track projection", () => {
         },
       ],
       warnings: [],
-    } satisfies PyAnimaRuntime);
-    expect(runtime.bgm.map((entry) => entry.runtime_id)).toEqual([
-      "builtin-binding",
-      "private-binding",
-    ]);
+    } as unknown as PyAnimaRuntime);
+    expect(runtime).not.toHaveProperty("bgm");
     const catalog = new AnimaRuntimeCatalog(runtime);
-    expect(catalog.listAudio("bgm")).toEqual([
-      expect.objectContaining({
-        runtimeId: "builtin-binding",
-        autoplay: true,
-        loop: true,
-        volume: 0.8,
-      }),
-      expect.objectContaining({
-        runtimeId: "private-binding",
-        autoplay: false,
-        loop: false,
-        volume: 0.5,
-      }),
-    ]);
+    expect(catalog.listAudio("sfx")).toEqual([]);
+    expect(
+      runtime.warnings.some((warning) => warning.code.includes("music")),
+    ).toBe(false);
   });
 });

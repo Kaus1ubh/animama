@@ -1534,8 +1534,8 @@ behavior, change narration, and details already owned by another guide.
 
 `uv run pytest -q tests/test_content_migration_recovery.py` creates a unique
 PostgreSQL database per case, applies the real Alembic graph and runs installation
-bootstrap. It checks literal `.animama /2` bytes/digests, exact import retries
-across fresh services, later edits/deletions, owner denial and journal recovery
+bootstrap. It checks reviewed `/3` package bytes/digests in `.zip` files, exact
+import retries across fresh services, later edits/deletions, owner denial and journal recovery
 or fencing. It never substitutes `create_all` for migrations.
 
 Docker/testcontainers is the default. When Docker is unavailable, an explicit

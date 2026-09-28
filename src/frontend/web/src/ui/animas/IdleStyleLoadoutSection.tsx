@@ -1,23 +1,20 @@
 import { useState } from "react";
+import { Link } from "@tanstack/react-router";
 import {
   ChevronDown,
   ChevronRight,
+  Copy,
   EllipsisVertical,
   Filter,
   Loader2,
+  Pencil,
   Play,
-  Plus,
   RotateCcw,
   VolumeX,
-  X,
 } from "lucide-react";
 
-import type {
-  PyAnimaIdleStyle,
-  PyIdleAnimationSummary,
-} from "@animama/runtime-contracts/api-types";
+import type { PyAnimaIdleStyle } from "@animama/runtime-contracts/api-types";
 import type { PyIdleStyle } from "@/lib/content/catalogTypes";
-import type { IdleStyleAssignment } from "@/lib/loadout/idleStylePresentation";
 import { presentIdleStyle } from "@/lib/loadout/idleStylePresentation";
 import { LoadoutSectionDisclosure } from "@/ui/animas/LoadoutSectionDisclosure";
 import { StarterBadge } from "@/ui/animas/StarterBadge";
@@ -42,11 +39,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/ui/components/popover";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/ui/components/tooltip";
 
 function sourceKey(
   source: PyIdleStyle["source"] | PyAnimaIdleStyle["source"] | undefined,
@@ -138,226 +130,15 @@ function ActiveStyleSelector({
   );
 }
 
-function AddAnimationControl({
-  row,
-  animations,
-  disabled,
-  onAdd,
-}: {
-  row: IdleStyleAssignment;
-  animations: PyIdleAnimationSummary[];
-  disabled: boolean;
-  onAdd: (animationId: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const available = animations.filter(
-    (animation) => !row.animationIds.includes(animation.animation_id),
-  );
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={disabled || available.length === 0}
-        >
-          <Plus /> Add animation
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent align="end" sideOffset={6} className="w-72 p-0">
-        <Command>
-          <CommandInput placeholder="Search animations" autoFocus />
-          <CommandList>
-            <CommandEmpty>No more animations available.</CommandEmpty>
-            <CommandGroup>
-              {available.map((animation) => (
-                <CommandItem
-                  key={animation.animation_id}
-                  value={`${animation.name} ${animation.description ?? ""}`}
-                  onSelect={() => {
-                    setOpen(false);
-                    onAdd(animation.animation_id);
-                  }}
-                >
-                  <span className="truncate">{animation.name}</span>
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
-  );
-}
-
-function AssignmentPool({
-  row,
-  animations,
-  expanded,
-  disabled,
-  hasOverride,
-  onToggle,
-  onPreviewAnimation,
-  onUpdatePool,
-  onRestorePool,
-}: {
-  row: IdleStyleAssignment;
-  animations: PyIdleAnimationSummary[];
-  expanded: boolean;
-  disabled: boolean;
-  hasOverride: boolean;
-  onToggle: () => void;
-  onPreviewAnimation: (animationId: string) => void;
-  onUpdatePool: (animationIds: string[]) => void;
-  onRestorePool: () => void;
-}) {
-  const names = new Map(
-    animations.map((animation) => [animation.animation_id, animation.name]),
-  );
-  const countLabel = `${row.animationIds.length} ${
-    row.animationIds.length === 1 ? "animation" : "animations"
-  }`;
-
-  return (
-    <div
-      className={`border-b border-l-2 last:border-b-0 ${
-        expanded ? "border-l-primary" : "border-l-transparent"
-      }`}
-    >
-      <div
-        className={`flex items-center gap-2 pr-2 ${
-          expanded ? "bg-primary/5 hover:bg-primary/8" : "hover:bg-muted/30"
-        }`}
-      >
-        <button
-          type="button"
-          className="focus-visible:ring-ring flex min-w-0 flex-1 items-center gap-3 px-4 py-3.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset"
-          aria-expanded={expanded}
-          onClick={onToggle}
-        >
-          <span className="truncate text-sm font-semibold">{row.label}</span>
-          <span className="text-muted-foreground shrink-0 text-xs">
-            {countLabel}
-          </span>
-        </button>
-        {expanded ? (
-          <>
-            {row.key !== "default" && hasOverride ? (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    type="button"
-                    size="icon-sm"
-                    variant="ghost"
-                    disabled={disabled}
-                    aria-label={`Use Default animations for ${row.label}`}
-                    onClick={onRestorePool}
-                  >
-                    <RotateCcw />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Use Default pool</TooltipContent>
-              </Tooltip>
-            ) : null}
-            <AddAnimationControl
-              row={row}
-              animations={animations}
-              disabled={disabled}
-              onAdd={(animationId) =>
-                onUpdatePool([...row.animationIds, animationId])
-              }
-            />
-          </>
-        ) : null}
-        <Button
-          type="button"
-          size="icon-sm"
-          variant="ghost"
-          aria-label={`${expanded ? "Collapse" : "Expand"} ${row.label}`}
-          aria-expanded={expanded}
-          onClick={onToggle}
-        >
-          {expanded ? (
-            <ChevronDown className="text-foreground size-4" />
-          ) : (
-            <ChevronRight className="text-foreground size-4" />
-          )}
-        </Button>
-      </div>
-      {expanded ? (
-        <div className="border-t">
-          {row.animationIds.map((animationId) => {
-            const name = names.get(animationId) ?? animationId;
-            const finalAnimation = row.animationIds.length === 1;
-            return (
-              <div
-                key={animationId}
-                className="flex min-w-0 items-center gap-3 border-b px-4 py-3.5 last:border-b-0"
-              >
-                <span className="min-w-0 flex-1 truncate text-sm font-medium">
-                  {name}
-                </span>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      type="button"
-                      size="icon-sm"
-                      variant="outline"
-                      aria-label={`Preview ${name}`}
-                      onClick={() => onPreviewAnimation(animationId)}
-                    >
-                      <Play />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Preview animation</TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span>
-                      <Button
-                        type="button"
-                        size="icon-sm"
-                        variant="ghost"
-                        disabled={disabled || finalAnimation}
-                        aria-label={`Remove ${name} from ${row.label}`}
-                        onClick={() =>
-                          onUpdatePool(
-                            row.animationIds.filter((id) => id !== animationId),
-                          )
-                        }
-                      >
-                        <X />
-                      </Button>
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    {finalAnimation
-                      ? "Each pool needs at least one animation"
-                      : "Remove from pool"}
-                  </TooltipContent>
-                </Tooltip>
-              </div>
-            );
-          })}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-/** Inline Idle Style selection and emotion-specific animation pool editor. */
+/** Select or inspect a shared Style; its pools are edited in Creator Studio. */
 export function IdleStyleLoadoutSection({
   style,
   available,
   availableLoading,
   disabled,
   onPreview,
-  onPreviewAnimation,
+  onPreviewGesture,
   onSelect,
-  onUpdatePool,
-  onRestorePool,
   onRevert,
   onLeaveEmpty,
 }: {
@@ -366,10 +147,8 @@ export function IdleStyleLoadoutSection({
   availableLoading: boolean;
   disabled: boolean;
   onPreview: () => void;
-  onPreviewAnimation: (emotion: string, animationId: string) => void;
+  onPreviewGesture: (gestureRef: string) => void;
   onSelect: (style: PyIdleStyle) => void;
-  onUpdatePool: (emotion: string, animationIds: string[]) => void;
-  onRestorePool: (emotion: string) => void;
   onRevert: () => void;
   onLeaveEmpty: () => void;
 }) {
@@ -380,8 +159,9 @@ export function IdleStyleLoadoutSection({
   const [showInherited, setShowInherited] = useState(false);
   const rows = presentIdleStyle(style);
   const visibleRows = rows.filter(
-    (row) => row.key === "default" || showInherited || !row.fallsBackToDefault,
+    (row) => row.mode !== "inherit" || showInherited,
   );
+  const styleId = style.source?.catalog_item_id;
   const toggle = (key: string) =>
     setExpandedPools((current) => {
       const next = new Set(current);
@@ -404,28 +184,23 @@ export function IdleStyleLoadoutSection({
           <p className="text-muted-foreground text-sm font-medium">
             Active style
           </p>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <ActiveStyleSelector
               style={style}
               available={available}
               disabled={disabled}
               onSelect={onSelect}
             />
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  type="button"
-                  size="icon-lg"
-                  variant="outline"
-                  disabled={style.state === "empty"}
-                  aria-label="Preview active Idle Style"
-                  onClick={onPreview}
-                >
-                  <Play />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Preview Idle Style</TooltipContent>
-            </Tooltip>
+            <Button
+              type="button"
+              size="icon-lg"
+              variant="outline"
+              disabled={disabled || !style.default_pool?.length}
+              aria-label="Preview active Idle Style"
+              onClick={onPreview}
+            >
+              <Play />
+            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -439,6 +214,28 @@ export function IdleStyleLoadoutSection({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                {styleId ? (
+                  <>
+                    <DropdownMenuItem asChild>
+                      <Link
+                        to="/a/idle-styles/$idleStyleId/edit"
+                        params={{ idleStyleId: styleId }}
+                        search={{ duplicate: false }}
+                      >
+                        <Pencil /> Edit Style
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link
+                        to="/a/idle-styles/$idleStyleId/edit"
+                        params={{ idleStyleId: styleId }}
+                        search={{ duplicate: true }}
+                      >
+                        <Copy /> Duplicate and edit
+                      </Link>
+                    </DropdownMenuItem>
+                  </>
+                ) : null}
                 {style.state !== "starter" ? (
                   <DropdownMenuItem onSelect={onRevert}>
                     <RotateCcw /> Use Starter
@@ -448,7 +245,7 @@ export function IdleStyleLoadoutSection({
                   disabled={style.state === "empty"}
                   onSelect={onLeaveEmpty}
                 >
-                  <VolumeX /> Leave empty
+                  <VolumeX /> No Idle Style
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -458,11 +255,16 @@ export function IdleStyleLoadoutSection({
               <Loader2 className="size-3 animate-spin" /> Loading Idle Styles…
             </p>
           ) : null}
+          {styleId ? (
+            <p className="text-muted-foreground text-xs">
+              Pools belong to this Style. Duplicate it for a variation used only
+              by this Anima, then select the saved copy here.
+            </p>
+          ) : null}
         </div>
-
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-2">
-            <h3 className="font-semibold">Emotion assignments</h3>
+            <h3 className="font-semibold">Emotion and intensity pools</h3>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -481,36 +283,78 @@ export function IdleStyleLoadoutSection({
                     setShowInherited(checked === true)
                   }
                 >
-                  Show inherited emotions
+                  Show inherited cells
                 </DropdownMenuCheckboxItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-
           {style.state === "empty" ? (
             <div className="text-muted-foreground rounded-xl border px-4 py-8 text-center text-sm">
-              Choose an Idle Style to assign emotion animations.
+              No scheduled idle Gestures. Procedural breathing and resting
+              continue.
             </div>
           ) : (
             <div className="overflow-hidden rounded-xl border">
-              {visibleRows.map((row) => (
-                <AssignmentPool
-                  key={row.key}
-                  row={row}
-                  animations={style.animations ?? []}
-                  expanded={expandedPools.has(row.key)}
-                  disabled={disabled}
-                  hasOverride={Boolean(style.pool_overrides?.[row.key])}
-                  onToggle={() => toggle(row.key)}
-                  onPreviewAnimation={(animationId) =>
-                    onPreviewAnimation(row.key, animationId)
-                  }
-                  onUpdatePool={(animationIds) =>
-                    onUpdatePool(row.key, animationIds)
-                  }
-                  onRestorePool={() => onRestorePool(row.key)}
-                />
-              ))}
+              {visibleRows.map((row) => {
+                const expanded = expandedPools.has(row.key);
+                return (
+                  <div key={row.key} className="border-b last:border-b-0">
+                    <button
+                      type="button"
+                      className="hover:bg-muted/30 focus-visible:ring-ring flex w-full items-center gap-3 px-4 py-3 text-left focus-visible:ring-2 focus-visible:ring-inset"
+                      aria-expanded={expanded}
+                      onClick={() => toggle(row.key)}
+                    >
+                      <span className="flex-1 text-sm font-semibold">
+                        {row.label}
+                      </span>
+                      <span className="text-muted-foreground text-xs">
+                        {row.mode === "none"
+                          ? "No idle"
+                          : row.mode === "inherit"
+                            ? "Uses Default"
+                            : row.gestureRefs.length
+                              ? `${row.gestureRefs.length} ${row.gestureRefs.length === 1 ? "Gesture" : "Gestures"}`
+                              : "No scheduled idle"}
+                      </span>
+                      {expanded ? (
+                        <ChevronDown className="size-4" />
+                      ) : (
+                        <ChevronRight className="size-4" />
+                      )}
+                    </button>
+                    {expanded ? (
+                      <div className="border-t">
+                        {row.gestureRefs.map((ref, index) => (
+                          <div
+                            key={ref}
+                            className="flex min-w-0 items-center gap-3 px-4 py-3"
+                          >
+                            <span className="min-w-0 flex-1 truncate text-sm">
+                              {row.gestureNames[index]}
+                            </span>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon-sm"
+                              disabled={disabled}
+                              aria-label={`Preview ${row.gestureNames[index]}`}
+                              onClick={() => onPreviewGesture(ref)}
+                            >
+                              <Play />
+                            </Button>
+                          </div>
+                        ))}
+                        {!row.gestureRefs.length ? (
+                          <p className="text-muted-foreground px-4 py-3 text-sm">
+                            No scheduled idle Gesture for this cell.
+                          </p>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

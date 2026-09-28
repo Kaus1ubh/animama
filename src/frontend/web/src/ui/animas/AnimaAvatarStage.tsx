@@ -173,8 +173,8 @@ function StageAvatarActor({
       createContentPreviewClipEventBridge({
         catalog: catalogSession,
         onSceneVFXChange,
-        playSfx: (runtimeId) =>
-          applySoundPlayer.play(catalogSession, runtimeId),
+        playSfx: (runtimeId, signal) =>
+          applySoundPlayer.play(catalogSession, runtimeId, signal),
       }),
     [applySoundPlayer, catalogSession, onSceneVFXChange],
   );

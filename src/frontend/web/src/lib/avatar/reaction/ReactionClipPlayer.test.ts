@@ -1,9 +1,138 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { PerspectiveCamera } from "three";
 
+import { Avatar } from "../Avatar";
 import type { AnimaPoseClip } from "../poses/animaPoseClip";
+import { AVATAR_VFX_CATALOG } from "../vfx/catalog";
+import { isHoverVFXEntry } from "../vfx/types";
 import { ReactionClipPlayer } from "./ReactionClipPlayer";
 
 describe("ReactionClipPlayer", () => {
+  it.each(["pending", "active"] as const)(
+    "keeps the %s loop occurrence owned after an older Avatar load rejects",
+    async (replacement) => {
+      const active = new Set(["unrelated-effect"]);
+      const effect = AVATAR_VFX_CATALOG.find(isHoverVFXEntry)!;
+      const first = Promise.withResolvers<typeof effect>();
+      const second = Promise.withResolvers<typeof effect>();
+      const loadAvatarVFX = vi
+        .fn()
+        .mockReturnValueOnce(first.promise)
+        .mockReturnValueOnce(second.promise);
+      const avatar = new Avatar(new PerspectiveCamera(), null, {
+        mediaCatalog: { loadAvatarVFX } as unknown as NonNullable<
+          ConstructorParameters<typeof Avatar>[2]
+        >["mediaCatalog"],
+      });
+      vi.spyOn(avatar, "isReady", "get").mockReturnValue(true);
+      avatar.vfxController = {
+        removeEffect: (id: string) => active.delete(id),
+        applyHoverVFX: async ({ effectId }: { effectId: string }) => {
+          active.add(effectId);
+        },
+      } as unknown as NonNullable<Avatar["vfxController"]>;
+      const player = new ReactionClipPlayer({
+        setExpressionOverlay: () => true,
+        clearExpressionOverlay: () => true,
+      });
+      avatar.reactionClipPlayer = player;
+      avatar.setReactionClipExternalEventSink(null);
+      player.play({
+        ownerId: "owner",
+        runId: "run",
+        sourceEventId: "source",
+        emotionEventId: "emotion",
+        clip: {
+          schema: "animaPoseClip/1.0",
+          id: "late-load",
+          name: "Late load",
+          duration: 2,
+          loop: true,
+          poses: {},
+          poseKeyframes: [],
+          events: [
+            { id: "effect", time: 0, kind: "avatar_vfx", effectId: effect.id },
+          ],
+        },
+      });
+      player.update(2.1);
+      if (replacement === "active") {
+        second.resolve(effect);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(active.size).toBe(2);
+      }
+      first.reject(new Error("Earlier loop load failed"));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      second.resolve(effect);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(player.getSnapshot().activeEventCount).toBe(1);
+      expect(active.size).toBe(2);
+      player.clear("owner", { immediate: true });
+      expect([...active]).toEqual(["unrelated-effect"]);
+    },
+  );
+
+  it.each([undefined, 3])(
+    "bounds Action-lifetime loop effects while retaining duration=%s overlap",
+    (duration) => {
+      const active = new Set(["unrelated-effect"]);
+      const occurrences: number[] = [];
+      const player = new ReactionClipPlayer(
+        {
+          setExpressionOverlay: () => true,
+          clearExpressionOverlay: () => true,
+        },
+        {
+          eventSink: {
+            applyAvatarVFX: (_event, context) => {
+              active.add(context.appliedId);
+              occurrences.push(context.occurrenceIndex);
+            },
+            clearAvatarVFX: (_event, context) => {
+              active.delete(context.appliedId);
+            },
+          },
+        },
+      );
+      player.play({
+        ownerId: "owner",
+        runId: "run",
+        sourceEventId: "source",
+        emotionEventId: "emotion",
+        clip: {
+          schema: "animaPoseClip/1.0",
+          id: "looping-effects",
+          name: "Looping effects",
+          duration: 2,
+          loop: true,
+          poses: {},
+          poseKeyframes: [],
+          // Separate timeline events can deliberately use the same catalog item.
+          events: ["first", "second"].map((id) => ({
+            id,
+            kind: "avatar_vfx" as const,
+            time: 0,
+            effectId: "shared-effect",
+            ...(duration === undefined ? {} : { duration }),
+          })),
+        },
+      });
+      expect(active.size).toBe(3);
+      for (const elapsed of [2.1, 2, 4.7]) {
+        player.update(elapsed);
+        expect(player.getSnapshot().activeEventCount).toBe(
+          duration === undefined ? 2 : 4,
+        );
+        expect(active.size).toBe(duration === undefined ? 3 : 5);
+      }
+      expect(occurrences).toEqual([0, 0, 1, 1, 2, 2, 3, 3, 4, 4]);
+      expect(player.clear("other-owner", { immediate: true })).toBe(false);
+      expect(active.size).toBe(duration === undefined ? 3 : 5);
+      expect(player.clear("owner", { immediate: true })).toBe(true);
+      expect([...active]).toEqual(["unrelated-effect"]);
+    },
+  );
+
   it("expires timed VFX independently and clears remaining VFX when the Action ends", () => {
     const cleared: string[] = [];
     const applied: string[] = [];

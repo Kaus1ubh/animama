@@ -11,6 +11,7 @@ import stat
 import unicodedata
 import uuid
 from collections.abc import Mapping
+from contextlib import AbstractContextManager, nullcontext
 from dataclasses import replace
 from datetime import UTC, datetime
 from io import BytesIO
@@ -641,6 +642,11 @@ class FilesystemContentStore(ContentStore):
                 )
         return entries
 
+    def inspect_package_tree(self, root: Path) -> list[ScannedContentEntry]:
+        """Reuse the canonical scanner with private roots and no publication or journals."""
+        inspector = FilesystemContentStore(included_root=root, local_root=root, operations_root=root / ".unused")
+        return inspector.scan(ContentSource.LOCAL)
+
     def open_verified_file(
         self,
         *,
@@ -735,6 +741,91 @@ class FilesystemContentStore(ContentStore):
             return True
         raise ContentConflictError("operation_incomplete")
 
+    def retain_transition_originals(
+        self, *, operation_id: str, entry: CatalogContentEntry | None, binding_facts: list[dict[str, Any]]
+    ) -> None:
+        """Retain immutable pre-transition bytes even after successful journal cleanup.
+
+        A partial backup can be resumed, but an existing byte or manifest mismatch
+        is a preservation conflict. No original or operator edit is overwritten.
+        """
+
+        if self._mutation is None:
+            raise ContentConflictError("content_transition_requires_mutation")
+        operation_id = self._validated_operation_id(operation_id)
+        manifest_path = safe_path(
+            self._operations_root, f"transitions/{operation_id}/manifest.json", create_parents=True
+        )
+        inventory = []
+        for index, file in enumerate(entry.files if entry is not None else ()):
+            name = f"{index:04d}.original"
+            destination = safe_path(manifest_path.parent, name)
+            facts = {
+                "backup": name,
+                "relative_path": file.relative_path,
+                "role": file.role,
+                "size_bytes": file.size_bytes,
+                "sha256": file.sha256,
+            }
+            inventory.append(facts)
+            if destination.exists() or destination.is_symlink():
+                self._assert_regular_file(destination)
+                if destination.stat().st_size != file.size_bytes or _sha256_file(destination) != file.sha256:
+                    raise ContentConflictError("content_transition_original_conflict")
+                continue
+            source = self.open_verified_file(
+                source=file.source,
+                relative_path=file.relative_path,
+                expected_size_bytes=file.size_bytes,
+                expected_sha256=file.sha256,
+                media_type=file.media_type,
+                source_mount_id=file.source_mount_id,
+            )
+            temporary = destination.with_name(f".{name}.{uuid.uuid4().hex}.tmp")
+            try:
+                with source.handle, temporary.open("xb") as target:
+                    os.fchmod(target.fileno(), 0o600)
+                    while chunk := source.handle.read(1024 * 1024):
+                        target.write(chunk)
+                    target.flush()
+                    os.fsync(target.fileno())
+                if temporary.stat().st_size != file.size_bytes or _sha256_file(temporary) != file.sha256:
+                    raise ContentIntegrityError("content transition original changed while retaining it")
+                os.replace(temporary, destination)
+                sync_directory(destination.parent)
+            finally:
+                source.handle.close()
+                temporary.unlink(missing_ok=True)
+        payload = json.dumps(
+            {
+                "schema": "animama-content-transition-originals/1",
+                "source_item_id": entry.id if entry is not None else None,
+                "source": entry.source.value if entry is not None else None,
+                "source_mount_id": entry.source_mount_id if entry is not None else None,
+                "source_revision": entry.revision_sha256 if entry is not None else None,
+                "bindings": binding_facts,
+                "files": inventory,
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode()
+        if manifest_path.exists() or manifest_path.is_symlink():
+            self._assert_regular_file(manifest_path)
+            if manifest_path.read_bytes() != payload:
+                raise ContentConflictError("content_transition_original_conflict")
+            return
+        temporary = manifest_path.with_name(f".manifest.{uuid.uuid4().hex}.tmp")
+        try:
+            with temporary.open("xb") as target:
+                os.fchmod(target.fileno(), 0o600)
+                target.write(payload)
+                target.flush()
+                os.fsync(target.fileno())
+            os.replace(temporary, manifest_path)
+            sync_directory(manifest_path.parent)
+        finally:
+            temporary.unlink(missing_ok=True)
+
     def begin_mutation(self, *, operation_id: str, user_id: str, request_digest: str) -> str:
         """Install one request-owned journal after recovery and Local lock acquisition."""
 
@@ -791,11 +882,11 @@ class FilesystemContentStore(ContentStore):
             self.finalize_mutation(journal_id=journal.journal_id, commit=journal.journal_id in committed_journal_ids)
         self.recover_package_installs()
 
-    def _replace_local(self, staged: Path, destination: Path) -> None:
+    def _replace_local(self, staged: Path, destination: Path, *, require_new: bool = False) -> None:
         """Use recoverable promotion when an outer mutation owns the write."""
 
         if self._mutation is not None:
-            self._mutation.replace(staged, destination)
+            self._mutation.replace(staged, destination, require_new=require_new)
         else:
             os.replace(staged, destination)
 
@@ -807,11 +898,15 @@ class FilesystemContentStore(ContentStore):
         else:
             destination.unlink()
 
-    def _promote_mutation_package(self, *, stage_root: Path, targets: list[_PackageTarget]) -> None:
+    def _promote_mutation_package(
+        self, *, stage_root: Path, targets: list[_PackageTarget], require_new: bool = False
+    ) -> None:
         """Promote validated package files individually so every replace remains atomic."""
 
         local_root = self._roots[ContentSource.LOCAL]
         for target in targets:
+            if require_new and self.package_destination_exists(relative_locator=target["locator"]):
+                raise ContentConflictError("package_destination_changed")
             old_files: set[Path] = set()
             new_files: list[tuple[Path, Path]] = []
             for relative in target["paths"]:
@@ -830,8 +925,11 @@ class FilesystemContentStore(ContentStore):
                 else:
                     new_files.append((staged, local_root / relative))
             intended = {destination for _, destination in new_files}
+            if require_new and target["directory"]:
+                assert self._mutation is not None
+                self._mutation.create_directory(safe_path(local_root, target["locator"]))
             for staged, destination in new_files:
-                self._replace_local(staged, destination)
+                self._replace_local(staged, destination, require_new=require_new)
             for destination in sorted(old_files - intended):
                 self._delete_local(destination)
 
@@ -998,6 +1096,7 @@ class FilesystemContentStore(ContentStore):
         *,
         entries: tuple[PreparedPackageEntry, ...],
         operation_id: str,
+        require_new: bool = False,
     ) -> None:
         """Stage, scan, and compensate one complete package closure."""
 
@@ -1079,9 +1178,19 @@ class FilesystemContentStore(ContentStore):
                         raise ContentConflictError("package_destination_collision")
                     target_path.parent.mkdir(parents=True, exist_ok=True)
                     written = 0
-                    member.handle.seek(0)
-                    with target_path.open("xb") as handle:
-                        while chunk := member.handle.read(1024 * 1024):
+                    if (member.handle is None) == (member.source_path is None):
+                        raise ContentValidationError("package member requires exactly one byte source")
+                    source_context: AbstractContextManager[BinaryIO]
+                    if member.source_path is not None:
+                        if not stat.S_ISREG(member.source_path.lstat().st_mode):
+                            raise ContentPathError("package member is not a regular private file")
+                        source_context = os.fdopen(os.open(member.source_path, os.O_RDONLY | os.O_NOFOLLOW), "rb")
+                    else:
+                        assert member.handle is not None
+                        source_context = nullcontext(member.handle)
+                    with source_context as source, target_path.open("xb") as handle:
+                        source.seek(0)
+                        while chunk := source.read(1024 * 1024):
                             written += len(chunk)
                             if written > member.size_bytes:
                                 raise ContentValidationError("package member exceeds its verified size")
@@ -1129,8 +1238,10 @@ class FilesystemContentStore(ContentStore):
                     reason = scanned_entry.diagnostics[0].message if scanned_entry.diagnostics else "entry is invalid"
                     raise ContentValidationError(f"staged package entry is invalid: {reason}")
 
+            if require_new and any(self.package_destination_exists(relative_locator=locator) for locator in locators):
+                raise ContentConflictError("package_destination_changed")
             if self._mutation is not None:
-                self._promote_mutation_package(stage_root=stage_root, targets=targets)
+                self._promote_mutation_package(stage_root=stage_root, targets=targets, require_new=require_new)
                 self._remove_private_tree(stage_root)
                 self._remove_private_tree(backup_root)
                 return
@@ -1199,6 +1310,23 @@ class FilesystemContentStore(ContentStore):
             self._receipt(receipt_id, receipt)
             self._recover_package_payload(operation_id, receipt)
             raise
+
+    def package_destination_exists(self, *, relative_locator: str) -> bool:
+        """Include sidecars, empty directories, and case aliases in fresh-path admission."""
+        locator = _validate_relative_path(
+            relative_locator, allow_directory=PurePosixPath(relative_locator).suffix == ""
+        )
+        destination = safe_path(self._roots[ContentSource.LOCAL], locator.as_posix())
+        names = {unicodedata.normalize("NFC", destination.name).casefold()}
+        if locator.suffix:
+            names.add(unicodedata.normalize("NFC", destination.with_suffix(".meta.json").name).casefold())
+        if destination.exists() or destination.is_symlink():
+            return True
+        if destination.parent.exists():
+            return any(
+                unicodedata.normalize("NFC", child.name).casefold() in names for child in destination.parent.iterdir()
+            )
+        return False
 
     def finalize_package_install(self, *, operation_id: str, commit: bool) -> None:
         """Keep promoted bytes only after their catalog transaction succeeds."""
@@ -1483,6 +1611,22 @@ class FilesystemContentStore(ContentStore):
             self._delete_local(destination)
 
         cursor = local_root.joinpath(*descriptor_root.parts)
+        # Visit only ancestors of the catalog-frozen files. Walking the entry
+        # tree would grant authority over unrelated empty directories or links.
+        nested_parents: set[Path] = set()
+        for destination in destinations:
+            for parent in destination.parents:
+                if parent == cursor or not parent.is_relative_to(cursor):
+                    break
+                nested_parents.add(parent)
+        for directory in sorted(nested_parents, key=lambda path: len(path.parts), reverse=True):
+            checked = self._safe_path(ContentSource.LOCAL, directory.relative_to(local_root).as_posix())
+            try:
+                checked.rmdir()
+            except OSError:
+                # A remaining unregistered file, directory, or link is kept.
+                continue
+
         if locator.suffix:
             cursor = cursor.parent
         while cursor != local_root and cursor.is_relative_to(local_root):
@@ -1500,6 +1644,7 @@ class FilesystemContentStore(ContentStore):
         descriptor: bytes,
         companion_files: Mapping[str, bytes],
         operation_id: str | None = None,
+        require_new: bool = False,
     ) -> str:
         """Compatibility wrapper for callers that already hold bounded bytes."""
 
@@ -1509,6 +1654,7 @@ class FilesystemContentStore(ContentStore):
             descriptor=descriptor,
             companion_files={name: (BytesIO(payload), len(payload)) for name, payload in companion_files.items()},
             operation_id=operation_id,
+            require_new=require_new,
         )
 
     def save_descriptor_entry_streams(
@@ -1519,6 +1665,7 @@ class FilesystemContentStore(ContentStore):
         descriptor: bytes,
         companion_files: Mapping[str, tuple[BinaryIO, int]],
         operation_id: str | None = None,
+        require_new: bool = False,
     ) -> str:
         """Stage streamed files, replace companions, and publish the descriptor last."""
 
@@ -1537,6 +1684,11 @@ class FilesystemContentStore(ContentStore):
             raise ContentValidationError("descriptor entry exceeds the supported byte limit")
 
         entry_root = self._local_destination(relative_locator, directory=True)
+        if require_new and any(entry_root.iterdir()):
+            # A rolled-back attempt may leave an empty folder. Existing files,
+            # including manual edits and hidden entries, must never be replaced
+            # by a conversion claiming to create a fresh editable item.
+            raise ContentConflictError("content_destination_exists")
         descriptor_name = descriptor_filename(definition, entry_root.name)
         descriptor_destination = entry_root / descriptor_name
         operation_marker = entry_root / ".animama-operation"

@@ -1,17 +1,76 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import struct
 from pathlib import Path
+from tempfile import TemporaryFile
+from typing import BinaryIO, TypedDict, cast
 
 from animama.adapters.content_store import FilesystemContentStore
 from animama.adapters.repositories.sqlalchemy.content_catalog_repo import SQLAlchemyContentCatalog
 from animama.app.services.content_catalog_service import ContentCatalogService
-from animama.app.services.content_package_service import ContentPackageService
+from animama.app.services.content_package_service import ContentPackageService, ExportedContentPackage
 from animama.app.services.content_save_service import ContentSaveService
 from animama.domain.content_catalog import ContentKind
 from animama.server.config import Settings
 from animama.server.local_runtime import initialize_local_runtime
+
+
+class PackageCommitCommand(TypedDict):
+    """A reviewed immutable command remains usable after staged bytes expire."""
+
+    user_id: str
+    stage_id: str
+    operation_id: str
+    review_digest: str
+
+
+async def reviewed_export(
+    packages: ContentPackageService, *, user_id: str, root_item_id: str
+) -> ExportedContentPackage:
+    summary = await packages.summarize(user_id=user_id, item_ids=(root_item_id,))
+    review = await packages.prepare_export(user_id=user_id, item_ids=(root_item_id,), expected_digest=summary.digest)
+    return await packages.get_export(user_id=user_id, export_id=review.export_id)
+
+
+async def reviewed_import(
+    packages: ContentPackageService, *, user_id: str, archive_path: Path, operation_id: str
+) -> PackageCommitCommand:
+    """Exercise allocation, sequential byte parts and review without committing."""
+    stage = packages.stages.create_import(
+        user_id=user_id,
+        operation_id=operation_id,
+        filename=archive_path.name,
+        expected_bytes=archive_path.stat().st_size,
+    )
+    with archive_path.open("rb") as archive:
+        index = 0
+        while True:
+            with TemporaryFile("w+b") as part:
+                while part.tell() < packages.stages.limits.part_bytes:
+                    chunk = archive.read(min(1024 * 1024, packages.stages.limits.part_bytes - part.tell()))
+                    if not chunk:
+                        break
+                    part.write(chunk)
+                if not part.tell():
+                    break
+                part.seek(0)
+                await asyncio.to_thread(
+                    packages.stages.append_part,
+                    user_id=user_id,
+                    stage_id=stage.stage_id,
+                    index=index,
+                    source=cast(BinaryIO, part),
+                )
+                index += 1
+    review = await packages.imports.review(user_id=user_id, stage_id=stage.stage_id)
+    return {
+        "user_id": user_id,
+        "stage_id": stage.stage_id,
+        "operation_id": operation_id,
+        "review_digest": review.review_digest,
+    }
 
 
 def vrma(label: str) -> bytes:
@@ -54,6 +113,7 @@ def package_services(async_session, tmp_path: Path):  # noqa: ANN001, ANN202
     packages = ContentPackageService(
         content=content,
         exports_root=paths.exports_staging_root,
+        imports_root=paths.imports_staging_root,
     )
     return paths, catalog, content, saves, packages
 

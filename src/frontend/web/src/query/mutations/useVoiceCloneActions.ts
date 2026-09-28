@@ -57,7 +57,7 @@ function requireEditableClone(clone: PyVoiceContent) {
   }
 }
 
-/** Rename through the atomic typed Save path, retaining both registered files and provenance. */
+/** Rename through typed Save, retaining the encoded catalog, optional original and provenance. */
 export async function renameSavedVoiceClone({
   clone,
   name,
@@ -88,12 +88,12 @@ export async function renameSavedVoiceClone({
         file.role === "source_sample" || file.role === "pocket_voice_catalog",
     );
     if (
-      files.length !== 2 ||
-      !files.some((file) => file.role === "source_sample") ||
-      !files.some((file) => file.role === "pocket_voice_catalog")
+      files.filter((file) => file.role === "pocket_voice_catalog").length !==
+        1 ||
+      files.filter((file) => file.role === "source_sample").length > 1
     ) {
       throw new Error(
-        "This voice is missing its original recording or encoded catalog.",
+        "This voice requires one encoded catalog and at most one original recording.",
       );
     }
     const retainedFiles = await Promise.all(

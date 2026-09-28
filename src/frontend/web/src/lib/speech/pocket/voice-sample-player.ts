@@ -2,6 +2,7 @@
 export type VoiceSampleSource = { id: string; name: string } & (
   | { previewUrl: string }
   | { loadSample: (signal: AbortSignal) => Promise<Blob> }
+  | { sampleUnavailable: string }
 );
 
 export type VoiceSampleState = {
@@ -47,6 +48,10 @@ export function createVoiceSamplePlayer(
   }
 
   async function play(voice: VoiceSampleSource) {
+    if ("sampleUnavailable" in voice) {
+      stop();
+      return;
+    }
     if (selected === voice.id) {
       stop();
       return;

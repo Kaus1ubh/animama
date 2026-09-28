@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { SoundController } from "./SoundController";
+import { resolveAudioPrefs } from "./audio-prefs";
 
 type PlayResult = () => Promise<void>;
 
@@ -39,20 +40,6 @@ class MockAudio {
 
 const originalAudio = globalThis.Audio;
 
-function deferredPlay(): {
-  result: PlayResult;
-  resolve: () => void;
-} {
-  let resolve: (() => void) | null = null;
-  const promise = new Promise<void>((complete) => {
-    resolve = complete;
-  });
-  return {
-    result: () => promise,
-    resolve: () => resolve?.(),
-  };
-}
-
 describe("SoundController", () => {
   beforeEach(() => {
     MockAudio.instances = [];
@@ -64,48 +51,51 @@ describe("SoundController", () => {
     globalThis.Audio = originalAudio;
   });
 
-  it("does not let a stale play completion interrupt a newer BGM source", async () => {
-    const first = deferredPlay();
-    const second = deferredPlay();
-    MockAudio.playResults.push(first.result, second.result);
+  it("stops only sound owned by the cancelled occurrence and refuses late playback", () => {
     const controller = new SoundController();
-
-    const firstAttempt = controller.playBgm({ trackUrl: "blob:first" });
-    controller.stopBgm();
-    const secondAttempt = controller.playBgm({ trackUrl: "blob:second" });
-    const audio = MockAudio.instances[0]!;
-
-    first.resolve();
-    await expect(firstAttempt).resolves.toBe(false);
-    expect(audio.paused).toBe(false);
-    expect(audio.src).toBe("blob:second");
-
-    second.resolve();
-    await expect(secondAttempt).resolves.toBe(true);
-    expect(controller.getSnapshot().bgmState).toBe("playing");
+    const occurrence = new AbortController();
+    controller.playSfx("blob:unrelated");
+    controller.playSfx("blob:owned", { signal: occurrence.signal });
+    occurrence.abort();
+    expect(
+      MockAudio.instances.find((audio) => audio.src === "blob:owned")?.paused,
+    ).toBe(true);
+    expect(
+      MockAudio.instances.find((audio) => audio.src === "blob:unrelated")
+        ?.paused,
+    ).toBe(false);
+    expect(
+      controller.playSfx("blob:late", { signal: occurrence.signal }),
+    ).toBeNull();
     controller.dispose();
   });
 
-  it("retains an autoplay-blocked state and retries after activation", async () => {
-    MockAudio.playResults.push(
-      () => Promise.reject(new DOMException("blocked", "NotAllowedError")),
-      () => Promise.resolve(),
-    );
+  it("restores retained TTS/SFX mix without resuming historical Music", () => {
     const controller = new SoundController();
-
-    await expect(
-      controller.playBgm({ trackUrl: "blob:autoplay" }),
-    ).resolves.toBe(false);
-    expect(controller.getSnapshot()).toMatchObject({
-      bgmState: "blocked",
-      pendingAutoplayRetry: true,
+    controller.restorePersistedState(
+      resolveAudioPrefs({
+        version: 2,
+        bgmTrackUrl: "blob:old-music",
+        bgmWasPlaying: true,
+        bgmVolume: 1,
+        selectedBgmRuntimeIdByAnimaId: { anima: "old" },
+        sfxVolume: 0.4,
+        ttsVolume: 0.6,
+        ttsMuted: true,
+      }),
+    );
+    expect(MockAudio.instances).toHaveLength(0);
+    expect(controller.getSnapshot()).toEqual({
+      masterMuted: false,
+      sfxMuted: false,
+      ttsMuted: true,
+      sfxVolume: 0.4,
+      ttsVolume: 0.6,
     });
-
-    await expect(controller.retryPendingBgmAutoplay()).resolves.toBe(true);
-    expect(controller.getSnapshot()).toMatchObject({
-      bgmState: "playing",
-      pendingAutoplayRetry: false,
-    });
+    controller.playSfx("blob:kept-sfx", { volume: 0.5 });
+    expect(MockAudio.instances[0]?.volume).toBeCloseTo(0.2);
+    controller.setMasterMuted(true);
+    expect(MockAudio.instances[0]?.muted).toBe(true);
     controller.dispose();
   });
 

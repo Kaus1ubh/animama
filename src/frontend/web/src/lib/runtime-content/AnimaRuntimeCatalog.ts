@@ -37,7 +37,11 @@ import {
 } from "@/lib/avatar/poses/animaPoseClip";
 import type { NormalizedEmotionReactionIntensity } from "@/lib/avatar/reactionClips";
 import type { EmotionRuntimeState, TrackedEmotion } from "@/lib/emotion";
-import { isTrackedEmotion, TRACKED_EMOTIONS } from "@/lib/emotion";
+import {
+  intensityFromEmotionValue,
+  isTrackedEmotion,
+  TRACKED_EMOTIONS,
+} from "@/lib/emotion";
 import {
   AnimaRuntimeMediaCatalog,
   type AnimaRuntimeMediaProvider,
@@ -105,6 +109,7 @@ export class AnimaRuntimeCatalog
   private readonly preparing: () => boolean;
   private lastPreparing: boolean;
   private readonly idleAnimations: ManifestAnimation[] = [];
+  private idleCellPools: AnimaRuntimeCatalogSnapshot["idle_style_pools"];
   private readonly idleStylePools = new Map<
     string,
     { isDefault: boolean; emotions: Set<string> }
@@ -179,7 +184,6 @@ export class AnimaRuntimeCatalog
         options.preparation.issued.scene_background_vfx,
         options.preparation.issued.scene_focus_vfx,
         options.preparation.issued.sfx,
-        options.preparation.issued.bgm,
       ]) {
         for (const entry of entries)
           this.issuedRoots.set(
@@ -286,7 +290,6 @@ export class AnimaRuntimeCatalog
       sceneBackgroundVfx: runtime.scene_background_vfx,
       sceneFocusVfx: runtime.scene_focus_vfx,
       sfx: runtime.sfx,
-      bgm: runtime.bgm,
     };
   }
 
@@ -322,8 +325,12 @@ export class AnimaRuntimeCatalog
   }
 
   private addMotion(runtime: AnimaRuntimeCatalogSnapshot): void {
+    if (runtime.idle_style_pools) this.idleCellPools = runtime.idle_style_pools;
     for (const entry of this.newEntries(runtime.idle_animations)) {
-      const animation = this.createVrmaAnimation(entry, "idle_animation");
+      const animation =
+        entry.kind === "anima_pose_clip"
+          ? this.createIdlePoseClip(entry)
+          : this.createVrmaAnimation(entry, "idle_animation");
       if (animation) {
         this.idleAnimations.push(animation);
         if (
@@ -406,7 +413,8 @@ export class AnimaRuntimeCatalog
 
   /** Select the configured dominant-emotion pool before existing weighted selection. */
   private idlePool(emotionalState: EmotionRuntimeState): ManifestAnimation[] {
-    if (!this.idleStylePools.size) return this.idleAnimations;
+    if (!this.idleCellPools && !this.idleStylePools.size)
+      return this.idleAnimations;
     let dominant: TrackedEmotion | null = null;
     let dominantValue = 0;
     for (const emotion of TRACKED_EMOTIONS) {
@@ -415,6 +423,17 @@ export class AnimaRuntimeCatalog
         dominant = emotion;
         dominantValue = value;
       }
+    }
+    if (this.idleCellPools) {
+      const cell = dominant
+        ? this.idleCellPools.cells[dominant]?.[
+            String(intensityFromEmotionValue(dominantValue))
+          ]
+        : undefined;
+      const ids = new Set(cell ?? this.idleCellPools.default);
+      return uniformIdlePool(
+        this.idleAnimations.filter((entry) => ids.has(entry.id ?? "")),
+      );
     }
     const mapped = dominant
       ? this.idleAnimations.filter((entry) =>
@@ -450,7 +469,11 @@ export class AnimaRuntimeCatalog
   }
 
   loadPoseClip(runtimeId: string): Promise<AnimaPoseClip | null> {
-    if (this.pending("pose", runtimeId) || this.pending("gesture", runtimeId))
+    if (
+      this.pending("pose", runtimeId) ||
+      this.pending("gesture", runtimeId) ||
+      this.pending("idle_animation", runtimeId)
+    )
       return Promise.resolve(null);
     return this.loadClip(
       normalizeFile(runtimeId),
@@ -576,12 +599,12 @@ export class AnimaRuntimeCatalog
     return this.mediaCatalog.loadSceneVFX(kind, runtimeId);
   }
 
-  listAudio(kind: "sfx" | "bgm"): readonly RuntimeAudioDescriptor[] {
+  listAudio(kind: "sfx"): readonly RuntimeAudioDescriptor[] {
     return this.mediaCatalog.listAudio(kind);
   }
 
   resolveAudio(
-    kind: "sfx" | "bgm",
+    kind: "sfx",
     runtimeId: string,
   ): Promise<ResolvedRuntimeAudio | null> {
     if (this.pending(kind, runtimeId)) return Promise.resolve(null);
@@ -666,6 +689,26 @@ export class AnimaRuntimeCatalog
     });
   }
 
+  /** Idle membership exposes a playable clip without adding an AI-callable Gesture. */
+  private createIdlePoseClip(
+    entry: RuntimeCatalogEntry,
+  ): ManifestAnimation | null {
+    if (!this.addPoseClip(entry, "idle_animation")) return null;
+    return {
+      id: entry.runtime_id,
+      name: entry.display_name,
+      file: entry.runtime_id,
+      type: "animaPoseClip",
+      animation_type: "idle",
+      emotions: {},
+      idle_playback: true,
+      duration: positiveNumber(entry.config.duration_seconds),
+      loop_type: normalizeLoopType(entry.config.loop_type),
+      loop_count: positiveInteger(entry.config.loop_count),
+      time_scale: positiveNumber(entry.config.time_scale),
+    };
+  }
+
   private createVrmaAnimation(
     entry: RuntimeCatalogEntry,
     slot: "idle_animation" | "gesture",
@@ -714,6 +757,7 @@ export class AnimaRuntimeCatalog
       emotions: parseEmotionWeights(entry.config.emotion_weights),
       base_pose: stringValue(entry.config.base_pose),
       animation_type: slot === "idle_animation" ? "idle" : "gesture",
+      idle_playback: !!entry.config.idle_playback,
       duration: positiveNumber(entry.config.duration_seconds),
       blend_mode: parseBlendMode(entry.config.blend_mode),
       loop_type: parseLoopType(entry.config.loop_type, slot),
@@ -775,7 +819,7 @@ export class AnimaRuntimeCatalog
 
   private addPoseClip(
     entry: RuntimeCatalogEntry,
-    destination: "gesture" | "pose" | "reaction",
+    destination: "gesture" | "pose" | "reaction" | "idle_animation",
   ): boolean {
     if (entry.kind !== "anima_pose_clip") {
       this.recordInvalid(

@@ -1154,20 +1154,11 @@ export function ApplicationSettingsModal({
       section: "General",
       group: "Audio",
       label: "Volume",
-      keywords: [
-        "sound",
-        "mute",
-        "tts",
-        "sfx",
-        "sound effects",
-        "bgm",
-        "background music",
-      ],
+      keywords: ["sound", "mute", "tts", "sfx", "sound effects"],
       render: () => (
         <AudioVolumePanel
           disabled={isAudioBusy}
           showTitle={false}
-          showBgmDetail
           className="py-3"
           volumeCardClassName={FLAT_SETTINGS_PANEL_CLASS_NAME}
         />

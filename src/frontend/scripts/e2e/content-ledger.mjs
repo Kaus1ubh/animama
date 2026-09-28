@@ -6,6 +6,8 @@ import { ensurePrivateDirectory } from "./run-support.mjs";
 const CONTENT_LEDGER_SCHEMA_VERSION = 1;
 const CONTENT_LEDGER_EVENTS = [
   "planned",
+  "import_planned",
+  "import_owned",
   "owned",
   "updated",
   "verified",
@@ -21,6 +23,11 @@ const CONTENT_KINDS = new Set([
   "particle_effect",
   "avatar_effect",
   "scene_effect",
+  "avatar",
+  "appearance",
+  "idle_style",
+  "sound_effect",
+  "anima",
 ]);
 const COMMON_KEYS = new Set([
   "schemaVersion",
@@ -34,6 +41,28 @@ const COMMON_KEYS = new Set([
 ]);
 const EVENT_KEYS = {
   planned: new Set(),
+  import_planned: new Set([
+    "operationId",
+    "stageId",
+    "reviewDigest",
+    "entryId",
+    "packageEntries",
+    "packageAnima",
+  ]),
+  import_owned: new Set([
+    "operationId",
+    "stageId",
+    "reviewDigest",
+    "entryId",
+    "itemId",
+    "revisionSha256",
+    "relativeLocator",
+    "packageEntries",
+    "packageAnima",
+    "animaDefinition",
+    "relatedAvatarId",
+    "relatedAvatarSha256",
+  ]),
   owned: new Set(["itemId", "revisionSha256", "relativeLocator"]),
   updated: new Set([
     "itemId",
@@ -92,7 +121,74 @@ function validateCommon(event) {
     );
   }
   requiredString(event.entryName, "entryName", 160);
-  requiredString(event.logicalKey, "logicalKey", 256);
+  if (event.event === "import_planned") {
+    if ("logicalKey" in event)
+      throw new Error("Uncommitted imports cannot claim a Local logical key.");
+  } else requiredString(event.logicalKey, "logicalKey", 256);
+  if (event.event === "import_planned" || event.event === "import_owned") {
+    if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(event.operationId ?? "")) {
+      throw new Error("Package ownership requires an exact operation ID.");
+    }
+    if (
+      !/^[0-9a-f]{32}$/.test(event.stageId ?? "") ||
+      !/^[0-9a-f]{64}$/.test(event.reviewDigest ?? "")
+    ) {
+      throw new Error(
+        "Package ownership requires its exact stage and review digest.",
+      );
+    }
+    requiredString(event.entryId, "entryId", 128);
+    if (event.packageEntries !== undefined) {
+      if (
+        !Array.isArray(event.packageEntries) ||
+        !event.packageEntries.length ||
+        event.packageEntries.length > 512
+      )
+        throw new Error(
+          "Package ownership requires a bounded complete entry list.",
+        );
+      const ids = new Set();
+      for (const entry of event.packageEntries) {
+        if (
+          !entry ||
+          Object.keys(entry).sort().join() !== "entryId,kind,name,selected" ||
+          !CONTENT_KINDS.has(entry.kind) ||
+          entry.kind === "anima" ||
+          typeof entry.selected !== "boolean"
+        )
+          throw new Error(
+            "Package ownership contains an invalid reviewed entry.",
+          );
+        requiredString(entry.entryId, "package entry ID", 128);
+        requiredString(entry.name, "package entry name", 160);
+        if (ids.has(entry.entryId))
+          throw new Error("Package ownership repeats an entry ID.");
+        ids.add(entry.entryId);
+      }
+      if (event.kind === "anima") {
+        if (
+          event.entryId !== "anima" ||
+          !event.packageAnima ||
+          typeof event.packageAnima !== "object"
+        )
+          throw new Error(
+            "Anima ownership requires its reviewed portable definition.",
+          );
+      } else if (
+        !event.packageEntries.some(
+          (entry) =>
+            entry.entryId === event.entryId &&
+            entry.kind === event.kind &&
+            entry.name === event.entryName,
+        )
+      )
+        throw new Error(
+          "Package plan is outside its complete reviewed entry list.",
+        );
+    } else if (event.kind === "anima" || event.packageAnima !== undefined) {
+      throw new Error("Anima ownership requires a whole-package plan.");
+    }
+  }
 
   const allowed = new Set([...COMMON_KEYS, ...EVENT_KEYS[event.event]]);
   const extra = Object.keys(event).filter((key) => !allowed.has(key));
@@ -102,7 +198,7 @@ function validateCommon(event) {
 }
 
 function validateIdentityFields(event) {
-  if (event.event === "planned") return;
+  if (event.event === "planned" || event.event === "import_planned") return;
   requiredString(event.itemId, "itemId", 256);
   if (!/^[0-9a-f]{64}$/.test(event.revisionSha256 ?? "")) {
     throw new Error(
@@ -117,8 +213,19 @@ function validateIdentityFields(event) {
       "Content ledger update requires its exact previous revision.",
     );
   }
-  if (event.event === "owned" || event.event === "updated") {
-    requiredString(event.relativeLocator, "relativeLocator", 512);
+  if (["owned", "import_owned", "updated"].includes(event.event)) {
+    if (event.kind !== "anima")
+      requiredString(event.relativeLocator, "relativeLocator", 512);
+    else if (
+      !event.animaDefinition ||
+      typeof event.animaDefinition !== "object" ||
+      typeof event.relatedAvatarId !== "string" ||
+      !event.relatedAvatarId ||
+      !/^[0-9a-f]{64}$/.test(event.relatedAvatarSha256 ?? "")
+    )
+      throw new Error(
+        "Anima ownership requires its expected saved definition.",
+      );
   } else if (event.event === "verified") {
     if (!Number.isSafeInteger(event.fileCount) || event.fileCount < 1) {
       throw new Error("Content ledger verified.fileCount must be positive.");
@@ -218,6 +325,7 @@ function assertSharedIdentity(previous, next) {
     "entryName",
     "logicalKey",
   ]) {
+    if (key === "logicalKey" && previous.event === "import_planned") continue;
     if (previous[key] !== next[key]) {
       throw new Error(`Content ledger transition changed ${key}.`);
     }
@@ -243,19 +351,57 @@ function validateContentLedgerTransition(events, candidate) {
   );
   const previous = related.at(-1) ?? null;
   if (!previous) {
-    if (event.event !== "planned") {
+    if (event.event !== "planned" && event.event !== "import_planned") {
       throw new Error("Content ledger lifecycle must begin with planned.");
     }
     if (events.some((value) => value.runId !== event.runId)) {
       throw new Error("Content ledger cannot mix run IDs.");
     }
+    const operationPlans = event.operationId
+      ? events.filter(
+          (value) =>
+            value.event === "import_planned" &&
+            value.operationId === event.operationId,
+        )
+      : [];
+    const first = operationPlans[0];
+    // Earlier lines already passed this same check. Compare complete shared
+    // facts once, while still checking every entry ID for duplication.
+    if (
+      first &&
+      (!event.packageEntries ||
+        operationPlans.some((value) => value.entryId === event.entryId) ||
+        first.stageId !== event.stageId ||
+        first.reviewDigest !== event.reviewDigest ||
+        JSON.stringify(first.packageEntries) !==
+          JSON.stringify(event.packageEntries) ||
+        JSON.stringify(first.packageAnima) !==
+          JSON.stringify(event.packageAnima))
+    ) {
+      throw new Error(
+        "Package ownership cannot reuse an operation ID across journeys.",
+      );
+    }
     return event;
   }
 
   assertSharedIdentity(previous, event);
+  if (previous.event === "import_planned" && event.event === "import_owned") {
+    for (const key of [
+      "operationId",
+      "stageId",
+      "reviewDigest",
+      "entryId",
+      "packageEntries",
+      "packageAnima",
+    ]) {
+      if (JSON.stringify(previous[key]) !== JSON.stringify(event[key]))
+        throw new Error(`Content ledger transition changed ${key}.`);
+    }
+  }
   if (event.event === "updated") {
-    const owned = related.findLast(
-      (value) => value.event === "owned" || value.event === "updated",
+    const owned = related.findLast((value) =>
+      ["owned", "import_owned", "updated"].includes(value.event),
     );
     if (
       !owned ||
@@ -269,6 +415,8 @@ function validateContentLedgerTransition(events, candidate) {
   }
   const allowed = {
     planned: ["owned"],
+    import_planned: ["import_owned"],
+    import_owned: ["verified", "updated", "cleanup_started"],
     owned: ["verified", "updated", "cleanup_started"],
     updated: ["verified", "updated", "cleanup_started"],
     verified: ["updated", "cleanup_started"],
@@ -337,8 +485,9 @@ export function summarizeContentLedger(events) {
       verified: null,
       last: null,
     };
-    if (event.event === "planned") current.planned = event;
-    if (event.event === "owned" || event.event === "updated") {
+    if (event.event === "planned" || event.event === "import_planned")
+      current.planned = event;
+    if (["owned", "import_owned", "updated"].includes(event.event)) {
       current.owned = event;
       current.verified = null;
     }
@@ -352,5 +501,14 @@ export function summarizeContentLedger(events) {
 export function unresolvedOwnedContent(events) {
   return summarizeContentLedger(events).filter(
     (state) => state.owned && state.last?.event !== "deleted",
+  );
+}
+
+/** Include unacknowledged import operations so runner recovery cannot silently skip them. */
+export function unresolvedContentWork(events) {
+  return summarizeContentLedger(events).filter((state) =>
+    state.owned
+      ? state.last?.event !== "deleted"
+      : state.planned?.event === "import_planned",
   );
 }

@@ -2,6 +2,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AnimaVoicesEditor } from "./VoiceLoadoutSection";
 import { filteredPocketVoices, PocketVoiceList } from "./PocketVoicePicker";
+import type { PyVoiceContent } from "@animama/runtime-contracts/api-types";
+import { voiceCloneSampleSource } from "@/lib/speech/pocket/voice-clones";
 import { IDLE_VOICE_SAMPLE } from "@/lib/speech/pocket/voice-sample-player";
 
 const fixtures = vi.hoisted(() => ({
@@ -16,7 +18,7 @@ const fixtures = vi.hoisted(() => ({
   setVoice: vi.fn(),
   update: vi.fn(),
   selectedCloneId: null as string | null,
-  clones: [] as Array<{ item_id: string; name: string }>,
+  clones: [] as PyVoiceContent[],
 }));
 vi.mock("@/query/hooks/useAnimaLoadout", () => ({
   useAnimaLoadout: () => ({
@@ -131,8 +133,15 @@ describe("Anima voice configuration", () => {
   it("shows a selected named clone and its sample instead of the fallback preset", () => {
     fixtures.speech.tts_provider = "pocket_tts";
     fixtures.clones = [
-      { item_id: "voice-1", name: "Storyteller" },
-      { item_id: "voice-2", name: "Narrator" },
+      {
+        item_id: "voice-1",
+        name: "Storyteller",
+        codec: "pocket-tts-catalog-v1",
+        files: [
+          { role: "source_sample", file_ref: "sample-ref", size_bytes: 10 },
+        ],
+      } as PyVoiceContent,
+      { item_id: "voice-2", name: "Narrator" } as PyVoiceContent,
     ];
     fixtures.selectedCloneId = "voice-1";
     const html = renderToStaticMarkup(<AnimaVoicesEditor />);
@@ -147,6 +156,59 @@ describe("Anima voice configuration", () => {
     expect(html).not.toContain("New voice name");
     expect(html).toContain("Clone voice");
     expect(html).not.toContain('aria-label="PocketTTS voice: Eve"');
+  });
+
+  it("keeps an imported clone selected while disabling only its original recording preview", () => {
+    fixtures.speech.tts_provider = "pocket_tts";
+    const clone = {
+      item_id: "imported-voice",
+      name: "Imported Narrator",
+      codec: "pocket-tts-catalog-v1",
+      files: [
+        {
+          role: "pocket_voice_catalog",
+          file_ref: "catalog-ref",
+          size_bytes: 10,
+        },
+      ],
+    } as PyVoiceContent;
+    fixtures.clones = [clone];
+    fixtures.selectedCloneId = clone.item_id;
+    const selected = renderToStaticMarkup(<AnimaVoicesEditor />);
+    expect(selected).toContain(
+      'aria-label="PocketTTS voice: Imported Narrator"',
+    );
+    expect(selected).toMatch(
+      /<button[^>]*disabled=""[^>]*aria-label="Imported Narrator: Original recording unavailable"/,
+    );
+    expect(selected).not.toContain(
+      'aria-label="Play Imported Narrator sample"',
+    );
+    expect(selected).toContain(">Original recording unavailable</p>");
+    expect(selected).toContain('aria-label="Delete Imported Narrator"');
+    const list = renderToStaticMarkup(
+      <PocketVoiceList
+        value="clone:imported-voice"
+        disabled={false}
+        hasCustomVoice={false}
+        onSelect={async () => undefined}
+        clones={[voiceCloneSampleSource(clone)]}
+        availability={() => null}
+        onDownload={() => undefined}
+        onSelected={() => undefined}
+        sample={IDLE_VOICE_SAMPLE}
+        player={{ play: vi.fn(), stop: vi.fn(), dispose: vi.fn() }}
+      />,
+    );
+    expect(list).toMatch(
+      /<button[^>]*aria-label="Select Imported Narrator"[^>]*aria-pressed="true"/,
+    );
+    expect(list).not.toMatch(
+      /<button[^>]*disabled=""[^>]*aria-label="Select Imported Narrator"/,
+    );
+    expect(list).toMatch(
+      /<button[^>]*disabled=""[^>]*aria-label="Imported Narrator: Original recording unavailable"/,
+    );
   });
 
   it("labels an unavailable binding honestly while keeping preset selection available", () => {

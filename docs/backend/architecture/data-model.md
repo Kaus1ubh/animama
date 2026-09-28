@@ -3,7 +3,7 @@
 ## Neutral Content Catalog
 
 Gesture, Reaction, Particle Effect, Avatar Effect, Scene Effect, Sound Effect,
-Idle Style, Music Track, Avatar, Appearance, voice, pose, and pose clip content share
+Idle Style, Avatar, Appearance, voice, and static Pose content share
 one readable Content Catalog. The `anima` kind is reserved/rejecting;
 live Animas are private aggregates. Included and Local are filesystem sources,
 not parallel domain models. Concrete validators and runtime players remain
@@ -203,10 +203,10 @@ descriptors.
 Starter exclusions and the intentionally-empty Idle state.
 `ORMAnimaContentBinding` stores typed logical catalog selections and their
 family-specific configuration. Gesture semantic-key and Reaction-cell
-uniqueness are enforced by the service while Music duplicate/autoplay rules
-also have partial unique indexes. Effects, Sounds, and Pose Clips reached
-through an action are compiler-managed dependencies rather than peer loadout
-rows. `ORMAnimaLoadoutMutationReceipt` makes lost-response retries idempotent;
+uniqueness are enforced by the service. Effects and Sounds reached through an
+Action are compiler-managed dependencies rather than peer loadout rows. Legacy
+Music/clip kind values and Music indexes remain readable for preserving
+transitions and historical receipts; they grant no current product admission. `ORMAnimaLoadoutMutationReceipt` makes lost-response retries idempotent;
 `ORMAnimaLoadoutDiagnostic` preserves visible warnings for rejected persisted or
 externally invalid equipment without deleting its catalog item.
 

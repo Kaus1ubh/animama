@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,6 +20,7 @@ from animama.app.services.typed_content_service import TypedContentService
 from animama.domain.content_catalog import ContentKind
 from animama.domain.request_principal import RequestPrincipal
 from animama.server.deps import get_async_session, get_current_principal
+from animama.server.schemas.idle_style import PyIdlePlayback
 from animama.server.schemas.typed_content import (
     PyAppearance,
     PyAppearancePage,
@@ -36,13 +38,9 @@ from animama.server.schemas.typed_content import (
     PyGesturePage,
     PyIdleStyle,
     PyIdleStylePage,
-    PyMusicTrack,
-    PyMusicTrackPage,
     PyParticleEffect,
     PyParticleEffectPage,
     PyPose,
-    PyPoseClip,
-    PyPoseClipPage,
     PyPosePage,
     PyReaction,
     PyReactionPage,
@@ -53,6 +51,7 @@ from animama.server.schemas.typed_content import (
     PyTypedContentPreview,
     PyVoiceContent,
     PyVoiceContentPage,
+    legacy_saved_content_response,
     typed_content_response,
 )
 
@@ -146,6 +145,23 @@ async def prepare_content_previews(
         _raise_content_mutation(exc)
 
 
+@router.get(
+    "/v1/gestures/{item_id}/idle-playback", response_model=PyIdlePlayback, operation_id="get_gesture_idle_playback"
+)
+async def get_gesture_idle_playback(
+    item_id: str,
+    request: Request,
+    user: Annotated[RequestPrincipal, Depends(get_current_principal)],
+    session: Annotated[AsyncSession, Depends(get_async_session)],
+) -> PyIdlePlayback:
+    """Return finite Idle eligibility for this exact current Gesture revision."""
+    try:
+        value = await _typed_service(request, session).gesture_idle_playback(user_id=user.id, item_id=item_id)
+        return PyIdlePlayback.model_validate(value)
+    except Exception as exc:
+        _raise_content_mutation(exc)
+
+
 def _install_family_routes(
     *,
     path: str,
@@ -154,6 +170,7 @@ def _install_family_routes(
     item_model: type[BaseModel],
     page_model: type[BaseModel],
     writable: bool = True,
+    retired: bool = False,
 ) -> None:
     """Register one family without weakening its exact OpenAPI response model."""
 
@@ -200,30 +217,31 @@ def _install_family_routes(
         except Exception as exc:
             _raise_content_mutation(exc)
 
-    list_family.__name__ = f"list_{singular}s"
-    get_family.__name__ = f"get_{singular}"
-    preview_family.__name__ = f"preview_{singular}"
-    router.add_api_route(
-        path,
-        list_family,
-        methods=["GET"],
-        response_model=page_model,
-        operation_id=list_family.__name__,
-    )
-    router.add_api_route(
-        f"{path}/{{item_id}}",
-        get_family,
-        methods=["GET"],
-        response_model=item_model,
-        operation_id=get_family.__name__,
-    )
-    router.add_api_route(
-        f"{path}/{{item_id}}:preview",
-        preview_family,
-        methods=["POST"],
-        response_model=PyTypedContentPreview,
-        operation_id=preview_family.__name__,
-    )
+    if not retired:
+        list_family.__name__ = f"list_{singular}s"
+        get_family.__name__ = f"get_{singular}"
+        preview_family.__name__ = f"preview_{singular}"
+        router.add_api_route(
+            path,
+            list_family,
+            methods=["GET"],
+            response_model=page_model,
+            operation_id=list_family.__name__,
+        )
+        router.add_api_route(
+            f"{path}/{{item_id}}",
+            get_family,
+            methods=["GET"],
+            response_model=item_model,
+            operation_id=get_family.__name__,
+        )
+        router.add_api_route(
+            f"{path}/{{item_id}}:preview",
+            preview_family,
+            methods=["POST"],
+            response_model=PyTypedContentPreview,
+            operation_id=preview_family.__name__,
+        )
 
     if not writable:
         return
@@ -260,7 +278,7 @@ def _install_family_routes(
         # A completed retry owns its original result even after later edits or
         # deletion. Project that saved snapshot without rereading live content.
         value = TypedContentService.parse(saved.item)
-        return typed_content_response(value)
+        return JSONResponse(content=legacy_saved_content_response(value))
 
     save_family.__name__ = f"save_{singular}"
     router.add_api_route(
@@ -269,6 +287,7 @@ def _install_family_routes(
         methods=["PUT"],
         response_model=item_model,
         operation_id=save_family.__name__,
+        include_in_schema=not retired,
     )
 
 
@@ -297,8 +316,9 @@ _install_family_routes(
     path="/v1/pose-clips",
     singular="pose_clip",
     kind=ContentKind.POSE_CLIP,
-    item_model=PyPoseClip,
-    page_model=PyPoseClipPage,
+    item_model=BaseModel,
+    page_model=BaseModel,
+    retired=True,
 )
 _install_family_routes(
     path="/v1/particle-effects",
@@ -339,8 +359,9 @@ _install_family_routes(
     path="/v1/music-tracks",
     singular="music_track",
     kind=ContentKind.MUSIC_TRACK,
-    item_model=PyMusicTrack,
-    page_model=PyMusicTrackPage,
+    item_model=BaseModel,
+    page_model=BaseModel,
+    retired=True,
 )
 
 # These portable lanes are typed and mountable, but their current editors use

@@ -115,7 +115,8 @@ export async function createLocalCatalogClient({
       const exact = exactItemId(itemId);
       const response = await apiContext.get(
         `/v1/content/items/${encodeURIComponent(exact)}`,
-        { failOnStatusCode: false },
+        // Reads can wait behind a complete-package catalog reconciliation.
+        { failOnStatusCode: false, timeout: 60_000 },
       );
       if (response.status() === 404 && allowMissing) return null;
       if (!response.ok()) {
@@ -146,6 +147,82 @@ export async function createLocalCatalogClient({
       return body;
     },
 
+    async getPackageOperation(operationId) {
+      if (
+        typeof operationId !== "string" ||
+        !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(operationId)
+      ) {
+        throw new Error(
+          "Package receipt lookup requires one exact operation ID.",
+        );
+      }
+      const response = await apiContext.get(
+        `/v1/content/package-operations/${encodeURIComponent(operationId)}`,
+        { failOnStatusCode: false },
+      );
+      if (!response.ok())
+        throw new Error(
+          `Package operation read returned HTTP ${response.status()}.`,
+        );
+      return response.json();
+    },
+
+    async getAnima(animaId, { allowMissing = false } = {}) {
+      const exact = exactAnimaId(animaId);
+      const response = await apiContext.get(
+        `/v1/animas/${encodeURIComponent(exact)}`,
+        { failOnStatusCode: false },
+      );
+      if (response.status() === 404 && allowMissing) return null;
+      if (!response.ok())
+        throw new Error(`Exact Anima read returned HTTP ${response.status()}.`);
+      return response.json();
+    },
+
+    async getAnimaExport(animaId) {
+      const response = await apiContext.post(
+        "/v1/content/package-exports:summary",
+        {
+          failOnStatusCode: false,
+          data: { anima_id: exactAnimaId(animaId) },
+        },
+      );
+      if (!response.ok())
+        throw new Error(`Saved Anima read returned HTTP ${response.status()}.`);
+      return response.json();
+    },
+
+    async deleteAnima(animaId) {
+      const response = await apiContext.delete(
+        `/v1/animas/${encodeURIComponent(exactAnimaId(animaId))}`,
+        {
+          failOnStatusCode: false,
+        },
+      );
+      return { status: response.status() };
+    },
+
+    async getAvatar(avatarId, { allowMissing = false } = {}) {
+      const response = await apiContext.get(
+        `/v1/avatars/${encodeURIComponent(exactItemId(avatarId))}`,
+        { failOnStatusCode: false },
+      );
+      if (response.status() === 404 && allowMissing) return null;
+      if (!response.ok())
+        throw new Error(
+          `Exact Avatar read returned HTTP ${response.status()}.`,
+        );
+      return response.json();
+    },
+
+    async deleteAvatar(avatarId) {
+      const response = await apiContext.delete(
+        `/v1/avatars/${encodeURIComponent(exactItemId(avatarId))}`,
+        { failOnStatusCode: false },
+      );
+      return { status: response.status() };
+    },
+
     async deleteItem(itemId, revisionSha256) {
       const exact = exactItemId(itemId);
       const revision = exactRevision(revisionSha256);
@@ -154,6 +231,8 @@ export async function createLocalCatalogClient({
         {
           failOnStatusCode: false,
           params: { expected_revision: revision },
+          // Large imported closures rescan Local content before deletion commits.
+          timeout: 60_000,
         },
       );
       return { status: response.status() };

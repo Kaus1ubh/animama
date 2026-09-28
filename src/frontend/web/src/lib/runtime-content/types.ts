@@ -29,7 +29,6 @@ export const RUNTIME_CONTENT_SLOTS = [
   "background_image",
   "profile_image",
   "sfx",
-  "bgm",
 ] as const;
 
 export type RuntimeContentSlot = (typeof RUNTIME_CONTENT_SLOTS)[number];
@@ -92,6 +91,11 @@ export type AnimaRuntimeCatalogSnapshot = {
   app_catalog_version: number;
   avatar_model: RuntimeCatalogEntry | null;
   idle_animations: RuntimeCatalogEntry[];
+  /** Missing cells inherit Default; an explicit empty cell suppresses idle motion. */
+  idle_style_pools?: {
+    default: string[];
+    cells: Record<string, Record<string, string[]>>;
+  };
   gestures: RuntimeCatalogEntry[];
   poses: RuntimeCatalogEntry[];
   reactions: RuntimeCatalogEntry[];
@@ -102,7 +106,6 @@ export type AnimaRuntimeCatalogSnapshot = {
   background_image: RuntimeCatalogEntry | null;
   profile_image: RuntimeCatalogEntry | null;
   sfx: RuntimeCatalogEntry[];
-  bgm: RuntimeCatalogEntry[];
   warnings: Array<{
     code: string;
     slot: RuntimeContentSlot;
@@ -112,7 +115,7 @@ export type AnimaRuntimeCatalogSnapshot = {
 
 export const RUNTIME_SLOT_COMPATIBLE_KINDS = {
   primary_model: ["avatar_model"],
-  idle_animation: ["animation"],
+  idle_animation: ["animation", "anima_pose_clip"],
   gesture: ["animation", "anima_pose_clip"],
   pose: ["anima_pose_clip"],
   reaction: ["anima_pose_clip"],
@@ -123,7 +126,6 @@ export const RUNTIME_SLOT_COMPATIBLE_KINDS = {
   background_image: ["image"],
   profile_image: ["image"],
   sfx: ["audio"],
-  bgm: ["audio"],
 } as const satisfies Record<RuntimeContentSlot, readonly RuntimeResourceKind[]>;
 
 export type JsonPrimitive = string | number | boolean | null;

@@ -1022,7 +1022,9 @@ the public ORT 1.24.2 inventory does not replace those dependency versions.
   Clone voice adds the clone to the library without selecting it. An optional
   name defaults to the recording filename without its extension. Clones appear
   in the Pocket voice picker with original-recording preview and delete controls.
-  Deletion is blocked while any Anima uses the clone.
+  Clones imported with an Anima contain only the encoded voice; they remain
+  selectable for speech, while original-recording Play is disabled and labeled
+  unavailable. Deletion is blocked while any Anima uses the clone.
   Existing session-only `custom` selections cannot be recovered automatically:
   upload the original again and save a named clone to make it durable.
 - Clone selection uses the Anima's voice loadout binding. Chat prepares and

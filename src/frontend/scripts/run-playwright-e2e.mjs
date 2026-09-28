@@ -29,7 +29,7 @@ import { cleanupOwnedContent } from "./e2e/content-cleanup.mjs";
 import {
   readContentLedger,
   summarizeContentLedger,
-  unresolvedOwnedContent,
+  unresolvedContentWork,
 } from "./e2e/content-ledger.mjs";
 import { createLocalCatalogClient } from "./e2e/local-catalog-client.mjs";
 import { validateLocalContentRoot } from "./e2e/local-content-verifier.mjs";
@@ -344,7 +344,7 @@ async function main() {
   } finally {
     try {
       const ledgerEvents = await readContentLedger(artifacts.contentLedger);
-      const unresolved = unresolvedOwnedContent(ledgerEvents);
+      const unresolved = unresolvedContentWork(ledgerEvents);
       let fallback = {
         attempted: 0,
         deleted: 0,
@@ -369,22 +369,24 @@ async function main() {
         }
       }
       const finalEvents = await readContentLedger(artifacts.contentLedger);
-      const remaining = unresolvedOwnedContent(finalEvents).length;
+      const remaining = unresolvedContentWork(finalEvents).length;
       const cleanupSummary = {
         status: remaining === 0 ? "complete" : "failed",
         fallback,
-        remainingOwned: remaining,
+        remainingWork: remaining,
         ledger: summarizeContentLedgerLifecycle(finalEvents),
       };
       await writePrivateJson(artifacts.cleanupSummary, cleanupSummary);
       manifest.cleanup.content = cleanupSummary;
       if (remaining > 0) {
-        throw new Error(`${remaining} ledger-owned creator item(s) remain.`);
+        throw new Error(
+          `${remaining} owned item(s) or unconfirmed import operation(s) remain.`,
+        );
       }
       log(
         fallback.attempted > 0
           ? `Runner cleanup resolved ${fallback.deleted} exact owned creator item(s).`
-          : "Creator content ledger has no unresolved owned items.",
+          : "Creator content ledger has no unresolved content or import operations.",
       );
     } catch (error) {
       const safeError = redactEvidence(error);

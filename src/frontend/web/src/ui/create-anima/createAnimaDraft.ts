@@ -5,7 +5,6 @@ import type {
   AnimaCreationDiagnostic,
   AnimaCreationOptions,
   ItemRevisionRef,
-  SourceRevision,
 } from "@animama/runtime-contracts/sdk";
 import { TRACKED_EMOTIONS, type TrackedEmotion } from "@/lib/emotion";
 import {
@@ -46,7 +45,6 @@ const sourceRevisionSchema = z.strictObject({
     "reaction",
     "idle_style",
     "pose",
-    "pose_clip",
     "particle_effect",
     "avatar_effect",
     "scene_effect",
@@ -55,7 +53,15 @@ const sourceRevisionSchema = z.strictObject({
   revision_sha256: revisionSchema,
 });
 export const sourceMapSchema = z.record(itemIdSchema, sourceRevisionSchema);
-export type SourceMap = Record<string, SourceRevision>;
+// Saved evidence can predate retirement. New resolution and command validation
+// always use sourceMapSchema; legacy values are retained only for recovery.
+const savedSourceMapSchema = z.record(
+  itemIdSchema,
+  sourceRevisionSchema.extend({
+    kind: z.union([sourceRevisionSchema.shape.kind, z.literal("pose_clip")]),
+  }),
+);
+export type SourceMap = z.infer<typeof savedSourceMapSchema>;
 const presentationSchema = z.strictObject({
   fit: z.enum(["cover", "contain"]),
   focal_x: z.number().min(0).max(1),
@@ -83,7 +89,7 @@ const starterPackSchema = z.strictObject({
 });
 const evidenceSchema = z.strictObject({
   source: itemRefSchema,
-  revisions: sourceMapSchema,
+  revisions: savedSourceMapSchema,
 });
 export type CreationEvidence = z.infer<typeof evidenceSchema>;
 
@@ -152,6 +158,7 @@ export const creationRequestSchema = animaSpecSchema.extend({
 /** Frozen saved requests accept up to 120 characters for exact retry; new commands cap names at 40. */
 const frozenCreationRequestSchema = z.strictObject({
   ...animaSpecFields,
+  expected_source_revisions: savedSourceMapSchema,
   voice: creationVoiceDraftSchema.nullable().optional(),
   display_name: z.string().min(1).max(120),
   idempotency_key: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/),
@@ -173,8 +180,8 @@ export const previousCreateAnimaDraftSchema = z.strictObject({
   reactions: reactionsSchema,
   starter_pack: starterPackSchema.nullable(),
   default_idle: itemRefSchema.nullable(),
-  idle_revisions: sourceMapSchema,
-  seed_revisions: sourceMapSchema,
+  idle_revisions: savedSourceMapSchema,
+  seed_revisions: savedSourceMapSchema,
   evidence: z.record(itemIdSchema, evidenceSchema),
   submission: z
     .strictObject({
@@ -234,8 +241,8 @@ export const legacyCreateAnimaDraftSchema = z.strictObject({
   reactions: reactionsSchema,
   starter_pack: starterPackSchema.nullable(),
   default_idle: itemRefSchema.nullable(),
-  idle_revisions: sourceMapSchema,
-  seed_revisions: sourceMapSchema,
+  idle_revisions: savedSourceMapSchema,
+  seed_revisions: savedSourceMapSchema,
   evidence: z.record(itemIdSchema, evidenceSchema),
   submission: z
     .strictObject({

@@ -1,3 +1,4 @@
+import idlePlaybackCases from "../../../../../tests/fixtures/idle-playback-cases.json";
 import * as THREE from "three";
 import { describe, expect, it, vi } from "vitest";
 import type { VRM } from "@pixiv/three-vrm";
@@ -83,4 +84,34 @@ describe("AnimationManager rooted playback", () => {
 
     expect(stripTranslationTracksForRootedPlayback(clip)).toBe(clip);
   });
+});
+
+describe("finite idle VRMA shared playback contract", () => {
+  it.each(
+    idlePlaybackCases.filter((row) => row.kind === "vrma" && row.expected),
+  )(
+    "$name ends at the admitted horizon at authored speed",
+    async ({ expected }) => {
+      const facts = expected!;
+      const manager = new AnimationManager({ scene: new THREE.Group() } as VRM);
+      vi.spyOn(
+        manager as unknown as { _loadClip: () => Promise<THREE.AnimationClip> },
+        "_loadClip",
+      ).mockResolvedValue(
+        new THREE.AnimationClip("finite", facts.cycle_seconds, []),
+      );
+      const finished = vi.fn();
+      await manager.playLoop("blob:idle", "finite", {
+        loopType: facts.loop_type as "once" | "repeat" | "pingpong",
+        loopCount: facts.repetitions,
+        timeScale: facts.time_scale,
+        onFinished: finished,
+      });
+      manager.update(facts.duration_seconds - 0.001);
+      expect(finished).not.toHaveBeenCalled();
+      manager.update(0.0011);
+      expect(finished).toHaveBeenCalledOnce();
+      manager.dispose();
+    },
+  );
 });

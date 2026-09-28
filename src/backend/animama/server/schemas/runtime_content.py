@@ -7,6 +7,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from animama.server.schemas.idle_style import PyIdleCell, PyIdlePlayback
+
 
 class PyRuntimeFile(BaseModel):
     """One exact byte member prepared by the browser for this mount."""
@@ -48,7 +50,7 @@ class PyRuntimeAction(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     binding_id: str
-    content_type: Literal["gesture", "reaction", "pose_clip"]
+    content_type: Literal["gesture", "reaction"]
     runtime_root_id: str | None = None
     source: PyRuntimeSource
     name: str
@@ -94,6 +96,13 @@ class PyRuntimeIdleAnimation(BaseModel):
     files: list[PyRuntimeFile] = Field(default_factory=list)
 
 
+class PyRuntimeIdleGesture(PyRuntimeAction):
+    """A complete Action admitted for idle use, never an AI-selectable Gesture."""
+
+    content_type: Literal["gesture"] = "gesture"
+    idle_playback: PyIdlePlayback
+
+
 class PyRuntimeIdleStyle(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -102,26 +111,13 @@ class PyRuntimeIdleStyle(BaseModel):
     description: str | None = None
     source: PyRuntimeSource
     revision: str
-    animations: list[PyRuntimeIdleAnimation]
+    schema_version: Literal[1, 2] = 1
+    gestures: list[PyRuntimeIdleGesture] = Field(default_factory=list)
+    cells: dict[str, dict[str, PyIdleCell]] = Field(default_factory=dict)
+    animations: list[PyRuntimeIdleAnimation] = Field(default_factory=list)
     default_pool: list[str]
-    emotion_pools: dict[str, list[str]]
-    cross_fade_seconds: float
-
-
-class PyRuntimeMusicTrack(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    binding_id: str
-    runtime_root_id: str | None = None
-    runtime_id: str
-    name: str
-    description: str | None = None
-    source: PyRuntimeSource
-    revision: str
-    duration_seconds: float
-    codec: str
-    config: dict[str, Any]
-    files: list[PyRuntimeFile] = Field(default_factory=list)
+    emotion_pools: dict[str, list[str]] = Field(default_factory=dict)
+    cross_fade_seconds: float = 0.35
 
 
 class PyRuntimeAvatar(BaseModel):
@@ -256,7 +252,6 @@ class PyAnimaRuntime(BaseModel):
     poses: list[PyRuntimeAction] = Field(default_factory=list)
     reactions: list[PyRuntimeAction] = Field(default_factory=list)
     idle_style: PyRuntimeIdleStyle | None = None
-    music_tracks: list[PyRuntimeMusicTrack] = Field(default_factory=list)
     avatar: PyRuntimeAvatar | None = None
     voice: PyRuntimeVoice | None = None
     appearances: list[PyRuntimeAppearance] = Field(default_factory=list)

@@ -149,7 +149,7 @@ describe("revision-pinned creation reads", () => {
     draft.seed_revisions = {
       ...draft.seed_revisions,
       gesture: revision("gesture"),
-      support: revision("pose_clip"),
+      support: revision("gesture"),
     };
     evidence.mockResolvedValue(
       evidenceResult([
@@ -163,7 +163,7 @@ describe("revision-pinned creation reads", () => {
           kind: "gesture",
           revisions: {
             gesture: revision("gesture"),
-            support: revision("pose_clip"),
+            support: revision("gesture"),
           },
         },
         {
@@ -171,7 +171,7 @@ describe("revision-pinned creation reads", () => {
           kind: "idle_style",
           revisions: {
             idle: revision("idle_style"),
-            idle_pose: revision("pose_clip"),
+            idle_pose: revision("gesture"),
           },
         },
       ]),
@@ -183,12 +183,12 @@ describe("revision-pinned creation reads", () => {
       source: ref("gesture"),
       revisions: {
         gesture: revision("gesture"),
-        support: revision("pose_clip"),
+        support: revision("gesture"),
       },
     });
     expect(buildAnimaSpec(resolved).expected_source_revisions).toMatchObject({
       gesture: revision("gesture"),
-      support: revision("pose_clip"),
+      support: revision("gesture"),
     });
     expect(evidence).toHaveBeenCalledTimes(1);
     expect(preview).not.toHaveBeenCalled();
@@ -206,7 +206,7 @@ describe("revision-pinned creation reads", () => {
           kind: "idle_style",
           revisions: {
             idle: revision("idle_style"),
-            idle_pose: revision("pose_clip"),
+            idle_pose: revision("gesture"),
           },
         },
       ]),
@@ -236,13 +236,13 @@ describe("revision-pinned creation reads", () => {
             source: ref("idle"),
             expected_source_revisions: {
               idle: revision("idle_style"),
-              idle_pose: revision("pose_clip"),
+              idle_pose: revision("gesture"),
             },
           },
         ],
         combined_expected_source_revisions: {
           idle: revision("idle_style"),
-          idle_pose: revision("pose_clip"),
+          idle_pose: revision("gesture"),
         },
         diagnostics: [
           {
@@ -288,7 +288,7 @@ describe("revision-pinned creation reads", () => {
           source: ref("reaction"),
           revisions: {
             reaction: revision("reaction"),
-            support: revision("pose_clip"),
+            support: revision("gesture"),
           },
         },
       },
@@ -305,7 +305,7 @@ describe("revision-pinned creation reads", () => {
           kind: "reaction",
           revisions: {
             reaction: revision("reaction"),
-            support: revision("pose_clip", "b"),
+            support: revision("gesture", "b"),
           },
         },
         {
@@ -313,7 +313,7 @@ describe("revision-pinned creation reads", () => {
           kind: "idle_style",
           revisions: {
             idle: revision("idle_style"),
-            idle_pose: revision("pose_clip"),
+            idle_pose: revision("gesture"),
           },
         },
       ]),
@@ -332,7 +332,7 @@ describe("revision-pinned creation reads", () => {
     ).toEqual(["/reactions/joy/1", "/reactions/anger/3"]);
     expect(withEvidence.reactions.joy["1"]).toEqual(ref("reaction"));
     expect(withEvidence.evidence.reaction.revisions.support).toEqual(
-      revision("pose_clip"),
+      revision("gesture"),
     );
   });
 });

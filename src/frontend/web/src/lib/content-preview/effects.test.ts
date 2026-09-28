@@ -252,7 +252,7 @@ describe("Asset preview effect playback", () => {
       { id: "sound", time: 0.4, kind: "sfx", cueId: "impact" },
       { ...context, eventId: "sound", appliedId: "preview:sound" },
     );
-    expect(playSfx).toHaveBeenCalledWith("impact");
+    expect(playSfx).toHaveBeenCalledWith("impact", undefined);
 
     await bridge.sink.clearSceneVFX?.(event, context);
     expect(onSceneVFXChange).toHaveBeenLastCalledWith(null);
@@ -405,13 +405,13 @@ describe("clip accompanying audio", () => {
         expect.objectContaining({ runtimeId: preset.id }),
       );
       expect(playSfx.mock.calls).toEqual(
-        playAccompanyingSound === false ? [] : [["accompanying"]],
+        playAccompanyingSound === false ? [] : [["accompanying", undefined]],
       );
       await bridge.sink.playSfx?.(
         { id: "independent", time: 0, kind: "sfx", cueId: "independent" },
         context,
       );
-      expect(playSfx).toHaveBeenLastCalledWith("independent");
+      expect(playSfx).toHaveBeenLastCalledWith("independent", undefined);
     },
   );
 });

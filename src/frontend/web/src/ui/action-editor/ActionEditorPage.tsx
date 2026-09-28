@@ -88,6 +88,7 @@ import {
 import {
   actionEditorCapabilities,
   loadedActionEditorMode,
+  newActionEditorMode,
 } from "./actionEditorCapabilities";
 import { loadCreatorPreviewFile } from "@/lib/content/contentEditorSource";
 import {
@@ -185,7 +186,7 @@ export function ActionEditorPage({
   const [mode, setMode] = useState(
     itemId
       ? loadedActionEditorMode(intent, document.implementation)
-      : capabilities.defaultMode,
+      : newActionEditorMode(intent, initialComponent),
   );
   const hydrated = useRef(false);
   const hydrating = useRef(false);

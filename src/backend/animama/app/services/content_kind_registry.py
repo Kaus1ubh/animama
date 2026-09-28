@@ -26,7 +26,9 @@ from animama.domain.content_documents import (
     ContentFileDeclarationV1,
     GestureDocumentV1,
     IdleAnimationDocumentV1,
+    IdleStyleCellV2,
     IdleStyleDocumentV1,
+    IdleStyleDocumentV2,
     MusicTrackDocumentV1,
     ParticleEffectDocumentV1,
     PoseClipDocumentV1,
@@ -185,6 +187,7 @@ _KIND_FIELDS: dict[ContentKind, frozenset[str]] = {
             "revision",
             "animations",
             "default_pool",
+            "cells",
             "emotion_pools",
             "cross_fade_seconds",
             "compatibility",
@@ -631,8 +634,12 @@ def _base_values(
     schema_version = raw.get("schema_version", 1)
     if isinstance(version, bool) or not isinstance(version, int) or version < 1:
         raise ContentDocumentError("invalid_document_version", "version must be a positive integer")
-    if schema_version != 1:
-        raise ContentDocumentError("unsupported_schema_version", "only schema_version 1 is supported")
+    if (
+        isinstance(schema_version, bool)
+        or not isinstance(schema_version, int)
+        or schema_version not in ({1, 2} if kind is ContentKind.IDLE_STYLE else {1})
+    ):
+        raise ContentDocumentError("unsupported_schema_version", "unsupported document schema_version")
     return {
         "kind": kind,
         "name": _string(
@@ -652,6 +659,76 @@ def _base_values(
         "dependencies": dependencies,
         "provenance": _object(raw.get("provenance"), field_name="provenance"),
     }
+
+
+def idle_cells_projection(cells: Mapping[str, Mapping[str, IdleStyleCellV2]]) -> dict[str, Any]:
+    """Serialize exact cells without turning inherited cells into explicit pools."""
+
+    return {
+        emotion: {
+            intensity: {"mode": cell.mode, **({"gestures": list(cell.gestures)} if cell.mode == "pool" else {})}
+            for intensity, cell in levels.items()
+        }
+        for emotion, levels in cells.items()
+    }
+
+
+def _idle_style_v2(raw: Mapping[str, Any], base: dict[str, Any]) -> IdleStyleDocumentV2:
+    """Admit only complete Gesture references and the canonical exact-cell model."""
+
+    if set(raw) & {"animations", "emotion_pools", "cross_fade_seconds", "config"} or base["files"]:
+        raise ContentDocumentError(
+            "idle_legacy_fields", "Idle Style v2 owns Gesture pools, not animation files or overrides"
+        )
+    dependencies = base["dependencies"]
+    if any(edge.kind is not ContentKind.GESTURE or edge.config for edge in dependencies):
+        raise ContentDocumentError(
+            "idle_gesture_dependencies_required", "Idle pools require Gesture dependencies without overrides"
+        )
+    refs = {edge.ref for edge in dependencies}
+    used: set[str] = set()
+
+    def pool(value: Any, *, allow_empty: bool = False) -> tuple[str, ...]:
+        if not isinstance(value, list) or any(not isinstance(ref, str) for ref in value):
+            raise ContentDocumentError("idle_pool_invalid", "Idle pools must contain Gesture references")
+        if (not value and not allow_empty) or len(set(value)) != len(value) or not set(value) <= refs:
+            raise ContentDocumentError("idle_pool_invalid", "Idle pools require unique declared Gesture references")
+        used.update(value)
+        return tuple(value)
+
+    default_pool = pool(raw.get("default_pool", []), allow_empty=True)
+    cells: dict[str, dict[str, IdleStyleCellV2]] = {}
+    for emotion, levels in _object(raw.get("cells"), field_name="cells").items():
+        if emotion not in TRACKED_EMOTION_SET:
+            raise ContentDocumentError(
+                "idle_cell_invalid", "Idle cells require a tracked emotion; neutral uses Default"
+            )
+        cells[emotion] = {}
+        for intensity, value in _object(levels, field_name="cells.emotion").items():
+            cell = _object(value, field_name="cells.emotion.intensity")
+            if (
+                intensity not in {"1", "2", "3"}
+                or not isinstance(cell.get("mode"), str)
+                or cell["mode"] not in {"none", "pool"}
+            ):
+                raise ContentDocumentError(
+                    "idle_cell_invalid", "Idle cells require intensity 1–3 and mode none or pool"
+                )
+            expected_fields = {"mode", "gestures"} if cell["mode"] == "pool" else {"mode"}
+            if set(cell) != expected_fields:
+                raise ContentDocumentError("idle_cell_invalid", "Idle cell fields do not match its mode")
+            cells[emotion][intensity] = IdleStyleCellV2(
+                mode=cell["mode"],
+                gestures=pool(cell["gestures"]) if cell["mode"] == "pool" else (),
+            )
+    if used != refs:
+        raise ContentDocumentError("idle_unused_dependency", "Every Idle Style dependency must belong to a pool")
+    return IdleStyleDocumentV2(
+        **base,
+        default_pool=default_pool,
+        cells=cells,
+        compatibility=_object(raw.get("compatibility"), field_name="compatibility"),
+    )
 
 
 class ContentTypeHandler:
@@ -820,6 +897,8 @@ class ContentTypeHandler:
                 defaults=_object(raw.get("defaults"), field_name="defaults"),
             )
         if kind is ContentKind.IDLE_STYLE:
+            if base["schema_version"] == 2:
+                return _idle_style_v2(raw, base)
             animations = _idle_animations(raw)
             declared_files = {file.path: file.role for file in base["files"]}
             for animation in animations:
@@ -910,7 +989,7 @@ class ContentTypeHandler:
         """Return bounded searchable/product metadata, never persistence authority."""
 
         result: dict[str, Any] = {
-            "schema_version": 1,
+            "schema_version": document.schema_version,
             "content_type": document.kind.value,
             "version": document.version,
             "name": document.name,
@@ -970,6 +1049,14 @@ class ContentTypeHandler:
                     "duration_seconds": document.duration_seconds,
                     "codec": document.codec,
                     "defaults": document.defaults,
+                }
+            )
+        elif isinstance(document, IdleStyleDocumentV2):
+            result.update(
+                {
+                    "default_pool": list(document.default_pool),
+                    "cells": idle_cells_projection(document.cells),
+                    "compatibility": document.compatibility,
                 }
             )
         elif isinstance(document, IdleStyleDocumentV1):
@@ -1202,21 +1289,19 @@ class ContentTypeHandler:
             payload["emotion"] = emotion if emotion in TRACKED_EMOTION_SET else document.emotion
             payload["intensity"] = intensity if intensity in {1, 2, 3} else document.intensity
             return RuntimeProjection("reaction", payload)
-        if isinstance(document, PoseClipDocumentV1):
+        if isinstance(document, IdleStyleDocumentV2):
             return RuntimeProjection(
-                "pose",
+                "idle_style",
                 {
+                    "schema_version": 2,
                     "runtime_root_id": projection.runtime_root_id,
-                    "binding_id": str(projection.context.get("binding_id") or projection.runtime_root_id),
-                    "content_type": "pose_clip",
+                    "name": document.name,
+                    "description": document.description,
                     "source": projection.source,
-                    "name": name,
-                    "description": description,
-                    "semantic_key": document.clip_id,
-                    "implementation": {"kind": "anima_clip", "file_role": "sequence"},
-                    "config": _mapping(projection.context.get("config")),
-                    "reference_map": projection.reference_map,
-                    "files": projection.files,
+                    "revision": projection.revision,
+                    "default_pool": list(document.default_pool),
+                    "cells": idle_cells_projection(document.cells),
+                    "gestures": [],
                 },
             )
         if isinstance(document, IdleStyleDocumentV1):
@@ -1259,26 +1344,6 @@ class ContentTypeHandler:
                     "default_pool": default_pool,
                     "emotion_pools": pools,
                     "cross_fade_seconds": document.cross_fade_seconds,
-                },
-            )
-        if isinstance(document, MusicTrackDocumentV1):
-            loop = projection.context.get("loop", document.loop)
-            gain = projection.context.get("gain", document.gain)
-            autoplay = projection.context.get("autoplay", document.autoplay)
-            return RuntimeProjection(
-                "music_track",
-                {
-                    "runtime_root_id": projection.runtime_root_id,
-                    "binding_id": str(projection.context.get("binding_id") or projection.runtime_root_id),
-                    "runtime_id": projection.slot_key.split(":", 1)[-1],
-                    "name": name,
-                    "description": description,
-                    "source": projection.source,
-                    "revision": projection.revision,
-                    "duration_seconds": document.duration_seconds,
-                    "codec": document.codec,
-                    "config": {"loop": bool(loop), "volume": float(gain), "autoplay": bool(autoplay)},
-                    "files": projection.files,
                 },
             )
         if isinstance(document, AvatarDocumentV1):
@@ -1531,6 +1596,11 @@ def _valid_dependency_reference(value: str) -> bool:
     return not relative.is_absolute() and all(part not in {"", ".", ".."} for part in relative.parts)
 
 
+# Persisted rows and receipts retain their original kind. Public admission must
+# exclude these kinds while conversion can still use their exact old handlers.
+RETIRED_CONTENT_KINDS = frozenset({ContentKind.POSE_CLIP, ContentKind.MUSIC_TRACK})
+
+
 CONTENT_TYPE_HANDLERS = ContentTypeHandlerRegistry(
     (
         ContentTypeHandler(
@@ -1765,6 +1835,7 @@ def is_descriptor_path(definition: ContentKindDefinition, path: Path, type_root:
 
 __all__ = [
     "CONTENT_KIND_REGISTRY",
+    "RETIRED_CONTENT_KINDS",
     "CONTENT_TYPE_HANDLERS",
     "ContentKindDefinition",
     "ContentTypeHandler",

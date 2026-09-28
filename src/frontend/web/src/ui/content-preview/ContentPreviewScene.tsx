@@ -117,7 +117,8 @@ function PreviewActor({
       createContentPreviewClipEventBridge({
         catalog,
         onSceneVFXChange,
-        playSfx: (runtimeId) => applySoundPlayer.play(catalog, runtimeId),
+        playSfx: (runtimeId, signal) =>
+          applySoundPlayer.play(catalog, runtimeId, signal),
       }),
     [applySoundPlayer, catalog, onSceneVFXChange],
   );

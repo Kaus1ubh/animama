@@ -2,6 +2,9 @@ import { Group, Object3D } from "three";
 import { describe, expect, it, vi } from "vitest";
 
 import { Avatar, PoseController, parseAnimaPoseClip } from "@/lib/avatar";
+import { playContentPreviewMotion } from "@/lib/content-preview/playback";
+import type { PreviewRuntimeCatalogSession } from "@/lib/content-preview/PreviewRuntimeCatalogSession";
+import type { ContentPreviewTarget } from "@/lib/content-preview/types";
 
 const eventClip = parseAnimaPoseClip({
   schema: "animaPoseClip/1.0",
@@ -187,6 +190,65 @@ describe("Avatar body-clip coordination", () => {
       expect(h.avatar.isClipActive()).toBe(false);
       expect(h.applyDefaults).toHaveBeenCalledTimes(2);
       expect(h.clearScene).toHaveBeenCalledOnce();
+    },
+  );
+});
+
+describe("finite idle preview completion", () => {
+  it("moves preview status to Ready once the actual clip clock finishes", async () => {
+    const h = avatarHarness(false);
+    const onFinished = vi.fn();
+    let status = "playing";
+    const catalog = {
+      loadPoseClip: async () => bodyClip,
+    } as unknown as PreviewRuntimeCatalogSession;
+    // No event dependencies are needed for this completion observation.
+    const clip = parseAnimaPoseClip({ ...bodyClip, events: [], loop: true });
+    catalog.loadPoseClip = async () => clip;
+    await playContentPreviewMotion({
+      avatar: h.avatar,
+      catalog,
+      loop: false,
+      target: {
+        kind: "anima_pose_clip",
+        slot: "gesture",
+        runtimeId: "body",
+        idlePlayback: {
+          timeScale: 0.5,
+          repetitions: 3,
+          loopType: "repeat",
+          durationSeconds: 6,
+        },
+      } as ContentPreviewTarget,
+      onFinished: () => {
+        onFinished();
+        status = "ready";
+      },
+    });
+    h.avatar.update(5.9);
+    expect(status).toBe("playing");
+    expect(onFinished).not.toHaveBeenCalled();
+    h.avatar.update(0.1);
+    expect(h.avatar.isClipActive()).toBe(false);
+    expect(status).toBe("ready");
+    h.avatar.update(1);
+    expect(onFinished).toHaveBeenCalledOnce();
+  });
+
+  it.each(["stop", "replace"] as const)(
+    "does not report a cancelled finite preview as naturally finished after %s",
+    (ending) => {
+      const h = avatarHarness(false);
+      const onFinished = vi.fn();
+      h.avatar.playAnimaPoseClip(bodyClip, {
+        finitePlayback: { timeScale: 1, repetitions: 1 },
+        onFinished,
+      });
+      h.avatar.update(0.25);
+      if (ending === "stop") h.avatar.stopClip();
+      else h.avatar.playAnimaPoseClip(eventClip);
+      h.avatar.update(2);
+      expect(onFinished).not.toHaveBeenCalled();
     },
   );
 });

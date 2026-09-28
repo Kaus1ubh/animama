@@ -632,6 +632,23 @@ function applyPoseCreatorClipVFXEvent({
   /** Only due-event dispatch supplies audio; scrub and restored effects stay silent. */
   playApplySound?: SoundContextValue["playSfxCue"];
 }) {
+  // Retire the preceding loop without reusing its asynchronous ownership ID.
+  // Explicit durations keep independent occurrences for authored overlap.
+  if (event.duration === undefined) {
+    for (const previous of Array.from(runtimeState.activeEffects.values())) {
+      if (
+        previous.event.duration === undefined &&
+        previous.context.clipId === context.clipId &&
+        previous.context.eventId === context.eventId
+      ) {
+        clearPoseCreatorClipPreviewEffect(
+          runtimeState,
+          activeAvatar,
+          previous.context.appliedId,
+        );
+      }
+    }
+  }
   clearPoseCreatorClipPreviewEffect(
     runtimeState,
     activeAvatar,

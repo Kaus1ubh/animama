@@ -33,6 +33,48 @@ async function withLedger(run) {
   }
 }
 
+test("package planning gains cleanup authority only through exact receipt ownership", async () => {
+  await withLedger(async (ledgerPath) => {
+    const { logicalKey: _logicalKey, ...identity } = common;
+    const planned = {
+      ...identity,
+      operationId: "import-operation",
+      stageId: "a".repeat(32),
+      reviewDigest: "b".repeat(64),
+      entryId: "entry-0001",
+      event: "import_planned",
+    };
+    await appendContentLedgerEvent(ledgerPath, planned);
+    assert.equal(
+      unresolvedOwnedContent(await readContentLedger(ledgerPath)).length,
+      0,
+    );
+    await assert.rejects(
+      appendContentLedgerEvent(ledgerPath, { ...owned, event: "owned" }),
+      /import_planned -> owned/,
+    );
+    await assert.rejects(
+      appendContentLedgerEvent(ledgerPath, {
+        ...planned,
+        ...owned,
+        event: "import_owned",
+        reviewDigest: "c".repeat(64),
+      }),
+      /changed reviewDigest/,
+    );
+    await appendContentLedgerEvent(ledgerPath, {
+      ...planned,
+      ...owned,
+      event: "import_owned",
+    });
+    const unresolved = unresolvedOwnedContent(
+      await readContentLedger(ledgerPath),
+    );
+    assert.equal(unresolved.length, 1);
+    assert.equal(unresolved[0].owned.itemId, "item-1");
+  });
+});
+
 test("appends an immutable planned-to-deleted lifecycle", async () => {
   await withLedger(async (ledgerPath) => {
     await appendContentLedgerEvent(ledgerPath, {

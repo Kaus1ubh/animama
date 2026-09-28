@@ -240,7 +240,7 @@ export type AnimaCreationResult = {
 /**
  * AnimaSpec
  *
- * Explicit creation choices; legacy voice omission retains its original default.
+ * New creation commands can reference only currently supported content.
  */
 export type AnimaSpecInput = {
     appearance: AnimaAppearanceInput;
@@ -282,7 +282,7 @@ export type AnimaSpecInput = {
 /**
  * AnimaSpec
  *
- * Explicit creation choices; legacy voice omission retains its original default.
+ * New creation commands can reference only currently supported content.
  */
 export type AnimaSpecOutput = {
     appearance: AnimaAppearanceOutput;
@@ -404,24 +404,6 @@ export type BodyCloneVoiceEndpointV1ElevenlabsVoicesClonePost = {
      * Remove Background Noise
      */
     remove_background_noise?: boolean;
-};
-
-/**
- * Body_import_content_package_v1_content_packages_import_post
- */
-export type BodyImportContentPackageV1ContentPackagesImportPost = {
-    /**
-     * Collision
-     */
-    collision?: string;
-    /**
-     * Operation Id
-     */
-    operation_id: string;
-    /**
-     * Package
-     */
-    package: Blob | File;
 };
 
 /**
@@ -637,44 +619,6 @@ export type BodySaveIdleStyle = {
 };
 
 /**
- * Body_save_music_track
- */
-export type BodySaveMusicTrack = {
-    /**
-     * Catalog Item Id
-     */
-    catalog_item_id?: string | null;
-    /**
-     * Companion Paths Json
-     */
-    companion_paths_json?: string;
-    /**
-     * Creation Context
-     */
-    creation_context?: boolean;
-    /**
-     * Descriptor Json
-     */
-    descriptor_json?: string | null;
-    /**
-     * Expected Revision
-     */
-    expected_revision?: string | null;
-    /**
-     * Files
-     */
-    files?: Array<Blob | File> | null;
-    /**
-     * Metadata Json
-     */
-    metadata_json?: string | null;
-    /**
-     * Operation Id
-     */
-    operation_id: string;
-};
-
-/**
  * Body_save_particle_effect
  */
 export type BodySaveParticleEffect = {
@@ -716,44 +660,6 @@ export type BodySaveParticleEffect = {
  * Body_save_pose
  */
 export type BodySavePose = {
-    /**
-     * Catalog Item Id
-     */
-    catalog_item_id?: string | null;
-    /**
-     * Companion Paths Json
-     */
-    companion_paths_json?: string;
-    /**
-     * Creation Context
-     */
-    creation_context?: boolean;
-    /**
-     * Descriptor Json
-     */
-    descriptor_json?: string | null;
-    /**
-     * Expected Revision
-     */
-    expected_revision?: string | null;
-    /**
-     * Files
-     */
-    files?: Array<Blob | File> | null;
-    /**
-     * Metadata Json
-     */
-    metadata_json?: string | null;
-    /**
-     * Operation Id
-     */
-    operation_id: string;
-};
-
-/**
- * Body_save_pose_clip
- */
-export type BodySavePoseClip = {
     /**
      * Catalog Item Id
      */
@@ -963,6 +869,13 @@ export type CompanionSafetyCapability = {
      */
     operator_reminder_hours: number;
 };
+
+/**
+ * ContentKind
+ *
+ * Readable-library content kinds and their runtime ownership boundaries.
+ */
+export type ContentKind = 'avatar' | 'gesture' | 'pose' | 'pose_clip' | 'reaction' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect' | 'idle_style' | 'music_track' | 'appearance' | 'voice' | 'anima';
 
 /**
  * CreateAnimaRequest
@@ -1200,6 +1113,100 @@ export type EnsureAnimaStartersResult = {
 };
 
 /**
+ * ExportReview
+ *
+ * Public review metadata for one sealed, owner-scoped immutable archive.
+ */
+export type ExportReview = {
+    /**
+     * Digest
+     */
+    digest: string;
+    /**
+     * Expires At
+     */
+    expires_at: string;
+    /**
+     * Export Id
+     */
+    export_id: string;
+    /**
+     * Filename
+     */
+    filename: string;
+    manifest: PackageManifest;
+    /**
+     * Package Sha256
+     */
+    package_sha256: string;
+    /**
+     * Required Count
+     */
+    required_count: number;
+    /**
+     * Selected Count
+     */
+    selected_count: number;
+    /**
+     * Size Bytes
+     */
+    size_bytes: number;
+};
+
+/**
+ * ExportSelectionItem
+ */
+export type ExportSelectionItem = {
+    /**
+     * Item Id
+     */
+    item_id: string;
+    /**
+     * Kind
+     */
+    kind: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Revision
+     */
+    revision: string;
+    /**
+     * Selected
+     */
+    selected: boolean;
+};
+
+/**
+ * ExportSummary
+ */
+export type ExportSummary = {
+    anima: PortableAnima | null;
+    /**
+     * Digest
+     */
+    digest: string;
+    /**
+     * Estimated Size Bytes
+     */
+    estimated_size_bytes: number;
+    /**
+     * Items
+     */
+    items: Array<ExportSelectionItem>;
+    /**
+     * Required Count
+     */
+    required_count: number;
+    /**
+     * Selected Count
+     */
+    selected_count: number;
+};
+
+/**
  * GestureSelection
  */
 export type GestureSelection = {
@@ -1243,6 +1250,37 @@ export type ImagePresentation = {
 };
 
 /**
+ * ImportedPackageItem
+ */
+export type ImportedPackageItem = {
+    /**
+     * Entry Id
+     */
+    entry_id: string;
+    /**
+     * Item Id
+     */
+    item_id: string;
+    kind: 'appearance' | 'avatar' | 'avatar_effect' | 'gesture' | 'idle_style' | 'particle_effect' | 'pose' | 'reaction' | 'scene_effect' | 'sound_effect' | 'voice';
+    /**
+     * Logical Key
+     */
+    logical_key: string | null;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Revision Sha256
+     */
+    revision_sha256: string;
+    /**
+     * Selected
+     */
+    selected: boolean;
+};
+
+/**
  * ItemRevisionRef
  */
 export type ItemRevisionRef = {
@@ -1254,6 +1292,589 @@ export type ItemRevisionRef = {
      * Revision Sha256
      */
     revision_sha256: string;
+};
+
+/**
+ * LegacyCreateAnimaRequest
+ */
+export type LegacyCreateAnimaRequest = {
+    appearance: AnimaAppearanceInput;
+    avatar: ItemRevisionRef;
+    /**
+     * Display Name
+     */
+    display_name: string;
+    /**
+     * Expected Source Revisions
+     */
+    expected_source_revisions: {
+        [key: string]: unknown | SourceRevision | LegacySourceRevision;
+    };
+    /**
+     * Gestures
+     */
+    gestures: Array<GestureSelection>;
+    /**
+     * Idempotency Key
+     */
+    idempotency_key: string;
+    /**
+     * Identity Markdown
+     */
+    identity_markdown: string;
+    /**
+     * Reactions
+     */
+    reactions: {
+        [key: string]: {
+            [key: string]: ItemRevisionRef | null;
+        };
+    };
+    /**
+     * Schema Version
+     */
+    schema_version: 1;
+    starter_pack: StarterPackIdentity;
+    voice?: CreationVoiceInput | null;
+};
+
+/**
+ * LegacyImportedPackageItem
+ *
+ * Historical kinds are display facts, never current package admission choices.
+ */
+export type LegacyImportedPackageItem = {
+    /**
+     * Entry Id
+     */
+    entry_id: string;
+    /**
+     * Item Id
+     */
+    item_id: string;
+    /**
+     * Kind
+     */
+    kind: string;
+    /**
+     * Logical Key
+     */
+    logical_key: string | null;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Selected
+     */
+    selected: boolean;
+};
+
+/**
+ * LegacyPackageImportResult
+ *
+ * Safe projection of a historical completed receipt; never admits old package formats.
+ */
+export type LegacyPackageImportResult = {
+    /**
+     * Items
+     */
+    items: Array<LegacyImportedPackageItem>;
+    /**
+     * Operation Id
+     */
+    operation_id: string;
+    /**
+     * Schema Version
+     */
+    schema_version?: 0;
+    /**
+     * Skipped Existing Item Ids
+     */
+    skipped_existing_item_ids: Array<string>;
+};
+
+/**
+ * LegacySourceRevision
+ *
+ * Private receipt input retained for exact pre-retirement retries.
+ */
+export type LegacySourceRevision = {
+    /**
+     * Kind
+     */
+    kind: 'pose_clip';
+    /**
+     * Revision Sha256
+     */
+    revision_sha256: string;
+};
+
+/**
+ * PackageAvatarPortrait
+ */
+export type PackageAvatarPortrait = {
+    /**
+     * Appearance Entry Id
+     */
+    appearance_entry_id: string;
+    /**
+     * Avatar Entry Id
+     */
+    avatar_entry_id: string;
+};
+
+/**
+ * PackageDependency
+ */
+export type PackageDependency = {
+    content_type: 'appearance' | 'avatar' | 'avatar_effect' | 'gesture' | 'idle_style' | 'particle_effect' | 'pose' | 'reaction' | 'scene_effect' | 'sound_effect' | 'voice';
+    /**
+     * Ref
+     */
+    ref: string;
+};
+
+/**
+ * PackageEntry
+ */
+export type PackageEntry = {
+    /**
+     * Dependencies
+     */
+    dependencies: Array<PackageDependency>;
+    /**
+     * Display Name
+     */
+    display_name: string;
+    /**
+     * Files
+     */
+    files: Array<PackageFile>;
+    kind: 'appearance' | 'avatar' | 'avatar_effect' | 'gesture' | 'idle_style' | 'particle_effect' | 'pose' | 'reaction' | 'scene_effect' | 'sound_effect' | 'voice';
+    license?: PackageLicense | null;
+    /**
+     * Logical Key
+     */
+    logical_key: string;
+    /**
+     * Package Entry Id
+     */
+    package_entry_id: string;
+    /**
+     * Portable Revision Sha256
+     */
+    portable_revision_sha256: string;
+};
+
+/**
+ * PackageExportRequest
+ */
+export type PackageExportRequest = {
+    /**
+     * Anima Id
+     */
+    anima_id?: string | null;
+    /**
+     * Expected Digest
+     */
+    expected_digest: string;
+    /**
+     * Item Ids
+     */
+    item_ids?: Array<string>;
+};
+
+/**
+ * PackageFile
+ *
+ * Exact declared bytes and their typed role within one entry.
+ */
+export type PackageFile = {
+    /**
+     * Archive Path
+     */
+    archive_path: string;
+    /**
+     * Media Type
+     */
+    media_type: string;
+    /**
+     * Ordinal
+     */
+    ordinal: number;
+    /**
+     * Relative Path
+     */
+    relative_path: string;
+    /**
+     * Role
+     */
+    role: string;
+    /**
+     * Sha256
+     */
+    sha256: string;
+    /**
+     * Size Bytes
+     */
+    size_bytes: number;
+};
+
+/**
+ * PackageImportCommitRequest
+ */
+export type PackageImportCommitRequest = {
+    /**
+     * Operation Id
+     */
+    operation_id: string;
+    /**
+     * Review Digest
+     */
+    review_digest: string;
+};
+
+/**
+ * PackageImportCreateRequest
+ */
+export type PackageImportCreateRequest = {
+    /**
+     * Expected Size Bytes
+     */
+    expected_size_bytes: number;
+    /**
+     * Filename
+     */
+    filename: string;
+    /**
+     * Operation Id
+     */
+    operation_id: string;
+};
+
+/**
+ * PackageImportResult
+ *
+ * Saved once with the catalog transaction and replayed without consulting live rows.
+ */
+export type PackageImportResult = {
+    /**
+     * Anima Id
+     */
+    anima_id?: string | null;
+    /**
+     * Items
+     */
+    items: Array<ImportedPackageItem>;
+    /**
+     * Operation Id
+     */
+    operation_id: string;
+    /**
+     * Package Sha256
+     */
+    package_sha256: string;
+    /**
+     * Review Digest
+     */
+    review_digest: string;
+    /**
+     * Schema Version
+     */
+    schema_version?: 1;
+};
+
+/**
+ * PackageLicense
+ *
+ * Attribution facts retained as metadata, never interpreted as permission.
+ */
+export type PackageLicense = {
+    /**
+     * Author
+     */
+    author?: string | boolean | Array<string> | null;
+    /**
+     * Creator
+     */
+    creator?: string | boolean | Array<string> | null;
+    /**
+     * License
+     */
+    license?: string | boolean | Array<string> | null;
+    /**
+     * License Name
+     */
+    license_name?: string | boolean | Array<string> | null;
+    /**
+     * License Url
+     */
+    license_url?: string | boolean | Array<string> | null;
+    /**
+     * Redistribution
+     */
+    redistribution?: string | boolean | Array<string> | null;
+    /**
+     * Redistribution Review
+     */
+    redistribution_review?: string | boolean | Array<string> | null;
+    /**
+     * Source Url
+     */
+    source_url?: string | boolean | Array<string> | null;
+};
+
+/**
+ * PackageManifest
+ *
+ * One complete content selection or one portable Anima, with no ambient roots.
+ */
+export type PackageManifest = {
+    anima?: PortableAnima | null;
+    /**
+     * Avatar Portraits
+     */
+    avatar_portraits: Array<PackageAvatarPortrait>;
+    /**
+     * Capabilities
+     */
+    capabilities: Array<string>;
+    /**
+     * Entries
+     */
+    entries: Array<PackageEntry>;
+    /**
+     * Kind
+     */
+    kind: 'content' | 'anima';
+    /**
+     * Root Entry Ids
+     */
+    root_entry_ids?: Array<string>;
+    /**
+     * Schema
+     */
+    schema: 'animama-content-package/3';
+};
+
+/**
+ * PackageOperationStatus
+ */
+export type PackageOperationStatus = {
+    /**
+     * Operation Id
+     */
+    operation_id: string;
+    /**
+     * Result
+     */
+    result?: PackageImportResult | LegacyPackageImportResult | null;
+    /**
+     * Review Digest
+     */
+    review_digest?: string | null;
+    /**
+     * Stage Id
+     */
+    stage_id?: string | null;
+    /**
+     * State
+     */
+    state: 'pending' | 'recovery_needed' | 'completed' | 'not_found';
+};
+
+/**
+ * PackageSelectionRequest
+ */
+export type PackageSelectionRequest = {
+    /**
+     * Anima Id
+     */
+    anima_id?: string | null;
+    /**
+     * Item Ids
+     */
+    item_ids?: Array<string>;
+};
+
+/**
+ * PackageStageStatus
+ *
+ * Private records are projected explicitly so internal destinations stay private.
+ */
+export type PackageStageStatus = {
+    /**
+     * Active
+     */
+    active: boolean;
+    /**
+     * Expected Size Bytes
+     */
+    expected_size_bytes: number;
+    /**
+     * Expires At
+     */
+    expires_at: string;
+    /**
+     * Filename
+     */
+    filename: string;
+    /**
+     * Next Part Index
+     */
+    next_part_index: number;
+    /**
+     * Operation Id
+     */
+    operation_id: string;
+    /**
+     * Part Size Bytes
+     */
+    part_size_bytes: number;
+    /**
+     * Received Bytes
+     */
+    received_bytes: number;
+    review?: ReviewedPackageImport | null;
+    /**
+     * Stage Id
+     */
+    stage_id: string;
+    /**
+     * State
+     */
+    state: string;
+};
+
+/**
+ * PartAck
+ */
+export type PartAck = {
+    /**
+     * Complete
+     */
+    complete: boolean;
+    /**
+     * Index
+     */
+    index: number;
+    /**
+     * Next Part Index
+     */
+    next_part_index: number;
+    /**
+     * Received Bytes
+     */
+    received_bytes: number;
+    /**
+     * Sha256
+     */
+    sha256: string;
+    /**
+     * Size Bytes
+     */
+    size_bytes: number;
+    /**
+     * Stage Id
+     */
+    stage_id: string;
+};
+
+/**
+ * PortableActionSelection
+ */
+export type PortableActionSelection = {
+    /**
+     * Config
+     */
+    config?: {
+        [key: string]: unknown;
+    };
+    /**
+     * Entry Id
+     */
+    entry_id: string;
+};
+
+/**
+ * PortableAnima
+ *
+ * Every equipment choice is explicit; only reviewed identity text is copied.
+ */
+export type PortableAnima = {
+    appearance: PortableAnimaAppearance;
+    /**
+     * Avatar
+     */
+    avatar: string;
+    /**
+     * Display Name
+     */
+    display_name: string;
+    /**
+     * Gestures
+     */
+    gestures: Array<PortableGestureSelection>;
+    /**
+     * Identity Markdown
+     */
+    identity_markdown: string;
+    /**
+     * Idle Style
+     */
+    idle_style: string | null;
+    /**
+     * Pocket Voice
+     */
+    pocket_voice?: string | null;
+    /**
+     * Reactions
+     */
+    reactions: {
+        [key: string]: {
+            [key: string]: PortableActionSelection | null;
+        };
+    };
+};
+
+/**
+ * PortableAnimaAppearance
+ */
+export type PortableAnimaAppearance = {
+    background: PortableAppearanceSelection | null;
+    profile: PortableAppearanceSelection | null;
+};
+
+/**
+ * PortableAppearanceSelection
+ */
+export type PortableAppearanceSelection = {
+    /**
+     * Entry Id
+     */
+    entry_id: string;
+    presentation: ImagePresentation;
+};
+
+/**
+ * PortableGestureSelection
+ */
+export type PortableGestureSelection = {
+    /**
+     * Config
+     */
+    config?: {
+        [key: string]: unknown;
+    };
+    /**
+     * Entry Id
+     */
+    entry_id: string;
+    /**
+     * Semantic Key
+     */
+    semantic_key: string;
 };
 
 /**
@@ -1477,9 +2098,25 @@ export type PyAnimaIdleStyle = {
      */
     animations?: Array<PyIdleAnimationSummary>;
     /**
+     * Cells
+     */
+    cells?: {
+        [key: string]: {
+            [key: string]: ({
+                mode: 'none';
+            } & PyIdleNoneCell) | ({
+                mode: 'pool';
+            } & PyIdlePoolCell);
+        };
+    };
+    /**
      * Cross Fade Seconds
      */
     cross_fade_seconds?: number;
+    /**
+     * Default Pool
+     */
+    default_pool?: Array<string>;
     /**
      * Description
      */
@@ -1505,6 +2142,10 @@ export type PyAnimaIdleStyle = {
         [key: string]: Array<string>;
     };
     /**
+     * Gestures
+     */
+    gestures?: Array<PyIdleGestureSummary>;
+    /**
      * Name
      */
     name?: string | null;
@@ -1514,6 +2155,10 @@ export type PyAnimaIdleStyle = {
     pool_overrides?: {
         [key: string]: Array<string>;
     };
+    /**
+     * Schema Version
+     */
+    schema_version?: 1 | 2;
     source?: PyCatalogLoadoutSource | null;
     /**
      * State
@@ -1614,10 +2259,6 @@ export type PyAnimaLoadout = {
     gestures: Array<PyGestureBinding>;
     idle_style: PyAnimaIdleStyle;
     /**
-     * Music Tracks
-     */
-    music_tracks?: Array<PyAnimaMusicTrack>;
-    /**
      * Reactions
      */
     reactions: Array<PyReactionCell>;
@@ -1640,61 +2281,6 @@ export type PyAnimaLoadout = {
      * Warnings
      */
     warnings?: Array<PyLoadoutDiagnostic>;
-};
-
-/**
- * PyAnimaMusicTrack
- */
-export type PyAnimaMusicTrack = {
-    /**
-     * Autoplay
-     */
-    autoplay: boolean;
-    /**
-     * Binding Id
-     */
-    binding_id: string;
-    /**
-     * Codec
-     */
-    codec: string;
-    /**
-     * Description
-     */
-    description?: string | null;
-    /**
-     * Duration Seconds
-     */
-    duration_seconds: number;
-    /**
-     * Effective Gain
-     */
-    effective_gain: number;
-    /**
-     * Effective Loop
-     */
-    effective_loop: boolean;
-    /**
-     * Enabled
-     */
-    enabled: boolean;
-    /**
-     * Gain Override
-     */
-    gain_override?: number | null;
-    /**
-     * Item Id
-     */
-    item_id: string;
-    /**
-     * Loop Override
-     */
-    loop_override?: boolean | null;
-    /**
-     * Name
-     */
-    name: string;
-    source: PyCatalogLoadoutSource;
 };
 
 /**
@@ -1823,10 +2409,6 @@ export type PyAnimaRuntime = {
      * Loadout Revision
      */
     loadout_revision: number;
-    /**
-     * Music Tracks
-     */
-    music_tracks?: Array<PyRuntimeMusicTrack>;
     /**
      * Particle Effects
      */
@@ -3242,7 +3824,7 @@ export type PyContentEvidenceRoot = {
     /**
      * Kind
      */
-    kind: 'voice' | 'avatar' | 'appearance' | 'gesture' | 'reaction' | 'idle_style' | 'pose' | 'pose_clip' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect';
+    kind: 'voice' | 'avatar' | 'appearance' | 'gesture' | 'reaction' | 'idle_style' | 'pose' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect';
     /**
      * Root Key
      */
@@ -3257,7 +3839,7 @@ export type PyContentEvidenceRootRequest = {
     /**
      * Kind
      */
-    kind: 'voice' | 'avatar' | 'appearance' | 'gesture' | 'reaction' | 'idle_style' | 'pose' | 'pose_clip' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect';
+    kind: 'voice' | 'avatar' | 'appearance' | 'gesture' | 'reaction' | 'idle_style' | 'pose' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect';
     source: ItemRevisionRef;
 };
 
@@ -3395,29 +3977,13 @@ export type PyContentItem = {
 };
 
 /**
- * PyContentPackageImportResult
- *
- * Editable catalog entries admitted from one validated package.
- */
-export type PyContentPackageImportResult = {
-    /**
-     * Items
-     */
-    items: Array<PyContentItem>;
-    /**
-     * Skipped Existing Item Ids
-     */
-    skipped_existing_item_ids: Array<string>;
-};
-
-/**
  * PyContentPreviewRootRequest
  */
 export type PyContentPreviewRootRequest = {
     /**
      * Kind
      */
-    kind: 'voice' | 'avatar' | 'appearance' | 'gesture' | 'reaction' | 'idle_style' | 'pose' | 'pose_clip' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect';
+    kind: 'voice' | 'avatar' | 'appearance' | 'gesture' | 'reaction' | 'idle_style' | 'pose' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect';
     /**
      * Source
      */
@@ -3464,8 +4030,6 @@ export type PyContentPreviewsPrepareResponse = {
     } & PyReaction) | ({
         kind: 'pose';
     } & PyPose) | ({
-        kind: 'pose_clip';
-    } & PyPoseClip) | ({
         kind: 'particle_effect';
     } & PyParticleEffect) | ({
         kind: 'avatar_effect';
@@ -3476,8 +4040,6 @@ export type PyContentPreviewsPrepareResponse = {
     } & PySoundEffect) | ({
         kind: 'idle_style';
     } & PyIdleStyle) | ({
-        kind: 'music_track';
-    } & PyMusicTrack) | ({
         kind: 'avatar';
     } & PyAvatarContent) | ({
         kind: 'appearance';
@@ -4051,13 +4613,107 @@ export type PyIdleAnimationSummary = {
 };
 
 /**
+ * PyIdleGestureSummary
+ */
+export type PyIdleGestureSummary = {
+    /**
+     * Description
+     */
+    description?: string | null;
+    /**
+     * Item Id
+     */
+    item_id: string;
+    /**
+     * Logical Key
+     */
+    logical_key?: string | null;
+    /**
+     * Name
+     */
+    name: string;
+};
+
+/**
+ * PyIdleNoneCell
+ */
+export type PyIdleNoneCell = {
+    /**
+     * Mode
+     */
+    mode?: 'none';
+};
+
+/**
+ * PyIdlePlayback
+ *
+ * An ineligible candidate has a safe reason; admitted occurrences have all facts.
+ */
+export type PyIdlePlayback = {
+    /**
+     * Cycle Seconds
+     */
+    cycle_seconds?: number | null;
+    /**
+     * Duration Seconds
+     */
+    duration_seconds?: number | null;
+    /**
+     * Eligible
+     */
+    eligible: boolean;
+    /**
+     * Loop Type
+     */
+    loop_type?: 'once' | 'repeat' | 'pingpong' | null;
+    /**
+     * Reason
+     */
+    reason?: string | null;
+    /**
+     * Repetitions
+     */
+    repetitions?: number | null;
+    /**
+     * Time Scale
+     */
+    time_scale?: number | null;
+};
+
+/**
+ * PyIdlePoolCell
+ */
+export type PyIdlePoolCell = {
+    /**
+     * Gestures
+     */
+    gestures: Array<string>;
+    /**
+     * Mode
+     */
+    mode?: 'pool';
+};
+
+/**
  * PyIdleStyle
  */
 export type PyIdleStyle = {
     /**
      * Animations
      */
-    animations: Array<PyIdleAnimation>;
+    animations?: Array<PyIdleAnimation>;
+    /**
+     * Cells
+     */
+    cells?: {
+        [key: string]: {
+            [key: string]: ({
+                mode: 'none';
+            } & PyIdleNoneCell) | ({
+                mode: 'pool';
+            } & PyIdlePoolCell);
+        };
+    };
     /**
      * Compatibility
      */
@@ -4067,7 +4723,7 @@ export type PyIdleStyle = {
     /**
      * Cross Fade Seconds
      */
-    cross_fade_seconds: number;
+    cross_fade_seconds?: number;
     /**
      * Default Pool
      */
@@ -4087,7 +4743,7 @@ export type PyIdleStyle = {
     /**
      * Emotion Pools
      */
-    emotion_pools: {
+    emotion_pools?: {
         [key: string]: Array<string>;
     };
     /**
@@ -4114,6 +4770,10 @@ export type PyIdleStyle = {
      * Revision Sha256
      */
     revision_sha256: string;
+    /**
+     * Schema Version
+     */
+    schema_version?: 1 | 2;
     /**
      * Source
      */
@@ -4147,12 +4807,6 @@ export type PyIdleStyleIntent = {
      * Operation
      */
     operation: 'set' | 'update' | 'reconfigure' | 'revert' | 'leave_empty';
-    /**
-     * Pool Overrides
-     */
-    pool_overrides?: {
-        [key: string]: Array<string>;
-    };
     source?: PyCatalogLoadoutSource | null;
 };
 
@@ -5353,143 +6007,6 @@ export type PyModelProviderCatalogItem = {
 };
 
 /**
- * PyMusicTrack
- */
-export type PyMusicTrack = {
-    /**
-     * Autoplay
-     */
-    autoplay: boolean;
-    /**
-     * Codec
-     */
-    codec: string;
-    /**
-     * Dependencies
-     */
-    dependencies?: Array<PyTypedDependency>;
-    /**
-     * Description
-     */
-    description?: string | null;
-    /**
-     * Duration Seconds
-     */
-    duration_seconds: number;
-    /**
-     * Editable
-     */
-    editable: boolean;
-    /**
-     * Files
-     */
-    files?: Array<PyTypedContentFile>;
-    /**
-     * Gain
-     */
-    gain: number;
-    /**
-     * Item Id
-     */
-    item_id: string;
-    /**
-     * Kind
-     */
-    kind?: 'music_track';
-    /**
-     * Logical Key
-     */
-    logical_key?: string | null;
-    /**
-     * Loop
-     */
-    loop: boolean;
-    /**
-     * Name
-     */
-    name: string;
-    /**
-     * Revision Sha256
-     */
-    revision_sha256: string;
-    /**
-     * Source
-     */
-    source: 'included' | 'local';
-};
-
-/**
- * PyMusicTrackCommitRequest
- */
-export type PyMusicTrackCommitRequest = {
-    /**
-     * Expected Revision
-     */
-    expected_revision: number;
-    /**
-     * Idempotency Key
-     */
-    idempotency_key: string;
-    intent: PyMusicTrackIntent;
-    /**
-     * Plan Digest
-     */
-    plan_digest: string;
-};
-
-/**
- * PyMusicTrackIntent
- */
-export type PyMusicTrackIntent = {
-    /**
-     * Autoplay
-     */
-    autoplay?: boolean;
-    /**
-     * Binding Id
-     */
-    binding_id?: string | null;
-    /**
-     * Enabled
-     */
-    enabled?: boolean;
-    /**
-     * Gain
-     */
-    gain?: number | null;
-    /**
-     * Loop
-     */
-    loop?: boolean | null;
-    /**
-     * Operation
-     */
-    operation: 'add' | 'update' | 'reconfigure' | 'remove';
-    source?: PyCatalogLoadoutSource | null;
-};
-
-/**
- * PyMusicTrackPage
- */
-export type PyMusicTrackPage = {
-    /**
-     * Items
-     */
-    items: Array<PyMusicTrack>;
-};
-
-/**
- * PyMusicTrackPlanRequest
- */
-export type PyMusicTrackPlanRequest = {
-    /**
-     * Expected Revision
-     */
-    expected_revision: number;
-    intent: PyMusicTrackIntent;
-};
-
-/**
  * PyOnboardingCompleteRequest
  */
 export type PyOnboardingCompleteRequest = {
@@ -5626,76 +6143,6 @@ export type PyPose = {
 };
 
 /**
- * PyPoseClip
- */
-export type PyPoseClip = {
-    /**
-     * Clip Id
-     */
-    clip_id: string;
-    /**
-     * Dependencies
-     */
-    dependencies?: Array<PyTypedDependency>;
-    /**
-     * Description
-     */
-    description?: string | null;
-    /**
-     * Editable
-     */
-    editable: boolean;
-    /**
-     * Files
-     */
-    files?: Array<PyTypedContentFile>;
-    /**
-     * Item Id
-     */
-    item_id: string;
-    /**
-     * Kind
-     */
-    kind?: 'pose_clip';
-    /**
-     * Logical Key
-     */
-    logical_key?: string | null;
-    /**
-     * Name
-     */
-    name: string;
-    /**
-     * Playback
-     */
-    playback?: {
-        [key: string]: unknown;
-    };
-    /**
-     * Revision Sha256
-     */
-    revision_sha256: string;
-    /**
-     * Role
-     */
-    role?: string | null;
-    /**
-     * Source
-     */
-    source: 'included' | 'local';
-};
-
-/**
- * PyPoseClipPage
- */
-export type PyPoseClipPage = {
-    /**
-     * Items
-     */
-    items: Array<PyPoseClip>;
-};
-
-/**
  * PyPosePage
  */
 export type PyPosePage = {
@@ -5742,7 +6189,7 @@ export type PyPreparedPreviewRoot = {
     /**
      * Kind
      */
-    kind: 'voice' | 'avatar' | 'appearance' | 'gesture' | 'reaction' | 'idle_style' | 'pose' | 'pose_clip' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect';
+    kind: 'voice' | 'avatar' | 'appearance' | 'gesture' | 'reaction' | 'idle_style' | 'pose' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect';
     /**
      * Root Key
      */
@@ -5937,7 +6384,7 @@ export type PyRuntimeAction = {
     /**
      * Content Type
      */
-    content_type: 'gesture' | 'reaction' | 'pose_clip';
+    content_type: 'gesture' | 'reaction';
     /**
      * Description
      */
@@ -6345,17 +6792,88 @@ export type PyRuntimeIdleAnimation = {
 };
 
 /**
+ * PyRuntimeIdleGesture
+ *
+ * A complete Action admitted for idle use, never an AI-selectable Gesture.
+ */
+export type PyRuntimeIdleGesture = {
+    /**
+     * Binding Id
+     */
+    binding_id: string;
+    /**
+     * Config
+     */
+    config?: {
+        [key: string]: unknown;
+    };
+    /**
+     * Content Type
+     */
+    content_type?: 'gesture';
+    /**
+     * Description
+     */
+    description?: string | null;
+    /**
+     * Emotion
+     */
+    emotion?: string | null;
+    /**
+     * Files
+     */
+    files?: Array<PyRuntimeFile>;
+    idle_playback: PyIdlePlayback;
+    implementation: PyRuntimeActionImplementation;
+    /**
+     * Intensity
+     */
+    intensity?: number | null;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Reference Map
+     */
+    reference_map?: {
+        [key: string]: string;
+    };
+    /**
+     * Runtime Root Id
+     */
+    runtime_root_id?: string | null;
+    /**
+     * Semantic Key
+     */
+    semantic_key?: string | null;
+    source: PyRuntimeCatalogItemSource;
+};
+
+/**
  * PyRuntimeIdleStyle
  */
 export type PyRuntimeIdleStyle = {
     /**
      * Animations
      */
-    animations: Array<PyRuntimeIdleAnimation>;
+    animations?: Array<PyRuntimeIdleAnimation>;
+    /**
+     * Cells
+     */
+    cells?: {
+        [key: string]: {
+            [key: string]: ({
+                mode: 'none';
+            } & PyIdleNoneCell) | ({
+                mode: 'pool';
+            } & PyIdlePoolCell);
+        };
+    };
     /**
      * Cross Fade Seconds
      */
-    cross_fade_seconds: number;
+    cross_fade_seconds?: number;
     /**
      * Default Pool
      */
@@ -6367,9 +6885,13 @@ export type PyRuntimeIdleStyle = {
     /**
      * Emotion Pools
      */
-    emotion_pools: {
+    emotion_pools?: {
         [key: string]: Array<string>;
     };
+    /**
+     * Gestures
+     */
+    gestures?: Array<PyRuntimeIdleGesture>;
     /**
      * Name
      */
@@ -6382,6 +6904,10 @@ export type PyRuntimeIdleStyle = {
      * Runtime Root Id
      */
     runtime_root_id?: string | null;
+    /**
+     * Schema Version
+     */
+    schema_version?: 1 | 2;
     source: PyRuntimeCatalogItemSource;
 };
 
@@ -6478,55 +7004,6 @@ export type PyRuntimeLease = {
      * Expires At
      */
     expires_at: string;
-};
-
-/**
- * PyRuntimeMusicTrack
- */
-export type PyRuntimeMusicTrack = {
-    /**
-     * Binding Id
-     */
-    binding_id: string;
-    /**
-     * Codec
-     */
-    codec: string;
-    /**
-     * Config
-     */
-    config: {
-        [key: string]: unknown;
-    };
-    /**
-     * Description
-     */
-    description?: string | null;
-    /**
-     * Duration Seconds
-     */
-    duration_seconds: number;
-    /**
-     * Files
-     */
-    files?: Array<PyRuntimeFile>;
-    /**
-     * Name
-     */
-    name: string;
-    /**
-     * Revision
-     */
-    revision: string;
-    /**
-     * Runtime Id
-     */
-    runtime_id: string;
-    /**
-     * Runtime Root Id
-     */
-    runtime_root_id?: string | null;
-    source: PyRuntimeCatalogItemSource;
 };
 
 /**
@@ -6963,6 +7440,12 @@ export type PyTypedContentPreview = {
      */
     files: Array<PyTypedPreviewFile>;
     /**
+     * Idle Playback
+     */
+    idle_playback?: {
+        [key: string]: PyIdlePlayback;
+    };
+    /**
      * Item
      */
     item: ({
@@ -6972,8 +7455,6 @@ export type PyTypedContentPreview = {
     } & PyReaction) | ({
         kind: 'pose';
     } & PyPose) | ({
-        kind: 'pose_clip';
-    } & PyPoseClip) | ({
         kind: 'particle_effect';
     } & PyParticleEffect) | ({
         kind: 'avatar_effect';
@@ -6984,8 +7465,6 @@ export type PyTypedContentPreview = {
     } & PySoundEffect) | ({
         kind: 'idle_style';
     } & PyIdleStyle) | ({
-        kind: 'music_track';
-    } & PyMusicTrack) | ({
         kind: 'avatar';
     } & PyAvatarContent) | ({
         kind: 'appearance';
@@ -7010,8 +7489,6 @@ export type PyTypedContentPreview = {
     } & PyReaction) | ({
         kind: 'pose';
     } & PyPose) | ({
-        kind: 'pose_clip';
-    } & PyPoseClip) | ({
         kind: 'particle_effect';
     } & PyParticleEffect) | ({
         kind: 'avatar_effect';
@@ -7022,8 +7499,6 @@ export type PyTypedContentPreview = {
     } & PySoundEffect) | ({
         kind: 'idle_style';
     } & PyIdleStyle) | ({
-        kind: 'music_track';
-    } & PyMusicTrack) | ({
         kind: 'avatar';
     } & PyAvatarContent) | ({
         kind: 'appearance';
@@ -7047,9 +7522,13 @@ export type PyTypedDependency = {
         [key: string]: unknown;
     };
     /**
+     * Item Id
+     */
+    item_id?: string | null;
+    /**
      * Kind
      */
-    kind: 'avatar' | 'gesture' | 'pose' | 'pose_clip' | 'reaction' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect' | 'idle_style' | 'music_track' | 'appearance' | 'voice';
+    kind: 'avatar' | 'gesture' | 'pose' | 'reaction' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect' | 'idle_style' | 'appearance' | 'voice';
     /**
      * Ref
      */
@@ -7633,6 +8112,82 @@ export type RecommendedAnimaActions = {
 };
 
 /**
+ * ReviewedImportItem
+ */
+export type ReviewedImportItem = {
+    /**
+     * Entry Id
+     */
+    entry_id: string;
+    kind: 'appearance' | 'avatar' | 'avatar_effect' | 'gesture' | 'idle_style' | 'particle_effect' | 'pose' | 'reaction' | 'scene_effect' | 'sound_effect' | 'voice';
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Original Name
+     */
+    original_name: string;
+    /**
+     * Selected
+     */
+    selected: boolean;
+};
+
+/**
+ * ReviewedPackageImport
+ *
+ * User-visible whole-package proposal; never exposes receiver paths or reserved IDs.
+ */
+export type ReviewedPackageImport = {
+    anima: PortableAnima | null;
+    /**
+     * Expires At
+     */
+    expires_at: string;
+    /**
+     * Filename
+     */
+    filename: string;
+    /**
+     * Items
+     */
+    items: Array<ReviewedImportItem>;
+    /**
+     * Kind
+     */
+    kind: 'content' | 'anima';
+    /**
+     * Operation Id
+     */
+    operation_id: string;
+    /**
+     * Package Sha256
+     */
+    package_sha256: string;
+    /**
+     * Required Count
+     */
+    required_count: number;
+    /**
+     * Review Digest
+     */
+    review_digest: string;
+    /**
+     * Selected Count
+     */
+    selected_count: number;
+    /**
+     * Size Bytes
+     */
+    size_bytes: number;
+    /**
+     * Stage Id
+     */
+    stage_id: string;
+};
+
+/**
  * RuntimeCapabilities
  */
 export type RuntimeCapabilities = {
@@ -7663,7 +8218,7 @@ export type SourceRevision = {
     /**
      * Kind
      */
-    kind: 'voice' | 'avatar' | 'appearance' | 'gesture' | 'reaction' | 'idle_style' | 'pose' | 'pose_clip' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect';
+    kind: 'voice' | 'avatar' | 'appearance' | 'gesture' | 'reaction' | 'idle_style' | 'pose' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect';
     /**
      * Revision Sha256
      */
@@ -8684,66 +9239,6 @@ export type GetAnimaLoadoutV1AnimasAnimaIdLoadoutGetResponses = {
 };
 
 export type GetAnimaLoadoutV1AnimasAnimaIdLoadoutGetResponse = GetAnimaLoadoutV1AnimasAnimaIdLoadoutGetResponses[keyof GetAnimaLoadoutV1AnimasAnimaIdLoadoutGetResponses];
-
-export type CommitMusicTrackV1AnimasAnimaIdMusicTracksCommitPostData = {
-    body: PyMusicTrackCommitRequest;
-    path: {
-        /**
-         * Anima Id
-         */
-        anima_id: string;
-    };
-    query?: never;
-    url: '/v1/animas/{anima_id}/music-tracks:commit';
-};
-
-export type CommitMusicTrackV1AnimasAnimaIdMusicTracksCommitPostErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type CommitMusicTrackV1AnimasAnimaIdMusicTracksCommitPostError = CommitMusicTrackV1AnimasAnimaIdMusicTracksCommitPostErrors[keyof CommitMusicTrackV1AnimasAnimaIdMusicTracksCommitPostErrors];
-
-export type CommitMusicTrackV1AnimasAnimaIdMusicTracksCommitPostResponses = {
-    /**
-     * Successful Response
-     */
-    200: PyLoadoutCommitResult;
-};
-
-export type CommitMusicTrackV1AnimasAnimaIdMusicTracksCommitPostResponse = CommitMusicTrackV1AnimasAnimaIdMusicTracksCommitPostResponses[keyof CommitMusicTrackV1AnimasAnimaIdMusicTracksCommitPostResponses];
-
-export type PlanMusicTrackV1AnimasAnimaIdMusicTracksPlanPostData = {
-    body: PyMusicTrackPlanRequest;
-    path: {
-        /**
-         * Anima Id
-         */
-        anima_id: string;
-    };
-    query?: never;
-    url: '/v1/animas/{anima_id}/music-tracks:plan';
-};
-
-export type PlanMusicTrackV1AnimasAnimaIdMusicTracksPlanPostErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type PlanMusicTrackV1AnimasAnimaIdMusicTracksPlanPostError = PlanMusicTrackV1AnimasAnimaIdMusicTracksPlanPostErrors[keyof PlanMusicTrackV1AnimasAnimaIdMusicTracksPlanPostErrors];
-
-export type PlanMusicTrackV1AnimasAnimaIdMusicTracksPlanPostResponses = {
-    /**
-     * Successful Response
-     */
-    200: PyLoadoutPlan;
-};
-
-export type PlanMusicTrackV1AnimasAnimaIdMusicTracksPlanPostResponse = PlanMusicTrackV1AnimasAnimaIdMusicTracksPlanPostResponses[keyof PlanMusicTrackV1AnimasAnimaIdMusicTracksPlanPostResponses];
 
 export type CommitReactionV1AnimasAnimaIdReactionsCommitPostData = {
     body: PyReactionCommitRequest;
@@ -10044,63 +10539,322 @@ export type GetContentItemV1ContentItemsItemIdGetResponses = {
 
 export type GetContentItemV1ContentItemsItemIdGetResponse = GetContentItemV1ContentItemsItemIdGetResponses[keyof GetContentItemV1ContentItemsItemIdGetResponses];
 
-export type ExportContentPackageV1ContentItemsItemIdExportPostData = {
-    body?: never;
-    path: {
-        /**
-         * Item Id
-         */
-        item_id: string;
-    };
-    query: {
-        /**
-         * Operation Id
-         */
-        operation_id: string;
-    };
-    url: '/v1/content/items/{item_id}:export';
+export type PreparePackageExportV1ContentPackageExportsPostData = {
+    body: PackageExportRequest;
+    path?: never;
+    query?: never;
+    url: '/v1/content/package-exports';
 };
 
-export type ExportContentPackageV1ContentItemsItemIdExportPostErrors = {
+export type PreparePackageExportV1ContentPackageExportsPostErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type ExportContentPackageV1ContentItemsItemIdExportPostError = ExportContentPackageV1ContentItemsItemIdExportPostErrors[keyof ExportContentPackageV1ContentItemsItemIdExportPostErrors];
+export type PreparePackageExportV1ContentPackageExportsPostError = PreparePackageExportV1ContentPackageExportsPostErrors[keyof PreparePackageExportV1ContentPackageExportsPostErrors];
 
-export type ExportContentPackageV1ContentItemsItemIdExportPostResponses = {
+export type PreparePackageExportV1ContentPackageExportsPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ExportReview;
+};
+
+export type PreparePackageExportV1ContentPackageExportsPostResponse = PreparePackageExportV1ContentPackageExportsPostResponses[keyof PreparePackageExportV1ContentPackageExportsPostResponses];
+
+export type DiscardPackageExportV1ContentPackageExportsExportIdDeleteData = {
+    body?: never;
+    path: {
+        /**
+         * Export Id
+         */
+        export_id: string;
+    };
+    query?: never;
+    url: '/v1/content/package-exports/{export_id}';
+};
+
+export type DiscardPackageExportV1ContentPackageExportsExportIdDeleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DiscardPackageExportV1ContentPackageExportsExportIdDeleteError = DiscardPackageExportV1ContentPackageExportsExportIdDeleteErrors[keyof DiscardPackageExportV1ContentPackageExportsExportIdDeleteErrors];
+
+export type DiscardPackageExportV1ContentPackageExportsExportIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type DiscardPackageExportV1ContentPackageExportsExportIdDeleteResponse = DiscardPackageExportV1ContentPackageExportsExportIdDeleteResponses[keyof DiscardPackageExportV1ContentPackageExportsExportIdDeleteResponses];
+
+export type DownloadPackageExportV1ContentPackageExportsExportIdFileGetData = {
+    body?: never;
+    path: {
+        /**
+         * Export Id
+         */
+        export_id: string;
+    };
+    query?: never;
+    url: '/v1/content/package-exports/{export_id}/file';
+};
+
+export type DownloadPackageExportV1ContentPackageExportsExportIdFileGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DownloadPackageExportV1ContentPackageExportsExportIdFileGetError = DownloadPackageExportV1ContentPackageExportsExportIdFileGetErrors[keyof DownloadPackageExportV1ContentPackageExportsExportIdFileGetErrors];
+
+export type DownloadPackageExportV1ContentPackageExportsExportIdFileGetResponses = {
     /**
      * Successful Response
      */
     200: unknown;
 };
 
-export type ImportContentPackageV1ContentPackagesImportPostData = {
-    body: BodyImportContentPackageV1ContentPackagesImportPost;
+export type SummarizePackageExportV1ContentPackageExportsSummaryPostData = {
+    body: PackageSelectionRequest;
     path?: never;
     query?: never;
-    url: '/v1/content/packages:import';
+    url: '/v1/content/package-exports:summary';
 };
 
-export type ImportContentPackageV1ContentPackagesImportPostErrors = {
+export type SummarizePackageExportV1ContentPackageExportsSummaryPostErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type ImportContentPackageV1ContentPackagesImportPostError = ImportContentPackageV1ContentPackagesImportPostErrors[keyof ImportContentPackageV1ContentPackagesImportPostErrors];
+export type SummarizePackageExportV1ContentPackageExportsSummaryPostError = SummarizePackageExportV1ContentPackageExportsSummaryPostErrors[keyof SummarizePackageExportV1ContentPackageExportsSummaryPostErrors];
 
-export type ImportContentPackageV1ContentPackagesImportPostResponses = {
+export type SummarizePackageExportV1ContentPackageExportsSummaryPostResponses = {
     /**
      * Successful Response
      */
-    200: PyContentPackageImportResult;
+    200: ExportSummary;
 };
 
-export type ImportContentPackageV1ContentPackagesImportPostResponse = ImportContentPackageV1ContentPackagesImportPostResponses[keyof ImportContentPackageV1ContentPackagesImportPostResponses];
+export type SummarizePackageExportV1ContentPackageExportsSummaryPostResponse = SummarizePackageExportV1ContentPackageExportsSummaryPostResponses[keyof SummarizePackageExportV1ContentPackageExportsSummaryPostResponses];
+
+export type AllocatePackageImportV1ContentPackageImportsPostData = {
+    body: PackageImportCreateRequest;
+    path?: never;
+    query?: never;
+    url: '/v1/content/package-imports';
+};
+
+export type AllocatePackageImportV1ContentPackageImportsPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AllocatePackageImportV1ContentPackageImportsPostError = AllocatePackageImportV1ContentPackageImportsPostErrors[keyof AllocatePackageImportV1ContentPackageImportsPostErrors];
+
+export type AllocatePackageImportV1ContentPackageImportsPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: PackageStageStatus;
+};
+
+export type AllocatePackageImportV1ContentPackageImportsPostResponse = AllocatePackageImportV1ContentPackageImportsPostResponses[keyof AllocatePackageImportV1ContentPackageImportsPostResponses];
+
+export type DiscardPackageImportV1ContentPackageImportsStageIdDeleteData = {
+    body?: never;
+    path: {
+        /**
+         * Stage Id
+         */
+        stage_id: string;
+    };
+    query?: never;
+    url: '/v1/content/package-imports/{stage_id}';
+};
+
+export type DiscardPackageImportV1ContentPackageImportsStageIdDeleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DiscardPackageImportV1ContentPackageImportsStageIdDeleteError = DiscardPackageImportV1ContentPackageImportsStageIdDeleteErrors[keyof DiscardPackageImportV1ContentPackageImportsStageIdDeleteErrors];
+
+export type DiscardPackageImportV1ContentPackageImportsStageIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type DiscardPackageImportV1ContentPackageImportsStageIdDeleteResponse = DiscardPackageImportV1ContentPackageImportsStageIdDeleteResponses[keyof DiscardPackageImportV1ContentPackageImportsStageIdDeleteResponses];
+
+export type GetPackageImportV1ContentPackageImportsStageIdGetData = {
+    body?: never;
+    path: {
+        /**
+         * Stage Id
+         */
+        stage_id: string;
+    };
+    query?: never;
+    url: '/v1/content/package-imports/{stage_id}';
+};
+
+export type GetPackageImportV1ContentPackageImportsStageIdGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetPackageImportV1ContentPackageImportsStageIdGetError = GetPackageImportV1ContentPackageImportsStageIdGetErrors[keyof GetPackageImportV1ContentPackageImportsStageIdGetErrors];
+
+export type GetPackageImportV1ContentPackageImportsStageIdGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: PackageStageStatus;
+};
+
+export type GetPackageImportV1ContentPackageImportsStageIdGetResponse = GetPackageImportV1ContentPackageImportsStageIdGetResponses[keyof GetPackageImportV1ContentPackageImportsStageIdGetResponses];
+
+export type CommitPackageImportV1ContentPackageImportsStageIdCommitPostData = {
+    body: PackageImportCommitRequest;
+    path: {
+        /**
+         * Stage Id
+         */
+        stage_id: string;
+    };
+    query?: never;
+    url: '/v1/content/package-imports/{stage_id}/commit';
+};
+
+export type CommitPackageImportV1ContentPackageImportsStageIdCommitPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CommitPackageImportV1ContentPackageImportsStageIdCommitPostError = CommitPackageImportV1ContentPackageImportsStageIdCommitPostErrors[keyof CommitPackageImportV1ContentPackageImportsStageIdCommitPostErrors];
+
+export type CommitPackageImportV1ContentPackageImportsStageIdCommitPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: PackageImportResult;
+};
+
+export type CommitPackageImportV1ContentPackageImportsStageIdCommitPostResponse = CommitPackageImportV1ContentPackageImportsStageIdCommitPostResponses[keyof CommitPackageImportV1ContentPackageImportsStageIdCommitPostResponses];
+
+export type UploadPackagePartV1ContentPackageImportsStageIdPartsIndexPutData = {
+    body: Blob | File;
+    path: {
+        /**
+         * Stage Id
+         */
+        stage_id: string;
+        /**
+         * Index
+         */
+        index: number;
+    };
+    query?: never;
+    url: '/v1/content/package-imports/{stage_id}/parts/{index}';
+};
+
+export type UploadPackagePartV1ContentPackageImportsStageIdPartsIndexPutErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UploadPackagePartV1ContentPackageImportsStageIdPartsIndexPutError = UploadPackagePartV1ContentPackageImportsStageIdPartsIndexPutErrors[keyof UploadPackagePartV1ContentPackageImportsStageIdPartsIndexPutErrors];
+
+export type UploadPackagePartV1ContentPackageImportsStageIdPartsIndexPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: PartAck;
+};
+
+export type UploadPackagePartV1ContentPackageImportsStageIdPartsIndexPutResponse = UploadPackagePartV1ContentPackageImportsStageIdPartsIndexPutResponses[keyof UploadPackagePartV1ContentPackageImportsStageIdPartsIndexPutResponses];
+
+export type ReviewPackageImportV1ContentPackageImportsStageIdReviewPostData = {
+    body?: never;
+    path: {
+        /**
+         * Stage Id
+         */
+        stage_id: string;
+    };
+    query?: never;
+    url: '/v1/content/package-imports/{stage_id}/review';
+};
+
+export type ReviewPackageImportV1ContentPackageImportsStageIdReviewPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ReviewPackageImportV1ContentPackageImportsStageIdReviewPostError = ReviewPackageImportV1ContentPackageImportsStageIdReviewPostErrors[keyof ReviewPackageImportV1ContentPackageImportsStageIdReviewPostErrors];
+
+export type ReviewPackageImportV1ContentPackageImportsStageIdReviewPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ReviewedPackageImport;
+};
+
+export type ReviewPackageImportV1ContentPackageImportsStageIdReviewPostResponse = ReviewPackageImportV1ContentPackageImportsStageIdReviewPostResponses[keyof ReviewPackageImportV1ContentPackageImportsStageIdReviewPostResponses];
+
+export type GetPackageOperationV1ContentPackageOperationsOperationIdGetData = {
+    body?: never;
+    path: {
+        /**
+         * Operation Id
+         */
+        operation_id: string;
+    };
+    query?: never;
+    url: '/v1/content/package-operations/{operation_id}';
+};
+
+export type GetPackageOperationV1ContentPackageOperationsOperationIdGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetPackageOperationV1ContentPackageOperationsOperationIdGetError = GetPackageOperationV1ContentPackageOperationsOperationIdGetErrors[keyof GetPackageOperationV1ContentPackageOperationsOperationIdGetErrors];
+
+export type GetPackageOperationV1ContentPackageOperationsOperationIdGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: PackageOperationStatus;
+};
+
+export type GetPackageOperationV1ContentPackageOperationsOperationIdGetResponse = GetPackageOperationV1ContentPackageOperationsOperationIdGetResponses[keyof GetPackageOperationV1ContentPackageOperationsOperationIdGetResponses];
 
 export type StreamContentPreviewFileV1ContentPreviewsPreviewIdRevisionsRevisionSha256FilesFileRefGetData = {
     body?: never;
@@ -10626,6 +11380,36 @@ export type GetGestureResponses = {
 };
 
 export type GetGestureResponse = GetGestureResponses[keyof GetGestureResponses];
+
+export type GetGestureIdlePlaybackData = {
+    body?: never;
+    path: {
+        /**
+         * Item Id
+         */
+        item_id: string;
+    };
+    query?: never;
+    url: '/v1/gestures/{item_id}/idle-playback';
+};
+
+export type GetGestureIdlePlaybackErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetGestureIdlePlaybackError = GetGestureIdlePlaybackErrors[keyof GetGestureIdlePlaybackErrors];
+
+export type GetGestureIdlePlaybackResponses = {
+    /**
+     * Successful Response
+     */
+    200: PyIdlePlayback;
+};
+
+export type GetGestureIdlePlaybackResponse = GetGestureIdlePlaybackResponses[keyof GetGestureIdlePlaybackResponses];
 
 export type PreviewGestureData = {
     body?: never;
@@ -11580,112 +12364,6 @@ export type ListModelProvidersV1ModelProvidersGetResponses = {
 
 export type ListModelProvidersV1ModelProvidersGetResponse = ListModelProvidersV1ModelProvidersGetResponses[keyof ListModelProvidersV1ModelProvidersGetResponses];
 
-export type ListMusicTracksData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/v1/music-tracks';
-};
-
-export type ListMusicTracksResponses = {
-    /**
-     * Successful Response
-     */
-    200: PyMusicTrackPage;
-};
-
-export type ListMusicTracksResponse = ListMusicTracksResponses[keyof ListMusicTracksResponses];
-
-export type SaveMusicTrackData = {
-    body: BodySaveMusicTrack;
-    path: {
-        /**
-         * Entry Name
-         */
-        entry_name: string;
-    };
-    query?: never;
-    url: '/v1/music-tracks/{entry_name}';
-};
-
-export type SaveMusicTrackErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type SaveMusicTrackError = SaveMusicTrackErrors[keyof SaveMusicTrackErrors];
-
-export type SaveMusicTrackResponses = {
-    /**
-     * Successful Response
-     */
-    200: PyMusicTrack;
-};
-
-export type SaveMusicTrackResponse = SaveMusicTrackResponses[keyof SaveMusicTrackResponses];
-
-export type GetMusicTrackData = {
-    body?: never;
-    path: {
-        /**
-         * Item Id
-         */
-        item_id: string;
-    };
-    query?: never;
-    url: '/v1/music-tracks/{item_id}';
-};
-
-export type GetMusicTrackErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type GetMusicTrackError = GetMusicTrackErrors[keyof GetMusicTrackErrors];
-
-export type GetMusicTrackResponses = {
-    /**
-     * Successful Response
-     */
-    200: PyMusicTrack;
-};
-
-export type GetMusicTrackResponse = GetMusicTrackResponses[keyof GetMusicTrackResponses];
-
-export type PreviewMusicTrackData = {
-    body?: never;
-    path: {
-        /**
-         * Item Id
-         */
-        item_id: string;
-    };
-    query?: never;
-    url: '/v1/music-tracks/{item_id}:preview';
-};
-
-export type PreviewMusicTrackErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type PreviewMusicTrackError = PreviewMusicTrackErrors[keyof PreviewMusicTrackErrors];
-
-export type PreviewMusicTrackResponses = {
-    /**
-     * Successful Response
-     */
-    200: PyTypedContentPreview;
-};
-
-export type PreviewMusicTrackResponse = PreviewMusicTrackResponses[keyof PreviewMusicTrackResponses];
-
 export type ListParticleEffectsData = {
     body?: never;
     path?: never;
@@ -11791,112 +12469,6 @@ export type PreviewParticleEffectResponses = {
 };
 
 export type PreviewParticleEffectResponse = PreviewParticleEffectResponses[keyof PreviewParticleEffectResponses];
-
-export type ListPoseClipsData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/v1/pose-clips';
-};
-
-export type ListPoseClipsResponses = {
-    /**
-     * Successful Response
-     */
-    200: PyPoseClipPage;
-};
-
-export type ListPoseClipsResponse = ListPoseClipsResponses[keyof ListPoseClipsResponses];
-
-export type SavePoseClipData = {
-    body: BodySavePoseClip;
-    path: {
-        /**
-         * Entry Name
-         */
-        entry_name: string;
-    };
-    query?: never;
-    url: '/v1/pose-clips/{entry_name}';
-};
-
-export type SavePoseClipErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type SavePoseClipError = SavePoseClipErrors[keyof SavePoseClipErrors];
-
-export type SavePoseClipResponses = {
-    /**
-     * Successful Response
-     */
-    200: PyPoseClip;
-};
-
-export type SavePoseClipResponse = SavePoseClipResponses[keyof SavePoseClipResponses];
-
-export type GetPoseClipData = {
-    body?: never;
-    path: {
-        /**
-         * Item Id
-         */
-        item_id: string;
-    };
-    query?: never;
-    url: '/v1/pose-clips/{item_id}';
-};
-
-export type GetPoseClipErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type GetPoseClipError = GetPoseClipErrors[keyof GetPoseClipErrors];
-
-export type GetPoseClipResponses = {
-    /**
-     * Successful Response
-     */
-    200: PyPoseClip;
-};
-
-export type GetPoseClipResponse = GetPoseClipResponses[keyof GetPoseClipResponses];
-
-export type PreviewPoseClipData = {
-    body?: never;
-    path: {
-        /**
-         * Item Id
-         */
-        item_id: string;
-    };
-    query?: never;
-    url: '/v1/pose-clips/{item_id}:preview';
-};
-
-export type PreviewPoseClipErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type PreviewPoseClipError = PreviewPoseClipErrors[keyof PreviewPoseClipErrors];
-
-export type PreviewPoseClipResponses = {
-    /**
-     * Successful Response
-     */
-    200: PyTypedContentPreview;
-};
-
-export type PreviewPoseClipResponse = PreviewPoseClipResponses[keyof PreviewPoseClipResponses];
 
 export type ListPosesData = {
     body?: never;

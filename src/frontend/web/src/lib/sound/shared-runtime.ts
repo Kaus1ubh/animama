@@ -2,11 +2,7 @@
 
 import { createLogger } from "@/lib/logger";
 
-import {
-  getAudioPrefsFromSnapshot,
-  loadAudioPrefs,
-  type AudioPrefs,
-} from "./audio-prefs";
+import { getAudioPrefsFromSnapshot, loadAudioPrefs } from "./audio-prefs";
 import { SoundController } from "./SoundController";
 
 const logger = createLogger("SharedSoundRuntime");
@@ -15,8 +11,6 @@ const SHARED_SOUND_DISPOSE_DELAY_MS = 250;
 
 export type SharedSoundRuntime = {
   controller: SoundController;
-  initialPrefs: AudioPrefs | null;
-  autoplayRestorePending: boolean;
   refCount: number;
   disposeTimer: number | null;
   shared: boolean;
@@ -31,13 +25,11 @@ function createSoundRuntime(shared: boolean): SharedSoundRuntime {
   const initialPrefs = loadAudioPrefs();
 
   controller.restorePersistedState(
-    initialPrefs ?? getAudioPrefsFromSnapshot(controller.getSnapshot(), {}),
+    initialPrefs ?? getAudioPrefsFromSnapshot(controller.getSnapshot()),
   );
 
   return {
     controller,
-    initialPrefs,
-    autoplayRestorePending: false,
     refCount: 0,
     disposeTimer: null,
     shared,

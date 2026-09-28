@@ -42,11 +42,13 @@ starters remain canonical documents under `content/included/poses`. Referenced
 Gesture exports require the matching application catalog; inserted user poses
 continue to be copied as self-contained values.
 
-Idle Styles add an emotion-aware idle lane. A mounted runtime uses the exact
-selected style (or an intentionally empty
-lane), including authorized private VRMA memberships. The runtime selects the dominant emotion's pool or the non-empty Default pool,
-then samples uniformly with previous-clip avoidance. The planner schedules
-intermittent stints. Style changes take effect on the next route mount.
+Idle Styles add a separate Gesture-backed idle lane. A mount freezes the selected
+Style, its Gesture dependencies and exact finite playback facts. Neutral uses
+Default; the dominant emotion/intensity selects its cell, inheriting Default
+when omitted and staying procedural-only when explicitly disabled. Selection is
+uniform with previous-Gesture avoidance when alternatives exist. Style changes
+apply on the next mount; emotion changes affect the next selection. Idle-only
+members are absent from the AI-invocable Gesture list.
 
 ## 1) High-level architecture
 
@@ -214,9 +216,10 @@ File: `src/frontend/web/src/lib/avatar/poses/PoseController.ts`
 
 Responsibilities:
 
-- Own the built-in JSON-backed `animaPose/1.0` catalog for loaded VRM models.
-- Own the built-in JSON-backed `animaPoseClip/1.0` catalog and active clip
-  playback state for loaded VRM models.
+- Resolve `animaPose/1.0` poses and Action-owned `animaPoseClip/1.0` sequences
+  through the injected motion catalog for the loaded VRM model.
+- Own active clip playback state; the app catalog remains the fallback for
+  authoring/debug surfaces outside an Anima runtime.
 - Apply the app default `relaxedRest` catalog pose after load and after avatar
   resets.
 - Invoke catalog poses as absolute normalized humanoid poses, not offsets from

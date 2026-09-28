@@ -317,6 +317,84 @@ describe("Asset preview playback policy", () => {
     expect(onFinished).toHaveBeenCalledOnce();
   });
 
+  it("previews an idle VRMA with finite authored repetitions even if ordinary preview looping is enabled", async () => {
+    const playAnimationWithName = vi.fn().mockResolvedValue({});
+    const catalog = {
+      getGesture: () => ({
+        type: "vrma",
+        name: "Idle Gesture",
+        timeScale: 1,
+        entry: { file: "/idle.vrma" },
+      }),
+    } as unknown as PreviewRuntimeCatalogSession;
+    await playContentPreviewMotion({
+      avatar: { playAnimationWithName } as unknown as Avatar,
+      catalog,
+      loop: true,
+      target: {
+        ...target("animation"),
+        idlePlayback: {
+          timeScale: 0.6,
+          repetitions: 2,
+          loopType: "pingpong",
+          durationSeconds: 10,
+        },
+      },
+    });
+    expect(playAnimationWithName).toHaveBeenCalledWith(
+      "/idle.vrma",
+      "Idle Gesture",
+      expect.objectContaining({
+        loopType: "pingpong",
+        loopCount: 2,
+        timeScale: 0.6,
+      }),
+    );
+  });
+
+  it("passes finite idle clip playback after preparation without loading a replacement clip", async () => {
+    const playAnimaPoseClip = vi.fn();
+    const catalog = {
+      loadPoseClip: vi.fn().mockResolvedValue(emptyClip),
+    } as unknown as PreviewRuntimeCatalogSession;
+    await playContentPreviewMotion({
+      avatar: { playAnimaPoseClip } as unknown as Avatar,
+      catalog,
+      loop: false,
+      target: {
+        ...target("anima_pose_clip"),
+        idlePlayback: {
+          timeScale: 0.5,
+          repetitions: 3,
+          loopType: "repeat",
+          durationSeconds: 6,
+        },
+      },
+    });
+    expect(playAnimaPoseClip).toHaveBeenCalledWith(emptyClip, {
+      onFinished: expect.any(Function),
+      preserveProceduralOffsets: true,
+      finitePlayback: { timeScale: 0.5, repetitions: 3 },
+    });
+    playAnimaPoseClip.mockClear();
+    await playContentPreviewMotion({
+      avatar: { playAnimaPoseClip } as unknown as Avatar,
+      catalog,
+      loop: false,
+      isCurrent: () => false,
+      target: {
+        ...target("anima_pose_clip"),
+        idlePlayback: {
+          timeScale: 0.5,
+          repetitions: 3,
+          loopType: "repeat",
+          durationSeconds: 6,
+        },
+      },
+    });
+    expect(playAnimaPoseClip).not.toHaveBeenCalled();
+  });
+
   it("uses reaction and pose players rather than flattening their slots", async () => {
     const playDebugReactionClip = vi.fn(async () => true);
     const loadAndPlayClip = vi.fn(async () => ({}));

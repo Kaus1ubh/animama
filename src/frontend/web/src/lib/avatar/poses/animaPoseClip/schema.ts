@@ -301,8 +301,6 @@ export function sanitizeAnimaPoseClip(value: unknown): AnimaPoseClip | null {
     const sanitizedDuration = sanitizePositiveNumber(value.duration);
     if (sanitizedDuration === null) return null;
     duration = sanitizedDuration;
-  } else if (!playback) {
-    return null;
   }
 
   if (value.loop !== undefined && typeof value.loop !== "boolean") {
@@ -348,10 +346,11 @@ export function sanitizeAnimaPoseClip(value: unknown): AnimaPoseClip | null {
     return null;
   }
 
-  if (
-    value.loop === true &&
-    getAuthoredTimelineDuration(poseKeyframes, events ?? undefined) <= 0
-  ) {
+  // Finite clips may omit duration when their authored timeline has an end.
+  // Effect duration is deliberately excluded: it cannot extend the clip clock.
+  const timelineDuration =
+    duration ?? getAuthoredTimelineDuration(poseKeyframes, events ?? undefined);
+  if ((value.loop === true || !playback) && timelineDuration <= 0) {
     return null;
   }
 

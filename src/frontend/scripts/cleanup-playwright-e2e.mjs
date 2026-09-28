@@ -61,7 +61,7 @@ async function main() {
     const events = await readContentLedger(ledgerPath);
     const entries = cleanupDryRunEntries(events);
     process.stdout.write(
-      `${JSON.stringify({ runId, confirmed, owned: entries }, null, 2)}\n`,
+      `${JSON.stringify({ runId, confirmed, entries }, null, 2)}\n`,
     );
     if (!confirmed || entries.length === 0) return;
     if (!isLoopbackUrl(target.webUrl) || !isLoopbackUrl(target.apiUrl)) {

@@ -42,8 +42,7 @@ function privateEntry(args: {
     | "avatar_vfx"
     | "scene_background_vfx"
     | "scene_focus_vfx"
-    | "sfx"
-    | "bgm";
+    | "sfx";
   runtimeId: string;
   kind: "particle_vfx" | "avatar_vfx" | "scene_vfx" | "audio";
   files: Array<{
@@ -91,7 +90,6 @@ function mediaCatalog(args: {
   sceneBackgroundVfx?: RuntimeCatalogEntry[];
   sceneFocusVfx?: RuntimeCatalogEntry[];
   sfx?: RuntimeCatalogEntry[];
-  bgm?: RuntimeCatalogEntry[];
 }) {
   return {
     particleVfx: args.particleVfx ?? [],
@@ -99,7 +97,6 @@ function mediaCatalog(args: {
     sceneBackgroundVfx: args.sceneBackgroundVfx ?? [],
     sceneFocusVfx: args.sceneFocusVfx ?? [],
     sfx: args.sfx ?? [],
-    bgm: args.bgm ?? [],
   };
 }
 
@@ -159,19 +156,19 @@ describe("AnimaRuntimeMediaCatalog", () => {
         key: sceneFixtureId,
       },
     });
-    const bgm = builtInEntry({
+    const sfx = builtInEntry({
       kind: "audio",
-      slot: "bgm",
-      runtimeId: "mounted-bgm",
-      source: { type: "public_url", url: "/audio/bgm/bgm_sample_1.mp3" },
-      config: { volume: 0.4, loop: false, autoplay: true },
+      slot: "sfx",
+      runtimeId: "mounted-sfx",
+      source: { type: "public_url", url: "/audio/sfx/sfx_sample_1.mp3" },
+      config: { volume: 0.4, loop: false, autoplay: false },
     });
     const catalog = new AnimaRuntimeMediaCatalog(
       mediaCatalog({
         particleVfx: [particle],
         avatarVfx: [avatarVfx],
         sceneBackgroundVfx: [sceneVfx],
-        bgm: [bgm],
+        sfx: [sfx],
       }),
     );
 
@@ -195,19 +192,17 @@ describe("AnimaRuntimeMediaCatalog", () => {
     expect(
       catalog.resolveSceneVFX("background_layers", sceneFixtureId),
     ).toBeNull();
-    expect(catalog.listAudio("bgm")).toEqual([
+    expect(catalog.listAudio("sfx")).toEqual([
       expect.objectContaining({
-        runtimeId: "mounted-bgm",
+        runtimeId: "mounted-sfx",
         volume: 0.4,
-        loop: false,
-        autoplay: true,
       }),
     ]);
-    await expect(catalog.resolveAudio("bgm", "mounted-bgm")).resolves.toEqual(
-      expect.objectContaining({ runtimeId: "mounted-bgm" }),
+    await expect(catalog.resolveAudio("sfx", "mounted-sfx")).resolves.toEqual(
+      expect.objectContaining({ runtimeId: "mounted-sfx" }),
     );
     await expect(
-      catalog.resolveAudio("bgm", "bgm_sample_1"),
+      catalog.resolveAudio("sfx", "sfx_sample_1"),
     ).resolves.toBeNull();
   });
 
@@ -307,7 +302,7 @@ describe("AnimaRuntimeMediaCatalog", () => {
   it("retains resolved audio and the shared preload budget across incremental admissions", async () => {
     const audio = (id: string) =>
       privateEntry({
-        slot: "bgm",
+        slot: "sfx",
         runtimeId: id,
         kind: "audio",
         sourceType: "prepared_files",
@@ -351,7 +346,7 @@ describe("AnimaRuntimeMediaCatalog", () => {
       .mockReturnValueOnce(true)
       .mockReturnValue(false);
     const catalog = new AnimaRuntimeMediaCatalog(
-      mediaCatalog({ bgm: [first], particleVfx: [particle("a")] }),
+      mediaCatalog({ sfx: [first], particleVfx: [particle("a")] }),
       {
         fetcher,
         createObjectURL: () => "blob:decoded-first",
@@ -359,15 +354,15 @@ describe("AnimaRuntimeMediaCatalog", () => {
         reserveEagerPreloadBytes,
       },
     );
-    const resolved = await catalog.resolveAudio("bgm", "first");
+    const resolved = await catalog.resolveAudio("sfx", "first");
     const next = mediaCatalog({
-      bgm: [first, second],
+      sfx: [first, second],
       particleVfx: [particle("a"), particle("b")],
     });
     expect(catalog.admitPrepared(next)).toBe(true);
     expect(catalog.admitPrepared(next)).toBe(false);
-    expect(await catalog.resolveAudio("bgm", "first")).toBe(resolved);
-    expect(catalog.listAudio("bgm").map((entry) => entry.runtimeId)).toEqual([
+    expect(await catalog.resolveAudio("sfx", "first")).toBe(resolved);
+    expect(catalog.listAudio("sfx").map((entry) => entry.runtimeId)).toEqual([
       "first",
       "second",
     ]);

@@ -17,6 +17,15 @@ class ResolvedReactionSelection:
     emotion: str
     intensity: int
     source: CatalogContentEntry | None
+    config: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
+class ResolvedGestureSelection:
+    """An exact Gesture source with caller-validated binding configuration."""
+
+    source: CatalogContentEntry
+    config: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)
@@ -34,7 +43,7 @@ class ResolvedAnimaSpec:
     avatar: CatalogContentEntry
     idle_style: CatalogContentEntry | None
     reactions: tuple[ResolvedReactionSelection, ...]
-    gestures: tuple[CatalogContentEntry, ...] = ()
+    gestures: tuple[ResolvedGestureSelection, ...] = ()
     profile: ResolvedAppearanceSelection | None = None
     background: ResolvedAppearanceSelection | None = None
     # Internal callers may supply an already locally validated voice choice.

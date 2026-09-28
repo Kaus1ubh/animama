@@ -94,6 +94,8 @@ export type ParticleVFXRuntimeLifetime =
     };
 
 export type ParticleVFXPlayRequest = {
+  /** Prevent a cancelled clip occurrence from applying after async delivery. */
+  signal?: AbortSignal;
   effectId: string;
   appliedId?: string;
   ownerId?: string;

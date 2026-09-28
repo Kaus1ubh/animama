@@ -9,6 +9,7 @@ from . import (
     avatar,
     chats,
     content,
+    content_packages,
     elevenlabs,
     events,
     logs,
@@ -40,6 +41,7 @@ router.include_router(safety.router)
 router.include_router(avatar.router)
 router.include_router(logs.router)
 router.include_router(content.router)
+router.include_router(content_packages.router)
 router.include_router(typed_content.router)
 router.include_router(chats.router)
 router.include_router(elevenlabs.router)

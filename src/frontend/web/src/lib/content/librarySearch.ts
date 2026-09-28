@@ -12,6 +12,7 @@ export const LIBRARY_ACTION_FILTERS = [
   "gestures",
   "reactions",
   "poses",
+  "idle-styles",
 ] as const;
 export type LibraryActionFilter = (typeof LIBRARY_ACTION_FILTERS)[number];
 

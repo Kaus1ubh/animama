@@ -50,11 +50,14 @@ The runner filters out the real-avatar pose journey in the same spec.
 
 The active Playwright projects use installation setup and same-origin requests,
 without accounts, stored login state, owner headers or browser bearer tokens.
-The selected `accountless-*.spec.ts` journeys cover Library, companion selection,
-chat Stop/recovery, creator JSON import/preview, Save/reload revision integrity,
-and responsive access to creator health, Save and recovery controls.
-Older creator journeys remain
-unselected until individually reviewed; listing them is not passing evidence.
+The explicit allowlist selects `accountless-library`, `accountless-journeys`,
+`accountless-vfx-layout`, `accountless-pose-content`,
+`accountless-content-sharing` and `accountless-imported-playback` specs. They cover
+Library, companion selection, chat Stop/recovery, creator JSON import/preview,
+Save/reload revision integrity, package sharing, and responsive access to review
+and recovery controls.
+Older creator journeys remain unselected until individually reviewed; listing
+them is not passing evidence.
 The separate `local:verify:accountless` API journey covers bootstrap, settings,
 starter/custom Animas, private uploads, typed bytes, chat receipts and persistence.
 
@@ -104,10 +107,16 @@ must target the same recorded origin/project and owned Local root. Use
 `pnpm e2e:cleanup -- RUN_ID` to inspect unresolved items, then
 `pnpm e2e:cleanup -- RUN_ID --confirm RUN_ID` with the exact generated ID to
 perform recovery. The same isolated-stack environment and consent are required.
+Package imports record their operation and review before commit. After a lost
+reply, cleanup binds only the matching completed receipt's original item IDs and
+revisions. Whole-package cleanup records every installed dependency and any new
+Anima/private Avatar; saved-definition checks protect later Anima edits. Pending
+outcomes or changed items retain the ledger and block deletion. Names never grant
+cleanup authority.
 
-Browser coverage uses the existing creator JSON import UI. Portable `.animama /2`
-package import/export is covered separately by migration-backed backend tests;
-this suite does not claim a package-import browser screen exists. Chat cancellation
+Creator coverage uses the editor JSON import UI. The Pose round trip uses the
+reviewed package API with `.zip` files and the `/3` manifest; the separate sharing
+journey below uses the real Library package dialogs. Chat cancellation
 uses a controlled pending browser request, followed by actual deterministic backend
 chat. Real provider cancellation is tested separately over Uvicorn. Neither is
 live provider, audio, physical keyboard or packaged desktop acceptance.
@@ -147,6 +156,47 @@ mutation opt-in on a disposable task stack; verify selection before execution:
 ```bash
 pnpm e2e:list -- --project chromium --grep "pose content"
 pnpm e2e:test -- --project chromium --grep "pose content"
+```
+
+The active `local content sharing` group exercises real Library selection,
+review, browser download, file upload and whole-package commit for single/multiple
+content roots and a complete Anima. It checks automatic collision suffixes,
+persistence after reload, missing-export-cache Back navigation, and recovery of
+a completed import whose HTTP response was lost. The recovery check retains the
+same operation and verifies that the UI does not create or commit another import.
+Normal downloads rely on product cache cleanup rather than test-only deletion.
+Desktop and narrow screenshots cover entry, content selection, Anima selection
+and import review after dialog bounds settle.
+
+These tests create disposable fixture content and imported companions; existing
+starter Animas are read only. They use the same exact receipt-based cleanup as
+other content journeys. Run against each serving mode required by the task and
+retain separate results; browser coverage is not native-picker or packaged
+desktop acceptance.
+
+```bash
+pnpm e2e:list -- --project chromium --grep "local content sharing"
+pnpm e2e:test -- --project chromium --grep "local content sharing"
+```
+
+The `imported playback` group follows ZIP imports through Library previews,
+applicable creator routes, and separate FX/Sound handoffs into new Gestures and
+Reactions. Assertions bind playback to the exact imported item and revision;
+they check advancing clocks, active effects, expressions and decoded audio rather
+than treating a successful import as playback evidence. Its complete-Anima test
+also checks imported Avatar/Appearance provenance and loadout playback. The
+starter closure is large, so its revision-guarded cleanup has a thirty-minute
+test budget. This is browser playback evidence, not speaker-listening acceptance.
+
+Use the signals owned by each creator. Particle authoring renders directly through
+Quarks, so its proof isolates moving canvas pixels instead of reading the Avatar's
+particle controller. Scene authoring owns Play/Stop independently of runtime
+expiry; its proof checks loaded image layers, marquee motion and removal on Stop.
+Library, Action and Anima playback retain their runtime controller assertions.
+
+```bash
+pnpm e2e:list -- --project chromium --grep "imported playback"
+pnpm e2e:test -- --project chromium --grep "imported playback"
 ```
 
 The bounded application smoke test accepts only the configured origin:

@@ -343,10 +343,11 @@ dependency, even if an ignored local copy exists. Full native stage and packaged
 acceptance remain separate checks; do not infer them from a passing content test.
 
 Content with `distribution: excluded` is omitted from core and expanded inputs.
-An excluded required dependency fails closure resolution. User-imported Local
-Music, Appearance, voice content and Sound Effects remain supported. Built-in
-background, BGM and SFX fallback palettes are empty. Speech-engine models and
-built-in voices are separate from imported example recordings.
+An excluded required dependency fails closure resolution. Local Appearance,
+voice content and Sound Effects remain supported. Speech-engine models and
+built-in voices are separate from imported example recordings. Music and
+standalone catalog Clips are outside the active content closure; preserved
+legacy files are not staging inputs.
 
 An existing profile referencing unavailable Included content needs explicit
 replacement/repair before accepting a new core. Preserve its Anima and stored
