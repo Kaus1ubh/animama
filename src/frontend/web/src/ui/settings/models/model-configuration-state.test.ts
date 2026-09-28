@@ -13,6 +13,8 @@ import {
   roleCandidates,
 } from "./model-configuration-state";
 import {
+  modelConnectionLabel,
+  modelOptionDetail,
   modelOptionLabel,
   selectableChatModels,
 } from "@/lib/chat/model-catalog";
@@ -83,8 +85,36 @@ describe("model pickers", () => {
     ).toContain("hidden");
   });
 
+  it("groups the built-in OpenAI connection's models under one name", () => {
+    const builtin = row("gpt-5.6-luna", {
+      connection_id: "openai",
+      connection_name: "OpenAI",
+      provider_label: "OpenAI Responses HTTP",
+      model_provider: "OpenAIResponsesHTTPAgent",
+    });
+    const owner = row("gpt-6-luna", {
+      connection_id: "openai",
+      connection_name: "OpenAI",
+      provider_label: "OpenAI",
+      model_provider: "OpenAIResponsesHTTPAgent",
+    });
+    expect(modelConnectionLabel(builtin)).toBe("OpenAI");
+    expect(modelConnectionLabel(owner)).toBe("OpenAI");
+    expect(modelOptionDetail(owner)).toBe("Responses API");
+    expect(modelOptionLabel(builtin)).toBe(
+      "OpenAI: gpt-5.6-luna (Responses API)",
+    );
+    const local = row("qwen3:8b", {
+      connection_id: "c_0123456789ab",
+      connection_name: "Ollama",
+    });
+    expect(modelOptionDetail(local)).toBe("Ollama");
+  });
+
   it("labels models with fallbacks", () => {
-    expect(modelOptionLabel(row("qwen3:8b"))).toBe("Ollama: qwen3:8b");
+    expect(modelOptionLabel(row("qwen3:8b", { connection_id: "c_1" }))).toBe(
+      "Ollama: qwen3:8b",
+    );
     expect(
       modelOptionLabel({
         model: "qwen3:8b",

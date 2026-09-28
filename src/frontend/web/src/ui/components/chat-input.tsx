@@ -68,6 +68,8 @@ import {
   Upload,
 } from "lucide-react";
 import {
+  modelConnectionLabel,
+  modelOptionDetail,
   modelOptionLabel,
   selectableChatModels,
 } from "@/lib/chat/model-catalog";
@@ -298,8 +300,7 @@ ChatInputFileUploadButton.displayName = "ChatInputFileUploadButton";
 function groupModelOptions(items: PyModelProviderCatalogItem[]) {
   const groups = new Map<string, PyModelProviderCatalogItem[]>();
   for (const item of items) {
-    const key =
-      item.provider_label || item.connection_name || item.model_provider;
+    const key = modelConnectionLabel(item);
     groups.set(key, [...(groups.get(key) ?? []), item]);
   }
   return Array.from(groups, ([providerLabel, models]) => ({
@@ -658,12 +659,11 @@ function ChatInputModelSelector({
                 const rowNeedsWindow =
                   item.source === "owner" && item.context_window_tokens == null;
                 const modelName = item.model_label || item.model;
-                const providerName =
-                  item.provider_label || item.connection_name || "";
+                const providerName = modelOptionDetail(item);
                 return (
                   <ModelSelectorItem
                     key={item.id}
-                    value={`${providerName} ${modelName} ${item.model}`}
+                    value={`${modelConnectionLabel(item)} ${providerName} ${modelName} ${item.model}`}
                     disabled={
                       updateAnimaChatProfile.isPending ||
                       rowUnsupported ||
