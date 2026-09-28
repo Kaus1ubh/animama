@@ -56,6 +56,14 @@ describe("Anima management search", () => {
     });
   });
 
+  it("keeps the Memories tab across a full reload", () => {
+    expect(
+      animaDetailsSearchFromUrl(
+        new URL("http://localhost:5173/a/animas/anima-2?tab=memories"),
+      ),
+    ).toEqual({ tab: "memories" });
+  });
+
   it("recovers a valid management tab from a full-reload URL", () => {
     expect(
       animaDetailsSearchFromUrl(

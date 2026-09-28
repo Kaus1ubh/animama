@@ -10,6 +10,7 @@ Routes:
   existing links and optional logical Avatar handoffs remain intact.
 - `/a/animas`: resolve to the first owned Anima or `/a/animas/new`.
 - `/a/animas/:animaId`: view the rendered `IDENTITY.md` document by default.
+- `/a/animas/:animaId?tab=memories`: read the Anima's relationship `MEMORIES.md`.
 - `/a/animas/:animaId?tab=loadout`: configure the typed loadout.
 - `/a/animas/:animaId/identity`: edit the Anima's `IDENTITY.md` memory entry.
 - `/a/:animaId`: enter the live Avatar/chat surface.
@@ -28,9 +29,15 @@ The panel renders the Anima-scoped `IDENTITY.md`; if that file is unavailable,
 the selected Avatar's starter identity is shown as a fallback. Edit identity
 opens a nested modal route and closing it returns focus to the Identity panel.
 Saving updates the shared memory-entry query used by the rendered preview and
-subsequent chat turns. Open memories selects the Anima's relationship
-`MEMORIES.md` in the Manual [memory workspace](anima-memory.md) by entry ID. It
-is hidden while that file is missing; repair it from the Anima's folder there.
+subsequent chat turns.
+
+## Memories
+
+The Memories tab renders the selected Anima's relationship `MEMORIES.md`.
+Edit memories opens that exact entry in the Manual
+[memory workspace](anima-memory.md). An empty file remains editable; a missing
+file offers Repair memories, which recreates the template without overwriting
+an existing file. Load failures offer Retry.
 
 ## Appearance editor
 

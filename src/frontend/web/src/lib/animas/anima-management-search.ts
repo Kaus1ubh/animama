@@ -6,6 +6,7 @@ export type AnimaListSearch = {
 
 export const ANIMA_MANAGEMENT_TABS = [
   "overview",
+  "memories",
   "emotions",
   "loadout",
   "settings",

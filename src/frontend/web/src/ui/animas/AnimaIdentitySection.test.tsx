@@ -36,7 +36,7 @@ const identityProps = {
 describe("AnimaIdentitySection plain presentation", () => {
   it("renders the complete markdown without an inner scroll surface", () => {
     const html = renderToStaticMarkup(
-      <AnimaIdentitySection {...identityProps} presentation="plain" />,
+      <AnimaIdentitySection {...identityProps} />,
     );
     expect(html).toContain("<h1><strong>Annie</strong></h1>");
     expect(html).not.toContain("overflow-auto");
@@ -46,32 +46,25 @@ describe("AnimaIdentitySection plain presentation", () => {
     expect(html).not.toMatch(/<h2[^>]*>Identity<\/h2>/);
   });
 
-  it("preserves the management panel by default", () => {
+  it("renders management identity without a nested card or scroll surface", () => {
     const html = renderToStaticMarkup(
       <AnimaIdentitySection {...identityProps} />,
     );
     expect(html).toContain("<h1><strong>Annie</strong></h1>");
-    expect(html).toContain("overflow-auto");
+    expect(html).not.toContain("overflow-auto");
+    expect(html).not.toContain("bg-muted/25");
     expect(html).not.toMatch(/<h2[^>]*>Identity<\/h2>/);
   });
 
   it("preserves loading and starter fallback when the identity cannot load", () => {
     const loading = renderToStaticMarkup(
-      <AnimaIdentitySection
-        {...identityProps}
-        presentation="plain"
-        identityLoading
-      />,
+      <AnimaIdentitySection {...identityProps} identityLoading />,
     );
     expect(loading).toContain("Loading identity…");
     expect(loading).not.toMatch(/<h2[^>]*>Identity<\/h2>/);
     expect(loading).not.toContain("A friendly companion.");
     const failed = renderToStaticMarkup(
-      <AnimaIdentitySection
-        {...identityProps}
-        presentation="plain"
-        identityError
-      />,
+      <AnimaIdentitySection {...identityProps} identityError />,
     );
     expect(failed).toContain("could not be loaded");
     expect(failed).toContain("Starter description.");
@@ -97,21 +90,10 @@ describe("identity edit action", () => {
   });
 });
 
-describe("Anima memories link", () => {
-  it("opens MEMORIES.md in the Manual memory workspace by entry ID", () => {
+describe("identity document actions", () => {
+  it("keeps identity editing without a memories shortcut", () => {
     const html = renderToStaticMarkup(
-      <AnimaIdentitySection {...identityProps} memoriesEntryId="memories-1" />,
-    );
-    expect(html).toContain(
-      'href="/a/memories?tab=memory&amp;mode=manual&amp;entryId=memories-1"',
-    );
-    expect(html).toContain("Open memories");
-    expect(html).toContain("Edit identity");
-  });
-
-  it("is omitted while the file is unknown or missing", () => {
-    const html = renderToStaticMarkup(
-      <AnimaIdentitySection {...identityProps} memoriesEntryId={null} />,
+      <AnimaIdentitySection {...identityProps} />,
     );
     expect(html).not.toContain("Open memories");
     expect(html).not.toContain("/a/memories");

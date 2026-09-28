@@ -514,7 +514,6 @@ function AnimaProfile({
                       identityTriggerRef.current = event.currentTarget;
                       setIdentityEditorOpen(true);
                     }}
-                    presentation="plain"
                   />
                 ) : (
                   <p className="text-muted-foreground text-sm">
