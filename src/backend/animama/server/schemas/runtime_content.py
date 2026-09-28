@@ -148,6 +148,20 @@ class PyRuntimeAppearance(BaseModel):
     files: list[PyRuntimeFile] = Field(default_factory=list)
 
 
+class PyRuntimeVoice(BaseModel):
+    """One equipped Pocket catalog; original recordings remain in the library."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    runtime_root_id: str
+    binding_id: str
+    source: PyRuntimeSource
+    name: str
+    codec: str | None = None
+    voices: list[str] = Field(default_factory=list)
+    files: list[PyRuntimeFile] = Field(default_factory=list)
+
+
 class PyRuntimeContentMember(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -244,6 +258,7 @@ class PyAnimaRuntime(BaseModel):
     idle_style: PyRuntimeIdleStyle | None = None
     music_tracks: list[PyRuntimeMusicTrack] = Field(default_factory=list)
     avatar: PyRuntimeAvatar | None = None
+    voice: PyRuntimeVoice | None = None
     appearances: list[PyRuntimeAppearance] = Field(default_factory=list)
     particle_effects: list[PyRuntimeSupport] = Field(default_factory=list)
     avatar_effects: list[PyRuntimeSupport] = Field(default_factory=list)

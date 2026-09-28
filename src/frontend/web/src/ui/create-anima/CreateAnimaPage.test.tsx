@@ -51,6 +51,9 @@ vi.mock("@/ui/content-preview/ContentPreviewDockProvider", () => ({
 vi.mock("./CreateAnimaAvatarStep", () => ({
   CreateAnimaAvatarStep: () => <div>Avatar form</div>,
 }));
+vi.mock("./CreateAnimaVoiceStep", () => ({
+  CreateAnimaVoiceStep: () => <div>Voice form</div>,
+}));
 vi.mock("./CreateAnimaIdentityStep", () => ({
   CreateAnimaIdentityStep: () => <div>Identity form</div>,
 }));
@@ -109,12 +112,14 @@ beforeEach(() => {
 describe("Create Anima route states", () => {
   it.each([
     "Choose an Avatar",
+    "Choose a voice",
     "Define their Identity",
     "Choose Actions",
     "Review Anima",
   ])("renders %s in the app shell", (heading) => {
     const step = [
       "Choose an Avatar",
+      "Choose a voice",
       "Define their Identity",
       "Choose Actions",
       "Review Anima",
@@ -142,7 +147,7 @@ describe("Create Anima route states", () => {
       expect(html).not.toContain(
         "Start with an Avatar, then make them your own",
       );
-    if (step === 3)
+    if (step === 4)
       expect(html).not.toContain(
         "Review your choices before creating your Anima",
       );
@@ -189,7 +194,7 @@ describe("Create Anima route states", () => {
     );
     expect(resume).not.toContain("Avatar form");
     mocks.controller.mockReturnValue(
-      state({ draft: { ...readyDraft(), step: 3 } }),
+      state({ draft: { ...readyDraft(), step: 4 } }),
     );
     const html = renderToStaticMarkup(<CreateAnimaPage />);
     const create = html

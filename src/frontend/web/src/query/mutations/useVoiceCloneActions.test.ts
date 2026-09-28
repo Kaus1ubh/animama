@@ -1,0 +1,190 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { PyVoiceContent } from "@animama/runtime-contracts/api-types";
+const api = vi.hoisted(() => ({
+  save: vi.fn(),
+  get: vi.fn(),
+  remove: vi.fn(),
+  stream: vi.fn(),
+  encode: vi.fn(),
+}));
+vi.mock("@animama/runtime-contracts/sdk", () => ({
+  saveVoiceContent: api.save,
+  getContentItemV1ContentItemsItemIdGet: api.get,
+  deleteContentItemV1ContentItemsItemIdDelete: api.remove,
+  streamContentFileV1ContentFilesFileRefGet: api.stream,
+}));
+vi.mock("@/lib/speech/pocket/catalog-builder", () => ({
+  buildPocketVoiceCatalogFile: api.encode,
+}));
+import {
+  deleteSavedVoiceClone,
+  renameSavedVoiceClone,
+  savePreparedVoiceClone,
+} from "./useVoiceCloneActions";
+import { prepareVoiceClone } from "@/lib/speech/pocket/voice-clones";
+
+const clone: PyVoiceContent = {
+  item_id: "voice-item",
+  name: "Original name",
+  codec: "pocket-tts-catalog-v1",
+  source: "local",
+  editable: true,
+  revision_sha256: "revision-1",
+  logical_key: "local:voice:identity",
+  files: [
+    {
+      file_ref: "source-ref",
+      filename: "original.wav",
+      logical_path: "original.wav",
+      role: "source_sample",
+      media_type: "audio/wav",
+      size_bytes: 8,
+      sha256: "source-hash",
+      ordinal: 0,
+    },
+    {
+      file_ref: "descriptor-ref",
+      filename: "voice.json",
+      logical_path: "voice.json",
+      role: "descriptor",
+      media_type: "application/json",
+      size_bytes: 200,
+      sha256: "descriptor-hash",
+      ordinal: 1,
+    },
+    {
+      file_ref: "catalog-ref",
+      filename: "voice.bin",
+      logical_path: "voice.bin",
+      role: "pocket_voice_catalog",
+      media_type: "application/octet-stream",
+      size_bytes: 7,
+      sha256: "catalog-hash",
+      ordinal: 2,
+    },
+  ],
+};
+const descriptor = {
+  schema_version: 1,
+  content_type: "voice",
+  content_id: clone.logical_key,
+  codec: clone.codec,
+  name: clone.name,
+  voices: ["neutral"],
+  provenance: { encoder: "pocket-tts", format_version: 1 },
+  files: clone
+    .files!.filter((file) => file.role !== "descriptor")
+    .map((file) => ({
+      path: file.logical_path,
+      role: file.role,
+    })),
+};
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  api.save.mockResolvedValue({ data: clone });
+  api.remove.mockResolvedValue({});
+  api.encode.mockResolvedValue(new File(["catalog"], "voice.bin"));
+  api.get.mockResolvedValue({
+    data: {
+      revision_sha256: clone.revision_sha256,
+      relative_locator: "voices/original-folder",
+      metadata: descriptor,
+    },
+  });
+  api.stream.mockImplementation(
+    async ({ path }: { path: { file_ref: string } }) => ({
+      data: new Blob([path.file_ref === "source-ref" ? "original" : "catalog"]),
+    }),
+  );
+});
+
+describe("voice clone library writes", () => {
+  it("retries a prepared creation with the same operation, descriptor and full original bytes", async () => {
+    const prepared = await prepareVoiceClone({
+      name: "New voice",
+      file: new File(["entire original"], "source.wav"),
+      operationId: "create-operation",
+    });
+    api.save.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    await expect(savePreparedVoiceClone(prepared)).rejects.toThrow(
+      "draft is preserved",
+    );
+    await expect(savePreparedVoiceClone(prepared)).resolves.toBe(clone);
+    expect(api.encode).toHaveBeenCalledTimes(1);
+    expect(api.save.mock.calls[0][0]).toEqual(api.save.mock.calls[1][0]);
+    const { body } = api.save.mock.calls[1][0];
+    expect(body.operation_id).toBe("create-operation");
+    expect(JSON.parse(body.companion_paths_json)).toEqual([
+      "original.wav",
+      "voice.bin",
+    ]);
+    expect(await body.files[0].text()).toBe("entire original");
+    expect(await body.files[1].text()).toBe("catalog");
+  });
+
+  it("renames the same item with unchanged original/catalog bytes, identity and provenance", async () => {
+    await renameSavedVoiceClone({
+      clone,
+      name: " Renamed voice ",
+      operationId: "rename-operation",
+    });
+    expect(api.encode).not.toHaveBeenCalled();
+    const { path, body } = api.save.mock.calls[0][0];
+    expect(path).toEqual({ entry_name: "original-folder" });
+    expect(body).toMatchObject({
+      catalog_item_id: clone.item_id,
+      expected_revision: "revision-1",
+      operation_id: "rename-operation",
+    });
+    expect(JSON.parse(body.descriptor_json)).toEqual({
+      ...descriptor,
+      name: "Renamed voice",
+    });
+    expect(await body.files[0].text()).toBe("original");
+    expect(await body.files[1].text()).toBe("catalog");
+    expect(body.files).toHaveLength(2);
+    expect(
+      api.stream.mock.calls.map(([request]) => request.path.file_ref),
+    ).toEqual(["source-ref", "catalog-ref"]);
+  });
+
+  it("rejects stale rename without reloading bytes or overwriting a newer descriptor", async () => {
+    api.get.mockResolvedValueOnce({
+      data: { revision_sha256: "newer-revision" },
+    });
+    await expect(
+      renameSavedVoiceClone({ clone, name: "Changed" }),
+    ).rejects.toMatchObject({ code: "catalog_revision_conflict" });
+    expect(api.stream).not.toHaveBeenCalled();
+    expect(api.save).not.toHaveBeenCalled();
+  });
+
+  it("deletes with the displayed revision and explains references without losing the API code", async () => {
+    api.remove.mockResolvedValueOnce({
+      error: { detail: { code: "catalog_item_in_use" } },
+      response: { status: 409 },
+    });
+    await expect(deleteSavedVoiceClone(clone)).rejects.toMatchObject({
+      status: 409,
+      code: "catalog_item_in_use",
+      message: expect.stringContaining("Choose another voice"),
+    });
+    expect(api.remove).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        path: { item_id: clone.item_id },
+        query: { expected_revision: "revision-1" },
+      }),
+    );
+  });
+
+  it("refuses mutations to Included content", async () => {
+    const included = { ...clone, source: "included" as const, editable: false };
+    await expect(deleteSavedVoiceClone(included)).rejects.toThrow("Local");
+    await expect(
+      renameSavedVoiceClone({ clone: included, name: "Rename" }),
+    ).rejects.toThrow("Local");
+    expect(api.remove).not.toHaveBeenCalled();
+    expect(api.save).not.toHaveBeenCalled();
+  });
+});

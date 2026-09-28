@@ -98,16 +98,19 @@ vi.mock("@/query/mutations/useAnimaLoadoutMutations", () => ({
 }));
 
 describe("Anima Loadout", () => {
-  it("keeps exactly the four typed product sections behind accessible disclosures", () => {
+  it("places Voices before the four content sections behind accessible disclosures", () => {
     const html = renderToString(
       <AnimaLoadout animaId="anima-1" onStagePreview={() => undefined} />,
     );
 
+    expect(html).toContain(">Voices<");
+    expect(html.indexOf(">Voices<")).toBeLessThan(html.indexOf(">Gestures<"));
     expect(html).toContain(">Gestures<");
     expect(html).toContain(">Reactions<");
     expect(html).toContain(">Idle Style<");
     expect(html).toContain(">Music<");
-    expect(html.match(/aria-expanded="false"/g)).toHaveLength(4);
+    expect(html.match(/aria-expanded="false"/g)).toHaveLength(5);
+    expect(html).toContain('aria-controls="voice-loadout-content"');
     expect(html).toContain('aria-controls="gesture-loadout-content"');
     expect(html).toContain('aria-controls="reaction-loadout-content"');
     expect(html).toContain('aria-controls="idle-style-content"');

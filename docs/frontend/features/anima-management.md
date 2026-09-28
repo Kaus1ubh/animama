@@ -18,7 +18,7 @@ Routes:
 The [live creation journey](custom-anima-creation.md) uses stable live
 name/identity authority, atomic creation, and durable idempotency receipts.
 Installation bootstrap/repair uses backend starter specifications and preserves existing
-customization and deletion. The management Loadout has four sections; creation produces a private live
+customization and deletion. The management Loadout has five sections; creation produces a private live
 Anima.
 
 ## Identity
@@ -68,8 +68,9 @@ Gestures and Reactions are complete actions. Their Particle, Avatar, and
 Scene Effects and Sound Effects are compiler-managed dependencies, so those
 ingredients never appear as separate loadout checkboxes.
 
-The Loadout panel contains Gestures, Reactions, Idle Style and Music. Avatar,
-Appearance and voice use their own focused controls.
+The Loadout panel contains Voices, Gestures, Reactions, Idle Style and Music.
+Voices configures PocketTTS and ElevenLabs for this Anima, regardless of the
+active application provider. Avatar and Appearance use their own focused controls.
 
 The unified Gesture list keeps ready user-created Gestures first and optionally
 reveals active or disabled Starter Gestures through the header filter menu.

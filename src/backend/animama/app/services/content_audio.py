@@ -115,6 +115,7 @@ def _validate_wav(payload: bytes) -> _AudioFacts:
     expected_align = channels * bits // 8
     if (
         expected_align < 1
+        or byte_rate < 1
         or block_align != expected_align
         or byte_rate != sample_rate * block_align
         or data_bytes % block_align

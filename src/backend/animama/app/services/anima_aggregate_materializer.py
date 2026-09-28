@@ -80,6 +80,7 @@ class AnimaAggregateMaterializer:
             identity=identity,
             model_provider_id=model_id,
             voice_profile=voice,
+            speech_preferences=spec.speech_preferences,
             identity_metadata={},
         )
         await uow.loadouts.initialize(user_id=user_id, anima_id=anima.id, spec=spec)
@@ -106,6 +107,7 @@ class AnimaAggregateMaterializer:
         model_provider_id: str,
         voice_profile: dict[str, Any],
         identity_metadata: dict[str, Any],
+        speech_preferences: dict[str, Any] | None = None,
     ) -> None:
         assert anima.user_id is not None
         await uow.animas.create(anima)
@@ -125,7 +127,9 @@ class AnimaAggregateMaterializer:
         )
         await memory.initialize_anima_memories(user_id=anima.user_id, anima_id=anima.id)
         preferences = default_anima_preferences()
-        preferences["speech"] = {"elevenlabs": voice_profile}
+        preferences["speech"] = (
+            deepcopy(speech_preferences) if speech_preferences is not None else {"elevenlabs": voice_profile}
+        )
         await uow.settings.upsert(AnimaSettings(user_id=anima.user_id, anima_id=anima.id, preferences=preferences))
         await uow.chat_profiles.upsert(
             AnimaChatProfile(

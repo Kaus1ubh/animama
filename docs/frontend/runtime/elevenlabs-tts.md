@@ -34,8 +34,9 @@ using the short-lived token from that SSE event.
 The `tts.session` event includes the selected voice, model, output format,
 transport, and `sync_alignment`. `sync_alignment` remains `false`; Anima does
 not request ElevenLabs timing metadata for realtime speech.
-The backend validates ElevenLabs voice accessibility when a voice profile is
-saved and keeps a short process-local runtime cache. Realtime chat still
+Loadout → Voices saves the Anima voice ID without contacting ElevenLabs, even
+when another provider is selected. The backend checks voice accessibility when
+starting ElevenLabs playback and keeps a short process-local runtime cache. Realtime chat still
 resolves the selected voice and mints a single-use websocket token per run, but
 it does not perform a fresh ElevenLabs `voices.get` call when the cache says the
 voice was recently valid.

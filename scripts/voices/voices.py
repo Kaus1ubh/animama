@@ -1013,7 +1013,31 @@ def current_store() -> Path:
     return store.verify_directory(json.loads(raw), directory)
 
 
-def frontend_catalog(selection: dict, candidates: dict[str, dict], entries: dict[str, dict]) -> str:
+def voice_preview_url(sources: dict, source: str) -> str:
+    """Resolve only a reviewed source recording at the pinned Kyutai clips revision."""
+    clips = sources["clips"]
+    if clips["repository"] != "kyutai/tts-voices" or not re.fullmatch(r"[a-f0-9]{40}", clips["revision"]):
+        raise VoiceToolError("Voice previews require the pinned kyutai/tts-voices source")
+    if source.startswith("vctk-"):
+        speaker = source.removeprefix("vctk-")
+        if not re.fullmatch(r"[ps]\d+", speaker) or speaker not in sources["pins"]["vctk_clips"]:
+            raise VoiceToolError(f"{source}: voice preview has no pinned source recording")
+        path = clips["vctk_path"].format(speaker=speaker)
+    else:
+        origin = next((voice for voice in sources["kyutai_voices"] if voice["name"] == source), None)
+        if not origin or origin["license"] not in PERMITTED_LICENSES or origin.get("exclude"):
+            raise VoiceToolError(f"{source}: voice preview source is not permitted")
+        # The existing attribution records the repository, relative clip path and credit.
+        recording = re.fullmatch(r"kyutai/tts-voices (\S+) \(.+\)", origin["recording"])
+        if not recording:
+            raise VoiceToolError(f"{source}: voice preview needs a documented Kyutai recording")
+        path = recording.group(1)
+    if not re.fullmatch(r"(?:vctk|voice-zero|voice-donations)/[A-Za-z0-9_-]+\.wav", path):
+        raise VoiceToolError(f"{source}: voice preview has an unreviewed recording path")
+    return HF_FILE.format(repository=clips["repository"], revision=clips["revision"], path=path)
+
+
+def frontend_catalog(selection: dict, candidates: dict[str, dict], entries: dict[str, dict], sources: dict) -> str:
     """TypeScript voice metadata for the app, in selection (display) order."""
     rows = []
     for voice in selection["voices"]:
@@ -1029,6 +1053,8 @@ def frontend_catalog(selection: dict, candidates: dict[str, dict], entries: dict
             f"    delivery: {json.dumps(voice['delivery'])},\n"
             f"    assetId: {json.dumps(asset)},\n"
             f"    sizeBytes: {entries[voice['id']]['entry']['size']},\n"
+            "    previewUrl:\n"
+            f"      {json.dumps(voice_preview_url(sources, voice['source']))},\n"
             "  },"
         )
     return FRONTEND_TEMPLATE.replace("__DEFAULT__", json.dumps(selection["default"])).replace(
@@ -1057,6 +1083,8 @@ export type PocketVoice = {
   /** The `/v1/model-assets` ID of a downloadable voice; null for core voices. */
   readonly assetId: string | null;
   readonly sizeBytes: number;
+  /** Pinned source recording; plays without downloading or synthesizing the voice. */
+  readonly previewUrl: string;
 };
 
 export const DEFAULT_POCKET_VOICE = __DEFAULT__;
@@ -1085,6 +1113,8 @@ def command_release(args: argparse.Namespace) -> None:
     manifest = json.loads(BROWSER_MANIFEST.read_text())
     others = [e for e in manifest["files"] if not e["target"].startswith("models/pocket-tts/voices/")]
     candidates = {c["id"]: c for c in build_candidates(sources, speaker_info(sources, work))}
+    # Validate preview sources before rebuilding imports or changing any tracked artifact.
+    frontend = frontend_catalog(selection, candidates, by_id, sources)
     notices = voice_set_notices(sources, selection)
 
     speech_import = work / "import-store"
@@ -1177,7 +1207,7 @@ def command_release(args: argparse.Namespace) -> None:
         if i["voice"]["delivery"] == "download"
     ]
     ASSET_CATALOG.write_text(json.dumps(catalog, indent=2) + "\n")
-    FRONTEND_CATALOG.write_text(frontend_catalog(selection, candidates, by_id))
+    FRONTEND_CATALOG.write_text(frontend)
 
     records = json.loads(LICENSE_RECORDS.read_text())
     pocket = next(group for group in records["groups"] if group["id"] == "browser-pocket")

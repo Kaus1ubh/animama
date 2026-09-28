@@ -36,9 +36,9 @@ describe("CreateAnimaDraft", () => {
     ).toBe(false);
   });
 
-  it("constructs schema v2 with the exact editable identity seed and 72 null cells", () => {
+  it("constructs schema v3 with the exact editable identity seed and 72 null cells", () => {
     const draft = newCreateAnimaDraft();
-    expect(draft.schema_version).toBe(2);
+    expect(draft.schema_version).toBe(3);
     expect(draft.identity_markdown).toBe(DEFAULT_ANIMA_IDENTITY_MARKDOWN);
     expect(draft.identity_markdown).toBe(
       [
@@ -219,7 +219,7 @@ describe("CreateAnimaDraft", () => {
       draftIssues({ ...readyDraft(), display_name: "😀".repeat(41) }, 3),
     ).toHaveLength(1);
     expect(issueStep("/display_name")).toBeNull();
-    expect(issueStep("/identity_markdown")).toBe(1);
+    expect(issueStep("/identity_markdown")).toBe(2);
   });
 
   it("uses a direct required-name message before the broader format message", () => {

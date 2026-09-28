@@ -343,3 +343,68 @@ def test_hosted_set_notices_and_core_entries_match_the_generator():
         if entry["source"].get("kind") == "release":
             assert entry["source"] == hosted_entries[name]["source"], name
             assert entry["sha256"] == hosted_entries[name]["sha256"], name
+
+
+def test_every_selected_voice_has_its_pinned_source_recording_preview():
+    """Previews resolve the reviewed recording, independently of state installation."""
+    sources, selection = voices.load_sources(), voices.load_selection()
+    origins = {voice["name"]: voice for voice in sources["kyutai_voices"]}
+    base = "https://huggingface.co/kyutai/tts-voices/resolve/323332d33f997de8394f24a193e1a76df720e01a/"
+    for voice in selection["voices"]:
+        source = voice["source"]
+        expected_path = (
+            f"vctk/{source.removeprefix('vctk-')}_023_enhanced.wav"
+            if source.startswith("vctk-")
+            else origins[source]["recording"].split()[1]
+        )
+        assert voices.voice_preview_url(sources, source) == base + expected_path, voice["id"]
+    assert voices.voice_preview_url(sources, "eve") == base + "vctk/p361_023_enhanced.wav"
+    assert voices.voice_preview_url(sources, "azelma") == base + "vctk/p303_023_enhanced.wav"
+    assert voices.voice_preview_url(sources, "javert") == base + "voice-donations/Butter.wav"
+    assert voices.voice_preview_url(sources, "marius") == base + "voice-donations/Selfie.wav"
+
+
+def test_frontend_catalog_matches_reproducible_metadata_generation():
+    """Regenerating metadata from tracked inputs requires no models, installs or network."""
+    sources, selection = voices.load_sources(), voices.load_selection()
+    candidates = {
+        candidate["id"]: candidate for candidate in json.loads(voices.INVENTORY_JSON.read_text())["candidates"]
+    }
+    entries = {
+        entry["path"]: {"entry": entry}
+        for manifest in (voices.BROWSER_MANIFEST, voices.VOICE_SET_MANIFEST)
+        for entry in json.loads(manifest.read_text())["files"]
+    }
+    by_id = {voice["id"]: entries[f"{voice['id']}.safetensors"] for voice in selection["voices"]}
+    assert voices.FRONTEND_CATALOG.read_text() == voices.frontend_catalog(selection, candidates, by_id, sources)
+
+
+@pytest.mark.parametrize(
+    "change",
+    ["repository", "revision", "path", "recording", "traversal", "license", "excluded", "unknown", "speaker"],
+)
+def test_voice_previews_reject_unreviewed_or_arbitrary_urls(change):
+    sources = voices.load_sources()
+    source = "bill_boerst"
+    origin = next(voice for voice in sources["kyutai_voices"] if voice["name"] == source)
+    if change == "repository":
+        sources["clips"]["repository"] = "example/other-voices"
+    elif change == "revision":
+        sources["clips"]["revision"] = "main"
+    elif change == "path":
+        sources["clips"]["vctk_path"] = "https://example.com/{speaker}.wav"
+        source = "vctk-p236"
+    elif change == "recording":
+        origin["recording"] = "https://example.com/sample.wav (unreviewed)"
+    elif change == "traversal":
+        origin["recording"] = "kyutai/tts-voices voice-zero/../../other.wav (unreviewed)"
+    elif change == "license":
+        origin["license"] = "NOASSERTION"
+    elif change == "excluded":
+        origin["exclude"] = "source withdrawn"
+    elif change == "unknown":
+        source = "https://example.com/sample.wav"
+    else:
+        source = "vctk-p999"
+    with pytest.raises(voices.VoiceToolError):
+        voices.voice_preview_url(sources, source)

@@ -6,6 +6,7 @@ import argparse
 from pathlib import Path
 
 CATALOG_INPUTS = {
+    "pocket-voice-selection.json": "scripts/voices/selection.json",
     "animation-manifest.json": "src/frontend/web/src/assets/vrm/animations/manifest.json",
     "vfx-catalog.json": "src/frontend/web/src/assets/effects/vfx/catalog.json",
 }

@@ -47,6 +47,7 @@ import { useMusicTracks } from "@/query/hooks/useMusicTracks";
 import { useGestures, useReactions } from "@/query/hooks/useActions";
 import { useAnimaRuntimeCatalog } from "@/query/hooks/useAnimaRuntimeCatalog";
 import { useAnimaLoadoutMutations } from "@/query/mutations/useAnimaLoadoutMutations";
+import { VoiceLoadoutSection } from "@/ui/animas/VoiceLoadoutSection";
 import { GestureLoadoutSection } from "@/ui/animas/GestureLoadoutSection";
 import { IdleStyleLoadoutSection } from "@/ui/animas/IdleStyleLoadoutSection";
 import { MusicTrackLoadoutSection } from "@/ui/animas/MusicTrackLoadoutSection";
@@ -554,6 +555,7 @@ export function AnimaLoadout({
           ))}
         </div>
       ) : null}
+      <VoiceLoadoutSection key={animaId} />
       <GestureLoadoutSection
         presentation={gesturePresentation}
         customCatalog={customGestureCatalog}

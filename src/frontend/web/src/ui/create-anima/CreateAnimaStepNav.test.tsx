@@ -6,9 +6,9 @@ describe("Anima creation progress", () => {
   it("uses styling instead of visible attention copy and joins completed steps in blue", () => {
     const html = renderToStaticMarkup(
       <CreateAnimaStepNav
-        step={2}
+        step={3}
         disabled={false}
-        attention={[1]}
+        attention={[2]}
         onStep={vi.fn()}
       />,
     );

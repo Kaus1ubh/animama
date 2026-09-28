@@ -10,7 +10,7 @@ import hashlib
 import json
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from animama.domain.anima_definition import (
     ANIMA_DISPLAY_NAME_MAX_CHARACTERS,
@@ -24,6 +24,7 @@ RevisionSha256 = Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]
 IdempotencyKey = Annotated[str, Field(min_length=1, max_length=128, pattern=r"^[A-Za-z0-9][A-Za-z0-9._:-]*$")]
 SemanticKey = Annotated[str, Field(pattern=r"^[a-z0-9][a-z0-9._-]{0,127}$")]
 SourceKind = Literal[
+    "voice",
     "avatar",
     "appearance",
     "gesture",
@@ -119,13 +120,39 @@ ReactionCells = dict[Literal["1", "2", "3"], ItemRevisionRef | None]
 ReactionMatrix = dict[Emotion, ReactionCells]
 
 
+class CreationPocketPreset(StrictCreationModel):
+    type: Literal["preset"]
+    voice_id: str = Field(pattern=r"^[a-z][a-z0-9_-]{0,127}$")
+
+
+class CreationPocketClone(StrictCreationModel):
+    type: Literal["clone"]
+    source: ItemRevisionRef
+
+
+class CreationVoice(StrictCreationModel):
+    """Both provider choices persist; only the selected provider needs a usable ID."""
+
+    provider: Literal["pocket_tts", "elevenlabs"]
+    pocket: Annotated[CreationPocketPreset | CreationPocketClone, Field(discriminator="type")]
+    elevenlabs_voice_id: Annotated[str, Field(pattern=r"^[A-Za-z0-9_-]{1,128}$")] | None
+
+    @model_validator(mode="after")
+    def require_active_voice(self) -> CreationVoice:
+        if self.provider == "elevenlabs" and self.elevenlabs_voice_id is None:
+            raise ValueError("Enter an ElevenLabs voice ID")
+        return self
+
+
 class AnimaSpec(StrictCreationModel):
-    """Every choice is explicit; neither omitted fields nor URLs seed defaults."""
+    """Explicit creation choices; legacy voice omission retains its original default."""
 
     schema_version: Literal[1]
     display_name: str = Field(min_length=1, max_length=ANIMA_DISPLAY_NAME_MAX_CHARACTERS)
     identity_markdown: str
     avatar: ItemRevisionRef
+    # Omission preserves pre-voice commands and their exact receipt hashes.
+    voice: CreationVoice | None = None
     appearance: AnimaAppearance
     gestures: list[GestureSelection] = Field(max_length=500)
     reactions: ReactionMatrix
@@ -179,7 +206,7 @@ def canonical_spec_hash(spec: AnimaSpec) -> str:
         return value
 
     encoded = json.dumps(
-        normalize_numbers(spec.model_dump()),
+        normalize_numbers(spec.model_dump(exclude={"voice"} if spec.voice is None else set())),
         sort_keys=True,
         separators=(",", ":"),
         ensure_ascii=False,

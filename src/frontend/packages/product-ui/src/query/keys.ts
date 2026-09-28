@@ -87,6 +87,11 @@ export const queryKeys = {
       [...queryKeys.poses.all(userId), "detail", itemId] as const,
     save: (userId: string) => [...queryKeys.poses.all(userId), "save"] as const,
   },
+  voiceContent: {
+    all: (ownerId: string) => ["voice-content", ownerId] as const,
+    list: (ownerId: string) =>
+      [...queryKeys.voiceContent.all(ownerId), "list"] as const,
+  },
   gestures: {
     all: (userId: string) => ["gestures", userId] as const,
     detail: (userId: string, itemId: string) =>
@@ -159,10 +164,12 @@ export const queryKeys = {
       ] as const,
   },
   animaLoadouts: {
+    details: (userId: string) => ["anima-loadout", userId] as const,
     detail: (userId: string, animaId: string) =>
-      ["anima-loadout", userId, animaId] as const,
+      [...queryKeys.animaLoadouts.details(userId), animaId] as const,
+    runtimes: (userId: string) => ["anima-runtime", userId] as const,
     runtime: (userId: string, animaId: string) =>
-      ["anima-runtime", userId, animaId] as const,
+      [...queryKeys.animaLoadouts.runtimes(userId), animaId] as const,
   },
   avatars: {
     all: (userId: string) => ["avatars", userId] as const,

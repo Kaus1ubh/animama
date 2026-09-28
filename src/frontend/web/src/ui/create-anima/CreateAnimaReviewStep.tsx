@@ -1,5 +1,10 @@
-import type { AnimaCreationDiagnostic, AnimaSpecInput } from "@animama/runtime-contracts/sdk";
+import type {
+  AnimaCreationDiagnostic,
+  AnimaSpecInput,
+} from "@animama/runtime-contracts/sdk";
 import type { AnimaCreationSources } from "@/query/hooks/useAnimaCreation";
+import { useVoiceClones } from "@/query/hooks/useVoiceClones";
+import { pocketVoiceLabel } from "@/lib/speech/pocket/voice-groups";
 import { Button } from "@/ui/components/button";
 import { MemoryMarkdownPreview } from "@/ui/memory/MemoryMarkdownPreview";
 import {
@@ -26,6 +31,22 @@ export function CreateAnimaReviewStep({
   const avatar = sources.avatars.data?.find(
     (item) => item.item_id === draft.avatar?.item_id,
   );
+  const voice = draft.voice;
+  const clones = useVoiceClones({
+    enabled: voice?.pocket.type === "clone" && voice.provider === "pocket_tts",
+  });
+  const voiceName =
+    voice?.provider === "elevenlabs"
+      ? voice.elevenlabs_voice_id
+      : voice?.pocket.type === "preset"
+        ? pocketVoiceLabel(voice.pocket.voice_id)
+        : voice?.pocket.type === "clone"
+          ? (clones.data?.find(
+              (clone) =>
+                voice.pocket.type === "clone" &&
+                clone.item_id === voice.pocket.source.item_id,
+            )?.name ?? "Saved voice clone")
+          : "Application default (saved request)";
   const count = reactionCount(draft);
   const visibleWarnings = warnings.filter(
     (warning) => warning.path !== "/appearance/profile",
@@ -44,12 +65,32 @@ export function CreateAnimaReviewStep({
       </div>
       <section className="rounded-xl border p-4">
         <div className="flex items-center justify-between gap-2">
-          <h3 className="font-medium">Identity</h3>
+          <h3 className="font-medium">Voice</h3>
           <Button
             type="button"
             variant="ghost"
             size="sm"
             onClick={() => onEdit(1)}
+            disabled={busy}
+          >
+            Edit Voice
+          </Button>
+        </div>
+        <p className="text-muted-foreground mt-2 text-sm break-words">
+          {voice
+            ? `${voice.provider === "pocket_tts" ? "PocketTTS" : "ElevenLabs"} · `
+            : ""}
+          {voiceName}
+        </p>
+      </section>
+      <section className="rounded-xl border p-4">
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="font-medium">Identity</h3>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => onEdit(2)}
             disabled={busy}
           >
             Edit Identity
@@ -68,7 +109,7 @@ export function CreateAnimaReviewStep({
             type="button"
             variant="ghost"
             size="sm"
-            onClick={() => onEdit(2)}
+            onClick={() => onEdit(3)}
             disabled={busy}
           >
             Edit Actions
