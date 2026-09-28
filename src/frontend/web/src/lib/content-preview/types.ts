@@ -27,6 +27,13 @@ type ContentPreviewTargetBase = {
   configSchemaVersion: number;
   config: Record<string, unknown>;
   supportEntries?: RuntimeCatalogEntry[];
+  /** Exact finite Style playback, independent of the ordinary preview Loop toggle. */
+  idlePlayback?: {
+    timeScale: number;
+    repetitions: number;
+    loopType: "once" | "repeat" | "pingpong";
+    durationSeconds: number;
+  };
   /** Optional Anima-owned catalog used instead of Library's neutral context. */
   animaContext?: {
     animaId: string;
@@ -104,7 +111,7 @@ export function libraryContentPreviewSlot(
 export function contentPreviewSupportsLoop(
   target: ContentPreviewTarget,
 ): boolean {
-  return target.kind === "animation";
+  return target.kind === "animation" && !target.idlePlayback;
 }
 
 /** Avatar releases provide their own model; every other visual needs an Anima. */

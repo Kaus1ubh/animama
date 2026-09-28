@@ -152,16 +152,20 @@ voice catalog metadata, or provider-side resources.
 Named Pocket clones are caller-owned Local `voice` content shared across that
 owner's Animas. `GET`/`PUT /v1/voice-content` use the existing typed content
 library and revision-checked Save contract. Each `pocket-tts-catalog-v1`
-descriptor retains exactly one `source_sample` (the unchanged WAV, MP3 or Ogg
-recording) and one `pocket_voice_catalog` (`.bin`) containing a neutral embedding.
+descriptor retains one `pocket_voice_catalog` (`.bin`) containing a neutral
+embedding and may retain one `source_sample` (the unchanged WAV, MP3 or Ogg
+recording). Locally authored clones retain the recording; clones imported with
+a complete Anima contain only the encoded catalog.
 Each file is limited to 25 MiB. Save, scan and package admission reject malformed
 audio, non-finite embeddings, invalid dimensions and mismatched file membership.
 Format and encoder provenance may be retained in the descriptor's `provenance`.
 
 The existing Anima `voice:plan`/`voice:commit` commands equip a clone by catalog
 identity. A runtime mount projects only its encoded catalog into `voice.files`;
-the original recording remains available through the owner-authorized registered
-file endpoint. Rename updates the same catalog item under its expected revision.
+an original recording, when present, remains available through the owner-authorized
+registered file endpoint. Anima ZIP export excludes that recording and carries
+only the active PocketTTS clone, as described in the
+[package boundary](../features/typed-content-and-marketplace.md#local-package-boundary). Rename updates the same catalog item under its expected revision.
 Deletion uses the normal content Delete endpoint and refuses voices still bound
 to any Anima. Selecting a built-in voice removes the clone binding.
 

@@ -42,13 +42,9 @@ Typed creators use stable product routes such as `/a/particle-effects/new`,
   Uploads also owns upload management and retrieval-debug
   tools.
 - `a/idle-styles.new.tsx` and `a/idle-styles.$idleStyleId.edit.tsx`: direct
-  Idle Style authoring. Creators upload and name multiple VRMA files, assign
-  default and emotion pools, preview the current exact catalog revision, and
-  save one editable Local entry without standalone Animation product rows.
-- `a/music-tracks.new.tsx` and `a/music-tracks.$musicTrackId.edit.tsx`: direct
-  Music Track authoring. Creators upload one long-form audio file, configure
-  loop/gain/autoplay defaults, preview the exact registered audio, and save it
-  directly without creating a generic Audio product row.
+  Idle Style authoring. Select existing finite Gestures for Default and separate
+  emotion/intensity cells, with inherit and No idle choices. Preview uses the
+  current saved revision; Save edits Local content or creates an Included copy.
 - `a/gestures.new.tsx` and `a/gestures.$gestureId.edit.tsx`: Gesture creation
   and stable-item editing with VRMA or Pose Clip motion.
 - `a/reactions.new.tsx` and `a/reactions.$reactionId.edit.tsx`: Reaction

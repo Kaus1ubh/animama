@@ -6,7 +6,7 @@ import {
   DEFAULT_POCKET_VOICE,
   POCKET_VOICES,
 } from "@/lib/speech/pocket/voice-catalog";
-import { loadVoiceCloneSample } from "@/lib/speech/pocket/voice-clones";
+import { voiceCloneSampleSource } from "@/lib/speech/pocket/voice-clones";
 import { resolvePocketVoicePreference } from "@/lib/speech/pocket/voice-preferences";
 import { useVoiceClones } from "@/query/hooks/useVoiceClones";
 import { PocketVoicePicker } from "@/ui/animas/PocketVoicePicker";
@@ -146,11 +146,7 @@ export function CreateAnimaVoiceStep({
               value={selected}
               disabled={disabled || library.isPending || library.isError}
               hasCustomVoice={false}
-              clones={clones.map((clone) => ({
-                id: `clone:${clone.item_id}`,
-                name: clone.name,
-                loadSample: (signal) => loadVoiceCloneSample(clone, signal),
-              }))}
+              clones={clones.map(voiceCloneSampleSource)}
               unavailableSelection={
                 selectedId &&
                 !clones.some((clone) => clone.item_id === selectedId)

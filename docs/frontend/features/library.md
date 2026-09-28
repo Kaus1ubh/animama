@@ -1,7 +1,7 @@
 # Library
 
 `/a/library` is the local product collection. It presents Avatars, Gestures,
-Reactions, Poses, Particle Effects, Avatar Effects, Scene Effects, Sounds, and private
+Reactions, Poses, Idle Styles, Particle Effects, Avatar Effects, Scene Effects, Sounds, and private
 chat uploads without exposing file roles, host paths, digests, or dependency
 binding mechanics.
 
@@ -12,7 +12,7 @@ Library URLs are sparse and section-specific. The default state is simply
 The canonical parameters are:
 
 - `section=avatars|actions|fx|chat-uploads`; omitted means All
-- under Actions, optional `action=gestures|reactions|poses`,
+- under Actions, optional `action=gestures|reactions|poses|idle-styles`,
   `gestureMotion=anima_clip|vrma`, `gestureUpdatesOnly=true`,
   `gestureStatus=equipped|unequipped`, and
   `gestureSort=name-asc|name-desc`
@@ -47,7 +47,8 @@ loadout selections. Sounds offer Play/Stop and Manage for Local rename, same-for
 guarded deletion. Included Sounds are read-only. Effects and Sounds offer “Use in Gesture/Reaction” because
 they are action ingredients, not independent equipment.
 
-Actions contains All, Gestures, Reactions and Poses. Poses also appear in the
+Actions contains All, Gestures, Reactions, Poses and Idle Styles. Idle Styles offer
+Preview and Edit. Poses also appear in the
 combined All inventory. Pose rows offer Preview and Edit without a Starter badge.
 Editing opens `/a/poses/$poseId/edit` with the
 existing Pose controls and an isolated Avatar, without creating a Gesture or
@@ -130,7 +131,7 @@ existing saved owner draft wins over a new hint and unavailable content leaves
 a recoverable error instead of silently choosing another Avatar.
 See the [live creation workflow](custom-anima-creation.md) for validation and recovery.
 
-## Manual files and packages
+## Manual files
 
 The local watcher scans normal host edits automatically. Catalog polling refreshes
 Library and Appearance queries when content changes; scan timestamps alone do not
@@ -138,9 +139,65 @@ trigger repeated list fetches. Valid manual files become selectable but never
 auto-equip. Invalid or missing entries remain inert with discreet diagnostics and
 a Retry scan action.
 
-Package export generates a manifest only at export time. Package import
-validates and rewrites the complete hostile typed closure in backend staging,
-then promotes ordinary editable Local items through one recoverable operation
-using explicit `cancel`, `keep_both`, or reviewed `replace` collision behavior.
-Destination drift or late failure exposes no partial Library row. Browser
-storage is never the canonical package or content library.
+Music and standalone Pose Clips are not supported Library items. Existing Action
+clip references are converted to Action-owned sequences while preserving original
+files. Static Poses and Creator Clip/project JSON import/export remain available.
+
+## Import / Export
+
+The Library header has separate **Import** and **Export** buttons. Import opens
+the ZIP drop/choose screen; Export opens Content and Anima selection directly.
+An unfinished import resumes before either button can start a new operation.
+These are local file operations, with no account, publishing or sync relationship.
+Direct Creator JSON import/export remains a separate editor-document workflow.
+
+In Content mode, select one or more saved items. Search and category filters keep
+existing selections. Required content is included automatically and shown
+separately from selected items in the count and size summary. Review the exact
+package before **Download package**. Missing or changed sources require another
+review; an expired export can be prepared again from the retained selection.
+Downloaded filenames use the installation owner's display name (or `content`
+when unavailable), followed by a UTC timestamp.
+
+In Anima mode, choose a saved companion and review its full identity and selected
+content before **Export Anima**. The package includes its name, identity, Avatar,
+Gestures, all Reaction cells including empty cells, Idle Style, and selected
+profile/background images with framing. It preserves supported Action settings
+and effective starter choices. If this Anima uses a cloned PocketTTS voice, the
+package includes the encoded voice and selects the independent imported copy.
+The original recording is excluded. Other voice choices and provider/model
+settings use the receiving installation's defaults. Conversations, identity
+history, other memories and private chat uploads are excluded.
+Anima downloads use the companion's display name and a UTC timestamp.
+
+Import first uploads and validates the file, then shows the complete package and
+its destination names. **Import N items** or **Import Anima** installs the whole
+reviewed package. All required content becomes independent editable Local copies,
+even when identical content already exists. Name collisions, including Included
+names, receive `-2`, `-3` and later suffixes; existing items are never replaced.
+A destination change requires a fresh review. An Anima import also creates a new
+companion in the same operation. Completion offers **View in Library** or
+**Open Anima**; acknowledging it releases temporary upload data.
+
+### Interrupted sharing
+
+Before commit, an interrupted upload can resume by choosing the same file. The
+server verifies previously received parts as well as new bytes. **Change file**
+discards the old review before preparing a replacement. Browser storage retains
+only operation/recovery identifiers, not package bytes or a second content library.
+
+After submitting an import, reopen **Import** and use **Check import status** if
+its result is unknown. Closing or reloading cannot cancel an installation already
+in progress. Recovery checks the original operation's durable receipt; it never starts another import
+automatically. A completed result remains recoverable after temporary data expires.
+A storage conflict keeps recovery pending until repaired. If the server confirms
+there is no active operation, discard the recovery record before choosing the file
+again. Keep an unresolved recovery record rather than clearing browser storage.
+
+Only `.zip` files containing a valid `animama-content-package/3` archive are
+accepted; unrelated ZIPs fail validation. A file may be at most 4 GiB. Two
+import/export stages share a temporary quota and expire after
+30 inactive minutes. Active transfers and commits are protected. Finished export
+caches may be reclaimed when space is needed; a new export creates another download.
+See the [package contract and full limits](../../backend/architecture/http-api.md#package-sharing)
+for validation, supported content and recovery details.

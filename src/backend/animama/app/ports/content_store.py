@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import BinaryIO, Protocol
+from pathlib import Path
+from typing import Any, BinaryIO, Protocol
 
 from animama.domain.content_catalog import (
     CatalogContentEntry,
@@ -49,7 +50,19 @@ class ContentStore(Protocol):
 
         raise NotImplementedError
 
+    def retain_transition_originals(
+        self, *, operation_id: str, entry: CatalogContentEntry | None, binding_facts: list[dict[str, Any]]
+    ) -> None:
+        """Keep verified originals outside scanned roots, independently of journal cleanup."""
+
+        raise NotImplementedError
+
     def scan(self, source: ContentSource) -> list[ScannedContentEntry]:
+        raise NotImplementedError
+
+    def inspect_package_tree(self, root: Path) -> list[ScannedContentEntry]:
+        """Validate an isolated private tree without scanning or mutating installed roots."""
+
         raise NotImplementedError
 
     def open_verified_file(
@@ -99,6 +112,7 @@ class ContentStore(Protocol):
         descriptor: bytes,
         companion_files: Mapping[str, bytes],
         operation_id: str | None = None,
+        require_new: bool = False,
     ) -> str:
         """Commit validated companion files followed by the type descriptor."""
 
@@ -112,6 +126,7 @@ class ContentStore(Protocol):
         descriptor: bytes,
         companion_files: Mapping[str, tuple[BinaryIO, int]],
         operation_id: str | None = None,
+        require_new: bool = False,
     ) -> str:
         """Stream companion files, then publish the validated descriptor last."""
 
@@ -127,8 +142,14 @@ class ContentStore(Protocol):
         *,
         entries: tuple[PreparedPackageEntry, ...],
         operation_id: str,
+        require_new: bool = False,
     ) -> None:
         """Validate and promote a complete package closure or expose none of it."""
+
+        raise NotImplementedError
+
+    def package_destination_exists(self, *, relative_locator: str) -> bool:
+        """Check a proposed fresh Local entry, including unregistered host files."""
 
         raise NotImplementedError
 

@@ -341,7 +341,7 @@ export function VoiceCloneLibrary({
           <DialogHeader>
             <DialogTitle>Delete {deleting?.name}?</DialogTitle>
             <DialogDescription>
-              This removes the saved clone and its original sample. Voices used
+              This removes the saved clone and any original sample. Voices used
               by an Anima must be replaced before deletion.
             </DialogDescription>
           </DialogHeader>

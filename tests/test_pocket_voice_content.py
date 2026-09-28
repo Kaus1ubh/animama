@@ -138,7 +138,7 @@ def test_clone_save_rejects_zero_rate_audio_as_validation_error(tmp_path: Path) 
 @pytest.mark.parametrize(
     "files",
     [
-        [{"path": "voice.bin", "role": "pocket_voice_catalog"}],
+        [{"path": "original.wav", "role": "source_sample"}],
         [{"path": "original.flac", "role": "source_sample"}, {"path": "voice.bin", "role": "pocket_voice_catalog"}],
         [{"path": "original.wav", "role": "source_sample"}, {"path": "voice.wav", "role": "pocket_voice_catalog"}],
         [{"path": "original.wav", "role": "source_sample"}, {"path": "voice.bin", "role": "source_sample"}],

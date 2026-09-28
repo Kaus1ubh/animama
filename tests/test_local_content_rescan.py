@@ -51,10 +51,10 @@ async def test_rescan_handles_add_edit_rename_invalid_and_delete(async_session, 
 
     renamed = paths.local_root / "gestures/hello.vrma"
     wave.rename(renamed)
-    (paths.local_root / "pose-clips/broken.json").write_text("{", encoding="utf-8")
+    (paths.local_root / "vfx/particle/broken.json").write_text("{", encoding="utf-8")
     second = await service.rescan(user_id="owner-a", include_included=False)
     renamed_item = next(item for item in second.items if item.relative_locator == "gestures/hello.vrma")
-    broken = next(item for item in second.items if item.relative_locator == "pose-clips/broken.json")
+    broken = next(item for item in second.items if item.relative_locator == "vfx/particle/broken.json")
     assert renamed_item.id == first_item.id
     assert renamed_item.revision_sha256 != first_item.revision_sha256
     assert broken.status is ContentStatus.INVALID

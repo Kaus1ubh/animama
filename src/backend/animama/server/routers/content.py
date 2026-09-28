@@ -3,23 +3,21 @@
 from __future__ import annotations
 
 import json
-import os
 from collections.abc import Iterator
 from typing import Annotated, BinaryIO, NoReturn
-from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Query, Request, Response, UploadFile
-from fastapi.background import BackgroundTasks
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from animama.adapters.content_store import FilesystemContentStore
 from animama.adapters.repositories.sqlalchemy.content_catalog_repo import SQLAlchemyContentCatalog
+from animama.adapters.repositories.sqlalchemy.content_transition_repo import SQLAlchemyContentTransitionBindings
 from animama.app.services.content_catalog_service import ContentCatalogService
 from animama.app.services.content_file_validation import ContentFileInvalidError
-from animama.app.services.content_kind_registry import MAX_JSON_BYTES, definition_for_kind
-from animama.app.services.content_package_service import MAX_PACKAGE_BYTES, ContentPackageService
+from animama.app.services.content_kind_registry import MAX_JSON_BYTES, RETIRED_CONTENT_KINDS, definition_for_kind
 from animama.app.services.content_save_service import ContentSaveService
+from animama.app.services.content_transition_service import ContentTransitionService
 from animama.domain.content_catalog import (
     CatalogContentEntry,
     ContentConflictError,
@@ -32,13 +30,13 @@ from animama.domain.content_catalog import (
     SavedContent,
     VerifiedContentFile,
 )
+from animama.domain.content_documents import ContentDocumentError
 from animama.domain.request_principal import RequestPrincipal
 from animama.server.config import settings
 from animama.server.local_runtime import LocalRuntimePaths, initialize_local_runtime
 from animama.server.schemas.content import (
     PyContentCatalog,
     PyContentItem,
-    PyContentPackageImportResult,
     PyContentRescan,
     PyContentScanSummary,
 )
@@ -84,20 +82,6 @@ def _save_service(request: Request, session: AsyncSession) -> ContentSaveService
     return ContentSaveService(content=content)
 
 
-def _package_service(request: Request, session: AsyncSession) -> ContentPackageService:
-    paths = _paths(request)
-    catalog = SQLAlchemyContentCatalog(session)
-    store = _store(request)
-    content = ContentCatalogService(
-        store=store,
-        catalog=catalog,
-    )
-    return ContentPackageService(
-        content=content,
-        exports_root=paths.exports_staging_root,
-    )
-
-
 def _catalog_response(items: list[CatalogContentEntry]) -> PyContentCatalog:
     return PyContentCatalog(
         scan_required=any(item.status is ContentStatus.SCAN_REQUIRED for item in items),
@@ -126,7 +110,7 @@ async def get_content_item(
     """Return one visible neutral catalog item by its opaque identity."""
 
     item = await SQLAlchemyContentCatalog(session).get_visible_item(item_id=item_id, user_id=user.id)
-    if item is None:
+    if item is None or item.kind in RETIRED_CONTENT_KINDS:
         raise HTTPException(status_code=404, detail={"code": "content_not_found"})
     return PyContentItem.from_domain(item)
 
@@ -139,7 +123,9 @@ async def rescan_content_catalog(
 ) -> PyContentRescan:
     """Perform the authoritative scan; this never equips newly admitted content."""
 
-    result = await _service(request, session).rescan(user_id=user.id)
+    result = await ContentTransitionService(
+        content=_service(request, session), bindings=SQLAlchemyContentTransitionBindings(session)
+    ).transition(user_id=user.id)
     items = list(result.items)
     return PyContentRescan(
         summaries=[PyContentScanSummary.from_domain(summary) for summary in result.summaries],
@@ -168,6 +154,8 @@ async def _bounded_upload(upload: UploadFile, *, limit: int) -> tuple[BinaryIO, 
 
 
 def _raise_content_mutation(exc: Exception) -> NoReturn:
+    if isinstance(exc, ContentDocumentError):
+        raise HTTPException(status_code=422, detail={"code": "content_invalid", "reason": exc.code}) from exc
     if isinstance(exc, ContentFileInvalidError):
         raise HTTPException(
             status_code=422, detail={"code": "content_invalid", "reason": exc.reason, "field": exc.field}
@@ -297,85 +285,6 @@ async def delete_content_item(
         return Response(status_code=204)
     except Exception as exc:
         _raise_content_mutation(exc)
-
-
-@router.post("/items/{item_id}:export")
-async def export_content_package(
-    request: Request,
-    item_id: str,
-    background: BackgroundTasks,
-    user: Annotated[RequestPrincipal, Depends(get_current_principal)],
-    session: Annotated[AsyncSession, Depends(get_async_session)],
-    operation_id: Annotated[str, Query(min_length=1, max_length=128)],
-) -> FileResponse:
-    """Generate a manifest only at export time and stream the completed archive."""
-
-    try:
-        exported = await _package_service(request, session).export_item(
-            user_id=user.id,
-            root_item_id=item_id,
-            operation_id=operation_id,
-        )
-    except Exception as exc:
-        _raise_content_mutation(exc)
-    background.add_task(exported.path.unlink, missing_ok=True)
-    return FileResponse(
-        exported.path,
-        filename=exported.filename,
-        media_type="application/vnd.animama.content+zip",
-        headers={
-            "X-Content-SHA256": exported.package_sha256,
-            "X-Content-Item-Count": str(exported.item_count),
-        },
-        background=background,
-    )
-
-
-@router.post("/packages:import", response_model=PyContentPackageImportResult)
-async def import_content_package(
-    request: Request,
-    user: Annotated[RequestPrincipal, Depends(get_current_principal)],
-    session: Annotated[AsyncSession, Depends(get_async_session)],
-    package: Annotated[UploadFile, File()],
-    operation_id: Annotated[str, Form(min_length=1, max_length=128)],
-    collision: Annotated[str, Form(pattern=r"^(cancel|keep_both|replace)$")] = "cancel",
-) -> PyContentPackageImportResult:
-    """Stage and validate an untrusted archive before writing ordinary Local files."""
-
-    # The client operation id is validated by the package service, but it must
-    # never participate in a host path before that validation occurs.
-    staging = _paths(request).imports_staging_root / f"{uuid4().hex}.upload"
-    temporary = staging.with_name(f".{staging.name}.tmp")
-    received = 0
-    try:
-        with temporary.open("xb") as handle:
-            while chunk := await package.read(1024 * 1024):
-                received += len(chunk)
-                if received > MAX_PACKAGE_BYTES:
-                    raise HTTPException(status_code=413, detail={"code": "content_package_too_large"})
-                handle.write(chunk)
-            if received == 0:
-                raise HTTPException(status_code=422, detail={"code": "content_package_empty"})
-            handle.flush()
-            os.fsync(handle.fileno())
-        os.replace(temporary, staging)
-        imported = await _package_service(request, session).import_package(
-            user_id=user.id,
-            archive_path=staging,
-            operation_id=operation_id,
-            collision=collision,  # type: ignore[arg-type]
-        )
-        return PyContentPackageImportResult(
-            items=[PyContentItem.from_domain(item) for item in imported.items],
-            skipped_existing_item_ids=list(imported.skipped_existing_item_ids),
-        )
-    except HTTPException:
-        raise
-    except Exception as exc:
-        _raise_content_mutation(exc)
-    finally:
-        temporary.unlink(missing_ok=True)
-        staging.unlink(missing_ok=True)
 
 
 def _stream_verified_file(file: VerifiedContentFile) -> Iterator[bytes]:

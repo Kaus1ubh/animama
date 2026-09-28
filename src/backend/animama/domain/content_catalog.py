@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
+from pathlib import Path
 from typing import Any, BinaryIO
 
 
@@ -190,8 +191,9 @@ class PreparedPackageFile:
     """One already-digest-verified package member ready for private staging."""
 
     relative_path: str
-    handle: BinaryIO
+    handle: BinaryIO | None
     size_bytes: int
+    source_path: Path | None = None
 
 
 @dataclass(frozen=True, slots=True)

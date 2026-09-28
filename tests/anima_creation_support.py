@@ -89,10 +89,9 @@ async def creation_fixture(session: AsyncSession) -> CreationFixture:
     idle = await item(
         "idle_style",
         {
-            "animations": [{"animation_id": "calm", "name": "Calm", "file_ref": "calm.vrma"}],
-            "files": [{"path": "calm.vrma", "role": "animation"}],
-            "default_pool": ["calm"],
-            "emotion_pools": {},
+            "schema_version": 2,
+            "default_pool": [],
+            "cells": {},
         },
         "builtin:idle-style:starter",
     )

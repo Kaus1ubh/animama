@@ -1791,7 +1791,35 @@
       "label_hint": "angry",
       "starter_target": true,
       "retired_by_owner": false,
-      "local_path": "idle-styles/mixamo-starter/animations/angry.vrma"
+      "local_path": "gestures/mixamo-idle-angry/angry.vrma",
+      "document": {
+        "schema_version": 1,
+        "content_type": "gesture",
+        "content_id": "local:gesture:mixamo-idle-angry",
+        "version": 1,
+        "semantic_key": "mixamo-idle-angry",
+        "name": "Idle Angry",
+        "description": "Use when the character is upset or frustrated with someone.",
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "angry.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": [],
+        "config": {
+          "loop_type": "pingpong",
+          "duration_seconds": 3.93,
+          "time_scale": 1,
+          "loop_count": 2,
+          "base_pose": "relaxedRest",
+          "blend_mode": "override"
+        }
+      }
     },
     {
       "target_path": "content/included/idle-styles/starter/animations/anxious_look_around.vrma",
@@ -1799,7 +1827,35 @@
       "label_hint": "anxious look around",
       "starter_target": true,
       "retired_by_owner": false,
-      "local_path": "idle-styles/mixamo-starter/animations/anxious_look_around.vrma"
+      "local_path": "gestures/mixamo-idle-anxious_look_around/anxious_look_around.vrma",
+      "document": {
+        "schema_version": 1,
+        "content_type": "gesture",
+        "content_id": "local:gesture:mixamo-idle-anxious_look_around",
+        "version": 1,
+        "semantic_key": "mixamo-idle-anxious_look_around",
+        "name": "Anxious Look Around",
+        "description": "Use when the character is nervous or worried about surroundings.",
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "anxious_look_around.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": [],
+        "config": {
+          "loop_type": "repeat",
+          "duration_seconds": 11.25,
+          "time_scale": 0.8,
+          "loop_count": 1,
+          "base_pose": "relaxedRest",
+          "blend_mode": "override"
+        }
+      }
     },
     {
       "target_path": "content/included/idle-styles/starter/animations/bored.vrma",
@@ -1807,7 +1863,35 @@
       "label_hint": "bored",
       "starter_target": true,
       "retired_by_owner": false,
-      "local_path": "idle-styles/mixamo-starter/animations/bored.vrma"
+      "local_path": "gestures/mixamo-idle-bored/bored.vrma",
+      "document": {
+        "schema_version": 1,
+        "content_type": "gesture",
+        "content_id": "local:gesture:mixamo-idle-bored",
+        "version": 1,
+        "semantic_key": "mixamo-idle-bored",
+        "name": "Bored Idle",
+        "description": "Bored looking around idle Feminine",
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "bored.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": [],
+        "config": {
+          "loop_type": "repeat",
+          "duration_seconds": 13.33,
+          "time_scale": 0.5,
+          "loop_count": 1,
+          "base_pose": "relaxedRest",
+          "blend_mode": "override"
+        }
+      }
     },
     {
       "target_path": "content/included/idle-styles/starter/animations/happy.vrma",
@@ -1815,7 +1899,35 @@
       "label_hint": "happy",
       "starter_target": true,
       "retired_by_owner": false,
-      "local_path": "idle-styles/mixamo-starter/animations/happy.vrma"
+      "local_path": "gestures/mixamo-idle-happy/happy.vrma",
+      "document": {
+        "schema_version": 1,
+        "content_type": "gesture",
+        "content_id": "local:gesture:mixamo-idle-happy",
+        "version": 1,
+        "semantic_key": "mixamo-idle-happy",
+        "name": "Idle Happy",
+        "description": "Character happily idling.",
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "happy.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": [],
+        "config": {
+          "loop_type": "pingpong",
+          "duration_seconds": 10,
+          "time_scale": 0.6,
+          "loop_count": 1,
+          "base_pose": "relaxedRest",
+          "blend_mode": "override"
+        }
+      }
     },
     {
       "target_path": "content/included/idle-styles/starter/animations/sad.vrma",
@@ -1823,7 +1935,35 @@
       "label_hint": "sad",
       "starter_target": true,
       "retired_by_owner": false,
-      "local_path": "idle-styles/mixamo-starter/animations/sad.vrma"
+      "local_path": "gestures/mixamo-idle-sad/sad.vrma",
+      "document": {
+        "schema_version": 1,
+        "content_type": "gesture",
+        "content_id": "local:gesture:mixamo-idle-sad",
+        "version": 1,
+        "semantic_key": "mixamo-idle-sad",
+        "name": "Sad Idle",
+        "description": "Use when the character is feeling down or melancholic.",
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "sad.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": [],
+        "config": {
+          "loop_type": "pingpong",
+          "duration_seconds": 3.93,
+          "time_scale": 1,
+          "loop_count": 2,
+          "base_pose": "relaxedRest",
+          "blend_mode": "override"
+        }
+      }
     },
     {
       "target_path": "content/included/idle-styles/starter/animations/sway.vrma",
@@ -1831,185 +1971,326 @@
       "label_hint": "sway",
       "starter_target": true,
       "retired_by_owner": false,
-      "local_path": "idle-styles/mixamo-starter/animations/sway.vrma"
-    }
-  ],
-  "idle_style_document": {
-    "schema_version": 1,
-    "content_type": "idle_style",
-    "content_id": "builtin:idle-style:starter",
-    "version": 1,
-    "name": "Starter Idle Style",
-    "description": "Animama's emotion-aware starter idle motions.",
-    "revision": "builtin-idle-style-v1",
-    "cross_fade_seconds": 0.35,
-    "compatibility": {
-      "vrm_versions": [
-        "0.x",
-        "1.0"
-      ]
-    },
-    "animations": [
-      {
-        "animation_id": "angry",
-        "name": "Idle Angry",
-        "ordinal": 1,
-        "description": "Use when the character is upset or frustrated with someone.",
-        "playback": {
-          "loop_type": "pingpong",
-          "duration_seconds": 3.93,
-          "time_scale": 1,
-          "loop_count": 2,
-          "base_pose": "relaxedRest",
-          "blend_mode": "override"
-        },
-        "file_ref": "animations/angry.vrma"
-      },
-      {
-        "animation_id": "anxious_look_around",
-        "name": "Anxious Look Around",
-        "ordinal": 2,
-        "description": "Use when the character is nervous or worried about surroundings.",
-        "playback": {
-          "loop_type": "repeat",
-          "duration_seconds": 11.25,
-          "time_scale": 0.8,
-          "loop_count": 1,
-          "base_pose": "relaxedRest",
-          "blend_mode": "override"
-        },
-        "file_ref": "animations/anxious_look_around.vrma"
-      },
-      {
-        "animation_id": "happy",
-        "name": "Idle Happy",
-        "ordinal": 3,
-        "description": "Character happily idling.",
-        "playback": {
-          "loop_type": "pingpong",
-          "duration_seconds": 10,
-          "time_scale": 0.6,
-          "loop_count": 1,
-          "base_pose": "relaxedRest",
-          "blend_mode": "override"
-        },
-        "file_ref": "animations/happy.vrma"
-      },
-      {
-        "animation_id": "sway",
+      "local_path": "gestures/mixamo-idle-sway/sway.vrma",
+      "document": {
+        "schema_version": 1,
+        "content_type": "gesture",
+        "content_id": "local:gesture:mixamo-idle-sway",
+        "version": 1,
+        "semantic_key": "mixamo-idle-sway",
         "name": "Idle Sway",
-        "ordinal": 4,
         "description": "Gentle swaying idle for relaxed or chill contexts.",
-        "playback": {
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "sway.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": [],
+        "config": {
           "loop_type": "pingpong",
           "duration_seconds": 9.92,
           "time_scale": 0.6,
           "loop_count": 1,
           "base_pose": "relaxedRest",
           "blend_mode": "override"
-        },
-        "file_ref": "animations/sway.vrma"
-      },
-      {
-        "animation_id": "bored",
-        "name": "Bored Idle",
-        "ordinal": 5,
-        "description": "Bored looking around idle Feminine",
-        "playback": {
-          "loop_type": "repeat",
-          "duration_seconds": 13.33,
-          "time_scale": 0.5,
-          "loop_count": 1,
-          "base_pose": "relaxedRest",
-          "blend_mode": "override"
-        },
-        "file_ref": "animations/bored.vrma"
-      },
-      {
-        "animation_id": "sad",
-        "name": "Sad Idle",
-        "ordinal": 6,
-        "description": "Use when the character is feeling down or melancholic.",
-        "playback": {
-          "loop_type": "pingpong",
-          "duration_seconds": 3.93,
-          "time_scale": 1,
-          "loop_count": 2,
-          "base_pose": "relaxedRest",
-          "blend_mode": "override"
-        },
-        "file_ref": "animations/sad.vrma"
+        }
       }
-    ],
-    "dependencies": [],
-    "default_pool": [
-      "sway"
-    ],
-    "emotion_pools": {
-      "amusement": [
-        "happy"
-      ],
-      "excitement": [
-        "happy"
-      ],
-      "joy": [
-        "happy",
-        "sway"
-      ],
-      "optimism": [
-        "sway"
-      ],
-      "fear": [
-        "anxious_look_around"
-      ],
-      "nervousness": [
-        "anxious_look_around"
-      ],
-      "anger": [
-        "angry"
-      ],
-      "annoyance": [
-        "angry"
-      ],
-      "disapproval": [
-        "angry"
-      ],
-      "disappointment": [
-        "bored",
-        "sad"
-      ],
-      "grief": [
-        "sad"
-      ],
-      "sadness": [
-        "sad"
+    }
+  ],
+  "idle_style_document": {
+    "schema_version": 2,
+    "content_type": "idle_style",
+    "content_id": "local:idle-style:mixamo-starter",
+    "version": 1,
+    "name": "Mixamo Idle Motions",
+    "description": "Optional Local emotion-aware Mixamo idle Gestures.",
+    "compatibility": {
+      "vrm_versions": [
+        "0.x",
+        "1.0"
       ]
     },
-    "files": [
+    "default_pool": [
+      "local:gesture:mixamo-idle-sway"
+    ],
+    "dependencies": [
       {
-        "path": "animations/angry.vrma",
-        "role": "animation"
+        "kind": "gesture",
+        "ref": "local:gesture:mixamo-idle-angry"
       },
       {
-        "path": "animations/anxious_look_around.vrma",
-        "role": "animation"
+        "kind": "gesture",
+        "ref": "local:gesture:mixamo-idle-anxious_look_around"
       },
       {
-        "path": "animations/happy.vrma",
-        "role": "animation"
+        "kind": "gesture",
+        "ref": "local:gesture:mixamo-idle-happy"
       },
       {
-        "path": "animations/sway.vrma",
-        "role": "animation"
+        "kind": "gesture",
+        "ref": "local:gesture:mixamo-idle-sway"
       },
       {
-        "path": "animations/bored.vrma",
-        "role": "animation"
+        "kind": "gesture",
+        "ref": "local:gesture:mixamo-idle-bored"
       },
       {
-        "path": "animations/sad.vrma",
-        "role": "animation"
+        "kind": "gesture",
+        "ref": "local:gesture:mixamo-idle-sad"
       }
-    ]
+    ],
+    "cells": {
+      "amusement": {
+        "1": {
+          "mode": "pool",
+          "gestures": [
+            "local:gesture:mixamo-idle-happy"
+          ]
+        },
+        "2": {
+          "mode": "pool",
+          "gestures": [
+            "local:gesture:mixamo-idle-happy"
+          ]
+        },
+        "3": {
+          "mode": "pool",
+          "gestures": [
+            "local:gesture:mixamo-idle-happy"
+          ]
+        }
+      },
+      "excitement": {
+        "1": {
+          "mode": "pool",
+          "gestures": [
+            "local:gesture:mixamo-idle-happy"
+          ]
+        },
+        "2": {
+          "mode": "pool",
+          "gestures": [
+            "local:gesture:mixamo-idle-happy"
+          ]
+        },
+        "3": {
+          "mode": "pool",
+          "gestures": [
+            "local:gesture:mixamo-idle-happy"
+          ]
+        }
+      },
+      "joy": {
+        "1": {
+          "mode": "pool",
+          "gestures": [
+            "local:gesture:mixamo-idle-happy",
+            "local:gesture:mixamo-idle-sway"
+          ]
+        },
+        "2": {
+          "mode": "pool",
+          "gestures": [
+            "local:gesture:mixamo-idle-happy",
+            "local:gesture:mixamo-idle-sway"
+          ]
+        },
+        "3": {
+          "mode": "pool",
+          "gestures": [
+            "local:gesture:mixamo-idle-happy",
+            "local:gesture:mixamo-idle-sway"
+          ]
+        }
+      },
+      "optimism": {
+        "1": {
+          "mode": "pool",
+          "gestures": [
+            "local:gesture:mixamo-idle-sway"
+          ]
+        },
+        "2": {
+          "mode": "pool",
+          "gestures": [
+            "local:gesture:mixamo-idle-sway"
+          ]
+        },
+        "3": {
+          "mode": "pool",
+          "gestures": [
+            "local:gesture:mixamo-idle-sway"
+          ]
+        }
+      },
+      "fear": {
+        "1": {
+          "mode": "pool",
+          "gestures": [
+            "local:gesture:mixamo-idle-anxious_look_around"
+          ]
+        },
+        "2": {
+          "mode": "pool",
+          "gestures": [
+            "local:gesture:mixamo-idle-anxious_look_around"
+          ]
+        },
+        "3": {
+          "mode": "pool",
+          "gestures": [
+            "local:gesture:mixamo-idle-anxious_look_around"
+          ]
+        }
+      },
+      "nervousness": {
+        "1": {
+          "mode": "pool",
+          "gestures": [
+            "local:gesture:mixamo-idle-anxious_look_around"
+          ]
+        },
+        "2": {
+          "mode": "pool",
+          "gestures": [
+            "local:gesture:mixamo-idle-anxious_look_around"
+          ]
+        },
+        "3": {
+          "mode": "pool",
+          "gestures": [
+            "local:gesture:mixamo-idle-anxious_look_around"
+          ]
+        }
+      },
+      "anger": {
+        "1": {
+          "mode": "pool",
+          "gestures": [
+            "local:gesture:mixamo-idle-angry"
+          ]
+        },
+        "2": {
+          "mode": "pool",
+          "gestures": [
+            "local:gesture:mixamo-idle-angry"
+          ]
+        },
+        "3": {
+          "mode": "pool",
+          "gestures": [
+            "local:gesture:mixamo-idle-angry"
+          ]
+        }
+      },
+      "annoyance": {
+        "1": {
+          "mode": "pool",
+          "gestures": [
+            "local:gesture:mixamo-idle-angry"
+          ]
+        },
+        "2": {
+          "mode": "pool",
+          "gestures": [
+            "local:gesture:mixamo-idle-angry"
+          ]
+        },
+        "3": {
+          "mode": "pool",
+          "gestures": [
+            "local:gesture:mixamo-idle-angry"
+          ]
+        }
+      },
+      "disapproval": {
+        "1": {
+          "mode": "pool",
+          "gestures": [
+            "local:gesture:mixamo-idle-angry"
+          ]
+        },
+        "2": {
+          "mode": "pool",
+          "gestures": [
+            "local:gesture:mixamo-idle-angry"
+          ]
+        },
+        "3": {
+          "mode": "pool",
+          "gestures": [
+            "local:gesture:mixamo-idle-angry"
+          ]
+        }
+      },
+      "disappointment": {
+        "1": {
+          "mode": "pool",
+          "gestures": [
+            "local:gesture:mixamo-idle-bored",
+            "local:gesture:mixamo-idle-sad"
+          ]
+        },
+        "2": {
+          "mode": "pool",
+          "gestures": [
+            "local:gesture:mixamo-idle-bored",
+            "local:gesture:mixamo-idle-sad"
+          ]
+        },
+        "3": {
+          "mode": "pool",
+          "gestures": [
+            "local:gesture:mixamo-idle-bored",
+            "local:gesture:mixamo-idle-sad"
+          ]
+        }
+      },
+      "grief": {
+        "1": {
+          "mode": "pool",
+          "gestures": [
+            "local:gesture:mixamo-idle-sad"
+          ]
+        },
+        "2": {
+          "mode": "pool",
+          "gestures": [
+            "local:gesture:mixamo-idle-sad"
+          ]
+        },
+        "3": {
+          "mode": "pool",
+          "gestures": [
+            "local:gesture:mixamo-idle-sad"
+          ]
+        }
+      },
+      "sadness": {
+        "1": {
+          "mode": "pool",
+          "gestures": [
+            "local:gesture:mixamo-idle-sad"
+          ]
+        },
+        "2": {
+          "mode": "pool",
+          "gestures": [
+            "local:gesture:mixamo-idle-sad"
+          ]
+        },
+        "3": {
+          "mode": "pool",
+          "gestures": [
+            "local:gesture:mixamo-idle-sad"
+          ]
+        }
+      }
+    }
   }
 }

@@ -183,7 +183,7 @@ async def test_materializer_owns_no_commit_provider_or_runtime_and_seeds_exact_d
     assert loadout.revision == loadout.aggregate_revision == 1
     assert loadout.gestures == () and len(loadout.reactions) == 72
     assert all(cell.state == "empty" for cell in loadout.reactions)
-    assert loadout.music_tracks == () and loadout.voice_source is None
+    assert loadout.voice_source is None
     assert _required(loadout.idle_style.source).catalog_item_id == spec.idle_style.id
     assert {entry.use for entry in loadout.appearances} == {"profile", "background"}
     assert (
@@ -732,6 +732,51 @@ async def test_null_appearance_does_not_inherit_background_or_profile(async_sess
         anima_ids=(anima.id,),
     )
     assert presentation[anima.id].profile_thumbnail is None
+
+
+async def test_resolved_binding_configuration_survives_materialization(async_session, creation) -> None:
+    from animama.domain.anima_creation import ResolvedGestureSelection, ResolvedReactionSelection
+    from animama.orm.content_catalog import ORMAnimaContentBinding
+    from tests.typed_loadout_support import LoadoutFixture, add_typed_item
+
+    fixture = creation
+    catalog = SQLAlchemyContentCatalog(async_session)
+    sources = {}
+    for kind in ("gesture", "reaction"):
+        row = await add_typed_item(
+            async_session,
+            LoadoutFixture(fixture.user_id, "", "", ""),
+            kind=kind,
+            name=f"Configured {kind}",
+            metadata={
+                **({"semantic_key": "configured"} if kind == "gesture" else {}),
+                "implementation": {"kind": "anima_clip", "file_role": "sequence"},
+            },
+        )
+        sources[kind] = _required(await catalog.get_visible_item(user_id=fixture.user_id, item_id=row.id))
+    spec = replace(
+        fixture.spec,
+        gestures=(ResolvedGestureSelection(sources["gesture"], {"time_scale": 0.5, "loop": True}),),
+        reactions=tuple(
+            ResolvedReactionSelection(cell.emotion, cell.intensity, sources["reaction"], {"weight": 0.75})
+            if cell.emotion == "joy" and cell.intensity == 2
+            else cell
+            for cell in fixture.spec.reactions
+        ),
+    )
+    uow = SQLAlchemyAnimaAggregateUnitOfWork(async_session)
+    anima = await fixture.materializer.materialize(user_id=fixture.user_id, spec=spec, uow=uow)
+    rows = list(
+        (
+            await async_session.scalars(
+                select(ORMAnimaContentBinding).where(ORMAnimaContentBinding.anima_id == anima.id)
+            )
+        ).all()
+    )
+    by_slot = {row.slot_key: row.config for row in rows}
+    assert by_slot["gesture:configured"] == {"time_scale": 0.5, "loop": True}
+    assert by_slot["reaction:joy-2"] == {"weight": 0.75}
+    await uow.rollback()
 
 
 @pytest.mark.asyncio

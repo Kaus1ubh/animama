@@ -1,5 +1,9 @@
 import path from "node:path";
 import { open } from "node:fs/promises";
+import type {
+  PortableAnima,
+  ReviewedPackageImport,
+} from "@animama/runtime-contracts/api-types";
 
 import {
   expect,
@@ -21,6 +25,7 @@ import {
   appendContentLedgerEvent,
   readContentLedger,
 } from "../../scripts/e2e/content-ledger.mjs";
+import { resolvePackageImportOwnership } from "../../scripts/e2e/package-import-ownership.mjs";
 import {
   createLocalCatalogClient,
   localCatalogSnapshot,
@@ -52,12 +57,37 @@ export type CreatorContentKind =
   | "avatar_effect"
   | "scene_effect";
 
+type PackageContentKind =
+  | CreatorContentKind
+  | "avatar"
+  | "appearance"
+  | "idle_style"
+  | "sound_effect"
+  | "anima";
+
 export type CreatorContentPlan = {
   runId: string;
   journeyKey: string;
-  kind: CreatorContentKind;
+  kind: PackageContentKind;
   entryName: string;
   logicalKey: string;
+};
+
+export type CreatorPackageImportPlan = Omit<
+  CreatorContentPlan,
+  "logicalKey"
+> & {
+  operationId: string;
+  stageId: string;
+  reviewDigest: string;
+  entryId: string;
+  packageEntries?: Array<{
+    entryId: string;
+    kind: string;
+    name: string;
+    selected: boolean;
+  }>;
+  packageAnima?: PortableAnima | null;
 };
 
 export type LocalCatalogSnapshot = {
@@ -105,6 +135,18 @@ export type CreatorContentFixture = {
   planContent(
     input: Omit<CreatorContentPlan, "runId">,
   ): Promise<CreatorContentPlan>;
+  planPackageImport(
+    input: Omit<CreatorPackageImportPlan, "runId">,
+  ): Promise<CreatorPackageImportPlan>;
+  planWholePackageImport(
+    review: ReviewedPackageImport,
+    journeyKey: string,
+  ): Promise<CreatorPackageImportPlan[]>;
+  resolvePackageImport(plan: CreatorPackageImportPlan): Promise<{
+    plan: CreatorContentPlan;
+    itemId: string;
+    revisionSha256: string;
+  }>;
   recordOwnedContent(
     plan: CreatorContentPlan,
     owned: {
@@ -135,6 +177,7 @@ type LocalCatalogClient = {
     options?: { allowMissing?: boolean },
   ): Promise<Record<string, unknown> | null>;
   getAnimaLoadout(animaId: string): Promise<Record<string, unknown>>;
+  getPackageOperation(operationId: string): Promise<Record<string, unknown>>;
   close(): Promise<void>;
 };
 
@@ -338,6 +381,76 @@ export const test = base.extend<AnimamaFixtures>({
         });
         return plan;
       },
+      async planPackageImport(input) {
+        const plan = { ...input, runId };
+        await appendContentLedgerEvent(ledgerPath, {
+          ...plan,
+          event: "import_planned",
+        });
+        return plan;
+      },
+      async planWholePackageImport(review, journeyKey) {
+        const packageEntries = review.items.map((item) => ({
+          entryId: item.entry_id,
+          kind: item.kind,
+          name: item.name,
+          selected: item.selected,
+        }));
+        const choices = [
+          ...review.items.map((item) => ({
+            entryId: item.entry_id,
+            kind: item.kind as PackageContentKind,
+            name: item.name,
+          })),
+          ...(review.anima
+            ? [
+                {
+                  entryId: "anima",
+                  kind: "anima" as const,
+                  name: review.anima.display_name,
+                },
+              ]
+            : []),
+        ];
+        const plans = [];
+        for (const [index, item] of choices.entries()) {
+          plans.push(
+            await fixture.planPackageImport({
+              journeyKey: `${journeyKey}-${index}`,
+              kind: item.kind,
+              entryName: item.name,
+              operationId: review.operation_id,
+              stageId: review.stage_id,
+              reviewDigest: review.review_digest,
+              entryId: item.entryId,
+              packageEntries,
+              packageAnima: review.anima,
+            }),
+          );
+        }
+        return plans;
+      },
+      async resolvePackageImport(input) {
+        if (input.runId !== runId)
+          throw new Error("Package import plan belongs to another run.");
+        const owned = await resolvePackageImportOwnership({
+          ledgerPath,
+          catalogClient: await catalogClient(),
+          journeyKey: input.journeyKey,
+        });
+        const plan: CreatorContentPlan = {
+          runId,
+          journeyKey: owned.journeyKey,
+          kind: owned.kind,
+          entryName: owned.entryName,
+          logicalKey: owned.logicalKey,
+        };
+        return {
+          plan,
+          itemId: owned.itemId,
+          revisionSha256: owned.revisionSha256,
+        };
+      },
       async recordOwnedContent(plan, owned) {
         const item = await readPlannedOwnedItem(plan, owned);
         await appendContentLedgerEvent(ledgerPath, {
@@ -405,8 +518,9 @@ export const test = base.extend<AnimamaFixtures>({
         // assertion failure with a spurious missing-verification failure.
         const verified = lifecycle.includes("verified");
         const expectedLifecycle = [
-          "planned",
-          "owned",
+          ...(lifecycle[0] === "import_planned"
+            ? ["import_planned", "import_owned"]
+            : ["planned", "owned"]),
           ...(verified ? ["verified"] : []),
           "cleanup_started",
           "deleted",
@@ -424,8 +538,8 @@ export const test = base.extend<AnimamaFixtures>({
             `Creator content ledger did not end in the exact owned deletion lifecycle: ${lifecycle.join(" -> ") || "empty"}.`,
           );
         }
-        const ownedEvent = events.findLast(
-          (event) => event.event === "owned" || event.event === "updated",
+        const ownedEvent = events.findLast((event) =>
+          ["owned", "import_owned", "updated"].includes(event.event),
         );
         if (
           !ownedEvent ||

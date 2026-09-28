@@ -54,3 +54,24 @@ test("dry-run output omits names and filesystem locators", () => {
   assert.equal("relativeLocator" in entries[0], false);
   assert.equal("entryName" in entries[0], false);
 });
+
+test("an unacknowledged import remains visible to command and runner recovery", () => {
+  const entries = cleanupDryRunEntries([
+    {
+      event: "import_planned",
+      runId: "run-0827123456",
+      journeyKey: "pose-package",
+      kind: "pose",
+      entryName: "private-name",
+      operationId: "import-one",
+      stageId: "a".repeat(32),
+      reviewDigest: "b".repeat(64),
+      entryId: "entry-0001",
+    },
+  ]);
+  assert.equal(entries.length, 1);
+  assert.equal(entries[0].operationId, "import-one");
+  assert.equal(entries[0].state, "import_outcome_unconfirmed");
+  assert.equal("itemId" in entries[0], false);
+  assert.equal("entryName" in entries[0], false);
+});

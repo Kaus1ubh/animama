@@ -41,19 +41,40 @@ def test_install_and_retry_admit_regular_local_items_without_included_dependenci
     manifest, source, local = converted
     first = INSTALL(manifest, source, local)
     assert first["animation_files"] == 29
-    assert len(first["items"]) == 24
+    assert len(first["items"]) == 30
     assert {item["outcome"] for item in first["items"]} == {"installed"}
     again = INSTALL(manifest, source, local)
     assert {item["outcome"] for item in again["items"]} == {"existing"}
     entries = FilesystemContentStore(
         included_root=tmp_path / "empty-included", local_root=local, operations_root=tmp_path / "operations"
     ).scan(ContentSource.LOCAL)
-    assert len(entries) == 24
-    assert all(item.status is ContentStatus.VALID for item in entries)
+    assert len(entries) == 30
+    assert all(item.status is ContentStatus.VALID for item in entries), [
+        (item.logical_key, item.diagnostics) for item in entries if item.status is not ContentStatus.VALID
+    ]
     assert all(item.logical_key is not None and item.logical_key.startswith("local:") for item in entries)
-    assert sum(item.kind is ContentKind.GESTURE for item in entries) == 23
+    assert sum(item.kind is ContentKind.GESTURE for item in entries) == 29
     idle = next(item for item in entries if item.kind is ContentKind.IDLE_STYLE)
-    assert sum(file.role == "animation" for file in idle.files) == 6
+    assert not any(file.role == "animation" for file in idle.files)
+    assert idle.metadata["schema_version"] == 2
+    assert idle.metadata["default_pool"] == ["local:gesture:mixamo-idle-sway"]
+    assert idle.metadata["cells"]["joy"] == {
+        str(level): {"mode": "pool", "gestures": ["local:gesture:mixamo-idle-happy", "local:gesture:mixamo-idle-sway"]}
+        for level in (1, 2, 3)
+    }
+    assert len(idle.dependencies) == 6
+    sway = next(item for item in entries if item.logical_key == "local:gesture:mixamo-idle-sway")
+    assert sway.metadata["config"] == {
+        "loop_type": "pingpong",
+        "duration_seconds": 9.92,
+        "time_scale": 0.6,
+        "loop_count": 1,
+        "base_pose": "relaxedRest",
+        "blend_mode": "override",
+    }
+    assert sway.metadata["name"] == "Idle Sway"
+    assert sway.metadata["description"] == "Gentle swaying idle for relaxed or chill contexts."
+    assert sum(file.role == "animation" for file in sway.files) == 1
 
 
 def test_install_preserves_owner_edits(converted):

@@ -17,6 +17,7 @@ import {
   validateAnimaV1AnimasValidatePost,
   type AnimaCreationDiagnostic,
   type AnimaCreationResult,
+  type CreateAnimaRequest,
   type AnimaValidationResult,
   type ItemRevisionRef,
   type PyTypedContentPreview,
@@ -346,7 +347,10 @@ export function useAnimaCreationOperations() {
     ): Promise<AnimaCreationResult> => {
       try {
         const response = await createAnimaV1AnimasPost({
-          body,
+          // Saved commands can contain retired source kinds. The private backend
+          // compatibility decoder permits exact receipt replay only; a miss rejects.
+          // New commands have already passed creationRequestSchema.
+          body: body as CreateAnimaRequest,
           signal: AbortSignal.timeout(60_000),
           requestValidator: undefined,
           responseValidator: undefined,

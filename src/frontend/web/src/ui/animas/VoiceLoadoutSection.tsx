@@ -10,7 +10,7 @@ import {
   isPocketCustomVoice,
   resolvePocketVoicePreference,
 } from "@/lib/speech/pocket/voice-preferences";
-import { loadVoiceCloneSample } from "@/lib/speech/pocket/voice-clones";
+import { voiceCloneSampleSource } from "@/lib/speech/pocket/voice-clones";
 import { useAnimaLoadout } from "@/query/hooks/useAnimaLoadout";
 import { useVoiceClones } from "@/query/hooks/useVoiceClones";
 import { useVoiceSelection } from "@/query/mutations/useVoiceSelection";
@@ -251,11 +251,7 @@ export function AnimaVoicesEditor() {
                 clones.find((clone) => `clone:${clone.item_id}` === id) ?? null,
               )
             }
-            clones={clones.map((clone) => ({
-              id: `clone:${clone.item_id}`,
-              name: clone.name,
-              loadSample: (signal) => loadVoiceCloneSample(clone, signal),
-            }))}
+            clones={clones.map(voiceCloneSampleSource)}
             hasCustomVoice={runtime.hasCustomVoice}
             onSelect={savePocketVoice}
             availability={downloads.availability}

@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from typing import Any, Literal
 
 from .content_catalog import ContentSource
+from .content_documents import IdleStyleCellV2
 from .runtime_content_slot import RuntimeContentSlot
 
 
@@ -68,11 +69,25 @@ class IdleAnimationSummary:
 
 
 @dataclass(frozen=True, slots=True)
+class IdleGestureSummary:
+    """A Style pool member; selection does not equip it for AI invocation."""
+
+    item_id: str
+    logical_key: str | None
+    name: str
+    description: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class IdleStyleBinding:
     state: Literal["starter", "custom", "empty"]
     name: str | None = None
     description: str | None = None
     source: CatalogLoadoutSource | None = None
+    schema_version: int = 2
+    default_pool: tuple[str, ...] = ()
+    cells: dict[str, dict[str, IdleStyleCellV2]] = field(default_factory=dict)
+    gestures: tuple[IdleGestureSummary, ...] = ()
     animations: tuple[IdleAnimationSummary, ...] = ()
     document_default_pool: tuple[str, ...] = ()
     document_emotion_pools: dict[str, tuple[str, ...]] = field(default_factory=dict)
@@ -80,23 +95,6 @@ class IdleStyleBinding:
     effective_emotion_pools: dict[str, tuple[str, ...]] = field(default_factory=dict)
     pool_overrides: dict[str, tuple[str, ...]] = field(default_factory=dict)
     cross_fade_seconds: float = 0.35
-
-
-@dataclass(frozen=True, slots=True)
-class MusicTrackBinding:
-    binding_id: str
-    item_id: str
-    name: str
-    source: CatalogLoadoutSource
-    enabled: bool
-    autoplay: bool
-    effective_loop: bool
-    effective_gain: float
-    description: str | None = None
-    loop_override: bool | None = None
-    gain_override: float | None = None
-    duration_seconds: float = 0
-    codec: str = "unknown"
 
 
 @dataclass(frozen=True, slots=True)
@@ -122,7 +120,6 @@ class AnimaLoadout:
     disabled_starter_gestures: tuple[str, ...]
     reactions: tuple[ReactionCell, ...]
     idle_style: IdleStyleBinding
-    music_tracks: tuple[MusicTrackBinding, ...] = ()
     avatar_source: CatalogLoadoutSource | None = None
     appearances: tuple[AppearanceBinding, ...] = ()
     voice_source: CatalogLoadoutSource | None = None
@@ -171,7 +168,6 @@ __all__ = [
     "LoadoutCommitResult",
     "LoadoutDiagnostic",
     "LoadoutPlan",
-    "MusicTrackBinding",
     "ReactionCell",
     "StarterEntryIdentity",
 ]

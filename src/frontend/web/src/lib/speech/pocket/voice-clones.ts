@@ -10,6 +10,7 @@ import {
 } from "@/lib/content/contentSaveErrors";
 import { buildPocketVoiceCatalogFile } from "./catalog-builder";
 import type { PocketVoiceEncoderOptions } from "./voice-cloning-encoder";
+import type { VoiceSampleSource } from "./voice-sample-player";
 
 export const POCKET_VOICE_CLONE_CODEC = "pocket-tts-catalog-v1";
 export const MAX_VOICE_CLONE_FILE_BYTES = 25 * 1024 * 1024;
@@ -147,6 +148,18 @@ export async function loadVoiceCloneFile(
     throw new Error("The saved voice file changed. Reload the voice library.");
   }
   return result.data;
+}
+
+/** Imported voices remain selectable even when their original recording was excluded. */
+export function voiceCloneSampleSource(
+  clone: PyVoiceContent,
+): VoiceSampleSource {
+  const source = { id: `clone:${clone.item_id}`, name: clone.name };
+  const samples =
+    clone.files?.filter((file) => file.role === "source_sample") ?? [];
+  return clone.codec === POCKET_VOICE_CLONE_CODEC && samples.length === 1
+    ? { ...source, loadSample: (signal) => loadVoiceCloneSample(clone, signal) }
+    : { ...source, sampleUnavailable: "Original recording unavailable" };
 }
 
 /** Original sample for the library player; its AbortSignal belongs to that player. */

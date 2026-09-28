@@ -203,7 +203,8 @@ Paths are repository-relative; inspect their current contents on resumption.
 - [x] Phase 4: two bundled Pocket voices and optional cloning encoder.
 - [x] Phase 5: optional desktop setup and contextual settings downloads.
 - [x] Phase 6: release integration and current documentation (formerly Phase 4).
-- [ ] Final integration review and local acceptance.
+- [x] Final integration review and applicable local acceptance; native staging,
+  built self-host and current-main integration checks passed.
 - [ ] Signed-native, real publication and speech checks recorded separately.
 
 ## Surprises & Discoveries
@@ -928,20 +929,42 @@ reported separately.
 
 ### Code Review #1 Revisions
 
-No integration revisions requested; both repair rounds remain. Any production
-change caused by native staging or CI needs an affected-source recheck before
-handoff. Outstanding owner acceptance does not imply a code-review defect or
-authorize fabricated evidence.
+The initial review requested no revisions. After PR #203 opened, `main` advanced
+to merged #90 at `7359075e22412adca2f51628ce530f07bf3e4a7d`; its integration
+retains both the optional-encoder contract and imported-clone preview support.
+Independent targeted analysis checked all ten overlapping files and adjacent
+clone/sample contracts with no findings. Imported clones remain selectable when
+their original recording is unavailable.
+
+**INT-BUILD-1:** the clean Docker build exposed `Promise.withResolvers` in an
+upstream reaction test despite the ES2023 compiler target. Repair round 1 uses
+the existing deferred-Promise test pattern without changing scheduling,
+assertions or the compiler target. All seven focused tests, forced TypeScript
+build, scoped lint/formatting and independent targeted review passed. The clean
+Docker rebuild passed, resolving the original failing path. One final
+integration repair round remains. Outstanding owner acceptance does not imply a
+code-review defect or authorize fabricated evidence.
 
 ## Validation and acceptance
 
-`make check-test` passed on the integrated Phases 1–4 source: typed-content
+Earlier, `make check-test` passed on the integrated Phases 1–4 source: typed-content
 audit, Python formatting (562 files), Ruff, mypy (562 files), and the full backend
 suite (2,151 passed, seven skipped). Log: `/tmp/animama-188-check-test.log`.
 A redundant standalone pytest run was stopped when `make check-test` reached
 that same suite. Run affected checks after later edits; hosted `Validation`
 and its actual scope remain separate evidence. Do not use a reduced owner-reviewed receipt to substitute for
 the native or publication gates of this release/security-sensitive change.
+
+After integrating `main` at `7359075e`, `ANIMAMA_RUN_LIVE_TESTS=0 make check-test`
+passed again: typed-content audit, Ruff formatting/lint, mypy (614 files), and
+2,602 tests passed with seven skipped. Frontend `pnpm check`, `pnpm web:lint`,
+`pnpm --filter animama-web test:source` (354 Vitest files, 2,310 tests and 12
+browser interactions), and `pnpm build` passed. The build used the offline
+verified task model store after the default cache lacked the reduced core.
+Logs: `/tmp/animama-188-main-refresh-backend.log`,
+`/tmp/animama-188-main-refresh-{check,web-lint,web-test-source,build-task-store}.log`.
+Desktop implementation files were unchanged by the merge, so the passing
+383-test desktop result remains applicable.
 
 **Automated integration:** run the phase commands, then from the repository root
 `uv run pytest -q`, `uv run ruff check`, and `make check-test` as applicable to
@@ -952,11 +975,12 @@ candidate. Reuse a passing result for unchanged source; do not repeat expensive
 checks without a change or unresolved concern.
 
 The final repository-wide frontend formatting check reports 11 unchanged baseline
-files (nine web, two desktop); each is byte-identical to `f89d3ed3`. All changed
-web and desktop files, including new tests/scripts, pass scoped Prettier checks.
+files (nine web, two desktop); each is byte-identical to the refreshed `7359075e`
+baseline and still fails individually. All 50 changed web and 29 changed desktop
+files, including new tests/scripts, pass scoped Prettier checks.
 Unrelated baseline files were not reformatted. New Phase 6 Python files pass
-Ruff format/check and their four tests; the earlier full backend result remains
-valid for unchanged backend code.
+Ruff format/check and their four tests; the refreshed full backend result above
+covers the merged source.
 
 **Runtime production:** on the supported Apple Silicon host, from
 `src/frontend` run:
@@ -970,25 +994,25 @@ These need verified inputs and applicable inventory approvals. Record produced
 catalog identity, object list, model download sizes, peak space and the absence
 of Parakeet archives. Staging/audit is not signing or installed-app acceptance.
 
-**Native evidence (macOS arm64):** both commands passed on the final implementation
-source. A slow cold dependency sync was deliberately stopped and retried using
-the existing shared package cache; verified model inputs were unchanged. The
-runtime contains 5,362 files with no missing/unexpected entries, zero starter
+**Native evidence (macOS arm64):** both commands passed again after integrating
+`main` at `7359075e`, using the existing shared package cache and unchanged
+verified model inputs. The runtime contains 5,359 files with no missing/unexpected entries, zero starter
 content diagnostics, pgvector 0.8.6 and a passing native backup/restore check.
-Runtime build ID: `4e598bf185eca9c24c005f71b72d1db843df52687b2d7be25a7f7a948f25563a`.
+Runtime build ID: `40daeca82b0d9d641a6a531c2a01bec9722fb8e708cbfc2390694e804450638e`.
 Catalog ID: `8f887acbe240d1d21b8a1e8e19d3fe5717827d01898afdca7446f9ffbeb5fe4f`.
 Four exact model manifests are sealed; no Parakeet archives were produced.
 The native browser inventory was independently hash-checked: 21 files,
 280,549,335 bytes, Eve/Azelma only and no Mimi encoder. Core installed size is
-985,470,079 bytes; the feasibility archive is 408,236,352 bytes, with no size
+985,705,625 bytes; the feasibility archive is 408,386,756 bytes, with no size
 failures or exceptions. These are not signed DMG/ZIP measurements.
 
 Base Parakeet reports 661,332,409 raw download/installed bytes and a
 1,389,773,682-byte peak requirement. GPU reports 1,238,962,105 raw bytes; its
 existing missing inventory approval keeps it out of the active catalog. The
 release gate remains closed with 752 pending license records. No approval
-receipt was changed. Logs: `/tmp/animama-188-p6-native-stage-cached.log` and
-`/tmp/animama-188-p6-native-audit.log`.
+receipt was changed. Logs: `/tmp/animama-188-main-refresh-native-stage.log` and
+`/tmp/animama-188-main-refresh-native-audit.log`. These supersede the earlier
+5,362-file staging result; the model catalog identity and inventories are unchanged.
 
 **Model-publication acceptance (A1, A3, A4):** once a concrete release/model set is
 approved for publication, use the existing model stage/scan/publish path through
@@ -1043,7 +1067,10 @@ and Animas. The picker shows both starter voices Included and all 36 optional
 voices as individual downloads; cloning shows its 38 MB download with TTS
 disabled. No provider/voice setting or optional asset was changed. The built
 container's entire browser runtime was hash-checked against all 21 tracked files
-(280,549,335 bytes). Log: `/tmp/animama-188-built-selfhost.log`. Microphone,
+(280,549,335 bytes). The refresh after integrating `main` and fixing INT-BUILD-1
+passed the same build/start/browser/hash checks. Logs:
+`/tmp/animama-188-main-refresh-selfhost-fixed.log` and
+`/tmp/animama-188-main-refresh-built-assets.json`. Microphone,
 listening, actual optional-object transfers and public first-acquisition remain
 unperformed; fixture coverage is recorded separately above.
 
@@ -1193,7 +1220,9 @@ recorded requirements; code completion does not establish those results.
 ## Implementation workspace handoff
 
 - Checkout: assigned `2ca1/animama` worktree; branch `build/shared-model-store`.
-- Integrated base: `f89d3ed33012a19d7647ebe34dc6a5094104de06` (merged #195).
+- Integrated bases: `f89d3ed33012a19d7647ebe34dc6a5094104de06` (merged #195),
+  then `7359075e22412adca2f51628ce530f07bf3e4a7d` (merged #90) after opening
+  implementation PR [#203](https://github.com/raymond-van/animama/pull/203).
 - Phase issues: #197, #198, #199, #200, #201, #202.
 - Locked pnpm/uv dependencies installed; tracked LFS inputs hydrated.
 - Existing base, WebGPU and browser model caches verified offline.

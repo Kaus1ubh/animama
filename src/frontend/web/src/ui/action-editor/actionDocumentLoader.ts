@@ -100,7 +100,7 @@ function dependenciesFromPreview(
   });
 }
 
-async function privateSequence(
+async function ownedSequence(
   preview: PyActionPreview,
   root: Record<string, unknown>,
 ): Promise<Record<string, unknown>> {
@@ -109,13 +109,13 @@ async function privateSequence(
   );
   const fileRef = object(sequenceFile).file_ref;
   if (typeof fileRef !== "string" || !fileRef) {
-    throw new Error("This private Anima Pose Clip has no readable sequence.");
+    throw new Error("This Action has no readable sequence.");
   }
   const response = await fetchContentPreviewFile(preview, {
     file_ref: fileRef,
   });
   if (!response.ok) {
-    throw new Error("This private Anima Pose Clip could not be downloaded.");
+    throw new Error("This Action could not be downloaded.");
   }
   return (await readBoundedJsonResponse(response, 512 * 1024)) as Record<
     string,
@@ -191,13 +191,17 @@ export async function actionDocumentFromPreview(args: {
   const root = closure.root;
   const implementation = object(root.implementation);
   const isBuiltin = root.catalog_source === "included";
+  // Included and Local Actions both own registered sequences after conversion.
+  const hasOwnedSequence =
+    Array.isArray(root.files) &&
+    root.files.some((file) => object(file).role === "sequence");
   const implementationKind =
     implementation.kind === "vrma" ? "vrma" : "anima_clip";
   const sequence =
     implementationKind === "anima_clip"
-      ? isBuiltin
-        ? builtinSequence(intent, root)
-        : await privateSequence(preview, root)
+      ? hasOwnedSequence || !isBuiltin
+        ? await ownedSequence(preview, root)
+        : builtinSequence(intent, root)
       : base.sequence;
   const placement = object(root.placement_hint);
   const customName = args.customizeStarter ? `${item.name} Custom` : item.name;

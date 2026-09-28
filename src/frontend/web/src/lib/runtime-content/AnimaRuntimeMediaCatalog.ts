@@ -37,10 +37,8 @@ type RuntimeCatalogFetch = typeof fetch;
 export type RuntimeAudioDescriptor = {
   runtimeId: string;
   label: string;
-  kind: "sfx" | "bgm";
+  kind: "sfx";
   volume: number;
-  loop: boolean;
-  autoplay: boolean;
   sizeBytes: number | null;
 };
 
@@ -67,9 +65,9 @@ export interface AnimaRuntimeMediaProvider {
     kind: SceneVFXKind,
     runtimeId: string,
   ): Promise<SceneVFXEntry | null>;
-  listAudio(kind: "sfx" | "bgm"): readonly RuntimeAudioDescriptor[];
+  listAudio(kind: "sfx"): readonly RuntimeAudioDescriptor[];
   resolveAudio(
-    kind: "sfx" | "bgm",
+    kind: "sfx",
     runtimeId: string,
   ): Promise<ResolvedRuntimeAudio | null>;
 }
@@ -87,7 +85,6 @@ type MediaEntries = {
   sceneBackgroundVfx: readonly RuntimeCatalogEntry[];
   sceneFocusVfx: readonly RuntimeCatalogEntry[];
   sfx: readonly RuntimeCatalogEntry[];
-  bgm: readonly RuntimeCatalogEntry[];
 };
 
 type PrivateFetchPool = {
@@ -250,19 +247,14 @@ export class AnimaRuntimeMediaCatalog implements AnimaRuntimeMediaProvider {
           effect,
         );
     }
-    for (const [kind, values] of [
-      ["sfx", entries.sfx],
-      ["bgm", entries.bgm],
-    ] as const) {
-      for (const entry of uniqueRuntimeEntries(values)) {
-        const key = audioKey(kind, entry.runtime_id);
-        if (this.audioEntries.has(key)) continue;
-        const descriptor = createAudioDescriptor(entry, kind);
-        if (!descriptor || !audioSource(entry)) continue;
-        changed = true;
-        this.audioEntries.set(key, entry);
-        this.audioDescriptors.set(key, descriptor);
-      }
+    for (const entry of uniqueRuntimeEntries(entries.sfx)) {
+      const key = audioKey("sfx", entry.runtime_id);
+      if (this.audioEntries.has(key)) continue;
+      const descriptor = createAudioDescriptor(entry, "sfx");
+      if (!descriptor || !audioSource(entry)) continue;
+      changed = true;
+      this.audioEntries.set(key, entry);
+      this.audioDescriptors.set(key, descriptor);
     }
     return changed;
   }
@@ -382,14 +374,14 @@ export class AnimaRuntimeMediaCatalog implements AnimaRuntimeMediaProvider {
     return pending;
   }
 
-  listAudio(kind: "sfx" | "bgm"): readonly RuntimeAudioDescriptor[] {
+  listAudio(kind: "sfx"): readonly RuntimeAudioDescriptor[] {
     return Array.from(this.audioDescriptors.entries())
       .filter(([key]) => key.startsWith(`${kind}:`))
       .map(([, value]) => value);
   }
 
   resolveAudio(
-    kind: "sfx" | "bgm",
+    kind: "sfx",
     runtimeId: string,
   ): Promise<ResolvedRuntimeAudio | null> {
     if (this.disposed) return Promise.resolve(null);
@@ -971,7 +963,7 @@ function resolveAppSceneVFX(
 
 function createAudioDescriptor(
   entry: RuntimeCatalogEntry,
-  kind: "sfx" | "bgm",
+  kind: "sfx",
 ): RuntimeAudioDescriptor | null {
   if (entry.kind !== "audio") return null;
   const source = audioSource(entry);
@@ -980,8 +972,6 @@ function createAudioDescriptor(
     label: entry.display_name,
     kind,
     volume: normalizedVolume(entry.config.volume),
-    loop: kind === "bgm" && entry.config.loop !== false,
-    autoplay: kind === "bgm" && entry.config.autoplay === true,
     sizeBytes:
       source?.kind === "private" ? source.resource.expectedBytes : null,
   };
@@ -1033,7 +1023,7 @@ function sceneKey(kind: SceneVFXKind, runtimeId: string): string {
   return `${kind}:${runtimeId}`;
 }
 
-function audioKey(kind: "sfx" | "bgm", runtimeId: string): string {
+function audioKey(kind: "sfx", runtimeId: string): string {
   return `${kind}:${runtimeId}`;
 }
 

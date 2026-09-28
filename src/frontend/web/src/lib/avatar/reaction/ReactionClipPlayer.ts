@@ -473,6 +473,19 @@ export class ReactionClipPlayer {
   ): void {
     const state = this._state;
     if (!state || !isAnimaPoseClipVFXEvent(event)) return;
+    // Retire the preceding loop without reusing its asynchronous ownership ID.
+    // Explicit durations keep independent occurrences for authored overlap.
+    if (event.duration === undefined) {
+      for (const previous of Array.from(state.activeEventEffects.values())) {
+        if (
+          previous.event.duration === undefined &&
+          previous.context.clipId === context.clipId &&
+          previous.context.eventId === context.eventId
+        ) {
+          this._clearEventEffect(previous.context.appliedId);
+        }
+      }
+    }
     this._clearEventEffect(context.appliedId);
     state.activeEventEffects.set(context.appliedId, {
       event,

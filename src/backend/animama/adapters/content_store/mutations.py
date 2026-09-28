@@ -7,11 +7,14 @@ remain same-filesystem operations even when private data uses another volume.
 
 from __future__ import annotations
 
+import ctypes
+import errno
 import hashlib
 import json
 import os
 import re
 import stat
+import sys
 import uuid
 from pathlib import Path, PurePosixPath
 from typing import Any
@@ -24,6 +27,36 @@ _IDENTIFIER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 _BACKUPS = ".animama-mutations"
 _MAX_JOURNAL_BYTES = 8 * 1024 * 1024
 _MAX_CHANGES = 20_000
+
+
+def publish_new(source: Path, destination: Path) -> None:
+    """Atomically rename on one filesystem without replacing any existing entry.
+
+    Python's Unix rename can overwrite even an empty directory. Darwin's
+    RENAME_EXCL and Linux's RENAME_NOREPLACE provide the required exclusion;
+    Windows os.rename already rejects existing destinations. Unsupported native
+    calls/filesystems fail closed: an exists-check plus rename is not equivalent.
+    """
+
+    if sys.platform == "win32":
+        os.rename(source, destination)
+        return
+    native = ctypes.CDLL(None, use_errno=True)
+    if sys.platform == "darwin" and hasattr(native, "renamex_np"):
+        rename = native.renamex_np
+        rename.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_uint]
+        rename.restype = ctypes.c_int
+        result = rename(os.fsencode(source), os.fsencode(destination), 0x00000004)  # RENAME_EXCL
+    elif sys.platform == "linux" and hasattr(native, "renameat2"):
+        rename = native.renameat2
+        rename.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_uint]
+        rename.restype = ctypes.c_int
+        result = rename(-100, os.fsencode(source), -100, os.fsencode(destination), 1)  # AT_FDCWD, RENAME_NOREPLACE
+    else:
+        raise OSError(errno.ENOTSUP, "exclusive content publication is unavailable")
+    if result != 0:
+        error = ctypes.get_errno()
+        raise OSError(error, os.strerror(error), destination)
 
 
 def sync_directory(directory: Path) -> None:
@@ -84,7 +117,7 @@ def safe_path(root: Path, relative: str, *, create_parents: bool = False) -> Pat
     return root.joinpath(*parts.parts)
 
 
-def fingerprint(path: Path) -> dict[str, Any] | None:
+def fingerprint(path: Path, *, expected_identity: dict[str, int] | None = None) -> dict[str, Any] | None:
     """Hash one unchanged ordinary file; links never authorize recovery."""
 
     try:
@@ -93,6 +126,11 @@ def fingerprint(path: Path) -> dict[str, Any] | None:
         return None
     if not stat.S_ISREG(before.st_mode) or before.st_nlink != 1:
         raise ContentPathError("mutation target must be an ordinary non-linked file")
+    if expected_identity is not None and (before.st_dev, before.st_ino) != (
+        expected_identity["device"],
+        expected_identity["inode"],
+    ):
+        raise ContentConflictError("content_recovery_conflict")
     descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
     with os.fdopen(descriptor, "rb") as handle:
         opened = os.fstat(handle.fileno())
@@ -203,7 +241,7 @@ class MutationJournal:
         finally:
             temporary.unlink(missing_ok=True)
 
-    def replace(self, staged: Path | None, destination: Path) -> None:
+    def replace(self, staged: Path | None, destination: Path, *, require_new: bool = False) -> None:
         """Journal an original and intended file before an atomic replace or unlink."""
 
         if self.payload["status"] != "active":
@@ -211,8 +249,11 @@ class MutationJournal:
         relative = destination.relative_to(self.local_root).as_posix()
         if PurePosixPath(relative).parts[0] == _BACKUPS:
             raise ContentPathError("mutation cannot modify its recovery storage")
-        destination = safe_path(self.local_root, relative, create_parents=True)
+        self._create_destination_parents(relative)
+        destination = safe_path(self.local_root, relative)
         before = fingerprint(destination)
+        if require_new and before is not None:
+            raise ContentConflictError("package_destination_changed")
         after = fingerprint(staged) if staged is not None else None
         if staged is not None and after is None:
             raise ContentPathError("mutation staged file is missing")
@@ -222,7 +263,11 @@ class MutationJournal:
         if any(change["path"] == relative for change in changes):
             raise ContentConflictError("content_mutation_destination_repeated")
         index = len(changes)
-        changes.append({"path": relative, "before": before, "after": after})
+        change = {"path": relative, "before": before, "after": after}
+        if require_new and staged is not None:
+            metadata = staged.lstat()
+            change["published_identity"] = {"device": metadata.st_dev, "inode": metadata.st_ino}
+        changes.append(change)
         self.persist()
         if before is not None:
             copy_file(destination, self.backup(index, create_parents=True), before)
@@ -230,9 +275,82 @@ class MutationJournal:
             raise ContentConflictError("content_recovery_conflict")
         if staged is None:
             destination.unlink(missing_ok=True)
+        elif require_new:
+            # The source inode is already durable recovery authority. Exclusive
+            # rename has no intermediate hardlink or unowned destination state.
+            try:
+                publish_new(staged, destination)
+            except FileExistsError as exc:
+                # This destination was never changed by us. Remove its intent
+                # so compensation does not mistake the host file for our output.
+                changes.pop()
+                self.persist()
+                raise ContentConflictError("package_destination_changed") from exc
+            sync_directory(staged.parent)
         else:
             os.replace(staged, destination)
         sync_directory(destination.parent)
+
+    def _create_destination_parents(self, relative: str) -> None:
+        """Retain ownership evidence for new directories so rollback can remove them."""
+        cursor = self.local_root
+        for component in PurePosixPath(relative).parts[:-1]:
+            cursor /= component
+            if cursor.exists():
+                if cursor.is_symlink() or not cursor.is_dir():
+                    raise ContentPathError("unsafe mutation destination directory")
+                continue
+            self._create_owned_directory(cursor)
+
+    def create_directory(self, destination: Path) -> None:
+        """Create a fresh import entry directory exclusively, rejecting a racing host writer."""
+        relative = destination.relative_to(self.local_root).as_posix()
+        self._create_destination_parents(relative)
+        self._create_owned_directory(safe_path(self.local_root, relative))
+
+    def _create_owned_directory(self, directory: Path) -> None:
+        # A crash after mkdir is harmless while this directory is still private.
+        # Publish only after its inode is recorded, so even a crash at the native
+        # rename boundary leaves enough evidence to remove our empty directory.
+        staged = self.temporary("directory", directory=True)
+        staged.mkdir(mode=0o700)
+        sync_directory(staged)
+        sync_directory(staged.parent)
+        metadata = staged.lstat()
+        record: dict[str, Any] = {
+            "path": directory.relative_to(self.local_root).as_posix(),
+            "device": metadata.st_dev,
+            "inode": metadata.st_ino,
+        }
+        self.payload.setdefault("created_directories", []).append(record)
+        self.persist()
+        try:
+            publish_new(staged, directory)
+        except FileExistsError as exc:
+            raise ContentConflictError("package_destination_changed") from exc
+        sync_directory(staged.parent)
+        sync_directory(directory.parent)
+
+    def _remove_owned_empty_directories(self) -> None:
+        """Never remove a preexisting, replaced, symlinked, or manually populated directory."""
+        for record in reversed(self.payload.get("created_directories", [])):
+            directory = safe_path(self.local_root, record["path"])
+            try:
+                metadata = directory.lstat()
+            except FileNotFoundError:
+                continue
+            if not stat.S_ISDIR(metadata.st_mode) or (metadata.st_dev, metadata.st_ino) != (
+                record["device"],
+                record["inode"],
+            ):
+                continue
+            try:
+                directory.rmdir()
+            except OSError as exc:
+                if exc.errno not in {errno.ENOTEMPTY, errno.EEXIST}:
+                    raise
+            else:
+                sync_directory(directory.parent)
 
     def finish(self, *, commit: bool) -> None:
         """Restore only recognized bytes; DB-committed mutations only discard backups."""
@@ -245,7 +363,7 @@ class MutationJournal:
                 for index in reversed(range(len(changes))):
                     change = changes[index]
                     destination = safe_path(self.local_root, change["path"])
-                    current = fingerprint(destination)
+                    current = fingerprint(destination, expected_identity=change.get("published_identity"))
                     if current not in (change["after"], change["before"]):
                         raise ContentConflictError("content_recovery_conflict")
                     if (
@@ -261,11 +379,11 @@ class MutationJournal:
             for index in reversed(range(len(changes))):
                 change = changes[index]
                 destination = safe_path(self.local_root, change["path"], create_parents=True)
-                if fingerprint(destination) == change["before"]:
+                if fingerprint(destination, expected_identity=change.get("published_identity")) == change["before"]:
                     continue
                 # Recheck after preflight, since a manual writer does not hold
                 # the application's database lock.
-                if fingerprint(destination) != change["after"]:
+                if fingerprint(destination, expected_identity=change.get("published_identity")) != change["after"]:
                     self.payload["status"] = "conflict"
                     self.persist()
                     raise ContentConflictError("content_recovery_conflict")
@@ -285,6 +403,8 @@ class MutationJournal:
                     finally:
                         temporary.unlink(missing_ok=True)
                 sync_directory(destination.parent)
+        if not commit:
+            self._remove_owned_empty_directories()
         self.payload["status"] = "committed" if commit else "rolled_back"
         self.persist()
         # A terminal journal survives a crash during cleanup. Original files
@@ -376,6 +496,15 @@ def read_journals(*, local_root: Path, operations_root: Path) -> tuple[MutationJ
                         or not 0 <= state["mode"] <= 0o7777
                     ):
                         raise ValueError()
+                published_identity = change.get("published_identity")
+                if published_identity is not None and (
+                    change["before"] is not None
+                    or change["after"] is None
+                    or not isinstance(published_identity, dict)
+                    or set(published_identity) != {"device", "inode"}
+                    or any(type(value) is not int or value < 0 for value in published_identity.values())
+                ):
+                    raise ValueError()
             temporary = payload.get("temporary", [])
             if not isinstance(temporary, list) or len(temporary) > _MAX_CHANGES:
                 raise ValueError()
@@ -388,6 +517,16 @@ def read_journals(*, local_root: Path, operations_root: Path) -> tuple[MutationJ
                     or type(item["directory"]) is not bool
                 ):
                     raise ValueError()
+            directories = payload.get("created_directories", [])
+            if not isinstance(directories, list) or len(directories) > _MAX_CHANGES:
+                raise ValueError()
+            for directory in directories:
+                parts = relative_path(directory["path"])
+                if parts.parts[0] == _BACKUPS:
+                    raise ValueError()
+                for key in ("device", "inode"):
+                    if directory[key] is not None and (type(directory[key]) is not int or directory[key] < 0):
+                        raise ValueError()
             journals.append(MutationJournal(local_root=local_root, operations_root=operations_root, payload=payload))
         except (OSError, ValueError, TypeError, KeyError, ContentPathError) as exc:
             raise ContentConflictError("content_mutation_journal_invalid") from exc

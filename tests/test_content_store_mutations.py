@@ -242,6 +242,80 @@ def test_delete_does_not_remove_manually_changed_registered_bytes(tmp_path: Path
     assert target.read_bytes() == vrma("manual")
 
 
+def nested_entry(store: FilesystemContentStore) -> CatalogContentEntry:
+    """Freeze a descriptor with a registered companion below two directories."""
+
+    store.save_descriptor_entry(
+        kind=ContentKind.REACTION,
+        relative_locator="reactions/nested",
+        descriptor=json.dumps(
+            {
+                "schema_version": 1,
+                "content_type": "reaction",
+                "name": "Nested",
+                "files": ["motions/deep/wave.vrma"],
+                "dependencies": [],
+                "placement_hint": {"emotion": "joy", "intensity": 2},
+            }
+        ).encode(),
+        companion_files={"motions/deep/wave.vrma": vrma("before")},
+    )
+    entry = catalog_entry(store)
+    assert len(entry.files) == 2
+    return entry
+
+
+@pytest.mark.parametrize("commit", [False, True])
+def test_delete_prunes_nested_registered_parents_and_restart_restores_bytes(tmp_path: Path, commit: bool) -> None:
+    store = store_at(tmp_path)
+    entry = nested_entry(store)
+    root = tmp_path / "local/reactions/nested"
+    before = {file.relative_path: (tmp_path / "local" / file.relative_path).read_bytes() for file in entry.files}
+    journal = begin(store)
+    store.delete_entry(entry=entry)
+    assert not root.exists()
+
+    recovered = store_at(tmp_path)
+    recovered.recover_mutations(committed_journal_ids={journal} if commit else set())
+    if commit:
+        assert not root.exists()
+    else:
+        assert {file: (tmp_path / "local" / file).read_bytes() for file in before} == before
+    assert recovered.pending_mutations() == ()
+
+
+@pytest.mark.parametrize("manual_kind", ["file", "directory", "symlink"])
+def test_delete_preserves_unregistered_siblings_while_pruning_registered_parents(
+    tmp_path: Path, manual_kind: str
+) -> None:
+    store = store_at(tmp_path)
+    entry = nested_entry(store)
+    root = tmp_path / "local/reactions/nested"
+    manual = root / "motions/manual"
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "kept.txt").write_bytes(b"manual")
+    if manual_kind == "file":
+        manual.write_bytes(b"manual")
+    elif manual_kind == "directory":
+        manual.mkdir()
+    else:
+        manual.symlink_to(outside, target_is_directory=True)
+    journal = begin(store)
+    store.delete_entry(entry=entry)
+    store.finalize_mutation(journal_id=journal, commit=True)
+
+    assert not (root / "motions/deep").exists()
+    assert manual.exists()
+    assert (outside / "kept.txt").read_bytes() == b"manual"
+    if manual_kind == "file":
+        assert manual.read_bytes() == b"manual"
+    elif manual_kind == "directory":
+        assert list(manual.iterdir()) == []
+    else:
+        assert manual.is_symlink()
+
+
 def test_descriptor_rollback_restores_stale_companions_and_original_descriptor(tmp_path: Path) -> None:
     store = store_at(tmp_path)
 

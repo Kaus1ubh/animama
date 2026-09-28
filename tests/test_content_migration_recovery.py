@@ -22,7 +22,7 @@ from animama.local.database import LocalDatabase
 from animama.server.config import Settings
 from animama.server.local_installation_bootstrap import create_local_installation_bootstrap_service
 from animama.server.local_runtime import initialize_local_runtime
-from tests.content_package_helpers import package_services, vrma
+from tests.content_package_helpers import package_services, reviewed_export, reviewed_import, vrma
 from tests.migration_database_helpers import (
     migrated_database as migrated_database,
     migration_postgres as migration_postgres,
@@ -66,7 +66,7 @@ def _files(root: Path) -> dict[str, bytes]:
 
 
 @pytest.mark.parametrize("later_change", ["edited", "deleted"])
-async def test_package_v2_replay_after_fresh_bootstrap_preserves_later_changes(
+async def test_reviewed_package_replay_after_fresh_bootstrap_preserves_later_changes(
     migrated_database: str,  # noqa: F811 - imported pytest fixture
     tmp_path: Path,
     later_change: str,
@@ -81,24 +81,22 @@ async def test_package_v2_replay_after_fresh_bootstrap_preserves_later_changes(
             assert await session.scalar(text("SELECT version_num FROM alembic_version")) == "baseline_20260908"
             paths, catalog, content, saves, packages = package_services(session, tmp_path)
             saved = await saves.save_standalone(**_command(owner))
-            exported = await packages.export_item(user_id=owner, root_item_id=saved.item.id, operation_id="export")
+            exported = await reviewed_export(packages, user_id=owner, root_item_id=saved.item.id)
             with ZipFile(exported.path) as archive:
                 manifest = json.loads(archive.read("package.json"))
-                assert manifest["schema"] == "animama-content-package/2"
+                assert manifest["schema"] == "animama-content-package/3"
                 assert len(manifest["entries"]) == 1
                 for entry in manifest["entries"]:
                     for file in entry["files"]:
                         payload = archive.read(file["archive_path"])
                         assert len(payload) == file["size_bytes"]
                         assert hashlib.sha256(payload).hexdigest() == file["sha256"]
-            command = {
-                "user_id": owner,
-                "archive_path": exported.path,
-                "operation_id": "lost-response",
-                "collision": "keep_both",
-            }
-            imported = await packages.import_package(**command)
-            item = imported.items[0]
+            command = await reviewed_import(
+                packages, user_id=owner, archive_path=exported.path, operation_id="lost-response"
+            )
+            imported = await packages.imports.commit(**command)
+            item = await catalog.get_visible_item(item_id=imported.items[0].item_id, user_id=owner)
+            assert item is not None
             assert len(imported.items) == 1 and item.id != saved.item.id
             receipt = await catalog.get_mutation_receipt(user_id=owner, operation_id="lost-response")
             assert receipt is not None
@@ -109,6 +107,7 @@ async def test_package_v2_replay_after_fresh_bootstrap_preserves_later_changes(
             else:
                 await content.delete_item(user_id=owner, item_id=item.id, expected_revision=item.revision_sha256)
             before = _files(paths.local_root)
+            packages.stages.discard(user_id=owner, stage_id=command["stage_id"])
     finally:
         await first.close()
 
@@ -118,17 +117,13 @@ async def test_package_v2_replay_after_fresh_bootstrap_preserves_later_changes(
         assert state.principal_id == owner and state.content_ready
         async with restarted.session_factory()() as session:
             _, catalog, content, _, packages = package_services(session, tmp_path)
-            assert await packages.import_package(**command) == imported
+            assert await packages.imports.commit(**command) == imported
             assert _files(paths.local_root) == before
             assert await catalog.get_mutation_receipt(user_id=owner, operation_id="lost-response") == receipt
             with pytest.raises(ContentConflictError, match="operation_id_reused"):
-                await packages.import_package(**{**command, "collision": "skip_existing"})
-            changed_archive = tmp_path / "changed.animama"
-            changed_archive.write_bytes(exported.path.read_bytes())
-            with ZipFile(changed_archive, "a") as archive:
-                archive.comment = b"different package bytes"
-            with pytest.raises(ContentConflictError, match="operation_id_reused"):
-                await packages.import_package(**{**command, "archive_path": changed_archive})
+                await packages.imports.commit(**{**command, "review_digest": "f" * 64})
+            outcome = await packages.imports.operation_status(user_id=owner, operation_id="lost-response")
+            assert outcome.state == "completed" and outcome.result == imported
             assert _files(paths.local_root) == before
             current = await catalog.get_visible_item(item_id=item.id, user_id=owner)
             if later_change == "deleted":
@@ -139,8 +134,8 @@ async def test_package_v2_replay_after_fresh_bootstrap_preserves_later_changes(
             other = "independent-foreign-owner"
             assert await catalog.get_visible_item(item_id=saved.item.id, user_id=other) is None
             assert await catalog.get_mutation_receipt(user_id=other, operation_id="lost-response") is None
-            with pytest.raises(ContentNotFoundError):
-                await packages.export_item(user_id=other, root_item_id=saved.item.id, operation_id="forbidden-export")
+            with pytest.raises(ContentConflictError, match="package_root_invalid"):
+                await reviewed_export(packages, user_id=other, root_item_id=saved.item.id)
             animation = next(file for file in saved.item.files if file.role == "animation")
             with pytest.raises(ContentNotFoundError):
                 await content.open_registered_file(file_ref=animation.file_ref, user_id=other)

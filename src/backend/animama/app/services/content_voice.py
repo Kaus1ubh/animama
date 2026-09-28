@@ -18,16 +18,22 @@ POCKET_SOURCE_EXTENSIONS = frozenset({".wav", ".mp3", ".ogg"})
 
 
 def validate_pocket_clone_document(document: VoiceDocumentV1) -> None:
-    """Keep one retained recording and one neutral catalog under stable roles."""
+    """Accept one neutral catalog, optionally retaining a local authoring sample."""
 
     if document.codec != POCKET_CLONE_CODEC:
         return
     roles = {file.role: file.path for file in document.files}
-    if len(document.files) != 2 or set(roles) != {"source_sample", "pocket_voice_catalog"}:
+    if len(document.files) != len(roles) or set(roles) not in (
+        {"pocket_voice_catalog"},
+        {"source_sample", "pocket_voice_catalog"},
+    ):
         raise ContentDocumentError(
-            "pocket_clone_files_invalid", "A Pocket clone requires its source sample and catalog"
+            "pocket_clone_files_invalid", "A Pocket clone requires one catalog and an optional source sample"
         )
-    if PurePosixPath(roles["source_sample"]).suffix.lower() not in POCKET_SOURCE_EXTENSIONS:
+    if (
+        "source_sample" in roles
+        and PurePosixPath(roles["source_sample"]).suffix.lower() not in POCKET_SOURCE_EXTENSIONS
+    ):
         raise ContentDocumentError("pocket_clone_source_invalid", "Pocket clone samples must be WAV, MP3, or Ogg")
     if PurePosixPath(roles["pocket_voice_catalog"]).suffix.lower() != ".bin":
         raise ContentDocumentError("pocket_clone_catalog_invalid", "Pocket clone catalogs must be .bin files")

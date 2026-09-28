@@ -110,19 +110,42 @@ export function clearContentPreviewEffects(args: {
 export class ContentPreviewApplySoundPlayer {
   private audio: HTMLAudioElement | null = null;
   private generation = 0;
+  private detachAbort: (() => void) | null = null;
 
   async play(
     catalog: Pick<AnimaRuntimeMediaProvider, "resolveAudio">,
     runtimeId: string,
+    signal?: AbortSignal,
   ): Promise<void> {
+    // A late event from a finished clip must not replace a newer preview.
+    if (signal?.aborted) return;
     const generation = ++this.generation;
     this.stopAudio();
-    const resolved = await catalog.resolveAudio("sfx", runtimeId);
-    if (!resolved || generation !== this.generation) return;
-    if (typeof Audio === "undefined") return;
+    if (signal) {
+      const abort = () => {
+        if (generation === this.generation) this.stop();
+      };
+      signal.addEventListener("abort", abort, { once: true });
+      this.detachAbort = () => signal.removeEventListener("abort", abort);
+    }
+    let resolved;
+    try {
+      resolved = await catalog.resolveAudio("sfx", runtimeId);
+    } catch (error) {
+      if (generation === this.generation) this.stopAudio();
+      throw error;
+    }
+    if (generation !== this.generation) return;
+    if (!resolved || typeof Audio === "undefined") {
+      this.stopAudio();
+      return;
+    }
     const audio = new Audio(resolved.url);
     audio.volume = Math.max(0, Math.min(1, resolved.volume));
     this.audio = audio;
+    audio.onended = audio.onerror = () => {
+      if (this.audio === audio) this.stopAudio();
+    };
     try {
       await audio.play();
     } catch {
@@ -136,8 +159,12 @@ export class ContentPreviewApplySoundPlayer {
   };
 
   private stopAudio(): void {
+    this.detachAbort?.();
+    this.detachAbort = null;
     const audio = this.audio;
     if (!audio) return;
+    audio.onended = null;
+    audio.onerror = null;
     audio.pause();
     audio.currentTime = 0;
     this.audio = null;
@@ -175,7 +202,7 @@ export function attachContentPreviewClipEventBridge(
 export function createContentPreviewClipEventBridge(args: {
   catalog: Pick<PreviewEffectCatalog, "loadSceneVFX">;
   onSceneVFXChange: (entry: SceneVFXRuntimeEntry | null) => void;
-  playSfx: (runtimeId: string) => void | Promise<void>;
+  playSfx: (runtimeId: string, signal?: AbortSignal) => void | Promise<void>;
 }): ContentPreviewClipEventBridge {
   let generation = 0;
   let pendingAppliedId: string | null = null;
@@ -199,7 +226,8 @@ export function createContentPreviewClipEventBridge(args: {
     );
     if (
       requestGeneration !== generation ||
-      pendingAppliedId !== context.appliedId
+      pendingAppliedId !== context.appliedId ||
+      context.signal?.aborted
     ) {
       return;
     }
@@ -218,7 +246,7 @@ export function createContentPreviewClipEventBridge(args: {
       ),
     );
     if (event.playAccompanyingSound !== false && effect.sound?.onApply)
-      await args.playSfx(effect.sound.onApply);
+      await args.playSfx(effect.sound.onApply, context.signal);
   };
 
   const clearSceneVFX: NonNullable<AnimaPoseClipEventSink["clearSceneVFX"]> = (
@@ -236,7 +264,7 @@ export function createContentPreviewClipEventBridge(args: {
     sink: {
       applySceneVFX,
       clearSceneVFX,
-      playSfx: (event) => args.playSfx(event.cueId),
+      playSfx: (event, context) => args.playSfx(event.cueId, context.signal),
     },
   };
 }

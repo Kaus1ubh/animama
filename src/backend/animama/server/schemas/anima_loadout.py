@@ -6,6 +6,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from animama.app.services.content_kind_registry import idle_cells_projection
 from animama.domain.anima_loadout import (
     AnimaLoadout,
     AppearanceBinding,
@@ -15,10 +16,10 @@ from animama.domain.anima_loadout import (
     LoadoutCommitResult,
     LoadoutDiagnostic,
     LoadoutPlan,
-    MusicTrackBinding,
     ReactionCell,
 )
 from animama.domain.emotions import TRACKED_EMOTIONS
+from animama.server.schemas.idle_style import PyIdleCell
 
 
 class PyCatalogLoadoutSource(BaseModel):
@@ -107,18 +108,19 @@ class PyIdleStyleIntent(BaseModel):
 
     operation: Literal["set", "update", "reconfigure", "revert", "leave_empty"]
     source: PyCatalogLoadoutSource | None = None
-    pool_overrides: dict[str, list[str]] = Field(default_factory=dict)
 
     @model_validator(mode="after")
     def validate_source(self) -> PyIdleStyleIntent:
         if self.operation in {"set", "update", "reconfigure"} and self.source is None:
             raise ValueError("source is required")
-        if self.operation in {"revert", "leave_empty"} and (self.source is not None or self.pool_overrides):
-            raise ValueError("revert and leave_empty do not accept source or overrides")
+        if self.operation in {"revert", "leave_empty"} and self.source is not None:
+            raise ValueError("revert and leave_empty do not accept a source")
         return self
 
 
-class PyMusicTrackIntent(BaseModel):
+class LegacyMusicTrackIntent(BaseModel):
+    """Decode the original Music command solely for committed-receipt replay."""
+
     model_config = ConfigDict(extra="forbid")
 
     operation: Literal["add", "update", "reconfigure", "remove"]
@@ -130,7 +132,7 @@ class PyMusicTrackIntent(BaseModel):
     gain: float | None = Field(default=None, ge=0, le=2)
 
     @model_validator(mode="after")
-    def validate_target(self) -> PyMusicTrackIntent:
+    def validate_target(self) -> LegacyMusicTrackIntent:
         if self.operation in {"update", "reconfigure", "remove"} and not self.binding_id:
             raise ValueError("binding_id is required")
         if self.operation != "remove" and self.source is None:
@@ -140,6 +142,17 @@ class PyMusicTrackIntent(BaseModel):
         if self.autoplay and not self.enabled:
             raise ValueError("autoplay requires an enabled track")
         return self
+
+
+class LegacyMusicTrackCommitRequest(BaseModel):
+    """Keep historical defaults and null omission stable for the original digest."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    expected_revision: int = Field(ge=1)
+    intent: LegacyMusicTrackIntent
+    plan_digest: str = Field(pattern=r"^[0-9a-f]{64}$")
+    idempotency_key: str = Field(min_length=1, max_length=128)
 
 
 class PySingleSelectionIntent(BaseModel):
@@ -180,12 +193,6 @@ class PyIdleStylePlanRequest(BaseModel):
     intent: PyIdleStyleIntent
 
 
-class PyMusicTrackPlanRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    expected_revision: int = Field(ge=1)
-    intent: PyMusicTrackIntent
-
-
 class PySingleSelectionPlanRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     expected_revision: int = Field(ge=1)
@@ -209,11 +216,6 @@ class PyReactionCommitRequest(PyReactionPlanRequest):
 
 
 class PyIdleStyleCommitRequest(PyIdleStylePlanRequest):
-    plan_digest: str = Field(pattern=r"^[0-9a-f]{64}$")
-    idempotency_key: str = Field(min_length=1, max_length=128)
-
-
-class PyMusicTrackCommitRequest(PyMusicTrackPlanRequest):
     plan_digest: str = Field(pattern=r"^[0-9a-f]{64}$")
     idempotency_key: str = Field(min_length=1, max_length=128)
 
@@ -335,6 +337,14 @@ class PyIdleAnimationSummary(BaseModel):
     description: str | None = None
 
 
+class PyIdleGestureSummary(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    item_id: str
+    logical_key: str | None = None
+    name: str
+    description: str | None = None
+
+
 class PyAnimaIdleStyle(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -342,6 +352,10 @@ class PyAnimaIdleStyle(BaseModel):
     name: str | None = None
     description: str | None = None
     source: PyCatalogLoadoutSource | None = None
+    schema_version: Literal[1, 2] = 2
+    default_pool: list[str] = Field(default_factory=list)
+    cells: dict[str, dict[str, PyIdleCell]] = Field(default_factory=dict)
+    gestures: list[PyIdleGestureSummary] = Field(default_factory=list)
     animations: list[PyIdleAnimationSummary] = Field(default_factory=list)
     document_default_pool: list[str] = Field(default_factory=list)
     document_emotion_pools: dict[str, list[str]] = Field(default_factory=dict)
@@ -354,6 +368,15 @@ class PyAnimaIdleStyle(BaseModel):
     def from_domain(cls, value: IdleStyleBinding) -> PyAnimaIdleStyle:
         return cls(
             state=value.state,
+            schema_version=value.schema_version,
+            default_pool=list(value.default_pool),
+            cells=idle_cells_projection(value.cells),
+            gestures=[
+                PyIdleGestureSummary(
+                    item_id=item.item_id, logical_key=item.logical_key, name=item.name, description=item.description
+                )
+                for item in value.gestures
+            ],
             name=value.name,
             description=value.description,
             source=PyCatalogLoadoutSource.from_domain(value.source) if value.source else None,
@@ -371,42 +394,6 @@ class PyAnimaIdleStyle(BaseModel):
             effective_emotion_pools={key: list(pool) for key, pool in value.effective_emotion_pools.items()},
             pool_overrides={key: list(pool) for key, pool in value.pool_overrides.items()},
             cross_fade_seconds=value.cross_fade_seconds,
-        )
-
-
-class PyAnimaMusicTrack(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    binding_id: str
-    item_id: str
-    name: str
-    description: str | None = None
-    source: PyCatalogLoadoutSource
-    enabled: bool
-    autoplay: bool
-    effective_loop: bool
-    effective_gain: float = Field(ge=0, le=2)
-    loop_override: bool | None = None
-    gain_override: float | None = Field(default=None, ge=0, le=2)
-    duration_seconds: float = Field(ge=0)
-    codec: str
-
-    @classmethod
-    def from_domain(cls, value: MusicTrackBinding) -> PyAnimaMusicTrack:
-        return cls(
-            binding_id=value.binding_id,
-            item_id=value.item_id,
-            name=value.name,
-            description=value.description,
-            source=PyCatalogLoadoutSource.from_domain(value.source),
-            enabled=value.enabled,
-            autoplay=value.autoplay,
-            effective_loop=value.effective_loop,
-            effective_gain=value.effective_gain,
-            loop_override=value.loop_override,
-            gain_override=value.gain_override,
-            duration_seconds=value.duration_seconds,
-            codec=value.codec,
         )
 
 
@@ -448,7 +435,6 @@ class PyAnimaLoadout(BaseModel):
     starter_gesture_implementation_kinds: dict[str, Literal["anima_clip", "vrma"]] = Field(default_factory=dict)
     reactions: list[PyReactionCell]
     idle_style: PyAnimaIdleStyle
-    music_tracks: list[PyAnimaMusicTrack] = Field(default_factory=list)
     avatar_source: PyCatalogLoadoutSource | None = None
     appearances: list[PyAnimaAppearance] = Field(default_factory=list)
     voice_source: PyCatalogLoadoutSource | None = None
@@ -471,7 +457,6 @@ class PyAnimaLoadout(BaseModel):
             starter_gesture_implementation_kinds=starter_implementation_kinds or {},
             reactions=[PyReactionCell.from_domain(item) for item in value.reactions],
             idle_style=PyAnimaIdleStyle.from_domain(value.idle_style),
-            music_tracks=[PyAnimaMusicTrack.from_domain(item) for item in value.music_tracks],
             avatar_source=(PyCatalogLoadoutSource.from_domain(value.avatar_source) if value.avatar_source else None),
             appearances=[PyAnimaAppearance.from_domain(item) for item in value.appearances],
             voice_source=(PyCatalogLoadoutSource.from_domain(value.voice_source) if value.voice_source else None),

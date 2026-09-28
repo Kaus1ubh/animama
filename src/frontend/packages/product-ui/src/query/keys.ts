@@ -95,6 +95,13 @@ export const queryKeys = {
       [...queryKeys.voiceContent.all(ownerId), "list"] as const,
   },
   gestures: {
+    idlePlayback: (userId: string, itemId: string, revision: string) =>
+      [
+        ...queryKeys.gestures.all(userId),
+        "idle-playback",
+        itemId,
+        revision,
+      ] as const,
     all: (userId: string) => ["gestures", userId] as const,
     detail: (userId: string, itemId: string) =>
       [...queryKeys.gestures.all(userId), "detail", itemId] as const,
@@ -134,19 +141,6 @@ export const queryKeys = {
     list: (userId: string, query: string, origin: string, sort = "name") =>
       [
         ...queryKeys.idleStyles.all(userId),
-        "list",
-        query,
-        origin,
-        sort,
-      ] as const,
-  },
-  musicTracks: {
-    all: (userId: string) => ["music-tracks", userId] as const,
-    detail: (userId: string, itemId: string) =>
-      [...queryKeys.musicTracks.all(userId), "detail", itemId] as const,
-    list: (userId: string, query: string, origin: string, sort = "name") =>
-      [
-        ...queryKeys.musicTracks.all(userId),
         "list",
         query,
         origin,
@@ -194,6 +188,10 @@ export const queryKeys = {
       [...queryKeys.userFiles.all(userId), "list"] as const,
   },
   content: {
+    sharingInventory: (owner: string) =>
+      [...queryKeys.content.all(owner), "sharing-inventory"] as const,
+    sharingSummary: (owner: string, selection: string) =>
+      [...queryKeys.content.all(owner), "sharing-summary", selection] as const,
     all: (userId: string) => ["content", userId] as const,
     catalog: (userId: string) =>
       [...queryKeys.content.all(userId), "catalog"] as const,

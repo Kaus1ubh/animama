@@ -23,8 +23,43 @@ const owned = {
   revisionSha256: "a".repeat(64),
   relativeLocator: "reactions/react-0827123456",
 };
+const importPlanned = {
+  runId: common.runId,
+  journeyKey: common.journeyKey,
+  kind: common.kind,
+  entryName: common.entryName,
+  operationId: "import-operation",
+  stageId: "a".repeat(32),
+  reviewDigest: "b".repeat(64),
+  entryId: "entry-0001",
+};
 
-async function setup({ withOwned = true } = {}) {
+function importReceipt() {
+  return {
+    operation_id: importPlanned.operationId,
+    state: "completed",
+    review_digest: importPlanned.reviewDigest,
+    result: {
+      schema_version: 1,
+      operation_id: importPlanned.operationId,
+      review_digest: importPlanned.reviewDigest,
+      anima_id: null,
+      items: [
+        {
+          entry_id: importPlanned.entryId,
+          item_id: owned.itemId,
+          kind: owned.kind,
+          name: owned.entryName,
+          logical_key: owned.logicalKey,
+          revision_sha256: owned.revisionSha256,
+          selected: true,
+        },
+      ],
+    },
+  };
+}
+
+async function setup({ withOwned = true, packageImport = false } = {}) {
   const temporary = await mkdtemp(path.join(os.tmpdir(), "animama-cleanup-"));
   const repositoryRoot = path.join(temporary, "repo");
   const localRoot = path.join(temporary, "isolated-stack", "local");
@@ -32,11 +67,106 @@ async function setup({ withOwned = true } = {}) {
   const ledgerPath = path.join(temporary, "content-ledger.jsonl");
   await mkdir(repositoryRoot, { recursive: true });
   await mkdir(artifact, { recursive: true });
-  await appendContentLedgerEvent(ledgerPath, { ...common, event: "planned" });
+  await appendContentLedgerEvent(
+    ledgerPath,
+    packageImport
+      ? { ...importPlanned, event: "import_planned" }
+      : { ...common, event: "planned" },
+  );
   if (withOwned) {
     await appendContentLedgerEvent(ledgerPath, { ...owned, event: "owned" });
   }
   return { temporary, repositoryRoot, localRoot, artifact, ledgerPath };
+}
+
+test("lost import acknowledgment recovers only the matching receipt's exact revision", async () => {
+  const value = await setup({ withOwned: false, packageImport: true });
+  let present = true;
+  const deleted = [];
+  try {
+    const summary = await cleanupOwnedContent({
+      ...value,
+      actor: "recovery",
+      catalogClient: {
+        getPackageOperation: async (id) => {
+          assert.equal(id, importPlanned.operationId);
+          return importReceipt();
+        },
+        getItem: async (id) => {
+          assert.equal(id, owned.itemId);
+          return present
+            ? {
+                item_id: owned.itemId,
+                source: "local",
+                origin: "local",
+                kind: owned.kind,
+                logical_key: owned.logicalKey,
+                relative_locator: owned.relativeLocator,
+                revision_sha256: owned.revisionSha256,
+              }
+            : null;
+        },
+        deleteItem: async (id, revision) => {
+          deleted.push([id, revision]);
+          present = false;
+          await rm(value.artifact, { recursive: true });
+          return { status: 204 };
+        },
+      },
+    });
+    assert.equal(summary.deleted, 1);
+    assert.deepEqual(deleted, [[owned.itemId, owned.revisionSha256]]);
+    assert.deepEqual(
+      (await readContentLedger(value.ledgerPath)).map((event) => event.event),
+      ["import_planned", "import_owned", "cleanup_started", "deleted"],
+    );
+  } finally {
+    await rm(value.temporary, { recursive: true, force: true });
+  }
+});
+
+for (const scenario of ["pending", "digest", "entry", "revision"]) {
+  test(`unconfirmed import cleanup refuses ${scenario} and retains the operation journal`, async () => {
+    const value = await setup({ withOwned: false, packageImport: true });
+    const receipt = importReceipt();
+    if (scenario === "pending") receipt.state = "pending";
+    if (scenario === "digest") receipt.result.review_digest = "c".repeat(64);
+    if (scenario === "entry")
+      receipt.result.items[0].entry_id = "another-entry";
+    let deleted = false;
+    try {
+      await assert.rejects(
+        cleanupOwnedContent({
+          ...value,
+          actor: "recovery",
+          catalogClient: {
+            getPackageOperation: async () => receipt,
+            getItem: async () => ({
+              item_id: owned.itemId,
+              source: "local",
+              origin: "local",
+              kind: owned.kind,
+              logical_key: owned.logicalKey,
+              relative_locator: owned.relativeLocator,
+              revision_sha256: "c".repeat(64),
+            }),
+            deleteItem: async () => {
+              deleted = true;
+              return { status: 204 };
+            },
+          },
+        }),
+        /cleanup failed/,
+      );
+      assert.equal(deleted, false);
+      assert.equal(
+        (await readContentLedger(value.ledgerPath)).at(-1).event,
+        "import_planned",
+      );
+    } finally {
+      await rm(value.temporary, { recursive: true, force: true });
+    }
+  });
 }
 
 test("deletes one exact matching identity and proves its artifact absent", async () => {

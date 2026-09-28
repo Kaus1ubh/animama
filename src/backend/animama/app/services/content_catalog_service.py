@@ -10,10 +10,12 @@ from uuid import uuid4
 from animama.app.ports.content_catalog import ContentCatalog
 from animama.app.ports.content_store import ContentStore
 from animama.app.services.content_access_policy import ContentAccessPolicy
+from animama.app.services.content_kind_registry import RETIRED_CONTENT_KINDS
 from animama.app.services.local_content_mutations import LocalContentMutations, mutation_digest
 from animama.domain.content_catalog import (
     CatalogContentEntry,
     ContentConflictError,
+    ContentKind,
     ContentNotFoundError,
     ContentPreview,
     ContentPreviewFile,
@@ -47,18 +49,31 @@ class ContentCatalogService:
         self.mutations = LocalContentMutations(store=store, catalog=catalog)
 
     async def rescan(
-        self, *, user_id: str, include_included: bool = True, creator_claim_locator: str | None = None
+        self,
+        *,
+        user_id: str,
+        include_included: bool = True,
+        creator_claim_locator: str | None = None,
+        planned_item_ids: dict[str, str] | None = None,
     ) -> ContentRescanResult:
         """Recover unfinished mutations before admitting a complete source scan."""
 
         return await self.mutations.reconcile(
             lambda: self._rescan(
-                user_id=user_id, include_included=include_included, creator_claim_locator=creator_claim_locator
+                user_id=user_id,
+                include_included=include_included,
+                creator_claim_locator=creator_claim_locator,
+                planned_item_ids=planned_item_ids,
             )
         )
 
     async def _rescan(
-        self, *, user_id: str, include_included: bool, creator_claim_locator: str | None
+        self,
+        *,
+        user_id: str,
+        include_included: bool,
+        creator_claim_locator: str | None,
+        planned_item_ids: dict[str, str] | None = None,
     ) -> ContentRescanResult:
         """Scan registered roots; a bad entry never prevents reconciliation of peers."""
 
@@ -86,6 +101,7 @@ class ContentCatalogService:
                 creator_claim=(creator_claim_locator, user_id)
                 if source is ContentSource.LOCAL and creator_claim_locator
                 else None,
+                planned_item_ids=planned_item_ids if source is ContentSource.LOCAL else None,
                 **(
                     {"active_included_mount_ids": included_mount_ids}
                     if source is ContentSource.INCLUDED and included_mount_ids is not None
@@ -101,11 +117,38 @@ class ContentCatalogService:
                     missing=sum(item.status is ContentStatus.MISSING for item in reconciled),
                 )
             )
-        visible = await self._catalog.list_visible(user_id=user_id)
-        return ContentRescanResult(tuple(summaries), tuple(visible))
+        return await self.visible_scan_result(tuple(summaries), user_id=user_id)
 
     async def list_visible(self, *, user_id: str) -> list[CatalogContentEntry]:
-        return await self._catalog.list_visible(user_id=user_id)
+        """List supported content; raw retired rows remain private transition evidence."""
+        return [
+            item for item in await self._catalog.list_visible(user_id=user_id) if item.kind not in RETIRED_CONTENT_KINDS
+        ]
+
+    async def visible_scan_result(
+        self, summaries: tuple[ContentScanSummary, ...], *, user_id: str
+    ) -> ContentRescanResult:
+        """Report current supported rows after preserving conversions have finished."""
+        items = tuple(await self.list_visible(user_id=user_id))
+        return ContentRescanResult(
+            tuple(
+                ContentScanSummary(
+                    source=summary.source,
+                    scanned=sum(
+                        item.source is summary.source and item.status is not ContentStatus.MISSING for item in items
+                    ),
+                    valid=sum(item.source is summary.source and item.status is ContentStatus.VALID for item in items),
+                    invalid=sum(
+                        item.source is summary.source and item.status is ContentStatus.INVALID for item in items
+                    ),
+                    missing=sum(
+                        item.source is summary.source and item.status is ContentStatus.MISSING for item in items
+                    ),
+                )
+                for summary in summaries
+            ),
+            items,
+        )
 
     async def delete_item(
         self,
@@ -138,6 +181,8 @@ class ContentCatalogService:
                 "catalog_revision_conflict",
                 current_revision=item.revision_sha256,
             )
+        if item.kind is ContentKind.AVATAR:
+            await self._catalog.delete_unbound_avatar_mapping(item_id=item.id, user_id=user_id)
         if await self._catalog.item_has_runtime_references(item_id=item.id):
             raise ContentConflictError("catalog_item_in_use")
         await asyncio.to_thread(self._store.delete_entry, entry=item)

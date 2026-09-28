@@ -1,3 +1,8 @@
+import {
+  evaluateManifestIdleEntries,
+  selectManifestIdleCandidateFromEntries,
+  type ManifestAnimation,
+} from "@/lib/avatar/animationManifest";
 import { describe, expect, it } from "vitest";
 import { BUILT_IN_AVATAR_MOTION_CATALOG } from "@/lib/avatar/motion/AvatarMotionCatalog";
 import {
@@ -1011,4 +1016,150 @@ describe("AvatarPlanner", () => {
     expect(findAction(output.actions, "setProceduralPolicy")).toBeNull();
     expect(output.state.proceduralStints).toEqual([]);
   });
+});
+
+describe("Gesture based finite idle scheduling", () => {
+  function catalog(type: "vrma" | "animaPoseClip") {
+    const entry: ManifestAnimation = {
+      id: "idle:test",
+      name: "Idle",
+      file: "idle:test",
+      type,
+      animation_type: "idle",
+      emotions: {},
+      duration: 0.5,
+      time_scale: 2,
+      loop_type: "repeat",
+      loop_count: 2,
+      idle_playback: true,
+    };
+    return Object.assign(Object.create(BUILT_IN_AVATAR_MOTION_CATALOG), {
+      evaluateIdleAnimations: (emotion: AvatarPlannerInput["emotionalState"]) =>
+        evaluateManifestIdleEntries([entry], emotion),
+      selectIdleAnimation: (
+        args: Parameters<typeof selectManifestIdleCandidateFromEntries>[0],
+      ) =>
+        selectManifestIdleCandidateFromEntries({ ...args, entries: [entry] }),
+    });
+  }
+  it.each(["vrma", "animaPoseClip"] as const)(
+    "admits finite %s after quiet while the user is typing",
+    (type) => {
+      const motionCatalog = catalog(type);
+      const input = createPlannerInput({
+        motionCatalog,
+        activeRunId: null,
+        interactionPhase: "user_typing",
+      });
+      const first = planAvatar(createInitialAvatarPlannerState(), input);
+      const due = planAvatar(first.state, { ...input, nowMs: 181_000 });
+      expect(due.state.idleStint.phase).toBe("active");
+      if (type === "animaPoseClip")
+        expect(findAction(due.actions, "playPoseClip")?.poseClip.source).toBe(
+          "idle",
+        );
+      else expect(due.state.activeBaseVrma?.clip?.id).toBe("idle:test");
+    },
+  );
+
+  it.each(["vrma", "animaPoseClip"] as const)(
+    "continues active finite %s when the user begins typing",
+    (type) => {
+      const motionCatalog = catalog(type);
+      const input = createPlannerInput({ motionCatalog, activeRunId: null });
+      const first = planAvatar(createInitialAvatarPlannerState(), input);
+      const due = planAvatar(first.state, { ...input, nowMs: 181_000 });
+      const state = {
+        ...due.state,
+        activePlannerPoseClip: due.state.activePlannerPoseClip
+          ? {
+              ...due.state.activePlannerPoseClip,
+              status: "active" as const,
+              startedAtMs: 181_000,
+              expiresAtMs: 181_500,
+            }
+          : null,
+      };
+      const typing = planAvatar(state, {
+        ...input,
+        nowMs: 181_250,
+        interactionPhase: "user_typing",
+        plannerPoseClipRuntimeActive: true,
+      });
+      expect(typing.state.idleStint.phase).toBe("active");
+      expect(findAction(typing.actions, "stopPoseClip")).toBeNull();
+      expect(findAction(typing.actions, "stopVrmaLoop")).toBeNull();
+      if (type === "animaPoseClip")
+        expect(typing.state.activePlannerPoseClip?.ownerId).toBe(
+          state.activePlannerPoseClip?.ownerId,
+        );
+      else
+        expect(typing.state.activeBaseVrma?.key).toBe(
+          state.activeBaseVrma?.key,
+        );
+    },
+  );
+
+  it.each(["vrma", "animaPoseClip"] as const)(
+    "starts a finite %s only after quiet and waits for real player readiness",
+    (type) => {
+      const motionCatalog = catalog(type);
+      const first = planAvatar(
+        createInitialAvatarPlannerState(),
+        createPlannerInput({ motionCatalog, activeRunId: null }),
+      );
+      const due = planAvatar(
+        first.state,
+        createPlannerInput({
+          motionCatalog,
+          activeRunId: null,
+          nowMs: 181_000,
+        }),
+      );
+      expect(due.state.idleStint.phase).toBe("active");
+      if (type === "animaPoseClip") {
+        expect(findAction(due.actions, "playPoseClip")?.poseClip).toMatchObject(
+          {
+            source: "idle",
+            status: "pending",
+            startedAtMs: null,
+            expiresAtMs: null,
+          },
+        );
+        const loading = planAvatar(
+          due.state,
+          createPlannerInput({
+            motionCatalog,
+            activeRunId: null,
+            nowMs: 190_000,
+            plannerPoseClipRuntimeActive: false,
+          }),
+        );
+        expect(loading.state.activePlannerPoseClip?.source).toBe("idle");
+        const interrupted = planAvatar(
+          loading.state,
+          createPlannerInput({
+            motionCatalog,
+            nowMs: 190_001,
+            interactionPhase: "thinking",
+          }),
+        );
+        expect(interrupted.state.activePlannerPoseClip).toBeNull();
+        expect(findAction(interrupted.actions, "stopPoseClip")).not.toBeNull();
+      } else {
+        expect(due.state.activeBaseVrma?.expiresAtMs).toBeNull();
+        const loading = planAvatar(
+          due.state,
+          createPlannerInput({
+            motionCatalog,
+            activeRunId: null,
+            nowMs: 190_000,
+          }),
+        );
+        expect(loading.state.activeBaseVrma?.key).toBe(
+          due.state.activeBaseVrma?.key,
+        );
+      }
+    },
+  );
 });

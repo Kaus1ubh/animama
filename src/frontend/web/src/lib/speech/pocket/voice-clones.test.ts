@@ -13,6 +13,7 @@ import {
   loadVoiceCloneSample,
   MAX_VOICE_CLONE_FILE_BYTES,
   prepareVoiceClone,
+  voiceCloneSampleSource,
 } from "./voice-clones";
 
 beforeEach(() => {
@@ -135,4 +136,38 @@ describe("durable Pocket voice preparation", () => {
       }),
     );
   });
+});
+
+it("keeps imported encoded-only clones selectable without a recording loader", () => {
+  const clone = {
+    item_id: "imported-voice",
+    name: "Narrator-2",
+    codec: "pocket-tts-catalog-v1",
+    files: [
+      { file_ref: "catalog-ref", role: "pocket_voice_catalog", size_bytes: 12 },
+    ],
+  } as PyVoiceContent;
+  expect(voiceCloneSampleSource(clone)).toEqual({
+    id: "clone:imported-voice",
+    name: "Narrator-2",
+    sampleUnavailable: "Original recording unavailable",
+  });
+  expect(mocks.stream).not.toHaveBeenCalled();
+});
+
+it("keeps a saved original available independently of encoded speech playback", async () => {
+  const blob = new Blob(["sample"], { type: "audio/wav" });
+  mocks.stream.mockResolvedValue({ data: blob });
+  const source = voiceCloneSampleSource({
+    item_id: "local-voice",
+    name: "Narrator",
+    codec: "pocket-tts-catalog-v1",
+    files: [
+      { file_ref: "sample-ref", role: "source_sample", size_bytes: blob.size },
+    ],
+  } as PyVoiceContent);
+  expect(source.id).toBe("clone:local-voice");
+  if (!("loadSample" in source))
+    throw new Error("Original recording unavailable");
+  expect(await source.loadSample(new AbortController().signal)).toBe(blob);
 });

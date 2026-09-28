@@ -17,7 +17,12 @@ from typing import Any, cast
 from animama.app.anima_creation_contract import AnimaSpec, ItemRevisionRef
 from animama.app.ports.content_catalog import ContentCatalog
 from animama.app.ports.content_store import ContentStore
-from animama.domain.anima_creation import ResolvedAnimaSpec, ResolvedAppearanceSelection, ResolvedReactionSelection
+from animama.domain.anima_creation import (
+    ResolvedAnimaSpec,
+    ResolvedAppearanceSelection,
+    ResolvedGestureSelection,
+    ResolvedReactionSelection,
+)
 from animama.domain.anima_creation_error import AnimaCreationError, AnimaCreationIssue, bounded_issues
 from animama.domain.anima_definition import (
     ANIMA_DISPLAY_NAME_MAX_CHARACTERS,
@@ -32,7 +37,13 @@ from animama.domain.content_catalog import (
     ContentSource,
     ContentStatus,
 )
-from animama.domain.content_documents import GestureDocumentV1, IdleStyleDocumentV1, ReactionDocumentV1, VoiceDocumentV1
+from animama.domain.content_documents import (
+    GestureDocumentV1,
+    IdleStyleDocumentV1,
+    IdleStyleDocumentV2,
+    ReactionDocumentV1,
+    VoiceDocumentV1,
+)
 from animama.domain.emotions import TRACKED_EMOTIONS
 from animama.domain.runtime_content_descriptor import RuntimeContentRootSelection
 
@@ -371,7 +382,7 @@ class AnimaCreationSources:
                 if typed.item.kind is ContentKind.AVATAR:
                     avatar_version = facts["vrm_spec"]
         for typed in typed_items.values():
-            if isinstance(typed.document, IdleStyleDocumentV1):
+            if isinstance(typed.document, IdleStyleDocumentV1 | IdleStyleDocumentV2):
                 versions = typed.document.compatibility.get("vrm_versions", ["0.x", "1.0"])
                 if (
                     not isinstance(versions, list)
@@ -421,7 +432,9 @@ class AnimaCreationSources:
                 identity=spec.identity_markdown,
                 avatar=typed_items[spec.avatar.item_id].item,
                 idle_style=None,
-                gestures=tuple(typed_items[choice.source.item_id].item for choice in spec.gestures),
+                gestures=tuple(
+                    ResolvedGestureSelection(typed_items[choice.source.item_id].item) for choice in spec.gestures
+                ),
                 reactions=tuple(
                     ResolvedReactionSelection(emotion, int(level), typed_items[source.item_id].item if source else None)
                     for emotion, cells in spec.reactions.items()

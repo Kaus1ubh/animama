@@ -64,6 +64,19 @@ describe("voice source samples", () => {
     expect(changed).toHaveBeenLastCalledWith(IDLE_VOICE_SAMPLE);
   });
 
+  it("does not fetch or play when an imported clone has no original recording", async () => {
+    const changed = vi.fn();
+    const player = createVoiceSamplePlayer(changed);
+    await player.play({
+      id: "clone:imported",
+      name: "Narrator",
+      sampleUnavailable: "Original recording unavailable",
+    });
+    expect(fetch).not.toHaveBeenCalled();
+    expect(instances).toHaveLength(0);
+    expect(changed).toHaveBeenLastCalledWith(IDLE_VOICE_SAMPLE);
+  });
+
   it("ignores a slow replaced sample even if fetch ignores abort", async () => {
     let finish!: (value: unknown) => void;
     vi.mocked(fetch).mockImplementationOnce(

@@ -149,6 +149,70 @@ describe("voice clone library writes", () => {
     ).toEqual(["source-ref", "catalog-ref"]);
   });
 
+  it("renames an imported encoded-only clone without adding a recording or changing provenance", async () => {
+    const importedClone = {
+      ...clone,
+      files: clone.files!.filter((file) => file.role !== "source_sample"),
+    };
+    const importedDescriptor = {
+      ...descriptor,
+      files: descriptor.files.filter((file) => file.role !== "source_sample"),
+    };
+    api.get.mockResolvedValueOnce({
+      data: {
+        revision_sha256: importedClone.revision_sha256,
+        relative_locator: "voices/imported-folder",
+        metadata: importedDescriptor,
+      },
+    });
+    await renameSavedVoiceClone({
+      clone: importedClone,
+      name: "Imported narrator",
+      operationId: "rename-imported",
+    });
+    const { path, body } = api.save.mock.calls[0][0];
+    expect(path).toEqual({ entry_name: "imported-folder" });
+    expect(body).toMatchObject({
+      catalog_item_id: importedClone.item_id,
+      expected_revision: importedClone.revision_sha256,
+      operation_id: "rename-imported",
+    });
+    expect(JSON.parse(body.descriptor_json)).toEqual({
+      ...importedDescriptor,
+      name: "Imported narrator",
+    });
+    expect(JSON.parse(body.companion_paths_json)).toEqual(["voice.bin"]);
+    expect(body.files).toHaveLength(1);
+    expect(await body.files[0].text()).toBe("catalog");
+    expect(
+      api.stream.mock.calls.map(([request]) => request.path.file_ref),
+    ).toEqual(["catalog-ref"]);
+    expect(api.encode).not.toHaveBeenCalled();
+  });
+
+  it.each(["missing catalog", "duplicate catalogs", "duplicate recordings"])(
+    "rejects %s before loading or saving any bytes",
+    async (caseName) => {
+      const catalog = clone.files!.find(
+        (file) => file.role === "pocket_voice_catalog",
+      )!;
+      const sample = clone.files!.find(
+        (file) => file.role === "source_sample",
+      )!;
+      const files =
+        caseName === "missing catalog"
+          ? [sample]
+          : caseName === "duplicate catalogs"
+            ? [catalog, catalog]
+            : [catalog, sample, sample];
+      await expect(
+        renameSavedVoiceClone({ clone: { ...clone, files }, name: "Rename" }),
+      ).rejects.toThrow();
+      expect(api.stream).not.toHaveBeenCalled();
+      expect(api.save).not.toHaveBeenCalled();
+    },
+  );
+
   it("rejects stale rename without reloading bytes or overwriting a newer descriptor", async () => {
     api.get.mockResolvedValueOnce({
       data: { revision_sha256: "newer-revision" },

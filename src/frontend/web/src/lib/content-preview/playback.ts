@@ -258,12 +258,13 @@ export async function playContentPreviewMotion({
       throw new Error("The selected animation is unavailable.");
     }
     await avatar.playAnimationWithName(gesture.entry.file, gesture.name, {
-      loopType: loop ? "repeat" : "once",
-      loopCount: loop ? -1 : 1,
-      timeScale: gesture.timeScale,
+      isCurrent,
+      loopType: target.idlePlayback?.loopType ?? (loop ? "repeat" : "once"),
+      loopCount: target.idlePlayback?.repetitions ?? (loop ? -1 : 1),
+      timeScale: target.idlePlayback?.timeScale ?? gesture.timeScale,
       keepExisting: false,
       fadeDuration: 0.25,
-      onFinished: loop ? undefined : finish,
+      onFinished: target.idlePlayback || !loop ? finish : undefined,
     });
     return true;
   }
@@ -310,9 +311,22 @@ export async function playContentPreviewMotion({
     if (isCurrent()) onDependenciesLoadingChange?.(false);
   }
   if (!isCurrent()) return false;
-  await avatar.loadAndPlayClip(command.runtimeId, {
-    preserveProceduralOffsets: true,
-  });
+  if (target.idlePlayback) {
+    // Use the already prepared clip after the stale-run check, with no second
+    // async load that could replace a newer preview before playback starts.
+    avatar.playAnimaPoseClip(clip, {
+      onFinished: finish,
+      preserveProceduralOffsets: true,
+      finitePlayback: {
+        timeScale: target.idlePlayback.timeScale,
+        repetitions: target.idlePlayback.repetitions,
+      },
+    });
+  } else {
+    await avatar.loadAndPlayClip(command.runtimeId, {
+      preserveProceduralOffsets: true,
+    });
+  }
   return true;
 }
 

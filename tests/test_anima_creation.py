@@ -480,6 +480,42 @@ async def test_validation_respects_smaller_installation_identity_limit(async_ses
         assert issues[0]["path"] == "/identity_markdown"
 
 
+async def test_retired_source_creation_retry_replays_before_current_kind_validation(
+    async_session, tmp_path, monkeypatch
+):
+    from animama.app.anima_creation_contract import LegacyCreateAnimaRequest
+
+    async with anima_creation_fixture(async_session, tmp_path) as fixture:
+        service = fixture.service(async_session)
+        request = fixture.request()
+        original = await service.create(user_id=fixture.owner, request=request)
+        old_payload = request.model_dump(mode="json")
+        old_payload["expected_source_revisions"]["retired-clip"] = {"kind": "pose_clip", "revision_sha256": "b" * 64}
+        legacy = LegacyCreateAnimaRequest.model_validate(old_payload)
+        await async_session.execute(
+            update(ORMAnimaCreationReceipt)
+            .where(ORMAnimaCreationReceipt.owner_user_id == fixture.owner)
+            .values(spec_sha256=canonical_spec_hash(legacy.spec()))
+        )
+        await async_session.commit()
+        replay = await service.create(user_id=fixture.owner, request=legacy)
+        assert replay == {**original, "idempotent_replay": True}
+        with pytest.raises(AnimaCreationError) as error:
+            await service.create(
+                user_id=fixture.owner, request=legacy.model_copy(update={"idempotency_key": "fresh-retired"})
+            )
+        assert error.value.code == "anima_creation_invalid"
+        issues = error.value.detail["issues"]
+        assert isinstance(issues, list) and issues[0]["code"] == "content_kind_retired"
+        async with local_client(fixture.app(async_session, monkeypatch)) as client:
+            replay_http = await client.post("/v1/animas", json=old_payload)
+            assert replay_http.status_code == 200, replay_http.text
+            assert replay_http.json() == replay
+            rejected = await client.post("/v1/animas", json={**old_payload, "idempotency_key": "unknown-old-key"})
+            assert rejected.status_code == 422, rejected.text
+            assert rejected.json()["detail"]["issues"][0]["code"] == "content_kind_retired"
+
+
 @pytest.mark.parametrize(
     ("preference", "expect_preferred"),
     [("active", True), ("inactive", False), ("no_chat", False), ("unknown", False), (None, False)],

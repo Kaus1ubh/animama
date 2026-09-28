@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from animama.adapters.repositories.sqlalchemy.anima_repo import SQLAlchemyAnimaRepository
 from animama.adapters.repositories.sqlalchemy.avatar_repo import SQLAlchemyAvatarRepository
 from animama.adapters.repositories.sqlalchemy.content_catalog_repo import SQLAlchemyContentCatalog
+from animama.app.services.content_kind_registry import RETIRED_CONTENT_KINDS
 from animama.app.services.starter_loadout_policy import starter_loadout_policy
 from animama.app.services.typed_content_service import TypedCatalogItem, TypedContentService
 from animama.domain.anima_creation import ResolvedAnimaSpec
@@ -25,11 +26,11 @@ from animama.domain.anima_loadout import (
     CatalogLoadoutSource,
     GestureBinding,
     IdleAnimationSummary,
+    IdleGestureSummary,
     IdleStyleBinding,
     LoadoutCommitResult,
     LoadoutDiagnostic,
     LoadoutPlan,
-    MusicTrackBinding,
     ReactionCell,
 )
 from animama.domain.content_catalog import CatalogContentEntry, ContentKind, ContentStatus
@@ -38,7 +39,7 @@ from animama.domain.content_documents import (
     AvatarDocumentV1,
     GestureDocumentV1,
     IdleStyleDocumentV1,
-    MusicTrackDocumentV1,
+    IdleStyleDocumentV2,
     ReactionDocumentV1,
     VoiceDocumentV1,
 )
@@ -55,7 +56,6 @@ LoadoutFamily = Literal[
     "gesture",
     "reaction",
     "idle_style",
-    "music_track",
     "avatar",
     "appearance",
     "voice",
@@ -299,10 +299,12 @@ class AnimaLoadoutService:
         idle_row = rows_by_slot.get("idle-style")
         idle_value = selected(idle_row, ContentKind.IDLE_STYLE) if idle_row is not None else None
         idle_state: Literal["starter", "custom", "empty"]
-        if idle_value is not None and isinstance(idle_value.document, IdleStyleDocumentV1):
+        if idle_value is not None and isinstance(idle_value.document, IdleStyleDocumentV1 | IdleStyleDocumentV2):
             idle_state = "custom"
             idle_config = dict(idle_row.config) if idle_row is not None else {}
-        elif root.idle_style_empty:
+        elif root.idle_style_empty or idle_row is not None:
+            # An unavailable explicit selection is omitted, matching runtime
+            # admission. It must not appear silently replaced by a starter.
             idle_state = "empty"
             idle_value = None
             idle_config = {}
@@ -310,7 +312,24 @@ class AnimaLoadoutService:
             idle_state = "starter"
             idle_value = by_logical.get("builtin:idle-style:starter")
             idle_config = {}
-        if idle_value is not None and isinstance(idle_value.document, IdleStyleDocumentV1):
+        if idle_value is not None and isinstance(idle_value.document, IdleStyleDocumentV2):
+            idle_style = IdleStyleBinding(
+                state=idle_state,
+                name=idle_value.document.name,
+                description=idle_value.document.description,
+                source=_source(idle_value),
+                schema_version=2,
+                default_pool=idle_value.document.default_pool,
+                cells=idle_value.document.cells,
+                gestures=tuple(
+                    IdleGestureSummary(
+                        value.item.id, value.item.logical_key, value.document.name, value.document.description
+                    )
+                    for item_id in idle_value.item.dependency_item_ids
+                    if (value := parsed.get(item_id)) is not None and isinstance(value.document, GestureDocumentV1)
+                ),
+            )
+        elif idle_value is not None and isinstance(idle_value.document, IdleStyleDocumentV1):
             idle_document = idle_value.document
             raw_overrides = idle_config.get("pool_overrides", {})
             if not isinstance(raw_overrides, dict):
@@ -325,6 +344,7 @@ class AnimaLoadoutService:
             effective_emotions.update({key: value for key, value in overrides.items() if key != "default"})
             idle_style = IdleStyleBinding(
                 state=idle_state,
+                schema_version=1,
                 name=idle_document.name,
                 description=idle_document.description,
                 source=_source(idle_value),
@@ -342,7 +362,6 @@ class AnimaLoadoutService:
         else:
             idle_style = IdleStyleBinding(state="empty")
 
-        music_tracks: list[MusicTrackBinding] = []
         appearances: list[AppearanceBinding] = []
         avatar_source: CatalogLoadoutSource | None = None
         voice_source: CatalogLoadoutSource | None = None
@@ -350,30 +369,7 @@ class AnimaLoadoutService:
             value = parsed.get(row.catalog_item_id)
             if value is None:
                 continue
-            if row.kind == ContentKind.MUSIC_TRACK.value and isinstance(value.document, MusicTrackDocumentV1):
-                config = dict(row.config)
-                music_tracks.append(
-                    MusicTrackBinding(
-                        binding_id=row.id,
-                        item_id=value.item.id,
-                        name=value.document.name,
-                        description=value.document.description,
-                        source=_source(value),
-                        enabled=bool(config.get("enabled", True)),
-                        autoplay=bool(config.get("autoplay", value.document.autoplay)),
-                        effective_loop=bool(config.get("loop", value.document.loop)),
-                        effective_gain=float(config.get("gain", value.document.gain)),
-                        loop_override=config.get("loop") if isinstance(config.get("loop"), bool) else None,
-                        gain_override=(
-                            float(config["gain"])
-                            if isinstance(config.get("gain"), int | float) and not isinstance(config.get("gain"), bool)
-                            else None
-                        ),
-                        duration_seconds=value.document.duration_seconds,
-                        codec=value.document.codec,
-                    )
-                )
-            elif row.kind == ContentKind.AVATAR.value and isinstance(value.document, AvatarDocumentV1):
+            if row.kind == ContentKind.AVATAR.value and isinstance(value.document, AvatarDocumentV1):
                 avatar_source = _source(value)
             elif row.kind == ContentKind.VOICE.value and isinstance(value.document, VoiceDocumentV1):
                 voice_source = _source(value)
@@ -402,7 +398,6 @@ class AnimaLoadoutService:
             disabled_starter_gestures=tuple(sorted(disabled_starters)),
             reactions=tuple(reactions),
             idle_style=idle_style,
-            music_tracks=tuple(sorted(music_tracks, key=lambda value: value.name.casefold())),
             avatar_source=avatar_source,
             appearances=tuple(appearances),
             voice_source=voice_source,
@@ -430,7 +425,10 @@ class AnimaLoadoutService:
         if item is None or item.status is not ContentStatus.VALID or item.kind is not expected_kind:
             raise AnimaLoadoutError("loadout_source_unavailable")
         try:
-            return TypedContentService.parse(item)
+            typed = TypedContentService.parse(item)
+            if any(dependency.kind in RETIRED_CONTENT_KINDS for dependency in typed.document.dependencies):
+                raise AnimaLoadoutError("content_dependency_retired")
+            return typed
         except Exception as exc:
             raise AnimaLoadoutError("loadout_source_invalid") from exc
 
@@ -449,6 +447,8 @@ class AnimaLoadoutService:
         slot: str | None = None
         current: ORMAnimaContentBinding | None = None
         expected_kind = ContentKind(family)
+        if expected_kind in RETIRED_CONTENT_KINDS:
+            raise AnimaLoadoutError("content_kind_retired")
 
         if lock_sources and isinstance(intent.get("source"), dict):
             # Lock before parsing: source deletion cannot pass its reference
@@ -517,16 +517,10 @@ class AnimaLoadoutService:
             current = next((row for row in rows if row.slot_key == slot), None)
             if operation in {"set", "update", "reconfigure"}:
                 target = await self._target(user_id=user_id, source=intent.get("source"), expected_kind=expected_kind)
-                idle_document = cast(IdleStyleDocumentV1, target.document)
-                overrides = intent.get("pool_overrides", {})
-                if not isinstance(overrides, dict):
-                    raise AnimaLoadoutError("idle_pool_overrides_invalid")
-                animation_ids = {animation.animation_id for animation in idle_document.animations}
-                for key, values in overrides.items():
-                    if key != "default" and key not in TRACKED_EMOTIONS:
-                        raise AnimaLoadoutError("idle_pool_overrides_invalid")
-                    if not isinstance(values, list) or not values or not set(values).issubset(animation_ids):
-                        raise AnimaLoadoutError("idle_pool_overrides_invalid")
+                if not isinstance(target.document, IdleStyleDocumentV2):
+                    raise AnimaLoadoutError("idle_style_conversion_required")
+                if intent.get("pool_overrides"):
+                    raise AnimaLoadoutError("idle_pool_overrides_retired")
                 action = "update" if current else "add"
             elif operation == "revert":
                 action = "revert"
@@ -534,46 +528,6 @@ class AnimaLoadoutService:
                 action = "leave_empty"
             else:
                 raise AnimaLoadoutError("idle_style_operation_invalid")
-        elif family == "music_track":
-            binding_id = intent.get("binding_id")
-            current = (
-                next(
-                    (row for row in rows if row.id == binding_id and row.kind == ContentKind.MUSIC_TRACK.value),
-                    None,
-                )
-                if binding_id
-                else None
-            )
-            if binding_id and current is None and operation != "remove":
-                raise AnimaLoadoutError("music_binding_unavailable")
-            if operation in {"add", "update", "reconfigure"}:
-                target = await self._target(user_id=user_id, source=intent.get("source"), expected_kind=expected_kind)
-                duplicate = next(
-                    (
-                        row
-                        for row in rows
-                        if row.kind == ContentKind.MUSIC_TRACK.value
-                        and row.catalog_item_id == target.item.id
-                        and (current is None or row.id != current.id)
-                    ),
-                    None,
-                )
-                if duplicate is not None:
-                    raise AnimaLoadoutError("music_track_already_equipped")
-                slot = current.slot_key if current else f"music:{target.item.id}"
-                gain = intent.get("gain")
-                if gain is not None and (
-                    isinstance(gain, bool) or not isinstance(gain, int | float) or not 0 <= float(gain) <= 2
-                ):
-                    raise AnimaLoadoutError("music_gain_invalid")
-                if bool(intent.get("autoplay", False)) and not bool(intent.get("enabled", True)):
-                    raise AnimaLoadoutError("music_autoplay_requires_enabled")
-                action = "update" if current else "add"
-            elif operation == "remove":
-                slot = current.slot_key if current else None
-                action = "remove" if current else "unchanged"
-            else:
-                raise AnimaLoadoutError("music_operation_invalid")
         elif family in {"avatar", "voice"}:
             slot = family
             current = next((row for row in rows if row.slot_key == slot), None)
@@ -714,7 +668,7 @@ class AnimaLoadoutService:
         *,
         user_id: str,
         anima_id: str,
-        family: LoadoutFamily,
+        family: LoadoutFamily | Literal["music_track"],
         expected_revision: int,
         intent: dict[str, Any],
         plan_digest: str,
@@ -756,6 +710,11 @@ class AnimaLoadoutService:
                 idempotent_replay=True,
                 aggregate_revision=receipt.result.get("aggregate_revision"),
             )
+
+        # Retired commands can resolve only a matching historical receipt. Reject
+        # a new operation before current revisions or source state are consulted.
+        if family == "music_track":
+            raise AnimaLoadoutError("content_kind_retired")
 
         root = await self._root(user_id=user_id, anima_id=anima_id, lock=True)
         if root.revision != expected_revision:
@@ -873,7 +832,7 @@ class AnimaLoadoutService:
                         slot=slot,
                         kind=ContentKind.IDLE_STYLE,
                         target=target,
-                        config={"pool_overrides": dict(intent.get("pool_overrides") or {})},
+                        config={},
                         current=current,
                     )
                     root.idle_style_empty = False
@@ -881,31 +840,6 @@ class AnimaLoadoutService:
                     if current is not None:
                         await self._session.delete(current)
                     root.idle_style_empty = operation == "leave_empty"
-            elif family == "music_track":
-                if operation in {"add", "update", "reconfigure"} and target is not None and slot is not None:
-                    autoplay = bool(intent.get("autoplay", False))
-                    if autoplay:
-                        for row in await self._bindings(root.anima_id):
-                            if row.kind == ContentKind.MUSIC_TRACK.value and row is not current:
-                                row.config = {**dict(row.config), "autoplay": False}
-                    config: dict[str, bool | float] = {
-                        "enabled": bool(intent.get("enabled", True)),
-                        "autoplay": autoplay,
-                    }
-                    if intent.get("loop") is not None:
-                        config["loop"] = bool(intent["loop"])
-                    if intent.get("gain") is not None:
-                        config["gain"] = float(intent["gain"])
-                    await self._upsert(
-                        root=root,
-                        slot=slot,
-                        kind=ContentKind.MUSIC_TRACK,
-                        target=target,
-                        config=config,
-                        current=current,
-                    )
-                elif current is not None:
-                    await self._session.delete(current)
             elif slot is not None:
                 if operation == "set" and target is not None:
                     config = dict(intent.get("config") or {})
@@ -998,8 +932,8 @@ class AnimaLoadoutService:
             {"operation": "set" if spec.idle_style is not None else "leave_empty"},
             spec.idle_style,
         )
-        for source in spec.gestures:
-            await apply("gesture", {"operation": "add"}, source)
+        for selection in spec.gestures:
+            await apply("gesture", {"operation": "add", "config_overrides": selection.config}, selection.source)
         for cell in spec.reactions:
             if cell.source is None:
                 # The complete matrix was validated above. Empty cells need
@@ -1012,6 +946,7 @@ class AnimaLoadoutService:
                     "operation": "replace",
                     "emotion": cell.emotion,
                     "intensity": cell.intensity,
+                    "config_overrides": cell.config,
                 },
                 cell.source,
             )

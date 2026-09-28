@@ -155,7 +155,6 @@ export function withActionRuntimeOverlay(
       overlay.scene_focus_vfx,
     ),
     sfx: mergeLane(runtime.sfx, overlay.sfx),
-    bgm: mergeLane(runtime.bgm, overlay.bgm),
     warnings: [...runtime.warnings, ...overlay.warnings],
   };
 }

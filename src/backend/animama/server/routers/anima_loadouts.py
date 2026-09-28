@@ -13,6 +13,7 @@ from animama.domain.anima_loadout import AnimaLoadoutError
 from animama.domain.request_principal import RequestPrincipal
 from animama.server.deps import get_async_session, get_current_principal
 from animama.server.schemas.anima_loadout import (
+    LegacyMusicTrackCommitRequest,
     PyAnimaLoadout,
     PyAppearanceCommitRequest,
     PyAppearancePlanRequest,
@@ -22,8 +23,6 @@ from animama.server.schemas.anima_loadout import (
     PyIdleStylePlanRequest,
     PyLoadoutCommitResult,
     PyLoadoutPlan,
-    PyMusicTrackCommitRequest,
-    PyMusicTrackPlanRequest,
     PyReactionCommitRequest,
     PyReactionPlanRequest,
     PySingleSelectionCommitRequest,
@@ -82,7 +81,7 @@ async def _plan(
 
 async def _commit(
     *,
-    family: LoadoutFamily,
+    family: LoadoutFamily | Literal["music_track"],
     anima_id: str,
     body: BaseModel,
     user: RequestPrincipal,
@@ -165,23 +164,15 @@ async def commit_idle_style(
     return await _commit(family="idle_style", anima_id=anima_id, body=body, user=user, session=session)
 
 
-@router.post("/{anima_id}/music-tracks:plan", response_model=PyLoadoutPlan)
-async def plan_music_track(
+@router.post("/{anima_id}/music-tracks:commit", response_model=PyLoadoutCommitResult, include_in_schema=False)
+async def replay_music_track_commit(
     anima_id: str,
-    body: PyMusicTrackPlanRequest,
-    user: Annotated[RequestPrincipal, Depends(get_current_principal)],
-    session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> PyLoadoutPlan:
-    return await _plan(family="music_track", anima_id=anima_id, body=body, user=user, session=session)
-
-
-@router.post("/{anima_id}/music-tracks:commit", response_model=PyLoadoutCommitResult)
-async def commit_music_track(
-    anima_id: str,
-    body: PyMusicTrackCommitRequest,
+    body: LegacyMusicTrackCommitRequest,
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
     session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> PyLoadoutCommitResult:
+    """Resolve an old successful commit without restoring Music equipment admission."""
+
     return await _commit(family="music_track", anima_id=anima_id, body=body, user=user, session=session)
 
 

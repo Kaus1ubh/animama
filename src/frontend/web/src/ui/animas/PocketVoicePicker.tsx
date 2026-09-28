@@ -158,6 +158,11 @@ export function PocketVoicePicker(props: PocketVoicePickerProps) {
           </Button>
         ) : null}
       </div>
+      {!open && voice && "sampleUnavailable" in voice ? (
+        <p className="text-muted-foreground text-xs">
+          {voice.sampleUnavailable}
+        </p>
+      ) : null}
       {!open && sample.error ? (
         <p role="alert" className="text-destructive text-xs">
           {sample.error}
@@ -318,8 +323,15 @@ export function PocketVoiceList({
               aria-pressed={value === clone.id}
               className="hover:bg-muted/40 focus-visible:ring-ring flex min-w-0 flex-1 items-center gap-2 rounded-lg px-2 py-2.5 text-left outline-none focus-visible:ring-2 disabled:opacity-50"
             >
-              <span className="min-w-0 flex-1 truncate text-sm font-medium">
-                {clone.name}
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-medium">
+                  {clone.name}
+                </span>
+                {"sampleUnavailable" in clone ? (
+                  <span className="text-muted-foreground block text-xs">
+                    {clone.sampleUnavailable}
+                  </span>
+                ) : null}
               </span>
               {value === clone.id ? (
                 <Check className="size-4 shrink-0" />
@@ -563,19 +575,23 @@ function VoiceSampleButton({
   const active =
     sample.voiceId === voice?.id &&
     (sample.status === "playing" || sample.status === "loading");
-  const label = voice
-    ? `${active ? "Stop" : "Play"} ${voice.name} sample`
-    : "No sample available for this voice";
+  const unavailable =
+    voice && "sampleUnavailable" in voice ? voice.sampleUnavailable : null;
+  const label = unavailable
+    ? `${voice!.name}: ${unavailable}`
+    : voice
+      ? `${active ? "Stop" : "Play"} ${voice.name} sample`
+      : "No sample available for this voice";
   return (
     <Button
       type="button"
       variant={compact ? "ghost" : "outline"}
       size={compact ? "icon-sm" : "icon"}
-      disabled={!voice}
+      disabled={!voice || Boolean(unavailable)}
       className="shrink-0"
       aria-label={label}
       title={label}
-      onClick={() => voice && void player.play(voice)}
+      onClick={() => voice && !unavailable && void player.play(voice)}
     >
       {active ? (
         sample.status === "loading" ? (

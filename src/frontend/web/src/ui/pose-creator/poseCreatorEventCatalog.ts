@@ -54,7 +54,7 @@ export type PoseCreatorEventCatalogSource = {
   listAvatarVFX(): readonly AvatarVFXCatalogEntry[];
   listParticleVFX(): readonly ParticleVFXCatalogEntry[];
   listSceneVFX(kind: SceneVFXKind): readonly SceneVFXEntry[];
-  listAudio(kind: "sfx" | "bgm"): readonly RuntimeAudioDescriptor[];
+  listAudio(kind: "sfx"): readonly RuntimeAudioDescriptor[];
 };
 
 const EMPTY_EVENT_CATALOG: PoseCreatorEventCatalog = {
