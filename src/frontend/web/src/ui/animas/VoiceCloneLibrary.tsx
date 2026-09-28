@@ -1,6 +1,9 @@
-import { useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { toast } from "sonner";
-import type { PyVoiceContent } from "@animama/runtime-contracts/api-types";
+import type {
+  PyModelAssetState,
+  PyVoiceContent,
+} from "@animama/runtime-contracts/api-types";
 
 import {
   prepareVoiceClone,
@@ -9,6 +12,12 @@ import {
 } from "@/lib/speech/pocket/voice-clones";
 import { parseContentApiErrorDetail } from "@/lib/content/contentSaveErrors";
 import { useVoiceCloneActions } from "@/query/mutations/useVoiceCloneActions";
+import { useModelAssetAction } from "@/query/mutations/useModelAssetActions";
+import {
+  PocketVoiceEncoderDownloadRequired,
+  POCKET_VOICE_ENCODER_ASSET_ID,
+} from "@/lib/speech/pocket/voice-cloning-encoder";
+import { VoiceCloningDownload } from "./VoiceCloningDownload";
 import { Button } from "@/ui/components/button";
 import { Input } from "@/ui/components/input";
 import {
@@ -42,6 +51,7 @@ export function VoiceCloneLibrary({
   onBusyChange: (busy: boolean) => void;
 }) {
   const actions = useVoiceCloneActions();
+  const modelAction = useModelAssetAction();
   const input = useRef<HTMLInputElement>(null);
   const prepared = useRef<PreparedVoiceClone | null>(null);
   const pending = useRef(false);
@@ -51,6 +61,24 @@ export function VoiceCloneLibrary({
   const [error, setError] = useState<string | null>(null);
   const [dialogError, setDialogError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [encoderOpen, setEncoderOpen] = useState(false);
+  const [encoder, setEncoder] = useState<PyModelAssetState | null>(null);
+  const [encoderError, setEncoderError] = useState<string | null>(null);
+  const [cancellingDownload, setCancellingDownload] = useState(false);
+  const operation = useRef<AbortController | null>(null);
+  const reportBusy = useRef(onBusyChange);
+  useEffect(() => {
+    reportBusy.current = onBusyChange;
+  }, [onBusyChange]);
+  useEffect(
+    () => () => {
+      if (operation.current) {
+        operation.current.abort();
+        reportBusy.current(false);
+      }
+    },
+    [],
+  );
   const locked = disabled || busy;
   const changeBusy = (value: boolean) => {
     pending.current = value;
@@ -58,32 +86,119 @@ export function VoiceCloneLibrary({
     onBusyChange(value);
   };
 
-  const save = async (event: FormEvent) => {
-    event.preventDefault();
+  const save = async (download = false) => {
     if (locked || pending.current || !file) return;
+    const controller = new AbortController();
+    operation.current = controller;
+    let waitingForEncoder = download;
     changeBusy(true);
     setError(null);
+    setEncoderError(null);
     try {
       if (!prepared.current) {
-        setStatus("Cloning voice…");
-        prepared.current = await prepareVoiceClone({ name: name.trim(), file });
+        if (download) {
+          // Existing mutation updates the shared query before the local waiter
+          // joins, so other open setup/settings views see this installation.
+          const asset = await modelAction.mutateAsync({
+            action: "install",
+            assetId: POCKET_VOICE_ENCODER_ASSET_ID,
+          });
+          controller.signal.throwIfAborted();
+          setEncoder(asset);
+        }
+        setStatus("Checking voice cloning…");
+        const next = await prepareVoiceClone({
+          name: name.trim(),
+          file,
+          encoder: {
+            signal: controller.signal,
+            onState: (asset) => {
+              waitingForEncoder = asset.status !== "installed";
+              setEncoder(asset);
+              if (asset.status === "downloading") {
+                setEncoderOpen(true);
+                setStatus("Downloading voice cloning…");
+              } else if (asset.status === "installed") {
+                setEncoderOpen(false);
+                setStatus("Cloning voice…");
+              }
+            },
+          },
+        });
+        controller.signal.throwIfAborted();
+        prepared.current = next;
       }
+      controller.signal.throwIfAborted();
       setStatus("Saving voice…");
       await actions.saveVoiceClone.mutateAsync(prepared.current);
+      controller.signal.throwIfAborted();
       prepared.current = null;
       setName("");
       setFile(null);
       toast.success("Voice clone saved. Choose it to use it for this Anima.");
     } catch (cause) {
-      setError(
-        cloneError(
+      if (controller.signal.aborted) return;
+      if (cause instanceof PocketVoiceEncoderDownloadRequired) {
+        setEncoder(cause.asset);
+        if (cause.asset.status === "failed") setEncoderError(cause.message);
+        setEncoderOpen(true);
+      } else {
+        const message = cloneError(
           cause,
           "Voice could not be saved. Your sample is ready to retry.",
-        ),
+        );
+        if (waitingForEncoder) {
+          setEncoderError(message);
+          setEncoderOpen(true);
+        } else setError(message);
+      }
+    } finally {
+      if (operation.current === controller && !controller.signal.aborted) {
+        operation.current = null;
+        setStatus(null);
+        changeBusy(false);
+      }
+    }
+  };
+
+  const closeEncoder = () => {
+    operation.current?.abort();
+    operation.current = null;
+    setEncoderOpen(false);
+    setCancellingDownload(false);
+    setStatus(null);
+    changeBusy(false);
+  };
+
+  const cancelDownload = async () => {
+    // Stop this operation before awaiting removal, so a download that finishes
+    // during cancellation cannot continue into encoding or saving the sample.
+    operation.current?.abort();
+    const controller = new AbortController();
+    operation.current = controller;
+    changeBusy(true);
+    setCancellingDownload(true);
+    try {
+      // This explicit action is global; closing or unmounting never removes bytes.
+      const asset = await modelAction.mutateAsync({
+        action: "remove",
+        assetId: POCKET_VOICE_ENCODER_ASSET_ID,
+      });
+      controller.signal.throwIfAborted();
+      setEncoder(asset);
+      setEncoderError("Download cancelled. Your sample is ready to retry.");
+      setStatus(null);
+    } catch (cause) {
+      if (controller.signal.aborted) return;
+      setEncoderError(
+        cloneError(cause, "The download could not be cancelled. Try again."),
       );
     } finally {
-      setStatus(null);
-      changeBusy(false);
+      if (operation.current === controller && !controller.signal.aborted) {
+        operation.current = null;
+        setCancellingDownload(false);
+        changeBusy(false);
+      }
     }
   };
 
@@ -109,7 +224,13 @@ export function VoiceCloneLibrary({
       <h3 id="voice-cloning-heading" className="text-sm font-semibold">
         Voice Cloning
       </h3>
-      <form className="space-y-2" onSubmit={(event) => void save(event)}>
+      <form
+        className="space-y-2"
+        onSubmit={(event: FormEvent) => {
+          event.preventDefault();
+          void save();
+        }}
+      >
         <Input
           id="voice-clone-name"
           aria-label="Voice clone name"
@@ -180,6 +301,33 @@ export function VoiceCloneLibrary({
           </p>
         ) : null}
       </form>
+      <Dialog
+        open={encoderOpen}
+        onOpenChange={(open) => {
+          if (!open) closeEncoder();
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Download voice cloning?</DialogTitle>
+            <DialogDescription>
+              Install voice cloning, then continue with your selected sample.
+            </DialogDescription>
+          </DialogHeader>
+          {encoder ? (
+            <VoiceCloningDownload
+              asset={encoder}
+              sampleName={file?.name ?? "Voice sample"}
+              error={encoderError}
+              busy={busy}
+              cancelling={cancellingDownload}
+              onDownload={() => void save(true)}
+              onCancelDownload={() => void cancelDownload()}
+              onClose={closeEncoder}
+            />
+          ) : null}
+        </DialogContent>
+      </Dialog>
       <Dialog
         open={Boolean(deleting)}
         onOpenChange={(open) => {

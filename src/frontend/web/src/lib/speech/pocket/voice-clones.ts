@@ -9,6 +9,7 @@ import {
   toContentSaveApiError,
 } from "@/lib/content/contentSaveErrors";
 import { buildPocketVoiceCatalogFile } from "./catalog-builder";
+import type { PocketVoiceEncoderOptions } from "./voice-cloning-encoder";
 
 export const POCKET_VOICE_CLONE_CODEC = "pocket-tts-catalog-v1";
 export const MAX_VOICE_CLONE_FILE_BYTES = 25 * 1024 * 1024;
@@ -66,10 +67,12 @@ export async function prepareVoiceClone({
   name = "",
   file,
   operationId = crypto.randomUUID(),
+  encoder,
 }: {
   name?: string;
   file: File;
   operationId?: string;
+  encoder?: PocketVoiceEncoderOptions;
 }): Promise<PreparedVoiceClone> {
   const displayName = name.trim()
     ? voiceCloneName(name)
@@ -93,6 +96,7 @@ export async function prepareVoiceClone({
   const encoded = await buildPocketVoiceCatalogFile({
     animaName: displayName,
     sources: [{ voiceName: "neutral", file }],
+    ...(encoder ? { encoder } : {}),
   });
   validateSize(encoded);
   const originalPath = `original.${extension}`;

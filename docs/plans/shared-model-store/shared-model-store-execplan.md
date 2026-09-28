@@ -200,7 +200,7 @@ Paths are repository-relative; inspect their current contents on resumption.
 - [x] Synchronize #188 with the accepted voice scope; integrate merged #195.
 - [x] Owner confirmed preserving #195 saved clones and source samples; pending
   download input stays in memory.
-- [ ] Phase 4: two bundled Pocket voices and optional cloning encoder.
+- [x] Phase 4: two bundled Pocket voices and optional cloning encoder.
 - [ ] Phase 5: optional desktop setup and contextual settings downloads.
 - [ ] Phase 6: release integration and current documentation (formerly Phase 4).
 - [ ] Final integration review and local acceptance.
@@ -451,7 +451,7 @@ the unchanged 133-test/build evidence.
 #### Code Review #1 Revisions
 
 No revisions required. Phase 2 review passed with both repair rounds unused.
-The commit carrying this record completes its implementation boundary.
+Commit `0afd836d` completes its implementation boundary.
 
 ### Phase 3: Self-host base acquisition from the shared store
 
@@ -613,16 +613,44 @@ and authoring/CI can obtain explicit inputs before publication. Keep old stores
 and saved voice selections intact. Runtime first-use and actual sample/listening
 checks remain separate from mock success. Nothing is published in this phase.
 
-**Evidence and remaining gates:** not run; generated sizes and input approvals
-must be recorded for the final candidate.
+**Evidence and remaining gates:** the producer slice passed 126 Python tests,
+101 desktop tests and 13 browser-runtime-asset tests. The new policy/encoder
+cases failed before implementation and passed afterward. Repeated generation
+from explicit verified inputs was byte-identical; all 38 voice-state hashes and
+23 existing backend voice entries are unchanged. The actual web build succeeded
+and all 21 runtime files were hash-verified (280,549,335 bytes), with exactly
+Eve/Azelma and no Mimi. Both optional sets staged/planned offline, including
+notices: 39 voice objects (245,434,015 bytes) and four cloning objects
+(39,771,015 bytes). Scoped format/lint/catalog checks passed. The task stack
+restarted successfully against the reduced core. New optional inventories and
+notices still need exact-candidate release review; no publication or actual
+cloning/listening acceptance is claimed. The frontend lifecycle slice passed 109
+focused tests across 14 files, scoped ESLint/format and TypeScript checks.
+An independent runner passed `pnpm check` and a fresh `pnpm build` on frozen
+source over `0afd836d`, then reverified the exact 21-file built inventory.
+Logs: `/tmp/animama-188-phase4-final-check.log` and
+`/tmp/animama-188-phase4-final-build.log`.
 
 #### Code Review #1 Findings
 
-Not started; record source, checks and stable findings.
+Independent producer and runtime analysis found no source defects. **P4-1
+(P2):** `VoiceCloneLibrary` lacked interaction coverage of the first sample,
+explicit encoder Download, verified continuation and closing during a pending
+install. Helper/static-markup tests bypassed that orchestration, leaving the A9
+continuation gate unverified.
 
 #### Code Review #1 Revisions
 
-Not started; two repair rounds available.
+Accepted P4-1. Repair round 1 adds two real component interaction tests using
+existing Playwright/Vite dependencies and wires them into normal `test:source`.
+Both passed (2.71 seconds): verified continuation retains the same complete
+sample and saves once; Close detaches without encoding, saving or removing
+shared bytes. A temporary test-only transform removing the close abort made
+the latter fail with two preparations/one encoding/one save; restoring the
+actual source passed. Scoped lint/format and diff checks passed. No production
+repair was needed. Independent targeted review #2 passed: P4-1 is resolved,
+normal test wiring is present and the temporary transform is absent. Phase 4
+implementation review passed; one repair round remains unused.
 
 ### Phase 5: Direct optional downloads in desktop setup and Voice settings
 
@@ -815,9 +843,12 @@ Not started. Two repair rounds available; record fixes and reused evidence.
 
 ## Validation and acceptance
 
-No implementation validation has been performed during planning. Run applicable
-checks locally before pushing; hosted `Validation` and its actual scope remain
-separate evidence. Do not use a reduced owner-reviewed receipt to substitute for
+`make check-test` passed on the integrated Phases 1–4 source: typed-content
+audit, Python formatting (562 files), Ruff, mypy (562 files), and the full backend
+suite (2,151 passed, seven skipped). Log: `/tmp/animama-188-check-test.log`.
+A redundant standalone pytest run was stopped when `make check-test` reached
+that same suite. Run affected checks after later edits; hosted `Validation`
+and its actual scope remain separate evidence. Do not use a reduced owner-reviewed receipt to substitute for
 the native or publication gates of this release/security-sensitive change.
 
 **Automated integration:** run the phase commands, then from the repository root

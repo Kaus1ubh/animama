@@ -65,6 +65,13 @@ const modelPacks = [
  */
 const publishedModelSets = [
   {
+    id: "pocket-tts-voice-cloning",
+    label: "Pocket TTS voice cloning",
+    licenseRef: "browser-pocket",
+    modelId: "pocket-tts-voice-cloning",
+    script: "scripts/models/pocket_cloning.py",
+  },
+  {
     id: "pocket-tts-voices",
     label: "Pocket TTS voices",
     licenseRef: "browser-pocket",

@@ -46,6 +46,9 @@ vi.mock("@/query/mutations/useVoiceCloneActions", () => ({
     deleteVoiceClone: { mutateAsync: vi.fn() },
   }),
 }));
+vi.mock("@/query/mutations/useModelAssetActions", () => ({
+  useModelAssetAction: () => ({ mutateAsync: vi.fn() }),
+}));
 vi.mock("@/ui/settings/SettingsProvider", () => ({
   useSettings: () => ({
     animaId: "anima-1",

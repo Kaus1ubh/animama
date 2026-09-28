@@ -47,6 +47,9 @@ export class PocketTTSCore extends EventEmitter {
       audioSampleRate: options.audioSampleRate || DEFAULT_SAMPLE_RATE,
       playbackStrategy: options.playbackStrategy || "adaptive",
       enableVoiceCloning: options.enableVoiceCloning !== false,
+      // The host checks optional model availability for every encoding operation.
+      beforeVoiceEncode: options.beforeVoiceEncode,
+      voiceEncoderUrl: options.voiceEncoderUrl,
       defaultVoice: options.defaultVoice || null,
       // Built-in voice IDs, in picker order; the worker loads each on first use.
       voices: Array.isArray(options.voices) ? [...options.voices] : [],
@@ -209,7 +212,8 @@ export class PocketTTSCore extends EventEmitter {
         voices: this.options.voices,
         voiceUrls: this.options.voiceUrls,
         defaultVoice: this.options.defaultVoice,
-        // Model URLs default to the worker's reviewed bundle layout.
+        // Generation stays bundled; cloning uses the verified optional asset.
+        models: { mimi_encoder: this.options.voiceEncoderUrl },
         runtime: {
           ortModuleUrl: this.options.ortModuleUrl,
           ortWasmBaseUrl: this.options.ortWasmBaseUrl,
@@ -365,15 +369,20 @@ export class PocketTTSCore extends EventEmitter {
     );
   }
 
-  async encodeVoiceFromFloat32(audio) {
+  async encodeVoiceFromFloat32(audio, { signal } = {}) {
     if (!this.options.enableVoiceCloning) {
       throw new Error("Voice cloning is disabled for this core instance.");
     }
-    await this.init();
-
     if (!(audio instanceof Float32Array)) {
       throw new Error("encodeVoiceFromFloat32 expects a Float32Array.");
     }
+    if (typeof this.options.beforeVoiceEncode !== "function") {
+      throw new Error("Voice cloning requires an installed encoder check.");
+    }
+    await this.options.beforeVoiceEncode({ signal });
+    signal?.throwIfAborted();
+    await this.init();
+    signal?.throwIfAborted();
 
     const transferred = new Float32Array(audio);
 
@@ -382,11 +391,12 @@ export class PocketTTSCore extends EventEmitter {
       { audio: transferred },
       { awaitResponse: true, transfer: [transferred.buffer] },
     );
+    signal?.throwIfAborted();
 
     return { voiceName: response.voiceName || "custom" };
   }
 
-  async encodeVoiceFromFile(file) {
+  async encodeVoiceFromFile(file, { signal } = {}) {
     if (!file) {
       throw new Error("No audio file was provided.");
     }
@@ -394,7 +404,9 @@ export class PocketTTSCore extends EventEmitter {
       throw new Error("Voice cloning is disabled for this core instance.");
     }
 
+    signal?.throwIfAborted();
     await this.init();
+    signal?.throwIfAborted();
 
     const arrayBuffer = await file.arrayBuffer();
     const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
@@ -423,7 +435,7 @@ export class PocketTTSCore extends EventEmitter {
       audioData = audioData.slice(0, maxSamples);
     }
 
-    return this.encodeVoiceFromFloat32(audioData);
+    return this.encodeVoiceFromFloat32(audioData, { signal });
   }
 
   getVoices() {
@@ -488,6 +500,14 @@ export class PocketTTSCore extends EventEmitter {
         const pending = this.pendingRequests.get(requestId);
         this.pendingRequests.delete(requestId);
         pending.reject(new Error(message.error || "Worker error"));
+        // Optional encoder failures do not invalidate already loaded speech
+        // generation. The encoding caller still receives its actionable error.
+        if (pending.type === "encode_voice") {
+          this._debugTracker.setWorkerLastError(
+            message.error || "Voice encoding failed",
+          );
+          return;
+        }
       }
 
       this._debugTracker.setWorkerLastError(message.error || "Worker error");
@@ -972,7 +992,7 @@ export class PocketTTSCore extends EventEmitter {
     let promise = null;
     if (opts.awaitResponse) {
       promise = new Promise((resolve, reject) => {
-        this.pendingRequests.set(requestId, { resolve, reject });
+        this.pendingRequests.set(requestId, { type, resolve, reject });
       });
     }
 

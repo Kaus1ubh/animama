@@ -209,6 +209,51 @@ const publish = (candidate, planned, r2) =>
   });
 
 describe("model publication", () => {
+  it("stages the optional Pocket cloning encoder and notices before first publication", () => {
+    const cloningId = "pocket-tts-voice-cloning";
+    const bytes = {
+      "ATTRIBUTION.md": "reviewed attribution",
+      "README.md": "optional cloning guidance",
+      "mimi_encoder.onnx": "unchanged encoder bytes",
+    };
+    const candidate = fixtureSet(cloningId, bytes);
+    const directory = path.join(candidate.root, "candidate");
+    stageModelCandidate({
+      modelId: cloningId,
+      directory,
+      manifestFile: candidate.manifestFile,
+      modelRoot: candidate.modelRoot,
+    });
+    const encoder = bytes["mimi_encoder.onnx"];
+    const catalog = {
+      assets: [
+        {
+          id: "pocket-tts-voice-cloning-encoder",
+          url: `${origin}/models/${cloningId}/${sha(encoder)}/mimi_encoder.onnx`,
+          size: Buffer.byteLength(encoder),
+          sha256: sha(encoder),
+        },
+      ],
+    };
+    const options = {
+      modelId: cloningId,
+      directory,
+      manifestFile: candidate.manifestFile,
+      origin,
+      catalog,
+    };
+    expect(planModelPublication(options).map((file) => file.name)).toEqual([
+      "ATTRIBUTION.md",
+      "README.md",
+      "manifest.json",
+      "mimi_encoder.onnx",
+    ]);
+    catalog.assets[0].sha256 = "f".repeat(64);
+    expect(() => planModelPublication(options)).toThrow(
+      "catalog does not match",
+    );
+  });
+
   it("publishes base Parakeet for setup without a synthetic backend asset", () => {
     const baseId = "parakeet-tdt-0.6b-v2";
     const manifest = JSON.parse(

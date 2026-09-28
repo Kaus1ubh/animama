@@ -28,11 +28,18 @@ Commands, in order:
   (Parakeet WER) and audio quality, ranked per gender.
 - `inventory`: write `voice-inventory.json` and its Markdown summary beside the plan.
 - `listen`: write a static listening page for owner curation.
-- `release`: from `selection.json`, regenerate the browser speech manifest (core
+- `release --model-inputs ABSOLUTE_DIRECTORY`: from `selection.json` and verified
+  local voice states, regenerate the browser speech manifest (core
   voices), the hosted voice set `models/pocket-tts-voices/` (publish it with
   `models:stage`, `release:scan` and `models:publish`), the packaged asset catalog
   entries of downloadable voices, `voice-catalog.ts`, the attribution notice and
-  licence records, and offline import directories for both stores.
+  licence records, and offline import directories for both stores. This command
+  is offline and accepts the retained model files from an existing store without
+  requiring that store's old voice inventory.
+
+`encode` and `screen` require the separately acquired optional Mimi input. Run
+`python3 scripts/models/pocket_cloning.py acquire --source upstream` (or import a
+verified copy offline) before authoring; ordinary application builds omit it.
 
 Work files default to `<model store root>/../voice-tools` (override with
 `--work-dir` or `ANIMAMA_VOICE_TOOLS_DIR`). Nothing in the work directory is tracked;
@@ -523,7 +530,7 @@ def command_encode(args: argparse.Namespace) -> None:
 
     sources = load_sources()
     work = work_directory(args.work_dir)
-    runtime = pocket_onnx.PocketOnnx(browser_store(), with_generation=False)
+    runtime = pocket_onnx.PocketOnnx(browser_store(), encoder=cloning_encoder(), with_generation=False)
     if args.check:
         check_reproduction(runtime, sources, work, args.only, args.tolerance)
         return
@@ -559,6 +566,13 @@ def browser_store() -> Path:
     import browser_speech
 
     return browser_speech.store.verify(browser_speech.load_manifest(), store.resolve_root())
+
+
+def cloning_encoder() -> Path:
+    """Resolve an explicitly acquired producer input; voice authoring never downloads it."""
+    import pocket_cloning
+
+    return store.verify(pocket_cloning.load_manifest(), store.resolve_root()) / pocket_cloning.ENCODER
 
 
 # ---------------------------------------------------------------------------
@@ -635,7 +649,7 @@ def command_screen(args: argparse.Namespace) -> None:
 
     sources = load_sources()
     work = work_directory(args.work_dir)
-    runtime = pocket_onnx.PocketOnnx(browser_store())
+    runtime = pocket_onnx.PocketOnnx(browser_store(), encoder=cloning_encoder())
     parakeet_manifest = store.load_manifest(store.DEFAULT_MANIFEST)
     asr = onnx_asr.load_model(
         "nemo-parakeet-tdt-0.6b-v2", str(store.verify(parakeet_manifest, store.resolve_root())), quantization="int8"
@@ -786,6 +800,9 @@ VOICE_SET_DIRECTORY = REPOSITORY / "models" / VOICE_SET_ID
 VOICE_SET_MANIFEST = VOICE_SET_DIRECTORY / "manifest.json"
 ASSET_CATALOG = REPOSITORY / "src" / "backend" / "animama" / "resources" / "model-assets.v1.json"
 ASSET_PREFIX = "pocket-voice-"
+CLONING_SET_ID = "pocket-tts-voice-cloning"
+CLONING_ASSET_ID = "pocket-tts-voice-cloning-encoder"
+CLONING_MANIFEST = REPOSITORY / "models" / CLONING_SET_ID / "manifest.json"
 LICENSE_RECORDS = REPOSITORY / "licenses" / "third-party" / "code-and-models.json"
 FRONTEND_CATALOG = REPOSITORY / "src" / "frontend" / "web" / "src" / "lib" / "speech" / "pocket" / "voice-catalog.ts"
 # VCTK accent tokens to display tags (D10); unknown or missing accents show no tag.
@@ -1002,15 +1019,19 @@ learned BOS row and INT8 flow LM.
     return {"ATTRIBUTION.md": header + voice_notice(sources, selection, hosted) + basis, "README.md": readme}
 
 
-def current_store() -> Path:
-    """Verify the store of the checked-in manifest by hash alone, before `release` replaces it.
+def release_model_inputs(value: str, entries: list[dict]) -> Path:
+    """Verify explicit core inputs without depending on the previous manifest's complete store.
 
-    The shipped-voice rules may already reflect a new selection, so this deliberately
-    skips `browser_speech.load_manifest` and checks each file's size and SHA-256.
+    Existing immutable stores may supply a subset. Extra files are neither copied
+    nor removed; only the retained generation/turn files enter a new distribution.
     """
-    raw = BROWSER_MANIFEST.read_bytes()
-    directory = store.resolve_root() / "browser-speech" / hashlib.sha256(raw).hexdigest()
-    return store.verify_directory(json.loads(raw), directory)
+    directory = Path(value).expanduser()
+    if not directory.is_absolute():
+        raise VoiceToolError("--model-inputs must be an absolute verified model-input directory")
+    store.checked_directory(directory)
+    for entry in entries:
+        store.verify_file(directory / entry["path"], entry)
+    return directory
 
 
 def voice_preview_url(sources: dict, source: str) -> str:
@@ -1102,6 +1123,8 @@ def command_release(args: argparse.Namespace) -> None:
     Every input is verified and both import directories are rebuilt before any
     tracked file changes, so a failure leaves the repository untouched.
     """
+    import pocket_cloning
+
     sources = load_sources()
     selection = load_selection()
     work = work_directory(args.work_dir)
@@ -1109,10 +1132,19 @@ def command_release(args: argparse.Namespace) -> None:
     by_id = {item["voice"]["id"]: item for item in voices}
     core = [item for item in voices if item["voice"]["delivery"] == "core"]
     hosted = [item for item in voices if is_hosted(item["voice"])]
-    current = current_store()  # The verified store for the manifest being replaced supplies the other files.
     manifest = json.loads(BROWSER_MANIFEST.read_text())
-    others = [e for e in manifest["files"] if not e["target"].startswith("models/pocket-tts/voices/")]
-    candidates = {c["id"]: c for c in build_candidates(sources, speaker_info(sources, work))}
+    others = [
+        e
+        for e in manifest["files"]
+        if not e["target"].startswith("models/pocket-tts/voices/") and e["path"] != "mimi_encoder.onnx"
+    ]
+    current = release_model_inputs(args.model_inputs, others)
+    cloning = pocket_cloning.load_manifest(CLONING_MANIFEST)
+    encoder = next(e for e in cloning["files"] if e["path"] == pocket_cloning.ENCODER)
+    # Release projection is offline; fetching source metadata belongs to the explicit fetch command.
+    metadata = work / "vctk-speaker-info.txt"
+    store.verify_file(metadata, {"path": metadata.name, **sources["pins"]["speaker_info"]})
+    candidates = {c["id"]: c for c in build_candidates(sources, parse_speaker_info(metadata.read_text("utf-8")))}
     # Validate preview sources before rebuilding imports or changing any tracked artifact.
     frontend = frontend_catalog(selection, candidates, by_id, sources)
     notices = voice_set_notices(sources, selection)
@@ -1155,7 +1187,11 @@ def command_release(args: argparse.Namespace) -> None:
         notice["size"], notice["sha256"] = path.stat().st_size, sha256_file(path)
     BROWSER_MANIFEST.write_text(json.dumps(manifest, indent=2) + "\n")
     runtime = json.loads(RUNTIME_MANIFEST.read_text())
-    kept = [e for e in runtime["files"] if not e["path"].startswith("models/pocket-tts/voices/")]
+    kept = [
+        e
+        for e in runtime["files"]
+        if not e["path"].startswith("models/pocket-tts/voices/") and e["path"] != "models/pocket-tts/mimi_encoder.onnx"
+    ]
     position = next(i for i, e in enumerate(kept) if e["path"] == "models/smart-turn/smart-turn-v3.2-cpu.onnx")
     runtime["files"] = (
         kept[:position]
@@ -1194,7 +1230,9 @@ def command_release(args: argparse.Namespace) -> None:
 
     # Downloadable voices: packaged asset catalog entries (other assets are kept).
     catalog = json.loads(ASSET_CATALOG.read_text())
-    catalog["assets"] = [a for a in catalog["assets"] if not a["id"].startswith(ASSET_PREFIX)] + [
+    catalog["assets"] = [
+        a for a in catalog["assets"] if not a["id"].startswith(ASSET_PREFIX) and a["id"] != CLONING_ASSET_ID
+    ] + [
         {
             "id": f"{ASSET_PREFIX}{i['voice']['id']}",
             "url": release_url(i["voice"]["id"], i["entry"]["sha256"]),
@@ -1206,20 +1244,34 @@ def command_release(args: argparse.Namespace) -> None:
         for i in voices
         if i["voice"]["delivery"] == "download"
     ]
+    catalog["assets"].append(
+        {
+            "id": CLONING_ASSET_ID,
+            "url": f"https://downloads.animama.ai/models/{CLONING_SET_ID}/{encoder['sha256']}/{encoder['path']}",
+            "size": encoder["size"],
+            "sha256": encoder["sha256"],
+            "media_type": "application/octet-stream",
+            "license_ref": cloning["license"],
+        }
+    )
     ASSET_CATALOG.write_text(json.dumps(catalog, indent=2) + "\n")
     FRONTEND_CATALOG.write_text(frontend)
 
     records = json.loads(LICENSE_RECORDS.read_text())
     pocket = next(group for group in records["groups"] if group["id"] == "browser-pocket")
-    pocket["external_files"] = [
-        {"path": e["target"], "sha256": e["sha256"]}
-        for e in manifest["files"]
-        if e["target"].startswith("models/pocket-tts/")
-    ] + [
-        {"path": f"models/{VOICE_SET_ID}/{i['entry']['path']}", "sha256": i["entry"]["sha256"]}
-        for i in voices
-        if i["voice"]["delivery"] == "download"
-    ]
+    pocket["external_files"] = (
+        [
+            {"path": e["target"], "sha256": e["sha256"]}
+            for e in manifest["files"]
+            if e["target"].startswith("models/pocket-tts/")
+        ]
+        + [
+            {"path": f"models/{VOICE_SET_ID}/{i['entry']['path']}", "sha256": i["entry"]["sha256"]}
+            for i in voices
+            if i["voice"]["delivery"] == "download"
+        ]
+        + [{"path": f"models/{CLONING_SET_ID}/{encoder['path']}", "sha256": encoder["sha256"]}]
+    )
     LICENSE_RECORDS.write_text(json.dumps(records, indent=2, ensure_ascii=False) + "\n")
     print(
         f"Voices: {len(core)} core ({sum(is_hosted(i['voice']) for i in core)} release-hosted), "
@@ -1248,7 +1300,10 @@ def main(argv: list[str] | None = None) -> int:
     listen = commands.add_parser("listen", help="write the listening page")
     listen.add_argument("--female", type=int, help="female voices to show (default: all screened)")
     listen.add_argument("--male", type=int, help="male voices to show (default: all screened)")
-    commands.add_parser("release", help="write the upload set, manifest voice entries and notice")
+    release = commands.add_parser("release", help="write the upload set, manifest voice entries and notice offline")
+    release.add_argument(
+        "--model-inputs", required=True, help="absolute directory holding the pinned generation inputs"
+    )
     args = parser.parse_args(argv)
     handlers = {
         "pin": command_pin,

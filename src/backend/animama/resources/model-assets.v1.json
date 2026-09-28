@@ -10,6 +10,54 @@
       "license_ref": "CC-BY-4.0"
     },
     {
+      "id": "pocket-voice-clara",
+      "url": "https://downloads.animama.ai/models/pocket-tts-voices/a36e524390d6a21e7407ab18029a03afd9289b3b406868da01c8c76294cd6173/clara.safetensors",
+      "size": 6440248,
+      "sha256": "a36e524390d6a21e7407ab18029a03afd9289b3b406868da01c8c76294cd6173",
+      "media_type": "application/octet-stream",
+      "license_ref": "CC-BY-4.0"
+    },
+    {
+      "id": "pocket-voice-imogen",
+      "url": "https://downloads.animama.ai/models/pocket-tts-voices/4c9e1b09ecce22f62e435a948528b9cf28c4cef3bc63dce38a3b08131f13de10/imogen.safetensors",
+      "size": 6538552,
+      "sha256": "4c9e1b09ecce22f62e435a948528b9cf28c4cef3bc63dce38a3b08131f13de10",
+      "media_type": "application/octet-stream",
+      "license_ref": "CC-BY-4.0"
+    },
+    {
+      "id": "pocket-voice-jane",
+      "url": "https://downloads.animama.ai/models/pocket-tts-voices/37386227ca8ec5bf1b8e516c13d132ce5ff5437a304fe90129a1c62f41d9a008/jane.safetensors",
+      "size": 7374072,
+      "sha256": "37386227ca8ec5bf1b8e516c13d132ce5ff5437a304fe90129a1c62f41d9a008",
+      "media_type": "application/octet-stream",
+      "license_ref": "CC-BY-4.0"
+    },
+    {
+      "id": "pocket-voice-lucy",
+      "url": "https://downloads.animama.ai/models/pocket-tts-voices/42eb95ebbc8bcdee780b533f24d7b0846afa529332eb7b82025a54366400fbe1/lucy.safetensors",
+      "size": 7324984,
+      "sha256": "42eb95ebbc8bcdee780b533f24d7b0846afa529332eb7b82025a54366400fbe1",
+      "media_type": "application/octet-stream",
+      "license_ref": "CC-BY-4.0"
+    },
+    {
+      "id": "pocket-voice-olivia",
+      "url": "https://downloads.animama.ai/models/pocket-tts-voices/5384d691e7f2133c3451fbbb1770c154546bb755908d2d59b7abdad50cf1cd8f/olivia.safetensors",
+      "size": 7865656,
+      "sha256": "5384d691e7f2133c3451fbbb1770c154546bb755908d2d59b7abdad50cf1cd8f",
+      "media_type": "application/octet-stream",
+      "license_ref": "CC-BY-4.0"
+    },
+    {
+      "id": "pocket-voice-thandi",
+      "url": "https://downloads.animama.ai/models/pocket-tts-voices/ed185fd0c78eebc6e691167c62d4ece39347699d6185330a5d93ad36af55bea9/thandi.safetensors",
+      "size": 7030072,
+      "sha256": "ed185fd0c78eebc6e691167c62d4ece39347699d6185330a5d93ad36af55bea9",
+      "media_type": "application/octet-stream",
+      "license_ref": "CC-BY-4.0"
+    },
+    {
       "id": "pocket-voice-anna",
       "url": "https://downloads.animama.ai/models/pocket-tts-voices/5ea82f78db006c9fd34e32ddd5aae82674b5b32646097977436458d00af80dfa/anna.safetensors",
       "size": 7816440,
@@ -162,6 +210,62 @@
       "license_ref": "CC-BY-4.0"
     },
     {
+      "id": "pocket-voice-bill_boerst",
+      "url": "https://downloads.animama.ai/models/pocket-tts-voices/75610127d44e0b05b442154f80f89f993df235aecc6cad7070f11000d006c188/bill_boerst.safetensors",
+      "size": 6735096,
+      "sha256": "75610127d44e0b05b442154f80f89f993df235aecc6cad7070f11000d006c188",
+      "media_type": "application/octet-stream",
+      "license_ref": "CC-BY-4.0"
+    },
+    {
+      "id": "pocket-voice-javert",
+      "url": "https://downloads.animama.ai/models/pocket-tts-voices/0ae88e03ca4e76a0e16cbf321a807428febda9d9e9bc0358c02e7f9c9e2c263b/javert.safetensors",
+      "size": 6194424,
+      "sha256": "0ae88e03ca4e76a0e16cbf321a807428febda9d9e9bc0358c02e7f9c9e2c263b",
+      "media_type": "application/octet-stream",
+      "license_ref": "CC-BY-4.0"
+    },
+    {
+      "id": "pocket-voice-marius",
+      "url": "https://downloads.animama.ai/models/pocket-tts-voices/04f84efcb77a0547ba582c058db496f7ff4920891d49d37b9950d128422582a8/marius.safetensors",
+      "size": 6194424,
+      "sha256": "04f84efcb77a0547ba582c058db496f7ff4920891d49d37b9950d128422582a8",
+      "media_type": "application/octet-stream",
+      "license_ref": "CC-BY-4.0"
+    },
+    {
+      "id": "pocket-voice-michael",
+      "url": "https://downloads.animama.ai/models/pocket-tts-voices/8937f724ac4719b9aa51ea0ba1f18f9de0af7a663ad6263558266c1a53c9722d/michael.safetensors",
+      "size": 7275768,
+      "sha256": "8937f724ac4719b9aa51ea0ba1f18f9de0af7a663ad6263558266c1a53c9722d",
+      "media_type": "application/octet-stream",
+      "license_ref": "CC-BY-4.0"
+    },
+    {
+      "id": "pocket-voice-noah",
+      "url": "https://downloads.animama.ai/models/pocket-tts-voices/737ca868cff2fca0024fd28ae34027e99fde040a156f5d6d43b63b59ddf41db2/noah.safetensors",
+      "size": 5948720,
+      "sha256": "737ca868cff2fca0024fd28ae34027e99fde040a156f5d6d43b63b59ddf41db2",
+      "media_type": "application/octet-stream",
+      "license_ref": "CC-BY-4.0"
+    },
+    {
+      "id": "pocket-voice-oliver",
+      "url": "https://downloads.animama.ai/models/pocket-tts-voices/1876b7995b7695010f35d8e2e8eb4015adb1cd17fb2b784f6e2a958326fe47cb/oliver.safetensors",
+      "size": 6243640,
+      "sha256": "1876b7995b7695010f35d8e2e8eb4015adb1cd17fb2b784f6e2a958326fe47cb",
+      "media_type": "application/octet-stream",
+      "license_ref": "CC-BY-4.0"
+    },
+    {
+      "id": "pocket-voice-paul",
+      "url": "https://downloads.animama.ai/models/pocket-tts-voices/ed7a019168f94dfe77009f1b0de59387abc6fbb0db954d38ce722ecb77da61aa/paul.safetensors",
+      "size": 6980856,
+      "sha256": "ed7a019168f94dfe77009f1b0de59387abc6fbb0db954d38ce722ecb77da61aa",
+      "media_type": "application/octet-stream",
+      "license_ref": "CC-BY-4.0"
+    },
+    {
       "id": "pocket-voice-callum",
       "url": "https://downloads.animama.ai/models/pocket-tts-voices/60980a12993a2b236276c213cd57466bc6ffae9851ddf6426eb355ae95024fa5/callum.safetensors",
       "size": 6391096,
@@ -190,6 +294,14 @@
       "url": "https://downloads.animama.ai/models/pocket-tts-voices/8becddb09431d78aab79674ce7245bd4379a94d3ed3a9d59056bc8608c0db7da/jack.safetensors",
       "size": 6686008,
       "sha256": "8becddb09431d78aab79674ce7245bd4379a94d3ed3a9d59056bc8608c0db7da",
+      "media_type": "application/octet-stream",
+      "license_ref": "CC-BY-4.0"
+    },
+    {
+      "id": "pocket-tts-voice-cloning-encoder",
+      "url": "https://downloads.animama.ai/models/pocket-tts-voice-cloning/853e2ca623b8782d94c3745ec6133bfdff7ce33d9b11128bd29ea03f28d76e3d/mimi_encoder.onnx",
+      "size": 39768446,
+      "sha256": "853e2ca623b8782d94c3745ec6133bfdff7ce33d9b11128bd29ea03f28d76e3d",
       "media_type": "application/octet-stream",
       "license_ref": "CC-BY-4.0"
     }
