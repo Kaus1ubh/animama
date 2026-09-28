@@ -6,6 +6,7 @@ import type { PocketVoiceAvailability } from "@/lib/speech/pocket/voice-preferen
 import "@/index.css";
 
 const actions: { operation: string; id: string }[] = [];
+const customVoices = new URLSearchParams(location.search).has("customvoices");
 
 function Fixture() {
   const [states, setStates] = useState<
@@ -46,7 +47,18 @@ function Fixture() {
       <PocketVoicePicker
         {...props}
         value={selected}
-        hasCustomVoice={false}
+        hasCustomVoice={customVoices}
+        clones={
+          customVoices
+            ? [
+                {
+                  id: "clone:narrator",
+                  name: "Narrator",
+                  previewUrl: "/narrator.wav",
+                },
+              ]
+            : []
+        }
         onSelect={async (id) => {
           actions.push({ operation: "select", id });
           setSelected(id);

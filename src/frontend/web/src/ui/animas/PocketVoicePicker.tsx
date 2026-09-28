@@ -3,7 +3,6 @@ import {
   Check,
   ChevronDown,
   Download,
-  ListFilter,
   LoaderCircle,
   Play,
   Square,
@@ -30,16 +29,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/ui/components/popover";
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/ui/components/dropdown-menu";
+import { Checkbox } from "@/ui/components/checkbox";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/components/tabs";
 
 type VoiceFilter = {
   gender: "any" | PocketVoiceGender;
@@ -184,16 +175,25 @@ export function PocketVoiceList({
   const [gender, setGender] = useState<VoiceFilter["gender"]>("any");
   const [recommended, setRecommended] = useState(false);
   const [search, setSearch] = useState("");
-  const voices = filteredPocketVoices({ gender, recommended, search });
-  const matchingClones =
-    gender === "any" && !recommended
-      ? clones.filter((clone) =>
-          clone.name
-            .toLocaleLowerCase()
-            .includes(search.trim().toLocaleLowerCase()),
-        )
-      : [];
-  const count = voices.length + matchingClones.length;
+  const [customOnly, setCustomOnly] = useState(false);
+  // Saved clones have no gender/recommendation metadata. Preserve the preset
+  // filters while browsing custom voices, and still apply the search to both.
+  const tab = customOnly ? "any" : gender;
+  const voices = customOnly
+    ? []
+    : filteredPocketVoices({ gender, recommended, search });
+  const showCustom = customOnly || (gender === "any" && !recommended);
+  const query = search.trim().toLocaleLowerCase();
+  const showUploaded =
+    showCustom && hasCustomVoice && "custom (uploaded)".includes(query);
+  const matchingClones = showCustom
+    ? clones.filter((clone) =>
+        clone.name
+          .toLocaleLowerCase()
+          .includes(search.trim().toLocaleLowerCase()),
+      )
+    : [];
+  const count = voices.length + matchingClones.length + Number(showUploaded);
   const choose = async (id: string) => {
     try {
       await onSelect(id);
@@ -203,8 +203,15 @@ export function PocketVoiceList({
     }
   };
   return (
-    <div className="flex min-h-0 flex-col">
-      <div className="flex shrink-0 items-center gap-2 border-b p-3">
+    <Tabs
+      value={tab}
+      onValueChange={(next) => {
+        player.stop();
+        setGender(next as VoiceFilter["gender"]);
+      }}
+      className="flex min-h-0 flex-col"
+    >
+      <div className="flex shrink-0 flex-col gap-3 border-b p-3">
         <Input
           aria-label="Search PocketTTS voices"
           placeholder="Search voices"
@@ -214,242 +221,254 @@ export function PocketVoiceList({
             setSearch(event.target.value);
           }}
         />
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant={
-                gender !== "any" || recommended ? "secondary" : "outline"
-              }
-              size="icon-sm"
-              aria-label="Filter voices"
-            >
-              <ListFilter />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Voice</DropdownMenuLabel>
-            <DropdownMenuRadioGroup
-              value={gender}
-              onValueChange={(next) => {
-                player.stop();
-                setGender(next as VoiceFilter["gender"]);
-              }}
-            >
-              <DropdownMenuRadioItem value="any">Any</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="female">
-                Female
-              </DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="male">Male</DropdownMenuRadioItem>
-            </DropdownMenuRadioGroup>
-            <DropdownMenuSeparator />
-            <DropdownMenuCheckboxItem
-              checked={recommended}
+        <TabsList className="grid w-full grid-cols-3" aria-label="Voice gender">
+          <TabsTrigger value="any" disabled={customOnly}>
+            All
+          </TabsTrigger>
+          <TabsTrigger value="female" disabled={customOnly}>
+            Female
+          </TabsTrigger>
+          <TabsTrigger value="male" disabled={customOnly}>
+            Male
+          </TabsTrigger>
+        </TabsList>
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs">
+          <label className="flex items-center gap-2">
+            <Checkbox
+              aria-label="Recommended only"
+              checked={recommended && !customOnly}
+              disabled={customOnly}
               onCheckedChange={(checked) => {
                 player.stop();
                 setRecommended(checked === true);
               }}
-            >
+            />
+            <span className={customOnly ? "text-muted-foreground" : undefined}>
               Recommended only
-            </DropdownMenuCheckboxItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+            </span>
+          </label>
+          <label className="flex items-center gap-2">
+            <Checkbox
+              aria-label="Custom"
+              checked={customOnly}
+              onCheckedChange={(checked) => {
+                player.stop();
+                setCustomOnly(checked === true);
+              }}
+            />
+            Custom
+          </label>
+        </div>
       </div>
       <div
         className="text-muted-foreground flex shrink-0 items-center justify-between px-4 py-2 text-xs"
         aria-live="polite"
       >
         <span>
-          {gender === "any"
-            ? "All voices"
-            : gender === "female"
-              ? "Female voices"
-              : "Male voices"}
-          {recommended ? " · Recommended" : ""}
+          {customOnly
+            ? "Custom voices"
+            : gender === "any"
+              ? "All voices"
+              : gender === "female"
+                ? "Female voices"
+                : "Male voices"}
+          {recommended && !customOnly ? " · Recommended" : ""}
         </span>
         <span>
           {count} {count === 1 ? "voice" : "voices"}
         </span>
       </div>
-      <div
-        className="max-h-[min(22rem,45dvh)] min-h-0 overflow-y-auto overscroll-contain px-2 pb-2"
-        role="list"
-        aria-label="Available PocketTTS voices"
-      >
-        {matchingClones.length ? (
-          <p className="text-muted-foreground px-3 py-2 text-xs font-semibold">
-            Your voice clones
-          </p>
-        ) : null}
-        {matchingClones.map((clone) => (
-          <div
-            key={clone.id}
-            role="listitem"
-            className={cn(
-              "flex items-center gap-1 rounded-lg px-1",
-              value === clone.id && "bg-muted/60",
-            )}
-          >
-            <button
-              type="button"
-              disabled={disabled}
-              onClick={() => void choose(clone.id)}
-              aria-label={`Select ${clone.name}`}
-              aria-pressed={value === clone.id}
-              className="hover:bg-muted/40 focus-visible:ring-ring flex min-w-0 flex-1 items-center gap-2 rounded-lg px-2 py-2.5 text-left outline-none focus-visible:ring-2 disabled:opacity-50"
-            >
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-medium">
-                  {clone.name}
-                </span>
-                {"sampleUnavailable" in clone ? (
-                  <span className="text-muted-foreground block text-xs">
-                    {clone.sampleUnavailable}
-                  </span>
-                ) : null}
-              </span>
-              {value === clone.id ? (
-                <Check className="size-4 shrink-0" />
-              ) : null}
-            </button>
-            <VoiceSampleButton
-              voice={clone}
-              sample={sample}
-              player={player}
-              compact
-            />
-            {onDeleteClone ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                className="text-destructive hover:text-destructive shrink-0"
-                aria-label={`Delete ${clone.name}`}
-                disabled={disabled}
-                onClick={() => {
-                  player.stop();
-                  onSelected();
-                  onDeleteClone(clone.id);
-                }}
-              >
-                <Trash2 className="size-4" />
-              </Button>
-            ) : (
-              <div className="w-8 shrink-0" />
-            )}
-          </div>
-        ))}
-        {matchingClones.length && voices.length ? (
-          <p className="text-muted-foreground px-3 py-2 text-xs font-semibold">
-            PocketTTS voices
-          </p>
-        ) : null}
-        {voices.map((voice) => {
-          const download = availability(voice.id);
-          const downloading = download?.status === "downloading";
-          const needsDownload = download && download.status !== "installed";
-          const retry =
-            download?.status === "failed" ||
-            Boolean(download && retryAssetIds?.has(download.assetId));
-          const progress = Math.round((download?.progress ?? 0) * 100);
-          const cancel = downloading && onRemove;
-          return (
+      <TabsContent value={tab} className="mt-0 min-h-0 overflow-y-auto">
+        <div
+          className="max-h-[min(22rem,45dvh)] min-h-0 overflow-y-auto overscroll-contain px-2 pb-2"
+          role="list"
+          aria-label="Available PocketTTS voices"
+        >
+          {matchingClones.length ? (
+            <p className="text-muted-foreground px-3 py-2 text-xs font-semibold">
+              Your voice clones
+            </p>
+          ) : null}
+          {matchingClones.map((clone) => (
             <div
-              key={voice.id}
+              key={clone.id}
               role="listitem"
               className={cn(
                 "flex items-center gap-1 rounded-lg px-1",
-                value === voice.id && "bg-muted/60",
+                value === clone.id && "bg-muted/60",
               )}
             >
               <button
                 type="button"
                 disabled={disabled}
-                onClick={() => void choose(voice.id)}
-                aria-label={`Select ${voice.name}`}
-                aria-pressed={value === voice.id}
+                onClick={() => void choose(clone.id)}
+                aria-label={`Select ${clone.name}`}
+                aria-pressed={value === clone.id}
                 className="hover:bg-muted/40 focus-visible:ring-ring flex min-w-0 flex-1 items-center gap-2 rounded-lg px-2 py-2.5 text-left outline-none focus-visible:ring-2 disabled:opacity-50"
               >
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{voice.name}</p>
-                  <p className="text-muted-foreground text-xs">
-                    {[voice.accent, voice.recommended ? "Recommended" : null]
-                      .filter(Boolean)
-                      .join(" · ")}
-                  </p>
-                </div>
-                {value === voice.id ? (
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium">
+                    {clone.name}
+                  </span>
+                  {"sampleUnavailable" in clone ? (
+                    <span className="text-muted-foreground block text-xs">
+                      {clone.sampleUnavailable}
+                    </span>
+                  ) : null}
+                </span>
+                {value === clone.id ? (
                   <Check className="size-4 shrink-0" />
                 ) : null}
               </button>
               <VoiceSampleButton
-                voice={voice}
+                voice={clone}
                 sample={sample}
                 player={player}
                 compact
               />
-              <div className="flex w-8 shrink-0 justify-center">
-                {needsDownload ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    disabled={
-                      !cancel &&
-                      (disabled ||
-                        downloadBusy ||
-                        Boolean(downloadBlockedReason) ||
-                        downloading ||
-                        download.status === "unknown")
-                    }
-                    aria-label={
-                      cancel
-                        ? `Cancel download ${voice.name}`
-                        : downloading
-                          ? `Downloading ${voice.name} ${progress}%`
-                          : retry
-                            ? `Retry download ${voice.name}`
-                            : `Download ${voice.name}`
-                    }
-                    title={
-                      downloading
-                        ? `${progress === 100 ? "Verifying…" : `Downloading ${progress}%`}${cancel ? " · Cancel download" : ""}`
-                        : `${retry ? "Retry download" : "Download"} ${voice.name}`
-                    }
-                    onClick={() =>
-                      cancel
-                        ? onRemove(download.assetId)
-                        : onDownload(download.assetId)
-                    }
-                  >
-                    {downloading || download.status === "unknown" ? (
-                      <LoaderCircle className="animate-spin motion-reduce:animate-none" />
-                    ) : (
-                      <Download
-                        className={retry ? "text-destructive" : undefined}
-                      />
-                    )}
-                  </Button>
-                ) : null}
-              </div>
+              {onDeleteClone ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  className="text-destructive hover:text-destructive shrink-0"
+                  aria-label={`Delete ${clone.name}`}
+                  disabled={disabled}
+                  onClick={() => {
+                    player.stop();
+                    onSelected();
+                    onDeleteClone(clone.id);
+                  }}
+                >
+                  <Trash2 className="size-4" />
+                </Button>
+              ) : (
+                <div className="w-8 shrink-0" />
+              )}
             </div>
-          );
-        })}
-        {!count ? (
-          <p className="text-muted-foreground px-3 py-5 text-sm">
-            No voices match these filters.
-          </p>
-        ) : null}
-        {hasCustomVoice ? (
-          <Button
-            variant="ghost"
-            className="w-full justify-start"
-            disabled={disabled}
-            onClick={() => void choose("custom")}
-          >
-            Custom (uploaded){value === "custom" ? <Check /> : null}
-          </Button>
-        ) : null}
-      </div>
+          ))}
+          {matchingClones.length && voices.length ? (
+            <p className="text-muted-foreground px-3 py-2 text-xs font-semibold">
+              PocketTTS voices
+            </p>
+          ) : null}
+          {voices.map((voice) => {
+            const download = availability(voice.id);
+            const downloading = download?.status === "downloading";
+            const needsDownload = download && download.status !== "installed";
+            const retry =
+              download?.status === "failed" ||
+              Boolean(download && retryAssetIds?.has(download.assetId));
+            const progress = Math.round((download?.progress ?? 0) * 100);
+            const cancel = downloading && onRemove;
+            return (
+              <div
+                key={voice.id}
+                role="listitem"
+                className={cn(
+                  "flex items-center gap-1 rounded-lg px-1",
+                  value === voice.id && "bg-muted/60",
+                )}
+              >
+                <button
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => void choose(voice.id)}
+                  aria-label={`Select ${voice.name}`}
+                  aria-pressed={value === voice.id}
+                  className="hover:bg-muted/40 focus-visible:ring-ring flex min-w-0 flex-1 items-center gap-2 rounded-lg px-2 py-2.5 text-left outline-none focus-visible:ring-2 disabled:opacity-50"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">{voice.name}</p>
+                    <p className="text-muted-foreground text-xs">
+                      {[voice.accent, voice.recommended ? "Recommended" : null]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </p>
+                  </div>
+                  {value === voice.id ? (
+                    <Check className="size-4 shrink-0" />
+                  ) : null}
+                </button>
+                <VoiceSampleButton
+                  voice={voice}
+                  sample={sample}
+                  player={player}
+                  compact
+                />
+                <div className="flex w-8 shrink-0 justify-center">
+                  {needsDownload ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      disabled={
+                        !cancel &&
+                        (disabled ||
+                          downloadBusy ||
+                          Boolean(downloadBlockedReason) ||
+                          downloading ||
+                          download.status === "unknown")
+                      }
+                      aria-label={
+                        cancel
+                          ? `Cancel download ${voice.name}`
+                          : downloading
+                            ? `Downloading ${voice.name} ${progress}%`
+                            : retry
+                              ? `Retry download ${voice.name}`
+                              : `Download ${voice.name}`
+                      }
+                      title={
+                        downloading
+                          ? `${progress === 100 ? "Verifying…" : `Downloading ${progress}%`}${cancel ? " · Cancel download" : ""}`
+                          : `${retry ? "Retry download" : "Download"} ${voice.name}`
+                      }
+                      onClick={() =>
+                        cancel
+                          ? onRemove(download.assetId)
+                          : onDownload(download.assetId)
+                      }
+                    >
+                      {downloading || download.status === "unknown" ? (
+                        <LoaderCircle className="animate-spin motion-reduce:animate-none" />
+                      ) : (
+                        <Download
+                          className={retry ? "text-destructive" : undefined}
+                        />
+                      )}
+                    </Button>
+                  ) : !voice.assetId || download?.status === "installed" ? (
+                    <span
+                      role="img"
+                      aria-label={`${voice.name} ${voice.assetId ? "downloaded" : "included"}`}
+                      title={voice.assetId ? "Downloaded" : "Included"}
+                      className="text-muted-foreground flex size-8 items-center justify-center"
+                    >
+                      <Check className="size-4" aria-hidden="true" />
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+            );
+          })}
+          {!count ? (
+            <p className="text-muted-foreground px-3 py-5 text-sm">
+              No voices match these filters.
+            </p>
+          ) : null}
+          {showUploaded ? (
+            <Button
+              variant="ghost"
+              className="w-full justify-start"
+              disabled={disabled}
+              onClick={() => void choose("custom")}
+            >
+              Custom (uploaded){value === "custom" ? <Check /> : null}
+            </Button>
+          ) : null}
+        </div>
+      </TabsContent>
       {downloadBlockedReason || downloadError ? (
         <p
           role="status"
@@ -466,7 +485,7 @@ export function PocketVoiceList({
           {sample.error}
         </p>
       ) : null}
-    </div>
+    </Tabs>
   );
 }
 

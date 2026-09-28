@@ -71,6 +71,9 @@ test("compact picker keeps inline download, retry and cancel independent of sele
   try {
     await page.goto(`${origin}/tests/fixtures/voice-clone-library/picker.html`);
     await page.getByRole("button", { name: "PocketTTS voice: Eve" }).click();
+    await page
+      .getByRole("img", { name: "Eve included", exact: true })
+      .waitFor();
     assert.equal(await page.getByText("Included", { exact: true }).count(), 0);
     assert.deepEqual(
       await page.evaluate(() => window.voicePickerFixture.actions),
@@ -119,6 +122,9 @@ test("compact picker keeps inline download, retry and cancel independent of sele
         "installed",
       ),
     );
+    await page
+      .getByRole("img", { name: "Clara downloaded", exact: true })
+      .waitFor();
     assert.equal(
       await page
         .getByRole("button", { name: "Remove Clara", exact: true })
@@ -135,6 +141,151 @@ test("compact picker keeps inline download, retry and cancel independent of sele
       ["download", "download", "cancel", "download"],
     );
     assert.equal(result.actions[0].id, result.actions[1].id);
+  } finally {
+    await page.close();
+  }
+});
+
+test("picker filters expose keyboard gender tabs and Custom without selecting or downloading", async () => {
+  const page = await browser.newPage({
+    viewport: { width: 1280, height: 800 },
+  });
+  page.setDefaultTimeout(5_000);
+  const modelRequests = [];
+  page.on("request", (request) => {
+    if (
+      /\/(v1\/model-assets|onnx\/models|models\/pocket-tts)/u.test(
+        request.url(),
+      )
+    )
+      modelRequests.push(request.url());
+  });
+  try {
+    await page.goto(
+      `${origin}/tests/fixtures/voice-clone-library/picker.html?customvoices`,
+    );
+    await page.getByRole("button", { name: "PocketTTS voice: Eve" }).click();
+    const all = page.getByRole("tab", { name: "All", exact: true });
+    const female = page.getByRole("tab", { name: "Female", exact: true });
+    const male = page.getByRole("tab", { name: "Male", exact: true });
+    const recommended = page.getByRole("checkbox", {
+      name: "Recommended only",
+      exact: true,
+    });
+    const custom = page.getByRole("checkbox", { name: "Custom", exact: true });
+    const narrator = page.getByRole("button", {
+      name: "Select Narrator",
+      exact: true,
+    });
+    const uploaded = page.getByRole("button", {
+      name: "Custom (uploaded)",
+      exact: true,
+    });
+    const search = page.getByLabel("Search PocketTTS voices");
+    assert.equal(await all.getAttribute("aria-selected"), "true");
+    assert.equal(await narrator.count(), 1);
+    assert.equal(await uploaded.count(), 1);
+    assert.equal(await page.getByText("40 voices", { exact: true }).count(), 1);
+    await all.focus();
+    await page.keyboard.press("ArrowRight");
+    await page
+      .getByRole("tab", { name: "Female", exact: true, selected: true })
+      .waitFor();
+    assert.equal(await female.getAttribute("aria-selected"), "true");
+    assert.equal(await narrator.count(), 0);
+    assert.equal(
+      await page
+        .getByRole("button", { name: "Select Paul", exact: true })
+        .count(),
+      0,
+    );
+    await recommended.click();
+    assert.equal(
+      await page
+        .getByRole("button", { name: "Select Eve", exact: true })
+        .count(),
+      0,
+    );
+    await search.fill("Canadian");
+    assert.equal(
+      await page.getByRole("button", { name: /^Select / }).count(),
+      1,
+    );
+    assert.equal(
+      await page
+        .getByRole("button", { name: "Select Azelma", exact: true })
+        .count(),
+      1,
+    );
+    await search.fill("");
+    await male.click();
+    assert.equal(
+      await page
+        .getByRole("button", { name: "Select Paul", exact: true })
+        .count(),
+      1,
+    );
+    await custom.click();
+    assert.equal(await all.isEnabled(), false);
+    assert.equal(await female.isEnabled(), false);
+    assert.equal(await male.isEnabled(), false);
+    assert.equal(await recommended.isEnabled(), false);
+    assert.equal(await narrator.count(), 1);
+    assert.equal(await uploaded.count(), 1);
+    assert.equal(await page.getByText("2 voices", { exact: true }).count(), 1);
+    assert.equal(
+      await page
+        .getByRole("button", { name: "Select Paul", exact: true })
+        .count(),
+      0,
+    );
+    await search.fill("narr");
+    assert.equal(await narrator.count(), 1);
+    assert.equal(await uploaded.count(), 0);
+    assert.equal(await page.getByText("1 voice", { exact: true }).count(), 1);
+    await search.fill("uploaded");
+    assert.equal(await narrator.count(), 0);
+    assert.equal(await uploaded.count(), 1);
+    await search.fill("");
+    await custom.click();
+    assert.equal(await male.getAttribute("aria-selected"), "true");
+    assert.equal(await recommended.isChecked(), true);
+    assert.equal(await recommended.isEnabled(), true);
+    assert.equal(await narrator.count(), 0);
+    await all.click();
+    await recommended.click();
+    assert.equal(await narrator.count(), 1);
+    const screenshots = process.env.ANIMAMA_PICKER_SCREENSHOTS;
+    if (screenshots)
+      await page.screenshot({
+        path: path.join(screenshots, "voice-picker-filters-desktop.png"),
+      });
+    await page.setViewportSize({ width: 390, height: 844 });
+    const searchBox = await search.boundingBox();
+    for (const control of [all, female, male, recommended, custom]) {
+      const box = await control.boundingBox();
+      assert.ok(
+        box.y >= searchBox.y + searchBox.height,
+        "filters remain below search",
+      );
+      assert.ok(
+        box.x >= 0 && box.x + box.width <= 390,
+        "filter fits narrow picker",
+      );
+    }
+    if (screenshots)
+      await page.screenshot({
+        path: path.join(screenshots, "voice-picker-filters-narrow.png"),
+      });
+    assert.deepEqual(
+      await page.evaluate(() => window.voicePickerFixture.actions),
+      [],
+    );
+    assert.equal(
+      await page.evaluate(() => window.voicePickerFixture.selected),
+      "eve",
+    );
+    assert.deepEqual(modelRequests, []);
   } finally {
     await page.close();
   }

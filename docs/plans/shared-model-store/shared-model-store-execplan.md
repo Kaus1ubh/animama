@@ -62,6 +62,35 @@ Validation is still manually disabled. Earlier full-suite/native evidence is
 retained as prior-source evidence; no new signed/native/audio/publication
 acceptance is claimed for this UI revision.
 
+### Picker filter revision (2026-09-28)
+
+Owner-requested follow-up at `bfe001e14edb1bb668e96d79b1d96fc3cb787241` replaces
+the filter popup with All/Female/Male tabs below search and visible Recommended
+only / Custom checkboxes. Custom filters saved clones and the legacy uploaded
+voice, keeping search active and preserving suspended preset filters. Included
+and downloaded presets show a checkmark in the download slot, distinct from
+selection. Unknown optional availability does not imply a completed download.
+No model lifecycle, provider selection or publication behavior changes.
+
+#### Picker Code Review #1 Findings
+
+Independent code review found no actionable issues. A second agent verified
+keyboard arrow navigation, preset filter restoration after Custom, search/counts
+across saved and uploaded voices, no download/selection side effects, and
+included/downloaded markers independent of the selected voice.
+
+#### Picker Code Review #1 Revisions
+
+No repairs requested; both rounds remain for this bounded revision. The markup
+regression failed before implementation and passed afterward (13 tests). Three
+picker browser cases, forced TypeScript, scoped ESLint/Prettier and the retained
+production Docker build passed. Desktop/narrow component screenshots were
+inspected; filters fit and the list remains compact. Logs:
+`/tmp/animama-188-tabs-unit.log`, `/tmp/animama-188-picker-tabs-browser.log`,
+`/tmp/animama-188-picker-tabs-tsc.log`, `/tmp/animama-188-tabs-selfhost.log`.
+Earlier native evidence and outstanding hosted/release gates remain unchanged;
+no speech fidelity, signing or publication result is inferred from these checks.
+
 ## Purpose and context
 
 The two desktop Parakeet packs and self-host base acquisition will consume raw,

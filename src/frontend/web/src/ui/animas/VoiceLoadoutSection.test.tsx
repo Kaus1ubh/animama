@@ -293,7 +293,9 @@ describe("Anima voice configuration", () => {
         availability={(id) =>
           id === "anna"
             ? { assetId: "pocket-voice-anna", status: "not_installed" }
-            : null
+            : id === "clara"
+              ? { assetId: "pocket-voice-clara", status: "installed" }
+              : null
         }
         onDownload={() => undefined}
         onSelected={() => undefined}
@@ -311,6 +313,11 @@ describe("Anima voice configuration", () => {
     expect(html).not.toContain("Samples are source recordings");
     expect(html).not.toContain("Sample sources");
     expect(html).not.toContain("Use application default");
+    expect(html).toContain('aria-label="Voice gender"');
+    expect(html).toContain('aria-label="Eve included"');
+    expect(html).toContain('aria-label="Clara downloaded"');
+    expect(html).not.toContain('aria-label="Anna downloaded"');
+    expect(html).not.toContain('aria-label="Filter voices"');
     expect(html).not.toContain("Download</button>");
     expect(html).not.toContain(">Included</span>");
   });

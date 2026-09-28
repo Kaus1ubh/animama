@@ -1054,8 +1054,12 @@ the public ORT 1.24.2 inventory does not replace those dependency versions.
     installed starts its install on the next reply.
   - A failed download shows one notice per session, and the next reply or pick
     retries it.
-- Anima voice selection keeps a compact picker with search, filtering, previews
-  and inline download/retry/cancel actions. Downloading alone changes neither
+- Anima voice selection keeps a compact picker with search, All/Female/Male tabs,
+  Recommended only and Custom filters, previews and inline download/retry/cancel
+  actions. Custom shows saved clones and uploaded voices; preset filters pause
+  until it is unchecked because custom voices have no gender/recommendation
+  metadata. Checkmarks in the download slot identify included or downloaded
+  presets, separately from the selected voice. Downloading alone changes neither
   selection nor provider. Setup and App Settings do not contain a preset browser.
   App Settings → Voice → Voice Clone reuses the Anima cloning form and exposes
   the encoder download independently of TTS. Setup offers only Speech-to-Text and
