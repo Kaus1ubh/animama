@@ -357,11 +357,20 @@ Agreed on 2026-09-26:
 - Acceptance models: `qwen3.5:4b-mlx` or `gemma4:e4b-mlx`, or the same model
   in the format each server loads (owner, 2026-09-26).
 
-Open:
+Agreed on 2026-09-28 for Plan B (owner):
 
-- **Keyed search API** — bounded research comparing Brave, Tavily and Exa on
-  terms for application use, free tier, result format and privacy. Blocks R11
-  only.
+- Keyed search API: **Brave Search API**, after research comparing Brave,
+  Tavily and Exa on terms, free tier, result format and privacy (summary in
+  the Plan B ExecPlan).
+- With a backend configured, web search starts on for tool-capable models.
+- A reply whose speech has already streamed is salvaged from its parsed parts;
+  repair runs only when no speech streamed (R12).
+- Models saved with structured output "None" are asked for JSON by prompt,
+  then repaired once, then fall back to plain text (R12).
+- A failed, unassigned or timed-out pre-send compaction omits the oldest
+  messages and continues (R10).
+- The status event that shows summarizing also shows "Searching the web…" for
+  the application search tool.
 
 ## Spec
 
@@ -371,8 +380,8 @@ https://github.com/raymond-van/animama/issues/165
 
 - Plan A (R1–R9): [configurable-models-execplan.md](configurable-models-execplan.md)
   (authorized 2026-09-26; implemented, owner gates pending).
-- Plan B (R10–R12): `configurable-models-features-execplan.md`, to be written
-  after Plan A merges.
+- Plan B (R10–R12): [configurable-models-features-execplan.md](configurable-models-features-execplan.md)
+  (drafted 2026-09-28; awaiting owner review).
 
 ## Delivery links
 
