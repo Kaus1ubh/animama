@@ -999,7 +999,13 @@ the public ORT 1.24.2 inventory does not replace those dependency versions.
     most four more compact states stay cached.
   - It generates with temperature 0.3.
 - Anima Loadout → Voices configures PocketTTS and ElevenLabs independently of
-  the active provider or TTS being enabled. The Pocket list supports name/accent
+  the active provider or TTS being enabled. Its TTS Provider selector saves
+  `speech.tts_provider` for that Anima without changing the application enable
+  flag or either voice. Animas without an override inherit the application provider,
+  shown with an `(app)` suffix; inherited Browser TTS remains visible until the
+  user selects PocketTTS or ElevenLabs. Loadout is outside the chat route, so the
+  saved provider applies when returning to chat. Provider credentials and model
+  configuration remain in application settings. The Pocket list supports name/accent
   search, Any/Female/Male filtering and Recommended only. Choosing a voice saves
   an explicit Anima value; legacy missing values keep their existing fallback.
 - Each catalog voice has a pinned upstream source recording. Play buttons beside

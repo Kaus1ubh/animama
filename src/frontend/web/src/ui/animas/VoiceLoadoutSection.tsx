@@ -14,6 +14,13 @@ import { LoadoutSectionDisclosure } from "@/ui/animas/LoadoutSectionDisclosure";
 import { PocketVoicePicker } from "@/ui/animas/PocketVoicePicker";
 import { Button } from "@/ui/components/button";
 import { Input } from "@/ui/components/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/ui/components/select";
 import { useSettings } from "@/ui/settings/SettingsProvider";
 
 /** Voice authoring belongs with the rest of an Anima's Loadout. */
@@ -64,8 +71,20 @@ export function AnimaVoicesEditor() {
   const pending = useRef(false);
   const [saving, setSaving] = useState(false);
   const disabled = isLoading || isUpdating || saving || !animaId;
+  const savedProvider = toTtsProvider(animaPreferences?.speech?.tts_provider);
+  const configuredProvider = toTtsProvider(
+    effectivePreferences.speech?.tts_provider,
+  );
+  const providerLabel =
+    configuredProvider === "pocket_tts"
+      ? "PocketTTS"
+      : configuredProvider === "elevenlabs"
+        ? "ElevenLabs"
+        : configuredProvider === "browser"
+          ? "Browser"
+          : null;
   const activeProvider = effectivePreferences.speech?.tts_enabled
-    ? toTtsProvider(effectivePreferences.speech?.tts_provider)
+    ? configuredProvider
     : null;
   // Legacy Animas retain the voice they already resolve, without a default row.
   const pocketVoice =
@@ -73,6 +92,24 @@ export function AnimaVoicesEditor() {
     DEFAULT_POCKET_VOICE;
   const download = downloads.availability(pocketVoice);
   const savedElevenLabs = elevenLabsVoiceId(animaPreferences?.speech);
+
+  const saveProvider = async (provider: string) => {
+    if (provider !== "pocket_tts" && provider !== "elevenlabs") return;
+    if (disabled || pending.current) return;
+    pending.current = true;
+    setSaving(true);
+    try {
+      // Loadout is outside the chat route; the next chat mount reads this override.
+      // Never copy the app's enable flag or the other provider's voice settings.
+      await updateAnimaPreferences({ speech: { tts_provider: provider } });
+      toast.success("TTS provider saved.");
+    } catch {
+      toast.error("Failed to save TTS provider. Try again.");
+    } finally {
+      pending.current = false;
+      setSaving(false);
+    }
+  };
 
   const savePocketVoice = async (voice: string) => {
     if (disabled || pending.current || runtime.isEncodingVoice)
@@ -123,6 +160,43 @@ export function AnimaVoicesEditor() {
 
   return (
     <div className="divide-y rounded-xl border">
+      <section className="space-y-3 p-4" aria-label="Voice provider">
+        <label htmlFor="anima-tts-provider" className="text-sm font-semibold">
+          TTS Provider
+        </label>
+        <Select
+          // An inherited value stays unselected so choosing that same provider
+          // still pins it to this Anima. Legacy Browser remains visible only.
+          value={savedProvider === "browser" ? "" : (savedProvider ?? "")}
+          onValueChange={(provider) => void saveProvider(provider)}
+          disabled={disabled}
+        >
+          <SelectTrigger
+            id="anima-tts-provider"
+            aria-label="TTS Provider"
+            className="w-full"
+          >
+            <SelectValue
+              placeholder={
+                providerLabel
+                  ? `${providerLabel}${savedProvider ? "" : " (app)"}`
+                  : "Choose provider"
+              }
+            >
+              {savedProvider ? providerLabel : undefined}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="pocket_tts">PocketTTS</SelectItem>
+            <SelectItem value="elevenlabs">ElevenLabs</SelectItem>
+          </SelectContent>
+        </Select>
+        {effectivePreferences.speech?.tts_enabled !== true ? (
+          <p className="text-muted-foreground text-xs">
+            Speech is off in application settings.
+          </p>
+        ) : null}
+      </section>
       <section className="space-y-3 p-4" aria-label="PocketTTS voice">
         <ProviderHeading
           name="PocketTTS"

@@ -1454,11 +1454,11 @@ export function ApplicationSettingsModal({
       id: "tts-provider",
       section: "Voice",
       group: "Text-to-Speech",
-      label: "Text-to-Speech provider",
+      label: "Default Text-to-Speech provider",
       keywords: ["tts", "text-to-speech", "pocket", "elevenlabs", "voice"],
       render: () => (
         <SettingsRow
-          label="Provider"
+          label="Default provider"
           description={
             !ttsEnabled
               ? "Enable Text-to-Speech to select a provider."
@@ -1496,7 +1496,8 @@ export function ApplicationSettingsModal({
             </p>
           ) : null}
           <p className="text-muted-foreground text-xs">
-            Choose voices for each Anima in Loadout → Voices.
+            Used by Animas without their own provider. Choose providers and
+            voices for each Anima in Loadout → Voices.
           </p>
         </SettingsRow>
       ),

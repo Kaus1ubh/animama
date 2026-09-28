@@ -5,6 +5,7 @@ import { filteredPocketVoices, PocketVoiceList } from "./PocketVoicePicker";
 import { IDLE_VOICE_SAMPLE } from "@/lib/speech/pocket/voice-sample-player";
 
 const fixtures = vi.hoisted(() => ({
+  animaProvider: undefined as string | undefined,
   speech: {
     tts_enabled: false,
     tts_provider: "browser",
@@ -19,7 +20,9 @@ vi.mock("@/ui/settings/SettingsProvider", () => ({
   useSettings: () => ({
     animaId: "anima-1",
     effectivePreferences: { speech: fixtures.speech },
-    animaPreferences: { speech: fixtures.speech },
+    animaPreferences: {
+      speech: { ...fixtures.speech, tts_provider: fixtures.animaProvider },
+    },
     updateAnimaPreferences: fixtures.update,
     isLoading: false,
     isUpdating: false,
@@ -45,12 +48,14 @@ describe("Anima voice configuration", () => {
   beforeEach(() => {
     fixtures.speech.tts_enabled = false;
     fixtures.speech.tts_provider = "browser";
+    fixtures.animaProvider = undefined;
   });
   it.each(["browser", "pocket_tts", "elevenlabs"])(
     "keeps both voice controls editable with %s selected and TTS disabled",
     (provider) => {
       fixtures.speech.tts_provider = provider;
       const html = renderToStaticMarkup(<AnimaVoicesEditor />);
+      expect(html).toContain('aria-label="TTS Provider"');
       expect(html).toContain('aria-label="PocketTTS voice: Eve"');
       expect(html).toContain('aria-label="Play Eve sample"');
       expect(html).toContain('value="saved-voice"');
@@ -64,8 +69,24 @@ describe("Anima voice configuration", () => {
       expect(html).not.toContain("PocketTTS status");
       expect(fixtures.warmup).not.toHaveBeenCalled();
       expect(fixtures.setVoice).not.toHaveBeenCalled();
+      expect(fixtures.update).not.toHaveBeenCalled();
     },
   );
+
+  it("displays inherited Browser TTS without choosing a replacement", () => {
+    const html = renderToStaticMarkup(<AnimaVoicesEditor />);
+    expect(html).toContain("Browser (app)");
+    expect(html).toContain("Speech is off in application settings.");
+    expect(fixtures.update).not.toHaveBeenCalled();
+  });
+
+  it("displays an explicit provider without marking it as inherited", () => {
+    fixtures.animaProvider = "elevenlabs";
+    fixtures.speech.tts_provider = "elevenlabs";
+    const html = renderToStaticMarkup(<AnimaVoicesEditor />);
+    expect(html).toContain("ElevenLabs</span>");
+    expect(html).not.toContain("ElevenLabs (app)");
+  });
 
   it("combines voice gender, recommendation and accent/name filters", () => {
     const all = filteredPocketVoices({
