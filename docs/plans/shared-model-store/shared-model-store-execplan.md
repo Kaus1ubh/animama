@@ -1,7 +1,7 @@
 # Shared voice model objects and optional downloads
 
 Source agreement: [issue #188](https://github.com/raymond-van/animama/issues/188),
-updated **2026-09-28T18:08:17Z**. The issue includes R1–R12 and A1–A11 and
+updated **2026-09-28T18:11:45Z**. The issue includes R1–R12 and A1–A11 and
 is the single authoritative spec. Owner authorization on 2026-09-28 covers all
 six implementation phases. [ADR 0010](../../adr/0010-shared-model-object-distribution.md)
 records the shared distribution and optional-asset direction.
@@ -11,8 +11,8 @@ The revised voice-download plan is accepted. Model/app publication and exact-
 candidate merge remain separate existing gates. Workspace setup fast-forwarded
 this branch to merged PR #195, `f89d3ed33012a19d7647ebe34dc6a5094104de06`.
 Its final version adds reusable named clones and Anima-creation voice selection;
-preserve those behaviors. Source-sample persistence is being clarified before
-dependent cloning work; Phases 1–3 may proceed independently.
+preserve those behaviors. The owner confirmed preserving saved-clone/source-sample behavior; only pending
+encoder-download samples remain in memory. No product questions remain.
 
 ## Purpose and context
 
@@ -61,8 +61,8 @@ owner's decisions plus the observable implementation contract proposed here.
   operation; encode only after verified installation. Normal speech generation,
   starter voice playback, settings entry and Pocket warmup work without it and
   never request it. The input sample stays local; retain it in memory while the
-  initiating view remains alive, or ask for reselection after reload. Do not
-  persist raw samples or add durable custom-voice storage in this change.
+  initiating view remains alive, or ask for reselection after reload. Preserve #195’s saved named clones and local source-sample previews; pending
+  encoder downloads add no new sample persistence.
 - **R11 — Optional desktop setup.** Replace the install-on-Continue speech
   checkbox with direct, optional Download actions for CPU recognition, the
   compatible GPU enhancement, individual additional voices and cloning. No
@@ -194,11 +194,12 @@ Paths are repository-relative; inspect their current contents on resumption.
       back #188; prepare the task branch.
 - [x] Draft ADR 0010 and this plan. Document checks and independent plan review
       are recorded under Planning validation below.
-- [ ] Phase 1: shared model references and transport contracts.
+- [x] Phase 1: shared model references and transport contracts.
 - [ ] Phase 2: verified per-file desktop installation.
 - [ ] Phase 3: self-host acquisition from shared objects.
 - [x] Synchronize #188 with the accepted voice scope; integrate merged #195.
-- [ ] Reconcile saved source-sample behavior before dependent cloning changes.
+- [x] Owner confirmed preserving #195 saved clones and source samples; pending
+  download input stays in memory.
 - [ ] Phase 4: two bundled Pocket voices and optional cloning encoder.
 - [ ] Phase 5: optional desktop setup and contextual settings downloads.
 - [ ] Phase 6: release integration and current documentation (formerly Phase 4).
@@ -237,8 +238,17 @@ Paths are repository-relative; inspect their current contents on resumption.
 - FastAPI shutdown cancels its optional downloads and discards staging. A pack
   activation during a voice/encoder download must be coordinated or recover as
   an explicit retry, never report a partial file as installed.
+- The integrated #195 build hook reads `scripts/voices/selection.json`, but the
+  Docker source stage omitted that input. Adding its explicit COPY repaired the
+  observed editable-package build failure. The rebuilt backend and normal Compose
+  readiness check pass (prerequisite commit `80eec359`). The first web dependency installation exceeded reset's
+  readiness timeout; it completed without another source change.
 
 ## Decision Log
+
+- **2026-09-28, owner, integration clarification:** preserve #195 saved named
+  clones and installation-local source-sample previews. The new download wait
+  keeps its pending sample in memory and introduces no extra persistence.
 
 - **2026-09-28, owner, #188:** accept raw transfers and their larger size;
   publish notices and verify them in pack inventories; include self-host base
@@ -270,8 +280,8 @@ Paths are repository-relative; inspect their current contents on resumption.
   presentation where useful, without inventing a universal installer. Keep
   Pocket generation bundled and all current speech engines/weights unchanged.
 - **2026-09-28, planning choice:** add Pocket delivery and UX phases before the
-  existing release phase. The original Phase 4 becomes Phase 6; no implementation
-  phases or review rounds have started, and all original acceptance gates remain.
+  existing release phase. The original Phase 4 becomes Phase 6; all original
+  acceptance gates remain.
 
 ## Phased implementation
 
@@ -292,7 +302,8 @@ repository type/scope that accurately describes the final change.
 **Requirements:** R1, R2, R6, R7. **Acceptance:** A1, A6.
 **Dependency:** plan accepted and implementation authorized.
 **Issue:** [#197](https://github.com/raymond-van/animama/issues/197).
-**Starting source/commit:** pending execution; integrated base `f89d3ed3`.
+**Starting source/commit:** `a994400f`, the synchronized plan over integrated
+base `f89d3ed3`.
 
 1. Derive object keys from model ID, each file's SHA-256 and its validated file
    name. Preserve pinned provenance; avoid changing manifest bytes merely to
@@ -343,16 +354,33 @@ intermediate candidate before Phase 2 supports installation. Regenerate ignored
 stage outputs after any schema/inventory change; never edit signed catalogs or
 invent approval hashes to make the producer pass.
 
-**Evidence and remaining gates:** not run; no phase commit. Actual inventory
-review is still required when a produced inventory changes.
+**Evidence and remaining gates:** 155 tests passed across runtime packaging,
+feature packs, model-pack contracts, optional inputs and model publication.
+Desktop typecheck/build, bundled-import audit, targeted formatting, JSON Schema
+fixtures and `git diff --check` passed. New contract tests failed before the
+implementation and passed afterward; the publisher slice had seven red cases
+then 22/22 passing cases. No model bytes or approval hashes changed. Actual
+inventory review remains required when a produced inventory changes. Model
+installation deliberately reports unsupported until Phase 2; no intermediate
+candidate may be distributed.
 
 #### Code Review #1 Findings
 
-Not started. Record reviewer, source, checks and stable IDs here.
+Independent analysis reviewed the frozen working-tree boundary over `a994400f`;
+a separate check runner passed the desktop build and diff checks, reusing valid
+focused test evidence. **P1-PUB-1:** the retained compressed base download ceiling
+of 524,288,000 bytes rejects its unchanged 661,332,409-byte raw inventory. No
+other concrete blocking findings, including the Docker build prerequisite.
 
 #### Code Review #1 Revisions
 
-Not started. Two repair rounds available; record disposition and verification.
+**Accepted P1-PUB-1.** The raw download ceiling now equals the existing installed
+ceiling (681,574,400 bytes). A contract test sums both canonical model inventories
+against the real release budgets: it failed on the old base ceiling and passes
+after the fix (4/4 focused contract tests). Independent targeted review #2 passed:
+canonical totals fit both ceilings and no direct regression was found. One repair
+round used; one remains. No model or approval identity changed. Phase 1 passed;
+the commit carrying this record completes its implementation boundary.
 
 ### Phase 2: Verified desktop model-file installation
 
@@ -965,14 +993,10 @@ and no implementation/native/model-download tests were run.
 
 ## Outcomes & Retrospective
 
-Implementation setup completed on 2026-09-28; phases are now authorized.
-Historical planning outcome: The original distribution decisions and requested
-voice-download policy are captured. The issue/ADR scope synchronization and
-integration with PR #195 are explicit implementation prerequisites, not completed
-work. No implementation, dependency/model downloads, tracker changes or release
-publication were performed in this revision. Review and implementation
-authorization remain the next lifecycle step. Native
-hardware, exact-input licensing review and actual publication evidence are known
+Implementation setup completed on 2026-09-28; all six phases are authorized.
+The issue and ADR include the agreed Pocket scope, and merged #195 is integrated.
+Implementation and bounded phase review are in progress. Native hardware,
+exact-input licensing review and actual publication evidence remain separate
 execution requirements, not completed results.
 
 ## Implementation workspace handoff
@@ -982,4 +1006,7 @@ execution requirements, not completed results.
 - Phase issues: #197, #198, #199, #200, #201, #202.
 - Locked pnpm/uv dependencies installed; tracked LFS inputs hydrated.
 - Existing base, WebGPU and browser model caches verified offline.
-- No local stack started yet; no model or app objects published.
+- Task-owned development stack: `animama-model-objects-2ca1`,
+  `http://animama-model-objects-2ca1.localhost:8600`. The normal
+  `check-compose-ready.mjs` probe passed after first dependency installation.
+- No model or app objects published.

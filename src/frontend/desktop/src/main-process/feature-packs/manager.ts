@@ -11,6 +11,8 @@ import { atomicWrite, privateDirectory } from "../runtime/atomic-file.js";
 import { RuntimeError, runtimeErrorCode } from "../runtime/errors.js";
 import {
   PACK_METADATA,
+  downloadBytes,
+  packContentDigest,
   manifestDigest,
   packId,
   readBoundedJson,
@@ -86,7 +88,7 @@ export class FeaturePackManager {
       ...(manifest
         ? {
             version: manifest.version,
-            downloadBytes: manifest.archive_bytes,
+            downloadBytes: downloadBytes(manifest),
             installedBytes: manifest.installed_bytes,
             minimumFreeBytes: requiredFreeBytes(manifest),
           }
@@ -311,6 +313,9 @@ export class FeaturePackManager {
     return this.enqueue(id, async (signal) => {
       const manifest = this.manifest(id);
       if (!manifest) throw new RuntimeError("pack_unpublished");
+      // The next installer phase adds assembly for this new catalog transport.
+      if (manifest.schema === "animama-model-pack/1")
+        throw new RuntimeError("pack_transport_unsupported");
       // Checked inside the serialized queue, so a concurrent removal cannot race it.
       if (
         (featurePackRequires[id] ?? []).some(
@@ -319,7 +324,9 @@ export class FeaturePackManager {
       )
         throw new RuntimeError("pack_dependency_missing");
       if (
-        this.active[id]?.manifest.archive_sha256 === manifest.archive_sha256
+        this.active[id] &&
+        packContentDigest(this.active[id]!.manifest) ===
+          packContentDigest(manifest)
       ) {
         this.emit(id, {
           state: "installed",

@@ -220,10 +220,12 @@ function stageModelPack(target, spec, manifestFile, modelRoot) {
   }
 }
 
-function manifestFiles(options) {
+/** Canonical producer paths are resolved before the TypeScript tool is bundled. */
+export function modelPackManifestFiles(options = {}) {
   return {
-    "parakeet-stt": options.manifestFile,
-    "parakeet-stt-webgpu": options.webgpuManifestFile,
+    "parakeet-stt": options.manifestFile ?? modelPacks[0].defaultManifest,
+    "parakeet-stt-webgpu":
+      options.webgpuManifestFile ?? modelPacks[1].defaultManifest,
   };
 }
 
@@ -231,7 +233,7 @@ function manifestFiles(options) {
 export function stageOptionalInputs(target, options = {}) {
   const receipt = path.join(target.output, "optional-inputs.json");
   rmSync(receipt, { force: true });
-  const manifests = manifestFiles(options);
+  const manifests = modelPackManifestFiles(options);
   const value = {
     schema: "animama-optional-inputs/1",
     document_processing: "separate-signed-worker",
@@ -256,7 +258,7 @@ export function stageOptionalInputs(target, options = {}) {
  * Returns each model pack's verified inventory; unavailable inputs are empty.
  */
 export function auditOptionalInputs(target, options = {}) {
-  const manifests = manifestFiles(options);
+  const manifests = modelPackManifestFiles(options);
   const receipt = readJson(path.join(target.output, "optional-inputs.json"));
   if (receipt.schema !== "animama-optional-inputs/1")
     throw new Error("Invalid optional input receipt");

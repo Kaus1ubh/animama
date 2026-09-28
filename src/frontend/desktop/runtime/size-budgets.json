@@ -4,7 +4,7 @@
   "core": { "download_bytes": 786432000, "installed_bytes": 1610612736 },
   "packs": {
     "parakeet-stt": {
-      "download_bytes": 524288000,
+      "download_bytes": 681574400,
       "installed_bytes": 681574400
     },
     "parakeet-stt-webgpu": {

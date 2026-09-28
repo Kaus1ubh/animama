@@ -145,9 +145,10 @@ export function stageModelCandidate({
 
 /**
  * The objects to publish for a staged candidate. The candidate must match the
- * tracked manifest exactly, and every packaged catalog URL under this model
- * must name one of these objects, so the app never pins a URL that this
- * publication does not create.
+ * tracked manifest exactly. Backend assets and complete desktop model-pack
+ * inventories must pin these same objects. Base Parakeet also has an operator
+ * acquisition consumer, which derives its complete inventory from the manifest
+ * without adding artificial in-app asset entries.
  */
 export function planModelPublication({
   modelId,
@@ -155,6 +156,7 @@ export function planModelPublication({
   origin,
   manifestFile = path.join(repoRoot, "models", modelId, "manifest.json"),
   catalog = readJson(defaultCatalogFile),
+  packCatalog = { entries: [] },
 }) {
   const { files } = trackedFiles(modelId, manifestFile);
   let index;
@@ -176,17 +178,41 @@ export function planModelPublication({
   }));
   const prefix = `${origin}/models/${modelId}/`;
   const pinned = catalog.assets.filter((asset) => asset.url.startsWith(prefix));
+  const packs = packCatalog.entries.filter(
+    (pack) =>
+      pack.schema === "animama-model-pack/1" && pack.model_id === modelId,
+  );
+  const payload = planned.filter((file) => file.name !== "manifest.json");
+  const matches = (url, digest, size, name) =>
+    planned.some(
+      (file) =>
+        file.url === url &&
+        file.sha256 === digest &&
+        file.size_bytes === size &&
+        (name === undefined || file.name === name),
+    );
+  const invalidPack = packs.some((pack) => {
+    // A model pack delivers the whole reviewed set, including its notices.
+    const inventory = pack.files
+      .map((file) => ({
+        name: file.path,
+        size_bytes: file.size_bytes,
+        sha256: file.sha256,
+      }))
+      .sort((a, b) => (a.name < b.name ? -1 : 1));
+    return (
+      shape(inventory) !== shape(payload) ||
+      pack.files.some(
+        (file) => !matches(file.url, file.sha256, file.size_bytes, file.path),
+      )
+    );
+  });
+  const hasConsumer =
+    pinned.length > 0 || packs.length > 0 || modelId === "parakeet-tdt-0.6b-v2";
   if (
-    !pinned.length ||
-    pinned.some(
-      (asset) =>
-        !planned.some(
-          (file) =>
-            file.url === asset.url &&
-            file.sha256 === asset.sha256 &&
-            file.size_bytes === asset.size,
-        ),
-    )
+    !hasConsumer ||
+    invalidPack ||
+    pinned.some((asset) => !matches(asset.url, asset.sha256, asset.size))
   )
     throw new PublicationError(
       "The packaged catalog does not match this model's objects; update the catalog or the manifest",

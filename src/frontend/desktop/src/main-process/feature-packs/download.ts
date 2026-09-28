@@ -8,7 +8,7 @@ import {
   downloadUrl,
   readBoundedJson,
   type PackCatalog,
-  type PackManifest,
+  type ArchivePackManifest,
 } from "./catalog.js";
 import { hashFile } from "./files.js";
 
@@ -63,7 +63,7 @@ async function responseFor(
 
 /** Resume only a catalog-matched partial for which a server proves exact ETag/range identity. */
 export async function downloadPack(options: {
-  manifest: PackManifest;
+  manifest: ArchivePackManifest;
   partial: string;
   development: boolean;
   distribution: PackCatalog["distribution"];

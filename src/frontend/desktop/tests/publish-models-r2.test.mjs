@@ -34,13 +34,6 @@ const payload = {
 };
 
 const repo = path.resolve(import.meta.dirname, "../../../..");
-const trackedSources = Object.fromEntries(
-  JSON.parse(
-    readFileSync(path.join(repo, "models", modelId, "manifest.json")),
-  ).files.map((file) => [file.path, file.source]),
-);
-delete trackedSources["ATTRIBUTION.md"];
-delete trackedSources["README.md"];
 
 const roots = [];
 afterEach(() => {
@@ -53,27 +46,32 @@ const temporary = () => {
 };
 
 /** A fixture manifest, a verified model store holding it, and a catalog pinning its encoder. */
-function fixtureSet() {
+function fixtureSet(id = modelId, bytes = payload) {
+  const sources = Object.fromEntries(
+    JSON.parse(
+      readFileSync(path.join(repo, "models", id, "manifest.json")),
+    ).files.map((file) => [file.path, file.source]),
+  );
   const root = temporary();
   const manifestFile = path.join(root, "manifest.json");
   writeJson(manifestFile, {
     schema_version: 1,
-    model_id: modelId,
+    model_id: id,
     license: "CC-BY-4.0",
-    files: Object.entries(payload).map(([name, content]) => ({
+    files: Object.entries(bytes).map(([name, content]) => ({
       path: name,
       size: Buffer.byteLength(content),
       sha256: sha(content),
       // The store accepts only the reviewed upstream source for the encoder.
-      source: trackedSources[name] ?? { local: name },
+      source: sources[name],
     })),
   });
   for (const name of ["ATTRIBUTION.md", "README.md"])
-    writeFileSync(path.join(root, name), payload[name]);
+    writeFileSync(path.join(root, name), bytes[name]);
   const modelRoot = path.join(root, "store");
-  const setDirectory = path.join(modelRoot, modelId, sha256File(manifestFile));
+  const setDirectory = path.join(modelRoot, id, sha256File(manifestFile));
   mkdirSync(setDirectory, { recursive: true });
-  for (const [name, content] of Object.entries(payload))
+  for (const [name, content] of Object.entries(bytes))
     writeFileSync(path.join(setDirectory, name), content);
   const encoder = payload["encoder-model.fp16.onnx"];
   const catalog = {
@@ -211,6 +209,91 @@ const publish = (candidate, planned, r2) =>
   });
 
 describe("model publication", () => {
+  it("publishes base Parakeet for setup without a synthetic backend asset", () => {
+    const baseId = "parakeet-tdt-0.6b-v2";
+    const manifest = JSON.parse(
+      readFileSync(path.join(repo, "models", baseId, "manifest.json")),
+    );
+    const bytes = Object.fromEntries(
+      manifest.files.map((file) => [file.path, `fixture ${file.path}`]),
+    );
+    const candidate = fixtureSet(baseId, bytes);
+    const directory = path.join(candidate.root, "candidate");
+    stageModelCandidate({
+      modelId: baseId,
+      directory,
+      manifestFile: candidate.manifestFile,
+      modelRoot: candidate.modelRoot,
+    });
+    const planned = planModelPublication({
+      modelId: baseId,
+      directory,
+      manifestFile: candidate.manifestFile,
+      origin,
+      catalog: { assets: [] },
+    });
+    expect(planned).toHaveLength(8);
+    expect(
+      planned.find((file) => file.name === "encoder-model.int8.onnx").url,
+    ).toBe(
+      `${origin}/models/${baseId}/${sha(bytes["encoder-model.int8.onnx"])}/encoder-model.int8.onnx`,
+    );
+    expect(planned.map((file) => file.name)).toEqual(
+      expect.arrayContaining(["ATTRIBUTION.md", "README.md"]),
+    );
+  });
+
+  it("accepts a desktop model inventory without backend asset entries", () => {
+    const candidate = staged();
+    const files = Object.entries(payload).map(([name, content]) => ({
+      path: name,
+      size_bytes: Buffer.byteLength(content),
+      sha256: sha(content),
+      url: `${origin}/models/${modelId}/${sha(content)}/${name}`,
+    }));
+    const planned = planModelPublication({
+      modelId,
+      directory: candidate.directory,
+      manifestFile: candidate.manifestFile,
+      origin,
+      catalog: { assets: [] },
+      packCatalog: {
+        entries: [{ schema: "animama-model-pack/1", model_id: modelId, files }],
+      },
+    });
+    expect(planned).toHaveLength(4);
+  });
+
+  it.each(["url", "size_bytes", "sha256", "missing notice", "duplicate"])(
+    "rejects desktop inventory drift: %s",
+    (field) => {
+      const candidate = staged();
+      const files = Object.entries(payload).map(([name, content]) => ({
+        path: name,
+        size_bytes: Buffer.byteLength(content),
+        sha256: sha(content),
+        url: `${origin}/models/${modelId}/${sha(content)}/${name}`,
+      }));
+      if (field === "missing notice") files.shift();
+      else if (field === "duplicate") files[0] = { ...files[1] };
+      else files[0][field] = field === "size_bytes" ? 99 : "invalid";
+      expect(() =>
+        planModelPublication({
+          modelId,
+          directory: candidate.directory,
+          manifestFile: candidate.manifestFile,
+          origin,
+          catalog: candidate.catalog,
+          packCatalog: {
+            entries: [
+              { schema: "animama-model-pack/1", model_id: modelId, files },
+            ],
+          },
+        }),
+      ).toThrow("catalog does not match");
+    },
+  );
+
   it("addresses every file by its own SHA-256 under models/", () => {
     const candidate = staged();
     const planned = planModelPublication({
