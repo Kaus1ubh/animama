@@ -23,6 +23,8 @@ export function resolveBrowserRuntimeAssets(options?: {
   modelDirectory?: string;
   packagesRoot?: string;
   builtRoot?: string;
+  /** Web builds may omit the optional browser speech model set. */
+  allowMissingModels?: boolean;
 }): ResolvedBrowserRuntimeAsset[];
 export function copyBrowserRuntimeAssets(
   assets: ResolvedBrowserRuntimeAsset[],

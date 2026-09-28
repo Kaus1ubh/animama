@@ -91,10 +91,16 @@ restart reuse local bytes offline. Docker images/dependencies must also already
 be available for a fully offline rebuild; model reuse alone does not cache those.
 Container replacement preserves the external model directory and database volume.
 
-`reset.sh` checks the model set before changing the selected stack and writes
-`ANIMAMA_MODEL_ROOT` plus derived `ANIMAMA_PARAKEET_MODEL_DIR` into the stack record.
-Source that record before project-scoped Compose commands. For a direct Compose
-configuration check without a stack record, derive the path first:
+`reset.sh` checks each model set before changing the selected stack and writes
+`ANIMAMA_MODEL_ROOT` plus the derived `ANIMAMA_PARAKEET_MODEL_DIR` and
+`ANIMAMA_BROWSER_MODEL_DIR` into the stack record. Every set is optional. An
+unacquired set is recorded as empty and warns: Compose then mounts its checked-in
+notices directory, missing Parakeet sets `ANIMAMA_PARAKEET_STT_ENABLED=false` so
+dictation reports offline speech as not installed, and a missing browser speech
+set builds/serves only the pinned package files, leaving Pocket TTS and Smart Turn
+unavailable. A present set that fails verification stops the reset before any
+mutation. Source the record before project-scoped Compose commands. For a direct
+Compose configuration check with acquired models, derive the paths first:
 
 ```bash
 export ANIMAMA_PARAKEET_MODEL_DIR="$(python3 scripts/models/parakeet.py path)"
@@ -295,12 +301,11 @@ models implicitly. Different manifest revisions occupy distinct directories and
 are resolved once for each serving process; keep old versions while consumers
 still use them.
 
-Legacy stack records can still render Compose for `ps`, `down`, backup and restore
-without the new browser cache. Without a recorded browser path, Compose's inert
-fallback points at the tracked manifest directory; it is sufficient for management
-only. Starting/building the new frontend against that directory fails verification.
-Use `reset.sh` after explicit acquisition to record the verified model directory
-before starting the updated stack. No empty model directory is created implicitly.
+Without a recorded browser path, Compose's fallback points at the tracked manifest
+directory. Web development and production builds then serve only the pinned
+package files; the embedded desktop build and `pnpm verify:tts-assets` still
+require the full set. Rerun `reset.sh` after acquisition to record the verified
+model directory and rebuild. No empty model directory is created implicitly.
 
 ### Changing the Pocket voice set
 

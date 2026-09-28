@@ -481,9 +481,9 @@ def acquire(
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Print only the verified absolute model directory on success."""
+    """Print only the verified model directory, or the resolved store root for `root`."""
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("operation", choices=("acquire", "verify", "path"))
+    parser.add_argument("operation", choices=("acquire", "verify", "path", "root"))
     parser.add_argument("--root", help="absolute shared model STORE root (overrides ANIMAMA_MODEL_ROOT)")
     parser.add_argument(
         "--manifest", type=Path, default=DEFAULT_MANIFEST, help="local reviewed manifest or test fixture"
@@ -502,6 +502,10 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("--source applies only to acquire")
     try:
         root = resolve_root(args.root)
+        if args.operation == "root":
+            # Callers select sibling model sets without requiring this one.
+            print(root)
+            return 0
         manifest = load_manifest(args.manifest)
         result = (
             acquire(

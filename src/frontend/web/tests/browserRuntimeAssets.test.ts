@@ -134,6 +134,45 @@ describe("verified browser runtime inputs", () => {
       }),
     ).toHaveLength(21);
   });
+  it("builds web output with packages only when the model set is unacquired", () => {
+    const value = fixture();
+    rmSync(value.modelDirectory, { recursive: true });
+    // Compose mounts the checked-in notices directory in place of the store.
+    mkdirSync(value.modelDirectory);
+    writeFileSync(path.join(value.modelDirectory, "manifest.json"), "{}");
+    expect(() => resolveBrowserRuntimeAssets(value)).toThrow(
+      "Browser speech models are not acquired",
+    );
+    const assets = resolveBrowserRuntimeAssets({
+      ...value,
+      allowMissingModels: true,
+    });
+    expect(assets).toHaveLength(11);
+    expect(assets.every((asset) => asset.source.kind === "package")).toBe(true);
+    const builtRoot = path.join(value.root, "dist");
+    copyBrowserRuntimeAssets(assets, builtRoot);
+    expect(
+      resolveBrowserRuntimeAssets({
+        manifestPath: value.manifestPath,
+        builtRoot,
+        allowMissingModels: true,
+      }),
+    ).toHaveLength(11);
+    // Strict verification, as used for desktop and releases, still rejects it.
+    expect(() =>
+      resolveBrowserRuntimeAssets({
+        manifestPath: value.manifestPath,
+        builtRoot,
+      }),
+    ).toThrow("missing or unlisted files");
+  });
+  it("rejects a partial model set even when models are optional", () => {
+    const value = fixture();
+    rmSync(path.join(value.modelDirectory, "eve.safetensors"));
+    expect(() =>
+      resolveBrowserRuntimeAssets({ ...value, allowMissingModels: true }),
+    ).toThrow("missing or unlisted files");
+  });
   it("rejects extra built bytes and unsafe output links", () => {
     const value = fixture();
     const assets = resolveBrowserRuntimeAssets(value);

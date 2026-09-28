@@ -227,6 +227,13 @@ def test_cli_status_and_root_precedence(inventory, monkeypatch, capsys):
     assert capsys.readouterr().out.strip() == str(i.root / store.MODEL_ID / i.manifest["digest"])
 
 
+def test_cli_root_resolves_the_store_without_acquired_models(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("ANIMAMA_MODEL_ROOT", str(tmp_path / "store"))
+    assert store.main(["root"]) == 0
+    assert capsys.readouterr().out.strip() == str(tmp_path / "store")
+    assert not (tmp_path / "store").exists()
+
+
 def test_cli_default_acquires_every_pinned_object_and_reuses_the_cache(inventory, monkeypatch):
     """Ordinary setup consumes the same seven immutable objects as desktop packs."""
     i = inventory

@@ -26,7 +26,7 @@ usage() {
     "                         Example: $0 --build animama-server" \
     "  -h, --help             Show this help." \
     "" \
-    "Models: python3 scripts/models/parakeet.py acquire (explicit one-time setup)." \
+    "Models: optional; python3 scripts/models/parakeet.py and browser_speech.py acquire them." \
     "        ANIMAMA_MODEL_ROOT selects an absolute shared store root; startup verifies offline."
 }
 
@@ -214,21 +214,36 @@ export ANIMAMA_STACK_REPO_ROOT
 
 # Resolve and fully verify without network access before writing state, stopping
 # services, or allowing Compose to create mounts. Ignore any stale derived path.
-ANIMAMA_MODEL_ROOT="${ANIMAMA_MODEL_ROOT:-}"
-model_path_args=()
-if [ -n "$ANIMAMA_MODEL_ROOT" ]; then
-  model_path_args=(--root "$ANIMAMA_MODEL_ROOT")
-fi
-if ! ANIMAMA_PARAKEET_MODEL_DIR="$(python3 "${script_dir}/scripts/models/parakeet.py" path "${model_path_args[@]}")"; then
+# Every model set is optional: an unacquired set (exit 2) leaves its variable
+# empty, so Compose mounts the checked-in notices directory and only that
+# feature reports its model as not installed. A present set that fails
+# verification is an error.
+if ! ANIMAMA_MODEL_ROOT="$(python3 "${script_dir}/scripts/models/parakeet.py" root ${ANIMAMA_MODEL_ROOT:+--root "$ANIMAMA_MODEL_ROOT"})"; then
   exit 2
 fi
-if ! ANIMAMA_BROWSER_MODEL_DIR="$(python3 "${script_dir}/scripts/models/browser_speech.py" path "${model_path_args[@]}")"; then
-  exit 2
+resolve_optional_model() {
+  local script="$1" label="$2" resolved status=0
+  resolved="$(python3 "${script_dir}/scripts/models/${script}" path --root "$ANIMAMA_MODEL_ROOT" 2>/dev/null)" || status=$?
+  if [ "$status" -eq 0 ]; then
+    printf '%s\n' "$resolved"
+  elif [ "$status" -eq 2 ]; then
+    echo "⚠️  ${label} models are not acquired; continuing without them." >&2
+    echo "   Run python3 scripts/models/${script} acquire to enable them." >&2
+  else
+    echo "❌ ${label} models failed verification." >&2
+    echo "   Run python3 scripts/models/${script} verify --root \"$ANIMAMA_MODEL_ROOT\" for details." >&2
+    return 1
+  fi
+}
+ANIMAMA_PARAKEET_MODEL_DIR="$(resolve_optional_model parakeet.py "Parakeet speech-to-text")" || exit 2
+if [ -z "$ANIMAMA_PARAKEET_MODEL_DIR" ]; then
+  # Report dictation as not installed instead of failing on missing files.
+  ANIMAMA_PARAKEET_STT_ENABLED=false
+  export ANIMAMA_PARAKEET_STT_ENABLED
 fi
-ANIMAMA_MODEL_ROOT="$(dirname "$(dirname "$ANIMAMA_PARAKEET_MODEL_DIR")")"
-# The WebGPU encoder set is optional: when it is absent, development Compose
-# mounts the checked-in notices directory and the experimental toggle reports
-# the GPU model as not installed.
+ANIMAMA_BROWSER_MODEL_DIR="$(resolve_optional_model browser_speech.py "Browser speech (Pocket TTS and Smart Turn)")" || exit 2
+# The experimental WebGPU encoder set is always optional; verification
+# failures only warn.
 webgpu_status=0
 ANIMAMA_PARAKEET_WEBGPU_MODEL_DIR="$(python3 "${script_dir}/scripts/models/parakeet_webgpu.py" path --root "$ANIMAMA_MODEL_ROOT" 2>/dev/null)" || webgpu_status=$?
 if [ "$webgpu_status" -ne 0 ]; then
