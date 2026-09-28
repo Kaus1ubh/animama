@@ -1,6 +1,6 @@
 # 0010: Shared voice model objects and optional downloads
 
-- Status: accepted (owner-approved direction; implementation in progress)
+- Status: accepted
 - Recorded: 2026-09-28
 - Retrospective: no
 - Original decision date: 2026-09-28
@@ -8,12 +8,12 @@
 
 ## Context
 
-Desktop currently delivers the two Parakeet model sets as compressed feature
-pack archives in each app release directory. Built self-host already downloads
+Before this decision, desktop delivered the two Parakeet model sets as compressed
+feature pack archives in each app release directory. Built self-host already downloaded
 the optional WebGPU encoder as a raw object from `downloads.animama.ai/models/`,
-while base Parakeet setup acquires its pinned upstream files. The same model
-bytes consequently have different distribution paths, and desktop releases
-duplicate unchanged model archives.
+while base Parakeet setup acquired its pinned upstream files. The same model
+bytes consequently had different distribution paths, and desktop releases
+duplicated unchanged model archives.
 
 The tracked model manifests already describe exact file names, sizes, SHA-256
 digests and provenance, including README and attribution notices. The model
@@ -116,15 +116,15 @@ their archive transport.
 - [Issue #188](https://github.com/raymond-van/animama/issues/188): authoritative
   requirements and the five owner decisions.
 - [Execution plan](../plans/shared-model-store/shared-model-store-execplan.md):
-  proposed delivery, validation and remaining acceptance gates.
+  implementation, local verification and remaining native/publication acceptance gates.
 - [Base manifest](../../models/parakeet-tdt-0.6b-v2/manifest.json) and
   [WebGPU manifest](../../models/parakeet-tdt-0.6b-v2-webgpu/manifest.json): pinned
   payload and notice inventories.
 - [Model publisher](../../src/frontend/desktop/scripts/runtime/model-publication.mjs):
-  existing object naming, exact staging, scan, create-only upload and public
+  object naming, exact staging, scan, create-only upload and public
   verification.
 - [Acquisition command](../../scripts/models/parakeet.py): existing operator
   cache, offline and complete-set verification contracts.
 - [Runtime staging](../frontend/desktop/runtime-staging.md) and
-  [release reference](../frontend/desktop/releases.md): current archive behavior
-  and review controls to update during implementation.
+  [release reference](../frontend/desktop/releases.md): current model and archive
+  transport, operator procedures and release review controls.

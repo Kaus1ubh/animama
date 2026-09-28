@@ -1,7 +1,6 @@
 import {
   createReadStream,
   createWriteStream,
-  existsSync,
   lstatSync,
   rmSync,
 } from "node:fs";
@@ -17,7 +16,8 @@ import {
   sha256,
   sourceRoot,
 } from "./common.mjs";
-import { saveSizeReport } from "./size.mjs";
+import { packSizeReport, saveSizeReport } from "./size.mjs";
+import { auditOptionalInputs } from "./optional-inputs.mjs";
 
 /** Measure a real compressed payload; never substitute a stale wrapper app. */
 async function archive(target, name, sources) {
@@ -79,17 +79,19 @@ export async function measure(target, manifest) {
   const expanded = expandedDeferred
     ? null
     : await archive(target, "expanded-input-feasibility", [expandedPath]);
-  // Model packs are measured from their staged inputs until approved archives exist.
+  // Raw model downloads equal their verified complete payload, including notices.
+  // Producer-only review notes are not model objects or installed files.
+  const modelInputs = auditOptionalInputs(target);
   const modelPacks = {};
   for (const id of ["parakeet-stt", "parakeet-stt-webgpu"]) {
-    const input = path.join(target.output, "pack-inputs", id);
-    const measured =
-      !deferred(id) && existsSync(input)
-        ? await archive(target, `${id}-input-feasibility`, [input])
+    const inventory = modelInputs[id];
+    const bytes =
+      !deferred(id) && inventory.length
+        ? inventory.reduce((sum, file) => sum + file.size_bytes, 0)
         : null;
     modelPacks[id] = {
-      installed_bytes: measured?.sizes[id] ?? null,
-      download_bytes: measured?.download_bytes ?? null,
+      installed_bytes: bytes,
+      download_bytes: bytes,
       ...(deferred(id) ? { state: "deferred" } : {}),
     };
   }
@@ -99,7 +101,7 @@ export async function measure(target, manifest) {
     target: target.target,
     app_version: manifest.app_version,
     measurement:
-      "staged-payload-zstd; signed installer overhead requires separate binary release measurements",
+      "staged-core-and-excluded-payload-zstd; raw-model-inventories; signed installer overhead requires separate binary release measurements",
     installed_bytes: Object.values(payload.sizes).reduce((a, b) => a + b, 0),
     download_bytes: payload.download_bytes,
     archive_sha256: payload.sha256,
@@ -120,15 +122,11 @@ export async function measure(target, manifest) {
       },
     },
   };
-  // Approved packs are measured from the exact archive/inventory embedded in
-  // this core, not from a separate feasibility tar with a different layout.
+  // Approved catalog totals replace feasibility inputs with the exact inventory
+  // embedded in this core; only excluded packs use compressed archives.
   for (const pack of readJson(path.join(target.runtime, "pack-catalog.json"))
     .entries) {
-    report.packs[pack.id] = {
-      installed_bytes: pack.installed_bytes,
-      download_bytes: pack.archive_bytes,
-      minimum_peak_free_bytes: pack.minimum_peak_free_bytes,
-    };
+    report.packs[pack.id] = packSizeReport(pack);
   }
   saveSizeReport(target.output, report);
   return report;

@@ -202,7 +202,7 @@ Paths are repository-relative; inspect their current contents on resumption.
   download input stays in memory.
 - [x] Phase 4: two bundled Pocket voices and optional cloning encoder.
 - [x] Phase 5: optional desktop setup and contextual settings downloads.
-- [ ] Phase 6: release integration and current documentation (formerly Phase 4).
+- [x] Phase 6: release integration and current documentation (formerly Phase 4).
 - [ ] Final integration review and local acceptance.
 - [ ] Signed-native, real publication and speech checks recorded separately.
 
@@ -767,13 +767,13 @@ setup ESLint, Prettier and diff checks, all passing. In the actual named stack,
 CUA completed disposable onboarding as “Model downloads test” and inspected App
 Settings → Voice: downloads remain available with TTS disabled, and Clara shows
 its 6.1 MB individual action. No optional model download was started there.
-Phase 5 implementation review passed.
+Phase 5 implementation review passed. Commit: `5634b67e`.
 
 ### Phase 6: Release publication, reports and current guidance
 
 **Requirements:** R5, R6, R8; integration of R1–R12. **Acceptance:** A3, A4, A7–A11.
 **Dependencies:** Phases 1–5. **Issue:** [#202](https://github.com/raymond-van/animama/issues/202).
-**Starting source/commit:** pending execution; integrated base `f89d3ed3`.
+**Starting source/commit:** `5634b67e` (Phases 1–5 complete).
 
 1. Update release input acquisition, including the checked-in macOS workflow,
    so an unpublished base model can be acquired through the explicit producer
@@ -845,16 +845,55 @@ retain immutable model objects and the old feed; repair inputs or serving and
 rerun the reviewed operation. Never overwrite a conflicting object or bypass a
 scan to complete a release.
 
-**Evidence and remaining gates:** not run. Publishing a real release and claiming
-native acceptance still require the concrete candidate/evidence described below.
+**Implementation and evidence:** the runtime seals exact model manifests beside
+its frozen backend and desktop catalogs. Candidate staging uses those references,
+and scan/publication validates every required model directory before credential
+reads or writes. Both app transports publish and anonymously verify models first;
+stable feed promotion retains its existing final gate. Raw model totals include
+notices, and per-version app artifact collection excludes model weights.
+
+The release-only producer bootstraps pinned upstream inputs and the 24 reviewed
+VCTK sources with locked dependencies, rejects generated drift and never rehashes
+reviewed states. A verified complete voice inventory can be imported instead.
+Normal builds require only the reduced core inputs. Workflow handoff retains
+model candidates and scan receipts; unconfigured scans continue to block publication.
+
+TDD evidence: seven publication-order cases failed before integration and passed
+afterward; three of four scan-orchestration cases failed before integration and
+all four passed afterward. Eleven sealed-binding tests and the older sealed voice
+inventory regression passed after their respective red states. Four raw-size
+tests include refusal of changed model inputs. The combined eight-file desktop
+check passed 137 tests. Four release-bootstrap Python tests, Ruff formatting and
+lint passed. Desktop type checking and build passed.
+
+The first full desktop run could not bind fixture loopback servers in the sandbox.
+The permission-adjusted run passed 374 tests and exposed nine stale Parakeet
+archive fixtures in runtime-supervisor tests; repair is recorded below. The final
+permission-adjusted full run passed all 383 tests in 24 files (5.34 seconds).
+Log: `/tmp/animama-188-p6-desktop-final.log`. Native staging is running separately.
+Real signed acceptance and publication still need the concrete candidate/evidence
+described below.
 
 #### Code Review #1 Findings
 
-Not started; record source, checks and stable findings.
+Independent initial analysis passed for both disjoint slices: `pack_contracts`
+reviewed root release orchestration and `selfhost_plan`'s sealed-model helpers;
+`selfhost_plan` reviewed reporting, producer bootstrap, workflow and frozen docs.
+Neither reviewed their own implementation. No actionable analysis findings.
+Independent checks identified **P6-CHECK-1**: the supervisor fixture still uses
+the retired archive schema for Parakeet, so startup rejects the fixture before
+the intended mount/removal/rollback assertions. The full-suite failure reproduces
+this directly; production correctly rejects the obsolete schema.
 
 #### Code Review #1 Revisions
 
-Not started; two repair rounds available.
+Accepted P6-CHECK-1. Repair round 1 updates only the fixture to model manifests
+for Parakeet and preserves the expanded-content archive fixture. All 37 targeted
+supervisor tests, desktop types and scoped formatting passed. Independent
+targeted review found no weakened assertions or regressions, and the independent
+full-suite recheck passed all 383 tests. Phase 6 implementation review passed;
+one repair round remains unused. No release, licensing approval or native
+acceptance was manufactured.
 
 ## Final integration review
 
@@ -893,6 +932,13 @@ changed shared store/backend contracts. From `src/frontend`, run `pnpm check`,
 `pnpm desktop:build`, `pnpm desktop:test` and `pnpm prettier:check` for the final
 candidate. Reuse a passing result for unchanged source; do not repeat expensive
 checks without a change or unresolved concern.
+
+The final repository-wide frontend formatting check reports 11 unchanged baseline
+files (nine web, two desktop); each is byte-identical to `f89d3ed3`. All changed
+web and desktop files, including new tests/scripts, pass scoped Prettier checks.
+Unrelated baseline files were not reformatted. New Phase 6 Python files pass
+Ruff format/check and their four tests; the earlier full backend result remains
+valid for unchanged backend code.
 
 **Runtime production:** on the supported Apple Silicon host, from
 `src/frontend` run:

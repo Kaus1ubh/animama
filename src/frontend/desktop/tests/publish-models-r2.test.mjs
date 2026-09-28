@@ -18,6 +18,7 @@ import {
   stageModelCandidate,
 } from "../scripts/runtime/model-publication.mjs";
 import { sha256 as sha256File, writeJson } from "../scripts/runtime/common.mjs";
+import { writeArtifactIndex } from "../scripts/runtime/release-artifacts.mjs";
 
 const modelId = "parakeet-tdt-0.6b-v2-webgpu";
 const origin = "https://downloads.example.test";
@@ -209,6 +210,55 @@ const publish = (candidate, planned, r2) =>
   });
 
 describe("model publication", () => {
+  it("publishes an explicitly sealed voice inventory independently of checkout voice names", () => {
+    const directory = temporary();
+    const modelId = "pocket-tts-voices";
+    const bytes = {
+      "ATTRIBUTION.md": "sealed attribution",
+      "README.md": "sealed readme",
+      "previous-release-voice.safetensors": "sealed voice bytes",
+    };
+    const files = Object.entries(bytes).map(([name, content]) => {
+      writeFileSync(path.join(directory, name), content);
+      return {
+        path: name,
+        size: Buffer.byteLength(content),
+        sha256: sha(content),
+      };
+    });
+    const manifestFile = path.join(directory, "manifest.json");
+    writeJson(manifestFile, {
+      schema_version: 1,
+      model_id: modelId,
+      license: "CC-BY-4.0",
+      files,
+    });
+    writeArtifactIndex(
+      directory,
+      null,
+      [...Object.keys(bytes), "manifest.json"],
+      { model_id: modelId },
+    );
+    const voice = files[2];
+    const planned = planModelPublication({
+      modelId,
+      directory,
+      origin,
+      manifestFile,
+      catalog: {
+        assets: [
+          {
+            url: `${origin}/models/${modelId}/${voice.sha256}/${voice.path}`,
+            size: voice.size,
+            sha256: voice.sha256,
+          },
+        ],
+      },
+    });
+    expect(planned.map((file) => file.name)).toEqual(
+      [...Object.keys(bytes), "manifest.json"].sort(),
+    );
+  });
   it("stages the optional Pocket cloning encoder and notices before first publication", () => {
     const cloningId = "pocket-tts-voice-cloning";
     const bytes = {

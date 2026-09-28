@@ -30,6 +30,7 @@ import { stagedUpdatePolicy } from "./release-policy.mjs";
 import { excludeDesktopWebAssets } from "./desktop-web.mjs";
 import { writeRedistributionReview } from "./review-packet.mjs";
 import { importBundledTool } from "./bundled-tool.mjs";
+import { sealReleaseModelManifests } from "./release-models.mjs";
 
 const target = parseTarget();
 const sources = readJson(path.join(sourceRoot, "source-manifest.json"));
@@ -177,6 +178,7 @@ try {
   );
   const licenses = writeLicenses(target, content);
   const { id: catalogId } = await stageFeaturePacks(target);
+  sealReleaseModelManifests({ runtime: target.runtime });
   normalizeTree(target.runtime);
   normalizeTree(path.join(target.output, "app"));
   const inventory = inventoryTree(target.runtime);

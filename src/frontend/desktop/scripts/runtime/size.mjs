@@ -103,6 +103,18 @@ export function checkSizes(
   };
 }
 
+/** Catalog totals describe raw model objects or the exact excluded pack archive. */
+export function packSizeReport(pack) {
+  return {
+    installed_bytes: pack.installed_bytes,
+    download_bytes:
+      pack.schema === "animama-model-pack/1"
+        ? pack.installed_bytes
+        : pack.archive_bytes,
+    minimum_peak_free_bytes: pack.minimum_peak_free_bytes,
+  };
+}
+
 export function validateSizeReport(report) {
   return checkSizes(
     report,
@@ -137,7 +149,7 @@ export function saveSizeReport(output, report) {
     "",
     ...Object.entries(report.packs).map(
       ([name, pack]) =>
-        `- ${name}: installed ${pack.installed_bytes ?? "not built"}; compressed ${pack.download_bytes ?? "not built"} bytes.`,
+        `- ${name}: installed ${pack.installed_bytes ?? "not built"}; download ${pack.download_bytes ?? "not built"} bytes.`,
     ),
     "",
     ...report.validation.failures.map((failure) => `FAIL: ${failure}`),

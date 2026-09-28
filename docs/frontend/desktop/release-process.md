@@ -18,7 +18,7 @@ remain pending for the exact current candidate.
 | Gate                          | What must be true before continuing                                                                                                                                                                                                                                                                                                                                             |
 | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Inputs                        | Apple Team ID, Developer ID identity and local notarization Keychain profile are configured; content/dependency terms and notices are reviewed. Keep credentials out of source and chat.                                                                                                                                                                                        |
-| Candidate coordinates         | Select the distribution with `ANIMAMA_RELEASE_DISTRIBUTION` (default `r2`) and keep it identical for stage, audit and `desktop:dist:mac`. Pack and update URLs derive from it; no token, visibility check or upload is needed to build.                                                                                                                                         |
+| Candidate coordinates         | Select the app distribution with `ANIMAMA_RELEASE_DISTRIBUTION` (default `r2`) and keep it identical for stage, audit and `desktop:dist:mac`. Archive-pack and update URLs derive from it; model objects always use `downloads.animama.ai/models/`. No token, visibility check or upload is needed to build. |
 | Reviewed packs                | The exact Parakeet inventory is approved. Expanded content and document processing are explicitly deferred from the first release; preserve the signed/notarized worker as future review input without advertising or approving it.                                                                                                                                             |
 | Candidate                     | From reviewed release inputs on `main`, stage, audit and build the local signed DMG/ZIP. Check sizes, hashes, signatures, notarization and notices. A build never uploads to GitHub; notarization sends the binaries to Apple.                                                                                                                                                  |
 | Automated acceptance          | Run the required-name setup smoke on a fresh macOS account/runner. It rejects blank input before named completion. Explicit provider-key approval is needed for real chat calls. Never reset the maintainer's normal desktop profile.                                                                                                                                           |
@@ -41,7 +41,23 @@ does not prove a clean machine or minimum-OS compatibility.
 Build details, helper reuse, token scope and first-release upgrade QA are in
 [Release tooling](releases.md). Set the release version only in
 `desktop/package.json`: it versions the packaged app, and the web build reports
-it in About. From `src/frontend`, the candidate sequence is:
+it in About. First prepare complete release model inputs from the repository root:
+
+```sh
+python3 scripts/models/release_inputs.py \
+  --root /absolute/release-model-store \
+  --work-dir /absolute/voice-producer-work
+export ANIMAMA_MODEL_ROOT=/absolute/release-model-store
+```
+
+This explicit producer command can bootstrap unpublished objects from pinned
+upstream inputs. It checks existing encoded voice hashes and rejects generated
+inventory drift; it never changes approvals or publishes. To reuse a verified
+complete voice inventory, add `--import-voices /absolute/import-voice-set`.
+See [model tooling](../../../scripts/models/README.md#release-only-bootstrap).
+Ordinary web builds do not need optional voices or the cloning encoder.
+
+From `src/frontend`, the candidate sequence is:
 
 ```sh
 pnpm desktop:runtime:stage -- --platform darwin --arch arm64
@@ -86,7 +102,7 @@ ANIMAMA_GITLEAKS=<verified-gitleaks> pnpm desktop:release:scan
 
 Run it on the staged build machine: expanding the frozen backend uses the build
 interpreter from `desktop:runtime:stage`. The scan mounts the DMG and expands the
-update ZIP and feature packs, then every nested archive named `.zip`, `.whl`,
+update ZIP and archive feature packs, then every nested archive named `.zip`, `.whl`,
 `.jar`, `.tar.gz`, `.tgz`, `.tar.zst` or `.asar`, and any PyInstaller executable.
 Other compressed formats are scanned only as raw strings. Gitleaks must first
 detect a generated canary token. It then scans every expanded file under a
@@ -107,7 +123,11 @@ candidate whose scan fails. Review each finding; add an accepted false positive
 to `desktop/runtime/release-scan.gitleaks.toml` only as an exact placeholder
 value or a known non-secret field. The receipt records that file's hash. The
 home-directory search only catches the scanning machine's paths: scan on the
-machine that built the candidate.
+machine that built the candidate. The same command verifies candidate bindings
+and scans every required `models/<modelId>/` directory as well as the app,
+writing a receipt in each directory. Preserve all receipts with the candidate.
+The release workflow does not install a verified scanner automatically, so its
+publication steps remain fail-closed without these valid receipts.
 
 After distinct preview approval, run:
 
@@ -122,9 +142,10 @@ node desktop/scripts/runtime/publish-macos.mjs --confirm-publication
 ```
 
 Both commands run from `src/frontend` with the same `ANIMAMA_RELEASE_DISTRIBUTION`
-used to build the candidate. They need that distribution's narrowly scoped
-credentials: `ANIMAMA_RELEASE_TOKEN` for GitHub, or `ANIMAMA_R2_ACCOUNT_ID`,
-`ANIMAMA_R2_ACCESS_KEY_ID` and `ANIMAMA_R2_SECRET_ACCESS_KEY` for R2
+used to build the candidate. Both app distributions require the narrowly scoped
+model credentials `ANIMAMA_R2_ACCOUNT_ID`, `ANIMAMA_R2_ACCESS_KEY_ID` and
+`ANIMAMA_R2_SECRET_ACCESS_KEY`. A GitHub app distribution also requires
+`ANIMAMA_RELEASE_TOKEN`
 ([operator setup](releases.md#r2-operator-setup)). Stable publication also
 needs `ANIMAMA_MACOS_ACCEPTANCE` containing the reviewed JSON itself, not a path.
 Load these privately for the command; do not commit them, print them, place literal
@@ -149,18 +170,26 @@ The publisher uploads a fixed list of flat assets (GitHub Release assets, or
 objects in the R2 version folder plus the root `latest-mac.yml` at stable
 promotion), not a source commit or an arbitrary directory. These files are produced only after their
 corresponding gates; their names here are not evidence that a release exists.
+The private `models/<modelId>/` subdirectories contain separate raw model
+candidates and their scans. Keep the complete candidate tree for handoff; model
+directories are not flattened into the app artifact index. The publisher checks
+all model bindings, inventories and scan receipts before credentials or writes,
+then publishes and anonymously verifies required model objects before app
+artifacts. Stable feed promotion remains last.
 
 | Evidence                                                 | Actual output                                                                                             |
 | -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
 | Installer and update archive                             | `Animama-<version>-arm64.dmg`, `Animama-<version>-arm64.zip`                                              |
 | Exact resource/pack identities                           | `runtime-manifest.json`, `pack-catalog.json`                                                              |
+| Frozen backend model catalog                            | `backend-model-assets.json`                                                                               |
+| Required model candidates and scans                      | `models/<modelId>/` with raw files, manifest, integrity index and `release-scan.json`                        |
 | Component and pack sizes, including pack peak free space | `size-report.json`, `pack-build-report.json`                                                              |
 | Dependencies, source review and notices                  | `sbom.cdx.json`, `THIRD_PARTY_NOTICES.txt`, `REDISTRIBUTION_REVIEW.json`, `redistribution-inventory.json` |
 | Publisher/signature verification                         | `signing-report.json`                                                                                     |
 | Local setup evidence before promotion                    | `desktop/release/smoke-name/{smoke,network}-report.json`                                                  |
 | Stable acceptance assets                                 | `smoke-name-report.json`, `network-name-report.json`, `manual-acceptance.json`                            |
 | Stable feed and integrity index                          | `latest-mac.yml`, `release-artifacts.json`, `SHA256SUMS.txt`                                              |
-| Feature archives                                         | Exact filenames listed in `pack-catalog.json`; never substitute a guessed name/version                    |
+| Archive feature packs                                    | Exact archive filenames in `pack-catalog.json`; Parakeet instead references shared raw model objects      |
 
 Preview omits
 the stable feed and final acceptance assets. Network reports cover renderer

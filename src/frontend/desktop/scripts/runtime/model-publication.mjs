@@ -171,6 +171,24 @@ export function planModelPublication({
     throw new PublicationError(
       "The staged candidate does not match the tracked manifest; stage it again",
     );
+  return modelObjectsForManifest({
+    modelId,
+    manifestFile,
+    origin,
+    catalog,
+    packCatalog,
+  });
+}
+
+/** Validate consumer pins using metadata only, before the runtime is sealed. */
+export function modelObjectsForManifest({
+  modelId,
+  manifestFile,
+  origin,
+  catalog,
+  packCatalog,
+}) {
+  const { files } = trackedFiles(modelId, manifestFile);
   const planned = files.map((file) => ({
     ...file,
     key: modelKey(modelId, file),

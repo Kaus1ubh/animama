@@ -13,7 +13,7 @@ on:
         type: boolean
         default: false
       distribution:
-        description: Where the build's updates and packs are published; sealed into the signed app
+        description: Where app updates and archive packs are published; models always use R2
         type: choice
         options: [r2, github]
         default: r2
@@ -128,6 +128,7 @@ jobs:
       - run: git lfs fsck
       - run: pnpm check
       - run: pnpm web:lint
+      - run: pnpm exec playwright install chromium
       - run: pnpm web:test
       - run: pnpm desktop:test
       - name: Acquire exact reviewed model inputs before pack production
@@ -135,12 +136,9 @@ jobs:
         env:
           ANIMAMA_MODEL_ROOT: ${{ runner.temp }}/animama-models
         run: |
-          python3 scripts/models/parakeet.py acquire
-          python3 scripts/models/parakeet.py verify
-          python3 scripts/models/parakeet_webgpu.py acquire
-          python3 scripts/models/parakeet_webgpu.py verify
-          python3 scripts/models/browser_speech.py acquire
-          python3 scripts/models/browser_speech.py verify
+          python3 scripts/models/release_inputs.py \
+            --root "$ANIMAMA_MODEL_ROOT" \
+            --work-dir "$RUNNER_TEMP/animama-voice-producer"
           echo "ANIMAMA_MODEL_ROOT=$ANIMAMA_MODEL_ROOT" >> "$GITHUB_ENV"
       - run: pnpm build
       - run: pnpm desktop:runtime:stage -- --platform darwin --arch arm64
@@ -156,6 +154,7 @@ jobs:
       - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: signed-macos-candidate
+          # Keep model candidates and their scan receipts beside the exact app artifacts.
           path: src/frontend/desktop/release/publish/
           compression-level: 0
           if-no-files-found: error
@@ -227,14 +226,15 @@ jobs:
       # Only the signing library is needed; skip install scripts in a job holding release credentials.
       - run: pnpm install --frozen-lockfile --ignore-scripts
         working-directory: src/frontend
+      # Models always use R2, including when app artifacts use GitHub.
       # Publication also requires the candidate's passing release-scan.json,
       # which this workflow does not produce yet; the publisher refuses without it.
       - name: Publish reviewed testing preview (not a stable update)
         env:
           ANIMAMA_RELEASE_TOKEN: ${{ inputs.distribution == 'github' && secrets.ANIMAMA_RELEASE_TOKEN || '' }}
-          ANIMAMA_R2_ACCOUNT_ID: ${{ inputs.distribution == 'r2' && secrets.ANIMAMA_R2_ACCOUNT_ID || '' }}
-          ANIMAMA_R2_ACCESS_KEY_ID: ${{ inputs.distribution == 'r2' && secrets.ANIMAMA_R2_ACCESS_KEY_ID || '' }}
-          ANIMAMA_R2_SECRET_ACCESS_KEY: ${{ inputs.distribution == 'r2' && secrets.ANIMAMA_R2_SECRET_ACCESS_KEY || '' }}
+          ANIMAMA_R2_ACCOUNT_ID: ${{ secrets.ANIMAMA_R2_ACCOUNT_ID }}
+          ANIMAMA_R2_ACCESS_KEY_ID: ${{ secrets.ANIMAMA_R2_ACCESS_KEY_ID }}
+          ANIMAMA_R2_SECRET_ACCESS_KEY: ${{ secrets.ANIMAMA_R2_SECRET_ACCESS_KEY }}
         run: node src/frontend/desktop/scripts/runtime/publish-macos.mjs --confirm-preview-publication
 
   publish:
@@ -266,8 +266,8 @@ jobs:
       - name: Publish exact accepted artifacts
         env:
           ANIMAMA_RELEASE_TOKEN: ${{ inputs.distribution == 'github' && secrets.ANIMAMA_RELEASE_TOKEN || '' }}
-          ANIMAMA_R2_ACCOUNT_ID: ${{ inputs.distribution == 'r2' && secrets.ANIMAMA_R2_ACCOUNT_ID || '' }}
-          ANIMAMA_R2_ACCESS_KEY_ID: ${{ inputs.distribution == 'r2' && secrets.ANIMAMA_R2_ACCESS_KEY_ID || '' }}
-          ANIMAMA_R2_SECRET_ACCESS_KEY: ${{ inputs.distribution == 'r2' && secrets.ANIMAMA_R2_SECRET_ACCESS_KEY || '' }}
+          ANIMAMA_R2_ACCOUNT_ID: ${{ secrets.ANIMAMA_R2_ACCOUNT_ID }}
+          ANIMAMA_R2_ACCESS_KEY_ID: ${{ secrets.ANIMAMA_R2_ACCESS_KEY_ID }}
+          ANIMAMA_R2_SECRET_ACCESS_KEY: ${{ secrets.ANIMAMA_R2_SECRET_ACCESS_KEY }}
           ANIMAMA_MACOS_ACCEPTANCE: ${{ secrets.ANIMAMA_MACOS_ACCEPTANCE }}
         run: node src/frontend/desktop/scripts/runtime/publish-macos.mjs --confirm-publication
