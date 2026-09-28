@@ -1633,3 +1633,279 @@ Use fresh disposable stack `animama-sharing-playback-0c75` at
 Keep the prior development/built stacks and their data intact. Automated journeys
 use deterministic model clients and exact fixture-ledger cleanup. Real-provider
 chat requires the requested bounded budget; mock success is reported separately.
+
+Playback investigation checkpoint: merge commit `2f89ef17` preserves both parents.
+A fresh reproduction exported Included Angry and imported Angry-2. Library
+reported unavailable while its creator displayed the image. The installed
+metadata referred to `angry.png`, but import had renamed the payload to
+`angry-2.png`. Preserve internal resource paths within each new item directory;
+only the descriptor follows the new directory name. Failing-then-passing tests
+cover Avatar/Scene images, Particle texture manifests, rescan and re-export.
+Backend evidence: 27 import/cross-installation and 101 archive/event cases pass,
+with scoped lint/format/types. Independent backend analysis found no required
+revision. Previously broken copies require re-import; no data migration is added.
+
+Re-importing the identical ZIP as Angry-3 now renders in Library and new Gesture
+and Reaction previews, with the exact effect controller active and no diagnostics.
+A component handoff now opens a new Gesture directly in Clip mode (ordinary New
+still opens Pose); 19 focused tests and scoped static checks pass. A looped
+Creator preview additionally exposed accumulating omitted-duration VFX. Creator
+and Reaction playback now replace that timeline event's preceding instance while
+preserving explicit-duration overlap and independent events. Review found a stale
+async rejection case; retaining unique occurrence IDs and clearing the preceding
+instance fixes both pending and active replacement cases without changing Avatar.
+
+Manual complete-Anima import retained its Avatar, portrait and loadout. An imported
+Reaction activated its imported Avatar, Particle and Scene effects together.
+Manual deterministic chat returned a response and retained the transcript after
+reload; this is not paid-provider evidence. The native/audio waiver is unchanged.
+The current checkout includes no shipped VRMA playback fixture; no new VRMA
+round-trip playback claim is made.
+
+Expanded browser run `run-0928110349` failed on source-fixture ledger key reuse
+and an Anima preview clicked before runtime readiness. Its trace/screenshots are
+retained. Cleanup hit the harness's 10-second request limit on the 136-item Anima
+closure; the failed run was interrupted and receipt-owned fallback cleanup
+completed for all 138 owned items, with no remaining work. The exact
+revision-guarded cleanup DELETE now has a bounded 60-second
+request budget. Independent client tests (four), lint and formatting pass.
+Follow-up journeys are still required; this checkpoint does
+not mark the playback matrix complete. The production web build passes.
+
+Code Review #1 Findings (playback follow-up): backend resource preservation and
+new-Gesture mode passed. Independent checks reused passing suites and verified
+four cleanup-client tests. Required findings: IMPORT-F1 reused/invalid source
+fixture ledger keys; IMPORT-F2 a handoff waited for an individual preview request
+although the UI uses shared preparation; IMPORT-F3 stable loop effect IDs allowed
+a late async failure to remove a newer occurrence's ownership, including the real
+Avatar sink. Review is blocked until these corrections and browser checks pass.
+
+Code Review #1 Revisions: accept all three. Use the unique normalized fixture
+name for ledger identity, bind handoff evidence to exact project dependencies and
+actual runtime playback, and retain occurrence-unique effect IDs while explicitly
+clearing the prior lifetime instance of the same event. The latter avoids widening
+Avatar async ownership changes and retains timed overlaps. Repair round one of
+two is complete. Forty focused tests pass, including the real Avatar sink and
+Reaction player with late rejected loads. Types, scoped lint/format and the web
+build pass on the repaired source.
+
+Code Review #2 Findings: targeted independent recheck passes IMPORT-F1/F2/F3.
+Actual ledger validation creates four independent valid plans. The original
+late-failure reproduction retains one tracked/rendered replacement after the old
+failure, then Stop clears both. Exact imported identity and playback assertions
+remain meaningful. Browser acceptance remains separately pending.
+
+Manual loop recheck: the imported Angry-3 event remains exactly one active Avatar
+effect after 13.7 seconds of a two-second looping Reaction preview. Stop clears
+all owned effects, with no diagnostics. The unsaved test draft was discarded.
+Evidence: `playback-evidence/avatar-loop-after.png` (local artifact).
+
+Content-only run `run-0928112915` passed package export/import and receipt checks
+but stopped at the imported Avatar's Library search. The requested typed name
+returned no row. IMPORT-F4 is a product defect: standalone imports install the
+typed Avatar but do not create the logical Avatar mapping used by Library and
+Anima creation. Preserve the exact row assertion and register the mapping in the
+existing import transaction. Its unused mapping must also be removed by exact
+typed deletion, while an Anima using it must continue to block deletion.
+All 14 owned fixtures were cleaned successfully, without fallback or leftovers.
+
+Acceptance repair round two also corrects Sound's Library selector to Play.
+Complete-Anima run `run-0928113212` reached visible arms-crossed playback, but its
+proof incorrectly required zero missing bones. Eleven recorded samples show the
+exact target active with its clock advancing 0.040–6.309 seconds, 54 resolved
+bones and one missing bone. The imported model matches the Included model bytes;
+its sole absent authored mapping is `jaw`. Use the established one-bone allowance
+for this model, preserving identity, active-motion and advancing-clock assertions.
+Its cleanup completed for all 137 owned items, with one exact fallback check and
+no remaining work. Catalog reads, as well as deletes, need a bounded
+60-second request budget while complete-package reconciliation holds the catalog;
+four cleanup-client tests and scoped lint/format pass with this adjustment.
+
+IMPORT-F4 repair is frozen: the existing resolver registers every imported Avatar
+inside the files/SQL/receipt transaction. Typed deletion locks and removes only
+the exact owner's unused mapping before existing reference checks; live Animas
+remain protected. Four new regressions failed before repair and now pass. Two
+affected batches passed 35 and 61 cases; scoped Ruff/format/mypy and Python import
+boundaries pass. No schema or API change is needed.
+
+Final acceptance harness corrections also preserve creator aliases: visible Typed
+project JSON binds each alias to the exact imported dependency, then playback must
+activate that alias. Library/Idle proofs continue to require canonical runtime
+IDs. Imported Pose coverage includes the hydrated creator canvas and inserting
+the newly imported Pose into a new Gesture, copied transforms/expressions and
+keyframes, an advancing clock and the authored sad expression. Temporary drafts
+are discarded. Source types, scoped lint/format and journey discovery pass;
+browser reruns and final targeted Review #3 are pending.
+
+Manual Idle supplement: author a one-Gesture Style, export it, re-import it with
+four dependencies, and equip the imported copy on the retained imported test
+Anima. Loadout preview resolved 54 bones, reported one missing bone, activated
+its imported Scene effect, and naturally returned to ready with motion/effects
+empty. Replay worked. This is observed target-model behavior, not universal model
+compatibility. The starter Anima remains unchanged; task fixtures are retained
+only in the isolated playback stack.
+
+Code Review #3 source findings: targeted independent review passes IMPORT-F4,
+including same-transaction registration, exact-owner deletion, row locking,
+rollback/replay and protection of Animas using an Avatar. The final harness review
+retains exact imported dependency IDs and observable playback requirements.
+Both repair rounds are used; overall acceptance remains open for the browser
+reruns, not a source-review failure or a restart of the review budget.
+
+Content run `run-0928115349` passed the repaired standalone Avatar Library and
+portrait checks and imported Pose Library/static-creator checks. The new
+Pose-to-Gesture helper then looked for the Gesture name while the ordinary New
+flow was still on its default Pose tab. Explicitly selecting Clip follows the
+existing UI; it does not change the product or relax the pose-copy proof.
+All 14 owned fixtures were cleaned without fallback. The subsequent run
+`run-0928115803` also passed the Pose-to-Gesture insertion proof, then stopped at
+the Particle creator playback assertion. Its 14 owned fixtures were likewise
+cleaned completely. These failed runs remain retained evidence, not passes.
+
+The Particle creator owns its Quarks renderer directly, so its Avatar-controller
+snapshot legitimately contains no particle rows. The creator proof now admits the
+exact imported revision, hides Avatar/outline through the UI, and requires two
+changing painted particle frames with advancing effect time over a stopped neutral
+grid baseline. Stop must reset the clock. Avatar/Scene creators similarly use
+their actual dedicated preview IDs while retaining exact imported admission;
+Scene proof also checks rendered layers and motion. Library, Action and Idle
+controller assertions remain unchanged. Independent targeted Review #3 accepts
+this observation correction; source types, scoped lint/format pass, with browser
+acceptance still pending.
+
+Complete-Anima rerun `run-0928120421` passed (setup plus journey, 16.7 minutes).
+The imported model/Appearance references belong to the import receipt; the
+rendered arms-crossed Gesture advances on the imported model, and Admiration
+Reaction activates its imported Avatar/Particle/Scene effects and expression.
+The source and imported Anima both retain their null Idle selection; the manual
+Idle supplement above covers equipping and playing a separately imported Style.
+The journey verifies the frozen loadout and deletes all 137 owned records, then
+confirms the original catalog snapshot is unchanged. No unresolved operations or
+fallback cleanup remain. The content-only creator rerun is still pending.
+
+Content run `run-0928122120` passed the new Particle canvas-motion proof: zero
+colored pixels while stopped, then 396 and 483 painted pixels at 0.06 and 0.17
+seconds, with 291 changed colored pixels. Its assertion subsequently rejected
+the intentionally hidden Avatar's two unavailable controllers. The observation
+correction admits only those expected Avatar-owned controller diagnostics on
+this isolated Particle surface; other errors and the actual motion/Stop proof
+remain required. All 14 owned records were cleaned without fallback. The failed
+run remains recorded separately from the required final passing content run.
+
+Run `run-0928122700` stopped before the Particle check when the Pose-copy success
+toast intercepted View JSON. The attempted click hovered the toast, keeping it
+visible. The helper now waits for that exact notification to disappear before
+using the toolbar; it retains the successful insertion assertion and all copied
+pose/playback checks. All 14 owned records were cleaned without fallback. No
+production behavior changed for this test timing correction.
+
+Run `run-0928123132` passed Particle and Avatar Effect creator proofs, then stopped
+at the Scene creator's runtime-expiry flag despite a visible animated Scene.
+That editor constructs its preview runtime using the preview revision as the
+timestamp and controls presence through its own Play/Stop state; the shared
+observation compares expiry with wall-clock time. The creator check must bind the
+exact preview ID/kind and prove actual rendered layers, loaded images and motion.
+Library/Anima runtime expiry assertions remain unchanged. All 14 owned records
+were cleaned; the failed run remains retained.
+
+Run `run-0928124046` sampled the Library Hearts effect only at 1.752 seconds of
+its 1.8-second lifetime, then correctly observed it removed. Earlier runs passed
+this surface. After exact imported admission/model readiness, the helper now uses
+normal Stop, starts the existing temporal observer, and clicks Replay. It still
+requires clock advancement and now also asserts the expected owner/head anchor.
+No retry, timing extension or product change is used. All 14 owned records were
+cleaned; this failed timing run remains retained.
+
+Run `run-0928124656` confirmed Replay starts correctly, but the Node/browser
+sampling round trips captured only one active sample at 0.983 seconds before the
+1.8-second Particle effect ended. Its exact imported ID, owner and head anchor
+were present without diagnostics. The short-effect proof will capture published
+DOM observation updates inside the browser within the same bounded window, then
+validate the retained samples with the shared schema and identity/clock rules.
+No playback or resource-loader change is indicated by this timing evidence.
+All 14 owned records were cleaned without fallback.
+
+Run `run-0928125440` passed the bounded browser-local Particle replay proof and
+all three effect creators. The generated Gesture advanced from 0.993 to 3.73
+seconds with all four events, three active imported effects and the happy
+expression. Its assertion correctly rejected a Particle warning: the fixture
+requested three seconds while Included Hearts caps duration at 2.2 seconds.
+The fixture now uses its authored 1.8-second duration and retains the strict
+no-warning assertion. All 14 owned records were cleaned without fallback.
+This failed fixture run is not counted as passing content acceptance.
+
+Run `run-0928130349` passed imported Gesture Library playback without warnings.
+Creator playback also produced all effects, happy expression and clock movement
+(1.513–3.153 seconds), but the harness expected the Scene dependency alias where
+the creator exposes its exact per-event occurrence ID. The creator-only Scene
+assertion now follows the proven imported dependency → alias → event → occurrence
+chain; Avatar/Particle identity checks remain unchanged. All 14 owned records
+were cleaned without fallback. The failed run remains recorded separately.
+
+Run `run-0928131048` timed out waiting ten seconds for the Pose creator's typed
+preview response, before checking its name. Its cause remains unproven. The host
+subsequently entered clamshell sleep at 17:13:14 UTC, with a brief maintenance
+wake at 17:21:39 and lid wake at 17:31:27; matching ledger gaps interrupted
+cleanup and browser trace finalization. Exact fallback verification confirmed
+the remaining Pose was already absent, leaving all 14 records deleted and no
+unresolved work. The application remained healthy and responded in 0.117s after
+wake. The next attempt keeps source unchanged; this attempt is failed evidence,
+not a source diagnosis or a passing journey.
+
+#### Final imported-playback acceptance
+
+Content run `run-0928133400` passed both setup and the content journey in 6.7
+minutes, with zero skipped, failed or flaky cases. It exports/imports nine roots
+plus the Avatar portrait dependency, binds previews to exact imported item IDs
+and revisions, and covers:
+
+| Content | Passing browser evidence |
+| --- | --- |
+| Avatar and Appearance | Imported Library model and loaded default portrait; complete-Anima model/appearance provenance |
+| Pose | Library, static creator, exact copied transforms/expressions in a new playing Gesture |
+| Particle, Avatar and Scene effects | Library, their respective creators, and each imported effect in both a new Gesture and a new Reaction |
+| Gesture and Reaction | Library and creators, advancing clips, expression and all four imported effect/sound dependencies |
+| Idle Style | Library and saved-pool creator; manual imported Style equipped on the imported Anima |
+| Sound | Library and both new Action types, decoded native browser audio with advancing media time |
+| Complete Anima | `run-0928120421`: imported Avatar/Appearance and equipped Gesture/Reaction playback; manual deterministic chat persists after reload |
+
+All eight new effect/sound handoffs retain exact imported dependency and clip
+event identity. All 14 content-run records were deleted through the ledger, with
+no fallback or unresolved operations; catalog and existing Anima loadout
+snapshots are unchanged. The complete-Anima run similarly removed all 137 owned
+records without fallback. Source stayed frozen across these passing checks;
+subsequent test-only changes did not affect the complete-Anima case.
+
+Latest scoped E2E types, ESLint and Prettier checks pass. The production build
+passes with the existing chunk-size advisory. Backend affected suites pass
+35 + 61 cases; frontend handoff/playback suites pass 19 + 40 cases. Earlier
+archive/event coverage passed 101 cases. Native Electron/recovery and physical
+audible playback remain owner-waived for this PR; no new native pass is claimed.
+No shipped VRMA fixture exists in this checkout, so the new browser evidence
+does not establish VRMA round-trip playback. Chat proof uses the deterministic
+local client, not a paid provider. Previously broken imported copies require
+re-import.
+
+Code Review #3 final disposition: PASS for the frozen source and browser
+acceptance. Independent review matched all imported receipt/dependency IDs,
+creator Scene occurrence IDs, eight new Action handoffs, eight decoded-audio
+attachments and rendered checkpoints. Both repair rounds are used; no required
+finding remains. The existing 144-item catalog and Anima loadout are unchanged.
+This closes the follow-up acceptance review without reopening earlier phases.
+
+Delivery commits:
+
+- `2f89ef17`: merge main through `623b4d38` and resolve conflicts.
+- `689b7828`: preserve imported resource references, register standalone Avatars
+  and open effect-to-Gesture handoffs in Clip mode.
+- `4dffb2b7`: retire preceding no-duration loop effects with independent
+  asynchronous occurrence identities.
+- `test(content-sharing): cover imported playback journeys`: validated journey
+  harness, cleanup timing and this acceptance record.
+
+PR #90 remains the delivery PR. Hosted `Portable product validation` is
+`disabled_manually`, with no hosted check results or owner-reviewed local receipt
+substituting for it. This is not a CI pass. No exact-candidate merge approval has
+been supplied. The named playback stack at
+`http://animama-sharing-playback-0c75.localhost:8560` is retained for review; older
+stacks and their data remain preserved.

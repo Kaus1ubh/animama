@@ -115,7 +115,8 @@ export async function createLocalCatalogClient({
       const exact = exactItemId(itemId);
       const response = await apiContext.get(
         `/v1/content/items/${encodeURIComponent(exact)}`,
-        { failOnStatusCode: false },
+        // Reads can wait behind a complete-package catalog reconciliation.
+        { failOnStatusCode: false, timeout: 60_000 },
       );
       if (response.status() === 404 && allowMissing) return null;
       if (!response.ok()) {
@@ -230,6 +231,8 @@ export async function createLocalCatalogClient({
         {
           failOnStatusCode: false,
           params: { expected_revision: revision },
+          // Large imported closures rescan Local content before deletion commits.
+          timeout: 60_000,
         },
       );
       return { status: response.status() };

@@ -51,10 +51,11 @@ The runner filters out the real-avatar pose journey in the same spec.
 The active Playwright projects use installation setup and same-origin requests,
 without accounts, stored login state, owner headers or browser bearer tokens.
 The explicit allowlist selects `accountless-library`, `accountless-journeys`,
-`accountless-vfx-layout`, `accountless-pose-content` and
-`accountless-content-sharing` specs. They cover Library, companion selection,
-chat Stop/recovery, creator JSON import/preview, Save/reload revision integrity,
-package sharing, and responsive access to review and recovery controls.
+`accountless-vfx-layout`, `accountless-pose-content`,
+`accountless-content-sharing` and `accountless-imported-playback` specs. They cover
+Library, companion selection, chat Stop/recovery, creator JSON import/preview,
+Save/reload revision integrity, package sharing, and responsive access to review
+and recovery controls.
 Older creator journeys remain unselected until individually reviewed; listing
 them is not passing evidence.
 The separate `local:verify:accountless` API journey covers bootstrap, settings,
@@ -176,6 +177,26 @@ desktop acceptance.
 ```bash
 pnpm e2e:list -- --project chromium --grep "local content sharing"
 pnpm e2e:test -- --project chromium --grep "local content sharing"
+```
+
+The `imported playback` group follows ZIP imports through Library previews,
+applicable creator routes, and separate FX/Sound handoffs into new Gestures and
+Reactions. Assertions bind playback to the exact imported item and revision;
+they check advancing clocks, active effects, expressions and decoded audio rather
+than treating a successful import as playback evidence. Its complete-Anima test
+also checks imported Avatar/Appearance provenance and loadout playback. The
+starter closure is large, so its revision-guarded cleanup has a thirty-minute
+test budget. This is browser playback evidence, not speaker-listening acceptance.
+
+Use the signals owned by each creator. Particle authoring renders directly through
+Quarks, so its proof isolates moving canvas pixels instead of reading the Avatar's
+particle controller. Scene authoring owns Play/Stop independently of runtime
+expiry; its proof checks loaded image layers, marquee motion and removal on Stop.
+Library, Action and Anima playback retain their runtime controller assertions.
+
+```bash
+pnpm e2e:list -- --project chromium --grep "imported playback"
+pnpm e2e:test -- --project chromium --grep "imported playback"
 ```
 
 The bounded application smoke test accepts only the configured origin:
