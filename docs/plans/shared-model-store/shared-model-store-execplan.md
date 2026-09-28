@@ -14,6 +14,54 @@ Its final version adds reusable named clones and Anima-creation voice selection;
 preserve those behaviors. The owner confirmed preserving saved-clone/source-sample behavior; only pending
 encoder-download samples remain in memory. No product questions remain.
 
+### Owner UI revision after implementation (2026-09-28)
+
+The owner requested a compact preset picker matching the pre-#203 styling, no
+preset browser in setup or App Settings, and GPU downloads in App Settings only
+for the selected Parakeet WebGPU provider. The desktop CPU download remains
+reachable before the missing base model allows provider selection. Setup now
+has just Speech-to-Text and Voice Clone sections; App Settings reuses the Anima
+cloning form under a separate Voice Clone section after Text-to-Speech, without
+a surrounding card. This supersedes the earlier Phase 5 download-only preset
+browser and unconditional settings GPU placement; model distribution and saved
+clone/sample contracts are unchanged.
+
+Follow-up baseline: `f4763ef097ae313ca192112b5f04fbeb8d3e5127`, same branch/PR and
+task stack. The earlier screenshot and original picker provide the visual
+reference for this simplification. Read-only release inspection also identified
+stale 15/23 voice-count descriptions in source/license metadata; these now say
+2/36 without altering any payload pin or approval. Previous native inventories
+remain prior-source evidence and must be refreshed for an actual release candidate.
+
+Follow-up validation: the removed preset-browser expectation failed before the
+change and passed afterward. All 54 focused settings/setup/loadout tests and
+13 picker-focused tests passed. Forced TypeScript, scoped ESLint/Prettier and
+eight browser cases passed (compact picker, setup credential/reload recovery,
+and cloning continuation/cancel). The retained production self-host stack
+rebuilt successfully. Actual App Settings displayed Voice Clone after
+Text-to-Speech with no card or preset browser; Parakeet CPU showed no GPU
+control. Its reused cloning form opened the 38 MB encoder prompt for a generated
+test sample, and Not now retained the pending name/file without transfer or
+saving. Logs: `/tmp/animama-188-ui-tests-final.log`,
+`/tmp/animama-188-followup-browser.log`, `/tmp/animama-188-ui-selfhost.log`.
+
+#### Follow-up Code Review #1 Findings
+
+Independent review of this owner-requested UI revision against `f4763ef0`
+found no actionable defects. It traced provider gating, setup recovery,
+selection-independent actions, saved-clone semantics and the new Settings form.
+A second agent ran the applicable read-only checks. License metadata changes
+were independently compared as JSON: only three descriptive fields changed;
+source-file formatting was normalized and pins/approvals stayed unchanged.
+
+#### Follow-up Code Review #1 Revisions
+
+No revisions required; both repair rounds remain for this bounded UI revision.
+Earlier phase and final-integration review budgets are unchanged. Hosted
+Validation is still manually disabled. Earlier full-suite/native evidence is
+retained as prior-source evidence; no new signed/native/audio/publication
+acceptance is claimed for this UI revision.
+
 ## Purpose and context
 
 The two desktop Parakeet packs and self-host base acquisition will consume raw,
@@ -65,7 +113,8 @@ owner's decisions plus the observable implementation contract proposed here.
   encoder downloads add no new sample persistence.
 - **R11 — Optional desktop setup.** Replace the install-on-Continue speech
   checkbox with direct, optional Download actions for CPU recognition, the
-  compatible GPU enhancement, individual additional voices and cloning. No
+  compatible GPU enhancement and cloning. Additional preset voices download from
+  Anima voice selection. No
   optional model is requested merely by opening setup. Continue never requires
   a model download to start or finish. Preserve required display name, adult
   confirmation and credential save/discard rules across installation reloads.

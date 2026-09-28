@@ -117,7 +117,10 @@ import {
 } from "@/ui/settings/DesktopCredentialsPanel";
 import { DesktopFeaturePacksPanel } from "@/ui/settings/DesktopFeaturePacksPanel";
 import { DesktopUpdatesPanel } from "@/ui/settings/DesktopUpdatesPanel";
-import { VoiceDownloads } from "@/ui/settings/VoiceDownloads";
+import {
+  VoiceDownloads,
+  VoiceCloneSettings,
+} from "@/ui/settings/VoiceDownloads";
 import {
   getSttSettingsOptions,
   getSttSettingsPreference,
@@ -1388,7 +1391,12 @@ export function ApplicationSettingsModal({
       group: "Speech-to-Text",
       label: "Offline speech downloads",
       keywords: ["parakeet", "cpu", "gpu", "download", "offline"],
-      render: () => <VoiceDownloads section="speech-to-text" />,
+      render: () => (
+        <VoiceDownloads
+          section="speech-to-text"
+          sttProvider={selectedSttOption ?? ""}
+        />
+      ),
     },
     {
       id: "tts-enabled",
@@ -1493,14 +1501,6 @@ export function ApplicationSettingsModal({
       ),
     },
     {
-      id: "tts-downloads",
-      section: "Voice",
-      group: "Text-to-Speech",
-      label: "PocketTTS downloads",
-      keywords: ["pocket", "voice", "cloning", "download", "offline"],
-      render: () => <VoiceDownloads section="text-to-speech" />,
-    },
-    {
       id: "elevenlabs-model",
       section: "Voice",
       group: "Text-to-Speech",
@@ -1572,6 +1572,14 @@ export function ApplicationSettingsModal({
           }
         />
       ),
+    },
+    {
+      id: "voice-clone",
+      section: "Voice",
+      group: "Voice Clone",
+      label: "Voice Clone",
+      keywords: ["pocket", "sample", "cloning", "download", "offline"],
+      render: () => <VoiceCloneSettings />,
     },
     ...shortcutRows.map(
       (row): SettingEntry => ({

@@ -311,5 +311,7 @@ describe("Anima voice configuration", () => {
     expect(html).not.toContain("Samples are source recordings");
     expect(html).not.toContain("Sample sources");
     expect(html).not.toContain("Use application default");
+    expect(html).not.toContain("Download</button>");
+    expect(html).not.toContain(">Included</span>");
   });
 });

@@ -1054,11 +1054,13 @@ the public ORT 1.24.2 inventory does not replace those dependency versions.
     installed starts its install on the next reply.
   - A failed download shows one notice per session, and the next reply or pick
     retries it.
-- Setup and App Settings → Voice → Text-to-Speech reuse the picker in a
-  download-only mode. It shows Included, Installed, Downloading and Retry states,
-  with search, filtering, previews, cancellation and removal. These actions leave
-  both voice selection and provider unchanged. Backend downloads restart after
-  interruption; desktop Parakeet packs separately support verified resume.
+- Anima voice selection keeps a compact picker with search, filtering, previews
+  and inline download/retry/cancel actions. Downloading alone changes neither
+  selection nor provider. Setup and App Settings do not contain a preset browser.
+  App Settings → Voice → Voice Clone reuses the Anima cloning form and exposes
+  the encoder download independently of TTS. Setup offers only Speech-to-Text and
+  Voice Clone downloads. Backend downloads restart after interruption; desktop
+  Parakeet packs separately support verified resume.
 - Anima voice catalogs are separate user/catalog inputs; their persisted URLs
   and legacy `/onnx/models/pocket-tts/animas/{animaId}_voices.bin` reference format
   are not members of the 21-file engine inventory.

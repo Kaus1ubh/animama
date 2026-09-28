@@ -6,13 +6,18 @@ import { OfflineSpeechDownload, VoiceDownloads } from "./VoiceDownloads";
 
 const manager = vi.hoisted(() => ({
   assets: [] as PyModelAssetState[],
+  packs: [] as FeaturePackStatus[],
   retryAssetIds: new Set<string>(),
   mutate: vi.fn(),
   blockedReason: null as string | null,
 }));
 
 vi.mock("@/hooks/useDesktopFeaturePacks", () => ({
-  useDesktopFeaturePacks: vi.fn(),
+  useDesktopFeaturePacks: () => ({
+    available: true,
+    packs: manager.packs,
+    run: manager.mutate,
+  }),
 }));
 vi.mock("@/hooks/use-pocket-voice-downloads", () => ({
   usePocketVoiceDownloads: () => ({
@@ -35,7 +40,7 @@ vi.mock("@/query/mutations/useModelAssetActions", () => ({
   }),
 }));
 vi.mock("./ExperimentalSettings", () => ({
-  ParakeetWebgpuDetails: () => null,
+  ParakeetWebgpuDetails: () => <button>Download GPU enhancement</button>,
 }));
 
 const pack: FeaturePackStatus = {
@@ -117,11 +122,11 @@ describe("optional speech synthesis downloads", () => {
     manager.blockedReason = null;
   });
   const html = () =>
-    renderToStaticMarkup(<VoiceDownloads section="text-to-speech" />);
-  it("offers a compact browser and separate sized cloning action without a selection target or eager install", () => {
+    renderToStaticMarkup(<VoiceDownloads section="voice-clone" />);
+  it("offers only the sized cloning action without a voice browser or eager install", () => {
     const result = html();
-    expect(result).toContain("Eve and Azelma are included");
-    expect(result).toContain("Browse voices");
+    expect(result).not.toContain("PocketTTS voices");
+    expect(result).not.toContain("Browse voices");
     expect(result).toContain("Download voice cloning");
     expect(result).toContain("38 MB download");
     expect(result).not.toContain("Select Eve");
@@ -142,5 +147,37 @@ describe("optional speech synthesis downloads", () => {
     expect(html()).toMatch(
       /<button(?![^>]*disabled="")[^>]*>Cancel download<\/button>/u,
     );
+  });
+});
+
+describe("provider-scoped speech downloads", () => {
+  beforeEach(() => {
+    manager.packs = [pack];
+  });
+  const speech = (sttProvider: string) =>
+    renderToStaticMarkup(
+      <VoiceDownloads section="speech-to-text" sttProvider={sttProvider} />,
+    );
+  it.each(["browser_external", "browser_local", "deepgram", ""])(
+    "hides GPU but keeps the desktop base download reachable for %s",
+    (provider) => {
+      expect(speech(provider)).not.toContain("Download GPU enhancement");
+      expect(speech(provider)).toContain("Download speech recognition");
+    },
+  );
+  it("offers the base model for CPU and adds GPU only for WebGPU", () => {
+    expect(speech("parakeet")).toContain("Download speech recognition");
+    expect(speech("parakeet")).not.toContain("Download GPU enhancement");
+    expect(speech("parakeet_webgpu")).toContain("Download speech recognition");
+    expect(speech("parakeet_webgpu")).toContain("Download GPU enhancement");
+  });
+  it("keeps setup optional with only speech recognition and cloning sections", () => {
+    const html = renderToStaticMarkup(<VoiceDownloads />);
+    expect(html).toContain("Speech-to-Text</h2>");
+    expect(html).toContain("Voice Clone</h2>");
+    expect(html).toContain("Download GPU enhancement");
+    expect(html).not.toContain("Text-to-Speech");
+    expect(html).not.toContain("Browse voices");
+    expect(html).not.toContain("PocketTTS voices");
   });
 });

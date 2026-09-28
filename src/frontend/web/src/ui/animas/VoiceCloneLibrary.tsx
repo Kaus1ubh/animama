@@ -41,11 +41,13 @@ function cloneError(error: unknown, fallback: string): string {
 /** Named originals and encoded voices are saved together, independently of selection. */
 export function VoiceCloneLibrary({
   disabled,
+  heading = true,
   deleting,
   onDeleteClose,
   onBusyChange,
 }: {
   disabled: boolean;
+  heading?: boolean;
   deleting: PyVoiceContent | null;
   onDeleteClose: () => void;
   onBusyChange: (busy: boolean) => void;
@@ -135,7 +137,9 @@ export function VoiceCloneLibrary({
       prepared.current = null;
       setName("");
       setFile(null);
-      toast.success("Voice clone saved. Choose it to use it for this Anima.");
+      toast.success(
+        "Voice clone saved. Choose it in an Anima’s Voices settings.",
+      );
     } catch (cause) {
       if (controller.signal.aborted) return;
       if (cause instanceof PocketVoiceEncoderDownloadRequired) {
@@ -220,10 +224,10 @@ export function VoiceCloneLibrary({
   };
 
   return (
-    <section className="space-y-3 pt-3" aria-labelledby="voice-cloning-heading">
-      <h3 id="voice-cloning-heading" className="text-sm font-semibold">
-        Voice Cloning
-      </h3>
+    <section className="space-y-3" aria-label="Voice cloning">
+      {heading ? (
+        <h3 className="pt-3 text-sm font-semibold">Voice Cloning</h3>
+      ) : null}
       <form
         className="space-y-2"
         onSubmit={(event: FormEvent) => {

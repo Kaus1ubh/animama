@@ -140,16 +140,10 @@ function LocalSetupForm({
           blockedReason={draftBlockedReason}
         />
         {featurePacks.available ? (
-          <section className="space-y-3" aria-labelledby="setup-voice-heading">
-            <h2 id="setup-voice-heading" className="text-sm font-semibold">
-              Voice downloads{" "}
-              <span className="text-muted-foreground font-normal">
-                (optional)
-              </span>
-            </h2>
+          <section className="space-y-4" aria-label="Optional voice downloads">
             <p className="text-muted-foreground text-sm">
-              Eve and Azelma are included. You can continue during downloads and
-              find these controls later in App Settings → Voice.
+              Optional. You can continue during downloads and manage them later
+              in App Settings → Voice.
             </p>
             <VoiceDownloads
               section="all"

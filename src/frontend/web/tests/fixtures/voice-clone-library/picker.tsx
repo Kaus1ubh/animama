@@ -6,49 +6,52 @@ import type { PocketVoiceAvailability } from "@/lib/speech/pocket/voice-preferen
 import "@/index.css";
 
 const actions: { operation: string; id: string }[] = [];
-const downloadOnly = !new URLSearchParams(location.search).has("selection");
 
 function Fixture() {
   const [states, setStates] = useState<
     Record<string, PocketVoiceAvailability["status"]>
   >({});
   const [selected, setSelected] = useState("eve");
+  const setDownloadState = (
+    id: string,
+    status: PocketVoiceAvailability["status"],
+  ) => setStates((current) => ({ ...current, [id]: status }));
   const props = {
     disabled: false,
+    downloadBusy: Object.values(states).includes("downloading"),
     availability: (id: string) => {
       const voice = POCKET_VOICES.find((item) => item.id === id);
       return voice?.assetId
         ? {
             assetId: voice.assetId,
             status: states[voice.assetId] ?? "not_installed",
+            progress: 0.5,
           }
         : null;
     },
     onDownload: (id: string) => {
       actions.push({ operation: "download", id });
-      setStates((current) => ({ ...current, [id]: "installed" }));
+      setDownloadState(id, "downloading");
     },
     onRemove: (id: string) => {
-      actions.push({ operation: "remove", id });
-      setStates((current) => ({ ...current, [id]: "not_installed" }));
+      actions.push({ operation: "cancel", id });
+      setDownloadState(id, "not_installed");
     },
   };
-  Object.assign(window, { voicePickerFixture: { actions, selected } });
+  Object.assign(window, {
+    voicePickerFixture: { actions, selected, setDownloadState },
+  });
   return (
     <div style={{ maxWidth: 500, padding: 20 }}>
-      {downloadOnly ? (
-        <PocketVoicePicker {...props} downloadOnly />
-      ) : (
-        <PocketVoicePicker
-          {...props}
-          value={selected}
-          hasCustomVoice={false}
-          onSelect={async (id) => {
-            actions.push({ operation: "select", id });
-            setSelected(id);
-          }}
-        />
-      )}
+      <PocketVoicePicker
+        {...props}
+        value={selected}
+        hasCustomVoice={false}
+        onSelect={async (id) => {
+          actions.push({ operation: "select", id });
+          setSelected(id);
+        }}
+      />
     </div>
   );
 }

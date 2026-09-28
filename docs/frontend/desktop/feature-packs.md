@@ -18,9 +18,10 @@ must serve its pinned objects publicly before a download can succeed.
 | Expanded Included content (deferred) | `expanded-included-content` | Not offered in the first release. Both core starters retain their required content.                                                  |
 | Document processing (deferred)       | `document-processing`       | Not offered in the first release. Originals can still be uploaded and stored; new extraction/indexing requests remain unavailable.   |
 
-The GPU enhancement appears in setup and App Settings → Voice → Speech-to-Text,
-independently of the selected provider, when the renderer finds a WebGPU adapter
-and the app has a compatible approved catalog entry. Install CPU speech first;
+The GPU enhancement appears in setup when the renderer finds a WebGPU adapter
+and the app has a compatible approved catalog entry. In App Settings → Voice →
+Speech-to-Text it appears only for the selected Parakeet WebGPU provider. The CPU
+download remains reachable before Parakeet is available for selection. Install CPU speech first;
 the GPU action never installs it automatically. Retained GPU files remain
 removable on unsupported devices. If the encoder was left inactive
 because offline speech was missing at startup, reinstall offline speech, then
@@ -37,9 +38,12 @@ other packs are data only; none lets the renderer execute a downloaded command.
 ## Install and retry
 
 Setup and App Settings → Voice offer direct optional download controls. The
-Speech-to-Text section contains CPU speech and its separate GPU enhancement;
-Text-to-Speech contains the Pocket voice picker and voice cloning download.
-Eve and Azelma are included. The other 36 voices download individually, and
+Speech-to-Text section contains CPU speech and its separate GPU enhancement.
+Voice Clone contains the encoder download; App Settings also reuses the Anima
+voice-cloning form in this section, after Text-to-Speech. Setup has no separate
+Text-to-Speech section or preset voice browser.
+Eve and Azelma are included. The other 36 voices download individually from the
+compact picker in Anima voice selection, and
 cloning needs its separate encoder. Downloading changes neither provider nor
 selected voice. Previewing a source sample also leaves selection unchanged.
 Setup permits skipping every download, and Continue remains available while

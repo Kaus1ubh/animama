@@ -4,46 +4,74 @@ import type {
   FeaturePackStatus,
 } from "../../../../shared/desktop-runtime";
 import { useDesktopFeaturePacks } from "@/hooks/useDesktopFeaturePacks";
-import { usePocketVoiceDownloads } from "@/hooks/use-pocket-voice-downloads";
 import { POCKET_VOICE_ENCODER_ASSET_ID } from "@/lib/speech/pocket/voice-cloning-encoder";
 import { formatFileSize } from "@/lib/user-files/uploads";
 import { useModelAssets } from "@/query/hooks/useModelAssets";
 import { useModelAssetAction } from "@/query/mutations/useModelAssetActions";
-import { PocketVoicePicker } from "@/ui/animas/PocketVoicePicker";
+import { VoiceCloneLibrary } from "@/ui/animas/VoiceCloneLibrary";
 import { Button } from "@/ui/components/button";
 import { ParakeetWebgpuDetails } from "./ExperimentalSettings";
 import cloningAttribution from "../../../../../../models/pocket-tts-voice-cloning/ATTRIBUTION.md?raw";
 
 type VoiceDownloadsProps = {
-  section?: "all" | "speech-to-text" | "text-to-speech";
+  section?: "all" | "speech-to-text" | "voice-clone";
+  /** Setup offers both models; settings follows the selected STT provider. */
+  sttProvider?: string;
   /** Unsaved credentials block only operations that can replace the renderer. */
   blockedReason?: string | null;
   busy?: boolean;
 };
 
-/** The same optional actions serve setup and settings, independently of provider selection. */
+/** Optional setup downloads share the same manager controls as Voice settings. */
 export function VoiceDownloads({
   section = "all",
+  sttProvider,
   ...guard
 }: VoiceDownloadsProps) {
+  const speech = (
+    <SpeechRecognitionDownloads sttProvider={sttProvider} {...guard} />
+  );
+  if (section === "speech-to-text") return speech;
+  if (section === "voice-clone") return <VoiceCloningStatus />;
   return (
-    <div className="space-y-4">
-      {section !== "text-to-speech" ? (
-        <SpeechRecognitionDownloads {...guard} />
-      ) : null}
-      {section !== "speech-to-text" ? <SpeechSynthesisDownloads /> : null}
+    <div className="space-y-6">
+      <section className="space-y-3" aria-label="Speech-to-Text">
+        <h2 className="text-sm font-semibold">Speech-to-Text</h2>
+        {speech}
+      </section>
+      <section className="space-y-3" aria-label="Voice Clone">
+        <h2 className="text-sm font-semibold">Voice Clone</h2>
+        <VoiceCloningStatus />
+      </section>
     </div>
   );
 }
 
 function SpeechRecognitionDownloads({
+  sttProvider,
+  ...guard
+}: Omit<VoiceDownloadsProps, "section">) {
+  // The base model stays reachable when missing: desktop cannot select Parakeet
+  // until it is installed. The GPU enhancement follows the explicit provider.
+  return (
+    <ParakeetDownloads
+      showGpu={sttProvider === undefined || sttProvider === "parakeet_webgpu"}
+      {...guard}
+    />
+  );
+}
+
+function ParakeetDownloads({
+  showGpu,
   blockedReason,
   busy,
-}: Omit<VoiceDownloadsProps, "section">) {
+}: Omit<VoiceDownloadsProps, "section" | "sttProvider"> & {
+  showGpu: boolean;
+}) {
   const packs = useDesktopFeaturePacks();
   const cpu = packs.packs.find((pack) => pack.id === "parakeet-stt");
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {packs.available && cpu ? (
         <OfflineSpeechDownload
           pack={cpu}
@@ -53,11 +81,30 @@ function SpeechRecognitionDownloads({
           run={(operation, id) => void packs.run(operation, id)}
         />
       ) : null}
-      <ParakeetWebgpuDetails
-        selected={false}
-        independent
-        busy={busy}
-        blockedReason={blockedReason}
+      {showGpu ? (
+        <ParakeetWebgpuDetails
+          selected={false}
+          independent
+          busy={busy}
+          blockedReason={blockedReason}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+/** Reuse the Anima voice-cloning form without tying creation to a selected Anima. */
+export function VoiceCloneSettings() {
+  const [cloning, setCloning] = useState(false);
+  return (
+    <div className="space-y-4">
+      <VoiceCloningStatus busy={cloning} />
+      <VoiceCloneLibrary
+        heading={false}
+        disabled={false}
+        deleting={null}
+        onDeleteClose={() => {}}
+        onBusyChange={setCloning}
       />
     </div>
   );
@@ -93,16 +140,11 @@ export function OfflineSpeechDownload({
     return null;
   const blocked = busy || Boolean(blockedReason);
   return (
-    <div
-      className="space-y-2 rounded-lg border p-3"
-      aria-label="Offline speech recognition download"
-    >
+    <div className="space-y-2" aria-label="Offline speech recognition download">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-40 flex-1">
           <p className="text-sm font-medium">Offline speech recognition</p>
-          <p className="text-muted-foreground text-xs">
-            Dictation and Voice Mode on your CPU.
-          </p>
+          <p className="text-muted-foreground text-xs">Parakeet · CPU</p>
         </div>
         <div className="flex flex-wrap gap-2">
           {!installed && !downloading && pack.available ? (
@@ -171,7 +213,7 @@ export function OfflineSpeechDownload({
         />
       ) : null}
       <p className="text-muted-foreground text-xs">
-        Installing or removing this model briefly reloads the app.
+        Model changes briefly reload the app.
       </p>
       {pack.state === "failed" && pack.error ? (
         <p role="status" className="text-muted-foreground text-xs">
@@ -187,38 +229,8 @@ export function OfflineSpeechDownload({
   );
 }
 
-function SpeechSynthesisDownloads() {
-  const voices = usePocketVoiceDownloads({ enabled: true });
-  return (
-    <div className="space-y-3">
-      <div className="space-y-2 rounded-lg border p-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="min-w-40 flex-1">
-            <p className="text-sm font-medium">PocketTTS voices</p>
-            <p className="text-muted-foreground text-xs">
-              Eve and Azelma are included. Browse and download more voices.
-            </p>
-          </div>
-          <PocketVoicePicker
-            downloadOnly
-            disabled={false}
-            availability={voices.availability}
-            onDownload={voices.install}
-            onRemove={voices.remove}
-            downloadBusy={voices.busy}
-            downloadBlockedReason={voices.blockedReason}
-            downloadError={voices.error}
-            retryAssetIds={voices.retryAssetIds}
-          />
-        </div>
-      </div>
-      <VoiceCloningStatus />
-    </div>
-  );
-}
-
 /** Managing the encoder never changes or deletes a saved clone or its original sample. */
-function VoiceCloningStatus() {
+function VoiceCloningStatus({ busy = false }: { busy?: boolean }) {
   const assets = useModelAssets({ enabled: true });
   const action = useModelAssetAction();
   const [confirmRemove, setConfirmRemove] = useState(false);
@@ -240,10 +252,9 @@ function VoiceCloningStatus() {
       assetId: POCKET_VOICE_ENCODER_ASSET_ID,
     });
   return (
-    <div className="space-y-2 rounded-lg border p-3">
+    <div className="space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-40 flex-1">
-          <p className="text-sm font-medium">Voice cloning</p>
           <p className="text-muted-foreground text-xs">
             Create named voices from your own samples.
           </p>
@@ -254,7 +265,10 @@ function VoiceCloningStatus() {
             size="sm"
             variant="outline"
             disabled={
-              action.busy || action.isPending || Boolean(action.blockedReason)
+              busy ||
+              action.busy ||
+              action.isPending ||
+              Boolean(action.blockedReason)
             }
             onClick={() => change("install")}
           >
@@ -277,7 +291,7 @@ function VoiceCloningStatus() {
             type="button"
             size="sm"
             variant="ghost"
-            disabled={action.isPending || action.busy}
+            disabled={busy || action.isPending || action.busy}
             onClick={() => {
               if (!confirmRemove) setConfirmRemove(true);
               else {

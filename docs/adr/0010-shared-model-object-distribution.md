@@ -72,8 +72,12 @@ their archive transport.
    download and continues only after verified installation. Reuse the backend
    asset lifecycle for voices and Mimi, and Electron's pack lifecycle for
    Parakeet; consistent remote objects do not require a universal installer.
-9. Offer direct optional Download actions during desktop setup and in the
-   respective Voice settings. Setup can finish without optional downloads;
+9. Offer direct optional Parakeet and cloning Download actions during desktop
+   setup and in the respective Voice settings. Keep additional preset downloads
+   in the compact Anima voice picker, without a separate setup/settings browser.
+   App Settings has a Voice Clone section after Text-to-Speech, reusing the
+   Anima cloning form. GPU controls in Settings follow the selected Parakeet
+   WebGPU provider; setup may offer the optional GPU download directly. Setup can finish without optional downloads;
    installing a component does not select a provider or equip a voice. Preserve
    nonsecret setup drafts across credential/pack transitions, protect unsaved
    credentials and derive progress/recovery from the owning manager. Keep GPU

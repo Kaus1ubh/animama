@@ -64,37 +64,75 @@ after(async () => {
   await server?.close();
 });
 
-test("download-only browsing downloads and removes a preset without changing voice selection", async () => {
+test("compact picker keeps inline download, retry and cancel independent of selection", async () => {
   const page = await browser.newPage({
     viewport: { width: 1280, height: 800 },
   });
   try {
     await page.goto(`${origin}/tests/fixtures/voice-clone-library/picker.html`);
-    await page.getByRole("button", { name: "Browse PocketTTS voices" }).click();
-    assert.equal(
-      await page.getByRole("button", { name: /^Select / }).count(),
-      0,
-    );
-    assert.equal(await page.getByText("Included", { exact: true }).count(), 2);
+    await page.getByRole("button", { name: "PocketTTS voice: Eve" }).click();
+    assert.equal(await page.getByText("Included", { exact: true }).count(), 0);
     assert.deepEqual(
       await page.evaluate(() => window.voicePickerFixture.actions),
       [],
     );
     await page.getByLabel("Search PocketTTS voices").fill("Clara");
-    await page
-      .getByRole("button", { name: "Download Clara", exact: true })
-      .click();
-    await page
-      .getByRole("button", { name: "Remove Clara", exact: true })
-      .click();
-    await page
-      .getByRole("button", { name: "Confirm removal of Clara", exact: true })
-      .click();
-    const result = await page.evaluate(() => window.voicePickerFixture);
+    const download = page.getByRole("button", {
+      name: "Download Clara",
+      exact: true,
+    });
+    const select = page.getByRole("button", {
+      name: "Select Clara",
+      exact: true,
+    });
+    const downloadBox = await download.boundingBox();
+    const selectBox = await select.boundingBox();
+    assert.ok(
+      Math.abs(
+        downloadBox.y +
+          downloadBox.height / 2 -
+          (selectBox.y + selectBox.height / 2),
+      ) < 2,
+      "download action stays on the selection row",
+    );
+    assert.equal(await download.innerText(), "");
+    await download.click();
+    const cancel = page.getByRole("button", {
+      name: "Cancel download Clara",
+      exact: true,
+    });
+    assert.equal(await cancel.isEnabled(), true);
+    assert.match(await cancel.getAttribute("title"), /Downloading 50%/);
+    await page.evaluate(() =>
+      window.voicePickerFixture.setDownloadState(
+        "pocket-voice-clara",
+        "failed",
+      ),
+    );
+    await page.getByRole("button", { name: "Retry download Clara" }).click();
+    await cancel.focus();
+    await page.keyboard.press("Enter");
+    await download.click();
+    await page.evaluate(() =>
+      window.voicePickerFixture.setDownloadState(
+        "pocket-voice-clara",
+        "installed",
+      ),
+    );
+    assert.equal(
+      await page
+        .getByRole("button", { name: "Remove Clara", exact: true })
+        .count(),
+      0,
+    );
+    const result = await page.evaluate(() => ({
+      selected: window.voicePickerFixture.selected,
+      actions: window.voicePickerFixture.actions,
+    }));
     assert.equal(result.selected, "eve");
     assert.deepEqual(
       result.actions.map((item) => item.operation),
-      ["download", "remove"],
+      ["download", "download", "cancel", "download"],
     );
     assert.equal(result.actions[0].id, result.actions[1].id);
   } finally {
@@ -102,7 +140,7 @@ test("download-only browsing downloads and removes a preset without changing voi
   }
 });
 
-test("selection mode keeps independent download actions and keyboard voice selection", async () => {
+test("compact picker keeps keyboard download and voice selection on narrow screens", async () => {
   const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
   try {
     await page.goto(

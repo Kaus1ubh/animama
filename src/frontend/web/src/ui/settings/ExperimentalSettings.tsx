@@ -431,11 +431,9 @@ export function ParakeetWebgpuDetails({
                 : "Checking WebGPU support…";
 
   return (
-    <div
-      className={independent ? "space-y-2 rounded-lg border p-3" : "space-y-2"}
-    >
+    <div className="space-y-2">
       {independent ? (
-        <p className="text-sm font-medium">GPU speech acceleration</p>
+        <p className="text-sm font-medium">Parakeet · GPU</p>
       ) : null}
       <p
         className="text-muted-foreground text-xs"
