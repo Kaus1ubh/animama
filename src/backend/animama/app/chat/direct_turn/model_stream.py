@@ -22,6 +22,7 @@ from animama.app.model_clients import (
 )
 from animama.app.model_clients.event_summary import ModelClientStreamEventObserver
 from animama.app.model_clients.prompt import copy_direct_chat_prompt, prompt_messages
+from animama.app.model_clients.usage_estimate import CONTEXT_TOKENS_METADATA_KEY, context_tokens_from_usage
 from animama.app.safety.prompts import COMPANION_GUARDRAILS
 from animama.domain.chat import ChatMessage
 from animama.domain.usage import Usage
@@ -105,6 +106,22 @@ class DirectTurnModelStreamCollector:
 
         started_at = time.monotonic()
         model_request = prepared.model_request
+        # Servers that cannot combine function tools with a response format get
+        # tool rounds without the format, then one structured round without
+        # tools. Only that last round streams public text.
+        structured_format = model_request.prompt.response_format
+        # Only Chat Completions rows split: Responses continuation and
+        # stale-cursor retries assume one request shape per round.
+        split_structured_reply = (
+            model_request.model_provider.provider_type == OPENAI_CHAT_COMPLETIONS_PROVIDER
+            and bool(model_request.prompt.tools)
+            and structured_format is not None
+            and not model_request.model_provider.capabilities.tools_with_structured_output
+        )
+        tool_round_text_observer = on_text_delta
+        if split_structured_reply:
+            model_request = _model_request_with_response_format(model_request, None)
+            tool_round_text_observer = None
         internal_messages: list[ChatMessage] = []
         usage_total = Usage()
         usage_seen = False
@@ -132,7 +149,7 @@ class DirectTurnModelStreamCollector:
                 prepared,
                 model_request,
                 round_index=round_index,
-                on_text_delta=on_text_delta,
+                on_text_delta=tool_round_text_observer,
             )
             if final is None:
                 _log.warning(
@@ -157,6 +174,31 @@ class DirectTurnModelStreamCollector:
                 output_tokens=final.usage.output_tokens,
                 total_tokens=final.usage.total_tokens,
             )
+            if not tool_calls and split_structured_reply:
+                structured_round_index = round_index + 1
+                if on_model_round_start is not None:
+                    await on_model_round_start(structured_round_index)
+                structured_final = await self._collect_model_final(
+                    prepared,
+                    _model_request_without_tools(model_request, response_format=structured_format),
+                    round_index=structured_round_index,
+                    on_text_delta=on_text_delta,
+                )
+                if structured_final is None:
+                    return None, internal_messages
+                usage_total.add(structured_final.usage)
+                _log.info(
+                    "Direct chat model stream collection completed",
+                    **_direct_turn_log_context(prepared, model_request),
+                    round_count=structured_round_index + 1,
+                    elapsed_ms=elapsed_ms(started_at),
+                    aggregated_usage=True,
+                    split_structured_reply=True,
+                )
+                return (
+                    _final_with_usage(structured_final, usage_total, input_moderation=round_zero_moderation),
+                    internal_messages,
+                )
             if not tool_calls:
                 # No tool calls means the final model text is ready for parsing.
                 # If earlier rounds called tools, usage is folded into this final.
@@ -230,7 +272,11 @@ class DirectTurnModelStreamCollector:
                     await on_model_round_start(forced_round_index)
                 forced_final = await self._collect_model_final(
                     prepared,
-                    _model_request_forced_final_without_tools(limit_request),
+                    _model_request_without_tools(
+                        limit_request,
+                        response_format=structured_format,
+                        final_instruction=MEMORY_TOOL_LIMIT_FINAL_INSTRUCTION,
+                    ),
                     round_index=forced_round_index,
                     on_text_delta=on_text_delta,
                 )
@@ -646,6 +692,9 @@ def _final_with_usage(
         raw_provider_metadata={
             **dict(final.raw_provider_metadata),
             "tool_loop_usage_aggregated": True,
+            # Summed usage is billed; only the last request's prompt and reply
+            # remain in the next turn's context.
+            CONTEXT_TOKENS_METADATA_KEY: context_tokens_from_usage(final.usage),
         },
         structured_payload=final.structured_payload,
         tool_calls=final.tool_calls,
@@ -818,25 +867,42 @@ def _prompt_with_appended_messages(
     return copy_direct_chat_prompt(prompt, messages=(*prompt_messages(prompt), *messages))
 
 
-def _model_request_forced_final_without_tools(
+def _model_request_with_response_format(
+    model_request: ModelClientRequest,
+    response_format: Any,
+) -> ModelClientRequest:
+    """Copy a request with ``response_format`` replaced (``None`` removes it)."""
+
+    return replace(model_request, prompt=copy_direct_chat_prompt(model_request.prompt, response_format=response_format))
+
+
+def _model_request_without_tools(
     model_request: ModelClientRequest,
     *,
-    previous_final: ModelClientFinal | None = None,
+    response_format: Any,
+    final_instruction: str | None = None,
 ) -> ModelClientRequest:
-    """Build a follow-up request that asks for a final answer without tools."""
+    """Build a request for the final answer with tools removed.
+
+    Used for the structured round of a split turn and for the forced final after
+    the tool round limit. A ``final_instruction`` is followed by the Companion
+    Guardrails so they remain the final instruction text (ADR 0008). Moderation
+    is only requested on round 0.
+    """
 
     prompt = model_request.prompt
-    # Restate the Companion Guardrails after the limit instruction so they remain the
-    # final instruction text on every request (ADR 0008).
-    final_instruction = {
-        "role": "developer",
-        "content": f"{MEMORY_TOOL_LIMIT_FINAL_INSTRUCTION}\n\n{COMPANION_GUARDRAILS.strip()}",
-    }
+    messages = prompt_messages(prompt)
+    if final_instruction is not None:
+        messages = [
+            *messages,
+            {"role": "developer", "content": f"{final_instruction}\n\n{COMPANION_GUARDRAILS.strip()}"},
+        ]
     return ModelClientRequest(
         model_provider=model_request.model_provider,
         prompt=copy_direct_chat_prompt(
             prompt,
-            messages=(*prompt_messages(prompt), final_instruction),
+            messages=messages,
+            response_format=response_format,
             tools=(),
             tool_choice=None,
             parallel_tool_calls=None,
@@ -844,12 +910,9 @@ def _model_request_forced_final_without_tools(
         provider_options=replace(
             model_request.provider_options,
             memory_apply_patch_enabled=False,
+            moderation_model=None,
         ),
-        continuation=(
-            openai_responses_continuation_from_final(model_request, previous_final)
-            if previous_final is not None
-            else model_request.continuation
-        ),
+        continuation=model_request.continuation,
     )
 
 

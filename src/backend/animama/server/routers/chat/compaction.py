@@ -7,7 +7,6 @@ from typing import Any
 from animama.adapters.repositories.sqlalchemy.chat_compaction_repo import SQLAlchemyChatCompactionRepository
 from animama.adapters.repositories.sqlalchemy.chat_message_repo import SQLAlchemyChatMessageRepository
 from animama.adapters.repositories.sqlalchemy.chat_repo import SQLAlchemyChatRepository
-from animama.adapters.repositories.sqlalchemy.model_provider_repo import SQLAlchemyModelProviderRepository
 from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
 from animama.app.chat.direct_turn.constants import OPENAI_RESPONSES_PROVIDER
 from animama.app.chat.options import DirectChatOptions
@@ -16,6 +15,7 @@ from animama.app.services.chat_compaction_service import ChatCompactionService, 
 from animama.app.services.direct_model_prompt_runner import DirectModelPromptRunner
 from animama.logging_config import get_logger
 from animama.server.config import settings
+from animama.server.model_roles import ModelRoleSettings
 
 _log = get_logger("server.routers.chat.compaction")
 
@@ -25,8 +25,6 @@ def chat_compaction_settings() -> ChatCompactionSettings:
         enabled=settings.anima_chat_compaction_enabled,
         threshold_tokens=settings.anima_chat_compaction_threshold_tokens,
         recent_message_min_count=settings.anima_chat_compaction_recent_message_min_count,
-        model_provider=settings.anima_chat_compaction_provider,
-        model=settings.anima_chat_compaction_model,
         prompt_version=settings.anima_chat_compaction_prompt_version,
     )
 
@@ -34,23 +32,25 @@ def chat_compaction_settings() -> ChatCompactionSettings:
 def direct_model_prompt_runner(
     session: Any,
     model_client_registry: ModelClientRegistry,
+    model_roles: ModelRoleSettings,
 ) -> DirectModelPromptRunner:
     return DirectModelPromptRunner(
         registry=model_client_registry,
-        model_providers=SQLAlchemyModelProviderRepository(session),
+        role_resolver=model_roles.resolver(session),
     )
 
 
 def chat_compaction_service(
     session: Any,
     model_client_registry: ModelClientRegistry,
+    model_roles: ModelRoleSettings,
 ) -> ChatCompactionService:
     return ChatCompactionService(
         chats=SQLAlchemyChatRepository(session),
         messages=SQLAlchemyChatMessageRepository(session),
         compactions=SQLAlchemyChatCompactionRepository(session),
         uow=SQLAlchemyUnitOfWork(session),
-        model_runner=direct_model_prompt_runner(session, model_client_registry),
+        model_runner=direct_model_prompt_runner(session, model_client_registry, model_roles),
         settings=chat_compaction_settings(),
     )
 
@@ -64,6 +64,7 @@ async def compact_chat_after_success(
     anima_id: str,
     run_id: str,
     chat_options: DirectChatOptions,
+    model_roles: ModelRoleSettings,
     model_provider_type: str | None = None,
 ) -> None:
     if chat_options.incognito:
@@ -89,7 +90,7 @@ async def compact_chat_after_success(
         expire_all = getattr(session, "expire_all", None)
         if expire_all is not None:
             expire_all()
-        result = await chat_compaction_service(session, model_client_registry).maybe_compact_chat(
+        result = await chat_compaction_service(session, model_client_registry, model_roles).maybe_compact_chat(
             chat_id=chat_id,
             user_id=user_id,
             anima_id=anima_id,

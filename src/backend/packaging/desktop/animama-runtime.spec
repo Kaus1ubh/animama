@@ -32,7 +32,7 @@ for target, relative in RESOURCE_INPUTS.items():
 # contains only the locked server/core dependency closure plus freezer tools.
 for distribution in importlib.metadata.distributions():
     datas += copy_metadata(distribution.metadata["Name"])
-for package in ("litellm", "tiktoken_ext", "gruut", "gruut_lang_en", "llama_index.core", "certifi", "agents"):
+for package in ("tiktoken_ext", "gruut", "gruut_lang_en", "llama_index.core", "certifi", "agents"):
     datas += collect_data_files(package)
 
 hiddenimports = collect_submodules("animama") + collect_submodules("uvicorn")

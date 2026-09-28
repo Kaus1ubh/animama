@@ -56,6 +56,7 @@ _BASELINE_TABLES = (
     "memory_manager_approvals",
     "memory_manager_messages",
     "memory_manager_runs",
+    "model_connections",
     "model_providers",
     "passage_tags",
     "runtime_worker_heartbeats",

@@ -2,20 +2,33 @@
 
 from __future__ import annotations
 
+import inspect
 import json
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from hashlib import sha256
-from typing import TYPE_CHECKING, Any
+from types import SimpleNamespace
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 from openai import APIStatusError, AsyncOpenAI
+from pydantic import BaseModel, ConfigDict
 
-from animama.adapters.model_clients.openai_responses.support import DEFAULT_BASE_URL
+from animama.adapters.model_clients.openai_chat_completions.connection_sdk import (
+    connection_base_url,
+    connection_timeout,
+    keyless_request_headers,
+    sdk_client_for_connection,
+)
+from animama.adapters.model_clients.openai_chat_completions.request import tools_without_function_strict
+from animama.adapters.model_clients.openai_chat_completions.support import resolve_openai_base_url
 from animama.adapters.openai_agents import OpenAIAgentsRunner, OpenAIAgentsRunOutput
+from animama.app.chat.api_standard import OPENAI_RESPONSES_PROVIDER_TYPE
 from animama.app.chat.memory_tools import (
     MEMORY_TOOL_LIST_FILES,
     MEMORY_TOOL_READ_FILES,
     MEMORY_TOOL_SEARCH_MEMORY_FILES,
 )
+from animama.app.model_clients import ModelClientProviderError
+from animama.app.model_clients.credentials import ModelCredentialResolver, connection_for_model_provider
 from animama.app.ports.anima_port import AnimaRepository
 from animama.app.ports.chat_message_port import ChatMessageRepository
 from animama.app.ports.memory_episode_port import MemoryEpisodeRepository
@@ -32,6 +45,7 @@ from animama.app.safety.prompts import SENSITIVE_MEMORY_RULE
 from animama.app.services.anima_identity_memory import ManagerFileAccess, manager_file_access_for_run
 from animama.app.services.memory_entry_service import MemoryEntryService
 from animama.app.services.user_memory_read_tools import UserMemoryReadToolService
+from animama.domain import ModelProvider
 from animama.domain.memory_manager import (
     MEMORY_MANAGER_EPISODE_TASK_STATUS_PROCESSING,
     MEMORY_MANAGER_RUN_KIND_EPISODE_PROCESSING,
@@ -41,6 +55,7 @@ from animama.domain.memory_manager import (
     MemoryManagerReflectionTaskState,
     MemoryManagerRun,
 )
+from animama.domain.model_connection import ModelConnection
 from animama.logging import get_logger
 
 from .episode_processing import load_episode_processing_batch, render_episode_processing_instructions
@@ -60,6 +75,41 @@ if TYPE_CHECKING:
 _MAX_MANAGER_TURNS = 8
 _MAX_INVALID_PATCH_RESUMES = 2
 _TRACE_WORKFLOW_NAME = "Animama memory manager"
+_PATCH_TOOL_NAME = "apply_patch"
+_HISTORY_ROLES = frozenset({"user", "assistant"})
+
+
+class _PatchOperation(BaseModel):
+    """One memory file change for the function-tool form of ``apply_patch``."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    type: Literal["create_file", "update_file"]
+    path: str
+    diff: str
+
+
+class _WithoutFunctionStrict:
+    """SDK client view that drops ``strict`` from Chat Completions function tools.
+
+    The Agents SDK always sends ``strict``; connections whose servers reject it
+    set ``strip_function_strict``, as the direct chat client already honors.
+    """
+
+    def __init__(self, client: AsyncOpenAI) -> None:
+        self._client = client
+        self.chat = SimpleNamespace(completions=SimpleNamespace(create=self._create))
+
+    async def _create(self, **kwargs: Any) -> Any:
+        if "tools" in kwargs:
+            kwargs["tools"] = tools_without_function_strict(kwargs["tools"])
+        return await self._client.chat.completions.create(**kwargs)
+
+    def with_options(self, **options: Any) -> _WithoutFunctionStrict:
+        return _WithoutFunctionStrict(self._client.with_options(**options))
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._client, name)
 
 
 class OpenAIAgentsMemoryManagerRuntime:
@@ -75,21 +125,28 @@ class OpenAIAgentsMemoryManagerRuntime:
         memory_episodes: MemoryEpisodeRepository | None = None,
         animas: AnimaRepository | None = None,
         chat_messages: ChatMessageRepository | None = None,
-        api_key: str | None,
-        base_url: str | None,
-        model: str,
+        model_provider: ModelProvider | None,
+        credential_resolver: ModelCredentialResolver,
+        openai_base_url: str | None = None,
         timeout_seconds: float,
     ) -> None:
+        """Run the manager on the memory-manager role's catalog row.
+
+        OpenAI Responses rows use the hosted ``apply_patch`` tool and server-side
+        response continuity. Chat Completions rows (any connection) use an
+        approval-gated ``apply_patch`` function tool and replay the run's stored
+        messages, since those servers keep no conversation state.
+        """
+
         self._user_id = user_id
         self._memory_entries = memory_entries
         self._memory_episodes = memory_episodes
         self._animas = animas
         self._chat_messages = chat_messages
-        self._api_key = (api_key or "").strip()
-        # Always pass an explicit endpoint: when omitted, the SDK falls back to the
-        # OPENAI_BASE_URL env var, which Compose sets to an empty string by default.
-        self._base_url = (base_url or "").strip().rstrip("/") or DEFAULT_BASE_URL
-        self._model = model.strip() or "gpt-5.4-mini"
+        self._model_provider = model_provider
+        self._credentials = credential_resolver
+        self._openai_base_url = resolve_openai_base_url(openai_base_url)
+        self._model = model_provider.model if model_provider is not None else ""
         self._timeout_seconds = max(0.1, float(timeout_seconds))
         self._runner = OpenAIAgentsRunner()
         self._log = get_logger("adapters.memory_manager.openai_agents")
@@ -99,12 +156,13 @@ class OpenAIAgentsMemoryManagerRuntime:
         *,
         run: MemoryManagerRun,
         user_message: MemoryManagerMessage,
+        history: Sequence[MemoryManagerMessage] = (),
     ) -> MemoryManagerRuntimeResult:
         """Run the live memory manager for a new user message."""
 
-        self._require_api_key()
+        connection = self._require_model()
         workspace = self._workspace_for_run(run)
-        client = self._client()
+        client = self._client(connection)
         try:
             agent, run_config = await self._build_agent(
                 run=run,
@@ -112,15 +170,30 @@ class OpenAIAgentsMemoryManagerRuntime:
                 client=client,
                 editor=_approval_required_patch_editor(),
             )
-            output = await self._runner.run(
-                agent=agent,
-                input_value=user_message.content,
-                context=_context_for_run(run),
-                run_config=run_config,
-                max_turns=_max_turns_for_run(run),
-                previous_response_id=run.openai_previous_response_id,
-                auto_previous_response_id=True,
-            )
+            if self._uses_responses:
+                # Without a cursor (for example after the role moved from a Chat
+                # Completions row), replay the run so its history is not lost.
+                output = await self._runner.run(
+                    agent=agent,
+                    input_value=(
+                        user_message.content
+                        if run.openai_previous_response_id or not history
+                        else _replayed_input(history, user_message)
+                    ),
+                    context=_context_for_run(run),
+                    run_config=run_config,
+                    max_turns=_max_turns_for_run(run),
+                    previous_response_id=run.openai_previous_response_id,
+                    auto_previous_response_id=True,
+                )
+            else:
+                output = await self._runner.run(
+                    agent=agent,
+                    input_value=_replayed_input(history, user_message),
+                    context=_context_for_run(run),
+                    run_config=run_config,
+                    max_turns=_max_turns_for_run(run),
+                )
             return await self._runtime_result_from_sdk_output(
                 run=run,
                 agent=agent,
@@ -131,7 +204,7 @@ class OpenAIAgentsMemoryManagerRuntime:
         except APIStatusError as exc:
             if run.openai_previous_response_id and _is_unresolvable_previous_response_error(exc):
                 raise MemoryManagerPreviousResponseUnresolvableError() from exc
-            raise MemoryManagerRuntimeConfigurationError("The OpenAI Memory Manager request failed.") from exc
+            raise MemoryManagerRuntimeConfigurationError("The Memory Manager model request failed.") from exc
         except Exception as exc:
             if _is_max_turns_exceeded(exc):
                 return _blocked_result(
@@ -140,7 +213,7 @@ class OpenAIAgentsMemoryManagerRuntime:
                 )
             if isinstance(exc, MemoryManagerRuntimeConfigurationError):
                 raise
-            raise MemoryManagerRuntimeConfigurationError("The OpenAI Memory Manager runtime failed.") from exc
+            raise MemoryManagerRuntimeConfigurationError("The Memory Manager runtime failed.") from exc
         finally:
             await client.close()
 
@@ -162,9 +235,9 @@ class OpenAIAgentsMemoryManagerRuntime:
                 metadata={"resume": "skipped_missing_state"},
             )
 
-        self._require_api_key()
+        connection = self._require_model()
         workspace = self._workspace_for_run(run)
-        client = self._client()
+        client = self._client(connection)
         try:
             editor = _committed_approval_patch_editor(approval=approval if decision == "approve" else None)
             agent, run_config = await self._build_agent(
@@ -213,7 +286,7 @@ class OpenAIAgentsMemoryManagerRuntime:
         except APIStatusError as exc:
             if run.openai_previous_response_id and _is_unresolvable_previous_response_error(exc):
                 raise MemoryManagerPreviousResponseUnresolvableError() from exc
-            raise MemoryManagerRuntimeConfigurationError("The OpenAI Memory Manager request failed.") from exc
+            raise MemoryManagerRuntimeConfigurationError("The Memory Manager model request failed.") from exc
         except Exception as exc:
             if _is_max_turns_exceeded(exc):
                 return _blocked_result(
@@ -222,7 +295,7 @@ class OpenAIAgentsMemoryManagerRuntime:
                 )
             if isinstance(exc, MemoryManagerRuntimeConfigurationError):
                 raise
-            raise MemoryManagerRuntimeConfigurationError("The OpenAI Memory Manager runtime failed.") from exc
+            raise MemoryManagerRuntimeConfigurationError("The Memory Manager runtime failed.") from exc
         finally:
             await client.close()
 
@@ -233,12 +306,51 @@ class OpenAIAgentsMemoryManagerRuntime:
             access=manager_file_access_for_run(run),
         )
 
-    def _require_api_key(self) -> None:
-        if not self._api_key:
-            raise MemoryManagerRuntimeConfigurationError("OPENAI_API_KEY is required for the memory manager")
+    def _row_metadata(self) -> dict[str, Any]:
+        """Identify the catalog row that ran, so runs record their actual provider."""
 
-    def _client(self) -> AsyncOpenAI:
-        return AsyncOpenAI(api_key=self._api_key, base_url=self._base_url, timeout=self._timeout_seconds)
+        row = self._model_provider
+        if row is None:
+            return {"model": self._model}
+        return {
+            "model": self._model,
+            "model_provider": row.provider_type,
+            "model_provider_id": row.id,
+            "connection_id": row.connection_id,
+        }
+
+    @property
+    def _uses_responses(self) -> bool:
+        return self._model_provider is not None and self._model_provider.provider_type == OPENAI_RESPONSES_PROVIDER_TYPE
+
+    def _require_model(self) -> ModelConnection:
+        if self._model_provider is None:
+            raise MemoryManagerRuntimeConfigurationError(
+                "No model with tool calling is available for the Memory Manager. Choose one in App Settings."
+            )
+        try:
+            connection = connection_for_model_provider(self._model_provider)
+        except ValueError as exc:
+            raise MemoryManagerRuntimeConfigurationError(str(exc)) from exc
+        if not self._credentials.resolve(connection).usable:
+            raise MemoryManagerRuntimeConfigurationError(f"No key is configured for {connection.name}.")
+        return connection
+
+    def _client(self, connection: ModelConnection) -> AsyncOpenAI:
+        """Reach the role's connection with only its own credential."""
+
+        try:
+            base_url = connection_base_url(connection, openai_base_url=self._openai_base_url)
+        except ModelClientProviderError as exc:
+            raise MemoryManagerRuntimeConfigurationError(str(exc)) from exc
+        return sdk_client_for_connection(
+            connection,
+            credential=self._credentials.resolve(connection),
+            base_url=base_url,
+            timeout=connection_timeout(
+                connection.timeout_seconds if connection.timeout_seconds is not None else self._timeout_seconds
+            ),
+        )
 
     async def _build_agent(
         self,
@@ -248,7 +360,16 @@ class OpenAIAgentsMemoryManagerRuntime:
         client: AsyncOpenAI,
         editor: ApplyPatchEditor,
     ) -> tuple[Agent[Any], RunConfig]:
-        from agents import Agent, ApplyPatchTool, ModelSettings, OpenAIResponsesModel, RunConfig, function_tool
+        from agents import (
+            Agent,
+            ApplyPatchTool,
+            ModelSettings,
+            OpenAIChatCompletionsModel,
+            OpenAIResponsesModel,
+            RunConfig,
+            function_tool,
+        )
+        from agents.editor import ApplyPatchOperation
 
         user_memory_reads = UserMemoryReadToolService(
             memory_entries=self._memory_entries,
@@ -303,26 +424,50 @@ class OpenAIAgentsMemoryManagerRuntime:
                 return await turn_reader.read_page(page)
 
             tools.append(read_reflection_turns)
-        tools.append(ApplyPatchTool(editor=editor, needs_approval=True))
 
         instructions = await self._instructions_for_run(run=run, memory_map=memory_map)
+        assert self._model_provider is not None
+        connection = connection_for_model_provider(self._model_provider)
+        cache_key = _memory_manager_prompt_cache_key(run_id=run.id, model=self._model)
+        if self._uses_responses:
+            model: Any = OpenAIResponsesModel(self._model, client)
+            model_settings = ModelSettings(store=True, extra_args={"prompt_cache_key": cache_key})
+            tools.append(ApplyPatchTool(editor=editor, needs_approval=True))
+        else:
+
+            @function_tool(name_override=_PATCH_TOOL_NAME, needs_approval=True)
+            async def apply_patch(operation: _PatchOperation) -> str:
+                """Propose exactly one create_file or update_file memory change as a V4A diff."""
+
+                patch = ApplyPatchOperation(type=operation.type, path=operation.path, diff=operation.diff)
+                outcome = editor.create_file(patch) if operation.type == "create_file" else editor.update_file(patch)
+                result = await outcome if inspect.isawaitable(outcome) else outcome
+                if isinstance(result, str):
+                    return result or "Patch processed."
+                return (result.output if result is not None else None) or "Patch processed."
+
+            model = OpenAIChatCompletionsModel(
+                self._model,
+                cast(AsyncOpenAI, _WithoutFunctionStrict(client))
+                if connection.compatibility.strip_function_strict
+                else client,
+            )
+            extra_args = {"prompt_cache_key": cache_key} if connection.compatibility.send_openai_extensions else None
+            model_settings = ModelSettings(
+                extra_args=extra_args,
+                extra_headers=keyless_request_headers(connection, self._credentials.resolve(connection)),
+            )
+            tools.append(apply_patch)
         agent = Agent(
             name="Animama Memory Manager",
             instructions=instructions,
-            model=OpenAIResponsesModel(self._model, client),
-            model_settings=ModelSettings(
-                store=True,
-                extra_args={
-                    "prompt_cache_key": _memory_manager_prompt_cache_key(
-                        run_id=run.id,
-                        model=self._model,
-                    )
-                },
-            ),
+            model=model,
+            model_settings=model_settings,
             tools=tools,
         )
         run_config = RunConfig(
-            tracing_disabled=False,
+            # Traces go to OpenAI; only runs on the built-in OpenAI connection send them.
+            tracing_disabled=not connection.is_builtin_openai,
             trace_include_sensitive_data=False,
             workflow_name=_TRACE_WORKFLOW_NAME,
             group_id=run.id,
@@ -386,7 +531,7 @@ class OpenAIAgentsMemoryManagerRuntime:
         interruptions = output.interruptions
         metadata = {
             "runtime": self.name,
-            "model": self._model,
+            **self._row_metadata(),
             **output.metadata,
             "interruption_count": len(interruptions),
         }
@@ -566,6 +711,19 @@ def _committed_approval_patch_editor(*, approval: MemoryManagerApproval | None) 
             )
 
     return CommittedApprovalPatchEditor(approval=approval)
+
+
+def _replayed_input(
+    history: Sequence[MemoryManagerMessage], user_message: MemoryManagerMessage
+) -> list[dict[str, str]]:
+    """Rebuild the run's conversation for servers without stored response state."""
+
+    items = [
+        {"role": message.role, "content": message.content}
+        for message in history
+        if message.role in _HISTORY_ROLES and message.content and message.id != user_message.id
+    ]
+    return [*items, {"role": "user", "content": user_message.content}]
 
 
 def _context_for_run(run: MemoryManagerRun) -> dict[str, Any]:

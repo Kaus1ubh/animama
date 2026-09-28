@@ -9,18 +9,21 @@ from fastapi import FastAPI, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from animama.app.safety.config import safety_override_warnings
+from animama.app.services.model_provider_catalog_service import ModelCatalogPolicy
 from animama.local.database import LocalDatabase
 from animama.local.http.composition import install_local_http
 from animama.logging_config import configure_logging
 from animama.server.config import Settings
 from animama.server.content_startup import start_content_runtime, stop_content_runtime
 from animama.server.deps import get_async_session_factory
+from animama.server.embedding_refresh import start_embedding_refresh, stop_embedding_refresh
 from animama.server.local_http import local_assets, local_http_config, local_telemetry
 from animama.server.local_installation_bootstrap import create_local_installation_bootstrap_service
 from animama.server.local_runtime import initialize_local_runtime
 from animama.server.model_assets import close_model_asset_service, model_asset_service_for
 from animama.server.routers import router
 from animama.server.routers.desktop_control import require_desktop_control, router as desktop_control_router
+from animama.server.routers.model_configuration import router as model_configuration_router
 from animama.server.telemetry import setup_telemetry
 
 logger = logging.getLogger(__name__)
@@ -52,6 +55,10 @@ def create_local_app(
         return {"status": "ok"}
 
     application.include_router(router)
+    # The installation owner may add model connections and models. These routes
+    # reach owner-supplied endpoints, so only the local composition mounts them.
+    application.state.model_catalog_policy = ModelCatalogPolicy(owner_models_enabled=True)
+    application.include_router(model_configuration_router)
     if http_config.desktop is not None:
         application.include_router(desktop_control_router)
 
@@ -104,6 +111,7 @@ def create_local_app(
             owner_id=state.principal_id,
             perform_initial_scan=False,
         )
+        start_embedding_refresh(application, session_factory=get_async_session_factory(application))
         # A bounded repair state may still use the existing bootstrap API. The
         # owner is established by completed service bootstrap, never that API's
         # request body; desktop readiness separately requires content readiness.
@@ -111,6 +119,7 @@ def create_local_app(
 
     @application.on_event("shutdown")
     async def stop_accountless_runtime() -> None:  # pragma: no cover - startup IO
+        await stop_embedding_refresh(application)
         await close_model_asset_service(application)
         await stop_content_runtime(application)
         if database is not None:

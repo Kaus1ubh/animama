@@ -18,6 +18,7 @@ from .memory_entry_port import MemoryEntryRepository, MemoryEntryRepositoryConfl
 from .memory_episode_port import MemoryEpisodeRepository, MemoryEpisodeRepositoryConflictError
 from .memory_manager_port import MemoryManagerRepository, MemoryManagerRepositoryConflictError
 from .memory_patch_port import MemoryPatchCandidate, MemoryPatchPlanError, MemoryPatchPlanner
+from .model_connection_port import ModelConnectionRepository
 from .model_provider_port import ModelProviderRepository
 from .owner_profile_bootstrap_port import OwnerProfileBootstrapPort, OwnerProfileBootstrapResult
 from .settings_port import AnimaSettingsRepository, UserSettingsRepository
@@ -30,6 +31,7 @@ from .user_profile_port import (
 )
 
 __all__ = [
+    "ModelConnectionRepository",
     "ModelProviderRepository",
     "AnimaChatProfileRepository",
     "AnimaMemoryReflectionRepository",

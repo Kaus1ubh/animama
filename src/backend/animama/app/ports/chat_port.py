@@ -58,6 +58,7 @@ class ChatRepository(Protocol):
         clear_openai_previous_response_id: bool = False,
         last_model_client: str | None = None,
         last_model_id: str | None = None,
+        last_model_provider_id: str | None = None,
     ) -> tuple[int, Usage | None]:
         raise NotImplementedError
 

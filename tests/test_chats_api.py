@@ -104,9 +104,10 @@ def test_fresh_metadata_uses_chat_tables_without_legacy_session_tables() -> None
     foreign_keys = [
         constraint for constraint in chat_messages.constraints if isinstance(constraint, ForeignKeyConstraint)
     ]
-    assert any(
-        {column.name for column in constraint.columns} == {"model_provider", "model"}
-        and {element.column.table.name for element in constraint.elements} == {"model_providers"}
+    # Message model columns are a snapshot: two connections may serve the same
+    # model slug and history outlives catalog rows, so they are not a foreign key.
+    assert not any(
+        {element.column.table.name for element in constraint.elements} == {"model_providers"}
         for constraint in foreign_keys
     )
     chat_check_sql = {
@@ -154,6 +155,7 @@ async def test_create_chat_for_owned_anima_succeeds(async_session) -> None:
     assert response.model_dump()["api_standard"] is None
     assert response.model_dump()["last_model_client"] is None
     assert response.model_dump()["last_model_id"] is None
+    assert response.model_dump()["last_model_provider_id"] is None
 
 
 @pytest.mark.asyncio
@@ -172,6 +174,7 @@ async def test_chat_repository_round_trips_api_standard_fields(async_session) ->
             api_standard="responses",
             last_model_client="openai_responses",
             last_model_id="gpt-5-responses",
+            last_model_provider_id="owner:gpt-5-responses",
         )
     )
     fetched = await repo.get(chat_id)
@@ -183,6 +186,7 @@ async def test_chat_repository_round_trips_api_standard_fields(async_session) ->
     assert fetched.api_standard == "responses"
     assert fetched.last_model_client == "openai_responses"
     assert fetched.last_model_id == "gpt-5-responses"
+    assert fetched.last_model_provider_id == "owner:gpt-5-responses"
 
     updated = await repo.update(
         Chat(
@@ -361,7 +365,7 @@ async def test_chat_messages_hide_internal_by_default_and_do_not_expose_session_
                 run_id="run-1",
                 role=MessageRole.ASSISTANT.value,
                 content=raw_structured,
-                model="gpt-5-nano",
+                model="gpt-6-luna",
                 model_provider="OpenAIHTTPAgent",
                 message_data={
                     "openai": {"provider": "OpenAIResponsesHTTPAgent", "response_id": "resp_visible"},
@@ -394,7 +398,7 @@ async def test_chat_messages_hide_internal_by_default_and_do_not_expose_session_
     visible = await chats_router.list_chat_messages(chat_id, user=_user(owner_id), session=async_session)
     assert [message.content for message in visible.messages] == ["Display visible"]
     assert visible.messages[0].chat_id == chat_id
-    assert visible.messages[0].model == "gpt-5-nano"
+    assert visible.messages[0].model == "gpt-6-luna"
     assert visible.messages[0].model_provider == "OpenAIHTTPAgent"
     assert visible.messages[0].internal is False
     assert visible.messages[0].data == {

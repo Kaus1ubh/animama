@@ -26,7 +26,7 @@ selectors = (
     "PGADMIN_PORT", "DOZZLE_PORT", "ANIMAMA_INCLUDED_CONTENT_HOST_PATH",
     "ANIMAMA_LOCAL_CONTENT_HOST_PATH", "ANIMAMA_DATA_HOST_PATH",
     "ANIMAMA_DOCLING_CACHE_HOST_PATH", "ANIMAMA_CONTENT_ROOT", "ANIMAMA_DATA_ROOT",
-    "HOST_UID", "HOST_GID",
+    "HOST_UID", "HOST_GID", "ANIMAMA_CONNECTION_KEYS_FILE",
 )
 # Compose always emits an inferred project name. Import it only when the caller
 # explicitly declared it; otherwise reset keeps its existing --base-port naming.

@@ -59,6 +59,7 @@ class SQLAlchemyArchiveRepository:
             created_at=getattr(obj, "created_at", None),
             updated_at=getattr(obj, "updated_at", None),
             embedding=obj.embedding,
+            embedding_model_id=obj.embedding_model_id,
         )
 
     @staticmethod
@@ -121,27 +122,18 @@ class SQLAlchemyArchiveRepository:
         self,
         *,
         embedding: list[float],
+        embedding_model_id: str,
         limit: int = 5,
         threshold: float = 0.1,
         archive_id: str | None = None,
     ) -> list[ArchivePassageDomain]:
-        """Search passages by vector similarity using pgvector cosine distance.
+        """Search passages by pgvector cosine similarity (highest first).
 
-        Args:
-            embedding: Query embedding vector
-            limit: Maximum number of results
-            threshold: Minimum similarity score (0.0 to 1.0)
-            archive_id: Optional filter by archive
-
-        Returns:
-            List of ArchivePassageDomain ordered by similarity (highest first)
+        Only vectors from ``embedding_model_id`` are compared; ``threshold`` is
+        the minimum similarity from 0.0 to 1.0.
         """
-        # Build query with optional archive filter
         archive_filter = "AND archive_id = :archive_id" if archive_id else ""
-
-        # pgvector cosine distance: <=> returns distance (0 = identical)
-        # Convert to similarity: 1 - distance
-        # Note: Use CAST() instead of :: syntax to avoid SQLAlchemy parameter parsing issues
+        # Use CAST() instead of :: to avoid SQLAlchemy parameter parsing issues.
         query = text(f"""
             SELECT
                 id,
@@ -151,34 +143,76 @@ class SQLAlchemyArchiveRepository:
                 1 - (embedding <=> CAST(:query_embedding AS vector)) as score
             FROM archive_passages
             WHERE embedding IS NOT NULL
+                AND embedding_model_id = :embedding_model_id
                 AND 1 - (embedding <=> CAST(:query_embedding AS vector)) >= :threshold
                 {archive_filter}
             ORDER BY embedding <=> CAST(:query_embedding AS vector)
             LIMIT :limit
         """)
-
         params: dict[str, Any] = {
             "query_embedding": str(embedding),
+            "embedding_model_id": embedding_model_id,
             "threshold": threshold,
             "limit": limit,
         }
         if archive_id:
             params["archive_id"] = archive_id
+        return await self._search_results(query, params)
 
-        result = await self._s.execute(query, params)
-        rows = result.fetchall()
+    async def keyword_search_passages(
+        self,
+        *,
+        query: str,
+        limit: int = 5,
+        archive_id: str | None = None,
+    ) -> list[ArchivePassageDomain]:
+        """Search passages by Postgres full-text rank (highest first)."""
 
-        results = [
-            ArchivePassageResult(
-                id=row.id,
-                text=row.text,
-                score=row.score,
-                metadata=row.metadata,
-                archive_id=row.archive_id,
+        archive_filter = "AND archive_id = :archive_id" if archive_id else ""
+        statement = text(f"""
+            SELECT
+                id,
+                text,
+                metadata_ as metadata,
+                archive_id,
+                ts_rank_cd(to_tsvector('english', text), websearch_to_tsquery('english', :query)) as score
+            FROM archive_passages
+            WHERE to_tsvector('english', text) @@ websearch_to_tsquery('english', :query)
+                {archive_filter}
+            ORDER BY score DESC, id
+            LIMIT :limit
+        """)
+        params: dict[str, Any] = {"query": query, "limit": limit}
+        if archive_id:
+            params["archive_id"] = archive_id
+        return await self._search_results(statement, params)
+
+    async def count_stale_passages(self, *, archive_id: str, embedding_model_id: str) -> int:
+        """Count passages whose vector is missing or from another embedding model."""
+
+        result = await self._s.execute(
+            text("""
+                SELECT count(*) FROM archive_passages
+                WHERE archive_id = :archive_id AND embedding_model_id IS DISTINCT FROM :embedding_model_id
+            """),
+            {"archive_id": archive_id, "embedding_model_id": embedding_model_id},
+        )
+        return int(result.scalar_one())
+
+    async def _search_results(self, query: Any, params: dict[str, Any]) -> list[ArchivePassageDomain]:
+        rows = (await self._s.execute(query, params)).fetchall()
+        return [
+            self._result_to_domain(
+                ArchivePassageResult(
+                    id=row.id,
+                    text=row.text,
+                    score=row.score,
+                    metadata=row.metadata,
+                    archive_id=row.archive_id,
+                )
             )
             for row in rows
         ]
-        return [self._result_to_domain(r) for r in results]
 
     async def create_passage(
         self,
@@ -186,6 +220,7 @@ class SQLAlchemyArchiveRepository:
         archive_id: str,
         text: str,
         embedding: list[float] | None = None,
+        embedding_model_id: str | None = None,
         metadata: dict[str, Any] | None = None,
         tags: list[str] | None = None,
         source_id: str | None = None,
@@ -196,6 +231,7 @@ class SQLAlchemyArchiveRepository:
             archive_id=archive_id,
             text=text,
             embedding=embedding,
+            embedding_model_id=embedding_model_id if embedding is not None else None,
             metadata_=metadata or {},
             tags=tags,
             source_id=source_id,
@@ -224,6 +260,7 @@ class SQLAlchemyArchiveRepository:
         obj.source_id = passage.source_id
         obj.file_id = passage.file_id
         obj.embedding = passage.embedding
+        obj.embedding_model_id = passage.embedding_model_id if passage.embedding is not None else None
         await self._s.flush()
         await self._s.refresh(obj)
         return self._orm_passage_to_domain(obj)
@@ -261,6 +298,7 @@ class SQLAlchemyArchiveRepository:
                 archive_id=row.archive_id,
                 text=row.text,
                 embedding=row.embedding,
+                embedding_model_id=row.embedding_model_id,
                 metadata_=row.metadata_,
                 tags=row.tags,
                 source_id=row.source_id,

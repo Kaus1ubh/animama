@@ -9,7 +9,6 @@ from sqlalchemy import (
     CheckConstraint,
     Computed,
     ForeignKey,
-    ForeignKeyConstraint,
     Index,
     Integer,
     String,
@@ -33,6 +32,8 @@ class ORMChatMessage(SqlalchemyBase):
     message_type: Mapped[str | None] = mapped_column(String, nullable=True)
     role: Mapped[str | None] = mapped_column(String, nullable=True)
     content: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Provider/model snapshot of the producing row. Not a foreign key: two
+    # connections may serve the same model slug, and history outlives rows.
     model: Mapped[str | None] = mapped_column(String, nullable=True)
     model_provider: Mapped[str | None] = mapped_column(String, nullable=True)
     search_vector: Mapped[str] = mapped_column(
@@ -67,11 +68,6 @@ class ORMChatMessage(SqlalchemyBase):
 
     __table_args__ = (
         CheckConstraint("turn IS NULL OR turn >= 1", name="ck_chat_messages_turn_positive"),
-        ForeignKeyConstraint(
-            ["model_provider", "model"],
-            ["model_providers.provider_type", "model_providers.model"],
-            name="fk_chat_messages_model_provider_pair",
-        ),
         Index("idx_chat_messages_chat_time", "chat_id", "created_at"),
         Index("idx_chat_messages_chat_turn", "chat_id", "turn"),
         Index("uq_chat_messages_chat_turn", "chat_id", "turn", unique=True),

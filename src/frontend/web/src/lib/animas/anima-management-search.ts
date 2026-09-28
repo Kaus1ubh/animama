@@ -109,23 +109,6 @@ export function resolveSelectedAnimaId(
 }
 
 /**
- * The Anima the app opens at startup: the owner's pinned default Anima when it
- * is still owned, otherwise the last opened one, otherwise the first.
- */
-export function resolveStartupAnimaId(
-  orderedAnimaIds: readonly string[],
-  {
-    pinnedAnimaId,
-    lastActiveAnimaId,
-  }: { pinnedAnimaId?: string | null; lastActiveAnimaId?: string | null },
-): string | null {
-  if (pinnedAnimaId && orderedAnimaIds.includes(pinnedAnimaId)) {
-    return pinnedAnimaId;
-  }
-  return resolveSelectedAnimaId(orderedAnimaIds, lastActiveAnimaId);
-}
-
-/**
  * Return the adjacent Anima ID with wraparound. Empty and unresolved
  * selections return null rather than inventing navigation state.
  */

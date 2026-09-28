@@ -1,7 +1,9 @@
-"""Provider + model catalog used by direct model clients.
+"""Built-in provider + model catalog used by direct model clients.
 
-Stores per-provider model information (modalities, streaming, tools, pricing,
-and provider endpoint hints) and exposes serializers for durable catalog seeding.
+Stores per-provider model information (modalities, streaming, tools and
+pricing) for the release-managed rows of the built-in OpenAI connection, and
+exposes serializers for durable catalog seeding. Other providers are reached
+through owner-configured model connections, not built-in rows.
 
 Notes
 - This module avoids importing server-side Pydantic schemas to keep
@@ -15,7 +17,14 @@ from datetime import date
 from decimal import Decimal
 from typing import Any
 
+from animama.app.model_clients.credentials import builtin_openai_connection
 from animama.app.model_provider_native_tools import requestable_native_tool_support
+from animama.domain.model_connection import (
+    BUILTIN_OPENAI_CONNECTION_ID,
+    MODEL_KIND_CHAT,
+    MODEL_KIND_EMBEDDING,
+    MODEL_SOURCE_BUILTIN,
+)
 from animama.domain.types import Modality
 from animama.utils.type_helpers import coerce_modalities, coerce_provider_type
 
@@ -42,98 +51,28 @@ STRUCTURED_OUTPUT_TRANSPORT_JSON_OBJECT = "json_object"
 
 REASONING_EFFORT_ORDER = ("none", "minimal", "low", "medium", "high", "xhigh", "max")
 PRICE_TIERS = ("standard", "batch", "flex", "priority")
-OPENAI_PRICING_SOURCE_URL = "https://developers.openai.com/api/docs/pricing"
-OPENAI_PRICING_SOURCE_CHECKED_AT = "2026-06-16"
-OPENAI_GPT_56_PRICING_SOURCE_CHECKED_AT = "2026-08-08"
-DEEPSEEK_BASE_URL = "https://api.deepseek.com"
-DEEPSEEK_REASONING_EFFORTS = frozenset({"none", "high", "max"})
-HUGGINGFACE_ROUTER_BASE_URL = "https://router.huggingface.co/v1"
+GPT_6_PRICING_SOURCE_CHECKED_AT = "2026-09-28"
 
-OPENAI_GPT_5_NANO_PRICING: dict[str, Any] = {
+OPENAI_GPT_6_LUNA_PRICING: dict[str, Any] = {
     "status": "priced",
     "source_provider": "openai",
-    "source_model": "gpt-5-nano",
-    "source_url": OPENAI_PRICING_SOURCE_URL,
-    "source_checked_at": OPENAI_PRICING_SOURCE_CHECKED_AT,
+    "source_model": "gpt-6-luna",
+    # Standard rates were supplied by the owner; no published pricing page is recorded.
+    "source_url": None,
+    "source_checked_at": GPT_6_PRICING_SOURCE_CHECKED_AT,
     "currency": "USD",
     "billing_unit": "1M_tokens",
-    "standard": {"input": "0.05", "cached_input": "0.005", "output": "0.4"},
-    "batch": {"input": "0.025", "cached_input": "0.0025", "output": "0.2"},
-    "flex": {"input": "0.025", "cached_input": "0.0025", "output": "0.2"},
+    # The cached-input rate is unknown, so turns that report cached tokens stay
+    # unpriced instead of charging them at zero.
+    "standard": {"input": "0.10", "cached_input": None, "output": "0.50"},
+    # Batch, flex, priority and long-context rates are unknown; those tiers are
+    # not listed as priced, so estimates for them stay unpriced.
+    "batch": None,
+    "flex": None,
     "priority": None,
-}
-
-OPENAI_GPT_54_NANO_PRICING: dict[str, Any] = {
-    "status": "priced",
-    "source_provider": "openai",
-    "source_model": "gpt-5.4-nano",
-    "source_url": OPENAI_PRICING_SOURCE_URL,
-    "source_checked_at": OPENAI_PRICING_SOURCE_CHECKED_AT,
-    "currency": "USD",
-    "billing_unit": "1M_tokens",
-    "standard": {"input": "0.20", "cached_input": "0.02", "output": "1.25"},
-    "batch": {"input": "0.10", "cached_input": "0.01", "output": "0.625"},
-    "flex": {"input": "0.10", "cached_input": "0.01", "output": "0.625"},
-    "priority": None,
-    "regional_processing_uplift_factor": "1.10",
-    "pricing_notes": ["Regional processing endpoints apply a 10 percent uplift for GPT-5.4 nano."],
-}
-
-OPENAI_GPT_56_LUNA_PRICING: dict[str, Any] = {
-    "status": "priced",
-    "source_provider": "openai",
-    "source_model": "gpt-5.6-luna",
-    "source_url": OPENAI_PRICING_SOURCE_URL,
-    "source_checked_at": OPENAI_GPT_56_PRICING_SOURCE_CHECKED_AT,
-    "currency": "USD",
-    "billing_unit": "1M_tokens",
-    "standard": {"input": "0.20", "cached_input": "0.02", "output": "1.20"},
-    "batch": {"input": "0.10", "cached_input": "0.01", "output": "0.60"},
-    "flex": {"input": "0.10", "cached_input": "0.01", "output": "0.60"},
-    # The durable pricing schema and Responses usage use the priority-tier key;
-    # keep that serialized key independent of the provider-facing label.
-    "priority": {"input": "0.40", "cached_input": "0.04", "output": "2.40"},
-    "long_context": {
-        "token_threshold": 272_000,
-        "standard": {"input": "0.40", "cached_input": "0.04", "output": "1.80"},
-        "batch": {"input": "0.20", "cached_input": "0.02", "output": "0.90"},
-        "flex": {"input": "0.20", "cached_input": "0.02", "output": "0.90"},
-        "priority": {"input": "0.80", "cached_input": "0.08", "output": "3.60"},
-    },
-    "regional_processing_uplift_factor": "1.10",
     "pricing_notes": [
-        "Requests with more than 272,000 input tokens use long-context rates for the full request.",
-        "OpenAI cache-write pricing is not represented by Animama's current token cost estimate.",
-        "OpenAI Fast mode rates are stored in the existing priority tier fields.",
-        "Regional processing endpoints apply a 10 percent uplift for GPT-5.6 models.",
-    ],
-}
-
-OPENAI_GPT_56_TERRA_PRICING: dict[str, Any] = {
-    "status": "priced",
-    "source_provider": "openai",
-    "source_model": "gpt-5.6-terra",
-    "source_url": OPENAI_PRICING_SOURCE_URL,
-    "source_checked_at": OPENAI_GPT_56_PRICING_SOURCE_CHECKED_AT,
-    "currency": "USD",
-    "billing_unit": "1M_tokens",
-    "standard": {"input": "2.00", "cached_input": "0.20", "output": "12.00"},
-    "batch": {"input": "1.00", "cached_input": "0.10", "output": "6.00"},
-    "flex": {"input": "1.00", "cached_input": "0.10", "output": "6.00"},
-    "priority": {"input": "4.00", "cached_input": "0.40", "output": "24.00"},
-    "long_context": {
-        "token_threshold": 272_000,
-        "standard": {"input": "4.00", "cached_input": "0.40", "output": "18.00"},
-        "batch": {"input": "2.00", "cached_input": "0.20", "output": "9.00"},
-        "flex": {"input": "2.00", "cached_input": "0.20", "output": "9.00"},
-        "priority": {"input": "8.00", "cached_input": "0.80", "output": "36.00"},
-    },
-    "regional_processing_uplift_factor": "1.10",
-    "pricing_notes": [
-        "Requests with more than 272,000 input tokens use long-context rates for the full request.",
-        "OpenAI cache-write pricing is not represented by Animama's current token cost estimate.",
-        "OpenAI Fast mode rates are stored in the existing priority tier fields.",
-        "Regional processing endpoints apply a 10 percent uplift for GPT-5.6 models.",
+        "Standard input and output rates were supplied by the owner on 2026-09-28.",
+        "Cached-input, batch, flex, priority and long-context rates are unknown and are not estimated.",
     ],
 }
 
@@ -169,30 +108,6 @@ def _capabilities_for_provider(cap_entry: dict[str, Any], provider_attrs: dict[s
         if key in provider_attrs:
             capabilities[key] = provider_attrs[key]
     return capabilities
-
-
-def _provider_family(provider_type: str, model: str, provider_attrs: dict[str, Any] | None = None) -> str | None:
-    if isinstance(provider_attrs, dict):
-        raw_family = provider_attrs.get("provider_family")
-        if isinstance(raw_family, str) and raw_family.strip():
-            return raw_family.strip().lower()
-    if provider_type.startswith("OpenAI"):
-        return "openai"
-    if provider_type == "GeminiAgent":
-        return "gemini"
-    if provider_type == "LiteLLMAgent" and "/" in model:
-        return model.split("/", 1)[0].strip().lower() or None
-    return provider_type.removesuffix("Agent").lower() or None
-
-
-def _api_family(provider_type: str, model: str, provider_attrs: dict[str, Any] | None = None) -> str | None:
-    if isinstance(provider_attrs, dict):
-        raw_family = provider_attrs.get("api_family")
-        if isinstance(raw_family, str) and raw_family.strip():
-            return raw_family.strip().lower()
-    if provider_type == "LiteLLMAgent":
-        return "litellm"
-    return _provider_family(provider_type, model, provider_attrs)
 
 
 def _chat_api_standard_fields(provider_type: str) -> dict[str, str | None]:
@@ -266,8 +181,8 @@ Structure:
     },
     "providers": {
       <provider_type>: {
-        "base_url": str | None,
         "supports_developer_role": bool,        # optional, default true
+        "native_tool_support": set[str],        # optional
       },
       ...
     }
@@ -276,56 +191,11 @@ Structure:
 """
 
 MODEL_CATALOG: dict[str, dict[str, Any]] = {
-    # OpenAI chat models
-    "gpt-5-nano": {
+    # OpenAI chat models. Knowledge cutoff 2026-05-18.
+    "gpt-6-luna": {
         "model_metadata": {
             "model_type": "reasoning",
-            "current_snapshot": "gpt-5-nano-2025-08-07",
-        },
-        "capabilities": {
-            "accepts": _s("text", "image"),
-            "produces": _s("text"),
-            "supports_tools": True,
-            "supports_streaming": True,
-            "structured_kinds": MAIN_STRUCTURED_RESPONSE_KINDS,
-            "structured_output_transport": STRUCTURED_OUTPUT_TRANSPORT_JSON_SCHEMA,
-            "supports_reasoning": True,
-            "supported_reasoning_efforts": {"minimal", "low", "medium", "high"},
-        },
-        "providers": {
-            "OpenAIHTTPAgent": {"base_url": "https://api.openai.com/v1"},
-            "OpenAIResponsesHTTPAgent": {"base_url": "https://api.openai.com/v1"},
-        },
-        "pricing": OPENAI_GPT_5_NANO_PRICING,
-    },
-    "gpt-5.4-nano": {
-        "model_metadata": {
-            "model_type": "reasoning",
-            "current_snapshot": "gpt-5.4-nano-2026-03-17",
-        },
-        "capabilities": {
-            "accepts": _s("text", "image"),
-            "produces": _s("text"),
-            "supports_tools": True,
-            "supports_streaming": True,
-            "structured_kinds": MAIN_STRUCTURED_RESPONSE_KINDS,
-            "structured_output_transport": STRUCTURED_OUTPUT_TRANSPORT_JSON_SCHEMA,
-            "supports_reasoning": True,
-            "supported_reasoning_efforts": {"none", "low", "medium", "high", "xhigh"},
-        },
-        "providers": {
-            "OpenAIHTTPAgent": {"base_url": "https://api.openai.com/v1"},
-            "OpenAIResponsesHTTPAgent": {
-                "base_url": "https://api.openai.com/v1",
-                "native_tool_support": {"web_search", "apply_patch"},
-            },
-        },
-        "pricing": OPENAI_GPT_54_NANO_PRICING,
-    },
-    "gpt-5.6-luna": {
-        "model_metadata": {
-            "model_type": "reasoning",
-            "current_snapshot": "gpt-5.6-luna",
+            "current_snapshot": "gpt-6-luna",
             "context_window_tokens": 1_050_000,
             "max_output_tokens": 128_000,
         },
@@ -340,228 +210,41 @@ MODEL_CATALOG: dict[str, dict[str, Any]] = {
             "supported_reasoning_efforts": {"none", "low", "medium", "high", "xhigh", "max"},
         },
         "providers": {
+            "OpenAIHTTPAgent": {},
             "OpenAIResponsesHTTPAgent": {
-                "base_url": "https://api.openai.com/v1",
                 "native_tool_support": {"web_search", "apply_patch"},
             },
         },
-        "pricing": OPENAI_GPT_56_LUNA_PRICING,
+        "pricing": OPENAI_GPT_6_LUNA_PRICING,
     },
-    "gpt-5.6-terra": {
-        "model_metadata": {
-            "model_type": "reasoning",
-            "current_snapshot": "gpt-5.6-terra",
-            "context_window_tokens": 1_050_000,
-            "max_output_tokens": 128_000,
-        },
-        "capabilities": {
-            "accepts": _s("text", "image"),
-            "produces": _s("text"),
-            "supports_tools": True,
-            "supports_streaming": True,
-            "structured_kinds": MAIN_STRUCTURED_RESPONSE_KINDS,
-            "structured_output_transport": STRUCTURED_OUTPUT_TRANSPORT_JSON_SCHEMA,
-            "supports_reasoning": True,
-            "supported_reasoning_efforts": {"none", "low", "medium", "high", "xhigh", "max"},
-        },
-        "providers": {
-            "OpenAIResponsesHTTPAgent": {
-                "base_url": "https://api.openai.com/v1",
-                "native_tool_support": {"web_search", "apply_patch"},
-            },
-        },
-        "pricing": OPENAI_GPT_56_TERRA_PRICING,
+    # OpenAI embedding models, used only by the embeddings role.
+    "text-embedding-3-small": {
+        "model_kind": MODEL_KIND_EMBEDDING,
+        "capabilities": {"accepts": _s("text"), "produces": _s("embedding")},
+        "providers": {"OpenAIHTTPAgent": {}},
     },
-    "deepseek-v4-flash": {
-        "model_metadata": {
-            "model_type": "reasoning",
-            "context_window_tokens": 1_000_000,
-            "max_output_tokens": 384_000,
-        },
-        "capabilities": {
-            "accepts": _s("text"),
-            "produces": _s("text"),
-            "supports_tools": True,
-            "supports_streaming": True,
-            "structured_kinds": MAIN_STRUCTURED_RESPONSE_KINDS,
-            "structured_output_transport": STRUCTURED_OUTPUT_TRANSPORT_JSON_OBJECT,
-            "supports_reasoning": True,
-            "supported_reasoning_efforts": DEEPSEEK_REASONING_EFFORTS,
-        },
-        "providers": {
-            "OpenAIHTTPAgent": {
-                "base_url": DEEPSEEK_BASE_URL,
-                "provider_label": "DeepSeek",
-                "logo_provider": "deepseek",
-                "provider_family": "deepseek",
-                "api_family": "deepseek",
-                "supports_developer_role": False,
-            },
-        },
-        "metadata": {
-            "openai_compatible_provider": "deepseek",
-        },
-        "pricing": _unpriced_pricing("deepseek"),
-    },
-    "deepseek-v4-pro": {
-        "model_metadata": {
-            "model_type": "reasoning",
-            "context_window_tokens": 1_000_000,
-            "max_output_tokens": 384_000,
-        },
-        "capabilities": {
-            "accepts": _s("text"),
-            "produces": _s("text"),
-            "supports_tools": True,
-            "supports_streaming": True,
-            "structured_kinds": MAIN_STRUCTURED_RESPONSE_KINDS,
-            "structured_output_transport": STRUCTURED_OUTPUT_TRANSPORT_JSON_OBJECT,
-            "supports_reasoning": True,
-            "supported_reasoning_efforts": DEEPSEEK_REASONING_EFFORTS,
-        },
-        "providers": {
-            "OpenAIHTTPAgent": {
-                "base_url": DEEPSEEK_BASE_URL,
-                "provider_label": "DeepSeek",
-                "logo_provider": "deepseek",
-                "provider_family": "deepseek",
-                "api_family": "deepseek",
-                "supports_developer_role": False,
-            },
-        },
-        "metadata": {
-            "openai_compatible_provider": "deepseek",
-        },
-        "pricing": _unpriced_pricing("deepseek"),
-    },
-    "zai-org/GLM-5.2:deepinfra": {
-        "capabilities": {
-            "accepts": _s("text"),
-            "produces": _s("text"),
-            "supports_tools": True,
-            "supports_streaming": True,
-            "structured_kinds": MAIN_STRUCTURED_RESPONSE_KINDS,
-            "structured_output_transport": STRUCTURED_OUTPUT_TRANSPORT_JSON_SCHEMA,
-        },
-        "providers": {
-            "OpenAIHTTPAgent": {
-                "base_url": HUGGINGFACE_ROUTER_BASE_URL,
-                "provider_label": "Hugging Face",
-                "logo_provider": "huggingface",
-                "provider_family": "huggingface",
-                "api_family": "huggingface",
-                "supports_developer_role": False,
-            },
-        },
-        "metadata": {
-            "openai_compatible_provider": "huggingface",
-        },
-        "pricing": _unpriced_pricing("huggingface"),
-    },
-    "deepseek-ai/DeepSeek-V4-Pro:deepinfra": {
-        "capabilities": {
-            "accepts": _s("text"),
-            "produces": _s("text"),
-            "supports_tools": True,
-            "supports_streaming": True,
-            "structured_kinds": MAIN_STRUCTURED_RESPONSE_KINDS,
-            "structured_output_transport": STRUCTURED_OUTPUT_TRANSPORT_JSON_SCHEMA,
-        },
-        "providers": {
-            "OpenAIHTTPAgent": {
-                "base_url": HUGGINGFACE_ROUTER_BASE_URL,
-                "provider_label": "Hugging Face",
-                "logo_provider": "huggingface",
-                "provider_family": "huggingface",
-                "api_family": "huggingface",
-                "supports_developer_role": False,
-            },
-        },
-        "metadata": {
-            "openai_compatible_provider": "huggingface",
-        },
-        "pricing": _unpriced_pricing("huggingface"),
-    },
-    # LiteLLM provider-prefixed aliases. These are intentionally strict:
-    # LiteLLMAgent does not accept arbitrary model ids in v1.
-    "openai/gpt-5.4-nano": {
-        "model_metadata": {
-            "model_type": "reasoning",
-            "current_snapshot": "gpt-5.4-nano-2026-03-17",
-        },
-        "capabilities": {
-            "accepts": _s("text", "image"),
-            "produces": _s("text"),
-            "supports_tools": True,
-            "supports_streaming": True,
-            "structured_kinds": MAIN_STRUCTURED_RESPONSE_KINDS,
-            "structured_output_transport": STRUCTURED_OUTPUT_TRANSPORT_JSON_SCHEMA,
-            "supports_reasoning": True,
-            "supported_reasoning_efforts": {"none", "low", "medium", "high", "xhigh"},
-        },
-        "providers": {
-            "LiteLLMAgent": {"base_url": None, "supports_developer_role": False},
-        },
-        "pricing": OPENAI_GPT_54_NANO_PRICING,
-    },
-    "gemini/gemini-3.1-flash-lite-preview": {
-        "capabilities": {
-            "accepts": _s("text", "image"),
-            "produces": _s("text"),
-            "supports_tools": True,
-            "supports_streaming": True,
-            "structured_kinds": MAIN_STRUCTURED_RESPONSE_KINDS,
-            "structured_output_transport": STRUCTURED_OUTPUT_TRANSPORT_JSON_SCHEMA,
-        },
-        "providers": {
-            "LiteLLMAgent": {"base_url": None, "supports_developer_role": False},
-        },
-        "pricing": _unpriced_pricing("gemini"),
-    },
-    "xai/grok-4-1-fast-reasoning-latest": {
-        "capabilities": {
-            "accepts": _s("text"),
-            "produces": _s("text"),
-            "supports_tools": True,
-            "supports_streaming": True,
-            "structured_kinds": MAIN_STRUCTURED_RESPONSE_KINDS,
-            "structured_output_transport": STRUCTURED_OUTPUT_TRANSPORT_JSON_SCHEMA,
-        },
-        "providers": {
-            "LiteLLMAgent": {"base_url": None, "supports_developer_role": False},
-        },
-        "pricing": _unpriced_pricing("xai"),
-    },
-    "groq/openai/gpt-oss-120b": {
-        "capabilities": {
-            "accepts": _s("text"),
-            "produces": _s("text"),
-            "supports_tools": True,
-            "supports_streaming": True,
-            "structured_kinds": MAIN_STRUCTURED_RESPONSE_KINDS,
-            "structured_output_transport": STRUCTURED_OUTPUT_TRANSPORT_JSON_SCHEMA,
-        },
-        "providers": {
-            "LiteLLMAgent": {"base_url": None, "supports_developer_role": False},
-        },
-        "pricing": _unpriced_pricing("groq"),
-    },
-    # Gemini models
-    "gemini-3.1-flash-lite-preview": {
-        "capabilities": {
-            "accepts": _s("text", "image"),
-            "produces": _s("text"),
-            "supports_tools": True,
-            "supports_streaming": True,
-            "structured_kinds": MAIN_STRUCTURED_RESPONSE_KINDS,
-            "structured_output_transport": STRUCTURED_OUTPUT_TRANSPORT_JSON_SCHEMA,
-        },
-        "providers": {
-            "GeminiAgent": {"base_url": None, "supports_developer_role": False},
-        },
-        "pricing": _unpriced_pricing("gemini"),
+    "text-embedding-3-large": {
+        "model_kind": MODEL_KIND_EMBEDDING,
+        "capabilities": {"accepts": _s("text"), "produces": _s("embedding")},
+        "providers": {"OpenAIHTTPAgent": {}},
     },
 }
+
+
+RETIRED_BUILTIN_REPLACEMENTS: dict[str, str] = {
+    "OpenAIResponsesHTTPAgent:gpt-5.6-luna": "OpenAIResponsesHTTPAgent:gpt-6-luna",
+    "OpenAIResponsesHTTPAgent:gpt-5.6-terra": "OpenAIResponsesHTTPAgent:gpt-6-luna",
+    "OpenAIResponsesHTTPAgent:gpt-5-nano": "OpenAIResponsesHTTPAgent:gpt-6-luna",
+    "OpenAIResponsesHTTPAgent:gpt-5.4-nano": "OpenAIResponsesHTTPAgent:gpt-6-luna",
+    "OpenAIHTTPAgent:gpt-5-nano": "OpenAIHTTPAgent:gpt-6-luna",
+    "OpenAIHTTPAgent:gpt-5.4-nano": "OpenAIHTTPAgent:gpt-6-luna",
+}
+"""Retired built-in chat rows and the current built-in row on the same API.
+
+The catalog seed moves Anima chat profiles and the owner's chat-model role
+preferences from a retired row to its replacement, so existing installations
+keep chatting after an upgrade. Retired rows stay in the database for history.
+"""
 
 
 # ---------------------------- API -----------------------------------------
@@ -570,15 +253,11 @@ MODEL_CATALOG: dict[str, dict[str, Any]] = {
 PROVIDER_LABELS: dict[str, str] = {
     "OpenAIHTTPAgent": "OpenAI HTTP",
     "OpenAIResponsesHTTPAgent": "OpenAI Responses HTTP",
-    "GeminiAgent": "Gemini",
-    "LiteLLMAgent": "LiteLLM",
 }
 
 PROVIDER_LOGOS: dict[str, str] = {
     "OpenAIHTTPAgent": "openai",
     "OpenAIResponsesHTTPAgent": "openai",
-    "GeminiAgent": "google",
-    "LiteLLMAgent": "litellm",
 }
 
 
@@ -602,21 +281,12 @@ def _provider_label(provider_type: str, provider_attrs: dict[str, Any]) -> str:
     return PROVIDER_LABELS.get(provider_type, provider_type)
 
 
-def _logo_provider(provider_type: str, model: str, provider_attrs: dict[str, Any] | None = None) -> str | None:
+def _logo_provider(provider_type: str, provider_attrs: dict[str, Any] | None = None) -> str | None:
     if isinstance(provider_attrs, dict):
         raw_logo = provider_attrs.get("logo_provider")
         if isinstance(raw_logo, str) and raw_logo.strip():
             return raw_logo.strip()
-    if provider_type != "LiteLLMAgent":
-        return PROVIDER_LOGOS.get(provider_type)
-    prefix = model.split("/", 1)[0].strip().lower()
-    return {
-        "openai": "openai",
-        "gemini": "google",
-        "xai": "xai",
-        "groq": "groq",
-        "deepseek": "deepseek",
-    }.get(prefix, PROVIDER_LOGOS.get(provider_type))
+    return PROVIDER_LOGOS.get(provider_type)
 
 
 def _decimal_or_none(value: Any) -> Decimal | None:
@@ -706,10 +376,11 @@ def _metadata_for_provider(entry: dict[str, Any], provider_attrs: dict[str, Any]
 
 
 def serialize_model_catalog() -> list[dict[str, Any]]:
-    """Return public model catalog rows for API/UI use.
+    """Return the public `/v1/model-providers` rows the built-in catalog seeds.
 
-    Provider credentials, registry base URLs, and user-supplied overrides are
-    intentionally omitted from this payload.
+    The API serves rows from the database; this projection lets tests check
+    that seeded rows keep the public shape. Credentials, base URLs and pricing
+    are omitted.
     """
 
     rows: list[dict[str, Any]] = []
@@ -726,8 +397,14 @@ def serialize_model_catalog() -> list[dict[str, Any]]:
                 "model_provider": provider_type,
                 "model_label": _model_label(model),
                 "provider_label": _provider_label(provider_type, provider_attrs),
-                "logo_provider": _logo_provider(provider_type, model, provider_attrs),
+                "logo_provider": _logo_provider(provider_type, provider_attrs),
                 **_chat_api_standard_fields(provider_type),
+                "source": MODEL_SOURCE_BUILTIN,
+                "connection_id": BUILTIN_OPENAI_CONNECTION_ID,
+                "connection_name": "OpenAI",
+                "model_kind": entry.get("model_kind", MODEL_KIND_CHAT),
+                "hidden": False,
+                "context_window_tokens": (entry.get("model_metadata") or {}).get("context_window_tokens"),
                 "accepts": _modality_values(capabilities.get("accepts")),
                 "produces": _modality_values(capabilities.get("produces")),
                 "supports_developer_role": bool(capabilities.get("supports_developer_role", True)),
@@ -752,7 +429,7 @@ def serialize_model_catalog() -> list[dict[str, Any]]:
 
 
 def serialize_model_provider_catalog() -> list[dict[str, Any]]:
-    """Return internal provider/model catalog rows for future database seeding."""
+    """Return internal built-in provider/model rows for database seeding."""
 
     rows: list[dict[str, Any]] = []
     for model, entry in MODEL_CATALOG.items():
@@ -766,21 +443,21 @@ def serialize_model_provider_catalog() -> list[dict[str, Any]]:
             capabilities = _capabilities_for_provider(cap_entry, provider_attrs)
             pricing = pricing_entry if isinstance(pricing_entry, dict) else {}
             if not pricing:
-                source_provider = _provider_family(provider_type, model, provider_attrs) or provider_type
-                pricing = _unpriced_pricing(source_provider)
+                pricing = _unpriced_pricing("openai")
             row = {
                 "id": f"{provider_type}:{model}",
                 "model": model,
                 "provider_type": provider_type,
                 "model_label": _model_label(model),
                 "provider_label": _provider_label(provider_type, provider_attrs),
-                "logo_provider": _logo_provider(provider_type, model, provider_attrs),
+                "logo_provider": _logo_provider(provider_type, provider_attrs),
                 "model_type": model_metadata.get("model_type"),
                 "current_snapshot": model_metadata.get("current_snapshot"),
                 "context_window_tokens": model_metadata.get("context_window_tokens"),
                 "max_output_tokens": model_metadata.get("max_output_tokens"),
-                "provider_base_url": provider_attrs.get("base_url"),
-                "api_family": _api_family(provider_type, model, provider_attrs),
+                "connection_id": BUILTIN_OPENAI_CONNECTION_ID,
+                "source": MODEL_SOURCE_BUILTIN,
+                "model_kind": entry.get("model_kind", MODEL_KIND_CHAT),
                 "service_tiers_supported": _service_tiers_supported(pricing),
                 "active": bool(entry.get("active", True)),
                 "deprecated_at": entry.get("deprecated_at"),
@@ -813,15 +490,38 @@ def serialize_model_provider_catalog() -> list[dict[str, Any]]:
     return sorted(rows, key=lambda row: (str(row["provider_label"]), str(row["model_label"]), str(row["id"])))
 
 
+def serialize_builtin_model_connections() -> list[dict[str, Any]]:
+    """Return the release-managed connection rows for database seeding.
+
+    The built-in OpenAI connection stores no base URL or credential reference:
+    it uses the process OpenAI configuration (``OPENAI_BASE_URL`` and
+    ``OPENAI_API_KEY``).
+    """
+
+    connection = builtin_openai_connection()
+    return [
+        {
+            "id": connection.id,
+            "source": connection.source,
+            "name": connection.name,
+            "preset": connection.preset,
+            "base_url": connection.base_url,
+            "credential_env": connection.credential_env,
+            "compatibility": connection.compatibility.to_dict(),
+            "timeout_seconds": connection.timeout_seconds,
+            "active": connection.active,
+        }
+    ]
+
+
 __all__ = [
-    "DEEPSEEK_BASE_URL",
-    "DEEPSEEK_REASONING_EFFORTS",
-    "HUGGINGFACE_ROUTER_BASE_URL",
     "MAIN_STRUCTURED_RESPONSE_KIND",
     "MAIN_STRUCTURED_RESPONSE_KINDS",
     "REASONING_EFFORT_ORDER",
+    "RETIRED_BUILTIN_REPLACEMENTS",
     "STRUCTURED_OUTPUT_TRANSPORT_JSON_OBJECT",
     "STRUCTURED_OUTPUT_TRANSPORT_JSON_SCHEMA",
+    "serialize_builtin_model_connections",
     "serialize_model_catalog",
     "serialize_model_provider_catalog",
     "structured_output_transport",

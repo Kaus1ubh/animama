@@ -111,6 +111,7 @@ def copy_direct_chat_prompt(
     prompt: DirectChatPrompt,
     *,
     messages: Any = _UNSET,
+    response_format: Any = _UNSET,
     tools: Any = _UNSET,
     tool_choice: Any = _UNSET,
     parallel_tool_calls: Any = _UNSET,
@@ -119,7 +120,7 @@ def copy_direct_chat_prompt(
 
     return DirectChatPrompt(
         messages=prompt.messages if messages is _UNSET else tuple(messages),
-        response_format=prompt.response_format,
+        response_format=prompt.response_format if response_format is _UNSET else response_format,
         tools=prompt.tools if tools is _UNSET else tuple(tools),
         tool_choice=prompt.tool_choice if tool_choice is _UNSET else tool_choice,
         parallel_tool_calls=prompt.parallel_tool_calls if parallel_tool_calls is _UNSET else parallel_tool_calls,

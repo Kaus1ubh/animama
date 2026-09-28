@@ -154,6 +154,99 @@ describe("private local state and vault", () => {
     expect(existsSync(path.join(target, "secret"))).toBe(false);
   });
 
+  it("stores model-connection keys by variable name and drops retired providers", () => {
+    const file = path.join(fixture(), "vault.bin");
+    const crypto = encryption();
+    const vault = new CredentialVault(file, crypto, false);
+    const password = vault.databasePassword();
+    const connection = "ANIMAMA_CONNECTION_C_0123456789AB_API_KEY";
+    vault.apply([
+      { provider: "openai", value: "fixture-openai" },
+      { connection, value: "fixture-connection" },
+    ]);
+    expect(vault.childEnvironment()).toEqual({
+      OPENAI_API_KEY: "fixture-openai",
+      [connection]: "fixture-connection",
+    });
+    expect(vault.list()).toEqual([
+      expect.objectContaining({ provider: "openai", configured: true }),
+      expect.objectContaining({ provider: "elevenlabs", configured: false }),
+      expect.objectContaining({ connection, configured: true }),
+    ]);
+    expect(JSON.stringify(vault.list())).not.toContain("fixture-");
+
+    // An earlier release's vault with a retired provider still opens.
+    const legacy = path.join(fixture(), "legacy.bin");
+    const now = new Date().toISOString();
+    atomicWrite(
+      legacy,
+      crypto.encryptString(
+        JSON.stringify({
+          version: 1,
+          postgresPassword: password,
+          providers: {
+            openai: { value: "fixture-openai", updatedAt: now },
+            gemini: { value: "fixture-gemini", updatedAt: now },
+          },
+        }),
+      ),
+    );
+    const upgraded = new CredentialVault(legacy, crypto, true);
+    expect(upgraded.childEnvironment()).toEqual({
+      OPENAI_API_KEY: "fixture-openai",
+    });
+    upgraded.apply([{ connection, value: "fixture-connection" }]);
+    expect(readFileSync(legacy).includes(Buffer.from("fixture-gemini"))).toBe(
+      false,
+    );
+    expect(
+      new CredentialVault(legacy, crypto, true).childEnvironment(),
+    ).not.toHaveProperty("GEMINI_API_KEY");
+  });
+
+  it("bounds connection keys and rejects malformed stored names", () => {
+    const root = fixture();
+    const crypto = encryption();
+    const vault = new CredentialVault(
+      path.join(root, "vault.bin"),
+      crypto,
+      false,
+    );
+    const full = Array.from({ length: 32 }, (_, index) => ({
+      connection: `ANIMAMA_CONNECTION_C${index}_API_KEY`,
+      value: `fixture-${index}`,
+    }));
+    vault.apply(full);
+    expect(() =>
+      vault.apply([
+        { connection: "ANIMAMA_CONNECTION_EXTRA_API_KEY", value: "x" },
+      ]),
+    ).toThrow("connection_credentials_full");
+    expect(
+      Object.keys(vault.childEnvironment()).filter((name) =>
+        name.startsWith("ANIMAMA_CONNECTION_"),
+      ),
+    ).toHaveLength(32);
+
+    const file = path.join(root, "bad.bin");
+    atomicWrite(
+      file,
+      crypto.encryptString(
+        JSON.stringify({
+          version: 1,
+          postgresPassword: vault.databasePassword(),
+          providers: {},
+          connections: {
+            PATH: { value: "fixture", updatedAt: new Date().toISOString() },
+          },
+        }),
+      ),
+    );
+    expect(() => new CredentialVault(file, crypto, true)).toThrow(
+      "vault_unreadable",
+    );
+  });
+
   it.each(["", " ", "a\nb", "x".repeat(8193), 42, null])(
     "rejects invalid key inputs without echoing them",
     (value) => {

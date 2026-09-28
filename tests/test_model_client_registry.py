@@ -27,25 +27,19 @@ from openai.types.responses import (
 )
 
 from animama.adapters.model_clients import (
-    GEMINI_PROVIDER_TYPE,
-    LITELLM_PROVIDER_TYPE,
     OPENAI_HTTP_PROVIDER_TYPE,
     OPENAI_RESPONSES_HTTP_PROVIDER_TYPE,
-    GeminiModelClient,
-    LiteLLMModelClient,
     MockModelClient,
     OpenAIChatCompletionsModelClient,
     OpenAIResponsesModelClient,
 )
-from animama.adapters.model_clients.openai_chat_completions import client as openai_chat_client_module
+from animama.adapters.model_clients.openai_chat_completions.connection_sdk import connection_timeout
 from animama.adapters.model_clients.openai_errors import (
     OPENAI_PREVIOUS_RESPONSE_UNRESOLVABLE_CODE,
     classify_openai_exception,
     is_previous_response_unresolvable,
 )
 from animama.app.model_catalog import (
-    DEEPSEEK_BASE_URL,
-    HUGGINGFACE_ROUTER_BASE_URL,
     STRUCTURED_OUTPUT_TRANSPORT_JSON_OBJECT,
     STRUCTURED_OUTPUT_TRANSPORT_JSON_SCHEMA,
 )
@@ -66,7 +60,9 @@ from animama.app.model_clients import (
     ModelClientRequest,
     StaticModelClientRegistry,
 )
-from animama.domain import ModelProvider, ModelProviderCapabilities
+from animama.app.model_clients.credentials import EnvironmentModelCredentialResolver
+from animama.app.model_connection_presets import MODEL_CONNECTION_PRESETS
+from animama.domain import ModelConnection, ModelProvider, ModelProviderCapabilities
 from animama.server.config import Settings
 from animama.server.model_clients import build_model_client_registry
 
@@ -154,26 +150,30 @@ class _FailingResponsesOpenAIClient(_FakeOpenAIClient):
         raise self.exc
 
 
-class _FakeGeminiModels:
-    def __init__(self, chunks: list[Any]) -> None:
-        self._chunks = chunks
-        self.generate_content_stream_calls: list[dict[str, Any]] = []
-
-    async def generate_content_stream(self, **kwargs):  # noqa: ANN003
-        self.generate_content_stream_calls.append(dict(kwargs))
-        return _FakeOpenAIStream(self._chunks)
+DEEPSEEK_BASE_URL = "https://api.deepseek.com"
+HUGGINGFACE_ROUTER_BASE_URL = "https://router.huggingface.co/v1"
 
 
-class _FakeLiteLLM:
-    def __init__(self, response: Any) -> None:
-        self.response = response
-        self.calls: list[dict[str, Any]] = []
+def _builtin_connection(base_url: str | None = "https://api.openai.example/v1") -> ModelConnection:
+    return ModelConnection(id="openai", name="OpenAI", preset="openai", source="builtin", base_url=base_url)
 
-    async def acompletion(self, **kwargs):  # noqa: ANN003
-        self.calls.append(dict(kwargs))
-        if isinstance(self.response, Exception):
-            raise self.response
-        return self.response
+
+def _owner_connection(
+    preset: str,
+    *,
+    base_url: str | None = None,
+    credential_env: str | None = None,
+    connection_id: str | None = None,
+) -> ModelConnection:
+    defaults = MODEL_CONNECTION_PRESETS[preset]
+    return ModelConnection(
+        id=connection_id or f"conn-{preset}",
+        name=defaults.label,
+        preset=preset,
+        base_url=base_url or defaults.base_url(local_host="127.0.0.1"),
+        credential_env=credential_env,
+        compatibility=defaults.compatibility,
+    )
 
 
 def _provider(
@@ -181,15 +181,19 @@ def _provider(
     model: str = "gpt-test",
     *,
     base_url: str | None = "https://api.openai.example/v1",
+    connection: ModelConnection | None = None,
     structured_output_transport: str | None = STRUCTURED_OUTPUT_TRANSPORT_JSON_SCHEMA,
 ) -> ModelProvider:
+    selected = connection or _builtin_connection(base_url)
     return ModelProvider(
         id=f"{provider_type}:{model}",
         provider_type=provider_type,
         model=model,
         model_label=model,
         provider_label=provider_type,
-        provider_base_url=base_url,
+        connection_id=selected.id,
+        source="builtin" if selected.is_builtin_openai else "owner",
+        connection=selected,
         capabilities=ModelProviderCapabilities(
             structured_kinds=["main_structured_response"],
             structured_output_transport=structured_output_transport,
@@ -202,6 +206,7 @@ def _spec(
     provider_type: str = OPENAI_HTTP_PROVIDER_TYPE,
     model: str = "gpt-test",
     base_url: str | None = "https://api.openai.example/v1",
+    connection: ModelConnection | None = None,
     continuation: ModelClientContinuation | None = None,
     request_options: dict[str, Any] | None = None,
     messages: tuple[dict[str, Any], ...] | None = None,
@@ -222,6 +227,7 @@ def _spec(
             provider_type=provider_type,
             model=model,
             base_url=base_url,
+            connection=connection,
             structured_output_transport=structured_output_transport,
         ),
         prompt=DirectChatPrompt(
@@ -515,13 +521,6 @@ def _expected_memory_map_text() -> str:
     return "# List of memory files\n\nfiles: []"
 
 
-def _litellm_chunk(*, content: str | None = None, usage: Any = None, tool_calls: list[Any] | None = None):
-    return {
-        "choices": [{"delta": {"content": content, "tool_calls": tool_calls}}],
-        "usage": usage,
-    }
-
-
 async def _collect(stream):
     return [item async for item in stream]
 
@@ -550,47 +549,33 @@ async def test_static_registry_closes_each_shared_client_once() -> None:
 
 def test_server_registry_registers_direct_provider_family_clients() -> None:
     fake_openai = _FakeOpenAIClient([])
-    fake_gemini = SimpleNamespace(models=_FakeGeminiModels([]))
-    fake_litellm = _FakeLiteLLM(_FakeOpenAIStream([]))
     registry = build_model_client_registry(
-        app_settings=Settings(openai_api_key="sk-test", gemini_api_key="gemini-test"),
+        app_settings=Settings(openai_api_key="sk-test"),
         openai_client=fake_openai,  # type: ignore[arg-type]
-        gemini_client=fake_gemini,
-        litellm_module=fake_litellm,
     )
 
     assert registry.get(OPENAI_HTTP_PROVIDER_TYPE) is not None
     assert registry.get(OPENAI_RESPONSES_HTTP_PROVIDER_TYPE) is not None
-    assert registry.get(GEMINI_PROVIDER_TYPE) is not None
-    assert registry.get(LITELLM_PROVIDER_TYPE) is not None
+    assert registry.get("GeminiAgent") is None
+    assert registry.get("LiteLLMAgent") is None
     assert registry.get("UnknownProvider") is None
 
 
-def test_server_registry_wires_huggingface_key_to_chat_completions_client() -> None:
-    registry = build_model_client_registry(
-        app_settings=Settings(
-            openai_api_key="sk-openai",
-            deepseek_api_key="sk-deepseek",
-            huggingface_api_key="hf-test",
-        ),
-    )
+def test_server_registry_builds_without_an_openai_key() -> None:
+    registry = build_model_client_registry(app_settings=Settings(openai_api_key=None))
 
-    client = registry.get(OPENAI_HTTP_PROVIDER_TYPE)
-
-    assert isinstance(client, OpenAIChatCompletionsModelClient)
-    assert client._api_keys_by_base_url[HUGGINGFACE_ROUTER_BASE_URL] == "hf-test"
+    assert isinstance(registry.get(OPENAI_HTTP_PROVIDER_TYPE), OpenAIChatCompletionsModelClient)
+    assert isinstance(registry.get(OPENAI_RESPONSES_HTTP_PROVIDER_TYPE), OpenAIResponsesModelClient)
 
 
 def test_server_registry_uses_mock_clients_when_llm_skip_enabled(monkeypatch) -> None:
     monkeypatch.setenv("ANIMAMA_LLM_SKIP", "1")
 
-    registry = build_model_client_registry(app_settings=Settings(openai_api_key="", gemini_api_key=""))
+    registry = build_model_client_registry(app_settings=Settings(openai_api_key=""))
 
     clients = [
         registry.get(OPENAI_HTTP_PROVIDER_TYPE),
         registry.get(OPENAI_RESPONSES_HTTP_PROVIDER_TYPE),
-        registry.get(GEMINI_PROVIDER_TYPE),
-        registry.get(LITELLM_PROVIDER_TYPE),
     ]
     assert all(isinstance(client, MockModelClient) for client in clients)
     assert len({id(client) for client in clients}) == 1
@@ -675,7 +660,9 @@ async def test_openai_chat_completions_client_streams_sdk_chunks_and_usage() -> 
     )
     assert usage_event.usage is not None
     assert usage_event.usage.total_tokens == 5
-    assert fake_openai.with_options_calls == [{"base_url": "https://api.openai.example/v1", "timeout": 12.0}]
+    assert fake_openai.with_options_calls == [
+        {"base_url": "https://api.openai.example/v1", "timeout": connection_timeout(12.0)}
+    ]
     payload = fake_openai.create_calls[0]
     assert payload["model"] == "gpt-test"
     assert payload["messages"] == [
@@ -690,7 +677,7 @@ async def test_openai_chat_completions_client_streams_sdk_chunks_and_usage() -> 
     assert payload["response_format"]["type"] == "json_schema"
     assert payload["reasoning_effort"] == "low"
     assert payload["prompt_cache_key"] == sha256(b"user-1\x1fanima-1\x1fOpenAIHTTPAgent\x1fgpt-test").hexdigest()
-    assert payload["timeout"] == 12.0
+    assert payload["timeout"] == connection_timeout(12.0)
     final = public_deltas[2].final
     assert final is not None
     assert final.text == "Hello"
@@ -730,7 +717,7 @@ async def test_openai_chat_completions_client_shapes_deepseek_request_payload() 
         client.stream(
             _spec(
                 model="deepseek-v4-pro",
-                base_url=DEEPSEEK_BASE_URL,
+                connection=_owner_connection("deepseek"),
                 request_options={"reasoning_effort": "max"},
                 messages=_messages_with_instructions(),
                 tools=(tool,),
@@ -783,7 +770,7 @@ async def test_openai_chat_completions_client_shapes_huggingface_request_payload
         client.stream(
             _spec(
                 model=model,
-                base_url=HUGGINGFACE_ROUTER_BASE_URL,
+                connection=_owner_connection("huggingface"),
                 request_options={"reasoning_effort": "low"},
                 messages=_messages_with_instructions(),
                 tools=(tool,),
@@ -792,7 +779,9 @@ async def test_openai_chat_completions_client_shapes_huggingface_request_payload
         )
     )
 
-    assert fake_openai.with_options_calls == [{"base_url": HUGGINGFACE_ROUTER_BASE_URL, "timeout": 11.0}]
+    assert fake_openai.with_options_calls == [
+        {"base_url": HUGGINGFACE_ROUTER_BASE_URL, "timeout": connection_timeout(11.0)}
+    ]
     payload = fake_openai.create_calls[0]
     assert payload["model"] == model
     assert payload["messages"] == [
@@ -861,7 +850,7 @@ async def test_openai_chat_completions_client_handles_huggingface_choice_extras_
         client.stream(
             _spec(
                 model="zai-org/GLM-5.2:deepinfra",
-                base_url=HUGGINGFACE_ROUTER_BASE_URL,
+                connection=_owner_connection("huggingface"),
                 request_options={"reasoning_effort": None},
                 messages=_messages_with_instructions(),
                 structured_output_transport=STRUCTURED_OUTPUT_TRANSPORT_JSON_SCHEMA,
@@ -899,7 +888,7 @@ async def test_openai_chat_completions_client_disables_deepseek_thinking_for_non
         client.stream(
             _spec(
                 model="deepseek-v4-flash",
-                base_url=DEEPSEEK_BASE_URL,
+                connection=_owner_connection("deepseek"),
                 request_options={"reasoning_effort": "none"},
                 messages=_messages_with_instructions(),
                 structured_output_transport=STRUCTURED_OUTPUT_TRANSPORT_JSON_OBJECT,
@@ -925,7 +914,7 @@ async def test_openai_chat_completions_client_rejects_unsupported_deepseek_reaso
             client.stream(
                 _spec(
                     model="deepseek-v4-flash",
-                    base_url=DEEPSEEK_BASE_URL,
+                    connection=_owner_connection("deepseek"),
                     request_options={"reasoning_effort": "minimal"},
                     messages=_messages_with_instructions(),
                 )
@@ -937,7 +926,7 @@ async def test_openai_chat_completions_client_rejects_unsupported_deepseek_reaso
 
 
 @pytest.mark.asyncio
-async def test_openai_chat_completions_client_ignores_deepseek_reasoning_content_deltas() -> None:
+async def test_openai_chat_completions_client_keeps_reasoning_content_private() -> None:
     fake_openai = _FakeOpenAIClient(
         [
             _sdk_chunk(
@@ -962,7 +951,7 @@ async def test_openai_chat_completions_client_ignores_deepseek_reasoning_content
         client.stream(
             _spec(
                 model="deepseek-v4-pro",
-                base_url=DEEPSEEK_BASE_URL,
+                connection=_owner_connection("deepseek"),
                 request_options={"reasoning_effort": "none"},
                 messages=_messages_with_instructions(),
                 structured_output_transport=STRUCTURED_OUTPUT_TRANSPORT_JSON_OBJECT,
@@ -976,14 +965,8 @@ async def test_openai_chat_completions_client_ignores_deepseek_reasoning_content
         ("final", None),
         ("done", None),
     ]
-    unknown_event = next(
-        delta.stream_event
-        for delta in deltas
-        if delta.kind == "event"
-        and isinstance(delta.stream_event, MCUnknownProviderEvent)
-        and delta.stream_event.provider_event_type == "chat.completion.chunk.choice_unknown_fields"
-    )
-    assert unknown_event.details["unknown_field_names"] == ("reasoning_content",)
+    # Private reasoning is an expected extra: never text, never a warning.
+    assert not any(delta.kind == "event" and isinstance(delta.stream_event, MCUnknownProviderEvent) for delta in deltas)
     final = public_deltas[1].final
     assert final is not None
     assert final.text == "Visible"
@@ -1148,100 +1131,67 @@ async def test_openai_chat_completions_client_rejects_missing_api_key_without_sh
 
 
 @pytest.mark.asyncio
-async def test_openai_chat_completions_client_requires_deepseek_api_key_without_shared_client() -> None:
+async def test_openai_chat_completions_client_requires_the_connection_key_it_references() -> None:
     client = OpenAIChatCompletionsModelClient(
-        api_key="sk-openai",
-        api_keys_by_base_url={DEEPSEEK_BASE_URL: ""},
+        credential_resolver=EnvironmentModelCredentialResolver(openai_api_key="sk-openai", environ={}),
         client=None,
     )
+    connection = _owner_connection("deepseek", credential_env="DEEPSEEK_API_KEY")
 
     with pytest.raises(ModelClientProviderError) as exc_info:
-        await _collect(client.stream(_spec(model="deepseek-v4-flash", base_url=DEEPSEEK_BASE_URL)))
+        await _collect(client.stream(_spec(model="deepseek-v4-flash", connection=connection)))
 
     assert exc_info.value.code == "missing_api_key"
     assert exc_info.value.raw_metadata["base_url"] == DEEPSEEK_BASE_URL
     assert exc_info.value.raw_metadata["model"] == "deepseek-v4-flash"
+    assert exc_info.value.raw_metadata["connection_name"] == "DeepSeek"
 
 
 @pytest.mark.asyncio
-async def test_openai_chat_completions_client_requires_huggingface_api_key_without_shared_client() -> None:
+async def test_openai_chat_completions_client_rejects_disallowed_credential_references() -> None:
     client = OpenAIChatCompletionsModelClient(
-        api_key="sk-openai",
-        api_keys_by_base_url={HUGGINGFACE_ROUTER_BASE_URL: ""},
+        credential_resolver=EnvironmentModelCredentialResolver(
+            openai_api_key="sk-openai",
+            environ={"ANIMAMA_DATABASE_URL": "postgresql://secret"},
+        ),
         client=None,
     )
-    model = "zai-org/GLM-5.2:deepinfra"
+    connection = _owner_connection("custom", base_url="http://example.test/v1", credential_env="ANIMAMA_DATABASE_URL")
+
+    with pytest.raises(ModelClientProviderError) as exc_info:
+        await _collect(client.stream(_spec(connection=connection)))
+
+    assert exc_info.value.code == "missing_api_key"
+
+
+@pytest.mark.asyncio
+async def test_owner_row_without_its_loaded_connection_never_falls_back_to_openai() -> None:
+    fake_openai = _FakeOpenAIClient([_sdk_chunk(content="Hi")])
+    client = OpenAIChatCompletionsModelClient(api_key="sk-openai", client=fake_openai)  # type: ignore[arg-type]
+    spec = _spec(connection=_owner_connection("ollama"))
+    spec.model_provider.connection = None
+
+    with pytest.raises(ModelClientProviderError) as exc_info:
+        await _collect(client.stream(spec))
+
+    assert exc_info.value.code == "connection_unavailable"
+    assert fake_openai.create_calls == []
+
+
+@pytest.mark.asyncio
+async def test_responses_client_rejects_rows_outside_the_builtin_connection_before_any_request() -> None:
+    fake_openai = _FakeOpenAIClient([])
+    client = OpenAIResponsesModelClient(api_key="sk-openai", client=fake_openai)  # type: ignore[arg-type]
 
     with pytest.raises(ModelClientProviderError) as exc_info:
         await _collect(
             client.stream(
-                _spec(
-                    model=model,
-                    base_url=HUGGINGFACE_ROUTER_BASE_URL,
-                    request_options={"reasoning_effort": None},
-                )
+                _spec(provider_type=OPENAI_RESPONSES_HTTP_PROVIDER_TYPE, connection=_owner_connection("vllm"))
             )
         )
 
-    assert exc_info.value.code == "missing_api_key"
-    assert exc_info.value.raw_metadata["base_url"] == HUGGINGFACE_ROUTER_BASE_URL
-    assert exc_info.value.raw_metadata["model"] == model
-
-
-@pytest.mark.asyncio
-async def test_openai_chat_completions_client_routes_api_keys_by_base_url(monkeypatch) -> None:
-    created_clients: list[Any] = []
-
-    class _ConstructedOpenAIClient(_FakeOpenAIClient):
-        def __init__(self, *, api_key: str, base_url: str, timeout: float | None) -> None:
-            super().__init__([_sdk_chunk(content="Hi"), _sdk_chunk(finish_reason="stop", usage=_sdk_usage())])
-            self.api_key = api_key
-            self.base_url = base_url
-            self.timeout = timeout
-            created_clients.append(self)
-
-    monkeypatch.setattr(openai_chat_client_module, "AsyncOpenAI", _ConstructedOpenAIClient)
-    client = OpenAIChatCompletionsModelClient(
-        api_key="sk-openai",
-        api_keys_by_base_url={
-            DEEPSEEK_BASE_URL: "sk-deepseek",
-            HUGGINGFACE_ROUTER_BASE_URL: "hf-test",
-        },
-        client=None,
-        timeout=13.0,
-    )
-
-    await _collect(client.stream(_spec(base_url="https://api.openai.com/v1", messages=_messages_with_instructions())))
-    await _collect(
-        client.stream(
-            _spec(
-                model="deepseek-v4-pro",
-                base_url=DEEPSEEK_BASE_URL,
-                request_options={"reasoning_effort": "none"},
-                messages=_messages_with_instructions(),
-                structured_output_transport=STRUCTURED_OUTPUT_TRANSPORT_JSON_OBJECT,
-            )
-        )
-    )
-    await _collect(
-        client.stream(
-            _spec(
-                model="zai-org/GLM-5.2:deepinfra",
-                base_url=HUGGINGFACE_ROUTER_BASE_URL,
-                request_options={"reasoning_effort": None},
-                messages=_messages_with_instructions(),
-                structured_output_transport=STRUCTURED_OUTPUT_TRANSPORT_JSON_OBJECT,
-            )
-        )
-    )
-    await client.aclose()
-
-    assert [(client.api_key, client.base_url, client.timeout) for client in created_clients] == [
-        ("sk-openai", "https://api.openai.com/v1", 13.0),
-        ("sk-deepseek", DEEPSEEK_BASE_URL, 13.0),
-        ("hf-test", HUGGINGFACE_ROUTER_BASE_URL, 13.0),
-    ]
-    assert [client.close_calls for client in created_clients] == [1, 1, 1]
+    assert exc_info.value.code == "responses_connection_unsupported"
+    assert fake_openai.response_create_calls == []
 
 
 @pytest.mark.asyncio
@@ -2278,223 +2228,16 @@ async def test_openai_responses_client_sends_function_call_outputs_with_cursor()
 
 
 @pytest.mark.asyncio
-async def test_gemini_model_client_streams_text_and_usage() -> None:
-    models = _FakeGeminiModels(
-        [
-            SimpleNamespace(text="Hel", usage_metadata={"prompt_token_count": 2}),
-            SimpleNamespace(
-                text="lo",
-                usage_metadata={
-                    "prompt_token_count": 2,
-                    "candidates_token_count": 3,
-                    "total_token_count": 5,
-                },
-            ),
-        ]
-    )
-    client = GeminiModelClient(
-        api_key="gemini-test",
-        client=SimpleNamespace(models=models),
-    )
+async def test_missing_streamed_usage_is_estimated_and_marked() -> None:
+    fake_openai = _FakeOpenAIClient([_sdk_chunk(content="Hello there"), _sdk_chunk(finish_reason="stop")])
+    client = OpenAIChatCompletionsModelClient(api_key="sk-test", client=fake_openai)  # type: ignore[arg-type]
 
-    deltas = await _collect(
-        client.stream(
-            _spec(
-                provider_type=GEMINI_PROVIDER_TYPE,
-                model="gemini-test",
-                base_url=None,
-                messages=_messages_with_instructions(),
-            )
-        )
-    )
+    deltas = await _collect(client.stream(_spec(connection=_owner_connection("huggingface"))))
 
-    assert [(delta.kind, delta.text) for delta in deltas] == [
-        ("text_delta", "Hel"),
-        ("text_delta", "lo"),
-        ("final", None),
-        ("done", None),
-    ]
-    payload = models.generate_content_stream_calls[0]
-    assert payload["model"] == "gemini-test"
-    assert payload["contents"] == [
-        {"role": "user", "parts": [{"text": "Compacted history"}]},
-        {"role": "model", "parts": [{"text": "previous"}]},
-        {"role": "user", "parts": [{"text": "hello"}]},
-    ]
-    assert payload["config"].system_instruction == _expected_instruction_text()
-    assert payload["config"].response_mime_type == "application/json"
-    final = deltas[2].final
+    final = _public_deltas(deltas)[-2].final
     assert final is not None
-    assert final.text == "Hello"
-    assert final.usage.input_tokens == 2
+    assert final.raw_provider_metadata["usage_missing"] is True
+    assert final.raw_provider_metadata["usage_estimated"] is True
     assert final.usage.output_tokens == 3
-    assert final.usage.total_tokens == 5
-
-
-@pytest.mark.asyncio
-async def test_litellm_model_client_streams_chunks_and_usage() -> None:
-    fake_litellm = _FakeLiteLLM(
-        _FakeOpenAIStream(
-            [
-                _litellm_chunk(content="Hel"),
-                _litellm_chunk(
-                    content="lo",
-                    usage={"prompt_tokens": 2, "completion_tokens": 3, "total_tokens": 5},
-                ),
-            ]
-        )
-    )
-    client = LiteLLMModelClient(litellm_module=fake_litellm, timeout=9.0)
-
-    deltas = await _collect(
-        client.stream(
-            _spec(
-                provider_type=LITELLM_PROVIDER_TYPE,
-                model="openai/gpt-5.4-nano",
-                base_url=None,
-                messages=_messages_with_instructions(),
-            )
-        )
-    )
-
-    assert [(delta.kind, delta.text) for delta in deltas] == [
-        ("text_delta", "Hel"),
-        ("text_delta", "lo"),
-        ("final", None),
-        ("done", None),
-    ]
-    payload = fake_litellm.calls[0]
-    assert payload["model"] == "openai/gpt-5.4-nano"
-    assert payload["messages"] == [
-        {"role": "system", "content": _expected_instruction_text()},
-        {"role": "user", "content": "Compacted history"},
-        {"role": "assistant", "content": "previous"},
-        {"role": "user", "content": "hello"},
-    ]
-    assert payload["drop_params"] is True
-    assert payload["stream"] is True
-    assert payload["stream_options"] == {"include_usage": True}
-    assert payload["response_format"]["type"] == "json_schema"
-    assert payload["reasoning_effort"] == "low"
-    assert (
-        payload["prompt_cache_key"] == sha256(b"user-1\x1fanima-1\x1fLiteLLMAgent\x1fopenai/gpt-5.4-nano").hexdigest()
-    )
-    assert payload["timeout"] == 9.0
-    final = deltas[2].final
-    assert final is not None
-    assert final.text == "Hello"
-    assert final.usage.total_tokens == 5
-
-
-@pytest.mark.asyncio
-async def test_litellm_model_client_uses_persisted_json_object_transport() -> None:
-    fake_litellm = _FakeLiteLLM(
-        {
-            "choices": [{"message": {"content": '{"speech":"Hello"}'}}],
-            "usage": {"prompt_tokens": 2, "completion_tokens": 3, "total_tokens": 5},
-        }
-    )
-    client = LiteLLMModelClient(litellm_module=fake_litellm, timeout=9.0)
-
-    deltas = await _collect(
-        client.stream(
-            _spec(
-                provider_type=LITELLM_PROVIDER_TYPE,
-                model="openai/gpt-5.4-nano",
-                base_url=None,
-                messages=_messages_with_instructions(),
-                structured_output_transport=STRUCTURED_OUTPUT_TRANSPORT_JSON_OBJECT,
-            )
-        )
-    )
-
-    payload = fake_litellm.calls[0]
-    assert payload["response_format"] == {"type": "json_object"}
-    assert "stream" not in payload
-    assert [(delta.kind, delta.text) for delta in deltas] == [
-        ("text_delta", '{"speech":"Hello"}'),
-        ("final", None),
-        ("done", None),
-    ]
-
-
-@pytest.mark.asyncio
-async def test_litellm_model_client_aggregates_streamed_tool_calls_and_disables_parallel() -> None:
-    tool: ChatCompletionFunctionToolParam = {
-        "type": "function",
-        "function": {
-            "name": "memory_read_files",
-            "description": "Read memory",
-            "strict": True,
-            "parameters": {"type": "object", "properties": {}, "additionalProperties": False},
-        },
-    }
-    expected_tool = {
-        "type": "function",
-        "function": {
-            "name": "memory_read_files",
-            "description": "Read memory",
-            "parameters": {"type": "object", "properties": {}, "additionalProperties": False},
-        },
-    }
-    fake_litellm = _FakeLiteLLM(
-        _FakeOpenAIStream(
-            [
-                _litellm_chunk(
-                    tool_calls=[
-                        {
-                            "index": 0,
-                            "id": "call-1",
-                            "function": {"name": "memory_read_files", "arguments": ""},
-                        }
-                    ]
-                ),
-                _litellm_chunk(tool_calls=[{"index": 0, "function": {"arguments": '{"paths":"profile'}}]),
-                _litellm_chunk(
-                    usage={"prompt_tokens": 2, "completion_tokens": 0, "total_tokens": 2},
-                    tool_calls=[{"index": 0, "function": {"arguments": '.md"}'}}],
-                ),
-            ]
-        )
-    )
-    client = LiteLLMModelClient(litellm_module=fake_litellm)
-
-    deltas = await _collect(
-        client.stream(_spec(provider_type=LITELLM_PROVIDER_TYPE, model="openai/gpt-test", base_url=None, tools=(tool,)))
-    )
-
-    payload = fake_litellm.calls[0]
-    assert payload["tools"] == [expected_tool]
-    assert payload["tool_choice"] == "auto"
-    assert payload["parallel_tool_calls"] is False
-    final = deltas[-2].final
-    assert final is not None
-    assert [(call.id, call.name, call.arguments) for call in final.tool_calls] == [
-        ("call-1", "memory_read_files", '{"paths":"profile.md"}')
-    ]
-    assert final.text == ""
-
-
-@pytest.mark.asyncio
-async def test_litellm_model_client_preserves_provider_error_details() -> None:
-    class _Response:
-        text = "bad request body"
-
-        def json(self):
-            return {"error": "bad request"}
-
-    exc = RuntimeError("bad request")
-    exc.status_code = 400  # type: ignore[attr-defined]
-    exc.response = _Response()  # type: ignore[attr-defined]
-    fake_litellm = _FakeLiteLLM(exc)
-    client = LiteLLMModelClient(litellm_module=fake_litellm)
-
-    with pytest.raises(ModelClientProviderError) as raised:
-        await _collect(
-            client.stream(_spec(provider_type=LITELLM_PROVIDER_TYPE, model="groq/openai/gpt-oss-120b", base_url=None))
-        )
-
-    assert raised.value.raw_metadata["exc_type"] == "RuntimeError"
-    assert raised.value.raw_metadata["message"] == "bad request"
-    assert raised.value.raw_metadata["status_code"] == 400
-    assert raised.value.raw_metadata["body"] == {"error": "bad request"}
+    assert final.usage.input_tokens > 0
+    assert final.usage.total_tokens == final.usage.input_tokens + final.usage.output_tokens

@@ -3,6 +3,10 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any, Literal
 
+from animama.app.model_clients import ModelClientError
+from animama.app.model_clients.credentials import connection_for_model_provider
+from animama.app.model_clients.error_categories import model_error_category
+from animama.domain import ModelProvider
 from animama.domain.events import (
     AvatarGestureRequestedPayload,
     CrisisSupportPayload,
@@ -70,6 +74,27 @@ def avatar_gesture_event(request: DirectChatTurnRequest, gesture: str) -> Event:
             runtime_revision=request.runtime_revision,
         ),
     )
+
+
+def model_error_details(error: ModelClientError, model_provider: ModelProvider) -> dict[str, Any]:
+    """Return safe error details naming the connection and a neutral category.
+
+    Adapters label errors by API family; the owner needs to know which of their
+    connections failed and why, for example "is Ollama running?".
+    """
+
+    details = dict(error.raw_metadata)
+    details.update(category=model_error_category(error.code, details), connection_id=model_provider.connection_id)
+    try:
+        connection = connection_for_model_provider(model_provider)
+    except ValueError:
+        # The row's connection is not loaded; name nothing rather than guess OpenAI.
+        return details
+    details.update(connection_name=connection.name, connection_preset=connection.preset, provider=connection.preset)
+    if not connection.is_builtin_openai and connection.base_url:
+        # Lets the client ask "is Ollama running at …?"; owner connections hold no credential in the URL.
+        details["connection_base_url"] = connection.base_url
+    return details
 
 
 def error_event(

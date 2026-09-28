@@ -13,8 +13,8 @@ function model(
   overrides: Partial<PyModelProviderCatalogItem>,
 ): PyModelProviderCatalogItem {
   return {
-    id: "OpenAIHTTPAgent:gpt-5-nano",
-    model: "gpt-5-nano",
+    id: "OpenAIHTTPAgent:gpt-6-luna",
+    model: "gpt-6-luna",
     model_provider: "OpenAIHTTPAgent",
     model_label: "GPT-5 Nano",
     provider_label: "OpenAI",
@@ -38,7 +38,7 @@ function chat(overrides: Partial<PyChatResponse>): PyChatResponse {
     title: "Chat",
     api_standard: "chat_completions",
     last_model_client: "openai_chat_completions",
-    last_model_id: "gpt-5-nano",
+    last_model_id: "gpt-6-luna",
     metadata: null,
     created_at: null,
     updated_at: null,
@@ -50,11 +50,32 @@ function chat(overrides: Partial<PyChatResponse>): PyChatResponse {
 }
 
 describe("findRestorableChatModel", () => {
+  it("prefers the recorded row id over a same-named model on another connection", () => {
+    const ollama = model({ id: "owner:ollama-qwen", model: "qwen3:8b" });
+    const lmstudio = model({ id: "owner:lmstudio-qwen", model: "qwen3:8b" });
+    const embedding = model({ id: "owner:embed", model_kind: "embedding" });
+    const recorded = chat({
+      last_model_id: "qwen3:8b",
+      last_model_provider_id: "owner:lmstudio-qwen",
+    });
+
+    expect(findRestorableChatModel(recorded, [ollama, lmstudio])).toBe(
+      lmstudio,
+    );
+    // A removed row never switches the Anima to a same-named model elsewhere.
+    expect(findRestorableChatModel(recorded, [ollama])).toBeNull();
+    expect(
+      findRestorableChatModel(chat({ last_model_provider_id: "owner:embed" }), [
+        embedding,
+      ]),
+    ).toBeNull();
+  });
+
   it("resolves the exact historical provider/model/client/standard row", () => {
-    const expected = model({ id: "OpenAIHTTPAgent:gpt-5-nano" });
+    const expected = model({ id: "OpenAIHTTPAgent:gpt-6-luna" });
     const rows = [
       model({
-        id: "OpenAIResponsesHTTPAgent:gpt-5-nano",
+        id: "OpenAIResponsesHTTPAgent:gpt-6-luna",
         model_provider: "OpenAIResponsesHTTPAgent",
         model_client: "openai_responses",
         api_standard: "responses",
@@ -159,7 +180,7 @@ describe("chatModelSendGate", () => {
       chatModelSendGate(
         chat({ last_model_client: "openai_chat_completions" }),
         model({
-          id: "OtherOpenAIChatAgent:gpt-5-nano",
+          id: "OtherOpenAIChatAgent:gpt-6-luna",
           model_provider: "OtherOpenAIChatAgent",
           model_client: "some_other_chat_client",
           api_standard: "chat_completions",
@@ -181,7 +202,7 @@ describe("chatModelSendGate", () => {
       chatModelSendGate(
         chat({}),
         model({
-          id: "OpenAIResponsesHTTPAgent:gpt-5-nano",
+          id: "OpenAIResponsesHTTPAgent:gpt-6-luna",
           model_provider: "OpenAIResponsesHTTPAgent",
           model_client: "openai_responses",
           api_standard: "responses",

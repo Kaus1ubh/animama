@@ -12,18 +12,19 @@ record lifecycle and planning ownership decisions; later records document produc
 and dates. Acceptance is not proof of unknown historical human approval,
 production readiness or publication rights.
 
-| ID   | Decision                                                                                                                  | Status                                |
-| ---- | ------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
-| 0001 | [Independent local product and packaged sharing](0001-independent-local-product-and-packaged-sharing.md)                  | accepted                              |
-| 0002 | [Accountless installation ownership and local HTTP admission](0002-accountless-installation-and-http-admission.md)        | accepted                              |
-| 0003 | [Request-local direct chat and streamed delivery](0003-request-local-streamed-chat.md)                                    | accepted                              |
-| 0004 | [Filesystem content, catalog persistence and recoverable mutations](0004-filesystem-content-and-recoverable-mutations.md) | accepted                              |
-| 0005 | [Client-rendered shared UI and local/native composition](0005-client-rendered-ui-and-local-native-composition.md)         | accepted                              |
-| 0006 | [Human and AI software development lifecycle](0006-human-ai-software-development-lifecycle.md)                            | accepted; planning superseded by 0007 |
-| 0007 | [Repository-owned specifications and execution plans](0007-repository-owned-planning.md)                                  | accepted                              |
-| 0008 | [Non-overridable companion guardrail](0008-non-overridable-companion-guardrail.md)                                        | accepted                              |
-| 0009 | [Shared user memory and per-Anima relationship memory](0009-shared-user-memory-and-per-anima-relationship-memory.md)      | accepted                              |
-| 0010 | [Shared voice model objects and optional downloads](0010-shared-model-object-distribution.md)                             | accepted                              |
+| ID   | Decision                                                                                                                                           | Status                                |
+| ---- | -------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
+| 0001 | [Independent local product and packaged sharing](0001-independent-local-product-and-packaged-sharing.md)                                           | accepted                              |
+| 0002 | [Accountless installation ownership and local HTTP admission](0002-accountless-installation-and-http-admission.md)                                 | accepted                              |
+| 0003 | [Request-local direct chat and streamed delivery](0003-request-local-streamed-chat.md)                                                             | accepted                              |
+| 0004 | [Filesystem content, catalog persistence and recoverable mutations](0004-filesystem-content-and-recoverable-mutations.md)                          | accepted                              |
+| 0005 | [Client-rendered shared UI and local/native composition](0005-client-rendered-ui-and-local-native-composition.md)                                  | accepted                              |
+| 0006 | [Human and AI software development lifecycle](0006-human-ai-software-development-lifecycle.md)                                                     | accepted; planning superseded by 0007 |
+| 0007 | [Repository-owned specifications and execution plans](0007-repository-owned-planning.md)                                                           | accepted                              |
+| 0008 | [Non-overridable companion guardrail](0008-non-overridable-companion-guardrail.md)                                                                 | accepted                              |
+| 0009 | [Shared user memory and per-Anima relationship memory](0009-shared-user-memory-and-per-anima-relationship-memory.md)                               | accepted                              |
+| 0010 | [Shared voice model objects and optional downloads](0010-shared-model-object-distribution.md)                                                      | accepted                              |
+| 0011 | [Application-owned companion features and composition catalog policy](0011-application-owned-companion-features-and-composition-catalog-policy.md) | accepted                              |
 
 ## When and how to record a decision
 

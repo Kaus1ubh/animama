@@ -7,21 +7,7 @@ from fastapi import FastAPI, Request, WebSocket
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from animama.domain.request_principal import RequestPrincipal
-from animama.embeddings import Embedder
 from animama.server.request_principal import principal_resolver
-
-_embedder: Embedder | None = None
-
-
-def get_embedder() -> Embedder:
-    """Return a singleton Embedder configured from environment."""
-
-    global _embedder
-    if _embedder is None:
-        from animama.embeddings import Embedder
-
-        _embedder = Embedder()
-    return _embedder
 
 
 async def get_async_session(request: Request) -> AsyncGenerator[AsyncSession, None]:

@@ -20,6 +20,7 @@ from animama.app.safety.moderation import RESPONSES_MODERATION_MODEL
 from animama.app.util.json_values import json_safe_copy
 from animama.domain import ModelProvider
 from animama.domain.chat import Chat
+from animama.domain.model_connection import BUILTIN_OPENAI_CONNECTION_ID, MODEL_KIND_CHAT, MODEL_SOURCE_OWNER
 
 from ..options import DirectChatOptions
 from .constants import (
@@ -41,6 +42,26 @@ class MemoryToolConfig:
     @property
     def active(self) -> bool:
         return self.allow_reads or self.allow_writes
+
+
+def memory_tool_config_for_model(config: MemoryToolConfig, model_provider: ModelProvider) -> MemoryToolConfig:
+    """Limit memory tools to what the selected model can use.
+
+    A model without tool calling chats without memory tools rather than failing
+    the turn, and a model whose owner turned off memory writes gets read tools
+    only.
+    """
+
+    if not config.active:
+        return config
+    if (
+        not model_provider.capabilities.supports_tools
+        or model_provider.provider_type not in DIRECT_MEMORY_TOOL_SUPPORT_BY_PROVIDER
+    ):
+        return MemoryToolConfig(allow_reads=False, allow_writes=False)
+    if not model_provider.allow_memory_writes:
+        return MemoryToolConfig(allow_reads=config.allow_reads, allow_writes=False)
+    return config
 
 
 def normalized_string_set(value: object) -> set[str]:
@@ -67,6 +88,23 @@ def validate_model_provider_for_direct_turn(
     capabilities = model_provider.capabilities
     if not model_provider.active:
         raise DirectChatTurnSetupError(f"Model provider is inactive: {model_provider.id}")
+    connection = model_provider.connection
+    if connection is not None and not connection.active:
+        raise DirectChatTurnSetupError(f"Model connection is inactive: {connection.id}")
+    if model_provider.model_kind != MODEL_KIND_CHAT:
+        raise DirectChatTurnSetupError(f"Model is not a chat model: {model_provider.id}")
+    if model_provider.source == MODEL_SOURCE_OWNER and model_provider.context_window_tokens is None:
+        raise DirectChatTurnSetupError(
+            f"Set the model's context window in App Settings before chatting: {model_provider.id}"
+        )
+    if (
+        model_provider.provider_type == OPENAI_RESPONSES_PROVIDER
+        and model_provider.connection_id != BUILTIN_OPENAI_CONNECTION_ID
+    ):
+        # Responses requests carry the OpenAI key; only the built-in connection may use them.
+        raise DirectChatTurnSetupError(
+            f"OpenAI Responses is only available on the built-in OpenAI connection: {model_provider.id}"
+        )
     if not capabilities.supports_streaming:
         raise DirectChatTurnSetupError(f"Model provider does not support streaming chat turns: {model_provider.id}")
     structured_kinds = normalized_string_set(capabilities.structured_kinds)
@@ -108,14 +146,6 @@ def validate_model_provider_for_direct_turn(
             tools = ", ".join(sorted(missing_tools or requested_native_tools))
             raise DirectChatTurnSetupError(
                 f"Model provider does not support requested native tools {tools}: {model_provider.id}"
-            )
-
-    if memory_tools_active:
-        if not capabilities.supports_tools:
-            raise DirectChatTurnSetupError(f"Model provider does not support memory tools: {model_provider.id}")
-        if model_provider.provider_type not in DIRECT_MEMORY_TOOL_SUPPORT_BY_PROVIDER:
-            raise DirectChatTurnSetupError(
-                f"Model provider does not support direct memory tools: {model_provider.provider_type}"
             )
 
 

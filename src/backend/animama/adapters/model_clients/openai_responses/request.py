@@ -169,13 +169,6 @@ def previous_response_id(spec: ModelClientRequest) -> str | None:
     return cursor or None
 
 
-def base_url_for_spec(spec: ModelClientRequest, default_base_url: str) -> str:
-    """Resolve a per-provider base URL override for OpenAI-compatible servers."""
-
-    base_url = spec.model_provider.provider_base_url or default_base_url
-    return base_url.rstrip("/")
-
-
 def _easy_input_message(role: str, content: str, *, phase: str | None = None) -> ResponseInputItemParam:
     """Build a Responses easy input item, preserving assistant phase if valid."""
 
@@ -436,4 +429,4 @@ def _responses_function_tool(raw_tool: Mapping[str, Any]) -> FunctionToolParam |
     return tool
 
 
-__all__ = ["base_url_for_spec", "create_response_kwargs", "previous_response_id", "responses_input_items"]
+__all__ = ["create_response_kwargs", "previous_response_id", "responses_input_items"]

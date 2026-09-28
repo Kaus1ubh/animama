@@ -5,7 +5,9 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
 
+from animama.app.model_connection_presets import model_connection_preset
 from animama.domain import ModelProvider, ModelProviderCapabilities, ModelProviderPricing
+from animama.domain.model_connection import MODEL_SOURCE_OWNER
 from animama.orm import ORMModelProvider
 
 _ENTRY_FIELD_NAMES = (
@@ -19,8 +21,12 @@ _ENTRY_FIELD_NAMES = (
     "current_snapshot",
     "context_window_tokens",
     "max_output_tokens",
-    "provider_base_url",
-    "api_family",
+    "connection_id",
+    "source",
+    "model_kind",
+    "hidden",
+    "allow_memory_writes",
+    "probe_result",
     "active",
     "deprecated_at",
     "created_at",
@@ -39,6 +45,7 @@ _CAPABILITY_FIELD_NAMES = (
     "supports_reasoning",
     "supported_reasoning_efforts",
     "native_tool_support",
+    "tools_with_structured_output",
 )
 _PRICING_FIELD_NAMES = (
     "pricing_status",
@@ -161,6 +168,8 @@ def _coerce_field(name: str, value: Any) -> Any:
         return _list_or_none(value)
     if name == "metadata":
         return dict(value or {})
+    if name == "probe_result":
+        return dict(value) if value is not None else None
     return value
 
 
@@ -258,17 +267,31 @@ def model_provider_domain_to_public_catalog_row(model_provider: ModelProvider) -
     """Return the public `/v1/model-providers` row without internal pricing fields."""
 
     capabilities = model_provider.capabilities
+    connection = model_provider.connection
+    # Owner rows are grouped under their connection's current name and preset logo,
+    # so renaming a connection or changing its preset relabels its models.
+    owner_connection = connection if model_provider.source == MODEL_SOURCE_OWNER else None
     row: dict[str, Any] = {
         "id": model_provider.id,
         "model": model_provider.model,
         "model_provider": model_provider.provider_type,
-        "model_label": model_provider.model_label,
-        "provider_label": model_provider.provider_label,
-        "logo_provider": model_provider.logo_provider,
+        "model_label": model_provider.model_label or model_provider.model,
+        "provider_label": owner_connection.name if owner_connection is not None else model_provider.provider_label,
+        "logo_provider": (
+            model_connection_preset(owner_connection.preset).logo_provider
+            if owner_connection is not None
+            else model_provider.logo_provider
+        ),
         **_chat_api_standard_fields(model_provider),
+        "source": model_provider.source,
+        "connection_id": model_provider.connection_id,
+        "connection_name": connection.name if connection is not None else "OpenAI",
+        "model_kind": model_provider.model_kind,
+        "hidden": model_provider.hidden,
+        "context_window_tokens": model_provider.context_window_tokens,
         "accepts": list(capabilities.accepts),
         "produces": list(capabilities.produces),
-        "supports_developer_role": bool(capabilities.supports_developer_role),
+        "supports_developer_role": model_provider.accepts_developer_role,
         "supports_tools": bool(capabilities.supports_tools),
         "supports_streaming": bool(capabilities.supports_streaming),
     }

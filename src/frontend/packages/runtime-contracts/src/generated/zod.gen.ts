@@ -1433,6 +1433,13 @@ export const zPyArchivePassageUpdate = z.object({
 });
 
 /**
+ * PyAvailableModels
+ */
+export const zPyAvailableModels = z.object({
+    models: z.array(z.string())
+});
+
+/**
  * PyAvatarBuiltinSource
  */
 export const zPyAvatarBuiltinSource = z.object({
@@ -2145,6 +2152,28 @@ export const zPyElevenLabsTextToSpeechRequest = z.object({
         zPyElevenLabsVoiceSettings,
         z.null()
     ]))
+});
+
+/**
+ * PyEmbeddingRefreshStatus
+ *
+ * Whether stored vectors match the embeddings role.
+ *
+ * While ``re_embedding`` or ``retrying``, search uses keyword retrieval;
+ * ``pending`` counts rows still waiting for a vector.
+ */
+export const zPyEmbeddingRefreshStatus = z.object({
+    error_category: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    pending: z.optional(z.int()).default(0),
+    state: z.enum([
+        'off',
+        'current',
+        're_embedding',
+        'retrying'
+    ])
 });
 
 /**
@@ -3359,6 +3388,279 @@ export const zPyModelAssetList = z.object({
 });
 
 /**
+ * PyModelCapabilitiesView
+ */
+export const zPyModelCapabilitiesView = z.object({
+    accepts: z.array(z.string()),
+    native_tool_support: z.optional(z.union([
+        z.array(z.string()),
+        z.null()
+    ])),
+    structured_output_transport: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    supported_reasoning_efforts: z.optional(z.union([
+        z.array(z.string()),
+        z.null()
+    ])),
+    supports_reasoning: z.optional(z.union([
+        z.boolean(),
+        z.null()
+    ])),
+    supports_streaming: z.boolean(),
+    supports_tools: z.boolean(),
+    tools_with_structured_output: z.boolean()
+});
+
+/**
+ * PyConfiguredModel
+ *
+ * A catalog row as the owner manages it, including capabilities and probe results.
+ */
+export const zPyConfiguredModel = z.object({
+    allow_memory_writes: z.boolean(),
+    capabilities: zPyModelCapabilitiesView,
+    connection_id: z.string(),
+    context_window_tokens: z.optional(z.union([
+        z.int(),
+        z.null()
+    ])),
+    hidden: z.boolean(),
+    id: z.string(),
+    model: z.string(),
+    model_kind: z.enum(['chat', 'embedding']),
+    model_label: z.string(),
+    probe_result: z.optional(z.union([
+        z.record(z.string(), z.unknown()),
+        z.null()
+    ])),
+    provider_type: z.string(),
+    source: z.enum(['builtin', 'owner']),
+    template_id: z.optional(z.union([
+        z.string(),
+        z.null()
+    ]))
+});
+
+/**
+ * PyModelConnectionCompatibility
+ */
+export const zPyModelConnectionCompatibility = z.object({
+    fold_developer_role: z.optional(z.boolean()).default(false),
+    reasoning_mode: z.optional(z.enum([
+        'openai_effort',
+        'deepseek_thinking',
+        'omit'
+    ])),
+    send_openai_extensions: z.optional(z.boolean()).default(true),
+    send_stream_usage: z.optional(z.boolean()).default(true),
+    strip_function_strict: z.optional(z.boolean()).default(false)
+});
+
+/**
+ * PyModelConnection
+ */
+export const zPyModelConnection = z.object({
+    base_url: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    compatibility: zPyModelConnectionCompatibility,
+    credential_env: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    credential_state: z.enum([
+        'configured',
+        'missing',
+        'not_required'
+    ]),
+    id: z.string(),
+    logo_provider: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    models: z.optional(z.array(zPyConfiguredModel)),
+    name: z.string(),
+    preset: z.string(),
+    source: z.enum(['builtin', 'owner']),
+    timeout_seconds: z.optional(z.union([
+        z.number(),
+        z.null()
+    ]))
+});
+
+/**
+ * PyModelConnectionCredential
+ *
+ * ``managed`` stores the key in the desktop vault under a derived variable name.
+ */
+export const zPyModelConnectionCredential = z.object({
+    env: z.optional(z.union([
+        z.string().max(96),
+        z.null()
+    ])),
+    mode: z.optional(z.enum([
+        'none',
+        'env',
+        'managed'
+    ]))
+});
+
+/**
+ * PyModelConnectionDetection
+ *
+ * Whether a local preset's server answers at its default address, and its models.
+ *
+ * ``category`` names the failure when ``reachable`` is false.
+ */
+export const zPyModelConnectionDetection = z.object({
+    base_url: z.string(),
+    category: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    models: z.array(z.string()),
+    preset: z.string(),
+    reachable: z.boolean()
+});
+
+/**
+ * PyModelConnectionPreset
+ */
+export const zPyModelConnectionPreset = z.object({
+    compatibility: zPyModelConnectionCompatibility,
+    default_base_url: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    expects_key: z.boolean(),
+    id: z.string(),
+    label: z.string(),
+    local: z.boolean(),
+    logo_provider: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    suggested_credential_env: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    timeout_seconds: z.number()
+});
+
+/**
+ * PyModelConnectionRequest
+ */
+export const zPyModelConnectionRequest = z.object({
+    base_url: z.string().min(1).max(2048),
+    compatibility: z.optional(z.union([
+        zPyModelConnectionCompatibility,
+        z.null()
+    ])),
+    credential: z.optional(zPyModelConnectionCredential),
+    name: z.string().min(1).max(80),
+    preset: z.string().min(1).max(40),
+    timeout_seconds: z.optional(z.union([
+        z.number(),
+        z.null()
+    ]))
+});
+
+/**
+ * PyModelConnectionUpdate
+ *
+ * Connection changes; omitted fields keep their current values.
+ */
+export const zPyModelConnectionUpdate = z.object({
+    base_url: z.optional(z.union([
+        z.string().min(1).max(2048),
+        z.null()
+    ])),
+    compatibility: z.optional(z.union([
+        zPyModelConnectionCompatibility,
+        z.null()
+    ])),
+    credential: z.optional(z.union([
+        zPyModelConnectionCredential,
+        z.null()
+    ])),
+    name: z.optional(z.union([
+        z.string().min(1).max(80),
+        z.null()
+    ])),
+    preset: z.optional(z.union([
+        z.string().min(1).max(40),
+        z.null()
+    ])),
+    timeout_seconds: z.optional(z.union([
+        z.number(),
+        z.null()
+    ]))
+});
+
+/**
+ * PyModelProbeRequest
+ */
+export const zPyModelProbeRequest = z.object({
+    kind: z.optional(z.enum(['chat', 'embedding'])),
+    model: z.string().min(1).max(256),
+    provider_type: z.optional(z.enum(['OpenAIHTTPAgent', 'OpenAIResponsesHTTPAgent']))
+});
+
+/**
+ * PyModelProbeStep
+ */
+export const zPyModelProbeStep = z.object({
+    category: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    detail: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    name: z.string(),
+    ok: z.boolean()
+});
+
+/**
+ * PyModelProbeReport
+ *
+ * Suggested capabilities; ``None`` means the probe could not determine a value.
+ */
+export const zPyModelProbeReport = z.object({
+    context_window_tokens: z.optional(z.union([
+        z.int(),
+        z.null()
+    ])),
+    embedding_dimensions: z.optional(z.union([
+        z.int(),
+        z.null()
+    ])),
+    model: z.string(),
+    notes: z.optional(z.array(z.string())),
+    steps: z.array(zPyModelProbeStep),
+    structured_output_transport: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    supports_streaming: z.optional(z.union([
+        z.boolean(),
+        z.null()
+    ])),
+    supports_tools: z.optional(z.union([
+        z.boolean(),
+        z.null()
+    ])),
+    tools_with_structured_output: z.optional(z.union([
+        z.boolean(),
+        z.null()
+    ]))
+});
+
+/**
  * PyModelProviderCatalogItem
  */
 export const zPyModelProviderCatalogItem = z.object({
@@ -3367,6 +3669,16 @@ export const zPyModelProviderCatalogItem = z.object({
         z.string(),
         z.null()
     ])),
+    connection_id: z.optional(z.string()).default('openai'),
+    connection_name: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    context_window_tokens: z.optional(z.union([
+        z.int(),
+        z.null()
+    ])),
+    hidden: z.optional(z.boolean()).default(false),
     id: z.string(),
     logo_provider: z.optional(z.union([
         z.string(),
@@ -3377,6 +3689,7 @@ export const zPyModelProviderCatalogItem = z.object({
         z.string(),
         z.null()
     ])),
+    model_kind: z.optional(z.string()).default('chat'),
     model_label: z.optional(z.union([
         z.string(),
         z.null()
@@ -3395,6 +3708,7 @@ export const zPyModelProviderCatalogItem = z.object({
         z.array(z.string()),
         z.null()
     ])),
+    source: z.optional(z.string()).default('builtin'),
     supported_reasoning_efforts: z.optional(z.union([
         z.array(z.string()),
         z.null()
@@ -3409,11 +3723,166 @@ export const zPyModelProviderCatalogItem = z.object({
 });
 
 /**
+ * PyModelRoleAssignment
+ *
+ * The row doing one role's job and how it was chosen.
+ *
+ * ``source`` is ``owner`` (App Settings), ``default`` (operator environment),
+ * ``inherited`` (the chat role) or ``off``. ``assignment_available`` is False
+ * when the owner's choice could not be used and the role fell back.
+ */
+export const zPyModelRoleAssignment = z.object({
+    assignment_available: z.boolean(),
+    connection_name: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    model_label: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    model_provider_id: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    requested_model_provider_id: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    role: z.enum([
+        'chat',
+        'utility',
+        'memory_manager',
+        'embeddings'
+    ]),
+    source: z.enum([
+        'owner',
+        'default',
+        'inherited',
+        'off'
+    ])
+});
+
+/**
+ * PyModelRoles
+ */
+export const zPyModelRoles = z.object({
+    embeddings_refresh: zPyEmbeddingRefreshStatus,
+    roles: z.array(zPyModelRoleAssignment)
+});
+
+/**
+ * PyModelUsageAnima
+ */
+export const zPyModelUsageAnima = z.object({
+    anima_id: z.string(),
+    display_name: z.string(),
+    model_provider_id: z.string()
+});
+
+/**
+ * PyModelUsage
+ */
+export const zPyModelUsage = z.object({
+    animas: z.optional(z.array(zPyModelUsageAnima)),
+    roles: z.optional(z.array(z.string()))
+});
+
+/**
+ * PyModelRemovalResult
+ */
+export const zPyModelRemovalResult = z.object({
+    removed: z.boolean(),
+    usage: zPyModelUsage
+});
+
+/**
  * PyOnboardingCompleteRequest
  */
 export const zPyOnboardingCompleteRequest = z.object({
     adult_confirmed: z.boolean(),
     display_name: z.string().min(1).max(80)
+});
+
+/**
+ * PyOwnerModelCapabilities
+ */
+export const zPyOwnerModelCapabilities = z.object({
+    accepts_images: z.optional(z.boolean()).default(false),
+    structured_output_transport: z.optional(z.union([
+        z.enum(['json_schema', 'json_object']),
+        z.null()
+    ])).default('json_schema'),
+    supported_reasoning_efforts: z.optional(z.array(z.string()).max(7)),
+    supports_streaming: z.optional(z.boolean()).default(true),
+    supports_tools: z.optional(z.boolean()).default(false),
+    tools_with_structured_output: z.optional(z.boolean()).default(true)
+});
+
+/**
+ * PyOwnerModelPatch
+ *
+ * Built-in models accept only ``hidden``.
+ */
+export const zPyOwnerModelPatch = z.object({
+    allow_memory_writes: z.optional(z.union([
+        z.boolean(),
+        z.null()
+    ])),
+    capabilities: z.optional(z.union([
+        zPyOwnerModelCapabilities,
+        z.null()
+    ])),
+    clear_context_window: z.optional(z.boolean()).default(false),
+    context_window_tokens: z.optional(z.union([
+        z.int(),
+        z.null()
+    ])),
+    hidden: z.optional(z.union([
+        z.boolean(),
+        z.null()
+    ])),
+    label: z.optional(z.union([
+        z.string().max(120),
+        z.null()
+    ])),
+    probe_result: z.optional(z.union([
+        z.record(z.string(), z.unknown()),
+        z.null()
+    ]))
+});
+
+/**
+ * PyOwnerModelRequest
+ */
+export const zPyOwnerModelRequest = z.object({
+    allow_memory_writes: z.optional(z.boolean()).default(true),
+    capabilities: z.optional(z.union([
+        zPyOwnerModelCapabilities,
+        z.null()
+    ])),
+    context_window_tokens: z.optional(z.union([
+        z.int(),
+        z.null()
+    ])),
+    kind: z.optional(z.enum(['chat', 'embedding'])),
+    label: z.optional(z.union([
+        z.string().max(120),
+        z.null()
+    ])),
+    model: z.string().min(1).max(256),
+    probe_result: z.optional(z.union([
+        z.record(z.string(), z.unknown()),
+        z.null()
+    ])),
+    provider_type: z.optional(z.union([
+        z.enum(['OpenAIHTTPAgent', 'OpenAIResponsesHTTPAgent']),
+        z.null()
+    ])),
+    template_id: z.optional(z.union([
+        z.string(),
+        z.null()
+    ]))
 });
 
 /**
@@ -4717,6 +5186,10 @@ export const zPyChatResponse = z.object({
         z.string(),
         z.null()
     ])),
+    last_model_provider_id: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
     metadata: z.optional(z.union([
         z.record(z.string(), z.unknown()),
         z.null()
@@ -5449,6 +5922,7 @@ export const zUserFileProcessingCapability = z.object({
  */
 export const zRuntimeCapabilities = z.object({
     companion_safety: zCompanionSafetyCapability,
+    model_configuration: z.optional(z.boolean()).default(false),
     offline_speech_asset_version: z.union([
         z.string(),
         z.null()
@@ -7244,6 +7718,123 @@ export const zInstallModelAssetV1ModelAssetsAssetIdInstallPostData = z.object({
  */
 export const zInstallModelAssetV1ModelAssetsAssetIdInstallPostResponse = zPyModelAssetState;
 
+export const zListModelConnectionPresetsV1ModelConnectionPresetsGetData = z.object({
+    body: z.optional(z.never()),
+    path: z.optional(z.never()),
+    query: z.optional(z.never())
+});
+
+/**
+ * Response List Model Connection Presets V1 Model Connection Presets Get
+ *
+ * Successful Response
+ */
+export const zListModelConnectionPresetsV1ModelConnectionPresetsGetResponse = z.array(zPyModelConnectionPreset);
+
+export const zDetectModelConnectionPresetV1ModelConnectionPresetsPresetIdDetectPostData = z.object({
+    body: z.optional(z.never()),
+    path: z.object({
+        preset_id: z.string()
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zDetectModelConnectionPresetV1ModelConnectionPresetsPresetIdDetectPostResponse = zPyModelConnectionDetection;
+
+export const zListModelConnectionsV1ModelConnectionsGetData = z.object({
+    body: z.optional(z.never()),
+    path: z.optional(z.never()),
+    query: z.optional(z.never())
+});
+
+/**
+ * Response List Model Connections V1 Model Connections Get
+ *
+ * Successful Response
+ */
+export const zListModelConnectionsV1ModelConnectionsGetResponse = z.array(zPyModelConnection);
+
+export const zCreateModelConnectionV1ModelConnectionsPostData = z.object({
+    body: zPyModelConnectionRequest,
+    path: z.optional(z.never()),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zCreateModelConnectionV1ModelConnectionsPostResponse = zPyModelConnection;
+
+export const zRemoveModelConnectionV1ModelConnectionsConnectionIdDeleteData = z.object({
+    body: z.optional(z.never()),
+    path: z.object({
+        connection_id: z.string()
+    }),
+    query: z.optional(z.object({
+        confirm: z.optional(z.boolean()).default(false)
+    }))
+});
+
+/**
+ * Successful Response
+ */
+export const zRemoveModelConnectionV1ModelConnectionsConnectionIdDeleteResponse = zPyModelRemovalResult;
+
+export const zUpdateModelConnectionV1ModelConnectionsConnectionIdPatchData = z.object({
+    body: zPyModelConnectionUpdate,
+    path: z.object({
+        connection_id: z.string()
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zUpdateModelConnectionV1ModelConnectionsConnectionIdPatchResponse = zPyModelConnection;
+
+export const zListAvailableModelsV1ModelConnectionsConnectionIdAvailableModelsGetData = z.object({
+    body: z.optional(z.never()),
+    path: z.object({
+        connection_id: z.string()
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zListAvailableModelsV1ModelConnectionsConnectionIdAvailableModelsGetResponse = zPyAvailableModels;
+
+export const zAddOwnerModelV1ModelConnectionsConnectionIdModelsPostData = z.object({
+    body: zPyOwnerModelRequest,
+    path: z.object({
+        connection_id: z.string()
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zAddOwnerModelV1ModelConnectionsConnectionIdModelsPostResponse = zPyConfiguredModel;
+
+export const zProbeModelV1ModelConnectionsConnectionIdProbePostData = z.object({
+    body: zPyModelProbeRequest,
+    path: z.object({
+        connection_id: z.string()
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zProbeModelV1ModelConnectionsConnectionIdProbePostResponse = zPyModelProbeReport;
+
 export const zListModelProvidersV1ModelProvidersGetData = z.object({
     body: z.optional(z.never()),
     path: z.optional(z.never()),
@@ -7256,6 +7847,45 @@ export const zListModelProvidersV1ModelProvidersGetData = z.object({
  * Successful Response
  */
 export const zListModelProvidersV1ModelProvidersGetResponse = z.array(zPyModelProviderCatalogItem);
+
+export const zRemoveModelV1ModelProvidersModelProviderIdDeleteData = z.object({
+    body: z.optional(z.never()),
+    path: z.object({
+        model_provider_id: z.string()
+    }),
+    query: z.optional(z.object({
+        confirm: z.optional(z.boolean()).default(false)
+    }))
+});
+
+/**
+ * Successful Response
+ */
+export const zRemoveModelV1ModelProvidersModelProviderIdDeleteResponse = zPyModelRemovalResult;
+
+export const zUpdateModelV1ModelProvidersModelProviderIdPatchData = z.object({
+    body: zPyOwnerModelPatch,
+    path: z.object({
+        model_provider_id: z.string()
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zUpdateModelV1ModelProvidersModelProviderIdPatchResponse = zPyConfiguredModel;
+
+export const zGetModelRolesV1ModelRolesGetData = z.object({
+    body: z.optional(z.never()),
+    path: z.optional(z.never()),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zGetModelRolesV1ModelRolesGetResponse = zPyModelRoles;
 
 export const zListParticleEffectsData = z.object({
     body: z.optional(z.never()),

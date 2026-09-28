@@ -137,12 +137,20 @@ describe("privileged runtime IPC", () => {
     await expect(
       invoke("credentials:apply", main.event, [
         { provider: "openai", value: "fixture-key" },
-        { provider: "gemini" },
+        {
+          connection: "ANIMAMA_CONNECTION_C_0123456789AB_API_KEY",
+          value: "fixture-connection-key",
+        },
+        { connection: "ANIMAMA_CONNECTION_C_OTHER_API_KEY" },
       ]),
     ).resolves.toEqual([]);
     expect(applied).toHaveBeenCalledWith([
       { provider: "openai", value: "fixture-key" },
-      { provider: "gemini" },
+      {
+        connection: "ANIMAMA_CONNECTION_C_0123456789AB_API_KEY",
+        value: "fixture-connection-key",
+      },
+      { connection: "ANIMAMA_CONNECTION_C_OTHER_API_KEY" },
     ]);
     await expect(
       invoke("credentials:apply", recovery.event, [{ provider: "openai" }]),
@@ -154,18 +162,28 @@ describe("privileged runtime IPC", () => {
       [{ provider: "openai", value: "fixture-key", path: "/tmp" }],
       [{ provider: "../path" }],
       [{ provider: "openai", value: "x".repeat(8193) }],
+      [{ provider: "gemini" }],
+      [{ connection: "OPENAI_API_KEY", value: "fixture-key" }],
+      [{ connection: "animama_connection_c1_api_key" }],
       [
-        { provider: "openai" },
-        { provider: "deepseek" },
-        { provider: "huggingface" },
-        { provider: "gemini" },
-        { provider: "elevenlabs" },
-        { provider: "openai" },
+        {
+          provider: "openai",
+          connection: "ANIMAMA_CONNECTION_C_0123456789AB_API_KEY",
+        },
       ],
+      [
+        { connection: "ANIMAMA_CONNECTION_C_0123456789AB_API_KEY" },
+        { connection: "ANIMAMA_CONNECTION_C_0123456789AB_API_KEY" },
+      ],
+      Array.from({ length: 9 }, (_, index) => ({
+        connection: `ANIMAMA_CONNECTION_C${index}_API_KEY`,
+      })),
     ])
       await expect(
         invoke("credentials:apply", main.event, invalid),
-      ).rejects.toThrow(/credential_(changes|provider|value)_invalid/);
+      ).rejects.toThrow(
+        /credential_(changes|provider|connection|value)_invalid/,
+      );
     expect(applied).toHaveBeenCalledOnce();
   });
 

@@ -12,7 +12,7 @@ import os
 import signal
 import socket
 import time
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from contextlib import suppress
 from typing import Any
 
@@ -27,6 +27,7 @@ from animama.adapters.repositories.sqlalchemy.runtime_worker_repo import (
 from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
 from animama.adapters.repositories.sqlalchemy.user_file_processing_repo import SQLAlchemyUserFileProcessingRepository
 from animama.app.ports.private_file_storage import PrivateFileStorage
+from animama.app.ports.text_embedder import TextEmbedder
 from animama.app.services.user_file_processing_service import UserFileProcessingService
 from animama.domain.user_file_processing import ClaimedUserFileProcessingJob
 from animama.logging_config import get_logger
@@ -34,6 +35,9 @@ from animama.server.config import settings
 from animama.server.local_runtime import initialize_local_runtime
 
 log = get_logger("user-file.processing-worker")
+
+EmbedderResolver = Callable[[AsyncSession, str], Awaitable[TextEmbedder | None]]
+"""Resolve the embeddings-role embedder for one file owner."""
 
 
 class UserFileProcessingWorker:
@@ -50,7 +54,7 @@ class UserFileProcessingWorker:
         max_attempts: int,
         max_process_bytes: int,
         parser: Any | None = None,
-        embedder_factory: Callable[[], Any | None] | None = None,
+        embedder_resolver: EmbedderResolver | None = None,
         object_loader: Callable[[str | None], bytes | None] | None = None,
         private_storage: PrivateFileStorage | None = None,
         warm_docling: bool = settings.anima_user_file_docling_warmup,
@@ -75,7 +79,7 @@ class UserFileProcessingWorker:
             tokenizer_model=settings.anima_user_file_chunk_tokenizer_model,
             artifacts_path=settings.animama_docling_artifacts_path,
         )
-        self._embedder_factory = embedder_factory or _default_embedder_factory
+        self._embedder_resolver = embedder_resolver or _role_embedder
         self._object_loader = object_loader
         self._private_storage = private_storage
         if self._object_loader is None and self._private_storage is None:
@@ -84,12 +88,10 @@ class UserFileProcessingWorker:
         self._running = False
         self._stop_event = asyncio.Event()
         self._session_factory: async_sessionmaker[AsyncSession] | None = None
-        self._embedder: Any | None = None
 
     async def start(self) -> None:
         engine = create_async_engine(self._database_url, echo=False)
         self._session_factory = async_sessionmaker(engine, expire_on_commit=False)
-        self._embedder = self._embedder_factory()
         self._running = not self._stop_event.is_set()
         heartbeat = asyncio.create_task(self._heartbeat_loop())
         log.info(
@@ -203,12 +205,13 @@ class UserFileProcessingWorker:
                 duration_seconds=round(time.perf_counter() - read_started, 3),
             )
             async with self._session_factory() as session:
+                embedder = await self._embedder_for(session, claimed)
                 service = _service(session, max_attempts=self._max_attempts)
                 await service.complete_claimed_job(
                     claimed=claimed,
                     payload=payload,
                     parser=self._parser,
-                    embedder=self._embedder,
+                    embedder=embedder,
                     max_process_bytes=self._max_process_bytes,
                 )
             log.info(
@@ -231,6 +234,25 @@ class UserFileProcessingWorker:
             async with self._session_factory() as session:
                 service = _service(session, max_attempts=self._max_attempts)
                 await service.record_claimed_job_failure(claimed=claimed, error=error)
+
+    async def _embedder_for(self, session: AsyncSession, claimed: ClaimedUserFileProcessingJob) -> TextEmbedder | None:
+        """Resolve the file owner's embeddings role for this job.
+
+        A resolution failure processes the file without vectors; re-embedding
+        adds them once the role resolves again.
+        """
+
+        try:
+            return await self._embedder_resolver(session, claimed.job.user_id)
+        except Exception as exc:
+            log.warning(
+                "User-file embedding model unavailable",
+                job_id=claimed.job.id,
+                user_id=claimed.job.user_id,
+                error_type=exc.__class__.__name__,
+            )
+            await session.rollback()
+            return None
 
     def _load_payload(self, claimed: ClaimedUserFileProcessingJob) -> bytes | None:
         """Read exact local private bytes through the storage port.
@@ -294,14 +316,12 @@ def _service(session: AsyncSession, *, max_attempts: int) -> UserFileProcessingS
     )
 
 
-def _default_embedder_factory() -> Any | None:
-    try:
-        from animama.server.deps import get_embedder
+async def _role_embedder(session: AsyncSession, user_id: str) -> TextEmbedder | None:
+    from animama.server.embeddings import role_embedder
+    from animama.server.model_roles import ModelRoleSettings
 
-        return get_embedder()
-    except Exception as exc:
-        log.warning("User-file worker embedding unavailable", error=str(exc))
-        return None
+    # The document worker serves the local installation, whose owner assigns roles.
+    return await role_embedder(session, user_id, ModelRoleSettings(owner_roles_enabled=True, app_settings=settings))
 
 
 async def main() -> None:

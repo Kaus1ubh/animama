@@ -28,12 +28,18 @@ requires the existing explicit recovery action.
 ## Failed turns and recovery
 
 The shared session keeps a failure notice beside the affected user message. Known
-provider codes distinguish missing/rejected credentials, access or usage limits,
-rate limits, timeouts and unavailable providers. Local admission errors describe
+error codes distinguish missing/rejected credentials, unknown models, access or
+usage limits, rate limits, timeouts, unreachable or unavailable servers and
+removed connections. The notice names the failed
+connection from the error's `details.connection_name` (never assuming OpenAI);
+for Ollama, LM Studio, llama.cpp and vLLM connections it asks whether the server
+is running at `details.connection_base_url`, and the `context_exceeded` category
+explains an oversized conversation. Local admission errors describe
 installation access, without treating every HTTP 403 as an invalid provider key.
-Unknown errors use a safe fallback; raw provider bodies, URLs, credentials and
-exception messages are never inserted into the notice. Details show only an
-allowlisted error code. A valid provider retry delay is shown as guidance.
+Unknown errors use a safe fallback. The only URL a notice shows is the base URL
+the owner configured for a non-built-in connection; provider response text,
+provider-returned URLs, credentials and exception messages are never inserted
+into the notice. Details show only an allowlisted error code. A valid provider retry delay is shown as guidance.
 
 Any received partial reply remains visible and is labelled incomplete. The notice
 makes no claim that an uncertain turn was saved. Failed turns are local to the
@@ -135,8 +141,10 @@ default for the active anima. It loads the backend model catalog from
 active model from `anima.chat_profile.default_model_provider_id`, and persists
 changes through `PATCH /v1/animas/{anima_id}/chat-profile`.
 
-The selector groups catalog options by provider label, marks the active
-`default_model_provider_id`, closes after selection, and disables while a chat
+The selector groups catalog options by provider label, lists only chat models
+(hidden ones only while active; owner models without a context window disabled),
+marks the active `default_model_provider_id`, shows a warning when that row is
+no longer in the catalog, closes after selection, and disables while a chat
 stream or profile update mutation is in flight. A failed update surfaces a
 toast and leaves the current persisted profile unchanged. The selected model
 applies to future chat requests; it does not alter an already-running stream.
@@ -145,7 +153,8 @@ each accepted `chat:sse` request, so the streamed turn uses the same row the
 selector displays.
 
 When a persisted chat is opened, `useChatSession` loads the chat row from
-`GET /v1/chats/{chat_id}` and restores the catalog row that matches
+`GET /v1/chats/{chat_id}` and restores the catalog row recorded in
+`last_model_provider_id`; older chats fall back to the row matching
 `last_model_client`, `last_model_id`, and `api_standard`. The restored row is
 written back to the anima chat profile before normal send is enabled for that
 chat.

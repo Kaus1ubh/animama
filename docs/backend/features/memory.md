@@ -190,10 +190,12 @@ Turns taken with memory updates off are never read. Its turns count as covered
 only once its `MEMORIES.md` change is applied, and Undo of that change uncovers
 them again.
 
-The live runtime uses `OPENAI_API_KEY`, optional `OPENAI_BASE_URL`, and
-`ANIMAMA_MEMORY_MANAGER_AGENT_MODEL` (default `gpt-5.4-mini`). A nonempty
-`user_settings.preferences.memory.manager_model` overrides that default.
-`ANIMAMA_LLM_SKIP=1` selects the deterministic test runtime.
+The live runtime uses the Memory Manager model role: the App Settings
+assignment `user_settings.preferences.models.memory_manager_model_provider_id`,
+else `ANIMAMA_DEFAULT_MEMORY_MANAGER_MODEL_PROVIDER_ID`, else the default chat
+model when it supports tool calling. The row's connection supplies the base URL
+and key. Without a tool-capable model, runs fail with a message to choose one in
+App Settings. `ANIMAMA_LLM_SKIP=1` selects the deterministic test runtime.
 
 See [Memory Manager and episodic memory](memory-manager-and-episodic-memory.md)
 for routes, fixed episode batches, approval/resume behavior, Undo, and recovery.
@@ -256,6 +258,12 @@ When memory influence is enabled, direct chat attaches:
 - `memory_read_files`
 - `search_memory_files`
 
+Memory tools follow the selected row. A row without tool calling
+(`supports_tools = false`) chats without any memory or upload tools instead of
+failing setup; identity, `MEMORIES.md` and the memory map still reach its
+prompt. A row whose owner turned off `allow_memory_writes` gets the read tools
+only.
+
 The request-local memory map is still injected into the prompt, and
 `memory_list_files` gives the model an explicit way to refresh that navigation
 context during a tool loop. Its output is a compact `files` array containing
@@ -274,9 +282,8 @@ one write transport selected from the persisted model capability:
 - Other providers, including Responses models without that capability, retain
   the `memory_apply_patch` and `memory_write_file` function tools.
 
-The official OpenAI Responses `gpt-5.4-nano`, `gpt-5.6-luna`, and
-`gpt-5.6-terra` rows currently advertise
-native Apply Patch. `gpt-5-nano` retains the function-tool writers. The capability is
+The official OpenAI Responses `gpt-6-luna` row currently advertises native
+Apply Patch; Chat Completions rows retain the function-tool writers. The capability is
 an internal memory-write gate: clients cannot request `apply_patch` through the
 generic `native_tools` request option. Incognito and
 `disable_memory_updates=true` expose neither native nor function-tool writers.
@@ -371,8 +378,11 @@ with the Companion Guardrails. Distinct attachments with the same filename stay
 as separate map entries because filename-based upload tools operate on every
 matching attachment.
 
-Uploaded chunks always use hybrid keyword plus semantic search, falling back to
-keyword search if semantic dependencies are unavailable. The model receives an
+Uploaded chunks use hybrid keyword plus semantic search when the owner's
+Embeddings role is on and every searched chunk was embedded with that model.
+While the role is off, or the attached files await re-embedding, the search is
+keyword-only; a failed query embedding or search also falls back to keywords.
+The model receives an
 `uploaded_file_results` array. Hits include only `filename`, `chunk_index`, and
 `snippet`. The tool does not return file IDs, chunk IDs, extensions,
 object-storage keys, download URLs, user IDs, embeddings, metadata, scores,
@@ -380,7 +390,8 @@ match types, hashes, or timestamps.
 
 One query is intentionally used for both retrieval legs. Its keyword leg accepts
 PostgreSQL web-search syntax such as quoted phrases, `OR`, and `-term`
-exclusions, while the unchanged query text is embedded for semantic retrieval.
+exclusions, while the unchanged query text is embedded for semantic retrieval
+only when the semantic leg runs.
 
 ### `read_uploaded_file_chunks`
 
@@ -494,12 +505,12 @@ persist compact internal `chat_messages` rows for assistant tool calls and tool
 results, including the raw provider-message shapes replayed on later turns.
 Visible chat history and chat search continue to exclude internal rows.
 
-Memory tool support is currently enabled for `OpenAIHTTPAgent`,
-`OpenAIResponsesHTTPAgent`, `LiteLLMAgent`, and `MockModelClient`. The Responses
-adapter maps read/search and writer functions onto Responses `function`
-and `function_call_output` items, and maps native-capable writes onto SDK
-`apply_patch_call` and `apply_patch_call_output` items. `GeminiAgent` setup fails
-when memory tools would be active for the requested turn.
+Memory tool support is enabled for `OpenAIHTTPAgent` (Chat Completions on any
+connection), `OpenAIResponsesHTTPAgent` and `MockModelClient` rows that support
+tool calling. The Responses adapter maps read/search and writer functions onto
+Responses `function` and `function_call_output` items, and maps native-capable
+writes onto SDK `apply_patch_call` and `apply_patch_call_output` items. Other
+rows chat without memory tools.
 
 ## User Memory Entry Tree
 
@@ -730,8 +741,7 @@ IDs, which lets the backend equip the read-only `search_uploaded_files` and
 `read_uploaded_file_chunks` AI tools for that request.
 
 Anima archives store passages separately from the memory filesystem.
-Archive routes create/list/update/delete passages and search with
-vector similarity:
+Archive routes create/list/update/delete passages and search them:
 
 - `GET /v1/animas/{anima_id}/archive`
 - `GET /v1/animas/{anima_id}/archive/passages`
@@ -740,8 +750,13 @@ vector similarity:
 - `DELETE /v1/animas/{anima_id}/archive/passages/{passage_id}`
 - `POST /v1/animas/{anima_id}/archive/search`
 
-Creating a passage attempts to embed the text. Search embeds the query and uses
-pgvector cosine distance through `SQLAlchemyArchiveRepository.search_passages`.
+Creating a passage, or changing its text, embeds the text with the Embeddings
+role model when the role is on; a failure leaves the passage for the
+re-embedding task. Search embeds the query and uses pgvector cosine distance
+over that model's vectors through `SQLAlchemyArchiveRepository.search_passages`.
+While the role is off, passages await re-embedding or the query embedding
+fails, search uses PostgreSQL full-text ranking instead and ignores
+`threshold`.
 
 ## Extension constraints
 

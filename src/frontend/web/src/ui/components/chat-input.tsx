@@ -64,8 +64,15 @@ import {
   MicOff,
   Paperclip,
   Settings2,
+  TriangleAlert,
   Upload,
 } from "lucide-react";
+import {
+  modelConnectionLabel,
+  modelOptionDetail,
+  modelOptionLabel,
+  selectableChatModels,
+} from "@/lib/chat/model-catalog";
 import type React from "react";
 import {
   useCallback,
@@ -293,7 +300,7 @@ ChatInputFileUploadButton.displayName = "ChatInputFileUploadButton";
 function groupModelOptions(items: PyModelProviderCatalogItem[]) {
   const groups = new Map<string, PyModelProviderCatalogItem[]>();
   for (const item of items) {
-    const key = item.provider_label || item.model_provider;
+    const key = modelConnectionLabel(item);
     groups.set(key, [...(groups.get(key) ?? []), item]);
   }
   return Array.from(groups, ([providerLabel, models]) => ({
@@ -364,7 +371,7 @@ function ChatInputModelSelector({
 }: ChatInputModelSelectorProps) {
   const [open, setOpen] = useState(false);
   const { data: anima } = useAnima(animaId);
-  const { data: models = [] } = useModelProviders();
+  const { data: catalog = [], isSuccess: catalogLoaded } = useModelProviders();
   const updateAnimaChatProfile = useUpdateAnimaChatProfile();
   const { chatRequestOptions, setChatRequestOverrides } = useSettings();
   const skipNextActiveItemResetRef = useRef(false);
@@ -373,10 +380,18 @@ function ChatInputModelSelector({
   // should not overwrite the user's per-request tool/reasoning selections.
   const lastActiveItemIdRef = useRef<string | null>(null);
   const activeItemId = anima?.chat_profile?.default_model_provider_id ?? null;
+  // Embedding models never appear; hidden ones only while they are the choice.
+  const models = useMemo(
+    () => selectableChatModels(catalog, activeItemId),
+    [activeItemId, catalog],
+  );
   const activeItem = useMemo(
     () => models.find((item) => item.id === activeItemId) ?? null,
     [activeItemId, models],
   );
+  // A removed model (or connection) leaves the Anima's choice unavailable.
+  const activeUnavailable =
+    Boolean(activeItemId) && catalogLoaded && !activeItem;
   const modelGroups = useMemo(() => groupModelOptions(models), [models]);
   const selectedNativeTools = useMemo(() => {
     const supported = new Set(supportedNativeTools(activeItem));
@@ -391,10 +406,12 @@ function ChatInputModelSelector({
     disabledProp || updateAnimaChatProfile.isPending || !anima?.chat_profile,
   );
   const tooltipLabel = activeItem
-    ? `${activeItem.provider_label}: ${activeItem.model_label}`
-    : anima?.chat_profile
-      ? "Select model"
-      : "No chat profile";
+    ? modelOptionLabel(activeItem)
+    : activeUnavailable
+      ? "Model unavailable. Select another model."
+      : anima?.chat_profile
+        ? "Select model"
+        : "No chat profile";
 
   const resetChatRequestSettingsForModel = useCallback(
     (item: PyModelProviderCatalogItem) => {
@@ -597,6 +614,8 @@ function ChatInputModelSelector({
             >
               {updateAnimaChatProfile.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
+              ) : activeUnavailable ? (
+                <TriangleAlert className="text-destructive size-4" />
               ) : activeItem?.logo_provider ? (
                 <ModelSelectorLogo
                   provider={activeItem.logo_provider}
@@ -636,12 +655,19 @@ function ChatInputModelSelector({
                 const rowGate = chatModelSendGate(activeChat, item);
                 const rowUnsupported =
                   !rowGate.ok && rowGate.reason === "unsupported_model";
+                // Owner models need a context window before they can chat.
+                const rowNeedsWindow =
+                  item.source === "owner" && item.context_window_tokens == null;
+                const modelName = item.model_label || item.model;
+                const providerName = modelOptionDetail(item);
                 return (
                   <ModelSelectorItem
                     key={item.id}
-                    value={`${item.provider_label} ${item.model_label} ${item.model}`}
+                    value={`${modelConnectionLabel(item)} ${providerName} ${modelName} ${item.model}`}
                     disabled={
-                      updateAnimaChatProfile.isPending || rowUnsupported
+                      updateAnimaChatProfile.isPending ||
+                      rowUnsupported ||
+                      rowNeedsWindow
                     }
                     data-checked={isActive}
                     onSelect={() => handleSelect(item)}
@@ -652,19 +678,21 @@ function ChatInputModelSelector({
                     ) : null}
                     <div className="min-w-0 flex-1">
                       <ModelSelectorName className="block">
-                        {item.model_label}
+                        {modelName}
                       </ModelSelectorName>
                       <span className="text-muted-foreground block truncate text-xs">
                         {rowUnsupported
                           ? "Not available for direct chat yet"
-                          : item.provider_label}
+                          : rowNeedsWindow
+                            ? "Set its context window in App Settings → Models"
+                            : providerName}
                       </span>
                     </div>
                     {showSettingsMenu ? (
                       <Popover>
                         <PopoverTrigger asChild>
                           <Button
-                            aria-label={`${item.model_label} settings`}
+                            aria-label={`${modelName} settings`}
                             type="button"
                             variant="ghost"
                             size="icon-sm"

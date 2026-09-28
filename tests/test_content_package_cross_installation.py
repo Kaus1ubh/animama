@@ -24,6 +24,7 @@ from animama.adapters.content_store import FilesystemContentStore
 from animama.adapters.repositories.sqlalchemy.anima_aggregate_uow import SQLAlchemyAnimaAggregateUnitOfWork
 from animama.adapters.repositories.sqlalchemy.anima_package_source_repo import SQLAlchemyAnimaPackageSourceRepository
 from animama.adapters.repositories.sqlalchemy.content_catalog_repo import SQLAlchemyContentCatalog
+from animama.app.model_catalog import serialize_builtin_model_connections
 from animama.app.services.anima_aggregate_materializer import AnimaAggregateMaterializer
 from animama.app.services.anima_package_source_service import AnimaPackageSourceService
 from animama.app.services.content_catalog_service import ContentCatalogService
@@ -41,6 +42,7 @@ from animama.domain.content_catalog import CatalogContentEntry, ContentKind, Con
 from animama.domain.emotions import TRACKED_EMOTIONS
 from animama.orm import ORMAnima, ORMAnimaSettings, ORMChat, ORMChatMessage, ORMMemoryEntry, ORMMemoryEntryVersion
 from animama.orm.anima_chat_profile import ORMAnimaChatProfile
+from animama.orm.model_connection import ORMModelConnection
 from animama.orm.model_provider import ORMModelProvider
 from animama.server.config import Settings
 from animama.server.local_runtime import LocalRuntimePaths, initialize_local_runtime
@@ -187,6 +189,9 @@ async def _receiver(url: str, root: Path) -> AsyncIterator[tuple[_Installation, 
                 ).scalar_one()
             )
             provider = "receiver-" + uuid4().hex
+            # Model rows belong to a connection; this fresh database has no catalog seed.
+            for row in serialize_builtin_model_connections():
+                await session.merge(ORMModelConnection(**row))
             session.add(
                 ORMModelProvider(
                     id=provider,

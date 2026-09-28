@@ -37,7 +37,8 @@ from animama.logging_config import get_logger
 from animama.orm import ORMAnima
 from animama.server.chat_options import DirectChatOptions, resolve_chat_request_options
 from animama.server.config import Settings, settings
-from animama.server.deps import get_embedder
+from animama.server.embeddings import role_embedder
+from animama.server.model_roles import ModelRoleSettings
 from animama.server.schemas.chat import PyAnimaChatRequest
 
 from .safety import TurnSafety, prepare_turn_safety
@@ -95,6 +96,7 @@ async def prepare_direct_chat_turn(
     run_id: str,
     chat_id: str,
     model_client_registry: ModelClientRegistry,
+    model_roles: ModelRoleSettings,
     runtime_settings: Settings = settings,
 ) -> DirectChatTurnSetup:
     """Validate route inputs and build the app-layer direct chat turn.
@@ -180,6 +182,10 @@ async def prepare_direct_chat_turn(
         searchable_attached_file_count=len(attached_file_ids),
     )
 
+    # Only attached uploads are searched during the turn, so the embeddings role
+    # is resolved only when files are attached.
+    upload_embedder = await role_embedder(session, user.id, model_roles) if attached_files else None
+
     # The executor itself is app-layer code. The route constructs SQLAlchemy
     # adapters here so dependency direction remains server -> app -> adapters.
     model_providers = SQLAlchemyModelProviderRepository(session)
@@ -204,7 +210,7 @@ async def prepare_direct_chat_turn(
         ),
         memory_tool_service=SessionBackedMemoryToolService(
             session_factory,
-            embedder_factory=get_embedder,
+            embedder_factory=lambda: upload_embedder,
             allowed_uploaded_files={user_file.id: user_file.original_filename for user_file in attached_files},
         ),
     )

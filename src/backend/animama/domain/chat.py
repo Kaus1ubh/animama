@@ -29,6 +29,8 @@ class Chat:
     api_standard: str | None = None
     last_model_client: str | None = None
     last_model_id: str | None = None
+    # Catalog row id of the last model; two connections may share a model slug.
+    last_model_provider_id: str | None = None
     openai_previous_response_id: str | None = None
     metadata: dict[str, Any] | None = field(default_factory=dict)
     usage: Usage = field(default_factory=Usage)

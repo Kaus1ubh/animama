@@ -12,7 +12,9 @@ available, the prompt includes a request-local
 and persisted chunk count, plus any safe processing overview available for the
 current turn. The count helps the model plan bounded sequential reads without
 exposing opaque backend file IDs, which remain outside model-facing prompts and
-tool results.
+tool results. A model without tool calling receives neither the tools nor the
+list, so its turns cannot search or read attachments; the chat composer says
+so.
 
 ## Current Surfaces
 
@@ -115,12 +117,14 @@ Chat and Library use the same upload lifecycle:
    be ZIP containers. Expired leases can be reclaimed after a worker exits.
 6. Before parsing, a non-forced job may reuse an owned ready file with the same
    SHA-256, normalized extension, and at least one chunk. It copies chunks,
-   embeddings, overview, and processing results into independent rows. Otherwise
-   it parses and [chunks](#chunking) the document, then embeds it if possible.
-   Embedding failure retains keyword-searchable chunks with a warning.
+   overview, and processing results into independent rows, and copies vectors
+   only when they come from the owner's current embeddings model. Otherwise it
+   parses and [chunks](#chunking) the document, then embeds it when the
+   [embeddings role](#embeddings-role) is on. Embedding failure retains
+   keyword-searchable chunks with a warning.
 7. Successful processing replaces chunks, stores the digest and timestamp, and
-   marks the job `succeeded`. The file becomes `ready` with embeddings or
-   `ready_keyword_only` without them. Failures record `last_error` and retry
+   marks the job `succeeded`. The file becomes `ready`, or `ready_keyword_only`
+   when embedding failed. Failures record `last_error` and retry
    with bounded backoff; exhausted jobs and files become `failed`. The client
    polls `GET /v1/files` for authoritative status and processing summaries.
 
@@ -134,6 +138,26 @@ log a warning. Tokenization uses the configured model, falling back to
 `cl100k_base` when tiktoken cannot resolve it. Scanned PDFs need explicit OCR;
 encrypted/password-protected documents fail processing.
 
+## Embeddings role
+
+Vectors come from the owner's embeddings model role: an App Settings
+assignment (`models.embedding_model_provider_id`), else
+`ANIMAMA_DEFAULT_EMBEDDING_MODEL_PROVIDER_ID`. Embeddings are off until one is
+chosen; files are still processed and searched by keyword. Any row of kind
+`embedding` works, including the built-in `OpenAIHTTPAgent:text-embedding-3-small`
+and local models served through a connection's `/v1/embeddings`.
+
+Each chunk records the catalog row id of the model that produced its vector
+(`embedding_model_id`) and the contextualized text that was embedded
+(`embedding_text`, when it differs from the display text). Search compares only
+vectors from the current model. After the role changes, an in-process task
+started by the local application re-embeds chunks and archive passages in
+batches, resting when nothing is stale, waking when settings change and backing
+off after failures. Text the model cannot embed (too long, blank, or refused
+while the rest of the batch succeeds) is recorded without a vector so it cannot
+stall the rest. `GET /v1/model-roles` reports progress under
+`embeddings_refresh`, including the category of a failing batch.
+
 ## Statuses
 
 File statuses:
@@ -141,9 +165,9 @@ File statuses:
 - `pending_upload`: metadata row exists but its local file is not finalized.
 - `uploaded`: the promoted local file exists and passed finalize checks.
 - `processing`: at least one processing job has been enqueued.
-- `ready`: chunks and embeddings are available.
-- `ready_keyword_only`: chunks are available, but embeddings were unavailable or
-  failed.
+- `ready`: chunks are available, with vectors when embeddings are on.
+- `ready_keyword_only`: chunks are available, but embedding failed. Re-embedding
+  marks the file `ready` once every chunk has a vector.
 - `failed`: upload finalization or processing failed.
 - `aborted`: pending upload was canceled.
 - `delete_pending`: object cleanup failed; normal list/search should hide or
@@ -176,7 +200,8 @@ Docling-parsed formats use Docling Core's `HybridChunker`:
   exceed the configured token budget, and merges compatible neighboring chunks
   when `merge_peers` allows it.
 - Anima stores display text in chunk rows and embeds Docling's contextualized
-  text. Contextualized text is transient and is not exposed through public APIs.
+  text, kept in `embedding_text` so re-embedding matches. Contextualized text is
+  not exposed through public APIs.
 - Hybrid chunk metadata is compacted to stable keys: `parser`, `chunker`,
   `headings`, `captions`, `origin`, `doc_items`, `doc_item_count`, and
   `token_count`. Bulky Docling document items are truncated in metadata while
@@ -229,10 +254,12 @@ not the overview alone, remain the evidence for document-content answers.
 Search modes:
 
 - `keyword`: PostgreSQL full-text search over chunk text.
-- `semantic`: embed the query and search pgvector chunk embeddings.
+- `semantic`: embed the query and search pgvector chunk embeddings. Returns
+  `503` while embeddings are off.
 - `hybrid`: run keyword search plus semantic search, then combine ranks with
-  reciprocal rank fusion. If semantic search is unavailable in hybrid mode, the
-  API returns keyword results with a warning.
+  reciprocal rank fusion. While embeddings are off or the searched files wait
+  for re-embedding, hybrid search returns keyword results only; a failed query
+  embedding returns keyword results with a warning.
 
 Results include file ID, original filename, extension, chunk ID, chunk index,
 score, match type, chunk text, and chunk metadata. Original object keys and
@@ -253,11 +280,10 @@ Rows match when the text vector satisfies the query, and Anima ranks matches
 with `ts_rank_cd`, PostgreSQL's cover-density rank function. Cover-density
 ranking rewards matches where query terms appear close together.
 
-Semantic search embeds the query with the configured embedding provider, then
-uses pgvector cosine distance against stored chunk embeddings. The SQL orders by
-nearest vector first with `<=>` and reports score as `1 - distance`. Chunks
-without embeddings are skipped. Files that processed without embeddings remain
-searchable by keyword and show status `ready_keyword_only`.
+Semantic search embeds the query with the embeddings-role model, then uses
+pgvector cosine distance against stored chunk embeddings from that same model.
+The SQL orders by nearest vector first with `<=>` and reports score as
+`1 - distance`. Chunks without a current vector are skipped.
 
 Hybrid search asks both retrievers for a wider candidate set, then combines
 their ranks with reciprocal rank fusion. For each ranked list, result rank `r`
@@ -343,8 +369,8 @@ Docling:
 - `ANIMAMA_USER_FILE_CHUNK_MAX_TOKENS`: Docling `HybridChunker` token budget.
   Defaults to `800`.
 - `ANIMAMA_USER_FILE_CHUNK_TOKENIZER_MODEL`: OpenAI/tiktoken model name for
-  `HybridChunker` sizing. Defaults to `ANIMAMA_EMBEDDING_MODEL`, then
-  `text-embedding-3-small`.
+  `HybridChunker` sizing. Defaults to `text-embedding-3-small`; it only sizes
+  chunks and is independent of the embeddings model.
 
 Compose worker resources:
 
@@ -385,6 +411,17 @@ added later.
 
 Processing enqueue is idempotent. Worker leases are recoverable after lease
 expiration. Reprocessing with `force=true` replaces chunks idempotently.
+
+## Known Limitations
+
+- Stored vectors are keyed by catalog row ID. Pointing an embeddings
+  connection at another server keeps the row ID, so existing vectors still
+  count as current: search compares them with the new server's vectors, and a
+  dimension mismatch fails semantic search. To re-embed, switch the Embeddings
+  role to a different model row, for example one added on a new connection.
+- A chunk that the server always rejects as a bad request, in a batch where no
+  other chunk succeeds, cannot be isolated. Re-embedding stays `retrying` and
+  `GET /v1/model-roles` reports that category under `embeddings_refresh`.
 
 ## Non-Goals
 

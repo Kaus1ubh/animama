@@ -124,6 +124,25 @@ covered by an applied Reflection and proposes a curated edit of its Anima
 memories. It never runs automatically. Turns count as covered only once its change
 is applied.
 
+## Model connection
+
+An endpoint the installation reaches models through: a base URL, how its key is
+supplied and compatibility options. The built-in OpenAI connection uses the
+OpenAI key and base URL from API Keys or the environment; the owner adds others,
+such as Ollama, LM Studio, llama.cpp or any OpenAI-compatible Chat Completions
+server, in App Settings → Models. Keys never enter the database. A connection's
+**models** are either built-in (read-only templates the owner can hide) or
+owner-added. The hosted composition has no owner connections; see
+[ADR 0011](docs/adr/0011-application-owned-companion-features-and-composition-catalog-policy.md).
+
+## Model role
+
+A job the installation gives a model: the default chat model for new Animas,
+Utility (chat titles and compaction), Memory Manager and Embeddings (file and
+archive search). Utility and the Memory Manager follow the default chat model
+unless chosen; Embeddings stay off, with keyword search, until chosen. An
+Anima's own chat model is chosen per Anima, not by a role.
+
 ## Companion guardrail
 
 The fixed, server-owned **Companion Guardrails** instruction section that ends

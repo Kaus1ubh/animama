@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from collections.abc import Callable
 from dataclasses import fields
 from typing import Any, cast
@@ -10,6 +11,17 @@ from animama.domain.usage import Usage
 OPENAI_HTTP_PROVIDER_TYPE = "OpenAIHTTPAgent"
 OPENAI_API = "chat_completions"
 DEFAULT_BASE_URL = "https://api.openai.com/v1"
+
+
+def resolve_openai_base_url(explicit: str | None = None) -> str:
+    """Return the built-in OpenAI endpoint: ``explicit`` when given, else ``OPENAI_BASE_URL``.
+
+    A blank value means the default endpoint. Compose passes ``OPENAI_BASE_URL=""``
+    when the operator sets nothing, and the SDK would otherwise use that empty URL.
+    """
+
+    value = explicit if explicit is not None else os.getenv("OPENAI_BASE_URL")
+    return ((value or "").strip() or DEFAULT_BASE_URL).rstrip("/")
 
 
 def chat_stream_event_delta(
@@ -56,6 +68,7 @@ def chat_stream_event_delta(
 
 __all__ = [
     "DEFAULT_BASE_URL",
+    "resolve_openai_base_url",
     "OPENAI_API",
     "OPENAI_HTTP_PROVIDER_TYPE",
     "chat_stream_event_delta",

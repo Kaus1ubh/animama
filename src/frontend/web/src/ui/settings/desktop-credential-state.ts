@@ -1,8 +1,10 @@
-import type {
-  CredentialChange,
-  CredentialProvider,
-  CredentialStatus,
-  CredentialsBridge,
+import {
+  credentialTarget,
+  isProviderCredential,
+  type CredentialChange,
+  type CredentialProvider,
+  type CredentialStatus,
+  type CredentialsBridge,
 } from "../../../../shared/desktop-runtime";
 
 /** Translate bounded main-process status into guidance without rendering raw errors. */
@@ -10,6 +12,8 @@ export function credentialFailureMessage(
   status: CredentialStatus,
 ): string | null {
   if (!status.error) return null;
+  if (status.error === "connection_credentials_full")
+    return "This computer already stores the most model connection keys it allows (32). Remove the key from a connection you no longer use, then retry.";
   if (status.error === "runtime_busy")
     return "The key was not changed because Animama is still finishing local work. Wait, then retry.";
   if (status.error === "runtime_quiesce_failed")
@@ -32,7 +36,9 @@ export async function applyCredentialChange(
       throw new Error("credential_change_failed");
   }
   const entries = await bridge.list();
-  const result = entries.find((entry) => entry.provider === provider);
+  const result = entries.find(
+    (entry) => isProviderCredential(entry) && entry.provider === provider,
+  );
   if (
     !result ||
     result.error ||
@@ -67,10 +73,11 @@ export function credentialChangesFromDrafts(
 }
 
 /**
- * Apply a batch with one local-service restart. Resolves with every provider's
- * status only when each change is confirmed by main's saved status; otherwise
- * rejects with `failed` (the providers that did not change) and `statuses`.
- * Typed keys are never kept for a retry; the owner re-enters them.
+ * Apply a batch with one local-service restart. Resolves with every status
+ * only when each change is confirmed by main's saved status; otherwise rejects
+ * with `failed` (the providers or connection variables that did not change)
+ * and `statuses`. Typed keys are never kept for a retry; the owner re-enters
+ * them.
  */
 export async function applyCredentialChanges(
   bridge: CredentialsBridge,
@@ -79,15 +86,19 @@ export async function applyCredentialChanges(
   const statuses = await bridge.apply([...changes]);
   const failed = changes
     .filter((change) => {
-      const status = statuses.find((item) => item.provider === change.provider);
+      const status = statuses.find(
+        (item) => credentialTarget(item) === credentialTarget(change),
+      );
+      // A removed connection key has no entry left, which confirms the removal.
+      if (!status)
+        return !("connection" in change) || change.value !== undefined;
       return (
-        !status ||
         status.error ||
         status.restartRequired ||
         status.configured !== (change.value !== undefined)
       );
     })
-    .map((change) => change.provider);
+    .map(credentialTarget);
   if (failed.length > 0)
     throw Object.assign(new Error("credential_change_failed"), {
       failed,

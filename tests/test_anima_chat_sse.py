@@ -20,7 +20,6 @@ from sqlalchemy import select
 
 from animama.app.chat.memory_context import ANIMA_MEMORIES_WRITE_GUIDANCE
 from animama.app.main_structured_response import MAIN_STRUCTURED_RESPONSE_FORMAT, MAIN_STRUCTURED_RESPONSE_KIND
-from animama.app.model_catalog import DEEPSEEK_BASE_URL, HUGGINGFACE_ROUTER_BASE_URL
 from animama.app.model_clients import (
     ModelClientDelta,
     ModelClientFinal,
@@ -46,6 +45,7 @@ from animama.orm import (
     ORMChatMessage,
     ORMMemoryEntry,
     ORMMemoryEntryVersion,
+    ORMModelConnection,
     ORMModelProvider,
 )
 from animama.orm.anima import ORMAnima
@@ -273,11 +273,11 @@ class _FakePromptRunner:
             text=self.text,
             usage=self.usage,
             model_provider=ModelProvider(
-                id=f"{request.model_provider}:{request.model}",
-                provider_type=request.model_provider,
-                model=request.model,
-                model_label=request.model,
-                provider_label=request.model_provider,
+                id="OpenAIResponsesHTTPAgent:gpt-6-luna",
+                provider_type="OpenAIResponsesHTTPAgent",
+                model="gpt-6-luna",
+                model_label="gpt-6-luna",
+                provider_label="OpenAI",
                 active=True,
             ),
         )
@@ -307,9 +307,9 @@ class _FakeAnimaChatProfileRepository:
 
 def _model_provider(
     *,
-    model_provider_id: str = "OpenAIHTTPAgent:gpt-5-nano",
+    model_provider_id: str = "OpenAIHTTPAgent:gpt-6-luna",
     provider_type: str = "OpenAIHTTPAgent",
-    model: str = "gpt-5-nano",
+    model: str = "gpt-6-luna",
     active: bool = True,
     supports_streaming: bool = True,
     structured_kinds: list[str] | None = None,
@@ -521,7 +521,7 @@ def _install_db_route_mocks(
     *,
     chat_options: Mapping[str, object] | None = None,
     model_client: _RouteModelClient | None = None,
-    default_model_provider_id: str = "OpenAIHTTPAgent:gpt-5-nano",
+    default_model_provider_id: str = "OpenAIHTTPAgent:gpt-6-luna",
     patch_profile_service: bool = True,
 ) -> None:
     global _CURRENT_TEST_REGISTRY
@@ -531,8 +531,6 @@ def _install_db_route_mocks(
         {
             "OpenAIHTTPAgent": model_client,
             "OpenAIResponsesHTTPAgent": model_client,
-            "GeminiAgent": model_client,
-            "LiteLLMAgent": model_client,
         }
     )
     monkeypatch.setattr(chat_sse, "get_async_session_factory", lambda _app: session_factory)
@@ -587,8 +585,9 @@ class _ProviderSeedOptions(TypedDict, total=False):
     provider_type: str
     model: str
     provider_label: str
-    provider_base_url: str | None
-    api_family: str | None
+    connection_id: str
+    source: str
+    context_window_tokens: int | None
     metadata: dict[str, Any] | None
     active: bool
     supports_streaming: bool
@@ -604,10 +603,11 @@ async def _seed_chat_model_provider(
     model_provider_id: str,
     *,
     provider_type: str = "OpenAIResponsesHTTPAgent",
-    model: str = "gpt-5-nano",
+    model: str = "gpt-6-luna",
     provider_label: str = "OpenAI",
-    provider_base_url: str | None = "https://api.openai.com/v1",
-    api_family: str | None = "openai",
+    connection_id: str = "openai",
+    source: str = "builtin",
+    context_window_tokens: int | None = 128_000,
     metadata: dict[str, Any] | None = None,
     active: bool = True,
     supports_streaming: bool = True,
@@ -623,8 +623,9 @@ async def _seed_chat_model_provider(
         "model": model,
         "model_label": model,
         "provider_label": provider_label,
-        "provider_base_url": provider_base_url,
-        "api_family": api_family,
+        "connection_id": connection_id,
+        "source": source,
+        "context_window_tokens": context_window_tokens,
         "active": active,
         "accepts": ["text"],
         "produces": ["text"],
@@ -646,12 +647,33 @@ async def _seed_chat_model_provider(
     await async_session.commit()
 
 
+async def _seed_owner_connection(
+    async_session,  # noqa: ANN001
+    connection_id: str,
+    *,
+    preset: str,
+    base_url: str,
+    name: str,
+) -> None:
+    async_session.add(
+        ORMModelConnection(
+            id=connection_id,
+            source="owner",
+            name=name,
+            preset=preset,
+            base_url=base_url,
+            compatibility={"fold_developer_role": True, "send_openai_extensions": False},
+        )
+    )
+    await async_session.commit()
+
+
 async def _seed_default_chat_model_provider(async_session) -> None:  # noqa: ANN001
     await _seed_chat_model_provider(
         async_session,
-        "OpenAIHTTPAgent:gpt-5-nano",
+        "OpenAIHTTPAgent:gpt-6-luna",
         provider_type="OpenAIHTTPAgent",
-        model="gpt-5-nano",
+        model="gpt-6-luna",
     )
 
 
@@ -827,8 +849,6 @@ def _install_route_compaction_mocks(
             enabled=True,
             threshold_tokens=threshold_tokens,
             recent_message_min_count=recent_message_min_count,
-            model_provider="OpenAIResponsesHTTPAgent",
-            model="gpt-5-nano",
             prompt_version="chat-compaction-v1-test",
         ),
     )
@@ -863,8 +883,6 @@ def _install_route_title_mocks(
         "chat_title_generation_settings",
         lambda: ChatTitleGenerationSettings(
             enabled=True,
-            model_provider="OpenAIResponsesHTTPAgent",
-            model="gpt-5-nano",
             prompt_version="chat-title-v1-test",
             max_chars=48,
             timeout_seconds=1.0,
@@ -963,9 +981,9 @@ def test_anima_chat_request_requires_runtime_revision() -> None:
 
 
 def test_anima_chat_request_accepts_model_provider_id() -> None:
-    request = _chat_request(message="hello", model_provider_id="  OpenAIResponsesHTTPAgent:gpt-5-nano  ")
+    request = _chat_request(message="hello", model_provider_id="  OpenAIResponsesHTTPAgent:gpt-6-luna  ")
 
-    assert request.model_provider_id == "OpenAIResponsesHTTPAgent:gpt-5-nano"
+    assert request.model_provider_id == "OpenAIResponsesHTTPAgent:gpt-6-luna"
     with pytest.raises(ValidationError):
         _chat_request(message="hello", model_provider_id=" \n\t ")
 
@@ -1446,7 +1464,7 @@ async def test_chat_sse_chat_options_flow_into_runtime_context(monkeypatch) -> N
         },
         model_client=model_client,
         model_provider=_model_provider(
-            model_provider_id="OpenAIResponsesHTTPAgent:gpt-5-nano",
+            model_provider_id="OpenAIResponsesHTTPAgent:gpt-6-luna",
             provider_type="OpenAIResponsesHTTPAgent",
         ),
     )
@@ -2573,14 +2591,14 @@ async def test_chat_sse_direct_executor_persists_chat_turn(monkeypatch) -> None:
     payload = chats.record_turn_payloads[0]
     assert payload["chat_id"] == "chat-1"
     assert payload["last_model_client"] == "openai_chat_completions"
-    assert payload["last_model_id"] == "gpt-5-nano"
+    assert payload["last_model_id"] == "gpt-6-luna"
     assert payload["user_msg"].model is None
     assert payload["user_msg"].model_provider is None
     assistant_messages = payload["assistant_msg"]
     assert isinstance(assistant_messages, ChatMessage)
     assistant_messages = [assistant_messages]
     assert [(message.model_provider, message.model) for message in assistant_messages] == [
-        ("OpenAIHTTPAgent", "gpt-5-nano")
+        ("OpenAIHTTPAgent", "gpt-6-luna")
     ]
 
 
@@ -2638,29 +2656,33 @@ async def test_chat_sse_model_provider_override_persists_selected_snapshot(
 
 
 @pytest.mark.asyncio
-async def test_chat_sse_deepseek_provider_initializes_chat_completions_and_persists_snapshot(
+async def test_chat_sse_owner_connection_row_initializes_chat_completions_and_persists_snapshot(
     monkeypatch,
     async_session,
     async_session_factory,
 ) -> None:
-    anima_id = "anima-db-deepseek"
-    chat_id = "chat-db-deepseek"
-    model_provider_id = "OpenAIHTTPAgent:deepseek-v4-flash"
+    anima_id = "anima-db-owner-connection"
+    chat_id = "chat-db-owner-connection"
+    model_provider_id = "owner:deepseek-flash"
     async_session.add(ORMAnima(id=anima_id, user_id="user-1"))
     await async_session.commit()
     await _seed_anima_identity_file(async_session, anima_id=anima_id)
+    await _seed_owner_connection(
+        async_session,
+        "conn-deepseek",
+        preset="deepseek",
+        base_url="https://api.deepseek.com",
+        name="DeepSeek",
+    )
     await _seed_chat_model_provider(
         async_session,
         model_provider_id,
         provider_type="OpenAIHTTPAgent",
         model="deepseek-v4-flash",
         provider_label="DeepSeek",
-        provider_base_url=DEEPSEEK_BASE_URL,
-        api_family="deepseek",
+        connection_id="conn-deepseek",
+        source="owner",
         supported_reasoning_efforts=["none", "high", "max"],
-        metadata={
-            "openai_compatible_provider": "deepseek",
-        },
     )
     model_client = _RouteModelClient(text=_direct_structured_response(speech="using deepseek"))
     _install_db_route_mocks(monkeypatch, async_session_factory, model_client=model_client)
@@ -2669,7 +2691,7 @@ async def test_chat_sse_deepseek_provider_initializes_chat_completions_and_persi
         anima_id,
         _chat_request(
             message="hello",
-            run_id="run-db-deepseek",
+            run_id="run-db-owner-connection",
             chat_id=chat_id,
             model_provider_id=model_provider_id,
         ),
@@ -2681,23 +2703,26 @@ async def test_chat_sse_deepseek_provider_initializes_chat_completions_and_persi
     assert _event_data(chunks, "run.completed")["chat_id"] == chat_id
     spec = model_client.seen_specs[0]
     assert spec.model_provider.id == model_provider_id
-    assert spec.model_provider.provider_base_url == DEEPSEEK_BASE_URL
+    assert spec.model_provider.connection is not None
+    assert spec.model_provider.connection.id == "conn-deepseek"
+    assert spec.model_provider.connection.base_url == "https://api.deepseek.com"
     chat = await async_session.get(ORMChat, chat_id)
     assert chat is not None
     assert chat.api_standard == "chat_completions"
     assert chat.last_model_client == "openai_chat_completions"
     assert chat.last_model_id == "deepseek-v4-flash"
+    assert chat.last_model_provider_id == model_provider_id
 
 
 @pytest.mark.asyncio
-async def test_chat_sse_deepseek_provider_is_rejected_for_responses_chat_before_model_call(
+async def test_chat_sse_owner_connection_row_is_rejected_for_responses_chat_before_model_call(
     monkeypatch,
     async_session,
     async_session_factory,
 ) -> None:
-    anima_id = "anima-db-deepseek-mismatch"
-    chat_id = "chat-db-deepseek-mismatch"
-    model_provider_id = "OpenAIHTTPAgent:deepseek-v4-pro"
+    anima_id = "anima-db-owner-connection-mismatch"
+    chat_id = "chat-db-owner-connection-mismatch"
+    model_provider_id = "owner:deepseek-pro"
     async_session.add(ORMAnima(id=anima_id, user_id="user-1"))
     async_session.add(
         ORMChat(
@@ -2710,16 +2735,22 @@ async def test_chat_sse_deepseek_provider_is_rejected_for_responses_chat_before_
     )
     await async_session.commit()
     await _seed_anima_identity_file(async_session, anima_id=anima_id)
+    await _seed_owner_connection(
+        async_session,
+        "conn-deepseek-mismatch",
+        preset="deepseek",
+        base_url="https://api.deepseek.com",
+        name="DeepSeek",
+    )
     await _seed_chat_model_provider(
         async_session,
         model_provider_id,
         provider_type="OpenAIHTTPAgent",
         model="deepseek-v4-pro",
         provider_label="DeepSeek",
-        provider_base_url=DEEPSEEK_BASE_URL,
-        api_family="deepseek",
+        connection_id="conn-deepseek-mismatch",
+        source="owner",
         supported_reasoning_efforts=["none", "high", "max"],
-        metadata={"openai_compatible_provider": "deepseek"},
     )
     model_client = _RouteModelClient()
     _install_db_route_mocks(monkeypatch, async_session_factory, model_client=model_client)
@@ -2729,7 +2760,7 @@ async def test_chat_sse_deepseek_provider_is_rejected_for_responses_chat_before_
             anima_id,
             _chat_request(
                 message="hello",
-                run_id="run-db-deepseek-mismatch",
+                run_id="run-db-owner-connection-mismatch",
                 chat_id=chat_id,
                 model_provider_id=model_provider_id,
             ),
@@ -2746,41 +2777,35 @@ async def test_chat_sse_deepseek_provider_is_rejected_for_responses_chat_before_
 
 
 @pytest.mark.asyncio
-async def test_chat_sse_huggingface_provider_initializes_chat_completions_and_persists_snapshot(
+async def test_chat_sse_owner_model_on_the_openai_connection_completes_a_turn(
     monkeypatch,
     async_session,
     async_session_factory,
 ) -> None:
-    anima_id = "anima-db-huggingface"
-    chat_id = "chat-db-huggingface"
-    model_provider_id = "OpenAIHTTPAgent:deepseek-ai/DeepSeek-V4-Pro:deepinfra"
-    model = "deepseek-ai/DeepSeek-V4-Pro:deepinfra"
+    """A newly released OpenAI model added by the owner chats without a code change."""
+
+    anima_id = "anima-db-owner-openai"
+    chat_id = "chat-db-owner-openai"
+    model_provider_id = "owner:gpt-6-luna"
     async_session.add(ORMAnima(id=anima_id, user_id="user-1"))
     await async_session.commit()
     await _seed_anima_identity_file(async_session, anima_id=anima_id)
     await _seed_chat_model_provider(
         async_session,
         model_provider_id,
-        provider_type="OpenAIHTTPAgent",
-        model=model,
-        provider_label="Hugging Face",
-        provider_base_url=HUGGINGFACE_ROUTER_BASE_URL,
-        api_family="huggingface",
-        supports_reasoning=None,
-        supported_reasoning_efforts=[],
-        native_tool_support=[],
-        metadata={"openai_compatible_provider": "huggingface"},
+        provider_type="OpenAIResponsesHTTPAgent",
+        model="gpt-6-luna",
+        source="owner",
+        context_window_tokens=1_050_000,
+        supported_reasoning_efforts=["none", "low"],
     )
-    model_client = _RouteModelClient(text=_direct_structured_response(speech="using hugging face"))
+    model_client = _RouteModelClient(text=_direct_structured_response(speech="new model"))
     _install_db_route_mocks(monkeypatch, async_session_factory, model_client=model_client)
 
     response = await chat_anima_direct_sse(
         anima_id,
         _chat_request(
-            message="hello",
-            run_id="run-db-huggingface",
-            chat_id=chat_id,
-            model_provider_id=model_provider_id,
+            message="hello", run_id="run-db-owner-openai", chat_id=chat_id, model_provider_id=model_provider_id
         ),
         request=_test_request(),
         user=RequestPrincipal(id="user-1"),
@@ -2789,72 +2814,64 @@ async def test_chat_sse_huggingface_provider_initializes_chat_completions_and_pe
 
     assert _event_data(chunks, "run.completed")["chat_id"] == chat_id
     spec = model_client.seen_specs[0]
-    assert spec.model_provider.id == model_provider_id
-    assert spec.model_provider.model == model
-    assert spec.model_provider.provider_base_url == HUGGINGFACE_ROUTER_BASE_URL
+    assert spec.model_provider.model == "gpt-6-luna"
+    assert spec.model_provider.connection is not None and spec.model_provider.connection.is_builtin_openai
     chat = await async_session.get(ORMChat, chat_id)
-    assert chat is not None
-    assert chat.api_standard == "chat_completions"
-    assert chat.last_model_client == "openai_chat_completions"
-    assert chat.last_model_id == model
+    assert chat is not None and chat.api_standard == "responses"
 
 
 @pytest.mark.asyncio
-async def test_chat_sse_huggingface_provider_is_rejected_for_responses_chat_before_model_call(
+async def test_chat_sse_selects_the_requested_connection_when_two_serve_the_same_model(
     monkeypatch,
     async_session,
     async_session_factory,
 ) -> None:
-    anima_id = "anima-db-huggingface-mismatch"
-    chat_id = "chat-db-huggingface-mismatch"
-    model_provider_id = "OpenAIHTTPAgent:zai-org/GLM-5.2:deepinfra"
+    anima_id = "anima-db-same-slug"
+    chat_id = "chat-db-same-slug"
     async_session.add(ORMAnima(id=anima_id, user_id="user-1"))
-    async_session.add(
-        ORMChat(
-            id=chat_id,
-            anima_id=anima_id,
-            user_id="user-1",
-            api_standard="responses",
-            metadata_={},
-        )
-    )
     await async_session.commit()
     await _seed_anima_identity_file(async_session, anima_id=anima_id)
-    await _seed_chat_model_provider(
-        async_session,
-        model_provider_id,
-        provider_type="OpenAIHTTPAgent",
-        model="zai-org/GLM-5.2:deepinfra",
-        provider_label="Hugging Face",
-        provider_base_url=HUGGINGFACE_ROUTER_BASE_URL,
-        api_family="huggingface",
-        supports_reasoning=None,
-        supported_reasoning_efforts=[],
-        native_tool_support=[],
-        metadata={"openai_compatible_provider": "huggingface"},
-    )
-    model_client = _RouteModelClient()
+    for connection_id, preset, port in (("conn-ollama", "ollama", 11434), ("conn-lmstudio", "lmstudio", 1234)):
+        await _seed_owner_connection(
+            async_session,
+            connection_id,
+            preset=preset,
+            base_url=f"http://127.0.0.1:{port}/v1",
+            name=preset,
+        )
+        await _seed_chat_model_provider(
+            async_session,
+            f"owner:{connection_id}-qwen",
+            provider_type="OpenAIHTTPAgent",
+            model="qwen3:8b",
+            provider_label=preset,
+            connection_id=connection_id,
+            source="owner",
+            supports_reasoning=None,
+            supported_reasoning_efforts=[],
+            native_tool_support=[],
+        )
+    model_client = _RouteModelClient(text=_direct_structured_response(speech="local"))
     _install_db_route_mocks(monkeypatch, async_session_factory, model_client=model_client)
 
-    with pytest.raises(HTTPException) as exc_info:
-        await chat_anima_direct_sse(
-            anima_id,
-            _chat_request(
-                message="hello",
-                run_id="run-db-huggingface-mismatch",
-                chat_id=chat_id,
-                model_provider_id=model_provider_id,
-            ),
-            request=_test_request(),
-            user=RequestPrincipal(id="user-1"),
-        )
+    response = await chat_anima_direct_sse(
+        anima_id,
+        _chat_request(
+            message="hello",
+            run_id="run-db-same-slug",
+            chat_id=chat_id,
+            model_provider_id="owner:conn-lmstudio-qwen",
+        ),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    chunks = await _collect_chunks(response)
 
-    assert exc_info.value.status_code == 409
-    assert _json_object(exc_info.value.detail)["code"] == "chat_api_standard_mismatch"
-    assert _json_object(exc_info.value.detail)["chat_api_standard"] == "responses"
-    assert _json_object(exc_info.value.detail)["requested_api_standard"] == "chat_completions"
-    assert _json_object(exc_info.value.detail)["requested_model_provider_id"] == model_provider_id
-    assert model_client.seen_specs == []
+    assert _event_data(chunks, "run.completed")["chat_id"] == chat_id
+    spec = model_client.seen_specs[0]
+    assert spec.model_provider.id == "owner:conn-lmstudio-qwen"
+    assert spec.model_provider.connection is not None
+    assert spec.model_provider.connection.base_url == "http://127.0.0.1:1234/v1"
 
 
 @pytest.mark.asyncio
@@ -2978,7 +2995,7 @@ async def test_chat_sse_model_provider_override_rejects_missing_provider(
     with pytest.raises(HTTPException) as exc:
         await chat_anima_direct_sse(
             anima_id,
-            _chat_request(message="hello", model_provider_id="MissingProvider:gpt-5-nano"),
+            _chat_request(message="hello", model_provider_id="MissingProvider:gpt-6-luna"),
             request=_test_request(),
             user=RequestPrincipal(id="user-1"),
         )
@@ -3162,9 +3179,9 @@ async def test_chat_sse_responses_memory_tools_active_and_gated_by_options(monke
     assert model_client.seen_specs[0].provider_options.memory_apply_patch_enabled is False
 
     capable_provider = _model_provider(
-        model_provider_id="OpenAIResponsesHTTPAgent:gpt-5.4-nano",
+        model_provider_id="OpenAIResponsesHTTPAgent:gpt-6-luna",
         provider_type="OpenAIResponsesHTTPAgent",
-        model="gpt-5.4-nano",
+        model="gpt-6-luna",
         native_tool_support=["web_search", "apply_patch"],
     )
     model_client = _RouteModelClient()
@@ -3481,14 +3498,14 @@ async def test_chat_sse_capable_responses_model_commits_native_patch_and_persist
 ) -> None:
     anima_id = "anima-db-native-patch"
     chat_id = "chat-db-native-patch"
-    provider_id = "OpenAIResponsesHTTPAgent:gpt-5.4-nano"
+    provider_id = "OpenAIResponsesHTTPAgent:gpt-6-luna"
     async_session.add(ORMAnima(id=anima_id, user_id="user-1"))
     await async_session.commit()
     await _seed_anima_identity_file(async_session, anima_id=anima_id)
     await _seed_chat_model_provider(
         async_session,
         provider_id,
-        model="gpt-5.4-nano",
+        model="gpt-6-luna",
         native_tool_support=["web_search", "apply_patch"],
     )
     operation = {
@@ -3994,7 +4011,7 @@ async def test_chat_sse_openai_responses_skips_local_compaction_for_native_compa
 ) -> None:
     anima_id = "anima-db-responses-native-compact"
     chat_id = "chat-db-responses-native-compact"
-    model_provider_id = "OpenAIResponsesHTTPAgent:gpt-5-nano"
+    model_provider_id = "OpenAIResponsesHTTPAgent:gpt-6-luna"
     async_session.add(ORMAnima(id=anima_id, user_id="user-1"))
     async_session.add(
         ORMChat(
@@ -4012,7 +4029,7 @@ async def test_chat_sse_openai_responses_skips_local_compaction_for_native_compa
         async_session,
         model_provider_id,
         provider_type="OpenAIResponsesHTTPAgent",
-        model="gpt-5-nano",
+        model="gpt-6-luna",
     )
     await _seed_visible_chat_messages(
         async_session,
@@ -4397,6 +4414,172 @@ async def test_chat_sse_cleans_up_when_stream_closes_early(monkeypatch) -> None:
 
     assert session.close_calls == 1
     assert model_client.close_calls == 0
+
+
+class _FailingRouteModelClient(_RouteModelClient):
+    def __init__(self, error: ModelClientProviderError) -> None:
+        super().__init__()
+        self.error = error
+
+    async def stream(self, spec: ModelClientRequest):  # noqa: ANN201
+        self.seen_specs.append(spec)
+        raise self.error
+        yield  # pragma: no cover
+
+
+@pytest.mark.parametrize(
+    ("code", "metadata", "category"),
+    [
+        ("openai_connection_error", {}, "unreachable"),
+        ("openai_authentication_error", {"status_code": 401}, "credential_rejected"),
+        ("openai_not_found", {"status_code": 404}, "model_not_found"),
+        ("openai_timeout", {}, "timeout"),
+        (
+            "openai_bad_request",
+            {"status_code": 400, "provider_error_message": "the request exceeds the available context size"},
+            "context_exceeded",
+        ),
+        ("missing_api_key", {}, "credential_missing"),
+        ("openai_rate_limit", {"status_code": 429}, "rate_limited"),
+        ("openai_quota_exceeded", {"status_code": 429}, "quota_exceeded"),
+        ("openai_server_error", {"status_code": 500}, "server_error"),
+        ("openai_bad_request", {"status_code": 400, "provider_error_message": "Unsupported parameter"}, "bad_request"),
+    ],
+)
+@pytest.mark.asyncio
+async def test_chat_sse_provider_failures_name_the_connection_and_leave_the_chat_unchanged(
+    monkeypatch,
+    async_session,
+    async_session_factory,
+    code,
+    metadata,
+    category,
+) -> None:
+    suffix = f"{code}-{category}".replace("_", "-")
+    anima_id = f"anima-db-failure-{suffix}"
+    chat_id = f"chat-db-failure-{suffix}"
+    connection_id = f"conn-failure-{suffix}"
+    model_provider_id = f"owner:failure-{suffix}"
+    async_session.add(ORMAnima(id=anima_id, user_id="user-1"))
+    async_session.add(
+        ORMChat(id=chat_id, anima_id=anima_id, user_id="user-1", api_standard="chat_completions", metadata_={})
+    )
+    await async_session.commit()
+    await _seed_anima_identity_file(async_session, anima_id=anima_id)
+    await _seed_owner_connection(
+        async_session, connection_id, preset="ollama", base_url="http://127.0.0.1:11434/v1", name="Ollama"
+    )
+    await _seed_chat_model_provider(
+        async_session,
+        model_provider_id,
+        provider_type="OpenAIHTTPAgent",
+        model="qwen3:8b",
+        connection_id=connection_id,
+        source="owner",
+        supports_reasoning=None,
+        supported_reasoning_efforts=[],
+        native_tool_support=[],
+    )
+    before = await async_session.get(ORMChat, chat_id)
+    assert before is not None
+    next_turn_before = before.next_turn
+    usage_before = before.cum_total_tokens
+    model_client = _FailingRouteModelClient(
+        ModelClientProviderError("provider failed", code=code, raw_metadata={"provider": "openai", **metadata})
+    )
+    _install_db_route_mocks(monkeypatch, async_session_factory, model_client=model_client)
+
+    response = await chat_anima_direct_sse(
+        anima_id,
+        _chat_request(message="hello", run_id=f"run-{suffix}", chat_id=chat_id, model_provider_id=model_provider_id),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    chunks = await _collect_chunks(response)
+
+    error = _event_data(chunks, "error")
+    assert error["code"] == code
+    assert error["details"]["category"] == category
+    assert error["details"]["connection_name"] == "Ollama"
+    assert error["details"]["connection_preset"] == "ollama"
+    assert error["details"]["provider"] == "ollama"
+    assert error["details"]["connection_base_url"] == "http://127.0.0.1:11434/v1"
+    assert sum(1 for chunk in chunks if "event: run.completed" in chunk) == 1
+    async_session.expire_all()
+    rows = (
+        (await async_session.execute(select(ORMChatMessage).where(ORMChatMessage.chat_id == chat_id))).scalars().all()
+    )
+    assert rows == []
+    after = await async_session.get(ORMChat, chat_id)
+    assert after is not None
+    assert after.next_turn == next_turn_before
+    assert after.cum_total_tokens == usage_before
+    assert after.openai_previous_response_id is None
+    assert after.last_model_provider_id is None
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_estimated_usage_advances_context_and_triggers_compaction(
+    monkeypatch,
+    async_session,
+    async_session_factory,
+) -> None:
+    """A server that streams no usage still grows the context and compacts."""
+
+    from animama.adapters.model_clients import OpenAIChatCompletionsModelClient
+    from tests.test_model_client_registry import _FakeOpenAIClient, _sdk_chunk
+
+    anima_id = "anima-db-estimated-usage"
+    chat_id = "chat-db-estimated-usage"
+    async_session.add(ORMAnima(id=anima_id, user_id="user-1"))
+    async_session.add(
+        ORMChat(id=chat_id, anima_id=anima_id, user_id="user-1", api_standard="chat_completions", metadata_={})
+    )
+    await async_session.commit()
+    await _seed_anima_identity_file(async_session, anima_id=anima_id)
+    await _seed_default_chat_model_provider(async_session)
+    await _seed_visible_chat_messages(
+        async_session,
+        chat_id=chat_id,
+        contents=["old-user-1", "old-assistant-1", "old-user-2", "old-assistant-2"],
+    )
+    reply = _direct_structured_response(speech="estimated")
+    adapter = OpenAIChatCompletionsModelClient(
+        api_key="sk-test",
+        client=_FakeOpenAIClient([_sdk_chunk(content=reply), _sdk_chunk(finish_reason="stop")]),  # type: ignore[arg-type]
+    )
+    _install_db_route_mocks(monkeypatch, async_session_factory, model_client=adapter)  # type: ignore[arg-type]
+    _install_route_compaction_mocks(monkeypatch, summary="Earlier talk.", usage=Usage(total_tokens=5))
+
+    response = await chat_anima_direct_sse(
+        anima_id,
+        _chat_request(message="hello", run_id="run-db-estimated-usage", chat_id=chat_id),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    chunks = await _collect_chunks(response)
+
+    assert any("event: run.completed" in chunk for chunk in chunks)
+    async_session.expire_all()
+    chat = await async_session.get(ORMChat, chat_id)
+    assert chat is not None and chat.active_context_tokens > 0
+    assistant = (
+        (
+            await async_session.execute(
+                select(ORMChatMessage)
+                .where(ORMChatMessage.chat_id == chat_id, ORMChatMessage.role == "assistant")
+                .order_by(ORMChatMessage.turn.desc())
+            )
+        )
+        .scalars()
+        .first()
+    )
+    assert assistant is not None
+    assert assistant.message_data["model_client"]["raw_provider_metadata"]["usage_estimated"] is True
+    compaction = (
+        await async_session.execute(select(ORMChatCompaction).where(ORMChatCompaction.chat_id == chat_id))
+    ).scalar_one()
+    assert compaction.metadata_["trigger_active_context_tokens"] == chat.active_context_tokens
 
 
 @pytest.mark.asyncio

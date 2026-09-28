@@ -339,6 +339,7 @@ class SQLAlchemyUserFileProcessingRepository(UserFileProcessingRepository):
         processing_metadata: dict[str, Any],
         file_metadata_updates: dict[str, Any] | None = None,
         processed_at: datetime,
+        embedding_model_id: str | None = None,
     ) -> UserFileProcessingJob:
         job_obj = await self._s.get(ORMUserFileProcessingJob, job_id)
         file_obj = await self._s.get(ORMUserFile, file_id)
@@ -356,7 +357,9 @@ class SQLAlchemyUserFileProcessingRepository(UserFileProcessingRepository):
                     user_id=user_id,
                     chunk_index=chunk.chunk_index,
                     text=chunk.text,
+                    embedding_text=chunk.embedding_text if chunk.embedding_text != chunk.text else None,
                     embedding=chunk.embedding,
+                    embedding_model_id=embedding_model_id if chunk.embedding is not None else None,
                     char_count=chunk.char_count,
                     token_estimate=chunk.token_estimate,
                     metadata_=dict(chunk.metadata),
@@ -397,8 +400,13 @@ class SQLAlchemyUserFileProcessingRepository(UserFileProcessingRepository):
         file_id: str,
         sha256: str,
         processed_at: datetime,
+        embedding_model_id: str | None = None,
     ) -> UserFileProcessingJob | None:
-        """Atomically clone a same-user digest match into the claimed target file."""
+        """Atomically clone a same-user digest match into the claimed target file.
+
+        Vectors are copied only from ``embedding_model_id``; other chunks are
+        left for re-embedding.
+        """
 
         job_obj = await self._s.get(ORMUserFileProcessingJob, job_id)
         file_obj = await self._s.get(ORMUserFile, file_id)
@@ -446,6 +454,8 @@ class SQLAlchemyUserFileProcessingRepository(UserFileProcessingRepository):
 
         await self._s.execute(delete(ORMUserFileChunk).where(ORMUserFileChunk.file_id == file_id))
         for chunk in source_chunks:
+            current_model = embedding_model_id is not None and chunk.embedding_model_id == embedding_model_id
+            vector = chunk.embedding if current_model else None
             chunk_metadata = deepcopy(chunk.metadata_ or {})
             if "filename" in chunk_metadata:
                 chunk_metadata["filename"] = file_obj.original_filename
@@ -458,7 +468,9 @@ class SQLAlchemyUserFileProcessingRepository(UserFileProcessingRepository):
                     user_id=user_id,
                     chunk_index=chunk.chunk_index,
                     text=chunk.text,
-                    embedding=list(chunk.embedding) if chunk.embedding is not None else None,
+                    embedding_text=chunk.embedding_text,
+                    embedding=list(vector) if vector is not None else None,
+                    embedding_model_id=embedding_model_id if vector is not None else None,
                     char_count=chunk.char_count,
                     token_estimate=chunk.token_estimate,
                     metadata_=chunk_metadata,
@@ -590,12 +602,14 @@ class SQLAlchemyUserFileProcessingRepository(UserFileProcessingRepository):
         *,
         user_id: str,
         embedding: list[float],
+        embedding_model_id: str,
         limit: int,
         file_ids: list[str] | None = None,
     ) -> list[UserFileSearchResult]:
         params: dict[str, Any] = {
             "user_id": user_id,
             "query_embedding": str([float(value) for value in embedding]),
+            "embedding_model_id": embedding_model_id,
             "limit": limit,
         }
         file_filter = _file_filter_sql(file_ids, params)
@@ -614,12 +628,33 @@ class SQLAlchemyUserFileProcessingRepository(UserFileProcessingRepository):
             WHERE c.user_id = :user_id
                 AND f.status IN ('ready', 'ready_keyword_only')
                 AND c.embedding IS NOT NULL
+                AND c.embedding_model_id = :embedding_model_id
                 {file_filter}
             ORDER BY c.embedding <=> CAST(:query_embedding AS vector), c.file_id, c.chunk_index
             LIMIT :limit
         """)
         rows = await self._s.execute(stmt, params)
         return [_search_row_to_domain(row, "semantic") for row in rows]
+
+    async def count_stale_chunks(
+        self,
+        *,
+        user_id: str,
+        embedding_model_id: str,
+        file_ids: list[str] | None = None,
+    ) -> int:
+        params: dict[str, Any] = {"user_id": user_id, "embedding_model_id": embedding_model_id}
+        file_filter = _file_filter_sql(file_ids, params)
+        stmt = text(f"""
+            SELECT count(*)
+            FROM user_file_chunk c
+            JOIN user_file f ON f.id = c.file_id AND f.user_id = c.user_id
+            WHERE c.user_id = :user_id
+                AND f.status IN ('ready', 'ready_keyword_only')
+                AND c.embedding_model_id IS DISTINCT FROM :embedding_model_id
+                {file_filter}
+        """)
+        return int((await self._s.execute(stmt, params)).scalar_one())
 
 
 def _file_filter_sql(file_ids: list[str] | None, params: dict[str, Any]) -> str:

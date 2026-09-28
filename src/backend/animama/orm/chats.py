@@ -38,6 +38,7 @@ class ORMChat(SqlalchemyBase, TimestampMixin, AuditMixin):
     api_standard: Mapped[str | None] = mapped_column(String, nullable=True)
     last_model_client: Mapped[str | None] = mapped_column(String, nullable=True)
     last_model_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    last_model_provider_id: Mapped[str | None] = mapped_column(String, nullable=True)
     openai_previous_response_id: Mapped[str | None] = mapped_column(String, nullable=True)
     metadata_: Mapped[dict[str, Any]] = mapped_column(
         "metadata", JSONB, nullable=False, server_default=sa_text("'{}'::jsonb")

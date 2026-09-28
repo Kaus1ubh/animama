@@ -6,19 +6,17 @@ import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass
 
+from animama.domain import ModelProvider
 from animama.domain.chat import ChatMessage
 from animama.domain.chat_compaction import STATUS_ACTIVE, ChatCompaction
 from animama.domain.usage import Usage
 from animama.logging import get_logger
-from animama.utils.type_helpers import coerce_provider_type
 
 from ..ports import UnitOfWork
 from ..ports.chat_compaction_port import ChatCompactionRepository
 from ..ports.chat_message_port import ChatMessageRepository
 from ..ports.chat_port import ChatRepository
 from .direct_model_prompt_runner import DirectModelPromptRequest, DirectModelPromptRunner
-
-DEFAULT_AUXILIARY_MODEL_PROVIDER = "OpenAIHTTPAgent"
 
 
 @dataclass(frozen=True, slots=True)
@@ -28,8 +26,6 @@ class ChatCompactionSettings:
     enabled: bool = True
     threshold_tokens: int = 100_000
     recent_message_min_count: int = 8
-    model_provider: str = DEFAULT_AUXILIARY_MODEL_PROVIDER
-    model: str = "gpt-5-nano"
     prompt_version: str = "chat-compaction-v1"
 
 
@@ -101,7 +97,7 @@ class ChatCompactionService:
             compacted_messages=compacted_messages,
             anchor_messages=preserved_messages[: min(4, len(preserved_messages))],
         )
-        summary_text, usage = await self._run_compaction_model(
+        summary_text, usage, provider = await self._run_compaction_model(
             anima_id=anima_id,
             user_id=user_id,
             chat_id=chat_id,
@@ -128,8 +124,8 @@ class ChatCompactionService:
             ),
             end_turn=last_compacted_turn,
             source_message_count=len(compacted_messages),
-            model_provider=str(coerce_provider_type(settings.model_provider) or settings.model_provider),
-            model=settings.model,
+            model_provider=provider.provider_type,
+            model=provider.model,
             prompt_version=settings.prompt_version,
             usage=usage,
             metadata={
@@ -181,7 +177,7 @@ class ChatCompactionService:
         user_id: str,
         chat_id: str,
         prompt: str,
-    ) -> tuple[str, Usage | None]:
+    ) -> tuple[str, Usage | None, ModelProvider]:
         result = await self._model_runner.run_prompt(
             DirectModelPromptRequest(
                 anima_id=anima_id,
@@ -189,8 +185,6 @@ class ChatCompactionService:
                 chat_id=chat_id,
                 run_id=f"chat-compaction-{uuid.uuid4().hex}",
                 task="chat-compaction",
-                model_provider=self._settings.model_provider,
-                model=self._settings.model,
                 prompt=prompt,
                 prompt_version=self._settings.prompt_version,
                 instructions=(
@@ -199,7 +193,7 @@ class ChatCompactionService:
                 ),
             )
         )
-        return result.text, result.usage
+        return result.text, result.usage, result.model_provider
 
     def _build_compaction_prompt(
         self,
@@ -246,5 +240,4 @@ __all__ = [
     "ChatCompactionResult",
     "ChatCompactionService",
     "ChatCompactionSettings",
-    "DEFAULT_AUXILIARY_MODEL_PROVIDER",
 ]

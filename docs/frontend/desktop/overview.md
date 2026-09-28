@@ -133,8 +133,8 @@ TypeScript compilation. Keep new bridge APIs narrow, serializable, and explicit.
 Do not expose Node or arbitrary Electron APIs directly to the renderer.
 
 Shared serializable runtime contracts live in `shared/desktop-runtime.ts`.
-Credential results contain only provider/configured/update/restart status and
-bounded failure codes;
+Credential results contain only the provider name or connection key variable,
+configured/update/restart status and bounded failure codes;
 there is no read-key API. Main accepts these operations only from a registered,
 live main window's top-level frame at the exact application origin. The
 recovery window has access only to runtime actions. PiP, quick chat, unknown
@@ -146,21 +146,28 @@ window and accept zero arguments; recovery can open only the fixed backup folder
 
 ## Provider Settings And Local State
 
-Embedded setup and Settings show optional OpenAI, DeepSeek, Hugging Face,
-Gemini, and ElevenLabs key controls. Keys are never read back or saved to
-browser storage. A save applies one change or a batch (`credentials.apply`,
-validated as at most one change per provider): it first drains local work, then encrypts
+Embedded setup and Settings → API Keys show optional OpenAI and ElevenLabs key
+controls. Keys for other model servers belong to their model connection
+(Settings → Models): main stores each under the connection's managed variable
+`ANIMAMA_CONNECTION_<ID>_API_KEY`, at most 32 of them, and the backend reads it
+from that variable. Keys are never read back or saved to browser storage. A save
+applies one change or a batch (`credentials.apply`, validated as at most eight
+changes and one per provider or connection): it first drains local work, then encrypts
 the vault through Electron `safeStorage` and restarts FastAPI and the installed
 document worker with the new environment. PostgreSQL, the stable origin, and local ownership do
 not change. Unavailable secure storage fails closed; it never falls back to
 plaintext storage. Browser and external-stack development do not show these
 desktop credential controls.
 
-A busy or failed drain leaves the previous credentials unchanged; a failed batch
-records the same failure for each provider in it. Main retains
-one bounded failure status per provider across product-window recreation, so
-reopening Settings explains why the change did not finish. A new accepted attempt clears that provider's
-previous failure. If the vault was already updated before a service restart
+A batch that would exceed 32 connection keys is refused with
+`connection_credentials_full` before anything drains. A busy or failed drain
+leaves the previous credentials unchanged; a failed batch records the same
+failure for each key in it. Main retains
+one bounded failure status per provider or connection key across product-window
+recreation, so reopening Settings explains why the change did not finish. A new
+accepted attempt clears that key's previous failure. Vaults from earlier releases
+open normally; their retired DeepSeek, Hugging Face and Gemini provider keys are
+dropped on load (re-enter them on a model connection). If the vault was already updated before a service restart
 failed, the saved value remains; Retry starts services with that value and
 clears the restart failure after verified readiness. These failure records stay
 in main-process memory only and contain no credential values.
@@ -172,7 +179,7 @@ On macOS the user-data root is `~/Library/Application Support/Animama`:
 | `runtime/state.json`     | Saved application port (`gatewayPort` remains the version-1 serialized field) |
 | `runtime/processes.json` | Child ownership evidence, not permission to kill stale PIDs                   |
 | `runtime/logs/main.log`  | Redacted supervisor and child logs                                            |
-| `secrets/vault.bin`      | Encrypted database password and optional provider keys                        |
+| `secrets/vault.bin`      | Encrypted database password and optional provider and connection keys         |
 | `postgres/16/data`       | Private PostgreSQL cluster                                                    |
 | `content/local`          | Writable typed Local library                                                  |
 | `data`                   | Private uploads and runtime staging                                           |

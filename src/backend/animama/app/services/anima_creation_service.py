@@ -15,6 +15,7 @@ from animama.app.anima_creation_contract import (
 from animama.app.chat.api_standard import chat_api_standard_for_provider
 from animama.app.ports.anima_aggregate_port import AnimaAggregateUnitOfWork
 from animama.app.ports.anima_creation_port import AnimaCreationRepository, CreationReceipt
+from animama.app.services.model_role_resolver import ROLE_CHAT, usable_for_role
 from animama.domain.anima_creation_error import AnimaCreationError, AnimaCreationIssue
 from animama.domain.anima_definition import AnimaDefinitionError
 from animama.domain.anima_loadout import AnimaLoadoutError
@@ -56,18 +57,22 @@ class AnimaCreationService:
             )
 
     async def _model_provider_id(self, *, user_id: str, for_update: bool = False) -> str:
-        """The owner's preferred model when it is known and active, else the default.
+        """The owner's preferred model when it can chat, else the default.
 
-        An unavailable or non-chat preference never blocks creation; it falls back to the
+        An unavailable or unsuitable preference never blocks creation; it falls back to the
         installation's configured model, which ``_defaults`` requires.
         """
 
         preferred = await self.preferred_model_provider_id(user_id) if self.preferred_model_provider_id else None
         if preferred:
             model = await self.uow.model_providers.get(preferred, for_update=for_update)
-            # Only models that direct chat supports; others would fail the
-            # new Anima's first turn with chat_api_standard_unsupported.
-            if model is not None and model.active and chat_api_standard_for_provider(model) is not None:
+            # Only rows the chat role accepts (for example not an embedding model or an
+            # owner row without a context window); others would fail the first turn.
+            if (
+                model is not None
+                and chat_api_standard_for_provider(model) is not None
+                and usable_for_role(ROLE_CHAT, model)
+            ):
                 return preferred
         return self.default_model_provider_id
 

@@ -1,5 +1,31 @@
--- Seed built-in provider/model catalog rows after Alembic creates model_providers.
--- Generated from animama.app.model_catalog.serialize_model_provider_catalog().
+-- Seed the built-in model connection and its provider/model catalog rows after
+-- Alembic creates the tables. Only built-in rows are inserted, updated or retired;
+-- owner-added connections and models, and the owner's hidden flags, are never changed.
+-- Generated from animama.app.model_catalog serializers by tests/test_model_provider_catalog.py.
+INSERT INTO model_connections (
+    id,
+    source,
+    name,
+    preset,
+    base_url,
+    credential_env,
+    compatibility,
+    timeout_seconds,
+    active
+) VALUES
+    ('openai', 'builtin', 'OpenAI', 'openai', NULL, NULL, '{"fold_developer_role":false,"reasoning_mode":"openai_effort","send_openai_extensions":true,"send_stream_usage":true,"strip_function_strict":false}'::jsonb, NULL, TRUE)
+ON CONFLICT (id) DO UPDATE SET
+    source = EXCLUDED.source,
+    name = EXCLUDED.name,
+    preset = EXCLUDED.preset,
+    base_url = EXCLUDED.base_url,
+    credential_env = EXCLUDED.credential_env,
+    compatibility = EXCLUDED.compatibility,
+    timeout_seconds = EXCLUDED.timeout_seconds,
+    active = EXCLUDED.active,
+    updated_at = CURRENT_TIMESTAMP
+WHERE model_connections.source = 'builtin';
+
 INSERT INTO model_providers (
     id,
     model,
@@ -11,8 +37,9 @@ INSERT INTO model_providers (
     current_snapshot,
     context_window_tokens,
     max_output_tokens,
-    provider_base_url,
-    api_family,
+    connection_id,
+    source,
+    model_kind,
     service_tiers_supported,
     active,
     deprecated_at,
@@ -62,21 +89,10 @@ INSERT INTO model_providers (
     pricing_notes,
     metadata
 ) VALUES
-    ('OpenAIHTTPAgent:deepseek-v4-flash', 'deepseek-v4-flash', 'OpenAIHTTPAgent', 'deepseek-v4-flash', 'DeepSeek', 'deepseek', 'reasoning', NULL, 1000000, 384000, 'https://api.deepseek.com', 'deepseek', '[]'::json, TRUE, NULL, '["text"]'::json, '["text"]'::json, FALSE, TRUE, TRUE, '["main_structured_response"]'::json, 'json_object', TRUE, '["none","high","max"]'::json, NULL, 'unpriced', 'deepseek', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '[]'::json, '{"openai_compatible_provider":"deepseek"}'::json),
-    ('OpenAIHTTPAgent:deepseek-v4-pro', 'deepseek-v4-pro', 'OpenAIHTTPAgent', 'deepseek-v4-pro', 'DeepSeek', 'deepseek', 'reasoning', NULL, 1000000, 384000, 'https://api.deepseek.com', 'deepseek', '[]'::json, TRUE, NULL, '["text"]'::json, '["text"]'::json, FALSE, TRUE, TRUE, '["main_structured_response"]'::json, 'json_object', TRUE, '["none","high","max"]'::json, NULL, 'unpriced', 'deepseek', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '[]'::json, '{"openai_compatible_provider":"deepseek"}'::json),
-    ('GeminiAgent:gemini-3.1-flash-lite-preview', 'gemini-3.1-flash-lite-preview', 'GeminiAgent', 'gemini-3.1-flash-lite-preview', 'Gemini', 'google', NULL, NULL, NULL, NULL, NULL, 'gemini', '[]'::json, TRUE, NULL, '["image","text"]'::json, '["text"]'::json, FALSE, TRUE, TRUE, '["main_structured_response"]'::json, 'json_schema', NULL, NULL, NULL, 'unpriced', 'gemini', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '[]'::json, '{}'::json),
-    ('OpenAIHTTPAgent:deepseek-ai/DeepSeek-V4-Pro:deepinfra', 'deepseek-ai/DeepSeek-V4-Pro:deepinfra', 'OpenAIHTTPAgent', 'deepseek-ai/DeepSeek-V4-Pro:deepinfra', 'Hugging Face', 'huggingface', NULL, NULL, NULL, NULL, 'https://router.huggingface.co/v1', 'huggingface', '[]'::json, TRUE, NULL, '["text"]'::json, '["text"]'::json, FALSE, TRUE, TRUE, '["main_structured_response"]'::json, 'json_schema', NULL, NULL, NULL, 'unpriced', 'huggingface', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '[]'::json, '{"openai_compatible_provider":"huggingface"}'::json),
-    ('OpenAIHTTPAgent:zai-org/GLM-5.2:deepinfra', 'zai-org/GLM-5.2:deepinfra', 'OpenAIHTTPAgent', 'zai-org/GLM-5.2:deepinfra', 'Hugging Face', 'huggingface', NULL, NULL, NULL, NULL, 'https://router.huggingface.co/v1', 'huggingface', '[]'::json, TRUE, NULL, '["text"]'::json, '["text"]'::json, FALSE, TRUE, TRUE, '["main_structured_response"]'::json, 'json_schema', NULL, NULL, NULL, 'unpriced', 'huggingface', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '[]'::json, '{"openai_compatible_provider":"huggingface"}'::json),
-    ('LiteLLMAgent:gemini/gemini-3.1-flash-lite-preview', 'gemini/gemini-3.1-flash-lite-preview', 'LiteLLMAgent', 'gemini/gemini-3.1-flash-lite-preview', 'LiteLLM', 'google', NULL, NULL, NULL, NULL, NULL, 'litellm', '[]'::json, TRUE, NULL, '["image","text"]'::json, '["text"]'::json, FALSE, TRUE, TRUE, '["main_structured_response"]'::json, 'json_schema', NULL, NULL, NULL, 'unpriced', 'gemini', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '[]'::json, '{}'::json),
-    ('LiteLLMAgent:groq/openai/gpt-oss-120b', 'groq/openai/gpt-oss-120b', 'LiteLLMAgent', 'groq/openai/gpt-oss-120b', 'LiteLLM', 'groq', NULL, NULL, NULL, NULL, NULL, 'litellm', '[]'::json, TRUE, NULL, '["text"]'::json, '["text"]'::json, FALSE, TRUE, TRUE, '["main_structured_response"]'::json, 'json_schema', NULL, NULL, NULL, 'unpriced', 'groq', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '[]'::json, '{}'::json),
-    ('LiteLLMAgent:openai/gpt-5.4-nano', 'openai/gpt-5.4-nano', 'LiteLLMAgent', 'openai/gpt-5.4-nano', 'LiteLLM', 'openai', 'reasoning', 'gpt-5.4-nano-2026-03-17', NULL, NULL, NULL, 'litellm', '["standard","batch","flex"]'::json, TRUE, NULL, '["image","text"]'::json, '["text"]'::json, FALSE, TRUE, TRUE, '["main_structured_response"]'::json, 'json_schema', TRUE, '["none","low","medium","high","xhigh"]'::json, NULL, 'priced', 'openai', 'gpt-5.4-nano', 'https://developers.openai.com/api/docs/pricing', '2026-06-16', 'USD', '1M_tokens', 0.20, 0.02, 1.25, 0.10, 0.01, 0.625, 0.10, 0.01, 0.625, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 1.10, '["Regional processing endpoints apply a 10 percent uplift for GPT-5.4 nano."]'::json, '{}'::json),
-    ('LiteLLMAgent:xai/grok-4-1-fast-reasoning-latest', 'xai/grok-4-1-fast-reasoning-latest', 'LiteLLMAgent', 'xai/grok-4-1-fast-reasoning-latest', 'LiteLLM', 'xai', NULL, NULL, NULL, NULL, NULL, 'litellm', '[]'::json, TRUE, NULL, '["text"]'::json, '["text"]'::json, FALSE, TRUE, TRUE, '["main_structured_response"]'::json, 'json_schema', NULL, NULL, NULL, 'unpriced', 'xai', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '[]'::json, '{}'::json),
-    ('OpenAIHTTPAgent:gpt-5-nano', 'gpt-5-nano', 'OpenAIHTTPAgent', 'gpt-5-nano', 'OpenAI HTTP', 'openai', 'reasoning', 'gpt-5-nano-2025-08-07', NULL, NULL, 'https://api.openai.com/v1', 'openai', '["standard","batch","flex"]'::json, TRUE, NULL, '["image","text"]'::json, '["text"]'::json, TRUE, TRUE, TRUE, '["main_structured_response"]'::json, 'json_schema', TRUE, '["minimal","low","medium","high"]'::json, NULL, 'priced', 'openai', 'gpt-5-nano', 'https://developers.openai.com/api/docs/pricing', '2026-06-16', 'USD', '1M_tokens', 0.05, 0.005, 0.4, 0.025, 0.0025, 0.2, 0.025, 0.0025, 0.2, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '[]'::json, '{}'::json),
-    ('OpenAIHTTPAgent:gpt-5.4-nano', 'gpt-5.4-nano', 'OpenAIHTTPAgent', 'gpt-5.4-nano', 'OpenAI HTTP', 'openai', 'reasoning', 'gpt-5.4-nano-2026-03-17', NULL, NULL, 'https://api.openai.com/v1', 'openai', '["standard","batch","flex"]'::json, TRUE, NULL, '["image","text"]'::json, '["text"]'::json, TRUE, TRUE, TRUE, '["main_structured_response"]'::json, 'json_schema', TRUE, '["none","low","medium","high","xhigh"]'::json, NULL, 'priced', 'openai', 'gpt-5.4-nano', 'https://developers.openai.com/api/docs/pricing', '2026-06-16', 'USD', '1M_tokens', 0.20, 0.02, 1.25, 0.10, 0.01, 0.625, 0.10, 0.01, 0.625, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 1.10, '["Regional processing endpoints apply a 10 percent uplift for GPT-5.4 nano."]'::json, '{}'::json),
-    ('OpenAIResponsesHTTPAgent:gpt-5-nano', 'gpt-5-nano', 'OpenAIResponsesHTTPAgent', 'gpt-5-nano', 'OpenAI Responses HTTP', 'openai', 'reasoning', 'gpt-5-nano-2025-08-07', NULL, NULL, 'https://api.openai.com/v1', 'openai', '["standard","batch","flex"]'::json, TRUE, NULL, '["image","text"]'::json, '["text"]'::json, TRUE, TRUE, TRUE, '["main_structured_response"]'::json, 'json_schema', TRUE, '["minimal","low","medium","high"]'::json, NULL, 'priced', 'openai', 'gpt-5-nano', 'https://developers.openai.com/api/docs/pricing', '2026-06-16', 'USD', '1M_tokens', 0.05, 0.005, 0.4, 0.025, 0.0025, 0.2, 0.025, 0.0025, 0.2, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '[]'::json, '{}'::json),
-    ('OpenAIResponsesHTTPAgent:gpt-5.4-nano', 'gpt-5.4-nano', 'OpenAIResponsesHTTPAgent', 'gpt-5.4-nano', 'OpenAI Responses HTTP', 'openai', 'reasoning', 'gpt-5.4-nano-2026-03-17', NULL, NULL, 'https://api.openai.com/v1', 'openai', '["standard","batch","flex"]'::json, TRUE, NULL, '["image","text"]'::json, '["text"]'::json, TRUE, TRUE, TRUE, '["main_structured_response"]'::json, 'json_schema', TRUE, '["none","low","medium","high","xhigh"]'::json, '["apply_patch","web_search"]'::json, 'priced', 'openai', 'gpt-5.4-nano', 'https://developers.openai.com/api/docs/pricing', '2026-06-16', 'USD', '1M_tokens', 0.20, 0.02, 1.25, 0.10, 0.01, 0.625, 0.10, 0.01, 0.625, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 1.10, '["Regional processing endpoints apply a 10 percent uplift for GPT-5.4 nano."]'::json, '{}'::json),
-    ('OpenAIResponsesHTTPAgent:gpt-5.6-luna', 'gpt-5.6-luna', 'OpenAIResponsesHTTPAgent', 'gpt-5.6-luna', 'OpenAI Responses HTTP', 'openai', 'reasoning', 'gpt-5.6-luna', 1050000, 128000, 'https://api.openai.com/v1', 'openai', '["standard","batch","flex","priority"]'::json, TRUE, NULL, '["image","text"]'::json, '["text"]'::json, TRUE, TRUE, TRUE, '["main_structured_response"]'::json, 'json_schema', TRUE, '["none","low","medium","high","xhigh","max"]'::json, '["apply_patch","web_search"]'::json, 'priced', 'openai', 'gpt-5.6-luna', 'https://developers.openai.com/api/docs/pricing', '2026-08-08', 'USD', '1M_tokens', 0.20, 0.02, 1.20, 0.10, 0.01, 0.60, 0.10, 0.01, 0.60, 0.40, 0.04, 2.40, 272000, 0.40, 0.04, 1.80, 0.20, 0.02, 0.90, 0.20, 0.02, 0.90, 0.80, 0.08, 3.60, 1.10, '["OpenAI Fast mode rates are stored in the existing priority tier fields.","OpenAI cache-write pricing is not represented by Animama''s current token cost estimate.","Regional processing endpoints apply a 10 percent uplift for GPT-5.6 models.","Requests with more than 272,000 input tokens use long-context rates for the full request."]'::json, '{}'::json),
-    ('OpenAIResponsesHTTPAgent:gpt-5.6-terra', 'gpt-5.6-terra', 'OpenAIResponsesHTTPAgent', 'gpt-5.6-terra', 'OpenAI Responses HTTP', 'openai', 'reasoning', 'gpt-5.6-terra', 1050000, 128000, 'https://api.openai.com/v1', 'openai', '["standard","batch","flex","priority"]'::json, TRUE, NULL, '["image","text"]'::json, '["text"]'::json, TRUE, TRUE, TRUE, '["main_structured_response"]'::json, 'json_schema', TRUE, '["none","low","medium","high","xhigh","max"]'::json, '["apply_patch","web_search"]'::json, 'priced', 'openai', 'gpt-5.6-terra', 'https://developers.openai.com/api/docs/pricing', '2026-08-08', 'USD', '1M_tokens', 2.00, 0.20, 12.00, 1.00, 0.10, 6.00, 1.00, 0.10, 6.00, 4.00, 0.40, 24.00, 272000, 4.00, 0.40, 18.00, 2.00, 0.20, 9.00, 2.00, 0.20, 9.00, 8.00, 0.80, 36.00, 1.10, '["OpenAI Fast mode rates are stored in the existing priority tier fields.","OpenAI cache-write pricing is not represented by Animama''s current token cost estimate.","Regional processing endpoints apply a 10 percent uplift for GPT-5.6 models.","Requests with more than 272,000 input tokens use long-context rates for the full request."]'::json, '{}'::json)
+    ('OpenAIHTTPAgent:gpt-6-luna', 'gpt-6-luna', 'OpenAIHTTPAgent', 'gpt-6-luna', 'OpenAI HTTP', 'openai', 'reasoning', 'gpt-6-luna', 1050000, 128000, 'openai', 'builtin', 'chat', '["standard"]'::json, TRUE, NULL, '["image","text"]'::json, '["text"]'::json, TRUE, TRUE, TRUE, '["main_structured_response"]'::json, 'json_schema', TRUE, '["none","low","medium","high","xhigh","max"]'::json, NULL, 'priced', 'openai', 'gpt-6-luna', NULL, '2026-09-28', 'USD', '1M_tokens', 0.10, NULL, 0.50, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '["Cached-input, batch, flex, priority and long-context rates are unknown and are not estimated.","Standard input and output rates were supplied by the owner on 2026-09-28."]'::json, '{}'::json),
+    ('OpenAIHTTPAgent:text-embedding-3-large', 'text-embedding-3-large', 'OpenAIHTTPAgent', 'text-embedding-3-large', 'OpenAI HTTP', 'openai', NULL, NULL, NULL, NULL, 'openai', 'builtin', 'embedding', '[]'::json, TRUE, NULL, '["text"]'::json, '["embedding"]'::json, TRUE, FALSE, FALSE, '[]'::json, NULL, NULL, NULL, NULL, 'unpriced', 'openai', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '[]'::json, '{}'::json),
+    ('OpenAIHTTPAgent:text-embedding-3-small', 'text-embedding-3-small', 'OpenAIHTTPAgent', 'text-embedding-3-small', 'OpenAI HTTP', 'openai', NULL, NULL, NULL, NULL, 'openai', 'builtin', 'embedding', '[]'::json, TRUE, NULL, '["text"]'::json, '["embedding"]'::json, TRUE, FALSE, FALSE, '[]'::json, NULL, NULL, NULL, NULL, 'unpriced', 'openai', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '[]'::json, '{}'::json),
+    ('OpenAIResponsesHTTPAgent:gpt-6-luna', 'gpt-6-luna', 'OpenAIResponsesHTTPAgent', 'gpt-6-luna', 'OpenAI Responses HTTP', 'openai', 'reasoning', 'gpt-6-luna', 1050000, 128000, 'openai', 'builtin', 'chat', '["standard"]'::json, TRUE, NULL, '["image","text"]'::json, '["text"]'::json, TRUE, TRUE, TRUE, '["main_structured_response"]'::json, 'json_schema', TRUE, '["none","low","medium","high","xhigh","max"]'::json, '["apply_patch","web_search"]'::json, 'priced', 'openai', 'gpt-6-luna', NULL, '2026-09-28', 'USD', '1M_tokens', 0.10, NULL, 0.50, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '["Cached-input, batch, flex, priority and long-context rates are unknown and are not estimated.","Standard input and output rates were supplied by the owner on 2026-09-28."]'::json, '{}'::json)
 ON CONFLICT (id) DO UPDATE SET
     model = EXCLUDED.model,
     provider_type = EXCLUDED.provider_type,
@@ -87,8 +103,7 @@ ON CONFLICT (id) DO UPDATE SET
     current_snapshot = EXCLUDED.current_snapshot,
     context_window_tokens = EXCLUDED.context_window_tokens,
     max_output_tokens = EXCLUDED.max_output_tokens,
-    provider_base_url = EXCLUDED.provider_base_url,
-    api_family = EXCLUDED.api_family,
+    model_kind = EXCLUDED.model_kind,
     service_tiers_supported = EXCLUDED.service_tiers_supported,
     active = EXCLUDED.active,
     deprecated_at = EXCLUDED.deprecated_at,
@@ -137,4 +152,66 @@ ON CONFLICT (id) DO UPDATE SET
     regional_processing_uplift_factor = EXCLUDED.regional_processing_uplift_factor,
     pricing_notes = EXCLUDED.pricing_notes,
     metadata = EXCLUDED.metadata,
-    updated_at = CURRENT_TIMESTAMP;
+    updated_at = CURRENT_TIMESTAMP
+WHERE model_providers.source = 'builtin';
+
+-- Retire built-in rows that the current release no longer ships.
+UPDATE model_providers SET
+    active = FALSE,
+    deprecated_at = COALESCE(deprecated_at, CURRENT_TIMESTAMP),
+    updated_at = CURRENT_TIMESTAMP
+WHERE source = 'builtin' AND active AND id NOT IN ('OpenAIHTTPAgent:gpt-6-luna', 'OpenAIHTTPAgent:text-embedding-3-large', 'OpenAIHTTPAgent:text-embedding-3-small', 'OpenAIResponsesHTTPAgent:gpt-6-luna');
+
+-- Move Animas and the owner's chat-model roles off retired built-in rows onto the
+-- current built-in row on the same API, so existing installations keep chatting.
+UPDATE anima_chat_profiles AS profile SET
+    default_model_provider_id = remap.replacement_id,
+    updated_at = CURRENT_TIMESTAMP
+FROM (VALUES
+    ('OpenAIHTTPAgent:gpt-5-nano', 'OpenAIHTTPAgent:gpt-6-luna'),
+    ('OpenAIHTTPAgent:gpt-5.4-nano', 'OpenAIHTTPAgent:gpt-6-luna'),
+    ('OpenAIResponsesHTTPAgent:gpt-5-nano', 'OpenAIResponsesHTTPAgent:gpt-6-luna'),
+    ('OpenAIResponsesHTTPAgent:gpt-5.4-nano', 'OpenAIResponsesHTTPAgent:gpt-6-luna'),
+    ('OpenAIResponsesHTTPAgent:gpt-5.6-luna', 'OpenAIResponsesHTTPAgent:gpt-6-luna'),
+    ('OpenAIResponsesHTTPAgent:gpt-5.6-terra', 'OpenAIResponsesHTTPAgent:gpt-6-luna')
+) AS remap(retired_id, replacement_id)
+WHERE profile.default_model_provider_id = remap.retired_id;
+
+UPDATE user_settings AS settings SET
+    preferences = jsonb_set(settings.preferences, '{chat,default_model_provider_id}', to_jsonb(remap.replacement_id)),
+    updated_at = CURRENT_TIMESTAMP
+FROM (VALUES
+    ('OpenAIHTTPAgent:gpt-5-nano', 'OpenAIHTTPAgent:gpt-6-luna'),
+    ('OpenAIHTTPAgent:gpt-5.4-nano', 'OpenAIHTTPAgent:gpt-6-luna'),
+    ('OpenAIResponsesHTTPAgent:gpt-5-nano', 'OpenAIResponsesHTTPAgent:gpt-6-luna'),
+    ('OpenAIResponsesHTTPAgent:gpt-5.4-nano', 'OpenAIResponsesHTTPAgent:gpt-6-luna'),
+    ('OpenAIResponsesHTTPAgent:gpt-5.6-luna', 'OpenAIResponsesHTTPAgent:gpt-6-luna'),
+    ('OpenAIResponsesHTTPAgent:gpt-5.6-terra', 'OpenAIResponsesHTTPAgent:gpt-6-luna')
+) AS remap(retired_id, replacement_id)
+WHERE settings.preferences #>> '{chat,default_model_provider_id}' = remap.retired_id;
+
+UPDATE user_settings AS settings SET
+    preferences = jsonb_set(settings.preferences, '{models,utility_model_provider_id}', to_jsonb(remap.replacement_id)),
+    updated_at = CURRENT_TIMESTAMP
+FROM (VALUES
+    ('OpenAIHTTPAgent:gpt-5-nano', 'OpenAIHTTPAgent:gpt-6-luna'),
+    ('OpenAIHTTPAgent:gpt-5.4-nano', 'OpenAIHTTPAgent:gpt-6-luna'),
+    ('OpenAIResponsesHTTPAgent:gpt-5-nano', 'OpenAIResponsesHTTPAgent:gpt-6-luna'),
+    ('OpenAIResponsesHTTPAgent:gpt-5.4-nano', 'OpenAIResponsesHTTPAgent:gpt-6-luna'),
+    ('OpenAIResponsesHTTPAgent:gpt-5.6-luna', 'OpenAIResponsesHTTPAgent:gpt-6-luna'),
+    ('OpenAIResponsesHTTPAgent:gpt-5.6-terra', 'OpenAIResponsesHTTPAgent:gpt-6-luna')
+) AS remap(retired_id, replacement_id)
+WHERE settings.preferences #>> '{models,utility_model_provider_id}' = remap.retired_id;
+
+UPDATE user_settings AS settings SET
+    preferences = jsonb_set(settings.preferences, '{models,memory_manager_model_provider_id}', to_jsonb(remap.replacement_id)),
+    updated_at = CURRENT_TIMESTAMP
+FROM (VALUES
+    ('OpenAIHTTPAgent:gpt-5-nano', 'OpenAIHTTPAgent:gpt-6-luna'),
+    ('OpenAIHTTPAgent:gpt-5.4-nano', 'OpenAIHTTPAgent:gpt-6-luna'),
+    ('OpenAIResponsesHTTPAgent:gpt-5-nano', 'OpenAIResponsesHTTPAgent:gpt-6-luna'),
+    ('OpenAIResponsesHTTPAgent:gpt-5.4-nano', 'OpenAIResponsesHTTPAgent:gpt-6-luna'),
+    ('OpenAIResponsesHTTPAgent:gpt-5.6-luna', 'OpenAIResponsesHTTPAgent:gpt-6-luna'),
+    ('OpenAIResponsesHTTPAgent:gpt-5.6-terra', 'OpenAIResponsesHTTPAgent:gpt-6-luna')
+) AS remap(retired_id, replacement_id)
+WHERE settings.preferences #>> '{models,memory_manager_model_provider_id}' = remap.retired_id;

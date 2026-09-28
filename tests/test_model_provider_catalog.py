@@ -13,16 +13,16 @@ from animama.adapters.mappers.model_provider_map import model_provider_domain_to
 from animama.adapters.repositories.sqlalchemy.model_provider_repo import SQLAlchemyModelProviderRepository
 from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
 from animama.app.model_catalog import (
-    DEEPSEEK_BASE_URL,
-    HUGGINGFACE_ROUTER_BASE_URL,
     MODEL_CATALOG,
-    STRUCTURED_OUTPUT_TRANSPORT_JSON_OBJECT,
+    RETIRED_BUILTIN_REPLACEMENTS,
     STRUCTURED_OUTPUT_TRANSPORT_JSON_SCHEMA,
+    serialize_builtin_model_connections,
     serialize_model_catalog,
     serialize_model_provider_catalog,
     structured_output_transport,
 )
 from animama.app.services.model_provider_catalog_service import ModelProviderCatalogService
+from animama.app.services.model_role_resolver import ROLE_EMBEDDINGS, ROLE_PREFERENCE_PATHS
 from animama.domain import ModelProvider, ModelProviderCapabilities, ModelProviderPricing
 from animama.orm import ORMAnimaChatProfile, ORMChatMessage, ORMModelProvider
 from animama.orm.base import Base
@@ -53,10 +53,8 @@ PRICE_COLUMNS = (
     "priority_long_context_cached_input_price_per_million",
     "priority_long_context_output_price_per_million",
 )
-HUGGINGFACE_MODELS = (
-    "zai-org/GLM-5.2:deepinfra",
-    "deepseek-ai/DeepSeek-V4-Pro:deepinfra",
-)
+# Retired built-ins are chat rows, so only chat-model roles can name them.
+CHAT_ROLE_PREFERENCE_PATHS = tuple(path for role, path in ROLE_PREFERENCE_PATHS.items() if role != ROLE_EMBEDDINGS)
 SEED_SQL_PATH = Path("alembic/seeds/01-seed-model-providers.sql")
 SEED_COLUMNS = (
     "id",
@@ -69,8 +67,9 @@ SEED_COLUMNS = (
     "current_snapshot",
     "context_window_tokens",
     "max_output_tokens",
-    "provider_base_url",
-    "api_family",
+    "connection_id",
+    "source",
+    "model_kind",
     "service_tiers_supported",
     "active",
     "deprecated_at",
@@ -120,6 +119,18 @@ SEED_COLUMNS = (
     "pricing_notes",
     "metadata",
 )
+CONNECTION_SEED_COLUMNS = (
+    "id",
+    "source",
+    "name",
+    "preset",
+    "base_url",
+    "credential_env",
+    "compatibility",
+    "timeout_seconds",
+    "active",
+)
+SEED_JSONB_COLUMNS = {"compatibility"}
 SEED_JSON_COLUMNS = {
     "service_tiers_supported",
     "accepts",
@@ -154,8 +165,9 @@ def _sql_quote(value: str) -> str:
 def _seed_sql_literal(value: Any, column: str) -> str:
     if value is None:
         return "NULL"
-    if column in SEED_JSON_COLUMNS:
-        return _sql_quote(json.dumps(value, sort_keys=True, separators=(",", ":"))) + "::json"
+    if column in SEED_JSON_COLUMNS or column in SEED_JSONB_COLUMNS:
+        cast = "::jsonb" if column in SEED_JSONB_COLUMNS else "::json"
+        return _sql_quote(json.dumps(value, sort_keys=True, separators=(",", ":"))) + cast
     if isinstance(value, bool):
         return "TRUE" if value else "FALSE"
     if isinstance(value, Decimal):
@@ -167,21 +179,92 @@ def _seed_sql_literal(value: Any, column: str) -> str:
     return _sql_quote(str(value))
 
 
-def _render_seed_sql() -> str:
-    column_sql = ",\n    ".join(SEED_COLUMNS)
+def _render_upsert(
+    table: str,
+    columns: tuple[str, ...],
+    rows: list[dict[str, Any]],
+    *,
+    where: str,
+    insert_only: frozenset[str] = frozenset(),
+) -> str:
+    column_sql = ",\n    ".join(columns)
     value_lines = []
-    for row in serialize_model_provider_catalog():
-        values = ", ".join(_seed_sql_literal(row.get(column), column) for column in SEED_COLUMNS)
+    for row in rows:
+        values = ", ".join(_seed_sql_literal(row.get(column), column) for column in columns)
         value_lines.append(f"    ({values})")
-    set_lines = [f"    {column} = EXCLUDED.{column}" for column in SEED_COLUMNS if column != "id"]
+    set_lines = [
+        f"    {column} = EXCLUDED.{column}" for column in columns if column != "id" and column not in insert_only
+    ]
     set_lines.append("    updated_at = CURRENT_TIMESTAMP")
     return (
-        "-- Seed built-in provider/model catalog rows after Alembic creates model_providers.\n"
-        "-- Generated from animama.app.model_catalog.serialize_model_provider_catalog().\n"
-        "INSERT INTO model_providers (\n"
+        f"INSERT INTO {table} (\n"
         f"    {column_sql}\n"
-        ") VALUES\n" + ",\n".join(value_lines) + "\nON CONFLICT (id) DO UPDATE SET\n" + ",\n".join(set_lines) + ";\n"
+        ") VALUES\n"
+        + ",\n".join(value_lines)
+        + "\nON CONFLICT (id) DO UPDATE SET\n"
+        + ",\n".join(set_lines)
+        + f"\nWHERE {table}.{where};\n"
     )
+
+
+def _render_seed_sql() -> str:
+    provider_rows = serialize_model_provider_catalog()
+    builtin_ids = ", ".join(_sql_quote(str(row["id"])) for row in provider_rows)
+    return (
+        "-- Seed the built-in model connection and its provider/model catalog rows after\n"
+        "-- Alembic creates the tables. Only built-in rows are inserted, updated or retired;\n"
+        "-- owner-added connections and models, and the owner's hidden flags, are never changed.\n"
+        "-- Generated from animama.app.model_catalog serializers by tests/test_model_provider_catalog.py.\n"
+        + _render_upsert(
+            "model_connections",
+            CONNECTION_SEED_COLUMNS,
+            serialize_builtin_model_connections(),
+            where="source = 'builtin'",
+        )
+        + "\n"
+        + _render_upsert(
+            "model_providers",
+            SEED_COLUMNS,
+            provider_rows,
+            where="source = 'builtin'",
+            # A built-in row's ownership never changes after insertion.
+            insert_only=frozenset({"connection_id", "source"}),
+        )
+        + "\n-- Retire built-in rows that the current release no longer ships.\n"
+        + "UPDATE model_providers SET\n"
+        + "    active = FALSE,\n"
+        + "    deprecated_at = COALESCE(deprecated_at, CURRENT_TIMESTAMP),\n"
+        + "    updated_at = CURRENT_TIMESTAMP\n"
+        + f"WHERE source = 'builtin' AND active AND id NOT IN ({builtin_ids});\n"
+        + _render_retired_builtin_remap()
+    )
+
+
+def _render_retired_builtin_remap() -> str:
+    remap = ",\n".join(
+        f"    ({_sql_quote(retired)}, {_sql_quote(replacement)})"
+        for retired, replacement in sorted(RETIRED_BUILTIN_REPLACEMENTS.items())
+    )
+    remap_from = f"FROM (VALUES\n{remap}\n) AS remap(retired_id, replacement_id)\n"
+    sql = (
+        "\n-- Move Animas and the owner's chat-model roles off retired built-in rows onto the\n"
+        "-- current built-in row on the same API, so existing installations keep chatting.\n"
+        "UPDATE anima_chat_profiles AS profile SET\n"
+        "    default_model_provider_id = remap.replacement_id,\n"
+        "    updated_at = CURRENT_TIMESTAMP\n"
+        + remap_from
+        + "WHERE profile.default_model_provider_id = remap.retired_id;\n"
+    )
+    for section, key in CHAT_ROLE_PREFERENCE_PATHS:
+        path = "'{" + section + "," + key + "}'"
+        sql += (
+            "\nUPDATE user_settings AS settings SET\n"
+            f"    preferences = jsonb_set(settings.preferences, {path}, to_jsonb(remap.replacement_id)),\n"
+            "    updated_at = CURRENT_TIMESTAMP\n"
+            + remap_from
+            + f"WHERE settings.preferences #>> {path} = remap.retired_id;\n"
+        )
+    return sql
 
 
 def _rows_by_id() -> dict[str, dict[str, object]]:
@@ -204,168 +287,57 @@ def test_model_provider_catalog_has_one_row_per_registry_provider_model_pair() -
     assert all(row["id"] == f"{row['provider_type']}:{row['model']}" for row in rows)
 
 
-def test_openai_direct_rows_have_exact_catalog_pricing() -> None:
-    rows = _rows_by_id()
-
-    for provider_type in ("OpenAIHTTPAgent", "OpenAIResponsesHTTPAgent"):
-        row = rows[f"{provider_type}:gpt-5-nano"]
-        assert row["pricing_status"] == "priced"
-        assert row["pricing_source_provider"] == "openai"
-        assert row["pricing_source_model"] == "gpt-5-nano"
-        assert row["pricing_source_checked_at"] == date(2026, 6, 16)
-        assert row["currency"] == "USD"
-        assert row["billing_unit"] == "1M_tokens"
-        assert row["service_tiers_supported"] == ["standard", "batch", "flex"]
-        assert row["standard_input_price_per_million"] == Decimal("0.05")
-        assert row["standard_cached_input_price_per_million"] == Decimal("0.005")
-        assert row["standard_output_price_per_million"] == Decimal("0.4")
-        assert row["batch_input_price_per_million"] == Decimal("0.025")
-        assert row["batch_cached_input_price_per_million"] == Decimal("0.0025")
-        assert row["batch_output_price_per_million"] == Decimal("0.2")
-        assert row["flex_input_price_per_million"] == Decimal("0.025")
-        assert row["flex_cached_input_price_per_million"] == Decimal("0.0025")
-        assert row["flex_output_price_per_million"] == Decimal("0.2")
-        assert row["priority_input_price_per_million"] is None
-        assert row["regional_processing_uplift_factor"] is None
-
-    for provider_type in ("OpenAIHTTPAgent", "OpenAIResponsesHTTPAgent"):
-        row = rows[f"{provider_type}:gpt-5.4-nano"]
-        assert row["pricing_status"] == "priced"
-        assert row["pricing_source_provider"] == "openai"
-        assert row["pricing_source_model"] == "gpt-5.4-nano"
-        assert row["pricing_source_checked_at"] == date(2026, 6, 16)
-        assert row["currency"] == "USD"
-        assert row["billing_unit"] == "1M_tokens"
-        assert row["service_tiers_supported"] == ["standard", "batch", "flex"]
-        assert row["standard_input_price_per_million"] == Decimal("0.20")
-        assert str(row["standard_input_price_per_million"]) == "0.20"
-        assert row["standard_cached_input_price_per_million"] == Decimal("0.02")
-        assert row["standard_output_price_per_million"] == Decimal("1.25")
-        assert row["batch_input_price_per_million"] == Decimal("0.10")
-        assert row["batch_cached_input_price_per_million"] == Decimal("0.01")
-        assert row["batch_output_price_per_million"] == Decimal("0.625")
-        assert row["flex_input_price_per_million"] == Decimal("0.10")
-        assert row["flex_cached_input_price_per_million"] == Decimal("0.01")
-        assert row["flex_output_price_per_million"] == Decimal("0.625")
-        assert row["priority_input_price_per_million"] is None
-        assert row["regional_processing_uplift_factor"] == Decimal("1.10")
-        assert str(row["regional_processing_uplift_factor"]) == "1.10"
+def test_built_in_chat_rows_are_gpt_6_luna_on_both_apis_plus_embeddings() -> None:
+    assert set(_rows_by_id()) == {
+        "OpenAIHTTPAgent:gpt-6-luna",
+        "OpenAIResponsesHTTPAgent:gpt-6-luna",
+        "OpenAIHTTPAgent:text-embedding-3-small",
+        "OpenAIHTTPAgent:text-embedding-3-large",
+    }
 
 
-@pytest.mark.parametrize(
-    ("model", "short_rates", "long_rates"),
-    [
-        (
-            "gpt-5.6-luna",
-            {
-                "standard": ("0.20", "0.02", "1.20"),
-                "batch": ("0.10", "0.01", "0.60"),
-                "flex": ("0.10", "0.01", "0.60"),
-                "priority": ("0.40", "0.04", "2.40"),
-            },
-            {
-                "standard": ("0.40", "0.04", "1.80"),
-                "batch": ("0.20", "0.02", "0.90"),
-                "flex": ("0.20", "0.02", "0.90"),
-                "priority": ("0.80", "0.08", "3.60"),
-            },
-        ),
-        (
-            "gpt-5.6-terra",
-            {
-                "standard": ("2.00", "0.20", "12.00"),
-                "batch": ("1.00", "0.10", "6.00"),
-                "flex": ("1.00", "0.10", "6.00"),
-                "priority": ("4.00", "0.40", "24.00"),
-            },
-            {
-                "standard": ("4.00", "0.40", "18.00"),
-                "batch": ("2.00", "0.20", "9.00"),
-                "flex": ("2.00", "0.20", "9.00"),
-                "priority": ("8.00", "0.80", "36.00"),
-            },
-        ),
-    ],
-)
-def test_openai_gpt_5_6_responses_rows_have_exact_catalog_pricing(
-    model: str,
-    short_rates: dict[str, tuple[str, str, str]],
-    long_rates: dict[str, tuple[str, str, str]],
-) -> None:
-    row = _rows_by_id()[f"OpenAIResponsesHTTPAgent:{model}"]
+@pytest.mark.parametrize("provider_type", ["OpenAIHTTPAgent", "OpenAIResponsesHTTPAgent"])
+def test_gpt_6_luna_rows_price_only_the_known_standard_rates(provider_type: str) -> None:
+    row = _rows_by_id()[f"{provider_type}:gpt-6-luna"]
 
     assert row["pricing_status"] == "priced"
-    assert row["current_snapshot"] == model
+    assert row["current_snapshot"] == "gpt-6-luna"
     assert row["context_window_tokens"] == 1_050_000
     assert row["max_output_tokens"] == 128_000
     assert row["pricing_source_provider"] == "openai"
-    assert row["pricing_source_model"] == model
-    assert row["pricing_source_checked_at"] == date(2026, 8, 8)
+    assert row["pricing_source_model"] == "gpt-6-luna"
+    assert row["pricing_source_checked_at"] == date(2026, 9, 28)
     assert row["currency"] == "USD"
     assert row["billing_unit"] == "1M_tokens"
-    assert row["service_tiers_supported"] == ["standard", "batch", "flex", "priority"]
-    assert row["long_context_token_threshold"] == 272_000
-    assert row["regional_processing_uplift_factor"] == Decimal("1.10")
-    assert isinstance(row["pricing_notes"], list)
-    assert len(row["pricing_notes"]) == 4
-
-    for tier, rates in short_rates.items():
-        input_rate, cached_rate, output_rate = rates
-        assert row[f"{tier}_input_price_per_million"] == Decimal(input_rate)
-        assert row[f"{tier}_cached_input_price_per_million"] == Decimal(cached_rate)
-        assert row[f"{tier}_output_price_per_million"] == Decimal(output_rate)
-
-    for tier, rates in long_rates.items():
-        input_rate, cached_rate, output_rate = rates
-        assert row[f"{tier}_long_context_input_price_per_million"] == Decimal(input_rate)
-        assert row[f"{tier}_long_context_cached_input_price_per_million"] == Decimal(cached_rate)
-        assert row[f"{tier}_long_context_output_price_per_million"] == Decimal(output_rate)
+    assert row["standard_input_price_per_million"] == Decimal("0.10")
+    assert str(row["standard_input_price_per_million"]) == "0.10"
+    assert row["standard_output_price_per_million"] == Decimal("0.50")
+    # Unknown rates stay unknown: never zero.
+    assert row["standard_cached_input_price_per_million"] is None
+    assert row["service_tiers_supported"] == ["standard"]
+    assert row["long_context_token_threshold"] is None
+    assert row["regional_processing_uplift_factor"] is None
+    for column in PRICE_COLUMNS:
+        if column not in {"standard_input_price_per_million", "standard_output_price_per_million"}:
+            assert row[column] is None, column
+    assert row["pricing_notes"]
 
 
-def test_openai_litellm_alias_uses_openai_pass_through_pricing_source() -> None:
-    row = _rows_by_id()["LiteLLMAgent:openai/gpt-5.4-nano"]
+def test_retired_built_ins_map_to_gpt_6_luna_on_the_same_api() -> None:
+    current_ids = set(_rows_by_id())
 
-    assert row["pricing_status"] == "priced"
-    assert row["api_family"] == "litellm"
-    assert row["pricing_source_provider"] == "openai"
-    assert row["pricing_source_model"] == "gpt-5.4-nano"
-    assert row["standard_input_price_per_million"] == Decimal("0.20")
-    assert row["standard_cached_input_price_per_million"] == Decimal("0.02")
-    assert row["standard_output_price_per_million"] == Decimal("1.25")
-    assert row["batch_input_price_per_million"] == Decimal("0.10")
-    assert row["batch_cached_input_price_per_million"] == Decimal("0.01")
-    assert row["batch_output_price_per_million"] == Decimal("0.625")
-    assert row["flex_input_price_per_million"] == Decimal("0.10")
-    assert row["flex_cached_input_price_per_million"] == Decimal("0.01")
-    assert row["flex_output_price_per_million"] == Decimal("0.625")
-    assert row["priority_input_price_per_million"] is None
-    assert row["regional_processing_uplift_factor"] == Decimal("1.10")
-
-
-def test_non_openai_rows_are_explicitly_unpriced() -> None:
-    priced_ids = {
-        "OpenAIHTTPAgent:gpt-5-nano",
-        "OpenAIResponsesHTTPAgent:gpt-5-nano",
-        "OpenAIHTTPAgent:gpt-5.4-nano",
-        "OpenAIResponsesHTTPAgent:gpt-5.4-nano",
+    assert set(RETIRED_BUILTIN_REPLACEMENTS) == {
         "OpenAIResponsesHTTPAgent:gpt-5.6-luna",
         "OpenAIResponsesHTTPAgent:gpt-5.6-terra",
-        "LiteLLMAgent:openai/gpt-5.4-nano",
+        "OpenAIResponsesHTTPAgent:gpt-5-nano",
+        "OpenAIResponsesHTTPAgent:gpt-5.4-nano",
+        "OpenAIHTTPAgent:gpt-5-nano",
+        "OpenAIHTTPAgent:gpt-5.4-nano",
     }
-
-    for row in serialize_model_provider_catalog():
-        if row["id"] in priced_ids:
-            continue
-        assert row["pricing_status"] == "unpriced"
-        assert row["pricing_source_provider"] in {"gemini", "xai", "groq", "deepseek", "huggingface"}
-        assert row["pricing_source_model"] is None
-        assert row["pricing_source_url"] is None
-        assert row["pricing_source_checked_at"] is None
-        assert row["currency"] is None
-        assert row["billing_unit"] is None
-        assert row["service_tiers_supported"] == []
-        for column in PRICE_COLUMNS:
-            assert row[column] is None
+    for retired, replacement in RETIRED_BUILTIN_REPLACEMENTS.items():
+        assert retired not in current_ids
+        assert replacement in current_ids
+        assert retired.split(":", 1)[0] == replacement.split(":", 1)[0]
 
 
 def test_public_model_catalog_serializer_does_not_expose_pricing() -> None:
@@ -387,145 +359,29 @@ def test_public_model_catalog_serializer_exposes_api_standard_fields() -> None:
         assert "api_standard" in row
         assert "supports_developer_role" in row
 
-    for model in ("gpt-5-nano", "gpt-5.4-nano"):
-        chat_row = rows[f"OpenAIHTTPAgent:{model}"]
-        assert chat_row["model_client"] == "openai_chat_completions"
-        assert chat_row["api_standard"] == "chat_completions"
-        assert chat_row["supports_developer_role"] is True
+    chat_row = rows["OpenAIHTTPAgent:gpt-6-luna"]
+    assert chat_row["model_client"] == "openai_chat_completions"
+    assert chat_row["api_standard"] == "chat_completions"
+    assert chat_row["supports_developer_role"] is True
 
-        responses_row = rows[f"OpenAIResponsesHTTPAgent:{model}"]
-        assert responses_row["model_client"] == "openai_responses"
-        assert responses_row["api_standard"] == "responses"
-        assert responses_row["supports_developer_role"] is True
+    responses_row = rows["OpenAIResponsesHTTPAgent:gpt-6-luna"]
+    assert responses_row["model_client"] == "openai_responses"
+    assert responses_row["api_standard"] == "responses"
+    assert responses_row["supports_developer_role"] is True
 
-    for model in ("gpt-5.6-luna", "gpt-5.6-terra"):
-        assert f"OpenAIHTTPAgent:{model}" not in rows
-        responses_row = rows[f"OpenAIResponsesHTTPAgent:{model}"]
-        assert responses_row["model_client"] == "openai_responses"
-        assert responses_row["api_standard"] == "responses"
-        assert responses_row["supports_developer_role"] is True
-        assert responses_row["supported_reasoning_efforts"] == [
-            "none",
-            "low",
-            "medium",
-            "high",
-            "xhigh",
-            "max",
-        ]
+    for row in (chat_row, responses_row):
+        assert row["context_window_tokens"] == 1_050_000
+        assert row["accepts"] == ["image", "text"]
+        assert row["supported_reasoning_efforts"] == ["none", "low", "medium", "high", "xhigh", "max"]
         # The frontend uses the first catalog effort as its explicit default.
-        assert responses_row["supported_reasoning_efforts"][0] == "none"
-
-    for row in rows.values():
-        if str(row["model_provider"]) in {"GeminiAgent", "LiteLLMAgent"}:
-            assert row["model_client"] is None
-            assert row["api_standard"] is None
-            assert row["supports_developer_role"] is False
-
-
-def test_deepseek_v4_rows_use_openai_chat_completions_provider() -> None:
-    provider_rows = _rows_by_id()
-    public_rows = {str(row["id"]): row for row in serialize_model_catalog()}
-
-    assert "LiteLLMAgent:deepseek/deepseek-v4-flash" not in provider_rows
-    assert "LiteLLMAgent:deepseek/deepseek-v4-pro" not in provider_rows
-
-    for model in ("deepseek-v4-flash", "deepseek-v4-pro"):
-        row = provider_rows[f"OpenAIHTTPAgent:{model}"]
-        assert row["provider_type"] == "OpenAIHTTPAgent"
-        assert row["provider_label"] == "DeepSeek"
-        assert row["logo_provider"] == "deepseek"
-        assert row["provider_base_url"] == DEEPSEEK_BASE_URL
-        assert row["api_family"] == "deepseek"
-        assert row["pricing_status"] == "unpriced"
-        assert row["pricing_source_provider"] == "deepseek"
-        assert row["accepts"] == ["text"]
-        assert row["produces"] == ["text"]
-        assert row["supports_developer_role"] is False
-        assert row["supports_tools"] is True
-        assert row["supports_streaming"] is True
-        assert row["structured_kinds"] == ["main_structured_response"]
-        assert row["structured_output_transport"] == STRUCTURED_OUTPUT_TRANSPORT_JSON_OBJECT
-        assert row["supports_reasoning"] is True
-        assert row["supported_reasoning_efforts"] == ["none", "high", "max"]
-        assert isinstance(row["metadata"], dict)
-        assert row["metadata"]["openai_compatible_provider"] == "deepseek"
-        assert "thinking" not in row["metadata"]
-        assert "reasoning_effort_map" not in row["metadata"]
-        assert structured_output_transport("OpenAIHTTPAgent", model) == STRUCTURED_OUTPUT_TRANSPORT_JSON_OBJECT
-
-        public_row = public_rows[f"OpenAIHTTPAgent:{model}"]
-        assert public_row["model_provider"] == "OpenAIHTTPAgent"
-        assert public_row["provider_label"] == "DeepSeek"
-        assert public_row["logo_provider"] == "deepseek"
-        assert public_row["model_client"] == "openai_chat_completions"
-        assert public_row["api_standard"] == "chat_completions"
-        assert public_row["supports_developer_role"] is False
-
-
-def test_huggingface_rows_use_openai_chat_completions_provider() -> None:
-    provider_rows = _rows_by_id()
-    public_rows = {str(row["id"]): row for row in serialize_model_catalog()}
-
-    for model in HUGGINGFACE_MODELS:
-        row_id = f"OpenAIHTTPAgent:{model}"
-        row = provider_rows[row_id]
-        assert row["id"] == row_id
-        assert row["provider_type"] == "OpenAIHTTPAgent"
-        assert row["model"] == model
-        assert row["provider_label"] == "Hugging Face"
-        assert row["logo_provider"] == "huggingface"
-        assert row["provider_base_url"] == HUGGINGFACE_ROUTER_BASE_URL
-        assert row["api_family"] == "huggingface"
-        assert row["pricing_status"] == "unpriced"
-        assert row["pricing_source_provider"] == "huggingface"
-        assert row["accepts"] == ["text"]
-        assert row["produces"] == ["text"]
-        assert row["supports_developer_role"] is False
-        assert row["supports_tools"] is True
-        assert row["supports_streaming"] is True
-        assert row["structured_kinds"] == ["main_structured_response"]
-        assert row["structured_output_transport"] == STRUCTURED_OUTPUT_TRANSPORT_JSON_SCHEMA
-        assert row["supports_reasoning"] is None
-        assert row["supported_reasoning_efforts"] is None
-        assert row["native_tool_support"] is None
-        assert isinstance(row["metadata"], dict)
-        assert row["metadata"]["openai_compatible_provider"] == "huggingface"
-        assert structured_output_transport("OpenAIHTTPAgent", model) == STRUCTURED_OUTPUT_TRANSPORT_JSON_SCHEMA
-
-        public_row = public_rows[row_id]
-        assert public_row["model"] == model
-        assert public_row["model_provider"] == "OpenAIHTTPAgent"
-        assert public_row["provider_label"] == "Hugging Face"
-        assert public_row["logo_provider"] == "huggingface"
-        assert public_row["model_client"] == "openai_chat_completions"
-        assert public_row["api_standard"] == "chat_completions"
-        assert public_row["supports_developer_role"] is False
-        assert "native_tool_support" not in public_row
+        assert row["supported_reasoning_efforts"][0] == "none"
 
 
 def test_internal_catalog_rows_include_structured_output_transport() -> None:
     rows = _rows_by_id()
 
-    for model in ("gpt-5-nano", "gpt-5.4-nano"):
-        assert rows[f"OpenAIHTTPAgent:{model}"]["structured_output_transport"] == (
-            STRUCTURED_OUTPUT_TRANSPORT_JSON_SCHEMA
-        )
-        assert rows[f"OpenAIResponsesHTTPAgent:{model}"]["structured_output_transport"] == (
-            STRUCTURED_OUTPUT_TRANSPORT_JSON_SCHEMA
-        )
-
-    for model in ("gpt-5.6-luna", "gpt-5.6-terra"):
-        assert rows[f"OpenAIResponsesHTTPAgent:{model}"]["structured_output_transport"] == (
-            STRUCTURED_OUTPUT_TRANSPORT_JSON_SCHEMA
-        )
-
-    for model in ("deepseek-v4-flash", "deepseek-v4-pro"):
-        assert rows[f"OpenAIHTTPAgent:{model}"]["structured_output_transport"] == (
-            STRUCTURED_OUTPUT_TRANSPORT_JSON_OBJECT
-        )
-
-    for model in HUGGINGFACE_MODELS:
-        assert rows[f"OpenAIHTTPAgent:{model}"]["structured_output_transport"] == (
+    for provider_type in ("OpenAIHTTPAgent", "OpenAIResponsesHTTPAgent"):
+        assert rows[f"{provider_type}:gpt-6-luna"]["structured_output_transport"] == (
             STRUCTURED_OUTPUT_TRANSPORT_JSON_SCHEMA
         )
 
@@ -540,30 +396,16 @@ def test_openai_native_web_search_and_apply_patch_are_responses_only() -> None:
     public_rows = {row["id"]: row for row in serialize_model_catalog()}
     provider_rows = _rows_by_id()
 
-    assert "native_tool_support" not in public_rows["OpenAIResponsesHTTPAgent:gpt-5-nano"]
-    assert provider_rows["OpenAIResponsesHTTPAgent:gpt-5-nano"]["native_tool_support"] is None
-    assert "native_tool_support" not in public_rows["OpenAIHTTPAgent:gpt-5.4-nano"]
-    assert public_rows["OpenAIResponsesHTTPAgent:gpt-5.4-nano"]["native_tool_support"] == [
+    assert "native_tool_support" not in public_rows["OpenAIHTTPAgent:gpt-6-luna"]
+    assert provider_rows["OpenAIHTTPAgent:gpt-6-luna"]["native_tool_support"] is None
+    responses_row = public_rows["OpenAIResponsesHTTPAgent:gpt-6-luna"]
+    assert responses_row["native_tool_support"] == ["apply_patch", "web_search"]
+    assert responses_row["requestable_native_tool_support"] == ["web_search"]
+    assert provider_rows["OpenAIResponsesHTTPAgent:gpt-6-luna"]["native_tool_support"] == [
         "apply_patch",
         "web_search",
     ]
-    assert public_rows["OpenAIResponsesHTTPAgent:gpt-5.4-nano"]["requestable_native_tool_support"] == ["web_search"]
-    assert provider_rows["OpenAIHTTPAgent:gpt-5.4-nano"]["native_tool_support"] is None
-    assert provider_rows["OpenAIResponsesHTTPAgent:gpt-5.4-nano"]["native_tool_support"] == [
-        "apply_patch",
-        "web_search",
-    ]
-    assert "requestable_native_tool_support" not in provider_rows["OpenAIResponsesHTTPAgent:gpt-5.4-nano"]
-
-    for model in ("gpt-5.6-luna", "gpt-5.6-terra"):
-        assert f"OpenAIHTTPAgent:{model}" not in public_rows
-        responses_row = public_rows[f"OpenAIResponsesHTTPAgent:{model}"]
-        assert responses_row["native_tool_support"] == ["apply_patch", "web_search"]
-        assert responses_row["requestable_native_tool_support"] == ["web_search"]
-        assert provider_rows[f"OpenAIResponsesHTTPAgent:{model}"]["native_tool_support"] == [
-            "apply_patch",
-            "web_search",
-        ]
+    assert "requestable_native_tool_support" not in provider_rows["OpenAIResponsesHTTPAgent:gpt-6-luna"]
 
 
 @pytest.mark.asyncio
@@ -582,18 +424,35 @@ async def test_model_provider_catalog_sync_is_idempotent_and_updates_existing_ro
     await _clear_model_provider_rows(async_session)
     await _sync_registry_catalog(async_session)
 
-    row = await async_session.get(ORMModelProvider, "OpenAIResponsesHTTPAgent:gpt-5-nano")
+    row = await async_session.get(ORMModelProvider, "OpenAIResponsesHTTPAgent:gpt-6-luna")
     assert row is not None
     row.model_label = "stale label"
     await async_session.commit()
 
     await _sync_registry_catalog(async_session)
     count = await async_session.scalar(select(func.count()).select_from(ORMModelProvider))
-    refreshed = await async_session.get(ORMModelProvider, "OpenAIResponsesHTTPAgent:gpt-5-nano")
+    refreshed = await async_session.get(ORMModelProvider, "OpenAIResponsesHTTPAgent:gpt-6-luna")
 
     assert count == len(serialize_model_provider_catalog())
     assert refreshed is not None
-    assert refreshed.model_label == "gpt-5-nano"
+    assert refreshed.model_label == "gpt-6-luna"
+
+
+@pytest.mark.asyncio
+async def test_model_provider_catalog_sync_keeps_owner_hidden_built_ins_hidden(async_session) -> None:
+    await _clear_model_provider_rows(async_session)
+    await _sync_registry_catalog(async_session)
+    row = await async_session.get(ORMModelProvider, "OpenAIResponsesHTTPAgent:gpt-6-luna")
+    assert row is not None
+    row.hidden = True
+    await async_session.commit()
+
+    await _sync_registry_catalog(async_session)
+    async_session.expire_all()
+    refreshed = await async_session.get(ORMModelProvider, "OpenAIResponsesHTTPAgent:gpt-6-luna")
+
+    assert refreshed is not None
+    assert refreshed.hidden is True
 
 
 @pytest.mark.asyncio
@@ -601,6 +460,13 @@ async def test_model_provider_catalog_sync_soft_retires_rows_missing_from_regist
     await _clear_model_provider_rows(async_session)
     repo = SQLAlchemyModelProviderRepository(async_session)
     retired_id = "RetiredAgent:retired-model"
+    owner_id = "owner:kept-model"
+    capabilities = ModelProviderCapabilities(
+        accepts=["text"],
+        produces=["text"],
+        supports_tools=False,
+        supports_streaming=False,
+    )
     await repo.upsert_many(
         [
             ModelProvider(
@@ -609,23 +475,30 @@ async def test_model_provider_catalog_sync_soft_retires_rows_missing_from_regist
                 provider_type="RetiredAgent",
                 model_label="Retired model",
                 provider_label="Retired",
-                capabilities=ModelProviderCapabilities(
-                    accepts=["text"],
-                    produces=["text"],
-                    supports_tools=False,
-                    supports_streaming=False,
-                ),
-            )
+                capabilities=capabilities,
+            ),
+            ModelProvider(
+                id=owner_id,
+                model="kept-model",
+                provider_type="OpenAIHTTPAgent",
+                model_label="Kept model",
+                provider_label="OpenAI HTTP",
+                source="owner",
+                capabilities=capabilities,
+            ),
         ]
     )
     await async_session.commit()
 
     await _sync_registry_catalog(async_session)
     retired = await async_session.get(ORMModelProvider, retired_id)
+    kept = await async_session.get(ORMModelProvider, owner_id)
 
     assert retired is not None
     assert retired.active is False
     assert retired.deprecated_at is not None
+    assert kept is not None
+    assert kept.active is True
 
 
 @pytest.mark.asyncio
@@ -634,87 +507,47 @@ async def test_synced_db_rows_retain_pricing_and_explicit_unpriced_values(async_
     await _sync_registry_catalog(async_session)
     repo = SQLAlchemyModelProviderRepository(async_session)
 
-    openai_chat = await repo.get("OpenAIHTTPAgent:gpt-5.4-nano")
+    openai_chat = await repo.get("OpenAIHTTPAgent:gpt-6-luna")
     assert openai_chat is not None
     assert openai_chat.capabilities.supports_developer_role is True
     assert openai_chat.capabilities.structured_output_transport == STRUCTURED_OUTPUT_TRANSPORT_JSON_SCHEMA
     assert openai_chat.capabilities.native_tool_support is None
 
-    openai_responses = await repo.get("OpenAIResponsesHTTPAgent:gpt-5.4-nano")
+    openai_responses = await repo.get("OpenAIResponsesHTTPAgent:gpt-6-luna")
     assert openai_responses is not None
     assert openai_responses.capabilities.supports_developer_role is True
     assert openai_responses.capabilities.supports_tools is True
     assert openai_responses.capabilities.supports_streaming is True
     assert openai_responses.capabilities.structured_output_transport == STRUCTURED_OUTPUT_TRANSPORT_JSON_SCHEMA
     assert openai_responses.capabilities.supports_reasoning is True
-    assert openai_responses.capabilities.supported_reasoning_efforts == ["none", "low", "medium", "high", "xhigh"]
+    assert openai_responses.capabilities.supported_reasoning_efforts == [
+        "none",
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max",
+    ]
     assert openai_responses.capabilities.native_tool_support == ["apply_patch", "web_search"]
     assert openai_responses.pricing.pricing_status == "priced"
     assert openai_responses.pricing.pricing_source_provider == "openai"
-    assert openai_responses.pricing.pricing_source_model == "gpt-5.4-nano"
-    assert openai_responses.pricing.pricing_source_checked_at == date(2026, 6, 16)
+    assert openai_responses.pricing.pricing_source_model == "gpt-6-luna"
+    assert openai_responses.pricing.pricing_source_checked_at == date(2026, 9, 28)
     assert openai_responses.pricing.currency == "USD"
     assert openai_responses.pricing.billing_unit == "1M_tokens"
-    assert openai_responses.pricing.standard_input_price_per_million == Decimal("0.20")
-    assert openai_responses.pricing.standard_cached_input_price_per_million == Decimal("0.02")
-    assert openai_responses.pricing.standard_output_price_per_million == Decimal("1.25")
-    assert openai_responses.pricing.batch_input_price_per_million == Decimal("0.10")
-    assert openai_responses.pricing.batch_cached_input_price_per_million == Decimal("0.01")
-    assert openai_responses.pricing.batch_output_price_per_million == Decimal("0.625")
-    assert openai_responses.pricing.flex_input_price_per_million == Decimal("0.10")
-    assert openai_responses.pricing.flex_cached_input_price_per_million == Decimal("0.01")
-    assert openai_responses.pricing.flex_output_price_per_million == Decimal("0.625")
+    assert openai_responses.pricing.service_tiers_supported == ["standard"]
+    assert openai_responses.pricing.standard_input_price_per_million == Decimal("0.10")
+    assert openai_responses.pricing.standard_cached_input_price_per_million is None
+    assert openai_responses.pricing.standard_output_price_per_million == Decimal("0.50")
+    assert openai_responses.pricing.batch_input_price_per_million is None
     assert openai_responses.pricing.priority_input_price_per_million is None
-    assert openai_responses.pricing.regional_processing_uplift_factor == Decimal("1.10")
+    assert openai_responses.pricing.regional_processing_uplift_factor is None
 
-    gemini = await repo.get("GeminiAgent:gemini-3.1-flash-lite-preview")
-    assert gemini is not None
-    assert gemini.pricing.pricing_status == "unpriced"
-    assert gemini.pricing.pricing_source_provider == "gemini"
-    assert gemini.pricing.pricing_source_model is None
-    assert gemini.pricing.pricing_source_url is None
-    assert gemini.pricing.pricing_source_checked_at is None
-    assert gemini.pricing.currency is None
-    assert gemini.pricing.billing_unit is None
-    assert gemini.pricing.service_tiers_supported == []
-    for column in PRICE_COLUMNS:
-        assert getattr(gemini.pricing, column) is None
-
-    deepseek = await repo.get("OpenAIHTTPAgent:deepseek-v4-pro")
-    assert deepseek is not None
-    assert deepseek.provider_type == "OpenAIHTTPAgent"
-    assert deepseek.provider_label == "DeepSeek"
-    assert deepseek.logo_provider == "deepseek"
-    assert deepseek.provider_base_url == DEEPSEEK_BASE_URL
-    assert deepseek.api_family == "deepseek"
-    assert deepseek.capabilities.supports_developer_role is False
-    assert deepseek.capabilities.supports_tools is True
-    assert deepseek.capabilities.supports_streaming is True
-    assert deepseek.capabilities.structured_output_transport == STRUCTURED_OUTPUT_TRANSPORT_JSON_OBJECT
-    assert deepseek.capabilities.supports_reasoning is True
-    assert deepseek.capabilities.supported_reasoning_efforts == ["none", "high", "max"]
-    assert deepseek.pricing.pricing_status == "unpriced"
-    assert deepseek.pricing.pricing_source_provider == "deepseek"
-    assert deepseek.metadata["openai_compatible_provider"] == "deepseek"
-
-    huggingface = await repo.get("OpenAIHTTPAgent:deepseek-ai/DeepSeek-V4-Pro:deepinfra")
-    assert huggingface is not None
-    assert huggingface.provider_type == "OpenAIHTTPAgent"
-    assert huggingface.model == "deepseek-ai/DeepSeek-V4-Pro:deepinfra"
-    assert huggingface.provider_label == "Hugging Face"
-    assert huggingface.logo_provider == "huggingface"
-    assert huggingface.provider_base_url == HUGGINGFACE_ROUTER_BASE_URL
-    assert huggingface.api_family == "huggingface"
-    assert huggingface.capabilities.supports_developer_role is False
-    assert huggingface.capabilities.supports_tools is True
-    assert huggingface.capabilities.supports_streaming is True
-    assert huggingface.capabilities.structured_output_transport == STRUCTURED_OUTPUT_TRANSPORT_JSON_SCHEMA
-    assert huggingface.capabilities.supports_reasoning is None
-    assert huggingface.capabilities.supported_reasoning_efforts is None
-    assert huggingface.capabilities.native_tool_support is None
-    assert huggingface.pricing.pricing_status == "unpriced"
-    assert huggingface.pricing.pricing_source_provider == "huggingface"
-    assert huggingface.metadata["openai_compatible_provider"] == "huggingface"
+    for row in await repo.list_active():
+        assert row.source == "builtin"
+        assert row.connection_id == "openai"
+        assert row.connection is not None
+        assert row.connection.is_builtin_openai
 
 
 @pytest.mark.asyncio
@@ -766,10 +599,10 @@ def test_public_catalog_mapper_uses_model_provider_key_without_pricing() -> None
 def test_public_catalog_mapper_computes_api_standard_from_provider_type() -> None:
     row = model_provider_domain_to_public_catalog_row(
         ModelProvider(
-            id="OpenAIResponsesHTTPAgent:gpt-5-nano",
-            model="gpt-5-nano",
+            id="OpenAIResponsesHTTPAgent:gpt-6-luna",
+            model="gpt-6-luna",
             provider_type="OpenAIResponsesHTTPAgent",
-            model_label="gpt-5-nano",
+            model_label="gpt-6-luna",
             provider_label="OpenAI Responses HTTP",
             capabilities=ModelProviderCapabilities(
                 accepts=["text"],
@@ -814,10 +647,12 @@ def test_model_provider_orm_metadata_is_registered() -> None:
     assert "updated_at" in table.c
     assert isinstance(table.c.structured_output_transport.type, String)
     assert table.c.structured_output_transport.nullable
+    assert not table.c.connection_id.nullable
+    assert {fk.column.table.name for fk in table.c.connection_id.foreign_keys} == {"model_connections"}
 
     unique_constraints = [constraint for constraint in table.constraints if isinstance(constraint, UniqueConstraint)]
     assert any(
-        {column.name for column in constraint.columns} == {"provider_type", "model"}
+        {column.name for column in constraint.columns} == {"connection_id", "provider_type", "model", "source"}
         for constraint in unique_constraints
     )
 
@@ -833,3 +668,194 @@ def test_model_provider_orm_metadata_is_registered() -> None:
     assert regional_type.precision == 12
     assert regional_type.scale == 6
     assert table.c.regional_processing_uplift_factor.nullable
+
+
+async def _apply_seed_sql(session) -> None:  # noqa: ANN001
+    connection = await session.connection()
+    raw = await connection.get_raw_connection()
+    await raw.driver_connection.execute(SEED_SQL_PATH.read_text(encoding="utf-8"))
+
+
+@pytest.mark.asyncio
+async def test_seed_rerun_keeps_owner_rows_and_hidden_flags_and_retires_missing_builtins(async_session) -> None:
+    from animama.orm import ORMModelConnection
+
+    await _clear_model_provider_rows(async_session)
+    await async_session.execute(delete(ORMModelConnection).where(ORMModelConnection.source == "owner"))
+    await async_session.commit()
+    await _apply_seed_sql(async_session)
+    await async_session.commit()
+
+    async_session.add(ORMModelConnection(id="seed-conn-ollama", source="owner", name="Ollama", preset="ollama"))
+    async_session.add(ORMModelConnection(id="seed-conn-lmstudio", source="owner", name="LM Studio", preset="lmstudio"))
+    common = {
+        "provider_type": "OpenAIHTTPAgent",
+        "provider_label": "Local",
+        "source": "owner",
+        "accepts": ["text"],
+        "produces": ["text"],
+        "supports_streaming": True,
+        "structured_kinds": [],
+        "service_tiers_supported": [],
+        "pricing_notes": [],
+        "metadata_": {},
+    }
+    for connection_id in ("seed-conn-ollama", "seed-conn-lmstudio"):
+        async_session.add(
+            ORMModelProvider(
+                id=f"owner:{connection_id}",
+                model="qwen3:8b",
+                model_label="qwen3:8b",
+                connection_id=connection_id,
+                **common,
+            )
+        )
+    # An owner row that later collides with a built-in on the same connection.
+    async_session.add(
+        ORMModelProvider(
+            id="owner:openai-gpt-6-luna",
+            model="gpt-6-luna",
+            model_label="my luna",
+            connection_id="openai",
+            **common,
+        )
+    )
+    retired = ORMModelProvider(
+        id="OpenAIHTTPAgent:gpt-retired",
+        model="gpt-retired",
+        model_label="gpt-retired",
+        **{**common, "source": "builtin"},
+    )
+    async_session.add(retired)
+    hidden = await async_session.get(ORMModelProvider, "OpenAIResponsesHTTPAgent:gpt-6-luna")
+    assert hidden is not None
+    hidden.hidden = True
+    await async_session.commit()
+
+    await _apply_seed_sql(async_session)
+    await async_session.commit()
+    async_session.expire_all()
+
+    owner_rows = (
+        await async_session.execute(select(ORMModelProvider).where(ORMModelProvider.source == "owner"))
+    ).scalars()
+    assert {(row.id, row.model_label, row.active) for row in owner_rows} == {
+        ("owner:seed-conn-ollama", "qwen3:8b", True),
+        ("owner:seed-conn-lmstudio", "qwen3:8b", True),
+        ("owner:openai-gpt-6-luna", "my luna", True),
+    }
+    hidden_luna = await async_session.get(ORMModelProvider, "OpenAIResponsesHTTPAgent:gpt-6-luna")
+    assert hidden_luna is not None and hidden_luna.hidden is True and hidden_luna.active is True
+    retired_row = await async_session.get(ORMModelProvider, "OpenAIHTTPAgent:gpt-retired")
+    assert retired_row is not None and retired_row.active is False and retired_row.deprecated_at is not None
+    builtin_luna = await async_session.get(ORMModelProvider, "OpenAIHTTPAgent:gpt-6-luna")
+    assert builtin_luna is not None and builtin_luna.active is True
+
+
+@pytest.mark.asyncio
+async def test_seed_moves_animas_and_chat_roles_off_retired_built_ins(async_session) -> None:
+    from uuid import uuid4
+
+    from animama.orm import ORMAnima
+    from animama.orm.settings import ORMUserSettings
+
+    await _clear_model_provider_rows(async_session)
+    await _apply_seed_sql(async_session)
+    await async_session.commit()
+
+    owner_id = f"owner-{uuid4().hex[:8]}"
+    common = {
+        "accepts": ["text"],
+        "produces": ["text"],
+        "supports_streaming": True,
+        "structured_kinds": [],
+        "service_tiers_supported": [],
+        "pricing_notes": [],
+        "metadata_": {},
+        "connection_id": "openai",
+    }
+    # Rows an earlier release shipped; the next seed retires them.
+    for provider_type, model in (("OpenAIResponsesHTTPAgent", "gpt-5.6-luna"), ("OpenAIHTTPAgent", "gpt-5-nano")):
+        async_session.add(
+            ORMModelProvider(
+                id=f"{provider_type}:{model}",
+                model=model,
+                model_label=model,
+                provider_type=provider_type,
+                provider_label="OpenAI",
+                source="builtin",
+                **common,
+            )
+        )
+    owner_row_id = f"owner:{uuid4().hex[:8]}"
+    async_session.add(
+        ORMModelProvider(
+            id=owner_row_id,
+            model="gpt-5-nano",
+            model_label="my nano",
+            provider_type="OpenAIHTTPAgent",
+            provider_label="OpenAI",
+            source="owner",
+            **common,
+        )
+    )
+    await async_session.flush()
+    suffix = uuid4().hex[:8]
+    profiles = {
+        f"anima-responses-{suffix}": "OpenAIResponsesHTTPAgent:gpt-5.6-luna",
+        f"anima-chat-{suffix}": "OpenAIHTTPAgent:gpt-5-nano",
+        f"anima-owner-{suffix}": owner_row_id,
+    }
+    for anima_id, model_provider_id in profiles.items():
+        async_session.add(ORMAnima(id=anima_id, user_id=owner_id, display_name=anima_id))
+        await async_session.flush()
+        async_session.add(
+            ORMAnimaChatProfile(anima_id=anima_id, default_model_provider_id=model_provider_id, metadata_={"k": 1})
+        )
+    async_session.add(
+        ORMUserSettings(
+            user_id=owner_id,
+            preferences={
+                "chat": {"default_model_provider_id": "OpenAIHTTPAgent:gpt-5.4-nano", "keep": True},
+                "models": {
+                    "utility_model_provider_id": "OpenAIResponsesHTTPAgent:gpt-5.6-terra",
+                    "memory_manager_model_provider_id": owner_row_id,
+                    "embedding_model_provider_id": "OpenAIHTTPAgent:text-embedding-3-small",
+                },
+                "voice": {"enabled": True},
+            },
+        )
+    )
+    await async_session.commit()
+
+    for _ in range(2):  # The seed runs on every startup.
+        await _apply_seed_sql(async_session)
+        await async_session.commit()
+    async_session.expire_all()
+
+    moved = {
+        anima_id: (await async_session.get(ORMAnimaChatProfile, anima_id)).default_model_provider_id
+        for anima_id in profiles
+    }
+    assert list(moved.values()) == [
+        "OpenAIResponsesHTTPAgent:gpt-6-luna",
+        "OpenAIHTTPAgent:gpt-6-luna",
+        owner_row_id,
+    ]
+    first_profile = await async_session.get(ORMAnimaChatProfile, next(iter(profiles)))
+    assert first_profile.metadata_ == {"k": 1}
+    settings = await async_session.get(ORMUserSettings, owner_id)
+    assert settings.preferences == {
+        "chat": {"default_model_provider_id": "OpenAIHTTPAgent:gpt-6-luna", "keep": True},
+        "models": {
+            "utility_model_provider_id": "OpenAIResponsesHTTPAgent:gpt-6-luna",
+            "memory_manager_model_provider_id": owner_row_id,
+            "embedding_model_provider_id": "OpenAIHTTPAgent:text-embedding-3-small",
+        },
+        "voice": {"enabled": True},
+    }
+    owner_row = await async_session.get(ORMModelProvider, owner_row_id)
+    assert owner_row.model == "gpt-5-nano" and owner_row.active is True
+    for retired_id in ("OpenAIResponsesHTTPAgent:gpt-5.6-luna", "OpenAIHTTPAgent:gpt-5-nano"):
+        retired = await async_session.get(ORMModelProvider, retired_id)
+        assert retired.active is False

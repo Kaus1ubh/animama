@@ -4,7 +4,6 @@ import asyncio
 from contextlib import suppress
 from typing import Any
 
-from animama.adapters.repositories.sqlalchemy.model_provider_repo import SQLAlchemyModelProviderRepository
 from animama.app.chat.options import DirectChatOptions
 from animama.app.model_clients import ModelClientRegistry
 from animama.app.services.chat_title_generation_service import (
@@ -16,6 +15,7 @@ from animama.app.services.direct_model_prompt_runner import DirectModelPromptRun
 from animama.domain.chat import Chat
 from animama.logging_config import get_logger
 from animama.server.config import settings
+from animama.server.model_roles import ModelRoleSettings
 from animama.server.sse_events import format_chat_title_updated_event
 
 from .setup_helpers import chat_manager
@@ -26,8 +26,6 @@ _log = get_logger("server.routers.chat.title")
 def chat_title_generation_settings() -> ChatTitleGenerationSettings:
     return ChatTitleGenerationSettings(
         enabled=settings.anima_chat_title_generation_enabled,
-        model_provider=settings.anima_chat_title_generation_provider,
-        model=settings.anima_chat_title_generation_model,
         prompt_version=settings.anima_chat_title_generation_prompt_version,
         max_chars=settings.anima_chat_title_generation_max_chars,
         timeout_seconds=settings.anima_chat_title_generation_timeout_seconds,
@@ -38,19 +36,21 @@ def chat_title_generation_settings() -> ChatTitleGenerationSettings:
 def direct_model_prompt_runner(
     session: Any,
     model_client_registry: ModelClientRegistry,
+    model_roles: ModelRoleSettings,
 ) -> DirectModelPromptRunner:
     return DirectModelPromptRunner(
         registry=model_client_registry,
-        model_providers=SQLAlchemyModelProviderRepository(session),
+        role_resolver=model_roles.resolver(session),
     )
 
 
 def chat_title_generation_service(
     session: Any,
     model_client_registry: ModelClientRegistry,
+    model_roles: ModelRoleSettings,
 ) -> ChatTitleGenerationService:
     return ChatTitleGenerationService(
-        model_runner=direct_model_prompt_runner(session, model_client_registry),
+        model_runner=direct_model_prompt_runner(session, model_client_registry, model_roles),
         settings=chat_title_generation_settings(),
     )
 
@@ -82,6 +82,7 @@ async def generate_chat_title_for_stream(
     chat_id: str,
     run_id: str,
     message: str,
+    model_roles: ModelRoleSettings,
 ) -> ChatTitleGenerationResult:
     title_session = session_factory()
     try:
@@ -91,7 +92,7 @@ async def generate_chat_title_for_stream(
             chat_id=chat_id,
             run_id=run_id,
         )
-        return await chat_title_generation_service(title_session, model_client_registry).generate_title(
+        return await chat_title_generation_service(title_session, model_client_registry, model_roles).generate_title(
             anima_id=anima_id,
             user_id=user_id,
             chat_id=chat_id,

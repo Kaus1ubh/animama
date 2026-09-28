@@ -2900,6 +2900,8 @@ export type PyArchivePassageSearchRequest = {
     query: string;
     /**
      * Threshold
+     *
+     * Minimum vector similarity; not applied when search falls back to full text
      */
     threshold?: number;
 };
@@ -3011,6 +3013,16 @@ export type PyArchivePassageUpdate = {
      * Updated passage text
      */
     text?: string | null;
+};
+
+/**
+ * PyAvailableModels
+ */
+export type PyAvailableModels = {
+    /**
+     * Models
+     */
+    models: Array<string>;
 };
 
 /**
@@ -3615,6 +3627,10 @@ export type PyChatResponse = {
      */
     last_model_id?: string | null;
     /**
+     * Last Model Provider Id
+     */
+    last_model_provider_id?: string | null;
+    /**
      * Metadata
      */
     metadata?: {
@@ -3735,6 +3751,65 @@ export type PyChatUpdate = {
      * Title
      */
     title?: string | null;
+};
+
+/**
+ * PyConfiguredModel
+ *
+ * A catalog row as the owner manages it, including capabilities and probe results.
+ */
+export type PyConfiguredModel = {
+    /**
+     * Allow Memory Writes
+     */
+    allow_memory_writes: boolean;
+    capabilities: PyModelCapabilitiesView;
+    /**
+     * Connection Id
+     */
+    connection_id: string;
+    /**
+     * Context Window Tokens
+     */
+    context_window_tokens?: number | null;
+    /**
+     * Hidden
+     */
+    hidden: boolean;
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Model
+     */
+    model: string;
+    /**
+     * Model Kind
+     */
+    model_kind: 'chat' | 'embedding';
+    /**
+     * Model Label
+     */
+    model_label: string;
+    /**
+     * Probe Result
+     */
+    probe_result?: {
+        [key: string]: unknown;
+    } | null;
+    /**
+     * Provider Type
+     */
+    provider_type: string;
+    /**
+     * Source
+     */
+    source: 'builtin' | 'owner';
+    /**
+     * Template Id
+     */
+    template_id?: string | null;
 };
 
 /**
@@ -4293,6 +4368,29 @@ export type PyElevenLabsVoiceSettings = {
      * Use Speaker Boost
      */
     use_speaker_boost?: boolean | null;
+};
+
+/**
+ * PyEmbeddingRefreshStatus
+ *
+ * Whether stored vectors match the embeddings role.
+ *
+ * While ``re_embedding`` or ``retrying``, search uses keyword retrieval;
+ * ``pending`` counts rows still waiting for a vector.
+ */
+export type PyEmbeddingRefreshStatus = {
+    /**
+     * Error Category
+     */
+    error_category?: string | null;
+    /**
+     * Pending
+     */
+    pending?: number;
+    /**
+     * State
+     */
+    state: 'off' | 'current' | 're_embedding' | 'retrying';
 };
 
 /**
@@ -5933,6 +6031,336 @@ export type PyModelAssetState = {
 };
 
 /**
+ * PyModelCapabilitiesView
+ */
+export type PyModelCapabilitiesView = {
+    /**
+     * Accepts
+     */
+    accepts: Array<string>;
+    /**
+     * Native Tool Support
+     */
+    native_tool_support?: Array<string> | null;
+    /**
+     * Structured Output Transport
+     */
+    structured_output_transport?: string | null;
+    /**
+     * Supported Reasoning Efforts
+     */
+    supported_reasoning_efforts?: Array<string> | null;
+    /**
+     * Supports Reasoning
+     */
+    supports_reasoning?: boolean | null;
+    /**
+     * Supports Streaming
+     */
+    supports_streaming: boolean;
+    /**
+     * Supports Tools
+     */
+    supports_tools: boolean;
+    /**
+     * Tools With Structured Output
+     */
+    tools_with_structured_output: boolean;
+};
+
+/**
+ * PyModelConnection
+ */
+export type PyModelConnection = {
+    /**
+     * Base Url
+     */
+    base_url?: string | null;
+    compatibility: PyModelConnectionCompatibility;
+    /**
+     * Credential Env
+     */
+    credential_env?: string | null;
+    /**
+     * Credential State
+     */
+    credential_state: 'configured' | 'missing' | 'not_required';
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Logo Provider
+     */
+    logo_provider?: string | null;
+    /**
+     * Models
+     */
+    models?: Array<PyConfiguredModel>;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Preset
+     */
+    preset: string;
+    /**
+     * Source
+     */
+    source: 'builtin' | 'owner';
+    /**
+     * Timeout Seconds
+     */
+    timeout_seconds?: number | null;
+};
+
+/**
+ * PyModelConnectionCompatibility
+ */
+export type PyModelConnectionCompatibility = {
+    /**
+     * Fold Developer Role
+     */
+    fold_developer_role?: boolean;
+    /**
+     * Reasoning Mode
+     */
+    reasoning_mode?: 'openai_effort' | 'deepseek_thinking' | 'omit';
+    /**
+     * Send Openai Extensions
+     */
+    send_openai_extensions?: boolean;
+    /**
+     * Send Stream Usage
+     */
+    send_stream_usage?: boolean;
+    /**
+     * Strip Function Strict
+     */
+    strip_function_strict?: boolean;
+};
+
+/**
+ * PyModelConnectionCredential
+ *
+ * ``managed`` stores the key in the desktop vault under a derived variable name.
+ */
+export type PyModelConnectionCredential = {
+    /**
+     * Env
+     */
+    env?: string | null;
+    /**
+     * Mode
+     */
+    mode?: 'none' | 'env' | 'managed';
+};
+
+/**
+ * PyModelConnectionDetection
+ *
+ * Whether a local preset's server answers at its default address, and its models.
+ *
+ * ``category`` names the failure when ``reachable`` is false.
+ */
+export type PyModelConnectionDetection = {
+    /**
+     * Base Url
+     */
+    base_url: string;
+    /**
+     * Category
+     */
+    category?: string | null;
+    /**
+     * Models
+     */
+    models: Array<string>;
+    /**
+     * Preset
+     */
+    preset: string;
+    /**
+     * Reachable
+     */
+    reachable: boolean;
+};
+
+/**
+ * PyModelConnectionPreset
+ */
+export type PyModelConnectionPreset = {
+    compatibility: PyModelConnectionCompatibility;
+    /**
+     * Default Base Url
+     */
+    default_base_url?: string | null;
+    /**
+     * Expects Key
+     */
+    expects_key: boolean;
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Label
+     */
+    label: string;
+    /**
+     * Local
+     */
+    local: boolean;
+    /**
+     * Logo Provider
+     */
+    logo_provider?: string | null;
+    /**
+     * Suggested Credential Env
+     */
+    suggested_credential_env?: string | null;
+    /**
+     * Timeout Seconds
+     */
+    timeout_seconds: number;
+};
+
+/**
+ * PyModelConnectionRequest
+ */
+export type PyModelConnectionRequest = {
+    /**
+     * Base Url
+     */
+    base_url: string;
+    compatibility?: PyModelConnectionCompatibility | null;
+    credential?: PyModelConnectionCredential;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Preset
+     */
+    preset: string;
+    /**
+     * Timeout Seconds
+     */
+    timeout_seconds?: number | null;
+};
+
+/**
+ * PyModelConnectionUpdate
+ *
+ * Connection changes; omitted fields keep their current values.
+ */
+export type PyModelConnectionUpdate = {
+    /**
+     * Base Url
+     */
+    base_url?: string | null;
+    compatibility?: PyModelConnectionCompatibility | null;
+    credential?: PyModelConnectionCredential | null;
+    /**
+     * Name
+     */
+    name?: string | null;
+    /**
+     * Preset
+     */
+    preset?: string | null;
+    /**
+     * Timeout Seconds
+     */
+    timeout_seconds?: number | null;
+};
+
+/**
+ * PyModelProbeReport
+ *
+ * Suggested capabilities; ``None`` means the probe could not determine a value.
+ */
+export type PyModelProbeReport = {
+    /**
+     * Context Window Tokens
+     */
+    context_window_tokens?: number | null;
+    /**
+     * Embedding Dimensions
+     */
+    embedding_dimensions?: number | null;
+    /**
+     * Model
+     */
+    model: string;
+    /**
+     * Notes
+     */
+    notes?: Array<string>;
+    /**
+     * Steps
+     */
+    steps: Array<PyModelProbeStep>;
+    /**
+     * Structured Output Transport
+     */
+    structured_output_transport?: string | null;
+    /**
+     * Supports Streaming
+     */
+    supports_streaming?: boolean | null;
+    /**
+     * Supports Tools
+     */
+    supports_tools?: boolean | null;
+    /**
+     * Tools With Structured Output
+     */
+    tools_with_structured_output?: boolean | null;
+};
+
+/**
+ * PyModelProbeRequest
+ */
+export type PyModelProbeRequest = {
+    /**
+     * Kind
+     */
+    kind?: 'chat' | 'embedding';
+    /**
+     * Model
+     */
+    model: string;
+    /**
+     * Provider Type
+     */
+    provider_type?: 'OpenAIHTTPAgent' | 'OpenAIResponsesHTTPAgent';
+};
+
+/**
+ * PyModelProbeStep
+ */
+export type PyModelProbeStep = {
+    /**
+     * Category
+     */
+    category?: string | null;
+    /**
+     * Detail
+     */
+    detail?: string | null;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Ok
+     */
+    ok: boolean;
+};
+
+/**
  * PyModelProviderCatalogItem
  */
 export type PyModelProviderCatalogItem = {
@@ -5944,6 +6372,22 @@ export type PyModelProviderCatalogItem = {
      * Api Standard
      */
     api_standard?: string | null;
+    /**
+     * Connection Id
+     */
+    connection_id?: string;
+    /**
+     * Connection Name
+     */
+    connection_name?: string | null;
+    /**
+     * Context Window Tokens
+     */
+    context_window_tokens?: number | null;
+    /**
+     * Hidden
+     */
+    hidden?: boolean;
     /**
      * Id
      */
@@ -5960,6 +6404,10 @@ export type PyModelProviderCatalogItem = {
      * Model Client
      */
     model_client?: string | null;
+    /**
+     * Model Kind
+     */
+    model_kind?: string;
     /**
      * Model Label
      */
@@ -5985,6 +6433,10 @@ export type PyModelProviderCatalogItem = {
      */
     requestable_native_tool_support?: Array<string> | null;
     /**
+     * Source
+     */
+    source?: string;
+    /**
      * Supported Reasoning Efforts
      */
     supported_reasoning_efforts?: Array<string> | null;
@@ -6007,6 +6459,100 @@ export type PyModelProviderCatalogItem = {
 };
 
 /**
+ * PyModelRemovalResult
+ */
+export type PyModelRemovalResult = {
+    /**
+     * Removed
+     */
+    removed: boolean;
+    usage: PyModelUsage;
+};
+
+/**
+ * PyModelRoleAssignment
+ *
+ * The row doing one role's job and how it was chosen.
+ *
+ * ``source`` is ``owner`` (App Settings), ``default`` (operator environment),
+ * ``inherited`` (the chat role) or ``off``. ``assignment_available`` is False
+ * when the owner's choice could not be used and the role fell back.
+ */
+export type PyModelRoleAssignment = {
+    /**
+     * Assignment Available
+     */
+    assignment_available: boolean;
+    /**
+     * Connection Name
+     */
+    connection_name?: string | null;
+    /**
+     * Model Label
+     */
+    model_label?: string | null;
+    /**
+     * Model Provider Id
+     */
+    model_provider_id?: string | null;
+    /**
+     * Requested Model Provider Id
+     */
+    requested_model_provider_id?: string | null;
+    /**
+     * Role
+     */
+    role: 'chat' | 'utility' | 'memory_manager' | 'embeddings';
+    /**
+     * Source
+     */
+    source: 'owner' | 'default' | 'inherited' | 'off';
+};
+
+/**
+ * PyModelRoles
+ */
+export type PyModelRoles = {
+    embeddings_refresh: PyEmbeddingRefreshStatus;
+    /**
+     * Roles
+     */
+    roles: Array<PyModelRoleAssignment>;
+};
+
+/**
+ * PyModelUsage
+ */
+export type PyModelUsage = {
+    /**
+     * Animas
+     */
+    animas?: Array<PyModelUsageAnima>;
+    /**
+     * Roles
+     */
+    roles?: Array<string>;
+};
+
+/**
+ * PyModelUsageAnima
+ */
+export type PyModelUsageAnima = {
+    /**
+     * Anima Id
+     */
+    anima_id: string;
+    /**
+     * Display Name
+     */
+    display_name: string;
+    /**
+     * Model Provider Id
+     */
+    model_provider_id: string;
+};
+
+/**
  * PyOnboardingCompleteRequest
  */
 export type PyOnboardingCompleteRequest = {
@@ -6020,6 +6566,112 @@ export type PyOnboardingCompleteRequest = {
      * Display Name
      */
     display_name: string;
+};
+
+/**
+ * PyOwnerModelCapabilities
+ */
+export type PyOwnerModelCapabilities = {
+    /**
+     * Accepts Images
+     */
+    accepts_images?: boolean;
+    /**
+     * Structured Output Transport
+     */
+    structured_output_transport?: 'json_schema' | 'json_object' | null;
+    /**
+     * Supported Reasoning Efforts
+     */
+    supported_reasoning_efforts?: Array<string>;
+    /**
+     * Supports Streaming
+     */
+    supports_streaming?: boolean;
+    /**
+     * Supports Tools
+     */
+    supports_tools?: boolean;
+    /**
+     * Tools With Structured Output
+     */
+    tools_with_structured_output?: boolean;
+};
+
+/**
+ * PyOwnerModelPatch
+ *
+ * Built-in models accept only ``hidden``.
+ */
+export type PyOwnerModelPatch = {
+    /**
+     * Allow Memory Writes
+     */
+    allow_memory_writes?: boolean | null;
+    capabilities?: PyOwnerModelCapabilities | null;
+    /**
+     * Clear Context Window
+     */
+    clear_context_window?: boolean;
+    /**
+     * Context Window Tokens
+     */
+    context_window_tokens?: number | null;
+    /**
+     * Hidden
+     */
+    hidden?: boolean | null;
+    /**
+     * Label
+     */
+    label?: string | null;
+    /**
+     * Probe Result
+     */
+    probe_result?: {
+        [key: string]: unknown;
+    } | null;
+};
+
+/**
+ * PyOwnerModelRequest
+ */
+export type PyOwnerModelRequest = {
+    /**
+     * Allow Memory Writes
+     */
+    allow_memory_writes?: boolean;
+    capabilities?: PyOwnerModelCapabilities | null;
+    /**
+     * Context Window Tokens
+     */
+    context_window_tokens?: number | null;
+    /**
+     * Kind
+     */
+    kind?: 'chat' | 'embedding';
+    /**
+     * Label
+     */
+    label?: string | null;
+    /**
+     * Model
+     */
+    model: string;
+    /**
+     * Probe Result
+     */
+    probe_result?: {
+        [key: string]: unknown;
+    } | null;
+    /**
+     * Provider Type
+     */
+    provider_type?: 'OpenAIHTTPAgent' | 'OpenAIResponsesHTTPAgent' | null;
+    /**
+     * Template Id
+     */
+    template_id?: string | null;
 };
 
 /**
@@ -8192,6 +8844,10 @@ export type ReviewedPackageImport = {
  */
 export type RuntimeCapabilities = {
     companion_safety: CompanionSafetyCapability;
+    /**
+     * Model Configuration
+     */
+    model_configuration?: boolean;
     /**
      * Offline Speech Asset Version
      */
@@ -12346,6 +13002,252 @@ export type InstallModelAssetV1ModelAssetsAssetIdInstallPostResponses = {
 
 export type InstallModelAssetV1ModelAssetsAssetIdInstallPostResponse = InstallModelAssetV1ModelAssetsAssetIdInstallPostResponses[keyof InstallModelAssetV1ModelAssetsAssetIdInstallPostResponses];
 
+export type ListModelConnectionPresetsV1ModelConnectionPresetsGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/v1/model-connection-presets';
+};
+
+export type ListModelConnectionPresetsV1ModelConnectionPresetsGetResponses = {
+    /**
+     * Response List Model Connection Presets V1 Model Connection Presets Get
+     *
+     * Successful Response
+     */
+    200: Array<PyModelConnectionPreset>;
+};
+
+export type ListModelConnectionPresetsV1ModelConnectionPresetsGetResponse = ListModelConnectionPresetsV1ModelConnectionPresetsGetResponses[keyof ListModelConnectionPresetsV1ModelConnectionPresetsGetResponses];
+
+export type DetectModelConnectionPresetV1ModelConnectionPresetsPresetIdDetectPostData = {
+    body?: never;
+    path: {
+        /**
+         * Preset Id
+         */
+        preset_id: string;
+    };
+    query?: never;
+    url: '/v1/model-connection-presets/{preset_id}/detect';
+};
+
+export type DetectModelConnectionPresetV1ModelConnectionPresetsPresetIdDetectPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DetectModelConnectionPresetV1ModelConnectionPresetsPresetIdDetectPostError = DetectModelConnectionPresetV1ModelConnectionPresetsPresetIdDetectPostErrors[keyof DetectModelConnectionPresetV1ModelConnectionPresetsPresetIdDetectPostErrors];
+
+export type DetectModelConnectionPresetV1ModelConnectionPresetsPresetIdDetectPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: PyModelConnectionDetection;
+};
+
+export type DetectModelConnectionPresetV1ModelConnectionPresetsPresetIdDetectPostResponse = DetectModelConnectionPresetV1ModelConnectionPresetsPresetIdDetectPostResponses[keyof DetectModelConnectionPresetV1ModelConnectionPresetsPresetIdDetectPostResponses];
+
+export type ListModelConnectionsV1ModelConnectionsGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/v1/model-connections';
+};
+
+export type ListModelConnectionsV1ModelConnectionsGetResponses = {
+    /**
+     * Response List Model Connections V1 Model Connections Get
+     *
+     * Successful Response
+     */
+    200: Array<PyModelConnection>;
+};
+
+export type ListModelConnectionsV1ModelConnectionsGetResponse = ListModelConnectionsV1ModelConnectionsGetResponses[keyof ListModelConnectionsV1ModelConnectionsGetResponses];
+
+export type CreateModelConnectionV1ModelConnectionsPostData = {
+    body: PyModelConnectionRequest;
+    path?: never;
+    query?: never;
+    url: '/v1/model-connections';
+};
+
+export type CreateModelConnectionV1ModelConnectionsPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreateModelConnectionV1ModelConnectionsPostError = CreateModelConnectionV1ModelConnectionsPostErrors[keyof CreateModelConnectionV1ModelConnectionsPostErrors];
+
+export type CreateModelConnectionV1ModelConnectionsPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: PyModelConnection;
+};
+
+export type CreateModelConnectionV1ModelConnectionsPostResponse = CreateModelConnectionV1ModelConnectionsPostResponses[keyof CreateModelConnectionV1ModelConnectionsPostResponses];
+
+export type RemoveModelConnectionV1ModelConnectionsConnectionIdDeleteData = {
+    body?: never;
+    path: {
+        /**
+         * Connection Id
+         */
+        connection_id: string;
+    };
+    query?: {
+        /**
+         * Confirm
+         */
+        confirm?: boolean;
+    };
+    url: '/v1/model-connections/{connection_id}';
+};
+
+export type RemoveModelConnectionV1ModelConnectionsConnectionIdDeleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RemoveModelConnectionV1ModelConnectionsConnectionIdDeleteError = RemoveModelConnectionV1ModelConnectionsConnectionIdDeleteErrors[keyof RemoveModelConnectionV1ModelConnectionsConnectionIdDeleteErrors];
+
+export type RemoveModelConnectionV1ModelConnectionsConnectionIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    200: PyModelRemovalResult;
+};
+
+export type RemoveModelConnectionV1ModelConnectionsConnectionIdDeleteResponse = RemoveModelConnectionV1ModelConnectionsConnectionIdDeleteResponses[keyof RemoveModelConnectionV1ModelConnectionsConnectionIdDeleteResponses];
+
+export type UpdateModelConnectionV1ModelConnectionsConnectionIdPatchData = {
+    body: PyModelConnectionUpdate;
+    path: {
+        /**
+         * Connection Id
+         */
+        connection_id: string;
+    };
+    query?: never;
+    url: '/v1/model-connections/{connection_id}';
+};
+
+export type UpdateModelConnectionV1ModelConnectionsConnectionIdPatchErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateModelConnectionV1ModelConnectionsConnectionIdPatchError = UpdateModelConnectionV1ModelConnectionsConnectionIdPatchErrors[keyof UpdateModelConnectionV1ModelConnectionsConnectionIdPatchErrors];
+
+export type UpdateModelConnectionV1ModelConnectionsConnectionIdPatchResponses = {
+    /**
+     * Successful Response
+     */
+    200: PyModelConnection;
+};
+
+export type UpdateModelConnectionV1ModelConnectionsConnectionIdPatchResponse = UpdateModelConnectionV1ModelConnectionsConnectionIdPatchResponses[keyof UpdateModelConnectionV1ModelConnectionsConnectionIdPatchResponses];
+
+export type ListAvailableModelsV1ModelConnectionsConnectionIdAvailableModelsGetData = {
+    body?: never;
+    path: {
+        /**
+         * Connection Id
+         */
+        connection_id: string;
+    };
+    query?: never;
+    url: '/v1/model-connections/{connection_id}/available-models';
+};
+
+export type ListAvailableModelsV1ModelConnectionsConnectionIdAvailableModelsGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListAvailableModelsV1ModelConnectionsConnectionIdAvailableModelsGetError = ListAvailableModelsV1ModelConnectionsConnectionIdAvailableModelsGetErrors[keyof ListAvailableModelsV1ModelConnectionsConnectionIdAvailableModelsGetErrors];
+
+export type ListAvailableModelsV1ModelConnectionsConnectionIdAvailableModelsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: PyAvailableModels;
+};
+
+export type ListAvailableModelsV1ModelConnectionsConnectionIdAvailableModelsGetResponse = ListAvailableModelsV1ModelConnectionsConnectionIdAvailableModelsGetResponses[keyof ListAvailableModelsV1ModelConnectionsConnectionIdAvailableModelsGetResponses];
+
+export type AddOwnerModelV1ModelConnectionsConnectionIdModelsPostData = {
+    body: PyOwnerModelRequest;
+    path: {
+        /**
+         * Connection Id
+         */
+        connection_id: string;
+    };
+    query?: never;
+    url: '/v1/model-connections/{connection_id}/models';
+};
+
+export type AddOwnerModelV1ModelConnectionsConnectionIdModelsPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AddOwnerModelV1ModelConnectionsConnectionIdModelsPostError = AddOwnerModelV1ModelConnectionsConnectionIdModelsPostErrors[keyof AddOwnerModelV1ModelConnectionsConnectionIdModelsPostErrors];
+
+export type AddOwnerModelV1ModelConnectionsConnectionIdModelsPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: PyConfiguredModel;
+};
+
+export type AddOwnerModelV1ModelConnectionsConnectionIdModelsPostResponse = AddOwnerModelV1ModelConnectionsConnectionIdModelsPostResponses[keyof AddOwnerModelV1ModelConnectionsConnectionIdModelsPostResponses];
+
+export type ProbeModelV1ModelConnectionsConnectionIdProbePostData = {
+    body: PyModelProbeRequest;
+    path: {
+        /**
+         * Connection Id
+         */
+        connection_id: string;
+    };
+    query?: never;
+    url: '/v1/model-connections/{connection_id}/probe';
+};
+
+export type ProbeModelV1ModelConnectionsConnectionIdProbePostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ProbeModelV1ModelConnectionsConnectionIdProbePostError = ProbeModelV1ModelConnectionsConnectionIdProbePostErrors[keyof ProbeModelV1ModelConnectionsConnectionIdProbePostErrors];
+
+export type ProbeModelV1ModelConnectionsConnectionIdProbePostResponses = {
+    /**
+     * Successful Response
+     */
+    200: PyModelProbeReport;
+};
+
+export type ProbeModelV1ModelConnectionsConnectionIdProbePostResponse = ProbeModelV1ModelConnectionsConnectionIdProbePostResponses[keyof ProbeModelV1ModelConnectionsConnectionIdProbePostResponses];
+
 export type ListModelProvidersV1ModelProvidersGetData = {
     body?: never;
     path?: never;
@@ -12363,6 +13265,87 @@ export type ListModelProvidersV1ModelProvidersGetResponses = {
 };
 
 export type ListModelProvidersV1ModelProvidersGetResponse = ListModelProvidersV1ModelProvidersGetResponses[keyof ListModelProvidersV1ModelProvidersGetResponses];
+
+export type RemoveModelV1ModelProvidersModelProviderIdDeleteData = {
+    body?: never;
+    path: {
+        /**
+         * Model Provider Id
+         */
+        model_provider_id: string;
+    };
+    query?: {
+        /**
+         * Confirm
+         */
+        confirm?: boolean;
+    };
+    url: '/v1/model-providers/{model_provider_id}';
+};
+
+export type RemoveModelV1ModelProvidersModelProviderIdDeleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RemoveModelV1ModelProvidersModelProviderIdDeleteError = RemoveModelV1ModelProvidersModelProviderIdDeleteErrors[keyof RemoveModelV1ModelProvidersModelProviderIdDeleteErrors];
+
+export type RemoveModelV1ModelProvidersModelProviderIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    200: PyModelRemovalResult;
+};
+
+export type RemoveModelV1ModelProvidersModelProviderIdDeleteResponse = RemoveModelV1ModelProvidersModelProviderIdDeleteResponses[keyof RemoveModelV1ModelProvidersModelProviderIdDeleteResponses];
+
+export type UpdateModelV1ModelProvidersModelProviderIdPatchData = {
+    body: PyOwnerModelPatch;
+    path: {
+        /**
+         * Model Provider Id
+         */
+        model_provider_id: string;
+    };
+    query?: never;
+    url: '/v1/model-providers/{model_provider_id}';
+};
+
+export type UpdateModelV1ModelProvidersModelProviderIdPatchErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateModelV1ModelProvidersModelProviderIdPatchError = UpdateModelV1ModelProvidersModelProviderIdPatchErrors[keyof UpdateModelV1ModelProvidersModelProviderIdPatchErrors];
+
+export type UpdateModelV1ModelProvidersModelProviderIdPatchResponses = {
+    /**
+     * Successful Response
+     */
+    200: PyConfiguredModel;
+};
+
+export type UpdateModelV1ModelProvidersModelProviderIdPatchResponse = UpdateModelV1ModelProvidersModelProviderIdPatchResponses[keyof UpdateModelV1ModelProvidersModelProviderIdPatchResponses];
+
+export type GetModelRolesV1ModelRolesGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/v1/model-roles';
+};
+
+export type GetModelRolesV1ModelRolesGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: PyModelRoles;
+};
+
+export type GetModelRolesV1ModelRolesGetResponse = GetModelRolesV1ModelRolesGetResponses[keyof GetModelRolesV1ModelRolesGetResponses];
 
 export type ListParticleEffectsData = {
     body?: never;

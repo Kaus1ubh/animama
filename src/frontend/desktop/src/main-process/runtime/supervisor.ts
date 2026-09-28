@@ -2,13 +2,18 @@ import { mkdirSync } from "node:fs";
 import { lstat, readdir, statfs } from "node:fs/promises";
 import path from "node:path";
 import { randomBytes, randomUUID } from "node:crypto";
-import type {
-  CredentialProvider,
-  CredentialStatus,
-  RuntimeStage,
-  RuntimeStatus,
-  FeaturePackStatus,
-  FeaturePackId,
+import {
+  connectionCredentialPattern,
+  credentialTarget,
+  maxConnectionCredentials,
+  type CredentialChange,
+  isProviderCredential,
+  type CredentialStatus,
+  type ProviderCredentialStatus,
+  type RuntimeStage,
+  type RuntimeStatus,
+  type FeaturePackStatus,
+  type FeaturePackId,
 } from "../../../../shared/desktop-runtime.js";
 import {
   loadPackCatalog,
@@ -104,9 +109,11 @@ export class RuntimeSupervisor {
   private renderersQuiesced = false;
   private documentInstance = randomUUID();
   private vault?: CredentialVault;
-  // Main owns these five bounded status entries; product windows can be replaced.
+  // Main owns these bounded status entries (providers, the vault's connection
+  // keys and at most 32 unsaved connection failures); product windows can be
+  // replaced.
   private credentialFailures = new Map<
-    CredentialProvider,
+    string,
     { error: string; saved: boolean }
   >();
   private manifest?: RuntimeManifest;
@@ -542,8 +549,8 @@ export class RuntimeSupervisor {
     if (this.shutdownRequested) throw new RuntimeError("runtime_stopping");
     // A successful restart consumes every value saved in the vault.
     // An unapplied busy change must still be reported to the replacement window.
-    for (const [provider, failure] of this.credentialFailures)
-      if (failure.saved) this.credentialFailures.delete(provider);
+    for (const [target, failure] of this.credentialFailures)
+      if (failure.saved) this.credentialFailures.delete(target);
     this.renderersQuiesced = false;
     this.setStatus({ state: "ready", origin: origin.origin });
     void child.exit.then(() => {
@@ -614,16 +621,25 @@ export class RuntimeSupervisor {
     await this.startBackend(database.installation_principal_id);
   }
   credentials(): CredentialStatus[] {
-    return (this.vault?.list() ?? []).map((status) => {
-      const failure = this.credentialFailures.get(status.provider);
+    const restartRequired = this.current.state !== "ready";
+    const statuses = (this.vault?.list() ?? []).map((status) => {
+      const failure = this.credentialFailures.get(credentialTarget(status));
       return failure
-        ? {
-            ...status,
-            error: failure.error,
-            restartRequired: this.current.state !== "ready",
-          }
+        ? { ...status, error: failure.error, restartRequired }
         : status;
     });
+    // A connection key that failed before it was saved has no vault entry.
+    const listed = new Set(statuses.map(credentialTarget));
+    for (const [target, failure] of this.credentialFailures)
+      if (!listed.has(target) && connectionCredentialPattern.test(target))
+        statuses.push({
+          connection: target,
+          configured: false,
+          updatedAt: null,
+          restartRequired,
+          error: failure.error,
+        });
+    return statuses;
   }
   featurePacks(): FeaturePackManager {
     if (!this.packs) throw new RuntimeError("runtime_not_ready");
@@ -874,18 +890,22 @@ export class RuntimeSupervisor {
   changeCredential(
     provider: unknown,
     value?: unknown,
-  ): Promise<CredentialStatus> {
+  ): Promise<ProviderCredentialStatus> {
     const key = validateProvider(provider);
     const plaintext =
       value === undefined ? undefined : validateCredential(value);
     return this.changeCredentials([{ provider: key, value: plaintext }]).then(
-      (statuses) => statuses.find((item) => item.provider === key)!,
+      (statuses) =>
+        statuses.find(
+          (item): item is ProviderCredentialStatus =>
+            isProviderCredential(item) && item.provider === key,
+        )!,
     );
   }
   /**
-   * Save or remove several provider keys with one backend quiesce and one
-   * consumer restart. Every changed provider records the same failure if the
-   * batch cannot finish, and saved keys stay saved for Retry.
+   * Save or remove several provider or connection keys with one backend
+   * quiesce and one consumer restart. Every changed key records the same
+   * failure if the batch cannot finish, and saved keys stay saved for Retry.
    */
   changeCredentials(changes: unknown): Promise<CredentialStatus[]> {
     const batch = validateCredentialChanges(changes);
@@ -896,7 +916,14 @@ export class RuntimeSupervisor {
         throw new RuntimeError("runtime_not_ready");
       const vault = this.vault;
       for (const change of batch)
-        this.credentialFailures.delete(change.provider);
+        this.credentialFailures.delete(credentialTarget(change));
+      try {
+        vault.assertCapacity(batch);
+      } catch (error) {
+        // Refused before anything stops: services keep running unchanged.
+        this.recordCredentialFailures(batch, runtimeErrorCode(error), false);
+        return this.credentials();
+      }
       this.stage("backend");
       let quiesced = false;
       let saved = false;
@@ -910,11 +937,7 @@ export class RuntimeSupervisor {
         return this.credentials();
       } catch (error) {
         // Record before recovery emits ready: the old IPC caller no longer exists.
-        for (const change of batch)
-          this.credentialFailures.set(change.provider, {
-            error: runtimeErrorCode(error),
-            saved,
-          });
+        this.recordCredentialFailures(batch, runtimeErrorCode(error), saved);
         try {
           if (!quiesced) await this.restartConsumers();
           else throw error;
@@ -928,6 +951,30 @@ export class RuntimeSupervisor {
         return this.credentials();
       }
     });
+  }
+  /**
+   * Remember a batch's failure for the replacement window. Failures for
+   * connection keys that were never saved are capped, oldest first.
+   */
+  private recordCredentialFailures(
+    batch: ReadonlyArray<CredentialChange>,
+    error: string,
+    saved: boolean,
+  ): void {
+    for (const change of batch)
+      this.credentialFailures.set(credentialTarget(change), { error, saved });
+    const stored = new Set(
+      (this.vault?.list() ?? []).map((status) => credentialTarget(status)),
+    );
+    const unsaved = [...this.credentialFailures.keys()].filter(
+      (target) =>
+        !stored.has(target) && connectionCredentialPattern.test(target),
+    );
+    for (const target of unsaved.slice(
+      0,
+      Math.max(0, unsaved.length - maxConnectionCredentials),
+    ))
+      this.credentialFailures.delete(target);
   }
   private async stopServices(): Promise<void> {
     this.expectedBackendExit = true;

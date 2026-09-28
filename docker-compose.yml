@@ -51,6 +51,17 @@ services:
     container_name: "${ANIMAMA_CONTAINER_NAME_PREFIX:-}animama-server"
     restart: unless-stopped
     user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    # Owner-configured model servers on the host (Ollama, LM Studio, llama.cpp)
+    # are reached as host.docker.internal. On Linux this is the bridge gateway,
+    # so those servers must listen beyond 127.0.0.1.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    # Keys for owner-added model connections: an optional owner-only file of
+    # ANIMAMA_CONNECTION_<NAME>_API_KEY=... lines that connections name in App
+    # Settings → Models. reset.sh verifies its permissions.
+    env_file:
+      - path: ${ANIMAMA_CONNECTION_KEYS_FILE:-/dev/null}
+        required: false
     environment:
       # Libraries such as Torch call getpass.getuser(); provide a logical name
       # because the host UID intentionally may not exist in the image passwd file.
@@ -76,20 +87,19 @@ services:
       HF_TOKEN: ${HF_TOKEN}
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
-      ANIMAMA_DEFAULT_MODEL_PROVIDER_ID: ${ANIMAMA_DEFAULT_MODEL_PROVIDER_ID:-OpenAIResponsesHTTPAgent:gpt-5.6-luna}
+      ANIMAMA_DEFAULT_MODEL_PROVIDER_ID: ${ANIMAMA_DEFAULT_MODEL_PROVIDER_ID:-OpenAIResponsesHTTPAgent:gpt-6-luna}
+      ANIMAMA_LOCAL_MODEL_HOST: ${ANIMAMA_LOCAL_MODEL_HOST:-host.docker.internal}
       ANIMAMA_LLM_SKIP: ${ANIMAMA_LLM_SKIP:-}
-      OPENAI_DEFAULT_MODEL: ${OPENAI_DEFAULT_MODEL:-gpt-5.6-luna}
-      OPENAI_SLOW_MODEL: ${OPENAI_SLOW_MODEL:-gpt-5.6-luna}
-      GEMINI_API_KEY: ${GEMINI_API_KEY}
-      GEMINI_DEFAULT_MODEL: ${GEMINI_DEFAULT_MODEL:-gemini-2.5-flash-lite}
       WATCHFILES_FORCE_POLLING: "true"
       ANIMAMA_LOG_TZ: America/New_York
       ANIMAMA_LOG_DIR: /var/log/animama
-      ANIMAMA_MEMORY_MANAGER_AGENT_MODEL: ${ANIMAMA_MEMORY_MANAGER_AGENT_MODEL:-gpt-5.6-luna}
-      # Auxiliary title calls have their own backend-owned settings.
+      # Operator defaults for model roles (catalog row ids). App Settings
+      # assignments take precedence; unset utility and memory-manager roles use
+      # the default chat model, and embeddings stay off.
+      ANIMAMA_DEFAULT_UTILITY_MODEL_PROVIDER_ID: ${ANIMAMA_DEFAULT_UTILITY_MODEL_PROVIDER_ID:-}
+      ANIMAMA_DEFAULT_MEMORY_MANAGER_MODEL_PROVIDER_ID: ${ANIMAMA_DEFAULT_MEMORY_MANAGER_MODEL_PROVIDER_ID:-}
+      ANIMAMA_DEFAULT_EMBEDDING_MODEL_PROVIDER_ID: ${ANIMAMA_DEFAULT_EMBEDDING_MODEL_PROVIDER_ID:-}
       ANIMAMA_CHAT_TITLE_GENERATION_ENABLED: ${ANIMAMA_CHAT_TITLE_GENERATION_ENABLED:-true}
-      ANIMAMA_CHAT_TITLE_GENERATION_MODEL: ${ANIMAMA_CHAT_TITLE_GENERATION_MODEL:-gpt-5-nano}
-      ANIMAMA_CHAT_TITLE_GENERATION_PROVIDER: ${ANIMAMA_CHAT_TITLE_GENERATION_PROVIDER:-OpenAIHTTPAgent}
       ANIMAMA_CHAT_TITLE_GENERATION_REASONING_EFFORT: ${ANIMAMA_CHAT_TITLE_GENERATION_REASONING_EFFORT:-low}
       ANIMAMA_CHAT_COMPACTION_ENABLED: ${ANIMAMA_CHAT_COMPACTION_ENABLED:-true}
       # Companion safety (operator settings). The Companion Guardrails are not configurable.
@@ -189,7 +199,7 @@ services:
   #     ANIMAMA_DATABASE_POOL_RECYCLE_SECONDS: ${ANIMAMA_DATABASE_POOL_RECYCLE_SECONDS:--1}
   #     ANIMAMA_DATABASE_POOL_PRE_PING: ${ANIMAMA_DATABASE_POOL_PRE_PING:-true}
   #     OPENAI_API_KEY: ${OPENAI_API_KEY}
-  #     ANIMAMA_EMBEDDING_MODEL: ${ANIMAMA_EMBEDDING_MODEL:-text-embedding-3-small}
+  #     ANIMAMA_DEFAULT_EMBEDDING_MODEL_PROVIDER_ID: ${ANIMAMA_DEFAULT_EMBEDDING_MODEL_PROVIDER_ID:-}
   #     ANIMAMA_LOG_TZ: America/New_York
   #     ANIMAMA_LOG_DIR: /var/log/animama
   #     ANIMAMA_LOG_TO_FILE: ${ANIMAMA_LOG_TO_FILE:-0}
@@ -206,7 +216,7 @@ services:
   #     ANIMAMA_USER_FILE_DOCLING_TABLE_MODE: ${ANIMAMA_USER_FILE_DOCLING_TABLE_MODE:-fast}
   #     ANIMAMA_USER_FILE_DOCLING_WARMUP: ${ANIMAMA_USER_FILE_DOCLING_WARMUP:-true}
   #     ANIMAMA_USER_FILE_CHUNK_MAX_TOKENS: ${ANIMAMA_USER_FILE_CHUNK_MAX_TOKENS:-800}
-  #     ANIMAMA_USER_FILE_CHUNK_TOKENIZER_MODEL: ${ANIMAMA_USER_FILE_CHUNK_TOKENIZER_MODEL:-${ANIMAMA_EMBEDDING_MODEL:-text-embedding-3-small}}
+  #     ANIMAMA_USER_FILE_CHUNK_TOKENIZER_MODEL: ${ANIMAMA_USER_FILE_CHUNK_TOKENIZER_MODEL:-text-embedding-3-small}
   #     HF_TOKEN: ${HF_TOKEN:-}
   #   volumes:
   #     - .:/app
@@ -251,65 +261,6 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
       - animama-network
-
-  # llama-build:
-  #   image: llama-cpp:latest
-  #   build: ../llama.cpp/.
-  #   working_dir: /app
-  #   volumes:
-  #     - ../llama.cpp:/app/llama.cpp:ro
-  #     - ccache_data:/root/.cache/ccache
-  #     - build_artifacts:/app/build
-  #   command: >
-  #     sh -c "
-  #       if [ -f /app/build/bin/llama-server ]; then
-  #         echo '--- Binary already exists, skipping build ---'
-  #         exit 0
-  #       fi &&
-  #       echo '--- Cleaning any previous partial build ---' &&
-  #       rm -rf /app/build/CMakeCache.txt /app/build/CMakeFiles &&
-  #       echo '--- Ensure libcuda.so.1 symlink exists ---' &&
-  #       ln -sf /usr/local/cuda/lib64/stubs/libcuda.so /usr/local/cuda/lib64/stubs/libcuda.so.1 &&
-  #       echo '--- Building llama.cpp binary ---' &&
-  #       ccache cmake -B /app/build -S /app/llama.cpp -G Ninja -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DGGML_CUDA=ON -DCMAKE_C_FLAGS='-march=native' -DCMAKE_CXX_FLAGS='-march=native' -DCMAKE_EXE_LINKER_FLAGS='-L/usr/local/cuda/lib64/stubs -Wl,-rpath-link,/usr/local/cuda/lib64/stubs' -DCMAKE_SHARED_LINKER_FLAGS='-L/usr/local/cuda/lib64/stubs -Wl,-rpath-link,/usr/local/cuda/lib64/stubs' &&
-  #       echo '--- Compiling with all available cores ---' &&
-  #       cmake --build /app/build --config Release -- -j$(nproc) &&
-  #       echo '--- Build complete! ---'
-  #     "
-
-  # llama-run:
-  #   image: llama-cpp:latest
-  #   build: ../llama.cpp/.
-  #   depends_on:
-  #     llama-build:
-  #       condition: service_completed_successfully
-  #   working_dir: /app
-  #   volumes:
-  #     - build_artifacts:/app/build:ro
-  #     - type: bind
-  #       source: ${LLAMA_MODEL_PATH:-${HOME}/llama-models}
-  #       target: /models
-  #   deploy:
-  #     resources:
-  #       reservations:
-  #         devices:
-  #           - driver: nvidia
-  #             count: 1
-  #             capabilities: [ gpu ]
-  #   command: >
-  #     sh -c "/app/build/bin/llama-server -m /models/${LLAMA_MODEL_FILE} -c ${LLAMA_CONTEXT_SIZE} -b ${LLAMA_BATCH_SIZE} --parallel ${LLAMA_PARALLEL} --threads ${LLAMA_THREADS} ${LLAMA_CONT_BATCHING} ${LLAMA_NO_MMAP} --temp ${LLAMA_TEMP} --top-k ${LLAMA_TOP_K} --top-p ${LLAMA_TOP_P} --host 0.0.0.0 --port 8080 --flash-attn --cache-type-k ${LLAMA_K_CACHE} --cache-type-v ${LLAMA_V_CACHE} --n-gpu-layers ${LLAMA_GPU_LAYERS}"
-  #   ports:
-  #     - "8080:8080"
-  #   networks:
-  #     - animama-network
-  #   healthcheck:
-  #     test: [ "CMD", "curl", "-f", "http://localhost:8080/health" ]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 3
-  #     start_period: 40s
-  #   env_file:
-  #     - .env
 
   parakeet:
     profiles:
@@ -428,7 +379,3 @@ volumes:
   postgres-data:
   pgadmin-data:
   docling-cache:
-  ccache_data:
-    driver: local
-  build_artifacts:
-    driver: local

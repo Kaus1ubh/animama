@@ -18,10 +18,10 @@ from animama.app.model_clients import (
     ModelClientRequest,
 )
 from animama.app.model_clients.prompt import direct_model_prompt
-from animama.app.ports import ModelProviderRepository
 from animama.domain import ModelProvider
 from animama.domain.usage import Usage
-from animama.utils.type_helpers import coerce_provider_type
+
+from .model_role_resolver import ROLE_UTILITY, ModelRoleResolver
 
 
 @dataclass(frozen=True, slots=True)
@@ -42,8 +42,7 @@ class DirectModelPromptRequest:
     chat_id: str
     prompt: str
     task: str
-    model_provider: str
-    model: str
+    role: str = ROLE_UTILITY
     run_id: str | None = None
     instructions: str | None = None
     prompt_version: str | None = None
@@ -51,31 +50,29 @@ class DirectModelPromptRequest:
 
 
 class DirectModelPromptRunner:
-    """Resolve a durable catalog row and stream a prompt through a shared model client."""
+    """Run a prompt on the owner's model for a role (utility by default)."""
 
     def __init__(
         self,
         *,
         registry: ModelClientRegistry,
-        model_providers: ModelProviderRepository,
+        role_resolver: ModelRoleResolver,
     ) -> None:
         self._registry = registry
-        self._model_providers = model_providers
+        self._roles = role_resolver
 
     async def run_prompt(self, request: DirectModelPromptRequest) -> DirectModelPromptResult:
-        provider = await self._resolve_model_provider(
-            model_provider=request.model_provider,
-            model=request.model,
-        )
-        if not provider.active:
-            raise ValueError(f"Model provider is inactive: {provider.id}")
+        resolved = await self._roles.resolve(request.user_id, request.role)
+        provider = resolved.model_provider
+        if provider is None:
+            raise ValueError(f"No model is available for the {request.role} role")
         client = self._registry.get(provider.provider_type)
         if client is None:
             raise ValueError(f"No model client registered for provider type {provider.provider_type!r}")
         run_id = request.run_id or f"{request.task}-{uuid.uuid4().hex}"
         model_request = ModelClientRequest(
             model_provider=provider,
-            prompt=_prompt_context(request, run_id=run_id),
+            prompt=_prompt_context(request, run_id=run_id, reasoning_effort=_supported_effort(request, provider)),
             provider_options=ModelClientProviderOptions(),
         )
         final = await _collect_final(client.stream(model_request))
@@ -87,25 +84,22 @@ class DirectModelPromptRunner:
             model_provider=provider,
         )
 
-    async def _resolve_model_provider(self, *, model_provider: str, model: str) -> ModelProvider:
-        provider_type = str(coerce_provider_type(model_provider) or model_provider).strip()
-        model_name = str(model or "").strip()
-        if not provider_type:
-            raise ValueError("Model provider is required")
-        if not model_name:
-            raise ValueError("Model is required")
-        row = await self._model_providers.get_by_provider_model(provider_type, model_name)
-        if row is None:
-            row = await self._model_providers.get(f"{provider_type}:{model_name}")
-        if row is None:
-            raise ValueError(f"Model provider catalog row not found: {provider_type}:{model_name}")
-        return row
+
+def _supported_effort(request: DirectModelPromptRequest, provider: ModelProvider) -> str | None:
+    """Send a requested reasoning effort only when the row supports it."""
+
+    effort = request.request_options.get("reasoning_effort")
+    if not isinstance(effort, str) or not effort.strip():
+        return None
+    supported = provider.capabilities.supported_reasoning_efforts or []
+    return effort.strip() if provider.capabilities.supports_reasoning and effort.strip() in supported else None
 
 
-def _prompt_context(request: DirectModelPromptRequest, *, run_id: str) -> Any:
+def _prompt_context(request: DirectModelPromptRequest, *, run_id: str, reasoning_effort: str | None) -> Any:
     return direct_model_prompt(
         prompt=request.prompt,
         instructions=request.instructions,
+        reasoning_effort=reasoning_effort,
         metadata={
             "context_source": "direct_model_prompt",
             "task": request.task,

@@ -30,10 +30,13 @@ routes require a separate control credential and reject renderer cookies alone.
 The supervisor compares readiness against the exact app build, Alembic head,
 principal, HTTP schema, exact PID/start token and Included reconciliation. It retains child handles and stops only
 its own processes. An occupied port or PID record does not establish ownership.
-Provider changes and pack activation can restart consumers while preserving
-PostgreSQL, the owner and saved application origin. Restarts destroy product
-windows, show independent recovery, quiesce active work, and recreate the
-renderer only after the restarted child passes readiness.
+Provider and model-connection key changes and pack activation can restart
+consumers while preserving PostgreSQL, the owner and saved application origin.
+Restarts destroy product windows, show independent recovery, quiesce active work,
+and recreate the renderer only after the restarted child passes readiness. A key
+batch that would store more than 32 connection keys is refused with
+`connection_credentials_full` before anything is quiesced, so services keep
+running unchanged.
 
 ## Roots, secrets and private bytes
 
@@ -42,7 +45,7 @@ All paths below are relative to `~/Library/Application Support/Animama`:
 | Path                     | Responsibility                                                                                 |
 | ------------------------ | ---------------------------------------------------------------------------------------------- |
 | `postgres/16/data`       | Private PostgreSQL cluster; database commands verify `SHOW data_directory`.                    |
-| `secrets/vault.bin`      | OS-encrypted database password and configured provider keys; requires matching secure storage. |
+| `secrets/vault.bin`      | OS-encrypted database password, provider keys and model-connection keys; requires matching secure storage. |
 | `runtime/state.json`     | Stable application port, stored as `{version:1,gatewayPort}`; `gatewayPort` is the application port.          |
 | `runtime/processes.json` | Owned-process evidence, never authority to kill a discovered process.                          |
 | `runtime/logs`           | Redacted main and child diagnostics; review before sharing.                                    |
@@ -64,6 +67,14 @@ PostgreSQL. Loss of per-launch credentials is
 handled by a normal relaunch; a missing/unreadable vault alongside PGDATA fails
 closed because its database password cannot be silently regenerated.
 
+Besides the OpenAI and ElevenLabs keys, the vault holds a `connections` map of
+model-connection keys under their managed names, `ANIMAMA_CONNECTION_<ID>_API_KEY`
+derived from the connection id. It stores at most 32 connection keys in a file
+of at most 512 KiB, and one batch changes at most eight keys, one per provider
+or connection. A vault beyond those bounds is `vault_unreadable`. Provider
+entries for `deepseek`, `huggingface` and `gemini` written by earlier builds are
+dropped on load; re-enter those keys on a model connection.
+
 ## Supervisor environment and frozen CLI
 
 These are private composition inputs, not end-user configuration switches:
@@ -73,6 +84,7 @@ These are private composition inputs, not end-user configuration switches:
 | `ANIMAMA_DATABASE_URL`, `ANIMAMA_DESKTOP_PGDATA`                                                                  | Supervisor-owned loopback connection and expected cluster path. Never pass the password in argv or logs. |
 | `ANIMAMA_PUBLIC_ORIGIN`, `ANIMAMA_WEB_ROOT` | Exact saved loopback origin and packaged React build root. |
 | `ANIMAMA_DESKTOP_RENDERER_CAPABILITY` | Per-launch renderer admission cookie; never a private-control credential. |
+| `OPENAI_API_KEY`, `ELEVENLABS_API_KEY`, `ANIMAMA_CONNECTION_<ID>_API_KEY` | Saved vault keys for FastAPI, the document worker and `database` commands; stripped from the cleanup worker and redacted from logs. |
 | `ANIMAMA_PROCESS_START_TOKEN` | Fresh owned-child UUID returned with its PID in private readiness. |
 | `ANIMAMA_PARAKEET_MODEL_MOUNT_JSON` | Optional verified `{root,version,files}` inventory; bounded to 4 MiB and never browser-supplied. |
 | `ANIMAMA_DESKTOP_CONTROL_TOKEN`, `ANIMAMA_DESKTOP_BUILD_ID`                                                       | Separate private readiness credential and expected build.                                                |
@@ -83,6 +95,10 @@ These are private composition inputs, not end-user configuration switches:
 | `ANIMAMA_DOCUMENT_WORKER_INSTANCE_ID`, `ANIMAMA_DOCUMENT_PACK_VERSION`                                            | Expected heartbeat instance and active version for lifecycle checks.                                     |
 | `ANIMAMA_DOCUMENT_WORKER_EXECUTABLE`, `ANIMAMA_DOCUMENT_WORKER_ROOT`, `ANIMAMA_DOCUMENT_WORKER_EXECUTABLE_SHA256` | Fixed, verified helper delegation inputs; not browser-supplied.                                          |
 | `ANIMAMA_DOCLING_ARTIFACTS_PATH`                                                                                  | Worker-only bundled model location.                                                                      |
+
+Desktop does not set `ANIMAMA_LOCAL_MODEL_HOST`, so the Ollama, LM Studio,
+llama.cpp and vLLM connection presets use `127.0.0.1`. See
+[Local model servers](local-models.md).
 
 The packaged `animama-runtime` command parser is in `animama/runtime/cli.py`:
 
@@ -116,7 +132,8 @@ Pack removal checks running document leases, Anima/content references, preview
 leases and content operations before and after quiescing. An atomic pointer
 switch is followed by reconciliation/readiness; failure rolls back the previous
 mount. Queued jobs remain for reinstallation. Desktop model/tokenizer resources
-are packaged offline; remote provider stages still need their configured service.
+are packaged offline; embedding uses the Embeddings role's model connection, and
+files are searched by keyword while that role is off.
 The signed worker is verified on installation and every launch, even with an
 unsigned development core. No unsigned-helper or arbitrary-path fallback exists.
 

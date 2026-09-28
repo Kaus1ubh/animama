@@ -18,7 +18,7 @@ from animama.app.services.chat_title_generation_service import sanitize_generate
 from animama.domain.chat import Chat, ChatMessage, MessageRole
 from animama.domain.chat_compaction import ChatCompaction
 from animama.domain.usage import Usage, UsageOutputDetails
-from animama.orm import ORMAnima
+from animama.orm import ORMAnima, ORMChat
 
 
 def _chat_manager(async_session) -> ChatManager:
@@ -65,7 +65,7 @@ async def test_chat_manager_creates_missing_chat_with_api_standard(async_session
         chat_id="chat-manager-standard-1",
         user_id="user-1",
         api_standard=CHAT_API_STANDARD_CHAT_COMPLETIONS,
-        model_provider_id="OpenAIHTTPAgent:gpt-5-nano",
+        model_provider_id="OpenAIHTTPAgent:gpt-6-luna",
     )
     stored = await SQLAlchemyChatRepository(async_session).get("chat-manager-standard-1")
 
@@ -91,7 +91,7 @@ async def test_chat_manager_initializes_empty_existing_chat_api_standard(async_s
         chat_id="chat-empty-standard-1",
         user_id="user-1",
         api_standard=CHAT_API_STANDARD_RESPONSES,
-        model_provider_id="OpenAIResponsesHTTPAgent:gpt-5-nano",
+        model_provider_id="OpenAIResponsesHTTPAgent:gpt-6-luna",
     )
     stored = await SQLAlchemyChatRepository(async_session).get("chat-empty-standard-1")
 
@@ -130,7 +130,7 @@ async def test_chat_manager_allows_same_standard_and_rejects_mismatch(async_sess
             chat_id="chat-standard-switch-1",
             user_id="user-1",
             api_standard=CHAT_API_STANDARD_RESPONSES,
-            model_provider_id="OpenAIResponsesHTTPAgent:gpt-5-nano",
+            model_provider_id="OpenAIResponsesHTTPAgent:gpt-6-luna",
         )
     stored = await SQLAlchemyChatRepository(async_session).get("chat-standard-switch-1")
 
@@ -140,7 +140,7 @@ async def test_chat_manager_allows_same_standard_and_rejects_mismatch(async_sess
         "chat_id": "chat-standard-switch-1",
         "chat_api_standard": CHAT_API_STANDARD_CHAT_COMPLETIONS,
         "requested_api_standard": CHAT_API_STANDARD_RESPONSES,
-        "requested_model_provider_id": "OpenAIResponsesHTTPAgent:gpt-5-nano",
+        "requested_model_provider_id": "OpenAIResponsesHTTPAgent:gpt-6-luna",
         "action": "start_new_chat",
     }
     assert stored is not None
@@ -178,7 +178,7 @@ async def test_chat_manager_rejects_non_empty_null_api_standard_chat(async_sessi
             chat_id="chat-null-standard-1",
             user_id="user-1",
             api_standard=CHAT_API_STANDARD_CHAT_COMPLETIONS,
-            model_provider_id="OpenAIHTTPAgent:gpt-5-nano",
+            model_provider_id="OpenAIHTTPAgent:gpt-6-luna",
         )
     stored = await SQLAlchemyChatRepository(async_session).get("chat-null-standard-1")
 
@@ -328,7 +328,7 @@ async def test_chat_manager_record_turn_persists_messages_and_usage(async_sessio
             usage=Usage(input_tokens=3, output_tokens=5, total_tokens=8),
             turn=None,
             created_at=None,
-            model="gpt-5-nano",
+            model="gpt-6-luna",
             model_provider="OpenAIHTTPAgent",
             internal=False,
         ),
@@ -343,7 +343,7 @@ async def test_chat_manager_record_turn_persists_messages_and_usage(async_sessio
     assert [message.turn for message in context.messages] == [1, 2]
     assert [(message.model_provider, message.model) for message in context.messages] == [
         (None, None),
-        ("OpenAIHTTPAgent", "gpt-5-nano"),
+        ("OpenAIHTTPAgent", "gpt-6-luna"),
     ]
     assert stored is not None
     assert stored.usage.input_tokens == 3
@@ -869,3 +869,44 @@ async def test_chat_manager_ignores_active_compaction_without_summary_or_boundar
 
     assert context.active_compaction is None
     assert [message.content for message in context.messages] == ["visible user", "visible assistant"]
+
+
+async def test_chat_manager_active_context_uses_the_last_request_footprint(async_session):
+    """A turn with several requests bills them all but keeps only the last in context."""
+
+    await _sync_model_catalog(async_session)
+    async_session.add(ORMAnima(id="anima-chat-context", user_id="user-1"))
+    await async_session.commit()
+    manager = _chat_manager(async_session)
+    await manager.ensure_owned_chat(anima_id="anima-chat-context", chat_id="chat-context-1", user_id="user-1")
+
+    def _message(role: MessageRole, *, data=None, usage=None) -> ChatMessage:  # noqa: ANN001
+        return ChatMessage(
+            id=None,
+            chat_id="chat-context-1",
+            run_id="run-context",
+            message_type="message",
+            role=role,
+            content="text",
+            data=data,
+            usage=usage,
+            turn=None,
+            created_at=None,
+            internal=False,
+        )
+
+    await manager.record_turn(
+        anima_id="anima-chat-context",
+        chat_id="chat-context-1",
+        user_msg=_message(MessageRole.USER),
+        assistant_msg=_message(
+            MessageRole.ASSISTANT,
+            data={"model_client": {"raw_provider_metadata": {"context_tokens": 16}}},
+            usage=Usage(input_tokens=35, output_tokens=6, total_tokens=41),
+        ),
+    )
+
+    chat = await async_session.get(ORMChat, "chat-context-1")
+    assert chat is not None
+    assert chat.cum_total_tokens == 41
+    assert chat.active_context_tokens == 16

@@ -81,7 +81,10 @@ class UserFileProcessingRepository(Protocol):
         processing_metadata: dict[str, Any],
         file_metadata_updates: dict[str, Any] | None = None,
         processed_at: datetime,
+        embedding_model_id: str | None = None,
     ) -> UserFileProcessingJob:
+        """Replace a file's chunks; chunk vectors are recorded as ``embedding_model_id``'s."""
+
         raise NotImplementedError
 
     async def reuse_processed_file(
@@ -92,8 +95,13 @@ class UserFileProcessingRepository(Protocol):
         file_id: str,
         sha256: str,
         processed_at: datetime,
+        embedding_model_id: str | None = None,
     ) -> UserFileProcessingJob | None:
-        """Clone a same-user ready file's processed result when its digest matches."""
+        """Clone a same-user ready file's processed result when its digest matches.
+
+        Only vectors from ``embedding_model_id`` are copied; other chunks are
+        left for re-embedding.
+        """
 
         raise NotImplementedError
 
@@ -127,9 +135,23 @@ class UserFileProcessingRepository(Protocol):
         *,
         user_id: str,
         embedding: list[float],
+        embedding_model_id: str,
         limit: int,
         file_ids: list[str] | None = None,
     ) -> list[UserFileSearchResult]:
+        """Rank chunks whose vectors come from ``embedding_model_id`` by similarity."""
+
+        raise NotImplementedError
+
+    async def count_stale_chunks(
+        self,
+        *,
+        user_id: str,
+        embedding_model_id: str,
+        file_ids: list[str] | None = None,
+    ) -> int:
+        """Count searchable chunks still waiting for a vector from ``embedding_model_id``."""
+
         raise NotImplementedError
 
 

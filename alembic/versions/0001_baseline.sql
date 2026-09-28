@@ -197,6 +197,7 @@ CREATE TABLE archive_passages (
     archive_id character varying NOT NULL,
     text text NOT NULL,
     embedding vector,
+    embedding_model_id character varying,
     tags json,
     metadata_ json,
     source_id character varying,
@@ -358,6 +359,7 @@ CREATE TABLE chats (
     api_standard character varying,
     last_model_client character varying,
     last_model_id character varying,
+    last_model_provider_id character varying,
     openai_previous_response_id character varying,
     metadata jsonb DEFAULT '{}'::jsonb NOT NULL,
     cum_input_tokens integer DEFAULT 0 NOT NULL,
@@ -679,6 +681,23 @@ CREATE TABLE memory_manager_runs (
 
 -- animama-statement --
 
+CREATE TABLE model_connections (
+    id character varying NOT NULL,
+    source character varying NOT NULL,
+    name character varying NOT NULL,
+    preset character varying NOT NULL,
+    base_url character varying,
+    credential_env character varying,
+    compatibility jsonb NOT NULL,
+    timeout_seconds double precision,
+    active boolean NOT NULL,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT ck_model_connections_source_valid CHECK (((source)::text = ANY ((ARRAY['builtin'::character varying, 'owner'::character varying])::text[])))
+);
+
+-- animama-statement --
+
 CREATE TABLE model_providers (
     id character varying NOT NULL,
     model character varying NOT NULL,
@@ -690,8 +709,12 @@ CREATE TABLE model_providers (
     current_snapshot character varying,
     context_window_tokens integer,
     max_output_tokens integer,
-    provider_base_url character varying,
-    api_family character varying,
+    connection_id character varying DEFAULT 'openai'::character varying NOT NULL,
+    source character varying DEFAULT 'builtin'::character varying NOT NULL,
+    model_kind character varying DEFAULT 'chat'::character varying NOT NULL,
+    hidden boolean DEFAULT false NOT NULL,
+    allow_memory_writes boolean DEFAULT true NOT NULL,
+    probe_result jsonb,
     service_tiers_supported json NOT NULL,
     active boolean NOT NULL,
     deprecated_at timestamp without time zone,
@@ -705,6 +728,7 @@ CREATE TABLE model_providers (
     supports_reasoning boolean,
     supported_reasoning_efforts json,
     native_tool_support json,
+    tools_with_structured_output boolean DEFAULT true NOT NULL,
     pricing_status character varying NOT NULL,
     pricing_source_provider character varying,
     pricing_source_model character varying,
@@ -741,7 +765,9 @@ CREATE TABLE model_providers (
     pricing_notes json NOT NULL,
     metadata json NOT NULL,
     created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT ck_model_providers_model_kind_valid CHECK (((model_kind)::text = ANY ((ARRAY['chat'::character varying, 'embedding'::character varying])::text[]))),
+    CONSTRAINT ck_model_providers_source_valid CHECK (((source)::text = ANY ((ARRAY['builtin'::character varying, 'owner'::character varying])::text[])))
 );
 
 -- animama-statement --
@@ -816,7 +842,9 @@ CREATE TABLE user_file_chunk (
     user_id character varying NOT NULL,
     chunk_index integer NOT NULL,
     text text NOT NULL,
+    embedding_text text,
     embedding vector,
+    embedding_model_id character varying,
     char_count bigint NOT NULL,
     token_estimate integer NOT NULL,
     metadata json NOT NULL,
@@ -1050,6 +1078,11 @@ ALTER TABLE ONLY memory_manager_runs
 
 -- animama-statement --
 
+ALTER TABLE ONLY model_connections
+    ADD CONSTRAINT pk_model_connections PRIMARY KEY (id);
+
+-- animama-statement --
+
 ALTER TABLE ONLY model_providers
     ADD CONSTRAINT pk_model_providers PRIMARY KEY (id);
 
@@ -1146,7 +1179,7 @@ ALTER TABLE ONLY installation_settings
 -- animama-statement --
 
 ALTER TABLE ONLY model_providers
-    ADD CONSTRAINT uq_model_providers_provider_type_model UNIQUE (provider_type, model);
+    ADD CONSTRAINT uq_model_providers_connection_model UNIQUE (connection_id, provider_type, model, source);
 
 -- animama-statement --
 
@@ -1392,6 +1425,10 @@ CREATE INDEX ix_user_file_chunk_file_id ON user_file_chunk USING btree (file_id)
 
 -- animama-statement --
 
+CREATE INDEX ix_user_file_chunk_user_embedding_model ON user_file_chunk USING btree (user_id, embedding_model_id);
+
+-- animama-statement --
+
 CREATE INDEX ix_user_file_chunk_text_fts ON user_file_chunk USING gin (to_tsvector('english'::regconfig, text));
 
 -- animama-statement --
@@ -1591,8 +1628,8 @@ ALTER TABLE ONLY chat_messages
 
 -- animama-statement --
 
-ALTER TABLE ONLY chat_messages
-    ADD CONSTRAINT fk_chat_messages_model_provider_pair FOREIGN KEY (model_provider, model) REFERENCES model_providers(provider_type, model);
+ALTER TABLE ONLY model_providers
+    ADD CONSTRAINT fk_model_providers_connection_id_model_connections FOREIGN KEY (connection_id) REFERENCES model_connections(id);
 
 -- animama-statement --
 

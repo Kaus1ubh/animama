@@ -33,6 +33,7 @@ from animama.app.services.memory_manager_service import (
     MemoryManagerService,
     MemoryManagerValidationError,
 )
+from animama.app.services.model_role_resolver import ROLE_MEMORY_MANAGER
 from animama.domain.memory_episode import MemoryEpisodeItem
 from animama.domain.memory_manager import (
     MEMORY_MANAGER_RUN_KIND_EPISODE_PROCESSING,
@@ -50,6 +51,8 @@ from animama.domain.request_principal import RequestPrincipal
 from animama.domain.settings import preferred_time_zone
 from animama.server.config import settings
 from animama.server.deps import get_async_session, get_current_principal
+from animama.server.model_clients import build_model_credential_resolver, openai_base_url
+from animama.server.model_roles import ModelRoleSettings, get_model_role_settings
 from animama.server.schemas.memory_manager import (
     PyMemoryEpisodeItem,
     PyMemoryEpisodeListResponse,
@@ -71,6 +74,7 @@ from animama.server.schemas.memory_manager import (
 router = APIRouter()
 SessionDep = Annotated[AsyncSession, Depends(get_async_session)]
 UserDep = Annotated[RequestPrincipal, Depends(get_current_principal)]
+RolesDep = Annotated[ModelRoleSettings, Depends(get_model_role_settings)]
 
 
 def _memory_entry_service(session: AsyncSession, *, commit_on_write: bool = True) -> MemoryEntryService:
@@ -99,19 +103,7 @@ async def _owner_timezone(session: AsyncSession, user_id: str) -> str:
     return name
 
 
-def _resolve_memory_manager_model(preferences: object) -> str:
-    """Return a non-empty per-user model override or the server default."""
-
-    if isinstance(preferences, dict):
-        memory_preferences = preferences.get("memory")
-        if isinstance(memory_preferences, dict):
-            selected_model = memory_preferences.get("manager_model")
-            if isinstance(selected_model, str) and selected_model.strip():
-                return selected_model.strip()
-    return settings.anima_memory_manager_agent_model
-
-
-async def _manager_service(session: AsyncSession, user_id: str) -> MemoryManagerService:
+async def _manager_service(session: AsyncSession, user_id: str, roles: ModelRoleSettings) -> MemoryManagerService:
     """Build a request-local manager service with the current user's model."""
 
     memory_entries = _memory_entry_service(session, commit_on_write=False)
@@ -125,8 +117,6 @@ async def _manager_service(session: AsyncSession, user_id: str) -> MemoryManager
         uow=uow,
         commit_on_write=False,
     )
-    user_settings = await SQLAlchemyUserSettingsRepository(session).get(user_id)
-    manager_model = _resolve_memory_manager_model(user_settings.preferences if user_settings is not None else None)
     runtime = (
         DeterministicMemoryManagerRuntime(
             user_id=user_id,
@@ -142,9 +132,9 @@ async def _manager_service(session: AsyncSession, user_id: str) -> MemoryManager
             memory_episodes=memory_episode_repository,
             animas=anima_repository,
             chat_messages=chat_message_repository,
-            api_key=settings.openai_api_key,
-            base_url=settings.openai_base_url,
-            model=manager_model,
+            model_provider=(await roles.resolver(session).resolve(user_id, ROLE_MEMORY_MANAGER)).model_provider,
+            credential_resolver=build_model_credential_resolver(),
+            openai_base_url=openai_base_url(),
             timeout_seconds=settings.anima_model_client_timeout_seconds,
         )
     )
@@ -333,11 +323,12 @@ async def create_memory_manager_run(
     req: PyMemoryManagerRunCreateRequest,
     session: SessionDep,
     user: UserDep,
+    roles: RolesDep,
 ) -> PyMemoryManagerRunResponse:
     """Create a manual memory-manager chat run."""
 
     try:
-        service = await _manager_service(session, user.id)
+        service = await _manager_service(session, user.id, roles)
         snapshot = await service.create_run(
             user_id=user.id,
             initial_message=req.message,
@@ -358,11 +349,12 @@ async def create_episode_processing_memory_manager_run(
     req: PyMemoryManagerEpisodeProcessingRunCreateRequest,
     session: SessionDep,
     user: UserDep,
+    roles: RolesDep,
 ) -> PyMemoryManagerRunResponse:
     """Create a specialized fixed-batch episodic-memory review run."""
 
     try:
-        service = await _manager_service(session, user.id)
+        service = await _manager_service(session, user.id, roles)
         snapshot = await service.create_episode_processing_run(
             user_id=user.id,
             auto_approve_diffs=req.auto_approve_diffs,
@@ -381,6 +373,7 @@ async def create_reflection_memory_manager_run(
     req: PyMemoryManagerReflectionRunCreateRequest,
     session: SessionDep,
     user: UserDep,
+    roles: RolesDep,
 ) -> PyMemoryManagerRunResponse:
     """Start a Reflection over one owned Anima's uncovered chat turns.
 
@@ -390,7 +383,7 @@ async def create_reflection_memory_manager_run(
     """
 
     try:
-        service = await _manager_service(session, user.id)
+        service = await _manager_service(session, user.id, roles)
         snapshot = await service.create_reflection_run(
             user_id=user.id,
             anima_id=req.anima_id,
@@ -410,11 +403,12 @@ async def create_reflection_memory_manager_run(
 async def get_current_memory_manager_run(
     session: SessionDep,
     user: UserDep,
+    roles: RolesDep,
 ) -> PyMemoryManagerRunResponse | None:
     """Read the current user's one open memory-manager run, if present."""
 
     try:
-        service = await _manager_service(session, user.id)
+        service = await _manager_service(session, user.id, roles)
         snapshot = await service.get_current_run_snapshot(user_id=user.id)
     except MemoryManagerError as exc:
         _raise_http_error(exc)
@@ -430,11 +424,12 @@ async def get_memory_manager_run(
     run_id: str,
     session: SessionDep,
     user: UserDep,
+    roles: RolesDep,
 ) -> PyMemoryManagerRunResponse:
     """Read one current-user memory-manager run."""
 
     try:
-        service = await _manager_service(session, user.id)
+        service = await _manager_service(session, user.id, roles)
         snapshot = await service.get_run_snapshot(user_id=user.id, run_id=run_id)
     except MemoryManagerError as exc:
         _raise_http_error(exc)
@@ -450,11 +445,12 @@ async def complete_memory_manager_run(
     run_id: str,
     session: SessionDep,
     user: UserDep,
+    roles: RolesDep,
 ) -> PyMemoryManagerRunResponse:
     """Complete one current-user memory-manager run without pending approvals."""
 
     try:
-        service = await _manager_service(session, user.id)
+        service = await _manager_service(session, user.id, roles)
         snapshot = await service.complete_run(user_id=user.id, run_id=run_id)
     except MemoryManagerError as exc:
         _raise_http_error(exc)
@@ -471,11 +467,12 @@ async def append_memory_manager_message(
     req: PyMemoryManagerMessageCreateRequest,
     session: SessionDep,
     user: UserDep,
+    roles: RolesDep,
 ) -> PyMemoryManagerRunResponse:
     """Append a user memory-maintenance request to a manager run."""
 
     try:
-        service = await _manager_service(session, user.id)
+        service = await _manager_service(session, user.id, roles)
         snapshot = await service.append_user_message(
             user_id=user.id,
             run_id=run_id,
@@ -497,11 +494,12 @@ async def decide_memory_manager_approval(
     req: PyMemoryManagerApprovalDecisionRequest,
     session: SessionDep,
     user: UserDep,
+    roles: RolesDep,
 ) -> PyMemoryManagerApproval:
     """Approve or reject one memory-manager approval."""
 
     try:
-        service = await _manager_service(session, user.id)
+        service = await _manager_service(session, user.id, roles)
         approval = await service.decide_approval(
             user_id=user.id,
             approval_id=approval_id,
@@ -522,11 +520,12 @@ async def undo_memory_manager_approval(
     approval_id: str,
     session: SessionDep,
     user: UserDep,
+    roles: RolesDep,
 ) -> PyMemoryManagerApprovalUndoResponse:
     """Append the inverse of one still-applicable approved memory patch."""
 
     try:
-        service = await _manager_service(session, user.id)
+        service = await _manager_service(session, user.id, roles)
         result = await service.undo_approval(
             user_id=user.id,
             approval_id=approval_id,

@@ -67,7 +67,7 @@ def _compaction(
         end_turn=end_turn,
         source_message_count=2,
         model_provider="openai",
-        model="gpt-5-nano",
+        model="gpt-6-luna",
         prompt_version="chat-compaction-v1",
         usage=usage,
         metadata={"threshold": 100},
@@ -119,7 +119,7 @@ async def test_chat_compaction_repo_create_and_get_active_round_trips_fields(asy
     assert active.end_turn == second_message.turn
     assert active.source_message_count == 2
     assert active.model_provider == "openai"
-    assert active.model == "gpt-5-nano"
+    assert active.model == "gpt-6-luna"
     assert active.prompt_version == "chat-compaction-v1"
     assert active.metadata == {"threshold": 100}
     assert active.usage is not None

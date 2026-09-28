@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import uuid
 from datetime import UTC, date, datetime, timedelta
 from types import SimpleNamespace
-from typing import TypeVar
+from typing import Any, TypeVar, cast
 
 import httpx
 import pytest
@@ -27,12 +28,20 @@ from animama.adapters.openai_agents import OpenAIAgentsRunner, OpenAIAgentsRunOu
 from animama.adapters.repositories.sqlalchemy.memory_entry_repo import SQLAlchemyMemoryEntryRepository
 from animama.adapters.repositories.sqlalchemy.memory_episode_repo import SQLAlchemyMemoryEpisodeRepository
 from animama.adapters.repositories.sqlalchemy.memory_manager_repo import SQLAlchemyMemoryManagerRepository
+from animama.adapters.repositories.sqlalchemy.model_provider_repo import SQLAlchemyModelProviderRepository
 from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
+from animama.app.model_clients.credentials import EnvironmentModelCredentialResolver
 from animama.app.ports.memory_manager_port import MemoryManagerRepositoryConflictError
-from animama.app.ports.memory_manager_runtime import MemoryManagerRuntimeError, MemoryManagerRuntimeResult
+from animama.app.ports.memory_manager_runtime import (
+    MemoryManagerRuntimeConfigurationError,
+    MemoryManagerRuntimeError,
+    MemoryManagerRuntimeResult,
+)
 from animama.app.services.memory_entry_service import MemoryEntryNotFoundError, MemoryEntryService
 from animama.app.services.memory_episode_service import MemoryEpisodeService
 from animama.app.services.memory_manager_service import MemoryManagerService
+from animama.app.services.model_provider_catalog_service import ModelProviderCatalogService
+from animama.domain import ModelConnection, ModelProvider, ModelProviderCapabilities
 from animama.domain.memory_episode import (
     MEMORY_EPISODE_LOG_ENTRY_KIND,
     MEMORY_EPISODE_STATUS_PENDING,
@@ -49,6 +58,7 @@ from animama.domain.memory_manager import (
     MemoryManagerRun,
     new_memory_manager_run_id,
 )
+from animama.domain.model_connection import ModelConnectionCompatibility
 from animama.domain.request_principal import RequestPrincipal
 from animama.orm import (
     Base,
@@ -60,7 +70,7 @@ from animama.orm import (
     ORMMemoryManagerRun,
     ORMUserSettings,
 )
-from animama.server.config import settings
+from animama.server.model_roles import ModelRoleSettings
 from animama.server.routers import memory_entries as memory_entries_router, memory_manager as memory_manager_router
 from animama.server.schemas.memory_entry import PyMemoryEntryCreateRequest, PyMemoryEntryRevertRequest
 from animama.server.schemas.memory_manager import (
@@ -74,6 +84,31 @@ from animama.server.schemas.memory_manager import (
 _T = TypeVar("_T")
 
 
+def _manager_model(
+    model: str = "gpt-5.4-mini",
+    *,
+    provider_type: str = "OpenAIResponsesHTTPAgent",
+    connection: ModelConnection | None = None,
+) -> ModelProvider:
+    return ModelProvider(
+        id=f"{provider_type}:{model}",
+        model=model,
+        provider_type=provider_type,
+        model_label=model,
+        provider_label="OpenAI",
+        connection_id=connection.id if connection is not None else "openai",
+        connection=connection,
+        capabilities=ModelProviderCapabilities(supports_tools=True, supports_streaming=True),
+    )
+
+
+_LOCAL_ROLES = ModelRoleSettings(owner_roles_enabled=True)
+
+
+def _manager_credentials(**environ: str) -> EnvironmentModelCredentialResolver:
+    return EnvironmentModelCredentialResolver(openai_api_key="test-key", environ=environ)
+
+
 def _required(value: _T | None) -> _T:
     """Assert the fixture lookup succeeded before inspecting its typed value."""
     assert value is not None
@@ -82,17 +117,6 @@ def _required(value: _T | None) -> _T:
 
 def _user(user_id: str) -> RequestPrincipal:
     return RequestPrincipal(id=user_id)
-
-
-def test_memory_manager_model_resolution_uses_override_or_server_default() -> None:
-    default_model = settings.anima_memory_manager_agent_model
-
-    assert (
-        memory_manager_router._resolve_memory_manager_model({"memory": {"manager_model": "  gpt-5-mini  "}})
-        == "gpt-5-mini"
-    )
-    assert memory_manager_router._resolve_memory_manager_model({"memory": {"manager_model": "   "}}) == default_model
-    assert memory_manager_router._resolve_memory_manager_model(None) == default_model
 
 
 def _memory_entry_service(async_session) -> MemoryEntryService:  # noqa: ANN001
@@ -159,25 +183,30 @@ def test_memory_manager_orm_metadata_is_registered() -> None:
 
 
 @pytest.mark.asyncio
-async def test_manager_service_uses_current_user_model_preference(
+async def test_manager_service_uses_the_memory_manager_role(
     async_session,
     clean_memory_manager_rows,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    await ModelProviderCatalogService(
+        model_providers=SQLAlchemyModelProviderRepository(async_session),
+        uow=SQLAlchemyUnitOfWork(async_session),
+    ).sync_from_registry()
     user_id = f"user-{uuid.uuid4()}"
     async_session.add(
         ORMUserSettings(
             user_id=user_id,
-            preferences={"memory": {"manager_model": "gpt-5-mini"}},
+            preferences={"models": {"memory_manager_model_provider_id": "OpenAIResponsesHTTPAgent:gpt-6-luna"}},
         )
     )
     await async_session.commit()
     monkeypatch.delenv("ANIMAMA_LLM_SKIP")
 
-    service = await memory_manager_router._manager_service(async_session, user_id)
+    service = await memory_manager_router._manager_service(async_session, user_id, _LOCAL_ROLES)
 
     assert isinstance(service._runtime, OpenAIAgentsMemoryManagerRuntime)
-    assert service._runtime._model == "gpt-5-mini"
+    assert service._runtime._model_provider is not None
+    assert service._runtime._model_provider.id == "OpenAIResponsesHTTPAgent:gpt-6-luna"
 
 
 @pytest.mark.asyncio
@@ -273,9 +302,7 @@ async def test_episode_processing_route_rejects_no_work_without_superseding_acti
 ) -> None:
     user_id = f"user-{uuid.uuid4()}"
     active = await memory_manager_router.create_memory_manager_run(
-        PyMemoryManagerRunCreateRequest(),
-        session=async_session,
-        user=_user(user_id),
+        PyMemoryManagerRunCreateRequest(), session=async_session, user=_user(user_id), roles=_LOCAL_ROLES
     )
 
     with pytest.raises(HTTPException) as exc_info:
@@ -283,13 +310,13 @@ async def test_episode_processing_route_rejects_no_work_without_superseding_acti
             PyMemoryManagerEpisodeProcessingRunCreateRequest(),
             session=async_session,
             user=_user(user_id),
+            roles=_LOCAL_ROLES,
         )
 
     assert exc_info.value.status_code == 409
     assert exc_info.value.detail == "No pending episodes are available to process"
     current = await memory_manager_router.get_current_memory_manager_run(
-        session=async_session,
-        user=_user(user_id),
+        session=async_session, user=_user(user_id), roles=_LOCAL_ROLES
     )
     assert current is not None
     assert current.run.id == active.run.id
@@ -316,15 +343,14 @@ async def test_episode_processing_fixed_batch_is_safe_ordered_and_capped_at_fift
         created_ids.append(item.id)
 
     superseded = await memory_manager_router.create_memory_manager_run(
-        PyMemoryManagerRunCreateRequest(),
-        session=async_session,
-        user=_user(user_id),
+        PyMemoryManagerRunCreateRequest(), session=async_session, user=_user(user_id), roles=_LOCAL_ROLES
     )
 
     response = await memory_manager_router.create_episode_processing_memory_manager_run(
         PyMemoryManagerEpisodeProcessingRunCreateRequest(),
         session=async_session,
         user=_user(user_id),
+        roles=_LOCAL_ROLES,
     )
 
     assert response.run.kind == MEMORY_MANAGER_RUN_KIND_EPISODE_PROCESSING
@@ -360,6 +386,7 @@ async def test_episode_processing_fixed_batch_is_safe_ordered_and_capped_at_fift
         PyMemoryManagerApprovalDecisionRequest(decision="approve"),
         session=async_session,
         user=_user(user_id),
+        roles=_LOCAL_ROLES,
     )
     processed = await service.list_episode_items(user_id=user_id, status=MEMORY_EPISODE_STATUS_PROCESSED)
     pending = await service.list_episode_items(user_id=user_id, status=MEMORY_EPISODE_STATUS_PENDING)
@@ -387,6 +414,7 @@ async def test_episode_processing_feedback_version_finalizes_fixed_batch_and_all
         PyMemoryManagerEpisodeProcessingRunCreateRequest(),
         session=async_session,
         user=_user(user_id),
+        roles=_LOCAL_ROLES,
     )
     assert started.run.status == "waiting_approval"
     assert len(started.approvals) == 1
@@ -401,14 +429,13 @@ async def test_episode_processing_feedback_version_finalizes_fixed_batch_and_all
         ),
         session=async_session,
         user=_user(user_id),
+        roles=_LOCAL_ROLES,
     )
     assert rejected.status == "rejected"
     assert rejected.decision_feedback == "Keep this in projects/animama.md instead."
 
     revised = await memory_manager_router.get_memory_manager_run(
-        started.run.id,
-        session=async_session,
-        user=_user(user_id),
+        started.run.id, session=async_session, user=_user(user_id), roles=_LOCAL_ROLES
     )
     assert revised.run.status == "waiting_approval"
     assert revised.run.task is not None and revised.run.task.status == "processing"
@@ -424,11 +451,10 @@ async def test_episode_processing_feedback_version_finalizes_fixed_batch_and_all
         PyMemoryManagerApprovalDecisionRequest(decision="approve"),
         session=async_session,
         user=_user(user_id),
+        roles=_LOCAL_ROLES,
     )
     completed = await memory_manager_router.get_memory_manager_run(
-        started.run.id,
-        session=async_session,
-        user=_user(user_id),
+        started.run.id, session=async_session, user=_user(user_id), roles=_LOCAL_ROLES
     )
     assert completed.run.status == "active"
     assert completed.run.kind == MEMORY_MANAGER_RUN_KIND_EPISODE_PROCESSING
@@ -449,6 +475,7 @@ async def test_episode_processing_feedback_version_finalizes_fixed_batch_and_all
         PyMemoryManagerMessageCreateRequest(content="What else should we improve?"),
         session=async_session,
         user=_user(user_id),
+        roles=_LOCAL_ROLES,
     )
     assert follow_up.run.status == "active"
     assert follow_up.run.task is not None and follow_up.run.task.status == "processed"
@@ -482,6 +509,7 @@ async def test_episode_processing_no_patch_and_auto_approve_terminal_paths(
         PyMemoryManagerEpisodeProcessingRunCreateRequest(),
         session=async_session,
         user=_user(no_patch_user),
+        roles=_LOCAL_ROLES,
     )
     assert no_patch.run.status == "active"
     assert no_patch.run.task is not None and no_patch.run.task.status == "processed"
@@ -491,10 +519,7 @@ async def test_episode_processing_no_patch_and_auto_approve_terminal_paths(
         run_id=no_patch.run.id,
     )
     assert no_patch_stored is not None
-    manager_service = await memory_manager_router._manager_service(
-        async_session,
-        no_patch_user,
-    )
+    manager_service = await memory_manager_router._manager_service(async_session, no_patch_user, _LOCAL_ROLES)
     repeated = await manager_service._finalize_episode_processing_run(no_patch_stored)
     assert repeated.task_state == no_patch_stored.task_state
 
@@ -511,6 +536,7 @@ async def test_episode_processing_no_patch_and_auto_approve_terminal_paths(
         PyMemoryManagerEpisodeProcessingRunCreateRequest(auto_approve_diffs=True),
         session=async_session,
         user=_user(auto_user),
+        roles=_LOCAL_ROLES,
     )
     assert auto.run.status == "active"
     assert auto.run.task is not None and auto.run.task.status == "processed"
@@ -529,12 +555,14 @@ async def test_episode_processing_no_patch_and_auto_approve_terminal_paths(
         PyMemoryManagerEpisodeProcessingRunCreateRequest(),
         session=async_session,
         user=_user(reject_user),
+        roles=_LOCAL_ROLES,
     )
     await memory_manager_router.decide_memory_manager_approval(
         rejecting.approvals[0].id,
         PyMemoryManagerApprovalDecisionRequest(decision="reject"),
         session=async_session,
         user=_user(reject_user),
+        roles=_LOCAL_ROLES,
     )
     rejected = await _episode_service(async_session).list_episode_items(
         user_id=reject_user,
@@ -563,6 +591,7 @@ async def test_episode_processing_blocks_other_users_and_waiting_approval_runs(
             PyMemoryManagerEpisodeProcessingRunCreateRequest(),
             session=async_session,
             user=_user(owner_id),
+            roles=_LOCAL_ROLES,
         )
     assert no_work.value.status_code == 409
 
@@ -578,6 +607,7 @@ async def test_episode_processing_blocks_other_users_and_waiting_approval_runs(
         PyMemoryManagerRunCreateRequest(message="Update notes/waiting.md with this fact."),
         session=async_session,
         user=_user(owner_id),
+        roles=_LOCAL_ROLES,
     )
     assert waiting.run.status == "waiting_approval"
     with pytest.raises(HTTPException) as conflict:
@@ -585,6 +615,7 @@ async def test_episode_processing_blocks_other_users_and_waiting_approval_runs(
             PyMemoryManagerEpisodeProcessingRunCreateRequest(),
             session=async_session,
             user=_user(owner_id),
+            roles=_LOCAL_ROLES,
         )
     assert conflict.value.status_code == 409
 
@@ -608,6 +639,7 @@ async def test_episode_processing_conflicting_provenance_prevents_finalization(
         PyMemoryManagerEpisodeProcessingRunCreateRequest(),
         session=async_session,
         user=_user(user_id),
+        roles=_LOCAL_ROLES,
     )
     await episode_service.mark_items_processed(
         user_id=user_id,
@@ -621,13 +653,12 @@ async def test_episode_processing_conflicting_provenance_prevents_finalization(
             PyMemoryManagerApprovalDecisionRequest(decision="reject"),
             session=async_session,
             user=_user(user_id),
+            roles=_LOCAL_ROLES,
         )
     assert conflict.value.status_code == 409
 
     snapshot = await memory_manager_router.get_memory_manager_run(
-        started.run.id,
-        session=async_session,
-        user=_user(user_id),
+        started.run.id, session=async_session, user=_user(user_id), roles=_LOCAL_ROLES
     )
     assert snapshot.run.status == "waiting_approval"
     assert snapshot.run.task is not None and snapshot.run.task.status == "processing"
@@ -657,6 +688,7 @@ async def test_concurrent_episode_processing_creation_leaves_one_open_run(
                     PyMemoryManagerEpisodeProcessingRunCreateRequest(),
                     session=session,
                     user=_user(user_id),
+                    roles=_LOCAL_ROLES,
                 )
             except HTTPException as exc:
                 return exc
@@ -683,6 +715,7 @@ async def test_approval_feedback_is_reject_only_and_persisted(
         PyMemoryManagerRunCreateRequest(message="Update notes/feedback.md with this fact."),
         session=async_session,
         user=_user(user_id),
+        roles=_LOCAL_ROLES,
     )
     with pytest.raises(HTTPException) as exc_info:
         await memory_manager_router.decide_memory_manager_approval(
@@ -690,6 +723,7 @@ async def test_approval_feedback_is_reject_only_and_persisted(
             PyMemoryManagerApprovalDecisionRequest(decision="approve", feedback="Use another file."),
             session=async_session,
             user=_user(user_id),
+            roles=_LOCAL_ROLES,
         )
     assert exc_info.value.status_code == 400
 
@@ -698,6 +732,7 @@ async def test_approval_feedback_is_reject_only_and_persisted(
         PyMemoryManagerApprovalDecisionRequest(decision="reject", feedback="  Use another file.  "),
         session=async_session,
         user=_user(user_id),
+        roles=_LOCAL_ROLES,
     )
     assert rejected.decision_feedback == "Use another file."
 
@@ -710,9 +745,7 @@ async def test_memory_manager_create_preview_does_not_mutate_memory(
     user_id = f"user-{uuid.uuid4()}"
 
     created = await memory_manager_router.create_memory_manager_run(
-        PyMemoryManagerRunCreateRequest(),
-        session=async_session,
-        user=_user(user_id),
+        PyMemoryManagerRunCreateRequest(), session=async_session, user=_user(user_id), roles=_LOCAL_ROLES
     )
     assert created.run.status == "active"
     assert created.messages == []
@@ -723,6 +756,7 @@ async def test_memory_manager_create_preview_does_not_mutate_memory(
         PyMemoryManagerMessageCreateRequest(content="Create a memory file in people/shirley.md for my sister Shirley"),
         session=async_session,
         user=_user(user_id),
+        roles=_LOCAL_ROLES,
     )
 
     assert response.run.status == "waiting_approval"
@@ -756,6 +790,7 @@ async def test_memory_manager_auto_approve_is_backend_orchestrated_for_create_an
         ),
         session=async_session,
         user=_user(user_id),
+        roles=_LOCAL_ROLES,
     )
 
     assert created.run.status == "active"
@@ -775,6 +810,7 @@ async def test_memory_manager_auto_approve_is_backend_orchestrated_for_create_an
         ),
         session=async_session,
         user=_user(user_id),
+        roles=_LOCAL_ROLES,
     )
 
     assert appended.run.status == "active"
@@ -804,6 +840,7 @@ class _ChainedAutoApprovalRuntime:
         *,
         run: MemoryManagerRun,
         user_message: MemoryManagerMessage,
+        history: object = (),
     ) -> MemoryManagerRuntimeResult:
         del user_message
         return await self._result(run=run, index=1)
@@ -851,6 +888,7 @@ class _MissingApprovalStateRuntime(_ChainedAutoApprovalRuntime):
         *,
         run: MemoryManagerRun,
         user_message: MemoryManagerMessage,
+        history: object = (),
     ) -> MemoryManagerRuntimeResult:
         result = await super().run_user_message(run=run, user_message=user_message)
         result.serialized_agent_state = None
@@ -865,6 +903,7 @@ class _TerminalMemoryManagerRuntime:
         *,
         run: MemoryManagerRun,
         user_message: MemoryManagerMessage,
+        history: object = (),
     ) -> MemoryManagerRuntimeResult:
         del run, user_message
         return MemoryManagerRuntimeResult(assistant_message="Review complete.")
@@ -1093,30 +1132,25 @@ async def test_memory_manager_run_completion_is_owned_idempotent_and_terminal(
         PyMemoryManagerRunCreateRequest(message="Review my memory files without changing anything."),
         session=async_session,
         user=_user(owner_id),
+        roles=_LOCAL_ROLES,
     )
     assert created.run.status == "active"
 
     with pytest.raises(HTTPException) as foreign_completion:
         await memory_manager_router.complete_memory_manager_run(
-            created.run.id,
-            session=async_session,
-            user=_user(other_id),
+            created.run.id, session=async_session, user=_user(other_id), roles=_LOCAL_ROLES
         )
     assert foreign_completion.value.status_code == 404
 
     completed = await memory_manager_router.complete_memory_manager_run(
-        created.run.id,
-        session=async_session,
-        user=_user(owner_id),
+        created.run.id, session=async_session, user=_user(owner_id), roles=_LOCAL_ROLES
     )
     assert completed.run.status == "completed"
     assert completed.run.completed_at is not None
     completed_at = completed.run.completed_at
 
     repeated = await memory_manager_router.complete_memory_manager_run(
-        created.run.id,
-        session=async_session,
-        user=_user(owner_id),
+        created.run.id, session=async_session, user=_user(owner_id), roles=_LOCAL_ROLES
     )
     assert repeated.run.status == "completed"
     assert repeated.run.completed_at == completed_at
@@ -1127,6 +1161,7 @@ async def test_memory_manager_run_completion_is_owned_idempotent_and_terminal(
             PyMemoryManagerMessageCreateRequest(content="This run should be closed."),
             session=async_session,
             user=_user(owner_id),
+            roles=_LOCAL_ROLES,
         )
     assert append_to_completed.value.status_code == 409
 
@@ -1142,22 +1177,19 @@ async def test_memory_manager_create_supersedes_active_run_and_recovers_current(
         PyMemoryManagerRunCreateRequest(message="Review my memory files without changing anything."),
         session=async_session,
         user=_user(owner_id),
+        roles=_LOCAL_ROLES,
     )
     assert first.run.status == "active"
     assert len(first.messages) == 2
 
     second = await memory_manager_router.create_memory_manager_run(
-        PyMemoryManagerRunCreateRequest(),
-        session=async_session,
-        user=_user(owner_id),
+        PyMemoryManagerRunCreateRequest(), session=async_session, user=_user(owner_id), roles=_LOCAL_ROLES
     )
     assert second.run.status == "active"
     assert second.run.id != first.run.id
 
     superseded = await memory_manager_router.get_memory_manager_run(
-        first.run.id,
-        session=async_session,
-        user=_user(owner_id),
+        first.run.id, session=async_session, user=_user(owner_id), roles=_LOCAL_ROLES
     )
     assert superseded.run.status == "completed"
     assert superseded.run.completed_at is not None
@@ -1165,15 +1197,13 @@ async def test_memory_manager_create_supersedes_active_run_and_recovers_current(
     assert [message.content for message in superseded.messages] == [message.content for message in first.messages]
 
     current = await memory_manager_router.get_current_memory_manager_run(
-        session=async_session,
-        user=_user(owner_id),
+        session=async_session, user=_user(owner_id), roles=_LOCAL_ROLES
     )
     assert current is not None
     assert current.run.id == second.run.id
 
     foreign_current = await memory_manager_router.get_current_memory_manager_run(
-        session=async_session,
-        user=_user(other_id),
+        session=async_session, user=_user(other_id), roles=_LOCAL_ROLES
     )
     assert foreign_current is None
 
@@ -1188,20 +1218,18 @@ async def test_memory_manager_create_rejects_when_current_run_waits_for_approval
         PyMemoryManagerRunCreateRequest(message="Create notes/pending-new-run.md with a pending note."),
         session=async_session,
         user=_user(user_id),
+        roles=_LOCAL_ROLES,
     )
     assert waiting.run.status == "waiting_approval"
 
     with pytest.raises(HTTPException) as conflict:
         await memory_manager_router.create_memory_manager_run(
-            PyMemoryManagerRunCreateRequest(),
-            session=async_session,
-            user=_user(user_id),
+            PyMemoryManagerRunCreateRequest(), session=async_session, user=_user(user_id), roles=_LOCAL_ROLES
         )
     assert conflict.value.status_code == 409
 
     current = await memory_manager_router.get_current_memory_manager_run(
-        session=async_session,
-        user=_user(user_id),
+        session=async_session, user=_user(user_id), roles=_LOCAL_ROLES
     )
     assert current is not None
     assert current.run.id == waiting.run.id
@@ -1218,22 +1246,19 @@ async def test_memory_manager_run_completion_rejects_pending_approvals(
         PyMemoryManagerRunCreateRequest(message="Create notes/pending.md with a pending note."),
         session=async_session,
         user=_user(user_id),
+        roles=_LOCAL_ROLES,
     )
     assert created.run.status == "waiting_approval"
     assert created.approvals[0].status == "pending"
 
     with pytest.raises(HTTPException) as pending_completion:
         await memory_manager_router.complete_memory_manager_run(
-            created.run.id,
-            session=async_session,
-            user=_user(user_id),
+            created.run.id, session=async_session, user=_user(user_id), roles=_LOCAL_ROLES
         )
     assert pending_completion.value.status_code == 409
 
     unchanged = await memory_manager_router.get_memory_manager_run(
-        created.run.id,
-        session=async_session,
-        user=_user(user_id),
+        created.run.id, session=async_session, user=_user(user_id), roles=_LOCAL_ROLES
     )
     assert unchanged.run.status == "waiting_approval"
     assert unchanged.run.completed_at is None
@@ -1260,6 +1285,7 @@ async def test_memory_manager_update_preview_uses_current_version_without_mutati
         PyMemoryManagerRunCreateRequest(message="Update profile.md with a durable note about the memory manager."),
         session=async_session,
         user=_user(user_id),
+        roles=_LOCAL_ROLES,
     )
 
     assert created.run.status == "waiting_approval"
@@ -1289,11 +1315,14 @@ async def test_memory_manager_approval_decisions_and_ownership_boundaries(
         PyMemoryManagerRunCreateRequest(message="Create notes/preferences.md with a preference note."),
         session=async_session,
         user=_user(owner_id),
+        roles=_LOCAL_ROLES,
     )
     approval_id = run.approvals[0].id
 
     with pytest.raises(HTTPException) as foreign_run:
-        await memory_manager_router.get_memory_manager_run(run.run.id, session=async_session, user=_user(other_id))
+        await memory_manager_router.get_memory_manager_run(
+            run.run.id, session=async_session, user=_user(other_id), roles=_LOCAL_ROLES
+        )
     assert foreign_run.value.status_code == 404
 
     with pytest.raises(HTTPException) as foreign_decision:
@@ -1302,6 +1331,7 @@ async def test_memory_manager_approval_decisions_and_ownership_boundaries(
             PyMemoryManagerApprovalDecisionRequest(decision="approve"),
             session=async_session,
             user=_user(other_id),
+            roles=_LOCAL_ROLES,
         )
     assert foreign_decision.value.status_code == 404
 
@@ -1310,14 +1340,13 @@ async def test_memory_manager_approval_decisions_and_ownership_boundaries(
         PyMemoryManagerApprovalDecisionRequest(decision="approve"),
         session=async_session,
         user=_user(owner_id),
+        roles=_LOCAL_ROLES,
     )
     assert approved.status == "approved"
     assert approved.decided_at is not None
 
     snapshot = await memory_manager_router.get_memory_manager_run(
-        run.run.id,
-        session=async_session,
-        user=_user(owner_id),
+        run.run.id, session=async_session, user=_user(owner_id), roles=_LOCAL_ROLES
     )
     assert snapshot.run.status == "active"
     stored = await _memory_entry_service(async_session).get_entry_by_path(
@@ -1345,6 +1374,7 @@ async def test_memory_manager_approval_decisions_and_ownership_boundaries(
             PyMemoryManagerApprovalDecisionRequest(decision="reject"),
             session=async_session,
             user=_user(owner_id),
+            roles=_LOCAL_ROLES,
         )
     assert repeated_decision.value.status_code == 409
 
@@ -1352,12 +1382,14 @@ async def test_memory_manager_approval_decisions_and_ownership_boundaries(
         PyMemoryManagerRunCreateRequest(message="Create notes/rejected.md with a rejected preference note."),
         session=async_session,
         user=_user(owner_id),
+        roles=_LOCAL_ROLES,
     )
     rejected = await memory_manager_router.decide_memory_manager_approval(
         reject_run.approvals[0].id,
         PyMemoryManagerApprovalDecisionRequest(decision="reject"),
         session=async_session,
         user=_user(owner_id),
+        roles=_LOCAL_ROLES,
     )
     assert rejected.status == "rejected"
     with pytest.raises(MemoryEntryNotFoundError):
@@ -1381,6 +1413,7 @@ async def test_memory_manager_approved_update_commits_current_file(async_session
         PyMemoryManagerRunCreateRequest(message="Update profile.md with a durable note about the memory manager."),
         session=async_session,
         user=_user(user_id),
+        roles=_LOCAL_ROLES,
     )
 
     approved = await memory_manager_router.decide_memory_manager_approval(
@@ -1388,6 +1421,7 @@ async def test_memory_manager_approved_update_commits_current_file(async_session
         PyMemoryManagerApprovalDecisionRequest(decision="approve"),
         session=async_session,
         user=_user(user_id),
+        roles=_LOCAL_ROLES,
     )
 
     assert approved.status == "approved"
@@ -1420,6 +1454,7 @@ async def test_latest_approved_update_can_be_undone_idempotently(
         PyMemoryManagerRunCreateRequest(message="Update profile.md with a durable note about approval Undo."),
         session=async_session,
         user=_user(user_id),
+        roles=_LOCAL_ROLES,
     )
     stored_approval = await async_session.scalar(
         select(ORMMemoryManagerApproval).where(
@@ -1435,6 +1470,7 @@ async def test_latest_approved_update_can_be_undone_idempotently(
         PyMemoryManagerApprovalDecisionRequest(decision="approve"),
         session=async_session,
         user=_user(user_id),
+        roles=_LOCAL_ROLES,
     )
 
     assert approved.status == "approved"
@@ -1449,9 +1485,7 @@ async def test_latest_approved_update_can_be_undone_idempotently(
     )
     assert applied.description == "Temporary description from the approved patch"
     result = await memory_manager_router.undo_memory_manager_approval(
-        approved.id,
-        session=async_session,
-        user=_user(user_id),
+        approved.id, session=async_session, user=_user(user_id), roles=_LOCAL_ROLES
     )
     assert result.approval.status == "approved"
     assert result.approval.can_undo is False
@@ -1486,9 +1520,7 @@ async def test_latest_approved_update_can_be_undone_idempotently(
     }
 
     repeated = await memory_manager_router.undo_memory_manager_approval(
-        approved.id,
-        session=async_session,
-        user=_user(user_id),
+        approved.id, session=async_session, user=_user(user_id), roles=_LOCAL_ROLES
     )
     assert repeated.undo_version == 3
     versions = (
@@ -1500,9 +1532,7 @@ async def test_latest_approved_update_can_be_undone_idempotently(
 
     with pytest.raises(HTTPException) as foreign:
         await memory_manager_router.undo_memory_manager_approval(
-            approved.id,
-            session=async_session,
-            user=_user(f"user-{uuid.uuid4()}"),
+            approved.id, session=async_session, user=_user(f"user-{uuid.uuid4()}"), roles=_LOCAL_ROLES
         )
     assert foreign.value.status_code == 404
 
@@ -1517,20 +1547,20 @@ async def test_approved_create_undo_deletes_only_file_and_retains_parent(
         PyMemoryManagerRunCreateRequest(message="Create notes/preferences.md with a preference note."),
         session=async_session,
         user=_user(user_id),
+        roles=_LOCAL_ROLES,
     )
     approved = await memory_manager_router.decide_memory_manager_approval(
         run.approvals[0].id,
         PyMemoryManagerApprovalDecisionRequest(decision="approve"),
         session=async_session,
         user=_user(user_id),
+        roles=_LOCAL_ROLES,
     )
     assert approved.applied_version == 1
     assert approved.can_undo is True
 
     result = await memory_manager_router.undo_memory_manager_approval(
-        approved.id,
-        session=async_session,
-        user=_user(user_id),
+        approved.id, session=async_session, user=_user(user_id), roles=_LOCAL_ROLES
     )
     assert result.deleted is True
     assert result.undo_version == 2
@@ -1563,26 +1593,27 @@ async def test_pending_approval_in_same_run_blocks_prior_undo(
         PyMemoryManagerRunCreateRequest(message="Create notes/first.md with a first note."),
         session=async_session,
         user=_user(user_id),
+        roles=_LOCAL_ROLES,
     )
     approved = await memory_manager_router.decide_memory_manager_approval(
         run.approvals[0].id,
         PyMemoryManagerApprovalDecisionRequest(decision="approve"),
         session=async_session,
         user=_user(user_id),
+        roles=_LOCAL_ROLES,
     )
     waiting = await memory_manager_router.append_memory_manager_message(
         run.run.id,
         PyMemoryManagerMessageCreateRequest(content="Create notes/second.md with a second note."),
         session=async_session,
         user=_user(user_id),
+        roles=_LOCAL_ROLES,
     )
     assert waiting.run.status == "waiting_approval"
     assert waiting.approvals[0].can_undo is False
     with pytest.raises(HTTPException) as conflict:
         await memory_manager_router.undo_memory_manager_approval(
-            approved.id,
-            session=async_session,
-            user=_user(user_id),
+            approved.id, session=async_session, user=_user(user_id), roles=_LOCAL_ROLES
         )
     assert conflict.value.status_code == 409
 
@@ -1605,12 +1636,14 @@ async def test_episode_processing_undo_keeps_fixed_batch_processed(
         PyMemoryManagerEpisodeProcessingRunCreateRequest(),
         session=async_session,
         user=_user(user_id),
+        roles=_LOCAL_ROLES,
     )
     approved = await memory_manager_router.decide_memory_manager_approval(
         processing.approvals[0].id,
         PyMemoryManagerApprovalDecisionRequest(decision="approve"),
         session=async_session,
         user=_user(user_id),
+        roles=_LOCAL_ROLES,
     )
     assert approved.can_undo is True
     processed = await _episode_service(async_session).list_episode_items(
@@ -1620,9 +1653,7 @@ async def test_episode_processing_undo_keeps_fixed_batch_processed(
     assert [item.id for item in processed] == [episode.id]
 
     await memory_manager_router.undo_memory_manager_approval(
-        approved.id,
-        session=async_session,
-        user=_user(user_id),
+        approved.id, session=async_session, user=_user(user_id), roles=_LOCAL_ROLES
     )
     still_processed = await _episode_service(async_session).list_episode_items(
         user_id=user_id,
@@ -1651,12 +1682,14 @@ async def test_later_edit_blocks_undo(
         PyMemoryManagerRunCreateRequest(message="Update profile.md with a manager note."),
         session=async_session,
         user=_user(user_id),
+        roles=_LOCAL_ROLES,
     )
     approved = await memory_manager_router.decide_memory_manager_approval(
         run.approvals[0].id,
         PyMemoryManagerApprovalDecisionRequest(decision="approve"),
         session=async_session,
         user=_user(user_id),
+        roles=_LOCAL_ROLES,
     )
     await _memory_entry_service(async_session).patch_entry(
         user_id=user_id,
@@ -1666,16 +1699,12 @@ async def test_later_edit_blocks_undo(
         content_set=True,
     )
     snapshot = await memory_manager_router.get_memory_manager_run(
-        run.run.id,
-        session=async_session,
-        user=_user(user_id),
+        run.run.id, session=async_session, user=_user(user_id), roles=_LOCAL_ROLES
     )
     assert snapshot.approvals[0].can_undo is False
     with pytest.raises(HTTPException) as stale:
         await memory_manager_router.undo_memory_manager_approval(
-            approved.id,
-            session=async_session,
-            user=_user(user_id),
+            approved.id, session=async_session, user=_user(user_id), roles=_LOCAL_ROLES
         )
     assert stale.value.status_code == 409
 
@@ -1699,45 +1728,43 @@ async def test_undone_latest_approval_does_not_make_older_approval_eligible(
         PyMemoryManagerRunCreateRequest(message="Update profile.md with a first manager note."),
         session=async_session,
         user=_user(user_id),
+        roles=_LOCAL_ROLES,
     )
     first = await memory_manager_router.decide_memory_manager_approval(
         run.approvals[0].id,
         PyMemoryManagerApprovalDecisionRequest(decision="approve"),
         session=async_session,
         user=_user(user_id),
+        roles=_LOCAL_ROLES,
     )
     second_pending = await memory_manager_router.append_memory_manager_message(
         run.run.id,
         PyMemoryManagerMessageCreateRequest(content="Update profile.md with a second manager note."),
         session=async_session,
         user=_user(user_id),
+        roles=_LOCAL_ROLES,
     )
     second = await memory_manager_router.decide_memory_manager_approval(
         second_pending.approvals[-1].id,
         PyMemoryManagerApprovalDecisionRequest(decision="approve"),
         session=async_session,
         user=_user(user_id),
+        roles=_LOCAL_ROLES,
     )
 
     assert first.applied_version == 2
     assert second.applied_version == 3
     await memory_manager_router.undo_memory_manager_approval(
-        second.id,
-        session=async_session,
-        user=_user(user_id),
+        second.id, session=async_session, user=_user(user_id), roles=_LOCAL_ROLES
     )
     snapshot = await memory_manager_router.get_memory_manager_run(
-        run.run.id,
-        session=async_session,
-        user=_user(user_id),
+        run.run.id, session=async_session, user=_user(user_id), roles=_LOCAL_ROLES
     )
     assert snapshot.approvals[0].can_undo is False
     assert snapshot.approvals[1].undone_at is not None
     with pytest.raises(HTTPException) as stale:
         await memory_manager_router.undo_memory_manager_approval(
-            first.id,
-            session=async_session,
-            user=_user(user_id),
+            first.id, session=async_session, user=_user(user_id), roles=_LOCAL_ROLES
         )
     assert stale.value.status_code == 409
 
@@ -1758,12 +1785,14 @@ async def test_undo_rolls_back_entry_and_approval_when_version_append_fails(
         PyMemoryManagerRunCreateRequest(message="Update profile.md with a manager note."),
         session=async_session,
         user=_user(user_id),
+        roles=_LOCAL_ROLES,
     )
     approved = await memory_manager_router.decide_memory_manager_approval(
         run.approvals[0].id,
         PyMemoryManagerApprovalDecisionRequest(decision="approve"),
         session=async_session,
         user=_user(user_id),
+        roles=_LOCAL_ROLES,
     )
     applied = await memory_entries_router.get_memory_entry(
         profile.id,
@@ -1780,9 +1809,7 @@ async def test_undo_rolls_back_entry_and_approval_when_version_append_fails(
     monkeypatch.setattr(SQLAlchemyMemoryEntryRepository, "append_version", fail_undo_append)
     with pytest.raises(RuntimeError, match="undo version append failed"):
         await memory_manager_router.undo_memory_manager_approval(
-            approved.id,
-            session=async_session,
-            user=_user(user_id),
+            approved.id, session=async_session, user=_user(user_id), roles=_LOCAL_ROLES
         )
 
     current = await memory_entries_router.get_memory_entry(
@@ -1956,6 +1983,7 @@ async def test_memory_manager_stale_version_conflict_leaves_approval_pending(
         PyMemoryManagerRunCreateRequest(message="Update profile.md with a durable note about stale versions."),
         session=async_session,
         user=_user(user_id),
+        roles=_LOCAL_ROLES,
     )
     assert run.approvals[0].preview.expected_version == 1
 
@@ -1973,13 +2001,12 @@ async def test_memory_manager_stale_version_conflict_leaves_approval_pending(
             PyMemoryManagerApprovalDecisionRequest(decision="approve"),
             session=async_session,
             user=_user(user_id),
+            roles=_LOCAL_ROLES,
         )
     assert conflict.value.status_code == 409
 
     snapshot = await memory_manager_router.get_memory_manager_run(
-        run.run.id,
-        session=async_session,
-        user=_user(user_id),
+        run.run.id, session=async_session, user=_user(user_id), roles=_LOCAL_ROLES
     )
     assert snapshot.run.status == "waiting_approval"
     assert snapshot.approvals[0].status == "pending"
@@ -2107,9 +2134,8 @@ async def test_openai_agents_runtime_extracts_apply_patch_call_id_from_raw_inter
     runtime = OpenAIAgentsMemoryManagerRuntime(
         user_id=user_id,
         memory_entries=memory_entries,
-        api_key="test-key",
-        base_url=None,
-        model="gpt-5.4-mini",
+        model_provider=_manager_model(),
+        credential_resolver=_manager_credentials(),
         timeout_seconds=1.0,
     )
     workspace = MemoryManagerVirtualWorkspace(user_id=user_id, memory_entries=memory_entries)
@@ -2153,9 +2179,8 @@ async def test_openai_agents_runtime_uses_shared_navigation_and_read_tool_contra
     runtime = OpenAIAgentsMemoryManagerRuntime(
         user_id=user_id,
         memory_entries=memory_entries,
-        api_key="test-key",
-        base_url=None,
-        model="gpt-5.4-mini",
+        model_provider=_manager_model(),
+        credential_resolver=_manager_credentials(),
         timeout_seconds=1.0,
     )
     run = MemoryManagerRun(
@@ -2164,7 +2189,7 @@ async def test_openai_agents_runtime_uses_shared_navigation_and_read_tool_contra
         status=MEMORY_MANAGER_RUN_STATUS_ACTIVE,
     )
     workspace = MemoryManagerVirtualWorkspace(user_id=user_id, memory_entries=memory_entries)
-    client = runtime._client()
+    client = runtime._client(runtime._require_model())
     try:
         agent, run_config = await runtime._build_agent(
             run=run,
@@ -2243,6 +2268,7 @@ async def test_openai_agents_runtime_rebuilds_specialized_batch_then_returns_to_
         PyMemoryManagerEpisodeProcessingRunCreateRequest(),
         session=async_session,
         user=_user(user_id),
+        roles=_LOCAL_ROLES,
     )
     repository = SQLAlchemyMemoryManagerRepository(async_session)
     processing_run = await repository.get_run(user_id=user_id, run_id=started.run.id)
@@ -2252,9 +2278,8 @@ async def test_openai_agents_runtime_rebuilds_specialized_batch_then_returns_to_
         user_id=user_id,
         memory_entries=_memory_entry_service(async_session),
         memory_episodes=SQLAlchemyMemoryEpisodeRepository(async_session),
-        api_key="test-key",
-        base_url=None,
-        model="gpt-5.4-mini",
+        model_provider=_manager_model(),
+        credential_resolver=_manager_credentials(),
         timeout_seconds=1.0,
     )
     first = await runtime._instructions_for_run(run=processing_run, memory_map="# Memory map")
@@ -2273,6 +2298,7 @@ async def test_openai_agents_runtime_rebuilds_specialized_batch_then_returns_to_
         PyMemoryManagerApprovalDecisionRequest(decision="reject"),
         session=async_session,
         user=_user(user_id),
+        roles=_LOCAL_ROLES,
     )
     processed_run = await repository.get_run(user_id=user_id, run_id=started.run.id)
     assert processed_run is not None
@@ -2293,9 +2319,8 @@ async def test_openai_agents_runtime_reads_documented_interruption_arguments(
     runtime = OpenAIAgentsMemoryManagerRuntime(
         user_id=user_id,
         memory_entries=memory_entries,
-        api_key="test-key",
-        base_url=None,
-        model="gpt-5.4-mini",
+        model_provider=_manager_model(),
+        credential_resolver=_manager_credentials(),
         timeout_seconds=1.0,
     )
     workspace = MemoryManagerVirtualWorkspace(user_id=user_id, memory_entries=memory_entries)
@@ -2330,9 +2355,8 @@ async def test_openai_agents_runtime_classifies_terminal_and_incomplete_outputs(
     runtime = OpenAIAgentsMemoryManagerRuntime(
         user_id=user_id,
         memory_entries=memory_entries,
-        api_key="test-key",
-        base_url=None,
-        model="gpt-5.4-mini",
+        model_provider=_manager_model(),
+        credential_resolver=_manager_credentials(),
         timeout_seconds=1.0,
     )
     result = await runtime._runtime_result_from_sdk_output(
@@ -2368,9 +2392,8 @@ async def test_openai_agents_runtime_blocks_after_invalid_patch_exhaustion(
     runtime = OpenAIAgentsMemoryManagerRuntime(
         user_id=user_id,
         memory_entries=memory_entries,
-        api_key="test-key",
-        base_url=None,
-        model="gpt-5.4-mini",
+        model_provider=_manager_model(),
+        credential_resolver=_manager_credentials(),
         timeout_seconds=1.0,
     )
 
@@ -2437,9 +2460,8 @@ async def test_openai_agents_runtime_classifies_turn_exhaustion_as_blocked(
     runtime = OpenAIAgentsMemoryManagerRuntime(
         user_id=user_id,
         memory_entries=_memory_entry_service(async_session),
-        api_key="test-key",
-        base_url=None,
-        model="gpt-5.4-mini",
+        model_provider=_manager_model(),
+        credential_resolver=_manager_credentials(),
         timeout_seconds=1.0,
     )
 
@@ -2538,9 +2560,8 @@ async def test_memory_manager_chains_only_latest_user_message_and_persists_curso
     runtime = OpenAIAgentsMemoryManagerRuntime(
         user_id=user_id,
         memory_entries=memory_entries,
-        api_key="test-key",
-        base_url=None,
-        model="gpt-5.4-mini",
+        model_provider=_manager_model(),
+        credential_resolver=_manager_credentials(),
         timeout_seconds=1.0,
     )
     runner = _SequencedAgentsRunner(["resp-first", "resp-second", None])
@@ -2627,9 +2648,8 @@ async def test_memory_manager_expired_cursor_fails_with_recovery_code(
     runtime = OpenAIAgentsMemoryManagerRuntime(
         user_id=user_id,
         memory_entries=memory_entries,
-        api_key="test-key",
-        base_url=None,
-        model="gpt-5.4-mini",
+        model_provider=_manager_model(),
+        credential_resolver=_manager_credentials(),
         timeout_seconds=1.0,
     )
     runtime._runner = _ExpiredCursorRunner()  # type: ignore[assignment]
@@ -2717,9 +2737,8 @@ async def test_memory_manager_approval_resume_uses_only_serialized_state_and_adv
     runtime = OpenAIAgentsMemoryManagerRuntime(
         user_id=user_id,
         memory_entries=memory_entries,
-        api_key="test-key",
-        base_url=None,
-        model="gpt-5.4-mini",
+        model_provider=_manager_model(),
+        credential_resolver=_manager_credentials(),
         timeout_seconds=1.0,
     )
 
@@ -2783,6 +2802,7 @@ class _FailingMemoryManagerRuntime:
         *,
         run: MemoryManagerRun,
         user_message: MemoryManagerMessage,
+        history: object = (),
     ):
         del run, user_message
         raise MemoryManagerRuntimeError("simulated runtime outage")
@@ -2844,8 +2864,240 @@ async def test_memory_manager_does_not_preview_episode_log_edits(async_session, 
         PyMemoryManagerRunCreateRequest(message="Update episodes/2026/07/2026-07-07.md with this manual note."),
         session=async_session,
         user=_user(user_id),
+        roles=_LOCAL_ROLES,
     )
 
     assert run.run.status == "active"
     assert run.approvals == []
     assert "read-only" in run.messages[-1].content
+
+
+def _local_manager_model() -> ModelProvider:
+    connection = ModelConnection(
+        id="conn-local-manager",
+        name="Ollama",
+        preset="ollama",
+        base_url="http://127.0.0.1:11434/v1",
+    )
+    return _manager_model("qwen3:8b", provider_type="OpenAIHTTPAgent", connection=connection)
+
+
+@pytest.mark.asyncio
+async def test_chat_completions_manager_uses_an_approval_gated_patch_tool_without_tracing(
+    async_session,
+    clean_memory_manager_rows,
+) -> None:
+    from agents import OpenAIChatCompletionsModel
+
+    user_id = f"user-{uuid.uuid4()}"
+    memory_entries = _memory_entry_service(async_session)
+    runtime = OpenAIAgentsMemoryManagerRuntime(
+        user_id=user_id,
+        memory_entries=memory_entries,
+        model_provider=_local_manager_model(),
+        credential_resolver=_manager_credentials(),
+        timeout_seconds=1.0,
+    )
+    run = MemoryManagerRun(id=new_memory_manager_run_id(), user_id=user_id, status=MEMORY_MANAGER_RUN_STATUS_ACTIVE)
+    workspace = MemoryManagerVirtualWorkspace(user_id=user_id, memory_entries=memory_entries)
+    client = runtime._client(runtime._require_model())
+    try:
+        agent, run_config = await runtime._build_agent(
+            run=run, workspace=workspace, client=client, editor=_approval_required_patch_editor()
+        )
+    finally:
+        await client.close()
+
+    assert isinstance(agent.model, OpenAIChatCompletionsModel)
+    patch_tool = agent.tools[-1]
+    assert isinstance(patch_tool, FunctionTool)
+    assert patch_tool.name == "apply_patch"
+    assert patch_tool.needs_approval is True
+    assert run_config.tracing_disabled is True
+    assert agent.model_settings.store is None
+
+
+@pytest.mark.asyncio
+async def test_chat_completions_manager_replays_the_run_and_previews_function_tool_patches(
+    async_session,
+    clean_memory_manager_rows,
+) -> None:
+    user_id = f"user-{uuid.uuid4()}"
+    memory_entries = _memory_entry_service(async_session)
+    runtime = OpenAIAgentsMemoryManagerRuntime(
+        user_id=user_id,
+        memory_entries=memory_entries,
+        model_provider=_local_manager_model(),
+        credential_resolver=_manager_credentials(),
+        timeout_seconds=1.0,
+    )
+
+    class _Interruption:
+        raw_item = {
+            "type": "function_call",
+            "name": "apply_patch",
+            "call_id": "call-local",
+            "arguments": json.dumps(
+                {
+                    "operation": {
+                        "type": "create_file",
+                        "path": "notes.md",
+                        "diff": '+---\n+description: "Notes"\n+---\n+Hello',
+                    }
+                }
+            ),
+        }
+
+    class _State:
+        def to_string(self) -> str:
+            return "{}"
+
+    seen: dict[str, Any] = {}
+
+    class _Runner:
+        async def run(self, **kwargs):  # noqa: ANN003
+            seen.update(kwargs)
+            return OpenAIAgentsRunOutput(
+                final_output=None,
+                last_response_id=None,
+                interruptions=[_Interruption()],
+                serialized_agent_state=None,
+                state=_State(),  # type: ignore[arg-type]
+                usage_metadata={},
+                metadata={},
+            )
+
+    runtime._runner = _Runner()  # type: ignore[assignment]
+    run_id = new_memory_manager_run_id()
+    history = [
+        MemoryManagerMessage(id="m1", run_id=run_id, user_id=user_id, role="user", content="Remember my cat."),
+        MemoryManagerMessage(id="m2", run_id=run_id, user_id=user_id, role="assistant", content="What is its name?"),
+    ]
+    result = await runtime.run_user_message(
+        run=MemoryManagerRun(id=run_id, user_id=user_id, status=MEMORY_MANAGER_RUN_STATUS_ACTIVE),
+        user_message=MemoryManagerMessage(id="m3", run_id=run_id, user_id=user_id, role="user", content="Mochi."),
+        history=history,
+    )
+
+    assert seen["input_value"] == [
+        {"role": "user", "content": "Remember my cat."},
+        {"role": "assistant", "content": "What is its name?"},
+        {"role": "user", "content": "Mochi."},
+    ]
+    assert "previous_response_id" not in seen
+    assert result.outcome == "waiting_approval"
+    assert result.approvals is not None and result.approvals[0].target_path == "notes.md"
+    assert (result.approvals[0].operation_metadata or {})["sdk_call_id"] == "call-local"
+
+
+@pytest.mark.asyncio
+async def test_memory_manager_without_a_tool_capable_model_explains_the_setting(
+    async_session,
+    clean_memory_manager_rows,
+) -> None:
+    user_id = f"user-{uuid.uuid4()}"
+    runtime = OpenAIAgentsMemoryManagerRuntime(
+        user_id=user_id,
+        memory_entries=_memory_entry_service(async_session),
+        model_provider=None,
+        credential_resolver=_manager_credentials(),
+        timeout_seconds=1.0,
+    )
+
+    with pytest.raises(MemoryManagerRuntimeConfigurationError, match="Choose one in App Settings"):
+        await runtime.run_user_message(
+            run=MemoryManagerRun(id="run-none", user_id=user_id, status=MEMORY_MANAGER_RUN_STATUS_ACTIVE),
+            user_message=MemoryManagerMessage(id="m1", run_id="run-none", user_id=user_id, role="user", content="Hi"),
+        )
+
+
+@pytest.mark.asyncio
+async def test_chat_completions_manager_uses_the_connection_timeout_and_strips_strict_when_asked(
+    async_session,
+    clean_memory_manager_rows,
+) -> None:
+    user_id = f"user-{uuid.uuid4()}"
+    memory_entries = _memory_entry_service(async_session)
+    connection = ModelConnection(
+        id="conn-hf-manager",
+        name="Hugging Face",
+        preset="huggingface",
+        base_url="https://router.huggingface.co/v1",
+        timeout_seconds=300.0,
+        compatibility=ModelConnectionCompatibility(strip_function_strict=True),
+    )
+    runtime = OpenAIAgentsMemoryManagerRuntime(
+        user_id=user_id,
+        memory_entries=memory_entries,
+        model_provider=_manager_model("zephyr", provider_type="OpenAIHTTPAgent", connection=connection),
+        credential_resolver=_manager_credentials(),
+        timeout_seconds=60.0,
+    )
+    run = MemoryManagerRun(id=new_memory_manager_run_id(), user_id=user_id, status=MEMORY_MANAGER_RUN_STATUS_ACTIVE)
+    client = runtime._client(runtime._require_model())
+    sent: dict[str, Any] = {}
+
+    class _Completions:
+        async def create(self, **kwargs: Any) -> str:
+            sent.update(kwargs)
+            return "ok"
+
+    try:
+        agent, _run_config = await runtime._build_agent(
+            run=run,
+            workspace=MemoryManagerVirtualWorkspace(user_id=user_id, memory_entries=memory_entries),
+            client=client,
+            editor=_approval_required_patch_editor(),
+        )
+        sdk_client = cast(Any, agent.model)._client
+        sdk_client._client = SimpleNamespace(chat=SimpleNamespace(completions=_Completions()))
+        await sdk_client.chat.completions.create(
+            model="zephyr",
+            tools=[{"type": "function", "function": {"name": "apply_patch", "parameters": {}, "strict": True}}],
+        )
+    finally:
+        await client.close()
+
+    # Replies may take the connection's 300 s; connecting is capped.
+    assert (client.timeout.read, client.timeout.connect) == (300.0, 10.0)  # type: ignore[union-attr]
+    assert sent["tools"] == [{"type": "function", "function": {"name": "apply_patch", "parameters": {}}}]
+
+
+@pytest.mark.asyncio
+async def test_responses_manager_replays_the_run_when_it_has_no_cursor(
+    async_session,
+    clean_memory_manager_rows,
+) -> None:
+    user_id = f"user-{uuid.uuid4()}"
+    runtime = OpenAIAgentsMemoryManagerRuntime(
+        user_id=user_id,
+        memory_entries=_memory_entry_service(async_session),
+        model_provider=_manager_model(),
+        credential_resolver=_manager_credentials(),
+        timeout_seconds=1.0,
+    )
+    seen: dict[str, Any] = {}
+
+    class _Runner:
+        async def run(self, **kwargs):  # noqa: ANN003
+            seen.update(kwargs)
+            return OpenAIAgentsRunOutput(
+                final_output="Noted.",
+                last_response_id="resp-1",
+                interruptions=[],
+                serialized_agent_state=None,
+                state=None,
+                usage_metadata={},
+                metadata={},
+            )
+
+    runtime._runner = _Runner()  # type: ignore[assignment]
+    run_id = new_memory_manager_run_id()
+    await runtime.run_user_message(
+        run=MemoryManagerRun(id=run_id, user_id=user_id, status=MEMORY_MANAGER_RUN_STATUS_ACTIVE),
+        user_message=MemoryManagerMessage(id="m2", run_id=run_id, user_id=user_id, role="user", content="Mochi."),
+        history=[MemoryManagerMessage(id="m1", run_id=run_id, user_id=user_id, role="user", content="My cat.")],
+    )
+
+    assert seen["input_value"] == [{"role": "user", "content": "My cat."}, {"role": "user", "content": "Mochi."}]
+    assert seen["previous_response_id"] is None

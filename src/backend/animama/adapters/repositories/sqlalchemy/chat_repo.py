@@ -43,6 +43,8 @@ class SQLAlchemyChatRepository(ChatRepository):
                 existing.last_model_client = chat.last_model_client
             if chat.last_model_id is not None:
                 existing.last_model_id = chat.last_model_id
+            if chat.last_model_provider_id is not None:
+                existing.last_model_provider_id = chat.last_model_provider_id
             if chat.openai_previous_response_id is not None:
                 existing.openai_previous_response_id = chat.openai_previous_response_id
             existing.metadata_ = dict(chat.metadata or {})
@@ -68,6 +70,8 @@ class SQLAlchemyChatRepository(ChatRepository):
             orm.last_model_client = chat.last_model_client
         if chat.last_model_id is not None:
             orm.last_model_id = chat.last_model_id
+        if chat.last_model_provider_id is not None:
+            orm.last_model_provider_id = chat.last_model_provider_id
         if chat.openai_previous_response_id is not None:
             orm.openai_previous_response_id = chat.openai_previous_response_id
         orm.metadata_ = dict(chat.metadata or {})
@@ -159,6 +163,7 @@ class SQLAlchemyChatRepository(ChatRepository):
         clear_openai_previous_response_id: bool = False,
         last_model_client: str | None = None,
         last_model_id: str | None = None,
+        last_model_provider_id: str | None = None,
     ) -> tuple[int, Usage | None]:
         if (last_model_client is None) != (last_model_id is None):
             raise ValueError("last_model_client and last_model_id must be provided together")
@@ -177,6 +182,8 @@ class SQLAlchemyChatRepository(ChatRepository):
         if last_model_client is not None and last_model_id is not None:
             values["last_model_client"] = last_model_client
             values["last_model_id"] = last_model_id
+        if last_model_provider_id is not None:
+            values["last_model_provider_id"] = last_model_provider_id
         if usage is not None:
             cached_input_tokens = int(getattr(usage.input_tokens_details, "cached_tokens", 0) or 0)
             output_reasoning_tokens = int(getattr(usage.output_tokens_details, "reasoning_tokens", 0) or 0)

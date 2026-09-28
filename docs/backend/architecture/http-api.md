@@ -21,6 +21,9 @@ Tests use explicit fixture bootstrap and dependency overrides.
   SSE, and voice catalog uploads.
 - `server/routers/model_provider.py`: active provider/model catalog for
   frontend model selection.
+- `server/routers/model_configuration.py`: owner model connections, models,
+  capability probe and model roles. Only `create_local_app` mounts it, outside
+  the shared `/v1` aggregate, because it sends requests to owner-supplied URLs.
 - `server/routers/model_assets.py`: pinned downloadable asset install state,
   install, removal and same-origin byte delivery.
 - `server/routers/chats.py`: chat CRUD and persisted chat messages.
@@ -77,6 +80,7 @@ Tests use explicit fixture bootstrap and dependency overrides.
 {
   "schema_version": 1,
   "runtime_kind": "desktop",
+  "model_configuration": true,
   "user_file_processing": {
     "enabled": false,
     "worker_state": "disabled",
@@ -96,10 +100,13 @@ Tests use explicit fixture bootstrap and dependency overrides.
 ```
 
 `runtime_kind` is presentation metadata (`desktop` or `self_hosted_web`), not
-an authentication mode. The self-host composition returns a null document
-`pack_id`; the Electron supervisor supplies pack-dependent settings. An enabled
-worker is `starting` until its expected instance has a heartbeat, `ready` for
-twenty seconds after that heartbeat, then `stale`. Enabled work may queue while
+an authentication mode. `model_configuration` is true when the composition's
+catalog policy enables owner models, which only the local composition does; the
+[model configuration routes](#model-configuration) exist only then. The
+self-host composition returns a null document `pack_id`; the Electron
+supervisor supplies pack-dependent settings. An enabled worker is `starting`
+until its expected instance has a heartbeat, `ready` for twenty seconds after
+that heartbeat, then `stale`. Enabled work may queue while
 starting/stale. A disabled capability returns `409` with
 `{"detail":{"code":"file_processing_unavailable"}}` from explicit process
 requests before repository lookup or enqueue. Original-file upload/finalization
@@ -464,11 +471,14 @@ integrity remains independently enforced. Detail and mutation responses retain
 Anima rows are owner-scoped by the request principal in the retained `user_id`
 column. Direct creation uses the strict command below and the caller-owned
 `AnimaAggregateMaterializer`. Creation writes identity/history, definition audit, chat profile, settings,
-and loadout together. Strict creation selects the
-active local `ANIMAMA_DEFAULT_MODEL_PROVIDER_ID` (default
-`OpenAIResponsesHTTPAgent:gpt-5.6-luna`) and persists ElevenLabs voice
-`gJx1vCzNCD1EQHT212Ls` without a provider request. Reads use the Anima's stable
-display name independently of mutable `avatar.name`. No runtime mount or chat/greeting is created.
+and loadout together. Strict creation selects the owner's
+`chat.default_model_provider_id` preference when it names an active chat row
+the chat role accepts, on an active connection (owner rows need a context
+window), else the local `ANIMAMA_DEFAULT_MODEL_PROVIDER_ID` (default
+`OpenAIResponsesHTTPAgent:gpt-6-luna`), which must be active. It persists
+ElevenLabs voice `gJx1vCzNCD1EQHT212Ls` without a provider request. Reads use
+the Anima's stable display name independently of mutable `avatar.name`. No
+runtime mount or chat/greeting is created.
 
 `PATCH /v1/animas/{anima_id}` accepts `anima.display_name` or compatibility field
 `anima.avatar_id` only with a positive body `expected_aggregate_revision`.
@@ -544,9 +554,10 @@ The model selector write API is:
 
 - `PATCH /v1/animas/{anima_id}/chat-profile`
 
-The request body is `{ "default_model_provider_id": "Provider:Model" }`. The
-route verifies anima ownership and an active `model_providers` row before
-updating the profile.
+The request body is `{ "default_model_provider_id": "<catalog row id>" }`,
+for example `OpenAIHTTPAgent:gpt-6-luna` or an owner row's `owner:<hex>` id.
+The route verifies anima ownership and an active `model_providers` row of kind
+`chat` before updating the profile; other rows return `400`.
 
 ## Chat SSE
 
@@ -592,10 +603,12 @@ returns `409 runtime_remount_required` when it is missing or expired. The same
 snapshot's Gesture inventory defines the strict model enum,
 final validation, and the revision carried by `avatar.gesture.requested`.
 `model_provider_id` must match an active
-`model_providers.id` row that supports the requested direct-chat turn features.
-When omitted, the backend requires the anima's explicit
-`anima_chat_profiles` default model provider. Missing profiles fail setup
-before any upstream model call.
+`model_providers.id` row of kind `chat`, on an active connection, that supports
+the requested direct-chat turn features. Owner rows also need a context window,
+and Responses rows run only on the built-in OpenAI connection; setup rejects
+other rows with `400` before any upstream call. When omitted, the backend
+requires the anima's explicit `anima_chat_profiles` default model provider.
+Missing profiles fail setup before any upstream model call.
 
 The selected model provider also determines the chat's API standard. Missing
 chat rows are created with the selected `api_standard`. Empty chat rows created
@@ -610,17 +623,14 @@ structured detail:
   "chat_id": "chat-...",
   "chat_api_standard": "chat_completions",
   "requested_api_standard": "responses",
-  "requested_model_provider_id": "OpenAIResponsesHTTPAgent:gpt-5-nano",
+  "requested_model_provider_id": "OpenAIResponsesHTTPAgent:gpt-6-luna",
   "action": "start_new_chat"
 }
 ```
 
-Gemini and LiteLLM rows currently have null chat compatibility fields and are
-rejected for direct chat with `400` setup detail starting
-`chat_api_standard_unsupported`.
-DeepSeek V4 rows use the `chat_completions` standard through `OpenAIHTTPAgent`,
-so they can continue OpenAI Chat Completions chats and are blocked from
-Responses-backed chats by the same mismatch response.
+Every `OpenAIHTTPAgent` row uses the `chat_completions` standard whatever its
+connection, so a Chat Completions chat can switch between connections; only a
+switch to or from a Responses row needs a new chat.
 When `dispatch_options.tts.enabled=true` and
 `dispatch_options.tts.provider="elevenlabs"`, the route resolves the
 ElevenLabs realtime session concurrently with the primary model turn and emits a
@@ -646,9 +656,10 @@ user-scope file entries (`anima_id IS NULL`), uses cached paths such as
 `PROFILE.md`, and omits anima-scoped files and tree formatting. Any attached-file
 list follows, and the Companion Guardrails always end the
 message. `disable_memory_influence` suppresses the list and `MEMORIES.md` while keeping
-required anima identity active. Provider rows that do not support OpenAI's `developer`
-message role, including DeepSeek, receive all developer text folded in order
-into the end of the system instruction instead.
+required anima identity active. Rows that do not support OpenAI's `developer`
+message role, including every row on a connection with the
+`fold_developer_role` compatibility option, receive all developer text folded
+in order into the end of the system instruction instead.
 
 ## Installation Events
 
@@ -670,18 +681,139 @@ The model provider router supports:
 
 - `GET /v1/model-providers`: public model catalog for frontend selection
 
-The route returns active serialized `model_providers` rows. Secret values,
-provider base URLs, pricing metadata, and backend-only capability fields are not
+The route returns active serialized `model_providers` rows whose connection is
+active and which the composition's `ModelCatalogPolicy` allows: built-in rows
+(optionally limited to an allowlist) and, only when the policy enables owner
+models, owner rows. Secret values, connection base URLs and credential
+references, pricing metadata, and backend-only capability fields are not
 returned by the public catalog. Anima chat-profile writes and request-level
 `chat:sse` model overrides must name an active catalog row. Public catalog rows
-also include nullable `model_client` and `api_standard` fields so clients can
-distinguish OpenAI Chat Completions rows from OpenAI Responses rows before
-sending a chat turn. Gemini and LiteLLM rows return null values for those fields
-until their transcript compatibility semantics are defined.
-DeepSeek V4 Flash and V4 Pro are exposed as `OpenAIHTTPAgent` rows with
-`model_client="openai_chat_completions"` and
-`api_standard="chat_completions"`, so clients can use the existing same-standard
-restore and send-gating behavior without a DeepSeek-specific frontend rule.
+also include `model_client` and `api_standard` so clients can distinguish OpenAI
+Chat Completions rows from OpenAI Responses rows before sending a chat turn.
+
+Each row also carries:
+
+- `source`: `builtin` (release-managed) or `owner` (added by the owner);
+- `connection_id` and `connection_name`: the model connection that serves it.
+  Owner rows take `provider_label` and `logo_provider` from their connection's
+  current name and preset;
+- `model_kind`: `chat` or `embedding`. Embedding rows serve only the
+  Embeddings role, so chat selectors must exclude them;
+- `hidden`: the owner hid this row from model lists. Hidden rows are still
+  returned, so an Anima that uses one keeps working; selectors omit them
+  otherwise;
+- `context_window_tokens`: the served window, or null. Owner chat rows cannot
+  chat until it is set.
+
+`model_label` is never empty; it falls back to the model ID. Rows sort by
+`provider_label`, then `model_label`. A database failure returns
+`503 {"detail": {"code": "model_catalog_unavailable"}}` instead of a partial or
+static catalog. The [model catalog](../model-catalog.md) describes built-in rows
+and capabilities.
+
+## Model Configuration
+
+Only `create_local_app` mounts these owner routes; `model_configuration` in
+[runtime capabilities](#optional-runtime-capabilities) reports them. They use
+the admitted installation principal. Responses name credential variables and
+report `credential_state` (`configured`, `missing` or `not_required`) but never
+carry a key value.
+
+- `GET /v1/model-connection-presets`: owner-selectable presets (Ollama, LM
+  Studio, llama.cpp, vLLM, DeepSeek, Hugging Face and Custom) with the default
+  base URL, whether a key is expected, a suggested key variable,
+  compatibility options and the timeout. Local presets use
+  `ANIMAMA_LOCAL_MODEL_HOST` as their host.
+- `POST /v1/model-connection-presets/{preset_id}/detect`: for a local preset
+  (`ollama`, `lmstudio`, `llamacpp` or `vllm`), request `GET {base}/models` at
+  the preset's default base URL without a key, allowing 3 seconds to connect
+  and to read. The request carries no address. Returns `{preset, base_url,
+  reachable, models, category}`: up to 200 sorted model IDs when the server
+  answers, otherwise `reachable: false`, empty `models` and a failure
+  `category` such as `unreachable` or `timeout` (still `200`). Other presets
+  return `400 preset_not_local`; unknown or non-selectable presets return
+  `404 unknown_preset`.
+- `GET /v1/model-connections`: active connections, including the built-in
+  `openai` connection, each with its active models.
+- `POST /v1/model-connections` (`201`): create a connection from `name`,
+  `preset`, `base_url`, a `credential` (below), and optional `compatibility`
+  and `timeout_seconds` (1–1800; the preset's default when omitted). Base URLs
+  must be `http` or `https` with a host, and without credentials, query or
+  fragment; a trailing slash is dropped. Invalid input returns `400` with a
+  code such as `invalid_base_url`, `invalid_preset`, `invalid_timeout` or
+  `invalid_credential`.
+- `PATCH /v1/model-connections/{connection_id}`: change the given fields;
+  omitted fields, including the credential, keep their values. The built-in
+  connection returns `400 connection_read_only`.
+- `DELETE /v1/model-connections/{connection_id}?confirm=`: retire the
+  connection and all its models. The built-in connection returns
+  `400 connection_read_only`.
+- `GET /v1/model-connections/{connection_id}/available-models`: the server's
+  model IDs from its `/models` endpoint.
+- `POST /v1/model-connections/{connection_id}/probe`: send small requests to
+  `model` and return suggested capabilities. A chat probe reports each step
+  (streamed text, a strict `json_schema` reply or else JSON mode, a tool call,
+  and tools with a schema in one request) with `ok` and a failure `category`;
+  a failed streaming step ends the probe. It also reports the loaded
+  context window when llama.cpp (`/props`), Ollama (`/api/ps`) or LM Studio
+  reports one. An `embedding` probe reports the vector dimensions. A Responses
+  probe checks that the model exists and is refused off the built-in
+  connection (`400 invalid_provider_type`). Values the probe could not
+  determine are null. Saving the model stores a summary in `probe_result`: the
+  findings and each step's name, result and category; step details and notes,
+  which can quote server error text, are dropped.
+- `POST /v1/model-connections/{connection_id}/models` (`201`): add an owner row
+  with `model`, optional `label`, `kind`, `context_window_tokens`,
+  `allow_memory_writes` (default true), `probe_result` and `capabilities`, or a
+  built-in chat `template_id` whose capabilities are copied. `provider_type`
+  may choose `OpenAIResponsesHTTPAgent` only on the built-in connection; other
+  connections use Chat Completions. Re-adding a removed model on the same
+  connection reactivates its row; adding one that is already active on it
+  returns `409 model_already_added`.
+- `PATCH /v1/model-providers/{model_provider_id}`: edit an owner row's label,
+  capabilities, context window (`clear_context_window` unsets it), memory
+  writes, probe result or `hidden`. Built-in rows accept only `hidden`; other
+  fields return `400 model_read_only`.
+- `DELETE /v1/model-providers/{model_provider_id}?confirm=`: retire an owner
+  row. Built-in rows can only be hidden (`400 model_read_only`).
+- `GET /v1/model-roles`: for each role (`chat`, `utility`, `memory_manager`,
+  `embeddings`), the effective row, its label and connection name, its
+  `source` (`owner`, `default`, `inherited` or `off`), the owner's requested
+  row and `assignment_available` (false when that request fell back).
+  `embeddings_refresh` reports `state` (`off`, `current`, `re_embedding` or
+  `retrying`), the `pending` row count and the last failure's
+  `error_category`.
+
+A connection's `credential` takes one of three modes:
+
+- `{"mode": "none"}`: no key and no `Authorization` header;
+- `{"mode": "env", "env": "NAME"}`: read the key from a variable named
+  `OPENAI_API_KEY`, `DEEPSEEK_API_KEY`, `HF_TOKEN` or
+  `ANIMAMA_CONNECTION_<NAME>_API_KEY`, so a reference cannot read other
+  secrets;
+- `{"mode": "managed"}`: read the key from `ANIMAMA_CONNECTION_<ID>_API_KEY`,
+  derived from the connection ID, which the desktop vault sets.
+
+Removal is soft: rows and connections become inactive because chat profiles
+and chat history still reference them. When Animas or role preferences use the
+target, removal without `confirm=true` returns
+`409 {"detail": {"code": "model_in_use", "usage": {"animas": [...], "roles": [...]}}}`
+and changes nothing; `animas` lists `anima_id`, `display_name` and
+`model_provider_id`, and `roles` names preference keys such as
+`models.utility_model_provider_id`. A confirmed removal returns
+`{"removed": true, "usage": ...}` and clears the role preferences (including
+`chat.default_model_provider_id`) that named a removed row, so those roles use
+their defaults. Chat profiles keep naming the retired row, which chat setup
+rejects, until the owner picks another model.
+
+A probe or model listing that cannot start because the connection's key is
+missing or its base URL is invalid returns `400` with `detail.code`
+`credential_missing` or `invalid_base_url`. A model listing that fails upstream
+returns `502` with a category such as `unreachable` (including a base URL
+without a `/models` endpoint), `credential_rejected`, `timeout` or
+`unexpected_response`. Unknown or removed connections and models return `404`
+(`connection_not_found`, `model_not_found`). Connection changes, model edits
+and removals wake re-embedding.
 
 ## Memory
 
@@ -805,8 +937,8 @@ rows and presents them as `E01` through `E50`. Rows stay pending through model
 execution and approval pauses. Only a completed terminal result with no pending
 approval atomically marks exactly that batch processed, refreshes affected
 daily files, and changes task status to `processed`. The run itself remains
-`active`; later messages use general Memory Manager instructions on the same
-Responses cursor. Overflow and newly captured rows are not changed. Blocked or
+`active`; later messages use general Memory Manager instructions with the
+same run's context. Overflow and newly captured rows are not changed. Blocked or
 failed runtime results fail the run and leave the task and rows pending.
 
 `POST /v1/memory/manager/runs:reflect` accepts `anima_id` and
@@ -824,9 +956,12 @@ automatically) marks the run's turns covered in the same transaction; Undo of
 that approval uncovers them again. Rejection, a superseded run, failure or a
 `409` version conflict leave the file and coverage unchanged.
 
-Manager messages normally run a live OpenAI Agents SDK `ApplyPatchTool`
-workflow over a constrained virtual memory workspace;
-`ANIMAMA_LLM_SKIP=1` switches this to the deterministic local test runtime.
+Manager messages normally run a live OpenAI Agents SDK workflow on the Memory
+Manager role's model, with an approval-gated Apply Patch tool (hosted on
+Responses rows, a function tool on Chat Completions rows) over a constrained
+virtual memory workspace; `ANIMAMA_LLM_SKIP=1` switches this to the
+deterministic local test runtime. See
+[Memory Manager and episodic memory](../features/memory-manager-and-episodic-memory.md#live-openai-agents-runtime).
 Approval decisions are real commits for valid create/update patches: approved
 patches write through `MemoryEntryService` and atomically store the target entry
 ID and resulting `applied_version`; public previews carry separate nullable
@@ -892,10 +1027,17 @@ combining the reply's stored `MEMORIES.md` change with the episode note
 captured from it; see [Chat Memory Cue](../features/memory.md#chat-memory-cue).
 Message reads hide internal rows by default, and
 `include_internal=true` includes those rows with `internal=true`. Chat responses
-include nullable `api_standard`, `last_model_client`, and `last_model_id`
-fields, cumulative usage totals accumulated from persisted assistant message
-usage plus `active_context_tokens`, the latest normal assistant turn's
-provider-reported `total_tokens` minus output reasoning tokens. Chats created
+include nullable `api_standard`, `last_model_client`, `last_model_id` and
+`last_model_provider_id` fields. `last_model_provider_id` is the catalog row of
+the latest successful turn; clients restore the chat's model by it, since
+`last_model_id` alone cannot tell connections that serve the same model name
+apart. Responses also carry cumulative usage totals accumulated from persisted
+assistant message usage plus `active_context_tokens`: the latest normal
+assistant turn's last model request (its prompt and reply, minus output
+reasoning tokens), which stays in the next turn's context. A turn with tool
+rounds bills every request but counts only the last here. When a server streams
+no usage, the turn records a character-based estimate marked `usage_estimated`,
+so the count still grows and compaction can trigger. Chats created
 through `POST /v1/chats` can return null standard and last-model fields until
 the first model-backed `chat:sse` request initializes the standard and a
 successful durable turn records the last model snapshot. Non-empty
@@ -925,6 +1067,25 @@ Anima settings include runtime preferences such as memory influence, memory
 updates, emotional analysis, and presentation flags for animation or visual
 effects. Dispatch option resolution combines request-level overrides, settings,
 and anima defaults.
+
+User `preferences` also hold model choices as catalog row IDs:
+
+- `chat.default_model_provider_id`: the default model for new Animas and the
+  chat role;
+- `models.utility_model_provider_id`: titles and compaction;
+- `models.memory_manager_model_provider_id`: the Memory Manager;
+- `models.embedding_model_provider_id`: upload and archive embeddings.
+
+`PATCH /v1/users/me/settings` replaces the whole `preferences` object without
+validating these IDs. Role resolution checks the row when it is used and falls
+back to the role's default when the row is removed, of the wrong kind or lacks
+a needed capability: the operator default (`ANIMAMA_DEFAULT_MODEL_PROVIDER_ID`
+for chat, `ANIMAMA_DEFAULT_{UTILITY,MEMORY_MANAGER,EMBEDDING}_MODEL_PROVIDER_ID`
+for the others), then the chat role for utility and the Memory Manager, while
+embeddings stay off.
+`GET /v1/model-roles` shows the result. Role resolution applies these
+preferences only when the composition's catalog policy enables owner models.
+Writing user settings wakes re-embedding.
 
 ## Avatars And Uploads
 
@@ -972,9 +1133,11 @@ and backend debug search. It exposes:
   runs in the `animama-file-worker` process.
 - `POST /v1/files/debug/search`: search current-user processed chunks in
   `keyword`, `semantic`, or `hybrid` mode. Keyword search uses PostgreSQL
-  full-text search. Semantic search embeds the query and searches chunk
-  embeddings. Hybrid search combines keyword and semantic candidate ranks with
-  reciprocal rank fusion.
+  full-text search. Semantic search embeds the query with the Embeddings role
+  and searches chunk vectors from that model; it returns `503` while the role is
+  off. Hybrid search combines keyword and semantic candidate ranks with
+  reciprocal rank fusion, and returns keyword results alone while the role is
+  off or the searched files await re-embedding.
 - `POST /v1/memory/debug/search-memory-files`: run the AI memory-tool debug
   search over user-scope markdown memory entries.
 - `GET /v1/files`: list the current user's non-deleted file records newest first.
@@ -999,9 +1162,12 @@ flow, parser worker lifecycle, statuses, configuration, and debug UI behavior.
 
 ## Archives
 
-The archive router manages anima archive metadata and passages. It supports
-embedding-based passage search where the database/provider setup supports it.
-Archive data is separate from the scoped Markdown memory filesystem.
+The archive router manages anima archive metadata and passages. Passage writes
+embed text with the Embeddings role model when the role is on. Search ranks by
+vector similarity against that model's vectors, and falls back to PostgreSQL
+full-text search (ignoring `threshold`) while the role is off, while passages
+await re-embedding or when the query cannot be embedded. Archive data is
+separate from the scoped Markdown memory filesystem.
 
 ## ElevenLabs
 

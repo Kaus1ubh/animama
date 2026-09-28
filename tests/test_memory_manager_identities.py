@@ -42,6 +42,7 @@ from animama.orm import (
     ORMMemoryManagerMessage,
     ORMMemoryManagerRun,
 )
+from animama.server.model_roles import ModelRoleSettings
 from animama.server.routers import (
     anima as anima_router,
     memory_entries as memory_entries_router,
@@ -52,6 +53,8 @@ from animama.server.schemas.memory_manager import (
     PyMemoryManagerApprovalDecisionRequest,
     PyMemoryManagerRunCreateRequest,
 )
+
+_LOCAL_ROLES = ModelRoleSettings(owner_roles_enabled=True)
 
 
 def _user(user_id: str) -> RequestPrincipal:
@@ -214,6 +217,7 @@ async def test_identity_approval_survives_rename_and_supports_undo(async_session
         PyMemoryManagerRunCreateRequest(message=f"Update {manager_path} to mention she loves jazz."),
         session=async_session,
         user=user,
+        roles=_LOCAL_ROLES,
     )
     approval = run.approvals[0]
     assert approval.preview.path == manager_path
@@ -229,6 +233,7 @@ async def test_identity_approval_survives_rename_and_supports_undo(async_session
         PyMemoryManagerApprovalDecisionRequest(decision="approve"),
         session=async_session,
         user=user,
+        roles=_LOCAL_ROLES,
     )
     assert approved.status == "approved"
     assert approved.can_undo is True
@@ -236,7 +241,9 @@ async def test_identity_approval_survives_rename_and_supports_undo(async_session
     assert "jazz" in updated.content
     assert updated.aggregate_revision == 4
 
-    undone = await memory_manager_router.undo_memory_manager_approval(approved.id, session=async_session, user=user)
+    undone = await memory_manager_router.undo_memory_manager_approval(
+        approved.id, session=async_session, user=user, roles=_LOCAL_ROLES
+    )
     assert undone.deleted is False
     restored = await _identity(async_session, user_id=user_id, entry_id=identity_id)
     assert restored.content == "# Annie\n\nCalm and curious.\n"
@@ -255,6 +262,7 @@ async def test_identity_auto_approve_applies_the_change(async_session, clean_row
         ),
         session=async_session,
         user=_user(user_id),
+        roles=_LOCAL_ROLES,
     )
 
     assert [approval.status for approval in run.approvals] == ["approved"]
@@ -272,6 +280,7 @@ async def test_stale_or_deleted_identity_approvals_conflict_but_can_be_rejected(
         PyMemoryManagerRunCreateRequest(message=f"Update {manager_path} with a stale note."),
         session=async_session,
         user=user,
+        roles=_LOCAL_ROLES,
     )
     current = await _identity(async_session, user_id=user_id, entry_id=identity_id)
     await memory_entries_router.patch_memory_entry(
@@ -290,6 +299,7 @@ async def test_stale_or_deleted_identity_approvals_conflict_but_can_be_rejected(
             PyMemoryManagerApprovalDecisionRequest(decision="approve"),
             session=async_session,
             user=user,
+            roles=_LOCAL_ROLES,
         )
     assert stale_error.value.status_code == 409
     rejected = await memory_manager_router.decide_memory_manager_approval(
@@ -297,6 +307,7 @@ async def test_stale_or_deleted_identity_approvals_conflict_but_can_be_rejected(
         PyMemoryManagerApprovalDecisionRequest(decision="reject"),
         session=async_session,
         user=user,
+        roles=_LOCAL_ROLES,
     )
     assert rejected.status == "rejected"
 
@@ -304,6 +315,7 @@ async def test_stale_or_deleted_identity_approvals_conflict_but_can_be_rejected(
         PyMemoryManagerRunCreateRequest(message=f"Update {manager_path} before deletion."),
         session=async_session,
         user=user,
+        roles=_LOCAL_ROLES,
     )
     await anima_router.delete_anima(anima_id, session=async_session, user=user)
     with pytest.raises(HTTPException) as deleted_error:
@@ -312,6 +324,7 @@ async def test_stale_or_deleted_identity_approvals_conflict_but_can_be_rejected(
             PyMemoryManagerApprovalDecisionRequest(decision="approve"),
             session=async_session,
             user=user,
+            roles=_LOCAL_ROLES,
         )
     assert deleted_error.value.status_code == 409
     assert "no longer exists" in deleted_error.value.detail
@@ -320,6 +333,7 @@ async def test_stale_or_deleted_identity_approvals_conflict_but_can_be_rejected(
         PyMemoryManagerApprovalDecisionRequest(decision="reject"),
         session=async_session,
         user=user,
+        roles=_LOCAL_ROLES,
     )
     assert rejected_after_delete.status == "rejected"
 
@@ -361,6 +375,7 @@ async def test_episode_processing_runs_cannot_change_identities(async_session, c
             PyMemoryManagerApprovalDecisionRequest(decision="approve"),
             session=async_session,
             user=_user(user_id),
+            roles=_LOCAL_ROLES,
         )
     assert error.value.status_code == 400
     unchanged = await _identity(async_session, user_id=user_id, entry_id=identity_id)

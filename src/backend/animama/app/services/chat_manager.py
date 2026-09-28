@@ -8,6 +8,7 @@ from typing import Any
 from ...domain.chat import Chat, ChatContext, ChatMessage, MessageRole
 from ...domain.usage import Usage
 from ...logging import get_logger
+from ..model_clients.usage_estimate import CONTEXT_TOKENS_METADATA_KEY, context_tokens_from_usage
 from ..ports import UnitOfWork
 from ..ports.chat_compaction_port import ChatCompactionRepository
 from ..ports.chat_message_port import ChatMessageRepository
@@ -15,13 +16,21 @@ from ..ports.chat_port import ChatRepository
 from ..util.json_values import json_safe_copy
 
 
-def _active_context_tokens_from_usage(usage: Usage | None) -> int:
-    """Return the latest-turn token footprint that will remain in next-turn context."""
+def _active_context_tokens(message: ChatMessage | None) -> int:
+    """Return the latest turn's token footprint that will remain in next-turn context.
 
-    if usage is None:
+    A turn with tool rounds or a separate structured round bills every request;
+    the executor records the last request's footprint in the provider metadata.
+    """
+
+    if message is None or message.usage is None:
         return 0
-    reasoning_tokens = int(getattr(usage.output_tokens_details, "reasoning_tokens", 0) or 0)
-    return max(0, int(usage.total_tokens or 0) - reasoning_tokens)
+    model_client = (message.data or {}).get("model_client")
+    raw_metadata = model_client.get("raw_provider_metadata") if isinstance(model_client, Mapping) else None
+    recorded = raw_metadata.get(CONTEXT_TOKENS_METADATA_KEY) if isinstance(raw_metadata, Mapping) else None
+    if isinstance(recorded, int) and not isinstance(recorded, bool):
+        return max(0, recorded)
+    return context_tokens_from_usage(message.usage)
 
 
 _OPENAI_RESPONSES_PROVIDER = "OpenAIResponsesHTTPAgent"
@@ -263,6 +272,7 @@ class ChatManager:
         chat_metadata_patch: dict[str, Any] | None = None,
         last_model_client: str | None = None,
         last_model_id: str | None = None,
+        last_model_provider_id: str | None = None,
     ) -> tuple[ChatMessage | None, ChatMessage | Sequence[ChatMessage] | None, Usage | None]:
         """Persist one user/assistant turn and increment chat usage totals."""
 
@@ -276,11 +286,11 @@ class ChatManager:
 
         usage_total = Usage()
         has_usage = False
-        latest_usage: Usage | None = None
+        latest_usage_message: ChatMessage | None = None
         for message in assistant_messages:
             if message.usage is not None:
                 usage_total.add(message.usage)
-                latest_usage = message.usage
+                latest_usage_message = message
                 has_usage = True
         openai_previous_response_id = _openai_responses_cursor_from_messages(assistant_messages)
         clear_openai_previous_response_id = bool(assistant_messages) and openai_previous_response_id is None
@@ -293,11 +303,12 @@ class ChatManager:
             chat_id,
             message_count=len(messages_to_persist),
             usage=usage_total if has_usage else None,
-            active_context_tokens=_active_context_tokens_from_usage(latest_usage) if has_usage else None,
+            active_context_tokens=_active_context_tokens(latest_usage_message) if has_usage else None,
             openai_previous_response_id=openai_previous_response_id,
             clear_openai_previous_response_id=clear_openai_previous_response_id,
             last_model_client=last_model_client,
             last_model_id=last_model_id,
+            last_model_provider_id=last_model_provider_id,
         )
         if first_turn < 1:
             raise RuntimeError("failed to reserve chat message turns")

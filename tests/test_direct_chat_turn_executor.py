@@ -61,7 +61,7 @@ from animama.app.model_clients.event_types import MCResponseStartedEvent
 from animama.app.model_clients.prompt import prompt_instruction_text
 from animama.app.safety.moderation import RESPONSES_MODERATION_MODEL
 from animama.app.safety.prompts import COMPANION_GUARDRAILS
-from animama.domain import AnimaChatProfile, ModelProvider, ModelProviderCapabilities
+from animama.domain import AnimaChatProfile, ModelConnection, ModelProvider, ModelProviderCapabilities
 from animama.domain.chat import ChatMessage, MessageRole
 from animama.domain.events import EventType
 from animama.domain.usage import Usage
@@ -663,9 +663,65 @@ async def test_direct_turn_passes_responses_standard_to_chat_manager() -> None:
 
 
 @pytest.mark.asyncio
+async def test_direct_turn_requires_a_context_window_for_owner_models() -> None:
+    model_client = _FinalModelClient(_structured_response())
+    provider = _provider()
+    provider.source = "owner"
+    provider.context_window_tokens = None
+    executor, chats = _executor(client=model_client, provider=provider)
+
+    with pytest.raises(DirectChatTurnSetupError, match="context window"):
+        await executor.prepare_turn(_request())
+
+    assert chats.ensure_calls == []
+
+
+@pytest.mark.asyncio
+async def test_direct_turn_rejects_embedding_models() -> None:
+    model_client = _FinalModelClient(_structured_response())
+    provider = _provider()
+    provider.model_kind = "embedding"
+    executor, chats = _executor(client=model_client, provider=provider)
+
+    with pytest.raises(DirectChatTurnSetupError, match="not a chat model"):
+        await executor.prepare_turn(_request())
+
+    assert chats.ensure_calls == []
+
+
+@pytest.mark.asyncio
+async def test_direct_turn_rejects_rows_on_an_inactive_connection_before_chat_or_model() -> None:
+    model_client = _FinalModelClient(_structured_response())
+    provider = _provider()
+    provider.connection_id = "conn-local"
+    provider.connection = ModelConnection(id="conn-local", name="Local", preset="ollama", active=False)
+    executor, chats = _executor(client=model_client, provider=provider)
+
+    with pytest.raises(DirectChatTurnSetupError, match="Model connection is inactive"):
+        await executor.prepare_turn(_request())
+
+    assert chats.ensure_calls == []
+    assert model_client.seen_specs == []
+
+
+@pytest.mark.asyncio
+async def test_direct_turn_rejects_responses_rows_outside_the_builtin_connection_before_chat_or_model() -> None:
+    model_client = _FinalModelClient(_structured_response())
+    provider = _provider(provider_type="OpenAIResponsesHTTPAgent", model="gpt-test")
+    provider.connection_id = "conn-local"
+    executor, chats = _executor(client=model_client, provider=provider)
+
+    with pytest.raises(DirectChatTurnSetupError, match="only available on the built-in OpenAI connection"):
+        await executor.prepare_turn(_request())
+
+    assert chats.ensure_calls == []
+    assert model_client.seen_specs == []
+
+
+@pytest.mark.asyncio
 async def test_direct_turn_rejects_unsupported_chat_api_standard_before_chat_or_model() -> None:
     model_client = _FinalModelClient(_structured_response())
-    provider = _provider(provider_type="GeminiAgent", model="gemini-test")
+    provider = _provider(provider_type="UnsupportedAgent", model="unsupported-test")
     executor, chats = _executor(client=model_client, provider=provider)
 
     with pytest.raises(DirectChatTurnSetupError, match="chat_api_standard_unsupported"):
@@ -1822,7 +1878,14 @@ async def test_direct_turn_provider_error_emits_error_and_skips_persistence() ->
 
     assert [event.type for event in events] == [EventType.ERROR]
     assert events[0].payload.code == "provider_failed"
-    assert events[0].payload.details == {"provider": "fake"}
+    # Details name the connection and a neutral category instead of the adapter's label.
+    assert events[0].payload.details == {
+        "provider": "openai",
+        "category": "provider_error",
+        "connection_id": "openai",
+        "connection_name": "OpenAI",
+        "connection_preset": "openai",
+    }
     assert chats.record_turn_calls == []
 
 
@@ -1896,7 +1959,7 @@ async def test_direct_turn_rejects_unsupported_provider_features_before_model_in
 @pytest.mark.asyncio
 async def test_direct_turn_rejects_openai_chat_gpt_5_4_reasoning_with_memory_tools() -> None:
     provider = _provider(
-        model="gpt-5.4-nano",
+        model="gpt-5.4-mini",
         supported_reasoning_efforts=["none", "low", "medium", "high", "xhigh"],
     )
     model_client = _FinalModelClient(_structured_response())
@@ -2118,7 +2181,7 @@ async def test_direct_turn_responses_executes_native_patch_and_persists_neutral_
     memory_tools = _FakeMemoryToolService(result={"ok": True, "path": "notes.md", "operation": "create"})
     provider = _provider(
         provider_type="OpenAIResponsesHTTPAgent",
-        model="gpt-5.4-nano",
+        model="gpt-6-luna",
         native_tool_support=["web_search", "apply_patch"],
     )
     executor, chats = _executor(
@@ -2200,7 +2263,7 @@ async def test_direct_turn_native_patch_side_effect_remains_when_later_final_fai
     memory_tools = _FakeMemoryToolService(result={"ok": True, "path": "notes.md"})
     provider = _provider(
         provider_type="OpenAIResponsesHTTPAgent",
-        model="gpt-5.4-nano",
+        model="gpt-6-luna",
         native_tool_support=["apply_patch"],
     )
     executor, chats = _executor(
@@ -2239,7 +2302,7 @@ async def test_direct_turn_reuses_identical_native_patch_call_id_without_second_
     memory_tools = _FakeMemoryToolService(result={"ok": True, "path": "notes.md"})
     provider = _provider(
         provider_type="OpenAIResponsesHTTPAgent",
-        model="gpt-5.4-nano",
+        model="gpt-6-luna",
         native_tool_support=["apply_patch"],
     )
     executor, _chats = _executor(
@@ -2281,7 +2344,7 @@ async def test_direct_turn_rejects_reused_native_patch_call_id_with_different_op
     memory_tools = _FakeMemoryToolService(result={"ok": True, "path": "one.md"})
     provider = _provider(
         provider_type="OpenAIResponsesHTTPAgent",
-        model="gpt-5.4-nano",
+        model="gpt-6-luna",
         native_tool_support=["apply_patch"],
     )
     executor, _chats = _executor(
@@ -2327,7 +2390,7 @@ async def test_direct_turn_stale_cursor_replays_native_patch_exchange_without_re
     memory_tools = _FakeMemoryToolService(result={"ok": True, "path": "profile.md"})
     provider = _provider(
         provider_type="OpenAIResponsesHTTPAgent",
-        model="gpt-5.4-nano",
+        model="gpt-6-luna",
         native_tool_support=["apply_patch"],
     )
     executor, _chats = _executor(
@@ -2419,7 +2482,7 @@ async def test_direct_turn_native_patch_round_limit_records_failed_output_and_di
     memory_tools = _FakeMemoryToolService(result={"ok": True})
     provider = _provider(
         provider_type="OpenAIResponsesHTTPAgent",
-        model="gpt-5.4-nano",
+        model="gpt-6-luna",
         native_tool_support=["apply_patch"],
     )
     executor, _chats = _executor(
@@ -2611,17 +2674,17 @@ async def test_direct_turn_responses_provider_supports_memory_tools_when_active(
 async def test_direct_turn_capability_gates_native_apply_patch_and_legacy_writers() -> None:
     capable_provider = _provider(
         provider_type="OpenAIResponsesHTTPAgent",
-        model="gpt-5.4-nano",
+        model="gpt-6-luna",
         native_tool_support=["web_search", "apply_patch"],
     )
     incapable_provider = _provider(
         provider_type="OpenAIResponsesHTTPAgent",
-        model="gpt-5-nano",
+        model="gpt-legacy",
         native_tool_support=["web_search"],
     )
     chat_provider = _provider(
         provider_type="OpenAIHTTPAgent",
-        model="gpt-5.4-nano",
+        model="gpt-6-luna",
         native_tool_support=["apply_patch"],
     )
 
@@ -2657,7 +2720,7 @@ async def test_direct_turn_native_apply_patch_respects_memory_write_gating(
 ) -> None:
     provider = _provider(
         provider_type="OpenAIResponsesHTTPAgent",
-        model="gpt-5.4-nano",
+        model="gpt-6-luna",
         native_tool_support=["web_search", "apply_patch"],
     )
     client = _FinalModelClient(_structured_response())
@@ -2682,7 +2745,7 @@ async def test_direct_turn_native_apply_patch_respects_memory_write_gating(
 async def test_direct_turn_rejects_user_requested_apply_patch_as_generic_native_tool() -> None:
     provider = _provider(
         provider_type="OpenAIResponsesHTTPAgent",
-        model="gpt-5.4-nano",
+        model="gpt-6-luna",
         native_tool_support=["web_search", "apply_patch"],
     )
     client = _FinalModelClient(_structured_response())
@@ -2790,6 +2853,101 @@ async def test_moderation_is_ignored_when_not_requested() -> None:
 
     assert EventType.CRISIS_SUPPORT not in [event.type for event in events]
     assert model_client.seen_specs[0].provider_options.moderation_model is None
+
+
+def _tool_names(spec: ModelClientRequest) -> list[str]:
+    return [_function_tool(tool)["function"]["name"] for tool in spec.prompt.tools]
+
+
+@pytest.mark.asyncio
+async def test_direct_turn_runs_a_tool_less_model_without_memory_tools() -> None:
+    model_client = _FinalModelClient(_structured_response(speech="No tools needed."))
+    provider = _provider(supports_tools=False)
+    executor, chats = _executor(client=model_client, provider=provider, memory_tool_service=_FakeMemoryToolService())
+
+    events = await _collect(executor.stream_turn(_request()))
+
+    assert EventType.ERROR not in [event.type for event in events]
+    assert model_client.seen_specs[0].prompt.tools == ()
+    assert len(chats.record_turn_calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_direct_turn_offers_only_read_tools_when_memory_writes_are_off() -> None:
+    model_client = _FinalModelClient(_structured_response(speech="Reading only."))
+    provider = _provider()
+    provider.allow_memory_writes = False
+    executor, _chats = _executor(client=model_client, provider=provider, memory_tool_service=_FakeMemoryToolService())
+
+    await _collect(executor.stream_turn(_request()))
+
+    names = _tool_names(model_client.seen_specs[0])
+    assert names == ["memory_list_files", "memory_read_files", "search_memory_files"]
+
+
+@pytest.mark.asyncio
+async def test_direct_turn_splits_tool_rounds_from_the_structured_reply_when_the_server_needs_it() -> None:
+    tool_final = ModelClientFinal(
+        text="",
+        usage=Usage(requests=1, input_tokens=10, output_tokens=1, total_tokens=11),
+        tool_calls=(
+            ModelClientToolCall(id="call-1", name="memory_read_files", arguments=json.dumps({"paths": "profile.md"})),
+        ),
+    )
+    unconstrained_final = ModelClientFinal(
+        # A well-formed draft proves tool rounds do not stream public text.
+        text=_structured_response(speech="DRAFT SPEECH"),
+        usage=Usage(requests=1, input_tokens=12, output_tokens=2, total_tokens=14),
+    )
+    structured_final = ModelClientFinal(
+        text=_structured_response(speech="Structured reply."),
+        usage=Usage(requests=1, input_tokens=13, output_tokens=3, total_tokens=16),
+    )
+    model_client = _ScriptedModelClient([tool_final, unconstrained_final, structured_final])
+    provider = _provider()
+    provider.capabilities.tools_with_structured_output = False
+    executor, chats = _executor(client=model_client, provider=provider, memory_tool_service=_FakeMemoryToolService())
+
+    events = await _collect(executor.stream_turn(_request()))
+
+    first, second, third = model_client.seen_specs
+    assert first.prompt.tools and first.prompt.response_format is None
+    assert second.prompt.tools and second.prompt.response_format is None
+    assert third.prompt.tools == () and third.prompt.response_format is not None
+    streamed = " ".join(
+        str(getattr(event.payload, "value", "") or "") for event in events if event.type == EventType.USER_RESPONSE
+    )
+    assert "DRAFT SPEECH" not in streamed
+    assert "Structured reply." in streamed
+    final_message = chats.record_turn_calls[0]["assistant_msg"][-1]
+    # Every request is billed; only the structured round stays in the next turn's context.
+    assert final_message.usage.total_tokens == 41
+    assert final_message.data["model_client"]["raw_provider_metadata"]["context_tokens"] == 16
+
+
+@pytest.mark.asyncio
+async def test_direct_turn_sends_tools_and_the_structured_reply_together_when_supported() -> None:
+    model_client = _FinalModelClient(_structured_response(speech="Together."))
+    executor, _chats = _executor(client=model_client, memory_tool_service=_FakeMemoryToolService())
+
+    await _collect(executor.stream_turn(_request()))
+
+    assert len(model_client.seen_specs) == 1
+    spec = model_client.seen_specs[0]
+    assert spec.prompt.tools and spec.prompt.response_format is not None
+
+
+@pytest.mark.asyncio
+async def test_direct_turn_does_not_split_responses_rows() -> None:
+    model_client = _FinalModelClient(_structured_response(speech="One request."))
+    provider = _provider(provider_type="OpenAIResponsesHTTPAgent")
+    provider.capabilities.tools_with_structured_output = False
+    executor, _chats = _executor(client=model_client, provider=provider, memory_tool_service=_FakeMemoryToolService())
+
+    await _collect(executor.stream_turn(_request()))
+
+    assert len(model_client.seen_specs) == 1
+    assert model_client.seen_specs[0].prompt.response_format is not None
 
 
 def _self_memories_patch_turn(*, remember: str | None) -> _ScriptedModelClient:

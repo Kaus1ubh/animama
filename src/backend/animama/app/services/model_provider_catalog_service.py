@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
+from dataclasses import dataclass
 from typing import Any
 
 from animama.adapters.mappers.model_provider_map import (
@@ -10,9 +11,28 @@ from animama.adapters.mappers.model_provider_map import (
 from animama.app.model_catalog import serialize_model_provider_catalog
 from animama.app.model_provider_native_tools import requestable_native_tool_support
 from animama.domain import ModelProvider
+from animama.domain.model_connection import MODEL_SOURCE_OWNER
 from animama.logging import get_logger
 
 from ..ports import ModelProviderRepository, UnitOfWork
+
+
+@dataclass(frozen=True, slots=True)
+class ModelCatalogPolicy:
+    """Which catalog rows a composition exposes.
+
+    The local composition enables owner-added models. A hosted composition
+    keeps the default (built-in rows only) and may restrict them further with
+    ``builtin_allowlist``.
+    """
+
+    owner_models_enabled: bool = False
+    builtin_allowlist: frozenset[str] | None = None
+
+    def allows(self, model_provider: ModelProvider) -> bool:
+        if model_provider.source == MODEL_SOURCE_OWNER:
+            return self.owner_models_enabled
+        return self.builtin_allowlist is None or model_provider.id in self.builtin_allowlist
 
 
 class ModelProviderCatalogService:
@@ -38,13 +58,18 @@ class ModelProviderCatalogService:
         self._log.info("Model provider catalog synced", row_count=len(stored), retired_count=retired)
         return stored
 
-    async def list_public_catalog(self) -> list[dict[str, Any]]:
-        """Return active catalog rows in the public `/v1/model-providers` shape."""
+    async def list_public_catalog(self, policy: ModelCatalogPolicy | None = None) -> list[dict[str, Any]]:
+        """Return active catalog rows allowed by ``policy`` in the public shape.
 
-        rows = sorted(
-            await self._model_providers.list_active(),
-            key=lambda row: (str(row.provider_label), str(row.model_label), str(row.id)),
-        )
+        Rows whose connection has been removed are excluded.
+        """
+
+        policy = policy or ModelCatalogPolicy()
+        rows = [
+            row
+            for row in await self._model_providers.list_active()
+            if policy.allows(row) and (row.connection is None or row.connection.active)
+        ]
         public_rows: list[dict[str, Any]] = []
         for model_provider in rows:
             row = model_provider_domain_to_public_catalog_row(model_provider)
@@ -54,7 +79,11 @@ class ModelProviderCatalogService:
                     model_provider.capabilities.native_tool_support,
                 )
             public_rows.append(row)
-        return public_rows
+        # Sort by the displayed labels: owner rows take their connection's current name.
+        return sorted(
+            public_rows,
+            key=lambda row: (str(row["provider_label"]), str(row["model_label"]), str(row["id"])),
+        )
 
 
-__all__ = ["ModelProviderCatalogService"]
+__all__ = ["ModelCatalogPolicy", "ModelProviderCatalogService"]

@@ -5,6 +5,9 @@ import {
   DEFAULT_ELEVENLABS_V3_FINALIZED_CHUNKING,
   isParakeetWebgpuPreferred,
   mergePreferences,
+  modelRolePatch,
+  modelRolePreferencePath,
+  readModelRoleId,
   normalizeThemeSetting,
   resolveElevenLabsV3FinalizedChunking,
   resolvePreferences,
@@ -125,5 +128,47 @@ describe("isParakeetWebgpuPreferred", () => {
     expect(
       isParakeetWebgpuPreferred({ speech: { stt_parakeet_webgpu: true } }),
     ).toBe(true);
+  });
+});
+
+describe("model role preferences", () => {
+  it("assigns one role without dropping the others and clears with null", () => {
+    const stored = mergePreferences(DEFAULT_ANIMAMA_PREFERENCES, {
+      models: {
+        utility_model_provider_id: "owner:small",
+        embedding_model_provider_id: "owner:embed",
+      },
+    });
+    const updated = mergePreferences(
+      stored,
+      modelRolePatch("memory_manager", "owner:tools"),
+    );
+    const cleared = mergePreferences(updated, modelRolePatch("utility", null));
+
+    expect(readModelRoleId(updated, "utility")).toBe("owner:small");
+    expect(readModelRoleId(updated, "memory_manager")).toBe("owner:tools");
+    expect(readModelRoleId(updated, "embeddings")).toBe("owner:embed");
+    expect(readModelRoleId(cleared, "utility")).toBeNull();
+    expect(readModelRoleId(cleared, "embeddings")).toBe("owner:embed");
+    expect(
+      readModelRoleId(
+        { models: { utility_model_provider_id: " " } },
+        "utility",
+      ),
+    ).toBeNull();
+  });
+
+  it("stores the Chat default under chat and reports each role's path", () => {
+    const updated = mergePreferences(
+      { chat: { default_model_provider_id: "owner:old" } },
+      modelRolePatch("chat", "owner:new"),
+    );
+    expect(readModelRoleId(updated, "chat")).toBe("owner:new");
+    expect(modelRolePreferencePath("chat")).toBe(
+      "chat.default_model_provider_id",
+    );
+    expect(modelRolePreferencePath("utility")).toBe(
+      "models.utility_model_provider_id",
+    );
   });
 });

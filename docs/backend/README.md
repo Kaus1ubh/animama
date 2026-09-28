@@ -51,6 +51,9 @@ rendering, and client-side speech recognition.
   storage, and the client-side speech-processing boundary.
 - [Shared model setup](operations/model-assets.md): verified Parakeet acquisition,
   worktree reuse, persistent self-host storage and explicit recovery.
+- [Local model servers](operations/local-models.md): Ollama, LM Studio,
+  llama.cpp and vLLM setup, context windows, Compose host access and connection
+  keys.
 - [Development and operations](operations/development.md): local commands,
   migrations, tests, workers, and deployment guidance.
 - [Local HTTP components](operations/local-http-components.md): FastAPI

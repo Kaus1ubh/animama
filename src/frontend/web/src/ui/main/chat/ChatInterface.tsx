@@ -17,6 +17,8 @@ import {
   ChatInputTextArea,
 } from "@/ui/components/chat-input";
 import { ChatInputFileTray } from "@/ui/components/chat-input-file-tray";
+import { useAnima } from "@/query/hooks/useAnima";
+import { useModelProviders } from "@/query/hooks/useModelProviders";
 import { Button } from "@/ui/components/button";
 import {
   Dialog,
@@ -223,6 +225,13 @@ export function ChatInterfaceView({
   const speechAvailable =
     capabilities.data?.offline_speech_enabled === true ||
     isWebSpeechSupported(platform);
+  const { data: anima } = useAnima(animaId);
+  const { data: modelCatalog } = useModelProviders();
+  const activeModel = modelCatalog?.find(
+    (item) => item.id === anima?.chat_profile?.default_model_provider_id,
+  );
+  // Attached files are searched through tool calls; unknown models get no note.
+  const activeModelSearchesFiles = activeModel?.supports_tools !== false;
   const isChatOnlyLayout = layout === "chat-only";
   const fileDropEnabled = Boolean(fileUploadUppy) && !quickChatSurface;
   const fileDropAccepting = fileDropEnabled && canChat && !isStreaming;
@@ -407,6 +416,11 @@ export function ChatInterfaceView({
                 {fileUploadUppy ? (
                   <ChatInputFileTray
                     uppy={fileUploadUppy}
+                    note={
+                      activeModelSearchesFiles
+                        ? null
+                        : "This model can't call tools, so it can't search attached files. Pick a model with tool calling to use them."
+                    }
                     existingFiles={existingAttachmentFiles}
                     onRemoveExistingFile={onRemoveExistingFile}
                   />
