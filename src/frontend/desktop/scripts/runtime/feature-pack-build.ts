@@ -1,6 +1,14 @@
 import { createHash } from "node:crypto";
 import { createReadStream, createWriteStream } from "node:fs";
-import { lstat, mkdir, readdir, rename, rm, writeFile } from "node:fs/promises";
+import {
+  lstat,
+  mkdir,
+  readdir,
+  readFile,
+  rename,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import path from "node:path";
 import { pipeline } from "node:stream/promises";
 import { createZstdCompress } from "node:zlib";
@@ -10,10 +18,17 @@ import {
 } from "../../../shared/desktop-runtime.js";
 import {
   portablePath,
+  MODEL_PACK_IDS,
+  isModelPackId,
+  modelObjectUrl,
+  downloadBytes,
+  packContentDigest,
   requiredFreeBytes,
   validateManifest,
   type PackFile,
   type PackManifest,
+  type ArchivePackManifest,
+  type ModelPackId,
 } from "../../src/main-process/feature-packs/catalog.js";
 import type { ReleaseDistribution } from "../../src/main-process/updates/policy.js";
 import {
@@ -147,14 +162,14 @@ export async function buildPackArchive(options: {
   root: string;
   output: string;
   manifest: Omit<
-    PackManifest,
+    ArchivePackManifest,
     "archive_bytes" | "archive_sha256" | "minimum_peak_free_bytes"
   >;
   writeTar(source: string, files: PackFile[], output: string): Promise<void>;
   development?: boolean;
   /** The selected transport; the manifest URL must belong to it. */
   distribution?: ReleaseDistribution | null;
-}): Promise<PackManifest> {
+}): Promise<ArchivePackManifest> {
   const tar = `${options.output}.tar.partial`;
   const compressed = `${options.output}.partial`;
   const verify = `${options.output}.verify`;
@@ -175,6 +190,8 @@ export async function buildPackArchive(options: {
       options.development,
       options.distribution ?? null,
     );
+    if (manifest.schema !== "animama-feature-pack/1")
+      throw new Error("Expected archive pack");
     manifest.minimum_peak_free_bytes = requiredFreeBytes(manifest);
     await extractPack(
       compressed,
@@ -198,6 +215,8 @@ export async function buildFeaturePacks(options: {
   output: string;
   catalog: string;
   appVersion: string;
+  /** Trusted producer manifest paths supplied before bundling; never a runtime override. */
+  modelManifests?: Partial<Record<ModelPackId, string>>;
   release: ReleaseInputs;
   budgets: Record<
     FeaturePackId,
@@ -240,6 +259,12 @@ export async function buildFeaturePacks(options: {
   const reports = [];
   for (const id of featurePackIds) {
     const release = options.release.packs[id];
+    // Even missing/unapproved model inputs cannot leave a stale archive advertised beside the catalog.
+    if (isModelPackId(id))
+      await rm(
+        path.join(options.output, `${id}-${release.version}-data-only.tar.zst`),
+        { force: true },
+      );
     if (release.release_status === "deferred") {
       // A rerun after deferral must not leave this version's earlier archive
       // beside the new catalog. Only a fixed, validated derived path is removed.
@@ -266,6 +291,29 @@ export async function buildFeaturePacks(options: {
       continue;
     }
     const files = await inventoryPack(root, id);
+    if (isModelPackId(id)) {
+      const manifestFile = options.modelManifests?.[id];
+      if (!manifestFile)
+        throw new Error("Missing canonical model manifest input");
+      const canonical = JSON.parse(await readFile(manifestFile, "utf8"));
+      if (
+        canonical.schema_version !== 1 ||
+        canonical.model_id !== MODEL_PACK_IDS[id] ||
+        canonical.license !== "CC-BY-4.0" ||
+        !Array.isArray(canonical.files) ||
+        canonical.files.length !== files.length ||
+        files.some(
+          (file) =>
+            !canonical.files.some(
+              (entry: { path: string; size: number; sha256: string }) =>
+                entry.path === file.path &&
+                entry.size === file.size_bytes &&
+                entry.sha256 === file.sha256,
+            ),
+        )
+      )
+        throw new Error("Model pack inputs differ from the tracked manifest");
+    }
     const digest = createHash("sha256")
       .update(JSON.stringify(files))
       .digest("hex");
@@ -282,44 +330,65 @@ export async function buildFeaturePacks(options: {
     if (installed > options.budgets[id].installed_bytes)
       throw new Error(`${id} exceeds its installed size ceiling`);
     const filename = `${id}-${release.version}-${id === "document-processing" ? "darwin-arm64" : "data-only"}.tar.zst`;
-    const manifest = await buildPackArchive({
-      root,
-      output: path.join(options.output, filename),
-      writeTar: options.writeTar,
-      distribution: options.release.distribution ?? null,
-      manifest: {
-        schema: "animama-feature-pack/1",
-        id,
-        display_name: titles[id],
-        version: release.version,
-        app_versions: [
-          ...(release.app_versions ?? [options.appVersion]),
-        ].sort(),
-        platform: id === "document-processing" ? "darwin" : "data-only",
-        architecture: id === "document-processing" ? "arm64" : "data-only",
-        url: `${release.release_tag ? options.release.release_base_url.replace(/\/[^/]+$/u, `/${release.release_tag}`) : options.release.release_base_url}/${filename}`,
-        installed_bytes: installed,
-        license_refs: release.license_refs,
-        files,
-        signing:
-          id === "document-processing"
-            ? {
-                publisher: options.release.macos.team_id ?? "",
-                requirement: options.release.macos.designated_requirement ?? "",
-              }
-            : null,
-      },
-    });
+    const common = {
+      id,
+      display_name: titles[id],
+      version: release.version,
+      app_versions: [...(release.app_versions ?? [options.appVersion])].sort(),
+      platform:
+        id === "document-processing"
+          ? ("darwin" as const)
+          : ("data-only" as const),
+      architecture:
+        id === "document-processing"
+          ? ("arm64" as const)
+          : ("data-only" as const),
+      installed_bytes: installed,
+      license_refs: release.license_refs,
+      files,
+      signing:
+        id === "document-processing"
+          ? {
+              publisher: options.release.macos.team_id ?? "",
+              requirement: options.release.macos.designated_requirement ?? "",
+            }
+          : null,
+    };
+    const manifest = isModelPackId(id)
+      ? validateManifest({
+          ...common,
+          schema: "animama-model-pack/1",
+          model_id: MODEL_PACK_IDS[id],
+          minimum_peak_free_bytes: 1,
+          files: files.map((file) => ({
+            ...file,
+            url: modelObjectUrl(MODEL_PACK_IDS[id], file),
+          })),
+        })
+      : await buildPackArchive({
+          root,
+          output: path.join(options.output, filename),
+          writeTar: options.writeTar,
+          distribution: options.release.distribution ?? null,
+          manifest: {
+            schema: "animama-feature-pack/1",
+            ...common,
+            url: `${release.release_tag ? options.release.release_base_url.replace(/\/[^/]+$/u, `/${release.release_tag}`) : options.release.release_base_url}/${filename}`,
+          },
+        });
+    manifest.minimum_peak_free_bytes = requiredFreeBytes(manifest);
     const maximum = options.budgets[id].download_bytes;
-    if (maximum !== null && manifest.archive_bytes > maximum)
+    if (maximum !== null && downloadBytes(manifest) > maximum)
       throw new Error(`${id} exceeds its download size ceiling`);
     entries.push(manifest);
     reports.push({
       id,
       state: "staged_not_published",
       inventory_sha256: digest,
-      archive_sha256: manifest.archive_sha256,
-      download_bytes: manifest.archive_bytes,
+      ...(manifest.schema === "animama-feature-pack/1"
+        ? { archive_sha256: manifest.archive_sha256 }
+        : { content_sha256: packContentDigest(manifest) }),
+      download_bytes: downloadBytes(manifest),
       installed_bytes: installed,
       minimum_peak_free_bytes: manifest.minimum_peak_free_bytes,
     });

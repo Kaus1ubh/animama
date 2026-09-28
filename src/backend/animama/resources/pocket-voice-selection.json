@@ -17,7 +17,7 @@
       "name": "Clara",
       "gender": "female",
       "recommended": true,
-      "delivery": "core"
+      "delivery": "download"
     },
     {
       "id": "imogen",
@@ -25,7 +25,7 @@
       "name": "Imogen",
       "gender": "female",
       "recommended": true,
-      "delivery": "core"
+      "delivery": "download"
     },
     {
       "id": "jane",
@@ -33,7 +33,7 @@
       "name": "Jane",
       "gender": "female",
       "recommended": true,
-      "delivery": "core"
+      "delivery": "download"
     },
     {
       "id": "lucy",
@@ -41,7 +41,7 @@
       "name": "Lucy",
       "gender": "female",
       "recommended": true,
-      "delivery": "core"
+      "delivery": "download"
     },
     {
       "id": "olivia",
@@ -49,7 +49,7 @@
       "name": "Olivia",
       "gender": "female",
       "recommended": true,
-      "delivery": "core"
+      "delivery": "download"
     },
     {
       "id": "thandi",
@@ -57,7 +57,7 @@
       "name": "Thandi",
       "gender": "female",
       "recommended": true,
-      "delivery": "core"
+      "delivery": "download"
     },
     {
       "id": "anna",
@@ -225,7 +225,7 @@
       "name": "Bill Boerst",
       "gender": "male",
       "recommended": true,
-      "delivery": "core"
+      "delivery": "download"
     },
     {
       "id": "javert",
@@ -233,7 +233,7 @@
       "name": "Javert",
       "gender": "male",
       "recommended": true,
-      "delivery": "core"
+      "delivery": "download"
     },
     {
       "id": "marius",
@@ -241,7 +241,7 @@
       "name": "Marius",
       "gender": "male",
       "recommended": true,
-      "delivery": "core"
+      "delivery": "download"
     },
     {
       "id": "michael",
@@ -249,7 +249,7 @@
       "name": "Michael",
       "gender": "male",
       "recommended": true,
-      "delivery": "core"
+      "delivery": "download"
     },
     {
       "id": "noah",
@@ -257,7 +257,7 @@
       "name": "Noah",
       "gender": "male",
       "recommended": true,
-      "delivery": "core"
+      "delivery": "download"
     },
     {
       "id": "oliver",
@@ -265,7 +265,7 @@
       "name": "Oliver",
       "gender": "male",
       "recommended": true,
-      "delivery": "core"
+      "delivery": "download"
     },
     {
       "id": "paul",
@@ -273,7 +273,7 @@
       "name": "Paul",
       "gender": "male",
       "recommended": true,
-      "delivery": "core"
+      "delivery": "download"
     },
     {
       "id": "callum",

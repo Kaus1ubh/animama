@@ -245,7 +245,7 @@ describe("verified local Parakeet pack inputs", () => {
       "integrity mismatch",
     );
   });
-  it("keeps unreviewed inputs unpublished and round-trips the fixture-approved pack", async () => {
+  it("keeps unreviewed inputs unpublished and pins fixture-approved model objects", async () => {
     const value = fixture();
     stageOptionalInputs(value.target, value);
     const input = path.join(value.target.output, "pack-inputs/parakeet-stt");
@@ -256,6 +256,7 @@ describe("verified local Parakeet pack inputs", () => {
       "document-processing",
     ];
     const options = {
+      modelManifests: { "parakeet-stt": value.manifestFile },
       inputs: Object.fromEntries(
         ids.map((id) => [
           id,
@@ -297,7 +298,10 @@ describe("verified local Parakeet pack inputs", () => {
     );
     const built = await buildFeaturePacks(options);
     expect(built.entries).toHaveLength(1);
-    expect(built.entries[0].files).toEqual(files);
+    expect(built.entries[0].files.map(({ url, ...file }) => file)).toEqual(
+      files,
+    );
+    expect(built.entries[0].schema).toBe("animama-model-pack/1");
     expect(built.entries[0].license_refs).toEqual(["parakeet-input"]);
     expect(built.entries[0].files).toHaveLength(7);
     expect(readJson(options.catalog).status).toBe("staged-not-published");

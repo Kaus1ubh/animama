@@ -22,11 +22,10 @@ const defaultManifest = path.join(
   repositoryRoot,
   "models/browser-runtime/manifest.json",
 );
-// Reviewed inventory sizes: 24 acquired model files (Pocket TTS english_2026-04
-// bundle, 15 core voice states, Smart Turn) plus 11 pinned package files.
-// Downloadable voices are installed through /v1/model-assets instead.
-const RUNTIME_FILE_COUNT = 35;
-const MODEL_FILE_COUNT = 24;
+// Reviewed inventory: generation/support files, Eve/Azelma and Smart Turn,
+// plus 11 pinned package files. Other voices and Mimi install through /v1/model-assets.
+const RUNTIME_FILE_COUNT = 21;
+const MODEL_FILE_COUNT = 10;
 const packageSources = new Map([
   ["onnxruntime-web-assets", ["onnxruntime-web", "1.24.2"]],
   ["@ricky0123/vad-web", ["@ricky0123/vad-web", "0.0.30"]],

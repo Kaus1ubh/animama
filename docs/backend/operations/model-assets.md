@@ -5,7 +5,11 @@ Parakeet INT8 inputs recorded in
 [`models/parakeet-tdt-0.6b-v2/manifest.json`](../../../models/parakeet-tdt-0.6b-v2/manifest.json).
 The five upstream files are pinned to full Hugging Face commits, sizes and
 SHA-256 digests. Animama's README and attribution complete the seven-file set.
-No Cloud checkout, Hugging Face account or API credential is needed.
+Normal acquisition downloads the verified raw files and notices from Animama's
+shared content-addressed model origin. No Cloud checkout, Hugging Face account
+or API credential is needed. Before those objects are published, release
+maintainers can explicitly use `parakeet.py acquire --source upstream`; missing
+ordinary objects never trigger an upstream fallback.
 
 ## Acquire once, verify offline
 
@@ -160,16 +164,21 @@ object before a release ships its catalog entry; until then an install fails
 as `asset_download_failed`.
 
 Current catalog entries are the experimental Parakeet WebGPU encoder, offered in
-built self-host settings, and the 23 downloadable Pocket TTS voices
+built self-host settings, the 36 downloadable Pocket TTS voices
 (`pocket-voice-<id>`, set `models/pocket-tts-voices`). The voices install on
-desktop and self-host when a user picks one or a saved voice is first needed.
+desktop and self-host when a user picks one, explicitly downloads it, or a saved
+voice is first needed. The separate `pocket-tts-voice-cloning-encoder` asset is
+downloaded on an explicit cloning/download action. Ordinary playback and saved
+clones do not need that encoder. Setup and Voice settings also expose download,
+cancel, retry and removal without changing the selected provider or voice.
 
 Use the downloader for restart-free data files the running app can pick up,
 such as optional voices. Large bundles that need a service switch, such as the
 desktop Parakeet feature packs, stay in Electron's pack manager.
 
-To force a reinstall, delete `<data_root>/internal/model-assets/<asset_id>/`
-and install again. Never edit an installed file in place.
+Use the app's Remove action before reinstalling. Backend downloads restart from
+the beginning after cancellation or service interruption; they do not share the
+desktop pack manager's byte-range resume. Never edit an installed file in place.
 
 ## Optional Parakeet WebGPU encoder
 
@@ -211,7 +220,7 @@ Where each build gets it:
   operator-provided set at `/__client-parakeet-webgpu-models/`. Acquire it on
   the host and rerun `reset.sh` for a running stack.
 - **Built self-host** downloads it in the app (App Settings → Voice →
-  Speech-to-Text → Provider) as the model asset
+  Speech-to-Text) as the model asset
   `parakeet-tdt-0.6b-v2-webgpu-encoder`, from its published object under `models/` on `downloads.animama.ai`, into the
   data root (see [Downloaded model assets](#downloaded-model-assets)). The
   host model store is not used, and a host that cannot reach
@@ -220,25 +229,33 @@ Where each build gets it:
   pack at `/onnx/models/parakeet-tdt-0.6b-v2-webgpu/`, and only beside an
   active `parakeet-stt` pack.
 
-The browser probes the encoder with `HEAD`; a 404 means not installed.
+Controls appear independently of the selected provider when a WebGPU adapter is
+available; desktop also requires an approved catalog entry and CPU speech first.
+Retained files remain removable on unsupported devices. Downloading never selects
+a provider or automatically downloads CPU speech. The browser probes the encoder
+with `HEAD`; a 404 means not installed.
 
 ## Browser speech assets and dependency inputs
 
-The 24 reviewed Pocket TTS and Smart Turn files share the same model root,
+The ten reviewed Pocket TTS and Smart Turn core files share the same model root,
 under `browser-speech/<manifest-digest>/`. The Pocket files are:
 
-- the `english_2026-04` ONNX bundle (INT8 flow LM; FP32 flow head, Mimi decoder,
-  Mimi encoder and text conditioner), with its tokenizer, `bundle.json` and
+- the `english_2026-04` ONNX bundle (INT8 flow LM; FP32 flow head, Mimi decoder
+  and text conditioner), with its tokenizer, `bundle.json` and
   `bos_before_voice.npy`;
-- the 15 core voice states (`eve`, the default, and the 14 recommended voices
-  in `scripts/voices/selection.json`):
-  - 8 are Kyutai precomputed states, pinned on Hugging Face;
-  - 7 are VCTK voices encoded by Animama and downloaded from
-    `https://downloads.animama.ai/models/pocket-tts-voices/<sha256>/<voice>.safetensors`.
+- two Kyutai precomputed voice states, Eve (the default) and Azelma, pinned on
+  Hugging Face.
 
-The other 23 voices are not in this store. The app installs them on demand
+The other 36 voices are not in this store. The app installs them on demand
 through `/v1/model-assets` (the `pocket-voice-<id>` catalog entries), as
 described under Downloaded model assets.
+
+Mimi voice conditioning is also separate. `pocket_cloning.py acquire` prepares
+the optional 39,768,446-byte encoder and its two notices for authoring/release
+work. Ordinary builds need neither it nor the optional voice set. In the app,
+first-use cloning offers a download and retains the selected recording in memory
+until the verified encoder is available. Saving a named clone still persists its
+original recording and encoded catalog; removing the encoder preserves both.
 
 Their manifest preserves the exact upstream commits, hashes and per-file
 licenses. `browser_speech.py` allows the release host only for entries with a
@@ -255,7 +272,7 @@ python3 scripts/models/browser_speech.py acquire --offline \
   --import-from /absolute/old-checkout/src/frontend/web/public/onnx
 ```
 
-`models/browser-runtime/manifest.json` binds all 35 browser assets, including nine
+`models/browser-runtime/manifest.json` binds all 21 browser assets, including nine
 ORT 1.24.2 files from the exact `onnxruntime-web-assets` dependency alias and two
 VAD 0.0.30 files from the existing pinned dependency. Existing ORT imports retain
 their separately locked versions. Do not replace a public runtime variant merely
@@ -266,7 +283,7 @@ Reset verifies both model sets offline before mutations. Development mounts the
 browser store read-only and resolves dependency files inside its own Node
 installation. Built self-host uses the verified directory as the `browser_models`
 BuildKit additional context, mounted read-only during the web build. Built outputs
-contain all 35 verified assets and work without that developer store at runtime.
+contain all 21 verified assets and work without that developer store at runtime.
 Installed desktop likewise retains its own required distribution copies. No host
 pnpm or uv installation is needed for a Compose-only journey; Python setup and
 Docker perform that journey. Direct `docker build` of the built application must
@@ -288,18 +305,21 @@ before starting the updated stack. No empty model directory is created implicitl
 ### Changing the Pocket voice set
 
 `scripts/voices/voices.py` curates, encodes and releases voices from pinned
-sources. Run it with `uv run scripts/voices/voices.py <command>`, which uses its
-own locked environment:
+sources. Prepare the verified browser core and optional cloning inputs first.
+Run encoding with `uv run --locked --script scripts/voices/voices.py <command>`,
+which uses its own locked environment. For reproducing the current release rather
+than curating new voices, use the
+[release bootstrap](../../../scripts/models/README.md#release-only-bootstrap).
 
 1. `pin`, then `fetch`: record and download the pinned candidates.
 2. `encode --check`: confirm the encoder still reproduces Kyutai's VCTK states.
 3. `encode`, `screen`, `listen`: encode, score and review candidates.
 4. Edit `scripts/voices/selection.json` with the chosen voices.
    Each voice is `core` (shipped) or `download` (installed on demand).
-5. `release`: regenerate every derived file:
+5. `release --model-inputs /absolute/verified/browser-core`: regenerate every derived file:
    - the browser speech manifest (core voices);
-   - the hosted set `models/pocket-tts-voices/`: the self-encoded core states,
-     every downloadable state, `ATTRIBUTION.md` and `README.md`;
+   - the hosted set `models/pocket-tts-voices/`: every downloadable state,
+     `ATTRIBUTION.md` and `README.md`;
    - the `pocket-voice-*` entries in the packaged asset catalog;
    - the app's `voice-catalog.ts`, the attribution notice and the licence
      records;
@@ -315,6 +335,8 @@ own locked environment:
    Objects under `models/` are create-only and locked, so a changed state
    gets a new hash path; nothing is overwritten.
 
-Publish before merging a manifest or catalog that references new objects.
-Otherwise fresh acquisitions and downloads fail. A changed encoded-state hash
-fails `encode` unless it is intentionally accepted with `--rehash`.
+Publish before shipping a catalog that references new objects. The desktop
+release publisher can publish missing model objects before app artifacts;
+standalone model publication remains available. Until publication, ordinary
+acquisition and app downloads fail. A changed encoded-state hash fails `encode`;
+`--rehash` is a separate intentional review action, never a release bootstrap fix.

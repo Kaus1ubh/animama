@@ -7,14 +7,24 @@ import { AVATAR_VFX_CATALOG } from "../vfx/catalog";
 import { isHoverVFXEntry } from "../vfx/types";
 import { ReactionClipPlayer } from "./ReactionClipPlayer";
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
+
 describe("ReactionClipPlayer", () => {
   it.each(["pending", "active"] as const)(
     "keeps the %s loop occurrence owned after an older Avatar load rejects",
     async (replacement) => {
       const active = new Set(["unrelated-effect"]);
       const effect = AVATAR_VFX_CATALOG.find(isHoverVFXEntry)!;
-      const first = Promise.withResolvers<typeof effect>();
-      const second = Promise.withResolvers<typeof effect>();
+      const first = deferred<typeof effect>();
+      const second = deferred<typeof effect>();
       const loadAvatarVFX = vi
         .fn()
         .mockReturnValueOnce(first.promise)

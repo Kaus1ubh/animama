@@ -5,8 +5,8 @@
   "files": [
     {
       "path": "ATTRIBUTION.md",
-      "size": 4718,
-      "sha256": "c3aa4da9b3c7de36f28f90ba4eac0a73799df8f4f6b038a880ad143b5f595099",
+      "size": 5677,
+      "sha256": "195681fb47f6925bc3083f0f34dee1b074033d99d67f42955d13c46bdbce1ee7",
       "source": {
         "local": "ATTRIBUTION.md"
       }
@@ -35,6 +35,16 @@
       "source": {
         "kind": "release",
         "url": "https://downloads.animama.ai/models/pocket-tts-voices/4c9e1b09ecce22f62e435a948528b9cf28c4cef3bc63dce38a3b08131f13de10/imogen.safetensors"
+      }
+    },
+    {
+      "path": "jane.safetensors",
+      "size": 7374072,
+      "sha256": "37386227ca8ec5bf1b8e516c13d132ce5ff5437a304fe90129a1c62f41d9a008",
+      "source": {
+        "repository": "kyutai/pocket-tts-without-voice-cloning",
+        "revision": "4e1e0a3e611c51c0b4ed8174fc10f32a54644303",
+        "path": "languages/english_2026-04/embeddings/jane.safetensors"
       }
     },
     {
@@ -241,6 +251,46 @@
       }
     },
     {
+      "path": "bill_boerst.safetensors",
+      "size": 6735096,
+      "sha256": "75610127d44e0b05b442154f80f89f993df235aecc6cad7070f11000d006c188",
+      "source": {
+        "repository": "kyutai/pocket-tts-without-voice-cloning",
+        "revision": "4e1e0a3e611c51c0b4ed8174fc10f32a54644303",
+        "path": "languages/english_2026-04/embeddings/bill_boerst.safetensors"
+      }
+    },
+    {
+      "path": "javert.safetensors",
+      "size": 6194424,
+      "sha256": "0ae88e03ca4e76a0e16cbf321a807428febda9d9e9bc0358c02e7f9c9e2c263b",
+      "source": {
+        "repository": "kyutai/pocket-tts-without-voice-cloning",
+        "revision": "4e1e0a3e611c51c0b4ed8174fc10f32a54644303",
+        "path": "languages/english_2026-04/embeddings/javert.safetensors"
+      }
+    },
+    {
+      "path": "marius.safetensors",
+      "size": 6194424,
+      "sha256": "04f84efcb77a0547ba582c058db496f7ff4920891d49d37b9950d128422582a8",
+      "source": {
+        "repository": "kyutai/pocket-tts-without-voice-cloning",
+        "revision": "4e1e0a3e611c51c0b4ed8174fc10f32a54644303",
+        "path": "languages/english_2026-04/embeddings/marius.safetensors"
+      }
+    },
+    {
+      "path": "michael.safetensors",
+      "size": 7275768,
+      "sha256": "8937f724ac4719b9aa51ea0ba1f18f9de0af7a663ad6263558266c1a53c9722d",
+      "source": {
+        "repository": "kyutai/pocket-tts-without-voice-cloning",
+        "revision": "4e1e0a3e611c51c0b4ed8174fc10f32a54644303",
+        "path": "languages/english_2026-04/embeddings/michael.safetensors"
+      }
+    },
+    {
       "path": "noah.safetensors",
       "size": 5948720,
       "sha256": "737ca868cff2fca0024fd28ae34027e99fde040a156f5d6d43b63b59ddf41db2",
@@ -256,6 +306,16 @@
       "source": {
         "kind": "release",
         "url": "https://downloads.animama.ai/models/pocket-tts-voices/1876b7995b7695010f35d8e2e8eb4015adb1cd17fb2b784f6e2a958326fe47cb/oliver.safetensors"
+      }
+    },
+    {
+      "path": "paul.safetensors",
+      "size": 6980856,
+      "sha256": "ed7a019168f94dfe77009f1b0de59387abc6fbb0db954d38ce722ecb77da61aa",
+      "source": {
+        "repository": "kyutai/pocket-tts-without-voice-cloning",
+        "revision": "4e1e0a3e611c51c0b4ed8174fc10f32a54644303",
+        "path": "languages/english_2026-04/embeddings/paul.safetensors"
       }
     },
     {

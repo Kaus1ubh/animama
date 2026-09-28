@@ -26,8 +26,10 @@ bounded status, byte counts, progress, and safe error categories. The updater
 uses a separate Electron network session restricted to the build's sealed
 distribution (see [Distribution selection](#distribution-selection)): for R2,
 only `<base_url>/latest-mac.yml` and `<base_url>/v<version>/` files; for GitHub,
-only the configured repository's releases and asset CDN. Pack downloads follow
-the same rule, and R2 builds follow no redirects. No Animama account or token
+only the configured repository's releases and asset CDN. Archive packs follow
+the same rule. Parakeet model packs always use the fixed
+`https://downloads.animama.ai/models/` origin, with no redirects. R2 app downloads
+also follow no redirects. No Animama account or token
 is required for the installed application.
 
 The pinned `electron-updater` 6.8.9 adapter sets `autoDownload=false` and
@@ -51,11 +53,11 @@ and a 256 MiB reserve. Existing data or packs are never assumed reclaimable.
 repository `raymond-van/animama-releases`. Staging and every release command
 select one with `ANIMAMA_RELEASE_DISTRIBUTION=r2|github`; unset means `r2`, and
 any other value fails. The choice is sealed into the staged
-`runtime/update-policy.json` and every pack URL, and `desktop:dist:mac` refuses
+`runtime/update-policy.json` and archive-pack URLs, and `desktop:dist:mac` refuses
 a selection that differs from the one used for staging. Installed apps never read
 this variable and have no runtime override.
 
-| Distribution | Update feed                   | Installers, notices and packs                                     |
+| Distribution | Update feed                   | Installers, notices and archive packs                             |
 | ------------ | ----------------------------- | ----------------------------------------------------------------- |
 | `r2`         | `<base_url>/latest-mac.yml`   | `<base_url>/v<version>/<asset>`                                   |
 | `github`     | The repository's release feed | `https://github.com/<owner>/<repo>/releases/download/v<version>/` |
@@ -70,7 +72,7 @@ whose recorded distribution differs from the current selection.
 ## Release inputs and permissions
 
 Keep source private. A signed candidate builder uses the selected distribution
-to pin future installer/update and pack URLs, but does not contact it, require a
+to pin future installer/update and archive-pack URLs, but does not contact it, require a
 token or upload assets. A local signed build does not approve public
 distribution; notarization still submits binaries to Apple. Neither path infers
 a destination from the source remote or embeds a token in the app.
@@ -281,7 +283,8 @@ passes, separately approve a **public testing preview**:
 the same signed app, packs and notices are published without the stable update
 feed or final acceptance reports, so the installed stable updater ignores them.
 On GitHub they form a prerelease that is not marked latest. On R2 they become
-public objects under `desktop/v<version>/`, permanently locked by the bucket
+public app objects under `desktop/v<version>/` and shared model objects under
+`models/`, permanently locked by the bucket
 rule, so a preview cannot be withdrawn and its version cannot be reused. This is still public distribution, so all
 source/license/signing approvals and a separate preview-publication approval
 are required. Do not publish a preview merely because a build succeeded.
@@ -354,8 +357,8 @@ or create unprotected environments, to bypass an approval gate.
 | --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `desktop-macos-signing`     | `ANIMAMA_MACOS_CERTIFICATE_BASE64` (P12), `ANIMAMA_MACOS_CERTIFICATE_PASSWORD`, `ANIMAMA_APPLE_ID`, `ANIMAMA_APPLE_APP_PASSWORD`                                                                                             |
 | `desktop-macos-smoke`       | `ANIMAMA_SMOKE_OPENAI_KEY` for the explicitly requested real API smoke                                                                                                                                                       |
-| `desktop-macos-preview`     | Scoped `ANIMAMA_RELEASE_TOKEN` (GitHub) or `ANIMAMA_R2_ACCOUNT_ID`, `ANIMAMA_R2_ACCESS_KEY_ID`, `ANIMAMA_R2_SECRET_ACCESS_KEY` (R2); require separate approval to expose test binaries/packs publicly, without a stable feed |
-| `desktop-macos-publication` | The same distribution credentials and the exact human `ANIMAMA_MACOS_ACCEPTANCE` JSON; require separate `raymond-van` approval under the sole-maintainer policy                                                              |
+| `desktop-macos-preview`     | `ANIMAMA_R2_ACCOUNT_ID`, `ANIMAMA_R2_ACCESS_KEY_ID`, `ANIMAMA_R2_SECRET_ACCESS_KEY` for model objects in both app distributions; also scoped `ANIMAMA_RELEASE_TOKEN` for GitHub app artifacts. Separate public-preview approval required. |
+| `desktop-macos-publication` | The same credentials and exact human `ANIMAMA_MACOS_ACCEPTANCE` JSON; require separate `raymond-van` approval under the sole-maintainer policy. |
 
 The signing helper creates a temporary CI Keychain, imports credentials without
 printing them, stores the notary profile, and restores/deletes its Keychain in an
@@ -442,8 +445,24 @@ new version for corrections.
 Model files that the app downloads at runtime are published once under
 `models/<model-id>/<file-sha256>/<file-name>`, independent of app versions. A
 file's key is its own SHA-256, so published objects never change and an
-unchanged file is never uploaded again. The packaged model-asset catalog pins
-these URLs (see [downloaded model assets](../../backend/operations/model-assets.md#downloaded-model-assets)).
+unchanged file is never uploaded again. Both Parakeet desktop packs and the
+packaged backend model-asset catalog pin these URLs, including notice objects
+in each verified model inventory (see
+[downloaded model assets](../../backend/operations/model-assets.md#downloaded-model-assets)).
+
+Signed app candidates seal the required model manifests into
+`runtime/model-manifests/<modelId>.json` before the runtime inventory is signed.
+Candidate construction copies each verified model set to
+`desktop/release/publish/models/<modelId>/` and exports the frozen backend catalog
+as `backend-model-assets.json`. Model weights remain outside the app's flat
+artifact index. `pnpm desktop:release:scan` validates these bindings and scans
+every model candidate as well as the app. The publisher preflights all required
+model inventories and scans before credentials or writes, then publishes and
+anonymously verifies missing objects before publishing app artifacts. R2 model
+credentials are therefore required even for a GitHub app distribution. The
+stable app feed is promoted last.
+
+Standalone model publication remains available:
 
 From `src/frontend`, with the set already acquired into the model store:
 
@@ -474,7 +493,7 @@ pnpm --filter animama-desktop models:publish --model parakeet-tdt-0.6b-v2-webgpu
 A corrected file has a new hash and therefore a new key; update the catalog to
 it. Never replace a published object.
 
-The canonical generated evidence is the fixed set in `desktop/release/publish`,
+The canonical generated evidence is the complete tree in `desktop/release/publish`,
 with `SHA256SUMS.txt` and `signing-report.json`. See the [evidence map](release-process.md#evidence-and-actual-artifact-names)
 for the required-name smoke and network report paths.
 

@@ -312,9 +312,7 @@ def test_every_shipped_voice_is_licensed_recorded_and_credited():
     assert voices.voice_notice(sources, selection) in voices.ATTRIBUTION.read_text()
     assert selection["default"] == "eve"
     assert sum(voice["recommended"] for voice in selection["voices"]) == 14
-    assert {v["id"] for v in selection["voices"] if v["delivery"] == "core"} == {
-        v["id"] for v in selection["voices"] if v["recommended"] or v["id"] == "eve"
-    }
+    assert {v["id"] for v in selection["voices"] if v["delivery"] == "core"} == {"eve", "azelma"}
 
 
 def test_selection_rejects_unsafe_voice_ids(tmp_path):
@@ -408,3 +406,51 @@ def test_voice_previews_reject_unreviewed_or_arbitrary_urls(change):
         source = "vctk-p999"
     with pytest.raises(voices.VoiceToolError):
         voices.voice_preview_url(sources, source)
+
+
+def test_core_delivery_excludes_optional_voices_and_cloning_encoder():
+    """Fresh speech works with two voices; recommendations do not add bundled weights."""
+    selection = voices.load_selection()
+    assert {v["id"] for v in selection["voices"] if v["delivery"] == "core"} == {"eve", "azelma"}
+    assert sum(v["delivery"] == "download" for v in selection["voices"]) == 36
+    model = json.loads(voices.BROWSER_MANIFEST.read_text())
+    runtime = json.loads(voices.RUNTIME_MANIFEST.read_text())
+    assert len(model["files"]) == 10
+    assert len(runtime["files"]) == 21
+    assert all(e["path"] != "mimi_encoder.onnx" for e in model["files"])
+    assert all(not e["path"].endswith("/mimi_encoder.onnx") for e in runtime["files"])
+
+
+def test_optional_cloning_catalog_keeps_the_existing_pinned_encoder():
+    """Moving delivery must preserve the exact reviewed bytes and their model-set binding."""
+    catalog = json.loads(voices.ASSET_CATALOG.read_text())
+    assets = [e for e in catalog["assets"] if e["id"] == "pocket-tts-voice-cloning-encoder"]
+    assert len(assets) == 1
+    asset = assets[0]
+    assert asset["size"] == 39768446
+    assert asset["sha256"] == "853e2ca623b8782d94c3745ec6133bfdff7ce33d9b11128bd29ea03f28d76e3d"
+    assert asset["url"] == (
+        f"https://downloads.animama.ai/models/pocket-tts-voice-cloning/{asset['sha256']}/mimi_encoder.onnx"
+    )
+
+
+def test_release_inputs_do_not_require_or_modify_the_previous_complete_store(tmp_path):
+    """A retained core subset can rebuild projections while optional inputs are absent."""
+    import hashlib
+
+    payload = b"generation model"
+    (tmp_path / "flow_lm_main_int8.onnx").write_bytes(payload)
+    (tmp_path / "mimi_encoder.onnx").write_bytes(b"unrelated old input")
+    entries = [{"path": "flow_lm_main_int8.onnx", "size": len(payload), "sha256": hashlib.sha256(payload).hexdigest()}]
+    assert voices.release_model_inputs(str(tmp_path), entries) == tmp_path
+    assert (tmp_path / "mimi_encoder.onnx").read_bytes() == b"unrelated old input"
+    (tmp_path / "flow_lm_main_int8.onnx").write_bytes(b"bad")
+    with pytest.raises(voices.store.ModelStoreError, match="mismatch"):
+        voices.release_model_inputs(str(tmp_path), entries)
+
+
+def test_authoring_cloning_requires_explicit_verified_encoder(monkeypatch, tmp_path):
+    """Missing producer inputs fail offline instead of downloading during encode/screen."""
+    monkeypatch.setenv("ANIMAMA_MODEL_ROOT", str(tmp_path))
+    with pytest.raises(voices.store.ModelStoreMissing):
+        voices.cloning_encoder()

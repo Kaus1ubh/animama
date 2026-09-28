@@ -24,12 +24,11 @@ MODEL_ID = "browser-speech"
 REPOSITORY = Path(__file__).resolve().parents[2]
 DEFAULT_MANIFEST = REPOSITORY / "models" / MODEL_ID / "manifest.json"
 # Pocket TTS english_2026-04 bundle: INT8 flow LM, FP32 flow head, decoder,
-# encoder and text conditioner, plus runtime metadata.
+# text conditioner, plus runtime metadata. The cloning encoder is acquired separately.
 POCKET_BUNDLE = {
     "flow_lm_main_int8.onnx",
     "flow_lm_flow.onnx",
     "mimi_decoder.onnx",
-    "mimi_encoder.onnx",
     "text_conditioner.onnx",
     "tokenizer.model",
     "bos_before_voice.npy",

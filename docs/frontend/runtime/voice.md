@@ -31,9 +31,10 @@ when its runtime capability is available.
 
 ### Optional offline speech pack
 
-The embedded core does not contain Parakeet weights. Setup offers its install
-option unchecked, and Settings provides catalog-sized download, cancellation,
-and removal controls. `GET /v1/runtime-capabilities` supplies
+The embedded core does not contain Parakeet weights. Setup and App Settings →
+Voice offer direct optional CPU speech and separate GPU enhancement downloads,
+with catalog sizes, cancellation and removal. Every download can be skipped;
+downloads do not change provider or voice selection. `GET /v1/runtime-capabilities` supplies
 `offline_speech_enabled` and nullable `offline_speech_asset_version`. Unknown
 or disabled availability is not treated as support; dictation checks fresh
 metadata before starting and the worker loader checks it again. Saved provider
@@ -106,7 +107,7 @@ Why this matters:
 
 ## Developer and self-host model inputs
 
-Parakeet and the 24 reviewed Pocket TTS/Smart Turn inputs are acquired from
+Parakeet and the ten reviewed Pocket TTS/Smart Turn core inputs are acquired from
 exact pinned revisions into a verified shared store outside Git worktrees.
 `models/browser-runtime/manifest.json` also binds nine ORT 1.24.2 files from the
 exact dependency alias and two VAD 0.0.30 files from its pinned package. Other
@@ -117,7 +118,7 @@ starting Vite or Compose, or building the web application. It documents
 `ANIMAMA_MODEL_ROOT`, the native Windows `%LOCALAPPDATA%\Animama\models` default,
 and the Linux default used by WSL. Development verifies and serves engine inputs
 at the existing same-origin URLs; built self-host and desktop outputs contain
-independent verified copies of the 35 browser assets. Parakeet remains outside
+independent verified copies of the 21 browser assets. Parakeet remains outside
 the web build and retains its installed desktop pack lifecycle.
 
 Startup and builds do not acquire models implicitly. Browsers do not receive
@@ -294,12 +295,14 @@ When WebGPU is selected, `loadClientParakeetWorker` probes
 
 `unavailable_in_build` occurs only in a Vite stack that overrides the base
 model URL; built apps always probe. With an adapter and a `model_missing`
-result, packaged desktop shows a download control below Provider when its
+result, packaged desktop shows a download control in Speech-to-Text when its
 catalog includes the `parakeet-stt-webgpu` pack. It shows the download size
 and required free space, progress, cancel, retry and removal, and asks for
 offline speech recognition first when `parakeet-stt` is not installed. Selecting
 Parakeet WebGPU without the encoder points at that control. Devices without an
 adapter are never offered the download; retained encoder files stay removable.
+These controls are independent of provider selection. The GPU action never
+chains a CPU download or changes the selected provider.
 
 Built self-host shows the same kind of control, backed by the backend's
 [model assets](../../backend/architecture/http-api.md#model-assets)
@@ -980,16 +983,16 @@ the public ORT 1.24.2 inventory does not replace those dependency versions.
 ### Pocket TTS assets
 
 - Small worker/worklet/vendor code stays in `src/frontend/web/public/tts/*`.
-- The 23 reviewed Pocket files are served at `/onnx/models/pocket-tts/*` from
+- The nine reviewed Pocket core files are served at `/onnx/models/pocket-tts/*` from
   the verified sources:
-  - the five ONNX graphs;
+  - the four generation ONNX graphs;
   - `tokenizer.model`, `bundle.json` and `bos_before_voice.npy`;
-  - the 15 core voice states at `voices/<id>.safetensors`.
+  - Eve and Azelma's core voice states at `voices/<id>.safetensors`.
 - `src/frontend/web/src/lib/speech/pocket/voice-catalog.ts` lists all 38
   voices, with `eve` as default. Each has an ID, display name, gender, accent,
   recommended flag and delivery: `core`, or `download` with its asset ID and
   size. `scripts/voices/voices.py release` generates it, and tests keep it
-  equal to the core manifest and the packaged asset catalog. The 23
+  equal to the core manifest and the packaged asset catalog. The 36
   downloadable voices install through `/v1/model-assets`.
 - `createPocketTTS` sends the catalog's IDs and default to the worker. The
   worker initializes model state from the `bundle.json` state manifests.
@@ -1027,6 +1030,15 @@ the public ORT 1.24.2 inventory does not replace those dependency versions.
   unavailable. Deletion is blocked while any Anima uses the clone.
   Existing session-only `custom` selections cannot be recovered automatically:
   upload the original again and save a named clone to make it durable.
+- The 39,768,446-byte Mimi cloning encoder is optional. The first cloning action
+  offers an explicit download with bundled attribution, progress and retry. The
+  selected File stays in memory while waiting, then the same sample is encoded
+  once verified. Closing the dialog detaches its waiter and prevents a later save;
+  it does not cancel a download another caller may need. Explicit Cancel stops
+  the shared download. All encoding entry points recheck
+  `/v1/model-assets/pocket-tts-voice-cloning-encoder/content`; removing the asset
+  requires another download before encoding. Playback of presets and saved clones
+  never needs the encoder.
 - Clone selection uses the Anima's voice loadout binding. Chat prepares and
   verifies the selected catalog bytes during runtime mount and supplies the
   mount-owned resource to PocketTTS. Original samples stay in the library and
@@ -1042,9 +1054,20 @@ the public ORT 1.24.2 inventory does not replace those dependency versions.
     installed starts its install on the next reply.
   - A failed download shows one notice per session, and the next reply or pick
     retries it.
+- Anima voice selection keeps a compact picker with search, All/Female/Male tabs,
+  Recommended only and Custom filters, previews and inline download/retry/cancel
+  actions. Custom shows saved clones and uploaded voices; preset filters pause
+  until it is unchecked because custom voices have no gender/recommendation
+  metadata. Checkmarks in the download slot identify included or downloaded
+  presets, separately from the selected voice. Downloading alone changes neither
+  selection nor provider. Setup and App Settings do not contain a preset browser.
+  App Settings → Voice → Voice Clone reuses the Anima cloning form and exposes
+  the encoder download independently of TTS. Setup offers only Speech-to-Text and
+  Voice Clone downloads. Backend downloads restart after interruption; desktop
+  Parakeet packs separately support verified resume.
 - Anima voice catalogs are separate user/catalog inputs; their persisted URLs
   and legacy `/onnx/models/pocket-tts/animas/{animaId}_voices.bin` reference format
-  are not members of the 35-file engine inventory.
+  are not members of the 21-file engine inventory.
 
 Optional operator voice catalogs are separate from the engine inventory; see
 [Content and workers](../architecture/content-and-workers.md#vite-application-resources).

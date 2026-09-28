@@ -1,9 +1,9 @@
-# Verified Parakeet setup
+# Verified speech model setup
 
 Run from the Animama checkout with Python 3.11+ on macOS, Linux or native Windows.
 On Windows, use `py -3` where these examples use `python3`. Setup uses only
-Python's standard library and the public pinned Hugging Face files; no account,
-API key or Hugging Face SDK is required.
+Python's standard library and Animama's public, content-addressed model objects;
+no account, API key or Hugging Face SDK is required.
 
 ```sh
 python3 scripts/models/parakeet.py acquire
@@ -37,6 +37,23 @@ this manifest reuse the same bytes. `--manifest PATH` selects a local reviewed
 manifest or small build/test fixture; it never accepts arbitrary upstream URLs,
 repositories, moving revisions or inventory paths.
 
+Each ordinary base download uses
+`https://downloads.animama.ai/models/parakeet-tdt-0.6b-v2/<sha256>/<filename>`,
+including both notices. These are the same verified raw objects desktop packs
+use. A missing object fails without falling back to another source.
+
+Build/release maintainers can explicitly acquire the original pinned upstream
+weights and checked-in notices before the first model publication:
+
+```sh
+python3 scripts/models/parakeet.py acquire --source upstream
+```
+
+Both sources produce the same verified directory; existing valid caches and
+offline imports need no new download. The full/cold-cache Validation workflow
+uses this producer mode without publication credentials. Other model setup
+scripts retain their own manifest sources.
+
 To adopt an existing model copy without downloading:
 
 ```sh
@@ -65,7 +82,9 @@ stack records and processes before removing unused versions. Files are made
 read-only to discourage accidental edits, but the owning user can still alter
 them; consumers verify before use.
 
-Requests and redirects use HTTPS and a fixed reviewed Hugging Face host list.
+Requests and redirects use HTTPS and a fixed reviewed host list: Animama's
+download origin for normal base acquisition, or Hugging Face hosts for explicit
+upstream acquisition.
 The downloader sends no credentials and does not inherit environment proxies.
 HTTP errors, including throttling, fail with instructions to retry later; no
 automatic retries hide repeated failures. Interrupted/failed transfers restart
@@ -92,3 +111,41 @@ from the pinned `ysdede/parakeet-tdt-0.6b-v2-onnx` revision and verifies a
 three-file inventory (encoder, README and attribution) under
 `<store>/parakeet-tdt-0.6b-v2-webgpu/<manifest-digest>`. The base Parakeet set
 remains required.
+
+## Browser core and optional cloning
+
+`python3 scripts/models/browser_speech.py acquire|verify|path` manages the ten
+core model files: Pocket generation with Eve and Azelma, plus Smart Turn. Vite
+combines them with eleven pinned dependency files into the 21-file browser
+runtime. Ordinary serving and builds verify these inputs offline; they do not
+require optional voices or the cloning encoder.
+
+`python3 scripts/models/pocket_cloning.py acquire|verify|path` manages the
+optional Mimi encoder and its two notices. Use explicit `acquire --source
+upstream` for release/voice-authoring preparation before its Animama objects are
+published. The installed application downloads it only after an explicit cloning
+or download action.
+
+## Release-only bootstrap
+
+An unpublished release cannot fetch its own new model objects. From a clean,
+reviewed checkout, populate a producer store explicitly:
+
+```sh
+python3 scripts/models/release_inputs.py \
+  --root /absolute/release-model-store \
+  --work-dir /absolute/voice-producer-work
+```
+
+This acquires pinned base Parakeet, GPU, browser core and cloning inputs; fetches
+the reviewed voice sources; and encodes only the 24 selected VCTK sources with
+the locked script environment. It requires the existing encoded hashes, never
+uses `--rehash`, rejects changes to generated tracked inventories, then imports
+the complete 36-voice set offline. Encoding drift fails the release preparation;
+do not approve new hashes to make a different platform pass.
+
+Add `--import-voices /absolute/import-voice-set` to reuse an existing complete
+producer inventory instead of encoding. The same size/hash checks apply. Set
+`ANIMAMA_MODEL_ROOT` to the chosen store for subsequent release commands. This
+helper neither scans nor publishes; continue through the separate
+[release gates](../../docs/frontend/desktop/release-process.md).

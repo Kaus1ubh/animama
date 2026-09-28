@@ -89,7 +89,10 @@ type PocketTtsCoreLike = {
     catalogCacheKey?: string | null;
   }>;
   setVoice: (voiceName: string) => void;
-  encodeVoiceFromFile: (file: File) => Promise<{ voiceName: string }>;
+  encodeVoiceFromFile: (
+    file: File,
+    options?: { signal?: AbortSignal },
+  ) => Promise<{ voiceName: string }>;
   getVoices: () => string[];
   getAudioContext?: () => AudioContext | null;
   setVolume?: (volume: number) => void;
@@ -540,12 +543,15 @@ export async function preloadPocketTtsAnimaVoices(
 
 export async function encodePocketTtsVoiceFromFile(
   file: File,
+  options?: { signal?: AbortSignal },
 ): Promise<{ voiceName: string }> {
   if (!file) {
     throw new Error("No voice file provided.");
   }
 
+  options?.signal?.throwIfAborted();
   await warmupPocketTtsRuntime();
+  options?.signal?.throwIfAborted();
   const core = getOrCreateCore();
 
   updateState((prev) => ({
@@ -556,7 +562,7 @@ export async function encodePocketTtsVoiceFromFile(
   }));
 
   try {
-    const result = await core.encodeVoiceFromFile(file);
+    const result = await core.encodeVoiceFromFile(file, options);
     updateState((prev) => ({
       ...prev,
       isEncodingVoice: false,
@@ -698,7 +704,10 @@ type UsePocketTtsRuntimeResult = PocketTtsRuntimeState & {
   warmup: () => Promise<void>;
   preloadAnimaVoices: (animaRef: string) => Promise<void>;
   setVoice: (voiceName: string) => Promise<void>;
-  encodeVoiceFromFile: (file: File) => Promise<{ voiceName: string }>;
+  encodeVoiceFromFile: (
+    file: File,
+    options?: { signal?: AbortSignal },
+  ) => Promise<{ voiceName: string }>;
   generateAndWait: (
     text: string,
     args?: GeneratePocketTtsArgs,

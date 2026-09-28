@@ -162,6 +162,11 @@ export function CreateAnimaVoiceStep({
               onSelect={select}
               availability={downloads.availability}
               onDownload={downloads.install}
+              onRemove={downloads.remove}
+              downloadBusy={downloads.busy}
+              downloadBlockedReason={downloads.blockedReason}
+              downloadError={downloads.error}
+              retryAssetIds={downloads.retryAssetIds}
             />
             {selectedId &&
             !library.isPending &&

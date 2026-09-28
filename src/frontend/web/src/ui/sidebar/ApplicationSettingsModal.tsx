@@ -117,7 +117,10 @@ import {
 } from "@/ui/settings/DesktopCredentialsPanel";
 import { DesktopFeaturePacksPanel } from "@/ui/settings/DesktopFeaturePacksPanel";
 import { DesktopUpdatesPanel } from "@/ui/settings/DesktopUpdatesPanel";
-import { ParakeetWebgpuDetails } from "@/ui/settings/ExperimentalSettings";
+import {
+  VoiceDownloads,
+  VoiceCloneSettings,
+} from "@/ui/settings/VoiceDownloads";
 import {
   getSttSettingsOptions,
   getSttSettingsPreference,
@@ -1374,21 +1377,25 @@ export function ApplicationSettingsModal({
               {currentSttOption.reason}
             </p>
           ) : null}
-          <ParakeetWebgpuDetails
-            selected={selectedSttOption === "parakeet_webgpu"}
-          />
-          {parakeetAvailable === false ? (
-            <DesktopFeaturePacksPanel
-              only="parakeet-stt"
-              className="bg-muted/20 rounded-lg border-0 p-4"
-            />
-          ) : null}
           {isInitializing ? (
             <p className="text-muted-foreground text-xs">
               Preparing provider defaults...
             </p>
           ) : null}
         </SettingsRow>
+      ),
+    },
+    {
+      id: "stt-downloads",
+      section: "Voice",
+      group: "Speech-to-Text",
+      label: "Offline speech downloads",
+      keywords: ["parakeet", "cpu", "gpu", "download", "offline"],
+      render: () => (
+        <VoiceDownloads
+          section="speech-to-text"
+          sttProvider={selectedSttOption ?? ""}
+        />
       ),
     },
     {
@@ -1565,6 +1572,14 @@ export function ApplicationSettingsModal({
           }
         />
       ),
+    },
+    {
+      id: "voice-clone",
+      section: "Voice",
+      group: "Voice Clone",
+      label: "Voice Clone",
+      keywords: ["pocket", "sample", "cloning", "download", "offline"],
+      render: () => <VoiceCloneSettings />,
     },
     ...shortcutRows.map(
       (row): SettingEntry => ({

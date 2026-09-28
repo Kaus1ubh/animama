@@ -49,6 +49,8 @@ export function ParakeetWebgpuDownload({
   error,
   prompted,
   run,
+  busy: transitionBusy = false,
+  blockedReason,
 }: {
   status: ParakeetWebgpuStatus | null;
   gpuPack: FeaturePackStatus | undefined;
@@ -56,22 +58,37 @@ export function ParakeetWebgpuDownload({
   pending: FeaturePackId | null;
   error?: string | null;
   prompted: boolean;
+  busy?: boolean;
+  blockedReason?: string | null;
   run(operation: "install" | "remove" | "cancel", id: FeaturePackId): void;
 }) {
   const [confirmRemove, setConfirmRemove] = useState(false);
-  if (!gpuPack || (!gpuPack.available && !gpuPack.hasInstalledFiles))
+  if (
+    !gpuPack ||
+    (!gpuPack.available &&
+      !gpuPack.hasInstalledFiles &&
+      !BUSY_STATES.has(gpuPack.state) &&
+      gpuPack.state !== "failed")
+  )
     return null;
   // A refused or interrupted removal reports `failed` while this version stays active.
   const installed =
     gpuPack.state === "installed" ||
     (!!gpuPack.activeVersion && gpuPack.activeVersion === gpuPack.version);
   // Removal and recovery stay reachable even if this device later loses WebGPU.
-  if (!installed && !gpuPack.hasInstalledFiles && status !== "model_missing")
+  if (
+    !installed &&
+    !gpuPack.hasInstalledFiles &&
+    !BUSY_STATES.has(gpuPack.state) &&
+    gpuPack.state !== "failed" &&
+    status !== "model_missing"
+  )
     return null;
   const busy = BUSY_STATES.has(gpuPack.state);
   const baseReady =
     basePack?.state === "installed" || !!basePack?.activeVersion;
-  const blocked = pending !== null;
+  const blocked = pending !== null || transitionBusy || Boolean(blockedReason);
+  const supported = status === "model_missing" || status === "available";
   const size =
     gpuPack.downloadBytes !== undefined &&
     gpuPack.minimumFreeBytes !== undefined
@@ -89,8 +106,7 @@ export function ParakeetWebgpuDownload({
       ) : null}
       {!installed && !baseReady && !busy ? (
         <p className="text-muted-foreground text-xs">
-          Install offline speech recognition first in General → Optional feature
-          packs.
+          Download offline speech recognition first using the action above.
         </p>
       ) : null}
       {busy ? (
@@ -118,7 +134,7 @@ export function ParakeetWebgpuDownload({
             type="button"
             size="sm"
             variant="outline"
-            disabled={!baseReady || blocked}
+            disabled={!baseReady || blocked || !supported}
             onClick={() => run("install", GPU_PACK)}
           >
             <Download aria-hidden className="size-4" />
@@ -126,7 +142,7 @@ export function ParakeetWebgpuDownload({
               ? "Retry download"
               : gpuPack.state === "update_available"
                 ? "Install compatible version"
-                : "Download GPU encoder"}
+                : "Download GPU enhancement"}
           </Button>
         ) : null}
         {busy ? (
@@ -153,13 +169,18 @@ export function ParakeetWebgpuDownload({
               }
             }}
           >
-            {confirmRemove ? "Confirm removal" : "Remove GPU encoder"}
+            {confirmRemove ? "Confirm removal" : "Remove GPU enhancement"}
           </Button>
         ) : null}
       </div>
       {error ? (
         <p className="text-destructive text-xs" role="alert">
           {error}
+        </p>
+      ) : null}
+      {blockedReason ? (
+        <p className="text-muted-foreground text-xs" role="status">
+          {blockedReason}
         </p>
       ) : null}
     </div>
@@ -199,6 +220,8 @@ export function ParakeetWebgpuAssetDownload({
   onInstall,
   onCancel,
   onRemove,
+  retry = false,
+  blockedReason,
 }: {
   status: ParakeetWebgpuStatus | null;
   asset: PyModelAssetState | undefined;
@@ -209,12 +232,14 @@ export function ParakeetWebgpuAssetDownload({
   onInstall(): void;
   onCancel(): void;
   onRemove(): void;
+  retry?: boolean;
+  blockedReason?: string | null;
 }) {
   const [confirmRemove, setConfirmRemove] = useState(false);
   if (!asset) return null;
   const installed = asset.status === "installed";
   const busy = asset.status === "downloading";
-  const failed = asset.status === "failed";
+  const failed = asset.status === "failed" || retry;
   if (!installed && !busy && !failed && status !== "model_missing") return null;
   const measured = typeof freeBytes === "number";
   const enoughSpace = !measured || freeBytes >= asset.required_free_bytes;
@@ -262,11 +287,16 @@ export function ParakeetWebgpuAssetDownload({
             type="button"
             size="sm"
             variant="outline"
-            disabled={pending || !enoughSpace}
+            disabled={
+              pending ||
+              !enoughSpace ||
+              Boolean(blockedReason) ||
+              (status !== "model_missing" && status !== "available")
+            }
             onClick={onInstall}
           >
             <Download aria-hidden className="size-4" />
-            {failed ? "Retry download" : "Download GPU encoder"}
+            {failed ? "Retry download" : "Download GPU enhancement"}
           </Button>
         ) : null}
         {busy ? (
@@ -294,13 +324,18 @@ export function ParakeetWebgpuAssetDownload({
               }
             }}
           >
-            {confirmRemove ? "Confirm removal" : "Remove GPU encoder"}
+            {confirmRemove ? "Confirm removal" : "Remove GPU enhancement"}
           </Button>
         ) : null}
       </div>
       {error ? (
         <p className="text-destructive text-xs" role="alert">
           {error}
+        </p>
+      ) : null}
+      {blockedReason ? (
+        <p className="text-muted-foreground text-xs" role="status">
+          {blockedReason}
         </p>
       ) : null}
       <details className="text-xs">
@@ -317,7 +352,17 @@ export function ParakeetWebgpuAssetDownload({
 }
 
 /** Availability and encoder management below the Parakeet WebGPU provider choice. */
-export function ParakeetWebgpuDetails({ selected }: { selected: boolean }) {
+export function ParakeetWebgpuDetails({
+  selected,
+  independent = false,
+  busy = false,
+  blockedReason,
+}: {
+  selected: boolean;
+  independent?: boolean;
+  busy?: boolean;
+  blockedReason?: string | null;
+}) {
   const featurePacks = useDesktopFeaturePacks();
   const gpuPack = featurePacks.available
     ? featurePacks.packs.find((pack) => pack.id === GPU_PACK)
@@ -331,6 +376,8 @@ export function ParakeetWebgpuDetails({ selected }: { selected: boolean }) {
     (asset) => asset.id === PARAKEET_WEBGPU_ENCODER_ASSET_ID,
   );
   const assetAction = useModelAssetAction();
+  const retryAsset =
+    modelAssets.retryAssetIds?.has(PARAKEET_WEBGPU_ENCODER_ASSET_ID) ?? false;
   const downloadable = Boolean(gpuPack?.available) || Boolean(encoderAsset);
   const desktop = useRuntimePlatform().kind === "desktop";
   const [status, setStatus] = useState<ParakeetWebgpuStatus | null>(null);
@@ -355,8 +402,14 @@ export function ParakeetWebgpuDetails({ selected }: { selected: boolean }) {
     gpuPack?.hasInstalledFiles ||
     (gpuPack &&
       (BUSY_STATES.has(gpuPack.state) || gpuPack.state === "failed")) ||
-    (encoderAsset && encoderAsset.status !== "not_installed");
-  if (!selected && !hasManagedEncoder) return null;
+    (encoderAsset && (encoderAsset.status !== "not_installed" || retryAsset));
+  if (!selected && !hasManagedEncoder && !independent) return null;
+  if (
+    independent &&
+    !hasManagedEncoder &&
+    (!downloadable || (status !== "model_missing" && status !== "available"))
+  )
+    return null;
 
   const lastBackend = getLastClientParakeetBackendState();
   const statusText = lastBackend?.fellBackFromWebgpu
@@ -379,11 +432,18 @@ export function ParakeetWebgpuDetails({ selected }: { selected: boolean }) {
 
   return (
     <div className="space-y-2">
+      {independent ? (
+        <p className="text-sm font-medium">Parakeet · GPU</p>
+      ) : null}
       <p
         className="text-muted-foreground text-xs"
         data-testid="parakeet-webgpu-status"
       >
-        {selected ? statusText : "GPU speech encoder"}
+        {independent && !hasManagedEncoder
+          ? "Adds GPU acceleration and live previews to offline speech recognition."
+          : selected || independent
+            ? statusText
+            : "GPU speech encoder"}
       </p>
       {selfHostAsset ? (
         <ParakeetWebgpuAssetDownload
@@ -391,6 +451,8 @@ export function ParakeetWebgpuDetails({ selected }: { selected: boolean }) {
           asset={encoderAsset}
           freeBytes={modelAssets.data?.free_bytes}
           pending={assetAction.isPending}
+          blockedReason={assetAction.blockedReason}
+          retry={retryAsset}
           error={
             assetAction.isError
               ? "The encoder change could not finish. Retry in a moment."
@@ -422,6 +484,8 @@ export function ParakeetWebgpuDetails({ selected }: { selected: boolean }) {
           gpuPack={gpuPack}
           basePack={basePack}
           pending={featurePacks.pending}
+          busy={busy || featurePacks.busy}
+          blockedReason={blockedReason || featurePacks.blockedReason}
           error={featurePacks.error}
           prompted={selected && status === "model_missing"}
           run={(operation, id) => void featurePacks.run(operation, id)}

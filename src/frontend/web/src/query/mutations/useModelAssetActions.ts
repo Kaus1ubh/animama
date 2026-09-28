@@ -10,6 +10,15 @@ import type {
 } from "@animama/runtime-contracts/api-types";
 import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
 import { queryKeys } from "@/query/keys";
+import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
+import { useDesktopFeaturePacks } from "@/hooks/useDesktopFeaturePacks";
+import {
+  assertAssetInstallAllowed,
+  modelAssetActionKey,
+  PACK_WORK_BLOCKS_ASSET,
+  pulseAssetAttempts,
+  recordAssetAttempt,
+} from "@/query/model-download-coordination";
 
 export type ModelAssetAction = "install" | "remove";
 
@@ -21,14 +30,36 @@ export type ModelAssetAction = "install" | "remove";
 export function useModelAssetAction() {
   const queryClient = useQueryClient();
   const ownerId = useRuntimeOwnerId();
-  const key = queryKeys.modelAssets(ownerId ?? "__anon__");
+  const owner = ownerId ?? "__anon__";
+  const key = queryKeys.modelAssets(owner);
+  const platform = useRuntimePlatform();
+  const desktop = platform.kind === "desktop" ? platform.desktopBridge : null;
+  const packs = useDesktopFeaturePacks();
 
-  return useMutation<
+  const mutation = useMutation<
     PyModelAssetState,
     Error,
     { action: ModelAssetAction; assetId: string }
   >({
+    mutationKey: modelAssetActionKey(owner),
     mutationFn: async ({ action, assetId }) => {
+      if (!ownerId)
+        throw new Error("The installation is not ready. Reopen and retry.");
+      if (action === "install") {
+        try {
+          await assertAssetInstallAllowed(queryClient, owner, desktop);
+        } catch (cause) {
+          // IPC failures may contain host paths. Keep the known guard message only.
+          throw new Error(
+            cause instanceof Error && cause.message === PACK_WORK_BLOCKS_ASSET
+              ? PACK_WORK_BLOCKS_ASSET
+              : "Download status is unavailable. Reopen and retry.",
+          );
+        }
+        recordAssetAttempt(queryClient, owner, assetId, true);
+      } else {
+        pulseAssetAttempts(queryClient, owner);
+      }
       const options = {
         path: { asset_id: assetId },
         throwOnError: true,
@@ -37,6 +68,8 @@ export function useModelAssetAction() {
         action === "install"
           ? await installModelAssetV1ModelAssetsAssetIdInstallPost(options)
           : await removeModelAssetV1ModelAssetsAssetIdDelete(options);
+      if (action === "remove" || data.status === "installed")
+        recordAssetAttempt(queryClient, owner, assetId, false);
       return data;
     },
     onSuccess: (state) => {
@@ -52,8 +85,16 @@ export function useModelAssetAction() {
       );
     },
     onSettled: () => {
+      // Begin can be observed before a held POST starts the backend job. Wake
+      // sibling windows again on every outcome without inventing download state.
+      if (ownerId) pulseAssetAttempts(queryClient, owner);
       // Free space changes with every install or removal.
-      void queryClient.invalidateQueries({ queryKey: key });
+      void queryClient.invalidateQueries({ queryKey: key, exact: true });
     },
   });
+  return {
+    ...mutation,
+    busy: packs.busy,
+    blockedReason: packs.busy ? PACK_WORK_BLOCKS_ASSET : null,
+  };
 }

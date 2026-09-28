@@ -39,6 +39,7 @@ import {
   updateFeed,
   writeArtifactIndex,
 } from "./release-artifacts.mjs";
+import { stageReleaseModels } from "./release-models.mjs";
 
 /** Parse only the exact recovery operation supported by the signed-app boundary. */
 export function parseMacReleaseArgs(args = []) {
@@ -316,6 +317,7 @@ export async function releaseMac(args = []) {
     ),
   );
   for (const pack of catalog.entries) {
+    if (pack.schema === "animama-model-pack/1") continue;
     const name = path.posix.basename(new URL(pack.url).pathname);
     const file = path.join(target.output, "feature-packs", name);
     const tag =
@@ -333,6 +335,7 @@ export async function releaseMac(args = []) {
     path.join(target.output, "feature-packs/pack-build-report.json"),
     "pack-build-report.json",
   );
+  names.push(...stageReleaseModels({ runtime, directory: publish }));
   writeArtifactIndex(publish, release.version, names, {
     runtime_build_id: manifest.build_id,
     smoke_verified: false,

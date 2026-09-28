@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://animama.invalid/schemas/feature-pack/1",
+  "$id": "https://animama.invalid/schemas/feature-pack/2",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -11,9 +11,6 @@
     "app_versions",
     "platform",
     "architecture",
-    "url",
-    "archive_bytes",
-    "archive_sha256",
     "installed_bytes",
     "minimum_peak_free_bytes",
     "license_refs",
@@ -21,7 +18,9 @@
     "signing"
   ],
   "properties": {
-    "schema": { "const": "animama-feature-pack/1" },
+    "schema": {
+      "enum": ["animama-feature-pack/1", "animama-model-pack/1"]
+    },
     "id": {
       "enum": [
         "parakeet-stt",
@@ -30,40 +29,74 @@
         "document-processing"
       ]
     },
-    "display_name": { "type": "string", "minLength": 1 },
-    "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+    "display_name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
     "app_versions": {
       "type": "array",
       "minItems": 1,
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "uniqueItems": true
     },
-    "platform": { "enum": ["darwin", "win32", "data-only"] },
-    "architecture": { "enum": ["arm64", "x64", "data-only"] },
+    "platform": {
+      "enum": ["darwin", "win32", "data-only"]
+    },
+    "architecture": {
+      "enum": ["arm64", "x64", "data-only"]
+    },
     "url": {
       "type": "string",
       "pattern": "^https://[^/?#@:]+(/[^/?#]+)+\\.tar\\.zst$",
       "description": "A release folder of the distribution sealed in the app's update policy: an R2 <base_url>/v<version>/ folder or the configured GitHub repository's release download path."
     },
-    "archive_bytes": { "type": "integer", "minimum": 1 },
-    "archive_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
-    "installed_bytes": { "type": "integer", "minimum": 1 },
-    "minimum_peak_free_bytes": { "type": "integer", "minimum": 1 },
+    "archive_bytes": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "archive_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "installed_bytes": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "minimum_peak_free_bytes": {
+      "type": "integer",
+      "minimum": 1
+    },
     "license_refs": {
       "type": "array",
       "minItems": 1,
-      "items": { "type": "string" }
+      "items": {
+        "type": "string"
+      }
     },
     "signing": {
       "oneOf": [
-        { "type": "null" },
+        {
+          "type": "null"
+        },
         {
           "type": "object",
           "additionalProperties": false,
           "required": ["publisher", "requirement"],
           "properties": {
-            "publisher": { "type": "string", "minLength": 1 },
-            "requirement": { "type": "string", "minLength": 1 }
+            "publisher": {
+              "type": "string",
+              "minLength": 1
+            },
+            "requirement": {
+              "type": "string",
+              "minLength": 1
+            }
           }
         }
       ]
@@ -81,32 +114,158 @@
             "minLength": 1,
             "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.?(?:/|$))(?!.*[\\\\:]).+$"
           },
-          "size_bytes": { "type": "integer", "minimum": 0 },
-          "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
-          "media_type": { "type": "string", "minLength": 1 },
-          "mode": { "enum": ["0644", "0755"] }
+          "size_bytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "media_type": {
+            "type": "string",
+            "minLength": 1
+          },
+          "mode": {
+            "enum": ["0644", "0755"]
+          },
+          "url": {
+            "type": "string",
+            "pattern": "^https://downloads\\.animama\\.ai/models/parakeet-tdt-0\\.6b-v2(?:-webgpu)?/[a-f0-9]{64}/[^/?#]+$"
+          }
         }
       }
+    },
+    "model_id": {
+      "enum": ["parakeet-tdt-0.6b-v2", "parakeet-tdt-0.6b-v2-webgpu"]
     }
   },
   "allOf": [
     {
-      "if": { "properties": { "id": { "const": "document-processing" } } },
+      "if": {
+        "properties": {
+          "id": {
+            "const": "document-processing"
+          }
+        }
+      },
       "then": {
         "properties": {
-          "signing": { "type": "object" },
-          "platform": { "enum": ["darwin", "win32"] }
+          "signing": {
+            "type": "object"
+          },
+          "platform": {
+            "enum": ["darwin", "win32"]
+          }
         }
       }
     },
     {
-      "if": { "properties": { "platform": { "const": "data-only" } } },
+      "if": {
+        "properties": {
+          "platform": {
+            "const": "data-only"
+          }
+        }
+      },
       "then": {
         "properties": {
-          "architecture": { "const": "data-only" },
-          "signing": { "type": "null" }
+          "architecture": {
+            "const": "data-only"
+          },
+          "signing": {
+            "type": "null"
+          }
         }
       }
+    }
+  ],
+  "oneOf": [
+    {
+      "required": ["url", "archive_bytes", "archive_sha256"],
+      "properties": {
+        "schema": {
+          "const": "animama-feature-pack/1"
+        },
+        "id": {
+          "enum": ["expanded-included-content", "document-processing"]
+        },
+        "model_id": false,
+        "files": {
+          "items": {
+            "properties": {
+              "url": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "required": ["model_id"],
+      "properties": {
+        "schema": {
+          "const": "animama-model-pack/1"
+        },
+        "id": {
+          "enum": ["parakeet-stt", "parakeet-stt-webgpu"]
+        },
+        "platform": {
+          "const": "data-only"
+        },
+        "architecture": {
+          "const": "data-only"
+        },
+        "signing": {
+          "type": "null"
+        },
+        "url": false,
+        "archive_bytes": false,
+        "archive_sha256": false,
+        "files": {
+          "items": {
+            "required": ["url"],
+            "properties": {
+              "mode": {
+                "const": "0644"
+              }
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "id": {
+                "const": "parakeet-stt"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "model_id": {
+                "const": "parakeet-tdt-0.6b-v2"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "id": {
+                "const": "parakeet-stt-webgpu"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "model_id": {
+                "const": "parakeet-tdt-0.6b-v2-webgpu"
+              }
+            }
+          }
+        }
+      ]
     }
   ]
 }

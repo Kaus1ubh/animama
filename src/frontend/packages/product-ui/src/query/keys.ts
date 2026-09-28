@@ -4,6 +4,8 @@ export const queryKeys = {
   crisisResources: (ownerId: string, locale: string) =>
     ["crisis-resources", ownerId, locale] as const,
   modelAssets: (ownerId: string) => ["model-assets", ownerId] as const,
+  desktopFeaturePacks: (ownerId: string) =>
+    ["desktop-feature-packs", ownerId] as const,
   animaCreation: {
     all: (userId: string) => ["anima-creation", userId] as const,
     options: (userId: string) =>

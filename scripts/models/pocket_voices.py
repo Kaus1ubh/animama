@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Explicitly acquire the Animama-hosted Pocket TTS voice set into the shared store.
 
-The set holds the self-encoded core voice states and every voice the app downloads
-on demand, plus ATTRIBUTION.md and README.md. Maintainers acquire it to stage
+The set holds the 36 voices the app downloads on demand, plus ATTRIBUTION.md and
+README.md. Eve and Azelma belong to the separate core browser-speech set.
+Maintainers acquire it to stage
 publication (`models:stage`); the app itself installs downloadable voices through
 `/v1/model-assets`. Uses the stdlib-only Parakeet storage primitives; verify/path
 never contact upstream services.

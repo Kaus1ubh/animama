@@ -7,12 +7,8 @@
       "name": "Bundled model provider marks from models.dev",
       "license": "MIT; provider trademarks remain with their respective owners",
       "source": "https://github.com/anomalyco/models.dev/tree/8540388b7fff1a0ae57f3de053ff7befb1f2125e/providers; six unmodified provider logo.svg files",
-      "paths": [
-        "web/provider-logos/"
-      ],
-      "notice_files": [
-        "provider-logos-mit.txt"
-      ],
+      "paths": ["web/provider-logos/"],
+      "notice_files": ["provider-logos-mit.txt"],
       "review": "pending"
     },
     {
@@ -27,9 +23,7 @@
       "name": "Vendored ONNX Runtime 1.24.2",
       "license": "MIT",
       "source": "https://github.com/microsoft/onnxruntime",
-      "paths": [
-        "web/onnx/ort/"
-      ],
+      "paths": ["web/onnx/ort/"],
       "review": "pending",
       "notice_files": [
         "onnxruntime-mit.txt",
@@ -39,12 +33,9 @@
     {
       "id": "browser-pocket",
       "name": "PocketTTS model weights, tokenizer, voices and browser implementation",
-      "license": "CC-BY-4.0 Pocket asset set (ONNX export, tokenizer, metadata and 15 core voice states); Apache-2.0 browser code",
-      "source": "Kyutai Pocket TTS english_2026-04 checkpoint (model card kyutai/pocket-tts revision 75cfe24e3142233bb81887fed3482e9652bb4a6e, CC-BY-4.0). ONNX export, tokenizer.model, bos_before_voice.npy and bundle.json: KevinAHM/pocket-tts-onnx revision 58a6d00cf13d239b6748cb0769f35c580a8f606c, onnx/english_2026-04/, CC-BY-4.0 per the pinned onnx/LICENSE (SHA-256 fe7b4ce83b8381cc5b216bbb4af73c570688d1b819c73bbaed8ca401f4677cd6). Core voice states (15 of 38; eve is the default; the other 23 are installed at runtime from https://downloads.animama.ai/models/pocket-tts-voices/, outside this package): 8 Kyutai precomputed states from kyutai/pocket-tts-without-voice-cloning revision 4e1e0a3e611c51c0b4ed8174fc10f32a54644303, languages/english_2026-04/embeddings/, and 7 Animama-encoded states from Kyutai-enhanced CSTR VCTK Corpus clips (kyutai/tts-voices revision 323332d33f997de8394f24a193e1a76df720e01a, vctk/<speaker>_023_enhanced.wav; University of Edinburgh, CC-BY-4.0) published at https://downloads.animama.ai/models/pocket-tts-voices/<sha256>/<voice>.safetensors. All voice states are CC-BY-4.0; the recordings behind bill_boerst, javert and marius are CC0-1.0. notices/pocket-tts-attribution.txt names every voice and its source recording. Browser code and sentencepiece.js derive from KevinAHM/pocket-tts-web revision 3cf6daa623e2b09992c972cab32568ee8679a154; pocket-runtime.js ports the KevinAHM/pocket-tts-onnx reference runtime (Apache-2.0 code). CC-BY-4.0 permits commercial use with attribution; Kyutai's model-card prohibited-use terms still apply. The desktop release policy separately records a noncommercial distribution basis; changing it is a separate owner decision. This source record is not the final hash-bound inventory approval.",
-      "paths": [
-        "web/onnx/models/pocket-tts/",
-        "web/tts/"
-      ],
+      "license": "CC-BY-4.0 Pocket asset set (ONNX export, tokenizer, metadata and 2 core voice states); Apache-2.0 browser code",
+      "source": "Kyutai Pocket TTS english_2026-04 checkpoint (model card kyutai/pocket-tts revision 75cfe24e3142233bb81887fed3482e9652bb4a6e, CC-BY-4.0). ONNX export, tokenizer.model, bos_before_voice.npy and bundle.json: KevinAHM/pocket-tts-onnx revision 58a6d00cf13d239b6748cb0769f35c580a8f606c, onnx/english_2026-04/, CC-BY-4.0 per the pinned onnx/LICENSE (SHA-256 fe7b4ce83b8381cc5b216bbb4af73c570688d1b819c73bbaed8ca401f4677cd6). Core voice states are Eve (the default) and Azelma, 2 of the 14 Kyutai precomputed states from kyutai/pocket-tts-without-voice-cloning revision 4e1e0a3e611c51c0b4ed8174fc10f32a54644303, languages/english_2026-04/embeddings/. The other 36 voices are installed at runtime, outside this package: the remaining 12 Kyutai states and 24 Animama-encoded states from Kyutai-enhanced CSTR VCTK Corpus clips (kyutai/tts-voices revision 323332d33f997de8394f24a193e1a76df720e01a, vctk/<speaker>_023_enhanced.wav; University of Edinburgh, CC-BY-4.0), published at https://downloads.animama.ai/models/pocket-tts-voices/<sha256>/<voice>.safetensors. All voice states are CC-BY-4.0; the recordings behind bill_boerst, javert and marius are CC0-1.0. notices/pocket-tts-attribution.txt names every voice and its source recording. Browser code and sentencepiece.js derive from KevinAHM/pocket-tts-web revision 3cf6daa623e2b09992c972cab32568ee8679a154; pocket-runtime.js ports the KevinAHM/pocket-tts-onnx reference runtime (Apache-2.0 code). CC-BY-4.0 permits commercial use with attribution; Kyutai's model-card prohibited-use terms still apply. The desktop release policy separately records a noncommercial distribution basis; changing it is a separate owner decision. This source record is not the final hash-bound inventory approval.",
+      "paths": ["web/onnx/models/pocket-tts/", "web/tts/"],
       "notice_files": [
         "pocket-tts-attribution.txt",
         "pocket-tts-code-apache-2.0.txt",
@@ -65,12 +56,8 @@
       "name": "Silero VAD v5 and VAD worklet",
       "license": "ISC (worklet) and MIT (Silero model)",
       "source": "@ricky0123/vad-web 0.0.30; both staged files match the installed package exactly (model SHA-256 2623a2953f6ff3d2c1e61740c6cdb7168133479b267dfef114a4a3cc5bdd788f; worklet SHA-256 8a48fdc7429948a2fde3d29a84bb1a64c1f67b4ba578ccaa7548b7f989f06a74)",
-      "paths": [
-        "web/onnx/models/vad/"
-      ],
-      "notice_files": [
-        "vad-isc-and-silero-mit.txt"
-      ],
+      "paths": ["web/onnx/models/vad/"],
+      "notice_files": ["vad-isc-and-silero-mit.txt"],
       "review": "pending"
     },
     {
@@ -78,12 +65,8 @@
       "name": "Smart Turn v3.2 CPU model",
       "license": "BSD-2-Clause",
       "source": "pipecat-ai/smart-turn-v3 revision f766f81d3cfdf7737ac64aad813d91bbfd56bf93; exact smart-turn-v3.2-cpu.onnx SHA-256 2bb026316b14a660486a75b1733cd3fbab8c2fd0314dc9af7be49f8cca967e4f",
-      "paths": [
-        "web/onnx/models/smart-turn/"
-      ],
-      "notice_files": [
-        "smart-turn-bsd-2-clause.txt"
-      ],
+      "paths": ["web/onnx/models/smart-turn/"],
+      "notice_files": ["smart-turn-bsd-2-clause.txt"],
       "review": "pending"
     },
     {
@@ -91,9 +74,7 @@
       "name": "Basis Universal transcoder",
       "license": "Apache-2.0",
       "source": "https://github.com/BinomialLLC/basis_universal",
-      "paths": [
-        "web/basis/"
-      ],
+      "paths": ["web/basis/"],
       "review": "pending",
       "notice_files": [
         "basis-apache-2.0.txt",
@@ -107,10 +88,7 @@
       "license": "CC-BY-4.0 (declared)",
       "source": "models/parakeet-tdt-0.6b-v2/ATTRIBUTION.md pins istupakov revision 0bbb45a3365852604aef28b538a8f066f4ccaa85 and ysdede revision db4a768f5795e0f508187a34241fbeeef6ebb0d3; exact INT8 model and rebuilt preprocessor hashes were reconciled against those public revisions",
       "review": "pending",
-      "notice_files": [
-        "parakeet-attribution.txt",
-        "parakeet-onnx-asr-mit.txt"
-      ]
+      "notice_files": ["parakeet-attribution.txt", "parakeet-onnx-asr-mit.txt"]
     },
     {
       "id": "parakeet-webgpu-input",
@@ -118,18 +96,14 @@
       "license": "CC-BY-4.0 (declared)",
       "source": "models/parakeet-tdt-0.6b-v2-webgpu/ATTRIBUTION.md pins ysdede revision db4a768f5795e0f508187a34241fbeeef6ebb0d3; the FP16 encoder hash matches that public revision",
       "review": "pending",
-      "notice_files": [
-        "parakeet-webgpu-attribution.txt"
-      ]
+      "notice_files": ["parakeet-webgpu-attribution.txt"]
     },
     {
       "id": "included-content-attribution",
       "name": "Included content source and attribution notice",
       "license": "Mixed: Adobe Mixamo product-use terms, CC-BY-4.0, CC0-1.0 and source-specific permissive terms",
       "source": "content/included/licenses/inventory.json and the source license/readme files preserved beside the Included content",
-      "notice_files": [
-        "included-content-attribution.txt"
-      ],
+      "notice_files": ["included-content-attribution.txt"],
       "review": "pending"
     },
     {

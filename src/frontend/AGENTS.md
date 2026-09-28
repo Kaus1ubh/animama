@@ -226,7 +226,7 @@ or migration behavior.
   shared store and exact dependency files described in
   `../../docs/backend/operations/model-assets.md`; do not restore ONNX payloads to
   `web/public` or substitute different runtime versions.
-- Vite verifies the 35 browser engine files before serving/building and copies
+- Vite verifies the 21 browser engine files before serving/building and copies
   them into built artifacts. Keep every variant, same-origin URL and notice;
   installed artifacts must not depend on a developer cache.
 - Use root-relative public URLs for runtime fetches.
@@ -258,8 +258,9 @@ or migration behavior.
   Recovery must preserve the vault, database, owner, and stable origin.
 - Optional packs use the embedded app-matched catalog and fixed IDs only.
   Renderer IPC must not accept pack URLs, paths, versions, hashes, or commands.
-  Keep the strict zstd/USTAR inventory checks and atomic transition/rollback
-  barrier. The separate document-worker pack must pass pinned OS-signature
+  Parakeet uses raw `animama-model-pack/1` files from the fixed shared model origin, with exact
+  size/hash inventories including notices. Keep strict zstd/USTAR checks for
+  archive packs and the shared atomic transition/rollback barrier. The separate document-worker pack must pass pinned OS-signature
   verification on install and every launch, even with an unsigned development
   core; never add an unsigned-worker bypass. See the staging guide for release
   input approvals, producer commands, and the outstanding native artifact gates.

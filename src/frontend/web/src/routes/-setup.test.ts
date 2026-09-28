@@ -11,9 +11,17 @@ const fixture = vi.hoisted(() => ({
 }));
 vi.mock("@web/app/local-runtime/LocalRuntimeProvider", () => ({
   useLocalRuntime: () => ({
-    state: { status: "ready", firstRunComplete: false },
+    state: {
+      status: "ready",
+      firstRunComplete: false,
+      principalId: "test-owner",
+    },
     completeOnboarding: fixture.completeOnboarding,
   }),
+}));
+vi.mock("@/ui/settings/VoiceDownloads", () => ({
+  VoiceDownloads: () =>
+    createElement("button", { type: "button" }, "Download speech recognition"),
 }));
 vi.mock("@/hooks/useDesktopFeaturePacks", () => ({
   useDesktopFeaturePacks: () => ({
@@ -62,7 +70,7 @@ describe("local first-run setup", () => {
     },
   );
 
-  it("requires a name with no Skip action and leaves offline speech unchecked", () => {
+  it("requires a name and explicit age confirmation while offering direct optional downloads", () => {
     const html = renderToStaticMarkup(createElement(Route.options.component!));
     expect(html).toMatch(/<input[^>]*id="local-display-name"[^>]*required=""/u);
     expect(html).toMatch(
@@ -72,7 +80,9 @@ describe("local first-run setup", () => {
     expect(html).not.toContain("checked=");
     expect(html).toContain("I am 18 or older");
     expect(html).not.toContain(">Skip<");
-    expect(html).toContain("Install offline speech recognition");
+    expect(html).toContain("Download speech recognition");
+    expect(html).toContain("You can continue during downloads");
+    expect(html).not.toContain("Install offline speech recognition");
     expect(fixture.run).not.toHaveBeenCalled();
     expect(fixture.completeOnboarding).not.toHaveBeenCalled();
   });

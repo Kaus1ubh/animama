@@ -238,6 +238,7 @@ async function manager(
 describe("feature-packs catalog and authority", () => {
   it("accepts a pinned catalog but rejects a packaged development override and arbitrary download hosts", async () => {
     const { manifest } = await fixture();
+    manifest.id = "expanded-included-content";
     validateManifest(manifest);
     const root = await temporary();
     const body = {
@@ -279,6 +280,7 @@ describe("feature-packs catalog and authority", () => {
   });
   it("pins pack downloads to the distribution sealed in the update policy", async () => {
     const { manifest } = await fixture();
+    manifest.id = "expanded-included-content";
     const r2 = {
       kind: "r2" as const,
       base_url: "https://downloads.example.test/desktop",
@@ -389,6 +391,7 @@ describe("feature-packs catalog and authority", () => {
   });
   it("rejects case/Unicode aliases and missing executable publisher metadata", async () => {
     const { manifest } = await fixture();
+    manifest.id = "expanded-included-content";
     for (const names of [
       ["A/file", "a/other"],
       ["SS", "ß"],
@@ -946,6 +949,7 @@ describe("feature-pack dependencies", () => {
   });
   it("accepts one catalog entry per supported pack and no more", async () => {
     const { manifest } = await fixture();
+    manifest.id = "expanded-included-content";
     const root = await temporary();
     const write = async (entries: PackManifest[]) => {
       const body = {
@@ -963,7 +967,17 @@ describe("feature-pack dependencies", () => {
         isPackaged: true,
       });
     };
-    const gpu = { ...manifest, id: "parakeet-stt-webgpu" as const };
+    const { url, archive_bytes, archive_sha256, ...common } = manifest;
+    const gpu: PackManifest = {
+      ...common,
+      schema: "animama-model-pack/1",
+      id: "parakeet-stt-webgpu",
+      model_id: "parakeet-tdt-0.6b-v2-webgpu",
+      files: manifest.files.map((file) => ({
+        ...file,
+        url: `https://downloads.animama.ai/models/parakeet-tdt-0.6b-v2-webgpu/${file.sha256}/${file.path}`,
+      })),
+    };
     expect((await write([manifest, gpu])).entries).toHaveLength(2);
     // Four entries pass the length limit (then fail only the duplicate-ID check);
     // five exceed it.
@@ -1054,6 +1068,7 @@ describe("feature-packs build artifacts", () => {
   );
   it("round-trips the actual archive before returning measured release metadata", async () => {
     const input = await fixture();
+    input.manifest.id = "expanded-included-content";
     const root = await temporary();
     await writeFile(path.join(root, "config.json"), input.bytes);
     const manifest = await buildPackArchive({

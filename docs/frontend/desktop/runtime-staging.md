@@ -85,7 +85,7 @@ Each staging pass clears only `desktop/.desktop-runtime/darwin-arm64`, then:
 4. Builds Vite in `embedded-desktop` mode, without duplicate Included aliases.
    The stage filter and independent audit reject unapproved portrait copies
    listed in `desktop/scripts/runtime/desktop-web.mjs`.
-   The browser-runtime manifest verifies all 35 PocketTTS, VAD, Smart Turn and
+   The browser-runtime manifest verifies all 21 PocketTTS, VAD, Smart Turn and
    ORT assets from the shared model store and exact dependency versions. Vite
    copies every reviewed variant into the runtime; the independent audit checks
    the built inventory and hashes without relying on a developer cache. These
@@ -128,17 +128,19 @@ mappings and the pending artifact review.
 
 ## Verified browser engine inputs
 
-`models/browser-speech/manifest.json` pins the 24 shared Pocket TTS/Smart Turn
+`models/browser-speech/manifest.json` pins the ten core Pocket TTS/Smart Turn
 files. `models/browser-runtime/manifest.json` binds those plus nine ORT 1.24.2
 files from `onnxruntime-web-assets` and two VAD 0.0.30 files from its pinned
 package. Package installation supplies dependency files; staging only verifies
 and copies already acquired model inputs. It never silently downloads them or
 substitutes an installed ORT version.
 
-The complete browser engine set occupies 292,826,849 bytes before distribution
+The complete 21-file browser engine set occupies 280,549,335 bytes before distribution
 compression. It is included in `runtime/web/onnx` as independent regular files,
 so clearing a developer model cache cannot break an installed application's
-Pocket TTS, VAD or Smart Turn engine. The model-store workflow does not replace signing, redistribution or native
+Pocket TTS, VAD or Smart Turn engine. Eve and Azelma are included; the other 36
+voice states and the cloning encoder download separately. Ordinary web builds
+and runtime staging do not require those optional inputs. The model-store workflow does not replace signing, redistribution or native
 acceptance gates.
 
 Use the [model-store workflow](../../backend/operations/model-assets.md) for
@@ -158,6 +160,12 @@ infer weights from Git's tracked-file list. `parakeet-stt` requires its seven
 pinned files and `parakeet-stt-webgpu` its FP16 encoder, each with exact payload
 hashes and attribution. An active pack whose inputs are missing fails staging.
 Inventory review, signing, hosting and native acceptance remain separate gates.
+
+For a cold release store before new objects exist, use the explicit
+[release bootstrap](../../../scripts/models/README.md#release-only-bootstrap)
+from the repository root. It uses pinned upstream inputs and verifies regenerated
+voice hashes without accepting changes. A signed release needs these optional
+model inputs to prepare its publication candidates; an ordinary web build does not.
 
 This developer/producer cache is not an installed app model directory. Installed
 models remain under the app-owned `packs/` lifecycle in Application Support, with
@@ -191,16 +199,18 @@ versions preserves its installed pointer through an application update. Omitted
 fields still target only the current app/version tag. Keep reused archive URLs
 immutable and available; changed payloads need a new pack version and review.
 
-Approved inputs produce `.tar.zst` archives in the target's `feature-packs/`
-directory and `runtime/pack-catalog.json`. The Python writer emits only regular
-USTAR members with normalized modes/timestamps. The actual installer re-extracts
-each candidate and rechecks its inventory before the builder accepts it. PAX,
-GNU long names, sparse files, links, and special entries are not supported.
-`pack-build-report.json` records exact archive SHA-256, payload bytes, and
-required free space. Installed bytes mean the sum of inventoried payload files;
-the disk requirement adds two expanded payloads, archive bytes, and a 64 MiB
-reserve for bookkeeping/filesystem overhead. Old versions already occupy disk
-and are not assumed reclaimable. No independently mutable latest-pack feed exists.
+Approved Parakeet inputs produce `animama-model-pack/1` catalog entries in
+`runtime/pack-catalog.json`, referencing the shared content-addressed raw objects.
+Each inventory includes weights, configuration and notices; the producer emits
+no Parakeet archive or duplicate weight copy. Download/installed sizes and peak
+free-space requirements come from those exact files in `pack-build-report.json`.
+
+Archive packs retain `.tar.zst` outputs under `feature-packs/`. The Python writer
+emits only regular USTAR members with normalized modes/timestamps; the real
+installer re-extracts and verifies each candidate. PAX, GNU long names, sparse
+files, links and special entries are unsupported. Their disk requirement includes
+two expanded payloads, archive bytes and a 64 MiB reserve. Existing installed
+versions are never assumed reclaimable. No mutable latest-pack feed exists.
 
 The current release input contains the Apple publisher and approved Parakeet
 digest. A matching stage therefore emits only that pack in the installable

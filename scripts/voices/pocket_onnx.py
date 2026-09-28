@@ -125,7 +125,7 @@ class Rendered:
 class PocketOnnx:
     """Single-threaded CPU sessions over a verified browser speech store directory."""
 
-    def __init__(self, store: Path, *, with_generation: bool = True) -> None:
+    def __init__(self, store: Path, *, encoder: Path, with_generation: bool = True) -> None:
         import onnxruntime as ort
 
         options = ort.SessionOptions()
@@ -139,7 +139,7 @@ class PocketOnnx:
         self.flow_manifest = bundle["flow_lm_state_manifest"]
         self.mimi_manifest = bundle["mimi_state_manifest"]
         self.bos = np.load(store / "bos_before_voice.npy").astype(np.float32)
-        self.encoder = session("mimi_encoder.onnx")
+        self.encoder = ort.InferenceSession(str(encoder), options, providers=["CPUExecutionProvider"])
         self.main = session("flow_lm_main_int8.onnx")
         if with_generation:
             import sentencepiece
