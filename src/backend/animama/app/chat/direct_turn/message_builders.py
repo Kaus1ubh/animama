@@ -28,12 +28,6 @@ def user_provider_message(content: str) -> dict[str, Any]:
     return {"role": "user", "content": content}
 
 
-def assistant_final_provider_message(final: ModelClientFinal) -> dict[str, Any]:
-    """Build the persisted provider-shaped final assistant message."""
-
-    return {"role": "assistant", "content": final.text}
-
-
 def assistant_tool_call_prompt_message(
     tool_calls: tuple[ModelClientToolCall, ...],
 ) -> dict[str, Any]:
@@ -194,21 +188,29 @@ def assistant_messages_for_persistence(
     model_provider: ModelProvider,
     internal_tool_messages: list[ChatMessage] | None = None,
     memory: Mapping[str, Any] | None = None,
+    structured_recovery: str | None = None,
+    replay_text: str | None = None,
 ) -> ChatMessage | list[ChatMessage]:
     """Build final assistant history rows, including any internal tool rows.
 
     ``memory`` is the turn's memory block, stored on the final visible message.
+    ``structured_recovery`` records how an invalid reply was recovered
+    (``repaired``, ``salvaged`` or ``plain_text``). ``replay_text`` replaces the
+    final text as the stored content and replayed provider message, so later
+    turns see a valid structured reply.
     """
 
+    content = final.text if replay_text is None else replay_text
     assistant_msg = assistant_message(
         request=request,
-        content=final.text,
+        content=content,
         structured=structured,
         final=final,
         model_provider=model_provider,
         usage=final.usage,
-        raw_provider_message=assistant_final_provider_message(final),
+        raw_provider_message={"role": "assistant", "content": content},
         memory=memory,
+        structured_recovery=structured_recovery,
     )
     if internal_tool_messages:
         return [*internal_tool_messages, assistant_msg]
@@ -225,6 +227,7 @@ def assistant_message(
     usage: Usage | None,
     raw_provider_message: dict[str, Any],
     memory: Mapping[str, Any] | None = None,
+    structured_recovery: str | None = None,
 ) -> ChatMessage:
     """Build the public assistant message that will be written to chat history."""
 
@@ -240,6 +243,7 @@ def assistant_message(
             final=final,
             model_provider=model_provider,
             memory=memory,
+            structured_recovery=structured_recovery,
         ),
         usage=usage,
         turn=None,
@@ -256,11 +260,13 @@ def assistant_message_data(
     final: ModelClientFinal,
     model_provider: ModelProvider,
     memory: Mapping[str, Any] | None = None,
+    structured_recovery: str | None = None,
 ) -> dict[str, Any]:
     """Build JSONB-safe assistant `message_data` for durable chat history.
 
     ``memory`` becomes `message_data["memory"]`: whether memory updates were
     enabled for the turn and its successful `MEMORIES.md` change, if any.
+    ``structured_recovery`` becomes `message_data["structured_recovery"]`.
     """
 
     raw_provider_metadata = json_safe_copy(final.raw_provider_metadata)
@@ -277,6 +283,8 @@ def assistant_message_data(
         data["openai"] = openai_metadata
     if memory is not None:
         data[MESSAGE_DATA_MEMORY_KEY] = json_safe_copy(memory)
+    if structured_recovery is not None:
+        data["structured_recovery"] = structured_recovery
     return data
 
 

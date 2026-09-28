@@ -939,7 +939,8 @@ async def test_direct_turn_skips_remember_when_memory_updates_disabled() -> None
 @pytest.mark.asyncio
 async def test_direct_turn_parse_failure_does_not_capture_remember() -> None:
     episode_recorder = _FakeMemoryEpisodeRecorder()
-    model_client = _FinalModelClient('{"speech":"Missing structured fields."}')
+    # A reply without speech cannot be recovered, even after the repair request.
+    model_client = _FinalModelClient('{"remember":"A note without speech."}')
     executor, chats = _executor(client=model_client, memory_episode_recorder=episode_recorder)
 
     events = await _collect(executor.stream_turn(_request()))
@@ -1890,8 +1891,10 @@ async def test_direct_turn_provider_error_emits_error_and_skips_persistence() ->
 
 
 @pytest.mark.asyncio
-async def test_direct_turn_invalid_structured_response_emits_error_and_skips_persistence() -> None:
-    executor, chats = _executor(client=_FinalModelClient("not json"))
+async def test_direct_turn_unspeakable_structured_response_emits_error_and_skips_persistence() -> None:
+    # Plain text becomes a plain-text reply (see test_direct_chat_structured_recovery.py);
+    # JSON without speech has nothing to say.
+    executor, chats = _executor(client=_FinalModelClient('{"emotional_tone":"joy"}'))
 
     events = await _collect(executor.stream_turn(_request()))
 
@@ -1935,7 +1938,6 @@ async def test_direct_turn_request_override_works_without_profile() -> None:
     ("provider", "request_options"),
     [
         (_provider(supports_streaming=False), {}),
-        (_provider(structured_kinds=[]), {}),
         (_provider(supports_reasoning=False, supported_reasoning_efforts=[]), {"reasoning_effort": "high"}),
         (
             _provider(provider_type="OpenAIHTTPAgent", native_tool_support=["web_search"]),

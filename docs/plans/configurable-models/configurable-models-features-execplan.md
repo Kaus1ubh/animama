@@ -1,11 +1,12 @@
 # Configurable models execution plan (Plan B: application-owned features)
 
-Status: Drafted for owner review. No phase is authorized yet.
+Status: In progress. Phases 1–3 authorized.
 Source agreement: [Configurable models spec](configurable-models-spec.md) R10–R12
 and the Plan B acceptance criteria, accepted 2026-09-26, plus the owner
 decisions of 2026-09-28 recorded in the [Decision Log](#decision-log).
-Authorized scope: none yet. The owner reviews this plan first. Exact-candidate
-merge approval stays separate.
+Authorized scope: phases 1–3, by the owner's `/implement` instruction on
+2026-09-28. Phases 4–6 are not authorized. Exact-candidate merge approval stays
+separate.
 
 This plan delivers spec R10 (pre-send compaction), R11 (web search for any
 tool-capable model) and R12 (structured-output handling), and their
@@ -92,12 +93,13 @@ Standing rules (unchanged from Plan A):
       Surprises & Discoveries.
 - [x] Owner product decisions (2026-09-28): see the Decision Log.
 - [x] Plan drafted (2026-09-28).
-- [ ] Owner review and authorization of phases.
+- [x] Owner authorized phases 1–3 via `/implement` (2026-09-28).
 - [x] Workspace setup (2026-09-28): worktree and branch at `9cdaab5`; plan
       committed `f322532` and pushed; parent #208 with sub-issues #209 (p1),
       #210 (p2), #211 (p3), #212 (p4), #213 (p5), #214 (p6). Dependencies
       are stated in each issue body.
-- [ ] Phase 1: structured-output handling (R12).
+- [x] Phase 1: structured-output handling (R12). Review #3 pass; full
+      `make check-test` 2755 passed, 7 skipped; commit recorded below.
 - [ ] Phase 2: pre-send compaction and turn status (R10).
 - [ ] Phase 3: web search backends and the application tool (R11, backend).
 - [ ] Phase 4: web search settings and control (R11, frontend and desktop).
@@ -284,7 +286,8 @@ through search results because the proxy blocked direct fetches):
     - Blank text still fails with `main_structured_response_parse_failed`.
     - The reply is emitted as a structured reply (neutral tone, intensity 1,
       no gesture, speech = text), so TTS and history need no new path.
-    - The row is marked `data.structured_fallback`.
+    - The row is marked `data.structured_recovery` (`repaired`, `salvaged` or
+      `plain_text`; implementation name, 2026-09-28).
     - Its replayed `raw_provider_message` is the synthesized valid JSON, so
       history does not teach plain-text replies.
     - The warning log carries ids, transport, category and lengths only.
@@ -461,7 +464,7 @@ reply or a plain-text fallback.
    parser reset.
 5. **Fallback** after a failed or erroring repair:
    - synthesize the plain-text structured reply, emit the final events (tone,
-     speech, no gesture event), persist it with `data.structured_fallback`, and
+     speech, no gesture event), persist it with `data.structured_recovery`, and
      log the warning;
    - memory changes committed by tool calls stay.
 6. **Usage** sums every request, and `context_tokens` is the last request's
@@ -493,15 +496,111 @@ Completion: tests pass; review has no blocker. Docs:
 `docs/backend/runtime/model-client-providers.md` (structured output) and the
 local model guide's "chat needs JSON" note.
 
-Phase record: issue #209; starting source —; commit —.
+Phase record: issue #209; starting source `ec1e9d4`; commit recorded below.
+
+Implementation notes (agent, within scope):
+
+- **Environment.** The cloud container had no Docker daemon or `git-lfs`. The
+  agent started `dockerd` for testcontainers and installed `git-lfs`, then ran
+  `git lfs pull`. Before that, `test_anima_starters.py` failed on `main` because
+  LFS assets were pointer files; that failure was environmental.
+- **Rows without a structured transport** are recognized by the missing
+  `main_structured_response` kind, because the catalog treats a row with the
+  kind and no transport as `json_schema`.
+- **The repair request** reuses `_model_request_without_tools`, runs at round
+  index `MAX_MEMORY_TOOL_ROUNDS + 2` (so the stream parser resets) and records
+  `structured_repair` (`attempted` or `request_failed`) in the final's
+  metadata as the collector-to-executor signal.
+- **A repair after a stale Responses cursor** reuses the rebuilt request without
+  the cursor.
+- Evidence on the reviewed candidate: `make check-test` (typed-content audit,
+  ruff format check, ruff, mypy on 643 files, pytest) passed: 2755 passed,
+  7 skipped. Frontend is unchanged in this phase.
+- Tests: `tests/test_direct_chat_structured_recovery.py` (14 executor cases)
+  and a route case in `tests/test_anima_chat_sse.py` showing the plain-text
+  fallback reaches finalized TTS with a neutral tone. Three tests that
+  asserted the old rejection of rows without structured output were updated.
 
 #### Code Review #1 Findings
 
-Not yet run.
+Reviewer: independent `sdlc-reviewer`, full initial review of the working tree
+on `ec1e9d4`. It verified `None` rows (no `response_format`, full guidance, no
+split), the guardrail last in repair requests (including Responses
+`instructions`), repair round indexing, usage and `context_tokens`, no TTS
+re-queue on salvage, the plain-text route through finalized TTS, synthesized
+replay, content-free logs, one error and no persistence on every failure path,
+and accurate docs. Checks: 101 focused tests plus a scratch probe.
+
+Blocking:
+
+- **P1-R1-F1** A blank repair reply discarded a speakable original and failed
+  the turn (probe: `[ERROR]`).
+- **P1-R1-F2** On folded-developer rows (every local preset) the repair request
+  ended on the invalid assistant message, which Ollama and llama.cpp continue as
+  a prefill instead of answering.
+
+Optional: F3 salvage triggered on decoded rather than emitted speech; F4 a
+repair after a stale-cursor retry resent the stale cursor; F5 marker name
+differs from the plan (`structured_recovery` judged fine); F6 instruction and a
+test comment assumed Responses sees its reply; F7 test gaps (write tool, repair
+after split or forced final, repair that streams then fails); F8 small
+simplifications.
 
 #### Code Review #1 Revisions
 
-Not yet run.
+- **F1 accepted.** The executor keeps the invalid original text and falls back
+  to it when the repair has nothing speakable. Test added.
+- **F2 accepted.** Only non-Responses rows with a developer role see the invalid
+  reply; other rows get the instruction alone. The instruction no longer
+  assumes the model sees its reply. Wire-level test on a folded row added;
+  docs updated.
+- **F3 accepted.** Salvage requires speech emitted to the client in the current
+  round.
+- **F4 accepted.** The repair uses the request rebuilt without the stale cursor.
+- **F5 accepted as is.** The plan now names `structured_recovery`; the
+  `structured_repair` metadata stays as the collector signal.
+- **F6 accepted.** Wording fixed.
+- **F7 partly accepted.** The fallback test now uses `memory_write_file`, and a
+  split-turn repair test was added. A repair that streams and then fails yields
+  a plain-text reply from its `speech` value; no test added.
+- **F8 partly accepted.** The replayed provider message is built directly and
+  the closure is commented; validating twice per turn is kept (cheap).
+
+#### Code Review #2 Findings
+
+Reviewer: same independent `sdlc-reviewer`, targeted recheck of repair round 1
+(Phase 2 work set aside so the tree held Phase 1 only). F1 and F3–F8 verified.
+
+- **P1-R2-F1 (blocking)** The F2 fix checked
+  `capabilities.supports_developer_role`, but local presets fold through the
+  connection's `fold_developer_role` and keep the capability true, so the
+  repair still ended on the invalid reply (scratch probe on an Ollama
+  connection).
+- Optional: F2 a now-dead `assistant_final_provider_message`; F3 a leftover
+  assignment in a test; F4 no tests for the F3/F4 fixes; F5 the stale-cursor
+  rebuild ran outside the repair `try`.
+
+#### Code Review #2 Revisions
+
+- **F1 accepted.** Uses `ModelProvider.accepts_developer_role`, as the prompt
+  builder does; the folded-row test is parametrized over the capability and a
+  folding connection.
+- **F2, F3, F5 accepted.** Helper and leftover removed; any repair failure,
+  including the rebuild, falls back to the original text.
+- **F4 not added.** Both paths share tested helpers.
+- The plain-text test re-enables the executor logger during the test, because
+  other tests' logging configuration disables existing loggers; it failed
+  only in the full suite.
+
+#### Code Review #3 Findings
+
+Reviewer: same independent `sdlc-reviewer`, final targeted recheck of repair
+round 2. Result: **pass**. P1-R2-F1 verified with a scratch probe on an
+Ollama-style connection (the wire request now ends on the user message);
+F2, F3, F5 and the logger isolation verified. Optional: P1-R3-F1 the repair
+`except Exception` also turns programming errors into a plain-text fallback,
+visible as `exc_type` on the warning (accepted trade-off). Checks: 201 focused
+tests, ruff check and format check. Both repair rounds used.
 
 ### Phase 2 — Pre-send compaction and turn status (R10)
 

@@ -361,6 +361,8 @@ The streaming behavior is:
 
 The backend owns JSON parsing and final validation for main structured output.
 The frontend trusts the typed SSE parts and does not parse the raw model JSON.
+A reply the backend recovers as plain text arrives as ordinary `speech` parts
+with a `neutral` tone and no gesture.
 
 Backend `chat:sse` derives normal emotion updates from the main structured
 response, not from a second emotional analyst runner. The hidden

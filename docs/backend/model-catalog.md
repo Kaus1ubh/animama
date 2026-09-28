@@ -221,20 +221,17 @@ in-process catalog helper at request time. This field is not returned by
 Every built-in chat row supports this kind through schema-backed `json_schema`.
 Owner chat rows take their transport from the template, the probe or the owner:
 `json_schema`, `json_object` (the probe's fallback when schema output fails),
-or none. A row without a transport has no structured kind and cannot run
-direct chat, which requires `main_structured_response`.
+or none. A row without a transport has no structured kind; it still chats, with
+the reply requested by prompt alone.
 
-JSON mode only guarantees parseable JSON, not schema adherence. For
-`structured_output_transport="json_object"` rows, the backend prompts with the
-shared response guidelines, the word `json`, the expected JSON schema, and an
-example object in the response-format instructions, validates the completed
-response locally, and
-treats validation failure as an invalid structured response. For
-`structured_output_transport="json_schema"` rows, the backend sends the schema
-through the provider response-format field and keeps prompt guidance brief.
-Main-structured streaming uses final-output validation for JSON-mode rows
-instead of publishing partial semantic speech/display events before the object is
-known to be valid.
+| Transport | Request | Prompt guidance |
+| --- | --- | --- |
+| `json_schema` | strict schema in the response format | brief guidelines |
+| `json_object` | `{"type": "json_object"}` | guidelines, the word `json`, the schema and an example |
+| none | no response format | as for `json_object` |
+
+Every reply is validated locally, whatever the transport; see
+[reply validation and recovery](runtime/model-client-providers.md#reply-validation-and-recovery).
 
 The internal `tools_with_structured_output` capability records whether one
 request may carry both function tools and a response format. When it is false,

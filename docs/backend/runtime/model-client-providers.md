@@ -266,9 +266,10 @@ guidance, the raw current anima identity markdown, stable memory guidance, and
 structured-output guidance selected from the persisted `model_providers`
 capability row. Schema-backed `json_schema` rows receive the shared response
 guidelines because the actual schema travels in
-`DirectChatPrompt.response_format`; `json_object` JSON-mode rows receive those
-guidelines plus the dumped schema and example object because JSON mode does not
-enforce schema adherence. The identity section
+`DirectChatPrompt.response_format`; `json_object` JSON-mode rows and rows
+without a structured transport (which get no `response_format`) receive those
+guidelines plus the dumped schema and example object because nothing enforces
+schema adherence. The identity section
 contains only file content rather than file path, status, revision, or
 fingerprint details. Anima profile columns, `metadata.direct_chat`, and pinned
 user profile content are not prompt sources. One request-local `developer`
@@ -303,6 +304,40 @@ the defaults: no folding, every field sent and `openai_effort`.
 
 JSON-mode rows (`structured_output_transport="json_object"`) receive
 `response_format={"type":"json_object"}` whatever the connection.
+
+### Reply validation and recovery
+
+The executor validates each final reply locally
+(`recover_main_structured_response`). A reply is valid when it contains a JSON
+object with a non-blank `speech` string, even inside a markdown fence or prose.
+Unknown keys are dropped; a missing or unknown tone becomes `neutral`, intensity
+is clamped and an unknown gesture is dropped.
+
+An invalid reply is recovered in this order, and the assistant row records the
+outcome in `data.structured_recovery`:
+
+1. **Salvaged** — speech from the invalid reply has already streamed. The
+   streamed tone, gesture, speech and display become the reply, so no speech is
+   repeated.
+2. **Repaired** — otherwise one repair request is sent: the request that
+   produced the reply, without tools, plus a repair instruction and the
+   Companion Guardrails last. Chat Completions rows with a developer role also
+   see the invalid reply as the previous assistant message. Rows that fold
+   developer messages (every local preset) and Responses rows get the
+   instruction alone, because a trailing assistant message is continued as a
+   prefill and Responses resends the round from its own cursor. Usage covers
+   both requests.
+3. **Plain text** — the repair also fails, or its request errors. The
+   model's text becomes speech (only its `speech` value if it looks like JSON;
+   the invalid original's text if the repair has none), with
+   `neutral` emotion, intensity 1 and no gesture, and is spoken by TTS.
+
+Salvaged and plain-text rows store and replay a synthesized valid reply as
+their `content`, so later turns do not learn to answer in plain text. Each
+recovery logs `Direct chat structured reply recovered` with ids, the transport
+and lengths, never message text. A reply with no speakable text fails with
+`main_structured_response_parse_failed`. Memory changes made by the turn's
+tool calls stay in every case.
 
 `OpenAIResponsesHTTPAgent` moves all
 system/developer instruction text into the Responses `instructions` parameter

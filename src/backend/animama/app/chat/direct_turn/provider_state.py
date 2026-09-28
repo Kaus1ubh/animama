@@ -4,7 +4,6 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from typing import Any, cast
 
-from animama.app.main_structured_response import MAIN_STRUCTURED_RESPONSE_KIND
 from animama.app.model_clients import (
     ModelClientContinuation,
     ModelClientError,
@@ -107,12 +106,8 @@ def validate_model_provider_for_direct_turn(
         )
     if not capabilities.supports_streaming:
         raise DirectChatTurnSetupError(f"Model provider does not support streaming chat turns: {model_provider.id}")
-    structured_kinds = normalized_string_set(capabilities.structured_kinds)
-    if MAIN_STRUCTURED_RESPONSE_KIND not in structured_kinds:
-        raise DirectChatTurnSetupError(
-            f"Model provider does not support required structured output kind {MAIN_STRUCTURED_RESPONSE_KIND}: "
-            f"{model_provider.id}"
-        )
+    # Structured output is not required: rows without a schema or JSON mode
+    # transport are asked for JSON by prompt and fall back to plain text.
 
     requested_reasoning_effort = request_options.reasoning_effort
     if isinstance(requested_reasoning_effort, str) and requested_reasoning_effort.strip():

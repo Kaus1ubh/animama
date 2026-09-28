@@ -16,7 +16,10 @@ from animama.app.main_structured_response import (
     MainStructuredResponse,
     MainStructuredStreamEvent,
     build_main_structured_response_model,
-    parse_main_structured_response,
+    main_structured_response_from_data,
+    plain_text_main_structured_response,
+    recover_main_structured_response,
+    render_main_structured_json,
     validate_main_structured_gesture,
 )
 from animama.app.model_clients import (
@@ -38,6 +41,7 @@ from animama.domain.events import Event
 from animama.logging import get_logger
 
 from .api_standard import chat_api_standard_for_provider
+from .direct_turn.constants import STRUCTURED_REPAIR_METADATA_KEY
 from .direct_turn.events import (
     avatar_gesture_event,
     crisis_support_event,
@@ -66,6 +70,7 @@ from .direct_turn.provider_state import (
 )
 from .direct_turn.response_format import (
     build_main_structured_response_format,
+    main_structured_response_format_for_model,
     main_structured_response_guidance,
     response_model_agent_id,
     turn_response_format,
@@ -108,7 +113,8 @@ class _MainStructuredResponseStreamEmitter:
         self._round_index: int | None = None
         self._parser = MainStructuredJsonStreamParser()
         self._round_disabled = False
-        self._emotional_tone_emitted = False
+        self._round_speech_emitted = False
+        self._emitted_emotional_tone: str | None = None
         self._speech_text_parts: list[str] = []
         self._display_text_parts: list[str] = []
         self._speech_event_count = 0
@@ -122,6 +128,7 @@ class _MainStructuredResponseStreamEmitter:
         self._round_index = round_index
         self._parser = MainStructuredJsonStreamParser()
         self._round_disabled = False
+        self._round_speech_emitted = False
 
     def feed_text_delta(self, round_index: int, text: str) -> list[Event]:
         """Return public semantic events decoded from one provider text delta."""
@@ -156,11 +163,19 @@ class _MainStructuredResponseStreamEmitter:
             )
         return events
 
+    def salvaged_response(self) -> MainStructuredResponse | None:
+        """Return the reply built from this round's streamed parts once speech reached the client."""
+
+        if not self._round_speech_emitted:
+            return None
+        data = self._parser.salvaged_data()
+        return main_structured_response_from_data(data) if data is not None else None
+
     def final_response_events(self, parsed: MainStructuredResponse) -> list[Event]:
         """Return final full/correction response events not already covered by deltas."""
 
         events: list[Event] = []
-        if not self._emotional_tone_emitted:
+        if self._emitted_emotional_tone != parsed.emotional_tone:
             events.append(
                 user_response_event(
                     self._request,
@@ -216,11 +231,12 @@ class _MainStructuredResponseStreamEmitter:
     def _event_from_stream_event(self, stream_event: MainStructuredStreamEvent) -> Event:
         response_part = stream_event.response_part
         if response_part == MAIN_STRUCTURED_RESPONSE_PART_EMOTIONAL_TONE:
-            self._emotional_tone_emitted = True
+            self._emitted_emotional_tone = stream_event.text
             event_id_suffix = "stream-emotional-tone"
         elif response_part == MAIN_STRUCTURED_RESPONSE_PART_SPEECH:
             if stream_event.text:
                 self._speech_text_parts.append(stream_event.text)
+                self._round_speech_emitted = True
             self._speech_event_count += 1
             event_id_suffix = f"stream-speech-{stream_event.part_index or 0}"
         elif response_part == MAIN_STRUCTURED_RESPONSE_PART_DISPLAY:
@@ -260,6 +276,41 @@ class _MainStructuredResponseStreamEmitter:
             part_index=part_index,
             part_final=True,
         )
+
+
+# Recoveries whose reply is not the final text itself; history replays a
+# synthesized structured reply instead.
+_SYNTHESIZED_RECOVERIES = frozenset({"salvaged", "plain_text"})
+
+
+def _recover_final_reply(
+    final: Any,
+    output_type: Any,
+    salvaged: list[MainStructuredResponse],
+    invalid_text: str | None,
+) -> tuple[MainStructuredResponse | None, str | None]:
+    """Return the turn's reply and how it was recovered (``None`` when valid as sent).
+
+    Order: the final text validates (``"repaired"`` if a repair request produced
+    it), then the reply salvaged from already-streamed speech, then the
+    model's text as a neutral plain-text reply: the repair's text, or the
+    invalid original when the repair has nothing speakable. ``(None, None)``
+    means there is nothing speakable.
+    """
+
+    try:
+        parsed = recover_main_structured_response(final.text, output_type)
+    except ValueError:
+        parsed = None
+    repaired = final.raw_provider_metadata.get(STRUCTURED_REPAIR_METADATA_KEY) == "attempted"
+    if parsed is not None:
+        return parsed, "repaired" if repaired else None
+    if salvaged:
+        return salvaged[-1], "salvaged"
+    plain = plain_text_main_structured_response(final.text)
+    if plain is None and invalid_text is not None:
+        plain = plain_text_main_structured_response(invalid_text)
+    return (plain, "plain_text") if plain is not None else (None, None)
 
 
 class DirectChatTurnExecutor:
@@ -429,7 +480,8 @@ class DirectChatTurnExecutor:
             agent_id=response_model_agent_id(request.node_id),
             gesture_ids=runtime_gesture_ids,
         )
-        response_format = build_main_structured_response_format(
+        response_format = main_structured_response_format_for_model(
+            model_provider,
             output_type,
             name=turn_response_schema_name(request.options),
         )
@@ -508,12 +560,34 @@ class DirectChatTurnExecutor:
             for event in stream_emitter.feed_text_delta(round_index, text):
                 await early_event_queue.put(event)
 
+        # The collector asks `needs_repair` about the turn's final reply before
+        # any repair round. A reply whose speech already reached the client is
+        # salvaged from the streamed parts instead, so no speech is repeated;
+        # an invalid reply's text is kept as the plain-text fallback in case
+        # the repair has nothing speakable.
+        salvaged: list[MainStructuredResponse] = []
+        invalid_texts: list[str] = []
+
+        def needs_repair(final: Any) -> bool:
+            try:
+                recover_main_structured_response(final.text, prepared.output_type)
+                return False
+            except ValueError:
+                pass
+            salvaged_response = stream_emitter.salvaged_response() if stream_emitter is not None else None
+            if salvaged_response is not None:
+                salvaged.append(salvaged_response)
+                return False
+            invalid_texts.append(final.text)
+            return True
+
         async def collect_model_stream() -> tuple[Any, list[ChatMessage]]:
             try:
                 return await self._model_stream_collector(anima_memories=anima_memories).collect(
                     prepared,
                     on_model_round_start=on_model_round_start,
                     on_text_delta=on_text_delta,
+                    needs_repair=needs_repair,
                 )
             finally:
                 await early_event_queue.put(None)
@@ -591,26 +665,40 @@ class DirectChatTurnExecutor:
             **model_client_preview_log_context(final_text_preview=final.text),
         )
 
-        try:
-            # Only the final assistant text is parsed into Animama's structured
-            # response. Intermediate provider events stay in model-client
-            # observability metadata rather than becoming public chat SSE frames.
-            parsed = parse_main_structured_response(final.text, prepared.output_type)
-        except Exception as exc:
+        # Only the final assistant text is parsed into Animama's structured
+        # response. Intermediate provider events stay in model-client
+        # observability metadata rather than becoming public chat SSE frames.
+        parsed, recovery = _recover_final_reply(
+            final, prepared.output_type, salvaged, invalid_texts[0] if invalid_texts else None
+        )
+        if parsed is None:
             _log.warning(
                 "Direct chat structured response parse failed",
                 anima_id=prepared.request.anima_id,
                 chat_id=prepared.request.chat_id,
                 run_id=prepared.request.run_id,
-                exc_type=exc.__class__.__name__,
+                final_text_length=len(final.text),
             )
             yield error_event(
                 prepared.request,
                 message="Model client returned an invalid main structured response",
                 code="main_structured_response_parse_failed",
-                details={"exc_type": exc.__class__.__name__},
             )
             return
+        if recovery is not None:
+            _log.warning(
+                "Direct chat structured reply recovered",
+                anima_id=prepared.request.anima_id,
+                chat_id=prepared.request.chat_id,
+                run_id=prepared.request.run_id,
+                recovery=recovery,
+                model_provider_id=prepared.model_request.model_provider.id,
+                structured_output_transport=(
+                    prepared.model_request.model_provider.capabilities.structured_output_transport
+                ),
+                final_text_length=len(final.text),
+                speech_length=len(parsed.speech),
+            )
         _log.info(
             "Direct chat structured response parsed",
             anima_id=prepared.request.anima_id,
@@ -731,6 +819,8 @@ class DirectChatTurnExecutor:
                     model_provider=prepared.model_request.model_provider,
                     internal_tool_messages=internal_tool_messages,
                     memory=memory_data,
+                    structured_recovery=recovery,
+                    replay_text=(render_main_structured_json(parsed) if recovery in _SYNTHESIZED_RECOVERIES else None),
                 ),
                 chat_metadata_patch=chat_metadata_patch_from_prompt(prepared.model_request.prompt),
                 last_model_client=api_standard_profile.model_client,
@@ -812,7 +902,7 @@ class DirectChatTurnExecutor:
         memory_context: DirectChatMemoryContext,
         memory_tool_specs: tuple[dict[str, Any], ...],
         visible_history: list[Any],
-        response_format: dict[str, Any],
+        response_format: dict[str, Any] | None,
         response_format_guidance: str,
         memory_tools_active: bool = False,
         native_memory_patch_enabled: bool = False,

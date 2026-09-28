@@ -1599,6 +1599,71 @@ async def test_chat_sse_primary_structured_uses_main_structured_sse_behavior(mon
 
 
 @pytest.mark.asyncio
+async def test_chat_sse_plain_text_fallback_is_spoken_with_neutral_tone(monkeypatch) -> None:
+    # Both the reply and its one repair are plain text, so the turn falls back
+    # to a neutral plain-text reply that still reaches finalized TTS.
+    plain = [ModelClientFinal(text="Just words.", usage=Usage()) for _ in range(2)]
+    model_client = _RouteModelClient(finals=plain)
+    _install_route_mocks(
+        monkeypatch,
+        chat_options={
+            "main_structured_response": True,
+            "tts": {"enabled": True, "provider": "elevenlabs", "model_id": "eleven_v3"},
+        },
+        model_client=model_client,
+    )
+    prepared_calls: list[dict[str, Any]] = []
+
+    async def _fake_prepare_finalized_tts_stream_from_text(**kwargs):
+        prepared_calls.append(kwargs)
+        return SimpleNamespace(model_id="eleven_v3", output_format="pcm_24000")
+
+    async def _fake_stream_finalized_tts_chunks(_prepared):
+        yield {
+            "type": "audio",
+            "run_id": "run-1",
+            "model_id": "eleven_v3",
+            "output_format": "pcm_24000",
+            "audio_base64": "AQACAA==",
+        }
+        yield {"type": "done", "run_id": "run-1", "model_id": "eleven_v3", "output_format": "pcm_24000"}
+
+    monkeypatch.setattr(
+        "animama.server.routers.anima._build_gruut_sse_text",
+        lambda final_text, lang="en_US", **kwargs: {"tokenized_text": final_text, "phonemized_text": [["S"]]},
+    )
+    monkeypatch.setattr(
+        chat_tts, "prepare_finalized_tts_stream_from_text", _fake_prepare_finalized_tts_stream_from_text
+    )
+    monkeypatch.setattr(chat_tts, "stream_finalized_tts_chunks", _fake_stream_finalized_tts_chunks)
+
+    response = await chat_anima_direct_sse(
+        "anima-1",
+        _chat_request(
+            message="hello",
+            run_id="run-1",
+            chat_id="chat-1",
+            dispatch_options={
+                "main_structured_response": True,
+                "tts": {"enabled": True, "provider": "elevenlabs", "model_id": "eleven_v3"},
+            },
+        ),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    chunks = await _collect_chunks(response)
+
+    assert len(model_client.seen_specs) == 2
+    assert not any("event: error" in chunk for chunk in chunks)
+    assert not any("avatar.gesture.requested" in chunk for chunk in chunks)
+    assert any('"text": "Just words."' in chunk for chunk in chunks)
+    assert [(call["text"], call["emotional_tone"]) for call in prepared_calls] == [("Just words.", "neutral")]
+    assert any('"audio_base64": "AQACAA=="' in chunk for chunk in chunks)
+    assert _event_data(chunks, "emotion.update")["emotional_tone"] == "neutral"
+    assert sum("run.completed" in chunk for chunk in chunks) == 1
+
+
+@pytest.mark.asyncio
 async def test_chat_sse_main_structured_tts_speech_includes_tts_text(
     monkeypatch,
 ) -> None:
@@ -2946,11 +3011,6 @@ async def test_chat_sse_uses_anima_chat_profile_default_model_provider(
             {"provider_type": "OpenAIHTTPAgent", "model": "gpt-5-no-stream", "supports_streaming": False},
             "streaming",
         ),
-        (
-            "OpenAIHTTPAgent:no-primary-structured",
-            {"provider_type": "OpenAIHTTPAgent", "model": "gpt-5-no-primary", "structured_kinds": []},
-            MAIN_STRUCTURED_RESPONSE_KIND,
-        ),
     ],
 )
 async def test_chat_sse_model_provider_override_rejects_missing_inactive_or_unsupported_catalog_rows(
@@ -3102,17 +3162,6 @@ async def test_chat_sse_model_provider_override_works_without_profile(
             {"native_tools": ["web_search"]},
             {"native_tools": ["web_search"]},
             "native tools web_search",
-        ),
-        (
-            "OpenAIHTTPAgent:no-main-structured",
-            {
-                "provider_type": "OpenAIHTTPAgent",
-                "model": "gpt-5-no-main",
-                "structured_kinds": [],
-            },
-            {"main_structured_response": True},
-            {"main_structured_response": True},
-            MAIN_STRUCTURED_RESPONSE_KIND,
         ),
     ],
 )

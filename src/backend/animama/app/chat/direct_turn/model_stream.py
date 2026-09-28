@@ -35,6 +35,9 @@ from .constants import (
     MEMORY_TOOL_LIMIT_FINAL_INSTRUCTION,
     OPENAI_CHAT_COMPLETIONS_PROVIDER,
     OPENAI_RESPONSES_PROVIDER,
+    STRUCTURED_REPAIR_METADATA_KEY,
+    STRUCTURED_REPLY_REPAIR_INSTRUCTION,
+    STRUCTURED_REPLY_REPAIR_ROUND_INDEX,
 )
 from .message_builders import (
     assistant_tool_call_prompt_message,
@@ -62,6 +65,8 @@ _log = get_logger("app.chat.direct_turn.model_stream")
 # signal validation.
 ModelRoundObserver = Callable[[int], Awaitable[None]]
 TextDeltaObserver = Callable[[int, str], Awaitable[None]]
+# Decides whether a turn's final reply needs the one structured repair request.
+FinalRepairCheck = Callable[[ModelClientFinal], bool]
 
 
 class DirectTurnModelStreamCollector:
@@ -96,12 +101,98 @@ class DirectTurnModelStreamCollector:
         *,
         on_model_round_start: ModelRoundObserver | None = None,
         on_text_delta: TextDeltaObserver | None = None,
+        needs_repair: FinalRepairCheck | None = None,
     ) -> tuple[ModelClientFinal | None, list[ChatMessage]]:
+        """Run the model rounds for one turn, then repair an invalid final reply once.
+
+        ``needs_repair`` is the caller's local validation. When it rejects the
+        final, one request without tools asks the model to reply again in the
+        required format. The repaired final carries usage for every request;
+        if the repair request itself fails, the original final is returned so
+        the caller can fall back to its text.
+        """
+
+        final, internal_messages, final_request = await self._collect_rounds(
+            prepared,
+            on_model_round_start=on_model_round_start,
+            on_text_delta=on_text_delta,
+        )
+        if final is None or final_request is None or needs_repair is None or not needs_repair(final):
+            return final, internal_messages
+        return await self._repair_final(
+            prepared,
+            final_request,
+            final,
+            on_model_round_start=on_model_round_start,
+            on_text_delta=on_text_delta,
+        ), internal_messages
+
+    async def _repair_final(
+        self,
+        prepared: PreparedDirectChatTurn,
+        final_request: ModelClientRequest,
+        final: ModelClientFinal,
+        *,
+        on_model_round_start: ModelRoundObserver | None,
+        on_text_delta: TextDeltaObserver | None,
+    ) -> ModelClientFinal:
+        _log.warning(
+            "Direct chat structured reply repair requested",
+            **_direct_turn_log_context(prepared, final_request),
+            final_text_length=len(final.text),
+        )
+        if on_model_round_start is not None:
+            await on_model_round_start(STRUCTURED_REPLY_REPAIR_ROUND_INDEX)
+        try:
+            if "previous_response_retry" in final.raw_provider_metadata:
+                # The round succeeded only after dropping a stale Responses cursor.
+                final_request = await self._retry_model_request_without_previous_response_id(prepared, final_request)
+            repair_final = await self._collect_model_final(
+                prepared,
+                _structured_repair_request(final_request, final),
+                round_index=STRUCTURED_REPLY_REPAIR_ROUND_INDEX,
+                on_text_delta=on_text_delta,
+                allow_previous_response_retry=False,
+            )
+        except Exception as exc:
+            # A failed repair falls back to the original reply's text.
+            _log.warning(
+                "Direct chat structured reply repair request failed",
+                **_direct_turn_log_context(prepared, final_request),
+                exc_type=exc.__class__.__name__,
+                code=exc.error.code if isinstance(exc, DirectChatTurnStreamError) else None,
+            )
+            repair_final = None
+        if repair_final is None:
+            return replace(
+                final,
+                raw_provider_metadata={
+                    **dict(final.raw_provider_metadata),
+                    STRUCTURED_REPAIR_METADATA_KEY: "request_failed",
+                },
+            )
+        usage = Usage()
+        usage.add(final.usage)
+        usage.add(repair_final.usage)
+        repaired = _final_with_usage(repair_final, usage, input_moderation=final.input_moderation)
+        return replace(
+            repaired,
+            raw_provider_metadata={**dict(repaired.raw_provider_metadata), STRUCTURED_REPAIR_METADATA_KEY: "attempted"},
+        )
+
+    async def _collect_rounds(
+        self,
+        prepared: PreparedDirectChatTurn,
+        *,
+        on_model_round_start: ModelRoundObserver | None = None,
+        on_text_delta: TextDeltaObserver | None = None,
+    ) -> tuple[ModelClientFinal | None, list[ChatMessage], ModelClientRequest | None]:
         """Run the initial model request plus any memory tool follow-up rounds.
 
         A round is one request to the selected model provider. Tool-call finals
         do not complete the user-visible turn; they produce internal tool work
-        and then another model round with appended tool results.
+        and then another model round with appended tool results. Returns the
+        final with the request that produced it.
         """
 
         started_at = time.monotonic()
@@ -158,7 +249,7 @@ class DirectTurnModelStreamCollector:
                     round_index=round_index,
                     elapsed_ms=elapsed_ms(started_at),
                 )
-                return None, internal_messages
+                return None, internal_messages, None
             usage_total.add(final.usage)
             usage_seen = True
             if round_index == 0:
@@ -178,14 +269,15 @@ class DirectTurnModelStreamCollector:
                 structured_round_index = round_index + 1
                 if on_model_round_start is not None:
                     await on_model_round_start(structured_round_index)
+                structured_request = _model_request_without_tools(model_request, response_format=structured_format)
                 structured_final = await self._collect_model_final(
                     prepared,
-                    _model_request_without_tools(model_request, response_format=structured_format),
+                    structured_request,
                     round_index=structured_round_index,
                     on_text_delta=on_text_delta,
                 )
                 if structured_final is None:
-                    return None, internal_messages
+                    return None, internal_messages, None
                 usage_total.add(structured_final.usage)
                 _log.info(
                     "Direct chat model stream collection completed",
@@ -198,6 +290,7 @@ class DirectTurnModelStreamCollector:
                 return (
                     _final_with_usage(structured_final, usage_total, input_moderation=round_zero_moderation),
                     internal_messages,
+                    structured_request,
                 )
             if not tool_calls:
                 # No tool calls means the final model text is ready for parsing.
@@ -209,7 +302,7 @@ class DirectTurnModelStreamCollector:
                         round_count=round_index + 1,
                         elapsed_ms=elapsed_ms(started_at),
                     )
-                    return final, internal_messages
+                    return final, internal_messages, model_request
                 _log.info(
                     "Direct chat model stream collection completed",
                     **_direct_turn_log_context(prepared, model_request),
@@ -224,6 +317,7 @@ class DirectTurnModelStreamCollector:
                         input_moderation=round_zero_moderation,
                     ),
                     internal_messages,
+                    model_request,
                 )
 
             if round_index >= MAX_MEMORY_TOOL_ROUNDS:
@@ -270,18 +364,19 @@ class DirectTurnModelStreamCollector:
                 )
                 if on_model_round_start is not None:
                     await on_model_round_start(forced_round_index)
+                forced_request = _model_request_without_tools(
+                    limit_request,
+                    response_format=structured_format,
+                    final_instruction=MEMORY_TOOL_LIMIT_FINAL_INSTRUCTION,
+                )
                 forced_final = await self._collect_model_final(
                     prepared,
-                    _model_request_without_tools(
-                        limit_request,
-                        response_format=structured_format,
-                        final_instruction=MEMORY_TOOL_LIMIT_FINAL_INSTRUCTION,
-                    ),
+                    forced_request,
                     round_index=forced_round_index,
                     on_text_delta=on_text_delta,
                 )
                 if forced_final is None:
-                    return None, internal_messages
+                    return None, internal_messages, None
                 usage_total.add(forced_final.usage)
                 usage_seen = True
                 if not forced_final.tool_calls:
@@ -293,11 +388,15 @@ class DirectTurnModelStreamCollector:
                         aggregated_usage=True,
                         forced_final=True,
                     )
-                    return _final_with_usage(
-                        forced_final,
-                        usage_total if usage_seen else forced_final.usage,
-                        input_moderation=round_zero_moderation,
-                    ), internal_messages
+                    return (
+                        _final_with_usage(
+                            forced_final,
+                            usage_total if usage_seen else forced_final.usage,
+                            input_moderation=round_zero_moderation,
+                        ),
+                        internal_messages,
+                        forced_request,
+                    )
                 raise DirectChatTurnStreamError(
                     request=prepared.request,
                     error=ModelClientError(
@@ -375,7 +474,7 @@ class DirectTurnModelStreamCollector:
                 previous_final=final,
             )
 
-        return None, internal_messages
+        return None, internal_messages, None
 
     async def _collect_model_final(
         self,
@@ -632,7 +731,7 @@ class DirectTurnModelStreamCollector:
             return model_request_without_continuation(model_request)
 
         chat_context = await self._load_chat_context(prepared.request.chat_id)
-        response_format = cast(dict[str, Any], prepared.model_request.prompt.response_format)
+        response_format = cast(dict[str, Any] | None, prepared.model_request.prompt.response_format)
         prompt = self._build_prompt(
             request=prepared.request,
             model_provider=model_request.model_provider,
@@ -913,6 +1012,43 @@ def _model_request_without_tools(
             moderation_model=None,
         ),
         continuation=model_request.continuation,
+    )
+
+
+def _structured_repair_request(
+    final_request: ModelClientRequest,
+    invalid_final: ModelClientFinal,
+) -> ModelClientRequest:
+    """Build the one repair request for a final reply that failed validation.
+
+    It repeats the request that produced the invalid reply, without tools, and
+    adds a repair instruction followed by the guardrail. Chat Completions rows
+    with a developer role see the invalid reply as the previous assistant
+    message. Rows that fold developer messages into the system message would
+    end on that assistant message, which local servers continue as a prefill,
+    so they get the instruction alone. Responses keeps the round's own
+    continuation and also gets the instruction alone, because its input after
+    a cursor is the trailing user message or tool outputs.
+    """
+
+    request = final_request
+    model_provider = final_request.model_provider
+    if (
+        model_provider.provider_type != OPENAI_RESPONSES_PROVIDER
+        and model_provider.accepts_developer_role
+        and invalid_final.text.strip()
+    ):
+        request = replace(
+            final_request,
+            prompt=_prompt_with_appended_messages(
+                final_request.prompt,
+                [{"role": "assistant", "content": invalid_final.text}],
+            ),
+        )
+    return _model_request_without_tools(
+        request,
+        response_format=final_request.prompt.response_format,
+        final_instruction=STRUCTURED_REPLY_REPAIR_INSTRUCTION,
     )
 
 

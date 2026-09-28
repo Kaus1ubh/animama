@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from animama.app.chat.memory_context import MAIN_STRUCTURED_OUTPUT_GUIDANCE
 from animama.app.main_structured_response import (
     MAIN_STRUCTURED_RESPONSE_FORMAT,
+    MAIN_STRUCTURED_RESPONSE_KIND,
     build_main_structured_prompt,
     build_main_structured_response_json_schema,
 )
@@ -33,14 +34,51 @@ def build_main_structured_response_format(
     }
 
 
+def supports_structured_reply(model_provider: ModelProvider) -> bool:
+    """Return whether the row accepts a JSON schema or JSON mode for the reply.
+
+    Rows saved with structured output "None" carry no structured kind.
+    """
+
+    return MAIN_STRUCTURED_RESPONSE_KIND in {
+        kind.strip() for kind in model_provider.capabilities.structured_kinds if isinstance(kind, str)
+    }
+
+
+def main_structured_response_format_for_model(
+    model_provider: ModelProvider,
+    output_type: type[BaseModel],
+    *,
+    name: str,
+) -> dict[str, Any] | None:
+    """Return the ``response_format`` a model's structured-output support allows.
+
+    Rows with a JSON schema or JSON mode transport get the strict schema format
+    (the Chat Completions adapter sends JSON mode for ``json_object`` rows).
+    Rows without either get none: the prompt asks for JSON and the reply is
+    validated locally, repaired once or spoken as plain text.
+    """
+
+    if not supports_structured_reply(model_provider):
+        return None
+    return build_main_structured_response_format(output_type, name=name)
+
+
 def main_structured_response_guidance(
     model_provider: ModelProvider,
     output_type: type[BaseModel],
 ) -> str:
-    """Return prompt guidance matching the selected provider row's transport."""
+    """Return prompt guidance matching the selected provider row's transport.
+
+    A JSON schema constrains the reply shape; JSON mode and prompt-only rows
+    also get the schema and an example in the prompt.
+    """
 
     guidance = MAIN_STRUCTURED_OUTPUT_GUIDANCE.strip()
-    if model_provider.capabilities.structured_output_transport == STRUCTURED_OUTPUT_TRANSPORT_JSON_OBJECT:
+    if (
+        model_provider.capabilities.structured_output_transport == STRUCTURED_OUTPUT_TRANSPORT_JSON_OBJECT
+        or not supports_structured_reply(model_provider)
+    ):
         return "\n\n".join((guidance, build_main_structured_prompt(output_type).strip()))
     return guidance
 
@@ -61,8 +99,10 @@ def turn_response_schema_name(request_options: DirectChatOptions) -> str:
 
 __all__ = [
     "build_main_structured_response_format",
+    "main_structured_response_format_for_model",
     "main_structured_response_guidance",
     "response_model_agent_id",
+    "supports_structured_reply",
     "turn_response_format",
     "turn_response_schema_name",
 ]
