@@ -3040,6 +3040,24 @@ export const zPyModelConnectionCredential = z.object({
 });
 
 /**
+ * PyModelConnectionDetection
+ *
+ * Whether a local preset's server answers at its default address, and its models.
+ *
+ * ``category`` names the failure when ``reachable`` is false.
+ */
+export const zPyModelConnectionDetection = z.object({
+    base_url: z.string(),
+    category: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    models: z.array(z.string()),
+    preset: z.string(),
+    reachable: z.boolean()
+});
+
+/**
  * PyModelConnectionPreset
  */
 export const zPyModelConnectionPreset = z.object({
@@ -7124,6 +7142,19 @@ export const zListModelConnectionPresetsV1ModelConnectionPresetsGetData = z.obje
  * Successful Response
  */
 export const zListModelConnectionPresetsV1ModelConnectionPresetsGetResponse = z.array(zPyModelConnectionPreset);
+
+export const zDetectModelConnectionPresetV1ModelConnectionPresetsPresetIdDetectPostData = z.object({
+    body: z.optional(z.never()),
+    path: z.object({
+        preset_id: z.string()
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zDetectModelConnectionPresetV1ModelConnectionPresetsPresetIdDetectPostResponse = zPyModelConnectionDetection;
 
 export const zListModelConnectionsV1ModelConnectionsGetData = z.object({
     body: z.optional(z.never()),

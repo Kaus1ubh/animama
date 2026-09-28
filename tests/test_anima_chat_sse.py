@@ -273,10 +273,10 @@ class _FakePromptRunner:
             text=self.text,
             usage=self.usage,
             model_provider=ModelProvider(
-                id="OpenAIResponsesHTTPAgent:gpt-5-nano",
+                id="OpenAIResponsesHTTPAgent:gpt-6-luna",
                 provider_type="OpenAIResponsesHTTPAgent",
-                model="gpt-5-nano",
-                model_label="gpt-5-nano",
+                model="gpt-6-luna",
+                model_label="gpt-6-luna",
                 provider_label="OpenAI",
                 active=True,
             ),
@@ -307,9 +307,9 @@ class _FakeAnimaChatProfileRepository:
 
 def _model_provider(
     *,
-    model_provider_id: str = "OpenAIHTTPAgent:gpt-5-nano",
+    model_provider_id: str = "OpenAIHTTPAgent:gpt-6-luna",
     provider_type: str = "OpenAIHTTPAgent",
-    model: str = "gpt-5-nano",
+    model: str = "gpt-6-luna",
     active: bool = True,
     supports_streaming: bool = True,
     structured_kinds: list[str] | None = None,
@@ -521,7 +521,7 @@ def _install_db_route_mocks(
     *,
     chat_options: Mapping[str, object] | None = None,
     model_client: _RouteModelClient | None = None,
-    default_model_provider_id: str = "OpenAIHTTPAgent:gpt-5-nano",
+    default_model_provider_id: str = "OpenAIHTTPAgent:gpt-6-luna",
     patch_profile_service: bool = True,
 ) -> None:
     global _CURRENT_TEST_REGISTRY
@@ -603,7 +603,7 @@ async def _seed_chat_model_provider(
     model_provider_id: str,
     *,
     provider_type: str = "OpenAIResponsesHTTPAgent",
-    model: str = "gpt-5-nano",
+    model: str = "gpt-6-luna",
     provider_label: str = "OpenAI",
     connection_id: str = "openai",
     source: str = "builtin",
@@ -671,9 +671,9 @@ async def _seed_owner_connection(
 async def _seed_default_chat_model_provider(async_session) -> None:  # noqa: ANN001
     await _seed_chat_model_provider(
         async_session,
-        "OpenAIHTTPAgent:gpt-5-nano",
+        "OpenAIHTTPAgent:gpt-6-luna",
         provider_type="OpenAIHTTPAgent",
-        model="gpt-5-nano",
+        model="gpt-6-luna",
     )
 
 
@@ -981,9 +981,9 @@ def test_anima_chat_request_requires_runtime_revision() -> None:
 
 
 def test_anima_chat_request_accepts_model_provider_id() -> None:
-    request = _chat_request(message="hello", model_provider_id="  OpenAIResponsesHTTPAgent:gpt-5-nano  ")
+    request = _chat_request(message="hello", model_provider_id="  OpenAIResponsesHTTPAgent:gpt-6-luna  ")
 
-    assert request.model_provider_id == "OpenAIResponsesHTTPAgent:gpt-5-nano"
+    assert request.model_provider_id == "OpenAIResponsesHTTPAgent:gpt-6-luna"
     with pytest.raises(ValidationError):
         _chat_request(message="hello", model_provider_id=" \n\t ")
 
@@ -1464,7 +1464,7 @@ async def test_chat_sse_chat_options_flow_into_runtime_context(monkeypatch) -> N
         },
         model_client=model_client,
         model_provider=_model_provider(
-            model_provider_id="OpenAIResponsesHTTPAgent:gpt-5-nano",
+            model_provider_id="OpenAIResponsesHTTPAgent:gpt-6-luna",
             provider_type="OpenAIResponsesHTTPAgent",
         ),
     )
@@ -2591,14 +2591,14 @@ async def test_chat_sse_direct_executor_persists_chat_turn(monkeypatch) -> None:
     payload = chats.record_turn_payloads[0]
     assert payload["chat_id"] == "chat-1"
     assert payload["last_model_client"] == "openai_chat_completions"
-    assert payload["last_model_id"] == "gpt-5-nano"
+    assert payload["last_model_id"] == "gpt-6-luna"
     assert payload["user_msg"].model is None
     assert payload["user_msg"].model_provider is None
     assistant_messages = payload["assistant_msg"]
     assert isinstance(assistant_messages, ChatMessage)
     assistant_messages = [assistant_messages]
     assert [(message.model_provider, message.model) for message in assistant_messages] == [
-        ("OpenAIHTTPAgent", "gpt-5-nano")
+        ("OpenAIHTTPAgent", "gpt-6-luna")
     ]
 
 
@@ -2995,7 +2995,7 @@ async def test_chat_sse_model_provider_override_rejects_missing_provider(
     with pytest.raises(HTTPException) as exc:
         await chat_anima_direct_sse(
             anima_id,
-            _chat_request(message="hello", model_provider_id="MissingProvider:gpt-5-nano"),
+            _chat_request(message="hello", model_provider_id="MissingProvider:gpt-6-luna"),
             request=_test_request(),
             user=RequestPrincipal(id="user-1"),
         )
@@ -3179,9 +3179,9 @@ async def test_chat_sse_responses_memory_tools_active_and_gated_by_options(monke
     assert model_client.seen_specs[0].provider_options.memory_apply_patch_enabled is False
 
     capable_provider = _model_provider(
-        model_provider_id="OpenAIResponsesHTTPAgent:gpt-5.4-nano",
+        model_provider_id="OpenAIResponsesHTTPAgent:gpt-6-luna",
         provider_type="OpenAIResponsesHTTPAgent",
-        model="gpt-5.4-nano",
+        model="gpt-6-luna",
         native_tool_support=["web_search", "apply_patch"],
     )
     model_client = _RouteModelClient()
@@ -3498,14 +3498,14 @@ async def test_chat_sse_capable_responses_model_commits_native_patch_and_persist
 ) -> None:
     anima_id = "anima-db-native-patch"
     chat_id = "chat-db-native-patch"
-    provider_id = "OpenAIResponsesHTTPAgent:gpt-5.4-nano"
+    provider_id = "OpenAIResponsesHTTPAgent:gpt-6-luna"
     async_session.add(ORMAnima(id=anima_id, user_id="user-1"))
     await async_session.commit()
     await _seed_anima_identity_file(async_session, anima_id=anima_id)
     await _seed_chat_model_provider(
         async_session,
         provider_id,
-        model="gpt-5.4-nano",
+        model="gpt-6-luna",
         native_tool_support=["web_search", "apply_patch"],
     )
     operation = {
@@ -4011,7 +4011,7 @@ async def test_chat_sse_openai_responses_skips_local_compaction_for_native_compa
 ) -> None:
     anima_id = "anima-db-responses-native-compact"
     chat_id = "chat-db-responses-native-compact"
-    model_provider_id = "OpenAIResponsesHTTPAgent:gpt-5-nano"
+    model_provider_id = "OpenAIResponsesHTTPAgent:gpt-6-luna"
     async_session.add(ORMAnima(id=anima_id, user_id="user-1"))
     async_session.add(
         ORMChat(
@@ -4029,7 +4029,7 @@ async def test_chat_sse_openai_responses_skips_local_compaction_for_native_compa
         async_session,
         model_provider_id,
         provider_type="OpenAIResponsesHTTPAgent",
-        model="gpt-5-nano",
+        model="gpt-6-luna",
     )
     await _seed_visible_chat_messages(
         async_session,

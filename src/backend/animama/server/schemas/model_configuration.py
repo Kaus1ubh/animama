@@ -168,6 +168,19 @@ class PyAvailableModels(BaseModel):
     models: list[str]
 
 
+class PyModelConnectionDetection(BaseModel):
+    """Whether a local preset's server answers at its default address, and its models.
+
+    ``category`` names the failure when ``reachable`` is false.
+    """
+
+    preset: str
+    base_url: str
+    reachable: bool
+    models: list[str]
+    category: str | None = None
+
+
 class PyModelProbeRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -239,6 +252,7 @@ __all__ = [
     "PyModelConnection",
     "PyModelConnectionCompatibility",
     "PyModelConnectionCredential",
+    "PyModelConnectionDetection",
     "PyModelConnectionPreset",
     "PyModelConnectionRequest",
     "PyModelConnectionUpdate",

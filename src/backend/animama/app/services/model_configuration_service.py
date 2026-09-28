@@ -23,6 +23,7 @@ from animama.app.model_catalog import (
     STRUCTURED_OUTPUT_TRANSPORT_JSON_SCHEMA,
 )
 from animama.app.model_clients.credentials import is_allowed_credential_env, managed_credential_env
+from animama.app.model_clients.probe import ModelConnectionProbe, ModelConnectionProbeError
 from animama.app.model_connection_presets import MODEL_CONNECTION_PRESETS, model_connection_preset
 from animama.domain import ModelProvider, ModelProviderCapabilities, ModelProviderPricing
 from animama.domain.model_connection import (
@@ -56,6 +57,12 @@ RESPONSES_PROVIDER_TYPE = OPENAI_RESPONSES_PROVIDER_TYPE
 
 MODEL_ROLE_PREFERENCE_PATHS: tuple[tuple[str, str], ...] = tuple(ROLE_PREFERENCE_PATHS.values())
 """Preference keys that hold a catalog row id for an installation-wide model role."""
+
+LOCAL_DETECTION_TIMEOUT_SECONDS = 3.0
+"""Connect and read limit for detecting a local server; a stopped server fails fast."""
+
+LOCAL_DETECTION_MAX_MODELS = 200
+"""Most model ids a detection reports."""
 
 _MAX_NAME_LENGTH = 80
 _MAX_MODEL_LENGTH = 256
@@ -611,13 +618,72 @@ def probe_result_summary(report: dict[str, Any] | None) -> dict[str, Any] | None
     return summary
 
 
+@dataclass(frozen=True, slots=True)
+class LocalServerDetection:
+    """Whether a local preset's server answers at its default address.
+
+    ``category`` names the failure (see error categories) when it does not.
+    """
+
+    preset: str
+    base_url: str
+    reachable: bool
+    models: tuple[str, ...] = ()
+    category: str | None = None
+
+
+async def detect_local_server(
+    preset_id: str,
+    *,
+    local_host: str,
+    probe: ModelConnectionProbe,
+) -> LocalServerDetection:
+    """List the models a local preset's server offers at its default address.
+
+    The address is derived from ``local_host`` and the preset's default port,
+    never from the request, and no key is sent. Only local presets can be
+    detected.
+    """
+
+    preset = MODEL_CONNECTION_PRESETS.get(preset_id)
+    if preset is None or not preset.owner_selectable:
+        raise ModelConfigurationError(f"Unknown connection preset: {preset_id}", code="unknown_preset", status=404)
+    base_url = preset.base_url(local_host=local_host)
+    if not preset.local or base_url is None:
+        raise ModelConfigurationError(
+            f"{preset.label} is not a local server preset", code="preset_not_local", status=400
+        )
+    connection = ModelConnection(
+        id=f"detect-{preset.id}",
+        name=preset.label,
+        preset=preset.id,
+        base_url=base_url,
+        credential_env=None,
+        compatibility=preset.compatibility,
+        timeout_seconds=LOCAL_DETECTION_TIMEOUT_SECONDS,
+    )
+    try:
+        models = await probe.list_models(connection)
+    except ModelConnectionProbeError as exc:
+        return LocalServerDetection(preset=preset.id, base_url=base_url, reachable=False, category=exc.category)
+    return LocalServerDetection(
+        preset=preset.id,
+        base_url=base_url,
+        reachable=True,
+        models=tuple(models[:LOCAL_DETECTION_MAX_MODELS]),
+    )
+
+
 __all__ = [
     "CREDENTIAL_MODES",
     "CREDENTIAL_MODE_ENV",
     "CREDENTIAL_MODE_MANAGED",
     "CREDENTIAL_MODE_NONE",
     "MODEL_ROLE_PREFERENCE_PATHS",
+    "LOCAL_DETECTION_MAX_MODELS",
+    "LOCAL_DETECTION_TIMEOUT_SECONDS",
     "CredentialSetting",
+    "LocalServerDetection",
     "ModelConfigurationError",
     "ModelConfigurationService",
     "ModelConnectionDraft",
@@ -627,6 +693,7 @@ __all__ = [
     "OwnerModelCapabilities",
     "OwnerModelDraft",
     "OwnerModelPatch",
+    "detect_local_server",
     "normalize_base_url",
     "probe_result_summary",
 ]

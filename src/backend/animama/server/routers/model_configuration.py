@@ -34,6 +34,7 @@ from animama.app.services.model_configuration_service import (
     OwnerModelCapabilities,
     OwnerModelDraft,
     OwnerModelPatch,
+    detect_local_server,
 )
 from animama.app.services.model_role_resolver import MODEL_ROLES, ROLE_EMBEDDINGS, ResolvedModelRole
 from animama.domain import ModelProvider
@@ -56,6 +57,7 @@ from animama.server.schemas.model_configuration import (
     PyModelCapabilitiesView,
     PyModelConnection,
     PyModelConnectionCompatibility,
+    PyModelConnectionDetection,
     PyModelConnectionPreset,
     PyModelConnectionRequest,
     PyModelConnectionUpdate,
@@ -136,6 +138,37 @@ async def list_model_connection_presets(
         for preset in MODEL_CONNECTION_PRESETS.values()
         if preset.owner_selectable
     ]
+
+
+@router.post("/v1/model-connection-presets/{preset_id}/detect", response_model=PyModelConnectionDetection)
+async def detect_model_connection_preset(
+    preset_id: str,
+    _principal: Annotated[RequestPrincipal, Depends(get_current_principal)],
+    runtime_settings: Annotated[Settings, Depends(get_runtime_settings)],
+    probe: Annotated[ModelConnectionProbe, Depends(get_model_connection_probe)],
+) -> PyModelConnectionDetection:
+    """Check a local preset's default address and list the models its server offers.
+
+    The address comes from the composition's local model host and the preset's
+    default port; the request cannot supply one. An unreachable server is a
+    normal result (``reachable`` false with a ``category``), not an error.
+    """
+
+    try:
+        detection = await detect_local_server(
+            preset_id,
+            local_host=runtime_settings.animama_local_model_host,
+            probe=probe,
+        )
+    except ModelConfigurationError as exc:
+        raise _http_error(exc) from exc
+    return PyModelConnectionDetection(
+        preset=detection.preset,
+        base_url=detection.base_url,
+        reachable=detection.reachable,
+        models=list(detection.models),
+        category=detection.category,
+    )
 
 
 @router.get("/v1/model-connections", response_model=list[PyModelConnection])

@@ -47,7 +47,7 @@ uv run pytest -q tests/test_anima_chat_sse.py tests/test_anima_sse_events.py
 ```
 
 `test_openai_responses_apply_patch.py` is an opt-in provider smoke for the
-official OpenAI Responses `gpt-5.4-nano` row. It verifies that the model emits a
+official OpenAI Responses `gpt-6-luna` row. It verifies that the model emits a
 native `apply_patch_call`, accepts the matching `apply_patch_call_output` through
 `previous_response_id`, and then satisfies a strict structured response. Run it
 only with a real key:

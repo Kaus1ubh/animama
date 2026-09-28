@@ -282,9 +282,8 @@ one write transport selected from the persisted model capability:
 - Other providers, including Responses models without that capability, retain
   the `memory_apply_patch` and `memory_write_file` function tools.
 
-The official OpenAI Responses `gpt-5.4-nano`, `gpt-5.6-luna`, and
-`gpt-5.6-terra` rows currently advertise
-native Apply Patch. `gpt-5-nano` retains the function-tool writers. The capability is
+The official OpenAI Responses `gpt-6-luna` row currently advertises native
+Apply Patch; Chat Completions rows retain the function-tool writers. The capability is
 an internal memory-write gate: clients cannot request `apply_patch` through the
 generic `native_tools` request option. Incognito and
 `disable_memory_updates=true` expose neither native nor function-tool writers.

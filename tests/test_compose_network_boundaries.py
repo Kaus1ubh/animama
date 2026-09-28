@@ -812,7 +812,7 @@ def test_reset_selected_files_preserve_credentials_and_resume_in_a_clean_termina
         "APP_HOST=fixture.localhost\nANIMAMA_WEB_BUILD_MODE=production\n"
         "POSTGRES_USER=fixture_owner\nPOSTGRES_DB=fixture_db\n"
         f"ANIMAMA_INCLUDED_CONTENT_HOST_PATH={included}\n"
-        "ANIMAMA_DEFAULT_UTILITY_MODEL_PROVIDER_ID=OpenAIResponsesHTTPAgent:gpt-5.6-luna\n"
+        "ANIMAMA_DEFAULT_UTILITY_MODEL_PROVIDER_ID=OpenAIResponsesHTTPAgent:gpt-6-luna\n"
         "ANIMAMA_CHAT_TITLE_GENERATION_REASONING_EFFORT=none\n"
     )
     selection = "../shared config/dev-secrets.env,.env"
@@ -847,7 +847,7 @@ def test_reset_selected_files_preserve_credentials_and_resume_in_a_clean_termina
     server = graph["services"]["animama-server"]
     assert server["environment"]["OPENAI_API_KEY"] == "fixture-provider-secret"
     assert server["environment"]["ANIMAMA_PUBLIC_ORIGIN"] == "http://fixture.localhost:9180"
-    assert server["environment"]["ANIMAMA_DEFAULT_UTILITY_MODEL_PROVIDER_ID"] == "OpenAIResponsesHTTPAgent:gpt-5.6-luna"
+    assert server["environment"]["ANIMAMA_DEFAULT_UTILITY_MODEL_PROVIDER_ID"] == "OpenAIResponsesHTTPAgent:gpt-6-luna"
     assert server["environment"]["ANIMAMA_CHAT_TITLE_GENERATION_REASONING_EFFORT"] == "none"
     assert next(mount for mount in server["volumes"] if mount["target"] == "/var/lib/animama/content/included")[
         "source"

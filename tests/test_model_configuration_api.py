@@ -30,8 +30,10 @@ class _FakeProbe:
         self.fail = fail
         self.fail_category = fail_category
         self.calls: list[tuple[str, str, str]] = []
+        self.listed: list[Any] = []
 
     async def list_models(self, connection):  # noqa: ANN001
+        self.listed.append(connection)
         if self.fail:
             raise ModelConnectionProbeError("Probe failed", category=self.fail_category)
         return ["qwen3:8b", "gemma4:e4b"]
@@ -187,7 +189,7 @@ async def test_new_openai_model_from_a_template_is_selectable_without_a_code_cha
     async with local_client(app) as client:
         added = await client.post(
             "/v1/model-connections/openai/models",
-            json={"model": "gpt-6-luna", "template_id": "OpenAIResponsesHTTPAgent:gpt-5.6-luna"},
+            json={"model": "gpt-6-sol", "template_id": "OpenAIResponsesHTTPAgent:gpt-6-luna"},
         )
         catalog = (await client.get("/v1/model-providers")).json()
 
@@ -197,9 +199,9 @@ async def test_new_openai_model_from_a_template_is_selectable_without_a_code_cha
     assert model["source"] == "owner"
     assert model["context_window_tokens"] == 1_050_000
     assert model["capabilities"]["native_tool_support"] == ["apply_patch", "web_search"]
-    assert model["template_id"] == "OpenAIResponsesHTTPAgent:gpt-5.6-luna"
+    assert model["template_id"] == "OpenAIResponsesHTTPAgent:gpt-6-luna"
     row = next(item for item in catalog if item["id"] == model["id"])
-    assert row["model"] == "gpt-6-luna"
+    assert row["model"] == "gpt-6-sol"
     assert row["api_standard"] == "responses"
     assert row["connection_name"] == "OpenAI"
     assert row["requestable_native_tool_support"] == ["web_search"]
@@ -214,7 +216,7 @@ async def test_templates_on_owner_connections_use_chat_completions_without_nativ
         connection = (await client.post("/v1/model-connections", json=_connection_body())).json()
         added = await client.post(
             f"/v1/model-connections/{connection['id']}/models",
-            json={"model": "qwen3:8b", "template_id": "OpenAIResponsesHTTPAgent:gpt-5.6-luna"},
+            json={"model": "qwen3:8b", "template_id": "OpenAIResponsesHTTPAgent:gpt-6-luna"},
         )
         responses = await client.post(
             f"/v1/model-connections/{connection['id']}/models",
@@ -256,7 +258,7 @@ async def test_owner_models_are_unpriced_and_reactivate_after_removal(async_sess
 async def test_built_in_models_can_only_be_hidden(async_session, tmp_path, owner_id):
     await _seed_builtins(async_session)
     app = _app(async_session, tmp_path, owner_id)
-    builtin_id = "OpenAIResponsesHTTPAgent:gpt-5.6-terra"
+    builtin_id = "OpenAIResponsesHTTPAgent:gpt-6-luna"
     async with local_client(app) as client:
         hidden = await client.patch(f"/v1/model-providers/{builtin_id}", json={"hidden": True})
         edited = await client.patch(f"/v1/model-providers/{builtin_id}", json={"label": "Mine"})
@@ -357,6 +359,116 @@ async def test_unreachable_connections_report_a_category(async_session, tmp_path
     assert response.json()["detail"]["code"] == "unreachable"
 
 
+async def test_detect_lists_models_at_the_local_preset_default_address(async_session, tmp_path, owner_id):
+    probe = _FakeProbe()
+    app = _app(async_session, tmp_path, owner_id, probe=probe, animama_local_model_host="host.docker.internal")
+    async with local_client(app) as client:
+        response = await client.post("/v1/model-connection-presets/ollama/detect")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "preset": "ollama",
+        "base_url": "http://host.docker.internal:11434/v1",
+        "reachable": True,
+        "models": ["qwen3:8b", "gemma4:e4b"],
+        "category": None,
+    }
+    [connection] = probe.listed
+    assert connection.base_url == "http://host.docker.internal:11434/v1"
+    assert connection.credential_env is None
+    assert connection.timeout_seconds == 3.0
+
+
+async def test_detect_reports_an_unreachable_server_as_a_result(async_session, tmp_path, owner_id):
+    app = _app(async_session, tmp_path, owner_id, probe=_FakeProbe(fail=True, fail_category="timeout"))
+    async with local_client(app) as client:
+        response = await client.post("/v1/model-connection-presets/lmstudio/detect")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "preset": "lmstudio",
+        "base_url": "http://127.0.0.1:1234/v1",
+        "reachable": False,
+        "models": [],
+        "category": "timeout",
+    }
+
+
+@pytest.mark.parametrize(
+    ("preset", "status_code", "code"),
+    [
+        ("deepseek", 400, "preset_not_local"),
+        ("custom", 400, "preset_not_local"),
+        ("openai", 404, "unknown_preset"),
+        ("nope", 404, "unknown_preset"),
+    ],
+)
+async def test_detect_accepts_only_local_presets(async_session, tmp_path, owner_id, preset, status_code, code):
+    probe = _FakeProbe()
+    app = _app(async_session, tmp_path, owner_id, probe=probe)
+    async with local_client(app) as client:
+        response = await client.post(f"/v1/model-connection-presets/{preset}/detect")
+
+    assert response.status_code == status_code
+    assert response.json()["detail"]["code"] == code
+    assert probe.listed == []
+
+
+async def test_detect_ignores_a_requested_address(async_session, tmp_path, owner_id):
+    probe = _FakeProbe()
+    app = _app(async_session, tmp_path, owner_id, probe=probe)
+    async with local_client(app) as client:
+        response = await client.post(
+            "/v1/model-connection-presets/vllm/detect",
+            params={"base_url": "http://169.254.169.254/v1"},
+            json={"base_url": "http://169.254.169.254/v1"},
+        )
+
+    assert response.json()["base_url"] == "http://127.0.0.1:8000/v1"
+    assert [connection.base_url for connection in probe.listed] == ["http://127.0.0.1:8000/v1"]
+
+
+async def test_detect_lists_a_real_server_without_a_key_and_bounds_the_models(
+    async_session, tmp_path, owner_id, monkeypatch
+):
+    import httpx
+    from openai import AsyncOpenAI
+
+    from animama.adapters.model_clients.openai_chat_completions.probe import OpenAICompatibleConnectionProbe
+    from animama.app.model_clients.credentials import EnvironmentModelCredentialResolver
+
+    requests: list[httpx.Request] = []
+
+    def server(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        data = [
+            {"id": f"model-{index:03d}", "object": "model", "created": 0, "owned_by": "local"} for index in range(250)
+        ]
+        return httpx.Response(200, json={"object": "list", "data": data})
+
+    original_init = AsyncOpenAI.__init__
+
+    def _init(self, *args, **kwargs):  # noqa: ANN001, ANN002, ANN003
+        kwargs["http_client"] = httpx.AsyncClient(transport=httpx.MockTransport(server))
+        original_init(self, *args, **kwargs)
+
+    monkeypatch.setattr(AsyncOpenAI, "__init__", _init)
+    probe = OpenAICompatibleConnectionProbe(
+        credential_resolver=EnvironmentModelCredentialResolver(openai_api_key="sk-openai", environ={}),
+    )
+    app = _app(async_session, tmp_path, owner_id)
+    app.dependency_overrides[get_model_connection_probe] = lambda: probe
+    async with local_client(app) as client:
+        response = await client.post("/v1/model-connection-presets/llamacpp/detect")
+
+    body = response.json()
+    assert body["reachable"] is True
+    assert len(body["models"]) == 200
+    assert body["models"][0] == "model-000"
+    assert [str(request.url) for request in requests] == ["http://127.0.0.1:8080/v1/models"]
+    assert "authorization" not in {name.lower() for name in requests[0].headers}
+
+
 def test_only_the_local_composition_mounts_model_configuration_routes(tmp_path):
     from animama.server.app import create_local_app
 
@@ -383,13 +495,13 @@ async def test_default_catalog_policy_serves_built_in_rows_only(async_session, t
 
     hosted = {row["id"] for row in await service.list_public_catalog()}
     allowlisted = await service.list_public_catalog(
-        ModelCatalogPolicy(builtin_allowlist=frozenset({"OpenAIResponsesHTTPAgent:gpt-5.6-luna"}))
+        ModelCatalogPolicy(builtin_allowlist=frozenset({"OpenAIResponsesHTTPAgent:gpt-6-luna"}))
     )
     local = {row["id"] for row in await service.list_public_catalog(ModelCatalogPolicy(owner_models_enabled=True))}
 
     assert model["id"] not in hosted
-    assert "OpenAIResponsesHTTPAgent:gpt-5.6-luna" in hosted
-    assert [row["id"] for row in allowlisted] == ["OpenAIResponsesHTTPAgent:gpt-5.6-luna"]
+    assert "OpenAIResponsesHTTPAgent:gpt-6-luna" in hosted
+    assert [row["id"] for row in allowlisted] == ["OpenAIResponsesHTTPAgent:gpt-6-luna"]
     assert model["id"] in local
 
 
@@ -447,13 +559,13 @@ async def test_owner_model_updates_change_only_the_given_fields(async_session, t
         model = (
             await client.post(
                 "/v1/model-connections/openai/models",
-                json={"model": "gpt-6-luna", "template_id": "OpenAIResponsesHTTPAgent:gpt-5.6-luna"},
+                json={"model": "gpt-6-sol", "template_id": "OpenAIResponsesHTTPAgent:gpt-6-luna"},
             )
         ).json()
         updated = await client.patch(
             f"/v1/model-providers/{model['id']}",
             json={
-                "label": "GPT-6 Luna",
+                "label": "GPT-6 Sol",
                 "capabilities": {"supports_tools": True, "supported_reasoning_efforts": ["none", "low"]},
                 "allow_memory_writes": False,
             },
@@ -462,14 +574,14 @@ async def test_owner_model_updates_change_only_the_given_fields(async_session, t
 
     assert updated.status_code == 200
     view = updated.json()
-    assert view["model_label"] == "GPT-6 Luna"
+    assert view["model_label"] == "GPT-6 Sol"
     assert view["allow_memory_writes"] is False
     assert view["context_window_tokens"] == 1_050_000
     assert view["capabilities"]["supported_reasoning_efforts"] == ["none", "low"]
     # Hosted tools come from the Responses template and survive capability edits.
     assert view["capabilities"]["native_tool_support"] == ["apply_patch", "web_search"]
     assert cleared.json()["context_window_tokens"] is None
-    assert cleared.json()["model_label"] == "GPT-6 Luna"
+    assert cleared.json()["model_label"] == "GPT-6 Sol"
 
 
 async def test_templates_describe_chat_models_only(async_session, tmp_path, owner_id):
@@ -479,7 +591,7 @@ async def test_templates_describe_chat_models_only(async_session, tmp_path, owne
         connection = (await client.post("/v1/model-connections", json=_connection_body())).json()
         response = await client.post(
             f"/v1/model-connections/{connection['id']}/models",
-            json={"model": "nomic-embed", "kind": "embedding", "template_id": "OpenAIResponsesHTTPAgent:gpt-5.6-luna"},
+            json={"model": "nomic-embed", "kind": "embedding", "template_id": "OpenAIResponsesHTTPAgent:gpt-6-luna"},
         )
 
     assert response.status_code == 400

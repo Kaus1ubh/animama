@@ -4,6 +4,7 @@ import type { PyModelProviderCatalogItem } from "@animama/runtime-contracts/api-
 import {
   DEFAULT_CAPABILITIES_DRAFT,
   capabilitiesFromProbe,
+  detectionMessage,
   embeddingsStatusText,
   keyWouldTravelInsecurely,
   modelConfigurationErrorMessage,
@@ -28,6 +29,7 @@ function row(
     model: id,
     model_label: id,
     model_provider: "OpenAIHTTPAgent",
+    api_standard: "chat_completions",
     provider_label: "Ollama",
     accepts: ["text"],
     produces: ["text"],
@@ -79,6 +81,13 @@ describe("model pickers", () => {
       "batch",
     ]);
     expect(ids("embeddings")).toEqual(["embed"]);
+    // The Chat default also needs a model direct chat can send to.
+    expect(
+      roleCandidates(
+        [...items, row("unsupported", { api_standard: null })],
+        "chat",
+      ).map((item) => item.id),
+    ).toEqual(["tools", "no-tools", "builtin-no-window"]);
     // A hidden model stays listed while it is the role's current choice.
     expect(
       roleCandidates(items, "utility", "hidden").map((item) => item.id),
@@ -86,13 +95,13 @@ describe("model pickers", () => {
   });
 
   it("groups the built-in OpenAI connection's models under one name", () => {
-    const builtin = row("gpt-5.6-luna", {
+    const builtin = row("gpt-6-luna", {
       connection_id: "openai",
       connection_name: "OpenAI",
       provider_label: "OpenAI Responses HTTP",
       model_provider: "OpenAIResponsesHTTPAgent",
     });
-    const owner = row("gpt-6-luna", {
+    const owner = row("gpt-6.1-luna", {
       connection_id: "openai",
       connection_name: "OpenAI",
       provider_label: "OpenAI",
@@ -102,7 +111,7 @@ describe("model pickers", () => {
     expect(modelConnectionLabel(owner)).toBe("OpenAI");
     expect(modelOptionDetail(owner)).toBe("Responses API");
     expect(modelOptionLabel(builtin)).toBe(
-      "OpenAI: gpt-5.6-luna (Responses API)",
+      "OpenAI: gpt-6-luna (Responses API)",
     );
     const local = row("qwen3:8b", {
       connection_id: "c_0123456789ab",
@@ -175,7 +184,7 @@ describe("connection safety and errors", () => {
       },
     });
     expect(usage && removalUsageSummary(usage)).toBe(
-      "Used by Mira and Luna, and as the Utility role.",
+      "Used by Mira and Luna, and as the Compaction model.",
     );
     expect(usage && removalConsequences(usage)).toBe(
       "Those Animas show their model as unavailable until you pick another. That role goes back to its default.",
@@ -222,5 +231,29 @@ describe("probe and role status", () => {
         error_category: "unreachable",
       }),
     ).toContain("could not be reached");
+  });
+});
+
+describe("detectionMessage", () => {
+  const base = { preset: "ollama", base_url: "http://127.0.0.1:11434/v1" };
+
+  it("counts the models found at the address", () => {
+    expect(
+      detectionMessage(
+        { ...base, reachable: true, models: ["qwen3:8b", "gemma3"] },
+        "Ollama",
+      ),
+    ).toBe("Found 2 models at http://127.0.0.1:11434/v1.");
+    expect(
+      detectionMessage({ ...base, reachable: true, models: ["a"] }, "Ollama"),
+    ).toBe("Found 1 model at http://127.0.0.1:11434/v1.");
+  });
+
+  it("names the server to start when nothing answers", () => {
+    expect(
+      detectionMessage({ ...base, reachable: false, models: [] }, "Ollama"),
+    ).toBe(
+      "Nothing is running at http://127.0.0.1:11434/v1. Start Ollama and try again.",
+    );
   });
 });

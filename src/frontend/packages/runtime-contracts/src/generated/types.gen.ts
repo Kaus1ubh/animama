@@ -5427,6 +5427,36 @@ export type PyModelConnectionCredential = {
 };
 
 /**
+ * PyModelConnectionDetection
+ *
+ * Whether a local preset's server answers at its default address, and its models.
+ *
+ * ``category`` names the failure when ``reachable`` is false.
+ */
+export type PyModelConnectionDetection = {
+    /**
+     * Base Url
+     */
+    base_url: string;
+    /**
+     * Category
+     */
+    category?: string | null;
+    /**
+     * Models
+     */
+    models: Array<string>;
+    /**
+     * Preset
+     */
+    preset: string;
+    /**
+     * Reachable
+     */
+    reachable: boolean;
+};
+
+/**
  * PyModelConnectionPreset
  */
 export type PyModelConnectionPreset = {
@@ -12095,6 +12125,36 @@ export type ListModelConnectionPresetsV1ModelConnectionPresetsGetResponses = {
 };
 
 export type ListModelConnectionPresetsV1ModelConnectionPresetsGetResponse = ListModelConnectionPresetsV1ModelConnectionPresetsGetResponses[keyof ListModelConnectionPresetsV1ModelConnectionPresetsGetResponses];
+
+export type DetectModelConnectionPresetV1ModelConnectionPresetsPresetIdDetectPostData = {
+    body?: never;
+    path: {
+        /**
+         * Preset Id
+         */
+        preset_id: string;
+    };
+    query?: never;
+    url: '/v1/model-connection-presets/{preset_id}/detect';
+};
+
+export type DetectModelConnectionPresetV1ModelConnectionPresetsPresetIdDetectPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DetectModelConnectionPresetV1ModelConnectionPresetsPresetIdDetectPostError = DetectModelConnectionPresetV1ModelConnectionPresetsPresetIdDetectPostErrors[keyof DetectModelConnectionPresetV1ModelConnectionPresetsPresetIdDetectPostErrors];
+
+export type DetectModelConnectionPresetV1ModelConnectionPresetsPresetIdDetectPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: PyModelConnectionDetection;
+};
+
+export type DetectModelConnectionPresetV1ModelConnectionPresetsPresetIdDetectPostResponse = DetectModelConnectionPresetV1ModelConnectionPresetsPresetIdDetectPostResponses[keyof DetectModelConnectionPresetV1ModelConnectionPresetsPresetIdDetectPostResponses];
 
 export type ListModelConnectionsV1ModelConnectionsGetData = {
     body?: never;

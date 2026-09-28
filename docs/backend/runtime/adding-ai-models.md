@@ -31,7 +31,7 @@ skill is required.
 
 Animama separates a selectable model row from the code that calls its provider:
 
-- A **model** is a provider-specific model ID such as `gpt-5.4-nano`.
+- A **model** is a provider-specific model ID such as `gpt-6-luna`.
 - A **model connection** (`model_connections`) is the endpoint and credential
   boundary a row belongs to: the built-in `openai` connection or an owner
   connection with its own base URL, key variable, timeout and compatibility
@@ -49,7 +49,7 @@ Animama separates a selectable model row from the code that calls its provider:
 
 Adding a model to an existing provider type normally adds data, not a new
 FastAPI endpoint or a new app-scoped client. For example,
-`OpenAIResponsesHTTPAgent:gpt-5.6-terra` reuses Animama's existing
+`OpenAIResponsesHTTPAgent:gpt-6-luna` reuses Animama's existing
 `POST /v1/animas/{anima_id}/chat:sse` route and shared OpenAI Responses client.
 That client sends the selected row's model ID to OpenAI's `POST /v1/responses`
 endpoint.
@@ -386,20 +386,23 @@ pnpm packages:build
 Update selector logic and tests when introducing a new public capability,
 default, grouping rule, or API-standard behavior.
 
-## OpenAI Responses Example: GPT-5.6 Luna, Terra, And Sol
+## OpenAI Example: GPT-6 Luna On Both APIs
 
-The implemented Luna and Terra rows reuse `OpenAIResponsesModelClient`:
+One catalog entry ships `gpt-6-luna` on both OpenAI APIs:
 
 ```text
-OpenAIResponsesHTTPAgent:gpt-5.6-luna
-OpenAIResponsesHTTPAgent:gpt-5.6-terra
+OpenAIResponsesHTTPAgent:gpt-6-luna   (OpenAIResponsesModelClient)
+OpenAIHTTPAgent:gpt-6-luna            (Chat Completions client)
 ```
 
-Their catalog entries enable requestable `web_search` and backend-controlled
-memory `apply_patch`. The ordered reasoning list starts with `none`, which the
-selector sends as its default. Sol is not an implemented catalog row; an owner
-can add it on the built-in OpenAI connection by copying the Luna template,
-which keeps the Responses API and its native tools.
+The Responses row enables requestable `web_search` and backend-controlled
+memory `apply_patch`; the Chat Completions row has no native tools. The ordered
+reasoning list starts with `none`, which the selector sends as its default.
+Other OpenAI models need no catalog row: an owner can add one on the built-in
+OpenAI connection by copying the Luna template, which keeps the template's API
+and, on Responses, its native tools. When a built-in row is replaced, map the
+retired ID in `RETIRED_BUILTIN_REPLACEMENTS` so the seed moves Animas and roles
+to the replacement.
 
 Use [the model catalog](../model-catalog.md) for supported capabilities and
 `MODEL_CATALOG` for source-attributed pricing. Verify current vendor terms

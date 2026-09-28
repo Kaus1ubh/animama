@@ -1,12 +1,11 @@
 # Model settings
 
 App Settings → Models lets the installation owner connect model servers, add
-their models and assign model roles. It appears only when
+their models and choose the default model for each job. It appears only when
 `GET /v1/runtime-capabilities` reports `model_configuration: true` (desktop and
-self-hosted web); other compositions keep a fixed catalog. The default chat
-model for new Animas stays in App Settings → General. Running Ollama, LM Studio,
-llama.cpp or vLLM, their context windows and reaching them from Docker Compose
-are covered in [Local model servers](../../backend/operations/local-models.md).
+self-hosted web); other compositions keep a fixed catalog. Running Ollama, LM
+Studio, llama.cpp or vLLM, their context windows and reaching them from Docker
+Compose are covered in [Local model servers](../../backend/operations/local-models.md).
 
 Code: `web/src/ui/settings/models/`, hooks in
 `web/src/query/hooks/useModelConfiguration.ts` and mutations in
@@ -17,11 +16,21 @@ assignments on the server.
 
 ## Connections
 
+The section opens on tabs: **OpenAI** (the built-in connection), one tab per
+owner connection and a **+** tab that adds one. Each tab shows its connection's
+address and key state, Edit and Remove for owner connections, its models and a
+round **+** button that adds a model. Adding a connection opens its tab;
+removing one returns to OpenAI.
+
 Each connection is an OpenAI-compatible server: Ollama, LM Studio, llama.cpp,
 vLLM, DeepSeek, Hugging Face or a custom URL. The preset fills the base URL,
 timeout and compatibility options (under Advanced); local presets use the host
 from `ANIMAMA_LOCAL_MODEL_HOST` (`127.0.0.1` by default, including desktop;
-`host.docker.internal` in Compose). The built-in OpenAI connection uses the
+`host.docker.internal` in Compose). For a new Ollama, LM Studio, llama.cpp or
+vLLM connection, **Detect** asks the backend to check the preset's default
+address (`POST /v1/model-connection-presets/{preset_id}/detect`). A running
+server fills in the base URL and reports how many models it serves; otherwise
+the form says nothing is running there. The built-in OpenAI connection uses the
 OpenAI key from API Keys or `OPENAI_API_KEY` and, on self-hosted web,
 `OPENAI_BASE_URL`. It cannot be edited or removed, but the owner can add models
 to it, for example a newer OpenAI model copied from a built-in template.
@@ -45,8 +54,8 @@ A key that would travel over plain `http` to another computer shows a warning.
 
 ## Models
 
-Add model lists the server's models (`available-models`) or accepts a typed
-ID. For chat models the owner can copy a built-in model's capabilities, then
+The add-model dialog lists the server's models (`available-models`) or accepts a
+typed ID. For chat models the owner can copy a built-in model's capabilities, then
 **Test model** probes streaming, structured output, tool calls and tools with a
 schema, and prefills the results and any context window the server reports.
 The context window is required: it should be the size the server loads the
@@ -58,25 +67,28 @@ removed. Removing something in use first asks for confirmation, naming the
 Animas and roles that use it; those Animas show the model as unavailable until
 another is picked, and the roles return to their defaults.
 
-## Model roles
+## Default models
 
-The Model roles group assigns catalog rows to installation-wide jobs, saved in
-`preferences.models`. Without a choice, a role uses the operator default
+Four selectors under **Default models** pick the model for each job, saved in
+user preferences. Without a choice, each uses the operator default
 (`ANIMAMA_DEFAULT_*_MODEL_PROVIDER_ID`) when one is set, otherwise:
 
-| Role           | Preference key                     | Default                                    |
-| -------------- | ---------------------------------- | ------------------------------------------ |
-| Utility        | `utility_model_provider_id`        | The default chat model                     |
-| Memory Manager | `memory_manager_model_provider_id` | The default chat model when it calls tools |
-| Embeddings     | `embedding_model_provider_id`      | Off (search uses keywords)                 |
+| Section        | Role             | Preference key                            | Default                              |
+| -------------- | ---------------- | ----------------------------------------- | ------------------------------------ |
+| Chat           | `chat`           | `chat.default_model_provider_id`          | The system default model             |
+| Memory Manager | `memory_manager` | `models.memory_manager_model_provider_id` | The Chat default when it calls tools |
+| Compaction     | `utility`        | `models.utility_model_provider_id`        | The Chat default                     |
+| Embeddings     | `embeddings`     | `models.embedding_model_provider_id`      | Off (search uses keywords)           |
 
-Each selector offers only models the server accepts for that role and shows
-which model is in effect (`GET /v1/model-roles`). The Embeddings row shows
-re-embedding progress, polled while the server reports work in flight.
+Chat is the model new Animas start with; existing Animas keep their own.
+Compaction also writes chat titles. Each selector offers only models the server
+accepts for that job and shows which model is in effect (`GET /v1/model-roles`).
+Embeddings shows re-embedding progress, polled while the server reports work in
+flight.
 
 ## Chat model picker
 
-The chat input's picker and the General default list only chat models: embedding
+The chat input's picker and the Chat default list only chat models: embedding
 models never appear, hidden models only while an Anima still uses one, and owner
 models without a context window are disabled with a hint. An Anima whose model
 was removed shows a warning in the picker. Opening a chat restores the row it

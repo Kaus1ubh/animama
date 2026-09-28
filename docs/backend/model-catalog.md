@@ -117,7 +117,7 @@ Normal avatar chat stores the selected default as a stable catalog row ID on
 
 ```json
 {
-  "default_model_provider_id": "OpenAIHTTPAgent:gpt-5-nano"
+  "default_model_provider_id": "OpenAIResponsesHTTPAgent:gpt-6-luna"
 }
 ```
 
@@ -125,7 +125,7 @@ Strict Anima creation seeds the profile from the owner's App Settings default
 chat model (`user_settings.preferences.chat.default_model_provider_id`) when it
 names an active model that direct chat supports. Otherwise, and always for
 installation bootstrap, it uses `ANIMAMA_DEFAULT_MODEL_PROVIDER_ID`, which
-defaults to `OpenAIResponsesHTTPAgent:gpt-5.6-luna`. Existing Animas keep their
+defaults to `OpenAIResponsesHTTPAgent:gpt-6-luna`. Existing Animas keep their
 own profile. The frontend model selector persists
 changes through `PATCH /v1/animas/{anima_id}/chat-profile`.
 
@@ -166,10 +166,18 @@ are not priced separately; they are part of the provider-reported output token
 count.
 
 When a row is unpriced, a requested service tier is unsupported, or a required
-rate is missing, the helper returns an explicit unpriced result with `None`
+rate is missing (for example, cached tokens on a row without a cached-input
+rate), the helper returns an explicit unpriced result with `None`
 cost fields. It does not treat unknown pricing as zero dollars. The helper does
-not apply regional-processing uplifts or tool-call fees; later billing work
-must opt into those adjustments with the right request context.
+not apply regional-processing uplifts, long-context rates or tool-call fees;
+later billing work must opt into those adjustments with the right request
+context.
+
+`gpt-6-luna` rows (both APIs) record the owner-supplied standard rates of
+$0.10 input and $0.50 output per 1M tokens, checked 2026-09-28, with no source
+URL. Its cached-input, batch, flex, priority and long-context rates are unknown
+and stored as null, so `service_tiers_supported` is `["standard"]`: other tiers
+and turns that report cached input tokens produce unpriced estimates.
 
 ## Provider Types
 
@@ -182,17 +190,14 @@ must opt into those adjustments with the right request context.
 
 | Provider type              | Model                    | Accepts     | Produces  | Tools | Streaming | Reasoning efforts                               | Native tools                |
 | -------------------------- | ------------------------ | ----------- | --------- | ----- | --------- | ----------------------------------------------- | --------------------------- |
-| `OpenAIHTTPAgent`          | `gpt-5-nano`             | image, text | text      | yes   | yes       | `minimal`, `low`, `medium`, `high`              | none                        |
-| `OpenAIResponsesHTTPAgent` | `gpt-5-nano`             | image, text | text      | yes   | yes       | `minimal`, `low`, `medium`, `high`              | none                        |
-| `OpenAIHTTPAgent`          | `gpt-5.4-nano`           | image, text | text      | yes   | yes       | `none`, `low`, `medium`, `high`, `xhigh`        | none                        |
-| `OpenAIResponsesHTTPAgent` | `gpt-5.4-nano`           | image, text | text      | yes   | yes       | `none`, `low`, `medium`, `high`, `xhigh`        | `apply_patch`, `web_search` |
-| `OpenAIResponsesHTTPAgent` | `gpt-5.6-luna`           | image, text | text      | yes   | yes       | `none`, `low`, `medium`, `high`, `xhigh`, `max` | `apply_patch`, `web_search` |
-| `OpenAIResponsesHTTPAgent` | `gpt-5.6-terra`          | image, text | text      | yes   | yes       | `none`, `low`, `medium`, `high`, `xhigh`, `max` | `apply_patch`, `web_search` |
+| `OpenAIHTTPAgent`          | `gpt-6-luna`             | image, text | text      | yes   | yes       | `none`, `low`, `medium`, `high`, `xhigh`, `max` | none                        |
+| `OpenAIResponsesHTTPAgent` | `gpt-6-luna`             | image, text | text      | yes   | yes       | `none`, `low`, `medium`, `high`, `xhigh`, `max` | `apply_patch`, `web_search` |
 | `OpenAIHTTPAgent`          | `text-embedding-3-small` | text        | embedding | no    | no        | n/a                                             | none                        |
 | `OpenAIHTTPAgent`          | `text-embedding-3-large` | text        | embedding | no    | no        | n/a                                             | none                        |
 
-The two `text-embedding-3-*` rows have `model_kind: "embedding"`. All other
-built-in rows are chat rows.
+The two `text-embedding-3-*` rows have `model_kind: "embedding"`. The
+`gpt-6-luna` rows are chat rows with a 1,050,000-token context window, 128,000
+max output tokens and a 2026-05-18 knowledge cutoff.
 
 The `Tools` column is a broad provider capability flag. Anima memory tools are
 app-layer tools executed by the direct chat runtime when the selected row
@@ -248,9 +253,9 @@ returning empty capability lists.
 Per-model values are listed in
 [Built-In Provider/Model Pairs](#built-in-providermodel-pairs).
 
-For both GPT-5.6 rows, `none` is first in the normalized list. The frontend
-therefore sends `reasoning.effort: "none"` by default when either model is
-selected, instead of inheriting OpenAI's omitted-field default of `medium`.
+For both `gpt-6-luna` rows, `none` is first in the normalized list. The
+frontend therefore sends `reasoning.effort: "none"` by default when either row
+is selected, instead of inheriting OpenAI's omitted-field default of `medium`.
 
 `OpenAIHTTPAgent` and `OpenAIResponsesHTTPAgent` honor request-scoped
 `reasoning_effort` values when the selected effort is listed for the active
@@ -262,17 +267,16 @@ and sends `high` and `max` with thinking enabled, and `omit` never sends one.
 
 `native_tool_support` lists provider-native tools by stable request name. The
 catalog advertises `web_search` and `apply_patch` for the official
-OpenAI Responses rows `gpt-5.4-nano`, `gpt-5.6-luna`, and `gpt-5.6-terra`.
+OpenAI Responses row `OpenAIResponsesHTTPAgent:gpt-6-luna`.
 Runtime turns user-requested
 `web_search` into a hosted Responses tool with `search_context_size: "low"`.
-`requestable_native_tool_support` contains only `web_search` for those rows.
+`requestable_native_tool_support` contains only `web_search` for that row.
 `apply_patch` is therefore visible as a complete model capability but is not in
 the generic request allowlist; the backend enables it only for permitted
 direct-memory writes. Catalog serialization and direct-turn validation derive
-the requestable list from the same backend policy. The GPT-5.6 entries are
-Responses-only; `OpenAIHTTPAgent:gpt-5.4-nano` uses Chat Completions and
-advertises neither capability. Native tools are not owner-editable: an owner
-Responses row keeps those of the Responses template it was copied from, and
+the requestable list from the same backend policy. `OpenAIHTTPAgent:gpt-6-luna`
+uses Chat Completions and advertises neither capability. Native tools are not
+owner-editable: an owner Responses row keeps those of the Responses template it was copied from, and
 Chat Completions rows never advertise them. Chat Completions models have no
 web search.
 
@@ -314,7 +318,7 @@ falling through to provider construction.
 
 A newly released OpenAI model needs no code change: the owner adds it in App
 Settings → Models on the built-in OpenAI connection, copying the capabilities
-of a built-in template such as `gpt-5.6-luna`. Change `MODEL_CATALOG` only when
+of a built-in template such as `gpt-6-luna`. Change `MODEL_CATALOG` only when
 a model should ship as a release-managed built-in row.
 
 Follow [Adding AI model support](runtime/adding-ai-models.md) when adding or
@@ -327,8 +331,26 @@ The generated seed `alembic/seeds/01-seed-model-providers.sql` upserts the
 built-in `openai` connection and the built-in rows. It updates only
 `source='builtin'` rows, never changes their `hidden` flag, and retires built-in
 rows that are no longer in `MODEL_CATALOG`. Owner connections and rows are never
-touched, and retired rows keep their IDs, so chat profiles and history stay
-valid.
+touched, and retired rows keep their IDs, so history stays valid.
+
+`RETIRED_BUILTIN_REPLACEMENTS` in `animama.app.model_catalog` maps retired
+built-in chat rows to a current row on the same API. On every run the seed moves
+Anima chat profiles (`default_model_provider_id`) and the owner's
+`chat.default_model_provider_id`, `models.utility_model_provider_id` and
+`models.memory_manager_model_provider_id` preferences from a mapped row to its
+replacement; other preference keys and profile metadata are kept. The embedding
+role is not remapped because retired rows are chat rows. Operator defaults
+(`ANIMAMA_DEFAULT_MODEL_PROVIDER_ID` and the utility and Memory Manager
+defaults) that name a mapped row use its replacement when settings load, with a
+warning in the log; update the environment to silence it. Current mappings:
+
+| Retired row                                                                               | Replacement                           |
+| ----------------------------------------------------------------------------------------- | ------------------------------------- |
+| `OpenAIResponsesHTTPAgent:` `gpt-5.6-luna`, `gpt-5.6-terra`, `gpt-5-nano`, `gpt-5.4-nano` | `OpenAIResponsesHTTPAgent:gpt-6-luna` |
+| `OpenAIHTTPAgent:` `gpt-5-nano`, `gpt-5.4-nano`                                           | `OpenAIHTTPAgent:gpt-6-luna`          |
+
+When retiring a built-in row that Animas may use, add its mapping in the same
+change and regenerate the seed.
 
 Do not put provider secrets in `MODEL_CATALOG` or connection rows. Connections
 store only the name of the environment variable that holds a key.

@@ -329,9 +329,9 @@ When memory tools are attached, the prompt sets `parallel_tool_calls` to
 For `OpenAIResponsesHTTPAgent`, the adapter additionally sends typed SDK
 `ApplyPatchToolParam(type="apply_patch")` when memory writes are allowed and the
 selected catalog row advertises `apply_patch`. That request keeps read/search
-functions and omits the two function-tool writers. The official OpenAI Responses rows
-for `gpt-5.4-nano`, `gpt-5.6-luna`, and `gpt-5.6-terra` have that capability;
-`gpt-5-nano` and Chat Completions rows retain JSON-schema functions. `apply_patch` is
+functions and omits the two function-tool writers. The official OpenAI Responses row
+for `gpt-6-luna` has that capability; Chat Completions rows retain JSON-schema
+functions. `apply_patch` is
 intentionally absent from the user-requestable generic `native_tools`
 allowlist. Public catalog rows keep the complete capability in
 `native_tool_support` and separately expose
@@ -445,8 +445,7 @@ it only when the connection's `send_openai_extensions` option is on.
 `native_tools` and `reasoning_effort` are request-scoped options validated
 against the selected catalog row. Current direct support includes the
 Responses-native `web_search` tool for catalog rows that advertise it; Chat
-Completions rows never advertise native web search, and the GPT-5.6 entries are
-Responses-only. The Responses adapter
+Completions rows never advertise native web search. The Responses adapter
 sends native web search with `search_context_size: "low"` by default. Anima
 memory tools are separate app-layer function tools, supported for
 `OpenAIHTTPAgent`, `OpenAIResponsesHTTPAgent` and `MockModelClient` rows with
@@ -523,7 +522,7 @@ The same successful non-incognito chat-row update stores the last durable model
 snapshot for frontend restore: `chats.last_model_provider_id` is the exact
 catalog row ID, `chats.last_model_client` is the row's model-client profile
 such as `openai_chat_completions` or `openai_responses`, and
-`chats.last_model_id` is the model slug such as `gpt-5-nano`. The frontend
+`chats.last_model_id` is the model slug such as `gpt-6-luna`. The frontend
 restores by row ID, since several connections can serve the same model slug,
 and falls back to the client and slug only for chats without a row ID.
 

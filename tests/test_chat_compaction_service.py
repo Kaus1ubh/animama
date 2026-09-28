@@ -30,10 +30,10 @@ class _FakeModelRunner:
             text=self.summary,
             usage=self.usage,
             model_provider=ModelProvider(
-                id="OpenAIResponsesHTTPAgent:gpt-5-nano",
+                id="OpenAIResponsesHTTPAgent:gpt-6-luna",
                 provider_type="OpenAIResponsesHTTPAgent",
-                model="gpt-5-nano",
-                model_label="gpt-5-nano",
+                model="gpt-6-luna",
+                model_label="gpt-6-luna",
                 provider_label="OpenAI",
                 active=True,
             ),

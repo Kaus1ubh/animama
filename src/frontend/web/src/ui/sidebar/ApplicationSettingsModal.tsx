@@ -40,6 +40,7 @@ import {
   toElevenLabsV3FinalizedChunking,
   type ElevenLabsTtsModelId,
   type ElevenLabsV3FinalizedChunking,
+  type ModelRole,
   type SettingsPreferences,
 } from "@/lib/settings/preferences";
 import {
@@ -70,10 +71,6 @@ import {
   behaviorLabel,
   ResetAppSettingsSetting,
 } from "@/ui/settings/BehaviorDataSettings";
-import {
-  DefaultAnimaSetting,
-  DefaultChatModelSetting,
-} from "@/ui/settings/GeneralDefaultsSettings";
 import {
   MicrophoneDeviceSetting,
   MicrophoneSensitivitySetting,
@@ -124,7 +121,10 @@ import {
 } from "@/ui/settings/SettingsLayout";
 import { SettingsSearch } from "@/ui/settings/SettingsSearch";
 import { ModelConnectionsSettings } from "@/ui/settings/models/ModelConnectionsSettings";
-import { ModelRolesSettings } from "@/ui/settings/models/ModelRolesSettings";
+import {
+  MODEL_DEFAULTS,
+  ModelDefaultSetting,
+} from "@/ui/settings/models/ModelDefaultsSettings";
 import {
   availableSettingsSections,
   type SettingsSearchEntry,
@@ -252,11 +252,38 @@ const GROUP_DESCRIPTIONS: Record<string, string> = {
     "Override colours for the mode in effect. Light and Dark keep separate colours.",
   "Desktop shortcuts": "Press to talk also supports a mouse button.",
   Experimental: "These features may not work on every device.",
-  "Model roles":
-    "Models for work outside chat turns. The default chat model is in General.",
+  "Default models": "The models Animama uses for each job.",
 };
 
 const SELECT_TRIGGER_CLASS_NAME = "w-56";
+
+/** Search entries for the default model sections in Models. */
+const MODEL_DEFAULT_ENTRIES: ReadonlyArray<{
+  role: ModelRole;
+  id: string;
+  keywords: string[];
+}> = [
+  {
+    role: "chat",
+    id: "default-chat-model",
+    keywords: ["default", "chat model", "new anima", "llm"],
+  },
+  {
+    role: "memory_manager",
+    id: "memory-manager-model",
+    keywords: ["memory manager", "memory", "tools"],
+  },
+  {
+    role: "utility",
+    id: "compaction-model",
+    keywords: ["utility", "compaction", "summary", "chat titles"],
+  },
+  {
+    role: "embeddings",
+    id: "embeddings-model",
+    keywords: ["embeddings", "search", "re-embed", "files", "archives"],
+  },
+];
 
 /** Render entries in order, merging consecutive same-group entries into one group. */
 function renderSettingEntries(
@@ -1066,28 +1093,13 @@ export function ApplicationSettingsModal({
       ),
     },
     {
-      id: "default-anima",
-      section: "General",
-      group: "Defaults",
-      label: "Default Anima",
-      keywords: ["startup", "open", "pinned", "last opened"],
-      render: () => <DefaultAnimaSetting disabled={isBusy} />,
-    },
-    {
-      id: "default-chat-model",
-      section: "General",
-      group: "Defaults",
-      label: "Default chat model",
-      keywords: ["model", "llm", "new anima", "openai", "provider"],
-      render: () => <DefaultChatModelSetting disabled={isBusy} />,
-    },
-    {
       id: "model-connections",
       section: "Models",
       label: "Connections and models",
       keywords: [
         "model",
         "connection",
+        "openai",
         "ollama",
         "lm studio",
         "llama.cpp",
@@ -1096,28 +1108,24 @@ export function ApplicationSettingsModal({
         "hugging face",
         "local",
         "provider",
+        "detect",
         "hide",
       ],
       hidden: !modelConfigurationEnabled,
       render: () => <ModelConnectionsSettings disabled={isBusy} />,
     },
-    {
-      id: "model-roles",
-      section: "Models",
-      group: "Model roles",
-      label: "Utility, Memory Manager and embeddings models",
-      keywords: [
-        "utility",
-        "title",
-        "compaction",
-        "memory manager",
-        "embeddings",
-        "search",
-        "role",
-      ],
-      hidden: !modelConfigurationEnabled,
-      render: () => <ModelRolesSettings disabled={isBusy} />,
-    },
+    ...MODEL_DEFAULT_ENTRIES.map(
+      ({ role, id, keywords }): SettingEntry => ({
+        id,
+        section: "Models",
+        group: "Default models",
+        label: MODEL_DEFAULTS[role].label,
+        description: MODEL_DEFAULTS[role].description,
+        keywords,
+        hidden: !modelConfigurationEnabled,
+        render: () => <ModelDefaultSetting role={role} disabled={isBusy} />,
+      }),
+    ),
     {
       id: "volume",
       section: "General",

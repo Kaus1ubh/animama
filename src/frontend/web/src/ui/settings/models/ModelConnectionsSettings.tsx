@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Plus } from "lucide-react";
 import { toast } from "sonner";
 
 import type {
@@ -16,7 +17,6 @@ import {
   useRemoveModelConnection,
   useUpdateModel,
 } from "@/query/mutations/useModelConfiguration";
-import { cn } from "@/lib/utils";
 import { Button } from "@/ui/components/button";
 import {
   Dialog,
@@ -27,6 +27,7 @@ import {
   DialogTitle,
 } from "@/ui/components/dialog";
 import { Switch } from "@/ui/components/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/components/tabs";
 import { useDesktopCredentialsAvailable } from "@/ui/settings/DesktopCredentialsPanel";
 
 import {
@@ -38,6 +39,7 @@ import {
 import {
   deleteConnectionKey,
   ModelConnectionDialog,
+  ModelConnectionForm,
 } from "./ModelConnectionDialog";
 import { OwnerModelDialog } from "./OwnerModelDialog";
 
@@ -82,8 +84,12 @@ function modelFacts(
   return facts.join(" · ");
 }
 
+/** Tab value for adding a connection; connection tabs use their ids. */
+const ADD_TAB = "__add_connection__";
+
 /**
- * App Settings → Models → Connections: every connection with its models.
+ * App Settings → Models: one tab per connection (the built-in OpenAI
+ * connection first) with its models, and a "+" tab that adds a connection.
  * Owner connections and models can be edited and removed; built-in OpenAI
  * models can only be hidden, but the owner may add models to that connection
  * (for example a newer OpenAI model).
@@ -96,14 +102,23 @@ export function ModelConnectionsSettings({ disabled }: { disabled: boolean }) {
   const updateModel = useUpdateModel();
   const platform = useRuntimePlatform();
   const managedKeys = useDesktopCredentialsAvailable();
-  const [connectionEditor, setConnectionEditor] = useState<{
-    connection?: PyModelConnection;
-  } | null>(null);
+  const [tab, setTab] = useState<string | null>(null);
+  const [connectionEditor, setConnectionEditor] =
+    useState<PyModelConnection | null>(null);
   const [modelEditor, setModelEditor] = useState<ModelEditor | null>(null);
   const [removal, setRemoval] = useState<Removal | null>(null);
   const [removing, setRemoving] = useState(false);
 
-  const all = connections.data ?? [];
+  // The built-in OpenAI connection leads; owner connections follow in order.
+  const all = [...(connections.data ?? [])].sort(
+    (a, b) => Number(b.source === "builtin") - Number(a.source === "builtin"),
+  );
+  // Until a tab is chosen, or after its connection is removed, show OpenAI.
+  const activeTab =
+    tab !== null &&
+    (tab === ADD_TAB || all.some((connection) => connection.id === tab))
+      ? tab
+      : (all[0]?.id ?? ADD_TAB);
   const templates = all
     .filter((connection) => connection.source === "builtin")
     .flatMap((connection) => connection.models ?? [])
@@ -150,6 +165,7 @@ export function ModelConnectionsSettings({ disabled }: { disabled: boolean }) {
       return;
     }
     setRemoval(null);
+    if (target.kind === "connection") setTab(null);
     toast.success(
       target.kind === "connection" ? "Connection removed." : "Model removed.",
     );
@@ -187,71 +203,63 @@ export function ModelConnectionsSettings({ disabled }: { disabled: boolean }) {
         Model connections could not be loaded.
       </p>
     );
+  if (!connections.isSuccess) return null;
 
   return (
-    <div className="space-y-5 py-3">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-muted-foreground max-w-prose text-sm">
-          Connect local servers such as Ollama, LM Studio or llama.cpp, or cloud
-          providers, then add the models you want to chat with.
-        </p>
-        <Button
-          type="button"
-          disabled={disabled || !presets.isSuccess}
-          onClick={() => setConnectionEditor({})}
+    <div className="py-3">
+      <Tabs value={activeTab} onValueChange={setTab}>
+        <TabsList
+          aria-label="Model connections"
+          // Wraps instead of scrolling so every tab stays reachable on phones.
+          className="h-auto w-full flex-wrap justify-start gap-1"
         >
-          Add connection
-        </Button>
-      </div>
-      {all.map((connection) => {
-        const builtin = connection.source === "builtin";
-        return (
-          <section
-            key={connection.id}
-            className="border-border/60 space-y-3 rounded-xl border p-4"
-            aria-label={connection.name}
+          {all.map((connection) => (
+            <TabsTrigger
+              key={connection.id}
+              value={connection.id}
+              className="max-w-full"
+            >
+              <span className="truncate">{connection.name}</span>
+            </TabsTrigger>
+          ))}
+          <TabsTrigger
+            value={ADD_TAB}
+            aria-label="Add connection"
+            disabled={!presets.data?.length}
           >
-            <div className="flex flex-wrap items-start justify-between gap-2">
-              <div className="min-w-0">
-                <h4 className="text-sm font-semibold">
-                  {connection.name}
-                  {builtin ? (
-                    <span className="text-muted-foreground ml-2 text-xs font-normal">
-                      Built-in
-                    </span>
-                  ) : null}
-                </h4>
-                <p
-                  className={cn(
-                    "text-muted-foreground text-xs",
-                    // URLs truncate; the built-in explanation wraps.
-                    !builtin && "truncate",
-                  )}
-                >
-                  {builtin
-                    ? "Uses the OpenAI key and base URL from API Keys or the environment."
-                    : `${connection.base_url ?? ""} · ${KEY_STATE_LABELS[connection.credential_state]}`}
+            <Plus className="size-4" aria-hidden />
+          </TabsTrigger>
+        </TabsList>
+        {all.map((connection) => {
+          const builtin = connection.source === "builtin";
+          const models = connection.models ?? [];
+          return (
+            <TabsContent
+              key={connection.id}
+              value={connection.id}
+              className="mt-4 space-y-3"
+            >
+              {builtin ? (
+                <p className="text-muted-foreground text-xs">
+                  Built-in. Uses the OpenAI key and base URL from API Keys or
+                  the environment.
                 </p>
-              </div>
-              <div className="flex gap-1">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  disabled={disabled}
-                  onClick={() => setModelEditor({ connection })}
-                >
-                  Add model
-                </Button>
-                {!builtin ? (
-                  <>
+              ) : (
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <h4 className="text-sm font-semibold">{connection.name}</h4>
+                    <p className="text-muted-foreground truncate text-xs">
+                      {`${connection.base_url ?? ""} · ${KEY_STATE_LABELS[connection.credential_state]}`}
+                    </p>
+                  </div>
+                  <div className="flex gap-1">
                     <Button
                       type="button"
                       size="sm"
                       variant="ghost"
                       disabled={disabled || !presets.isSuccess}
                       aria-label={`Edit ${connection.name}`}
-                      onClick={() => setConnectionEditor({ connection })}
+                      onClick={() => setConnectionEditor(connection)}
                     >
                       Edit
                     </Button>
@@ -271,81 +279,116 @@ export function ModelConnectionsSettings({ disabled }: { disabled: boolean }) {
                     >
                       Remove
                     </Button>
-                  </>
-                ) : null}
-              </div>
-            </div>
-            <ul className="divide-border/60 divide-y">
-              {(connection.models ?? []).map((model) => (
-                <li
-                  key={model.id}
-                  className="flex flex-wrap items-center justify-between gap-2 py-2"
-                >
-                  <div className="min-w-0">
-                    <div className="truncate text-sm">{model.model_label}</div>
-                    <div className="text-muted-foreground text-xs">
-                      {modelFacts(model, connection)}
-                    </div>
                   </div>
-                  {model.source === "builtin" ? (
-                    <label className="flex items-center gap-2 text-xs">
-                      Show in model lists
-                      <Switch
-                        checked={!model.hidden}
-                        disabled={disabled}
-                        aria-label={`Show ${model.model_label} (${apiLabel(model)})`}
-                        onCheckedChange={(checked) =>
-                          setHidden(model, !checked)
-                        }
-                      />
-                    </label>
-                  ) : (
-                    <div className="flex gap-1">
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        disabled={disabled}
-                        aria-label={`Edit ${model.model_label}`}
-                        onClick={() => setModelEditor({ connection, model })}
-                      >
-                        Edit
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        disabled={disabled}
-                        aria-label={`Remove ${model.model_label}`}
-                        onClick={() =>
-                          startRemoval({
-                            kind: "model",
-                            model,
-                            usage: null,
-                          })
-                        }
-                      >
-                        Remove
-                      </Button>
+                </div>
+              )}
+              <ul className="divide-border/60 divide-y">
+                {models.map((model) => (
+                  <li
+                    key={model.id}
+                    className="flex flex-wrap items-center justify-between gap-2 py-2"
+                  >
+                    <div className="min-w-0">
+                      <div className="truncate text-sm">
+                        {model.model_label}
+                      </div>
+                      <div className="text-muted-foreground text-xs">
+                        {modelFacts(model, connection)}
+                      </div>
                     </div>
-                  )}
-                </li>
-              ))}
-              {(connection.models ?? []).length === 0 ? (
-                <li className="text-muted-foreground py-2 text-xs">
-                  No models yet. Add one to chat with it.
-                </li>
-              ) : null}
-            </ul>
-          </section>
-        );
-      })}
+                    {model.source === "builtin" ? (
+                      <label className="flex items-center gap-2 text-xs">
+                        Show in model lists
+                        <Switch
+                          checked={!model.hidden}
+                          disabled={disabled}
+                          aria-label={`Show ${model.model_label} (${apiLabel(model)})`}
+                          onCheckedChange={(checked) =>
+                            setHidden(model, !checked)
+                          }
+                        />
+                      </label>
+                    ) : (
+                      <div className="flex gap-1">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          disabled={disabled}
+                          aria-label={`Edit ${model.model_label}`}
+                          onClick={() => setModelEditor({ connection, model })}
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          disabled={disabled}
+                          aria-label={`Remove ${model.model_label}`}
+                          onClick={() =>
+                            startRemoval({
+                              kind: "model",
+                              model,
+                              usage: null,
+                            })
+                          }
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                    )}
+                  </li>
+                ))}
+                {models.length === 0 ? (
+                  <li className="text-muted-foreground py-2 text-xs">
+                    No models yet. Add one to chat with it.
+                  </li>
+                ) : null}
+              </ul>
+              <div className="flex justify-center">
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="outline"
+                  className="rounded-full"
+                  disabled={disabled}
+                  aria-label={`Add model to ${connection.name}`}
+                  onClick={() => setModelEditor({ connection })}
+                >
+                  <Plus className="size-4" aria-hidden />
+                </Button>
+              </div>
+            </TabsContent>
+          );
+        })}
+        <TabsContent value={ADD_TAB} className="mt-4 space-y-4">
+          <p className="text-muted-foreground text-xs">
+            Connect an OpenAI-compatible server such as Ollama, LM Studio,
+            llama.cpp or a cloud provider, then add its models.
+          </p>
+          {presets.data?.length ? (
+            <ModelConnectionForm
+              presets={presets.data}
+              managedKeys={managedKeys}
+              onSaved={(saved) => setTab(saved.id)}
+              footer={({ saving, valid }) => (
+                <div className="flex justify-end">
+                  <Button type="submit" disabled={disabled || !valid || saving}>
+                    {saving ? "Adding…" : "Add connection"}
+                  </Button>
+                </div>
+              )}
+            />
+          ) : null}
+        </TabsContent>
+      </Tabs>
       {connectionEditor ? (
         <ModelConnectionDialog
           open
           onOpenChange={(open) => !open && setConnectionEditor(null)}
           presets={presets.data ?? []}
-          connection={connectionEditor.connection}
+          connection={connectionEditor}
           managedKeys={managedKeys}
         />
       ) : null}

@@ -1649,6 +1649,97 @@ stopped responding (fixture errors across unrelated database tests, then the
 1,500 s timeout); the run before F9 passed 2161. The full suite is rerun on a
 healthy engine before pushing.
 
+### Phase 7 — gpt-6-luna built-ins and a simpler Models section
+
+Owner request after the Phase 5 browser review (2026-09-28), decisions made by
+the owner the same day. Same branch and PR; depends on Phase 6.
+
+1. **Built-in catalog.**
+   - Built-in chat rows become `gpt-6-luna` only, one per API:
+     `OpenAIResponsesHTTPAgent:gpt-6-luna` and `OpenAIHTTPAgent:gpt-6-luna`.
+   - The embedding rows `text-embedding-3-small` and `-large` stay.
+   - Metadata is copied from `gpt-5.6-luna`: capabilities, reasoning efforts
+     none to max, a 1,050,000-token window and 128K max output. Native tools on
+     Responses are web search and `apply_patch`.
+   - Pricing is standard $0.10 input and $0.50 output per 1M tokens. Tiers and
+     cached-input rates the owner did not supply stay unknown, never zero.
+   - `gpt-5.6-luna`, `gpt-5.6-terra`, `gpt-5-nano` and `gpt-5.4-nano` are
+     retired. The seed repoints Anima chat profiles and owner preferences from
+     a retired built-in to `gpt-6-luna` on the same API, so existing installs
+     keep chatting.
+   - `ANIMAMA_DEFAULT_MODEL_PROVIDER_ID` defaults to
+     `OpenAIResponsesHTTPAgent:gpt-6-luna` (config, Compose and
+     `.env.example`), which starter Animas use.
+2. **Models section.**
+   - Tabs: **OpenAI**, then one tab per owner connection by name, then a **+**
+     tab that adds a connection.
+   - The **+** tab offers Ollama, LM Studio, llama.cpp and vLLM a **Detect**
+     button, which checks the preset's default address on the server and fills
+     it in with the models found. DeepSeek, Hugging Face and Custom are also
+     offered.
+   - Each tab lists its models, with a centered **+** button that adds a model.
+     Connection edit and removal stay in the tab.
+3. **Defaults.**
+   - Four sections replace "Model roles": **Chat** (the default model for new
+     Animas), **Memory Manager**, **Compaction** (compaction and chat titles,
+     the Utility role) and **Embeddings**.
+   - General loses "Default Anima" and "Default chat model". Without a
+     default, the app opens the last-used Anima.
+4. Tests, docs and a browser check at desktop width and 375 px.
+
+Phase record: issue #204; starting source `dd90124`; commits —.
+
+Implementation notes: the remap lives in the catalog seed
+(`alembic/seeds/01-seed-model-providers.sql`, rendered from
+`RETIRED_BUILTIN_REPLACEMENTS`) and runs on every bootstrap; the embedding
+preference is not remapped because every retired row is a chat row. Unknown
+`gpt-6-luna` rates are null, so estimates with cached tokens or non-standard
+tiers are unpriced. Detect (`POST /v1/model-connection-presets/{id}/detect`)
+lists models at the preset's default address only, keyless, with a 3 s timeout
+and at most 200 ids. The frontend tabs share `ModelConnectionForm` between the
+**+** tab and the Edit dialog; the four defaults share one role code path
+(`ModelRole` includes `chat`). Without a Default Anima the app opens the
+last-used Anima.
+
+#### Code Review #1 Findings
+
+Reviewer: independent `sdlc-reviewer`, full review of the working tree on
+`dd90124`. It verified the remap seed (idempotent, same API, embedding
+excluded, runs on Compose and desktop bootstrap), null pricing, the Detect
+address and key rules, the tabs, shared form and defaults, and that no stale
+UI strings remain.
+
+Blocking:
+
+- **P7-R1-F1** An operator default that still names a retired row (the old
+  `.env.example` line, present in the main checkout's `.env`) makes Anima
+  creation fail with 503 and turns roles off.
+
+Optional: F2 a Detect result stays visible after the URL is edited; F3 Detect
+fills the URL and shows a model count rather than listing models (the add-model
+dialog lists them); F4 the Chat default is hidden when `model_configuration` is
+false (no shipped composition); F5 cached tokens make `gpt-6-luna` estimates
+unpriced; F6 the Chat default requires `supports_streaming` like the server;
+F7 no component tests for the tabs.
+
+#### Code Review #1 Revisions
+
+- **F1 accepted.** `Settings.replace_retired_model_defaults` maps the three
+  chat-model operator defaults through `RETIRED_BUILTIN_REPLACEMENTS` at load
+  and logs a warning. Test added.
+- **F2 accepted.** Editing the URL clears the Detect result.
+- **F3, F5 and F6 accepted as designed** (the owner's intent, the "unknown is
+  never zero" rule and the server's own rule); F4 noted for hosted work; F7
+  covered by helper tests and the browser check.
+
+#### Code Review #2 Findings
+
+Reviewer: same independent `sdlc-reviewer`, targeted recheck. Result: pass; F1
+and F2 resolved (no import cycle; the module-level and composition settings,
+creation and role defaults all read the remapped value), dispositions accepted.
+Optional: document the settings-time remap (added to `model-catalog.md`); the
+warning can appear once per settings instance.
+
 ## Final integration review
 
 Covers the combined Plan A diff against the spec's Plan A acceptance, reusing

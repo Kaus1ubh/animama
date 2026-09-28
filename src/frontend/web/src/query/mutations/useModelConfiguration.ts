@@ -6,6 +6,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   addOwnerModelV1ModelConnectionsConnectionIdModelsPost,
   createModelConnectionV1ModelConnectionsPost,
+  detectModelConnectionPresetV1ModelConnectionPresetsPresetIdDetectPost,
   listAvailableModelsV1ModelConnectionsConnectionIdAvailableModelsGet,
   probeModelV1ModelConnectionsConnectionIdProbePost,
   removeModelConnectionV1ModelConnectionsConnectionIdDelete,
@@ -16,6 +17,7 @@ import {
 import type {
   PyConfiguredModel,
   PyModelConnection,
+  PyModelConnectionDetection,
   PyModelConnectionRequest,
   PyModelConnectionUpdate,
   PyModelProbeReport,
@@ -207,4 +209,27 @@ export function useProbeModel() {
       return data;
     },
   });
+}
+
+/**
+ * Check whether a local model server is running at its preset's default
+ * address. The backend makes the request, so the address is checked from
+ * where the connection will run.
+ */
+export function useDetectModelServer() {
+  return useMutation<PyModelConnectionDetection, unknown, { presetId: string }>(
+    {
+      mutationFn: async ({ presetId }) => {
+        const { data } =
+          await detectModelConnectionPresetV1ModelConnectionPresetsPresetIdDetectPost(
+            {
+              path: { preset_id: presetId },
+              responseValidator: undefined,
+              throwOnError: true,
+            },
+          );
+        return data;
+      },
+    },
+  );
 }

@@ -10,7 +10,6 @@ import {
   resolveFirstOwnedAnimaId,
   resolveNewChatAnimaId,
   resolveSelectedAnimaId,
-  resolveStartupAnimaId,
 } from "./anima-management-search";
 
 describe("Anima management search", () => {
@@ -144,37 +143,5 @@ describe("Anima roster selection", () => {
     expect(adjacentAnimaId(["anima-1"], "anima-1", 1)).toBe("anima-1");
     expect(adjacentAnimaId([], null, 1)).toBeNull();
     expect(adjacentAnimaId(["anima-1"], "missing", 1)).toBeNull();
-  });
-});
-
-describe("resolveStartupAnimaId", () => {
-  const owned = ["anima-1", "anima-2", "anima-3"];
-
-  it("opens the pinned default Anima when it is owned", () => {
-    expect(
-      resolveStartupAnimaId(owned, {
-        pinnedAnimaId: "anima-3",
-        lastActiveAnimaId: "anima-2",
-      }),
-    ).toBe("anima-3");
-  });
-
-  it("falls back to the last opened Anima when nothing is pinned or the pin was deleted", () => {
-    expect(resolveStartupAnimaId(owned, { lastActiveAnimaId: "anima-2" })).toBe(
-      "anima-2",
-    );
-    expect(
-      resolveStartupAnimaId(owned, {
-        pinnedAnimaId: "deleted",
-        lastActiveAnimaId: "anima-2",
-      }),
-    ).toBe("anima-2");
-  });
-
-  it("falls back to the first Anima, or none", () => {
-    expect(resolveStartupAnimaId(owned, { pinnedAnimaId: "deleted" })).toBe(
-      "anima-1",
-    );
-    expect(resolveStartupAnimaId([], { pinnedAnimaId: "anima-1" })).toBeNull();
   });
 });

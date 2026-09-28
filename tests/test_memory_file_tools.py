@@ -74,8 +74,8 @@ def _native_context() -> MemoryToolExecutionContext:
         chat_id="chat-1",
         run_id="run-1",
         provider_type="OpenAIResponsesHTTPAgent",
-        model_provider_id="OpenAIResponsesHTTPAgent:gpt-5.4-nano",
-        model="gpt-5.4-nano",
+        model_provider_id="OpenAIResponsesHTTPAgent:gpt-6-luna",
+        model="gpt-6-luna",
         native_memory_patch_enabled=True,
     )
 
@@ -1462,8 +1462,8 @@ async def test_native_apply_patch_creates_memory_with_ai_version_metadata(async_
         "chat_id": "chat-1",
         "run_id": "run-1",
         "provider": "OpenAIResponsesHTTPAgent",
-        "model_provider_id": "OpenAIResponsesHTTPAgent:gpt-5.4-nano",
-        "model": "gpt-5.4-nano",
+        "model_provider_id": "OpenAIResponsesHTTPAgent:gpt-6-luna",
+        "model": "gpt-6-luna",
         "tool_name": "apply_patch",
         "tool_call_id": "call-native-create",
         "tool_type": "apply_patch",

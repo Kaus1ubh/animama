@@ -1959,7 +1959,7 @@ async def test_direct_turn_rejects_unsupported_provider_features_before_model_in
 @pytest.mark.asyncio
 async def test_direct_turn_rejects_openai_chat_gpt_5_4_reasoning_with_memory_tools() -> None:
     provider = _provider(
-        model="gpt-5.4-nano",
+        model="gpt-5.4-mini",
         supported_reasoning_efforts=["none", "low", "medium", "high", "xhigh"],
     )
     model_client = _FinalModelClient(_structured_response())
@@ -2181,7 +2181,7 @@ async def test_direct_turn_responses_executes_native_patch_and_persists_neutral_
     memory_tools = _FakeMemoryToolService(result={"ok": True, "path": "notes.md", "operation": "create"})
     provider = _provider(
         provider_type="OpenAIResponsesHTTPAgent",
-        model="gpt-5.4-nano",
+        model="gpt-6-luna",
         native_tool_support=["web_search", "apply_patch"],
     )
     executor, chats = _executor(
@@ -2263,7 +2263,7 @@ async def test_direct_turn_native_patch_side_effect_remains_when_later_final_fai
     memory_tools = _FakeMemoryToolService(result={"ok": True, "path": "notes.md"})
     provider = _provider(
         provider_type="OpenAIResponsesHTTPAgent",
-        model="gpt-5.4-nano",
+        model="gpt-6-luna",
         native_tool_support=["apply_patch"],
     )
     executor, chats = _executor(
@@ -2302,7 +2302,7 @@ async def test_direct_turn_reuses_identical_native_patch_call_id_without_second_
     memory_tools = _FakeMemoryToolService(result={"ok": True, "path": "notes.md"})
     provider = _provider(
         provider_type="OpenAIResponsesHTTPAgent",
-        model="gpt-5.4-nano",
+        model="gpt-6-luna",
         native_tool_support=["apply_patch"],
     )
     executor, _chats = _executor(
@@ -2344,7 +2344,7 @@ async def test_direct_turn_rejects_reused_native_patch_call_id_with_different_op
     memory_tools = _FakeMemoryToolService(result={"ok": True, "path": "one.md"})
     provider = _provider(
         provider_type="OpenAIResponsesHTTPAgent",
-        model="gpt-5.4-nano",
+        model="gpt-6-luna",
         native_tool_support=["apply_patch"],
     )
     executor, _chats = _executor(
@@ -2390,7 +2390,7 @@ async def test_direct_turn_stale_cursor_replays_native_patch_exchange_without_re
     memory_tools = _FakeMemoryToolService(result={"ok": True, "path": "profile.md"})
     provider = _provider(
         provider_type="OpenAIResponsesHTTPAgent",
-        model="gpt-5.4-nano",
+        model="gpt-6-luna",
         native_tool_support=["apply_patch"],
     )
     executor, _chats = _executor(
@@ -2482,7 +2482,7 @@ async def test_direct_turn_native_patch_round_limit_records_failed_output_and_di
     memory_tools = _FakeMemoryToolService(result={"ok": True})
     provider = _provider(
         provider_type="OpenAIResponsesHTTPAgent",
-        model="gpt-5.4-nano",
+        model="gpt-6-luna",
         native_tool_support=["apply_patch"],
     )
     executor, _chats = _executor(
@@ -2674,17 +2674,17 @@ async def test_direct_turn_responses_provider_supports_memory_tools_when_active(
 async def test_direct_turn_capability_gates_native_apply_patch_and_legacy_writers() -> None:
     capable_provider = _provider(
         provider_type="OpenAIResponsesHTTPAgent",
-        model="gpt-5.4-nano",
+        model="gpt-6-luna",
         native_tool_support=["web_search", "apply_patch"],
     )
     incapable_provider = _provider(
         provider_type="OpenAIResponsesHTTPAgent",
-        model="gpt-5-nano",
+        model="gpt-legacy",
         native_tool_support=["web_search"],
     )
     chat_provider = _provider(
         provider_type="OpenAIHTTPAgent",
-        model="gpt-5.4-nano",
+        model="gpt-6-luna",
         native_tool_support=["apply_patch"],
     )
 
@@ -2720,7 +2720,7 @@ async def test_direct_turn_native_apply_patch_respects_memory_write_gating(
 ) -> None:
     provider = _provider(
         provider_type="OpenAIResponsesHTTPAgent",
-        model="gpt-5.4-nano",
+        model="gpt-6-luna",
         native_tool_support=["web_search", "apply_patch"],
     )
     client = _FinalModelClient(_structured_response())
@@ -2745,7 +2745,7 @@ async def test_direct_turn_native_apply_patch_respects_memory_write_gating(
 async def test_direct_turn_rejects_user_requested_apply_patch_as_generic_native_tool() -> None:
     provider = _provider(
         provider_type="OpenAIResponsesHTTPAgent",
-        model="gpt-5.4-nano",
+        model="gpt-6-luna",
         native_tool_support=["web_search", "apply_patch"],
     )
     client = _FinalModelClient(_structured_response())

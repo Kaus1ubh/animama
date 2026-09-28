@@ -196,7 +196,7 @@ async def test_manager_service_uses_the_memory_manager_role(
     async_session.add(
         ORMUserSettings(
             user_id=user_id,
-            preferences={"models": {"memory_manager_model_provider_id": "OpenAIResponsesHTTPAgent:gpt-5.4-nano"}},
+            preferences={"models": {"memory_manager_model_provider_id": "OpenAIResponsesHTTPAgent:gpt-6-luna"}},
         )
     )
     await async_session.commit()
@@ -206,7 +206,7 @@ async def test_manager_service_uses_the_memory_manager_role(
 
     assert isinstance(service._runtime, OpenAIAgentsMemoryManagerRuntime)
     assert service._runtime._model_provider is not None
-    assert service._runtime._model_provider.id == "OpenAIResponsesHTTPAgent:gpt-5.4-nano"
+    assert service._runtime._model_provider.id == "OpenAIResponsesHTTPAgent:gpt-6-luna"
 
 
 @pytest.mark.asyncio

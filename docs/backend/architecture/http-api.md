@@ -419,7 +419,7 @@ and loadout together. Strict creation selects the owner's
 `chat.default_model_provider_id` preference when it names an active chat row
 the chat role accepts, on an active connection (owner rows need a context
 window), else the local `ANIMAMA_DEFAULT_MODEL_PROVIDER_ID` (default
-`OpenAIResponsesHTTPAgent:gpt-5.6-luna`), which must be active. It persists
+`OpenAIResponsesHTTPAgent:gpt-6-luna`), which must be active. It persists
 ElevenLabs voice `gJx1vCzNCD1EQHT212Ls` without a provider request. Reads use
 the Anima's stable display name independently of mutable `avatar.name`. No
 runtime mount or chat/greeting is created.
@@ -499,7 +499,7 @@ The model selector write API is:
 - `PATCH /v1/animas/{anima_id}/chat-profile`
 
 The request body is `{ "default_model_provider_id": "<catalog row id>" }`,
-for example `OpenAIHTTPAgent:gpt-5-nano` or an owner row's `owner:<hex>` id.
+for example `OpenAIHTTPAgent:gpt-6-luna` or an owner row's `owner:<hex>` id.
 The route verifies anima ownership and an active `model_providers` row of kind
 `chat` before updating the profile; other rows return `400`.
 
@@ -567,7 +567,7 @@ structured detail:
   "chat_id": "chat-...",
   "chat_api_standard": "chat_completions",
   "requested_api_standard": "responses",
-  "requested_model_provider_id": "OpenAIResponsesHTTPAgent:gpt-5-nano",
+  "requested_model_provider_id": "OpenAIResponsesHTTPAgent:gpt-6-luna",
   "action": "start_new_chat"
 }
 ```
@@ -668,6 +668,15 @@ carry a key value.
   base URL, whether a key is expected, a suggested key variable,
   compatibility options and the timeout. Local presets use
   `ANIMAMA_LOCAL_MODEL_HOST` as their host.
+- `POST /v1/model-connection-presets/{preset_id}/detect`: for a local preset
+  (`ollama`, `lmstudio`, `llamacpp` or `vllm`), request `GET {base}/models` at
+  the preset's default base URL without a key, allowing 3 seconds to connect
+  and to read. The request carries no address. Returns `{preset, base_url,
+  reachable, models, category}`: up to 200 sorted model IDs when the server
+  answers, otherwise `reachable: false`, empty `models` and a failure
+  `category` such as `unreachable` or `timeout` (still `200`). Other presets
+  return `400 preset_not_local`; unknown or non-selectable presets return
+  `404 unknown_preset`.
 - `GET /v1/model-connections`: active connections, including the built-in
   `openai` connection, each with its active models.
 - `POST /v1/model-connections` (`201`): create a connection from `name`,

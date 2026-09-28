@@ -1,17 +1,23 @@
 import type {
   PyEmbeddingRefreshStatus,
+  PyModelConnectionDetection,
   PyModelProbeReport,
   PyModelProviderCatalogItem,
   PyModelUsage,
   PyOwnerModelCapabilities,
 } from "@animama/runtime-contracts/api-types";
-import type { ModelRole } from "@/lib/settings/preferences";
+import {
+  modelRolePreferencePath,
+  type ModelRole,
+} from "@/lib/settings/preferences";
 import { isChatModelRow } from "@/lib/chat/model-catalog";
+import { chatModelSendGate } from "@/lib/chat/model-provider-compatibility";
 
 /**
  * Models that can do a role, mirroring the server's rules: embeddings need an
- * embedding model, the Memory Manager needs tool calling, and utility needs a
- * streaming chat model (owner models also need a context window). Hidden
+ * embedding model, the Memory Manager needs tool calling, utility needs a
+ * streaming chat model, and the Chat default also needs one direct chat can
+ * send to. Owner models need a context window for streaming roles. Hidden
  * models are left out unless one is the current choice, which the server
  * still uses.
  */
@@ -25,6 +31,7 @@ export function roleCandidates(
     if (role === "embeddings") return item.model_kind === "embedding";
     if (!isChatModelRow(item)) return false;
     if (role === "memory_manager") return Boolean(item.supports_tools);
+    if (role === "chat" && !chatModelSendGate(null, item).ok) return false;
     return (
       Boolean(item.supports_streaming) &&
       (item.source !== "owner" || item.context_window_tokens != null)
@@ -77,6 +84,17 @@ const CATEGORY_MESSAGES: Record<string, string> = {
   provider_error: "The server could not complete the request.",
 };
 
+/** Status line for a Detect result, naming the server type to start. */
+export function detectionMessage(
+  detection: PyModelConnectionDetection,
+  serverName: string,
+): string {
+  const count = detection.models.length;
+  return detection.reachable
+    ? `Found ${count} ${count === 1 ? "model" : "models"} at ${detection.base_url}.`
+    : `Nothing is running at ${detection.base_url}. Start ${serverName} and try again.`;
+}
+
 /** Plain-language text for an error category reported by the server. */
 export function errorCategoryMessage(
   category: string | null | undefined,
@@ -118,25 +136,33 @@ export function modelInUseUsage(error: unknown): PyModelUsage | null {
     : null;
 }
 
-const ROLE_PREFERENCE_LABELS: Record<string, string> = {
-  "chat.default_model_provider_id": "the default chat model",
-  "models.utility_model_provider_id": "the Utility role",
-  "models.memory_manager_model_provider_id": "the Memory Manager role",
-  "models.embedding_model_provider_id": "the Embeddings role",
+const ROLE_NAMES: Record<ModelRole, string> = {
+  chat: "the Chat default",
+  utility: "the Compaction model",
+  memory_manager: "the Memory Manager model",
+  embeddings: "the Embeddings model",
 };
+
+/** Role names keyed by the preference path the server reports in usage. */
+const ROLE_PREFERENCE_LABELS = new Map(
+  (Object.keys(ROLE_NAMES) as ModelRole[]).map((role) => [
+    modelRolePreferencePath(role),
+    ROLE_NAMES[role],
+  ]),
+);
 
 function joinNames(names: readonly string[]): string {
   if (names.length <= 1) return names[0] ?? "";
   return `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
 }
 
-/** "Used by Mira and Luna, and as the Utility role." for a removal prompt. */
+/** "Used by Mira and Luna, and as the Compaction model." for a removal prompt. */
 export function removalUsageSummary(usage: PyModelUsage): string {
   const animas = joinNames(
     (usage.animas ?? []).map((anima) => anima.display_name),
   );
   const roles = joinNames(
-    (usage.roles ?? []).map((path) => ROLE_PREFERENCE_LABELS[path] ?? path),
+    (usage.roles ?? []).map((path) => ROLE_PREFERENCE_LABELS.get(path) ?? path),
   );
   if (animas && roles) return `Used by ${animas}, and as ${roles}.`;
   if (animas) return `Used by ${animas}.`;

@@ -6,6 +6,7 @@ import {
   isParakeetWebgpuPreferred,
   mergePreferences,
   modelRolePatch,
+  modelRolePreferencePath,
   readModelRoleId,
   normalizeThemeSetting,
   resolveElevenLabsV3FinalizedChunking,
@@ -117,5 +118,19 @@ describe("model role preferences", () => {
         "utility",
       ),
     ).toBeNull();
+  });
+
+  it("stores the Chat default under chat and reports each role's path", () => {
+    const updated = mergePreferences(
+      { chat: { default_model_provider_id: "owner:old" } },
+      modelRolePatch("chat", "owner:new"),
+    );
+    expect(readModelRoleId(updated, "chat")).toBe("owner:new");
+    expect(modelRolePreferencePath("chat")).toBe(
+      "chat.default_model_provider_id",
+    );
+    expect(modelRolePreferencePath("utility")).toBe(
+      "models.utility_model_provider_id",
+    );
   });
 });

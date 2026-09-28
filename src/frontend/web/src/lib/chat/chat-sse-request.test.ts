@@ -60,7 +60,7 @@ describe("buildChatSseRequestBody", () => {
         runId: "run-native-tools",
         chatId: "chat-native-tools",
         runtimeRevision: "ar1-native",
-        modelProviderId: "OpenAIResponsesHTTPAgent:gpt-5.4-nano",
+        modelProviderId: "OpenAIResponsesHTTPAgent:gpt-6-luna",
         requestableNativeTools: ["web_search"],
         dispatchOptions: {
           native_tools: ["web_search", "apply_patch", "stale_tool"],
@@ -71,7 +71,7 @@ describe("buildChatSseRequestBody", () => {
       run_id: "run-native-tools",
       chat_id: "chat-native-tools",
       runtime_revision: "ar1-native",
-      model_provider_id: "OpenAIResponsesHTTPAgent:gpt-5.4-nano",
+      model_provider_id: "OpenAIResponsesHTTPAgent:gpt-6-luna",
       dispatch_options: {
         native_tools: ["web_search"],
       },

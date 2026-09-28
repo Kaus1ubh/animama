@@ -160,10 +160,8 @@ which also requires the owner's recorded 18+ confirmation. Continue requires a
 nonblank private name and the 18+ checkbox, and calls
 `POST /v1/runtime/onboarding:complete` with `adult_confirmed: true`; repeating the request after a lost
 response returns the completed context. `/a/` shares the owned Anima and user
-settings queries, waits for both, and opens the pinned default Anima
-(`preferences.startup.default_anima_id`, set in App Settings → General) when it
-is still owned, otherwise the remembered owned Anima or the first in stable
-creation order. Desktop PiP
+settings queries, waits for both, and opens the remembered owned Anima
+(`last_active_anima_id`) or the first in stable creation order. Desktop PiP
 and quick-chat windows wait for readiness without rendering setup.
 
 `useUserProfile` reads the minimal private profile and

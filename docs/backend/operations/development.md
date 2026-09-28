@@ -1326,7 +1326,7 @@ into Included or treat directory existence as successful admission. Use existing
 bootstrap/repair flows only for reported repair, preserving other tasks' data.
 
 Set the primary model through the Anima chat profile to
-`OpenAIResponsesHTTPAgent:gpt-5.6-luna`. The environment default affects new
+`OpenAIResponsesHTTPAgent:gpt-6-luna`. The environment default affects new
 Animas; it does not replace an existing profile. Reasoning belongs to each chat
 request's `dispatch_options.reasoning_effort`, which must be `none` for this
 baseline. Keep main-turn memory influence and updates enabled when checking
@@ -1339,8 +1339,8 @@ the Memory Manager uses its own role; both default to the chat model. To pin
 them in the worktree's nonsecret `.env`, use catalog row ids:
 
 ```dotenv
-ANIMAMA_DEFAULT_UTILITY_MODEL_PROVIDER_ID=OpenAIResponsesHTTPAgent:gpt-5.6-luna
-ANIMAMA_DEFAULT_MEMORY_MANAGER_MODEL_PROVIDER_ID=OpenAIResponsesHTTPAgent:gpt-5.6-luna
+ANIMAMA_DEFAULT_UTILITY_MODEL_PROVIDER_ID=OpenAIResponsesHTTPAgent:gpt-6-luna
+ANIMAMA_DEFAULT_MEMORY_MANAGER_MODEL_PROVIDER_ID=OpenAIResponsesHTTPAgent:gpt-6-luna
 ANIMAMA_CHAT_TITLE_GENERATION_REASONING_EFFORT=none
 ```
 
@@ -1479,8 +1479,9 @@ Models; see [local model servers](local-models.md)):
   presets fill in; default `127.0.0.1` natively, `host.docker.internal` in Compose)
 - `ANIMAMA_MODEL_CLIENT_TIMEOUT_SECONDS` (default `60`; used by connections
   without their own timeout, such as the built-in OpenAI connection)
-- `ANIMAMA_DEFAULT_MODEL_PROVIDER_ID` (catalog row id of the default chat model;
-  App Settings → General takes precedence)
+- `ANIMAMA_DEFAULT_MODEL_PROVIDER_ID` (default
+  `OpenAIResponsesHTTPAgent:gpt-6-luna`; catalog row id of the default chat
+  model for new Animas; the App Settings default chat model takes precedence)
 - `ANIMAMA_DEFAULT_UTILITY_MODEL_PROVIDER_ID`,
   `ANIMAMA_DEFAULT_MEMORY_MANAGER_MODEL_PROVIDER_ID`,
   `ANIMAMA_DEFAULT_EMBEDDING_MODEL_PROVIDER_ID` (operator role defaults as catalog

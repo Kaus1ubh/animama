@@ -648,7 +648,7 @@ Response:
     "kind": "general",
     "task": null,
     "model_provider": "OpenAIResponsesHTTPAgent",
-    "model_name": "gpt-5.6-luna",
+    "model_name": "gpt-6-luna",
     "summary": "Live OpenAI Agents memory-manager run",
     "error": null,
     "usage_metadata": {},

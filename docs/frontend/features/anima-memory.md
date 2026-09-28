@@ -217,10 +217,10 @@ acts on the selected file.
 App Settings → Memory & Emotion sets installation-wide defaults for memory,
 memory updates and emotion updates. Each Anima's settings offer "App default",
 On or Off; turning memory off also stops memory updates. The Memory Manager's
-model is a model role in App Settings → Models (saved as
+model is chosen in App Settings → Models → Default models (saved as
 `models.memory_manager_model_provider_id`): any tool-calling model from any
-connection. "Default chat model" clears the choice, so the manager uses the
-operator default or the default chat model when it supports tools.
+connection. "Same as Chat" clears the choice, so the manager uses the operator
+default or the Chat default when it supports tools.
 
 The text-only composer submits with Enter and inserts a newline with Shift+Enter.
 Responses arrive in one request and render as Markdown; the reveal animation

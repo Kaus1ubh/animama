@@ -365,7 +365,7 @@ async def test_chat_messages_hide_internal_by_default_and_do_not_expose_session_
                 run_id="run-1",
                 role=MessageRole.ASSISTANT.value,
                 content=raw_structured,
-                model="gpt-5-nano",
+                model="gpt-6-luna",
                 model_provider="OpenAIHTTPAgent",
                 message_data={
                     "openai": {"provider": "OpenAIResponsesHTTPAgent", "response_id": "resp_visible"},
@@ -398,7 +398,7 @@ async def test_chat_messages_hide_internal_by_default_and_do_not_expose_session_
     visible = await chats_router.list_chat_messages(chat_id, user=_user(owner_id), session=async_session)
     assert [message.content for message in visible.messages] == ["Display visible"]
     assert visible.messages[0].chat_id == chat_id
-    assert visible.messages[0].model == "gpt-5-nano"
+    assert visible.messages[0].model == "gpt-6-luna"
     assert visible.messages[0].model_provider == "OpenAIHTTPAgent"
     assert visible.messages[0].internal is False
     assert visible.messages[0].data == {

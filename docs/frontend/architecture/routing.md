@@ -17,10 +17,8 @@ Typed creators use stable product routes such as `/a/particle-effects/new`,
   is reachable only while the backend reports first run incomplete.
 - `a.tsx`: app shell; redirects to `/setup` while first run is incomplete.
 - `a/index.tsx`: waits for saved settings and owned Animas, then replaces `/a`
-  with `/a/$animaId` for the pinned Default Anima
-  (`preferences.startup.default_anima_id`) when still owned, otherwise the last
-  visited owned Anima, or the first in creation order (Annie on a fresh
-  installation). A stale ID falls back; no owned Animas
+  with `/a/$animaId` for the last visited owned Anima, or the first in creation
+  order (Annie on a fresh installation). A stale ID falls back; no owned Animas
   opens `/a/animas/new`. Query failures offer Retry without replacing selection.
   Explicit chat and management URLs are unaffected.
 - `a/create.tsx`: creator hub for Anima, Action, and Effects authoring,

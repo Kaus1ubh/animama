@@ -100,11 +100,11 @@ and change the connection's base URL to match.
 
 ## A fully local installation
 
-With no OpenAI key, make a local model the default chat model in App Settings →
-General and pick it for each existing Anima, including the starter Animas,
-which begin on the installation's default OpenAI model. Utility and the Memory
-Manager follow the default chat model; choose Embeddings separately. A chat
-title is skipped when the Utility model takes longer than
+With no OpenAI key, make a local model the Chat default in App Settings →
+Models and pick it for each existing Anima, including the starter Animas,
+which begin on the installation's default OpenAI model. Compaction and the
+Memory Manager follow the Chat default; choose Embeddings separately. A chat
+title is skipped when the Compaction model takes longer than
 `ANIMAMA_CHAT_TITLE_GENERATION_TIMEOUT_SECONDS` (20 by default), for example
 while it loads.
 

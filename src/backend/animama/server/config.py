@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import logging
 import os
 from datetime import timedelta
 from pathlib import Path
 
 from pydantic import BaseModel, Field, model_validator
 
+from animama.app.model_catalog import RETIRED_BUILTIN_REPLACEMENTS
 from animama.app.safety.config import MAX_REMINDER_HOURS, MIN_REMINDER_HOURS, OperatorSafetyConfig, valid_reminder_hours
 from animama.app.safety.crisis_resources import CrisisResourceTableError, crisis_resource_table
 
@@ -132,7 +134,7 @@ class Settings(BaseModel):
     )
     anima_default_model_provider_id: str = os.getenv(
         "ANIMAMA_DEFAULT_MODEL_PROVIDER_ID",
-        "OpenAIResponsesHTTPAgent:gpt-5.6-luna",
+        "OpenAIResponsesHTTPAgent:gpt-6-luna",
     )
     # Operator defaults for model roles (catalog row ids). Unset utility and
     # memory-manager roles use the default chat model; embeddings stay off.
@@ -196,6 +198,28 @@ class Settings(BaseModel):
             raise ValueError("ANIMAMA_CONTENT_ROOT and ANIMAMA_DATA_ROOT must be disjoint directories")
         self.animama_content_root = content_root
         self.animama_data_root = data_root
+        return self
+
+    @model_validator(mode="after")
+    def replace_retired_model_defaults(self) -> Settings:
+        """Point operator chat-model defaults that name a retired built-in at its replacement.
+
+        An older `.env` may still pin a retired row; without this, Anima creation
+        would refuse the inactive default and roles would resolve to off.
+        """
+
+        for field in (
+            "anima_default_model_provider_id",
+            "anima_default_utility_model_provider_id",
+            "anima_default_memory_manager_model_provider_id",
+        ):
+            configured = getattr(self, field)
+            replacement = RETIRED_BUILTIN_REPLACEMENTS.get(configured) if configured else None
+            if replacement is not None:
+                logging.getLogger(__name__).warning(
+                    "Model default %s names retired %s; using %s", field, configured, replacement
+                )
+                setattr(self, field, replacement)
         return self
 
     @model_validator(mode="after")

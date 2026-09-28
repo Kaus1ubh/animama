@@ -48,7 +48,7 @@ from animama.server.model_roles import ModelRoleSettings
 from animama.server.routers import model_configuration
 from tests.local_http_client import local_client
 
-CHAT = "OpenAIResponsesHTTPAgent:gpt-5.6-luna"
+CHAT = "OpenAIResponsesHTTPAgent:gpt-6-luna"
 
 
 def _row(
@@ -413,3 +413,19 @@ def test_only_compositions_that_enable_owner_models_apply_role_preferences():
     assert ModelRoleSettings.for_app(hosted).owner_roles_enabled is False
     assert ModelRoleSettings.for_app(local).owner_roles_enabled is True
     assert create_local_app().state.model_catalog_policy.owner_models_enabled is True
+
+
+def test_operator_defaults_naming_a_retired_built_in_use_its_replacement() -> None:
+    """An older `.env` may still pin a retired row; creation and roles need the current one."""
+
+    configured = Settings(
+        anima_default_model_provider_id="OpenAIResponsesHTTPAgent:gpt-5.6-luna",
+        anima_default_utility_model_provider_id="OpenAIHTTPAgent:gpt-5-nano",
+        anima_default_memory_manager_model_provider_id="owner:kept",
+        anima_default_embedding_model_provider_id="OpenAIHTTPAgent:text-embedding-3-small",
+    )
+
+    assert configured.anima_default_model_provider_id == "OpenAIResponsesHTTPAgent:gpt-6-luna"
+    assert configured.anima_default_utility_model_provider_id == "OpenAIHTTPAgent:gpt-6-luna"
+    assert configured.anima_default_memory_manager_model_provider_id == "owner:kept"
+    assert configured.anima_default_embedding_model_provider_id == "OpenAIHTTPAgent:text-embedding-3-small"

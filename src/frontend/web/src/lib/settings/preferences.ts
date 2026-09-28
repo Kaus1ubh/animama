@@ -14,13 +14,17 @@ export type PreferenceToggleSection = {
 
 export type MemoryPreferences = PreferenceToggleSection;
 
-/** A job the owner assigns to a catalog model row in App Settings → Models. */
-export type ModelRole = "utility" | "memory_manager" | "embeddings";
+/**
+ * A job the owner assigns to a catalog model row in App Settings → Models.
+ * `chat` is the model new Animas start with; `utility` writes chat titles and
+ * compacts long chats.
+ */
+export type ModelRole = "chat" | "utility" | "memory_manager" | "embeddings";
 
 /**
- * Catalog row ids for installation-wide model roles; null or absent uses the
- * default (the chat model for utility and the Memory Manager, off for
- * embeddings).
+ * Catalog row ids for installation-wide model roles other than chat; null or
+ * absent uses the default (the chat model for utility and the Memory Manager,
+ * off for embeddings).
  */
 export type ModelRolePreferences = {
   utility_model_provider_id?: string | null;
@@ -155,10 +159,9 @@ export type SafetyPreferences = {
 export type SettingsPreferences = {
   /** Keeps first-message suggestions dismissed across chats and deleted history. */
   has_sent_chat_message?: boolean;
-  /** App-wide startup and model defaults chosen in App Settings → General. */
-  startup?: { default_anima_id?: string | null };
+  /** The Chat default (the model new Animas start with), set in App Settings → Models. */
   chat?: { default_model_provider_id?: string | null };
-  /** Model role assignments chosen in App Settings → Models. */
+  /** Other model role assignments chosen in App Settings → Models. */
   models?: ModelRolePreferences;
   /** Per-mode colour overrides; see `lib/theme/appearance-overrides.ts`. */
   appearance?: AppearanceOverrides;
@@ -236,10 +239,8 @@ export function mergePreferences(
   const speech = mergeSection(baseObj, patchObj, "speech");
   const safety = mergeSection(baseObj, patchObj, "safety");
   const appearance = mergeSection(baseObj, patchObj, "appearance");
-  const startup = mergeSection(baseObj, patchObj, "startup");
   const chat = mergeSection(baseObj, patchObj, "chat");
   const models = mergeSection(baseObj, patchObj, "models");
-  if (startup) merged.startup = startup as SettingsPreferences["startup"];
   if (chat) merged.chat = chat as SettingsPreferences["chat"];
   if (models) merged.models = models as ModelRolePreferences;
 
@@ -287,34 +288,27 @@ export function mergePreferences(
   return merged;
 }
 
-/** The pinned startup Anima ID, or null for "Last opened". */
-export function readDefaultAnimaId(preferences: unknown): string | null {
-  if (!isRecord(preferences) || !isRecord(preferences.startup)) return null;
-  const value = preferences.startup.default_anima_id;
-  return typeof value === "string" && value.trim() ? value.trim() : null;
-}
+/** Where each role's catalog row id is stored: `[section, key]`. */
+const MODEL_ROLE_PREFERENCE_PATHS = {
+  chat: ["chat", "default_model_provider_id"],
+  utility: ["models", "utility_model_provider_id"],
+  memory_manager: ["models", "memory_manager_model_provider_id"],
+  embeddings: ["models", "embedding_model_provider_id"],
+} as const satisfies Record<ModelRole, readonly [string, string]>;
 
-/** The owner's default chat model for new Animas, or null for the system default. */
-export function readDefaultChatModelId(preferences: unknown): string | null {
-  if (!isRecord(preferences) || !isRecord(preferences.chat)) return null;
-  const value = preferences.chat.default_model_provider_id;
-  return typeof value === "string" && value.trim() ? value.trim() : null;
+/** The dotted preference path of a role, as the server reports it in model usage. */
+export function modelRolePreferencePath(role: ModelRole): string {
+  return MODEL_ROLE_PREFERENCE_PATHS[role].join(".");
 }
-
-/** Preference key holding each role's catalog row id. */
-export const MODEL_ROLE_PREFERENCE_KEYS = {
-  utility: "utility_model_provider_id",
-  memory_manager: "memory_manager_model_provider_id",
-  embeddings: "embedding_model_provider_id",
-} as const satisfies Record<ModelRole, keyof ModelRolePreferences>;
 
 /** The owner's model for a role, or null for the role's default. */
 export function readModelRoleId(
   preferences: unknown,
   role: ModelRole,
 ): string | null {
-  if (!isRecord(preferences) || !isRecord(preferences.models)) return null;
-  const value = preferences.models[MODEL_ROLE_PREFERENCE_KEYS[role]];
+  const [section, key] = MODEL_ROLE_PREFERENCE_PATHS[role];
+  if (!isRecord(preferences) || !isRecord(preferences[section])) return null;
+  const value = preferences[section][key];
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
@@ -323,7 +317,8 @@ export function modelRolePatch(
   role: ModelRole,
   modelProviderId: string | null,
 ): SettingsPreferences {
-  return { models: { [MODEL_ROLE_PREFERENCE_KEYS[role]]: modelProviderId } };
+  const [section, key] = MODEL_ROLE_PREFERENCE_PATHS[role];
+  return { [section]: { [key]: modelProviderId } };
 }
 
 export function resolvePreferences(

@@ -280,7 +280,7 @@ caller-owned unit of work; first runtime issuance happens after commit.
 
 `ORMAnimaChatProfile` stores product-level chat configuration for one anima.
 Its current source-of-truth field is `default_model_provider_id`, a foreign key
-to `model_providers.id` such as `OpenAIHTTPAgent:gpt-5-nano` or an owner row's
+to `model_providers.id` such as `OpenAIHTTPAgent:gpt-6-luna` or an owner row's
 `owner:<hex>` ID. Because profiles reference catalog rows, removed models are
 retired rather than deleted. Normal
 `chat:sse` uses this row when a request does not pass an explicit
@@ -291,7 +291,7 @@ retired rather than deleted. Normal
 
 `ORMModelProvider` stores the durable provider/model catalog in
 `model_providers`. Each row is one adapter/model pair served by one model
-connection. Built-in rows use IDs such as `OpenAIHTTPAgent:gpt-5-nano`; owner
+connection. Built-in rows use IDs such as `OpenAIHTTPAgent:gpt-6-luna`; owner
 rows use opaque `owner:<hex>` IDs. The unique key
 `uq_model_providers_connection_model` covers
 `(connection_id, provider_type, model, source)`, so two connections can serve

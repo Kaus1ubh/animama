@@ -136,7 +136,7 @@ Inspect installation readiness, catalog diagnostics and the selected Anima's
 runtime revision before claiming a usable fixture. Do not fill missing Included
 content by copying another task's Local library.
 
-Use the accepted main model `OpenAIResponsesHTTPAgent:gpt-5.6-luna` and verify
+Use the accepted main model `OpenAIResponsesHTTPAgent:gpt-6-luna` and verify
 `dispatch_options.reasoning_effort=none` on each test turn. Existing Anima
 profiles need explicit model selection. Title generation and Memory Manager
 have separate settings; the latter has no configurable reasoning effort. Main
