@@ -93,7 +93,10 @@ Standing rules (unchanged from Plan A):
 - [x] Owner product decisions (2026-09-28): see the Decision Log.
 - [x] Plan drafted (2026-09-28).
 - [ ] Owner review and authorization of phases.
-- [ ] Workspace setup: parent issue, phase issues, spec snapshot update.
+- [x] Workspace setup (2026-09-28): worktree and branch at `9cdaab5`; plan
+      committed `f322532` and pushed; parent #208 with sub-issues #209 (p1),
+      #210 (p2), #211 (p3), #212 (p4), #213 (p5), #214 (p6). Dependencies
+      are stated in each issue body.
 - [ ] Phase 1: structured-output handling (R12).
 - [ ] Phase 2: pre-send compaction and turn status (R10).
 - [ ] Phase 3: web search backends and the application tool (R11, backend).
@@ -413,10 +416,10 @@ Frontend (paths under `src/frontend/`):
 
 After owner authorization:
 
-1. **Issues.** Create a new parent issue for Plan B with R10–R12, their
-   acceptance criteria, the 2026-09-28 decisions and links to this plan and
-   the spec. Create one sub-issue per authorized phase, chained blocked-by.
-   Read them back, and record the URLs here and in the spec.
+1. **Issues.** Done: parent #208 (R10–R12, acceptance, the 2026-09-28
+   decisions, links to this plan and the spec) and phase sub-issues
+   #209–#214, created at the owner's request before plan review. Update them
+   if the review changes the phases.
 2. **Stack.** Use a named task stack when a running stack is needed, for
    example
    `ANIMAMA_LLM_SKIP=1 ./reset.sh --name cfgfeatures --base-port 8800`, then
@@ -490,7 +493,7 @@ Completion: tests pass; review has no blocker. Docs:
 `docs/backend/runtime/model-client-providers.md` (structured output) and the
 local model guide's "chat needs JSON" note.
 
-Phase record: issue —; starting source —; commit —.
+Phase record: issue #209; starting source —; commit —.
 
 #### Code Review #1 Findings
 
@@ -560,7 +563,7 @@ Completion: tests pass; review has no blocker. Docs: compaction sections in
 `model-client-providers.md`, `local-models.md` (windows and summarizing) and
 `docs/frontend/runtime/chat.md` (status event).
 
-Phase record: issue —; starting source —; commit —.
+Phase record: issue #210; starting source —; commit —.
 
 #### Code Review #1 Findings
 
@@ -629,7 +632,7 @@ stack.
 
 Completion: tests pass; review has no blocker.
 
-Phase record: issue —; starting source —; commit —.
+Phase record: issue #211; starting source —; commit —.
 
 #### Code Review #1 Findings
 
@@ -673,7 +676,7 @@ desktop width and 375 px.
 
 Completion: tests and browser check pass; review has no blocker.
 
-Phase record: issue —; starting source —; commit —.
+Phase record: issue #212; starting source —; commit —.
 
 #### Code Review #1 Findings
 
@@ -720,7 +723,7 @@ stack.
 
 Completion: tests pass; review has no blocker. Gate G4 before merge.
 
-Phase record: issue —; starting source —; commit —.
+Phase record: issue #213; starting source —; commit —.
 
 #### Code Review #1 Findings
 
@@ -758,7 +761,7 @@ link checks where available.
 
 Completion: review has no blocker.
 
-Phase record: issue —; starting source —; commit —.
+Phase record: issue #214; starting source —; commit —.
 
 #### Code Review #1 Findings
 

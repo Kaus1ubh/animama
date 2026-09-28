@@ -387,3 +387,6 @@ https://github.com/raymond-van/animama/issues/165
 
 Plan A phases: #171 (p1), #166 (p2), #167 (p3), #168 (p4), #169 (p5),
 #170 (p6). Branch `feat/configurable-models`.
+
+Plan B: parent #208; phases #209 (p1), #210 (p2), #211 (p3), #212 (p4),
+#213 (p5), #214 (p6). Branch `feat/configurable-models-features`.
