@@ -276,6 +276,7 @@ export type AnimaSpecInput = {
      */
     schema_version: 1;
     starter_pack: StarterPackIdentity;
+    voice?: CreationVoiceInput | null;
 };
 
 /**
@@ -317,6 +318,7 @@ export type AnimaSpecOutput = {
      */
     schema_version: 1;
     starter_pack: StarterPackIdentity;
+    voice?: CreationVoiceOutput | null;
 };
 
 /**
@@ -916,6 +918,7 @@ export type CreateAnimaRequest = {
      */
     schema_version: 1;
     starter_pack: StarterPackIdentity;
+    voice?: CreationVoiceInput | null;
 };
 
 /**
@@ -930,6 +933,79 @@ export type CreateMissingStarterRepair = {
      * Starter Id
      */
     starter_id: 'starter:annie' | 'starter:caitlyn';
+};
+
+/**
+ * CreationPocketClone
+ */
+export type CreationPocketClone = {
+    source: ItemRevisionRef;
+    /**
+     * Type
+     */
+    type: 'clone';
+};
+
+/**
+ * CreationPocketPreset
+ */
+export type CreationPocketPreset = {
+    /**
+     * Type
+     */
+    type: 'preset';
+    /**
+     * Voice Id
+     */
+    voice_id: string;
+};
+
+/**
+ * CreationVoice
+ *
+ * Both provider choices persist; only the selected provider needs a usable ID.
+ */
+export type CreationVoiceInput = {
+    /**
+     * Elevenlabs Voice Id
+     */
+    elevenlabs_voice_id: string | null;
+    /**
+     * Pocket
+     */
+    pocket: ({
+        type: 'preset';
+    } & CreationPocketPreset) | ({
+        type: 'clone';
+    } & CreationPocketClone);
+    /**
+     * Provider
+     */
+    provider: 'pocket_tts' | 'elevenlabs';
+};
+
+/**
+ * CreationVoice
+ *
+ * Both provider choices persist; only the selected provider needs a usable ID.
+ */
+export type CreationVoiceOutput = {
+    /**
+     * Elevenlabs Voice Id
+     */
+    elevenlabs_voice_id: string | null;
+    /**
+     * Pocket
+     */
+    pocket: ({
+        type: 'preset';
+    } & CreationPocketPreset) | ({
+        type: 'clone';
+    } & CreationPocketClone);
+    /**
+     * Provider
+     */
+    provider: 'pocket_tts' | 'elevenlabs';
 };
 
 /**
@@ -1185,7 +1261,7 @@ export type ImportedPackageItem = {
      * Item Id
      */
     item_id: string;
-    kind: 'appearance' | 'avatar' | 'avatar_effect' | 'gesture' | 'idle_style' | 'particle_effect' | 'pose' | 'reaction' | 'scene_effect' | 'sound_effect';
+    kind: 'appearance' | 'avatar' | 'avatar_effect' | 'gesture' | 'idle_style' | 'particle_effect' | 'pose' | 'reaction' | 'scene_effect' | 'sound_effect' | 'voice';
     /**
      * Logical Key
      */
@@ -1259,6 +1335,7 @@ export type LegacyCreateAnimaRequest = {
      */
     schema_version: 1;
     starter_pack: StarterPackIdentity;
+    voice?: CreationVoiceInput | null;
 };
 
 /**
@@ -1351,7 +1428,7 @@ export type PackageAvatarPortrait = {
  * PackageDependency
  */
 export type PackageDependency = {
-    content_type: 'appearance' | 'avatar' | 'avatar_effect' | 'gesture' | 'idle_style' | 'particle_effect' | 'pose' | 'reaction' | 'scene_effect' | 'sound_effect';
+    content_type: 'appearance' | 'avatar' | 'avatar_effect' | 'gesture' | 'idle_style' | 'particle_effect' | 'pose' | 'reaction' | 'scene_effect' | 'sound_effect' | 'voice';
     /**
      * Ref
      */
@@ -1374,7 +1451,7 @@ export type PackageEntry = {
      * Files
      */
     files: Array<PackageFile>;
-    kind: 'appearance' | 'avatar' | 'avatar_effect' | 'gesture' | 'idle_style' | 'particle_effect' | 'pose' | 'reaction' | 'scene_effect' | 'sound_effect';
+    kind: 'appearance' | 'avatar' | 'avatar_effect' | 'gesture' | 'idle_style' | 'particle_effect' | 'pose' | 'reaction' | 'scene_effect' | 'sound_effect' | 'voice';
     license?: PackageLicense | null;
     /**
      * Logical Key
@@ -1747,6 +1824,10 @@ export type PortableAnima = {
      * Idle Style
      */
     idle_style: string | null;
+    /**
+     * Pocket Voice
+     */
+    pocket_voice?: string | null;
     /**
      * Reactions
      */
@@ -2348,6 +2429,7 @@ export type PyAnimaRuntime = {
      * Sound Effects
      */
     sound_effects?: Array<PyRuntimeSupport>;
+    voice?: PyRuntimeVoice | null;
     /**
      * Warnings
      */
@@ -3742,7 +3824,7 @@ export type PyContentEvidenceRoot = {
     /**
      * Kind
      */
-    kind: 'avatar' | 'appearance' | 'gesture' | 'reaction' | 'idle_style' | 'pose' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect';
+    kind: 'voice' | 'avatar' | 'appearance' | 'gesture' | 'reaction' | 'idle_style' | 'pose' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect';
     /**
      * Root Key
      */
@@ -3757,7 +3839,7 @@ export type PyContentEvidenceRootRequest = {
     /**
      * Kind
      */
-    kind: 'avatar' | 'appearance' | 'gesture' | 'reaction' | 'idle_style' | 'pose' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect';
+    kind: 'voice' | 'avatar' | 'appearance' | 'gesture' | 'reaction' | 'idle_style' | 'pose' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect';
     source: ItemRevisionRef;
 };
 
@@ -3901,7 +3983,7 @@ export type PyContentPreviewRootRequest = {
     /**
      * Kind
      */
-    kind: 'avatar' | 'appearance' | 'gesture' | 'reaction' | 'idle_style' | 'pose' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect';
+    kind: 'voice' | 'avatar' | 'appearance' | 'gesture' | 'reaction' | 'idle_style' | 'pose' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect';
     /**
      * Source
      */
@@ -6107,7 +6189,7 @@ export type PyPreparedPreviewRoot = {
     /**
      * Kind
      */
-    kind: 'avatar' | 'appearance' | 'gesture' | 'reaction' | 'idle_style' | 'pose' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect';
+    kind: 'voice' | 'avatar' | 'appearance' | 'gesture' | 'reaction' | 'idle_style' | 'pose' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect';
     /**
      * Root Key
      */
@@ -6985,6 +7067,39 @@ export type PyRuntimeSupport = {
      */
     runtime_root_ids?: Array<string>;
     source: PyRuntimeCatalogItemSource;
+};
+
+/**
+ * PyRuntimeVoice
+ *
+ * One equipped Pocket catalog; original recordings remain in the library.
+ */
+export type PyRuntimeVoice = {
+    /**
+     * Binding Id
+     */
+    binding_id: string;
+    /**
+     * Codec
+     */
+    codec?: string | null;
+    /**
+     * Files
+     */
+    files?: Array<PyRuntimeFile>;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Runtime Root Id
+     */
+    runtime_root_id: string;
+    source: PyRuntimeCatalogItemSource;
+    /**
+     * Voices
+     */
+    voices?: Array<string>;
 };
 
 /**
@@ -8004,7 +8119,7 @@ export type ReviewedImportItem = {
      * Entry Id
      */
     entry_id: string;
-    kind: 'appearance' | 'avatar' | 'avatar_effect' | 'gesture' | 'idle_style' | 'particle_effect' | 'pose' | 'reaction' | 'scene_effect' | 'sound_effect';
+    kind: 'appearance' | 'avatar' | 'avatar_effect' | 'gesture' | 'idle_style' | 'particle_effect' | 'pose' | 'reaction' | 'scene_effect' | 'sound_effect' | 'voice';
     /**
      * Name
      */
@@ -8103,7 +8218,7 @@ export type SourceRevision = {
     /**
      * Kind
      */
-    kind: 'avatar' | 'appearance' | 'gesture' | 'reaction' | 'idle_style' | 'pose' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect';
+    kind: 'voice' | 'avatar' | 'appearance' | 'gesture' | 'reaction' | 'idle_style' | 'pose' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect';
     /**
      * Revision Sha256
      */

@@ -17,6 +17,7 @@ function legacyRecord(options: { image?: boolean; locked?: boolean } = {}) {
   const current = readyDraft();
   const request = {
     ...buildAnimaSpec(current),
+    voice: undefined,
     display_name: options.locked ? "x".repeat(80) : "Rowan",
     idempotency_key: "legacy-frozen",
   };
@@ -28,6 +29,7 @@ function legacyRecord(options: { image?: boolean; locked?: boolean } = {}) {
     draft: {
       ...current,
       schema_version: 1,
+      voice: undefined,
       identity_markdown: "",
       appearance: {
         profile: options.image
@@ -66,6 +68,7 @@ describe("retired clip draft recovery", () => {
       };
       const request = {
         ...buildAnimaSpec(draft),
+        voice: undefined,
         idempotency_key: "exact-old-request",
         expected_source_revisions: oldEvidence,
       };
@@ -74,7 +77,9 @@ describe("retired clip draft recovery", () => {
         ...old,
         schema_version: version,
         draft: {
-          ...(version === 1 ? old.draft : draft),
+          ...(version === 1
+            ? old.draft
+            : { ...draft, schema_version: 2, voice: undefined }),
           seed_revisions: oldEvidence,
           submission: { state: "unknown", request },
         },
@@ -105,10 +110,10 @@ describe("owner-scoped creation recovery", () => {
   it("migrates safe v1 drafts and seeds only a blank identity", () => {
     const record = migrateCreationRecord(JSON.stringify(legacyRecord()));
     expect(record).toMatchObject({
-      schema_version: 2,
+      schema_version: 3,
       kind: "draft",
       draft: {
-        schema_version: 2,
+        schema_version: 3,
         appearance_migration: "none",
         identity_markdown: defaultAnimaIdentityMarkdown("  Rowan 🌿  "),
       },
@@ -121,7 +126,7 @@ describe("owner-scoped creation recovery", () => {
     editable.submission = null;
     const record = migrateCreationRecord(
       JSON.stringify({
-        schema_version: 2,
+        schema_version: 3,
         writer: "00000000-0000-4000-8000-000000000001",
         sequence: 8,
         kind: "draft",
@@ -139,7 +144,7 @@ describe("owner-scoped creation recovery", () => {
     const expectedCustomizedIdentity = `${defaultAnimaIdentityMarkdown(editable.display_name)}\nCustom`;
     const customized = migrateCreationRecord(
       JSON.stringify({
-        schema_version: 2,
+        schema_version: 3,
         writer: "00000000-0000-4000-8000-000000000001",
         sequence: 9,
         kind: "draft",
@@ -154,7 +159,7 @@ describe("owner-scoped creation recovery", () => {
     editable.identity_markdown = `# Captain Rowan\n${PREVIOUS_DEFAULT_ANIMA_IDENTITY_MARKDOWN}`;
     const customHeading = migrateCreationRecord(
       JSON.stringify({
-        schema_version: 2,
+        schema_version: 3,
         writer: "00000000-0000-4000-8000-000000000001",
         sequence: 10,
         kind: "draft",
@@ -171,7 +176,7 @@ describe("owner-scoped creation recovery", () => {
     editable.identity_markdown = `# Captain Rowan\n${PREVIOUS_DEFAULT_ANIMA_IDENTITY_MARKDOWN}\nCustom`;
     const customBody = migrateCreationRecord(
       JSON.stringify({
-        schema_version: 2,
+        schema_version: 3,
         writer: "00000000-0000-4000-8000-000000000001",
         sequence: 11,
         kind: "draft",
@@ -313,3 +318,37 @@ describe("owner-scoped creation recovery", () => {
     expect(storage.removeItem).not.toHaveBeenCalled();
   });
 });
+
+it.each(["pending", "unknown"] as const)(
+  "inserts Voice into a v2 draft without rewriting a %s request",
+  (state) => {
+    const current = readyDraft();
+    const request = {
+      ...buildAnimaSpec(current),
+      voice: undefined,
+      idempotency_key: "before-voice",
+    };
+    const previous = { ...current, voice: undefined };
+    const frozen = JSON.stringify(request);
+    const migrated = migrateCreationRecord(
+      JSON.stringify({
+        schema_version: 2,
+        writer: "00000000-0000-4000-8000-000000000001",
+        sequence: 1,
+        kind: "draft",
+        draft: {
+          ...previous,
+          schema_version: 2,
+          step: 3,
+          furthest_step: 3,
+          submission: { state, request },
+        },
+      }),
+    );
+    expect(migrated.kind).toBe("draft");
+    if (migrated.kind !== "draft") throw new Error("draft missing");
+    expect(migrated.draft.step).toBe(4);
+    expect(migrated.draft.voice).toBeNull();
+    expect(JSON.stringify(migrated.draft.submission?.request)).toBe(frozen);
+  },
+);

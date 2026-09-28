@@ -16,7 +16,7 @@ export function CreateAnimaStepNav({
 }) {
   return (
     <nav aria-label="Anima creation progress">
-      <ol className="grid grid-cols-2 gap-0 border-b px-3 sm:grid-cols-4 sm:px-6">
+      <ol className="grid grid-cols-5 gap-0 border-b">
         {CREATION_STEPS.map((label, index) => {
           const needsAttention = attention.includes(index);
           const completed = step > index && !needsAttention;
@@ -29,7 +29,7 @@ export function CreateAnimaStepNav({
                 disabled={disabled}
                 onClick={() => onStep(index as CreationStep)}
                 className={cn(
-                  "focus-visible:ring-ring flex w-full items-center gap-2 border-b-2 border-transparent px-2 py-4 text-left text-sm outline-none focus-visible:ring-2 disabled:opacity-50",
+                  "focus-visible:ring-ring flex w-full flex-col items-center gap-1.5 border-b-2 border-transparent px-1 py-3 text-center text-xs outline-none focus-visible:ring-2 disabled:opacity-50",
                   needsAttention
                     ? "border-destructive text-destructive font-semibold"
                     : completed

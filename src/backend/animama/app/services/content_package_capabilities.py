@@ -27,9 +27,12 @@ from animama.domain.content_documents import (
     ReactionDocumentV1,
     SceneEffectDocumentV1,
     TypedContentDocument,
+    VoiceDocumentV1,
 )
 
+from .content_voice import POCKET_CLONE_CODEC, validate_pocket_clone_document
 from .idle_clip_validation import validate_idle_clip_timeline
+from .pocket_voice_catalog import MAX_POCKET_VOICE_CATALOG_BYTES, validate_pocket_voice_catalog_bytes
 
 MAX_DEFINITION_BYTES = 16 * 1024 * 1024
 # Runtime-only poses remain app primitives, not independent package/catalog roots.
@@ -53,6 +56,7 @@ SUPPORTED_CAPABILITIES = frozenset(
         "VRMC_vrm_animation/1.0",
         "animama/avatar-effect/1",
         "animama/scene-effect/1",
+        "animama/pocket-voice/1",
         "three.quarks/3.0",
     }
     | {f"animama/builtin-pose/1/{name}" for name in BUILTIN_POSES}
@@ -388,6 +392,15 @@ def _scene_effect(definition: dict[str, Any], document: TypedContentDocument) ->
 
 def derive_document_capabilities(document: TypedContentDocument) -> tuple[str, ...]:
     """Validate actual typed definitions, never catalog-version compatibility claims."""
+    if isinstance(document, VoiceDocumentV1):
+        _require(document.codec == POCKET_CLONE_CODEC, "Only encoded Pocket clones are portable")
+        validate_pocket_clone_document(document)
+        _require(not document.dependencies, "A packaged Pocket clone cannot have dependencies")
+        _require(
+            len(document.files) == 1 and document.files[0].role == "pocket_voice_catalog",
+            "A packaged Pocket clone must contain only its encoded catalog",
+        )
+        return ("animama/pocket-voice/1",)
     if isinstance(document, PoseDocumentV1):
         return ("animaPose/1.0",)
     if isinstance(document, AvatarEffectDocumentV1 | SceneEffectDocumentV1):
@@ -677,6 +690,23 @@ def derive_file_capabilities(
         "Registered package resource role disagrees with its declaration",
     )
     roles = {role} if role is not None else declared_roles
+    if isinstance(document, VoiceDocumentV1):
+        # Inspect the binary using the same bounded pure parser as local clone
+        # admission. A .bin suffix alone says nothing about its actual contents.
+        derive_document_capabilities(document)
+        if roles == {"descriptor"}:
+            _require(suffix == ".json", "A packaged Pocket clone requires a JSON descriptor")
+            return ()
+        _require(
+            roles == {"pocket_voice_catalog"} and suffix == ".bin",
+            "Unsupported packaged Pocket clone resource",
+        )
+        try:
+            voices = validate_pocket_voice_catalog_bytes(content.read(MAX_POCKET_VOICE_CATALOG_BYTES + 1))
+        except ValueError as exc:
+            raise ContentDocumentError("package_definition_invalid", "Invalid encoded Pocket voice catalog") from exc
+        _require(set(voices) == {"neutral"}, "A packaged Pocket clone must contain only the neutral voice")
+        return ("animama/pocket-voice/1",)
     if suffix == ".svg":
         _svg(content)
     if suffix in {".vrm", ".vrma"}:

@@ -495,7 +495,7 @@ resulting aggregate revision (nullable when replaying a stored receipt without t
 ### Strict private creation
 
 These interfaces are backed by creation and starter receipt tables in the
-current baseline. The [four-step creator](../../frontend/features/custom-anima-creation.md)
+current baseline. The [five-step creator](../../frontend/features/custom-anima-creation.md)
 consumes them, and frontend-server onboarding uses the generated starter command
 rather than bulk or mutable request templates.
 
@@ -509,7 +509,7 @@ includes selected roots and all typed supports with kind/revision. New companion
 start with Idle empty; `default_idle.source` is null and its revision map is empty.
 Before the Review step, the browser obtains that map with one
 `POST /v1/content/evidence:resolve` call containing the selected Avatar,
-and Actions, then independently submits the whole spec to
+Actions and any shared voice clone, then independently submits the whole spec to
 `POST /v1/animas:validate`. The strict API retains typed profile/background
 Appearance fields, but the current browser sends both as explicit nulls and
 makes no Appearance read or Save request. This transition creates no preview

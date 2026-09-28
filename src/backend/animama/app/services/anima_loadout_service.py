@@ -923,6 +923,8 @@ class AnimaLoadoutService:
             )
 
         await apply("avatar", {"operation": "set"}, spec.avatar)
+        if spec.voice_source is not None:
+            await apply("voice", {"operation": "set"}, spec.voice_source)
         # Creation can leave idle empty; explicitly selected styles still pass
         # the same typed, ownership and revision checks as later loadout edits.
         await apply(

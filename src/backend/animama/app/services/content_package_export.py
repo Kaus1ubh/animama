@@ -42,13 +42,14 @@ from animama.app.services.local_content_mutations import _finish_owned_work, mut
 from animama.app.services.typed_content_service import TypedCatalogItem, TypedContentResolutionContext
 from animama.domain.content_catalog import (
     CatalogContentEntry,
+    CatalogContentFile,
     ContentConflictError,
     ContentIntegrityError,
     ContentKind,
     ContentPathError,
     ContentSource,
 )
-from animama.domain.content_documents import AppearanceDocumentV1, PoseDocumentV1
+from animama.domain.content_documents import AppearanceDocumentV1, PoseDocumentV1, VoiceDocumentV1
 
 _PRIVATE_FIELDS = frozenset(
     {
@@ -169,6 +170,11 @@ def _relative_file(entry: CatalogContentEntry, relative: str) -> str:
         return path.relative_to(locator).as_posix()
     except ValueError as exc:
         raise ContentConflictError("package_file_outside_entry") from exc
+
+
+def _shared_files(entry: CatalogContentEntry) -> tuple[CatalogContentFile, ...]:
+    """Share usable encoded voice material while retaining the recording locally."""
+    return tuple(file for file in entry.files if not (entry.kind is ContentKind.VOICE and file.role == "source_sample"))
 
 
 @dataclass(frozen=True, slots=True)
@@ -330,8 +336,8 @@ class ContentPackageExportService:
             if portrait is not None:
                 for item in context.resolve(portrait):
                     entries[item.item.id] = item
-        total = sum(file.size_bytes for item in entries.values() for file in item.item.files)
-        count = sum(len(item.item.files) for item in entries.values())
+        total = sum(file.size_bytes for item in entries.values() for file in _shared_files(item.item))
+        count = sum(len(_shared_files(item.item)) for item in entries.values())
         count += sum(
             not any(file.role in {"descriptor", "metadata"} for file in item.item.files) for item in entries.values()
         )
@@ -564,6 +570,8 @@ class ContentPackageExportService:
                     projection["pose"] = {**document.pose, "id": identities[entry.id], "name": document.name}
                 if isinstance(document, AppearanceDocumentV1):
                     projection["avatar_model"], projection["presentation"] = None, {}
+                if isinstance(document, VoiceDocumentV1):
+                    projection["files"] = [file for file in projection["files"] if file["role"] != "source_sample"]
                 aliases = frozenset(edge.alias for edge in document.dependencies if edge.alias)
                 portable = portable_json(projection, references, aliases=aliases)
                 portable_document = handler.parse_document(
@@ -574,7 +582,7 @@ class ContentPackageExportService:
                 capabilities.update(derive_document_capabilities(portable_document))
                 files = []
                 for ordinal, file in enumerate(
-                    sorted(entry.files, key=lambda value: (value.role, value.relative_path)), start=1
+                    sorted(_shared_files(entry), key=lambda value: (value.role, value.relative_path)), start=1
                 ):
                     relative = _relative_file(entry, file.relative_path)
                     archive_name = f"entries/{index:04d}/{relative}"

@@ -9,6 +9,7 @@ from typing import Any
 from pydantic import ValidationError
 
 from animama.app.contracts.portable_anima import PortableActionConfig, PortableAnima
+from animama.app.services.content_voice import POCKET_CLONE_CODEC
 from animama.app.services.runtime_budget_policy import RuntimeBudgetUsage, runtime_budget_violation
 from animama.app.services.typed_content_service import TypedContentService
 from animama.domain.anima_creation import (
@@ -31,6 +32,7 @@ from animama.domain.content_documents import (
     ReactionDocumentV1,
     SoundEffectDocumentV1,
     TypedContentDocument,
+    VoiceDocumentV1,
 )
 
 
@@ -102,6 +104,10 @@ def resolve_portable_anima(
     )
     if definition.idle_style is not None and not isinstance(documents[definition.idle_style], IdleStyleDocumentV2):
         raise ContentConflictError("package_anima_idle_conversion_required")
+    if definition.pocket_voice is not None:
+        voice = documents[definition.pocket_voice]
+        if not isinstance(voice, VoiceDocumentV1) or voice.codec != POCKET_CLONE_CODEC:
+            raise ContentConflictError("package_anima_voice_unsupported")
     return ResolvedAnimaSpec(
         display_name=definition.display_name,
         identity=definition.identity_markdown,
@@ -113,6 +119,16 @@ def resolve_portable_anima(
             entries[definition.appearance.profile.entry_id], definition.appearance.profile.presentation.model_dump()
         )
         if definition.appearance.profile
+        else None,
+        voice_source=entries[definition.pocket_voice] if definition.pocket_voice else None,
+        # Activate the imported binding with fresh preferences, never sender settings.
+        speech_preferences={
+            "tts_provider": "pocket_tts",
+            "tts_pocket_anima_voice": "eve",
+            "tts_pocket_anima_custom_voice_available": False,
+            "elevenlabs": {},
+        }
+        if definition.pocket_voice
         else None,
         background=ResolvedAppearanceSelection(
             entries[definition.appearance.background.entry_id],
@@ -137,6 +153,8 @@ def rewrite_portable_anima(definition: PortableAnima, reference_map: Mapping[str
                 selection["entry_id"] = reference_map[selection["entry_id"]]
     if value["idle_style"] is not None:
         value["idle_style"] = reference_map[value["idle_style"]]
+    if value["pocket_voice"] is not None:
+        value["pocket_voice"] = reference_map[value["pocket_voice"]]
     for selection in value["appearance"].values():
         if selection is not None:
             selection["entry_id"] = reference_map[selection["entry_id"]]

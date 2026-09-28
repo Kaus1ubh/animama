@@ -31,6 +31,7 @@ export function SharingItemIcon({ kind }: { kind: string }) {
         avatar_effect: ScanFace,
         scene_effect: Layers3,
         sound_effect: Volume2,
+        voice: Volume2,
         appearance: Image,
       } as Record<string, typeof FileBox>
     )[kind] ?? FileBox;
@@ -102,8 +103,9 @@ export function SharingPrivacyNote() {
       <div>
         <p className="font-medium">A fresh companion for someone else</p>
         <p className="text-muted-foreground mt-1">
-          Identity and equipped content are included. Chats, memories,
-          credentials, voice settings, and other private settings are left out.
+          Identity and equipped content are included. An active cloned PocketTTS
+          voice is included without the original recording. Chats, memories,
+          credentials and other private settings are left out.
         </p>
       </div>
     </div>
@@ -192,6 +194,17 @@ export function SharingAnimaDetails({
             <span className="font-medium">Avatar: </span>
             {name(anima.avatar)}
           </p>
+          {anima.pocket_voice ? (
+            <section>
+              <p>
+                <span className="font-medium">PocketTTS voice: </span>
+                {name(anima.pocket_voice)}
+              </p>
+              <p className="text-muted-foreground mt-1 text-xs">
+                Encoded voice only; the original recording is not included.
+              </p>
+            </section>
+          ) : null}
           <section>
             <h4 className="mb-2 font-medium">Gestures</h4>
             {anima.gestures.length ? (

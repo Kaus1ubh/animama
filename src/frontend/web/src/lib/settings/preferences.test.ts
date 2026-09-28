@@ -7,8 +7,46 @@ import {
   mergePreferences,
   normalizeThemeSetting,
   resolveElevenLabsV3FinalizedChunking,
+  resolvePreferences,
   toElevenLabsV3FinalizedChunking,
 } from "./preferences";
+
+describe("Anima TTS provider", () => {
+  it.each(["pocket_tts", "elevenlabs"] as const)(
+    "overrides the app provider with %s while preserving speech enable and both voices",
+    (provider) => {
+      const app = {
+        speech: { tts_enabled: false, tts_provider: "browser" as const },
+      };
+      const anima = {
+        speech: {
+          tts_pocket_anima_voice: "azelma",
+          elevenlabs: { primary_voice: { voice_id: "saved-voice" } },
+        },
+      };
+      const saved = JSON.parse(
+        JSON.stringify(
+          mergePreferences(anima, {
+            speech: { tts_provider: provider },
+          }),
+        ),
+      );
+      expect(saved.speech).toEqual({ ...anima.speech, tts_provider: provider });
+      expect(resolvePreferences(app, saved).speech).toMatchObject({
+        ...anima.speech,
+        tts_provider: provider,
+        tts_enabled: false,
+      });
+      expect(app.speech).toEqual({
+        tts_enabled: false,
+        tts_provider: "browser",
+      });
+      expect(resolvePreferences(app, anima).speech?.tts_provider).toBe(
+        "browser",
+      );
+    },
+  );
+});
 
 describe("ElevenLabs v3 finalized chunking preferences", () => {
   it("defaults and coerces saved audio grouping values", () => {

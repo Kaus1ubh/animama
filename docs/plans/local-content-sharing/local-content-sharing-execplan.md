@@ -45,8 +45,9 @@ Make Library's Import / Export flow exchange one content item, multiple items or
 one complete fresh Anima through a local `.animama` file. Dependencies and the
 appropriate Appearance images travel automatically. Imports create independent,
 editable Local copies and never transfer private conversation history or provider
-configuration. No Discover, hosted publishing, distribution service, new catalog
-Voice integration or editable Blueprint type belongs in this work.
+configuration. No Discover, hosted publishing, distribution service, standalone
+Voice export or editable Blueprint type belongs in this work. The
+2026-09-28 amendment below permits bundling an active saved PocketTTS clone.
 
 The prerequisite content changes are part of the same outcome: Idle Styles own
 Gesture pools, Music/BGM is retired, and standalone catalog Pose Clips become
@@ -1909,3 +1910,106 @@ substituting for it. This is not a CI pass. No exact-candidate merge approval ha
 been supplied. The named playback stack at
 `http://animama-sharing-playback-0c75.localhost:8560` is retained for review; older
 stacks and their data remain preserved.
+
+
+### Main voice integration and encoded-clone sharing (2026-09-28)
+
+Owner-authorized follow-up: resolve the merge with main's Anima Voice flow and
+automatically package an active saved PocketTTS clone with its Anima. The owner
+chose **encoded voice only**, excluding the original recording. This supersedes
+the initial blanket voice exclusion without adding a standalone Voice export,
+provider configuration transport or hosted distribution.
+
+Worktree/branch remain `0c75/animama` / `feat/local-content-sharing`, starting
+at `5dbfe92a`; main merge target is `f89d3ed3`. Preserve prior playback fixes,
+Music/standalone Clip retirement, explicit empty Idle selection, and idempotent
+legacy creation receipts while combining the new five-step voice creation flow.
+
+- [x] Resolve authored merge conflicts and regenerate the SDK offline.
+- [x] Add a typed optional Pocket clone reference, effective-provider snapshot
+  fencing and encoded-only export projection. Keep original Local bytes intact.
+- [x] Strictly validate clone capabilities, graph membership and binary contents;
+  import an independent catalog-only clone, bind it and select fresh PocketTTS
+  preferences. Reject recordings, unsupported voices and standalone Voice ZIPs.
+- [x] Show the voice in package review and disable unavailable original-recording
+  previews while preserving clone selection and encoded runtime playback.
+- [x] Run affected merge/creation/package/voice tests, static checks and build;
+  inspect rendered clone selection/review on the existing playback stack.
+- [x] Complete independent analysis and read-only validation of this new scope,
+  resolve required findings within two repair rounds and finalize source for PR #90.
+
+Validation covers exact encoded-byte round trips, no recording/private-settings
+leakage, original source preservation, independent copies, replay/re-export,
+provider-only stale-review rejection, malformed package rejection, frontend
+selection and review. Keep prior acceptance evidence and waived native/audio
+checks distinct; no paid provider call or physical-audibility claim is required.
+This is a new voice/merge review boundary; the closed playback follow-up remains
+closed and its exhausted repair budget is not reset.
+
+
+#### Code Review #1 Findings (voice integration)
+
+Independent analysis found one required issue, VOICE-R1 (P2): the existing
+`renameSavedVoiceClone` helper requires an original recording and therefore
+rejects newly imported catalog-only clones. This helper currently has no rendered
+Rename action, so the repair does not add a new UI. No other actionable finding
+was returned for the frozen merge, portable definitions, provider fencing,
+package privacy/admission or recording-preview handling.
+
+#### Code Review #1 Revisions (voice integration)
+
+Accept VOICE-R1. Repair round 1 admits exactly one encoded catalog and an optional
+original recording through the existing revision-checked rename Save, retains
+the original bytes and provenance, and adds a catalog-only regression. Targeted
+review follows the repair; one further repair round remains if needed.
+
+Initial local checks pass: 69 voice/export/import/portable/creation cases, five
+pure portable voice cases, 14 hostile/valid voice package admission cases and
+161 broader package/retired-receipt cases. Read-only Ruff/format covers 32 changed
+backend/test Python files; MyPy covers 22 backend modules; the repository import
+boundary reports zero forbidden edges. Frontend checks pass 213 tests in 26
+files, 52-file scoped ESLint/Prettier, web/desktop types and production build
+(existing chunk-size advisory). The rename repair must refresh affected evidence.
+
+
+#### Code Review #2 Findings (voice integration)
+
+Targeted independent review passes VOICE-R1 with no repair-induced findings.
+Catalog-only and original-plus-catalog rename preserve payloads and revision
+guards; malformed inventories reject. One of two repair rounds was used.
+The repaired source passes 36 mutation/sample-helper cases, web/desktop types,
+affected ESLint/Prettier and production build. Remaining acceptance is rendered
+browser verification and task-only fixture cleanup.
+
+
+Rendered browser acceptance passed on the retained task stack at
+`http://animama-sharing-playback-0c75.localhost:8560`. A synthetic original and
+encoded neutral catalog were saved through local HTTP, assigned to a fresh Anima,
+exported, inspected and re-imported. The ZIP contains only the Voice descriptor
+and catalog. The imported runtime resolves the new catalog reference, with
+PocketTTS selected and private source settings absent. Both synthetic Animas
+had speech disabled; no paid provider or physical-audio check was performed.
+
+The browser shows the clone in
+[Export review](voice-merge-export-review.png), including the encoded-only
+disclosure. [Imported Loadout](voice-merge-imported-loadout.png) shows PocketTTS
+and the imported clone selected, with original-recording playback disabled.
+The picker lists both independent copies; only the sender copy has a recording
+Play control. A stale container-local package build initially failed to resolve
+the new Voice query key; rebuilding packages inside this task's web container
+and reloading restored the verified current-source UI. No product repair was
+needed for that development artifact mismatch.
+
+
+Final voice-integration disposition: PASS. One repair round was used, VOICE-R1
+is resolved and no required finding remains. Exact HTTP cleanup removed both
+temporary Animas and all four owned content records, restoring the original
+306 content IDs and three Anima IDs. Fixture export/import stages are unavailable;
+no fallback or unresolved cleanup remains. The synthetic archive, ledger and
+check logs remain task-local; the two screenshots above are the tracked evidence.
+
+Delivery uses the existing PR #90. The hosted `Portable product validation`
+workflow remains `disabled_manually` and there are no hosted check results;
+this is not a CI pass. Prior native dialog/recovery and physical-audio checks
+remain explicitly waived, not passed. The 8560 task stack remains available
+with refreshed packages; no other stack or pre-existing data was changed.

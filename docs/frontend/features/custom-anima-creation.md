@@ -2,12 +2,12 @@
 
 ## Current journey
 
-`/a/animas/new` renders the four-step `ui/create-anima/CreateAnimaPage` inside
-the normal app shell: Avatar → Identity → Actions → Review. It creates one
+`/a/animas/new` renders the five-step `ui/create-anima/CreateAnimaPage` inside
+the normal app shell: Avatar → Voice → Identity → Actions → Review. It creates one
 private live Anima and opens that Anima's chat surface after commit. It does
 not create a Chat row, greeting, Blueprint, or publication.
 
-One persistent Avatar preview accompanies the four-step form. The display name
+One persistent Avatar preview accompanies the five-step form. The display name
 remains editable throughout the journey.
 
 Creator-hub, sidebar, carousel, Library, preview-recovery and empty-roster
@@ -31,14 +31,15 @@ memory and aggregate revision guards. See the
 [HTTP contract](../../backend/architecture/http-api.md#strict-private-creation)
 and [data model](../../backend/architecture/data-model.md).
 
-### Four-step interaction contract
+### Five-step interaction contract
 
 | Step     | Behavior                                                                                                                        |
 | -------- | ------------------------------------------------------------------------------------------------------------------------------- |
 | Avatar   | Select Included or Local content, or upload and explicitly save a validated VRM.                                                |
+| Voice | Choose PocketTTS or ElevenLabs, select a preset or shared named clone, or enter a voice ID. Save new clones with the same library controls as Loadout. |
 | Identity | Edit the required Markdown identity; preview or request an Avatar suggestion.                                                   |
 | Actions  | Start from the Recommended Starter Pack, select Gestures and edit all 72 Reaction cells. Preview and selection are independent. |
-| Review   | Inspect name, Avatar, identity, Action counts and linked diagnostics before Create Anima.                                       |
+| Review   | Inspect name, Avatar, voice, identity, Action counts and linked diagnostics before Create Anima.                                       |
 
 A name is required before leaving Avatar. Back, visited steps and Review Edit
 preserve the draft. Changing Avatar retains identity and Actions while
@@ -53,7 +54,7 @@ Pack requires confirmation and replaces all Action edits, including hidden ones.
 
 The implemented backend `AnimaSpec` contains a required live display name and one
 Markdown identity document, an admitted typed Avatar, explicit null profile and
-background Appearance choices from this browser, exact
+background Appearance choices from this browser, explicit voice choices, exact
 Gesture selections and all 72 explicit Reaction cells, a versioned Recommended
 Starter Pack, and a complete `expected_source_revisions` map. That map covers
 selected roots and all supports; it is operation evidence, not an
@@ -97,8 +98,8 @@ Creator Markdown preview does not load remote images.
 ### Draft, retry, and first-chat boundaries
 
 Drafts are scoped to the runtime owner and installation, with explicit
-schema routing and an unsaved-VRM reselection marker. Editable schema v2 has no
-Appearance selection state. Safe v1 null-appearance drafts migrate
+schema routing and an unsaved-VRM reselection marker. Editable schema v3 adds
+explicit provider and voice choices and has no Appearance selection state. Safe v1 null-appearance drafts migrate
 automatically; v1 drafts with an image choice/pending marker require explicit
 “Continue without images” confirmation, while confirmed uploads remain in My
 Content. Frozen v1 requests are replayed exactly and migrate only after a known
@@ -184,3 +185,23 @@ relationship. There is no “Save as Blueprint” action. Discover and hosted
 publication/acquisition are discontinued. Separately,
 [Library Import / Export](library.md#import--export) shares a reviewed saved Anima definition and its required content. Import creates
 a new independent companion; it does not restore conversations or other private memory.
+
+### Voice choices
+
+Voice precedes Identity and reuses Loadout's searchable PocketTTS picker, samples,
+downloads and named Voice Cloning library. Initial choices come from application
+preferences; unsupported or temporary Pocket voices use Eve. Each provider keeps
+its draft configuration when switching. An ElevenLabs choice requires a voice ID.
+Review shows the selected provider and voice. The application speech on/off setting
+continues to control whether the Anima speaks.
+
+New commands include `voice`: a provider, Pocket preset ID or exact shared clone
+reference, and an optional ElevenLabs ID. These choices are stored in the same
+creation transaction. A saved clone belongs to the shared local library and is
+retained when creation is cancelled; selecting it binds only the eventual Anima.
+Clones are revalidated against owner-visible catalog revisions before creation.
+
+Older four-step drafts migrate their step indices and retain their edits. Pending
+requests keep the original frozen body and key, including omission of `voice`.
+Only editable drafts acquire the new voice choice; recovery never sends a new
+creation command automatically.

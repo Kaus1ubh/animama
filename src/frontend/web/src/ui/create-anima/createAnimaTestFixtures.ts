@@ -5,6 +5,7 @@ import type {
   SourceRevision,
 } from "@animama/runtime-contracts/sdk";
 import {
+  type CreateAnimaDraft,
   createAnimaDraftReducer,
   emptyReactions,
   newCreateAnimaDraft,
@@ -63,13 +64,18 @@ export function creationOptions(): AnimaCreationOptions {
   };
 }
 
-export function readyDraft() {
+export function readyDraft(): CreateAnimaDraft {
   const draft = createAnimaDraftReducer(newCreateAnimaDraft(), {
     type: "seed",
     options: creationOptions(),
   });
   return {
     ...draft,
+    voice: {
+      provider: "pocket_tts",
+      pocket: { type: "preset", voice_id: "eve" },
+      elevenlabs_voice_id: null,
+    },
     avatar: ref("avatar"),
     display_name: "  Rowan 🌿  ",
     identity_markdown: "# Rowan\r\n\r\nA curious companion.  \r\n",

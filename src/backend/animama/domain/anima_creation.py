@@ -49,3 +49,5 @@ class ResolvedAnimaSpec:
     # Internal callers may supply an already locally validated voice choice.
     # No provider call or browser field is introduced at this boundary.
     voice_profile: dict[str, Any] | None = None
+    speech_preferences: dict[str, Any] | None = None
+    voice_source: CatalogContentEntry | None = None

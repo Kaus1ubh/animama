@@ -29,6 +29,7 @@ class StarterAnimaSpec:
     legacy_avatar_id: str
     avatar_locator: str
     legacy_profile_url: str
+    pocket_voice: str
 
     @property
     def portrait_logical_key(self) -> str:
@@ -45,7 +46,7 @@ class StarterAnimaSpec:
 STARTER_ANIMA_SPECS = (
     StarterAnimaSpec(
         "starter:annie",
-        2,
+        3,
         "Annie",
         """
 # Annie
@@ -99,10 +100,11 @@ bigger than a chat.
         "avt_sample_a1n",
         "avatars/AvatarSample_A_1_New.vrm",
         "/marine-pfp.png",
+        "eve",
     ),
     StarterAnimaSpec(
         "starter:caitlyn",
-        4,
+        5,
         "Caitlyn",
         """
 # Caitlyn
@@ -155,6 +157,7 @@ suggesting another angle instead.
         "avt_chibi_2",
         "avatars/AvatarSample_R1.vrm",
         "/korone-pfp.png",
+        "azelma",
     ),
 )
 
@@ -242,6 +245,16 @@ class AnimaStarterService:
         # A fresh internal key is safe because the stable starter lock/receipt is
         # this operation's retry authority, and both receipts commit together.
         result = await self.creation.create_in_uow(user_id=user_id, spec=command, key=f"starter-{uuid4()}")
+        # Voice defaults belong only to newly created starters. Existing and
+        # adopted companions returned above retain their owner's saved choices.
+        settings = await self.uow.settings.get(user_id=user_id, anima_id=result["anima_id"])
+        if settings is None:
+            raise RuntimeError("Newly created starter Anima is missing its settings")
+        settings.preferences = {
+            **settings.preferences,
+            "speech": {**settings.preferences.get("speech", {}), "tts_pocket_anima_voice": spec.pocket_voice},
+        }
+        await self.uow.settings.upsert(settings)
         receipt = StarterReceipt(spec.id, spec.version, "ready", result["anima_id"], result["warnings"])
         await self.receipts.save_starter(user_id=user_id, receipt=receipt)
         return self._result(receipt, "created")

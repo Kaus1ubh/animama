@@ -367,6 +367,81 @@ describe("complete package review", () => {
       expect(page).toContain("other private settings are left out");
     },
   );
+  it.each(["export-selection", "export-review", "import-review"] as const)(
+    "reviews the active encoded voice as a required dependency in %s",
+    (screen) => {
+      const voiceAnima = { ...anima, pocket_voice: "voice" };
+      const entries = [
+        ...completeManifest.entries,
+        {
+          package_entry_id: "voice",
+          logical_key: "narrator",
+          display_name: "Narrator",
+          kind: "voice" as const,
+          portable_revision_sha256: "v",
+          dependencies: [],
+          files: [],
+        },
+      ];
+      const page = html({
+        screen,
+        mode: "anima",
+        summary: {
+          anima: voiceAnima,
+          digest: "d",
+          estimated_size_bytes: 1000,
+          selected_count: 0,
+          required_count: entries.length,
+          items: entries.map((entry) => ({
+            item_id: entry.package_entry_id,
+            name: entry.display_name,
+            kind: entry.kind,
+            revision: entry.portable_revision_sha256,
+            selected: false,
+          })),
+        },
+        exportReview: {
+          digest: "d",
+          expires_at: "2030-01-01",
+          export_id: "e",
+          filename: "Luna.zip",
+          manifest: { ...completeManifest, anima: voiceAnima, entries },
+          package_sha256: "s",
+          required_count: entries.length,
+          selected_count: 0,
+          size_bytes: 1000,
+        },
+        importReview: {
+          anima: voiceAnima,
+          expires_at: "2030-01-01",
+          filename: "Luna.zip",
+          items: entries.map((entry) => ({
+            entry_id: entry.package_entry_id,
+            kind: entry.kind,
+            name: entry.display_name,
+            original_name: entry.display_name,
+            selected: false,
+          })),
+          kind: "anima",
+          operation_id: "o",
+          package_sha256: "s",
+          required_count: entries.length,
+          review_digest: "d",
+          selected_count: 0,
+          size_bytes: 1000,
+          stage_id: "stage",
+        },
+      });
+      expect(page).toContain("PocketTTS voice: </span>Narrator");
+      expect(page).toContain(
+        "Encoded voice only; the original recording is not included.",
+      );
+      expect(page).toContain("Voice</span><span>1</span>");
+      expect(page).toContain(`(${entries.length})`);
+      expect(page).not.toContain("credentials, voice settings");
+    },
+  );
+
   it("keeps one complete required-items disclosure on Anima import", () => {
     const page = html({
       screen: "import-review",
@@ -419,6 +494,7 @@ describe("complete package review", () => {
     expect(page).toContain("0.4");
     expect(page).toContain(" · 2: None");
     expect(page).toContain("Idle Style: </span>None");
+    expect(page).not.toContain("PocketTTS voice: </span>");
     expect(page).toContain("Export Anima");
     expect(page).not.toMatch(/Edit export copy|Music/);
   });

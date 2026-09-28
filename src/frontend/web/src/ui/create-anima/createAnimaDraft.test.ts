@@ -36,36 +36,41 @@ describe("CreateAnimaDraft", () => {
     ).toBe(false);
   });
 
-  it("reads retired clip evidence only from saved drafts and frozen requests", () => {
-    const draft = readyDraft();
-    const legacyEvidence = {
-      old_clip: { kind: "pose_clip", revision_sha256: "a".repeat(64) },
-    };
-    const request = {
-      ...buildAnimaSpec(draft),
-      idempotency_key: "old-retry",
-      expected_source_revisions: legacyEvidence,
-    };
-    const restored = createAnimaDraftSchema.parse({
-      ...draft,
-      seed_revisions: legacyEvidence,
-      submission: { state: "unknown", request },
-    });
-    expect(restored.submission?.request).toEqual(request);
-    expect(restored.seed_revisions).toEqual(legacyEvidence);
-    expect(sourceMapSchema.safeParse(legacyEvidence).success).toBe(false);
-    expect(creationRequestSchema.safeParse(request).success).toBe(false);
-    expect(() =>
-      buildAnimaSpec({
+  it.each([false, true])(
+    "reads retired clip evidence only from saved drafts and frozen requests (voice field: %s)",
+    (hasVoice) => {
+      const draft = readyDraft();
+      const { voice, ...spec } = buildAnimaSpec(draft);
+      const legacyEvidence = {
+        old_clip: { kind: "pose_clip", revision_sha256: "a".repeat(64) },
+      };
+      const request = {
+        ...spec,
+        ...(hasVoice ? { voice } : {}),
+        idempotency_key: "old-retry",
+        expected_source_revisions: legacyEvidence,
+      };
+      const restored = createAnimaDraftSchema.parse({
         ...draft,
-        idle_revisions: legacyEvidence,
-      } as typeof draft),
-    ).toThrow();
-  });
+        seed_revisions: legacyEvidence,
+        submission: { state: "unknown", request },
+      });
+      expect(restored.submission?.request).toEqual(request);
+      expect(restored.seed_revisions).toEqual(legacyEvidence);
+      expect(sourceMapSchema.safeParse(legacyEvidence).success).toBe(false);
+      expect(creationRequestSchema.safeParse(request).success).toBe(false);
+      expect(() =>
+        buildAnimaSpec({
+          ...draft,
+          idle_revisions: legacyEvidence,
+        } as typeof draft),
+      ).toThrow();
+    },
+  );
 
-  it("constructs schema v2 with the exact editable identity seed and 72 null cells", () => {
+  it("constructs schema v3 with the exact editable identity seed and 72 null cells", () => {
     const draft = newCreateAnimaDraft();
-    expect(draft.schema_version).toBe(2);
+    expect(draft.schema_version).toBe(3);
     expect(draft.identity_markdown).toBe(DEFAULT_ANIMA_IDENTITY_MARKDOWN);
     expect(draft.identity_markdown).toBe(
       [
@@ -246,7 +251,7 @@ describe("CreateAnimaDraft", () => {
       draftIssues({ ...readyDraft(), display_name: "😀".repeat(41) }, 3),
     ).toHaveLength(1);
     expect(issueStep("/display_name")).toBeNull();
-    expect(issueStep("/identity_markdown")).toBe(1);
+    expect(issueStep("/identity_markdown")).toBe(2);
   });
 
   it("uses a direct required-name message before the broader format message", () => {

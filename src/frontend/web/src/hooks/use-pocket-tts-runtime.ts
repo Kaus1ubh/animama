@@ -117,6 +117,8 @@ type GeneratePocketTtsArgs = {
   voice?: string;
   animaId?: string;
   animaVoiceKey?: string;
+  /** Presence requires this exact mounted catalog; no worker fallback is allowed. */
+  assertAnimaCatalogActive?: () => void;
   signal?: AbortSignal;
   preservePlayback?: boolean;
   endStream?: boolean;
@@ -583,8 +585,24 @@ export async function generatePocketTtsText(
   const trimmed = text.trim();
   if (!trimmed) return;
 
+  args?.assertAnimaCatalogActive?.();
   await warmupPocketTtsRuntime();
   const core = getOrCreateCore();
+
+  if (args?.assertAnimaCatalogActive) {
+    args.assertAnimaCatalogActive();
+    const catalog = args.animaId?.trim()
+      ? await core.preloadAnimaVoices?.(args.animaId.trim())
+      : null;
+    args.assertAnimaCatalogActive();
+    // The vendored worker otherwise falls back silently to its current voice.
+    // Both supported legacy catalogs and named clones contain neutral.
+    if (!catalog?.available || !catalog.voices?.includes("neutral")) {
+      throw new Error(
+        "The selected PocketTTS voice could not be loaded. Reload its content to retry.",
+      );
+    }
+  }
 
   if (args?.voice?.trim()) {
     core.setVoice(args.voice.trim());

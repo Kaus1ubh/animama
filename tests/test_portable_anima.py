@@ -270,7 +270,8 @@ async def test_saved_definition_projection_preserves_empties_images_and_privacy(
     }
     encoded = definition.model_dump_json()
     assert fixture.user_id not in encoded and anima.id not in encoded
-    assert "NEVER_EXPORT" not in encoded and "provider" not in encoded and "voice" not in encoded
+    assert "NEVER_EXPORT" not in encoded and "provider" not in encoded and "speech" not in encoded
+    assert definition.pocket_voice is None
     await service.recheck(user_id=fixture.user_id, snapshot=result.snapshot)
 
 

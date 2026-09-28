@@ -15,6 +15,7 @@ from animama.orm.anima_loadout import ORMAnimaLoadout
 from animama.orm.avatar import ORMAvatar
 from animama.orm.content_catalog import ORMAnimaContentBinding
 from animama.orm.memory_entry import ORMMemoryEntry
+from animama.orm.settings import ORMAnimaSettings, ORMUserSettings
 
 from .anima_repo import SQLAlchemyAnimaRepository
 
@@ -59,6 +60,26 @@ class SQLAlchemyAnimaPackageSourceRepository:
                 .execution_options(populate_existing=True)
             )
         ).all()
+        owner_settings = await self._session.scalar(
+            select(ORMUserSettings).where(ORMUserSettings.user_id == user_id).execution_options(populate_existing=True)
+        )
+        anima_settings = await self._session.scalar(
+            select(ORMAnimaSettings)
+            .where(ORMAnimaSettings.user_id == user_id, ORMAnimaSettings.anima_id == anima_id)
+            .execution_options(populate_existing=True)
+        )
+        # Match browser settings precedence without copying credentials or other
+        # speech settings into the snapshot. A disabled speaker does not change
+        # the selected provider. This fact also fences provider-only edits.
+        provider = "elevenlabs"
+        for settings in (owner_settings, anima_settings):
+            preferences = settings.preferences if settings is not None else {}
+            speech = preferences.get("speech") if isinstance(preferences, dict) else None
+            if isinstance(speech, dict) and "tts_provider" in speech:
+                provider = speech["tts_provider"]
+        effective_provider = (
+            provider if isinstance(provider, str) and provider in {"pocket_tts", "elevenlabs", "browser"} else None
+        )
         return SavedAnimaPackageSource(
             owner_user_id=user_id,
             anima_id=anima_id,
@@ -78,4 +99,5 @@ class SQLAlchemyAnimaPackageSourceRepository:
             bindings=tuple(
                 SavedAnimaBinding(row.slot_key, row.kind, row.catalog_item_id, deepcopy(row.config)) for row in bindings
             ),
+            effective_tts_provider=effective_provider,
         )

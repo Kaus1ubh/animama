@@ -12,6 +12,7 @@ export function sharingKindLabel(kind: string): string {
         avatar_effect: "Avatar Effect",
         scene_effect: "Scene Effect",
         sound_effect: "Sound Effect",
+        voice: "Voice",
         appearance: "Image",
       } as Record<string, string>
     )[kind] ?? "Content"

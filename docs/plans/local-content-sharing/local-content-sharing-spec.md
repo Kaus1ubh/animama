@@ -8,6 +8,10 @@ This file retains its local requirements snapshot, published and read back at
 download filenames; this supersedes the original extension shown in the mockups.
 The amendment was published to issue #81 and read back at `2026-09-24T20:59:35Z`.
 The separate-button amendment was published and read back at `2026-09-24T21:05:50Z`.
+2026-09-28 amendment: include the active saved PocketTTS clone in complete Anima
+ZIPs as encoded voice only; exclude the original recording. This narrow exception
+supersedes the earlier blanket Voice exclusion. The amendment was published to
+issue #81 and read back at `2026-09-28T18:20:33Z`.
 Source baseline: `98220eae162651207960ffa9657aa54581a80265`.
 
 ## Problem and intended users
@@ -34,8 +38,8 @@ Clips, and make Idle Styles own Gesture-based emotion/intensity pools.
 
 No Discover, publishing, hosted storage/distribution, cloud identity, sharing
 links, synchronization, automatic updates, or installation backup/restore is
-introduced. No new catalog Voice integration or Voice sharing is added; existing
-TTS remains. Loose-file upload and Creator JSON import/export remain separate
+introduced. Voice is not a standalone export type. Complete Anima packages may
+carry their active saved PocketTTS clone as specified in R3; existing TTS remains. Loose-file upload and Creator JSON import/export remain separate
 from package import. No standalone Appearance picker/export, partial-package
 import, replacement-import UI, continuous-idle mode, or new idle timing controls
 are required. There are no old packages requiring backward compatibility.
@@ -103,10 +107,21 @@ Include required content as in R2. Do not silently remove broken equipment.
 
 Exclude chats, relationship memories, attachments, identity history, emotion/
 conversation runtime state, credentials, sender owner IDs and device/provider
-settings. Music and Voice configuration are outside the portable definition.
+settings. Music and general Voice configuration are outside the portable definition.
 Only the reviewed identity text is copied from the identity domain; do not
 serialize arbitrary memory/settings records. Preserve per-content attribution
 and supported license metadata without treating those fields as permission checks.
+
+When the effective provider is PocketTTS and a saved clone is equipped, include
+its encoded neutral catalog automatically. Exclude its original recording from
+both the descriptor and ZIP bytes. Review names the included Voice and makes the
+encoded-only boundary visible. Import creates an independent Local Voice, equips
+it and selects PocketTTS with fresh preferences. Named presets, inactive clones,
+ElevenLabs IDs, credentials and unrelated speech preferences remain outside the
+package. Imported clones can be reused, renamed and re-exported; recording
+preview is unavailable when there is no original. Validate the actual encoded
+binary, require the supported voice capability and reject standalone/orphan
+Voice entries or packages carrying raw clone recordings.
 
 Import creates a new private Anima with the reviewed definition and installed
 equipment, fresh local identity/revisions and normal recipient-side defaults for

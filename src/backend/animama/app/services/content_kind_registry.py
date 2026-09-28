@@ -46,6 +46,7 @@ from .content_gltf import MAX_VRM_SOURCE_BYTES, validate_vrm_stream
 from .content_image import MAX_APPEARANCE_SOURCE_BYTES, validate_appearance_image_stream
 from .content_pose import validate_resolved_pose
 from .content_svg import validate_svg_file
+from .content_voice import validate_pocket_clone_document, validate_pocket_clone_files
 
 MAX_JSON_BYTES = 16 * 1024 * 1024
 MAX_DOCUMENT_DEPTH = 32
@@ -108,6 +109,7 @@ class RuntimeProjection:
         "music_track",
         "avatar",
         "appearance",
+        "voice",
         "support",
         "none",
     ]
@@ -972,13 +974,15 @@ class ContentTypeHandler:
                 presentation=_object(raw.get("presentation", raw.get("config")), field_name="presentation"),
             )
         if kind is ContentKind.VOICE:
-            return VoiceDocumentV1(
+            voice = VoiceDocumentV1(
                 **base,
                 codec=_optional_string(raw.get("codec"), field_name="codec", maximum=128),
                 language=_optional_string(raw.get("language"), field_name="language", maximum=64),
                 sample_rate_hz=_optional_positive_int(raw.get("sample_rate_hz"), field_name="sample_rate_hz"),
                 voices=_string_list(raw.get("voices", []), field_name="voices"),
             )
+            validate_pocket_clone_document(voice)
+            return voice
         raise ContentDocumentError("content_kind_unsupported", f"{kind.value} is not admit-able")
 
     def catalog_projection(self, document: TypedContentDocument) -> dict[str, Any]:
@@ -1161,6 +1165,15 @@ class ContentTypeHandler:
             return "audio"
         return "dependency"
 
+    def validate_companion_files(
+        self, document: TypedContentDocument, files: Mapping[str, Path]
+    ) -> tuple[ContentDiagnostic, ...]:
+        """Apply format-specific whole-entry admission without adding a storage path."""
+
+        if isinstance(document, VoiceDocumentV1):
+            return validate_pocket_clone_files(document, files)
+        return ()
+
     def validate_resolved_dependencies(
         self,
         dependencies: Iterable[tuple[ContentDependencyV1, ContentKind | None]],
@@ -1342,6 +1355,25 @@ class ContentTypeHandler:
                     "avatar_id": str(projection.context.get("avatar_id") or projection.item_id),
                     "revision": projection.revision,
                     "files": projection.files,
+                },
+            )
+        if isinstance(document, VoiceDocumentV1):
+            # Legacy standalone catalogs have the old audio role. New clones
+            # expose only the encoded catalog; source recordings stay private
+            # authoring resources and are not eagerly prepared by chat.
+            catalogs = [file for file in projection.files if str(file.get("filename", "")).lower().endswith(".bin")]
+            if len(catalogs) != 1:
+                return RuntimeProjection("none", None)
+            return RuntimeProjection(
+                "voice",
+                {
+                    "runtime_root_id": projection.runtime_root_id,
+                    "binding_id": str(projection.context.get("binding_id") or projection.runtime_root_id),
+                    "source": projection.source,
+                    "name": name,
+                    "codec": document.codec,
+                    "voices": list(document.voices),
+                    "files": catalogs,
                 },
             )
         if isinstance(document, AppearanceDocumentV1):

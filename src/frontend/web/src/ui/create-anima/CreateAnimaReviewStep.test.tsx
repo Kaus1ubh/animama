@@ -5,6 +5,10 @@ import { CreateAnimaReviewStep } from "./CreateAnimaReviewStep";
 import { buildAnimaSpec } from "./createAnimaDraft";
 import { readyDraft } from "./createAnimaTestFixtures";
 
+vi.mock("@/query/hooks/useVoiceClones", () => ({
+  useVoiceClones: () => ({ data: [] }),
+}));
+
 describe("final Anima review", () => {
   it.each([true, false])(
     "shows exact normalized identity, counts, and warnings (valid=%s)",
@@ -32,6 +36,8 @@ describe("final Anima review", () => {
         />,
       );
       expect(html).toContain("Rowan 🌿");
+      expect(html).toContain("PocketTTS · Eve");
+      expect(html).toContain("Edit Voice");
       expect(html).toContain("A curious companion");
       expect(html).not.toContain("Read the complete identity");
       expect(html).not.toContain("max-h-80");

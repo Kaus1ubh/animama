@@ -6,7 +6,7 @@ loadout used by chat.
 Routes:
 
 - `/a/create`: browse the creator hub.
-- `/a/animas/new`: Avatar → Identity → Actions → Review live creation;
+- `/a/animas/new`: Avatar → Voice → Identity → Actions → Review live creation;
   existing links and optional logical Avatar handoffs remain intact.
 - `/a/animas`: resolve to the first owned Anima or `/a/animas/new`.
 - `/a/animas/:animaId`: view the rendered `IDENTITY.md` document by default.
@@ -67,8 +67,11 @@ Gestures and Reactions are complete actions. Their Particle, Avatar, and
 Scene Effects and Sound Effects are compiler-managed dependencies, so those
 ingredients never appear as separate loadout checkboxes.
 
-The Loadout panel contains Gestures, Reactions and Idle Style. Avatar,
-Appearance and voice use their own focused controls.
+The Loadout panel contains Voices, Gestures, Reactions and Idle Style.
+Voices configures PocketTTS and ElevenLabs for this Anima, regardless of the
+active application provider. Avatar and Appearance use their own focused controls.
+Imported encoded-only voice clones remain selectable for speech; their original
+recording preview is unavailable because the recording is not shared.
 
 The unified Gesture list keeps ready user-created Gestures first and optionally
 reveals active or disabled Starter Gestures through the header filter menu.

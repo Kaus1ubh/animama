@@ -20,7 +20,7 @@ Start here:
 
 Feature guides:
 
-- `features/custom-anima-creation.md`: four-step live creator, exact sources,
+- `features/custom-anima-creation.md`: five-step live creator, exact sources,
   confirmed uploads, owner-scoped draft/retry recovery, and first-chat handoff.
 - `features/anima-management.md`
 - `features/avatar-releases-and-appearance.md`

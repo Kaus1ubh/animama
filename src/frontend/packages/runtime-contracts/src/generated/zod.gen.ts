@@ -507,6 +507,14 @@ export const zCreateMissingStarterRepair = z.object({
 });
 
 /**
+ * CreationPocketPreset
+ */
+export const zCreationPocketPreset = z.object({
+    type: z.literal('preset'),
+    voice_id: z.string().regex(/^[a-z][a-z0-9_-]{0,127}$/)
+});
+
+/**
  * CrisisContact
  */
 export const zCrisisContact = z.object({
@@ -609,7 +617,8 @@ export const zImportedPackageItem = z.object({
         'pose',
         'reaction',
         'scene_effect',
-        'sound_effect'
+        'sound_effect',
+        'voice'
     ]),
     logical_key: z.union([
         z.string(),
@@ -662,6 +671,56 @@ export const zAnimaAppearanceOutput = z.object({
         zAppearanceChoice,
         z.null()
     ])
+});
+
+/**
+ * CreationPocketClone
+ */
+export const zCreationPocketClone = z.object({
+    source: zItemRevisionRef,
+    type: z.literal('clone')
+});
+
+/**
+ * CreationVoice
+ *
+ * Both provider choices persist; only the selected provider needs a usable ID.
+ */
+export const zCreationVoiceInput = z.object({
+    elevenlabs_voice_id: z.union([
+        z.string().regex(/^[A-Za-z0-9_-]{1,128}$/),
+        z.null()
+    ]),
+    pocket: z.union([
+        z.object({
+            type: z.literal('preset')
+        }).and(zCreationPocketPreset),
+        z.object({
+            type: z.literal('clone')
+        }).and(zCreationPocketClone)
+    ]),
+    provider: z.enum(['pocket_tts', 'elevenlabs'])
+});
+
+/**
+ * CreationVoice
+ *
+ * Both provider choices persist; only the selected provider needs a usable ID.
+ */
+export const zCreationVoiceOutput = z.object({
+    elevenlabs_voice_id: z.union([
+        z.string().regex(/^[A-Za-z0-9_-]{1,128}$/),
+        z.null()
+    ]),
+    pocket: z.union([
+        z.object({
+            type: z.literal('preset')
+        }).and(zCreationPocketPreset),
+        z.object({
+            type: z.literal('clone')
+        }).and(zCreationPocketClone)
+    ]),
+    provider: z.enum(['pocket_tts', 'elevenlabs'])
 });
 
 /**
@@ -733,7 +792,8 @@ export const zPackageDependency = z.object({
         'pose',
         'reaction',
         'scene_effect',
-        'sound_effect'
+        'sound_effect',
+        'voice'
     ]),
     ref: z.string().min(1).max(128).regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/)
 });
@@ -872,7 +932,8 @@ export const zPackageEntry = z.object({
         'pose',
         'reaction',
         'scene_effect',
-        'sound_effect'
+        'sound_effect',
+        'voice'
     ]),
     license: z.optional(z.union([
         zPackageLicense,
@@ -987,6 +1048,10 @@ export const zPortableAnima = z.object({
         z.string().min(1).max(128).regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/),
         z.null()
     ]),
+    pocket_voice: z.optional(z.union([
+        z.string().min(1).max(128).regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/),
+        z.null()
+    ])),
     reactions: z.record(z.string(), z.record(z.string(), z.union([
         zPortableActionSelection,
         z.null()
@@ -1765,6 +1830,7 @@ export const zPyContentDiagnostic = z.object({
  */
 export const zPyContentEvidenceRootRequest = z.object({
     kind: z.enum([
+        'voice',
         'avatar',
         'appearance',
         'gesture',
@@ -1806,6 +1872,7 @@ export const zPyContentFile = z.object({
  */
 export const zPyContentPreviewRootRequest = z.object({
     kind: z.enum([
+        'voice',
         'avatar',
         'appearance',
         'gesture',
@@ -3356,6 +3423,7 @@ export const zPyPreparedPreviewRoot = z.object({
     closure_item_ids: z.array(z.string()),
     item_id: z.string(),
     kind: z.enum([
+        'voice',
         'avatar',
         'appearance',
         'gesture',
@@ -3904,6 +3972,24 @@ export const zPyRuntimeSupport = z.object({
 });
 
 /**
+ * PyRuntimeVoice
+ *
+ * One equipped Pocket catalog; original recordings remain in the library.
+ */
+export const zPyRuntimeVoice = z.object({
+    binding_id: z.string(),
+    codec: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    files: z.optional(z.array(zPyRuntimeFile)),
+    name: z.string(),
+    runtime_root_id: z.string(),
+    source: zPyRuntimeCatalogItemSource,
+    voices: z.optional(z.array(z.string()))
+});
+
+/**
  * PyRuntimeWarning
  */
 export const zPyRuntimeWarning = z.object({
@@ -3944,6 +4030,10 @@ export const zPyAnimaRuntime = z.object({
     reactions: z.optional(z.array(zPyRuntimeAction)),
     scene_effects: z.optional(z.array(zPyRuntimeSupport)),
     sound_effects: z.optional(z.array(zPyRuntimeSupport)),
+    voice: z.optional(z.union([
+        zPyRuntimeVoice,
+        z.null()
+    ])),
     warnings: z.optional(z.array(zPyRuntimeWarning))
 });
 
@@ -5007,7 +5097,8 @@ export const zReviewedImportItem = z.object({
         'pose',
         'reaction',
         'scene_effect',
-        'sound_effect'
+        'sound_effect',
+        'voice'
     ]),
     name: z.string(),
     original_name: z.string(),
@@ -5064,6 +5155,7 @@ export const zPackageStageStatus = z.object({
  */
 export const zSourceRevision = z.object({
     kind: z.enum([
+        'voice',
         'avatar',
         'appearance',
         'gesture',
@@ -5095,6 +5187,7 @@ export const zAnimaCreationDefaultIdle = z.object({
 export const zPyContentEvidenceRoot = z.object({
     expected_source_revisions: z.record(z.string(), zSourceRevision),
     kind: z.enum([
+        'voice',
         'avatar',
         'appearance',
         'gesture',
@@ -5243,7 +5336,11 @@ export const zAnimaSpecInput = z.object({
         z.null()
     ]))),
     schema_version: z.literal(1),
-    starter_pack: zStarterPackIdentity
+    starter_pack: zStarterPackIdentity,
+    voice: z.optional(z.union([
+        zCreationVoiceInput,
+        z.null()
+    ]))
 });
 
 /**
@@ -5263,7 +5360,11 @@ export const zAnimaSpecOutput = z.object({
         z.null()
     ]))),
     schema_version: z.literal(1),
-    starter_pack: zStarterPackIdentity
+    starter_pack: zStarterPackIdentity,
+    voice: z.optional(z.union([
+        zCreationVoiceOutput,
+        z.null()
+    ]))
 });
 
 /**
@@ -5291,7 +5392,11 @@ export const zCreateAnimaRequest = z.object({
         z.null()
     ]))),
     schema_version: z.literal(1),
-    starter_pack: zStarterPackIdentity
+    starter_pack: zStarterPackIdentity,
+    voice: z.optional(z.union([
+        zCreationVoiceInput,
+        z.null()
+    ]))
 });
 
 /**
@@ -5310,7 +5415,11 @@ export const zLegacyCreateAnimaRequest = z.object({
         z.null()
     ]))),
     schema_version: z.literal(1),
-    starter_pack: zStarterPackIdentity
+    starter_pack: zStarterPackIdentity,
+    voice: z.optional(z.union([
+        zCreationVoiceInput,
+        z.null()
+    ]))
 });
 
 /**

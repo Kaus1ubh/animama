@@ -19,9 +19,10 @@ from animama.domain.content_catalog import (
     ContentSource,
     ContentStatus,
 )
-from animama.domain.content_documents import AppearanceDocumentV1, GestureDocumentV1
+from animama.domain.content_documents import AppearanceDocumentV1, GestureDocumentV1, VoiceDocumentV1
 from animama.domain.emotions import TRACKED_EMOTIONS
 
+from .content_voice import POCKET_CLONE_CODEC
 from .portable_anima_service import resolve_portable_anima
 from .starter_loadout_policy import starter_loadout_policy
 from .typed_content_service import TypedContentService
@@ -108,8 +109,9 @@ class AnimaPackageSourceService:
         appearance: dict[str, Any] = {"profile": None, "background": None}
         avatar: str | None = None
         idle: str | None = None
+        pocket_voice: str | None = None
         for row in source.bindings:
-            if row.kind in {"voice", "music_track"}:
+            if row.kind == "music_track" or row.kind == "voice" and source.effective_tts_provider != "pocket_tts":
                 continue
             try:
                 kind = ContentKind(row.kind)
@@ -130,6 +132,15 @@ class AnimaPackageSourceService:
                 avatar = item.id
             elif kind is ContentKind.IDLE_STYLE and row.slot_key == "idle-style" and not row.config:
                 idle = item.id
+            elif (
+                kind is ContentKind.VOICE
+                and row.slot_key == "voice"
+                and not row.config
+                and isinstance(document, VoiceDocumentV1)
+                and document.codec == POCKET_CLONE_CODEC
+                and not document.dependencies
+            ):
+                pocket_voice = item.id
             elif (
                 kind is ContentKind.APPEARANCE
                 and isinstance(document, AppearanceDocumentV1)
@@ -181,6 +192,7 @@ class AnimaPackageSourceService:
                     "reactions": reactions,
                     "idle_style": idle,
                     "appearance": appearance,
+                    "pocket_voice": pocket_voice,
                 }
             )
         except ValidationError as exc:

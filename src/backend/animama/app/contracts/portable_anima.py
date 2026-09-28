@@ -67,6 +67,8 @@ class PortableAnima(PortableModel):
     reactions: dict[Emotion, dict[Literal["1", "2", "3"], PortableActionSelection | None]]
     idle_style: EntryId | None
     appearance: PortableAnimaAppearance
+    # Only the active saved Pocket clone travels; provider profiles remain local.
+    pocket_voice: EntryId | None = None
 
     @field_validator("display_name", mode="before")
     @classmethod
@@ -106,6 +108,8 @@ class PortableAnima(PortableModel):
         )
         if self.idle_style is not None:
             refs.append((self.idle_style, ContentKind.IDLE_STYLE))
+        if self.pocket_voice is not None:
+            refs.append((self.pocket_voice, ContentKind.VOICE))
         refs.extend(
             (selection.entry_id, ContentKind.APPEARANCE)
             for selection in (self.appearance.profile, self.appearance.background)

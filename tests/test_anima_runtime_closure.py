@@ -307,3 +307,23 @@ async def test_changed_dependency_omits_only_affected_roots_and_requests_rescan(
     assert [root.slot_key for root in descriptor.roots] == ["gesture:good"]
     assert [item.code for item in descriptor.diagnostics] == ["runtime_source_changed"]
     assert catalog.invalidations == [(ContentSource.LOCAL, (bad_file.relative_path,))]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("missing", [False, True])
+async def test_unavailable_voice_retains_slot_diagnostic_for_playback_failure(missing: bool) -> None:
+    voice = _entry("voice", kind=ContentKind.VOICE, status=ContentStatus.INVALID)
+    descriptor = await RuntimeContentClosureCompiler(
+        catalog=_Catalog([] if missing else [voice]),  # type: ignore[arg-type]
+        store=_Store(),  # type: ignore[arg-type]
+    ).compile(
+        user_id="owner",
+        loadout_revision=1,
+        selections=(RuntimeContentRootSelection("voice", voice.id, voice.kind),),
+    )
+    assert descriptor.roots == ()
+    assert len(descriptor.diagnostics) == 1
+    diagnostic = descriptor.diagnostics[0]
+    assert diagnostic.slot_key == "voice"
+    assert diagnostic.item_id == voice.id
+    assert diagnostic.code == ("catalog_root_unavailable" if missing else "catalog_root_invalid")

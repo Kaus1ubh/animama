@@ -43,7 +43,7 @@ PACKAGE_ROOT_KINDS = frozenset(
         ContentKind.SOUND_EFFECT,
     }
 )
-PACKAGE_ENTRY_KINDS = PACKAGE_ROOT_KINDS | {ContentKind.APPEARANCE}
+PACKAGE_ENTRY_KINDS = PACKAGE_ROOT_KINDS | {ContentKind.APPEARANCE, ContentKind.VOICE}
 # The private storage enum still decodes retired receipt history. Public package
 # schemas advertise only kinds accepted by the strict current package contract.
 PackageContentKind = Annotated[
@@ -154,6 +154,21 @@ class PackageEntry(_PackageModel):
             raise ValueError("package_dependency_duplicate")
         if self.kind is ContentKind.APPEARANCE and self.dependencies:
             raise ValueError("package_appearance_dependency_invalid")
+        if self.kind is ContentKind.VOICE:
+            # Voice is carried only by the Anima reference, never as standalone
+            # content. Its authoring recording must not enter a shared archive.
+            if self.dependencies:
+                raise ValueError("package_voice_dependency_invalid")
+            if len(self.files) != 2 or {member.role for member in self.files} != {
+                "descriptor",
+                "pocket_voice_catalog",
+            }:
+                raise ValueError("package_voice_files_invalid")
+            if any(
+                member.role == "pocket_voice_catalog" and PurePosixPath(member.relative_path).suffix.lower() != ".bin"
+                for member in self.files
+            ):
+                raise ValueError("package_voice_catalog_invalid")
         if portable_revision(self.files) != self.portable_revision_sha256:
             raise ValueError("package_portable_revision_mismatch")
         return self

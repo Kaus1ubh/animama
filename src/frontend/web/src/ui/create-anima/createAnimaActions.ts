@@ -28,6 +28,7 @@ export function creationIssueTarget(
   path: string,
   gestures: CreateAnimaDraft["gestures"],
 ): string {
+  if (path.startsWith("/voice")) return "creation-voice";
   if (path.startsWith("/avatar")) return "creation-avatar";
   if (path.startsWith("/display_name")) return "creation-display-name";
   if (path.startsWith("/identity_markdown")) return "creation-identity";

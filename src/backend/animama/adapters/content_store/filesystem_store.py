@@ -412,6 +412,13 @@ class FilesystemContentStore(ContentStore):
         if total_bytes > definition.max_entry_bytes:
             diagnostics.append(ContentDiagnostic("entry_too_large", "Entry exceeds the supported byte limit", locator))
 
+        if parsed is not None:
+            diagnostics.extend(
+                handler.validate_companion_files(
+                    parsed.document,
+                    {path.relative_to(entry_root).as_posix(): path for path in entry_paths if path != descriptor},
+                )
+            )
         metadata = parsed.metadata if parsed is not None else (value or {})
         if value is not None:
             for declared in descriptor_file_paths(value):
@@ -1748,6 +1755,14 @@ class FilesystemContentStore(ContentStore):
             value, diagnostics = validate_descriptor(staged_descriptor, kind=kind)
             if diagnostics or value is None:
                 raise ContentValidationError(diagnostics[0].message if diagnostics else "descriptor is invalid")
+            handler = handler_for_kind(kind)
+            parsed = handler.parse_document(value, fallback_path=entry_root, descriptor_backed=True)
+            companion_diagnostics = handler.validate_companion_files(
+                parsed.document,
+                {destination.relative_to(entry_root).as_posix(): temporary for temporary, destination in staged},
+            )
+            if companion_diagnostics:
+                raise ContentValidationError(companion_diagnostics[0].message)
             available = set(companion_files)
             existing_files, _ = self._walk_definition(entry_root)
             available.update(path.relative_to(entry_root).as_posix() for path in existing_files)

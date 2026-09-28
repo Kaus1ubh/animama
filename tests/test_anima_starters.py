@@ -39,7 +39,7 @@ from tests.local_http_client import local_client
 REQUEST = EnsureAnimaStartersRequest(schema_version=1, repairs=[])
 
 
-async def legacy_anima(session, fixture, spec, *, profile: bool = True):
+async def legacy_anima(session, fixture, spec, *, profile: bool = True, pocket_voice: str | None = None):
     """Construct stored starter-adoption evidence directly in the fixture.
 
     Real Version 1 identity history is essential to the adoption check. A later
@@ -86,7 +86,12 @@ async def legacy_anima(session, fixture, spec, *, profile: bool = True):
         AnimaSettings(
             user_id=fixture.owner,
             anima_id=anima.id,
-            preferences={"speech": {"elevenlabs": {"primary_voice": {"voice_id": "legacy_voice"}}}},
+            preferences={
+                "speech": {
+                    "elevenlabs": {"primary_voice": {"voice_id": "legacy_voice"}},
+                    **({"tts_pocket_anima_voice": pocket_voice} if pocket_voice is not None else {}),
+                }
+            },
         )
     )
     await service.uow.chat_profiles.upsert(
@@ -131,8 +136,9 @@ def test_starter_identity_writes_every_identity_template_section(spec):
 
 
 @pytest.mark.parametrize("mounted_included", [False, True])
+@pytest.mark.parametrize("preserved_pocket_voice", [None, "jane"])
 async def test_fresh_starters_retry_preserve_customization_and_deletion(
-    async_session, tmp_path, monkeypatch, mounted_included
+    async_session, tmp_path, monkeypatch, mounted_included, preserved_pocket_voice
 ):
     async with anima_creation_fixture(
         async_session, tmp_path, full_starter=True, mounted_included=mounted_included
@@ -143,6 +149,7 @@ async def test_fresh_starters_retry_preserve_customization_and_deletion(
         assert [value["outcome"] for value in first["starters"]] == ["created", "created"]
         ids = [value["anima_id"] for value in first["starters"]]
         versions = [value["spec_version"] for value in first["starters"]]
+        expected_pocket_voices = {"starter:annie": "eve", "starter:caitlyn": "azelma"}
         avatar_ids = []
         for anima_id, spec in zip(ids, STARTER_ANIMA_SPECS, strict=True):
             anima = await async_session.get(ORMAnima, anima_id)
@@ -162,6 +169,7 @@ async def test_fresh_starters_retry_preserve_customization_and_deletion(
             assert files["MEMORIES.md"].content == ANIMA_MEMORIES_TEMPLATE
             settings = await async_session.scalar(select(ORMAnimaSettings).where(ORMAnimaSettings.anima_id == anima_id))
             assert settings.preferences["speech"]["elevenlabs"]["primary_voice"]["voice_id"] == DEFAULT_ANIMA_VOICE_ID
+            assert settings.preferences["speech"]["tts_pocket_anima_voice"] == expected_pocket_voices[spec.id]
             loadout = await AnimaLoadoutService(async_session).read_model(user_id=fixture.owner, anima_id=anima_id)
             assert len(loadout.gestures) == len(starter_loadout_policy()["gestures"])
             assert all(cell.source is not None for cell in loadout.reactions)
@@ -174,6 +182,15 @@ async def test_fresh_starters_retry_preserve_customization_and_deletion(
         await async_session.execute(
             update(ORMAnima).where(ORMAnima.id == ids[0]).values(display_name="My customized Annie")
         )
+        settings = await service.uow.settings.get(user_id=fixture.owner, anima_id=ids[0])
+        assert settings is not None
+        speech = dict(settings.preferences["speech"])
+        if preserved_pocket_voice is None:
+            speech.pop("tts_pocket_anima_voice")
+        else:
+            speech["tts_pocket_anima_voice"] = preserved_pocket_voice
+        settings.preferences = {**settings.preferences, "speech": speech}
+        await service.uow.settings.upsert(settings)
         await async_session.commit()
         listed = json.loads(
             bytes((await list_animas(session=async_session, user=RequestPrincipal(id=fixture.owner))).body)
@@ -196,6 +213,9 @@ async def test_fresh_starters_retry_preserve_customization_and_deletion(
         assert replay["complete"] is True
         assert (await async_session.get(ORMAnima, ids[0], populate_existing=True)).display_name == "My customized Annie"
         assert (await async_session.get(ORMAnima, ids[0])).avatar_id == avatar_ids[0]
+        settings = await service.uow.settings.get(user_id=fixture.owner, anima_id=ids[0])
+        assert settings is not None
+        assert settings.preferences["speech"].get("tts_pocket_anima_voice") == preserved_pocket_voice
 
 
 async def test_fresh_signup_reuses_seeded_avatar_rows_without_lazy_io(async_session, tmp_path):
@@ -256,10 +276,13 @@ async def test_partial_ensure_commits_first_and_retry_only_finishes_second(async
         assert [value["outcome"] for value in result["starters"]] == ["existing", "created"]
 
 
-async def test_unambiguous_legacy_adoption_preserves_identity_voice_and_history(async_session, tmp_path):
+@pytest.mark.parametrize("pocket_voice", [None, "jane"])
+async def test_unambiguous_legacy_adoption_preserves_identity_voice_and_history(async_session, tmp_path, pocket_voice):
     async with anima_creation_fixture(async_session, tmp_path) as fixture:
         await mark_legacy(async_session, fixture)
-        created = [await legacy_anima(async_session, fixture, spec) for spec in STARTER_ANIMA_SPECS]
+        created = [
+            await legacy_anima(async_session, fixture, spec, pocket_voice=pocket_voice) for spec in STARTER_ANIMA_SPECS
+        ]
         await async_session.execute(
             update(ORMAnima).where(ORMAnima.id == created[0].id).values(display_name="Custom live name")
         )
@@ -283,6 +306,7 @@ async def test_unambiguous_legacy_adoption_preserves_identity_voice_and_history(
             select(ORMAnimaSettings).where(ORMAnimaSettings.anima_id == created[0].id)
         )
         assert settings.preferences["speech"]["elevenlabs"]["primary_voice"]["voice_id"] == "legacy_voice"
+        assert settings.preferences["speech"].get("tts_pocket_anima_voice") == pocket_voice
 
 
 @pytest.mark.parametrize("signature", ["absent", "partial", "ambiguous"])

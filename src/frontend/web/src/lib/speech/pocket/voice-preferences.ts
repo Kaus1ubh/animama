@@ -87,7 +87,7 @@ export function resolvePocketFallbackVoice(
       notice: {
         scope: "session",
         key: `pocket_voice_unknown:${configuredVoice}`,
-        message: `The saved voice "${configuredVoice}" is no longer available, so the default voice is used. Choose another voice in Anima settings.`,
+        message: `The saved voice "${configuredVoice}" is no longer available, so the default voice is used. Choose another voice in Loadout → Voices.`,
       },
     };
   }

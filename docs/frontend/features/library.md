@@ -163,9 +163,11 @@ In Anima mode, choose a saved companion and review its full identity and selecte
 content before **Export Anima**. The package includes its name, identity, Avatar,
 Gestures, all Reaction cells including empty cells, Idle Style, and selected
 profile/background images with framing. It preserves supported Action settings
-and effective starter choices. It excludes conversations, identity history, other
-memories, private chat uploads, provider/model settings and voice preferences.
-The receiving installation supplies its own defaults for those settings.
+and effective starter choices. If this Anima uses a cloned PocketTTS voice, the
+package includes the encoded voice and selects the independent imported copy.
+The original recording is excluded. Other voice choices and provider/model
+settings use the receiving installation's defaults. Conversations, identity
+history, other memories and private chat uploads are excluded.
 Anima downloads use the companion's display name and a UTC timestamp.
 
 Import first uploads and validates the file, then shows the complete package and

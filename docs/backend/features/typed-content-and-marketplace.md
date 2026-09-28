@@ -121,7 +121,8 @@ files. Content export accepts one or more Avatars, Gestures, Reactions, Idle
 Styles, static Poses, effects or Sounds and includes their complete required
 closure. Avatar portraits and selected Anima profile/background images travel
 as associated Appearance content; Appearance is not a standalone export root.
-Voice content, Music and standalone catalog Clips are not package types.
+Music and standalone catalog Clips are not package types. Voice is allowed only
+as the active saved PocketTTS clone referenced by a complete Anima.
 
 An Anima export reads the saved name, full identity, Avatar, effective Gesture
 selections and semantic keys, all 72 Reaction cells (including empty cells),
@@ -131,6 +132,12 @@ selected content or unsupported configuration fails export rather than silently
 changing the definition. Conversations, identity history, other memories,
 private uploads, model/provider settings and voice preferences are excluded.
 Import creates a new private Anima using the receiver's defaults for those settings.
+The exception is an active saved PocketTTS clone: its encoded neutral catalog is
+bundled without the original recording, installed as an independent Local Voice
+and selected with fresh PocketTTS preferences. Presets, inactive clones and
+ElevenLabs IDs do not travel. The `animama/pocket-voice/1` capability requires
+validated binary contents; standalone Voice entries and raw recordings reject.
+Effective provider changes invalidate a pending export review.
 
 Export summary resolves source revisions and saved facts; preparation requires
 the returned digest and rechecks them before sealing the reviewed archive.

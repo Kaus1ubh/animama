@@ -34,6 +34,7 @@ class SavedAnimaPackageSource:
     starter_exclusions: tuple[dict[str, Any], ...]
     idle_style_empty: bool
     bindings: tuple[SavedAnimaBinding, ...]
+    effective_tts_provider: str | None = "elevenlabs"
 
 
 class AnimaPackageSourceRepository(Protocol):
