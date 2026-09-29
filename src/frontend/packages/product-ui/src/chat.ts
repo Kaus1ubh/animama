@@ -7,6 +7,7 @@ export * from "./lib/chat/display-message-mapping";
 export * from "./lib/chat/memory-cue";
 export * from "./lib/chat/model-provider-compatibility";
 export * from "./lib/chat/model-provider-native-tools";
+export * from "./lib/chat/run-status";
 export * from "./lib/chat/runtimeRemountRecovery";
 export * from "./lib/chat/structured-response-stream";
 export * from "./chat/chat-failure";

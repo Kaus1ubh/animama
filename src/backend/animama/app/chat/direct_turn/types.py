@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -88,6 +88,27 @@ class PreparedDirectChatTurn:
     context_loaded: bool = True
     runtime_revision: str | None = None
     runtime_gesture_ids: tuple[str, ...] = ()
+    # Compiled history the prompt was built from (compaction summary first).
+    visible_history: tuple[Any, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class PreSendCompactionRequest:
+    """Ask for a compaction before sending a turn that would not fit the model's window.
+
+    ``keep_recent_tokens`` bounds the newest messages left uncompacted.
+    """
+
+    chat_id: str
+    user_id: str
+    anima_id: str
+    run_id: str
+    keep_recent_tokens: int
+
+
+# Compacts the chat in its own session and returns the refreshed chat context,
+# or ``None`` when nothing was compacted.
+PreSendCompactor = Callable[[PreSendCompactionRequest], Awaitable[Any | None]]
 
 
 class DirectChatTurnStreamError(RuntimeError):
@@ -100,6 +121,8 @@ class DirectChatTurnStreamError(RuntimeError):
 
 
 __all__ = [
+    "PreSendCompactionRequest",
+    "PreSendCompactor",
     "DirectChatAttachmentContext",
     "DirectChatTurnRequest",
     "DirectChatTurnSetupError",

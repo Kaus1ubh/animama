@@ -223,6 +223,7 @@ The direct endpoint uses this frontend SSE contract:
 - `event: safety.ai_notice`
 - `event: safety.crisis_support`
 - `event: memory.updated`
+- `event: run.status`
 - `event: error`
 - `event: run.completed`
 
@@ -335,6 +336,11 @@ sanitization. Title-generation failures are logged and do not emit `error`.
 precedes every provider-derived frame of the turn. Clients render it as app UI,
 never as assistant text.
 
+`run.status` frames include `type="run.status"`, `run_id`, `status`
+(`summarizing_context` while earlier conversation is compacted before sending)
+and `phase` (`started`, then `finished`). They precede the turn's reply text;
+clients show them in the pending reply and ignore unknown statuses.
+
 `safety.crisis_support` frames include `type="safety.crisis_support"`,
 `run_id`, `source` (`local` or `moderation`), and `resources`, the resolved
 crisis-resource region entry (`code`, `label`, nullable `emergency_number`,
@@ -416,9 +422,11 @@ generation.
 After a successful non-incognito response and before the normal
 `run.completed` frame, the route runs a hidden compaction check. OpenAI
 Responses turns skip it and rely on provider-side compaction; Chat Completions
-models get only this post-response pass. If
+models also compact before sending when a prompt nears their window (see the
+[context window budget](model-client-providers.md#context-window-budget)). If
 `chats.active_context_tokens` is at or above
-`ANIMAMA_CHAT_COMPACTION_THRESHOLD_TOKENS` (default 6000),
+`ANIMAMA_CHAT_COMPACTION_THRESHOLD_TOKENS` (default 6000, lowered to 75% of the
+model's available window),
 `ChatCompactionService` calls a separate backend-owned direct model prompt and
 stores the resulting summary in `chat_compactions`. Compaction summaries are not
 streamed as `user.response` events and are not inserted into `chat_messages`.

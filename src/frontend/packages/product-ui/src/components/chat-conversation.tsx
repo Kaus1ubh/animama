@@ -12,6 +12,7 @@ import {
 } from "./animated-text-response";
 import { Response as StreamdownResponse } from "./streamdown-response";
 import MessageLoaderV2 from "./message-loader-v2";
+import { chatRunStatusLabel } from "../lib/chat/run-status";
 import type { ChatMessage } from "../chat/useProductChatSession";
 /** The ordinary chat transcript; hosts may supply shell-specific message positioning. */
 export function ChatConversation({
@@ -67,7 +68,14 @@ export function ChatConversation({
                 from={message.role}
                 messageLayout={layout}
               >
-                {message.isPending ? (
+                {message.isPending && message.pendingStatus ? (
+                  <div className="flex items-center gap-2" role="status">
+                    <MessageLoaderV2 />
+                    <span className="text-sm">
+                      {chatRunStatusLabel(message.pendingStatus)}
+                    </span>
+                  </div>
+                ) : message.isPending ? (
                   <MessageLoaderV2 />
                 ) : markdownEnabled && message.role === "assistant" ? (
                   <StreamdownResponse

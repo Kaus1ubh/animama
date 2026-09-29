@@ -357,7 +357,7 @@ async def stream_direct_chat_sse(
                 run_id=run_id,
                 chat_options=turn.chat_options,
                 model_roles=model_roles,
-                model_provider_type=turn.prepared_turn.model_request.model_provider.provider_type,
+                model_provider=turn.prepared_turn.model_request.model_provider,
             )
             _log.info(
                 "Direct chat post-model side effects completed",

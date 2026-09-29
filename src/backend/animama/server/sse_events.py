@@ -163,6 +163,21 @@ def format_memory_updated_event(event: Any, *, run_id: str) -> str | None:
     )
 
 
+def format_run_status_event(event: Any, *, run_id: str) -> str | None:
+    """Pending-reply status such as summarizing; `type`-keyed so clients never read it as a reply."""
+
+    payload = getattr(event, "payload", None)
+    if _payload_run_id(payload) != run_id:
+        return None
+    status = _payload_value(payload, "status")
+    phase = _payload_value(payload, "phase")
+    return format_sse(
+        "run.status",
+        {"type": "run.status", "run_id": run_id, "status": status, "phase": phase},
+        event_id=getattr(event, "event_id", None) or f"run-status-{run_id}",
+    )
+
+
 def format_chat_title_updated_event(*, run_id: str, chat_id: str, title: str) -> str | None:
     clean_title = str(title or "").strip()
     if not clean_title:

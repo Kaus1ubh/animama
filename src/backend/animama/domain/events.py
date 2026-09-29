@@ -23,6 +23,7 @@ class EventType(str, Enum):
     CONTROL_SHUTDOWN = "control.shutdown"
     CRISIS_SUPPORT = "safety.crisis_support"
     MEMORY_UPDATED = "memory.updated"
+    RUN_STATUS = "run.status"
 
 
 @dataclass(slots=True)
@@ -47,6 +48,23 @@ class CrisisSupportPayload:
 
     run_id: str
     source: Literal["moderation"]
+
+
+RunStatusKind = Literal["summarizing_context", "searching_web"]
+RunStatusPhase = Literal["started", "finished"]
+
+
+@dataclass(slots=True)
+class RunStatusPayload:
+    """Backend work before or between reply text, shown while the reply is pending.
+
+    ``summarizing_context`` covers pre-send compaction; ``searching_web`` covers
+    an application web search. Each ``started`` is followed by ``finished``.
+    """
+
+    run_id: str
+    status: RunStatusKind
+    phase: RunStatusPhase
 
 
 @dataclass(slots=True)

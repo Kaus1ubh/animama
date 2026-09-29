@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import uuid
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
+from animama.app.model_clients.context_budget import context_budget_for_model, estimate_text_tokens
 from animama.domain import ModelProvider
-from animama.domain.chat import ChatMessage
+from animama.domain.chat import ChatMessage, MessageRole
 from animama.domain.chat_compaction import STATUS_ACTIVE, ChatCompaction
 from animama.domain.usage import Usage
 from animama.logging import get_logger
@@ -39,6 +40,21 @@ class ChatCompactionResult:
     trigger_active_context_tokens: int
 
 
+COMPACTION_INSTRUCTIONS = (
+    "You compact older chat transcript into continuity context for a later assistant turn. "
+    "Do not answer the user. Return only the compacted continuity summary."
+)
+
+
+def _split_at_turn_start(messages: Sequence[ChatMessage], split_at: int) -> tuple[list[ChatMessage], list[ChatMessage]]:
+    """Split so the kept messages start at a user message, never between a message and its reply."""
+
+    split_at = max(0, min(split_at, len(messages)))
+    while 0 < split_at < len(messages) and messages[split_at].role != MessageRole.USER:
+        split_at -= 1
+    return list(messages[:split_at]), list(messages[split_at:])
+
+
 class ChatCompactionService:
     """Decide when a direct chat needs history compaction and persist summaries."""
 
@@ -66,8 +82,13 @@ class ChatCompactionService:
         chat_id: str,
         user_id: str,
         anima_id: str,
+        threshold_tokens: int | None = None,
     ) -> ChatCompactionResult:
-        """Compact older visible chat history when the chat's active token count crosses the threshold."""
+        """Compact older visible chat history when the chat's active token count crosses the threshold.
+
+        ``threshold_tokens`` lowers the configured threshold, for example to a
+        share of a small model's context window.
+        """
 
         settings = self._settings
         if not settings.enabled:
@@ -77,9 +98,75 @@ class ChatCompactionService:
         if chat is None:
             return ChatCompactionResult(False, "chat_not_found", None, 0)
         active_context_tokens = max(0, int(getattr(chat, "active_context_tokens", 0) or 0))
-        if active_context_tokens < max(0, settings.threshold_tokens):
+        threshold = max(0, settings.threshold_tokens)
+        if threshold_tokens is not None:
+            threshold = min(threshold, max(0, threshold_tokens))
+        if active_context_tokens < threshold:
             return ChatCompactionResult(False, "below_threshold", None, active_context_tokens)
 
+        return await self._compact(
+            chat_id=chat_id,
+            user_id=user_id,
+            anima_id=anima_id,
+            active_context_tokens=active_context_tokens,
+            threshold_tokens=threshold,
+            split=self._split_messages_for_compaction,
+        )
+
+    async def compact_for_budget(
+        self,
+        *,
+        chat_id: str,
+        user_id: str,
+        anima_id: str,
+        keep_recent_tokens: int,
+    ) -> ChatCompactionResult:
+        """Compact now, keeping only the newest messages that fit ``keep_recent_tokens``.
+
+        Used before sending a turn whose prompt would not fit the model's
+        context window. It ignores the threshold and the minimum recent count.
+        """
+
+        if not self._settings.enabled:
+            return ChatCompactionResult(False, "disabled", None, 0)
+        chat = await self._chats.get(chat_id)
+        if chat is None:
+            return ChatCompactionResult(False, "chat_not_found", None, 0)
+        active_context_tokens = max(0, int(getattr(chat, "active_context_tokens", 0) or 0))
+
+        def split(messages: Sequence[ChatMessage]) -> tuple[list[ChatMessage], list[ChatMessage]]:
+            kept_tokens = 0
+            split_at = len(messages)
+            while split_at > 0:
+                tokens = estimate_text_tokens(messages[split_at - 1].content or "")
+                if kept_tokens + tokens > keep_recent_tokens:
+                    break
+                kept_tokens += tokens
+                split_at -= 1
+            return _split_at_turn_start(messages, split_at)
+
+        return await self._compact(
+            chat_id=chat_id,
+            user_id=user_id,
+            anima_id=anima_id,
+            active_context_tokens=active_context_tokens,
+            threshold_tokens=None,
+            split=split,
+            keep_recent_tokens=keep_recent_tokens,
+        )
+
+    async def _compact(
+        self,
+        *,
+        chat_id: str,
+        user_id: str,
+        anima_id: str,
+        active_context_tokens: int,
+        threshold_tokens: int | None,
+        split: Callable[[Sequence[ChatMessage]], tuple[list[ChatMessage], list[ChatMessage]]],
+        keep_recent_tokens: int | None = None,
+    ) -> ChatCompactionResult:
+        settings = self._settings
         active = await self._valid_active_compaction(chat_id)
         after_turn = active.end_turn if active is not None else None
         source_messages = await self._messages.visible_history_since(chat_id, after_turn=after_turn)
@@ -88,14 +175,21 @@ class ChatCompactionService:
         if not source_messages:
             return ChatCompactionResult(False, "no_active_source_messages", None, active_context_tokens)
 
-        compacted_messages, preserved_messages = self._split_messages_for_compaction(source_messages)
+        compacted_messages, preserved_messages = split(source_messages)
         if not compacted_messages:
             return ChatCompactionResult(False, "no_eligible_messages", None, active_context_tokens)
 
-        prompt = self._build_compaction_prompt(
+        anchor_messages = preserved_messages[: min(4, len(preserved_messages))]
+        summarized_messages = await self._messages_within_model_window(
+            user_id=user_id,
             previous_summary_text=previous_summary_text,
             compacted_messages=compacted_messages,
-            anchor_messages=preserved_messages[: min(4, len(preserved_messages))],
+            anchor_messages=anchor_messages,
+        )
+        prompt = self._build_compaction_prompt(
+            previous_summary_text=previous_summary_text,
+            compacted_messages=summarized_messages,
+            anchor_messages=anchor_messages,
         )
         summary_text, usage, provider = await self._run_compaction_model(
             anima_id=anima_id,
@@ -129,10 +223,12 @@ class ChatCompactionService:
             prompt_version=settings.prompt_version,
             usage=usage,
             metadata={
-                "threshold_tokens": max(0, settings.threshold_tokens),
+                "threshold_tokens": threshold_tokens,
+                "keep_recent_tokens": keep_recent_tokens,
                 "recent_message_min_count": max(0, settings.recent_message_min_count),
                 "previous_compaction_id": active.id if active is not None else None,
                 "preserved_message_count": len(preserved_messages),
+                "omitted_from_summary_count": len(compacted_messages) - len(summarized_messages),
                 "trigger_active_context_tokens": active_context_tokens,
             },
         )
@@ -154,6 +250,48 @@ class ChatCompactionService:
         )
         return ChatCompactionResult(True, "compacted", activated, active_context_tokens)
 
+    async def _messages_within_model_window(
+        self,
+        *,
+        user_id: str,
+        previous_summary_text: str,
+        compacted_messages: list[ChatMessage],
+        anchor_messages: Sequence[ChatMessage],
+    ) -> list[ChatMessage]:
+        """Keep the newest messages whose compaction prompt fits the Compaction model's window.
+
+        Older messages beyond the window are left out of the new summary; the
+        previous summary still carries what it already covered.
+        """
+
+        model_provider = await self._model_runner.model_provider_for_role(user_id)
+        budget = context_budget_for_model(model_provider) if model_provider is not None else None
+        if budget is None:
+            return compacted_messages
+        fixed_tokens = estimate_text_tokens(
+            self._build_compaction_prompt(
+                previous_summary_text=previous_summary_text,
+                compacted_messages=(),
+                anchor_messages=anchor_messages,
+            )
+        ) + estimate_text_tokens(COMPACTION_INSTRUCTIONS)
+        remaining = budget.available_tokens - fixed_tokens
+        kept: list[ChatMessage] = []
+        for message in reversed(compacted_messages):
+            tokens = estimate_text_tokens("\n".join(self._format_messages((message,))))
+            if tokens > remaining:
+                break
+            remaining -= tokens
+            kept.append(message)
+        kept.reverse()
+        if len(kept) < len(compacted_messages):
+            self._log.warning(
+                "Chat compaction input trimmed to the Compaction model window",
+                model_provider_id=model_provider.id if model_provider is not None else None,
+                omitted_message_count=len(compacted_messages) - len(kept),
+            )
+        return kept
+
     async def _valid_active_compaction(self, chat_id: str) -> ChatCompaction | None:
         active = await self._compactions.get_active(chat_id)
         summary_text = getattr(active, "summary_text", None)
@@ -167,8 +305,7 @@ class ChatCompactionService:
     ) -> tuple[list[ChatMessage], list[ChatMessage]]:
         min_count = max(0, self._settings.recent_message_min_count)
         preserved_count = min(len(messages), min_count)
-        split_at = max(0, len(messages) - preserved_count)
-        return list(messages[:split_at]), list(messages[split_at:])
+        return _split_at_turn_start(messages, max(0, len(messages) - preserved_count))
 
     async def _run_compaction_model(
         self,
@@ -187,10 +324,7 @@ class ChatCompactionService:
                 task="chat-compaction",
                 prompt=prompt,
                 prompt_version=self._settings.prompt_version,
-                instructions=(
-                    "You compact older chat transcript into continuity context for a later assistant turn. "
-                    "Do not answer the user. Return only the compacted continuity summary."
-                ),
+                instructions=COMPACTION_INSTRUCTIONS,
             )
         )
         return result.text, result.usage, result.model_provider

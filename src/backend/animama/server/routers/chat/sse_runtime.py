@@ -17,6 +17,7 @@ from animama.server.sse_events import (
     format_error_event,
     format_memory_updated_event,
     format_run_completed_event,
+    format_run_status_event,
     format_sse,
     format_user_response_event,
     persist_sse_side_effect,
@@ -296,6 +297,8 @@ async def _handle_direct_event(
         frame = format_crisis_support_event(run_id=run_id, source=event.payload.source, state=state)
     elif event.type == EventType.MEMORY_UPDATED:
         frame = format_memory_updated_event(event, run_id=run_id)
+    elif event.type == EventType.RUN_STATUS:
+        frame = format_run_status_event(event, run_id=run_id)
     if frame is None:
         return
     # Crisis frames are never logged: detection results are sensitive and logs persist.

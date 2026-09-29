@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import AsyncIterator
 from contextlib import suppress
+from dataclasses import replace
 from typing import Any, cast
 
 from openai.types.chat import ChatCompletionToolUnionParam
@@ -25,10 +26,16 @@ from animama.app.main_structured_response import (
 from animama.app.model_clients import (
     DirectChatPrompt,
     ModelClientDelta,
+    ModelClientError,
     ModelClientRegistry,
     ModelClientRequest,
     model_client_preview_log_context,
     model_client_request_log_context,
+)
+from animama.app.model_clients.context_budget import (
+    ContextBudget,
+    context_budget_for_model,
+    estimate_prompt_tokens,
 )
 from animama.app.model_clients.prompt import ChatCompletionResponseFormat
 from animama.app.ports import ModelProviderRepository
@@ -37,11 +44,12 @@ from animama.app.safety.moderation import moderation_indicates_crisis
 from animama.app.services import AnimaChatProfileService, ChatManager
 from animama.domain import ModelProvider
 from animama.domain.chat import ChatMessage, MessageRole
-from animama.domain.events import Event
+from animama.domain.events import Event, EventType, RunStatusKind, RunStatusPayload
 from animama.logging import get_logger
 
 from .api_standard import chat_api_standard_for_provider
-from .direct_turn.constants import STRUCTURED_REPAIR_METADATA_KEY
+from .direct_turn.constants import OPENAI_RESPONSES_PROVIDER, STRUCTURED_REPAIR_METADATA_KEY
+from .direct_turn.context_fit import drop_oldest_history, fit_history
 from .direct_turn.events import (
     avatar_gesture_event,
     crisis_support_event,
@@ -83,6 +91,8 @@ from .direct_turn.types import (
     DirectChatTurnStreamError,
     ModelClientNotFoundError,
     PreparedDirectChatTurn,
+    PreSendCompactionRequest,
+    PreSendCompactor,
     RuntimeGestureDescriptor as RuntimeGestureDescriptor,
 )
 from .memory_context import DirectChatMemoryContext, DirectChatMemoryContextError, DirectChatMemoryContextService
@@ -334,6 +344,8 @@ class DirectChatTurnExecutor:
         prompt_assembler: DirectChatPromptAssembler | None = None,
         memory_context_service: DirectChatMemoryContextService | None = None,
         memory_tool_service: Any | None = None,
+        pre_send_compactor: PreSendCompactor | None = None,
+        pre_send_compaction_timeout_seconds: float = 90.0,
     ) -> None:
         self._registry = registry
         self._profile_service = profile_service
@@ -344,6 +356,8 @@ class DirectChatTurnExecutor:
         self._prompt_assembler = prompt_assembler or DirectChatPromptAssembler()
         self._memory_context_service = memory_context_service
         self._memory_tool_service = memory_tool_service
+        self._pre_send_compactor = pre_send_compactor
+        self._pre_send_compaction_timeout_seconds = pre_send_compaction_timeout_seconds
 
     async def stream(self, model_request: ModelClientRequest) -> AsyncIterator[ModelClientDelta]:
         """Proxy one provider-neutral request to the registered shared model client."""
@@ -525,10 +539,25 @@ class DirectChatTurnExecutor:
             context_loaded=not skip_context_fetch,
             runtime_revision=request.runtime_revision,
             runtime_gesture_ids=runtime_gesture_ids,
+            visible_history=tuple(compiled_history),
         )
 
     async def stream_prepared_turn(self, prepared: PreparedDirectChatTurn) -> AsyncIterator[Event]:
         """Invoke the model client and translate the final result into domain events."""
+
+        fitted: PreparedDirectChatTurn | None = None
+        async for item in self._fit_to_context_window(prepared):
+            if isinstance(item, Event):
+                yield item
+            else:
+                fitted = item
+        if fitted is None:
+            return
+        async for event in self._stream_fitted_turn(fitted):
+            yield event
+
+    async def _stream_fitted_turn(self, prepared: PreparedDirectChatTurn) -> AsyncIterator[Event]:
+        """Stream a turn whose prompt fits the model's context window."""
 
         _log.info(
             "Direct chat prepared turn execution started",
@@ -581,6 +610,16 @@ class DirectChatTurnExecutor:
             invalid_texts.append(final.text)
             return True
 
+        context_budget = self._context_budget(prepared)
+
+        async def shrink_request(model_request: ModelClientRequest) -> ModelClientRequest | None:
+            # A server that still reports an oversized prompt gets one retry
+            # with about half of the remaining history left out.
+            history = drop_oldest_history(prepared.visible_history, fraction=0.5)
+            if len(history) == len(prepared.visible_history):
+                return None
+            return replace(model_request, prompt=self._prompt_for_history(prepared, history))
+
         async def collect_model_stream() -> tuple[Any, list[ChatMessage]]:
             try:
                 return await self._model_stream_collector(anima_memories=anima_memories).collect(
@@ -588,6 +627,8 @@ class DirectChatTurnExecutor:
                     on_model_round_start=on_model_round_start,
                     on_text_delta=on_text_delta,
                     needs_repair=needs_repair,
+                    context_budget=context_budget,
+                    shrink_request=shrink_request if context_budget is not None else None,
                 )
             finally:
                 await early_event_queue.put(None)
@@ -860,6 +901,162 @@ class DirectChatTurnExecutor:
                 run_id=prepared.request.run_id,
                 reason="incognito",
             )
+
+    def _context_budget(self, prepared: PreparedDirectChatTurn) -> ContextBudget | None:
+        """Return the window budget for models the application must keep within it.
+
+        OpenAI Responses compacts natively; rows without a window are not bounded.
+        """
+
+        model_provider = prepared.model_request.model_provider
+        if model_provider.provider_type == OPENAI_RESPONSES_PROVIDER or not prepared.context_loaded:
+            return None
+        return context_budget_for_model(model_provider)
+
+    def _prompt_for_history(self, prepared: PreparedDirectChatTurn, visible_history: list[Any]) -> DirectChatPrompt:
+        """Rebuild the turn's prompt around a different history."""
+
+        model_request = prepared.model_request
+        return self._build_prompt(
+            request=prepared.request,
+            model_provider=model_request.model_provider,
+            memory_context=prepared.memory_context,
+            memory_tool_specs=prepared.memory_tool_specs,
+            visible_history=visible_history,
+            response_format=cast(dict[str, Any] | None, model_request.prompt.response_format),
+            response_format_guidance=self._gesture_guidance(
+                main_structured_response_guidance(model_request.model_provider, prepared.output_type),
+                prepared.request.runtime_gesture_descriptors,
+            ),
+            memory_tools_active=bool(prepared.memory_tool_specs)
+            or model_request.provider_options.memory_apply_patch_enabled,
+            native_memory_patch_enabled=model_request.provider_options.memory_apply_patch_enabled,
+        )
+
+    async def _fit_to_context_window(
+        self, prepared: PreparedDirectChatTurn
+    ) -> AsyncIterator[Event | PreparedDirectChatTurn]:
+        """Yield status events, then the turn with a prompt that fits, or an error event instead.
+
+        A prompt above the trigger is compacted first (when a compactor is
+        configured and the turn is not incognito), then the oldest history is
+        left out of the request. A turn whose fixed instructions and latest
+        message alone exceed the window fails with ``context_exceeded``.
+        """
+
+        budget = self._context_budget(prepared)
+        if budget is None or estimate_prompt_tokens(prepared.model_request.prompt) <= budget.pre_send_trigger_tokens:
+            yield prepared
+            return
+        request = prepared.request
+
+        def prompt_tokens_for(history: list[Any]) -> int:
+            return estimate_prompt_tokens(self._prompt_for_history(prepared, history))
+
+        fixed_tokens = prompt_tokens_for([])
+        if fixed_tokens > budget.available_tokens:
+            yield self._context_exceeded_event(prepared, budget, fixed_tokens)
+            return
+
+        history = list(prepared.visible_history)
+        if self._pre_send_compactor is not None and not request.options.incognito:
+            yield self._run_status_event(request, "summarizing_context", "started")
+            try:
+                chat_context = await asyncio.wait_for(
+                    self._pre_send_compactor(
+                        PreSendCompactionRequest(
+                            chat_id=request.chat_id,
+                            user_id=request.user_id,
+                            anima_id=request.anima_id,
+                            run_id=request.run_id,
+                            keep_recent_tokens=max(0, (budget.available_tokens - fixed_tokens) // 2),
+                        )
+                    ),
+                    timeout=self._pre_send_compaction_timeout_seconds,
+                )
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                # A failed or slow compaction must not block the turn; trimming follows.
+                _log.warning(
+                    "Direct chat pre-send compaction failed",
+                    anima_id=request.anima_id,
+                    chat_id=request.chat_id,
+                    run_id=request.run_id,
+                    exc_type=exc.__class__.__name__,
+                )
+                chat_context = None
+            yield self._run_status_event(request, "summarizing_context", "finished")
+            if chat_context is not None:
+                history = compiled_context_history(chat_context)
+
+        # Fit below the trigger so tool rounds and a repair have room; use the
+        # whole budget only when the fixed prompt leaves no such headroom.
+        fitted_history = fit_history(
+            history,
+            available_tokens=budget.pre_send_trigger_tokens,
+            prompt_tokens_for=prompt_tokens_for,
+        )
+        if fitted_history is None:
+            fitted_history = fit_history(
+                history,
+                available_tokens=budget.available_tokens,
+                prompt_tokens_for=prompt_tokens_for,
+            )
+        if fitted_history is None:
+            yield self._context_exceeded_event(prepared, budget, fixed_tokens)
+            return
+        if len(fitted_history) < len(history):
+            _log.warning(
+                "Direct chat history trimmed to the model context window",
+                anima_id=request.anima_id,
+                chat_id=request.chat_id,
+                run_id=request.run_id,
+                omitted_item_count=len(history) - len(fitted_history),
+                context_window_tokens=budget.context_window_tokens,
+            )
+        yield replace(
+            prepared,
+            model_request=replace(prepared.model_request, prompt=self._prompt_for_history(prepared, fitted_history)),
+            visible_history=tuple(fitted_history),
+        )
+
+    @staticmethod
+    def _run_status_event(request: DirectChatTurnRequest, status: RunStatusKind, phase: str) -> Event:
+        return Event(
+            event_id=f"run-status-{request.run_id}-{status}-{phase}",
+            anima_id=request.anima_id,
+            chat_id=request.chat_id,
+            user_id=request.user_id,
+            type=EventType.RUN_STATUS,
+            payload=RunStatusPayload(run_id=request.run_id, status=status, phase=cast(Any, phase)),
+        )
+
+    @staticmethod
+    def _context_exceeded_event(prepared: PreparedDirectChatTurn, budget: ContextBudget, prompt_tokens: int) -> Event:
+        _log.warning(
+            "Direct chat turn exceeds the model context window",
+            anima_id=prepared.request.anima_id,
+            chat_id=prepared.request.chat_id,
+            run_id=prepared.request.run_id,
+            estimated_prompt_tokens=prompt_tokens,
+            available_tokens=budget.available_tokens,
+        )
+        error = ModelClientError(
+            "The instructions and latest message exceed the model's context window",
+            code="context_window_exceeded",
+            raw_metadata={
+                "provider_error_code": "context_length_exceeded",
+                "context_window_tokens": budget.context_window_tokens,
+                "estimated_prompt_tokens": prompt_tokens,
+            },
+        )
+        return error_event(
+            prepared.request,
+            message=error.message,
+            code="context_window_exceeded",
+            details=model_error_details(error, prepared.model_request.model_provider),
+        )
 
     async def _resolve_model_provider(self, request: DirectChatTurnRequest) -> ModelProvider:
         """Select the explicit request provider or the anima profile default."""

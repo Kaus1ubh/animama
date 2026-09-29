@@ -19,10 +19,20 @@ from animama.orm import ORMAnima
 
 
 class _FakeModelRunner:
-    def __init__(self, *, summary: str = "Compacted continuity summary.", usage: Usage | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        summary: str = "Compacted continuity summary.",
+        usage: Usage | None = None,
+        role_model: ModelProvider | None = None,
+    ) -> None:
         self.summary = summary
         self.usage = usage
+        self.role_model = role_model
         self.calls: list[Any] = []
+
+    async def model_provider_for_role(self, user_id, role="utility"):
+        return self.role_model
 
     async def run_prompt(self, request):
         self.calls.append(request)
@@ -307,3 +317,82 @@ async def test_chat_compaction_service_empty_provider_summary_is_noop(async_sess
     assert result.reason == "empty_summary"
     assert active is None
     assert len(model_runner.calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_chat_compaction_service_threshold_override_lowers_the_threshold(async_session):
+    await _create_chat(async_session, anima_id="anima-cmp-low", chat_id="chat-cmp-low", active_context_tokens=500)
+    await _append_visible_messages(async_session, chat_id="chat-cmp-low", count=6)
+    model_runner = _FakeModelRunner()
+    service = _service(async_session, model_runner=model_runner, settings=_trigger_settings(threshold_tokens=6000))
+
+    result = await service.maybe_compact_chat(
+        chat_id="chat-cmp-low", user_id="user-1", anima_id="anima-cmp-low", threshold_tokens=400
+    )
+
+    assert result.compacted is True
+
+
+@pytest.mark.asyncio
+async def test_chat_compaction_service_never_separates_a_message_from_its_reply(async_session):
+    await _create_chat(async_session, anima_id="anima-cmp-pair", chat_id="chat-cmp-pair", active_context_tokens=10)
+    rows = await _append_visible_messages(async_session, chat_id="chat-cmp-pair", count=6)
+    service = _service(
+        async_session, model_runner=_FakeModelRunner(), settings=_trigger_settings(recent_message_min_count=3)
+    )
+
+    await service.maybe_compact_chat(chat_id="chat-cmp-pair", user_id="user-1", anima_id="anima-cmp-pair")
+    active = await SQLAlchemyChatCompactionRepository(async_session).get_active("chat-cmp-pair")
+
+    # Keeping three would start at an assistant reply; its user message is kept too.
+    assert active is not None
+    assert active.end_turn == rows[1].turn
+    assert active.metadata["preserved_message_count"] == 4
+
+
+@pytest.mark.asyncio
+async def test_chat_compaction_service_compacts_for_a_token_budget_regardless_of_threshold(async_session):
+    await _create_chat(async_session, anima_id="anima-cmp-budget", chat_id="chat-cmp-budget", active_context_tokens=0)
+    rows = await _append_visible_messages(async_session, chat_id="chat-cmp-budget", count=8, prefix="x" * 40)
+    service = _service(
+        async_session, model_runner=_FakeModelRunner(), settings=_trigger_settings(threshold_tokens=1_000_000)
+    )
+
+    # Each message is about 11 tokens; 25 tokens keeps the last two messages (one turn).
+    result = await service.compact_for_budget(
+        chat_id="chat-cmp-budget", user_id="user-1", anima_id="anima-cmp-budget", keep_recent_tokens=25
+    )
+
+    assert result.compacted is True
+    assert result.compaction is not None
+    assert result.compaction.end_turn == rows[5].turn
+    assert result.compaction.metadata["preserved_message_count"] == 2
+    assert result.compaction.metadata["keep_recent_tokens"] == 25
+
+
+@pytest.mark.asyncio
+async def test_chat_compaction_service_bounds_its_input_to_the_compaction_model_window(async_session):
+    await _create_chat(async_session, anima_id="anima-cmp-window", chat_id="chat-cmp-window", active_context_tokens=10)
+    await _append_visible_messages(async_session, chat_id="chat-cmp-window", count=40, prefix="y" * 400)
+    small_model = ModelProvider(
+        id="owner:small",
+        provider_type="OpenAIHTTPAgent",
+        model="small",
+        model_label="small",
+        provider_label="Local",
+        active=True,
+        context_window_tokens=2048,
+    )
+    model_runner = _FakeModelRunner(role_model=small_model)
+    service = _service(async_session, model_runner=model_runner, settings=_trigger_settings())
+
+    result = await service.maybe_compact_chat(chat_id="chat-cmp-window", user_id="user-1", anima_id="anima-cmp-window")
+
+    prompt = model_runner.calls[0].prompt
+    assert result.compacted is True
+    assert result.compaction is not None
+    assert result.compaction.source_message_count == 38
+    assert result.compaction.metadata["omitted_from_summary_count"] > 0
+    # The newest compacted message is summarized; the oldest is left out.
+    assert f"{'y' * 400}-37" in prompt
+    assert f"{'y' * 400}-0" not in prompt

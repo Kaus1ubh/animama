@@ -261,6 +261,10 @@ class _FakePromptRunner:
         self.release_event = release_event
         self.calls: list[Any] = []
 
+    async def model_provider_for_role(self, user_id: str, role: str = "utility") -> ModelProvider | None:
+        # No window is recorded, so compaction input is not bounded in these tests.
+        return None
+
     async def run_prompt(self, request):
         self.calls.append(request)
         if self.started_event is not None:

@@ -34,7 +34,7 @@ removed connections. The notice names the failed
 connection from the error's `details.connection_name` (never assuming OpenAI);
 for Ollama, LM Studio, llama.cpp and vLLM connections it asks whether the server
 is running at `details.connection_base_url`, and the `context_exceeded` category
-explains an oversized conversation. Local admission errors describe
+explains an oversized conversation and suggests a larger-context model or window. Local admission errors describe
 installation access, without treating every HTTP 403 as an invalid provider key.
 Unknown errors use a safe fallback. The only URL a notice shows is the base URL
 the owner configured for a non-built-in connection; provider response text,
@@ -411,6 +411,9 @@ Type guards map incoming chunks to:
   `runtime_revision`) ->
   `onAvatarGestureRequested`
 - `safety.ai_notice` (`type` field) -> `onAiNotice`
+- `run.status` (`type` field, known `status` only) -> `onRunStatus`; the session
+  shows "Summarizing earlier conversation…" beside the pending indicator until
+  `finished` or reply text arrives
 - `safety.crisis_support` (`type` field, with `source` and `resources`) ->
   `onCrisisSupport`
 - `memory.updated` (`type` field) -> `onMemoryUpdated` with a cue validated by

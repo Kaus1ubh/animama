@@ -18,6 +18,7 @@ import {
   type ChatMemoryCue,
   type ChatMemoryUpdated,
 } from "../../lib/chat/memory-cue";
+import { isChatRunStatus, type ChatRunStatus } from "../../lib/chat/run-status";
 import {
   useProductLogger,
   useProductDiagnostics,
@@ -147,6 +148,8 @@ type ChatSseCallbacks = {
   onChatTitleUpdated?: (data: ChatSseChatTitleUpdated) => void;
   onAiNotice?: (data: ChatAiNotice) => void;
   onCrisisSupport?: (data: ChatCrisisSupport) => void;
+  /** Backend work before or between reply text, such as summarizing earlier conversation. */
+  onRunStatus?: (data: ChatRunStatus) => void;
   /** The run's validated memory cue; malformed `memory.updated` frames are dropped. */
   onMemoryUpdated?: (memoryCue: ChatMemoryCue, data: ChatMemoryUpdated) => void;
   onComplete?: (data: ChatSseRunCompleted) => void;
@@ -528,6 +531,14 @@ export function useChatSse() {
               continue;
             }
             args.onCrisisSupport?.(data);
+            continue;
+          }
+
+          if (isChatRunStatus(data)) {
+            if (!matchesExpectedRunId(expectedRunId, data.run_id)) {
+              continue;
+            }
+            args.onRunStatus?.(data);
             continue;
           }
 

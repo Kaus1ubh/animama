@@ -582,6 +582,7 @@ The SSE stream currently emits:
 - `safety.ai_notice`
 - `safety.crisis_support`
 - `memory.updated`
+- `run.status`
 - `error`
 - `run.completed`
 

@@ -18,20 +18,25 @@ The settings screens themselves are described in
 **Test model** in the model dialog checks streaming, tool calls, JSON schema and
 JSON mode output (or embeddings) against the running server and fills in the
 capabilities it finds.
-Models on Chat Completions compact the conversation after a response and have
-no web search.
+Models on Chat Completions summarize earlier conversation when it nears their
+window and have no web search.
 
 ## Context window
 
 Record the window the server actually serves, not the model's advertised
 maximum. Test model reads it from llama.cpp (`/props`), Ollama (`/api/ps`, while
 the model is loaded) and LM Studio (the loaded context length); otherwise enter
-it yourself. A conversation longer than the served window fails with "The
-conversation is too long for …".
+it yourself. A window recorded larger than the server serves makes the server
+reject long prompts; Animama then retries once with less history.
 
-Serve at least 8,192 tokens. Animama compacts after a response once the
-conversation passes `ANIMAMA_CHAT_COMPACTION_THRESHOLD_TOKENS` (6,000 by
-default), so a smaller window overflows before compaction starts.
+Animama keeps every request within the recorded window. It compacts after a
+response once the conversation passes 75% of the window (or
+`ANIMAMA_CHAT_COMPACTION_THRESHOLD_TOKENS`, 6,000 by default, if lower). A
+turn that still nears the window shows "Summarizing earlier conversation…"
+while the Compaction model summarizes, and the oldest messages are left out of
+the request if needed. Only a message that alone exceeds the window fails with
+"The conversation is too long for …". Serve at least 8,192 tokens so replies
+keep useful context.
 
 ## Servers
 

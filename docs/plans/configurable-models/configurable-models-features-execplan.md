@@ -100,7 +100,10 @@ Standing rules (unchanged from Plan A):
       are stated in each issue body.
 - [x] Phase 1: structured-output handling (R12). Review #3 pass; full
       `make check-test` 2755 passed, 7 skipped; commit recorded below.
-- [ ] Phase 2: pre-send compaction and turn status (R10).
+- [x] Phase 2: pre-send compaction and turn status (R10). Review #2 pass;
+      full `make check-test` 2780 passed, 7 skipped; `pnpm check`,
+      `web:lint`, `web:test` (2348 tests plus 13 browser tests) pass; commit
+      recorded below.
 - [ ] Phase 3: web search backends and the application tool (R11, backend).
 - [ ] Phase 4: web search settings and control (R11, frontend and desktop).
 - [ ] Phase 5: deferred Plan A items.
@@ -261,6 +264,19 @@ through search results because the proxy blocked direct fetches):
   - **Search status.** A shared status event also shows "Searching the web…"
     for the application tool. Hosted search stays silent.
   - **Validation.** Hosted validation is disabled; rely on full local suites.
+- **2026-09-28 — Agent** (Phase 2 implementation; within accepted scope):
+  - **Tool rounds near the window**: oversized results become a
+    `tool_result_too_large` tool error; if even those do not fit, the model
+    gives its final reply without tools and without that exchange. History is
+    fitted below the 90% trigger so tool rounds have room.
+  - **Incognito turns** trim without compacting, because compaction writes
+    durable state (as post-response compaction already skips incognito).
+  - **The pre-send compactor** runs in its own session and returns the
+    refreshed chat context; no compactor is configured when
+    `ANIMAMA_CHAT_COMPACTION_ENABLED` is off.
+  - **History is trimmed in whole turns** that start at a user message, which
+    also keeps tool calls with their results and satisfies strict chat
+    templates.
 - **2026-09-28 — Agent** (planning; implementation choices within the accepted
   scope, revisable during implementation without new product approval):
   - **Phase order:** R12 → R10 → R11. R12 changes the final-reply path that
@@ -496,7 +512,7 @@ Completion: tests pass; review has no blocker. Docs:
 `docs/backend/runtime/model-client-providers.md` (structured output) and the
 local model guide's "chat needs JSON" note.
 
-Phase record: issue #209; starting source `ec1e9d4`; commit recorded below.
+Phase record: issue #209; starting source `ec1e9d4`; commit `fe9a661`.
 
 Implementation notes (agent, within scope):
 
@@ -625,8 +641,9 @@ summarizes.
      one `run.completed`. No assistant row is written and chat state does not
      advance.
 3. **Within-turn bounds:**
-   - tool results are truncated to the remaining budget;
-   - an over-budget next round goes to the forced final;
+   - oversized tool results become a `tool_result_too_large` tool error;
+   - when even those do not fit, a final reply without tools and without that
+     exchange (see the Phase 2 Decision Log entry);
    - one trimmed retry follows a server `context_exceeded` that arrives
      before any output.
 4. **Post-response threshold:** window-aware, as in the Decision Log.
@@ -662,15 +679,70 @@ Completion: tests pass; review has no blocker. Docs: compaction sections in
 `model-client-providers.md`, `local-models.md` (windows and summarizing) and
 `docs/frontend/runtime/chat.md` (status event).
 
-Phase record: issue #210; starting source —; commit —.
+Phase record: issue #210; starting source `fe9a661`; commit recorded below.
+
+Implementation notes (agent, within scope):
+
+- `app/model_clients/context_budget.py` (budget and estimator) and
+  `app/chat/direct_turn/context_fit.py` (turn grouping and fitting) are pure
+  helpers; the executor's `_fit_to_context_window` runs inside the stream and
+  yields `run.status` events before the fitted turn.
+- The frontend status label inherits the bubble's text colour; the first
+  screenshot used a muted colour that was unreadable on the assistant bubble.
+- Environment: the preinstalled Playwright headless shell is an older build
+  than the project's Playwright; the agent linked it under the expected build
+  directory so `pnpm web:test`'s 13 browser tests run.
+- UI evidence: component screenshots of the summarizing state and the new
+  `context_exceeded` copy at 1280 px and 375 px, rendered from the real
+  `ChatConversation` in a temporary Vite fixture (not committed).
 
 #### Code Review #1 Findings
 
-Not yet run.
+Reviewer: independent `sdlc-reviewer`, full initial review of the working tree
+on `fe9a661`. It accepted deviations (b) incognito and (c) the compactor
+session, and found no concern in the estimator, triggers, window bounding,
+pair-preserving split, timeout, error details, logging or frontend reset.
+Checks: 27 focused tests, boundary imports, ruff, and two probes.
+
+Blocking:
+
+- **P2-R1-F1** History fitted to 100% of available left a few tokens of slack,
+  so any tool call failed the turn with `context_window_exceeded` even for a
+  tiny result (probe: slack 12–13 tokens failed, ~110 succeeded).
+- **P2-R1-F2** The shrink retry applied to OpenAI Responses rows, which must
+  stay unchanged (probe: 43 then 23 messages instead of an error).
+
+Optional: history groups could start with an assistant message (strict
+templates reject it); the repair request was not budget-checked; the status
+flashed when compaction is disabled; `in` accepted prototype keys in the
+status guard; test gaps (route wire order, the real compactor wrapper,
+`onRunStatus` state); plan wording for the deviations.
 
 #### Code Review #1 Revisions
 
-Not yet run.
+- **F1 accepted.** History is fitted below the pre-send trigger, and bounded
+  tool results that still do not fit lead to a final reply without tools and
+  without that exchange instead of an error. Tests: a tool call after tight
+  trimming completes; forty oversized results lead to a tool-free final.
+- **F2 accepted.** The shrink retry is passed only with a budget. Test added.
+- **Optional, accepted:** turns start at a user message; the repair leaves out
+  the invalid reply when it would not fit; no compactor (and no status) when
+  compaction is disabled; `Object.hasOwn`; a database test of the real
+  compactor wrapper; Decision Log and docs updated.
+- **Optional, not changed:** a status can still flash when nothing is eligible
+  to compact (brief and truthful about the attempt); no route-level wire-order
+  test (the executor emits the events in order and the route forwards them
+  unchanged) and no hook test for `onRunStatus`.
+
+#### Code Review #2 Findings
+
+Reviewer: same independent `sdlc-reviewer`, targeted recheck of repair round 1.
+Result: **pass**. F1 re-probed (slack now 115 at the original room; a sweep
+from 900 to 1750 tokens of room had no errors, and the tightest case took the
+tool-free final); F2 re-probed (Responses fails as before); every accepted
+optional item verified; a probe of the round-limit forced final stayed within
+the window. Optional: one test comment misdescribed the expected fit (fixed).
+Checks: 121 focused tests, ruff check and format check. One repair round used.
 
 ### Phase 3 — Web search backends and the application tool (R11, backend)
 

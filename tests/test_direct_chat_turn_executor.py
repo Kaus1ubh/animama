@@ -557,6 +557,7 @@ def _executor(
     memory_tool_service: Any | None = None,
     memory_episode_recorder: Any | None = None,
     anima_memories_version: int | None = None,
+    pre_send_compactor: Any | None = None,
 ) -> tuple[DirectChatTurnExecutor, _FakeChatManager]:
     resolved_provider = _provider() if provider is _DEFAULT else provider
     resolved_profile: AnimaChatProfile | None
@@ -589,6 +590,7 @@ def _executor(
             ),
             memory_tool_service=memory_tool_service,
             memory_episode_recorder=memory_episode_recorder,
+            pre_send_compactor=pre_send_compactor,
         ),
         chats,
     )

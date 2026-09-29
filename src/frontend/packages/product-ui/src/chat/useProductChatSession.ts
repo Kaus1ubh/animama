@@ -36,6 +36,7 @@ import {
   type ChatDisplayMessage,
 } from "../lib/chat/display-message-mapping";
 import type { ChatMemoryCue } from "../lib/chat/memory-cue";
+import type { ChatRunStatusKind } from "../lib/chat/run-status";
 import {
   appendStructuredSpeechVisemeInputs,
   createStructuredResponseStreamState,
@@ -244,6 +245,8 @@ export function useProductChatSession({
     useState<PendingModelSwitch | null>(null);
   const [streamingSegments, setStreamingSegments] = useState<string[]>([]);
   const [streamingDisplayText, setStreamingDisplayText] = useState("");
+  const [streamingStatus, setStreamingStatus] =
+    useState<ChatRunStatusKind | null>(null);
   // The active run's `memory.updated` cue. The ref keeps it readable when
   // completion arrives in the same network chunk, before React re-renders.
   const [streamingMemoryCue, setStreamingMemoryCue] =
@@ -359,6 +362,7 @@ export function useProductChatSession({
     setStreamingRunId(null);
     setStreamingSegments([]);
     setStreamingDisplayText("");
+    setStreamingStatus(null);
     setStreamingMemoryCue(null);
     setIsAwaitingStreamingAnimationFinalization(false);
     streamingSegmentsRef.current = [];
@@ -641,6 +645,7 @@ export function useProductChatSession({
           role: "assistant",
           text: streamingText,
           isPending: !streamingText,
+          pendingStatus: streamingStatus ?? undefined,
           animateOnEnter: true,
           animateTextEffect: Boolean(streamingText),
           streamingSegments,
@@ -674,6 +679,7 @@ export function useProductChatSession({
     streamingDisplayText,
     streamingMemoryCue,
     streamingSegments,
+    streamingStatus,
     streamingText,
   ]);
 
@@ -923,6 +929,7 @@ export function useProductChatSession({
         setStreamingRunId(runId);
         setStreamingSegments([]);
         setStreamingDisplayText("");
+        setStreamingStatus(null);
         setStreamingMemoryCue(null);
         streamingSegmentsRef.current = [];
         streamingDisplayTextRef.current = "";
@@ -1111,6 +1118,15 @@ export function useProductChatSession({
           }),
           onAiNotice: (notice) => safetyRef.current?.onAiNotice?.(notice),
           onCrisisSupport: (card) => safetyRef.current?.onCrisisSupport?.(card),
+          onRunStatus: (status) => {
+            setStreamingStatus((current) =>
+              status.phase === "started"
+                ? status.status
+                : current === status.status
+                  ? null
+                  : current,
+            );
+          },
           onToken: (token, data) => {
             logger.info("Chat", "SSE received token", { token });
             // is_delta controls how this event's text mutates the current part:

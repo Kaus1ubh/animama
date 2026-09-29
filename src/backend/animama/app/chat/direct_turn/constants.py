@@ -16,6 +16,10 @@ DIRECT_MEMORY_TOOL_SUPPORT_BY_PROVIDER = frozenset(
 )
 
 MAX_MEMORY_TOOL_ROUNDS = 4
+CONTEXT_LIMIT_FINAL_INSTRUCTION = (
+    "The tool results do not fit the model's context window. Produce the required final structured response "
+    "from what you already know, and say briefly if you could not look something up. Do not request more tools."
+)
 MEMORY_TOOL_LIMIT_FINAL_INSTRUCTION = (
     "Memory tool round limit reached. Use the memory tool results already provided in this turn to produce the "
     "required final structured response. Do not request more tools."

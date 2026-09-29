@@ -125,7 +125,7 @@ const descriptions: Record<string, Description> = {
 const categoryDescriptions: Record<string, Description> = {
   context_exceeded: ({ name }) => [
     `The conversation is too long for ${name}'s model.`,
-    `Start a new chat, or raise the model's context window in ${MODEL_SETTINGS} if the server allows more.`,
+    `Choose a model with a larger context window, raise this model's window in ${MODEL_SETTINGS} if the server allows more, or send a shorter message.`,
   ],
 };
 

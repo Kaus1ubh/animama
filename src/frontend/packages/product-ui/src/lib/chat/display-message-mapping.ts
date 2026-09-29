@@ -1,6 +1,7 @@
 import type { ChatFailure } from "../../chat/chat-failure";
 import type { PyChatMessage } from "@animama/runtime-contracts/api-types";
 import { parseMemoryCue, type ChatMemoryCue } from "./memory-cue";
+import type { ChatRunStatusKind } from "./run-status";
 
 export type ChatDisplayMessage = {
   id: string;
@@ -9,6 +10,8 @@ export type ChatDisplayMessage = {
   createdAt?: string;
   failure?: ChatFailure;
   isPending?: boolean;
+  /** Backend work shown while the bubble is pending, such as summarizing. */
+  pendingStatus?: ChatRunStatusKind;
   animateOnEnter?: boolean;
   animateTextEffect?: boolean;
   streamingSegments?: string[];

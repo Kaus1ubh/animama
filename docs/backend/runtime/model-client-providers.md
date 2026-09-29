@@ -507,10 +507,46 @@ service owns durable state, such as `chat_compactions`.
 
 After a successful non-incognito Chat Completions turn, the local
 post-response compaction pass runs when `chats.active_context_tokens` reaches
-`ANIMAMA_CHAT_COMPACTION_THRESHOLD_TOKENS` (default 6000). Chat Completions
-models have no pre-send compaction. Primary `chat:sse` turns that use
+`ANIMAMA_CHAT_COMPACTION_THRESHOLD_TOKENS` (default 6000), or 75% of the
+model's available window if that is lower. Primary `chat:sse` turns that use
 `OpenAIResponsesHTTPAgent` skip the local pass and rely on Responses
 server-side compaction instead.
+
+### Context window budget
+
+Chat Completions rows with a context window never receive a prompt larger than
+it (`app/chat/direct_turn/context_fit.py`, `app/model_clients/context_budget.py`):
+
+- **Budget.** Available tokens are the window minus the row's
+  `max_output_tokens`, or minus a quarter of the window (at most 4096) when
+  the row records none. Prompts are estimated offline and conservatively: ASCII
+  at four characters per token, every other character as one token, over the
+  messages, tools and response format.
+- **Pre-send compaction.** Above 90% of available, the executor emits
+  `run.status` `summarizing_context` `started`, compacts through the Utility
+  role in its own session (`ChatCompactionService.compact_for_budget`, bounded
+  by `ANIMAMA_CHAT_PRESEND_COMPACTION_TIMEOUT_SECONDS`, default 90), then emits
+  `finished`. Incognito turns skip compaction.
+- **Omission.** If the prompt still does not fit, or compaction failed or timed
+  out, the oldest turns after the summary are left out of this request only
+  (never deleted). History is kept in whole turns that start with a user
+  message, so a tool call stays with its results, and it is fitted below the
+  90% trigger to leave room for tool rounds. The warning log records counts,
+  never content.
+- **Too large.** When the instructions and latest message alone exceed the
+  window, the turn fails with `error` code `context_window_exceeded` and
+  category `context_exceeded`, before any model request.
+- **Within the turn.** Tool results that would push the next round past the
+  window become a `tool_result_too_large` tool error the model can react to.
+  If even those errors do not fit, the model is asked for its final reply
+  without tools and without that exchange. A structured-reply repair leaves
+  out the invalid reply when it would not fit. A server that still rejects the
+  first request as oversized gets one retry with about half of the history
+  left out.
+
+Compaction input is itself bounded to the Utility model's window (oldest
+messages beyond it are left out of the new summary), and both compaction
+passes keep a user message together with its reply.
 
 ## Chat Persistence
 
