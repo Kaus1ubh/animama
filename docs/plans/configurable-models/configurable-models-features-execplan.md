@@ -111,8 +111,11 @@ Standing rules (unchanged from Plan A):
 - [ ] Phase 4: web search settings and control (R11, frontend and desktop).
 - [ ] Phase 5: deferred Plan A items.
 - [ ] Phase 6: documentation, decisions and acceptance gates.
-- [ ] Final integration review.
-- [ ] PR and owner merge approval (hosted Validation disabled).
+- [x] Scope integration review of phases 1–3 (review #3 pass; fixes in
+      `dc533f6`; full `make check-test` 2827 passed, 7 skipped).
+- [ ] Final integration review of the whole plan (after phases 4–6).
+- [ ] PR and owner merge approval: PR #215 opened for phases 1–3 (hosted
+      Validation disabled); owner gates G1–G2 and merge approval pending.
 
 ## Surprises & Discoveries
 
@@ -1163,4 +1166,22 @@ Owner gates:
 
 ## Outcomes & Retrospective
 
-Not started.
+Delivered (agent), 2026-09-29: phases 1–3 (R10, R11 backend, R12) on
+`feat/configurable-models-features`, PR #215.
+
+- Chat models without a structured transport chat; invalid replies are
+  salvaged, repaired once or spoken as neutral plain text.
+- Models without native compaction never receive an over-window prompt; the
+  chat shows "Summarizing earlier conversation…" while compacting.
+- Tool-capable models can search through SearXNG or Brave via the API; the
+  settings UI and checkbox (Phase 4) remain.
+
+Pending: phases 4–6 (not authorized), owner gates G1–G4, merge approval.
+
+Lessons so far:
+
+- Budget rules interact: each new request shape (repair, split structured
+  round, context-limit final, retry) needed its own check; probes that sweep
+  window sizes found what fixed-size tests missed.
+- Writing the next phase in the same tree during a review blurred the review
+  boundary; setting it aside (`git stash`) kept per-phase evidence clean.
