@@ -104,7 +104,10 @@ Standing rules (unchanged from Plan A):
       full `make check-test` 2780 passed, 7 skipped; `pnpm check`,
       `web:lint`, `web:test` (2348 tests plus 13 browser tests) pass; commit
       recorded below.
-- [ ] Phase 3: web search backends and the application tool (R11, backend).
+- [x] Phase 3: web search backends and the application tool (R11, backend).
+      Review #2 pass; full `make check-test` 2820 passed, 7 skipped;
+      `pnpm openapi-ts:check`, `pnpm check`, `web:lint` pass; commit recorded
+      below.
 - [ ] Phase 4: web search settings and control (R11, frontend and desktop).
 - [ ] Phase 5: deferred Plan A items.
 - [ ] Phase 6: documentation, decisions and acceptance gates.
@@ -679,7 +682,7 @@ Completion: tests pass; review has no blocker. Docs: compaction sections in
 `model-client-providers.md`, `local-models.md` (windows and summarizing) and
 `docs/frontend/runtime/chat.md` (status event).
 
-Phase record: issue #210; starting source `fe9a661`; commit recorded below.
+Phase record: issue #210; starting source `fe9a661`; commit `e745aef`.
 
 Implementation notes (agent, within scope):
 
@@ -803,15 +806,76 @@ stack.
 
 Completion: tests pass; review has no blocker.
 
-Phase record: issue #211; starting source —; commit —.
+Phase record: issue #211; starting source `e745aef`; commit recorded below.
+
+Implementation notes (agent, within scope):
+
+- **Composition input**: `create_local_app` sets
+  `application_web_search_enabled` and mounts `/v1/web-search/settings`
+  (get, put, delete, `/test`); `turn_web_search_tool` returns nothing
+  elsewhere, and runtime capabilities report `web_search.configuration`.
+- **Settings** live in the single-row `web_search_settings` table
+  (`id = 'installation'`), added to the baseline with its hash and table count.
+- **Keys**: `ANIMAMA_CONNECTION_WEB_SEARCH_API_KEY` (desktop vault, managed) or
+  `BRAVE_SEARCH_API_KEY`. `is_allowed_credential_env` now refuses the managed
+  search name, so a model connection cannot send the search key to its
+  endpoint.
+- **Turns**: `native_tools: ["web_search"]` keeps hosted search on Responses
+  rows; elsewhere the executor appends the `web_search` function spec when a
+  backend exists and the row calls tools, and otherwise logs
+  `Direct chat web search unavailable for this turn` with a reason. Two tests
+  that asserted rejection of this request were removed.
+- **SDK** regenerated with `pnpm openapi-ts` (Python 3.12.3 here); its diff is
+  only the new routes, schemas and capability.
 
 #### Code Review #1 Findings
 
-Not yet run.
+Reviewer: independent `sdlc-reviewer`, full initial review of the working tree
+on `e745aef`. It verified turn gating (hosted vs application search, graceful
+drop), no-memory turns, the shared round limit, status ordering, reduced
+persistence on both APIs, the credential policy, the composition boundary,
+the capability, SQL/ORM parity and the regenerated SDK. Checks: 37 new tests,
+fresh-install test, ruff, format check, `pnpm openapi-ts:check`, and probes.
+
+Blocking:
+
+- **P3-R1-F1** The plan's "no other egress" test and a replay test for the
+  reduced rows were missing.
+
+Optional: F2 a malformed saved URL raised `httpx.InvalidURL` past the tool
+(turn failure, 500 from Test); F3 Brave's 422 for an invalid token mapped to
+`bad_response`, and every SearXNG 403 reads as `json_format_disabled`; F4
+SearXNG could send a saved key as a bearer token to an owner URL (for example
+a Brave key after switching); F5 a log reason missing from the docs; F6 an
+unused dependency and duplicated constants; F7 repeated status event ids; F8
+`gpt-5.4` Chat Completions rows with a reasoning effort failed setup instead
+of dropping search; F9 the capability could not show a missing Brave key; F10
+plan record.
 
 #### Code Review #1 Revisions
 
-Not yet run.
+- **F1 accepted.** Adapter tests assert exactly one request to the expected
+  host; a follow-up turn built from the persisted rows replays URLs but no
+  snippet text.
+- **F2 accepted.** `InvalidURL` becomes `unreachable`. Test added.
+- **F3 accepted.** Brave 422 is `credential_rejected`; docs say a SearXNG 403
+  may also be a refusing proxy.
+- **F4 accepted.** SearXNG takes no key (`credential_not_supported`), so no key
+  ever goes to an owner-supplied URL.
+- **F5–F9 accepted.** Docs list every reason; constants reused and the unused
+  dependency removed; status event ids are unique; the `gpt-5.4` case drops
+  search with reason `reasoning_with_function_tools`; the capability reports
+  `credential_state` (SDK regenerated). Tests added for F8 and F9.
+- **F10** recorded at commit.
+
+#### Code Review #2 Findings
+
+Reviewer: same independent `sdlc-reviewer`, targeted recheck of repair round 1.
+Result: **pass**. F1–F10 verified (the replay test fails if the reduction is
+removed); no new findings. Brave's 422 for an invalid token remains unconfirmed
+against Brave's documentation, because the sandbox proxy blocked the API.
+Checks: 249 focused tests, ruff check and format check, focused mypy and
+`pnpm openapi-ts:check`. One repair round used.
 
 ### Phase 4 — Web search settings and control (R11, frontend and desktop)
 

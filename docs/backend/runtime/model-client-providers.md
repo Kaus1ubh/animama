@@ -480,8 +480,9 @@ it only when the connection's `send_openai_extensions` option is on.
 `native_tools` and `reasoning_effort` are request-scoped options validated
 against the selected catalog row. Current direct support includes the
 Responses-native `web_search` tool for catalog rows that advertise it; Chat
-Completions rows never advertise native web search. The Responses adapter
-sends native web search with `search_context_size: "low"` by default. Anima
+Completions rows never advertise native web search and use the
+[application web search](#application-web-search) tool instead. The Responses
+adapter sends native web search with `search_context_size: "low"` by default. Anima
 memory tools are separate app-layer function tools, supported for
 `OpenAIHTTPAgent`, `OpenAIResponsesHTTPAgent` and `MockModelClient` rows with
 tool calling. A row without tool calling runs the turn without memory tools
@@ -547,6 +548,36 @@ it (`app/chat/direct_turn/context_fit.py`, `app/model_clients/context_budget.py`
 Compaction input is itself bounded to the Utility model's window (oldest
 messages beyond it are left out of the new summary), and both compaction
 passes keep a user message together with its reply.
+
+## Application Web Search
+
+`native_tools: ["web_search"]` means "search the web" for any model:
+
+- A Responses row that advertises hosted `web_search` keeps hosted search.
+- Otherwise, when the installation has a search backend and the row calls
+  tools, the turn offers the application function tool `web_search(query)`
+  (`app/web_search/`), also on turns without memory tools. The tool shares the
+  memory tool round limit.
+- Otherwise the turn runs without search and logs why (`no_backend`,
+  `model_without_tools`, `provider_without_function_tools`, or
+  `reasoning_with_function_tools` for Chat Completions models that reject a
+  reasoning effort with function tools) instead of failing setup.
+
+Backends are SearXNG (`GET {base_url}/search?format=json`, the instance's
+`search.formats` must include `json`) and the Brave Search API
+(`X-Subscription-Token`), in `adapters/web_search/`. Queries go only to the
+configured backend. A result is a title, URL, snippet (at most 600
+characters) and date; a call returns at most five. A backend failure becomes
+a tool error (`web_search_<category>`) the model can explain, never a turn
+failure. While a search runs, the turn emits `run.status` `searching_web`
+`started` and `finished`.
+
+The model sees full results within the turn. The persisted tool-result row
+keeps only the query and each result's title and URL: Brave allows only
+transient storage of results, and one rule covers both backends. Settings are
+the local-only [web search routes](../architecture/http-api.md#web-search);
+the backend reads its key from `ANIMAMA_CONNECTION_WEB_SEARCH_API_KEY` or
+`BRAVE_SEARCH_API_KEY`, and model connections cannot read the former.
 
 ## Chat Persistence
 

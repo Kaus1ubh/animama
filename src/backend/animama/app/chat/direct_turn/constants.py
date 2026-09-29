@@ -6,6 +6,8 @@ OPENAI_RESPONSES_PROVIDER = "OpenAIResponsesHTTPAgent"
 OPENAI_RESPONSES_PREVIOUS_RESPONSE_UNRESOLVABLE_CODE = "openai_previous_response_unresolvable"
 OPENAI_CHAT_COMPLETIONS_PROVIDER = "OpenAIHTTPAgent"
 MOCK_MODEL_PROVIDER = "MockModelClient"
+# Requested through `native_tools`; hosted by OpenAI Responses, otherwise the application tool.
+WEB_SEARCH_NATIVE_TOOL = "web_search"
 
 DIRECT_MEMORY_TOOL_SUPPORT_BY_PROVIDER = frozenset(
     {

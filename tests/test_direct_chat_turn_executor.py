@@ -1941,10 +1941,6 @@ async def test_direct_turn_request_override_works_without_profile() -> None:
     [
         (_provider(supports_streaming=False), {}),
         (_provider(supports_reasoning=False, supported_reasoning_efforts=[]), {"reasoning_effort": "high"}),
-        (
-            _provider(provider_type="OpenAIHTTPAgent", native_tool_support=["web_search"]),
-            {"native_tools": ["web_search"]},
-        ),
     ],
 )
 async def test_direct_turn_rejects_unsupported_provider_features_before_model_invocation(

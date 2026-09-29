@@ -4,15 +4,17 @@ from datetime import UTC, datetime, timedelta
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from animama.adapters.repositories.sqlalchemy.web_search_settings_repo import SQLAlchemyWebSearchSettingsRepository
 from animama.app.services.user_file_service import ALLOWED_USER_FILE_EXTENSIONS
 from animama.domain.request_principal import RequestPrincipal
 from animama.orm.runtime_worker import ORMRuntimeWorkerHeartbeat
 from animama.server.config import Settings, settings
 from animama.server.deps import get_async_session, get_current_principal
 from animama.server.routers.model_provider import get_model_catalog_policy
+from animama.server.web_search import composition_web_search_enabled, web_search_credential_state
 
 router = APIRouter()
 
@@ -40,6 +42,16 @@ class CompanionSafetyCapability(BaseModel):
     operator_reminder_hours: float
 
 
+class WebSearchCapability(BaseModel):
+    configuration: bool = False
+    """Whether the owner may configure application web search (local composition only)."""
+    configured: bool = False
+    """Whether a backend is configured, so tool-capable models can search."""
+    backend: Literal["searxng", "brave"] | None = None
+    credential_state: Literal["configured", "missing", "not_required"] | None = None
+    """Whether the backend's key is set; searches fail with a tool error while it is ``missing``."""
+
+
 class RuntimeCapabilities(BaseModel):
     schema_version: Literal[1] = 1
     runtime_kind: Literal["desktop", "self_hosted_web"]
@@ -49,6 +61,7 @@ class RuntimeCapabilities(BaseModel):
     offline_speech_enabled: bool
     offline_speech_asset_version: str | None
     companion_safety: CompanionSafetyCapability
+    web_search: WebSearchCapability = Field(default_factory=WebSearchCapability)
 
 
 @router.get("/v1/runtime-capabilities", response_model=RuntimeCapabilities)
@@ -73,8 +86,18 @@ async def get_runtime_capabilities(
             state = "ready" if heartbeat.heartbeat_at >= datetime.now(UTC) - timedelta(seconds=20) else "stale"
     desktop = bool(runtime_settings.animama_desktop_control_token)
     safety = runtime_settings.companion_safety
+    web_search = WebSearchCapability()
+    if composition_web_search_enabled(request.app):
+        search_settings = await SQLAlchemyWebSearchSettingsRepository(session).get()
+        web_search = WebSearchCapability(
+            configuration=True,
+            configured=search_settings is not None,
+            backend=search_settings.backend if search_settings is not None else None,
+            credential_state=web_search_credential_state(search_settings) if search_settings is not None else None,
+        )
     return RuntimeCapabilities(
         model_configuration=get_model_catalog_policy(request).owner_models_enabled,
+        web_search=web_search,
         companion_safety=CompanionSafetyCapability(
             enabled=safety.enabled,
             ai_notice_enabled=safety.effective_ai_notice_enabled,

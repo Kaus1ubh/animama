@@ -274,8 +274,10 @@ direct-memory writes. Catalog serialization and direct-turn validation derive
 the requestable list from the same backend policy. `OpenAIHTTPAgent:gpt-6-luna`
 uses Chat Completions and advertises neither capability. Native tools are not
 owner-editable: an owner Responses row keeps those of the Responses template it was copied from, and
-Chat Completions rows never advertise them. Chat Completions models have no
-web search.
+Chat Completions rows never advertise them. A requested `web_search` on a row
+without hosted search uses the
+[application web search](runtime/model-client-providers.md#application-web-search)
+tool when the installation has a backend and the row calls tools.
 
 ## Production Selection
 

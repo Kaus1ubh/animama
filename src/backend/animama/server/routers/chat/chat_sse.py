@@ -23,6 +23,7 @@ from animama.server.sse_events import (
     SseTextState,
     format_error_event,
 )
+from animama.server.web_search import composition_web_search_enabled
 
 from .compaction import (
     compact_chat_after_success as _compact_chat_after_success,
@@ -128,6 +129,7 @@ async def stream_direct_chat_sse(
             model_client_registry=model_client_registry,
             runtime_settings=getattr(app.state, "runtime_settings", settings),
             model_roles=model_roles,
+            web_search_enabled=composition_web_search_enabled(app),
         )
     except Exception:
         await _cleanup()

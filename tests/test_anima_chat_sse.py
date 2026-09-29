@@ -3155,18 +3155,6 @@ async def test_chat_sse_model_provider_override_works_without_profile(
             {"reasoning_effort": "high"},
             "reasoning effort high",
         ),
-        (
-            "OpenAIHTTPAgent:no-native-tools",
-            {
-                "provider_type": "OpenAIHTTPAgent",
-                "model": "gpt-5-no-tools",
-                "supports_tools": False,
-                "native_tool_support": [],
-            },
-            {"native_tools": ["web_search"]},
-            {"native_tools": ["web_search"]},
-            "native tools web_search",
-        ),
     ],
 )
 async def test_chat_sse_model_provider_override_rejects_unsupported_requested_turn_features(

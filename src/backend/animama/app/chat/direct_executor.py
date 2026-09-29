@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import uuid
 from collections.abc import AsyncIterator
 from contextlib import suppress
 from dataclasses import replace
@@ -42,13 +43,18 @@ from animama.app.ports import ModelProviderRepository
 from animama.app.primary_emotion_update import build_primary_emotion_update_event
 from animama.app.safety.moderation import moderation_indicates_crisis
 from animama.app.services import AnimaChatProfileService, ChatManager
+from animama.app.web_search import WebSearchToolService, web_search_tool_spec
 from animama.domain import ModelProvider
 from animama.domain.chat import ChatMessage, MessageRole
 from animama.domain.events import Event, EventType, RunStatusKind, RunStatusPayload
 from animama.logging import get_logger
 
 from .api_standard import chat_api_standard_for_provider
-from .direct_turn.constants import OPENAI_RESPONSES_PROVIDER, STRUCTURED_REPAIR_METADATA_KEY
+from .direct_turn.constants import (
+    DIRECT_MEMORY_TOOL_SUPPORT_BY_PROVIDER,
+    OPENAI_RESPONSES_PROVIDER,
+    STRUCTURED_REPAIR_METADATA_KEY,
+)
 from .direct_turn.context_fit import drop_oldest_history, fit_history
 from .direct_turn.events import (
     avatar_gesture_event,
@@ -63,10 +69,11 @@ from .direct_turn.message_builders import (
     chat_metadata_patch_from_prompt,
     user_provider_message,
 )
-from .direct_turn.model_stream import DirectTurnModelStreamCollector
+from .direct_turn.model_stream import DirectTurnModelStreamCollector, RunStatusObserver
 from .direct_turn.provider_state import (
     build_memory_tool_config,
     build_model_client_provider_options,
+    chat_completions_disallows_reasoning_with_function_tools,
     compiled_context_history,
     memory_tool_config_for_model,
     native_memory_apply_patch_enabled,
@@ -75,6 +82,7 @@ from .direct_turn.provider_state import (
     turn_memory_context_manifest,
     turn_reasoning_effort,
     validate_model_provider_for_direct_turn,
+    wants_application_web_search,
 )
 from .direct_turn.response_format import (
     build_main_structured_response_format,
@@ -346,6 +354,7 @@ class DirectChatTurnExecutor:
         memory_tool_service: Any | None = None,
         pre_send_compactor: PreSendCompactor | None = None,
         pre_send_compaction_timeout_seconds: float = 90.0,
+        web_search_tool: WebSearchToolService | None = None,
     ) -> None:
         self._registry = registry
         self._profile_service = profile_service
@@ -358,6 +367,7 @@ class DirectChatTurnExecutor:
         self._memory_tool_service = memory_tool_service
         self._pre_send_compactor = pre_send_compactor
         self._pre_send_compaction_timeout_seconds = pre_send_compaction_timeout_seconds
+        self._web_search_tool = web_search_tool
 
     async def stream(self, model_request: ModelClientRequest) -> AsyncIterator[ModelClientDelta]:
         """Proxy one provider-neutral request to the registered shared model client."""
@@ -414,10 +424,11 @@ class DirectChatTurnExecutor:
         api_standard_profile = chat_api_standard_for_provider(model_provider)
         if api_standard_profile is None:
             raise DirectChatTurnSetupError(f"chat_api_standard_unsupported: {model_provider.id}")
+        web_search_active = self._application_web_search_active(request, model_provider)
         validate_model_provider_for_direct_turn(
             model_provider,
             request_options=request.options,
-            memory_tools_active=memory_tool_config.active,
+            memory_tools_active=memory_tool_config.active or web_search_active,
         )
         if self._registry.get(model_provider.provider_type) is None:
             raise ModelClientNotFoundError(
@@ -466,6 +477,8 @@ class DirectChatTurnExecutor:
                     allow_uploaded_file_tools=memory_tool_config.allow_reads and bool(request.attached_file_ids),
                 )
             )
+        if web_search_active:
+            memory_tool_specs = (*memory_tool_specs, web_search_tool_spec())
         # Responses providers can continue from the provider-managed response id
         # stored on the chat row. Chat Completions always receives explicit
         # compiled history.
@@ -513,7 +526,7 @@ class DirectChatTurnExecutor:
                     main_structured_response_guidance(model_provider, output_type),
                     request.runtime_gesture_descriptors,
                 ),
-                memory_tools_active=memory_tool_config.active,
+                memory_tools_active=memory_tool_config.active or web_search_active,
                 native_memory_patch_enabled=native_memory_patch,
             ),
             provider_options=build_model_client_provider_options(
@@ -589,6 +602,9 @@ class DirectChatTurnExecutor:
             for event in stream_emitter.feed_text_delta(round_index, text):
                 await early_event_queue.put(event)
 
+        async def on_run_status(status: RunStatusKind, phase: str) -> None:
+            await early_event_queue.put(self._run_status_event(prepared.request, status, phase))
+
         # The collector asks `needs_repair` about the turn's final reply before
         # any repair round. A reply whose speech already reached the client is
         # salvaged from the streamed parts instead, so no speech is repeated;
@@ -622,7 +638,9 @@ class DirectChatTurnExecutor:
 
         async def collect_model_stream() -> tuple[Any, list[ChatMessage]]:
             try:
-                return await self._model_stream_collector(anima_memories=anima_memories).collect(
+                return await self._model_stream_collector(
+                    anima_memories=anima_memories, on_run_status=on_run_status
+                ).collect(
                     prepared,
                     on_model_round_start=on_model_round_start,
                     on_text_delta=on_text_delta,
@@ -902,6 +920,39 @@ class DirectChatTurnExecutor:
                 reason="incognito",
             )
 
+    def _application_web_search_active(self, request: DirectChatTurnRequest, model_provider: ModelProvider) -> bool:
+        """Return whether this turn offers the application ``web_search`` tool.
+
+        Requested web search that the provider does not host uses the
+        configured backend on a model that calls tools. Otherwise the turn runs
+        without search and logs why, instead of failing.
+        """
+
+        if not wants_application_web_search(model_provider, request.options):
+            return False
+        reason = None
+        if self._web_search_tool is None:
+            reason = "no_backend"
+        elif not model_provider.capabilities.supports_tools:
+            reason = "model_without_tools"
+        elif model_provider.provider_type not in DIRECT_MEMORY_TOOL_SUPPORT_BY_PROVIDER:
+            reason = "provider_without_function_tools"
+        elif request.options.reasoning_effort and chat_completions_disallows_reasoning_with_function_tools(
+            model_provider
+        ):
+            reason = "reasoning_with_function_tools"
+        if reason is None:
+            return True
+        _log.warning(
+            "Direct chat web search unavailable for this turn",
+            anima_id=request.anima_id,
+            chat_id=request.chat_id,
+            run_id=request.run_id,
+            model_provider_id=model_provider.id,
+            reason=reason,
+        )
+        return False
+
     def _context_budget(self, prepared: PreparedDirectChatTurn) -> ContextBudget | None:
         """Return the window budget for models the application must keep within it.
 
@@ -1024,7 +1075,7 @@ class DirectChatTurnExecutor:
     @staticmethod
     def _run_status_event(request: DirectChatTurnRequest, status: RunStatusKind, phase: str) -> Event:
         return Event(
-            event_id=f"run-status-{request.run_id}-{status}-{phase}",
+            event_id=f"run-status-{request.run_id}-{status}-{phase}-{uuid.uuid4().hex[:8]}",
             anima_id=request.anima_id,
             chat_id=request.chat_id,
             user_id=request.user_id,
@@ -1155,7 +1206,12 @@ class DirectChatTurnExecutor:
             },
         )
 
-    def _model_stream_collector(self, *, anima_memories: AnimaMemoriesTurn | None) -> DirectTurnModelStreamCollector:
+    def _model_stream_collector(
+        self,
+        *,
+        anima_memories: AnimaMemoriesTurn | None,
+        on_run_status: RunStatusObserver | None = None,
+    ) -> DirectTurnModelStreamCollector:
         """Create the stream collector with executor-local callbacks and the turn's MEMORIES.md state."""
 
         _, _, chat_manager, _ = self._required_services()
@@ -1169,6 +1225,8 @@ class DirectChatTurnExecutor:
             load_chat_context=load_chat_context,
             build_prompt=self._build_prompt,
             anima_memories=anima_memories,
+            web_search_tool=self._web_search_tool,
+            on_run_status=on_run_status,
         )
 
     def _required_services(

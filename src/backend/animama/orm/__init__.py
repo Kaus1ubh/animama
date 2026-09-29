@@ -40,6 +40,7 @@ from .user_file import ORMUserFile
 from .user_file_chunk import ORMUserFileChunk
 from .user_file_processing_job import ORMUserFileProcessingJob
 from .user_profile import ORMUserProfile
+from .web_search_settings import ORMWebSearchSettings
 
 # Compatibility non-prefixed exports for existing consumers and tests
 Archive = ORMArchive
@@ -104,6 +105,7 @@ __all__ = [
     "ORMMemoryManagerApproval",
     "ORMUserFile",
     "ORMUserFileChunk",
+    "ORMWebSearchSettings",
     "ORMUserFileProcessingJob",
     "ORMUserProfile",
     "ORMRuntimeWorkerHeartbeat",

@@ -24,6 +24,9 @@ Tests use explicit fixture bootstrap and dependency overrides.
 - `server/routers/model_configuration.py`: owner model connections, models,
   capability probe and model roles. Only `create_local_app` mounts it, outside
   the shared `/v1` aggregate, because it sends requests to owner-supplied URLs.
+- `server/routers/web_search.py`: owner application web search settings and
+  Test. Only `create_local_app` mounts it, because a SearXNG URL is
+  owner-supplied and Test sends a query to the configured backend.
 - `server/routers/model_assets.py`: pinned downloadable asset install state,
   install, removal and same-origin byte delivery.
 - `server/routers/chats.py`: chat CRUD and persisted chat messages.
@@ -95,6 +98,12 @@ Tests use explicit fixture bootstrap and dependency overrides.
     "ai_notice_enabled": true,
     "crisis_detection_enabled": true,
     "operator_reminder_hours": 3.0
+  },
+  "web_search": {
+    "configuration": true,
+    "configured": false,
+    "backend": null,
+    "credential_state": null
   }
 }
 ```
@@ -115,6 +124,38 @@ metadata before enqueue and before creating an offline speech worker. The
 asset version is an opaque cache key, never a path or credential.
 `companion_safety` reports the operator's effective safety configuration
 (the global switch already applied); owner preferences live in user settings.
+`web_search.configuration` is true only in the local composition, which mounts
+the [web search routes](#web-search); `configured`, `backend` and
+`credential_state` describe the saved backend there and stay false/null
+elsewhere. While `credential_state` is `missing`, searches return a tool error.
+
+## Web Search
+
+Local composition only. The installation has at most one application web
+search backend, used by tool-capable models without hosted search (see
+[model clients](../runtime/model-client-providers.md#application-web-search)).
+
+- `GET /v1/web-search/settings`: `{configured, backend, base_url,
+  credential_env, credential_state, managed_credential_env, timeout_seconds}`.
+  `credential_state` is `configured`, `missing` or `not_required`; key values
+  are never returned.
+- `PUT /v1/web-search/settings`: `{backend: "searxng" | "brave", base_url,
+  credential: {mode: "none" | "env" | "managed", env}, timeout_seconds}`.
+  SearXNG needs an http(s) `base_url` and takes no key, so no key is ever
+  sent to an owner-supplied URL. Brave needs a key: `managed` uses
+  `ANIMAMA_CONNECTION_WEB_SEARCH_API_KEY` (the desktop vault); `env` accepts
+  that name or `BRAVE_SEARCH_API_KEY`. Invalid input returns 400 with a
+  `detail.code` (`invalid_backend`, `invalid_base_url`,
+  `credential_required`, `credential_not_supported`, `invalid_credential_env`,
+  `invalid_timeout`).
+- `DELETE /v1/web-search/settings`: 204; turns application search off.
+- `POST /v1/web-search/settings/test`: sends one query to the body's draft, or
+  to the saved backend without a body, and returns `{ok, category,
+  result_count}`. Categories: `unreachable`, `timeout`, `credential_missing`,
+  `credential_rejected` (including Brave's 422 for an invalid token),
+  `rate_limited`, `json_format_disabled` (a SearXNG 403: its JSON format is
+  off, or a proxy in front of it refused the request) and `bad_response`. Without a saved backend or a
+  body it returns 400 `web_search_not_configured`.
 
 `POST /_desktop/feature-packs/{pack_id}:removal-check` is a separate supervisor
 contract. Only a valid per-launch `X-Animama-Desktop-Control` token reaches it;

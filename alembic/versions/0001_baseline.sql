@@ -897,6 +897,20 @@ CREATE TABLE user_settings (
 
 -- animama-statement --
 
+CREATE TABLE web_search_settings (
+    id character varying NOT NULL,
+    backend character varying NOT NULL,
+    base_url character varying,
+    credential_env character varying,
+    timeout_seconds double precision,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT ck_web_search_settings_single_row CHECK (((id)::text = 'installation'::text)),
+    CONSTRAINT ck_web_search_settings_backend_valid CHECK (((backend)::text = ANY ((ARRAY['searxng'::character varying, 'brave'::character varying])::text[])))
+);
+
+-- animama-statement --
+
 ALTER TABLE ONLY archive_passages ALTER COLUMN id SET DEFAULT nextval('archive_passages_id_seq'::regclass);
 
 -- animama-statement --
@@ -1125,6 +1139,11 @@ ALTER TABLE ONLY user_profiles
 
 ALTER TABLE ONLY user_settings
     ADD CONSTRAINT pk_user_settings PRIMARY KEY (user_id);
+
+-- animama-statement --
+
+ALTER TABLE ONLY web_search_settings
+    ADD CONSTRAINT pk_web_search_settings PRIMARY KEY (id);
 
 -- animama-statement --
 

@@ -26,7 +26,9 @@ from animama.app.model_clients.event_summary import ModelClientStreamEventObserv
 from animama.app.model_clients.prompt import copy_direct_chat_prompt, prompt_messages
 from animama.app.model_clients.usage_estimate import CONTEXT_TOKENS_METADATA_KEY, context_tokens_from_usage
 from animama.app.safety.prompts import COMPANION_GUARDRAILS
+from animama.app.web_search import WEB_SEARCH_TOOL_NAME, WebSearchToolService, persisted_web_search_output
 from animama.domain.chat import ChatMessage
+from animama.domain.events import RunStatusKind
 from animama.domain.usage import Usage
 from animama.logging import get_logger
 
@@ -70,6 +72,8 @@ ModelRoundObserver = Callable[[int], Awaitable[None]]
 TextDeltaObserver = Callable[[int, str], Awaitable[None]]
 # Decides whether a turn's final reply needs the one structured repair request.
 FinalRepairCheck = Callable[[ModelClientFinal], bool]
+# Reports backend work shown in the pending reply, such as a web search.
+RunStatusObserver = Callable[[RunStatusKind, str], Awaitable[None]]
 # Returns a smaller first request after the server reports an oversized prompt, or None.
 RequestShrinker = Callable[[ModelClientRequest], Awaitable[ModelClientRequest | None]]
 
@@ -91,6 +95,8 @@ class DirectTurnModelStreamCollector:
         load_chat_context: Callable[[str], Awaitable[Any]],
         build_prompt: Callable[..., DirectChatPrompt],
         anima_memories: AnimaMemoriesTurn | None = None,
+        web_search_tool: WebSearchToolService | None = None,
+        on_run_status: RunStatusObserver | None = None,
     ) -> None:
         self._stream = stream
         self._memory_tool_service = memory_tool_service
@@ -99,6 +105,8 @@ class DirectTurnModelStreamCollector:
         # The turn's MEMORIES.md state, shared by every tool call; None keeps the
         # [self]/MEMORIES.md alias unavailable (memory influence is off).
         self._anima_memories = anima_memories
+        self._web_search_tool = web_search_tool
+        self._on_run_status = on_run_status
 
     async def collect(
         self,
@@ -446,7 +454,7 @@ class DirectTurnModelStreamCollector:
                         raw_metadata={"max_tool_rounds": MAX_MEMORY_TOOL_ROUNDS},
                     ),
                 )
-            if self._memory_tool_service is None:
+            if self._memory_tool_service is None and self._web_search_tool is None:
                 raise DirectChatTurnStreamError(
                     request=prepared.request,
                     error=ModelClientError(
@@ -705,10 +713,8 @@ class DirectTurnModelStreamCollector:
         model_request: ModelClientRequest,
         available_tools: set[str],
     ) -> str:
-        """Run one model-requested direct memory tool and return provider text output."""
+        """Run one model-requested direct tool (memory or web search) and return provider text output."""
 
-        # Tools are exposed only when the request has a service.
-        assert self._memory_tool_service is not None
         if tool_call.name not in available_tools:
             return _tool_error_json(
                 "unsupported_tool",
@@ -724,6 +730,11 @@ class DirectTurnModelStreamCollector:
             )
         if not isinstance(parsed, Mapping):
             return _tool_error_json("invalid_arguments", "Tool arguments must be a JSON object")
+        if tool_call.name == WEB_SEARCH_TOOL_NAME and self._web_search_tool is not None:
+            return await self._search_web(parsed)
+
+        # Memory tools are exposed only when the request has a service.
+        assert self._memory_tool_service is not None
 
         context = MemoryToolExecutionContext(
             user_id=request.user_id,
@@ -798,6 +809,18 @@ class DirectTurnModelStreamCollector:
         )
         result_cache[tool_call.id] = (tool_call, result)
         return result
+
+    async def _search_web(self, arguments: Mapping[str, Any]) -> str:
+        """Run the application web search, showing its status while it runs."""
+
+        assert self._web_search_tool is not None
+        if self._on_run_status is not None:
+            await self._on_run_status("searching_web", "started")
+        try:
+            return await self._web_search_tool.execute(arguments)
+        finally:
+            if self._on_run_status is not None:
+                await self._on_run_status("searching_web", "finished")
 
     async def _retry_model_request_without_previous_response_id(
         self,
@@ -956,6 +979,9 @@ def _internal_tool_exchange_messages(
             )
         )
     for tool_call, tool_result in zip(tool_calls, tool_results, strict=True):
+        if tool_call.name == WEB_SEARCH_TOOL_NAME:
+            # Search snippets are used within the turn only; history keeps the query, titles and URLs.
+            tool_result = replace(tool_result, output=persisted_web_search_output(tool_result.output))
         raw_result = (
             model_client_tool_result_prompt_item(tool_result)
             if model_request.model_provider.provider_type == OPENAI_RESPONSES_PROVIDER
@@ -1204,4 +1230,4 @@ def _too_large_results(results: tuple[ModelClientToolResult, ...]) -> tuple[Mode
     return tuple(_too_large_result(result) for result in results)
 
 
-__all__ = ["DirectTurnModelStreamCollector"]
+__all__ = ["DirectTurnModelStreamCollector", "RunStatusObserver"]

@@ -40,6 +40,7 @@ from animama.server.config import Settings, settings
 from animama.server.embeddings import role_embedder
 from animama.server.model_roles import ModelRoleSettings
 from animama.server.schemas.chat import PyAnimaChatRequest
+from animama.server.web_search import turn_web_search_tool
 
 from .compaction import pre_send_compactor
 from .safety import TurnSafety, prepare_turn_safety
@@ -99,6 +100,7 @@ async def prepare_direct_chat_turn(
     model_client_registry: ModelClientRegistry,
     model_roles: ModelRoleSettings,
     runtime_settings: Settings = settings,
+    web_search_enabled: bool = False,
 ) -> DirectChatTurnSetup:
     """Validate route inputs and build the app-layer direct chat turn.
 
@@ -224,6 +226,7 @@ async def prepare_direct_chat_turn(
             else None
         ),
         pre_send_compaction_timeout_seconds=runtime_settings.anima_chat_presend_compaction_timeout_seconds,
+        web_search_tool=await turn_web_search_tool(session, enabled=web_search_enabled),
     )
     direct_request = DirectChatTurnRequest(
         anima_id=anima_id,

@@ -33,14 +33,30 @@ KNOWN_PROVIDER_CREDENTIAL_ENVS = frozenset({"OPENAI_API_KEY", "DEEPSEEK_API_KEY"
 """Conventional provider key variables an owner connection may also reference."""
 
 
+WEB_SEARCH_MANAGED_CREDENTIAL_ENV = "ANIMAMA_CONNECTION_WEB_SEARCH_API_KEY"
+"""The desktop vault's name for the web search key (inside the managed namespace, so no new vault field)."""
+
+WEB_SEARCH_CREDENTIAL_ENVS = frozenset({WEB_SEARCH_MANAGED_CREDENTIAL_ENV, "BRAVE_SEARCH_API_KEY"})
+"""Names the web search backend may read its key from."""
+
+
 def is_allowed_credential_env(name: str) -> bool:
     """Return whether an owner connection may read a key from ``name``.
 
     References are limited to model-key names so a connection cannot send an
-    unrelated process secret (such as a database URL) to its endpoint.
+    unrelated process secret (such as a database URL) to its endpoint. The web
+    search key is not a model key, so no connection may read it.
     """
 
+    if name == WEB_SEARCH_MANAGED_CREDENTIAL_ENV:
+        return False
     return name in KNOWN_PROVIDER_CREDENTIAL_ENVS or bool(MANAGED_CREDENTIAL_ENV_PATTERN.fullmatch(name))
+
+
+def is_allowed_web_search_credential_env(name: str) -> bool:
+    """Return whether the web search backend may read its key from ``name``."""
+
+    return name in WEB_SEARCH_CREDENTIAL_ENVS
 
 
 def managed_credential_env(connection_id: str) -> str:
@@ -125,6 +141,9 @@ def _credential(value: str) -> ModelCredential:
 
 
 __all__ = [
+    "WEB_SEARCH_CREDENTIAL_ENVS",
+    "WEB_SEARCH_MANAGED_CREDENTIAL_ENV",
+    "is_allowed_web_search_credential_env",
     "CREDENTIAL_CONFIGURED",
     "CREDENTIAL_MISSING",
     "CREDENTIAL_NOT_REQUIRED",
