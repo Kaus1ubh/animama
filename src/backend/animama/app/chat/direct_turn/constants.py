@@ -23,7 +23,7 @@ CONTEXT_LIMIT_FINAL_INSTRUCTION = (
     "from what you already know, and say briefly if you could not look something up. Do not request more tools."
 )
 MEMORY_TOOL_LIMIT_FINAL_INSTRUCTION = (
-    "Memory tool round limit reached. Use the memory tool results already provided in this turn to produce the "
+    "Tool round limit reached. Use the tool results already provided in this turn to produce the "
     "required final structured response. Do not request more tools."
 )
 

@@ -454,3 +454,86 @@ async def test_post_response_compaction_threshold_follows_the_model_window(monke
         )
 
     assert [call["threshold_tokens"] for call in calls] == [int((8192 - _MAX_OUTPUT) * 0.75), None]
+
+
+@pytest.mark.asyncio
+async def test_the_retry_keeps_the_split_turn_shape() -> None:
+    # Review FI-R1-F1: rows that cannot combine tools with a schema must not get both in the retry.
+    provider = await _small_window_row(room_tokens=20_000)
+    provider.capabilities.tools_with_structured_output = False
+    rejection = ModelClientError(
+        "context length exceeded",
+        code="openai_bad_request",
+        raw_metadata={"provider_error_message": "the request exceeds the available context size"},
+    )
+    client = _ScriptedModelClient([rejection, _final(), _final()])
+    executor, _chats = _executor(
+        client=client,
+        provider=provider,
+        chat_manager=_FakeChatManager(history=_long_history()),
+        memory_tool_service=_FakeMemoryToolService(),
+    )
+
+    events = await _collect(executor.stream_turn(_request()))
+
+    first, retry, structured = client.seen_specs
+    assert first.prompt.tools and first.prompt.response_format is None
+    assert retry.prompt.tools and retry.prompt.response_format is None
+    assert structured.prompt.tools == () and structured.prompt.response_format is not None
+    assert EventType.ERROR not in [event.type for event in events]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("split", [False, True])
+async def test_a_repair_after_large_tool_results_stays_within_the_window(split: bool) -> None:
+    # Review FI-R1-F2: capped tool results leave room for the structured round and the repair.
+    # Sweep result sizes so some land just under the tool-round limit.
+    provider = await _small_window_row(room_tokens=1800)
+    provider.capabilities.tools_with_structured_output = not split
+    for words in range(100, 1500, 25):
+        tool_final = ModelClientFinal(
+            text="",
+            usage=Usage(requests=1, total_tokens=5),
+            tool_calls=(
+                ModelClientToolCall(id="call-1", name="memory_read_files", arguments=json.dumps({"paths": "a.md"})),
+            ),
+        )
+        finals = [tool_final, _final("not json"), _final("still not json")]
+        if split:
+            finals.insert(1, _final("unconstrained draft"))
+        client = _ScriptedModelClient(finals)
+        tools = _FakeMemoryToolService(result={"ok": True, "content": "word " * words})
+        executor, _chats = _executor(client=client, provider=provider, memory_tool_service=tools)
+
+        await _collect(executor.stream_turn(_request()))
+
+        sizes = [estimate_prompt_tokens(spec.prompt) for spec in client.seen_specs]
+        assert max(sizes) <= _available(provider), (words, sizes)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("room_tokens", [700, 800, 900, 1200])
+async def test_finals_and_repairs_after_unfittable_tool_results_never_exceed_the_window(room_tokens: int) -> None:
+    # Review FI-R2-F1: the context-limit final and its repair are checked against the budget too.
+    provider = await _small_window_row(room_tokens=room_tokens)
+    provider.capabilities.tools_with_structured_output = False
+    calls = tuple(
+        ModelClientToolCall(
+            id=f"call-{index}", name="memory_read_files", arguments=json.dumps({"paths": f"{index}.md"})
+        )
+        for index in range(20)
+    )
+    client = _ScriptedModelClient(
+        [
+            ModelClientFinal(text="", usage=Usage(requests=1, total_tokens=5), tool_calls=calls),
+            _final("not json"),
+            _final("still not json"),
+        ]
+    )
+    tools = _FakeMemoryToolService(result={"ok": True, "content": "x " * 3_000})
+    executor, _chats = _executor(client=client, provider=provider, memory_tool_service=tools)
+
+    events = await _collect(executor.stream_turn(_request()))
+
+    assert all(estimate_prompt_tokens(spec.prompt) <= _available(provider) for spec in client.seen_specs)
+    assert len([event for event in events if event.type == EventType.ERROR]) <= 1

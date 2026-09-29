@@ -38,7 +38,7 @@ from animama.app.model_clients.context_budget import (
     context_budget_for_model,
     estimate_prompt_tokens,
 )
-from animama.app.model_clients.prompt import ChatCompletionResponseFormat
+from animama.app.model_clients.prompt import ChatCompletionResponseFormat, copy_direct_chat_prompt
 from animama.app.ports import ModelProviderRepository
 from animama.app.primary_emotion_update import build_primary_emotion_update_event
 from animama.app.safety.moderation import moderation_indicates_crisis
@@ -634,7 +634,12 @@ class DirectChatTurnExecutor:
             history = drop_oldest_history(prepared.visible_history, fraction=0.5)
             if len(history) == len(prepared.visible_history):
                 return None
-            return replace(model_request, prompt=self._prompt_for_history(prepared, history))
+            # Keep the failed request's format: split rows send tool rounds without one.
+            prompt = copy_direct_chat_prompt(
+                self._prompt_for_history(prepared, history),
+                response_format=model_request.prompt.response_format,
+            )
+            return replace(model_request, prompt=prompt)
 
         async def collect_model_stream() -> tuple[Any, list[ChatMessage]]:
             try:

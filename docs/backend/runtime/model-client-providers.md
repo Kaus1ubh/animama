@@ -540,8 +540,10 @@ it (`app/chat/direct_turn/context_fit.py`, `app/model_clients/context_budget.py`
 - **Within the turn.** Tool results that would push the next round past the
   window become a `tool_result_too_large` tool error the model can react to.
   If even those errors do not fit, the model is asked for its final reply
-  without tools and without that exchange. A structured-reply repair leaves
-  out the invalid reply when it would not fit. A server that still rejects the
+  without tools and without that exchange; if that final would not fit
+  either, the turn fails with `context_window_exceeded`. A structured-reply
+  repair leaves out the invalid reply when it would not fit, and is skipped
+  (plain-text fallback) when it still would not. A server that still rejects the
   first request as oversized gets one retry with about half of the history
   left out.
 

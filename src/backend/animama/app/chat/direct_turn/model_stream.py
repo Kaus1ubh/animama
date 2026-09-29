@@ -20,7 +20,12 @@ from animama.app.model_clients import (
     model_client_preview_log_context,
     model_client_request_log_context,
 )
-from animama.app.model_clients.context_budget import ContextBudget, estimate_prompt_tokens, estimate_text_tokens
+from animama.app.model_clients.context_budget import (
+    ContextBudget,
+    estimate_prompt_tokens,
+    estimate_text_tokens,
+    estimate_value_tokens,
+)
 from animama.app.model_clients.error_categories import ERROR_CONTEXT_EXCEEDED, model_error_category
 from animama.app.model_clients.event_summary import ModelClientStreamEventObserver
 from animama.app.model_clients.prompt import copy_direct_chat_prompt, prompt_messages
@@ -171,13 +176,25 @@ class DirectTurnModelStreamCollector:
             if "previous_response_retry" in final.raw_provider_metadata:
                 # The round succeeded only after dropping a stale Responses cursor.
                 final_request = await self._retry_model_request_without_previous_response_id(prepared, final_request)
-            repair_final = await self._collect_model_final(
-                prepared,
-                _structured_repair_request(final_request, final, context_budget),
-                round_index=STRUCTURED_REPLY_REPAIR_ROUND_INDEX,
-                on_text_delta=on_text_delta,
-                allow_previous_response_retry=False,
-            )
+            repair_request = _structured_repair_request(final_request, final, context_budget)
+            if (
+                context_budget is not None
+                and estimate_prompt_tokens(repair_request.prompt) > context_budget.available_tokens
+            ):
+                # A repair that would not fit is skipped; the reply falls back to plain text.
+                _log.warning(
+                    "Direct chat structured reply repair skipped at the context window",
+                    **_direct_turn_log_context(prepared, final_request),
+                )
+                repair_final = None
+            else:
+                repair_final = await self._collect_model_final(
+                    prepared,
+                    repair_request,
+                    round_index=STRUCTURED_REPLY_REPAIR_ROUND_INDEX,
+                    on_text_delta=on_text_delta,
+                    allow_previous_response_retry=False,
+                )
         except Exception as exc:
             # A failed repair falls back to the original reply's text.
             _log.warning(
@@ -503,7 +520,12 @@ class DirectTurnModelStreamCollector:
             result_tuple = tuple(tool_results)
             if context_budget is not None:
                 bounded = _tool_results_within_budget(
-                    model_request, tool_calls, result_tuple, context_budget, prepared=prepared
+                    model_request,
+                    tool_calls,
+                    result_tuple,
+                    context_budget,
+                    prepared=prepared,
+                    structured_format=structured_format,
                 )
                 if bounded is None:
                     # Even tool errors do not fit: answer without this exchange,
@@ -521,6 +543,15 @@ class DirectTurnModelStreamCollector:
                         response_format=structured_format,
                         final_instruction=CONTEXT_LIMIT_FINAL_INSTRUCTION,
                     )
+                    if estimate_prompt_tokens(final_request.prompt) > context_budget.available_tokens:
+                        raise DirectChatTurnStreamError(
+                            request=prepared.request,
+                            error=ModelClientError(
+                                "The conversation exceeds the model's context window",
+                                code="context_window_exceeded",
+                                raw_metadata={"provider_error_code": "context_length_exceeded"},
+                            ),
+                        )
                     final_round_index = round_index + 1
                     if on_model_round_start is not None:
                         await on_model_round_start(final_round_index)
@@ -1127,21 +1158,26 @@ def _tool_results_within_budget(
     budget: ContextBudget,
     *,
     prepared: PreparedDirectChatTurn,
+    structured_format: Any,
 ) -> tuple[ModelClientToolResult, ...] | None:
     """Replace results that would push the next round past the window with a tool error.
 
     The model can then narrow its request (for example read fewer files)
-    instead of the turn sending an over-window prompt. Returns ``None`` when
-    even the errors do not fit.
+    instead of the turn sending an over-window prompt. Room is kept for what a
+    later structured round or repair adds (the response format when tool
+    rounds run without it, and the repair instruction with the guardrail).
+    Returns ``None`` when even the errors do not fit.
     """
+
+    limit = budget.available_tokens - _final_round_reserve_tokens(model_request, structured_format)
 
     def next_prompt_tokens(results: tuple[ModelClientToolResult, ...]) -> int:
         messages = _tool_exchange_prompt_items(model_request=model_request, tool_calls=tool_calls, tool_results=results)
         return estimate_prompt_tokens(_prompt_with_appended_messages(model_request.prompt, messages))
 
-    if next_prompt_tokens(tool_results) <= budget.available_tokens:
+    if next_prompt_tokens(tool_results) <= limit:
         return tool_results
-    spare = max(0, budget.available_tokens - estimate_prompt_tokens(model_request.prompt))
+    spare = max(0, limit - estimate_prompt_tokens(model_request.prompt))
     per_result = spare // (2 * max(1, len(tool_results)))
     bounded = tuple(
         result if estimate_text_tokens(result.output) <= per_result else _too_large_result(result)
@@ -1152,7 +1188,21 @@ def _tool_results_within_budget(
         **_direct_turn_log_context(prepared, model_request),
         replaced_count=sum(1 for before, after in zip(tool_results, bounded, strict=True) if before is not after),
     )
-    return bounded if next_prompt_tokens(bounded) <= budget.available_tokens else None
+    return bounded if next_prompt_tokens(bounded) <= limit else None
+
+
+def _final_round_reserve_tokens(model_request: ModelClientRequest, structured_format: Any) -> int:
+    """Return the tokens a later structured round or repair may add to a tool round's prompt."""
+
+    added_format = (
+        estimate_value_tokens(structured_format)
+        if structured_format is not None and model_request.prompt.response_format is None
+        else 0
+    )
+    repair_instruction = estimate_text_tokens(
+        f"{STRUCTURED_REPLY_REPAIR_INSTRUCTION}\n\n{COMPANION_GUARDRAILS.strip()}"
+    )
+    return added_format + repair_instruction
 
 
 def _structured_repair_request(

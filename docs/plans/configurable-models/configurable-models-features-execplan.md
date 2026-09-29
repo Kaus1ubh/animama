@@ -336,8 +336,8 @@ through search results because the proxy blocked direct fetches):
       path.
   - **Status event.** A new SSE frame `run.status`
     `{status: "summarizing_context" | "searching_web", phase: "started" | "finished"}`
-    is yielded by the route while the model task runs. The frontend shows its
-    text in the pending assistant bubble, and older clients ignore unknown
+    is yielded by the executor and forwarded by the route. The frontend shows
+    its text in the pending assistant bubble, and older clients ignore unknown
     frames.
   - **Search configuration** is an installation-wide shared table
     `web_search_settings`, holding one row.
@@ -806,7 +806,7 @@ stack.
 
 Completion: tests pass; review has no blocker.
 
-Phase record: issue #211; starting source `e745aef`; commit recorded below.
+Phase record: issue #211; starting source `e745aef`; commit `a003fc3`.
 
 Implementation notes (agent, within scope):
 
@@ -1012,6 +1012,76 @@ This review covers the combined Plan B diff against the Plan B acceptance
 criteria, reusing still-valid phase evidence. It allows one full review and at
 most two repair rounds. Before it runs, merge `origin/main` if it has moved
 and run the full local suites on the merged candidate.
+
+### Scope Integration Review #1 Findings (phases 1–3)
+
+The owner authorized phases 1–3, so this review covers that subset on
+`a003fc3` against `9cdaab5` (`origin/main` has not moved). Reviewer:
+independent `sdlc-reviewer`, final-integration mode. It verified round
+indices, salvage and repair against split, forced and context-limit finals,
+status ordering and frontend reset, reduced persistence against compaction and
+replay, Responses rows, one error and one `run.completed` on every new failure
+path, the plan record and repository rules (no Alembic revision, no Cloud
+import, current SDK, boundary imports clean). Checks: 279 focused tests plus
+probes.
+
+Blocking:
+
+- **FI-R1-F1** On split rows the shrink retry rebuilt the prompt with the
+  response format, so the retry sent tools and a schema together (the shape
+  the probe recorded as unsupported).
+
+Optional: F2 capped tool results left no room for what a split structured
+round or a repair adds (probe: up to +715 tokens over available with a small
+reserve); F3 docs and record wording (status ordering, the frontend doc, the
+spec link status, who yields the status); F4 the round-limit instruction named
+memory tools on search turns; F5 `context_tokens` after a search counts full
+snippets (no action).
+
+### Scope Integration Review #1 Revisions
+
+- **F1 accepted.** The retry keeps the failed request's response format. Test
+  `test_the_retry_keeps_the_split_turn_shape`.
+- **F2 accepted.** Tool results are capped below the window minus the response
+  format (when tool rounds run without it) and the repair instruction with the
+  guardrail. A sweep test over result sizes fails without the reserve (split
+  rows) and passes with it.
+- **F3, F4 accepted.** Wording corrected; the round-limit instruction says
+  "tool".
+- **F5 not changed.** It only makes post-response compaction start slightly
+  early.
+
+### Scope Integration Review #2 Findings
+
+Reviewer: same independent `sdlc-reviewer`, targeted recheck of repair round 1.
+Result: **pass**. F1 re-probed (the retry keeps the split shape); F2 verified
+(the split sweep fails with the reserve disabled); F3 and F4 verified.
+Optional: FI-R2-F1 when even tool errors do not fit, the context-limit final
+and a following repair could still exceed available on tight split rows (probe:
++32 and +466 tokens at 700 tokens of room); FI-R2-F2 the sweep only fails
+without the reserve on split rows (wording fixed). Checks: 232 focused tests,
+ruff, format check.
+
+### Scope Integration Review #2 Revisions
+
+- **FI-R2-F1 accepted.** A repair that would not fit is skipped (plain-text
+  fallback), and a context-limit final that would not fit ends the turn with
+  `context_window_exceeded` instead of being sent. Test
+  `test_finals_and_repairs_after_unfittable_tool_results_never_exceed_the_window`
+  sweeps 700–1200 tokens of room on split rows.
+- **FI-R2-F2 accepted.** Wording corrected.
+
+### Scope Integration Review #3 Findings
+
+Reviewer: same independent `sdlc-reviewer`, final targeted recheck of repair
+round 2. Result: **pass**. Both changes verified by probes: every request is
+within available on split and non-split rows, and with an 80-message history
+no error occurs from 800 to 5000 tokens of room. Optional: FI-R3-F1 the docs
+said only an oversized message fails; a history-free split turn at a tiny
+window can now also fail after large tool results (docs updated; this is a
+known edge slightly beyond the spec's wording, chosen to keep "never over the
+window"). Checks: 231 focused tests, ruff, format check. Both repair rounds
+used.
 
 ## Validation and acceptance
 

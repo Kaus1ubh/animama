@@ -412,8 +412,8 @@ Type guards map incoming chunks to:
   `onAvatarGestureRequested`
 - `safety.ai_notice` (`type` field) -> `onAiNotice`
 - `run.status` (`type` field, known `status` only) -> `onRunStatus`; the session
-  shows "Summarizing earlier conversation…" beside the pending indicator until
-  `finished` or reply text arrives
+  shows "Summarizing earlier conversation…" or "Searching the web…" beside the
+  pending indicator until `finished` or reply text arrives
 - `safety.crisis_support` (`type` field, with `source` and `resources`) ->
   `onCrisisSupport`
 - `memory.updated` (`type` field) -> `onMemoryUpdated` with a cue validated by

@@ -381,7 +381,7 @@ https://github.com/raymond-van/animama/issues/165
 - Plan A (R1–R9): [configurable-models-execplan.md](configurable-models-execplan.md)
   (authorized 2026-09-26; implemented, owner gates pending).
 - Plan B (R10–R12): [configurable-models-features-execplan.md](configurable-models-features-execplan.md)
-  (drafted 2026-09-28; awaiting owner review).
+  (phases 1–3 authorized 2026-09-28).
 
 ## Delivery links
 

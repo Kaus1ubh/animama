@@ -339,8 +339,9 @@ never as assistant text.
 `run.status` frames include `type="run.status"`, `run_id`, `status`
 (`summarizing_context` while earlier conversation is compacted before sending,
 `searching_web` while an application web search runs) and `phase`
-(`started`, then `finished`). They precede the turn's reply text;
-clients show them in the pending reply and ignore unknown statuses.
+(`started`, then `finished`). Summarizing always precedes reply text; a search
+may follow text that streamed in an earlier tool round. Clients show a status
+only while the reply is pending and ignore unknown statuses.
 
 `safety.crisis_support` frames include `type="safety.crisis_support"`,
 `run_id`, `source` (`local` or `moderation`), and `resources`, the resolved

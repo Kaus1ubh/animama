@@ -35,9 +35,10 @@ response once the conversation passes 75% of the window (or
 `ANIMAMA_CHAT_COMPACTION_THRESHOLD_TOKENS`, 6,000 by default, if lower). A
 turn that still nears the window shows "Summarizing earlier conversation…"
 while the Compaction model summarizes, and the oldest messages are left out of
-the request if needed. Only a message that alone exceeds the window fails with
-"The conversation is too long for …". Serve at least 8,192 tokens so replies
-keep useful context.
+the request if needed. A turn fails with "The conversation is too long for …"
+only when its message alone exceeds the window, or when a window this small
+leaves no room even for a reply after large tool results. Serve at least 8,192
+tokens so replies keep useful context.
 
 ## Servers
 
