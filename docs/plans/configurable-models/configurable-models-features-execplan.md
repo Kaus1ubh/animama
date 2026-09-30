@@ -1,11 +1,11 @@
 # Configurable models execution plan (Plan B: application-owned features)
 
-Status: In progress. Phases 1–3 authorized.
+Status: Implemented; owner gates G1–G4 and merge approval pending.
 Source agreement: [Configurable models spec](configurable-models-spec.md) R10–R12
 and the Plan B acceptance criteria, accepted 2026-09-26, plus the owner
 decisions of 2026-09-28 recorded in the [Decision Log](#decision-log).
 Authorized scope: phases 1–3, by the owner's `/implement` instruction on
-2026-09-28. Phases 4–6 are not authorized. Exact-candidate merge approval stays
+2026-09-28, and phases 4–6 on 2026-09-30. Exact-candidate merge approval stays
 separate.
 
 This plan delivers spec R10 (pre-send compaction), R11 (web search for any
@@ -51,8 +51,8 @@ verify it.
 
 **Workspace**
 - Repository: `raymond-van/animama`.
-- Worktree: `../animama-worktrees/configurable-models-features`, on branch
-  `feat/configurable-models-features`.
+- Worktree: `worktrees/cfgm-features/animama` beside the primary checkout, on
+  branch `feat/configurable-models-features`.
 - Starting revision: `9cdaab5` (`main` after the Plan A merge).
 - The primary checkout stays on `main`. No Cloud checkout or private input is
   needed.
@@ -121,9 +121,10 @@ Standing rules (unchanged from Plan A):
       pass; commit recorded below (owner gates G1–G4 remain).
 - [x] Scope integration review of phases 1–3 (review #3 pass; fixes in
       `dc533f6`; full `make check-test` 2827 passed, 7 skipped).
-- [ ] Final integration review of the whole plan (after phases 4–6).
-- [ ] PR and owner merge approval: PR #215 opened for phases 1–3 (hosted
-      Validation disabled); owner gates G1–G2 and merge approval pending.
+- [x] Final integration review of the whole plan (review #2 pass; the only
+      blocking finding was this record).
+- [ ] PR and owner merge approval: PR #215 covers phases 1–6 (hosted
+      Validation disabled); owner gates G1–G4 and merge approval pending.
 
 ## Surprises & Discoveries
 
@@ -476,7 +477,7 @@ After owner authorization:
    if the review changes the phases.
 2. **Stack.** Use a named task stack when a running stack is needed, for
    example
-   `ANIMAMA_LLM_SKIP=1 ./reset.sh --name cfgfeatures --base-port 8800`, then
+   `./reset.sh --name cfgm --base-port 8300`, then
    `source .animama-stack.env`. Phases 3 and 5 change the schema and need a
    reset of this task stack only.
 3. **Tests.** Work test-first on observable behavior, using fake
@@ -1176,7 +1177,7 @@ link checks where available.
 
 Completion: review has no blocker.
 
-Phase record: issue #214; starting source `f6aebb2`; commit —.
+Phase record: issue #214; starting source `f6aebb2`; commit `06e4904`.
 
 Implementation notes (agent):
 
@@ -1321,14 +1322,52 @@ known edge slightly beyond the spec's wording, chosen to keep "never over the
 window"). Checks: 231 focused tests, ruff, format check. Both repair rounds
 used.
 
+### Final Integration Review #1 Findings (phases 1–6)
+
+Reviewer: independent `sdlc-reviewer`, final-integration mode on `06e4904`
+against `9cdaab5` (`origin/main` unchanged), reusing the phases 1–3 scope
+reviews. It verified that frontend and backend search gating agree (only the
+deferred `gpt-5.4` edge differs), that hosted consumers keep requestable-only
+behavior, that search is local-composition only at every entry point, the
+tool spec counts in the context budget, the pin and rejection counts across
+their callers, cache writes through summed repair usage, docs against code,
+secrets, and repository rules. Checks: 203 focused backend tests, 24 frontend
+tests, `ruff check`, `make format-check`, `pnpm openapi-ts:check`,
+`git diff --check`.
+
+Blocking:
+
+- **FI-P46-R1-F1** The plan record contradicted the delivery: the header and
+  retrospective called phases 4–6 unauthorized and pending, Phase 6 had no
+  commit, the PR item listed phases 1–3 and G1–G2 only, and the workspace and
+  stack names were stale.
+
+Optional: F2 the acceptance table could cite the Phase 4 frontend, desktop and
+browser evidence; F3 no route-to-reducer test of a `searching_web` frame (G2
+confirms it in the owner check).
+
+### Final Integration Review #1 Revisions
+
+- **F1 accepted.** Header, workspace, stack commands, Phase 6 commit, Progress,
+  acceptance table and retrospective updated.
+- **F2 accepted.** Evidence added, with a row for the deferred items.
+- **F3 deferred** to G2, as the reviewer noted.
+
+### Final Integration Review #2 Findings
+
+Reviewer: same independent `sdlc-reviewer`, targeted recheck. Result:
+**pass**, no findings; FI-P46-R1-F1 resolved item by item. One repair round
+used.
+
 ## Validation and acceptance
 
 Spec acceptance (Plan B) and its evidence:
 
 | Criterion | Evidence | Phase |
 | --- | --- | --- |
-| A long local chat compacts before sending, shows summarizing and never sends an over-window prompt | direct-turn and route tests with a small-window stub; G1 | 2 |
-| Web search works on a tool-capable local model through SearXNG and Brave, and is unavailable with an explanation otherwise | adapter and tool tests with stubbed backends; G2 | 3, 4 |
+| A long local chat compacts before sending, shows summarizing and never sends an over-window prompt | direct-turn and route tests with a small-window stub; `run-status.test.ts`, `chat-failure.test.ts`; G1 | 2 |
+| Web search works on a tool-capable local model through SearXNG and Brave, and is unavailable with an explanation otherwise | adapter and tool tests with stubbed backends; `model-provider-native-tools.test.ts`, `web-search-state.test.ts`, desktop vault tests; Phase 4 browser check with a stub SearXNG; G2 (including "Searching the web…") | 3, 4 |
+| Deferred items: Memory Manager pin, always-rejected text, `gpt-6-luna` cached input | `test_memory_manager.py`, `test_embeddings_role.py`, `test_model_pricing.py`, `test_usage_cache_write_tokens.py`; G4 | 5 |
 | A reply that fails validation and repair completes as plain text with neutral emotion, no gesture and TTS | direct-turn tests | 1 |
 | Docs, glossary and ADR updated | review | 6 |
 
@@ -1386,7 +1425,7 @@ Owner gates:
 ## Idempotence and recovery
 
 - **Schema:** Phases 3 and 5 edit the baseline, so reset only this task's
-  named stack (`./reset.sh --name cfgfeatures --base-port 8800 --purge`). Never
+  named stack (`./reset.sh --name cfgm --base-port 8300 --purge`). Never
   reset the owner's main stack or another task's stack.
 - **Pre-send compaction** writes the same `chat_compactions` rows as
   post-response compaction and supersedes the previous one. A failed or
@@ -1402,17 +1441,22 @@ Owner gates:
 
 ## Outcomes & Retrospective
 
-Delivered (agent), 2026-09-29: phases 1–3 (R10, R11 backend, R12) on
-`feat/configurable-models-features`, PR #215.
+Delivered (agent): phases 1–3 (R10, R11 backend, R12) on 2026-09-29, and
+phases 4–6 (search settings and control, deferred Plan A items, documentation)
+on 2026-09-30, on `feat/configurable-models-features`, PR #215.
 
 - Chat models without a structured transport chat; invalid replies are
   salvaged, repaired once or spoken as neutral plain text.
 - Models without native compaction never receive an over-window prompt; the
   chat shows "Summarizing earlier conversation…" while compacting.
-- Tool-capable models can search through SearXNG or Brave via the API; the
-  settings UI and checkbox (Phase 4) remain.
+- Tool-capable models search through SearXNG or Brave, configured in App
+  Settings → Models → Web search; the per-model checkbox starts on when
+  available and explains itself otherwise.
+- Memory Manager approvals resume on the proposing model; a text the
+  embeddings model always rejects no longer blocks re-embedding; `gpt-6-luna`
+  cached input is priced, and cache-write usage stays unpriced.
 
-Pending: phases 4–6 (not authorized), owner gates G1–G4, merge approval.
+Pending: owner gates G1–G4 and exact-candidate merge approval.
 
 Lessons so far:
 
@@ -1421,3 +1465,8 @@ Lessons so far:
   window sizes found what fixed-size tests missed.
 - Writing the next phase in the same tree during a review blurred the review
   boundary; setting it aside (`git stash`) kept per-phase evidence clean.
+- Guards need a signal of current health: "the model has embedded something"
+  both starved a lone rejected chunk and let an outage drop vectors; a live
+  check text fixed both.
+- State recorded once (the pin at run start) drifts when later steps change
+  it; record it where each step's result is persisted.
