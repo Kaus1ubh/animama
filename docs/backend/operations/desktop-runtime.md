@@ -24,8 +24,9 @@ FastAPI accepts renderer HTTP, SSE, WebSocket and registered-byte traffic. Its
 local boundary checks exact authority, browser metadata and the per-launch
 HttpOnly renderer capability. Server-owned admission state resolves the
 bootstrap-established installation owner; caller identity headers confer no
-authority. PostgreSQL remains private. `/_desktop` readiness, drain and removal
-routes require a separate control credential and reject renderer cookies alone.
+authority. PostgreSQL remains private. `/_desktop` readiness, drain, removal
+and credential routes require a separate control credential, reject renderer
+cookies alone and refuse browser-context requests.
 
 The supervisor compares readiness against the exact app build, Alembic head,
 principal, HTTP schema, exact PID/start token and Included reconciliation. It retains child handles and stops only

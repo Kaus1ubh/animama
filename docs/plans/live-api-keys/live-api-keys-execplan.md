@@ -94,8 +94,8 @@ libraries and child processes, and FastAPI ↔ logs.
 - [x] Plan drafted on branch `feat/live-api-keys` from `origin/main` `36a40177`.
 - [x] Workspace: worktree `worktrees/live-api-keys/animama` (sibling of the primary checkout), branch `feat/live-api-keys` pushed to `origin`, base `origin/main` `36a40177`; phase issues #222–#225 are sub-issues of #219. No Compose stack started.
 - [x] Owner approved this plan and the recommended decisions D1–D6 (2026-09-30).
-- [x] Phase 1 (#222): backend runtime credential store and live-safe consumers. Review passed (Review #2); `make check-test` 2792 passed.
-- [ ] Phase 2 (#223): authenticated desktop credential route.
+- [x] Phase 1 (#222): backend runtime credential store and live-safe consumers. Review passed (Review #2); `make check-test` 2792 passed; commit `3ee9f6f8`.
+- [x] Phase 2 (#223): authenticated desktop credential route. Review passed (Review #2); `make check-test` 2878 passed.
 - [ ] Phase 3 (#224): Electron main live delivery.
 - [ ] Phase 4 (#225): renderer, setup and documentation.
 - [ ] Security review (`security-review` skill + `sdlc-reviewer`) and final integration review.
@@ -378,7 +378,74 @@ case passes.
 
 #### Code Review #1 Findings
 
+Reviewed source: uncommitted Phase 2 working tree over `3ee9f6f8`. Reviewer:
+independent `sdlc-reviewer`. It ran targeted tests (174 passed), ruff, format
+and mypy on the changed files, a live uvicorn probe of path variants
+(`/%5Fdesktop`, `//_desktop`, `/x/../_desktop`, trailing slash, query) and a
+Node 24 `fetch` header capture. It found no production defect.
+
+- **P2-R1-F1 (should-fix):** no test ties the backend name pattern and limits to
+  `connectionCredentialPattern`, `maxConnectionCredentials` and
+  `validateCredential`. A desktop change would make every push fail with 400.
+  JS `length` counts UTF-16 units and Python counts code points, so the backend
+  is the more permissive side.
+- **P2-R1-F2 (should-fix):** D5 is tested only on `/_desktop/credentials`. The
+  health, quiesce and removal-check routes are not tested with the token plus
+  browser headers, or with a Node-fetch header set.
+- **P2-R1-F3 (optional):** the duplicate control-header test accepts `{400,
+  404}`, but admission deterministically returns 400.
+- **P2-R1-F4 (optional):** there is no explicit assertion that the route has no
+  Pydantic body model. `raise … from None` still sets `__context__`, and the
+  exception's `.doc`/`.object` holds the body. It is dropped locally, so this is
+  harmless.
+- **P2-R1-F5 (optional):** the `_delivery` comment says decode errors quote the
+  input in their messages; the input actually lives in their attributes.
+- **P2-R1-F6 (optional):** the route docs omit the admission-level refusals
+  (`{"error":…}` 404/400/421/413/408) that Phase 3's client must handle.
+
 #### Code Review #1 Revisions
+
+- **P2-R1-F1: accepted and fixed.** `test_backend_rules_match_the_desktop_vault`
+  reads `shared/desktop-runtime.ts` and `vault.ts` and compares the connection
+  pattern, the 32-key limit, the 8192 length and the forbidden-character class
+  with the backend constants. The UTF-16 and code-point difference is recorded
+  in its docstring. The backend is more permissive only for non-BMP text, which
+  never occurs in a vault-validated key.
+- **P2-R1-F2: accepted and fixed.**
+  `test_every_control_route_refuses_a_browser_context` covers health, quiesce,
+  removal-check and credentials with the token plus `Origin`, `Sec-Fetch-Site`
+  or `Sec-Fetch-Dest`. `test_existing_control_routes_still_answer_electron_main`
+  sends the captured Node-fetch header set.
+- **P2-R1-F3: accepted.** The test now asserts 400.
+- **P2-R1-F4: accepted.** Added `test_the_route_parses_no_body_model`
+  (`route.body_field is None`). `__context__` is harmless because the
+  exception is dropped inside the handler.
+- **P2-R1-F5: accepted.** Corrected the comment.
+- **P2-R1-F6: accepted.** Documented the admission-level refusal shape.
+- The reviewer's probe created a gitignored `src/.animama-logs/` file with no
+  key values; it was inspected and removed.
+- **Verification:** `make check-test` passed: ruff, format, mypy, 2878 passed,
+  7 skipped. Repair budget: 1 of 2 rounds used.
+
+#### Code Review #2 Findings
+
+Targeted recheck by an independent `sdlc-reviewer`. F1–F5 are verified, with
+mutation evidence: the parity test fails on each changed rule, and disabling D5
+fails 19 browser-context tests. F6 is partial.
+**P2-R2-F1 (should-fix, docs):** a body timeout returns 408
+`{"detail":{"code":"request_body_timeout"}}`, not `{"error":…}`.
+Non-blocking: the parity test ignores the 1-character minimum, and the
+validator slice runs to the end of the file. Result: pass.
+
+#### Code Review #2 Revisions
+
+- **P2-R2-F1: accepted.** The docs now separate the `{"error":…}` refusals
+  from the 408 `detail` shape and tell clients to classify by status.
+- The validator slice now ends at the function's closing brace. The minimum
+  length is not pinned because a stricter desktop minimum cannot make pushes
+  fail.
+- **Verification:** 86 route tests passed, and ruff passed. Repair budget: 2 of
+  2 rounds used; Phase 2 is complete.
 
 ### Phase 3: Electron main live delivery
 

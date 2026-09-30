@@ -18,6 +18,9 @@ _HIDDEN_PREFIXES = ("/docs", "/redoc", "/openapi.json", "/api/auth")
 _UNIQUE_HEADERS = frozenset(
     {b"host", b"origin", b"sec-fetch-site", b"x-animama-csrf", b"x-animama-desktop-control", b"content-length"}
 )
+# Browsers attach these to requests for loopback URLs; Electron main's Node
+# fetch never does. A private control request carrying one came from a page.
+_BROWSER_CONTEXT_HEADERS = ("origin", "sec-fetch-site", "sec-fetch-dest")
 
 
 class _BodyFailure(MultiPartException):
@@ -138,6 +141,7 @@ class LocalHTTPAdmission:
             if (
                 scope["type"] != "http"
                 or desktop is None
+                or any(name in headers for name in _BROWSER_CONTEXT_HEADERS)
                 or not _secret_matches(headers.get("x-animama-desktop-control", ""), desktop.control_token)
             ):
                 await self._reject(scope, receive, send, 404, "not_found")

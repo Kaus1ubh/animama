@@ -96,7 +96,11 @@ WebSocket proxy or HMR endpoint here.
 
 All `/_desktop` requests need the distinct `X-Animama-Desktop-Control` secret.
 They remain usable before product readiness and during quiescence, but a
-renderer capability alone never grants control access. Self-host composition
+renderer capability alone never grants control access. A control request that
+carries `Origin`, `Sec-Fetch-Site` or `Sec-Fetch-Dest` came from a browser
+context and gets the same 404 as a wrong token. Electron main's Node `fetch`
+sends none of them; it sends `Sec-Fetch-Mode: cors`, which is allowed. No
+control response grants CORS. Self-host composition
 denies this entire prefix and mounts no quiesce control. HTTP documentation,
 OpenAPI and account-authentication paths are hidden; offline `application.openapi()` is
 preserved. New infrastructure routes are excluded from the public schema.
@@ -133,6 +137,25 @@ Repeated calls are idempotent: 200 returns
 `{"detail":{"code":"runtime_busy"}}`. A timeout or cancelled control request
 does not reopen admission or cancel active product work. Successful resumption
 requires a fresh runtime with the unchanged configuration.
+
+`PUT /_desktop/credentials` replaces the backend's
+[runtime credentials](../runtime/model-client-providers.md#connections-and-credentials)
+with Electron main's vault contents. The body must be `application/json`, at
+most 512 KiB, exactly
+`{"schema_version":1,"generation":N,"credentials":{name:value}}`, with no
+duplicate keys. Names are limited to `OPENAI_API_KEY`, `ELEVENLABS_API_KEY` and
+`ANIMAMA_CONNECTION_<ID>_API_KEY` (at most 32), and values follow the vault
+rules. Absent names are removed. Values never reach `os.environ`. A generation
+at or below the current one is refused, so a delayed older push cannot
+overwrite a newer one. Success returns `{"schema_version":1,"generation":N}`.
+Refusals return only `{"detail":{"code":…}}`: `credentials_media_type` (415),
+`credentials_too_large` (413), `credentials_invalid` (400) or
+`credentials_generation_stale` (409). Admission refusals before the route
+(404, 400, 421, and 413 for a declared oversize length) use `{"error":…}`. A
+stalled body gets 408 `{"detail":{"code":"request_body_timeout"}}`. Clients
+should classify refusals by status.
+Validation is manual, not a Pydantic model, so no error echoes input, and the
+route logs nothing about the body.
 
 HTTP work remains counted until its handler, stream and cleanup finish, even
 when a peer disconnects. Socket closure does not promise rollback of a durable
