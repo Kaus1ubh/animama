@@ -13,7 +13,7 @@
   "channel": "stable",
   "distribution_basis": {
     "commercial": false,
-    "pocket_tts_onnx_license": "CC-BY-NC-4.0"
+    "pocket_tts_onnx_license": "CC-BY-4.0"
   },
   "redistribution_review": {
     "inventory_sha256": "13f6218a5d66b5f123157b80713355c37d5b7ed72098be7ea66fe22886d3197c",

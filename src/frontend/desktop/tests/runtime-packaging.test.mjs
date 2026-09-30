@@ -87,6 +87,51 @@ function fixture() {
 }
 
 describe("desktop runtime packaging", () => {
+  it("includes bundled dependency notices without following symlinks or nested dependencies", () => {
+    const root = fixture();
+    for (const name of ["desktop", "web"]) {
+      mkdirSync(path.join(root, name));
+      writeFileSync(
+        path.join(root, name, "package.json"),
+        JSON.stringify({
+          name,
+          private: true,
+          dependencies: { vendor: "1.0.0" },
+        }),
+      );
+    }
+    const vendor = path.join(root, "node_modules/vendor");
+    mkdirSync(vendor, { recursive: true });
+    writeFileSync(
+      path.join(vendor, "package.json"),
+      JSON.stringify({ name: "vendor", version: "1.0.0", license: "MIT" }),
+    );
+    for (const name of [
+      "LICENSE",
+      "lib-vendor/d3/LICENSE",
+      "dist/bundle.js.LICENSE.txt",
+      "dist/icons/copyright.js",
+      "dist/icons/copyright.js.map",
+      "node_modules/undeclared/LICENSE",
+    ]) {
+      mkdirSync(path.dirname(path.join(vendor, name)), { recursive: true });
+      writeFileSync(path.join(vendor, name), name);
+    }
+    symlinkSync(path.join(root, "data.json"), path.join(vendor, "NOTICE.txt"));
+    symlinkSync(root, path.join(vendor, "linked"));
+    const record = javascriptLicenses(root).records.find(
+      (item) => item.name === "vendor",
+    );
+    expect(record.notices).toEqual([
+      { path: "LICENSE", text: "LICENSE" },
+      {
+        path: "dist/bundle.js.LICENSE.txt",
+        text: "dist/bundle.js.LICENSE.txt",
+      },
+      { path: "lib-vendor/d3/LICENSE", text: "lib-vendor/d3/LICENSE" },
+    ]);
+  });
+
   it("loads every checked-in static license notice", () => {
     const policy = JSON.parse(
       readFileSync(
@@ -609,7 +654,7 @@ Load command 4
       distributions,
       distribution_basis: {
         commercial: false,
-        pocket_tts_onnx_license: "CC-BY-NC-4.0",
+        pocket_tts_onnx_license: "CC-BY-4.0",
       },
       redistribution_review: {
         inventory_sha256: "a".repeat(64),
@@ -814,7 +859,7 @@ Load command 4
       channel: "stable",
       distribution_basis: {
         commercial: false,
-        pocket_tts_onnx_license: "CC-BY-NC-4.0",
+        pocket_tts_onnx_license: "CC-BY-4.0",
       },
       redistribution_review: {
         inventory_sha256: sha256(path.join(runtime, "licenses/inventory.json")),

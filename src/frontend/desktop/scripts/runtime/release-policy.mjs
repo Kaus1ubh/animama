@@ -81,7 +81,7 @@ export function validateReleasePolicy(
     Object.keys(policy.distribution_basis).sort().join(",") !==
       "commercial,pocket_tts_onnx_license" ||
     policy.distribution_basis.commercial !== false ||
-    policy.distribution_basis.pocket_tts_onnx_license !== "CC-BY-NC-4.0" ||
+    policy.distribution_basis.pocket_tts_onnx_license !== "CC-BY-4.0" ||
     !validDistributions(policy.distributions)
   )
     throw new Error(
