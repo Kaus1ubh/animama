@@ -17,10 +17,10 @@ human review; stored receipts apply only to their exact inputs.
 - [Source review inventory](../../../licenses/README.md) describes the broader
   source-publication review, which is distinct from packaged redistribution.
 
-Pocket ONNX weights, tokenizer and the 15 core voice states are CC BY 4.0, which
-permits commercial use with attribution; three states derive from CC0 recordings.
-Kyutai's model-card prohibited-use terms still apply. The 23 downloadable voices
-are installed at runtime, outside the packaged core. `runtime/release-policy.json`
+Pocket ONNX weights, tokenizer and the two core voice states are CC BY 4.0, which
+permits commercial use with attribution. Kyutai's model-card prohibited-use
+terms still apply. The 36 downloadable voices, four of which derive from CC0
+recordings, are installed at runtime, outside the packaged core. `runtime/release-policy.json`
 separately records a noncommercial distribution basis, which release validation
 requires; changing it is a separate owner decision. Per-file terms are documented
 in the code/model notices; source-code licensing does not replace model terms.
