@@ -342,6 +342,13 @@ the request-shape options `fold_developer_role`, `send_openai_extensions`,
 `send_stream_usage`, `strip_function_strict` and `reasoning_mode`. Removing a
 connection retires it and all its rows.
 
+### Web Search Settings
+
+`web_search_settings` holds at most one row (`id = 'installation'`): the
+application web search `backend` (`searxng` or `brave`), a nullable SearXNG
+`base_url`, a nullable `credential_env` (a variable name, never a key) and a
+nullable `timeout_seconds`. No row means application web search is off.
+
 ### Memory
 
 The schema stores scoped markdown memory as a hybrid tree plus cached

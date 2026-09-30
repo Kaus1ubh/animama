@@ -172,15 +172,32 @@ route so the current draft text can be sent as the first turn of a new chat.
 Catalog rows advertise `requestable_native_tool_support` and
 `supported_reasoning_efforts` for their settings menu. Users can toggle native tools, currently
 `web_search`, and choose a supported reasoning effort. Supported native tools
-are enabled by default when the active model advertises them. Empty
-`native_tools` arrays are preserved in `SettingsProvider`, so unchecking a tool
-stays unchecked instead of falling back to defaults on the next render.
+are enabled by default when the active model advertises them.
+
+Web search availability comes from `webSearchAvailability` (product-ui) using
+the row and the runtime capability `web_search`: hosted when the row lists
+`web_search` as requestable; application search when the row calls tools and
+a backend is configured with its key; otherwise a disabled Web search checkbox
+with its reason ("Set up web search in App Settings.", a model without tools,
+or a missing Brave key). Where the composition offers no web search
+configuration, rows without hosted search show no control. Available search
+starts on, including when availability changes
+while the same model stays selected (the capability loads after the catalog,
+or the owner configures or removes the backend). The request field is the same
+`native_tools: ["web_search"]` either way; the backend picks hosted or
+application search. The control does not see the per-turn reasoning effort:
+on Chat Completions `gpt-5.4` rows the backend drops search when an effort is
+sent and logs `reasoning_with_function_tools`.
+
+Empty `native_tools` arrays are preserved in `SettingsProvider`, so unchecking
+a tool stays unchecked instead of falling back to defaults on the next render.
 
 `native_tool_support` is the complete provider/model capability set and may
 also contain backend-owned tools such as memory `apply_patch`. The selector
-renders and defaults only `requestable_native_tool_support`. The request builder
-filters native-tool overrides against that list as a final defense against
-stale in-memory settings after a catalog update; internal capabilities are
+renders and defaults only `requestable_native_tool_support` plus application
+web search. The request builder filters native-tool overrides against the same
+`selectableNativeTools` list as a final defense against stale in-memory
+settings after a catalog update; internal capabilities are
 never sent through `dispatch_options.native_tools`.
 
 Changing the base model resets request-scoped model settings to that model's
@@ -298,8 +315,9 @@ chat:
   `speech`/`display` parts
 - the frontend still sends `dispatch_options.main_structured_response=true` for
   TTS-enabled turns as request intent
-- the backend validates the selected anima chat profile or request
-  `model_provider_id` against catalog support for `main_structured_response`
+- the backend requests the structured reply in the strongest form the selected
+  row supports and validates it locally; a row without a structured transport
+  still chats
 
 The backend direct model-client executor builds the schema for each request.
 

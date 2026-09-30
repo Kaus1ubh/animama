@@ -133,8 +133,10 @@ Direct chat resolves the selected row in this order:
 
 Before opening the SSE stream, setup verifies ownership and validates that the
 persisted row is an active chat row on an active connection and supports
-streaming, the canonical `main_structured_response` kind, the requested
-reasoning effort, and requested native tools. Owner rows also need a context
+streaming, the requested reasoning effort, and requested native tools other
+than `web_search` (which falls back to the application tool, or to no search,
+at turn time). Structured output is not required: a row without a schema or
+JSON-mode transport is asked for JSON by prompt and validated locally. Owner rows also need a context
 window, and Responses rows are valid only on the built-in OpenAI connection.
 Memory tools are narrowed to the row instead of failing setup: a row without
 tool calling chats without memory tools, and a row with

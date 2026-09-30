@@ -31,7 +31,8 @@ it yourself. A window recorded larger than the server serves makes the server
 reject long prompts; Animama then retries once with less history.
 
 Animama keeps every request within the recorded window. It compacts after a
-response once the conversation passes 75% of the window (or
+response once the conversation passes 75% of the available window (the window
+minus room for the reply; or
 `ANIMAMA_CHAT_COMPACTION_THRESHOLD_TOKENS`, 6,000 by default, if lower). A
 turn that still nears the window shows "Summarizing earlier conversation…"
 while the Compaction model summarizes, and the oldest messages are left out of
@@ -135,7 +136,7 @@ example when the server runs on another machine you control.
 ## Web search
 
 Tool-capable models search through one backend configured for the whole
-installation:
+installation in App Settings → Models → Web search, where Test sends one query:
 
 - **SearXNG**, a self-hosted metasearch engine. Enable its JSON output in
   `settings.yml` (`search.formats: [html, json]`); otherwise Test reports
@@ -192,7 +193,7 @@ other secrets. For a native backend, export the variable before starting it.
 | ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------- |
 | "Animama couldn't reach …"           | The server is running at the connection's base URL; under Compose on Linux, it listens beyond `127.0.0.1`.                 |
 | Test model: tool calling fails       | llama.cpp needs `--jinja`; vLLM needs `--enable-auto-tool-choice` and a parser; otherwise the model may not support tools. |
-| "The conversation is too long for …" | The served window is smaller than the conversation; raise it on the server and on the model.                               |
+| "The conversation is too long for …" | The message alone exceeds the window, or the window leaves no room after large tool results; send a shorter message or serve a larger window (and record it on the model). |
 | The first reply times out            | The model is still loading; retry, or raise the connection's timeout.                                                      |
 | Web search Test: `json_format_disabled` | Add `json` to `search.formats` in the SearXNG `settings.yml` and restart it.                                            |
 | "… has no API key configured"        | Self-hosted web: the named variable is not set in the backend's environment; restart the stack after adding it.            |

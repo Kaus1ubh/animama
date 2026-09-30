@@ -117,7 +117,8 @@ Standing rules (unchanged from Plan A):
       at 1440 px and 375 px; commit recorded below.
 - [x] Phase 5: deferred Plan A items. Review #2 pass; full
       `make check-test` 2846 passed, 7 skipped; commit recorded below.
-- [ ] Phase 6: documentation, decisions and acceptance gates.
+- [x] Phase 6: documentation, decisions and acceptance gates. Review #2
+      pass; commit recorded below (owner gates G1–G4 remain).
 - [x] Scope integration review of phases 1–3 (review #3 pass; fixes in
       `dc533f6`; full `make check-test` 2827 passed, 7 skipped).
 - [ ] Final integration review of the whole plan (after phases 4–6).
@@ -1066,7 +1067,7 @@ stack.
 
 Completion: tests pass; review has no blocker. Gate G4 before merge.
 
-Phase record: issue #213; starting source `74c4bf8`; commit —.
+Phase record: issue #213; starting source `74c4bf8`; commit `f6aebb2`.
 
 Implementation notes (agent, within scope):
 
@@ -1175,15 +1176,73 @@ link checks where available.
 
 Completion: review has no blocker.
 
-Phase record: issue #214; starting source —; commit —.
+Phase record: issue #214; starting source `f6aebb2`; commit —.
+
+Implementation notes (agent):
+
+- Most backend docs were updated with phases 1–5 (`model-client-providers.md`,
+  `local-models.md`, `http-api.md`, `runtime/chat.md`, `model-catalog.md`,
+  the feature and data-model docs). Phase 6 adds where to configure search
+  (`local-models.md`), the frontend search control and availability rules
+  (`docs/frontend/runtime/chat.md`, including the deferred P4-R1-F1 edge),
+  the settings panel (`docs/frontend/features/model-settings.md`), glossary
+  entries for pre-send compaction and application web search, the ADR 0011
+  Consequences, and the spec (Brave in R11, the deferred items and storage
+  decisions, authorization and PR links).
+- The new environment variable, `ANIMAMA_CHAT_PRESEND_COMPACTION_TIMEOUT_SECONDS`,
+  is documented in `model-client-providers.md` beside the compaction threshold.
 
 #### Code Review #1 Findings
 
-Not yet run.
+Reviewer: independent `sdlc-reviewer`, full initial review of the Phase 6 diff
+on `f6aebb2` and the combined Plan B doc set against `9cdaab5`. It checked
+every touched claim against the code, the relative links (all resolve except
+F10) and `git diff --check`.
+
+Blocking:
+
+- **P6-R1-F1** `backend/runtime/chat.md`, `adding-ai-models.md` and
+  `frontend/runtime/chat.md` still said turn setup requires
+  `main_structured_response` (and, in two, every requested native tool);
+  Phase 1 removed that check and `web_search` falls back at turn time.
+- **P6-R1-F2** The spec listed the search-result storage rule, an agent
+  decision, under the owner's 2026-09-28 decisions.
+- **P6-R1-F3** The `local-models.md` troubleshooting row blamed conversation
+  length for "too long", which pre-send compaction now handles.
+
+Optional: F4 the ADR amendment had no date or basis, and no Plan B evidence;
+F5 the ADR implied Brave's terms bind SearXNG; F6 "no control" was too broad
+(hosted rows still show it) and a paragraph ran two topics together; F7 "75%
+of the window" should be of the available window; F8 `web_search_settings`
+was undescribed in the data model; F9 `invalid_backend` cannot reach clients
+(an unknown backend is a 422); F10 a broken `#model-roles` anchor (pre-Plan
+B); F11 table alignment outside the repository's prettier scope; F12 the
+owning issue #165 does not carry the spec changes.
 
 #### Code Review #1 Revisions
 
-Not yet run.
+- **F1 accepted.** The three docs describe the current setup checks, and the
+  ADR's Plan B consequence says a chat model no longer needs JSON output.
+- **F2 accepted.** The rule moved to a separate "implementation decisions
+  recorded by the agent" list in the spec.
+- **F3 accepted.** The row names the message or a window too small for tool
+  results.
+- **F4–F10 accepted.** Dated amendment line and Plan B evidence links in ADR
+  0011; the storage reason reworded; the chat control sentence narrowed and
+  split; "available window"; a `web_search_settings` paragraph; the 422
+  wording; the anchor now `#default-models`.
+- **F11 rejected.** Docs are outside the repository's prettier scope and the
+  table renders correctly.
+- **F12 deferred** to the PR: the tracked spec snapshot carries the Plan B
+  decisions; updating issue #165 is left to the owner.
+
+#### Code Review #2 Findings
+
+Reviewer: same independent `sdlc-reviewer`, targeted recheck of repair round 1.
+Result: **pass**. F1–F10 verified against the code; all 13 touched docs'
+links and anchors resolve. Optional: "schema transport" should say "schema or
+JSON-mode transport" in the backend chat doc, and the `web_search_settings`
+paragraph deserved its own heading; both fixed. One repair round used.
 
 ## Final integration review
 

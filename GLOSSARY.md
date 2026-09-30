@@ -143,6 +143,21 @@ archive search). Utility and the Memory Manager follow the default chat model
 unless chosen; Embeddings stay off, with keyword search, until chosen. An
 Anima's own chat model is chosen per Anima, not by a role.
 
+## Pre-send compaction
+
+Summarizing earlier conversation with the Utility role before a turn is sent,
+so a model without native compaction never receives a prompt larger than its
+context window. The chat shows "Summarizing earlier conversation…" meanwhile;
+if summarizing fails, the oldest messages are left out of that request
+instead. Post-response compaction, after a reply, remains the usual path.
+
+## Application web search
+
+Web search that Animama runs itself through the installation's configured
+backend (SearXNG or the Brave Search API), offered to any model that can call
+tools as a `web_search` tool. OpenAI Responses models with hosted search use
+that instead. The per-model Web search control turns either on.
+
 ## Companion guardrail
 
 The fixed, server-owned **Companion Guardrails** instruction section that ends

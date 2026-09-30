@@ -498,7 +498,7 @@ upstream.
 ## Prompt-Only Maintenance Calls
 
 Title generation and chat compaction use `DirectModelPromptRunner`, which
-resolves the Utility [model role](../../frontend/features/model-settings.md#model-roles)
+resolves the Utility [model role](../../frontend/features/model-settings.md#default-models)
 (the App Settings choice, then `ANIMAMA_DEFAULT_UTILITY_MODEL_PROVIDER_ID`,
 then the default chat model) and invokes the same shared model-client registry.
 It sends a requested `request_options` reasoning effort only when the row

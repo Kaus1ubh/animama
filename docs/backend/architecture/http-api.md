@@ -144,8 +144,9 @@ search backend, used by tool-capable models without hosted search (see
   SearXNG needs an http(s) `base_url` and takes no key, so no key is ever
   sent to an owner-supplied URL. Brave needs a key: `managed` uses
   `ANIMAMA_CONNECTION_WEB_SEARCH_API_KEY` (the desktop vault); `env` accepts
-  that name or `BRAVE_SEARCH_API_KEY`. Invalid input returns 400 with a
-  `detail.code` (`invalid_backend`, `invalid_base_url`,
+  that name or `BRAVE_SEARCH_API_KEY`. An unknown `backend` fails request
+  validation (422). Other invalid input returns 400 with a `detail.code`
+  (`invalid_base_url`,
   `credential_required`, `credential_not_supported`, `invalid_credential_env`,
   `invalid_timeout`).
 - `DELETE /v1/web-search/settings`: 204; turns application search off.

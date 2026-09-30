@@ -98,6 +98,21 @@ accepts for that job and shows which model is in effect (`GET /v1/model-roles`).
 Embeddings shows re-embedding progress, polled while the server reports work in
 flight.
 
+## Web search
+
+Models → Web search chooses the installation's search backend, shown only when
+the runtime capability `web_search.configuration` is true (the local
+composition). Off, SearXNG (an address; its `search.formats` must include
+`json`) or Brave Search (a key). On desktop the Brave key goes to the
+encrypted vault under `ANIMAMA_CONNECTION_WEB_SEARCH_API_KEY`, which restarts
+local services; turning search off or switching to SearXNG deletes it (with a
+warning and a retry on failure). Self-hosted web names the variable instead.
+Test sends one query to the draft backend and shows a plain-language result
+category; a new desktop key must be saved before it can be tested. The note
+below the form says where queries go. Saving refreshes the runtime capability,
+so the chat picker's Web search control updates. See
+[local models](../../backend/operations/local-models.md#web-search).
+
 ## Chat model picker
 
 The chat input's picker and the Chat default list only chat models: embedding

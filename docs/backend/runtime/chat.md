@@ -54,9 +54,11 @@ source is subsequently edited.
 `model_provider_id` is an optional stable catalog selector that must match
 `model_providers.id`. When it is present, the backend validates that the row
 exists, is an active chat row (`model_kind="chat"`) on an active connection,
-supports streaming, supports the required
-`main_structured_response` kind, and supports requested reasoning effort or
-native tools before the provider is invoked. Owner-added rows also need a
+supports streaming, and supports the requested reasoning effort and any
+requested hosted native tool before the provider is invoked. Structured output
+is not required (rows without a schema or JSON-mode transport are asked for
+JSON by prompt), and `web_search` on a row without hosted search is the application
+tool, offered or left out at turn time. Owner-added rows also need a
 context window, and `OpenAIResponsesHTTPAgent` rows are valid only on the
 built-in OpenAI connection. When it is omitted, the route
 requires an explicit `anima_chat_profiles` row for the anima. Missing
