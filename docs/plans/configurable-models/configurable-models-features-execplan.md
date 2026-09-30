@@ -108,7 +108,13 @@ Standing rules (unchanged from Plan A):
       Review #2 pass; full `make check-test` 2820 passed, 7 skipped;
       `pnpm openapi-ts:check`, `pnpm check`, `web:lint` pass; commit recorded
       below.
-- [ ] Phase 4: web search settings and control (R11, frontend and desktop).
+- [x] Owner authorized phases 4–6 via `/implement` (2026-09-30); resumed in
+      the same worktree and branch at `d51ebe9`; task stack `animama-cfgm`
+      at `http://animama-cfgm.localhost:8300`.
+- [x] Phase 4: web search settings and control (R11, frontend and desktop).
+      Review #2 pass; `pnpm check`, `web:lint`, `web:test` (2362),
+      `desktop:check`, `desktop:test` (388) and `build` pass; browser check
+      at 1440 px and 375 px; commit recorded below.
 - [ ] Phase 5: deferred Plan A items.
 - [ ] Phase 6: documentation, decisions and acceptance gates.
 - [x] Scope integration review of phases 1–3 (review #3 pass; fixes in
@@ -914,15 +920,91 @@ desktop width and 375 px.
 
 Completion: tests and browser check pass; review has no blocker.
 
-Phase record: issue #212; starting source —; commit —.
+Phase record: issue #212; starting source `d51ebe9`; commit —.
+
+Implementation notes (agent, within scope):
+
+- **Availability** is one shared helper, `webSearchAvailability` in
+  `product-ui/src/lib/chat/model-provider-native-tools.ts`: hosted (the row
+  lists `web_search` as requestable), application (a tool-capable row and a
+  configured backend whose key is not `missing`), unavailable with a reason,
+  or no control where the composition offers no configuration.
+  `selectableNativeTools` adds `web_search` for application rows.
+- **The request filter** in the chat session used only
+  `requestable_native_tool_support`, which would have stripped `web_search`
+  from every application-search turn; it now filters by
+  `selectableNativeTools` with the runtime capability.
+- **Default on:** when availability changes while the same model stays
+  selected (the capability loads after the catalog, or the owner configures or
+  removes the backend), the selector adds or removes `web_search` without
+  touching the model's other options.
+- **Settings** live under App Settings → Models → Web search, hidden unless
+  `web_search.configuration`. Test needs no save except for a new desktop key,
+  which reaches the backend only after the vault apply. Turning search off,
+  or switching from Brave to SearXNG, deletes a saved desktop key.
+- **Desktop:** the vault already accepted `ANIMAMA_CONNECTION_WEB_SEARCH_API_KEY`
+  (it matches the connection key pattern); tests now cover the store, the IPC
+  batch and removal.
+- **Browser check** (task stack, stub SearXNG on the host at
+  `host.docker.internal:8899`): Test reported 3 results; the Chat Completions
+  row showed Web search on, and disabled with "Set up web search in App
+  Settings." without a backend; one Chat Completions turn sent
+  `native_tools: ["web_search"]`, ran the application tool and answered from
+  the stub's first result. Screenshots at 1440 px and 375 px were posted.
 
 #### Code Review #1 Findings
 
-Not yet run.
+Reviewer: independent `sdlc-reviewer`, full initial review of the working tree
+on `d51ebe9`. Result: **pass**, no blocking findings. It verified the search
+status wiring, the request filter, hosted rows, the hosted composition (no
+control, settings hidden), selector races (either load order, opt-outs
+survive refetches, model switches untouched), key handling (password input,
+no key to SearXNG, category-only Test copy), the single vault restart, key
+deletion, accessibility of the disabled row and the boundaries (no generated
+or backend change). Checks: 18 focused web tests, 56 desktop tests, eslint and
+prettier on the changed files.
+
+Optional:
+
+- **P4-R1-F1** A Chat Completions `gpt-5.4*` owner row with a reasoning effort
+  shows search on, but the backend drops it (`reasoning_with_function_tools`).
+- **P4-R1-F2** A failed vault save lost main's reason (for example the
+  32-key limit).
+- **P4-R1-F3** Switching from Brave to SearXNG on desktop restarts without a
+  warning, and a failed delete used model-connection wording.
+- **P4-R1-F4** The missing-key reason pointed self-hosted owners to App
+  Settings, where only the variable is named.
+- **P4-R1-F5** The timeout placeholder said 10 s; the backend default is 15 s.
+- **P4-R1-F6** No tests for the availability-change update or the save and
+  turn-off ordering. Nits: a hardcoded `"web_search"`, a duplicated `key: ""`.
 
 #### Code Review #1 Revisions
 
-Not yet run.
+- **F1 deferred.** The built-in `gpt-5.4` rows are retired, the reasoning
+  choice is per request rather than a row property, and the backend already
+  degrades gracefully with a logged reason. Documented in Phase 6.
+- **F2 accepted.** Save and delete failures show main's reason through
+  `credentialFailureMessage`.
+- **F3 accepted.** The SearXNG form warns when saving will delete the saved
+  key and restart; a search-specific delete helper offers a retry.
+- **F4 accepted.** The reason now reads "The Brave Search key is not set. See
+  Web search in App Settings.", which leads to the variable name on
+  self-hosted web.
+- **F5 accepted.** Placeholder 15.
+- **F6 partly accepted.** The update is the pure `withWebSearch`, unit-tested;
+  the save ordering mirrors `ModelConnectionForm` and was exercised in the
+  browser check, so no component test was added. Nits fixed
+  (`WEB_SEARCH_TOOL` exported and reused).
+- Checks after the repair: 16 focused web tests, `tsc`, eslint and prettier on
+  the changed files.
+
+#### Code Review #2 Findings
+
+Reviewer: same independent `sdlc-reviewer`, targeted recheck of repair round 1.
+Result: **pass**, no findings. F2–F6 verified; the success toast before the
+vault step is deliberate (the restart replaces the window, and the settings
+really are saved); error paths show main's reason or generic guidance. Checks:
+16 focused web tests, eslint, prettier, `tsc -b`. One repair round used.
 
 ### Phase 5 — Deferred Plan A items
 

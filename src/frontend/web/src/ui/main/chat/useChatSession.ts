@@ -7,6 +7,7 @@ import {
   type ChatSpeechPolicy,
 } from "@animama/product-ui/chat";
 import { useAnima } from "@/query/hooks/useAnima";
+import { useRuntimeCapabilities } from "@/query/hooks/useRuntimeCapabilities";
 import { useSettings } from "@/ui/settings/SettingsProvider";
 import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
 import { useMountedAnimaRuntimeContent } from "@/ui/app/AnimaRouteProviders";
@@ -42,6 +43,7 @@ export function useChatSession(args: UseChatSessionArgs) {
   const logger = useMemo(() => createLogger("ChatInterface"), []);
   const { data: anima } = useAnima(animaId);
   const { chatRequestOptions, effectivePreferences } = useSettings();
+  const runtimeCapabilities = useRuntimeCapabilities();
   const platform = useRuntimePlatform();
   const mountedRuntimeContent = useMountedAnimaRuntimeContent();
   const resetAvatarRuntime = useAvatarRuntimeStore(
@@ -359,5 +361,6 @@ export function useChatSession(args: UseChatSessionArgs) {
     effects,
     speech,
     dispatchOptions: chatRequestOptions,
+    webSearch: runtimeCapabilities.data?.web_search,
   });
 }

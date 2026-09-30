@@ -192,6 +192,9 @@ export const queryKeys = {
     roles: (userId: string) =>
       [...queryKeys.modelConfiguration.all(userId), "roles"] as const,
   },
+  /** The installation's application web search backend (local composition). */
+  webSearchSettings: (userId: string) =>
+    ["web-search-settings", userId] as const,
   userFiles: {
     all: (userId: string) => ["user-files", userId] as const,
     list: (userId: string) =>

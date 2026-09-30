@@ -16,6 +16,7 @@ import type {
   PyAnimaResponse,
   PyModelProviderCatalogItem,
   PyAnimaDispatchOptions,
+  WebSearchCapability,
 } from "@animama/runtime-contracts/api-types";
 import { queryKeys } from "../query/keys";
 import {
@@ -23,6 +24,7 @@ import {
   findRestorableChatModel,
 } from "../lib/chat/model-provider-compatibility";
 import { buildChatSseRequestBody } from "../lib/chat/chat-sse-request";
+import { selectableNativeTools } from "../lib/chat/model-provider-native-tools";
 import {
   currentChatClientContext,
   type ChatAiNotice,
@@ -110,6 +112,11 @@ export type UseProductChatSessionArgs = {
   effects?: ChatSessionEffects;
   speech?: ChatSpeechPolicy;
   dispatchOptions?: PyAnimaDispatchOptions | null;
+  /**
+   * The installation's application web search state; with a configured
+   * backend, tool-capable models may request `web_search`.
+   */
+  webSearch?: WebSearchCapability | null;
   animaId: string;
   routeChatId?: string | null;
   getAttachedFileIds?: () => string[];
@@ -205,6 +212,7 @@ export function useProductChatSession({
   effects = textOnlyChatEffects,
   speech = textOnlySpeechPolicy,
   dispatchOptions: chatRequestOptions,
+  webSearch = null,
   animaId,
   getAttachedFileIds,
   openDraftChatRoute,
@@ -1112,7 +1120,7 @@ export function useProductChatSession({
             attachedFileIds,
             dispatchOptions: resolvedChatRequestOptions,
             requestableNativeTools: activeModelProvider
-              ? (activeModelProvider.requestable_native_tool_support ?? [])
+              ? selectableNativeTools(activeModelProvider, webSearch)
               : undefined,
             clientContext: currentChatClientContext(),
           }),
@@ -1527,6 +1535,7 @@ export function useProductChatSession({
       activeModelProvider,
       createChat,
       chatRequestOptions,
+      webSearch,
       speech,
       capabilities.chat,
       recordUiInteraction,

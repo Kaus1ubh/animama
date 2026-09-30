@@ -736,6 +736,30 @@ describe("runtime supervision", () => {
     expect(cleanup?.env[env]).toBeUndefined();
   });
 
+  it("stores and removes the web search key under its managed name", async () => {
+    const env = "ANIMAMA_CONNECTION_WEB_SEARCH_API_KEY";
+    const current = create();
+    await current.runtime.start();
+    const lastFastapiEnv = () =>
+      fixture.launches.filter((child) => child.name === "fastapi").at(-1)?.env;
+
+    const saved = await current.runtime.changeCredentials([
+      { connection: env, value: "fixture-search-key" },
+    ]);
+    expect(
+      saved.find((status) => credentialTarget(status) === env),
+    ).toMatchObject({ configured: true, restartRequired: false });
+    expect(lastFastapiEnv()?.[env]).toBe("fixture-search-key");
+
+    const removed = await current.runtime.changeCredentials([
+      { connection: env },
+    ]);
+    expect(
+      removed.find((status) => credentialTarget(status) === env),
+    ).toBeUndefined();
+    expect(lastFastapiEnv()?.[env]).toBeUndefined();
+  });
+
   it("refuses a connection key beyond the limit without stopping services", async () => {
     const current = create();
     await current.runtime.start();
