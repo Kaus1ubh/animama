@@ -31,7 +31,7 @@ from animama.adapters.repositories.sqlalchemy.memory_entry_repo import SQLAlchem
 from animama.adapters.repositories.sqlalchemy.memory_manager_repo import SQLAlchemyMemoryManagerRepository
 from animama.adapters.repositories.sqlalchemy.model_provider_repo import SQLAlchemyModelProviderRepository
 from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
-from animama.app.model_clients.credentials import EnvironmentModelCredentialResolver
+from animama.app.model_clients.credentials import static_credential_resolver
 from animama.app.safety.prompts import SENSITIVE_MEMORY_RULE
 from animama.app.services import memory_manager_service
 from animama.app.services.anima_identity_memory import (
@@ -841,17 +841,19 @@ async def test_live_runtime_offers_turn_reading_and_own_memories_only_in_reflect
             connection_id="openai",
             capabilities=ModelProviderCapabilities(supports_tools=True, supports_streaming=True),
         ),
-        credential_resolver=EnvironmentModelCredentialResolver(openai_api_key="test-key", environ={}),
+        credential_resolver=static_credential_resolver({"OPENAI_API_KEY": "test-key"}),
         timeout_seconds=1.0,
     )
 
     async def _agent(run: MemoryManagerRun):  # noqa: ANN202
-        client = runtime._client(runtime._require_model())
+        connection, credential = runtime._require_model()
+        client = runtime._client(connection, credential)
         try:
             agent, _config = await runtime._build_agent(
                 run=run,
                 workspace=runtime._workspace_for_run(run),
                 client=client,
+                credential=credential,
                 editor=_approval_required_patch_editor(),
             )
         finally:
@@ -919,7 +921,10 @@ def test_history_positions_order_by_time_then_message_id() -> None:
 
 @pytest.mark.asyncio
 async def test_failed_reflection_changes_nothing_and_leaves_its_turns_uncovered(
-    async_session, clean_rows, monkeypatch: pytest.MonkeyPatch
+    async_session,
+    clean_rows,
+    monkeypatch: pytest.MonkeyPatch,
+    set_runtime_credentials: Any,
 ) -> None:
     user_id = f"user-{uuid.uuid4()}"
     anima_id, memories_id = await _anima(async_session, user_id=user_id)
@@ -933,7 +938,7 @@ async def test_failed_reflection_changes_nothing_and_leaves_its_turns_uncovered(
         uow=SQLAlchemyUnitOfWork(async_session),
     ).sync_from_registry()
     monkeypatch.delenv("ANIMAMA_LLM_SKIP")
-    monkeypatch.setattr("animama.server.config.settings.openai_api_key", "")
+    set_runtime_credentials()
 
     failed = await _reflect(async_session, user_id=user_id, anima_id=anima_id, auto_approve_diffs=True)
 

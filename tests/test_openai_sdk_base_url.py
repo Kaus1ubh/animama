@@ -8,7 +8,7 @@ import pytest
 
 from animama.adapters.memory_manager.openai_agents_runtime import OpenAIAgentsMemoryManagerRuntime
 from animama.adapters.model_clients.openai_chat_completions.support import resolve_openai_base_url
-from animama.app.model_clients.credentials import EnvironmentModelCredentialResolver
+from animama.app.model_clients.credentials import static_credential_resolver
 from animama.app.services.memory_entry_service import MemoryEntryService
 from animama.domain.model_provider import ModelProvider, ModelProviderCapabilities
 from animama.server.model_clients import openai_base_url
@@ -28,7 +28,7 @@ def _memory_manager_runtime(base_url: str | None) -> OpenAIAgentsMemoryManagerRu
             provider_label="OpenAI",
             capabilities=ModelProviderCapabilities(supports_tools=True, supports_streaming=True),
         ),
-        credential_resolver=EnvironmentModelCredentialResolver(openai_api_key="test-key", environ={}),
+        credential_resolver=static_credential_resolver({"OPENAI_API_KEY": "test-key"}),
         openai_base_url=base_url,
         timeout_seconds=1.0,
     )
@@ -54,7 +54,7 @@ def test_memory_manager_client_defaults_to_openai_when_env_base_url_is_empty(
     monkeypatch.setenv("OPENAI_BASE_URL", "")
     runtime = _memory_manager_runtime(configured_base_url)
 
-    client = runtime._client(runtime._require_model())
+    client = runtime._client(*runtime._require_model())
 
     assert str(client.base_url) == f"{OPENAI_DEFAULT_BASE_URL}/"
 
@@ -63,6 +63,6 @@ def test_memory_manager_client_uses_configured_base_url(monkeypatch: pytest.Monk
     monkeypatch.setenv("OPENAI_BASE_URL", "")
     runtime = _memory_manager_runtime("https://proxy.example/v1/")
 
-    client = runtime._client(runtime._require_model())
+    client = runtime._client(*runtime._require_model())
 
     assert str(client.base_url) == "https://proxy.example/v1/"

@@ -24,6 +24,7 @@ from animama.app.services.embedding_refresh_service import EmbeddingRefreshServi
 from animama.logging import get_logger
 from animama.server.embeddings import role_embedder
 from animama.server.model_roles import ModelRoleSettings
+from animama.server.runtime_credentials import runtime_credentials
 
 EMBEDDING_REFRESH_IDLE_SECONDS = 60.0
 EMBEDDING_REFRESH_MIN_BACKOFF_SECONDS = 5.0
@@ -111,14 +112,16 @@ class EmbeddingRefreshWorker:
         return progressed, failed
 
     async def _refresh_owner(self, session: AsyncSession, owner_id: str) -> int:
-        embedder = await role_embedder(session, owner_id, self._roles)
-        if embedder is None:
-            return 0
-        service = EmbeddingRefreshService(
-            store=SQLAlchemyEmbeddingRefreshRepository(session),
-            uow=SQLAlchemyUnitOfWork(session),
-        )
-        return await service.refresh_batch(owner_id=owner_id, embedder=embedder)
+        # One key for the whole batch, even if keys change while it runs.
+        with runtime_credentials.pinned():
+            embedder = await role_embedder(session, owner_id, self._roles)
+            if embedder is None:
+                return 0
+            service = EmbeddingRefreshService(
+                store=SQLAlchemyEmbeddingRefreshRepository(session),
+                uow=SQLAlchemyUnitOfWork(session),
+            )
+            return await service.refresh_batch(owner_id=owner_id, embedder=embedder)
 
     async def _run(self) -> None:
         backoff = 0.0

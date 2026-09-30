@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import os
 import time
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
@@ -29,10 +28,18 @@ from animama.app.model_clients import (
     model_client_preview_log_context,
     model_client_request_log_context,
 )
+from animama.app.model_clients.credential_store import OPENAI_CREDENTIAL_ENV
+from animama.app.model_clients.credentials import (
+    ModelCredential,
+    ModelCredentialResolver,
+    builtin_openai_connection,
+    static_credential_resolver,
+)
 from animama.domain.model_connection import BUILTIN_OPENAI_CONNECTION_ID
 from animama.logging import get_logger
 
 from .._common import close_maybe_async
+from ..openai_chat_completions.connection_sdk import KEY_FREE_PLACEHOLDER
 from ..openai_chat_completions.support import resolve_openai_base_url
 from ..openai_errors import (
     classify_openai_exception,
@@ -101,16 +108,24 @@ class OpenAIResponsesModelClient:
         self,
         *,
         api_key: str | None = None,
+        credential_resolver: ModelCredentialResolver | None = None,
         base_url: str | None = None,
         client: AsyncOpenAI | None = None,
         timeout: float | None = 60.0,
         compaction_threshold_tokens: int | None = 200_000,
         close_client: bool | None = None,
     ) -> None:
-        resolved_api_key = api_key if api_key is not None else os.getenv("OPENAI_API_KEY")
-        self._api_key = (resolved_api_key or "").strip()
+        """``credential_resolver`` supplies the built-in OpenAI key per request;
+        ``api_key`` is a fixed key used when no resolver is given. ``client`` is
+        a test hook that replaces SDK client construction."""
+
+        self._credentials = credential_resolver or static_credential_resolver(
+            {OPENAI_CREDENTIAL_ENV: api_key.strip()} if api_key and api_key.strip() else None
+        )
         self._base_url = resolve_openai_base_url(base_url)
         self._client = client
+        # A test hook client is used as given; one this adapter builds holds no key.
+        self._client_injected = client is not None
         self._timeout = timeout
         self._compaction_threshold_tokens = compaction_threshold_tokens
         self._close_client = (client is None) if close_client is None else close_client
@@ -132,7 +147,9 @@ class OpenAIResponsesModelClient:
                 code="responses_connection_unsupported",
                 raw_metadata={"connection_id": spec.model_provider.connection_id, "model": spec.model_provider.model},
             )
-        if self._client is None and not self._api_key:
+        # One key for the whole stream, including retries and continuations.
+        credential = self._credentials.resolve(builtin_openai_connection())
+        if not self._client_injected and not credential.usable:
             raise ModelClientProviderError("OpenAI API key is not configured", code="missing_api_key")
 
         metadata: dict[str, Any] = {
@@ -160,7 +177,7 @@ class OpenAIResponsesModelClient:
                     **model_client_request_log_context(spec, include_prompt_preview=True),
                     attempt=attempt,
                 )
-                stream = await self._create_stream(spec, previous_response_id=previous_id)
+                stream = await self._create_stream(spec, previous_response_id=previous_id, credential=credential)
                 _log.info(
                     "OpenAI Responses stream opened",
                     **model_client_request_log_context(spec),
@@ -350,10 +367,12 @@ class OpenAIResponsesModelClient:
             await client.close()
         self._client = None
 
-    async def _create_stream(self, spec: ModelClientRequest, *, previous_response_id: str | None) -> Any:
+    async def _create_stream(
+        self, spec: ModelClientRequest, *, previous_response_id: str | None, credential: ModelCredential
+    ) -> Any:
         """Create the OpenAI SDK Responses stream."""
 
-        client = self._client_for_spec(spec)
+        client = self._client_for_spec(spec, credential)
         kwargs = create_response_kwargs(
             spec,
             previous_response_id,
@@ -362,17 +381,16 @@ class OpenAIResponsesModelClient:
         )
         return await client.responses.create(**kwargs)
 
-    def _client_for_spec(self, spec: ModelClientRequest) -> Any:
-        """Return a shared SDK client, overriding base URL/timeout per request."""
+    def _client_for_spec(self, spec: ModelClientRequest, credential: ModelCredential) -> Any:
+        """Return a view of the shared key-free client with this request's key, base URL and timeout."""
 
-        if self._client is None:
-            self._client = AsyncOpenAI(
-                api_key=self._api_key,
-                base_url=self._base_url_for_spec(spec),
-                timeout=self._timeout,
+        if not self._client_injected:
+            if self._client is None:
+                self._client = AsyncOpenAI(api_key=KEY_FREE_PLACEHOLDER, base_url=self._base_url, timeout=self._timeout)
+                self._close_client = True
+            return self._client.with_options(
+                api_key=credential.api_key, base_url=self._base_url_for_spec(spec), timeout=self._timeout
             )
-            self._close_client = True
-            return self._client
         with_options = getattr(self._client, "with_options", None)
         if callable(with_options):
             return with_options(base_url=self._base_url_for_spec(spec), timeout=self._timeout)

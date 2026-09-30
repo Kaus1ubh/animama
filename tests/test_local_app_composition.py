@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import inspect
+import os
 from importlib import import_module
 from pathlib import Path
 from types import SimpleNamespace
@@ -18,6 +19,7 @@ from animama.runtime import cli
 from animama.server.app import create_local_app
 from animama.server.config import Settings
 from animama.server.deps import get_current_principal
+from animama.server.runtime_credentials import PinnedCredentialsMiddleware
 
 
 def test_local_app_stays_fail_closed_before_completed_bootstrap(tmp_path: Path) -> None:
@@ -98,6 +100,7 @@ def test_startup_admits_only_the_bootstrap_owner_without_gateway_assertions(
         animama_public_origin="http://127.0.0.1:12345" if desktop_cli else "http://localhost:8000",
     )
     token = "e" * 64
+    monkeypatch.setenv("ANIMAMA_CONNECTION_C1_API_KEY", "sk-connection-fixture")
     if desktop_cli:
         import uvicorn
 
@@ -115,6 +118,15 @@ def test_startup_admits_only_the_bootstrap_owner_without_gateway_assertions(
         application = applications[0]
     else:
         application = create_local_app(runtime_settings=runtime_settings)
+
+    # Every request is pinned to its credentials, outside all other middleware.
+    assert application.user_middleware[0].cls is PinnedCredentialsMiddleware  # type: ignore[comparison-overlap]
+    # Only the desktop backend, whose keys change at runtime, drops them from its environment.
+    credential_names = {"OPENAI_API_KEY", "ANIMAMA_CONNECTION_C1_API_KEY"}
+    if desktop_cli:
+        assert credential_names.isdisjoint(os.environ)
+    else:
+        assert credential_names <= set(os.environ)
 
     @application.get("/_test/principal")
     async def principal_probe(principal: Annotated[RequestPrincipal, Depends(get_current_principal)]) -> str:

@@ -28,7 +28,11 @@ from animama.app.chat.memory_tools import (
     MEMORY_TOOL_SEARCH_MEMORY_FILES,
 )
 from animama.app.model_clients import ModelClientProviderError
-from animama.app.model_clients.credentials import ModelCredentialResolver, connection_for_model_provider
+from animama.app.model_clients.credentials import (
+    ModelCredential,
+    ModelCredentialResolver,
+    connection_for_model_provider,
+)
 from animama.app.ports.anima_port import AnimaRepository
 from animama.app.ports.chat_message_port import ChatMessageRepository
 from animama.app.ports.memory_episode_port import MemoryEpisodeRepository
@@ -160,14 +164,15 @@ class OpenAIAgentsMemoryManagerRuntime:
     ) -> MemoryManagerRuntimeResult:
         """Run the live memory manager for a new user message."""
 
-        connection = self._require_model()
+        connection, credential = self._require_model()
         workspace = self._workspace_for_run(run)
-        client = self._client(connection)
+        client = self._client(connection, credential)
         try:
             agent, run_config = await self._build_agent(
                 run=run,
                 workspace=workspace,
                 client=client,
+                credential=credential,
                 editor=_approval_required_patch_editor(),
             )
             if self._uses_responses:
@@ -235,15 +240,16 @@ class OpenAIAgentsMemoryManagerRuntime:
                 metadata={"resume": "skipped_missing_state"},
             )
 
-        connection = self._require_model()
+        connection, credential = self._require_model()
         workspace = self._workspace_for_run(run)
-        client = self._client(connection)
+        client = self._client(connection, credential)
         try:
             editor = _committed_approval_patch_editor(approval=approval if decision == "approve" else None)
             agent, run_config = await self._build_agent(
                 run=run,
                 workspace=workspace,
                 client=client,
+                credential=credential,
                 editor=editor,
             )
             state = await self._runner.load_state(
@@ -323,7 +329,9 @@ class OpenAIAgentsMemoryManagerRuntime:
     def _uses_responses(self) -> bool:
         return self._model_provider is not None and self._model_provider.provider_type == OPENAI_RESPONSES_PROVIDER_TYPE
 
-    def _require_model(self) -> ModelConnection:
+    def _require_model(self) -> tuple[ModelConnection, ModelCredential]:
+        """Return the role's connection and the one key this run will use."""
+
         if self._model_provider is None:
             raise MemoryManagerRuntimeConfigurationError(
                 "No model with tool calling is available for the Memory Manager. Choose one in App Settings."
@@ -332,11 +340,12 @@ class OpenAIAgentsMemoryManagerRuntime:
             connection = connection_for_model_provider(self._model_provider)
         except ValueError as exc:
             raise MemoryManagerRuntimeConfigurationError(str(exc)) from exc
-        if not self._credentials.resolve(connection).usable:
+        credential = self._credentials.resolve(connection)
+        if not credential.usable:
             raise MemoryManagerRuntimeConfigurationError(f"No key is configured for {connection.name}.")
-        return connection
+        return connection, credential
 
-    def _client(self, connection: ModelConnection) -> AsyncOpenAI:
+    def _client(self, connection: ModelConnection, credential: ModelCredential) -> AsyncOpenAI:
         """Reach the role's connection with only its own credential."""
 
         try:
@@ -345,7 +354,7 @@ class OpenAIAgentsMemoryManagerRuntime:
             raise MemoryManagerRuntimeConfigurationError(str(exc)) from exc
         return sdk_client_for_connection(
             connection,
-            credential=self._credentials.resolve(connection),
+            credential=credential,
             base_url=base_url,
             timeout=connection_timeout(
                 connection.timeout_seconds if connection.timeout_seconds is not None else self._timeout_seconds
@@ -358,6 +367,7 @@ class OpenAIAgentsMemoryManagerRuntime:
         run: MemoryManagerRun,
         workspace: MemoryManagerVirtualWorkspace,
         client: AsyncOpenAI,
+        credential: ModelCredential,
         editor: ApplyPatchEditor,
     ) -> tuple[Agent[Any], RunConfig]:
         from agents import (
@@ -455,7 +465,7 @@ class OpenAIAgentsMemoryManagerRuntime:
             extra_args = {"prompt_cache_key": cache_key} if connection.compatibility.send_openai_extensions else None
             model_settings = ModelSettings(
                 extra_args=extra_args,
-                extra_headers=keyless_request_headers(connection, self._credentials.resolve(connection)),
+                extra_headers=keyless_request_headers(connection, credential),
             )
             tools.append(apply_patch)
         agent = Agent(

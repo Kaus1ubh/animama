@@ -146,6 +146,37 @@ except Exception as e:  # pragma: no cover - import error surfaced when running 
     raise RuntimeError("testcontainers is required to run the test suite. Install extras from requirements.txt") from e
 
 
+@pytest.fixture(autouse=True)
+def _restore_runtime_credentials() -> Iterator[None]:
+    """Give each test the process credentials, in the store and the environment, it started with.
+
+    Building the desktop composition scrubs credential names from ``os.environ``.
+    """
+
+    from animama.app.model_clients.credential_store import is_process_credential_env
+    from animama.server.runtime_credentials import runtime_credentials
+
+    previous = runtime_credentials.snapshot()
+    environment = {name: value for name, value in os.environ.items() if is_process_credential_env(name)}
+    yield
+    runtime_credentials.reset({name: previous.get(name) or "" for name in previous.names()})
+    for name in [name for name in os.environ if is_process_credential_env(name)]:
+        del os.environ[name]
+    os.environ.update(environment)
+
+
+@pytest.fixture
+def set_runtime_credentials() -> Any:
+    """Replace the process credentials for one test, e.g. ``set_runtime_credentials(ELEVENLABS_API_KEY="k")``."""
+
+    from animama.server.runtime_credentials import runtime_credentials
+
+    def install(**values: str) -> None:
+        runtime_credentials.reset(values)
+
+    return install
+
+
 @pytest.fixture(scope="session")
 def pg_container() -> Iterator[PostgresContainer]:
     """Session-scoped Postgres with pgvector image for full compatibility.

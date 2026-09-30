@@ -92,11 +92,12 @@ libraries and child processes, and FastAPI ↔ logs.
 ## Progress
 
 - [x] Plan drafted on branch `feat/live-api-keys` from `origin/main` `36a40177`.
+- [x] Workspace: worktree `worktrees/live-api-keys/animama` (sibling of the primary checkout), branch `feat/live-api-keys` pushed to `origin`, base `origin/main` `36a40177`; phase issues #222–#225 are sub-issues of #219. No Compose stack started.
 - [x] Owner approved this plan and the recommended decisions D1–D6 (2026-09-30).
-- [ ] Phase 1: backend runtime credential store and live-safe consumers.
-- [ ] Phase 2: authenticated desktop credential route.
-- [ ] Phase 3: Electron main live delivery.
-- [ ] Phase 4: renderer, setup and documentation.
+- [x] Phase 1 (#222): backend runtime credential store and live-safe consumers. Review passed (Review #2); `make check-test` 2792 passed.
+- [ ] Phase 2 (#223): authenticated desktop credential route.
+- [ ] Phase 3 (#224): Electron main live delivery.
+- [ ] Phase 4 (#225): renderer, setup and documentation.
 - [ ] Security review (`security-review` skill + `sdlc-reviewer`) and final integration review.
 - [ ] Owner gate: packaged macOS acceptance with real provider keys.
 
@@ -115,6 +116,23 @@ libraries and child processes, and FastAPI ↔ logs.
   must confirm with a captured request that undici sends neither `Origin` nor
   `Sec-Fetch-Site`/`Sec-Fetch-Dest` (it may send `Sec-Fetch-Mode`, which stays
   allowed) before enforcing the rejection.
+- 2026-09-30 (Phase 1): `ElevenLabs.__init__` takes
+  `api_key=os.getenv("ELEVENLABS_API_KEY")` as a default argument, which is
+  evaluated when the SDK is imported. Scrubbing inside `create_local_app` would
+  run too late. `animama-runtime serve` therefore scrubs before importing the
+  application, and `create_local_app` scrubs again for the desktop composition.
+- 2026-09-30 (Phase 1): `openai-agents` 0.18.0 persists an unsalted SHA-256 of
+  a per-run `RunConfig(tracing={"api_key": …})` key in serialized run state, so
+  per-run keys must not be used (P1-R1-F1). A store subscriber
+  (`follow_trace_export_key`) sets the exporter's key instead, as planned, and
+  clears it to `""` on removal.
+- 2026-09-30 (Phase 1): A new test caught a gap in the first Responses-client
+  draft. Once its shared client existed, a removed key skipped the missing-key
+  check and would have sent the placeholder. The check now depends on whether a
+  test client was injected, not on whether a client exists.
+- 2026-09-30: Backend baseline on `36a40177` (clean source): full suite passed
+  (the one failure seen in the first run was caused by edits made mid-run and
+  passes on clean source).
 - 2026-09-30: The renderer's `applyCredentialChange` and the
   `credentials:set`/`credentials:delete` IPC have no renderer callers; only
   `credentials:apply` is used.
@@ -243,7 +261,80 @@ unchanged when the store never changes.
 
 #### Code Review #1 Findings
 
+Reviewed source: uncommitted Phase 1 working tree on `feat/live-api-keys` over
+`c92d198b`. Reviewer: independent `sdlc-reviewer` agent. The checks agent ran
+`ruff check`, `ruff format --check`, mypy, the Python import-boundary check and
+the full backend suite. All passed: 2789 passed, 7 skipped.
+
+- **P1-R1-F1 (should-fix):** passing a per-run tracing key made `openai-agents`
+  0.18.0 persist `tracing_api_key_hash`, an unsalted SHA-256 of the OpenAI key,
+  in `serialized_agent_state` in Postgres for runs awaiting approval. The
+  baseline persisted no key-derived data.
+- **P1-R1-F2 (should-fix):** no test proves that `create_local_app` installs
+  `PinnedCredentialsMiddleware` or that the desktop composition, or `serve`,
+  scrubs `os.environ` while self-host does not. Deleting that wiring would pass
+  every test.
+- **P1-R1-F3 (should-fix):** the desktop composition tests scrub the test
+  session's `os.environ` and never restore it, so later tests depend on order
+  and live runs lose `OPENAI_API_KEY`.
+- **P1-R1-F4 (optional):** an embedding-refresh owner batch resolves keys per
+  embed call, so a swap in the middle of a batch can mix keys.
+- **P1-R1-F5 (optional):** three overlapping name predicates;
+  `is_process_credential_env` is exactly `is_allowed_credential_env` plus
+  ElevenLabs.
+- **P1-R1-F6 (optional):** `static_credential_resolver` builds a full store,
+  and a new `ContextVar`, per adapter.
+- **P1-R1-F7 (optional):** missing tests for key replacement in the memory
+  manager and for the registry's default resolver following the process store.
+- **P1-R1-F8 (optional, docs):** the backend docs already describe Electron main
+  replacing the store; that becomes true only in Phase 3. Re-check at final
+  integration.
+
 #### Code Review #1 Revisions
+
+- **P1-R1-F1: accepted and fixed.** Removed the per-run tracing key.
+  `server/runtime_credentials.follow_trace_export_key` subscribes the exporter
+  to the store (installed by `create_local_app`, idempotent).
+  `test_memory_manager.py` asserts `run_config.tracing is None`, and
+  `test_trace_export_key_follows_the_process_store` covers replacement and
+  removal.
+- **P1-R1-F2: accepted and fixed.**
+  `test_local_app_composition.py::test_startup_admits_only_the_bootstrap_owner…`
+  asserts that `PinnedCredentialsMiddleware` is `user_middleware[0]`, that
+  desktop `serve` removes the credential names from `os.environ`, and that
+  self-host keeps them. A mutation check (removing the middleware and the app
+  scrub) makes both cases fail.
+- **P1-R1-F3: accepted and fixed.** The autouse
+  `_restore_runtime_credentials` fixture also snapshots and restores the
+  credential names in `os.environ`.
+- **P1-R1-F4: accepted.** `EmbeddingRefreshWorker._refresh_owner` pins one
+  snapshot per owner batch.
+- **P1-R1-F5: accepted.** `is_allowed_credential_env` moved to
+  `credential_store`, `is_process_credential_env` is defined from it, and
+  `credentials.py` re-exports it.
+- **P1-R1-F6: accepted.** `FixedCredentials` (a constant snapshot) backs
+  `static_credential_resolver`, and the resolver takes any `CredentialSource`.
+- **P1-R1-F7: accepted.** Added `test_memory_manager_runs_on_a_replaced_key`
+  and `test_registry_default_resolver_follows_the_process_store`. The probe
+  builds its client from one resolution per call, which is already covered by
+  the probe tests.
+- **P1-R1-F8: deferred** to final integration. Phase 3 makes the statement true.
+- **Verification:** `make check-test` passed: ruff, format, mypy, 2792 passed,
+  7 skipped. Repair budget: 1 of 2 rounds used.
+
+#### Code Review #2 Findings
+
+Targeted recheck by an independent `sdlc-reviewer` of the same working tree
+after the revisions. F1–F7 are verified with evidence: the installed
+`agents` 0.18 serializes only a per-run key's hash; test order was checked for
+F3; targeted tests (202) and ruff, format and mypy pass. Nothing blocks.
+Non-blocking notes: one test leaves an `AsyncOpenAI` view unclosed. The desktop
+`serve` path scrubs twice, in the CLI and in the factory, and this is harmless.
+Result: pass.
+
+#### Code Review #2 Revisions
+
+No change required. Phase 1 is complete: 1 of 2 repair rounds used.
 
 ### Phase 2: Authenticated desktop credential route
 

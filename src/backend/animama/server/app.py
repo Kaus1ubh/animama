@@ -24,6 +24,11 @@ from animama.server.model_assets import close_model_asset_service, model_asset_s
 from animama.server.routers import router
 from animama.server.routers.desktop_control import require_desktop_control, router as desktop_control_router
 from animama.server.routers.model_configuration import router as model_configuration_router
+from animama.server.runtime_credentials import (
+    PinnedCredentialsMiddleware,
+    follow_trace_export_key,
+    scrub_credential_environment,
+)
 from animama.server.telemetry import setup_telemetry
 
 logger = logging.getLogger(__name__)
@@ -60,6 +65,9 @@ def create_local_app(
     application.state.model_catalog_policy = ModelCatalogPolicy(owner_models_enabled=True)
     application.include_router(model_configuration_router)
     if http_config.desktop is not None:
+        # Desktop keys change while this process runs; the runtime store is
+        # their only copy (see runtime_credentials).
+        scrub_credential_environment()
         application.include_router(desktop_control_router)
 
         @application.get("/_desktop/health", include_in_schema=False)
@@ -171,6 +179,9 @@ def create_local_app(
         assets=local_assets(local_settings),
         telemetry=local_telemetry(http_config),
     )
+    # Outermost, so everything a request runs sees the keys it was admitted with.
+    application.add_middleware(PinnedCredentialsMiddleware)
+    follow_trace_export_key()
     return application
 
 

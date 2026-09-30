@@ -23,6 +23,7 @@ from sqlalchemy import delete, select
 from animama.adapters.repositories.sqlalchemy.archive_repo import SQLAlchemyArchiveRepository
 from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
 from animama.app.model_clients import StaticModelClientRegistry
+from animama.app.model_clients.credentials import static_credential_resolver
 from animama.app.services.archive_service import ArchiveService
 from animama.app.services.chat_compaction_service import ChatCompactionSettings
 from animama.app.services.chat_title_generation_service import ChatTitleGenerationSettings
@@ -34,7 +35,6 @@ from animama.orm.chat_compactions import ORMChatCompaction
 from animama.orm.settings import ORMUserSettings
 from animama.orm.user_file import ORMUserFile
 from animama.orm.user_file_chunk import ORMUserFileChunk
-from animama.server.config import Settings, settings
 from animama.server.embedding_refresh import EmbeddingRefreshWorker
 from animama.server.embeddings import role_embedder
 from animama.server.model_clients import build_model_client_registry
@@ -138,7 +138,7 @@ class _ForbiddenClient:
 
 
 @pytest.fixture
-def local_only(monkeypatch):  # noqa: ANN001
+def local_only(monkeypatch, set_runtime_credentials):  # noqa: ANN001
     """Remove OpenAI credentials and route every SDK client to the local server."""
 
     server = _LocalModelServer()
@@ -154,7 +154,7 @@ def local_only(monkeypatch):  # noqa: ANN001
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.delenv("ANIMAMA_LLM_SKIP", raising=False)
     monkeypatch.setenv("OPENAI_BASE_URL", UNUSED_OPENAI_BASE_URL)
-    monkeypatch.setattr(settings, "openai_api_key", None)
+    set_runtime_credentials()
     return server, base_urls
 
 
@@ -253,7 +253,7 @@ async def test_local_roles_complete_every_job_without_an_openai_request(
         async_session, chat_id=compact_chat, contents=["old-user-1", "old-assistant-1", "old-user-2", "old-assistant-2"]
     )
 
-    registry = build_model_client_registry(app_settings=Settings(openai_api_key=None))
+    registry = build_model_client_registry(credential_resolver=static_credential_resolver())
     local_client = cast(Any, registry.get("OpenAIHTTPAgent"))
     sse._install_db_route_mocks(
         monkeypatch, async_session_factory, model_client=local_client, default_model_provider_id=CHAT_ROW
