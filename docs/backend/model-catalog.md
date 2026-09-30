@@ -174,10 +174,13 @@ later billing work must opt into those adjustments with the right request
 context.
 
 `gpt-6-luna` rows (both APIs) record the owner-supplied standard rates of
-$0.10 input and $0.50 output per 1M tokens, checked 2026-09-28, with no source
-URL. Its cached-input, batch, flex, priority and long-context rates are unknown
-and stored as null, so `service_tiers_supported` is `["standard"]`: other tiers
-and turns that report cached input tokens produce unpriced estimates.
+$0.10 input and $0.50 output per 1M tokens and a $0.01 cached-input rate from
+secondary sources awaiting owner confirmation, checked 2026-09-28, with no
+source URL. Its batch, flex, priority and long-context rates are unknown and
+stored as null, so `service_tiers_supported` is `["standard"]`. The catalog has
+no prompt-cache write rate: usage reporting `cache_write_tokens` (parsed from
+both APIs' input token details) produces an unpriced estimate, and those tokens
+are excluded from the uncached input count.
 
 ## Provider Types
 

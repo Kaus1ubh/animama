@@ -96,6 +96,7 @@ class SQLAlchemyMemoryManagerRepository(MemoryManagerRepository):
             task_state=dict(obj.task_state) if obj.task_state is not None else None,
             model_provider=obj.model_provider,
             model_name=obj.model_name,
+            model_provider_id=obj.model_provider_id,
             openai_previous_response_id=obj.openai_previous_response_id,
             serialized_agent_state=obj.serialized_agent_state,
             summary=obj.summary,
@@ -233,6 +234,7 @@ class SQLAlchemyMemoryManagerRepository(MemoryManagerRepository):
             task_state=dict(run.task_state) if run.task_state is not None else None,
             model_provider=run.model_provider,
             model_name=run.model_name,
+            model_provider_id=run.model_provider_id,
             openai_previous_response_id=run.openai_previous_response_id,
             serialized_agent_state=run.serialized_agent_state,
             summary=run.summary,
@@ -307,6 +309,7 @@ class SQLAlchemyMemoryManagerRepository(MemoryManagerRepository):
         obj.task_state = dict(run.task_state) if run.task_state is not None else None
         obj.model_provider = run.model_provider
         obj.model_name = run.model_name
+        obj.model_provider_id = run.model_provider_id
         obj.openai_previous_response_id = run.openai_previous_response_id
         obj.serialized_agent_state = run.serialized_agent_state
         obj.summary = run.summary

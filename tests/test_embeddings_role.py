@@ -474,6 +474,115 @@ async def test_a_rejected_text_is_isolated_but_a_batch_that_always_fails_is_retr
     assert (await service.pending(owner_id=other_owner, embedding_model_id=NEW_MODEL)).chunks == 2
 
 
+async def _refresh_until_recorded(service, owner_id: str, embedder) -> list[int | str]:  # noqa: ANN001
+    """Run passes until one succeeds, returning each failed pass's category or the handled count."""
+
+    outcomes: list[int | str] = []
+    for _ in range(5):
+        try:
+            outcomes.append(await service.refresh_batch(owner_id=owner_id, embedder=embedder))
+            return outcomes
+        except ModelClientProviderError as exc:
+            outcomes.append(model_error_category(exc.code, exc.raw_metadata))
+    return outcomes
+
+
+async def test_a_chunk_the_model_always_rejects_is_recorded_after_three_isolated_failures(async_session):
+    owner_id = f"owner-{uuid4().hex[:8]}"
+    file_id = await _owner_with_file(async_session, owner_id, chunks=[{"text": "Moon base"}, {"text": "REJECT me"}])
+    service = _refresh(async_session, batch_size=1)
+    embedder = _RejectingEmbedder("REJECT")
+    assert await service.refresh_batch(owner_id=owner_id, embedder=embedder) == 1
+
+    outcomes = await _refresh_until_recorded(service, owner_id, embedder)
+
+    # Rejected alone twice (the role reports retrying), then recorded without a vector.
+    assert outcomes == ["bad_request", "bad_request", 1]
+    assert (await service.pending(owner_id=owner_id, embedding_model_id=NEW_MODEL)).total == 0
+    rejected = (
+        await async_session.execute(
+            select(ORMUserFileChunk).where(ORMUserFileChunk.file_id == file_id, ORMUserFileChunk.chunk_index == 1)
+        )
+    ).scalar_one()
+    assert rejected.embedding is None
+    assert rejected.embedding_model_id == NEW_MODEL
+
+
+async def test_a_passage_the_model_always_rejects_is_recorded_after_three_isolated_failures(async_session):
+    owner_id = f"owner-{uuid4().hex[:8]}"
+    await _anima_archive(async_session, owner_id, [{"text": "Garden rows"}, {"text": "REJECT this"}])
+    service = _refresh(async_session, batch_size=1)
+    embedder = _RejectingEmbedder("REJECT", code="openai_unknown_failure")
+    assert await service.refresh_batch(owner_id=owner_id, embedder=embedder) == 1
+
+    outcomes = await _refresh_until_recorded(service, owner_id, embedder)
+
+    assert outcomes == ["provider_error", "provider_error", 1]
+    assert (await service.pending(owner_id=owner_id, embedding_model_id=NEW_MODEL)).total == 0
+
+
+async def test_a_rejected_chunk_is_recorded_even_before_the_model_embedded_anything(async_session):
+    # The only stale chunk must not block re-embedding (or the passages behind it).
+    owner_id = f"owner-{uuid4().hex[:8]}"
+    await _owner_with_file(async_session, owner_id, chunks=[{"text": "REJECT me"}])
+    await _anima_archive(async_session, owner_id, [{"text": "Garden rows"}])
+    service = _refresh(async_session)
+    embedder = _RejectingEmbedder("REJECT")
+
+    outcomes = await _refresh_until_recorded(service, owner_id, embedder)
+
+    assert outcomes == ["bad_request", "bad_request", 1]
+    assert await service.refresh_batch(owner_id=owner_id, embedder=embedder) == 1
+    assert (await service.pending(owner_id=owner_id, embedding_model_id=NEW_MODEL)).total == 0
+
+
+async def test_rejections_are_not_counted_while_the_model_rejects_everything(async_session):
+    # A model that refuses every text, including a known check text, is broken or
+    # misconfigured; recording would drop every vector.
+    owner_id = f"owner-{uuid4().hex[:8]}"
+    await _owner_with_file(async_session, owner_id, chunks=[{"text": "Moon base"}, {"text": "Garden rows"}])
+    service = _refresh(async_session, batch_size=1)
+    embedder = _RejectingEmbedder("")
+
+    outcomes = await _refresh_until_recorded(service, owner_id, embedder)
+
+    assert outcomes == ["bad_request"] * 5
+    assert (await service.pending(owner_id=owner_id, embedding_model_id=NEW_MODEL)).chunks == 2
+
+
+async def test_an_outage_after_progress_does_not_drop_vectors(async_session):
+    owner_id = f"owner-{uuid4().hex[:8]}"
+    await _owner_with_file(
+        async_session, owner_id, chunks=[{"text": "Moon base"}, {"text": "Garden rows"}, {"text": "Moon garden"}]
+    )
+    service = _refresh(async_session, batch_size=1)
+    assert await service.refresh_batch(owner_id=owner_id, embedder=_Embedder()) == 1
+
+    outage = _RejectingEmbedder("", code="openai_unknown_failure")
+    outcomes = await _refresh_until_recorded(service, owner_id, outage)
+
+    assert outcomes == ["provider_error"] * 5
+    assert (await service.pending(owner_id=owner_id, embedding_model_id=NEW_MODEL)).chunks == 2
+
+
+async def test_rejections_by_another_model_do_not_count_toward_recording(async_session):
+    owner_id = f"owner-{uuid4().hex[:8]}"
+    await _owner_with_file(async_session, owner_id, chunks=[{"text": "Moon base"}, {"text": "REJECT me"}])
+    service = _refresh(async_session, batch_size=1)
+    first = _RejectingEmbedder("REJECT")
+    first.model_id = OLD_MODEL
+    assert await service.refresh_batch(owner_id=owner_id, embedder=first) == 1
+    for _ in range(2):
+        with pytest.raises(ModelClientProviderError):
+            await service.refresh_batch(owner_id=owner_id, embedder=first)
+
+    second = _RejectingEmbedder("REJECT")
+    assert await service.refresh_batch(owner_id=owner_id, embedder=second) == 1
+    outcomes = await _refresh_until_recorded(service, owner_id, second)
+
+    assert outcomes == ["bad_request", "bad_request", 1]
+
+
 async def test_vectors_are_not_stored_when_the_embedded_text_changed(async_session):
     owner_id = f"owner-{uuid4().hex[:8]}"
     file_id = await _owner_with_file(

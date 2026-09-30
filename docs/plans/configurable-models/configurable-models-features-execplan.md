@@ -115,7 +115,8 @@ Standing rules (unchanged from Plan A):
       Review #2 pass; `pnpm check`, `web:lint`, `web:test` (2362),
       `desktop:check`, `desktop:test` (388) and `build` pass; browser check
       at 1440 px and 375 px; commit recorded below.
-- [ ] Phase 5: deferred Plan A items.
+- [x] Phase 5: deferred Plan A items. Review #2 pass; full
+      `make check-test` 2846 passed, 7 skipped; commit recorded below.
 - [ ] Phase 6: documentation, decisions and acceptance gates.
 - [x] Scope integration review of phases 1–3 (review #3 pass; fixes in
       `dc533f6`; full `make check-test` 2827 passed, 7 skipped).
@@ -289,6 +290,27 @@ through search results because the proxy blocked direct fetches):
   - **History is trimmed in whole turns** that start at a user message, which
     also keeps tool calls with their results and satisfies strict chat
     templates.
+- **2026-09-30 — Agent** (Phase 5 implementation; within accepted scope):
+  - **No cache-write rate columns.** The pricing data model has no cache-write
+    dimension, and the estimator has no production caller yet, so adding
+    four tiers of columns, API fields and seed columns for a secondary-source
+    rate was not justified. `cache_write_tokens` is parsed from both APIs and
+    usage reporting it is priced as unknown (`rate_unavailable`), which the
+    decision already required when the rate is unknown. The cached-input rate
+    ($0.01) is recorded; G4 still confirms it.
+  - **Rejected texts count only while the model embeds a check text.** After a
+    batch is rejected text by text, the service embeds a fixed check text with
+    no owner content; only if that succeeds are the rejections counted. A
+    model that rejects everything (misconfigured, or an outage mid-run) keeps
+    retrying instead of dropping vectors, and a lone rejected chunk no longer
+    blocks passages. Counts belong to the rejecting model and the current
+    text.
+  - **The pin follows the latest step:** new messages run on the current role
+    row and move the pin; an approval resumes on the row that proposed it. If
+    that row is unavailable (removed, hidden, no tools or no key), approving
+    returns `409` and changes nothing (the owner can restore the model or
+    reject); rejecting records the decision and ends the run without
+    resuming.
 - **2026-09-28 — Agent** (planning; implementation choices within the accepted
   scope, revisable during implementation without new product approval):
   - **Phase order:** R12 → R10 → R11. R12 changes the final-reply path that
@@ -920,7 +942,7 @@ desktop width and 375 px.
 
 Completion: tests and browser check pass; review has no blocker.
 
-Phase record: issue #212; starting source `d51ebe9`; commit —.
+Phase record: issue #212; starting source `d51ebe9`; commit `74c4bf8`.
 
 Implementation notes (agent, within scope):
 
@@ -1025,7 +1047,8 @@ fixed.
    - `user-files.md` limitation removed.
 3. **`gpt-6-luna` pricing:**
    - the cached-input rate;
-   - `cache_write_tokens` parsing and pricing, with unknown rates unpriced;
+   - `cache_write_tokens` parsing, with such usage unpriced (no cache-write
+     rate is stored; 2026-09-30 decision);
    - long-context and flex rates only after G4;
    - the catalog seed is regenerated and pricing notes updated.
 
@@ -1043,15 +1066,86 @@ stack.
 
 Completion: tests pass; review has no blocker. Gate G4 before merge.
 
-Phase record: issue #213; starting source —; commit —.
+Phase record: issue #213; starting source `74c4bf8`; commit —.
+
+Implementation notes (agent, within scope):
+
+- **Pricing:** `standard.cached_input = 0.01` for both `gpt-6-luna` rows (seed
+  regenerated); `UsageInputDetails.cache_write_tokens` is read by the Chat
+  Completions, Responses and generic normalizers and kept by `Usage.add`; the
+  estimator reports `cache_write_tokens`, excludes them from uncached input
+  and leaves such usage unpriced.
+- **Rejected text:** `user_file_chunk` and `archive_passages` gain
+  `embedding_rejections` and `embedding_rejected_model_id` (ORM and baseline).
+  When every text of a batch is rejected alone with a per-text category and a
+  fixed check text still embeds, the service counts one rejection each
+  (committed), fails the batch, and records a text without a vector at the
+  third. Storing any result, or editing a passage's text, clears the count.
+- **Pin:** `memory_manager_runs.model_provider_id` is written at run start
+  (all three run kinds) and moved to the row that ran each later step.
+  `MemoryManagerRuntime.for_run` returns the runtime on the pinned row, found
+  through the model provider repository and checked with `usable_for_role`
+  and its key; the service calls it before applying a decision.
+- **Docs:** the two limitations were removed; the pin, the rejection count
+  and the pricing notes are described in the feature, data-model, catalog and
+  adding-models docs.
 
 #### Code Review #1 Findings
 
-Not yet run.
+Reviewer: independent `sdlc-reviewer`, full initial review of the working tree
+on `74c4bf8` (including later import-order and mypy fixes). `make check-test`
+passed (2841 passed, 7 skipped). It verified schema parity and the fingerprint,
+commit and rollback behavior on every new path, runs without a pin, the
+`copy` semantics, import boundaries, the pricing math and the seed.
+
+Blocking:
+
+- **P5-R1-F1** The pin was written only at run start, so after a mid-run role
+  switch an approval proposed by the new row resumed on the old one (or
+  returned `409` when the old one was gone). A regression.
+- **P5-R1-F2** "The model has embedded something" was the wrong liveness
+  signal: a lone rejected chunk with no vectors yet starved the passages
+  behind it, and an outage after progress recorded the whole remaining corpus
+  without vectors (confirmed with an in-memory probe). The docs overstated the
+  protection.
+
+Optional: F3 `for_run` did not check the pinned row's key, so a missing key
+still failed after the approved write committed; F4 an edited passage kept its
+rejection count; F5 the cache-write deviation is acceptable, but the Phase 5
+requirement and G4 text still named a cache-write rate, and the persisted-usage
+mappers drop `cache_write_tokens`; F6 no service test showed a decision
+resuming through `for_run`'s runtime, nor a mid-run switch.
 
 #### Code Review #1 Revisions
 
-Not yet run.
+- **F1 accepted.** `_persist_runtime_result` moves the pin to the row that ran
+  each step (from the runtime's `model_provider_id` metadata). Test
+  `test_the_pin_follows_the_model_that_ran_the_latest_message`.
+- **F2 accepted.** The `has_current_vectors` guard was removed; rejections
+  count only when a fixed check text (no owner content) still embeds. Tests
+  for a lone chunk with no vectors (recorded after three passes, then the
+  passage embeds), a model that rejects everything, and an outage after
+  progress (nothing recorded). Docs corrected.
+- **F3 accepted.** `for_run` calls `_require_model()` on the pinned copy and
+  maps a configuration error to the pinned-model error. Test added.
+- **F4 accepted.** Editing a passage's text clears its rejection count.
+- **F5 accepted (text).** The Phase 5 requirement and G4 now match the
+  2026-09-30 decision. The mappers that drop `cache_write_tokens` from stored
+  usage are **deferred**: nothing prices stored usage, and storing it needs
+  new usage columns; the estimator docs say such usage is unpriced.
+- **F6 accepted.** `test_a_decision_resumes_on_the_runtime_for_the_run`; the
+  port docstring was added. `_RecordRejections` stays a `Callable[...]` alias
+  (both repository methods share keyword-only parameters).
+
+#### Code Review #2 Findings
+
+Reviewer: same independent `sdlc-reviewer`, targeted recheck of repair round 1.
+Result: **pass**. F1–F4 and F6 verified, F5 text verified; the reviewer re-ran
+its in-memory probe (a lone rejected chunk is recorded after three failures
+and the passages then embed; an outage after progress records nothing).
+`make check-test`: 2846 passed, 7 skipped. Optional: an unused `owner_id`
+parameter left in `_embed_batch`, and an over-long G4 line; both fixed. One
+repair round used.
 
 ### Phase 6 — Documentation, decisions and acceptance
 
@@ -1220,10 +1314,11 @@ Owner gates:
 - **G3 — Fallback, optional.** On a model saved with structured output "None",
   complete turns and observe either emotions or the neutral plain-text
   fallback.
-- **G4 — Pricing confirmation.** Confirm the `gpt-6-luna` cached-input
-  ($0.01) and cache-write ($0.125) rates, and any long-context threshold and
-  rates, from OpenAI's official pricing page. The agent's proxy could not
-  reach it.
+- **G4 — Pricing confirmation.** Confirm the `gpt-6-luna` cached-input rate
+  ($0.01) from OpenAI's official pricing page, whether it reports cache writes
+  on most turns (they stay unpriced until a cache-write rate is stored; the
+  secondary sources gave $0.125), and any long-context threshold and rates.
+  The agent's proxy could not reach the page.
 - **Brave attribution.** Brave's free credit asks the key holder to credit
   Brave Search. Owner choice: whether the About page should say "Web search by
   Brave Search when configured". This does not block the plan.

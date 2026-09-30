@@ -18,6 +18,7 @@ def usage_from_chat_completion_usage(value: CompletionUsage | None) -> Usage:
         input_tokens_details=UsageInputDetails(
             cached_tokens=_optional_int(getattr(prompt_details, "cached_tokens", None)),
             audio_tokens=_optional_int(getattr(prompt_details, "audio_tokens", None)),
+            cache_write_tokens=_optional_int(getattr(prompt_details, "cache_write_tokens", None)),
         ),
         output_tokens_details=UsageOutputDetails(
             reasoning_tokens=_optional_int(getattr(completion_details, "reasoning_tokens", None)),

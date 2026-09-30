@@ -44,6 +44,7 @@ class DeterministicMemoryManagerRuntime:
     """Draft approvals without model calls for tests and local LLM-skip mode."""
 
     name = "deterministic_test"
+    model_provider_id: str | None = None
 
     def __init__(
         self,
@@ -60,6 +61,12 @@ class DeterministicMemoryManagerRuntime:
         self._animas = animas
         self._chat_messages = chat_messages
         self._workspace = MemoryManagerVirtualWorkspace(user_id=user_id, memory_entries=memory_entries)
+
+    async def for_run(self, run: MemoryManagerRun) -> DeterministicMemoryManagerRuntime:
+        """Every run resumes on this model-free runtime."""
+
+        del run
+        return self
 
     def _workspace_for(self, run: MemoryManagerRun) -> MemoryManagerVirtualWorkspace:
         """Use the run's file scope, matching the live runtime."""

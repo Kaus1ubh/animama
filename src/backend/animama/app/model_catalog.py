@@ -62,9 +62,10 @@ OPENAI_GPT_6_LUNA_PRICING: dict[str, Any] = {
     "source_checked_at": GPT_6_PRICING_SOURCE_CHECKED_AT,
     "currency": "USD",
     "billing_unit": "1M_tokens",
-    # The cached-input rate is unknown, so turns that report cached tokens stay
-    # unpriced instead of charging them at zero.
-    "standard": {"input": "0.10", "cached_input": None, "output": "0.50"},
+    # The cached-input rate is 10% of input (secondary sources, 2026-09-28;
+    # owner gate G4 confirms it). No prompt-cache write rate is stored, so
+    # turns that report cache writes stay unpriced.
+    "standard": {"input": "0.10", "cached_input": "0.01", "output": "0.50"},
     # Batch, flex, priority and long-context rates are unknown; those tiers are
     # not listed as priced, so estimates for them stay unpriced.
     "batch": None,
@@ -72,7 +73,8 @@ OPENAI_GPT_6_LUNA_PRICING: dict[str, Any] = {
     "priority": None,
     "pricing_notes": [
         "Standard input and output rates were supplied by the owner on 2026-09-28.",
-        "Cached-input, batch, flex, priority and long-context rates are unknown and are not estimated.",
+        "The cached-input rate ($0.01 per 1M tokens) comes from secondary sources and awaits owner confirmation.",
+        "Prompt-cache write, batch, flex, priority and long-context rates are not recorded and are not estimated.",
     ],
 }
 

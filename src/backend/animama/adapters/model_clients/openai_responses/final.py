@@ -266,7 +266,9 @@ def usage_from_openai_responses(value: ResponseUsage | None) -> Usage:
         output_tokens=optional_int(value.output_tokens if value is not None else None),
         total_tokens=optional_int(value.total_tokens if value is not None else None),
         input_tokens_details=UsageInputDetails(
-            cached_tokens=optional_int(input_details.cached_tokens if input_details is not None else None)
+            cached_tokens=optional_int(input_details.cached_tokens if input_details is not None else None),
+            # Newer models report prompt-cache writes; the SDK keeps the extra field.
+            cache_write_tokens=optional_int(getattr(input_details, "cache_write_tokens", None)),
         ),
         output_tokens_details=UsageOutputDetails(
             reasoning_tokens=optional_int(output_details.reasoning_tokens if output_details is not None else None)

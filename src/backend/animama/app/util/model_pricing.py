@@ -55,6 +55,7 @@ class ModelTokenCost:
     billing_unit: str | None
     input_tokens: int
     cached_input_tokens: int
+    cache_write_tokens: int
     uncached_input_tokens: int
     output_tokens: int
     output_reasoning_tokens: int
@@ -77,17 +78,33 @@ def _non_negative_int(value: int | None) -> int:
     return max(0, int(value or 0))
 
 
-def _usage_counts(usage: Usage | None) -> tuple[int, int, int, int, int]:
+@dataclass(frozen=True, slots=True)
+class _UsageCounts:
+    input_tokens: int = 0
+    cached_input_tokens: int = 0
+    cache_write_tokens: int = 0
+    uncached_input_tokens: int = 0
+    output_tokens: int = 0
+    output_reasoning_tokens: int = 0
+
+
+def _usage_counts(usage: Usage | None) -> _UsageCounts:
     if usage is None:
-        return 0, 0, 0, 0, 0
+        return _UsageCounts()
+    input_details = getattr(usage, "input_tokens_details", None)
     input_tokens = _non_negative_int(getattr(usage, "input_tokens", 0))
-    cached_input_tokens = _non_negative_int(getattr(getattr(usage, "input_tokens_details", None), "cached_tokens", 0))
-    uncached_input_tokens = max(input_tokens - cached_input_tokens, 0)
-    output_tokens = _non_negative_int(getattr(usage, "output_tokens", 0))
-    output_reasoning_tokens = _non_negative_int(
-        getattr(getattr(usage, "output_tokens_details", None), "reasoning_tokens", 0)
+    cached_input_tokens = _non_negative_int(getattr(input_details, "cached_tokens", 0))
+    cache_write_tokens = _non_negative_int(getattr(input_details, "cache_write_tokens", 0))
+    return _UsageCounts(
+        input_tokens=input_tokens,
+        cached_input_tokens=cached_input_tokens,
+        cache_write_tokens=cache_write_tokens,
+        uncached_input_tokens=max(input_tokens - cached_input_tokens - cache_write_tokens, 0),
+        output_tokens=_non_negative_int(getattr(usage, "output_tokens", 0)),
+        output_reasoning_tokens=_non_negative_int(
+            getattr(getattr(usage, "output_tokens_details", None), "reasoning_tokens", 0)
+        ),
     )
-    return input_tokens, cached_input_tokens, uncached_input_tokens, output_tokens, output_reasoning_tokens
 
 
 def _prices_for_tier(
@@ -115,9 +132,7 @@ def _unpriced(
     cached_input_price_per_million: Decimal | None = None,
     output_price_per_million: Decimal | None = None,
 ) -> ModelTokenCost:
-    input_tokens, cached_input_tokens, uncached_input_tokens, output_tokens, output_reasoning_tokens = _usage_counts(
-        usage
-    )
+    counts = _usage_counts(usage)
     return ModelTokenCost(
         model_provider_id=model_provider.id,
         provider_type=model_provider.provider_type,
@@ -127,11 +142,12 @@ def _unpriced(
         unpriced_reason=reason,
         currency=model_provider.pricing.currency,
         billing_unit=model_provider.pricing.billing_unit,
-        input_tokens=input_tokens,
-        cached_input_tokens=cached_input_tokens,
-        uncached_input_tokens=uncached_input_tokens,
-        output_tokens=output_tokens,
-        output_reasoning_tokens=output_reasoning_tokens,
+        input_tokens=counts.input_tokens,
+        cached_input_tokens=counts.cached_input_tokens,
+        cache_write_tokens=counts.cache_write_tokens,
+        uncached_input_tokens=counts.uncached_input_tokens,
+        output_tokens=counts.output_tokens,
+        output_reasoning_tokens=counts.output_reasoning_tokens,
         input_price_per_million=input_price_per_million,
         cached_input_price_per_million=cached_input_price_per_million,
         output_price_per_million=output_price_per_million,
@@ -152,16 +168,16 @@ def estimate_model_token_cost(
     """Estimate model token cost from provider usage and catalog pricing.
 
     Cached input tokens are charged at the cached-input rate. The uncached input
-    token count is `max(input_tokens - cached_input_tokens, 0)`. Output
-    reasoning tokens are included in `output_tokens` and are not priced
-    separately.
+    token count is `max(input_tokens - cached_input_tokens - cache_write_tokens, 0)`.
+    The catalog stores no prompt-cache write rate, so usage that reports cache
+    writes is unpriced (`rate_unavailable`) rather than charged at the input
+    rate or zero. Output reasoning tokens are included in `output_tokens` and
+    are not priced separately.
     """
 
     service_tier = _normalize_service_tier(service_tier)
     pricing = model_provider.pricing
-    input_tokens, cached_input_tokens, uncached_input_tokens, output_tokens, output_reasoning_tokens = _usage_counts(
-        usage
-    )
+    counts = _usage_counts(usage)
     input_price, cached_input_price, output_price = _prices_for_tier(pricing, service_tier)
 
     if str(pricing.pricing_status or "").lower() != "priced":
@@ -205,9 +221,10 @@ def estimate_model_token_cost(
             output_price_per_million=output_price,
         )
     if (
-        (uncached_input_tokens > 0 and input_price is None)
-        or (cached_input_tokens > 0 and cached_input_price is None)
-        or (output_tokens > 0 and output_price is None)
+        (counts.uncached_input_tokens > 0 and input_price is None)
+        or (counts.cached_input_tokens > 0 and cached_input_price is None)
+        or counts.cache_write_tokens > 0
+        or (counts.output_tokens > 0 and output_price is None)
     ):
         return _unpriced(
             model_provider=model_provider,
@@ -219,10 +236,10 @@ def estimate_model_token_cost(
             output_price_per_million=output_price,
         )
 
-    uncached_input_cost = Decimal(uncached_input_tokens) * (input_price or Decimal(0)) / _ONE_MILLION
-    cached_input_cost = Decimal(cached_input_tokens) * (cached_input_price or Decimal(0)) / _ONE_MILLION
+    uncached_input_cost = Decimal(counts.uncached_input_tokens) * (input_price or Decimal(0)) / _ONE_MILLION
+    cached_input_cost = Decimal(counts.cached_input_tokens) * (cached_input_price or Decimal(0)) / _ONE_MILLION
     input_cost = uncached_input_cost + cached_input_cost
-    output_cost = Decimal(output_tokens) * (output_price or Decimal(0)) / _ONE_MILLION
+    output_cost = Decimal(counts.output_tokens) * (output_price or Decimal(0)) / _ONE_MILLION
 
     return ModelTokenCost(
         model_provider_id=model_provider.id,
@@ -233,11 +250,12 @@ def estimate_model_token_cost(
         unpriced_reason=None,
         currency=pricing.currency,
         billing_unit=pricing.billing_unit,
-        input_tokens=input_tokens,
-        cached_input_tokens=cached_input_tokens,
-        uncached_input_tokens=uncached_input_tokens,
-        output_tokens=output_tokens,
-        output_reasoning_tokens=output_reasoning_tokens,
+        input_tokens=counts.input_tokens,
+        cached_input_tokens=counts.cached_input_tokens,
+        cache_write_tokens=counts.cache_write_tokens,
+        uncached_input_tokens=counts.uncached_input_tokens,
+        output_tokens=counts.output_tokens,
+        output_reasoning_tokens=counts.output_reasoning_tokens,
         input_price_per_million=input_price,
         cached_input_price_per_million=cached_input_price,
         output_price_per_million=output_price,

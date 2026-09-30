@@ -342,7 +342,8 @@ pricing, and every owner row, are stored as `unpriced`.
 The current model supports input, cached-input, and output prices for standard,
 batch, flex, and priority tiers, plus corresponding long-context rates and a
 long-context token threshold. It does not have separate cache-write price
-columns or a distinct Fast-mode name. When a provider rate card cannot be
+columns or a distinct Fast-mode name; usage that reports `cache_write_tokens`
+is therefore estimated as unpriced. When a provider rate card cannot be
 represented faithfully, either:
 
 - mark the missing dimension in `pricing_notes` and document the estimate's

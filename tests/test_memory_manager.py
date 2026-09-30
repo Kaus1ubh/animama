@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import uuid
+from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 from types import SimpleNamespace
 from typing import Any, TypeVar, cast
@@ -33,13 +34,15 @@ from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
 from animama.app.model_clients.credentials import EnvironmentModelCredentialResolver
 from animama.app.ports.memory_manager_port import MemoryManagerRepositoryConflictError
 from animama.app.ports.memory_manager_runtime import (
+    MemoryManagerPinnedModelUnavailableError,
     MemoryManagerRuntimeConfigurationError,
     MemoryManagerRuntimeError,
     MemoryManagerRuntimeResult,
 )
+from animama.app.ports.model_provider_port import ModelProviderRepository
 from animama.app.services.memory_entry_service import MemoryEntryNotFoundError, MemoryEntryService
 from animama.app.services.memory_episode_service import MemoryEpisodeService
-from animama.app.services.memory_manager_service import MemoryManagerService
+from animama.app.services.memory_manager_service import MemoryManagerConflictError, MemoryManagerService
 from animama.app.services.model_provider_catalog_service import ModelProviderCatalogService
 from animama.domain import ModelConnection, ModelProvider, ModelProviderCapabilities
 from animama.domain.memory_episode import (
@@ -827,6 +830,11 @@ class _ChainedAutoApprovalRuntime:
     """Produces one new patch after each approval to exercise the backend loop."""
 
     name = "chained_auto_approval_test"
+    model_provider_id: str | None = None
+
+    async def for_run(self, run: MemoryManagerRun):  # noqa: ANN201
+        del run
+        return self
 
     def __init__(self, *, user_id: str, memory_entries: MemoryEntryService, total: int) -> None:
         self._workspace = MemoryManagerVirtualWorkspace(
@@ -897,6 +905,11 @@ class _MissingApprovalStateRuntime(_ChainedAutoApprovalRuntime):
 
 class _TerminalMemoryManagerRuntime:
     name = "terminal_test"
+    model_provider_id: str | None = None
+
+    async def for_run(self, run: MemoryManagerRun):  # noqa: ANN201
+        del run
+        return self
 
     async def run_user_message(
         self,
@@ -2796,6 +2809,11 @@ async def test_memory_manager_approval_resume_uses_only_serialized_state_and_adv
 
 class _FailingMemoryManagerRuntime:
     name = "failing_test"
+    model_provider_id: str | None = None
+
+    async def for_run(self, run: MemoryManagerRun):  # noqa: ANN201
+        del run
+        return self
 
     async def run_user_message(
         self,
@@ -3101,3 +3119,238 @@ async def test_responses_manager_replays_the_run_when_it_has_no_cursor(
 
     assert seen["input_value"] == [{"role": "user", "content": "My cat."}, {"role": "user", "content": "Mochi."}]
     assert seen["previous_response_id"] is None
+
+
+class _PinnedTerminalRuntime(_TerminalMemoryManagerRuntime):
+    model_provider_id = "OpenAIHTTPAgent:local-manager"
+
+
+@pytest.mark.asyncio
+async def test_runs_record_the_model_that_started_them(async_session, clean_memory_manager_rows) -> None:
+    user_id = f"user-{uuid.uuid4()}"
+    repository = SQLAlchemyMemoryManagerRepository(async_session)
+    service = MemoryManagerService(
+        memory_manager=repository,
+        memory_entries=_memory_entry_service(async_session),
+        runtime=_PinnedTerminalRuntime(),
+        uow=SQLAlchemyUnitOfWork(async_session),
+    )
+
+    created = await service.create_run(user_id=user_id, initial_message="Review my memory.")
+
+    assert created.run.model_provider_id == "OpenAIHTTPAgent:local-manager"
+    stored = _required(await repository.get_run(user_id=user_id, run_id=created.run.id))
+    assert stored.model_provider_id == "OpenAIHTTPAgent:local-manager"
+
+
+class _PinnedModelGoneRuntime(_ChainedAutoApprovalRuntime):
+    """Proposes one change, then its pinned model disappears before the decision."""
+
+    name = "pinned_model_gone_test"
+    model_provider_id = "OpenAIHTTPAgent:removed-manager"
+
+    def __init__(self, **kwargs) -> None:  # noqa: ANN003
+        super().__init__(**kwargs)
+        self.gone = False
+        self.resumed = False
+
+    async def for_run(self, run: MemoryManagerRun):  # noqa: ANN201
+        if self.gone and run.model_provider_id == self.model_provider_id:
+            raise MemoryManagerPinnedModelUnavailableError()
+        return self
+
+    async def resume_approval_decision(self, **kwargs) -> MemoryManagerRuntimeResult:  # noqa: ANN003
+        self.resumed = True
+        return await super().resume_approval_decision(**kwargs)
+
+
+async def _pending_pinned_approval(async_session):  # noqa: ANN001, ANN202
+    user_id = f"user-{uuid.uuid4()}"
+    memory_entries = _memory_entry_service(async_session)
+    runtime = _PinnedModelGoneRuntime(user_id=user_id, memory_entries=memory_entries, total=1)
+    service = MemoryManagerService(
+        memory_manager=SQLAlchemyMemoryManagerRepository(async_session),
+        memory_entries=memory_entries,
+        runtime=runtime,
+        uow=SQLAlchemyUnitOfWork(async_session),
+    )
+    snapshot = await service.create_run(user_id=user_id, initial_message="Add a note.")
+    runtime.gone = True
+    return user_id, service, runtime, memory_entries, snapshot.approvals[0]
+
+
+@pytest.mark.asyncio
+async def test_approving_after_the_pinned_model_is_removed_changes_nothing(
+    async_session, clean_memory_manager_rows
+) -> None:
+    user_id, service, runtime, memory_entries, approval = await _pending_pinned_approval(async_session)
+
+    with pytest.raises(MemoryManagerConflictError, match="no longer available"):
+        await service.decide_approval(user_id=user_id, approval_id=approval.id, decision="approve")
+
+    snapshot = await service.get_run_snapshot(user_id=user_id, run_id=approval.run_id)
+    assert [item.status for item in snapshot.approvals] == ["pending"]
+    assert snapshot.run.status == "waiting_approval"
+    with pytest.raises(MemoryEntryNotFoundError):
+        await memory_entries.get_entry_by_path(user_id=user_id, path=approval.target_path)
+    assert runtime.resumed is False
+
+
+@pytest.mark.asyncio
+async def test_rejecting_after_the_pinned_model_is_removed_ends_the_review(
+    async_session, clean_memory_manager_rows
+) -> None:
+    user_id, service, runtime, _memory_entries, approval = await _pending_pinned_approval(async_session)
+
+    decided = await service.decide_approval(user_id=user_id, approval_id=approval.id, decision="reject")
+
+    assert decided.status == "rejected"
+    snapshot = await service.get_run_snapshot(user_id=user_id, run_id=approval.run_id)
+    assert snapshot.run.status == "failed"
+    assert "no longer available" in (snapshot.run.error or "")
+    assert runtime.resumed is False
+
+
+class _ModelProviders:
+    def __init__(self, *rows: ModelProvider) -> None:
+        self._rows = {row.id: row for row in rows}
+
+    async def get(self, model_provider_id: str) -> ModelProvider | None:
+        return self._rows.get(model_provider_id)
+
+
+def _pinned_runtime(user_id: str, async_session, role_row: ModelProvider, *rows: ModelProvider):  # noqa: ANN001, ANN202
+    return OpenAIAgentsMemoryManagerRuntime(
+        user_id=user_id,
+        memory_entries=_memory_entry_service(async_session),
+        model_provider=role_row,
+        model_providers=cast(ModelProviderRepository, _ModelProviders(role_row, *rows)),
+        credential_resolver=_manager_credentials(),
+        timeout_seconds=1.0,
+    )
+
+
+@pytest.mark.asyncio
+async def test_a_resume_after_a_role_switch_uses_the_pinned_model(async_session) -> None:
+    user_id = f"user-{uuid.uuid4()}"
+    pinned = _manager_model("gpt-5.4-mini")
+    runtime = _pinned_runtime(user_id, async_session, _manager_model("gpt-6-luna"), pinned)
+    run = MemoryManagerRun(
+        id=new_memory_manager_run_id(), user_id=user_id, status="waiting_approval", model_provider_id=pinned.id
+    )
+
+    resumed = await runtime.for_run(run)
+
+    assert resumed.model_provider_id == pinned.id
+    assert runtime.model_provider_id == "OpenAIResponsesHTTPAgent:gpt-6-luna"
+    unpinned = MemoryManagerRun(id=new_memory_manager_run_id(), user_id=user_id, status="waiting_approval")
+    assert await runtime.for_run(unpinned) is runtime
+
+
+@pytest.mark.asyncio
+async def test_a_removed_or_unsuitable_pinned_model_is_reported(async_session) -> None:
+    user_id = f"user-{uuid.uuid4()}"
+    without_tools = replace(_manager_model("small-model"), capabilities=ModelProviderCapabilities(supports_tools=False))
+    runtime = _pinned_runtime(user_id, async_session, _manager_model("gpt-6-luna"), without_tools)
+
+    for pinned_id in ("OpenAIResponsesHTTPAgent:removed", without_tools.id):
+        run = MemoryManagerRun(
+            id=new_memory_manager_run_id(), user_id=user_id, status="waiting_approval", model_provider_id=pinned_id
+        )
+        with pytest.raises(MemoryManagerPinnedModelUnavailableError):
+            await runtime.for_run(run)
+
+
+class _RowReportingRuntime(_TerminalMemoryManagerRuntime):
+    """Reports the row that ran each message, as the live runtime does."""
+
+    def __init__(self, row: str) -> None:
+        self.row = row
+
+    @property
+    def model_provider_id(self) -> str | None:  # type: ignore[override]
+        return self.row
+
+    async def run_user_message(self, **kwargs) -> MemoryManagerRuntimeResult:  # noqa: ANN003
+        result = await super().run_user_message(**kwargs)
+        result.metadata = {"model_provider_id": self.row}
+        return result
+
+
+@pytest.mark.asyncio
+async def test_the_pin_follows_the_model_that_ran_the_latest_message(async_session, clean_memory_manager_rows) -> None:
+    user_id = f"user-{uuid.uuid4()}"
+    runtime = _RowReportingRuntime("OpenAIHTTPAgent:first")
+    service = MemoryManagerService(
+        memory_manager=SQLAlchemyMemoryManagerRepository(async_session),
+        memory_entries=_memory_entry_service(async_session),
+        runtime=runtime,
+        uow=SQLAlchemyUnitOfWork(async_session),
+    )
+    created = await service.create_run(user_id=user_id, initial_message="Review my memory.")
+    assert created.run.model_provider_id == "OpenAIHTTPAgent:first"
+
+    # The owner switches the role mid-run; the next proposal comes from the new row.
+    runtime.row = "OpenAIHTTPAgent:second"
+    snapshot = await service.append_user_message(user_id=user_id, run_id=created.run.id, content="And now?")
+
+    assert snapshot.run.model_provider_id == "OpenAIHTTPAgent:second"
+
+
+class _ResumeElsewhereRuntime(_ChainedAutoApprovalRuntime):
+    """Hands resumes to a separate runtime, as the live runtime does for a pinned row."""
+
+    name = "resume_elsewhere_test"
+
+    def __init__(self, **kwargs) -> None:  # noqa: ANN003
+        super().__init__(**kwargs)
+        self.resumer: _ResumeElsewhereRuntime | None = None
+        self.resumed = False
+
+    async def for_run(self, run: MemoryManagerRun):  # noqa: ANN201
+        del run
+        return self.resumer or self
+
+    async def resume_approval_decision(self, **kwargs) -> MemoryManagerRuntimeResult:  # noqa: ANN003
+        self.resumed = True
+        return await super().resume_approval_decision(**kwargs)
+
+
+@pytest.mark.asyncio
+async def test_a_decision_resumes_on_the_runtime_for_the_run(async_session, clean_memory_manager_rows) -> None:
+    user_id = f"user-{uuid.uuid4()}"
+    memory_entries = _memory_entry_service(async_session)
+    runtime = _ResumeElsewhereRuntime(user_id=user_id, memory_entries=memory_entries, total=1)
+    runtime.resumer = _ResumeElsewhereRuntime(user_id=user_id, memory_entries=memory_entries, total=1)
+    service = MemoryManagerService(
+        memory_manager=SQLAlchemyMemoryManagerRepository(async_session),
+        memory_entries=memory_entries,
+        runtime=runtime,
+        uow=SQLAlchemyUnitOfWork(async_session),
+    )
+    snapshot = await service.create_run(user_id=user_id, initial_message="Add a note.")
+
+    await service.decide_approval(user_id=user_id, approval_id=snapshot.approvals[0].id, decision="approve")
+
+    assert runtime.resumer.resumed is True
+    assert runtime.resumed is False
+
+
+@pytest.mark.asyncio
+async def test_a_pinned_model_without_its_key_is_reported_before_the_decision(async_session) -> None:
+    user_id = f"user-{uuid.uuid4()}"
+    connection = ModelConnection(
+        id="conn-keyed-manager",
+        name="Keyed server",
+        preset="custom",
+        base_url="https://models.example/v1",
+        credential_env="ANIMAMA_CONNECTION_CONN_KEYED_MANAGER_API_KEY",
+    )
+    pinned = _manager_model("keyed-model", provider_type="OpenAIHTTPAgent", connection=connection)
+    runtime = _pinned_runtime(user_id, async_session, _manager_model("gpt-6-luna"), pinned)
+    run = MemoryManagerRun(
+        id=new_memory_manager_run_id(), user_id=user_id, status="waiting_approval", model_provider_id=pinned.id
+    )
+
+    with pytest.raises(MemoryManagerPinnedModelUnavailableError):
+        await runtime.for_run(run)

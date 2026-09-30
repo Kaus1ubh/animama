@@ -5,6 +5,7 @@ from __future__ import annotations
 import inspect
 import json
 from collections.abc import Mapping, Sequence
+from copy import copy
 from hashlib import sha256
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any, Literal, cast
@@ -36,14 +37,17 @@ from animama.app.ports.memory_manager_runtime import (
     MEMORY_MANAGER_RUNTIME_OUTCOME_BLOCKED,
     MEMORY_MANAGER_RUNTIME_OUTCOME_COMPLETED,
     MEMORY_MANAGER_RUNTIME_OUTCOME_WAITING_APPROVAL,
+    MemoryManagerPinnedModelUnavailableError,
     MemoryManagerPreviousResponseUnresolvableError,
     MemoryManagerRuntimeApprovalRequest,
     MemoryManagerRuntimeConfigurationError,
     MemoryManagerRuntimeResult,
 )
+from animama.app.ports.model_provider_port import ModelProviderRepository
 from animama.app.safety.prompts import SENSITIVE_MEMORY_RULE
 from animama.app.services.anima_identity_memory import ManagerFileAccess, manager_file_access_for_run
 from animama.app.services.memory_entry_service import MemoryEntryService
+from animama.app.services.model_role_resolver import ROLE_MEMORY_MANAGER, usable_for_role
 from animama.app.services.user_memory_read_tools import UserMemoryReadToolService
 from animama.domain import ModelProvider
 from animama.domain.memory_manager import (
@@ -126,6 +130,7 @@ class OpenAIAgentsMemoryManagerRuntime:
         animas: AnimaRepository | None = None,
         chat_messages: ChatMessageRepository | None = None,
         model_provider: ModelProvider | None,
+        model_providers: ModelProviderRepository | None = None,
         credential_resolver: ModelCredentialResolver,
         openai_base_url: str | None = None,
         timeout_seconds: float,
@@ -136,6 +141,8 @@ class OpenAIAgentsMemoryManagerRuntime:
         response continuity. Chat Completions rows (any connection) use an
         approval-gated ``apply_patch`` function tool and replay the run's stored
         messages, since those servers keep no conversation state.
+        ``model_providers`` finds the row an earlier run started on, so an
+        approval resumes on the model that proposed it.
         """
 
         self._user_id = user_id
@@ -144,12 +151,36 @@ class OpenAIAgentsMemoryManagerRuntime:
         self._animas = animas
         self._chat_messages = chat_messages
         self._model_provider = model_provider
+        self._model_providers = model_providers
         self._credentials = credential_resolver
         self._openai_base_url = resolve_openai_base_url(openai_base_url)
         self._model = model_provider.model if model_provider is not None else ""
         self._timeout_seconds = max(0.1, float(timeout_seconds))
         self._runner = OpenAIAgentsRunner()
         self._log = get_logger("adapters.memory_manager.openai_agents")
+
+    @property
+    def model_provider_id(self) -> str | None:
+        return self._model_provider.id if self._model_provider is not None else None
+
+    async def for_run(self, run: MemoryManagerRun) -> OpenAIAgentsMemoryManagerRuntime:
+        """Return a runtime on the row that ran ``run``'s latest step (runs without one use the role row)."""
+
+        pinned_id = run.model_provider_id
+        if pinned_id is None or pinned_id == self.model_provider_id:
+            return self
+        row = await self._model_providers.get(pinned_id) if self._model_providers is not None else None
+        if row is None or not usable_for_role(ROLE_MEMORY_MANAGER, row):
+            raise MemoryManagerPinnedModelUnavailableError()
+        pinned = copy(self)
+        pinned._model_provider = row
+        pinned._model = row.model
+        try:
+            # Fail before the decision is applied, not after an approved write commits.
+            pinned._require_model()
+        except MemoryManagerRuntimeConfigurationError as exc:
+            raise MemoryManagerPinnedModelUnavailableError() from exc
+        return pinned
 
     async def run_user_message(
         self,

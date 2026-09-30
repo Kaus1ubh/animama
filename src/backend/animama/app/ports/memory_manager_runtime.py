@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any, Protocol
+from typing import Any, Protocol, Self
 
 from animama.domain.memory_manager import MemoryManagerApproval, MemoryManagerMessage, MemoryManagerRun
 
@@ -79,10 +79,37 @@ class MemoryManagerPreviousResponseUnresolvableError(MemoryManagerRuntimeError):
         )
 
 
+class MemoryManagerPinnedModelUnavailableError(MemoryManagerRuntimeError):
+    """Raised when the model a run started on can no longer resume it."""
+
+    code = "memory_manager_pinned_model_unavailable"
+
+    def __init__(self) -> None:
+        super().__init__(
+            "The model that proposed this change is no longer available for the Memory Manager. "
+            "Restore it in App Settings and approve again, or reject the change."
+        )
+
+
 class MemoryManagerRuntime(Protocol):
     """Agent runtime boundary used by ``MemoryManagerService``."""
 
     name: str
+
+    @property
+    def model_provider_id(self) -> str | None:
+        """The catalog row new runs start on and record, or ``None`` without one."""
+
+        raise NotImplementedError
+
+    async def for_run(self, run: MemoryManagerRun) -> Self:
+        """Return this runtime on the row ``run`` started on, for resuming it.
+
+        Raises ``MemoryManagerPinnedModelUnavailableError`` when that row was
+        removed or can no longer run the Memory Manager.
+        """
+
+        raise NotImplementedError
 
     async def run_user_message(
         self,
@@ -120,6 +147,7 @@ __all__ = [
     "MEMORY_MANAGER_RUNTIME_OUTCOMES",
     "MemoryManagerRuntime",
     "MemoryManagerRuntimeApprovalRequest",
+    "MemoryManagerPinnedModelUnavailableError",
     "MemoryManagerRuntimeConfigurationError",
     "MemoryManagerRuntimeError",
     "MemoryManagerPreviousResponseUnresolvableError",

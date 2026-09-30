@@ -254,6 +254,10 @@ class SQLAlchemyArchiveRepository:
         obj = await self._s.get(ORMArchivePassage, passage.id)
         if obj is None:
             raise ValueError(f"archive passage not found: {passage.id}")
+        if obj.text != passage.text:
+            # Rejections belonged to the old text.
+            obj.embedding_rejections = 0
+            obj.embedding_rejected_model_id = None
         obj.text = passage.text
         obj.tags = passage.tags
         obj.metadata_ = passage.metadata

@@ -123,6 +123,9 @@ class MemoryManagerRun:
     task_state: dict[str, Any] | None = None
     model_provider: str | None = None
     model_name: str | None = None
+    # The model row the run started on; resuming an approval uses this row even
+    # after the Memory Manager role changes.
+    model_provider_id: str | None = None
     openai_previous_response_id: str | None = None
     serialized_agent_state: str | None = None
     summary: str | None = None

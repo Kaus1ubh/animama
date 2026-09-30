@@ -7,6 +7,8 @@ from dataclasses import dataclass, field
 class UsageInputDetails:
     cached_tokens: int = 0
     audio_tokens: int = 0
+    cache_write_tokens: int = 0
+    """Input tokens written to the provider's prompt cache (priced separately)."""
 
 
 @dataclass(slots=True)
@@ -40,7 +42,10 @@ class Usage:
         self.output_tokens += other.output_tokens if other.output_tokens else 0
         self.total_tokens += other.total_tokens if other.total_tokens else 0
         self.input_tokens_details = UsageInputDetails(
-            cached_tokens=self.input_tokens_details.cached_tokens + other.input_tokens_details.cached_tokens
+            cached_tokens=self.input_tokens_details.cached_tokens + other.input_tokens_details.cached_tokens,
+            cache_write_tokens=(
+                self.input_tokens_details.cache_write_tokens + other.input_tokens_details.cache_write_tokens
+            ),
         )
 
         self.output_tokens_details = UsageOutputDetails(

@@ -50,6 +50,7 @@ def normalize_usage(payload: UsagePayload | None) -> Usage | None:
                 in_det = UsageInputDetails(
                     cached_tokens=coerce_optional_int(ptd.get("cached_tokens")) or 0,
                     audio_tokens=coerce_optional_int(ptd.get("audio_tokens")) or 0,
+                    cache_write_tokens=coerce_optional_int(ptd.get("cache_write_tokens")) or 0,
                 )
             if isinstance(ctd, Mapping):
                 out_det = UsageOutputDetails(
@@ -80,6 +81,7 @@ def normalize_usage(payload: UsagePayload | None) -> Usage | None:
                 in_det = UsageInputDetails(
                     cached_tokens=coerce_optional_int(itd.get("cached_tokens")) or 0,
                     audio_tokens=coerce_optional_int(itd.get("audio_tokens")) or 0,
+                    cache_write_tokens=coerce_optional_int(itd.get("cache_write_tokens")) or 0,
                 )
             if isinstance(otd, Mapping):
                 out_det = UsageOutputDetails(
@@ -110,6 +112,7 @@ def normalize_usage(payload: UsagePayload | None) -> Usage | None:
                         in_det = UsageInputDetails(
                             cached_tokens=int(getattr(itd, "cached_tokens", 0) or 0),
                             audio_tokens=0,
+                            cache_write_tokens=int(getattr(itd, "cache_write_tokens", 0) or 0),
                         )
                 except Exception:
                     in_det = None

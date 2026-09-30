@@ -153,9 +153,15 @@ Each chunk records the catalog row id of the model that produced its vector
 vectors from the current model. After the role changes, an in-process task
 started by the local application re-embeds chunks and archive passages in
 batches, resting when nothing is stale, waking when settings change and backing
-off after failures. Text the model cannot embed (too long, blank, or refused
-while the rest of the batch succeeds) is recorded without a vector so it cannot
-stall the rest. `GET /v1/model-roles` reports progress under
+off after failures. Text the model cannot embed (too long, blank, refused
+while the rest of the batch succeeds, or refused on its own three times) is
+recorded without a vector so it cannot stall the rest. Until the third
+rejection the batch fails and the role reports `retrying`; the count
+(`embedding_rejections`) belongs to the rejecting model and the current text,
+and restarts for another model or edited text. A rejection counts only when the
+model then embeds a fixed check text containing no owner content, so a
+misconfigured or failing model that refuses everything keeps retrying instead
+of dropping vectors. `GET /v1/model-roles` reports progress under
 `embeddings_refresh`, including the category of a failing batch.
 
 ## Statuses
@@ -419,9 +425,6 @@ expiration. Reprocessing with `force=true` replaces chunks idempotently.
   count as current: search compares them with the new server's vectors, and a
   dimension mismatch fails semantic search. To re-embed, switch the Embeddings
   role to a different model row, for example one added on a new connection.
-- A chunk that the server always rejects as a bad request, in a batch where no
-  other chunk succeeds, cannot be isolated. Re-embedding stays `retrying` and
-  `GET /v1/model-roles` reports that category under `embeddings_refresh`.
 
 ## Non-Goals
 

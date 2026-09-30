@@ -381,7 +381,9 @@ path index:
   Reflection task stores its Anima ID and name, the coverage it started from
   (position and run ID, or none), the batch boundary position, batch and total
   uncovered turn counts, start time and the owner's time zone; turn text is
-  read from chat history rather than copied into the run. Runs also
+  read from chat history rather than copied into the run. Runs record the
+  catalog row that ran their latest step in `model_provider_id`, which
+  approval resumes use. Runs also
   store the internal nullable `openai_previous_response_id` Responses cursor
   and serialized Agents SDK state while an approval is paused. Visible
   messages form the UI/audit transcript. Approval rows contain target path,
@@ -759,6 +761,10 @@ chunk text; semantic search uses chunk embeddings when available.
 Vectors are dimensionless (`vector` without a size), so any embeddings model
 fits. `embedding_model_id` records the catalog row that embedded the chunk; it
 is also set, without a vector, for text that model cannot embed.
+`embedding_rejections` counts how often `embedding_rejected_model_id` refused
+the text on its own; re-embedding records it without a vector at three and
+clears both whenever it stores a result (editing a passage's text clears them
+too). `archive_passages` has the same pair.
 `embedding_text` stores the contextualized text that was embedded when it
 differs from the display text, so re-embedding produces the same vectors as
 fresh processing. The `(user_id, embedding_model_id)` index finds chunks that
