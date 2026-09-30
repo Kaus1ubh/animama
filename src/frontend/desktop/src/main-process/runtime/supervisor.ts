@@ -7,9 +7,7 @@ import {
   credentialTarget,
   maxConnectionCredentials,
   type CredentialChange,
-  isProviderCredential,
   type CredentialStatus,
-  type ProviderCredentialStatus,
   type RuntimeStage,
   type RuntimeStatus,
   type FeaturePackStatus,
@@ -54,9 +52,7 @@ import { runtimeRedactor } from "./redaction.js";
 import {
   CredentialVault,
   type Encryption,
-  validateCredential,
   validateCredentialChanges,
-  validateProvider,
 } from "./vault.js";
 
 type DatabaseState = {
@@ -126,6 +122,9 @@ export class RuntimeSupervisor {
   private expectedBackendExit = false;
   private expectedPostgresExit = false;
   private readonly controlToken = randomBytes(32).toString("hex");
+  /** Orders credential deliveries; each backend accepts only newer generations. */
+  private credentialGeneration = 0;
+  private documentWorkerRestartQueued = false;
   readonly rendererCapability = randomBytes(32).toString("hex");
   constructor(private options: SupervisorOptions) {
     runtimeRedactor.add(this.controlToken, this.rendererCapability);
@@ -228,6 +227,13 @@ export class RuntimeSupervisor {
       PYTHONUNBUFFERED: "1",
     };
   }
+  /** Children that never call a provider get no saved key. */
+  private environmentWithoutCredentials(): NodeJS.ProcessEnv {
+    const env = this.environment();
+    for (const key of Object.keys(this.vault!.childEnvironment()))
+      delete env[key];
+    return env;
+  }
   /** HTTP capabilities belong only to the owned HTTP child, never workers or database commands. */
   private backendEnvironment(): NodeJS.ProcessEnv {
     if (!this.applicationOrigin)
@@ -253,7 +259,7 @@ export class RuntimeSupervisor {
     const text = await runCommand(
       this.executable(),
       ["database", operation],
-      this.environment(),
+      this.environmentWithoutCredentials(),
       this.options.paths.base,
     );
     try {
@@ -410,14 +416,11 @@ export class RuntimeSupervisor {
         if (!current) await this.verifyDatabaseSchema(backup);
         backup.complete(database.alembic_head);
         this.stage("backend");
-        const cleanupEnvironment = this.environment();
-        for (const key of [...Object.keys(this.vault.childEnvironment())])
-          delete cleanupEnvironment[key];
         this.cleanupWorker = this.owned.launch(
           "avatar-cleanup",
           this.executable(),
           ["worker", "avatar-cleanup"],
-          cleanupEnvironment,
+          this.environmentWithoutCredentials(),
           this.options.paths.base,
         );
         const cleanup = this.cleanupWorker;
@@ -560,7 +563,11 @@ export class RuntimeSupervisor {
         this.backend === child
       ) {
         this.setStatus({ state: "error", code: "backend_exited" });
-        void this.serialize(() => this.stopServices()).catch(() => undefined);
+        // A queued operation may already have replaced this child (a credential
+        // fallback restart does); never stop its successor.
+        void this.serialize(async () => {
+          if (this.backend === child) await this.stopServices();
+        }).catch(() => undefined);
       }
     });
   }
@@ -747,12 +754,16 @@ export class RuntimeSupervisor {
     this.shutdownRequested = false;
     await this.start();
   }
-  /** Signature verification is repeated at every launch, including provider restarts. */
-  private async startDocumentWorker(): Promise<void> {
+  /**
+   * Signature verification is repeated at every launch, including provider
+   * restarts. A worker-only restart keeps the instance id the running FastAPI
+   * was started with, so its readiness check still recognises the worker.
+   */
+  private async startDocumentWorker(renewInstance = true): Promise<void> {
     const pack = this.activePacks["document-processing"];
     if (!pack) return;
     await verifyExecutablePack(pack.root, pack.manifest);
-    this.documentInstance = randomUUID();
+    if (renewInstance) this.documentInstance = randomUUID();
     const executable = path.join(pack.root, DOCUMENT_EXECUTABLE);
     const expected = pack.manifest.files.find(
       (file) => file.path === DOCUMENT_EXECUTABLE,
@@ -887,25 +898,12 @@ export class RuntimeSupervisor {
       }
     });
   }
-  changeCredential(
-    provider: unknown,
-    value?: unknown,
-  ): Promise<ProviderCredentialStatus> {
-    const key = validateProvider(provider);
-    const plaintext =
-      value === undefined ? undefined : validateCredential(value);
-    return this.changeCredentials([{ provider: key, value: plaintext }]).then(
-      (statuses) =>
-        statuses.find(
-          (item): item is ProviderCredentialStatus =>
-            isProviderCredential(item) && item.provider === key,
-        )!,
-    );
-  }
   /**
-   * Save or remove several provider or connection keys with one backend
-   * quiesce and one consumer restart. Every changed key records the same
-   * failure if the batch cannot finish, and saved keys stay saved for Retry.
+   * Save or remove several provider or connection keys, then apply them to the
+   * running backend without restarting it or touching any window. The vault
+   * write is all-or-nothing; the backend receives the whole saved set.
+   * If delivery fails twice, the backend restarts from the vault so it never
+   * keeps a key the vault no longer has.
    */
   changeCredentials(changes: unknown): Promise<CredentialStatus[]> {
     const batch = validateCredentialChanges(changes);
@@ -914,42 +912,115 @@ export class RuntimeSupervisor {
     return this.serialize(async () => {
       if (!this.vault || this.current.state !== "ready")
         throw new RuntimeError("runtime_not_ready");
-      const vault = this.vault;
       for (const change of batch)
         this.credentialFailures.delete(credentialTarget(change));
       try {
-        vault.assertCapacity(batch);
+        // One encrypted write: either every change is saved or none is.
+        this.vault.apply(batch);
       } catch (error) {
-        // Refused before anything stops: services keep running unchanged.
+        // Nothing was saved, so the running backend already matches the vault.
         this.recordCredentialFailures(batch, runtimeErrorCode(error), false);
         return this.credentials();
       }
-      this.stage("backend");
-      let quiesced = false;
-      let saved = false;
       try {
-        await this.quiesceBackend();
-        quiesced = true;
-        // One encrypted write: either every change is saved or none is.
-        vault.apply(batch);
-        saved = true;
-        await this.restartConsumers();
-        return this.credentials();
-      } catch (error) {
-        // Record before recovery emits ready: the old IPC caller no longer exists.
-        this.recordCredentialFailures(batch, runtimeErrorCode(error), saved);
+        await this.deliverCredentials();
+      } catch {
         try {
-          if (!quiesced) await this.restartConsumers();
-          else throw error;
-        } catch (recoveryError) {
-          await this.stopServices().catch(() => undefined);
-          this.setStatus({
-            state: "error",
-            code: runtimeErrorCode(recoveryError),
-          });
+          await this.deliverCredentials();
+        } catch {
+          await this.restartForSavedCredentials(batch);
+          return this.credentials();
         }
-        return this.credentials();
       }
+      this.queueDocumentWorkerRestart();
+      return this.credentials();
+    });
+  }
+  /**
+   * Send the vault's complete key set to the running backend. The generation
+   * lets the backend refuse a delayed older delivery. Errors carry only a code.
+   */
+  private async deliverCredentials(): Promise<void> {
+    if (
+      !this.vault ||
+      !this.backendOrigin ||
+      !this.backend ||
+      !this.owned?.children.has(this.backend)
+    )
+      throw new RuntimeError("runtime_not_ready");
+    const credentials = this.vault.childEnvironment();
+    runtimeRedactor.add(...Object.values(credentials));
+    const generation = ++this.credentialGeneration;
+    let response: Response;
+    let result: { schema_version?: unknown; generation?: unknown };
+    try {
+      response = await fetch(
+        new URL("/_desktop/credentials", this.backendOrigin),
+        {
+          method: "PUT",
+          headers: {
+            "X-Animama-Desktop-Control": this.controlToken,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ schema_version: 1, generation, credentials }),
+          redirect: "error",
+          signal: AbortSignal.timeout(5000),
+        },
+      );
+      result = (await readDesktopControlJson(response)) as typeof result;
+    } catch {
+      throw new RuntimeError("credential_delivery_failed");
+    }
+    if (
+      !response.ok ||
+      result.schema_version !== 1 ||
+      result.generation !== generation
+    )
+      throw new RuntimeError("credential_delivery_failed");
+  }
+  /**
+   * The running backend may hold keys that differ from the vault: restart it
+   * from the vault. A busy drain still restarts, because quiesce never reopens
+   * admission. A failed restart enters recovery, whose Retry uses the vault.
+   */
+  private async restartForSavedCredentials(
+    batch: ReadonlyArray<CredentialChange>,
+  ): Promise<void> {
+    this.stage("backend");
+    try {
+      await this.quiesceBackend();
+    } catch {
+      // Busy or unreachable: the restart below replaces this backend anyway.
+    }
+    try {
+      await this.restartConsumers();
+    } catch (error) {
+      // Record before recovery: the calling window no longer exists.
+      this.recordCredentialFailures(batch, runtimeErrorCode(error), true);
+      await this.stopServices().catch(() => undefined);
+      this.setStatus({ state: "error", code: runtimeErrorCode(error) });
+    }
+  }
+  /**
+   * The document worker embeds with saved keys from its environment, so it
+   * restarts after a delivery. Queued behind the save and coalesced.
+   */
+  private queueDocumentWorkerRestart(): void {
+    if (
+      !this.activePacks["document-processing"] ||
+      this.documentWorkerRestartQueued
+    )
+      return;
+    this.documentWorkerRestartQueued = true;
+    void this.serialize(async () => {
+      this.documentWorkerRestartQueued = false;
+      // Transitions and shutdown that ran first have already stopped it.
+      if (!this.documentWorker || this.shutdownRequested) return;
+      await this.stopDocumentWorker();
+      await this.startDocumentWorker(false);
+    }).catch((error) => {
+      this.setStatus({ state: "error", code: runtimeErrorCode(error) });
+      void this.serialize(() => this.stopServices()).catch(() => undefined);
     });
   }
   /**

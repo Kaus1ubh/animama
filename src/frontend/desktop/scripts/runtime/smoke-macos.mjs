@@ -25,7 +25,7 @@ import { loadReleasePolicy } from "./release-policy.mjs";
 import { verifySignedApp } from "./macos-signing.mjs";
 import { classifySmokeRequest } from "./smoke-policy.mjs";
 
-/** Runs in the renderer; delete through the normal vault API and verify status only. */
+/** Runs in the renderer; verify the temporary key is gone from status only. */
 export async function temporarySmokeProviderRemoved() {
   const status = (await window.animamaDesktop.credentials.list()).find(
     (entry) => entry.provider === "openai",
@@ -234,31 +234,20 @@ export async function smokeMac(args) {
     const record = readJson(path.join(userData, "runtime/processes.json"));
     evidence("owned_children_stopped", record.children.length === 0);
   };
-  /**
-   * A key change restarts local services, which destroys the product window and
-   * reopens it on the same route. Start the change, wait for the old window to
-   * close, then continue in its ready replacement.
-   */
-  const acrossRestart = async (page, change) => {
-    const closed = page.waitForEvent("close", { timeout: 120_000 });
-    await change();
-    await closed;
-    return readyPage();
-  };
+  /** The owned FastAPI PID; a key change must apply without replacing it. */
+  const fastapiPid = () =>
+    readJson(path.join(userData, "runtime/processes.json")).children.find(
+      (child) => child.name === "fastapi",
+    )?.pid;
   const cleanupProvider = async () => {
     if (!providerMayBeSaved) return;
     if (!application) application = await launch();
     const current = await readyPage();
     if (!(await current.evaluate(temporarySmokeProviderRemoved))) {
-      // The IPC reply never arrives: its caller window is replaced.
-      const page = await acrossRestart(current, () =>
-        current.evaluate(() => {
-          void window.animamaDesktop.credentials
-            .delete("openai")
-            .catch(() => undefined);
-        }),
+      await current.evaluate(() =>
+        window.animamaDesktop.credentials.apply([{ provider: "openai" }]),
       );
-      if (!(await page.evaluate(temporarySmokeProviderRemoved)))
+      if (!(await current.evaluate(temporarySmokeProviderRemoved)))
         throw new Error("temporary_provider_cleanup_failed");
     }
     evidence("temporary_provider_removed", true);
@@ -330,12 +319,24 @@ export async function smokeMac(args) {
     // Set before submission: even a failed save response may have persisted it.
     providerMayBeSaved = true;
     await page.getByLabel("OpenAI", { exact: true }).fill(provider);
-    page = await acrossRestart(page, () =>
-      page.getByRole("button", { name: "Save", exact: true }).click(),
-    );
+    // A key save applies in place: the same window and FastAPI process remain.
+    const backendBeforeSave = fastapiPid();
+    await page.evaluate(() => {
+      window.__animamaSmokeWindow = true;
+    });
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    // The panel announces success only after main answers; failure copy never
+    // contains "saved." (a two-failure fallback would replace this window).
     await page
-      .getByRole("heading", { name: "What should Animama call you?" })
+      .getByRole("status")
+      .filter({ hasText: /\bsaved\./iu })
       .waitFor({ timeout: 60_000 });
+    evidence(
+      "provider_applied_without_restart",
+      (await page.evaluate(() => window.__animamaSmokeWindow === true)) &&
+        backendBeforeSave !== undefined &&
+        fastapiPid() === backendBeforeSave,
+    );
     const providerStatuses = await page.evaluate(() =>
       window.animamaDesktop.credentials.list(),
     );

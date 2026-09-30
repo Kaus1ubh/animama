@@ -1,6 +1,5 @@
 import {
   credentialTarget,
-  isProviderCredential,
   type CredentialChange,
   type CredentialProvider,
   type CredentialStatus,
@@ -21,32 +20,6 @@ export function credentialFailureMessage(
   return status.restartRequired
     ? "The change could not finish. Saved key status is shown above. Open runtime recovery and retry before changing the key again."
     : "The previous key change could not finish. Check the saved status and retry the change.";
-}
-
-/** A ready old runtime is not evidence that the requested credential change succeeded. */
-export async function applyCredentialChange(
-  bridge: CredentialsBridge,
-  provider: CredentialProvider,
-  value?: string,
-): Promise<CredentialStatus[]> {
-  if (value === undefined) await bridge.delete(provider);
-  else {
-    const status = await bridge.set(provider, value);
-    if (status.error || status.restartRequired)
-      throw new Error("credential_change_failed");
-  }
-  const entries = await bridge.list();
-  const result = entries.find(
-    (entry) => isProviderCredential(entry) && entry.provider === provider,
-  );
-  if (
-    !result ||
-    result.error ||
-    result.restartRequired ||
-    result.configured !== (value !== undefined)
-  )
-    throw new Error("credential_change_failed");
-  return entries;
 }
 
 /**

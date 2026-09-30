@@ -87,7 +87,7 @@ libraries and child processes, and FastAPI ↔ logs.
 | T4 | Environment-variable injection. A crafted name overrides `PATH`, `PYTHONPATH`, `DYLD_*`, or pushed values leak to subprocesses.               | The backend re-validates names against the same allowlist as main: `OPENAI_API_KEY`, `ELEVENLABS_API_KEY`, and `MANAGED_CREDENTIAL_ENV_PATTERN` (identical to `connectionCredentialPattern`). It also enforces value rules (1–8192 characters, no control/space characters), ≤ 32 connection names and a 512 KiB body cap. Values go into an in-memory store and are **never** written to `os.environ`. In the desktop composition, FastAPI also removes the credential names from `os.environ` after loading them at startup, so no stale copy remains for SDK env fallbacks or child processes. | `PATH`, `PYTHONPATH`, `DYLD_INSERT_LIBRARIES`, lowercase or overlong names, `DEEPSEEK_API_KEY`, 33 connections, a 8193-character value, control characters, unknown top-level fields and duplicate JSON keys → 400. `os.environ` is unchanged after any push. A parity test pins backend and desktop patterns and limits. |
 | T5 | A removed or replaced key keeps working through a cached client, pool, default header, fingerprint cache, registry entry or env fallback.     | Long-lived OpenAI SDK clients hold **no key**: a placeholder `api_key` and no `Authorization` default header. Each request creates a keyed view with `client.with_options(api_key=…, default_headers=…)`; in `openai` 2.x `copy()` shares the key-free `httpx` pool, and the view is dropped when the request ends. `lru_cache` ElevenLabs clients are replaced by a client built per request from the pinned key; the pool stays shared through one key-free `httpx` client. The voice-access cache is keyed by store generation and cleared on ElevenLabs key changes. The trace-export key is reset from the store on every change. All `os.getenv("OPENAI_API_KEY")` fallbacks are removed, and the SDKs always receive an explicit key or placeholder. | After replacing the store with `{}`, every consumer reports the key missing on its next use: Responses, Chat Completions, embedder, probe, memory manager, ElevenLabs TTS/realtime, credential status. No cached client, header or trace exporter contains the old sentinel. Replacement: a mock transport sees the new `Authorization` on the next request. |
 | T6 | Races. Concurrent saves interleave, a request mixes keys, or a failed delivery leaves the backend on a key that differs from the vault indefinitely. | Main serializes saves in the existing supervisor queue, with the vault write and delivery inside one queued operation. Pushes carry monotonic generations. The backend swaps an immutable snapshot by a single assignment on the event loop. Each admitted HTTP/WebSocket scope pins the snapshot at admission in a `ContextVar`, and tasks spawned by the request inherit it. Background loops (embedding refresh, document worker) read the current snapshot per unit of work. A spawn always passes the current vault. Delivery-failure handling is in [D1](#decision-log). | Two concurrent saves apply in order, with generations increasing. A stale generation → 409 with the store unchanged. A request pinned before a swap uses the old key for all of its provider calls, while a request started afterwards uses the new key. After a failed push, a backend restart gets the current vault. |
-| T7 | Widening existing boundaries.                                                                                                                  | No vault changes. The new IPC (`credentials:retry-delivery`) takes no arguments, is main-window only and goes through `RuntimeIpcCallers.require`. The unused `credentials:set`/`credentials:delete` IPC is removed ([D4](#decision-log)). No endpoint returns key values. The store is not exposed through any `/v1` route beyond the existing configured/missing credential state.                                                                                                                                                                      | The retry IPC rejects unregistered, PiP-style, recovery and wrong-arity callers. Status objects contain no value fields (asserted by key set).                                                                                                                                       |
+| T7 | Widening existing boundaries.                                                                                                                  | No vault changes and no new IPC (revised D1). The unused `credentials:set`/`credentials:delete` IPC is removed ([D4](#decision-log)). No endpoint returns key values. The store is not exposed through any `/v1` route beyond the existing configured/missing credential state.                                                                                                                                                                      | The credential IPC still rejects unregistered, PiP-style and recovery callers, and the removed channels do not exist. Status objects contain no value fields (asserted by key set).                                                                                                                                       |
 
 ## Progress
 
@@ -95,8 +95,8 @@ libraries and child processes, and FastAPI ↔ logs.
 - [x] Workspace: worktree `worktrees/live-api-keys/animama` (sibling of the primary checkout), branch `feat/live-api-keys` pushed to `origin`, base `origin/main` `36a40177`; phase issues #222–#225 are sub-issues of #219. No Compose stack started.
 - [x] Owner approved this plan and the recommended decisions D1–D6 (2026-09-30).
 - [x] Phase 1 (#222): backend runtime credential store and live-safe consumers. Review passed (Review #2); `make check-test` 2792 passed; commit `3ee9f6f8`.
-- [x] Phase 2 (#223): authenticated desktop credential route. Review passed (Review #2); `make check-test` 2878 passed.
-- [ ] Phase 3 (#224): Electron main live delivery.
+- [x] Phase 2 (#223): authenticated desktop credential route. Review passed (Review #2); `make check-test` 2878 passed; commit `5f085824`.
+- [x] Phase 3 (#224): Electron main live delivery. Review passed (Review #3); `pnpm desktop:test` 399 passed.
 - [ ] Phase 4 (#225): renderer, setup and documentation.
 - [ ] Security review (`security-review` skill + `sdlc-reviewer`) and final integration review.
 - [ ] Owner gate: packaged macOS acceptance with real provider keys.
@@ -161,6 +161,17 @@ D1 option A and D2–D6 as written.
   - B: no automatic restart; only background re-push and panel Retry. The
     backend keeps the old or removed key until a push succeeds or the app
     restarts.
+- **D1 revised (owner decision, 2026-09-30):** a busy
+  `/_desktop/runtime:quiesce` leaves admission closed (`LocalHTTPLifecycle.quiesce`
+  never reopens on timeout), so "busy → keep running and show Retry" cannot
+  work without a restart. The owner chose: retry the push once immediately; if
+  it fails again, use the existing restart path (quiesce, wait up to 15 s for
+  active work, then `restartConsumers` from the vault). If that restart fails,
+  the runtime enters recovery, whose Retry starts from the current vault. There
+  is no background re-push and no separate retry-delivery IPC. As a result the
+  status field keeps its name `restartRequired`: its meaning (saved, but
+  recovery Retry needed) is unchanged, so the D4 rename is dropped. D4's
+  removal of the unused IPC still applies.
 - **D2 (owner-approved: yes):** the desktop FastAPI removes the credential
   names from `os.environ` after loading its store at startup. Self-host keeps its
   environment unchanged.
@@ -466,23 +477,23 @@ Changes (`desktop/src/main-process/runtime/`):
 
    It does **not** call `stage()`, `quiesceBackend()`, `quiesceRenderers()` or
    `restartConsumers()` on the success path, so the status stays `ready`.
-2. `deliverCredentials()`:
+2. `deliverCredentials()` (failure handling follows the revised D1 below):
    - Sends `PUT` to `/_desktop/credentials` with only the control token and
      `content-type` headers, `redirect: "error"` and a 5 s timeout.
    - The body is `vault.childEnvironment()` with `++credentialGeneration`.
    - Verifies the ack's `schema_version` and `generation` with
      `readDesktopControlJson`.
    - Discards error details: the code never includes `error.message` or `cause`.
-   - Failure follows D1.
-3. `retryCredentialDelivery()` plus IPC `credentials:retry-delivery` (0 args,
-   main-window only) and the preload method `retryDelivery()`.
-4. `applyPending` replaces `restartRequired` (D4). Remove the
-   `credentials:set`/`credentials:delete` IPC, `changeCredential` and the unused
-   bridge methods.
+   - Failure: one immediate re-push, then the existing restart path from the
+     vault (revised D1).
+3. (Dropped by revised D1: no retry-delivery IPC.)
+4. Remove the `credentials:set`/`credentials:delete` IPC, `changeCredential`
+   and the unused bridge methods (D4). `restartRequired` keeps its name.
 5. `databaseCommand` receives an environment without credential names.
 6. A spawn after any failure uses the current vault (unchanged `environment()`).
-   Reset `credentialGeneration` bookkeeping per backend child; the backend
-   starts at 0.
+   `credentialGeneration` is one counter per supervisor. Each new backend starts
+   at 0 and accepts any higher generation, and aborted older requests cannot
+   overwrite newer ones.
 
 Tests (`desktop/tests/runtime-supervisor.test.ts`, `runtime-ipc.test.ts`), using a
 fake loopback backend:
@@ -494,10 +505,12 @@ fake loopback backend:
 - Values are registered with the redactor before the push.
 - Removal sends a snapshot without the name.
 - Concurrent saves run in order.
-- Push failure: vault saved, `applyPending` and the failure code set, no value in
-  the status or the captured log. The D1 fallback runs, busy is handled, and the
-  background re-push stops after success.
-- Retry IPC re-delivers without values and rejects bad callers and arity.
+- One failed push is retried without a restart. Two failed pushes fall back to
+  one restart from the vault, including when quiesce reports busy. A failed
+  fallback records the failure against the batch with `restartRequired`, and
+  recovery Retry spawns with the current vault. No value appears in the status
+  or the captured log.
+- The removed `credentials:set` and `credentials:delete` IPC channels are gone.
 - The document worker restarts only when the pack is active.
 - Cleanup-worker and database-command envs contain no keys.
 - A restart after a failed push spawns with the current vault.
@@ -509,7 +522,110 @@ any process or window restart.
 
 #### Code Review #1 Findings
 
+Reviewed source: uncommitted Phase 3 working tree over `5f085824`. Reviewer:
+independent `sdlc-reviewer`. It ran `pnpm desktop:test` (396 passed),
+Prettier, and ESLint on the changed web files, plus mutation runs on a scratch
+copy.
+
+- **P3-R1-F1 (blocker):** `scripts/runtime/smoke-macos.mjs` still calls the
+  removed `credentials.delete` and waits for a window replacement on key saves
+  (`acrossRestart`). The packaged release gate would fail at
+  `provider-and-first-run`.
+- **P3-R1-F2 (should-fix):** a worker-only restart gave the document worker a
+  new `documentInstance` while FastAPI still expected the old one, so
+  `/v1/runtime-capabilities` reported `worker_state: "starting"` for the rest
+  of the launch.
+- **P3-R1-F3 (optional, tests):** the pack-gate and the state/shutdown guard in
+  `queueDocumentWorkerRestart` can be removed without any test failing, and
+  its failure branch is untested.
+- **P3-R1-F4 (optional):** a failed worker restart always reports
+  `document_worker_exited` instead of the real code.
+- **P3-R1-F5 (optional, T3):** no test asserts that the log excludes key
+  values on failure paths.
+- **P3-R1-F6 (optional, pre-existing):** if the backend crashes during a save,
+  the exit handler's queued `stopServices()` can stop a freshly restarted
+  runtime while its status stays `ready`. `transitionPack` and `stopForUpdate`
+  share the same race.
+- **P3-R1-F7 (optional, plan text):** the generation counter is per supervisor,
+  not reset per backend child. This is correct and simpler; fix the plan text.
+- **P3-R1-F8 (optional):** the `CredentialVault.assertCapacity` docstring is
+  stale; the method could be private.
+
 #### Code Review #1 Revisions
+
+- **P3-R1-F1: accepted and fixed.** `smoke-macos.mjs` no longer uses
+  `acrossRestart`. Setup saves in place, waits for main to report the key
+  configured, and records `provider_applied_without_restart`: the same window,
+  and the FastAPI PID unchanged in `processes.json`. Cleanup removes the key
+  with `credentials.apply([{ provider: "openai" }])`. The packaged smoke itself
+  runs with the owner gate.
+- **P3-R1-F2: accepted and fixed.** `startDocumentWorker(renewInstance)`: a
+  worker-only restart keeps FastAPI's `ANIMAMA_DOCUMENT_WORKER_INSTANCE_ID`.
+  The test uses the real start path, with only the signature check mocked, and
+  compares the new worker's instance id with the backend's. It fails when the
+  id is renewed.
+- **P3-R1-F3: accepted.** New tests cover the pack gate (mutation-verified),
+  shutdown during a save, and a failed restart. The queued restart's guard is
+  simplified to `!documentWorker || shutdownRequested`. The shutdown flag only
+  matters when `packs.close()` delays `stop()`'s queued stop. That case is
+  harmless, because the stop then terminates the worker, and it is not pinned
+  by a test.
+- **P3-R1-F4: accepted.** A failed worker restart reports
+  `runtimeErrorCode(error)`, and the test asserts `pack_signature_invalid`.
+- **P3-R1-F5: accepted.** The fallback tests spy on every `console` level and
+  assert the key never appears. The supervisor itself writes no logs on these
+  paths.
+- **P3-R1-F6: accepted.** The backend exit handler's queued stop now runs only
+  if that child is still the backend. The new crash-during-save test fails
+  without the guard.
+- **P3-R1-F7: accepted.** The plan text is corrected.
+- **P3-R1-F8: accepted.** `assertCapacity` is private and its docstring is
+  corrected.
+- **Verification:** `pnpm desktop:test` (399 passed), `pnpm desktop:check`,
+  `pnpm check` and `pnpm web:lint` pass, and Prettier passes on the changed
+  desktop files. Repair budget: 1 of 2 rounds used.
+
+#### Code Review #2 Findings
+
+Targeted recheck by an independent `sdlc-reviewer`. F2 and F4–F8 are verified,
+with mutation evidence. F3 is verified with one non-blocking gap: the shutdown
+flag is not pinned by a test. The exit-handler guard cannot skip a needed stop:
+every path that clears or replaces `this.backend` either starts a successor or
+stops the services itself. The `signature.js` mock does not change any other
+test.
+
+- **P3-R2-F1 (blocker for F1):** `page.waitForFunction` with an async predicate
+  resolves at once, so the smoke recorded `provider_applied_without_restart`
+  before the save finished. Polling `credentials.list()` would also be wrong,
+  because the vault is written before delivery.
+- **Incident:** the reviewer ran the root `pnpm prettier --check …` script,
+  which writes, and reformatted 10 unrelated files. They were verified as
+  formatting only (40 insertions, 25 deletions) and restored with
+  `git restore`.
+
+#### Code Review #2 Revisions
+
+- **P3-R2-F1: accepted and fixed.** The smoke waits for the panel's success
+  status (`/\bsaved\./i`), which appears only after main answers, and then
+  checks the window marker and the FastAPI PID. No failure copy contains
+  "saved.", and Phase 4 adds a test that keeps it that way. A fallback restart
+  would replace the window, so the smoke would fail rather than pass.
+- The shutdown-flag wording in the P3-R1-F3 revision is corrected.
+- **Verification:** Prettier passes on `smoke-macos.mjs`. Repair budget: 2 of
+  2 rounds used; a targeted Review #3 follows.
+
+#### Code Review #3 Findings
+
+Final targeted review by an independent `sdlc-reviewer`. P3-R2-F1 is verified:
+the success status matches only after main confirms every change, and no
+failure or guidance status on the setup page contains "saved.". The Playwright
+1.58.2 `filter`/`waitFor` usage is valid, `runtime-packaging.test.mjs` passes
+67/67, and the worktree has no unrelated edits. Non-blocking: a stale smoke
+doc comment was fixed. Result: pass.
+
+#### Code Review #3 Revisions
+
+The smoke doc comment was corrected. Phase 3 is complete.
 
 ### Phase 4: Renderer, setup and documentation
 
@@ -522,13 +638,13 @@ Changes:
    - The button reads "Saving…".
    - Success copy: "Saved."
    - The description drops "local services restart after saving".
-   - Pending-apply failures show a Retry that calls `retryDelivery()`.
+   - Failures keep the existing recovery guidance; runtime recovery Retry
+     re-delivers from the vault (revised D1).
    - After success, invalidate the model-provider, model-configuration
      (connections, credential state, roles) and ElevenLabs/voice availability
      queries. Identify the exact keys in `web/src/query/keys.ts`.
 2. `desktop-credential-state.ts`: remove `applyCredentialChange`, update
-   `credentialFailureMessage` for `credential_delivery_failed`/`applyPending`,
-   and update `applyCredentialChanges` to check `applyPending`.
+   `credentialFailureMessage` copy that promises a restart.
 3. `ModelConnectionDialog.tsx`: drop the "replaces this window" assumption and
    invalidate the same queries.
 4. `routes/setup.tsx`: the draft-retention block no longer gates API keys, only
@@ -540,9 +656,8 @@ Changes:
      control routes are documented.
    - The glossary only if a term changes.
 
-Tests: `web/src/ui/settings/*.test.tsx` cover no restart copy, Retry calling
-`retryDelivery`, query invalidation, and setup allowing key edits when the draft
-is unavailable.
+Tests: `web/src/ui/settings/*.test.tsx` cover no restart copy, query
+invalidation, and setup allowing key edits when the draft is unavailable.
 
 Checks: `pnpm check`, `pnpm web:lint`, `pnpm web:test`, `pnpm build`,
 `pnpm desktop:check`, `pnpm desktop:test`.
