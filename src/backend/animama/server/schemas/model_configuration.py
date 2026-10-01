@@ -168,6 +168,24 @@ class PyAvailableModels(BaseModel):
     models: list[str]
 
 
+class PyOpenRouterModel(BaseModel):
+    """One model from OpenRouter's public list.
+
+    ``supports_tools`` and ``supports_structured_outputs`` come from the
+    model's advertised parameters; the capability probe can override them.
+    """
+
+    id: str
+    name: str
+    context_length: int | None = None
+    supports_tools: bool
+    supports_structured_outputs: bool
+
+
+class PyOpenRouterModels(BaseModel):
+    models: list[PyOpenRouterModel]
+
+
 class PyModelConnectionDetection(BaseModel):
     """Whether a local preset's server answers at its default address, and its models.
 
@@ -246,6 +264,8 @@ class PyModelRoles(BaseModel):
 
 __all__ = [
     "PyAvailableModels",
+    "PyOpenRouterModel",
+    "PyOpenRouterModels",
     "PyEmbeddingRefreshStatus",
     "PyConfiguredModel",
     "PyModelCapabilitiesView",

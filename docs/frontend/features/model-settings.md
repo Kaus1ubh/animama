@@ -52,9 +52,9 @@ Keys depend on where the app runs:
   is deleted too. At most 32 connection keys can be stored.
 - **Self-hosted web (and the external development stack):** the owner names the
   environment variable that holds the key (`OPENAI_API_KEY`, `DEEPSEEK_API_KEY`,
-  `HF_TOKEN` or `ANIMAMA_CONNECTION_<NAME>_API_KEY`); the connection shows
-  whether it is set in the backend environment. Under Compose, the
-  `ANIMAMA_CONNECTION_*` variables come from the file named by
+  `HF_TOKEN`, `OPENROUTER_API_KEY` or `ANIMAMA_CONNECTION_<NAME>_API_KEY`); the
+  connection shows whether it is set in the backend environment. Under Compose,
+  the `ANIMAMA_CONNECTION_*` variables come from the file named by
   `ANIMAMA_CONNECTION_KEYS_FILE`. Keys never reach the database.
 
 A key that would travel over plain `http` to another computer shows a warning.

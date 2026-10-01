@@ -263,6 +263,20 @@ PROVIDER_LOGOS: dict[str, str] = {
 }
 
 
+def builtin_hidden_by_default(provider_type: str, model_kind: str) -> bool:
+    """Return whether a built-in row starts hidden in a fresh installation.
+
+    The OpenAI connection chats through Responses, so its Chat Completions chat
+    rows start hidden. Embedding rows (which only Chat Completions serves) stay
+    visible. Catalog syncs and the seed set this only on insert; an existing
+    row keeps the owner's choice.
+    """
+
+    from animama.app.chat.api_standard import OPENAI_CHAT_COMPLETIONS_PROVIDER_TYPE
+
+    return provider_type == OPENAI_CHAT_COMPLETIONS_PROVIDER_TYPE and model_kind == MODEL_KIND_CHAT
+
+
 def _modality_values(values: Any) -> list[str]:
     modalities = coerce_modalities(values or ())
     return sorted(getattr(modality, "value", str(modality)) for modality in modalities)
@@ -405,7 +419,7 @@ def serialize_model_catalog() -> list[dict[str, Any]]:
                 "connection_id": BUILTIN_OPENAI_CONNECTION_ID,
                 "connection_name": "OpenAI",
                 "model_kind": entry.get("model_kind", MODEL_KIND_CHAT),
-                "hidden": False,
+                "hidden": builtin_hidden_by_default(provider_type, entry.get("model_kind", MODEL_KIND_CHAT)),
                 "context_window_tokens": (entry.get("model_metadata") or {}).get("context_window_tokens"),
                 "accepts": _modality_values(capabilities.get("accepts")),
                 "produces": _modality_values(capabilities.get("produces")),
@@ -460,6 +474,7 @@ def serialize_model_provider_catalog() -> list[dict[str, Any]]:
                 "connection_id": BUILTIN_OPENAI_CONNECTION_ID,
                 "source": MODEL_SOURCE_BUILTIN,
                 "model_kind": entry.get("model_kind", MODEL_KIND_CHAT),
+                "hidden": builtin_hidden_by_default(provider_type, entry.get("model_kind", MODEL_KIND_CHAT)),
                 "service_tiers_supported": _service_tiers_supported(pricing),
                 "active": bool(entry.get("active", True)),
                 "deprecated_at": entry.get("deprecated_at"),
@@ -523,6 +538,7 @@ __all__ = [
     "RETIRED_BUILTIN_REPLACEMENTS",
     "STRUCTURED_OUTPUT_TRANSPORT_JSON_OBJECT",
     "STRUCTURED_OUTPUT_TRANSPORT_JSON_SCHEMA",
+    "builtin_hidden_by_default",
     "serialize_builtin_model_connections",
     "serialize_model_catalog",
     "serialize_model_provider_catalog",

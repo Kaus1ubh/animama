@@ -3834,6 +3834,32 @@ export const zPyOnboardingCompleteRequest = z.object({
 });
 
 /**
+ * PyOpenRouterModel
+ *
+ * One model from OpenRouter's public list.
+ *
+ * ``supports_tools`` and ``supports_structured_outputs`` come from the
+ * model's advertised parameters; the capability probe can override them.
+ */
+export const zPyOpenRouterModel = z.object({
+    context_length: z.optional(z.union([
+        z.int(),
+        z.null()
+    ])),
+    id: z.string(),
+    name: z.string(),
+    supports_structured_outputs: z.boolean(),
+    supports_tools: z.boolean()
+});
+
+/**
+ * PyOpenRouterModels
+ */
+export const zPyOpenRouterModels = z.object({
+    models: z.array(zPyOpenRouterModel)
+});
+
+/**
  * PyOwnerModelCapabilities
  */
 export const zPyOwnerModelCapabilities = z.object({
@@ -7872,6 +7898,17 @@ export const zListModelConnectionPresetsV1ModelConnectionPresetsGetData = z.obje
  * Successful Response
  */
 export const zListModelConnectionPresetsV1ModelConnectionPresetsGetResponse = z.array(zPyModelConnectionPreset);
+
+export const zListOpenrouterModelsV1ModelConnectionPresetsOpenrouterModelsGetData = z.object({
+    body: z.optional(z.never()),
+    path: z.optional(z.never()),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zListOpenrouterModelsV1ModelConnectionPresetsOpenrouterModelsGetResponse = zPyOpenRouterModels;
 
 export const zDetectModelConnectionPresetV1ModelConnectionPresetsPresetIdDetectPostData = z.object({
     body: z.optional(z.never()),

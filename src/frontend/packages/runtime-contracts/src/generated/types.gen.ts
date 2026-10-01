@@ -6619,6 +6619,47 @@ export type PyOnboardingCompleteRequest = {
 };
 
 /**
+ * PyOpenRouterModel
+ *
+ * One model from OpenRouter's public list.
+ *
+ * ``supports_tools`` and ``supports_structured_outputs`` come from the
+ * model's advertised parameters; the capability probe can override them.
+ */
+export type PyOpenRouterModel = {
+    /**
+     * Context Length
+     */
+    context_length?: number | null;
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Supports Structured Outputs
+     */
+    supports_structured_outputs: boolean;
+    /**
+     * Supports Tools
+     */
+    supports_tools: boolean;
+};
+
+/**
+ * PyOpenRouterModels
+ */
+export type PyOpenRouterModels = {
+    /**
+     * Models
+     */
+    models: Array<PyOpenRouterModel>;
+};
+
+/**
  * PyOwnerModelCapabilities
  */
 export type PyOwnerModelCapabilities = {
@@ -13239,6 +13280,22 @@ export type ListModelConnectionPresetsV1ModelConnectionPresetsGetResponses = {
 };
 
 export type ListModelConnectionPresetsV1ModelConnectionPresetsGetResponse = ListModelConnectionPresetsV1ModelConnectionPresetsGetResponses[keyof ListModelConnectionPresetsV1ModelConnectionPresetsGetResponses];
+
+export type ListOpenrouterModelsV1ModelConnectionPresetsOpenrouterModelsGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/v1/model-connection-presets/openrouter/models';
+};
+
+export type ListOpenrouterModelsV1ModelConnectionPresetsOpenrouterModelsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: PyOpenRouterModels;
+};
+
+export type ListOpenrouterModelsV1ModelConnectionPresetsOpenrouterModelsGetResponse = ListOpenrouterModelsV1ModelConnectionPresetsOpenrouterModelsGetResponses[keyof ListOpenrouterModelsV1ModelConnectionPresetsOpenrouterModelsGetResponses];
 
 export type DetectModelConnectionPresetV1ModelConnectionPresetsPresetIdDetectPostData = {
     body?: never;

@@ -791,8 +791,8 @@ report `credential_state` (`configured`, `missing` or `not_required`) but never
 carry a key value.
 
 - `GET /v1/model-connection-presets`: owner-selectable presets (Ollama, LM
-  Studio, llama.cpp, vLLM, DeepSeek, Hugging Face and Custom) with the default
-  base URL, whether a key is expected, a suggested key variable,
+  Studio, llama.cpp, vLLM, DeepSeek, Hugging Face, OpenRouter and Custom) with
+  the default base URL, whether a key is expected, a suggested key variable,
   compatibility options and the timeout. Local presets use
   `ANIMAMA_LOCAL_MODEL_HOST` as their host.
 - `POST /v1/model-connection-presets/{preset_id}/detect`: for a local preset
@@ -804,6 +804,14 @@ carry a key value.
   `category` such as `unreachable` or `timeout` (still `200`). Other presets
   return `400 preset_not_local`; unknown or non-selectable presets return
   `404 unknown_preset`.
+- `GET /v1/model-connection-presets/openrouter/models`: OpenRouter's public
+  model list as `{models: [{id, name, context_length, supports_tools,
+  supports_structured_outputs}]}`. The backend reads only
+  `https://openrouter.ai/api/v1/models`, without a key or redirects, within
+  10 seconds and 8 MiB, and caches a successful list for 10 minutes. The two
+  capability flags come from each model's `supported_parameters` (`tools`;
+  `structured_outputs` or `response_format`). An upstream failure returns
+  `502 openrouter_models_unavailable`.
 - `GET /v1/model-connections`: active connections, including the built-in
   `openai` connection, each with its active models.
 - `POST /v1/model-connections` (`201`): create a connection from `name`,

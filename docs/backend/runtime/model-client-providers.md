@@ -150,15 +150,17 @@ from its environment, and Electron main replaces the store while it runs.
   adapter refuses one with `responses_connection_unsupported`.
 - **Owner connections.** `StoreModelCredentialResolver` reads only the
   key variable the connection names in `credential_env`. The name must
-  be `OPENAI_API_KEY`, `DEEPSEEK_API_KEY`, `HF_TOKEN` or match
-  `ANIMAMA_CONNECTION_<NAME>_API_KEY`; desktop-managed keys use
+  be `OPENAI_API_KEY`, `DEEPSEEK_API_KEY`, `HF_TOKEN`, `OPENROUTER_API_KEY` or
+  match `ANIMAMA_CONNECTION_<NAME>_API_KEY`; desktop-managed keys use
   `ANIMAMA_CONNECTION_<ID>_API_KEY`. An owner connection never falls back to
   the OpenAI key.
 - **Isolation.** Owner-connection SDK clients omit the process
   `OpenAI-Organization` and `OpenAI-Project` headers and every header listed in
   `OPENAI_CUSTOM_HEADERS`, and set `Authorization` from the connection's own
   key. A keyless connection (no `credential_env`) sends no `Authorization`
-  header.
+  header. A preset's fixed `request_headers` are then added to every request
+  (chat, probe and model listing); only `openrouter` has them, sending
+  `X-Title: Animama` and `HTTP-Referer: https://animama.ai`.
 - **Missing keys.** A named key that is not in the store fails the turn with
   `missing_api_key` (category `credential_missing`). Self-hosted backends read
   the environment only at startup, so restart them after changing a variable.
@@ -174,19 +176,21 @@ from its environment, and Electron main replaces the store while it runs.
 ### Connection Presets
 
 Presets (`app/model_connection_presets.py`) only fill defaults when the owner
-adds a connection; every value can be changed afterwards. Local presets build
-their base URL from `ANIMAMA_LOCAL_MODEL_HOST` (`127.0.0.1` by default,
-`host.docker.internal` in Compose).
+adds a connection; every value except a preset's fixed request headers can be
+changed afterwards. Local presets build their base URL from
+`ANIMAMA_LOCAL_MODEL_HOST` (`127.0.0.1` by default, `host.docker.internal` in
+Compose).
 
-| Preset        | Default base URL                   | Key                                   | Timeout | Compatibility defaults                                                                                    |
-| ------------- | ---------------------------------- | ------------------------------------- | ------- | --------------------------------------------------------------------------------------------------------- |
-| `ollama`      | `http://<host>:11434/v1`           | none                                  | 300 s   | fold `developer`, no OpenAI extensions                                                                    |
-| `lmstudio`    | `http://<host>:1234/v1`            | none                                  | 300 s   | fold `developer`, no OpenAI extensions                                                                    |
-| `llamacpp`    | `http://<host>:8080/v1`            | none                                  | 300 s   | fold `developer`, no OpenAI extensions                                                                    |
-| `vllm`        | `http://<host>:8000/v1`            | none                                  | 300 s   | fold `developer`, no OpenAI extensions                                                                    |
-| `deepseek`    | `https://api.deepseek.com`         | expected; suggests `DEEPSEEK_API_KEY` | 60 s    | fold `developer`, no OpenAI extensions, `reasoning_mode=deepseek_thinking`                                |
-| `huggingface` | `https://router.huggingface.co/v1` | expected; suggests `HF_TOKEN`         | 60 s    | fold `developer`, no OpenAI extensions, no streamed usage, strip function `strict`, `reasoning_mode=omit` |
-| `custom`      | none                               | optional                              | 60 s    | fold `developer`, no OpenAI extensions                                                                    |
+| Preset        | Default base URL                   | Key                                     | Timeout | Compatibility defaults                                                                                    |
+| ------------- | ---------------------------------- | --------------------------------------- | ------- | --------------------------------------------------------------------------------------------------------- |
+| `ollama`      | `http://<host>:11434/v1`           | none                                    | 300 s   | fold `developer`, no OpenAI extensions                                                                    |
+| `lmstudio`    | `http://<host>:1234/v1`            | none                                    | 300 s   | fold `developer`, no OpenAI extensions                                                                    |
+| `llamacpp`    | `http://<host>:8080/v1`            | none                                    | 300 s   | fold `developer`, no OpenAI extensions                                                                    |
+| `vllm`        | `http://<host>:8000/v1`            | none                                    | 300 s   | fold `developer`, no OpenAI extensions                                                                    |
+| `deepseek`    | `https://api.deepseek.com`         | expected; suggests `DEEPSEEK_API_KEY`   | 60 s    | fold `developer`, no OpenAI extensions, `reasoning_mode=deepseek_thinking`                                |
+| `huggingface` | `https://router.huggingface.co/v1` | expected; suggests `HF_TOKEN`           | 60 s    | fold `developer`, no OpenAI extensions, no streamed usage, strip function `strict`, `reasoning_mode=omit` |
+| `openrouter`  | `https://openrouter.ai/api/v1`     | expected; suggests `OPENROUTER_API_KEY` | 60 s    | fold `developer`, no OpenAI extensions                                                                    |
+| `custom`      | none                               | optional                                | 60 s    | fold `developer`, no OpenAI extensions                                                                    |
 
 DeepSeek models typically need the `json_object` structured-output mode, which
 the probe selects when schema output fails. Hugging Face model IDs are sent
