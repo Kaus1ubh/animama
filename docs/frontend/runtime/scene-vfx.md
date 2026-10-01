@@ -71,8 +71,8 @@ settings-owned media URL.
 
 ### Product authoring
 
-- `src/frontend/web/src/routes/a/scene-effects.new.tsx`
-- `src/frontend/web/src/routes/a/scene-effects.$sceneEffectId.edit.tsx`
+- `src/frontend/web/src/routes/_app/scene-effects.new.tsx`
+- `src/frontend/web/src/routes/_app/scene-effects.$sceneEffectId.edit.tsx`
 - `src/frontend/web/src/ui/scene-effect-creator/SceneEffectCreatorPage.tsx`
 - `src/frontend/web/src/ui/scene-effect-creator/useSceneEffectSave.ts`
 - `src/frontend/web/src/lib/scene-vfx/editor/`
@@ -133,8 +133,8 @@ simultaneously mounted live Anima scene.
 
 Routes:
 
-- `/a/scene-effects/new`
-- `/a/scene-effects/:sceneEffectId/edit`
+- `/scene-effects/new`
+- `/scene-effects/:sceneEffectId/edit`
 
 Background Layers combines Solid, Pattern and Marquee layers. Marquee items can
 be reordered and use allowlisted Twemoji or private PNG/JPEG/WebP/SVG sources.

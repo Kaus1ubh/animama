@@ -90,7 +90,7 @@ legacy commands may omit voice.
 
 Direct creation and backend starter provisioning use this materializer through
 the strict creation service below. Whole-Anima package import uses it inside the
-same transaction as its newly copied content. `/a/animas/new` uses the five-step
+same transaction as its newly copied content. `/animas/new` uses the five-step
 live creator and submits the complete reviewed spec through `POST /v1/animas`.
 
 New creation materializes the selected identity into the Anima's own memory

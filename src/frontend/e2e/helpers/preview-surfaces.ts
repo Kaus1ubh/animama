@@ -36,7 +36,12 @@ type UserSettingsSnapshot = {
 export async function selectAnnieFromSidebar(page: Page): Promise<string> {
   let settings: UserSettingsSnapshot = {};
   let settingsKnown = false;
-  if (!new URL(page.url()).pathname.startsWith("/a")) {
+  const current = new URL(page.url());
+  // Enter the app first from a blank page or any non-app entry surface.
+  if (
+    !current.protocol.startsWith("http") ||
+    ["/", "/setup", "/safety"].includes(current.pathname)
+  ) {
     const settingsResponse = page.waitForResponse(
       (candidate) =>
         candidate.request().method() === "GET" &&
@@ -44,7 +49,7 @@ export async function selectAnnieFromSidebar(page: Page): Promise<string> {
         candidate.ok(),
       { timeout: 15_000 },
     );
-    const response = await page.goto("/a/animas", {
+    const response = await page.goto("/animas", {
       waitUntil: "domcontentloaded",
     });
     if (!response?.ok()) {
@@ -68,10 +73,10 @@ export async function selectAnnieFromSidebar(page: Page): Promise<string> {
     throw fixturePrecondition("Annie's sidebar link has no href.");
   }
   const route = new URL(href, page.url());
-  const match = /^\/a\/([^/]+)$/.exec(route.pathname);
+  const match = /^\/([^/]+)$/.exec(route.pathname);
   if (!match?.[1]) {
     throw fixturePrecondition(
-      "Annie's sidebar link does not target /a/{animaId}.",
+      "Annie's sidebar link does not target /{animaId}.",
     );
   }
   const animaId = decodeURIComponent(match[1]);
@@ -95,7 +100,7 @@ export async function selectAnnieFromSidebar(page: Page): Promise<string> {
   }
   await annie.click();
   await expect(page).toHaveURL(
-    new RegExp(`/a/${encodeURIComponent(animaId)}(?:[?#]|$)`),
+    new RegExp(`/${encodeURIComponent(animaId)}(?:[?#]|$)`),
   );
   if (settingsUpdated) await settingsUpdated;
   return animaId;
@@ -110,7 +115,7 @@ async function navigateToLibrary(page: Page): Promise<void> {
   await expect(libraryLink).toHaveCount(1);
   await expect(libraryLink).toBeVisible();
   await libraryLink.click();
-  await expect(page).toHaveURL(/\/a\/library(?:[/?#]|$)/);
+  await expect(page).toHaveURL(/\/library(?:[/?#]|$)/);
   await expect(
     page.getByRole("heading", { name: "Library", exact: true }),
   ).toBeVisible();
@@ -294,7 +299,7 @@ export async function openAnnieLoadoutPreview(args: {
     }
   };
   args.page.on("response", recordReadyRuntime);
-  const response = await args.page.goto("/a/animas", {
+  const response = await args.page.goto("/animas", {
     waitUntil: "domcontentloaded",
   });
   if (!response?.ok()) {
@@ -327,10 +332,10 @@ export async function openAnnieLoadoutPreview(args: {
     throw fixturePrecondition("Annie's Edit identity link has no href.");
   }
   const route = new URL(href, args.page.url());
-  const match = /^\/a\/animas\/([^/]+)\/identity$/.exec(route.pathname);
+  const match = /^\/animas\/([^/]+)\/identity$/.exec(route.pathname);
   if (!match?.[1]) {
     throw fixturePrecondition(
-      `Annie's Edit identity link does not target /a/animas/{animaId}/identity.`,
+      `Annie's Edit identity link does not target /animas/{animaId}/identity.`,
     );
   }
   const animaId = decodeURIComponent(match[1]);
@@ -338,7 +343,7 @@ export async function openAnnieLoadoutPreview(args: {
   // that user-driven transition avoids reloading the complete application and
   // aborting runtime work that the selected Anima has already started.
   await expect(args.page).toHaveURL(
-    new RegExp(`/a/animas/${encodeURIComponent(animaId)}(?:[?#]|$)`),
+    new RegExp(`/animas/${encodeURIComponent(animaId)}(?:[?#]|$)`),
   );
   await expect(annieSelectors.first()).toHaveAttribute("aria-current", "true");
   await expect

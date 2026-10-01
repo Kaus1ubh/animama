@@ -50,7 +50,7 @@ const runtimeId = (item: PlaybackItem) =>
     : (item.logical_key?.split(":").at(-1) ?? item.item_id);
 
 async function openSharing(page: Page, action: "Import" | "Export") {
-  await page.goto("/a/library");
+  await page.goto("/library");
   await page.getByRole("button", { name: action, exact: true }).click();
   await expect(page.getByRole("dialog")).toBeVisible();
 }
@@ -76,7 +76,7 @@ function waitForTypedPreview(page: Page, item: PlaybackItem) {
 }
 
 async function libraryRow(page: Page, item: PlaybackItem) {
-  await page.goto("/a/library");
+  await page.goto("/library");
   await page.getByPlaceholder("Search the Library").fill(item.name);
   const row = page.getByRole("article", { name: item.name, exact: true });
   await expect(row).toHaveCount(1);
@@ -334,7 +334,7 @@ async function discardNewAction(page: Page) {
   await discard
     .getByRole("button", { name: "Discard and continue", exact: true })
     .click();
-  await expect(page).toHaveURL(/\/a\/library(?:[/?#]|$)/);
+  await expect(page).toHaveURL(/\/library(?:[/?#]|$)/);
 }
 
 /** Copy the exact imported Pose through the catalog, then play its new inline Gesture. */
@@ -538,9 +538,7 @@ async function proveImportedEffectHandoff(args: {
   // New Actions prepare their dependencies through the shared capability API.
   // The visible project JSON below binds the exact imported source, while the
   // subsequent clock/effect proof establishes that its prepared bytes play.
-  await expect(page).toHaveURL(
-    new RegExp(`/a/${intent.toLowerCase()}s/new\\?`),
-  );
+  await expect(page).toHaveURL(new RegExp(`/${intent.toLowerCase()}s/new\\?`));
   const name = `import-use-${token}-${item.kind}-${intent.toLowerCase()}`;
   await page
     .getByRole("textbox", { name: `${intent.toLowerCase()} name`, exact: true })
@@ -858,7 +856,7 @@ test("imported playback covers every supported content kind in Library and appli
         ? waitForTypedPreview(page, item)
         : null;
       await page.goto(
-        `/a/${playbackFamilies[item.kind as PlaybackKind]}/${item.item_id}/edit`,
+        `/${playbackFamilies[item.kind as PlaybackKind]}/${item.item_id}/edit`,
       );
       await creatorAdmission;
       if (item.kind === "pose") {
@@ -1067,7 +1065,7 @@ test("imported playback covers every supported content kind in Library and appli
         }));
     }
   }
-  await page.goto("/a/library");
+  await page.goto("/library");
   await creatorContent.assertAnimaLoadoutUnchanged(
     loadoutBefore,
     animamaEvidence,
@@ -1115,7 +1113,7 @@ test("imported playback complete Anima retains imported Avatar, appearance and p
     exported.manifest.anima?.identity_markdown,
   );
   await page.getByRole("button", { name: "Open Anima", exact: true }).click();
-  await expect(page).toHaveURL(new RegExp(`/a/${anima.itemId}(?:[/?#]|$)`));
+  await expect(page).toHaveURL(new RegExp(`/${anima.itemId}(?:[/?#]|$)`));
   const frozenLoadout = await creatorContent.snapshotAnimaLoadout(anima.itemId);
   const runtimeResponse = await page.request.get(
     `/v1/animas/${anima.itemId}/runtime`,
@@ -1156,7 +1154,7 @@ test("imported playback complete Anima retains imported Avatar, appearance and p
         `/v1/animas/${anima.itemId}/runtime` &&
       response.ok(),
   );
-  await page.goto(`/a/animas/${anima.itemId}`);
+  await page.goto(`/animas/${anima.itemId}`);
   await managementRuntime;
   await expect(page.getByTestId("anima-management-canvas")).toBeVisible({
     timeout: 30_000,
@@ -1356,7 +1354,7 @@ test("imported playback complete Anima retains imported Avatar, appearance and p
     frozenLoadout,
     animamaEvidence,
   );
-  await page.goto("/a/library");
+  await page.goto("/library");
   await creatorContent.cleanupOwnedContent();
   await creatorContent.assertLocalCatalogUnchanged(
     before,

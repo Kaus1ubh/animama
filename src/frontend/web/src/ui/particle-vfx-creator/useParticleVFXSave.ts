@@ -274,7 +274,7 @@ export function useParticleVFXSave({
       toast.success("Particle Effect saved.");
       setStage("idle");
       await navigate({
-        to: "/a/particle-effects/$particleEffectId/edit",
+        to: "/particle-effects/$particleEffectId/edit",
         params: { particleEffectId: item.item_id },
         replace: true,
         ignoreBlocker: true,

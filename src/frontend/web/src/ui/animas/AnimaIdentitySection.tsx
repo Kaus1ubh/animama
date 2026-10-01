@@ -41,7 +41,7 @@ export function AnimaIdentitySection({
       ) : (
         <Link
           id="anima-identity-edit-trigger"
-          to="/a/animas/$animaId/identity"
+          to="/animas/$animaId/identity"
           params={{ animaId }}
           search={{ tab: "overview" }}
         >

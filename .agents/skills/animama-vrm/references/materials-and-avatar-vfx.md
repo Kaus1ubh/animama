@@ -59,7 +59,7 @@ Animated texture effects redraw/upload composites on VFX ticks; static segments 
 
 ## Use the in-app creator
 
-1. Open `/a/avatar-effects/new` or the intended existing effect's edit route, select the intended avatar preview, and choose the kind based on how the art should attach.
+1. Open `/avatar-effects/new` or the intended existing effect's edit route, select the intended avatar preview, and choose the kind based on how the art should attach.
 2. Import the image and configure the target/anchor/side/mirroring. Current creator input is one PNG, JPEG, or WebP. Check actual transparency; a checkerboard painted into an image is not alpha.
 3. Use **Guides** to inspect reference anchors versus the solid artwork footprint. The footprint includes transparent padding. Use **UV preview** for the selected live texture slot and **Skin coverage** for flatten/sample regions. Estimated anchors are marked. These controls affect preview only.
 4. Tune scale, pivot, offset, rotation, and supported animation. Play/Stop/restart, inspect front and oblique views, and check relevant facial expressions. Resolve definition errors separately from model compatibility warnings: the former block Save; the latter can mean a valid effect lacks a binding on this model.

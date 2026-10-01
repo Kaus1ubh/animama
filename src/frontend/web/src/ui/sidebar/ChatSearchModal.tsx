@@ -257,7 +257,7 @@ export function ChatSearchModal({ open, onOpenChange }: ChatSearchModalProps) {
       if (!result.anima_id || !result.chat_id) return;
       onOpenChange(false);
       void navigate({
-        to: "/a/$animaId/c/$chatId",
+        to: "/$animaId/c/$chatId",
         params: {
           animaId: result.anima_id,
           chatId: result.chat_id,

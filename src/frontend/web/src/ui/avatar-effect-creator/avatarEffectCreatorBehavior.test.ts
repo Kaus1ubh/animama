@@ -44,16 +44,16 @@ describe("Avatar Effect creator behavior", () => {
       shouldBlockAvatarEffectNavigation({
         dirty: true,
         busy: false,
-        currentPath: "/a/avatar-effects/new",
-        nextPath: "/a/library",
+        currentPath: "/avatar-effects/new",
+        nextPath: "/library",
       }),
     ).toBe(true);
     expect(
       shouldBlockAvatarEffectNavigation({
         dirty: true,
         busy: false,
-        currentPath: "/a/avatar-effects/new",
-        nextPath: "/a/avatar-effects/new",
+        currentPath: "/avatar-effects/new",
+        nextPath: "/avatar-effects/new",
       }),
     ).toBe(false);
   });

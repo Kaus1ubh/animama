@@ -103,7 +103,7 @@ capture timestamp.
 [`web/src/routes/desktop/pip/$animaId.tsx`](../../../src/frontend/web/src/routes/desktop/pip/$animaId.tsx)
 serves `/desktop/pip/$animaId`.
 
-This route intentionally stays outside `/a`. Routes under `/a` inherit the
+This route intentionally stays outside `/`. Routes under `/` inherit the
 normal protected app layout, which would pull in `AppShell`, sidebar,
 `MainShell`, chat runtime, and main-window PiP producers.
 

@@ -42,15 +42,11 @@ describe("FX editor navigation", () => {
   it.each([
     [
       "particle_effect",
-      "/a/particle-effects/$particleEffectId/edit",
+      "/particle-effects/$particleEffectId/edit",
       "particleEffectId",
     ],
-    [
-      "avatar_effect",
-      "/a/avatar-effects/$avatarEffectId/edit",
-      "avatarEffectId",
-    ],
-    ["scene_effect", "/a/scene-effects/$sceneEffectId/edit", "sceneEffectId"],
+    ["avatar_effect", "/avatar-effects/$avatarEffectId/edit", "avatarEffectId"],
+    ["scene_effect", "/scene-effects/$sceneEffectId/edit", "sceneEffectId"],
   ] as const)("opens %s in its typed editor", (kind, to, parameter) => {
     expect(creatorEffectEditTarget(kind, "local-id")).toEqual({
       to,

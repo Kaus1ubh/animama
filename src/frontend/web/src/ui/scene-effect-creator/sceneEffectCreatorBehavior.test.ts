@@ -43,16 +43,16 @@ describe("Scene Effect creator behavior", () => {
       shouldBlockSceneEffectNavigation({
         dirty: true,
         busy: false,
-        currentPath: "/a/scene-effects/new",
-        nextPath: "/a/library",
+        currentPath: "/scene-effects/new",
+        nextPath: "/library",
       }),
     ).toBe(true);
     expect(
       shouldBlockSceneEffectNavigation({
         dirty: true,
         busy: false,
-        currentPath: "/a/scene-effects/new",
-        nextPath: "/a/scene-effects/new",
+        currentPath: "/scene-effects/new",
+        nextPath: "/scene-effects/new",
       }),
     ).toBe(false);
   });

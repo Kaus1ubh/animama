@@ -133,7 +133,7 @@ export const SidebarChats = () => {
                   return (
                     <Link
                       key={chat.id}
-                      to="/a/$animaId/c/$chatId"
+                      to="/$animaId/c/$chatId"
                       params={{
                         animaId: targetAnimaId,
                         chatId: chat.id,

@@ -15,7 +15,10 @@ import {
 } from "react";
 import type { Object3D } from "three";
 
-import type { ItemRevisionRef, PyTypedContentPreview } from "@animama/runtime-contracts/sdk";
+import type {
+  ItemRevisionRef,
+  PyTypedContentPreview,
+} from "@animama/runtime-contracts/sdk";
 import { Avatar } from "@/lib/avatar";
 import { acquireContentPreviewResource } from "@/lib/content-preview/lifecycle";
 import { VerifiedByteLoader } from "@/lib/runtime-content/VerifiedByteLoader";

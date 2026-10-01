@@ -50,17 +50,17 @@ export function creatorEffectEditTarget(
   switch (contentType) {
     case "particle_effect":
       return {
-        to: "/a/particle-effects/$particleEffectId/edit" as const,
+        to: "/particle-effects/$particleEffectId/edit" as const,
         params: { particleEffectId: itemId },
       };
     case "avatar_effect":
       return {
-        to: "/a/avatar-effects/$avatarEffectId/edit" as const,
+        to: "/avatar-effects/$avatarEffectId/edit" as const,
         params: { avatarEffectId: itemId },
       };
     case "scene_effect":
       return {
-        to: "/a/scene-effects/$sceneEffectId/edit" as const,
+        to: "/scene-effects/$sceneEffectId/edit" as const,
         params: { sceneEffectId: itemId },
       };
   }

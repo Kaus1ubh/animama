@@ -51,7 +51,7 @@ describe("memory cue", () => {
     expect(html).toContain("Added to Annie&#x27;s memories");
     expect(html).toContain("- Miso the cat");
     expect(html).toContain(
-      'href="/a/memories?tab=memory&amp;mode=manual&amp;entryId=mem-annie"',
+      'href="/memories?tab=memory&amp;mode=manual&amp;entryId=mem-annie"',
     );
     expect(html).toContain(">Open in Memories<");
   });

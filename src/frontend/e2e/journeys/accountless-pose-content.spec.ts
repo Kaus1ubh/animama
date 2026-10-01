@@ -19,7 +19,7 @@ import {
 import { openLibraryPreview } from "../helpers/preview-surfaces";
 
 const includedName = "Shy Finger Poke 1";
-const posesUrl = "/a/library?section=actions&action=poses";
+const posesUrl = "/library?section=actions&action=poses";
 
 test("pose content Included discovery and rendered preview @read-only", async ({
   page,
@@ -31,7 +31,7 @@ test("pose content Included discovery and rendered preview @read-only", async ({
   const network = new PreviewNetworkRecorder(page);
   const guard = new ReadOnlyJourneyGuard(page);
   try {
-    await page.goto("/a/library");
+    await page.goto("/library");
     await page.getByPlaceholder("Search the Library").fill(includedName);
     await expect(
       page.getByRole("article", { name: includedName, exact: true }),
@@ -188,7 +188,7 @@ test("pose content Local save edit reopen and browser storage independence", asy
   expect(reopened.expressions).toEqual(original.expressions);
   // The second surface holds an inline copy while its source is edited and deleted.
   const clipPage = await page.context().newPage();
-  await clipPage.goto("/a/create");
+  await clipPage.goto("/create");
   const stage = await openCreatorStage({
     creator: "Gesture",
     page: clipPage,
@@ -409,7 +409,7 @@ test("pose content editor recovers a failed detail load without creating content
     .getByRole("link", { name: "Edit", exact: true })
     .getAttribute("href");
   expect(href).toBeTruthy();
-  const itemId = new URL(href!, page.url()).pathname.split("/")[3]!;
+  const itemId = new URL(href!, page.url()).pathname.split("/")[2]!;
   const detailUrl = new URL(`/v1/poses/${itemId}`, page.url()).href;
   await page.route(detailUrl, (route) =>
     route.fulfill({
@@ -445,12 +445,12 @@ test("pose content creator load panels avoid expanded and collapsed sidebars @re
   try {
     await page.setViewportSize({ width: 1280, height: 800 });
     for (const [creator, route] of [
-      ["pose", "/a/gestures/new"],
-      ["gesture", "/a/gestures/new"],
-      ["reaction", "/a/reactions/new"],
-      ["Particle FX", "/a/particle-effects/new"],
-      ["Avatar FX", "/a/avatar-effects/new"],
-      ["Scene FX", "/a/scene-effects/new"],
+      ["pose", "/gestures/new"],
+      ["gesture", "/gestures/new"],
+      ["reaction", "/reactions/new"],
+      ["Particle FX", "/particle-effects/new"],
+      ["Avatar FX", "/avatar-effects/new"],
+      ["Scene FX", "/scene-effects/new"],
     ] as const) {
       await page.goto(route);
       if (creator === "pose" || creator === "gesture") {

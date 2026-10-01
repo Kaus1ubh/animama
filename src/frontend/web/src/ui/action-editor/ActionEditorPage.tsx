@@ -415,8 +415,8 @@ export function ActionEditorPage({
         await navigate({
           to:
             intent === "gesture"
-              ? "/a/gestures/$gestureId/edit"
-              : "/a/reactions/$reactionId/edit",
+              ? "/gestures/$gestureId/edit"
+              : "/reactions/$reactionId/edit",
           params:
             intent === "gesture"
               ? { gestureId: item.item_id }
@@ -708,8 +708,8 @@ export function ActionEditorPage({
     await navigate({
       to:
         intent === "gesture"
-          ? "/a/gestures/$gestureId/edit"
-          : "/a/reactions/$reactionId/edit",
+          ? "/gestures/$gestureId/edit"
+          : "/reactions/$reactionId/edit",
       params:
         intent === "gesture"
           ? { gestureId: targetItemId }
@@ -875,7 +875,7 @@ export function ActionEditorPage({
     internalNavigation.current = true;
     try {
       await navigate({
-        to: intent === "gesture" ? "/a/gestures/new" : "/a/reactions/new",
+        to: intent === "gesture" ? "/gestures/new" : "/reactions/new",
         search: {},
       });
     } finally {

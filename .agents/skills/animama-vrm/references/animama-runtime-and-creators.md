@@ -42,10 +42,10 @@ This makes writer ownership concrete. A new per-frame React mutation outside the
 
 | Surface | Route / behavior |
 | --- | --- |
-| Gesture creator | `/a/gestures/new`, `/a/gestures/:gestureId/edit`; Anima Clip documents expose Pose and Clip modes in the shared Action editor; VRMA imports have a different editing surface |
-| Saved Pose editing | `/a/poses/:poseId/edit`; static bone/expression content |
+| Gesture creator | `/gestures/new`, `/gestures/:gestureId/edit`; Anima Clip documents expose Pose and Clip modes in the shared Action editor; VRMA imports have a different editing surface |
+| Saved Pose editing | `/poses/:poseId/edit`; static bone/expression content |
 | Reaction creator | Action editor for expression/effect/sound timing; rejects humanoid tracks |
-| Avatar Effect creator | `/a/avatar-effects/new`, `/a/avatar-effects/:avatarEffectId/edit`; portrait preview using production VFX controller |
+| Avatar Effect creator | `/avatar-effects/new`, `/avatar-effects/:avatarEffectId/edit`; portrait preview using production VFX controller |
 
 For browser work, navigate through the available UI and confirm the loaded item/model. Treat a creator's draft, Play/Stop, and Save as different operations; use the user's requested scope to decide whether to persist changes.
 

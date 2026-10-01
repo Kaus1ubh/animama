@@ -88,7 +88,7 @@ export async function saveTrackedPose(args: {
     await page.getByRole("button", { name: "Save pose", exact: true }).click();
     const saved = await result;
     await content.verifyOwnedContent(saved.plan, saved);
-    await expect(page).toHaveURL(new RegExp(`/a/poses/${saved.itemId}/edit`));
+    await expect(page).toHaveURL(new RegExp(`/poses/${saved.itemId}/edit`));
     await expect(
       page.getByRole("button", { name: "Save pose", exact: true }),
     ).toBeDisabled();

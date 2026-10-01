@@ -104,7 +104,7 @@ export function shouldBlockMemoryWorkspaceExit(
   current: WorkspaceLocation,
   next: WorkspaceLocation,
 ) {
-  if (next.pathname !== "/a/memories") return true;
+  if (next.pathname !== "/memories") return true;
   return (
     workspaceTab(current) !== "uploads" && workspaceTab(next) === "uploads"
   );

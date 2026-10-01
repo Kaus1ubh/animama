@@ -6,10 +6,10 @@ const sourceRoot = fileURLToPath(new URL("../../", import.meta.url));
 
 describe("Avatar Effect creator routes", () => {
   it.each([
-    ["routes/a/avatar-effects.new.tsx", "/a/avatar-effects/new"],
+    ["routes/_app/avatar-effects.new.tsx", "/avatar-effects/new"],
     [
-      "routes/a/avatar-effects.$avatarEffectId.edit.tsx",
-      "/a/avatar-effects/$avatarEffectId/edit",
+      "routes/_app/avatar-effects.$avatarEffectId.edit.tsx",
+      "/avatar-effects/$avatarEffectId/edit",
     ],
   ])("registers %s as a full-canvas creator route", async (relative, route) => {
     const source = await readFile(

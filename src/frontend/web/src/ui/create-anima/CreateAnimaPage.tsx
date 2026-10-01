@@ -418,7 +418,7 @@ function OwnedCreateAnimaPage({
           onClick={() =>
             draft.step
               ? controller.go((draft.step - 1) as CreationStep)
-              : void navigate({ to: "/a/create" })
+              : void navigate({ to: "/create" })
           }
         >
           <ArrowLeft className="size-4" />
@@ -483,7 +483,7 @@ function OwnedCreateAnimaPage({
             Start over
           </Button>
           <Button variant="ghost" asChild>
-            <Link to="/a/create">Creator hub</Link>
+            <Link to="/create">Creator hub</Link>
           </Button>
         </div>
       </section>
@@ -521,7 +521,7 @@ function OwnedCreateAnimaPage({
             </Button>
           ) : null}
           <Button variant="ghost" asChild>
-            <Link to="/a/create">Creator hub</Link>
+            <Link to="/create">Creator hub</Link>
           </Button>
         </div>
       </section>

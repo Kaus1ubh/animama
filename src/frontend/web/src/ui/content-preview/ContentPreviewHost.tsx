@@ -816,7 +816,7 @@ export function ContentPreviewHost() {
                 </p>
                 {animaContextState === "anima_required" ? (
                   <Button asChild type="button" size="sm" variant="outline">
-                    <Link to="/a/animas/new">Create Anima</Link>
+                    <Link to="/animas/new">Create Anima</Link>
                   </Button>
                 ) : (
                   <Button
@@ -881,7 +881,7 @@ export function ContentPreviewHost() {
                     className="mt-1 ml-2 min-h-9"
                   >
                     <Link
-                      to="/a/animas/$animaId"
+                      to="/animas/$animaId"
                       params={{ animaId: previewAnima.id }}
                       search={{ tab: "loadout" }}
                     >

@@ -100,7 +100,7 @@ A memory-manager run is a user-invoked maintenance chat backed by:
 
 Runs are separate from normal `chat:sse` product chat. They are mounted under
 `/v1/memory/manager/...` and are normally used from the Memory Manager mode of
-the `/a/memories` Work pane.
+the `/memories` Work pane.
 
 Every run has a permanent kind:
 
@@ -226,7 +226,7 @@ blocked, but the episode service can regenerate its own projection.
 
 ### 4. The User Opens The Memory Manager
 
-The frontend shows the Memory Manager inline in the `/a/memories` Work pane,
+The frontend shows the Memory Manager inline in the `/memories` Work pane,
 beside Manual editing (`Manual | Memory Manager`). Ordinary maintenance uses `POST /v1/memory/manager/runs`. The authoritative
 episode workflow uses `POST /v1/memory/manager/runs:process-episodes`, which
 selects and fences a backend-owned batch. `POST /v1/memory/manager/runs:reflect`
@@ -961,7 +961,7 @@ backend guard is authoritative.
 
 ## Frontend Integration Notes
 
-The current `/a/memories` UI starts specialized episode processing immediately,
+The current `/memories` UI starts specialized episode processing immediately,
 projects its server-owned summary while the request runs, renders the safe task
 summary, supports rejection feedback, and enables the same-run general composer
 after processing. It refreshes episode and curated-memory state only after

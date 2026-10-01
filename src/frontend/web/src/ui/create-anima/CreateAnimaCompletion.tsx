@@ -70,7 +70,7 @@ export function CreateAnimaCompletion({
             mount.diagnostics.map((item) => item.message).join(" ") ||
               "Some runtime content is unavailable. Your Anima was created successfully.",
           );
-        } else await navigate({ to: "/a/$animaId", params: { animaId } });
+        } else await navigate({ to: "/$animaId", params: { animaId } });
       } catch (error) {
         if (!controller.signal.aborted) {
           setStatus("error");
@@ -124,7 +124,7 @@ export function CreateAnimaCompletion({
               Retry opening Anima
             </Button>
             <Button variant="outline" asChild>
-              <Link to="/a/$animaId" params={{ animaId }}>
+              <Link to="/$animaId" params={{ animaId }}>
                 Open Anima anyway
               </Link>
             </Button>
@@ -132,7 +132,7 @@ export function CreateAnimaCompletion({
         </div>
       )}
       <Button variant="ghost" asChild>
-        <Link to="/a/create">Creator hub</Link>
+        <Link to="/create">Creator hub</Link>
       </Button>
     </section>
   );

@@ -32,7 +32,10 @@ export function renderRedistributionReview({
     "The tracked source/provenance analysis is in " +
       link(
         "Desktop redistribution review",
-        path.join(desktopRoot, "../../../docs/frontend/desktop/redistribution-review.md"),
+        path.join(
+          desktopRoot,
+          "../../../docs/frontend/desktop/redistribution-review.md",
+        ),
       ) +
       ". Review it together with the exact generated files below.",
     "",

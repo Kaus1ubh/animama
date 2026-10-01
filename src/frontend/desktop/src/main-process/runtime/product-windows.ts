@@ -2,6 +2,29 @@ import type { BrowserWindow, Session } from "electron";
 
 import { removeRendererCapability } from "../security/renderer-capability.js";
 
+/**
+ * First path segments that are never main-window app routes: backend APIs,
+ * private and static mounts, the safety page and desktop-only windows.
+ */
+const NON_APPLICATION_SEGMENTS = new Set([
+  "_desktop",
+  "api",
+  "v1",
+  "docs",
+  "redoc",
+  "openapi.json",
+  "onnx",
+  "tts",
+  "basis",
+  "assets",
+  "content",
+  "background",
+  "effects",
+  "desktop",
+  "safety",
+  "health",
+]);
+
 /** Retain only an actual main-app route, never credentials, controls or another origin. */
 export function validatedApplicationRoute(
   value: string,
@@ -17,12 +40,11 @@ export function validatedApplicationRoute(
       url.password ||
       /[\x00-\x1f\x7f\\]/u.test(pathname) ||
       pathname.split("/").some((part) => part === "." || part === "..") ||
-      !(
-        pathname === "/" ||
-        pathname === "/setup" ||
-        pathname === "/a" ||
-        pathname.startsWith("/a/")
-      )
+      !pathname.startsWith("/") ||
+      // An empty first segment ("//host/...") would resolve to another origin.
+      pathname.startsWith("//") ||
+      // Router matching is case-insensitive, so compare segments the same way.
+      NON_APPLICATION_SEGMENTS.has(pathname.split("/")[1]!.toLowerCase())
     )
       return null;
     return `${url.pathname}${url.search}${url.hash}`;

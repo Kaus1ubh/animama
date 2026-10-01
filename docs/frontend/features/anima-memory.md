@@ -6,7 +6,7 @@ Query hooks.
 
 ## Current User-Facing Surfaces
 
-`/a/memories` provides an installation-wide file explorer, Manual editor,
+`/memories` provides an installation-wide file explorer, Manual editor,
 Memory Manager and Markdown preview covering user memory and every owned
 Anima's identity and memories. Upload management and retrieval diagnostics
 live in [Library Chat Uploads](user-file-uploads.md).
@@ -118,7 +118,7 @@ require confirmation, and required entries plus generated episodes retain
 their existing protection.
 
 Identity drafts also carry the Anima aggregate revision, exactly like the
-`/a/animas/:animaId/identity` editor: a concurrent name, Avatar, loadout or
+`/animas/:animaId/identity` editor: a concurrent name, Avatar, loadout or
 identity change conflicts while keeping the draft, and a blank identity is
 rejected before any request. Saves and reverts refresh that Anima's definition
 views. `MEMORIES.md` is not part of the Anima definition: its drafts are guarded
@@ -129,7 +129,7 @@ same happens to a draft whose file becomes missing. A dirty dropped draft
 produces a warning that its unsaved text could not be saved.
 
 Dirty drafts do not interrupt normal workspace navigation. Leaving
-`/a/memories` opens a prompt with Stay, Discard and leave, and sequential Save
+`/memories` opens a prompt with Stay, Discard and leave, and sequential Save
 and leave actions. Browser reload or close uses the native unsaved-changes
 warning.
 
@@ -207,7 +207,7 @@ a new manager keeps its composer local; the first submitted message creates the
 durable run and processes that message. A run created or recovered while the
 current Memory page remains mounted continues normally across file, mode, and
 tab changes.
-Leaving `/a/memories`, closing the browser tab, reloading, or returning through
+Leaving `/memories`, closing the browser tab, reloading, or returning through
 browser history starts a blank ordinary conversation. The only cross-session
 exception is a `waiting_approval` run, whose transcript and review card are
 restored so the proposed change cannot be stranded. Inline diff approval cards
@@ -365,7 +365,7 @@ session controller.
 ## Anima Identity
 
 Anima management pages read the anima-scoped `IDENTITY.md` entry and open the
-memory editor from `/a/animas/:animaId/identity`; the Memory workspace edits the
+memory editor from `/animas/:animaId/identity`; the Memory workspace edits the
 same entry and version history. This surface intentionally
 retains `MemoryEntryEditorModal`. Its editable branch composes the shared
 CodeMirror editor and sanitized GFM preview. It keeps both the memory version

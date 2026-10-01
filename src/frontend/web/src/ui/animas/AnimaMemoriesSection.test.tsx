@@ -63,7 +63,7 @@ describe("Anima memories document", () => {
     expect(html).toMatch(
       /<button[^>]*type="button"[^>]*>.*Edit memories<\/button>/,
     );
-    expect(html).not.toContain("/a/memories");
+    expect(html).not.toContain("/memories");
     expect(html).not.toContain("mika-memories");
     expect(html).not.toContain("overflow-auto");
     expect(html).not.toContain("bg-muted/25");
