@@ -97,8 +97,9 @@ web search and **Vision** for models that accept images; embedding models show
 can be requested (OpenAI Responses models), **App search** when the model calls
 tools and the installation's search service is ready, and is absent otherwise.
 Model rows and pickers never name the API: the Info panel shows **API:
-Responses** or **API: Chat Completions**, and the built-in connection's
-add-model form still offers the API choice. When two listed chat rows on one
+Responses** or **API: Chat Completions**. The app picks the API: chat models
+added to the built-in OpenAI connection use Responses, and every other
+connection uses Chat Completions. When two listed chat rows on one
 connection share a name (for example an unhidden built-in Chat Completions row),
 the non-Responses row reads "(alternate)" in the chat picker, Default models
 and Models rows (`alternateModelIds` in `lib/chat/model-catalog.ts`).

@@ -610,8 +610,7 @@ function OpenAIKey({ managedKeys }: { managedKeys: boolean }) {
     />
   ) : (
     <p className="text-muted-foreground text-xs">
-      Uses the OpenAI key and base URL from the backend environment
-      (OPENAI_API_KEY and OPENAI_BASE_URL).
+      Uses the OpenAI key configured on this server (OPENAI_API_KEY).
     </p>
   );
 }

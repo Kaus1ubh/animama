@@ -58,15 +58,15 @@ describe("resolveParakeetBackend", () => {
     ).toEqual({ backend: "wasm", reason: "setting_off" });
   });
 
-  it.each<ParakeetWebgpuStatus>([
-    "unsupported",
-    "model_missing",
-  ])("falls back to WASM when WebGPU is %s", (status) => {
-    expect(resolveParakeetBackend({ preferWebgpu: true, status })).toEqual({
-      backend: "wasm",
-      reason: status,
-    });
-  });
+  it.each<ParakeetWebgpuStatus>(["unsupported", "model_missing"])(
+    "falls back to WASM when WebGPU is %s",
+    (status) => {
+      expect(resolveParakeetBackend({ preferWebgpu: true, status })).toEqual({
+        backend: "wasm",
+        reason: status,
+      });
+    },
+  );
 
   it("selects WebGPU when enabled and available", () => {
     expect(

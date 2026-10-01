@@ -202,7 +202,7 @@ such as optional voices and the Parakeet sets. Bundles that need a service
 switch, such as the document-processing pack, stay in Electron's pack manager.
 
 Use the app's Remove action before reinstalling. Never edit an installed file in
-place. A renderer using an installed asset holds a short use lease, and removal
+place. A renderer using an installed Parakeet set holds a short use lease, and removal
 is refused while it is live.
 
 ## Optional Parakeet WebGPU encoder

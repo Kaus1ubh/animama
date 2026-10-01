@@ -114,7 +114,7 @@ function initialDraft(
     kind: "chat",
     model: initialModelId,
     label: "",
-    // New models on the built-in OpenAI connection default to its Responses API.
+    // The app picks the API: built-in OpenAI chat models use Responses.
     providerType:
       connection.source === "builtin" ? RESPONSES : CHAT_COMPLETIONS,
     templateId: null,
@@ -478,33 +478,6 @@ export function OwnerModelDialog({
               onChange={(event) => change({ label: event.target.value })}
             />
           </div>
-          {isChat && isBuiltinConnection && !editing ? (
-            <div className="space-y-2">
-              <Label htmlFor={`${formId}-api`}>API</Label>
-              <Select
-                value={draft.providerType}
-                disabled={busy}
-                onValueChange={(value) => {
-                  // A test on the other API says nothing about this one.
-                  setReport(null);
-                  change({
-                    providerType: value as Draft["providerType"],
-                    templateId: null,
-                  });
-                }}
-              >
-                <SelectTrigger id={`${formId}-api`} className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={RESPONSES}>Responses</SelectItem>
-                  <SelectItem value={CHAT_COMPLETIONS}>
-                    Chat Completions
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          ) : null}
           {isChat && !editing && templateChoices.length > 0 ? (
             <div className="space-y-2">
               <Label htmlFor={`${formId}-template`}>
@@ -524,7 +497,7 @@ export function OwnerModelDialog({
                   </SelectItem>
                   {templateChoices.map((template) => (
                     <SelectItem key={template.id} value={template.id}>
-                      {template.model_label} ({modelApiLabel(template)})
+                      {template.model_label}
                     </SelectItem>
                   ))}
                 </SelectContent>
