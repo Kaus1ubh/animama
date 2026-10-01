@@ -555,7 +555,7 @@ test("provider failure stays visible after terminal frame and a later successful
   });
   await page.getByRole("alert").waitFor();
   await sessionIdle(page);
-  assert.match(await page.getByRole("alert").textContent(), /isn't configured/);
+  assert.match(await page.getByRole("alert").textContent(), /has no API key configured/);
   assert(!(await page.textContent("body")).includes("raw payload"));
   await submitSession(page, "next message", 2);
   await page.evaluate(() => {
@@ -570,7 +570,7 @@ test("provider failure stays visible after terminal frame and a later successful
   await page.getByText("Successful answer", { exact: true }).waitFor();
   assert.equal(await page.getByRole("alert").count(), 1);
   const text = await page.textContent('[aria-label="Conversation"]');
-  assert(text.indexOf("isn't configured") < text.indexOf("next message"));
+  assert(text.indexOf("has no API key configured") < text.indexOf("next message"));
   assert.equal(
     (await page.evaluate(() => window.fixture.requests())).length,
     2,
