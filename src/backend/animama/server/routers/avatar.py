@@ -8,6 +8,7 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from animama.adapters.repositories.sqlalchemy.content_catalog_repo import SQLAlchemyContentCatalog
@@ -74,6 +75,21 @@ def _can_read(row: ORMAvatar, user_id: str) -> bool:
     return not row.private or row.user_id == user_id
 
 
+async def _commit_owned_name(session: AsyncSession) -> None:
+    """Commit an Avatar name write, mapping an owner-name collision to 409.
+
+    The database constraint is authoritative, so concurrent writes cannot race a
+    pre-check. Other integrity failures still propagate unchanged.
+    """
+    try:
+        await session.commit()
+    except IntegrityError as exc:
+        await session.rollback()
+        if "uq_avatar_owner_name" in str(exc.orig):
+            raise HTTPException(status_code=409, detail={"code": "avatar_name_conflict"}) from exc
+        raise
+
+
 @router.get("/avatars", response_model=list[PyAvatarResponse])
 async def list_avatars(
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
@@ -134,7 +150,7 @@ async def register_avatar(
         last_updated_by_id=user.id,
     )
     session.add(row)
-    await session.commit()
+    await _commit_owned_name(session)
     await session.refresh(row)
     return _response(row)
 
@@ -156,7 +172,7 @@ async def update_avatar(
     if body.animation_profile is not None:
         row.animation_profile = body.animation_profile
     row.last_updated_by_id = user.id
-    await session.commit()
+    await _commit_owned_name(session)
     await session.refresh(row)
     return _response(row)
 

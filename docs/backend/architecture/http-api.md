@@ -1174,6 +1174,9 @@ Writing user settings wakes re-embedding.
 ## Avatars And Uploads
 
 `/v1/avatars` manages logical Avatar metadata and its identity template.
+Creating or renaming an Avatar to a name the owner already uses returns
+`409 {"detail":{"code":"avatar_name_conflict"}}`; other owners' names never
+conflict.
 Playable VRM bytes are valid Included or Local `avatar` catalog items. A
 private Avatar associates `catalog_item_id`; Included rows resolve their
 source-controlled model to the matching catalog item.

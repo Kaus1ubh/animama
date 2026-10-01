@@ -17,7 +17,7 @@ from alembic.util import CommandError
 ROOT = Path(__file__).parents[1]
 BASELINE_MIGRATION = ROOT / "alembic" / "versions" / "0001_baseline.py"
 BASELINE_SQL = ROOT / "alembic" / "versions" / "0001_baseline.sql"
-BASELINE_SHA256 = "6dc42848ce36e70b49df3d7916d7c87957f2cbea7ca74945ef95a10dfecb64e8"
+BASELINE_SHA256 = "0e7c3b991b2f8786cf17c44151e8d7a277aaa878b74c0fe3166ddbb251b8fe64"
 
 
 def test_baseline_does_not_import_live_metadata() -> None:
@@ -99,6 +99,21 @@ def test_fresh_database_migrates_to_head(db_url: str, monkeypatch) -> None:  # n
                 fk for fk in inspect(engine).get_foreign_keys("anima") if fk["constrained_columns"] == ["avatar_id"]
             )
             assert avatar_fk["options"]["ondelete"] == "RESTRICT"
+            # Avatar names are unique per owner; ownerless rows share one namespace.
+            avatar_unique = {c["name"]: c for c in inspect(engine).get_unique_constraints("avatar")}
+            assert "uq_avatar_name" not in avatar_unique
+            assert avatar_unique["uq_avatar_owner_name"]["column_names"] == ["user_id", "name"]
+            insert_avatar = text(
+                "INSERT INTO avatar (id, name, file_path, user_id) VALUES (:id, 'Same', 'a.vrm', :user)"
+            )
+            with engine.connect() as connection:
+                for avatar_id, user in (("owner-a", "a"), ("owner-b", "b"), ("ownerless", None)):
+                    connection.execute(insert_avatar, {"id": avatar_id, "user": user})
+                for avatar_id, user in (("dup-owner", "a"), ("dup-ownerless", None)):
+                    with pytest.raises(IntegrityError, match="uq_avatar_owner_name"):
+                        with connection.begin_nested():
+                            connection.execute(insert_avatar, {"id": avatar_id, "user": user})
+                connection.rollback()
             binding_indexes = {index["name"]: index for index in inspect(engine).get_indexes("anima_content_bindings")}
             for name in ("uq_anima_music_autoplay", "uq_anima_music_catalog_item"):
                 assert binding_indexes[name]["unique"]
