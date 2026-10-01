@@ -786,6 +786,14 @@ test("each local provider tab looks for its own server when opened", async () =>
     await providerTab(page, "Ollama").click();
     await page.getByText(/No Ollama server found/u).waitFor();
     assert.deepEqual(detects(requests), ["ollama", "lmstudio"]);
+    // vLLM's default port is shared with other servers: search only on request.
+    await providerTab(page, "vLLM").click();
+    const vllm = providerPanel(page, "vLLM");
+    await vllm.getByRole("button", { name: "Search", exact: true }).waitFor();
+    assert.deepEqual(detects(requests), ["ollama", "lmstudio"]);
+    await vllm.getByRole("button", { name: "Search", exact: true }).click();
+    await vllm.getByText(/No vLLM server found/u).waitFor();
+    assert.deepEqual(detects(requests), ["ollama", "lmstudio", "vllm"]);
   } finally {
     await page.close();
   }
@@ -874,6 +882,17 @@ test("a local server's model is added and becomes the setup model", async () => 
     await page
       .getByText("New Animas will chat with qwen3:8b on Ollama.")
       .waitFor();
+    // With a local model available, an empty server tab skips "Set up later".
+    await providerTab(page, "llama.cpp").click();
+    await providerPanel(page, "llama.cpp")
+      .getByText(/No llama.cpp server found/u)
+      .waitFor();
+    assert.equal(
+      await providerPanel(page, "llama.cpp")
+        .getByRole("button", { name: "Set up later" })
+        .count(),
+      0,
+    );
     await button(page, "Continue").click();
     await button(page, "Finish").click();
     await page.getByText("Setup complete", { exact: true }).waitFor();

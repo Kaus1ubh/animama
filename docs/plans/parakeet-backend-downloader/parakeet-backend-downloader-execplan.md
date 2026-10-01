@@ -1021,8 +1021,13 @@ Owner requests of 2026-10-01 on PR #244, delivered on the same branch:
   `pnpm desktop:test` 384. Review (sdlc-reviewer, initial): pass; logos
   verified byte-identical to upstream. Non-blocking notes: hidden local cards
   on the open Local tab still check reachability (same request count as
-  before); setup's vLLM tab probes port 8000 only when opened; "Set up later"
-  shows on an empty server tab even when another server already has a model.
+  before); setup's vLLM tab probed port 8000 when opened; "Set up later"
+  showed on an empty server tab even when a local model already existed.
+- Follow-up fix (owner request): setup's vLLM tab searches only when "Search"
+  is pressed (its default port is shared with other development servers), and
+  an empty server tab hides "Set up later" once a local model is available.
+  Browser assertions for both failed before the fix; setup browser tests
+  19/19, setup/models vitest 123, `pnpm check` and `pnpm web:lint` pass.
 
 ## Idempotence and recovery
 

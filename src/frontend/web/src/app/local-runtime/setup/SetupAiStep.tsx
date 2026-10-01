@@ -435,6 +435,7 @@ function ModelChooser({
           presetById={presetById}
           onAddModel={openAdder}
           onSetUpLater={onSetUpLater}
+          hasLocalModel={choices.local.length > 0}
         />
       );
     return (
@@ -687,6 +688,9 @@ type Detection =
  * running and no connection to it, it gives install guidance and "Set up
  * later".
  */
+/** Local server presets that search only when asked. */
+const MANUAL_DETECT_PRESETS = new Set(["vllm"]);
+
 function LocalServer({
   entry,
   active,
@@ -695,6 +699,7 @@ function LocalServer({
   presetById,
   onAddModel,
   onSetUpLater,
+  hasLocalModel,
 }: {
   entry: ModelProviderEntry;
   /** Its tab is showing. */
@@ -705,6 +710,8 @@ function LocalServer({
   presetById: (id: string) => PyModelConnectionPreset | undefined;
   onAddModel: (adder: ModelAdder) => void;
   onSetUpLater: () => void;
+  /** A local model is already available, so "Set up later" is unnecessary. */
+  hasLocalModel: boolean;
 }) {
   const detect = useDetectModelServer();
   const create = useCreateModelConnection();
@@ -722,7 +729,12 @@ function LocalServer({
       setDetection({ state: "done", found: null });
     }
   };
-  const shouldSearch = active && detection.state === "idle";
+  // vLLM's default port (8000) is commonly used by other development
+  // servers, so it is searched only on request.
+  const shouldSearch =
+    active &&
+    detection.state === "idle" &&
+    !MANUAL_DETECT_PRESETS.has(entry.presetId);
   useEffect(() => {
     if (shouldSearch) void search();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- search once when first shown
@@ -773,7 +785,11 @@ function LocalServer({
           disabled={detection.state === "searching"}
           onClick={() => void search()}
         >
-          {detection.state === "searching" ? "Searching…" : "Search again"}
+          {detection.state === "searching"
+            ? "Searching…"
+            : detection.state === "idle"
+              ? "Search"
+              : "Search again"}
         </Button>
       </div>
       <p className="text-muted-foreground text-xs" role="status">
@@ -838,15 +854,17 @@ function LocalServer({
             No {label} server found. Install and start {label}, then search
             again.
           </p>
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            className="-ml-2"
-            onClick={onSetUpLater}
-          >
-            Set up later
-          </Button>
+          {hasLocalModel ? null : (
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="-ml-2"
+              onClick={onSetUpLater}
+            >
+              Set up later
+            </Button>
+          )}
         </div>
       ) : null}
     </>
