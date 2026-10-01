@@ -48,13 +48,13 @@ export function CreatorEffectHandoffActions({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-52">
         <DropdownMenuItem asChild>
-          <Link to="/a/gestures/new" search={search}>
+          <Link to="/gestures/new" search={search}>
             <WandSparklesIcon className="mr-2 size-4" />
             Use in a Gesture
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link to="/a/reactions/new" search={search}>
+          <Link to="/reactions/new" search={search}>
             <HeartPulseIcon className="mr-2 size-4" />
             Use in a Reaction
           </Link>

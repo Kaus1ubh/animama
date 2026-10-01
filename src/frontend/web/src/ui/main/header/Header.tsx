@@ -59,9 +59,8 @@ export function Header({
   );
   const isChatRoute =
     typeof pathname === "string" &&
-    pathname.startsWith("/a/") &&
-    !pathname.startsWith("/a/animas/") &&
-    !pathname.startsWith("/a/create");
+    !pathname.startsWith("/animas/") &&
+    !pathname.startsWith("/create");
   useEffect(() => {
     setModalOpen(false);
   }, [currentAnimaId]);

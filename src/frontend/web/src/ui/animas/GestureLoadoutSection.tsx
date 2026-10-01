@@ -184,7 +184,7 @@ function GestureListRow({
           <DropdownMenuContent align="end">
             {row.kind === "custom" ? (
               <DropdownMenuItem asChild>
-                <Link to="/a/library" search={LIBRARY_GESTURES}>
+                <Link to="/library" search={LIBRARY_GESTURES}>
                   {row.updateAvailable
                     ? "Update in Library"
                     : "View in Library"}

@@ -12,39 +12,40 @@ import { Route as rootRouteImport } from "./routes/__root";
 import { Route as SetupRouteImport } from "./routes/setup";
 import { Route as SafetyRouteImport } from "./routes/safety";
 import { Route as ARouteImport } from "./routes/a";
-import { Route as IndexRouteImport } from "./routes/index";
-import { Route as AIndexRouteImport } from "./routes/a/index";
-import { Route as AMemoriesRouteImport } from "./routes/a/memories";
-import { Route as ALibraryRouteImport } from "./routes/a/library";
-import { Route as ACreateRouteImport } from "./routes/a/create";
-import { Route as AAvatarPortraitDebugRouteImport } from "./routes/a/avatar-portrait-debug";
-import { Route as AAnimasRouteImport } from "./routes/a/animas";
-import { Route as AAnimaIdRouteImport } from "./routes/a/$animaId";
-import { Route as ASceneEffectsIndexRouteImport } from "./routes/a/scene-effects/index";
-import { Route as AAvatarEffectsIndexRouteImport } from "./routes/a/avatar-effects/index";
-import { Route as AAnimasIndexRouteImport } from "./routes/a/animas/index";
-import { Route as AAnimaIdIndexRouteImport } from "./routes/a/$animaId/index";
+import { Route as AppRouteImport } from "./routes/_app";
+import { Route as AppIndexRouteImport } from "./routes/_app/index";
+import { Route as ASplatRouteImport } from "./routes/a/$";
+import { Route as AppMemoriesRouteImport } from "./routes/_app/memories";
+import { Route as AppLibraryRouteImport } from "./routes/_app/library";
+import { Route as AppCreateRouteImport } from "./routes/_app/create";
+import { Route as AppAvatarPortraitDebugRouteImport } from "./routes/_app/avatar-portrait-debug";
+import { Route as AppAnimasRouteImport } from "./routes/_app/animas";
+import { Route as AppAnimaIdRouteImport } from "./routes/_app/$animaId";
+import { Route as AppSceneEffectsIndexRouteImport } from "./routes/_app/scene-effects/index";
+import { Route as AppAvatarEffectsIndexRouteImport } from "./routes/_app/avatar-effects/index";
+import { Route as AppAnimasIndexRouteImport } from "./routes/_app/animas/index";
+import { Route as AppAnimaIdIndexRouteImport } from "./routes/_app/$animaId/index";
 import { Route as DesktopQuickChatAnimaIdRouteImport } from "./routes/desktop/quick-chat/$animaId";
 import { Route as DesktopPipAnimaIdRouteImport } from "./routes/desktop/pip/$animaId";
-import { Route as ASoundEffectsNewRouteImport } from "./routes/a/sound-effects.new";
-import { Route as ASceneEffectsNewRouteImport } from "./routes/a/scene-effects.new";
-import { Route as AReactionsNewRouteImport } from "./routes/a/reactions.new";
-import { Route as AParticleEffectsNewRouteImport } from "./routes/a/particle-effects.new";
-import { Route as AIdleStylesNewRouteImport } from "./routes/a/idle-styles.new";
-import { Route as AGesturesNewRouteImport } from "./routes/a/gestures.new";
-import { Route as AAvatarEffectsNewRouteImport } from "./routes/a/avatar-effects.new";
-import { Route as AAnimasNewRouteImport } from "./routes/a/animas.new";
-import { Route as AAnimasAnimaIdRouteImport } from "./routes/a/animas/$animaId";
-import { Route as ASoundEffectsSoundEffectIdEditRouteImport } from "./routes/a/sound-effects.$soundEffectId.edit";
-import { Route as ASceneEffectsSceneEffectIdEditRouteImport } from "./routes/a/scene-effects.$sceneEffectId.edit";
-import { Route as AReactionsReactionIdEditRouteImport } from "./routes/a/reactions.$reactionId.edit";
-import { Route as APosesPoseIdEditRouteImport } from "./routes/a/poses.$poseId.edit";
-import { Route as AParticleEffectsParticleEffectIdEditRouteImport } from "./routes/a/particle-effects.$particleEffectId.edit";
-import { Route as AIdleStylesIdleStyleIdEditRouteImport } from "./routes/a/idle-styles.$idleStyleId.edit";
-import { Route as AGesturesGestureIdEditRouteImport } from "./routes/a/gestures.$gestureId.edit";
-import { Route as AAvatarEffectsAvatarEffectIdEditRouteImport } from "./routes/a/avatar-effects.$avatarEffectId.edit";
-import { Route as AAnimasAnimaIdIdentityRouteImport } from "./routes/a/animas/$animaId/identity";
-import { Route as AAnimaIdCChatIdRouteImport } from "./routes/a/$animaId/c/$chatId";
+import { Route as AppSoundEffectsNewRouteImport } from "./routes/_app/sound-effects.new";
+import { Route as AppSceneEffectsNewRouteImport } from "./routes/_app/scene-effects.new";
+import { Route as AppReactionsNewRouteImport } from "./routes/_app/reactions.new";
+import { Route as AppParticleEffectsNewRouteImport } from "./routes/_app/particle-effects.new";
+import { Route as AppIdleStylesNewRouteImport } from "./routes/_app/idle-styles.new";
+import { Route as AppGesturesNewRouteImport } from "./routes/_app/gestures.new";
+import { Route as AppAvatarEffectsNewRouteImport } from "./routes/_app/avatar-effects.new";
+import { Route as AppAnimasNewRouteImport } from "./routes/_app/animas.new";
+import { Route as AppAnimasAnimaIdRouteImport } from "./routes/_app/animas/$animaId";
+import { Route as AppSoundEffectsSoundEffectIdEditRouteImport } from "./routes/_app/sound-effects.$soundEffectId.edit";
+import { Route as AppSceneEffectsSceneEffectIdEditRouteImport } from "./routes/_app/scene-effects.$sceneEffectId.edit";
+import { Route as AppReactionsReactionIdEditRouteImport } from "./routes/_app/reactions.$reactionId.edit";
+import { Route as AppPosesPoseIdEditRouteImport } from "./routes/_app/poses.$poseId.edit";
+import { Route as AppParticleEffectsParticleEffectIdEditRouteImport } from "./routes/_app/particle-effects.$particleEffectId.edit";
+import { Route as AppIdleStylesIdleStyleIdEditRouteImport } from "./routes/_app/idle-styles.$idleStyleId.edit";
+import { Route as AppGesturesGestureIdEditRouteImport } from "./routes/_app/gestures.$gestureId.edit";
+import { Route as AppAvatarEffectsAvatarEffectIdEditRouteImport } from "./routes/_app/avatar-effects.$avatarEffectId.edit";
+import { Route as AppAnimasAnimaIdIdentityRouteImport } from "./routes/_app/animas/$animaId/identity";
+import { Route as AppAnimaIdCChatIdRouteImport } from "./routes/_app/$animaId/c/$chatId";
 
 const SetupRoute = SetupRouteImport.update({
   id: "/setup",
@@ -61,65 +62,69 @@ const ARoute = ARouteImport.update({
   path: "/a",
   getParentRoute: () => rootRouteImport,
 } as any);
-const IndexRoute = IndexRouteImport.update({
-  id: "/",
-  path: "/",
+const AppRoute = AppRouteImport.update({
+  id: "/_app",
   getParentRoute: () => rootRouteImport,
 } as any);
-const AIndexRoute = AIndexRouteImport.update({
+const AppIndexRoute = AppIndexRouteImport.update({
   id: "/",
   path: "/",
+  getParentRoute: () => AppRoute,
+} as any);
+const ASplatRoute = ASplatRouteImport.update({
+  id: "/$",
+  path: "/$",
   getParentRoute: () => ARoute,
 } as any);
-const AMemoriesRoute = AMemoriesRouteImport.update({
+const AppMemoriesRoute = AppMemoriesRouteImport.update({
   id: "/memories",
   path: "/memories",
-  getParentRoute: () => ARoute,
+  getParentRoute: () => AppRoute,
 } as any);
-const ALibraryRoute = ALibraryRouteImport.update({
+const AppLibraryRoute = AppLibraryRouteImport.update({
   id: "/library",
   path: "/library",
-  getParentRoute: () => ARoute,
+  getParentRoute: () => AppRoute,
 } as any);
-const ACreateRoute = ACreateRouteImport.update({
+const AppCreateRoute = AppCreateRouteImport.update({
   id: "/create",
   path: "/create",
-  getParentRoute: () => ARoute,
+  getParentRoute: () => AppRoute,
 } as any);
-const AAvatarPortraitDebugRoute = AAvatarPortraitDebugRouteImport.update({
+const AppAvatarPortraitDebugRoute = AppAvatarPortraitDebugRouteImport.update({
   id: "/avatar-portrait-debug",
   path: "/avatar-portrait-debug",
-  getParentRoute: () => ARoute,
+  getParentRoute: () => AppRoute,
 } as any);
-const AAnimasRoute = AAnimasRouteImport.update({
+const AppAnimasRoute = AppAnimasRouteImport.update({
   id: "/animas",
   path: "/animas",
-  getParentRoute: () => ARoute,
+  getParentRoute: () => AppRoute,
 } as any);
-const AAnimaIdRoute = AAnimaIdRouteImport.update({
+const AppAnimaIdRoute = AppAnimaIdRouteImport.update({
   id: "/$animaId",
   path: "/$animaId",
-  getParentRoute: () => ARoute,
+  getParentRoute: () => AppRoute,
 } as any);
-const ASceneEffectsIndexRoute = ASceneEffectsIndexRouteImport.update({
+const AppSceneEffectsIndexRoute = AppSceneEffectsIndexRouteImport.update({
   id: "/scene-effects/",
   path: "/scene-effects/",
-  getParentRoute: () => ARoute,
+  getParentRoute: () => AppRoute,
 } as any);
-const AAvatarEffectsIndexRoute = AAvatarEffectsIndexRouteImport.update({
+const AppAvatarEffectsIndexRoute = AppAvatarEffectsIndexRouteImport.update({
   id: "/avatar-effects/",
   path: "/avatar-effects/",
-  getParentRoute: () => ARoute,
+  getParentRoute: () => AppRoute,
 } as any);
-const AAnimasIndexRoute = AAnimasIndexRouteImport.update({
+const AppAnimasIndexRoute = AppAnimasIndexRouteImport.update({
   id: "/",
   path: "/",
-  getParentRoute: () => AAnimasRoute,
+  getParentRoute: () => AppAnimasRoute,
 } as any);
-const AAnimaIdIndexRoute = AAnimaIdIndexRouteImport.update({
+const AppAnimaIdIndexRoute = AppAnimaIdIndexRouteImport.update({
   id: "/",
   path: "/",
-  getParentRoute: () => AAnimaIdRoute,
+  getParentRoute: () => AppAnimaIdRoute,
 } as any);
 const DesktopQuickChatAnimaIdRoute = DesktopQuickChatAnimaIdRouteImport.update({
   id: "/desktop/quick-chat/$animaId",
@@ -131,219 +136,223 @@ const DesktopPipAnimaIdRoute = DesktopPipAnimaIdRouteImport.update({
   path: "/desktop/pip/$animaId",
   getParentRoute: () => rootRouteImport,
 } as any);
-const ASoundEffectsNewRoute = ASoundEffectsNewRouteImport.update({
+const AppSoundEffectsNewRoute = AppSoundEffectsNewRouteImport.update({
   id: "/sound-effects/new",
   path: "/sound-effects/new",
-  getParentRoute: () => ARoute,
+  getParentRoute: () => AppRoute,
 } as any);
-const ASceneEffectsNewRoute = ASceneEffectsNewRouteImport.update({
+const AppSceneEffectsNewRoute = AppSceneEffectsNewRouteImport.update({
   id: "/scene-effects/new",
   path: "/scene-effects/new",
-  getParentRoute: () => ARoute,
+  getParentRoute: () => AppRoute,
 } as any);
-const AReactionsNewRoute = AReactionsNewRouteImport.update({
+const AppReactionsNewRoute = AppReactionsNewRouteImport.update({
   id: "/reactions/new",
   path: "/reactions/new",
-  getParentRoute: () => ARoute,
+  getParentRoute: () => AppRoute,
 } as any);
-const AParticleEffectsNewRoute = AParticleEffectsNewRouteImport.update({
+const AppParticleEffectsNewRoute = AppParticleEffectsNewRouteImport.update({
   id: "/particle-effects/new",
   path: "/particle-effects/new",
-  getParentRoute: () => ARoute,
+  getParentRoute: () => AppRoute,
 } as any);
-const AIdleStylesNewRoute = AIdleStylesNewRouteImport.update({
+const AppIdleStylesNewRoute = AppIdleStylesNewRouteImport.update({
   id: "/idle-styles/new",
   path: "/idle-styles/new",
-  getParentRoute: () => ARoute,
+  getParentRoute: () => AppRoute,
 } as any);
-const AGesturesNewRoute = AGesturesNewRouteImport.update({
+const AppGesturesNewRoute = AppGesturesNewRouteImport.update({
   id: "/gestures/new",
   path: "/gestures/new",
-  getParentRoute: () => ARoute,
+  getParentRoute: () => AppRoute,
 } as any);
-const AAvatarEffectsNewRoute = AAvatarEffectsNewRouteImport.update({
+const AppAvatarEffectsNewRoute = AppAvatarEffectsNewRouteImport.update({
   id: "/avatar-effects/new",
   path: "/avatar-effects/new",
-  getParentRoute: () => ARoute,
+  getParentRoute: () => AppRoute,
 } as any);
-const AAnimasNewRoute = AAnimasNewRouteImport.update({
+const AppAnimasNewRoute = AppAnimasNewRouteImport.update({
   id: "/new",
   path: "/new",
-  getParentRoute: () => AAnimasRoute,
+  getParentRoute: () => AppAnimasRoute,
 } as any);
-const AAnimasAnimaIdRoute = AAnimasAnimaIdRouteImport.update({
+const AppAnimasAnimaIdRoute = AppAnimasAnimaIdRouteImport.update({
   id: "/$animaId",
   path: "/$animaId",
-  getParentRoute: () => AAnimasRoute,
+  getParentRoute: () => AppAnimasRoute,
 } as any);
-const ASoundEffectsSoundEffectIdEditRoute =
-  ASoundEffectsSoundEffectIdEditRouteImport.update({
+const AppSoundEffectsSoundEffectIdEditRoute =
+  AppSoundEffectsSoundEffectIdEditRouteImport.update({
     id: "/sound-effects/$soundEffectId/edit",
     path: "/sound-effects/$soundEffectId/edit",
-    getParentRoute: () => ARoute,
+    getParentRoute: () => AppRoute,
   } as any);
-const ASceneEffectsSceneEffectIdEditRoute =
-  ASceneEffectsSceneEffectIdEditRouteImport.update({
+const AppSceneEffectsSceneEffectIdEditRoute =
+  AppSceneEffectsSceneEffectIdEditRouteImport.update({
     id: "/scene-effects/$sceneEffectId/edit",
     path: "/scene-effects/$sceneEffectId/edit",
-    getParentRoute: () => ARoute,
+    getParentRoute: () => AppRoute,
   } as any);
-const AReactionsReactionIdEditRoute =
-  AReactionsReactionIdEditRouteImport.update({
+const AppReactionsReactionIdEditRoute =
+  AppReactionsReactionIdEditRouteImport.update({
     id: "/reactions/$reactionId/edit",
     path: "/reactions/$reactionId/edit",
-    getParentRoute: () => ARoute,
+    getParentRoute: () => AppRoute,
   } as any);
-const APosesPoseIdEditRoute = APosesPoseIdEditRouteImport.update({
+const AppPosesPoseIdEditRoute = AppPosesPoseIdEditRouteImport.update({
   id: "/poses/$poseId/edit",
   path: "/poses/$poseId/edit",
-  getParentRoute: () => ARoute,
+  getParentRoute: () => AppRoute,
 } as any);
-const AParticleEffectsParticleEffectIdEditRoute =
-  AParticleEffectsParticleEffectIdEditRouteImport.update({
+const AppParticleEffectsParticleEffectIdEditRoute =
+  AppParticleEffectsParticleEffectIdEditRouteImport.update({
     id: "/particle-effects/$particleEffectId/edit",
     path: "/particle-effects/$particleEffectId/edit",
-    getParentRoute: () => ARoute,
+    getParentRoute: () => AppRoute,
   } as any);
-const AIdleStylesIdleStyleIdEditRoute =
-  AIdleStylesIdleStyleIdEditRouteImport.update({
+const AppIdleStylesIdleStyleIdEditRoute =
+  AppIdleStylesIdleStyleIdEditRouteImport.update({
     id: "/idle-styles/$idleStyleId/edit",
     path: "/idle-styles/$idleStyleId/edit",
-    getParentRoute: () => ARoute,
+    getParentRoute: () => AppRoute,
   } as any);
-const AGesturesGestureIdEditRoute = AGesturesGestureIdEditRouteImport.update({
-  id: "/gestures/$gestureId/edit",
-  path: "/gestures/$gestureId/edit",
-  getParentRoute: () => ARoute,
-} as any);
-const AAvatarEffectsAvatarEffectIdEditRoute =
-  AAvatarEffectsAvatarEffectIdEditRouteImport.update({
+const AppGesturesGestureIdEditRoute =
+  AppGesturesGestureIdEditRouteImport.update({
+    id: "/gestures/$gestureId/edit",
+    path: "/gestures/$gestureId/edit",
+    getParentRoute: () => AppRoute,
+  } as any);
+const AppAvatarEffectsAvatarEffectIdEditRoute =
+  AppAvatarEffectsAvatarEffectIdEditRouteImport.update({
     id: "/avatar-effects/$avatarEffectId/edit",
     path: "/avatar-effects/$avatarEffectId/edit",
-    getParentRoute: () => ARoute,
+    getParentRoute: () => AppRoute,
   } as any);
-const AAnimasAnimaIdIdentityRoute = AAnimasAnimaIdIdentityRouteImport.update({
-  id: "/identity",
-  path: "/identity",
-  getParentRoute: () => AAnimasAnimaIdRoute,
-} as any);
-const AAnimaIdCChatIdRoute = AAnimaIdCChatIdRouteImport.update({
+const AppAnimasAnimaIdIdentityRoute =
+  AppAnimasAnimaIdIdentityRouteImport.update({
+    id: "/identity",
+    path: "/identity",
+    getParentRoute: () => AppAnimasAnimaIdRoute,
+  } as any);
+const AppAnimaIdCChatIdRoute = AppAnimaIdCChatIdRouteImport.update({
   id: "/c/$chatId",
   path: "/c/$chatId",
-  getParentRoute: () => AAnimaIdRoute,
+  getParentRoute: () => AppAnimaIdRoute,
 } as any);
 
 export interface FileRoutesByFullPath {
-  "/": typeof IndexRoute;
+  "/": typeof AppIndexRoute;
   "/a": typeof ARouteWithChildren;
   "/safety": typeof SafetyRoute;
   "/setup": typeof SetupRoute;
-  "/a/$animaId": typeof AAnimaIdRouteWithChildren;
-  "/a/animas": typeof AAnimasRouteWithChildren;
-  "/a/avatar-portrait-debug": typeof AAvatarPortraitDebugRoute;
-  "/a/create": typeof ACreateRoute;
-  "/a/library": typeof ALibraryRoute;
-  "/a/memories": typeof AMemoriesRoute;
-  "/a/": typeof AIndexRoute;
-  "/a/animas/$animaId": typeof AAnimasAnimaIdRouteWithChildren;
-  "/a/animas/new": typeof AAnimasNewRoute;
-  "/a/avatar-effects/new": typeof AAvatarEffectsNewRoute;
-  "/a/gestures/new": typeof AGesturesNewRoute;
-  "/a/idle-styles/new": typeof AIdleStylesNewRoute;
-  "/a/particle-effects/new": typeof AParticleEffectsNewRoute;
-  "/a/reactions/new": typeof AReactionsNewRoute;
-  "/a/scene-effects/new": typeof ASceneEffectsNewRoute;
-  "/a/sound-effects/new": typeof ASoundEffectsNewRoute;
+  "/$animaId": typeof AppAnimaIdRouteWithChildren;
+  "/animas": typeof AppAnimasRouteWithChildren;
+  "/avatar-portrait-debug": typeof AppAvatarPortraitDebugRoute;
+  "/create": typeof AppCreateRoute;
+  "/library": typeof AppLibraryRoute;
+  "/memories": typeof AppMemoriesRoute;
+  "/a/$": typeof ASplatRoute;
+  "/animas/$animaId": typeof AppAnimasAnimaIdRouteWithChildren;
+  "/animas/new": typeof AppAnimasNewRoute;
+  "/avatar-effects/new": typeof AppAvatarEffectsNewRoute;
+  "/gestures/new": typeof AppGesturesNewRoute;
+  "/idle-styles/new": typeof AppIdleStylesNewRoute;
+  "/particle-effects/new": typeof AppParticleEffectsNewRoute;
+  "/reactions/new": typeof AppReactionsNewRoute;
+  "/scene-effects/new": typeof AppSceneEffectsNewRoute;
+  "/sound-effects/new": typeof AppSoundEffectsNewRoute;
   "/desktop/pip/$animaId": typeof DesktopPipAnimaIdRoute;
   "/desktop/quick-chat/$animaId": typeof DesktopQuickChatAnimaIdRoute;
-  "/a/$animaId/": typeof AAnimaIdIndexRoute;
-  "/a/animas/": typeof AAnimasIndexRoute;
-  "/a/avatar-effects/": typeof AAvatarEffectsIndexRoute;
-  "/a/scene-effects/": typeof ASceneEffectsIndexRoute;
-  "/a/$animaId/c/$chatId": typeof AAnimaIdCChatIdRoute;
-  "/a/animas/$animaId/identity": typeof AAnimasAnimaIdIdentityRoute;
-  "/a/avatar-effects/$avatarEffectId/edit": typeof AAvatarEffectsAvatarEffectIdEditRoute;
-  "/a/gestures/$gestureId/edit": typeof AGesturesGestureIdEditRoute;
-  "/a/idle-styles/$idleStyleId/edit": typeof AIdleStylesIdleStyleIdEditRoute;
-  "/a/particle-effects/$particleEffectId/edit": typeof AParticleEffectsParticleEffectIdEditRoute;
-  "/a/poses/$poseId/edit": typeof APosesPoseIdEditRoute;
-  "/a/reactions/$reactionId/edit": typeof AReactionsReactionIdEditRoute;
-  "/a/scene-effects/$sceneEffectId/edit": typeof ASceneEffectsSceneEffectIdEditRoute;
-  "/a/sound-effects/$soundEffectId/edit": typeof ASoundEffectsSoundEffectIdEditRoute;
+  "/$animaId/": typeof AppAnimaIdIndexRoute;
+  "/animas/": typeof AppAnimasIndexRoute;
+  "/avatar-effects/": typeof AppAvatarEffectsIndexRoute;
+  "/scene-effects/": typeof AppSceneEffectsIndexRoute;
+  "/$animaId/c/$chatId": typeof AppAnimaIdCChatIdRoute;
+  "/animas/$animaId/identity": typeof AppAnimasAnimaIdIdentityRoute;
+  "/avatar-effects/$avatarEffectId/edit": typeof AppAvatarEffectsAvatarEffectIdEditRoute;
+  "/gestures/$gestureId/edit": typeof AppGesturesGestureIdEditRoute;
+  "/idle-styles/$idleStyleId/edit": typeof AppIdleStylesIdleStyleIdEditRoute;
+  "/particle-effects/$particleEffectId/edit": typeof AppParticleEffectsParticleEffectIdEditRoute;
+  "/poses/$poseId/edit": typeof AppPosesPoseIdEditRoute;
+  "/reactions/$reactionId/edit": typeof AppReactionsReactionIdEditRoute;
+  "/scene-effects/$sceneEffectId/edit": typeof AppSceneEffectsSceneEffectIdEditRoute;
+  "/sound-effects/$soundEffectId/edit": typeof AppSoundEffectsSoundEffectIdEditRoute;
 }
 export interface FileRoutesByTo {
-  "/": typeof IndexRoute;
+  "/a": typeof ARouteWithChildren;
   "/safety": typeof SafetyRoute;
   "/setup": typeof SetupRoute;
-  "/a/avatar-portrait-debug": typeof AAvatarPortraitDebugRoute;
-  "/a/create": typeof ACreateRoute;
-  "/a/library": typeof ALibraryRoute;
-  "/a/memories": typeof AMemoriesRoute;
-  "/a": typeof AIndexRoute;
-  "/a/animas/$animaId": typeof AAnimasAnimaIdRouteWithChildren;
-  "/a/animas/new": typeof AAnimasNewRoute;
-  "/a/avatar-effects/new": typeof AAvatarEffectsNewRoute;
-  "/a/gestures/new": typeof AGesturesNewRoute;
-  "/a/idle-styles/new": typeof AIdleStylesNewRoute;
-  "/a/particle-effects/new": typeof AParticleEffectsNewRoute;
-  "/a/reactions/new": typeof AReactionsNewRoute;
-  "/a/scene-effects/new": typeof ASceneEffectsNewRoute;
-  "/a/sound-effects/new": typeof ASoundEffectsNewRoute;
+  "/avatar-portrait-debug": typeof AppAvatarPortraitDebugRoute;
+  "/create": typeof AppCreateRoute;
+  "/library": typeof AppLibraryRoute;
+  "/memories": typeof AppMemoriesRoute;
+  "/a/$": typeof ASplatRoute;
+  "/": typeof AppIndexRoute;
+  "/animas/$animaId": typeof AppAnimasAnimaIdRouteWithChildren;
+  "/animas/new": typeof AppAnimasNewRoute;
+  "/avatar-effects/new": typeof AppAvatarEffectsNewRoute;
+  "/gestures/new": typeof AppGesturesNewRoute;
+  "/idle-styles/new": typeof AppIdleStylesNewRoute;
+  "/particle-effects/new": typeof AppParticleEffectsNewRoute;
+  "/reactions/new": typeof AppReactionsNewRoute;
+  "/scene-effects/new": typeof AppSceneEffectsNewRoute;
+  "/sound-effects/new": typeof AppSoundEffectsNewRoute;
   "/desktop/pip/$animaId": typeof DesktopPipAnimaIdRoute;
   "/desktop/quick-chat/$animaId": typeof DesktopQuickChatAnimaIdRoute;
-  "/a/$animaId": typeof AAnimaIdIndexRoute;
-  "/a/animas": typeof AAnimasIndexRoute;
-  "/a/avatar-effects": typeof AAvatarEffectsIndexRoute;
-  "/a/scene-effects": typeof ASceneEffectsIndexRoute;
-  "/a/$animaId/c/$chatId": typeof AAnimaIdCChatIdRoute;
-  "/a/animas/$animaId/identity": typeof AAnimasAnimaIdIdentityRoute;
-  "/a/avatar-effects/$avatarEffectId/edit": typeof AAvatarEffectsAvatarEffectIdEditRoute;
-  "/a/gestures/$gestureId/edit": typeof AGesturesGestureIdEditRoute;
-  "/a/idle-styles/$idleStyleId/edit": typeof AIdleStylesIdleStyleIdEditRoute;
-  "/a/particle-effects/$particleEffectId/edit": typeof AParticleEffectsParticleEffectIdEditRoute;
-  "/a/poses/$poseId/edit": typeof APosesPoseIdEditRoute;
-  "/a/reactions/$reactionId/edit": typeof AReactionsReactionIdEditRoute;
-  "/a/scene-effects/$sceneEffectId/edit": typeof ASceneEffectsSceneEffectIdEditRoute;
-  "/a/sound-effects/$soundEffectId/edit": typeof ASoundEffectsSoundEffectIdEditRoute;
+  "/$animaId": typeof AppAnimaIdIndexRoute;
+  "/animas": typeof AppAnimasIndexRoute;
+  "/avatar-effects": typeof AppAvatarEffectsIndexRoute;
+  "/scene-effects": typeof AppSceneEffectsIndexRoute;
+  "/$animaId/c/$chatId": typeof AppAnimaIdCChatIdRoute;
+  "/animas/$animaId/identity": typeof AppAnimasAnimaIdIdentityRoute;
+  "/avatar-effects/$avatarEffectId/edit": typeof AppAvatarEffectsAvatarEffectIdEditRoute;
+  "/gestures/$gestureId/edit": typeof AppGesturesGestureIdEditRoute;
+  "/idle-styles/$idleStyleId/edit": typeof AppIdleStylesIdleStyleIdEditRoute;
+  "/particle-effects/$particleEffectId/edit": typeof AppParticleEffectsParticleEffectIdEditRoute;
+  "/poses/$poseId/edit": typeof AppPosesPoseIdEditRoute;
+  "/reactions/$reactionId/edit": typeof AppReactionsReactionIdEditRoute;
+  "/scene-effects/$sceneEffectId/edit": typeof AppSceneEffectsSceneEffectIdEditRoute;
+  "/sound-effects/$soundEffectId/edit": typeof AppSoundEffectsSoundEffectIdEditRoute;
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport;
-  "/": typeof IndexRoute;
+  "/_app": typeof AppRouteWithChildren;
   "/a": typeof ARouteWithChildren;
   "/safety": typeof SafetyRoute;
   "/setup": typeof SetupRoute;
-  "/a/$animaId": typeof AAnimaIdRouteWithChildren;
-  "/a/animas": typeof AAnimasRouteWithChildren;
-  "/a/avatar-portrait-debug": typeof AAvatarPortraitDebugRoute;
-  "/a/create": typeof ACreateRoute;
-  "/a/library": typeof ALibraryRoute;
-  "/a/memories": typeof AMemoriesRoute;
-  "/a/": typeof AIndexRoute;
-  "/a/animas/$animaId": typeof AAnimasAnimaIdRouteWithChildren;
-  "/a/animas/new": typeof AAnimasNewRoute;
-  "/a/avatar-effects/new": typeof AAvatarEffectsNewRoute;
-  "/a/gestures/new": typeof AGesturesNewRoute;
-  "/a/idle-styles/new": typeof AIdleStylesNewRoute;
-  "/a/particle-effects/new": typeof AParticleEffectsNewRoute;
-  "/a/reactions/new": typeof AReactionsNewRoute;
-  "/a/scene-effects/new": typeof ASceneEffectsNewRoute;
-  "/a/sound-effects/new": typeof ASoundEffectsNewRoute;
+  "/_app/$animaId": typeof AppAnimaIdRouteWithChildren;
+  "/_app/animas": typeof AppAnimasRouteWithChildren;
+  "/_app/avatar-portrait-debug": typeof AppAvatarPortraitDebugRoute;
+  "/_app/create": typeof AppCreateRoute;
+  "/_app/library": typeof AppLibraryRoute;
+  "/_app/memories": typeof AppMemoriesRoute;
+  "/a/$": typeof ASplatRoute;
+  "/_app/": typeof AppIndexRoute;
+  "/_app/animas/$animaId": typeof AppAnimasAnimaIdRouteWithChildren;
+  "/_app/animas/new": typeof AppAnimasNewRoute;
+  "/_app/avatar-effects/new": typeof AppAvatarEffectsNewRoute;
+  "/_app/gestures/new": typeof AppGesturesNewRoute;
+  "/_app/idle-styles/new": typeof AppIdleStylesNewRoute;
+  "/_app/particle-effects/new": typeof AppParticleEffectsNewRoute;
+  "/_app/reactions/new": typeof AppReactionsNewRoute;
+  "/_app/scene-effects/new": typeof AppSceneEffectsNewRoute;
+  "/_app/sound-effects/new": typeof AppSoundEffectsNewRoute;
   "/desktop/pip/$animaId": typeof DesktopPipAnimaIdRoute;
   "/desktop/quick-chat/$animaId": typeof DesktopQuickChatAnimaIdRoute;
-  "/a/$animaId/": typeof AAnimaIdIndexRoute;
-  "/a/animas/": typeof AAnimasIndexRoute;
-  "/a/avatar-effects/": typeof AAvatarEffectsIndexRoute;
-  "/a/scene-effects/": typeof ASceneEffectsIndexRoute;
-  "/a/$animaId/c/$chatId": typeof AAnimaIdCChatIdRoute;
-  "/a/animas/$animaId/identity": typeof AAnimasAnimaIdIdentityRoute;
-  "/a/avatar-effects/$avatarEffectId/edit": typeof AAvatarEffectsAvatarEffectIdEditRoute;
-  "/a/gestures/$gestureId/edit": typeof AGesturesGestureIdEditRoute;
-  "/a/idle-styles/$idleStyleId/edit": typeof AIdleStylesIdleStyleIdEditRoute;
-  "/a/particle-effects/$particleEffectId/edit": typeof AParticleEffectsParticleEffectIdEditRoute;
-  "/a/poses/$poseId/edit": typeof APosesPoseIdEditRoute;
-  "/a/reactions/$reactionId/edit": typeof AReactionsReactionIdEditRoute;
-  "/a/scene-effects/$sceneEffectId/edit": typeof ASceneEffectsSceneEffectIdEditRoute;
-  "/a/sound-effects/$soundEffectId/edit": typeof ASoundEffectsSoundEffectIdEditRoute;
+  "/_app/$animaId/": typeof AppAnimaIdIndexRoute;
+  "/_app/animas/": typeof AppAnimasIndexRoute;
+  "/_app/avatar-effects/": typeof AppAvatarEffectsIndexRoute;
+  "/_app/scene-effects/": typeof AppSceneEffectsIndexRoute;
+  "/_app/$animaId/c/$chatId": typeof AppAnimaIdCChatIdRoute;
+  "/_app/animas/$animaId/identity": typeof AppAnimasAnimaIdIdentityRoute;
+  "/_app/avatar-effects/$avatarEffectId/edit": typeof AppAvatarEffectsAvatarEffectIdEditRoute;
+  "/_app/gestures/$gestureId/edit": typeof AppGesturesGestureIdEditRoute;
+  "/_app/idle-styles/$idleStyleId/edit": typeof AppIdleStylesIdleStyleIdEditRoute;
+  "/_app/particle-effects/$particleEffectId/edit": typeof AppParticleEffectsParticleEffectIdEditRoute;
+  "/_app/poses/$poseId/edit": typeof AppPosesPoseIdEditRoute;
+  "/_app/reactions/$reactionId/edit": typeof AppReactionsReactionIdEditRoute;
+  "/_app/scene-effects/$sceneEffectId/edit": typeof AppSceneEffectsSceneEffectIdEditRoute;
+  "/_app/sound-effects/$soundEffectId/edit": typeof AppSoundEffectsSoundEffectIdEditRoute;
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath;
@@ -352,115 +361,117 @@ export interface FileRouteTypes {
     | "/a"
     | "/safety"
     | "/setup"
-    | "/a/$animaId"
-    | "/a/animas"
-    | "/a/avatar-portrait-debug"
-    | "/a/create"
-    | "/a/library"
-    | "/a/memories"
-    | "/a/"
-    | "/a/animas/$animaId"
-    | "/a/animas/new"
-    | "/a/avatar-effects/new"
-    | "/a/gestures/new"
-    | "/a/idle-styles/new"
-    | "/a/particle-effects/new"
-    | "/a/reactions/new"
-    | "/a/scene-effects/new"
-    | "/a/sound-effects/new"
+    | "/$animaId"
+    | "/animas"
+    | "/avatar-portrait-debug"
+    | "/create"
+    | "/library"
+    | "/memories"
+    | "/a/$"
+    | "/animas/$animaId"
+    | "/animas/new"
+    | "/avatar-effects/new"
+    | "/gestures/new"
+    | "/idle-styles/new"
+    | "/particle-effects/new"
+    | "/reactions/new"
+    | "/scene-effects/new"
+    | "/sound-effects/new"
     | "/desktop/pip/$animaId"
     | "/desktop/quick-chat/$animaId"
-    | "/a/$animaId/"
-    | "/a/animas/"
-    | "/a/avatar-effects/"
-    | "/a/scene-effects/"
-    | "/a/$animaId/c/$chatId"
-    | "/a/animas/$animaId/identity"
-    | "/a/avatar-effects/$avatarEffectId/edit"
-    | "/a/gestures/$gestureId/edit"
-    | "/a/idle-styles/$idleStyleId/edit"
-    | "/a/particle-effects/$particleEffectId/edit"
-    | "/a/poses/$poseId/edit"
-    | "/a/reactions/$reactionId/edit"
-    | "/a/scene-effects/$sceneEffectId/edit"
-    | "/a/sound-effects/$soundEffectId/edit";
+    | "/$animaId/"
+    | "/animas/"
+    | "/avatar-effects/"
+    | "/scene-effects/"
+    | "/$animaId/c/$chatId"
+    | "/animas/$animaId/identity"
+    | "/avatar-effects/$avatarEffectId/edit"
+    | "/gestures/$gestureId/edit"
+    | "/idle-styles/$idleStyleId/edit"
+    | "/particle-effects/$particleEffectId/edit"
+    | "/poses/$poseId/edit"
+    | "/reactions/$reactionId/edit"
+    | "/scene-effects/$sceneEffectId/edit"
+    | "/sound-effects/$soundEffectId/edit";
   fileRoutesByTo: FileRoutesByTo;
   to:
-    | "/"
+    | "/a"
     | "/safety"
     | "/setup"
-    | "/a/avatar-portrait-debug"
-    | "/a/create"
-    | "/a/library"
-    | "/a/memories"
-    | "/a"
-    | "/a/animas/$animaId"
-    | "/a/animas/new"
-    | "/a/avatar-effects/new"
-    | "/a/gestures/new"
-    | "/a/idle-styles/new"
-    | "/a/particle-effects/new"
-    | "/a/reactions/new"
-    | "/a/scene-effects/new"
-    | "/a/sound-effects/new"
+    | "/avatar-portrait-debug"
+    | "/create"
+    | "/library"
+    | "/memories"
+    | "/a/$"
+    | "/"
+    | "/animas/$animaId"
+    | "/animas/new"
+    | "/avatar-effects/new"
+    | "/gestures/new"
+    | "/idle-styles/new"
+    | "/particle-effects/new"
+    | "/reactions/new"
+    | "/scene-effects/new"
+    | "/sound-effects/new"
     | "/desktop/pip/$animaId"
     | "/desktop/quick-chat/$animaId"
-    | "/a/$animaId"
-    | "/a/animas"
-    | "/a/avatar-effects"
-    | "/a/scene-effects"
-    | "/a/$animaId/c/$chatId"
-    | "/a/animas/$animaId/identity"
-    | "/a/avatar-effects/$avatarEffectId/edit"
-    | "/a/gestures/$gestureId/edit"
-    | "/a/idle-styles/$idleStyleId/edit"
-    | "/a/particle-effects/$particleEffectId/edit"
-    | "/a/poses/$poseId/edit"
-    | "/a/reactions/$reactionId/edit"
-    | "/a/scene-effects/$sceneEffectId/edit"
-    | "/a/sound-effects/$soundEffectId/edit";
+    | "/$animaId"
+    | "/animas"
+    | "/avatar-effects"
+    | "/scene-effects"
+    | "/$animaId/c/$chatId"
+    | "/animas/$animaId/identity"
+    | "/avatar-effects/$avatarEffectId/edit"
+    | "/gestures/$gestureId/edit"
+    | "/idle-styles/$idleStyleId/edit"
+    | "/particle-effects/$particleEffectId/edit"
+    | "/poses/$poseId/edit"
+    | "/reactions/$reactionId/edit"
+    | "/scene-effects/$sceneEffectId/edit"
+    | "/sound-effects/$soundEffectId/edit";
   id:
     | "__root__"
-    | "/"
+    | "/_app"
     | "/a"
     | "/safety"
     | "/setup"
-    | "/a/$animaId"
-    | "/a/animas"
-    | "/a/avatar-portrait-debug"
-    | "/a/create"
-    | "/a/library"
-    | "/a/memories"
-    | "/a/"
-    | "/a/animas/$animaId"
-    | "/a/animas/new"
-    | "/a/avatar-effects/new"
-    | "/a/gestures/new"
-    | "/a/idle-styles/new"
-    | "/a/particle-effects/new"
-    | "/a/reactions/new"
-    | "/a/scene-effects/new"
-    | "/a/sound-effects/new"
+    | "/_app/$animaId"
+    | "/_app/animas"
+    | "/_app/avatar-portrait-debug"
+    | "/_app/create"
+    | "/_app/library"
+    | "/_app/memories"
+    | "/a/$"
+    | "/_app/"
+    | "/_app/animas/$animaId"
+    | "/_app/animas/new"
+    | "/_app/avatar-effects/new"
+    | "/_app/gestures/new"
+    | "/_app/idle-styles/new"
+    | "/_app/particle-effects/new"
+    | "/_app/reactions/new"
+    | "/_app/scene-effects/new"
+    | "/_app/sound-effects/new"
     | "/desktop/pip/$animaId"
     | "/desktop/quick-chat/$animaId"
-    | "/a/$animaId/"
-    | "/a/animas/"
-    | "/a/avatar-effects/"
-    | "/a/scene-effects/"
-    | "/a/$animaId/c/$chatId"
-    | "/a/animas/$animaId/identity"
-    | "/a/avatar-effects/$avatarEffectId/edit"
-    | "/a/gestures/$gestureId/edit"
-    | "/a/idle-styles/$idleStyleId/edit"
-    | "/a/particle-effects/$particleEffectId/edit"
-    | "/a/poses/$poseId/edit"
-    | "/a/reactions/$reactionId/edit"
-    | "/a/scene-effects/$sceneEffectId/edit"
-    | "/a/sound-effects/$soundEffectId/edit";
+    | "/_app/$animaId/"
+    | "/_app/animas/"
+    | "/_app/avatar-effects/"
+    | "/_app/scene-effects/"
+    | "/_app/$animaId/c/$chatId"
+    | "/_app/animas/$animaId/identity"
+    | "/_app/avatar-effects/$avatarEffectId/edit"
+    | "/_app/gestures/$gestureId/edit"
+    | "/_app/idle-styles/$idleStyleId/edit"
+    | "/_app/particle-effects/$particleEffectId/edit"
+    | "/_app/poses/$poseId/edit"
+    | "/_app/reactions/$reactionId/edit"
+    | "/_app/scene-effects/$sceneEffectId/edit"
+    | "/_app/sound-effects/$soundEffectId/edit";
   fileRoutesById: FileRoutesById;
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute;
+  AppRoute: typeof AppRouteWithChildren;
   ARoute: typeof ARouteWithChildren;
   SafetyRoute: typeof SafetyRoute;
   SetupRoute: typeof SetupRoute;
@@ -491,89 +502,96 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof ARouteImport;
       parentRoute: typeof rootRouteImport;
     };
-    "/": {
-      id: "/";
-      path: "/";
+    "/_app": {
+      id: "/_app";
+      path: "";
       fullPath: "/";
-      preLoaderRoute: typeof IndexRouteImport;
+      preLoaderRoute: typeof AppRouteImport;
       parentRoute: typeof rootRouteImport;
     };
-    "/a/": {
-      id: "/a/";
+    "/_app/": {
+      id: "/_app/";
       path: "/";
-      fullPath: "/a/";
-      preLoaderRoute: typeof AIndexRouteImport;
+      fullPath: "/";
+      preLoaderRoute: typeof AppIndexRouteImport;
+      parentRoute: typeof AppRoute;
+    };
+    "/a/$": {
+      id: "/a/$";
+      path: "/$";
+      fullPath: "/a/$";
+      preLoaderRoute: typeof ASplatRouteImport;
       parentRoute: typeof ARoute;
     };
-    "/a/memories": {
-      id: "/a/memories";
+    "/_app/memories": {
+      id: "/_app/memories";
       path: "/memories";
-      fullPath: "/a/memories";
-      preLoaderRoute: typeof AMemoriesRouteImport;
-      parentRoute: typeof ARoute;
+      fullPath: "/memories";
+      preLoaderRoute: typeof AppMemoriesRouteImport;
+      parentRoute: typeof AppRoute;
     };
-    "/a/library": {
-      id: "/a/library";
+    "/_app/library": {
+      id: "/_app/library";
       path: "/library";
-      fullPath: "/a/library";
-      preLoaderRoute: typeof ALibraryRouteImport;
-      parentRoute: typeof ARoute;
+      fullPath: "/library";
+      preLoaderRoute: typeof AppLibraryRouteImport;
+      parentRoute: typeof AppRoute;
     };
-    "/a/create": {
-      id: "/a/create";
+    "/_app/create": {
+      id: "/_app/create";
       path: "/create";
-      fullPath: "/a/create";
-      preLoaderRoute: typeof ACreateRouteImport;
-      parentRoute: typeof ARoute;
+      fullPath: "/create";
+      preLoaderRoute: typeof AppCreateRouteImport;
+      parentRoute: typeof AppRoute;
     };
-    "/a/avatar-portrait-debug": {
-      id: "/a/avatar-portrait-debug";
+    "/_app/avatar-portrait-debug": {
+      id: "/_app/avatar-portrait-debug";
       path: "/avatar-portrait-debug";
-      fullPath: "/a/avatar-portrait-debug";
-      preLoaderRoute: typeof AAvatarPortraitDebugRouteImport;
-      parentRoute: typeof ARoute;
+      fullPath: "/avatar-portrait-debug";
+      preLoaderRoute: typeof AppAvatarPortraitDebugRouteImport;
+      parentRoute: typeof AppRoute;
     };
-    "/a/animas": {
-      id: "/a/animas";
+    "/_app/animas": {
+      id: "/_app/animas";
       path: "/animas";
-      fullPath: "/a/animas";
-      preLoaderRoute: typeof AAnimasRouteImport;
-      parentRoute: typeof ARoute;
+      fullPath: "/animas";
+      preLoaderRoute: typeof AppAnimasRouteImport;
+      parentRoute: typeof AppRoute;
     };
-    "/a/$animaId": {
-      id: "/a/$animaId";
+    "/_app/$animaId": {
+      id: "/_app/$animaId";
       path: "/$animaId";
-      fullPath: "/a/$animaId";
-      preLoaderRoute: typeof AAnimaIdRouteImport;
-      parentRoute: typeof ARoute;
+      fullPath: "/$animaId";
+      preLoaderRoute: typeof AppAnimaIdRouteImport;
+      parentRoute: typeof AppRoute;
     };
-    "/a/scene-effects/": {
-      id: "/a/scene-effects/";
+    "/_app/scene-effects/": {
+      id: "/_app/scene-effects/";
       path: "/scene-effects";
-      fullPath: "/a/scene-effects/";
-      preLoaderRoute: typeof ASceneEffectsIndexRouteImport;
-      parentRoute: typeof ARoute;
+      fullPath: "/scene-effects/";
+      preLoaderRoute: typeof AppSceneEffectsIndexRouteImport;
+      parentRoute: typeof AppRoute;
     };
-    "/a/avatar-effects/": {
-      id: "/a/avatar-effects/";
+    "/_app/avatar-effects/": {
+      id: "/_app/avatar-effects/";
       path: "/avatar-effects";
-      fullPath: "/a/avatar-effects/";
-      preLoaderRoute: typeof AAvatarEffectsIndexRouteImport;
-      parentRoute: typeof ARoute;
+      fullPath: "/avatar-effects/";
+      preLoaderRoute: typeof AppAvatarEffectsIndexRouteImport;
+      parentRoute: typeof AppRoute;
     };
-    "/a/animas/": {
-      id: "/a/animas/";
+    "/_app/animas/": {
+      id: "/_app/animas/";
       path: "/";
-      fullPath: "/a/animas/";
-      preLoaderRoute: typeof AAnimasIndexRouteImport;
-      parentRoute: typeof AAnimasRoute;
+      fullPath: "/animas/";
+      preLoaderRoute: typeof AppAnimasIndexRouteImport;
+      parentRoute: typeof AppAnimasRoute;
     };
-    "/a/$animaId/": {
-      id: "/a/$animaId/";
+    "/_app/$animaId/": {
+      id: "/_app/$animaId/";
       path: "/";
-      fullPath: "/a/$animaId/";
-      preLoaderRoute: typeof AAnimaIdIndexRouteImport;
-      parentRoute: typeof AAnimaIdRoute;
+      fullPath: "/$animaId/";
+      preLoaderRoute: typeof AppAnimaIdIndexRouteImport;
+      parentRoute: typeof AppAnimaIdRoute;
     };
     "/desktop/quick-chat/$animaId": {
       id: "/desktop/quick-chat/$animaId";
@@ -589,242 +607,253 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof DesktopPipAnimaIdRouteImport;
       parentRoute: typeof rootRouteImport;
     };
-    "/a/sound-effects/new": {
-      id: "/a/sound-effects/new";
+    "/_app/sound-effects/new": {
+      id: "/_app/sound-effects/new";
       path: "/sound-effects/new";
-      fullPath: "/a/sound-effects/new";
-      preLoaderRoute: typeof ASoundEffectsNewRouteImport;
-      parentRoute: typeof ARoute;
+      fullPath: "/sound-effects/new";
+      preLoaderRoute: typeof AppSoundEffectsNewRouteImport;
+      parentRoute: typeof AppRoute;
     };
-    "/a/scene-effects/new": {
-      id: "/a/scene-effects/new";
+    "/_app/scene-effects/new": {
+      id: "/_app/scene-effects/new";
       path: "/scene-effects/new";
-      fullPath: "/a/scene-effects/new";
-      preLoaderRoute: typeof ASceneEffectsNewRouteImport;
-      parentRoute: typeof ARoute;
+      fullPath: "/scene-effects/new";
+      preLoaderRoute: typeof AppSceneEffectsNewRouteImport;
+      parentRoute: typeof AppRoute;
     };
-    "/a/reactions/new": {
-      id: "/a/reactions/new";
+    "/_app/reactions/new": {
+      id: "/_app/reactions/new";
       path: "/reactions/new";
-      fullPath: "/a/reactions/new";
-      preLoaderRoute: typeof AReactionsNewRouteImport;
-      parentRoute: typeof ARoute;
+      fullPath: "/reactions/new";
+      preLoaderRoute: typeof AppReactionsNewRouteImport;
+      parentRoute: typeof AppRoute;
     };
-    "/a/particle-effects/new": {
-      id: "/a/particle-effects/new";
+    "/_app/particle-effects/new": {
+      id: "/_app/particle-effects/new";
       path: "/particle-effects/new";
-      fullPath: "/a/particle-effects/new";
-      preLoaderRoute: typeof AParticleEffectsNewRouteImport;
-      parentRoute: typeof ARoute;
+      fullPath: "/particle-effects/new";
+      preLoaderRoute: typeof AppParticleEffectsNewRouteImport;
+      parentRoute: typeof AppRoute;
     };
-    "/a/idle-styles/new": {
-      id: "/a/idle-styles/new";
+    "/_app/idle-styles/new": {
+      id: "/_app/idle-styles/new";
       path: "/idle-styles/new";
-      fullPath: "/a/idle-styles/new";
-      preLoaderRoute: typeof AIdleStylesNewRouteImport;
-      parentRoute: typeof ARoute;
+      fullPath: "/idle-styles/new";
+      preLoaderRoute: typeof AppIdleStylesNewRouteImport;
+      parentRoute: typeof AppRoute;
     };
-    "/a/gestures/new": {
-      id: "/a/gestures/new";
+    "/_app/gestures/new": {
+      id: "/_app/gestures/new";
       path: "/gestures/new";
-      fullPath: "/a/gestures/new";
-      preLoaderRoute: typeof AGesturesNewRouteImport;
-      parentRoute: typeof ARoute;
+      fullPath: "/gestures/new";
+      preLoaderRoute: typeof AppGesturesNewRouteImport;
+      parentRoute: typeof AppRoute;
     };
-    "/a/avatar-effects/new": {
-      id: "/a/avatar-effects/new";
+    "/_app/avatar-effects/new": {
+      id: "/_app/avatar-effects/new";
       path: "/avatar-effects/new";
-      fullPath: "/a/avatar-effects/new";
-      preLoaderRoute: typeof AAvatarEffectsNewRouteImport;
-      parentRoute: typeof ARoute;
+      fullPath: "/avatar-effects/new";
+      preLoaderRoute: typeof AppAvatarEffectsNewRouteImport;
+      parentRoute: typeof AppRoute;
     };
-    "/a/animas/new": {
-      id: "/a/animas/new";
+    "/_app/animas/new": {
+      id: "/_app/animas/new";
       path: "/new";
-      fullPath: "/a/animas/new";
-      preLoaderRoute: typeof AAnimasNewRouteImport;
-      parentRoute: typeof AAnimasRoute;
+      fullPath: "/animas/new";
+      preLoaderRoute: typeof AppAnimasNewRouteImport;
+      parentRoute: typeof AppAnimasRoute;
     };
-    "/a/animas/$animaId": {
-      id: "/a/animas/$animaId";
+    "/_app/animas/$animaId": {
+      id: "/_app/animas/$animaId";
       path: "/$animaId";
-      fullPath: "/a/animas/$animaId";
-      preLoaderRoute: typeof AAnimasAnimaIdRouteImport;
-      parentRoute: typeof AAnimasRoute;
+      fullPath: "/animas/$animaId";
+      preLoaderRoute: typeof AppAnimasAnimaIdRouteImport;
+      parentRoute: typeof AppAnimasRoute;
     };
-    "/a/sound-effects/$soundEffectId/edit": {
-      id: "/a/sound-effects/$soundEffectId/edit";
+    "/_app/sound-effects/$soundEffectId/edit": {
+      id: "/_app/sound-effects/$soundEffectId/edit";
       path: "/sound-effects/$soundEffectId/edit";
-      fullPath: "/a/sound-effects/$soundEffectId/edit";
-      preLoaderRoute: typeof ASoundEffectsSoundEffectIdEditRouteImport;
-      parentRoute: typeof ARoute;
+      fullPath: "/sound-effects/$soundEffectId/edit";
+      preLoaderRoute: typeof AppSoundEffectsSoundEffectIdEditRouteImport;
+      parentRoute: typeof AppRoute;
     };
-    "/a/scene-effects/$sceneEffectId/edit": {
-      id: "/a/scene-effects/$sceneEffectId/edit";
+    "/_app/scene-effects/$sceneEffectId/edit": {
+      id: "/_app/scene-effects/$sceneEffectId/edit";
       path: "/scene-effects/$sceneEffectId/edit";
-      fullPath: "/a/scene-effects/$sceneEffectId/edit";
-      preLoaderRoute: typeof ASceneEffectsSceneEffectIdEditRouteImport;
-      parentRoute: typeof ARoute;
+      fullPath: "/scene-effects/$sceneEffectId/edit";
+      preLoaderRoute: typeof AppSceneEffectsSceneEffectIdEditRouteImport;
+      parentRoute: typeof AppRoute;
     };
-    "/a/reactions/$reactionId/edit": {
-      id: "/a/reactions/$reactionId/edit";
+    "/_app/reactions/$reactionId/edit": {
+      id: "/_app/reactions/$reactionId/edit";
       path: "/reactions/$reactionId/edit";
-      fullPath: "/a/reactions/$reactionId/edit";
-      preLoaderRoute: typeof AReactionsReactionIdEditRouteImport;
-      parentRoute: typeof ARoute;
+      fullPath: "/reactions/$reactionId/edit";
+      preLoaderRoute: typeof AppReactionsReactionIdEditRouteImport;
+      parentRoute: typeof AppRoute;
     };
-    "/a/poses/$poseId/edit": {
-      id: "/a/poses/$poseId/edit";
+    "/_app/poses/$poseId/edit": {
+      id: "/_app/poses/$poseId/edit";
       path: "/poses/$poseId/edit";
-      fullPath: "/a/poses/$poseId/edit";
-      preLoaderRoute: typeof APosesPoseIdEditRouteImport;
-      parentRoute: typeof ARoute;
+      fullPath: "/poses/$poseId/edit";
+      preLoaderRoute: typeof AppPosesPoseIdEditRouteImport;
+      parentRoute: typeof AppRoute;
     };
-    "/a/particle-effects/$particleEffectId/edit": {
-      id: "/a/particle-effects/$particleEffectId/edit";
+    "/_app/particle-effects/$particleEffectId/edit": {
+      id: "/_app/particle-effects/$particleEffectId/edit";
       path: "/particle-effects/$particleEffectId/edit";
-      fullPath: "/a/particle-effects/$particleEffectId/edit";
-      preLoaderRoute: typeof AParticleEffectsParticleEffectIdEditRouteImport;
-      parentRoute: typeof ARoute;
+      fullPath: "/particle-effects/$particleEffectId/edit";
+      preLoaderRoute: typeof AppParticleEffectsParticleEffectIdEditRouteImport;
+      parentRoute: typeof AppRoute;
     };
-    "/a/idle-styles/$idleStyleId/edit": {
-      id: "/a/idle-styles/$idleStyleId/edit";
+    "/_app/idle-styles/$idleStyleId/edit": {
+      id: "/_app/idle-styles/$idleStyleId/edit";
       path: "/idle-styles/$idleStyleId/edit";
-      fullPath: "/a/idle-styles/$idleStyleId/edit";
-      preLoaderRoute: typeof AIdleStylesIdleStyleIdEditRouteImport;
-      parentRoute: typeof ARoute;
+      fullPath: "/idle-styles/$idleStyleId/edit";
+      preLoaderRoute: typeof AppIdleStylesIdleStyleIdEditRouteImport;
+      parentRoute: typeof AppRoute;
     };
-    "/a/gestures/$gestureId/edit": {
-      id: "/a/gestures/$gestureId/edit";
+    "/_app/gestures/$gestureId/edit": {
+      id: "/_app/gestures/$gestureId/edit";
       path: "/gestures/$gestureId/edit";
-      fullPath: "/a/gestures/$gestureId/edit";
-      preLoaderRoute: typeof AGesturesGestureIdEditRouteImport;
-      parentRoute: typeof ARoute;
+      fullPath: "/gestures/$gestureId/edit";
+      preLoaderRoute: typeof AppGesturesGestureIdEditRouteImport;
+      parentRoute: typeof AppRoute;
     };
-    "/a/avatar-effects/$avatarEffectId/edit": {
-      id: "/a/avatar-effects/$avatarEffectId/edit";
+    "/_app/avatar-effects/$avatarEffectId/edit": {
+      id: "/_app/avatar-effects/$avatarEffectId/edit";
       path: "/avatar-effects/$avatarEffectId/edit";
-      fullPath: "/a/avatar-effects/$avatarEffectId/edit";
-      preLoaderRoute: typeof AAvatarEffectsAvatarEffectIdEditRouteImport;
-      parentRoute: typeof ARoute;
+      fullPath: "/avatar-effects/$avatarEffectId/edit";
+      preLoaderRoute: typeof AppAvatarEffectsAvatarEffectIdEditRouteImport;
+      parentRoute: typeof AppRoute;
     };
-    "/a/animas/$animaId/identity": {
-      id: "/a/animas/$animaId/identity";
+    "/_app/animas/$animaId/identity": {
+      id: "/_app/animas/$animaId/identity";
       path: "/identity";
-      fullPath: "/a/animas/$animaId/identity";
-      preLoaderRoute: typeof AAnimasAnimaIdIdentityRouteImport;
-      parentRoute: typeof AAnimasAnimaIdRoute;
+      fullPath: "/animas/$animaId/identity";
+      preLoaderRoute: typeof AppAnimasAnimaIdIdentityRouteImport;
+      parentRoute: typeof AppAnimasAnimaIdRoute;
     };
-    "/a/$animaId/c/$chatId": {
-      id: "/a/$animaId/c/$chatId";
+    "/_app/$animaId/c/$chatId": {
+      id: "/_app/$animaId/c/$chatId";
       path: "/c/$chatId";
-      fullPath: "/a/$animaId/c/$chatId";
-      preLoaderRoute: typeof AAnimaIdCChatIdRouteImport;
-      parentRoute: typeof AAnimaIdRoute;
+      fullPath: "/$animaId/c/$chatId";
+      preLoaderRoute: typeof AppAnimaIdCChatIdRouteImport;
+      parentRoute: typeof AppAnimaIdRoute;
     };
   }
 }
 
-interface AAnimaIdRouteChildren {
-  AAnimaIdIndexRoute: typeof AAnimaIdIndexRoute;
-  AAnimaIdCChatIdRoute: typeof AAnimaIdCChatIdRoute;
+interface AppAnimaIdRouteChildren {
+  AppAnimaIdIndexRoute: typeof AppAnimaIdIndexRoute;
+  AppAnimaIdCChatIdRoute: typeof AppAnimaIdCChatIdRoute;
 }
 
-const AAnimaIdRouteChildren: AAnimaIdRouteChildren = {
-  AAnimaIdIndexRoute: AAnimaIdIndexRoute,
-  AAnimaIdCChatIdRoute: AAnimaIdCChatIdRoute,
+const AppAnimaIdRouteChildren: AppAnimaIdRouteChildren = {
+  AppAnimaIdIndexRoute: AppAnimaIdIndexRoute,
+  AppAnimaIdCChatIdRoute: AppAnimaIdCChatIdRoute,
 };
 
-const AAnimaIdRouteWithChildren = AAnimaIdRoute._addFileChildren(
-  AAnimaIdRouteChildren,
+const AppAnimaIdRouteWithChildren = AppAnimaIdRoute._addFileChildren(
+  AppAnimaIdRouteChildren,
 );
 
-interface AAnimasAnimaIdRouteChildren {
-  AAnimasAnimaIdIdentityRoute: typeof AAnimasAnimaIdIdentityRoute;
+interface AppAnimasAnimaIdRouteChildren {
+  AppAnimasAnimaIdIdentityRoute: typeof AppAnimasAnimaIdIdentityRoute;
 }
 
-const AAnimasAnimaIdRouteChildren: AAnimasAnimaIdRouteChildren = {
-  AAnimasAnimaIdIdentityRoute: AAnimasAnimaIdIdentityRoute,
+const AppAnimasAnimaIdRouteChildren: AppAnimasAnimaIdRouteChildren = {
+  AppAnimasAnimaIdIdentityRoute: AppAnimasAnimaIdIdentityRoute,
 };
 
-const AAnimasAnimaIdRouteWithChildren = AAnimasAnimaIdRoute._addFileChildren(
-  AAnimasAnimaIdRouteChildren,
+const AppAnimasAnimaIdRouteWithChildren =
+  AppAnimasAnimaIdRoute._addFileChildren(AppAnimasAnimaIdRouteChildren);
+
+interface AppAnimasRouteChildren {
+  AppAnimasAnimaIdRoute: typeof AppAnimasAnimaIdRouteWithChildren;
+  AppAnimasNewRoute: typeof AppAnimasNewRoute;
+  AppAnimasIndexRoute: typeof AppAnimasIndexRoute;
+}
+
+const AppAnimasRouteChildren: AppAnimasRouteChildren = {
+  AppAnimasAnimaIdRoute: AppAnimasAnimaIdRouteWithChildren,
+  AppAnimasNewRoute: AppAnimasNewRoute,
+  AppAnimasIndexRoute: AppAnimasIndexRoute,
+};
+
+const AppAnimasRouteWithChildren = AppAnimasRoute._addFileChildren(
+  AppAnimasRouteChildren,
 );
 
-interface AAnimasRouteChildren {
-  AAnimasAnimaIdRoute: typeof AAnimasAnimaIdRouteWithChildren;
-  AAnimasNewRoute: typeof AAnimasNewRoute;
-  AAnimasIndexRoute: typeof AAnimasIndexRoute;
+interface AppRouteChildren {
+  AppAnimaIdRoute: typeof AppAnimaIdRouteWithChildren;
+  AppAnimasRoute: typeof AppAnimasRouteWithChildren;
+  AppAvatarPortraitDebugRoute: typeof AppAvatarPortraitDebugRoute;
+  AppCreateRoute: typeof AppCreateRoute;
+  AppLibraryRoute: typeof AppLibraryRoute;
+  AppMemoriesRoute: typeof AppMemoriesRoute;
+  AppIndexRoute: typeof AppIndexRoute;
+  AppAvatarEffectsNewRoute: typeof AppAvatarEffectsNewRoute;
+  AppGesturesNewRoute: typeof AppGesturesNewRoute;
+  AppIdleStylesNewRoute: typeof AppIdleStylesNewRoute;
+  AppParticleEffectsNewRoute: typeof AppParticleEffectsNewRoute;
+  AppReactionsNewRoute: typeof AppReactionsNewRoute;
+  AppSceneEffectsNewRoute: typeof AppSceneEffectsNewRoute;
+  AppSoundEffectsNewRoute: typeof AppSoundEffectsNewRoute;
+  AppAvatarEffectsIndexRoute: typeof AppAvatarEffectsIndexRoute;
+  AppSceneEffectsIndexRoute: typeof AppSceneEffectsIndexRoute;
+  AppAvatarEffectsAvatarEffectIdEditRoute: typeof AppAvatarEffectsAvatarEffectIdEditRoute;
+  AppGesturesGestureIdEditRoute: typeof AppGesturesGestureIdEditRoute;
+  AppIdleStylesIdleStyleIdEditRoute: typeof AppIdleStylesIdleStyleIdEditRoute;
+  AppParticleEffectsParticleEffectIdEditRoute: typeof AppParticleEffectsParticleEffectIdEditRoute;
+  AppPosesPoseIdEditRoute: typeof AppPosesPoseIdEditRoute;
+  AppReactionsReactionIdEditRoute: typeof AppReactionsReactionIdEditRoute;
+  AppSceneEffectsSceneEffectIdEditRoute: typeof AppSceneEffectsSceneEffectIdEditRoute;
+  AppSoundEffectsSoundEffectIdEditRoute: typeof AppSoundEffectsSoundEffectIdEditRoute;
 }
 
-const AAnimasRouteChildren: AAnimasRouteChildren = {
-  AAnimasAnimaIdRoute: AAnimasAnimaIdRouteWithChildren,
-  AAnimasNewRoute: AAnimasNewRoute,
-  AAnimasIndexRoute: AAnimasIndexRoute,
+const AppRouteChildren: AppRouteChildren = {
+  AppAnimaIdRoute: AppAnimaIdRouteWithChildren,
+  AppAnimasRoute: AppAnimasRouteWithChildren,
+  AppAvatarPortraitDebugRoute: AppAvatarPortraitDebugRoute,
+  AppCreateRoute: AppCreateRoute,
+  AppLibraryRoute: AppLibraryRoute,
+  AppMemoriesRoute: AppMemoriesRoute,
+  AppIndexRoute: AppIndexRoute,
+  AppAvatarEffectsNewRoute: AppAvatarEffectsNewRoute,
+  AppGesturesNewRoute: AppGesturesNewRoute,
+  AppIdleStylesNewRoute: AppIdleStylesNewRoute,
+  AppParticleEffectsNewRoute: AppParticleEffectsNewRoute,
+  AppReactionsNewRoute: AppReactionsNewRoute,
+  AppSceneEffectsNewRoute: AppSceneEffectsNewRoute,
+  AppSoundEffectsNewRoute: AppSoundEffectsNewRoute,
+  AppAvatarEffectsIndexRoute: AppAvatarEffectsIndexRoute,
+  AppSceneEffectsIndexRoute: AppSceneEffectsIndexRoute,
+  AppAvatarEffectsAvatarEffectIdEditRoute:
+    AppAvatarEffectsAvatarEffectIdEditRoute,
+  AppGesturesGestureIdEditRoute: AppGesturesGestureIdEditRoute,
+  AppIdleStylesIdleStyleIdEditRoute: AppIdleStylesIdleStyleIdEditRoute,
+  AppParticleEffectsParticleEffectIdEditRoute:
+    AppParticleEffectsParticleEffectIdEditRoute,
+  AppPosesPoseIdEditRoute: AppPosesPoseIdEditRoute,
+  AppReactionsReactionIdEditRoute: AppReactionsReactionIdEditRoute,
+  AppSceneEffectsSceneEffectIdEditRoute: AppSceneEffectsSceneEffectIdEditRoute,
+  AppSoundEffectsSoundEffectIdEditRoute: AppSoundEffectsSoundEffectIdEditRoute,
 };
 
-const AAnimasRouteWithChildren =
-  AAnimasRoute._addFileChildren(AAnimasRouteChildren);
+const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren);
 
 interface ARouteChildren {
-  AAnimaIdRoute: typeof AAnimaIdRouteWithChildren;
-  AAnimasRoute: typeof AAnimasRouteWithChildren;
-  AAvatarPortraitDebugRoute: typeof AAvatarPortraitDebugRoute;
-  ACreateRoute: typeof ACreateRoute;
-  ALibraryRoute: typeof ALibraryRoute;
-  AMemoriesRoute: typeof AMemoriesRoute;
-  AIndexRoute: typeof AIndexRoute;
-  AAvatarEffectsNewRoute: typeof AAvatarEffectsNewRoute;
-  AGesturesNewRoute: typeof AGesturesNewRoute;
-  AIdleStylesNewRoute: typeof AIdleStylesNewRoute;
-  AParticleEffectsNewRoute: typeof AParticleEffectsNewRoute;
-  AReactionsNewRoute: typeof AReactionsNewRoute;
-  ASceneEffectsNewRoute: typeof ASceneEffectsNewRoute;
-  ASoundEffectsNewRoute: typeof ASoundEffectsNewRoute;
-  AAvatarEffectsIndexRoute: typeof AAvatarEffectsIndexRoute;
-  ASceneEffectsIndexRoute: typeof ASceneEffectsIndexRoute;
-  AAvatarEffectsAvatarEffectIdEditRoute: typeof AAvatarEffectsAvatarEffectIdEditRoute;
-  AGesturesGestureIdEditRoute: typeof AGesturesGestureIdEditRoute;
-  AIdleStylesIdleStyleIdEditRoute: typeof AIdleStylesIdleStyleIdEditRoute;
-  AParticleEffectsParticleEffectIdEditRoute: typeof AParticleEffectsParticleEffectIdEditRoute;
-  APosesPoseIdEditRoute: typeof APosesPoseIdEditRoute;
-  AReactionsReactionIdEditRoute: typeof AReactionsReactionIdEditRoute;
-  ASceneEffectsSceneEffectIdEditRoute: typeof ASceneEffectsSceneEffectIdEditRoute;
-  ASoundEffectsSoundEffectIdEditRoute: typeof ASoundEffectsSoundEffectIdEditRoute;
+  ASplatRoute: typeof ASplatRoute;
 }
 
 const ARouteChildren: ARouteChildren = {
-  AAnimaIdRoute: AAnimaIdRouteWithChildren,
-  AAnimasRoute: AAnimasRouteWithChildren,
-  AAvatarPortraitDebugRoute: AAvatarPortraitDebugRoute,
-  ACreateRoute: ACreateRoute,
-  ALibraryRoute: ALibraryRoute,
-  AMemoriesRoute: AMemoriesRoute,
-  AIndexRoute: AIndexRoute,
-  AAvatarEffectsNewRoute: AAvatarEffectsNewRoute,
-  AGesturesNewRoute: AGesturesNewRoute,
-  AIdleStylesNewRoute: AIdleStylesNewRoute,
-  AParticleEffectsNewRoute: AParticleEffectsNewRoute,
-  AReactionsNewRoute: AReactionsNewRoute,
-  ASceneEffectsNewRoute: ASceneEffectsNewRoute,
-  ASoundEffectsNewRoute: ASoundEffectsNewRoute,
-  AAvatarEffectsIndexRoute: AAvatarEffectsIndexRoute,
-  ASceneEffectsIndexRoute: ASceneEffectsIndexRoute,
-  AAvatarEffectsAvatarEffectIdEditRoute: AAvatarEffectsAvatarEffectIdEditRoute,
-  AGesturesGestureIdEditRoute: AGesturesGestureIdEditRoute,
-  AIdleStylesIdleStyleIdEditRoute: AIdleStylesIdleStyleIdEditRoute,
-  AParticleEffectsParticleEffectIdEditRoute:
-    AParticleEffectsParticleEffectIdEditRoute,
-  APosesPoseIdEditRoute: APosesPoseIdEditRoute,
-  AReactionsReactionIdEditRoute: AReactionsReactionIdEditRoute,
-  ASceneEffectsSceneEffectIdEditRoute: ASceneEffectsSceneEffectIdEditRoute,
-  ASoundEffectsSoundEffectIdEditRoute: ASoundEffectsSoundEffectIdEditRoute,
+  ASplatRoute: ASplatRoute,
 };
 
 const ARouteWithChildren = ARoute._addFileChildren(ARouteChildren);
 
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
+  AppRoute: AppRouteWithChildren,
   ARoute: ARouteWithChildren,
   SafetyRoute: SafetyRoute,
   SetupRoute: SetupRoute,

@@ -124,12 +124,12 @@ describe("memory library search", () => {
 });
 
 describe("dirty workspace navigation", () => {
-  const memory = { pathname: "/a/memories", search: { tab: "memory" } };
+  const memory = { pathname: "/memories", search: { tab: "memory" } };
 
   it("allows file, mode, and Memory-only search changes", () => {
     expect(
       shouldBlockMemoryWorkspaceExit(memory, {
-        pathname: "/a/memories",
+        pathname: "/memories",
         search: { tab: "memory" },
       }),
     ).toBe(false);
@@ -138,13 +138,13 @@ describe("dirty workspace navigation", () => {
   it("blocks Uploads and other routes", () => {
     expect(
       shouldBlockMemoryWorkspaceExit(memory, {
-        pathname: "/a/memories",
+        pathname: "/memories",
         search: { tab: "uploads" },
       }),
     ).toBe(true);
     expect(
       shouldBlockMemoryWorkspaceExit(memory, {
-        pathname: "/a/animas",
+        pathname: "/animas",
         search: {},
       }),
     ).toBe(true);

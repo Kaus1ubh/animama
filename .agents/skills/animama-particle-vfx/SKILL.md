@@ -1,6 +1,6 @@
 ---
 name: animama-particle-vfx
-description: Understand and operate Animama's three.quarks Particle Effect system and /a/particle-effects/ creator. Use for emitter settings, textures, preview, saved particle content, avatar attachment, and Gesture or Reaction integration; Avatar Effect decals and Scene Effects are separate systems.
+description: Understand and operate Animama's three.quarks Particle Effect system and /particle-effects/ creator. Use for emitter settings, textures, preview, saved particle content, avatar attachment, and Gesture or Reaction integration; Avatar Effect decals and Scene Effects are separate systems.
 ---
 
 # Animama Particle VFX

@@ -5,15 +5,15 @@ loadout used by chat.
 
 Routes:
 
-- `/a/create`: browse the creator hub.
-- `/a/animas/new`: Avatar → Voice → Identity → Actions → Review live creation;
+- `/create`: browse the creator hub.
+- `/animas/new`: Avatar → Voice → Identity → Actions → Review live creation;
   existing links and optional logical Avatar handoffs remain intact.
-- `/a/animas`: resolve to the first owned Anima or `/a/animas/new`.
-- `/a/animas/:animaId`: view the rendered `IDENTITY.md` document by default.
-- `/a/animas/:animaId?tab=memories`: read the Anima's relationship `MEMORIES.md`.
-- `/a/animas/:animaId?tab=loadout`: configure the typed loadout.
-- `/a/animas/:animaId/identity`: edit the Anima's `IDENTITY.md` memory entry.
-- `/a/:animaId`: enter the live Avatar/chat surface.
+- `/animas`: resolve to the first owned Anima or `/animas/new`.
+- `/animas/:animaId`: view the rendered `IDENTITY.md` document by default.
+- `/animas/:animaId?tab=memories`: read the Anima's relationship `MEMORIES.md`.
+- `/animas/:animaId?tab=loadout`: configure the typed loadout.
+- `/animas/:animaId/identity`: edit the Anima's `IDENTITY.md` memory entry.
+- `/:animaId`: enter the live Avatar/chat surface.
 
 The [live creation journey](custom-anima-creation.md) uses stable live
 name/identity authority, atomic creation, and durable idempotency receipts.

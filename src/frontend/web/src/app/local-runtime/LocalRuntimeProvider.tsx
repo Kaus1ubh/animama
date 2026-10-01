@@ -150,13 +150,6 @@ export async function completeLocalRuntimeOnboarding(
   return readyState(await api.completeOnboarding(input));
 }
 
-/** Select the credential-free main-window destination from backend state. */
-export function localRuntimeHomePath(
-  state: Extract<LocalRuntimeState, { status: "ready" }>,
-): "/setup" | "/a" {
-  return state.firstRunComplete ? "/a" : "/setup";
-}
-
 /** Require backend-owned installation readiness before feature routes mount. */
 export function LocalRuntimeProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<LocalRuntimeState>({ status: "loading" });

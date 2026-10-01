@@ -61,7 +61,7 @@ test("accountless selection, Stop and subsequent persisted reply", async ({
     page.getByRole("button", { name: "Stop", exact: true }),
   ).toHaveCount(0);
   await page.locator('a[href*="/c/"]').first().click();
-  await expect(page).toHaveURL(/\/a\/[^/]+\/c\/[^/?]+/);
+  await expect(page).toHaveURL(/\/[^/]+\/c\/[^/?]+/);
   await page.reload();
   await expect(
     page.getByText(`Mock response to ${prompt}`, { exact: true }),
@@ -172,7 +172,7 @@ test("accountless Scene JSON import, preview, save and owned cleanup", async ({
     const owned = await guard.waitForOwned();
     await creatorContent.verifyOwnedContent(plan, owned);
     await expect(page).toHaveURL(
-      new RegExp(`/a/scene-effects/${owned.itemId}/edit`),
+      new RegExp(`/scene-effects/${owned.itemId}/edit`),
     );
     const hydratedFromBackend = page.waitForResponse(
       (response) =>
@@ -199,7 +199,7 @@ test("accountless Scene JSON import, preview, save and owned cleanup", async ({
     expect(typedReads.filter(({ status }) => status >= 400)).toEqual([]);
     await animamaEvidence.attachJson("scene-save-typed-reads", typedReads);
     await creatorContent.assertAnimaLoadoutUnchanged(loadout, animamaEvidence);
-    await page.goto("/a/library");
+    await page.goto("/library");
     await creatorContent.cleanupOwnedContent();
     await creatorContent.assertDeletedContent(plan, owned);
     await creatorContent.assertLocalCatalogUnchanged(
@@ -221,7 +221,7 @@ for (const creator of ["scene", "avatar", "particle"] as const) {
     animamaEvidence,
   }) => {
     await selectAnnieFromSidebar(page);
-    await page.goto(`/a/${creator}-effects/new`);
+    await page.goto(`/${creator}-effects/new`);
     if (creator === "avatar") {
       // An original image makes Save actionable; choosing it only creates a local draft.
       const image = await page.evaluate(() => {

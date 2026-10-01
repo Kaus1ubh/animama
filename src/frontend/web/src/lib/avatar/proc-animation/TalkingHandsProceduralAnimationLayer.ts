@@ -3,6 +3,7 @@ import type { VRM, VRMHumanBoneName } from "@pixiv/three-vrm";
 
 import {
   DEFAULT_TALKING_HANDS_PROCEDURAL_ANIMATION_PARAMS,
+  type ProceduralAnimationBasisOptions,
   type ProceduralAnimationLayer,
   type ProceduralAnimationLayerSnapshot,
   type ProceduralAnimationRuntimeContext,
@@ -12,6 +13,7 @@ import {
   type TalkingHandsProceduralAnimationParams,
   type TalkingHandsSecondaryMicroTwistAxis,
 } from "./types";
+import { retargetVrm1AuthoredQuaternionOffsetToVrm0 } from "../poses/poseRetargeting";
 import {
   createTalkingHandsSpeechPlan,
   createTalkingHandsSpeechPlanDebugSnapshot,
@@ -357,8 +359,12 @@ export class TalkingHandsProceduralAnimationLayer implements ProceduralAnimation
   private _scratchTargetWorldQuaternion = new THREE.Quaternion();
   private _scratchInverseTargetWorldQuaternion = new THREE.Quaternion();
 
-  constructor(vrm: VRM) {
+  /** VRM0 normalized bones face -Z, so VRM1-authored offsets are converted. */
+  private readonly _isVrm0: boolean;
+
+  constructor(vrm: VRM, options: ProceduralAnimationBasisOptions = {}) {
     this._vrm = vrm;
+    this._isVrm0 = options.isVrm0 === true;
     this._cacheBones();
   }
 
@@ -2111,6 +2117,9 @@ export class TalkingHandsProceduralAnimationLayer implements ProceduralAnimation
 
     this._scratchEuler.set(x, y, z, "XYZ");
     this._scratchOffset.setFromEuler(this._scratchEuler);
+    if (this._isVrm0) {
+      retargetVrm1AuthoredQuaternionOffsetToVrm0(this._scratchOffset);
+    }
     if (axis && Math.abs(angle) > EPSILON) {
       this._scratchTwistOffset.setFromAxisAngle(axis, angle);
       this._scratchOffset.multiply(this._scratchTwistOffset);

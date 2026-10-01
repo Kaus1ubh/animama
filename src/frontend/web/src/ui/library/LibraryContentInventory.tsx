@@ -214,14 +214,14 @@ function ProductRow({
           ? "scene_effect"
           : "sound_effect";
   const editPaths = {
-    pose: "/a/poses",
-    "idle-style": "/a/idle-styles",
-    gesture: "/a/gestures",
-    reaction: "/a/reactions",
-    particle: "/a/particle-effects",
-    "avatar-effect": "/a/avatar-effects",
-    scene: "/a/scene-effects",
-    sound: "/a/library",
+    pose: "/poses",
+    "idle-style": "/idle-styles",
+    gesture: "/gestures",
+    reaction: "/reactions",
+    particle: "/particle-effects",
+    "avatar-effect": "/avatar-effects",
+    scene: "/scene-effects",
+    sound: "/library",
   } as const;
   const editPath = `${editPaths[card.family]}/${encodeURIComponent(itemId)}/edit`;
   const policy = libraryProductActionPolicy(card);
@@ -290,7 +290,7 @@ function ProductRow({
             <ActionTooltip label="Use in Gesture" layout={layout}>
               <Button size={layout === "grid" ? "icon-sm" : "sm"} asChild>
                 <Link
-                  to="/a/gestures/new"
+                  to="/gestures/new"
                   search={{ component: card.itemId, componentType }}
                   aria-label="Use in Gesture"
                 >
@@ -304,7 +304,7 @@ function ProductRow({
             <ActionTooltip label="Use in Reaction" layout={layout}>
               <Button size={layout === "grid" ? "icon-sm" : "sm"} asChild>
                 <Link
-                  to="/a/reactions/new"
+                  to="/reactions/new"
                   search={{ component: card.itemId, componentType }}
                   aria-label="Use in Reaction"
                 >
@@ -732,7 +732,7 @@ export function LibraryContentInventory({
                             asChild
                           >
                             <Link
-                              to="/a/animas/new"
+                              to="/animas/new"
                               search={{ avatar: avatar.catalog_item_id }}
                               aria-label="Create Anima"
                             >

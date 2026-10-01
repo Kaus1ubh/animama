@@ -218,7 +218,7 @@ function AnimaProfile({
   const openAnimaDetailsPage = (animaId: string) => {
     onOpenChange(false);
     void navigate({
-      to: "/a/animas/$animaId",
+      to: "/animas/$animaId",
       params: { animaId },
     });
   };

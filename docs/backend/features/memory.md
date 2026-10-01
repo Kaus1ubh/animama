@@ -728,13 +728,13 @@ transient memory file list while memory influence is enabled.
 
 The current direct-chat path feeds the selected anima identity and memories
 entries into prompt context and exposes the scoped AI tools above. The frontend
-exposes user-scope memory files from `/a/memories` and anima identity editing
-from `/a/animas/{anima_id}/identity`. AI tools still do not expose delete,
+exposes user-scope memory files from `/memories` and anima identity editing
+from `/animas/{anima_id}/identity`. AI tools still do not expose delete,
 move/copy, arbitrary metadata editing, or anima-scoped file reads or writes.
 
 ## User Files And Archives
 
-User-file uploads are separate from memory. The private `/a/memories` Uploads
+User-file uploads are separate from memory. The private `/memories` Uploads
 tab is currently an operational debug/upload page for installation-owned files,
 processing jobs, and retrieval search. Chat turns may attach processed upload
 IDs, which lets the backend equip the read-only `search_uploaded_files` and

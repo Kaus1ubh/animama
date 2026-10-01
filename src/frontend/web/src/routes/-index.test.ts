@@ -3,8 +3,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { createMemoryHistory } from "@tanstack/react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { Route as HomeRoute } from "./index";
-import { Route as ChatLaunchRoute } from "./a/index";
+import { Route as AppLayoutRoute } from "./_app";
+import { Route as ChatLaunchRoute } from "./_app/index";
 
 type RedirectProps = {
   to: string;
@@ -35,6 +35,12 @@ vi.mock("@web/app/local-runtime/LocalRuntimeProvider", async (original) => ({
       : { status: "loading" },
   }),
 }));
+// The app shell is irrelevant to entry redirects and never renders here.
+vi.mock("@/ui/app/AppShell", () => ({}));
+vi.mock("@/ui/content-preview/ContentPreviewDockProvider", () => ({}));
+vi.mock("@/ui/settings/SettingsGate", () => ({}));
+vi.mock("@/ui/settings/DesktopUpdatesPanel", () => ({}));
+vi.mock("@/ui/sidebar", () => ({}));
 vi.mock("@/query/hooks/useAnimas", () => ({
   useAnimas: () => ({
     isSuccess: true,
@@ -58,11 +64,11 @@ afterEach(() => vi.unstubAllGlobals());
 describe("home entry navigation", () => {
   it("waits for local readiness and sends incomplete installations to setup", () => {
     fixture.ready = false;
-    renderToStaticMarkup(createElement(HomeRoute.options.component!));
+    renderToStaticMarkup(createElement(AppLayoutRoute.options.component!));
     expect(fixture.navigate).not.toHaveBeenCalled();
     fixture.ready = true;
     fixture.firstRunComplete = false;
-    renderToStaticMarkup(createElement(HomeRoute.options.component!));
+    renderToStaticMarkup(createElement(AppLayoutRoute.options.component!));
     expect(fixture.navigate).toHaveBeenCalledWith({
       to: "/setup",
       replace: true,
@@ -74,7 +80,7 @@ describe("home entry navigation", () => {
     // TanStack's browser history invokes blockers only with a document present.
     vi.stubGlobal("document", {});
     const history = createMemoryHistory({
-      initialEntries: ["/a/reactions/new"],
+      initialEntries: ["/reactions/new"],
     });
     let approve!: (blocked: boolean) => void;
     const blocker = vi.fn(
@@ -87,13 +93,13 @@ describe("home entry navigation", () => {
     try {
       history.push("/");
       expect(blocker).toHaveBeenCalledOnce();
-      expect(history.location.pathname).toBe("/a/reactions/new");
+      expect(history.location.pathname).toBe("/reactions/new");
       approve(false);
       await vi.waitFor(() => expect(history.location.pathname).toBe("/"));
 
       // The new route's layout-effect redirects can precede useBlocker's
       // passive cleanup. Keep the real history blocker registered for both.
-      for (const route of [HomeRoute, ChatLaunchRoute]) {
+      for (const route of [ChatLaunchRoute]) {
         renderToStaticMarkup(createElement(route.options.component!));
         const redirect = fixture.navigate.mock.lastCall![0];
         const destination = redirect.to.replace(
@@ -104,7 +110,7 @@ describe("home entry navigation", () => {
           ignoreBlocker: redirect.ignoreBlocker,
         });
       }
-      expect(history.location.pathname).toBe("/a/janna");
+      expect(history.location.pathname).toBe("/janna");
       expect(blocker).toHaveBeenCalledOnce();
     } finally {
       unblock();

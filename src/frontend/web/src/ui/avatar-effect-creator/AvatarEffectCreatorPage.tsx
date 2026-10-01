@@ -517,7 +517,7 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
           await clearAvatarEffectRecovery(userId, "new", { strict: true });
         if (!(await discardCurrentDraft())) return;
         await navigate({
-          to: "/a/avatar-effects/new",
+          to: "/avatar-effects/new",
           replace: true,
           ignoreBlocker: true,
         });

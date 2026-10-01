@@ -541,7 +541,7 @@ the package stays router-free. `ChatInterfaceView` renders `MemoryCue`
 under `Noted in episodes` and the added `MEMORIES.md` text under
 `Added to <Anima>'s memories` (`Updated <Anima>'s memories` when the change
 added no text). Only the `MEMORIES.md` part has an Open in Memories link,
-to `/a/memories?tab=memory&mode=manual&entryId=<entry_id>`; a pending episode
+to `/memories?tab=memory&mode=manual&entryId=<entry_id>`; a pending episode
 note has no file of its own. Quick Chat mirrors the cue and opens the file
 through the main window ([Quick chat](../desktop/quick-chat.md#runtime-mirror)).
 Avatar-only mode renders no transcript and so no cue.

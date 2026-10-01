@@ -18,7 +18,7 @@ async function createPose(
   content: CreatorContentFixture,
   name: string,
 ) {
-  await page.goto("/a/library?section=actions&action=poses");
+  await page.goto("/library?section=actions&action=poses");
   await page.getByPlaceholder("Search the Library").fill(includedPose);
   await page
     .getByRole("article", { name: includedPose, exact: true })
@@ -40,7 +40,7 @@ async function openSharing(page: Page, action: "Import" | "Export") {
     await dialog.getByRole("button", { name: "Close", exact: true }).click();
     await expect(dialog).not.toBeVisible();
   }
-  await page.goto("/a/library");
+  await page.goto("/library");
   const trigger = page.getByRole("button", {
     name: action,
     exact: true,
@@ -302,7 +302,7 @@ test("local content sharing complete Anima export, reviewed install and persiste
   const anima = owned.find((item) => item.plan.kind === "anima")!;
   expect(anima).toBeDefined();
   await page.getByRole("button", { name: "Open Anima", exact: true }).click();
-  await expect(page).toHaveURL(new RegExp(`/a/${anima.itemId}(?:[/?#]|$)`));
+  await expect(page).toHaveURL(new RegExp(`/${anima.itemId}(?:[/?#]|$)`));
   await page.reload();
   await expect(
     page
@@ -310,7 +310,7 @@ test("local content sharing complete Anima export, reviewed install and persiste
       .getByRole("link", { name: reviewed.anima!.display_name, exact: true }),
   ).toBeVisible();
   // Leave the runtime before exact receipt cleanup so its refresh cannot race deletion.
-  await page.goto("/a/library");
+  await page.goto("/library");
   await creatorContent.cleanupOwnedContent();
   await creatorContent.assertLocalCatalogUnchanged(
     before,

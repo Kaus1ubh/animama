@@ -13,13 +13,13 @@ portraits and Local images use protected catalog delivery, not public storage
 URLs.
 
 The browser has reusable VRM capture primitives and a development-only
-`/a/avatar-portrait-debug` harness. The Create Anima journey selects an Avatar
+`/avatar-portrait-debug` harness. The Create Anima journey selects an Avatar
 and submits null Profile and
 Background bindings; it does not capture or save portraits. Browsing Avatar
 cards alone saves nothing. Appearance management and the typed portrait API
 remain separate from creation. Background Default means the normal app stage.
 
-`/a/animas/new` accepts a logical Avatar handoff, with a saved draft taking
+`/animas/new` accepts a logical Avatar handoff, with a saved draft taking
 precedence. Confirmed uploads survive cancellation; unsaved files require
 reselection after reload. See the
 [live creation guide](custom-anima-creation.md) and its

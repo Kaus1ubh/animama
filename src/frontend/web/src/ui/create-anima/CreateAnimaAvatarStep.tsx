@@ -1,7 +1,10 @@
 import { Check, Upload, UserRound } from "lucide-react";
 import { useEffect, useRef, useState, type RefObject } from "react";
 
-import type { ItemRevisionRef, PyAvatarContent } from "@animama/runtime-contracts/sdk";
+import type {
+  ItemRevisionRef,
+  PyAvatarContent,
+} from "@animama/runtime-contracts/sdk";
 import { ContentSaveApiError } from "@/lib/content/contentSaveErrors";
 import { cn } from "@/lib/utils";
 import type {

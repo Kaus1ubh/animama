@@ -38,7 +38,7 @@ Frontend UI:
   `ready`/`ready_keyword_only` files below it. New-upload IDs and selected
   existing IDs are merged into `attached_file_ids` for the next `chat:sse`
   request.
-- `/a/library?section=chat-uploads` shows private upload status,
+- `/library?section=chat-uploads` shows private upload status,
   processing status, selected delete controls, process/reprocess actions, and
   debug search.
 

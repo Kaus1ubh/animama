@@ -218,7 +218,7 @@ export function IdleStyleLoadoutSection({
                   <>
                     <DropdownMenuItem asChild>
                       <Link
-                        to="/a/idle-styles/$idleStyleId/edit"
+                        to="/idle-styles/$idleStyleId/edit"
                         params={{ idleStyleId: styleId }}
                         search={{ duplicate: false }}
                       >
@@ -227,7 +227,7 @@ export function IdleStyleLoadoutSection({
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link
-                        to="/a/idle-styles/$idleStyleId/edit"
+                        to="/idle-styles/$idleStyleId/edit"
                         params={{ idleStyleId: styleId }}
                         search={{ duplicate: true }}
                       >

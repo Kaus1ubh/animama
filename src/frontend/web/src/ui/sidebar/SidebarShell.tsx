@@ -59,7 +59,7 @@ export function SidebarShell({
         label: "New Chat",
         ...(newChatAnimaId
           ? {
-              to: "/a/$animaId" as const,
+              to: "/$animaId" as const,
               params: { animaId: newChatAnimaId },
             }
           : { href: "#" as const }),
@@ -71,24 +71,24 @@ export function SidebarShell({
         label: "Animas",
         ...(animasTarget.route === "details"
           ? {
-              to: "/a/animas/$animaId" as const,
+              to: "/animas/$animaId" as const,
               params: { animaId: animasTarget.animaId },
             }
-          : { to: "/a/animas" as const }),
+          : { to: "/animas" as const }),
         icon: (
           <UsersRound className="text-sidebar-foreground dark:text-sidebar-foreground h-6 w-6 flex-shrink-0" />
         ),
       },
       {
         label: "Memory",
-        to: "/a/memories" as const,
+        to: "/memories" as const,
         icon: (
           <Brain className="text-sidebar-foreground dark:text-sidebar-foreground h-6 w-6 flex-shrink-0" />
         ),
       },
       {
         label: "Library",
-        to: "/a/library" as const,
+        to: "/library" as const,
         icon: (
           <LibraryBig className="text-sidebar-foreground dark:text-sidebar-foreground h-6 w-6 flex-shrink-0" />
         ),

@@ -15,7 +15,7 @@ initialization succeeds.
   merged and sent as `attached_file_ids` with the next `chat:sse` request.
   On main chat routes, users can also drag files anywhere over the page and
   drop them to add those files to the same composer upload tray.
-- `/a/library?section=chat-uploads`: lists uploaded files, shows file and
+- `/library?section=chat-uploads`: lists uploaded files, shows file and
   processing status, supports upload, selected deletion, process/reprocess
   actions, and debug search.
 
@@ -125,9 +125,9 @@ A saved original without processing stays `uploaded` and does not poll forever.
   inventory and management composition.
 - `src/frontend/web/src/ui/library/LibraryChatUploadsDebugPanel.tsx`: upload
   management and retrieval-debug tools.
-- `src/frontend/web/src/ui/memory/MemoryLibraryPage.tsx`: `/a/memories`
+- `src/frontend/web/src/ui/memory/MemoryLibraryPage.tsx`: `/memories`
   workspace.
-- `src/frontend/web/src/routes/a/memories.tsx`: protected route.
+- `src/frontend/web/src/routes/_app/memories.tsx`: protected route.
 
 ## Supported Files
 

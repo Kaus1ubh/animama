@@ -57,7 +57,7 @@ const setupRoute = createRoute({
 });
 const completedRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/a",
+  path: "/",
   component: () => <p>Setup complete</p>,
 });
 const router = createRouter({

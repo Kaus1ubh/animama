@@ -1,4 +1,7 @@
-import type { AnimaCreationErrorDetail, AnimaSpecInput } from "@animama/runtime-contracts/sdk";
+import type {
+  AnimaCreationErrorDetail,
+  AnimaSpecInput,
+} from "@animama/runtime-contracts/sdk";
 import { zAnimaCreationDiagnostic } from "@animama/runtime-contracts/validators";
 import {
   canonicalJson,

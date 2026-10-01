@@ -27,7 +27,7 @@ async function discardToLibrary(page: Page): Promise<void> {
   await dialog
     .getByRole("button", { name: "Discard and continue", exact: true })
     .click();
-  await expect(page).toHaveURL(/\/a\/library(?:[/?#]|$)/);
+  await expect(page).toHaveURL(/\/library(?:[/?#]|$)/);
 }
 
 for (const failure of [false, true]) {
@@ -83,7 +83,7 @@ for (const failure of [false, true]) {
         .click();
       owned = await guard.waitForOwned();
       await expect(page).toHaveURL(
-        new RegExp(`/a/gestures/${owned.itemId}/edit`),
+        new RegExp(`/gestures/${owned.itemId}/edit`),
       );
       await expect(nameInput).toHaveValue(name);
       await expect(

@@ -7,11 +7,11 @@ const pageSource = new URL("./SceneEffectCreatorPage.tsx", import.meta.url);
 
 describe("Scene Effect creator routes", () => {
   it.each([
-    ["routes/a/scene-effects/index.tsx", "/a/scene-effects/"],
-    ["routes/a/scene-effects.new.tsx", "/a/scene-effects/new"],
+    ["routes/_app/scene-effects/index.tsx", "/scene-effects/"],
+    ["routes/_app/scene-effects.new.tsx", "/scene-effects/new"],
     [
-      "routes/a/scene-effects.$sceneEffectId.edit.tsx",
-      "/a/scene-effects/$sceneEffectId/edit",
+      "routes/_app/scene-effects.$sceneEffectId.edit.tsx",
+      "/scene-effects/$sceneEffectId/edit",
     ],
   ])("registers %s as a full-canvas creator route", async (relative, route) => {
     const source = await readFile(
@@ -21,7 +21,7 @@ describe("Scene Effect creator routes", () => {
 
     expect(source).toContain(route);
     if (relative.endsWith("index.tsx")) {
-      expect(source).toContain('redirect({ to: "/a/scene-effects/new"');
+      expect(source).toContain('redirect({ to: "/scene-effects/new"');
     } else {
       expect(source).toContain('sidebarBehavior="adaptive-canvas"');
       expect(source).toContain("ContentPreviewExclusiveCanvasGate");

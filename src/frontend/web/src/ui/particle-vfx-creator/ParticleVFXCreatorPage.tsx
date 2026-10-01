@@ -653,7 +653,7 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
         if (userId)
           await clearParticleVFXRecovery(userId, null, { strict: true });
         await navigate({
-          to: "/a/particle-effects/new",
+          to: "/particle-effects/new",
           replace: true,
           ignoreBlocker: true,
         });

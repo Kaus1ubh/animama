@@ -1,6 +1,6 @@
 # Library
 
-`/a/library` is the local product collection. It presents Avatars, Gestures,
+`/library` is the local product collection. It presents Avatars, Gestures,
 Reactions, Poses, Idle Styles, Particle Effects, Avatar Effects, Scene Effects, Sounds, and private
 chat uploads without exposing file roles, host paths, digests, or dependency
 binding mechanics.
@@ -8,7 +8,7 @@ binding mechanics.
 ## Route state
 
 Library URLs are sparse and section-specific. The default state is simply
-`/a/library`; default values and hidden-section filters are never serialized.
+`/library`; default values and hidden-section filters are never serialized.
 The canonical parameters are:
 
 - `section=avatars|actions|fx|chat-uploads`; omitted means All
@@ -22,7 +22,7 @@ The canonical parameters are:
 - under Chat Uploads, optional `uploadQuery` and
   `uploadStatus=pending_upload|uploaded|processing|ready|ready_keyword_only|failed`
 
-For example, Scene FX is `/a/library?section=fx&fx=scene`. Changing sections
+For example, Scene FX is `/library?section=fx&fx=scene`. Changing sections
 discards filters owned by the previous section. The route expands sparse URL
 state into complete internal defaults before rendering Library components.
 Gesture-only filters are cleared for Poses; its available sorts are name and
@@ -50,7 +50,7 @@ they are action ingredients, not independent equipment.
 Actions contains All, Gestures, Reactions, Poses and Idle Styles. Idle Styles offer
 Preview and Edit. Poses also appear in the
 combined All inventory. Pose rows offer Preview and Edit without a Starter badge.
-Editing opens `/a/poses/$poseId/edit` with the
+Editing opens `/poses/$poseId/edit` with the
 existing Pose controls and an isolated Avatar, without creating a Gesture or
 replacing a suspended clip draft. Included customization creates a new Local
 identity; it never changes the starter. The five starter Poses are Relaxed Rest,
@@ -96,7 +96,7 @@ remain transitive dependencies of their owning Gesture or Reaction.
 
 ## Creation
 
-`/a/create` links to dedicated Anima, Gesture, Reaction, Particle VFX, Avatar
+`/create` links to dedicated Anima, Gesture, Reaction, Particle VFX, Avatar
 VFX and Scene VFX creators. Sound uploads live in Gesture/Reaction SFX tabs and
 Avatar/Scene FX accompanying-sound pickers. Creator Save writes ordinary files through
 the matching typed family route, such as `/v1/gestures/{entry_name}` or
@@ -125,7 +125,7 @@ selection flow. An already-mounted chat still adopts it only after remount.
 Unknown event aliases remain visible and block Preview/Save until mapped or
 removed.
 
-Avatar-to-Anima entry links reach the four-step `/a/animas/new` creator with a
+Avatar-to-Anima entry links reach the four-step `/animas/new` creator with a
 logical Avatar ID. The creator resolves its exact admitted revision; an
 existing saved owner draft wins over a new hint and unavailable content leaves
 a recoverable error instead of silently choosing another Avatar.

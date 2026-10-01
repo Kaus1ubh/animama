@@ -377,7 +377,10 @@ export async function smokeMac(args) {
       ),
     );
     await page.getByRole("button", { name: "Finish", exact: true }).click();
-    await page.waitForURL(/\/a(?:\/|$)/u, { timeout: 60_000 });
+    await page.waitForURL(
+      (url) => url.pathname !== "/" && url.pathname !== "/setup",
+      { timeout: 60_000 },
+    );
     const context = await request(page, "/v1/runtime-context");
     evidence(
       "required_private_name",
@@ -386,7 +389,7 @@ export async function smokeMac(args) {
         context.display_name === "Desktop smoke",
     );
     const firstAnima = (await request(page, "/v1/animas"))[0];
-    await page.waitForURL((url) => url.pathname === `/a/${firstAnima?.id}`, {
+    await page.waitForURL((url) => url.pathname === `/${firstAnima?.id}`, {
       timeout: 60_000,
     });
     evidence("first_anima_chat", firstAnima?.display_name === "Annie");
@@ -429,7 +432,7 @@ export async function smokeMac(args) {
     const chatIds = [];
     for (const name of ["Annie", "Caitlyn"]) {
       const anima = list.find((entry) => entry.display_name === name);
-      await page.goto(`${origin}/a/${anima.id}`);
+      await page.goto(`${origin}/${anima.id}`);
       const chat = await request(page, "/v1/chats", {
         method: "POST",
         body: JSON.stringify({

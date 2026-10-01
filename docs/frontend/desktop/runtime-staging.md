@@ -332,10 +332,10 @@ closed while provenance, required notices, or owner approvals are missing.
 ## Current content gate
 
 The core starter models are Annie (`AvatarSample_A_1_New.vrm`) and Caitlyn
-(`AvatarSample_R1.vrm`), with renderer-captured portraits. Their provenance and
+(`AvatarSample_Y_0.vrm`), with renderer-captured portraits. Their provenance and
 distinct permission terms are recorded in `content/included/licenses/inventory.json`
 and [source notices](../../../licenses/third-party/art-NOTICES.md). Annie is a
-VRoid preset; Caitlyn is authored by Raymond Van using VRoid Studio. Existing
+VRoid preset; Caitlyn is a pixiv VRoid sample model under CC BY. Existing
 starter receipts and adoption identifiers remain valid compatibility data; they
 do not authorize restoring excluded bytes or silently changing an Anima.
 

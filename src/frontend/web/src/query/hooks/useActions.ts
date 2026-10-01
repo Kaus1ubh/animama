@@ -2,7 +2,12 @@
 
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 
-import { getGesture, getReaction, listGestures, listReactions } from "@animama/runtime-contracts/sdk";
+import {
+  getGesture,
+  getReaction,
+  listGestures,
+  listReactions,
+} from "@animama/runtime-contracts/sdk";
 import type {
   PyGesture,
   PyContentPage,

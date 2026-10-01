@@ -6,9 +6,7 @@ test("complete accountless first-run setup on the isolated installation", async 
   animamaEvidence,
 }) => {
   await page.goto("/");
-  await page.waitForURL(
-    (url) => url.pathname === "/setup" || url.pathname.startsWith("/a"),
-  );
+  await page.waitForURL((url) => url.pathname !== "/");
   const firstRunPerformed = new URL(page.url()).pathname === "/setup";
   if (firstRunPerformed) {
     await expect(
@@ -39,7 +37,9 @@ test("complete accountless first-run setup on the isolated installation", async 
       .getByRole("button", { name: "Skip for now", exact: true })
       .click();
   }
-  await page.waitForURL((url) => url.pathname.startsWith("/a"));
+  await page.waitForURL(
+    (url) => url.pathname !== "/" && url.pathname !== "/setup",
+  );
   await expect(
     page.getByRole("heading", { name: "Sign in to your account" }),
   ).toHaveCount(0);

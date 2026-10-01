@@ -2,7 +2,7 @@
 
 ## Current journey
 
-`/a/animas/new` renders the five-step `ui/create-anima/CreateAnimaPage` inside
+`/animas/new` renders the five-step `ui/create-anima/CreateAnimaPage` inside
 the normal app shell: Avatar → Voice → Identity → Actions → Review. It creates one
 private live Anima and opens that Anima's chat surface after commit. It does
 not create a Chat row, greeting, Blueprint, or publication.
@@ -17,7 +17,7 @@ fields do not become creation input. The creator resolves the current admitted
 Avatar and revision. An existing saved draft wins over a new URL hint; an
 unavailable handoff leaves a visible error and the source picker usable.
 
-Untouched Cancel exits to Creator hub (`/a/create`), not `/a/animas`, whose
+Untouched Cancel exits to Creator hub (`/create`), not `/animas`, whose
 empty-roster resolver returns to this route. Shared local VRM preview primitives
 also serve the portrait-debug route. Onboarding calls backend starter ensure.
 

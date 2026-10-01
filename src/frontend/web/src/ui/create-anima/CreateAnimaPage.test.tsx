@@ -151,7 +151,7 @@ describe("Create Anima route states", () => {
       expect(html).not.toContain(
         "Review your choices before creating your Anima",
       );
-    expect(html).not.toContain('/a/animas"');
+    expect(html).not.toContain('/animas"');
     expect(mocks.controller).toHaveBeenCalledWith("owner", "library-avatar");
     expect(mocks.submit).not.toHaveBeenCalled();
   });

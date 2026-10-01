@@ -74,6 +74,7 @@ import {
   retargetClipSampleForVrm0,
   retargetPoseForVrm0,
 } from "./poses/poseRetargeting";
+import { canonicalizeCustomPresetExpressions } from "./vrmExpressionPresets";
 import {
   countAnimaPoseClipEventsByKind,
   DEFAULT_ANIMA_POSE_CLIP_TRANSITION,
@@ -2927,6 +2928,12 @@ export class Avatar {
         .userData?.vrm;
       if (!vrm) throw new Error("VRM metadata missing on loaded GLTF");
       VRMUtils.rotateVRM0(vrm);
+      const canonicalizedExpressions = canonicalizeCustomPresetExpressions(vrm);
+      if (Object.keys(canonicalizedExpressions).length > 0) {
+        logger.info("Load", "Canonicalized custom preset expressions", {
+          renamed: canonicalizedExpressions,
+        });
+      }
       vrm.scene.name = "VRMRoot";
       const loadInsight = inspectBrowserResourceLoad(url);
       logger.info("Load", "VRM resource load insight", {

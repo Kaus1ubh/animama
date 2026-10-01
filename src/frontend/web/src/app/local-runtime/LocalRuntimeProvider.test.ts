@@ -4,7 +4,6 @@ import type { PyRuntimeContext } from "@animama/runtime-contracts/sdk";
 import {
   completeLocalRuntimeOnboarding,
   loadLocalRuntimeContext,
-  localRuntimeHomePath,
   type LocalRuntimeApi,
 } from "@web/app/local-runtime/LocalRuntimeProvider";
 import { localRuntimeShellView } from "@web/app/local-runtime/runtime-shell";
@@ -241,20 +240,6 @@ describe("local runtime bootstrap", () => {
 
     await expect(loadLocalRuntimeContext(runtimeApi)).rejects.toThrow(
       "profile_memory",
-    );
-  });
-
-  it("routes fresh installs to setup and completed installs straight to the app", () => {
-    const fresh = {
-      status: "ready" as const,
-      principalId: "installation-owner-1",
-      firstRunComplete: false,
-      displayName: null,
-    };
-
-    expect(localRuntimeHomePath(fresh)).toBe("/setup");
-    expect(localRuntimeHomePath({ ...fresh, firstRunComplete: true })).toBe(
-      "/a",
     );
   });
 

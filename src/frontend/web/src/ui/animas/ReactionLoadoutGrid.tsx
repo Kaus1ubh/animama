@@ -278,7 +278,7 @@ function CellActions({
         </Tooltip>
         <DropdownMenuContent align="end">
           <DropdownMenuItem asChild>
-            <Link to="/a/library" search={LIBRARY_REACTIONS}>
+            <Link to="/library" search={LIBRARY_REACTIONS}>
               Choose from Library
             </Link>
           </DropdownMenuItem>

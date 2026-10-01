@@ -607,6 +607,15 @@ export type ProceduralAnimationSnapshot = {
   layers: ProceduralAnimationLayerSnapshot[];
 };
 
+/**
+ * Construction options shared by procedural layers that write authored bone
+ * offsets. Offsets are authored in the VRM1 normalized basis; VRM0 layers
+ * convert them before applying.
+ */
+export type ProceduralAnimationBasisOptions = {
+  isVrm0?: boolean;
+};
+
 export type ProceduralAnimationLayer<
   TId extends ProceduralAnimationLayerId = ProceduralAnimationLayerId,
 > = {

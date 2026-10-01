@@ -1,5 +1,5 @@
 import type { VRM, VRMPose, VRMPoseTransform } from "@pixiv/three-vrm";
-import { Quaternion } from "three";
+import { Quaternion, type Vector3 } from "three";
 
 import {
   cloneVRMPoseTransform,
@@ -28,6 +28,32 @@ export function convertPoseQuaternionBasis(
         ...retargetVrm1AuthoredQuaternionToVrm0(rotation.toArray()),
       )
     : rotation.clone();
+}
+
+/**
+ * Convert a VRM1-authored procedural rotation offset into the VRM0 normalized
+ * basis in place. Procedural layers multiply these offsets onto normalized
+ * bones, so VRM0 needs the same 180-degree Y conjugation as authored poses.
+ */
+export function retargetVrm1AuthoredQuaternionOffsetToVrm0(
+  quaternion: Quaternion,
+): Quaternion {
+  return quaternion.set(
+    -quaternion.x,
+    quaternion.y,
+    -quaternion.z,
+    quaternion.w,
+  );
+}
+
+/**
+ * Convert a VRM1-authored procedural translation offset into the VRM0
+ * normalized basis in place (x and z are mirrored by the 180-degree Y basis).
+ */
+export function retargetVrm1AuthoredPositionOffsetToVrm0(
+  position: Vector3,
+): Vector3 {
+  return position.set(-position.x, position.y, -position.z);
 }
 
 export function retargetPoseForVrm0(pose: AnimaPose): AnimaPose {

@@ -259,7 +259,7 @@ test.describe("Reaction creator round trip", () => {
         ).toBeVisible();
         await expect(page).toHaveURL(
           new RegExp(
-            `/a/reactions/${escapeRegExp(encodeURIComponent(owned.itemId))}/edit(?:[?#]|$)`,
+            `/reactions/${escapeRegExp(encodeURIComponent(owned.itemId))}/edit(?:[?#]|$)`,
           ),
         );
         await expect(

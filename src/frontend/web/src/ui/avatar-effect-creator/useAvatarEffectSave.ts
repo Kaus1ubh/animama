@@ -266,7 +266,7 @@ export function useAvatarEffectSave(args: {
       setStage("idle");
       toast.success("Avatar Effect saved.");
       await navigate({
-        to: "/a/avatar-effects/$avatarEffectId/edit",
+        to: "/avatar-effects/$avatarEffectId/edit",
         params: { avatarEffectId: item.item_id },
         replace: true,
         ignoreBlocker: true,

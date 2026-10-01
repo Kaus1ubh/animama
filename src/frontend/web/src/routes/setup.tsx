@@ -64,7 +64,7 @@ export const Route = createFileRoute("/setup")({
 function LocalSetupRoute() {
   const { state, completeOnboarding } = useLocalRuntime();
   if (state.status !== "ready") return null;
-  if (state.firstRunComplete) return <Navigate to="/a" replace />;
+  if (state.firstRunComplete) return <Navigate to="/" replace />;
   return (
     <LocalSetupForm
       key={state.principalId}

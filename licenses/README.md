@@ -18,8 +18,9 @@ modifications and full notices are in [third-party](third-party/):
 
 All recorded dispositions are preparation evidence. Public-source acceptance
 and signed binary distribution are separately gated. Raymond confirmed the
-retained model identities and authorized correcting their use/redistribution
-metadata; their derived portraits retain the corresponding model terms. Retained
+retained model identities, authorized correcting Annie's use/redistribution
+metadata and approved Caitlyn's unmodified CC BY sample; their derived portraits
+retain the corresponding model terms. Retained
 PocketTTS assets, including all 38 voice states (2 core, 36 downloaded on demand), are CC BY 4.0, which permits commercial use with attribution;
 Kyutai's model-card prohibited-use terms still apply. They are not relicensed
 as AGPL. The desktop release policy separately records a noncommercial

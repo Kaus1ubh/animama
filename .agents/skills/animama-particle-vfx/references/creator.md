@@ -6,8 +6,8 @@ semantics are in [three-quarks.md](three-quarks.md); playback in Actions is in
 
 ## Open and operate the document
 
-Use `/a/particle-effects/new` for a blank document and
-`/a/particle-effects/$particleEffectId/edit` for an existing catalog item. The edit
+Use `/particle-effects/new` for a blank document and
+`/particle-effects/$particleEffectId/edit` for an existing catalog item. The edit
 parameter is the item ID, not the Quarks runtime ID or effect name. Use the creator
 Load picker or Library entry to obtain the correct item. The route owns an
 exclusive preview Canvas and uses the shared creator shell and toolbar.

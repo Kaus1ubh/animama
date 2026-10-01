@@ -78,7 +78,7 @@ test("accountless avatar effect vfx guides keep Eye = playing through creator re
       .getByRole("article", { name: "Eye =", exact: true })
       .getByRole("link", { name: "Edit", exact: true })
       .click();
-    await expect(page).toHaveURL(/\/a\/avatar-effects\/[^/?#]+/);
+    await expect(page).toHaveURL(/\/avatar-effects\/[^/?#]+/);
     const surface = page.locator('[data-playback-surface="creator-stage"]');
     await expect(surface).toHaveCount(1);
     await expect

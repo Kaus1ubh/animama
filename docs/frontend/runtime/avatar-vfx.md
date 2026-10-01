@@ -44,8 +44,8 @@ Reactions rather than independently equipped to an Anima.
 
 ### Avatar Effect creator
 
-The protected `/a/avatar-effects/new` and
-`/a/avatar-effects/:avatarEffectId/edit` routes provide the typed Avatar Effect
+The protected `/avatar-effects/new` and
+`/avatar-effects/:avatarEffectId/edit` routes provide the typed Avatar Effect
 creator with an isolated portrait preview.
 
 The author chooses the effect kind first:

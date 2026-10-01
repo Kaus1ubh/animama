@@ -84,6 +84,13 @@ function createMinimalVrm(version: 0 | 1 = 1): Uint8Array {
           })),
         },
         firstPerson: { firstPersonBone: REQUIRED_BONES.indexOf("head") },
+        // VRoid exports VRM1-only presets such as surprised as custom groups.
+        blendShapeMaster: {
+          blendShapeGroups: [
+            { name: "Joy", presetName: "joy", binds: [] },
+            { name: "Surprised", presetName: "unknown", binds: [] },
+          ],
+        },
         materialProperties: [],
       },
     };
@@ -183,6 +190,30 @@ describe("Avatar VRM compatibility", () => {
       }
     },
   );
+
+  it("exposes a VRM0 custom Surprised expression as the surprised preset", async () => {
+    const content = createMinimalVrm(0);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(content.buffer as ArrayBuffer)),
+    );
+    vi.stubGlobal("ProgressEvent", TestProgressEvent);
+    vi.stubGlobal("self", globalThis);
+    const avatar = new Avatar(new PerspectiveCamera());
+    try {
+      await avatar.load({ filePath: "https://assets.local/expressions-0.vrm" });
+      const expressions = avatar.expressionController!;
+      expect(expressions.getAvailableExpressions()).toEqual(
+        expect.arrayContaining(["happy", "surprised"]),
+      );
+      expect(expressions.getAvailableExpressions()).not.toContain("Surprised");
+
+      expressions.setValue("surprised", 0.6);
+      expect(avatar.vrm!.expressionManager!.getValue("surprised")).toBe(0.6);
+    } finally {
+      avatar.dispose();
+    }
+  });
 
   it("maps external model dependencies to verified blobs and rejects unissued HTTP fetches", () => {
     const resolve = preparedModelUrlResolver("blob:http://localhost/model", {
