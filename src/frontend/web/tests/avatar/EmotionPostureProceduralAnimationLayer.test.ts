@@ -5,10 +5,10 @@ import {
   createEmptyEmotionStateMap,
 } from "@/lib/emotion";
 import {
-  retargetVrm1AuthoredQuaternionOffsetToVrm0,
   resolveEmotionPostureTarget,
   type EmotionPostureResolution,
 } from "@/lib/avatar/proc-animation/EmotionPostureProceduralAnimationLayer";
+import { retargetVrm1AuthoredQuaternionOffsetToVrm0 } from "@/lib/avatar/poses/poseRetargeting";
 import {
   DEFAULT_EMOTION_POSTURE_PROCEDURAL_ANIMATION_PARAMS,
   type EmotionPostureProceduralAnimationParams,

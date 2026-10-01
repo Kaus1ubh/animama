@@ -4,7 +4,10 @@ import {
   AVATAR_POSE_CATALOG,
   RELAXED_REST_POSE_ID,
 } from "@/lib/avatar/poses/catalog";
-import { convertPoseQuaternionBasis } from "@/lib/avatar/poses/poseRetargeting";
+import {
+  convertPoseQuaternionBasis,
+  isVrm0,
+} from "@/lib/avatar/poses/poseRetargeting";
 import { getPoseCreatorNormalizedBoneNode } from "./poseCreatorAuthoring";
 
 export type HandTarget = "left" | "right" | "both";
@@ -263,7 +266,7 @@ function fitThumbPreset(
     } else {
       const outward = little
         ? index.position.clone().sub(little.position).normalize()
-        : new Vector3(0, 0, avatar.vrm?.meta.metaVersion === "0" ? -1 : 1);
+        : new Vector3(0, 0, isVrm0(avatar.vrm) ? -1 : 1);
       // Keep a visible thumb-width gap instead of driving into the index mesh.
       target.addScaledVector(outward, indexMiddle.position.length() * 0.6);
     }

@@ -115,13 +115,21 @@ export class ProceduralAnimationController {
 
   constructor(vrm: VRM, options: ProceduralAnimationControllerOptions = {}) {
     this._vrm = vrm;
-    this._layers.set("breathing", new BreathingProceduralAnimationLayer(vrm));
-    this._layers.set("sway", new SwayProceduralAnimationLayer(vrm));
-    this._layers.set("bounce", new BounceProceduralAnimationLayer(vrm));
-    this._layers.set("headNod", new HeadNodProceduralAnimationLayer(vrm));
+    // Every layer that writes authored bone offsets needs the model's basis.
+    const basis = { isVrm0: options.isVrm0 === true };
+    this._layers.set(
+      "breathing",
+      new BreathingProceduralAnimationLayer(vrm, basis),
+    );
+    this._layers.set("sway", new SwayProceduralAnimationLayer(vrm, basis));
+    this._layers.set("bounce", new BounceProceduralAnimationLayer(vrm, basis));
+    this._layers.set(
+      "headNod",
+      new HeadNodProceduralAnimationLayer(vrm, basis),
+    );
     this._layers.set(
       "headSideTilt",
-      new HeadSideTiltProceduralAnimationLayer(vrm),
+      new HeadSideTiltProceduralAnimationLayer(vrm, basis),
     );
     this._layers.set(
       "cursorLookAt",
@@ -133,13 +141,11 @@ export class ProceduralAnimationController {
     );
     this._layers.set(
       "talkingHands",
-      new TalkingHandsProceduralAnimationLayer(vrm),
+      new TalkingHandsProceduralAnimationLayer(vrm, basis),
     );
     this._layers.set(
       "emotionPosture",
-      new EmotionPostureProceduralAnimationLayer(vrm, {
-        isVrm0: options.isVrm0 === true,
-      }),
+      new EmotionPostureProceduralAnimationLayer(vrm, basis),
     );
     for (const layer of this._layers.values()) {
       this._layerActivationStates.set(
