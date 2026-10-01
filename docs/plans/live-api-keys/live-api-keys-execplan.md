@@ -99,7 +99,7 @@ libraries and child processes, and FastAPI ↔ logs.
 - [x] Phase 3 (#224): Electron main live delivery. Review passed (Review #3); `pnpm desktop:test` 399 passed; commit `4b20e4bc`.
 - [x] Phase 4 (#225): renderer, setup and documentation. Review passed (Review #2). Frontend checks pass; `web:test` has one unrelated pre-existing flaky failure (#226); commit `e6997962`.
 - [ ] Security review (`security-review` skill + `sdlc-reviewer`) and final integration review.
-- [ ] Agent-run packaged macOS pass with generated fake keys (PID, window, and log/storage scan).
+- [x] Agent-run packaged macOS pass with generated fake keys, 2026-10-01. Run on the unsigned development app built from `98ccbad5` (`pnpm desktop:mac:build`) in a fresh profile; the owner's profile was moved aside and restored afterwards. 23/23 checks passed. The FastAPI PID and window were unchanged across every change. The first save, through the setup UI, completed in 380 ms. Each key reached the backend on its next request: OpenAI and ElevenLabs keys were rejected by the provider, and the connection probe hit the unreachable server rather than reporting a missing key. Each removal reported `credential_missing`/503 immediately. A scan of all 1,677 profile files (`runtime/logs/main.log`, Local Storage, IndexedDB, Session Storage, PGDATA, the encrypted vault) and of `~/Library/Logs/DiagnosticReports` found no fake value.
 - [ ] Owner gate: packaged macOS acceptance with real provider keys.
 
 ## Surprises & Discoveries
@@ -134,6 +134,11 @@ libraries and child processes, and FastAPI ↔ logs.
 - 2026-09-30: Backend baseline on `36a40177` (clean source): full suite passed
   (the one failure seen in the first run was caused by edits made mid-run and
   passes on clean source).
+- 2026-10-01 (packaged pass): FastAPI's `main.log` contains `uvicorn.access`
+  lines such as `"PUT /_desktop/credentials HTTP/1.1" 200`, even though
+  `serve()` passes `access_log=False`. They hold the method, path and status
+  only. The scan found no values, so T3 holds, but
+  `test_the_desktop_server_writes_no_access_log` checks only the uvicorn option.
 - 2026-09-30: The renderer's `applyCredentialChange` and the
   `credentials:set`/`credentials:delete` IPC have no renderer callers; only
   `credentials:apply` is used.
