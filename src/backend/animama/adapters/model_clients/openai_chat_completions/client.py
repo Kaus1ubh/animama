@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import os
 import time
 from collections.abc import AsyncIterator
 from typing import Any
@@ -17,7 +16,12 @@ from animama.app.model_clients import (
     model_client_preview_log_context,
     model_client_request_log_context,
 )
-from animama.app.model_clients.credentials import EnvironmentModelCredentialResolver, ModelCredentialResolver
+from animama.app.model_clients.credential_store import OPENAI_CREDENTIAL_ENV
+from animama.app.model_clients.credentials import (
+    ModelCredential,
+    ModelCredentialResolver,
+    static_credential_resolver,
+)
 from animama.app.model_clients.usage_estimate import estimate_usage
 from animama.domain.model_connection import ModelConnection
 from animama.domain.usage import Usage
@@ -31,11 +35,12 @@ from ..openai_errors import (
     sleep_before_openai_retry,
 )
 from .connection_sdk import (
+    base_client_for_connection,
     connection_base_url,
     connection_for_request,
     connection_timeout,
+    keyed_client,
     keyless_request_headers,
-    sdk_client_for_connection,
 )
 from .events import (
     choice_zero,
@@ -57,7 +62,8 @@ class OpenAIChatCompletionsModelClient:
     One instance serves every Chat Completions connection. Each request uses the
     selected row's connection: its base URL (the built-in OpenAI connection
     uses ``base_url``), its timeout and only its own credential from
-    ``credential_resolver``. ``api_key`` is the built-in OpenAI key used when no
+    ``credential_resolver``, resolved once per request so retries and headers
+    never mix keys. ``api_key`` is a fixed built-in OpenAI key used when no
     resolver is supplied. ``client`` is a test hook that replaces SDK client
     construction; production registries never pass one.
     """
@@ -73,12 +79,12 @@ class OpenAIChatCompletionsModelClient:
         close_client: bool | None = None,
     ) -> None:
         self._base_url = resolve_openai_base_url(base_url)
-        self._credentials = credential_resolver or EnvironmentModelCredentialResolver(
-            openai_api_key=api_key if api_key is not None else os.getenv("OPENAI_API_KEY"),
-            environ=os.environ,
+        self._credentials = credential_resolver or static_credential_resolver(
+            {OPENAI_CREDENTIAL_ENV: api_key.strip()} if api_key and api_key.strip() else None
         )
         self._client = client
-        self._clients_by_connection: dict[tuple[str, str, str | None, float | None], AsyncOpenAI] = {}
+        # Key-free SDK clients per connection; each request adds its key to a view.
+        self._clients_by_connection: dict[tuple[str, str, float | None], AsyncOpenAI] = {}
         self._timeout = timeout
         self._close_client = (client is None) if close_client is None else close_client
 
@@ -93,7 +99,8 @@ class OpenAIChatCompletionsModelClient:
 
         connection = connection_for_request(spec.model_provider)
         base_url = self._base_url_for_connection(connection)
-        if self._client is None and not self._credentials.resolve(connection).usable:
+        credential = self._credentials.resolve(connection)
+        if self._client is None and not credential.usable:
             raise ModelClientProviderError(
                 f"No key is configured for {connection.name}",
                 code="missing_api_key",
@@ -127,7 +134,7 @@ class OpenAIChatCompletionsModelClient:
                     **model_client_request_log_context(spec, include_prompt_preview=True),
                     attempt=attempt,
                 )
-                stream = await self._create_stream(spec)
+                stream = await self._create_stream(spec, credential)
                 _log.info(
                     "OpenAI Chat Completions stream opened",
                     **model_client_request_log_context(spec),
@@ -256,14 +263,14 @@ class OpenAIChatCompletionsModelClient:
                 await sdk_client.close()
         self._clients_by_connection.clear()
 
-    async def _create_stream(self, spec: ModelClientRequest) -> Any:
+    async def _create_stream(self, spec: ModelClientRequest, credential: ModelCredential) -> Any:
         """Create the OpenAI SDK stream with request fields translated upstream."""
 
         connection = connection_for_request(spec.model_provider)
         timeout = self._timeout_for_connection(connection)
-        client = self._client_for_connection(connection, timeout=timeout)
+        client = self._client_for_connection(connection, timeout=timeout, credential=credential)
         kwargs = create_chat_completion_kwargs(spec, timeout=connection_timeout(timeout))
-        extra_headers = keyless_request_headers(connection, self._credentials.resolve(connection))
+        extra_headers = keyless_request_headers(connection, credential)
         if extra_headers is not None:
             kwargs["extra_headers"] = extra_headers
         return await client.chat.completions.create(**kwargs)
@@ -274,8 +281,10 @@ class OpenAIChatCompletionsModelClient:
     def _timeout_for_connection(self, connection: ModelConnection) -> float | None:
         return connection.timeout_seconds if connection.timeout_seconds is not None else self._timeout
 
-    def _client_for_connection(self, connection: ModelConnection, *, timeout: float | None) -> Any:
-        """Return an SDK client for one connection, using only that connection's key."""
+    def _client_for_connection(
+        self, connection: ModelConnection, *, timeout: float | None, credential: ModelCredential
+    ) -> Any:
+        """Return a view of the connection's key-free client carrying only its key."""
 
         base_url = self._base_url_for_connection(connection)
         if self._client is not None:
@@ -284,17 +293,12 @@ class OpenAIChatCompletionsModelClient:
                 return with_options(base_url=base_url, timeout=connection_timeout(timeout))
             return self._client
 
-        cache_key = (connection.id, base_url, connection.credential_env, timeout)
+        cache_key = (connection.id, base_url, timeout)
         client = self._clients_by_connection.get(cache_key)
         if client is None:
-            client = sdk_client_for_connection(
-                connection,
-                credential=self._credentials.resolve(connection),
-                base_url=base_url,
-                timeout=connection_timeout(timeout),
-            )
+            client = base_client_for_connection(connection, base_url=base_url, timeout=connection_timeout(timeout))
             self._clients_by_connection[cache_key] = client
-        return client
+        return keyed_client(client, connection, credential=credential)
 
 
 __all__ = ["OPENAI_HTTP_PROVIDER_TYPE", "OpenAIChatCompletionsModelClient"]

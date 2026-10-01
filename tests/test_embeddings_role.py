@@ -17,7 +17,7 @@ from animama.adapters.repositories.sqlalchemy.archive_repo import SQLAlchemyArch
 from animama.adapters.repositories.sqlalchemy.embedding_refresh_repo import SQLAlchemyEmbeddingRefreshRepository
 from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
 from animama.app.model_clients import ModelClientProviderError
-from animama.app.model_clients.credentials import EnvironmentModelCredentialResolver
+from animama.app.model_clients.credentials import static_credential_resolver
 from animama.app.model_clients.error_categories import ERROR_UNREACHABLE, model_error_category
 from animama.app.services.archive_service import ArchiveService
 from animama.app.services.embedding_refresh_service import EmbeddingRefreshError, EmbeddingRefreshService
@@ -367,7 +367,7 @@ async def test_connection_embedder_sends_float_requests_with_only_the_connection
     local = ModelConnection(id="conn-ollama", name="Ollama", preset="ollama", base_url="http://127.0.0.1:11434/v1")
     embedder = ConnectionEmbedder(
         _embedding_row(local),
-        credential_resolver=EnvironmentModelCredentialResolver(openai_api_key="sk-openai", environ={}),
+        credential_resolver=static_credential_resolver({"OPENAI_API_KEY": "sk-openai"}),
         openai_base_url="http://127.0.0.1:9/v1",
         default_timeout_seconds=5.0,
     )
@@ -393,15 +393,13 @@ async def test_connection_embedder_reports_neutral_error_categories(scripted_emb
     )
     missing_key = ConnectionEmbedder(
         _embedding_row(local),
-        credential_resolver=EnvironmentModelCredentialResolver(openai_api_key=None, environ={}),
+        credential_resolver=static_credential_resolver(),
         openai_base_url="http://127.0.0.1:9/v1",
         default_timeout_seconds=5.0,
     )
     keyed = ConnectionEmbedder(
         _embedding_row(local),
-        credential_resolver=EnvironmentModelCredentialResolver(
-            openai_api_key=None, environ={"ANIMAMA_CONNECTION_C1_API_KEY": "sk-local"}
-        ),
+        credential_resolver=static_credential_resolver({"ANIMAMA_CONNECTION_C1_API_KEY": "sk-local"}),
         openai_base_url="http://127.0.0.1:9/v1",
         default_timeout_seconds=5.0,
     )

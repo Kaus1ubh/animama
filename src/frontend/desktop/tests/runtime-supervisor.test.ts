@@ -24,6 +24,8 @@ import {
   type PackManifest,
 } from "../src/main-process/feature-packs/catalog.js";
 import { credentialTarget } from "../../shared/desktop-runtime";
+import { DOCUMENT_EXECUTABLE } from "../src/main-process/feature-packs/signature.js";
+import { RuntimeError } from "../src/main-process/runtime/errors.js";
 
 const fixture = vi.hoisted(() => {
   type Child = {
@@ -63,14 +65,32 @@ const fixture = vi.hoisted(() => {
     schema,
     ready: vi.fn(),
     quiesce: vi.fn(),
+    deliveries: [] as {
+      headers: Record<string, string>;
+      body: {
+        schema_version: number;
+        generation: number;
+        credentials: Record<string, string>;
+      };
+    }[],
+    deliver: vi.fn(),
     available: vi.fn(),
     verify: vi.fn(),
+    verifyPack: vi.fn(),
     postgresStarts: vi.fn(),
     postgresStops: vi.fn(),
     command: vi.fn(),
   };
 });
 
+// The signed document executable is covered by pack tests; supervisor tests
+// only need its launch sequencing.
+vi.mock("../src/main-process/feature-packs/signature.js", async (original) => ({
+  ...(await original<
+    typeof import("../src/main-process/feature-packs/signature.js")
+  >()),
+  verifyExecutablePack: fixture.verifyPack,
+}));
 vi.mock("../src/main-process/runtime/manifest.js", () => ({
   verifyRuntime: fixture.verify,
 }));
@@ -184,6 +204,10 @@ beforeEach(() => {
   });
   fixture.quiesce.mockImplementation(async () =>
     Response.json({ schema_version: 1, state: "quiesced" }),
+  );
+  fixture.deliveries.splice(0);
+  fixture.deliver.mockImplementation(async (body: { generation: number }) =>
+    Response.json({ schema_version: 1, generation: body.generation }),
   );
   vi.stubGlobal("fetch", vi.fn(defaultFetch));
 });
@@ -324,10 +348,30 @@ function seedSpeechPack(
   return roots[0];
 }
 
-async function defaultFetch(input: unknown): Promise<Response> {
+async function defaultFetch(
+  input: unknown,
+  init?: RequestInit,
+): Promise<Response> {
+  if (String(input).endsWith("/_desktop/credentials")) {
+    const delivery = {
+      headers: Object.fromEntries(
+        Object.entries(init?.headers ?? {}).map(([name, value]) => [
+          name.toLowerCase(),
+          String(value),
+        ]),
+      ),
+      body: JSON.parse(String(init?.body)),
+    };
+    fixture.deliveries.push(delivery);
+    return fixture.deliver(delivery.body);
+  }
   return String(input).includes("runtime:quiesce")
     ? fixture.quiesce()
     : fixture.ready();
+}
+
+function fastapiLaunches() {
+  return fixture.launches.filter((child) => child.name === "fastapi");
 }
 
 function allowRemoval() {
@@ -571,8 +615,11 @@ describe("runtime supervision", () => {
       state: "ready",
       origin: "http://127.0.0.1",
     });
-    await current.runtime.changeCredential("openai", "fixture-key");
+    await current.runtime.changeCredentials([
+      { provider: "openai", value: "fixture-key" },
+    ]);
     expect(current.runtime.status().state).toBe("ready");
+    expect(fixture.deliveries).toHaveLength(1);
     expect(fixture.available.mock.calls.every(([port]) => port === 80)).toBe(
       true,
     );
@@ -611,108 +658,388 @@ describe("runtime supervision", () => {
     });
   });
 
-  it("drains and restarts the provider consumer without restarting PostgreSQL or leaking a key to cleanup", async () => {
+  it("applies a saved key to the running backend without restarting anything", async () => {
     const current = create();
     await current.runtime.start();
-    const result = await current.runtime.changeCredential(
-      "openai",
-      "fixture-provider-key",
+    const launches = fixture.launches.length;
+    const statuses: string[] = [];
+    current.options.onStatus.mockImplementation((status) =>
+      statuses.push(status.state),
     );
-    expect(result).toMatchObject({ configured: true, restartRequired: false });
+
+    const result = await current.runtime.changeCredentials([
+      { provider: "openai", value: "fixture-provider-key" },
+    ]);
+
+    expect(
+      result.find((entry) => credentialTarget(entry) === "openai"),
+    ).toMatchObject({
+      configured: true,
+      restartRequired: false,
+    });
+    expect(
+      result.find((entry) => credentialTarget(entry) === "openai")?.error,
+    ).toBeUndefined();
     expect(JSON.stringify(result)).not.toContain("fixture-provider-key");
-    expect(fixture.postgresStarts).toHaveBeenCalledOnce();
+    expect(fixture.launches).toHaveLength(launches);
+    expect(fixture.quiesce).not.toHaveBeenCalled();
+    expect(current.options.quiesceRenderers).not.toHaveBeenCalled();
+    expect(statuses).toEqual([]);
+    expect(current.runtime.status().state).toBe("ready");
+    expect(fixture.deliveries).toHaveLength(1);
+    const [delivery] = fixture.deliveries;
+    expect(delivery.body).toEqual({
+      schema_version: 1,
+      generation: 1,
+      credentials: { OPENAI_API_KEY: "fixture-provider-key" },
+    });
+    // Only the private control token; nothing a browser would send.
+    expect(Object.keys(delivery.headers).sort()).toEqual([
+      "content-type",
+      "x-animama-desktop-control",
+    ]);
+    expect(delivery.headers["x-animama-desktop-control"]).toBe(
+      fastapiLaunches().at(-1)?.env.ANIMAMA_DESKTOP_CONTROL_TOKEN,
+    );
     expect(
-      fixture.launches.filter((child) => child.name === "fastapi"),
-    ).toHaveLength(2);
-    expect(
-      fixture.launches.filter((child) => child.name === "fastapi").at(-1)?.env
-        .OPENAI_API_KEY,
-    ).toBe("fixture-provider-key");
-    expect(
-      fixture.launches.find((child) => child.name === "avatar-cleanup")?.env
-        .OPENAI_API_KEY,
-    ).toBeUndefined();
-    await current.runtime.changeCredential("openai");
-    expect(
-      fixture.launches.filter((child) => child.name === "fastapi").at(-1)?.env
-        .OPENAI_API_KEY,
-    ).toBeUndefined();
-    expect(fixture.quiesce).toHaveBeenCalled();
+      vi
+        .mocked(fetch)
+        .mock.calls.every(
+          ([input]) => !String(input).includes("fixture-provider-key"),
+        ),
+    ).toBe(true);
   });
 
-  it.each(["set", "delete"])(
-    "retains a busy credential %s result before replacement-window readiness and until a new attempt",
-    async (action) => {
+  it("delivers the whole saved set so a removed key is simply absent", async () => {
+    const current = create();
+    await current.runtime.start();
+    await current.runtime.changeCredentials([
+      { provider: "openai", value: "fixture-openai" },
+      { provider: "elevenlabs", value: "fixture-elevenlabs" },
+    ]);
+    await current.runtime.changeCredentials([{ provider: "openai" }]);
+
+    expect(fixture.deliveries.map((delivery) => delivery.body)).toEqual([
+      {
+        schema_version: 1,
+        generation: 1,
+        credentials: {
+          OPENAI_API_KEY: "fixture-openai",
+          ELEVENLABS_API_KEY: "fixture-elevenlabs",
+        },
+      },
+      {
+        schema_version: 1,
+        generation: 2,
+        credentials: { ELEVENLABS_API_KEY: "fixture-elevenlabs" },
+      },
+    ]);
+    expect(fastapiLaunches()).toHaveLength(1);
+  });
+
+  it("registers every value with the log redactor before sending it", async () => {
+    const { runtimeRedactor } =
+      await import("../src/main-process/runtime/redaction.js");
+    const current = create();
+    await current.runtime.start();
+    fixture.deliver.mockImplementationOnce(
+      async (body: { generation: number }) => {
+        expect(
+          runtimeRedactor.redact("sent fixture-redacted-value-0123456789"),
+        ).not.toContain("fixture-redacted-value-0123456789");
+        return Response.json({
+          schema_version: 1,
+          generation: body.generation,
+        });
+      },
+    );
+
+    await current.runtime.changeCredentials([
+      { provider: "openai", value: "fixture-redacted-value-0123456789" },
+    ]);
+
+    expect(fixture.deliver).toHaveBeenCalledOnce();
+  });
+
+  it("runs concurrent saves in order with increasing generations", async () => {
+    const current = create();
+    await current.runtime.start();
+    await Promise.all([
+      current.runtime.changeCredentials([
+        { provider: "openai", value: "fixture-a" },
+      ]),
+      current.runtime.changeCredentials([
+        { provider: "openai", value: "fixture-b" },
+      ]),
+      current.runtime.changeCredentials([{ provider: "openai" }]),
+    ]);
+
+    expect(
+      fixture.deliveries.map((delivery) => [
+        delivery.body.generation,
+        delivery.body.credentials.OPENAI_API_KEY,
+      ]),
+    ).toEqual([
+      [1, "fixture-a"],
+      [2, "fixture-b"],
+      [3, undefined],
+    ]);
+  });
+
+  it("retries one failed delivery without restarting", async () => {
+    const current = create();
+    await current.runtime.start();
+    fixture.deliver.mockRejectedValueOnce(new Error("connection reset"));
+
+    const statuses = await current.runtime.changeCredentials([
+      { provider: "openai", value: "fixture-key" },
+    ]);
+
+    expect(
+      statuses.find((entry) => credentialTarget(entry) === "openai")?.error,
+    ).toBeUndefined();
+    expect(
+      fixture.deliveries.map((delivery) => delivery.body.generation),
+    ).toEqual([1, 2]);
+    expect(fastapiLaunches()).toHaveLength(1);
+    expect(fixture.quiesce).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [
+      "an unreachable backend",
+      () => fixture.deliver.mockRejectedValue(new Error("refused")),
+    ],
+    [
+      "a refused delivery",
+      () =>
+        fixture.deliver.mockResolvedValue(
+          Response.json(
+            { detail: { code: "credentials_invalid" } },
+            { status: 400 },
+          ),
+        ),
+    ],
+    [
+      "a mismatched acknowledgement",
+      () =>
+        fixture.deliver.mockImplementation(async () =>
+          Response.json({ schema_version: 1, generation: 999 }),
+        ),
+    ],
+  ])(
+    "restarts from the vault after two failed deliveries (%s)",
+    async (_case, fail) => {
       const current = create();
       await current.runtime.start();
-      await current.runtime.changeCredential("openai", "fixture-old-key");
-      const vault = readFileSync(current.options.paths.vault);
-      const readyStatuses: ReturnType<RuntimeSupervisor["credentials"]>[] = [];
-      current.options.onStatus.mockImplementation((status) => {
-        if (status.state === "ready")
-          readyStatuses.push(current.runtime.credentials());
-      });
-      fixture.quiesce.mockResolvedValueOnce(
-        Response.json({ detail: { code: "runtime_busy" } }, { status: 409 }),
+      fail();
+      const logged = (["log", "info", "warn", "error", "debug"] as const).map(
+        (level) => vi.spyOn(console, level),
       );
-      const result = await current.runtime.changeCredential(
-        "openai",
-        action === "set" ? "fixture-replacement-key" : undefined,
-      );
-      const expected = {
-        provider: "openai",
-        configured: true,
-        error: "runtime_busy",
-        restartRequired: false,
-      };
-      expect(result).toMatchObject(expected);
-      expect(
-        readyStatuses.at(-1)?.find((entry) => entry.provider === "openai"),
-      ).toMatchObject(expected);
-      expect(readFileSync(current.options.paths.vault)).toEqual(vault);
-      expect(JSON.stringify(current.runtime.credentials())).not.toContain(
-        "fixture-old-key",
-      );
-      expect(JSON.stringify(current.runtime.credentials())).not.toContain(
-        "fixture-replacement-key",
-      );
-      result.error = "caller-mutated-status";
-      expect(
-        current.runtime
-          .credentials()
-          .find((entry) => entry.provider === "openai"),
-      ).toMatchObject(expected);
 
-      await current.runtime.changeCredential("elevenlabs", "fixture-other-key");
+      const statuses = await current.runtime.changeCredentials([
+        { provider: "openai", value: "fixture-key" },
+      ]);
+
+      for (const spy of logged)
+        expect(JSON.stringify(spy.mock.calls)).not.toContain("fixture-key");
+
+      expect(fixture.deliveries).toHaveLength(2);
+      expect(fixture.quiesce).toHaveBeenCalledOnce();
+      expect(current.options.quiesceRenderers).toHaveBeenCalledOnce();
+      expect(fastapiLaunches()).toHaveLength(2);
+      expect(fastapiLaunches().at(-1)?.env.OPENAI_API_KEY).toBe("fixture-key");
+      expect(current.runtime.status().state).toBe("ready");
       expect(
-        current.runtime
-          .credentials()
-          .find((entry) => entry.provider === "openai"),
-      ).toMatchObject(expected);
-      fixture.quiesce.mockImplementationOnce(async () => {
-        expect(
-          current.runtime
-            .credentials()
-            .find((entry) => entry.provider === "openai")?.error,
-        ).toBeUndefined();
-        return Response.json({ schema_version: 1, state: "quiesced" });
-      });
-      await current.runtime.changeCredential("openai");
-      expect(
-        current.runtime
-          .credentials()
-          .find((entry) => entry.provider === "openai"),
+        statuses.find((entry) => credentialTarget(entry) === "openai"),
       ).toMatchObject({
-        configured: false,
+        configured: true,
         restartRequired: false,
       });
-      expect(
-        current.runtime
-          .credentials()
-          .find((entry) => entry.provider === "openai")?.error,
-      ).toBeUndefined();
+      expect(JSON.stringify(statuses)).not.toContain("fixture-key");
     },
   );
+
+  it("restarts from the vault even when the drain reports busy, because admission stays closed", async () => {
+    const current = create();
+    await current.runtime.start();
+    fixture.deliver.mockRejectedValue(new Error("refused"));
+    fixture.quiesce.mockResolvedValueOnce(
+      Response.json({ detail: { code: "runtime_busy" } }, { status: 409 }),
+    );
+
+    await current.runtime.changeCredentials([
+      { provider: "openai", value: "fixture-key" },
+    ]);
+
+    expect(fastapiLaunches()).toHaveLength(2);
+    expect(fastapiLaunches().at(-1)?.env.OPENAI_API_KEY).toBe("fixture-key");
+    expect(current.runtime.status().state).toBe("ready");
+  });
+
+  /** Activate a data-only document pack after start, as a launch with it would. */
+  async function withDocumentWorker(runtime: RuntimeSupervisor) {
+    const internals = runtime as unknown as {
+      activePacks: Record<string, unknown>;
+      startDocumentWorker(renewInstance?: boolean): Promise<void>;
+    };
+    internals.activePacks = {
+      "document-processing": {
+        root: "/fixture/document-processing",
+        manifest: {
+          schema: "animama-feature-pack/1",
+          version: "0.1.0",
+          archive_sha256: "a".repeat(64),
+          files: [{ path: DOCUMENT_EXECUTABLE, sha256: "b".repeat(64) }],
+        },
+      },
+    };
+    await internals.startDocumentWorker(false);
+  }
+  const documentWorkers = () =>
+    fixture.launches.filter((child) => child.name === "document-worker");
+
+  it("restarts only the document worker after deliveries, once, with the backend's instance id", async () => {
+    const current = create();
+    await current.runtime.start();
+    await withDocumentWorker(current.runtime);
+    const backend = fastapiLaunches().at(-1)!;
+
+    await Promise.all([
+      current.runtime.changeCredentials([
+        { provider: "openai", value: "fixture-a" },
+      ]),
+      current.runtime.changeCredentials([
+        { provider: "openai", value: "fixture-b" },
+      ]),
+    ]);
+    await vi.waitFor(() => expect(documentWorkers()).toHaveLength(2));
+
+    const [before, after] = documentWorkers();
+    expect(fixture.owners.at(-1)?.has(before!)).toBe(false);
+    expect(after!.env.OPENAI_API_KEY).toBe("fixture-b");
+    // FastAPI's readiness check compares heartbeats with the id it started with.
+    expect(after!.env.ANIMAMA_DOCUMENT_WORKER_INSTANCE_ID).toBe(
+      backend.env.ANIMAMA_DOCUMENT_WORKER_INSTANCE_ID,
+    );
+    expect(fastapiLaunches()).toHaveLength(1);
+    expect(current.runtime.status().state).toBe("ready");
+  });
+
+  it("leaves the document worker alone when its pack is not active", async () => {
+    const current = create();
+    await current.runtime.start();
+    const internals = current.runtime as unknown as {
+      documentWorker?: object;
+      stopDocumentWorker(): Promise<void>;
+    };
+    internals.documentWorker = {};
+    const stop = vi.spyOn(internals, "stopDocumentWorker");
+
+    await current.runtime.changeCredentials([
+      { provider: "openai", value: "fixture-a" },
+    ]);
+    // A second save runs after any restart the first one queued.
+    await current.runtime.changeCredentials([
+      { provider: "openai", value: "fixture-b" },
+    ]);
+
+    expect(stop).not.toHaveBeenCalled();
+  });
+
+  it("does not restart the document worker once shutdown has begun", async () => {
+    const current = create();
+    await current.runtime.start();
+    await withDocumentWorker(current.runtime);
+    fixture.deliver.mockImplementationOnce(
+      async (body: { generation: number }) => {
+        void current.runtime.stop();
+        return Response.json({
+          schema_version: 1,
+          generation: body.generation,
+        });
+      },
+    );
+
+    await current.runtime.changeCredentials([
+      { provider: "openai", value: "fixture-key" },
+    ]);
+    await vi.waitFor(() =>
+      expect(current.runtime.status().state).toBe("stopped"),
+    );
+
+    expect(documentWorkers()).toHaveLength(1);
+  });
+
+  it("reports a failed document worker restart with its own code and stops services", async () => {
+    const current = create();
+    await current.runtime.start();
+    await withDocumentWorker(current.runtime);
+    fixture.verifyPack.mockRejectedValueOnce(
+      new RuntimeError("pack_signature_invalid"),
+    );
+
+    await current.runtime.changeCredentials([
+      { provider: "openai", value: "fixture-key" },
+    ]);
+
+    await vi.waitFor(() =>
+      expect(current.runtime.status()).toEqual({
+        state: "error",
+        code: "pack_signature_invalid",
+      }),
+    );
+    await vi.waitFor(() => expect(fixture.postgresStops).toHaveBeenCalled());
+  });
+
+  it("keeps the replacement running when the backend crashed during a save", async () => {
+    const current = create();
+    await current.runtime.start();
+    fixture.deliver.mockImplementation(async () => {
+      // The crash that makes delivery fail also queues the exit handler's stop.
+      fastapiLaunches().at(-1)?.finish();
+      throw new Error("connection refused");
+    });
+
+    await current.runtime.changeCredentials([
+      { provider: "openai", value: "fixture-key" },
+    ]);
+    fixture.deliver.mockImplementation(async (body: { generation: number }) =>
+      Response.json({ schema_version: 1, generation: body.generation }),
+    );
+    // A later save runs after the exit handler's queued stop.
+    await current.runtime.changeCredentials([
+      { provider: "elevenlabs", value: "fixture-other" },
+    ]);
+
+    expect(current.runtime.status().state).toBe("ready");
+    const replacement = fastapiLaunches().at(-1)!;
+    expect(fixture.owners.at(-1)?.has(replacement)).toBe(true);
+    expect(replacement.env.OPENAI_API_KEY).toBe("fixture-key");
+  });
+
+  it("never gives saved keys to cleanup or database commands", async () => {
+    const current = create();
+    await current.runtime.start();
+    await current.runtime.changeCredentials([
+      { provider: "openai", value: "fixture-key" },
+    ]);
+    await current.runtime.stop();
+    const again = create(current.options.paths);
+    await again.runtime.start();
+
+    expect(fastapiLaunches().at(-1)?.env.OPENAI_API_KEY).toBe("fixture-key");
+    expect(
+      fixture.launches.filter((child) => child.name === "avatar-cleanup").at(-1)
+        ?.env.OPENAI_API_KEY,
+    ).toBeUndefined();
+    const databaseCommands = fixture.command.mock.calls.filter(
+      ([, args]) => (args as string[])[0] === "database",
+    );
+    expect(databaseCommands.length).toBeGreaterThan(0);
+    for (const [, , env] of databaseCommands)
+      expect((env as Record<string, string>).OPENAI_API_KEY).toBeUndefined();
+  });
 
   it("gives a saved connection key to FastAPI on start but never to cleanup", async () => {
     const env = "ANIMAMA_CONNECTION_C_0123456789AB_API_KEY";
@@ -750,6 +1077,7 @@ describe("runtime supervision", () => {
       (child) => child.name === "fastapi",
     ).length;
     const quiesces = fixture.quiesce.mock.calls.length;
+    const deliveries = fixture.deliveries.length;
 
     const statuses = await current.runtime.changeCredentials([
       {
@@ -760,6 +1088,7 @@ describe("runtime supervision", () => {
 
     expect(current.runtime.status()).toMatchObject({ state: "ready" });
     expect(fixture.quiesce.mock.calls.length).toBe(quiesces);
+    expect(fixture.deliveries).toHaveLength(deliveries);
     expect(
       fixture.launches.filter((child) => child.name === "fastapi"),
     ).toHaveLength(launches);
@@ -775,7 +1104,7 @@ describe("runtime supervision", () => {
     });
   });
 
-  it("applies several credential changes with one backend restart", async () => {
+  it("applies several credential changes in one delivery", async () => {
     const current = create();
     await current.runtime.start();
     await current.runtime.changeCredentials([
@@ -784,9 +1113,6 @@ describe("runtime supervision", () => {
         value: "fixture-old-connection",
       },
     ]);
-    const before = fixture.launches.filter(
-      (child) => child.name === "fastapi",
-    ).length;
     const statuses = await current.runtime.changeCredentials([
       { provider: "openai", value: "fixture-openai" },
       { provider: "elevenlabs", value: "fixture-elevenlabs" },
@@ -796,18 +1122,12 @@ describe("runtime supervision", () => {
         value: "fixture-new-connection",
       },
     ]);
-    const launches = fixture.launches.filter(
-      (child) => child.name === "fastapi",
-    );
-    expect(launches).toHaveLength(before + 1);
-    expect(launches.at(-1)?.env).toMatchObject({
+    expect(fastapiLaunches()).toHaveLength(1);
+    expect(fixture.deliveries.at(-1)?.body.credentials).toEqual({
       OPENAI_API_KEY: "fixture-openai",
       ELEVENLABS_API_KEY: "fixture-elevenlabs",
       ANIMAMA_CONNECTION_C_NEW_API_KEY: "fixture-new-connection",
     });
-    expect(
-      launches.at(-1)?.env.ANIMAMA_CONNECTION_C_0123456789AB_API_KEY,
-    ).toBeUndefined();
     expect(
       Object.fromEntries(
         statuses.map((status) => [credentialTarget(status), status.configured]),
@@ -820,7 +1140,7 @@ describe("runtime supervision", () => {
     expect(JSON.stringify(statuses)).not.toContain("fixture-");
   });
 
-  it("records a failed batch against every provider in it and keeps the vault unchanged", async () => {
+  it("records a failed vault write against every change in it and sends nothing", async () => {
     const current = create();
     await current.runtime.start();
     await current.runtime.changeCredentials([
@@ -829,7 +1149,9 @@ describe("runtime supervision", () => {
         value: "fixture-old-connection",
       },
     ]);
-    fixture.quiesce.mockRejectedValueOnce(new Error("busy"));
+    const vault = readFileSync(current.options.paths.vault);
+    const deliveries = fixture.deliveries.length;
+    current.options.encryption.isEncryptionAvailable = () => false;
     const statuses = await current.runtime.changeCredentials([
       { provider: "openai", value: "fixture-openai" },
       { connection: "ANIMAMA_CONNECTION_C_0123456789AB_API_KEY" },
@@ -838,54 +1160,60 @@ describe("runtime supervision", () => {
     const byTarget = Object.fromEntries(
       statuses.map((status) => [credentialTarget(status), status]),
     );
-    expect(byTarget.openai).toMatchObject({ configured: false });
+    expect(readFileSync(current.options.paths.vault)).toEqual(vault);
+    expect(fixture.deliveries).toHaveLength(deliveries);
+    expect(current.runtime.status().state).toBe("ready");
+    expect(byTarget.openai).toMatchObject({
+      configured: false,
+      error: "secure_storage_unavailable",
+    });
     expect(byTarget.ANIMAMA_CONNECTION_C_0123456789AB_API_KEY).toMatchObject({
       configured: true,
+      error: "secure_storage_unavailable",
     });
     // A key that was never saved is still reported with its failure.
     expect(byTarget.ANIMAMA_CONNECTION_C_NEW_API_KEY).toMatchObject({
       configured: false,
+      error: "secure_storage_unavailable",
     });
-    expect(byTarget.openai?.error).toBeTruthy();
-    expect(
-      byTarget.ANIMAMA_CONNECTION_C_0123456789AB_API_KEY?.error,
-    ).toBeTruthy();
-    expect(byTarget.ANIMAMA_CONNECTION_C_NEW_API_KEY?.error).toBeTruthy();
     expect(byTarget.elevenlabs?.error).toBeUndefined();
   });
 
-  it("retains a saved credential after restart failure and clears its failure when Retry consumes it", async () => {
+  it("keeps a saved key through a failed fallback restart and applies it on recovery Retry", async () => {
     const current = create();
     await current.runtime.start();
+    fixture.deliver.mockRejectedValue(new Error("refused"));
     fixture.ready.mockResolvedValueOnce(Response.json({}));
-    const result = await current.runtime.changeCredential(
-      "openai",
-      "fixture-saved-key",
+    const statuses = await current.runtime.changeCredentials([
+      { provider: "openai", value: "fixture-saved-key" },
+    ]);
+    const failed = statuses.find(
+      (entry) => credentialTarget(entry) === "openai",
     );
-    expect(result).toMatchObject({
+    expect(failed).toMatchObject({
       configured: true,
       restartRequired: true,
       error: "backend_readiness_mismatch",
     });
-    expect(
-      current.runtime
-        .credentials()
-        .find((entry) => entry.provider === "openai"),
-    ).toEqual(result);
+    expect(current.runtime.status().state).toBe("error");
+    expect(JSON.stringify(current.runtime.credentials())).not.toContain(
+      "fixture-saved-key",
+    );
+
     await current.runtime.start();
+
     expect(current.runtime.status().state).toBe("ready");
     const restored = current.runtime
       .credentials()
-      .find((entry) => entry.provider === "openai");
+      .find((entry) => credentialTarget(entry) === "openai");
     expect(restored).toMatchObject({
       configured: true,
       restartRequired: false,
     });
     expect(restored?.error).toBeUndefined();
-    expect(
-      fixture.launches.filter((child) => child.name === "fastapi").at(-1)?.env
-        .OPENAI_API_KEY,
-    ).toBe("fixture-saved-key");
+    expect(fastapiLaunches().at(-1)?.env.OPENAI_API_KEY).toBe(
+      "fixture-saved-key",
+    );
   });
 
   it("rejects mismatched backend identity and stops every owned child", async () => {
@@ -1180,7 +1508,7 @@ describe("runtime supervision", () => {
     },
   );
 
-  it.each(["pack", "update", "credential"])(
+  it.each(["pack", "update"])(
     "a busy quiesce preserves the old %s configuration and restarts it",
     async (action) => {
       const current = create();
@@ -1199,14 +1527,10 @@ describe("runtime supervision", () => {
         await expect(
           current.runtime.featurePacks().remove("parakeet-stt"),
         ).rejects.toThrow("runtime_busy");
-      else if (action === "update")
+      else
         await expect(current.runtime.stopForUpdate(update)).rejects.toThrow(
           "runtime_busy",
         );
-      else
-        expect(
-          await current.runtime.changeCredential("openai", "new-key"),
-        ).toMatchObject({ configured: false, error: "runtime_busy" });
       expect(current.runtime.status()).toEqual({
         state: "ready",
         origin: "http://127.0.0.1:41234",

@@ -77,10 +77,8 @@ from animama.server.schemas.model_configuration import (
 router = APIRouter(tags=["model-configuration"])
 
 
-def get_model_credential_resolver(
-    runtime_settings: Annotated[Settings, Depends(get_runtime_settings)],
-) -> ModelCredentialResolver:
-    return build_model_credential_resolver(app_settings=runtime_settings)
+def get_model_credential_resolver() -> ModelCredentialResolver:
+    return build_model_credential_resolver()
 
 
 def get_model_connection_probe(

@@ -2,18 +2,27 @@
 
 Model clients ask a :class:`ModelCredentialResolver` for the key of the
 connection that owns the selected catalog row. A key is never shared across
-connections: the built-in OpenAI connection uses the process OpenAI key, and an
-owner connection uses only the environment variable it names. Values are never
-stored in the database or returned by APIs.
+connections: the built-in OpenAI connection uses the OpenAI key, and an owner
+connection uses only the key variable it names. Keys come from the process's
+:class:`~animama.app.model_clients.credential_store.RuntimeCredentialStore`,
+never directly from ``os.environ``. Values are never stored in the database or
+returned by APIs.
 """
 
 from __future__ import annotations
 
 import re
-from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Protocol
 
+from animama.app.model_clients.credential_store import (
+    KNOWN_PROVIDER_CREDENTIAL_ENVS,
+    MANAGED_CREDENTIAL_ENV_PATTERN,
+    OPENAI_CREDENTIAL_ENV,
+    CredentialSource,
+    FixedCredentials,
+    is_allowed_credential_env,
+)
 from animama.app.model_connection_presets import PRESET_OPENAI
 from animama.domain import ModelProvider
 from animama.domain.model_connection import (
@@ -25,22 +34,6 @@ from animama.domain.model_connection import (
 CREDENTIAL_CONFIGURED = "configured"
 CREDENTIAL_MISSING = "missing"
 CREDENTIAL_NOT_REQUIRED = "not_required"
-
-MANAGED_CREDENTIAL_ENV_PATTERN = re.compile(r"^ANIMAMA_CONNECTION_[A-Z0-9_]{1,64}_API_KEY$")
-"""Names for owner connection keys; the desktop vault writes keys under this namespace."""
-
-KNOWN_PROVIDER_CREDENTIAL_ENVS = frozenset({"OPENAI_API_KEY", "DEEPSEEK_API_KEY", "HF_TOKEN"})
-"""Conventional provider key variables an owner connection may also reference."""
-
-
-def is_allowed_credential_env(name: str) -> bool:
-    """Return whether an owner connection may read a key from ``name``.
-
-    References are limited to model-key names so a connection cannot send an
-    unrelated process secret (such as a database URL) to its endpoint.
-    """
-
-    return name in KNOWN_PROVIDER_CREDENTIAL_ENVS or bool(MANAGED_CREDENTIAL_ENV_PATTERN.fullmatch(name))
 
 
 def managed_credential_env(connection_id: str) -> str:
@@ -100,25 +93,37 @@ class ModelCredentialResolver(Protocol):
     def resolve(self, connection: ModelConnection) -> ModelCredential: ...
 
 
-class EnvironmentModelCredentialResolver:
-    """Resolve keys from the process OpenAI key and environment variables."""
+class StoreModelCredentialResolver:
+    """Resolve keys from the runtime credential store on every call.
 
-    def __init__(self, *, openai_api_key: str | None, environ: Mapping[str, str]) -> None:
-        self._openai_api_key = (openai_api_key or "").strip()
-        self._environ = environ
+    Each ``resolve`` reads the context's current snapshot (the one pinned for
+    the request, or the latest), so a changed key applies to the next request
+    without rebuilding clients. Callers resolve once per request and reuse the
+    result so one request never mixes keys.
+    """
+
+    def __init__(self, store: CredentialSource) -> None:
+        self._store = store
 
     def resolve(self, connection: ModelConnection) -> ModelCredential:
+        snapshot = self._store.current()
         if connection.is_builtin_openai:
-            return _credential(self._openai_api_key)
+            return _credential(snapshot.get(OPENAI_CREDENTIAL_ENV))
         name = (connection.credential_env or "").strip()
         if not name:
             return ModelCredential(state=CREDENTIAL_NOT_REQUIRED)
         if not is_allowed_credential_env(name):
             return ModelCredential(state=CREDENTIAL_MISSING)
-        return _credential((self._environ.get(name) or "").strip())
+        return _credential(snapshot.get(name))
 
 
-def _credential(value: str) -> ModelCredential:
+def static_credential_resolver(values: dict[str, str] | None = None) -> StoreModelCredentialResolver:
+    """Resolve from a fixed set of keys, for clients built without the process store."""
+
+    return StoreModelCredentialResolver(FixedCredentials(values))
+
+
+def _credential(value: str | None) -> ModelCredential:
     if value:
         return ModelCredential(state=CREDENTIAL_CONFIGURED, api_key=value)
     return ModelCredential(state=CREDENTIAL_MISSING)
@@ -130,11 +135,12 @@ __all__ = [
     "CREDENTIAL_NOT_REQUIRED",
     "KNOWN_PROVIDER_CREDENTIAL_ENVS",
     "MANAGED_CREDENTIAL_ENV_PATTERN",
-    "EnvironmentModelCredentialResolver",
     "ModelCredential",
     "ModelCredentialResolver",
+    "StoreModelCredentialResolver",
     "builtin_openai_connection",
     "connection_for_model_provider",
     "is_allowed_credential_env",
     "managed_credential_env",
+    "static_credential_resolver",
 ]

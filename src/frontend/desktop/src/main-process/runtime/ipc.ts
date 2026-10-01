@@ -7,18 +7,13 @@ import {
 import {
   featurePackIds,
   type CredentialStatus,
-  type ProviderCredentialStatus,
   type RuntimeStatus,
   type FeaturePackStatus,
   type FeaturePackId,
   type UpdateStatus,
 } from "../../../../shared/desktop-runtime.js";
 import { RuntimeError, runtimeErrorCode } from "./errors.js";
-import {
-  validateCredential,
-  validateCredentialChanges,
-  validateProvider,
-} from "./vault.js";
+import { validateCredentialChanges } from "./vault.js";
 import { packId } from "../feature-packs/catalog.js";
 
 export type RuntimeIpcOperations = {
@@ -28,11 +23,7 @@ export type RuntimeIpcOperations = {
   openBackups?(): Promise<void>;
   quit(): void;
   credentials(): CredentialStatus[];
-  changeCredential(
-    provider: unknown,
-    value?: unknown,
-  ): Promise<ProviderCredentialStatus>;
-  /** Several key changes with one local-service restart. */
+  /** Save several key changes and apply them to the running backend. */
   changeCredentials?(changes: unknown): Promise<CredentialStatus[]>;
   featurePacks?(): FeaturePackStatus[];
   changePack?(
@@ -155,24 +146,11 @@ export function installRuntimeIpc(
   });
   handle("runtime:quit", 0, true, () => operations.quit());
   handle("credentials:list", 0, false, () => operations.credentials());
-  handle("credentials:set", 2, false, (provider, value) =>
-    operations.changeCredential(
-      validateProvider(provider),
-      validateCredential(value),
-    ),
-  );
   handle("credentials:apply", 1, false, (changes) => {
     if (!operations.changeCredentials)
       throw new RuntimeError("embedded_runtime_unavailable");
     // Validate here too so a malformed batch never reaches the supervisor.
     return operations.changeCredentials(validateCredentialChanges(changes));
-  });
-  handle("credentials:delete", 1, false, async (provider) => {
-    const status = await operations.changeCredential(
-      validateProvider(provider),
-    );
-    if (status.error || status.restartRequired)
-      throw new RuntimeError(status.error ?? "runtime_restart_required");
   });
   handle(
     "feature-packs:list",

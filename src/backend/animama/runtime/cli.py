@@ -104,6 +104,12 @@ async def _rescan() -> None:
 def main(argv: Sequence[str] | None = None) -> int:
     args = parser().parse_args(argv)
     if args.command == "serve":
+        # Load keys into the runtime store and drop them from the environment
+        # before any provider SDK is imported: the ElevenLabs client captures
+        # ELEVENLABS_API_KEY as a default argument at import.
+        from animama.server.runtime_credentials import scrub_credential_environment
+
+        scrub_credential_environment()
         from animama.server.local_runtime import is_loopback_host
 
         if not is_loopback_host(args.host) or not 1 <= args.port <= 65535:

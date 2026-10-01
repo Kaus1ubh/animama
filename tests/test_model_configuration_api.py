@@ -123,9 +123,9 @@ async def test_presets_use_the_composition_local_model_host(async_session, tmp_p
 
 
 async def test_connections_record_credential_references_but_never_values(
-    async_session, tmp_path, owner_id, monkeypatch
+    async_session, tmp_path, owner_id, set_runtime_credentials
 ):
-    monkeypatch.setenv("DEEPSEEK_API_KEY", "sk-deepseek-secret")
+    set_runtime_credentials(DEEPSEEK_API_KEY="sk-deepseek-secret")
     app = _app(async_session, tmp_path, owner_id)
     async with local_client(app) as client:
         keyless = await client.post("/v1/model-connections", json=_connection_body())
@@ -439,7 +439,7 @@ async def test_detect_lists_a_real_server_without_a_key_and_bounds_the_models(
     from openai import AsyncOpenAI
 
     from animama.adapters.model_clients.openai_chat_completions.probe import OpenAICompatibleConnectionProbe
-    from animama.app.model_clients.credentials import EnvironmentModelCredentialResolver
+    from animama.app.model_clients.credentials import static_credential_resolver
 
     requests: list[httpx.Request] = []
 
@@ -458,7 +458,7 @@ async def test_detect_lists_a_real_server_without_a_key_and_bounds_the_models(
 
     monkeypatch.setattr(AsyncOpenAI, "__init__", _init)
     probe = OpenAICompatibleConnectionProbe(
-        credential_resolver=EnvironmentModelCredentialResolver(openai_api_key="sk-openai", environ={}),
+        credential_resolver=static_credential_resolver({"OPENAI_API_KEY": "sk-openai"}),
     )
     app = _app(async_session, tmp_path, owner_id)
     app.dependency_overrides[get_model_connection_probe] = lambda: probe

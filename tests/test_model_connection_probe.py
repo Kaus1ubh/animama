@@ -12,7 +12,7 @@ from openai import AsyncOpenAI
 
 from animama.adapters.model_clients.openai_chat_completions.connection_sdk import connection_timeout
 from animama.adapters.model_clients.openai_chat_completions.probe import OpenAICompatibleConnectionProbe
-from animama.app.model_clients.credentials import EnvironmentModelCredentialResolver
+from animama.app.model_clients.credentials import static_credential_resolver
 from animama.app.model_clients.probe import ModelConnectionProbeError
 from animama.app.model_connection_presets import MODEL_CONNECTION_PRESETS
 from animama.domain import ModelConnection
@@ -145,7 +145,7 @@ def _connection(preset: str, *, credential_env: str | None = None) -> ModelConne
 
 def _probe(server: _Server, environ: dict[str, str] | None = None) -> OpenAICompatibleConnectionProbe:
     return OpenAICompatibleConnectionProbe(
-        credential_resolver=EnvironmentModelCredentialResolver(openai_api_key="sk-openai", environ=environ or {}),
+        credential_resolver=static_credential_resolver({"OPENAI_API_KEY": "sk-openai", **(environ or {})}),
         http_transport=httpx.MockTransport(server),
     )
 
@@ -228,7 +228,7 @@ async def test_probe_requires_the_referenced_key_before_any_request(sdk_transpor
 
 async def test_unreachable_servers_fail_with_a_category():
     probe = OpenAICompatibleConnectionProbe(
-        credential_resolver=EnvironmentModelCredentialResolver(openai_api_key=None, environ={}),
+        credential_resolver=static_credential_resolver(),
         default_timeout=2.0,
     )
     connection = ModelConnection(id="conn-down", name="Down", preset="ollama", base_url="http://127.0.0.1:9/v1")
@@ -315,7 +315,7 @@ async def test_context_lookups_send_only_the_connection_key(sdk_transport, monke
         return server(request)
 
     probe = OpenAICompatibleConnectionProbe(
-        credential_resolver=EnvironmentModelCredentialResolver(openai_api_key="sk-openai", environ={}),
+        credential_resolver=static_credential_resolver({"OPENAI_API_KEY": "sk-openai"}),
         http_transport=httpx.MockTransport(lookup),
     )
 

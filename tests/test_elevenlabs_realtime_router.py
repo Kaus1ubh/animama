@@ -124,8 +124,10 @@ def test_elevenlabs_tone_prefix_uses_anima_intensity_level(
 
 
 @pytest.mark.asyncio
-async def test_realtime_tts_session_is_direct_only(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("animama.server.config.settings.elevenlabs_api_key", "test-elevenlabs-key")
+async def test_realtime_tts_session_is_direct_only(
+    monkeypatch: pytest.MonkeyPatch, set_runtime_credentials: Any
+) -> None:
+    set_runtime_credentials(ELEVENLABS_API_KEY="test-elevenlabs-key")
     voice_access_checks: list[str] = []
 
     async def _fake_ensure_voice_accessible(*, voice_id: str) -> None:
@@ -168,8 +170,9 @@ async def test_realtime_tts_session_is_direct_only(monkeypatch: pytest.MonkeyPat
 @pytest.mark.asyncio
 async def test_internal_finalized_tts_stream_uses_prepared_text(
     monkeypatch: pytest.MonkeyPatch,
+    set_runtime_credentials: Any,
 ) -> None:
-    monkeypatch.setattr("animama.server.config.settings.elevenlabs_api_key", "test-elevenlabs-key")
+    set_runtime_credentials(ELEVENLABS_API_KEY="test-elevenlabs-key")
 
     async def _fake_ensure_voice_accessible(*, voice_id: str) -> None:
         assert voice_id == "voice-primary"
@@ -205,8 +208,9 @@ async def test_internal_finalized_tts_stream_uses_prepared_text(
 @pytest.mark.asyncio
 async def test_internal_finalized_tts_stream_omits_previous_text_for_eleven_v3(
     monkeypatch: pytest.MonkeyPatch,
+    set_runtime_credentials: Any,
 ) -> None:
-    monkeypatch.setattr("animama.server.config.settings.elevenlabs_api_key", "test-elevenlabs-key")
+    set_runtime_credentials(ELEVENLABS_API_KEY="test-elevenlabs-key")
 
     async def _fake_ensure_voice_accessible(*, voice_id: str) -> None:
         assert voice_id == "voice-primary"
@@ -236,8 +240,9 @@ async def test_internal_finalized_tts_stream_omits_previous_text_for_eleven_v3(
 @pytest.mark.asyncio
 async def test_internal_finalized_tts_stream_prefixes_eleven_v3_provider_text(
     monkeypatch: pytest.MonkeyPatch,
+    set_runtime_credentials: Any,
 ) -> None:
-    monkeypatch.setattr("animama.server.config.settings.elevenlabs_api_key", "test-elevenlabs-key")
+    set_runtime_credentials(ELEVENLABS_API_KEY="test-elevenlabs-key")
 
     async def _fake_ensure_voice_accessible(*, voice_id: str) -> None:
         assert voice_id == "voice-primary"
@@ -266,8 +271,9 @@ async def test_internal_finalized_tts_stream_prefixes_eleven_v3_provider_text(
 @pytest.mark.asyncio
 async def test_internal_finalized_tts_stream_can_skip_eleven_v3_emotional_prefix(
     monkeypatch: pytest.MonkeyPatch,
+    set_runtime_credentials: Any,
 ) -> None:
-    monkeypatch.setattr("animama.server.config.settings.elevenlabs_api_key", "test-elevenlabs-key")
+    set_runtime_credentials(ELEVENLABS_API_KEY="test-elevenlabs-key")
 
     async def _fake_ensure_voice_accessible(*, voice_id: str) -> None:
         assert voice_id == "voice-primary"
@@ -297,8 +303,9 @@ async def test_internal_finalized_tts_stream_can_skip_eleven_v3_emotional_prefix
 @pytest.mark.asyncio
 async def test_internal_finalized_tts_stream_uses_resolved_voice_id_without_validation(
     monkeypatch: pytest.MonkeyPatch,
+    set_runtime_credentials: Any,
 ) -> None:
-    monkeypatch.setattr("animama.server.config.settings.elevenlabs_api_key", "test-elevenlabs-key")
+    set_runtime_credentials(ELEVENLABS_API_KEY="test-elevenlabs-key")
 
     async def _unexpected_ensure_voice_accessible(*, voice_id: str) -> None:
         raise AssertionError(f"voice should already be resolved, got {voice_id}")

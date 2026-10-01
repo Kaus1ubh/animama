@@ -85,7 +85,7 @@ The Electron main process owns capabilities outside the browser boundary:
 
 - the local runtime graph, readiness, owned shutdown, and recovery
 - main window creation and stable-origin loading
-- the encrypted credential vault and provider-consumer restart
+- the encrypted credential vault and live key delivery to FastAPI
 - catalog-bound pack installation, cancellation, removal, and worker verification
 - stable-channel update checks, explicit download/restart consent, and pack preflight
 - navigation and permission guards
@@ -134,7 +134,7 @@ Do not expose Node or arbitrary Electron APIs directly to the renderer.
 
 Shared serializable runtime contracts live in `shared/desktop-runtime.ts`.
 Credential results contain only the provider name or connection key variable,
-configured/update/restart status and bounded failure codes;
+configured/update status, whether recovery is required, and bounded failure codes;
 there is no read-key API. Main accepts these operations only from a registered,
 live main window's top-level frame at the exact application origin. The
 recovery window has access only to runtime actions. PiP, quick chat, unknown
@@ -149,27 +149,30 @@ window and accept zero arguments; recovery can open only the fixed backup folder
 Embedded setup and Settings → API Keys show optional OpenAI and ElevenLabs key
 controls. Keys for other model servers belong to their model connection
 (Settings → Models): main stores each under the connection's managed variable
-`ANIMAMA_CONNECTION_<ID>_API_KEY`, at most 32 of them, and the backend reads it
-from that variable. Keys are never read back or saved to browser storage. A save
-applies one change or a batch (`credentials.apply`, validated as at most eight
-changes and one per provider or connection): it first drains local work, then encrypts
-the vault through Electron `safeStorage` and restarts FastAPI and the installed
-document worker with the new environment. PostgreSQL, the stable origin, and local ownership do
-not change. Unavailable secure storage fails closed; it never falls back to
+`ANIMAMA_CONNECTION_<ID>_API_KEY`, at most 32 of them. Keys are never read back
+or saved to browser storage. A save applies one change or a batch
+(`credentials.apply`, validated as at most eight changes and one per provider
+or connection). Main encrypts the vault through Electron `safeStorage`, then
+sends the whole saved set to the running FastAPI, which replaces its in-memory
+keys ([desktop runtime](../../backend/operations/desktop-runtime.md)). No window
+or backend restarts; only the installed document worker restarts, because it
+embeds with keys from its environment. The panel then refreshes model
+and connection queries. If delivery fails twice, main restarts local
+services from the vault. PostgreSQL, the stable origin and local ownership never
+change. Unavailable secure storage fails closed; it never falls back to
 plaintext storage. Browser and external-stack development do not show these
 desktop credential controls.
 
-A batch that would exceed 32 connection keys is refused with
-`connection_credentials_full` before anything drains. A busy or failed drain
-leaves the previous credentials unchanged; a failed batch records the same
-failure for each key in it. Main retains
+A batch that would exceed 32 connection keys, or a failed vault write, is refused
+before anything is sent. A failed batch records the same failure for each key in
+it. Main retains
 one bounded failure status per provider or connection key across product-window
 recreation, so reopening Settings explains why the change did not finish. A new
 accepted attempt clears that key's previous failure. Vaults from earlier releases
 open normally; their retired DeepSeek, Hugging Face and Gemini provider keys are
-dropped on load (re-enter them on a model connection). If the vault was already updated before a service restart
-failed, the saved value remains; Retry starts services with that value and
-clears the restart failure after verified readiness. These failure records stay
+dropped on load (re-enter them on a model connection). If a fallback restart
+fails after the vault was updated, the saved value remains; recovery Retry starts
+services with that value and clears the failure after verified readiness. These failure records stay
 in main-process memory only and contain no credential values.
 
 On macOS the user-data root is `~/Library/Application Support/Animama`:

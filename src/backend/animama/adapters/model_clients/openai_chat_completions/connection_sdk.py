@@ -24,7 +24,8 @@ _NON_OPENAI_OMITTED_HEADERS: dict[str, Any] = {
     "OpenAI-Organization": Omit(),
     "OpenAI-Project": Omit(),
 }
-_KEYLESS_PLACEHOLDER = "not-required"
+KEY_FREE_PLACEHOLDER = "not-required"
+"""API key a key-free SDK client carries so it never adopts `OPENAI_API_KEY`."""
 CONNECT_TIMEOUT_SECONDS = 10.0
 """Longest wait to open a connection; local presets allow minutes for replies only."""
 
@@ -66,6 +67,49 @@ def connection_base_url(connection: ModelConnection, *, openai_base_url: str) ->
     return connection.base_url.rstrip("/")
 
 
+def base_client_for_connection(
+    connection: ModelConnection,
+    *,
+    base_url: str,
+    timeout: float | httpx.Timeout | None,
+) -> AsyncOpenAI:
+    """Build a long-lived SDK client for a connection that holds no key.
+
+    Cached clients are built here so a changed or removed key can never outlive
+    its request: :func:`keyed_client` adds the key to a per-request view that
+    shares this client's connection pool.
+
+    ``AsyncOpenAI`` reads ``OPENAI_API_KEY``, ``OPENAI_ORG_ID``,
+    ``OPENAI_PROJECT_ID`` and ``OPENAI_CUSTOM_HEADERS`` from the environment.
+    A placeholder key keeps it from adopting the process key, and for owner
+    connections every organization, project and custom header is omitted.
+    """
+
+    if connection.is_builtin_openai:
+        return AsyncOpenAI(api_key=KEY_FREE_PLACEHOLDER, base_url=base_url, timeout=timeout)
+    headers: dict[str, Any] = {name: Omit() for name in _environment_custom_header_names()}
+    headers.update(_NON_OPENAI_OMITTED_HEADERS)
+    return AsyncOpenAI(api_key=KEY_FREE_PLACEHOLDER, base_url=base_url, timeout=timeout, default_headers=headers)
+
+
+def keyed_client(base: AsyncOpenAI, connection: ModelConnection, *, credential: ModelCredential) -> AsyncOpenAI:
+    """Return a view of ``base`` that sends only this connection's key.
+
+    The view shares the base client's HTTP pool and lives only as long as the
+    request holding it. Keyless connections use the base client and drop
+    ``Authorization`` per request (:func:`keyless_request_headers`), the only
+    omission the SDK accepts.
+    """
+
+    if not credential.api_key:
+        return base
+    if connection.is_builtin_openai:
+        return base.with_options(api_key=credential.api_key)
+    return base.with_options(
+        api_key=credential.api_key, default_headers={"Authorization": f"Bearer {credential.api_key}"}
+    )
+
+
 def sdk_client_for_connection(
     connection: ModelConnection,
     *,
@@ -73,27 +117,12 @@ def sdk_client_for_connection(
     base_url: str,
     timeout: float | httpx.Timeout | None,
 ) -> AsyncOpenAI:
-    """Build an SDK client that cannot fall back to process OpenAI settings.
+    """Build a single-use SDK client that cannot fall back to process OpenAI settings."""
 
-    ``AsyncOpenAI`` reads ``OPENAI_API_KEY``, ``OPENAI_ORG_ID``,
-    ``OPENAI_PROJECT_ID`` and ``OPENAI_CUSTOM_HEADERS`` from the environment.
-    For owner connections every such header is omitted and ``Authorization``
-    is set from the connection's own key. Keyless connections pass a
-    placeholder key and omit ``Authorization`` per request
-    (:func:`keyless_request_headers`), the only omission the SDK accepts.
-    """
-
-    if connection.is_builtin_openai:
-        return AsyncOpenAI(api_key=credential.api_key, base_url=base_url, timeout=timeout)
-    headers: dict[str, Any] = {name: Omit() for name in _environment_custom_header_names()}
-    headers.update(_NON_OPENAI_OMITTED_HEADERS)
-    if credential.api_key:
-        headers["Authorization"] = f"Bearer {credential.api_key}"
-    return AsyncOpenAI(
-        api_key=credential.api_key or _KEYLESS_PLACEHOLDER,
-        base_url=base_url,
-        timeout=timeout,
-        default_headers=headers,
+    return keyed_client(
+        base_client_for_connection(connection, base_url=base_url, timeout=timeout),
+        connection,
+        credential=credential,
     )
 
 
@@ -114,9 +143,12 @@ def _environment_custom_header_names() -> list[str]:
 
 __all__ = [
     "CONNECT_TIMEOUT_SECONDS",
+    "KEY_FREE_PLACEHOLDER",
     "connection_base_url",
     "connection_timeout",
     "connection_for_request",
+    "base_client_for_connection",
+    "keyed_client",
     "keyless_request_headers",
     "sdk_client_for_connection",
 ]

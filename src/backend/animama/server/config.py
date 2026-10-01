@@ -95,9 +95,7 @@ class Settings(BaseModel):
     animama_database_pool_timeout_seconds: float = float(os.getenv("ANIMAMA_DATABASE_POOL_TIMEOUT_SECONDS", "30"))
     animama_database_pool_recycle_seconds: int = int(os.getenv("ANIMAMA_DATABASE_POOL_RECYCLE_SECONDS", "-1"))
     animama_database_pool_pre_ping: bool = _env_bool("ANIMAMA_DATABASE_POOL_PRE_PING", True)
-    openai_api_key: str | None = Field(default=_env_text("OPENAI_API_KEY"), repr=False)
     openai_base_url: str | None = _env_text("OPENAI_BASE_URL")
-    elevenlabs_api_key: str | None = Field(default=_env_text("ELEVENLABS_API_KEY"), repr=False)
     private_upload_url_ttl_seconds: int = int(os.getenv("ANIMAMA_PRIVATE_UPLOAD_URL_TTL_SECONDS", "900"))
     anima_vrm_max_upload_bytes: int = int(os.getenv("ANIMAMA_VRM_MAX_UPLOAD_BYTES", str(100 * 1024 * 1024)))
     anima_pocket_voice_catalog_max_upload_bytes: int = int(

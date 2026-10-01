@@ -52,7 +52,7 @@ function LocalSetupForm({
   const [draftUnavailable, setDraftUnavailable] = useState(false);
   const updateDraft = (change: Partial<SetupDraft>) => {
     const next = { ...draft, ...change };
-    // Save during the event, before any credential IPC or pack action can replace this renderer.
+    // Save during the event, before a speech-recognition pack change can replace this renderer.
     setDraftUnavailable(!writeSetupDraft(ownerId, next));
     setDraft(next);
   };
@@ -66,7 +66,7 @@ function LocalSetupForm({
   const normalizedName = normalizeLocalDisplayName(displayName);
 
   const draftBlockedReason = draftUnavailable
-    ? "Setup details could not be retained. Continue setup before changing API keys or speech recognition."
+    ? "Setup details could not be retained. Continue setup before changing speech recognition."
     : null;
   const downloadBlockedReason =
     draftBlockedReason ??
@@ -134,10 +134,11 @@ function LocalSetupForm({
             }}
           />
         </div>
+        {/* Key saves apply in place; only a rare fallback restart after failed
+            delivery replaces this renderer, and the draft holds nothing secret. */}
         <DesktopCredentialsPanel
           onBusyChange={setProviderBusy}
           onPendingChange={setPendingKeys}
-          blockedReason={draftBlockedReason}
         />
         {featurePacks.available ? (
           <section className="space-y-4" aria-label="Optional voice downloads">
