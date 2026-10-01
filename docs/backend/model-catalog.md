@@ -81,7 +81,8 @@ Each serialized row has:
 - `source`: `builtin` or `owner`
 - `connection_id` and `connection_name`
 - `model_kind`: `chat` or `embedding`
-- `hidden`: whether the owner hid the row from model lists
+- `hidden`: whether the row is hidden from model lists; built-in Chat
+  Completions chat rows start hidden, and the owner can change any row
 - `context_window_tokens`: nullable; owner chat rows need it before they can
   chat
 - `accepts`: sorted input modalities
@@ -289,16 +290,23 @@ the built-in OpenAI connection.
 Use it when Responses behavior, typed SSE streaming, supported native tools,
 and `previous_response_id` continuation are the desired provider boundary.
 
-DeepSeek and Hugging Face router models have no built-in rows. The owner adds a
-connection from the `deepseek` or `huggingface` preset and adds models under it.
-On self-hosted web the connection names the environment variable that holds
-its key (conventionally `DEEPSEEK_API_KEY` or `HF_TOKEN`); on desktop the key is
-kept in the encrypted vault. Both presets fold `developer` messages into the
-system message and omit OpenAI request extensions; the
+DeepSeek, Hugging Face router and OpenRouter models have no built-in rows. The
+owner adds a connection from the `deepseek`, `huggingface` or `openrouter`
+preset and adds models under it. On self-hosted web the connection names the
+environment variable that holds its key (conventionally `DEEPSEEK_API_KEY`,
+`HF_TOKEN` or `OPENROUTER_API_KEY`); on desktop the key is kept in the
+encrypted vault. These presets fold `developer` messages into the system
+message and omit OpenAI request extensions; the
 [preset table](runtime/model-client-providers.md#connection-presets) lists the
 remaining differences. Their rows use `OpenAIHTTPAgent`, so they share the
 `chat_completions` API standard and are blocked from Responses-backed chats by
 the chat API standard fence.
+
+OpenRouter's add-model picker reads OpenRouter's public model list through
+`GET /v1/model-connection-presets/openrouter/models` (see
+[HTTP API](architecture/http-api.md#model-configuration)); each entry's
+`supports_tools` and `supports_structured_outputs` come from the model's
+advertised parameters and only prefill the form.
 
 ## Resolution And Validation
 
@@ -332,7 +340,10 @@ tests, and live verification.
 The generated seed `alembic/seeds/01-seed-model-providers.sql` upserts the
 built-in `openai` connection and the built-in rows. It updates only
 `source='builtin'` rows, never changes their `hidden` flag, and retires built-in
-rows that are no longer in `MODEL_CATALOG`. Owner connections and rows are never
+rows that are no longer in `MODEL_CATALOG`. A newly inserted built-in Chat
+Completions chat row starts hidden (`builtin_hidden_by_default`), so a fresh
+installation lists the Responses row; embedding rows stay visible. Existing
+databases keep their flags until they are reset. Owner connections and rows are never
 touched, and retired rows keep their IDs, so history stays valid.
 
 `RETIRED_BUILTIN_REPLACEMENTS` in `animama.app.model_catalog` maps retired

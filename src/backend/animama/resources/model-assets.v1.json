@@ -2,12 +2,81 @@
   "schema": "animama-asset-catalog/1",
   "assets": [
     {
-      "id": "parakeet-tdt-0.6b-v2-webgpu-encoder",
-      "url": "https://downloads.animama.ai/models/parakeet-tdt-0.6b-v2-webgpu/ad8bb0acaec339c32ffbdedb869bd60f7103d0f6c00e56c7a2c2ab57df7462a2/encoder-model.fp16.onnx",
-      "size": 1238960452,
-      "sha256": "ad8bb0acaec339c32ffbdedb869bd60f7103d0f6c00e56c7a2c2ab57df7462a2",
-      "media_type": "application/octet-stream",
-      "license_ref": "CC-BY-4.0"
+      "id": "parakeet-stt",
+      "manifest_sha256": "112f0db175053abfc1369eb43e131a09787c6271a2885806368b8dab41d9f47a",
+      "license_ref": "CC-BY-4.0",
+      "files": [
+        {
+          "path": "ATTRIBUTION.md",
+          "url": "https://downloads.animama.ai/models/parakeet-tdt-0.6b-v2/f0253d0ae984626d09669aa7e3c102a8667b997d854db25c70850f571fa014b9/ATTRIBUTION.md",
+          "size": 1125,
+          "sha256": "f0253d0ae984626d09669aa7e3c102a8667b997d854db25c70850f571fa014b9"
+        },
+        {
+          "path": "README.md",
+          "url": "https://downloads.animama.ai/models/parakeet-tdt-0.6b-v2/788e7734fb5e3fcbbffc44e08413d5083fcc7cc5b270b79f1a210262ea9db90d/README.md",
+          "size": 833,
+          "sha256": "788e7734fb5e3fcbbffc44e08413d5083fcc7cc5b270b79f1a210262ea9db90d"
+        },
+        {
+          "path": "config.json",
+          "url": "https://downloads.animama.ai/models/parakeet-tdt-0.6b-v2/562aedb0b804acbeb4e04215de190846c37e0bb239b696376df69d555785373a/config.json",
+          "size": 101,
+          "sha256": "562aedb0b804acbeb4e04215de190846c37e0bb239b696376df69d555785373a"
+        },
+        {
+          "path": "decoder_joint-model.int8.onnx",
+          "url": "https://downloads.animama.ai/models/parakeet-tdt-0.6b-v2/a449f49acd68979d418651dd2dcb737cc0f1bf0225e009e29ee326354edbf7d3/decoder_joint-model.int8.onnx",
+          "size": 8998286,
+          "sha256": "a449f49acd68979d418651dd2dcb737cc0f1bf0225e009e29ee326354edbf7d3"
+        },
+        {
+          "path": "encoder-model.int8.onnx",
+          "url": "https://downloads.animama.ai/models/parakeet-tdt-0.6b-v2/3e0581fda6ab843888b51e56d7ee78b6d5bc3237ec113af1f732d1d5286aa155/encoder-model.int8.onnx",
+          "size": 652184014,
+          "sha256": "3e0581fda6ab843888b51e56d7ee78b6d5bc3237ec113af1f732d1d5286aa155"
+        },
+        {
+          "path": "nemo128.onnx",
+          "url": "https://downloads.animama.ai/models/parakeet-tdt-0.6b-v2/bff2bc1bef1d1185da8bb69419b51c68fc50e88c923654ced2dfe4e055e4e938/nemo128.onnx",
+          "size": 137641,
+          "sha256": "bff2bc1bef1d1185da8bb69419b51c68fc50e88c923654ced2dfe4e055e4e938"
+        },
+        {
+          "path": "vocab.txt",
+          "url": "https://downloads.animama.ai/models/parakeet-tdt-0.6b-v2/d5b4ca312b07f10cc89b6ff1f500201b5bd826dc3f9500c115caeb36c0b10831/vocab.txt",
+          "size": 10409,
+          "sha256": "d5b4ca312b07f10cc89b6ff1f500201b5bd826dc3f9500c115caeb36c0b10831"
+        }
+      ]
+    },
+    {
+      "id": "parakeet-stt-webgpu",
+      "manifest_sha256": "760221af94420056b52fc036c00aefc4283ddb74120c0c1144688198b0855df4",
+      "license_ref": "CC-BY-4.0",
+      "requires": [
+        "parakeet-stt"
+      ],
+      "files": [
+        {
+          "path": "ATTRIBUTION.md",
+          "url": "https://downloads.animama.ai/models/parakeet-tdt-0.6b-v2-webgpu/2efaf55f2a670c11528f44496933d96c906d0d7117d08e71d3218f9ca3adc24b/ATTRIBUTION.md",
+          "size": 887,
+          "sha256": "2efaf55f2a670c11528f44496933d96c906d0d7117d08e71d3218f9ca3adc24b"
+        },
+        {
+          "path": "README.md",
+          "url": "https://downloads.animama.ai/models/parakeet-tdt-0.6b-v2-webgpu/4f23ceb429f54a04d55bb174961fdc7b864d01d19459332c350a66f044eb9618/README.md",
+          "size": 766,
+          "sha256": "4f23ceb429f54a04d55bb174961fdc7b864d01d19459332c350a66f044eb9618"
+        },
+        {
+          "path": "encoder-model.fp16.onnx",
+          "url": "https://downloads.animama.ai/models/parakeet-tdt-0.6b-v2-webgpu/ad8bb0acaec339c32ffbdedb869bd60f7103d0f6c00e56c7a2c2ab57df7462a2/encoder-model.fp16.onnx",
+          "size": 1238960452,
+          "sha256": "ad8bb0acaec339c32ffbdedb869bd60f7103d0f6c00e56c7a2c2ab57df7462a2"
+        }
+      ]
     },
     {
       "id": "pocket-voice-clara",

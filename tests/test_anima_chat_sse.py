@@ -658,6 +658,7 @@ async def _seed_owner_connection(
     preset: str,
     base_url: str,
     name: str,
+    credential_env: str | None = None,
 ) -> None:
     async_session.add(
         ORMModelConnection(
@@ -666,6 +667,7 @@ async def _seed_owner_connection(
             name=name,
             preset=preset,
             base_url=base_url,
+            credential_env=credential_env,
             compatibility={"fold_developer_role": True, "send_openai_extensions": False},
         )
     )

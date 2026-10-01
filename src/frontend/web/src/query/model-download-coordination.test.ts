@@ -10,6 +10,7 @@ import {
   assertPackTransitionAllowed,
   modelAssetActionKey,
   nativePackActionKey,
+  installedSpeechSets,
   readAssetAttempts,
   recordAssetAttempt,
   reconcileAssetAttempts,
@@ -29,6 +30,8 @@ const missing: PyModelAssetState = {
   required_free_bytes: 10,
   media_type: "application/octet-stream",
   license_ref: "CC-BY-4.0",
+  files_total: 1,
+  files_verified: 0,
 };
 let client: QueryClient;
 let storage: Map<string, string>;
@@ -37,7 +40,9 @@ function desktop(state = "not_installed") {
     windowRole: "main",
     runtime: { status: vi.fn(async () => ({ state: "ready" })) },
     featurePacks: {
-      list: vi.fn(async () => [{ id: "parakeet-stt", state, available: true }]),
+      list: vi.fn(async () => [
+        { id: "document-processing", state, available: true },
+      ]),
     },
   } as unknown as AnimamaDesktopBridge;
 }
@@ -62,7 +67,7 @@ describe("cross-manager download admission", () => {
   it("checks fresh native state before backend installs after reload", async () => {
     await expect(
       assertAssetInstallAllowed(client, owner, desktop("installing")),
-    ).rejects.toThrow("speech download");
+    ).rejects.toThrow("feature pack change");
     await expect(
       assertAssetInstallAllowed(client, owner, desktop()),
     ).resolves.toBeUndefined();
@@ -76,7 +81,7 @@ describe("cross-manager download admission", () => {
     });
     await expect(
       assertPackTransitionAllowed(client, owner, desktop()),
-    ).rejects.toThrow("voice download");
+    ).rejects.toThrow("model download");
     expect(client.getQueryData(queryKeys.modelAssets(owner))).toMatchObject({
       assets: [{ status: "downloading" }],
     });
@@ -93,7 +98,7 @@ describe("cross-manager download admission", () => {
     await Promise.resolve();
     await expect(
       assertPackTransitionAllowed(client, owner, desktop()),
-    ).rejects.toThrow("voice download");
+    ).rejects.toThrow("model download");
     finish();
     await pending;
     const native = new MutationObserver(client, {
@@ -106,7 +111,7 @@ describe("cross-manager download admission", () => {
     await Promise.resolve();
     await expect(
       assertAssetInstallAllowed(client, owner, desktop()),
-    ).rejects.toThrow("speech download");
+    ).rejects.toThrow("feature pack change");
     finish();
     await native;
   });
@@ -136,6 +141,18 @@ describe("attempt recovery hints", () => {
     ]);
     expect(readAssetAttempts(owner)).toEqual([]);
     replacement.clear();
+  });
+  it("knows both Parakeet sets but not the retired encoder asset", () => {
+    for (const asset of [
+      "parakeet-stt",
+      "parakeet-stt-webgpu",
+      "parakeet-tdt-0.6b-v2-webgpu-encoder",
+    ])
+      recordAssetAttempt(client, owner, asset, true);
+    expect(readAssetAttempts(owner)).toEqual([
+      "parakeet-stt",
+      "parakeet-stt-webgpu",
+    ]);
   });
   it("clears explicit cancellation/removal without touching another owner", () => {
     recordAssetAttempt(client, owner, id, true);
@@ -179,4 +196,29 @@ it("stores only known IDs and an event revision, pulsing unchanged and empty set
     }),
   );
   expect(readAssetAttempts(owner)).toEqual([id]);
+});
+
+it("summarizes installed speech sets so capability changes are noticed", () => {
+  const set = (assetId: string, status: PyModelAssetState["status"]) => ({
+    ...missing,
+    id: assetId,
+    status,
+  });
+  expect(installedSpeechSets(undefined)).toBeUndefined();
+  expect(installedSpeechSets([missing])).toBe("");
+  expect(
+    installedSpeechSets([
+      missing,
+      set("parakeet-stt-webgpu", "downloading"),
+      set("parakeet-stt", "installed"),
+    ]),
+  ).toBe("parakeet-stt");
+  // Other assets never change offline speech capabilities.
+  expect(
+    installedSpeechSets([
+      { ...missing, status: "installed" },
+      set("parakeet-stt", "installed"),
+      set("parakeet-stt-webgpu", "installed"),
+    ]),
+  ).toBe("parakeet-stt,parakeet-stt-webgpu");
 });

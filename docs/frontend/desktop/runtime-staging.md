@@ -15,16 +15,15 @@ describes build inputs and development evidence, not an available release.
 Use an Apple Silicon Mac with Xcode command-line tools, `uv`, Node, and the
 repository's pnpm installation. Dependency downloads require network access.
 No Homebrew PostgreSQL, Docker reset, local account, or provider credential is
-required. Before staging, acquire the pinned speech inputs from the repository
-root:
+required. Before staging, acquire the pinned browser speech inputs from the
+repository root:
 
 ```sh
-python3 scripts/models/parakeet.py acquire
-python3 scripts/models/parakeet_webgpu.py acquire
 python3 scripts/models/browser_speech.py acquire
 ```
 
-The WebGPU encoder is about 1.24 GB. Then run from `src/frontend`:
+Parakeet is not a staging input (see
+[release model inputs](#release-model-inputs)). Then run from `src/frontend`:
 
 ```sh
 pnpm desktop:runtime:stage -- --platform darwin --arch arm64
@@ -105,7 +104,9 @@ Each staging pass clears only `desktop/.desktop-runtime/darwin-arm64`, then:
    the manifest's `database_schema_sha256`. The directory is removed afterwards.
 7. Produces normalized file inventories, license notices, pack inputs, app-matched
    catalog entries for approved inputs, a non-secret `update-policy.json`, and exact
-   byte reports. The compressed feasibility archive is **not** a signed DMG or
+   byte reports. It also copies the tracked manifest of every model set named by
+   the frozen backend asset catalog into `runtime/model-manifests/` (metadata
+   only; no model bytes). The compressed feasibility archive is **not** a signed DMG or
    update ZIP. Their overhead is measured by the signed-release producer.
 
 ## Evidence and gates
@@ -148,29 +149,29 @@ Use the [model-store workflow](../../backend/operations/model-assets.md) for
 defaults. Windows model acquisition support does not enable Windows native
 runtime staging.
 
-## Verified Parakeet producer inputs
+## Release model inputs
 
-Before producing the Parakeet packs, run `python3 scripts/models/parakeet.py acquire`
-and `python3 scripts/models/parakeet_webgpu.py acquire` from the repository root,
-or import previous source copies using the
-[model-store workflow](../../backend/operations/model-assets.md). Set the absolute
-`ANIMAMA_MODEL_ROOT` only when selecting a different store. Staging consumes the
-tracked manifests and verifies each local file; it does not query Hugging Face or
-infer weights from Git's tracked-file list. `parakeet-stt` requires its seven
-pinned files and `parakeet-stt-webgpu` its FP16 encoder, each with exact payload
-hashes and attribution. An active pack whose inputs are missing fails staging.
-Inventory review, signing, hosting and native acceptance remain separate gates.
+The packaged app downloads Parakeet, the optional Pocket voices and the cloning
+encoder at runtime as backend model assets; none is a staging input or pack.
+`desktop:dist:mac` copies each set named by the frozen backend catalog from the
+verified model store into publication candidates, so a signed release needs those
+sets acquired first (for example `python3 scripts/models/parakeet.py acquire`
+and `python3 scripts/models/parakeet_webgpu.py acquire`, or an import through the
+[model-store workflow](../../backend/operations/model-assets.md)). Set the
+absolute `ANIMAMA_MODEL_ROOT` only when selecting a different store. Each set is
+checked against its tracked manifest; nothing queries Hugging Face or infers
+weights from the tracked-file list. See [Model objects](releases.md#model-objects).
 
 For a cold release store before new objects exist, use the explicit
 [release bootstrap](../../../scripts/models/README.md#release-only-bootstrap)
 from the repository root. It uses pinned upstream inputs and verifies regenerated
-voice hashes without accepting changes. A signed release needs these optional
-model inputs to prepare its publication candidates; an ordinary web build does not.
+voice hashes without accepting changes. An ordinary web build or stage does not
+need these inputs.
 
-This developer/producer cache is not an installed app model directory. Installed
-models remain under the app-owned `packs/` lifecycle in Application Support, with
-separate temporary `downloads/` and the existing verification/activation recovery.
-Clearing a developer cache must not affect an installed application's speech pack.
+This developer/producer cache is not an installed app model directory. The
+installed app keeps downloaded models under its data directory
+(`<userData>/data/internal/model-assets/`), so clearing a developer cache never
+affects it.
 
 ## Optional Pack Producer
 
@@ -180,16 +181,15 @@ Clearing a developer cache must not affect an installed application's speech pac
 pnpm desktop:runtime:packs -- --platform darwin --arch arm64
 ```
 
-It can consume the derived Parakeet model/configuration input, expanded
-Included content outside the core closure, and the separately signed worker
-input. `desktop/runtime/feature-pack-releases.json` fixes the release URL,
+It can consume expanded Included content outside the core closure and the
+separately signed worker input. `desktop/runtime/feature-pack-releases.json` fixes the release URL,
 versions, license references, explicit `active`/`deferred` release status, and
 approved inventory digest for each supported ID. Expanded Included content and
 document processing are `deferred` for the first release: their development
 inputs remain but they produce no archive/catalog entry or release size gate and
-require no initial-release approval. The two Parakeet packs are active; each ships
-only when bound to its owner-approved exact digest. A null or changed digest produces a
-review report, not an installable catalog entry. Do not fill in approval hashes
+require no initial-release approval. An active pack ships only when bound to its
+owner-approved exact digest; a null or changed digest produces a review report,
+not an installable catalog entry. Do not fill in approval hashes
 without reviewing redistribution
 rights and required notices. No files are uploaded by this command.
 
@@ -199,12 +199,6 @@ versions preserves its installed pointer through an application update. Omitted
 fields still target only the current app/version tag. Keep reused archive URLs
 immutable and available; changed payloads need a new pack version and review.
 
-Approved Parakeet inputs produce `animama-model-pack/1` catalog entries in
-`runtime/pack-catalog.json`, referencing the shared content-addressed raw objects.
-Each inventory includes weights, configuration and notices; the producer emits
-no Parakeet archive or duplicate weight copy. Download/installed sizes and peak
-free-space requirements come from those exact files in `pack-build-report.json`.
-
 Archive packs retain `.tar.zst` outputs under `feature-packs/`. The Python writer
 emits only regular USTAR members with normalized modes/timestamps; the real
 installer re-extracts and verifies each candidate. PAX, GNU long names, sparse
@@ -212,10 +206,9 @@ files, links and special entries are unsupported. Their disk requirement include
 two expanded payloads, archive bytes and a 64 MiB reserve. Existing installed
 versions are never assumed reclaimable. No mutable latest-pack feed exists.
 
-The current release input contains the Apple publisher and approved Parakeet
-digest. A matching stage therefore emits only that pack in the installable
-catalog; both deferred packs remain absent. Existing development model/content
-files are not approval, and a changed Parakeet input returns to review-required.
+The current release input contains the Apple publisher and no active pack, so a
+matching stage emits an empty installable catalog; both deferred packs remain
+absent. Existing development content files are not approval.
 
 Browser production-preview checks and an `embedded-desktop` Vite build prove
 web policy only. They do not replace a fresh stage/audit, renderer capability
@@ -307,9 +300,11 @@ and recreates the main app at its remembered route. API/model/content failures
 remain bounded errors.
 
 Native pack acceptance requires real download, cancellation, connection loss,
-quit/resume, installation, offline dictation, restart, removal and reinstallation.
-Verify catalog/ETag-bound resume and bounded `pack_download_failed` and
-`pack_cancelled` results. Expanded-content tests must check Anima references and
+quit/resume, installation, restart, removal and reinstallation. Verify
+catalog/ETag-bound resume and bounded `pack_download_failed` and
+`pack_cancelled` results. Offline speech acceptance repeats download,
+cancellation, interrupted resume, removal and offline dictation through Voice
+settings and confirms that the backend PID and open windows are unchanged. Expanded-content tests must check Anima references and
 live preview leases; closing a preview does not immediately revoke its lease.
 Retain the owner and chat across transitions. Fixture downloads and generated
 speech do not establish production transport or physical microphone acceptance.

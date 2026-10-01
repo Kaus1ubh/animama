@@ -76,6 +76,23 @@ function trackedFiles(modelId, manifestFile) {
   };
 }
 
+/**
+ * Every file the backend asset catalog pins: a single-file entry, or each file
+ * of a multi-file set (which also names the file it installs).
+ */
+export function catalogFileReferences(catalog) {
+  return catalog.assets.flatMap((asset) =>
+    Array.isArray(asset.files)
+      ? asset.files.map((file) => ({
+          url: file.url,
+          sha256: file.sha256,
+          size: file.size,
+          name: file.path,
+        }))
+      : [{ url: asset.url, sha256: asset.sha256, size: asset.size }],
+  );
+}
+
 /** A comparable form of index entries: name, size and digest only. */
 const shape = (files) =>
   JSON.stringify(
@@ -145,10 +162,8 @@ export function stageModelCandidate({
 
 /**
  * The objects to publish for a staged candidate. The candidate must match the
- * tracked manifest exactly. Backend assets and complete desktop model-pack
- * inventories must pin these same objects. Base Parakeet also has an operator
- * acquisition consumer, which derives its complete inventory from the manifest
- * without adding artificial in-app asset entries.
+ * tracked manifest exactly, and the backend asset catalog must pin these same
+ * objects (a multi-file set, such as Parakeet, pins the complete inventory).
  */
 export function planModelPublication({
   modelId,
@@ -156,7 +171,6 @@ export function planModelPublication({
   origin,
   manifestFile = path.join(repoRoot, "models", modelId, "manifest.json"),
   catalog = readJson(defaultCatalogFile),
-  packCatalog = { entries: [] },
 }) {
   const { files } = trackedFiles(modelId, manifestFile);
   let index;
@@ -176,7 +190,6 @@ export function planModelPublication({
     manifestFile,
     origin,
     catalog,
-    packCatalog,
   });
 }
 
@@ -186,7 +199,6 @@ export function modelObjectsForManifest({
   manifestFile,
   origin,
   catalog,
-  packCatalog,
 }) {
   const { files } = trackedFiles(modelId, manifestFile);
   const planned = files.map((file) => ({
@@ -195,10 +207,15 @@ export function modelObjectsForManifest({
     url: `${origin}/${keyPath(modelKey(modelId, file))}`,
   }));
   const prefix = `${origin}/models/${modelId}/`;
-  const pinned = catalog.assets.filter((asset) => asset.url.startsWith(prefix));
-  const packs = packCatalog.entries.filter(
-    (pack) =>
-      pack.schema === "animama-model-pack/1" && pack.model_id === modelId,
+  const inModel = (url) => typeof url === "string" && url.startsWith(prefix);
+  const pinned = catalogFileReferences(catalog).filter((file) =>
+    inModel(file.url),
+  );
+  // A backend asset set installs the whole reviewed set, including its notices.
+  const sets = catalog.assets.filter(
+    (asset) =>
+      Array.isArray(asset.files) &&
+      asset.files.some((file) => inModel(file.url)),
   );
   const payload = planned.filter((file) => file.name !== "manifest.json");
   const matches = (url, digest, size, name) =>
@@ -209,28 +226,27 @@ export function modelObjectsForManifest({
         file.size_bytes === size &&
         (name === undefined || file.name === name),
     );
-  const invalidPack = packs.some((pack) => {
-    // A model pack delivers the whole reviewed set, including its notices.
-    const inventory = pack.files
-      .map((file) => ({
-        name: file.path,
-        size_bytes: file.size_bytes,
-        sha256: file.sha256,
-      }))
-      .sort((a, b) => (a.name < b.name ? -1 : 1));
-    return (
-      shape(inventory) !== shape(payload) ||
-      pack.files.some(
-        (file) => !matches(file.url, file.sha256, file.size_bytes, file.path),
-      )
-    );
-  });
-  const hasConsumer =
-    pinned.length > 0 || packs.length > 0 || modelId === "parakeet-tdt-0.6b-v2";
+  // Every file of such a set is one of these exact objects, and the set lists
+  // the complete payload.
+  const invalidSet = sets.some(
+    (asset) =>
+      asset.files.some(
+        (file) => !matches(file.url, file.sha256, file.size, file.path),
+      ) ||
+      shape(
+        asset.files
+          .map((file) => ({
+            name: file.path,
+            size_bytes: file.size,
+            sha256: file.sha256,
+          }))
+          .sort((a, b) => (a.name < b.name ? -1 : 1)),
+      ) !== shape(payload),
+  );
   if (
-    !hasConsumer ||
-    invalidPack ||
-    pinned.some((asset) => !matches(asset.url, asset.sha256, asset.size))
+    pinned.length === 0 ||
+    invalidSet ||
+    pinned.some((file) => !matches(file.url, file.sha256, file.size, file.name))
   )
     throw new PublicationError(
       "The packaged catalog does not match this model's objects; update the catalog or the manifest",

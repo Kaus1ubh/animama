@@ -21,12 +21,17 @@ from animama.local.http.assets import (
     LocalAssets,
     ModelFile,
     ModelMount,
+    StaticModelMounts,
 )
 
 pytestmark = pytest.mark.asyncio
 _HTML = b'<html><script src="/assets/app-abcdefgh.js"></script></html>'
 _MODEL = b"model-fixture"
 _VERSION = "0.1.0-exact"
+
+
+def _mounted(web_root: Path, base: ModelMount | None, webgpu: ModelMount | None = None) -> LocalAssets:
+    return LocalAssets(web_root, mount_source=StaticModelMounts({PARAKEET_MOUNT: base, PARAKEET_WEBGPU_MOUNT: webgpu}))
 
 
 @pytest.fixture(autouse=True)
@@ -302,7 +307,7 @@ async def test_only_navigation_can_fall_back_and_directories_or_links_are_not_do
 
 
 async def test_model_get_head_validators_and_unversioned_cache(web_root: Path, model_mount: ModelMount) -> None:
-    async with _client(LocalAssets(web_root, model_mount)) as client:
+    async with _client(_mounted(web_root, model_mount)) as client:
         response = await client.get(_model_url())
         assert response.status_code == 200 and response.content == _MODEL
         assert response.headers["cache-control"] == "private, max-age=31536000, immutable"
@@ -329,7 +334,7 @@ async def test_model_single_ranges_seek_exact_bytes(
     start: int,
     end: int,
 ) -> None:
-    async with _client(LocalAssets(web_root, model_mount)) as client:
+    async with _client(_mounted(web_root, model_mount)) as client:
         for method in ("GET", "HEAD"):
             response = await client.request(method, _model_url(), headers={"range": byte_range})
             assert response.status_code == 206
@@ -346,7 +351,7 @@ async def test_bad_or_unsatisfiable_model_ranges_are_not_cacheable(
     model_mount: ModelMount,
     byte_range: str,
 ) -> None:
-    async with _client(LocalAssets(web_root, model_mount)) as client:
+    async with _client(_mounted(web_root, model_mount)) as client:
         response = await client.get(_model_url(), headers={"range": byte_range})
         assert response.status_code == 416 and not response.content
         assert response.headers["content-range"] == f"bytes */{len(_MODEL)}"
@@ -354,7 +359,7 @@ async def test_bad_or_unsatisfiable_model_ranges_are_not_cacheable(
 
 
 async def test_model_if_range_requires_current_strong_digest(web_root: Path, model_mount: ModelMount) -> None:
-    async with _client(LocalAssets(web_root, model_mount)) as client:
+    async with _client(_mounted(web_root, model_mount)) as client:
         etag = '"' + model_mount.files[0].sha256 + '"'
         for if_range in ('"stale"', "W/" + etag, "Mon, 01 Jan 2024 00:00:00 GMT"):
             full = await client.get(_model_url(), headers={"range": "bytes=2-5", "if-range": if_range})
@@ -379,7 +384,7 @@ async def test_model_if_range_requires_current_strong_digest(web_root: Path, mod
 async def test_model_version_inventory_and_exact_path_are_required(
     web_root: Path, model_mount: ModelMount, path: str
 ) -> None:
-    async with _client(LocalAssets(web_root, model_mount)) as client:
+    async with _client(_mounted(web_root, model_mount)) as client:
         response = await client.get(path, headers={"accept": "text/html"})
         assert response.status_code == 404 and response.headers["cache-control"] == "no-store"
 
@@ -398,12 +403,12 @@ async def test_webgpu_encoder_mount_is_separate_and_absent_until_its_pack_is_act
 ) -> None:
     encoder = PARAKEET_WEBGPU_MOUNT + "encoder.onnx"
     # The base pack alone never serves the encoder path, nor the base files under it.
-    async with _client(LocalAssets(web_root, model_mount)) as client:
+    async with _client(_mounted(web_root, model_mount)) as client:
         assert (await client.head(encoder)).status_code == 404
         assert (await client.head(encoder + "?v=" + _VERSION)).status_code == 404
     # Each pack keeps its own version: the encoder never accepts the base pack's.
     webgpu_mount = ModelMount(model_mount.root, "0.1.0-bbbbbbbbbbbbbbbb", model_mount.files)
-    async with _client(LocalAssets(web_root, model_mount, webgpu_mount)) as client:
+    async with _client(_mounted(web_root, model_mount, webgpu_mount)) as client:
         assert (await client.head(encoder + "?v=" + _VERSION)).status_code == 404
         response = await client.head(encoder + "?v=" + webgpu_mount.version)
         assert response.status_code == 200
@@ -432,7 +437,7 @@ async def test_model_rejects_changed_bytes_or_links(
             path.symlink_to(private)
         else:
             path.mkdir()
-    async with _client(LocalAssets(web_root, model_mount)) as client:
+    async with _client(_mounted(web_root, model_mount)) as client:
         response = await client.get(_model_url())
         assert response.status_code == 404 and response.headers["cache-control"] == "no-store"
 
@@ -451,7 +456,7 @@ async def test_nested_model_directory_substitution_is_rejected(
     )
     child.rename(tmp_path / "outside")
     child.symlink_to(tmp_path / "outside", target_is_directory=True)
-    async with _client(LocalAssets(web_root, mount)) as client:
+    async with _client(_mounted(web_root, mount)) as client:
         assert (await client.get(_model_url("nested/encoder.onnx"))).status_code == 404
 
 
@@ -462,7 +467,7 @@ async def test_model_zero_length_and_range(web_root: Path, tmp_path: Path) -> No
     mount = ModelMount(
         root, _VERSION, (ModelFile("empty.onnx", 0, hashlib.sha256(b"").hexdigest(), "application/octet-stream"),)
     )
-    async with _client(LocalAssets(web_root, mount)) as client:
+    async with _client(_mounted(web_root, mount)) as client:
         full = await client.get(_model_url("empty.onnx"))
         assert full.status_code == 200 and not full.content and full.headers["content-length"] == "0"
         assert (await client.get(_model_url("empty.onnx"), headers={"range": "bytes=0-"})).status_code == 416
@@ -620,7 +625,7 @@ async def test_all_current_parakeet_inventory_categories_are_served_exactly(web_
         (root / name).write_bytes(payload)
         inventory.append(ModelFile(name, len(payload), hashlib.sha256(payload).hexdigest(), media_type))
     mount = ModelMount(root, _VERSION, tuple(inventory))
-    async with _client(LocalAssets(web_root, mount)) as client:
+    async with _client(_mounted(web_root, mount)) as client:
         for name, media_type in expected.items():
             response = await client.get(_model_url(name))
             assert response.status_code == 200 and response.content == name.encode()

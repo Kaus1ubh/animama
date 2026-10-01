@@ -7,6 +7,10 @@ import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import viteConfig from "../vite.config";
 import {
+  PARAKEET_ASSET_ID,
+  PARAKEET_WEBGPU_ASSET_ID,
+} from "../src/lib/speech/client-parakeet/assets";
+import {
   localParakeetModelPlugin,
   resolveLocalParakeetModelDir,
   resolveLocalParakeetWebgpuModelDir,
@@ -103,7 +107,7 @@ describe("shared Parakeet model delivery", () => {
     expect(resolveLocalParakeetModelDir).toThrow("SHA-256 mismatch");
   });
   it.each(["production", "embedded-desktop"])(
-    "%s builds need no model setup",
+    "%s builds need no model setup and use the backend's installed sets",
     async (mode) => {
       vi.stubEnv("ANIMAMA_MODEL_ROOT", "/missing/model-store");
       const config =
@@ -111,68 +115,43 @@ describe("shared Parakeet model delivery", () => {
           ? await viteConfig({ command: "build", mode })
           : viteConfig;
       expect(execFileSync).not.toHaveBeenCalled();
-      // Built apps probe the optional encoder: desktop serves its active pack,
-      // self-host the downloaded model asset; an absent encoder is a 404.
-      expect(config.define?.__CLIENT_PARAKEET_WEBGPU_ENCODER__).toBe(
-        JSON.stringify(
-          mode === "embedded-desktop"
-            ? {
-                source: "pack",
-                url: "/onnx/models/parakeet-tdt-0.6b-v2-webgpu/encoder-model.fp16.onnx",
-              }
-            : {
-                source: "model-asset",
-                url: "/v1/model-assets/parakeet-tdt-0.6b-v2-webgpu-encoder/content",
-              },
-        ),
+      // Packaged desktop and built self-host download both sets in the app;
+      // FastAPI serves them, and an uninstalled set is a 404.
+      expect(config.define?.__CLIENT_PARAKEET_MODELS__).toBe(
+        JSON.stringify({
+          source: "asset-store",
+          baseUrl: "/onnx/models/parakeet-tdt-0.6b-v2",
+          webgpuBaseUrl: "/onnx/models/parakeet-tdt-0.6b-v2-webgpu",
+        }),
       );
-      if (mode === "production") {
-        // The built URL must name an asset the backend's catalog installs.
-        const catalog = JSON.parse(
-          readFileSync(
-            new URL(
-              "../../../backend/animama/resources/model-assets.v1.json",
-              import.meta.url,
-            ),
-            "utf8",
+      // The client installs and leases sets the backend's catalog defines.
+      const catalog = JSON.parse(
+        readFileSync(
+          new URL(
+            "../../../backend/animama/resources/model-assets.v1.json",
+            import.meta.url,
           ),
-        ) as { assets: { id: string }[] };
-        expect(catalog.assets.map((asset) => asset.id)).toContain(
-          "parakeet-tdt-0.6b-v2-webgpu-encoder",
-        );
-      }
-      expect(config.define?.__CLIENT_PARAKEET_MODEL_BASE_URL__).toBe(
-        JSON.stringify(
-          mode === "embedded-desktop"
-            ? "/onnx/models/parakeet-tdt-0.6b-v2"
-            : "/__client-parakeet-models",
+          "utf8",
         ),
+      ) as { assets: { id: string }[] };
+      expect(catalog.assets.map((asset) => asset.id)).toEqual(
+        expect.arrayContaining([PARAKEET_ASSET_ID, PARAKEET_WEBGPU_ASSET_ID]),
       );
     },
   );
-  it.each([
-    [
-      "",
-      {
+  it("Vite development serves the operator's host sets", async () => {
+    const config =
+      typeof viteConfig === "function"
+        ? await viteConfig({ command: "serve", mode: "development" })
+        : viteConfig;
+    expect(config.define?.__CLIENT_PARAKEET_MODELS__).toBe(
+      JSON.stringify({
         source: "operator",
-        url: "/__client-parakeet-webgpu-models/encoder-model.fp16.onnx",
-      },
-    ],
-    // A base-URL override points at models this stack does not serve.
-    ["https://models.example.test/parakeet", null],
-  ])(
-    "Vite development selects the operator encoder (override %j)",
-    async (override, encoder) => {
-      vi.stubEnv("VITE_CLIENT_PARAKEET_MODEL_BASE_URL", override);
-      const config =
-        typeof viteConfig === "function"
-          ? await viteConfig({ command: "serve", mode: "development" })
-          : viteConfig;
-      expect(config.define?.__CLIENT_PARAKEET_WEBGPU_ENCODER__).toBe(
-        JSON.stringify(encoder),
-      );
-    },
-  );
+        baseUrl: "/__client-parakeet-models",
+        webgpuBaseUrl: "/__client-parakeet-webgpu-models",
+      }),
+    );
+  });
   it("serves exact model/config bytes, MIME and HEAD metadata", async () => {
     const base = await listen();
     const model = await fetch(`${base}/encoder.int8.onnx`);

@@ -6,9 +6,18 @@
       "id": "model-provider-logos",
       "name": "Bundled model provider marks from models.dev",
       "license": "MIT; provider trademarks remain with their respective owners",
-      "source": "https://github.com/anomalyco/models.dev/tree/8540388b7fff1a0ae57f3de053ff7befb1f2125e/providers; six unmodified provider logo.svg files",
+      "source": "https://github.com/anomalyco/models.dev/tree/8540388b7fff1a0ae57f3de053ff7befb1f2125e/providers; nine unmodified provider logo.svg files (ollama.svg from providers/ollama-cloud)",
       "paths": ["web/provider-logos/"],
       "notice_files": ["provider-logos-mit.txt"],
+      "review": "pending"
+    },
+    {
+      "id": "model-provider-logo-llamacpp",
+      "name": "Bundled llama.cpp mark",
+      "license": "MIT; the llama.cpp name and mark remain with the ggml authors",
+      "source": "https://github.com/ggml-org/llama.cpp/blob/ec7630a640789c393694fb194f1bbbf0369fc62d/media/llama1-icon-transparent.svg; unmodified, bundled as web/provider-logos/llamacpp.svg",
+      "paths": ["web/provider-logos/llamacpp.svg"],
+      "notice_files": ["provider-logos-llamacpp-mit.txt"],
       "review": "pending"
     },
     {
@@ -84,7 +93,7 @@
     },
     {
       "id": "parakeet-input",
-      "name": "Optional Parakeet model inputs",
+      "name": "Downloadable Parakeet speech model (CPU)",
       "license": "CC-BY-4.0 (declared)",
       "source": "models/parakeet-tdt-0.6b-v2/ATTRIBUTION.md pins istupakov revision 0bbb45a3365852604aef28b538a8f066f4ccaa85 and ysdede revision db4a768f5795e0f508187a34241fbeeef6ebb0d3; exact INT8 model and rebuilt preprocessor hashes were reconciled against those public revisions",
       "review": "pending",
@@ -92,7 +101,7 @@
     },
     {
       "id": "parakeet-webgpu-input",
-      "name": "Optional Parakeet WebGPU encoder input",
+      "name": "Downloadable Parakeet speech model (GPU acceleration)",
       "license": "CC-BY-4.0 (declared)",
       "source": "models/parakeet-tdt-0.6b-v2-webgpu/ATTRIBUTION.md pins ysdede revision db4a768f5795e0f508187a34241fbeeef6ebb0d3; the FP16 encoder hash matches that public revision",
       "review": "pending",

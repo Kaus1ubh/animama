@@ -3,7 +3,13 @@ import { fetchRuntimeCapabilities } from "@/query/runtime-capabilities";
 import {
   CLIENT_PARAKEET_MODEL_ASSET_PATHS,
   CLIENT_PARAKEET_WEBGPU_ENCODER_URL,
+  PARAKEET_ASSET_ID,
+  PARAKEET_WEBGPU_ASSET_ID,
 } from "@/lib/speech/client-parakeet/assets";
+import {
+  holdModelAssetLease,
+  type ModelAssetLease,
+} from "@/lib/speech/client-parakeet/lease";
 import {
   cacheParakeetWebgpuProbe,
   probeParakeetWebgpu,
@@ -86,6 +92,37 @@ export type ClientParakeetBackendState = {
 
 let lastBackendState: ClientParakeetBackendState | null = null;
 
+/**
+ * Use leases on the installed sets the current worker loaded, keyed by asset
+ * id. While held, the backend refuses to remove those sets.
+ */
+const setLeases = new Map<string, Promise<ModelAssetLease>>();
+/** Releases still waiting for the backend; never rejects. */
+let pendingLeaseReleases: Promise<unknown> = Promise.resolve();
+/** How long a removal waits for this page's lease releases to land. */
+export const LEASE_RELEASE_WAIT_MS = 2000;
+
+/** Lease exactly `assetIds`, keeping existing leases and releasing others. */
+async function leaseLoadedSets(assetIds: readonly string[]): Promise<void> {
+  const releases: Promise<void>[] = [];
+  for (const [assetId, lease] of setLeases) {
+    if (assetIds.includes(assetId)) continue;
+    setLeases.delete(assetId);
+    releases.push(lease.then((held) => held.release()));
+  }
+  if (releases.length)
+    pendingLeaseReleases = Promise.all([pendingLeaseReleases, ...releases]);
+  for (const assetId of assetIds) {
+    if (!setLeases.has(assetId))
+      setLeases.set(assetId, holdModelAssetLease(assetId));
+  }
+  await Promise.all(setLeases.values());
+}
+
+function releaseSetLeases(): void {
+  void leaseLoadedSets([]);
+}
+
 /** The backend chosen by the most recent load in this page, if any. */
 export function getLastClientParakeetBackendState(): ClientParakeetBackendState | null {
   return lastBackendState;
@@ -163,6 +200,7 @@ function terminateFailedWorker(
     worker.terminate();
     workerInstance = null;
     workerBackend = null;
+    releaseSetLeases();
     logger.warn("Worker", "Terminated failed client Parakeet worker", {
       reason,
       error: error.message,
@@ -190,6 +228,32 @@ export async function cancelClientParakeetIdleDispose(
     reason,
   });
   await pendingDispose;
+}
+
+/**
+ * Dispose this page's worker now if no dictation session uses it (its idle
+ * timer is armed), releasing its set leases so a set can be removed. Returns
+ * `false` while a session still uses the worker.
+ */
+export async function disposeIdleClientParakeetWorker(): Promise<boolean> {
+  if (idleDisposePromise) {
+    await idleDisposePromise;
+  } else if (workerInstance) {
+    if (idleDisposeTimer === null) return false;
+    clearClientParakeetIdleDisposeTimer("model-removal");
+    await disposeClientParakeetWorker();
+  }
+  // Let the backend see the releases before a removal request, but never
+  // hold the removal hostage to a slow or unreachable backend.
+  let timer: ReturnType<typeof globalThis.setTimeout> | undefined;
+  await Promise.race([
+    pendingLeaseReleases,
+    new Promise((resolve) => {
+      timer = globalThis.setTimeout(resolve, LEASE_RELEASE_WAIT_MS);
+    }),
+  ]);
+  globalThis.clearTimeout(timer);
+  return true;
 }
 
 export function armClientParakeetIdleDispose(reason: string): void {
@@ -250,6 +314,19 @@ function toAbsoluteBrowserUrl(path: string): string {
   }
 }
 
+/**
+ * Version the browser/model cache with the set's manifest digest, without
+ * exposing store paths or download URLs. Sets are always same-origin.
+ */
+function pinModelVersion(url: string, assetVersion?: string | null): string {
+  if (!assetVersion || typeof window === "undefined") return url;
+  const pinned = new URL(url);
+  if (pinned.origin !== window.location.origin)
+    throw new Error("Speech models must be same-origin.");
+  pinned.searchParams.set("v", assetVersion);
+  return pinned.toString();
+}
+
 function buildModelUrls(
   overrides?: Partial<ClientParakeetModelUrls>,
   assetVersion?: string | null,
@@ -269,16 +346,8 @@ function buildModelUrls(
         CLIENT_PARAKEET_MODEL_ASSET_PATHS.preprocessor,
     ),
   };
-  // Version the browser/model cache without exposing pack paths or download URLs.
-  if (assetVersion && typeof window !== "undefined") {
-    for (const key of Object.keys(urls) as (keyof ClientParakeetModelUrls)[]) {
-      const url = new URL(urls[key]);
-      if (url.origin !== window.location.origin)
-        throw new Error("Speech models must be same-origin.");
-      url.searchParams.set("v", assetVersion);
-      urls[key] = url.toString();
-    }
-  }
+  for (const key of Object.keys(urls) as (keyof ClientParakeetModelUrls)[])
+    urls[key] = pinModelVersion(urls[key], assetVersion);
   return urls;
 }
 
@@ -421,9 +490,18 @@ export async function loadClientParakeetWorker({
     const resolvedModelUrls = withBackendEncoder(
       buildModelUrls(modelUrls, capabilities.offline_speech_asset_version),
       backend,
-      CLIENT_PARAKEET_WEBGPU_ENCODER_URL &&
+      pinModelVersion(
         toAbsoluteBrowserUrl(CLIENT_PARAKEET_WEBGPU_ENCODER_URL),
+        capabilities.offline_speech_gpu_asset_version,
+      ),
     );
+    // Installed sets report a version; lease them before their files load.
+    await leaseLoadedSets([
+      ...(capabilities.offline_speech_asset_version ? [PARAKEET_ASSET_ID] : []),
+      ...(backend === "webgpu" && capabilities.offline_speech_gpu_asset_version
+        ? [PARAKEET_WEBGPU_ASSET_ID]
+        : []),
+    ]);
     const request: ClientParakeetLoadRequest = {
       type: "client_parakeet/load",
       requestId: nextRequestId("client-parakeet-load"),
@@ -445,16 +523,24 @@ export async function loadClientParakeetWorker({
   let fellBackFromWebgpu = false;
   let result: ClientParakeetLoadResult;
   try {
-    result = await load(plan.backend, plan.reason);
+    try {
+      result = await load(plan.backend, plan.reason);
+    } catch (error) {
+      if (plan.backend !== "webgpu") throw error;
+      logger.warn(
+        "Worker",
+        "WebGPU Parakeet load failed; falling back to WASM",
+        { error: toErrorMessage(error) },
+      );
+      await disposeClientParakeetWorker();
+      webgpuLoadFailed = true;
+      fellBackFromWebgpu = true;
+      result = await load("wasm", "load_failed");
+    }
   } catch (error) {
-    if (plan.backend !== "webgpu") throw error;
-    logger.warn("Worker", "WebGPU Parakeet load failed; falling back to WASM", {
-      error: toErrorMessage(error),
-    });
-    await disposeClientParakeetWorker();
-    webgpuLoadFailed = true;
-    fellBackFromWebgpu = true;
-    result = await load("wasm", "load_failed");
+    // A failed load holds no models, so it must not block their removal.
+    releaseSetLeases();
+    throw error;
   }
   lastBackendState = {
     backend: result.backend,
@@ -537,5 +623,6 @@ export async function disposeClientParakeetWorker(): Promise<ClientParakeetDispo
       workerBackend = null;
       logger.info("Worker", "Terminated client Parakeet worker instance");
     }
+    releaseSetLeases();
   }
 }

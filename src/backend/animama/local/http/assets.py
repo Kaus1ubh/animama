@@ -1,5 +1,8 @@
 """Built React assets and the installation's verified optional Parakeet mounts.
 
+Parakeet mounts come from a ``ModelMountSource`` consulted on every request, so
+a composition can activate or remove a model set without a new responder.
+
 This responder registers no routes and supplies no browser admission policy.
 The local composition calls it only after admission and product routes. Its
 filesystem and fallback restrictions also apply when it is used directly.
@@ -12,11 +15,11 @@ import json
 import os
 import re
 import stat
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator, Callable, Mapping
 from dataclasses import dataclass
 from email.utils import formatdate, parsedate_to_datetime
 from pathlib import Path
-from typing import BinaryIO, cast
+from typing import BinaryIO, Protocol, cast
 from urllib.parse import unquote_to_bytes
 
 import anyio
@@ -25,8 +28,9 @@ from starlette.responses import JSONResponse, Response, StreamingResponse
 from starlette.types import Receive, Scope, Send
 
 PARAKEET_MOUNT = "/onnx/models/parakeet-tdt-0.6b-v2/"
-# The optional FP16 encoder pack; it is served only while its pack is active.
+# The optional FP16 encoder set; it is served only while its source supplies it.
 PARAKEET_WEBGPU_MOUNT = "/onnx/models/parakeet-tdt-0.6b-v2-webgpu/"
+MODEL_MOUNT_PATHS = (PARAKEET_MOUNT, PARAKEET_WEBGPU_MOUNT)
 IMMUTABLE_APP_ASSET_CACHE = "public, max-age=31536000, immutable"
 _MAX_MANIFEST_BYTES = 4 * 1024 * 1024
 _FINGERPRINTED_CODE = re.compile(r"assets/[^/]+-[\w-]{8,}\.(?:js|css)", re.ASCII)
@@ -71,7 +75,7 @@ def _safe_name(name: str) -> bool:
 
 @dataclass(frozen=True)
 class ModelFile:
-    """One file from the privately verified active feature-pack inventory."""
+    """One file from a privately verified active model inventory."""
 
     path: str
     size_bytes: int
@@ -93,11 +97,12 @@ class ModelFile:
 
 @dataclass(frozen=True)
 class ModelMount:
-    """An immutable, privately supplied active Parakeet version and inventory.
+    """An immutable installed Parakeet set: its version and exact inventory.
 
-    Electron verifies package digests before activation. Requests recheck file
-    identity, length and link safety, without hashing multi-gigabyte models on
-    every read. Replacing the active mount requires a new responder instance.
+    The backend model-asset store verifies digests before activation; the
+    version is the set's manifest digest. Requests recheck file identity,
+    length and link safety, without hashing multi-gigabyte models on every
+    read.
     """
 
     root: Path
@@ -106,12 +111,29 @@ class ModelMount:
 
     def __post_init__(self) -> None:
         if not isinstance(self.version, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._+-]{0,127}", self.version):
-            raise ValueError("Model version must be an exact feature-pack version")
+            raise ValueError("Model version must be an exact set version")
         files = tuple(self.files)
         if not all(isinstance(file, ModelFile) for file in files) or len({file.path for file in files}) != len(files):
             raise ValueError("Model inventory must contain distinct ModelFile entries")
         object.__setattr__(self, "root", Path(os.path.abspath(self.root)))
         object.__setattr__(self, "files", files)
+
+
+class ModelMountSource(Protocol):
+    """Resolve the active mount for one of ``MODEL_MOUNT_PATHS`` on each request."""
+
+    def mount(self, path: str) -> ModelMount | None:
+        """Return the mount served at ``path``, or ``None`` while it is unavailable."""
+
+
+@dataclass(frozen=True)
+class StaticModelMounts:
+    """Mounts fixed for the process lifetime (no mounts by default, or test fixtures)."""
+
+    mounts: Mapping[str, ModelMount | None]
+
+    def mount(self, path: str) -> ModelMount | None:
+        return self.mounts.get(path)
 
 
 def _open_regular(root: Path, name: str, *, model: ModelFile | None = None) -> BinaryIO:
@@ -292,21 +314,18 @@ class _FileStream(Response):
 
 
 class LocalAssets:
-    """Serve built browser files and the optional verified model-pack mounts.
+    """Serve built browser files and the optional verified model mounts.
 
     Roots and inventories come from the local composition, never request data.
-    Construct a new instance for a different application build or active pack.
-    An unconfigured mount answers 404 and never falls through to the built tree.
+    Construct a new instance for a different application build. Model mounts
+    are resolved per request from ``mount_source``; without one, no models are
+    served. An unavailable mount answers 404 and never falls through to the
+    built tree.
     """
 
-    def __init__(
-        self,
-        web_root: Path,
-        model_mount: ModelMount | None = None,
-        webgpu_model_mount: ModelMount | None = None,
-    ) -> None:
+    def __init__(self, web_root: Path, *, mount_source: ModelMountSource | None = None) -> None:
         self._root = web_root.resolve()
-        self._mounts = {PARAKEET_MOUNT: model_mount, PARAKEET_WEBGPU_MOUNT: webgpu_model_mount}
+        self._mount_source = mount_source or StaticModelMounts({})
         self._inventory: frozenset[str] | None = None
 
     async def response(self, request: Request) -> Response:
@@ -323,9 +342,9 @@ class LocalAssets:
         name = path[1:].removesuffix("/")
         if (path != "/" and not _safe_name(name)) or _matches_prefix(path, _PRIVATE_PREFIXES):
             return _error(request)
-        for prefix, mount in self._mounts.items():
+        for prefix in MODEL_MOUNT_PATHS:
             if path == prefix[:-1] or path.startswith(prefix):
-                return await self._model_response(request, mount, path[len(prefix) :])
+                return await self._model_response(request, self._mount_source.mount(prefix), path[len(prefix) :])
         try:
             if name:
                 try:

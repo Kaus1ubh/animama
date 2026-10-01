@@ -1,10 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createHash } from "node:crypto";
 import {
-  existsSync,
   mkdirSync,
   mkdtempSync,
-  readFileSync,
   realpathSync,
   rmSync,
   symlinkSync,
@@ -12,11 +10,11 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { pack } from "tar-stream";
-import { stageFeaturePacks } from "../scripts/runtime/feature-packs.mjs";
 import {
-  auditOptionalInputs,
-  stageOptionalInputs,
+  modelInputSpec,
+  modelManifest,
+  resolveModelInputs,
+  verifyInputs,
 } from "../scripts/runtime/optional-inputs.mjs";
 import {
   readJson,
@@ -24,10 +22,6 @@ import {
   sha256,
   writeJson,
 } from "../scripts/runtime/common.mjs";
-import {
-  buildFeaturePacks,
-  inventoryPack,
-} from "../scripts/runtime/feature-pack-build.js";
 
 const roots = [];
 afterEach(() => {
@@ -36,6 +30,8 @@ afterEach(() => {
     rmSync(root, { recursive: true, force: true });
 });
 const digest = (data) => createHash("sha256").update(data).digest("hex");
+const base = "parakeet-tdt-0.6b-v2";
+const webgpu = "parakeet-tdt-0.6b-v2-webgpu";
 /** A fixture copy of one tracked model manifest with its store directory populated. */
 function modelFixture(root, modelRoot, modelId) {
   const directory = path.join(root, modelId);
@@ -60,89 +56,45 @@ function modelFixture(root, modelRoot, modelId) {
     writeFileSync(path.join(source, name), bytes);
   return { manifestFile, source };
 }
-function fixture() {
+function fixture(modelId = base) {
   const root = realpathSync(
-    mkdtempSync(path.join(tmpdir(), "animama-parakeet-stage-")),
+    mkdtempSync(path.join(tmpdir(), "animama-model-inputs-")),
   );
   roots.push(root);
   const modelRoot = path.join(root, "models");
-  const base = modelFixture(root, modelRoot, "parakeet-tdt-0.6b-v2");
-  const webgpu = modelFixture(root, modelRoot, "parakeet-tdt-0.6b-v2-webgpu");
-  const target = { output: path.join(root, "stage") };
-  mkdirSync(target.output);
   return {
     root,
-    source: base.source,
-    webgpuSource: webgpu.source,
-    target,
-    manifestFile: base.manifestFile,
-    webgpuManifestFile: webgpu.manifestFile,
     modelRoot,
+    spec: modelInputSpec(modelId),
+    ...modelFixture(root, modelRoot, modelId),
   };
 }
-async function writeTar(source, files, output) {
-  const archive = pack();
-  const chunks = [];
-  const done = new Promise((resolve, reject) => {
-    archive.on("data", (chunk) => chunks.push(chunk));
-    archive.on("end", resolve);
-    archive.on("error", reject);
-  });
-  for (const file of files)
-    archive.entry(
-      { name: file.path, mode: parseInt(file.mode, 8) },
-      readFileSync(path.join(source, file.path)),
-    );
-  archive.finalize();
-  await done;
-  writeFileSync(output, Buffer.concat(chunks));
-}
 
-describe("verified local Parakeet pack inputs", () => {
-  it("stages both model packs and audits independently after cache removal", async () => {
-    const value = fixture();
-    stageOptionalInputs(value.target, value);
-    rmSync(value.source, { recursive: true });
-    rmSync(value.webgpuSource, { recursive: true });
-    const audited = auditOptionalInputs(value.target, value);
-    const inventory = audited["parakeet-stt"];
-    expect(inventory).toHaveLength(7);
-    expect(
-      audited["parakeet-stt-webgpu"].map((file) => [
-        file.path,
-        file.license_refs,
-      ]),
-    ).toEqual([
-      ["ATTRIBUTION.md", ["parakeet-webgpu-input"]],
-      ["README.md", ["parakeet-webgpu-input"]],
-      ["encoder-model.fp16.onnx", ["parakeet-webgpu-input"]],
-    ]);
-    const webgpuFiles = await inventoryPack(
-      path.join(value.target.output, "pack-inputs/parakeet-stt-webgpu"),
-      "parakeet-stt-webgpu",
-    );
-    expect(webgpuFiles.map((file) => file.path)).toEqual([
-      "ATTRIBUTION.md",
-      "README.md",
-      "encoder-model.fp16.onnx",
-    ]);
-    const files = await inventoryPack(
-      path.join(value.target.output, "pack-inputs/parakeet-stt"),
-      "parakeet-stt",
-    );
-    expect(files.map((file) => file.path)).toEqual(
-      inventory.map((file) => file.path),
-    );
-    expect(files.map((file) => file.sha256)).toEqual(
-      inventory.map((file) => file.sha256),
-    );
-    expect(files.map((file) => file.path)).toContain("ATTRIBUTION.md");
-    expect(files.map((file) => file.path)).toContain("README.md");
+describe("verified local model-set inputs for publication", () => {
+  it("pins each tracked Parakeet set to the exact payload the backend installs", () => {
+    for (const [modelId, count] of [
+      [base, 7],
+      [webgpu, 3],
+    ]) {
+      const value = fixture(modelId);
+      const manifest = modelManifest(value.spec, value.manifestFile);
+      expect(manifest.files).toHaveLength(count);
+      expect(
+        resolveModelInputs(value.spec, value.manifestFile, value.modelRoot),
+      ).toBe(value.source);
+      verifyInputs(value.spec, value.source, manifest);
+      manifest.files.push({ ...manifest.files[0], path: "extra.onnx" });
+      writeJson(value.manifestFile, manifest);
+      expect(() => modelManifest(value.spec, value.manifestFile)).toThrow(
+        "model manifest",
+      );
+    }
   });
   it.each(["missing", "corrupt", "symlink", "extra"])(
-    "rejects %s local model inputs before copying",
+    "rejects %s local model inputs",
     (kind) => {
       const value = fixture();
+      const manifest = modelManifest(value.spec, value.manifestFile);
       const file = path.join(value.source, "encoder-model.int8.onnx");
       if (kind === "missing") rmSync(file);
       if (kind === "corrupt") writeFileSync(file, "corrupt");
@@ -152,158 +104,32 @@ describe("verified local Parakeet pack inputs", () => {
         rmSync(file);
         symlinkSync(path.join(value.source, "vocab.txt"), file);
       }
-      expect(() => stageOptionalInputs(value.target, value)).toThrow();
-      expect(
-        existsSync(path.join(value.target.output, "optional-inputs.json")),
-      ).toBe(false);
-      expect(
-        existsSync(path.join(value.target.output, "pack-inputs/parakeet-stt")),
-      ).toBe(false);
+      expect(() => verifyInputs(value.spec, value.source, manifest)).toThrow(
+        "Parakeet input",
+      );
     },
   );
-  it("keeps core-only staging optional when the default store is absent", () => {
+  it("treats an absent default store as unavailable but an absent selected store as an error", () => {
     const value = fixture();
     vi.stubEnv("HOME", value.root);
     vi.stubEnv("XDG_CACHE_HOME", path.join(value.root, "cache"));
     vi.stubEnv("ANIMAMA_MODEL_ROOT", undefined);
-    stageOptionalInputs(value.target, {
-      manifestFile: value.manifestFile,
-      webgpuManifestFile: value.webgpuManifestFile,
-    });
-    expect(auditOptionalInputs(value.target, value)).toEqual({
-      "parakeet-stt": [],
-      "parakeet-stt-webgpu": [],
-    });
-    const receipt = readJson(
-      path.join(value.target.output, "optional-inputs.json"),
-    );
-    expect(receipt.parakeet).toBe("unavailable");
-    expect(receipt.parakeet_webgpu).toBe("unavailable");
+    expect(resolveModelInputs(value.spec, value.manifestFile)).toBeNull();
     expect(() =>
-      stageOptionalInputs(value.target, {
-        manifestFile: value.manifestFile,
-        webgpuManifestFile: value.webgpuManifestFile,
-        modelRoot: path.join(value.root, "absent"),
-      }),
+      resolveModelInputs(
+        value.spec,
+        value.manifestFile,
+        path.join(value.root, "absent"),
+      ),
     ).toThrow("verified local inputs");
-  });
-  it("fails when only the WebGPU encoder is missing from a selected store", () => {
-    const value = fixture();
-    rmSync(value.webgpuSource, { recursive: true });
-    expect(() => stageOptionalInputs(value.target, value)).toThrow(
-      "Parakeet WebGPU staging needs verified local inputs",
-    );
-    expect(
-      existsSync(path.join(value.target.output, "optional-inputs.json")),
-    ).toBe(false);
-  });
-  it("rejects a stale WebGPU receipt", () => {
-    const value = fixture();
-    stageOptionalInputs(value.target, value);
-    const receiptPath = path.join(value.target.output, "optional-inputs.json");
-    const receipt = readJson(receiptPath);
-    receipt.parakeet_webgpu.manifest_sha256 = "0".repeat(64);
-    writeJson(receiptPath, receipt);
-    expect(() => auditOptionalInputs(value.target, value)).toThrow(
-      "Parakeet WebGPU staged receipt differs",
-    );
-  });
-  it("rejects missing active pack inputs before building a release catalog", async () => {
-    const value = fixture();
-    writeJson(path.join(value.target.output, "optional-inputs.json"), {
-      schema: "animama-optional-inputs/1",
-      parakeet: "unavailable",
-      parakeet_webgpu: "unavailable",
-    });
-    await expect(stageFeaturePacks(value.target)).rejects.toThrow(
-      "Active parakeet-stt pack inputs are unavailable",
-    );
   });
   it("rejects unsafe manifest paths before resolving the store", () => {
     const value = fixture();
     const manifest = readJson(value.manifestFile);
     manifest.files[0].path = "../outside";
     writeJson(value.manifestFile, manifest);
-    expect(() => stageOptionalInputs(value.target, value)).toThrow(
+    expect(() => modelManifest(value.spec, value.manifestFile)).toThrow(
       "Invalid Parakeet model manifest",
     );
-  });
-  it("detects staged corruption and stale acquisition receipts", () => {
-    const value = fixture();
-    stageOptionalInputs(value.target, value);
-    const receiptPath = path.join(value.target.output, "optional-inputs.json");
-    const receipt = readJson(receiptPath);
-    receipt.parakeet.manifest_sha256 = "0".repeat(64);
-    writeJson(receiptPath, receipt);
-    expect(() => auditOptionalInputs(value.target, value)).toThrow("receipt");
-    stageOptionalInputs(value.target, value);
-    writeFileSync(
-      path.join(value.target.output, "pack-inputs/parakeet-stt/nemo128.onnx"),
-      "changed",
-    );
-    expect(() => auditOptionalInputs(value.target, value)).toThrow(
-      "integrity mismatch",
-    );
-  });
-  it("keeps unreviewed inputs unpublished and pins fixture-approved model objects", async () => {
-    const value = fixture();
-    stageOptionalInputs(value.target, value);
-    const input = path.join(value.target.output, "pack-inputs/parakeet-stt");
-    const ids = [
-      "parakeet-stt",
-      "parakeet-stt-webgpu",
-      "expanded-included-content",
-      "document-processing",
-    ];
-    const options = {
-      modelManifests: { "parakeet-stt": value.manifestFile },
-      inputs: Object.fromEntries(
-        ids.map((id) => [
-          id,
-          id === "parakeet-stt" ? input : path.join(value.root, id),
-        ]),
-      ),
-      output: path.join(value.root, "archives"),
-      catalog: path.join(value.root, "catalog.json"),
-      appVersion: "0.1.0",
-      release: {
-        release_base_url:
-          "https://github.com/example/animama/releases/download/v0.1.0",
-        macos: { team_id: null, designated_requirement: null },
-        packs: Object.fromEntries(
-          ids.map((id) => [
-            id,
-            {
-              release_status: id === "parakeet-stt" ? "active" : "deferred",
-              version: "0.1.0",
-              approved_inventory_sha256: null,
-              license_refs: ["parakeet-input"],
-            },
-          ]),
-        ),
-      },
-      budgets: Object.fromEntries(
-        ids.map((id) => [
-          id,
-          { installed_bytes: 100_000, download_bytes: null },
-        ]),
-      ),
-      writeTar,
-    };
-    expect((await buildFeaturePacks(options)).entries).toEqual([]);
-    const files = await inventoryPack(input, "parakeet-stt");
-    // Fixture approval only; no release approval file is changed by this test.
-    options.release.packs["parakeet-stt"].approved_inventory_sha256 = digest(
-      JSON.stringify(files),
-    );
-    const built = await buildFeaturePacks(options);
-    expect(built.entries).toHaveLength(1);
-    expect(built.entries[0].files.map(({ url, ...file }) => file)).toEqual(
-      files,
-    );
-    expect(built.entries[0].schema).toBe("animama-model-pack/1");
-    expect(built.entries[0].license_refs).toEqual(["parakeet-input"]);
-    expect(built.entries[0].files).toHaveLength(7);
-    expect(readJson(options.catalog).status).toBe("staged-not-published");
   });
 });

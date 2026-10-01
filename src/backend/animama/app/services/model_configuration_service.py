@@ -22,6 +22,7 @@ from animama.app.model_catalog import (
     STRUCTURED_OUTPUT_TRANSPORT_JSON_OBJECT,
     STRUCTURED_OUTPUT_TRANSPORT_JSON_SCHEMA,
 )
+from animama.app.model_clients.credential_store import KNOWN_PROVIDER_CREDENTIAL_ENVS
 from animama.app.model_clients.credentials import is_allowed_credential_env, managed_credential_env
 from animama.app.model_clients.probe import ModelConnectionProbe, ModelConnectionProbeError
 from animama.app.model_connection_presets import MODEL_CONNECTION_PRESETS, model_connection_preset
@@ -474,7 +475,7 @@ def _credential_env(connection_id: str, credential: CredentialSetting) -> str | 
     name = (credential.env or "").strip()
     if not is_allowed_credential_env(name):
         raise ModelConfigurationError(
-            "Key variables must be OPENAI_API_KEY, DEEPSEEK_API_KEY, HF_TOKEN or match "
+            f"Key variables must be {', '.join(sorted(KNOWN_PROVIDER_CREDENTIAL_ENVS))} or match "
             "ANIMAMA_CONNECTION_<NAME>_API_KEY",
             code="invalid_credential",
         )

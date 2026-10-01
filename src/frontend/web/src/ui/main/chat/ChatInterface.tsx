@@ -56,7 +56,7 @@ import {
 import { queryKeys } from "@/query/keys";
 import { useUserFiles } from "@/query/hooks/useUserFiles";
 import { useRuntimeCapabilities } from "@/query/hooks/useRuntimeCapabilities";
-import { DesktopFeaturePacksPanel } from "@/ui/settings/DesktopFeaturePacksPanel";
+import { OfflineSpeechDownloads } from "@/ui/settings/OfflineSpeechDownloads";
 import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
 import { isWebSpeechSupported } from "@/lib/speech/stt-provider";
 import { useSettings } from "@/ui/settings/SettingsProvider";
@@ -442,11 +442,13 @@ export function ChatInterfaceView({
                 </summary>
                 {quickChatSurface ? (
                   <p>
-                    Open Settings in the main Animama window to manage feature
-                    packs.
+                    Open App Settings → Voice in the main Animama window to
+                    download it.
                   </p>
                 ) : (
-                  <DesktopFeaturePacksPanel only="parakeet-stt" />
+                  <div className="mt-2">
+                    <OfflineSpeechDownloads heading={false} />
+                  </div>
                 )}
               </details>
             ) : null}
@@ -1012,7 +1014,7 @@ export const ChatInterface = ({
   const pendingModelLabel =
     pendingModelSwitch?.item.model_label ??
     pendingModelSwitch?.item.model ??
-    "this model";
+    "This model";
 
   return (
     <>
@@ -1083,8 +1085,8 @@ export const ChatInterface = ({
           <DialogHeader>
             <DialogTitle>Start a new chat?</DialogTitle>
             <DialogDescription>
-              Switching to {pendingModelLabel} uses a different chat standard.
-              Start a new chat to keep this conversation compatible.
+              {pendingModelLabel} keeps conversations differently, so this chat
+              continues in a new chat.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

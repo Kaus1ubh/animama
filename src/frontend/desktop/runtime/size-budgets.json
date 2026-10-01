@@ -3,14 +3,6 @@
   "regression_percent": 5,
   "core": { "download_bytes": 786432000, "installed_bytes": 1610612736 },
   "packs": {
-    "parakeet-stt": {
-      "download_bytes": 681574400,
-      "installed_bytes": 681574400
-    },
-    "parakeet-stt-webgpu": {
-      "download_bytes": 1342177280,
-      "installed_bytes": 1342177280
-    },
     "expanded-included-content": {
       "download_bytes": null,
       "installed_bytes": 524288000

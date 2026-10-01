@@ -9,7 +9,7 @@ describe("buildDiagnosticsSummary", () => {
       platform: "darwin",
       runtime: { state: "error", code: "migration_failed" },
       featurePacks: [
-        { id: "parakeet-stt", state: "installed", version: "1.2.0" },
+        { id: "document-processing", state: "installed", version: "1.2.0" },
       ],
       providers: [
         { provider: "openai", configured: true },
@@ -23,7 +23,7 @@ describe("buildDiagnosticsSummary", () => {
         "Platform: darwin",
         "Runtime: error (migration_failed)",
         "Feature packs:",
-        "- parakeet-stt: installed 1.2.0",
+        "- document-processing: installed 1.2.0",
         "Provider keys configured:",
         "- openai: yes",
         "- elevenlabs: no",

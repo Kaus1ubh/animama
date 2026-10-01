@@ -48,26 +48,25 @@ export const includedContentAliases: readonly IncludedContentAlias[] = [
     source: "resources/scene-vfx/twemoji",
   },
 ] as const;
-const publicParakeetModelBaseUrl = "/onnx/models/parakeet-tdt-0.6b-v2";
 const localParakeetModelBaseUrl = "/__client-parakeet-models";
-// The optional WebGPU encoder and where each build gets it. Vite serves an
-// operator-provided directory, embedded desktop its active encoder pack, and
-// built self-host the model asset downloaded in the app. A HEAD probe decides
-// availability, so an absent encoder is simply a 404.
 const localParakeetWebgpuModelBaseUrl = "/__client-parakeet-webgpu-models";
-const parakeetWebgpuEncoderName = "encoder-model.fp16.onnx";
-const parakeetWebgpuEncoders = {
-  pack: `/onnx/models/parakeet-tdt-0.6b-v2-webgpu/${parakeetWebgpuEncoderName}`,
-  operator: `${localParakeetWebgpuModelBaseUrl}/${parakeetWebgpuEncoderName}`,
-  "model-asset": "/v1/model-assets/parakeet-tdt-0.6b-v2-webgpu-encoder/content",
+// Where each build serves the Parakeet sets. Built apps (packaged desktop and
+// self-host) download them in the app and FastAPI serves them; Vite
+// development serves the operator's verified host sets and offers no
+// downloads. An absent set is simply a 404.
+const parakeetModels = {
+  "asset-store": {
+    source: "asset-store",
+    baseUrl: "/onnx/models/parakeet-tdt-0.6b-v2",
+    webgpuBaseUrl: "/onnx/models/parakeet-tdt-0.6b-v2-webgpu",
+  },
+  operator: {
+    source: "operator",
+    baseUrl: localParakeetModelBaseUrl,
+    webgpuBaseUrl: localParakeetWebgpuModelBaseUrl,
+  },
 } as const;
-const parakeetWebgpuEncoder = (
-  source: keyof typeof parakeetWebgpuEncoders,
-) => ({
-  source,
-  url: parakeetWebgpuEncoders[source],
-});
-// The encoder's reviewed attribution is bundled for the settings panel.
+// The GPU set's reviewed attribution is bundled for the settings panel.
 const parakeetWebgpuNoticesRoot = fileURLToPath(
   new URL("../../../models/parakeet-tdt-0.6b-v2-webgpu", import.meta.url),
 );
@@ -147,13 +146,7 @@ export const localViteAllowedHosts = [
 
 export default defineConfig(({ mode, command, isPreview }) => {
   const embeddedDesktop = mode === "embedded-desktop";
-  const envParakeetModelBaseUrl =
-    process.env.VITE_CLIENT_PARAKEET_MODEL_BASE_URL?.trim();
-  const useLocalParakeetModels =
-    !embeddedDesktop && !envParakeetModelBaseUrl && command === "serve";
-  const clientParakeetModelBaseUrl =
-    (!embeddedDesktop && envParakeetModelBaseUrl) ||
-    (embeddedDesktop ? publicParakeetModelBaseUrl : localParakeetModelBaseUrl);
+  const useLocalParakeetModels = command === "serve";
 
   return {
     plugins: [
@@ -209,17 +202,8 @@ export default defineConfig(({ mode, command, isPreview }) => {
         ? { "import.meta.env.VITE_ENABLE_DEBUG_PANEL": JSON.stringify("false") }
         : {}),
       __ANIMAMA_APP_VERSION__: JSON.stringify(appVersion),
-      __CLIENT_PARAKEET_MODEL_BASE_URL__: JSON.stringify(
-        clientParakeetModelBaseUrl,
-      ),
-      __CLIENT_PARAKEET_WEBGPU_ENCODER__: JSON.stringify(
-        embeddedDesktop
-          ? parakeetWebgpuEncoder("pack")
-          : useLocalParakeetModels
-            ? parakeetWebgpuEncoder("operator")
-            : command === "build"
-              ? parakeetWebgpuEncoder("model-asset")
-              : null,
+      __CLIENT_PARAKEET_MODELS__: JSON.stringify(
+        parakeetModels[useLocalParakeetModels ? "operator" : "asset-store"],
       ),
     },
     optimizeDeps: {

@@ -31,7 +31,6 @@ export function createReleaseModelsFixture(root) {
   const manifestsDirectory = path.join(root, "inputs");
   const modelIds = ["parakeet-tdt-0.6b-v2-webgpu", "pocket-tts-voice-cloning"];
   const catalog = { schema: "animama-asset-catalog/1", assets: [] };
-  const entries = [];
   for (const modelId of modelIds) {
     const tracked = readJson(
       path.join(repoRoot, "models", modelId, "manifest.json"),
@@ -58,27 +57,30 @@ export function createReleaseModelsFixture(root) {
     const sealed = path.join(runtime, "model-manifests", `${modelId}.json`);
     mkdirSync(path.dirname(sealed), { recursive: true });
     copyFileSync(manifestFile, sealed);
-    const payload = files.find((file) => file.path.endsWith(".onnx"));
     const object = (file) =>
       `${releaseModelOrigin}/models/${modelId}/${file.sha256}/${file.path}`;
-    catalog.assets.push({
-      id: `${modelId}-encoder`,
-      url: object(payload),
-      size: payload.size,
-      sha256: payload.sha256,
-    });
-    if (modelId.startsWith("parakeet"))
-      entries.push({
+    if (modelId.startsWith("parakeet")) {
+      // A multi-file backend set pins the complete inventory.
+      catalog.assets.push({
         id: "parakeet-stt-webgpu",
-        schema: "animama-model-pack/1",
-        model_id: modelId,
+        manifest_sha256: sha256(manifestFile),
+        license_ref: "CC-BY-4.0",
         files: files.map((file) => ({
           path: file.path,
-          size_bytes: file.size,
-          sha256: file.sha256,
           url: object(file),
+          size: file.size,
+          sha256: file.sha256,
         })),
       });
+    } else {
+      const payload = files.find((file) => file.path.endsWith(".onnx"));
+      catalog.assets.push({
+        id: `${modelId}-encoder`,
+        url: object(payload),
+        size: payload.size,
+        sha256: payload.sha256,
+      });
+    }
     stageModelCandidate({
       modelId,
       directory: path.join(directory, "models", modelId),
@@ -87,11 +89,12 @@ export function createReleaseModelsFixture(root) {
     });
   }
   writeJson(path.join(runtime, frozenAssetCatalog), catalog);
+  // Archive packs are deferred, but the sealed pack catalog stays bound.
   const body = {
     schema: "animama-pack-catalog/1",
     app_version: "0.1.0",
-    entries,
-    status: "staged-not-published",
+    entries: [],
+    status: "no-published-packs",
   };
   const packCatalog = { id: digest(JSON.stringify(body)), ...body };
   writeJson(path.join(runtime, "pack-catalog.json"), packCatalog);

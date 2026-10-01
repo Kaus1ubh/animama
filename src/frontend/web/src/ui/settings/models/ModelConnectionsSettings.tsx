@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useId, useState } from "react";
 import { Info, Plus } from "lucide-react";
 import { toast } from "sonner";
 
@@ -7,13 +7,17 @@ import type {
   PyModelConnection,
   PyModelConnectionPreset,
   PyModelUsage,
+  WebSearchCapability,
 } from "@animama/runtime-contracts/api-types";
+import { alternateModelIds, modelDisplayName } from "@/lib/chat/model-catalog";
 import { cn } from "@/lib/utils";
 import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
 import {
+  useConnectionReachability,
   useModelConnectionPresets,
   useModelConnections,
 } from "@/query/hooks/useModelConfiguration";
+import { useRuntimeCapabilities } from "@/query/hooks/useRuntimeCapabilities";
 import {
   useRemoveModel,
   useRemoveModelConnection,
@@ -27,26 +31,32 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/ui/components/dialog";
+import { ModelSelectorLogo } from "@/ui/components/model-selector";
+import { Tabs, TabsContent } from "@/ui/components/tabs";
 import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-  underlineTabClassName,
-} from "@/ui/components/tabs";
-import { useDesktopCredentialsAvailable } from "@/ui/settings/DesktopCredentialsPanel";
+  DesktopCredentialsPanel,
+  useDesktopCredentialsAvailable,
+} from "@/ui/settings/DesktopCredentialsPanel";
 
 import {
-  connectionServerTab,
-  CUSTOM_TAB_PRESET_IDS,
-  MODEL_SERVER_TABS,
-  modelApiTag,
+  baseUrlHost,
+  connectionLocation,
+  connectionProviderEntry,
+  connectionStatusText,
+  defaultLocationProvider,
+  locationProviderGroups,
+  MODEL_LOCATION_TABS,
+  modelCapabilityChips,
+  modelConfigurationErrorCode,
   modelConfigurationErrorMessage,
   modelInUseUsage,
+  modelSettingsAvailability,
   removalConsequences,
   removalUsageSummary,
-  type ModelApiTag,
-  type ModelServerTab,
+  type ConnectionReachability,
+  type ModelLocation,
+  type ModelProviderEntry,
+  type ModelProviderGroup,
 } from "./model-configuration-state";
 import {
   deleteConnectionKey,
@@ -54,7 +64,9 @@ import {
   ModelConnectionForm,
 } from "./ModelConnectionDialog";
 import { ModelInfoDialog } from "./ModelInfoDialog";
-import { OwnerModelDialog } from "./OwnerModelDialog";
+import { ModelLocationTabsList } from "./ModelLocationTabsList";
+import { ModelProviderTabsList } from "./ModelProviderTabsList";
+import { OwnerModelDialog, ShowModelButton } from "./OwnerModelDialog";
 
 type Removal =
   | {
@@ -64,37 +76,51 @@ type Removal =
     }
   | { kind: "model"; model: PyConfiguredModel; usage: PyModelUsage | null };
 
-const KEY_STATE_LABELS: Record<PyModelConnection["credential_state"], string> =
-  {
-    configured: "Key set",
-    missing: "Key missing",
-    not_required: "No key",
-  };
-
-/** Subtle tag colors that read in light and dark themes. */
-const TAG_CLASSES: Record<ModelApiTag, string> = {
-  Responses: "bg-sky-500/10 text-sky-700 dark:text-sky-300",
-  Completions: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-  Embeddings: "bg-violet-500/10 text-violet-700 dark:text-violet-300",
+const BASE_URL_PLACEHOLDER: Record<ModelLocation, string> = {
+  cloud: "https://api.example.com/v1",
+  local: "http://127.0.0.1:8080/v1",
 };
 
+const TAG_CLASS =
+  "bg-muted text-muted-foreground shrink-0 rounded-sm px-1.5 py-0.5 text-[11px] font-medium";
+
 /**
- * App Settings → Models: fixed tabs per server type (OpenAI, the local
- * servers and Custom), each listing its connections with their models. A
- * local tab without a connection shows the connect form for its server; the
- * Custom tab adds DeepSeek, Hugging Face and custom-URL connections. Owner
- * connections can be edited and removed; each model row opens an Info modal
- * with its details, and the owner may add models to any connection,
- * including the built-in OpenAI one.
+ * App Settings → Models connections: **Cloud** and **Local** tabs, each with
+ * a row of provider tabs. A provider tab shows only that provider: its
+ * connection card (status, Edit/Remove, models) when connected, otherwise
+ * its connect form inline; Custom lists each custom server plus "Add a
+ * custom server". The built-in OpenAI card carries the OpenAI key field on
+ * desktop. Each model row shows capability chips and opens an Info modal;
+ * hidden rows stay listed behind a toggle so they can be shown again.
+ * Connecting stays on that provider's tab and opens the add-model dialog.
+ *
+ * Renders nothing unless the runtime allows model configuration (the hosted
+ * composition keeps its fixed catalog).
  */
-export function ModelConnectionsSettings({ disabled }: { disabled: boolean }) {
-  const presets = useModelConnectionPresets(true);
-  const connections = useModelConnections(true);
+export function ModelConnectionsSettings({
+  disabled,
+  defaultTab = "cloud",
+}: {
+  disabled: boolean;
+  defaultTab?: ModelLocation;
+}) {
+  const capabilities = useRuntimeCapabilities();
+  const { modelConfiguration: enabled } = modelSettingsAvailability(
+    capabilities.data,
+  );
+  const search = capabilities.data?.web_search;
+  const presets = useModelConnectionPresets(enabled);
+  const connections = useModelConnections(enabled);
   const removeConnection = useRemoveModelConnection();
   const removeModel = useRemoveModel();
   const platform = useRuntimePlatform();
   const managedKeys = useDesktopCredentialsAvailable();
-  const [tab, setTab] = useState<ModelServerTab>("openai");
+  const [tab, setTab] = useState<ModelLocation>(defaultTab);
+  // The owner's provider tab per location; unset opens the default one.
+  const [providerTab, setProviderTab] = useState<
+    Partial<Record<ModelLocation, string>>
+  >({});
+  const [addingCustom, setAddingCustom] = useState<ModelLocation | null>(null);
   const [connectionEditor, setConnectionEditor] =
     useState<PyModelConnection | null>(null);
   const [modelAdder, setModelAdder] = useState<PyModelConnection | null>(null);
@@ -103,7 +129,6 @@ export function ModelConnectionsSettings({ disabled }: { disabled: boolean }) {
     connectionId: string;
     modelId: string;
   } | null>(null);
-  const [addingCustom, setAddingCustom] = useState(false);
   const [removal, setRemoval] = useState<Removal | null>(null);
   const [removing, setRemoving] = useState(false);
 
@@ -183,6 +208,7 @@ export function ModelConnectionsSettings({ disabled }: { disabled: boolean }) {
     setRemoving(false);
   };
 
+  if (!enabled) return null;
   if (connections.isError)
     return (
       <p className="text-muted-foreground py-3 text-sm" role="status">
@@ -191,202 +217,149 @@ export function ModelConnectionsSettings({ disabled }: { disabled: boolean }) {
     );
   if (!connections.isSuccess) return null;
 
-  /** Presets offered on a tab's connect form: its own, or Custom's choice. */
-  const tabPresets = (id: ModelServerTab): PyModelConnectionPreset[] => {
-    const ids = id === "custom" ? CUSTOM_TAB_PRESET_IDS : [id];
-    return ids.flatMap(
-      (presetId) =>
-        presets.data?.filter((preset) => preset.id === presetId) ?? [],
-    );
+  const presetById = (id: string) =>
+    presets.data?.find((preset) => preset.id === id);
+
+  /**
+   * Server types offered when editing: a cloud connection may switch among
+   * the cloud types, as the old Custom tab allowed; a local one keeps its own.
+   */
+  const editPresets = (
+    connection: PyModelConnection,
+  ): PyModelConnectionPreset[] =>
+    connectionLocation(connection) === "cloud"
+      ? (presets.data ?? []).filter((preset) => !preset.local)
+      : (presets.data ?? []).filter(
+          (preset) => preset.id === connection.preset,
+        );
+
+  /** Show a new connection's provider tab and add its first model. */
+  const connected = (saved: PyModelConnection) => {
+    // A custom server lands on the location its address implies.
+    const location = connectionLocation(saved);
+    setTab(location);
+    setProviderTab((current) => ({
+      ...current,
+      [location]: connectionProviderEntry(saved).id,
+    }));
+    setAddingCustom(null);
+    setModelAdder(saved);
   };
 
-  /** An inline connect form for a tab, with optional buttons beside Add. */
-  const connectForm = (
-    id: ModelServerTab,
-    onSaved: () => void,
-    extraButtons?: ReactNode,
+  const providerPanel = (
+    location: ModelLocation,
+    { entry, connections: items }: ModelProviderGroup<PyModelConnection>,
   ) => {
-    const choices = tabPresets(id);
-    if (!choices.length) return null;
-    return (
-      <ModelConnectionForm
-        key={id}
-        presets={choices}
-        managedKeys={managedKeys}
-        onSaved={onSaved}
-        footer={({ saving, valid }) => (
-          <div className="flex justify-end gap-2">
-            {extraButtons}
-            <Button type="submit" disabled={disabled || !valid || saving}>
-              {saving ? "Adding…" : "Add connection"}
-            </Button>
-          </div>
-        )}
-      />
-    );
-  };
-
-  const connectionBlock = (connection: PyModelConnection) => {
-    const models = connection.models ?? [];
-    return (
-      <section
-        key={connection.id}
-        aria-label={connection.name}
-        className="space-y-3"
-      >
-        {connection.source === "builtin" ? (
-          <p className="text-muted-foreground text-xs">
-            Built-in. Uses the OpenAI key and base URL from API Keys or the
-            environment.
-          </p>
-        ) : (
-          <div className="flex flex-wrap items-start justify-between gap-2">
-            <div className="min-w-0">
-              <h4 className="text-sm font-semibold">{connection.name}</h4>
-              <p className="text-muted-foreground truncate text-xs">
-                {`${connection.base_url ?? ""} · ${KEY_STATE_LABELS[connection.credential_state]}`}
-              </p>
-            </div>
-            <div className="flex gap-1">
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                disabled={disabled || !presets.isSuccess}
-                aria-label={`Edit ${connection.name}`}
-                onClick={() => setConnectionEditor(connection)}
-              >
-                Edit
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                disabled={disabled}
-                aria-label={`Remove ${connection.name}`}
-                onClick={() =>
-                  startRemoval({ kind: "connection", connection, usage: null })
-                }
-              >
-                Remove
-              </Button>
-            </div>
-          </div>
-        )}
-        <ul className="divide-border/60 divide-y">
-          {models.map((model) => {
-            const tag = modelApiTag(model);
-            return (
-              <li key={model.id} className="flex items-center gap-2 py-1.5">
-                <span className="min-w-0 flex-1 truncate text-sm">
-                  {model.model_label}
-                </span>
-                <span
-                  className={cn(
-                    "shrink-0 rounded-sm px-2 py-0.5 text-[11px] font-medium",
-                    TAG_CLASSES[tag],
-                  )}
-                >
-                  {tag}
-                </span>
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="ghost"
-                  className="size-8 shrink-0"
-                  aria-label={`Details for ${model.model_label} (${tag})`}
-                  onClick={() =>
-                    setInfo({ connectionId: connection.id, modelId: model.id })
-                  }
-                >
-                  <Info className="size-4" aria-hidden />
+    const custom = entry.presetId === "custom";
+    const preset = presetById(entry.presetId);
+    const form = (onCancel?: () => void) =>
+      preset ? (
+        <div className="border-border/60 rounded-xl border p-4">
+          <ModelConnectionForm
+            presets={[preset]}
+            managedKeys={managedKeys}
+            baseUrlPlaceholder={BASE_URL_PLACEHOLDER[location]}
+            onSaved={connected}
+            footer={({ saving, valid }) => (
+              <div className="flex justify-end gap-2">
+                {onCancel ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    disabled={saving}
+                    onClick={onCancel}
+                  >
+                    Cancel
+                  </Button>
+                ) : null}
+                <Button type="submit" disabled={disabled || !valid || saving}>
+                  {saving ? "Connecting…" : "Connect"}
                 </Button>
-              </li>
-            );
-          })}
-          {models.length === 0 ? (
-            <li className="text-muted-foreground py-2 text-xs">
-              No models yet. Add one to chat with it.
-            </li>
-          ) : null}
-        </ul>
-        <div className="flex justify-center">
-          <Button
-            type="button"
-            size="icon"
-            variant="outline"
-            className="rounded-full"
-            disabled={disabled}
-            aria-label={`Add model to ${connection.name}`}
-            onClick={() => setModelAdder(connection)}
-          >
-            <Plus className="size-4" aria-hidden />
-          </Button>
-        </div>
-      </section>
-    );
-  };
-
-  const tabContent = (id: ModelServerTab, label: string) => {
-    const blocks = all.filter(
-      (connection) => connectionServerTab(connection) === id,
-    );
-    const list = (
-      <div className="divide-border space-y-4 divide-y [&>*:not(:first-child)]:pt-4">
-        {blocks.map(connectionBlock)}
-      </div>
-    );
-    if (id === "openai") return list;
-    if (id !== "custom")
-      return blocks.length ? (
-        list
-      ) : (
-        <div className="space-y-4">
-          <p className="text-muted-foreground text-xs">
-            Connect your {label} server, then add its models. Detect checks
-            whether one is running at its default address.
-          </p>
-          {connectForm(id, () => undefined)}
-        </div>
-      );
-    const showForm = addingCustom || blocks.length === 0;
-    return (
-      <div className="space-y-4">
-        {blocks.length ? list : null}
-        {showForm ? (
-          <div className="space-y-4">
-            <p className="text-muted-foreground text-xs">
-              Connect DeepSeek, Hugging Face or another OpenAI-compatible
-              server, then add its models.
-            </p>
-            {connectForm(
-              id,
-              () => setAddingCustom(false),
-              blocks.length ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => setAddingCustom(false)}
-                >
-                  Cancel
-                </Button>
-              ) : null,
+              </div>
             )}
-          </div>
-        ) : (
-          <div className="flex justify-center">
+          />
+        </div>
+      ) : null;
+    return (
+      <>
+        <p className="text-muted-foreground text-xs">{entry.purpose}</p>
+        {items.map((connection) => (
+          <ConnectionCard
+            key={connection.id}
+            connection={connection}
+            entry={entry}
+            location={location}
+            active={tab === location}
+            logo={
+              connection.logo_provider ??
+              presetById(connection.preset)?.logo_provider ??
+              null
+            }
+            disabled={disabled}
+            canEdit={presets.isSuccess}
+            managedKeys={managedKeys}
+            search={search}
+            onEdit={() => setConnectionEditor(connection)}
+            onRemove={() =>
+              startRemoval({ kind: "connection", connection, usage: null })
+            }
+            onAddModel={() => setModelAdder(connection)}
+            onInfo={(model) =>
+              setInfo({ connectionId: connection.id, modelId: model.id })
+            }
+          />
+        ))}
+        {custom ? (
+          addingCustom === location ? (
+            form(() => setAddingCustom(null))
+          ) : (
             <Button
               type="button"
+              size="sm"
               variant="outline"
-              disabled={disabled || !presets.isSuccess}
-              onClick={() => setAddingCustom(true)}
+              disabled={disabled || !preset}
+              onClick={() => setAddingCustom(location)}
             >
               <Plus className="size-4" aria-hidden />
-              Add connection
+              Add a custom server
             </Button>
-          </div>
-        )}
-      </div>
+          )
+        ) : items.length === 0 ? (
+          form()
+        ) : null}
+      </>
+    );
+  };
+
+  const tabContent = (location: ModelLocation) => {
+    const groups = locationProviderGroups(all, location);
+    const active = providerTab[location] ?? defaultLocationProvider(groups);
+    const label = MODEL_LOCATION_TABS.find(({ id }) => id === location)?.label;
+    return (
+      <Tabs
+        value={active}
+        onValueChange={(value) =>
+          setProviderTab((current) => ({ ...current, [location]: value }))
+        }
+      >
+        <ModelProviderTabsList
+          groups={groups}
+          active={active}
+          label={`${label} providers`}
+        />
+        {/* Every provider panel stays mounted so a half-filled connect form
+            survives switching tabs. */}
+        {groups.map((group) => (
+          <TabsContent
+            key={group.entry.id}
+            value={group.entry.id}
+            forceMount
+            className="mt-4 space-y-4 data-[state=inactive]:hidden"
+          >
+            {providerPanel(location, group)}
+          </TabsContent>
+        ))}
+      </Tabs>
     );
   };
 
@@ -394,26 +367,17 @@ export function ModelConnectionsSettings({ disabled }: { disabled: boolean }) {
     <div className="min-w-0 py-3">
       <Tabs
         value={tab}
-        onValueChange={(value) => {
-          setTab(value as ModelServerTab);
-          setAddingCustom(false);
-        }}
+        onValueChange={(value) => setTab(value as ModelLocation)}
       >
-        <TabsList variant="underline" aria-label="Model servers">
-          {MODEL_SERVER_TABS.map(({ id, label }) => (
-            <TabsTrigger
-              key={id}
-              value={id}
-              variant="underline"
-              className={underlineTabClassName(tab === id)}
-            >
-              {label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-        {MODEL_SERVER_TABS.map(({ id, label }) => (
-          <TabsContent key={id} value={id} className="mt-4">
-            {tabContent(id, label)}
+        <ModelLocationTabsList active={tab} />
+        {MODEL_LOCATION_TABS.map(({ id }) => (
+          <TabsContent
+            key={id}
+            value={id}
+            forceMount
+            className="mt-4 data-[state=inactive]:hidden"
+          >
+            {tabContent(id)}
           </TabsContent>
         ))}
       </Tabs>
@@ -421,8 +385,7 @@ export function ModelConnectionsSettings({ disabled }: { disabled: boolean }) {
         <ModelConnectionDialog
           open
           onOpenChange={(open) => !open && setConnectionEditor(null)}
-          // Keep the connection on its tab: offer only that tab's server types.
-          presets={tabPresets(connectionServerTab(connectionEditor))}
+          presets={editPresets(connectionEditor)}
           connection={connectionEditor}
           managedKeys={managedKeys}
         />
@@ -495,5 +458,266 @@ export function ModelConnectionsSettings({ disabled }: { disabled: boolean }) {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+/** A Local card's reachability from its model-listing query. */
+function reachabilityOf(query: {
+  isSuccess: boolean;
+  isError: boolean;
+  error: unknown;
+}): ConnectionReachability {
+  if (query.isSuccess) return { state: "reachable" };
+  if (query.isError)
+    return {
+      state: "failed",
+      category: modelConfigurationErrorCode(query.error),
+    };
+  return { state: "checking" };
+}
+
+/**
+ * One connected provider: name, status and actions, the OpenAI key on the
+ * built-in card, then its models. Local cards list the server's models once
+ * to report whether it is running.
+ */
+function ConnectionCard({
+  connection,
+  entry,
+  location,
+  active,
+  logo,
+  disabled,
+  canEdit,
+  managedKeys,
+  search,
+  onEdit,
+  onRemove,
+  onAddModel,
+  onInfo,
+}: {
+  connection: PyModelConnection;
+  entry: ModelProviderEntry;
+  location: ModelLocation;
+  /** Its location tab is showing; Local cards check reachability only then. */
+  active: boolean;
+  logo: string | null;
+  disabled: boolean;
+  canEdit: boolean;
+  managedKeys: boolean;
+  search: WebSearchCapability | null | undefined;
+  onEdit: () => void;
+  onRemove: () => void;
+  onAddModel: () => void;
+  onInfo: (model: PyConfiguredModel) => void;
+}) {
+  const headingId = useId();
+  const reachability = useConnectionReachability(
+    connection.id,
+    location === "local" && active,
+  );
+  const [showHidden, setShowHidden] = useState(false);
+  const models = connection.models ?? [];
+  const hiddenCount = models.filter((model) => model.hidden).length;
+  const listed = showHidden ? models : models.filter((model) => !model.hidden);
+  const alternates = alternateModelIds(listed);
+  const builtin = connection.source === "builtin";
+  const status = connectionStatusText(
+    connection,
+    location === "local" ? reachabilityOf(reachability) : undefined,
+  );
+  // A custom cloud server's name may not say where it is.
+  const host =
+    location === "cloud" &&
+    connectionProviderEntry(connection).presetId === "custom"
+      ? baseUrlHost(connection.base_url)
+      : null;
+
+  return (
+    <section
+      aria-labelledby={headingId}
+      className="border-border/60 space-y-3 rounded-xl border p-4"
+    >
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2.5">
+          {logo ? (
+            <ModelSelectorLogo provider={logo} className="size-5" />
+          ) : null}
+          <div className="min-w-0">
+            <h4
+              id={headingId}
+              className="flex flex-wrap items-center gap-2 text-sm font-semibold"
+            >
+              {connection.name}
+              {entry.recommended ? (
+                <span className="bg-primary/10 text-primary rounded-sm px-1.5 py-0.5 text-[11px] font-medium">
+                  Recommended
+                </span>
+              ) : null}
+            </h4>
+            <p className="text-muted-foreground truncate text-xs">
+              {/* Plain text: a live region per card would announce every
+                  card whenever the tab opens. */}
+              {host ? `${host} · ` : null}
+              {status}
+            </p>
+          </div>
+        </div>
+        {builtin ? null : (
+          <div className="flex gap-1">
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              disabled={disabled || !canEdit}
+              aria-label={`Edit ${connection.name}`}
+              onClick={onEdit}
+            >
+              Edit
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              disabled={disabled}
+              aria-label={`Remove ${connection.name}`}
+              onClick={onRemove}
+            >
+              Remove
+            </Button>
+          </div>
+        )}
+      </div>
+      {builtin ? <OpenAIKey managedKeys={managedKeys} /> : null}
+      <ul
+        aria-label={`${connection.name} models`}
+        className="divide-border/60 divide-y"
+      >
+        {listed.map((model) => (
+          <ModelRow
+            key={model.id}
+            model={model}
+            search={search}
+            alternate={alternates.has(model.id)}
+            disabled={disabled}
+            onInfo={() => onInfo(model)}
+          />
+        ))}
+        {models.length === 0 ? (
+          <li className="text-muted-foreground py-2 text-xs">
+            No models yet. Add one to chat with it.
+          </li>
+        ) : null}
+      </ul>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        {hiddenCount ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="-ml-2"
+            aria-expanded={showHidden}
+            onClick={() => setShowHidden((value) => !value)}
+          >
+            {showHidden
+              ? "Hide hidden models"
+              : `Show ${hiddenCount} hidden ${hiddenCount === 1 ? "model" : "models"}`}
+          </Button>
+        ) : (
+          <span />
+        )}
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          disabled={disabled}
+          aria-label={`Add model to ${connection.name}`}
+          onClick={onAddModel}
+        >
+          <Plus className="size-4" aria-hidden />
+          Add model
+        </Button>
+      </div>
+    </section>
+  );
+}
+
+/**
+ * The OpenAI key on the built-in card: the desktop vault field (the same
+ * state as App Settings → API Keys), or where self-hosted web reads it.
+ */
+function OpenAIKey({ managedKeys }: { managedKeys: boolean }) {
+  return managedKeys ? (
+    <DesktopCredentialsPanel
+      providers={["openai"]}
+      showTitle={false}
+      description="Encrypted on this computer and never shown again. Also in App Settings → API Keys."
+      className="bg-transparent p-3"
+    />
+  ) : (
+    <p className="text-muted-foreground text-xs">
+      Uses the OpenAI key configured on this server (OPENAI_API_KEY).
+    </p>
+  );
+}
+
+/** A model's name, capability chips, hidden state and Info button. */
+function ModelRow({
+  model,
+  search,
+  alternate,
+  disabled,
+  onInfo,
+}: {
+  model: PyConfiguredModel;
+  search: WebSearchCapability | null | undefined;
+  /** Another listed row on this connection has the same name. */
+  alternate: boolean;
+  disabled: boolean;
+  onInfo: () => void;
+}) {
+  const chips = modelCapabilityChips(model, search);
+  const name = modelDisplayName(model, alternate);
+  return (
+    <li className="flex flex-wrap items-center gap-x-2 gap-y-1 py-1.5">
+      <span
+        className={cn(
+          "min-w-0 flex-1 basis-40 truncate text-sm",
+          model.hidden && "text-muted-foreground",
+        )}
+      >
+        {name}
+      </span>
+      {chips.length ? (
+        <ul aria-label="Capabilities" className="flex flex-wrap gap-1">
+          {chips.map((chip) => (
+            <li key={chip.id} className={TAG_CLASS} title={chip.description}>
+              <span aria-hidden>{chip.label}</span>
+              <span className="sr-only">{chip.description}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {model.hidden ? (
+        <>
+          <span
+            className={cn(TAG_CLASS, "border-border border bg-transparent")}
+          >
+            Hidden
+          </span>
+          <ShowModelButton model={model} disabled={disabled} />
+        </>
+      ) : null}
+      <Button
+        type="button"
+        size="icon"
+        variant="ghost"
+        className="size-8 shrink-0"
+        aria-label={`Details for ${name}`}
+        onClick={onInfo}
+      >
+        <Info className="size-4" aria-hidden />
+      </Button>
+    </li>
   );
 }

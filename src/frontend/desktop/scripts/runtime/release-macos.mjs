@@ -317,7 +317,6 @@ export async function releaseMac(args = []) {
     ),
   );
   for (const pack of catalog.entries) {
-    if (pack.schema === "animama-model-pack/1") continue;
     const name = path.posix.basename(new URL(pack.url).pathname);
     const file = path.join(target.output, "feature-packs", name);
     const tag =

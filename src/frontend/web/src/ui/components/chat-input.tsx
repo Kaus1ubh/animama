@@ -75,7 +75,9 @@ import {
   Upload,
 } from "lucide-react";
 import {
+  alternateModelIds,
   modelConnectionLabel,
+  modelDisplayName,
   modelOptionDetail,
   modelOptionLabel,
   selectableChatModels,
@@ -414,6 +416,8 @@ function ChatInputModelSelector({
   const activeUnavailable =
     Boolean(activeItemId) && catalogLoaded && !activeItem;
   const modelGroups = useMemo(() => groupModelOptions(models), [models]);
+  // Rows sharing a name on one connection are told apart without naming APIs.
+  const alternateIds = useMemo(() => alternateModelIds(models), [models]);
   const selectedNativeTools = useMemo(() => {
     const supported = new Set(supportedNativeTools(activeItem, webSearch));
     const requested = Array.isArray(chatRequestOptions?.native_tools)
@@ -427,7 +431,7 @@ function ChatInputModelSelector({
     disabledProp || updateAnimaChatProfile.isPending || !anima?.chat_profile,
   );
   const tooltipLabel = activeItem
-    ? modelOptionLabel(activeItem)
+    ? modelOptionLabel(activeItem, alternateIds.has(activeItem.id))
     : activeUnavailable
       ? "Model unavailable. Select another model."
       : anima?.chat_profile
@@ -690,7 +694,7 @@ function ChatInputModelSelector({
               key={group.providerLabel}
               heading={group.providerLabel}
             >
-              {group.models.map((item) => {
+              {group.models.map((item, index) => {
                 const isActive = item.id === activeItemId;
                 const rowNativeTools = supportedNativeTools(item, webSearch);
                 const rowReasoningEfforts = supportedReasoningEfforts(item);
@@ -708,12 +712,17 @@ function ChatInputModelSelector({
                 // Owner models need a context window before they can chat.
                 const rowNeedsWindow =
                   item.source === "owner" && item.context_window_tokens == null;
-                const modelName = item.model_label || item.model;
+                const modelName = modelDisplayName(
+                  item,
+                  alternateIds.has(item.id),
+                );
                 const providerName = modelOptionDetail(item);
                 return (
                   <ModelSelectorItem
                     key={item.id}
-                    value={`${modelConnectionLabel(item)} ${providerName} ${modelName} ${item.model}`}
+                    // The index keeps values unique without making the
+                    // row's internal id searchable.
+                    value={`${providerName} ${modelName} ${item.model} ${index}`}
                     disabled={
                       updateAnimaChatProfile.isPending ||
                       rowUnsupported ||

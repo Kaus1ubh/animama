@@ -122,6 +122,61 @@ async def test_presets_use_the_composition_local_model_host(async_session, tmp_p
     assert presets["deepseek"]["suggested_credential_env"] == "DEEPSEEK_API_KEY"
 
 
+async def test_openrouter_preset_is_listed_and_accepts_its_key_name(
+    async_session, tmp_path, owner_id, set_runtime_credentials
+):
+    set_runtime_credentials(OPENROUTER_API_KEY="sk-or-secret")
+    app = _app(async_session, tmp_path, owner_id)
+    async with local_client(app) as client:
+        presets = {preset["id"]: preset for preset in (await client.get("/v1/model-connection-presets")).json()}
+        created = await client.post(
+            "/v1/model-connections",
+            json=_connection_body(
+                name="OpenRouter",
+                preset="openrouter",
+                base_url="https://openrouter.ai/api/v1",
+                credential={"mode": "env", "env": "OPENROUTER_API_KEY"},
+            ),
+        )
+
+    assert presets["openrouter"] == {
+        "id": "openrouter",
+        "label": "OpenRouter",
+        "logo_provider": "openrouter",
+        "local": False,
+        "expects_key": True,
+        "default_base_url": "https://openrouter.ai/api/v1",
+        "suggested_credential_env": "OPENROUTER_API_KEY",
+        "compatibility": {
+            "fold_developer_role": True,
+            "send_openai_extensions": False,
+            "send_stream_usage": True,
+            "strip_function_strict": False,
+            "reasoning_mode": "openai_effort",
+        },
+        "timeout_seconds": 60.0,
+    }
+    assert created.status_code == 201
+    assert created.json()["preset"] == "openrouter"
+    assert created.json()["logo_provider"] == "openrouter"
+    assert created.json()["credential_env"] == "OPENROUTER_API_KEY"
+    assert created.json()["credential_state"] == "configured"
+    assert "sk-or-secret" not in created.text
+
+
+async def test_refused_key_names_list_every_allowed_provider_name(async_session, tmp_path, owner_id):
+    app = _app(async_session, tmp_path, owner_id)
+    async with local_client(app) as client:
+        response = await client.post(
+            "/v1/model-connections",
+            json=_connection_body(credential={"mode": "env", "env": "ANIMAMA_DATABASE_URL"}),
+        )
+
+    message = response.json()["detail"]["message"]
+    for name in ("OPENAI_API_KEY", "DEEPSEEK_API_KEY", "HF_TOKEN", "OPENROUTER_API_KEY"):
+        assert name in message
+
+
 async def test_connections_record_credential_references_but_never_values(
     async_session, tmp_path, owner_id, set_runtime_credentials
 ):
@@ -484,6 +539,7 @@ def test_only_the_local_composition_mounts_model_configuration_routes(tmp_path):
     local_paths = {route.path for route in local_app.routes if isinstance(route, APIRoute)}
 
     assert "/v1/model-connections" in configuration_paths
+    assert "/v1/model-connection-presets/openrouter/models" in configuration_paths
     assert not configuration_paths & shared_paths
     assert configuration_paths <= local_paths
     assert local_app.state.model_catalog_policy.owner_models_enabled is True

@@ -81,10 +81,6 @@ async def feature_pack_removal_check(
         "pack_version": (
             runtime.animama_document_pack_version
             if pack_id == "document-processing"
-            else runtime.animama_parakeet_asset_version
-            if pack_id == "parakeet-stt"
-            else runtime.animama_parakeet_webgpu_asset_version
-            if pack_id == "parakeet-stt-webgpu"
             else sources[0].version
             if sources
             else None

@@ -29,30 +29,42 @@ as unavailable even if Chromium exposes `SpeechRecognition` or
 with a `network` error, so desktop dictation and voice mode use Parakeet only
 when its runtime capability is available.
 
-### Optional offline speech pack
+### Optional offline speech models
 
-The embedded core does not contain Parakeet weights. Setup and App Settings →
-Voice offer direct optional CPU speech and separate GPU enhancement downloads,
-with catalog sizes, cancellation and removal. Every download can be skipped;
-downloads do not change provider or voice selection. `GET /v1/runtime-capabilities` supplies
-`offline_speech_enabled` and nullable `offline_speech_asset_version`. Unknown
+The embedded core does not contain Parakeet weights. On packaged desktop and
+built self-host, setup and App Settings → Voice show one
+`OfflineSpeechDownloads` block: the CPU model (`parakeet-stt`) and its GPU
+acceleration add-on (`parakeet-stt-webgpu`), installed in place through the
+backend [model assets](../../backend/architecture/http-api.md#model-assets)
+with sizes, progress, cancel, retry and removal. The add-on is always shown;
+when it cannot be installed (CPU model missing, no WebGPU adapter, or not in
+this build) its action is disabled with the reason. Every download can be
+skipped; downloads do not change provider or voice selection. Vite
+development serves the operator's host sets and shows no downloads.
+`GET /v1/runtime-capabilities` supplies `offline_speech_enabled` and nullable
+`offline_speech_asset_version` and `offline_speech_gpu_asset_version`, derived
+from the installed sets on each request; the renderer refetches them when an
+install or removal settles. Unknown
 or disabled availability is not treated as support; dictation checks fresh
 metadata before starting and the worker loader checks it again. Saved provider
 preferences are not rewritten just because a capability request failed.
 
-Without the pack, desktop offline dictation and Voice Mode cannot start. Text
+Without the CPU model, desktop offline dictation and Voice Mode cannot start. Text
 chat, avatar animation, microphone permission, and PocketTTS are independent.
 The main chat/settings surface offers installation; companion windows direct
 the user to main-window Settings. Browser Web Speech fallback remains available
 only where the ordinary web platform supports it.
 
 Installed model requests stay on the protected local origin at
-`/onnx/models/parakeet-tdt-0.6b-v2/` with `?v=<asset-version>`. FastAPI checks
-inventory and containment, supports single byte ranges, and rejects stale
-versions. Main disposes every renderer context before removing/replacing bytes,
-which terminates existing ONNX workers. Pack transitions keep the same application
-origin but reload the app and close companion windows. Native pack installation
-and inference still require real reviewed artifacts and user verification.
+`/onnx/models/parakeet-tdt-0.6b-v2[-webgpu]/` with `?v=<manifest digest>` from
+the matching capability version. FastAPI checks inventory and containment,
+supports single byte ranges, and rejects stale versions. While a worker has a
+set loaded, the client holds a use lease (`POST /v1/model-assets/{id}:lease`,
+renewed every 10 s, released when the worker is disposed); the backend refuses
+to remove a leased set (`model_asset_in_use`) and refuses to remove the CPU
+model while GPU acceleration is installed (`model_asset_required_by`). Removing
+a set from the settings first disposes this page's idle worker. Lease failures
+are logged and never stop dictation.
 
 ### TTS provider matrix
 
@@ -119,7 +131,9 @@ starting Vite or Compose, or building the web application. It documents
 and the Linux default used by WSL. Development verifies and serves engine inputs
 at the existing same-origin URLs; built self-host and desktop outputs contain
 independent verified copies of the 21 browser assets. Parakeet remains outside
-the web build and retains its installed desktop pack lifecycle.
+the web build: development serves the host store, while packaged desktop and
+built self-host download it in the app (see
+[Optional offline speech models](#optional-offline-speech-models)).
 
 Startup and builds do not acquire models implicitly. Browsers do not receive
 upstream acquisition URLs or credentials. The existing Pocket input license
@@ -286,35 +300,17 @@ When WebGPU is selected, `loadClientParakeetWorker` probes
 
 `resolveParakeetBackend` then picks one of these backends:
 
-| Result                 | Backend                                                | Status line                    |
-| ---------------------- | ------------------------------------------------------ | ------------------------------ |
-| `available`            | `webgpu`: FP16 encoder on WebGPU, INT8 decoder on WASM | Available; Active once loaded  |
-| `unsupported`          | `wasm`                                                 | WebGPU not available           |
-| `model_missing`        | `wasm`                                                 | GPU speech model not installed |
-| `unavailable_in_build` | `wasm`                                                 | Not available in this build    |
+| Result          | Backend                                                | Status line                    |
+| --------------- | ------------------------------------------------------ | ------------------------------ |
+| `available`     | `webgpu`: FP16 encoder on WebGPU, INT8 decoder on WASM | Available; Active once loaded  |
+| `unsupported`   | `wasm`                                                 | WebGPU not available           |
+| `model_missing` | `wasm`                                                 | GPU speech model not installed |
 
-`unavailable_in_build` occurs only in a Vite stack that overrides the base
-model URL; built apps always probe. With an adapter and a `model_missing`
-result, packaged desktop shows a download control in Speech-to-Text when its
-catalog includes the `parakeet-stt-webgpu` pack. It shows the download size
-and required free space, progress, cancel, retry and removal, and asks for
-offline speech recognition first when `parakeet-stt` is not installed. Selecting
-Parakeet WebGPU without the encoder points at that control. Devices without an
-adapter are never offered the download; retained encoder files stay removable.
-These controls are independent of provider selection. The GPU action never
-chains a CPU download or changes the selected provider.
-
-Built self-host shows the same kind of control, backed by the backend's
-[model assets](../../backend/architecture/http-api.md#model-assets)
-(`useModelAssets`, `useModelAssetAction`, asset
-`parakeet-tdt-0.6b-v2-webgpu-encoder`). It shows the download size and the
-free space where the backend stores downloads, and disables the download when
-there is not enough.
-Progress polls once a second while downloading; cancel, retry and a two-step
-removal follow the API. No reload is needed: the probe refreshes when the
-asset settles, and the next dictation or Voice Mode start loads the encoder.
-The encoder's attribution is bundled and shown below the control. Vite
-development stacks show operator instructions instead.
+The GPU add-on in `OfflineSpeechDownloads` installs `parakeet-stt-webgpu`
+independently of provider selection; it never chains a CPU download or changes
+the selected provider. No reload is needed: the probe refreshes when the set
+settles, and the next dictation or Voice Mode start loads the encoder. The
+set's attribution is bundled and shown below the control.
 
 Loading behavior:
 
@@ -329,18 +325,17 @@ Loading behavior:
 - **Warm-up.** The worker warms WebGPU with one second of silence during load,
   so shader compilation does not make the first preview look over budget.
 
-The build define `__CLIENT_PARAKEET_WEBGPU_ENCODER__` sets the encoder's source
-and URL (`CLIENT_PARAKEET_WEBGPU_ENCODER`):
+The build define `__CLIENT_PARAKEET_MODELS__` (`CLIENT_PARAKEET_MODELS`) sets
+where both sets are served and whether downloads are offered:
 
-| Build                    | Source        | Encoder URL                                                        |
-| ------------------------ | ------------- | ------------------------------------------------------------------ |
-| Packaged desktop         | `pack`        | `/onnx/models/parakeet-tdt-0.6b-v2-webgpu/encoder-model.fp16.onnx` |
-| Built self-host          | `model-asset` | `/v1/model-assets/parakeet-tdt-0.6b-v2-webgpu-encoder/content`     |
-| Vite development         | `operator`    | `/__client-parakeet-webgpu-models/encoder-model.fp16.onnx`         |
+| Build                             | Source        | Base URL / GPU base URL                                                           |
+| --------------------------------- | ------------- | --------------------------------------------------------------------------------- |
+| Packaged desktop, built self-host | `asset-store` | `/onnx/models/parakeet-tdt-0.6b-v2/`, `/onnx/models/parakeet-tdt-0.6b-v2-webgpu/` |
+| Vite development                  | `operator`    | `/__client-parakeet-models/`, `/__client-parakeet-webgpu-models/`                 |
 
-A `HEAD` probe decides availability: each source answers 404 until the
-encoder is installed. The encoder URL never carries the base pack's `?v=`
-version. See
+A `HEAD` probe of `encoder-model.fp16.onnx` decides availability: each source
+answers 404 until the set is installed. The encoder carries the GPU set's own
+`?v=` version, never the base set's. See
 [model setup](../../backend/operations/model-assets.md#optional-parakeet-webgpu-encoder).
 
 The worker serializes all requests through a promise queue so load,
@@ -1063,8 +1058,8 @@ the public ORT 1.24.2 inventory does not replace those dependency versions.
   selection nor provider. Setup and App Settings do not contain a preset browser.
   App Settings → Voice → Voice Clone reuses the Anima cloning form and exposes
   the encoder download independently of TTS. Setup offers only Speech-to-Text and
-  Voice Clone downloads. Backend downloads restart after interruption; desktop
-  Parakeet packs separately support verified resume.
+  Voice Clone downloads. Parakeet set downloads resume from verified bytes
+  after interruption.
 - Anima voice catalogs are separate user/catalog inputs; their persisted URLs
   and legacy `/onnx/models/pocket-tts/animas/{animaId}_voices.bin` reference format
   are not members of the 21-file engine inventory.

@@ -26,7 +26,7 @@ Existing shared router dependencies and owner filters remain unchanged.
 | `config.py` | Immutable public origin, optional distinct desktop credentials, finite input limits. |
 | `admission.py` | Host/Origin/Fetch Metadata checks, capability and CSRF validation, HTTP receive limits, request accounting, receive-idle WebSocket cleanup. |
 | `lifecycle.py` | One completed bootstrap identity, admitted principal resolution, active-work drain without in-process resume. |
-| `assets.py` | Audited build files and a separately verified active Parakeet mount; no private catalog lookup. |
+| `assets.py` | Audited build files and Parakeet mounts resolved per request from installed model-asset sets; no private catalog lookup. |
 | `telemetry.py` | Optional fixed-destination OTLP forwarding with bounded input, output and deadlines. |
 | `protocol.py` | A narrow Uvicorn h11 hook adding the incomplete-header deadline. |
 | `composition.py` | Wiring, hidden infrastructure routes, preserved application lifespan and telemetry cleanup. |
@@ -62,9 +62,10 @@ means Vite owns frontend assets. Desktop requires both
 `ANIMAMA_DESKTOP_RENDERER_CAPABILITY` and `ANIMAMA_DESKTOP_CONTROL_TOKEN`.
 The frozen launcher also requires the web root and owned process start token,
 and checks that the public origin matches its actual loopback listener.
-The optional `ANIMAMA_PARAKEET_MODEL_MOUNT_JSON` is a supervisor-verified
-`{root,version,files}` inventory capped at 4 MiB, with strict keys and file
-records. It cannot choose a URL, executable or installation principal.
+`ANIMAMA_PARAKEET_SOURCE` selects where Parakeet sets come from: `asset-store`
+(the default) serves sets installed in the application's model-asset store,
+resolved on each request; `operator` (development Compose) serves none, because
+Vite serves the host sets.
 
 ## Request admission
 
@@ -172,12 +173,13 @@ detail and use `no-store`. Existing product errors are unchanged.
 
 ## Files and telemetry
 
-`LocalAssets` accepts one build root and an optional frozen `ModelMount` of
-`ModelFile` records. The caller must verify the build and model-pack digests
-before providing them. Requests use directory-relative, no-follow regular-file
-opens and stream the checked descriptor. Model size/link checks do not replace
-the caller's digest verification. A different build or active mount requires a
-new responder instance.
+`LocalAssets` accepts one build root and an optional `ModelMountSource` that
+resolves the current `ModelMount` of `ModelFile` records on each request; with
+`asset-store` it reads the backend's installed model-asset sets, which were
+digest-verified before activation. Requests use directory-relative, no-follow
+regular-file opens and stream the checked descriptor. Model size/link checks do
+not replace that digest verification. A different build requires a new
+responder instance; installing or removing a set does not.
 
 Missing API, script, model, private and reserved paths never become HTML. SPA
 fallback requires navigation metadata or an HTML Accept header on an eligible
@@ -187,17 +189,14 @@ receive immutable application caching. HTML uses a byte-derived ETag;
 unversioned assets require revalidation. MIME, HEAD and conditional responses
 are preserved. Ordinary static files retain the full-200 response to Range.
 
-Desktop Parakeet files are served only beneath
-`/onnx/models/parakeet-tdt-0.6b-v2/` and from the exact active inventory. An
-optional `v` parameter must occur once and match that active version. Model
+Installed Parakeet files are served only beneath
+`/onnx/models/parakeet-tdt-0.6b-v2/` and `/onnx/models/parakeet-tdt-0.6b-v2-webgpu/`,
+from the exact installed inventory. An optional `v` parameter must occur once
+and match the installed set's manifest digest. Model
 delivery preserves digest ETags, HEAD, single byte ranges, If-Range and 416;
 versioned models retain their private immutable cache policy. Authorization
 runs before any static/model conditional 304. Registered Local/Included bytes
 remain in the existing owner-protected product handlers.
-
-Ordinary Compose uses its existing read-only model mount beneath
-`/__client-parakeet-models` in the build root. These unversioned files use
-ordinary static revalidation; the desktop versioned mount contract is separate.
 
 `TelemetryForwarder` is disabled by default, and always disabled on desktop.
 The self-host settings adapter preserves the existing telemetry opt-out

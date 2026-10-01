@@ -157,11 +157,16 @@ mutations. Only a ready provider supplies `installation_principal_id` to shared
 features through `RuntimeOwnerContext`. First-run state remains local to the
 local composition.
 
-The app layout sends `/` to `/setup` until the backend's `first_run_complete` boolean is true,
-which also requires the owner's recorded 18+ confirmation. Continue requires a
-nonblank private name and the 18+ checkbox, and calls
-`POST /v1/runtime/onboarding:complete` with `adult_confirmed: true`; repeating the request after a lost
-response returns the completed context. The `/` entry route shares the owned Anima and user
+The app layout sends `/` to `/setup` until the backend's `first_run_complete`
+boolean is true, which also requires the owner's recorded 18+ confirmation.
+Setup's Welcome step requires a nonblank private name and the 18+ checkbox;
+Finish calls `POST /v1/runtime/onboarding:complete` with `adult_confirmed:
+true` and any model chosen in the AI step. `/setup` sits outside
+`SettingsProvider`, so it saves Text-to-Speech choices with
+`useMergeUserPreferences` (fresh read, merge, write). The step and nonsecret
+choices persist in a per-owner localStorage draft (`setup-draft.ts`), never
+keys. Repeating the request after a lost response returns the completed
+context. The `/` entry route shares the owned Anima and user
 settings queries, waits for both, and opens the remembered owned Anima
 (`last_active_anima_id`) or the first in stable creation order. Desktop PiP
 and quick-chat windows wait for readiness without rendering setup.

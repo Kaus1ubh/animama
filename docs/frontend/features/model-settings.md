@@ -16,68 +16,114 @@ assignments on the server.
 
 ## Connections
 
-The section opens on fixed tabs styled like the Library tabs (shared
-`underlineTabClassName` in `web/src/ui/components/tabs.tsx`): **OpenAI**,
-**Ollama**, **LM Studio**, **llama.cpp**, **vLLM** and **Custom**
-(`MODEL_SERVER_TABS` and `connectionServerTab` in
-`model-configuration-state.ts`). OpenAI holds the built-in connection. A local
-server tab holds that preset's connections; until one exists it shows the
-connect form with the server type fixed. Custom holds DeepSeek, Hugging Face
-and custom-URL connections; its **Add connection** button opens the same form
-with a choice among those three (shown directly while Custom is empty).
-Several connections on one tab are listed one after another. Each owner
-connection shows its name, address and key state with Edit and Remove; every
-connection lists its models and has a round **+** button that adds one.
+The section opens on two tabs styled like the Library tabs (shared
+`underlineTabClassName` in `web/src/ui/components/tabs.tsx`), organized by
+where models run (`MODEL_LOCATION_TABS`, `MODEL_LOCATION_PROVIDERS` and
+`connectionLocation` in `model-configuration-state.ts`):
 
-Each connection is an OpenAI-compatible server: Ollama, LM Studio, llama.cpp,
-vLLM, DeepSeek, Hugging Face or a custom URL. The preset fills the base URL,
+- **Cloud:** OpenAI (the built-in connection, tagged Recommended), DeepSeek,
+  Hugging Face, OpenRouter and Custom.
+- **Local:** Ollama, LM Studio, llama.cpp, vLLM and Custom.
+
+The built-in connection and the cloud presets are on Cloud and the local server
+presets on Local. A custom connection is on Local when its base URL points at
+this computer or a private network (loopback, `localhost`,
+`host.docker.internal`, single-label names such as `gpu-box`, `.local`, `.lan`,
+`.home.arpa`, `.internal` and Tailscale `.ts.net` names, private, link-local
+and Tailscale 100.64.0.0/10 addresses), otherwise on Cloud.
+
+Under Cloud | Local, a second row of left-aligned provider tabs
+(`ModelProviderTabsList`, shared with setup's AI step) shows one provider at a
+time, with a dot on connected providers (built-in OpenAI counts once its key
+is set). A location opens on its first connected provider, else its first
+provider (`defaultLocationProvider`). A connected provider's tab shows its
+cards; an unconnected one shows its purpose and connect form inline; Custom
+lists each custom server plus **Add a custom server**. Provider panels stay
+mounted, so a half-filled form survives tab switches. Connecting shows the
+new connection's tab (a custom server lands on the location its address
+implies) and opens **Add model**.
+A card shows the connection's name, a
+status and, for owner connections, Edit and Remove, then its models and **Add
+model**. Cloud cards show the key state (**Key set**, **Key missing**). Local
+cards list the server's models once (`available-models`, cached for 30 s) and
+show **Running at host:port** or **Not reachable**.
+
+Each connection is an OpenAI-compatible server. The preset fills the base URL,
 timeout and compatibility options (under Advanced); local presets use the host
 from `ANIMAMA_LOCAL_MODEL_HOST` (`127.0.0.1` by default, including desktop;
 `host.docker.internal` in Compose). For a new Ollama, LM Studio, llama.cpp or
 vLLM connection, **Detect** asks the backend to check the preset's default
 address (`POST /v1/model-connection-presets/{preset_id}/detect`). A running
 server fills in the base URL and reports how many models it serves; otherwise
-the form says nothing is running there. The built-in OpenAI connection uses the
-OpenAI key from API Keys or `OPENAI_API_KEY` and, on self-hosted web,
-`OPENAI_BASE_URL`. It cannot be edited or removed, but the owner can add models
-to it, for example a newer OpenAI model copied from a built-in template.
+the form says nothing is running there. The built-in OpenAI connection cannot
+be edited or removed, but the owner can add models to it, for example a newer
+OpenAI model copied from a built-in template; only the built-in connection
+offers templates.
 
 Keys depend on where the app runs:
 
-- **Desktop (embedded runtime):** a write-only key field. The connection is saved
-  first with a managed key; the key is then stored in the encrypted vault under
+- **Desktop (embedded runtime):** the OpenAI card holds the OpenAI key field,
+  `DesktopCredentialsPanel` filtered with `providers={["openai"]}`; Voice →
+  Text-to-Speech holds the ElevenLabs field the same way. Both edit the same
+  vault state as App Settings → API Keys: saved status lives in the
+  `desktopCredentials` query cache, so a save in any panel updates the others.
+  Other connections take a write-only key field. The connection is saved first
+  with a managed key; the key is then stored in the encrypted vault under
   `ANIMAMA_CONNECTION_<ID>_API_KEY` through `credentials.apply` and applies
-  immediately, without a reload; the connection list refreshes its key status.
-  Removing a connection with a saved key asks for confirmation, because the key
-  is deleted too. At most 32 connection keys can be stored.
-- **Self-hosted web (and the external development stack):** the owner names the
-  environment variable that holds the key (`OPENAI_API_KEY`, `DEEPSEEK_API_KEY`,
-  `HF_TOKEN` or `ANIMAMA_CONNECTION_<NAME>_API_KEY`); the connection shows
-  whether it is set in the backend environment. Under Compose, the
-  `ANIMAMA_CONNECTION_*` variables come from the file named by
-  `ANIMAMA_CONNECTION_KEYS_FILE`. Keys never reach the database.
+  immediately, without a reload. Removing a connection with a saved key asks
+  for confirmation, because the key is deleted too. At most 32 connection keys
+  can be stored.
+- **Self-hosted web (and the external development stack):** the OpenAI card
+  says it uses the server's `OPENAI_API_KEY` (the base URL still comes from
+  `OPENAI_BASE_URL`).
+  For other connections the owner names the environment variable that holds the
+  key (`DEEPSEEK_API_KEY`, `HF_TOKEN`, `OPENROUTER_API_KEY` or
+  `ANIMAMA_CONNECTION_<NAME>_API_KEY`); the card shows whether it is set in the
+  backend environment. Under Compose, the `ANIMAMA_CONNECTION_*` variables come
+  from the file named by `ANIMAMA_CONNECTION_KEYS_FILE`. Keys never reach the
+  database.
 
 A key that would travel over plain `http` to another computer shows a warning.
 
 ## Models
 
 The add-model dialog lists the server's models (`available-models`) or accepts a
-typed ID. For chat models the owner can copy a built-in model's capabilities, then
-**Test model** probes streaming, structured output, tool calls and tools with a
-schema, and prefills the results and any context window the server reports.
+typed ID. On an OpenRouter connection it also offers a searchable picker over
+OpenRouter's public list (`GET /v1/model-connection-presets/openrouter/models`,
+no key sent). **Tool calling only** starts on; choosing a model fills in its ID,
+name, context window, tool calling and structured output. If the list is
+unavailable, the picker says so and the owner types the ID. For chat models the
+owner can copy a built-in model's capabilities, then **Test model** probes
+streaming, structured output, tool calls and tools with a schema, and prefills
+the results and any context window the server reports, overriding a prefill.
 The context window is required: it should be the size the server loads the
-model with, not the model's maximum. Each chat model can be barred from
-writing memories. Embedding models only need their ID.
+model with, not the model's maximum. Each chat model can be barred from writing
+memories. Embedding models only need their ID.
 
-Each model row shows its name, a tag and an Info button. The tag
-(`modelApiTag`) is **Responses** for a chat model on the Responses API,
-**Completions** for any other chat model and **Embeddings** for an embedding
-model. Info opens the model's details: read-only for built-in models, and the
-editable add-model form for owner models, which adds Remove. Both offer **Show
-in model lists**, which saves at once; a hidden model stays in use wherever it
-is already chosen. Removing something in use first asks for confirmation,
-naming the Animas and roles that use it; those Animas show the model as
-unavailable until another is picked, and the roles return to their defaults.
+Each model row shows its name, capability chips (`modelCapabilityChips`) and an
+Info button. Chips are **Tools**, the context window (for example **128K**),
+web search and **Vision** for models that accept images; embedding models show
+**Embeddings**. Web search reads **Built-in search** when the model's own search
+can be requested (OpenAI Responses models), **App search** when the model calls
+tools and the installation's search service is ready, and is absent otherwise.
+Model rows and pickers never name the API: the Info panel shows **API:
+Responses** or **API: Chat Completions**. The app picks the API: chat models
+added to the built-in OpenAI connection use Responses, and every other
+connection uses Chat Completions. When two listed chat rows on one
+connection share a name (for example an unhidden built-in Chat Completions row),
+the non-Responses row reads "(alternate)" in the chat picker, Default models
+and Models rows (`alternateModelIds` in `lib/chat/model-catalog.ts`).
+The Local tab shows no model size or quantization, because the model listing
+reports only IDs.
+
+Info opens the model's details: read-only for built-in models, and the editable
+add-model form for owner models, which adds Remove. Both offer **Show in model
+lists**, which saves at once; a hidden model stays in use wherever it is
+already chosen. Hidden rows, including the built-in Chat Completions rows hidden
+by default, are listed behind **Show N hidden models** with a Hidden tag and a
+**Show** button. Removing something in use first asks for confirmation, naming
+the Animas and roles that use it; those Animas show the model as unavailable
+until another is picked, and the roles return to their defaults.
 
 ## Default models
 

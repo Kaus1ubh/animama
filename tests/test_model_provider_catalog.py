@@ -70,6 +70,7 @@ SEED_COLUMNS = (
     "connection_id",
     "source",
     "model_kind",
+    "hidden",
     "service_tiers_supported",
     "active",
     "deprecated_at",
@@ -214,6 +215,7 @@ def _render_seed_sql() -> str:
         "-- Seed the built-in model connection and its provider/model catalog rows after\n"
         "-- Alembic creates the tables. Only built-in rows are inserted, updated or retired;\n"
         "-- owner-added connections and models, and the owner's hidden flags, are never changed.\n"
+        "-- A newly inserted built-in Chat Completions chat row starts hidden.\n"
         "-- Generated from animama.app.model_catalog serializers by tests/test_model_provider_catalog.py.\n"
         + _render_upsert(
             "model_connections",
@@ -227,8 +229,9 @@ def _render_seed_sql() -> str:
             SEED_COLUMNS,
             provider_rows,
             where="source = 'builtin'",
-            # A built-in row's ownership never changes after insertion.
-            insert_only=frozenset({"connection_id", "source"}),
+            # A built-in row's ownership never changes after insertion, and its
+            # hidden flag is a fresh-install default the owner may change.
+            insert_only=frozenset({"connection_id", "source", "hidden"}),
         )
         + "\n-- Retire built-in rows that the current release no longer ships.\n"
         + "UPDATE model_providers SET\n"
@@ -396,6 +399,24 @@ def test_internal_catalog_rows_include_structured_output_transport() -> None:
         )
 
 
+EXPECTED_SEED_HIDDEN = {
+    # Built-in Chat Completions chat rows start hidden; the OpenAI connection
+    # chats through Responses by default (D10).
+    "OpenAIHTTPAgent:gpt-6-luna": True,
+    "OpenAIResponsesHTTPAgent:gpt-6-luna": False,
+    "OpenAIHTTPAgent:text-embedding-3-small": False,
+    "OpenAIHTTPAgent:text-embedding-3-large": False,
+}
+
+
+def test_built_in_chat_completions_chat_rows_start_hidden() -> None:
+    internal = {row_id: row["hidden"] for row_id, row in _rows_by_id().items()}
+    public = {str(row["id"]): row["hidden"] for row in serialize_model_catalog()}
+
+    assert internal == EXPECTED_SEED_HIDDEN
+    assert public == EXPECTED_SEED_HIDDEN
+
+
 def test_openai_native_web_search_and_apply_patch_are_responses_only() -> None:
     public_rows = {row["id"]: row for row in serialize_model_catalog()}
     provider_rows = _rows_by_id()
@@ -457,6 +478,25 @@ async def test_model_provider_catalog_sync_keeps_owner_hidden_built_ins_hidden(a
 
     assert refreshed is not None
     assert refreshed.hidden is True
+
+
+@pytest.mark.asyncio
+async def test_model_provider_catalog_sync_inserts_default_hidden_flags_and_keeps_owner_changes(async_session) -> None:
+    await _clear_model_provider_rows(async_session)
+    await _sync_registry_catalog(async_session)
+    async_session.expire_all()
+    rows = (await async_session.execute(select(ORMModelProvider))).scalars()
+    assert {row.id: row.hidden for row in rows} == EXPECTED_SEED_HIDDEN
+
+    shown = await async_session.get(ORMModelProvider, "OpenAIHTTPAgent:gpt-6-luna")
+    assert shown is not None
+    shown.hidden = False
+    await async_session.commit()
+    await _sync_registry_catalog(async_session)
+    async_session.expire_all()
+
+    refreshed = await async_session.get(ORMModelProvider, "OpenAIHTTPAgent:gpt-6-luna")
+    assert refreshed is not None and refreshed.hidden is False
 
 
 @pytest.mark.asyncio
@@ -754,6 +794,28 @@ async def test_seed_rerun_keeps_owner_rows_and_hidden_flags_and_retires_missing_
     assert retired_row is not None and retired_row.active is False and retired_row.deprecated_at is not None
     builtin_luna = await async_session.get(ORMModelProvider, "OpenAIHTTPAgent:gpt-6-luna")
     assert builtin_luna is not None and builtin_luna.active is True
+
+
+@pytest.mark.asyncio
+async def test_seed_inserts_hidden_chat_completions_rows_and_never_changes_existing_flags(async_session) -> None:
+    await _clear_model_provider_rows(async_session)
+    await _apply_seed_sql(async_session)
+    await async_session.commit()
+    async_session.expire_all()
+    rows = (await async_session.execute(select(ORMModelProvider))).scalars()
+    assert {row.id: row.hidden for row in rows} == EXPECTED_SEED_HIDDEN
+
+    # An existing installation (or an owner who showed the row) keeps its flag.
+    shown = await async_session.get(ORMModelProvider, "OpenAIHTTPAgent:gpt-6-luna")
+    assert shown is not None
+    shown.hidden = False
+    await async_session.commit()
+    await _apply_seed_sql(async_session)
+    await async_session.commit()
+    async_session.expire_all()
+
+    refreshed = await async_session.get(ORMModelProvider, "OpenAIHTTPAgent:gpt-6-luna")
+    assert refreshed is not None and refreshed.hidden is False
 
 
 @pytest.mark.asyncio

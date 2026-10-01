@@ -33,7 +33,6 @@ backend log before deciding on a repair.
 | `migration_failed`, `migration_recovery_required`, `migration_journal_invalid`                      | Preserve the current database and snapshot. Retry the same intended version only after resolving the cause; do not reset, auto-restore or downgrade.                          |
 | `backend_start_failed`, `backend_readiness_mismatch`, `runtime_command_failed`                      | Inspect recent child logs; check for a complete matching app and adequate disk space. Escalate repeated errors rather than deleting state.                                    |
 | `pack_in_use`, `pack_cleanup_pending`, `pack_download_failed`                                       | Follow [Feature packs](feature-packs.md#remove-safely). Do not erase directories or change download hashes.                                                                   |
-| `pack_dependent_installed`, `pack_dependency_missing`                                               | Remove the GPU speech encoder before offline speech; install offline speech first.                                                                                            |
 | `pack_signature_invalid`, `pack_file_invalid`, `pack_catalog_incompatible`                          | Stop using those pack files. Use only the app's compatible install/repair controls; if blocked, preserve evidence and contact support. Never run an unsigned document worker. |
 
 ## Application listener and renderer access
@@ -70,12 +69,21 @@ An automation launch or generated-audio test does not verify physical microphone
 permission or capture. If there is no prompt or entry, record the app build,
 launch method and displayed state; do not reset the privacy database blindly.
 
-Offline dictation requires the Parakeet pack; PocketTTS and microphone permission
-do not. Check pack status, selected input/output devices and mute/volume settings.
-Remote TTS also requires its configured provider and connectivity, and chat a
-reachable model connection. PiP
-is visual-only; the main renderer owns audio. See [Keyboard shortcuts](keyboard-shortcuts.md)
-for native hook permissions and [Feature packs](feature-packs.md) for installation.
+Offline dictation and Voice Mode require the offline speech CPU model; PocketTTS
+and microphone permission do not. Check App Settings → Voice → Speech-to-Text,
+selected input/output devices and mute/volume settings. Remote TTS also requires
+its configured provider and connectivity, and chat a reachable model connection.
+PiP is visual-only; the main renderer owns audio. See [Keyboard shortcuts](keyboard-shortcuts.md)
+for native hook permissions.
+
+Offline speech installs in place from Voice settings; see
+[Speech model downloads](feature-packs.md#speech-model-downloads). An
+interrupted download resumes with **Retry download**. To reinstall, remove GPU
+acceleration first, then the CPU model, and download again. "Speech recognition
+is in use" means another window still has the model loaded for dictation or
+Voice Mode: stop it or close that window and retry. Directories left by the
+retired `parakeet-stt*` speech packs are deleted automatically at startup; do
+not move model files into `packs/` or the data directory by hand.
 
 ## Model connections and chat errors
 

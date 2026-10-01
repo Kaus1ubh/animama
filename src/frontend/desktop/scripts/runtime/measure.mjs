@@ -17,7 +17,6 @@ import {
   sourceRoot,
 } from "./common.mjs";
 import { packSizeReport, saveSizeReport } from "./size.mjs";
-import { auditOptionalInputs } from "./optional-inputs.mjs";
 
 /** Measure a real compressed payload; never substitute a stale wrapper app. */
 async function archive(target, name, sources) {
@@ -79,29 +78,13 @@ export async function measure(target, manifest) {
   const expanded = expandedDeferred
     ? null
     : await archive(target, "expanded-input-feasibility", [expandedPath]);
-  // Raw model downloads equal their verified complete payload, including notices.
-  // Producer-only review notes are not model objects or installed files.
-  const modelInputs = auditOptionalInputs(target);
-  const modelPacks = {};
-  for (const id of ["parakeet-stt", "parakeet-stt-webgpu"]) {
-    const inventory = modelInputs[id];
-    const bytes =
-      !deferred(id) && inventory.length
-        ? inventory.reduce((sum, file) => sum + file.size_bytes, 0)
-        : null;
-    modelPacks[id] = {
-      installed_bytes: bytes,
-      download_bytes: bytes,
-      ...(deferred(id) ? { state: "deferred" } : {}),
-    };
-  }
   const documentDeferred = deferred("document-processing");
   const report = {
     schema: "animama-size-report/1",
     target: target.target,
     app_version: manifest.app_version,
     measurement:
-      "staged-core-and-excluded-payload-zstd; raw-model-inventories; signed installer overhead requires separate binary release measurements",
+      "staged-core-and-excluded-payload-zstd; signed installer overhead requires separate binary release measurements",
     installed_bytes: Object.values(payload.sizes).reduce((a, b) => a + b, 0),
     download_bytes: payload.download_bytes,
     archive_sha256: payload.sha256,
@@ -114,7 +97,6 @@ export async function measure(target, manifest) {
         download_bytes: expanded?.download_bytes ?? null,
         ...(expandedDeferred ? { state: "deferred" } : {}),
       },
-      ...modelPacks,
       "document-processing": {
         installed_bytes: null,
         download_bytes: null,

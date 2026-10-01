@@ -66,8 +66,10 @@ class LocalInstallationBootstrapService:
         owner_service_factory: OwnerServiceFactory,
         reconcile_content: ContentReconciler,
         policy: OwnerBootstrapPolicy = LOCAL_OWNER_BOOTSTRAP_POLICY,
+        starter_model_provider_id: str | None = None,
     ) -> None:
         self._session_factory = session_factory
+        self._starter_model_provider_id = starter_model_provider_id
         self._owner_service_factory = owner_service_factory
         self._reconcile_content = reconcile_content
         self._policy = policy
@@ -77,6 +79,15 @@ class LocalInstallationBootstrapService:
     @property
     def state(self) -> LocalBootstrapState | None:
         return self._state
+
+    @property
+    def starter_model_provider_id(self) -> str | None:
+        """The model new starter Animas are pinned to (the operator's Chat default).
+
+        Onboarding moves starters still on this model to the one chosen in setup.
+        """
+
+        return self._starter_model_provider_id
 
     async def require_principal(self) -> str:
         async with self._session_factory() as session:
@@ -154,6 +165,7 @@ def create_local_installation_bootstrap_service(
         session_factory=session_factory,
         owner_service_factory=owner_service,
         reconcile_content=reconcile,
+        starter_model_provider_id=settings.anima_default_model_provider_id,
     )
 
 

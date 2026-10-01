@@ -46,7 +46,10 @@ const temporary = () => {
   return root;
 };
 
-/** A fixture manifest, a verified model store holding it, and a catalog pinning its encoder. */
+/**
+ * A fixture manifest, a verified model store holding it, and a backend asset
+ * catalog whose set entry pins the complete inventory, as the Parakeet sets do.
+ */
 function fixtureSet(id = modelId, bytes = payload) {
   const sources = Object.fromEntries(
     JSON.parse(
@@ -74,17 +77,19 @@ function fixtureSet(id = modelId, bytes = payload) {
   mkdirSync(setDirectory, { recursive: true });
   for (const [name, content] of Object.entries(bytes))
     writeFileSync(path.join(setDirectory, name), content);
-  const encoder = payload["encoder-model.fp16.onnx"];
   const catalog = {
     schema: "animama-asset-catalog/1",
     assets: [
       {
-        id: "parakeet-tdt-0.6b-v2-webgpu-encoder",
-        url: `${origin}/models/${modelId}/${sha(encoder)}/encoder-model.fp16.onnx`,
-        size: Buffer.byteLength(encoder),
-        sha256: sha(encoder),
-        media_type: "application/octet-stream",
+        id: "fixture-set",
+        manifest_sha256: sha256File(manifestFile),
         license_ref: "CC-BY-4.0",
+        files: Object.entries(bytes).map(([name, content]) => ({
+          path: name,
+          url: `${origin}/models/${id}/${sha(content)}/${name}`,
+          size: Buffer.byteLength(content),
+          sha256: sha(content),
+        })),
       },
     ],
   };
@@ -304,7 +309,7 @@ describe("model publication", () => {
     );
   });
 
-  it("publishes base Parakeet for setup without a synthetic backend asset", () => {
+  it("publishes base Parakeet as the backend asset set pins it", () => {
     const baseId = "parakeet-tdt-0.6b-v2";
     const manifest = JSON.parse(
       readFileSync(path.join(repo, "models", baseId, "manifest.json")),
@@ -320,13 +325,14 @@ describe("model publication", () => {
       manifestFile: candidate.manifestFile,
       modelRoot: candidate.modelRoot,
     });
-    const planned = planModelPublication({
+    const options = {
       modelId: baseId,
       directory,
       manifestFile: candidate.manifestFile,
       origin,
-      catalog: { assets: [] },
-    });
+      catalog: candidate.catalog,
+    };
+    const planned = planModelPublication(options);
     expect(planned).toHaveLength(8);
     expect(
       planned.find((file) => file.name === "encoder-model.int8.onnx").url,
@@ -336,54 +342,28 @@ describe("model publication", () => {
     expect(planned.map((file) => file.name)).toEqual(
       expect.arrayContaining(["ATTRIBUTION.md", "README.md"]),
     );
+    // Without a backend consumer, nothing justifies publishing the set.
+    expect(() =>
+      planModelPublication({ ...options, catalog: { assets: [] } }),
+    ).toThrow("catalog does not match");
   });
 
-  it("accepts a desktop model inventory without backend asset entries", () => {
-    const candidate = staged();
-    const files = Object.entries(payload).map(([name, content]) => ({
-      path: name,
-      size_bytes: Buffer.byteLength(content),
-      sha256: sha(content),
-      url: `${origin}/models/${modelId}/${sha(content)}/${name}`,
-    }));
-    const planned = planModelPublication({
-      modelId,
-      directory: candidate.directory,
-      manifestFile: candidate.manifestFile,
-      origin,
-      catalog: { assets: [] },
-      packCatalog: {
-        entries: [{ schema: "animama-model-pack/1", model_id: modelId, files }],
-      },
-    });
-    expect(planned).toHaveLength(4);
-  });
-
-  it.each(["url", "size_bytes", "sha256", "missing notice", "duplicate"])(
-    "rejects desktop inventory drift: %s",
+  it.each(["url", "size", "sha256", "missing notice", "duplicate"])(
+    "rejects backend set inventory drift: %s",
     (field) => {
       const candidate = staged();
-      const files = Object.entries(payload).map(([name, content]) => ({
-        path: name,
-        size_bytes: Buffer.byteLength(content),
-        sha256: sha(content),
-        url: `${origin}/models/${modelId}/${sha(content)}/${name}`,
-      }));
+      const catalog = structuredClone(candidate.catalog);
+      const files = catalog.assets[0].files;
       if (field === "missing notice") files.shift();
       else if (field === "duplicate") files[0] = { ...files[1] };
-      else files[0][field] = field === "size_bytes" ? 99 : "invalid";
+      else files[0][field] = field === "size" ? 99 : "invalid";
       expect(() =>
         planModelPublication({
           modelId,
           directory: candidate.directory,
           manifestFile: candidate.manifestFile,
           origin,
-          catalog: candidate.catalog,
-          packCatalog: {
-            entries: [
-              { schema: "animama-model-pack/1", model_id: modelId, files },
-            ],
-          },
+          catalog,
         }),
       ).toThrow("catalog does not match");
     },
@@ -539,10 +519,14 @@ describe("model publication", () => {
   it("refuses a catalog that pins an object this publication does not create", () => {
     const candidate = staged();
     const catalog = structuredClone(candidate.catalog);
-    catalog.assets[0].url = catalog.assets[0].url.replace(
-      /\/[a-f0-9]{64}\//u,
-      `/${"0".repeat(64)}/`,
-    );
+    catalog.assets.push({
+      id: "fixture-encoder",
+      url: `${origin}/models/${modelId}/${"0".repeat(64)}/encoder-model.fp16.onnx`,
+      size: Buffer.byteLength(payload["encoder-model.fp16.onnx"]),
+      sha256: "0".repeat(64),
+      media_type: "application/octet-stream",
+      license_ref: "CC-BY-4.0",
+    });
     expect(() =>
       planModelPublication({
         modelId,

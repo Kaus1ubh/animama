@@ -42,7 +42,7 @@ function temporary() {
 }
 const fixture = () => createReleaseModelsFixture(temporary());
 
-it("seals only model metadata from the actual frozen backend and pack catalogs", () => {
+it("seals only model metadata from the actual frozen backend catalog", () => {
   const f = fixture();
   rmSync(path.join(f.runtime, "model-manifests"), { recursive: true });
   rmSync(f.modelRoot, { recursive: true });
@@ -120,7 +120,7 @@ it.each(["missing", "extra"])("rejects %s staged model sets", (change) => {
   ).toThrow(/membership|binding/u);
 });
 
-it("rejects an extra sealed manifest not referenced by either catalog", () => {
+it("rejects an extra sealed manifest not referenced by the backend catalog", () => {
   const f = fixture();
   copyFileSync(
     path.join(f.runtime, "model-manifests", `${f.modelIds[0]}.json`),
@@ -157,37 +157,40 @@ it("validates every model inventory and scan before yielding a publication plan"
   ).toThrow(/candidate|inventory/u);
 });
 
-it("derives all four current published model sets without acquiring their bytes", () => {
+function currentRuntime(editCatalog = (catalog) => catalog) {
   const runtime = path.join(temporary(), "runtime");
   writeJson(
     path.join(runtime, frozenAssetCatalog),
-    readJson(
-      path.join(repoRoot, "src/backend/animama/resources/model-assets.v1.json"),
+    editCatalog(
+      readJson(
+        path.join(
+          repoRoot,
+          "src/backend/animama/resources/model-assets.v1.json",
+        ),
+      ),
     ),
   );
-  const modelId = "parakeet-tdt-0.6b-v2";
-  const manifest = readJson(
-    path.join(repoRoot, "models", modelId, "manifest.json"),
-  );
-  writeJson(path.join(runtime, "pack-catalog.json"), {
-    schema: "animama-pack-catalog/1",
-    entries: [
-      {
-        schema: "animama-model-pack/1",
-        model_id: modelId,
-        files: manifest.files.map((file) => ({
-          path: file.path,
-          size_bytes: file.size,
-          sha256: file.sha256,
-          url: `${origin}/models/${modelId}/${file.sha256}/${file.path}`,
-        })),
-      },
-    ],
-  });
-  expect(sealReleaseModelManifests({ runtime })).toEqual([
+  return runtime;
+}
+
+it("derives all four current published model sets from the backend catalog alone", () => {
+  expect(sealReleaseModelManifests({ runtime: currentRuntime() })).toEqual([
     "parakeet-tdt-0.6b-v2",
     "parakeet-tdt-0.6b-v2-webgpu",
     "pocket-tts-voice-cloning",
     "pocket-tts-voices",
   ]);
+});
+
+it("refuses a backend asset set that is not its complete tracked manifest", () => {
+  const runtime = currentRuntime((catalog) => {
+    const gpu = catalog.assets.find(
+      (asset) => asset.id === "parakeet-stt-webgpu",
+    );
+    gpu.files = gpu.files.filter((file) => file.path !== "README.md");
+    return catalog;
+  });
+  expect(() => sealReleaseModelManifests({ runtime })).toThrow(
+    /catalog does not match/u,
+  );
 });

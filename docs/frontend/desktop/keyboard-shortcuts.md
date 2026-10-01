@@ -312,10 +312,10 @@ isolated-data requirements in [Releases](releases.md). Do not reset privacy gran
 or use an existing personal profile to create a clean test state.
 
 Record the source revision, application/addon hashes, signing status, OS build,
-hardware, keyboard layout, optional speech-pack version, initial Input Monitoring
+hardware, keyboard layout, offline speech model version, initial Input Monitoring
 grant and test-account isolation. Launch the `.app` normally through Finder or
 LaunchServices so permission belongs to that application. Voice Mode requires the
-approved Parakeet pack and microphone permission; if unavailable, record the
+installed offline speech CPU model and microphone permission; if unavailable, record the
 affected steps as blocked instead of substituting mocked voice state.
 
 1. Begin in a separate test account without Input Monitoring permission for this

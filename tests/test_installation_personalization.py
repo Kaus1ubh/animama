@@ -2,26 +2,38 @@ from __future__ import annotations
 
 import asyncio
 from datetime import UTC, datetime
+from typing import Any
 from uuid import uuid4
 
 import pytest
 from sqlalchemy import delete, func, select
 
+from animama.adapters.repositories.sqlalchemy.anima_chat_profile_repo import SQLAlchemyAnimaChatProfileRepository
+from animama.adapters.repositories.sqlalchemy.anima_creation_repo import SQLAlchemyAnimaCreationRepository
 from animama.adapters.repositories.sqlalchemy.companion_safety_repo import SQLAlchemyCompanionSafetyRepository
 from animama.adapters.repositories.sqlalchemy.memory_entry_repo import SQLAlchemyMemoryEntryRepository
+from animama.adapters.repositories.sqlalchemy.model_provider_repo import SQLAlchemyModelProviderRepository
+from animama.adapters.repositories.sqlalchemy.settings_repo import SQLAlchemyUserSettingsRepository
 from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
 from animama.adapters.repositories.sqlalchemy.user_profile_repo import SQLAlchemyUserProfileRepository
+from animama.app.ports.anima_creation_port import StarterReceipt
+from animama.app.services.anima_starter_service import STARTER_ANIMA_SPECS
 from animama.app.services.memory_entry_service import MemoryEntryService
 from animama.app.services.owner_bootstrap_service import PROFILE_MEMORY_KIND, PROFILE_MEMORY_PATH, PROFILE_TEMPLATE_V2
+from animama.domain.anima_chat_profile import AnimaChatProfile
 from animama.domain.memory_entry import MEMORY_ENTRY_TYPE_FILE
+from animama.domain.model_provider import ModelProvider, ModelProviderCapabilities
+from animama.domain.settings import UserSettings
 from animama.domain.user_profile import UserProfile, UserProfileInvalidError
 from animama.local.installation_model import ORMInstallationSettings
+from animama.orm import ORMAnima
 from animama.orm.companion_safety import ORMCompanionSafetyState
 from animama.orm.memory_entry import ORMMemoryEntry, ORMMemoryEntryVersion
 from animama.server.installation_personalization import (
     AdultConfirmationRequiredError,
     InstallationBootstrapIncompleteError,
     InstallationPersonalizationService,
+    OnboardingChatModelUnavailableError,
     with_preferred_name,
 )
 
@@ -297,3 +309,173 @@ async def test_first_run_requires_and_records_the_adult_confirmation(async_sessi
     assert row.age_status == "adult"
     assert row.age_status_source == "self_attestation"
     assert row.age_status_recorded_at is not None
+
+
+# --- Setup model choice (chat_model_provider_id) ---------------------------------
+
+
+def _chat_row(suffix: str, **overrides: Any) -> ModelProvider:
+    values: dict[str, Any] = {
+        "id": f"OpenAIResponsesHTTPAgent:setup-{suffix}",
+        "model": f"setup-{suffix}",
+        "provider_type": "OpenAIResponsesHTTPAgent",
+        "model_label": f"Setup {suffix}",
+        "provider_label": "OpenAI",
+        "capabilities": ModelProviderCapabilities(supports_streaming=True, supports_tools=True),
+    }
+    values.update(overrides)
+    return ModelProvider(**values)
+
+
+async def _seed_setup_models(session, owner_id: str):  # noqa: ANN001
+    """Creation, chosen and unrelated models; both starters plus a non-starter Anima."""
+
+    suffix = uuid4().hex[:10]
+    creation, chosen, other = (
+        _chat_row(f"{suffix}-creation"),
+        _chat_row(f"{suffix}-chosen", provider_type="OpenAIHTTPAgent", id=f"OpenAIHTTPAgent:setup-{suffix}"),
+        _chat_row(f"{suffix}-other"),
+    )
+    await SQLAlchemyModelProviderRepository(session).upsert_many([creation, chosen, other])
+    annie, caitlyn, custom = (f"anima-{name}-{suffix}" for name in ("annie", "caitlyn", "custom"))
+    for anima_id in (annie, caitlyn, custom):
+        session.add(ORMAnima(id=anima_id, user_id=owner_id, metadata_={}))
+    await session.flush()
+    profiles = SQLAlchemyAnimaChatProfileRepository(session)
+    # Caitlyn was moved to another model; the custom Anima is not a starter.
+    for anima_id, model_id in ((annie, creation.id), (caitlyn, other.id), (custom, creation.id)):
+        await profiles.upsert(
+            AnimaChatProfile(anima_id=anima_id, default_model_provider_id=model_id, metadata={"source": "anima_create"})
+        )
+    receipts = SQLAlchemyAnimaCreationRepository(session)
+    for spec, anima_id in zip(STARTER_ANIMA_SPECS, (annie, caitlyn), strict=True):
+        await receipts.save_starter(
+            user_id=owner_id, receipt=StarterReceipt(spec.id, spec.version, "ready", anima_id, [])
+        )
+    await SQLAlchemyUserSettingsRepository(session).upsert(
+        UserSettings(
+            user_id=owner_id,
+            preferences={"speech": {"tts_enabled": True}, "chat": {"markdown_enabled": False}},
+        )
+    )
+    await session.commit()
+    return {
+        "creation": creation,
+        "chosen": chosen,
+        "other": other,
+        "annie": annie,
+        "caitlyn": caitlyn,
+        "custom": custom,
+    }
+
+
+async def _pinned(session, anima_id: str) -> str:  # noqa: ANN001
+    profile = await SQLAlchemyAnimaChatProfileRepository(session).get(anima_id)
+    assert profile is not None
+    return profile.default_model_provider_id
+
+
+async def _preferences(session, owner_id: str) -> dict[str, Any]:  # noqa: ANN001
+    session.expire_all()
+    settings = await SQLAlchemyUserSettingsRepository(session).get(owner_id)
+    assert settings is not None
+    return settings.preferences
+
+
+async def test_setup_model_becomes_the_chat_default_and_unchanged_starters_follow(async_session) -> None:
+    owner_id = str(uuid4())
+    await _seed_personalization(async_session, owner_id)
+    seeded = await _seed_setup_models(async_session, owner_id)
+
+    await InstallationPersonalizationService(async_session).complete_onboarding(
+        principal_id=owner_id,
+        display_name="Ada",
+        adult_confirmed=True,
+        chat_model_provider_id=f"  {seeded['chosen'].id} ",
+        starter_model_provider_id=seeded["creation"].id,
+    )
+
+    assert await _preferences(async_session, owner_id) == {
+        "speech": {"tts_enabled": True},
+        "chat": {"markdown_enabled": False, "default_model_provider_id": seeded["chosen"].id},
+    }
+    assert await _pinned(async_session, seeded["annie"]) == seeded["chosen"].id
+    # A starter already on another model, and a non-starter, keep their models.
+    assert await _pinned(async_session, seeded["caitlyn"]) == seeded["other"].id
+    assert await _pinned(async_session, seeded["custom"]) == seeded["creation"].id
+    profile = await SQLAlchemyAnimaChatProfileRepository(async_session).get(seeded["annie"])
+    assert profile is not None and profile.metadata["source"] == "onboarding_chat_model"
+
+
+async def test_onboarding_without_a_setup_model_keeps_defaults_and_starters(async_session) -> None:
+    owner_id = str(uuid4())
+    await _seed_personalization(async_session, owner_id)
+    seeded = await _seed_setup_models(async_session, owner_id)
+
+    await InstallationPersonalizationService(async_session).complete_onboarding(
+        principal_id=owner_id,
+        display_name="Ada",
+        adult_confirmed=True,
+        starter_model_provider_id=seeded["creation"].id,
+    )
+
+    assert await _preferences(async_session, owner_id) == {
+        "speech": {"tts_enabled": True},
+        "chat": {"markdown_enabled": False},
+    }
+    assert await _pinned(async_session, seeded["annie"]) == seeded["creation"].id
+
+
+@pytest.mark.parametrize("kind", ["missing", "inactive", "embedding", "no_streaming", "unsupported_api"])
+async def test_unusable_setup_model_is_refused_and_nothing_is_applied(async_session, kind) -> None:
+    owner_id = str(uuid4())
+    await _seed_personalization(async_session, owner_id)
+    seeded = await _seed_setup_models(async_session, owner_id)
+    suffix = uuid4().hex[:10]
+    rows = {
+        "inactive": _chat_row(f"{suffix}-inactive", active=False),
+        "embedding": _chat_row(f"{suffix}-embedding", model_kind="embedding"),
+        "no_streaming": _chat_row(f"{suffix}-batch", capabilities=ModelProviderCapabilities(supports_streaming=False)),
+        "unsupported_api": _chat_row(f"{suffix}-fake", provider_type="FakeAgent", id=f"FakeAgent:setup-{suffix}"),
+    }
+    row = rows.get(kind)
+    if row is not None:
+        await SQLAlchemyModelProviderRepository(async_session).upsert_many([row])
+        await async_session.commit()
+    chosen = row.id if row is not None else "OpenAIResponsesHTTPAgent:does-not-exist"
+
+    with pytest.raises(OnboardingChatModelUnavailableError):
+        await InstallationPersonalizationService(async_session).complete_onboarding(
+            principal_id=owner_id,
+            display_name="Ada",
+            adult_confirmed=True,
+            chat_model_provider_id=chosen,
+            starter_model_provider_id=seeded["creation"].id,
+        )
+
+    installation = await async_session.get(ORMInstallationSettings, 1, populate_existing=True)
+    profile = await SQLAlchemyUserProfileRepository(async_session).get_profile(owner_id)
+    assert installation is not None and installation.first_run_completed_at is None
+    assert profile is not None and profile.display_name is None
+    assert await SQLAlchemyCompanionSafetyRepository(async_session).get_age_status(owner_id) != "adult"
+    assert "default_model_provider_id" not in (await _preferences(async_session, owner_id))["chat"]
+    assert await _pinned(async_session, seeded["annie"]) == seeded["creation"].id
+
+
+async def test_completed_onboarding_replay_ignores_a_setup_model(async_session) -> None:
+    owner_id = str(uuid4())
+    await _seed_personalization(async_session, owner_id)
+    seeded = await _seed_setup_models(async_session, owner_id)
+    service = InstallationPersonalizationService(async_session)
+    await service.complete_onboarding(principal_id=owner_id, display_name="Ada", adult_confirmed=True)
+
+    await service.complete_onboarding(
+        principal_id=owner_id,
+        display_name="Ada",
+        adult_confirmed=True,
+        chat_model_provider_id=seeded["chosen"].id,
+        starter_model_provider_id=seeded["creation"].id,
+    )
+
+    assert "default_model_provider_id" not in (await _preferences(async_session, owner_id))["chat"]
+    assert await _pinned(async_session, seeded["annie"]) == seeded["creation"].id

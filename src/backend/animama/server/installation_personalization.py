@@ -9,19 +9,29 @@ from datetime import UTC, datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from animama.adapters.repositories.sqlalchemy.anima_chat_profile_repo import SQLAlchemyAnimaChatProfileRepository
+from animama.adapters.repositories.sqlalchemy.anima_creation_repo import SQLAlchemyAnimaCreationRepository
 from animama.adapters.repositories.sqlalchemy.companion_safety_repo import SQLAlchemyCompanionSafetyRepository
 from animama.adapters.repositories.sqlalchemy.memory_entry_repo import SQLAlchemyMemoryEntryRepository
+from animama.adapters.repositories.sqlalchemy.model_provider_repo import SQLAlchemyModelProviderRepository
+from animama.adapters.repositories.sqlalchemy.settings_repo import SQLAlchemyUserSettingsRepository
 from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
 from animama.adapters.repositories.sqlalchemy.user_profile_repo import SQLAlchemyUserProfileRepository
+from animama.app.chat.api_standard import chat_api_standard_for_provider
+from animama.app.services.anima_starter_service import STARTER_ANIMA_SPECS
 from animama.app.services.memory_entry_service import MemoryEntryConflictError, MemoryEntryService
+from animama.app.services.model_role_resolver import ROLE_CHAT, ROLE_PREFERENCE_PATHS, usable_for_role
 from animama.app.services.owner_bootstrap_service import (
     PROFILE_MEMORY_KIND,
     PROFILE_MEMORY_PATH,
 )
 from animama.app.services.user_profile_service import normalize_display_name
+from animama.domain.anima_chat_profile import AnimaChatProfile
 from animama.domain.memory_entry import MEMORY_ENTRY_TYPE_FILE, MemoryEntry
+from animama.domain.settings import UserSettings
 from animama.domain.user_profile import UserProfileNotFoundError
 from animama.local.installation_repository import SQLAlchemyInstallationSettingsRepository
+from animama.orm.settings import ORMUserSettings
 
 _PREFERRED_NAME_PREFIX = "Preferred name:"
 _HEADING_RE = re.compile(r"^#{1,6}\s")
@@ -47,6 +57,10 @@ class AdultConfirmationRequiredError(InstallationPersonalizationError):
 
 class InstallationBootstrapIncompleteError(InstallationPersonalizationError):
     """Required local bootstrap state is missing during first-run completion."""
+
+
+class OnboardingChatModelUnavailableError(InstallationPersonalizationError):
+    """The model chosen in setup is missing, inactive or cannot be the Chat default."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -76,13 +90,30 @@ class InstallationPersonalizationService:
         principal_id: str,
         display_name: str | None,
         adult_confirmed: bool,
+        chat_model_provider_id: str | None = None,
+        starter_model_provider_id: str | None = None,
     ) -> InstallationPersonalizationResult:
-        """Complete first run; records the owner's 18+ self-attestation in the same transaction."""
+        """Complete first run; records the owner's 18+ self-attestation in the same transaction.
+
+        ``chat_model_provider_id`` is the model chosen in setup. It must be a
+        usable Chat model; it becomes ``preferences.chat.default_model_provider_id``
+        and starter Animas still pinned to ``starter_model_provider_id`` (the
+        model local bootstrap created them with) move to it. Animas on any
+        other model are left alone. A replay of completed onboarding applies
+        nothing.
+        """
 
         if not adult_confirmed:
             raise AdultConfirmationRequiredError("first run requires confirming the owner is 18 or older")
         normalized = normalize_display_name(display_name)
-        return await self._write(principal_id=principal_id, display_name=normalized, complete_first_run=True)
+        chat_model = chat_model_provider_id.strip() if chat_model_provider_id else None
+        return await self._write(
+            principal_id=principal_id,
+            display_name=normalized,
+            complete_first_run=True,
+            chat_model_provider_id=chat_model or None,
+            starter_model_provider_id=starter_model_provider_id,
+        )
 
     async def update_display_name(
         self,
@@ -99,6 +130,8 @@ class InstallationPersonalizationService:
         principal_id: str,
         display_name: str,
         complete_first_run: bool,
+        chat_model_provider_id: str | None = None,
+        starter_model_provider_id: str | None = None,
     ) -> InstallationPersonalizationResult:
         for attempt in range(_MAX_CONFLICT_RETRIES):
             try:
@@ -121,6 +154,9 @@ class InstallationPersonalizationService:
                     return InstallationPersonalizationResult(profile.display_name, completed_at)
                 if not complete_first_run and completed_at is None:
                     raise FirstRunIncompleteError("first run is not complete")
+                if chat_model_provider_id is not None:
+                    # Validate before any write; a refusal applies nothing.
+                    await self._require_chat_model(chat_model_provider_id)
 
                 entry = await self._memory_entries.get_entry_by_path_for_update(
                     user_id=principal_id,
@@ -148,6 +184,12 @@ class InstallationPersonalizationService:
                     completed_at = datetime.now(UTC)
                     await self._installations.complete_first_run(completed_at=completed_at)
                 assert completed_at is not None
+                if chat_model_provider_id is not None:
+                    await self._apply_chat_model(
+                        principal_id=principal_id,
+                        model_provider_id=chat_model_provider_id,
+                        starter_model_provider_id=starter_model_provider_id,
+                    )
 
                 if self._before_commit is not None:
                     await self._before_commit()
@@ -161,6 +203,58 @@ class InstallationPersonalizationService:
                 await self._uow.rollback()
                 raise
         raise AssertionError("unreachable personalization retry state")
+
+    async def _require_chat_model(self, model_provider_id: str) -> None:
+        """Accept only a row the Chat default and new Animas can use, as App Settings does."""
+
+        row = await SQLAlchemyModelProviderRepository(self._session).get(model_provider_id)
+        if row is None or chat_api_standard_for_provider(row) is None or not usable_for_role(ROLE_CHAT, row):
+            raise OnboardingChatModelUnavailableError("the chosen chat model cannot be used")
+
+    async def _apply_chat_model(
+        self,
+        *,
+        principal_id: str,
+        model_provider_id: str,
+        starter_model_provider_id: str | None,
+    ) -> None:
+        """Store the Chat default (merged into preferences) and repin unchanged starters."""
+
+        # Lock the row so a concurrent onboarding merge waits for this one; the
+        # repository then reads the locked row. Ordinary settings saves do not
+        # lock, so setup writes its own preferences before completing onboarding.
+        await self._session.get(ORMUserSettings, principal_id, with_for_update=True, populate_existing=True)
+        settings_repo = SQLAlchemyUserSettingsRepository(self._session)
+        settings = await settings_repo.get(principal_id) or UserSettings(user_id=principal_id)
+        section, key = ROLE_PREFERENCE_PATHS[ROLE_CHAT]
+        preferences = dict(settings.preferences or {})
+        current = preferences.get(section)
+        preferences[section] = {**(current if isinstance(current, dict) else {}), key: model_provider_id}
+        settings.preferences = preferences
+        await settings_repo.upsert(settings)
+
+        if starter_model_provider_id is None or starter_model_provider_id == model_provider_id:
+            return
+        receipts = SQLAlchemyAnimaCreationRepository(self._session)
+        profiles = SQLAlchemyAnimaChatProfileRepository(self._session)
+        for spec in STARTER_ANIMA_SPECS:
+            receipt = await receipts.starter(user_id=principal_id, starter_id=spec.id)
+            if receipt is None or receipt.state != "ready" or receipt.anima_id is None:
+                continue
+            profile = await profiles.get(receipt.anima_id)
+            # Only a starter still on its creation model follows the setup
+            # choice; any other model was chosen deliberately and is kept.
+            if profile is None or profile.default_model_provider_id != starter_model_provider_id:
+                continue
+            await profiles.upsert(
+                AnimaChatProfile(
+                    anima_id=profile.anima_id,
+                    default_model_provider_id=model_provider_id,
+                    metadata={**(profile.metadata or {}), "source": "onboarding_chat_model"},
+                    created_at=profile.created_at,
+                    updated_at=profile.updated_at,
+                )
+            )
 
     async def _update_managed_memory(
         self,
@@ -236,5 +330,6 @@ __all__ = [
     "InstallationPersonalizationResult",
     "InstallationPersonalizationService",
     "InstallationPrincipalMismatchError",
+    "OnboardingChatModelUnavailableError",
     "with_preferred_name",
 ]

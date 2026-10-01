@@ -622,18 +622,26 @@ def test_explicit_purge_leaves_retired_observability_volumes_untouched(tmp_path:
     assert removals == [["volume", "rm", "animama-retired-obs_postgres-data", "animama-retired-obs_pgadmin-data"]]
 
 
+def test_development_mounts_the_verified_parakeet_set_read_only_without_host_creation() -> None:
+    web = _rendered_compose(development=True)["services"]["web"]
+    mount = next(volume for volume in web["volumes"] if volume["target"] == "/app/parakeet-tdt-0.6b-v2")
+    assert mount["source"] == "/verified-test-models/parakeet/version"
+    assert mount["type"] == "bind"
+    assert mount["read_only"] is True
+    assert mount["bind"].get("create_host_path", False) is False
+
+
 @pytest.mark.parametrize("development", [False, True])
-def test_models_use_the_same_verified_read_only_bind_without_host_creation(development: bool) -> None:
-    services = _rendered_compose(development=development)["services"]
-    targets = {"animama-server": "/opt/animama/web/__client-parakeet-models"}
-    if development:
-        targets["web"] = "/app/parakeet-tdt-0.6b-v2"
-    for service, target in targets.items():
-        mount = next(volume for volume in services[service]["volumes"] if volume["target"] == target)
-        assert mount["source"] == "/verified-test-models/parakeet/version"
-        assert mount["type"] == "bind"
-        assert mount["read_only"] is True
-        assert mount["bind"].get("create_host_path", False) is False
+def test_the_backend_never_mounts_parakeet_sets(development: bool) -> None:
+    server = _rendered_compose(development=development)["services"]["animama-server"]
+    assert not any("parakeet" in volume["target"] for volume in server["volumes"])
+
+
+@pytest.mark.parametrize(("development", "source"), [(False, "asset-store"), (True, "operator")])
+def test_built_self_host_serves_parakeet_from_the_asset_store(development: bool, source: str) -> None:
+    # Built installs download sets in the app; development keeps the operator mount in Vite.
+    server = _rendered_compose(development=development)["services"]["animama-server"]
+    assert server["environment"]["ANIMAMA_PARAKEET_SOURCE"] == source
 
 
 @pytest.mark.parametrize("model_root", ["/default-model-store", "/shared/model store"])
@@ -641,7 +649,7 @@ def test_reset_records_verified_version_and_ignores_stale_derived_path(tmp_path:
     variables = {"ANIMAMA_PARAKEET_MODEL_DIR": "/stale/version"}
     if model_root != "/default-model-store":
         variables["ANIMAMA_MODEL_ROOT"] = model_root
-    result, _, workspace = _run_reset(tmp_path, [], variables)
+    result, _, workspace = _run_reset(tmp_path, [], variables, build_mode="development")
     assert result.returncode == 0, result.stderr
     record = workspace / ".animama-stack.env"
     resolved = subprocess.run(
@@ -665,8 +673,10 @@ def test_reset_reads_model_root_from_dotenv_selector(tmp_path: Path) -> None:
     assert "export ANIMAMA_MODEL_ROOT=/dotenv-model-store" in (workspace / ".animama-stack.env").read_text()
 
 
-def test_missing_parakeet_models_start_without_dictation(tmp_path: Path) -> None:
-    result, commands, workspace = _run_reset(tmp_path, [], {"ANIMAMA_TEST_MODEL_MISSING": "1"})
+def test_missing_parakeet_models_start_development_without_dictation(tmp_path: Path) -> None:
+    result, commands, workspace = _run_reset(
+        tmp_path, [], {"ANIMAMA_TEST_MODEL_MISSING": "1"}, build_mode="development"
+    )
     assert result.returncode == 0, result.stderr
     assert "parakeet.py acquire" in result.stderr
     started = [command for command in commands if "up" in command["args"]]
@@ -677,8 +687,25 @@ def test_missing_parakeet_models_start_without_dictation(tmp_path: Path) -> None
     assert "export ANIMAMA_BROWSER_MODEL_DIR=/default-model-store/browser-speech/verified-version" in record
 
 
+@pytest.mark.parametrize("variable", ["ANIMAMA_TEST_MODEL_MISSING", "ANIMAMA_TEST_MODEL_CORRUPT"])
+def test_built_reset_never_resolves_host_parakeet_sets(tmp_path: Path, variable: str) -> None:
+    # Built installs download and verify Parakeet sets in the app; a missing or
+    # broken host set neither stops the reset nor disables dictation.
+    result, commands, workspace = _run_reset(tmp_path, [], {variable: "1"}, build_mode="production")
+    assert result.returncode == 0, result.stderr
+    assert "parakeet" not in result.stderr.lower()
+    started = [command for command in commands if "up" in command["args"]]
+    assert started
+    assert all(command["parakeet_stt_enabled"] is None for command in started)
+    record = (workspace / ".animama-stack.env").read_text()
+    assert "export ANIMAMA_PARAKEET_MODEL_DIR=''" in record
+    assert "export ANIMAMA_PARAKEET_WEBGPU_MODEL_DIR=''" in record
+
+
 def test_missing_browser_models_start_without_browser_speech(tmp_path: Path) -> None:
-    result, commands, workspace = _run_reset(tmp_path, [], {"ANIMAMA_TEST_BROWSER_MODEL_MISSING": "1"})
+    result, commands, workspace = _run_reset(
+        tmp_path, [], {"ANIMAMA_TEST_BROWSER_MODEL_MISSING": "1"}, build_mode="development"
+    )
     assert result.returncode == 0, result.stderr
     assert "browser_speech.py acquire" in result.stderr
     assert all(command["parakeet_stt_enabled"] is None for command in commands)
@@ -694,7 +721,7 @@ def test_missing_browser_models_start_without_browser_speech(tmp_path: Path) -> 
 def test_unverifiable_models_prevent_all_reset_mutations_even_with_purge(
     tmp_path: Path, variable: str, script: str
 ) -> None:
-    result, commands, workspace = _run_reset(tmp_path, ["--purge"], {variable: "1"})
+    result, commands, workspace = _run_reset(tmp_path, ["--purge"], {variable: "1"}, build_mode="development")
     assert result.returncode != 0
     assert f"{script} verify" in result.stderr
     assert all("config" in command["args"] for command in commands)
@@ -741,11 +768,10 @@ def test_old_stack_record_can_render_management_without_browser_cache() -> None:
     assert mount["bind"].get("create_host_path", False) is False
 
 
-def test_built_self_host_downloads_the_webgpu_encoder_instead_of_mounting_it() -> None:
+def test_built_self_host_downloads_parakeet_sets_into_its_data_root() -> None:
     server = _rendered_compose(())["services"]["animama-server"]
-    # Built self-host installs the encoder in the app into its data root; only
-    # development stacks mount an operator-provided set.
-    assert not any("parakeet-webgpu" in v["target"] for v in server["volumes"])
+    # Built self-host installs both sets in the app into its data root; only
+    # development stacks mount operator-provided sets.
     data = next(v for v in server["volumes"] if v["target"] == "/var/lib/animama/data")
     assert data.get("read_only", False) is False
     assert not (REPO_ROOT / "models/parakeet-tdt-0.6b-v2-webgpu/encoder-model.fp16.onnx").exists()

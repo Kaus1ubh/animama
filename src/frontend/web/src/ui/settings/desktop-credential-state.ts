@@ -45,8 +45,8 @@ export function credentialChangesFromDrafts(
 
 /**
  * Saved keys apply to the running backend, so refresh the queries that report
- * key-dependent state: model availability and connection key status. Nothing
- * else caches provider key status.
+ * key-dependent state: model availability, connection key status and the
+ * vault's saved status shown by every key panel.
  */
 export async function refreshCredentialDependents(
   queryClient: QueryClient,
@@ -59,6 +59,9 @@ export async function refreshCredentialDependents(
     }),
     queryClient.invalidateQueries({
       queryKey: queryKeys.modelConfiguration.all(owner),
+    }),
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.desktopCredentials.statuses(owner),
     }),
   ]);
 }
@@ -96,4 +99,45 @@ export async function applyCredentialChanges(
       statuses,
     });
   return statuses;
+}
+
+/**
+ * Save a batch from any key panel and publish main's reported status to the
+ * shared cache, so every panel (API Keys and the feature-local fields) shows
+ * the result. Resolves `ok` when every change landed; otherwise with the
+ * targets that did not change (empty when main could not say).
+ */
+export async function saveCredentialChanges(
+  queryClient: QueryClient,
+  ownerId: string | null | undefined,
+  bridge: CredentialsBridge,
+  changes: readonly CredentialChange[],
+): Promise<{ ok: true } | { ok: false; failed: string[] }> {
+  const key = queryKeys.desktopCredentials.statuses(ownerId ?? "__anon__");
+  const publish = (statuses: CredentialStatus[]) =>
+    queryClient.setQueryData<CredentialStatus[]>(key, statuses);
+  // Main clears retained failures for the batch; mirror that immediately.
+  const changing = new Set(changes.map(credentialTarget));
+  publish(
+    (queryClient.getQueryData<CredentialStatus[]>(key) ?? []).map((entry) => {
+      if (!changing.has(credentialTarget(entry))) return entry;
+      const status = { ...entry, restartRequired: false };
+      delete status.error;
+      return status;
+    }),
+  );
+  try {
+    publish(await applyCredentialChanges(bridge, changes));
+    await refreshCredentialDependents(queryClient, ownerId);
+    return { ok: true };
+  } catch (error) {
+    const failed = (error as { failed?: string[] }).failed ?? [];
+    const reported = (error as { statuses?: CredentialStatus[] }).statuses;
+    try {
+      publish(reported ?? (await bridge.list()));
+    } catch {
+      // Keep the previous statuses; the caller explains the failure.
+    }
+    return { ok: false, failed };
+  }
 }

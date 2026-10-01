@@ -12,7 +12,7 @@ import pytest
 from fastapi import Depends, FastAPI, File, Request, UploadFile
 
 from animama.domain.request_principal import RequestPrincipal
-from animama.local.http.assets import PARAKEET_MOUNT, LocalAssets, ModelFile, ModelMount
+from animama.local.http.assets import PARAKEET_MOUNT, LocalAssets, ModelFile, ModelMount, StaticModelMounts
 from animama.local.http.composition import install_local_http
 from animama.local.http.config import CAPABILITY_COOKIE, DesktopAccess, LocalHTTPConfig
 from animama.local.http.telemetry import TelemetryConfig, TelemetryForwarder
@@ -234,10 +234,8 @@ async def test_asset_conditionals_and_disabled_telemetry_still_require_admission
     model_bytes = b"verified-model-bytes"
     (model / "model.onnx").write_bytes(model_bytes)
     digest = hashlib.sha256(model_bytes).hexdigest()
-    assets = LocalAssets(
-        web,
-        ModelMount(model, "1.0.0", (ModelFile("model.onnx", len(model_bytes), digest, "application/octet-stream"),)),
-    )
+    mount = ModelMount(model, "1.0.0", (ModelFile("model.onnx", len(model_bytes), digest, "application/octet-stream"),))
+    assets = LocalAssets(web, mount_source=StaticModelMounts({PARAKEET_MOUNT: mount}))
     telemetry = TelemetryForwarder(TelemetryConfig())
     lifecycle = install_local_http(app, LocalHTTPConfig(ORIGIN, desktop=DESKTOP), assets=assets, telemetry=telemetry)
     lifecycle.mark_ready("installation-owner")

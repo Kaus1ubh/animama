@@ -1,6 +1,7 @@
 # Shared speech model setup
 
-Development, Compose self-hosting and desktop pack production use the exact
+Development, the in-app `parakeet-stt` model asset set and model publication
+use the exact
 Parakeet INT8 inputs recorded in
 [`models/parakeet-tdt-0.6b-v2/manifest.json`](../../../models/parakeet-tdt-0.6b-v2/manifest.json).
 The five upstream files are pinned to full Hugging Face commits, sizes and
@@ -70,7 +71,7 @@ Import verifies every payload against the same manifest. Keep the old copy until
 the new store verifies and its consumers have been switched. This operation does
 not remove old files, rewrite Git history or prune old LFS objects. The retained
 source notices remain under `models/parakeet-tdt-0.6b-v2/`; their bytes are included
-in the assembled model set and desktop pack.
+in the assembled model set.
 
 ## Persistent self-hosting and named stacks
 
@@ -79,7 +80,6 @@ provisioned `/var/lib/animama/models`, then run:
 
 ```bash
 export ANIMAMA_MODEL_ROOT=/var/lib/animama/models
-python3 scripts/models/parakeet.py acquire
 python3 scripts/models/browser_speech.py acquire
 ANIMAMA_WEB_BUILD_MODE=production ./reset.sh --name home --base-port 8200
 source .animama-stack.env
@@ -87,7 +87,9 @@ docker compose -p "$COMPOSE_PROJECT_NAME" restart animama-server
 ```
 
 Acquisition is the networked setup step. The subsequent verification, startup and
-restart reuse local bytes offline. Docker images/dependencies must also already
+restart reuse local bytes offline. Built self-host does not use host Parakeet
+sets; install offline speech in the app (see
+[Downloaded model assets](#downloaded-model-assets)). Docker images/dependencies must also already
 be available for a fully offline rebuild; model reuse alone does not cache those.
 Container replacement preserves the external model directory and database volume.
 
@@ -95,8 +97,9 @@ Container replacement preserves the external model directory and database volume
 `ANIMAMA_MODEL_ROOT` plus the derived `ANIMAMA_PARAKEET_MODEL_DIR` and
 `ANIMAMA_BROWSER_MODEL_DIR` into the stack record. Every set is optional. An
 unacquired set is recorded as empty and warns: Compose then mounts its checked-in
-notices directory, missing Parakeet sets `ANIMAMA_PARAKEET_STT_ENABLED=false` so
-dictation reports offline speech as not installed, and a missing browser speech
+notices directory, a missing Parakeet set in development sets
+`ANIMAMA_PARAKEET_STT_ENABLED=false` so dictation reports offline speech as not
+installed, and a missing browser speech
 set builds/serves only the pinned package files, leaving Pocket TTS and Smart Turn
 unavailable. A present set that fails verification stops the reset before any
 mutation. Source the record before project-scoped Compose commands. For a direct
@@ -109,16 +112,17 @@ docker compose -f docker-compose.yml config --quiet
 docker compose -f docker-compose.yml -f docker-compose.development.yml config --quiet
 ```
 
-Both modes use read-only bind mounts that refuse to create a missing host path.
-Development Vite and built FastAPI preserve `/__client-parakeet-models` and local
-inference; the browser never downloads from Hugging Face. Keep the application
+Development uses read-only bind mounts that refuse to create a missing host
+path, and Vite serves Parakeet at `/__client-parakeet-models`. Built mode does
+not resolve or mount the host Parakeet set: the app downloads both sets through
+the backend model-asset service. The browser never downloads from Hugging Face. Keep the application
 loopback/private-service boundaries unchanged. Acquiring bytes does not repair
 unrelated missing starter animation assets.
 
 Direct host Vite resolves the same store offline at startup. Production frontend builds verify and copy the browser speech assets into `dist`;
-Parakeet remains a separate runtime/pack input. Unit checks that do not build or
-start an application need no model acquisition. Desktop pack production verifies the set separately; installed desktop
-uses its existing app-owned pack downloader and does not depend on this cache.
+Parakeet is not a build input. Unit checks that do not build or start an
+application need no model acquisition. Packaged desktop and built self-host
+download Parakeet in the app and do not depend on this cache.
 See [desktop runtime staging](../../frontend/desktop/runtime-staging.md).
 
 ## Recovery and deliberate cleanup
@@ -140,22 +144,31 @@ Installed desktop packs remain separately owned under Application Support.
 
 ## Downloaded model assets
 
-The backend's shared downloader installs individual pinned files on demand
-through [`/v1/model-assets`](../architecture/http-api.md#model-assets). It is
-the same FastAPI code on desktop and self-host, and it needs no restart.
+The backend's shared downloader installs pinned files and multi-file sets on
+demand through [`/v1/model-assets`](../architecture/http-api.md#model-assets).
+It is the same FastAPI code on desktop and self-host, and it needs no restart.
 
 - Only files in the release's packaged catalog
   (`src/backend/animama/resources/model-assets.v1.json`) are fetched, over
   HTTPS from `downloads.animama.ai` on the default port, without following
   redirects or accepting compressed transfer encodings.
-- Each file is streamed to `<data_root>/staging/model-assets/`, checked for its
-  exact size and SHA-256, then renamed into
-  `<data_root>/internal/model-assets/<asset_id>/<sha256>`. A failed or
-  cancelled download leaves nothing installed; staging is cleared at startup.
+- Each file is streamed to
+  `<data_root>/staging/model-assets/<asset_id>/<version>/` and checked for its
+  exact size and SHA-256. A single file is then renamed into
+  `<data_root>/internal/model-assets/<asset_id>/<sha256>`; a set's complete
+  staging directory is renamed into
+  `<data_root>/internal/model-assets/<asset_id>/<manifest_sha256>/` in one step,
+  replacing any previous version. A failed or cancelled download leaves nothing
+  installed, and a partial set is never served.
+- Staged bytes survive failures and restarts. A retry rehashes them and
+  requests only the remainder with an HTTP range (a `200` reply restarts that
+  file). A file failing its size or digest is discarded and downloaded again;
+  Remove/cancel discards all staged bytes. Startup deletes staging that cannot
+  resume and stored assets whose IDs left the catalog.
 - `<data_root>` is `ANIMAMA_DATA_ROOT`: `<userData>/data` on desktop and
   `/var/lib/animama/data` in Compose (the `ANIMAMA_DATA_HOST_PATH` bind
   mount), so installs persist with that data. There is no quota; an install
-  starts only with its size plus 64 MiB free on that filesystem.
+  starts only with its remaining bytes plus 64 MiB free on that filesystem.
 - `scripts/backup-local.sh` and restore rollbacks omit installed and staged
   model assets. After a restore they report not installed; download them again
   in the app.
@@ -163,15 +176,21 @@ the same FastAPI code on desktop and self-host, and it needs no restart.
 Each catalog URL names an object published once under
 `https://downloads.animama.ai/models/<model-id>/<file-sha256>/<file-name>`,
 with the entry's `size` and `sha256` copied from the model's tracked manifest.
+A set entry lists every manifest file (`files`) and the digest of the
+manifest's bytes (`manifest_sha256`), and may name `requires`.
 Tests bind the entry to that manifest, and the
 [model publish command](../../frontend/desktop/releases.md#model-objects)
 refuses to publish a set whose objects do not match the catalog. Publish the
 object before a release ships its catalog entry; until then an install fails
 as `asset_download_failed`.
 
-Current catalog entries are the experimental Parakeet WebGPU encoder, offered in
-built self-host settings, the 36 downloadable Pocket TTS voices
-(`pocket-voice-<id>`, set `models/pocket-tts-voices`). The voices install on
+Current catalog entries are the Parakeet sets `parakeet-stt` (base, seven
+files) and `parakeet-stt-webgpu` (three files; requires `parakeet-stt`, which
+cannot be removed while it is installed), and the 36 downloadable Pocket TTS
+voices (`pocket-voice-<id>`, set `models/pocket-tts-voices`). FastAPI serves
+installed Parakeet sets and reports them in runtime capabilities under the
+default `ANIMAMA_PARAKEET_SOURCE=asset-store`; development Compose sets
+`operator`, where Vite serves the host sets instead. The voices install on
 desktop and self-host when a user picks one, explicitly downloads it, or a saved
 voice is first needed. The separate `pocket-tts-voice-cloning-encoder` asset is
 downloaded on an explicit cloning/download action. Ordinary playback and saved
@@ -179,12 +198,12 @@ clones do not need that encoder. Setup and Voice settings also expose download,
 cancel, retry and removal without changing the selected provider or voice.
 
 Use the downloader for restart-free data files the running app can pick up,
-such as optional voices. Large bundles that need a service switch, such as the
-desktop Parakeet feature packs, stay in Electron's pack manager.
+such as optional voices and the Parakeet sets. Bundles that need a service
+switch, such as the document-processing pack, stay in Electron's pack manager.
 
-Use the app's Remove action before reinstalling. Backend downloads restart from
-the beginning after cancellation or service interruption; they do not share the
-desktop pack manager's byte-range resume. Never edit an installed file in place.
+Use the app's Remove action before reinstalling. Never edit an installed file in
+place. A renderer using an installed Parakeet set holds a short use lease, and removal
+is refused while it is live.
 
 ## Optional Parakeet WebGPU encoder
 
@@ -195,8 +214,8 @@ stored under
 
 - It pairs with the base Parakeet decoder, preprocessor and vocabulary, which
   are still required.
-- Desktop delivers it as the separate `parakeet-stt-webgpu` pack, not in the
-  `parakeet-stt` pack inventory, so release staging needs this set too.
+- Packaged desktop and built self-host install it as the `parakeet-stt-webgpu`
+  model asset set, which requires the installed `parakeet-stt` set.
 
 Acquire it only when you want to test WebGPU speech:
 
@@ -225,18 +244,18 @@ Where each build gets it:
 - **Vite development stacks** (including `desktop:dev`) serve this
   operator-provided set at `/__client-parakeet-webgpu-models/`. Acquire it on
   the host and rerun `reset.sh` for a running stack.
-- **Built self-host** downloads it in the app (App Settings → Voice →
-  Speech-to-Text) as the model asset
-  `parakeet-tdt-0.6b-v2-webgpu-encoder`, from its published object under `models/` on `downloads.animama.ai`, into the
-  data root (see [Downloaded model assets](#downloaded-model-assets)). The
-  host model store is not used, and a host that cannot reach
-  `downloads.animama.ai` cannot enable WebGPU.
-- **Packaged desktop** serves it only from the active `parakeet-stt-webgpu`
-  pack at `/onnx/models/parakeet-tdt-0.6b-v2-webgpu/`, and only beside an
-  active `parakeet-stt` pack.
+- **Built self-host** downloads it in the app as the `parakeet-stt-webgpu`
+  model asset set, from its published objects under `models/` on
+  `downloads.animama.ai`, into the data root (see
+  [Downloaded model assets](#downloaded-model-assets)). The former single-file
+  `parakeet-tdt-0.6b-v2-webgpu-encoder` asset is removed at startup and must be
+  downloaded again. The host model store is not used, and a host that cannot
+  reach `downloads.animama.ai` cannot enable WebGPU.
+- **Packaged desktop** downloads it the same way as built self-host, and
+  FastAPI serves it at `/onnx/models/parakeet-tdt-0.6b-v2-webgpu/`.
 
-Controls appear independently of the selected provider when a WebGPU adapter is
-available; desktop also requires an approved catalog entry and CPU speech first.
+The GPU add-on is always shown beneath the CPU model; its action is disabled,
+with a stated reason, until CPU speech is installed and a WebGPU adapter exists.
 Retained files remain removable on unsupported devices. Downloading never selects
 a provider or automatically downloads CPU speech. The browser probes the encoder
 with `HEAD`; a 404 means not installed.

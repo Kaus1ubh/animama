@@ -162,7 +162,7 @@ function DesktopQuickChatRoute() {
           onDictationStart={() => sendCommand({ type: "start-dictation" })}
           onIncompatibleModelSelect={() => {
             toast.error(
-              "Open the main chat to start a new chat with that model.",
+              "That model keeps conversations differently. Open the main chat to continue in a new chat.",
             );
           }}
           onInputChange={handleInputChange}

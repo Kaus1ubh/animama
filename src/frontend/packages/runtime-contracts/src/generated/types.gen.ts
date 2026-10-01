@@ -5971,6 +5971,40 @@ export type PyMemoryPatchPreview = {
 };
 
 /**
+ * PyModelAssetLease
+ *
+ * A live use lease; renew it before ``expires_at`` while the asset is loaded.
+ */
+export type PyModelAssetLease = {
+    /**
+     * Asset Id
+     */
+    asset_id: string;
+    /**
+     * Expires At
+     */
+    expires_at: string;
+    /**
+     * Lease Id
+     */
+    lease_id: string;
+    /**
+     * Ttl Seconds
+     */
+    ttl_seconds: number;
+};
+
+/**
+ * PyModelAssetLeaseRequest
+ */
+export type PyModelAssetLeaseRequest = {
+    /**
+     * Lease Id
+     */
+    lease_id: string;
+};
+
+/**
  * PyModelAssetList
  */
 export type PyModelAssetList = {
@@ -5997,6 +6031,14 @@ export type PyModelAssetState = {
      */
     content_url?: string | null;
     /**
+     * Files Total
+     */
+    files_total: number;
+    /**
+     * Files Verified
+     */
+    files_verified: number;
+    /**
      * Id
      */
     id: string;
@@ -6007,7 +6049,7 @@ export type PyModelAssetState = {
     /**
      * Media Type
      */
-    media_type: string;
+    media_type: string | null;
     /**
      * Reason
      */
@@ -6016,6 +6058,10 @@ export type PyModelAssetState = {
      * Required Free Bytes
      */
     required_free_bytes: number;
+    /**
+     * Requires
+     */
+    requires?: Array<string>;
     /**
      * Size Bytes
      */
@@ -6028,6 +6074,10 @@ export type PyModelAssetState = {
      * Total Bytes
      */
     total_bytes?: number | null;
+    /**
+     * Version
+     */
+    version?: string | null;
 };
 
 /**
@@ -6563,9 +6613,56 @@ export type PyOnboardingCompleteRequest = {
      */
     adult_confirmed: boolean;
     /**
+     * Chat Model Provider Id
+     *
+     * Optional catalog row chosen in setup. It becomes the default Chat model, and starter Animas still on the model they were created with move to it. Omit to keep the system default.
+     */
+    chat_model_provider_id?: string | null;
+    /**
      * Display Name
      */
     display_name: string;
+};
+
+/**
+ * PyOpenRouterModel
+ *
+ * One model from OpenRouter's public list.
+ *
+ * ``supports_tools`` and ``supports_structured_outputs`` come from the
+ * model's advertised parameters; the capability probe can override them.
+ */
+export type PyOpenRouterModel = {
+    /**
+     * Context Length
+     */
+    context_length?: number | null;
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Supports Structured Outputs
+     */
+    supports_structured_outputs: boolean;
+    /**
+     * Supports Tools
+     */
+    supports_tools: boolean;
+};
+
+/**
+ * PyOpenRouterModels
+ */
+export type PyOpenRouterModels = {
+    /**
+     * Models
+     */
+    models: Array<PyOpenRouterModel>;
 };
 
 /**
@@ -8931,6 +9028,10 @@ export type RuntimeCapabilities = {
      * Offline Speech Enabled
      */
     offline_speech_enabled: boolean;
+    /**
+     * Offline Speech Gpu Asset Version
+     */
+    offline_speech_gpu_asset_version?: string | null;
     /**
      * Runtime Kind
      */
@@ -12982,7 +13083,7 @@ export type RemoveModelAssetV1ModelAssetsAssetIdDeleteData = {
 
 export type RemoveModelAssetV1ModelAssetsAssetIdDeleteErrors = {
     /**
-     * A consumer refused removal (code and details) or the asset is busy.
+     * Removal was refused (code and details: model_asset_in_use, model_asset_required_by or a consumer's code) or the asset is busy.
      */
     409: unknown;
     /**
@@ -13066,6 +13167,40 @@ export type GetModelAssetContentV1ModelAssetsAssetIdContentGetResponses = {
 
 export type GetModelAssetContentV1ModelAssetsAssetIdContentGetResponse = GetModelAssetContentV1ModelAssetsAssetIdContentGetResponses[keyof GetModelAssetContentV1ModelAssetsAssetIdContentGetResponses];
 
+export type ReleaseModelAssetLeaseV1ModelAssetsAssetIdLeasesLeaseIdDeleteData = {
+    body?: never;
+    path: {
+        /**
+         * Asset Id
+         */
+        asset_id: string;
+        /**
+         * Lease Id
+         */
+        lease_id: string;
+    };
+    query?: never;
+    url: '/v1/model-assets/{asset_id}/leases/{lease_id}';
+};
+
+export type ReleaseModelAssetLeaseV1ModelAssetsAssetIdLeasesLeaseIdDeleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ReleaseModelAssetLeaseV1ModelAssetsAssetIdLeasesLeaseIdDeleteError = ReleaseModelAssetLeaseV1ModelAssetsAssetIdLeasesLeaseIdDeleteErrors[keyof ReleaseModelAssetLeaseV1ModelAssetsAssetIdLeasesLeaseIdDeleteErrors];
+
+export type ReleaseModelAssetLeaseV1ModelAssetsAssetIdLeasesLeaseIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type ReleaseModelAssetLeaseV1ModelAssetsAssetIdLeasesLeaseIdDeleteResponse = ReleaseModelAssetLeaseV1ModelAssetsAssetIdLeasesLeaseIdDeleteResponses[keyof ReleaseModelAssetLeaseV1ModelAssetsAssetIdLeasesLeaseIdDeleteResponses];
+
 export type InstallModelAssetV1ModelAssetsAssetIdInstallPostData = {
     body?: never;
     path: {
@@ -13080,7 +13215,7 @@ export type InstallModelAssetV1ModelAssetsAssetIdInstallPostData = {
 
 export type InstallModelAssetV1ModelAssetsAssetIdInstallPostErrors = {
     /**
-     * The asset is being removed; detail code model_asset_busy.
+     * The asset is being removed (model_asset_busy), or a required asset is not installed (model_asset_requires, details.requires).
      */
     409: unknown;
     /**
@@ -13100,6 +13235,40 @@ export type InstallModelAssetV1ModelAssetsAssetIdInstallPostResponses = {
 
 export type InstallModelAssetV1ModelAssetsAssetIdInstallPostResponse = InstallModelAssetV1ModelAssetsAssetIdInstallPostResponses[keyof InstallModelAssetV1ModelAssetsAssetIdInstallPostResponses];
 
+export type LeaseModelAssetV1ModelAssetsAssetIdLeasePostData = {
+    body: PyModelAssetLeaseRequest;
+    path: {
+        /**
+         * Asset Id
+         */
+        asset_id: string;
+    };
+    query?: never;
+    url: '/v1/model-assets/{asset_id}:lease';
+};
+
+export type LeaseModelAssetV1ModelAssetsAssetIdLeasePostErrors = {
+    /**
+     * The asset is not installed (model_asset_not_installed), is being removed (model_asset_busy) or holds too many leases (model_asset_lease_limit).
+     */
+    409: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LeaseModelAssetV1ModelAssetsAssetIdLeasePostError = LeaseModelAssetV1ModelAssetsAssetIdLeasePostErrors[keyof LeaseModelAssetV1ModelAssetsAssetIdLeasePostErrors];
+
+export type LeaseModelAssetV1ModelAssetsAssetIdLeasePostResponses = {
+    /**
+     * Successful Response
+     */
+    200: PyModelAssetLease;
+};
+
+export type LeaseModelAssetV1ModelAssetsAssetIdLeasePostResponse = LeaseModelAssetV1ModelAssetsAssetIdLeasePostResponses[keyof LeaseModelAssetV1ModelAssetsAssetIdLeasePostResponses];
+
 export type ListModelConnectionPresetsV1ModelConnectionPresetsGetData = {
     body?: never;
     path?: never;
@@ -13117,6 +13286,22 @@ export type ListModelConnectionPresetsV1ModelConnectionPresetsGetResponses = {
 };
 
 export type ListModelConnectionPresetsV1ModelConnectionPresetsGetResponse = ListModelConnectionPresetsV1ModelConnectionPresetsGetResponses[keyof ListModelConnectionPresetsV1ModelConnectionPresetsGetResponses];
+
+export type ListOpenrouterModelsV1ModelConnectionPresetsOpenrouterModelsGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/v1/model-connection-presets/openrouter/models';
+};
+
+export type ListOpenrouterModelsV1ModelConnectionPresetsOpenrouterModelsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: PyOpenRouterModels;
+};
+
+export type ListOpenrouterModelsV1ModelConnectionPresetsOpenrouterModelsGetResponse = ListOpenrouterModelsV1ModelConnectionPresetsOpenrouterModelsGetResponses[keyof ListOpenrouterModelsV1ModelConnectionPresetsOpenrouterModelsGetResponses];
 
 export type DetectModelConnectionPresetV1ModelConnectionPresetsPresetIdDetectPostData = {
     body?: never;

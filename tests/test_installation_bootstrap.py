@@ -240,3 +240,35 @@ async def test_runtime_context_requires_the_adult_confirmation(async_session_fac
 
     async with local_client(app) as client:
         assert (await client.get("/v1/runtime-context")).json()["first_run_complete"] is False
+
+
+async def test_onboarding_api_refuses_an_unusable_setup_model_with_a_stable_code(async_session_factory) -> None:
+    principal_id = str(uuid4())
+    app = await _runtime_app(async_session_factory, principal_id)
+    async with local_client(app) as client:
+        response = await client.post(
+            "/v1/runtime/onboarding:complete",
+            json={
+                "display_name": "Ada",
+                "adult_confirmed": True,
+                "chat_model_provider_id": "OpenAIResponsesHTTPAgent:not-in-the-catalog",
+            },
+        )
+        assert response.status_code == 422
+        assert response.json()["detail"] == {"code": "chat_model_unavailable"}
+        context = (await client.get("/v1/runtime-context")).json()
+        assert context["first_run_complete"] is False
+        assert context["display_name"] is None
+
+
+@pytest.mark.parametrize("model_id", ["", "   ", "\t"])
+async def test_onboarding_api_rejects_a_blank_setup_model(async_session_factory, model_id) -> None:
+    principal_id = str(uuid4())
+    app = await _runtime_app(async_session_factory, principal_id)
+    async with local_client(app) as client:
+        response = await client.post(
+            "/v1/runtime/onboarding:complete",
+            json={"display_name": "Ada", "adult_confirmed": True, "chat_model_provider_id": model_id},
+        )
+        assert response.status_code == 422
+        assert (await client.get("/v1/runtime-context")).json()["first_run_complete"] is False

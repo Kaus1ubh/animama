@@ -84,7 +84,7 @@ class OpenAIChatCompletionsModelClient:
         )
         self._client = client
         # Key-free SDK clients per connection; each request adds its key to a view.
-        self._clients_by_connection: dict[tuple[str, str, float | None], AsyncOpenAI] = {}
+        self._clients_by_connection: dict[tuple[str, str, str, float | None], AsyncOpenAI] = {}
         self._timeout = timeout
         self._close_client = (client is None) if close_client is None else close_client
 
@@ -293,7 +293,9 @@ class OpenAIChatCompletionsModelClient:
                 return with_options(base_url=base_url, timeout=connection_timeout(timeout))
             return self._client
 
-        cache_key = (connection.id, base_url, timeout)
+        # The preset decides fixed request headers (OpenRouter attribution), so
+        # a connection whose preset changes gets a fresh client.
+        cache_key = (connection.id, connection.preset, base_url, timeout)
         client = self._clients_by_connection.get(cache_key)
         if client is None:
             client = base_client_for_connection(connection, base_url=base_url, timeout=connection_timeout(timeout))

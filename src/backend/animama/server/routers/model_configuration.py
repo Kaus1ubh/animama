@@ -1,8 +1,8 @@
 """Owner model configuration routes: mounted only by the local composition.
 
 These routes accept owner-supplied endpoints and send requests to them (model
-listing and the capability probe). The hosted composition never mounts them;
-see ``create_local_app``.
+listing and the capability probe), and read OpenRouter's public model list. The
+hosted composition never mounts them; see ``create_local_app``.
 """
 
 from __future__ import annotations
@@ -13,6 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from animama.adapters.model_clients.openai_chat_completions.probe import OpenAICompatibleConnectionProbe
+from animama.adapters.model_clients.openrouter_models import OpenRouterModelCatalog, OpenRouterModelListError
 from animama.adapters.repositories.sqlalchemy.anima_chat_profile_repo import SQLAlchemyAnimaChatProfileRepository
 from animama.adapters.repositories.sqlalchemy.model_connection_repo import SQLAlchemyModelConnectionRepository
 from animama.adapters.repositories.sqlalchemy.model_provider_repo import SQLAlchemyModelProviderRepository
@@ -69,6 +70,8 @@ from animama.server.schemas.model_configuration import (
     PyModelRoles,
     PyModelUsage,
     PyModelUsageAnima,
+    PyOpenRouterModel,
+    PyOpenRouterModels,
     PyOwnerModelCapabilities,
     PyOwnerModelPatch,
     PyOwnerModelRequest,
@@ -89,6 +92,16 @@ def get_model_connection_probe(
         credential_resolver=credentials,
         default_timeout=runtime_settings.anima_model_client_timeout_seconds,
     )
+
+
+def get_openrouter_model_catalog(request: Request) -> OpenRouterModelCatalog:
+    """Return the application's catalog, so its short cache spans requests."""
+
+    catalog = getattr(request.app.state, "openrouter_model_catalog", None)
+    if catalog is None:
+        catalog = OpenRouterModelCatalog()
+        request.app.state.openrouter_model_catalog = catalog
+    return catalog
 
 
 def _service(session: AsyncSession) -> ModelConfigurationService:
@@ -166,6 +179,38 @@ async def detect_model_connection_preset(
         reachable=detection.reachable,
         models=list(detection.models),
         category=detection.category,
+    )
+
+
+@router.get("/v1/model-connection-presets/openrouter/models", response_model=PyOpenRouterModels)
+async def list_openrouter_models(
+    _principal: Annotated[RequestPrincipal, Depends(get_current_principal)],
+    catalog: Annotated[OpenRouterModelCatalog, Depends(get_openrouter_model_catalog)],
+) -> PyOpenRouterModels:
+    """List the models OpenRouter offers, from its public list (no key is sent).
+
+    The add-model picker searches and filters this list; an upstream failure
+    is a 502 with code ``openrouter_models_unavailable``.
+    """
+
+    try:
+        models = await catalog.list_models()
+    except OpenRouterModelListError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail={"code": "openrouter_models_unavailable", "message": str(exc)},
+        ) from exc
+    return PyOpenRouterModels(
+        models=[
+            PyOpenRouterModel(
+                id=model.id,
+                name=model.name,
+                context_length=model.context_length,
+                supports_tools=model.supports_tools,
+                supports_structured_outputs=model.supports_structured_outputs,
+            )
+            for model in models
+        ]
     )
 
 
@@ -521,4 +566,4 @@ def _probe_view(report: ModelProbeReport) -> PyModelProbeReport:
     )
 
 
-__all__ = ["get_model_connection_probe", "get_model_credential_resolver", "router"]
+__all__ = ["get_model_connection_probe", "get_model_credential_resolver", "get_openrouter_model_catalog", "router"]

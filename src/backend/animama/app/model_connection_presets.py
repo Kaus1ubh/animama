@@ -3,12 +3,16 @@
 Presets only fill defaults when the owner adds a connection. Every connection
 uses the same Chat Completions protocol behavior; the preset records the usual
 endpoint, whether a key is expected and the request-shape options that server
-family needs. The owner can change any value afterwards.
+family needs. The owner can change any value afterwards, except a preset's
+fixed request headers, which every request to a connection with that preset
+carries.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from collections.abc import Mapping
+from dataclasses import dataclass, field
+from types import MappingProxyType
 
 from animama.domain.model_connection import (
     REASONING_MODE_DEEPSEEK_THINKING,
@@ -32,12 +36,18 @@ PRESET_LLAMA_CPP = "llamacpp"
 PRESET_VLLM = "vllm"
 PRESET_DEEPSEEK = "deepseek"
 PRESET_HUGGINGFACE = "huggingface"
+PRESET_OPENROUTER = "openrouter"
 PRESET_CUSTOM = "custom"
 
 _NON_OPENAI_COMPATIBILITY = ModelConnectionCompatibility(
     fold_developer_role=True,
     send_openai_extensions=False,
 )
+
+OPENROUTER_ATTRIBUTION_HEADERS: Mapping[str, str] = MappingProxyType(
+    {"X-Title": "Animama", "HTTP-Referer": "https://animama.ai"}
+)
+"""OpenRouter's optional app attribution, sent on every OpenRouter request."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -46,6 +56,8 @@ class ModelConnectionPreset:
 
     Local presets derive their base URL from the composition's local model host
     and ``default_port``; cloud presets have a fixed ``default_base_url``.
+    ``request_headers`` are fixed, non-secret headers sent on every request to
+    a connection created with this preset.
     """
 
     id: str
@@ -59,6 +71,7 @@ class ModelConnectionPreset:
     default_base_url: str | None = None
     suggested_credential_env: str | None = None
     owner_selectable: bool = True
+    request_headers: Mapping[str, str] = field(default_factory=lambda: MappingProxyType({}))
 
     def base_url(self, *, local_host: str) -> str | None:
         """Return the default base URL, using ``local_host`` for local servers."""
@@ -154,6 +167,24 @@ MODEL_CONNECTION_PRESETS: dict[str, ModelConnectionPreset] = {
             suggested_credential_env="HF_TOKEN",
         ),
         ModelConnectionPreset(
+            id=PRESET_OPENROUTER,
+            label="OpenRouter",
+            logo_provider="openrouter",
+            local=False,
+            expects_key=True,
+            # OpenRouter ignores parameters a routed model does not support, so a
+            # requested reasoning effort is safe to send.
+            compatibility=ModelConnectionCompatibility(
+                fold_developer_role=True,
+                send_openai_extensions=False,
+                reasoning_mode=REASONING_MODE_OPENAI_EFFORT,
+            ),
+            timeout_seconds=CLOUD_TIMEOUT_SECONDS,
+            default_base_url="https://openrouter.ai/api/v1",
+            suggested_credential_env="OPENROUTER_API_KEY",
+            request_headers=OPENROUTER_ATTRIBUTION_HEADERS,
+        ),
+        ModelConnectionPreset(
             id=PRESET_CUSTOM,
             label="Custom",
             logo_provider=None,
@@ -188,7 +219,9 @@ __all__ = [
     "PRESET_LM_STUDIO",
     "PRESET_OLLAMA",
     "PRESET_OPENAI",
+    "PRESET_OPENROUTER",
     "PRESET_VLLM",
+    "OPENROUTER_ATTRIBUTION_HEADERS",
     "ModelConnectionPreset",
     "model_connection_preset",
 ]

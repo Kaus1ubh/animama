@@ -11,6 +11,7 @@ import { filesIn, readJson, repoRoot, sha256 } from "./common.mjs";
 import { assertPortablePath, inventoryId } from "./inventory.mjs";
 import { modelInputSpec } from "./optional-inputs.mjs";
 import {
+  catalogFileReferences,
   modelDistribution,
   modelObjectsForManifest,
   planModelPublication,
@@ -35,17 +36,19 @@ const backendCatalogPath = (names) => {
 const sameNames = (actual, expected) =>
   JSON.stringify([...actual].sort()) === JSON.stringify([...expected].sort());
 
-/** Catalog URLs, not checkout selection or optional cache availability, own membership. */
-function requiredModels(catalog, packCatalog, origin) {
+/**
+ * The backend asset catalog's URLs, not checkout selection or optional cache
+ * availability, own membership: every model set it pins (including both
+ * Parakeet sets) must be published.
+ */
+function requiredModels(catalog, origin) {
   if (
     catalog.schema !== "animama-asset-catalog/1" ||
-    !Array.isArray(catalog.assets) ||
-    packCatalog.schema !== "animama-pack-catalog/1" ||
-    !Array.isArray(packCatalog.entries)
+    !Array.isArray(catalog.assets)
   )
-    throw new PublicationError("Invalid release model catalogs");
+    throw new PublicationError("Invalid release model catalog");
   const ids = new Set();
-  const add = (url, expected) => {
+  for (const { url } of catalogFileReferences(catalog)) {
     if (typeof url !== "string" || !url.startsWith(`${origin}/models/`))
       throw new PublicationError(
         "A release model URL differs from the shared object origin",
@@ -55,22 +58,11 @@ function requiredModels(catalog, packCatalog, origin) {
         url.slice(`${origin}/models/`.length),
       );
     const id = match?.[1];
-    if (!id || !modelInputSpec(id) || (expected && expected !== id))
+    if (!id || !modelInputSpec(id))
       throw new PublicationError(
-        "A release model catalog names an unknown or mismatched model set",
+        "A release model catalog names an unknown model set",
       );
     ids.add(id);
-  };
-  for (const asset of catalog.assets) add(asset.url);
-  for (const pack of packCatalog.entries) {
-    if (pack.schema !== "animama-model-pack/1") continue;
-    if (
-      !modelInputSpec(pack.model_id) ||
-      !Array.isArray(pack.files) ||
-      !pack.files.length
-    )
-      throw new PublicationError("Invalid release model pack inventory");
-    for (const file of pack.files) add(file.url, pack.model_id);
   }
   return [...ids].sort();
 }
@@ -83,9 +75,8 @@ export function sealReleaseModelManifests({
   const catalog = readJson(
     path.join(runtime, backendCatalogPath(filesIn(runtime))),
   );
-  const packCatalog = readJson(path.join(runtime, "pack-catalog.json"));
   const { origin } = modelDistribution();
-  const ids = requiredModels(catalog, packCatalog, origin);
+  const ids = requiredModels(catalog, origin);
   // Validate all references before replacing any previously staged metadata.
   for (const modelId of ids)
     modelObjectsForManifest({
@@ -93,7 +84,6 @@ export function sealReleaseModelManifests({
       manifestFile: path.join(manifestsDirectory, modelId, "manifest.json"),
       origin,
       catalog,
-      packCatalog,
     });
   const target = path.join(runtime, "model-manifests");
   rmSync(target, { recursive: true, force: true });
@@ -172,7 +162,7 @@ function boundModels({
     throw new PublicationError(
       "Release pack catalog identity differs from the runtime binding",
     );
-  const ids = requiredModels(catalog, packCatalog, origin);
+  const ids = requiredModels(catalog, origin);
   if (
     !sameNames(
       manifest.files
@@ -192,10 +182,9 @@ function boundModels({
       manifestFile,
       origin,
       catalog,
-      packCatalog,
     });
   }
-  return { ids, catalog, packCatalog };
+  return { ids, catalog };
 }
 
 /** Called only after the caller verifies the actual signed app and runtime inventory. */
@@ -254,7 +243,7 @@ export function releaseModelCandidates({ directory, origin }) {
     throw new PublicationError(
       "Release model signing/runtime identity mismatch",
     );
-  const { ids, catalog, packCatalog } = boundModels({
+  const { ids, catalog } = boundModels({
     manifest,
     catalogFile: path.join(directory, "backend-model-assets.json"),
     packCatalogFile: path.join(directory, "pack-catalog.json"),
@@ -289,7 +278,6 @@ export function releaseModelCandidates({ directory, origin }) {
       origin,
       manifestFile: path.join(modelDirectory, "manifest.json"),
       catalog,
-      packCatalog,
     });
     return { modelId, directory: modelDirectory, planned };
   });

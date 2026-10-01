@@ -79,19 +79,10 @@ export type CredentialsBridge = {
   apply(changes: CredentialChange[]): Promise<CredentialStatus[]>;
 };
 export const featurePackIds = [
-  "parakeet-stt",
-  "parakeet-stt-webgpu",
   "expanded-included-content",
   "document-processing",
 ] as const;
 export type FeaturePackId = (typeof featurePackIds)[number];
-/**
- * Packs that are only useful beside another active pack. The WebGPU encoder
- * reuses the base Parakeet decoder, preprocessor and vocabulary.
- */
-export const featurePackRequires: Partial<
-  Record<FeaturePackId, readonly FeaturePackId[]>
-> = { "parakeet-stt-webgpu": ["parakeet-stt"] };
 export type FeaturePackStatus = {
   id: FeaturePackId;
   state:

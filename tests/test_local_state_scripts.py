@@ -148,15 +148,16 @@ def test_state_commands_match_reset_empty_selector_rules(tmp_path: Path, explici
         assert result.stdout.endswith("/docker-compose.development.yml")
 
 
-@pytest.mark.parametrize("selector", ["default", "environment", "dotenv"])
+@pytest.mark.parametrize("selector", ["default", "environment", "dotenv", "production"])
 def test_state_commands_resolve_missing_model_record_offline(tmp_path: Path, selector: str) -> None:
     scripts = tmp_path / "scripts"
     (scripts / "models").mkdir(parents=True)
     helper = scripts / "local-stack-state-common.sh"
     helper.write_text((REPO_ROOT / "scripts/local-stack-state-common.sh").read_text())
     (scripts / "models/parakeet.py").write_text(
-        "import sys\n"
+        "import os, sys\n"
         "assert sys.argv[1] == 'path'\n"
+        "assert not os.environ.get('TEST_FORBID_PARAKEET'), 'built graphs never resolve Parakeet'\n"
         "root = sys.argv[sys.argv.index('--root') + 1] if '--root' in sys.argv else '/default-model-store'\n"
         "print(root + '/parakeet-tdt-0.6b-v2/verified-version')\n"
     )
@@ -172,8 +173,11 @@ def test_state_commands_resolve_missing_model_record_offline(tmp_path: Path, sel
     )
     docker.chmod(0o755)
     environment = _clean_environment(tmp_path)
-    environment.update(PATH=f"{tmp_path}:{os.environ['PATH']}", ANIMAMA_WEB_BUILD_MODE="production")
+    # Only the development graph mounts the host Parakeet set.
+    environment.update(PATH=f"{tmp_path}:{os.environ['PATH']}", ANIMAMA_WEB_BUILD_MODE="development")
     root = "/default-model-store"
+    if selector == "production":
+        environment.update(ANIMAMA_WEB_BUILD_MODE="production", TEST_FORBID_PARAKEET="1")
     if selector == "environment":
         root = "/environment models"
         environment["ANIMAMA_MODEL_ROOT"] = root
@@ -187,7 +191,7 @@ def test_state_commands_resolve_missing_model_record_offline(tmp_path: Path, sel
         text=True,
         check=True,
     )
-    assert result.stdout == root + "/parakeet-tdt-0.6b-v2/verified-version"
+    assert result.stdout == ("" if selector == "production" else root + "/parakeet-tdt-0.6b-v2/verified-version")
 
 
 @pytest.mark.parametrize("project", ["animama-state-fixture", "custom-project"])

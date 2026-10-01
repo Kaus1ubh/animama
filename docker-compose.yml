@@ -85,6 +85,7 @@ services:
       ANIMAMA_DATABASE_POOL_PRE_PING: ${ANIMAMA_DATABASE_POOL_PRE_PING:-true}
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY}
       HF_TOKEN: ${HF_TOKEN}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
       ANIMAMA_DEFAULT_MODEL_PROVIDER_ID: ${ANIMAMA_DEFAULT_MODEL_PROVIDER_ID:-OpenAIResponsesHTTPAgent:gpt-6-luna}
@@ -131,6 +132,8 @@ services:
       ANIMAMA_USER_FILE_PROCESSING_ENABLED: ${ANIMAMA_USER_FILE_PROCESSING_ENABLED:-true}
       ANIMAMA_USER_FILE_PROCESSING_MAX_ATTEMPTS: ${ANIMAMA_USER_FILE_PROCESSING_MAX_ATTEMPTS:-3}
       ANIMAMA_PARAKEET_STT_ENABLED: ${ANIMAMA_PARAKEET_STT_ENABLED:-true}
+      # Built installs download Parakeet sets into their own data root.
+      ANIMAMA_PARAKEET_SOURCE: asset-store
       # LiveKit configuration
       LIVEKIT_API_KEY: ${LIVEKIT_API_KEY}
       LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET}
@@ -139,14 +142,6 @@ services:
       CARTESIA_API_KEY: ${CARTESIA_API_KEY}
     volumes:
       - ./.animama-logs:/var/log/animama
-      # Optional Parakeet set. Without an acquired set this is the checked-in
-      # notices directory; reset.sh then reports dictation as not installed.
-      - type: bind
-        source: ${ANIMAMA_PARAKEET_MODEL_DIR:-./models/parakeet-tdt-0.6b-v2}
-        target: /opt/animama/web/__client-parakeet-models
-        read_only: true
-        bind:
-          create_host_path: false
       - type: bind
         # Readable app-shipped typed content; never write catalog machinery here.
         source: ${ANIMAMA_INCLUDED_CONTENT_HOST_PATH:-./content/included}

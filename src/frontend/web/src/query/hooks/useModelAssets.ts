@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
@@ -6,6 +6,7 @@ import { queryKeys } from "@/query/keys";
 import {
   assetAttemptKey,
   assetAttemptStorageKey,
+  installedSpeechSets,
   loadModelAssets,
   readAssetAttempts,
   retryAssetIds,
@@ -52,6 +53,20 @@ export function useModelAssets({ enabled = true }: { enabled?: boolean } = {}) {
         ? DOWNLOAD_POLL_MS
         : false,
   });
+  // Offline speech capabilities follow installed Parakeet sets without a
+  // restart; refresh them when an install or removal settles.
+  const speechSets = installedSpeechSets(query.data?.assets);
+  const observedSpeechSets = useRef(speechSets);
+  useEffect(() => {
+    if (speechSets === undefined) return;
+    const previous = observedSpeechSets.current;
+    observedSpeechSets.current = speechSets;
+    if (previous !== undefined && previous !== speechSets)
+      void client.invalidateQueries({
+        queryKey: queryKeys.runtimeCapabilities(owner),
+        exact: true,
+      });
+  }, [client, owner, speechSets]);
   const retries = useMemo(
     () => retryAssetIds(attempts.data, query.data?.assets),
     [attempts.data, query.data?.assets],

@@ -54,9 +54,10 @@ for asset ownership, optional voice catalogs and dependency versions.
 
 Parakeet stays outside `public`, `dist` and Git worktrees. Its Vite development
 and preview path resolves the shared store offline and serves
-`/__client-parakeet-models`; built self-host Compose mounts those bytes read-only.
-A web build requires the browser speech set above but does not require Parakeet
-weights. Installed desktop uses its separate app-owned Parakeet pack lifecycle.
+`/__client-parakeet-models`. A web build requires the browser speech set above
+but does not require Parakeet weights: built self-host and packaged desktop
+download both Parakeet sets in the app, and FastAPI serves them at
+`/onnx/models/`.
 
 Use `ANIMAMA_MODEL_ROOT` to select an absolute host store root. Native Windows
 defaults to `%LOCALAPPDATA%\Animama\models`; WSL uses the Linux default. See

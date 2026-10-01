@@ -36,8 +36,8 @@ Development serves those verified sources without a duplicate public payload
 tree. Production and embedded-desktop builds copy the exact inventory into
 `dist/onnx`; preview and the desktop audit verify the built inventory independently
 of the developer store. These required distribution copies remain local to the
-artifact and retain their notices. Parakeet is a separate runtime/pack input,
-kept outside the web build. See [shared model setup](../../backend/operations/model-assets.md)
+artifact and retain their notices. Parakeet is kept outside the web build:
+packaged desktop and built self-host download it as backend model assets. See [shared model setup](../../backend/operations/model-assets.md)
 for acquisition, platform-specific storage, offline reuse and cleanup.
 
 Legacy operator-supplied catalogs at

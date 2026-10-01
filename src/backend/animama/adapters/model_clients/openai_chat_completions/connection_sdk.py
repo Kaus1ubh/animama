@@ -15,6 +15,7 @@ from openai import AsyncOpenAI, Omit
 
 from animama.app.model_clients import ModelClientProviderError
 from animama.app.model_clients.credentials import ModelCredential, connection_for_model_provider
+from animama.app.model_connection_presets import model_connection_preset
 from animama.domain import ModelProvider
 from animama.domain.model_connection import ModelConnection
 
@@ -83,12 +84,17 @@ def base_client_for_connection(
     ``OPENAI_PROJECT_ID`` and ``OPENAI_CUSTOM_HEADERS`` from the environment.
     A placeholder key keeps it from adopting the process key, and for owner
     connections every organization, project and custom header is omitted.
+    Owner connections then add their preset's fixed request headers (such as
+    OpenRouter's attribution), which every request through the client carries.
     """
 
     if connection.is_builtin_openai:
         return AsyncOpenAI(api_key=KEY_FREE_PLACEHOLDER, base_url=base_url, timeout=timeout)
     headers: dict[str, Any] = {name: Omit() for name in _environment_custom_header_names()}
     headers.update(_NON_OPENAI_OMITTED_HEADERS)
+    # An omitted process header that shares a preset header's name (in any
+    # case) is dropped before sending, so only the preset value goes out.
+    headers.update(model_connection_preset(connection.preset).request_headers)
     return AsyncOpenAI(api_key=KEY_FREE_PLACEHOLDER, base_url=base_url, timeout=timeout, default_headers=headers)
 
 

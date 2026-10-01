@@ -14,12 +14,10 @@ export type ParakeetWebgpuStatus =
   /** No `navigator.gpu` or no adapter on this device/browser. */
   | "unsupported"
   /**
-   * An adapter exists but the encoder is not installed: desktop downloads its
-   * pack, built self-host its model asset; development stacks mount the set.
+   * An adapter exists but the GPU set is not installed: built apps download
+   * it in the app; development stacks mount the operator's set.
    */
-  | "model_missing"
-  /** This build never serves the encoder (a Vite stack with a base-URL override). */
-  | "unavailable_in_build";
+  | "model_missing";
 
 export type ParakeetBackendReason =
   | ParakeetWebgpuStatus
@@ -36,11 +34,10 @@ export async function probeParakeetWebgpu({
   gpu,
   fetch,
 }: {
-  encoderUrl: string | null;
+  encoderUrl: string;
   gpu: GpuLike | undefined;
   fetch: (url: string, init: RequestInit) => Promise<Response>;
 }): Promise<ParakeetWebgpuStatus> {
-  if (!encoderUrl) return "unavailable_in_build";
   if (!gpu) return "unsupported";
   try {
     if (!(await gpu.requestAdapter())) return "unsupported";
@@ -56,10 +53,9 @@ export async function probeParakeetWebgpu({
 }
 
 /**
- * Swap in the GPU encoder for a WebGPU load. It is delivered separately from
- * the base models, so it never carries the base pack's `?v=` version. Desktop
- * packs and self-host model assets are served `no-cache` and revalidated by
- * their SHA-256 ETag.
+ * Swap in the GPU encoder for a WebGPU load. It belongs to the separate GPU
+ * set, so the caller pins it with that set's own `?v=` version, never the base
+ * set's.
  */
 export function withBackendEncoder<T extends { encoderUrl: string }>(
   urls: T,
@@ -72,9 +68,9 @@ export function withBackendEncoder<T extends { encoderUrl: string }>(
 }
 
 /**
- * Cache the probe for the page, except a `model_missing` result: built
- * self-host installs the encoder without a reload, so the next caller probes
- * again (one same-origin `HEAD`). `refresh` always probes again.
+ * Cache the probe for the page, except a `model_missing` result: built apps
+ * install the GPU set without a reload, so the next caller probes again (one
+ * same-origin `HEAD`). `refresh` always probes again.
  */
 export function cacheParakeetWebgpuProbe(
   probe: () => Promise<ParakeetWebgpuStatus>,

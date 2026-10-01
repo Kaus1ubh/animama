@@ -28,10 +28,15 @@ export type LocalRuntimeState =
       displayName: string | null;
     };
 
-/** First-run input: a required private name and the owner's 18+ confirmation. */
+/**
+ * First-run input: a required private name, the owner's 18+ confirmation and,
+ * optionally, the model chosen in setup (it becomes the Chat default and
+ * starter Animas still on their original model follow it).
+ */
 export type LocalOnboardingInput = {
   displayName: string;
   adultConfirmed: boolean;
+  chatModelProviderId?: string | null;
 };
 
 type LocalRuntimeContextValue = {
@@ -83,10 +88,21 @@ const localRuntimeApi: LocalRuntimeApi = {
         throwOnError: true,
       })
     ).data,
-  completeOnboarding: async ({ displayName, adultConfirmed }) =>
+  completeOnboarding: async ({
+    displayName,
+    adultConfirmed,
+    chatModelProviderId,
+  }) =>
     (
       await completeRuntimeOnboardingV1RuntimeOnboardingCompletePost({
-        body: { display_name: displayName, adult_confirmed: adultConfirmed },
+        body: {
+          display_name: displayName,
+          adult_confirmed: adultConfirmed,
+          // Omitted, the system default model stays in place.
+          ...(chatModelProviderId
+            ? { chat_model_provider_id: chatModelProviderId }
+            : {}),
+        },
         responseValidator: undefined,
         throwOnError: true,
       })

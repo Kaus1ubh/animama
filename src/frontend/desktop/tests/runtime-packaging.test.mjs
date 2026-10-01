@@ -148,6 +148,29 @@ describe("desktop runtime packaging", () => {
     }
   });
 
+  it("ships the downloadable Parakeet notices with every app", () => {
+    // Speech models are downloaded later, but their notices are bundled.
+    const policy = JSON.parse(
+      readFileSync(
+        new URL("../runtime/license-sources.json", import.meta.url),
+        "utf8",
+      ),
+    );
+    const notices = Object.fromEntries(
+      policy.groups.map((group) => [group.id, group.notice_files]),
+    );
+    expect(notices["parakeet-input"]).toEqual([
+      "parakeet-attribution.txt",
+      "parakeet-onnx-asr-mit.txt",
+    ]);
+    expect(notices["parakeet-webgpu-input"]).toEqual([
+      "parakeet-webgpu-attribution.txt",
+    ]);
+    expect(readStaticLicenseNotice("parakeet-onnx-asr-mit.txt").text).toContain(
+      "MIT",
+    );
+  });
+
   it.each([
     "../notice.txt",
     "/notice.txt",
@@ -205,7 +228,10 @@ describe("desktop runtime packaging", () => {
         installed_bytes: 10,
         download_bytes: 5,
         packs: {
-          "parakeet-stt": { installed_bytes: 4, download_bytes: 3 },
+          "expanded-included-content": {
+            installed_bytes: 4,
+            download_bytes: 3,
+          },
           "document-processing": {
             installed_bytes: null,
             download_bytes: null,
@@ -216,7 +242,7 @@ describe("desktop runtime packaging", () => {
       packReport: {
         reports: [
           {
-            id: "parakeet-stt",
+            id: "expanded-included-content",
             state: "redistribution_review_required",
             inventory_sha256: "a".repeat(64),
           },
@@ -226,7 +252,7 @@ describe("desktop runtime packaging", () => {
       inventorySha256: "b".repeat(64),
     });
     expect(review).toContain(
-      "`parakeet-stt` | `redistribution_review_required`",
+      "`expanded-included-content` | `redistribution_review_required`",
     );
     expect(review).toContain(
       "`document-processing` | `deferred` | Not required",
@@ -669,15 +695,11 @@ Load command 4
         designated_requirement: "identifier com.animama.document-worker",
       },
       packs: Object.fromEntries(
-        [
-          "parakeet-stt",
-          "parakeet-stt-webgpu",
-          "expanded-included-content",
-          "document-processing",
-        ].map((id) => [
+        ["expanded-included-content", "document-processing"].map((id) => [
           id,
           {
-            release_status: id === "parakeet-stt" ? "active" : "deferred",
+            release_status:
+              id === "expanded-included-content" ? "active" : "deferred",
           },
         ]),
       ),
@@ -685,7 +707,7 @@ Load command 4
     const r2 = validateReleasePolicy(policy, packs, "0.1.0", {
       distribution: "r2",
     });
-    expect(r2.activePackIds).toEqual(["parakeet-stt"]);
+    expect(r2.activePackIds).toEqual(["expanded-included-content"]);
     expect(r2.distribution).toEqual({ name: "r2", ...distributions.r2 });
     expect(r2.packReleaseBase).toBe(
       "https://downloads.example.test/desktop/v0.1.0",
@@ -874,21 +896,17 @@ Load command 4
         designated_requirement: "identifier com.animama.document-worker",
       },
       packs: Object.fromEntries(
-        [
-          "parakeet-stt",
-          "parakeet-stt-webgpu",
-          "expanded-included-content",
-          "document-processing",
-        ].map((id) => [
+        ["expanded-included-content", "document-processing"].map((id) => [
           id,
           {
-            release_status: id === "parakeet-stt" ? "active" : "deferred",
+            release_status:
+              id === "expanded-included-content" ? "active" : "deferred",
           },
         ]),
       ),
     });
     json(path.join(runtime, "pack-catalog.json"), {
-      entries: ["parakeet-stt"].map((id) => ({
+      entries: ["expanded-included-content"].map((id) => ({
         id,
         signing: { publisher: "TESTTEAM01" },
       })),
@@ -988,17 +1006,20 @@ Load command 4
       ]);
       expect(resumed.config.mac).not.toHaveProperty("sign");
       json(path.join(runtime, "pack-catalog.json"), {
-        entries: [
-          "document-processing",
-          "expanded-included-content",
-          "parakeet-stt",
-        ].map((id) => ({ id, signing: { publisher: "TESTTEAM01" } })),
+        entries: ["document-processing", "expanded-included-content"].map(
+          (id) => ({ id, signing: { publisher: "TESTTEAM01" } }),
+        ),
       });
       await expect(releaseMac()).rejects.toThrow(
         "deferred packs must be absent",
       );
       json(path.join(runtime, "pack-catalog.json"), {
-        entries: [{ id: "parakeet-stt", signing: { publisher: "TESTTEAM01" } }],
+        entries: [
+          {
+            id: "expanded-included-content",
+            signing: { publisher: "TESTTEAM01" },
+          },
+        ],
       });
       // An R2 stage cannot be packaged as a GitHub candidate, or vice versa.
       vi.stubEnv("ANIMAMA_RELEASE_DISTRIBUTION", "github");
@@ -1363,6 +1384,7 @@ Load command 4
         empty_name_rejected: true,
         blank_name_rejected: true,
         adult_confirmation_required: true,
+        setup_steps: true,
         first_anima_chat: true,
         temporary_provider_removed: true,
         temporary_provider_removal_persists: true,
@@ -1374,6 +1396,7 @@ Load command 4
       { ...smoke, setup: "skip" },
       { ...smoke, checks: { optional_name: true } },
       { ...smoke, checks: { ...smoke.checks, first_anima_chat: false } },
+      { ...smoke, checks: { ...smoke.checks, setup_steps: false } },
       {
         ...smoke,
         checks: { ...smoke.checks, temporary_provider_removed: false },

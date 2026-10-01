@@ -214,12 +214,13 @@ ANIMAMA_WEB_BUILD_MODE=production
 The built Docker target compiles optimized React assets and copies them to
 `/opt/animama/web`. FastAPI serves those files and the API from the same
 loopback application origin; no Node or Vite server runs in this graph.
-The browser Parakeet directory is a separate read-only static mount resolved
-from the verified shared model store. Both speech model sets are optional; run
-`python3 scripts/models/parakeet.py acquire` and
-`python3 scripts/models/browser_speech.py acquire` to enable them, and set
-`ANIMAMA_MODEL_ROOT` to an absolute persistent root when needed. `reset.sh`
-records that root and the exact immutable version directory of each acquired set.
+This graph does not mount the host Parakeet set: the app downloads both Parakeet
+sets into its data root through the backend model-asset service. The browser
+speech set is an optional build input; run
+`python3 scripts/models/browser_speech.py acquire` to enable Pocket TTS and Smart
+Turn, and set `ANIMAMA_MODEL_ROOT` to an absolute persistent root when needed.
+`reset.sh` records that root and the exact immutable version directory of each
+acquired set.
 See [model acquisition, offline reuse and recovery](model-assets.md).
 This selects build delivery, without adding accounts or network authentication.
 
@@ -1452,7 +1453,12 @@ Core:
 - `ANIMAMA_WEB_ROOT` (absolute built React root; unset/blank for Vite development)
 - `ANIMAMA_DESKTOP_RENDERER_CAPABILITY`, `ANIMAMA_DESKTOP_CONTROL_TOKEN`
   (paired private desktop inputs; absent in normal self-host)
-- `ANIMAMA_PARAKEET_MODEL_MOUNT_JSON` (optional verified desktop model inventory)
+- `ANIMAMA_PARAKEET_SOURCE` (`asset-store`, the default: FastAPI installs and
+  serves Parakeet sets from its model-asset store; `operator`: set by the
+  development Compose override, where Vite serves the host sets that `reset.sh`
+  mounts. `desktop:dev` against an external stack follows that stack.)
+- `ANIMAMA_PARAKEET_STT_ENABLED` (operator switch; `false` turns offline speech
+  off even with sets installed)
 - `ANIMAMA_DATABASE_URL`
 - `ANIMAMA_DATABASE_POOL_SIZE`
 - `ANIMAMA_DATABASE_MAX_OVERFLOW`

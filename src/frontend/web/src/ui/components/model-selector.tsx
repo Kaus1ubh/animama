@@ -183,7 +183,14 @@ const PROVIDER_LOGOS = new Set([
   "groq",
   "deepseek",
   "huggingface",
+  "openrouter",
+  "ollama",
+  "lmstudio",
+  "llamacpp",
 ]);
+
+// Full-colour marks keep their colours in dark mode instead of being inverted.
+const FULL_COLOUR_LOGOS = new Set(["llamacpp"]);
 
 /** Bundled provider marks work offline in both web and desktop builds. */
 export const ModelSelectorLogo = ({
@@ -210,7 +217,10 @@ export const ModelSelectorLogo = ({
           src={`/provider-logos/${normalizedProvider}.svg`}
           alt=""
           aria-hidden="true"
-          className="size-full object-contain dark:invert"
+          className={cn(
+            "size-full object-contain",
+            !FULL_COLOUR_LOGOS.has(normalizedProvider) && "dark:invert",
+          )}
           width={16}
           height={16}
         />

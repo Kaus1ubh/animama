@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Any
 
@@ -14,7 +13,7 @@ from animama.runtime import cli
 from animama.server import compose_entrypoint, native_entrypoint
 from animama.server.app import create_local_app
 from animama.server.config import Settings
-from animama.server.local_http import local_assets, local_http_config, local_telemetry, verified_model_mount
+from animama.server.local_http import local_http_config, local_telemetry
 
 
 @pytest.mark.parametrize("field", ["animama_desktop_renderer_capability", "animama_desktop_control_token"])
@@ -35,61 +34,6 @@ def test_new_serving_settings_read_the_current_launch_environment(monkeypatch: p
     assert config.desktop is not None
     assert "a" * 64 not in repr(settings)
     assert "b" * 64 not in repr(settings)
-
-
-def test_model_mount_accepts_only_the_exact_private_inventory(tmp_path: Path) -> None:
-    payload: dict[str, Any] = {
-        "root": str(tmp_path),
-        "version": "1.0.0",
-        "files": [
-            {"path": "model.onnx", "size_bytes": 10, "sha256": "a" * 64, "media_type": "application/octet-stream"}
-        ],
-    }
-    result = verified_model_mount(json.dumps(payload))
-    assert result is not None and result.root == tmp_path and result.version == "1.0.0"
-    assert result.files[0].path == "model.onnx"
-    for invalid in (
-        {**payload, "unreviewed": True},
-        {**payload, "root": "relative/root"},
-        {**payload, "files": []},
-        {**payload, "files": [{**payload["files"][0], "path": "../private"}]},
-        {**payload, "files": [{**payload["files"][0], "size_bytes": True}]},
-        {**payload, "files": [{**payload["files"][0], "unknown": "field"}]},
-        {**payload, "files": [payload["files"][0], payload["files"][0]]},
-    ):
-        with pytest.raises(ValueError):
-            verified_model_mount(json.dumps(invalid))
-    with pytest.raises(ValueError, match="duplicate"):
-        verified_model_mount('{"root":"/one","root":"/two"}')
-    with pytest.raises(ValueError, match="bounded"):
-        verified_model_mount(" " * (4 * 1024 * 1024 + 1))
-
-
-def test_webgpu_mount_reads_its_own_launch_setting_and_requires_the_built_root(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    payload = json.dumps(
-        {
-            "root": str(tmp_path),
-            "version": "0.1.0-0123456789abcdef",
-            "files": [
-                {
-                    "path": "encoder-model.fp16.onnx",
-                    "size_bytes": 1,
-                    "sha256": "a" * 64,
-                    "media_type": "application/octet-stream",
-                }
-            ],
-        }
-    )
-    monkeypatch.setenv("ANIMAMA_PARAKEET_WEBGPU_MODEL_MOUNT_JSON", payload)
-    monkeypatch.delenv("ANIMAMA_PARAKEET_MODEL_MOUNT_JSON", raising=False)
-    monkeypatch.delenv("ANIMAMA_WEB_ROOT", raising=False)
-    with pytest.raises(ValueError, match="built application root"):
-        local_assets(Settings())
-    monkeypatch.setenv("ANIMAMA_WEB_ROOT", str(tmp_path))
-    assert local_assets(Settings()) is not None
-    assert "a" * 64 not in repr(Settings())
 
 
 async def test_built_factory_serves_assets_after_bootstrap_and_hides_private_routes(tmp_path: Path) -> None:

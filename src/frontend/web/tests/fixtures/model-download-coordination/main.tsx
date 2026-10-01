@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RuntimeOwnerProvider } from "@/app/runtime/RuntimeOwnerContext";
 import { useDesktopFeaturePacks } from "@/hooks/useDesktopFeaturePacks";
 import { useModelAssets } from "@/query/hooks/useModelAssets";
+import { useRuntimeCapabilities } from "@/query/hooks/useRuntimeCapabilities";
 import { useModelAssetAction } from "@/query/mutations/useModelAssetActions";
 import { queryKeys } from "@/query/keys";
 
@@ -25,8 +26,8 @@ function Packs() {
           error: packs.error,
         })}
       </output>
-      <button onClick={() => void packs.run("install", "parakeet-stt")}>
-        Install speech
+      <button onClick={() => void packs.run("install", "document-processing")}>
+        Install pack
       </button>
     </section>
   );
@@ -55,6 +56,11 @@ function Assets() {
     </section>
   );
 }
+/** Observes runtime capabilities, as dictation surfaces do. */
+function Capabilities() {
+  const capabilities = useRuntimeCapabilities();
+  return <output data-testid="capabilities">{capabilities.status}</output>;
+}
 function Fixture() {
   const [show, setShow] = useState(true);
   return (
@@ -62,6 +68,7 @@ function Fixture() {
       <button onClick={() => setShow(!show)}>Toggle pack view</button>
       {show ? <Packs /> : null}
       <Assets />
+      {location.search.includes("capabilities") ? <Capabilities /> : null}
     </>
   );
 }

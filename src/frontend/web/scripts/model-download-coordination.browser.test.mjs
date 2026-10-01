@@ -52,7 +52,7 @@ async function mount(packState = "not_installed") {
       pack(next) {
         state = next;
         for (const fn of progress)
-          fn({ id: "parakeet-stt", state, available: true });
+          fn({ id: "document-processing", state, available: true });
       },
       ready() {
         for (const fn of runtime)
@@ -76,7 +76,9 @@ async function mount(packState = "not_installed") {
         },
       },
       featurePacks: {
-        list: async () => [{ id: "parakeet-stt", state, available: true }],
+        list: async () => [
+          { id: "document-processing", state, available: true },
+        ],
         onProgress(fn) {
           progress.add(fn);
           return () => progress.delete(fn);
@@ -116,6 +118,8 @@ async function mount(packState = "not_installed") {
       required_free_bytes: 10,
       media_type: "application/octet-stream",
       license_ref: "CC-BY-4.0",
+      files_total: 1,
+      files_verified: 0,
     };
     await route.fulfill({
       json:
@@ -165,7 +169,7 @@ test("newly mounted views share manager busy state and native progress after rel
     await f.page.waitForFunction(() =>
       JSON.parse(
         document.querySelector('[data-testid="assets"]').textContent,
-      ).error?.includes("speech download"),
+      ).error?.includes("feature pack change"),
     );
     assert.equal(f.requests.includes("POST"), false);
     await f.page.getByRole("button", { name: "Toggle pack view" }).click();
@@ -194,12 +198,12 @@ test("backend request and download block packs, then interrupted state offers Re
         .click(),
     ]);
     await f.page
-      .getByRole("button", { name: "Install speech", exact: true })
+      .getByRole("button", { name: "Install pack", exact: true })
       .click();
     await f.page.waitForFunction(() =>
       JSON.parse(
         document.querySelector('[data-testid="packs"]').textContent,
-      ).error?.includes("voice download"),
+      ).error?.includes("model download"),
     );
     assert.equal(await f.page.evaluate(() => window.nativeFixture.installs), 0);
     f.release();
@@ -208,7 +212,7 @@ test("backend request and download block packs, then interrupted state offers Re
         document.querySelector('[data-testid="assets"]').textContent,
       ).states?.includes("downloading"),
     );
-    assert.match((await state(f.page, "packs")).blocked, /voice download/);
+    assert.match((await state(f.page, "packs")).blocked, /model download/);
     f.state("not_installed");
     await f.page.evaluate(() => window.nativeFixture.ready());
     await f.page.waitForFunction(
@@ -235,7 +239,7 @@ test("native request gaps block installs but allow explicit backend cancellation
   const f = await mount();
   try {
     await f.page
-      .getByRole("button", { name: "Install speech", exact: true })
+      .getByRole("button", { name: "Install pack", exact: true })
       .click();
     await f.page.waitForFunction(() => window.nativeFixture.installs === 1);
     await f.page
@@ -244,7 +248,7 @@ test("native request gaps block installs but allow explicit backend cancellation
     await f.page.waitForFunction(() =>
       JSON.parse(
         document.querySelector('[data-testid="assets"]').textContent,
-      ).error?.includes("speech download"),
+      ).error?.includes("feature pack change"),
     );
     assert.equal(f.requests.includes("POST"), false);
     await f.page
@@ -303,6 +307,8 @@ test("another self-host window refreshes both sides of a held install request", 
       required_free_bytes: 10,
       media_type: "application/octet-stream",
       license_ref: "CC-BY-4.0",
+      files_total: 1,
+      files_verified: 0,
     };
     await route.fulfill({
       json:
@@ -359,5 +365,66 @@ test("another self-host window refreshes both sides of a held install request", 
   } finally {
     release();
     await context.close();
+  }
+});
+
+test("installing or removing a speech set refreshes runtime capabilities", async () => {
+  const page = await browser.newPage();
+  let status = "not_installed";
+  let capabilityRequests = 0;
+  await page.route("**/v1/**", async (route) => {
+    const pathname = new URL(route.request().url()).pathname;
+    if (pathname === "/v1/runtime-capabilities") {
+      capabilityRequests += 1;
+      return route.fulfill({ status: 503, json: { detail: "fixture" } });
+    }
+    await route.fulfill({
+      json: {
+        assets: [
+          {
+            id: "parakeet-stt",
+            status,
+            size_bytes: 10,
+            required_free_bytes: 10,
+            media_type: null,
+            license_ref: "CC-BY-4.0",
+            files_total: 7,
+            files_verified: status === "installed" ? 7 : 0,
+          },
+        ],
+        free_bytes: 1000,
+      },
+    });
+  });
+  try {
+    await page.goto(`${origin}/${fixture}/index.html?capabilities`);
+    await page.waitForFunction(() =>
+      document
+        .querySelector('[data-testid="assets"]')
+        ?.textContent.includes('"not_installed"'),
+    );
+    await page.waitForFunction(
+      () =>
+        document.querySelector('[data-testid="capabilities"]')?.textContent ===
+        "error",
+    );
+    const initial = capabilityRequests;
+    for (const next of ["installed", "not_installed"]) {
+      const before = capabilityRequests;
+      status = next;
+      await page.evaluate(() => window.refreshDownloads());
+      await page.waitForFunction(
+        (expected) =>
+          JSON.parse(
+            document.querySelector('[data-testid="assets"]').textContent,
+          ).states.includes(expected),
+        next,
+      );
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      assert.ok(capabilityRequests > before, `refetch after ${next}`);
+    }
+    assert.ok(capabilityRequests >= initial + 2);
+  } finally {
+    await page.close();
   }
 });

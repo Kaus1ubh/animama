@@ -185,7 +185,7 @@ On macOS the user-data root is `~/Library/Application Support/Animama`:
 | `secrets/vault.bin`      | Encrypted database password and optional provider and connection keys         |
 | `postgres/16/data`       | Private PostgreSQL cluster                                                    |
 | `content/local`          | Writable typed Local library                                                  |
-| `data`                   | Private uploads and runtime staging                                           |
+| `data`                   | Private uploads, downloaded model assets and their staging                    |
 | `backups/pre-migration`  | Verified custom-format upgrade dumps and migration journal                    |
 | `packs/<id>/versions`    | Immutable optional pack versions and retained prior bytes                     |
 | `packs/active.json`      | Atomic active pointers, reverified before use                                 |
@@ -198,9 +198,11 @@ neither source paths nor arbitrary filesystem access. Only Local is watched.
 
 ## Optional Feature Packs
 
-Parakeet is the only active initial pack; expanded Included content and document
-processing are deferred. [Feature packs](feature-packs.md) describes availability,
-setup and removal behavior.
+The optional packs are expanded Included content and document processing; both
+are deferred from the first release. Offline speech (Parakeet) is a backend model
+asset that installs without a restart, not a pack.
+[Feature packs](feature-packs.md) describes availability, setup and removal
+behavior for both.
 
 The owner-protected `GET /v1/runtime-capabilities` is the renderer's capability
 authority. Pack status is separate from document-worker liveness. An installed
@@ -226,10 +228,13 @@ active import/reconciliation work, and running document jobs prevent removal;
 affected labels appear in Settings. Expanded entries are never auto-equipped.
 Queued document jobs survive removal and resume with the worker installed again.
 
-Parakeet files use the protected same-origin
-`/onnx/models/parakeet-tdt-0.6b-v2/` mount. Exact `?v=<asset-version>` requests
-support immutable private caching, ETags, HEAD, and single byte ranges. Stale
-versions and unlisted files return 404. No pack root or executable path enters React.
+Installed Parakeet sets are served from the backend model-asset store at the
+protected same-origin `/onnx/models/parakeet-tdt-0.6b-v2/` and
+`/onnx/models/parakeet-tdt-0.6b-v2-webgpu/` paths. FastAPI resolves the
+installed set on each request, so an install or removal needs no restart. Exact
+`?v=<manifest-digest>` requests support immutable private caching, ETags, HEAD,
+and single byte ranges. Stale versions and unlisted files return 404. No store
+or pack path enters React.
 
 ## Startup Recovery
 
@@ -366,8 +371,8 @@ practice. Desktop mode hides browser STT/TTS options from the app UI.
 Desktop speech behavior:
 
 - STT uses client-side Parakeet only when runtime capabilities report it
-  available. Embedded mode requires the verified optional pack; external-stack
-  development retains its configured same-origin model source.
+  available. Embedded mode requires the installed `parakeet-stt` model asset;
+  external-stack development retains its configured same-origin model source.
 - TTS uses PocketTTS or ElevenLabs.
 - Browser TTS/STT providers are not offered in desktop settings.
 - Desktop PiP is visual-only; the main renderer remains the audio owner.

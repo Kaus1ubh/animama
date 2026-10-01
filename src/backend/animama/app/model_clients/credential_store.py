@@ -30,7 +30,9 @@ ELEVENLABS_CREDENTIAL_ENV = "ELEVENLABS_API_KEY"
 MANAGED_CREDENTIAL_ENV_PATTERN = re.compile(r"^ANIMAMA_CONNECTION_[A-Z0-9_]{1,64}_API_KEY$")
 """Names for owner connection keys; the desktop vault writes keys under this namespace."""
 
-KNOWN_PROVIDER_CREDENTIAL_ENVS = frozenset({OPENAI_CREDENTIAL_ENV, "DEEPSEEK_API_KEY", "HF_TOKEN"})
+KNOWN_PROVIDER_CREDENTIAL_ENVS = frozenset(
+    {OPENAI_CREDENTIAL_ENV, "DEEPSEEK_API_KEY", "HF_TOKEN", "OPENROUTER_API_KEY"}
+)
 """Conventional provider key variables an owner connection may also reference."""
 
 WEB_SEARCH_MANAGED_CREDENTIAL_ENV = "ANIMAMA_CONNECTION_WEB_SEARCH_API_KEY"

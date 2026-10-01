@@ -36,10 +36,13 @@ import {
 import {
   DEFAULT_CAPABILITIES_DRAFT,
   capabilitiesFromProbe,
+  draftFromOpenRouterModel,
   errorCategoryMessage,
+  modelApiLabel,
   modelConfigurationErrorMessage,
   type OwnerCapabilitiesDraft,
 } from "./model-configuration-state";
+import { OpenRouterModelPicker } from "./OpenRouterModelPicker";
 
 const NO_TEMPLATE = "__no_template__";
 const RESPONSES = "OpenAIResponsesHTTPAgent";
@@ -89,6 +92,7 @@ function capabilitiesOf(model: PyConfiguredModel): OwnerCapabilitiesDraft {
 function initialDraft(
   connection: PyModelConnection,
   model: PyConfiguredModel | undefined,
+  initialModelId = "",
 ): Draft {
   if (model)
     return {
@@ -108,9 +112,9 @@ function initialDraft(
     };
   return {
     kind: "chat",
-    model: "",
+    model: initialModelId,
     label: "",
-    // New models on the built-in OpenAI connection default to its Responses API.
+    // The app picks the API: built-in OpenAI chat models use Responses.
     providerType:
       connection.source === "builtin" ? RESPONSES : CHAT_COMPLETIONS,
     templateId: null,
@@ -121,17 +125,22 @@ function initialDraft(
   };
 }
 
-/** API name of a chat model, as shown in its details. */
-export function modelApiLabel(model: PyConfiguredModel): string {
-  return model.provider_type === RESPONSES
-    ? "Responses API"
-    : "Chat Completions API";
+/**
+ * Save a model's visibility at once. A hidden model stays in use wherever it
+ * is already chosen.
+ */
+function useSetModelHidden(model: PyConfiguredModel) {
+  const update = useUpdateModel();
+  const setHidden = (hidden: boolean) =>
+    void update
+      .mutateAsync({ modelProviderId: model.id, body: { hidden } })
+      .catch((error: unknown) =>
+        toast.error(modelConfigurationErrorMessage(error)),
+      );
+  return { setHidden, pending: update.isPending };
 }
 
-/**
- * "Show in model lists" for a model's details. The change saves at once; a
- * hidden model stays in use wherever it is already chosen.
- */
+/** "Show in model lists" for a model's details. */
 export function ModelVisibilitySwitch({
   model,
   disabled,
@@ -139,25 +148,48 @@ export function ModelVisibilitySwitch({
   model: PyConfiguredModel;
   disabled?: boolean;
 }) {
-  const update = useUpdateModel();
+  const { setHidden, pending } = useSetModelHidden(model);
   return (
     <label className="flex items-center justify-between gap-3 text-sm">
       Show in model lists
       <Switch
         checked={!model.hidden}
-        disabled={disabled || update.isPending}
-        onCheckedChange={(checked) =>
-          void update
-            .mutateAsync({
-              modelProviderId: model.id,
-              body: { hidden: !checked },
-            })
-            .catch((error: unknown) =>
-              toast.error(modelConfigurationErrorMessage(error)),
-            )
-        }
+        disabled={disabled || pending}
+        onCheckedChange={(checked) => setHidden(!checked)}
       />
     </label>
+  );
+}
+
+/** A hidden model row's Show button, the inline form of "Show in model lists". */
+export function ShowModelButton({
+  model,
+  disabled,
+}: {
+  model: PyConfiguredModel;
+  disabled?: boolean;
+}) {
+  const { setHidden, pending } = useSetModelHidden(model);
+  return (
+    <Button
+      type="button"
+      size="sm"
+      variant="ghost"
+      className="h-8 shrink-0"
+      disabled={disabled || pending}
+      aria-label={`Show ${model.model_label} in model lists`}
+      onClick={() => setHidden(false)}
+    >
+      Show
+    </Button>
+  );
+}
+
+/** "API: Responses" for a chat model's details; the API appears nowhere else. */
+function ModelApiLine({ model }: { model: PyConfiguredModel }) {
+  if (model.model_kind !== "chat") return null;
+  return (
+    <p className="text-muted-foreground text-sm">API: {modelApiLabel(model)}</p>
   );
 }
 
@@ -175,6 +207,8 @@ export function OwnerModelDialog({
   model,
   templates,
   onRemove,
+  onAdded,
+  initialModelId,
   disabled = false,
 }: {
   open: boolean;
@@ -187,6 +221,10 @@ export function OwnerModelDialog({
   onRemove?: (model: PyConfiguredModel) => void;
   /** Settings are busy elsewhere; nothing here may change. */
   disabled?: boolean;
+  /** Called with a newly added model, e.g. so setup can choose it. */
+  onAdded?: (model: PyConfiguredModel) => void;
+  /** Prefills a new model's ID, e.g. one a detected server listed. */
+  initialModelId?: string;
 }) {
   const formId = useId();
   const add = useAddOwnerModel();
@@ -194,7 +232,7 @@ export function OwnerModelDialog({
   const discover = useListAvailableModels();
   const probe = useProbeModel();
   const [draft, setDraft] = useState<Draft>(() =>
-    initialDraft(connection, model),
+    initialDraft(connection, model, initialModelId),
   );
   const [report, setReport] = useState<PyModelProbeReport | null>(null);
   const [saving, setSaving] = useState(false);
@@ -204,11 +242,11 @@ export function OwnerModelDialog({
   const modelId = model?.id;
   useEffect(() => {
     if (!open) return;
-    setDraft(initialDraft(connection, model));
+    setDraft(initialDraft(connection, model, initialModelId));
     setReport(null);
     discover.reset();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reset per opening only
-  }, [open, connection.id, modelId]);
+  }, [open, connection.id, modelId, initialModelId]);
 
   const editing = Boolean(model);
   const isChat = draft.kind === "chat";
@@ -288,8 +326,8 @@ export function OwnerModelDialog({
               : {}),
           },
         });
-      else
-        await add.mutateAsync({
+      else {
+        const added = await add.mutateAsync({
           connectionId: connection.id,
           body: {
             model: draft.model.trim(),
@@ -303,6 +341,8 @@ export function OwnerModelDialog({
             probe_result: report ? { ...report } : null,
           },
         });
+        onAdded?.(added);
+      }
       toast.success(editing ? "Model saved." : "Model added.");
       onOpenChange(false);
     } catch (error) {
@@ -313,10 +353,16 @@ export function OwnerModelDialog({
   };
 
   const discovered = discover.data ?? [];
-  const templateChoices = templates.filter(
-    (template) =>
-      template.provider_type === draft.providerType || !isBuiltinConnection,
-  );
+  // OpenRouter lists hundreds of models; its public list makes them searchable.
+  const showOpenRouterPicker =
+    !editing && isChat && connection.preset === "openrouter";
+  // Templates are built-in OpenAI models, so only the built-in connection
+  // offers them, matched to the API the new model uses.
+  const templateChoices = isBuiltinConnection
+    ? templates.filter(
+        (template) => template.provider_type === draft.providerType,
+      )
+    : [];
 
   return (
     <Dialog open={open} onOpenChange={(next) => !saving && onOpenChange(next)}>
@@ -327,10 +373,11 @@ export function OwnerModelDialog({
           </DialogTitle>
           <DialogDescription>
             {model
-              ? `${model.model_kind === "embedding" ? "Embedding model" : `Chat model · ${modelApiLabel(model)}`} on ${connection.name}. Change its details, then save.`
+              ? `${model.model_kind === "embedding" ? "Embedding model" : "Chat model"} on ${connection.name}. Change its details, then save.`
               : "Test the model to check what it supports, then confirm its capabilities and context window."}
           </DialogDescription>
         </DialogHeader>
+        {model ? <ModelApiLine model={model} /> : null}
         {model ? <ModelVisibilitySwitch model={model} disabled={busy} /> : null}
         <form
           id={formId}
@@ -360,6 +407,20 @@ export function OwnerModelDialog({
                 </SelectContent>
               </Select>
             </div>
+          ) : null}
+          {showOpenRouterPicker ? (
+            <OpenRouterModelPicker
+              selectedId={draft.model}
+              disabled={busy}
+              onSelect={(choice) => {
+                // A test of another model says nothing about this one.
+                setReport(null);
+                setDraft((current) => ({
+                  ...current,
+                  ...draftFromOpenRouterModel(choice, current.capabilities),
+                }));
+              }}
+            />
           ) : null}
           <div className="space-y-2">
             <Label htmlFor={`${formId}-model`}>Model ID</Label>
@@ -400,7 +461,7 @@ export function OwnerModelDialog({
             {discover.isSuccess ? (
               <p className="text-muted-foreground text-xs">
                 {discovered.length
-                  ? `${discovered.length} models found; choose one or type an ID.`
+                  ? `${discovered.length} ${discovered.length === 1 ? "model" : "models"} found; choose one or type an ID.`
                   : "The server listed no models; type the model ID."}
               </p>
             ) : null}
@@ -420,33 +481,6 @@ export function OwnerModelDialog({
               onChange={(event) => change({ label: event.target.value })}
             />
           </div>
-          {isChat && isBuiltinConnection && !editing ? (
-            <div className="space-y-2">
-              <Label htmlFor={`${formId}-api`}>API</Label>
-              <Select
-                value={draft.providerType}
-                disabled={busy}
-                onValueChange={(value) => {
-                  // A test on the other API says nothing about this one.
-                  setReport(null);
-                  change({
-                    providerType: value as Draft["providerType"],
-                    templateId: null,
-                  });
-                }}
-              >
-                <SelectTrigger id={`${formId}-api`} className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={RESPONSES}>Responses</SelectItem>
-                  <SelectItem value={CHAT_COMPLETIONS}>
-                    Chat Completions
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          ) : null}
           {isChat && !editing && templateChoices.length > 0 ? (
             <div className="space-y-2">
               <Label htmlFor={`${formId}-template`}>
@@ -466,7 +500,7 @@ export function OwnerModelDialog({
                   </SelectItem>
                   {templateChoices.map((template) => (
                     <SelectItem key={template.id} value={template.id}>
-                      {template.model_label} ({modelApiLabel(template)})
+                      {template.model_label}
                     </SelectItem>
                   ))}
                 </SelectContent>

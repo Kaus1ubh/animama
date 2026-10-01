@@ -3337,6 +3337,25 @@ export const zPyMemoryManagerRunResponse = z.object({
 });
 
 /**
+ * PyModelAssetLease
+ *
+ * A live use lease; renew it before ``expires_at`` while the asset is loaded.
+ */
+export const zPyModelAssetLease = z.object({
+    asset_id: z.string(),
+    expires_at: z.iso.datetime(),
+    lease_id: z.string(),
+    ttl_seconds: z.number()
+});
+
+/**
+ * PyModelAssetLeaseRequest
+ */
+export const zPyModelAssetLeaseRequest = z.object({
+    lease_id: z.string().regex(/^[A-Za-z0-9_-]{8,128}$/)
+});
+
+/**
  * PyModelAssetState
  */
 export const zPyModelAssetState = z.object({
@@ -3348,9 +3367,14 @@ export const zPyModelAssetState = z.object({
         z.string(),
         z.null()
     ])),
+    files_total: z.int(),
+    files_verified: z.int(),
     id: z.string(),
     license_ref: z.string(),
-    media_type: z.string(),
+    media_type: z.union([
+        z.string(),
+        z.null()
+    ]),
     reason: z.optional(z.union([
         z.enum([
             'asset_download_failed',
@@ -3363,6 +3387,7 @@ export const zPyModelAssetState = z.object({
         z.null()
     ])),
     required_free_bytes: z.int(),
+    requires: z.optional(z.array(z.string())),
     size_bytes: z.int(),
     status: z.enum([
         'not_installed',
@@ -3372,6 +3397,10 @@ export const zPyModelAssetState = z.object({
     ]),
     total_bytes: z.optional(z.union([
         z.int(),
+        z.null()
+    ])),
+    version: z.optional(z.union([
+        z.string(),
         z.null()
     ]))
 });
@@ -3801,7 +3830,37 @@ export const zPyModelRemovalResult = z.object({
  */
 export const zPyOnboardingCompleteRequest = z.object({
     adult_confirmed: z.boolean(),
+    chat_model_provider_id: z.optional(z.union([
+        z.string().min(1).max(512),
+        z.null()
+    ])),
     display_name: z.string().min(1).max(80)
+});
+
+/**
+ * PyOpenRouterModel
+ *
+ * One model from OpenRouter's public list.
+ *
+ * ``supports_tools`` and ``supports_structured_outputs`` come from the
+ * model's advertised parameters; the capability probe can override them.
+ */
+export const zPyOpenRouterModel = z.object({
+    context_length: z.optional(z.union([
+        z.int(),
+        z.null()
+    ])),
+    id: z.string(),
+    name: z.string(),
+    supports_structured_outputs: z.boolean(),
+    supports_tools: z.boolean()
+});
+
+/**
+ * PyOpenRouterModels
+ */
+export const zPyOpenRouterModels = z.object({
+    models: z.array(zPyOpenRouterModel)
 });
 
 /**
@@ -6025,6 +6084,10 @@ export const zRuntimeCapabilities = z.object({
         z.null()
     ]),
     offline_speech_enabled: z.boolean(),
+    offline_speech_gpu_asset_version: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
     runtime_kind: z.enum(['desktop', 'self_hosted_web']),
     schema_version: z.optional(z.literal(1)).default(1),
     user_file_processing: zUserFileProcessingCapability,
@@ -7787,6 +7850,20 @@ export const zGetModelAssetContentV1ModelAssetsAssetIdContentGetResponse = z.uni
     z.unknown()
 ]);
 
+export const zReleaseModelAssetLeaseV1ModelAssetsAssetIdLeasesLeaseIdDeleteData = z.object({
+    body: z.optional(z.never()),
+    path: z.object({
+        asset_id: z.string(),
+        lease_id: z.string().regex(/^[A-Za-z0-9_-]{8,128}$/)
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zReleaseModelAssetLeaseV1ModelAssetsAssetIdLeasesLeaseIdDeleteResponse = z.void();
+
 export const zInstallModelAssetV1ModelAssetsAssetIdInstallPostData = z.object({
     body: z.optional(z.never()),
     path: z.object({
@@ -7800,6 +7877,19 @@ export const zInstallModelAssetV1ModelAssetsAssetIdInstallPostData = z.object({
  */
 export const zInstallModelAssetV1ModelAssetsAssetIdInstallPostResponse = zPyModelAssetState;
 
+export const zLeaseModelAssetV1ModelAssetsAssetIdLeasePostData = z.object({
+    body: zPyModelAssetLeaseRequest,
+    path: z.object({
+        asset_id: z.string()
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zLeaseModelAssetV1ModelAssetsAssetIdLeasePostResponse = zPyModelAssetLease;
+
 export const zListModelConnectionPresetsV1ModelConnectionPresetsGetData = z.object({
     body: z.optional(z.never()),
     path: z.optional(z.never()),
@@ -7812,6 +7902,17 @@ export const zListModelConnectionPresetsV1ModelConnectionPresetsGetData = z.obje
  * Successful Response
  */
 export const zListModelConnectionPresetsV1ModelConnectionPresetsGetResponse = z.array(zPyModelConnectionPreset);
+
+export const zListOpenrouterModelsV1ModelConnectionPresetsOpenrouterModelsGetData = z.object({
+    body: z.optional(z.never()),
+    path: z.optional(z.never()),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zListOpenrouterModelsV1ModelConnectionPresetsOpenrouterModelsGetResponse = zPyOpenRouterModels;
 
 export const zDetectModelConnectionPresetV1ModelConnectionPresetsPresetIdDetectPostData = z.object({
     body: z.optional(z.never()),

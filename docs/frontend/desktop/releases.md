@@ -27,8 +27,8 @@ uses a separate Electron network session restricted to the build's sealed
 distribution (see [Distribution selection](#distribution-selection)): for R2,
 only `<base_url>/latest-mac.yml` and `<base_url>/v<version>/` files; for GitHub,
 only the configured repository's releases and asset CDN. Archive packs follow
-the same rule. Parakeet model packs always use the fixed
-`https://downloads.animama.ai/models/` origin, with no redirects. R2 app downloads
+the same rule. Backend model-asset downloads, including Parakeet, always use the
+fixed `https://downloads.animama.ai/models/` origin, with no redirects. R2 app downloads
 also follow no redirects. No Animama account or token
 is required for the installed application.
 
@@ -162,9 +162,8 @@ full inventory, and pinned OS signature. It replaces only derived helper build
 input after verification. It neither approves a candidate nor weakens executable
 pack verification. Keep private CI artifacts available until all dependent
 release builds finish; an expired artifact requires a new review of any rebuilt
-bytes. Review the active Parakeet inventory through the existing pack producer.
-Expanded Included content and document processing are explicitly deferred from
-the first release and must be absent from its catalog and release artifacts.
+bytes. The first release has no active pack: expanded Included content and
+document processing are explicitly deferred from it and must be absent from its catalog and release artifacts.
 
 To retain a pack across known compatible app versions, set its optional
 `app_versions` list and immutable original `release_tag` in the pack release
@@ -184,7 +183,7 @@ pnpm desktop:dist:mac
 ```
 
 This command verifies the audit and exactly the active reviewed packs (currently
-the two Parakeet packs), rejects deferred entries, signs nested
+none), rejects deferred entries, signs nested
 Mach-O files/bundles, adds the review receipt, recomputes the runtime manifest,
 and only then seals the outer app. It notarizes and staples the app, builds the
 DMG/update ZIP, notarizes both, signs/staples the DMG, and verifies Gatekeeper.
@@ -262,7 +261,8 @@ Manual acceptance must also check native network behavior where automated
 renderer capture cannot observe it.
 
 On a clean test Mac, check avatar animation, PocketTTS, microphone permission,
-PiP, quick chat, offline dictation after Parakeet installation, any active expanded content,
+PiP, quick chat, offline dictation after installing offline speech in Voice
+settings (with no backend restart or window reload), any active expanded content,
 document conversion, interrupted pack installation/recovery, and an actual
 prompted upgrade preserving the principal, chats, content, provider status,
 database, and compatible pack. Confirm no unintended provider/model downloads.
@@ -368,7 +368,7 @@ steps through environment variables and are never artifact inputs.
 
 If CI publication is configured, the initial release does not dispatch
 `prepare-worker` or import a document helper because document processing is
-deferred. After committing reviewed Parakeet/core inputs, dispatch `release`. The workflow checks/tests,
+deferred. After committing reviewed core inputs, dispatch `release`. The workflow checks/tests,
 stages/audits, signs the candidate, and runs the required-name fresh-profile smoke. With
 `publish=false` it stops there. With `publish=true`, a protected preview job first
 requires explicit approval for public testing. It publishes the immutable
@@ -446,9 +446,9 @@ new version for corrections.
 Model files that the app downloads at runtime are published once under
 `models/<model-id>/<file-sha256>/<file-name>`, independent of app versions. A
 file's key is its own SHA-256, so published objects never change and an
-unchanged file is never uploaded again. Both Parakeet desktop packs and the
-packaged backend model-asset catalog pin these URLs, including notice objects
-in each verified model inventory (see
+unchanged file is never uploaded again. The packaged backend model-asset catalog
+pins these URLs for both Parakeet sets, the Pocket voices and the cloning
+encoder, including notice objects in each verified model inventory (see
 [downloaded model assets](../../backend/operations/model-assets.md#downloaded-model-assets)).
 
 Signed app candidates seal the required model manifests into

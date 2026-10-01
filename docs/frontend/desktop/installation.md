@@ -27,22 +27,31 @@ require Docker, Python, Node.js, PostgreSQL, Homebrew or a source checkout.
 3. Let Animama prepare its private database. No local account, password or hosted
    Animama account is required. One internal installation owner is generated
    automatically and retained across restarts.
-4. Enter what Animama should call you. A nonblank name is required; it is
-   private personalization, not a username or credential.
-5. Provider keys and **Install offline speech recognition** are optional during
-   setup. Leave the speech checkbox unchecked to avoid downloading Parakeet.
-   Choose **Continue** to open Annie's chat; configure optional features in
-   Settings later if preferred. Later launches open the last Anima you visited,
-   or the first available Anima if that Anima has been deleted.
+4. Setup has three steps. **Welcome** asks what Animama should call you and
+   for the 18+ confirmation; a nonblank name is private personalization, not a
+   username or credential.
+5. **AI** chooses the model your Animas chat with: **Cloud** (OpenAI with your
+   key, or another provider) or **Local** (a running Ollama, LM Studio,
+   llama.cpp or vLLM server, or a custom one), each with a tab per provider.
+   A local server's tab looks for it when opened. The model you pick becomes the default Chat model, and
+   the starter Animas switch to it. **Skip for now** keeps the default.
+6. **Voice** offers offline speech recognition downloads and Text-to-Speech
+   (built-in voices or ElevenLabs with its key). Nothing downloads unless you
+   choose it, and downloads keep going after you finish. Choose **Finish** to
+   open Annie's chat. Later launches open the last Anima you visited, or the
+   first available Anima if that Anima has been deleted.
 
 Fresh installations create Annie and Caitlyn. Starter defaults do not overwrite
 existing Animas or restore a deliberately deleted starter.
 
 ## Provider keys and speech
 
-Embedded desktop setup and App Settings → API Keys offer OpenAI and ElevenLabs
-key fields. Other model servers, such as DeepSeek or a local Ollama, LM Studio or
-llama.cpp server, are added in App Settings → Models, with their key (if any) on
+Setup asks for the OpenAI key in its AI step and the ElevenLabs key in its
+Voice step. After setup, the OpenAI key is on the OpenAI card in App Settings →
+Models, the ElevenLabs key is in App Settings → Voice, and both are also in App
+Settings → API Keys; each place edits the same saved key. Other model servers,
+such as DeepSeek, OpenRouter or a local Ollama, LM Studio or llama.cpp server,
+are added in App Settings → Models (Cloud or Local), with their key (if any) on
 the connection. Text chat through an external model requires that provider to be
 configured and reachable and can incur its charges. There is no bundled offline
 chat model; a local server on this computer keeps chat fully local. The app
@@ -64,22 +73,24 @@ runtime recovery's Retry uses the saved keys; do not remove the vault or
 re-enter a key merely to repair it.
 
 PocketTTS and microphone permission do not require Parakeet. Offline dictation
-and Voice Mode require the **Offline speech recognition** pack. Open the app
+and Voice Mode require the offline speech recognition CPU model, downloaded in
+setup's Voice step or App Settings → Voice without restarting the app. Open the app
 normally through Finder for microphone permission tests and allow Animama in
-macOS Privacy & Security when prompted. See [Feature packs](feature-packs.md)
+macOS Privacy & Security when prompted. See [Speech model downloads](feature-packs.md#speech-model-downloads)
 and [Microphone troubleshooting](troubleshooting.md#microphone-and-speech).
 
 ## Local storage and offline use
 
 Your data lives at `~/Library/Application Support/Animama`, separately from
 `Animama.app`. It includes the private database, encrypted vault, Local content,
-uploads, logs and installed packs. Included content in the app is read-only;
+uploads, logs, downloaded speech models and installed packs. Included content in the app is read-only;
 content you create/import belongs in the writable Local library. The app uses
 private loopback services and is not a shared LAN application.
 
 Local content, history and installed local speech assets remain on the computer.
-Downloading a pack or app update needs Internet access, as do configured remote
-AI/voice providers. Installed Parakeet can transcribe offline; that does not make
+Downloading speech models, a pack or an app update needs Internet access, as do
+configured remote AI/voice providers. An installed offline speech model
+transcribes offline; that does not make
 remote chat work offline. Desktop does not need an Animama account for local use.
 
 Starter portraits and speech-engine assets are included; your own Local media

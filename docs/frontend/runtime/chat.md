@@ -168,6 +168,9 @@ above the still-open model selector. Cancel keeps the current chat and model so
 the user can keep choosing from the selector. Confirm closes the selector,
 switches the profile to the new model, and navigates to the anima draft chat
 route so the current draft text can be sent as the first turn of a new chat.
+The dialog, **Start a new chat?**, explains in user terms that the selected
+model keeps conversations differently, without naming APIs. Quick Chat does not
+switch; it shows a toast directing the user to the main chat.
 
 Catalog rows advertise `requestable_native_tool_support` and
 `supported_reasoning_efforts` for their settings menu. Users can toggle native tools, currently
