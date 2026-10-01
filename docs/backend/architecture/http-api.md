@@ -346,11 +346,15 @@ dependency; none accepts an owner ID or internal credential from the body.
 - `POST /v1/runtime/bootstrap:ensure`: retry idempotent local owner bootstrap
   and return the same bounded context.
 - `POST /v1/runtime/onboarding:complete`: accept only
-  `{ "display_name": string, "adult_confirmed": boolean }`. The name is
+  `{ "display_name": string, "adult_confirmed": boolean,
+  "chat_model_provider_id"?: string }`. The name is
   required and nonblank (1–80 characters); `adult_confirmed` must be `true`,
   otherwise the route returns 422 `adult_confirmation_required`. It atomically
   saves private personalization, guarded `PROFILE.md` synchronization, the
-  owner's 18+ self-attestation, and write-once first-run completion.
+  owner's 18+ self-attestation, and write-once first-run completion. The
+  optional setup model must be a usable Chat model (else 422
+  `chat_model_unavailable`, nothing applied); it becomes the Chat default and
+  repins starter Animas still on the model they were created with.
 - `GET /v1/users/me/profile`: return only nullable `display_name`.
 - `PATCH /v1/users/me/profile`: require and update nonblank `display_name`
   after first run. Missing, null, blank, and overlong names return 422.

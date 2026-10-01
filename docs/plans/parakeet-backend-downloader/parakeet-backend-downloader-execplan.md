@@ -90,7 +90,7 @@ guides, and:
 - [x] Phase 2: desktop and self-host cutover, pack removal, speech download UI — implemented, reviewed (rounds 1–3; last docs fix verified at the limit). Manual built self-host check pending.
 - [x] Phase 3: OpenRouter preset, model metadata and hidden built-ins — implemented, reviewed (rounds 1–2 pass).
 - [x] Phase 4: App Settings → Models Cloud | Local and feature-local keys — implemented, reviewed (rounds 1–3; pass). Screenshots pending (G3).
-- [ ] Phase 5: stepped setup.
+- [x] Phase 5: stepped setup — implemented, reviewed (rounds 1–2 pass). Screenshots taken for G3.
 - [ ] Phase 6: documentation sweep and final integration review.
 - [ ] Owner gates G1–G5 (see [Validation and acceptance](#validation-and-acceptance)).
 
@@ -733,13 +733,89 @@ Checks: all frontend and backend checks plus `pnpm desktop:test`. Browser check
 of setup on a fresh dev stack at desktop and narrow widths, with screenshots
 for G3.
 
+Results (2026-10-01), delegated implementation reviewed here:
+
+- Setup: Welcome ("What should Animama call you?", unchanged 18+ copy,
+  decline path and safety link) → AI ("Choose your AI") → Voice ("Set up
+  voice"), "Step N of 3" with a step list (`aria-current="step"`), focus to
+  each step's `h1`, Back/Continue, "Skip for now" on AI and Voice, Finish.
+  Components live in `web/src/app/local-runtime/setup/` (the runtime
+  boundary forbids `src/ui` importing local-runtime).
+- AI step: Cloud (OpenAI card with key on desktop, server-key copy on
+  self-host; "Use another cloud provider" uses the shared connect form and
+  `OwnerModelDialog`, with the OpenRouter picker) | Local (detect Ollama,
+  LM Studio, llama.cpp; add a model; "No local server found. Install and
+  start Ollama, LM Studio or llama.cpp, then search again." and "Set up
+  later"). One "Model for new Animas" choice; the model is sent only after
+  an explicit choice in this session. Hosted shows no model choice.
+- Unsaved-key prompt (Keep editing / Discard / Save key) covers the OpenAI
+  and ElevenLabs panels and the inline connect form; Finish waits for saves.
+- Voice step: offline speech block; Text-to-Speech on/off, "Built-in voices"
+  or ElevenLabs, ElevenLabs key inline on desktop; preferences written by
+  fresh read-merge-write at Finish. Voice cloning left setup.
+- Backend (D6): onboarding accepts optional `chat_model_provider_id`
+  (whitespace-only → 422). In the onboarding transaction it validates the
+  model like new-Anima creation, merges `preferences.chat.default_model_provider_id`
+  under a `user_settings` row lock, and repins starters whose receipt is
+  `ready` and whose model still equals the operator default
+  (`ANIMAMA_DEFAULT_MODEL_PROVIDER_ID`, what bootstrap uses), marking
+  `metadata.source = "onboarding_chat_model"`. Unusable → `422
+  chat_model_unavailable`, nothing applied; replay applies nothing. Settings
+  and model queries are invalidated after success.
+- Draft holds step, name, adult confirmation, Cloud/Local, chosen model and
+  TTS choices; never keys.
+- Smoke: `smoke-macos.mjs` follows Welcome → AI (key save, "Saved.", PID
+  unchanged) → Voice → Finish → `/a`; `smoke-policy.mjs` adds `setup_steps`.
+- Deviation: self-host ElevenLabs copy is one line ("Uses the ElevenLabs key
+  set on this server (ELEVENLABS_API_KEY).") because the browser has no signal
+  for whether the server key exists.
+- Checks after round-1 fixes: `make check-test` 3082 passed, 7 skipped;
+  `make format-check`, `pnpm check`, `pnpm web:lint`, `pnpm desktop:check`,
+  `pnpm build` pass; `pnpm web:test` 361 files / 2422 tests, node 3/3, 4/4,
+  browser 25/25 (setup 15); `pnpm desktop:test` 377; prettier clean on
+  changed files.
+- Browser evidence: development stack `animama-p5`
+  (`http://animama-p5.localhost:8300`); 10 screenshots (desktop 1440×900 and
+  narrow 390×844 for each step and AI sub-view) kept outside the repository
+  for owner review (G3). Desktop key panels and the prompt need Electron to
+  capture.
+
 #### Code Review #1 Findings
 
-Pending.
+Reviewed the working tree against `aa12e975` (sdlc-reviewer, initial).
+Targeted backend 75 passed, web 176 passed; a scratch browser probe
+reproduced F1.
+
+- **P5-R1-F1 (blocking):** a key typed into the inline other-cloud connect
+  form was discarded on Continue/Back/Skip without a prompt, and its save
+  was not counted as busy.
+- Non-blocking: settings cache not refreshed after onboarding; an already
+  configured OpenAI key auto-pinned a Chat preference; whitespace-only model
+  id treated as omitted; no `user_settings` row lock; self-host copy named
+  environment variables at length (owner-facing copy note added by the
+  implementing agent).
 
 #### Code Review #1 Revisions
 
-Pending.
+All accepted and fixed (details in Results): connect form reports a dirty key
+and exposes `{save, discard}`; new browser test (red before the fix);
+query invalidation; explicit-choice rule with a browser test; schema strip →
+422 with a parametrized test; row lock; shorter server-key copy.
+
+#### Code Review #2 (targeted recheck)
+
+Reviewed the working tree (repair round 1). Result: pass, no blockers.
+Verified the form refactor keeps App Settings behaviour, the explicit-choice
+detection cannot misfire on load or refetch, invalidation, 422 and copy.
+Targeted backend 11 passed, web 113 passed, setup browser tests 15/15.
+Non-blocking: **P5-R2-F1** a prompt Save on an incomplete connect form failed
+silently; **P5-R2-F2** the row-lock comment overstated protection against
+unlocked settings saves.
+
+Revisions: F1 fixed with an error ("Your key wasn't saved. Complete the
+details on this step, or discard the key.") and a browser test that failed
+before the fix; F2 comment corrected. Setup browser tests 16/16; `pnpm
+check`, `pnpm web:lint`, ruff pass. One repair round remains unused.
 
 ### Phase 6: Documentation and final integration
 

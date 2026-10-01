@@ -1384,6 +1384,7 @@ Load command 4
         empty_name_rejected: true,
         blank_name_rejected: true,
         adult_confirmation_required: true,
+        setup_steps: true,
         first_anima_chat: true,
         temporary_provider_removed: true,
         temporary_provider_removal_persists: true,
@@ -1395,6 +1396,7 @@ Load command 4
       { ...smoke, setup: "skip" },
       { ...smoke, checks: { optional_name: true } },
       { ...smoke, checks: { ...smoke.checks, first_anima_chat: false } },
+      { ...smoke, checks: { ...smoke.checks, setup_steps: false } },
       {
         ...smoke,
         checks: { ...smoke.checks, temporary_provider_removed: false },

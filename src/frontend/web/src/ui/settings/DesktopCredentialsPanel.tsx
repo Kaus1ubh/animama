@@ -1,4 +1,11 @@
-import { useEffect, useId, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useId,
+  useImperativeHandle,
+  useState,
+  type ReactNode,
+  type Ref,
+} from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   credentialProviders,
@@ -27,6 +34,16 @@ const names: Record<CredentialProvider, string> = {
 };
 
 const EMPTY_STATUSES: CredentialStatus[] = [];
+
+/**
+ * Lets a host act on unsaved edits it cannot see, for example setup's prompt
+ * to save or discard before leaving a step. `save` resolves to whether every
+ * change finished (true when there was nothing to save).
+ */
+export type DesktopCredentialsController = {
+  save: () => Promise<boolean>;
+  discard: () => void;
+};
 
 /** A readable name for a provider or a model connection's key variable. */
 function credentialName(target: string): string {
@@ -94,6 +111,24 @@ function useDesktopCredentialStatuses(enabled: boolean) {
 }
 
 /**
+ * Whether a provider key is saved, from the same shared status as the key
+ * panels; null where keys are not managed here (or status is unknown).
+ */
+export function useDesktopCredentialConfigured(
+  provider: CredentialProvider,
+): boolean | null {
+  const available = useDesktopCredentialsAvailable();
+  const query = useDesktopCredentialStatuses(available);
+  if (!available || !query.isSuccess) return null;
+  return query.data.some(
+    (item) =>
+      isProviderCredential(item) &&
+      item.provider === provider &&
+      item.configured,
+  );
+}
+
+/**
  * Optional provider API keys (desktop embedded runtime only). Keys are
  * write-only: main stores them encrypted and reports status, never values.
  * Several edits are saved together and apply without reloading the window or
@@ -107,6 +142,7 @@ export function DesktopCredentialsPanel({
   showTitle = true,
   providers = credentialProviders,
   description,
+  controllerRef,
 }: {
   onBusyChange?: (busy: boolean) => void;
   /** Number of unsaved key edits, so a host (setup) can prevent losing them. */
@@ -118,6 +154,8 @@ export function DesktopCredentialsPanel({
   providers?: readonly CredentialProvider[];
   /** Replaces the general explanation; `null` shows none. */
   description?: ReactNode;
+  /** Save or discard unsaved edits from outside the panel. */
+  controllerRef?: Ref<DesktopCredentialsController>;
 }) {
   const available = useDesktopCredentialsAvailable();
   const statusQuery = useDesktopCredentialStatuses(available);
@@ -138,7 +176,6 @@ export function DesktopCredentialsPanel({
     onPendingChange?.(pendingCount);
   }, [onPendingChange, pendingCount]);
 
-  if (!available) return null;
   const isConfigured = (provider: CredentialProvider) =>
     statuses.some(
       (item) =>
@@ -155,8 +192,9 @@ export function DesktopCredentialsPanel({
     setMessage(null);
   };
 
-  const save = async () => {
-    if (!bridge || busy || changes.length === 0) return;
+  const save = async (): Promise<boolean> => {
+    if (changes.length === 0) return true;
+    if (!bridge || busy) return false;
     // Clear typed keys before IPC; there is no read-back or browser copy.
     setDrafts({});
     setBusy(true);
@@ -176,12 +214,20 @@ export function DesktopCredentialsPanel({
             ? `Some changes could not finish (${result.failed.map(credentialName).join(", ")}). Retry them; saved keys are never shown here.`
             : "The changes could not finish. Check runtime recovery, then retry. Saved keys are never shown here.",
       );
+      return result.ok;
     } finally {
       setBusy(false);
       onBusyChange?.(false);
     }
   };
 
+  const discard = () => {
+    setDrafts({});
+    setMessage(null);
+  };
+  useImperativeHandle(controllerRef, () => ({ save, discard }));
+
+  if (!available) return null;
   const shown = new Set<string>(providers);
   // A filtered panel reports only its own keys' failures; the full panel
   // also reports model connection keys.
@@ -305,15 +351,7 @@ export function DesktopCredentialsPanel({
               : "Save"}
         </Button>
         {changes.length > 0 && !busy ? (
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            onClick={() => {
-              setDrafts({});
-              setMessage(null);
-            }}
-          >
+          <Button type="button" size="sm" variant="ghost" onClick={discard}>
             Discard
           </Button>
         ) : null}

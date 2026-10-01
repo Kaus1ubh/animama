@@ -6613,6 +6613,12 @@ export type PyOnboardingCompleteRequest = {
      */
     adult_confirmed: boolean;
     /**
+     * Chat Model Provider Id
+     *
+     * Optional catalog row chosen in setup. It becomes the default Chat model, and starter Animas still on the model they were created with move to it. Omit to keep the system default.
+     */
+    chat_model_provider_id?: string | null;
+    /**
      * Display Name
      */
     display_name: string;

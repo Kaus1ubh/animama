@@ -5,6 +5,9 @@ import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
 import { createServer } from "vite";
 
+// Real interaction coverage for the stepped first-run setup: step navigation,
+// focus, the unsaved-key prompt, model choice, voice choices, downloads and
+// the Finish payload. Only native IPC and HTTP are simulated.
 const webRoot = fileURLToPath(new URL("..", import.meta.url));
 const fixture = path.join(webRoot, "tests/fixtures/setup-downloads");
 let server, browser, origin;
@@ -37,7 +40,40 @@ after(async () => {
   await server?.close();
 });
 
-async function mount() {
+const OPENAI_MODEL = "OpenAIResponsesHTTPAgent:gpt-6-luna";
+const COMPATIBILITY = {
+  fold_developer_role: false,
+  send_openai_extensions: false,
+  send_stream_usage: true,
+  strip_function_strict: false,
+  reasoning_mode: "omit",
+};
+const preset = (id, label, local, url) => ({
+  id,
+  label,
+  local,
+  default_base_url: url,
+  expects_key: !local,
+  compatibility: COMPATIBILITY,
+  timeout_seconds: 60,
+  suggested_credential_env: null,
+  logo_provider: null,
+});
+const PRESETS = [
+  preset("deepseek", "DeepSeek", false, "https://api.deepseek.com/v1"),
+  preset("huggingface", "Hugging Face", false, "https://router.hf.co/v1"),
+  preset("openrouter", "OpenRouter", false, "https://openrouter.ai/api/v1"),
+  preset("custom", "Custom", false, null),
+  preset("ollama", "Ollama", true, "http://127.0.0.1:11434/v1"),
+  preset("lmstudio", "LM Studio", true, "http://127.0.0.1:1234/v1"),
+  preset("llamacpp", "llama.cpp", true, "http://127.0.0.1:8080/v1"),
+];
+
+/**
+ * Mount setup with intercepted HTTP. `options.modelConfiguration` false is
+ * the hosted composition; `options.detect` maps a local preset to its models.
+ */
+async function mount(options = {}) {
   const page = await browser.newPage({
     viewport: { width: 1280, height: 900 },
   });
@@ -46,6 +82,7 @@ async function mount() {
   page.on("pageerror", (error) => errors.push(error.message));
   const operations = [];
   const requests = [];
+  const bodies = {};
   const statuses = [
     "openai",
     "deepseek",
@@ -58,6 +95,7 @@ async function mount() {
     updatedAt: null,
     restartRequired: false,
   }));
+  const native = { hold: null };
   const asset = (id, size, extra = {}) => ({
     id,
     status: "not_installed",
@@ -76,9 +114,6 @@ async function mount() {
       files_total: 3,
       requires: ["parakeet-stt"],
     }),
-    asset("pocket-tts-voice-cloning-encoder", 39768446, {
-      media_type: "application/octet-stream",
-    }),
   ];
   const context = {
     principal_id: "00000000-0000-4000-8000-000000000188",
@@ -87,12 +122,103 @@ async function mount() {
     first_run_complete: false,
     display_name: null,
   };
+  const settings = {
+    user_id: context.principal_id,
+    theme: "anima",
+    locale: "en-US",
+    last_active_anima_id: null,
+    preferences: {
+      chat: { markdown_enabled: false },
+      speech: { stt_provider: "parakeet" },
+    },
+  };
+  const openAiConfigured = () =>
+    statuses.find((status) => status.provider === "openai").configured;
+  const connections = [];
+  const ownerModels = [];
+  const builtinConnection = () => ({
+    id: "builtin-openai",
+    name: "OpenAI",
+    preset: "openai",
+    source: "builtin",
+    base_url: null,
+    credential_env: null,
+    credential_state: openAiConfigured() ? "configured" : "missing",
+    compatibility: COMPATIBILITY,
+    timeout_seconds: null,
+    models: [
+      {
+        id: OPENAI_MODEL,
+        model: "gpt-6-luna",
+        model_label: "GPT-6 Luna",
+        provider_type: "OpenAIResponsesHTTPAgent",
+        source: "builtin",
+        model_kind: "chat",
+        hidden: false,
+        connection_id: "builtin-openai",
+        context_window_tokens: 400000,
+        allow_memory_writes: true,
+        capabilities: {
+          accepts: ["text"],
+          supports_streaming: true,
+          supports_tools: true,
+          tools_with_structured_output: true,
+          structured_output_transport: "json_schema",
+        },
+      },
+    ],
+  });
+  const catalog = () => [
+    {
+      id: OPENAI_MODEL,
+      model: "gpt-6-luna",
+      model_label: "GPT-6 Luna",
+      model_provider: "OpenAIResponsesHTTPAgent",
+      api_standard: "responses",
+      provider_label: "OpenAI",
+      connection_id: "builtin-openai",
+      connection_name: "OpenAI",
+      source: "builtin",
+      model_kind: "chat",
+      hidden: false,
+      supports_streaming: true,
+      supports_tools: true,
+      context_window_tokens: 400000,
+    },
+    ...ownerModels.map((model) => ({
+      id: model.id,
+      model: model.model,
+      model_label: model.model_label,
+      model_provider: "OpenAIHTTPAgent",
+      api_standard: "chat_completions",
+      provider_label: "Ollama",
+      connection_id: model.connection_id,
+      connection_name: connections.find(
+        (item) => item.id === model.connection_id,
+      ).name,
+      source: "owner",
+      model_kind: "chat",
+      hidden: false,
+      supports_streaming: model.capabilities.supports_streaming,
+      supports_tools: model.capabilities.supports_tools,
+      context_window_tokens: model.context_window_tokens,
+    })),
+  ];
+
   await page.exposeFunction("fixtureNative", async (method, args) => {
     if (method === "credentials") return statuses;
     // Record only status and action names, never key values.
     operations.push({ method });
     if (method === "credentials.apply") {
-      for (const change of args)
+      if (native.hold) await native.hold;
+      for (const change of args.filter((item) => item.connection))
+        statuses.push({
+          connection: change.connection,
+          configured: Boolean(change.value),
+          updatedAt: "2026-09-28T00:00:00Z",
+          restartRequired: false,
+        });
+      for (const change of args.filter((item) => item.provider))
         Object.assign(
           statuses.find((status) => status.provider === change.provider),
           {
@@ -106,23 +232,138 @@ async function mount() {
   await page.route("**/v1/**", async (route) => {
     const request = route.request();
     const pathname = new URL(request.url()).pathname;
-    requests.push({ pathname, method: request.method() });
+    const method = request.method();
+    requests.push({ pathname, method });
     if (pathname === "/v1/runtime-context")
       return route.fulfill({ json: context });
     if (pathname === "/v1/runtime/onboarding:complete") {
       const input = request.postDataJSON();
-      assert.equal(input.adult_confirmed, true);
-      assert.equal(input.display_name, "Ada Lovelace");
+      bodies.onboarding = input;
+      if (options.refuseModel && input.chat_model_provider_id)
+        return route.fulfill({
+          status: 422,
+          json: { detail: { code: "chat_model_unavailable" } },
+        });
       context.first_run_complete = true;
       context.display_name = input.display_name;
       return route.fulfill({ json: context });
+    }
+    if (pathname === "/v1/users/me/settings") {
+      if (method === "PATCH") {
+        bodies.settings = request.postDataJSON();
+        Object.assign(settings, bodies.settings);
+      }
+      return route.fulfill({ json: settings });
+    }
+    if (pathname === "/v1/runtime-capabilities")
+      return route.fulfill({
+        json: {
+          runtime_kind: "desktop",
+          offline_speech_enabled: false,
+          offline_speech_asset_version: null,
+          model_configuration: options.modelConfiguration ?? true,
+          companion_safety: {
+            ai_notice_enabled: true,
+            crisis_detection_enabled: true,
+            enabled: true,
+            operator_reminder_hours: 3,
+          },
+          user_file_processing: {
+            enabled: false,
+            last_heartbeat_at: null,
+            pack_id: null,
+            supported_extensions: [],
+            worker_state: "disabled",
+          },
+          web_search: { configuration: false },
+        },
+      });
+    if (pathname === "/v1/model-connection-presets")
+      return route.fulfill({ json: PRESETS });
+    if (pathname === "/v1/model-connections" && method === "GET")
+      return route.fulfill({ json: [builtinConnection(), ...connections] });
+    if (pathname === "/v1/model-connections" && method === "POST") {
+      const body = request.postDataJSON();
+      const created = {
+        id: `conn-${connections.length + 1}`,
+        name: body.name,
+        preset: body.preset,
+        source: "owner",
+        base_url: body.base_url,
+        credential_env:
+          body.credential?.mode === "managed"
+            ? `ANIMAMA_CONNECTION_${connections.length + 1}`
+            : null,
+        credential_state:
+          body.credential?.mode === "managed" ? "configured" : "not_required",
+        compatibility: COMPATIBILITY,
+        timeout_seconds: body.timeout_seconds,
+        models: [],
+      };
+      connections.push(created);
+      return route.fulfill({ status: 201, json: created });
+    }
+    const addModel = /^\/v1\/model-connections\/([^/]+)\/models$/u.exec(
+      pathname,
+    );
+    if (addModel && method === "POST") {
+      const body = request.postDataJSON();
+      const connection = connections.find((item) => item.id === addModel[1]);
+      const model = {
+        id: `OpenAIHTTPAgent:${connection.id}:${body.model}`,
+        model: body.model,
+        model_label: body.label ?? body.model,
+        provider_type: "OpenAIHTTPAgent",
+        source: "owner",
+        model_kind: "chat",
+        hidden: false,
+        connection_id: connection.id,
+        context_window_tokens: body.context_window_tokens,
+        allow_memory_writes: true,
+        capabilities: { accepts: ["text"], ...body.capabilities },
+      };
+      connection.models.push(model);
+      ownerModels.push(model);
+      return route.fulfill({ status: 201, json: model });
+    }
+    if (pathname === "/v1/model-providers")
+      return route.fulfill({ json: catalog() });
+    if (pathname === "/v1/model-roles")
+      return route.fulfill({
+        json: {
+          roles: [
+            {
+              role: "chat",
+              source: "default",
+              model_provider_id: OPENAI_MODEL,
+              assignment_available: true,
+            },
+          ],
+          embeddings_refresh: { state: "off" },
+        },
+      });
+    const detect = /^\/v1\/model-connection-presets\/([a-z]+)\/detect$/u.exec(
+      pathname,
+    );
+    if (detect) {
+      const id = detect[1];
+      const found = options.detect?.[id];
+      return route.fulfill({
+        json: {
+          preset: id,
+          base_url: PRESETS.find((item) => item.id === id).default_base_url,
+          reachable: Boolean(found),
+          models: found ?? [],
+          category: found ? null : "unreachable",
+        },
+      });
     }
     if (pathname === "/v1/model-assets")
       return route.fulfill({ json: { assets, free_bytes: 10000000000 } });
     const install = /^\/v1\/model-assets\/([a-z0-9-]+):install$/u.exec(
       pathname,
     );
-    if (install && request.method() === "POST") {
+    if (install && method === "POST") {
       const target = assets.find((item) => item.id === install[1]);
       Object.assign(target, {
         status: "downloading",
@@ -132,10 +373,6 @@ async function mount() {
       });
       return route.fulfill({ status: 202, json: target });
     }
-    if (pathname === "/v1/runtime-capabilities")
-      return route.fulfill({
-        json: { offline_speech_enabled: false },
-      });
     return route.fulfill({
       status: 404,
       json: { detail: "Unexpected fixture route" },
@@ -144,7 +381,6 @@ async function mount() {
   await page.goto(`${origin}/tests/fixtures/setup-downloads/index.html`);
   try {
     await page.getByLabel("Display name", { exact: true }).waitFor();
-    await page.getByLabel("OpenAI", { exact: true }).waitFor();
   } catch (error) {
     console.error({
       errors,
@@ -153,94 +389,113 @@ async function mount() {
     });
     throw error;
   }
-  return { page, assets, statuses, operations, requests };
+  return {
+    page,
+    assets,
+    statuses,
+    operations,
+    requests,
+    bodies,
+    native,
+    errors,
+  };
 }
-async function nameAndAge(page) {
-  await page.getByLabel("Display name", { exact: true }).fill("Ada Lovelace");
-  await page.getByLabel("I am 18 or older", { exact: true }).check();
-}
-const cpuDownload = (page) =>
-  page.getByRole("button", { name: "Download CPU model", exact: true });
-const continueButton = (page) =>
-  page.getByRole("button", { name: "Continue", exact: true });
+
+const button = (page, name) => page.getByRole("button", { name, exact: true });
+const heading = (page, name) =>
+  page.getByRole("heading", { level: 1, name, exact: true });
+const focusedText = (page) =>
+  page.evaluate(() => document.activeElement?.textContent ?? "");
+const currentStep = (page) =>
+  page.locator('nav[aria-label="Setup progress"] [aria-current="step"]');
 const installs = (requests) =>
   requests
     .filter((request) => request.pathname.endsWith(":install"))
     .map((request) => request.pathname);
+const writes = (requests) =>
+  requests
+    .filter((request) => request.method !== "GET")
+    .map((request) => `${request.method} ${request.pathname}`)
+    .filter((entry) => !entry.endsWith("/detect"));
 
-test("skip all optional downloads and complete setup only with explicit valid name and age", async () => {
-  const { page, operations, requests } = await mount();
+async function welcome(page) {
+  await page.getByLabel("Display name", { exact: true }).fill("Ada Lovelace");
+  await page.getByLabel("I am 18 or older", { exact: true }).check();
+  await button(page, "Continue").click();
+  await heading(page, "Choose your AI").waitFor();
+}
+async function toVoice(page) {
+  await welcome(page);
+  await button(page, "Skip for now").click();
+  await heading(page, "Set up voice").waitFor();
+}
+const draftKeys = (page) =>
+  page.evaluate(() =>
+    Object.keys(localStorage).filter((key) =>
+      key.startsWith("animama:setup-draft:"),
+    ),
+  );
+
+test("only Welcome gates; steps move focus to their headings and Skip finishes without a model", async () => {
+  const { page, operations, requests, bodies, errors } = await mount();
   try {
-    assert.equal(await continueButton(page).isEnabled(), false);
-    await nameAndAge(page);
-    await continueButton(page).click();
+    assert.equal(await page.getByText("Step 1 of 3").count(), 1);
+    assert.equal(await currentStep(page).innerText(), "Welcome");
+    const next = button(page, "Continue");
+    assert.equal(await next.isEnabled(), false);
+    await page.getByLabel("Display name", { exact: true }).fill("   ");
+    assert.equal(await next.isEnabled(), false);
+    await page.getByLabel("Display name", { exact: true }).fill("Ada Lovelace");
+    // The 18+ confirmation, safety link and decline path are unchanged.
+    assert.equal(await next.isEnabled(), false);
+    assert.equal(
+      await page
+        .getByRole("link", { name: "Safety and crisis protocol" })
+        .getAttribute("href"),
+      "/safety",
+    );
+    await button(page, "I'm under 18").click();
+    await page.getByText(/only for adults 18 and older/u).waitFor();
+    assert.equal(await next.isEnabled(), false);
+    await page.getByLabel("I am 18 or older", { exact: true }).check();
+    await next.click();
+
+    await heading(page, "Choose your AI").waitFor();
+    assert.equal(await focusedText(page), "Choose your AI");
+    assert.equal(await page.getByText("Step 2 of 3").count(), 1);
+    assert.equal(await currentStep(page).innerText(), "AI");
+    await button(page, "Skip for now").click();
+    await heading(page, "Set up voice").waitFor();
+    assert.equal(await focusedText(page), "Set up voice");
+    assert.equal(await currentStep(page).innerText(), "Voice");
+    await button(page, "Skip for now").click();
     await page.getByText("Setup complete", { exact: true }).waitFor();
+
+    assert.deepEqual(bodies.onboarding, {
+      display_name: "Ada Lovelace",
+      adult_confirmed: true,
+    });
+    assert.equal(bodies.settings, undefined);
     assert.deepEqual(operations, []);
-    assert.equal(
-      requests.filter((request) => request.method !== "GET").length,
-      1,
-    );
-    assert.deepEqual(
-      await page.evaluate(() =>
-        Object.keys(localStorage).filter((key) =>
-          key.startsWith("animama:setup-draft:"),
-        ),
-      ),
-      [],
-    );
-  } finally {
-    await page.close();
-  }
-});
-
-test("a speech download starts beside an unsaved key, which stays editable and gates only Continue", async () => {
-  const { page, operations, requests, assets } = await mount();
-  try {
-    await nameAndAge(page);
-    const key = page.getByLabel("OpenAI", { exact: true });
-    await key.fill("fixture-key-never-persisted");
-    assert.equal(await continueButton(page).isEnabled(), false);
-    // Installs apply in place, so unsaved keys never block them.
-    await cpuDownload(page).click();
-    await page
-      .getByText(/Downloading \d+%/u)
-      .first()
-      .waitFor();
-    assert.deepEqual(installs(requests), [
-      "/v1/model-assets/parakeet-stt:install",
+    assert.deepEqual(writes(requests), [
+      "POST /v1/runtime/onboarding:complete",
     ]);
-    assert.equal(await key.isEnabled(), true);
-    assert.equal(await key.inputValue(), "fixture-key-never-persisted");
-    assert.equal(
-      await page.evaluate(() =>
-        JSON.stringify({ ...localStorage, ...sessionStorage }).includes(
-          "fixture-key-never-persisted",
-        ),
-      ),
-      false,
-    );
-    await page.getByRole("button", { name: "Save", exact: true }).click();
-    await page.getByText("Saved.", { exact: true }).waitFor();
-    await continueButton(page).click();
-    await page.getByText("Setup complete", { exact: true }).waitFor();
-    assert.deepEqual(operations, [{ method: "credentials.apply" }]);
-    // The transfer continues after setup.
-    assert.equal(assets[0].status, "downloading");
+    assert.deepEqual(await draftKeys(page), []);
+    assert.deepEqual(errors, []);
   } finally {
     await page.close();
   }
 });
 
-test("name and age survive renderer recreation while a download continues", async () => {
+test("Back keeps values, and the step and choices survive renderer recreation", async () => {
   const { page } = await mount();
   try {
-    await nameAndAge(page);
-    await cpuDownload(page).click();
-    await page
-      .getByText(/Downloading \d+%/u)
-      .first()
-      .waitFor();
-    await page.reload();
+    await welcome(page);
+    await page.getByRole("tab", { name: "Local" }).click();
+    await page.getByText(/No local server found/u).waitFor();
+    await button(page, "Back").click();
+    await heading(page, "What should Animama call you?").waitFor();
+    assert.equal(await focusedText(page), "What should Animama call you?");
     assert.equal(
       await page.getByLabel("Display name", { exact: true }).inputValue(),
       "Ada Lovelace",
@@ -249,22 +504,374 @@ test("name and age survive renderer recreation while a download continues", asyn
       await page.getByLabel("I am 18 or older", { exact: true }).isChecked(),
       true,
     );
-    await page
-      .getByRole("button", { name: "Cancel download", exact: true })
-      .first()
-      .waitFor();
-    await continueButton(page).click();
-    await page.getByText("Setup complete", { exact: true }).waitFor();
+    await button(page, "Continue").click();
+    await heading(page, "Choose your AI").waitFor();
+    assert.equal(
+      await page
+        .getByRole("tab", { name: "Local" })
+        .getAttribute("aria-selected"),
+      "true",
+    );
+    await page.reload();
+    await heading(page, "Choose your AI").waitFor();
+    assert.equal(
+      await page
+        .getByRole("tab", { name: "Local" })
+        .getAttribute("aria-selected"),
+      "true",
+    );
   } finally {
     await page.close();
   }
 });
 
-test("a failed download offers retry without blocking setup", async () => {
+test("saving the OpenAI key chooses OpenAI, and Finish sends the model and merged voice settings", async () => {
+  const { page, operations, requests, bodies } = await mount();
+  try {
+    await welcome(page);
+    await page.getByLabel("OpenAI", { exact: true }).fill("fixture-key");
+    await button(page, "Save").click();
+    await page.getByText("Saved.", { exact: true }).waitFor();
+    await page
+      .getByText("New Animas will chat with OpenAI (GPT-6 Luna).")
+      .waitFor();
+    assert.equal(
+      await page
+        .getByRole("radio", { name: /Use OpenAI/u })
+        .getAttribute("aria-checked"),
+      "true",
+    );
+    assert.equal(
+      await page.evaluate(() =>
+        JSON.stringify({ ...localStorage, ...sessionStorage }).includes(
+          "fixture-key",
+        ),
+      ),
+      false,
+    );
+    await button(page, "Continue").click();
+    await heading(page, "Set up voice").waitFor();
+    await page.getByRole("switch", { name: "Enable Text-to-Speech" }).click();
+    await page.getByRole("radio", { name: /Built-in voices/u }).click();
+    await button(page, "Finish").click();
+    await page.getByText("Setup complete", { exact: true }).waitFor();
+
+    assert.deepEqual(operations, [{ method: "credentials.apply" }]);
+    assert.deepEqual(bodies.onboarding, {
+      display_name: "Ada Lovelace",
+      adult_confirmed: true,
+      chat_model_provider_id: OPENAI_MODEL,
+    });
+    // Read-merge-write keeps the other saved preferences.
+    assert.deepEqual(bodies.settings, {
+      preferences: {
+        chat: { markdown_enabled: false },
+        speech: {
+          stt_provider: "parakeet",
+          tts_enabled: true,
+          tts_provider: "pocket_tts",
+        },
+      },
+    });
+    assert.deepEqual(writes(requests), [
+      "PATCH /v1/users/me/settings",
+      "POST /v1/runtime/onboarding:complete",
+    ]);
+  } finally {
+    await page.close();
+  }
+});
+
+test("an unsaved key prompts before leaving: keep editing, save and continue, or discard", async () => {
+  const { page, operations } = await mount();
+  try {
+    await welcome(page);
+    const key = page.getByLabel("OpenAI", { exact: true });
+    await key.fill("fixture-key");
+    const dialog = page.getByRole("dialog", { name: "Save your API key?" });
+
+    await button(page, "Continue").click();
+    await dialog.waitFor();
+    await button(page, "Keep editing").click();
+    await dialog.waitFor({ state: "hidden" });
+    assert.equal(await key.inputValue(), "fixture-key");
+    assert.equal(await heading(page, "Choose your AI").count(), 1);
+
+    await button(page, "Continue").click();
+    await button(page, "Save key").click();
+    await heading(page, "Set up voice").waitFor();
+    assert.deepEqual(operations, [{ method: "credentials.apply" }]);
+
+    // Voice: the ElevenLabs key, discarded on Back.
+    await page.getByLabel("ElevenLabs", { exact: true }).fill("fixture-voice");
+    await button(page, "Back").click();
+    await dialog.waitFor();
+    await button(page, "Discard").click();
+    await heading(page, "Choose your AI").waitFor();
+    assert.deepEqual(operations, [{ method: "credentials.apply" }]);
+
+    // Skip also asks.
+    await page.getByLabel("OpenAI", { exact: true }).fill("another-key");
+    await button(page, "Skip for now").click();
+    await dialog.waitFor();
+    await button(page, "Discard").click();
+    await heading(page, "Set up voice").waitFor();
+    assert.deepEqual(operations, [{ method: "credentials.apply" }]);
+  } finally {
+    await page.close();
+  }
+});
+
+test("a key typed into another provider's connect form prompts before leaving", async () => {
+  const { page, operations, requests } = await mount();
+  try {
+    await welcome(page);
+    const dialog = page.getByRole("dialog", { name: "Save your API key?" });
+    const connectDeepSeek = async () => {
+      await page.getByText("Use another cloud provider").click();
+      await button(page, "Connect DeepSeek").click();
+      await page.getByLabel("API key (required)").fill("fixture-deepseek");
+    };
+
+    await connectDeepSeek();
+    await button(page, "Continue").click();
+    await dialog.waitFor();
+    await button(page, "Discard").click();
+    await heading(page, "Set up voice").waitFor();
+    assert.deepEqual(operations, []);
+    assert.equal(
+      writes(requests).includes("POST /v1/model-connections"),
+      false,
+    );
+
+    await button(page, "Back").click();
+    await heading(page, "Choose your AI").waitFor();
+    await connectDeepSeek();
+    await button(page, "Skip for now").click();
+    await dialog.waitFor();
+    await button(page, "Save key").click();
+    await heading(page, "Set up voice").waitFor();
+    // Saving connects the provider and stores its key.
+    assert.equal(writes(requests).includes("POST /v1/model-connections"), true);
+    assert.deepEqual(operations, [{ method: "credentials.apply" }]);
+  } finally {
+    await page.close();
+  }
+});
+
+test("a key that cannot be saved from the prompt keeps the step and says why", async () => {
+  const { page, operations, requests } = await mount();
+  try {
+    await welcome(page);
+    await page.getByText("Use another cloud provider").click();
+    // Custom has no default address, so the form cannot connect yet.
+    await button(page, "Connect Custom").click();
+    await page.getByLabel("API key (required)").fill("fixture-custom");
+    await button(page, "Continue").click();
+    await page.getByRole("dialog", { name: "Save your API key?" }).waitFor();
+    await button(page, "Save key").click();
+    await page.getByText(/Your key wasn't saved/u).waitFor();
+    await heading(page, "Choose your AI").waitFor();
+    assert.deepEqual(operations, []);
+    assert.equal(
+      writes(requests).includes("POST /v1/model-connections"),
+      false,
+    );
+  } finally {
+    await page.close();
+  }
+});
+
+test("an OpenAI key configured before setup does not pin a setup model", async () => {
+  const { page, statuses, bodies } = await mount();
+  try {
+    statuses[0].configured = true;
+    statuses[0].updatedAt = "2026-09-28T00:00:00Z";
+    await page.reload();
+    await welcome(page);
+    await page
+      .getByText(/new Animas use the system default \(GPT-6 Luna\)/u)
+      .waitFor();
+    assert.equal(
+      await page
+        .getByRole("radio", { name: /Use OpenAI/u })
+        .getAttribute("aria-checked"),
+      "false",
+    );
+    await button(page, "Continue").click();
+    await button(page, "Finish").click();
+    await page.getByText("Setup complete", { exact: true }).waitFor();
+    assert.equal(bodies.onboarding.chat_model_provider_id, undefined);
+  } finally {
+    await page.close();
+  }
+});
+
+test("Finish waits for a key save in flight; choosing ElevenLabs without a key explains it", async () => {
+  const { page, native, bodies } = await mount();
+  try {
+    await toVoice(page);
+    await page.getByRole("switch", { name: "Enable Text-to-Speech" }).click();
+    await page.getByRole("radio", { name: /ElevenLabs/u }).click();
+    await page.getByText(/ElevenLabs needs an API key/u).waitFor();
+    let release;
+    native.hold = new Promise((resolve) => {
+      release = resolve;
+    });
+    await page.getByLabel("ElevenLabs", { exact: true }).fill("fixture-voice");
+    await button(page, "Save").click();
+    await page.getByText("Saving your key…").waitFor();
+    assert.equal(await button(page, "Finish").isEnabled(), false);
+    assert.equal(await button(page, "Back").isEnabled(), false);
+    native.hold = null;
+    release();
+    await page.getByText("Saved.", { exact: true }).waitFor();
+    assert.equal(
+      await page.getByText(/ElevenLabs needs an API key/u).count(),
+      0,
+    );
+    await button(page, "Finish").click();
+    await page.getByText("Setup complete", { exact: true }).waitFor();
+    assert.equal(bodies.settings.preferences.speech.tts_provider, "elevenlabs");
+    assert.equal(bodies.settings.preferences.speech.tts_enabled, true);
+  } finally {
+    await page.close();
+  }
+});
+
+test("a local server's model is added and becomes the setup model", async () => {
+  const { page, bodies, requests, errors } = await mount({
+    detect: { ollama: ["qwen3:8b"] },
+  });
+  try {
+    await welcome(page);
+    await page.getByRole("tab", { name: "Local" }).click();
+    await page.getByText("Found 1 server.").waitFor();
+    await button(page, "Add qwen3:8b").click();
+    const dialog = page.getByRole("dialog", {
+      name: "Add a model to Ollama",
+    });
+    await dialog.waitFor();
+    assert.equal(
+      await dialog.getByLabel("Model ID", { exact: true }).inputValue(),
+      "qwen3:8b",
+    );
+    await dialog
+      .getByLabel("Context window (tokens)", { exact: true })
+      .fill("8192");
+    await dialog
+      .getByRole("button", { name: "Add model", exact: true })
+      .click();
+    await page
+      .getByText("New Animas will chat with qwen3:8b on Ollama.")
+      .waitFor();
+    await button(page, "Continue").click();
+    await button(page, "Finish").click();
+    await page.getByText("Setup complete", { exact: true }).waitFor();
+    assert.equal(
+      bodies.onboarding.chat_model_provider_id,
+      "OpenAIHTTPAgent:conn-1:qwen3:8b",
+    );
+    assert.deepEqual(writes(requests).slice(0, 2), [
+      "POST /v1/model-connections",
+      "POST /v1/model-connections/conn-1/models",
+    ]);
+    assert.deepEqual(errors, []);
+  } finally {
+    await page.close();
+  }
+});
+
+test("with no local server, Set up later moves on without a model", async () => {
+  const { page, bodies } = await mount();
+  try {
+    await welcome(page);
+    await page.getByRole("tab", { name: "Local" }).click();
+    await page.getByText(/No local server found/u).waitFor();
+    await button(page, "Set up later").click();
+    await heading(page, "Set up voice").waitFor();
+    await button(page, "Finish").click();
+    await page.getByText("Setup complete", { exact: true }).waitFor();
+    assert.equal(bodies.onboarding.chat_model_provider_id, undefined);
+  } finally {
+    await page.close();
+  }
+});
+
+test("a refused setup model is explained and Finish can retry after skipping it", async () => {
+  const { page, bodies } = await mount({ refuseModel: true });
+  try {
+    await welcome(page);
+    await page.getByLabel("OpenAI", { exact: true }).fill("fixture-key");
+    await button(page, "Save").click();
+    await page.getByText("Saved.", { exact: true }).waitFor();
+    await button(page, "Continue").click();
+    await button(page, "Finish").click();
+    await page.getByText(/chosen model can no longer be used/u).waitFor();
+    await button(page, "Back").click();
+    await button(page, "Skip for now").click();
+    await heading(page, "Set up voice").waitFor();
+    // Skipping AI clears the choice; OpenAI is chosen again only if returning.
+    await button(page, "Finish").click();
+    await page.getByText("Setup complete", { exact: true }).waitFor();
+    assert.equal(bodies.onboarding.chat_model_provider_id, undefined);
+  } finally {
+    await page.close();
+  }
+});
+
+test("the hosted composition's AI step offers no model choice", async () => {
+  const { page, bodies } = await mount({ modelConfiguration: false });
+  try {
+    await welcome(page);
+    await page.getByText(/provides its own models/u).waitFor();
+    assert.equal(await page.getByRole("tab").count(), 0);
+    assert.equal(await page.getByRole("radio").count(), 0);
+    await button(page, "Continue").click();
+    await button(page, "Finish").click();
+    await page.getByText("Setup complete", { exact: true }).waitFor();
+    assert.equal(bodies.onboarding.chat_model_provider_id, undefined);
+  } finally {
+    await page.close();
+  }
+});
+
+test("a speech download keeps running after Finish and survives renderer recreation", async () => {
   const { page, assets, requests } = await mount();
   try {
-    await nameAndAge(page);
-    await cpuDownload(page).click();
+    await toVoice(page);
+    await button(page, "Download CPU model").click();
+    await page
+      .getByText(/Downloading \d+%/u)
+      .first()
+      .waitFor();
+    assert.deepEqual(installs(requests), [
+      "/v1/model-assets/parakeet-stt:install",
+    ]);
+    await page.reload();
+    await heading(page, "Set up voice").waitFor();
+    await button(page, "Cancel download").first().waitFor();
+    await button(page, "Back").click();
+    await button(page, "Back").click();
+    assert.equal(
+      await page.getByLabel("Display name", { exact: true }).inputValue(),
+      "Ada Lovelace",
+    );
+    await button(page, "Continue").click();
+    await button(page, "Continue").click();
+    await button(page, "Finish").click();
+    await page.getByText("Setup complete", { exact: true }).waitFor();
+    assert.equal(assets[0].status, "downloading");
+  } finally {
+    await page.close();
+  }
+});
+
+test("a failed download offers retry without blocking Finish", async () => {
+  const { page, assets, requests } = await mount();
+  try {
+    await toVoice(page);
+    await button(page, "Download CPU model").click();
     await page
       .getByText(/Downloading \d+%/u)
       .first()
@@ -274,13 +881,9 @@ test("a failed download offers retry without blocking setup", async () => {
       reason: "asset_download_failed",
     });
     await page.reload();
-    const retry = page.getByRole("button", {
-      name: "Retry download",
-      exact: true,
-    });
+    const retry = button(page, "Retry download");
     await retry.waitFor();
-    assert.equal(await retry.isEnabled(), true);
-    assert.equal(await continueButton(page).isEnabled(), true);
+    assert.equal(await button(page, "Finish").isEnabled(), true);
     await retry.click();
     await page
       .getByText(/Downloading \d+%/u)
@@ -292,7 +895,7 @@ test("a failed download offers retry without blocking setup", async () => {
   }
 });
 
-test("downloads and key edits stay available when setup details cannot be retained", async () => {
+test("steps, keys and downloads work when setup details cannot be retained", async () => {
   const { page, operations, requests } = await mount();
   try {
     await page.evaluate(() => {
@@ -300,12 +903,13 @@ test("downloads and key edits stay available when setup details cannot be retain
         throw new Error("storage unavailable");
       };
     });
-    await nameAndAge(page);
-    assert.equal(await page.getByText(/could not be retained/u).count(), 0);
+    await welcome(page);
     await page.getByLabel("OpenAI", { exact: true }).fill("fixture-key");
-    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await button(page, "Save").click();
     await page.getByText("Saved.", { exact: true }).waitFor();
-    await cpuDownload(page).click();
+    await button(page, "Continue").click();
+    await heading(page, "Set up voice").waitFor();
+    await button(page, "Download CPU model").click();
     await page
       .getByText(/Downloading \d+%/u)
       .first()
@@ -317,46 +921,28 @@ test("downloads and key edits stay available when setup details cannot be retain
   }
 });
 
-test("credential removal and a failed-save retry also retain the unfinished setup fields", async () => {
-  const fixture = await mount();
+test("a failed key change is reported again after renderer recreation, keeping the step", async () => {
+  const { page, statuses, operations } = await mount();
   try {
-    const { page, statuses, operations } = fixture;
-    await nameAndAge(page);
+    await welcome(page);
     statuses[0].configured = true;
     statuses[0].updatedAt = "2026-09-28T00:00:00Z";
     statuses[0].error = "secure_storage_unavailable";
     await page.reload();
+    await heading(page, "Choose your AI").waitFor();
     await page.getByText(/OpenAI: The key change could not finish/u).waitFor();
-    assert.equal(
-      await page.getByLabel("Display name", { exact: true }).inputValue(),
-      "Ada Lovelace",
-    );
-    assert.equal(
-      await page.getByLabel("I am 18 or older", { exact: true }).isChecked(),
-      true,
-    );
-    await page
-      .getByRole("button", { name: "Remove OpenAI key", exact: true })
-      .click();
+    await button(page, "Remove OpenAI key").click();
     delete statuses[0].error;
-    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await button(page, "Save").click();
     await page.getByText("Saved.", { exact: true }).waitFor();
-    await page.reload();
-    assert.equal(
-      await page.getByLabel("Display name", { exact: true }).inputValue(),
-      "Ada Lovelace",
-    );
-    assert.equal(
-      await page.getByLabel("I am 18 or older", { exact: true }).isChecked(),
-      true,
-    );
-    assert.equal(
-      await page.getByLabel("OpenAI", { exact: true }).inputValue(),
-      "",
-    );
     assert.equal(statuses[0].configured, false);
     assert.deepEqual(operations, [{ method: "credentials.apply" }]);
+    await button(page, "Back").click();
+    assert.equal(
+      await page.getByLabel("Display name", { exact: true }).inputValue(),
+      "Ada Lovelace",
+    );
   } finally {
-    await fixture.page.close();
+    await page.close();
   }
 });

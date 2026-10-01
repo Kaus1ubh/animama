@@ -315,7 +315,25 @@ export async function smokeMac(args) {
       ),
     );
     observeChildren();
-    step = "provider-and-first-run";
+    // Setup is three steps: Welcome (required name and 18+) → AI → Voice.
+    step = "setup-welcome";
+    const continueButton = page.getByRole("button", {
+      name: "Continue",
+      exact: true,
+    });
+    evidence("empty_name_rejected", await continueButton.isDisabled());
+    await page.getByLabel("Display name", { exact: true }).fill("   ");
+    evidence("blank_name_rejected", await continueButton.isDisabled());
+    await page
+      .getByLabel("Display name", { exact: true })
+      .fill("Desktop smoke");
+    evidence("adult_confirmation_required", await continueButton.isDisabled());
+    await page.getByLabel("I am 18 or older", { exact: true }).check();
+    await continueButton.click();
+    step = "setup-ai-provider";
+    await page
+      .getByRole("heading", { name: "Choose your AI" })
+      .waitFor({ timeout: 60_000 });
     // Set before submission: even a failed save response may have persisted it.
     providerMayBeSaved = true;
     await page.getByLabel("OpenAI", { exact: true }).fill(provider);
@@ -346,19 +364,19 @@ export async function smokeMac(args) {
         (entry) => entry.provider === "openai" && entry.configured,
       ) && !JSON.stringify(providerStatuses).includes(provider),
     );
-    const continueButton = page.getByRole("button", {
-      name: "Continue",
-      exact: true,
-    });
-    evidence("empty_name_rejected", await continueButton.isDisabled());
-    await page.getByLabel("Display name", { exact: true }).fill("   ");
-    evidence("blank_name_rejected", await continueButton.isDisabled());
-    await page
-      .getByLabel("Display name", { exact: true })
-      .fill("Desktop smoke");
-    evidence("adult_confirmation_required", await continueButton.isDisabled());
-    await page.getByLabel("I am 18 or older", { exact: true }).check();
     await continueButton.click();
+    step = "setup-voice";
+    await page
+      .getByRole("heading", { name: "Set up voice" })
+      .waitFor({ timeout: 60_000 });
+    const assetsBeforeFinish = await request(page, "/v1/model-assets");
+    evidence(
+      "setup_steps",
+      assetsBeforeFinish.assets.every(
+        (entry) => entry.status === "not_installed",
+      ),
+    );
+    await page.getByRole("button", { name: "Finish", exact: true }).click();
     await page.waitForURL(/\/a(?:\/|$)/u, { timeout: 60_000 });
     const context = await request(page, "/v1/runtime-context");
     evidence(

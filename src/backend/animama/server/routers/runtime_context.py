@@ -18,6 +18,7 @@ from animama.server.installation_personalization import (
     InstallationBootstrapIncompleteError,
     InstallationPersonalizationService,
     InstallationPrincipalMismatchError,
+    OnboardingChatModelUnavailableError,
 )
 from animama.server.local_installation_bootstrap import LocalInstallationBootstrapService
 from animama.server.schemas.runtime import PyOnboardingCompleteRequest, PyRuntimeContext
@@ -106,9 +107,13 @@ async def complete_runtime_onboarding(
             principal_id=principal.id,
             display_name=payload.display_name,
             adult_confirmed=payload.adult_confirmed,
+            chat_model_provider_id=payload.chat_model_provider_id,
+            starter_model_provider_id=bootstrap.starter_model_provider_id,
         )
     except AdultConfirmationRequiredError as exc:
         raise HTTPException(status_code=422, detail={"code": "adult_confirmation_required"}) from exc
+    except OnboardingChatModelUnavailableError as exc:
+        raise HTTPException(status_code=422, detail={"code": "chat_model_unavailable"}) from exc
     except (InstallationBootstrapIncompleteError, UserProfileNotFoundError) as exc:
         raise HTTPException(status_code=409, detail={"code": "installation_bootstrap_incomplete"}) from exc
     except InstallationPrincipalMismatchError as exc:

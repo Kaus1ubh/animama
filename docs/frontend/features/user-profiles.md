@@ -8,12 +8,14 @@ The backend exposes `GET /v1/users/me/profile` and
 first run. The generated installation principal owns the row but is not a
 secret or public identity.
 
-On first run, `/setup` asks “What should Animama call you?” and accepts a
-required nonblank display name up to 80 characters. Animama is for adults, so
-Continue also requires confirming the owner is 18 or older; setup links the
-`/safety` page and cannot finish without that confirmation. Continue stores the
-normalized name and the confirmation; there is no Skip action. Provider keys and optional downloads
-remain optional. Completion is idempotent and controlled by backend runtime
+On first run, `/setup` has three steps: **Welcome** → **AI** → **Voice**.
+Welcome asks “What should Animama call you?” and accepts a required nonblank
+display name up to 80 characters. Animama is for adults, so Continue also
+requires confirming the owner is 18 or older; setup links the `/safety` page
+and cannot finish without that confirmation. Welcome has no Skip action. AI
+(model and OpenAI key) and Voice (speech downloads, Text-to-Speech and the
+ElevenLabs key) offer "Skip for now"; Finish stores the name, confirmation
+and any chosen model, and writes changed Text-to-Speech preferences first. Completion is idempotent and controlled by backend runtime
 context rather than browser storage. The bootstrap placeholder may be null
 before setup. An earlier skipped or unconfirmed setup reopens without resetting
 data.

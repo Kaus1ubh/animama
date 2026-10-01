@@ -42,6 +42,16 @@ memory version; and writes `first_run_completed_at` once. A pre-commit failure
 rolls the whole operation back. Replaying a response lost after commit returns
 the completed state without adding another memory version.
 
+The optional `chat_model_provider_id` is the model chosen in setup's AI step.
+The same transaction checks it with the Chat role's rules (active row on an
+active connection, a chat model a supported client can stream, and a context
+window for owner models), merges it into `preferences.chat.default_model_provider_id`,
+and repins starter Animas whose `anima_chat_profiles.default_model_provider_id`
+still equals the model local bootstrap created them with (the operator's
+`ANIMAMA_DEFAULT_MODEL_PROVIDER_ID`). Any other Anima keeps its model. An
+unusable model returns 422 `chat_model_unavailable` and nothing is applied; a
+completed-onboarding replay ignores the field.
+
 Runtime context reports first run complete only when the timestamp, a
 nonblank stored name, and an `adult` age status all exist. An installation with
 a completion timestamp but no name or no 18+ confirmation opens setup; adding a name retains its principal, content, and

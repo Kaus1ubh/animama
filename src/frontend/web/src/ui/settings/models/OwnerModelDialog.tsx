@@ -92,6 +92,7 @@ function capabilitiesOf(model: PyConfiguredModel): OwnerCapabilitiesDraft {
 function initialDraft(
   connection: PyModelConnection,
   model: PyConfiguredModel | undefined,
+  initialModelId = "",
 ): Draft {
   if (model)
     return {
@@ -111,7 +112,7 @@ function initialDraft(
     };
   return {
     kind: "chat",
-    model: "",
+    model: initialModelId,
     label: "",
     // New models on the built-in OpenAI connection default to its Responses API.
     providerType:
@@ -206,6 +207,8 @@ export function OwnerModelDialog({
   model,
   templates,
   onRemove,
+  onAdded,
+  initialModelId,
   disabled = false,
 }: {
   open: boolean;
@@ -218,6 +221,10 @@ export function OwnerModelDialog({
   onRemove?: (model: PyConfiguredModel) => void;
   /** Settings are busy elsewhere; nothing here may change. */
   disabled?: boolean;
+  /** Called with a newly added model, e.g. so setup can choose it. */
+  onAdded?: (model: PyConfiguredModel) => void;
+  /** Prefills a new model's ID, e.g. one a detected server listed. */
+  initialModelId?: string;
 }) {
   const formId = useId();
   const add = useAddOwnerModel();
@@ -225,7 +232,7 @@ export function OwnerModelDialog({
   const discover = useListAvailableModels();
   const probe = useProbeModel();
   const [draft, setDraft] = useState<Draft>(() =>
-    initialDraft(connection, model),
+    initialDraft(connection, model, initialModelId),
   );
   const [report, setReport] = useState<PyModelProbeReport | null>(null);
   const [saving, setSaving] = useState(false);
@@ -235,11 +242,11 @@ export function OwnerModelDialog({
   const modelId = model?.id;
   useEffect(() => {
     if (!open) return;
-    setDraft(initialDraft(connection, model));
+    setDraft(initialDraft(connection, model, initialModelId));
     setReport(null);
     discover.reset();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reset per opening only
-  }, [open, connection.id, modelId]);
+  }, [open, connection.id, modelId, initialModelId]);
 
   const editing = Boolean(model);
   const isChat = draft.kind === "chat";
@@ -319,8 +326,8 @@ export function OwnerModelDialog({
               : {}),
           },
         });
-      else
-        await add.mutateAsync({
+      else {
+        const added = await add.mutateAsync({
           connectionId: connection.id,
           body: {
             model: draft.model.trim(),
@@ -334,6 +341,8 @@ export function OwnerModelDialog({
             probe_result: report ? { ...report } : null,
           },
         });
+        onAdded?.(added);
+      }
       toast.success(editing ? "Model saved." : "Model added.");
       onOpenChange(false);
     } catch (error) {

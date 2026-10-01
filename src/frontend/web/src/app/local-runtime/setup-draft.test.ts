@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   clearSetupDraft,
+  emptySetupDraft,
   readSetupDraft,
   writeSetupDraft,
+  type SetupDraft,
 } from "./setup-draft";
 
 function storage() {
@@ -19,18 +21,33 @@ function storage() {
   };
 }
 
+const draft = (patch: Partial<SetupDraft>): SetupDraft => ({
+  ...emptySetupDraft(),
+  ...patch,
+});
+
 describe("unfinished installation setup draft", () => {
-  it("restores explicit name and age choice for the same owner after renderer replacement", () => {
+  it("restores the step and choices for the same owner after renderer replacement", () => {
     const store = storage();
-    const draft = { displayName: "  Ada  ", adultConfirmed: true };
-    expect(writeSetupDraft("owner-a", draft, store)).toBe(true);
-    expect(readSetupDraft("owner-a", store)).toEqual(draft);
-    expect(readSetupDraft("owner-b", store)).toEqual({
-      displayName: "",
-      adultConfirmed: false,
+    const saved = draft({
+      step: "voice",
+      displayName: "  Ada  ",
+      adultConfirmed: true,
+      modelLocation: "local",
+      chatModelId: "OpenAIHTTPAgent:qwen3",
+      ttsEnabled: true,
+      ttsProvider: "elevenlabs",
     });
-    writeSetupDraft("owner-a", { ...draft, adultConfirmed: false }, store);
-    expect(readSetupDraft("owner-a", store).adultConfirmed).toBe(false);
+    expect(writeSetupDraft("owner-a", saved, store)).toBe(true);
+    expect(readSetupDraft("owner-a", store)).toEqual(saved);
+    expect(readSetupDraft("owner-b", store)).toEqual(emptySetupDraft());
+    writeSetupDraft("owner-a", { ...saved, adultConfirmed: false }, store);
+    // A later step needs the Welcome answers.
+    expect(readSetupDraft("owner-a", store)).toMatchObject({
+      step: "welcome",
+      adultConfirmed: false,
+      chatModelId: "OpenAIHTTPAgent:qwen3",
+    });
   });
 
   it("stores only bounded nonsecret fields, never credentials or readiness", () => {
@@ -38,38 +55,45 @@ describe("unfinished installation setup draft", () => {
     writeSetupDraft(
       "owner-a",
       {
-        displayName: "x".repeat(100),
-        adultConfirmed: true,
+        ...draft({ displayName: "x".repeat(100), adultConfirmed: true }),
         apiKey: "fixture-secret",
         firstRunComplete: true,
-      } as { displayName: string; adultConfirmed: boolean },
+      } as SetupDraft,
       store,
     );
     expect([...store.entries.values()].map((text) => JSON.parse(text))).toEqual(
-      [{ displayName: "x".repeat(80), adultConfirmed: true }],
+      [draft({ displayName: "x".repeat(80), adultConfirmed: true })],
     );
   });
 
   it("rejects corrupt or oversized drafts and never infers adult confirmation", () => {
     const store = storage();
-    writeSetupDraft(
-      "owner-a",
-      { displayName: "Ada", adultConfirmed: false },
-      store,
-    );
+    writeSetupDraft("owner-a", draft({ displayName: "Ada" }), store);
     const key = [...store.entries.keys()][0];
     for (const text of [
       "broken",
       "null",
       JSON.stringify({ displayName: "Ada", adultConfirmed: "yes" }),
-      "x".repeat(4096),
+      "x".repeat(5000),
     ]) {
       store.setItem(key, text);
-      expect(readSetupDraft("owner-a", store)).toEqual({
-        displayName: "",
-        adultConfirmed: false,
-      });
+      expect(readSetupDraft("owner-a", store)).toEqual(emptySetupDraft());
     }
+    store.setItem(
+      key,
+      JSON.stringify({
+        step: "elsewhere",
+        displayName: "Ada",
+        adultConfirmed: true,
+        modelLocation: "orbit",
+        chatModelId: 7,
+        ttsEnabled: "yes",
+        ttsProvider: "browser",
+      }),
+    );
+    expect(readSetupDraft("owner-a", store)).toEqual(
+      draft({ displayName: "Ada", adultConfirmed: true }),
+    );
   });
 
   it("clears only the completed owner's draft and tolerates unavailable storage", () => {
@@ -77,7 +101,7 @@ describe("unfinished installation setup draft", () => {
     for (const owner of ["a", "b"])
       writeSetupDraft(
         owner,
-        { displayName: owner, adultConfirmed: true },
+        draft({ displayName: owner, adultConfirmed: true }),
         store,
       );
     clearSetupDraft("a", store);
@@ -98,7 +122,7 @@ describe("unfinished installation setup draft", () => {
     expect(
       writeSetupDraft(
         "a",
-        { displayName: "Ada", adultConfirmed: true },
+        draft({ displayName: "Ada", adultConfirmed: true }),
         blocked,
       ),
     ).toBe(false);

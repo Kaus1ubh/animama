@@ -242,7 +242,8 @@ when it is safe to share with active tasks:
 ```
 
 Open `http://localhost:8000`. An installation whose first run is incomplete
-shows `/setup`; a nonblank private display name is required and there is no Skip.
+shows `/setup`; its Welcome step requires a nonblank private display name and
+the 18+ confirmation, while the AI and Voice steps offer "Skip for now".
 After completion, `/a` resolves to the last visited owned Anima's chat, or Annie
 on a fresh installation. A normal restart must retain
 the completed state, local display name, Animas, chats, content, and files.

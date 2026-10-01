@@ -25,6 +25,19 @@ test("complete accountless first-run setup on the isolated installation", async 
     await expect(next).toBeDisabled();
     await page.getByLabel("I am 18 or older", { exact: true }).check();
     await next.click();
+    // AI and Voice are optional; the fixture keeps the system defaults.
+    await expect(
+      page.getByRole("heading", { name: "Choose your AI" }),
+    ).toBeVisible();
+    await page
+      .getByRole("button", { name: "Skip for now", exact: true })
+      .click();
+    await expect(
+      page.getByRole("heading", { name: "Set up voice" }),
+    ).toBeVisible();
+    await page
+      .getByRole("button", { name: "Skip for now", exact: true })
+      .click();
   }
   await page.waitForURL((url) => url.pathname.startsWith("/a"));
   await expect(

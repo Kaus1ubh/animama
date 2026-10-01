@@ -3830,6 +3830,10 @@ export const zPyModelRemovalResult = z.object({
  */
 export const zPyOnboardingCompleteRequest = z.object({
     adult_confirmed: z.boolean(),
+    chat_model_provider_id: z.optional(z.union([
+        z.string().min(1).max(512),
+        z.null()
+    ])),
     display_name: z.string().min(1).max(80)
 });
 

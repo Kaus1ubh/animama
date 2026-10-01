@@ -1,4 +1,11 @@
-import { useId, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useId,
+  useImperativeHandle,
+  useState,
+  type ReactNode,
+  type Ref,
+} from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -41,6 +48,7 @@ import type {
   CredentialsBridge,
 } from "../../../../../shared/desktop-runtime";
 import { credentialTarget } from "../../../../../shared/desktop-runtime";
+import type { DesktopCredentialsController } from "@/ui/settings/DesktopCredentialsPanel";
 import {
   applyCredentialChanges,
   credentialFailureMessage,
@@ -154,15 +162,7 @@ export type ModelConnectionFormState = { saving: boolean; valid: boolean };
  * local server type can **Detect** whether one is running at its default
  * address.
  */
-export function ModelConnectionForm({
-  presets,
-  connection,
-  managedKeys,
-  onSaved,
-  onSavingChange,
-  footer,
-  baseUrlPlaceholder = "http://127.0.0.1:11434/v1",
-}: {
+type ModelConnectionFormProps = {
   /** Example address for an empty Base URL, e.g. a cloud URL on the Cloud tab. */
   baseUrlPlaceholder?: string;
   /**
@@ -175,8 +175,33 @@ export function ModelConnectionForm({
   managedKeys: boolean;
   onSaved: (connection: PyModelConnection) => void;
   onSavingChange?: (saving: boolean) => void;
+  /**
+   * Whether a typed (desktop) key is unsaved, so a host such as setup can
+   * ask before leaving; reported false again when the form closes.
+   */
+  onKeyDirtyChange?: (dirty: boolean) => void;
+  /** Save (connect) or discard the typed key from outside the form. */
+  controllerRef?: Ref<DesktopCredentialsController>;
   footer: (state: ModelConnectionFormState) => ReactNode;
-}) {
+};
+
+export function ModelConnectionForm(props: ModelConnectionFormProps) {
+  // Without a connection or a preset there is nothing to start from.
+  if (!props.connection && !props.presets[0]) return null;
+  return <ModelConnectionFields {...props} />;
+}
+
+function ModelConnectionFields({
+  presets,
+  connection,
+  managedKeys,
+  onSaved,
+  onSavingChange,
+  onKeyDirtyChange,
+  controllerRef,
+  footer,
+  baseUrlPlaceholder = "http://127.0.0.1:11434/v1",
+}: ModelConnectionFormProps) {
   const formId = useId();
   const platform = useRuntimePlatform();
   const queryClient = useQueryClient();
@@ -188,12 +213,8 @@ export function ModelConnectionForm({
   const create = useCreateModelConnection();
   const update = useUpdateModelConnection();
   const detect = useDetectModelServer();
-  const [draft, setDraft] = useState<Draft | null>(() =>
-    connection
-      ? draftFromConnection(connection)
-      : presets[0]
-        ? draftFromPreset(presets[0])
-        : null,
+  const [draft, setDraft] = useState<Draft>(() =>
+    connection ? draftFromConnection(connection) : draftFromPreset(presets[0]),
   );
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [saving, setSavingState] = useState(false);
@@ -201,7 +222,12 @@ export function ModelConnectionForm({
     null,
   );
 
-  if (!draft) return null;
+  const keyDirty = managedKeys && draft.key.trim() !== "";
+  useEffect(() => {
+    onKeyDirtyChange?.(keyDirty);
+  }, [keyDirty, onKeyDirtyChange]);
+  useEffect(() => () => onKeyDirtyChange?.(false), [onKeyDirtyChange]);
+
   const preset = presets.find((item) => item.id === draft.preset);
   const canDetect = !connection && Boolean(preset?.local);
   const savedManagedKey =
@@ -217,7 +243,7 @@ export function ModelConnectionForm({
     Boolean(draft.baseUrl.trim()) &&
     (timeout === null || (Number.isFinite(timeout) && timeout > 0));
   const change = (patch: Partial<Draft>) =>
-    setDraft((current) => (current ? { ...current, ...patch } : current));
+    setDraft((current) => ({ ...current, ...patch }));
   const setSaving = (next: boolean) => {
     setSavingState(next);
     onSavingChange?.(next);
@@ -241,8 +267,9 @@ export function ModelConnectionForm({
     }
   };
 
-  const save = async () => {
-    if (!valid || saving) return;
+  /** Save the connection and any typed key; resolves to whether both finished. */
+  const save = async (): Promise<boolean> => {
+    if (!valid || saving) return false;
     setSaving(true);
     const body = {
       name: draft.name.trim(),
@@ -260,10 +287,10 @@ export function ModelConnectionForm({
     } catch (error) {
       toast.error(modelConfigurationErrorMessage(error));
       setSaving(false);
-      return;
+      return false;
     }
     const key = draft.key.trim();
-    setDraft((current) => (current ? { ...current, key: "" } : current));
+    setDraft((current) => ({ ...current, key: "" }));
     // The connection no longer names its variable once the key is removed.
     const removedEnv = draft.removeKey ? connection?.credential_env : null;
     try {
@@ -277,12 +304,18 @@ export function ModelConnectionForm({
       }
       toast.success(connection ? "Connection saved." : "Connection added.");
       onSaved(saved);
+      return true;
     } catch (error) {
       toast.error(keyFailureMessage(error, saved.credential_env ?? null));
+      return false;
     } finally {
       setSaving(false);
     }
   };
+  useImperativeHandle(controllerRef, () => ({
+    save,
+    discard: () => change({ key: "" }),
+  }));
 
   return (
     <form
