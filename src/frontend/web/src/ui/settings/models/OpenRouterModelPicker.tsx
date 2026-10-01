@@ -77,10 +77,11 @@ export function OpenRouterModelPicker({
           onCheckedChange={setToolsOnly}
         />
       </label>
-      {/* The live region stays mounted so each change is announced. */}
+      {/* The live region stays mounted and in the accessibility tree (sr-only
+          while empty, never display:none) so each change is announced. */}
       <p
         className={cn(
-          "text-xs empty:hidden",
+          announcement ? "text-xs" : "sr-only",
           models.isError ? "text-destructive" : "text-muted-foreground",
         )}
         role="status"

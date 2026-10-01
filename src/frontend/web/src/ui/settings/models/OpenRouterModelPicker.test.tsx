@@ -68,6 +68,8 @@ describe("OpenRouter add-model picker", () => {
     expect(html).toContain("2 models found.");
     expect(html).not.toMatch(/role="status"[^>]*>2 models found/u);
     expect(html).toMatch(/role="status"[^>]*><\/p>/u);
+    // An empty region stays in the accessibility tree so a later no-match is read.
+    expect(html).not.toMatch(/class="[^"]*\bhidden\b[^"]*"[^>]*role="status"/u);
   });
 
   it("searches by name or ID and can show models without tools", () => {
