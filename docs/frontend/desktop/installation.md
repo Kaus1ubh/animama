@@ -31,8 +31,9 @@ require Docker, Python, Node.js, PostgreSQL, Homebrew or a source checkout.
    for the 18+ confirmation; a nonblank name is private personalization, not a
    username or credential.
 5. **AI** chooses the model your Animas chat with: **Cloud** (OpenAI with your
-   key, or another provider) or **Local** (a running Ollama, LM Studio or
-   llama.cpp server). The model you pick becomes the default Chat model, and
+   key, or another provider) or **Local** (a running Ollama, LM Studio,
+   llama.cpp or vLLM server, or a custom one), each with a tab per provider.
+   A local server's tab looks for it when opened. The model you pick becomes the default Chat model, and
    the starter Animas switch to it. **Skip for now** keeps the default.
 6. **Voice** offers offline speech recognition downloads and Text-to-Speech
    (built-in voices or ElevenLabs with its key). Nothing downloads unless you

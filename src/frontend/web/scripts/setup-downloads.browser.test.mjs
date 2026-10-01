@@ -67,6 +67,7 @@ const PRESETS = [
   preset("ollama", "Ollama", true, "http://127.0.0.1:11434/v1"),
   preset("lmstudio", "LM Studio", true, "http://127.0.0.1:1234/v1"),
   preset("llamacpp", "llama.cpp", true, "http://127.0.0.1:8080/v1"),
+  preset("vllm", "vLLM", true, "http://127.0.0.1:8000/v1"),
 ];
 
 /**
@@ -402,6 +403,23 @@ async function mount(options = {}) {
 }
 
 const button = (page, name) => page.getByRole("button", { name, exact: true });
+// Provider tabs carry screen-reader "(connected)" text, so match the start.
+const providerTab = (page, name) =>
+  page.getByRole("tab", {
+    name: new RegExp(`^${name}( \\(connected\\))?$`, "u"),
+  });
+/** The visible provider panel; hidden panels stay mounted but are excluded. */
+const providerPanel = (page, name) =>
+  page.getByRole("tabpanel", {
+    name: new RegExp(`^${name}( \\(connected\\))?$`, "u"),
+  });
+// The OpenAI provider tab panel is also labelled "OpenAI"; take the key field.
+const openAiKey = (page) =>
+  page.locator("input").and(page.getByLabel("OpenAI", { exact: true }));
+const detects = (requests) =>
+  requests
+    .filter((request) => request.pathname.endsWith("/detect"))
+    .map((request) => request.pathname.split("/").at(-2));
 const heading = (page, name) =>
   page.getByRole("heading", { level: 1, name, exact: true });
 const focusedText = (page) =>
@@ -492,7 +510,7 @@ test("Back keeps values, and the step and choices survive renderer recreation", 
   try {
     await welcome(page);
     await page.getByRole("tab", { name: "Local" }).click();
-    await page.getByText(/No local server found/u).waitFor();
+    await page.getByText(/No Ollama server found/u).waitFor();
     await button(page, "Back").click();
     await heading(page, "What should Animama call you?").waitFor();
     assert.equal(await focusedText(page), "What should Animama call you?");
@@ -529,7 +547,7 @@ test("saving the OpenAI key chooses OpenAI, and Finish sends the model and merge
   const { page, operations, requests, bodies } = await mount();
   try {
     await welcome(page);
-    await page.getByLabel("OpenAI", { exact: true }).fill("fixture-key");
+    await openAiKey(page).fill("fixture-key");
     await button(page, "Save").click();
     await page.getByText("Saved.", { exact: true }).waitFor();
     await page
@@ -586,7 +604,7 @@ test("an unsaved key prompts before leaving: keep editing, save and continue, or
   const { page, operations } = await mount();
   try {
     await welcome(page);
-    const key = page.getByLabel("OpenAI", { exact: true });
+    const key = openAiKey(page);
     await key.fill("fixture-key");
     const dialog = page.getByRole("dialog", { name: "Save your API key?" });
 
@@ -611,7 +629,7 @@ test("an unsaved key prompts before leaving: keep editing, save and continue, or
     assert.deepEqual(operations, [{ method: "credentials.apply" }]);
 
     // Skip also asks.
-    await page.getByLabel("OpenAI", { exact: true }).fill("another-key");
+    await openAiKey(page).fill("another-key");
     await button(page, "Skip for now").click();
     await dialog.waitFor();
     await button(page, "Discard").click();
@@ -628,9 +646,10 @@ test("a key typed into another provider's connect form prompts before leaving", 
     await welcome(page);
     const dialog = page.getByRole("dialog", { name: "Save your API key?" });
     const connectDeepSeek = async () => {
-      await page.getByText("Use another cloud provider").click();
-      await button(page, "Connect DeepSeek").click();
-      await page.getByLabel("API key (required)").fill("fixture-deepseek");
+      await providerTab(page, "DeepSeek").click();
+      await providerPanel(page, "DeepSeek")
+        .getByLabel("API key (required)")
+        .fill("fixture-deepseek");
     };
 
     await connectDeepSeek();
@@ -663,10 +682,12 @@ test("a key that cannot be saved from the prompt keeps the step and says why", a
   const { page, operations, requests } = await mount();
   try {
     await welcome(page);
-    await page.getByText("Use another cloud provider").click();
+    await providerTab(page, "Custom").click();
     // Custom has no default address, so the form cannot connect yet.
-    await button(page, "Connect Custom").click();
-    await page.getByLabel("API key (required)").fill("fixture-custom");
+    await button(page, "Add a custom server").click();
+    await providerPanel(page, "Custom")
+      .getByLabel("API key (required)")
+      .fill("fixture-custom");
     await button(page, "Continue").click();
     await page.getByRole("dialog", { name: "Save your API key?" }).waitFor();
     await button(page, "Save key").click();
@@ -677,6 +698,94 @@ test("a key that cannot be saved from the prompt keeps the step and says why", a
       writes(requests).includes("POST /v1/model-connections"),
       false,
     );
+  } finally {
+    await page.close();
+  }
+});
+
+test("a typed connect-form key survives provider tab switches and still prompts", async () => {
+  const { page, operations } = await mount();
+  try {
+    await welcome(page);
+    // OpenAI opens first; other providers wait on their own tabs.
+    assert.equal(
+      await providerTab(page, "OpenAI").getAttribute("aria-selected"),
+      "true",
+    );
+    await providerTab(page, "DeepSeek").click();
+    const key = providerPanel(page, "DeepSeek").getByLabel(
+      "API key (required)",
+    );
+    await key.fill("fixture-deepseek");
+    await providerTab(page, "OpenRouter").click();
+    await providerPanel(page, "OpenRouter").getByLabel("Base URL").waitFor();
+    await page.getByRole("tab", { name: "Local" }).click();
+    await page.getByRole("tab", { name: "Cloud" }).click();
+
+    const dialog = page.getByRole("dialog", { name: "Save your API key?" });
+    await button(page, "Continue").click();
+    await dialog.waitFor();
+    await button(page, "Keep editing").click();
+    await providerTab(page, "DeepSeek").click();
+    assert.equal(await key.inputValue(), "fixture-deepseek");
+    assert.deepEqual(operations, []);
+  } finally {
+    await page.close();
+  }
+});
+
+test("connecting from a provider tab stays there and opens Add model", async () => {
+  const { page, requests } = await mount();
+  try {
+    await welcome(page);
+    await providerTab(page, "DeepSeek").click();
+    await providerPanel(page, "DeepSeek")
+      .getByLabel("API key (required)")
+      .fill("fixture-deepseek");
+    await providerPanel(page, "DeepSeek")
+      .getByRole("button", { name: "Connect", exact: true })
+      .click();
+    const dialog = page.getByRole("dialog", {
+      name: "Add a model to DeepSeek",
+    });
+    await dialog.waitFor();
+    // Templates are built-in OpenAI models, so another connection offers none.
+    assert.equal(await dialog.getByText("Copy capabilities from").count(), 0);
+    await page.keyboard.press("Escape");
+    await dialog.waitFor({ state: "hidden" });
+    await page.getByRole("tab", { name: "DeepSeek (connected)" }).waitFor();
+    assert.equal(
+      await providerTab(page, "DeepSeek").getAttribute("aria-selected"),
+      "true",
+    );
+    await providerPanel(page, "DeepSeek")
+      .getByRole("button", { name: "Add model to DeepSeek" })
+      .waitFor();
+    assert.equal(writes(requests).includes("POST /v1/model-connections"), true);
+  } finally {
+    await page.close();
+  }
+});
+
+test("each local provider tab looks for its own server when opened", async () => {
+  const { page, requests } = await mount({
+    detect: { lmstudio: ["gemma-3"] },
+  });
+  try {
+    await welcome(page);
+    await page.getByRole("tab", { name: "Local" }).click();
+    await page.getByText(/No Ollama server found/u).waitFor();
+    assert.deepEqual(detects(requests), ["ollama"]);
+    await providerTab(page, "LM Studio").click();
+    await providerPanel(page, "LM Studio")
+      .getByText(/Found 1 model at/u)
+      .waitFor();
+    await button(page, "Add gemma-3").waitFor();
+    assert.deepEqual(detects(requests), ["ollama", "lmstudio"]);
+    // Returning to a tab keeps its result rather than searching again.
+    await providerTab(page, "Ollama").click();
+    await page.getByText(/No Ollama server found/u).waitFor();
+    assert.deepEqual(detects(requests), ["ollama", "lmstudio"]);
   } finally {
     await page.close();
   }
@@ -746,7 +855,7 @@ test("a local server's model is added and becomes the setup model", async () => 
   try {
     await welcome(page);
     await page.getByRole("tab", { name: "Local" }).click();
-    await page.getByText("Found 1 server.").waitFor();
+    await page.getByText(/Found 1 model at/u).waitFor();
     await button(page, "Add qwen3:8b").click();
     const dialog = page.getByRole("dialog", {
       name: "Add a model to Ollama",
@@ -787,7 +896,7 @@ test("with no local server, Set up later moves on without a model", async () => 
   try {
     await welcome(page);
     await page.getByRole("tab", { name: "Local" }).click();
-    await page.getByText(/No local server found/u).waitFor();
+    await page.getByText(/No Ollama server found/u).waitFor();
     await button(page, "Set up later").click();
     await heading(page, "Set up voice").waitFor();
     await button(page, "Finish").click();
@@ -802,7 +911,7 @@ test("a refused setup model is explained and Finish can retry after skipping it"
   const { page, bodies } = await mount({ refuseModel: true });
   try {
     await welcome(page);
-    await page.getByLabel("OpenAI", { exact: true }).fill("fixture-key");
+    await openAiKey(page).fill("fixture-key");
     await button(page, "Save").click();
     await page.getByText("Saved.", { exact: true }).waitFor();
     await button(page, "Continue").click();
@@ -904,7 +1013,7 @@ test("steps, keys and downloads work when setup details cannot be retained", asy
       };
     });
     await welcome(page);
-    await page.getByLabel("OpenAI", { exact: true }).fill("fixture-key");
+    await openAiKey(page).fill("fixture-key");
     await button(page, "Save").click();
     await page.getByText("Saved.", { exact: true }).waitFor();
     await button(page, "Continue").click();

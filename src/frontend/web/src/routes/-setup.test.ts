@@ -241,7 +241,7 @@ describe("local first-run setup", () => {
     expect(html).not.toMatch(/type="submit"[^>]*disabled=""/u);
   });
 
-  it("offers Cloud | Local on the AI step, with the OpenAI key, other providers and Skip", () => {
+  it("offers Cloud | Local and provider tabs on the AI step, with the OpenAI key and Skip", () => {
     fixture.connections = [builtinConnection];
     fixture.providers = catalog;
     const html = renderSetup({
@@ -255,7 +255,16 @@ describe("local first-run setup", () => {
     expect(html).toMatch(/role="tab"[^>]*>Local</u);
     expect(html).toContain("Recommended");
     expect(html).toContain('data-key-panel="openai"');
-    expect(html).toContain("Use another cloud provider");
+    expect(html).toContain('aria-label="Cloud providers"');
+    expect(html).toContain('aria-label="Local providers"');
+    for (const provider of ["DeepSeek", "OpenRouter", "Ollama", "vLLM"])
+      expect(html).toMatch(
+        new RegExp(`role="tab"[^>]*><span[^>]*>${provider}`, "u"),
+      );
+    // OpenAI (key set) opens first and is marked connected.
+    expect(html).toMatch(
+      /role="tab" aria-selected="true"[^>]*><span[^>]*>OpenAI<span aria-hidden="true"[^>]*><\/span><span class="sr-only"> \(connected\)/u,
+    );
     expect(html).toContain("New Animas will chat with OpenAI (GPT-6 Luna).");
     expect(html).toContain("App Settings → Models");
     expect(html).toMatch(/<button[^>]*>Back<\/button>/u);

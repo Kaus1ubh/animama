@@ -993,6 +993,37 @@ Acceptance maps to the issue's checklist. Owner gates (not phases):
 - **G6** Dictation with real audio after install and with the network off,
   on built self-host and packaged desktop (agents cannot drive a microphone).
 
+## Owner follow-ups after the PR opened
+
+Owner requests of 2026-10-01 on PR #244, delivered on the same branch:
+
+- Cloud | Local tabs are two centered, equal-width tabs (`53fc8b3c`, shared
+  `ModelLocationTabsList`).
+- Under them, both App Settings → Models and setup's AI step have
+  left-aligned provider tabs (shared `ModelProviderTabsList`). Each tab shows
+  that provider's connection and models, or its connect form; Custom lists
+  custom servers plus "Add a custom server"; connected tabs show a dot with
+  screen-reader text; the default tab is the first connected provider, else
+  the first. Panels stay mounted, so typed keys survive tab switches and the
+  unsaved-key prompt covers every connect form. Setup's Local server tabs run
+  Detect for their own server when first opened. This replaces the earlier
+  "Add a provider" list and "Use another cloud provider" disclosure described
+  in Phases 4 and 5. After connecting in App Settings, Add model opens.
+- "Copy capabilities from" appears only for the built-in OpenAI connection;
+  "1 model found" pluralization fixed.
+- Provider marks added, unmodified from pinned sources: OpenRouter, Ollama
+  (`providers/ollama-cloud`) and LM Studio from models.dev `8540388b`
+  (MIT); llama.cpp from `ggml-org/llama.cpp` `ec7630a6`
+  `media/llama1-icon-transparent.svg` (MIT, notice added to the desktop
+  inventory). llama.cpp is full colour and not inverted in dark mode.
+- Checks: `pnpm check`, `pnpm web:lint`, `pnpm build`, `pnpm desktop:check`
+  pass; `pnpm web:test` 364 files / 2446 tests, browser 29/29 (setup 19);
+  `pnpm desktop:test` 384. Review (sdlc-reviewer, initial): pass; logos
+  verified byte-identical to upstream. Non-blocking notes: hidden local cards
+  on the open Local tab still check reachability (same request count as
+  before); setup's vLLM tab probes port 8000 only when opened; "Set up later"
+  shows on an empty server tab even when another server already has a model.
+
 ## Idempotence and recovery
 
 - Set installs are restartable. Partial files stay in staging and resume.

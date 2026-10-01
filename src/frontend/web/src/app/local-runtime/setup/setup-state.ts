@@ -104,9 +104,6 @@ export function ownerModelChoices(
   }));
 }
 
-/** Local server types the AI step looks for, in display order. */
-export const SETUP_LOCAL_PRESETS = ["ollama", "lmstudio", "llamacpp"] as const;
-
 /**
  * Models a running server lists that are not yet added to Animama, so the
  * AI step can offer to add them. An existing connection to the same address

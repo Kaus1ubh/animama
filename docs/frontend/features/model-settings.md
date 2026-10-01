@@ -30,10 +30,18 @@ presets on Local. A custom connection is on Local when its base URL points at
 this computer or a private network (loopback, `localhost`,
 `host.docker.internal`, single-label names such as `gpu-box`, `.local`, `.lan`,
 `.home.arpa`, `.internal` and Tailscale `.ts.net` names, private, link-local
-and Tailscale 100.64.0.0/10 addresses), otherwise on Cloud. Each tab lists its
-connected providers first as cards, then the remaining providers as **Add …**
-entries that open the connect form inline; Custom can always add another
-server. After a connection is added, the section shows the tab that lists it.
+and Tailscale 100.64.0.0/10 addresses), otherwise on Cloud.
+
+Under Cloud | Local, a second row of left-aligned provider tabs
+(`ModelProviderTabsList`, shared with setup's AI step) shows one provider at a
+time, with a dot on connected providers (built-in OpenAI counts once its key
+is set). A location opens on its first connected provider, else its first
+provider (`defaultLocationProvider`). A connected provider's tab shows its
+cards; an unconnected one shows its purpose and connect form inline; Custom
+lists each custom server plus **Add a custom server**. Provider panels stay
+mounted, so a half-filled form survives tab switches. Connecting shows the
+new connection's tab (a custom server lands on the location its address
+implies) and opens **Add model**.
 A card shows the connection's name, a
 status and, for owner connections, Edit and Remove, then its models and **Add
 model**. Cloud cards show the key state (**Key set**, **Key missing**). Local
@@ -49,7 +57,8 @@ address (`POST /v1/model-connection-presets/{preset_id}/detect`). A running
 server fills in the base URL and reports how many models it serves; otherwise
 the form says nothing is running there. The built-in OpenAI connection cannot
 be edited or removed, but the owner can add models to it, for example a newer
-OpenAI model copied from a built-in template.
+OpenAI model copied from a built-in template; only the built-in connection
+offers templates.
 
 Keys depend on where the app runs:
 

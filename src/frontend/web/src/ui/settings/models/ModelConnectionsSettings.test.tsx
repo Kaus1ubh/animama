@@ -226,37 +226,95 @@ beforeEach(() => {
   };
 });
 
-describe("Models connections by where models run", () => {
-  it("offers Cloud and Local tabs with proper tab roles", () => {
-    const html = render(<ModelConnectionsSettings disabled={false} />);
-    expect(html).toContain('role="tablist"');
-    expect(html).toContain('aria-label="Where models run"');
-    expect(html.match(/role="tab"/gu)).toHaveLength(2);
-    expectInOrder(html, ["Cloud", "Local"]);
-    expect(html).not.toMatch(/>(Ollama|LM Studio|vLLM)<\/button>/u);
-  });
+/** One tab panel's markup, found by its tab value. */
+function panel(html: string, value: string): string {
+  const open = new RegExp(
+    `<div[^>]* id="[^"]*-content-${value}"[^>]*>`,
+    "u",
+  ).exec(html);
+  if (!open) throw new Error(`No ${value} panel`);
+  const tags = /<\/?div\b[^>]*>/gu;
+  tags.lastIndex = open.index + open[0].length;
+  let depth = 1;
+  for (let tag = tags.exec(html); tag; tag = tags.exec(html)) {
+    depth += tag[0].startsWith("</") ? -1 : 1;
+    if (depth === 0) return html.slice(open.index, tag.index);
+  }
+  throw new Error(`Unclosed ${value} panel`);
+}
 
-  it("lists connected cloud providers first, then Add entries", () => {
+/** Whether a tab with this accessible text is the selected one. */
+const selectedTab = (html: string, name: string) =>
+  new RegExp(
+    `<button[^>]*role="tab"[^>]*aria-selected="true"[^>]*>(?:<[^>]+>)*${name}\\b`,
+    "u",
+  ).test(html);
+
+describe("Models connections by where models run", () => {
+  it("offers Cloud and Local tabs, each with a row of provider tabs", () => {
     const html = render(<ModelConnectionsSettings disabled={false} />);
-    expectInOrder(html, [
+    expect(html).toContain('aria-label="Where models run"');
+    expect(html).toContain('aria-label="Cloud providers"');
+    expect(html).toContain('aria-label="Local providers"');
+    expect(html.match(/role="tab"/gu)).toHaveLength(12);
+    const cloud = panel(html, "cloud");
+    expectInOrder(cloud, [
       "OpenAI",
-      "Recommended",
-      "Key missing",
-      "Router",
-      "Key set",
-      "Add a provider",
       "DeepSeek",
       "Hugging Face",
+      "OpenRouter",
       "Custom",
     ]);
-    expect(html).toContain('aria-label="Add DeepSeek"');
-    expect(html).toContain('aria-label="Add a custom server"');
-    // Connected OpenRouter and the always-connected OpenAI have no Add entry.
-    expect(html).not.toContain('aria-label="Add OpenRouter"');
-    expect(html).not.toContain('aria-label="Add OpenAI"');
-    // Local connections stay off the Cloud tab.
-    expect(html).not.toContain("Workstation vLLM");
-    expect(html).not.toContain("LAN box");
+    expectInOrder(panel(html, "local"), [
+      "Ollama",
+      "LM Studio",
+      "llama.cpp",
+      "vLLM",
+      "Custom",
+    ]);
+  });
+
+  it("opens on the first connected provider and marks connected tabs", () => {
+    const html = render(<ModelConnectionsSettings disabled={false} />);
+    // OpenAI's key is missing, so OpenRouter is the first connected provider.
+    expect(selectedTab(html, "Cloud")).toBe(true);
+    expect(selectedTab(html, "OpenRouter")).toBe(true);
+    expect(selectedTab(html, "vLLM")).toBe(true);
+    const connected = [
+      ...html.matchAll(
+        /role="tab"[^>]*>(?:<span[^>]*>)?([^<]+)<span aria-hidden="true"[^>]*><\/span><span class="sr-only"> \(connected\)/gu,
+      ),
+    ].map((match) => match[1]);
+    expect(connected).toEqual(["OpenRouter", "vLLM", "Custom"]);
+
+    state.connections = [{ ...builtin, credential_state: "configured" }];
+    const keyed = render(<ModelConnectionsSettings disabled={false} />);
+    expect(selectedTab(keyed, "OpenAI")).toBe(true);
+    expect(selectedTab(keyed, "Ollama")).toBe(true);
+  });
+
+  it("shows only that provider on each provider tab", () => {
+    const html = render(<ModelConnectionsSettings disabled={false} />);
+    const openai = panel(html, "openai");
+    expectInOrder(openai, ["OpenAI", "Recommended", "Key missing"]);
+    expect(openai).not.toContain("Router");
+    const router = panel(html, "openrouter");
+    expectInOrder(router, ["Router", "Key set", "qwen/qwen3-235b"]);
+    expect(router).toContain('aria-label="Add model to Router"');
+    expect(router).not.toContain("Base URL");
+    // An unconnected provider shows its purpose and connect form inline.
+    const deepseek = panel(html, "deepseek");
+    expect(deepseek).toContain("DeepSeek API key");
+    expect(deepseek).toContain("Base URL");
+    expect(deepseek).toMatch(
+      /<button[^>]*type="submit"[^>]*>Connect<\/button>/u,
+    );
+    expect(deepseek).not.toContain("Detect");
+    // Custom offers another server; local connections stay off Cloud.
+    const custom = panel(html, "custom-cloud");
+    expect(custom).toContain("Add a custom server");
+    expect(custom).not.toContain("Base URL");
+    expect(panel(html, "cloud")).not.toContain("Workstation vLLM");
   });
 
   it("shows capability chips instead of API tags, and keeps hidden rows reachable", () => {
@@ -281,30 +339,35 @@ describe("Models connections by where models run", () => {
     expect(html).toContain("Show 1 hidden model");
   });
 
-  it("lists local servers with their reachability", () => {
+  it("lists local servers with their reachability, and connect forms with Detect", () => {
     const html = render(
       <ModelConnectionsSettings disabled={false} defaultTab="local" />,
     );
-    expectInOrder(html, [
+    expectInOrder(panel(html, "vllm"), [
       "Workstation vLLM",
       "Running at 127.0.0.1:8000",
+    ]);
+    expectInOrder(panel(html, "custom-local"), [
       "LAN box",
       "Not reachable",
-      "Add a provider",
-      "Ollama",
-      "LM Studio",
-      "llama.cpp",
-      "Custom",
+      "Add a custom server",
     ]);
+    const ollama = panel(html, "ollama");
+    expect(ollama).toContain("Ollama on this computer");
+    expect(ollama).toMatch(/>Detect<\/button>/u);
     // Card statuses are plain text, not one live region per card.
     expect(html).not.toContain('role="status"');
-    expect(html).not.toContain('aria-label="Add vLLM"');
-    expect(html).not.toContain("Router");
+    expect(panel(html, "local")).not.toContain("Router");
+  });
+
+  it("checks local reachability only while Local is showing", () => {
+    const html = render(<ModelConnectionsSettings disabled={false} />);
+    expect(panel(html, "vllm")).toContain("Checking…");
   });
 
   it("puts the OpenAI key field on the OpenAI card on desktop", () => {
     const html = render(<ModelConnectionsSettings disabled={false} />);
-    const card = html.slice(0, html.indexOf("Router"));
+    const card = panel(html, "openai");
     expect(card).toMatch(/<label[^>]*>OpenAI<\/label>/u);
     expect(card).toContain('type="password"');
     expect(card).not.toMatch(/<label[^>]*>ElevenLabs<\/label>/u);

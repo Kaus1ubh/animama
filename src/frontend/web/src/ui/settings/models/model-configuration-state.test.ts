@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type {
   PyConfiguredModel,
+  PyModelConnection,
   PyModelProviderCatalogItem,
 } from "@animama/runtime-contracts/api-types";
 
@@ -17,7 +18,9 @@ import {
   formatContextWindow,
   isPrivateNetworkUrl,
   keyWouldTravelInsecurely,
+  defaultLocationProvider,
   locationProviderGroups,
+  providerConnected,
   modelApiLabel,
   modelCapabilityChips,
   modelConfigurationErrorCode,
@@ -336,6 +339,9 @@ describe("Cloud and Local tabs", () => {
     preset,
     base_url,
   });
+  type Conn = Pick<PyModelConnection, "source" | "preset" | "base_url"> & {
+    credential_state?: PyModelConnection["credential_state"];
+  };
 
   it("offers the planned providers on each tab, OpenAI recommended", () => {
     expect(MODEL_LOCATION_TABS.map((tab) => tab.label)).toEqual([
@@ -405,34 +411,108 @@ describe("Cloud and Local tabs", () => {
     expect(isPrivateNetworkUrl(baseUrl)).toBe(location === "local");
   });
 
-  it("lists connected providers first, then the rest in tab order", () => {
+  it("groups connections under their provider tabs in tab order", () => {
     const connections = [
       { id: "lan", ...owner("custom", "http://192.168.1.4:8000/v1") },
       { id: "or", ...owner("openrouter", "https://openrouter.ai/api/v1") },
       { id: "builtin", source: "builtin" as const, preset: "openai" },
       { id: "vllm", ...owner("vllm", "http://127.0.0.1:8000/v1") },
       { id: "remote", ...owner("custom", "https://api.example.test/v1") },
+      { id: "remote2", ...owner("custom", "https://api.other.test/v1") },
+      { id: "odd", ...owner("unknown-preset", "https://odd.test/v1") },
     ];
     const cloud = locationProviderGroups(connections, "cloud");
     expect(cloud.map((group) => group.entry.id)).toEqual([
       "openai",
-      "openrouter",
-      "custom-cloud",
       "deepseek",
       "huggingface",
+      "openrouter",
+      "custom-cloud",
     ]);
     expect(cloud[0].connections.map((item) => item.id)).toEqual(["builtin"]);
-    expect(cloud[2].connections.map((item) => item.id)).toEqual(["remote"]);
-    expect(cloud[3].connections).toEqual([]);
+    expect(cloud[1].connections).toEqual([]);
+    expect(cloud[3].connections.map((item) => item.id)).toEqual(["or"]);
+    // Custom collects every custom (and unknown) connection in its location.
+    expect(cloud[4].connections.map((item) => item.id)).toEqual([
+      "remote",
+      "remote2",
+      "odd",
+    ]);
     const local = locationProviderGroups(connections, "local");
     expect(local.map((group) => group.entry.id)).toEqual([
-      "vllm",
-      "custom-local",
       "ollama",
       "lmstudio",
       "llamacpp",
+      "vllm",
+      "custom-local",
     ]);
-    expect(local[1].connections.map((item) => item.id)).toEqual(["lan"]);
+    expect(local[3].connections.map((item) => item.id)).toEqual(["vllm"]);
+    expect(local[4].connections.map((item) => item.id)).toEqual(["lan"]);
+  });
+
+  it("marks providers connected, counting built-in OpenAI only with its key", () => {
+    const builtin = (
+      credential_state: PyModelConnection["credential_state"],
+    ): Conn => ({
+      source: "builtin",
+      preset: "openai",
+      base_url: null,
+      credential_state,
+    });
+    const flags = (connections: Conn[], location: "cloud" | "local") =>
+      locationProviderGroups(connections, location)
+        .filter(providerConnected)
+        .map((group) => group.entry.id);
+    expect(flags([builtin("missing")], "cloud")).toEqual([]);
+    expect(
+      flags(
+        [
+          builtin("configured"),
+          { ...owner("deepseek"), credential_state: "missing" },
+        ],
+        "cloud",
+      ),
+    ).toEqual(["openai", "deepseek"]);
+    expect(
+      flags([owner("custom", "http://127.0.0.1:9000/v1")], "local"),
+    ).toEqual(["custom-local"]);
+  });
+
+  it("opens a location on its first connected provider, else the first one", () => {
+    const pick = (connections: Conn[], location: "cloud" | "local") =>
+      defaultLocationProvider(locationProviderGroups(connections, location));
+    const keyless: Conn = {
+      source: "builtin",
+      preset: "openai",
+      base_url: null,
+      credential_state: "missing",
+    };
+    expect(pick([keyless], "cloud")).toBe("openai");
+    expect(
+      pick(
+        [keyless, owner("openrouter", "https://openrouter.ai/api/v1")],
+        "cloud",
+      ),
+    ).toBe("openrouter");
+    expect(
+      pick(
+        [
+          { ...keyless, credential_state: "configured" },
+          owner("openrouter", "https://openrouter.ai/api/v1"),
+        ],
+        "cloud",
+      ),
+    ).toBe("openai");
+    expect(pick([], "local")).toBe("ollama");
+    expect(
+      pick(
+        [
+          owner("custom", "http://192.168.1.4:8000/v1"),
+          owner("lmstudio", "http://127.0.0.1:1234/v1"),
+        ],
+        "local",
+      ),
+    ).toBe("lmstudio");
   });
 
   it("shows key state on Cloud and reachability on Local", () => {

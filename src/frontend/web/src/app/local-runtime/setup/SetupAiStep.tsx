@@ -6,6 +6,7 @@ import {
   useState,
   type ReactNode,
   type Ref,
+  type RefObject,
 } from "react";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
@@ -40,13 +41,19 @@ import {
 import { ModelConnectionForm } from "@/ui/settings/models/ModelConnectionDialog";
 import { OwnerModelDialog } from "@/ui/settings/models/OwnerModelDialog";
 import { ModelLocationTabsList } from "@/ui/settings/models/ModelLocationTabsList";
+import { ModelProviderTabsList } from "@/ui/settings/models/ModelProviderTabsList";
 import {
   baseUrlHost,
   connectionLocation,
+  connectionProviderEntry,
   connectionStatusText,
-  MODEL_LOCATION_PROVIDERS,
+  defaultLocationProvider,
+  detectionMessage,
+  locationProviderGroups,
+  MODEL_LOCATION_TABS,
   modelConfigurationErrorMessage,
   modelSettingsAvailability,
+  type ModelProviderEntry,
 } from "@/ui/settings/models/model-configuration-state";
 
 import {
@@ -54,7 +61,6 @@ import {
   detectedModelsToAdd,
   openAiDefaultModel,
   ownerModelChoices,
-  SETUP_LOCAL_PRESETS,
   type SetupModelChoice,
 } from "./setup-state";
 
@@ -74,11 +80,12 @@ function canChat(model: PyConfiguredModel): boolean {
 }
 
 /**
- * Setup's AI step: where models run (Cloud | Local) and the model new Animas
- * chat with. Cloud recommends OpenAI with its key; other providers connect
- * with the same form as App Settings → Models. Local finds a running Ollama,
- * LM Studio or llama.cpp server and adds one of its models. A runtime that
- * does not let the owner configure models shows no choice.
+ * Setup's AI step: where models run (Cloud | Local), a tab per provider, and
+ * the model new Animas chat with. Cloud recommends OpenAI with its key; other
+ * providers connect with the same form as App Settings → Models. Each local
+ * server tab looks for that server at its default address and adds one of
+ * its models. A runtime that does not let the owner configure models shows
+ * no choice.
  */
 export function SetupAiStep({
   location,
@@ -104,34 +111,28 @@ export function SetupAiStep({
   const managedKeys = useDesktopCredentialsAvailable();
   const { modelConfiguration } = modelSettingsAvailability(capabilities.data);
 
-  // Two places take keys: the OpenAI key panel and an open connect form for
-  // another provider. The step reports them to setup as one source, so
-  // leaving with either unsaved asks first, and either save counts as busy.
+  // Keys are typed in the OpenAI key panel and in connect forms, one per
+  // provider tab (all stay mounted). The step reports them to setup as one
+  // source, so leaving with any unsaved asks first, and any save counts as
+  // busy.
   const panel = useRef<DesktopCredentialsController>(null);
-  const form = useRef<DesktopCredentialsController>(null);
   const [panelPending, setPanelPending] = useState(0);
   const [panelBusy, setPanelBusy] = useState(false);
-  const [formDirty, setFormDirty] = useState(false);
-  const [formSaving, setFormSaving] = useState(false);
-  const pending = panelPending + (formDirty ? 1 : 0);
-  const busy = panelBusy || formSaving;
+  const forms = useConnectFormKeys();
+  const pending = panelPending + forms.dirtyCount;
+  const busy = panelBusy || forms.saving;
   useEffect(() => onKeyPendingChange(pending), [onKeyPendingChange, pending]);
   useEffect(() => onKeyBusyChange(busy), [busy, onKeyBusyChange]);
   useImperativeHandle(credentialsController, () => ({
     save: async () => {
       if (panelPending > 0 && !(await panel.current?.save())) return false;
-      return formDirty ? ((await form.current?.save()) ?? false) : true;
+      return forms.save();
     },
     discard: () => {
       panel.current?.discard();
-      form.current?.discard();
+      forms.discard();
     },
   }));
-  const connectForm: ConnectFormKeys = {
-    controllerRef: form,
-    onKeyDirtyChange: setFormDirty,
-    onSavingChange: setFormSaving,
-  };
 
   const openAiKey = managedKeys ? (
     <DesktopCredentialsPanel
@@ -176,7 +177,7 @@ export function SetupAiStep({
       onChatModelChange={onChatModelChange}
       managedKeys={managedKeys}
       openAiKey={openAiKey}
-      connectForm={connectForm}
+      connectFormKeys={forms.keysFor}
       onSetUpLater={onSetUpLater}
     />
   );
@@ -189,6 +190,68 @@ type ConnectFormKeys = {
   onSavingChange: (saving: boolean) => void;
 };
 
+/** A copy of `set` with `id` in or out; the same set when nothing changes. */
+function toggled(
+  set: ReadonlySet<string>,
+  id: string,
+  on: boolean,
+): ReadonlySet<string> {
+  if (set.has(id) === on) return set;
+  const next = new Set(set);
+  if (on) next.add(id);
+  else next.delete(id);
+  return next;
+}
+
+/**
+ * Key tracking for several connect forms, keyed by provider tab. Each form
+ * gets stable callbacks (so its effects do not re-run every render), and the
+ * step can save or discard every typed key at once.
+ */
+function useConnectFormKeys() {
+  const [controllers] = useState(
+    () => new Map<string, RefObject<DesktopCredentialsController | null>>(),
+  );
+  const [keys] = useState(() => new Map<string, ConnectFormKeys>());
+  const [dirty, setDirty] = useState<ReadonlySet<string>>(() => new Set());
+  const [saving, setSaving] = useState<ReadonlySet<string>>(() => new Set());
+  return {
+    keysFor: (id: string): ConnectFormKeys => {
+      let entry = keys.get(id);
+      if (!entry) {
+        const controllerRef: RefObject<DesktopCredentialsController | null> = {
+          current: null,
+        };
+        controllers.set(id, controllerRef);
+        entry = {
+          controllerRef,
+          onKeyDirtyChange: (on) => setDirty((set) => toggled(set, id, on)),
+          onSavingChange: (on) => setSaving((set) => toggled(set, id, on)),
+        };
+        keys.set(id, entry);
+      }
+      return entry;
+    },
+    dirtyCount: dirty.size,
+    saving: saving.size > 0,
+    /** Connect every form holding a typed key; false at the first failure. */
+    save: async () => {
+      for (const id of dirty)
+        if (!(await controllers.get(id)?.current?.save())) return false;
+      return true;
+    },
+    discard: () => {
+      for (const controller of controllers.values())
+        controller.current?.discard();
+    },
+  };
+}
+
+const BASE_URL_PLACEHOLDER: Record<SetupModelLocation, string> = {
+  cloud: "https://api.example.com/v1",
+  local: "http://127.0.0.1:8080/v1",
+};
+
 function ModelChooser({
   location,
   onLocationChange,
@@ -196,7 +259,7 @@ function ModelChooser({
   onChatModelChange,
   managedKeys,
   openAiKey,
-  connectForm,
+  connectFormKeys,
   onSetUpLater,
 }: {
   location: SetupModelLocation;
@@ -205,7 +268,7 @@ function ModelChooser({
   onChatModelChange: (id: string | null) => void;
   managedKeys: boolean;
   openAiKey: ReactNode;
-  connectForm: ConnectFormKeys;
+  connectFormKeys: (providerId: string) => ConnectFormKeys;
   onSetUpLater: () => void;
 }) {
   const choiceHeadingId = useId();
@@ -214,6 +277,10 @@ function ModelChooser({
   const roles = useModelRoles(true);
   const presets = useModelConnectionPresets(true);
   const [adder, setAdder] = useState<ModelAdder | null>(null);
+  // The owner's provider tab per location; unset opens the default one.
+  const [providerTab, setProviderTab] = useState<
+    Partial<Record<SetupModelLocation, string>>
+  >({});
 
   const allConnections = connections.data ?? [];
   const items = providers.data ?? [];
@@ -299,6 +366,25 @@ function ModelChooser({
     ...choices[location],
   ];
 
+  const groups = {
+    cloud: locationProviderGroups(allConnections, "cloud"),
+    local: locationProviderGroups(allConnections, "local"),
+  };
+  const activeProvider = (where: SetupModelLocation) =>
+    providerTab[where] ?? defaultLocationProvider(groups[where]);
+
+  /** Show a new connection's provider tab and add its first model. */
+  const connected = (saved: PyModelConnection) => {
+    // A custom server lands on the location its address implies.
+    const where = connectionLocation(saved);
+    if (where !== location) onLocationChange(where);
+    setProviderTab((current) => ({
+      ...current,
+      [where]: connectionProviderEntry(saved).id,
+    }));
+    openAdder({ connection: saved });
+  };
+
   if (connections.isError || providers.isError)
     return (
       <p className="text-muted-foreground text-sm" role="status">
@@ -307,6 +393,64 @@ function ModelChooser({
       </p>
     );
 
+  /** One provider's panel: OpenAI, another cloud provider, or a local server. */
+  const providerPanel = (
+    where: SetupModelLocation,
+    entry: ModelProviderEntry,
+  ) => {
+    const items =
+      groups[where].find((group) => group.entry.id === entry.id)?.connections ??
+      [];
+    if (entry.presetId === "openai")
+      return (
+        <section
+          aria-labelledby={`${choiceHeadingId}-openai`}
+          className="border-border/60 space-y-2 rounded-xl border p-4"
+        >
+          <h3
+            id={`${choiceHeadingId}-openai`}
+            className="flex flex-wrap items-center gap-2 text-sm font-semibold"
+          >
+            OpenAI <span className={TAG_CLASS}>Recommended</span>
+          </h3>
+          <p className="text-muted-foreground text-xs">{entry.purpose}</p>
+          {managedKeys ? (
+            openAiKey
+          ) : (
+            <p className="text-muted-foreground text-xs">
+              {openAiReady
+                ? "Uses the OpenAI key configured on this server."
+                : "Set OPENAI_API_KEY on the server to use OpenAI."}
+            </p>
+          )}
+        </section>
+      );
+    if (where === "local" && entry.presetId !== "custom")
+      return (
+        <LocalServer
+          entry={entry}
+          active={location === "local" && activeProvider("local") === entry.id}
+          connections={allConnections}
+          serverConnections={items}
+          presetById={presetById}
+          onAddModel={openAdder}
+          onSetUpLater={onSetUpLater}
+        />
+      );
+    return (
+      <ConnectProvider
+        entry={entry}
+        location={where}
+        connections={items}
+        preset={presetById(entry.presetId)}
+        managedKeys={managedKeys}
+        keys={connectFormKeys(entry.id)}
+        onConnected={connected}
+        onAddModel={(connection) => openAdder({ connection })}
+      />
+    );
+  };
+
   return (
     <div className="space-y-5">
       <Tabs
@@ -314,57 +458,39 @@ function ModelChooser({
         onValueChange={(value) => onLocationChange(value as SetupModelLocation)}
       >
         <ModelLocationTabsList active={location} />
-        {/* Both panels stay mounted so a typed key or open form survives a tab switch. */}
-        <TabsContent
-          value="cloud"
-          forceMount
-          className="mt-4 space-y-4 data-[state=inactive]:hidden"
-        >
-          <section
-            aria-labelledby={`${choiceHeadingId}-openai`}
-            className="border-border/60 space-y-2 rounded-xl border p-4"
+        {/* Every location and provider panel stays mounted, so a typed key
+            or open form survives a tab switch. */}
+        {MODEL_LOCATION_TABS.map(({ id: where, label }) => (
+          <TabsContent
+            key={where}
+            value={where}
+            forceMount
+            className="mt-4 data-[state=inactive]:hidden"
           >
-            <h3
-              id={`${choiceHeadingId}-openai`}
-              className="flex flex-wrap items-center gap-2 text-sm font-semibold"
+            <Tabs
+              value={activeProvider(where)}
+              onValueChange={(value) =>
+                setProviderTab((current) => ({ ...current, [where]: value }))
+              }
             >
-              OpenAI <span className={TAG_CLASS}>Recommended</span>
-            </h3>
-            <p className="text-muted-foreground text-xs">
-              Chat with OpenAI&apos;s models using your API key.
-            </p>
-            {managedKeys ? (
-              openAiKey
-            ) : (
-              <p className="text-muted-foreground text-xs">
-                {openAiReady
-                  ? "Uses the OpenAI key configured on this server."
-                  : "Set OPENAI_API_KEY on the server to use OpenAI."}
-              </p>
-            )}
-          </section>
-          <OtherCloudProviders
-            connections={allConnections}
-            presetById={presetById}
-            managedKeys={managedKeys}
-            connectForm={connectForm}
-            onAddModel={(connection) => openAdder({ connection })}
-          />
-        </TabsContent>
-        <TabsContent
-          value="local"
-          forceMount
-          className="mt-4 space-y-4 data-[state=inactive]:hidden"
-        >
-          <LocalServers
-            active={location === "local"}
-            connections={allConnections}
-            presetById={presetById}
-            hasModels={choices.local.length > 0}
-            onAddModel={openAdder}
-            onSetUpLater={onSetUpLater}
-          />
-        </TabsContent>
+              <ModelProviderTabsList
+                groups={groups[where]}
+                active={activeProvider(where)}
+                label={`${label} providers`}
+              />
+              {groups[where].map(({ entry }) => (
+                <TabsContent
+                  key={entry.id}
+                  value={entry.id}
+                  forceMount
+                  className="mt-4 space-y-4 data-[state=inactive]:hidden"
+                >
+                  {providerPanel(where, entry)}
+                </TabsContent>
+              ))}
+            </Tabs>
+          </TabsContent>
+        ))}
       </Tabs>
       {radioChoices.length ? (
         <section aria-labelledby={choiceHeadingId} className="space-y-2">
@@ -430,109 +556,94 @@ function ModelChooser({
 }
 
 /**
- * DeepSeek, Hugging Face, OpenRouter and custom services: connected ones
- * with an Add model action, then a connect form for the others. Connecting
- * opens the add-model dialog (with OpenRouter's searchable list).
+ * A cloud provider other than OpenAI, or a custom server: its connections
+ * with an Add model action, then its connect form when not yet connected
+ * (Custom: "Add a custom server"). Connecting opens the add-model dialog
+ * (with OpenRouter's searchable list).
  */
-function OtherCloudProviders({
+function ConnectProvider({
+  entry,
+  location,
   connections,
-  presetById,
+  preset,
   managedKeys,
-  connectForm,
+  keys,
+  onConnected,
   onAddModel,
 }: {
+  entry: ModelProviderEntry;
+  location: SetupModelLocation;
   connections: readonly PyModelConnection[];
-  presetById: (id: string) => PyModelConnectionPreset | undefined;
+  preset: PyModelConnectionPreset | undefined;
   managedKeys: boolean;
-  connectForm: ConnectFormKeys;
+  keys: ConnectFormKeys;
+  onConnected: (connection: PyModelConnection) => void;
   onAddModel: (connection: PyModelConnection) => void;
 }) {
-  const [connecting, setConnecting] = useState<string | null>(null);
-  const connected = connections.filter(
-    (connection) =>
-      connection.source !== "builtin" &&
-      connectionLocation(connection) === "cloud",
-  );
-  const entries = MODEL_LOCATION_PROVIDERS.cloud.filter(
-    (entry) =>
-      entry.presetId !== "openai" &&
-      (entry.presetId === "custom" ||
-        !connected.some((connection) => connection.preset === entry.presetId)),
-  );
+  const custom = entry.presetId === "custom";
+  const [addingCustom, setAddingCustom] = useState(false);
+  const formOpen = custom ? addingCustom : connections.length === 0;
   return (
-    <details
-      className="border-border/60 rounded-xl border p-4"
-      open={connected.length > 0 || connecting !== null}
-    >
-      <summary className="cursor-pointer text-sm font-semibold">
-        Use another cloud provider
-      </summary>
-      <div className="mt-3 space-y-3">
-        <p className="text-muted-foreground text-xs">
-          DeepSeek, Hugging Face, OpenRouter or any OpenAI-compatible service.
-        </p>
-        {connected.map((connection) => (
-          <ConnectionRow
-            key={connection.id}
-            connection={connection}
-            detail={connectionStatusText(connection)}
-            onAddModel={() => onAddModel(connection)}
-          />
-        ))}
-        <ul className="divide-border/60 divide-y">
-          {entries.map((entry) => {
-            const preset = presetById(entry.presetId);
-            const open = connecting === entry.id;
-            return (
-              <li key={entry.id} className="space-y-3 py-2">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-sm">{entry.label}</span>
-                  {open ? null : (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      disabled={!preset}
-                      aria-label={`Connect ${entry.label}`}
-                      onClick={() => setConnecting(entry.id)}
-                    >
-                      Connect
-                    </Button>
-                  )}
-                </div>
-                {open && preset ? (
-                  <ModelConnectionForm
-                    presets={[preset]}
-                    managedKeys={managedKeys}
-                    {...connectForm}
-                    baseUrlPlaceholder="https://api.example.com/v1"
-                    onSaved={(saved) => {
-                      setConnecting(null);
-                      onAddModel(saved);
-                    }}
-                    footer={({ saving, valid }) => (
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          disabled={saving}
-                          onClick={() => setConnecting(null)}
-                        >
-                          Cancel
-                        </Button>
-                        <Button type="submit" disabled={!valid || saving}>
-                          {saving ? "Connecting…" : "Connect"}
-                        </Button>
-                      </div>
-                    )}
-                  />
+    <>
+      <p className="text-muted-foreground text-xs">{entry.purpose}</p>
+      {connections.map((connection) => (
+        <ConnectionRow
+          key={connection.id}
+          connection={connection}
+          detail={
+            location === "local"
+              ? baseUrlHost(connection.base_url)
+              : custom
+                ? `${baseUrlHost(connection.base_url)} · ${connectionStatusText(connection)}`
+                : connectionStatusText(connection)
+          }
+          onAddModel={() => onAddModel(connection)}
+        />
+      ))}
+      {custom && !addingCustom ? (
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          disabled={!preset}
+          onClick={() => setAddingCustom(true)}
+        >
+          <Plus className="size-4" aria-hidden />
+          Add a custom server
+        </Button>
+      ) : null}
+      {formOpen && preset ? (
+        <div className="border-border/60 rounded-xl border p-4">
+          <ModelConnectionForm
+            presets={[preset]}
+            managedKeys={managedKeys}
+            {...keys}
+            baseUrlPlaceholder={BASE_URL_PLACEHOLDER[location]}
+            onSaved={(saved) => {
+              setAddingCustom(false);
+              onConnected(saved);
+            }}
+            footer={({ saving, valid }) => (
+              <div className="flex justify-end gap-2">
+                {custom ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    disabled={saving}
+                    onClick={() => setAddingCustom(false)}
+                  >
+                    Cancel
+                  </Button>
                 ) : null}
-              </li>
-            );
-          })}
-        </ul>
-      </div>
-    </details>
+                <Button type="submit" disabled={!valid || saving}>
+                  {saving ? "Connecting…" : "Connect"}
+                </Button>
+              </div>
+            )}
+          />
+        </div>
+      ) : null}
+    </>
   );
 }
 
@@ -566,72 +677,71 @@ function ConnectionRow({
   );
 }
 
-type Detection = {
-  state: "idle" | "searching" | "done";
-  found: PyModelConnectionDetection[];
-};
+type Detection =
+  | { state: "idle" | "searching" }
+  | { state: "done"; found: PyModelConnectionDetection | null };
 
 /**
- * Local servers: looks once for Ollama, LM Studio and llama.cpp at their
- * default addresses when the tab opens, then lists each running server's
- * models to add. With nothing running it gives one line of guidance.
+ * One local server type: looks for it at its default address when its tab
+ * first opens, then lists the running server's models to add. With nothing
+ * running and no connection to it, it gives install guidance and "Set up
+ * later".
  */
-function LocalServers({
+function LocalServer({
+  entry,
   active,
   connections,
+  serverConnections,
   presetById,
-  hasModels,
   onAddModel,
   onSetUpLater,
 }: {
+  entry: ModelProviderEntry;
+  /** Its tab is showing. */
   active: boolean;
   connections: readonly PyModelConnection[];
+  /** The owner's connections of this server type. */
+  serverConnections: readonly PyModelConnection[];
   presetById: (id: string) => PyModelConnectionPreset | undefined;
-  hasModels: boolean;
   onAddModel: (adder: ModelAdder) => void;
   onSetUpLater: () => void;
 }) {
   const detect = useDetectModelServer();
   const create = useCreateModelConnection();
-  const [detection, setDetection] = useState<Detection>({
-    state: "idle",
-    found: [],
-  });
+  const [detection, setDetection] = useState<Detection>({ state: "idle" });
   const [adding, setAdding] = useState<string | null>(null);
+  const preset = presetById(entry.presetId);
+  const label = entry.label;
 
   const search = async () => {
-    setDetection({ state: "searching", found: [] });
-    const results = await Promise.allSettled(
-      SETUP_LOCAL_PRESETS.map((presetId) => detect.mutateAsync({ presetId })),
-    );
-    setDetection({
-      state: "done",
-      found: results.flatMap((result) =>
-        result.status === "fulfilled" && result.value.reachable
-          ? [result.value]
-          : [],
-      ),
-    });
+    setDetection({ state: "searching" });
+    try {
+      const result = await detect.mutateAsync({ presetId: entry.presetId });
+      setDetection({ state: "done", found: result.reachable ? result : null });
+    } catch {
+      setDetection({ state: "done", found: null });
+    }
   };
   const shouldSearch = active && detection.state === "idle";
   useEffect(() => {
     if (shouldSearch) void search();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- search once when shown
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- search once when first shown
   }, [shouldSearch]);
+
+  const found = detection.state === "done" ? detection.found : null;
 
   /** Connect to the server if needed, then add the model in the dialog. */
   const addDetected = async (
-    found: PyModelConnectionDetection,
+    server: PyModelConnectionDetection,
     model: string,
   ) => {
-    const preset = presetById(found.preset);
-    let connection = connectionForDetection(found, connections);
-    setAdding(`${found.preset}:${model}`);
+    let connection = connectionForDetection(server, connections);
+    setAdding(model);
     try {
       connection ??= await create.mutateAsync({
-        name: preset?.label ?? found.preset,
-        preset: found.preset,
-        base_url: found.base_url,
+        name: preset?.label ?? label,
+        preset: server.preset,
+        base_url: server.base_url,
         credential: { mode: "none" },
         compatibility: preset?.compatibility ?? null,
         timeout_seconds: preset?.timeout_seconds ?? null,
@@ -644,26 +754,18 @@ function LocalServers({
     }
   };
 
-  const others = connections.filter(
+  const others = serverConnections.filter(
     (connection) =>
-      connection.source !== "builtin" &&
-      connectionLocation(connection) === "local" &&
-      !detection.found.some(
-        (found) => connectionForDetection(found, [connection]) !== undefined,
-      ),
+      !found || connectionForDetection(found, [connection]) === undefined,
   );
+  const toAdd = found ? detectedModelsToAdd(found, connections) : [];
   const nothing =
-    detection.state === "done" &&
-    detection.found.length === 0 &&
-    others.length === 0 &&
-    !hasModels;
+    detection.state === "done" && !found && serverConnections.length === 0;
 
   return (
-    <div className="space-y-4">
+    <>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-muted-foreground text-xs">
-          Use a model server running on this computer.
-        </p>
+        <p className="text-muted-foreground text-xs">{entry.purpose}</p>
         <Button
           type="button"
           size="sm"
@@ -676,59 +778,52 @@ function LocalServers({
       </div>
       <p className="text-muted-foreground text-xs" role="status">
         {detection.state === "searching"
-          ? "Looking for Ollama, LM Studio and llama.cpp…"
-          : detection.state === "done" && detection.found.length
-            ? `Found ${detection.found.length === 1 ? "1 server" : `${detection.found.length} servers`}.`
+          ? `Looking for ${label}…`
+          : found
+            ? detectionMessage(found, label)
             : ""}
       </p>
-      {detection.found.map((found) => {
-        const label = presetById(found.preset)?.label ?? found.preset;
-        const toAdd = detectedModelsToAdd(found, connections);
-        return (
-          <section
-            key={found.preset}
-            aria-label={label}
-            className="border-border/60 space-y-2 rounded-xl border p-4"
-          >
-            <div>
-              <h3 className="text-sm font-semibold">{label}</h3>
-              <p className="text-muted-foreground text-xs">
-                Running at {baseUrlHost(found.base_url)}
-              </p>
-            </div>
-            {toAdd.length ? (
-              <ul className="divide-border/60 divide-y">
-                {toAdd.map((model) => (
-                  <li
-                    key={model}
-                    className="flex flex-wrap items-center justify-between gap-2 py-1.5"
+      {found ? (
+        <section
+          aria-label={label}
+          className="border-border/60 space-y-2 rounded-xl border p-4"
+        >
+          <div>
+            <h3 className="text-sm font-semibold">{label}</h3>
+            <p className="text-muted-foreground text-xs">
+              Running at {baseUrlHost(found.base_url)}
+            </p>
+          </div>
+          {toAdd.length ? (
+            <ul className="divide-border/60 divide-y">
+              {toAdd.map((model) => (
+                <li
+                  key={model}
+                  className="flex flex-wrap items-center justify-between gap-2 py-1.5"
+                >
+                  <span className="min-w-0 truncate text-sm">{model}</span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={adding !== null}
+                    aria-label={`Add ${model}`}
+                    onClick={() => void addDetected(found, model)}
                   >
-                    <span className="min-w-0 truncate text-sm">{model}</span>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      disabled={adding !== null}
-                      aria-label={`Add ${model}`}
-                      onClick={() => void addDetected(found, model)}
-                    >
-                      {adding === `${found.preset}:${model}`
-                        ? "Adding…"
-                        : "Add"}
-                    </Button>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-muted-foreground text-xs">
-                {found.models.length
-                  ? "All of its models are added."
-                  : `${label} lists no models. Download one in ${label}, then search again.`}
-              </p>
-            )}
-          </section>
-        );
-      })}
+                    {adding === model ? "Adding…" : "Add"}
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-muted-foreground text-xs">
+              {found.models.length
+                ? "All of its models are added."
+                : `${label} lists no models. Download one in ${label}, then search again.`}
+            </p>
+          )}
+        </section>
+      ) : null}
       {others.map((connection) => (
         <ConnectionRow
           key={connection.id}
@@ -740,8 +835,8 @@ function LocalServers({
       {nothing ? (
         <div className="space-y-2">
           <p className="text-sm">
-            No local server found. Install and start Ollama, LM Studio or
-            llama.cpp, then search again.
+            No {label} server found. Install and start {label}, then search
+            again.
           </p>
           <Button
             type="button"
@@ -754,6 +849,6 @@ function LocalServers({
           </Button>
         </div>
       ) : null}
-    </div>
+    </>
   );
 }

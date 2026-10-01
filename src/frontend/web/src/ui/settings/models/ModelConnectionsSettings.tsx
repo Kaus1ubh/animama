@@ -43,8 +43,8 @@ import {
   connectionLocation,
   connectionProviderEntry,
   connectionStatusText,
+  defaultLocationProvider,
   locationProviderGroups,
-  MODEL_LOCATION_PROVIDERS,
   MODEL_LOCATION_TABS,
   modelCapabilityChips,
   modelConfigurationErrorCode,
@@ -56,6 +56,7 @@ import {
   type ConnectionReachability,
   type ModelLocation,
   type ModelProviderEntry,
+  type ModelProviderGroup,
 } from "./model-configuration-state";
 import {
   deleteConnectionKey,
@@ -64,6 +65,7 @@ import {
 } from "./ModelConnectionDialog";
 import { ModelInfoDialog } from "./ModelInfoDialog";
 import { ModelLocationTabsList } from "./ModelLocationTabsList";
+import { ModelProviderTabsList } from "./ModelProviderTabsList";
 import { OwnerModelDialog, ShowModelButton } from "./OwnerModelDialog";
 
 type Removal =
@@ -74,18 +76,6 @@ type Removal =
     }
   | { kind: "model"; model: PyConfiguredModel; usage: PyModelUsage | null };
 
-/** One sentence of purpose per tab. */
-const TAB_PURPOSE: Record<ModelLocation, string> = {
-  cloud: "Chat with models from cloud providers using your API key.",
-  local:
-    "Chat with models running on this computer or your network; Detect finds a running server.",
-};
-
-const CUSTOM_HINT: Record<ModelLocation, string> = {
-  cloud: "Any OpenAI-compatible service.",
-  local: "A server on this computer or your network.",
-};
-
 const BASE_URL_PLACEHOLDER: Record<ModelLocation, string> = {
   cloud: "https://api.example.com/v1",
   local: "http://127.0.0.1:8080/v1",
@@ -95,12 +85,14 @@ const TAG_CLASS =
   "bg-muted text-muted-foreground shrink-0 rounded-sm px-1.5 py-0.5 text-[11px] font-medium";
 
 /**
- * App Settings → Models connections: **Cloud** and **Local** tabs. Each lists
- * its connected providers first as cards with a status and their models, then
- * the providers not yet connected as "Add …" entries that open the connect
- * form inline. The built-in OpenAI card carries the OpenAI key field on
+ * App Settings → Models connections: **Cloud** and **Local** tabs, each with
+ * a row of provider tabs. A provider tab shows only that provider: its
+ * connection card (status, Edit/Remove, models) when connected, otherwise
+ * its connect form inline; Custom lists each custom server plus "Add a
+ * custom server". The built-in OpenAI card carries the OpenAI key field on
  * desktop. Each model row shows capability chips and opens an Info modal;
  * hidden rows stay listed behind a toggle so they can be shown again.
+ * Connecting stays on that provider's tab and opens the add-model dialog.
  *
  * Renders nothing unless the runtime allows model configuration (the hosted
  * composition keeps its fixed catalog).
@@ -124,7 +116,11 @@ export function ModelConnectionsSettings({
   const platform = useRuntimePlatform();
   const managedKeys = useDesktopCredentialsAvailable();
   const [tab, setTab] = useState<ModelLocation>(defaultTab);
-  const [adding, setAdding] = useState<string | null>(null);
+  // The owner's provider tab per location; unset opens the default one.
+  const [providerTab, setProviderTab] = useState<
+    Partial<Record<ModelLocation, string>>
+  >({});
+  const [addingCustom, setAddingCustom] = useState<ModelLocation | null>(null);
   const [connectionEditor, setConnectionEditor] =
     useState<PyModelConnection | null>(null);
   const [modelAdder, setModelAdder] = useState<PyModelConnection | null>(null);
@@ -237,28 +233,63 @@ export function ModelConnectionsSettings({
           (preset) => preset.id === connection.preset,
         );
 
-  const tabContent = (location: ModelLocation) => {
-    const groups = locationProviderGroups(all, location);
-    const connected = groups.flatMap(({ entry, connections: items }) =>
-      items.map((connection) => ({ entry, connection })),
-    );
-    // Unconnected providers in tab order, plus Custom (last), which can
-    // always add another server.
-    const connectedIds = new Set(connected.map(({ entry }) => entry.id));
-    const addable = MODEL_LOCATION_PROVIDERS[location].filter(
-      (entry) =>
-        entry.presetId !== "openai" &&
-        (entry.presetId === "custom" || !connectedIds.has(entry.id)),
-    );
+  /** Show a new connection's provider tab and add its first model. */
+  const connected = (saved: PyModelConnection) => {
+    // A custom server lands on the location its address implies.
+    const location = connectionLocation(saved);
+    setTab(location);
+    setProviderTab((current) => ({
+      ...current,
+      [location]: connectionProviderEntry(saved).id,
+    }));
+    setAddingCustom(null);
+    setModelAdder(saved);
+  };
+
+  const providerPanel = (
+    location: ModelLocation,
+    { entry, connections: items }: ModelProviderGroup<PyModelConnection>,
+  ) => {
+    const custom = entry.presetId === "custom";
+    const preset = presetById(entry.presetId);
+    const form = (onCancel?: () => void) =>
+      preset ? (
+        <div className="border-border/60 rounded-xl border p-4">
+          <ModelConnectionForm
+            presets={[preset]}
+            managedKeys={managedKeys}
+            baseUrlPlaceholder={BASE_URL_PLACEHOLDER[location]}
+            onSaved={connected}
+            footer={({ saving, valid }) => (
+              <div className="flex justify-end gap-2">
+                {onCancel ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    disabled={saving}
+                    onClick={onCancel}
+                  >
+                    Cancel
+                  </Button>
+                ) : null}
+                <Button type="submit" disabled={disabled || !valid || saving}>
+                  {saving ? "Connecting…" : "Connect"}
+                </Button>
+              </div>
+            )}
+          />
+        </div>
+      ) : null;
     return (
-      <div className="space-y-4">
-        <p className="text-muted-foreground text-xs">{TAB_PURPOSE[location]}</p>
-        {connected.map(({ entry, connection }) => (
+      <>
+        <p className="text-muted-foreground text-xs">{entry.purpose}</p>
+        {items.map((connection) => (
           <ConnectionCard
             key={connection.id}
             connection={connection}
             entry={entry}
             location={location}
+            active={tab === location}
             logo={
               connection.logo_provider ??
               presetById(connection.preset)?.logo_provider ??
@@ -278,31 +309,57 @@ export function ModelConnectionsSettings({
             }
           />
         ))}
-        {addable.length ? (
-          <section aria-label="Add a provider" className="space-y-2">
-            <h4 className="text-sm font-semibold">Add a provider</h4>
-            <ul className="border-border/60 divide-border/60 divide-y rounded-xl border">
-              {addable.map((entry) => (
-                <AddProviderEntry
-                  key={entry.id}
-                  entry={entry}
-                  location={location}
-                  preset={presetById(entry.presetId)}
-                  open={adding === entry.id}
-                  disabled={disabled}
-                  managedKeys={managedKeys}
-                  onOpenChange={(open) => setAdding(open ? entry.id : null)}
-                  onSaved={(saved) => {
-                    setAdding(null);
-                    // A custom server lands on the tab its address implies.
-                    setTab(connectionLocation(saved));
-                  }}
-                />
-              ))}
-            </ul>
-          </section>
+        {custom ? (
+          addingCustom === location ? (
+            form(() => setAddingCustom(null))
+          ) : (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={disabled || !preset}
+              onClick={() => setAddingCustom(location)}
+            >
+              <Plus className="size-4" aria-hidden />
+              Add a custom server
+            </Button>
+          )
+        ) : items.length === 0 ? (
+          form()
         ) : null}
-      </div>
+      </>
+    );
+  };
+
+  const tabContent = (location: ModelLocation) => {
+    const groups = locationProviderGroups(all, location);
+    const active = providerTab[location] ?? defaultLocationProvider(groups);
+    const label = MODEL_LOCATION_TABS.find(({ id }) => id === location)?.label;
+    return (
+      <Tabs
+        value={active}
+        onValueChange={(value) =>
+          setProviderTab((current) => ({ ...current, [location]: value }))
+        }
+      >
+        <ModelProviderTabsList
+          groups={groups}
+          active={active}
+          label={`${label} providers`}
+        />
+        {/* Every provider panel stays mounted so a half-filled connect form
+            survives switching tabs. */}
+        {groups.map((group) => (
+          <TabsContent
+            key={group.entry.id}
+            value={group.entry.id}
+            forceMount
+            className="mt-4 space-y-4 data-[state=inactive]:hidden"
+          >
+            {providerPanel(location, group)}
+          </TabsContent>
+        ))}
+      </Tabs>
     );
   };
 
@@ -310,14 +367,16 @@ export function ModelConnectionsSettings({
     <div className="min-w-0 py-3">
       <Tabs
         value={tab}
-        onValueChange={(value) => {
-          setTab(value as ModelLocation);
-          setAdding(null);
-        }}
+        onValueChange={(value) => setTab(value as ModelLocation)}
       >
         <ModelLocationTabsList active={tab} />
         {MODEL_LOCATION_TABS.map(({ id }) => (
-          <TabsContent key={id} value={id} className="mt-4">
+          <TabsContent
+            key={id}
+            value={id}
+            forceMount
+            className="mt-4 data-[state=inactive]:hidden"
+          >
             {tabContent(id)}
           </TabsContent>
         ))}
@@ -426,6 +485,7 @@ function ConnectionCard({
   connection,
   entry,
   location,
+  active,
   logo,
   disabled,
   canEdit,
@@ -439,6 +499,8 @@ function ConnectionCard({
   connection: PyModelConnection;
   entry: ModelProviderEntry;
   location: ModelLocation;
+  /** Its location tab is showing; Local cards check reachability only then. */
+  active: boolean;
   logo: string | null;
   disabled: boolean;
   canEdit: boolean;
@@ -452,7 +514,7 @@ function ConnectionCard({
   const headingId = useId();
   const reachability = useConnectionReachability(
     connection.id,
-    location === "local",
+    location === "local" && active,
   );
   const [showHidden, setShowHidden] = useState(false);
   const models = connection.models ?? [];
@@ -656,89 +718,6 @@ function ModelRow({
       >
         <Info className="size-4" aria-hidden />
       </Button>
-    </li>
-  );
-}
-
-/** "Add …" for a provider, opening the connect form inline. */
-function AddProviderEntry({
-  entry,
-  location,
-  preset,
-  open,
-  disabled,
-  managedKeys,
-  onOpenChange,
-  onSaved,
-}: {
-  entry: ModelProviderEntry;
-  location: ModelLocation;
-  preset: PyModelConnectionPreset | undefined;
-  open: boolean;
-  disabled: boolean;
-  managedKeys: boolean;
-  onOpenChange: (open: boolean) => void;
-  /** Closes the form and shows the tab that now lists the connection. */
-  onSaved: (connection: PyModelConnection) => void;
-}) {
-  const custom = entry.presetId === "custom";
-  const label = custom ? "Add a custom server" : `Add ${entry.label}`;
-  return (
-    <li className="space-y-3 px-3 py-2">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-2.5">
-          {preset?.logo_provider ? (
-            <ModelSelectorLogo
-              provider={preset.logo_provider}
-              className="size-5"
-            />
-          ) : null}
-          <div className="min-w-0">
-            <p className="text-sm">{custom ? "Custom" : entry.label}</p>
-            {custom ? (
-              <p className="text-muted-foreground text-xs">
-                {CUSTOM_HINT[location]}
-              </p>
-            ) : null}
-          </div>
-        </div>
-        {open ? null : (
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            disabled={disabled || !preset}
-            aria-label={label}
-            onClick={() => onOpenChange(true)}
-          >
-            <Plus className="size-4" aria-hidden />
-            Add
-          </Button>
-        )}
-      </div>
-      {open && preset ? (
-        <ModelConnectionForm
-          presets={[preset]}
-          managedKeys={managedKeys}
-          baseUrlPlaceholder={BASE_URL_PLACEHOLDER[location]}
-          onSaved={onSaved}
-          footer={({ saving, valid }) => (
-            <div className="flex justify-end gap-2">
-              <Button
-                type="button"
-                variant="ghost"
-                disabled={saving}
-                onClick={() => onOpenChange(false)}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={disabled || !valid || saving}>
-                {saving ? "Adding…" : "Add connection"}
-              </Button>
-            </div>
-          )}
-        />
-      ) : null}
     </li>
   );
 }

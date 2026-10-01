@@ -356,10 +356,13 @@ export function OwnerModelDialog({
   // OpenRouter lists hundreds of models; its public list makes them searchable.
   const showOpenRouterPicker =
     !editing && isChat && connection.preset === "openrouter";
-  const templateChoices = templates.filter(
-    (template) =>
-      template.provider_type === draft.providerType || !isBuiltinConnection,
-  );
+  // Templates are built-in OpenAI models, so only the built-in connection
+  // offers them, matched to the API the new model uses.
+  const templateChoices = isBuiltinConnection
+    ? templates.filter(
+        (template) => template.provider_type === draft.providerType,
+      )
+    : [];
 
   return (
     <Dialog open={open} onOpenChange={(next) => !saving && onOpenChange(next)}>
@@ -458,7 +461,7 @@ export function OwnerModelDialog({
             {discover.isSuccess ? (
               <p className="text-muted-foreground text-xs">
                 {discovered.length
-                  ? `${discovered.length} models found; choose one or type an ID.`
+                  ? `${discovered.length} ${discovered.length === 1 ? "model" : "models"} found; choose one or type an ID.`
                   : "The server listed no models; type the model ID."}
               </p>
             ) : null}

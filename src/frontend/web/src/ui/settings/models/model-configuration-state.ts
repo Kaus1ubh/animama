@@ -69,6 +69,8 @@ export type ModelProviderEntry = {
   id: string;
   presetId: string;
   label: string;
+  /** One line of purpose shown on the provider's tab. */
+  purpose: string;
   /** Shown with a Recommended tag (the built-in OpenAI connection). */
   recommended?: boolean;
 };
@@ -79,18 +81,73 @@ export const MODEL_LOCATION_PROVIDERS: Record<
   readonly ModelProviderEntry[]
 > = {
   cloud: [
-    { id: "openai", presetId: "openai", label: "OpenAI", recommended: true },
-    { id: "deepseek", presetId: "deepseek", label: "DeepSeek" },
-    { id: "huggingface", presetId: "huggingface", label: "Hugging Face" },
-    { id: "openrouter", presetId: "openrouter", label: "OpenRouter" },
-    { id: "custom-cloud", presetId: "custom", label: "Custom" },
+    {
+      id: "openai",
+      presetId: "openai",
+      label: "OpenAI",
+      purpose: "Chat with OpenAI's models using your API key.",
+      recommended: true,
+    },
+    {
+      id: "deepseek",
+      presetId: "deepseek",
+      label: "DeepSeek",
+      purpose: "Chat with DeepSeek's models using your DeepSeek API key.",
+    },
+    {
+      id: "huggingface",
+      presetId: "huggingface",
+      label: "Hugging Face",
+      purpose:
+        "Chat with open models through Hugging Face Inference Providers using your access token.",
+    },
+    {
+      id: "openrouter",
+      presetId: "openrouter",
+      label: "OpenRouter",
+      purpose:
+        "Chat with models from many providers through one OpenRouter key.",
+    },
+    {
+      id: "custom-cloud",
+      presetId: "custom",
+      label: "Custom",
+      purpose: "Connect any OpenAI-compatible cloud service.",
+    },
   ],
   local: [
-    { id: "ollama", presetId: "ollama", label: "Ollama" },
-    { id: "lmstudio", presetId: "lmstudio", label: "LM Studio" },
-    { id: "llamacpp", presetId: "llamacpp", label: "llama.cpp" },
-    { id: "vllm", presetId: "vllm", label: "vLLM" },
-    { id: "custom-local", presetId: "custom", label: "Custom" },
+    {
+      id: "ollama",
+      presetId: "ollama",
+      label: "Ollama",
+      purpose: "Chat with models running in Ollama on this computer.",
+    },
+    {
+      id: "lmstudio",
+      presetId: "lmstudio",
+      label: "LM Studio",
+      purpose: "Chat with models served by LM Studio on this computer.",
+    },
+    {
+      id: "llamacpp",
+      presetId: "llamacpp",
+      label: "llama.cpp",
+      purpose:
+        "Chat with a model served by llama.cpp's server on this computer.",
+    },
+    {
+      id: "vllm",
+      presetId: "vllm",
+      label: "vLLM",
+      purpose: "Chat with models served by vLLM on this computer.",
+    },
+    {
+      id: "custom-local",
+      presetId: "custom",
+      label: "Custom",
+      purpose:
+        "Connect any OpenAI-compatible server on this computer or your network.",
+    },
   ],
 };
 
@@ -203,13 +260,14 @@ export type ModelProviderGroup<C> = {
 };
 
 /**
- * A tab's providers: connected ones first, then the rest, each part in the
- * tab's provider order.
+ * A tab's providers in tab order, each with its connections in that
+ * location. Custom collects every custom connection whose address points
+ * there, and unknown presets count as Custom.
  */
 export function locationProviderGroups<
   C extends Pick<PyModelConnection, "source" | "preset" | "base_url">,
 >(connections: readonly C[], location: ModelLocation): ModelProviderGroup<C>[] {
-  const groups = MODEL_LOCATION_PROVIDERS[location].map((entry) => ({
+  return MODEL_LOCATION_PROVIDERS[location].map((entry) => ({
     entry,
     connections: connections.filter(
       (connection) =>
@@ -217,10 +275,36 @@ export function locationProviderGroups<
         connectionProviderEntry(connection).id === entry.id,
     ),
   }));
-  return [
-    ...groups.filter((group) => group.connections.length > 0),
-    ...groups.filter((group) => group.connections.length === 0),
-  ];
+}
+
+/** What `providerConnected` reads from a connection. */
+export type ProviderConnectionState = Pick<PyModelConnection, "source"> & {
+  credential_state?: PyModelConnection["credential_state"];
+};
+
+/**
+ * Whether a provider tab is marked connected: it has a connection, except
+ * the built-in OpenAI connection, which always exists and counts only once
+ * its key is set.
+ */
+export function providerConnected(
+  group: ModelProviderGroup<ProviderConnectionState>,
+): boolean {
+  return group.connections.some(
+    (connection) =>
+      connection.source !== "builtin" ||
+      connection.credential_state === "configured",
+  );
+}
+
+/**
+ * The provider tab a location opens on: the first connected provider in
+ * tab order, else the first provider (OpenAI or Ollama).
+ */
+export function defaultLocationProvider(
+  groups: readonly ModelProviderGroup<ProviderConnectionState>[],
+): string {
+  return (groups.find(providerConnected) ?? groups[0]).entry.id;
 }
 
 /** `host:port` of a base URL, for "Running at …". */
