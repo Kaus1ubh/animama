@@ -84,7 +84,7 @@ class OpenAIChatCompletionsModelClient:
         )
         self._client = client
         # Key-free SDK clients per connection; each request adds its key to a view.
-        self._clients_by_connection: dict[tuple[str, str, float | None], AsyncOpenAI] = {}
+        self._clients_by_connection: dict[tuple[str, str, str, float | None], AsyncOpenAI] = {}
         self._timeout = timeout
         self._close_client = (client is None) if close_client is None else close_client
 

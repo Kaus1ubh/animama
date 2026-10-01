@@ -88,7 +88,7 @@ guides, and:
 - [x] Plan: approved by the owner on 2026-10-01.
 - [x] Phase 1: backend Parakeet sets — implemented, reviewed (round 1 pass, fixes applied).
 - [ ] Phase 2: desktop and self-host cutover, pack removal, speech download UI.
-- [ ] Phase 3: OpenRouter preset, model metadata and hidden built-ins (backend).
+- [x] Phase 3: OpenRouter preset, model metadata and hidden built-ins — implemented, reviewed (rounds 1–2 pass).
 - [ ] Phase 4: App Settings → Models Cloud | Local and feature-local keys.
 - [ ] Phase 5: stepped setup.
 - [ ] Phase 6: documentation sweep and final integration review.
@@ -337,6 +337,16 @@ Result: pass, no blockers.
   and format check pass. Repair budget: a targeted round-2 recheck of F1 and
   F4 remains; one further round reserved.
 
+#### Code Review #2 (targeted recheck)
+
+Reviewed `4ec1d705` (sdlc-reviewer, repair round 1, shared with Phase 3).
+Result: pass. P1-R1-F1 fix and F4 tests verified deterministic and exercising the claimed paths. The integrated SDK is current, no merge artifacts;
+targeted suites 47 passed and the four regression tests passed five
+consecutive runs. A later `make check-test` found mypy errors in the fix
+(cache-key type annotation and a test helper type); both were corrected and
+the chain rerun: `timeout 2400 make check-test` → 3066 passed, 7 skipped
+(audit, format, ruff, mypy clean). One repair round remains.
+
 ### Phase 2: Desktop and self-host cutover
 
 Requirements: R1, R5 (renderer), R6, R7, the #220 download UI items and the
@@ -481,6 +491,16 @@ Result: pass, no blockers.
 - **F3 declined:** the explicit value documents intent; no behavior impact.
 - Repair budget: one targeted recheck (round 2) of F1/F2 remains to run with
   the integrated branch; one further round reserved.
+
+#### Code Review #2 (targeted recheck)
+
+Reviewed `4ec1d705` (sdlc-reviewer, repair round 1, shared with Phase 1).
+Result: pass. P3-R1-F1 fix verified (same id/base URL/timeout, preset-only change); F2 circular import confirmed. The integrated SDK is current, no merge artifacts;
+targeted suites 47 passed and the four regression tests passed five
+consecutive runs. A later `make check-test` found mypy errors in the fix
+(cache-key type annotation and a test helper type); both were corrected and
+the chain rerun: `timeout 2400 make check-test` → 3066 passed, 7 skipped
+(audit, format, ruff, mypy clean). One repair round remains.
 
 ### Phase 4: App Settings → Models Cloud | Local and feature-local keys
 

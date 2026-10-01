@@ -19,7 +19,13 @@ from animama.app.services.model_asset_service import (
     AssetRemovalRefusedError,
     ModelAssetService,
 )
-from animama.domain.model_assets import ASSET_CATALOG_SCHEMA, INSTALL_HEADROOM_BYTES, AssetCatalog, parse_asset_catalog
+from animama.domain.model_assets import (
+    ASSET_CATALOG_SCHEMA,
+    INSTALL_HEADROOM_BYTES,
+    AssetCatalog,
+    AssetDescriptor,
+    parse_asset_catalog,
+)
 from animama.domain.request_principal import RequestPrincipal
 from animama.server.deps import get_current_principal
 from animama.server.model_assets import get_model_asset_service
@@ -528,7 +534,7 @@ async def test_a_dependent_cannot_start_while_its_requirement_is_being_removed(
     entered, proceed = threading.Event(), threading.Event()
     original_remove = store.remove
 
-    def held_remove(asset: object) -> None:
+    def held_remove(asset: AssetDescriptor) -> None:
         entered.set()
         proceed.wait(5)
         original_remove(asset)
