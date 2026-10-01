@@ -97,8 +97,9 @@ libraries and child processes, and FastAPI ↔ logs.
 - [x] Phase 1 (#222): backend runtime credential store and live-safe consumers. Review passed (Review #2); `make check-test` 2792 passed; commit `3ee9f6f8`.
 - [x] Phase 2 (#223): authenticated desktop credential route. Review passed (Review #2); `make check-test` 2878 passed; commit `5f085824`.
 - [x] Phase 3 (#224): Electron main live delivery. Review passed (Review #3); `pnpm desktop:test` 399 passed; commit `4b20e4bc`.
-- [x] Phase 4 (#225): renderer, setup and documentation. Review passed (Review #2). Frontend checks pass; `web:test` has one unrelated pre-existing flaky failure (#226).
+- [x] Phase 4 (#225): renderer, setup and documentation. Review passed (Review #2). Frontend checks pass; `web:test` has one unrelated pre-existing flaky failure (#226); commit `e6997962`.
 - [ ] Security review (`security-review` skill + `sdlc-reviewer`) and final integration review.
+- [ ] Agent-run packaged macOS pass with generated fake keys (PID, window, and log/storage scan).
 - [ ] Owner gate: packaged macOS acceptance with real provider keys.
 
 ## Surprises & Discoveries
@@ -179,7 +180,7 @@ D1 option A and D2–D6 as written.
   SIGTERM, 15 s bound) after every successful delivery while the
   document-processing pack is active. It runs as a follow-up queued operation, so
   Save returns without waiting for it.
-- **D4 (owner-approved: yes):** remove the unused `credentials:set` and
+- **D4 (owner-approved: yes; the rename was later dropped by revised D1):** remove the unused `credentials:set` and
   `credentials:delete` IPC, their preload bridge methods and
   `applyCredentialChange`. Rename status field `restartRequired` to
   `applyPending` (saved in the vault, not yet applied to the running backend).
@@ -728,6 +729,25 @@ padding differs from Prettier (`docs/` is not format-gated).
 
 ## Final integration review
 
+### Security review
+
+On candidate `e6997962`, the `security-review` skill found no HIGH or MEDIUM
+vulnerabilities at confidence 8 or above (diff `36a40177..e6997962`). The
+analysis covered:
+
+- the route's reachability and authentication (desktop-only mount, Host,
+  browser-context rejection, constant-time token checks repeated in admission
+  and the route);
+- input validation (manual parsing, duplicate keys, exact fields, integer
+  types, allowlisted names, value rules, monotonic generation);
+- leakage paths (fixed error codes, value-free `repr`, the redactor, the
+  environment scrub, stripped worker and database environments);
+- removal and replacement (key-free cached clients, per-request views, the
+  exporter subscriber, the generation-partitioned ElevenLabs cache);
+- connection isolation.
+
+Owner connections may reference `OPENAI_API_KEY`; this is existing behavior.
+
 Before the PR:
 
 1. Run the `security-review` skill on the full branch diff.
@@ -763,8 +783,9 @@ Packaged app: `pnpm desktop:mac:build:run` from the worktree's `src/frontend`.
 
 ## Idempotence and recovery
 
-- Delivery is idempotent. Every push is the whole vault, so Retry or background
-  re-push converges regardless of what was lost.
+- Delivery is idempotent. Every push is the whole vault, so the immediate
+  re-push, the fallback restart or recovery Retry converges regardless of what
+  was lost.
 - The vault write is atomic and happens before delivery, so a crash at any point
   leaves the vault authoritative. The next spawn reads it.
 - If the route misbehaves in a release, D1's fallback restart path still applies
