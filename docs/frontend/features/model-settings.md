@@ -65,7 +65,8 @@ Keys depend on where the app runs:
   for confirmation, because the key is deleted too. At most 32 connection keys
   can be stored.
 - **Self-hosted web (and the external development stack):** the OpenAI card
-  says the key and base URL come from `OPENAI_API_KEY` and `OPENAI_BASE_URL`.
+  says it uses the server's `OPENAI_API_KEY` (the base URL still comes from
+  `OPENAI_BASE_URL`).
   For other connections the owner names the environment variable that holds the
   key (`DEEPSEEK_API_KEY`, `HF_TOKEN`, `OPENROUTER_API_KEY` or
   `ANIMAMA_CONNECTION_<NAME>_API_KEY`); the card shows whether it is set in the

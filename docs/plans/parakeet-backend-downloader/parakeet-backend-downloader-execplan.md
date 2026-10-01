@@ -1,6 +1,6 @@
 # Parakeet as backend model assets, stepped setup and Cloud | Local models
 
-Status: In progress. All phases authorized.
+Status: Implementation complete; owner gates G1–G6 pending. All phases authorized.
 Source agreement: [raymond-van/animama#221](https://github.com/raymond-van/animama/issues/221)
 as read on 2026-10-01 (Status: Proposal; it absorbs all of #220), plus the
 owner's [model-configuration amendment](https://github.com/raymond-van/animama/issues/221#issuecomment-5933748408)
@@ -44,8 +44,8 @@ guides, and:
   shared code takes composition inputs;
 - [ADR 0008](../../adr/0008-non-overridable-companion-guardrail.md): unchanged;
 - [ADR 0010](../../adr/0010-shared-model-object-distribution.md): partly
-  superseded by the new [ADR 0012](../../adr/0012-backend-parakeet-model-assets.md)
-  (proposed with this plan);
+  superseded by [ADR 0012](../../adr/0012-backend-parakeet-model-assets.md)
+  (accepted in Phase 1);
 - [ADR 0011](../../adr/0011-application-owned-companion-features-and-composition-catalog-policy.md):
   the hosted composition stays built-in only.
 
@@ -91,8 +91,8 @@ guides, and:
 - [x] Phase 3: OpenRouter preset, model metadata and hidden built-ins — implemented, reviewed (rounds 1–2 pass).
 - [x] Phase 4: App Settings → Models Cloud | Local and feature-local keys — implemented, reviewed (rounds 1–3; pass). Screenshots pending (G3).
 - [x] Phase 5: stepped setup — implemented, reviewed (rounds 1–2 pass). Screenshots taken for G3.
-- [ ] Phase 6: documentation sweep and final integration review.
-- [ ] Owner gates G1–G5 (see [Validation and acceptance](#validation-and-acceptance)).
+- [x] Phase 6: documentation sweep and final integration review — docs integrated; final review round 1 findings fixed, round 2 pass; manual built self-host and packaged macOS agent passes recorded.
+- [ ] Owner gates G1–G6 (see [Validation and acceptance](#validation-and-acceptance)).
 
 ## Surprises & Discoveries
 
@@ -834,10 +834,119 @@ Then: final independent integration review, the full local check suite, the
 packaged macOS build from the worktree with the real profile moved aside and
 restored (or with the owner's go-ahead), and the PR via the template.
 
+Results (2026-10-01):
+
+- Docs sweep (delegated in an isolated worktree from `aa12e975`, integrated as
+  `9c3c763f`): 21 files, including feature packs (new "Speech model
+  downloads" section), troubleshooting, runtime staging, releases, release
+  process, redistribution review, overview, platforms, keyboard shortcuts,
+  desktop README, `src/frontend/AGENTS.md`, voice, chat (switch dialog),
+  auth-server, content-and-workers, local HTTP components, desktop runtime,
+  development, model assets, GLOSSARY ("Feature pack" narrowed, "Model asset"
+  added) and the licence table wording. ADR 0010 untouched; ADR 0012 matches
+  the code.
+- Installation and setup docs (`bcd8d210`): three setup steps, keys by
+  feature, offline speech CPU model, storage and offline wording.
+- Final-review fixes (`be3719e5`): built-in chat models always use Responses
+  (the add-model API select is removed, per amendment decision 2); App
+  Settings server-key copy shortened; lease sentence scoped to Parakeet;
+  `.env.example` comment corrected; one test file formatted.
+- Full local suite on `bcd8d210`: `make check-test` 3082 passed, 7 skipped
+  (audit, format, ruff, mypy clean); `bash -n reset.sh` and both compose
+  config commands pass; `pnpm check`, `pnpm web:lint`, `pnpm build`,
+  `pnpm desktop:check`, `pnpm openapi-ts:check` pass; `pnpm web:test` 361
+  files / 2422 tests, node 3/3 and 4/4, browser 26/26 (the #226 voice-clone
+  test passes); `pnpm desktop:test` 22 files / 377 tests. After `be3719e5`:
+  models vitest 68 passed, client-parakeet 47, `pnpm check` and
+  `pnpm web:lint` pass.
+- Manual built self-host check (FI-R1-F1), task stack `animama-p5` restarted
+  in production mode (`ANIMAMA_WEB_BUILD_MODE=production ./reset.sh --name
+  p5 --base-port 8300`):
+  - Setup Voice step: CPU "631 MB download"; GPU add-on disabled with
+    "Download the CPU model first."
+  - CPU set downloaded from `downloads.animama.ai`; the backend container was
+    restarted at 271 MB staged; staging survived; the next install resumed at
+    269,381,145 bytes (not zero) and completed (`version` = manifest digest).
+  - Without a backend restart, capabilities reported `offline_speech_enabled:
+    true` and the digest; `HEAD /onnx/models/parakeet-tdt-0.6b-v2/vocab.txt?v=…`
+    → 200 `private, max-age=31536000, immutable`; a ranged encoder request →
+    206.
+  - GPU set started from the UI; backend restarted at 328 MB staged; the UI
+    showed "Retry download"; Retry resumed at 322,772,597 bytes and
+    completed.
+  - Guards: `DELETE parakeet-stt` with GPU installed → 409
+    `model_asset_required_by`; with a live lease, `DELETE parakeet-stt-webgpu`
+    → 409 `model_asset_in_use`; after release, removal succeeded and the GPU
+    version left capabilities live.
+  - UI removal of the CPU model (two-step confirm) → not installed,
+    `offline_speech_enabled: false`, serving 404.
+  - The backend container start time stayed `18:42:32Z` with 0 restarts
+    across GPU completion, GPU removal and CPU removal (only the two
+    deliberate interruption restarts occurred).
+  - Not exercised: dictation with real audio (no microphone in the agent
+    browser) — owner gate G6. UI notes: the first frame after Retry shows
+    "Downloading 0%" until the first poll; a state changed outside the page
+    appears after a reload.
+- App Settings → Models screenshot on the built stack captured for G3.
+- Agent-run packaged macOS pass (2026-10-01) on the unsigned development app
+  built from `be3719e5` (`pnpm desktop:mac:build`), fresh profile; the
+  owner's profile was moved aside and restored, and fake keys only were used.
+  Driven with a Playwright Electron script modelled on `smoke-macos.mjs`
+  (which needs a signed DMG). All 10 checks passed; the FastAPI PID stayed the
+  same and no window reloaded throughout:
+  - Welcome gating, 18+ checkbox and safety link; AI step Cloud | Local with
+    OpenAI Recommended; fake-key save showed "Saved." in 61 ms; Local showed
+    the no-server guidance with "Set up later".
+  - Voice step: CPU 631 MB, GPU disabled with "Download the CPU model first.";
+    CPU download about 30 s to Installed (7/7 files), capabilities turned on
+    live; Finish reached Annie's chat with first run complete.
+  - App Settings → Voice: GPU set installed (1.24 GB, about 48 s); CPU
+    removal disabled with "Remove GPU acceleration first."; GPU and CPU
+    removals in about 50 ms each, capabilities updated live; a cancelled CPU
+    download returned to not installed with no partial files.
+  - App Settings → Models: Cloud | Local tabs, OpenAI "Key set", chips and
+    "Show 1 hidden model"; Local lists Ollama, LM Studio, llama.cpp, vLLM and
+    Custom.
+  - No fake-key value in any of 1,934 test-profile files or diagnostic
+    reports.
+  - Not covered: microphone dictation and network-off use (G6), forced
+    network failure for resume (covered on built self-host above), a detected
+    local server, real provider keys (G2, G4), narrow-width screenshots.
+  - 18 screenshots kept outside the repository for G3.
+
 ## Final integration review
 
-Pending. It covers combined acceptance across phases, reusing still-valid phase
-evidence.
+### Final Review #1 Findings
+
+Reviewed `bcd8d210` against `3eb23e45` (sdlc-reviewer, initial). Cross-phase
+seams, hosted composition, companion safety, ADRs, glossary and leftovers
+verified; SDK current; ruff clean. Result: blocking evidence gap only.
+
+- **FI-R1-F1 (blocking, evidence):** the planned manual built self-host check
+  was pending and not covered by an owner gate.
+- **FI-R1-F2 (minor):** the built-in add-model form still offered an API
+  select, against amendment decision 2.
+- **FI-R1-F3 (minor):** Phase 6 record missing; stale "proposed" ADR line.
+- **FI-R1-F4 (nit):** `webgpu.test.ts` not Prettier-formatted.
+- **FI-R1-F5 (nit):** lease docs sentence too broad; stale `.env.example`
+  comment.
+
+### Final Review #1 Revisions
+
+- F1: manual built self-host check run (Phase 6 Results); real-audio
+  dictation added as owner gate G6.
+- F2, F4, F5: fixed in `be3719e5`.
+- F3: Phase 6 record added; ADR line corrected.
+
+### Final Review #2 (targeted recheck)
+
+Reviewed `be3719e5` (repair round 1). Result: pass. F2, F4, F5 and the copy
+change verified; models vitest 68 passed; `pnpm check` and Prettier pass.
+Non-blocking: `model-settings.md` still described the old card wording
+(corrected); no component test asserts that a new built-in model is saved as
+Responses (the draft default and save body were verified by reading; the web
+package has no DOM test environment for that dialog). One repair round
+remains unused.
 
 ## Validation and acceptance
 
@@ -870,6 +979,8 @@ Acceptance maps to the issue's checklist. Owner gates (not phases):
 - **G4** Live ElevenLabs key edit from Voice, reflected in API Keys (the owner
   enters it).
 - **G5** Exact-candidate merge approval.
+- **G6** Dictation with real audio after install and with the network off,
+  on built self-host and packaged desktop (agents cannot drive a microphone).
 
 ## Idempotence and recovery
 
@@ -888,4 +999,30 @@ Acceptance maps to the issue's checklist. Owner gates (not phases):
 
 ## Outcomes & Retrospective
 
-Pending.
+Delivered (candidate on `feat/parakeet-backend-downloader`):
+
+- Parakeet base and WebGPU sets install, resume, cancel and uninstall in
+  place through the backend model-asset service on packaged desktop and built
+  self-host, with live capabilities, use leases and the base-required-by-GPU
+  guard. The Parakeet feature packs and the model-pack format are gone; the
+  two deferred packs are unchanged. ADR 0012 records the decision.
+- Setup is Welcome → AI → Voice, with Cloud | Local model setup, keys by
+  feature, offline speech and Text-to-Speech in Voice; the chosen model
+  becomes the Chat default and the starter Animas follow it.
+- App Settings → Models is organized by Cloud | Local with capability chips,
+  an OpenRouter preset and picker, hidden built-in Chat Completions rows and
+  the OpenAI key on its card.
+
+Remaining: owner gates G1 (packaged acceptance on a fresh profile, partly
+pre-checked by the agent pass), G2, G3 (copy and screenshots, including the
+agent decisions on " (alternate)" and the server-key wording), G4, G5 and G6.
+Recorded limitations: no Local size/quantization (listings return ids only),
+no OpenRouter logo, the built self-host image ships no third-party licence
+bundle, and the published WebGPU `ATTRIBUTION.md` still mentions a desktop
+feature pack (changing it needs a republish).
+
+Lessons: parallel phase work in isolated worktrees saved time but needed SDK
+regeneration and one conflict resolution on integration; fixtures that omit
+newly required schema fields can silently disable browser tests (the #226
+symptom), so schema changes should be followed by the browser suites, not just
+unit tests.
