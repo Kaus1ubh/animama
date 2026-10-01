@@ -299,25 +299,27 @@ describe("privileged runtime IPC", () => {
     operations.featurePacks = vi.fn(() => []);
     operations.changePack = vi.fn(async () => undefined);
     await expect(
-      invoke("feature-packs:install", main.event, "parakeet-stt"),
+      invoke("feature-packs:install", main.event, "expanded-included-content"),
     ).resolves.toBeUndefined();
     expect(operations.changePack).toHaveBeenCalledWith(
       "install",
-      "parakeet-stt",
+      "expanded-included-content",
     );
     await expect(
       invoke(
         "feature-packs:install",
         main.event,
-        "parakeet-stt",
+        "expanded-included-content",
         "https://hostile.invalid",
       ),
     ).rejects.toThrow("ipc_arguments_invalid");
     await expect(
-      invoke("feature-packs:remove", main.event, { id: "parakeet-stt" }),
+      invoke("feature-packs:remove", main.event, {
+        id: "expanded-included-content",
+      }),
     ).rejects.toThrow("feature_pack_invalid");
     const status = {
-      id: "parakeet-stt" as const,
+      id: "expanded-included-content" as const,
       state: "downloading" as const,
       available: true,
       progress: 0.5,

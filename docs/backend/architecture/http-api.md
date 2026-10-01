@@ -124,10 +124,11 @@ and existing indexed-file search still work. React checks fresh capability
 metadata before enqueue and before creating an offline speech worker. The
 asset versions (base and WebGPU Parakeet) are opaque cache keys, never paths or
 credentials. Offline speech values are computed on every request from the
-composition's `ANIMAMA_PARAKEET_SOURCE`: `operator` (the default) reports
-`ANIMAMA_PARAKEET_STT_ENABLED` and the launch asset versions; `asset-store`
-requires that flag and an installed `parakeet-stt` set, and reports installed
-manifest digests, so installs and removals apply without a restart.
+composition's `ANIMAMA_PARAKEET_SOURCE`: `asset-store` (the default)
+requires `ANIMAMA_PARAKEET_STT_ENABLED` and an installed `parakeet-stt` set,
+and reports installed manifest digests, so installs and removals apply without
+a restart; `operator` (development Compose, where Vite serves host sets)
+reports the flag and no versions.
 `companion_safety` reports the operator's effective safety configuration
 (the global switch already applied); owner preferences live in user settings.
 `web_search.configuration` is true only in the local composition, which mounts

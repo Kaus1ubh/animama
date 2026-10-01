@@ -58,21 +58,28 @@ async function mount() {
     updatedAt: null,
     restartRequired: false,
   }));
-  const packs = [
-    {
-      id: "parakeet-stt",
-      state: "not_installed",
-      available: true,
-      version: "1",
-      downloadBytes: 661332409,
-      installedBytes: 661332409,
-      minimumFreeBytes: 1400000000,
-    },
-  ];
-  let finishPack;
-  const pendingPack = new Promise((resolve) => {
-    finishPack = resolve;
+  const asset = (id, size, extra = {}) => ({
+    id,
+    status: "not_installed",
+    size_bytes: size,
+    required_free_bytes: size,
+    media_type: null,
+    license_ref: "CC-BY-4.0",
+    files_total: 1,
+    files_verified: 0,
+    ...extra,
   });
+  // Backend model-asset state; installs apply in place without a reload.
+  const assets = [
+    asset("parakeet-stt", 661332409, { files_total: 7 }),
+    asset("parakeet-stt-webgpu", 1238962007, {
+      files_total: 3,
+      requires: ["parakeet-stt"],
+    }),
+    asset("pocket-tts-voice-cloning-encoder", 39768446, {
+      media_type: "application/octet-stream",
+    }),
+  ];
   const context = {
     principal_id: "00000000-0000-4000-8000-000000000188",
     bootstrap_status: "ready",
@@ -81,13 +88,9 @@ async function mount() {
     display_name: null,
   };
   await page.exposeFunction("fixtureNative", async (method, args) => {
-    if (method === "packs") return packs;
     if (method === "credentials") return statuses;
     // Record only status and action names, never key values.
-    operations.push({
-      method,
-      ...(typeof args === "string" ? { id: args } : {}),
-    });
+    operations.push({ method });
     if (method === "credentials.apply") {
       for (const change of args)
         Object.assign(
@@ -98,12 +101,6 @@ async function mount() {
           },
         );
       return statuses;
-    }
-    if (method === "install") {
-      packs[0].state = "downloading";
-      await pendingPack;
-      packs[0].state = "installed";
-      packs[0].activeVersion = "1";
     }
   });
   await page.route("**/v1/**", async (route) => {
@@ -121,10 +118,23 @@ async function mount() {
       return route.fulfill({ json: context });
     }
     if (pathname === "/v1/model-assets")
-      return route.fulfill({ json: { assets: [], free_bytes: 10000000000 } });
+      return route.fulfill({ json: { assets, free_bytes: 10000000000 } });
+    const install = /^\/v1\/model-assets\/([a-z0-9-]+):install$/u.exec(
+      pathname,
+    );
+    if (install && request.method() === "POST") {
+      const target = assets.find((item) => item.id === install[1]);
+      Object.assign(target, {
+        status: "downloading",
+        bytes_downloaded: 0,
+        total_bytes: target.size_bytes,
+        reason: null,
+      });
+      return route.fulfill({ status: 202, json: target });
+    }
     if (pathname === "/v1/runtime-capabilities")
       return route.fulfill({
-        json: { offline_speech_enabled: false, parakeet_webgpu_enabled: false },
+        json: { offline_speech_enabled: false },
       });
     return route.fulfill({
       status: 404,
@@ -143,27 +153,27 @@ async function mount() {
     });
     throw error;
   }
-  return { page, packs, statuses, operations, requests, finishPack };
+  return { page, assets, statuses, operations, requests };
 }
 async function nameAndAge(page) {
   await page.getByLabel("Display name", { exact: true }).fill("Ada Lovelace");
   await page.getByLabel("I am 18 or older", { exact: true }).check();
 }
 const cpuDownload = (page) =>
-  page.getByRole("button", { name: /Download speech recognition/u });
+  page.getByRole("button", { name: "Download CPU model", exact: true });
+const continueButton = (page) =>
+  page.getByRole("button", { name: "Continue", exact: true });
+const installs = (requests) =>
+  requests
+    .filter((request) => request.pathname.endsWith(":install"))
+    .map((request) => request.pathname);
 
 test("skip all optional downloads and complete setup only with explicit valid name and age", async () => {
-  const fixture = await mount();
+  const { page, operations, requests } = await mount();
   try {
-    const { page, operations, requests } = fixture;
-    assert.equal(
-      await page
-        .getByRole("button", { name: "Continue", exact: true })
-        .isEnabled(),
-      false,
-    );
+    assert.equal(await continueButton(page).isEnabled(), false);
     await nameAndAge(page);
-    await page.getByRole("button", { name: "Continue", exact: true }).click();
+    await continueButton(page).click();
     await page.getByText("Setup complete", { exact: true }).waitFor();
     assert.deepEqual(operations, []);
     assert.equal(
@@ -179,26 +189,28 @@ test("skip all optional downloads and complete setup only with explicit valid na
       [],
     );
   } finally {
-    fixture.finishPack();
-    await fixture.page.close();
+    await page.close();
   }
 });
 
-test("name and age survive key save, renderer recreation and native download; Continue preserves the transfer", async () => {
-  const fixture = await mount();
+test("a speech download starts beside an unsaved key, which stays editable and gates only Continue", async () => {
+  const { page, operations, requests, assets } = await mount();
   try {
-    const { page, operations } = fixture;
     await nameAndAge(page);
+    const key = page.getByLabel("OpenAI", { exact: true });
+    await key.fill("fixture-key-never-persisted");
+    assert.equal(await continueButton(page).isEnabled(), false);
+    // Installs apply in place, so unsaved keys never block them.
+    await cpuDownload(page).click();
     await page
-      .getByLabel("OpenAI", { exact: true })
-      .fill("fixture-key-never-persisted");
-    assert.equal(await cpuDownload(page).isEnabled(), false);
-    assert.equal(
-      await page
-        .getByRole("button", { name: "Continue", exact: true })
-        .isEnabled(),
-      false,
-    );
+      .getByText(/Downloading \d+%/u)
+      .first()
+      .waitFor();
+    assert.deepEqual(installs(requests), [
+      "/v1/model-assets/parakeet-stt:install",
+    ]);
+    assert.equal(await key.isEnabled(), true);
+    assert.equal(await key.inputValue(), "fixture-key-never-persisted");
     assert.equal(
       await page.evaluate(() =>
         JSON.stringify({ ...localStorage, ...sessionStorage }).includes(
@@ -209,76 +221,25 @@ test("name and age survive key save, renderer recreation and native download; Co
     );
     await page.getByRole("button", { name: "Save", exact: true }).click();
     await page.getByText("Saved.", { exact: true }).waitFor();
-    await page.reload();
-    assert.equal(
-      await page.getByLabel("Display name", { exact: true }).inputValue(),
-      "Ada Lovelace",
-    );
-    assert.equal(
-      await page.getByLabel("I am 18 or older", { exact: true }).isChecked(),
-      true,
-    );
-    assert.equal(
-      await page.getByLabel("OpenAI", { exact: true }).inputValue(),
-      "",
-    );
-    await cpuDownload(page).click();
-    await page.getByLabel("OpenAI", { exact: true }).waitFor();
-    await page.waitForFunction(
-      () => document.querySelector('input[type="password"]')?.disabled === true,
-    );
-    assert.equal(
-      await page
-        .getByRole("button", { name: "Continue", exact: true })
-        .isEnabled(),
-      true,
-    );
-    // Native state outlives the renderer, while unfinished onboarding remains on setup.
-    await page.reload();
-    await page.waitForFunction(
-      () => document.querySelector('input[type="password"]')?.disabled === true,
-    );
-    assert.equal(
-      await page.getByLabel("Display name", { exact: true }).inputValue(),
-      "Ada Lovelace",
-    );
-    assert.equal(
-      await page.getByLabel("I am 18 or older", { exact: true }).isChecked(),
-      true,
-    );
-    await page.getByRole("button", { name: "Continue", exact: true }).click();
+    await continueButton(page).click();
     await page.getByText("Setup complete", { exact: true }).waitFor();
-    assert.deepEqual(operations, [
-      { method: "credentials.apply" },
-      { method: "install", id: "parakeet-stt" },
-    ]);
-    assert.equal(fixture.packs[0].state, "downloading");
+    assert.deepEqual(operations, [{ method: "credentials.apply" }]);
+    // The transfer continues after setup.
+    assert.equal(assets[0].status, "downloading");
   } finally {
-    fixture.finishPack();
-    await fixture.page.close();
+    await page.close();
   }
 });
 
-test("discard permits download and failed native activation restores the unfinished draft for retry", async () => {
-  const fixture = await mount();
+test("name and age survive renderer recreation while a download continues", async () => {
+  const { page } = await mount();
   try {
-    const { page, packs } = fixture;
     await nameAndAge(page);
+    await cpuDownload(page).click();
     await page
-      .getByLabel("OpenAI", { exact: true })
-      .fill("fixture-discarded-key");
-    assert.equal(await cpuDownload(page).isEnabled(), false);
-    await page.getByRole("button", { name: "Discard", exact: true }).click();
-    await page.waitForFunction(() =>
-      [...document.querySelectorAll("button")].some(
-        (button) =>
-          button.textContent?.includes("Download speech recognition") &&
-          !button.disabled,
-      ),
-    );
-    assert.equal(await cpuDownload(page).isEnabled(), true);
-    packs[0].state = "failed";
-    packs[0].error = "activation_failed";
+      .getByText(/Downloading \d+%/u)
+      .first()
+      .waitFor();
     await page.reload();
     assert.equal(
       await page.getByLabel("Display name", { exact: true }).inputValue(),
@@ -288,55 +249,71 @@ test("discard permits download and failed native activation restores the unfinis
       await page.getByLabel("I am 18 or older", { exact: true }).isChecked(),
       true,
     );
-    assert.equal(
-      await page.getByLabel("OpenAI", { exact: true }).inputValue(),
-      "",
-    );
-    await page.waitForFunction(() =>
-      [...document.querySelectorAll("button")].some(
-        (button) =>
-          button.textContent?.includes("Retry speech download") &&
-          !button.disabled,
-      ),
-    );
-    assert.equal(
-      await page.getByRole("button", { name: /Retry/u }).isEnabled(),
-      true,
-    );
-    assert.equal(
-      await page
-        .getByRole("button", { name: "Continue", exact: true })
-        .isEnabled(),
-      true,
-    );
+    await page
+      .getByRole("button", { name: "Cancel download", exact: true })
+      .first()
+      .waitFor();
+    await continueButton(page).click();
+    await page.getByText("Setup complete", { exact: true }).waitFor();
   } finally {
-    fixture.finishPack();
-    await fixture.page.close();
+    await page.close();
   }
 });
 
-test("key edits stay available when setup details cannot be retained", async () => {
-  const fixture = await mount();
+test("a failed download offers retry without blocking setup", async () => {
+  const { page, assets, requests } = await mount();
   try {
-    const { page, operations } = fixture;
+    await nameAndAge(page);
+    await cpuDownload(page).click();
+    await page
+      .getByText(/Downloading \d+%/u)
+      .first()
+      .waitFor();
+    Object.assign(assets[0], {
+      status: "failed",
+      reason: "asset_download_failed",
+    });
+    await page.reload();
+    const retry = page.getByRole("button", {
+      name: "Retry download",
+      exact: true,
+    });
+    await retry.waitFor();
+    assert.equal(await retry.isEnabled(), true);
+    assert.equal(await continueButton(page).isEnabled(), true);
+    await retry.click();
+    await page
+      .getByText(/Downloading \d+%/u)
+      .first()
+      .waitFor();
+    assert.equal(installs(requests).length, 2);
+  } finally {
+    await page.close();
+  }
+});
+
+test("downloads and key edits stay available when setup details cannot be retained", async () => {
+  const { page, operations, requests } = await mount();
+  try {
     await page.evaluate(() => {
       Storage.prototype.setItem = () => {
         throw new Error("storage unavailable");
       };
     });
     await nameAndAge(page);
-    await page
-      .getByText(/Continue setup before changing speech recognition/u)
-      .first()
-      .waitFor();
+    assert.equal(await page.getByText(/could not be retained/u).count(), 0);
     await page.getByLabel("OpenAI", { exact: true }).fill("fixture-key");
     await page.getByRole("button", { name: "Save", exact: true }).click();
     await page.getByText("Saved.", { exact: true }).waitFor();
-    assert.equal(await cpuDownload(page).isEnabled(), false);
+    await cpuDownload(page).click();
+    await page
+      .getByText(/Downloading \d+%/u)
+      .first()
+      .waitFor();
     assert.deepEqual(operations, [{ method: "credentials.apply" }]);
+    assert.equal(installs(requests).length, 1);
   } finally {
-    fixture.finishPack();
-    await fixture.page.close();
+    await page.close();
   }
 });
 
@@ -380,7 +357,6 @@ test("credential removal and a failed-save retry also retain the unfinished setu
     assert.equal(statuses[0].configured, false);
     assert.deepEqual(operations, [{ method: "credentials.apply" }]);
   } finally {
-    fixture.finishPack();
     await fixture.page.close();
   }
 });

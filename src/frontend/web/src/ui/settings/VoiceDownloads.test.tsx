@@ -1,23 +1,35 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { PyModelAssetState } from "@animama/runtime-contracts/api-types";
-import type { FeaturePackStatus } from "../../../../shared/desktop-runtime";
-import { OfflineSpeechDownload, VoiceDownloads } from "./VoiceDownloads";
+import {
+  OfflineSpeechDownloads,
+  OfflineSpeechDownloadsView,
+  modelChangeErrorText,
+  requestModelChange,
+  type OfflineSpeechDownloadsViewProps,
+} from "./OfflineSpeechDownloads";
+import { VoiceDownloads } from "./VoiceDownloads";
 
 const manager = vi.hoisted(() => ({
   assets: [] as PyModelAssetState[],
-  packs: [] as FeaturePackStatus[],
   retryAssetIds: new Set<string>(),
   mutate: vi.fn(),
   blockedReason: null as string | null,
+  offered: true,
 }));
 
-vi.mock("@/hooks/useDesktopFeaturePacks", () => ({
-  useDesktopFeaturePacks: () => ({
-    available: true,
-    packs: manager.packs,
-    run: manager.mutate,
-  }),
+vi.mock("@/lib/speech/client-parakeet/assets", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@/lib/speech/client-parakeet/assets")
+  >()),
+  get PARAKEET_DOWNLOADS_OFFERED() {
+    return manager.offered;
+  },
+}));
+vi.mock("@/lib/speech/client-parakeet/client", () => ({
+  disposeIdleClientParakeetWorker: vi.fn(async () => true),
+  getLastClientParakeetBackendState: () => null,
+  getParakeetWebgpuStatus: vi.fn(() => new Promise(() => undefined)),
 }));
 vi.mock("@/hooks/use-pocket-voice-downloads", () => ({
   usePocketVoiceDownloads: () => ({
@@ -28,82 +40,254 @@ vi.mock("@/hooks/use-pocket-voice-downloads", () => ({
 }));
 vi.mock("@/query/hooks/useModelAssets", () => ({
   useModelAssets: () => ({
-    data: { assets: manager.assets },
+    data: { assets: manager.assets, free_bytes: 40 * 1024 ** 3 },
     retryAssetIds: manager.retryAssetIds,
   }),
+}));
+vi.mock("@/query/hooks/useRuntimeCapabilities", () => ({
+  useRuntimeCapabilities: () => ({ data: { offline_speech_enabled: false } }),
 }));
 vi.mock("@/query/mutations/useModelAssetActions", () => ({
   useModelAssetAction: () => ({
     mutate: manager.mutate,
     isPending: false,
+    busy: false,
     blockedReason: manager.blockedReason,
   }),
 }));
-vi.mock("./ExperimentalSettings", () => ({
-  ParakeetWebgpuDetails: () => <button>Download GPU enhancement</button>,
-}));
 
-const pack: FeaturePackStatus = {
-  id: "parakeet-stt",
-  state: "not_installed",
-  available: true,
-  hasInstalledFiles: false,
-  downloadBytes: 661_332_409,
-  installedBytes: 661_332_409,
-  minimumFreeBytes: 1_322_664_818,
-};
-const render = (
-  extra: Partial<Parameters<typeof OfflineSpeechDownload>[0]> = {},
-) =>
+const set = (
+  id: string,
+  size: number,
+  extra: Partial<PyModelAssetState> = {},
+): PyModelAssetState => ({
+  id,
+  status: "not_installed",
+  size_bytes: size,
+  required_free_bytes: size * 2,
+  media_type: null,
+  license_ref: "CC-BY-4.0",
+  files_total: id === "parakeet-stt" ? 7 : 3,
+  files_verified: 0,
+  ...extra,
+});
+const cpu = set("parakeet-stt", 661_332_409);
+const gpu = set("parakeet-stt-webgpu", 1_238_962_007, {
+  requires: ["parakeet-stt"],
+});
+const view = (extra: Partial<OfflineSpeechDownloadsViewProps> = {}) =>
   renderToStaticMarkup(
-    <OfflineSpeechDownload
-      pack={pack}
-      busy={false}
-      blockedReason={null}
-      run={vi.fn()}
+    <OfflineSpeechDownloadsView
+      cpu={cpu}
+      gpu={gpu}
+      freeBytes={40 * 1024 ** 3}
+      gpuSupport="model_missing"
+      pending={false}
+      onChange={vi.fn()}
       {...extra}
     />,
   );
+const enabled = (label: string) =>
+  new RegExp(`<button(?![^>]*disabled="")[^>]*>${label}</button>`, "u");
+const disabled = (label: string) =>
+  new RegExp(`<button[^>]*disabled=""[^>]*>${label}</button>`, "u");
 
-describe("compact optional speech download", () => {
-  it("offers one immediate sized CPU action without selecting a provider or chaining a GPU download", () => {
-    const html = render();
-    expect(html).toContain("Offline speech recognition");
-    expect(html).toContain("631 MB");
-    expect(html).toContain("Download speech recognition");
-    expect(html).not.toContain("checkbox");
-    expect(html).not.toContain("GPU");
+describe("offline speech recognition downloads", () => {
+  it("offers a labelled, sized CPU download before install and always shows the GPU add-on", () => {
+    const html = view();
+    expect(html).toContain("Offline speech recognition (Parakeet)");
+    expect(html).toContain("CPU model");
+    expect(html).toContain("631 MB download");
+    expect(html).toMatch(enabled("Download CPU model"));
+    expect(html).toContain("GPU acceleration");
+    expect(html).toContain("Requires the CPU model");
+    expect(html).toMatch(disabled("Download GPU acceleration"));
+    expect(html).toContain("Download the CPU model first.");
   });
 
-  it("blocks transitions for credentials but keeps cancellation reachable", () => {
-    const html = render({
-      blockedReason: "Save or discard your API key first.",
-    });
-    expect(html).toContain("Save or discard your API key first.");
-    expect(html).toMatch(
-      /<button[^>]*disabled=""[^>]*>Download speech recognition<\/button>/u,
-    );
-    const downloading = render({
-      pack: { ...pack, state: "downloading", progress: 0.5 },
-      busy: true,
-    });
-    expect(downloading).toContain("50%");
-    expect(downloading).toMatch(
-      /<button(?![^>]*disabled="")[^>]*>Cancel download<\/button>/u,
-    );
-  });
-
-  it("preserves installed pack removal when its catalog offer disappears", () => {
-    const html = render({
-      pack: {
-        ...pack,
-        available: false,
-        state: "installed",
-        hasInstalledFiles: true,
+  it("shows progress and keeps cancellation reachable while blocked", () => {
+    const html = view({
+      cpu: {
+        ...cpu,
+        status: "downloading",
+        bytes_downloaded: 330_000_000,
+        total_bytes: 660_000_000,
       },
+      pending: true,
+      blockedReason: "Wait for the feature pack change to finish.",
     });
-    expect(html).toContain("Remove speech recognition");
-    expect(html).not.toContain("Download speech recognition");
+    expect(html).toContain("Downloading 50%");
+    expect(html).toContain('value="0.5"');
+    expect(html).toMatch(enabled("Cancel download"));
+    expect(html).not.toContain("Download CPU model");
+  });
+
+  it("offers removal after install and enables the GPU add-on with WebGPU", () => {
+    const html = view({ cpu: { ...cpu, status: "installed" } });
+    expect(html).toContain("Installed");
+    expect(html).toMatch(enabled("Remove CPU model"));
+    expect(html).toContain("1.2 GB download");
+    expect(html).toMatch(enabled("Download GPU acceleration"));
+    expect(html).not.toContain("Download the CPU model first.");
+  });
+
+  it("states why the GPU add-on cannot be installed", () => {
+    // A device without WebGPU never needs the CPU model for this add-on.
+    expect(view({ gpuSupport: "unsupported" })).toContain(
+      "WebGPU is not available in this browser or on this device.",
+    );
+    const missing = view({
+      cpu: { ...cpu, status: "installed" },
+      gpu: undefined,
+    });
+    expect(missing).toContain("GPU acceleration is unavailable in this build.");
+    expect(missing).toMatch(disabled("Download GPU acceleration"));
+    expect(
+      view({ cpu: { ...cpu, status: "installed" }, gpuSupport: null }),
+    ).toMatch(disabled("Download GPU acceleration"));
+  });
+
+  it("blocks CPU removal while GPU acceleration is installed", () => {
+    const html = view({
+      cpu: { ...cpu, status: "installed" },
+      gpu: { ...gpu, status: "installed" },
+      gpuSupport: "available",
+    });
+    expect(html).toMatch(disabled("Remove CPU model"));
+    expect(html).toContain("Remove GPU acceleration first.");
+    expect(html).toMatch(enabled("Remove GPU acceleration"));
+  });
+
+  it("explains removal refusals from the backend without raw payloads", () => {
+    const inUse = modelChangeErrorText({
+      detail: { code: "model_asset_in_use" },
+    });
+    expect(inUse).toBe(
+      "Speech recognition is in use. Close dictation and Voice Mode to remove it.",
+    );
+    expect(
+      modelChangeErrorText({ detail: { code: "model_asset_required_by" } }),
+    ).toBe("Remove GPU acceleration first.");
+    expect(modelChangeErrorText(new Error("/private/path"))).not.toContain(
+      "/private",
+    );
+    const html = view({
+      cpu: { ...cpu, status: "installed" },
+      error: { assetId: "parakeet-stt", message: inUse },
+    });
+    expect(html).toContain(inUse);
+    expect(html).toContain('role="alert"');
+  });
+
+  it("offers retry with the failure reason", () => {
+    const html = view({
+      cpu: { ...cpu, status: "failed", reason: "asset_hash_invalid" },
+    });
+    expect(html).toMatch(enabled("Retry download"));
+    expect(html).toContain("did not match its checksum");
+    expect(view({ retryAssetIds: new Set(["parakeet-stt-webgpu"]) })).toContain(
+      "Retry download",
+    );
+  });
+
+  it("says when the server operator turned offline speech off", () => {
+    const off = "Offline speech recognition is turned off on this server.";
+    expect(
+      view({ cpu: { ...cpu, status: "installed" }, turnedOff: true }),
+    ).toContain(off);
+    // Without the CPU model, the download is the actionable state.
+    expect(view({ turnedOff: true })).not.toContain(off);
+  });
+
+  it("never mentions reloading the app", () => {
+    for (const html of [
+      view(),
+      view({ cpu: { ...cpu, status: "installed" } }),
+      view({ cpu: { ...cpu, status: "downloading" } }),
+    ])
+      expect(html).not.toMatch(/reload/iu);
+  });
+});
+
+describe("sending a model change", () => {
+  it("releases this page's idle leases before sending a removal", async () => {
+    const order: string[] = [];
+    let finishRelease!: () => void;
+    const releaseIdleLeases = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finishRelease = () => {
+            order.push("released");
+            resolve();
+          };
+        }),
+    );
+    const send = vi.fn(() => order.push("sent"));
+    const removal = requestModelChange("remove", "parakeet-stt", {
+      releaseIdleLeases,
+      send,
+    });
+    await Promise.resolve();
+    expect(send).not.toHaveBeenCalled();
+    finishRelease();
+    await removal;
+    expect(order).toEqual(["released", "sent"]);
+    expect(send).toHaveBeenCalledWith({
+      action: "remove",
+      assetId: "parakeet-stt",
+    });
+  });
+  it("installs and cancels without touching leases", async () => {
+    const releaseIdleLeases = vi.fn(async () => true);
+    const send = vi.fn();
+    await requestModelChange("install", "parakeet-stt", {
+      releaseIdleLeases,
+      send,
+    });
+    await requestModelChange("cancel", "parakeet-stt", {
+      releaseIdleLeases,
+      send,
+    });
+    expect(releaseIdleLeases).not.toHaveBeenCalled();
+    expect(send.mock.calls.map(([request]) => request.action)).toEqual([
+      "install",
+      "remove",
+    ]);
+  });
+});
+
+describe("where speech downloads are offered", () => {
+  beforeEach(() => {
+    manager.assets = [cpu, gpu];
+    manager.offered = true;
+  });
+  it("shows the downloads in built apps", () => {
+    const html = renderToStaticMarkup(
+      <VoiceDownloads section="speech-to-text" />,
+    );
+    expect(html).toContain("Download CPU model");
+    expect(html).toContain("Download GPU acceleration");
+  });
+  it("shows the acquire commands instead where Vite serves the operator's host sets", () => {
+    manager.offered = false;
+    const html = renderToStaticMarkup(<OfflineSpeechDownloads />);
+    expect(html).toContain("scripts/models/parakeet.py acquire");
+    expect(html).toContain("parakeet_webgpu.py acquire");
+    expect(html).not.toContain("<button");
+  });
+  it("keeps setup optional with only speech recognition and cloning sections", () => {
+    manager.assets = [
+      cpu,
+      gpu,
+      set("pocket-tts-voice-cloning-encoder", 39_768_446),
+    ];
+    const html = renderToStaticMarkup(<VoiceDownloads />);
+    expect(html).toContain("Speech-to-Text</h2>");
+    expect(html).toContain("Voice Clone</h2>");
+    expect(html).toContain("Download CPU model");
+    expect(html).toContain("Download voice cloning");
+    expect(html).not.toContain("Text-to-Speech");
+    expect(html).not.toContain("Browse voices");
   });
 });
 
@@ -149,37 +333,5 @@ describe("optional speech synthesis downloads", () => {
     expect(html()).toMatch(
       /<button(?![^>]*disabled="")[^>]*>Cancel download<\/button>/u,
     );
-  });
-});
-
-describe("provider-scoped speech downloads", () => {
-  beforeEach(() => {
-    manager.packs = [pack];
-  });
-  const speech = (sttProvider: string) =>
-    renderToStaticMarkup(
-      <VoiceDownloads section="speech-to-text" sttProvider={sttProvider} />,
-    );
-  it.each(["browser_external", "browser_local", "deepgram", ""])(
-    "hides GPU but keeps the desktop base download reachable for %s",
-    (provider) => {
-      expect(speech(provider)).not.toContain("Download GPU enhancement");
-      expect(speech(provider)).toContain("Download speech recognition");
-    },
-  );
-  it("offers the base model for CPU and adds GPU only for WebGPU", () => {
-    expect(speech("parakeet")).toContain("Download speech recognition");
-    expect(speech("parakeet")).not.toContain("Download GPU enhancement");
-    expect(speech("parakeet_webgpu")).toContain("Download speech recognition");
-    expect(speech("parakeet_webgpu")).toContain("Download GPU enhancement");
-  });
-  it("keeps setup optional with only speech recognition and cloning sections", () => {
-    const html = renderToStaticMarkup(<VoiceDownloads />);
-    expect(html).toContain("Speech-to-Text</h2>");
-    expect(html).toContain("Voice Clone</h2>");
-    expect(html).toContain("Download GPU enhancement");
-    expect(html).not.toContain("Text-to-Speech");
-    expect(html).not.toContain("Browse voices");
-    expect(html).not.toContain("PocketTTS voices");
   });
 });

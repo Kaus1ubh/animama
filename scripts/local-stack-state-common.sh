@@ -219,7 +219,8 @@ print(values.get("ANIMAMA_WEB_BUILD_MODE") or "development")
   fi
   # Prefer the exact verified version recorded by reset.sh. A caller without a
   # record must resolve its selected store offline before any Compose action.
-  if [ -z "${ANIMAMA_PARAKEET_MODEL_DIR:-}" ]; then
+  # Only the development graph mounts the host Parakeet set.
+  if [ -z "${ANIMAMA_PARAKEET_MODEL_DIR:-}" ] && [[ "$COMPOSE_FILE" == *docker-compose.development.yml* ]]; then
     local model_root="${ANIMAMA_MODEL_ROOT:-}"
     if [ -z "${ANIMAMA_MODEL_ROOT+x}" ]; then
       model_root="$(ANIMAMA_PARAKEET_MODEL_DIR=/__animama_model_selector_only__ ANIMAMA_BROWSER_MODEL_DIR=/__animama_model_selector_only__ docker compose -f "${ANIMAMA_STATE_REPO_ROOT}/docker-compose.yml" config --environment | python3 -c '

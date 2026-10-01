@@ -215,9 +215,10 @@ export ANIMAMA_STACK_REPO_ROOT
 # Resolve and fully verify without network access before writing state, stopping
 # services, or allowing Compose to create mounts. Ignore any stale derived path.
 # Every model set is optional: an unacquired set (exit 2) leaves its variable
-# empty, so Compose mounts the checked-in notices directory and only that
-# feature reports its model as not installed. A present set that fails
-# verification is an error.
+# empty, so development Compose mounts the checked-in notices directory and
+# only that feature reports its model as not installed. A present set that
+# fails verification is an error. Built installs download Parakeet sets in the
+# app, so only development resolves the host Parakeet sets.
 if ! ANIMAMA_MODEL_ROOT="$(python3 "${script_dir}/scripts/models/parakeet.py" root ${ANIMAMA_MODEL_ROOT:+--root "$ANIMAMA_MODEL_ROOT"})"; then
   exit 2
 fi
@@ -235,24 +236,29 @@ resolve_optional_model() {
     return 1
   fi
 }
-ANIMAMA_PARAKEET_MODEL_DIR="$(resolve_optional_model parakeet.py "Parakeet speech-to-text")" || exit 2
-if [ -z "$ANIMAMA_PARAKEET_MODEL_DIR" ]; then
-  # Report dictation as not installed instead of failing on missing files.
-  ANIMAMA_PARAKEET_STT_ENABLED=false
-  export ANIMAMA_PARAKEET_STT_ENABLED
-fi
-ANIMAMA_BROWSER_MODEL_DIR="$(resolve_optional_model browser_speech.py "Browser speech (Pocket TTS and Smart Turn)")" || exit 2
-# The experimental WebGPU encoder set is always optional; verification
-# failures only warn.
-webgpu_status=0
-ANIMAMA_PARAKEET_WEBGPU_MODEL_DIR="$(python3 "${script_dir}/scripts/models/parakeet_webgpu.py" path --root "$ANIMAMA_MODEL_ROOT" 2>/dev/null)" || webgpu_status=$?
-if [ "$webgpu_status" -ne 0 ]; then
-  ANIMAMA_PARAKEET_WEBGPU_MODEL_DIR=""
-  if [ "$webgpu_status" -ne 2 ]; then
-    echo "⚠️  Optional Parakeet WebGPU model set failed verification; continuing without it." >&2
-    echo "   Run python3 scripts/models/parakeet_webgpu.py verify --root \"$ANIMAMA_MODEL_ROOT\" for details." >&2
+ANIMAMA_PARAKEET_MODEL_DIR=""
+ANIMAMA_PARAKEET_WEBGPU_MODEL_DIR=""
+if [ "${ANIMAMA_WEB_BUILD_MODE-development}" = development ]; then
+  ANIMAMA_PARAKEET_MODEL_DIR="$(resolve_optional_model parakeet.py "Parakeet speech-to-text")" || exit 2
+  if [ -z "$ANIMAMA_PARAKEET_MODEL_DIR" ]; then
+    # Vite serves only the host set: report dictation as not installed
+    # instead of failing on missing files.
+    ANIMAMA_PARAKEET_STT_ENABLED=false
+    export ANIMAMA_PARAKEET_STT_ENABLED
+  fi
+  # The experimental WebGPU set is always optional; verification failures
+  # only warn.
+  webgpu_status=0
+  ANIMAMA_PARAKEET_WEBGPU_MODEL_DIR="$(python3 "${script_dir}/scripts/models/parakeet_webgpu.py" path --root "$ANIMAMA_MODEL_ROOT" 2>/dev/null)" || webgpu_status=$?
+  if [ "$webgpu_status" -ne 0 ]; then
+    ANIMAMA_PARAKEET_WEBGPU_MODEL_DIR=""
+    if [ "$webgpu_status" -ne 2 ]; then
+      echo "⚠️  Optional Parakeet WebGPU model set failed verification; continuing without it." >&2
+      echo "   Run python3 scripts/models/parakeet_webgpu.py verify --root \"$ANIMAMA_MODEL_ROOT\" for details." >&2
+    fi
   fi
 fi
+ANIMAMA_BROWSER_MODEL_DIR="$(resolve_optional_model browser_speech.py "Browser speech (Pocket TTS and Smart Turn)")" || exit 2
 export ANIMAMA_MODEL_ROOT ANIMAMA_PARAKEET_MODEL_DIR ANIMAMA_BROWSER_MODEL_DIR ANIMAMA_PARAKEET_WEBGPU_MODEL_DIR
 
 # Optional keys for owner-added model connections, loaded into the backend

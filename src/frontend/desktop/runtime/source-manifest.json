@@ -20,7 +20,7 @@
     "smart-turn",
     "all-current-onnx-variants"
   ],
-  "packs": ["parakeet-stt", "parakeet-stt-webgpu"],
+  "packs": [],
   "deferred_packs": ["expanded-included-content", "document-processing"],
   "release_approved": false
 }

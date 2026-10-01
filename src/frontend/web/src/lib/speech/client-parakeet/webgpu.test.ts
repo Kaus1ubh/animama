@@ -15,16 +15,6 @@ function gpu(adapter: unknown) {
 }
 
 describe("probeParakeetWebgpu", () => {
-  it("reports unavailable_in_build when the build serves no GPU model", async () => {
-    await expect(
-      probeParakeetWebgpu({
-        encoderUrl: null,
-        gpu: gpu({}),
-        fetch: vi.fn(),
-      }),
-    ).resolves.toBe("unavailable_in_build");
-  });
-
   it("reports unsupported without navigator.gpu or an adapter", async () => {
     const fetch = vi.fn();
     await expect(
@@ -71,7 +61,6 @@ describe("resolveParakeetBackend", () => {
   it.each<ParakeetWebgpuStatus>([
     "unsupported",
     "model_missing",
-    "unavailable_in_build",
   ])("falls back to WASM when WebGPU is %s", (status) => {
     expect(resolveParakeetBackend({ preferWebgpu: true, status })).toEqual({
       backend: "wasm",

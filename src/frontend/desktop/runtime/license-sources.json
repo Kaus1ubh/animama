@@ -84,7 +84,7 @@
     },
     {
       "id": "parakeet-input",
-      "name": "Optional Parakeet model inputs",
+      "name": "Downloadable Parakeet speech model (CPU)",
       "license": "CC-BY-4.0 (declared)",
       "source": "models/parakeet-tdt-0.6b-v2/ATTRIBUTION.md pins istupakov revision 0bbb45a3365852604aef28b538a8f066f4ccaa85 and ysdede revision db4a768f5795e0f508187a34241fbeeef6ebb0d3; exact INT8 model and rebuilt preprocessor hashes were reconciled against those public revisions",
       "review": "pending",
@@ -92,7 +92,7 @@
     },
     {
       "id": "parakeet-webgpu-input",
-      "name": "Optional Parakeet WebGPU encoder input",
+      "name": "Downloadable Parakeet speech model (GPU acceleration)",
       "license": "CC-BY-4.0 (declared)",
       "source": "models/parakeet-tdt-0.6b-v2-webgpu/ATTRIBUTION.md pins ysdede revision db4a768f5795e0f508187a34241fbeeef6ebb0d3; the FP16 encoder hash matches that public revision",
       "review": "pending",

@@ -87,9 +87,9 @@ guides, and:
 
 - [x] Plan: approved by the owner on 2026-10-01.
 - [x] Phase 1: backend Parakeet sets — implemented, reviewed (round 1 pass, fixes applied).
-- [ ] Phase 2: desktop and self-host cutover, pack removal, speech download UI.
+- [x] Phase 2: desktop and self-host cutover, pack removal, speech download UI — implemented, reviewed (rounds 1–3; last docs fix verified at the limit). Manual built self-host check pending.
 - [x] Phase 3: OpenRouter preset, model metadata and hidden built-ins — implemented, reviewed (rounds 1–2 pass).
-- [ ] Phase 4: App Settings → Models Cloud | Local and feature-local keys.
+- [x] Phase 4: App Settings → Models Cloud | Local and feature-local keys — implemented, reviewed (rounds 1–3; pass). Screenshots pending (G3).
 - [ ] Phase 5: stepped setup.
 - [ ] Phase 6: documentation sweep and final integration review.
 - [ ] Owner gates G1–G5 (see [Validation and acceptance](#validation-and-acceptance)).
@@ -409,13 +409,107 @@ Completion: checks pass, review #1 has no unresolved blockers, the phase
 commit is recorded, and no `parakeet` remains in pack artifacts
 (`rg -n parakeet src/frontend/desktop/runtime`).
 
+Results (2026-10-01), delegated implementation reviewed here:
+
+- Desktop: Parakeet removed from the pack catalog, schema, release inputs,
+  release policy (two packs), `shared/desktop-runtime.ts`, supervisor env;
+  `featurePackRequires`, `model-files.ts` and model-pack tests deleted.
+  Publication takes Parakeet objects only from the backend asset catalog.
+  `active.json` drops unknown pack ids on read (previously startup failed with
+  `pack_state_invalid`). Startup removes retired `parakeet-stt*` pack and
+  download directories by exact id (agent decision; the plan's assumption that
+  existing cleanup removed them was wrong — about 1.9 GB on affected machines).
+- Backend: `ANIMAMA_PARAKEET_SOURCE` defaults to `asset-store`; development
+  Compose sets `operator`. Mount JSON and Parakeet pack-version settings
+  removed. `LocalAssets(web_root, *, mount_source=None)`.
+- Compose/reset: built mode has no web-root Parakeet bind and never resolves
+  host sets; development unchanged.
+- Vite/client: one `__CLIENT_PARAKEET_MODELS__` define (`asset-store` in
+  builds, `operator` in serve); `?v` pinning per set from capability versions.
+  Lease helper `lib/speech/client-parakeet/lease.ts` (acquire before load,
+  renew 10 s, stop after `model_asset_not_installed`/`not_found`, bounded
+  release before removal); idle worker disposed before removal.
+- Renderer: `OfflineSpeechDownloads` replaces pack and duplicate GPU blocks
+  (`ExperimentalSettings.tsx` deleted; provider selection unchanged), used in
+  Voice settings, setup and chat. Copy: "Offline speech recognition
+  (Parakeet)"; GPU add-on "Requires the CPU model and a WebGPU-capable
+  device."; reasons "GPU acceleration is unavailable in this build.", "WebGPU
+  is not available in this browser or on this device.", "Download the CPU
+  model first."; refusals "Speech recognition is in use. Close dictation and
+  Voice Mode to remove it." and "Remove GPU acceleration first."; operator
+  off: "Offline speech recognition is turned off on this server."; Vite dev
+  shows acquire commands. `packs.busy` credential gate removed.
+- Licensing (agent decision): Parakeet notices stay in the packaged app's
+  licence bundle (`desktop/runtime/notices`, `license-sources.json` groups
+  "Downloadable Parakeet speech model (CPU)" / "(GPU acceleration)"), with
+  app-shipped wording updated. **Known limitation:** the built self-host image
+  ships no third-party licence bundle, so the onnx-asr MIT text is not
+  available there (also true before this change); each installed set carries
+  its README and CC BY attribution. Published `models/*/ATTRIBUTION.md` still
+  says "desktop feature pack"; changing it needs a republish (not done).
+- `rg -n parakeet src/frontend/desktop/runtime` matches only
+  `license-sources.json` and the two app-shipped attribution notices.
+- Surprise: Phase 1 had broken three browser fixtures (missing
+  `files_total`/`files_verified`), which is why the #226 voice-clone test was
+  failing; fixed here.
+- Checks after round-1 fixes: `timeout 2400 make check-test` 3070 passed, 7
+  skipped; `pnpm check`, `pnpm web:lint`, `pnpm desktop:check` pass;
+  `pnpm web:test` 359 files / 2359 tests, browser 3/3, 4/4, 16/16; `pnpm build`
+  pass; `pnpm desktop:test` 22 files / 377 tests; `bash -n reset.sh` and both
+  compose config commands pass; prettier/ruff format clean on changed files.
+- Manual built self-host resume/offline check: pending (see Validation).
+
 #### Code Review #1 Findings
 
-Pending.
+Reviewed the working tree against `70498f6a` (sdlc-reviewer, initial).
+Targeted backend 278 passed, web 183 passed, desktop 376 passed.
+
+- **P2-R1-F1 (blocking):** the `operator` default made built compositions
+  outside Compose (image `docker run`, native launcher) report offline speech
+  that nothing served.
+- **P2-R1-F2 (minor):** lease release raced the removal request.
+- **P2-R1-F3 (minor):** removed settings still documented.
+- **P2-R1-F4 (minor):** test-only `LocalAssets` mount params, stale docstring,
+  unreachable `unavailable_in_build`.
+- **P2-R1-F5 (minor):** built `reset.sh` still verified an unused host set.
+- **P2-R1-F6 (minor):** client lease wiring, idle disposal and capability
+  refetch untested.
+- **P2-R1-F7 (nit):** refused leases renewed forever.
+- **P2-R1-F8 (nit):** no dev GPU guidance; no explanation when the operator
+  disables offline speech.
 
 #### Code Review #1 Revisions
 
-Pending.
+All accepted and fixed (details in Results): F1 default `asset-store` with
+`test_built_composition_defaults_to_the_asset_store` (red before the fix);
+F2 bounded release await (`LEASE_RELEASE_WAIT_MS`, tested); F3 docs; F4
+cleanup; F5 `test_built_reset_never_resolves_host_parakeet_sets`; F6 new
+`client.test.ts` (7 tests) and a browser test for capability refetch (a node
+unit test is not possible with static rendering); F7 tested; F8 copy above.
+
+#### Code Review #2 (targeted recheck)
+
+Reviewed the working tree (repair round 1). F1–F8 and both decisions verified.
+**P2-R2-F1 (blocking, docs):** `http-api.md` and `model-assets.md` still
+stated `operator` as the default and described Parakeet packs. Non-blocking: a
+renewal in flight could re-create a lease after release; `.env.example`
+implied a Compose-ignored setting.
+
+Revisions: docs corrected; `.env.example` comment states Compose fixes the
+value; `lease.release()` now waits for the in-flight renewal (new test, red
+before the fix). Client-parakeet vitest 47 passed; `pnpm check`, `pnpm
+web:lint` pass.
+
+#### Code Review #3 (targeted recheck)
+
+Reviewed the working tree (repair round 2 of 2). Lease fix and the two docs
+passages verified. **P2-R3-F1 (blocking, docs):** two older lines in
+`model-assets.md` still named a Parakeet desktop pack.
+
+Revision at the repair limit: both lines corrected by the implementing agent
+and verified by `grep` (no remaining Parakeet pack statements in the two
+files); no further review round remains, so the final integration review
+covers it.
 
 ### Phase 3: OpenRouter preset, model metadata and hidden built-ins
 
@@ -532,13 +626,72 @@ Changes (`src/frontend/web/src/ui/settings/models/`, `DesktopCredentialsPanel`,
 Checks: frontend checks. Browser check against the dev stack at desktop and
 narrow widths, with screenshots saved for G3.
 
+Results (2026-10-01): implemented in an isolated worktree from `aad32460` on
+local branch `feat/p4-models-ui`: `cd03c6d2` (phase), `547d24ef` (round-1
+fixes), `16ab9787` (round-2 fix); integrated onto the plan branch after Phase 2.
+
+- Cloud | Local tabs; custom connections classified by base URL (loopback,
+  RFC1918/link-local/ULA, `.local`, single-label hosts, `.lan`, `.home.arpa`,
+  `.internal`, `*.ts.net`, 100.64.0.0/10 → Local; otherwise Cloud). Connected
+  cards first, then "Add a provider"; after saving, the tab switches to the
+  connection's tab.
+- Local card status via `useConnectionReachability` (existing available-models
+  route, 30 s stale, no retry, no refetch on focus).
+- Key status shared through the TanStack Query cache (`desktopCredentials`
+  keys, status only); `DesktopCredentialsPanel` gains `providers` and
+  `description` props; OpenAI card and Voice → ElevenLabs reuse it.
+- Chips Tools · Context · Built-in search / App search (via
+  `webSearchAvailability`; App search requires configured app search) ·
+  Vision; embeddings show "Embeddings". Info panel names the API; pickers do
+  not. Visible same-name rows on one connection: the non-Responses row gets
+  " (alternate)" (agent decision for P4-R1-F1; owner may revise at G3).
+- Hidden rows behind "Show N hidden models" with per-row Show.
+- OpenRouter picker: search, "Tool calling only" on by default, prefill, 502
+  fallback to manual entry.
+- API-switch copy: "{model} keeps conversations differently, so this chat
+  continues in a new chat." Quick-chat toast equivalent.
+- Not delivered: Local size/quantization (the listing returns only ids; O6
+  applies "when the server reports them"); OpenRouter logo (letter fallback).
+- Checks after round-1 fixes: `pnpm check`, `pnpm web:lint` exit 0;
+  `pnpm web:test` 360 files / 2415 tests, node 3/3, 4/4, browser 14/14 pass;
+  `pnpm build` pass; prettier on changed files clean. Screenshots (G3) not yet
+  taken.
+
 #### Code Review #1 Findings
 
-Pending.
+Reviewed `cd03c6d2` against `aad32460` (sdlc-reviewer, initial). Targeted
+vitest 129 passed; check and lint pass. Result: pass, no blockers.
+
+- **P4-R1-F1 (medium):** unhidden duplicate built-in rows look identical in
+  pickers and Default models.
+- **P4-R1-F2 (low):** single-label, `.lan`, `.home.arpa`, `.internal` and
+  Tailscale hosts classified as Cloud.
+- **P4-R1-F3 (low):** web search chip duplicates `webSearchAvailability`.
+- **P4-R1-F4 (low):** reachability refetches on every window focus.
+- **P4-R1-F5 (minor):** per-card `role="status"` and per-keystroke picker
+  announcements.
+- **P4-R1-F6 (minor):** docs overstated that only the Info panel names the API.
+- **P4-R1-F7 (minor):** chat picker search value included the provider row id.
+- Test gaps noted (SSR-only component tests; interactions untested).
 
 #### Code Review #1 Revisions
 
-Pending.
+All seven accepted and fixed in `547d24ef` (details in Results). Test gaps
+partly addressed with pure-helper tests; interaction tests need a DOM test
+environment the web package does not have (declined for this plan).
+
+#### Code Review #2 (targeted recheck)
+
+Reviewed `547d24ef` (repair round 1). F1–F7 verified. **P4-R2-F1 (blocking):**
+the picker's live region used `empty:hidden`, removing it from the
+accessibility tree, so a later "No models match" might not be announced.
+
+Revision: fixed in `16ab9787` (`sr-only` while empty), with a test that failed
+before the fix; models vitest 68 passed, check and lint pass.
+
+#### Code Review #3 (targeted recheck)
+
+Reviewed `16ab9787` (repair round 2 of 2). Result: pass, no findings.
 
 ### Phase 5: Stepped setup
 
@@ -653,10 +806,9 @@ Acceptance maps to the issue's checklist. Owner gates (not phases):
   preserved.
 - Onboarding completion with a model is one transaction. A retry after success
   is refused by the existing first-run check, so nothing is applied twice.
-- Pack removal is a development cutover. An owner with an old Parakeet pack
-  installed keeps an inert directory under the pack root, which the pack
-  manager's existing cleanup of unknown ids removes (verify in Phase 2; if it
-  does not, document manual removal in troubleshooting).
+- Pack removal is a development cutover. Startup drops retired ids from
+  `active.json` and deletes the retired Parakeet pack and download directories
+  by exact id; a failure is logged and never blocks startup.
 
 ## Outcomes & Retrospective
 

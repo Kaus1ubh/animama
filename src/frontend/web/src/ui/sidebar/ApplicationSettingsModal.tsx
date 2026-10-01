@@ -1206,13 +1206,7 @@ export function ApplicationSettingsModal({
       id: "feature-packs",
       section: "General",
       label: "Optional feature packs",
-      keywords: [
-        "offline speech",
-        "parakeet",
-        "document processing",
-        "included content",
-        "download",
-      ],
+      keywords: ["document processing", "included content", "download"],
       hidden: !platform.isDesktop,
       render: () => (
         <DesktopFeaturePacksPanel className={FLAT_SETTINGS_PANEL_CLASS_NAME} />
@@ -1405,12 +1399,8 @@ export function ApplicationSettingsModal({
       group: "Speech-to-Text",
       label: "Offline speech downloads",
       keywords: ["parakeet", "cpu", "gpu", "download", "offline"],
-      render: () => (
-        <VoiceDownloads
-          section="speech-to-text"
-          sttProvider={selectedSttOption ?? ""}
-        />
-      ),
+      // Development stacks show how to acquire the operator's host sets.
+      render: () => <VoiceDownloads section="speech-to-text" />,
     },
     {
       id: "tts-enabled",

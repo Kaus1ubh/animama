@@ -1,7 +1,3 @@
-import {
-  auditOptionalInputs,
-  modelPackManifestFiles,
-} from "./optional-inputs.mjs";
 import { importBundledTool } from "./bundled-tool.mjs";
 import { stagedPackRelease } from "./release-policy.mjs";
 import { rmSync } from "node:fs";
@@ -25,23 +21,11 @@ export async function stageFeaturePacks(target) {
     ...readJson(path.join(sourceRoot, "feature-pack-releases.json")),
     ...stagedPackRelease(),
   };
-  const modelInputs = auditOptionalInputs(target);
-  for (const [id, inventory] of Object.entries(modelInputs))
-    if (release.packs[id].release_status === "active" && inventory.length === 0)
-      throw new Error(
-        `Active ${id} pack inputs are unavailable; acquire the pinned models and run a fresh stage`,
-      );
   const { buildFeaturePacks } = await importBundledTool(
     "scripts/runtime/feature-pack-build.ts",
   );
   return buildFeaturePacks({
-    modelManifests: modelPackManifestFiles(),
     inputs: {
-      "parakeet-stt": path.join(target.output, "pack-inputs/parakeet-stt"),
-      "parakeet-stt-webgpu": path.join(
-        target.output,
-        "pack-inputs/parakeet-stt-webgpu",
-      ),
       "expanded-included-content": path.join(
         target.output,
         "pack-inputs/expanded-included-content",

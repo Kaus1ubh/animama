@@ -163,13 +163,13 @@ async function fixture(bytes = Buffer.from('{"fixture":true}')) {
   const archive = zstdCompressSync(tar);
   const manifest: PackManifest = {
     schema: "animama-feature-pack/1",
-    id: "parakeet-stt",
-    display_name: "Offline speech recognition",
+    id: "expanded-included-content",
+    display_name: "Expanded Included content",
     version: "0.1.0",
     app_versions: ["0.1.0"],
     platform: "data-only",
     architecture: "data-only",
-    url: "https://github.com/example/animama/releases/download/v0.1.0/parakeet.tar.zst",
+    url: "https://github.com/example/animama/releases/download/v0.1.0/expanded.tar.zst",
     archive_bytes: archive.length,
     archive_sha256: sha(archive),
     installed_bytes: bytes.length,
@@ -238,7 +238,6 @@ async function manager(
 describe("feature-packs catalog and authority", () => {
   it("accepts a pinned catalog but rejects a packaged development override and arbitrary download hosts", async () => {
     const { manifest } = await fixture();
-    manifest.id = "expanded-included-content";
     validateManifest(manifest);
     const root = await temporary();
     const body = {
@@ -280,7 +279,6 @@ describe("feature-packs catalog and authority", () => {
   });
   it("pins pack downloads to the distribution sealed in the update policy", async () => {
     const { manifest } = await fixture();
-    manifest.id = "expanded-included-content";
     const r2 = {
       kind: "r2" as const,
       base_url: "https://downloads.example.test/desktop",
@@ -291,7 +289,7 @@ describe("feature-packs catalog and authority", () => {
       repo: "animama",
     };
     const r2Url =
-      "https://downloads.example.test/desktop/v0.1.0/parakeet.tar.zst";
+      "https://downloads.example.test/desktop/v0.1.0/expanded.tar.zst";
     const r2Manifest = { ...manifest, url: r2Url };
     expect(validateManifest(r2Manifest, false, r2).url).toBe(r2Url);
     expect(validateManifest(manifest, false, github).url).toBe(manifest.url);
@@ -300,17 +298,17 @@ describe("feature-packs catalog and authority", () => {
       [r2Url, github],
       [r2Url, null],
       [
-        "https://github.com/other/repo/releases/download/v0.1.0/parakeet.tar.zst",
+        "https://github.com/other/repo/releases/download/v0.1.0/expanded.tar.zst",
         github,
       ],
       [
-        "https://downloads.example.test/desktop/v0.1.0/parakeet.tar.zst?x=1",
+        "https://downloads.example.test/desktop/v0.1.0/expanded.tar.zst?x=1",
         r2,
       ],
-      ["https://downloads.example.test/desktop/latest/parakeet.tar.zst", r2],
-      ["https://downloads.example.test/desktop/v0.1.0/a/parakeet.tar.zst", r2],
-      ["https://downloads.example.test/other/v0.1.0/parakeet.tar.zst", r2],
-      ["https://evil.example.test/desktop/v0.1.0/parakeet.tar.zst", r2],
+      ["https://downloads.example.test/desktop/latest/expanded.tar.zst", r2],
+      ["https://downloads.example.test/desktop/v0.1.0/a/expanded.tar.zst", r2],
+      ["https://downloads.example.test/other/v0.1.0/expanded.tar.zst", r2],
+      ["https://evil.example.test/desktop/v0.1.0/expanded.tar.zst", r2],
     ] as const)
       expect(() =>
         validateManifest({ ...manifest, url }, false, distribution),
@@ -391,7 +389,6 @@ describe("feature-packs catalog and authority", () => {
   });
   it("rejects case/Unicode aliases and missing executable publisher metadata", async () => {
     const { manifest } = await fixture();
-    manifest.id = "expanded-included-content";
     for (const names of [
       ["A/file", "a/other"],
       ["SS", "ß"],
@@ -619,19 +616,22 @@ describe("feature-packs download and recovery", () => {
       res.on("close", () => clearTimeout(timer));
     });
     const { instance, root, progress } = await manager(input.manifest);
-    const installation = instance.install("parakeet-stt");
+    const installation = instance.install("expanded-included-content");
     const rejected = expect(installation).rejects.toThrow("pack_cancelled");
     await vi.waitFor(() =>
       expect(progress).toHaveBeenCalledWith(
         expect.objectContaining({ transferredBytes: 1024 }),
       ),
     );
-    instance.cancel("parakeet-stt");
+    instance.cancel("expanded-included-content");
     await rejected;
     expect(instance.activePacks()).toEqual({});
     expect(
-      (await stat(path.join(root, "downloads/parakeet-stt.0.1.0.partial")))
-        .size,
+      (
+        await stat(
+          path.join(root, "downloads/expanded-included-content.0.1.0.partial"),
+        )
+      ).size,
     ).toBe(1024);
     await instance.close();
   });
@@ -663,9 +663,9 @@ describe("feature-packs download and recovery", () => {
         } else res.end(input.archive.subarray(start));
       });
       const { instance, progress } = await manager(input.manifest);
-      const rejected = expect(instance.install("parakeet-stt")).rejects.toThrow(
-        "pack_download_failed",
-      );
+      const rejected = expect(
+        instance.install("expanded-included-content"),
+      ).rejects.toThrow("pack_download_failed");
       if (failure === "mid-stream") {
         await vi.waitFor(() =>
           expect(progress).toHaveBeenCalledWith(
@@ -680,7 +680,7 @@ describe("feature-packs download and recovery", () => {
         error: "pack_download_failed",
       });
       expect(instance.activePacks()).toEqual({});
-      await instance.install("parakeet-stt");
+      await instance.install("expanded-included-content");
       expect(requests).toEqual([
         undefined,
         failure === "mid-stream" ? "bytes=1024-" : undefined,
@@ -692,7 +692,7 @@ describe("feature-packs download and recovery", () => {
   it("keeps the prior pointer on transition failure and reconstructs only verified installed state", async () => {
     const input = await hostedFixture();
     const first = await manager(input.manifest);
-    await first.instance.install("parakeet-stt");
+    await first.instance.install("expanded-included-content");
     expect(first.instance.list()[0]).toMatchObject({
       state: "installed",
       available: true,
@@ -710,19 +710,19 @@ describe("feature-packs download and recovery", () => {
       },
     });
     expect(second.instance.list()[0]).toMatchObject({ state: "installed" });
-    await expect(second.instance.remove("parakeet-stt")).rejects.toThrow(
-      "pack_in_use",
-    );
+    await expect(
+      second.instance.remove("expanded-included-content"),
+    ).rejects.toThrow("pack_in_use");
     expect(
       await readFile(path.join(first.root, "packs/active.json"), "utf8"),
     ).toBe(prior);
-    expect(second.instance.activePacks()["parakeet-stt"]?.root).toBe(
-      first.instance.activePacks()["parakeet-stt"]?.root,
-    );
+    expect(
+      second.instance.activePacks()["expanded-included-content"]?.root,
+    ).toBe(first.instance.activePacks()["expanded-included-content"]?.root);
     await second.instance.close();
     const root = path.join(
       first.root,
-      "packs/parakeet-stt/versions",
+      "packs/expanded-included-content/versions",
       versionDirectory(input.manifest),
     );
     await writeFile(path.join(root, "config.json"), "corrupt");
@@ -734,7 +734,7 @@ describe("feature-packs download and recovery", () => {
   it("reports an app-matched replacement without mounting old untrusted bytes", async () => {
     const input = await hostedFixture();
     const first = await manager(input.manifest);
-    await first.instance.install("parakeet-stt");
+    await first.instance.install("expanded-included-content");
     await first.instance.close();
     const replacement = { ...input.manifest, version: "0.2.0" };
     expect(manifestDigest(replacement)).not.toBe(
@@ -745,7 +745,7 @@ describe("feature-packs download and recovery", () => {
       state: "update_available",
     });
     expect(next.instance.activePacks()).toEqual({});
-    await next.instance.install("parakeet-stt");
+    await next.instance.install("expanded-included-content");
     expect(next.instance.list()[0]).toMatchObject({
       state: "installed",
       version: "0.2.0",
@@ -753,11 +753,11 @@ describe("feature-packs download and recovery", () => {
     await stat(
       path.join(
         first.root,
-        "packs/parakeet-stt/versions",
+        "packs/expanded-included-content/versions",
         versionDirectory(input.manifest),
       ),
     );
-    await next.instance.remove("parakeet-stt");
+    await next.instance.remove("expanded-included-content");
     expect(next.instance.activePacks()).toEqual({});
     await next.instance.close();
   });
@@ -766,13 +766,16 @@ describe("feature-packs download and recovery", () => {
     async () => {
       const input = await hostedFixture();
       const first = await manager(input.manifest);
-      await first.instance.install("parakeet-stt");
-      const versions = path.join(first.root, "packs/parakeet-stt/versions");
+      await first.instance.install("expanded-included-content");
+      const versions = path.join(
+        first.root,
+        "packs/expanded-included-content/versions",
+      );
       await chmod(versions, 0o300);
       try {
-        await expect(first.instance.remove("parakeet-stt")).rejects.toThrow(
-          "pack_cleanup_pending",
-        );
+        await expect(
+          first.instance.remove("expanded-included-content"),
+        ).rejects.toThrow("pack_cleanup_pending");
         expect(first.instance.activePacks()).toEqual({});
         expect(first.instance.list()[0]).toMatchObject({
           hasInstalledFiles: true,
@@ -788,7 +791,7 @@ describe("feature-packs download and recovery", () => {
         state: "not_installed",
         hasInstalledFiles: true,
       });
-      await restarted.instance.remove("parakeet-stt");
+      await restarted.instance.remove("expanded-included-content");
       expect(await readdir(versions)).toEqual([]);
       expect(restarted.instance.list()[0].hasInstalledFiles).toBe(false);
       await restarted.instance.close();
@@ -797,9 +800,9 @@ describe("feature-packs download and recovery", () => {
   it("does not download without disk space, a catalog entry, or a valid pack ID", async () => {
     const input = await fixture();
     const result = await manager(input.manifest, { freeBytes: 1n });
-    await expect(result.instance.install("parakeet-stt")).rejects.toThrow(
-      "pack_insufficient_disk",
-    );
+    await expect(
+      result.instance.install("expanded-included-content"),
+    ).rejects.toThrow("pack_insufficient_disk");
     await expect(
       result.instance.install("document-processing"),
     ).rejects.toThrow("pack_unpublished");
@@ -810,148 +813,11 @@ describe("feature-packs download and recovery", () => {
   });
 });
 
-describe("feature-pack dependencies", () => {
-  it("installs the GPU encoder only beside active offline speech and blocks removing that requirement", async () => {
-    const base = await hostedFixture();
-    const gpu = await hostedFixture();
-    gpu.manifest.id = "parakeet-stt-webgpu";
-    gpu.manifest.display_name = "GPU speech encoder";
-    const root = await temporary();
-    const instance = new FeaturePackManager({
-      root: path.join(root, "packs"),
-      downloads: path.join(root, "downloads"),
-      catalog: {
-        entries: [base.manifest, gpu.manifest],
-        development: true,
-        distribution: null,
-      },
-      freeBytes: async () => 100_000_000_000n,
-      onProgress: vi.fn(),
-      transition: async (change) => change.commit(),
-    });
-    await instance.initialize();
-    await expect(instance.install("parakeet-stt-webgpu")).rejects.toThrow(
-      "pack_dependency_missing",
-    );
-    await instance.install("parakeet-stt");
-    await instance.install("parakeet-stt-webgpu");
-    await expect(instance.remove("parakeet-stt")).rejects.toThrow(
-      "pack_dependent_installed",
-    );
-    expect(
-      instance.list().find((status) => status.id === "parakeet-stt"),
-    ).toMatchObject({
-      state: "failed",
-      error: "pack_dependent_installed",
-      activeVersion: "0.1.0",
-      blockers: [
-        {
-          kind: "feature_pack",
-          id: "parakeet-stt-webgpu",
-          label: "Remove GPU speech encoder first",
-        },
-      ],
-    });
-    expect(Object.keys(instance.activePacks()).sort()).toEqual([
-      "parakeet-stt",
-      "parakeet-stt-webgpu",
-    ]);
-    // After an app update replaces only the base pack, the encoder is not
-    // mounted alone; its files stay for reinstall or removal.
-    const updatedBase = { ...base.manifest, archive_sha256: "f".repeat(64) };
-    const restarted = new FeaturePackManager({
-      root: path.join(root, "packs"),
-      downloads: path.join(root, "downloads"),
-      catalog: {
-        entries: [updatedBase, gpu.manifest],
-        development: true,
-        distribution: null,
-      },
-      onProgress: vi.fn(),
-      transition: async (change) => change.commit(),
-    });
-    await restarted.initialize();
-    expect(restarted.activePacks()).toEqual({});
-    expect(
-      restarted.list().find((status) => status.id === "parakeet-stt-webgpu"),
-    ).toMatchObject({
-      state: "failed",
-      error: "pack_dependency_missing",
-      hasInstalledFiles: true,
-    });
-    await instance.remove("parakeet-stt-webgpu");
-    await instance.remove("parakeet-stt");
-    expect(instance.activePacks()).toEqual({});
-  });
-  it("reactivates a retained verified encoder without downloading it again", async () => {
-    const base = await hostedFixture();
-    const gpu = await fixture();
-    gpu.manifest.id = "parakeet-stt-webgpu";
-    gpu.manifest.display_name = "GPU speech encoder";
-    let gpuRequests = 0;
-    gpu.manifest.url = await serve((_req, res) => {
-      gpuRequests++;
-      res.writeHead(200, {
-        "Content-Length": gpu.archive.length,
-        ETag: '"gpu"',
-      });
-      res.end(gpu.archive);
-    });
-    const root = await temporary();
-    let freeBytes = 100_000_000_000n;
-    const create = async () => {
-      const instance = new FeaturePackManager({
-        root: path.join(root, "packs"),
-        downloads: path.join(root, "downloads"),
-        catalog: {
-          entries: [base.manifest, gpu.manifest],
-          development: true,
-          distribution: null,
-        },
-        freeBytes: async () => freeBytes,
-        onProgress: vi.fn(),
-        transition: async (change) => change.commit(),
-      });
-      await instance.initialize();
-      return instance;
-    };
-    const first = await create();
-    await first.install("parakeet-stt");
-    await first.install("parakeet-stt-webgpu");
-    expect(gpuRequests).toBe(1);
-    // The base pack fails verification at the next launch, so the encoder is
-    // left unmounted with its verified files retained.
-    await writeFile(
-      path.join(
-        root,
-        "packs/parakeet-stt/versions",
-        versionDirectory(base.manifest),
-        "config.json",
-      ),
-      "changed",
-    );
-    const restarted = await create();
-    expect(restarted.activePacks()).toEqual({});
-    await restarted.install("parakeet-stt");
-    expect(Object.keys(restarted.activePacks())).toEqual(["parakeet-stt"]);
-    // Retry in the same session reuses the retained version: no download and
-    // no free-space demand.
-    freeBytes = 0n;
-    await restarted.install("parakeet-stt-webgpu");
-    expect(gpuRequests).toBe(1);
-    expect(Object.keys(restarted.activePacks()).sort()).toEqual([
-      "parakeet-stt",
-      "parakeet-stt-webgpu",
-    ]);
-    expect(
-      restarted.list().find((status) => status.id === "parakeet-stt-webgpu"),
-    ).toMatchObject({ state: "installed", activeVersion: "0.1.0" });
-  });
+describe("feature-pack catalog bounds and retired packs", () => {
   it("accepts one catalog entry per supported pack and no more", async () => {
     const { manifest } = await fixture();
-    manifest.id = "expanded-included-content";
     const root = await temporary();
-    const write = async (entries: PackManifest[]) => {
+    const write = async (entries: unknown[]) => {
       const body = {
         schema: "animama-pack-catalog/1",
         app_version: "0.1.0",
@@ -967,26 +833,88 @@ describe("feature-pack dependencies", () => {
         isPackaged: true,
       });
     };
-    const { url, archive_bytes, archive_sha256, ...common } = manifest;
-    const gpu: PackManifest = {
-      ...common,
-      schema: "animama-model-pack/1",
-      id: "parakeet-stt-webgpu",
-      model_id: "parakeet-tdt-0.6b-v2-webgpu",
-      files: manifest.files.map((file) => ({
-        ...file,
-        url: `https://downloads.animama.ai/models/parakeet-tdt-0.6b-v2-webgpu/${file.sha256}/${file.path}`,
-      })),
-    };
-    expect((await write([manifest, gpu])).entries).toHaveLength(2);
-    // Four entries pass the length limit (then fail only the duplicate-ID check);
-    // five exceed it.
-    await expect(write([manifest, gpu, manifest, gpu])).rejects.toThrow(
+    expect((await write([manifest])).entries).toHaveLength(1);
+    // Two entries pass the length limit (then fail only the duplicate-ID check);
+    // three exceed it.
+    await expect(write([manifest, manifest])).rejects.toThrow(
       "pack_catalog_incompatible",
     );
-    await expect(
-      write([manifest, gpu, manifest, gpu, manifest]),
-    ).rejects.toThrow("pack_catalog_invalid");
+    await expect(write([manifest, manifest, manifest])).rejects.toThrow(
+      "pack_catalog_invalid",
+    );
+    // The retired speech model packs are no longer catalog entries.
+    for (const id of ["parakeet-stt", "parakeet-stt-webgpu"])
+      await expect(write([{ ...manifest, id }])).rejects.toThrow(
+        "feature_pack_invalid",
+      );
+  });
+  it("starts beside a retired pack's pointer, removes only the retired packs' files and drops the pointer on the next change", async () => {
+    const input = await hostedFixture();
+    const first = await manager(input.manifest);
+    await first.instance.install("expanded-included-content");
+    await first.instance.close();
+    // An installation that once had the retired speech model packs.
+    const pointerFile = path.join(first.root, "packs/active.json");
+    const saved = JSON.parse(await readFile(pointerFile, "utf8"));
+    const retired = [
+      "packs/parakeet-stt/versions/0.1.0-0123456789abcdef",
+      "packs/parakeet-stt-webgpu/versions/0.1.1-fedcba9876543210",
+      `downloads/parakeet-stt.${"c".repeat(64)}.objects`,
+      `downloads/parakeet-stt-webgpu.${"d".repeat(64)}.objects`,
+    ];
+    // Anything that is not exactly a retired pack stays.
+    const kept = [
+      "packs/parakeet-stt-other/versions/keep",
+      `downloads/expanded-included-content.${"e".repeat(64)}.objects`,
+      "downloads/parakeet-stt.notes",
+    ];
+    for (const relative of [...retired, ...kept]) {
+      const directory = path.join(first.root, relative);
+      await mkdir(directory, { recursive: true });
+      await writeFile(path.join(directory, "file.txt"), "bytes");
+    }
+    await writeFile(
+      pointerFile,
+      JSON.stringify({
+        schema: 1,
+        packs: {
+          "parakeet-stt": {
+            directory: "0.1.0-0123456789abcdef",
+            digest: "a".repeat(64),
+          },
+          ...saved.packs,
+          "parakeet-stt-webgpu": {
+            directory: "0.1.1-fedcba9876543210",
+            digest: "b".repeat(64),
+          },
+        },
+      }),
+    );
+    const restarted = await manager(input.manifest, { root: first.root });
+    expect(restarted.instance.list().map((status) => status.id)).toEqual([
+      "expanded-included-content",
+      "document-processing",
+    ]);
+    expect(restarted.instance.list()[0]).toMatchObject({ state: "installed" });
+    expect(Object.keys(restarted.instance.activePacks())).toEqual([
+      "expanded-included-content",
+    ]);
+    for (const relative of ["packs/parakeet-stt", "packs/parakeet-stt-webgpu", ...retired.slice(2)])
+      await expect(stat(path.join(first.root, relative))).rejects.toThrow();
+    for (const relative of kept)
+      expect(
+        await readFile(path.join(first.root, relative, "file.txt"), "utf8"),
+      ).toBe("bytes");
+    await restarted.instance.remove("expanded-included-content");
+    expect(JSON.parse(await readFile(pointerFile, "utf8"))).toEqual({
+      schema: 1,
+      packs: {},
+    });
+    await restarted.instance.close();
+    // Cleanup is idempotent.
+    const again = await manager(input.manifest, { root: first.root });
+    expect(again.instance.list()[0]).toMatchObject({ state: "not_installed" });
+    await again.instance.close();
   });
 });
 
@@ -1068,7 +996,6 @@ describe("feature-packs build artifacts", () => {
   );
   it("round-trips the actual archive before returning measured release metadata", async () => {
     const input = await fixture();
-    input.manifest.id = "expanded-included-content";
     const root = await temporary();
     await writeFile(path.join(root, "config.json"), input.bytes);
     const manifest = await buildPackArchive({
@@ -1097,12 +1024,7 @@ describe("feature-packs build artifacts", () => {
         "https://github.com/example/animama/releases/download/v0.1.0",
       macos: { team_id: null, designated_requirement: null },
       packs: Object.fromEntries(
-        [
-          "parakeet-stt",
-          "parakeet-stt-webgpu",
-          "expanded-included-content",
-          "document-processing",
-        ].map((id) => [
+        ["expanded-included-content", "document-processing"].map((id) => [
           id,
           {
             release_status: "active" as const,
@@ -1116,8 +1038,6 @@ describe("feature-packs build artifacts", () => {
     const options = {
       inputs: {
         "expanded-included-content": inputs,
-        "parakeet-stt": path.join(root, "missing-speech"),
-        "parakeet-stt-webgpu": path.join(root, "missing-gpu-speech"),
         "document-processing": path.join(root, "missing-worker"),
       },
       output: path.join(root, "archives"),
@@ -1125,12 +1045,10 @@ describe("feature-packs build artifacts", () => {
       appVersion: "0.1.0",
       release,
       budgets: Object.fromEntries(
-        [
-          "parakeet-stt",
-          "parakeet-stt-webgpu",
-          "expanded-included-content",
-          "document-processing",
-        ].map((id) => [id, { installed_bytes: 100_000, download_bytes: null }]),
+        ["expanded-included-content", "document-processing"].map((id) => [
+          id,
+          { installed_bytes: 100_000, download_bytes: null },
+        ]),
       ),
       writeTar,
     } as Parameters<typeof buildFeaturePacks>[0];
@@ -1194,12 +1112,7 @@ describe("feature-packs build artifacts", () => {
     await writeFile(path.join(inputs, "fixture.json"), "{}");
     const files = await inventoryPack(inputs, "expanded-included-content");
     const packs = Object.fromEntries(
-      [
-        "parakeet-stt",
-        "parakeet-stt-webgpu",
-        "expanded-included-content",
-        "document-processing",
-      ].map((id) => [
+      ["expanded-included-content", "document-processing"].map((id) => [
         id,
         {
           release_status:
@@ -1218,8 +1131,6 @@ describe("feature-packs build artifacts", () => {
     const options = {
       inputs: {
         "expanded-included-content": inputs,
-        "parakeet-stt": path.join(root, "missing-speech"),
-        "parakeet-stt-webgpu": path.join(root, "missing-gpu-speech"),
         "document-processing": path.join(root, "missing-worker"),
       },
       output: path.join(root, "archives"),
@@ -1235,12 +1146,10 @@ describe("feature-packs build artifacts", () => {
         packs,
       },
       budgets: Object.fromEntries(
-        [
-          "parakeet-stt",
-          "parakeet-stt-webgpu",
-          "expanded-included-content",
-          "document-processing",
-        ].map((id) => [id, { installed_bytes: 100_000, download_bytes: null }]),
+        ["expanded-included-content", "document-processing"].map((id) => [
+          id,
+          { installed_bytes: 100_000, download_bytes: null },
+        ]),
       ),
       writeTar,
     } as Parameters<typeof buildFeaturePacks>[0];

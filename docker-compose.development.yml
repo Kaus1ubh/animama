@@ -8,6 +8,8 @@ services:
     environment:
       ANIMAMA_WEB_ROOT: ""
       ANIMAMA_BACKEND_RELOAD: "1"
+      # Vite serves the operator's verified host sets (reset.sh mounts them).
+      ANIMAMA_PARAKEET_SOURCE: operator
     volumes:
       - .:/app
 

@@ -19,7 +19,9 @@ export type PackFile = {
   media_type: string;
   mode: "0644" | "0755";
 };
-type PackIdentity = {
+/** One archive pack: a signed-or-data-only tree delivered as an exact `.tar.zst`. */
+export type PackManifest = {
+  schema: "animama-feature-pack/1";
   id: FeaturePackId;
   display_name: string;
   version: string;
@@ -31,58 +33,10 @@ type PackIdentity = {
   license_refs: string[];
   files: PackFile[];
   signing: { publisher: string; requirement: string } | null;
-};
-export type ArchivePackManifest = PackIdentity & {
-  schema: "animama-feature-pack/1";
   url: string;
   archive_bytes: number;
   archive_sha256: string;
 };
-export const MODEL_PACK_IDS = {
-  "parakeet-stt": "parakeet-tdt-0.6b-v2",
-  "parakeet-stt-webgpu": "parakeet-tdt-0.6b-v2-webgpu",
-} as const;
-export type ModelPackId = keyof typeof MODEL_PACK_IDS;
-export type ModelPackFile = PackFile & { url: string };
-export type ModelPackManifest = Omit<PackIdentity, "files" | "id"> & {
-  schema: "animama-model-pack/1";
-  id: ModelPackId;
-  model_id: (typeof MODEL_PACK_IDS)[ModelPackId];
-  files: ModelPackFile[];
-};
-export type PackManifest = ArchivePackManifest | ModelPackManifest;
-
-export function isModelPackId(id: FeaturePackId): id is ModelPackId {
-  return Object.hasOwn(MODEL_PACK_IDS, id);
-}
-
-/** Only these immutable raw objects may enter a model pack, regardless of app distribution. */
-export function modelObjectUrl(
-  modelId: string,
-  file: Pick<PackFile, "path" | "sha256">,
-): string {
-  portablePath(file.path);
-  if (
-    !Object.values(MODEL_PACK_IDS).includes(
-      modelId as ModelPackManifest["model_id"],
-    ) ||
-    file.path.includes("/") ||
-    !SHA.test(file.sha256)
-  )
-    throw new RuntimeError("pack_url_invalid");
-  return `https://downloads.animama.ai/models/${modelId}/${file.sha256}/${encodeURIComponent(file.path)}`;
-}
-
-/** A model object cannot redirect or substitute a name/hash/origin, even in development. */
-export function validateModelObjectUrl(
-  value: string,
-  modelId: string,
-  file: Pick<PackFile, "path" | "sha256">,
-): URL {
-  if (value !== modelObjectUrl(modelId, file))
-    throw new RuntimeError("pack_url_invalid");
-  return new URL(value);
-}
 export type PackCatalog = {
   entries: PackManifest[];
   development: boolean;
@@ -147,53 +101,17 @@ function keys(value: unknown, expected: string[]): void {
     throw new RuntimeError("pack_manifest_invalid");
 }
 export function manifestDigest(manifest: PackManifest): string {
-  if (manifest.schema === "animama-model-pack/1")
-    return createHash("sha256")
-      .update(
-        JSON.stringify({
-          id: manifest.id,
-          version: manifest.version,
-          content: packContentDigest(manifest),
-        }),
-      )
-      .digest("hex");
   return createHash("sha256").update(JSON.stringify(manifest)).digest("hex");
 }
+/** The archive digest names the installed content; app compatibility does not. */
 export function versionDirectory(manifest: PackManifest): string {
-  return `${manifest.version}-${packContentDigest(manifest).slice(0, 16)}`;
+  return `${manifest.version}-${manifest.archive_sha256.slice(0, 16)}`;
 }
-/** Content identity excludes app compatibility, but includes every installed file and notice. */
-export function packContentDigest(manifest: PackManifest): string {
-  if (manifest.schema === "animama-feature-pack/1")
-    return manifest.archive_sha256;
-  return createHash("sha256")
-    .update(
-      JSON.stringify({
-        model_id: manifest.model_id,
-        license_refs: manifest.license_refs,
-        files: manifest.files.map(
-          ({ path, size_bytes, sha256, media_type, mode, url }) => ({
-            path,
-            size_bytes,
-            sha256,
-            media_type,
-            mode,
-            url,
-          }),
-        ),
-      }),
-    )
-    .digest("hex");
-}
-export function downloadBytes(manifest: PackManifest): number {
-  return manifest.schema === "animama-feature-pack/1"
-    ? manifest.archive_bytes
-    : manifest.installed_bytes;
-}
+/** The archive, its extracted copy and a retained prior version can coexist. */
 export function requiredFreeBytes(manifest: PackManifest): number {
   return Math.max(
     manifest.minimum_peak_free_bytes,
-    (manifest.schema === "animama-model-pack/1" ? 0 : downloadBytes(manifest)) +
+    manifest.archive_bytes +
       2 * manifest.installed_bytes +
       SAFETY_RESERVE_BYTES,
   );
@@ -292,9 +210,9 @@ export function validateManifest(
     "app_versions",
     "platform",
     "architecture",
-    ...(item.schema === "animama-model-pack/1"
-      ? ["model_id"]
-      : ["url", "archive_bytes", "archive_sha256"]),
+    "url",
+    "archive_bytes",
+    "archive_sha256",
     "installed_bytes",
     "minimum_peak_free_bytes",
     "license_refs",
@@ -303,7 +221,7 @@ export function validateManifest(
   ]);
   packId(item.id);
   if (
-    !["animama-feature-pack/1", "animama-model-pack/1"].includes(item.schema) ||
+    item.schema !== "animama-feature-pack/1" ||
     typeof item.display_name !== "string" ||
     !item.display_name.length ||
     item.display_name.length > 100 ||
@@ -326,21 +244,12 @@ export function validateManifest(
     ) ||
     !Array.isArray(item.files) ||
     !item.files.length ||
-    item.files.length > MAX_ENTRIES
+    item.files.length > MAX_ENTRIES ||
+    !integer(item.archive_bytes, 1, MAX_PACK_BYTES) ||
+    !SHA.test(item.archive_sha256)
   )
     throw new RuntimeError("pack_manifest_invalid");
-  if (item.schema === "animama-model-pack/1") {
-    if (!isModelPackId(item.id) || item.model_id !== MODEL_PACK_IDS[item.id])
-      throw new RuntimeError("pack_manifest_invalid");
-  } else {
-    if (
-      isModelPackId(item.id) ||
-      !integer(item.archive_bytes, 1, MAX_PACK_BYTES) ||
-      !SHA.test(item.archive_sha256)
-    )
-      throw new RuntimeError("pack_manifest_invalid");
-    downloadUrl(item.url, { development, distribution });
-  }
+  downloadUrl(item.url, { development, distribution });
   if (item.id === "document-processing") {
     if (
       !item.signing ||
@@ -368,14 +277,7 @@ export function validateManifest(
   let total = 0;
   let previous = "";
   for (const file of item.files) {
-    keys(file, [
-      "path",
-      "size_bytes",
-      "sha256",
-      "media_type",
-      "mode",
-      ...(item.schema === "animama-model-pack/1" ? ["url"] : []),
-    ]);
+    keys(file, ["path", "size_bytes", "sha256", "media_type", "mode"]);
     portablePath(file.path);
     if (
       file.path <= previous ||
@@ -388,8 +290,6 @@ export function validateManifest(
       (item.id !== "document-processing" && file.mode !== "0644")
     )
       throw new RuntimeError("pack_manifest_invalid");
-    if (item.schema === "animama-model-pack/1")
-      validateModelObjectUrl((file as ModelPackFile).url, item.model_id, file);
     previous = file.path;
     files.add(file.path);
     const parts = file.path.split("/");

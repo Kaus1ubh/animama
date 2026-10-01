@@ -24,7 +24,6 @@ import {
 } from "./inventory.mjs";
 import { writeLicenses } from "./licenses.mjs";
 import { measure } from "./measure.mjs";
-import { stageOptionalInputs } from "./optional-inputs.mjs";
 import { stageFeaturePacks } from "./feature-packs.mjs";
 import { stagedUpdatePolicy } from "./release-policy.mjs";
 import { excludeDesktopWebAssets } from "./desktop-web.mjs";
@@ -81,7 +80,6 @@ try {
   const content = readJson(
     path.join(target.output, "starter-content-inventory.json"),
   );
-  stageOptionalInputs(target);
   logged("postgresql-build", process.execPath, [
     path.join(desktopRoot, "scripts/runtime/native-build.mjs"),
     ...args,

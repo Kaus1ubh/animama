@@ -1452,7 +1452,12 @@ Core:
 - `ANIMAMA_WEB_ROOT` (absolute built React root; unset/blank for Vite development)
 - `ANIMAMA_DESKTOP_RENDERER_CAPABILITY`, `ANIMAMA_DESKTOP_CONTROL_TOKEN`
   (paired private desktop inputs; absent in normal self-host)
-- `ANIMAMA_PARAKEET_MODEL_MOUNT_JSON` (optional verified desktop model inventory)
+- `ANIMAMA_PARAKEET_SOURCE` (`asset-store`, the default: FastAPI installs and
+  serves Parakeet sets from its model-asset store; `operator`: set by the
+  development Compose override, where Vite serves the host sets that `reset.sh`
+  mounts. `desktop:dev` against an external stack follows that stack.)
+- `ANIMAMA_PARAKEET_STT_ENABLED` (operator switch; `false` turns offline speech
+  off even with sets installed)
 - `ANIMAMA_DATABASE_URL`
 - `ANIMAMA_DATABASE_POOL_SIZE`
 - `ANIMAMA_DATABASE_MAX_OVERFLOW`

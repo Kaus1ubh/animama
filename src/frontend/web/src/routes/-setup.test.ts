@@ -6,7 +6,6 @@ import { Route } from "@/routes/setup";
 import { normalizeLocalDisplayName } from "@/lib/user-profile/display-name";
 
 const fixture = vi.hoisted(() => ({
-  run: vi.fn(),
   completeOnboarding: vi.fn(),
 }));
 vi.mock("@web/app/local-runtime/LocalRuntimeProvider", () => ({
@@ -22,22 +21,6 @@ vi.mock("@web/app/local-runtime/LocalRuntimeProvider", () => ({
 vi.mock("@/ui/settings/VoiceDownloads", () => ({
   VoiceDownloads: () =>
     createElement("button", { type: "button" }, "Download speech recognition"),
-}));
-vi.mock("@/hooks/useDesktopFeaturePacks", () => ({
-  useDesktopFeaturePacks: () => ({
-    available: true,
-    run: fixture.run,
-    packs: [
-      {
-        id: "parakeet-stt",
-        state: "not_installed",
-        available: true,
-        downloadBytes: 1024,
-        installedBytes: 4096,
-        minimumFreeBytes: 8192,
-      },
-    ],
-  }),
 }));
 vi.mock("@tanstack/react-router", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@tanstack/react-router")>()),
@@ -83,7 +66,9 @@ describe("local first-run setup", () => {
     expect(html).toContain("Download speech recognition");
     expect(html).toContain("You can continue during downloads");
     expect(html).not.toContain("Install offline speech recognition");
-    expect(fixture.run).not.toHaveBeenCalled();
+    // Downloads install in place: no pack gating or renderer-reload notice.
+    expect(html).not.toContain("could not be retained");
+    expect(html).not.toMatch(/reload/iu);
     expect(fixture.completeOnboarding).not.toHaveBeenCalled();
   });
 

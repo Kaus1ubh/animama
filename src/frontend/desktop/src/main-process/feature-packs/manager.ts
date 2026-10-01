@@ -3,7 +3,6 @@ import { lstat, readdir, rename, rm, statfs } from "node:fs/promises";
 import path from "node:path";
 import {
   featurePackIds,
-  featurePackRequires,
   type FeaturePackId,
   type FeaturePackStatus,
 } from "../../../../shared/desktop-runtime.js";
@@ -11,9 +10,7 @@ import { atomicWrite, privateDirectory } from "../runtime/atomic-file.js";
 import { RuntimeError, runtimeErrorCode } from "../runtime/errors.js";
 import {
   PACK_METADATA,
-  downloadBytes,
   manifestDigest,
-  validateManifest,
   packId,
   readBoundedJson,
   requiredFreeBytes,
@@ -21,25 +18,25 @@ import {
   type PackCatalog,
   type PackManifest,
 } from "./catalog.js";
-import {
-  modelDownloadDirectory,
-  prepareModelDownloads,
-  stageModelFiles,
-  removeModelDownloads,
-} from "./model-files.js";
 import { downloadPack } from "./download.js";
 import { extractPack } from "./extract.js";
 import { realDirectory, syncDirectory, verifyPackFiles } from "./files.js";
 import { verifyExecutablePack } from "./signature.js";
 
 export type ActivePack = { manifest: PackManifest; root: string };
+
+/**
+ * Former speech model packs, now backend model assets (ADR 0012). Startup
+ * deletes exactly their pack directories and model download staging.
+ */
+const RETIRED_PACK_IDS: readonly string[] = [
+  "parakeet-stt",
+  "parakeet-stt-webgpu",
+];
 /** Only validated, bounded control-response labels may cross into renderer status. */
 export class PackInUseError extends RuntimeError {
-  constructor(
-    readonly blockers: NonNullable<FeaturePackStatus["blockers"]>,
-    code = "pack_in_use",
-  ) {
-    super(code);
+  constructor(readonly blockers: NonNullable<FeaturePackStatus["blockers"]>) {
+    super("pack_in_use");
   }
 }
 export type ActivePacks = Partial<Record<FeaturePackId, ActivePack>>;
@@ -94,7 +91,7 @@ export class FeaturePackManager {
       ...(manifest
         ? {
             version: manifest.version,
-            downloadBytes: downloadBytes(manifest),
+            downloadBytes: manifest.archive_bytes,
             installedBytes: manifest.installed_bytes,
             minimumFreeBytes: requiredFreeBytes(manifest),
           }
@@ -123,11 +120,7 @@ export class FeaturePackManager {
   }
   private async verify(root: string, manifest: PackManifest): Promise<void> {
     const saved = await readBoundedJson(path.join(root, PACK_METADATA));
-    if (
-      manifest.schema === "animama-model-pack/1"
-        ? manifestDigest(validateManifest(saved)) !== manifestDigest(manifest)
-        : JSON.stringify(saved) !== JSON.stringify(manifest)
-    )
+    if (JSON.stringify(saved) !== JSON.stringify(manifest))
       throw new RuntimeError("pack_manifest_invalid");
     await verifyPackFiles(root, manifest);
     await (this.options.verifyExecutable ?? verifyExecutablePack)(
@@ -135,10 +128,34 @@ export class FeaturePackManager {
       manifest,
     );
   }
+  /**
+   * Delete retired packs' files by exact name. Idempotent; a failure leaves
+   * inert bytes for the next start and never blocks startup.
+   */
+  private async removeRetiredPacks(): Promise<void> {
+    try {
+      for (const id of RETIRED_PACK_IDS)
+        await rm(path.join(this.options.root, id), {
+          recursive: true,
+          force: true,
+        });
+      for (const name of await readdir(this.options.downloads)) {
+        const owner = /^([a-z-]+)\.[a-f0-9]{64}\.objects$/u.exec(name)?.[1];
+        if (owner && RETIRED_PACK_IDS.includes(owner))
+          await rm(path.join(this.options.downloads, name), {
+            recursive: true,
+            force: true,
+          });
+      }
+    } catch {
+      /* Retired bytes are inert; retry on the next start. */
+    }
+  }
   /** Status flags never authorize a mount: reconstruct it from a catalog-matched inventory. */
   async initialize(): Promise<void> {
     privateDirectory(this.options.root);
     privateDirectory(this.options.downloads);
+    await this.removeRetiredPacks();
     // Interrupted extraction never grants authority and can be cleaned without
     // touching any version named by an active pointer.
     for (const id of featurePackIds) {
@@ -164,22 +181,27 @@ export class FeaturePackManager {
     try {
       const saved = (await readBoundedJson(this.pointerFile, 8192)) as {
         schema: number;
-        packs: Pointers;
+        packs: Record<string, Pointer>;
       };
       if (
         saved.schema !== 1 ||
         !saved.packs ||
-        Object.keys(saved.packs).some(
-          (id) => !featurePackIds.includes(id as FeaturePackId),
-        )
+        typeof saved.packs !== "object" ||
+        Array.isArray(saved.packs)
       )
         throw new RuntimeError("pack_state_invalid");
+      const pointers: Pointers = {};
       for (const [id, pointer] of Object.entries(saved.packs)) {
+        // A pointer to a retired pack ID (such as a former speech model pack)
+        // grants nothing and must not block startup. It is dropped here and
+        // the next pack change rewrites the file without it.
+        if (!featurePackIds.includes(id as FeaturePackId)) continue;
         this.installedRoot(packId(id), pointer.directory);
         if (!/^[a-f0-9]{64}$/u.test(pointer.digest))
           throw new RuntimeError("pack_state_invalid");
+        pointers[id as FeaturePackId] = pointer;
       }
-      this.pointers = saved.packs;
+      this.pointers = pointers;
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "ENOENT")
         throw new RuntimeError("pack_state_invalid");
@@ -210,20 +232,6 @@ export class FeaturePackManager {
         });
       } catch (error) {
         this.emit(id, { state: "failed", error: runtimeErrorCode(error) });
-      }
-    }
-    // A dependent pack is useless without its requirement; keep its files but
-    // never mount it alone (for example after the base pack failed verification).
-    for (const id of featurePackIds) {
-      const current = this.active[id];
-      if (
-        current &&
-        (featurePackRequires[id] ?? []).some(
-          (required) => !this.active[required],
-        )
-      ) {
-        delete this.active[id];
-        this.emit(id, { state: "failed", error: "pack_dependency_missing" });
       }
     }
   }
@@ -323,13 +331,6 @@ export class FeaturePackManager {
     return this.enqueue(id, async (signal) => {
       const manifest = this.manifest(id);
       if (!manifest) throw new RuntimeError("pack_unpublished");
-      // Checked inside the serialized queue, so a concurrent removal cannot race it.
-      if (
-        (featurePackRequires[id] ?? []).some(
-          (required) => !this.active[required],
-        )
-      )
-        throw new RuntimeError("pack_dependency_missing");
       if (
         this.active[id] &&
         manifestDigest(this.active[id]!.manifest) === manifestDigest(manifest)
@@ -342,9 +343,9 @@ export class FeaturePackManager {
         });
         return;
       }
-      // A version this installation already activated (for example, an encoder
-      // left unmounted while its required pack was missing) is reactivated
-      // from its verified files instead of being downloaded again.
+      // A version this installation already activated (for example, one whose
+      // transition was rolled back) is reactivated from its verified files
+      // instead of being downloaded again.
       const retained = this.pointers[id];
       if (
         retained?.digest === manifestDigest(manifest) &&
@@ -367,20 +368,12 @@ export class FeaturePackManager {
           return;
         }
       }
-      const modelDownloads =
-        manifest.schema === "animama-model-pack/1"
-          ? modelDownloadDirectory(this.options.downloads, manifest)
-          : undefined;
-      const retainedBytes =
-        modelDownloads && manifest.schema === "animama-model-pack/1"
-          ? await prepareModelDownloads(modelDownloads, manifest, signal)
-          : 0;
       const free = this.options.freeBytes
         ? await this.options.freeBytes()
         : await statfs(this.options.root, { bigint: true }).then(
             (info) => info.bavail * info.bsize,
           );
-      if (free < BigInt(requiredFreeBytes(manifest) - retainedBytes))
+      if (free < BigInt(requiredFreeBytes(manifest)))
         throw new RuntimeError("pack_insufficient_disk");
       const partial = path.join(
         this.options.downloads,
@@ -396,35 +389,25 @@ export class FeaturePackManager {
         const progress = (bytes: number) => {
           if (
             Date.now() - lastProgress > 100 ||
-            bytes === downloadBytes(manifest)
+            bytes === manifest.archive_bytes
           ) {
             lastProgress = Date.now();
             this.emit(id, {
               state: "downloading",
               transferredBytes: bytes,
-              progress: Math.min(1, bytes / downloadBytes(manifest)),
+              progress: Math.min(1, bytes / manifest.archive_bytes),
             });
           }
         };
-        if (manifest.schema === "animama-model-pack/1") {
-          await stageModelFiles({
-            directory: modelDownloads!,
-            staging,
-            manifest,
-            signal,
-            progress,
-          });
-        } else {
-          await downloadPack({
-            manifest,
-            partial,
-            development: this.options.catalog.development,
-            distribution: this.options.catalog.distribution,
-            signal,
-            progress,
-          });
-          await extractPack(partial, staging, manifest, signal);
-        }
+        await downloadPack({
+          manifest,
+          partial,
+          development: this.options.catalog.development,
+          distribution: this.options.catalog.distribution,
+          signal,
+          progress,
+        });
+        await extractPack(partial, staging, manifest, signal);
         this.emit(id, { state: "verifying", progress: 1 });
         await (this.options.verifyExecutable ?? verifyExecutablePack)(
           staging,
@@ -472,8 +455,6 @@ export class FeaturePackManager {
           }
           throw error;
         }
-        if (modelDownloads)
-          await rm(modelDownloads, { recursive: true, force: true });
         await rm(partial, { force: true });
         await rm(`${partial}.json`, { force: true });
         this.emit(id, {
@@ -490,19 +471,6 @@ export class FeaturePackManager {
     const id = packId(value);
     return this.enqueue(id, async (signal) => {
       signal.throwIfAborted();
-      const dependents = featurePackIds.filter(
-        (other) =>
-          this.active[other] && featurePackRequires[other]?.includes(id),
-      );
-      if (dependents.length)
-        throw new PackInUseError(
-          dependents.map((other) => ({
-            kind: "feature_pack",
-            id: other,
-            label: `Remove ${this.active[other]!.manifest.display_name} first`,
-          })),
-          "pack_dependent_installed",
-        );
       this.emit(id, { state: "installing" });
       await this.change(id);
       const versions = path.join(this.options.root, id, "versions");
@@ -528,12 +496,6 @@ export class FeaturePackManager {
           this.retainedFiles.add(id);
           throw new RuntimeError("pack_cleanup_pending");
         }
-      }
-      try {
-        await removeModelDownloads(this.options.downloads, id);
-      } catch {
-        this.retainedFiles.add(id);
-        throw new RuntimeError("pack_cleanup_pending");
       }
       this.retainedFiles.delete(id);
       this.emit(id, { state: "not_installed" });

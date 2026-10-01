@@ -6,18 +6,6 @@
     "designated_requirement": "identifier \"com.animama.document-worker\" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] exists and certificate leaf[field.1.2.840.113635.100.6.1.13] exists and certificate leaf[subject.OU] = \"9XHPMZ723L\""
   },
   "packs": {
-    "parakeet-stt": {
-      "release_status": "active",
-      "version": "0.1.0",
-      "approved_inventory_sha256": "455b762854e365fbd5715e7a778f4c1771962c7bd38f12280cb54b731a791588",
-      "license_refs": ["parakeet-input"]
-    },
-    "parakeet-stt-webgpu": {
-      "release_status": "active",
-      "version": "0.1.1",
-      "approved_inventory_sha256": null,
-      "license_refs": ["parakeet-webgpu-input"]
-    },
     "expanded-included-content": {
       "release_status": "deferred",
       "version": "0.1.0",

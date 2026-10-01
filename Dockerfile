@@ -20,7 +20,6 @@ COPY docs/safety /docs/safety
 ENV NODE_ENV=production \
     VITE_APP_ENV=production \
     VITE_DISABLE_WEBUI_TELEMETRY=true \
-    VITE_CLIENT_PARAKEET_MODEL_BASE_URL=/__client-parakeet-models \
     ANIMAMA_BROWSER_MODEL_DIR=/opt/animama/browser-models
 # Explicit verified input, never a download during build. Only dist enters runtime.
 RUN --mount=from=browser_models,target=/opt/animama/browser-models \

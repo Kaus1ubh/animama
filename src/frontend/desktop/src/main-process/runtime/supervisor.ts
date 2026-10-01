@@ -22,7 +22,6 @@ import type { UpdateCandidate } from "../updates/policy.js";
 import {
   FeaturePackManager,
   PackInUseError,
-  type ActivePack,
   type ActivePacks,
   type PackTransition,
 } from "../feature-packs/manager.js";
@@ -72,22 +71,6 @@ export type SupervisorOptions = {
   onPackProgress?(status: FeaturePackStatus): void;
   quiesceRenderers?(): Promise<void>;
 };
-
-/** The backend's private model-mount configuration for one verified active pack. */
-function modelMountJson(pack: ActivePack): string {
-  return JSON.stringify({
-    root: pack.root,
-    version: versionDirectory(pack.manifest),
-    files: pack.manifest.files.map(
-      ({ path, size_bytes, sha256, media_type }) => ({
-        path,
-        size_bytes,
-        sha256,
-        media_type,
-      }),
-    ),
-  });
-}
 
 /** Own the entire local process graph; never infer authority from a port or PID. */
 export class RuntimeSupervisor {
@@ -192,23 +175,6 @@ export class RuntimeSupervisor {
       ]
         ? "1"
         : "0",
-      ANIMAMA_PARAKEET_STT_ENABLED: this.activePacks["parakeet-stt"]
-        ? "1"
-        : "0",
-      ...(this.activePacks["parakeet-stt"]
-        ? {
-            ANIMAMA_PARAKEET_ASSET_VERSION: versionDirectory(
-              this.activePacks["parakeet-stt"].manifest,
-            ),
-          }
-        : {}),
-      ...(this.activePacks["parakeet-stt-webgpu"]
-        ? {
-            ANIMAMA_PARAKEET_WEBGPU_ASSET_VERSION: versionDirectory(
-              this.activePacks["parakeet-stt-webgpu"].manifest,
-            ),
-          }
-        : {}),
       ANIMAMA_DOCUMENT_WORKER_INSTANCE_ID: this.documentInstance,
       ...(this.activePacks["document-processing"]
         ? {
@@ -238,21 +204,15 @@ export class RuntimeSupervisor {
   private backendEnvironment(): NodeJS.ProcessEnv {
     if (!this.applicationOrigin)
       throw new RuntimeError("runtime_not_initialized");
-    const parakeet = this.activePacks["parakeet-stt"];
-    // The pack manager never activates the encoder without the base pack.
-    const webgpu = this.activePacks["parakeet-stt-webgpu"];
     return {
       ...this.environment(),
       ANIMAMA_PUBLIC_ORIGIN: this.applicationOrigin.origin,
       ANIMAMA_WEB_ROOT: path.join(this.options.runtimeRoot, "web"),
       ANIMAMA_DESKTOP_RENDERER_CAPABILITY: this.rendererCapability,
       ANIMAMA_DESKTOP_CONTROL_TOKEN: this.controlToken,
-      ...(parakeet
-        ? { ANIMAMA_PARAKEET_MODEL_MOUNT_JSON: modelMountJson(parakeet) }
-        : {}),
-      ...(webgpu
-        ? { ANIMAMA_PARAKEET_WEBGPU_MODEL_MOUNT_JSON: modelMountJson(webgpu) }
-        : {}),
+      // Offline speech sets install, verify and serve through the backend's
+      // own model-asset store, so a speech download never restarts the backend.
+      ANIMAMA_PARAKEET_SOURCE: "asset-store",
     };
   }
   private async databaseCommand(operation: string): Promise<DatabaseState> {

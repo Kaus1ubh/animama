@@ -8,13 +8,13 @@ import {
   downloadUrl,
   readBoundedJson,
   type PackCatalog,
-  type ArchivePackManifest,
+  type PackManifest,
 } from "./catalog.js";
 import { hashFile } from "./files.js";
 
 /** Which URLs this build may fetch packs from. */
 type PackSource = Pick<PackCatalog, "development" | "distribution">;
-export type ObjectUrlPolicy = (value: string, redirect?: boolean) => URL;
+type ObjectUrlPolicy = (value: string, redirect?: boolean) => URL;
 
 function strongEtag(value: unknown): value is string {
   return typeof value === "string" && /^"[\x21\x23-\x7e]{1,510}"$/u.test(value);
@@ -61,7 +61,7 @@ async function responseFor(
 
 /** Preserve the archive installer's URL authority and existing hash error contract. */
 export async function downloadPack(options: {
-  manifest: ArchivePackManifest;
+  manifest: PackManifest;
   partial: string;
   development: boolean;
   distribution: PackCatalog["distribution"];
@@ -82,7 +82,7 @@ export async function downloadPack(options: {
 }
 
 /** Resume only a pinned partial for which a server proves exact ETag/range identity. */
-export async function downloadObject(options: {
+async function downloadObject(options: {
   object: { url: string; size_bytes: number; sha256: string };
   partial: string;
   urlPolicy: ObjectUrlPolicy;

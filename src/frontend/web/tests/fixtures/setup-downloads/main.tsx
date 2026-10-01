@@ -11,7 +11,6 @@ import {
 import { LocalRuntimeProvider } from "@/app/local-runtime/LocalRuntimeProvider";
 import { RuntimePlatformProvider } from "@/platform/RuntimePlatformProvider";
 import { Route } from "@/routes/setup";
-import type { FeaturePackStatus } from "../../../../shared/desktop-runtime";
 import "@/index.css";
 
 // Only native IPC is simulated. Runtime readiness, form, secure-key panel, model
@@ -22,10 +21,6 @@ const invoke = (method: string, args?: unknown) =>
       fixtureNative(method: string, args?: unknown): Promise<unknown>;
     }
   ).fixtureNative(method, args);
-const listeners = new Set<(pack: FeaturePackStatus) => void>();
-const emit = (pack: FeaturePackStatus) => {
-  for (const listener of listeners) listener(pack);
-};
 Object.assign(window, {
   animamaDesktop: {
     version: 2,
@@ -40,26 +35,14 @@ Object.assign(window, {
       list: () => invoke("credentials"),
       apply: (changes: unknown) => invoke("credentials.apply", changes),
     },
+    // Speech models install through backend model assets; the desktop's
+    // remaining packs are not part of setup.
     featurePacks: {
-      list: () => invoke("packs"),
-      install: async (id: string) => {
-        const pack = ((await invoke("packs")) as FeaturePackStatus[]).find(
-          (item: FeaturePackStatus) => item.id === id,
-        );
-        emit({ ...pack, state: "downloading", progress: 0.1 });
-        await invoke("install", id);
-        emit(
-          ((await invoke("packs")) as FeaturePackStatus[]).find(
-            (item: FeaturePackStatus) => item.id === id,
-          ),
-        );
-      },
-      remove: (id: string) => invoke("remove", id),
-      cancel: (id: string) => invoke("cancel", id),
-      onProgress: (listener: (pack: FeaturePackStatus) => void) => {
-        listeners.add(listener);
-        return () => listeners.delete(listener);
-      },
+      list: async () => [],
+      install: async () => undefined,
+      remove: async () => undefined,
+      cancel: async () => undefined,
+      onProgress: () => () => undefined,
     },
   },
 });

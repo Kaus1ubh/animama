@@ -17,8 +17,6 @@ import { atomicWrite } from "../src/main-process/runtime/atomic-file.js";
 import { normalizeSchemaDump } from "../src/main-process/runtime/schema.js";
 import {
   manifestDigest,
-  MODEL_PACK_IDS,
-  modelObjectUrl,
   versionDirectory,
   PACK_METADATA,
   type PackManifest,
@@ -254,89 +252,60 @@ function create(
   return { runtime, options };
 }
 
-/** A data-only fixture exercises custody and transitions, not real model inference. */
-function seedSpeechPack(
+/** A data-only archive pack fixture exercises custody and transitions. */
+function seedPack(
   options: ReturnType<typeof create>["options"],
-  id:
-    | "parakeet-stt"
-    | "expanded-included-content"
-    | ("parakeet-stt" | "parakeet-stt-webgpu")[] = "parakeet-stt",
   appVersions = ["0.1.0"],
 ) {
-  const manifests = (Array.isArray(id) ? id : [id]).map(
-    (packId): PackManifest => {
-      const common = {
-        display_name: "Fixture speech",
-        version: "0.1.0",
-        app_versions: appVersions,
-        platform: "data-only" as const,
-        architecture: "data-only" as const,
-        installed_bytes: 2,
-        minimum_peak_free_bytes: 100,
-        license_refs: ["fixture"],
-        signing: null,
-        files: [
-          {
-            path: "config.json",
-            size_bytes: 2,
-            sha256: createHash("sha256").update("{}").digest("hex"),
-            media_type: "application/json",
-            mode: "0644" as const,
-          },
-        ],
-      };
-      if (packId === "expanded-included-content")
-        return {
-          ...common,
-          schema: "animama-feature-pack/1",
-          id: packId,
-          url: `https://github.com/example/animama/releases/download/v0.1.0/${packId}.tar.zst`,
-          archive_bytes: 100,
-          archive_sha256: "a".repeat(64),
-        };
-      const modelId = MODEL_PACK_IDS[packId];
-      return {
-        ...common,
-        schema: "animama-model-pack/1",
-        id: packId,
-        model_id: modelId,
-        files: common.files.map((file) => ({
-          ...file,
-          url: modelObjectUrl(modelId, file),
-        })),
-      };
-    },
+  const manifest: PackManifest = {
+    schema: "animama-feature-pack/1",
+    id: "expanded-included-content",
+    display_name: "Fixture content",
+    version: "0.1.0",
+    app_versions: appVersions,
+    platform: "data-only",
+    architecture: "data-only",
+    url: "https://github.com/example/animama/releases/download/v0.1.0/expanded-included-content.tar.zst",
+    archive_bytes: 100,
+    archive_sha256: "a".repeat(64),
+    installed_bytes: 2,
+    minimum_peak_free_bytes: 100,
+    license_refs: ["fixture"],
+    signing: null,
+    files: [
+      {
+        path: "config.json",
+        size_bytes: 2,
+        sha256: createHash("sha256").update("{}").digest("hex"),
+        media_type: "application/json",
+        mode: "0644",
+      },
+    ],
+  };
+  const root = path.join(
+    options.paths.packs,
+    `${manifest.id}/versions`,
+    versionDirectory(manifest),
   );
-  const roots = manifests.map((manifest) => {
-    const root = path.join(
-      options.paths.packs,
-      `${manifest.id}/versions`,
-      versionDirectory(manifest),
-    );
-    mkdirSync(root, { recursive: true });
-    writeFileSync(path.join(root, "config.json"), "{}", { mode: 0o644 });
-    writeFileSync(path.join(root, PACK_METADATA), JSON.stringify(manifest));
-    return root;
-  });
+  mkdirSync(root, { recursive: true });
+  writeFileSync(path.join(root, "config.json"), "{}", { mode: 0o644 });
+  writeFileSync(path.join(root, PACK_METADATA), JSON.stringify(manifest));
   atomicWrite(
     path.join(options.paths.packs, "active.json"),
     JSON.stringify({
       schema: 1,
-      packs: Object.fromEntries(
-        manifests.map((manifest) => [
-          manifest.id,
-          {
-            directory: versionDirectory(manifest),
-            digest: manifestDigest(manifest),
-          },
-        ]),
-      ),
+      packs: {
+        [manifest.id]: {
+          directory: versionDirectory(manifest),
+          digest: manifestDigest(manifest),
+        },
+      },
     }),
   );
   const catalog = {
     schema: "animama-pack-catalog/1",
     app_version: "0.1.0",
-    entries: manifests,
+    entries: [manifest],
   };
   writeFileSync(
     path.join(options.runtimeRoot, "pack-catalog.json"),
@@ -345,7 +314,15 @@ function seedSpeechPack(
       ...catalog,
     }),
   );
-  return roots[0];
+  return root;
+}
+
+/** Whether the backend was started with the expanded pack's content mounted. */
+function mountsExpanded(env: Record<string, string>): boolean {
+  return JSON.parse(env.ANIMAMA_INCLUDED_CONTENT_SOURCES_JSON).some(
+    (source: { pack_id: string | null }) =>
+      source.pack_id === "expanded-included-content",
+  );
 }
 
 async function defaultFetch(
@@ -379,7 +356,7 @@ function allowRemoval() {
     if (String(input).includes(":removal-check"))
       return Response.json({
         schema_version: 1,
-        pack_id: "parakeet-stt",
+        pack_id: "expanded-included-content",
         removable: true,
         blockers: [],
       });
@@ -400,7 +377,7 @@ describe("runtime supervision", () => {
 
   it("blocks an update that withdraws referenced expanded content before draining any service", async () => {
     const current = create();
-    seedSpeechPack(current.options, "expanded-included-content");
+    seedPack(current.options);
     await current.runtime.start();
     fixture.quiesce.mockClear();
     vi.mocked(fetch).mockResolvedValueOnce(
@@ -421,10 +398,7 @@ describe("runtime supervision", () => {
 
   it("accepts an exact compatible expanded manifest without withdrawing its references", async () => {
     const current = create();
-    seedSpeechPack(current.options, "expanded-included-content", [
-      "0.1.0",
-      "0.2.0",
-    ]);
+    seedPack(current.options, ["0.1.0", "0.2.0"]);
     await current.runtime.start();
     const expanded = current.runtime.featurePacks().activePacks()[
       "expanded-included-content"
@@ -448,9 +422,9 @@ describe("runtime supervision", () => {
     expect(current.runtime.status()).toEqual({ state: "updating" });
     expect(fixture.owners.every((children) => children.size === 0)).toBe(true);
     expect(current.options.quiesceRenderers).toHaveBeenCalledOnce();
-    expect(() => current.runtime.changePack("install", "parakeet-stt")).toThrow(
-      "runtime_not_ready",
-    );
+    expect(() =>
+      current.runtime.changePack("install", "expanded-included-content"),
+    ).toThrow("runtime_not_ready");
     await current.runtime.start(); // An ordinary Retry cannot resume writes during native replacement.
     expect(current.runtime.status()).toEqual({ state: "updating" });
     expect(fixture.owners.every((children) => children.size === 0)).toBe(true);
@@ -500,13 +474,13 @@ describe("runtime supervision", () => {
 
   it("reports a bounded removal blocker without draining the app or changing the pack", async () => {
     const current = create();
-    const root = seedSpeechPack(current.options);
+    const root = seedPack(current.options);
     await current.runtime.start();
     const drainsBefore = fixture.quiesce.mock.calls.length;
     vi.mocked(fetch).mockResolvedValueOnce(
       Response.json({
         schema_version: 1,
-        pack_id: "parakeet-stt",
+        pack_id: "expanded-included-content",
         removable: false,
         blockers: [
           { kind: "runtime_lease", id: "lease", label: "Active preview" },
@@ -514,7 +488,7 @@ describe("runtime supervision", () => {
       }),
     );
     await expect(
-      current.runtime.featurePacks().remove("parakeet-stt"),
+      current.runtime.featurePacks().remove("expanded-included-content"),
     ).rejects.toThrow("pack_in_use");
     expect(current.runtime.status().state).toBe("ready");
     expect(current.options.quiesceRenderers).not.toHaveBeenCalled();
@@ -529,7 +503,7 @@ describe("runtime supervision", () => {
     "quiesces the renderer and keeps the saved origin through removal (rollback=%s)",
     async (fail) => {
       const current = create();
-      const root = seedSpeechPack(current.options);
+      const root = seedPack(current.options);
       await current.runtime.start();
       expect(current.runtime.status().state).toBe("ready");
       const pointer = readFileSync(
@@ -541,7 +515,9 @@ describe("runtime supervision", () => {
         fixture.ready.mockResolvedValueOnce(
           Response.json({ ...fixture.health, build_id: "wrong" }),
         );
-      const removal = current.runtime.featurePacks().remove("parakeet-stt");
+      const removal = current.runtime
+        .featurePacks()
+        .remove("expanded-included-content");
       if (fail) await expect(removal).rejects.toThrow();
       else await removal;
       expect(current.options.quiesceRenderers).toHaveBeenCalledOnce();
@@ -556,7 +532,7 @@ describe("runtime supervision", () => {
       const backend = fixture.launches
         .filter((child) => child.name === "fastapi")
         .at(-1)!;
-      expect(backend.env.ANIMAMA_PARAKEET_STT_ENABLED).toBe(fail ? "1" : "0");
+      expect(mountsExpanded(backend.env)).toBe(fail);
       expect(existsSync(root)).toBe(fail);
       if (fail)
         expect(
@@ -1371,9 +1347,8 @@ describe("runtime supervision", () => {
     ).toBe(true);
   });
 
-  it("supplies built assets and exact model inventory only to the owned HTTP child", async () => {
+  it("supplies built assets and the asset-store speech source only to the owned HTTP child", async () => {
     const current = create();
-    seedSpeechPack(current.options);
     await current.runtime.start();
     const backend = fixture.launches.find((child) => child.name === "fastapi")!;
     expect(backend.args.slice(-2)).toEqual(["--port", "41234"]);
@@ -1393,55 +1368,19 @@ describe("runtime supervision", () => {
     expect(backend.env.ANIMAMA_DESKTOP_APP_VERSION).toBe(
       current.options.appVersion,
     );
-    const mount = JSON.parse(backend.env.ANIMAMA_PARAKEET_MODEL_MOUNT_JSON!);
-    expect(mount.files).toEqual([
-      {
-        path: "config.json",
-        size_bytes: 2,
-        sha256: createHash("sha256").update("{}").digest("hex"),
-        media_type: "application/json",
-      },
-    ]);
+    // Offline speech installs and serves through the backend's model-asset
+    // store; main passes no Parakeet enablement, version or mount of its own.
+    const parakeet = (env: Record<string, string>) =>
+      Object.keys(env).filter((name) => name.startsWith("ANIMAMA_PARAKEET_"));
+    expect(backend.env.ANIMAMA_PARAKEET_SOURCE).toBe("asset-store");
+    expect(parakeet(backend.env)).toEqual(["ANIMAMA_PARAKEET_SOURCE"]);
     for (const worker of fixture.launches.filter(
       (child) => child.name !== "fastapi",
     )) {
       expect(worker.env.ANIMAMA_DESKTOP_CONTROL_TOKEN).toBeUndefined();
       expect(worker.env.ANIMAMA_DESKTOP_RENDERER_CAPABILITY).toBeUndefined();
-      expect(worker.env.ANIMAMA_PARAKEET_MODEL_MOUNT_JSON).toBeUndefined();
+      expect(parakeet(worker.env)).toEqual([]);
     }
-  });
-
-  it("mounts the GPU encoder beside offline speech only for the owned HTTP child", async () => {
-    const current = create();
-    seedSpeechPack(current.options, ["parakeet-stt", "parakeet-stt-webgpu"]);
-    await current.runtime.start();
-    const backend = fixture.launches.find((child) => child.name === "fastapi")!;
-    const base = JSON.parse(backend.env.ANIMAMA_PARAKEET_MODEL_MOUNT_JSON!);
-    const gpu = JSON.parse(
-      backend.env.ANIMAMA_PARAKEET_WEBGPU_MODEL_MOUNT_JSON!,
-    );
-    expect(gpu.root).toContain(
-      path.join(current.options.paths.packs, "parakeet-stt-webgpu"),
-    );
-    expect(gpu.root).not.toBe(base.root);
-    expect(gpu.version).toBe(backend.env.ANIMAMA_PARAKEET_WEBGPU_ASSET_VERSION);
-    for (const worker of fixture.launches.filter(
-      (child) => child.name !== "fastapi",
-    ))
-      expect(
-        worker.env.ANIMAMA_PARAKEET_WEBGPU_MODEL_MOUNT_JSON,
-      ).toBeUndefined();
-  });
-
-  it("never mounts the GPU encoder without offline speech", async () => {
-    const current = create();
-    seedSpeechPack(current.options, ["parakeet-stt-webgpu"]);
-    await current.runtime.start();
-    const backend = fixture.launches.find((child) => child.name === "fastapi")!;
-    expect(
-      backend.env.ANIMAMA_PARAKEET_WEBGPU_MODEL_MOUNT_JSON,
-    ).toBeUndefined();
-    expect(backend.env.ANIMAMA_PARAKEET_MODEL_MOUNT_JSON).toBeUndefined();
   });
 
   it("passes no companion-safety override to any packaged child", async () => {
@@ -1538,7 +1477,7 @@ describe("runtime supervision", () => {
     "a busy quiesce preserves the old %s configuration and restarts it",
     async (action) => {
       const current = create();
-      const packRoot = seedSpeechPack(current.options);
+      const packRoot = seedPack(current.options);
       await current.runtime.start();
       const pointer = readFileSync(
         path.join(current.options.paths.packs, "active.json"),
@@ -1551,7 +1490,7 @@ describe("runtime supervision", () => {
       );
       if (action === "pack")
         await expect(
-          current.runtime.featurePacks().remove("parakeet-stt"),
+          current.runtime.featurePacks().remove("expanded-included-content"),
         ).rejects.toThrow("runtime_busy");
       else
         await expect(current.runtime.stopForUpdate(update)).rejects.toThrow(
@@ -1573,7 +1512,7 @@ describe("runtime supervision", () => {
       const backend = fixture.launches
         .filter((child) => child.name === "fastapi")
         .at(-1)!;
-      expect(backend.env.ANIMAMA_PARAKEET_STT_ENABLED).toBe("1");
+      expect(mountsExpanded(backend.env)).toBe(true);
       expect(backend.env.OPENAI_API_KEY).toBeUndefined();
       expect(
         vi

@@ -16,7 +16,7 @@ import { Button } from "@/ui/components/button";
 import { Input } from "@/ui/components/input";
 import { Label } from "@/ui/components/label";
 import { DesktopCredentialsPanel } from "@/ui/settings/DesktopCredentialsPanel";
-import { useDesktopFeaturePacks } from "@/hooks/useDesktopFeaturePacks";
+import { PARAKEET_DOWNLOADS_OFFERED } from "@/lib/speech/client-parakeet/assets";
 import {
   DISPLAY_NAME_MAX_LENGTH,
   normalizeLocalDisplayName,
@@ -49,11 +49,11 @@ function LocalSetupForm({
 }) {
   const [draft, setDraft] = useState(() => readSetupDraft(ownerId));
   const { displayName, adultConfirmed } = draft;
-  const [draftUnavailable, setDraftUnavailable] = useState(false);
   const updateDraft = (change: Partial<SetupDraft>) => {
     const next = { ...draft, ...change };
-    // Save during the event, before a speech-recognition pack change can replace this renderer.
-    setDraftUnavailable(!writeSetupDraft(ownerId, next));
+    // Save during the event: a fallback restart after a failed key delivery
+    // can still replace this renderer. Losing the draft only means retyping.
+    writeSetupDraft(ownerId, next);
     setDraft(next);
   };
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -61,20 +61,8 @@ function LocalSetupForm({
   // Unsaved API key edits would be lost by continuing; save or discard first.
   const [pendingKeys, setPendingKeys] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const featurePacks = useDesktopFeaturePacks();
   const [declinedAge, setDeclinedAge] = useState(false);
   const normalizedName = normalizeLocalDisplayName(displayName);
-
-  const draftBlockedReason = draftUnavailable
-    ? "Setup details could not be retained. Continue setup before changing speech recognition."
-    : null;
-  const downloadBlockedReason =
-    draftBlockedReason ??
-    (pendingKeys > 0
-      ? "Save or discard your API key changes before changing speech recognition."
-      : providerBusy
-        ? "Wait for your API key changes to finish."
-        : null);
 
   const submit = async (name: string) => {
     if (isSubmitting || providerBusy || pendingKeys > 0 || !adultConfirmed)
@@ -140,23 +128,15 @@ function LocalSetupForm({
           onBusyChange={setProviderBusy}
           onPendingChange={setPendingKeys}
         />
-        {featurePacks.available ? (
+        {/* Downloads install in place and keep running after setup. */}
+        {PARAKEET_DOWNLOADS_OFFERED ? (
           <section className="space-y-4" aria-label="Optional voice downloads">
             <p className="text-muted-foreground text-sm">
               Optional. You can continue during downloads and manage them later
               in App Settings → Voice.
             </p>
-            <VoiceDownloads
-              section="all"
-              blockedReason={downloadBlockedReason}
-              busy={providerBusy || isSubmitting}
-            />
+            <VoiceDownloads section="all" />
           </section>
-        ) : null}
-        {draftBlockedReason ? (
-          <p className="text-destructive text-sm" role="alert">
-            {draftBlockedReason}
-          </p>
         ) : null}
         <section
           aria-labelledby="setup-age-heading"

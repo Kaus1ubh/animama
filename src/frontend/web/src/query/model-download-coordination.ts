@@ -4,13 +4,18 @@ import { listModelAssetsV1ModelAssetsGet } from "@animama/runtime-contracts/sdk"
 import type { FeaturePackStatus } from "../../../shared/desktop-runtime";
 import type { AnimamaDesktopBridge } from "@/platform/runtime-platform";
 import { POCKET_VOICES } from "@/lib/speech/pocket/voice-catalog";
-import { PARAKEET_WEBGPU_ENCODER_ASSET_ID } from "@/lib/speech/client-parakeet/assets";
+import {
+  PARAKEET_ASSET_ID,
+  PARAKEET_WEBGPU_ASSET_ID,
+} from "@/lib/speech/client-parakeet/assets";
 import { queryKeys } from "@/query/keys";
 
+// Feature pack changes restart the backend, so they never overlap a model
+// download in either direction.
 export const ASSET_WORK_BLOCKS_PACK =
-  "Finish or cancel the voice download before changing offline speech.";
+  "Finish or cancel the model download before changing a feature pack.";
 export const PACK_WORK_BLOCKS_ASSET =
-  "Wait for the offline speech download or change to finish before starting another download.";
+  "Wait for the feature pack change to finish before starting a download.";
 export const modelAssetActionKey = (owner: string) =>
   [...queryKeys.modelAssets(owner), "change"] as const;
 export const nativePackActionKey = (owner: string) =>
@@ -95,7 +100,7 @@ export async function assertPackTransitionAllowed(
   const snapshot = await loadNativePackSnapshot(desktop);
   client.setQueryData(queryKeys.desktopFeaturePacks(owner), snapshot);
   if (!snapshot.available)
-    throw new Error("Offline speech downloads are unavailable in this window.");
+    throw new Error("Feature packs are unavailable in this window.");
   if (snapshot.transitioning || snapshot.packs.some(packIsBusy))
     throw new Error(PACK_WORK_BLOCKS_ASSET);
   const assets = await loadModelAssets(client, owner);
@@ -110,7 +115,8 @@ export async function assertPackTransitionAllowed(
 const knownAssetIds = new Set([
   ...POCKET_VOICES.flatMap((voice) => (voice.assetId ? [voice.assetId] : [])),
   "pocket-tts-voice-cloning-encoder",
-  PARAKEET_WEBGPU_ENCODER_ASSET_ID,
+  PARAKEET_ASSET_ID,
+  PARAKEET_WEBGPU_ASSET_ID,
 ]);
 /** A bounded hint for Retry, never installed state, progress, samples or credentials. */
 function storedAssetAttempts(owner: string): string[] | undefined {
@@ -208,6 +214,20 @@ export function reconcileAssetAttempts(
       owner,
       current.filter((id) => !installed.has(id)),
     );
+}
+/**
+ * The installed Parakeet sets, as a stable key. Runtime capabilities derive
+ * offline speech from them, so a change means capabilities are stale.
+ */
+export function installedSpeechSets(
+  assets: PyModelAssetState[] | undefined,
+): string | undefined {
+  if (!assets) return undefined;
+  return [PARAKEET_ASSET_ID, PARAKEET_WEBGPU_ASSET_ID]
+    .filter((id) =>
+      assets.some((asset) => asset.id === id && asset.status === "installed"),
+    )
+    .join(",");
 }
 export function retryAssetIds(
   attempts: readonly string[],

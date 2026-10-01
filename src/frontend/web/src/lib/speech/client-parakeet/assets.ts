@@ -1,52 +1,50 @@
-declare const __CLIENT_PARAKEET_MODEL_BASE_URL__: string | undefined;
-declare const __CLIENT_PARAKEET_WEBGPU_ENCODER__:
-  | ClientParakeetWebgpuEncoder
-  | null
-  | undefined;
+declare const __CLIENT_PARAKEET_MODELS__: ClientParakeetModels | undefined;
 
 /**
- * Where this build gets the optional WebGPU encoder: `pack` (embedded
- * desktop's feature pack), `model-asset` (built self-host, downloaded in the
- * app) or `operator` (a development stack's mounted model store).
+ * Where this build serves the Parakeet sets: `asset-store` (packaged desktop
+ * and built self-host; the app downloads sets through the backend model-asset
+ * service and FastAPI serves them) or `operator` (Vite development serves the
+ * host's verified sets; the app offers no downloads).
  */
-export type ClientParakeetWebgpuEncoder = {
-  source: "pack" | "model-asset" | "operator";
-  url: string;
+export type ClientParakeetModels = {
+  source: "asset-store" | "operator";
+  baseUrl: string;
+  webgpuBaseUrl: string;
 };
 
-/** The self-host downloadable asset that holds the WebGPU encoder. */
-export const PARAKEET_WEBGPU_ENCODER_ASSET_ID =
-  "parakeet-tdt-0.6b-v2-webgpu-encoder";
+/** Backend model-asset ids of the base (CPU) and WebGPU Parakeet sets. */
+export const PARAKEET_ASSET_ID = "parakeet-stt";
+export const PARAKEET_WEBGPU_ASSET_ID = "parakeet-stt-webgpu";
 
-const DEFAULT_CLIENT_PARAKEET_MODEL_BASE_URL =
-  "/onnx/models/parakeet-tdt-0.6b-v2";
+const DEFAULT_CLIENT_PARAKEET_MODELS: ClientParakeetModels = {
+  source: "asset-store",
+  baseUrl: "/onnx/models/parakeet-tdt-0.6b-v2",
+  webgpuBaseUrl: "/onnx/models/parakeet-tdt-0.6b-v2-webgpu",
+};
 
-export const CLIENT_PARAKEET_MODEL_BASE_URL = (
-  typeof __CLIENT_PARAKEET_MODEL_BASE_URL__ === "string" &&
-  __CLIENT_PARAKEET_MODEL_BASE_URL__
-    ? __CLIENT_PARAKEET_MODEL_BASE_URL__
-    : DEFAULT_CLIENT_PARAKEET_MODEL_BASE_URL
-).replace(/\/$/, "");
+export const CLIENT_PARAKEET_MODELS: ClientParakeetModels =
+  typeof __CLIENT_PARAKEET_MODELS__ === "object" && __CLIENT_PARAKEET_MODELS__
+    ? __CLIENT_PARAKEET_MODELS__
+    : DEFAULT_CLIENT_PARAKEET_MODELS;
+
+/** Whether this build installs Parakeet sets in the app. */
+export const PARAKEET_DOWNLOADS_OFFERED =
+  CLIENT_PARAKEET_MODELS.source === "asset-store";
+
+const base = CLIENT_PARAKEET_MODELS.baseUrl.replace(/\/$/, "");
 
 export const CLIENT_PARAKEET_MODEL_ASSET_PATHS = {
-  attribution: `${CLIENT_PARAKEET_MODEL_BASE_URL}/ATTRIBUTION.md`,
-  config: `${CLIENT_PARAKEET_MODEL_BASE_URL}/config.json`,
-  decoder: `${CLIENT_PARAKEET_MODEL_BASE_URL}/decoder_joint-model.int8.onnx`,
-  encoder: `${CLIENT_PARAKEET_MODEL_BASE_URL}/encoder-model.int8.onnx`,
-  preprocessor: `${CLIENT_PARAKEET_MODEL_BASE_URL}/nemo128.onnx`,
-  readme: `${CLIENT_PARAKEET_MODEL_BASE_URL}/README.md`,
-  tokenizer: `${CLIENT_PARAKEET_MODEL_BASE_URL}/vocab.txt`,
+  attribution: `${base}/ATTRIBUTION.md`,
+  config: `${base}/config.json`,
+  decoder: `${base}/decoder_joint-model.int8.onnx`,
+  encoder: `${base}/encoder-model.int8.onnx`,
+  preprocessor: `${base}/nemo128.onnx`,
+  readme: `${base}/README.md`,
+  tokenizer: `${base}/vocab.txt`,
 } as const;
 
 /**
- * Optional experimental WebGPU encoder for this build. A HEAD probe decides
- * availability. `null` means this build never serves it.
+ * The optional WebGPU set's FP16 encoder. A HEAD probe decides availability,
+ * so an uninstalled set is simply a 404.
  */
-export const CLIENT_PARAKEET_WEBGPU_ENCODER: ClientParakeetWebgpuEncoder | null =
-  typeof __CLIENT_PARAKEET_WEBGPU_ENCODER__ === "object" &&
-  __CLIENT_PARAKEET_WEBGPU_ENCODER__
-    ? __CLIENT_PARAKEET_WEBGPU_ENCODER__
-    : null;
-
-export const CLIENT_PARAKEET_WEBGPU_ENCODER_URL: string | null =
-  CLIENT_PARAKEET_WEBGPU_ENCODER?.url ?? null;
+export const CLIENT_PARAKEET_WEBGPU_ENCODER_URL = `${CLIENT_PARAKEET_MODELS.webgpuBaseUrl.replace(/\/$/, "")}/encoder-model.fp16.onnx`;

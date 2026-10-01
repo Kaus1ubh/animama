@@ -1,6 +1,7 @@
 # Shared speech model setup
 
-Development, Compose self-hosting and desktop pack production use the exact
+Development, the in-app `parakeet-stt` model asset set and model publication
+use the exact
 Parakeet INT8 inputs recorded in
 [`models/parakeet-tdt-0.6b-v2/manifest.json`](../../../models/parakeet-tdt-0.6b-v2/manifest.json).
 The five upstream files are pinned to full Hugging Face commits, sizes and
@@ -70,7 +71,7 @@ Import verifies every payload against the same manifest. Keep the old copy until
 the new store verifies and its consumers have been switched. This operation does
 not remove old files, rewrite Git history or prune old LFS objects. The retained
 source notices remain under `models/parakeet-tdt-0.6b-v2/`; their bytes are included
-in the assembled model set and desktop pack.
+in the assembled model set.
 
 ## Persistent self-hosting and named stacks
 
@@ -109,16 +110,17 @@ docker compose -f docker-compose.yml config --quiet
 docker compose -f docker-compose.yml -f docker-compose.development.yml config --quiet
 ```
 
-Both modes use read-only bind mounts that refuse to create a missing host path.
-Development Vite and built FastAPI preserve `/__client-parakeet-models` and local
-inference; the browser never downloads from Hugging Face. Keep the application
+Development uses read-only bind mounts that refuse to create a missing host
+path, and Vite serves Parakeet at `/__client-parakeet-models`. Built mode does
+not resolve or mount the host Parakeet set: the app downloads both sets through
+the backend model-asset service. The browser never downloads from Hugging Face. Keep the application
 loopback/private-service boundaries unchanged. Acquiring bytes does not repair
 unrelated missing starter animation assets.
 
 Direct host Vite resolves the same store offline at startup. Production frontend builds verify and copy the browser speech assets into `dist`;
-Parakeet remains a separate runtime/pack input. Unit checks that do not build or
-start an application need no model acquisition. Desktop pack production verifies the set separately; installed desktop
-uses its existing app-owned pack downloader and does not depend on this cache.
+Parakeet is not a build input. Unit checks that do not build or start an
+application need no model acquisition. Packaged desktop and built self-host
+download Parakeet in the app and do not depend on this cache.
 See [desktop runtime staging](../../frontend/desktop/runtime-staging.md).
 
 ## Recovery and deliberate cleanup
@@ -184,9 +186,9 @@ Current catalog entries are the Parakeet sets `parakeet-stt` (base, seven
 files) and `parakeet-stt-webgpu` (three files; requires `parakeet-stt`, which
 cannot be removed while it is installed), and the 36 downloadable Pocket TTS
 voices (`pocket-voice-<id>`, set `models/pocket-tts-voices`). FastAPI serves
-installed Parakeet sets, and reports them in runtime capabilities, only when
-the composition sets `ANIMAMA_PARAKEET_SOURCE=asset-store`; the default
-`operator` source keeps launch-supplied mounts and versions. The voices install on
+installed Parakeet sets and reports them in runtime capabilities under the
+default `ANIMAMA_PARAKEET_SOURCE=asset-store`; development Compose sets
+`operator`, where Vite serves the host sets instead. The voices install on
 desktop and self-host when a user picks one, explicitly downloads it, or a saved
 voice is first needed. The separate `pocket-tts-voice-cloning-encoder` asset is
 downloaded on an explicit cloning/download action. Ordinary playback and saved
@@ -194,8 +196,8 @@ clones do not need that encoder. Setup and Voice settings also expose download,
 cancel, retry and removal without changing the selected provider or voice.
 
 Use the downloader for restart-free data files the running app can pick up,
-such as optional voices. Large bundles that need a service switch, such as the
-desktop Parakeet feature packs, stay in Electron's pack manager.
+such as optional voices and the Parakeet sets. Bundles that need a service
+switch, such as the document-processing pack, stay in Electron's pack manager.
 
 Use the app's Remove action before reinstalling. Never edit an installed file in
 place. A renderer using an installed asset holds a short use lease, and removal
@@ -210,8 +212,8 @@ stored under
 
 - It pairs with the base Parakeet decoder, preprocessor and vocabulary, which
   are still required.
-- Desktop delivers it as the separate `parakeet-stt-webgpu` pack, not in the
-  `parakeet-stt` pack inventory, so release staging needs this set too.
+- Packaged desktop and built self-host install it as the `parakeet-stt-webgpu`
+  model asset set, which requires the installed `parakeet-stt` set.
 
 Acquire it only when you want to test WebGPU speech:
 
@@ -247,12 +249,11 @@ Where each build gets it:
   `parakeet-tdt-0.6b-v2-webgpu-encoder` asset is removed at startup and must be
   downloaded again. The host model store is not used, and a host that cannot
   reach `downloads.animama.ai` cannot enable WebGPU.
-- **Packaged desktop** serves it only from the active `parakeet-stt-webgpu`
-  pack at `/onnx/models/parakeet-tdt-0.6b-v2-webgpu/`, and only beside an
-  active `parakeet-stt` pack.
+- **Packaged desktop** downloads it the same way as built self-host, and
+  FastAPI serves it at `/onnx/models/parakeet-tdt-0.6b-v2-webgpu/`.
 
-Controls appear independently of the selected provider when a WebGPU adapter is
-available; desktop also requires an approved catalog entry and CPU speech first.
+The GPU add-on is always shown beneath the CPU model; its action is disabled,
+with a stated reason, until CPU speech is installed and a WebGPU adapter exists.
 Retained files remain removable on unsupported devices. Downloading never selects
 a provider or automatically downloads CPU speech. The browser probes the encoder
 with `HEAD`; a 404 means not installed.

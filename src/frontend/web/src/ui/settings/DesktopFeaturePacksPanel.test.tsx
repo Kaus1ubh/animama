@@ -17,7 +17,7 @@ vi.mock("@/hooks/useDesktopFeaturePacks", () => ({
 beforeEach(() => {
   fixture.available = true;
   fixture.packs = [
-    { id: "parakeet-stt", state: "not_installed", available: false },
+    { id: "document-processing", state: "not_installed", available: false },
   ];
 });
 
@@ -28,7 +28,7 @@ describe("optional feature pack controls", () => {
   });
   it("shows an unavailable contextual entry without inventing sizes or enabling Install", () => {
     const html = renderToStaticMarkup(
-      <DesktopFeaturePacksPanel only="parakeet-stt" />,
+      <DesktopFeaturePacksPanel only="document-processing" />,
     );
     expect(html).toContain("No compatible released pack");
     expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Install<\/button>/u);
@@ -44,50 +44,47 @@ describe("optional feature pack controls", () => {
     ];
     expect(renderToStaticMarkup(<DesktopFeaturePacksPanel />)).toBe("");
   });
-  it("lists the GPU encoder only for recovery, leaving downloads to the WebGPU setting", () => {
+  it("lists only the remaining packs, never speech recognition", () => {
     fixture.packs = [
-      { id: "parakeet-stt-webgpu", state: "not_installed", available: true },
-    ];
-    expect(renderToStaticMarkup(<DesktopFeaturePacksPanel />)).toBe("");
-    fixture.packs = [
+      { id: "document-processing", state: "not_installed", available: true },
       {
-        id: "parakeet-stt-webgpu",
-        state: "update_available",
+        id: "expanded-included-content",
+        state: "not_installed",
         available: true,
-        hasInstalledFiles: true,
       },
     ];
-    expect(renderToStaticMarkup(<DesktopFeaturePacksPanel />)).toContain(
-      "GPU speech encoder",
-    );
+    const html = renderToStaticMarkup(<DesktopFeaturePacksPanel />);
+    expect(html).toContain("Document processing");
+    expect(html).toContain("Expanded Included content");
+    expect(html).not.toMatch(/speech/iu);
   });
   it("keeps an active pack's removal refusal from offering Install", () => {
     fixture.packs = [
       {
-        id: "parakeet-stt",
+        id: "document-processing",
         state: "failed",
         available: true,
         version: "0.1.0",
         activeVersion: "0.1.0",
         hasInstalledFiles: true,
-        error: "pack_dependent_installed",
+        error: "pack_in_use",
         blockers: [
           {
-            kind: "feature_pack",
-            id: "parakeet-stt-webgpu",
-            label: "Remove GPU speech encoder first",
+            kind: "document_job",
+            id: "job-1",
+            label: "Document job in progress",
           },
         ],
       },
     ];
     const html = renderToStaticMarkup(<DesktopFeaturePacksPanel />);
-    expect(html).toContain("Remove GPU speech encoder first");
+    expect(html).toContain("Document job in progress");
     expect(html).not.toContain(">Install<");
   });
   it("shows bounded progress and cancellation for a catalog download", () => {
     fixture.packs = [
       {
-        id: "parakeet-stt",
+        id: "document-processing",
         state: "downloading",
         available: true,
         downloadBytes: 1024,

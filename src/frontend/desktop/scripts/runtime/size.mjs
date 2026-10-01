@@ -103,14 +103,11 @@ export function checkSizes(
   };
 }
 
-/** Catalog totals describe raw model objects or the exact excluded pack archive. */
+/** Catalog totals describe the exact excluded pack archive. */
 export function packSizeReport(pack) {
   return {
     installed_bytes: pack.installed_bytes,
-    download_bytes:
-      pack.schema === "animama-model-pack/1"
-        ? pack.installed_bytes
-        : pack.archive_bytes,
+    download_bytes: pack.archive_bytes,
     minimum_peak_free_bytes: pack.minimum_peak_free_bytes,
   };
 }

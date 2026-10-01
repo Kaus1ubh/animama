@@ -102,18 +102,13 @@ async def test_capabilities_separate_pack_presence_and_worker_liveness(
     await async_session.commit()
 
 
-async def test_operator_parakeet_source_reports_its_launch_versions(async_session, tmp_path):
-    app = _app(
-        async_session,
-        tmp_path,
-        animama_parakeet_stt_enabled=True,
-        animama_parakeet_asset_version="0.1.0-base",
-        animama_parakeet_webgpu_asset_version="0.1.1-gpu",
-    )
+async def test_operator_parakeet_source_reports_its_flag_without_versions(async_session, tmp_path):
+    # Development Vite serves the operator's host sets; the backend pins no version.
+    app = _app(async_session, tmp_path, animama_parakeet_source="operator", animama_parakeet_stt_enabled=True)
     async with local_client(app) as client:
         body = (await client.get("/v1/runtime-capabilities")).json()
-    assert (body["offline_speech_enabled"], body["offline_speech_asset_version"]) == (True, "0.1.0-base")
-    assert body["offline_speech_gpu_asset_version"] == "0.1.1-gpu"
+    assert (body["offline_speech_enabled"], body["offline_speech_asset_version"]) == (True, None)
+    assert body["offline_speech_gpu_asset_version"] is None
 
 
 @pytest.mark.parametrize("operator_enabled", [True, False])
@@ -123,8 +118,6 @@ async def test_asset_store_offline_speech_follows_installs_without_a_restart(asy
         tmp_path,
         animama_parakeet_source="asset-store",
         animama_parakeet_stt_enabled=operator_enabled,
-        # Launch versions belong to the operator source and are ignored here.
-        animama_parakeet_asset_version="0.1.0-base",
     )
     service = ModelAssetService(
         parse_asset_catalog(
@@ -183,7 +176,7 @@ async def test_private_control_is_not_a_browser_api_and_contains_no_paths(async_
     app = _app(async_session, tmp_path)
     assert not any(key.startswith("/_desktop") for key in app.openapi()["paths"])
     async with local_client(app) as client:
-        url = "/_desktop/feature-packs/parakeet-stt:removal-check"
+        url = "/_desktop/feature-packs/expanded-included-content:removal-check"
         for headers in ({}, {"X-Animama-Desktop-Control": "wrong"}, {"X-Animama-Internal-Token": "c" * 64}):
             assert (await client.post(url, headers=headers)).status_code == 404
         result = await client.post(url, headers={"X-Animama-Desktop-Control": "c" * 64})
@@ -191,19 +184,13 @@ async def test_private_control_is_not_a_browser_api_and_contains_no_paths(async_
         assert result.json()["removable"] is True
         assert result.json()["blockers"] == []
         assert str(tmp_path) not in result.text
-        app.state.runtime_settings.animama_parakeet_webgpu_asset_version = "0.1.0-bbbbbbbbbbbbbbbb"
-        webgpu = await client.post(
-            "/_desktop/feature-packs/parakeet-stt-webgpu:removal-check",
-            headers={"X-Animama-Desktop-Control": "c" * 64},
-        )
-        assert webgpu.status_code == 200
-        assert webgpu.json()["pack_version"] == "0.1.0-bbbbbbbbbbbbbbbb"
-        assert webgpu.json()["removable"] is True
-        assert (
-            await client.post(
-                "/_desktop/feature-packs/unknown:removal-check", headers={"X-Animama-Desktop-Control": "c" * 64}
-            )
-        ).status_code == 404
+        # Parakeet sets are backend model assets now, not removable packs.
+        for unknown in ("unknown", "parakeet-stt", "parakeet-stt-webgpu"):
+            assert (
+                await client.post(
+                    f"/_desktop/feature-packs/{unknown}:removal-check", headers={"X-Animama-Desktop-Control": "c" * 64}
+                )
+            ).status_code == 404
 
         async def denied():
             raise HTTPException(401)

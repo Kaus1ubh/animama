@@ -1,4 +1,4 @@
-Parakeet TDT 0.6B v2 FP16 encoder (optional GPU speech encoder pack)
+Parakeet TDT 0.6B v2 FP16 encoder (optional GPU acceleration download)
 
 Base model: NVIDIA Parakeet, Creative Commons Attribution 4.0 International.
 https://huggingface.co/nvidia/parakeet-tdt-0.6b-v2
@@ -9,7 +9,7 @@ db4a768f5795e0f508187a34241fbeeef6ebb0d3, file encoder-model.fp16.onnx.
 https://huggingface.co/ysdede/parakeet-tdt-0.6b-v2-onnx/blob/db4a768f5795e0f508187a34241fbeeef6ebb0d3/ATTRIBUTION.md
 
 This file is an upstream adaptation of the original NVIDIA model: ONNX
-conversion with FP16 weights. Animama redistributes it unmodified in the
-optional parakeet-stt-webgpu feature pack, which also carries the source
+conversion with FP16 weights. Animama redistributes it unmodified as the
+optional parakeet-stt-webgpu in-app download, which also carries the source
 ATTRIBUTION.md. Preserve this attribution and the CC BY 4.0 reference with
 every copy. No endorsement by NVIDIA is implied.

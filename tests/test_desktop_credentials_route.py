@@ -203,7 +203,7 @@ async def test_browser_originated_requests_are_refused_even_with_the_token(
 CONTROL_ROUTES = [
     ("GET", "/_desktop/health"),
     ("POST", "/_desktop/runtime:quiesce"),
-    ("POST", "/_desktop/feature-packs/parakeet-stt:removal-check"),
+    ("POST", "/_desktop/feature-packs/document-processing:removal-check"),
     ("PUT", ROUTE),
 ]
 

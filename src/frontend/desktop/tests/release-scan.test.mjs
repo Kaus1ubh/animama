@@ -90,7 +90,7 @@ function tarZst(root, fill) {
   return zstdCompressSync(readFileSync(tar));
 }
 
-const PACK = "parakeet-stt-0.1.0-data-only.tar.zst";
+const PACK = "expanded-included-content-0.1.0-data-only.tar.zst";
 const IN_PACK = `${PACK}.expanded`;
 const home = [{ label: "home-directory", value: "/Users/someone/" }];
 

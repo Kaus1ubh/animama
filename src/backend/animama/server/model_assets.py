@@ -117,16 +117,15 @@ class ParakeetAvailability:
 def parakeet_availability(application: FastAPI, runtime_settings: Settings) -> ParakeetAvailability:
     """Resolve offline speech from the composition's Parakeet source.
 
-    The operator flag always gates availability. The ``operator`` source reports
-    its launch versions; ``asset-store`` requires an installed base set and
-    reports installed manifest digests, read on every call.
+    The operator flag always gates availability. The ``operator`` source has no
+    versions (development Vite serves the host sets); ``asset-store`` requires
+    an installed base set and reports installed manifest digests, read on every
+    call.
     """
 
     if runtime_settings.animama_parakeet_source == "operator":
         return ParakeetAvailability(
-            enabled=runtime_settings.animama_parakeet_stt_enabled,
-            asset_version=runtime_settings.animama_parakeet_asset_version,
-            gpu_asset_version=runtime_settings.animama_parakeet_webgpu_asset_version,
+            enabled=runtime_settings.animama_parakeet_stt_enabled, asset_version=None, gpu_asset_version=None
         )
     version = _installed_version(application, PARAKEET_ASSET_ID)
     return ParakeetAvailability(

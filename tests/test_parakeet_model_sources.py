@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import hashlib
-import json
 from pathlib import Path
 
 import httpx
@@ -17,7 +16,7 @@ from animama.domain.model_assets import ASSET_CATALOG_SCHEMA, parse_asset_catalo
 from animama.local.http.assets import PARAKEET_MOUNT, PARAKEET_WEBGPU_MOUNT, LocalAssets
 from animama.server.config import Settings
 from animama.server.local_http import local_assets
-from animama.server.model_assets import AssetStoreModelMounts
+from animama.server.model_assets import AssetStoreModelMounts, parakeet_availability
 from tests.test_model_asset_sets import FILES, GPU_FILES, GPU_MANIFEST, MANIFEST, SetRelease, _set_entry
 
 
@@ -116,34 +115,36 @@ def _settings(tmp_path: Path, **overrides: object) -> Settings:
     )
 
 
-def _mount_json(root: Path) -> str:
-    body = b"operator-model"
-    (root / "model.onnx").write_bytes(body)
-    file = {
-        "path": "model.onnx",
-        "size_bytes": len(body),
-        "sha256": hashlib.sha256(body).hexdigest(),
-        "media_type": "application/octet-stream",
-    }
-    return json.dumps({"root": str(root), "version": "0.1.0-operator", "files": [file]})
-
-
-async def test_operator_source_is_the_default_and_serves_launch_mounts(
-    tmp_path: Path, web_root: Path, service: ModelAssetService
-) -> None:
-    operator = tmp_path / "operator"
-    operator.mkdir()
-    settings = _settings(tmp_path, animama_parakeet_model_mount_json=_mount_json(operator))
-    assert settings.animama_parakeet_source == "operator"
+async def test_operator_source_serves_no_models(tmp_path: Path, web_root: Path, service: ModelAssetService) -> None:
+    settings = _settings(tmp_path, animama_parakeet_source="operator")
     await _install(service, "parakeet-stt")  # The store is ignored by the operator source.
 
     assets = local_assets(settings, _application(service))
     assert assets is not None
     async with _client(assets) as client:
-        response = await client.get(PARAKEET_MOUNT + "model.onnx?v=0.1.0-operator")
-        assert response.status_code == 200 and response.content == b"operator-model"
         assert (await client.get(f"{PARAKEET_MOUNT}model.onnx?v={MANIFEST}")).status_code == 404
         assert (await client.get(PARAKEET_WEBGPU_MOUNT + "encoder.onnx")).status_code == 404
+
+
+async def test_built_composition_defaults_to_the_asset_store(
+    tmp_path: Path, web_root: Path, service: ModelAssetService, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # A native or built launch with a web root and no explicit source must
+    # report and serve only what the app installed.
+    monkeypatch.delenv("ANIMAMA_PARAKEET_SOURCE", raising=False)
+    monkeypatch.delenv("ANIMAMA_PARAKEET_STT_ENABLED", raising=False)
+    settings = _settings(tmp_path)
+    assert settings.animama_parakeet_source == "asset-store"
+    application = _application(service)
+    assets = local_assets(settings, application)
+    assert assets is not None
+    async with _client(assets) as client:
+        assert parakeet_availability(application, settings).enabled is False
+        assert (await client.get(PARAKEET_MOUNT + "model.onnx")).status_code == 404
+        await _install(service, "parakeet-stt")
+        availability = parakeet_availability(application, settings)
+        assert (availability.enabled, availability.asset_version) == (True, MANIFEST)
+        assert (await client.get(f"{PARAKEET_MOUNT}model.onnx?v={MANIFEST}")).content == FILES["model.onnx"]
 
 
 async def test_asset_store_source_serves_installed_sets(
@@ -157,24 +158,14 @@ async def test_asset_store_source_serves_installed_sets(
         assert (await client.get(f"{PARAKEET_MOUNT}model.onnx?v={MANIFEST}")).content == FILES["model.onnx"]
 
 
-def test_asset_store_source_refuses_operator_mounts(tmp_path: Path, service: ModelAssetService) -> None:
-    operator = tmp_path / "operator"
-    operator.mkdir()
-    settings = _settings(
-        tmp_path, animama_parakeet_source="asset-store", animama_parakeet_model_mount_json=_mount_json(operator)
-    )
-    with pytest.raises(ValueError, match="asset-store"):
-        local_assets(settings, _application(service))
-
-
 def test_parakeet_source_accepts_only_known_values(tmp_path: Path) -> None:
     with pytest.raises(ValueError):
         _settings(tmp_path, animama_parakeet_source="cloud")
 
 
 def test_parakeet_source_reads_its_environment(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("ANIMAMA_PARAKEET_SOURCE", "asset-store")
-    assert _settings(tmp_path).animama_parakeet_source == "asset-store"
+    monkeypatch.setenv("ANIMAMA_PARAKEET_SOURCE", "operator")
+    assert _settings(tmp_path).animama_parakeet_source == "operator"
     monkeypatch.setenv("ANIMAMA_PARAKEET_SOURCE", "unknown")
     with pytest.raises(ValueError):
         _settings(tmp_path)

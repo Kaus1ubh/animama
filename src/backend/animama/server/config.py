@@ -70,12 +70,6 @@ class Settings(BaseModel):
     animama_desktop_control_token: str | None = Field(
         default_factory=lambda: _env_text("ANIMAMA_DESKTOP_CONTROL_TOKEN"), repr=False
     )
-    animama_parakeet_model_mount_json: str | None = Field(
-        default_factory=lambda: _env_text("ANIMAMA_PARAKEET_MODEL_MOUNT_JSON"), repr=False
-    )
-    animama_parakeet_webgpu_model_mount_json: str | None = Field(
-        default_factory=lambda: _env_text("ANIMAMA_PARAKEET_WEBGPU_MODEL_MOUNT_JSON"), repr=False
-    )
     # Compose retains its existing processing deployment; desktop explicitly
     # disables it until main verifies the matching executable feature pack.
     animama_user_file_processing_enabled: bool = _env_bool("ANIMAMA_USER_FILE_PROCESSING_ENABLED", True)
@@ -83,14 +77,14 @@ class Settings(BaseModel):
     animama_document_pack_version: str | None = _env_text("ANIMAMA_DOCUMENT_PACK_VERSION")
     animama_docling_artifacts_path: Path | None = _env_path("ANIMAMA_DOCLING_ARTIFACTS_PATH")
     animama_parakeet_stt_enabled: bool = _env_bool("ANIMAMA_PARAKEET_STT_ENABLED", True)
-    # Where Parakeet sets come from: "operator" launch input (mount JSON, asset
-    # versions; Electron packs and Vite development) or the backend model-asset
-    # store ("asset-store"), whose installs apply without a restart.
+    # Where Parakeet sets come from: the backend model-asset store
+    # ("asset-store", the default for packaged desktop, built self-host and
+    # native launches), whose installs apply without a restart, or an
+    # operator's host sets served by development Vite ("operator", set by the
+    # development Compose override).
     animama_parakeet_source: Literal["asset-store", "operator"] = Field(
-        default_factory=lambda: _env_text("ANIMAMA_PARAKEET_SOURCE") or "operator", validate_default=True
+        default_factory=lambda: _env_text("ANIMAMA_PARAKEET_SOURCE") or "asset-store", validate_default=True
     )
-    animama_parakeet_asset_version: str | None = _env_text("ANIMAMA_PARAKEET_ASSET_VERSION")
-    animama_parakeet_webgpu_asset_version: str | None = _env_text("ANIMAMA_PARAKEET_WEBGPU_ASSET_VERSION")
     # Native/frozen entrypoints validate loopback. The dedicated Compose
     # entrypoint has a fixed container-network bind, published only on loopback.
     animama_local_bind_host: str = os.getenv("ANIMAMA_LOCAL_BIND_HOST", "127.0.0.1")

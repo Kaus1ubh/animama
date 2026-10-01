@@ -11,6 +11,9 @@
     "app_versions",
     "platform",
     "architecture",
+    "url",
+    "archive_bytes",
+    "archive_sha256",
     "installed_bytes",
     "minimum_peak_free_bytes",
     "license_refs",
@@ -19,15 +22,10 @@
   ],
   "properties": {
     "schema": {
-      "enum": ["animama-feature-pack/1", "animama-model-pack/1"]
+      "const": "animama-feature-pack/1"
     },
     "id": {
-      "enum": [
-        "parakeet-stt",
-        "parakeet-stt-webgpu",
-        "expanded-included-content",
-        "document-processing"
-      ]
+      "enum": ["expanded-included-content", "document-processing"]
     },
     "display_name": {
       "type": "string",
@@ -128,16 +126,9 @@
           },
           "mode": {
             "enum": ["0644", "0755"]
-          },
-          "url": {
-            "type": "string",
-            "pattern": "^https://downloads\\.animama\\.ai/models/parakeet-tdt-0\\.6b-v2(?:-webgpu)?/[a-f0-9]{64}/[^/?#]+$"
           }
         }
       }
-    },
-    "model_id": {
-      "enum": ["parakeet-tdt-0.6b-v2", "parakeet-tdt-0.6b-v2-webgpu"]
     }
   },
   "allOf": [
@@ -178,94 +169,6 @@
           }
         }
       }
-    }
-  ],
-  "oneOf": [
-    {
-      "required": ["url", "archive_bytes", "archive_sha256"],
-      "properties": {
-        "schema": {
-          "const": "animama-feature-pack/1"
-        },
-        "id": {
-          "enum": ["expanded-included-content", "document-processing"]
-        },
-        "model_id": false,
-        "files": {
-          "items": {
-            "properties": {
-              "url": false
-            }
-          }
-        }
-      }
-    },
-    {
-      "required": ["model_id"],
-      "properties": {
-        "schema": {
-          "const": "animama-model-pack/1"
-        },
-        "id": {
-          "enum": ["parakeet-stt", "parakeet-stt-webgpu"]
-        },
-        "platform": {
-          "const": "data-only"
-        },
-        "architecture": {
-          "const": "data-only"
-        },
-        "signing": {
-          "type": "null"
-        },
-        "url": false,
-        "archive_bytes": false,
-        "archive_sha256": false,
-        "files": {
-          "items": {
-            "required": ["url"],
-            "properties": {
-              "mode": {
-                "const": "0644"
-              }
-            }
-          }
-        }
-      },
-      "allOf": [
-        {
-          "if": {
-            "properties": {
-              "id": {
-                "const": "parakeet-stt"
-              }
-            }
-          },
-          "then": {
-            "properties": {
-              "model_id": {
-                "const": "parakeet-tdt-0.6b-v2"
-              }
-            }
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "id": {
-                "const": "parakeet-stt-webgpu"
-              }
-            }
-          },
-          "then": {
-            "properties": {
-              "model_id": {
-                "const": "parakeet-tdt-0.6b-v2-webgpu"
-              }
-            }
-          }
-        }
-      ]
     }
   ]
 }

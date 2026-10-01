@@ -97,12 +97,12 @@ class ModelFile:
 
 @dataclass(frozen=True)
 class ModelMount:
-    """An immutable, privately supplied active Parakeet version and inventory.
+    """An immutable installed Parakeet set: its version and exact inventory.
 
-    The supplier (Electron's pack manager, an operator, or the backend
-    model-asset store) verifies digests before activation. Requests recheck
-    file identity, length and link safety, without hashing multi-gigabyte
-    models on every read.
+    The backend model-asset store verifies digests before activation; the
+    version is the set's manifest digest. Requests recheck file identity,
+    length and link safety, without hashing multi-gigabyte models on every
+    read.
     """
 
     root: Path
@@ -111,7 +111,7 @@ class ModelMount:
 
     def __post_init__(self) -> None:
         if not isinstance(self.version, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._+-]{0,127}", self.version):
-            raise ValueError("Model version must be an exact feature-pack version")
+            raise ValueError("Model version must be an exact set version")
         files = tuple(self.files)
         if not all(isinstance(file, ModelFile) for file in files) or len({file.path for file in files}) != len(files):
             raise ValueError("Model inventory must contain distinct ModelFile entries")
@@ -128,7 +128,7 @@ class ModelMountSource(Protocol):
 
 @dataclass(frozen=True)
 class StaticModelMounts:
-    """Mounts fixed for the process lifetime, such as operator launch configuration."""
+    """Mounts fixed for the process lifetime (no mounts by default, or test fixtures)."""
 
     mounts: Mapping[str, ModelMount | None]
 
@@ -318,25 +318,14 @@ class LocalAssets:
 
     Roots and inventories come from the local composition, never request data.
     Construct a new instance for a different application build. Model mounts
-    are either fixed (``model_mount``/``webgpu_model_mount``) or resolved per
-    request from ``mount_source``. An unavailable mount answers 404 and never
-    falls through to the built tree.
+    are resolved per request from ``mount_source``; without one, no models are
+    served. An unavailable mount answers 404 and never falls through to the
+    built tree.
     """
 
-    def __init__(
-        self,
-        web_root: Path,
-        model_mount: ModelMount | None = None,
-        webgpu_model_mount: ModelMount | None = None,
-        *,
-        mount_source: ModelMountSource | None = None,
-    ) -> None:
-        if mount_source is not None and (model_mount is not None or webgpu_model_mount is not None):
-            raise ValueError("Supply either fixed model mounts or a mount source, not both")
+    def __init__(self, web_root: Path, *, mount_source: ModelMountSource | None = None) -> None:
         self._root = web_root.resolve()
-        self._mount_source = mount_source or StaticModelMounts(
-            {PARAKEET_MOUNT: model_mount, PARAKEET_WEBGPU_MOUNT: webgpu_model_mount}
-        )
+        self._mount_source = mount_source or StaticModelMounts({})
         self._inventory: frozenset[str] | None = None
 
     async def response(self, request: Request) -> Response:
