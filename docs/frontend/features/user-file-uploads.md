@@ -19,6 +19,12 @@ initialization succeeds.
   processing status, supports upload, selected deletion, process/reprocess
   actions, and debug search.
 
+The chat composer offers the attach button, drop overlay and upload tray only
+while `GET /v1/runtime-capabilities` does not report `chat_file_uploads: false`
+(`useRuntimeFeatureEnabled` in `ui/app/RuntimeFeatureGate.tsx`). They stay
+visible while capabilities load, so local runtimes, which always report `true`,
+never flash them in; the backend still rejects uploads it does not mount.
+
 Both surfaces use `src/frontend/web/src/hooks/useUserFileUpload.ts` for new
 browser files, so private local upload, finalize, and processing enqueue
 behavior stay consistent. Selecting a previously uploaded file does not add it

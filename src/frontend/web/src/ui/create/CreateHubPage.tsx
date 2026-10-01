@@ -14,6 +14,7 @@ import type { ComponentType, SVGProps } from "react";
 
 import { cn } from "@/lib/utils";
 import { AppShellPage } from "@/ui/app/AppShellPage";
+import { RuntimeFeatureGate } from "@/ui/app/RuntimeFeatureGate";
 import { Button } from "@/ui/components/button";
 
 type CreatorIcon = ComponentType<SVGProps<SVGSVGElement>>;
@@ -187,38 +188,40 @@ export function CreateHubPage() {
         </p>
       </header>
 
-      <section
-        aria-labelledby="anima-creator-title"
-        className="border-border/70 bg-card/92 hover:border-primary/45 group flex min-h-72 flex-col items-start justify-center rounded-3xl border p-6 shadow-lg shadow-black/5 transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:shadow-xl md:p-9"
-      >
-        <div className="flex items-start gap-5">
-          <CreatorIconTile
-            icon={UsersRound}
-            className="bg-primary text-primary-foreground"
-            large
-          />
-          <div className="space-y-2">
-            <h2
-              id="anima-creator-title"
-              className="text-3xl font-semibold tracking-tight md:text-4xl"
-            >
-              Anima
-            </h2>
-            <p className="text-muted-foreground max-w-md text-sm leading-6 md:text-base">
-              Create the companion at the heart of every conversation.
-            </p>
-          </div>
-        </div>
-        <Button
-          asChild
-          size="lg"
-          className="bg-foreground text-background hover:bg-foreground/90 mt-7 shadow-lg"
+      <RuntimeFeatureGate capability="anima_creation">
+        <section
+          aria-labelledby="anima-creator-title"
+          className="border-border/70 bg-card/92 hover:border-primary/45 group flex min-h-72 flex-col items-start justify-center rounded-3xl border p-6 shadow-lg shadow-black/5 transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:shadow-xl md:p-9"
         >
-          <Link to="/animas/new">
-            Create Anima <ArrowRight className="size-4" />
-          </Link>
-        </Button>
-      </section>
+          <div className="flex items-start gap-5">
+            <CreatorIconTile
+              icon={UsersRound}
+              className="bg-primary text-primary-foreground"
+              large
+            />
+            <div className="space-y-2">
+              <h2
+                id="anima-creator-title"
+                className="text-3xl font-semibold tracking-tight md:text-4xl"
+              >
+                Anima
+              </h2>
+              <p className="text-muted-foreground max-w-md text-sm leading-6 md:text-base">
+                Create the companion at the heart of every conversation.
+              </p>
+            </div>
+          </div>
+          <Button
+            asChild
+            size="lg"
+            className="bg-foreground text-background hover:bg-foreground/90 mt-7 shadow-lg"
+          >
+            <Link to="/animas/new">
+              Create Anima <ArrowRight className="size-4" />
+            </Link>
+          </Button>
+        </section>
+      </RuntimeFeatureGate>
 
       <section aria-labelledby="action-creators-title" className="space-y-4">
         <div className="space-y-1">

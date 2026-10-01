@@ -9015,6 +9015,14 @@ export type ReviewedPackageImport = {
  * RuntimeCapabilities
  */
 export type RuntimeCapabilities = {
+    /**
+     * Anima Creation
+     */
+    anima_creation: boolean;
+    /**
+     * Chat File Uploads
+     */
+    chat_file_uploads: boolean;
     companion_safety: CompanionSafetyCapability;
     /**
      * Model Configuration
@@ -9035,7 +9043,7 @@ export type RuntimeCapabilities = {
     /**
      * Runtime Kind
      */
-    runtime_kind: 'desktop' | 'self_hosted_web';
+    runtime_kind: 'desktop' | 'self_hosted_web' | 'hosted';
     /**
      * Schema Version
      */

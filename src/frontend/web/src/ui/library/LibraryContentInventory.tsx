@@ -55,6 +55,7 @@ import { usePoses } from "@/query/hooks/usePoses";
 import { useAvatarCatalog } from "@/query/hooks/useAvatarCatalog";
 import { useEffects } from "@/query/hooks/useEffects";
 import { useGestures, useReactions } from "@/query/hooks/useActions";
+import { RuntimeFeatureGate } from "@/ui/app/RuntimeFeatureGate";
 import { useContentPreviewDock } from "@/ui/content-preview/ContentPreviewDockProvider";
 import { Button } from "@/ui/components/button";
 import { Input } from "@/ui/components/input";
@@ -726,21 +727,23 @@ export function LibraryContentInventory({
                         </Button>
                       </ActionTooltip>
                       {avatar.catalog_item_id ? (
-                        <ActionTooltip label="Create Anima" layout={layout}>
-                          <Button
-                            size={layout === "grid" ? "icon-sm" : "sm"}
-                            asChild
-                          >
-                            <Link
-                              to="/animas/new"
-                              search={{ avatar: avatar.catalog_item_id }}
-                              aria-label="Create Anima"
+                        <RuntimeFeatureGate capability="anima_creation">
+                          <ActionTooltip label="Create Anima" layout={layout}>
+                            <Button
+                              size={layout === "grid" ? "icon-sm" : "sm"}
+                              asChild
                             >
-                              <Plus />
-                              {layout === "list" ? " Create Anima" : null}
-                            </Link>
-                          </Button>
-                        </ActionTooltip>
+                              <Link
+                                to="/animas/new"
+                                search={{ avatar: avatar.catalog_item_id }}
+                                aria-label="Create Anima"
+                              >
+                                <Plus />
+                                {layout === "list" ? " Create Anima" : null}
+                              </Link>
+                            </Button>
+                          </ActionTooltip>
+                        </RuntimeFeatureGate>
                       ) : (
                         <ActionTooltip label="Draft" layout={layout}>
                           <Button

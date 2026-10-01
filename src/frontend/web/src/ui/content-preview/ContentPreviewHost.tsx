@@ -56,6 +56,7 @@ import type { SceneVFXRuntimeEntry } from "@/lib/scene-vfx/types";
 import { cn } from "@/lib/utils";
 import { useOptionalAppShell } from "@/ui/app/AppShell";
 import { resolveAppShellSidebarLayout } from "@/ui/app/appShellSidebarLayout";
+import { RuntimeFeatureGate } from "@/ui/app/RuntimeFeatureGate";
 import { useAnimaRuntimeCatalog } from "@/query/hooks/useAnimaRuntimeCatalog";
 import { useAnimas } from "@/query/hooks/useAnimas";
 import { Button } from "@/ui/components/button";
@@ -815,9 +816,11 @@ export function ContentPreviewHost() {
                   {visibleError}
                 </p>
                 {animaContextState === "anima_required" ? (
-                  <Button asChild type="button" size="sm" variant="outline">
-                    <Link to="/animas/new">Create Anima</Link>
-                  </Button>
+                  <RuntimeFeatureGate capability="anima_creation">
+                    <Button asChild type="button" size="sm" variant="outline">
+                      <Link to="/animas/new">Create Anima</Link>
+                    </Button>
+                  </RuntimeFeatureGate>
                 ) : (
                   <Button
                     type="button"

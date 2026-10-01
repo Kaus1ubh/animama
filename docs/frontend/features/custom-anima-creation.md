@@ -13,7 +13,11 @@ remains editable throughout the journey.
 Creator-hub, sidebar, carousel, Library, preview-recovery and empty-roster
 entry points open the same creator. The optional `avatar` search parameter
 accepts only a bounded logical catalog item ID; URLs, paths, and unknown search
-fields do not become creation input. The creator resolves the current admitted
+fields do not become creation input. Every entry point is withheld, and
+`/animas/new` shows a static "not available" notice instead of the creator,
+when `GET /v1/runtime-capabilities` reports `anima_creation: false`
+(`RuntimeFeatureGate`); while capabilities load they remain available. The
+creator resolves the current admitted
 Avatar and revision. An existing saved draft wins over a new URL hint; an
 unavailable handoff leaves a visible error and the source picker usable.
 

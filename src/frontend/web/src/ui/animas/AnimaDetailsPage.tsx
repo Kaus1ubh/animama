@@ -89,7 +89,8 @@ export type AnimaDetailsPageProps = {
   activeTab: AnimaManagementTab;
   onTabChange: (tab: AnimaManagementTab) => void;
   onSelectAnima: (animaId: string, tab: AnimaManagementTab) => void;
-  onCreateAnima: () => void;
+  /** Omit when the runtime does not offer Anima creation. */
+  onCreateAnima?: () => void;
 };
 
 const TAB_LABELS: Record<AnimaManagementTab, string> = {

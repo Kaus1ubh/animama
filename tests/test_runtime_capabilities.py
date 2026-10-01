@@ -257,3 +257,41 @@ async def test_removal_control_blocks_live_jobs_and_preserves_the_queue(async_se
     finally:
         await async_session.execute(delete(ORMUserFile).where(ORMUserFile.id == file_id))
         await async_session.commit()
+
+
+@pytest.mark.parametrize("desktop_token", ["c" * 64, None])
+async def test_local_composition_reports_uploads_and_anima_creation(async_session, tmp_path, desktop_token):
+    """Local desktop and self-hosted web both admit uploads and Anima creation."""
+
+    app = _app(async_session, tmp_path)
+    app.state.runtime_settings = app.state.runtime_settings.model_copy(
+        update={"animama_desktop_control_token": desktop_token}
+    )
+    async with local_client(app) as client:
+        body = (await client.get("/v1/runtime-capabilities")).json()
+    assert body["runtime_kind"] == ("desktop" if desktop_token else "self_hosted_web")
+    assert (body["chat_file_uploads"], body["anima_creation"]) == (True, True)
+
+
+def test_capability_contract_is_neutral_and_admits_hosted_presentation():
+    """Another composition can return the contract without importing local handlers."""
+
+    import subprocess
+    import sys
+
+    probe = (
+        "import sys\n"
+        "from animama.app.contracts.runtime_capabilities import RuntimeCapabilities\n"
+        "assert 'hosted' in RuntimeCapabilities.model_fields['runtime_kind'].annotation.__args__\n"
+        "leaked = sorted(m for m in sys.modules if m == 'animama.server' or m.startswith('animama.server.'))\n"
+        "assert not leaked, leaked\n"
+    )
+    subprocess.run([sys.executable, "-c", probe], check=True)
+
+    from animama.app.contracts import runtime_capabilities as contract
+
+    # The local route serves the shared model rather than a local copy.
+    route = next(r for r in runtime_capabilities.router.routes if getattr(r, "path", "") == "/v1/runtime-capabilities")
+    assert getattr(route, "response_model", None) is contract.RuntimeCapabilities
+    for flag in ("chat_file_uploads", "anima_creation"):
+        assert contract.RuntimeCapabilities.model_fields[flag].is_required()
