@@ -31,10 +31,70 @@ export function modelOptionDetail(item: LabeledModel): string {
 }
 
 /** "Connection: Model", falling back to the model id when labels are missing. */
-export function modelOptionLabel(item: LabeledModel): string {
-  const model = item.model_label?.trim() || item.model;
+export function modelOptionLabel(
+  item: LabeledModel,
+  alternate = false,
+): string {
+  const model = modelDisplayName(item, alternate);
   const connection = modelConnectionLabel(item);
   return connection ? `${connection}: ${model}` : model;
+}
+
+/** Neutral suffix telling apart two listed rows with one name. */
+export const ALTERNATE_LABEL_SUFFIX = " (alternate)";
+
+/** A model's shown name, with the alternate suffix when it needs one. */
+export function modelDisplayName(
+  item: Pick<LabeledModel, "model" | "model_label">,
+  alternate = false,
+): string {
+  const name = item.model_label?.trim() || item.model;
+  return alternate ? `${name}${ALTERNATE_LABEL_SUFFIX}` : name;
+}
+
+const RESPONSES_PROVIDER_TYPE = "OpenAIResponsesHTTPAgent";
+
+/** Fields shared by catalog items and configured models that naming needs. */
+type AlternateCandidate = {
+  id: string;
+  model: string;
+  model_label?: string | null;
+  connection_id?: string | null;
+  model_kind?: string | null;
+  /** Catalog items name the API here… */
+  model_provider?: string | null;
+  /** …and configured models here. */
+  provider_type?: string | null;
+};
+
+/**
+ * Ids of listed chat rows that need the alternate suffix: when rows on one
+ * connection share a name (the built-in OpenAI connection can list a model
+ * once per API), every row but the Responses one is marked. Without a
+ * Responses row among them, rows after the first are marked. Pass only the
+ * rows the list shows, so a hidden twin does not rename a visible row. No API
+ * is named, because the app picks it.
+ */
+export function alternateModelIds(
+  rows: readonly AlternateCandidate[],
+): Set<string> {
+  const groups = new Map<string, AlternateCandidate[]>();
+  for (const row of rows) {
+    if ((row.model_kind ?? "chat") !== "chat") continue;
+    const key = `${row.connection_id ?? ""}\u0000${modelDisplayName(row)}`;
+    groups.set(key, [...(groups.get(key) ?? []), row]);
+  }
+  const alternates = new Set<string>();
+  for (const group of groups.values()) {
+    if (group.length < 2) continue;
+    const primary =
+      group.find(
+        (row) =>
+          (row.model_provider ?? row.provider_type) === RESPONSES_PROVIDER_TYPE,
+      ) ?? group[0];
+    for (const row of group) if (row !== primary) alternates.add(row.id);
+  }
+  return alternates;
 }
 
 /** Chat rows; rows from before model kinds existed count as chat. */

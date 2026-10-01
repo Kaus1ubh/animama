@@ -39,13 +39,21 @@ export function OpenRouterModelPicker({
   const matches = filterOpenRouterModels(all, { query, toolsOnly });
   const shown = matches.slice(0, MAX_SHOWN);
 
-  const status = models.isError
+  // Announced: loading, failure and an empty result. The running count is
+  // plain text, so typing a search does not announce every keystroke.
+  const announcement = models.isError
     ? openRouterModelsErrorMessage(models.error)
     : !models.isSuccess
       ? "Loading OpenRouter models…"
-      : matches.length > MAX_SHOWN
+      : matches.length === 0
+        ? "No models match. Change the search or show all models."
+        : "";
+  const count =
+    models.isSuccess && matches.length > 0
+      ? matches.length > MAX_SHOWN
         ? `Showing ${MAX_SHOWN} of ${matches.length} models; search to narrow the list.`
-        : `${matches.length} ${matches.length === 1 ? "model" : "models"} found.`;
+        : `${matches.length} ${matches.length === 1 ? "model" : "models"} found.`
+      : null;
 
   return (
     <div className="border-border/60 space-y-3 rounded-lg border p-3">
@@ -69,15 +77,17 @@ export function OpenRouterModelPicker({
           onCheckedChange={setToolsOnly}
         />
       </label>
+      {/* The live region stays mounted so each change is announced. */}
       <p
         className={cn(
-          "text-xs",
+          "text-xs empty:hidden",
           models.isError ? "text-destructive" : "text-muted-foreground",
         )}
         role="status"
       >
-        {status}
+        {announcement}
       </p>
+      {count ? <p className="text-muted-foreground text-xs">{count}</p> : null}
       {shown.length ? (
         <ul
           aria-label="OpenRouter models"

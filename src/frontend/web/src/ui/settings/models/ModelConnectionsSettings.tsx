@@ -9,6 +9,7 @@ import type {
   PyModelUsage,
   WebSearchCapability,
 } from "@animama/runtime-contracts/api-types";
+import { alternateModelIds, modelDisplayName } from "@/lib/chat/model-catalog";
 import { cn } from "@/lib/utils";
 import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
 import {
@@ -296,6 +297,11 @@ export function ModelConnectionsSettings({
                   disabled={disabled}
                   managedKeys={managedKeys}
                   onOpenChange={(open) => setAdding(open ? entry.id : null)}
+                  onSaved={(saved) => {
+                    setAdding(null);
+                    // A custom server lands on the tab its address implies.
+                    setTab(connectionLocation(saved));
+                  }}
                 />
               ))}
             </ul>
@@ -468,6 +474,7 @@ function ConnectionCard({
   const models = connection.models ?? [];
   const hiddenCount = models.filter((model) => model.hidden).length;
   const listed = showHidden ? models : models.filter((model) => !model.hidden);
+  const alternates = alternateModelIds(listed);
   const builtin = connection.source === "builtin";
   const status = connectionStatusText(
     connection,
@@ -503,8 +510,10 @@ function ConnectionCard({
               ) : null}
             </h4>
             <p className="text-muted-foreground truncate text-xs">
+              {/* Plain text: a live region per card would announce every
+                  card whenever the tab opens. */}
               {host ? `${host} · ` : null}
-              <span role="status">{status}</span>
+              {status}
             </p>
           </div>
         </div>
@@ -543,6 +552,7 @@ function ConnectionCard({
             key={model.id}
             model={model}
             search={search}
+            alternate={alternates.has(model.id)}
             disabled={disabled}
             onInfo={() => onInfo(model)}
           />
@@ -610,15 +620,19 @@ function OpenAIKey({ managedKeys }: { managedKeys: boolean }) {
 function ModelRow({
   model,
   search,
+  alternate,
   disabled,
   onInfo,
 }: {
   model: PyConfiguredModel;
   search: WebSearchCapability | null | undefined;
+  /** Another listed row on this connection has the same name. */
+  alternate: boolean;
   disabled: boolean;
   onInfo: () => void;
 }) {
   const chips = modelCapabilityChips(model, search);
+  const name = modelDisplayName(model, alternate);
   return (
     <li className="flex flex-wrap items-center gap-x-2 gap-y-1 py-1.5">
       <span
@@ -627,7 +641,7 @@ function ModelRow({
           model.hidden && "text-muted-foreground",
         )}
       >
-        {model.model_label}
+        {name}
       </span>
       {chips.length ? (
         <ul aria-label="Capabilities" className="flex flex-wrap gap-1">
@@ -654,7 +668,7 @@ function ModelRow({
         size="icon"
         variant="ghost"
         className="size-8 shrink-0"
-        aria-label={`Details for ${model.model_label}`}
+        aria-label={`Details for ${name}`}
         onClick={onInfo}
       >
         <Info className="size-4" aria-hidden />
@@ -672,6 +686,7 @@ function AddProviderEntry({
   disabled,
   managedKeys,
   onOpenChange,
+  onSaved,
 }: {
   entry: ModelProviderEntry;
   location: ModelLocation;
@@ -680,6 +695,8 @@ function AddProviderEntry({
   disabled: boolean;
   managedKeys: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Closes the form and shows the tab that now lists the connection. */
+  onSaved: (connection: PyModelConnection) => void;
 }) {
   const custom = entry.presetId === "custom";
   const label = custom ? "Add a custom server" : `Add ${entry.label}`;
@@ -721,7 +738,7 @@ function AddProviderEntry({
           presets={[preset]}
           managedKeys={managedKeys}
           baseUrlPlaceholder={BASE_URL_PLACEHOLDER[location]}
-          onSaved={() => onOpenChange(false)}
+          onSaved={onSaved}
           footer={({ saving, valid }) => (
             <div className="flex justify-end gap-2">
               <Button

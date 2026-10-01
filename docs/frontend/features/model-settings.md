@@ -28,10 +28,13 @@ where models run (`MODEL_LOCATION_TABS`, `MODEL_LOCATION_PROVIDERS` and
 The built-in connection and the cloud presets are on Cloud and the local server
 presets on Local. A custom connection is on Local when its base URL points at
 this computer or a private network (loopback, `localhost`,
-`host.docker.internal`, `.local` names, private or link-local addresses),
-otherwise on Cloud. Each tab lists its connected providers first as cards, then
-the remaining providers as **Add …** entries that open the connect form inline;
-Custom can always add another server. A card shows the connection's name, a
+`host.docker.internal`, single-label names such as `gpu-box`, `.local`, `.lan`,
+`.home.arpa`, `.internal` and Tailscale `.ts.net` names, private, link-local
+and Tailscale 100.64.0.0/10 addresses), otherwise on Cloud. Each tab lists its
+connected providers first as cards, then the remaining providers as **Add …**
+entries that open the connect form inline; Custom can always add another
+server. After a connection is added, the section shows the tab that lists it.
+A card shows the connection's name, a
 status and, for owner connections, Edit and Remove, then its models and **Add
 model**. Cloud cards show the key state (**Key set**, **Key missing**). Local
 cards list the server's models once (`available-models`, cached for 30 s) and
@@ -93,8 +96,12 @@ web search and **Vision** for models that accept images; embedding models show
 **Embeddings**. Web search reads **Built-in search** when the model's own search
 can be requested (OpenAI Responses models), **App search** when the model calls
 tools and the installation's search service is ready, and is absent otherwise.
-Rows never name the API, and neither do model pickers; the app picks it, and
-only the Info panel shows **API: Responses** or **API: Chat Completions**.
+Model rows and pickers never name the API: the Info panel shows **API:
+Responses** or **API: Chat Completions**, and the built-in connection's
+add-model form still offers the API choice. When two listed chat rows on one
+connection share a name (for example an unhidden built-in Chat Completions row),
+the non-Responses row reads "(alternate)" in the chat picker, Default models
+and Models rows (`alternateModelIds` in `lib/chat/model-catalog.ts`).
 The Local tab shows no model size or quantization, because the model listing
 reports only IDs.
 

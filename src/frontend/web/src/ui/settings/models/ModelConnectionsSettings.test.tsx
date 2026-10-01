@@ -296,7 +296,8 @@ describe("Models connections by where models run", () => {
       "llama.cpp",
       "Custom",
     ]);
-    expect(html).toMatch(/role="status"[^>]*>Running at 127\.0\.0\.1:8000/u);
+    // Card statuses are plain text, not one live region per card.
+    expect(html).not.toContain('role="status"');
     expect(html).not.toContain('aria-label="Add vLLM"');
     expect(html).not.toContain("Router");
   });
@@ -347,6 +348,27 @@ describe("Models connections by where models run", () => {
     const html = render(<ModelConnectionsSettings disabled={false} />);
     expect(html).toContain("OPENAI_API_KEY");
     expect(html).not.toContain('type="password"');
+  });
+
+  it("tells an unhidden same-name row apart without naming its API", () => {
+    state.connections = [
+      {
+        ...builtin,
+        models: [
+          builtin.models![0],
+          model("gpt-6-luna:cc", {
+            model: "gpt-6-luna",
+            model_label: "gpt-6-luna",
+            source: "builtin",
+          }),
+        ],
+      },
+    ];
+    const html = render(<ModelConnectionsSettings disabled={false} />);
+    expect(html).toContain('aria-label="Details for gpt-6-luna"');
+    expect(html).toContain('aria-label="Details for gpt-6-luna (alternate)"');
+    expect(html.match(/\(alternate\)/gu)).toHaveLength(2);
+    expect(text(html)).not.toMatch(/\b(Responses|Completions)\b/u);
   });
 
   it("renders nothing in the hosted composition", () => {

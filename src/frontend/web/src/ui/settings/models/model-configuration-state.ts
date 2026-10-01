@@ -16,6 +16,10 @@ import {
   type ModelRole,
 } from "@/lib/settings/preferences";
 import { isChatModelRow } from "@/lib/chat/model-catalog";
+import {
+  WEB_SEARCH_TOOL,
+  webSearchAvailability,
+} from "@/lib/chat/model-provider-native-tools";
 import { chatModelSendGate } from "@/lib/chat/model-provider-compatibility";
 
 /**
@@ -121,10 +125,20 @@ function isThisComputerHost(host: string): boolean {
   );
 }
 
+/** Name suffixes used only inside home, office and tailnet networks. */
+const PRIVATE_NAME_SUFFIXES = [
+  ".local",
+  ".lan",
+  ".home.arpa",
+  ".internal",
+  ".ts.net",
+];
+
 /**
- * This computer or a private network: loopback, `host.docker.internal`,
- * `.local` names, private and link-local IPv4 ranges, and IPv6 unique-local
- * and link-local addresses.
+ * This computer or a private network: loopback, single-label names (such as
+ * `gpu-box`), private-use name suffixes (`.local`, `.lan`, `.home.arpa`,
+ * `.internal`, Tailscale's `.ts.net`), private, link-local and Tailscale
+ * (100.64.0.0/10) IPv4 ranges, and IPv6 unique-local and link-local addresses.
  */
 export function isPrivateNetworkUrl(
   baseUrl: string | null | undefined,
@@ -132,19 +146,25 @@ export function isPrivateNetworkUrl(
   const url = parseBaseUrl(baseUrl);
   if (!url) return false;
   const host = bareHost(url);
-  if (isThisComputerHost(host) || host === "0.0.0.0" || host.endsWith(".local"))
+  if (host.includes(":"))
+    return host === "::1" || /^(f[cd]|fe[89ab])/u.test(host);
+  if (
+    isThisComputerHost(host) ||
+    host === "0.0.0.0" ||
+    !host.includes(".") ||
+    PRIVATE_NAME_SUFFIXES.some((suffix) => host.endsWith(suffix))
+  )
     return true;
   const ipv4 = /^(\d+)\.(\d+)\.\d+\.\d+$/u.exec(host);
-  if (ipv4) {
-    const [a, b] = [Number(ipv4[1]), Number(ipv4[2])];
-    return (
-      a === 10 ||
-      (a === 172 && b >= 16 && b <= 31) ||
-      (a === 192 && b === 168) ||
-      (a === 169 && b === 254)
-    );
-  }
-  return host.includes(":") && /^(f[cd]|fe[89ab])/u.test(host);
+  if (!ipv4) return false;
+  const [a, b] = [Number(ipv4[1]), Number(ipv4[2])];
+  return (
+    a === 10 ||
+    (a === 172 && b >= 16 && b <= 31) ||
+    (a === 192 && b === 168) ||
+    (a === 169 && b === 254) ||
+    (a === 100 && b >= 64 && b <= 127)
+  );
 }
 
 /**
@@ -324,20 +344,29 @@ export function modelCapabilityChips(
       label: formatContextWindow(model.context_window_tokens),
       description: `${model.context_window_tokens.toLocaleString("en-US")}-token context window`,
     });
-  const builtInSearch =
+  // PyConfiguredModel lacks requestable_native_tool_support, so mirror the
+  // backend's rule (only Responses models may request native web search),
+  // then let the chat picker's webSearchAvailability decide, which reads only
+  // these two fields.
+  const requestable =
     model.provider_type === RESPONSES_PROVIDER_TYPE &&
-    (capabilities.native_tool_support ?? []).includes("web_search");
-  if (builtInSearch)
+    (capabilities.native_tool_support ?? []).includes(WEB_SEARCH_TOOL)
+      ? [WEB_SEARCH_TOOL]
+      : [];
+  const searchState = webSearchAvailability(
+    {
+      requestable_native_tool_support: requestable,
+      supports_tools: capabilities.supports_tools,
+    } as PyModelProviderCatalogItem,
+    search,
+  )?.state;
+  if (searchState === "hosted")
     chips.push({
       id: "web-search",
       label: "Built-in search",
       description: "Searches the web with the provider's own search",
     });
-  else if (
-    capabilities.supports_tools &&
-    search?.configured &&
-    search.credential_state !== "missing"
-  )
+  else if (searchState === "application")
     chips.push({
       id: "web-search",
       label: "App search",

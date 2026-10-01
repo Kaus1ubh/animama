@@ -98,6 +98,8 @@ export function useConnectionReachability(
     enabled: enabled && Boolean(ownerId),
     retry: false,
     staleTime: 30_000,
+    // Focusing the window should not contact every local server again.
+    refetchOnWindowFocus: false,
     queryFn: async ({ signal }) => {
       const { data } =
         await listAvailableModelsV1ModelConnectionsConnectionIdAvailableModelsGet(

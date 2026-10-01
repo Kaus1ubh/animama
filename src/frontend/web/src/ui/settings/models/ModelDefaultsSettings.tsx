@@ -21,7 +21,7 @@ import {
 import { SettingsRow } from "@/ui/settings/SettingsLayout";
 import { useSettings } from "@/ui/settings/SettingsProvider";
 
-import { modelOptionLabel } from "@/lib/chat/model-catalog";
+import { alternateModelIds, modelOptionLabel } from "@/lib/chat/model-catalog";
 
 import {
   embeddingsStatusText,
@@ -100,6 +100,7 @@ export function ModelDefaultSetting({
 
   const stored = readModelRoleId(userPreferences, role);
   const candidates = roleCandidates(providers.data ?? [], role, stored);
+  const alternates = alternateModelIds(candidates);
   const storedMissing =
     Boolean(stored) &&
     providers.isSuccess &&
@@ -146,7 +147,7 @@ export function ModelDefaultSetting({
             ) : null}
             {candidates.map((item) => (
               <SelectItem key={item.id} value={item.id}>
-                {modelOptionLabel(item)}
+                {modelOptionLabel(item, alternates.has(item.id))}
               </SelectItem>
             ))}
           </SelectContent>

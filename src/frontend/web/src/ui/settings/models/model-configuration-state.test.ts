@@ -29,7 +29,9 @@ import {
   roleCandidates,
 } from "./model-configuration-state";
 import {
+  alternateModelIds,
   modelConnectionLabel,
+  modelDisplayName,
   modelOptionDetail,
   modelOptionLabel,
   selectableChatModels,
@@ -135,6 +137,59 @@ describe("model pickers", () => {
       connection_name: "Ollama",
     });
     expect(modelOptionDetail(local)).toBe("Ollama");
+  });
+
+  it("marks only the non-Responses twin of a visible duplicate name as alternate", () => {
+    const responses = row("gpt-6-luna", {
+      connection_id: "openai",
+      model_provider: "OpenAIResponsesHTTPAgent",
+    });
+    const completions = row("gpt-6-luna:cc", {
+      model: "gpt-6-luna",
+      model_label: "gpt-6-luna",
+      connection_id: "openai",
+      model_provider: "OpenAIHTTPAgent",
+    });
+    const elsewhere = row("gpt-6-luna:or", {
+      model: "gpt-6-luna",
+      model_label: "gpt-6-luna",
+      connection_id: "c_router",
+    });
+    // Order does not matter; the Responses row keeps the plain name.
+    expect([...alternateModelIds([completions, responses, elsewhere])]).toEqual(
+      ["gpt-6-luna:cc"],
+    );
+    // A hidden twin left out of the list renames nothing.
+    expect(alternateModelIds([responses, elsewhere]).size).toBe(0);
+    // Configured models name the API in provider_type.
+    expect([
+      ...alternateModelIds([
+        {
+          ...completions,
+          model_provider: undefined,
+          provider_type: "OpenAIHTTPAgent",
+        },
+        {
+          ...responses,
+          model_provider: undefined,
+          provider_type: "OpenAIResponsesHTTPAgent",
+        },
+      ]),
+    ]).toEqual(["gpt-6-luna:cc"]);
+    // Embedding rows never take part.
+    expect(
+      alternateModelIds([
+        responses,
+        { ...completions, model_kind: "embedding" },
+      ]).size,
+    ).toBe(0);
+    expect(modelOptionLabel(completions, true)).toBe(
+      "Ollama: gpt-6-luna (alternate)",
+    );
+    expect(modelDisplayName(completions, true)).toBe("gpt-6-luna (alternate)");
+    expect(modelDisplayName(completions, true)).not.toMatch(
+      /Responses|Completions/u,
+    );
   });
 
   it("labels models with fallbacks", () => {
@@ -331,6 +386,16 @@ describe("Cloud and Local tabs", () => {
     ["http://gpu-box.local:8000/v1", "local"],
     ["http://[fd12::1]:8000/v1", "local"],
     ["192.168.1.20:8000/v1", "local"],
+    ["http://gpu-box:8000/v1", "local"],
+    ["http://nas.lan:8000/v1", "local"],
+    ["http://llm.home.arpa/v1", "local"],
+    ["http://models.corp.internal/v1", "local"],
+    ["http://100.64.0.1:11434/v1", "local"],
+    ["http://100.127.255.254/v1", "local"],
+    ["http://gpu-box.tail1234.ts.net:8000/v1", "local"],
+    ["http://100.128.0.1/v1", "cloud"],
+    ["https://lan.example.com/v1", "cloud"],
+    ["https://internal.example.com/v1", "cloud"],
     ["http://172.32.0.1/v1", "cloud"],
     ["https://api.together.xyz/v1", "cloud"],
     ["https://8.8.8.8/v1", "cloud"],

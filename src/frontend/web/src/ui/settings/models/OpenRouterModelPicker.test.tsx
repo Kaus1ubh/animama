@@ -64,7 +64,10 @@ describe("OpenRouter add-model picker", () => {
     expect(html).toContain("Qwen: Qwen3 235B A22B");
     expect(html).toContain("qwen/qwen3-235b-a22b · 128K · Tools");
     expect(html).not.toContain("MythoMax");
-    expect(html).toMatch(/role="status"[^>]*>2 models found\./u);
+    // The count is plain text; only loading, errors and no matches announce.
+    expect(html).toContain("2 models found.");
+    expect(html).not.toMatch(/role="status"[^>]*>2 models found/u);
+    expect(html).toMatch(/role="status"[^>]*><\/p>/u);
   });
 
   it("searches by name or ID and can show models without tools", () => {
@@ -136,8 +139,16 @@ describe("OpenRouter add-model picker", () => {
     );
   });
 
-  it("says when the list is still loading", () => {
+  it("announces loading and an empty result", () => {
     list.result = { isSuccess: false, isError: false };
-    expect(render()).toContain("Loading OpenRouter models…");
+    expect(render()).toMatch(/role="status"[^>]*>Loading OpenRouter models…/u);
+    list.result = {
+      isSuccess: true,
+      isError: false,
+      data: [models[2]],
+    };
+    const html = render();
+    expect(html).toMatch(/role="status"[^>]*>No models match\./u);
+    expect(html).not.toContain("models found");
   });
 });
