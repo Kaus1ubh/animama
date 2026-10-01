@@ -9,6 +9,7 @@ route-test rule against Authorization and Bearer literals.
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from typing import Any
 
 import httpx
@@ -124,6 +125,20 @@ async def test_other_connections_never_send_attribution_headers(connection: Mode
     )
 
     assert not set(ATTRIBUTION) & {name.lower() for name in headers}
+
+
+def test_changing_a_connection_preset_rebuilds_its_cached_client() -> None:
+    resolver = static_credential_resolver({"OPENROUTER_API_KEY": "sk-or"})
+    client = OpenAIChatCompletionsModelClient(credential_resolver=resolver, timeout=5.0)
+    openrouter = _openrouter_connection()
+    custom = replace(openrouter, preset="custom")
+    credential = resolver.resolve(openrouter)
+
+    attributed = client._client_for_connection(openrouter, timeout=None, credential=credential)  # noqa: SLF001
+    plain = client._client_for_connection(custom, timeout=None, credential=credential)  # noqa: SLF001
+
+    assert attributed._custom_headers.get("X-Title") == "Animama"  # noqa: SLF001
+    assert "X-Title" not in plain._custom_headers  # noqa: SLF001
 
 
 class _OpenRouterServer:

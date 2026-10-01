@@ -272,6 +272,7 @@ def builtin_hidden_by_default(provider_type: str, model_kind: str) -> bool:
     row keeps the owner's choice.
     """
 
+    # Imported here: importing ``animama.app.chat`` at module load is circular.
     from animama.app.chat.api_standard import OPENAI_CHAT_COMPLETIONS_PROVIDER_TYPE
 
     return provider_type == OPENAI_CHAT_COMPLETIONS_PROVIDER_TYPE and model_kind == MODEL_KIND_CHAT
