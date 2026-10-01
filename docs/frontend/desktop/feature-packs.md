@@ -42,8 +42,7 @@ or pasting a download URL will not fix it. Never use a development size estimate
 as the size of a released download.
 
 Save or discard unfinished provider-key edits and finish active work first.
-Setup retains the owner-scoped display name and age confirmation across reloads,
-but never persists provider-key drafts. Activation/removal closes
+Activation/removal closes
 the product windows while services switch packs, then reopens the main app at
 its previous route. Independent recovery remains available throughout.
 Your database, owner and saved local origin are preserved. The app verifies
