@@ -966,6 +966,17 @@ From `src/frontend`: `pnpm check`, `pnpm web:lint`, `pnpm web:test`,
 validation follows the root guide. No hosted CI runs on PRs, so local evidence
 is the only evidence. The PR states every check run and not run.
 
+Candidate evidence (2026-10-01): `origin/main` (`17584fa1`, including #237's
+removal of the `/a` route prefix) was merged as `599e9571`; three conflicts
+(two docs, `smoke-macos.mjs`) were resolved for the new routes. On
+`599e9571`: `make check-test` 3082 passed, 7 skipped (audit, format, ruff,
+mypy clean); `bash -n reset.sh` and both compose config commands pass;
+`pnpm check`, `pnpm web:lint`, `pnpm build`, `pnpm desktop:check`,
+`pnpm openapi-ts:check` pass; `pnpm web:test` 364 files / 2438 tests, node
+3/3 and 4/4, browser 26/26; `pnpm desktop:test` 22 files / 384 tests. The
+manual self-host and packaged passes ran on `bcd8d210`/`be3719e5`, before
+the merge.
+
 Acceptance maps to the issue's checklist. Owner gates (not phases):
 
 - **G1** Fresh packaged macOS profile: setup shows Welcome, AI and Voice.
