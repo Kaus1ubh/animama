@@ -145,6 +145,52 @@ class PackageSetTests(unittest.TestCase):
             self.assertTrue(record["dirty"])
             self.assertEqual((dest / "a.txt").read_text(), "dirty")
 
+    def test_snapshot_records_agent_tooling_links_without_following_them(self):
+        repo = self.root / "links"
+        (repo / ".agents/skills").mkdir(parents=True)
+        (repo / ".agents/skills/s.md").write_text("skill")
+        (repo / ".claude").mkdir()
+        (repo / ".claude/skills").symlink_to("../.agents/skills")
+
+        def git(*args):
+            return subprocess.check_output(["git", "-C", str(repo), *args], text=True).strip()
+
+        git("init", "-q")
+        git("add", ".")
+        git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-qm", "fixture")
+        dest = self.root / "links-out"
+        dest.mkdir()
+        record = build.snapshot(repo, git("rev-parse", "HEAD"), dest)
+        self.assertFalse((dest / ".claude/skills").exists())
+        self.assertEqual((dest / ".agents/skills/s.md").read_text(), "skill")
+        # The link is still bound into the snapshot identity.
+        (repo / ".claude/skills").unlink()
+        (repo / ".claude/skills").symlink_to("../.agents")
+        git("add", ".")
+        git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-qm", "retarget")
+        other = self.root / "links-other"
+        other.mkdir()
+        changed = build.snapshot(repo, git("rev-parse", "HEAD"), other)
+        self.assertNotEqual(record["snapshot_sha256"], changed["snapshot_sha256"])
+
+    def test_snapshot_rejects_product_and_escaping_links(self):
+        for name, target in (("src/link", "../a.txt"), (".claude/out", "../../outside")):
+            repo = self.root / f"bad-{name.replace('/', '-')}"
+            (repo / Path(name).parent).mkdir(parents=True)
+            (repo / "a.txt").write_text("tracked")
+            (repo / name).symlink_to(target)
+
+            def git(*args, repo=repo):
+                return subprocess.check_output(["git", "-C", str(repo), *args], text=True).strip()
+
+            git("init", "-q")
+            git("add", ".")
+            git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-qm", "fixture")
+            dest = self.root / f"{repo.name}-out"
+            dest.mkdir()
+            with self.assertRaisesRegex(ValueError, "symlink|escapes"):
+                build.snapshot(repo, git("rev-parse", "HEAD"), dest)
+
 
 class RepositoryDependencyTests(unittest.TestCase):
     def test_private_import_and_sibling_manifest_rejected(self):

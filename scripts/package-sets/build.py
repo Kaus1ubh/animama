@@ -38,6 +38,10 @@ def clean_env():
     return env
 
 
+# Tracked links here are contributor agent configuration, not build inputs.
+AGENT_TOOLING_PREFIXES = (".claude/",)
+
+
 def snapshot(source, commit, destination, allow_dirty=False):
     """Copy tracked materialized bytes only; no ignored state or source links."""
     if not HEX40.fullmatch(commit) or git(source, "rev-parse", "HEAD") != commit:
@@ -54,6 +58,15 @@ def snapshot(source, commit, destination, allow_dirty=False):
     for item in filter(None, listing):
         meta, name = item.split("\t", 1)
         mode, blob_oid, stage = meta.split()
+        if stage == "0" and mode == "120000" and name.startswith(AGENT_TOOLING_PREFIXES):
+            # Contributor agent configuration links never feed a build; bind the
+            # committed link target into the snapshot identity without following it.
+            target = subprocess.check_output(["git", "-C", str(source), "cat-file", "blob", blob_oid])
+            resolved = os.path.normpath(os.path.join(os.path.dirname(name), target.decode()))
+            if target.startswith(b"/") or resolved == ".." or resolved.startswith("../"):
+                raise ValueError("Source escapes checkout")
+            rows.append({"path": name, "mode": mode, "sha256": sha(target)})
+            continue
         if stage != "0" or mode not in {"100644", "100755"}:
             raise ValueError(f"Unmerged, symlink or submodule source: {name}")
         p = source / name

@@ -4,7 +4,10 @@ Build from a full exact commit and a clean, hydrated checkout. The producer
 copies only tracked bytes into a temporary source directory, verifies them
 against Git blobs/LFS hashes, and installs frozen build dependencies there.
 Ignored installation state, `.env`, dependency directories and private sibling
-source are excluded. The public producer has no R2 client or Cloud credentials.
+source are excluded. Tracked links are rejected, except in-checkout links under
+`.claude/` (contributor agent configuration): their committed targets are bound
+into the snapshot hash but not materialized. The public producer has no R2
+client or Cloud credentials.
 
 From the Animama root, using the Python environment installed by `uv sync`:
 
