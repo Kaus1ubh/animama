@@ -32,13 +32,7 @@ import {
   DialogTitle,
 } from "@/ui/components/dialog";
 import { ModelSelectorLogo } from "@/ui/components/model-selector";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-  underlineTabClassName,
-} from "@/ui/components/tabs";
+import { Tabs, TabsContent } from "@/ui/components/tabs";
 import {
   DesktopCredentialsPanel,
   useDesktopCredentialsAvailable,
@@ -69,6 +63,7 @@ import {
   ModelConnectionForm,
 } from "./ModelConnectionDialog";
 import { ModelInfoDialog } from "./ModelInfoDialog";
+import { ModelLocationTabsList } from "./ModelLocationTabsList";
 import { OwnerModelDialog, ShowModelButton } from "./OwnerModelDialog";
 
 type Removal =
@@ -320,18 +315,7 @@ export function ModelConnectionsSettings({
           setAdding(null);
         }}
       >
-        <TabsList variant="underline" aria-label="Where models run">
-          {MODEL_LOCATION_TABS.map(({ id, label }) => (
-            <TabsTrigger
-              key={id}
-              value={id}
-              variant="underline"
-              className={underlineTabClassName(tab === id)}
-            >
-              {label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+        <ModelLocationTabsList active={tab} />
         {MODEL_LOCATION_TABS.map(({ id }) => (
           <TabsContent key={id} value={id} className="mt-4">
             {tabContent(id)}

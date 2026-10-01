@@ -31,13 +31,7 @@ import {
 import { Button } from "@/ui/components/button";
 import { Label } from "@/ui/components/label";
 import { RadioGroup, RadioGroupItem } from "@/ui/components/radio-group";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-  underlineTabClassName,
-} from "@/ui/components/tabs";
+import { Tabs, TabsContent } from "@/ui/components/tabs";
 import {
   DesktopCredentialsPanel,
   useDesktopCredentialsAvailable,
@@ -45,12 +39,12 @@ import {
 } from "@/ui/settings/DesktopCredentialsPanel";
 import { ModelConnectionForm } from "@/ui/settings/models/ModelConnectionDialog";
 import { OwnerModelDialog } from "@/ui/settings/models/OwnerModelDialog";
+import { ModelLocationTabsList } from "@/ui/settings/models/ModelLocationTabsList";
 import {
   baseUrlHost,
   connectionLocation,
   connectionStatusText,
   MODEL_LOCATION_PROVIDERS,
-  MODEL_LOCATION_TABS,
   modelConfigurationErrorMessage,
   modelSettingsAvailability,
 } from "@/ui/settings/models/model-configuration-state";
@@ -319,18 +313,7 @@ function ModelChooser({
         value={location}
         onValueChange={(value) => onLocationChange(value as SetupModelLocation)}
       >
-        <TabsList variant="underline" aria-label="Where models run">
-          {MODEL_LOCATION_TABS.map(({ id, label }) => (
-            <TabsTrigger
-              key={id}
-              value={id}
-              variant="underline"
-              className={underlineTabClassName(location === id)}
-            >
-              {label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+        <ModelLocationTabsList active={location} />
         {/* Both panels stay mounted so a typed key or open form survives a tab switch. */}
         <TabsContent
           value="cloud"
