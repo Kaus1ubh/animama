@@ -36,10 +36,13 @@ import {
 import {
   DEFAULT_CAPABILITIES_DRAFT,
   capabilitiesFromProbe,
+  draftFromOpenRouterModel,
   errorCategoryMessage,
+  modelApiLabel,
   modelConfigurationErrorMessage,
   type OwnerCapabilitiesDraft,
 } from "./model-configuration-state";
+import { OpenRouterModelPicker } from "./OpenRouterModelPicker";
 
 const NO_TEMPLATE = "__no_template__";
 const RESPONSES = "OpenAIResponsesHTTPAgent";
@@ -121,17 +124,22 @@ function initialDraft(
   };
 }
 
-/** API name of a chat model, as shown in its details. */
-export function modelApiLabel(model: PyConfiguredModel): string {
-  return model.provider_type === RESPONSES
-    ? "Responses API"
-    : "Chat Completions API";
+/**
+ * Save a model's visibility at once. A hidden model stays in use wherever it
+ * is already chosen.
+ */
+function useSetModelHidden(model: PyConfiguredModel) {
+  const update = useUpdateModel();
+  const setHidden = (hidden: boolean) =>
+    void update
+      .mutateAsync({ modelProviderId: model.id, body: { hidden } })
+      .catch((error: unknown) =>
+        toast.error(modelConfigurationErrorMessage(error)),
+      );
+  return { setHidden, pending: update.isPending };
 }
 
-/**
- * "Show in model lists" for a model's details. The change saves at once; a
- * hidden model stays in use wherever it is already chosen.
- */
+/** "Show in model lists" for a model's details. */
 export function ModelVisibilitySwitch({
   model,
   disabled,
@@ -139,25 +147,48 @@ export function ModelVisibilitySwitch({
   model: PyConfiguredModel;
   disabled?: boolean;
 }) {
-  const update = useUpdateModel();
+  const { setHidden, pending } = useSetModelHidden(model);
   return (
     <label className="flex items-center justify-between gap-3 text-sm">
       Show in model lists
       <Switch
         checked={!model.hidden}
-        disabled={disabled || update.isPending}
-        onCheckedChange={(checked) =>
-          void update
-            .mutateAsync({
-              modelProviderId: model.id,
-              body: { hidden: !checked },
-            })
-            .catch((error: unknown) =>
-              toast.error(modelConfigurationErrorMessage(error)),
-            )
-        }
+        disabled={disabled || pending}
+        onCheckedChange={(checked) => setHidden(!checked)}
       />
     </label>
+  );
+}
+
+/** A hidden model row's Show button, the inline form of "Show in model lists". */
+export function ShowModelButton({
+  model,
+  disabled,
+}: {
+  model: PyConfiguredModel;
+  disabled?: boolean;
+}) {
+  const { setHidden, pending } = useSetModelHidden(model);
+  return (
+    <Button
+      type="button"
+      size="sm"
+      variant="ghost"
+      className="h-8 shrink-0"
+      disabled={disabled || pending}
+      aria-label={`Show ${model.model_label} in model lists`}
+      onClick={() => setHidden(false)}
+    >
+      Show
+    </Button>
+  );
+}
+
+/** "API: Responses" for a chat model's details; the API appears nowhere else. */
+function ModelApiLine({ model }: { model: PyConfiguredModel }) {
+  if (model.model_kind !== "chat") return null;
+  return (
+    <p className="text-muted-foreground text-sm">API: {modelApiLabel(model)}</p>
   );
 }
 
@@ -313,6 +344,9 @@ export function OwnerModelDialog({
   };
 
   const discovered = discover.data ?? [];
+  // OpenRouter lists hundreds of models; its public list makes them searchable.
+  const showOpenRouterPicker =
+    !editing && isChat && connection.preset === "openrouter";
   const templateChoices = templates.filter(
     (template) =>
       template.provider_type === draft.providerType || !isBuiltinConnection,
@@ -327,10 +361,11 @@ export function OwnerModelDialog({
           </DialogTitle>
           <DialogDescription>
             {model
-              ? `${model.model_kind === "embedding" ? "Embedding model" : `Chat model · ${modelApiLabel(model)}`} on ${connection.name}. Change its details, then save.`
+              ? `${model.model_kind === "embedding" ? "Embedding model" : "Chat model"} on ${connection.name}. Change its details, then save.`
               : "Test the model to check what it supports, then confirm its capabilities and context window."}
           </DialogDescription>
         </DialogHeader>
+        {model ? <ModelApiLine model={model} /> : null}
         {model ? <ModelVisibilitySwitch model={model} disabled={busy} /> : null}
         <form
           id={formId}
@@ -360,6 +395,20 @@ export function OwnerModelDialog({
                 </SelectContent>
               </Select>
             </div>
+          ) : null}
+          {showOpenRouterPicker ? (
+            <OpenRouterModelPicker
+              selectedId={draft.model}
+              disabled={busy}
+              onSelect={(choice) => {
+                // A test of another model says nothing about this one.
+                setReport(null);
+                setDraft((current) => ({
+                  ...current,
+                  ...draftFromOpenRouterModel(choice, current.capabilities),
+                }));
+              }}
+            />
           ) : null}
           <div className="space-y-2">
             <Label htmlFor={`${formId}-model`}>Model ID</Label>

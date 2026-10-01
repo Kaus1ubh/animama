@@ -131,6 +131,7 @@ import {
 } from "@/ui/settings/SettingsLayout";
 import { SettingsSearch } from "@/ui/settings/SettingsSearch";
 import { ModelConnectionsSettings } from "@/ui/settings/models/ModelConnectionsSettings";
+import { modelSettingsAvailability } from "@/ui/settings/models/model-configuration-state";
 import {
   MODEL_DEFAULTS,
   ModelDefaultSetting,
@@ -428,10 +429,11 @@ export function ApplicationSettingsModal({
   const runtimeCapabilities = useRuntimeCapabilities();
   const parakeetAvailable =
     runtimeCapabilities.data?.offline_speech_enabled ?? null;
-  const modelConfigurationEnabled =
-    runtimeCapabilities.data?.model_configuration === true;
-  const webSearchConfigurationEnabled =
-    runtimeCapabilities.data?.web_search?.configuration === true;
+  // The hosted composition reports neither, so Models stays hidden there.
+  const {
+    modelConfiguration: modelConfigurationEnabled,
+    webSearchConfiguration: webSearchConfigurationEnabled,
+  } = modelSettingsAvailability(runtimeCapabilities.data);
   const initializedForOpenRef = useRef(false);
   const savedSttProviderRef = useRef<SttProvider | null>(null);
   const savedTtsProviderRef = useRef<TtsProvider | null>(null);
@@ -1131,7 +1133,10 @@ export function ApplicationSettingsModal({
       keywords: [
         "model",
         "connection",
+        "cloud",
         "openai",
+        "openrouter",
+        "api key",
         "ollama",
         "lm studio",
         "llama.cpp",
@@ -1502,6 +1507,22 @@ export function ApplicationSettingsModal({
             voices for each Anima in Loadout → Voices.
           </p>
         </SettingsRow>
+      ),
+    },
+    {
+      id: "elevenlabs-key",
+      section: "Voice",
+      group: "Text-to-Speech",
+      label: "ElevenLabs API key",
+      keywords: ["tts", "elevenlabs", "api key", "voice"],
+      hidden: !credentialsAvailable,
+      render: () => (
+        <DesktopCredentialsPanel
+          providers={["elevenlabs"]}
+          showTitle={false}
+          description="Needed for ElevenLabs voices. Encrypted on this computer and also in API Keys."
+          className={cn(FLAT_SETTINGS_PANEL_CLASS_NAME, "py-3")}
+        />
       ),
     },
     {

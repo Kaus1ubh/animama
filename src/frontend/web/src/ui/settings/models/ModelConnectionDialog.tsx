@@ -161,7 +161,10 @@ export function ModelConnectionForm({
   onSaved,
   onSavingChange,
   footer,
+  baseUrlPlaceholder = "http://127.0.0.1:11434/v1",
 }: {
+  /** Example address for an empty Base URL, e.g. a cloud URL on the Cloud tab. */
+  baseUrlPlaceholder?: string;
   /**
    * At least one preset; a new connection starts from the first. With a
    * single preset the server type is fixed and its choice is not shown.
@@ -337,7 +340,7 @@ export function ModelConnectionForm({
           <Input
             id={`${formId}-url`}
             value={draft.baseUrl}
-            placeholder="http://127.0.0.1:11434/v1"
+            placeholder={baseUrlPlaceholder}
             inputMode="url"
             disabled={saving}
             onChange={(event) => {

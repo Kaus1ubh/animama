@@ -10,11 +10,8 @@ import {
   DialogTitle,
 } from "@/ui/components/dialog";
 
-import {
-  modelApiLabel,
-  ModelVisibilitySwitch,
-  OwnerModelDialog,
-} from "./OwnerModelDialog";
+import { modelApiLabel } from "./model-configuration-state";
+import { ModelVisibilitySwitch, OwnerModelDialog } from "./OwnerModelDialog";
 
 const STRUCTURED_OUTPUT_LABELS: Record<string, string> = {
   json_schema: "JSON schema (strict)",
@@ -23,7 +20,10 @@ const STRUCTURED_OUTPUT_LABELS: Record<string, string> = {
 
 const yesNo = (value: boolean | null | undefined) => (value ? "Yes" : "No");
 
-/** Label and value pairs describing a built-in model, in display order. */
+/**
+ * Label and value pairs describing a built-in model, in display order. The
+ * API row is the only place the settings name a model's API.
+ */
 function builtinModelDetails(
   model: PyConfiguredModel,
 ): Array<[string, string]> {

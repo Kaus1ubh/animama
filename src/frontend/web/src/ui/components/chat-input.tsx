@@ -713,7 +713,8 @@ function ChatInputModelSelector({
                 return (
                   <ModelSelectorItem
                     key={item.id}
-                    value={`${modelConnectionLabel(item)} ${providerName} ${modelName} ${item.model}`}
+                    // The id keeps values unique when one model is listed twice.
+                    value={`${providerName} ${modelName} ${item.model} ${item.id}`}
                     disabled={
                       updateAnimaChatProfile.isPending ||
                       rowUnsupported ||

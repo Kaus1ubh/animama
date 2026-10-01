@@ -191,6 +191,30 @@ export const queryKeys = {
       [...queryKeys.modelConfiguration.all(userId), "connections"] as const,
     roles: (userId: string) =>
       [...queryKeys.modelConfiguration.all(userId), "roles"] as const,
+    /** Whether a connection's server answers a model listing (Local tab status). */
+    reachability: (userId: string, connectionId: string) =>
+      [
+        ...queryKeys.modelConfiguration.all(userId),
+        "reachability",
+        connectionId,
+      ] as const,
+    /** OpenRouter's public model list for the add-model picker. */
+    openRouterModels: (userId: string) =>
+      [
+        ...queryKeys.modelConfiguration.all(userId),
+        "openrouter-models",
+      ] as const,
+  },
+  /**
+   * Desktop provider key availability and saved status (status only, never
+   * values), shared by every panel that edits the vault.
+   */
+  desktopCredentials: {
+    all: (ownerId: string) => ["desktop-credentials", ownerId] as const,
+    available: (ownerId: string) =>
+      [...queryKeys.desktopCredentials.all(ownerId), "available"] as const,
+    statuses: (ownerId: string) =>
+      [...queryKeys.desktopCredentials.all(ownerId), "statuses"] as const,
   },
   /** The installation's application web search backend (local composition). */
   webSearchSettings: (userId: string) =>

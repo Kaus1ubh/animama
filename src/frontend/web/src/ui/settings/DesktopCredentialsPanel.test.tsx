@@ -1,18 +1,66 @@
 import { renderToStaticMarkup } from "react-dom/server";
+import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import type {
   CredentialStatus,
   CredentialsBridge,
   ProviderCredentialStatus,
 } from "../../../../shared/desktop-runtime";
-import { DesktopCredentialFailures } from "./DesktopCredentialsPanel";
-import { QueryClient } from "@tanstack/react-query";
+import {
+  DesktopCredentialFailures,
+  DesktopCredentialsPanel,
+} from "./DesktopCredentialsPanel";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { queryKeys } from "@/query/keys";
 import {
   applyCredentialChanges,
   credentialChangesFromDrafts,
   credentialFailureMessage,
   refreshCredentialDependents,
+  saveCredentialChanges,
 } from "./desktop-credential-state";
+
+const desktop = vi.hoisted(() => ({
+  bridge: {
+    list: async () => [] as unknown[],
+    apply: async () => [] as unknown[],
+  },
+}));
+vi.mock("@/platform/RuntimePlatformProvider", () => ({
+  useRuntimePlatform: () => ({
+    kind: "desktop",
+    isDesktop: true,
+    desktopBridge: {
+      windowRole: "main",
+      runtime: { status: async () => ({ state: "ready" }) },
+      credentials: desktop.bridge,
+    },
+  }),
+}));
+vi.mock("@/app/runtime/RuntimeOwnerContext", () => ({
+  useRuntimeOwnerId: () => "owner-1",
+}));
+vi.mock("@/hooks/useDesktopFeaturePacks", () => ({
+  useDesktopFeaturePacks: () => ({ busy: false }),
+}));
+
+/** A client whose cache says keys can be managed and holds these statuses. */
+function credentialClient(statuses: CredentialStatus[]): QueryClient {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+  });
+  client.setQueryData(queryKeys.desktopCredentials.available("owner-1"), true);
+  client.setQueryData(
+    queryKeys.desktopCredentials.statuses("owner-1"),
+    statuses,
+  );
+  return client;
+}
+
+const renderWith = (client: QueryClient, node: ReactNode) =>
+  renderToStaticMarkup(
+    <QueryClientProvider client={client}>{node}</QueryClientProvider>,
+  );
 
 const configured: ProviderCredentialStatus = {
   provider: "openai",
@@ -115,6 +163,7 @@ describe("refreshing key-dependent queries", () => {
       [
         ["model-providers", "owner-1"],
         ["model-configuration", "owner-1"],
+        ["desktop-credentials", "owner-1", "statuses"],
       ],
     );
   });
@@ -246,5 +295,109 @@ describe("batched API key changes", () => {
     ).rejects.toMatchObject({
       failed: ["elevenlabs", "ANIMAMA_CONNECTION_C_0123456789AB_API_KEY"],
     });
+  });
+});
+
+describe("feature-local key fields", () => {
+  const unset: CredentialStatus[] = [
+    { ...configured, configured: false, updatedAt: null },
+    {
+      provider: "elevenlabs",
+      configured: false,
+      updatedAt: null,
+      restartRequired: false,
+    },
+  ];
+  const inputs = (html: string) =>
+    [...html.matchAll(/<label[^>]*>([^<]+)<\/label>/gu)].map(
+      (match) => match[1],
+    );
+
+  it("shows only the filtered providers, without the general copy", () => {
+    const client = credentialClient(unset);
+    const filtered = renderWith(
+      client,
+      <DesktopCredentialsPanel
+        providers={["elevenlabs"]}
+        showTitle={false}
+        description={null}
+      />,
+    );
+    expect(inputs(filtered)).toEqual(["ElevenLabs"]);
+    expect(filtered).not.toContain("Add an OpenAI key");
+    expect(filtered).toContain('type="password"');
+
+    const full = renderWith(client, <DesktopCredentialsPanel />);
+    expect(inputs(full)).toEqual(["OpenAI", "ElevenLabs"]);
+    expect(full).toContain("Add an OpenAI key for cloud chat");
+  });
+
+  it("reports only its own keys' failures", () => {
+    const client = credentialClient([
+      { ...unset[0], error: "secure_storage_unavailable" },
+      unset[1],
+    ]);
+    const html = renderWith(
+      client,
+      <DesktopCredentialsPanel providers={["elevenlabs"]} description={null} />,
+    );
+    expect(html).not.toContain("OpenAI: The key change could not finish");
+    expect(
+      renderWith(client, <DesktopCredentialsPanel providers={["openai"]} />),
+    ).toContain("OpenAI: The key change could not finish");
+  });
+
+  it("shares saved status between a feature field and API Keys after a save in either", async () => {
+    const client = credentialClient(unset);
+    const both = () =>
+      renderWith(
+        client,
+        <>
+          <DesktopCredentialsPanel
+            providers={["openai"]}
+            showTitle={false}
+            description={null}
+          />
+          <DesktopCredentialsPanel showTitle={false} />
+        </>,
+      );
+    const openAiStatus = (html: string) =>
+      [...html.matchAll(/>OpenAI<\/label><p[^>]*>([^<]+)<\/p>/gu)].map(
+        (match) => match[1],
+      );
+    expect(openAiStatus(both())).toEqual(["Not set", "Not set"]);
+
+    const saved: CredentialStatus[] = [configured, unset[1]];
+    const current = {
+      list: vi.fn(async () => saved),
+      apply: vi.fn(async () => saved),
+    };
+    await expect(
+      saveCredentialChanges(client, "owner-1", current, [
+        { provider: "openai", value: "fixture-key" },
+      ]),
+    ).resolves.toEqual({ ok: true });
+
+    expect(openAiStatus(both())).toEqual(["Configured", "Configured"]);
+  });
+
+  it("publishes main's reported status when a save fails", async () => {
+    const client = credentialClient(unset);
+    const failed: CredentialStatus[] = [
+      { ...unset[0], error: "secure_storage_unavailable" },
+      unset[1],
+    ];
+    const current = {
+      list: vi.fn(async () => failed),
+      apply: vi.fn(async () => failed),
+    };
+    await expect(
+      saveCredentialChanges(client, "owner-1", current, [
+        { provider: "openai", value: "fixture-key" },
+      ]),
+    ).resolves.toEqual({ ok: false, failed: ["openai"] });
+    expect(
+      client.getQueryData(queryKeys.desktopCredentials.statuses("owner-1")),
+    ).toEqual(failed);
   });
 });

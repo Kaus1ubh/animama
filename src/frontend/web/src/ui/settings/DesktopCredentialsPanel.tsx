@@ -1,5 +1,5 @@
-import { useEffect, useId, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useEffect, useId, useState, type ReactNode } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   credentialProviders,
   credentialTarget,
@@ -10,14 +10,14 @@ import {
 import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
 import { cn } from "@/lib/utils";
 import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
+import { queryKeys } from "@/query/keys";
 import { Button } from "@/ui/components/button";
 import { Input } from "@/ui/components/input";
 import { Label } from "@/ui/components/label";
 import {
-  applyCredentialChanges,
   credentialChangesFromDrafts,
   credentialFailureMessage,
-  refreshCredentialDependents,
+  saveCredentialChanges,
   type CredentialDrafts,
 } from "./desktop-credential-state";
 
@@ -25,6 +25,8 @@ const names: Record<CredentialProvider, string> = {
   openai: "OpenAI",
   elevenlabs: "ElevenLabs",
 };
+
+const EMPTY_STATUSES: CredentialStatus[] = [];
 
 /** A readable name for a provider or a model connection's key variable. */
 function credentialName(target: string): string {
@@ -52,43 +54,59 @@ export function DesktopCredentialFailures({
 
 /**
  * Whether provider keys can be managed here: the main window of a desktop app
- * running its embedded runtime (not the external development stack).
+ * running its embedded runtime (not the external development stack). Cached
+ * per owner, so every key panel agrees.
  */
 export function useDesktopCredentialsAvailable(): boolean {
   const platform = useRuntimePlatform();
   const desktop = platform.kind === "desktop" ? platform.desktopBridge : null;
-  const [available, setAvailable] = useState(false);
-  useEffect(() => {
-    const runtime = desktop?.runtime;
-    if (!runtime || !desktop?.credentials || desktop.windowRole !== "main")
-      return;
-    let active = true;
-    void runtime
-      .status()
-      .then((status) => {
-        if (active) setAvailable(status.state !== "external");
-      })
-      .catch(() => {
-        // Recovery surfaces runtime failures; keys stay hidden meanwhile.
-      });
-    return () => {
-      active = false;
-    };
-  }, [desktop]);
-  return available;
+  const owner = useRuntimeOwnerId() ?? "__anon__";
+  const runtime = desktop?.runtime;
+  const enabled = Boolean(
+    runtime && desktop?.credentials && desktop.windowRole === "main",
+  );
+  const query = useQuery({
+    queryKey: queryKeys.desktopCredentials.available(owner),
+    enabled,
+    // Recovery surfaces runtime failures; keys stay hidden meanwhile.
+    retry: false,
+    queryFn: async () => (await runtime!.status()).state !== "external",
+  });
+  return enabled && query.data === true;
+}
+
+/**
+ * Saved key status from main (never values), shared through the query cache
+ * so the API Keys section and every feature-local key field show the same
+ * state after a save in any of them.
+ */
+function useDesktopCredentialStatuses(enabled: boolean) {
+  const platform = useRuntimePlatform();
+  const bridge =
+    platform.kind === "desktop" ? platform.desktopBridge.credentials : null;
+  const owner = useRuntimeOwnerId() ?? "__anon__";
+  return useQuery({
+    queryKey: queryKeys.desktopCredentials.statuses(owner),
+    enabled: enabled && Boolean(bridge),
+    retry: false,
+    queryFn: () => bridge!.list(),
+  });
 }
 
 /**
  * Optional provider API keys (desktop embedded runtime only). Keys are
  * write-only: main stores them encrypted and reports status, never values.
  * Several edits are saved together and apply without reloading the window or
- * restarting the backend.
+ * restarting the backend. `providers` limits the panel to the keys a feature
+ * needs (the OpenAI model card, Voice settings); API Keys shows them all.
  */
 export function DesktopCredentialsPanel({
   onBusyChange,
   onPendingChange,
   className,
   showTitle = true,
+  providers = credentialProviders,
+  description,
 }: {
   onBusyChange?: (busy: boolean) => void;
   /** Number of unsaved key edits, so a host (setup) can prevent losing them. */
@@ -96,9 +114,14 @@ export function DesktopCredentialsPanel({
   className?: string;
   /** The App Settings section already names itself "API Keys". */
   showTitle?: boolean;
+  /** The keys to show, in this order. */
+  providers?: readonly CredentialProvider[];
+  /** Replaces the general explanation; `null` shows none. */
+  description?: ReactNode;
 }) {
   const available = useDesktopCredentialsAvailable();
-  const [statuses, setStatuses] = useState<CredentialStatus[]>([]);
+  const statusQuery = useDesktopCredentialStatuses(available);
+  const statuses = statusQuery.data ?? EMPTY_STATUSES;
   const [drafts, setDrafts] = useState<CredentialDrafts>({});
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -108,25 +131,6 @@ export function DesktopCredentialsPanel({
   const platform = useRuntimePlatform();
   const desktop = platform.kind === "desktop" ? platform.desktopBridge : null;
   const bridge = desktop?.credentials;
-
-  useEffect(() => {
-    if (!available || !bridge) return;
-    let active = true;
-    void bridge
-      .list()
-      .then((entries) => {
-        if (active) setStatuses(entries);
-      })
-      .catch(() => {
-        if (active)
-          setMessage(
-            "Protected settings are unavailable. Open runtime recovery and try again.",
-          );
-      });
-    return () => {
-      active = false;
-    };
-  }, [available, bridge]);
 
   const changes = credentialChangesFromDrafts(drafts);
   const pendingCount = changes.length;
@@ -155,41 +159,35 @@ export function DesktopCredentialsPanel({
     if (!bridge || busy || changes.length === 0) return;
     // Clear typed keys before IPC; there is no read-back or browser copy.
     setDrafts({});
-    // Main clears retained failures for the batch; mirror that immediately.
-    const changing = new Set(changes.map(credentialTarget));
-    setStatuses((entries) =>
-      entries.map((entry) => {
-        if (!changing.has(credentialTarget(entry))) return entry;
-        const status = { ...entry, restartRequired: false };
-        delete status.error;
-        return status;
-      }),
-    );
     setBusy(true);
     onBusyChange?.(true);
     setMessage(null);
     try {
-      setStatuses(await applyCredentialChanges(bridge, changes));
-      await refreshCredentialDependents(queryClient, ownerId);
-      setMessage("Saved.");
-    } catch (error) {
-      const failed = (error as { failed?: string[] }).failed;
-      const reported = (error as { statuses?: CredentialStatus[] }).statuses;
-      try {
-        setStatuses(reported ?? (await bridge.list()));
-      } catch {
-        // Keep the previous statuses; the message below explains the failure.
-      }
+      const result = await saveCredentialChanges(
+        queryClient,
+        ownerId,
+        bridge,
+        changes,
+      );
       setMessage(
-        failed?.length
-          ? `Some changes could not finish (${failed.map(credentialName).join(", ")}). Retry them; saved keys are never shown here.`
-          : "The changes could not finish. Check runtime recovery, then retry. Saved keys are never shown here.",
+        result.ok
+          ? "Saved."
+          : result.failed.length
+            ? `Some changes could not finish (${result.failed.map(credentialName).join(", ")}). Retry them; saved keys are never shown here.`
+            : "The changes could not finish. Check runtime recovery, then retry. Saved keys are never shown here.",
       );
     } finally {
       setBusy(false);
       onBusyChange?.(false);
     }
   };
+
+  const shown = new Set<string>(providers);
+  // A filtered panel reports only its own keys' failures; the full panel
+  // also reports model connection keys.
+  const failures = credentialProviders.every((provider) => shown.has(provider))
+    ? statuses
+    : statuses.filter((status) => shown.has(credentialTarget(status)));
 
   return (
     <section
@@ -198,24 +196,33 @@ export function DesktopCredentialsPanel({
         className,
       )}
       aria-busy={busy}
+      aria-label={showTitle ? undefined : "API keys"}
     >
-      <div className="space-y-2">
-        <h3 className={cn("text-base font-semibold", !showTitle && "sr-only")}>
-          API keys{" "}
-          <span className="text-muted-foreground text-sm font-normal">
-            (optional)
-          </span>
-        </h3>
-        <p className="text-muted-foreground text-sm">
-          Add an OpenAI key for cloud chat or an ElevenLabs key for voices. Keys
-          for other model servers are entered on each connection in App Settings
-          → Models. Keys are encrypted with this computer’s secure storage and
-          never shown again. Changes apply as soon as you save. You can change
-          them later in App Settings → API Keys.
-        </p>
-      </div>
+      {showTitle || description !== null ? (
+        <div className="space-y-2">
+          {showTitle ? (
+            <h3 className="text-base font-semibold">
+              API keys{" "}
+              <span className="text-muted-foreground text-sm font-normal">
+                (optional)
+              </span>
+            </h3>
+          ) : null}
+          {description === undefined ? (
+            <p className="text-muted-foreground text-sm">
+              Add an OpenAI key for cloud chat or an ElevenLabs key for voices.
+              Keys for other model servers are entered on each connection in App
+              Settings → Models. Keys are encrypted with this computer’s secure
+              storage and never shown again. Changes apply as soon as you save.
+              You can change them later in App Settings → API Keys.
+            </p>
+          ) : description !== null ? (
+            <p className="text-muted-foreground text-xs">{description}</p>
+          ) : null}
+        </div>
+      ) : null}
       <div className="divide-border/60 divide-y">
-        {credentialProviders.map((provider) => {
+        {providers.map((provider) => {
           const configured = isConfigured(provider);
           const draft = drafts[provider];
           const removing = Boolean(draft?.remove) && !draft?.value?.trim();
@@ -311,7 +318,13 @@ export function DesktopCredentialsPanel({
           </Button>
         ) : null}
       </div>
-      <DesktopCredentialFailures statuses={statuses} />
+      {statusQuery.isError ? (
+        <p className="text-sm" role="status">
+          Protected settings are unavailable. Open runtime recovery and try
+          again.
+        </p>
+      ) : null}
+      <DesktopCredentialFailures statuses={failures} />
       {message ? (
         <p className="text-sm" role="status">
           {message}

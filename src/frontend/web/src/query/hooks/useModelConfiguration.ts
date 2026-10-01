@@ -4,13 +4,16 @@ import { useQuery } from "@tanstack/react-query";
 
 import {
   getModelRolesV1ModelRolesGet,
+  listAvailableModelsV1ModelConnectionsConnectionIdAvailableModelsGet,
   listModelConnectionPresetsV1ModelConnectionPresetsGet,
   listModelConnectionsV1ModelConnectionsGet,
+  listOpenrouterModelsV1ModelConnectionPresetsOpenrouterModelsGet,
 } from "@animama/runtime-contracts/sdk";
 import type {
   PyModelConnection,
   PyModelConnectionPreset,
   PyModelRoles,
+  PyOpenRouterModel,
 } from "@animama/runtime-contracts/api-types";
 import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
 import { queryKeys } from "@/query/keys";
@@ -73,6 +76,65 @@ export function useModelRoles(enabled: boolean) {
         throwOnError: true,
       });
       return data;
+    },
+  });
+}
+
+/**
+ * Whether a connection's server answers a model listing, for a Local tab
+ * card's status. Uses the existing available-models route; a failure is the
+ * answer, so it is not retried.
+ */
+export function useConnectionReachability(
+  connectionId: string,
+  enabled: boolean,
+) {
+  const ownerId = useRuntimeOwnerId();
+  return useQuery<string[]>({
+    queryKey: queryKeys.modelConfiguration.reachability(
+      ownerId ?? "__anon__",
+      connectionId,
+    ),
+    enabled: enabled && Boolean(ownerId),
+    retry: false,
+    staleTime: 30_000,
+    queryFn: async ({ signal }) => {
+      const { data } =
+        await listAvailableModelsV1ModelConnectionsConnectionIdAvailableModelsGet(
+          {
+            path: { connection_id: connectionId },
+            responseValidator: undefined,
+            throwOnError: true,
+            signal,
+          },
+        );
+      return data.models;
+    },
+  });
+}
+
+/**
+ * OpenRouter's public model list for the add-model picker. The backend reads
+ * it without a key and answers 502 when OpenRouter is unavailable; the picker
+ * then falls back to typing the model ID.
+ */
+export function useOpenRouterModels(enabled: boolean) {
+  const ownerId = useRuntimeOwnerId();
+  return useQuery<PyOpenRouterModel[]>({
+    queryKey: queryKeys.modelConfiguration.openRouterModels(
+      ownerId ?? "__anon__",
+    ),
+    enabled: enabled && Boolean(ownerId),
+    retry: false,
+    staleTime: 10 * 60 * 1000,
+    queryFn: async ({ signal }) => {
+      const { data } =
+        await listOpenrouterModelsV1ModelConnectionPresetsOpenrouterModelsGet({
+          responseValidator: undefined,
+          throwOnError: true,
+          signal,
+        });
+      return data.models;
     },
   });
 }

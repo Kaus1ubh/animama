@@ -1014,7 +1014,7 @@ export const ChatInterface = ({
   const pendingModelLabel =
     pendingModelSwitch?.item.model_label ??
     pendingModelSwitch?.item.model ??
-    "this model";
+    "This model";
 
   return (
     <>
@@ -1085,8 +1085,8 @@ export const ChatInterface = ({
           <DialogHeader>
             <DialogTitle>Start a new chat?</DialogTitle>
             <DialogDescription>
-              Switching to {pendingModelLabel} uses a different chat standard.
-              Start a new chat to keep this conversation compatible.
+              {pendingModelLabel} keeps conversations differently, so this chat
+              continues in a new chat.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
