@@ -13,13 +13,13 @@ describe("Effect creator entry points", () => {
       readFile(hubSource, "utf8"),
       readFile(sidebarSource, "utf8"),
     ]);
-    expect(hub).not.toContain("/a/sound-effects/new");
-    expect(sidebar).not.toContain("/a/sound-effects/new");
+    expect(hub).not.toContain("/sound-effects/new");
+    expect(sidebar).not.toContain("/sound-effects/new");
     expect(hub).toContain("Upload sounds");
   });
   it.each([
-    ["Avatar VFX", "/a/avatar-effects/new"],
-    ["Scene VFX", "/a/scene-effects/new"],
+    ["Avatar VFX", "/avatar-effects/new"],
+    ["Scene VFX", "/scene-effects/new"],
   ])("links %s from the creator hub and sidebar", async (label, route) => {
     const [hub, sidebar] = await Promise.all([
       readFile(hubSource, "utf8"),
@@ -46,19 +46,19 @@ describe("direct Anima creation entry points", () => {
   it.each([
     ["creator hub", "./CreateHubPage.tsx"],
     ["sidebar Create menu", "../sidebar/SidebarCreateMenu.tsx"],
-    ["management carousel callback", "../../routes/a/animas/$animaId.tsx"],
+    ["management carousel callback", "../../routes/_app/animas/$animaId.tsx"],
     ["Library Avatar handoff", "../library/LibraryContentInventory.tsx"],
     [
       "Anima-required preview recovery",
       "../content-preview/ContentPreviewHost.tsx",
     ],
-    ["empty owned-roster resolver", "../../routes/a/animas/index.tsx"],
+    ["empty owned-roster resolver", "../../routes/_app/animas/index.tsx"],
   ])(
     "keeps the %s pointed at the owner-scoped creator",
     async (_label, path) => {
       const source = await readFile(new URL(path, import.meta.url), "utf8");
 
-      expect(source).toContain('"/a/animas/new"');
+      expect(source).toContain('"/animas/new"');
       expect(source).not.toContain("useCreateAnima");
       expect(source).not.toContain("createAnimaV1AnimasPost");
     },
@@ -76,7 +76,7 @@ describe("direct Anima creation entry points", () => {
 
   it("replaces the notice with the new feature without restoring old modules", async () => {
     const source = await readFile(
-      new URL("../../routes/a/animas.new.tsx", import.meta.url),
+      new URL("../../routes/_app/animas.new.tsx", import.meta.url),
       "utf8",
     );
     expect(source).toContain("@/ui/create-anima/CreateAnimaPage");
@@ -87,7 +87,7 @@ describe("direct Anima creation entry points", () => {
   it("preserves the local VRM preview owned by the portrait-debug route", async () => {
     const [route, preview] = await Promise.all([
       readFile(
-        new URL("../../routes/a/avatar-portrait-debug.tsx", import.meta.url),
+        new URL("../../routes/_app/avatar-portrait-debug.tsx", import.meta.url),
         "utf8",
       ),
       readFile(

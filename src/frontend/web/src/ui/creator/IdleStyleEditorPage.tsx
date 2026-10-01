@@ -358,7 +358,7 @@ function IdleStyleEditor({
       });
       operation.current = { id: crypto.randomUUID(), request: "" };
       await navigate({
-        to: "/a/idle-styles/$idleStyleId/edit",
+        to: "/idle-styles/$idleStyleId/edit",
         params: { idleStyleId: item.item_id },
         search: { duplicate: false },
         replace: true,
@@ -385,7 +385,7 @@ function IdleStyleEditor({
         </div>
         <div className="flex items-center gap-2">
           <ContentHealth />
-          <Link to="/a/create" className="underline">
+          <Link to="/create" className="underline">
             Create hub
           </Link>
         </div>

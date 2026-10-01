@@ -33,16 +33,14 @@ describe("Hands workspace eligibility", () => {
       } as unknown as Avatar,
     });
     expect(renderToStaticMarkup(<Eligibility enabled />)).toContain(">false<");
-    usePoseCreatorStore
-      .getState()
-      .beginClipInlinePoseEdit({
-        alias: "hand",
-        keyframeId: "frame",
-        originalPose: { humanoid: {} },
-        boneDrafts: {},
-        expressionDrafts: {},
-        draftName: "Hand",
-      });
+    usePoseCreatorStore.getState().beginClipInlinePoseEdit({
+      alias: "hand",
+      keyframeId: "frame",
+      originalPose: { humanoid: {} },
+      boneDrafts: {},
+      expressionDrafts: {},
+      draftName: "Hand",
+    });
     expect(usePoseCreatorStore.getState().authoringMode).toBe("clip");
     expect(renderToStaticMarkup(<Eligibility enabled />)).toContain(">true<");
     expect(renderToStaticMarkup(<Eligibility enabled={false} />)).toContain(

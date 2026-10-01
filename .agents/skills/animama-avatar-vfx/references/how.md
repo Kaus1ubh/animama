@@ -15,9 +15,9 @@ facilities. Inspect the current page and locate controls by their visible labels
 or accessible names rather than assuming screen coordinates. Read screenshots for
 visual judgment; a DOM snapshot alone cannot verify a rendered effect.
 
-1. Find the existing app origin. `/a/avatar-effects/` redirects to
-   `/a/avatar-effects/new`. Saved items reopen at
-   `/a/avatar-effects/{avatarEffectId}/edit`. Do not hardcode a worktree's port or
+1. Find the existing app origin. `/avatar-effects/` redirects to
+   `/avatar-effects/new`. Saved items reopen at
+   `/avatar-effects/{avatarEffectId}/edit`. Do not hardcode a worktree's port or
    start/reset services merely to author content in an already running app.
 2. Check whether the creator contains an unsaved or recovered draft. Continue it
    only if it belongs to this task. Preserve unrelated work before opening a new

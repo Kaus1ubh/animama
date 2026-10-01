@@ -148,9 +148,9 @@ describe("Library Poses", () => {
     expect(html).toContain('aria-label="Salute"');
     expect(html).not.toContain("Starter");
     expect(html).toContain("Local");
-    expect(html).toContain('href="/a/poses/starter/edit"');
+    expect(html).toContain('href="/poses/starter/edit"');
     expect(html).not.toContain("Customize");
-    expect(html).toContain('href="/a/poses/mine/edit"');
+    expect(html).toContain('href="/poses/mine/edit"');
     expect(html).toContain("Edit");
     expect(html).not.toMatch(
       /New Pose|Add \/ Manage|Use in Reaction|Use in Gesture/,
@@ -194,7 +194,7 @@ describe("Library Poses", () => {
         const row = html
           .split(`aria-label="${family} ${origin}"`)[1]!
           .split("</article>")[0]!;
-        expect(row).toContain(`href="/a/${path}/${family}-${origin}/edit"`);
+        expect(row).toContain(`href="/${path}/${family}-${origin}/edit"`);
         expect(row.indexOf("Preview")).toBeLessThan(row.indexOf("> Edit"));
         if (family === "gesture" || family === "reaction")
           expect(row.indexOf("> Edit")).toBeLessThan(
@@ -227,7 +227,7 @@ describe("Library Poses", () => {
       />,
     );
     expect(html).toContain('aria-label="Manage sound"');
-    expect(html).not.toContain("/a/sound-effects/");
+    expect(html).not.toContain("/sound-effects/");
     expect(html).toContain('aria-label="Play"');
   });
   it("requests Poses in the combined All inventory", () => {
@@ -272,7 +272,7 @@ describe("Library layout", () => {
     const row = grid.split('aria-label="Salute"')[1]!.split("</article>")[0]!;
     expect(row).toContain('aria-label="Preview"');
     expect(row).toContain('aria-label="Edit"');
-    expect(row).toContain('href="/a/poses/starter/edit"');
+    expect(row).toContain('href="/poses/starter/edit"');
     expect(row).not.toContain(" Preview<");
     expect(row).not.toContain(" Edit<");
     mocks.layoutActions["List view"]!();

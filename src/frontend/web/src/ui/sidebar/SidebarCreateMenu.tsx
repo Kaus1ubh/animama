@@ -44,19 +44,19 @@ const CARD_VARIANTS: Variants = {
 const PRIMARY_CREATE_LINKS = [
   {
     label: "Anima",
-    to: "/a/animas/new" as const,
+    to: "/animas/new" as const,
     icon: UsersRound,
     iconClassName: "bg-primary text-primary-foreground",
   },
   {
     label: "Gesture",
-    to: "/a/gestures/new" as const,
+    to: "/gestures/new" as const,
     icon: Hand,
     iconClassName: "bg-secondary text-secondary-foreground",
   },
   {
     label: "Reaction",
-    to: "/a/reactions/new" as const,
+    to: "/reactions/new" as const,
     icon: HeartPulse,
     iconClassName: "bg-secondary text-secondary-foreground",
   },
@@ -65,19 +65,19 @@ const PRIMARY_CREATE_LINKS = [
 const EFFECT_CREATE_LINKS = [
   {
     label: "Particle VFX",
-    to: "/a/particle-effects/new" as const,
+    to: "/particle-effects/new" as const,
     icon: WandSparkles,
     iconClassName: "bg-accent text-accent-foreground",
   },
   {
     label: "Avatar VFX",
-    to: "/a/avatar-effects/new" as const,
+    to: "/avatar-effects/new" as const,
     icon: Sparkles,
     iconClassName: "bg-primary text-primary-foreground",
   },
   {
     label: "Scene VFX",
-    to: "/a/scene-effects/new" as const,
+    to: "/scene-effects/new" as const,
     icon: ImagePlay,
     iconClassName:
       "bg-violet-200 text-violet-950 dark:bg-violet-900 dark:text-violet-100",
@@ -95,7 +95,7 @@ export function SidebarCreateMenu() {
   const closeTimerRef = useRef<number | null>(null);
   const trigger: SidebarLinkItem = {
     label: "Create",
-    to: "/a/create",
+    to: "/create",
     icon: (
       <Sparkles className="text-sidebar-foreground dark:text-sidebar-foreground h-6 w-6 flex-shrink-0" />
     ),
@@ -149,7 +149,7 @@ export function SidebarCreateMenu() {
           <SidebarLink
             link={trigger}
             className={
-              pathname === "/a/create"
+              pathname === "/create"
                 ? "bg-accent/70 text-accent-foreground hover:bg-accent/80"
                 : undefined
             }

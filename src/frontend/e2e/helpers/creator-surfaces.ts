@@ -26,31 +26,31 @@ const CREATORS: Record<CreatorKind, CreatorDefinition> = {
   Gesture: {
     actionName: /^Create Gesture$/,
     canvasTestId: "action-editor-canvas",
-    path: "/a/gestures/new",
+    path: "/gestures/new",
     targetKind: "anima_pose_clip",
   },
   Reaction: {
     actionName: /^Create Reaction$/,
     canvasTestId: "action-editor-canvas",
-    path: "/a/reactions/new",
+    path: "/reactions/new",
     targetKind: "anima_pose_clip",
   },
   "Particle VFX": {
     actionName: /^Particle VFX\b.*\bCreate VFX$/,
     canvasTestId: "particle-vfx-creator-canvas",
-    path: "/a/particle-effects/new",
+    path: "/particle-effects/new",
     targetKind: "particle_vfx",
   },
   "Avatar VFX": {
     actionName: /^Avatar VFX\b.*\bCreate Avatar VFX$/,
     canvasTestId: "avatar-effect-creator-canvas",
-    path: "/a/avatar-effects/new",
+    path: "/avatar-effects/new",
     targetKind: "avatar_vfx",
   },
   "Scene VFX": {
     actionName: /^Scene VFX\b.*\bCreate Scene VFX$/,
     canvasTestId: "scene-effect-creator-canvas",
-    path: "/a/scene-effects/new",
+    path: "/scene-effects/new",
     targetKind: "scene_vfx",
   },
 };
@@ -81,7 +81,7 @@ export async function openCreatorStage(args: {
   await expect(createLink).toHaveCount(1);
   await expect(createLink).toBeVisible();
   await createLink.click();
-  await expect(args.page).toHaveURL(/\/a\/create(?:[/?#]|$)/);
+  await expect(args.page).toHaveURL(/\/create(?:[/?#]|$)/);
   await expect(
     args.page.getByRole("heading", { name: "Create", exact: true }),
   ).toBeVisible();

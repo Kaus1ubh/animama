@@ -75,7 +75,7 @@ export function PoseEditorWorkspace({ poseId }: { poseId: string }) {
     useIsMutating({ mutationKey: queryKeys.poses.save(owner ?? "__anon__") }) >
     0;
   const desktop = useActionEditorDesktopLayout();
-  const navigate = useNavigate({ from: "/a/poses/$poseId/edit" });
+  const navigate = useNavigate({ from: "/poses/$poseId/edit" });
   const canonicalNavigation = useRef<string | null>(null);
 
   useLayoutEffect(() => {
@@ -131,7 +131,7 @@ export function PoseEditorWorkspace({ poseId }: { poseId: string }) {
     session.adoptSavedItem(itemId);
     canonicalNavigation.current = itemId;
     void navigate({
-      to: "/a/poses/$poseId/edit",
+      to: "/poses/$poseId/edit",
       params: { poseId: itemId },
       replace: true,
     }).catch(() => {
@@ -147,7 +147,7 @@ export function PoseEditorWorkspace({ poseId }: { poseId: string }) {
       if (
         canonicalNavigation.current &&
         next.pathname ===
-          `/a/poses/${encodeURIComponent(canonicalNavigation.current)}/edit`
+          `/poses/${encodeURIComponent(canonicalNavigation.current)}/edit`
       )
         return false;
       return (dirty || busy) && current.pathname !== next.pathname;
@@ -191,7 +191,7 @@ export function PoseEditorWorkspace({ poseId }: { poseId: string }) {
             className="col-start-1 row-start-1 h-11 rounded-xl lg:h-12"
           >
             <Link
-              to="/a/library"
+              to="/library"
               search={{ section: "actions", action: "poses" }}
               aria-label="Back to Poses"
             >

@@ -23,11 +23,11 @@ type AvailableCreatorCard = {
   description: string;
   action: string;
   to:
-    | "/a/gestures/new"
-    | "/a/reactions/new"
-    | "/a/particle-effects/new"
-    | "/a/avatar-effects/new"
-    | "/a/scene-effects/new";
+    | "/gestures/new"
+    | "/reactions/new"
+    | "/particle-effects/new"
+    | "/avatar-effects/new"
+    | "/scene-effects/new";
   icon: CreatorIcon;
   iconClassName: string;
 };
@@ -48,7 +48,7 @@ const ACTION_CREATORS: AvailableCreatorCard[] = [
     title: "Gesture",
     description: "Choreograph expressive movement and reusable actions.",
     action: "Create Gesture",
-    to: "/a/gestures/new",
+    to: "/gestures/new",
     icon: Hand,
     iconClassName: "bg-secondary text-secondary-foreground",
   },
@@ -56,7 +56,7 @@ const ACTION_CREATORS: AvailableCreatorCard[] = [
     title: "Reaction",
     description: "Design emotional responses your Anima can perform.",
     action: "Create Reaction",
-    to: "/a/reactions/new",
+    to: "/reactions/new",
     icon: HeartPulse,
     iconClassName: "bg-secondary text-secondary-foreground",
   },
@@ -68,7 +68,7 @@ const EFFECT_CREATORS: EffectCreatorCard[] = [
     title: "Particle VFX",
     description: "Add bursts, trails, and atmospheric particles.",
     action: "Create VFX",
-    to: "/a/particle-effects/new",
+    to: "/particle-effects/new",
     icon: WandSparkles,
     iconClassName: "bg-accent text-accent-foreground",
   },
@@ -77,7 +77,7 @@ const EFFECT_CREATORS: EffectCreatorCard[] = [
     title: "Avatar VFX",
     description: "Add face decals, hover art, and Avatar textures.",
     action: "Create Avatar VFX",
-    to: "/a/avatar-effects/new",
+    to: "/avatar-effects/new",
     icon: Sparkles,
     iconClassName: "bg-primary text-primary-foreground",
   },
@@ -86,7 +86,7 @@ const EFFECT_CREATORS: EffectCreatorCard[] = [
     title: "Scene VFX",
     description: "Compose backgrounds and focus lines around your Anima.",
     action: "Create Scene VFX",
-    to: "/a/scene-effects/new",
+    to: "/scene-effects/new",
     icon: ImagePlay,
     iconClassName:
       "bg-violet-200 text-violet-950 dark:bg-violet-900 dark:text-violet-100",
@@ -214,7 +214,7 @@ export function CreateHubPage() {
           size="lg"
           className="bg-foreground text-background hover:bg-foreground/90 mt-7 shadow-lg"
         >
-          <Link to="/a/animas/new">
+          <Link to="/animas/new">
             Create Anima <ArrowRight className="size-4" />
           </Link>
         </Button>

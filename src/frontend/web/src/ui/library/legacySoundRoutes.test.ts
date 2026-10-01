@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { Route as NewRoute } from "@/routes/a/sound-effects.new";
-import { Route as EditRoute } from "@/routes/a/sound-effects.$soundEffectId.edit";
+import { Route as NewRoute } from "@/routes/_app/sound-effects.new";
+import { Route as EditRoute } from "@/routes/_app/sound-effects.$soundEffectId.edit";
 
 vi.mock("@tanstack/react-router", () => ({
   createFileRoute: () => (options: unknown) => options,
@@ -23,7 +23,7 @@ describe("legacy sound bookmarks", () => {
         redirect = value;
       }
       expect(redirect).toEqual({
-        to: "/a/library",
+        to: "/library",
         search: { section: "fx", fx: "sound" },
         replace: true,
       });

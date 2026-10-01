@@ -15,12 +15,12 @@ export interface SidebarLinkItem {
   label: string;
   href?: "#";
   to?:
-    | "/a/$animaId"
-    | "/a/animas"
-    | "/a/animas/$animaId"
-    | "/a/library"
-    | "/a/create"
-    | "/a/memories";
+    | "/$animaId"
+    | "/animas"
+    | "/animas/$animaId"
+    | "/library"
+    | "/create"
+    | "/memories";
   params?: { animaId: string };
   icon: React.JSX.Element | React.ReactNode;
   onClick?: (event: React.MouseEvent<HTMLAnchorElement>) => void;
@@ -202,22 +202,22 @@ export const SidebarLink = ({
     </>
   );
   const linkNode =
-    link.to === "/a/$animaId" && link.params ? (
+    link.to === "/$animaId" && link.params ? (
       <Link
-        to="/a/$animaId"
+        to="/$animaId"
         params={link.params}
         className={classNames}
         {...props}
       >
         {content}
       </Link>
-    ) : link.to === "/a/animas" ? (
-      <Link to="/a/animas" className={classNames} {...props}>
+    ) : link.to === "/animas" ? (
+      <Link to="/animas" className={classNames} {...props}>
         {content}
       </Link>
-    ) : link.to === "/a/animas/$animaId" && link.params ? (
+    ) : link.to === "/animas/$animaId" && link.params ? (
       <Link
-        to="/a/animas/$animaId"
+        to="/animas/$animaId"
         params={link.params}
         search={{ tab: "overview" }}
         className={classNames}
@@ -225,17 +225,17 @@ export const SidebarLink = ({
       >
         {content}
       </Link>
-    ) : link.to === "/a/library" ? (
-      <Link to="/a/library" search={{}} className={classNames} {...props}>
+    ) : link.to === "/library" ? (
+      <Link to="/library" search={{}} className={classNames} {...props}>
         {content}
       </Link>
-    ) : link.to === "/a/create" ? (
-      <Link to="/a/create" className={classNames} {...props}>
+    ) : link.to === "/create" ? (
+      <Link to="/create" className={classNames} {...props}>
         {content}
       </Link>
-    ) : link.to === "/a/memories" ? (
+    ) : link.to === "/memories" ? (
       <Link
-        to="/a/memories"
+        to="/memories"
         search={{ tab: "memory", mode: "manual" }}
         className={classNames}
         {...props}

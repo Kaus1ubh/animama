@@ -282,7 +282,7 @@ export function LibrarySharingDialog({ flow }: { flow: LibrarySharingFlow }) {
                 </div>
                 <div className="flex flex-wrap justify-end gap-2">
                   <Button variant="outline" asChild>
-                    <Link to="/a/library" onClick={() => flow.setOpen(false)}>
+                    <Link to="/library" onClick={() => flow.setOpen(false)}>
                       View in Library
                     </Link>
                   </Button>

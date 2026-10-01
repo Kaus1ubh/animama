@@ -93,7 +93,7 @@ describe("identity edit action", () => {
     const html = renderToStaticMarkup(
       <AnimaIdentitySection {...identityProps} />,
     );
-    expect(html).toContain('href="/a/animas/$animaId/identity?tab=overview"');
+    expect(html).toContain('href="/animas/$animaId/identity?tab=overview"');
   });
 });
 
@@ -103,6 +103,6 @@ describe("identity document actions", () => {
       <AnimaIdentitySection {...identityProps} />,
     );
     expect(html).not.toContain("Open memories");
-    expect(html).not.toContain("/a/memories");
+    expect(html).not.toContain("/memories");
   });
 });

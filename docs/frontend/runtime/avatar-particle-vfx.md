@@ -5,7 +5,7 @@ owned by the live `Avatar` runtime. They are separate from avatar texture VFX
 and DOM scene VFX.
 
 Particle Effect is the product-domain name exposed under
-`/a/particle-effects`. Typed Local entries reuse the existing Three.quarks
+`/particle-effects`. Typed Local entries reuse the existing Three.quarks
 validation and budgets, preview without an Anima loadout write, and compose
 directly into Gestures/Reactions. A Gesture or Reaction references the exact
 typed catalog item by dependency alias. Complete Preview mounts its current
@@ -73,8 +73,8 @@ animation.
 
 ## Particle Effect creator
 
-The protected `/a/particle-effects/new` and
-`/a/particle-effects/:particleEffectId/edit` routes provide the
+The protected `/particle-effects/new` and
+`/particle-effects/:particleEffectId/edit` routes provide the
 Animama-owned authoring surface. The editor creates a direct Particle Effect
 document, selects its bounded resources, previews it in its isolated Canvas,
 and saves one editable Local entry.

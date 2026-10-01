@@ -116,7 +116,7 @@ export function MemoryCueDetails({
         ) : (
           <Button asChild variant="link" size="sm" className="h-auto p-0">
             <Link
-              to="/a/memories"
+              to="/memories"
               search={{
                 tab: "memory",
                 mode: "manual",

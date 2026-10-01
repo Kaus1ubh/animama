@@ -382,7 +382,7 @@ restart retains the installation principal; a full purge creates a new one.
 
 Use `scripts/seed_synthetic_context.py` to create repeatable local markdown
 memory files, with an optional visible synthetic chat for the installation
-owner and an owned Anima. This is useful when testing `/a/memories?tab=uploads`,
+owner and an owned Anima. This is useful when testing `/memories?tab=uploads`,
 `POST /v1/memory/debug/search-memory-files`, `POST /v1/files/debug/search`, and
 live `search_memory_files` or `search_uploaded_files` behavior without manually
 chatting first.

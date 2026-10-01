@@ -376,7 +376,7 @@ export function useLibrarySharingFlow(): LibrarySharingFlow {
             void session.discard();
           });
           transferred = true;
-          await navigate({ to: "/a/$animaId", params: { animaId: id } });
+          await navigate({ to: "/$animaId", params: { animaId: id } });
         } finally {
           if (!transferred) mount?.dispose();
           runtimeAbort.current = null;

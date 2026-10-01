@@ -135,7 +135,7 @@ renderer.
 [`web/src/routes/desktop/quick-chat/$animaId.tsx`](../../../src/frontend/web/src/routes/desktop/quick-chat/$animaId.tsx)
 serves `/desktop/quick-chat/$animaId`.
 
-This route stays outside `/a` so it avoids `AppShell`, sidebar, header,
+This route stays outside `/` so it avoids `AppShell`, sidebar, header,
 `MainShell`, avatar canvas, and main-window shortcut ownership. It renders the
 shared `ChatInterfaceView` in `layout="chat-only"` mode inside a
 `SettingsProvider`.
@@ -196,7 +196,7 @@ The Quick Chat renderer sends commands back to the main renderer:
 Quick Chat cannot route the main window, so its memory cue sends
 `open-memory-entry` instead of linking. The main renderer accepts only an
 `entryId` of up to 128 ASCII letters, digits, `-` and `_` that starts with a
-letter or digit, then opens `/a/memories` with that entry selected. After forwarding the command, the main
+letter or digit, then opens `/memories` with that entry selected. After forwarding the command, the main
 process hides Quick Chat, whose owner chat unmounts on navigation, and restores,
 shows and focuses the main window. The manager reads only the command type; the
 main renderer validates the payload.

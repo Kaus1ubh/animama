@@ -105,10 +105,10 @@ Critical route composition:
 
 - `web/src/main.local.tsx` -> `AppProviders` -> `LocalRuntimeProvider` ->
   `AppRouter`
-- `web/src/routes/a.tsx` -> first-run gate + settings + app shell + sidebar
-- `web/src/routes/a/$animaId.tsx` -> anima providers + main shell + chat
+- `web/src/routes/_app.tsx` -> first-run gate + settings + app shell + sidebar
+- `web/src/routes/_app/$animaId.tsx` -> anima providers + main shell + chat
   runtime
-- `web/src/routes/a/$animaId/c/$chatId.tsx` is intentionally minimal so
+- `web/src/routes/_app/$animaId/c/$chatId.tsx` is intentionally minimal so
   chat-id URL changes do not remount runtime effects.
 
 ## Frontend Review Guidance
@@ -334,7 +334,7 @@ run.
 ## Accountless Browser Checkpoint
 
 The supported local browser journey starts at the sole application origin. A fresh
-installation opens `/setup`; a completed installation opens `/a` without an
+installation opens `/setup`; a completed installation opens `/` without an
 account or session. Do not create a local account, restore the deleted seed
 script, add browser Authorization callbacks, expose private services, or add a
 configuration switch that turns the local runtime into a hosted identity service.

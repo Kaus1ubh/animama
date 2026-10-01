@@ -53,7 +53,7 @@ async function discardToLibrary(page: Page): Promise<void> {
   await dialog
     .getByRole("button", { name: "Discard and continue", exact: true })
     .click();
-  await expect(page).toHaveURL(/\/a\/library(?:[/?#]|$)/);
+  await expect(page).toHaveURL(/\/library(?:[/?#]|$)/);
 }
 
 for (const item of cases) {

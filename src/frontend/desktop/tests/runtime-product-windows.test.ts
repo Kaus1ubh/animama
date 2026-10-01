@@ -22,12 +22,15 @@ function window(url: string) {
 }
 
 describe("independent product-window recovery", () => {
-  it.each(["/", "/setup", "/a", "/a/companion/c/chat?panel=memory#latest"])(
-    "remembers the validated main route %s",
-    (route) => {
-      expect(validatedApplicationRoute(origin + route, origin)).toBe(route);
-    },
-  );
+  it.each([
+    "/",
+    "/setup",
+    "/library?section=fx",
+    "/companion/c/chat?panel=memory#latest",
+    "/a/companion",
+  ])("remembers the validated main route %s", (route) => {
+    expect(validatedApplicationRoute(origin + route, origin)).toBe(route);
+  });
   it.each([
     "https://hostile.invalid/a",
     "http://127.0.0.1:41235/a",
@@ -35,15 +38,21 @@ describe("independent product-window recovery", () => {
     origin + "/_desktop/health",
     origin + "/v1/chats",
     origin + "/desktop/pip/anima",
-    origin + "/a/%2e%2e/v1/chats",
-    origin + "/a/%5csecret",
-    origin + "/a/%ff",
+    origin + "/api/session",
+    origin + "/assets/index.js",
+    origin + "/safety",
+    origin + "/Safety",
+    origin + "/Desktop/pip/anima",
+    origin + "//evil.example/x",
+    origin + "/library/%2e%2e/v1/chats",
+    origin + "/%5csecret",
+    origin + "/%ff",
     "data:text/html,recovery",
   ])("rejects %s as a remembered application route", (value) => {
     expect(validatedApplicationRoute(value, origin)).toBeNull();
   });
   it("destroys main, PiP and quick chat documents while preserving independent recovery", () => {
-    const main = window(origin + "/a/companion/c/chat");
+    const main = window(origin + "/companion/c/chat");
     const pip = window(origin + "/desktop/pip/companion");
     const quick = window(origin + "/desktop/quick-chat/companion");
     const recovery = window("data:text/html,recovery");
@@ -53,7 +62,7 @@ describe("independent product-window recovery", () => {
       recovery as unknown as BrowserWindow,
       origin,
     );
-    expect(route).toBe("/a/companion/c/chat");
+    expect(route).toBe("/companion/c/chat");
     for (const product of [main, pip, quick])
       expect(product.destroy).toHaveBeenCalledOnce();
     expect(recovery.destroy).not.toHaveBeenCalled();
@@ -80,7 +89,7 @@ describe("independent product-window recovery", () => {
   });
 
   it("still destroys every product when a crashed main document cannot report its URL", () => {
-    const main = window(origin + "/a");
+    const main = window(origin + "/");
     main.webContents.getURL = () => {
       throw new Error("destroyed contents");
     };
@@ -168,13 +177,13 @@ describe("independent product-window recovery", () => {
       return callback.mock.calls[0]![0];
     };
     for (const url of [
-      origin + "/a",
+      origin + "/",
       "ws://127.0.0.1:41234/v1/notifications/ws",
     ])
       expect(request(url)).toEqual({ cancel: true });
     expect(request("data:text/html,recovery")).toEqual({ cancel: false });
     ready = true;
-    expect(request(origin + "/a")).toEqual({ cancel: false });
+    expect(request(origin + "/")).toEqual({ cancel: false });
     ready = false;
     expect(request(origin + "/v1/chats")).toEqual({ cancel: true });
   });

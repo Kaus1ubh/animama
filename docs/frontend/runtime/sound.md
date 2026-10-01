@@ -107,5 +107,5 @@ runtime IDs, filenames, Anima IDs, content identifiers, object keys, or signed
 URLs.
 
 Standalone editors and debug tools may opt into the explicitly named built-in
-provider. Live `/a/{animaId}` routes must always mount the owner-authorized
+provider. Live `/{animaId}` routes must always mount the owner-authorized
 catalog.

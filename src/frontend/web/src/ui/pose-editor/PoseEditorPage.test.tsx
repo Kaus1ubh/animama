@@ -126,11 +126,11 @@ describe("Pose editor composition", () => {
       if (condition === "dirty") usePoseCreatorStore.getState().setDirty(true);
       else harness.saving = 1;
       renderToString(<PoseEditorWorkspace poseId="pose-item" />);
-      const path = "/a/poses/pose-item/edit";
+      const path = "/poses/pose-item/edit";
       expect(
         harness.guard?.shouldBlockFn({
           current: { pathname: path },
-          next: { pathname: "/a/library" },
+          next: { pathname: "/library" },
         }),
       ).toBe(true);
       expect(

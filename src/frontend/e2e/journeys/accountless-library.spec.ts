@@ -35,14 +35,14 @@ test("accountless Library smoke @smoke @read-only", async ({
     (response) => new URL(response.url()).pathname === "/v1/avatar-catalog",
   );
   const response = await test.step("Open the Library route", async () => {
-    return page.goto("/a/library", {
+    return page.goto("/library", {
       waitUntil: "domcontentloaded",
     });
   });
 
   await test.step("Assert the accountless Library is visible", async () => {
     expect(response?.ok()).toBe(true);
-    await expect(page).toHaveURL(/\/a\/library(?:[/?#]|$)/);
+    await expect(page).toHaveURL(/\/library(?:[/?#]|$)/);
     await expect(
       page.getByRole("heading", { name: "Library", exact: true }),
     ).toBeVisible();
@@ -103,7 +103,7 @@ test("accountless built-in pose playback @surface-library @channel-pose-clip @re
     }
   });
   try {
-    await page.goto("/a/library", { waitUntil: "domcontentloaded" });
+    await page.goto("/library", { waitUntil: "domcontentloaded" });
     const surface = await openLibraryPreview({
       page,
       contentName: "shy-finger-poke",

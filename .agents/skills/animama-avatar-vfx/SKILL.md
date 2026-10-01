@@ -1,6 +1,6 @@
 ---
 name: animama-avatar-vfx
-description: Understand, create, preview, and tune Animama Avatar Effects through the /a/avatar-effects/ creator, including Hover, Face decal, Texture, image placement, motion, sound, and Gesture or Reaction integration. Use for avatar-attached visual effects and their authoring workflow; general VRM import/spec questions, particle emitters, and scene backgrounds are separate topics.
+description: Understand, create, preview, and tune Animama Avatar Effects through the /avatar-effects/ creator, including Hover, Face decal, Texture, image placement, motion, sound, and Gesture or Reaction integration. Use for avatar-attached visual effects and their authoring workflow; general VRM import/spec questions, particle emitters, and scene backgrounds are separate topics.
 ---
 
 # Animama Avatar VFX

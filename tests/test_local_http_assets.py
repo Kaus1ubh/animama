@@ -96,7 +96,7 @@ def _model_url(name: str = "encoder.onnx", *, version: str | None = _VERSION) ->
     return PARAKEET_MOUNT + name + ("?v=" + version if version is not None else "")
 
 
-@pytest.mark.parametrize("path", ["/", "/a/anima", "/a/anima/", "/index.html"])
+@pytest.mark.parametrize("path", ["/", "/anima", "/anima/", "/index.html"])
 async def test_navigation_and_head_revalidate_html_bytes(web_root: Path, path: str) -> None:
     async with _client(LocalAssets(web_root)) as client:
         first = await client.get(path, headers={"accept": "text/html"})
@@ -293,7 +293,7 @@ async def test_only_navigation_can_fall_back_and_directories_or_links_are_not_do
     (web_root / "inside").symlink_to(web_root / "index.html")
     (web_root / "linked-dir").symlink_to(tmp_path, target_is_directory=True)
     async with _client(LocalAssets(web_root)) as client:
-        assert (await client.get("/a/anima")).status_code == 404
+        assert (await client.get("/anima")).status_code == 404
         for path in ("/directory", "/link", "/inside", "/linked-dir/private.txt"):
             assert (await client.get(path, headers={"accept": "text/html"})).status_code == 404
         for method in ("POST", "PUT", "DELETE", "OPTIONS"):

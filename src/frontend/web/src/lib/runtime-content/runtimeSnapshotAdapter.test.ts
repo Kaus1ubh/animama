@@ -397,9 +397,7 @@ describe("adaptRuntimeSnapshot", () => {
         ),
     });
 
-    await expect(
-      catalog.loadReactionClip("joy-3"),
-    ).resolves.toMatchObject({
+    await expect(catalog.loadReactionClip("joy-3")).resolves.toMatchObject({
       events: [
         expect.objectContaining({ effectId: "emote" }),
         expect.objectContaining({ presetId: "scene-joy" }),

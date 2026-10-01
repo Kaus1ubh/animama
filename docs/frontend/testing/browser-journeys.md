@@ -243,7 +243,7 @@ when it is safe to share with active tasks:
 
 Open `http://localhost:8000`. An installation whose first run is incomplete
 shows `/setup`; a nonblank private display name is required and there is no Skip.
-After completion, `/a` resolves to the last visited owned Anima's chat, or Annie
+After completion, `/` resolves to the last visited owned Anima's chat, or Annie
 on a fresh installation. A normal restart must retain
 the completed state, local display name, Animas, chats, content, and files.
 
@@ -270,7 +270,7 @@ For a fresh accountless check:
 
 1. Confirm the page loads from the application origin and never redirects to a credential screen.
 2. Confirm blank names cannot continue, then complete setup with a non-sensitive
-   test display name and confirm Annie opens at `/a/$animaId`.
+   test display name and confirm Annie opens at `/$animaId`.
 3. Create an Anima and open its chat surface.
 4. Load an Avatar portrait or another private byte through a same-origin `/v1`
    URL without an Authorization header.

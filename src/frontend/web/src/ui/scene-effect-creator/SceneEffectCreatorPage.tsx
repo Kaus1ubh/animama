@@ -566,7 +566,7 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
           await clearSceneEffectRecovery(userId, "new", { strict: true });
         if (!(await discardCurrentDraft())) return;
         await navigate({
-          to: "/a/scene-effects/new",
+          to: "/scene-effects/new",
           replace: true,
           ignoreBlocker: true,
         });

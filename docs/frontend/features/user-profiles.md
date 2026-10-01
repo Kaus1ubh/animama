@@ -18,7 +18,7 @@ context rather than browser storage. The bootstrap placeholder may be null
 before setup. An earlier skipped or unconfirmed setup reopens without resetting
 data.
 
-After setup and on future root launches, `/a` opens `/a/$animaId` for the last
+After setup and on future root launches, `/` opens `/$animaId` for the last
 visited owned Anima, or the first in creation order (Annie on a fresh install).
 Saved settings and the owned list must load before selecting a fallback. A
 deleted selection falls back to the first remaining Anima; an empty list opens

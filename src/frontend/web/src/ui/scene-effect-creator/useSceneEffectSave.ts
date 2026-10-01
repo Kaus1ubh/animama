@@ -286,7 +286,7 @@ export function useSceneEffectSave(args: {
       setStage("idle");
       toast.success("Scene Effect saved.");
       await navigate({
-        to: "/a/scene-effects/$sceneEffectId/edit",
+        to: "/scene-effects/$sceneEffectId/edit",
         params: { sceneEffectId: item.item_id },
         replace: true,
         ignoreBlocker: true,

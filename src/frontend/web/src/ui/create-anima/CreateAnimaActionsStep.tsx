@@ -1,7 +1,10 @@
 import { ChevronDown, ChevronRight, Play } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import type { ItemRevisionRef, PyGesture } from "@animama/runtime-contracts/sdk";
+import type {
+  ItemRevisionRef,
+  PyGesture,
+} from "@animama/runtime-contracts/sdk";
 import { TRACKED_EMOTIONS, type TrackedEmotion } from "@/lib/emotion";
 import { cn } from "@/lib/utils";
 import type { AnimaCreationSources } from "@/query/hooks/useAnimaCreation";

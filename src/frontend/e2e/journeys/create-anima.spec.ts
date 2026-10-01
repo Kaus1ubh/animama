@@ -64,7 +64,7 @@ async function creationTransport(
 }
 
 async function openCreator(page: Page) {
-  await page.goto("/a/animas/new");
+  await page.goto("/animas/new");
   await expect(
     page.getByRole("heading", { name: "Choose an Avatar", exact: true }),
   ).toBeVisible();
@@ -523,7 +523,7 @@ test("empty-roster fallback and 320px keyboard-safe errors @create-anima @read-o
       else await route.fallback();
     },
   );
-  await page.goto("/a/animas");
+  await page.goto("/animas");
   await expect(
     page.getByRole("heading", { name: "Choose an Avatar", exact: true }),
   ).toBeVisible();
@@ -541,7 +541,7 @@ test("empty-roster fallback and 320px keyboard-safe errors @create-anima @read-o
   await page
     .getByRole("button", { name: "Cancel", exact: true })
     .press("Enter");
-  await expect(page).toHaveURL(/\/a\/create$/);
+  await expect(page).toHaveURL(/\/create$/);
   expect(commands).toHaveLength(0);
 });
 
@@ -553,13 +553,13 @@ test("hub, sidebar, carousel, and Library retain creation entry points @create-a
     name: "Choose an Avatar",
     exact: true,
   });
-  await page.goto("/a/create");
+  await page.goto("/create");
   await expect(
     page.getByRole("link", { name: "Create Gesture", exact: true }),
-  ).toHaveAttribute("href", "/a/gestures/new");
+  ).toHaveAttribute("href", "/gestures/new");
   await expect(
     page.getByRole("link", { name: "Create Reaction", exact: true }),
-  ).toHaveAttribute("href", "/a/reactions/new");
+  ).toHaveAttribute("href", "/reactions/new");
   await page.getByRole("link", { name: "Create Anima", exact: true }).click();
   await expect(heading).toBeVisible();
 
@@ -570,7 +570,7 @@ test("hub, sidebar, carousel, and Library retain creation entry points @create-a
   await page.getByRole("button", { name: "Create Anima", exact: true }).click();
   await expect(heading).toBeVisible();
 
-  await page.goto("/a/library");
+  await page.goto("/library");
   await page
     .getByRole("navigation", { name: "Library sections" })
     .getByRole("button", { name: "Avatars", exact: true })
@@ -581,7 +581,7 @@ test("hub, sidebar, carousel, and Library retain creation entry points @create-a
   const href = await useAvatar.getAttribute("href");
   if (!href) throw new Error("Library Use Avatar must expose its destination.");
   const target = new URL(href, page.url());
-  expect(target.pathname).toBe("/a/animas/new");
+  expect(target.pathname).toBe("/animas/new");
   expect(target.searchParams.get("avatar")).toBeTruthy();
   await useAvatar.click();
   await expect(heading).toBeVisible();
@@ -602,7 +602,7 @@ const signedOutTest = test.extend({
 });
 
 signedOutTest.describe("signed-out creation handoffs", () => {
-  for (const source of ["/a/animas/new", "/a/create"]) {
+  for (const source of ["/animas/new", "/create"]) {
     signedOutTest(
       `${source} restores an unavailable Avatar handoff after sign-in @create-anima @read-only`,
       async ({ page }) => {
@@ -634,7 +634,7 @@ signedOutTest.describe("signed-out creation handoffs", () => {
           await emailInput.fill(email);
           await passwordInput.fill(password);
           await page.getByRole("button", { name: /^Sign In$/i }).click();
-          await expect(page).toHaveURL(/\/a\/animas\/new/, {
+          await expect(page).toHaveURL(/\/animas\/new/, {
             timeout: 10000,
           });
           await expect(
@@ -655,7 +655,7 @@ signedOutTest.describe("signed-out creation handoffs", () => {
             { cause: error },
           );
         }
-        expect(new URL(page.url()).pathname).toBe("/a/animas/new");
+        expect(new URL(page.url()).pathname).toBe("/animas/new");
         expect(new URL(page.url()).searchParams.get("avatar")).toBe(
           missingAvatar,
         );
@@ -720,7 +720,7 @@ test("real creation and lost-success replay on an explicitly isolated stack @cre
     .click();
   await expect
     .poll(() => new URL(page.url()).pathname, { timeout: 60000 })
-    .toBe(`/a/${createdId}`);
+    .toBe(`/${createdId}`);
   expect(commands).toHaveLength(2);
   expect(commands[1]).toEqual(commands[0]);
   expect(unexpectedPosts).toEqual([]);

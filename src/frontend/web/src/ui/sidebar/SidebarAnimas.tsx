@@ -39,9 +39,7 @@ export const SidebarAnimas = () => {
   const currentAnimaId =
     typeof params?.animaId === "string" ? params.animaId : null;
   const liveAnimaId =
-    currentAnimaId && !pathname.startsWith("/a/animas/")
-      ? currentAnimaId
-      : null;
+    currentAnimaId && !pathname.startsWith("/animas/") ? currentAnimaId : null;
   const recentlyUsedAnimaId =
     liveAnimaId ?? userSettings?.last_active_anima_id ?? null;
 
@@ -77,7 +75,7 @@ export const SidebarAnimas = () => {
           const linkNode = (
             <Link
               key={anima.id}
-              to="/a/$animaId"
+              to="/$animaId"
               params={{ animaId: anima.id }}
               aria-label={displayName}
               className={cn(
@@ -172,7 +170,7 @@ export const SidebarAnimas = () => {
                   selectedAnimaId={currentAnimaId}
                   renderItem={(anima, props) => (
                     <Link
-                      to="/a/$animaId"
+                      to="/$animaId"
                       params={{ animaId: anima.id }}
                       {...props}
                     />
