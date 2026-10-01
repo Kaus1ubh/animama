@@ -11,6 +11,7 @@ import {
   type EmotionPostureProceduralAnimationParams,
   type EmotionPostureResolutionReason,
   type EmotionPostureTarget,
+  type ProceduralAnimationBasisOptions,
   type ProceduralAnimationLayer,
   type ProceduralAnimationLayerSnapshot,
   type ProceduralAnimationRuntimeContext,
@@ -21,6 +22,10 @@ import {
   type EmotionRuntimeState,
   type TrackedEmotion,
 } from "@/lib/emotion";
+import {
+  retargetVrm1AuthoredPositionOffsetToVrm0,
+  retargetVrm1AuthoredQuaternionOffsetToVrm0,
+} from "../poses/poseRetargeting";
 
 const DEG_TO_RAD = Math.PI / 180;
 const TARGET_EPSILON = 0.0001;
@@ -55,10 +60,6 @@ const EMOTION_POSTURE_TARGET_KEYS = [
   "headRollDeg",
   "shoulderLiftCm",
 ] as const satisfies readonly (keyof EmotionPostureTarget)[];
-
-export type EmotionPostureProceduralAnimationLayerOptions = {
-  isVrm0?: boolean;
-};
 
 export type EmotionPostureResolution = {
   resolvedGroup: EmotionGroup | "neutral";
@@ -107,10 +108,7 @@ export class EmotionPostureProceduralAnimationLayer implements ProceduralAnimati
   private _scratchOffset = new THREE.Quaternion();
   private _scratchInverseOffset = new THREE.Quaternion();
 
-  constructor(
-    vrm: VRM,
-    options: EmotionPostureProceduralAnimationLayerOptions = {},
-  ) {
+  constructor(vrm: VRM, options: ProceduralAnimationBasisOptions = {}) {
     this._vrm = vrm;
     this._isVrm0 = options.isVrm0 === true;
     this._cacheBones();
@@ -337,10 +335,9 @@ export class EmotionPostureProceduralAnimationLayer implements ProceduralAnimati
     if (!bone) return;
 
     const offset = this._getPosOffset(boneName);
+    offset.set(x, y, z);
     if (this._isVrm0) {
-      offset.set(-x, y, -z);
-    } else {
-      offset.set(x, y, z);
+      retargetVrm1AuthoredPositionOffsetToVrm0(offset);
     }
     bone.position.add(offset);
     this._lastPosOffsets.set(boneName, offset);
@@ -631,14 +628,6 @@ function mapEmotionPostureTarget(
   return Object.fromEntries(
     EMOTION_POSTURE_TARGET_KEYS.map((key) => [key, mapValue(target[key], key)]),
   ) as EmotionPostureTarget;
-}
-
-export function retargetVrm1AuthoredQuaternionOffsetToVrm0(
-  quaternion: THREE.Quaternion,
-): void {
-  // Matches PoseController's VRM0 retargeting: VRM1-authored +Z-forward
-  // rotations are conjugated into the VRM0 normalized -Z-forward basis.
-  quaternion.set(-quaternion.x, quaternion.y, -quaternion.z, quaternion.w);
 }
 
 function sanitizeUnitInterval(value: unknown): number {

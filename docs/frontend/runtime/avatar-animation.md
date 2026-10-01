@@ -445,6 +445,22 @@ mapping. The conversion is centralized in
 `poses/poseRetargeting.ts` without changing the `animaPose/1.0` or
 `animaPoseClip/1.0` schemas.
 
+Procedural layers that write authored bone offsets (breathing, sway, bounce,
+head nod, head side tilt, talking hands and emotion posture) are also
+VRM 1-authored. `ProceduralAnimationController` passes `isVrm0` to each layer,
+and the layers apply the same conversion through
+`retargetVrm1AuthoredQuaternionOffsetToVrm0(...)` and
+`retargetVrm1AuthoredPositionOffsetToVrm0(...)` before writing to normalized bones.
+Geometry-derived axes, such as the talking-hands forearm twist, are already in
+the model's frame and are not converted.
+
+Expression names are canonical VRM 1 preset names (`happy`, `surprised`, `aa`, ...).
+three-vrm maps VRM 0 presets, but VRM 0 has no `surprised` slot, so VRoid exports
+it as a custom expression named `Surprised`. After loading, `Avatar` calls
+`canonicalizeCustomPresetExpressions(...)` to re-register such custom expressions
+under the matching preset name when the model, of either version, does not
+already bind that preset. Content and creator pickers therefore use one name across VRM versions.
+
 Typed Gesture and Reaction editors reuse the shared timeline, pose, expression,
 and preview primitives through their product routes. They keep an editable
 client document and resolve its component dependencies into an editor-owned
@@ -593,10 +609,9 @@ dominant-group preset resolves to no posture target.
 
 Posture targets are authored in the same VRM1-style basis used by
 `PoseController` catalog poses: VRM1 faces +Z, so positive local X pitch bends
-the torso/head forward and negative local X pitch opens or leans back. For VRM0
-models, `EmotionPostureProceduralAnimationLayer` retargets the authored
-quaternion offsets by flipping the X and Z quaternion components, matching
-`PoseController`'s VRM0 retargeting rule.
+the torso/head forward and negative local X pitch opens or leans back. VRM0
+models receive the shared procedural-layer conversion described in the pose
+retargeting section.
 
 The supported default presets are Gloom, Revulsion, and Rejection. Gloom is the
 clearest preset: disappointment, grief, and sadness lower the head, round the

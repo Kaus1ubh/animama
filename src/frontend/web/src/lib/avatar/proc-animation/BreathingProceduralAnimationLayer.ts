@@ -4,10 +4,12 @@ import type { VRM, VRMHumanBoneName } from "@pixiv/three-vrm";
 import {
   DEFAULT_BREATHING_PROCEDURAL_ANIMATION_PARAMS,
   type BreathingProceduralAnimationParams,
+  type ProceduralAnimationBasisOptions,
   type ProceduralAnimationLayer,
   type ProceduralAnimationLayerSnapshot,
   type ProceduralAnimationRuntimeContext,
 } from "./types";
+import { retargetVrm1AuthoredQuaternionOffsetToVrm0 } from "../poses/poseRetargeting";
 
 const DEG_TO_RAD = Math.PI / 180;
 const TAU = Math.PI * 2;
@@ -43,8 +45,12 @@ export class BreathingProceduralAnimationLayer implements ProceduralAnimationLay
   private _scratchOffset = new THREE.Quaternion();
   private _scratchInverseOffset = new THREE.Quaternion();
 
-  constructor(vrm: VRM) {
+  /** VRM0 normalized bones face -Z, so VRM1-authored offsets are converted. */
+  private readonly _isVrm0: boolean;
+
+  constructor(vrm: VRM, options: ProceduralAnimationBasisOptions = {}) {
     this._vrm = vrm;
+    this._isVrm0 = options.isVrm0 === true;
     this._cacheBones();
   }
 
@@ -219,6 +225,9 @@ export class BreathingProceduralAnimationLayer implements ProceduralAnimationLay
 
     this._scratchEuler.set(x, y, z, "XYZ");
     this._scratchOffset.setFromEuler(this._scratchEuler);
+    if (this._isVrm0) {
+      retargetVrm1AuthoredQuaternionOffsetToVrm0(this._scratchOffset);
+    }
 
     const offset = this._getOffsetScratch(boneName);
     offset.copy(this._scratchOffset);
