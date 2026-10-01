@@ -1,4 +1,5 @@
 import { useId, useState, type ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import type {
@@ -8,6 +9,7 @@ import type {
   PyModelConnectionDetection,
   PyModelConnectionPreset,
 } from "@animama/runtime-contracts/api-types";
+import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
 import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
 import {
   useCreateModelConnection,
@@ -42,6 +44,7 @@ import { credentialTarget } from "../../../../../shared/desktop-runtime";
 import {
   applyCredentialChanges,
   credentialFailureMessage,
+  refreshCredentialDependents,
 } from "@/ui/settings/desktop-credential-state";
 
 import {
@@ -145,8 +148,8 @@ export type ModelConnectionFormState = { saving: boolean; valid: boolean };
 /**
  * The fields for adding or editing a model connection; `footer` renders
  * inside the form, so its submit button saves. On desktop the key is stored
- * in the encrypted vault under the connection's managed variable, which
- * restarts local services and reloads the app; on self-hosted web the owner
+ * in the encrypted vault under the connection's managed variable and applies
+ * immediately; on self-hosted web the owner
  * names the environment variable that holds the key. A new connection to a
  * local server type can **Detect** whether one is running at its default
  * address.
@@ -173,6 +176,8 @@ export function ModelConnectionForm({
 }) {
   const formId = useId();
   const platform = useRuntimePlatform();
+  const queryClient = useQueryClient();
+  const ownerId = useRuntimeOwnerId();
   const bridge =
     platform.kind === "desktop"
       ? platform.desktopBridge.credentials
@@ -260,13 +265,12 @@ export function ModelConnectionForm({
     const removedEnv = draft.removeKey ? connection?.credential_env : null;
     try {
       if (managedKeys && bridge) {
-        // Changing a key restarts local services and replaces this window, so
-        // nothing after this call is guaranteed to run.
         if (key && saved.credential_env)
           await applyCredentialChanges(bridge, [
             { connection: saved.credential_env, value: key },
           ]);
         else if (removedEnv) await deleteConnectionKey(bridge, removedEnv);
+        await refreshCredentialDependents(queryClient, ownerId);
       }
       toast.success(connection ? "Connection saved." : "Connection added.");
       onSaved(saved);
@@ -404,9 +408,8 @@ export function ModelConnectionForm({
             </label>
           ) : null}
           <p className="text-muted-foreground text-xs">
-            Encrypted on this computer and never shown again. Saving a key
-            restarts local services and reloads the app; test models after it
-            reloads.
+            Encrypted on this computer and never shown again. A saved key
+            applies immediately.
           </p>
         </div>
       ) : (

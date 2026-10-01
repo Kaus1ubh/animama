@@ -1,3 +1,5 @@
+import type { QueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/query/keys";
 import {
   credentialTarget,
   type CredentialChange,
@@ -13,13 +15,9 @@ export function credentialFailureMessage(
   if (!status.error) return null;
   if (status.error === "connection_credentials_full")
     return "This computer already stores the most model connection keys it allows (32). Remove the key from a connection you no longer use, then retry.";
-  if (status.error === "runtime_busy")
-    return "The key was not changed because Animama is still finishing local work. Wait, then retry.";
-  if (status.error === "runtime_quiesce_failed")
-    return "The key was not changed because local services could not stop safely. Retry the change; if it keeps failing, open Logs.";
   return status.restartRequired
     ? "The change could not finish. Saved key status is shown above. Open runtime recovery and retry before changing the key again."
-    : "The previous key change could not finish. Check the saved status and retry the change.";
+    : "The key change could not finish. Check the saved status and retry the change.";
 }
 
 /**
@@ -46,7 +44,27 @@ export function credentialChangesFromDrafts(
 }
 
 /**
- * Apply a batch with one local-service restart. Resolves with every status
+ * Saved keys apply to the running backend, so refresh the queries that report
+ * key-dependent state: model availability and connection key status. Nothing
+ * else caches provider key status.
+ */
+export async function refreshCredentialDependents(
+  queryClient: QueryClient,
+  ownerId: string | null | undefined,
+): Promise<void> {
+  const owner = ownerId ?? "__anon__";
+  await Promise.all([
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.modelProviders.all(owner),
+    }),
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.modelConfiguration.all(owner),
+    }),
+  ]);
+}
+
+/**
+ * Save a batch and apply it to the running backend. Resolves with every status
  * only when each change is confirmed by main's saved status; otherwise rejects
  * with `failed` (the providers or connection variables that did not change)
  * and `statuses`. Typed keys are never kept for a retry; the owner re-enters

@@ -52,19 +52,16 @@ load a model before testing it. See
 and context windows.
 
 Keys are encrypted using macOS secure storage and are never read back into the
-browser. Enter or remove several keys, then Save once: saving briefly restarts
-the local service consumers a single time for the whole batch;
-the database, saved origin and installation owner stay unchanged. Saving or
-removing a connection's key, including removing a connection that has one,
-restarts them the same way and reloads the window; up to 32 connection keys can
-be stored. Finish active work before changing credentials. Never put a key in a
-URL or send it to support.
+browser. Saving, replacing or removing keys, in setup, Settings → API Keys or on
+a model connection, takes effect for the next chat or voice request without
+reloading the window or restarting the backend. Replies already in progress finish
+on the key they started with. Up to 32 connection keys can be stored. Never put
+a key in a URL or send it to support.
 
-If local work prevents a change, the previous key stays unchanged. Reopen
-Settings after recovery to see the key's failure and retry the change.
-The Settings dialog may close while services restart. If the key was saved but
-services could not restart, runtime Retry uses that saved value; do not remove
-the vault or re-enter the key merely to repair the restart.
+If the running service cannot take the change, Animama restarts its local
+services from the saved keys, which reloads the window. If that restart fails,
+runtime recovery's Retry uses the saved keys; do not remove the vault or
+re-enter a key merely to repair it.
 
 PocketTTS and microphone permission do not require Parakeet. Offline dictation
 and Voice Mode require the **Offline speech recognition** pack. Open the app

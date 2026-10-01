@@ -127,8 +127,8 @@ export function ModelConnectionsSettings({ disabled }: { disabled: boolean }) {
       : undefined;
 
   /**
-   * The desktop key this app saved for a connection, if any. Deleting it
-   * restarts local services and reloads the app.
+   * The desktop key this app saved for a connection, if any. Removing the
+   * connection deletes it too.
    */
   const savedKey = (connection: PyModelConnection): string | null =>
     managedKeys &&
@@ -168,7 +168,7 @@ export function ModelConnectionsSettings({ disabled }: { disabled: boolean }) {
     if (env && credentials) await deleteConnectionKey(credentials, env);
   };
 
-  /** A connection with a saved key always confirms first, because of the restart. */
+  /** A connection with a saved key always confirms first: the key cannot be recovered. */
   const startRemoval = (target: Removal) => {
     if (target.kind === "connection" && savedKey(target.connection))
       setRemoval(target);
@@ -467,7 +467,7 @@ export function ModelConnectionsSettings({ disabled }: { disabled: boolean }) {
                   ? `${removalUsageSummary(removal.usage)} ${removalConsequences(removal.usage)}`
                   : null,
                 removal?.kind === "connection" && savedKey(removal.connection)
-                  ? "Its saved key is deleted too, so Animama restarts its local services and reloads."
+                  ? "Its saved key is deleted too and cannot be recovered."
                   : null,
               ]
                 .filter(Boolean)

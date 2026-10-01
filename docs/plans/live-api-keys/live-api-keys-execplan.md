@@ -96,8 +96,8 @@ libraries and child processes, and FastAPI ↔ logs.
 - [x] Owner approved this plan and the recommended decisions D1–D6 (2026-09-30).
 - [x] Phase 1 (#222): backend runtime credential store and live-safe consumers. Review passed (Review #2); `make check-test` 2792 passed; commit `3ee9f6f8`.
 - [x] Phase 2 (#223): authenticated desktop credential route. Review passed (Review #2); `make check-test` 2878 passed; commit `5f085824`.
-- [x] Phase 3 (#224): Electron main live delivery. Review passed (Review #3); `pnpm desktop:test` 399 passed.
-- [ ] Phase 4 (#225): renderer, setup and documentation.
+- [x] Phase 3 (#224): Electron main live delivery. Review passed (Review #3); `pnpm desktop:test` 399 passed; commit `4b20e4bc`.
+- [x] Phase 4 (#225): renderer, setup and documentation. Review passed (Review #2). Frontend checks pass; `web:test` has one unrelated pre-existing flaky failure (#226).
 - [ ] Security review (`security-review` skill + `sdlc-reviewer`) and final integration review.
 - [ ] Owner gate: packaged macOS acceptance with real provider keys.
 
@@ -664,7 +664,67 @@ Checks: `pnpm check`, `pnpm web:lint`, `pnpm web:test`, `pnpm build`,
 
 #### Code Review #1 Findings
 
+Reviewed source: uncommitted Phase 4 working tree over `4b20e4bc`. Reviewer:
+independent `sdlc-reviewer`, who ran Prettier, ESLint and `tsc --noEmit` on the
+changed files. Verified: R1, R4 and R6; the smoke's `/\bsaved\./` wait matches
+only "Saved."; the setup change cannot race a pack transition; and the
+invalidated queries are cheap.
+
+- **P4-R1-F1 (should-fix):** `docs/backend/operations/local-models.md` still
+  says that saving a connection key restarts local services.
+- **P4-R1-F2 (should-fix):** no test covers `refreshCredentialDependents`.
+- **P4-R1-F3 (should-fix, low):** the panel's `blockedReason` prop is now dead.
+- **P4-R1-F4 (should-fix):** `pnpm build`, `pnpm desktop:check` and
+  `pnpm desktop:test` were not reported for this phase.
+- **P4-R1-F5 (optional):** runtime capabilities have no key-dependent field, so
+  invalidating them is unnecessary.
+- **P4-R1-F6 (optional):** "without restarting anything" overstates (the
+  document worker restarts), and the setup comments omit the fallback restart.
+- **P4-R1-F7 (optional):** the troubleshooting wording implies a save stops
+  services.
+- **P4-R1-F8 (optional):** tests still use `runtime_busy`, and the retained
+  failure copy says "previous" right after the failed save.
+
 #### Code Review #1 Revisions
+
+- **P4-R1-F1: accepted.** `local-models.md` now says connection keys apply
+  without a restart.
+- **P4-R1-F2: accepted.** A vitest case spies on `QueryClient.invalidateQueries`
+  and asserts the exact owner-scoped prefixes.
+- **P4-R1-F3: accepted.** The `blockedReason` prop is removed. The panel is
+  blocked only by `packs.busy`.
+- **P4-R1-F4: accepted.** `pnpm check`, `web:lint`, `build`, `desktop:check`
+  and `desktop:test` (399 passed) exit 0. `pnpm web:test` shows 2346 vitest
+  tests passing, and the setup browser tests pass. The one failure is
+  `voice-clone-library.browser.test.mjs` › "compact picker keeps inline
+  download…", which also fails in 2 of 2 full-suite runs on `origin/main`
+  `36a40177` and passes in isolation on both trees. It is tracked as #226 and
+  is unrelated to this change.
+- **P4-R1-F5: accepted.** The runtime-capabilities invalidation is dropped and
+  the docstring corrected.
+- **P4-R1-F6: accepted.** The docs and panel docstring now say "without
+  reloading the window or restarting the backend", and the setup comment names
+  the rare fallback restart.
+- **P4-R1-F7: accepted.** The troubleshooting row now says "Nothing was saved or
+  sent."
+- **P4-R1-F8: accepted.** Tests use `secure_storage_unavailable`, and the
+  retained copy reads "The key change could not finish…".
+- Repair budget: 1 of 2 rounds used.
+
+#### Code Review #2 Findings
+
+Targeted recheck by an independent `sdlc-reviewer`. F1–F4 and F6–F8 are
+verified. It ran ESLint, `tsc`, the panel vitest (11/11) and the setup browser
+tests (5/5), and found that the smoke's `/\bsaved\./` wait still matches only
+"Saved.". **P4-R2-F1 (low, docs):** `overview.md` still said the panel
+refreshes capability queries. Non-blocking: one troubleshooting table row's
+padding differs from Prettier (`docs/` is not format-gated).
+
+#### Code Review #2 Revisions
+
+- **P4-R2-F1: accepted.** The text now says "model and connection queries".
+- The table row padding is re-formatted.
+- Phase 4 is complete. Repair budget: 2 of 2 rounds used, with no open findings.
 
 ## Final integration review
 

@@ -208,9 +208,7 @@ test("name and age survive key save, renderer recreation and native download; Co
       false,
     );
     await page.getByRole("button", { name: "Save", exact: true }).click();
-    await page
-      .getByText("Change saved. Local services are ready.", { exact: true })
-      .waitFor();
+    await page.getByText("Saved.", { exact: true }).waitFor();
     await page.reload();
     assert.equal(
       await page.getByLabel("Display name", { exact: true }).inputValue(),
@@ -317,6 +315,31 @@ test("discard permits download and failed native activation restores the unfinis
   }
 });
 
+test("key edits stay available when setup details cannot be retained", async () => {
+  const fixture = await mount();
+  try {
+    const { page, operations } = fixture;
+    await page.evaluate(() => {
+      Storage.prototype.setItem = () => {
+        throw new Error("storage unavailable");
+      };
+    });
+    await nameAndAge(page);
+    await page
+      .getByText(/Continue setup before changing speech recognition/u)
+      .first()
+      .waitFor();
+    await page.getByLabel("OpenAI", { exact: true }).fill("fixture-key");
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await page.getByText("Saved.", { exact: true }).waitFor();
+    assert.equal(await cpuDownload(page).isEnabled(), false);
+    assert.deepEqual(operations, [{ method: "credentials.apply" }]);
+  } finally {
+    fixture.finishPack();
+    await fixture.page.close();
+  }
+});
+
 test("credential removal and a failed-save retry also retain the unfinished setup fields", async () => {
   const fixture = await mount();
   try {
@@ -324,9 +347,9 @@ test("credential removal and a failed-save retry also retain the unfinished setu
     await nameAndAge(page);
     statuses[0].configured = true;
     statuses[0].updatedAt = "2026-09-28T00:00:00Z";
-    statuses[0].error = "runtime_busy";
+    statuses[0].error = "secure_storage_unavailable";
     await page.reload();
-    await page.getByText(/OpenAI: The key was not changed/u).waitFor();
+    await page.getByText(/OpenAI: The key change could not finish/u).waitFor();
     assert.equal(
       await page.getByLabel("Display name", { exact: true }).inputValue(),
       "Ada Lovelace",
@@ -340,9 +363,7 @@ test("credential removal and a failed-save retry also retain the unfinished setu
       .click();
     delete statuses[0].error;
     await page.getByRole("button", { name: "Save", exact: true }).click();
-    await page
-      .getByText("Change saved. Local services are ready.", { exact: true })
-      .waitFor();
+    await page.getByText("Saved.", { exact: true }).waitFor();
     await page.reload();
     assert.equal(
       await page.getByLabel("Display name", { exact: true }).inputValue(),

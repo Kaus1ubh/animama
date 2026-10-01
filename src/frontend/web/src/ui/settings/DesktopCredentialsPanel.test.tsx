@@ -6,9 +6,12 @@ import type {
   ProviderCredentialStatus,
 } from "../../../../shared/desktop-runtime";
 import { DesktopCredentialFailures } from "./DesktopCredentialsPanel";
+import { QueryClient } from "@tanstack/react-query";
 import {
   applyCredentialChanges,
   credentialChangesFromDrafts,
+  credentialFailureMessage,
+  refreshCredentialDependents,
 } from "./desktop-credential-state";
 
 const configured: ProviderCredentialStatus = {
@@ -29,7 +32,11 @@ describe("credential failures after product-window recreation", () => {
   it("renders retained failures from main on a fresh view, including another provider", () => {
     const statuses: CredentialStatus[] = [
       configured,
-      { ...configured, provider: "elevenlabs", error: "runtime_busy" },
+      {
+        ...configured,
+        provider: "elevenlabs",
+        error: "secure_storage_unavailable",
+      },
     ];
     const first = renderToStaticMarkup(
       <DesktopCredentialFailures statuses={statuses} />,
@@ -39,8 +46,8 @@ describe("credential failures after product-window recreation", () => {
     );
     expect(recreated).toBe(first);
     expect(recreated).toContain('role="status"');
-    expect(recreated).toContain("ElevenLabs: The key was not changed");
-    expect(recreated).toContain("Wait, then retry.");
+    expect(recreated).toContain("ElevenLabs: The key change could not finish.");
+    expect(recreated).toContain("retry the change.");
     expect(recreated).not.toContain("Key saved");
   });
 
@@ -67,7 +74,10 @@ describe("credential failures after product-window recreation", () => {
   });
 
   it("does not announce a save as successful when main reports its failure", async () => {
-    const current = bridge({ ...configured, error: "runtime_busy" });
+    const current = bridge({
+      ...configured,
+      error: "secure_storage_unavailable",
+    });
     await expect(
       applyCredentialChanges(current, [
         { provider: "openai", value: "fixture-new-key" },
@@ -91,6 +101,45 @@ describe("credential failures after product-window recreation", () => {
     await expect(
       applyCredentialChanges(bridge(removed), [{ provider: "openai" }]),
     ).resolves.toEqual([removed]);
+  });
+});
+
+describe("refreshing key-dependent queries", () => {
+  it("invalidates model availability and connection key status for the owner", async () => {
+    const client = new QueryClient();
+    const invalidate = vi.spyOn(client, "invalidateQueries");
+
+    await refreshCredentialDependents(client, "owner-1");
+
+    expect(invalidate.mock.calls.map(([filters]) => filters?.queryKey)).toEqual(
+      [
+        ["model-providers", "owner-1"],
+        ["model-configuration", "owner-1"],
+      ],
+    );
+  });
+});
+
+describe("credential failure copy", () => {
+  it("never reads as a success, which the packaged smoke waits for", () => {
+    const codes = [
+      "connection_credentials_full",
+      "secure_storage_unavailable",
+      "credential_delivery_failed",
+      "backend_readiness_mismatch",
+      "runtime_not_ready",
+    ];
+    for (const error of codes)
+      for (const restartRequired of [false, true]) {
+        const message = credentialFailureMessage({
+          ...configured,
+          error,
+          restartRequired,
+        });
+        expect(message).toBeTruthy();
+        expect(message).not.toMatch(/\bsaved\./iu);
+        expect(message).not.toMatch(/restart/iu);
+      }
   });
 });
 
@@ -181,8 +230,8 @@ describe("batched API key changes", () => {
       ...bridge(),
       apply: vi.fn(async () => [
         status("openai", true),
-        status("elevenlabs", true, { error: "runtime_busy" }),
-        connection(false, { error: "runtime_busy" }),
+        status("elevenlabs", true, { error: "secure_storage_unavailable" }),
+        connection(false, { error: "secure_storage_unavailable" }),
       ]),
     };
     await expect(

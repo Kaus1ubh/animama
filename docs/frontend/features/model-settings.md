@@ -46,10 +46,10 @@ Keys depend on where the app runs:
 
 - **Desktop (embedded runtime):** a write-only key field. The connection is saved
   first with a managed key; the key is then stored in the encrypted vault under
-  `ANIMAMA_CONNECTION_<ID>_API_KEY` through `credentials.apply`, which restarts
-  local services and reloads the window. Test models after the reload. Removing
-  a connection with a saved key asks for confirmation, deletes the key and
-  restarts the same way. At most 32 connection keys can be stored.
+  `ANIMAMA_CONNECTION_<ID>_API_KEY` through `credentials.apply` and applies
+  immediately, without a reload; the connection list refreshes its key status.
+  Removing a connection with a saved key asks for confirmation, because the key
+  is deleted too. At most 32 connection keys can be stored.
 - **Self-hosted web (and the external development stack):** the owner names the
   environment variable that holds the key (`OPENAI_API_KEY`, `DEEPSEEK_API_KEY`,
   `HF_TOKEN` or `ANIMAMA_CONNECTION_<NAME>_API_KEY`); the connection shows
