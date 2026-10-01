@@ -60,10 +60,9 @@ from animama.app.model_clients import (
     ModelClientRequest,
     StaticModelClientRegistry,
 )
-from animama.app.model_clients.credentials import EnvironmentModelCredentialResolver
+from animama.app.model_clients.credentials import static_credential_resolver
 from animama.app.model_connection_presets import MODEL_CONNECTION_PRESETS
 from animama.domain import ModelConnection, ModelProvider, ModelProviderCapabilities
-from animama.server.config import Settings
 from animama.server.model_clients import build_model_client_registry
 
 
@@ -550,7 +549,6 @@ async def test_static_registry_closes_each_shared_client_once() -> None:
 def test_server_registry_registers_direct_provider_family_clients() -> None:
     fake_openai = _FakeOpenAIClient([])
     registry = build_model_client_registry(
-        app_settings=Settings(openai_api_key="sk-test"),
         openai_client=fake_openai,  # type: ignore[arg-type]
     )
 
@@ -562,7 +560,7 @@ def test_server_registry_registers_direct_provider_family_clients() -> None:
 
 
 def test_server_registry_builds_without_an_openai_key() -> None:
-    registry = build_model_client_registry(app_settings=Settings(openai_api_key=None))
+    registry = build_model_client_registry(credential_resolver=static_credential_resolver())
 
     assert isinstance(registry.get(OPENAI_HTTP_PROVIDER_TYPE), OpenAIChatCompletionsModelClient)
     assert isinstance(registry.get(OPENAI_RESPONSES_HTTP_PROVIDER_TYPE), OpenAIResponsesModelClient)
@@ -571,7 +569,7 @@ def test_server_registry_builds_without_an_openai_key() -> None:
 def test_server_registry_uses_mock_clients_when_llm_skip_enabled(monkeypatch) -> None:
     monkeypatch.setenv("ANIMAMA_LLM_SKIP", "1")
 
-    registry = build_model_client_registry(app_settings=Settings(openai_api_key=""))
+    registry = build_model_client_registry()
 
     clients = [
         registry.get(OPENAI_HTTP_PROVIDER_TYPE),
@@ -1133,7 +1131,7 @@ async def test_openai_chat_completions_client_rejects_missing_api_key_without_sh
 @pytest.mark.asyncio
 async def test_openai_chat_completions_client_requires_the_connection_key_it_references() -> None:
     client = OpenAIChatCompletionsModelClient(
-        credential_resolver=EnvironmentModelCredentialResolver(openai_api_key="sk-openai", environ={}),
+        credential_resolver=static_credential_resolver({"OPENAI_API_KEY": "sk-openai"}),
         client=None,
     )
     connection = _owner_connection("deepseek", credential_env="DEEPSEEK_API_KEY")
@@ -1150,9 +1148,8 @@ async def test_openai_chat_completions_client_requires_the_connection_key_it_ref
 @pytest.mark.asyncio
 async def test_openai_chat_completions_client_rejects_disallowed_credential_references() -> None:
     client = OpenAIChatCompletionsModelClient(
-        credential_resolver=EnvironmentModelCredentialResolver(
-            openai_api_key="sk-openai",
-            environ={"ANIMAMA_DATABASE_URL": "postgresql://secret"},
+        credential_resolver=static_credential_resolver(
+            {"OPENAI_API_KEY": "sk-openai", "ANIMAMA_DATABASE_URL": "postgresql://secret"}
         ),
         client=None,
     )

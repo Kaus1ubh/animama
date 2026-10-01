@@ -128,12 +128,28 @@ timeout. `app/model_clients/credentials.py` resolves keys, and
 `adapters/model_clients/openai_chat_completions/connection_sdk.py` builds SDK
 clients from them.
 
+Keys live in the process's runtime credential store
+(`app/model_clients/credential_store.py`, instance in
+`server/runtime_credentials.py`). Startup loads the allowed names below, plus
+`ELEVENLABS_API_KEY`, from the environment once; nothing reads keys from
+`os.environ` afterwards. The embedded desktop backend then removes those names
+from its environment, and Electron main replaces the store while it runs.
+
+- **Per request.** `PinnedCredentialsMiddleware` pins the current snapshot
+  for each HTTP request and WebSocket, and tasks the request starts inherit it.
+  A request finishes on the keys it was admitted with; the next request uses a
+  replaced key. Adapters resolve a key once per stream, run or probe and reuse
+  it for retries and headers. Background loops read the latest snapshot per job.
+- **No cached keys.** Long-lived SDK clients are built key-free by
+  `base_client_for_connection`. `keyed_client` adds the key to a per-request
+  view that shares the pool, so a removed key stops working on the next request.
+
 - **Built-in `openai` connection.** Uses `OPENAI_API_KEY` and `OPENAI_BASE_URL`
   (default `https://api.openai.com/v1`). It is the only connection that runs
   `OpenAIResponsesHTTPAgent`: setup rejects a Responses row elsewhere, and the
   adapter refuses one with `responses_connection_unsupported`.
-- **Owner connections.** `EnvironmentModelCredentialResolver` reads only the
-  environment variable the connection names in `credential_env`. The name must
+- **Owner connections.** `StoreModelCredentialResolver` reads only the
+  key variable the connection names in `credential_env`. The name must
   be `OPENAI_API_KEY`, `DEEPSEEK_API_KEY`, `HF_TOKEN` or match
   `ANIMAMA_CONNECTION_<NAME>_API_KEY`; desktop-managed keys use
   `ANIMAMA_CONNECTION_<ID>_API_KEY`. An owner connection never falls back to
@@ -143,10 +159,9 @@ clients from them.
   `OPENAI_CUSTOM_HEADERS`, and set `Authorization` from the connection's own
   key. A keyless connection (no `credential_env`) sends no `Authorization`
   header.
-- **Missing keys.** A named variable that is unset fails the turn with
-  `missing_api_key` (category `credential_missing`). Keys are read from the
-  backend process environment, so a new key applies after the backend restarts;
-  desktop restarts its local services when a key is saved.
+- **Missing keys.** A named key that is not in the store fails the turn with
+  `missing_api_key` (category `credential_missing`). Self-hosted backends read
+  the environment only at startup, so restart them after changing a variable.
 - **Timeouts.** Owner connections store their own timeout: 60 s by default for
   cloud presets and 300 s for local presets, because a first request may load a
   model. The built-in connection and `OpenAIResponsesHTTPAgent` use

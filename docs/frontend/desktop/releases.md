@@ -245,7 +245,8 @@ The smoke rejects empty and all-whitespace names before completing named setup.
 Required-name evidence gates publication.
 The harness checks the signed DMG and contained app, installs into the absent
 `~/Applications/Animama.app`, launches with a system-only PATH, verifies child
-executables belong to app resources, and tests setup, provider status, local HTTP
+executables belong to app resources, and tests setup, a provider key applied
+without a window or backend restart, provider status, local HTTP
 rejection, core capabilities, both starter chats, exact typed bytes, private
 upload, restart persistence, temporary-key removal, and owned shutdown. It leaves the profile and app
 intact for inspection. A missing provider or failed journey is a failure, not a

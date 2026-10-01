@@ -9,6 +9,11 @@ import httpx
 import pytest
 
 from animama.adapters.web_search import BRAVE_SEARCH_URL, BraveSearchBackend, SearxngSearchBackend
+from animama.app.model_clients.credential_store import (
+    RuntimeCredentialStore,
+    is_deliverable_credential_env,
+    is_process_credential_env,
+)
 from animama.app.model_clients.credentials import (
     WEB_SEARCH_MANAGED_CREDENTIAL_ENV,
     is_allowed_credential_env,
@@ -20,7 +25,8 @@ from animama.app.services.web_search_settings_service import (
     validate_web_search_settings,
 )
 from animama.app.web_search import WebSearchError, WebSearchToolService, persisted_web_search_output
-from animama.domain.web_search import WebSearchResult
+from animama.domain.web_search import WebSearchResult, WebSearchSettings
+from animama.server.web_search import web_search_credential_state
 
 
 def _transport(handler: Callable[[httpx.Request], httpx.Response], seen: list[httpx.Request]) -> httpx.MockTransport:
@@ -279,6 +285,20 @@ def test_the_search_key_is_readable_only_by_web_search() -> None:
     assert not is_allowed_web_search_credential_env("OPENAI_API_KEY")
     # A model connection must not send the search key to its endpoint.
     assert not is_allowed_credential_env(WEB_SEARCH_MANAGED_CREDENTIAL_ENV)
+
+
+def test_search_keys_load_into_the_runtime_store_and_apply_live() -> None:
+    # Startup loads both names; the desktop delivers the managed one without a restart.
+    assert is_process_credential_env(WEB_SEARCH_MANAGED_CREDENTIAL_ENV)
+    assert is_process_credential_env("BRAVE_SEARCH_API_KEY")
+    assert is_deliverable_credential_env(WEB_SEARCH_MANAGED_CREDENTIAL_ENV)
+    assert not is_deliverable_credential_env("BRAVE_SEARCH_API_KEY")
+
+    settings = WebSearchSettings(backend="brave", credential_env=WEB_SEARCH_MANAGED_CREDENTIAL_ENV)
+    store = RuntimeCredentialStore()
+    assert web_search_credential_state(settings, store) == "missing"
+    store.replace({WEB_SEARCH_MANAGED_CREDENTIAL_ENV: "fake-brave-key"}, generation=1)
+    assert web_search_credential_state(settings, store) == "configured"
 
 
 @pytest.mark.asyncio

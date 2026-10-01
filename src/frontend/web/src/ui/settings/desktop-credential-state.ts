@@ -1,6 +1,7 @@
+import type { QueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/query/keys";
 import {
   credentialTarget,
-  isProviderCredential,
   type CredentialChange,
   type CredentialProvider,
   type CredentialStatus,
@@ -14,39 +15,9 @@ export function credentialFailureMessage(
   if (!status.error) return null;
   if (status.error === "connection_credentials_full")
     return "This computer already stores the most model connection keys it allows (32). Remove the key from a connection you no longer use, then retry.";
-  if (status.error === "runtime_busy")
-    return "The key was not changed because Animama is still finishing local work. Wait, then retry.";
-  if (status.error === "runtime_quiesce_failed")
-    return "The key was not changed because local services could not stop safely. Retry the change; if it keeps failing, open Logs.";
   return status.restartRequired
     ? "The change could not finish. Saved key status is shown above. Open runtime recovery and retry before changing the key again."
-    : "The previous key change could not finish. Check the saved status and retry the change.";
-}
-
-/** A ready old runtime is not evidence that the requested credential change succeeded. */
-export async function applyCredentialChange(
-  bridge: CredentialsBridge,
-  provider: CredentialProvider,
-  value?: string,
-): Promise<CredentialStatus[]> {
-  if (value === undefined) await bridge.delete(provider);
-  else {
-    const status = await bridge.set(provider, value);
-    if (status.error || status.restartRequired)
-      throw new Error("credential_change_failed");
-  }
-  const entries = await bridge.list();
-  const result = entries.find(
-    (entry) => isProviderCredential(entry) && entry.provider === provider,
-  );
-  if (
-    !result ||
-    result.error ||
-    result.restartRequired ||
-    result.configured !== (value !== undefined)
-  )
-    throw new Error("credential_change_failed");
-  return entries;
+    : "The key change could not finish. Check the saved status and retry the change.";
 }
 
 /**
@@ -73,7 +44,27 @@ export function credentialChangesFromDrafts(
 }
 
 /**
- * Apply a batch with one local-service restart. Resolves with every status
+ * Saved keys apply to the running backend, so refresh the queries that report
+ * key-dependent state: model availability and connection key status. Nothing
+ * else caches provider key status.
+ */
+export async function refreshCredentialDependents(
+  queryClient: QueryClient,
+  ownerId: string | null | undefined,
+): Promise<void> {
+  const owner = ownerId ?? "__anon__";
+  await Promise.all([
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.modelProviders.all(owner),
+    }),
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.modelConfiguration.all(owner),
+    }),
+  ]);
+}
+
+/**
+ * Save a batch and apply it to the running backend. Resolves with every status
  * only when each change is confirmed by main's saved status; otherwise rejects
  * with `failed` (the providers or connection variables that did not change)
  * and `statuses`. Typed keys are never kept for a retry; the owner re-enters

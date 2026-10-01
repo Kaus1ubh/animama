@@ -258,9 +258,9 @@ export class CredentialVault {
   }
   /**
    * Refuse a batch that would store more than `maxConnectionCredentials`
-   * connection keys. Callers check before stopping anything.
+   * connection keys, before anything is written.
    */
-  assertCapacity(changes: ReadonlyArray<CredentialChange>): void {
+  private assertCapacity(changes: ReadonlyArray<CredentialChange>): void {
     const names = new Set(Object.keys(this.data.connections ?? {}));
     for (const change of changes) {
       if (!("connection" in change)) continue;

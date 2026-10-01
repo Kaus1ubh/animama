@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import base64
-import hashlib
 import json
 import math
 import random
@@ -15,6 +14,7 @@ from functools import lru_cache
 from io import BytesIO
 from typing import Any, cast
 
+import httpx
 from elevenlabs.client import ElevenLabs
 from elevenlabs.core import ApiError
 from elevenlabs.types.voice_settings import VoiceSettings
@@ -22,12 +22,14 @@ from fastapi import HTTPException, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
 
+from animama.app.model_clients.credential_store import ELEVENLABS_CREDENTIAL_ENV, CredentialSnapshot
 from animama.app.voice_emotional_tone import elevenlabs_v3_text_with_emotional_prefix
 from animama.logging_config import get_logger
 from animama.orm.anima import ORMAnima
 from animama.orm.settings import ORMAnimaSettings
 from animama.server.config import settings
 from animama.server.gruut_text import build_gruut_sse_text
+from animama.server.runtime_credentials import runtime_credentials
 from animama.server.schemas.elevenlabs import (
     SUPPORTED_ELEVENLABS_FINALIZED_TTS_MODEL_IDS,
     SUPPORTED_ELEVENLABS_REALTIME_TTS_MODEL_IDS,
@@ -63,6 +65,8 @@ _log = get_logger("server.elevenlabs")
 _SDK_OMIT = cast(Any, ...)
 _STREAM_END = object()
 _TTS_TEXT_PREVIEW_LIMIT = 160
+# The SDK default when it builds its own HTTP client.
+_ELEVENLABS_TIMEOUT_SECONDS = 240.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -83,7 +87,7 @@ class _ElevenLabsVoiceAccessCacheEntry:
     detail: Any = None
 
 
-_ELEVENLABS_VOICE_ACCESS_CACHE: dict[tuple[str, str], _ElevenLabsVoiceAccessCacheEntry] = {}
+_ELEVENLABS_VOICE_ACCESS_CACHE: dict[tuple[str, int], _ElevenLabsVoiceAccessCacheEntry] = {}
 
 
 def _tts_text_preview(text: str, *, limit: int = _TTS_TEXT_PREVIEW_LIMIT) -> str:
@@ -93,17 +97,20 @@ def _tts_text_preview(text: str, *, limit: int = _TTS_TEXT_PREVIEW_LIMIT) -> str
     return preview[: limit - 1].rstrip() + "..."
 
 
-def _elevenlabs_api_key_fingerprint() -> str:
-    """Return a non-secret cache partition for the configured ElevenLabs key."""
+def _voice_access_cache_key(voice_id: str) -> tuple[str, int]:
+    """Partition results by credential generation, so a replaced key never
+    reuses an answer for the old one (including one stored late by a request
+    still finishing on the old key)."""
 
-    api_key = settings.elevenlabs_api_key or ""
-    if not api_key:
-        return "missing"
-    return hashlib.sha256(api_key.encode("utf-8")).hexdigest()[:16]
+    return voice_id.strip(), runtime_credentials.current().generation
 
 
-def _voice_access_cache_key(voice_id: str) -> tuple[str, str]:
-    return voice_id.strip(), _elevenlabs_api_key_fingerprint()
+def _clear_voice_access_cache_on_key_change(previous: CredentialSnapshot, current: CredentialSnapshot) -> None:
+    if previous.get(ELEVENLABS_CREDENTIAL_ENV) != current.get(ELEVENLABS_CREDENTIAL_ENV):
+        _ELEVENLABS_VOICE_ACCESS_CACHE.clear()
+
+
+runtime_credentials.subscribe(_clear_voice_access_cache_on_key_change)
 
 
 def clear_elevenlabs_voice_access_cache(*, voice_id: str | None = None) -> None:
@@ -181,7 +188,9 @@ def _finalized_tts_previous_text_for_model(
 
 
 def _require_api_key() -> str:
-    api_key = settings.elevenlabs_api_key
+    """Return the ElevenLabs key pinned for this request."""
+
+    api_key = runtime_credentials.current().get(ELEVENLABS_CREDENTIAL_ENV)
     if not api_key:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -236,8 +245,20 @@ def resolve_finalized_tts_model_id(
 
 
 @lru_cache(maxsize=1)
+def _elevenlabs_http_client() -> httpx.Client:
+    """Connection pool shared by ElevenLabs clients; it holds no key."""
+
+    return httpx.Client(timeout=_ELEVENLABS_TIMEOUT_SECONDS, follow_redirects=True)
+
+
 def get_elevenlabs_client() -> ElevenLabs:
-    return ElevenLabs(api_key=_require_api_key())
+    """Return a client carrying this request's key over the shared pool.
+
+    The SDK sends the key as a per-request header, so nothing long-lived keeps
+    a replaced or removed key.
+    """
+
+    return ElevenLabs(api_key=_require_api_key(), httpx_client=_elevenlabs_http_client())
 
 
 @lru_cache(maxsize=1)

@@ -31,7 +31,7 @@ from animama.adapters.repositories.sqlalchemy.memory_episode_repo import SQLAlch
 from animama.adapters.repositories.sqlalchemy.memory_manager_repo import SQLAlchemyMemoryManagerRepository
 from animama.adapters.repositories.sqlalchemy.model_provider_repo import SQLAlchemyModelProviderRepository
 from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
-from animama.app.model_clients.credentials import EnvironmentModelCredentialResolver
+from animama.app.model_clients.credentials import StoreModelCredentialResolver, static_credential_resolver
 from animama.app.ports.memory_manager_port import MemoryManagerRepositoryConflictError
 from animama.app.ports.memory_manager_runtime import (
     MemoryManagerPinnedModelUnavailableError,
@@ -108,8 +108,8 @@ def _manager_model(
 _LOCAL_ROLES = ModelRoleSettings(owner_roles_enabled=True)
 
 
-def _manager_credentials(**environ: str) -> EnvironmentModelCredentialResolver:
-    return EnvironmentModelCredentialResolver(openai_api_key="test-key", environ=environ)
+def _manager_credentials(**environ: str) -> StoreModelCredentialResolver:
+    return static_credential_resolver({"OPENAI_API_KEY": "test-key", **environ})
 
 
 def _required(value: _T | None) -> _T:
@@ -2202,12 +2202,14 @@ async def test_openai_agents_runtime_uses_shared_navigation_and_read_tool_contra
         status=MEMORY_MANAGER_RUN_STATUS_ACTIVE,
     )
     workspace = MemoryManagerVirtualWorkspace(user_id=user_id, memory_entries=memory_entries)
-    client = runtime._client(runtime._require_model())
+    connection, credential = runtime._require_model()
+    client = runtime._client(connection, credential)
     try:
         agent, run_config = await runtime._build_agent(
             run=run,
             workspace=workspace,
             client=client,
+            credential=credential,
             editor=_approval_required_patch_editor(),
         )
     finally:
@@ -2248,6 +2250,8 @@ async def test_openai_agents_runtime_uses_shared_navigation_and_read_tool_contra
         "prompt_cache_key": _memory_manager_prompt_cache_key(run_id=run.id, model="gpt-5.4-mini")
     }
     assert run_config.tracing_disabled is False
+    # A per-run key would persist its fingerprint in the saved approval state.
+    assert run_config.tracing is None
     assert run_config.trace_include_sensitive_data is False
     assert run_config.workflow_name == "Animama memory manager"
     assert run_config.group_id == run.id
@@ -2918,10 +2922,11 @@ async def test_chat_completions_manager_uses_an_approval_gated_patch_tool_withou
     )
     run = MemoryManagerRun(id=new_memory_manager_run_id(), user_id=user_id, status=MEMORY_MANAGER_RUN_STATUS_ACTIVE)
     workspace = MemoryManagerVirtualWorkspace(user_id=user_id, memory_entries=memory_entries)
-    client = runtime._client(runtime._require_model())
+    connection, credential = runtime._require_model()
+    client = runtime._client(connection, credential)
     try:
         agent, run_config = await runtime._build_agent(
-            run=run, workspace=workspace, client=client, editor=_approval_required_patch_editor()
+            run=run, workspace=workspace, client=client, credential=credential, editor=_approval_required_patch_editor()
         )
     finally:
         await client.close()
@@ -3052,7 +3057,8 @@ async def test_chat_completions_manager_uses_the_connection_timeout_and_strips_s
         timeout_seconds=60.0,
     )
     run = MemoryManagerRun(id=new_memory_manager_run_id(), user_id=user_id, status=MEMORY_MANAGER_RUN_STATUS_ACTIVE)
-    client = runtime._client(runtime._require_model())
+    connection, credential = runtime._require_model()
+    client = runtime._client(connection, credential)
     sent: dict[str, Any] = {}
 
     class _Completions:
@@ -3065,6 +3071,7 @@ async def test_chat_completions_manager_uses_the_connection_timeout_and_strips_s
             run=run,
             workspace=MemoryManagerVirtualWorkspace(user_id=user_id, memory_entries=memory_entries),
             client=client,
+            credential=credential,
             editor=_approval_required_patch_editor(),
         )
         sdk_client = cast(Any, agent.model)._client

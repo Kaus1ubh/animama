@@ -70,9 +70,8 @@ function vaultFailureReason(error: unknown, env: string): string | null {
 }
 
 /**
- * Delete the saved search key; this restarts local services and reloads the
- * app. A failure offers a retry, because nothing else lists the key once the
- * settings no longer name it.
+ * Delete the saved search key. A failure offers a retry, because nothing else
+ * lists the key once the settings no longer name it.
  */
 async function deleteSearchKey(
   bridge: CredentialsBridge,
@@ -112,7 +111,7 @@ function destinationNote(draft: WebSearchDraft): string | null {
  * App Settings → Models → Web search: choose the installation's search
  * backend so any model that calls tools can search the web. SearXNG takes a
  * server address; Brave Search takes an API key, stored in the encrypted
- * vault on desktop (which restarts local services) or named as a backend
+ * vault on desktop (applied immediately) or named as a backend
  * environment variable on self-hosted web. OpenAI Responses models keep
  * their hosted search either way. Chat history keeps only each result's
  * title and link.
@@ -186,8 +185,6 @@ export function WebSearchSettings({ disabled }: { disabled: boolean }) {
     toast.success("Web search saved.");
     try {
       if (managedKeys && bridge) {
-        // Changing a key restarts local services and replaces this window, so
-        // nothing after this call is guaranteed to run.
         if (newKey && next.credential_env === next.managed_credential_env)
           await applyCredentialChanges(bridge, [
             { connection: next.managed_credential_env, value: newKey },
@@ -264,7 +261,7 @@ export function WebSearchSettings({ disabled }: { disabled: boolean }) {
           <div className="flex justify-end gap-2 py-3">
             <p className="text-muted-foreground mr-auto self-center text-xs">
               {vaultKey
-                ? "Turning search off deletes its saved key, so Animama restarts its local services and reloads."
+                ? "Turning search off also deletes its saved key, which cannot be recovered."
                 : "Models will stop searching the web."}
             </p>
             <Button
@@ -301,7 +298,7 @@ export function WebSearchSettings({ disabled }: { disabled: boolean }) {
                 From a Docker stack, a server on this computer is at
                 host.docker.internal instead of 127.0.0.1.
                 {vaultKey
-                  ? " Saving deletes the saved Brave Search key, so Animama restarts its local services and reloads."
+                  ? " Saving deletes the saved Brave Search key, which cannot be recovered."
                   : ""}
               </p>
             </div>
@@ -320,8 +317,8 @@ export function WebSearchSettings({ disabled }: { disabled: boolean }) {
                 onChange={(event) => change({ key: event.target.value })}
               />
               <p className="text-muted-foreground text-xs">
-                Encrypted on this computer and never shown again. Saving a key
-                restarts local services and reloads the app.
+                Encrypted on this computer and never shown again. A saved key
+                applies immediately.
               </p>
             </div>
           ) : (

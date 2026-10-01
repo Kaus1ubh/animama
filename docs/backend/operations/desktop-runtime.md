@@ -24,19 +24,28 @@ FastAPI accepts renderer HTTP, SSE, WebSocket and registered-byte traffic. Its
 local boundary checks exact authority, browser metadata and the per-launch
 HttpOnly renderer capability. Server-owned admission state resolves the
 bootstrap-established installation owner; caller identity headers confer no
-authority. PostgreSQL remains private. `/_desktop` readiness, drain and removal
-routes require a separate control credential and reject renderer cookies alone.
+authority. PostgreSQL remains private. `/_desktop` readiness, drain, removal
+and credential routes require a separate control credential, reject renderer
+cookies alone and refuse browser-context requests.
 
 The supervisor compares readiness against the exact app build, Alembic head,
 principal, HTTP schema, exact PID/start token and Included reconciliation. It retains child handles and stops only
 its own processes. An occupied port or PID record does not establish ownership.
-Provider and model-connection key changes and pack activation can restart
-consumers while preserving PostgreSQL, the owner and saved application origin.
-Restarts destroy product windows, show independent recovery, quiesce active work,
-and recreate the renderer only after the restarted child passes readiness. A key
-batch that would store more than 32 connection keys is refused with
-`connection_credentials_full` before anything is quiesced, so services keep
-running unchanged.
+Provider and model-connection key changes apply without a restart. Main writes
+the vault, then sends the whole saved set to the running FastAPI with
+`PUT /_desktop/credentials` (see
+[local HTTP components](local-http-components.md)). It then restarts only the
+document worker, if its pack is active, because that worker embeds with keys
+from its environment. A failed delivery is retried once. A second failure
+falls back to the restart path below from the vault, even when the drain
+reports busy, so FastAPI never keeps a key the vault no longer has. A batch
+that would store more than 32 connection keys, or a failed vault write, is
+refused before anything is sent.
+
+Pack activation restarts consumers while preserving PostgreSQL, the owner and
+the saved application origin. Restarts destroy product windows, show
+independent recovery, quiesce active work, and recreate the renderer only
+after the restarted child passes readiness.
 
 ## Roots, secrets and private bytes
 
@@ -84,7 +93,7 @@ These are private composition inputs, not end-user configuration switches:
 | `ANIMAMA_DATABASE_URL`, `ANIMAMA_DESKTOP_PGDATA`                                                                  | Supervisor-owned loopback connection and expected cluster path. Never pass the password in argv or logs. |
 | `ANIMAMA_PUBLIC_ORIGIN`, `ANIMAMA_WEB_ROOT` | Exact saved loopback origin and packaged React build root. |
 | `ANIMAMA_DESKTOP_RENDERER_CAPABILITY` | Per-launch renderer admission cookie; never a private-control credential. |
-| `OPENAI_API_KEY`, `ELEVENLABS_API_KEY`, `ANIMAMA_CONNECTION_<ID>_API_KEY` | Saved vault keys for FastAPI, the document worker and `database` commands; stripped from the cleanup worker and redacted from logs. |
+| `OPENAI_API_KEY`, `ELEVENLABS_API_KEY`, `ANIMAMA_CONNECTION_<ID>_API_KEY` | Saved vault keys at spawn for FastAPI (which moves them into its runtime store and removes them from its environment) and the document worker; withheld from the cleanup worker and `database` commands; redacted from logs. |
 | `ANIMAMA_PROCESS_START_TOKEN` | Fresh owned-child UUID returned with its PID in private readiness. |
 | `ANIMAMA_PARAKEET_MODEL_MOUNT_JSON` | Optional verified `{root,version,files}` inventory; bounded to 4 MiB and never browser-supplied. |
 | `ANIMAMA_DESKTOP_CONTROL_TOKEN`, `ANIMAMA_DESKTOP_BUILD_ID`                                                       | Separate private readiness credential and expected build.                                                |

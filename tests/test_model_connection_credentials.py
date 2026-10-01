@@ -14,9 +14,12 @@ import pytest
 
 from animama.adapters.model_clients import OpenAIChatCompletionsModelClient
 from animama.adapters.model_clients.openai_chat_completions import connection_sdk as openai_chat_client_module
-from animama.adapters.model_clients.openai_chat_completions.connection_sdk import connection_timeout
+from animama.adapters.model_clients.openai_chat_completions.connection_sdk import (
+    KEY_FREE_PLACEHOLDER,
+    connection_timeout,
+)
 from animama.app.model_catalog import STRUCTURED_OUTPUT_TRANSPORT_JSON_OBJECT
-from animama.app.model_clients.credentials import EnvironmentModelCredentialResolver
+from animama.app.model_clients.credentials import static_credential_resolver
 from animama.domain import ModelConnection
 from tests.test_model_client_registry import (
     DEEPSEEK_BASE_URL,
@@ -55,9 +58,12 @@ async def test_openai_chat_completions_client_sends_each_connection_only_its_own
     created_clients: list[Any] = []
     monkeypatch.setattr(openai_chat_client_module, "AsyncOpenAI", _constructed_client_factory(created_clients))
     client = OpenAIChatCompletionsModelClient(
-        credential_resolver=EnvironmentModelCredentialResolver(
-            openai_api_key="sk-openai",
-            environ={"DEEPSEEK_API_KEY": "sk-deepseek", "ANIMAMA_CONNECTION_C1_API_KEY": "sk-custom"},
+        credential_resolver=static_credential_resolver(
+            {
+                "OPENAI_API_KEY": "sk-openai",
+                "DEEPSEEK_API_KEY": "sk-deepseek",
+                "ANIMAMA_CONNECTION_C1_API_KEY": "sk-custom",
+            }
         ),
         client=None,
         timeout=13.0,
@@ -91,12 +97,19 @@ async def test_openai_chat_completions_client_sends_each_connection_only_its_own
     )
     await client.aclose()
 
+    # Cached clients hold no key; each request's view carries only its connection's key.
     assert [(client.api_key, client.base_url, client.timeout) for client in created_clients] == [
-        ("sk-openai", "https://api.openai.com/v1", connection_timeout(13.0)),
-        ("sk-deepseek", DEEPSEEK_BASE_URL, connection_timeout(13.0)),
-        ("sk-custom", "https://models.example.test/v1", connection_timeout(13.0)),
+        (KEY_FREE_PLACEHOLDER, "https://api.openai.com/v1", connection_timeout(13.0)),
+        (KEY_FREE_PLACEHOLDER, DEEPSEEK_BASE_URL, connection_timeout(13.0)),
+        (KEY_FREE_PLACEHOLDER, "https://models.example.test/v1", connection_timeout(13.0)),
     ]
-    assert created_clients[1].default_headers["Authorization"] == "Bearer sk-deepseek"
+    assert [client.with_options_calls[-1]["api_key"] for client in created_clients] == [
+        "sk-openai",
+        "sk-deepseek",
+        "sk-custom",
+    ]
+    assert "Authorization" not in created_clients[1].default_headers
+    assert created_clients[1].with_options_calls[-1]["default_headers"]["Authorization"] == "Bearer sk-deepseek"
     assert [client.close_calls for client in created_clients] == [1, 1, 1]
 
 
@@ -161,10 +174,7 @@ async def _headers_sent_by_real_sdk(
         for name, value in environ.items():
             patch.setenv(name, value)
         client = OpenAIChatCompletionsModelClient(
-            credential_resolver=EnvironmentModelCredentialResolver(
-                openai_api_key="sk-openai",
-                environ=resolver_environ or {},
-            ),
+            credential_resolver=static_credential_resolver({"OPENAI_API_KEY": "sk-openai", **(resolver_environ or {})}),
             client=None,
         )
         await _collect(client.stream(_spec(model="qwen3:8b", connection=connection)))

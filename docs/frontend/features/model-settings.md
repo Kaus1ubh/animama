@@ -46,10 +46,10 @@ Keys depend on where the app runs:
 
 - **Desktop (embedded runtime):** a write-only key field. The connection is saved
   first with a managed key; the key is then stored in the encrypted vault under
-  `ANIMAMA_CONNECTION_<ID>_API_KEY` through `credentials.apply`, which restarts
-  local services and reloads the window. Test models after the reload. Removing
-  a connection with a saved key asks for confirmation, deletes the key and
-  restarts the same way. At most 32 connection keys can be stored.
+  `ANIMAMA_CONNECTION_<ID>_API_KEY` through `credentials.apply` and applies
+  immediately, without a reload; the connection list refreshes its key status.
+  Removing a connection with a saved key asks for confirmation, because the key
+  is deleted too. At most 32 connection keys can be stored.
 - **Self-hosted web (and the external development stack):** the owner names the
   environment variable that holds the key (`OPENAI_API_KEY`, `DEEPSEEK_API_KEY`,
   `HF_TOKEN` or `ANIMAMA_CONNECTION_<NAME>_API_KEY`); the connection shows
@@ -104,8 +104,8 @@ Models → Web search chooses the installation's search backend, shown only when
 the runtime capability `web_search.configuration` is true (the local
 composition). Off, SearXNG (an address; its `search.formats` must include
 `json`) or Brave Search (a key). On desktop the Brave key goes to the
-encrypted vault under `ANIMAMA_CONNECTION_WEB_SEARCH_API_KEY`, which restarts
-local services; turning search off or switching to SearXNG deletes it (with a
+encrypted vault under `ANIMAMA_CONNECTION_WEB_SEARCH_API_KEY` and applies
+immediately; turning search off or switching to SearXNG deletes it (with a
 warning and a retry on failure). Self-hosted web names the variable instead.
 Test sends one query to the draft backend and shows a plain-language result
 category; a new desktop key must be saved before it can be tested. The note

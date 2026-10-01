@@ -157,7 +157,7 @@ model say it could not search rather than failing the reply.
 ## Keys on self-hosted web
 
 On the desktop app, a connection's key is saved in the app's encrypted vault
-(App Settings → Models; saving restarts local services). Self-hosted web never
+(App Settings → Models) and applies without a restart. Self-hosted web never
 accepts key values: the connection names an environment variable instead, and
 the backend reads that variable. Allowed names are `OPENAI_API_KEY`,
 `DEEPSEEK_API_KEY`, `HF_TOKEN` and `ANIMAMA_CONNECTION_<NAME>_API_KEY`.

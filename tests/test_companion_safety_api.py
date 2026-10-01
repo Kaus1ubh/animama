@@ -45,7 +45,7 @@ def _app(session, tmp_path, **settings_overrides):  # noqa: ANN001, ANN003
     ("overrides", "expected"),
     [
         (
-            {"openai_api_key": None},
+            {},
             {
                 "enabled": True,
                 "ai_notice_enabled": True,
@@ -54,7 +54,7 @@ def _app(session, tmp_path, **settings_overrides):  # noqa: ANN001, ANN003
             },
         ),
         (
-            {"openai_api_key": "sk-test", "ai_notice_reminder_hours": 6},
+            {"ai_notice_reminder_hours": 6},
             {
                 "enabled": True,
                 "ai_notice_enabled": True,
@@ -63,7 +63,7 @@ def _app(session, tmp_path, **settings_overrides):  # noqa: ANN001, ANN003
             },
         ),
         (
-            {"openai_api_key": "sk-test", "companion_safety_enabled": False},
+            {"companion_safety_enabled": False},
             {
                 "enabled": False,
                 "ai_notice_enabled": False,
@@ -73,7 +73,10 @@ def _app(session, tmp_path, **settings_overrides):  # noqa: ANN001, ANN003
         ),
     ],
 )
-async def test_capabilities_report_operator_safety_without_secrets(async_session, tmp_path, overrides, expected):
+async def test_capabilities_report_operator_safety_without_secrets(
+    async_session, tmp_path, overrides, expected, set_runtime_credentials
+):
+    set_runtime_credentials(OPENAI_API_KEY="sk-test")
     async with local_client(_app(async_session, tmp_path, **overrides)) as client:
         response = await client.get("/v1/runtime-capabilities")
     assert response.status_code == 200

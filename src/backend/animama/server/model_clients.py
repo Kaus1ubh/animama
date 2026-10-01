@@ -14,8 +14,9 @@ from animama.adapters.model_clients import (
 )
 from animama.adapters.model_clients.openai_chat_completions.support import resolve_openai_base_url
 from animama.app.model_clients import StaticModelClientRegistry
-from animama.app.model_clients.credentials import EnvironmentModelCredentialResolver, ModelCredentialResolver
+from animama.app.model_clients.credentials import ModelCredentialResolver, StoreModelCredentialResolver
 from animama.server.config import Settings, settings
+from animama.server.runtime_credentials import runtime_credentials
 
 _STATE_ATTR = "model_client_registry"
 
@@ -24,10 +25,10 @@ def _truthy_env(value: str | None) -> bool:
     return str(value or "").strip().lower() in {"1", "true", "yes", "y", "on"}
 
 
-def build_model_credential_resolver(*, app_settings: Settings = settings) -> ModelCredentialResolver:
-    """Resolve connection keys from the OpenAI setting and the process environment."""
+def build_model_credential_resolver() -> ModelCredentialResolver:
+    """Resolve connection keys from the process's runtime credential store."""
 
-    return EnvironmentModelCredentialResolver(openai_api_key=app_settings.openai_api_key, environ=os.environ)
+    return StoreModelCredentialResolver(runtime_credentials)
 
 
 def openai_base_url() -> str:
@@ -53,18 +54,12 @@ def build_model_client_registry(
         return registry
 
     base_url = openai_base_url()
-    responses_client = openai_client
-    if responses_client is None and app_settings.openai_api_key:
-        responses_client = AsyncOpenAI(
-            api_key=app_settings.openai_api_key,
-            base_url=base_url,
-            timeout=app_settings.anima_model_client_timeout_seconds,
-        )
+    credentials = credential_resolver or build_model_credential_resolver()
     registry.register(
         OPENAI_HTTP_PROVIDER_TYPE,
         OpenAIChatCompletionsModelClient(
             base_url=base_url,
-            credential_resolver=credential_resolver or build_model_credential_resolver(app_settings=app_settings),
+            credential_resolver=credentials,
             client=openai_client,
             timeout=app_settings.anima_model_client_timeout_seconds,
             close_client=True if openai_client is not None else None,
@@ -73,9 +68,9 @@ def build_model_client_registry(
     registry.register(
         OPENAI_RESPONSES_HTTP_PROVIDER_TYPE,
         OpenAIResponsesModelClient(
-            api_key=app_settings.openai_api_key,
+            credential_resolver=credentials,
             base_url=base_url,
-            client=responses_client,
+            client=openai_client,
             timeout=app_settings.anima_model_client_timeout_seconds,
             compaction_threshold_tokens=app_settings.anima_openai_responses_compaction_threshold_tokens,
             close_client=False if openai_client is not None else True,

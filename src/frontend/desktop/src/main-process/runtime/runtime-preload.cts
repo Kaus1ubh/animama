@@ -30,10 +30,6 @@ export function createRuntimeBridge(): RuntimeBridge {
 export function createCredentialsBridge(): CredentialsBridge {
   return {
     list: () => ipcRenderer.invoke("animama:credentials:list"),
-    set: (provider, value) =>
-      ipcRenderer.invoke("animama:credentials:set", provider, value),
-    delete: (provider) =>
-      ipcRenderer.invoke("animama:credentials:delete", provider),
     apply: (changes) =>
       ipcRenderer.invoke("animama:credentials:apply", changes),
   };

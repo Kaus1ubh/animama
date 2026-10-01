@@ -65,12 +65,14 @@ describe("privileged runtime IPC", () => {
           restartRequired: false,
         },
       ],
-      changeCredential: vi.fn(async () => ({
-        provider: "openai",
-        configured: true,
-        updatedAt: "2026-09-01T00:00:00Z",
-        restartRequired: false,
-      })),
+      changeCredentials: vi.fn(async () => [
+        {
+          provider: "openai",
+          configured: true,
+          updatedAt: "2026-09-01T00:00:00Z",
+          restartRequired: false,
+        },
+      ]),
     };
     installRuntimeIpc(callers, operations);
   });
@@ -82,8 +84,10 @@ describe("privileged runtime IPC", () => {
 
   it("allows credentials only from the registered main frame, never a child frame or lookalike window", async () => {
     await expect(
-      invoke("credentials:set", main.event, "openai", "fixture-key"),
-    ).resolves.toMatchObject({ configured: true });
+      invoke("credentials:apply", main.event, [
+        { provider: "openai", value: "fixture-key" },
+      ]),
+    ).resolves.toMatchObject([{ configured: true }]);
     const impostor = caller(1, main.frame.url);
     await expect(invoke("credentials:list", impostor.event)).rejects.toThrow(
       "ipc_caller_rejected",
@@ -120,15 +124,34 @@ describe("privileged runtime IPC", () => {
 
   it("validates input lengths, providers and arity before touching the vault", async () => {
     await expect(
-      invoke("credentials:set", main.event, "../path", "fixture-key"),
+      invoke("credentials:apply", main.event, [
+        { provider: "../path", value: "fixture-key" },
+      ]),
     ).rejects.toThrow("credential_provider_invalid");
     await expect(
-      invoke("credentials:set", main.event, "openai", "x".repeat(8193)),
+      invoke("credentials:apply", main.event, [
+        { provider: "openai", value: "x".repeat(8193) },
+      ]),
     ).rejects.toThrow("credential_value_invalid");
     await expect(
-      invoke("credentials:delete", main.event, "openai", "extra"),
+      invoke(
+        "credentials:apply",
+        main.event,
+        [{ provider: "openai" }],
+        "extra",
+      ),
     ).rejects.toThrow("ipc_arguments_invalid");
-    expect(operations.changeCredential).not.toHaveBeenCalled();
+    expect(operations.changeCredentials).not.toHaveBeenCalled();
+  });
+
+  it("offers no single-key channel besides the validated batch", () => {
+    expect(handlers.has("animama:credentials:set")).toBe(false);
+    expect(handlers.has("animama:credentials:delete")).toBe(false);
+    expect(
+      [...handlers.keys()].filter((name) =>
+        name.startsWith("animama:credentials:"),
+      ),
+    ).toEqual(["animama:credentials:list", "animama:credentials:apply"]);
   });
 
   it("applies a validated credential batch only for the registered main frame", async () => {
@@ -205,20 +228,6 @@ describe("privileged runtime IPC", () => {
     await expect(invoke("updates:check", main.event)).resolves.toEqual({
       state: "unavailable",
     });
-  });
-
-  it("reports a busy credential deletion even when the old configured runtime recovered", async () => {
-    operations.changeCredential = vi.fn(async () => ({
-      provider: "openai",
-      configured: true,
-      updatedAt: "2026-09-01T00:00:00Z",
-      restartRequired: false,
-      error: "runtime_busy",
-    }));
-    await expect(
-      invoke("credentials:delete", main.event, "openai"),
-    ).rejects.toThrow("runtime_busy");
-    expect(operations.changeCredential).toHaveBeenCalledWith("openai");
   });
 
   it("returns retained credential failure status to the replacement registered main window", async () => {

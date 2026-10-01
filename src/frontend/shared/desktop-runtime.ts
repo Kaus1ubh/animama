@@ -72,14 +72,9 @@ export function credentialTarget(
 export type CredentialsBridge = {
   /** Every provider's status, then each saved or failed connection key. */
   list(): Promise<CredentialStatus[]>;
-  set(
-    provider: CredentialProvider,
-    value: string,
-  ): Promise<ProviderCredentialStatus>;
-  delete(provider: CredentialProvider): Promise<void>;
   /**
-   * Save or remove several keys with a single local-service restart. Returns
-   * every status; failed entries carry their own `error`.
+   * Save or remove several keys and apply them to the running backend without
+   * a restart. Returns every status; failed entries carry their own `error`.
    */
   apply(changes: CredentialChange[]): Promise<CredentialStatus[]>;
 };

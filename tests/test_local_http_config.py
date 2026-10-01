@@ -139,6 +139,7 @@ def test_pytest_environment_isolation_contract(tmp_path: Path) -> None:
     import dotenv
 
     from animama.server.config import Settings
+    from animama.server.runtime_credentials import runtime_credentials
 
     probe = os.environ.get("ANIMAMA_TEST_ENVIRONMENT_PROBE")
     if probe is not None:
@@ -151,7 +152,7 @@ def test_pytest_environment_isolation_contract(tmp_path: Path) -> None:
         assert Settings().animama_content_root == Path(__file__).resolve().parents[1] / "content"
         if probe == "offline":
             assert os.environ["OPENAI_API_KEY"] == "test-key"
-            assert Settings().openai_api_key == "test-key"
+            assert runtime_credentials.snapshot().get("OPENAI_API_KEY") == "test-key"
             assert "ELEVENLABS_API_KEY" not in os.environ
             assert "ANIMAMA_LIVE_OPENAI_API_KEY" not in os.environ
         else:

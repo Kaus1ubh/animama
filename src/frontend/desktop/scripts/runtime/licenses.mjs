@@ -23,6 +23,43 @@ import {
   writeJson,
 } from "./common.mjs";
 
+const NOTICE_NAME =
+  /(?:^|[._ -])(?:licen[cs]e|copying|notice|copyright)(?:[._ -]|$)/iu;
+// Source and map files can share notice words (for example an icon named
+// "copyright.js"), whereas bundle notices use text extensions such as
+// "bundle.js.LICENSE.txt".
+const CODE_FILE = /\.(?:[cm]?[jt]sx?|map)$/iu;
+
+/** Include notices shipped inside bundles without traversing dependency links. */
+function javascriptNotices(folder, recursive) {
+  const notices = [];
+  const visit = (relative) => {
+    const directory = path.join(folder, relative);
+    for (const entry of readdirSync(directory, { withFileTypes: true }).sort(
+      (a, b) => a.name.localeCompare(b.name, "en"),
+    )) {
+      const name = relative ? `${relative}/${entry.name}` : entry.name;
+      if (entry.isDirectory()) {
+        if (recursive && entry.name !== "node_modules" && entry.name !== ".git")
+          visit(name);
+      } else if (
+        entry.isFile() &&
+        NOTICE_NAME.test(entry.name) &&
+        !CODE_FILE.test(entry.name)
+      ) {
+        notices.push({
+          path: name,
+          text: readFileSync(path.join(folder, name), "utf8"),
+        });
+      }
+    }
+  };
+  visit("");
+  return notices.sort((a, b) =>
+    a.path < b.path ? -1 : a.path > b.path ? 1 : 0,
+  );
+}
+
 /** Conservative dependency closure; optional modules absent on this target are recorded. */
 export function javascriptLicenses(workspaceRoot = frontendRoot) {
   const records = new Map();
@@ -32,20 +69,9 @@ export function javascriptLicenses(workspaceRoot = frontendRoot) {
     const pkg = readJson(path.join(folder, "package.json"));
     const id = `npm:${pkg.name}@${pkg.version}`;
     if (records.has(id)) return;
-    const notices = readdirSync(folder)
-      .sort()
-      .filter((name) =>
-        /^(?:licen[cs]e|copying|notice|copyright)(?:[._ -]|$)/iu.test(name),
-      )
-      .flatMap((name) => {
-        try {
-          return [
-            { path: name, text: readFileSync(path.join(folder, name), "utf8") },
-          ];
-        } catch {
-          return [];
-        }
-      });
+    // Private workspace build outputs are inventoried separately. Only published
+    // dependency packages may contain bundled third-party notice subdirectories.
+    const notices = javascriptNotices(folder, !pkg.private);
     records.set(id, {
       id,
       name: pkg.name,

@@ -15,7 +15,7 @@ from animama.server.model_roles import ModelRoleSettings
 def embedder_for_row(model_provider: ModelProvider, *, app_settings: Settings = settings) -> ConnectionEmbedder:
     return ConnectionEmbedder(
         model_provider,
-        credential_resolver=build_model_credential_resolver(app_settings=app_settings),
+        credential_resolver=build_model_credential_resolver(),
         openai_base_url=openai_base_url(),
         default_timeout_seconds=app_settings.anima_model_client_timeout_seconds,
     )

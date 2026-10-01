@@ -7,14 +7,13 @@ composition offers no application search tool and mounts no settings routes.
 
 from __future__ import annotations
 
-import os
-from collections.abc import Mapping
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from animama.adapters.repositories.sqlalchemy.web_search_settings_repo import SQLAlchemyWebSearchSettingsRepository
 from animama.adapters.web_search import BraveSearchBackend, SearxngSearchBackend
+from animama.app.model_clients.credential_store import CredentialSource
 from animama.app.model_clients.credentials import (
     CREDENTIAL_CONFIGURED,
     CREDENTIAL_MISSING,
@@ -23,6 +22,7 @@ from animama.app.model_clients.credentials import (
 )
 from animama.app.web_search import WebSearchBackend, WebSearchToolService
 from animama.domain.web_search import WEB_SEARCH_BACKEND_BRAVE, WebSearchSettings
+from animama.server.runtime_credentials import runtime_credentials
 
 
 def composition_web_search_enabled(app: Any) -> bool:
@@ -31,32 +31,38 @@ def composition_web_search_enabled(app: Any) -> bool:
     return getattr(app.state, "application_web_search_enabled", False) is True
 
 
-def web_search_api_key(settings: WebSearchSettings, environ: Mapping[str, str] | None = None) -> str | None:
-    """Return the key from the variable the settings name, if that name is allowed and set."""
+def web_search_api_key(settings: WebSearchSettings, credentials: CredentialSource | None = None) -> str | None:
+    """Return the key the settings name, if that name is allowed and set.
+
+    Keys come from the process credential store (current or request-pinned
+    snapshot), so a key the desktop app delivers applies without a restart.
+    """
 
     name = (settings.credential_env or "").strip()
     if not name or not is_allowed_web_search_credential_env(name):
         return None
-    value = ((environ if environ is not None else os.environ).get(name) or "").strip()
+    value = ((credentials or runtime_credentials).current().get(name) or "").strip()
     return value or None
 
 
-def build_web_search_backend(settings: WebSearchSettings, environ: Mapping[str, str] | None = None) -> WebSearchBackend:
+def build_web_search_backend(
+    settings: WebSearchSettings, credentials: CredentialSource | None = None
+) -> WebSearchBackend:
     """Build the HTTP client for the configured backend; queries go only to it."""
 
     if settings.backend == WEB_SEARCH_BACKEND_BRAVE:
         return BraveSearchBackend(
-            api_key=web_search_api_key(settings, environ), timeout_seconds=settings.timeout_seconds
+            api_key=web_search_api_key(settings, credentials), timeout_seconds=settings.timeout_seconds
         )
     return SearxngSearchBackend(base_url=settings.base_url or "", timeout_seconds=settings.timeout_seconds)
 
 
-def web_search_credential_state(settings: WebSearchSettings, environ: Mapping[str, str] | None = None) -> str:
+def web_search_credential_state(settings: WebSearchSettings, credentials: CredentialSource | None = None) -> str:
     """Return ``configured``, ``missing`` or ``not_required`` for the backend's key."""
 
     if settings.credential_env is None:
         return CREDENTIAL_NOT_REQUIRED
-    return CREDENTIAL_CONFIGURED if web_search_api_key(settings, environ) else CREDENTIAL_MISSING
+    return CREDENTIAL_CONFIGURED if web_search_api_key(settings, credentials) else CREDENTIAL_MISSING
 
 
 async def turn_web_search_tool(session: AsyncSession, *, enabled: bool) -> WebSearchToolService | None:

@@ -11,7 +11,6 @@ import { useDesktopFeaturePacks } from "@/hooks/useDesktopFeaturePacks";
 import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
 import { cn } from "@/lib/utils";
 import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
-import { queryKeys } from "@/query/keys";
 import { Button } from "@/ui/components/button";
 import { Input } from "@/ui/components/input";
 import { Label } from "@/ui/components/label";
@@ -19,6 +18,7 @@ import {
   applyCredentialChanges,
   credentialChangesFromDrafts,
   credentialFailureMessage,
+  refreshCredentialDependents,
   type CredentialDrafts,
 } from "./desktop-credential-state";
 
@@ -82,14 +82,14 @@ export function useDesktopCredentialsAvailable(): boolean {
 /**
  * Optional provider API keys (desktop embedded runtime only). Keys are
  * write-only: main stores them encrypted and reports status, never values.
- * Several edits are saved together so local services restart once.
+ * Several edits are saved together and apply without reloading the window or
+ * restarting the backend.
  */
 export function DesktopCredentialsPanel({
   onBusyChange,
   onPendingChange,
   className,
   showTitle = true,
-  blockedReason = null,
 }: {
   onBusyChange?: (busy: boolean) => void;
   /** Number of unsaved key edits, so a host (setup) can prevent losing them. */
@@ -97,16 +97,12 @@ export function DesktopCredentialsPanel({
   className?: string;
   /** The App Settings section already names itself "API Keys". */
   showTitle?: boolean;
-  /** Setup may block restarts when its nonsecret draft cannot be retained. */
-  blockedReason?: string | null;
 }) {
   const available = useDesktopCredentialsAvailable();
   const packs = useDesktopFeaturePacks();
-  const transitionReason =
-    blockedReason ??
-    (packs.busy
-      ? "Wait for the speech recognition change to finish before editing API keys."
-      : null);
+  const transitionReason = packs.busy
+    ? "Wait for the speech recognition change to finish before editing API keys."
+    : null;
   const [statuses, setStatuses] = useState<CredentialStatus[]>([]);
   const [drafts, setDrafts] = useState<CredentialDrafts>({});
   const [busy, setBusy] = useState(false);
@@ -179,12 +175,8 @@ export function DesktopCredentialsPanel({
     setMessage(null);
     try {
       setStatuses(await applyCredentialChanges(bridge, changes));
-      await queryClient.invalidateQueries({
-        queryKey: queryKeys.modelProviders.all(ownerId ?? "__anon__"),
-      });
-      setMessage(
-        `${changes.length === 1 ? "Change" : `${changes.length} changes`} saved. Local services are ready.`,
-      );
+      await refreshCredentialDependents(queryClient, ownerId);
+      setMessage("Saved.");
     } catch (error) {
       const failed = (error as { failed?: string[] }).failed;
       const reported = (error as { statuses?: CredentialStatus[] }).statuses;
@@ -223,9 +215,8 @@ export function DesktopCredentialsPanel({
           Add an OpenAI key for cloud chat or an ElevenLabs key for voices. Keys
           for other model servers are entered on each connection in App Settings
           → Models. Keys are encrypted with this computer’s secure storage and
-          never shown again. Enter several, then save once; local services
-          restart after saving. You can change them later in App Settings → API
-          Keys.
+          never shown again. Changes apply as soon as you save. You can change
+          them later in App Settings → API Keys.
         </p>
       </div>
       <div className="divide-border/60 divide-y">
@@ -306,7 +297,7 @@ export function DesktopCredentialsPanel({
           onClick={() => void save()}
         >
           {busy
-            ? "Restarting local services…"
+            ? "Saving…"
             : changes.length > 1
               ? `Save ${changes.length} changes`
               : "Save"}

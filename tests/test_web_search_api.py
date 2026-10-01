@@ -68,8 +68,10 @@ def test_only_the_local_composition_mounts_web_search_routes(tmp_path):
     assert local_app.state.application_web_search_enabled is True
 
 
-async def test_settings_store_a_key_reference_and_never_its_value(async_session, tmp_path, monkeypatch, caplog):
-    monkeypatch.setenv("ANIMAMA_CONNECTION_WEB_SEARCH_API_KEY", "brave-secret-value")
+async def test_settings_store_a_key_reference_and_never_its_value(
+    async_session, tmp_path, set_runtime_credentials, caplog
+):
+    set_runtime_credentials(ANIMAMA_CONNECTION_WEB_SEARCH_API_KEY="brave-secret-value")
     app = _app(async_session, tmp_path)
 
     with caplog.at_level(logging.INFO):
