@@ -33,6 +33,12 @@ MANAGED_CREDENTIAL_ENV_PATTERN = re.compile(r"^ANIMAMA_CONNECTION_[A-Z0-9_]{1,64
 KNOWN_PROVIDER_CREDENTIAL_ENVS = frozenset({OPENAI_CREDENTIAL_ENV, "DEEPSEEK_API_KEY", "HF_TOKEN"})
 """Conventional provider key variables an owner connection may also reference."""
 
+WEB_SEARCH_MANAGED_CREDENTIAL_ENV = "ANIMAMA_CONNECTION_WEB_SEARCH_API_KEY"
+"""The desktop vault's name for the web search key (inside the managed namespace, so no new vault field)."""
+
+WEB_SEARCH_CREDENTIAL_ENVS = frozenset({WEB_SEARCH_MANAGED_CREDENTIAL_ENV, "BRAVE_SEARCH_API_KEY"})
+"""Names the web search backend may read its key from."""
+
 MAX_CREDENTIAL_LENGTH = 8192
 """Longest accepted key, matching the desktop vault."""
 
@@ -54,16 +60,19 @@ def is_allowed_credential_env(name: str) -> bool:
     """Return whether an owner connection may read a key from ``name``.
 
     References are limited to model-key names so a connection cannot send an
-    unrelated process secret (such as a database URL) to its endpoint.
+    unrelated process secret (such as a database URL) to its endpoint. The web
+    search key is not a model key, so no connection may read it.
     """
 
+    if name == WEB_SEARCH_MANAGED_CREDENTIAL_ENV:
+        return False
     return name in KNOWN_PROVIDER_CREDENTIAL_ENVS or bool(MANAGED_CREDENTIAL_ENV_PATTERN.fullmatch(name))
 
 
 def is_process_credential_env(name: str) -> bool:
     """Return whether startup may load ``name`` from the process environment."""
 
-    return name == ELEVENLABS_CREDENTIAL_ENV or is_allowed_credential_env(name)
+    return name == ELEVENLABS_CREDENTIAL_ENV or name in WEB_SEARCH_CREDENTIAL_ENVS or is_allowed_credential_env(name)
 
 
 def is_deliverable_credential_env(name: str) -> bool:
@@ -228,6 +237,8 @@ __all__ = [
     "MAX_CONNECTION_CREDENTIALS",
     "MAX_CREDENTIAL_LENGTH",
     "OPENAI_CREDENTIAL_ENV",
+    "WEB_SEARCH_CREDENTIAL_ENVS",
+    "WEB_SEARCH_MANAGED_CREDENTIAL_ENV",
     "CredentialListener",
     "CredentialSnapshot",
     "CredentialSource",

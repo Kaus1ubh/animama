@@ -235,8 +235,9 @@ describes instead of calling a hidden default.
 
 ### R11 — Web search for any tool-capable model (Plan B)
 
-- The owner can configure a search backend: a SearXNG URL, or one keyed search
-  API chosen by the research task below. Keys follow R1 credential handling.
+- The owner can configure a search backend: a SearXNG URL, or the Brave Search
+  API (chosen 2026-09-28; see the decisions below). Keys follow R1 credential
+  handling.
 - The existing web-search control enables search for any tool-capable model.
   A model without native web search receives an application web-search tool;
   OpenAI Responses models that support hosted web search continue to use it.
@@ -357,11 +358,31 @@ Agreed on 2026-09-26:
 - Acceptance models: `qwen3.5:4b-mlx` or `gemma4:e4b-mlx`, or the same model
   in the format each server loads (owner, 2026-09-26).
 
-Open:
+Agreed on 2026-09-28 for Plan B (owner):
 
-- **Keyed search API** — bounded research comparing Brave, Tavily and Exa on
-  terms for application use, free tier, result format and privacy. Blocks R11
-  only.
+- Keyed search API: **Brave Search API**, after research comparing Brave,
+  Tavily and Exa on terms, free tier, result format and privacy (summary in
+  the Plan B ExecPlan).
+- With a backend configured, web search starts on for tool-capable models.
+- A reply whose speech has already streamed is salvaged from its parsed parts;
+  repair runs only when no speech streamed (R12).
+- Models saved with structured output "None" are asked for JSON by prompt,
+  then repaired once, then fall back to plain text (R12).
+- A failed, unassigned or timed-out pre-send compaction omits the oldest
+  messages and continues (R10).
+- The status event that shows summarizing also shows "Searching the web…" for
+  the application search tool.
+- Deferred Plan A items in scope: the Memory Manager resumes an approval on the
+  model that proposed it, a text the embeddings server always rejects stops
+  blocking re-embedding, and `gpt-6-luna` cached input is priced. Re-embedding
+  after a connection's base URL changes stays a documented limitation.
+
+Implementation decisions recorded by the agent (2026-09-28, within the agreed
+scope; see the Plan B ExecPlan Decision Log):
+
+- Search results are stored in chat history as the query and each result's
+  title and URL only, for both backends: Brave allows only transient storage,
+  and one rule keeps replay the same for SearXNG.
 
 ## Spec
 
@@ -371,10 +392,13 @@ https://github.com/raymond-van/animama/issues/165
 
 - Plan A (R1–R9): [configurable-models-execplan.md](configurable-models-execplan.md)
   (authorized 2026-09-26; implemented, owner gates pending).
-- Plan B (R10–R12): `configurable-models-features-execplan.md`, to be written
-  after Plan A merges.
+- Plan B (R10–R12): [configurable-models-features-execplan.md](configurable-models-features-execplan.md)
+  (phases 1–3 authorized 2026-09-28, phases 4–6 on 2026-09-30).
 
 ## Delivery links
 
 Plan A phases: #171 (p1), #166 (p2), #167 (p3), #168 (p4), #169 (p5),
 #170 (p6). Branch `feat/configurable-models`.
+
+Plan B: parent #208; phases #209 (p1), #210 (p2), #211 (p3), #212 (p4),
+#213 (p5), #214 (p6). Branch `feat/configurable-models-features`, PR #215.

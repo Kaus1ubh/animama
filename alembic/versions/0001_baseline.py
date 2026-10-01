@@ -66,6 +66,7 @@ _BASELINE_TABLES = (
     "user_file_processing_job",
     "user_profiles",
     "user_settings",
+    "web_search_settings",
 )
 
 

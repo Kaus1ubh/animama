@@ -24,6 +24,7 @@ from animama.server.model_assets import close_model_asset_service, model_asset_s
 from animama.server.routers import router
 from animama.server.routers.desktop_control import require_desktop_control, router as desktop_control_router
 from animama.server.routers.model_configuration import router as model_configuration_router
+from animama.server.routers.web_search import router as web_search_router
 from animama.server.runtime_credentials import (
     PinnedCredentialsMiddleware,
     follow_trace_export_key,
@@ -64,6 +65,11 @@ def create_local_app(
     # reach owner-supplied endpoints, so only the local composition mounts them.
     application.state.model_catalog_policy = ModelCatalogPolicy(owner_models_enabled=True)
     application.include_router(model_configuration_router)
+    # Application web search sends queries to an owner-configured backend
+    # (a SearXNG URL may be a loopback or LAN host), so only this composition
+    # enables it and mounts its settings routes.
+    application.state.application_web_search_enabled = True
+    application.include_router(web_search_router)
     if http_config.desktop is not None:
         # Desktop keys change while this process runs; the runtime store is
         # their only copy (see runtime_credentials).

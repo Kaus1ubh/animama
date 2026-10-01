@@ -281,9 +281,10 @@ guidance, the raw current anima identity markdown, stable memory guidance, and
 structured-output guidance selected from the persisted `model_providers`
 capability row. Schema-backed `json_schema` rows receive the shared response
 guidelines because the actual schema travels in
-`DirectChatPrompt.response_format`; `json_object` JSON-mode rows receive those
-guidelines plus the dumped schema and example object because JSON mode does not
-enforce schema adherence. The identity section
+`DirectChatPrompt.response_format`; `json_object` JSON-mode rows and rows
+without a structured transport (which get no `response_format`) receive those
+guidelines plus the dumped schema and example object because nothing enforces
+schema adherence. The identity section
 contains only file content rather than file path, status, revision, or
 fingerprint details. Anima profile columns, `metadata.direct_chat`, and pinned
 user profile content are not prompt sources. One request-local `developer`
@@ -318,6 +319,40 @@ the defaults: no folding, every field sent and `openai_effort`.
 
 JSON-mode rows (`structured_output_transport="json_object"`) receive
 `response_format={"type":"json_object"}` whatever the connection.
+
+### Reply validation and recovery
+
+The executor validates each final reply locally
+(`recover_main_structured_response`). A reply is valid when it contains a JSON
+object with a non-blank `speech` string, even inside a markdown fence or prose.
+Unknown keys are dropped; a missing or unknown tone becomes `neutral`, intensity
+is clamped and an unknown gesture is dropped.
+
+An invalid reply is recovered in this order, and the assistant row records the
+outcome in `data.structured_recovery`:
+
+1. **Salvaged** — speech from the invalid reply has already streamed. The
+   streamed tone, gesture, speech and display become the reply, so no speech is
+   repeated.
+2. **Repaired** — otherwise one repair request is sent: the request that
+   produced the reply, without tools, plus a repair instruction and the
+   Companion Guardrails last. Chat Completions rows with a developer role also
+   see the invalid reply as the previous assistant message. Rows that fold
+   developer messages (every local preset) and Responses rows get the
+   instruction alone, because a trailing assistant message is continued as a
+   prefill and Responses resends the round from its own cursor. Usage covers
+   both requests.
+3. **Plain text** — the repair also fails, or its request errors. The
+   model's text becomes speech (only its `speech` value if it looks like JSON;
+   the invalid original's text if the repair has none), with
+   `neutral` emotion, intensity 1 and no gesture, and is spoken by TTS.
+
+Salvaged and plain-text rows store and replay a synthesized valid reply as
+their `content`, so later turns do not learn to answer in plain text. Each
+recovery logs `Direct chat structured reply recovered` with ids, the transport
+and lengths, never message text. A reply with no speakable text fails with
+`main_structured_response_parse_failed`. Memory changes made by the turn's
+tool calls stay in every case.
 
 `OpenAIResponsesHTTPAgent` moves all
 system/developer instruction text into the Responses `instructions` parameter
@@ -460,8 +495,9 @@ it only when the connection's `send_openai_extensions` option is on.
 `native_tools` and `reasoning_effort` are request-scoped options validated
 against the selected catalog row. Current direct support includes the
 Responses-native `web_search` tool for catalog rows that advertise it; Chat
-Completions rows never advertise native web search. The Responses adapter
-sends native web search with `search_context_size: "low"` by default. Anima
+Completions rows never advertise native web search and use the
+[application web search](#application-web-search) tool instead. The Responses
+adapter sends native web search with `search_context_size: "low"` by default. Anima
 memory tools are separate app-layer function tools, supported for
 `OpenAIHTTPAgent`, `OpenAIResponsesHTTPAgent` and `MockModelClient` rows with
 tool calling. A row without tool calling runs the turn without memory tools
@@ -477,7 +513,7 @@ upstream.
 ## Prompt-Only Maintenance Calls
 
 Title generation and chat compaction use `DirectModelPromptRunner`, which
-resolves the Utility [model role](../../frontend/features/model-settings.md#model-roles)
+resolves the Utility [model role](../../frontend/features/model-settings.md#default-models)
 (the App Settings choice, then `ANIMAMA_DEFAULT_UTILITY_MODEL_PROVIDER_ID`,
 then the default chat model) and invokes the same shared model-client registry.
 It sends a requested `request_options` reasoning effort only when the row
@@ -487,10 +523,78 @@ service owns durable state, such as `chat_compactions`.
 
 After a successful non-incognito Chat Completions turn, the local
 post-response compaction pass runs when `chats.active_context_tokens` reaches
-`ANIMAMA_CHAT_COMPACTION_THRESHOLD_TOKENS` (default 6000). Chat Completions
-models have no pre-send compaction. Primary `chat:sse` turns that use
+`ANIMAMA_CHAT_COMPACTION_THRESHOLD_TOKENS` (default 6000), or 75% of the
+model's available window if that is lower. Primary `chat:sse` turns that use
 `OpenAIResponsesHTTPAgent` skip the local pass and rely on Responses
 server-side compaction instead.
+
+### Context window budget
+
+Chat Completions rows with a context window never receive a prompt larger than
+it (`app/chat/direct_turn/context_fit.py`, `app/model_clients/context_budget.py`):
+
+- **Budget.** Available tokens are the window minus the row's
+  `max_output_tokens`, or minus a quarter of the window (at most 4096) when
+  the row records none. Prompts are estimated offline and conservatively: ASCII
+  at four characters per token, every other character as one token, over the
+  messages, tools and response format.
+- **Pre-send compaction.** Above 90% of available, the executor emits
+  `run.status` `summarizing_context` `started`, compacts through the Utility
+  role in its own session (`ChatCompactionService.compact_for_budget`, bounded
+  by `ANIMAMA_CHAT_PRESEND_COMPACTION_TIMEOUT_SECONDS`, default 90), then emits
+  `finished`. Incognito turns skip compaction.
+- **Omission.** If the prompt still does not fit, or compaction failed or timed
+  out, the oldest turns after the summary are left out of this request only
+  (never deleted). History is kept in whole turns that start with a user
+  message, so a tool call stays with its results, and it is fitted below the
+  90% trigger to leave room for tool rounds. The warning log records counts,
+  never content.
+- **Too large.** When the instructions and latest message alone exceed the
+  window, the turn fails with `error` code `context_window_exceeded` and
+  category `context_exceeded`, before any model request.
+- **Within the turn.** Tool results that would push the next round past the
+  window become a `tool_result_too_large` tool error the model can react to.
+  If even those errors do not fit, the model is asked for its final reply
+  without tools and without that exchange; if that final would not fit
+  either, the turn fails with `context_window_exceeded`. A structured-reply
+  repair leaves out the invalid reply when it would not fit, and is skipped
+  (plain-text fallback) when it still would not. A server that still rejects the
+  first request as oversized gets one retry with about half of the history
+  left out.
+
+Compaction input is itself bounded to the Utility model's window (oldest
+messages beyond it are left out of the new summary), and both compaction
+passes keep a user message together with its reply.
+
+## Application Web Search
+
+`native_tools: ["web_search"]` means "search the web" for any model:
+
+- A Responses row that advertises hosted `web_search` keeps hosted search.
+- Otherwise, when the installation has a search backend and the row calls
+  tools, the turn offers the application function tool `web_search(query)`
+  (`app/web_search/`), also on turns without memory tools. The tool shares the
+  memory tool round limit.
+- Otherwise the turn runs without search and logs why (`no_backend`,
+  `model_without_tools`, `provider_without_function_tools`, or
+  `reasoning_with_function_tools` for Chat Completions models that reject a
+  reasoning effort with function tools) instead of failing setup.
+
+Backends are SearXNG (`GET {base_url}/search?format=json`, the instance's
+`search.formats` must include `json`) and the Brave Search API
+(`X-Subscription-Token`), in `adapters/web_search/`. Queries go only to the
+configured backend. A result is a title, URL, snippet (at most 600
+characters) and date; a call returns at most five. A backend failure becomes
+a tool error (`web_search_<category>`) the model can explain, never a turn
+failure. While a search runs, the turn emits `run.status` `searching_web`
+`started` and `finished`.
+
+The model sees full results within the turn. The persisted tool-result row
+keeps only the query and each result's title and URL: Brave allows only
+transient storage of results, and one rule covers both backends. Settings are
+the local-only [web search routes](../architecture/http-api.md#web-search);
+the backend reads its key from `ANIMAMA_CONNECTION_WEB_SEARCH_API_KEY` or
+`BRAVE_SEARCH_API_KEY`, and model connections cannot read the former.
 
 ## Chat Persistence
 

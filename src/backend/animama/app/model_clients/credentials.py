@@ -19,6 +19,8 @@ from animama.app.model_clients.credential_store import (
     KNOWN_PROVIDER_CREDENTIAL_ENVS,
     MANAGED_CREDENTIAL_ENV_PATTERN,
     OPENAI_CREDENTIAL_ENV,
+    WEB_SEARCH_CREDENTIAL_ENVS,
+    WEB_SEARCH_MANAGED_CREDENTIAL_ENV,
     CredentialSource,
     FixedCredentials,
     is_allowed_credential_env,
@@ -34,6 +36,12 @@ from animama.domain.model_connection import (
 CREDENTIAL_CONFIGURED = "configured"
 CREDENTIAL_MISSING = "missing"
 CREDENTIAL_NOT_REQUIRED = "not_required"
+
+
+def is_allowed_web_search_credential_env(name: str) -> bool:
+    """Return whether the web search backend may read its key from ``name``."""
+
+    return name in WEB_SEARCH_CREDENTIAL_ENVS
 
 
 def managed_credential_env(connection_id: str) -> str:
@@ -130,6 +138,9 @@ def _credential(value: str | None) -> ModelCredential:
 
 
 __all__ = [
+    "WEB_SEARCH_CREDENTIAL_ENVS",
+    "WEB_SEARCH_MANAGED_CREDENTIAL_ENV",
+    "is_allowed_web_search_credential_env",
     "CREDENTIAL_CONFIGURED",
     "CREDENTIAL_MISSING",
     "CREDENTIAL_NOT_REQUIRED",

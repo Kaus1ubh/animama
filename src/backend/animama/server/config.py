@@ -130,6 +130,11 @@ class Settings(BaseModel):
     anima_chat_compaction_recent_message_min_count: int = int(
         os.getenv("ANIMAMA_CHAT_COMPACTION_RECENT_MESSAGE_MIN_COUNT", "4")
     )
+    # Upper bound on synchronous compaction before a turn is sent to a model
+    # without native compaction; on timeout the turn trims history instead.
+    anima_chat_presend_compaction_timeout_seconds: float = float(
+        os.getenv("ANIMAMA_CHAT_PRESEND_COMPACTION_TIMEOUT_SECONDS", "90.0")
+    )
     anima_default_model_provider_id: str = os.getenv(
         "ANIMAMA_DEFAULT_MODEL_PROVIDER_ID",
         "OpenAIResponsesHTTPAgent:gpt-6-luna",

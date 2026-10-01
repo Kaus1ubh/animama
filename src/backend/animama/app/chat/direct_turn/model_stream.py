@@ -20,21 +20,34 @@ from animama.app.model_clients import (
     model_client_preview_log_context,
     model_client_request_log_context,
 )
+from animama.app.model_clients.context_budget import (
+    ContextBudget,
+    estimate_prompt_tokens,
+    estimate_text_tokens,
+    estimate_value_tokens,
+)
+from animama.app.model_clients.error_categories import ERROR_CONTEXT_EXCEEDED, model_error_category
 from animama.app.model_clients.event_summary import ModelClientStreamEventObserver
 from animama.app.model_clients.prompt import copy_direct_chat_prompt, prompt_messages
 from animama.app.model_clients.usage_estimate import CONTEXT_TOKENS_METADATA_KEY, context_tokens_from_usage
 from animama.app.safety.prompts import COMPANION_GUARDRAILS
+from animama.app.web_search import WEB_SEARCH_TOOL_NAME, WebSearchToolService, persisted_web_search_output
 from animama.domain.chat import ChatMessage
+from animama.domain.events import RunStatusKind
 from animama.domain.usage import Usage
 from animama.logging import get_logger
 
 from ..memory_cue import AnimaMemoriesTurn
 from ..memory_tools import DirectChatMemoryToolService, MemoryToolExecutionContext
 from .constants import (
+    CONTEXT_LIMIT_FINAL_INSTRUCTION,
     MAX_MEMORY_TOOL_ROUNDS,
     MEMORY_TOOL_LIMIT_FINAL_INSTRUCTION,
     OPENAI_CHAT_COMPLETIONS_PROVIDER,
     OPENAI_RESPONSES_PROVIDER,
+    STRUCTURED_REPAIR_METADATA_KEY,
+    STRUCTURED_REPLY_REPAIR_INSTRUCTION,
+    STRUCTURED_REPLY_REPAIR_ROUND_INDEX,
 )
 from .message_builders import (
     assistant_tool_call_prompt_message,
@@ -62,6 +75,12 @@ _log = get_logger("app.chat.direct_turn.model_stream")
 # signal validation.
 ModelRoundObserver = Callable[[int], Awaitable[None]]
 TextDeltaObserver = Callable[[int, str], Awaitable[None]]
+# Decides whether a turn's final reply needs the one structured repair request.
+FinalRepairCheck = Callable[[ModelClientFinal], bool]
+# Reports backend work shown in the pending reply, such as a web search.
+RunStatusObserver = Callable[[RunStatusKind, str], Awaitable[None]]
+# Returns a smaller first request after the server reports an oversized prompt, or None.
+RequestShrinker = Callable[[ModelClientRequest], Awaitable[ModelClientRequest | None]]
 
 
 class DirectTurnModelStreamCollector:
@@ -81,6 +100,8 @@ class DirectTurnModelStreamCollector:
         load_chat_context: Callable[[str], Awaitable[Any]],
         build_prompt: Callable[..., DirectChatPrompt],
         anima_memories: AnimaMemoriesTurn | None = None,
+        web_search_tool: WebSearchToolService | None = None,
+        on_run_status: RunStatusObserver | None = None,
     ) -> None:
         self._stream = stream
         self._memory_tool_service = memory_tool_service
@@ -89,6 +110,8 @@ class DirectTurnModelStreamCollector:
         # The turn's MEMORIES.md state, shared by every tool call; None keeps the
         # [self]/MEMORIES.md alias unavailable (memory influence is off).
         self._anima_memories = anima_memories
+        self._web_search_tool = web_search_tool
+        self._on_run_status = on_run_status
 
     async def collect(
         self,
@@ -96,12 +119,123 @@ class DirectTurnModelStreamCollector:
         *,
         on_model_round_start: ModelRoundObserver | None = None,
         on_text_delta: TextDeltaObserver | None = None,
+        needs_repair: FinalRepairCheck | None = None,
+        context_budget: ContextBudget | None = None,
+        shrink_request: RequestShrinker | None = None,
     ) -> tuple[ModelClientFinal | None, list[ChatMessage]]:
+        """Run the model rounds for one turn, then repair an invalid final reply once.
+
+        ``needs_repair`` is the caller's local validation. When it rejects the
+        final, one request without tools asks the model to reply again in the
+        required format. The repaired final carries usage for every request;
+        if the repair request itself fails, the original final is returned so
+        the caller can fall back to its text.
+
+        With a ``context_budget`` (models without native compaction), tool
+        results that would push a follow-up round past the window are replaced
+        by a tool error, and a server's oversized-prompt rejection of the first
+        request is retried once with the request from ``shrink_request``.
+        """
+
+        final, internal_messages, final_request = await self._collect_rounds(
+            prepared,
+            on_model_round_start=on_model_round_start,
+            on_text_delta=on_text_delta,
+            context_budget=context_budget,
+            shrink_request=shrink_request,
+        )
+        if final is None or final_request is None or needs_repair is None or not needs_repair(final):
+            return final, internal_messages
+        return await self._repair_final(
+            prepared,
+            final_request,
+            final,
+            on_model_round_start=on_model_round_start,
+            on_text_delta=on_text_delta,
+            context_budget=context_budget,
+        ), internal_messages
+
+    async def _repair_final(
+        self,
+        prepared: PreparedDirectChatTurn,
+        final_request: ModelClientRequest,
+        final: ModelClientFinal,
+        *,
+        on_model_round_start: ModelRoundObserver | None,
+        on_text_delta: TextDeltaObserver | None,
+        context_budget: ContextBudget | None = None,
+    ) -> ModelClientFinal:
+        _log.warning(
+            "Direct chat structured reply repair requested",
+            **_direct_turn_log_context(prepared, final_request),
+            final_text_length=len(final.text),
+        )
+        if on_model_round_start is not None:
+            await on_model_round_start(STRUCTURED_REPLY_REPAIR_ROUND_INDEX)
+        try:
+            if "previous_response_retry" in final.raw_provider_metadata:
+                # The round succeeded only after dropping a stale Responses cursor.
+                final_request = await self._retry_model_request_without_previous_response_id(prepared, final_request)
+            repair_request = _structured_repair_request(final_request, final, context_budget)
+            if (
+                context_budget is not None
+                and estimate_prompt_tokens(repair_request.prompt) > context_budget.available_tokens
+            ):
+                # A repair that would not fit is skipped; the reply falls back to plain text.
+                _log.warning(
+                    "Direct chat structured reply repair skipped at the context window",
+                    **_direct_turn_log_context(prepared, final_request),
+                )
+                repair_final = None
+            else:
+                repair_final = await self._collect_model_final(
+                    prepared,
+                    repair_request,
+                    round_index=STRUCTURED_REPLY_REPAIR_ROUND_INDEX,
+                    on_text_delta=on_text_delta,
+                    allow_previous_response_retry=False,
+                )
+        except Exception as exc:
+            # A failed repair falls back to the original reply's text.
+            _log.warning(
+                "Direct chat structured reply repair request failed",
+                **_direct_turn_log_context(prepared, final_request),
+                exc_type=exc.__class__.__name__,
+                code=exc.error.code if isinstance(exc, DirectChatTurnStreamError) else None,
+            )
+            repair_final = None
+        if repair_final is None:
+            return replace(
+                final,
+                raw_provider_metadata={
+                    **dict(final.raw_provider_metadata),
+                    STRUCTURED_REPAIR_METADATA_KEY: "request_failed",
+                },
+            )
+        usage = Usage()
+        usage.add(final.usage)
+        usage.add(repair_final.usage)
+        repaired = _final_with_usage(repair_final, usage, input_moderation=final.input_moderation)
+        return replace(
+            repaired,
+            raw_provider_metadata={**dict(repaired.raw_provider_metadata), STRUCTURED_REPAIR_METADATA_KEY: "attempted"},
+        )
+
+    async def _collect_rounds(
+        self,
+        prepared: PreparedDirectChatTurn,
+        *,
+        on_model_round_start: ModelRoundObserver | None = None,
+        on_text_delta: TextDeltaObserver | None = None,
+        context_budget: ContextBudget | None = None,
+        shrink_request: RequestShrinker | None = None,
+    ) -> tuple[ModelClientFinal | None, list[ChatMessage], ModelClientRequest | None]:
         """Run the initial model request plus any memory tool follow-up rounds.
 
         A round is one request to the selected model provider. Tool-call finals
         do not complete the user-visible turn; they produce internal tool work
-        and then another model round with appended tool results.
+        and then another model round with appended tool results. Returns the
+        final with the request that produced it.
         """
 
         started_at = time.monotonic()
@@ -145,12 +279,35 @@ class DirectTurnModelStreamCollector:
             )
             if on_model_round_start is not None:
                 await on_model_round_start(round_index)
-            final = await self._collect_model_final(
-                prepared,
-                model_request,
-                round_index=round_index,
-                on_text_delta=tool_round_text_observer,
-            )
+            try:
+                final = await self._collect_model_final(
+                    prepared,
+                    model_request,
+                    round_index=round_index,
+                    on_text_delta=tool_round_text_observer,
+                )
+            except DirectChatTurnStreamError as exc:
+                smaller = (
+                    await shrink_request(model_request)
+                    if round_index == 0
+                    and shrink_request is not None
+                    and model_error_category(exc.error.code, exc.error.raw_metadata) == ERROR_CONTEXT_EXCEEDED
+                    else None
+                )
+                if smaller is None:
+                    raise
+                # Nothing was sent to the client and no tool ran: retry once with less history.
+                _log.warning(
+                    "Direct chat retrying with less history after the server reported an oversized prompt",
+                    **_direct_turn_log_context(prepared, model_request),
+                )
+                model_request = smaller
+                final = await self._collect_model_final(
+                    prepared,
+                    model_request,
+                    round_index=round_index,
+                    on_text_delta=tool_round_text_observer,
+                )
             if final is None:
                 _log.warning(
                     "Direct chat model round ended without final",
@@ -158,7 +315,7 @@ class DirectTurnModelStreamCollector:
                     round_index=round_index,
                     elapsed_ms=elapsed_ms(started_at),
                 )
-                return None, internal_messages
+                return None, internal_messages, None
             usage_total.add(final.usage)
             usage_seen = True
             if round_index == 0:
@@ -178,14 +335,15 @@ class DirectTurnModelStreamCollector:
                 structured_round_index = round_index + 1
                 if on_model_round_start is not None:
                     await on_model_round_start(structured_round_index)
+                structured_request = _model_request_without_tools(model_request, response_format=structured_format)
                 structured_final = await self._collect_model_final(
                     prepared,
-                    _model_request_without_tools(model_request, response_format=structured_format),
+                    structured_request,
                     round_index=structured_round_index,
                     on_text_delta=on_text_delta,
                 )
                 if structured_final is None:
-                    return None, internal_messages
+                    return None, internal_messages, None
                 usage_total.add(structured_final.usage)
                 _log.info(
                     "Direct chat model stream collection completed",
@@ -198,6 +356,7 @@ class DirectTurnModelStreamCollector:
                 return (
                     _final_with_usage(structured_final, usage_total, input_moderation=round_zero_moderation),
                     internal_messages,
+                    structured_request,
                 )
             if not tool_calls:
                 # No tool calls means the final model text is ready for parsing.
@@ -209,7 +368,7 @@ class DirectTurnModelStreamCollector:
                         round_count=round_index + 1,
                         elapsed_ms=elapsed_ms(started_at),
                     )
-                    return final, internal_messages
+                    return final, internal_messages, model_request
                 _log.info(
                     "Direct chat model stream collection completed",
                     **_direct_turn_log_context(prepared, model_request),
@@ -224,6 +383,7 @@ class DirectTurnModelStreamCollector:
                         input_moderation=round_zero_moderation,
                     ),
                     internal_messages,
+                    model_request,
                 )
 
             if round_index >= MAX_MEMORY_TOOL_ROUNDS:
@@ -270,18 +430,19 @@ class DirectTurnModelStreamCollector:
                 )
                 if on_model_round_start is not None:
                     await on_model_round_start(forced_round_index)
+                forced_request = _model_request_without_tools(
+                    limit_request,
+                    response_format=structured_format,
+                    final_instruction=MEMORY_TOOL_LIMIT_FINAL_INSTRUCTION,
+                )
                 forced_final = await self._collect_model_final(
                     prepared,
-                    _model_request_without_tools(
-                        limit_request,
-                        response_format=structured_format,
-                        final_instruction=MEMORY_TOOL_LIMIT_FINAL_INSTRUCTION,
-                    ),
+                    forced_request,
                     round_index=forced_round_index,
                     on_text_delta=on_text_delta,
                 )
                 if forced_final is None:
-                    return None, internal_messages
+                    return None, internal_messages, None
                 usage_total.add(forced_final.usage)
                 usage_seen = True
                 if not forced_final.tool_calls:
@@ -293,11 +454,15 @@ class DirectTurnModelStreamCollector:
                         aggregated_usage=True,
                         forced_final=True,
                     )
-                    return _final_with_usage(
-                        forced_final,
-                        usage_total if usage_seen else forced_final.usage,
-                        input_moderation=round_zero_moderation,
-                    ), internal_messages
+                    return (
+                        _final_with_usage(
+                            forced_final,
+                            usage_total if usage_seen else forced_final.usage,
+                            input_moderation=round_zero_moderation,
+                        ),
+                        internal_messages,
+                        forced_request,
+                    )
                 raise DirectChatTurnStreamError(
                     request=prepared.request,
                     error=ModelClientError(
@@ -306,7 +471,7 @@ class DirectTurnModelStreamCollector:
                         raw_metadata={"max_tool_rounds": MAX_MEMORY_TOOL_ROUNDS},
                     ),
                 )
-            if self._memory_tool_service is None:
+            if self._memory_tool_service is None and self._web_search_tool is None:
                 raise DirectChatTurnStreamError(
                     request=prepared.request,
                     error=ModelClientError(
@@ -353,6 +518,58 @@ class DirectTurnModelStreamCollector:
                 )
                 tool_results.append(tool_result)
             result_tuple = tuple(tool_results)
+            if context_budget is not None:
+                bounded = _tool_results_within_budget(
+                    model_request,
+                    tool_calls,
+                    result_tuple,
+                    context_budget,
+                    prepared=prepared,
+                    structured_format=structured_format,
+                )
+                if bounded is None:
+                    # Even tool errors do not fit: answer without this exchange,
+                    # from a request that already fit, instead of failing the turn.
+                    internal_messages.extend(
+                        _internal_tool_exchange_messages(
+                            prepared=prepared,
+                            model_request=model_request,
+                            tool_calls=tool_calls,
+                            tool_results=_too_large_results(result_tuple),
+                        )
+                    )
+                    final_request = _model_request_without_tools(
+                        model_request,
+                        response_format=structured_format,
+                        final_instruction=CONTEXT_LIMIT_FINAL_INSTRUCTION,
+                    )
+                    if estimate_prompt_tokens(final_request.prompt) > context_budget.available_tokens:
+                        raise DirectChatTurnStreamError(
+                            request=prepared.request,
+                            error=ModelClientError(
+                                "The conversation exceeds the model's context window",
+                                code="context_window_exceeded",
+                                raw_metadata={"provider_error_code": "context_length_exceeded"},
+                            ),
+                        )
+                    final_round_index = round_index + 1
+                    if on_model_round_start is not None:
+                        await on_model_round_start(final_round_index)
+                    context_final = await self._collect_model_final(
+                        prepared,
+                        final_request,
+                        round_index=final_round_index,
+                        on_text_delta=on_text_delta,
+                    )
+                    if context_final is None:
+                        return None, internal_messages, None
+                    usage_total.add(context_final.usage)
+                    return (
+                        _final_with_usage(context_final, usage_total, input_moderation=round_zero_moderation),
+                        internal_messages,
+                        final_request,
+                    )
+                result_tuple = bounded
             tool_prompt_messages = _tool_exchange_prompt_items(
                 model_request=model_request,
                 tool_calls=tool_calls,
@@ -375,7 +592,7 @@ class DirectTurnModelStreamCollector:
                 previous_final=final,
             )
 
-        return None, internal_messages
+        return None, internal_messages, None
 
     async def _collect_model_final(
         self,
@@ -527,10 +744,8 @@ class DirectTurnModelStreamCollector:
         model_request: ModelClientRequest,
         available_tools: set[str],
     ) -> str:
-        """Run one model-requested direct memory tool and return provider text output."""
+        """Run one model-requested direct tool (memory or web search) and return provider text output."""
 
-        # Tools are exposed only when the request has a service.
-        assert self._memory_tool_service is not None
         if tool_call.name not in available_tools:
             return _tool_error_json(
                 "unsupported_tool",
@@ -546,6 +761,11 @@ class DirectTurnModelStreamCollector:
             )
         if not isinstance(parsed, Mapping):
             return _tool_error_json("invalid_arguments", "Tool arguments must be a JSON object")
+        if tool_call.name == WEB_SEARCH_TOOL_NAME and self._web_search_tool is not None:
+            return await self._search_web(parsed)
+
+        # Memory tools are exposed only when the request has a service.
+        assert self._memory_tool_service is not None
 
         context = MemoryToolExecutionContext(
             user_id=request.user_id,
@@ -621,6 +841,18 @@ class DirectTurnModelStreamCollector:
         result_cache[tool_call.id] = (tool_call, result)
         return result
 
+    async def _search_web(self, arguments: Mapping[str, Any]) -> str:
+        """Run the application web search, showing its status while it runs."""
+
+        assert self._web_search_tool is not None
+        if self._on_run_status is not None:
+            await self._on_run_status("searching_web", "started")
+        try:
+            return await self._web_search_tool.execute(arguments)
+        finally:
+            if self._on_run_status is not None:
+                await self._on_run_status("searching_web", "finished")
+
     async def _retry_model_request_without_previous_response_id(
         self,
         prepared: PreparedDirectChatTurn,
@@ -632,7 +864,7 @@ class DirectTurnModelStreamCollector:
             return model_request_without_continuation(model_request)
 
         chat_context = await self._load_chat_context(prepared.request.chat_id)
-        response_format = cast(dict[str, Any], prepared.model_request.prompt.response_format)
+        response_format = cast(dict[str, Any] | None, prepared.model_request.prompt.response_format)
         prompt = self._build_prompt(
             request=prepared.request,
             model_provider=model_request.model_provider,
@@ -778,6 +1010,9 @@ def _internal_tool_exchange_messages(
             )
         )
     for tool_call, tool_result in zip(tool_calls, tool_results, strict=True):
+        if tool_call.name == WEB_SEARCH_TOOL_NAME:
+            # Search snippets are used within the turn only; history keeps the query, titles and URLs.
+            tool_result = replace(tool_result, output=persisted_web_search_output(tool_result.output))
         raw_result = (
             model_client_tool_result_prompt_item(tool_result)
             if model_request.model_provider.provider_type == OPENAI_RESPONSES_PROVIDER
@@ -916,6 +1151,106 @@ def _model_request_without_tools(
     )
 
 
+def _tool_results_within_budget(
+    model_request: ModelClientRequest,
+    tool_calls: tuple[ModelClientToolCall, ...],
+    tool_results: tuple[ModelClientToolResult, ...],
+    budget: ContextBudget,
+    *,
+    prepared: PreparedDirectChatTurn,
+    structured_format: Any,
+) -> tuple[ModelClientToolResult, ...] | None:
+    """Replace results that would push the next round past the window with a tool error.
+
+    The model can then narrow its request (for example read fewer files)
+    instead of the turn sending an over-window prompt. Room is kept for what a
+    later structured round or repair adds (the response format when tool
+    rounds run without it, and the repair instruction with the guardrail).
+    Returns ``None`` when even the errors do not fit.
+    """
+
+    limit = budget.available_tokens - _final_round_reserve_tokens(model_request, structured_format)
+
+    def next_prompt_tokens(results: tuple[ModelClientToolResult, ...]) -> int:
+        messages = _tool_exchange_prompt_items(model_request=model_request, tool_calls=tool_calls, tool_results=results)
+        return estimate_prompt_tokens(_prompt_with_appended_messages(model_request.prompt, messages))
+
+    if next_prompt_tokens(tool_results) <= limit:
+        return tool_results
+    spare = max(0, limit - estimate_prompt_tokens(model_request.prompt))
+    per_result = spare // (2 * max(1, len(tool_results)))
+    bounded = tuple(
+        result if estimate_text_tokens(result.output) <= per_result else _too_large_result(result)
+        for result in tool_results
+    )
+    _log.warning(
+        "Direct chat tool results replaced to fit the model context window",
+        **_direct_turn_log_context(prepared, model_request),
+        replaced_count=sum(1 for before, after in zip(tool_results, bounded, strict=True) if before is not after),
+    )
+    return bounded if next_prompt_tokens(bounded) <= limit else None
+
+
+def _final_round_reserve_tokens(model_request: ModelClientRequest, structured_format: Any) -> int:
+    """Return the tokens a later structured round or repair may add to a tool round's prompt."""
+
+    added_format = (
+        estimate_value_tokens(structured_format)
+        if structured_format is not None and model_request.prompt.response_format is None
+        else 0
+    )
+    repair_instruction = estimate_text_tokens(
+        f"{STRUCTURED_REPLY_REPAIR_INSTRUCTION}\n\n{COMPANION_GUARDRAILS.strip()}"
+    )
+    return added_format + repair_instruction
+
+
+def _structured_repair_request(
+    final_request: ModelClientRequest,
+    invalid_final: ModelClientFinal,
+    budget: ContextBudget | None = None,
+) -> ModelClientRequest:
+    """Build the one repair request for a final reply that failed validation.
+
+    It repeats the request that produced the invalid reply, without tools, and
+    adds a repair instruction followed by the guardrail. Chat Completions rows
+    with a developer role see the invalid reply as the previous assistant
+    message. Rows that fold developer messages into the system message would
+    end on that assistant message, which local servers continue as a prefill,
+    so they get the instruction alone. Responses keeps the round's own
+    continuation and also gets the instruction alone, because its input after
+    a cursor is the trailing user message or tool outputs. Near a context
+    window the invalid reply is also left out when it would not fit.
+    """
+
+    model_provider = final_request.model_provider
+
+    def repair(request: ModelClientRequest) -> ModelClientRequest:
+        return _model_request_without_tools(
+            request,
+            response_format=final_request.prompt.response_format,
+            final_instruction=STRUCTURED_REPLY_REPAIR_INSTRUCTION,
+        )
+
+    if (
+        model_provider.provider_type != OPENAI_RESPONSES_PROVIDER
+        and model_provider.accepts_developer_role
+        and invalid_final.text.strip()
+    ):
+        with_reply = repair(
+            replace(
+                final_request,
+                prompt=_prompt_with_appended_messages(
+                    final_request.prompt,
+                    [{"role": "assistant", "content": invalid_final.text}],
+                ),
+            )
+        )
+        if budget is None or estimate_prompt_tokens(with_reply.prompt) <= budget.available_tokens:
+            return with_reply
+    return repair(final_request)
+
+
 def _tool_error_json(code: str, message: str, **extra: Any) -> str:
     """Format direct memory tool failures as compact JSON tool output."""
 
@@ -931,4 +1266,18 @@ def _tool_error_json(code: str, message: str, **extra: Any) -> str:
     )
 
 
-__all__ = ["DirectTurnModelStreamCollector"]
+_TOOL_RESULT_TOO_LARGE_OUTPUT = _tool_error_json(
+    "tool_result_too_large",
+    "The result is too large for the model's context window. Request less, for example fewer files or lines.",
+)
+
+
+def _too_large_result(result: ModelClientToolResult) -> ModelClientToolResult:
+    return replace(result, status="failed", output=_TOOL_RESULT_TOO_LARGE_OUTPUT)
+
+
+def _too_large_results(results: tuple[ModelClientToolResult, ...]) -> tuple[ModelClientToolResult, ...]:
+    return tuple(_too_large_result(result) for result in results)
+
+
+__all__ = ["DirectTurnModelStreamCollector", "RunStatusObserver"]

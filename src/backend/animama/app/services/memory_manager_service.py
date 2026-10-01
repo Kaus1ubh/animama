@@ -12,6 +12,7 @@ from animama.app.ports.memory_manager_runtime import (
     MEMORY_MANAGER_RUNTIME_OUTCOME_FAILED,
     MEMORY_MANAGER_RUNTIME_OUTCOME_WAITING_APPROVAL,
     MEMORY_MANAGER_RUNTIME_OUTCOMES,
+    MemoryManagerPinnedModelUnavailableError,
     MemoryManagerRuntime,
     MemoryManagerRuntimeApprovalRequest,
     MemoryManagerRuntimeError,
@@ -158,6 +159,7 @@ class MemoryManagerService:
                 user_id=user_id,
                 status=MEMORY_MANAGER_RUN_STATUS_ACTIVE,
                 kind=MEMORY_MANAGER_RUN_KIND_GENERAL,
+                model_provider_id=self._runtime.model_provider_id,
                 metadata={
                     "runtime": self._runtime.name,
                     **dict(metadata or {}),
@@ -228,6 +230,7 @@ class MemoryManagerService:
                 status=MEMORY_MANAGER_RUN_STATUS_ACTIVE,
                 kind=MEMORY_MANAGER_RUN_KIND_EPISODE_PROCESSING,
                 task_state=task.to_dict(),
+                model_provider_id=self._runtime.model_provider_id,
                 metadata={"runtime": self._runtime.name},
             )
             stored = await self._memory_manager.create_run(run)
@@ -337,6 +340,7 @@ class MemoryManagerService:
                     status=MEMORY_MANAGER_RUN_STATUS_ACTIVE,
                     kind=MEMORY_MANAGER_RUN_KIND_REFLECTION,
                     task_state=task.to_dict(),
+                    model_provider_id=self._runtime.model_provider_id,
                     metadata={"runtime": self._runtime.name},
                 )
             )
@@ -530,6 +534,16 @@ class MemoryManagerService:
             run = await self._memory_manager.get_run_for_update(user_id=user_id, run_id=approval.run_id)
             if run is None:
                 raise MemoryManagerNotFoundError("Memory manager run not found")
+            # Resume on the model that proposed the change. Without it, an
+            # approval changes nothing (the owner can restore the model or
+            # reject), and a rejection ends the review without resuming.
+            runtime: MemoryManagerRuntime | None
+            try:
+                runtime = await self._runtime.for_run(run)
+            except MemoryManagerPinnedModelUnavailableError as exc:
+                if status == MEMORY_MANAGER_APPROVAL_STATUS_APPROVED:
+                    raise MemoryManagerConflictError(exc.detail) from exc
+                runtime = None
             committed_entry_id = approval.target_entry_id
             applied_version = approval.applied_version
             if status == MEMORY_MANAGER_APPROVAL_STATUS_APPROVED:
@@ -547,12 +561,15 @@ class MemoryManagerService:
             )
             stored = await self._memory_manager.update_approval(decided)
             try:
-                runtime_result = await self._runtime.resume_approval_decision(
-                    run=run,
-                    approval=stored,
-                    decision=decision.strip().lower(),
-                    feedback=clean_feedback,
-                )
+                if runtime is None:
+                    runtime_result = self._pinned_model_gone_result()
+                else:
+                    runtime_result = await runtime.resume_approval_decision(
+                        run=run,
+                        approval=stored,
+                        decision=decision.strip().lower(),
+                        feedback=clean_feedback,
+                    )
             except MemoryManagerRuntimeError as exc:
                 runtime_result = self._runtime_failure_result(exc)
             await self._persist_runtime_result(
@@ -841,6 +858,8 @@ class MemoryManagerService:
         result_metadata = dict(result.metadata or {})
         result_model = result_metadata.get("model")
         result_provider = result_metadata.get("model_provider")
+        # The row that ran this step proposed any new approval, so it becomes the pin.
+        result_provider_id = result_metadata.get("model_provider_id")
         outcome = self._validated_runtime_outcome(result=result, has_pending=has_pending)
         failed = outcome in {MEMORY_MANAGER_RUNTIME_OUTCOME_BLOCKED, MEMORY_MANAGER_RUNTIME_OUTCOME_FAILED}
         next_status = (
@@ -856,6 +875,9 @@ class MemoryManagerService:
                 status=next_status,
                 model_provider=result_provider if isinstance(result_provider, str) else run.model_provider,
                 model_name=result_model if isinstance(result_model, str) else run.model_name,
+                model_provider_id=(
+                    result_provider_id if isinstance(result_provider_id, str) else run.model_provider_id
+                ),
                 openai_previous_response_id=(
                     self._nonblank_string(result.openai_previous_response_id) or run.openai_previous_response_id
                 ),
@@ -1207,6 +1229,21 @@ class MemoryManagerService:
             anima_id=None,
             path=approval.target_path,
             type=MEMORY_ENTRY_TYPE_FILE,
+        )
+
+    def _pinned_model_gone_result(self) -> MemoryManagerRuntimeResult:
+        message = (
+            "The model that proposed this change is no longer available, so the review ended after your "
+            "rejection. Start a new run to continue."
+        )
+        return MemoryManagerRuntimeResult(
+            assistant_message=message,
+            metadata={
+                "runtime": self._runtime.name,
+                "runtime_error_code": MemoryManagerPinnedModelUnavailableError.code,
+            },
+            error=message,
+            outcome=MEMORY_MANAGER_RUNTIME_OUTCOME_BLOCKED,
         )
 
     def _runtime_failure_result(self, exc: MemoryManagerRuntimeError) -> MemoryManagerRuntimeResult:

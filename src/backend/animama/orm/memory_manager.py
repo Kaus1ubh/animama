@@ -40,6 +40,8 @@ class ORMMemoryManagerRun(SqlalchemyBase, TimestampMixin):
     task_state: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     model_provider: Mapped[str | None] = mapped_column(String, nullable=True)
     model_name: Mapped[str | None] = mapped_column(String, nullable=True)
+    # Catalog row the run started on; approval resumes use it (not the current role).
+    model_provider_id: Mapped[str | None] = mapped_column(String, nullable=True)
     openai_previous_response_id: Mapped[str | None] = mapped_column(String, nullable=True)
     serialized_agent_state: Mapped[str | None] = mapped_column(Text, nullable=True)
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)

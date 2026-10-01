@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { SafetySettingsSection } from "@/ui/settings/SafetySettingsSection";
+import { WebSearchSettings } from "@/ui/settings/web-search/WebSearchSettings";
 
 import {
   DEFAULT_ELEVENLABS_TTS_MODEL_ID,
@@ -429,6 +430,8 @@ export function ApplicationSettingsModal({
     runtimeCapabilities.data?.offline_speech_enabled ?? null;
   const modelConfigurationEnabled =
     runtimeCapabilities.data?.model_configuration === true;
+  const webSearchConfigurationEnabled =
+    runtimeCapabilities.data?.web_search?.configuration === true;
   const initializedForOpenRef = useRef(false);
   const savedSttProviderRef = useRef<SttProvider | null>(null);
   const savedTtsProviderRef = useRef<TtsProvider | null>(null);
@@ -1155,6 +1158,22 @@ export function ApplicationSettingsModal({
         render: () => <ModelDefaultSetting role={role} disabled={isBusy} />,
       }),
     ),
+    {
+      id: "web-search",
+      section: "Models",
+      group: "Web search",
+      label: "Search service",
+      keywords: [
+        "web search",
+        "internet",
+        "searxng",
+        "brave",
+        "search api",
+        "tools",
+      ],
+      hidden: !webSearchConfigurationEnabled,
+      render: () => <WebSearchSettings disabled={isBusy} />,
+    },
     {
       id: "volume",
       section: "General",

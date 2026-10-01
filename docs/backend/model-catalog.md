@@ -174,10 +174,13 @@ later billing work must opt into those adjustments with the right request
 context.
 
 `gpt-6-luna` rows (both APIs) record the owner-supplied standard rates of
-$0.10 input and $0.50 output per 1M tokens, checked 2026-09-28, with no source
-URL. Its cached-input, batch, flex, priority and long-context rates are unknown
-and stored as null, so `service_tiers_supported` is `["standard"]`: other tiers
-and turns that report cached input tokens produce unpriced estimates.
+$0.10 input and $0.50 output per 1M tokens and a $0.01 cached-input rate from
+secondary sources awaiting owner confirmation, checked 2026-09-28, with no
+source URL. Its batch, flex, priority and long-context rates are unknown and
+stored as null, so `service_tiers_supported` is `["standard"]`. The catalog has
+no prompt-cache write rate: usage reporting `cache_write_tokens` (parsed from
+both APIs' input token details) produces an unpriced estimate, and those tokens
+are excluded from the uncached input count.
 
 ## Provider Types
 
@@ -221,20 +224,17 @@ in-process catalog helper at request time. This field is not returned by
 Every built-in chat row supports this kind through schema-backed `json_schema`.
 Owner chat rows take their transport from the template, the probe or the owner:
 `json_schema`, `json_object` (the probe's fallback when schema output fails),
-or none. A row without a transport has no structured kind and cannot run
-direct chat, which requires `main_structured_response`.
+or none. A row without a transport has no structured kind; it still chats, with
+the reply requested by prompt alone.
 
-JSON mode only guarantees parseable JSON, not schema adherence. For
-`structured_output_transport="json_object"` rows, the backend prompts with the
-shared response guidelines, the word `json`, the expected JSON schema, and an
-example object in the response-format instructions, validates the completed
-response locally, and
-treats validation failure as an invalid structured response. For
-`structured_output_transport="json_schema"` rows, the backend sends the schema
-through the provider response-format field and keeps prompt guidance brief.
-Main-structured streaming uses final-output validation for JSON-mode rows
-instead of publishing partial semantic speech/display events before the object is
-known to be valid.
+| Transport | Request | Prompt guidance |
+| --- | --- | --- |
+| `json_schema` | strict schema in the response format | brief guidelines |
+| `json_object` | `{"type": "json_object"}` | guidelines, the word `json`, the schema and an example |
+| none | no response format | as for `json_object` |
+
+Every reply is validated locally, whatever the transport; see
+[reply validation and recovery](runtime/model-client-providers.md#reply-validation-and-recovery).
 
 The internal `tools_with_structured_output` capability records whether one
 request may carry both function tools and a response format. When it is false,
@@ -277,8 +277,10 @@ direct-memory writes. Catalog serialization and direct-turn validation derive
 the requestable list from the same backend policy. `OpenAIHTTPAgent:gpt-6-luna`
 uses Chat Completions and advertises neither capability. Native tools are not
 owner-editable: an owner Responses row keeps those of the Responses template it was copied from, and
-Chat Completions rows never advertise them. Chat Completions models have no
-web search.
+Chat Completions rows never advertise them. A requested `web_search` on a row
+without hosted search uses the
+[application web search](runtime/model-client-providers.md#application-web-search)
+tool when the installation has a backend and the row calls tools.
 
 ## Production Selection
 

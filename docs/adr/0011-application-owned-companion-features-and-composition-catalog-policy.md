@@ -5,6 +5,10 @@
 - Retrospective: no
 - Original decision date: 2026-09-26 (owner decisions during configurable-models discovery)
 - Decision basis: owner decisions in the accepted spec for [configurable models](https://github.com/raymond-van/animama/issues/165)
+- Amended: 2026-09-30, Consequences updated for Plan B delivery (owner
+  decisions of 2026-09-28, including Brave as the keyed search backend; the
+  result-storage rule is an agent implementation decision recorded in the
+  Plan B ExecPlan)
 
 ## Context
 
@@ -80,9 +84,18 @@ vault; self-hosted operators set the variable themselves.
   both.
 - Capabilities are owner-declared or probed. A wrong declaration surfaces as a
   categorized failure, not silent misbehavior.
-- Plan A gives Chat Completions models post-response compaction only and no web
-  search; pre-send compaction, application web search and structured-output
-  repair follow in Plan B.
+- Plan A gave Chat Completions models post-response compaction only and no web
+  search. Plan B adds the application-owned paths: pre-send compaction that
+  keeps every request within the model's context window, an application
+  `web_search` tool, and local structured-output validation with one repair
+  and a plain-text fallback, so a chat model no longer needs JSON output.
+  OpenAI Responses models keep native compaction and hosted search as fast
+  paths.
+- Application web search uses one installation-wide backend: SearXNG or the
+  Brave Search API. Its settings, like model connections, are local
+  composition only. Chat history keeps only the query and each result's title
+  and URL for both backends: Brave allows only transient storage of results,
+  and one rule keeps replay the same for SearXNG.
 - Crisis-card detection still relies on OpenAI Responses moderation. Turns on
   other models keep the [companion guardrail](0008-non-overridable-companion-guardrail.md)
   as the final instruction, without the crisis card.
@@ -100,6 +113,9 @@ vault; self-hosted operators set the variable themselves.
   composition enables owner models and mounts management routes.
 - [`adapters/model_clients/openai_chat_completions/`](../../src/backend/animama/adapters/model_clients/openai_chat_completions/):
   Chat Completions turns, probe and embedder.
+- [`app/web_search/tool.py`](../../src/backend/animama/app/web_search/tool.py)
+  and [`app/chat/direct_turn/context_fit.py`](../../src/backend/animama/app/chat/direct_turn/context_fit.py):
+  Plan B application web search and pre-send context fitting.
 - [`app/model_clients/error_categories.py`](../../src/backend/animama/app/model_clients/error_categories.py):
   provider-neutral error categories.
 - [`tests/test_model_configuration_api.py`](../../tests/test_model_configuration_api.py)

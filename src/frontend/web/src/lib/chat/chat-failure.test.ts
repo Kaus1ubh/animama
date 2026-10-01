@@ -50,6 +50,7 @@ describe("provider-neutral chat failures", () => {
     expect(failure.title).toBe(
       "The conversation is too long for Home Ollama's model.",
     );
+    expect(failure.guidance).toContain("larger context window");
   });
 
   it("does not name a provider it was not told about", () => {

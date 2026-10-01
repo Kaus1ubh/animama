@@ -17,6 +17,7 @@ from animama.adapters.repositories.sqlalchemy.chat_message_repo import SQLAlchem
 from animama.adapters.repositories.sqlalchemy.memory_entry_repo import SQLAlchemyMemoryEntryRepository
 from animama.adapters.repositories.sqlalchemy.memory_episode_repo import SQLAlchemyMemoryEpisodeRepository
 from animama.adapters.repositories.sqlalchemy.memory_manager_repo import SQLAlchemyMemoryManagerRepository
+from animama.adapters.repositories.sqlalchemy.model_provider_repo import SQLAlchemyModelProviderRepository
 from animama.adapters.repositories.sqlalchemy.settings_repo import SQLAlchemyUserSettingsRepository
 from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
 from animama.app.services.memory_entry_service import MemoryEntryService
@@ -133,6 +134,7 @@ async def _manager_service(session: AsyncSession, user_id: str, roles: ModelRole
             animas=anima_repository,
             chat_messages=chat_message_repository,
             model_provider=(await roles.resolver(session).resolve(user_id, ROLE_MEMORY_MANAGER)).model_provider,
+            model_providers=SQLAlchemyModelProviderRepository(session),
             credential_resolver=build_model_credential_resolver(),
             openai_base_url=openai_base_url(),
             timeout_seconds=settings.anima_model_client_timeout_seconds,

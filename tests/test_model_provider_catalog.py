@@ -297,7 +297,7 @@ def test_built_in_chat_rows_are_gpt_6_luna_on_both_apis_plus_embeddings() -> Non
 
 
 @pytest.mark.parametrize("provider_type", ["OpenAIHTTPAgent", "OpenAIResponsesHTTPAgent"])
-def test_gpt_6_luna_rows_price_only_the_known_standard_rates(provider_type: str) -> None:
+def test_gpt_6_luna_rows_price_only_the_known_standard_and_cached_rates(provider_type: str) -> None:
     row = _rows_by_id()[f"{provider_type}:gpt-6-luna"]
 
     assert row["pricing_status"] == "priced"
@@ -312,13 +312,17 @@ def test_gpt_6_luna_rows_price_only_the_known_standard_rates(provider_type: str)
     assert row["standard_input_price_per_million"] == Decimal("0.10")
     assert str(row["standard_input_price_per_million"]) == "0.10"
     assert row["standard_output_price_per_million"] == Decimal("0.50")
-    # Unknown rates stay unknown: never zero.
-    assert row["standard_cached_input_price_per_million"] is None
+    assert row["standard_cached_input_price_per_million"] == Decimal("0.01")
     assert row["service_tiers_supported"] == ["standard"]
     assert row["long_context_token_threshold"] is None
     assert row["regional_processing_uplift_factor"] is None
     for column in PRICE_COLUMNS:
-        if column not in {"standard_input_price_per_million", "standard_output_price_per_million"}:
+        # Unknown rates stay unknown: never zero.
+        if column not in {
+            "standard_input_price_per_million",
+            "standard_cached_input_price_per_million",
+            "standard_output_price_per_million",
+        }:
             assert row[column] is None, column
     assert row["pricing_notes"]
 
@@ -537,7 +541,7 @@ async def test_synced_db_rows_retain_pricing_and_explicit_unpriced_values(async_
     assert openai_responses.pricing.billing_unit == "1M_tokens"
     assert openai_responses.pricing.service_tiers_supported == ["standard"]
     assert openai_responses.pricing.standard_input_price_per_million == Decimal("0.10")
-    assert openai_responses.pricing.standard_cached_input_price_per_million is None
+    assert openai_responses.pricing.standard_cached_input_price_per_million == Decimal("0.01")
     assert openai_responses.pricing.standard_output_price_per_million == Decimal("0.50")
     assert openai_responses.pricing.batch_input_price_per_million is None
     assert openai_responses.pricing.priority_input_price_per_million is None

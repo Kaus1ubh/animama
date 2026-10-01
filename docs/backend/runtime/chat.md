@@ -54,9 +54,11 @@ source is subsequently edited.
 `model_provider_id` is an optional stable catalog selector that must match
 `model_providers.id`. When it is present, the backend validates that the row
 exists, is an active chat row (`model_kind="chat"`) on an active connection,
-supports streaming, supports the required
-`main_structured_response` kind, and supports requested reasoning effort or
-native tools before the provider is invoked. Owner-added rows also need a
+supports streaming, and supports the requested reasoning effort and any
+requested hosted native tool before the provider is invoked. Structured output
+is not required (rows without a schema or JSON-mode transport are asked for
+JSON by prompt), and `web_search` on a row without hosted search is the application
+tool, offered or left out at turn time. Owner-added rows also need a
 context window, and `OpenAIResponsesHTTPAgent` rows are valid only on the
 built-in OpenAI connection. When it is omitted, the route
 requires an explicit `anima_chat_profiles` row for the anima. Missing
@@ -223,6 +225,7 @@ The direct endpoint uses this frontend SSE contract:
 - `event: safety.ai_notice`
 - `event: safety.crisis_support`
 - `event: memory.updated`
+- `event: run.status`
 - `event: error`
 - `event: run.completed`
 
@@ -335,6 +338,13 @@ sanitization. Title-generation failures are logged and do not emit `error`.
 precedes every provider-derived frame of the turn. Clients render it as app UI,
 never as assistant text.
 
+`run.status` frames include `type="run.status"`, `run_id`, `status`
+(`summarizing_context` while earlier conversation is compacted before sending,
+`searching_web` while an application web search runs) and `phase`
+(`started`, then `finished`). Summarizing always precedes reply text; a search
+may follow text that streamed in an earlier tool round. Clients show a status
+only while the reply is pending and ignore unknown statuses.
+
 `safety.crisis_support` frames include `type="safety.crisis_support"`,
 `run_id`, `source` (`local` or `moderation`), and `resources`, the resolved
 crisis-resource region entry (`code`, `label`, nullable `emergency_number`,
@@ -416,9 +426,11 @@ generation.
 After a successful non-incognito response and before the normal
 `run.completed` frame, the route runs a hidden compaction check. OpenAI
 Responses turns skip it and rely on provider-side compaction; Chat Completions
-models get only this post-response pass. If
+models also compact before sending when a prompt nears their window (see the
+[context window budget](model-client-providers.md#context-window-budget)). If
 `chats.active_context_tokens` is at or above
-`ANIMAMA_CHAT_COMPACTION_THRESHOLD_TOKENS` (default 6000),
+`ANIMAMA_CHAT_COMPACTION_THRESHOLD_TOKENS` (default 6000, lowered to 75% of the
+model's available window),
 `ChatCompactionService` calls a separate backend-owned direct model prompt and
 stores the resulting summary in `chat_compactions`. Compaction summaries are not
 streamed as `user.response` events and are not inserted into `chat_messages`.

@@ -40,7 +40,7 @@ def test_model_pricing_calculates_standard_gpt_6_luna_cost_without_cached_input(
     assert cost.output_tokens == 500
     assert cost.output_reasoning_tokens == 100
     assert cost.input_price_per_million == Decimal("0.10")
-    assert cost.cached_input_price_per_million is None
+    assert cost.cached_input_price_per_million == Decimal("0.01")
     assert cost.output_price_per_million == Decimal("0.50")
     assert cost.uncached_input_cost == Decimal("0.0001")
     assert cost.cached_input_cost == Decimal("0")
@@ -49,8 +49,7 @@ def test_model_pricing_calculates_standard_gpt_6_luna_cost_without_cached_input(
     assert cost.total_cost == Decimal("0.00035")
 
 
-def test_model_pricing_leaves_gpt_6_luna_unpriced_when_cached_input_is_reported() -> None:
-    # The cached-input rate is unknown; charging cached tokens at zero would understate cost.
+def test_model_pricing_charges_gpt_6_luna_cached_input_at_the_cached_rate() -> None:
     model_provider = _catalog_provider("OpenAIHTTPAgent:gpt-6-luna")
     usage = Usage(
         input_tokens=1000,
@@ -61,10 +60,28 @@ def test_model_pricing_leaves_gpt_6_luna_unpriced_when_cached_input_is_reported(
 
     cost = estimate_model_token_cost(model_provider=model_provider, usage=usage)
 
+    assert cost.priced is True
+    assert cost.cached_input_price_per_million == Decimal("0.01")
+    assert cost.uncached_input_cost == Decimal("0.00008")
+    assert cost.cached_input_cost == Decimal("0.000002")
+    assert cost.total_cost == Decimal("0.000332")
+
+
+def test_model_pricing_leaves_turns_with_cache_writes_unpriced() -> None:
+    # No cache-write rate is stored; charging writes at the input rate or zero would misstate cost.
+    model_provider = _catalog_provider("OpenAIResponsesHTTPAgent:gpt-6-luna")
+    usage = Usage(
+        input_tokens=1000,
+        output_tokens=500,
+        total_tokens=1500,
+        input_tokens_details=UsageInputDetails(cached_tokens=200, cache_write_tokens=300),
+    )
+
+    cost = estimate_model_token_cost(model_provider=model_provider, usage=usage)
+
     assert cost.priced is False
     assert cost.unpriced_reason == "rate_unavailable"
-    assert cost.input_price_per_million == Decimal("0.10")
-    assert cost.cached_input_price_per_million is None
+    assert cost.cache_write_tokens == 300
     assert cost.total_cost is None
 
 

@@ -133,8 +133,10 @@ Direct chat resolves the selected row in this order:
 
 Before opening the SSE stream, setup verifies ownership and validates that the
 persisted row is an active chat row on an active connection and supports
-streaming, the canonical `main_structured_response` kind, the requested
-reasoning effort, and requested native tools. Owner rows also need a context
+streaming, the requested reasoning effort, and requested native tools other
+than `web_search` (which falls back to the application tool, or to no search,
+at turn time). Structured output is not required: a row without a schema or
+JSON-mode transport is asked for JSON by prompt and validated locally. Owner rows also need a context
 window, and Responses rows are valid only on the built-in OpenAI connection.
 Memory tools are narrowed to the row instead of failing setup: a row without
 tool calling chats without memory tools, and a row with
@@ -342,7 +344,8 @@ pricing, and every owner row, are stored as `unpriced`.
 The current model supports input, cached-input, and output prices for standard,
 batch, flex, and priority tiers, plus corresponding long-context rates and a
 long-context token threshold. It does not have separate cache-write price
-columns or a distinct Fast-mode name. When a provider rate card cannot be
+columns or a distinct Fast-mode name; usage that reports `cache_write_tokens`
+is therefore estimated as unpriced. When a provider rate card cannot be
 represented faithfully, either:
 
 - mark the missing dimension in `pricing_notes` and document the estimate's

@@ -61,6 +61,11 @@ class DirectModelPromptRunner:
         self._registry = registry
         self._roles = role_resolver
 
+    async def model_provider_for_role(self, user_id: str, role: str = ROLE_UTILITY) -> ModelProvider | None:
+        """Return the row a prompt for this role would run on, or ``None`` when the role is off."""
+
+        return (await self._roles.resolve(user_id, role)).model_provider
+
     async def run_prompt(self, request: DirectModelPromptRequest) -> DirectModelPromptResult:
         resolved = await self._roles.resolve(request.user_id, request.role)
         provider = resolved.model_provider

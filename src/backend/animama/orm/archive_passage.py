@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import JSON, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, ForeignKey, Integer, String, Text, text as sa_text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import vector_type
@@ -26,6 +26,10 @@ class ORMArchivePassage(SqlalchemyBase, TimestampMixin):
     embedding: Mapped[list[float] | None] = mapped_column(vector_type(), nullable=True)
     # Catalog row id of the embedding model that produced ``embedding``.
     embedding_model_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    # Times ``embedding_rejected_model_id`` rejected this text on its own;
+    # re-embedding records it without a vector after the third rejection.
+    embedding_rejections: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default=sa_text("0"))
+    embedding_rejected_model_id: Mapped[str | None] = mapped_column(String, nullable=True)
 
     # Metadata fields
     tags: Mapped[list[str] | None] = mapped_column(JSON, nullable=True, doc="Tags associated with this passage")

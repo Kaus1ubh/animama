@@ -198,6 +198,8 @@ CREATE TABLE archive_passages (
     text text NOT NULL,
     embedding vector,
     embedding_model_id character varying,
+    embedding_rejections integer DEFAULT 0 NOT NULL,
+    embedding_rejected_model_id character varying,
     tags json,
     metadata_ json,
     source_id character varying,
@@ -666,6 +668,7 @@ CREATE TABLE memory_manager_runs (
     task_state jsonb,
     model_provider character varying,
     model_name character varying,
+    model_provider_id character varying,
     openai_previous_response_id character varying,
     serialized_agent_state text,
     summary text,
@@ -845,6 +848,8 @@ CREATE TABLE user_file_chunk (
     embedding_text text,
     embedding vector,
     embedding_model_id character varying,
+    embedding_rejections integer DEFAULT 0 NOT NULL,
+    embedding_rejected_model_id character varying,
     char_count bigint NOT NULL,
     token_estimate integer NOT NULL,
     metadata json NOT NULL,
@@ -893,6 +898,20 @@ CREATE TABLE user_settings (
     preferences jsonb DEFAULT '{}'::jsonb NOT NULL,
     created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+-- animama-statement --
+
+CREATE TABLE web_search_settings (
+    id character varying NOT NULL,
+    backend character varying NOT NULL,
+    base_url character varying,
+    credential_env character varying,
+    timeout_seconds double precision,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT ck_web_search_settings_single_row CHECK (((id)::text = 'installation'::text)),
+    CONSTRAINT ck_web_search_settings_backend_valid CHECK (((backend)::text = ANY ((ARRAY['searxng'::character varying, 'brave'::character varying])::text[])))
 );
 
 -- animama-statement --
@@ -1125,6 +1144,11 @@ ALTER TABLE ONLY user_profiles
 
 ALTER TABLE ONLY user_settings
     ADD CONSTRAINT pk_user_settings PRIMARY KEY (user_id);
+
+-- animama-statement --
+
+ALTER TABLE ONLY web_search_settings
+    ADD CONSTRAINT pk_web_search_settings PRIMARY KEY (id);
 
 -- animama-statement --
 

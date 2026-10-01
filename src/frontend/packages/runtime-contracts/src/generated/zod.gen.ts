@@ -5545,6 +5545,67 @@ export const zPyVoiceContentPage = z.object({
 });
 
 /**
+ * PyWebSearchSettings
+ *
+ * The configured backend; the key value is never returned.
+ */
+export const zPyWebSearchSettings = z.object({
+    backend: z.optional(z.union([
+        z.enum(['searxng', 'brave']),
+        z.null()
+    ])),
+    base_url: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    configured: z.boolean(),
+    credential_env: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    credential_state: z.optional(z.enum([
+        'configured',
+        'missing',
+        'not_required'
+    ])),
+    managed_credential_env: z.string(),
+    timeout_seconds: z.optional(z.union([
+        z.number(),
+        z.null()
+    ]))
+});
+
+/**
+ * PyWebSearchSettingsRequest
+ *
+ * ``managed`` stores the key in the desktop vault; ``env`` names a variable on self-hosted web.
+ */
+export const zPyWebSearchSettingsRequest = z.object({
+    backend: z.enum(['searxng', 'brave']),
+    base_url: z.optional(z.union([
+        z.string().max(2048),
+        z.null()
+    ])),
+    credential: z.optional(zPyModelConnectionCredential),
+    timeout_seconds: z.optional(z.union([
+        z.number(),
+        z.null()
+    ]))
+});
+
+/**
+ * PyWebSearchTestResult
+ */
+export const zPyWebSearchTestResult = z.object({
+    category: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    ok: z.boolean(),
+    result_count: z.optional(z.int()).default(0)
+});
+
+/**
  * RecommendedAnimaActions
  */
 export const zRecommendedAnimaActions = z.object({
@@ -5918,22 +5979,6 @@ export const zUserFileProcessingCapability = z.object({
 });
 
 /**
- * RuntimeCapabilities
- */
-export const zRuntimeCapabilities = z.object({
-    companion_safety: zCompanionSafetyCapability,
-    model_configuration: z.optional(z.boolean()).default(false),
-    offline_speech_asset_version: z.union([
-        z.string(),
-        z.null()
-    ]),
-    offline_speech_enabled: z.boolean(),
-    runtime_kind: z.enum(['desktop', 'self_hosted_web']),
-    schema_version: z.optional(z.literal(1)).default(1),
-    user_file_processing: zUserFileProcessingCapability
-});
-
-/**
  * ValidationError
  */
 export const zValidationError = z.object({
@@ -5947,6 +5992,43 @@ export const zValidationError = z.object({
  */
 export const zHttpValidationError = z.object({
     detail: z.optional(z.array(zValidationError))
+});
+
+/**
+ * WebSearchCapability
+ */
+export const zWebSearchCapability = z.object({
+    backend: z.optional(z.union([
+        z.enum(['searxng', 'brave']),
+        z.null()
+    ])),
+    configuration: z.optional(z.boolean()).default(false),
+    configured: z.optional(z.boolean()).default(false),
+    credential_state: z.optional(z.union([
+        z.enum([
+            'configured',
+            'missing',
+            'not_required'
+        ]),
+        z.null()
+    ]))
+});
+
+/**
+ * RuntimeCapabilities
+ */
+export const zRuntimeCapabilities = z.object({
+    companion_safety: zCompanionSafetyCapability,
+    model_configuration: z.optional(z.boolean()).default(false),
+    offline_speech_asset_version: z.union([
+        z.string(),
+        z.null()
+    ]),
+    offline_speech_enabled: z.boolean(),
+    runtime_kind: z.enum(['desktop', 'self_hosted_web']),
+    schema_version: z.optional(z.literal(1)).default(1),
+    user_file_processing: zUserFileProcessingCapability,
+    web_search: z.optional(zWebSearchCapability)
 });
 
 export const zHealthHealthGetData = z.object({
@@ -8315,3 +8397,50 @@ export const zPreviewVoiceContentData = z.object({
  * Successful Response
  */
 export const zPreviewVoiceContentResponse = zPyTypedContentPreview;
+
+export const zClearWebSearchSettingsV1WebSearchSettingsDeleteData = z.object({
+    body: z.optional(z.never()),
+    path: z.optional(z.never()),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zClearWebSearchSettingsV1WebSearchSettingsDeleteResponse = z.void();
+
+export const zGetWebSearchSettingsV1WebSearchSettingsGetData = z.object({
+    body: z.optional(z.never()),
+    path: z.optional(z.never()),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zGetWebSearchSettingsV1WebSearchSettingsGetResponse = zPyWebSearchSettings;
+
+export const zUpdateWebSearchSettingsV1WebSearchSettingsPutData = z.object({
+    body: zPyWebSearchSettingsRequest,
+    path: z.optional(z.never()),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zUpdateWebSearchSettingsV1WebSearchSettingsPutResponse = zPyWebSearchSettings;
+
+export const zTestWebSearchSettingsV1WebSearchSettingsTestPostData = z.object({
+    body: z.optional(z.union([
+        zPyWebSearchSettingsRequest,
+        z.null()
+    ])),
+    path: z.optional(z.never()),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zTestWebSearchSettingsV1WebSearchSettingsTestPostResponse = zPyWebSearchTestResult;

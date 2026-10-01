@@ -12,6 +12,7 @@ from animama.app.voice_emotional_tone import (
     ELEVENLABS_EMOTIONAL_TONE_VALUES,
     validate_voice_emotional_tone,
 )
+from animama.domain.emotions import NEUTRAL_EMOTION
 from animama.domain.text_segmenter import UserResponseSegmenter
 from animama.prompts.avatar_animation_manifest import normalize_gesture_id
 
@@ -632,6 +633,35 @@ class MainStructuredJsonStreamParser:
     def streaming_unavailable(self) -> bool:
         return self._streaming_unavailable
 
+    def salvaged_data(self) -> dict[str, Any] | None:
+        """Return reply fields recovered from what this parser streamed, if any speech streamed.
+
+        Used when the final text fails validation after speech was already sent
+        to the client: the streamed parts become the reply instead of a repair
+        request that would repeat or replace audible speech.
+        """
+
+        speech = self._speech_decoded.strip()
+        if not speech:
+            return None
+        tone = _scan_top_level_string_field(self._buffer, MAIN_STRUCTURED_RESPONSE_PART_EMOTIONAL_TONE)
+        intensity = _scan_top_level_value_field(self._buffer, MAIN_STRUCTURED_RESPONSE_PART_EMOTIONAL_INTENSITY)
+        gesture = _scan_top_level_value_field(self._buffer, MAIN_STRUCTURED_RESPONSE_PART_GESTURE)
+        return {
+            MAIN_STRUCTURED_RESPONSE_PART_EMOTIONAL_TONE: (
+                tone.value if tone is not None and tone.complete and not tone.invalid else None
+            ),
+            MAIN_STRUCTURED_RESPONSE_PART_EMOTIONAL_INTENSITY: (
+                intensity.value if intensity is not None and intensity.complete else None
+            ),
+            MAIN_STRUCTURED_RESPONSE_PART_GESTURE: (
+                gesture.value if gesture is not None and gesture.complete else None
+            ),
+            MAIN_STRUCTURED_RESPONSE_PART_SPEECH: speech,
+            MAIN_STRUCTURED_RESPONSE_PART_DISPLAY: self._display_emitted or None,
+            MAIN_STRUCTURED_RESPONSE_PART_REMEMBER: None,
+        }
+
 
 def build_main_response_model(
     *,
@@ -859,23 +889,89 @@ def parse_main_structured_response(
     raw_text: str,
     output_type: type[BaseModel],
 ) -> MainStructuredResponse:
+    """Strictly parse a final reply that must match the schema exactly."""
+
     parsed = output_type.model_validate_json(raw_text)
-    data = parsed.model_dump()
-    emotional_tone_raw = data.get("emotional_tone")
+    return main_structured_response_from_data(parsed.model_dump())
+
+
+def recover_main_structured_response(
+    raw_text: str,
+    output_type: type[BaseModel],
+) -> MainStructuredResponse:
+    """Validate a final reply locally, accepting unambiguous deviations from the schema.
+
+    Models without schema-constrained output often wrap the object in a
+    markdown fence or prose, omit optional fields or add keys. The reply is
+    valid when a JSON object with a non-blank ``speech`` string can be found;
+    unknown keys are dropped and other fields are coerced as in strict parsing
+    (unknown tone becomes neutral, an unknown gesture is dropped later).
+    Raises ``ValueError`` when no such object exists.
+    """
+
+    try:
+        return parse_main_structured_response(raw_text, output_type)
+    except ValueError:
+        pass
+    candidate = _json_object_candidate(raw_text)
+    if candidate is None:
+        raise ValueError("main structured response contains no JSON object")
+    data = {name: candidate.get(name) for name in output_type.model_fields}
+    for name in (
+        MAIN_STRUCTURED_RESPONSE_PART_GESTURE,
+        MAIN_STRUCTURED_RESPONSE_PART_DISPLAY,
+        MAIN_STRUCTURED_RESPONSE_PART_REMEMBER,
+    ):
+        if not isinstance(data.get(name), str):
+            data[name] = None
+    if not isinstance(data.get(MAIN_STRUCTURED_RESPONSE_PART_SPEECH), str):
+        raise ValueError("main structured response requires a non-empty speech field")
+    return main_structured_response_from_data(output_type.model_validate(data).model_dump())
+
+
+def plain_text_main_structured_response(raw_text: str) -> MainStructuredResponse | None:
+    """Build the neutral, gesture-free reply used when structured output fails.
+
+    The model's text becomes the speech. A JSON-looking reply contributes only
+    its ``speech`` value so raw JSON is never spoken. Returns ``None`` when no
+    speakable text remains.
+    """
+
+    text = _strip_markdown_fence(raw_text)
+    if text.startswith("{"):
+        speech = _scan_top_level_string_field(text, MAIN_STRUCTURED_RESPONSE_PART_SPEECH)
+        text = speech.value if speech is not None and not speech.invalid else ""
+    if not text.strip():
+        return None
+    return main_structured_response_from_data(
+        {
+            MAIN_STRUCTURED_RESPONSE_PART_EMOTIONAL_TONE: NEUTRAL_EMOTION,
+            MAIN_STRUCTURED_RESPONSE_PART_EMOTIONAL_INTENSITY: 1,
+            MAIN_STRUCTURED_RESPONSE_PART_GESTURE: None,
+            MAIN_STRUCTURED_RESPONSE_PART_SPEECH: text,
+            MAIN_STRUCTURED_RESPONSE_PART_DISPLAY: None,
+            MAIN_STRUCTURED_RESPONSE_PART_REMEMBER: None,
+        }
+    )
+
+
+def main_structured_response_from_data(data: Mapping[str, Any]) -> MainStructuredResponse:
+    """Normalize reply fields into the authoritative structured response."""
+
     emotional_tone = validate_voice_emotional_tone(
-        emotional_tone_raw,
+        data.get(MAIN_STRUCTURED_RESPONSE_PART_EMOTIONAL_TONE),
         context="main_structured_parse",
         warn=False,
     )
-    emotional_intensity = validate_main_emotional_intensity(data.get("emotional_intensity"))
-    speech = data.get("speech")
+    emotional_intensity = validate_main_emotional_intensity(data.get(MAIN_STRUCTURED_RESPONSE_PART_EMOTIONAL_INTENSITY))
+    speech = data.get(MAIN_STRUCTURED_RESPONSE_PART_SPEECH)
     if not isinstance(speech, str) or not speech.strip():
         raise ValueError("main structured response requires a non-empty speech field")
-    display_raw = data.get("display")
+    display_raw = data.get(MAIN_STRUCTURED_RESPONSE_PART_DISPLAY)
     display = display_raw.strip() if isinstance(display_raw, str) and display_raw.strip() else None
-    gesture_raw = data.get("gesture")
+    gesture_raw = data.get(MAIN_STRUCTURED_RESPONSE_PART_GESTURE)
     gesture = gesture_raw.strip() if isinstance(gesture_raw, str) and gesture_raw.strip() else ""
-    remember_raw = data.get("remember")
+    remember_raw = data.get(MAIN_STRUCTURED_RESPONSE_PART_REMEMBER)
     remember = remember_raw.strip() if isinstance(remember_raw, str) and remember_raw.strip() else None
     speech = speech.strip()
     if display == speech:
@@ -898,6 +994,36 @@ def parse_main_structured_response(
         structured=structured,
         request_helpers=set(),
     )
+
+
+_MARKDOWN_FENCE = re.compile(r"^```[A-Za-z0-9_-]*[ \t]*\n?(?P<body>.*?)\n?[ \t]*```$", re.DOTALL)
+# Bounds the search for an embedded object in long prose replies.
+_MAX_JSON_OBJECT_CANDIDATES = 32
+
+
+def _strip_markdown_fence(raw_text: str) -> str:
+    text = raw_text.strip()
+    match = _MARKDOWN_FENCE.match(text)
+    return match.group("body").strip() if match else text
+
+
+def _json_object_candidate(raw_text: str) -> dict[str, Any] | None:
+    """Return the first JSON object found in a fenced or prose-wrapped reply."""
+
+    text = _strip_markdown_fence(raw_text)
+    decoder = json.JSONDecoder()
+    start = text.find("{")
+    for _ in range(_MAX_JSON_OBJECT_CANDIDATES):
+        if start == -1:
+            return None
+        try:
+            value, _end = decoder.raw_decode(text, start)
+        except ValueError:
+            value = None
+        if isinstance(value, dict):
+            return value
+        start = text.find("{", start + 1)
+    return None
 
 
 def render_main_structured_json(parsed: MainStructuredResponse) -> str:
@@ -956,7 +1082,10 @@ __all__ = [
     "build_main_structured_prompt",
     "build_main_structured_response_json_schema",
     "is_main_structured_output_schema",
+    "main_structured_response_from_data",
     "parse_main_structured_response",
+    "plain_text_main_structured_response",
+    "recover_main_structured_response",
     "render_main_structured_json",
     "validate_main_emotional_intensity",
     "validate_main_structured_gesture",

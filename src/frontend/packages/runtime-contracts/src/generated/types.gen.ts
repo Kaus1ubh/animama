@@ -8746,6 +8746,81 @@ export type PyVoiceContentPage = {
 };
 
 /**
+ * PyWebSearchSettings
+ *
+ * The configured backend; the key value is never returned.
+ */
+export type PyWebSearchSettings = {
+    /**
+     * Backend
+     */
+    backend?: 'searxng' | 'brave' | null;
+    /**
+     * Base Url
+     */
+    base_url?: string | null;
+    /**
+     * Configured
+     */
+    configured: boolean;
+    /**
+     * Credential Env
+     */
+    credential_env?: string | null;
+    /**
+     * Credential State
+     */
+    credential_state?: 'configured' | 'missing' | 'not_required';
+    /**
+     * Managed Credential Env
+     */
+    managed_credential_env: string;
+    /**
+     * Timeout Seconds
+     */
+    timeout_seconds?: number | null;
+};
+
+/**
+ * PyWebSearchSettingsRequest
+ *
+ * ``managed`` stores the key in the desktop vault; ``env`` names a variable on self-hosted web.
+ */
+export type PyWebSearchSettingsRequest = {
+    /**
+     * Backend
+     */
+    backend: 'searxng' | 'brave';
+    /**
+     * Base Url
+     */
+    base_url?: string | null;
+    credential?: PyModelConnectionCredential;
+    /**
+     * Timeout Seconds
+     */
+    timeout_seconds?: number | null;
+};
+
+/**
+ * PyWebSearchTestResult
+ */
+export type PyWebSearchTestResult = {
+    /**
+     * Category
+     */
+    category?: string | null;
+    /**
+     * Ok
+     */
+    ok: boolean;
+    /**
+     * Result Count
+     */
+    result_count?: number;
+};
+
+/**
  * RecommendedAnimaActions
  */
 export type RecommendedAnimaActions = {
@@ -8865,6 +8940,7 @@ export type RuntimeCapabilities = {
      */
     schema_version?: 1;
     user_file_processing: UserFileProcessingCapability;
+    web_search?: WebSearchCapability;
 };
 
 /**
@@ -8941,6 +9017,28 @@ export type ValidationError = {
      * Error Type
      */
     type: string;
+};
+
+/**
+ * WebSearchCapability
+ */
+export type WebSearchCapability = {
+    /**
+     * Backend
+     */
+    backend?: 'searxng' | 'brave' | null;
+    /**
+     * Configuration
+     */
+    configuration?: boolean;
+    /**
+     * Configured
+     */
+    configured?: boolean;
+    /**
+     * Credential State
+     */
+    credential_state?: 'configured' | 'missing' | 'not_required' | null;
 };
 
 export type HealthHealthGetData = {
@@ -14211,3 +14309,88 @@ export type PreviewVoiceContentResponses = {
 };
 
 export type PreviewVoiceContentResponse = PreviewVoiceContentResponses[keyof PreviewVoiceContentResponses];
+
+export type ClearWebSearchSettingsV1WebSearchSettingsDeleteData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/v1/web-search/settings';
+};
+
+export type ClearWebSearchSettingsV1WebSearchSettingsDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type ClearWebSearchSettingsV1WebSearchSettingsDeleteResponse = ClearWebSearchSettingsV1WebSearchSettingsDeleteResponses[keyof ClearWebSearchSettingsV1WebSearchSettingsDeleteResponses];
+
+export type GetWebSearchSettingsV1WebSearchSettingsGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/v1/web-search/settings';
+};
+
+export type GetWebSearchSettingsV1WebSearchSettingsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: PyWebSearchSettings;
+};
+
+export type GetWebSearchSettingsV1WebSearchSettingsGetResponse = GetWebSearchSettingsV1WebSearchSettingsGetResponses[keyof GetWebSearchSettingsV1WebSearchSettingsGetResponses];
+
+export type UpdateWebSearchSettingsV1WebSearchSettingsPutData = {
+    body: PyWebSearchSettingsRequest;
+    path?: never;
+    query?: never;
+    url: '/v1/web-search/settings';
+};
+
+export type UpdateWebSearchSettingsV1WebSearchSettingsPutErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateWebSearchSettingsV1WebSearchSettingsPutError = UpdateWebSearchSettingsV1WebSearchSettingsPutErrors[keyof UpdateWebSearchSettingsV1WebSearchSettingsPutErrors];
+
+export type UpdateWebSearchSettingsV1WebSearchSettingsPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: PyWebSearchSettings;
+};
+
+export type UpdateWebSearchSettingsV1WebSearchSettingsPutResponse = UpdateWebSearchSettingsV1WebSearchSettingsPutResponses[keyof UpdateWebSearchSettingsV1WebSearchSettingsPutResponses];
+
+export type TestWebSearchSettingsV1WebSearchSettingsTestPostData = {
+    /**
+     * Body
+     */
+    body?: PyWebSearchSettingsRequest | null;
+    path?: never;
+    query?: never;
+    url: '/v1/web-search/settings/test';
+};
+
+export type TestWebSearchSettingsV1WebSearchSettingsTestPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type TestWebSearchSettingsV1WebSearchSettingsTestPostError = TestWebSearchSettingsV1WebSearchSettingsTestPostErrors[keyof TestWebSearchSettingsV1WebSearchSettingsTestPostErrors];
+
+export type TestWebSearchSettingsV1WebSearchSettingsTestPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: PyWebSearchTestResult;
+};
+
+export type TestWebSearchSettingsV1WebSearchSettingsTestPostResponse = TestWebSearchSettingsV1WebSearchSettingsTestPostResponses[keyof TestWebSearchSettingsV1WebSearchSettingsTestPostResponses];

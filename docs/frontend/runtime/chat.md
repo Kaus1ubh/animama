@@ -34,7 +34,7 @@ removed connections. The notice names the failed
 connection from the error's `details.connection_name` (never assuming OpenAI);
 for Ollama, LM Studio, llama.cpp and vLLM connections it asks whether the server
 is running at `details.connection_base_url`, and the `context_exceeded` category
-explains an oversized conversation. Local admission errors describe
+explains an oversized conversation and suggests a larger-context model or window. Local admission errors describe
 installation access, without treating every HTTP 403 as an invalid provider key.
 Unknown errors use a safe fallback. The only URL a notice shows is the base URL
 the owner configured for a non-built-in connection; provider response text,
@@ -172,15 +172,32 @@ route so the current draft text can be sent as the first turn of a new chat.
 Catalog rows advertise `requestable_native_tool_support` and
 `supported_reasoning_efforts` for their settings menu. Users can toggle native tools, currently
 `web_search`, and choose a supported reasoning effort. Supported native tools
-are enabled by default when the active model advertises them. Empty
-`native_tools` arrays are preserved in `SettingsProvider`, so unchecking a tool
-stays unchecked instead of falling back to defaults on the next render.
+are enabled by default when the active model advertises them.
+
+Web search availability comes from `webSearchAvailability` (product-ui) using
+the row and the runtime capability `web_search`: hosted when the row lists
+`web_search` as requestable; application search when the row calls tools and
+a backend is configured with its key; otherwise a disabled Web search checkbox
+with its reason ("Set up web search in App Settings.", a model without tools,
+or a missing Brave key). Where the composition offers no web search
+configuration, rows without hosted search show no control. Available search
+starts on, including when availability changes
+while the same model stays selected (the capability loads after the catalog,
+or the owner configures or removes the backend). The request field is the same
+`native_tools: ["web_search"]` either way; the backend picks hosted or
+application search. The control does not see the per-turn reasoning effort:
+on Chat Completions `gpt-5.4` rows the backend drops search when an effort is
+sent and logs `reasoning_with_function_tools`.
+
+Empty `native_tools` arrays are preserved in `SettingsProvider`, so unchecking
+a tool stays unchecked instead of falling back to defaults on the next render.
 
 `native_tool_support` is the complete provider/model capability set and may
 also contain backend-owned tools such as memory `apply_patch`. The selector
-renders and defaults only `requestable_native_tool_support`. The request builder
-filters native-tool overrides against that list as a final defense against
-stale in-memory settings after a catalog update; internal capabilities are
+renders and defaults only `requestable_native_tool_support` plus application
+web search. The request builder filters native-tool overrides against the same
+`selectableNativeTools` list as a final defense against stale in-memory
+settings after a catalog update; internal capabilities are
 never sent through `dispatch_options.native_tools`.
 
 Changing the base model resets request-scoped model settings to that model's
@@ -298,8 +315,9 @@ chat:
   `speech`/`display` parts
 - the frontend still sends `dispatch_options.main_structured_response=true` for
   TTS-enabled turns as request intent
-- the backend validates the selected anima chat profile or request
-  `model_provider_id` against catalog support for `main_structured_response`
+- the backend requests the structured reply in the strongest form the selected
+  row supports and validates it locally; a row without a structured transport
+  still chats
 
 The backend direct model-client executor builds the schema for each request.
 
@@ -361,6 +379,8 @@ The streaming behavior is:
 
 The backend owns JSON parsing and final validation for main structured output.
 The frontend trusts the typed SSE parts and does not parse the raw model JSON.
+A reply the backend recovers as plain text arrives as ordinary `speech` parts
+with a `neutral` tone and no gesture.
 
 Backend `chat:sse` derives normal emotion updates from the main structured
 response, not from a second emotional analyst runner. The hidden
@@ -409,6 +429,9 @@ Type guards map incoming chunks to:
   `runtime_revision`) ->
   `onAvatarGestureRequested`
 - `safety.ai_notice` (`type` field) -> `onAiNotice`
+- `run.status` (`type` field, known `status` only) -> `onRunStatus`; the session
+  shows "Summarizing earlier conversation…" or "Searching the web…" beside the
+  pending indicator until `finished` or reply text arrives
 - `safety.crisis_support` (`type` field, with `source` and `resources`) ->
   `onCrisisSupport`
 - `memory.updated` (`type` field) -> `onMemoryUpdated` with a cue validated by

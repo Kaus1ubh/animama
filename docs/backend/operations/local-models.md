@@ -10,7 +10,7 @@ The settings screens themselves are described in
 
 | Job                                          | Model requirement                                                                                                                                                                                        |
 | -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Chat (the Anima's model, default chat model) | Streaming, JSON output (JSON schema or JSON mode) and a context window recorded on the model. Tool calling is needed for memory tools and attached-file search; without it the Anima chats without them. |
+| Chat (the Anima's model, default chat model) | Streaming and a context window recorded on the model. JSON schema or JSON mode output gives the most reliable emotions and gestures; without either, the reply is requested by prompt and falls back to plain speech with a neutral tone when the model does not follow it. Tool calling is needed for memory tools and attached-file search; without it the Anima chats without them. |
 | Utility (titles, compaction)                 | Streaming, and a context window recorded on the model. Follows the default chat model unless chosen.                                                                                                     |
 | Memory Manager                               | Tool calling. Follows the default chat model unless chosen.                                                                                                                                              |
 | Embeddings (file and archive search)         | An embedding model served at `/v1/embeddings`. Off until chosen; search uses keywords meanwhile.                                                                                                         |
@@ -18,20 +18,28 @@ The settings screens themselves are described in
 **Test model** in the model dialog checks streaming, tool calls, JSON schema and
 JSON mode output (or embeddings) against the running server and fills in the
 capabilities it finds.
-Models on Chat Completions compact the conversation after a response and have
-no web search.
+Models on Chat Completions summarize earlier conversation when it nears their
+window, and search the web through the installation's
+[search backend](#web-search) when they call tools.
 
 ## Context window
 
 Record the window the server actually serves, not the model's advertised
 maximum. Test model reads it from llama.cpp (`/props`), Ollama (`/api/ps`, while
 the model is loaded) and LM Studio (the loaded context length); otherwise enter
-it yourself. A conversation longer than the served window fails with "The
-conversation is too long for …".
+it yourself. A window recorded larger than the server serves makes the server
+reject long prompts; Animama then retries once with less history.
 
-Serve at least 8,192 tokens. Animama compacts after a response once the
-conversation passes `ANIMAMA_CHAT_COMPACTION_THRESHOLD_TOKENS` (6,000 by
-default), so a smaller window overflows before compaction starts.
+Animama keeps every request within the recorded window. It compacts after a
+response once the conversation passes 75% of the available window (the window
+minus room for the reply; or
+`ANIMAMA_CHAT_COMPACTION_THRESHOLD_TOKENS`, 6,000 by default, if lower). A
+turn that still nears the window shows "Summarizing earlier conversation…"
+while the Compaction model summarizes, and the oldest messages are left out of
+the request if needed. A turn fails with "The conversation is too long for …"
+only when its message alone exceeds the window, or when a window this small
+leaves no room even for a reply after large tool results. Serve at least 8,192
+tokens so replies keep useful context.
 
 ## Servers
 
@@ -125,6 +133,27 @@ which Compose maps to the host gateway.
 Set `ANIMAMA_LOCAL_MODEL_HOST` to change the host the presets suggest, for
 example when the server runs on another machine you control.
 
+## Web search
+
+Tool-capable models search through one backend configured for the whole
+installation in App Settings → Models → Web search, where Test sends one query:
+
+- **SearXNG**, a self-hosted metasearch engine. Enable its JSON output in
+  `settings.yml` (`search.formats: [html, json]`); otherwise Test reports
+  `json_format_disabled` (also shown when a proxy in front of SearXNG refuses
+  the request). SearXNG takes no key. From Compose, use
+  `host.docker.internal` as for model servers.
+- **Brave Search API**, with your own key (see Brave's site for current plans
+  and free credit). Results are used within a turn and
+  are not stored: chat history keeps only the query and result titles and
+  URLs.
+
+On the desktop app the Brave key is saved in the encrypted vault. On
+self-hosted web, name `ANIMAMA_CONNECTION_WEB_SEARCH_API_KEY` or
+`BRAVE_SEARCH_API_KEY` and put the value in the keys file below. Queries leave
+the device only to the configured backend, and a failing backend makes the
+model say it could not search rather than failing the reply.
+
 ## Keys on self-hosted web
 
 On the desktop app, a connection's key is saved in the app's encrypted vault
@@ -164,6 +193,7 @@ other secrets. For a native backend, export the variable before starting it.
 | ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------- |
 | "Animama couldn't reach …"           | The server is running at the connection's base URL; under Compose on Linux, it listens beyond `127.0.0.1`.                 |
 | Test model: tool calling fails       | llama.cpp needs `--jinja`; vLLM needs `--enable-auto-tool-choice` and a parser; otherwise the model may not support tools. |
-| "The conversation is too long for …" | The served window is smaller than the conversation; raise it on the server and on the model.                               |
+| "The conversation is too long for …" | The message alone exceeds the window, or the window leaves no room after large tool results; send a shorter message or serve a larger window (and record it on the model). |
 | The first reply times out            | The model is still loading; retry, or raise the connection's timeout.                                                      |
+| Web search Test: `json_format_disabled` | Add `json` to `search.formats` in the SearXNG `settings.yml` and restart it.                                            |
 | "… has no API key configured"        | Self-hosted web: the named variable is not set in the backend's environment; restart the stack after adding it.            |

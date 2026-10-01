@@ -6,6 +6,8 @@ OPENAI_RESPONSES_PROVIDER = "OpenAIResponsesHTTPAgent"
 OPENAI_RESPONSES_PREVIOUS_RESPONSE_UNRESOLVABLE_CODE = "openai_previous_response_unresolvable"
 OPENAI_CHAT_COMPLETIONS_PROVIDER = "OpenAIHTTPAgent"
 MOCK_MODEL_PROVIDER = "MockModelClient"
+# Requested through `native_tools`; hosted by OpenAI Responses, otherwise the application tool.
+WEB_SEARCH_NATIVE_TOOL = "web_search"
 
 DIRECT_MEMORY_TOOL_SUPPORT_BY_PROVIDER = frozenset(
     {
@@ -16,7 +18,20 @@ DIRECT_MEMORY_TOOL_SUPPORT_BY_PROVIDER = frozenset(
 )
 
 MAX_MEMORY_TOOL_ROUNDS = 4
+CONTEXT_LIMIT_FINAL_INSTRUCTION = (
+    "The tool results do not fit the model's context window. Produce the required final structured response "
+    "from what you already know, and say briefly if you could not look something up. Do not request more tools."
+)
 MEMORY_TOOL_LIMIT_FINAL_INSTRUCTION = (
-    "Memory tool round limit reached. Use the memory tool results already provided in this turn to produce the "
+    "Tool round limit reached. Use the tool results already provided in this turn to produce the "
     "required final structured response. Do not request more tools."
 )
+
+# One extra request per turn when the final reply fails local validation.
+STRUCTURED_REPLY_REPAIR_ROUND_INDEX = MAX_MEMORY_TOOL_ROUNDS + 2
+STRUCTURED_REPLY_REPAIR_INSTRUCTION = (
+    "The last reply did not match the required response format. Reply to the user again with only one valid "
+    "JSON object in the required shape, with the fields in the required order and no markdown or text outside it."
+)
+# Final metadata recording the repair outcome: "attempted" or "request_failed".
+STRUCTURED_REPAIR_METADATA_KEY = "structured_repair"

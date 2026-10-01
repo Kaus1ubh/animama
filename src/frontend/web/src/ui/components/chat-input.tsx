@@ -2,6 +2,7 @@
 
 import { useAnima } from "@/query/hooks/useAnima";
 import { useModelProviders } from "@/query/hooks/useModelProviders";
+import { useRuntimeCapabilities } from "@/query/hooks/useRuntimeCapabilities";
 import { useUpdateAnimaChatProfile } from "@/query/mutations/useUpdateAnimaChatProfile";
 import {
   formatFileSize,
@@ -55,8 +56,14 @@ import type {
   PyModelProviderCatalogItem,
   PyUserFileResponse,
 } from "@/lib/content/catalogTypes";
+import type { WebSearchCapability } from "@animama/runtime-contracts/api-types";
 import { chatModelSendGate } from "@/lib/chat/model-provider-compatibility";
-import { requestableNativeTools } from "@/lib/chat/model-provider-native-tools";
+import {
+  selectableNativeTools,
+  WEB_SEARCH_TOOL,
+  webSearchAvailability,
+  withWebSearch,
+} from "@/lib/chat/model-provider-native-tools";
 import {
   FileText,
   Loader2,
@@ -309,8 +316,13 @@ function groupModelOptions(items: PyModelProviderCatalogItem[]) {
   }));
 }
 
-function supportedNativeTools(item: PyModelProviderCatalogItem | null) {
-  return requestableNativeTools(item);
+type WebSearchState = WebSearchCapability | null | undefined;
+
+function supportedNativeTools(
+  item: PyModelProviderCatalogItem | null,
+  webSearch: WebSearchState,
+) {
+  return selectableNativeTools(item, webSearch);
 }
 
 function supportedReasoningEfforts(item: PyModelProviderCatalogItem | null) {
@@ -325,13 +337,21 @@ function defaultReasoningEffort(item: PyModelProviderCatalogItem | null) {
   return supportedReasoningEfforts(item)[0] ?? null;
 }
 
-function defaultNativeTools(item: PyModelProviderCatalogItem | null) {
-  return supportedNativeTools(item);
+/** Every available tool starts on, including web search. */
+function defaultNativeTools(
+  item: PyModelProviderCatalogItem | null,
+  webSearch: WebSearchState,
+) {
+  return supportedNativeTools(item, webSearch);
 }
 
-function hasModelSettingsMenu(item: PyModelProviderCatalogItem) {
+function hasModelSettingsMenu(
+  item: PyModelProviderCatalogItem,
+  webSearch: WebSearchState,
+) {
   return (
-    supportedNativeTools(item).length > 0 ||
+    supportedNativeTools(item, webSearch).length > 0 ||
+    webSearchAvailability(item, webSearch) !== null ||
     (item.supports_reasoning === true &&
       supportedReasoningEfforts(item).length > 0)
   );
@@ -373,6 +393,7 @@ function ChatInputModelSelector({
   const { data: anima } = useAnima(animaId);
   const { data: catalog = [], isSuccess: catalogLoaded } = useModelProviders();
   const updateAnimaChatProfile = useUpdateAnimaChatProfile();
+  const webSearch = useRuntimeCapabilities().data?.web_search;
   const { chatRequestOptions, setChatRequestOverrides } = useSettings();
   const skipNextActiveItemResetRef = useRef(false);
   // Track the model id instead of the full catalog object. Query refreshes can
@@ -394,12 +415,12 @@ function ChatInputModelSelector({
     Boolean(activeItemId) && catalogLoaded && !activeItem;
   const modelGroups = useMemo(() => groupModelOptions(models), [models]);
   const selectedNativeTools = useMemo(() => {
-    const supported = new Set(supportedNativeTools(activeItem));
+    const supported = new Set(supportedNativeTools(activeItem, webSearch));
     const requested = Array.isArray(chatRequestOptions?.native_tools)
       ? chatRequestOptions.native_tools
-      : defaultNativeTools(activeItem);
+      : defaultNativeTools(activeItem, webSearch);
     return new Set(requested.filter((tool) => supported.has(tool)));
-  }, [activeItem, chatRequestOptions?.native_tools]);
+  }, [activeItem, chatRequestOptions?.native_tools, webSearch]);
   const selectedReasoningEffort =
     chatRequestOptions?.reasoning_effort ?? defaultReasoningEffort(activeItem);
   const isDisabled = Boolean(
@@ -415,14 +436,14 @@ function ChatInputModelSelector({
 
   const resetChatRequestSettingsForModel = useCallback(
     (item: PyModelProviderCatalogItem) => {
-      const nativeTools = defaultNativeTools(item);
+      const nativeTools = defaultNativeTools(item, webSearch);
       setChatRequestOverrides((current) => ({
         ...current,
         native_tools: nativeTools.length ? nativeTools : undefined,
         reasoning_effort: defaultReasoningEffort(item) ?? undefined,
       }));
     },
-    [setChatRequestOverrides],
+    [setChatRequestOverrides, webSearch],
   );
 
   const stopSettingsMenuEvent = useCallback((event: React.SyntheticEvent) => {
@@ -515,10 +536,10 @@ function ChatInputModelSelector({
         skipNextActiveItemResetRef.current = false;
       }
 
-      const supportedTools = new Set(supportedNativeTools(item));
+      const supportedTools = new Set(supportedNativeTools(item, webSearch));
       const supportedReasoning = supportedReasoningEfforts(item);
       const fallbackReasoning = defaultReasoningEffort(item);
-      const fallbackNativeTools = defaultNativeTools(item);
+      const fallbackNativeTools = defaultNativeTools(item, webSearch);
       setChatRequestOverrides((current) => {
         const currentNativeTools =
           Array.isArray(current.native_tools) && !willSelectInactiveModel
@@ -550,7 +571,13 @@ function ChatInputModelSelector({
         onModelChange?.();
       }
     },
-    [activeItemId, onModelChange, selectModel, setChatRequestOverrides],
+    [
+      activeItemId,
+      onModelChange,
+      selectModel,
+      setChatRequestOverrides,
+      webSearch,
+    ],
   );
 
   const handleNativeToolChange = useCallback(
@@ -558,13 +585,13 @@ function ChatInputModelSelector({
       const activeTools =
         item.id === activeItemId
           ? Array.from(selectedNativeTools)
-          : defaultNativeTools(item);
+          : defaultNativeTools(item, webSearch);
       const nextTools = checked
         ? Array.from(new Set([...activeTools, tool]))
         : activeTools.filter((activeTool) => activeTool !== tool);
       void applySettingsForModel(item, { nativeTools: nextTools });
     },
-    [activeItemId, applySettingsForModel, selectedNativeTools],
+    [activeItemId, applySettingsForModel, selectedNativeTools, webSearch],
   );
 
   const handleReasoningChange = useCallback(
@@ -590,6 +617,28 @@ function ChatInputModelSelector({
     }
     resetChatRequestSettingsForModel(activeItem);
   }, [activeItem, activeItemId, resetChatRequestSettingsForModel]);
+
+  // Search availability can change while the same model stays selected: the
+  // capability loads after the catalog, or the owner configures or removes
+  // the backend. Follow the default then (on when available) without
+  // touching the model's other options.
+  const activeSearchState = webSearchAvailability(activeItem, webSearch)?.state;
+  const lastSearchStateRef = useRef<{ id: string; state?: string } | null>(
+    null,
+  );
+  useEffect(() => {
+    if (!activeItemId) return;
+    const previous = lastSearchStateRef.current;
+    lastSearchStateRef.current = { id: activeItemId, state: activeSearchState };
+    if (previous?.id !== activeItemId || previous.state === activeSearchState)
+      return;
+    const available =
+      activeSearchState === "hosted" || activeSearchState === "application";
+    setChatRequestOverrides((current) => ({
+      ...current,
+      native_tools: withWebSearch(current.native_tools, available),
+    }));
+  }, [activeItemId, activeSearchState, setChatRequestOverrides]);
 
   return (
     <ModelSelector
@@ -643,15 +692,16 @@ function ChatInputModelSelector({
             >
               {group.models.map((item) => {
                 const isActive = item.id === activeItemId;
-                const rowNativeTools = supportedNativeTools(item);
+                const rowNativeTools = supportedNativeTools(item, webSearch);
                 const rowReasoningEfforts = supportedReasoningEfforts(item);
                 const rowSelectedNativeTools = isActive
                   ? selectedNativeTools
-                  : new Set(defaultNativeTools(item));
+                  : new Set(defaultNativeTools(item, webSearch));
                 const rowSelectedReasoningEffort = isActive
                   ? selectedReasoningEffort
                   : defaultReasoningEffort(item);
-                const showSettingsMenu = hasModelSettingsMenu(item);
+                const showSettingsMenu = hasModelSettingsMenu(item, webSearch);
+                const rowSearch = webSearchAvailability(item, webSearch);
                 const rowGate = chatModelSendGate(activeChat, item);
                 const rowUnsupported =
                   !rowGate.ok && rowGate.reason === "unsupported_model";
@@ -721,6 +771,26 @@ function ChatInputModelSelector({
                           }}
                         >
                           <div className="space-y-3">
+                            {rowSearch?.state === "unavailable" ? (
+                              <div className="space-y-1">
+                                <label className="text-muted-foreground flex items-center gap-2 text-sm">
+                                  <Checkbox
+                                    checked={false}
+                                    disabled
+                                    aria-describedby={`${item.id}-web-search-reason`}
+                                  />
+                                  <span>
+                                    {nativeToolLabel(WEB_SEARCH_TOOL)}
+                                  </span>
+                                </label>
+                                <p
+                                  id={`${item.id}-web-search-reason`}
+                                  className="text-muted-foreground text-xs"
+                                >
+                                  {rowSearch.reason}
+                                </p>
+                              </div>
+                            ) : null}
                             {rowNativeTools.length > 0 ? (
                               <div className="space-y-2">
                                 {rowNativeTools.map((tool) => (

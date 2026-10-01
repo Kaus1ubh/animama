@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import asyncio
+import uuid
 from collections.abc import AsyncIterator
 from contextlib import suppress
+from dataclasses import replace
 from typing import Any, cast
 
 from openai.types.chat import ChatCompletionToolUnionParam
@@ -16,28 +18,44 @@ from animama.app.main_structured_response import (
     MainStructuredResponse,
     MainStructuredStreamEvent,
     build_main_structured_response_model,
-    parse_main_structured_response,
+    main_structured_response_from_data,
+    plain_text_main_structured_response,
+    recover_main_structured_response,
+    render_main_structured_json,
     validate_main_structured_gesture,
 )
 from animama.app.model_clients import (
     DirectChatPrompt,
     ModelClientDelta,
+    ModelClientError,
     ModelClientRegistry,
     ModelClientRequest,
     model_client_preview_log_context,
     model_client_request_log_context,
 )
-from animama.app.model_clients.prompt import ChatCompletionResponseFormat
+from animama.app.model_clients.context_budget import (
+    ContextBudget,
+    context_budget_for_model,
+    estimate_prompt_tokens,
+)
+from animama.app.model_clients.prompt import ChatCompletionResponseFormat, copy_direct_chat_prompt
 from animama.app.ports import ModelProviderRepository
 from animama.app.primary_emotion_update import build_primary_emotion_update_event
 from animama.app.safety.moderation import moderation_indicates_crisis
 from animama.app.services import AnimaChatProfileService, ChatManager
+from animama.app.web_search import WebSearchToolService, web_search_tool_spec
 from animama.domain import ModelProvider
 from animama.domain.chat import ChatMessage, MessageRole
-from animama.domain.events import Event
+from animama.domain.events import Event, EventType, RunStatusKind, RunStatusPayload
 from animama.logging import get_logger
 
 from .api_standard import chat_api_standard_for_provider
+from .direct_turn.constants import (
+    DIRECT_MEMORY_TOOL_SUPPORT_BY_PROVIDER,
+    OPENAI_RESPONSES_PROVIDER,
+    STRUCTURED_REPAIR_METADATA_KEY,
+)
+from .direct_turn.context_fit import drop_oldest_history, fit_history
 from .direct_turn.events import (
     avatar_gesture_event,
     crisis_support_event,
@@ -51,10 +69,11 @@ from .direct_turn.message_builders import (
     chat_metadata_patch_from_prompt,
     user_provider_message,
 )
-from .direct_turn.model_stream import DirectTurnModelStreamCollector
+from .direct_turn.model_stream import DirectTurnModelStreamCollector, RunStatusObserver
 from .direct_turn.provider_state import (
     build_memory_tool_config,
     build_model_client_provider_options,
+    chat_completions_disallows_reasoning_with_function_tools,
     compiled_context_history,
     memory_tool_config_for_model,
     native_memory_apply_patch_enabled,
@@ -63,9 +82,11 @@ from .direct_turn.provider_state import (
     turn_memory_context_manifest,
     turn_reasoning_effort,
     validate_model_provider_for_direct_turn,
+    wants_application_web_search,
 )
 from .direct_turn.response_format import (
     build_main_structured_response_format,
+    main_structured_response_format_for_model,
     main_structured_response_guidance,
     response_model_agent_id,
     turn_response_format,
@@ -78,6 +99,8 @@ from .direct_turn.types import (
     DirectChatTurnStreamError,
     ModelClientNotFoundError,
     PreparedDirectChatTurn,
+    PreSendCompactionRequest,
+    PreSendCompactor,
     RuntimeGestureDescriptor as RuntimeGestureDescriptor,
 )
 from .memory_context import DirectChatMemoryContext, DirectChatMemoryContextError, DirectChatMemoryContextService
@@ -108,7 +131,8 @@ class _MainStructuredResponseStreamEmitter:
         self._round_index: int | None = None
         self._parser = MainStructuredJsonStreamParser()
         self._round_disabled = False
-        self._emotional_tone_emitted = False
+        self._round_speech_emitted = False
+        self._emitted_emotional_tone: str | None = None
         self._speech_text_parts: list[str] = []
         self._display_text_parts: list[str] = []
         self._speech_event_count = 0
@@ -122,6 +146,7 @@ class _MainStructuredResponseStreamEmitter:
         self._round_index = round_index
         self._parser = MainStructuredJsonStreamParser()
         self._round_disabled = False
+        self._round_speech_emitted = False
 
     def feed_text_delta(self, round_index: int, text: str) -> list[Event]:
         """Return public semantic events decoded from one provider text delta."""
@@ -156,11 +181,19 @@ class _MainStructuredResponseStreamEmitter:
             )
         return events
 
+    def salvaged_response(self) -> MainStructuredResponse | None:
+        """Return the reply built from this round's streamed parts once speech reached the client."""
+
+        if not self._round_speech_emitted:
+            return None
+        data = self._parser.salvaged_data()
+        return main_structured_response_from_data(data) if data is not None else None
+
     def final_response_events(self, parsed: MainStructuredResponse) -> list[Event]:
         """Return final full/correction response events not already covered by deltas."""
 
         events: list[Event] = []
-        if not self._emotional_tone_emitted:
+        if self._emitted_emotional_tone != parsed.emotional_tone:
             events.append(
                 user_response_event(
                     self._request,
@@ -216,11 +249,12 @@ class _MainStructuredResponseStreamEmitter:
     def _event_from_stream_event(self, stream_event: MainStructuredStreamEvent) -> Event:
         response_part = stream_event.response_part
         if response_part == MAIN_STRUCTURED_RESPONSE_PART_EMOTIONAL_TONE:
-            self._emotional_tone_emitted = True
+            self._emitted_emotional_tone = stream_event.text
             event_id_suffix = "stream-emotional-tone"
         elif response_part == MAIN_STRUCTURED_RESPONSE_PART_SPEECH:
             if stream_event.text:
                 self._speech_text_parts.append(stream_event.text)
+                self._round_speech_emitted = True
             self._speech_event_count += 1
             event_id_suffix = f"stream-speech-{stream_event.part_index or 0}"
         elif response_part == MAIN_STRUCTURED_RESPONSE_PART_DISPLAY:
@@ -262,6 +296,41 @@ class _MainStructuredResponseStreamEmitter:
         )
 
 
+# Recoveries whose reply is not the final text itself; history replays a
+# synthesized structured reply instead.
+_SYNTHESIZED_RECOVERIES = frozenset({"salvaged", "plain_text"})
+
+
+def _recover_final_reply(
+    final: Any,
+    output_type: Any,
+    salvaged: list[MainStructuredResponse],
+    invalid_text: str | None,
+) -> tuple[MainStructuredResponse | None, str | None]:
+    """Return the turn's reply and how it was recovered (``None`` when valid as sent).
+
+    Order: the final text validates (``"repaired"`` if a repair request produced
+    it), then the reply salvaged from already-streamed speech, then the
+    model's text as a neutral plain-text reply: the repair's text, or the
+    invalid original when the repair has nothing speakable. ``(None, None)``
+    means there is nothing speakable.
+    """
+
+    try:
+        parsed = recover_main_structured_response(final.text, output_type)
+    except ValueError:
+        parsed = None
+    repaired = final.raw_provider_metadata.get(STRUCTURED_REPAIR_METADATA_KEY) == "attempted"
+    if parsed is not None:
+        return parsed, "repaired" if repaired else None
+    if salvaged:
+        return salvaged[-1], "salvaged"
+    plain = plain_text_main_structured_response(final.text)
+    if plain is None and invalid_text is not None:
+        plain = plain_text_main_structured_response(invalid_text)
+    return (plain, "plain_text") if plain is not None else (None, None)
+
+
 class DirectChatTurnExecutor:
     """High-level app-layer orchestrator for one request-local direct chat turn.
 
@@ -283,6 +352,9 @@ class DirectChatTurnExecutor:
         prompt_assembler: DirectChatPromptAssembler | None = None,
         memory_context_service: DirectChatMemoryContextService | None = None,
         memory_tool_service: Any | None = None,
+        pre_send_compactor: PreSendCompactor | None = None,
+        pre_send_compaction_timeout_seconds: float = 90.0,
+        web_search_tool: WebSearchToolService | None = None,
     ) -> None:
         self._registry = registry
         self._profile_service = profile_service
@@ -293,6 +365,9 @@ class DirectChatTurnExecutor:
         self._prompt_assembler = prompt_assembler or DirectChatPromptAssembler()
         self._memory_context_service = memory_context_service
         self._memory_tool_service = memory_tool_service
+        self._pre_send_compactor = pre_send_compactor
+        self._pre_send_compaction_timeout_seconds = pre_send_compaction_timeout_seconds
+        self._web_search_tool = web_search_tool
 
     async def stream(self, model_request: ModelClientRequest) -> AsyncIterator[ModelClientDelta]:
         """Proxy one provider-neutral request to the registered shared model client."""
@@ -349,10 +424,11 @@ class DirectChatTurnExecutor:
         api_standard_profile = chat_api_standard_for_provider(model_provider)
         if api_standard_profile is None:
             raise DirectChatTurnSetupError(f"chat_api_standard_unsupported: {model_provider.id}")
+        web_search_active = self._application_web_search_active(request, model_provider)
         validate_model_provider_for_direct_turn(
             model_provider,
             request_options=request.options,
-            memory_tools_active=memory_tool_config.active,
+            memory_tools_active=memory_tool_config.active or web_search_active,
         )
         if self._registry.get(model_provider.provider_type) is None:
             raise ModelClientNotFoundError(
@@ -401,6 +477,8 @@ class DirectChatTurnExecutor:
                     allow_uploaded_file_tools=memory_tool_config.allow_reads and bool(request.attached_file_ids),
                 )
             )
+        if web_search_active:
+            memory_tool_specs = (*memory_tool_specs, web_search_tool_spec())
         # Responses providers can continue from the provider-managed response id
         # stored on the chat row. Chat Completions always receives explicit
         # compiled history.
@@ -429,7 +507,8 @@ class DirectChatTurnExecutor:
             agent_id=response_model_agent_id(request.node_id),
             gesture_ids=runtime_gesture_ids,
         )
-        response_format = build_main_structured_response_format(
+        response_format = main_structured_response_format_for_model(
+            model_provider,
             output_type,
             name=turn_response_schema_name(request.options),
         )
@@ -447,7 +526,7 @@ class DirectChatTurnExecutor:
                     main_structured_response_guidance(model_provider, output_type),
                     request.runtime_gesture_descriptors,
                 ),
-                memory_tools_active=memory_tool_config.active,
+                memory_tools_active=memory_tool_config.active or web_search_active,
                 native_memory_patch_enabled=native_memory_patch,
             ),
             provider_options=build_model_client_provider_options(
@@ -473,10 +552,25 @@ class DirectChatTurnExecutor:
             context_loaded=not skip_context_fetch,
             runtime_revision=request.runtime_revision,
             runtime_gesture_ids=runtime_gesture_ids,
+            visible_history=tuple(compiled_history),
         )
 
     async def stream_prepared_turn(self, prepared: PreparedDirectChatTurn) -> AsyncIterator[Event]:
         """Invoke the model client and translate the final result into domain events."""
+
+        fitted: PreparedDirectChatTurn | None = None
+        async for item in self._fit_to_context_window(prepared):
+            if isinstance(item, Event):
+                yield item
+            else:
+                fitted = item
+        if fitted is None:
+            return
+        async for event in self._stream_fitted_turn(fitted):
+            yield event
+
+    async def _stream_fitted_turn(self, prepared: PreparedDirectChatTurn) -> AsyncIterator[Event]:
+        """Stream a turn whose prompt fits the model's context window."""
 
         _log.info(
             "Direct chat prepared turn execution started",
@@ -508,12 +602,56 @@ class DirectChatTurnExecutor:
             for event in stream_emitter.feed_text_delta(round_index, text):
                 await early_event_queue.put(event)
 
+        async def on_run_status(status: RunStatusKind, phase: str) -> None:
+            await early_event_queue.put(self._run_status_event(prepared.request, status, phase))
+
+        # The collector asks `needs_repair` about the turn's final reply before
+        # any repair round. A reply whose speech already reached the client is
+        # salvaged from the streamed parts instead, so no speech is repeated;
+        # an invalid reply's text is kept as the plain-text fallback in case
+        # the repair has nothing speakable.
+        salvaged: list[MainStructuredResponse] = []
+        invalid_texts: list[str] = []
+
+        def needs_repair(final: Any) -> bool:
+            try:
+                recover_main_structured_response(final.text, prepared.output_type)
+                return False
+            except ValueError:
+                pass
+            salvaged_response = stream_emitter.salvaged_response() if stream_emitter is not None else None
+            if salvaged_response is not None:
+                salvaged.append(salvaged_response)
+                return False
+            invalid_texts.append(final.text)
+            return True
+
+        context_budget = self._context_budget(prepared)
+
+        async def shrink_request(model_request: ModelClientRequest) -> ModelClientRequest | None:
+            # A server that still reports an oversized prompt gets one retry
+            # with about half of the remaining history left out.
+            history = drop_oldest_history(prepared.visible_history, fraction=0.5)
+            if len(history) == len(prepared.visible_history):
+                return None
+            # Keep the failed request's format: split rows send tool rounds without one.
+            prompt = copy_direct_chat_prompt(
+                self._prompt_for_history(prepared, history),
+                response_format=model_request.prompt.response_format,
+            )
+            return replace(model_request, prompt=prompt)
+
         async def collect_model_stream() -> tuple[Any, list[ChatMessage]]:
             try:
-                return await self._model_stream_collector(anima_memories=anima_memories).collect(
+                return await self._model_stream_collector(
+                    anima_memories=anima_memories, on_run_status=on_run_status
+                ).collect(
                     prepared,
                     on_model_round_start=on_model_round_start,
                     on_text_delta=on_text_delta,
+                    needs_repair=needs_repair,
+                    context_budget=context_budget,
+                    shrink_request=shrink_request if context_budget is not None else None,
                 )
             finally:
                 await early_event_queue.put(None)
@@ -591,26 +729,40 @@ class DirectChatTurnExecutor:
             **model_client_preview_log_context(final_text_preview=final.text),
         )
 
-        try:
-            # Only the final assistant text is parsed into Animama's structured
-            # response. Intermediate provider events stay in model-client
-            # observability metadata rather than becoming public chat SSE frames.
-            parsed = parse_main_structured_response(final.text, prepared.output_type)
-        except Exception as exc:
+        # Only the final assistant text is parsed into Animama's structured
+        # response. Intermediate provider events stay in model-client
+        # observability metadata rather than becoming public chat SSE frames.
+        parsed, recovery = _recover_final_reply(
+            final, prepared.output_type, salvaged, invalid_texts[0] if invalid_texts else None
+        )
+        if parsed is None:
             _log.warning(
                 "Direct chat structured response parse failed",
                 anima_id=prepared.request.anima_id,
                 chat_id=prepared.request.chat_id,
                 run_id=prepared.request.run_id,
-                exc_type=exc.__class__.__name__,
+                final_text_length=len(final.text),
             )
             yield error_event(
                 prepared.request,
                 message="Model client returned an invalid main structured response",
                 code="main_structured_response_parse_failed",
-                details={"exc_type": exc.__class__.__name__},
             )
             return
+        if recovery is not None:
+            _log.warning(
+                "Direct chat structured reply recovered",
+                anima_id=prepared.request.anima_id,
+                chat_id=prepared.request.chat_id,
+                run_id=prepared.request.run_id,
+                recovery=recovery,
+                model_provider_id=prepared.model_request.model_provider.id,
+                structured_output_transport=(
+                    prepared.model_request.model_provider.capabilities.structured_output_transport
+                ),
+                final_text_length=len(final.text),
+                speech_length=len(parsed.speech),
+            )
         _log.info(
             "Direct chat structured response parsed",
             anima_id=prepared.request.anima_id,
@@ -731,6 +883,8 @@ class DirectChatTurnExecutor:
                     model_provider=prepared.model_request.model_provider,
                     internal_tool_messages=internal_tool_messages,
                     memory=memory_data,
+                    structured_recovery=recovery,
+                    replay_text=(render_main_structured_json(parsed) if recovery in _SYNTHESIZED_RECOVERIES else None),
                 ),
                 chat_metadata_patch=chat_metadata_patch_from_prompt(prepared.model_request.prompt),
                 last_model_client=api_standard_profile.model_client,
@@ -770,6 +924,195 @@ class DirectChatTurnExecutor:
                 run_id=prepared.request.run_id,
                 reason="incognito",
             )
+
+    def _application_web_search_active(self, request: DirectChatTurnRequest, model_provider: ModelProvider) -> bool:
+        """Return whether this turn offers the application ``web_search`` tool.
+
+        Requested web search that the provider does not host uses the
+        configured backend on a model that calls tools. Otherwise the turn runs
+        without search and logs why, instead of failing.
+        """
+
+        if not wants_application_web_search(model_provider, request.options):
+            return False
+        reason = None
+        if self._web_search_tool is None:
+            reason = "no_backend"
+        elif not model_provider.capabilities.supports_tools:
+            reason = "model_without_tools"
+        elif model_provider.provider_type not in DIRECT_MEMORY_TOOL_SUPPORT_BY_PROVIDER:
+            reason = "provider_without_function_tools"
+        elif request.options.reasoning_effort and chat_completions_disallows_reasoning_with_function_tools(
+            model_provider
+        ):
+            reason = "reasoning_with_function_tools"
+        if reason is None:
+            return True
+        _log.warning(
+            "Direct chat web search unavailable for this turn",
+            anima_id=request.anima_id,
+            chat_id=request.chat_id,
+            run_id=request.run_id,
+            model_provider_id=model_provider.id,
+            reason=reason,
+        )
+        return False
+
+    def _context_budget(self, prepared: PreparedDirectChatTurn) -> ContextBudget | None:
+        """Return the window budget for models the application must keep within it.
+
+        OpenAI Responses compacts natively; rows without a window are not bounded.
+        """
+
+        model_provider = prepared.model_request.model_provider
+        if model_provider.provider_type == OPENAI_RESPONSES_PROVIDER or not prepared.context_loaded:
+            return None
+        return context_budget_for_model(model_provider)
+
+    def _prompt_for_history(self, prepared: PreparedDirectChatTurn, visible_history: list[Any]) -> DirectChatPrompt:
+        """Rebuild the turn's prompt around a different history."""
+
+        model_request = prepared.model_request
+        return self._build_prompt(
+            request=prepared.request,
+            model_provider=model_request.model_provider,
+            memory_context=prepared.memory_context,
+            memory_tool_specs=prepared.memory_tool_specs,
+            visible_history=visible_history,
+            response_format=cast(dict[str, Any] | None, model_request.prompt.response_format),
+            response_format_guidance=self._gesture_guidance(
+                main_structured_response_guidance(model_request.model_provider, prepared.output_type),
+                prepared.request.runtime_gesture_descriptors,
+            ),
+            memory_tools_active=bool(prepared.memory_tool_specs)
+            or model_request.provider_options.memory_apply_patch_enabled,
+            native_memory_patch_enabled=model_request.provider_options.memory_apply_patch_enabled,
+        )
+
+    async def _fit_to_context_window(
+        self, prepared: PreparedDirectChatTurn
+    ) -> AsyncIterator[Event | PreparedDirectChatTurn]:
+        """Yield status events, then the turn with a prompt that fits, or an error event instead.
+
+        A prompt above the trigger is compacted first (when a compactor is
+        configured and the turn is not incognito), then the oldest history is
+        left out of the request. A turn whose fixed instructions and latest
+        message alone exceed the window fails with ``context_exceeded``.
+        """
+
+        budget = self._context_budget(prepared)
+        if budget is None or estimate_prompt_tokens(prepared.model_request.prompt) <= budget.pre_send_trigger_tokens:
+            yield prepared
+            return
+        request = prepared.request
+
+        def prompt_tokens_for(history: list[Any]) -> int:
+            return estimate_prompt_tokens(self._prompt_for_history(prepared, history))
+
+        fixed_tokens = prompt_tokens_for([])
+        if fixed_tokens > budget.available_tokens:
+            yield self._context_exceeded_event(prepared, budget, fixed_tokens)
+            return
+
+        history = list(prepared.visible_history)
+        if self._pre_send_compactor is not None and not request.options.incognito:
+            yield self._run_status_event(request, "summarizing_context", "started")
+            try:
+                chat_context = await asyncio.wait_for(
+                    self._pre_send_compactor(
+                        PreSendCompactionRequest(
+                            chat_id=request.chat_id,
+                            user_id=request.user_id,
+                            anima_id=request.anima_id,
+                            run_id=request.run_id,
+                            keep_recent_tokens=max(0, (budget.available_tokens - fixed_tokens) // 2),
+                        )
+                    ),
+                    timeout=self._pre_send_compaction_timeout_seconds,
+                )
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                # A failed or slow compaction must not block the turn; trimming follows.
+                _log.warning(
+                    "Direct chat pre-send compaction failed",
+                    anima_id=request.anima_id,
+                    chat_id=request.chat_id,
+                    run_id=request.run_id,
+                    exc_type=exc.__class__.__name__,
+                )
+                chat_context = None
+            yield self._run_status_event(request, "summarizing_context", "finished")
+            if chat_context is not None:
+                history = compiled_context_history(chat_context)
+
+        # Fit below the trigger so tool rounds and a repair have room; use the
+        # whole budget only when the fixed prompt leaves no such headroom.
+        fitted_history = fit_history(
+            history,
+            available_tokens=budget.pre_send_trigger_tokens,
+            prompt_tokens_for=prompt_tokens_for,
+        )
+        if fitted_history is None:
+            fitted_history = fit_history(
+                history,
+                available_tokens=budget.available_tokens,
+                prompt_tokens_for=prompt_tokens_for,
+            )
+        if fitted_history is None:
+            yield self._context_exceeded_event(prepared, budget, fixed_tokens)
+            return
+        if len(fitted_history) < len(history):
+            _log.warning(
+                "Direct chat history trimmed to the model context window",
+                anima_id=request.anima_id,
+                chat_id=request.chat_id,
+                run_id=request.run_id,
+                omitted_item_count=len(history) - len(fitted_history),
+                context_window_tokens=budget.context_window_tokens,
+            )
+        yield replace(
+            prepared,
+            model_request=replace(prepared.model_request, prompt=self._prompt_for_history(prepared, fitted_history)),
+            visible_history=tuple(fitted_history),
+        )
+
+    @staticmethod
+    def _run_status_event(request: DirectChatTurnRequest, status: RunStatusKind, phase: str) -> Event:
+        return Event(
+            event_id=f"run-status-{request.run_id}-{status}-{phase}-{uuid.uuid4().hex[:8]}",
+            anima_id=request.anima_id,
+            chat_id=request.chat_id,
+            user_id=request.user_id,
+            type=EventType.RUN_STATUS,
+            payload=RunStatusPayload(run_id=request.run_id, status=status, phase=cast(Any, phase)),
+        )
+
+    @staticmethod
+    def _context_exceeded_event(prepared: PreparedDirectChatTurn, budget: ContextBudget, prompt_tokens: int) -> Event:
+        _log.warning(
+            "Direct chat turn exceeds the model context window",
+            anima_id=prepared.request.anima_id,
+            chat_id=prepared.request.chat_id,
+            run_id=prepared.request.run_id,
+            estimated_prompt_tokens=prompt_tokens,
+            available_tokens=budget.available_tokens,
+        )
+        error = ModelClientError(
+            "The instructions and latest message exceed the model's context window",
+            code="context_window_exceeded",
+            raw_metadata={
+                "provider_error_code": "context_length_exceeded",
+                "context_window_tokens": budget.context_window_tokens,
+                "estimated_prompt_tokens": prompt_tokens,
+            },
+        )
+        return error_event(
+            prepared.request,
+            message=error.message,
+            code="context_window_exceeded",
+            details=model_error_details(error, prepared.model_request.model_provider),
+        )
 
     async def _resolve_model_provider(self, request: DirectChatTurnRequest) -> ModelProvider:
         """Select the explicit request provider or the anima profile default."""
@@ -812,7 +1155,7 @@ class DirectChatTurnExecutor:
         memory_context: DirectChatMemoryContext,
         memory_tool_specs: tuple[dict[str, Any], ...],
         visible_history: list[Any],
-        response_format: dict[str, Any],
+        response_format: dict[str, Any] | None,
         response_format_guidance: str,
         memory_tools_active: bool = False,
         native_memory_patch_enabled: bool = False,
@@ -868,7 +1211,12 @@ class DirectChatTurnExecutor:
             },
         )
 
-    def _model_stream_collector(self, *, anima_memories: AnimaMemoriesTurn | None) -> DirectTurnModelStreamCollector:
+    def _model_stream_collector(
+        self,
+        *,
+        anima_memories: AnimaMemoriesTurn | None,
+        on_run_status: RunStatusObserver | None = None,
+    ) -> DirectTurnModelStreamCollector:
         """Create the stream collector with executor-local callbacks and the turn's MEMORIES.md state."""
 
         _, _, chat_manager, _ = self._required_services()
@@ -882,6 +1230,8 @@ class DirectChatTurnExecutor:
             load_chat_context=load_chat_context,
             build_prompt=self._build_prompt,
             anima_memories=anima_memories,
+            web_search_tool=self._web_search_tool,
+            on_run_status=on_run_status,
         )
 
     def _required_services(

@@ -101,6 +101,23 @@ class SQLAlchemyEmbeddingRefreshRepository:
             "archive_passages", embedded_text_sql="text", embedding_model_id=embedding_model_id, vectors=vectors
         )
 
+    async def record_chunk_rejections(
+        self, *, embedding_model_id: str, items: Sequence[StaleEmbeddingText]
+    ) -> dict[str | int, int]:
+        return await self._record_rejections(
+            "user_file_chunk",
+            embedded_text_sql="COALESCE(embedding_text, text)",
+            embedding_model_id=embedding_model_id,
+            items=items,
+        )
+
+    async def record_passage_rejections(
+        self, *, embedding_model_id: str, items: Sequence[StaleEmbeddingText]
+    ) -> dict[str | int, int]:
+        return await self._record_rejections(
+            "archive_passages", embedded_text_sql="text", embedding_model_id=embedding_model_id, items=items
+        )
+
     async def mark_embedded_files_ready(self, *, owner_id: str, embedding_model_id: str) -> None:
         await self._s.execute(
             text("""
@@ -128,7 +145,8 @@ class SQLAlchemyEmbeddingRefreshRepository:
         # they stay stale and are embedded again with their new text.
         statement = text(f"""
             UPDATE {table}
-            SET embedding = CAST(:embedding AS vector), embedding_model_id = :embedding_model_id
+            SET embedding = CAST(:embedding AS vector), embedding_model_id = :embedding_model_id,
+                embedding_rejections = 0, embedding_rejected_model_id = NULL
             WHERE id = :id AND text = :text AND {embedded_text_sql} = :embedding_input
         """)
         for item, vector in vectors:
@@ -142,6 +160,41 @@ class SQLAlchemyEmbeddingRefreshRepository:
                     "embedding_model_id": embedding_model_id,
                 },
             )
+
+    async def _record_rejections(
+        self,
+        table: str,
+        *,
+        embedded_text_sql: str,
+        embedding_model_id: str,
+        items: Sequence[StaleEmbeddingText],
+    ) -> dict[str | int, int]:
+        # Rejections by an earlier model start a new count; edited rows are skipped.
+        statement = text(f"""
+            UPDATE {table}
+            SET embedding_rejections = CASE
+                    WHEN embedding_rejected_model_id = :embedding_model_id THEN embedding_rejections + 1
+                    ELSE 1
+                END,
+                embedding_rejected_model_id = :embedding_model_id
+            WHERE id = :id AND text = :text AND {embedded_text_sql} = :embedding_input
+            RETURNING embedding_rejections
+        """)
+        counts: dict[str | int, int] = {}
+        for item in items:
+            result = await self._s.execute(
+                statement,
+                {
+                    "id": item.id,
+                    "text": item.text,
+                    "embedding_input": item.embedding_input,
+                    "embedding_model_id": embedding_model_id,
+                },
+            )
+            count = result.scalar_one_or_none()
+            if count is not None:
+                counts[item.id] = int(count)
+        return counts
 
 
 __all__ = ["SQLAlchemyEmbeddingRefreshRepository"]

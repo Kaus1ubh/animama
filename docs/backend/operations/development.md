@@ -1494,7 +1494,9 @@ Models; see [local model servers](local-models.md)):
   `ANIMAMA_CHAT_TITLE_GENERATION_TIMEOUT_SECONDS`,
   `ANIMAMA_CHAT_TITLE_GENERATION_REASONING_EFFORT` (titles from the utility role)
 - `ANIMAMA_CHAT_COMPACTION_ENABLED`, `ANIMAMA_CHAT_COMPACTION_THRESHOLD_TOKENS`
-  (post-response compaction by the utility role)
+  (post-response compaction by the utility role),
+  `ANIMAMA_CHAT_PRESEND_COMPACTION_TIMEOUT_SECONDS` (default `90`; bound on
+  compaction before a turn that nears its model's window)
 
 Companion safety (operator settings; the Companion Guardrails are never
 configurable, see the [crisis protocol](../../safety/crisis-protocol.md)):

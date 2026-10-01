@@ -394,6 +394,14 @@ timeout (connecting is capped at 10 seconds), honors its
 OpenAI, is disabled unless the row is on the built-in OpenAI connection. Runs
 record the row's provider type, model, row id and connection.
 
+A run pins the row that ran its latest step (`memory_manager_runs.model_provider_id`):
+new messages run on the current role row and move the pin, and an approval
+decision resumes on the pinned row, the one that proposed the change, even
+after the Memory Manager role changes. If that row was removed, hidden, can no
+longer call tools or has no key, approving returns `409` and changes nothing,
+so the owner can restore the model and approve again; rejecting records the
+rejection and ends the review without resuming.
+
 OpenAI Agents SDK documentation describes `needs_approval=True` tools as
 interrupting a run for human approval. A caller can persist run state, approve
 or reject interruptions, and resume the same run. Animama stores the SDK state on
@@ -1109,8 +1117,3 @@ eligibility rules described [above](#undo-approved-patch).
 The deterministic runtime checks workflow mechanics without evaluating memory
 quality. Frontend component coverage is limited; verify the affected approval,
 Undo, and episode-processing flows in the running UI.
-
-Changing the Memory Manager model role while an approval is pending can make
-the resumed run fail after the approved write commits, because the resume
-builds the agent with the new row's model and tools. Resolve pending approvals
-before switching the role. After such a failure, start a new run to continue.

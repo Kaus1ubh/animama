@@ -69,6 +69,20 @@ class EmbeddingRefreshRepository(Protocol):
     ) -> None:
         raise NotImplementedError
 
+    async def record_chunk_rejections(
+        self, *, embedding_model_id: str, items: Sequence[StaleEmbeddingText]
+    ) -> dict[str | int, int]:
+        """Count one isolated rejection of each chunk; return each row's count for this model."""
+
+        raise NotImplementedError
+
+    async def record_passage_rejections(
+        self, *, embedding_model_id: str, items: Sequence[StaleEmbeddingText]
+    ) -> dict[str | int, int]:
+        """Count one isolated rejection of each archive passage, as for chunks."""
+
+        raise NotImplementedError
+
     async def mark_embedded_files_ready(self, *, owner_id: str, embedding_model_id: str) -> None:
         """Mark keyword-only files ready once every chunk has a current vector."""
 

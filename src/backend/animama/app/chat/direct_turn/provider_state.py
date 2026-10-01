@@ -4,7 +4,6 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from typing import Any, cast
 
-from animama.app.main_structured_response import MAIN_STRUCTURED_RESPONSE_KIND
 from animama.app.model_clients import (
     ModelClientContinuation,
     ModelClientError,
@@ -28,6 +27,7 @@ from .constants import (
     OPENAI_CHAT_COMPLETIONS_PROVIDER,
     OPENAI_RESPONSES_PREVIOUS_RESPONSE_UNRESOLVABLE_CODE,
     OPENAI_RESPONSES_PROVIDER,
+    WEB_SEARCH_NATIVE_TOOL,
 )
 from .types import DirectChatTurnRequest, DirectChatTurnSetupError
 
@@ -107,12 +107,8 @@ def validate_model_provider_for_direct_turn(
         )
     if not capabilities.supports_streaming:
         raise DirectChatTurnSetupError(f"Model provider does not support streaming chat turns: {model_provider.id}")
-    structured_kinds = normalized_string_set(capabilities.structured_kinds)
-    if MAIN_STRUCTURED_RESPONSE_KIND not in structured_kinds:
-        raise DirectChatTurnSetupError(
-            f"Model provider does not support required structured output kind {MAIN_STRUCTURED_RESPONSE_KIND}: "
-            f"{model_provider.id}"
-        )
+    # Structured output is not required: rows without a schema or JSON mode
+    # transport are asked for JSON by prompt and fall back to plain text.
 
     requested_reasoning_effort = request_options.reasoning_effort
     if isinstance(requested_reasoning_effort, str) and requested_reasoning_effort.strip():
@@ -133,20 +129,33 @@ def validate_model_provider_for_direct_turn(
                 "after direct memory tool support is enabled there."
             )
 
+    # Web search without hosted support is the application tool, which the
+    # executor offers or leaves out; only other native tools must be hosted.
     requested_native_tools = set(request_options.native_tools)
-    if requested_native_tools:
-        requestable_tools = set(
-            requestable_native_tool_support(
-                model_provider.provider_type,
-                capabilities.native_tool_support,
-            )
+    hosted_tools = set(hosted_native_tools(model_provider, request_options))
+    missing_tools = requested_native_tools - hosted_tools - {WEB_SEARCH_NATIVE_TOOL}
+    if missing_tools or (hosted_tools and not capabilities.supports_tools):
+        tools = ", ".join(sorted(missing_tools or hosted_tools))
+        raise DirectChatTurnSetupError(
+            f"Model provider does not support requested native tools {tools}: {model_provider.id}"
         )
-        missing_tools = requested_native_tools.difference(requestable_tools)
-        if not capabilities.supports_tools or missing_tools:
-            tools = ", ".join(sorted(missing_tools or requested_native_tools))
-            raise DirectChatTurnSetupError(
-                f"Model provider does not support requested native tools {tools}: {model_provider.id}"
-            )
+
+
+def hosted_native_tools(model_provider: ModelProvider, request_options: DirectChatOptions) -> tuple[str, ...]:
+    """Return the requested native tools the provider hosts (OpenAI Responses web search)."""
+
+    requestable = set(
+        requestable_native_tool_support(model_provider.provider_type, model_provider.capabilities.native_tool_support)
+    )
+    return tuple(tool for tool in request_options.native_tools if tool in requestable)
+
+
+def wants_application_web_search(model_provider: ModelProvider, request_options: DirectChatOptions) -> bool:
+    """Return whether the turn asked for web search that the provider does not host."""
+
+    return WEB_SEARCH_NATIVE_TOOL in request_options.native_tools and WEB_SEARCH_NATIVE_TOOL not in (
+        hosted_native_tools(model_provider, request_options)
+    )
 
 
 def chat_completions_disallows_reasoning_with_function_tools(model_provider: ModelProvider) -> bool:
@@ -205,7 +214,7 @@ def build_model_client_provider_options(
         moderation_model=RESPONSES_MODERATION_MODEL
         if provider_moderation and model_provider.provider_type == OPENAI_RESPONSES_PROVIDER
         else None,
-        native_tools=request_options.native_tools,
+        native_tools=hosted_native_tools(model_provider, request_options),
         store=not request_options.incognito,
         memory_apply_patch_enabled=native_memory_apply_patch_enabled(
             model_provider,
@@ -372,6 +381,8 @@ def final_with_previous_response_retry_metadata(
 
 __all__ = [
     "MemoryToolConfig",
+    "hosted_native_tools",
+    "wants_application_web_search",
     "build_memory_tool_config",
     "build_model_client_provider_options",
     "compiled_context_history",

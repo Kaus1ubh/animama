@@ -165,6 +165,10 @@ describe("privileged runtime IPC", () => {
           value: "fixture-connection-key",
         },
         { connection: "ANIMAMA_CONNECTION_C_OTHER_API_KEY" },
+        {
+          connection: "ANIMAMA_CONNECTION_WEB_SEARCH_API_KEY",
+          value: "fixture-search-key",
+        },
       ]),
     ).resolves.toEqual([]);
     expect(applied).toHaveBeenCalledWith([
@@ -174,6 +178,10 @@ describe("privileged runtime IPC", () => {
         value: "fixture-connection-key",
       },
       { connection: "ANIMAMA_CONNECTION_C_OTHER_API_KEY" },
+      {
+        connection: "ANIMAMA_CONNECTION_WEB_SEARCH_API_KEY",
+        value: "fixture-search-key",
+      },
     ]);
     await expect(
       invoke("credentials:apply", recovery.event, [{ provider: "openai" }]),
