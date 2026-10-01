@@ -80,7 +80,6 @@ provisioned `/var/lib/animama/models`, then run:
 
 ```bash
 export ANIMAMA_MODEL_ROOT=/var/lib/animama/models
-python3 scripts/models/parakeet.py acquire
 python3 scripts/models/browser_speech.py acquire
 ANIMAMA_WEB_BUILD_MODE=production ./reset.sh --name home --base-port 8200
 source .animama-stack.env
@@ -88,7 +87,9 @@ docker compose -p "$COMPOSE_PROJECT_NAME" restart animama-server
 ```
 
 Acquisition is the networked setup step. The subsequent verification, startup and
-restart reuse local bytes offline. Docker images/dependencies must also already
+restart reuse local bytes offline. Built self-host does not use host Parakeet
+sets; install offline speech in the app (see
+[Downloaded model assets](#downloaded-model-assets)). Docker images/dependencies must also already
 be available for a fully offline rebuild; model reuse alone does not cache those.
 Container replacement preserves the external model directory and database volume.
 
@@ -96,8 +97,9 @@ Container replacement preserves the external model directory and database volume
 `ANIMAMA_MODEL_ROOT` plus the derived `ANIMAMA_PARAKEET_MODEL_DIR` and
 `ANIMAMA_BROWSER_MODEL_DIR` into the stack record. Every set is optional. An
 unacquired set is recorded as empty and warns: Compose then mounts its checked-in
-notices directory, missing Parakeet sets `ANIMAMA_PARAKEET_STT_ENABLED=false` so
-dictation reports offline speech as not installed, and a missing browser speech
+notices directory, a missing Parakeet set in development sets
+`ANIMAMA_PARAKEET_STT_ENABLED=false` so dictation reports offline speech as not
+installed, and a missing browser speech
 set builds/serves only the pinned package files, leaving Pocket TTS and Smart Turn
 unavailable. A present set that fails verification stops the reset before any
 mutation. Source the record before project-scoped Compose commands. For a direct

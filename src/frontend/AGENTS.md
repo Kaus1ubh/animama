@@ -258,8 +258,8 @@ or migration behavior.
   Recovery must preserve the vault, database, owner, and stable origin.
 - Optional packs use the embedded app-matched catalog and fixed IDs only.
   Renderer IPC must not accept pack URLs, paths, versions, hashes, or commands.
-  Parakeet uses raw `animama-model-pack/1` files from the fixed shared model origin, with exact
-  size/hash inventories including notices. Keep strict zstd/USTAR checks for
+  Parakeet is not a pack: the backend model-asset service installs its sets from
+  the fixed shared model origin (ADR 0012). Keep strict zstd/USTAR checks for
   archive packs and the shared atomic transition/rollback barrier. The separate document-worker pack must pass pinned OS-signature
   verification on install and every launch, even with an unsigned development
   core; never add an unsigned-worker bypass. See the staging guide for release

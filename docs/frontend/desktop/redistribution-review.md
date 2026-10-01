@@ -37,10 +37,12 @@ starter does not require them. Ignored copies cannot become release inputs.
 
 ## Pack and native dependencies
 
-Parakeet is the only active release pack in
-`desktop/runtime/feature-pack-releases.json`. Expanded Included content and
-Docling document processing are deferred: they produce no initial-release
-archive or catalog entry. Settings retains recovery/removal controls for
+`desktop/runtime/feature-pack-releases.json` has no active pack. Expanded
+Included content and Docling document processing are deferred: they produce no
+initial-release archive or catalog entry. Both Parakeet sets are published as
+shared model objects and downloaded at runtime, outside the packaged core; their
+attribution and the onnx-asr MIT notice stay in the packaged notice bundle, and
+each installed set carries its own README and attribution. Settings retains recovery/removal controls for
 installed files even when a pack has no compatible catalog entry.
 
 The first-party global input addon exposes only the configured binding's down/up

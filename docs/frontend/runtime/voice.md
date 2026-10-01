@@ -131,7 +131,9 @@ starting Vite or Compose, or building the web application. It documents
 and the Linux default used by WSL. Development verifies and serves engine inputs
 at the existing same-origin URLs; built self-host and desktop outputs contain
 independent verified copies of the 21 browser assets. Parakeet remains outside
-the web build and retains its installed desktop pack lifecycle.
+the web build: development serves the host store, while packaged desktop and
+built self-host download it in the app (see
+[Optional offline speech models](#optional-offline-speech-models)).
 
 Startup and builds do not acquire models implicitly. Browsers do not receive
 upstream acquisition URLs or credentials. The existing Pocket input license

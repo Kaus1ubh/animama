@@ -89,10 +89,19 @@ the editable loadout, a live view of changing files or a database backup.
 
 ## Feature pack
 
-A verified optional desktop distribution component that adds capability or assets,
-such as speech recognition, expanded Included content or document processing.
-It is distinct from a portable content import/export package and a wheel/npm
-software package set; installation alone does not equip an Anima.
+A verified optional desktop distribution component, installed by Electron's pack
+manager with a service restart, that adds capability or assets: expanded
+Included content or document processing. It is distinct from a **Model asset**,
+a portable content import/export package and a wheel/npm software package set;
+installation alone does not equip an Anima.
+
+## Model asset
+
+A pinned model file or multi-file set (a model asset set) that the backend
+downloads, verifies and activates in place, without a restart, on desktop and
+self-host: the Parakeet speech models, downloadable Pocket voices and the
+voice-cloning encoder. It is not a **Feature pack**, and installing one changes
+no provider or voice selection.
 
 ## App settings
 

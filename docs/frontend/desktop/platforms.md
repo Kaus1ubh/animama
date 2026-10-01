@@ -198,14 +198,14 @@ Test microphone permission by opening the `.app` normally (Finder or `open`):
 launching its executable directly through an automation harness can produce a
 different macOS privacy context. No application permission bypass is supported.
 
-Optional-pack verification requires skipping optional speech, real
-download/cancellation/install/restart/removal, and offline dictation. Review
-measured bytes for the one active pack, Parakeet. Expanded content and document
-processing are deferred from the first release; retain their lifecycle and
+Offline speech verification requires skipping optional speech, then real
+download, cancellation, interrupted resume, installation, removal and offline
+dictation from Voice settings, with no backend restart or window reload.
+Expanded content and document processing are deferred from the first release; retain their lifecycle and
 in-use/removal regression coverage without advertising their downloads.
 Those real artifact/native tests remain gated, not passed. A
 successful type check, mocked supervisor test, native database component probe,
-or unsigned core journey does not replace native optional-pack acceptance.
+or unsigned core journey does not replace native optional-download acceptance.
 
 Signed-release verification requires valid nested/outer signatures, notarization,
 stapling, measured DMG/ZIP size gates, the required-name installed-app smoke, manual
