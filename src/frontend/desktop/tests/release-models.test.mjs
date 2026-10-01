@@ -157,12 +157,17 @@ it("validates every model inventory and scan before yielding a publication plan"
   ).toThrow(/candidate|inventory/u);
 });
 
-it("derives all four current published model sets without acquiring their bytes", () => {
+function currentRuntime(editCatalog = (catalog) => catalog) {
   const runtime = path.join(temporary(), "runtime");
   writeJson(
     path.join(runtime, frozenAssetCatalog),
-    readJson(
-      path.join(repoRoot, "src/backend/animama/resources/model-assets.v1.json"),
+    editCatalog(
+      readJson(
+        path.join(
+          repoRoot,
+          "src/backend/animama/resources/model-assets.v1.json",
+        ),
+      ),
     ),
   );
   const modelId = "parakeet-tdt-0.6b-v2";
@@ -184,10 +189,27 @@ it("derives all four current published model sets without acquiring their bytes"
       },
     ],
   });
-  expect(sealReleaseModelManifests({ runtime })).toEqual([
+  return runtime;
+}
+
+it("derives all four current published model sets without acquiring their bytes", () => {
+  expect(sealReleaseModelManifests({ runtime: currentRuntime() })).toEqual([
     "parakeet-tdt-0.6b-v2",
     "parakeet-tdt-0.6b-v2-webgpu",
     "pocket-tts-voice-cloning",
     "pocket-tts-voices",
   ]);
+});
+
+it("refuses a backend asset set that is not its complete tracked manifest", () => {
+  const runtime = currentRuntime((catalog) => {
+    const gpu = catalog.assets.find(
+      (asset) => asset.id === "parakeet-stt-webgpu",
+    );
+    gpu.files = gpu.files.filter((file) => file.path !== "README.md");
+    return catalog;
+  });
+  expect(() => sealReleaseModelManifests({ runtime })).toThrow(
+    /catalog does not match/u,
+  );
 });

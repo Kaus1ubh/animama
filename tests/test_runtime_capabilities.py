@@ -9,14 +9,17 @@ import pytest
 from fastapi import FastAPI, HTTPException
 from sqlalchemy import delete
 
+from animama.adapters.model_assets import FilesystemModelAssetStore
 from animama.adapters.repositories.sqlalchemy.runtime_worker_repo import (
     clear_document_heartbeat,
     record_document_heartbeat,
 )
+from animama.app.services.model_asset_service import ModelAssetService
 from animama.app.services.user_file_processing_service import (
     UserFileProcessingConflictError,
     UserFileProcessingService,
 )
+from animama.domain.model_assets import ASSET_CATALOG_SCHEMA, parse_asset_catalog
 from animama.domain.request_principal import RequestPrincipal
 from animama.orm.runtime_worker import ORMRuntimeWorkerHeartbeat
 from animama.orm.user_file import ORMUserFile
@@ -25,9 +28,10 @@ from animama.server.config import Settings
 from animama.server.deps import get_async_session, get_current_principal
 from animama.server.routers import desktop_control, runtime_capabilities, user_files
 from tests.local_http_client import local_client
+from tests.test_model_asset_sets import FILES, GPU_FILES, GPU_MANIFEST, MANIFEST, SetRelease, _set_entry
 
 
-def _app(session, tmp_path, *, enabled=False):
+def _app(session, tmp_path, *, enabled=False, **settings):
     """Use real route dependencies with a deliberately separate test principal."""
 
     app = FastAPI()
@@ -35,9 +39,9 @@ def _app(session, tmp_path, *, enabled=False):
         animama_content_root=tmp_path / "content",
         animama_data_root=tmp_path / "data",
         animama_user_file_processing_enabled=enabled,
-        animama_parakeet_stt_enabled=False,
         animama_desktop_control_token="c" * 64,
         animama_document_worker_instance_id="expected-instance",
+        **{"animama_parakeet_stt_enabled": False, **settings},
     )
     app.state.local_runtime_paths = SimpleNamespace(included_sources=(), operations_root=tmp_path / "operations")
     app.include_router(runtime_capabilities.router)
@@ -86,6 +90,7 @@ async def test_capabilities_separate_pack_presence_and_worker_liveness(
         assert body["runtime_kind"] == "desktop"
         assert body["offline_speech_enabled"] is False
         assert body["offline_speech_asset_version"] is None
+        assert body["offline_speech_gpu_asset_version"] is None
         processing = body["user_file_processing"]
         assert processing["enabled"] is enabled
         assert processing["worker_state"] == expected
@@ -95,6 +100,66 @@ async def test_capabilities_separate_pack_presence_and_worker_liveness(
         assert "c" * 64 not in response.text
     await async_session.execute(delete(ORMRuntimeWorkerHeartbeat))
     await async_session.commit()
+
+
+async def test_operator_parakeet_source_reports_its_launch_versions(async_session, tmp_path):
+    app = _app(
+        async_session,
+        tmp_path,
+        animama_parakeet_stt_enabled=True,
+        animama_parakeet_asset_version="0.1.0-base",
+        animama_parakeet_webgpu_asset_version="0.1.1-gpu",
+    )
+    async with local_client(app) as client:
+        body = (await client.get("/v1/runtime-capabilities")).json()
+    assert (body["offline_speech_enabled"], body["offline_speech_asset_version"]) == (True, "0.1.0-base")
+    assert body["offline_speech_gpu_asset_version"] == "0.1.1-gpu"
+
+
+@pytest.mark.parametrize("operator_enabled", [True, False])
+async def test_asset_store_offline_speech_follows_installs_without_a_restart(async_session, tmp_path, operator_enabled):
+    app = _app(
+        async_session,
+        tmp_path,
+        animama_parakeet_source="asset-store",
+        animama_parakeet_stt_enabled=operator_enabled,
+        # Launch versions belong to the operator source and are ignored here.
+        animama_parakeet_asset_version="0.1.0-base",
+    )
+    service = ModelAssetService(
+        parse_asset_catalog(
+            {
+                "schema": ASSET_CATALOG_SCHEMA,
+                "assets": [
+                    _set_entry("parakeet-stt", "speech-model", FILES, MANIFEST),
+                    _set_entry(
+                        "parakeet-stt-webgpu", "speech-gpu-model", GPU_FILES, GPU_MANIFEST, requires=["parakeet-stt"]
+                    ),
+                ],
+            }
+        ),
+        FilesystemModelAssetStore(tmp_path / "data"),
+        SetRelease().fetcher(),
+    )
+    app.state.model_asset_service = service
+
+    async def capabilities():
+        body = (await client.get("/v1/runtime-capabilities")).json()
+        return (
+            body["offline_speech_enabled"],
+            body["offline_speech_asset_version"],
+            body["offline_speech_gpu_asset_version"],
+        )
+
+    async with local_client(app) as client:
+        assert await capabilities() == (False, None, None)
+        for asset_id in ("parakeet-stt", "parakeet-stt-webgpu"):
+            service.install(asset_id)
+            assert (await service.wait(asset_id)).status == "installed"
+        assert await capabilities() == (operator_enabled, MANIFEST, GPU_MANIFEST)
+        await service.remove("parakeet-stt-webgpu")
+        await service.remove("parakeet-stt")
+        assert await capabilities() == (False, None, None)
 
 
 async def test_api_guard_returns_409_before_looking_up_or_queueing_a_file(async_session, tmp_path):

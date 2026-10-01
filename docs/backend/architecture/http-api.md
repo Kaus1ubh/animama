@@ -93,6 +93,7 @@ Tests use explicit fixture bootstrap and dependency overrides.
   },
   "offline_speech_enabled": false,
   "offline_speech_asset_version": null,
+  "offline_speech_gpu_asset_version": null,
   "companion_safety": {
     "enabled": true,
     "ai_notice_enabled": true,
@@ -121,7 +122,12 @@ starting/stale. A disabled capability returns `409` with
 requests before repository lookup or enqueue. Original-file upload/finalization
 and existing indexed-file search still work. React checks fresh capability
 metadata before enqueue and before creating an offline speech worker. The
-asset version is an opaque cache key, never a path or credential.
+asset versions (base and WebGPU Parakeet) are opaque cache keys, never paths or
+credentials. Offline speech values are computed on every request from the
+composition's `ANIMAMA_PARAKEET_SOURCE`: `operator` (the default) reports
+`ANIMAMA_PARAKEET_STT_ENABLED` and the launch asset versions; `asset-store`
+requires that flag and an installed `parakeet-stt` set, and reports installed
+manifest digests, so installs and removals apply without a restart.
 `companion_safety` reports the operator's effective safety configuration
 (the global switch already applied); owner preferences live in user settings.
 `web_search.configuration` is true only in the local composition, which mounts
@@ -179,29 +185,51 @@ or returned to the browser. All routes use the admitted installation principal.
   catalog entry. `free_bytes` is the store filesystem's free space, or `null`
   when it cannot be measured.
 - `GET /v1/model-assets/{asset_id}` returns one state: `id`, `status`
-  (`not_installed`, `downloading`, `installed` or `failed`), `size_bytes`,
-  `required_free_bytes` (size plus 64 MiB headroom), `media_type`,
-  `license_ref`, and `content_url` when installed.
-  `bytes_downloaded`/`total_bytes` are set while downloading; `reason` is set
+  (`not_installed`, `downloading`, `installed` or `failed`), `size_bytes` (all
+  files), `required_free_bytes` (size plus 64 MiB headroom), `media_type`
+  (`null` for a multi-file set), `license_ref`, `files_total`,
+  `files_verified`, `requires` (asset IDs that must be installed first), and
+  when installed `version` (a set's manifest digest or a file's digest) plus,
+  for a single file, `content_url`.
+  `bytes_downloaded`/`total_bytes` are set while downloading and cover every
+  file, including bytes resumed from staging; `reason` is set
   when failed (`asset_download_failed`, `asset_host_not_allowed`,
   `asset_size_invalid`, `asset_hash_invalid`, `asset_store_failed` or
   `asset_insufficient_space`).
 - `POST /v1/model-assets/{asset_id}:install` returns `202` with the current
   state. It is idempotent: concurrent calls share one download and an installed
-  asset stays installed. With less than `required_free_bytes` free, nothing is
+  asset stays installed. A retry resumes from staged bytes. With less free
+  space than the remaining bytes plus 64 MiB, nothing is
   fetched and the state is `failed` with `asset_insufficient_space`
   (`asset_store_failed` when free space cannot be measured). Poll the
   state route for progress. A failed install can be retried with the same call.
   While the asset is being removed it returns
-  `409 {"detail": {"code": "model_asset_busy"}}`.
-- `DELETE /v1/model-assets/{asset_id}` cancels an in-flight download or removes
-  the installed file, returning the resulting state (`failed` with
-  `asset_store_failed` if the file cannot be deleted). A consumer guard may
-  refuse removal with `409 {"detail": {"code": "...", "details": {...}}}`; a
-  concurrent removal returns `model_asset_busy`.
-- `GET`/`HEAD /v1/model-assets/{asset_id}/content` serves installed bytes with
-  the SHA-256 as `ETag`, `If-None-Match` and single byte ranges. It returns
-  `404 {"detail": {"code": "model_asset_not_installed"}}` until installed.
+  `409 {"detail": {"code": "model_asset_busy"}}`; until every required asset
+  is installed it returns
+  `409 {"detail": {"code": "model_asset_requires", "details": {"requires": [...]}}}`.
+- `DELETE /v1/model-assets/{asset_id}` cancels an in-flight download
+  (discarding staged bytes) or removes the installed asset, returning the
+  resulting state (`failed` with `asset_store_failed` if it cannot be
+  deleted). Removal is refused with
+  `409 {"detail": {"code": "...", "details": {...}}}` while a use lease is live
+  (`model_asset_in_use`), while an asset that requires it is installed or
+  downloading (`model_asset_required_by`, `details.required_by`), or by a
+  consumer guard; a concurrent removal returns `model_asset_busy`.
+- `POST /v1/model-assets/{asset_id}:lease` with `{"lease_id": "..."}` (8–128
+  characters of `A-Z a-z 0-9 _ -`, chosen by the client) acquires or renews a
+  use lease on an installed asset and returns `asset_id`, `lease_id`,
+  `ttl_seconds` (30) and `expires_at`. Renew it about every 10 seconds while
+  the asset is loaded. It returns `409` with `model_asset_not_installed`,
+  `model_asset_busy` or `model_asset_lease_limit` (32 live leases per asset).
+  `DELETE /v1/model-assets/{asset_id}/leases/{lease_id}` releases it (`204`,
+  also for an unknown or expired lease). Leases are in memory, so a backend
+  restart clears them.
+- `GET`/`HEAD /v1/model-assets/{asset_id}/content` serves an installed single
+  file with the SHA-256 as `ETag`, `If-None-Match` and single byte ranges. It
+  returns `404 {"detail": {"code": "model_asset_not_installed"}}` until
+  installed. Sets have no content route; with `ANIMAMA_PARAKEET_SOURCE=asset-store`
+  the Parakeet sets are served at `/onnx/models/parakeet-tdt-0.6b-v2[-webgpu]/`
+  with `?v=<manifest digest>` pinning.
 
 Unknown IDs return `404 {"detail": {"code": "model_asset_not_found"}}`. Store
 location and recovery are in [model assets](../operations/model-assets.md#downloaded-model-assets).

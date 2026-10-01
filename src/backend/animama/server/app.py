@@ -182,7 +182,7 @@ def create_local_app(
     lifecycle = install_local_http(
         application,
         http_config,
-        assets=local_assets(local_settings),
+        assets=local_assets(local_settings, application),
         telemetry=local_telemetry(http_config),
     )
     # Outermost, so everything a request runs sees the keys it was admitted with.

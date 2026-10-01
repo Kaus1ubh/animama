@@ -1,6 +1,6 @@
 # 0012: Parakeet speech models as backend model assets
 
-- Status: proposed
+- Status: accepted
 - Recorded: 2026-10-01
 - Retrospective: no
 - Original decision date: 2026-10-01 (owner decisions in issue #221)

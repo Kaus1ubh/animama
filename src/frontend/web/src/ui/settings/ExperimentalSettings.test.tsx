@@ -206,6 +206,8 @@ const encoder: PyModelAssetState = {
   required_free_bytes: 1.3 * GIB,
   media_type: "application/octet-stream",
   license_ref: "CC-BY-4.0",
+  files_total: 1,
+  files_verified: 0,
 };
 
 function renderAsset(

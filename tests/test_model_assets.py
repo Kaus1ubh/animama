@@ -115,18 +115,123 @@ def release() -> Release:
 # Catalog
 
 
-def test_packaged_catalog_pins_the_tracked_webgpu_encoder() -> None:
-    manifest_path = Path(__file__).resolve().parents[1] / "models" / "parakeet-tdt-0.6b-v2-webgpu" / "manifest.json"
-    manifest = json.loads(manifest_path.read_text())
-    encoder = next(file for file in manifest["files"] if file["path"] == "encoder-model.fp16.onnx")
+REPOSITORY = Path(__file__).resolve().parents[1]
+# Each Parakeet set is exactly its tracked manifest, published content-addressed.
+PARAKEET_SETS = {"parakeet-stt": "parakeet-tdt-0.6b-v2", "parakeet-stt-webgpu": "parakeet-tdt-0.6b-v2-webgpu"}
 
-    asset = next(a for a in load_packaged_asset_catalog().assets if a.id == "parakeet-tdt-0.6b-v2-webgpu-encoder")
-    assert (asset.size, asset.sha256) == (encoder["size"], encoder["sha256"])
-    # Published content-addressed: the URL directory is the file's own digest.
-    assert asset.url == (
-        f"https://downloads.animama.ai/models/{manifest['model_id']}/{encoder['sha256']}/encoder-model.fp16.onnx"
-    )
+
+@pytest.mark.parametrize(("asset_id", "model_id"), sorted(PARAKEET_SETS.items()))
+def test_packaged_parakeet_sets_equal_their_tracked_manifests(asset_id: str, model_id: str) -> None:
+    manifest_path = REPOSITORY / "models" / model_id / "manifest.json"
+    manifest = json.loads(manifest_path.read_bytes())
+
+    asset = load_packaged_asset_catalog().get(asset_id)
+    assert asset is not None and asset.is_set
+    # The version directory is the digest of the manifest's exact bytes, as in scripts/models/parakeet.py.
+    assert asset.manifest_sha256 == hashlib.sha256(manifest_path.read_bytes()).hexdigest()
+    assert [(file.path, file.size, file.sha256, file.url) for file in asset.files] == [
+        (
+            entry["path"],
+            entry["size"],
+            entry["sha256"],
+            f"https://downloads.animama.ai/models/{model_id}/{entry['sha256']}/{entry['path']}",
+        )
+        for entry in manifest["files"]
+    ]
+    assert asset.size == sum(entry["size"] for entry in manifest["files"])
     assert asset.license_ref == manifest["license"]
+    # The notices that ship with the weights are reviewed source inputs.
+    reviewed = {
+        record["path"] for record in json.loads((REPOSITORY / "licenses" / "source-review.json").read_text())["files"]
+    }
+    assert {f"models/{model_id}/ATTRIBUTION.md", f"models/{model_id}/README.md"} <= reviewed
+
+
+def test_packaged_catalog_orders_parakeet_sets_and_drops_the_old_encoder() -> None:
+    catalog = load_packaged_asset_catalog()
+    assert catalog.get("parakeet-tdt-0.6b-v2-webgpu-encoder") is None
+    gpu, base = catalog.get("parakeet-stt-webgpu"), catalog.get("parakeet-stt")
+    assert gpu is not None and gpu.requires == ("parakeet-stt",)
+    assert base is not None and base.requires == ()
+    assert [asset.id for asset in catalog.required_by("parakeet-stt")] == ["parakeet-stt-webgpu"]
+
+
+def _set_entry(asset_id: str = "speech-set", **overrides: object) -> dict[str, object]:
+    entry: dict[str, object] = {
+        "id": asset_id,
+        "manifest_sha256": "a" * 64,
+        "license_ref": "CC-BY-4.0",
+        "files": [
+            {"path": "README.md", "url": f"{RELEASE}/{DIGEST}/README.md", "size": 3, "sha256": "b" * 64},
+            {"path": "model.onnx", "url": f"{RELEASE}/{DIGEST}/model.onnx", "size": 5, "sha256": "c" * 64},
+        ],
+    }
+    entry.update(overrides)
+    return entry
+
+
+def test_catalog_parses_sets_with_requirements() -> None:
+    catalog = _catalog(_set_entry("base-set"), _set_entry("gpu-set", requires=["base-set"]), _entry())
+    base, gpu, voice = (catalog.get(name) for name in ("base-set", "gpu-set", "voice-a"))
+    assert base is not None and gpu is not None and voice is not None
+    assert (base.is_set, base.version, base.size, base.media_type) == (True, "a" * 64, 8, None)
+    assert [(file.path, file.media_type) for file in base.files] == [
+        ("README.md", "text/plain; charset=utf-8"),
+        ("model.onnx", "application/octet-stream"),
+    ]
+    assert gpu.requires == ("base-set",)
+    assert (voice.is_set, voice.version, voice.media_type) == (False, DIGEST, "application/octet-stream")
+    assert base.free_bytes_needed(5) == 3 + INSTALL_HEADROOM_BYTES
+
+
+def _set_files(**overrides: object) -> list[dict[str, object]]:
+    return [{"path": "model.onnx", "url": f"{RELEASE}/model.onnx", "size": 5, "sha256": "c" * 64, **overrides}]
+
+
+@pytest.mark.parametrize(
+    "entries",
+    [
+        [_set_entry(manifest_sha256="A" * 64)],
+        [_set_entry(manifest_sha256=None)],
+        [_set_entry(files=[])],
+        [_set_entry(files=_set_files() * 2)],
+        [_set_entry(files=_set_files(path="../escape"))],
+        [_set_entry(files=_set_files(path=".hidden"))],
+        [_set_entry(files=_set_files(path="nested/model.onnx"))],
+        [_set_entry(files=_set_files(url="https://example.com/model.onnx"))],
+        [_set_entry(files=_set_files(size=0))],
+        [_set_entry(files=_set_files(extra=1))],
+        [_set_entry(files=_set_files(media_type="application/octet-stream"))],
+        [{**_set_entry(), "url": f"{RELEASE}/model.onnx"}],
+        [_set_entry(requires=["missing"])],
+        [_set_entry(requires="speech-set-base")],
+        [_set_entry(requires=[])],
+        [_set_entry(requires=["speech-set"])],
+        [_set_entry("a"), _set_entry("b", requires=["a"]), _set_entry("c", requires=["b"])],
+    ],
+    ids=[
+        "manifest-digest",
+        "no-manifest-digest",
+        "no-files",
+        "repeated-path",
+        "traversal",
+        "hidden",
+        "nested",
+        "host",
+        "size",
+        "extra-file-field",
+        "file-media-type",
+        "mixed-shape",
+        "unknown-requirement",
+        "requirement-shape",
+        "empty-requirements",
+        "self-requirement",
+        "nested-requirement",
+    ],
+)
+def test_catalog_rejects_invalid_sets(entries: list[dict[str, object]]) -> None:
+    with pytest.raises(ValueError):
+        parse_asset_catalog({"schema": ASSET_CATALOG_SCHEMA, "assets": entries})
 
 
 @pytest.mark.parametrize(
@@ -222,9 +327,14 @@ async def test_verified_install_is_served_with_ranges_and_etag(data_root: Path, 
     ],
     ids=["short", "long", "declared-length", "hash", "server-error", "redirect", "interrupted", "encoded"],
 )
-async def test_failed_downloads_leave_nothing(
-    data_root: Path, release: Release, response: Callable[[], httpx.Response], reason: str
+async def test_failed_downloads_install_nothing(
+    data_root: Path,
+    release: Release,
+    response: Callable[[], httpx.Response],
+    reason: str,
+    request: pytest.FixtureRequest,
 ) -> None:
+    reason_id = request.node.callspec.id
     release.routes["/voices/test/voice-a.bin"] = response
     release.serve("/voices/test/elsewhere.bin")
     service = _service(data_root, release)
@@ -235,7 +345,8 @@ async def test_failed_downloads_leave_nothing(
     assert (state.status, state.reason) == ("failed", reason)
     assert len(release.requests) == 1  # Redirects are never followed.
     assert _installed(data_root) == []
-    assert _staged(data_root) == []
+    # Only an interrupted transfer keeps its received prefix for resume; corrupt bytes are discarded.
+    assert [path.stat().st_size for path in _staged(data_root)] == ([100] if reason_id == "interrupted" else [])
     async with local_client(_app(service)) as client:
         assert (await client.get("/v1/model-assets/voice-a")).json()["reason"] == reason
         assert (await client.get("/v1/model-assets/voice-a/content")).status_code == 404
@@ -338,7 +449,7 @@ async def test_unknown_ids_are_refused_without_fetching(data_root: Path, release
 
 async def test_fetcher_refuses_hosts_outside_its_allowlist(data_root: Path, release: Release) -> None:
     # Bypass catalog parsing to prove the fetcher enforces the host boundary too.
-    outside = AssetDescriptor(**{**_entry(), "url": "https://example.com/voice-a.bin"})  # type: ignore[arg-type]
+    outside = AssetDescriptor.single_file(**{**_entry(), "url": "https://example.com/voice-a.bin"})  # type: ignore[arg-type]
     service = _service(data_root, release, AssetCatalog((outside,)))
 
     service.install("voice-a")
@@ -353,10 +464,10 @@ async def test_fetcher_refuses_hosts_outside_its_allowlist(data_root: Path, rele
     ["https://example.com/voice-a.bin", "https://downloads.animama.ai:8443/voice-a.bin"],
 )
 async def test_fetcher_refuses_other_hosts_and_ports_directly(release: Release, url: str) -> None:
-    # A stand-in descriptor, since real descriptors already reject these URLs.
-    asset = SimpleNamespace(id="voice-a", url=url)
+    # A stand-in file, since real descriptors already reject these URLs.
+    file = SimpleNamespace(url=url, size=len(PAYLOAD))
     with pytest.raises(AssetFetchError) as refused:
-        async with release.fetcher().stream(asset):  # type: ignore[arg-type]
+        async with release.fetcher().stream("voice-a", file):  # type: ignore[arg-type]
             pass
     assert refused.value.reason == "asset_host_not_allowed"
     assert release.requests == []
@@ -508,8 +619,8 @@ def test_service_start_discards_stale_staging(data_root: Path, release: Release)
 
     _service(data_root, release)
 
+    # Legacy flat staging files can never resume.
     assert _staged(data_root) == []
-    assert not staging.exists()
 
 
 async def _chunks(body: bytes) -> AsyncIterator[bytes]:

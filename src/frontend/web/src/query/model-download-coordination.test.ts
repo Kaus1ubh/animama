@@ -29,6 +29,8 @@ const missing: PyModelAssetState = {
   required_free_bytes: 10,
   media_type: "application/octet-stream",
   license_ref: "CC-BY-4.0",
+  files_total: 1,
+  files_verified: 0,
 };
 let client: QueryClient;
 let storage: Map<string, string>;

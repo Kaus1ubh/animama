@@ -13,6 +13,7 @@ from animama.domain.request_principal import RequestPrincipal
 from animama.orm.runtime_worker import ORMRuntimeWorkerHeartbeat
 from animama.server.config import Settings, settings
 from animama.server.deps import get_async_session, get_current_principal
+from animama.server.model_assets import parakeet_availability
 from animama.server.routers.model_provider import get_model_catalog_policy
 from animama.server.web_search import composition_web_search_enabled, web_search_credential_state
 
@@ -59,7 +60,11 @@ class RuntimeCapabilities(BaseModel):
     """Whether the owner may manage model connections, models and roles."""
     user_file_processing: UserFileProcessingCapability
     offline_speech_enabled: bool
+    """Whether offline speech recognition (Parakeet) can be used now; read on every request."""
     offline_speech_asset_version: str | None
+    """The active base Parakeet version, pinned by the browser with ``?v=``."""
+    offline_speech_gpu_asset_version: str | None = None
+    """The active WebGPU Parakeet version, or null when that set is unavailable."""
     companion_safety: CompanionSafetyCapability
     web_search: WebSearchCapability = Field(default_factory=WebSearchCapability)
 
@@ -85,6 +90,7 @@ async def get_runtime_capabilities(
             last_heartbeat_at = heartbeat.heartbeat_at
             state = "ready" if heartbeat.heartbeat_at >= datetime.now(UTC) - timedelta(seconds=20) else "stale"
     desktop = bool(runtime_settings.animama_desktop_control_token)
+    speech = parakeet_availability(request.app, runtime_settings)
     safety = runtime_settings.companion_safety
     web_search = WebSearchCapability()
     if composition_web_search_enabled(request.app):
@@ -105,8 +111,9 @@ async def get_runtime_capabilities(
             operator_reminder_hours=safety.reminder_interval.total_seconds() / 3600,
         ),
         runtime_kind="desktop" if desktop else "self_hosted_web",
-        offline_speech_enabled=runtime_settings.animama_parakeet_stt_enabled,
-        offline_speech_asset_version=runtime_settings.animama_parakeet_asset_version,
+        offline_speech_enabled=speech.enabled,
+        offline_speech_asset_version=speech.asset_version,
+        offline_speech_gpu_asset_version=speech.gpu_asset_version,
         user_file_processing=UserFileProcessingCapability(
             enabled=enabled,
             worker_state=state,

@@ -86,7 +86,7 @@ guides, and:
 ## Progress
 
 - [x] Plan: approved by the owner on 2026-10-01.
-- [ ] Phase 1: backend Parakeet sets (download, resume, activation, leases, serving, live capabilities).
+- [x] Phase 1: backend Parakeet sets — implemented, reviewed (round 1 pass, fixes applied).
 - [ ] Phase 2: desktop and self-host cutover, pack removal, speech download UI.
 - [ ] Phase 3: OpenRouter preset, model metadata and hidden built-ins (backend).
 - [ ] Phase 4: App Settings → Models Cloud | Local and feature-local keys.
@@ -213,8 +213,9 @@ Agent decisions (2026-10-01; the owner may change them at plan review):
 
 ## Phased implementation
 
-Phase issues are created at implementation start, one per phase, as children of
-#221 (SDLC). Commit subjects use `<type>(<scope>)[p#]: <summary>`.
+Phase issues (sub-issues of #221, created 2026-10-01): Phase 1 #229, Phase 2
+#230, Phase 3 #231, Phase 4 #232, Phase 5 #233, Phase 6 #234. Plan commit
+`afd52e18`. Commit subjects use `<type>(<scope>)[p#]: <summary>`.
 
 ### Phase 1: Backend Parakeet sets
 
@@ -264,13 +265,77 @@ Checks: `uv run pytest -q`, `uv run ruff check`, `make check-test`,
 Completion: checks pass, review #1 has no unresolved blockers, and the phase
 commit is recorded.
 
+Results (2026-10-01), delegated implementation integrated and reviewed here:
+
+- Catalog sets `parakeet-stt` (7 files) and `parakeet-stt-webgpu` (3 files,
+  `requires: ["parakeet-stt"]`), `manifest_sha256` = SHA-256 of the manifest
+  bytes (as `scripts/models/parakeet.py`), `license_ref` `CC-BY-4.0`. The
+  encoder entry is removed and pruned at startup.
+- Staging at `staging/model-assets/<id>/<version>/<path>` survives restarts and
+  is rehashed on reopen; activation is one directory `os.replace`.
+- Lease routes: `POST /v1/model-assets/{id}:lease` with `{lease_id}`
+  (8–128 `[A-Za-z0-9_-]`) → `{asset_id, lease_id, ttl_seconds, expires_at}`;
+  `DELETE /v1/model-assets/{id}/leases/{lease_id}` → 204, idempotent. Leasing
+  an uninstalled asset → `409 model_asset_not_installed`. ≤ 32 leases per asset.
+- Schema adds `files_total`, `files_verified`, `version`, `requires`;
+  `media_type` is nullable (null for sets); `content_url` only for installed
+  single files. Capabilities add `offline_speech_gpu_asset_version`.
+- **Deviation (recorded per P1-R1-F2):** `ANIMAMA_PARAKEET_SOURCE` defaults to
+  `operator` in every composition so the existing desktop mount JSON and
+  development serving keep working until Phase 2, which sets `asset-store`
+  for packaged desktop and built self-host. With `asset-store`, operator mount
+  JSON is refused.
+- Release scripts: `model-publication.mjs` `catalogFileReferences()` checks a
+  set lists its manifest's complete inventory.
+- Known interim break until Phase 2: the web client still requests the removed
+  encoder id (P1-R1-F3).
+- Checks (implementer, before review fixes): `timeout 1500 uv run --no-sync
+  pytest -q` 3031 passed, 7 skipped; `make check-test` pass; `ruff check`,
+  `make format-check`, import-boundary script pass; `pnpm desktop:test` 401
+  passed; `pnpm check` and `pnpm openapi-ts:check` pass; affected web test
+  files 52 passed. Not run in this phase: full `pnpm web:test`, `pnpm build`,
+  Compose config checks.
+
 #### Code Review #1 Findings
 
-Pending.
+Reviewed the working tree against `afd52e18` (sdlc-reviewer, initial round).
+Targeted backend suites 222 passed; ruff, format, import boundary,
+`openapi-ts:check`, `pnpm check`, release-model desktop tests (36) pass.
+Result: pass, no blockers.
+
+- **P1-R1-F1 (minor):** `install()` ignored a requirement that is mid-removal,
+  so a WebGPU install could start after the base set passed the dependency
+  guard but before its directory was deleted.
+- **P1-R1-F2 (minor):** the `operator` default for `ANIMAMA_PARAKEET_SOURCE`
+  deviates from Phase 1 step 8 without a plan record.
+- **P1-R1-F3 (minor until Phase 2):** built self-host's WebGPU download and
+  `docs/frontend/runtime/voice.md` still use the removed encoder id.
+- **P1-R1-F4 (nit):** untested paths: reinstall over an incomplete leftover
+  version directory; dependency guard while the dependent downloads; cancel
+  during commit.
+- **P1-R1-F5 (nit):** small filesystem calls on the event loop; a cancel
+  during prefix rehash leaves a staged file to GC.
+- **P1-R1-F6 (nit):** tests import private helpers from another test module.
 
 #### Code Review #1 Revisions
 
-Pending.
+- **F1 accepted, fixed:** a requirement in `_removing` counts as missing. New
+  test `test_a_dependent_cannot_start_while_its_requirement_is_being_removed`
+  failed before the fix and passes after.
+- **F2 accepted:** recorded above, and Phase 2 step 2 sets `asset-store`.
+- **F3 accepted, deferred to Phase 2** (client asset ids, Vite config and
+  voice docs) before the PR.
+- **F4 partly accepted:** added
+  `test_a_requirement_cannot_be_removed_while_its_dependent_downloads` and
+  `test_reinstall_replaces_an_incomplete_leftover_version_directory` (both
+  pass). Cancel during commit is not separately tested: commit runs in one
+  blocking call that cancel cannot interrupt mid-rename.
+- **F5 declined:** bounded `lstat` calls and one-time prune are acceptable at
+  this scale; noted for future profiling.
+- **F6 declined:** a nit; the helpers stay with the set tests they describe.
+- Checks after fixes: set, asset and source suites 88 passed; `ruff check`
+  and format check pass. Repair budget: a targeted round-2 recheck of F1 and
+  F4 remains; one further round reserved.
 
 ### Phase 2: Desktop and self-host cutover
 
@@ -291,7 +356,8 @@ Changes:
    asset-catalog consumers (the `parakeet-tdt-0.6b-v2` special case becomes a
    catalog reference).
 2. `supervisor.ts`: drop the Parakeet env and mount JSON. The backend gets
-   `ANIMAMA_PARAKEET_SOURCE=asset-store`. Backend `domain/feature_packs.py` and
+   `ANIMAMA_PARAKEET_SOURCE=asset-store`, and built Compose sets the same
+   (Phase 1 keeps `operator` as the default). Backend `domain/feature_packs.py` and
    `desktop_control.py` lose the Parakeet ids and versions.
 3. Compose built: remove the web-root Parakeet bind and the Dockerfile base URL.
    `reset.sh` stops disabling STT for built mode (capabilities are live) but
@@ -299,7 +365,8 @@ Changes:
    `test_compose_network_boundaries.py`/`test_local_state_scripts.py`.
 4. `web/vite.config.ts`: build mode uses the FastAPI `/onnx/models/...` paths
    for both sets (desktop and self-host). Serve mode keeps operator paths.
-   Remove the `pack` encoder source.
+   Remove the `pack` encoder source and the old encoder asset id in
+   `client-parakeet/assets.ts` and `docs/frontend/runtime/voice.md` (P1-R1-F3).
 5. Renderer: one `OfflineSpeechDownloads` component on `useModelAssets` for
    desktop and built self-host: the "Offline speech recognition (Parakeet)"
    block with a CPU download that shows its size, and a nested "GPU
@@ -366,13 +433,54 @@ Completions, the hidden seed default with in-use visibility preserved, and
 hosted policy routes absent.
 Checks: backend checks plus `pnpm openapi-ts` regeneration.
 
+Results (2026-10-01): implemented in an isolated worktree from `afd52e18` on
+local branch `feat/p3-openrouter`, commits `c208bc78` (phase) and `aad32460`
+(review fix), integrated onto the plan branch after Phase 1.
+
+- Preset `openrouter` with a `request_headers` field applied in
+  `connection_sdk.py` after the omitted-header logic; `OPENROUTER_API_KEY`
+  allowlisted; compose pass-through.
+- `GET /v1/model-connection-presets/openrouter/models` returns `{models: [...]}`
+  (fixed URL, no key, no redirects, 10 s, 8 MiB, ≤ 2000 models, 10-minute cache
+  of successes only; upstream failures → `502 openrouter_models_unavailable`).
+- Built-in `OpenAIHTTPAgent` chat rows are seeded `hidden` (insert-only).
+  `0001_baseline.sql` needed no change; seeds live in `alembic/seeds`.
+- Step 5 skipped: model-connection rows already expose
+  `structured_output_transport`.
+- Implementer checks: `make check-test` 3014 passed, 7 skipped; `ruff check`,
+  `make format-check`, import-boundary script, `pnpm check`,
+  `pnpm openapi-ts:check` pass.
+- Phase 4 notes: no `openrouter` provider logo yet; frontend tabs do not list
+  the preset until Phase 4.
+
 #### Code Review #1 Findings
 
-Pending.
+Reviewed `c208bc78` against `afd52e18` (sdlc-reviewer, initial round). Targeted
+tests 96 passed; ruff, format, import boundary and `openapi-ts:check` pass.
+Result: pass, no blockers.
+
+- **P3-R1-F1 (minor):** the Chat Completions client cache key
+  `(connection.id, base_url, timeout)` omits the preset, so after a preset
+  change a cached client keeps sending (or omitting) the attribution headers
+  until restart.
+- **P3-R1-F2 (nit):** function-local import in `builtin_hidden_by_default`
+  without an explanation.
+- **P3-R1-F3 (nit):** OpenRouter preset sets the default `reasoning_mode`
+  explicitly.
 
 #### Code Review #1 Revisions
 
-Pending.
+- **F1 accepted, fixed** in `aad32460`: the cache key includes
+  `connection.preset`. New test
+  `test_changing_a_connection_preset_rebuilds_its_cached_client` failed before
+  the fix and passes after. Targeted suites (OpenRouter, live credentials,
+  model client registry, catalog) 95 passed; ruff and format pass.
+- **F2 accepted, comment only:** moving the import to module level causes a
+  circular import (verified: collection fails), so the import stays local with
+  a comment.
+- **F3 declined:** the explicit value documents intent; no behavior impact.
+- Repair budget: one targeted recheck (round 2) of F1/F2 remains to run with
+  the integrated branch; one further round reserved.
 
 ### Phase 4: App Settings → Models Cloud | Local and feature-local keys
 

@@ -140,22 +140,31 @@ Installed desktop packs remain separately owned under Application Support.
 
 ## Downloaded model assets
 
-The backend's shared downloader installs individual pinned files on demand
-through [`/v1/model-assets`](../architecture/http-api.md#model-assets). It is
-the same FastAPI code on desktop and self-host, and it needs no restart.
+The backend's shared downloader installs pinned files and multi-file sets on
+demand through [`/v1/model-assets`](../architecture/http-api.md#model-assets).
+It is the same FastAPI code on desktop and self-host, and it needs no restart.
 
 - Only files in the release's packaged catalog
   (`src/backend/animama/resources/model-assets.v1.json`) are fetched, over
   HTTPS from `downloads.animama.ai` on the default port, without following
   redirects or accepting compressed transfer encodings.
-- Each file is streamed to `<data_root>/staging/model-assets/`, checked for its
-  exact size and SHA-256, then renamed into
-  `<data_root>/internal/model-assets/<asset_id>/<sha256>`. A failed or
-  cancelled download leaves nothing installed; staging is cleared at startup.
+- Each file is streamed to
+  `<data_root>/staging/model-assets/<asset_id>/<version>/` and checked for its
+  exact size and SHA-256. A single file is then renamed into
+  `<data_root>/internal/model-assets/<asset_id>/<sha256>`; a set's complete
+  staging directory is renamed into
+  `<data_root>/internal/model-assets/<asset_id>/<manifest_sha256>/` in one step,
+  replacing any previous version. A failed or cancelled download leaves nothing
+  installed, and a partial set is never served.
+- Staged bytes survive failures and restarts. A retry rehashes them and
+  requests only the remainder with an HTTP range (a `200` reply restarts that
+  file). A file failing its size or digest is discarded and downloaded again;
+  Remove/cancel discards all staged bytes. Startup deletes staging that cannot
+  resume and stored assets whose IDs left the catalog.
 - `<data_root>` is `ANIMAMA_DATA_ROOT`: `<userData>/data` on desktop and
   `/var/lib/animama/data` in Compose (the `ANIMAMA_DATA_HOST_PATH` bind
   mount), so installs persist with that data. There is no quota; an install
-  starts only with its size plus 64 MiB free on that filesystem.
+  starts only with its remaining bytes plus 64 MiB free on that filesystem.
 - `scripts/backup-local.sh` and restore rollbacks omit installed and staged
   model assets. After a restore they report not installed; download them again
   in the app.
@@ -163,15 +172,21 @@ the same FastAPI code on desktop and self-host, and it needs no restart.
 Each catalog URL names an object published once under
 `https://downloads.animama.ai/models/<model-id>/<file-sha256>/<file-name>`,
 with the entry's `size` and `sha256` copied from the model's tracked manifest.
+A set entry lists every manifest file (`files`) and the digest of the
+manifest's bytes (`manifest_sha256`), and may name `requires`.
 Tests bind the entry to that manifest, and the
 [model publish command](../../frontend/desktop/releases.md#model-objects)
 refuses to publish a set whose objects do not match the catalog. Publish the
 object before a release ships its catalog entry; until then an install fails
 as `asset_download_failed`.
 
-Current catalog entries are the experimental Parakeet WebGPU encoder, offered in
-built self-host settings, the 36 downloadable Pocket TTS voices
-(`pocket-voice-<id>`, set `models/pocket-tts-voices`). The voices install on
+Current catalog entries are the Parakeet sets `parakeet-stt` (base, seven
+files) and `parakeet-stt-webgpu` (three files; requires `parakeet-stt`, which
+cannot be removed while it is installed), and the 36 downloadable Pocket TTS
+voices (`pocket-voice-<id>`, set `models/pocket-tts-voices`). FastAPI serves
+installed Parakeet sets, and reports them in runtime capabilities, only when
+the composition sets `ANIMAMA_PARAKEET_SOURCE=asset-store`; the default
+`operator` source keeps launch-supplied mounts and versions. The voices install on
 desktop and self-host when a user picks one, explicitly downloads it, or a saved
 voice is first needed. The separate `pocket-tts-voice-cloning-encoder` asset is
 downloaded on an explicit cloning/download action. Ordinary playback and saved
@@ -182,9 +197,9 @@ Use the downloader for restart-free data files the running app can pick up,
 such as optional voices. Large bundles that need a service switch, such as the
 desktop Parakeet feature packs, stay in Electron's pack manager.
 
-Use the app's Remove action before reinstalling. Backend downloads restart from
-the beginning after cancellation or service interruption; they do not share the
-desktop pack manager's byte-range resume. Never edit an installed file in place.
+Use the app's Remove action before reinstalling. Never edit an installed file in
+place. A renderer using an installed asset holds a short use lease, and removal
+is refused while it is live.
 
 ## Optional Parakeet WebGPU encoder
 
@@ -225,12 +240,13 @@ Where each build gets it:
 - **Vite development stacks** (including `desktop:dev`) serve this
   operator-provided set at `/__client-parakeet-webgpu-models/`. Acquire it on
   the host and rerun `reset.sh` for a running stack.
-- **Built self-host** downloads it in the app (App Settings → Voice →
-  Speech-to-Text) as the model asset
-  `parakeet-tdt-0.6b-v2-webgpu-encoder`, from its published object under `models/` on `downloads.animama.ai`, into the
-  data root (see [Downloaded model assets](#downloaded-model-assets)). The
-  host model store is not used, and a host that cannot reach
-  `downloads.animama.ai` cannot enable WebGPU.
+- **Built self-host** downloads it in the app as the `parakeet-stt-webgpu`
+  model asset set, from its published objects under `models/` on
+  `downloads.animama.ai`, into the data root (see
+  [Downloaded model assets](#downloaded-model-assets)). The former single-file
+  `parakeet-tdt-0.6b-v2-webgpu-encoder` asset is removed at startup and must be
+  downloaded again. The host model store is not used, and a host that cannot
+  reach `downloads.animama.ai` cannot enable WebGPU.
 - **Packaged desktop** serves it only from the active `parakeet-stt-webgpu`
   pack at `/onnx/models/parakeet-tdt-0.6b-v2-webgpu/`, and only beside an
   active `parakeet-stt` pack.

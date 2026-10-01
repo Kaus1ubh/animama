@@ -1,6 +1,7 @@
 # 0010: Shared voice model objects and optional downloads
 
-- Status: accepted
+- Status: accepted; items 2, 8 (Parakeet clause), 3 (built self-host) and 9
+  (setup draft, GPU visibility) superseded by [0012](0012-backend-parakeet-model-assets.md)
 - Recorded: 2026-09-28
 - Retrospective: no
 - Original decision date: 2026-09-28

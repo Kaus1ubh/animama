@@ -4,6 +4,7 @@ import logging
 import os
 from datetime import timedelta
 from pathlib import Path
+from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -82,6 +83,12 @@ class Settings(BaseModel):
     animama_document_pack_version: str | None = _env_text("ANIMAMA_DOCUMENT_PACK_VERSION")
     animama_docling_artifacts_path: Path | None = _env_path("ANIMAMA_DOCLING_ARTIFACTS_PATH")
     animama_parakeet_stt_enabled: bool = _env_bool("ANIMAMA_PARAKEET_STT_ENABLED", True)
+    # Where Parakeet sets come from: "operator" launch input (mount JSON, asset
+    # versions; Electron packs and Vite development) or the backend model-asset
+    # store ("asset-store"), whose installs apply without a restart.
+    animama_parakeet_source: Literal["asset-store", "operator"] = Field(
+        default_factory=lambda: _env_text("ANIMAMA_PARAKEET_SOURCE") or "operator", validate_default=True
+    )
     animama_parakeet_asset_version: str | None = _env_text("ANIMAMA_PARAKEET_ASSET_VERSION")
     animama_parakeet_webgpu_asset_version: str | None = _env_text("ANIMAMA_PARAKEET_WEBGPU_ASSET_VERSION")
     # Native/frozen entrypoints validate loopback. The dedicated Compose

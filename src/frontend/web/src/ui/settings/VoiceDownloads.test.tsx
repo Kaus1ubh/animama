@@ -115,6 +115,8 @@ describe("optional speech synthesis downloads", () => {
     required_free_bytes: 39_768_446,
     media_type: "application/octet-stream",
     license_ref: "pocket-tts-voice-cloning",
+    files_total: 1,
+    files_verified: 0,
   };
   beforeEach(() => {
     manager.assets = [{ ...encoder }];

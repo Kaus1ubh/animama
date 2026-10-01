@@ -8,6 +8,7 @@ from typing import Any
 
 import httpx
 import pytest
+from fastapi import FastAPI
 
 from animama.local.http.protocol import LocalH11Protocol
 from animama.runtime import cli
@@ -86,9 +87,9 @@ def test_webgpu_mount_reads_its_own_launch_setting_and_requires_the_built_root(
     monkeypatch.delenv("ANIMAMA_PARAKEET_MODEL_MOUNT_JSON", raising=False)
     monkeypatch.delenv("ANIMAMA_WEB_ROOT", raising=False)
     with pytest.raises(ValueError, match="built application root"):
-        local_assets(Settings())
+        local_assets(Settings(), FastAPI())
     monkeypatch.setenv("ANIMAMA_WEB_ROOT", str(tmp_path))
-    assert local_assets(Settings()) is not None
+    assert local_assets(Settings(), FastAPI()) is not None
     assert "a" * 64 not in repr(Settings())
 
 

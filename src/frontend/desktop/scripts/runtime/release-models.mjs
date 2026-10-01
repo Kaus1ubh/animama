@@ -11,6 +11,7 @@ import { filesIn, readJson, repoRoot, sha256 } from "./common.mjs";
 import { assertPortablePath, inventoryId } from "./inventory.mjs";
 import { modelInputSpec } from "./optional-inputs.mjs";
 import {
+  catalogFileReferences,
   modelDistribution,
   modelObjectsForManifest,
   planModelPublication,
@@ -61,7 +62,7 @@ function requiredModels(catalog, packCatalog, origin) {
       );
     ids.add(id);
   };
-  for (const asset of catalog.assets) add(asset.url);
+  for (const file of catalogFileReferences(catalog)) add(file.url);
   for (const pack of packCatalog.entries) {
     if (pack.schema !== "animama-model-pack/1") continue;
     if (

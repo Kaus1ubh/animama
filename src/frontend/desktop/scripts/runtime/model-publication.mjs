@@ -76,6 +76,23 @@ function trackedFiles(modelId, manifestFile) {
   };
 }
 
+/**
+ * Every file the backend asset catalog pins: a single-file entry, or each file
+ * of a multi-file set (which also names the file it installs).
+ */
+export function catalogFileReferences(catalog) {
+  return catalog.assets.flatMap((asset) =>
+    Array.isArray(asset.files)
+      ? asset.files.map((file) => ({
+          url: file.url,
+          sha256: file.sha256,
+          size: file.size,
+          name: file.path,
+        }))
+      : [{ url: asset.url, sha256: asset.sha256, size: asset.size }],
+  );
+}
+
 /** A comparable form of index entries: name, size and digest only. */
 const shape = (files) =>
   JSON.stringify(
@@ -195,7 +212,16 @@ export function modelObjectsForManifest({
     url: `${origin}/${keyPath(modelKey(modelId, file))}`,
   }));
   const prefix = `${origin}/models/${modelId}/`;
-  const pinned = catalog.assets.filter((asset) => asset.url.startsWith(prefix));
+  const inModel = (url) => typeof url === "string" && url.startsWith(prefix);
+  const pinned = catalogFileReferences(catalog).filter((file) =>
+    inModel(file.url),
+  );
+  // A backend asset set, like a model pack, installs the whole reviewed set.
+  const sets = catalog.assets.filter(
+    (asset) =>
+      Array.isArray(asset.files) &&
+      asset.files.some((file) => inModel(file.url)),
+  );
   const packs = packCatalog.entries.filter(
     (pack) =>
       pack.schema === "animama-model-pack/1" && pack.model_id === modelId,
@@ -225,12 +251,25 @@ export function modelObjectsForManifest({
       )
     );
   });
+  const invalidSet = sets.some(
+    (asset) =>
+      shape(
+        asset.files
+          .map((file) => ({
+            name: file.path,
+            size_bytes: file.size,
+            sha256: file.sha256,
+          }))
+          .sort((a, b) => (a.name < b.name ? -1 : 1)),
+      ) !== shape(payload),
+  );
   const hasConsumer =
     pinned.length > 0 || packs.length > 0 || modelId === "parakeet-tdt-0.6b-v2";
   if (
     !hasConsumer ||
     invalidPack ||
-    pinned.some((asset) => !matches(asset.url, asset.sha256, asset.size))
+    invalidSet ||
+    pinned.some((file) => !matches(file.url, file.sha256, file.size, file.name))
   )
     throw new PublicationError(
       "The packaged catalog does not match this model's objects; update the catalog or the manifest",

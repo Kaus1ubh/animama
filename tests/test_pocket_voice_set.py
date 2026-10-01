@@ -106,7 +106,8 @@ def test_downloadable_voices_are_pinned_in_the_packaged_catalog() -> None:
     assert len(assets) == 36
     for voice in downloadable:
         asset, entry = assets[f"pocket-voice-{voice['id']}"], manifest[f"{voice['id']}.safetensors"]
-        assert (asset.size, asset.sha256, asset.license_ref) == (entry["size"], entry["sha256"], "CC-BY-4.0")
-        assert asset.url == (
+        (file,) = asset.files
+        assert (asset.size, file.sha256, asset.license_ref) == (entry["size"], entry["sha256"], "CC-BY-4.0")
+        assert file.url == (
             f"https://downloads.animama.ai/models/pocket-tts-voices/{entry['sha256']}/{voice['id']}.safetensors"
         )

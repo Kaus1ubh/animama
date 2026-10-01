@@ -7,10 +7,13 @@ import os
 from pathlib import Path
 from typing import Any
 
+from fastapi import FastAPI
+
 from animama.local.http.assets import LocalAssets, ModelFile, ModelMount
 from animama.local.http.config import DesktopAccess, LocalHTTPConfig
 from animama.local.http.telemetry import TelemetryConfig, TelemetryDestinations, TelemetryForwarder
 from animama.server.config import Settings
+from animama.server.model_assets import AssetStoreModelMounts
 
 _MAX_MODEL_MOUNT_BYTES = 4 * 1024 * 1024
 
@@ -62,14 +65,24 @@ def verified_model_mount(payload: str | None) -> ModelMount | None:
         raise ValueError("Model mount configuration is invalid") from error
 
 
-def local_assets(settings: Settings) -> LocalAssets | None:
-    """Development leaves build serving to Vite; built installations supply it."""
+def local_assets(settings: Settings, application: FastAPI) -> LocalAssets | None:
+    """Development leaves build serving to Vite; built installations supply it.
+
+    The ``operator`` Parakeet source serves the launch mounts; ``asset-store``
+    serves sets installed in the application's model-asset store, resolved per
+    request, and refuses operator mounts so one source is unambiguous.
+    """
     mount = verified_model_mount(settings.animama_parakeet_model_mount_json)
     webgpu_mount = verified_model_mount(settings.animama_parakeet_webgpu_model_mount_json)
+    operator_mounts = mount is not None or webgpu_mount is not None
+    if settings.animama_parakeet_source == "asset-store" and operator_mounts:
+        raise ValueError("The asset-store Parakeet source does not accept operator model mounts")
     if settings.animama_web_root is None:
-        if mount is not None or webgpu_mount is not None:
+        if operator_mounts:
             raise ValueError("A configured model mount requires the built application root")
         return None
+    if settings.animama_parakeet_source == "asset-store":
+        return LocalAssets(settings.animama_web_root, mount_source=AssetStoreModelMounts(application))
     return LocalAssets(settings.animama_web_root, mount, webgpu_mount)
 
 
