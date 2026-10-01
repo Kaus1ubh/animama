@@ -58,7 +58,7 @@ test("accountless Library smoke @smoke @read-only", async ({
       avatar.getByRole("button", { name: "Preview", exact: true }),
     ).toBeEnabled();
     await expect(
-      avatar.getByRole("link", { name: "Use Avatar", exact: true }),
+      avatar.getByRole("link", { name: "Create Anima", exact: true }),
     ).toBeVisible();
     expect(apiErrors).toEqual([]);
     expect(apiRequests.length).toBeGreaterThan(0);

@@ -576,10 +576,11 @@ test("hub, sidebar, carousel, and Library retain creation entry points @create-a
     .getByRole("button", { name: "Avatars", exact: true })
     .click();
   const useAvatar = page
-    .getByRole("link", { name: "Use Avatar", exact: true })
+    .getByRole("link", { name: "Create Anima", exact: true })
     .first();
   const href = await useAvatar.getAttribute("href");
-  if (!href) throw new Error("Library Use Avatar must expose its destination.");
+  if (!href)
+    throw new Error("Library Create Anima must expose its destination.");
   const target = new URL(href, page.url());
   expect(target.pathname).toBe("/animas/new");
   expect(target.searchParams.get("avatar")).toBeTruthy();
