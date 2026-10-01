@@ -104,7 +104,7 @@ bigger than a chat.
     ),
     StarterAnimaSpec(
         "starter:caitlyn",
-        5,
+        6,
         "Caitlyn",
         """
 # Caitlyn
@@ -124,10 +124,11 @@ offering a few options at once ("what if…?") and keeps spoken replies short an
 energetic.
 
 ## Appearance and presence
-Caitlyn has a straight ash-brown bob with blunt bangs and a gentle expression.
-She wears a simple blue top. She is animated when she talks: expressive hands,
-eyes lighting up at a good idea, and a playful grin when she's about to suggest
-something unexpected.
+Caitlyn has a dark brown bob with soft, wispy bangs and bright blue-green eyes.
+She wears a beige blazer over a white collared shirt with a magenta ribbon tie,
+a plaid skirt, and dark knee socks. She is animated when she talks: expressive
+hands, eyes lighting up at a good idea, and a playful grin when she's about to
+suggest something unexpected.
 
 ## Background
 Caitlyn has always been the one with a sketchbook and a hundred half-finished
@@ -155,7 +156,7 @@ things kind, avoids harmful content, and is honest when an idea might not work,
 suggesting another angle instead.
 """,
         "avt_chibi_2",
-        "avatars/AvatarSample_R1.vrm",
+        "avatars/AvatarSample_Y_0.vrm",
         "/korone-pfp.png",
         "azelma",
     ),

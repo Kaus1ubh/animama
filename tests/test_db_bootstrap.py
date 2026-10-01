@@ -213,8 +213,9 @@ def test_avatar_seeds_retire_only_unreferenced_unmodified_defaults(db_ready: str
                 seeds = runtime_resource("sql").joinpath("02-seed-avatars.sql").read_text()
                 cur.execute(seeds)
                 cur.execute("SELECT id FROM avatar ORDER BY id")
-                assert cur.fetchall() == [("avt_sample_a1n",), ("avt_sample_r1",)]
+                assert cur.fetchall() == [("avt_caitlyn",), ("avt_sample_a1n",)]
                 retired = [
+                    ("avt_sample_r1", "AvatarSample_R1"),
                     ("avt_sample_r2", "AvatarSample_R2"),
                     ("avt_sample_a1", "AvatarSample_A_1"),
                     ("avt_sample_y0", "AvatarSample_Y_1"),
@@ -247,12 +248,12 @@ def test_avatar_seeds_retire_only_unreferenced_unmodified_defaults(db_ready: str
                     cur.execute(seeds)
                     cur.execute("SELECT id FROM avatar ORDER BY id")
                     assert cur.fetchall() == [
+                        ("avt_caitlyn",),
                         ("avt_chibi_1",),
                         ("avt_chibi_2",),
                         ("avt_chibi_3",),
                         ("avt_sample_a1",),
                         ("avt_sample_a1n",),
-                        ("avt_sample_r1",),
                         ("avt_sample_y0",),
                     ]
         finally:

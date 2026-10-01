@@ -264,20 +264,20 @@
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/appearances/avatar-portraits/app-avatar-model-avatarsample-r1-v1.meta.json",
+      "path": "content/included/appearances/avatar-portraits/app-avatar-model-avatarsample-y-0-v1.meta.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/appearances/avatar-portraits/app-avatar-model-avatarsample-r1-v1.webp",
-      "candidate_license": "LicenseRef-RaymondVan-VRM-Public-License-1.0",
-      "basis": "Explicit owner confirmation of preset/original model identity and authorized redistribution metadata correction; derived renderer portrait retained under corresponding model terms",
-      "source": "https://vrm.dev/licenses/1.0/",
+      "path": "content/included/appearances/avatar-portraits/app-avatar-model-avatarsample-y-0-v1.webp",
+      "candidate_license": "LicenseRef-pixiv-VRoid-sample-CC-BY",
+      "basis": "Explicit owner approval of the unmodified pixiv VRoid sample with embedded CC BY metadata; derived renderer portrait retained under corresponding model terms",
+      "source": "https://creativecommons.org/licenses/by/4.0/",
       "revision": "Exact VRM hashes and embedded metadata in evidence",
       "copyright": [
-        "Raymond Van; underlying VRoid Studio components subject to applicable pixiv terms"
+        "pixiv VRoid Project"
       ],
       "evidence": [
         "licenses/third-party/art-vroid-review.json"
@@ -286,7 +286,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond approved this exact unmodified pixiv VRoid sample as Caitlyn's model on 2026-10-01. Embedded VRM 0 metadata is unchanged; credit pixiv VRoid Project under CC BY and preserve the violent/sexual-use prohibitions. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -311,13 +311,13 @@
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/avatars/AvatarSample_R1.vrm",
-      "candidate_license": "LicenseRef-RaymondVan-VRM-Public-License-1.0",
-      "basis": "Explicit owner confirmation of preset/original model identity and authorized redistribution metadata correction; derived renderer portrait retained under corresponding model terms",
-      "source": "https://vrm.dev/licenses/1.0/",
+      "path": "content/included/avatars/AvatarSample_Y_0.vrm",
+      "candidate_license": "LicenseRef-pixiv-VRoid-sample-CC-BY",
+      "basis": "Explicit owner approval of the unmodified pixiv VRoid sample with embedded CC BY metadata; derived renderer portrait retained under corresponding model terms",
+      "source": "https://creativecommons.org/licenses/by/4.0/",
       "revision": "Exact VRM hashes and embedded metadata in evidence",
       "copyright": [
-        "Raymond Van; underlying VRoid Studio components subject to applicable pixiv terms"
+        "pixiv VRoid Project"
       ],
       "evidence": [
         "licenses/third-party/art-vroid-review.json"
@@ -326,7 +326,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond approved this exact unmodified pixiv VRoid sample as Caitlyn's model on 2026-10-01. Embedded VRM 0 metadata is unchanged; credit pixiv VRoid Project under CC BY and preserve the violent/sexual-use prohibitions. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },

@@ -47,8 +47,8 @@ def test_supplied_fixture_core_resolves_both_starters_without_expanded_content(s
     inventory = starter_inventory(staged_core)
     assert [starter["name"] for starter in inventory["starters"]] == ["Annie", "Caitlyn"]
     assert all(not starter["diagnostics"] for starter in inventory["starters"])
-    assert "avatars/AvatarSample_R1.vrm" in inventory["starters"][1]["roots"]
-    assert "builtin:avatar-portrait:AvatarSample_R1" in inventory["starters"][1]["roots"]
+    assert "avatars/AvatarSample_Y_0.vrm" in inventory["starters"][1]["roots"]
+    assert "builtin:avatar-portrait:AvatarSample_Y_0" in inventory["starters"][1]["roots"]
     assert set(EXPECTED_STARTER_GESTURE_IDS) <= set(inventory["starters"][1]["roots"])
     assert all(file["partition"] == "core" for file in inventory["files"])
     assert all(
@@ -85,7 +85,7 @@ def test_excluded_required_avatar_fails_instead_of_entering_either_pack(staged_c
     policy["rules"].insert(
         0,
         {
-            "glob": "avatars/AvatarSample_R1.vrm",
+            "glob": "avatars/AvatarSample_Y_0.vrm",
             "license_id": "test-excluded",
             "provenance": "Explicitly excluded test input",
             "distribution": "excluded",

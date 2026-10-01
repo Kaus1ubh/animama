@@ -6,7 +6,8 @@
     "https://hub.vroid.com/en/characters/2843975675147313744/models/5644550979324015604",
     "https://vroid.com/en/studio/guidelines",
     "https://vrm.dev/licenses/1.0/",
-    "https://vroid.pixiv.help/hc/en-us/articles/4405813333657-Can-I-use-the-models-created-with-VRoid-Studio-Stable-Ver-for-commercial-purposes"
+    "https://vroid.pixiv.help/hc/en-us/articles/4405813333657-Can-I-use-the-models-created-with-VRoid-Studio-Stable-Ver-for-commercial-purposes",
+    "https://creativecommons.org/licenses/by/4.0/"
   ],
   "files": [
     {
@@ -44,40 +45,29 @@
       "condition": "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
     },
     {
-      "path": "content/included/avatars/AvatarSample_R1.vrm",
-      "sha256": "d11aa96e80debb1ae8c23b3fd0b036ef4553b5df62d4c56149fddce1c0fb449a",
-      "portrait_path": "content/included/appearances/avatar-portraits/app-avatar-model-avatarsample-r1-v1.webp",
-      "portrait_sha256": "9e23019eb3977aa8f6feb3ff5d895258418fa9a004f51fb00917b60de0084213",
+      "path": "content/included/avatars/AvatarSample_Y_0.vrm",
+      "sha256": "0b37c351c9414f7d0359ba1daa9a1e2ced1a6acd9ed19990002655ac7d7c16e7",
+      "portrait_path": "content/included/appearances/avatar-portraits/app-avatar-model-avatarsample-y-0-v1.webp",
+      "portrait_sha256": "4c712fdbb99f647fdf631d1e8c6f6ec4699a51c8c0e6749d2fb395e9a8fe66a2",
       "embedded_vrm_meta": {
-        "name": "AvatarSample_R1",
-        "authors": [
-          "Raymond Van"
-        ],
-        "thumbnailImage": 22,
-        "licenseUrl": "https://vrm.dev/licenses/1.0/",
-        "avatarPermission": "everyone",
-        "allowExcessivelyViolentUsage": false,
-        "allowExcessivelySexualUsage": false,
-        "commercialUsage": "personalNonProfit",
-        "allowPoliticalOrReligiousUsage": false,
-        "allowAntisocialOrHateUsage": false,
-        "creditNotation": "required",
-        "allowRedistribution": true,
-        "modification": "allowModification",
-        "copyrightInformation": "Original character authored by Raymond Van using VRoid Studio. VRoid Studio components retain applicable pixiv terms.",
-        "references": [
-          "https://vroid.com/en/studio/guidelines"
-        ]
+        "title": "AvatarSample_Y_0",
+        "author": "pixiv VRoid Project",
+        "allowedUserName": "Everyone",
+        "commercialUssageName": "Allow",
+        "licenseName": "CC_BY",
+        "sexualUssageName": "Disallow",
+        "violentUssageName": "Disallow",
+        "texture": 27
       },
-      "license": "LicenseRef-RaymondVan-VRM-Public-License-1.0",
+      "license": "LicenseRef-pixiv-VRoid-sample-CC-BY",
       "copyright": [
-        "Raymond Van; underlying VRoid Studio components subject to applicable pixiv terms"
+        "pixiv VRoid Project"
       ],
       "notice_paths": [
         "licenses/third-party/art-NOTICES.md"
       ],
-      "status": "owner-confirmed-metadata-corrected",
-      "condition": "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+      "status": "owner-approved-unmodified",
+      "condition": "Raymond approved this exact unmodified pixiv VRoid sample as Caitlyn's model on 2026-10-01. Embedded VRM 0 metadata is unchanged; credit pixiv VRoid Project under CC BY and preserve the violent/sexual-use prohibitions. Final candidate and binary publication approval remain separate."
     }
   ],
   "feature_review": {
@@ -102,6 +92,11 @@
     "date": "2026-09-15",
     "artwork": "Replacement artwork approved by Raymond.",
     "models": "Raymond reaffirmed Annie as freely distributable VRoid preset and Caitlyn as his own authored model, and explicitly authorized metadata updates.",
-    "scope": "Correct use/redistribution flags and Caitlyn author credit; retain other license settings, pixiv conditions and exact geometry/textures. Not a CC0/AGPL relicense of pixiv assets or approval to publish."
+    "scope": "Correct use/redistribution flags and Caitlyn author credit; retain other license settings, pixiv conditions and exact geometry/textures. Not a CC0/AGPL relicense of pixiv assets or approval to publish.",
+    "caitlyn_replacement": {
+      "date": "2026-10-01",
+      "models": "Raymond approved replacing Caitlyn's AvatarSample_R1 with the unmodified pixiv VRoid sample AvatarSample_Y_0 and removing R1 and its portrait from the library.",
+      "scope": "Inclusion of the exact recorded model and renderer portrait under their embedded CC BY terms. Not approval to publish."
+    }
   }
 }

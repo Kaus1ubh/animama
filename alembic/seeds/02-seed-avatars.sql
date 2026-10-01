@@ -4,18 +4,18 @@
 
 INSERT INTO avatar (id, name, file_path, identity, model_type, private, created_at, updated_at)
 VALUES
-  ('avt_sample_r1', 'Janna', '/shared/avatars/AvatarSample_R1.vrm', $$
-# Janna
+  ('avt_caitlyn', 'Caitlyn', '/shared/avatars/AvatarSample_Y_0.vrm', $$
+# Caitlyn
 
 ## Appearance
-Janna has long silver hair, soft blue eyes, and a composed expression. She wears
-a pale blue cardigan over a simple white blouse, with a small crescent pin near
-her collar.
+Caitlyn has a dark brown bob with soft, wispy bangs and bright blue-green eyes.
+She wears a beige blazer over a white collared shirt with a magenta ribbon tie,
+a plaid skirt, and dark knee socks.
 
 ## Personality
-- Grounded, patient, and quietly reassuring.
-- Helps the user slow down, sort priorities, and choose the next sensible step.
-- Prefers plain language, steady encouragement, and practical support.
+- Imaginative, expressive, and idea-driven.
+- Loves brainstorming and offering a few fresh angles at once.
+- Builds on the user's ideas and keeps the final vision theirs.
 $$, 'vrm', false, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
   ('avt_sample_a1n', 'Annie', '/shared/avatars/AvatarSample_A_1_New.vrm', $$
 # Annie
@@ -36,6 +36,7 @@ ON CONFLICT (id) DO NOTHING;
 -- Preserve every Anima/upload reference and any owner or catalog adoption.
 DELETE FROM avatar AS retired
 USING (VALUES
+  ('avt_sample_r1', '/shared/avatars/AvatarSample_R1.vrm'),
   ('avt_sample_r2', '/shared/avatars/AvatarSample_R2.vrm'),
   ('avt_sample_a1', '/shared/avatars/AvatarSample_A_1.vrm'),
   ('avt_sample_y0', '/shared/avatars/AvatarSample_Y_1.vrm'),

@@ -43,11 +43,10 @@ assuming the conflicting declaration away.
 ## VRoid models and portraits: owner-confirmed permissions
 
 On 2026-09-15 Raymond confirmed that Annie (`AvatarSample_A_1_New.vrm`) is the
-freely distributable pixiv VRoid preset and Caitlyn (`AvatarSample_R1.vrm`) is
-his own VRoid Studio creation. He authorized correcting their embedded license
-metadata. Both now permit redistribution and use by everyone. Caitlyn credits
-Raymond Van as the character author; applicable VRoid component terms remain.
-Their portraits are unchanged direct Animama renderer captures.
+freely distributable pixiv VRoid preset and authorized correcting its embedded
+license metadata, which now permits redistribution and use by everyone. On
+2026-10-01 he approved Caitlyn's unmodified pixiv VRoid sample
+(`AvatarSample_Y_0.vrm`). Both portraits are direct Animama renderer captures.
 
 Annie retains pixiv VRoid Project credit and now links the applicable
 [VRoidPreset A–Z conditions](https://vroid.pixiv.help/hc/en-us/articles/4402394424089-VRoidPreset-A-Z)
@@ -56,12 +55,17 @@ on fee-based redistribution of the unmodified sample data and using its data in
 a character-creation service. The official [AvatarSample A page](https://hub.vroid.com/en/characters/2843975675147313744/models/5644550979324015604)
 links those same terms.
 
-Caitlyn retains [VRM Public License 1.0](https://vrm.dev/licenses/1.0/) with its
-embedded settings and the applicable [VRoid Studio guidelines](https://vroid.com/en/studio/guidelines).
-This correction does not grant CC0/AGPL rights over underlying third-party
-components or expand the other existing use/modification settings. Both models
-retain their noncommercial setting. Geometry, textures, non-metadata JSON and
-portrait bytes are unchanged; current hashes and metadata are recorded in
+The metadata correction does not grant CC0/AGPL rights over Annie's
+underlying components or expand its other use/modification settings; it retains
+its noncommercial setting.
+
+Caitlyn (`AvatarSample_Y_0.vrm`) is © pixiv VRoid Project and used unmodified.
+Its embedded VRM 0 metadata declares [CC BY 4.0](art-CC-BY-4.0.txt) with commercial
+use allowed and violent or sexual use disallowed; its portrait follows the same
+terms. Do not edit its embedded permission flags.
+
+Geometry, textures, non-metadata JSON and portrait bytes of both models are
+unchanged; current hashes and metadata are recorded in
 [art-vroid-review.json](art-vroid-review.json).
 
 The earlier metadata discrepancy is resolved for source preparation by the
