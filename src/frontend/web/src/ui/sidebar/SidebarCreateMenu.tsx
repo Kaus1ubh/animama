@@ -18,6 +18,7 @@ import {
   PopoverAnchor,
   PopoverContent,
 } from "@/ui/components/popover";
+import { useRuntimeFeatureEnabled } from "@/ui/app/RuntimeFeatureGate";
 import { SidebarLink, type SidebarLinkItem } from "@/ui/sidebar/Sidebar";
 
 const CLOSE_DELAY_MS = 140;
@@ -93,6 +94,10 @@ export function SidebarCreateMenu() {
   const contentId = useId();
   const effectsContentId = useId();
   const closeTimerRef = useRef<number | null>(null);
+  const animaCreation = useRuntimeFeatureEnabled("anima_creation");
+  const primaryLinks = PRIMARY_CREATE_LINKS.filter(
+    (item) => animaCreation || item.to !== "/animas/new",
+  );
   const trigger: SidebarLinkItem = {
     label: "Create",
     to: "/create",
@@ -196,7 +201,7 @@ export function SidebarCreateMenu() {
           animate={reduceMotion ? undefined : open ? "open" : "closed"}
           variants={MENU_VARIANTS}
         >
-          {PRIMARY_CREATE_LINKS.map((item) => {
+          {primaryLinks.map((item) => {
             const Icon = item.icon;
             return (
               <motion.div key={item.to} variants={CARD_VARIANTS}>

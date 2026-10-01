@@ -1173,7 +1173,7 @@ ALTER TABLE ONLY avatar
 -- animama-statement --
 
 ALTER TABLE ONLY avatar
-    ADD CONSTRAINT uq_avatar_name UNIQUE (name);
+    ADD CONSTRAINT uq_avatar_owner_name UNIQUE NULLS NOT DISTINCT (user_id, name);
 
 -- animama-statement --
 

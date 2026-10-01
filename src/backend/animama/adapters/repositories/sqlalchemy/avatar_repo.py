@@ -68,17 +68,23 @@ class SQLAlchemyAvatarRepository(AvatarRepository):
             await self._s.refresh(existing)
             return avatar_orm_to_domain(existing)
         avatar_id = f"avatar-{uuid4().hex}"
-        # Avatar names are globally unique; live Anima names are owner-defined.
-        # Disambiguation here never changes the requested live display name.
+        owner_id = user_id if item.scope.value == "owner" else None
+        # Avatar names are unique per owner, and ownerless rows share one
+        # namespace (uq_avatar_owner_name is NULLS NOT DISTINCT). Live Anima
+        # names are owner-defined, so disambiguation never changes them.
         name = item.display_name
-        if await self._s.scalar(select(ORMAvatar.id).where(ORMAvatar.name == name)) is not None:
+        collision = select(ORMAvatar.id).where(
+            ORMAvatar.name == name,
+            ORMAvatar.user_id.is_not_distinct_from(owner_id),
+        )
+        if await self._s.scalar(collision) is not None:
             name = f"{name} ({avatar_id})"
         return await self.create(
             Avatar(
                 id=avatar_id,
                 name=name,
                 file_path=item.relative_locator,
-                user_id=user_id if item.scope.value == "owner" else None,
+                user_id=owner_id,
                 private=item.scope.value == "owner",
                 catalog_item_id=item.id,
                 created_by_id=user_id,

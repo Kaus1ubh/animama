@@ -56,6 +56,7 @@ import {
 import { queryKeys } from "@/query/keys";
 import { useUserFiles } from "@/query/hooks/useUserFiles";
 import { useRuntimeCapabilities } from "@/query/hooks/useRuntimeCapabilities";
+import { useRuntimeFeatureEnabled } from "@/ui/app/RuntimeFeatureGate";
 import { OfflineSpeechDownloads } from "@/ui/settings/OfflineSpeechDownloads";
 import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
 import { isWebSpeechSupported } from "@/lib/speech/stt-provider";
@@ -175,7 +176,7 @@ export function ChatInterfaceView({
   existingAttachmentFiles = [],
   existingFilesError = false,
   existingFilesLoading = false,
-  fileUploadUppy,
+  fileUploadUppy: suppliedFileUploadUppy,
   input,
   inputPlaceholder,
   isAwaitingStreamingAnimationFinalization,
@@ -221,6 +222,10 @@ export function ChatInterfaceView({
     crisisSlot !== null,
   );
   const capabilities = useRuntimeCapabilities();
+  // Withholding the uploader hides the attach button, drop overlay and tray.
+  const fileUploadUppy = useRuntimeFeatureEnabled("chat_file_uploads")
+    ? suppliedFileUploadUppy
+    : undefined;
   const platform = useRuntimePlatform();
   const speechAvailable =
     capabilities.data?.offline_speech_enabled === true ||
@@ -482,7 +487,12 @@ export const ChatInterface = ({
   const fileUploadUppy = useUserFileUpload({
     id: `chat-user-files-${animaId}`,
   });
-  const userFilesQuery = useUserFiles({ pollActive: true });
+  // Existing files are only attachable while the runtime offers uploads.
+  const chatFileUploads = useRuntimeFeatureEnabled("chat_file_uploads");
+  const userFilesQuery = useUserFiles({
+    pollActive: true,
+    enabled: chatFileUploads,
+  });
   const [selectedExistingFileIds, setSelectedExistingFileIds] = useState<
     string[]
   >([]);

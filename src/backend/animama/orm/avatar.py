@@ -16,7 +16,11 @@ class ORMAvatar(SqlalchemyBase, TimestampMixin, AuditMixin):
     """Avatar: VRM avatar model available for animas."""
 
     __tablename__ = "avatar"
-    __table_args__ = (UniqueConstraint("name", name="uq_avatar_name"),)
+    # Names are unique within one owner. NULLS NOT DISTINCT makes the ownerless
+    # Included/seeded rows one shared namespace instead of exempting them.
+    __table_args__ = (
+        UniqueConstraint("user_id", "name", name="uq_avatar_owner_name", postgresql_nulls_not_distinct=True),
+    )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
     name: Mapped[str] = mapped_column(String, nullable=False)

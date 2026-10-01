@@ -707,9 +707,12 @@ saved; an unusable ID falls back to the role's default.
 ### Avatar And Uploads
 
 `ORMAvatar` stores Avatar metadata, catalog association, and the shared markdown
-`identity` template used as optional creation assistance. Avatar `name` remains globally unique but is not a live Anima's display
-name. Avatars can be
-public catalog avatars or private user avatars.
+`identity` template used as optional creation assistance. Avatar `name` is
+unique per owner (`uq_avatar_owner_name`, `UNIQUE NULLS NOT DISTINCT (user_id,
+name)`): different owners may reuse a name, and ownerless Included/seeded rows
+share one namespace. It is not a live Anima's display name. Catalog
+materialization suffixes a colliding name as `<name> (<avatar id>)` only within
+the target owner. Avatars can be public catalog avatars or private user avatars.
 
 `catalog_item_id` associates a private Avatar with one validated Local model.
 Included Avatar `file_path` values are matched to the corresponding Included

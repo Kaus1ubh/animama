@@ -6077,6 +6077,8 @@ export const zWebSearchCapability = z.object({
  * RuntimeCapabilities
  */
 export const zRuntimeCapabilities = z.object({
+    anima_creation: z.boolean(),
+    chat_file_uploads: z.boolean(),
     companion_safety: zCompanionSafetyCapability,
     model_configuration: z.optional(z.boolean()).default(false),
     offline_speech_asset_version: z.union([
@@ -6088,7 +6090,11 @@ export const zRuntimeCapabilities = z.object({
         z.string(),
         z.null()
     ])),
-    runtime_kind: z.enum(['desktop', 'self_hosted_web']),
+    runtime_kind: z.enum([
+        'desktop',
+        'self_hosted_web',
+        'hosted'
+    ]),
     schema_version: z.optional(z.literal(1)).default(1),
     user_file_processing: zUserFileProcessingCapability,
     web_search: z.optional(zWebSearchCapability)

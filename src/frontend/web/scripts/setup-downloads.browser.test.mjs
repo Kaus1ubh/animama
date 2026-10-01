@@ -263,6 +263,8 @@ async function mount(options = {}) {
           offline_speech_enabled: false,
           offline_speech_asset_version: null,
           model_configuration: options.modelConfiguration ?? true,
+          chat_file_uploads: true,
+          anima_creation: true,
           companion_safety: {
             ai_notice_enabled: true,
             crisis_detection_enabled: true,

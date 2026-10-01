@@ -17,7 +17,8 @@ export type AnimaCarouselProps = {
   onSelect: (animaId: string) => void;
   onPrevious: () => void;
   onNext: () => void;
-  onCreate: () => void;
+  /** Omit when the runtime does not offer Anima creation. */
+  onCreate?: () => void;
   compact?: boolean;
   showNavigationButtons?: boolean;
   className?: string;
@@ -201,27 +202,31 @@ export function AnimaCarousel({
       aria-label="Anima carousel"
       onWheel={handleWheel}
     >
-      <button
-        type="button"
-        onClick={onCreate}
-        className={cn(
-          "text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 flex shrink-0 flex-col items-center justify-center gap-1.5 rounded-2xl transition-[background-color,color,box-shadow] outline-none hover:bg-lime-50/90 hover:shadow-[0_0_0_2px_rgba(190,242,100,0.38)] focus-visible:ring-[3px] motion-reduce:transition-none dark:hover:bg-lime-950/20",
-          compact ? "min-h-[5rem] w-[4.25rem]" : "h-24 w-[5.25rem]",
-        )}
-        aria-label="Create Anima"
-      >
-        <Plus className={compact ? "size-5" : "size-6"} />
-        <span
-          className={cn(
-            "text-center font-medium whitespace-nowrap",
-            compact ? "text-[0.65rem]" : "text-xs",
-          )}
-        >
-          New Anima
-        </span>
-      </button>
+      {onCreate ? (
+        <>
+          <button
+            type="button"
+            onClick={onCreate}
+            className={cn(
+              "text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 flex shrink-0 flex-col items-center justify-center gap-1.5 rounded-2xl transition-[background-color,color,box-shadow] outline-none hover:bg-lime-50/90 hover:shadow-[0_0_0_2px_rgba(190,242,100,0.38)] focus-visible:ring-[3px] motion-reduce:transition-none dark:hover:bg-lime-950/20",
+              compact ? "min-h-[5rem] w-[4.25rem]" : "h-24 w-[5.25rem]",
+            )}
+            aria-label="Create Anima"
+          >
+            <Plus className={compact ? "size-5" : "size-6"} />
+            <span
+              className={cn(
+                "text-center font-medium whitespace-nowrap",
+                compact ? "text-[0.65rem]" : "text-xs",
+              )}
+            >
+              New Anima
+            </span>
+          </button>
 
-      <div aria-hidden="true" className="bg-border/70 my-1 w-px shrink-0" />
+          <div aria-hidden="true" className="bg-border/70 my-1 w-px shrink-0" />
+        </>
+      ) : null}
 
       <div className="relative min-w-0 flex-1 overflow-hidden">
         {showNavigationButtons ? (

@@ -1,13 +1,22 @@
-"""Owner-visible capability metadata, never executable paths or credentials."""
+"""Local adapter for the shared runtime capability contract.
+
+The response models live in :mod:`animama.app.contracts.runtime_capabilities` so
+other compositions can return the same contract without importing this router.
+"""
 
 from datetime import UTC, datetime, timedelta
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Request
-from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from animama.adapters.repositories.sqlalchemy.web_search_settings_repo import SQLAlchemyWebSearchSettingsRepository
+from animama.app.contracts.runtime_capabilities import (
+    CompanionSafetyCapability,
+    RuntimeCapabilities,
+    UserFileProcessingCapability,
+    WebSearchCapability,
+)
 from animama.app.services.user_file_service import ALLOWED_USER_FILE_EXTENSIONS
 from animama.domain.request_principal import RequestPrincipal
 from animama.orm.runtime_worker import ORMRuntimeWorkerHeartbeat
@@ -24,49 +33,6 @@ def get_runtime_settings(request: Request) -> Settings:
     """Use the composition's policy, including explicitly supplied test settings."""
 
     return getattr(request.app.state, "runtime_settings", settings)
-
-
-class UserFileProcessingCapability(BaseModel):
-    enabled: bool
-    worker_state: Literal["disabled", "starting", "ready", "stale"]
-    last_heartbeat_at: datetime | None
-    pack_id: Literal["document-processing"] | None
-    supported_extensions: list[str]
-
-
-class CompanionSafetyCapability(BaseModel):
-    """Operator safety configuration; owner preferences are in user settings."""
-
-    enabled: bool
-    ai_notice_enabled: bool
-    crisis_detection_enabled: bool
-    operator_reminder_hours: float
-
-
-class WebSearchCapability(BaseModel):
-    configuration: bool = False
-    """Whether the owner may configure application web search (local composition only)."""
-    configured: bool = False
-    """Whether a backend is configured, so tool-capable models can search."""
-    backend: Literal["searxng", "brave"] | None = None
-    credential_state: Literal["configured", "missing", "not_required"] | None = None
-    """Whether the backend's key is set; searches fail with a tool error while it is ``missing``."""
-
-
-class RuntimeCapabilities(BaseModel):
-    schema_version: Literal[1] = 1
-    runtime_kind: Literal["desktop", "self_hosted_web"]
-    model_configuration: bool = False
-    """Whether the owner may manage model connections, models and roles."""
-    user_file_processing: UserFileProcessingCapability
-    offline_speech_enabled: bool
-    """Whether offline speech recognition (Parakeet) can be used now; read on every request."""
-    offline_speech_asset_version: str | None
-    """The active base Parakeet version, pinned by the browser with ``?v=``."""
-    offline_speech_gpu_asset_version: str | None = None
-    """The active WebGPU Parakeet version, or null when that set is unavailable."""
-    companion_safety: CompanionSafetyCapability
-    web_search: WebSearchCapability = Field(default_factory=WebSearchCapability)
 
 
 @router.get("/v1/runtime-capabilities", response_model=RuntimeCapabilities)
@@ -111,6 +77,9 @@ async def get_runtime_capabilities(
             operator_reminder_hours=safety.reminder_interval.total_seconds() / 3600,
         ),
         runtime_kind="desktop" if desktop else "self_hosted_web",
+        # The local composition mounts upload and Anima-creation routes.
+        chat_file_uploads=True,
+        anima_creation=True,
         offline_speech_enabled=speech.enabled,
         offline_speech_asset_version=speech.asset_version,
         offline_speech_gpu_asset_version=speech.gpu_asset_version,

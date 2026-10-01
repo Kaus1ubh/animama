@@ -84,6 +84,8 @@ Tests use explicit fixture bootstrap and dependency overrides.
   "schema_version": 1,
   "runtime_kind": "desktop",
   "model_configuration": true,
+  "chat_file_uploads": true,
+  "anima_creation": true,
   "user_file_processing": {
     "enabled": false,
     "worker_state": "disabled",
@@ -109,8 +111,15 @@ Tests use explicit fixture bootstrap and dependency overrides.
 }
 ```
 
-`runtime_kind` is presentation metadata (`desktop` or `self_hosted_web`), not
-an authentication mode. `model_configuration` is true when the composition's
+The models live in `animama.app.contracts.runtime_capabilities`, outside the
+local server package, so any composition can return the same contract; the local
+router is a thin adapter. `runtime_kind` is presentation metadata (`desktop`,
+`self_hosted_web` or `hosted`), not an authentication mode or a feature gate;
+the local composition never reports `hosted`. `chat_file_uploads` and
+`anima_creation` report whether the composition offers chat file uploads and
+Anima creation. The local composition always reports both `true`; React hides
+the corresponding entry points only when a value is `false`.
+`model_configuration` is true when the composition's
 catalog policy enables owner models, which only the local composition does; the
 [model configuration routes](#model-configuration) exist only then. The
 self-host composition returns a null document `pack_id`; the Electron
@@ -1174,6 +1183,9 @@ Writing user settings wakes re-embedding.
 ## Avatars And Uploads
 
 `/v1/avatars` manages logical Avatar metadata and its identity template.
+Creating or renaming an Avatar to a name the owner already uses returns
+`409 {"detail":{"code":"avatar_name_conflict"}}`; other owners' names never
+conflict.
 Playable VRM bytes are valid Included or Local `avatar` catalog items. A
 private Avatar associates `catalog_item_id`; Included rows resolve their
 source-controlled model to the matching catalog item.
