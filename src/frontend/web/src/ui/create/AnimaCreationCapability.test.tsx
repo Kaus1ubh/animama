@@ -11,11 +11,15 @@ import { Route as AnimaDetailsRoute } from "@/routes/_app/animas/$animaId";
 
 const fixture = vi.hoisted(() => ({
   capabilities: undefined as { anima_creation: boolean } | undefined,
+  loading: false,
   detailsProps: undefined as Record<string, unknown> | undefined,
 }));
 
 vi.mock("@/query/hooks/useRuntimeCapabilities", () => ({
-  useRuntimeCapabilities: () => ({ data: fixture.capabilities }),
+  useRuntimeCapabilities: () => ({
+    data: fixture.capabilities,
+    isLoading: fixture.loading,
+  }),
 }));
 vi.mock("@tanstack/react-router", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@tanstack/react-router")>()),
@@ -50,9 +54,11 @@ vi.mock("@/ui/animas/AnimaDetailsPage", () => ({
   },
 }));
 vi.mock("@/ui/content-preview/ContentPreviewDockProvider", () => ({
-  ContentPreviewExclusiveCanvasGate: ({ children }: { children: ReactNode }) => (
-    <>{children}</>
-  ),
+  ContentPreviewExclusiveCanvasGate: ({
+    children,
+  }: {
+    children: ReactNode;
+  }) => <>{children}</>,
 }));
 vi.mock("@/query/hooks/useAnimaPresentationImage", () => ({
   useAnimaPresentationImage: () => ({ data: null }),
@@ -78,29 +84,47 @@ function renderCarousel(onCreate?: () => void) {
 }
 
 describe.each([
-  ["reported", { anima_creation: true }],
-  ["still loading", undefined],
-])("Anima creation when the capability is %s", (_label, capabilities) => {
-  beforeEach(() => {
-    fixture.capabilities = capabilities;
+  ["reported", { anima_creation: true }, false],
+  ["still loading", undefined, true],
+])(
+  "Anima creation when the capability is %s",
+  (_label, capabilities, loading) => {
+    beforeEach(() => {
+      fixture.capabilities = capabilities;
+      fixture.loading = loading;
+    });
+
+    it("offers every create-Anima entry point", () => {
+      expect(renderToStaticMarkup(<SidebarCreateMenu />)).toContain(
+        'href="/animas/new"',
+      );
+      expect(renderToStaticMarkup(<CreateHubPage />)).toContain(
+        'href="/animas/new"',
+      );
+      renderRoute(AnimaDetailsRoute);
+      expect(fixture.detailsProps?.onCreateAnima).toBeTypeOf("function");
+    });
+  },
+);
+
+describe("the creator route", () => {
+  it("mounts the creator once creation is reported", () => {
+    fixture.capabilities = { anima_creation: true };
+    fixture.loading = false;
+    expect(renderRoute(CreateAnimaRoute)).toContain("Anima creator");
   });
 
-  it("offers every create-Anima entry point", () => {
-    expect(renderToStaticMarkup(<SidebarCreateMenu />)).toContain(
-      'href="/animas/new"',
-    );
-    expect(renderToStaticMarkup(<CreateHubPage />)).toContain(
-      'href="/animas/new"',
-    );
-    expect(renderRoute(CreateAnimaRoute)).toContain("Anima creator");
-    renderRoute(AnimaDetailsRoute);
-    expect(fixture.detailsProps?.onCreateAnima).toBeTypeOf("function");
+  it("waits for the first capabilities response before mounting", () => {
+    fixture.capabilities = undefined;
+    fixture.loading = true;
+    expect(renderRoute(CreateAnimaRoute)).toBe("");
   });
 });
 
 describe("Anima creation when the capability is disabled", () => {
   beforeEach(() => {
     fixture.capabilities = { anima_creation: false };
+    fixture.loading = false;
   });
 
   it("hides the sidebar and creator hub entry points", () => {
