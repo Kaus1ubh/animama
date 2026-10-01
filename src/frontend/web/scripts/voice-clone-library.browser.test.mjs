@@ -88,14 +88,23 @@ test("compact picker keeps inline download, retry and cancel independent of sele
       name: "Select Clara",
       exact: true,
     });
-    const downloadBox = await download.boundingBox();
-    const selectBox = await select.boundingBox();
+    // The popover zooms and slides in, so measure only after its open
+    // animation finishes, and read both rows in one frame.
+    await download.waitFor();
+    await select.waitFor();
+    const [downloadCenter, selectCenter] = await page
+      .locator('[data-slot="popover-content"]')
+      .evaluate(async (popover) => {
+        await Promise.all(popover.getAnimations().map((item) => item.finished));
+        return ["Download Clara", "Select Clara"].map((label) => {
+          const box = popover
+            .querySelector(`[aria-label="${label}"]`)
+            .getBoundingClientRect();
+          return box.top + box.height / 2;
+        });
+      });
     assert.ok(
-      Math.abs(
-        downloadBox.y +
-          downloadBox.height / 2 -
-          (selectBox.y + selectBox.height / 2),
-      ) < 2,
+      Math.abs(downloadCenter - selectCenter) < 2,
       "download action stays on the selection row",
     );
     assert.equal(await download.innerText(), "");
