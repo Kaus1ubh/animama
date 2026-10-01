@@ -22,11 +22,12 @@ free preset with no external assets. Its official pixiv preset terms are linked
 in the inventory. Those terms are not CC0; review the planned product use,
 including the restrictions on paid redistribution and character-creation
 services. Do not edit embedded permission flags to manufacture clearance.
-Caitlyn's version-3 starter uses `AvatarSample_R1`, the model associated with
-Janna, and its generated portrait. The owner corrected the earlier R2 selection;
-R2's owner-created attribution is withdrawn. The owner confirmed Janna/R1 has
-no external components and reports it rendered correctly. Existing starter
-receipts preserve their previous content and edits.
+Caitlyn's version-6 starter uses `AvatarSample_Y_0`, an unmodified pixiv VRoid
+sample whose embedded VRM 0 metadata declares CC BY with commercial use allowed;
+credit pixiv VRoid Project. The owner approved it on 2026-10-01 and removed the
+previous `AvatarSample_R1` model and portrait; R2's earlier owner-created
+attribution remains withdrawn. Existing starter receipts preserve their previous
+content and edits.
 
 Rules with `"distribution": "excluded"` exclude the whole typed entry from
 **both** desktop partitions; an excluded required starter dependency fails the
@@ -53,7 +54,7 @@ fonts, and UI images remain frontend application assets.
 ## Retained avatar and effect artwork
 
 The source library contains only the Annie (`AvatarSample_A_1_New.vrm`) and
-Caitlyn (`AvatarSample_R1.vrm`) models and their generated portrait pairs.
+Caitlyn (`AvatarSample_Y_0.vrm`) models and their generated portrait pairs.
 Other sample models, portraits and the combined contact sheet have been retired.
 Existing installations are not rewritten by this source cleanup; a saved
 reference to retired Included content needs an explicit replacement.

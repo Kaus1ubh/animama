@@ -48,17 +48,17 @@
       "distribution": "excluded"
     },
     {
-      "glob": "avatars/AvatarSample_R1.vrm",
-      "creator": "Animama project owner",
-      "provenance": "Owner confirms the VRM associated with Janna is their own VRoid Studio model with no external components, and reports it rendered correctly (2026-09-02). The backend avatar seed maps Janna (avt_sample_r1) to AvatarSample_R1.vrm. Selected as Caitlyn's version-3 default, superseding the mistaken R2 selection. Underlying VRoid terms and the final artifact notices remain part of release review; this is not a blanket approval for other assets.",
-      "license_id": "LicenseRef-Animama-owner-created-VRoid",
+      "glob": "avatars/AvatarSample_Y_0.vrm",
+      "creator": "pixiv VRoid Project",
+      "provenance": "Unmodified pixiv VRoid sample model, Caitlyn's default from starter version 6 and the Caitlyn avatar seed (avt_caitlyn). Embedded VRM 0 metadata: author pixiv VRoid Project, title AvatarSample_Y_0, license CC_BY, allowed user Everyone, commercial use Allow, violent and sexual use Disallow. The owner approved its inclusion on 2026-10-01; hashes are recorded in licenses/third-party/art-vroid-review.json. Credit pixiv VRoid Project and do not edit embedded permission flags. Final binary publication approval remains separate.",
+      "license_id": "LicenseRef-pixiv-VRoid-sample-CC-BY",
       "redistribution_review": "pending"
     },
     {
-      "glob": "appearances/avatar-portraits/app-avatar-model-avatarsample-r1-v1.*",
-      "creator": "Animama project owner",
-      "provenance": "The owner confirms the WebP portrait is a direct Animama renderer capture of their Janna/AvatarSample_R1 model, contains no external artwork, and its metadata is project-authored (2026-09-03). Janna remains Caitlyn's corrected replacement.",
-      "license_id": "LicenseRef-Animama-owner-created-VRoid",
+      "glob": "appearances/avatar-portraits/app-avatar-model-avatarsample-y-0-v1.*",
+      "creator": "Animama render of pixiv VRoid Project model",
+      "provenance": "Direct Animama portrait-capture renderer output (renderer 1, capture preset 2) of AvatarSample_Y_0, downscaled to 256x256 WebP; contains no external artwork and its metadata is project-authored (2026-10-01). Follows the underlying model's CC_BY attribution terms.",
+      "license_id": "LicenseRef-pixiv-VRoid-sample-CC-BY",
       "redistribution_review": "pending"
     },
     {

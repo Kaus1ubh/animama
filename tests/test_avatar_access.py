@@ -28,9 +28,9 @@ class _StubAvatarRepository:
 @pytest.mark.asyncio
 async def test_validate_avatar_access_allows_public_avatar(monkeypatch) -> None:
     avatar = Avatar(
-        id="avt_sample_r1",
+        id="avt_caitlyn",
         name="Avatar Sample R1",
-        file_path="/shared/avatars/AvatarSample_R1.vrm",
+        file_path="/shared/avatars/AvatarSample_Y_0.vrm",
         private=False,
     )
 
@@ -41,7 +41,7 @@ async def test_validate_avatar_access_allows_public_avatar(monkeypatch) -> None:
     )
 
     await avatar_access_module.validate_avatar_access(
-        "avt_sample_r1",
+        "avt_caitlyn",
         session=AsyncSession(),
         user=RequestPrincipal(id="user-1"),
     )

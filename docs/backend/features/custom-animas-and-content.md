@@ -178,7 +178,7 @@ not the stable owner/starter identity. Successful or deleted slots are never
 rewritten by a later spec version.
 
 Newly provisioned starters use Annie version 3 (`AvatarSample_A_1_New`, Eve Pocket
-voice) and Caitlyn version 5 (`AvatarSample_R1`, Azelma Pocket voice), with matching
+voice) and Caitlyn version 6 (`AvatarSample_Y_0`, Azelma Pocket voice), with matching
 Included portraits when available.
 Their identities write out every section of the `IDENTITY.md` template.
 Existing ready/deleted starter receipts are preserved. Automatic adoption uses
