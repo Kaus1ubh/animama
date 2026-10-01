@@ -1,0 +1,535 @@
+# Parakeet as backend model assets, stepped setup and Cloud | Local models
+
+Status: In progress. All phases authorized.
+Source agreement: [raymond-van/animama#221](https://github.com/raymond-van/animama/issues/221)
+as read on 2026-10-01 (Status: Proposal; it absorbs all of #220), plus the
+owner's [model-configuration amendment](https://github.com/raymond-van/animama/issues/221#issuecomment-5933748408)
+of 2026-10-01 and the owner answers of
+2026-10-01 recorded in the [Decision Log](#decision-log).
+Authorized scope: whole plan (Phases 1–6 and final integration review), approved
+by the owner on 2026-10-01, including the WebGPU encoder re-download (D2).
+Packaged-app acceptance, screenshot review and live provider checks remain
+owner gates G1–G5.
+
+## Purpose and context
+
+After this work:
+
+- **Parakeet installs in place.** On packaged desktop and built self-host, the base
+  (CPU) and WebGPU Parakeet sets install, resume, cancel, retry and uninstall
+  through the backend model-asset service (`/v1/model-assets`). FastAPI keeps
+  its PID and no window reloads. Dictation works after install and offline.
+- **Setup is three short steps:** **Welcome** (display name, 18+ confirmation
+  and safety link) → **AI** (Cloud | Local model setup with the OpenAI key) →
+  **Voice** (offline speech recognition and text-to-speech with the ElevenLabs
+  key). Steps have Back/Continue and a progress indicator.
+- **App Settings → Models is organized by where models run** (Cloud | Local).
+  It adds an OpenRouter preset, capability chips instead of API tags, and the
+  OpenAI key on the OpenAI card. The ElevenLabs key also appears in Voice.
+
+The issue and its amendment are the requirements authority (R1–R19). This plan
+records how to implement and verify them.
+
+Repository `raymond-van/animama`, worktree
+`worktrees/animama/parakeet-backend-downloader-054e4a`, branch
+`feat/parakeet-backend-downloader`. Starting revision `3eb23e45` (`main` with
+#215 Plan B, #227 live keys and #228). The primary checkout stays on `main`. No
+Cloud checkout or private input is needed.
+
+Follow [SDLC](../../../SDLC.md), [PLANS](../../../PLANS.md), the root guide, the
+[backend](../../../src/backend/AGENTS.md) and [frontend](../../../src/frontend/AGENTS.md)
+guides, and:
+
+- [ADR 0001](../../adr/0001-independent-local-product-and-packaged-sharing.md):
+  shared code takes composition inputs;
+- [ADR 0008](../../adr/0008-non-overridable-companion-guardrail.md): unchanged;
+- [ADR 0010](../../adr/0010-shared-model-object-distribution.md): partly
+  superseded by the new [ADR 0012](../../adr/0012-backend-parakeet-model-assets.md)
+  (proposed with this plan);
+- [ADR 0011](../../adr/0011-application-owned-companion-features-and-composition-catalog-policy.md):
+  the hosted composition stays built-in only.
+
+### Current mechanism (revision `3eb23e45`)
+
+| Area | Behavior |
+| --- | --- |
+| Asset service | `app/services/model_asset_service.py` installs **one file per asset**. It checks free space, streams one staged file with SHA-256, then commits it to `<data_root>/internal/model-assets/<id>/<sha256>`. Progress lives in memory only, and staging is wiped at startup. `adapters/model_assets/http_fetcher.py` allows only `https://downloads.animama.ai`, sends a plain GET and requires `200`, so there is **no resume**. `register_removal_guard` exists, but nothing registers a guard. |
+| Catalog | `resources/model-assets.v1.json` (`animama-asset-catalog/1`, strict `id,url,size,sha256,media_type,license_ref`). It has the single-file `parakeet-tdt-0.6b-v2-webgpu-encoder`, 36 Pocket voices and the Mimi encoder. There are **no base Parakeet entries**. |
+| Manifests | `models/parakeet-tdt-0.6b-v2/manifest.json`: 7 files (≈661 MB). `models/parakeet-tdt-0.6b-v2-webgpu/manifest.json`: 3 files (`encoder-model.fp16.onnx` ≈1.24 GB plus README and ATTRIBUTION). Objects are already published at `models/<model-id>/<sha>/<path>`. |
+| Desktop serving | `supervisor.ts` `environment()`/`backendEnvironment()` pass `ANIMAMA_PARAKEET_STT_ENABLED`, both asset versions and both mount JSON values. `server/local_http.py` turns these into `ModelMount`s, and `local/http/assets.py` serves them at `/onnx/models/parakeet-tdt-0.6b-v2[-webgpu]/` with `?v=` cache pinning. `transitionPack` quiesces the backend, destroys product windows (`main.ts` `quiesceProductWindows`) and restarts the backend. |
+| Self-host serving | Built Compose binds `${ANIMAMA_PARAKEET_MODEL_DIR}` into the web root (`/__client-parakeet-models`, no verification). The WebGPU encoder comes from `/v1/model-assets/<id>/content`. Development binds both directories into Vite. `reset.sh` disables STT when the base set is missing. |
+| Capabilities | `runtime_capabilities.py` reports `offline_speech_enabled` from the startup flag and `offline_speech_asset_version` from env. The WebGPU version is not reported. |
+| Renderer | `VoiceDownloads.tsx` (`OfflineSpeechDownload`, "Model changes briefly reload the app."), `ExperimentalSettings.tsx` (`ParakeetWebgpuDownload` pack, `ParakeetWebgpuAssetDownload` self-host, chosen at build time in `web/vite.config.ts`), `useDesktopFeaturePacks`, `query/model-download-coordination.ts`, `ChatInterface.tsx` (`DesktopFeaturePacksPanel only="parakeet-stt"`). `DesktopCredentialsPanel` blocks while `packs.busy`. |
+| Setup | `routes/setup.tsx` is one form. `setup-draft.ts` keeps `{displayName, adultConfirmed}` in localStorage because pack changes replace the renderer. Setup sits outside `SettingsProvider`. `routes/-setup.test.ts` renders statically and has no step or submit coverage. |
+| Models | `MODEL_SERVER_TABS` (six server tabs) and `modelApiTag` live in `ui/settings/models/model-configuration-state.ts`. Presets are a Python dict in `app/model_connection_presets.py`. The built-in `gpt-6-luna` exists as both Chat Completions and Responses rows. `hidden` is a global column the seed never sets. `KNOWN_PROVIDER_CREDENTIAL_ENVS` has OPENAI, DEEPSEEK and HF. Plan B app web search (SearXNG/Brave) is configured in `ui/settings/web-search/`. |
+| Starters | `local_installation_bootstrap.py` creates starter Animas at startup, before setup, pinning the operator default (`OpenAIResponsesHTTPAgent:gpt-6-luna`) in `anima_chat_profiles.default_model_provider_id`. |
+| Smoke | `desktop/scripts/runtime/smoke-macos.mjs` drives the single setup page: OpenAI key save with the PID unchanged, then name, 18+ and Continue to `/a`. It requires `offline_speech_enabled === false` on a fresh profile. |
+
+### Boundaries
+
+- `expanded-included-content` and `document-processing` keep their pack
+  lifecycle, archive transport, signing and restart behavior. The
+  pack/asset mutual exclusion stays for them.
+- The development Compose stack keeps `scripts/models/parakeet.py`, the
+  `reset.sh` host mounts and Vite serving (owner decision D4).
+- The hosted composition gains no Models controls and no AI step model choice
+  (R19). Shared code takes the existing `ModelCatalogPolicy` and
+  `runtime-capabilities.model_configuration` inputs.
+- The installation owner, admission rules, credential vault format and #227
+  delivery contract are unchanged. Model-asset routes keep owner-only
+  admission.
+- No new API format (Open Responses and Anthropic Messages are deferred).
+- The adult confirmation and safety link stay required (issue constraint).
+- No Alembic revision. The ORM, `0001_baseline.sql` and generated seeds change
+  directly.
+
+## Progress
+
+- [x] Plan: approved by the owner on 2026-10-01.
+- [ ] Phase 1: backend Parakeet sets (download, resume, activation, leases, serving, live capabilities).
+- [ ] Phase 2: desktop and self-host cutover, pack removal, speech download UI.
+- [ ] Phase 3: OpenRouter preset, model metadata and hidden built-ins (backend).
+- [ ] Phase 4: App Settings → Models Cloud | Local and feature-local keys.
+- [ ] Phase 5: stepped setup.
+- [ ] Phase 6: documentation sweep and final integration review.
+- [ ] Owner gates G1–G5 (see [Validation and acceptance](#validation-and-acceptance)).
+
+## Surprises & Discoveries
+
+- 2026-10-01: The WebGPU set has **3 files**, not seven. The issue's "seven-file
+  set" applies to the base set only. Plan: each set is exactly its manifest's
+  files.
+- 2026-10-01: `docs/backend/operations/model-assets.md` and the shared-model-store
+  plan state that Parakeet stays in Electron's pack manager. ADR 0012 supersedes
+  that decision, and Phase 6 updates the doc.
+- 2026-10-01: Parakeet packs are the only users of the `animama-model-pack/1`
+  format (`feature-packs/catalog.ts` model sections, `model-files.ts`, parts of
+  `manager.ts`, `release-models.mjs`, `size.mjs`, `model-publication.mjs`).
+  `release-policy.mjs` pins the exact four-pack list. Removing the packs leaves
+  that code dead, so Phase 2 removes it.
+- 2026-10-01: Starter Animas are created at startup, before setup, and pin the
+  operator default model. Setting the Chat default in setup alone would not
+  change them (see D6).
+- 2026-10-01: The pack removal check reports no renderer use for Parakeet; the
+  backend has no "model in use" signal today. R5 needs a new lease (Phase 1).
+- 2026-10-01: Built self-host serves the base set as unverified static files
+  from the web root. Moving it to the asset store adds digest-verified,
+  range-capable serving.
+- 2026-10-01: `/setup` is outside `SettingsProvider`, and
+  `PATCH /v1/users/me/settings` replaces the whole `preferences` object. Setup
+  writes must read and merge first, or use a focused route.
+- 2026-10-01: `origin/main` advanced from `70ba2c10` to `3eb23e45` (#215 Plan B,
+  #228) during planning. The clean worktree was fast-forwarded before planning
+  finished.
+
+## Decision Log
+
+Owner decisions (2026-10-01):
+
+- **O1** (issue): move both Parakeet sets to the backend downloader on desktop
+  and self-host. Keep the pack manager for the two deferred packs. Absorb #220.
+- **O2** (answer): text-to-speech choice and the ElevenLabs key go **inline in
+  the Voice step**. The AI step has the OpenAI key.
+- **O3** (answer): the development stack **keeps the `reset.sh` host Parakeet
+  mount**. Packaged desktop and built self-host use the asset store.
+- **O4** (amendment): Cloud | Local in the AI step and App Settings → Models,
+  with providers as listed. The app picks the API. API tags leave model rows.
+  Built-in OpenAI Chat Completions rows are hidden by default. Keys live with
+  their feature and also stay in API Keys. OpenRouter preset. No new API format.
+  Hosted composition unchanged. This resolves the AI-step open question.
+- **O5** (answer): the model set up in the AI step **becomes the default Chat
+  role, and starter Animas follow it**. Animas the owner pinned are never
+  rewritten.
+- **O6** (answer): chips are **Tools · Context · Web search**, plus Vision when
+  known. The Local tab shows size and quantization as secondary text when the
+  server reports them.
+- **O7** (answer): OpenRouter sends fixed `X-Title: Animama` and
+  `HTTP-Referer: https://animama.ai`. The add-model picker filters to
+  tool-calling models by default, with a toggle to show all.
+- **O8** (answer): setup step order **Welcome → AI → Voice**.
+
+Agent decisions (2026-10-01; the owner may change them at plan review):
+
+- **D2 Set representation.** A catalog entry may carry `files: [{path, url,
+  size, sha256}]` and a `manifest_sha256` instead of a single `url/size/sha256`.
+  Single-file entries are unchanged. Sets live at
+  `<data_root>/internal/model-assets/<id>/<manifest_sha256>/` and activate by
+  one directory `os.replace` from staging, as `scripts/models/parakeet.py` does.
+  New set ids: `parakeet-stt` and `parakeet-stt-webgpu`. The old
+  `parakeet-tdt-0.6b-v2-webgpu-encoder` entry is removed, and startup deletes
+  its stored file (development cutover; ADR 0012 records the re-download).
+- **D3 Resume.** Staging for set files persists across retries and restarts
+  (only orphaned single-file staging is swept). On retry the service rehashes
+  the existing partial prefix and requests `Range: bytes=N-`. It accepts `206`
+  only with a matching `Content-Range` and total size, and otherwise restarts
+  the file from zero on `200`. Single-file assets gain the same path.
+- **D4 Use leases.** Renderers that load a Parakeet set renew
+  `POST /v1/model-assets/{id}:lease` (owner-admitted, TTL 30 s, renewed every
+  10 s, released on unload). A registered removal guard refuses with
+  `model_asset_in_use` while a lease is live. A dependency guard refuses
+  removing `parakeet-stt` while `parakeet-stt-webgpu` is installed
+  (`model_asset_required_by`). Leases are in memory, so a backend restart clears
+  them safely.
+- **D5 Serving and capabilities.** A `ModelMountSource` port resolves the
+  current mount per request: from the asset store on packaged desktop and built
+  self-host, and from operator env in development. `LocalAssets` keeps the
+  `/onnx/models/<model-id>/` paths and `?v=<manifest_sha256>` pinning.
+  `offline_speech_enabled` is the operator flag AND an installed base set.
+  Capabilities add `offline_speech_gpu_asset_version`. The renderer invalidates
+  runtime capabilities when an asset install or removal settles. Built
+  self-host's web-root bind and `VITE_CLIENT_PARAKEET_MODEL_BASE_URL` are
+  removed. Built clients use the FastAPI paths, and Vite dev keeps the operator
+  paths.
+- **D6 Starters follow the setup model.** `POST /v1/runtime/onboarding:complete`
+  gains an optional `chat_model_provider_id`. In one transaction the backend
+  validates that it is usable, stores it as `preferences.chat.default_model_provider_id`,
+  and repins starter Animas whose model still equals the one they were created
+  with. Before onboarding completes, no owner pin can exist, so this satisfies
+  O5. Afterwards, Animas keep their own model, as App Settings already states.
+  Repinning onboarded starters on every later default change is not proposed.
+- **D7 Credential gate.** With Parakeet off packs, the `DesktopCredentialsPanel`
+  `packs.busy` gate and the setup draft's "could not be retained" block are
+  removed. The setup draft stays in localStorage (it now also holds the current
+  step) because a failed key delivery can still fall back to a restart. The
+  unsaved-key guard moves to step navigation: Continue and Back on a step with
+  unsaved key edits prompt to save or discard.
+- **D8 Web search chip.** "Built-in" when the model's requestable native tools
+  include `web_search`; "App search" when the model supports tools and app web
+  search is configured; otherwise no chip.
+- **D9 OpenRouter model list.** A backend route reads OpenRouter's public
+  `/api/v1/models` (fixed origin, response size and time bounded, no key) and
+  returns `id, name, context_length, supported_parameters`. The renderer
+  searches and filters it, and adding a model prefills capabilities (`tools`
+  and `structured_outputs`), which the probe can override.
+- **D10 Hidden built-ins.** The generated seed inserts `hidden = true` for
+  built-in Chat Completions chat rows (embedding rows stay visible). Existing
+  databases keep their state until reset, consistent with the
+  development-reset policy. `modelOptionDetail`'s API suffix is removed from
+  pickers, and the API appears only in the Info panel.
+- **D11 Feature-local keys.** `DesktopCredentialsPanel` takes a `providers`
+  filter. The OpenAI card, the Voice settings TTS group, the AI step and the
+  Voice step render the filtered panel against the same vault state. API Keys
+  keeps the full panel.
+
+## Phased implementation
+
+Phase issues are created at implementation start, one per phase, as children of
+#221 (SDLC). Commit subjects use `<type>(<scope>)[p#]: <summary>`.
+
+### Phase 1: Backend Parakeet sets
+
+Requirements: R2, R3, R4, R5 (backend part), and ADR 0012 accepted. Depends on
+the approved plan.
+
+Changes (`src/backend/animama`, `tests/`):
+
+1. ADR 0012 status → accepted. ADR 0010 header gains
+   `Status: accepted; items 2, 8 (Parakeet clause), 3 (built self-host) and 9
+   (setup draft, GPU visibility) superseded by 0012`. Update the ADR index.
+2. `domain/model_assets.py`: add set descriptors (D2), strict parsing, free
+   space = remaining bytes + margin, and per-file progress aggregated to set
+   progress.
+3. `resources/model-assets.v1.json`: add `parakeet-stt` and
+   `parakeet-stt-webgpu` derived from the manifests, and remove the encoder
+   entry. Extend `tests/test_model_assets.py` so each set equals its manifest
+   exactly (paths, sizes, digests and URLs), and record the license refs
+   against `licenses/source-review.json`.
+4. `adapters/model_assets/http_fetcher.py`: optional `start` offset, `206` and
+   `Content-Range` validation, and a fallback to `200`.
+5. `filesystem_store.py`: persistent per-set staging, prefix rehash, an atomic
+   directory commit that removes previous digests, `is_installed` for sets
+   (every file present with exact size), and removal of obsolete ids at startup.
+6. `model_asset_service.py`: install, cancel and remove for sets, the lease
+   registry and two removal guards (D4), and a `ModelMountSource` adapter (D5).
+7. `server/model_assets.py`, `server/routers/model_assets.py`: the lease route
+   and set fields in the schema (`files_total`, `files_verified` and an
+   optional `version`).
+8. `server/local_http.py`, `local/http/assets.py`: resolve mounts through the
+   source per request. Setting `ANIMAMA_PARAKEET_SOURCE=asset-store|operator`
+   is a composition input with default `asset-store` for packaged and built
+   compositions; Compose development sets `operator`.
+9. `server/routers/runtime_capabilities.py`: live values (D5).
+10. Regenerate the SDK (`pnpm openapi-ts`, offline).
+
+Tests first (TDD): resume (stub server with 206, 200 fallback, wrong
+`Content-Range`, a digest mismatch after resume), "a partial set is never
+installed" (kill mid-file and after N-1 files), atomic activation, capability
+flip without a restart (install → `offline_speech_enabled` true, remove →
+false), lease refusal and expiry, the CPU-blocked-by-GPU guard, serving 404
+before install and 200/206 after with `?v` pinning, and operator source
+unchanged.
+
+Checks: `uv run pytest -q`, `uv run ruff check`, `make check-test`,
+`make format-check`.
+Completion: checks pass, review #1 has no unresolved blockers, and the phase
+commit is recorded.
+
+#### Code Review #1 Findings
+
+Pending.
+
+#### Code Review #1 Revisions
+
+Pending.
+
+### Phase 2: Desktop and self-host cutover
+
+Requirements: R1, R5 (renderer), R6, R7, the #220 download UI items and the
+pack-removal acceptance. Depends on Phase 1.
+
+Changes:
+
+1. Desktop main: remove Parakeet from `feature-pack-releases.json`,
+   `source-manifest.json`, `size-budgets.json`, `feature-pack.schema.json`,
+   `feature-packs.mjs`, `optional-inputs.mjs`, `feature-pack-build.ts`,
+   `measure.mjs`, `release-policy.mjs` (pack list), `catalog.ts`
+   `MODEL_PACK_IDS`, and `shared/desktop-runtime.ts` `featurePackIds/Requires`.
+   Delete the model-pack-only code (`model-files.ts`, model sections of
+   `catalog.ts`/`manager.ts`, `release-models.mjs`/`size.mjs` pack paths). Keep
+   `download.ts`, `extract.ts`, `signature.ts`, `files.ts` and signing.
+   `release-models.mjs`/`model-publication.mjs` publish Parakeet objects as
+   asset-catalog consumers (the `parakeet-tdt-0.6b-v2` special case becomes a
+   catalog reference).
+2. `supervisor.ts`: drop the Parakeet env and mount JSON. The backend gets
+   `ANIMAMA_PARAKEET_SOURCE=asset-store`. Backend `domain/feature_packs.py` and
+   `desktop_control.py` lose the Parakeet ids and versions.
+3. Compose built: remove the web-root Parakeet bind and the Dockerfile base URL.
+   `reset.sh` stops disabling STT for built mode (capabilities are live) but
+   keeps development verification and mounts. Update
+   `test_compose_network_boundaries.py`/`test_local_state_scripts.py`.
+4. `web/vite.config.ts`: build mode uses the FastAPI `/onnx/models/...` paths
+   for both sets (desktop and self-host). Serve mode keeps operator paths.
+   Remove the `pack` encoder source.
+5. Renderer: one `OfflineSpeechDownloads` component on `useModelAssets` for
+   desktop and built self-host: the "Offline speech recognition (Parakeet)"
+   block with a CPU download that shows its size, and a nested "GPU
+   acceleration" add-on that is always visible, says it requires the CPU model,
+   and has a disabled action with a reason (base missing, no WebGPU adapter,
+   unavailable in this build). Remove the "briefly reloads" copy, pack
+   coordination for Parakeet, `ParakeetWebgpuDownload`, and the `ChatInterface`
+   pack panel (it reuses the new component). The Parakeet client acquires and
+   releases the use lease (D4) and invalidates capabilities on settle (D5).
+   Remove the `DesktopCredentialsPanel` `packs.busy` gate (D7).
+6. Tests: `VoiceDownloads.test.tsx` (CPU before, during and after install; GPU
+   prerequisite, no-adapter and unavailable states; in-use removal message;
+   CPU removal blocked by GPU), `ExperimentalSettings.test.tsx`,
+   `model-download-coordination.test.ts`, desktop `feature-packs.test.ts`,
+   `runtime-supervisor.test.ts`, `optional-inputs.test.mjs`,
+   `release-models.test.mjs`, `runtime-packaging.test.mjs`. Delete
+   `model-pack-*.test.ts`.
+
+Checks: backend checks, `pnpm check`, `pnpm web:lint`, `pnpm web:test` (the
+known flaky voice-clone compact picker test, #226, is noted, not a
+regression), `pnpm build`, `pnpm desktop:check`, `pnpm desktop:test`,
+`bash -n reset.sh`, and both `docker compose ... config --quiet` commands from
+the root guide.
+Manual: a built self-host stack (`./reset.sh --name pbd --base-port 8200` with
+`ANIMAMA_WEB_BUILD_MODE=production`). Install the CPU set, interrupt the
+download (stop the backend mid-download), restart and observe the resumed
+byte count, dictate, then run offline with the network disabled. Repeat for
+GPU on a WebGPU-capable browser. The packaged no-restart check is owner gate G1.
+Completion: checks pass, review #1 has no unresolved blockers, the phase
+commit is recorded, and no `parakeet` remains in pack artifacts
+(`rg -n parakeet src/frontend/desktop/runtime`).
+
+#### Code Review #1 Findings
+
+Pending.
+
+#### Code Review #1 Revisions
+
+Pending.
+
+### Phase 3: OpenRouter preset, model metadata and hidden built-ins
+
+Requirements: R14, R16 (backend), R19 (backend). Independent of Phases 1–2.
+
+Changes (`src/backend/animama`, `tests/`, compose):
+
+1. `app/model_connection_presets.py`: an `openrouter` preset (cloud,
+   `https://openrouter.ai/api/v1`, suggested `OPENROUTER_API_KEY`, Chat
+   Completions compatibility), plus a preset `request_headers` field applied by
+   `connection_sdk.py` for that preset only (O7).
+2. `credential_store.py`: add `OPENROUTER_API_KEY` to
+   `KNOWN_PROVIDER_CREDENTIAL_ENVS`. Update the env-name error message in
+   `model_configuration_service.py` and the compose pass-through.
+3. The OpenRouter model-list route (D9), owner-only, local composition only.
+4. Generated seed and `0001_baseline.sql`: hidden built-in Chat Completions
+   chat rows (D10). Update `tests/test_model_provider_catalog.py`.
+5. Catalog schema: expose `structured_output_transport` where the chips need it
+   (only if required by D8).
+
+Tests: preset listing, headers sent only for OpenRouter (respx), the key
+allowlist accepting `OPENROUTER_API_KEY`, the model-list parsing, bounds and
+failure mapping, a stubbed end-to-end OpenRouter chat turn through Chat
+Completions, the hidden seed default with in-use visibility preserved, and
+hosted policy routes absent.
+Checks: backend checks plus `pnpm openapi-ts` regeneration.
+
+#### Code Review #1 Findings
+
+Pending.
+
+#### Code Review #1 Revisions
+
+Pending.
+
+### Phase 4: App Settings → Models Cloud | Local and feature-local keys
+
+Requirements: R12, R13, R15, R16 (UI), the API-switch copy (scope 13) and R19
+(UI). Depends on Phase 3.
+
+Changes (`src/frontend/web/src/ui/settings/models/`, `DesktopCredentialsPanel`,
+`ApplicationSettingsModal.tsx`, `ChatInterface.tsx`):
+
+1. Replace `MODEL_SERVER_TABS` with `MODEL_LOCATION_TABS` (cloud: openai,
+   deepseek, huggingface, openrouter, custom-cloud; local: ollama, lmstudio,
+   llamacpp, vllm, custom-local). Connected providers render first as cards
+   with status ("Key set", "Key missing", "Running at …", "Not reachable") and
+   models. "Add …" entries reuse `ModelConnectionForm`, Detect and probe.
+   OpenAI shows a Recommended tag and a key field (D11).
+2. Model rows: remove `modelApiTag`. Add chips (O6, D8). Info panel and
+   `OwnerModelDialog` show "API: Responses" or "API: Chat Completions".
+3. The OpenRouter add-model picker: search, a "Tool calling only" toggle on by
+   default, and capability prefill (D9).
+4. Voice → Text-to-Speech shows the ElevenLabs key next to the provider (D11).
+5. API-switch dialog copy in user terms ("continues in a new chat"), and the
+   matching quick-chat toast.
+6. Tests: `model-configuration-state.test.ts` (tabs, connected-first order,
+   chips, no API tag), new component tests for the location tabs, OpenAI card
+   key sync with API Keys, the OpenRouter picker filter and search, and the
+   hosted composition hiding the section. `DesktopCredentialsPanel.test.tsx`
+   covers the provider filter.
+
+Checks: frontend checks. Browser check against the dev stack at desktop and
+narrow widths, with screenshots saved for G3.
+
+#### Code Review #1 Findings
+
+Pending.
+
+#### Code Review #1 Revisions
+
+Pending.
+
+### Phase 5: Stepped setup
+
+Requirements: R8–R11, R17, R18, the Welcome step's adult confirmation, and the
+setup copy. Depends on Phases 2 and 4.
+
+Changes:
+
+1. `routes/setup.tsx`: split into `SetupWelcomeStep`, `SetupAiStep` and
+   `SetupVoiceStep` with a progress indicator ("Step 2 of 3", `aria-current`),
+   Back/Continue, focus on each step heading, and `role="status"` for status
+   text. Only Welcome gates on name and 18+. AI and Voice offer "Skip for now".
+   Downloads keep running across steps and after finishing.
+2. AI step: Cloud | Local. Cloud has "Use OpenAI (Recommended)" with the key
+   field, which completes the step, plus other cloud providers through the
+   shared form. Local detects Ollama, LM Studio and llama.cpp and picks a
+   model; with nothing found it shows one install-guidance line and "Set up
+   later". The chosen model is sent with onboarding completion (D6). The
+   hosted composition never reaches this step.
+3. Voice step: the Phase 2 Parakeet block, and Text-to-Speech on/off, provider
+   (built-in voices or ElevenLabs) and the ElevenLabs key (O2). TTS
+   preferences are written by read-merge-write of user settings at Finish.
+4. Backend (D6): extend onboarding completion, with tests for default
+   assignment, starter repinning, a pinned starter left unchanged, and an
+   invalid or unusable model refused.
+5. `setup-draft.ts`: holds the step and nonsecret values. Remove the
+   draft-unavailable block and the download gates (D7). The unsaved-key guard
+   applies to step navigation.
+6. Copy: one sentence of purpose per section, with details behind
+   disclosures, consistent with App Settings.
+7. `smoke-macos.mjs` and `smoke-policy.mjs`: Welcome → AI (key save, PID
+   unchanged, "Saved.") → Voice → Finish → `/a`. Keep the fresh-profile
+   `offline_speech_enabled === false` check.
+8. Tests: `routes/-setup.test.ts` becomes interactive (step navigation,
+   per-step gating, Back keeps values, skip paths, the unsaved-key prompt, and
+   submit payload with and without a model).
+
+Checks: all frontend and backend checks plus `pnpm desktop:test`. Browser check
+of setup on a fresh dev stack at desktop and narrow widths, with screenshots
+for G3.
+
+#### Code Review #1 Findings
+
+Pending.
+
+#### Code Review #1 Revisions
+
+Pending.
+
+### Phase 6: Documentation and final integration
+
+Docs: `docs/frontend/desktop/feature-packs.md`, `runtime-staging.md`,
+`releases.md`, `overview.md`, `installation.md`, `release-process.md`,
+`redistribution-review.md`, `troubleshooting.md`, `src/frontend/desktop/README.md`,
+`docs/frontend/runtime/voice.md`, `docs/backend/operations/model-assets.md`,
+`docs/backend/operations/desktop-runtime.md`,
+`docs/frontend/architecture/auth-server.md`,
+`docs/frontend/features/model-settings.md`, `docs/backend/model-catalog.md`
+(OpenRouter), `docs/backend/operations/local-models.md`, and the chat docs for
+the switch dialog. Add or correct glossary entries ("feature pack" scope,
+"model asset set") if they become misleading.
+
+Then: final independent integration review, the full local check suite, the
+packaged macOS build from the worktree with the real profile moved aside and
+restored (or with the owner's go-ahead), and the PR via the template.
+
+## Final integration review
+
+Pending. It covers combined acceptance across phases, reusing still-valid phase
+evidence.
+
+## Validation and acceptance
+
+Commands (from the root guide), run per phase as applicable and in full before
+the PR:
+
+```bash
+uv run pytest -q
+uv run ruff check
+make check-test
+make format-check
+bash -n reset.sh
+```
+
+From `src/frontend`: `pnpm check`, `pnpm web:lint`, `pnpm web:test`,
+`pnpm build`, `pnpm desktop:check`, `pnpm desktop:test`. Compose config
+validation follows the root guide. No hosted CI runs on PRs, so local evidence
+is the only evidence. The PR states every check run and not run.
+
+Acceptance maps to the issue's checklist. Owner gates (not phases):
+
+- **G1** Fresh packaged macOS profile: setup shows Welcome, AI and Voice.
+  Completing only the required fields reaches the app. The AI step completes
+  through OpenAI, through a detected local server and by skipping. A CPU and a
+  GPU install, cancel, retry and removal complete without a backend PID change
+  or window reload. Dictation works after install and with the network off.
+- **G2** Live OpenRouter chat with the owner's key (the owner enters it).
+- **G3** Owner review of setup, speech download and Models copy, with
+  screenshots at desktop and narrow widths.
+- **G4** Live ElevenLabs key edit from Voice, reflected in API Keys (the owner
+  enters it).
+- **G5** Exact-candidate merge approval.
+
+## Idempotence and recovery
+
+- Set installs are restartable. Partial files stay in staging and resume.
+  A corrupted partial fails its digest and restarts that file. Activation is one
+  directory rename, so a crash leaves either the old state or the new state.
+- Removing an obsolete encoder entry is idempotent. Models are re-downloadable
+  and user data is untouched.
+- The seed change affects only fresh or reset databases. Existing visibility is
+  preserved.
+- Onboarding completion with a model is one transaction. A retry after success
+  is refused by the existing first-run check, so nothing is applied twice.
+- Pack removal is a development cutover. An owner with an old Parakeet pack
+  installed keeps an inert directory under the pack root, which the pack
+  manager's existing cleanup of unknown ids removes (verify in Phase 2; if it
+  does not, document manual removal in troubleshooting).
+
+## Outcomes & Retrospective
+
+Pending.
