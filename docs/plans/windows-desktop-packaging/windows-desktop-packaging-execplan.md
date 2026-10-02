@@ -155,7 +155,10 @@ Paths are repository-relative. `D/` abbreviates `src/frontend/desktop/`.
       `f422046a` ([#253](https://github.com/raymond-van/animama/issues/253));
       Windows stage and audit receipts passed; review passed after two repair
       rounds.
-- [ ] Phase 3: Storage, secrets and file containment. Not started.
+- [x] Phase 3: Storage, secrets and file containment. Complete on 2026-10-02
+      at `555f8a45` ([#254](https://github.com/raymond-van/animama/issues/254));
+      Windows receipts passed; review passed after two repair rounds. The
+      DB-backed backend suite is an open owner gate (Docker unavailable to WSL).
 - [ ] Phase 4: Process guard and supervised Windows runtime. Not started.
 - [ ] Phase 5: Unsigned package, installer and native input. Not started.
 - [ ] Phase 6: Authenticode signing and the release candidate. Not started; needs G1 and G2.
@@ -305,6 +308,18 @@ These planning findings come from inspecting the source at `98bceca2` on
     components in System32. Electron delay-loads Media Foundation, which
     Windows "N" editions omit; Phase 8 checks those editions' behavior if
     tested.
+20. **The Windows data-root budget is 70 characters (Phase 3).** A
+    single-file model asset stages as
+    `data\staging\model-assets\<id>\<sha256>\<sha256>`, 188 characters below
+    the data root, so the first estimate of 100 characters allowed 289-character
+    paths. `%LOCALAPPDATA%\Animama` fits profile folder names of up to 39
+    characters. A unit test derives the budget from `model-assets.v1.json`.
+    Feature-pack paths are not bounded by their schema; when packs ship on
+    Windows, the pack producer must check them against the same budget.
+21. **Windows junctions read as directories (Phase 3).** CPython reports only
+    true symbolic links as links; a junction, which any user can create, looks
+    like an ordinary directory to `S_ISDIR`, `is_dir()` and `os.walk`. Every
+    backend link or directory guard goes through `animama/utils/files.py`.
 
 ## Decision Log
 
@@ -855,15 +870,157 @@ Checks:
 Completion: every R3 acceptance test passes on Windows. Recovery: tests use
 disposable data roots and never touch `%LOCALAPPDATA%\Animama`.
 
-Results: pending.
+Results (2026-10-02, issue [#254](https://github.com/raymond-van/animama/issues/254),
+commits `9fd782bc` and `555f8a45`):
+
+- **Windows receipts** (detached checkout, clean `git status` after;
+  `LongPathsEnabled=1` on this host):
+  - At `ac7b7056`, whose tree is identical to `9fd782bc`:
+    - `pnpm desktop:test`: 367 passed, 53 skipped, 0 failed. The Windows
+      storage suite passed 5 of 5: junction refusal, a replace after a
+      scanner-style lock is released, a clear failure when the lock outlasts the
+      retries, a missing runtime DLL reported as `runtime_file_invalid`, and
+      PostgreSQL running below a data root at the full 70-character budget with
+      spaces and Japanese text.
+    - `pnpm desktop:test:vault`: "vault encryption: OK" (real DPAPI through
+      Electron `safeStorage`, in a disposable profile).
+  - At `2ba66bf7`, whose tree is identical to `555f8a45` (desktop sources
+    unchanged): targeted backend tests (file safety, local HTTP assets, model
+    assets and sets, content mutations, Local content store, package staging,
+    watcher, worker shutdown) 258 passed, 6 skipped. Every skip is a
+    symbolic-link test that needs a privilege this account lacks; the junction
+    variants of the same containment cases ran, as did the 8.3 short-name and
+    final-path tests.
+- **Linux** (Node 24.15.0): `make format-check`, `uv run ruff check`,
+  `make mypy`, the repository import-boundary check (0 forbidden edges),
+  11 targeted backend test files (267 passed, 3 skipped), `pnpm desktop:check`
+  and `pnpm desktop:test` (402 passed, 19 skipped) pass. `prettier:check` fails
+  only on the pre-existing `tests/feature-packs.test.ts` line (item 16).
+- **Not run:** the DB-backed backend suite (`make check-test`), which the
+  Linux gate requires: Docker is unavailable to this WSL session (item 16).
+  This is an open owner gate for the pull request. Any macOS step was not run.
+  The path tests ran on a host with `LongPathsEnabled=1`; the catalog-derived
+  budget test does not depend on that setting, and Phase 8's clean VM runs with
+  the default.
+- The runtime backend has no `S_ISLNK`/`is_symlink()` guard left outside
+  `animama/utils/files.py`. Build tooling for feature packs
+  (`packaging/desktop/archive_payload.py`, `archive_feature_pack.py`, which uses
+  `os.O_NOFOLLOW`) is outside the runtime scope and stays POSIX-only while packs
+  are deferred.
 
 #### Code Review #1 Findings
 
-Pending.
+Independent reviewer, working tree on `24eb7d33`, full initial review. Checks:
+`make check`, the import-boundary check, targeted backend tests,
+`pnpm desktop:check`, `pnpm desktop:test`, Prettier and `git diff --check`.
+
+- **P3-R1-01 (blocking):** Windows junctions passed the backend's link guards
+  (`S_ISLNK`, `Path.is_symlink()`, `os.walk(followlinks=False)`), which report
+  only true symbolic links. Model-asset pruning and private tree removal could
+  delete outside the data root, and the Local content scan could read outside
+  its root. The symbolic-link tests were skipped on an unprivileged account.
+- **P3-R1-02 (evidence gap):** the DB-backed backend suite had not run.
+- Non-blocking:
+  - P3-R1-03: `fingerprint` no longer caught a hard link added between its
+    path check and its open.
+  - P3-R1-04: a folder swapped for a junction after its check was not caught
+    on Windows, and an `O_CREAT` open could create through a swapped link.
+  - P3-R1-05: on Windows a DPAPI failure surfaced as a generic error, not
+    `secure_storage_unavailable`.
+  - P3-R1-06: the vault harness had no timeout, used the default Electron
+    profile and had no script.
+  - P3-R1-07: the lock-timeout test could exceed Vitest's 5 s default.
+  - P3-R1-08: the path budget was checked only by arithmetic.
+  - P3-R1-09: `publish_new` renamed without the sharing-violation retry.
+  - P3-R1-10: the `data_path_too_long` advice said "retry", which cannot work.
+  - P3-R1-11: an 8.3 alias could reach a hidden folder inside the web root.
+  - P3-R1-12: advice interpolation, a duplicated test helper, synchronous
+    directory syncs in pack extraction.
+  - P3-R1-13: the "Prettier clean" evidence needed qualifying.
 
 #### Code Review #1 Revisions
 
-Pending.
+In `9fd782bc`:
+
+- P3-R1-01: accepted. `files.is_link` and `files.path_is_link` treat every
+  reparse point as a link and replace each former guard in the content,
+  model-asset, staging, archive, starter-content and runtime-configuration
+  code. The watcher's priming walk prunes link directories. The shared test
+  helper `link_directory` makes a junction on Windows, which needs no
+  privilege, so the scan, descriptor-save, mutation, recovery-parent,
+  model-asset prune, watcher and asset tests run there.
+- P3-R1-02: open. Recorded above as an unperformed gate check.
+- P3-R1-03: accepted. `fingerprint` also requires a single link on the open
+  handle; a test adds a hard link between the check and the open.
+- P3-R1-04: accepted. The Windows open uses `FILE_FLAG_OPEN_REPARSE_POINT` and
+  refuses a reparse-point or directory handle, so it never follows or creates
+  through a link. Served assets must resolve, through the open handle, to
+  exactly the requested path.
+- P3-R1-05: accepted. An `encryptString` failure maps to
+  `secure_storage_unavailable`. Whether a restored vault also needs
+  `<userData>\Local State` (Chromium's protected key) is deferred to Phase 8's
+  documentation.
+- P3-R1-06: accepted. The runner owns a disposable folder for the vault and
+  Electron's profile, has a 120 s timeout, and runs as
+  `pnpm desktop:test:vault`; `platforms.md` documents it.
+- P3-R1-07: accepted. The lock is held 2500 ms, longer than the 1575 ms retry
+  window, with 20 s test timeouts.
+- P3-R1-08: accepted, and it found a defect: a single-file model asset stages
+  as `data\staging\model-assets\<id>\<sha256>\<sha256>`, 188 characters, so the
+  100-character budget allowed 289-character paths. The budget is now 70,
+  derived by a unit test from `model-assets.v1.json` (item 20).
+- P3-R1-09: accepted. `publish_new` retries on Windows, and the backend's
+  retry schedule now matches the desktop's (25–800 ms). Deletions are not
+  retried; Phase 8's antivirus acceptance covers them.
+- P3-R1-10: accepted. The advice says "reopen Animama" and Retry is hidden.
+- P3-R1-11: accepted, resolved by P3-R1-04's resolved-path check, with a
+  Windows test that requests `VITE~1/manifest.json`.
+- P3-R1-12: accepted: `JSON.stringify` interpolation and one
+  `require_symlinks`. The synchronous directory sync is kept: it is a no-op on
+  Windows and a cheap `fsync` elsewhere.
+- P3-R1-13: accepted; the evidence above qualifies Prettier.
+
+#### Code Review #2 Findings
+
+Targeted recheck of `9fd782bc` (repair round 1). Every Review #1 fix verified
+except as below.
+
+- **P3-R2-01 (blocking):** `MutationJournal.remove_temporary` treated
+  `S_ISDIR(lstat)` as a real directory. Windows reports a junction as a
+  directory, so cleanup of a junction planted at a recorded temporary path
+  would delete the junction target's files. A scratch emulation confirmed the
+  deletion; POSIX refuses.
+- P3-R2-02: the same implicit check in package-tree inspection, owned-directory
+  cleanup and model-asset `is_installed`.
+- P3-R2-03: three asset tests that only need directory links were still
+  privilege-gated.
+- P3-R2-04: the record must not claim that build tooling is converted.
+- Nit: the retry comment's budget.
+
+#### Code Review #2 Revisions
+
+In `555f8a45` (repair round 2): all accepted. `files.is_directory` (a
+directory that is not a reparse point) replaces every implicit and paired
+directory check. New tests refuse a junction at a temporary path, inside a
+package tree and as an installed version folder; the directory cases of the
+asset tests use `link_directory`. The record above scopes build tooling out.
+
+#### Code Review #3 Findings
+
+Final targeted recheck of `555f8a45` (repair round 2): every Review #2 finding
+resolved, no regression; result pass. The reviewer confirmed the repair on Linux
+by emulating Windows junction metadata.
+
+- P3-R3-01 (non-blocking): the split navigation test still keeps its link-free
+  fallback and method checks behind `require_symlinks`.
+- P3-R3-02 (non-blocking): on Linux the new junction tests also pass without
+  the fix; only the Windows receipt proves it.
+
+#### Code Review #3 Revisions
+
+No change. P3-R3-01 is deferred: it is not a regression, and the repair budget
+is spent. P3-R3-02 is reflected in the results above, which credit the Windows
+receipt.
 
 ### Phase 4: Process guard and supervised Windows runtime
 
