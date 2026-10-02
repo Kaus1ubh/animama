@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { build, Platform, Arch } from "electron-builder";
 import { desktopRoot, parseTarget, readJson, writeJson } from "./common.mjs";
@@ -18,14 +18,13 @@ import { brandWindowsExecutable } from "./windows-resources.mjs";
  *   is ever a release.
  */
 const installer = process.argv.includes("--installer");
-const windows = process.platform === "win32";
+// The script names its target; parseTarget refuses a different host.
+const target = parseTarget(
+  process.argv.slice(2).filter((arg) => arg !== "--installer"),
+);
+const windows = target.platform === "win32";
 if (installer && !windows)
   throw new Error("--installer builds the Windows NSIS installer only");
-const target = parseTarget(
-  windows
-    ? ["--platform", "win32", "--arch", "x64"]
-    : ["--platform", "darwin", "--arch", "arm64"],
-);
 const extends_ = path.join(desktopRoot, "electron-builder.yml");
 const icon = windows ? await buildWindowsIcon() : undefined;
 await build({
@@ -43,6 +42,9 @@ await build({
         // electron-builder's own executable editing needs a tool download
         // that requires Developer Mode, so the hook below brands it instead.
         win: { icon, signExts: ["!.exe"], signAndEditExecutable: false },
+        // A one-click per-user install folder takes the package name:
+        // %LOCALAPPDATA%\Programs\Animama, not ...\animama-desktop.
+        extraMetadata: { name: "Animama" },
         afterPack: ({ appOutDir, packager }) =>
           brandWindowsExecutable(
             path.join(appOutDir, `${packager.appInfo.productFilename}.exe`),
@@ -80,7 +82,10 @@ if (
     "Packaged development runtime differs from the audited stage",
   );
 assertInventory(runtime, manifest.files);
+// Matches nsis.artifactName in electron-builder.yml.
 const installerName = `Animama-${manifest.app_version}-x64-setup.exe`;
+if (installer && !existsSync(path.join(desktopRoot, "release", installerName)))
+  throw new Error(`electron-builder did not produce release/${installerName}`);
 writeJson(path.join(desktopRoot, "release/development-package-report.json"), {
   schema: "animama-development-package/1",
   target: target.target,

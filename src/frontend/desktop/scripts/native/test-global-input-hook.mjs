@@ -36,7 +36,7 @@ function testPackagedWindowsAddon() {
     "resources/app.asar.unpacked/dist/native/animama_input_hook.node",
   );
   if (!existsSync(executable) || !existsSync(addon))
-    throw new Error("Run pnpm pack:win first.");
+    throw new Error("Run pnpm desktop:win first.");
   const directory = mkdtempSync(
     path.join(tmpdir(), "animama-native-input-test-"),
   );

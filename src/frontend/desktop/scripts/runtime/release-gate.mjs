@@ -8,7 +8,7 @@ try {
     await (await import("./smoke-macos.mjs")).smokeMac(args);
   else if (command?.includes("windows"))
     throw new Error(
-      "Signed Windows releases remain gated on desktop Phase 6; use installer:win for an unsigned local installer",
+      "Signed Windows releases remain gated on desktop Phase 6; use pnpm desktop:win:installer for an unsigned local installer",
     );
   else
     throw new Error(

@@ -14,7 +14,7 @@ if (process.platform !== "win32") {
 
 if (!existsSync(appPath)) {
   console.error(`Windows app was not found at ${appPath}`);
-  console.error("Run pnpm pack:win first.");
+  console.error("Run pnpm desktop:win first.");
   process.exit(1);
 }
 

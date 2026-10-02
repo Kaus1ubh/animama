@@ -6,10 +6,6 @@ directories:
 beforeBuild: ./scripts/before-build.mjs
 electronDownload:
   cache: .electron-cache
-# Checksummed zip bundles for rcedit and signtool. The legacy winCodeSign 7z
-# holds macOS symlinks that Windows cannot extract without Developer Mode.
-toolsets:
-  winCodeSign: "1.1.0"
 files:
   - dist/**/*
   - package.json

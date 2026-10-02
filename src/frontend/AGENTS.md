@@ -98,8 +98,9 @@ Start with:
   PiP, quick chat, and shortcut IPC.
 - `shared/desktop-runtime.ts`: neutral serializable runtime/credential types;
   no Electron imports in browser modules.
-- `desktop/electron-builder.yml`: embedded Apple Silicon macOS resources;
-  Windows/Linux package commands remain gated, despite legacy target entries.
+- `desktop/electron-builder.yml`: embedded macOS arm64 and Windows x64
+  resources, each from its own audited stage, and the per-user NSIS installer;
+  the Linux target remains gated.
 
 Critical route composition:
 
@@ -269,7 +270,9 @@ or migration behavior.
   ad-hoc signing, and rechecks the packaged inventory. Unlicensed decorative SFX
   are excluded from tracked runtime definitions; never restore their ignored
   bytes or metadata as build inputs. Component tests are not substitutes for
-  packaged acceptance. Windows and Linux self-contained packaging are deferred.
+  packaged acceptance. Windows has an unsigned development package and
+  installer (`pnpm desktop:win`, `pnpm desktop:win:installer`); its signed
+  release is not implemented yet. Linux self-contained packaging is deferred.
   Signing, updates and installed-artifact smoke tools require exact source/input
   review, matching artifacts and native acceptance. Read
   `../../docs/frontend/desktop/releases.md` before using those commands.
@@ -319,8 +322,9 @@ Run from `src/frontend`:
 - Build desktop main/preload only: `pnpm desktop:build`
 
 Run `pnpm desktop:test` for supervisor/vault/IPC/packaging checks. Native package
-validation currently targets macOS arm64 only: stage, audit, then
-`pnpm desktop:mac`. Do not use a wrapper launch to claim packaged acceptance.
+validation targets macOS arm64 (stage, audit, then `pnpm desktop:mac`) and
+Windows x64 (stage, audit, then `pnpm desktop:win`). Do not use a wrapper launch
+to claim packaged acceptance.
 
 If backend schemas changed:
 

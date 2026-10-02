@@ -13,14 +13,24 @@
   ${EndIf}
 !macroend
 
-; Keep the user's data unless they explicitly choose to delete it, and never
-; ask during a silent uninstall or an update, which also runs the uninstaller.
+; Keep the user's data unless they explicitly choose to delete it. Only a
+; person-started uninstall asks: one without /S on its command line. The
+; one-click uninstaller switches itself to silent mode after its confirmation,
+; so the silent flag cannot tell, and installers always run the old uninstaller
+; with /S (an update also passes --updated).
 !macro customUnInstall
-  ${IfNot} ${isUpdated}
-  ${AndIfNot} ${Silent}
+  Push $R0
+  Push $R1
+  ${GetParameters} $R0
+  ClearErrors
+  ${GetOptions} $R0 "/S" $R1
+  ${If} ${Errors}
+  ${AndIfNot} ${isUpdated}
   ${AndIf} $LOCALAPPDATA != ""
     MessageBox MB_YESNO|MB_ICONQUESTION|MB_DEFBUTTON2 "Also delete your Animama data?$\r$\n$\r$\n$LOCALAPPDATA\Animama$\r$\n$\r$\nThis permanently removes your chats, Animas, Local content, settings and saved keys. Choose No to keep them for a later reinstall." IDNO animama_keep_data
     RMDir /r "$LOCALAPPDATA\Animama"
     animama_keep_data:
   ${EndIf}
+  Pop $R1
+  Pop $R0
 !macroend

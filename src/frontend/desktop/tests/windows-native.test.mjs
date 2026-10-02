@@ -547,6 +547,10 @@ describe("packaging gate", () => {
       expect(() => beforeBuild({ platform: { nodeName }, arch })).toThrow(
         "Embedded packaging supports macOS arm64 and Windows x64 only",
       );
+    // A supported target moves on to the stage and audit checks.
+    expect(() =>
+      beforeBuild({ platform: { nodeName: "win32" }, arch: "x64" }),
+    ).not.toThrow("Embedded packaging supports");
   });
 });
 

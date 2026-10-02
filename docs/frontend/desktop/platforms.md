@@ -152,11 +152,13 @@ package signs nothing, so the staged runtime keeps its audited hashes, and the
 build host needs no Developer Mode.
 
 The installer puts Animama in `%LOCALAPPDATA%\Programs\Animama` without a UAC
-prompt, adds a Start menu entry and refuses Windows builds below 22000. The
+prompt and adds Start menu and Desktop shortcuts; it refuses Windows builds
+below 22000. The
 data lives separately in `%LOCALAPPDATA%\Animama` and survives uninstall,
 updates and reinstall. Only the interactive uninstaller offers to delete it: it
-shows that exact path and defaults to keeping it. Silent and update uninstalls
-never ask and never delete data.
+shows that exact path and defaults to keeping it. Uninstalls run with `/S`,
+including those an installer runs during an upgrade, never ask and never
+delete data.
 
 To test an upgrade, build two installers. An upgrade is the newer installer
 run over the installed app; automatic updates arrive in a later phase.
@@ -169,7 +171,8 @@ run over the installed app; automatic updates arrive in a later phase.
    and the app refuses a runtime staged for another version.
 4. Install N, run it, then run the N+1 installer: it replaces N in place and
    keeps `%LOCALAPPDATA%\Animama`.
-5. Restore `desktop/package.json`.
+5. Restore `desktop/package.json`, then stage and audit again before the next
+   package: the stage still records version N+1.
 
 Only one version is installed at a time; to repeat the journey from N,
 uninstall (keeping the data) and install N again.
@@ -200,7 +203,7 @@ development-only and rejected in packaged mode.
 | Target                             | Current status                                                                                  |
 | ---------------------------------- | ----------------------------------------------------------------------------------------------- |
 | macOS 15+, arm64                   | Development packaging implemented; fresh-source native, minimum-OS and signed acceptance remain |
-| Windows 11, x64                    | Unsigned development package and installer implemented; signing and acceptance in progress     |
+| Windows 11, x64                    | Unsigned development package and installer implemented; signing and acceptance in progress      |
 | Linux                              | External-stack development only; packaging deferred beyond the current supported release        |
 | Intel/universal macOS, Windows ARM | Not supported                                                                                   |
 
