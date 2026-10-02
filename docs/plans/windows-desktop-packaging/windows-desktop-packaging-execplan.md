@@ -148,7 +148,9 @@ Paths are repository-relative. `D/` abbreviates `src/frontend/desktop/`.
 
 - [x] Plan review: draft written 2026-10-01; approved by the owner on 2026-10-02
       with Phases 1–5 authorized (G0).
-- [ ] Phase 1: Windows build foundation and native PostgreSQL. Not started.
+- [x] Phase 1: Windows build foundation and native PostgreSQL. Complete on
+      2026-10-02 at `d26cf5f2` ([#252](https://github.com/raymond-van/animama/issues/252));
+      Windows receipt passed; review passed after one repair round.
 - [ ] Phase 2: Complete Windows stage and audit. Not started.
 - [ ] Phase 3: Storage, secrets and file containment. Not started.
 - [ ] Phase 4: Process guard and supervised Windows runtime. Not started.
@@ -240,6 +242,54 @@ These planning findings come from inspecting the source at `98bceca2` on
    - Artifact Signing Basic includes 5,000 signatures a month, and each unsigned
      PE file in a candidate uses one. Phase 2 records the PE count.
 
+10. **PostgreSQL 16's meson build needs more than the plan listed (Phase 1).**
+    - Perl, Python, flex, bison, `sed`, `tar` and `gzip` are all required, even
+      from the release tarball. Windows has no `sed` or `gzip`; a pinned
+      busybox-w64 provides both (its digest matches the publisher's list).
+    - Meson refuses the tarball's prebuilt parser and header files and names
+      them; the build removes exactly those files and configures again.
+    - Meson names the backend import library `postgres.exe.lib`; pgvector's
+      `Makefile.win` links `postgres.lib`, so the build copies it.
+    - PostgreSQL compiles its meson link arguments into `pg_config`, which
+      rejected `/PDBALTPATH:%_PDB%` there. link.exe reads it from `LINK`.
+11. **MSVC embeds absolute source paths (Phase 1).** `__FILE__` and the
+    flex/bison `#line` names put the work-tree path into `postgres.exe`. The new
+    embedded-path guard caught it, so PostgreSQL now compiles below
+    `C:\animama-build\native-build`, a fixed neutral path, like macOS's
+    `/opt/animama` prefix.
+12. **The ANSI code-page risk was real (Phase 1).** Without a manifest, `initdb`
+    failed on a data directory named `cluster データ` ("could not create
+    directory …cluster ???"). With a UTF-8 `activeCodePage` manifest embedded by
+    `mt.exe`, the same probe passes.
+13. **`pg_ctl start` on Windows hands its handles to the postmaster (Phase 1).**
+    A caller that captures pipes waits for EOF forever. The probe now sends
+    `pg_ctl` output to a file. The supervisor starts `postgres.exe` directly and
+    only calls `pg_ctl stop`, which returns normally.
+14. **Toolchain identity differs from folder names (Phase 1).** The 14.44.35207
+    toolset's `cl.exe` reports 19.44.35222; the lock pins the compiler banner.
+15. **Inputs for later phases, found while exploring on Windows (2026-10-02).**
+    - PostgreSQL's Windows bind error is localized OS text ("Only one usage of
+      each socket address…"). The supervisor's collision regex must match
+      PostgreSQL's own English hint ("Is another postmaster already running on
+      port"), since NLS is disabled.
+    - The frozen backend builds and passes `audit-resources` on Windows, but
+      keeps `direct_url.json` (the spec filters on a `/` separator) and ships 41
+      UCRT forwarder DLLs that Windows 11 already provides. It has 140 PE files.
+    - Electron delay-loads `bthprops.cpl`; the addon delay-loads `node.exe`
+      through node-gyp's host hook. node-gyp downloads Node headers and
+      `node.lib` on Windows instead of using installed headers.
+    - The native Windows desktop suite at Phase 1 had 104 failures: directory
+      `fsync` (`EPERM`), POSIX mode checks, `symlinkSync` without Developer Mode,
+      and macOS-only tooling tests (profile reset, release scan stubs).
+    - Run through WSL interop without a console, pnpm's default reporter can
+      crash (`0xC0000409`); `--reporter=append-only` works.
+16. **Linux validation environment (2026-10-02).** WSL's default Node 22.14
+    lacks `zlib` zstd, which 55 pack and release tests need; the suites run under
+    Node 24.15.0, the CI pin. Docker is unavailable in this WSL session, so
+    testcontainer and Compose backend tests error (`DockerException`) regardless
+    of source. `desktop/tests/feature-packs.test.ts` is not Prettier-clean on
+    `main`; this work does not touch it.
+
 ## Decision Log
 
 - **2026-10-01, owner (issue):** waived the macOS user-verification
@@ -273,6 +323,21 @@ These planning findings come from inspecting the source at `98bceca2` on
   installation owner and data.
 - **2026-10-02, owner:** approved this plan, including proposals P-a to P-g, and
   authorized Phases 1–5 (G0).
+- **2026-10-02, agent (Phase 1, within P-d and P-f):**
+  - Pin busybox-w64 FRP-6075 for `sed` and `gzip`; remove only the prebuilt
+    files meson names; build with `--buildtype=debugoptimized` (PostgreSQL's
+    default) so PDBs exist, keeping them in `symbols/`, outside the runtime.
+  - Compile PostgreSQL below `C:\animama-build\native-build` (item 11), and
+    embed a UTF-8 active code page in the PostgreSQL executables (item 12).
+  - Keep the build venv at `desktop/.desktop-runtime/build-venv/win32-x64`, as
+    on macOS; only the interpreter install and caches move under the build root.
+  - Pin the compiler by its banner, `cl 19.44.35222` (item 14).
+  - A build root that fails the ACL check is deleted and recreated, not
+    repaired in place: it holds only rebuildable inputs.
+- **2026-10-02, agent (phase boundaries):** the Windows desktop suite turns
+  green in steps. Phase 2 fixes or explicitly skips staging, packaging and
+  macOS-only tooling tests; Phase 3 fixes the storage and vault tests; Phase 4
+  the supervisor tests. The full native suite must pass by the end of Phase 4.
 - **Agent proposals.** Approving this plan approves these; the owner can amend
   any of them.
   - **P-a:** sign through a repository hook. The hook calls the pinned Windows
@@ -427,15 +492,101 @@ contains only system and staged DLLs. Recovery: build outputs under
 `D/.desktop-runtime/win32-x64` and the build root's work directory are
 disposable. Delete them and rerun.
 
-Results: pending.
+Results (2026-10-02, issue [#252](https://github.com/raymond-van/animama/issues/252),
+commit `d26cf5f2`):
+
+- **Windows receipt** at `d26cf5f2` (detached checkout, clean `git status`
+  before and after), Windows 11 build 26200, Node 24.15.0, pnpm 10.33.0, uv
+  0.12.21:
+  - `node desktop/scripts/runtime/native-build.mjs --platform win32 --arch x64`
+    exited 0. `native-build.json`: MSVC 19.44.35222, SDK 10.0.26100.0, redist
+    14.44.35112, app-local `vcruntime140.dll`, lock SHA-256 `9d3751a3…`
+    (matches the committed lock).
+  - DLL report: 36 PE files; 113 imports resolve to API sets, 68 to staged files
+    and 51 to the reviewed system set (`advapi32`, `kernel32`, `secur32`,
+    `shell32`, `ws2_32`). No rejection; no embedded checkout or home path.
+  - `probe_postgres.py --postgres-only` exited 0 with a cluster at a path
+    containing a space and Japanese characters: pgvector 0.8.6, vector distance
+    0, custom dump and restore verified.
+  - The staged `runtime/postgres` tree is 17 MB.
+- **Linux** (Node 24.15.0): `pnpm check`, `pnpm desktop:check` and
+  `pnpm desktop:build` exit 0; `pnpm desktop:test` 385 passed, 11 skipped;
+  Prettier clean on changed files; `ruff check` and `ruff format --check` pass;
+  `make check-test` passed typed-content audit, format, lint and mypy, but its
+  pytest step errors on Docker-dependent tests (item 16). The probe has no
+  backend test.
+- Not run: any macOS step. The macOS paths changed only by sharing
+  `downloadVerified` and adding the LF checkout check; review found no
+  regression.
 
 #### Code Review #1 Findings
 
-Pending.
+Independent reviewer, working tree on `cca91414`, full initial review. Checks:
+`pnpm desktop:check`, `pnpm desktop:test`, Prettier, `ruff`, `git ls-files
+--eol`, and download of all seven pinned inputs (every SHA-256 matched the
+lock).
+
+- **P1-R1-01 (blocking):** the ACL refusal printed an `icacls` command using
+  `%USERNAME%`, which PowerShell does not expand, and `/grant:r` cannot fix a
+  foreign owner; the guide did not give the command.
+- **P1-R1-02:** removing the `win32` refusal from `parseTarget` also opened
+  `document-worker.mjs` and the `feature-packs.mjs` command line.
+- **P1-R1-03:** the meson-conflict containment check split only on `/`; a
+  backslash name could escape the source tree on Windows.
+- **P1-R1-04:** unrecognized (for example localized) `dumpbin` output parsed as
+  "no imports", failing open.
+- **P1-R1-05:** `set` output was decoded as UTF-8 although cmd writes the OEM
+  code page; `vswhere -latest` could pick a Visual Studio without the pinned
+  toolset.
+- **P1-R1-06:** extracted tool directories were keyed by version only, so a
+  changed digest could reuse old files.
+- **P1-R1-07:** the ACL check did not reject a junction at the build root and
+  skipped `uv-cache` and `native-build`.
+- **P1-R1-08:** sending `pg_ctl start` output to `DEVNULL` lost diagnostics.
+- **P1-R1-09:** the plan did not record the build-venv location, compiler
+  banner or build type.
+- **P1-R1-10:** a `common.mjs`/`windows-build.mjs` import cycle, a narrow
+  `systemTool` comment and a stale probe README.
+- Evidence gaps: native evidence predated the final source, and some Linux
+  checks were unreported.
 
 #### Code Review #1 Revisions
 
-Pending.
+All findings accepted and fixed in `d26cf5f2`:
+
+- P1-R1-01: the refusal now says the folder holds only rebuildable inputs and
+  to delete it and rerun; the staging guide says the same.
+- P1-R1-02: `document-worker.mjs` refuses non-macOS hosts; the pack command
+  line refuses `win32` until Phase 2.
+- P1-R1-03: names containing `\` are rejected; test added.
+- P1-R1-04: the parser requires the English `Dump of file` and `Summary` lines
+  and the MSVC environment sets `VSLANG=1033`; tests cover localized output, a
+  DLL without imports and `.cpl` names.
+- P1-R1-05: `cmd /u` with UTF-16 decoding; vswhere `-all -utf8` selects the
+  first installation that has the pinned toolset.
+- P1-R1-06: tool directories include the first 12 digest characters.
+- P1-R1-07: links and junctions are rejected; the uv cache and `native-build`
+  are checked too.
+- P1-R1-08: `pg_ctl start` writes to `pg_ctl.log`; failures include it and the
+  server log.
+- P1-R1-09: recorded in the Decision Log and Surprises above.
+- P1-R1-10: ACL code moved to `windows-acl.mjs` (no cycle); comment and README
+  updated.
+- Evidence: the Windows receipt and Linux checks above ran at `d26cf5f2`.
+
+#### Code Review #2 Findings
+
+Targeted recheck of `d26cf5f2` (repair round 1 of 2): every Review #1 finding
+resolved; no blocking finding; macOS paths unchanged.
+
+- **P1-R2-01 (non-blocking):** `windows-acl.mjs`'s `capture` helper drops the
+  tool's stderr, so an ACL read or `icacls` failure reports only a status.
+
+#### Code Review #2 Revisions
+
+- P1-R2-01: accepted; the Phase 2 commit adds the stderr tail to the error. It
+  does not affect a passing build, so the Phase 1 receipt stands.
+- Result: Phase 1 passed with one repair round used.
 
 ### Phase 2: Complete Windows stage and audit
 
