@@ -20,7 +20,7 @@ import {
   inventoryTree,
 } from "../scripts/runtime/inventory.mjs";
 import { distprepConflicts } from "../scripts/runtime/native-windows.mjs";
-import beforeBuild from "../scripts/before-build.mjs";
+import { packagedTarget } from "../scripts/before-build.mjs";
 import {
   brandWindowsExecutable,
   iconFile,
@@ -544,13 +544,15 @@ describe("packaging gate", () => {
       ["win32", "arm64"],
       ["darwin", "x64"],
     ])
-      expect(() => beforeBuild({ platform: { nodeName }, arch })).toThrow(
+      expect(() => packagedTarget({ platform: { nodeName }, arch })).toThrow(
         "Embedded packaging supports macOS arm64 and Windows x64 only",
       );
-    // A supported target moves on to the stage and audit checks.
-    expect(() =>
-      beforeBuild({ platform: { nodeName: "win32" }, arch: "x64" }),
-    ).not.toThrow("Embedded packaging supports");
+    expect(
+      packagedTarget({ platform: { nodeName: "win32" }, arch: "x64" }),
+    ).toBe("win32-x64");
+    expect(
+      packagedTarget({ platform: { nodeName: "darwin" }, arch: "arm64" }),
+    ).toBe("darwin-arm64");
   });
 });
 

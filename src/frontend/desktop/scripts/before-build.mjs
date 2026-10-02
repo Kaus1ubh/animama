@@ -9,13 +9,19 @@ import {
 
 const PACKAGED_TARGETS = new Set(["darwin-arm64", "win32-x64"]);
 
-/** Never publish a thin wrapper, stale bundle, or partial runtime as a desktop app. */
-export default function beforeBuild(context) {
+/** The embedded runtime target an electron-builder context packages. */
+export function packagedTarget(context) {
   const target = `${context.platform.nodeName}-${context.arch}`;
   if (!PACKAGED_TARGETS.has(target))
     throw new Error(
       "Embedded packaging supports macOS arm64 and Windows x64 only; other targets remain gated.",
     );
+  return target;
+}
+
+/** Never publish a thin wrapper, stale bundle, or partial runtime as a desktop app. */
+export default function beforeBuild(context) {
+  const target = packagedTarget(context);
   const output = path.join(desktopRoot, ".desktop-runtime", target);
   const runtime = path.join(output, "runtime");
   if (

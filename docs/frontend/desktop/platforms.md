@@ -153,12 +153,11 @@ build host needs no Developer Mode.
 
 The installer puts Animama in `%LOCALAPPDATA%\Programs\Animama` without a UAC
 prompt and adds Start menu and Desktop shortcuts; it refuses Windows builds
-below 22000. The
-data lives separately in `%LOCALAPPDATA%\Animama` and survives uninstall,
-updates and reinstall. Only the interactive uninstaller offers to delete it: it
-shows that exact path and defaults to keeping it. Uninstalls run with `/S`,
-including those an installer runs during an upgrade, never ask and never
-delete data.
+below 22000. The data lives separately in `%LOCALAPPDATA%\Animama` and
+survives uninstall, updates and reinstall. Only the interactive uninstaller
+offers to delete it: it shows that exact path and defaults to keeping it.
+Uninstalls run with `/S`, including those an installer runs during an upgrade,
+never ask and never delete data.
 
 To test an upgrade, build two installers. An upgrade is the newer installer
 run over the installed app; automatic updates arrive in a later phase.
