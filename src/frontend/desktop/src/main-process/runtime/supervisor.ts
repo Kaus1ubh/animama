@@ -278,7 +278,7 @@ export class RuntimeSupervisor {
       try {
         await this.stopServices();
         this.stage("validating");
-        if (process.platform === "win32" && runsElevated())
+        if (process.platform === "win32" && (await runsElevated()))
           throw new RuntimeError("administrator_launch_unsupported");
         this.manifest = await verifyRuntime(
           this.options.runtimeRoot,

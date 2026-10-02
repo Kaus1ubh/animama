@@ -74,6 +74,7 @@ const fixture = vi.hoisted(() => {
     }[],
     deliver: vi.fn(),
     available: vi.fn(),
+    elevated: vi.fn(async () => false),
     verify: vi.fn(),
     verifyPack: vi.fn(),
     postgresStarts: vi.fn(),
@@ -105,7 +106,7 @@ vi.mock("../src/main-process/runtime/ports.js", async (importOriginal) => ({
 }));
 vi.mock("../src/main-process/runtime/processes.js", () => ({
   runCommand: fixture.command,
-  runsElevated: () => false,
+  runsElevated: fixture.elevated,
   useProcessGuard: vi.fn(),
   OwnedProcesses: class {
     children = new Set<(typeof fixture.launches)[number]>();
@@ -633,6 +634,25 @@ describe("runtime supervision", () => {
     expect(current.runtime.status().state).toBe("ready");
     expect(vaultExisted).toEqual([false]);
     expect(existsSync(current.options.paths.vault)).toBe(true);
+  });
+
+  it("refuses an elevated Windows launch before verifying or creating anything", async () => {
+    const platform = vi.spyOn(process, "platform", "get");
+    platform.mockReturnValue("win32");
+    fixture.elevated.mockResolvedValueOnce(true);
+    try {
+      const current = create();
+      await current.runtime.start();
+      expect(current.runtime.status()).toEqual({
+        state: "error",
+        code: "administrator_launch_unsupported",
+      });
+      expect(fixture.verify).not.toHaveBeenCalled();
+      expect(fixture.postgresStarts).not.toHaveBeenCalled();
+      expect(existsSync(current.options.paths.vault)).toBe(false);
+    } finally {
+      platform.mockRestore();
+    }
   });
 
   it("selects the verified process guard before any Windows service starts", async () => {

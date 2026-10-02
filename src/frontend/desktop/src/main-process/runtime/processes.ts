@@ -1,4 +1,4 @@
-import { spawn, spawnSync, type ChildProcess } from "node:child_process";
+import { execFile, spawn, type ChildProcess } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { existsSync, lstatSync, readFileSync } from "node:fs";
 import path from "node:path";
@@ -75,18 +75,22 @@ export function elevatedGroups(output: string): boolean {
  * anything is created, so an elevated launch leaves no files a normal launch
  * cannot use. A failed check returns false; PostgreSQL's own refusal remains.
  */
-export function runsElevated(): boolean {
+export function runsElevated(): Promise<boolean> {
   const whoami = path.join(
     process.env.SystemRoot || "C:\\Windows",
     "System32",
     "whoami.exe",
   );
-  const result = spawnSync(whoami, ["/groups", "/fo", "csv", "/nh"], {
-    encoding: "utf8",
-    timeout: 10_000,
-    windowsHide: true,
-  });
-  return result.status === 0 && elevatedGroups(result.stdout);
+  // Asynchronous: resolving group names can stall on an offline domain member,
+  // and the startup window must stay responsive meanwhile.
+  return new Promise((resolve) =>
+    execFile(
+      whoami,
+      ["/groups", "/fo", "csv", "/nh"],
+      { encoding: "utf8", timeout: 10_000, windowsHide: true },
+      (error, stdout) => resolve(!error && elevatedGroups(stdout)),
+    ),
+  );
 }
 
 /** Parse the guard's first stdout line, which precedes any service output. */

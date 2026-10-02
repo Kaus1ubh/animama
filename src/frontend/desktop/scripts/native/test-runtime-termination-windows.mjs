@@ -83,40 +83,51 @@ function launchUntil(stage, userData) {
       child.kill();
       reject(new Error(`Timed out before the ${stage} stage`));
     }, LAUNCH_TIMEOUT_MS);
-    let pending = "";
-    const onData = (chunk) => {
-      pending += chunk;
-      for (let newline; (newline = pending.indexOf("\n")) >= 0; ) {
-        const line = pending.slice(0, newline).trimEnd();
-        pending = pending.slice(newline + 1);
-        lines.push(line);
-        // main.ts logs every status change as "Runtime <state>[: <detail>]".
-        const status =
-          /\] Runtime (starting|ready|error|stopping|stopped)(?:: (\S+))?$/u.exec(
-            line,
-          );
-        if (!status) continue;
-        process.stdout.write(`  ${status[0].slice(2)}\n`);
-        const [, state, detail] = status;
-        if (state === "error") {
-          clearTimeout(timer);
-          child.kill();
-          reject(new Error(`Startup failed with ${detail}`));
-        } else if (
-          (state === "starting" && detail === stage) ||
-          (state === "ready" && stage === "ready")
-        ) {
-          clearTimeout(timer);
-          resolve({
-            child,
-            lines,
-            origin: state === "ready" ? detail : undefined,
-          });
+    let settled = false;
+    // Each stream keeps its own partial line so output never interleaves.
+    const reader = () => {
+      let pending = "";
+      return (chunk) => {
+        pending += chunk;
+        for (let newline; (newline = pending.indexOf("\n")) >= 0; ) {
+          const line = pending.slice(0, newline).trimEnd();
+          pending = pending.slice(newline + 1);
+          onLine(line);
         }
+      };
+    };
+    const onLine = (line) => {
+      lines.push(line);
+      // main.ts logs every status change as "Runtime <state>[: <detail>]".
+      const status =
+        /\] Runtime (starting|ready|error|stopping|stopped)(?:: (\S+))?$/u.exec(
+          line,
+        );
+      if (!status) return;
+      process.stdout.write(`  ${status[0].slice(2)}\n`);
+      // After the target stage, callers inspect `lines` themselves.
+      if (settled) return;
+      const [, state, detail] = status;
+      if (state === "error") {
+        settled = true;
+        clearTimeout(timer);
+        child.kill();
+        reject(new Error(`Startup failed with ${detail}`));
+      } else if (
+        (state === "starting" && detail === stage) ||
+        (state === "ready" && stage === "ready")
+      ) {
+        settled = true;
+        clearTimeout(timer);
+        resolve({
+          child,
+          lines,
+          origin: state === "ready" ? detail : undefined,
+        });
       }
     };
-    child.stdout.setEncoding("utf8").on("data", onData);
-    child.stderr.setEncoding("utf8").on("data", onData);
+    child.stdout.setEncoding("utf8").on("data", reader());
+    child.stderr.setEncoding("utf8").on("data", reader());
     child.once("exit", (code) => {
       clearTimeout(timer);
       reject(new Error(`Electron exited with ${code} before ${stage}`));
@@ -178,8 +189,12 @@ async function quitNormally(userData) {
       await new Promise((resolve) => setTimeout(resolve, 250));
   }
   if (!exited) fail("Electron did not quit after its windows were closed");
-  await requireNoRuntimeProcesses("a normal quit");
+  const remaining = await waitForNoRuntimeProcesses();
+  if (remaining.length)
+    fail(`Runtime processes survived a normal quit: ${remaining.join(", ")}`);
   const log = lines.join("\n");
+  const error = /\] Runtime error: (\S+)$/mu.exec(log);
+  if (error) fail(`Quitting reported ${error[1]}`);
   for (const line of lines.filter((text) => /Owned \S+ stopped in/u.test(text)))
     process.stdout.write(`  ${line.replace(/^.*\] /u, "")}\n`);
   const checks = [
@@ -200,7 +215,7 @@ async function quitNormally(userData) {
     if (pattern.test(log) !== expected) fail(failure);
   for (const match of log.matchAll(/Owned (\S+) stopped in (\d+) ms/gu))
     if (Number(match[2]) >= 15_000)
-      throw new Error(`${match[1]} needed the guard's job termination`);
+      fail(`${match[1]} needed the guard's job termination`);
   return origin;
 }
 
