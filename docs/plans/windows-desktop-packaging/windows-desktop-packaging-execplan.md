@@ -151,7 +151,10 @@ Paths are repository-relative. `D/` abbreviates `src/frontend/desktop/`.
 - [x] Phase 1: Windows build foundation and native PostgreSQL. Complete on
       2026-10-02 at `d26cf5f2` ([#252](https://github.com/raymond-van/animama/issues/252));
       Windows receipt passed; review passed after one repair round.
-- [ ] Phase 2: Complete Windows stage and audit. Not started.
+- [x] Phase 2: Complete Windows stage and audit. Complete on 2026-10-02 at
+      `f422046a` ([#253](https://github.com/raymond-van/animama/issues/253));
+      Windows stage and audit receipts passed; review passed after two repair
+      rounds.
 - [ ] Phase 3: Storage, secrets and file containment. Not started.
 - [ ] Phase 4: Process guard and supervised Windows runtime. Not started.
 - [ ] Phase 5: Unsigned package, installer and native input. Not started.
@@ -289,6 +292,19 @@ These planning findings come from inspecting the source at `98bceca2` on
     testcontainer and Compose backend tests error (`DockerException`) regardless
     of source. `desktop/tests/feature-packs.test.ts` is not Prettier-clean on
     `main`; this work does not touch it.
+
+17. **Windows staging needed workspace fixes outside the desktop scripts
+    (Phase 2).** `packages:build` used single-quoted pnpm filters, which
+    `cmd.exe` passes literally, so on Windows it built nothing and `web:check`
+    failed; the filters now use escaped double quotes. The `prettier` scripts
+    keep POSIX quoting and remain POSIX-only.
+18. **The Windows stage fits the size caps (Phase 2).** Core download
+    409 MB of 750 MiB; installed 979 MB of 1.5 GiB. The stage has 145 PE files,
+    so a signed candidate stays far inside Artifact Signing's monthly quota.
+19. **Windows imports 56 system DLLs (Phase 2).** All are Windows 11
+    components in System32. Electron delay-loads Media Foundation, which
+    Windows "N" editions omit; Phase 8 checks those editions' behavior if
+    tested.
 
 ## Decision Log
 
@@ -663,15 +679,114 @@ Completion: R1 is met on a Windows 11 x64 host and the addon loads in the staged
 Electron. Recovery: a stage failure writes `stage-failure.json`. Correct the
 input and restage; staging starts from an empty target.
 
-Results: pending.
+Results (2026-10-02, issue [#253](https://github.com/raymond-van/animama/issues/253),
+commits `359e3bf6` and `f422046a`):
+
+- **Windows receipt** at `359e3bf6` (detached checkout, clean `git status`
+  before and after; `ANIMAMA_MODEL_ROOT` outside the app data and build root):
+  - `pnpm desktop:runtime:stage -- --platform win32 --arch x64` exited 0:
+    4,979 runtime files, schema digest, licenses (744 records pending review),
+    empty pack catalog.
+  - `pnpm desktop:runtime:audit -- --platform win32 --arch x64` exited 0:
+    "runtime audit: OK". 145 PE files audited (runtime 135, addon 1,
+    Electron 9) with no unresolved import; the addon loaded through
+    `electron.exe` with its five exports; Electron 39.8.9 (Node 22.22.1) has
+    zstd; the PostgreSQL probe ran backend bootstrap twice and a real backup
+    restore in a path with a space and Japanese characters.
+  - Sizes: core download 409,062,881 / 786,432,000 bytes; installed
+    979,310,186 / 1,610,612,736 bytes (Electron 343 MB, browser runtimes
+    319 MB, frozen backend 234 MB, starter content 38 MB, licenses 19 MB,
+    PostgreSQL 16 MB, web JavaScript 9 MB).
+  - `pnpm desktop:test`: 330 passed, 53 skipped, 25 failed. Every failure is in
+    a suite later phases own: feature-pack extraction, download and build (10),
+    pre-migration snapshots (3), vault (3) and supervisor pack/credential
+    transitions (9). The runtime-manifest custody suite, including the new
+    Windows executable-name case, passed on Windows.
+  - At `f422046a` (audit script change only; the stage is unchanged): audit
+    "runtime audit: OK"; `windows-native` and `runtime-state` tests 57 passed,
+    3 failed (the Phase 3 vault tests).
+- **Linux** (Node 24.15.0): `pnpm check` exit 0, `pnpm desktop:check` clean,
+  `pnpm desktop:test` 396 passed / 13 skipped, `pnpm desktop:build` exit 0,
+  Prettier clean on changed files, `ruff check`, `make format-check`,
+  `make mypy` and `tests/test_worker_shutdown.py` pass. Docker-dependent
+  backend tests were not run (item 16).
+- `runtime/cli.py` needed no change: without document-worker variables it
+  reports `feature_unavailable`, and with them it refuses any non-macOS host.
+- Not run: any macOS step. macOS-facing changes (shared helpers, the PostgreSQL
+  port-collision hint, the manifest custody fixture) were reviewed and keep the
+  macOS behavior.
 
 #### Code Review #1 Findings
 
-Pending.
+Independent reviewer, working tree on `feef9e16`, full initial review. Checks:
+`pnpm check`, `pnpm desktop:test`, Prettier, `ruff`, `make format-check`,
+`make mypy`, worker tests, and a probe of `resolveDependency`.
+
+- **P2-R1-01 (blocking):** runtime DLL search folders were pooled across
+  processes, so backend imports could resolve to PostgreSQL's VC++ runtime or
+  `libpq.dll`, and vice versa. A missing backend runtime DLL would have passed
+  the audit and failed on a clean machine.
+- **P2-R1-02 (blocking):** no test executed the Windows branch of
+  `verifyRuntime` (custody suite ran only on macOS).
+- **P2-R1-03 (blocking):** the documented model root under `C:\animama-build`
+  would be created with inherited permissions and then refused by the build
+  root check, whose remedy deletes the models.
+- Non-blocking: a Prettier break and stale sentences in the staging guide; the
+  `msvc-runtime` version and delvewheel-renamed runtime copies; no tests for
+  the postmaster DataDir and port-collision checks; over-broad test skips;
+  `shutdown.py` docstring and a late signal after the loop closes; a misleading
+  manifest comment; the addon build's header download; repeated lock reads;
+  phase-scope notes (async `syncDirectory`, supervisor collision text, a
+  per-component system list, `cli.py`).
 
 #### Code Review #1 Revisions
 
-Pending.
+In `359e3bf6`:
+
+- P2-R1-01: accepted. `stageSearchDirs` keys search folders by the importing
+  process (PostgreSQL: `postgres/bin`; backend: its folder, `_internal`,
+  `pywin32_system32` and wheel `*.libs`). A Linux test covers cross-process
+  rejection, `.libs` resolution and the addon's host import.
+- P2-R1-02: accepted. The custody suite runs on every supported host from
+  `runtimePlatform()`, with a Windows executable-name case; it passed on the
+  Windows host.
+- P2-R1-03: accepted. The guide puts the model root outside both the app data
+  and the build root.
+- Non-blocking accepted: doc fixes; `VC_RUNTIME_DLL` matches hash-suffixed
+  copies and the license record version is the 14.x family; exported
+  `postmasterRecordMatches` and `reportsPortCollision` with tests; narrower
+  skips; `shutdown.py` ignores a late signal; comment and docstring fixes; one
+  lock read.
+- Rejected or deferred with reasons: the release-scan suite stays skipped on
+  Windows (stub POSIX tools; the Windows scan is Phase 7); the async
+  `syncDirectory` and the supervisor's collision text belong to Phases 3 and 4;
+  one reviewed system DLL list per target is kept.
+
+#### Code Review #2 Findings
+
+Targeted recheck of `359e3bf6` (repair round 1): all three blocking findings
+resolved; result pass.
+
+- **P2-R2-01 (non-blocking):** the audit read the lock before deleting the old
+  success receipt, outside its `try`.
+- Nits: the host-import rejection test did not exercise the `.node` guard; the
+  doc example used `%USERPROFILE%`, which PowerShell does not expand.
+
+#### Code Review #2 Revisions
+
+In `f422046a` (repair round 2): P2-R2-01 fixed (read inside the `try`, after
+the receipt is removed); the test now rejects `node.exe` from a non-addon PE in
+`app`; the example uses `$env:USERPROFILE`. The Windows audit passed again.
+
+#### Code Review #3 Findings
+
+Targeted recheck of `f422046a` (repair round 2): all three fixes resolved
+(mutation check confirmed the new test exercises the addon guard); no
+regression; result pass.
+
+#### Code Review #3 Revisions
+
+None needed. Phase 2 passed with both repair rounds used.
 
 ### Phase 3: Storage, secrets and file containment
 
