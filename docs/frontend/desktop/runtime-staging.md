@@ -113,7 +113,8 @@ Each staging pass clears only `desktop/.desktop-runtime/darwin-arm64`, then:
 ## Native Windows build
 
 Windows 11 x64 uses the same stage and audit commands on a native Windows x64
-host. Packaging an installer is not available yet. Prepare the host:
+host; [platform builds](platforms.md#unsigned-windows-package) packages the
+result. Prepare the host:
 
 - Check out a Windows clone with `core.autocrlf=false`; builds hash committed
   bytes and refuse a checkout whose LF files were converted to CRLF.

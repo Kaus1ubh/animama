@@ -280,7 +280,8 @@ or another app. Rebind it in Application settings and try again.
 ## Compiled Native Checks
 
 Run from `src/frontend` on macOS 15+ on Apple silicon with Xcode Command Line
-Tools installed:
+Tools installed (on Windows, see
+[the unsigned Windows package](platforms.md#unsigned-windows-package)):
 
 ```sh
 pnpm desktop:test -- tests/global-input-hook.test.ts

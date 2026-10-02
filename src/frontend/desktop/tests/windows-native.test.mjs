@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import {
@@ -14,6 +20,11 @@ import {
   inventoryTree,
 } from "../scripts/runtime/inventory.mjs";
 import { distprepConflicts } from "../scripts/runtime/native-windows.mjs";
+import beforeBuild from "../scripts/before-build.mjs";
+import {
+  brandWindowsExecutable,
+  iconFile,
+} from "../scripts/runtime/windows-resources.mjs";
 import { untrustedWriters } from "../scripts/runtime/windows-acl.mjs";
 import {
   compilerVersion,
@@ -522,6 +533,102 @@ describe("Windows PE dependency audit", () => {
     );
     expect(() => assertNoEmbeddedPaths(root, ["wide.dll"], [work])).toThrow(
       "wide.dll embeds a build-machine path",
+    );
+  });
+});
+
+describe("packaging gate", () => {
+  it("packages only macOS arm64 and Windows x64 stages", () => {
+    for (const [nodeName, arch] of [
+      ["linux", "x64"],
+      ["win32", "arm64"],
+      ["darwin", "x64"],
+    ])
+      expect(() => beforeBuild({ platform: { nodeName }, arch })).toThrow(
+        "Embedded packaging supports macOS arm64 and Windows x64 only",
+      );
+  });
+});
+
+describe("Windows executable branding", () => {
+  // A 1x1 PNG is enough for the icon structure; content does not matter here.
+  const png = Buffer.from(
+    "89504e470d0a1a0a0000000d4948445200000001000000010806000000" +
+      "1f15c4890000000d49444154789c6360000002000154a24f5d0000000049454e44ae426082",
+    "hex",
+  );
+
+  it("writes an icon file whose images resedit can read back", async () => {
+    const ResEdit = await import("resedit");
+    const parsed = ResEdit.Data.IconFile.from(
+      iconFile([
+        { size: 16, png },
+        { size: 256, png },
+      ]),
+    );
+    // The directory stores 256 pixels as 0.
+    expect(parsed.icons.map((icon) => icon.width)).toEqual([16, 0]);
+  });
+
+  it("brands an executable's icon and version strings and keeps other resources", async () => {
+    const ResEdit = await import("resedit");
+    const executable = ResEdit.NtExecutable.createEmpty(false, false);
+    const resources = ResEdit.NtExecutableResource.from(executable);
+    const info = ResEdit.Resource.VersionInfo.createEmpty();
+    info.setStringValues(
+      { lang: 1033, codepage: 1200 },
+      { FileDescription: "Electron", ProductName: "Electron" },
+    );
+    info.outputToResourceEntries(resources.entries);
+    ResEdit.Resource.IconGroupEntry.replaceIconsForResource(
+      resources.entries,
+      1,
+      1033,
+      ResEdit.Data.IconFile.from(iconFile([{ size: 16, png }])).icons.map(
+        (item) => item.data,
+      ),
+    );
+    resources.entries.push({
+      type: "INTEGRITY",
+      id: "ELECTRONASAR",
+      lang: 1033,
+      codepage: 1200,
+      bin: new TextEncoder().encode("[]").buffer,
+    });
+    resources.outputResource(executable);
+    const file = path.join(fixture(), "Animama.exe");
+    writeFileSync(file, Buffer.from(executable.generate()));
+
+    brandWindowsExecutable(file, {
+      icon: iconFile([
+        { size: 16, png },
+        { size: 32, png },
+      ]),
+      productName: "Animama",
+      companyName: "Animama",
+      copyright: "Copyright (c) 2026 Raymond Van. All rights reserved.",
+      version: "0.1.1",
+    });
+
+    const branded = ResEdit.NtExecutableResource.from(
+      ResEdit.NtExecutable.from(readFileSync(file)),
+    );
+    const [version] = ResEdit.Resource.VersionInfo.fromEntries(branded.entries);
+    expect(
+      version.getStringValues({ lang: 1033, codepage: 1200 }),
+    ).toMatchObject({
+      FileDescription: "Animama",
+      ProductName: "Animama",
+      OriginalFilename: "Animama.exe",
+    });
+    expect(version.fixedInfo.fileVersionMS).toBe(1);
+    expect(version.fixedInfo.fileVersionLS).toBe(1 << 16);
+    const [group] = ResEdit.Resource.IconGroupEntry.fromEntries(
+      branded.entries,
+    );
+    expect(group.icons).toHaveLength(2);
+    expect(branded.entries.some((entry) => entry.type === "INTEGRITY")).toBe(
+      true,
     );
   });
 });

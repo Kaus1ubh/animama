@@ -67,6 +67,8 @@ try {
   identityError = error;
   paths = runtimePaths(app.getPath("userData"));
 }
+// Taskbar grouping and notifications use the ID the installer's shortcuts carry.
+if (process.platform === "win32") app.setAppUserModelId("com.animama.desktop");
 
 // The lock precedes database migrations, sessions, safeStorage, logs and services.
 const ownsInstance = app.requestSingleInstanceLock();

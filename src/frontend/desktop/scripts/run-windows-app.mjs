@@ -4,7 +4,7 @@ import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
-const appPath = join(desktopRoot, "release", "win-unpacked", "Anima.exe");
+const appPath = join(desktopRoot, "release", "win-unpacked", "Animama.exe");
 
 if (process.platform !== "win32") {
   console.error("run:win must be executed on Windows.");

@@ -29,7 +29,10 @@
             "defines": ["UNICODE", "_UNICODE", "WIN32_LEAN_AND_MEAN"],
             "msvs_settings": {
               "VCCLCompilerTool": {
-                "AdditionalOptions": ["/std:c++20"]
+                "AdditionalOptions": ["/std:c++20", "/Brepro"]
+              },
+              "VCLinkerTool": {
+                "AdditionalOptions": ["/Brepro", "/PDBALTPATH:%_PDB%"]
               }
             },
             "libraries": ["user32.lib"]

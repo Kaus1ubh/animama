@@ -41,7 +41,7 @@
     "desktop:mac:dmg": "pnpm --filter animama-desktop dist:mac",
     "desktop:win": "pnpm --filter animama-desktop pack:win",
     "desktop:win:run": "pnpm --filter animama-desktop run:win",
-    "desktop:win:installer": "pnpm --filter animama-desktop dist:win",
+    "desktop:win:installer": "pnpm --filter animama-desktop installer:win",
     "build": "pnpm --filter animama-web build",
     "check": "pnpm --filter animama-web check && pnpm --filter animama-desktop check",
     "lint": "pnpm --filter animama-web lint",
