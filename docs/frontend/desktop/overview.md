@@ -60,11 +60,13 @@ service in a kill-on-close Job Object before it runs, reports the service PID
 on its first output line, and holds a stdin pipe from Electron as its lifeline.
 Stopping a service, or Electron exiting for any reason, closes that pipe: the
 guard sends Ctrl+Break, which PostgreSQL and Python handle as a clean shutdown,
-then ends the job after 10 seconds. Killing the guard ends the job at once, so
-no service or descendant outlives the app. `processes.json` records both the
+then ends the job after 15 seconds, the backend's own graceful-shutdown limit.
+Each stop logs its duration and exit code. Killing the guard ends the job at
+once, so no service or descendant outlives the app. `processes.json` records both the
 guard and service PIDs; the readiness and `postmaster.pid` checks use the
 service PID. PostgreSQL refuses an elevated token, so a launch with Run as
-administrator stops with `administrator_launch_unsupported`.
+administrator stops with `administrator_launch_unsupported` while validating,
+before it creates any data; PostgreSQL's own refusal maps to the same code.
 
 Unpackaged `pnpm desktop:dev` remains the external-stack workflow. It loads
 `ANIMAMA_DESKTOP_WEB_URL` or `http://localhost:8000` and does not start services.

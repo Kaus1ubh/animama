@@ -45,6 +45,7 @@ import {
 import { SecretRedactor } from "../src/main-process/runtime/redaction.js";
 import {
   baseChildEnvironment,
+  elevatedGroups,
   guardHandshake,
   nativeLoadFailure,
   OwnedProcesses,
@@ -564,6 +565,18 @@ describe("private PostgreSQL ownership checks", () => {
     );
   });
 
+  it("recognizes an elevated Windows token by its integrity level", () => {
+    const groups = (label: string) =>
+      `"Everyone","Well-known group","S-1-1-0","Mandatory group, Enabled by default, Enabled group"\n"Mandatory Label\\${label}","Label","${label === "High Mandatory Level" ? "S-1-16-12288" : "S-1-16-8192"}",""\n`;
+    expect(elevatedGroups(groups("High Mandatory Level"))).toBe(true);
+    expect(elevatedGroups(groups("Medium Mandatory Level"))).toBe(false);
+    expect(
+      elevatedGroups(
+        '"Mandatory Label\\System Mandatory Level","Label","S-1-16-16384",""',
+      ),
+    ).toBe(true);
+  });
+
   it("reads the service PID only from the guard's exact handshake", () => {
     expect(guardHandshake("animama-process-guard pid=4321")).toBe(4321);
     expect(guardHandshake("animama-process-guard pid=4321\r")).toBe(4321);
@@ -1012,6 +1025,66 @@ describe("owned processes and secret-safe logs", () => {
     record(undefined);
     expect(() => new OwnedProcesses(file)).not.toThrow();
   });
+
+  // Shell scripts stand in for the guard and PostgreSQL, so these run on POSIX.
+  it.skipIf(process.platform === "win32")(
+    "records the guard's service PID and stops a Windows service through its lifeline",
+    async () => {
+      const root = fixture();
+      const guard = path.join(root, "fake-guard");
+      writeFileSync(
+        guard,
+        `#!${process.execPath}\nprocess.stdout.write("animama-process-guard pid=" + process.pid + "\\n");\nprocess.stdin.on("end", () => process.exit(0));\nprocess.stdin.resume();\n`,
+        { mode: 0o755 },
+      );
+      const platform = vi.spyOn(process, "platform", "get");
+      platform.mockReturnValue("win32");
+      try {
+        useProcessGuard(guard);
+        const file = path.join(root, "processes.json");
+        const owned = new OwnedProcesses(file);
+        const service = owned.launch("service", "/unused", [], {}, root);
+        await vi.waitFor(() =>
+          expect(service.processId).toBe(service.child.pid),
+        );
+        expect(JSON.parse(readFileSync(file, "utf8")).children).toEqual([
+          expect.objectContaining({
+            pid: service.child.pid,
+            servicePid: service.child.pid,
+          }),
+        ]);
+        const kill = vi.spyOn(service.child, "kill");
+        await owned.terminate(service, 5000);
+        expect(kill).not.toHaveBeenCalled();
+        expect(owned.children.size).toBe(0);
+      } finally {
+        platform.mockRestore();
+        useProcessGuard(undefined);
+      }
+    },
+  );
+
+  it.skipIf(process.platform === "win32")(
+    "reports PostgreSQL's refusal of an elevated token from its own output",
+    async () => {
+      const runtime = fixture();
+      const postgres = path.join(runtime, "postgres/bin/postgres");
+      mkdirSync(path.dirname(postgres), { recursive: true });
+      writeFileSync(
+        postgres,
+        "#!/bin/sh\nprintf 'Execution of PostgreSQL by a user with administrative permissions is not\\npermitted.\\n' >&2\nexit 1\n",
+        { mode: 0o755 },
+      );
+      const paths = runtimePaths(fixture());
+      mkdirSync(paths.pgData, { recursive: true, mode: 0o700 });
+      writeFileSync(path.join(paths.pgData, "PG_VERSION"), "16\n");
+      const owned = new OwnedProcesses(paths.processes);
+      await expect(
+        new PrivatePostgres(runtime, paths, owned).start("fixture-password"),
+      ).rejects.toThrow("administrator_launch_unsupported");
+      expect(owned.children.size).toBe(0);
+    },
+  );
 
   it("refuses to launch a Windows service without the process guard", async () => {
     const platform = vi.spyOn(process, "platform", "get");

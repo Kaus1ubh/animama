@@ -42,6 +42,7 @@ import { awaitDurableEncryptionKey } from "./main-process/runtime/vault.js";
 import {
   closeProductSession,
   destroyProductWindows,
+  quitWhenMainWindowCloses,
   installProductRequestGate,
   ProductSessionCleanup,
 } from "./main-process/runtime/product-windows.js";
@@ -289,6 +290,7 @@ else {
           window.on("closed", () => {
             if (mainWindow === window) mainWindow = undefined;
           });
+          quitWhenMainWindowCloses(window, app);
         },
       });
       if (currentStatus.state === "ready" || currentStatus.state === "external")
@@ -315,10 +317,17 @@ else {
         );
     }
     callers.broadcast(status);
-    writeLog(
-      "info",
-      `Runtime ${status.state}${status.state === "error" ? `: ${status.code}` : status.state === "starting" ? `: ${status.stage}` : ""}`,
-    );
+    // Support and the Windows termination harness follow these lines. Stage
+    // names, error codes and the loopback origin are not secret.
+    const detail =
+      status.state === "error"
+        ? status.code
+        : status.state === "starting"
+          ? status.stage
+          : status.state === "ready"
+            ? status.origin
+            : undefined;
+    writeLog("info", `Runtime ${status.state}${detail ? `: ${detail}` : ""}`);
     if (status.state === "ready") {
       void initializeUpdates();
       void showApplication(status.origin).catch((error) =>

@@ -182,6 +182,12 @@ export class PrivatePostgres {
           await new Promise((resolve) => setTimeout(resolve, 150));
         }
       }
+      // An exited process can still have output in flight; let it drain.
+      if (!this.owned.children.has(process))
+        await Promise.race([
+          process.closed,
+          new Promise((resolve) => setTimeout(resolve, 2000)),
+        ]);
       const collision = reportsPortCollision(process.output);
       const elevated = refusesAdministrator(process.output);
       await this.owned.terminate(process);

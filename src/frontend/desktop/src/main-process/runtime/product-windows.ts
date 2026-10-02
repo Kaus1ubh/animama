@@ -1,4 +1,4 @@
-import type { BrowserWindow, Session } from "electron";
+import type { App, BrowserWindow, Session } from "electron";
 
 import { removeRendererCapability } from "../security/renderer-capability.js";
 
@@ -70,6 +70,20 @@ export function destroyProductWindows(
   for (const window of windows)
     if (window !== recovery && !window.isDestroyed()) window.destroy();
   return route;
+}
+
+/**
+ * Windows and Linux have no Dock to reopen a closed app window from, and the
+ * hidden startup window would keep Animama and its services running unseen.
+ * There, a user closing the main window quits. Runtime transitions destroy
+ * windows instead, which emits no `close` event.
+ */
+export function quitWhenMainWindowCloses(
+  window: Pick<BrowserWindow, "on">,
+  application: Pick<App, "quit">,
+  platform: NodeJS.Platform = process.platform,
+): void {
+  if (platform !== "darwin") window.on("close", () => application.quit());
 }
 
 /** Close only transient app authority/workers; keep the partition and durable browser storage. */

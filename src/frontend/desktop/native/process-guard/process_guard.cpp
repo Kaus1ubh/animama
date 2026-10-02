@@ -10,10 +10,10 @@
 // 3. Standard input is the lifeline. When it reaches end of file (Electron
 //    closed it, exited or crashed), the guard sends CTRL_BREAK_EVENT to the
 //    child's process group and terminates the job if it is still running after
-//    10 seconds. Electron kills the guard itself after 15.
+//    15 seconds, the backend's own graceful-shutdown limit.
 // 4. If the guard itself is killed, closing its job handle kills the job.
-// 5. When the child exits, anything it left running in the job is terminated
-//    and the guard exits with the child's exit code.
+// 5. When the child exits, anything it left running in the job is terminated.
+//    The guard exits with the child's exit code once the job is empty.
 //
 // Secrets reach the child only through the inherited environment.
 
@@ -26,7 +26,8 @@
 
 namespace {
 
-constexpr DWORD kGraceMilliseconds = 10000;
+constexpr DWORD kGraceMilliseconds = 15000;
+constexpr DWORD kEmptyJobMilliseconds = 5000;
 constexpr int kUsageError = 2;
 constexpr int kStartError = 3;
 
@@ -80,6 +81,18 @@ DWORD WINAPI WatchLifeline(LPVOID parameter) {
   Sleep(kGraceMilliseconds);
   TerminateJobObject(lifeline->job, 1);
   return 0;
+}
+
+// TerminateJobObject only starts termination; wait until no process remains.
+void WaitForEmptyJob(HANDLE job) {
+  for (DWORD waited = 0; waited < kEmptyJobMilliseconds; waited += 10) {
+    JOBOBJECT_BASIC_ACCOUNTING_INFORMATION accounting = {};
+    if (!QueryInformationJobObject(job, JobObjectBasicAccountingInformation,
+                                   &accounting, sizeof accounting, nullptr) ||
+        accounting.ActiveProcesses == 0)
+      return;
+    Sleep(10);
+  }
 }
 
 HANDLE Inheritable(HANDLE handle) {
@@ -192,5 +205,6 @@ int wmain(int argc, wchar_t** argv) {
   DWORD exit_code = kStartError;
   GetExitCodeProcess(child.hProcess, &exit_code);
   TerminateJobObject(job, exit_code);
+  WaitForEmptyJob(job);
   return static_cast<int>(exit_code);
 }

@@ -7,9 +7,9 @@ import { cacheRoot, desktopRoot } from "../runtime/common.mjs";
 
 /**
  * Force-kill unpackaged Electron at every startup stage and require that no
- * process from the staged runtime survives it, then that the next launch on
- * the same data starts cleanly. Run `pnpm desktop:build` and stage the Windows
- * runtime first.
+ * process from the staged runtime survives it, that the next launch on the
+ * same data starts cleanly, and that a normal quit stops every service. Run
+ * `pnpm desktop:build` and stage the Windows runtime first.
  */
 if (process.platform !== "win32")
   throw new Error("The runtime termination harness runs on Windows only");
@@ -31,6 +31,7 @@ const STAGES = [
 ];
 const LAUNCH_TIMEOUT_MS = 240_000;
 const CLEANUP_TIMEOUT_MS = 30_000;
+const QUIT_TIMEOUT_MS = 90_000;
 
 /** Processes whose executable lies inside the staged runtime. */
 function runtimeProcesses() {
@@ -62,7 +63,10 @@ async function waitForNoRuntimeProcesses() {
   return remaining;
 }
 
-/** Launch Electron and resolve with its status line once `stage` is reached. */
+/**
+ * Launch Electron and resolve once `stage` is reached. `lines` keeps
+ * collecting Electron's log output after that.
+ */
 function launchUntil(stage, userData) {
   const { ELECTRON_RUN_AS_NODE: _, ...env } = process.env;
   const child = spawn(electron, [desktopRoot], {
@@ -73,6 +77,7 @@ function launchUntil(stage, userData) {
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
+  const lines = [];
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
       child.kill();
@@ -84,9 +89,14 @@ function launchUntil(stage, userData) {
       for (let newline; (newline = pending.indexOf("\n")) >= 0; ) {
         const line = pending.slice(0, newline).trimEnd();
         pending = pending.slice(newline + 1);
-        const status = /Runtime status: (\S+)(?: (\S+))?/u.exec(line);
+        lines.push(line);
+        // main.ts logs every status change as "Runtime <state>[: <detail>]".
+        const status =
+          /\] Runtime (starting|ready|error|stopping|stopped)(?:: (\S+))?$/u.exec(
+            line,
+          );
         if (!status) continue;
-        process.stdout.write(`  ${status[0]}\n`);
+        process.stdout.write(`  ${status[0].slice(2)}\n`);
         const [, state, detail] = status;
         if (state === "error") {
           clearTimeout(timer);
@@ -97,7 +107,11 @@ function launchUntil(stage, userData) {
           (state === "ready" && stage === "ready")
         ) {
           clearTimeout(timer);
-          resolve({ child, origin: state === "ready" ? detail : undefined });
+          resolve({
+            child,
+            lines,
+            origin: state === "ready" ? detail : undefined,
+          });
         }
       }
     };
@@ -108,6 +122,14 @@ function launchUntil(stage, userData) {
       reject(new Error(`Electron exited with ${code} before ${stage}`));
     });
   });
+}
+
+async function requireNoRuntimeProcesses(after) {
+  const remaining = await waitForNoRuntimeProcesses();
+  if (remaining.length)
+    throw new Error(
+      `Runtime processes survived ${after}: ${remaining.join(", ")}`,
+    );
 }
 
 async function killAt(stage, userData) {
@@ -125,11 +147,60 @@ async function killAt(stage, userData) {
     child.kill("SIGKILL");
   }
   if (!answered) throw new Error(`The app at ${origin} failed to answer`);
-  const remaining = await waitForNoRuntimeProcesses();
-  if (remaining.length)
-    throw new Error(
-      `Runtime processes survived a kill at ${stage}: ${remaining.join(", ")}`,
-    );
+  await requireNoRuntimeProcesses(`a kill at ${stage}`);
+  return origin;
+}
+
+/**
+ * Close the app's windows as a user would and require every service to stop
+ * on its own: Ctrl+Break, not the guard's 15 second job termination.
+ */
+async function quitNormally(userData) {
+  process.stdout.write("Quitting normally from ready\n");
+  const { child, lines, origin } = await launchUntil("ready", userData);
+  child.removeAllListeners("exit");
+  let exited = false;
+  child.once("exit", () => (exited = true));
+  const fail = (message) => {
+    process.stderr.write(`${lines.join("\n")}\n`);
+    child.kill("SIGKILL");
+    throw new Error(message);
+  };
+  // Let the app window replace the startup page, then close the windows as a
+  // user would: without /F, taskkill posts WM_CLOSE to them. Retry in case a
+  // window was still being created.
+  await new Promise((resolve) => setTimeout(resolve, 5000));
+  const deadline = Date.now() + QUIT_TIMEOUT_MS;
+  while (!exited && Date.now() < deadline) {
+    spawnSync("taskkill.exe", ["/PID", String(child.pid)], { stdio: "ignore" });
+    const retry = Date.now() + 20_000;
+    while (!exited && Date.now() < Math.min(retry, deadline))
+      await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  if (!exited) fail("Electron did not quit after its windows were closed");
+  await requireNoRuntimeProcesses("a normal quit");
+  const log = lines.join("\n");
+  for (const line of lines.filter((text) => /Owned \S+ stopped in/u.test(text)))
+    process.stdout.write(`  ${line.replace(/^.*\] /u, "")}\n`);
+  const checks = [
+    [/exceeded its shutdown deadline/u, false, "a service missed its deadline"],
+    [
+      /Application shutdown complete/u,
+      true,
+      "FastAPI did not shut down cleanly",
+    ],
+    [/database system is shut down/u, true, "PostgreSQL did not shut down"],
+    [
+      /Owned avatar-cleanup stopped in \d+ ms \(exit 0\)/u,
+      true,
+      "the worker did not exit cleanly",
+    ],
+  ];
+  for (const [pattern, expected, failure] of checks)
+    if (pattern.test(log) !== expected) fail(failure);
+  for (const match of log.matchAll(/Owned (\S+) stopped in (\d+) ms/gu))
+    if (Number(match[2]) >= 15_000)
+      throw new Error(`${match[1]} needed the guard's job termination`);
   return origin;
 }
 
@@ -139,12 +210,15 @@ if (leftovers.length)
 const userData = mkdtempSync(path.join(tmpdir(), "animama-term-"));
 try {
   for (const stage of STAGES) await killAt(stage, userData);
-  // The next launch on the same data must reach ready again, with the same
-  // origin, after PostgreSQL recovers from the previous kill.
-  const first = await killAt("ready", userData);
-  const second = await killAt("ready", userData);
-  if (!first || first !== second)
-    throw new Error(`The origin changed across launches: ${first} ${second}`);
+  // After every kill the same data must reach ready again, with the same
+  // origin, once PostgreSQL recovers; a normal quit must stop everything.
+  const origins = [
+    await killAt("ready", userData),
+    await quitNormally(userData),
+    await quitNormally(userData),
+  ];
+  if (!origins[0] || origins.some((origin) => origin !== origins[0]))
+    throw new Error(`The origin changed across launches: ${origins}`);
   process.stdout.write("runtime termination: OK\n");
 } finally {
   // Electron's helper processes can hold profile files briefly after it dies.

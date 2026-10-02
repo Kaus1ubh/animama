@@ -1,4 +1,4 @@
-import { spawn, type ChildProcess } from "node:child_process";
+import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { existsSync, lstatSync, readFileSync } from "node:fs";
 import path from "node:path";
@@ -18,6 +18,8 @@ export type OwnedProcess = {
   dataRoot: string;
   output: string;
   exit: Promise<void>;
+  /** Settles once the output pipes have closed, after `exit`. */
+  closed: Promise<void>;
 };
 
 const GUARD_HANDSHAKE = /^animama-process-guard pid=([1-9]\d*)\r?$/u;
@@ -57,6 +59,34 @@ function spawnService(
   // Closing the lifeline of a guard that already exited is not an error.
   guard.stdin!.on("error", () => undefined);
   return guard;
+}
+
+// Windows integrity levels of an elevated administrator and of SYSTEM. The
+// SIDs are not localized, unlike the group names `whoami` prints beside them.
+const ELEVATED_LABELS = ["S-1-16-12288", "S-1-16-16384"];
+
+/** Does `whoami /groups` output show an elevated token? */
+export function elevatedGroups(output: string): boolean {
+  return ELEVATED_LABELS.some((label) => output.includes(`"${label}"`));
+}
+
+/**
+ * PostgreSQL refuses to run with an elevated Windows token. Detect one before
+ * anything is created, so an elevated launch leaves no files a normal launch
+ * cannot use. A failed check returns false; PostgreSQL's own refusal remains.
+ */
+export function runsElevated(): boolean {
+  const whoami = path.join(
+    process.env.SystemRoot || "C:\\Windows",
+    "System32",
+    "whoami.exe",
+  );
+  const result = spawnSync(whoami, ["/groups", "/fo", "csv", "/nh"], {
+    encoding: "utf8",
+    timeout: 10_000,
+    windowsHide: true,
+  });
+  return result.status === 0 && elevatedGroups(result.stdout);
 }
 
 /** Parse the guard's first stdout line, which precedes any service output. */
@@ -217,6 +247,10 @@ export class OwnedProcesses {
       dataRoot: cwd,
       output: "",
       exit: Promise.resolve(),
+      closed: new Promise((resolve) => {
+        child.once("close", () => resolve());
+        child.once("error", () => resolve());
+      }),
     };
     item.exit = new Promise((resolve) => {
       const finished = () => {
@@ -245,6 +279,7 @@ export class OwnedProcesses {
   }
   async terminate(item: OwnedProcess, timeoutMs = 15_000): Promise<void> {
     if (!this.children.has(item)) return;
+    const started = Date.now();
     // Closing the guard's lifeline sends the service Ctrl+Break, then ends
     // its job if it is still running after the guard's grace period.
     if (item.child.stdin) item.child.stdin.end();
@@ -265,6 +300,10 @@ export class OwnedProcesses {
       item.child.kill("SIGKILL");
       await item.exit;
     }
+    writeLog(
+      "info",
+      `Owned ${item.name} stopped in ${Date.now() - started} ms (exit ${item.child.exitCode ?? item.child.signalCode})`,
+    );
   }
   async terminateAll(): Promise<void> {
     for (const item of [...this.children].reverse()) await this.terminate(item);

@@ -216,6 +216,9 @@ export function writeLicenses(target, contentInventory) {
       let refs = ["animama"];
       if (VC_RUNTIME_DLL.test(path.posix.basename(name)))
         refs = ["msvc-runtime"];
+      // First-party, with the VC++ runtime linked in statically (/MT).
+      else if (name === "bin/animama-process-guard.exe")
+        refs = ["animama", "msvc-runtime"];
       else if (name.startsWith("backend/"))
         refs = ["animama", "python-runtime-dependencies"];
       else if (name.startsWith("postgres/"))

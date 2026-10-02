@@ -115,7 +115,8 @@ describe.skipIf(process.platform !== "win32" || !existsSync(guard))(
       const closed = Date.now();
       run.child.stdin!.end();
       await run.exit;
-      expect(Date.now() - closed).toBeGreaterThanOrEqual(9_000);
+      expect(Date.now() - closed).toBeGreaterThanOrEqual(14_000);
+      // The guard exits only once its job is empty.
       expect(alive(pid) || alive(grandchild)).toBe(false);
     }, 30_000);
 

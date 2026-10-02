@@ -179,7 +179,10 @@ On Windows, after staging the runtime and running `pnpm desktop:build`,
 `pnpm desktop:test:termination` force-kills unpackaged Electron at every
 startup stage, requires that no process from the staged runtime survives within
 30 seconds, and requires the next launch on the same data to reach ready with
-the same origin and serve the app. It uses a disposable data folder.
+the same origin and serve the app. It then quits normally twice, closing the
+windows as a user would, and requires every service to stop on Ctrl+Break
+without the guard's 15 second job termination. It uses a disposable data
+folder.
 
 `pnpm desktop:test:vault` checks the credential vault against the host's real
 protected storage (DPAPI on Windows, Keychain on macOS) inside Electron, using a

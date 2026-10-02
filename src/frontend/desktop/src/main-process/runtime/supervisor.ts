@@ -59,9 +59,9 @@ import {
   OwnedProcesses,
   type OwnedProcess,
   runCommand,
+  runsElevated,
   useProcessGuard,
 } from "./processes.js";
-import { writeLog } from "../logging.js";
 import { runtimeRedactor } from "./redaction.js";
 import {
   CredentialVault,
@@ -137,17 +137,6 @@ export class RuntimeSupervisor {
   }
   private setStatus(state: RuntimeStatus): void {
     this.current = state;
-    // Support and the termination harness follow transitions in the log. Stage
-    // names, error codes and the loopback origin are not secret.
-    const detail =
-      state.state === "starting"
-        ? state.stage
-        : state.state === "error"
-          ? state.code
-          : state.state === "ready"
-            ? state.origin
-            : "";
-    writeLog("info", `Runtime status: ${state.state} ${detail}`.trimEnd());
     this.options.onStatus(this.status());
   }
   private stage(stage: RuntimeStage): void {
@@ -289,6 +278,8 @@ export class RuntimeSupervisor {
       try {
         await this.stopServices();
         this.stage("validating");
+        if (process.platform === "win32" && runsElevated())
+          throw new RuntimeError("administrator_launch_unsupported");
         this.manifest = await verifyRuntime(
           this.options.runtimeRoot,
           this.options.appVersion,

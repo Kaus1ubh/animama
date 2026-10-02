@@ -105,6 +105,7 @@ vi.mock("../src/main-process/runtime/ports.js", async (importOriginal) => ({
 }));
 vi.mock("../src/main-process/runtime/processes.js", () => ({
   runCommand: fixture.command,
+  runsElevated: () => false,
   useProcessGuard: vi.fn(),
   OwnedProcesses: class {
     children = new Set<(typeof fixture.launches)[number]>();
@@ -619,6 +620,19 @@ describe("runtime supervision", () => {
         "80",
       ]);
     expect(readFileSync(current.options.paths.state, "utf8")).toBe(saved);
+  });
+
+  it("makes the encryption key durable before creating a new vault, once", async () => {
+    const current = create();
+    const vaultExisted: boolean[] = [];
+    const beforeNewVault = vi.fn(async () => {
+      vaultExisted.push(existsSync(current.options.paths.vault));
+    });
+    Object.assign(current.options, { beforeNewVault });
+    await current.runtime.start();
+    expect(current.runtime.status().state).toBe("ready");
+    expect(vaultExisted).toEqual([false]);
+    expect(existsSync(current.options.paths.vault)).toBe(true);
   });
 
   it("selects the verified process guard before any Windows service starts", async () => {
