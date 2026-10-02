@@ -16,8 +16,8 @@ import {
   auditWindowsDependencies,
 } from "./windows-platform.mjs";
 
-// The main process requires this path in a Windows runtime manifest.
-const PROCESS_GUARD = "bin/animama-process-guard.exe";
+/** Must equal the main process's PROCESS_GUARD_PATH, which a test checks. */
+export const PROCESS_GUARD = "bin/animama-process-guard.exe";
 
 // Static CRT, so the guard needs no runtime DLL, and the hardening the plan
 // requires: Control Flow Guard, ASLR with high entropy and CET shadow stacks.

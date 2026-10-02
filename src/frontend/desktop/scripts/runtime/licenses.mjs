@@ -23,6 +23,7 @@ import {
   sha256,
   writeJson,
 } from "./common.mjs";
+import { PROCESS_GUARD } from "./process-guard.mjs";
 import { VC_RUNTIME_DLL } from "./windows-platform.mjs";
 
 const NOTICE_NAME =
@@ -217,8 +218,7 @@ export function writeLicenses(target, contentInventory) {
       if (VC_RUNTIME_DLL.test(path.posix.basename(name)))
         refs = ["msvc-runtime"];
       // First-party, with the VC++ runtime linked in statically (/MT).
-      else if (name === "bin/animama-process-guard.exe")
-        refs = ["animama", "msvc-runtime"];
+      else if (name === PROCESS_GUARD) refs = ["animama", "msvc-runtime"];
       else if (name.startsWith("backend/"))
         refs = ["animama", "python-runtime-dependencies"];
       else if (name.startsWith("postgres/"))

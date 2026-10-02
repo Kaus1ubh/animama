@@ -21,6 +21,8 @@ import {
 } from "../scripts/runtime/inventory.mjs";
 import { distprepConflicts } from "../scripts/runtime/native-windows.mjs";
 import { packagedTarget } from "../scripts/before-build.mjs";
+import { PROCESS_GUARD } from "../scripts/runtime/process-guard.mjs";
+import { PROCESS_GUARD_PATH } from "../src/main-process/runtime/manifest.ts";
 import {
   brandWindowsExecutable,
   iconFile,
@@ -534,6 +536,12 @@ describe("Windows PE dependency audit", () => {
     expect(() => assertNoEmbeddedPaths(root, ["wide.dll"], [work])).toThrow(
       "wide.dll embeds a build-machine path",
     );
+  });
+});
+
+describe("process guard path", () => {
+  it("is the same file for the stage, the licenses and the main process", () => {
+    expect(PROCESS_GUARD).toBe(PROCESS_GUARD_PATH);
   });
 });
 

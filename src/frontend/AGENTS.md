@@ -32,8 +32,8 @@ Prefer boring, local changes that fit existing patterns.
   separate from the app origin: no React configuration, application routes, or
   desktop packaging may depend on them. Use `./reset.sh --profile dev-tools`
   from the repository root; disabling preserves data and requires no purge.
-- Desktop: `desktop/` using Electron, the embedded macOS runtime supervisor,
-  and electron-builder. Unpackaged `desktop:dev` still supports the external
+- Desktop: `desktop/` using Electron, the embedded runtime supervisor (macOS
+  arm64 and Windows x64), and electron-builder. Unpackaged `desktop:dev` still supports the external
   local stack; packaged mode requires audited runtime resources.
 - Public packages: `packages/runtime-contracts`, `packages/product-ui`, and
   `packages/discover-client`; authored package imports stay within their own
@@ -244,7 +244,8 @@ or migration behavior.
   external-web fallback or put user data in application resources.
 - Runtime staging writes to the ignored `desktop/.desktop-runtime/` directory.
   Use `pnpm desktop:runtime:stage -- --platform darwin --arch arm64` and the
-  matching `desktop:runtime:audit` command on Apple Silicon. Read
+  matching `desktop:runtime:audit` command on Apple Silicon, or
+  `--platform win32 --arch x64` on Windows 11 x64. Read
   `../../docs/frontend/desktop/runtime-staging.md` for the source/licensing gate. Never force
   ignored third-party assets into a release or substitute a wrapper package
   for a verified self-contained runtime.

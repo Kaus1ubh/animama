@@ -5,7 +5,8 @@ guarded updates, upgrade snapshots and installed-artifact smoke tests.
 **No accepted public release is available.** Fresh matching artifacts, complete
 starter inputs, inventory review, minimum-OS/native acceptance and a real forward
 upgrade remain required. Unit tests do not approve redistribution or publication.
-Windows native packaging is deferred. Release commands use isolated native
+Windows x64 has an unsigned development package and installer; signed Windows
+releases are not implemented yet. Release commands use isolated native
 profiles; they do not reset or create Compose stacks.
 
 Initial publication runs manually from reviewed `main` inputs. Start with the
