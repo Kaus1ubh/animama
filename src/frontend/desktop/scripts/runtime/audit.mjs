@@ -29,10 +29,10 @@ import { resolveBrowserRuntimeAssets } from "../../../scripts/browser-runtime-as
 
 const target = parseTarget();
 const env = pythonEnvironment();
-const nativeLock = readJson(nativeLockFile(target));
 // A failed current audit must not leave an older success receipt in place.
 rmSync(path.join(target.output, "audit-report.json"), { force: true });
 try {
+  const nativeLock = readJson(nativeLockFile(target));
   if (existsSync(path.join(target.output, "stage-failure.json")))
     throw new Error(
       "Staging failed; correct the error and run a fresh stage before auditing",

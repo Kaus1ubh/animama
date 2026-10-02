@@ -123,7 +123,7 @@ host. Packaging an installer is not available yet. Prepare the host:
   `py -3 scripts/models/browser_speech.py acquire`. On a machine that also runs
   Animama, first set `ANIMAMA_MODEL_ROOT` to a folder outside both
   `%LOCALAPPDATA%\Animama` (the app's data) and `C:\animama-build`, such as
-  `%USERPROFILE%\animama-models`.
+  `$env:USERPROFILE\animama-models` in PowerShell.
 
 From `src/frontend`:
 

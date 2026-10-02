@@ -497,13 +497,12 @@ describe("Windows PE dependency audit", () => {
     ).toThrow(
       "backend/_internal/python312.dll: vcruntime140.dll does not resolve",
     );
-    // Only an addon's node.exe import binds to the host process.
-    imports["runtime/backend/_internal/pydantic_core/core.pyd"].push(
-      "node.exe",
-    );
-    expect(() => audit(files)).toThrow(
-      "backend/_internal/pydantic_core/core.pyd: node.exe does not resolve",
-    );
+    // Only an addon's node.exe import binds to the host process, even in app.
+    imports["app/dist/helper.dll"] = ["node.exe"];
+    portableExecutable(path.join(root, "app/dist/helper.dll"));
+    expect(() =>
+      audit({ ...files, app: [...files.app, "dist/helper.dll"] }),
+    ).toThrow("dist/helper.dll: node.exe does not resolve");
   });
 
   it("rejects binaries that embed a build-machine path in either encoding", () => {
