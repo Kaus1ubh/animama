@@ -164,7 +164,11 @@ Paths are repository-relative. `D/` abbreviates `src/frontend/desktop/`.
       ([#255](https://github.com/raymond-van/animama/issues/255)); Windows
       receipts passed; review passed after two repair rounds; the owner's Task
       Manager and Run-as-administrator checks passed.
-- [ ] Phase 5: Unsigned package, installer and native input. Not started.
+- [ ] Phase 5: Unsigned package, installer and native input. Agent work and
+      review complete on 2026-10-02 at `db32bb1e`
+      ([#256](https://github.com/raymond-van/animama/issues/256)); Windows
+      receipts passed; review passed after two repair rounds. Awaiting the
+      owner's Press-to-talk check and installer journey.
 - [ ] Phase 6: Authenticode signing and the release candidate. Not started; needs G1 and G2.
 - [ ] Phase 7: Updates, smoke and publication tooling. Not started; the real upgrade needs G4.
 - [ ] Phase 8: Platform audit, clean-machine journey and documentation. Not started; needs G3.
@@ -341,6 +345,27 @@ These planning findings come from inspecting the source at `98bceca2` on
     Ctrl+Break, completes its graceful shutdown, then re-raises the signal; the
     MSVC runtime's default handler exits with 3. The harness therefore requires
     "Application shutdown complete" rather than exit 0 from FastAPI.
+25. **MSVC builds of the input addon were not reproducible (Phase 5).** Each
+    build embedded a new timestamp and PDB GUID, so the packaging gate rejected
+    a rebuilt `dist` as changed after staging. The Windows build now passes
+    `/Brepro` to the compiler and linker and `/PDBALTPATH:%_PDB%`.
+26. **electron-builder's Windows executable editing needs Developer Mode
+    (Phase 5, owner-reported).** On a Windows host, electron-builder 26.8.1
+    runs rcedit through its Go `app-builder`, which downloads
+    `winCodeSign-2.6.0.7z`. That archive holds macOS symlinks that 7-Zip cannot
+    create without Developer Mode, and the `toolsets` setting does not change
+    this path. It also passes the staged runtime's `.exe` files to signing,
+    which would change their audited hashes if a certificate were present. The
+    development package therefore disables electron-builder's editing and
+    signing, and brands `Animama.exe` with `resedit`.
+27. **The one-click uninstaller runs its section in silent mode (Phase 5).**
+    After its own confirmation, electron-builder's `un.onInit` calls
+    `SetSilent silent`, so the data-removal prompt checks for `/S` on the
+    command line instead.
+28. **A one-click per-user install folder takes the package name (Phase 5).**
+    electron-builder uses the package `name` (`animama-desktop`), not the
+    product name, for that folder. The Windows build sets the packaged name to
+    `Animama` to match D4.
 
 ## Decision Log
 
@@ -441,6 +466,13 @@ These planning findings come from inspecting the source at `98bceca2` on
   about 10 seconds to the first launch only.
 - **2026-10-02, agent (Phase 4):** outside macOS, closing the main window
   quits Animama (item 23). macOS keeps its Dock behavior.
+- **2026-10-02, agent (Phase 5):** the Windows development package signs
+  nothing and brands `Animama.exe` itself with `resedit` (item 26), so build
+  hosts need no Developer Mode. Phase 6 keeps that split. Its signing hook
+  signs deliberately chosen files with the pinned Windows SDK `signtool`,
+  because electron-builder's own Windows signing path would fetch the legacy
+  `winCodeSign` archive again. The release build reuses the branding and the
+  `Animama` package name (item 28).
 
 ## Gates
 
@@ -1348,15 +1380,105 @@ Completion: R4 and R5 pass with unsigned artifacts. Phase 6 repeats the
 installer journey signed. Recovery: installer tests use a test account or a
 disposable profile, and the uninstall prompt defaults to keeping data.
 
-Results: pending.
+Results (2026-10-02, issue [#256](https://github.com/raymond-van/animama/issues/256),
+commits `7bff9848`, `3587a882` and `db32bb1e`):
+
+- **Windows receipts** (Developer Mode off; detached checkout, clean
+  `git status` after):
+  - Stage and audit at `ff61b560` ("runtime audit: OK"). Later commits change
+    no stage input: only packaging, scripts, tests and docs.
+  - At `3d873e55` (tree of `7bff9848`), with electron-builder's `winCodeSign`
+    cache deleted first: `pnpm install --frozen-lockfile` passed;
+    `pnpm desktop:win` built `win-unpacked` and reported "runtime inventory:
+    OK"; `Animama.exe` reads "Animama | Animama | Animama | 0.1.1.0"
+    (description, product, company, version); the installer built; nothing
+    was downloaded into the `winCodeSign` cache (the folder is created empty).
+  - At `f2f0b699` (tree of `3587a882`):
+    - `pnpm desktop:win` exit 0; `pnpm desktop:mac` on Windows refused with
+      "cross-building is unsupported".
+    - `pnpm desktop:win:installer` built `Animama-0.1.1-x64-setup.exe`;
+      makensis ran with `-WX` (warnings are errors) and
+      `-DAPP_FILENAME=Animama`, so the per-user install folder is
+      `%LOCALAPPDATA%\Programs\Animama`.
+    - `pnpm desktop:test:native-input`: "native input (Windows): OK". Inside
+      the packaged `Animama.exe`, the addon from `app.asar.unpacked` reported
+      an injected F24 press as one down and one up.
+    - `pnpm desktop:test`: 389 passed, 55 skipped, 0 failed.
+  - At `db32bb1e`: `pnpm desktop:win` and `pnpm desktop:win:installer` exit 0
+    with "runtime inventory: OK"; `pnpm desktop:test` 389 passed, 55 skipped,
+    0 failed.
+  - The input-hook addon now builds byte-identically twice in a row, with no
+    checkout path in the binary.
+- **Linux** (Node 24.15.0): `pnpm desktop:check` clean; `pnpm desktop:test`
+  419 passed, 26 skipped; `pnpm install --frozen-lockfile --offline` accepts
+  the lockfile; Prettier clean except the pre-existing
+  `tests/feature-packs.test.ts` (item 16), so the desktop `prettier:check` as a
+  whole still fails.
+- **Owner gates:**
+  - Press-to-talk with a keyboard key and a mouse button in the packaged app.
+  - The installer journey: install N and run it; upgrade to N+1 and confirm
+    data is kept; uninstall and confirm `%LOCALAPPDATA%\Animama` remains;
+    reinstall and confirm the chats return; explicit removal deletes exactly
+    the directory shown. `platforms.md` describes building the two versions.
+- **Not run:** any macOS step. macOS packaging keeps its own `mac:`
+  resources and target; the configs deep-merge, so its overrides keep them.
+- Left for Phase 8: `overview.md` and `installation.md` still describe Windows
+  packaging as unavailable.
 
 #### Code Review #1 Findings
 
-Pending.
+Independent reviewer, `7bff9848` against `606df41c`, full initial review.
+
+- **P5-R1-01 (blocking):** the data-removal prompt could never appear. The
+  one-click uninstaller switches to silent mode after its own confirmation,
+  so the `${Silent}` check always skipped the prompt and no explicit removal
+  path existed.
+- **P5-R1-02 (blocking):** the per-user installer used
+  `%LOCALAPPDATA%\Programs\animama-desktop`, not the `...\Animama` of D4: a
+  one-click per-user folder takes the package `name`.
+- Non-blocking: P5-R1-03 the packaging target followed the host, not the
+  invoked script; P5-R1-04 `toolsets.winCodeSign` had no effect on Windows
+  hosts; P5-R1-05 a misaligned docs table row; P5-R1-06 stale statements in
+  `src/frontend/AGENTS.md`, `overview.md` and `installation.md`; P5-R1-07 the
+  docs omitted the Desktop shortcut and the restage after an upgrade test;
+  P5-R1-08 the installer report did not check that the file exists; minor
+  command-name wording and a missing positive gate test.
 
 #### Code Review #1 Revisions
 
-Pending.
+In `3587a882` (repair round 1): P5-R1-01 accepted: the prompt appears only
+when `/S` is absent from the command line, never for an update; the Windows
+receipt compiled it with makensis `-WX`. P5-R1-02 accepted: the Windows build
+sets the packaged name to `Animama` (makensis `-DAPP_FILENAME=Animama`).
+P5-R1-03, -04, -05, -07, -08 and the minors accepted. P5-R1-06 accepted for
+`src/frontend/AGENTS.md`; `overview.md` and `installation.md` are Phase 8's.
+
+#### Code Review #2 Findings
+
+Targeted recheck of `3587a882`: every Review #1 finding resolved; result
+pass. Non-blocking: P5-R2-01 a leftover short line in `platforms.md`;
+P5-R2-02 the positive gate test ran the whole gate, including inventory
+hashing, on a host with a stage; P5-R2-03 removing `toolsets` dropped the
+Developer Mode rationale that Phase 6's signing will meet again; P5-R2-04 the
+pre-existing Prettier failure must not be reported as a clean check.
+
+#### Code Review #2 Revisions
+
+In `db32bb1e` (repair round 2): P5-R2-01 and P5-R2-02 accepted (the target
+check is `packagedTarget`, tested directly). P5-R2-03 is recorded in item 26
+and the Decision Log; P5-R2-04 in the Linux results above.
+
+#### Code Review #3 Findings
+
+Final targeted recheck of `db32bb1e` (repair round 2): both accepted Review #2
+findings resolved, no regression; the reviewer also confirmed that
+electron-builder still resolves the gate's default export. Result pass.
+Non-blocking: P5-R3-01 repeats the pre-existing Prettier failure; P5-R3-02
+notes that delegated desktop tests need Node 24 on `PATH` (item 16).
+
+#### Code Review #3 Revisions
+
+No change needed.
 
 ### Phase 6: Authenticode signing and the release candidate
 
