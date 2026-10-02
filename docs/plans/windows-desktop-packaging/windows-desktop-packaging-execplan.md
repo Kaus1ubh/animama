@@ -158,8 +158,12 @@ Paths are repository-relative. `D/` abbreviates `src/frontend/desktop/`.
 - [x] Phase 3: Storage, secrets and file containment. Complete on 2026-10-02
       at `555f8a45` ([#254](https://github.com/raymond-van/animama/issues/254));
       Windows receipts passed; review passed after two repair rounds. The
-      DB-backed backend suite is an open owner gate (Docker unavailable to WSL).
-- [ ] Phase 4: Process guard and supervised Windows runtime. Not started.
+      DB-backed backend suite passed later at `e3de5f49`.
+- [ ] Phase 4: Process guard and supervised Windows runtime. Agent work and
+      review complete on 2026-10-02 at `5cba6a6a`
+      ([#255](https://github.com/raymond-van/animama/issues/255)); Windows
+      receipts passed; review passed after two repair rounds. Awaiting the
+      owner's Task Manager and Run-as-administrator checks.
 - [ ] Phase 5: Unsigned package, installer and native input. Not started.
 - [ ] Phase 6: Authenticode signing and the release candidate. Not started; needs G1 and G2.
 - [ ] Phase 7: Updates, smoke and publication tooling. Not started; the real upgrade needs G4.
@@ -320,6 +324,23 @@ These planning findings come from inspecting the source at `98bceca2` on
     true symbolic links as links; a junction, which any user can create, looks
     like an ordinary directory to `S_ISDIR`, `is_dir()` and `os.walk`. Every
     backend link or directory guard goes through `animama/utils/files.py`.
+22. **Electron's Windows encryption key reaches disk about 10 seconds after
+    startup (Phase 4).** `safeStorage` on Windows encrypts with a key that
+    Chromium generates at startup and keeps, DPAPI-protected, in
+    `<userData>\Local State`. Chromium writes that file about 10.1 seconds
+    later, whether or not anything was encrypted (measured on the development
+    host). The termination harness killed the first launch inside that window
+    and left a `vault.bin` whose key was never saved: a permanent
+    `vault_unreadable`. Backups must also keep `Local State` with the vault.
+23. **Closing the main window did not quit Animama on Windows (Phase 4).** The
+    startup and recovery window is hidden, not closed, once the app loads.
+    Closing the main window therefore left a hidden window, `window-all-closed`
+    never fired, and PostgreSQL and FastAPI kept running with no window. The
+    normal-quit harness found it; macOS hides the same behavior behind its Dock.
+24. **FastAPI's normal Windows stop code is 3 (Phase 4).** uvicorn handles
+    Ctrl+Break, completes its graceful shutdown, then re-raises the signal; the
+    MSVC runtime's default handler exits with 3. The harness therefore requires
+    "Application shutdown complete" rather than exit 0 from FastAPI.
 
 ## Decision Log
 
@@ -398,6 +419,28 @@ These planning findings come from inspecting the source at `98bceca2` on
   - **P-g:** in a shared version folder, Windows evidence files whose names
     would collide with macOS files take a `-win32-x64` suffix (for example
     `release-artifacts-win32-x64.json`). macOS names stay unchanged.
+- **2026-10-02, agent (Phase 4):** refuse an elevated Windows launch rather
+  than start PostgreSQL with a restricted token. The supervisor reads the
+  token's integrity level from `whoami /groups` (the High and System SIDs, which
+  are not localized) at the start of validation, before any data exists, so an
+  elevated run cannot leave files a normal launch cannot use. Running Animama
+  as administrator has no legitimate purpose for a per-user app. PostgreSQL's
+  own refusal maps to the same `administrator_launch_unsupported` code.
+- **2026-10-02, agent (Phase 4):** refinements to the guard protocol within R2.
+  - The guard waits on the service itself, not on an empty job. When the
+    service exits, the guard ends anything it left in the job, waits up to 5
+    seconds for the job to empty, and exits with the service's code. A stray
+    descendant therefore never keeps a stopped service's guard alive.
+  - The lifeline grace is 15 seconds, uvicorn's graceful-shutdown limit and
+    Electron's terminate deadline.
+  - `processes.json` records both the guard and service PIDs, as planned. The
+    record is evidence only; PID reuse can cause a spurious
+    `previous_runtime_running`, whose advice is to wait and Retry.
+- **2026-10-02, agent (Phase 4):** on Windows a new vault waits until
+  Chromium has saved its encryption key to `Local State` (item 22), adding up to
+  about 10 seconds to the first launch only.
+- **2026-10-02, agent (Phase 4):** outside macOS, closing the main window
+  quits Animama (item 23). macOS keeps its Dock behavior.
 
 ## Gates
 
@@ -896,9 +939,11 @@ commits `9fd782bc` and `555f8a45`):
   11 targeted backend test files (267 passed, 3 skipped), `pnpm desktop:check`
   and `pnpm desktop:test` (402 passed, 19 skipped) pass. `prettier:check` fails
   only on the pre-existing `tests/feature-packs.test.ts` line (item 16).
-- **Not run:** the DB-backed backend suite (`make check-test`), which the
-  Linux gate requires: Docker is unavailable to this WSL session (item 16).
-  This is an open owner gate for the pull request. Any macOS step was not run.
+- **DB-backed backend suite:** Docker was unavailable to WSL during the phase
+  (item 16). After the owner enabled Docker Desktop's WSL integration,
+  `make check-test` passed at `e3de5f49`, which contains every Phase 3 change:
+  typed-content audit, format, lint and mypy clean; 3,103 passed, 10 skipped.
+- **Not run:** any macOS step.
   The path tests ran on a host with `LongPathsEnabled=1`; the catalog-derived
   budget test does not depend on that setting, and Phase 8's clean VM runs with
   the default.
@@ -949,7 +994,7 @@ In `9fd782bc`:
   helper `link_directory` makes a junction on Windows, which needs no
   privilege, so the scan, descriptor-save, mutation, recovery-parent,
   model-asset prune, watcher and asset tests run there.
-- P3-R1-02: open. Recorded above as an unperformed gate check.
+- P3-R1-02: resolved after the phase; see the DB-backed suite above.
 - P3-R1-03: accepted. `fingerprint` also requires a single link on the open
   handle; a test adds a hard link between the check and the open.
 - P3-R1-04: accepted. The Windows open uses `FILE_FLAG_OPEN_REPARSE_POINT` and
@@ -1105,15 +1150,147 @@ recorded. Recovery: a crashed run leaves at most a stale `processes.json`. The
 next launch refuses while any recorded PID is alive and never kills it, which
 preserves the existing behavior.
 
-Results: pending.
+Results (2026-10-02, issue [#255](https://github.com/raymond-van/animama/issues/255),
+commits `e3de5f49`, `83aaf44f` and `5cba6a6a`):
+
+- **Windows receipts** (detached checkout, clean `git status` after):
+  - At `bac8a7ef` (the final guard and every stage input of `5cba6a6a`):
+    `pnpm desktop:runtime:stage` and `desktop:runtime:audit` exited 0,
+    "runtime audit: OK". The stage compiles the guard, which imports only
+    `KERNEL32.dll`, and the manifest requires it.
+  - At `6740c548`, whose tree is identical to `5cba6a6a`:
+    - `pnpm desktop:test`: 386 passed, 55 skipped, 0 failed. The process guard
+      suite passed 6 of 6: the handshake precedes service output; closing the
+      lifeline stops a service through Ctrl+Break and forwards its exit code; a
+      service that ignores Ctrl+Break is ended after the 15 second grace;
+      killing the guard ends the service and its grandchild; a secret passed
+      in the environment appears on no command line (read through CIM); and
+      owned services and commands run through the guard.
+    - `pnpm desktop:test:termination`: "runtime termination: OK". Electron was
+      force-killed at each startup stage (validating, vault, application,
+      database, migrations, backend, ready) on one profile. Each time, no
+      process under the runtime root remained within 30 seconds, and the next
+      launch reached ready with PostgreSQL recovering. Two normal quits then
+      closed the windows: FastAPI logged "Application shutdown complete" and
+      stopped in 211 and 241 ms, the cleanup worker exited 0 in 106 and 119 ms,
+      PostgreSQL logged "database system is shut down", and no service reached
+      the guard's job termination. Every launch kept the same origin. The
+      principal is unchanged by construction: readiness compares the
+      installation principal read from the same database.
+  - The end-to-end missing-DLL check is the Windows storage test that runs a
+    lone `pg_isready.exe` through the guard: the loader's exit code is
+    forwarded and reported as `runtime_file_invalid`. A long-running service
+    started with `launch` reports such a failure as `postgres_start_failed` or
+    `backend_start_failed`; `verifyRuntime` hashes every runtime DLL first, so
+    only a missing Windows DLL reaches that path.
+- **Linux** (Node 24.15.0): `pnpm desktop:check` clean; `pnpm desktop:test`
+  416 passed, 26 skipped; `pnpm desktop:build` exit 0; Prettier clean except the
+  pre-existing `tests/feature-packs.test.ts` (item 16). `make check-test` passed
+  at `e3de5f49` (3,103 passed, 10 skipped); Phase 4 changes no backend file.
+- uvicorn 0.38.0 handles `SIGBREAK` (Ctrl+Break) and, after its graceful
+  shutdown, re-raises it; the MSVC runtime's default handler then exits with 3,
+  which is FastAPI's normal Windows stop code. The workers' handlers exit 0.
+- **Owner gates:**
+  - Task Manager's End task on Animama leaves no PostgreSQL, FastAPI, worker
+    or guard process.
+  - Run as administrator shows `administrator_launch_unsupported` with Retry
+    hidden, and a normal relaunch of the same profile reaches ready. The agent
+    cannot elevate without a UAC prompt.
+- **Not run:** any macOS step. macOS-facing changes (status logging moved to
+  main, `closed` output drain, `beforeNewVault`, quit-on-close skipped on
+  macOS) were reviewed and keep the macOS behavior.
 
 #### Code Review #1 Findings
 
-Pending.
+Independent reviewer, `e3de5f49` against `5d89b8bd`, full initial review. No
+blocking code defect.
+
+- **P4-R1-01 (blocking, evidence):** no receipt showed a supervised launch
+  quitting normally, so a service that ignored Ctrl+Break would pass every
+  check behind the guard's job termination.
+- **P4-R1-02 (blocking, evidence):** the elevated launch had never been
+  checked; only the refusal text was tested.
+- Non-blocking:
+  - P4-R1-03: the guard exited right after `TerminateJobObject`, which is
+    asynchronous, so descendants could briefly outlive it.
+  - P4-R1-04: the Results must name the end-to-end missing-DLL check.
+  - P4-R1-05: every status change was logged twice, and errors set in
+    `main.ts` never produced the harness's line.
+  - P4-R1-06: checking both PIDs adds PID-reuse refusals without safety.
+  - P4-R1-07: the guard's 10 second grace was shorter than uvicorn's 15.
+  - P4-R1-08: the guard's license attribution was implicit.
+  - P4-R1-09: no Linux tests for `beforeNewVault`, the win32 lifeline stop or
+    the persisted service PID.
+  - P4-R1-10: the troubleshooting advice for `previous_runtime_running` was
+    macOS-only.
+  - P4-R1-11: decisions and receipts to record.
 
 #### Code Review #1 Revisions
 
-Pending.
+In `83aaf44f` (repair round 1):
+
+- P4-R1-01: accepted. The harness quits normally twice and requires clean
+  stops (Results above). Building it exposed a real defect: closing the
+  Windows main window left the hidden startup window, so `window-all-closed`
+  never fired and Animama kept its services running with no window. Outside
+  macOS, closing the main window now quits; runtime transitions destroy
+  windows, which emits no `close`. `terminate` logs each stop's duration and
+  exit code.
+- P4-R1-02: accepted with a design change. The supervisor reads the token's
+  integrity level from `whoami /groups` (High or System SID, not localized) and
+  refuses an elevated launch at the start of validation, before any data
+  exists, so an elevated run cannot leave files a normal launch cannot use.
+  PostgreSQL's own refusal remains a backstop; the start loop drains a dead
+  process's output before matching it, which a POSIX test proves with a real
+  child process. The actual elevated launch is an owner gate.
+- P4-R1-03: accepted. The guard waits up to 5 seconds for the job to empty.
+- P4-R1-04: accepted; see Results.
+- P4-R1-05: accepted. `main.ts` alone logs `Runtime <state>[: <detail>]`, now
+  with the ready origin; the harness reads it and fails fast on any error.
+- P4-R1-06: rejected. The plan asked for both PIDs; the record stays
+  conservative evidence and never authorizes a kill. PID reuse can cause a
+  spurious `previous_runtime_running`, whose advice is to wait and Retry.
+- P4-R1-07: accepted. The grace is 15 seconds, matching uvicorn and Electron.
+- P4-R1-08: accepted. The guard maps to `animama` and `msvc-runtime`.
+- P4-R1-09: accepted; the three behaviors have Linux tests.
+- P4-R1-10: accepted.
+- P4-R1-11: accepted in the Decision Log and Results. Two minors are left: a
+  durable-key timeout shows the general protected-storage advice although
+  Retry would succeed, and the guard compile prints to the stage console
+  rather than a step log.
+
+#### Code Review #2 Findings
+
+Targeted recheck of `83aaf44f` (repair round 1): every Review #1 finding
+resolved, including the quit-on-close fix; result pass. Non-blocking:
+
+- P4-R2-01: no test drove the early elevated refusal.
+- P4-R2-02: the elevation check ran `whoami` synchronously on Electron's main
+  thread, which can stall up to 10 seconds on an offline domain member.
+- P4-R2-03: some harness failures did not print Electron's log, a runtime
+  error during a quit was masked by a check message, and stdout and stderr
+  shared one partial-line buffer.
+- P4-R2-04: the in-app `previous_runtime_running` advice did not mention
+  waiting.
+
+#### Code Review #2 Revisions
+
+In `5cba6a6a` (repair round 2): all accepted. The check runs asynchronously; a
+mocked Windows test proves an elevated launch stops before verification, the
+vault or PostgreSQL; the harness reports every quit failure, including a
+logged runtime error, with Electron's log, and reads each stream separately;
+the advice suggests waiting a few seconds before Retry.
+
+#### Code Review #3 Findings
+
+Final targeted recheck of `5cba6a6a` (repair round 2): all four Review #2
+findings resolved, no regression; result pass. Non-blocking: P4-R3-01 notes
+that the reset supervisor mock resolves `false`, not `undefined` (both mean
+"not elevated"); P4-R3-02 repeats the pre-existing Prettier failure.
+
+#### Code Review #3 Revisions
+
+No change needed.
 
 ### Phase 5: Unsigned package, installer and native input
 
