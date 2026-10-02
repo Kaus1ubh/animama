@@ -89,7 +89,10 @@ vi.mock("../src/main-process/feature-packs/signature.js", async (original) => ({
   >()),
   verifyExecutablePack: fixture.verifyPack,
 }));
-vi.mock("../src/main-process/runtime/manifest.js", () => ({
+vi.mock("../src/main-process/runtime/manifest.js", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("../src/main-process/runtime/manifest.js")
+  >()),
   verifyRuntime: fixture.verify,
 }));
 vi.mock("../src/main-process/runtime/ports.js", () => ({

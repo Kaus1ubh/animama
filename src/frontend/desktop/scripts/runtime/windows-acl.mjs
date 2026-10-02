@@ -45,7 +45,7 @@ function capture(command, args, env = {}) {
   if (result.error) throw result.error;
   if (result.status !== 0)
     throw new Error(
-      `${path.basename(command)} failed (status ${result.status})`,
+      `${path.basename(command)} failed (status ${result.status}): ${(result.stderr ?? "").slice(-2000)}`,
     );
   return result.stdout;
 }

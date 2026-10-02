@@ -5,9 +5,14 @@ import path from "node:path";
 import {
   crlfConvertedPaths,
   parseTarget,
+  pnpmCommand,
   readJson,
   sourceRoot,
 } from "../scripts/runtime/common.mjs";
+import {
+  assertInventory,
+  inventoryTree,
+} from "../scripts/runtime/inventory.mjs";
 import { distprepConflicts } from "../scripts/runtime/native-windows.mjs";
 import { untrustedWriters } from "../scripts/runtime/windows-acl.mjs";
 import {
@@ -18,9 +23,11 @@ import {
 import {
   assertNoEmbeddedPaths,
   auditWindowsDependencies,
+  auditWindowsStage,
   isPortableExecutable,
   parseDumpbinDependents,
   resolveDependency,
+  VC_RUNTIME_DLL,
 } from "../scripts/runtime/windows-platform.mjs";
 
 const roots = [];
@@ -167,6 +174,67 @@ describe("Windows native build inputs", () => {
     expect(crlfConvertedPaths(listing)).toEqual([
       "src/frontend/desktop/runtime/release-policy.json",
     ]);
+  });
+});
+
+describe("Windows stage inventory", () => {
+  it("marks PE files as the executables and ignores POSIX modes on Windows", () => {
+    const root = fixture();
+    mkdirSync(path.join(root, "backend/_internal"), { recursive: true });
+    for (const name of [
+      "backend/animama-runtime.exe",
+      "backend/_internal/python312.dll",
+      "backend/_internal/_ssl.pyd",
+      "backend/_internal/base_library.zip",
+      "web/index.html",
+    ]) {
+      mkdirSync(path.dirname(path.join(root, name)), { recursive: true });
+      writeFileSync(path.join(root, name), name);
+    }
+    vi.spyOn(process, "platform", "get").mockReturnValue("win32");
+    const inventory = inventoryTree(root);
+    expect(
+      Object.fromEntries(inventory.map((file) => [file.path, file.mode])),
+    ).toEqual({
+      "backend/_internal/_ssl.pyd": "0755",
+      "backend/_internal/base_library.zip": "0644",
+      "backend/_internal/python312.dll": "0755",
+      "backend/animama-runtime.exe": "0755",
+      "web/index.html": "0644",
+    });
+    expect(inventory.find((file) => file.path.endsWith(".exe")).critical).toBe(
+      true,
+    );
+    // NTFS reports no execute bits, so only bytes and names are compared.
+    expect(assertInventory(root, inventory)).toEqual(inventory);
+  });
+
+  it("runs pnpm through its JavaScript entry point instead of a .cmd shim", () => {
+    expect(pnpmCommand(["web:check"], "C:\\pnpm\\bin\\pnpm.cjs")).toEqual([
+      process.execPath,
+      ["C:\\pnpm\\bin\\pnpm.cjs", "web:check"],
+    ]);
+    expect(pnpmCommand(["web:check"], "")).toEqual(["pnpm", ["web:check"]]);
+  });
+});
+
+describe("VC++ runtime names", () => {
+  it("recognizes the runtime DLLs, including wheel-renamed copies", () => {
+    for (const name of [
+      "vcruntime140.dll",
+      "VCRUNTIME140_1.dll",
+      "MSVCP140.dll",
+      "msvcp140_atomic_wait.dll",
+      "msvcp140-a4c2229bdc2a2a630acdc095b4d86008.dll",
+      "concrt140.dll",
+    ])
+      expect(VC_RUNTIME_DLL.test(name)).toBe(true);
+    for (const name of [
+      "ucrtbase.dll",
+      "vcruntime140.dll.bak",
+      "msvcp140-x.dll",
+    ])
+      expect(VC_RUNTIME_DLL.test(name)).toBe(false);
   });
 });
 
@@ -351,6 +419,91 @@ describe("Windows PE dependency audit", () => {
       ).map((file) => file.path),
     ).toEqual(["bin/libpq.dll", "bin/postgres.exe"]);
     expect(runner).toHaveBeenCalledTimes(2);
+  });
+
+  it("resolves each process's imports only in the folders that process searches", () => {
+    const root = fixture();
+    const system = path.join(root, "System32");
+    mkdirSync(system);
+    writeFileSync(path.join(system, "kernel32.dll"), "");
+    const imports = {
+      "runtime/postgres/bin/postgres.exe": ["vcruntime140.dll", "kernel32.dll"],
+      "runtime/postgres/bin/vcruntime140.dll": ["kernel32.dll"],
+      "runtime/postgres/lib/vector.dll": ["postgres.exe", "vcruntime140.dll"],
+      "runtime/backend/animama-runtime.exe": ["kernel32.dll"],
+      "runtime/backend/_internal/python312.dll": ["vcruntime140.dll"],
+      "runtime/backend/_internal/vcruntime140.dll": ["kernel32.dll"],
+      "runtime/backend/_internal/pydantic_core/core.pyd": [
+        "python312.dll",
+        "vcruntime140.dll",
+      ],
+      "runtime/backend/_internal/psycopg_binary/pq.pyd": ["libpq-abc.dll"],
+      "runtime/backend/_internal/psycopg_binary.libs/libpq-abc.dll": [
+        "kernel32.dll",
+      ],
+      "app/dist/native/animama_input_hook.node": ["kernel32.dll", "node.exe"],
+      "electron/electron.exe": ["kernel32.dll"],
+    };
+    const files = { runtime: [], app: [], electron: [] };
+    for (const name of Object.keys(imports)) {
+      portableExecutable(path.join(root, name));
+      const [part, ...rest] = name.split("/");
+      files[part].push(rest.join("/"));
+    }
+    const roots = Object.fromEntries(
+      Object.keys(files).map((part) => [part, path.join(root, part)]),
+    );
+    const runNative = (command, args) =>
+      dumpbin(imports[path.relative(root, args.at(-1)).replaceAll("\\", "/")]);
+    const audit = (stageFiles) =>
+      auditWindowsStage(roots, stageFiles, {
+        systemDlls: ["kernel32.dll"],
+        systemDirectory: system,
+        runNative,
+      });
+    const report = audit(files);
+    const resolved = (part, file, name) =>
+      report[part]
+        .find((entry) => entry.path === file)
+        .dependencies.find((dependency) => dependency.name === name).resolved;
+    expect(resolved("runtime", "postgres/lib/vector.dll", "postgres.exe")).toBe(
+      "stage:postgres/bin/postgres.exe",
+    );
+    expect(
+      resolved(
+        "runtime",
+        "backend/_internal/pydantic_core/core.pyd",
+        "vcruntime140.dll",
+      ),
+    ).toBe("stage:backend/_internal/vcruntime140.dll");
+    expect(
+      resolved(
+        "runtime",
+        "backend/_internal/psycopg_binary/pq.pyd",
+        "libpq-abc.dll",
+      ),
+    ).toBe("stage:backend/_internal/psycopg_binary.libs/libpq-abc.dll");
+    expect(
+      resolved("app", "dist/native/animama_input_hook.node", "node.exe"),
+    ).toBe("host");
+    // The backend never searches PostgreSQL's folder for its runtime DLLs.
+    expect(() =>
+      audit({
+        ...files,
+        runtime: files.runtime.filter(
+          (name) => name !== "backend/_internal/vcruntime140.dll",
+        ),
+      }),
+    ).toThrow(
+      "backend/_internal/python312.dll: vcruntime140.dll does not resolve",
+    );
+    // Only an addon's node.exe import binds to the host process.
+    imports["runtime/backend/_internal/pydantic_core/core.pyd"].push(
+      "node.exe",
+    );
+    expect(() => audit(files)).toThrow(
+      "backend/_internal/pydantic_core/core.pyd: node.exe does not resolve",
+    );
   });
 
   it("rejects binaries that embed a build-machine path in either encoding", () => {

@@ -11,7 +11,7 @@ import {
 } from "node:fs";
 import path from "node:path";
 import { randomBytes } from "node:crypto";
-import { atomicWrite, privateDirectory } from "./atomic-file.js";
+import { atomicWrite, privateDirectory, syncDirectory } from "./atomic-file.js";
 import { RuntimeError } from "./errors.js";
 import { runCommand } from "./processes.js";
 import type { RuntimePaths } from "./paths.js";
@@ -130,12 +130,7 @@ export class MigrationBackup {
         closeSync(fd);
       }
       renameSync(partial, destination);
-      const directory = openSync(path.dirname(destination), "r");
-      try {
-        fsyncSync(directory);
-      } finally {
-        closeSync(directory);
-      }
+      syncDirectory(path.dirname(destination));
       this.write({
         version: 1,
         from,

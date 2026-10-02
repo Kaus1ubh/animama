@@ -17,19 +17,33 @@ export type OwnedProcess = {
   exit: Promise<void>;
 };
 
-/** Inherit OS locale/home only; never leak unrelated developer credentials to children. */
-function baseChildEnvironment(): NodeJS.ProcessEnv {
-  const env: NodeJS.ProcessEnv = { PATH: "/usr/bin:/bin:/usr/sbin:/sbin" };
-  for (const key of [
-    "HOME",
-    "TMPDIR",
-    "LANG",
-    "LC_ALL",
-    "TZ",
-    "USER",
-    "LOGNAME",
-  ])
-    if (process.env[key]) env[key] = process.env[key];
+/**
+ * Inherit OS locale, home and temporary folders only; never leak unrelated
+ * developer credentials to children. Windows children also need SystemRoot
+ * (Winsock fails without it) and a PATH limited to the system folders.
+ */
+export function baseChildEnvironment(
+  platform: NodeJS.Platform = process.platform,
+  source: NodeJS.ProcessEnv = process.env,
+): NodeJS.ProcessEnv {
+  const windows = platform === "win32";
+  const systemRoot = source.SystemRoot || "C:\\Windows";
+  const env: NodeJS.ProcessEnv = {
+    PATH: windows
+      ? [`${systemRoot}\\System32`, systemRoot].join(";")
+      : "/usr/bin:/bin:/usr/sbin:/sbin",
+  };
+  const keys = windows
+    ? [
+        "SystemRoot",
+        "SystemDrive",
+        "TEMP",
+        "TMP",
+        "USERPROFILE",
+        "LOCALAPPDATA",
+      ]
+    : ["HOME", "TMPDIR", "LANG", "LC_ALL", "TZ", "USER", "LOGNAME"];
+  for (const key of keys) if (source[key]) env[key] = source[key];
   return env;
 }
 

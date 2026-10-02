@@ -150,7 +150,7 @@ development-only and rejected in packaged mode.
 | Target                             | Current status                                                                                  |
 | ---------------------------------- | ----------------------------------------------------------------------------------------------- |
 | macOS 15+, arm64                   | Development packaging implemented; fresh-source native, minimum-OS and signed acceptance remain |
-| Windows 11, x64                    | Native packaging and recovery deferred                                                          |
+| Windows 11, x64                    | Native stage and audit implemented; packaging, signing and acceptance in progress               |
 | Linux                              | External-stack development only; packaging deferred beyond the current supported release        |
 | Intel/universal macOS, Windows ARM | Not supported                                                                                   |
 

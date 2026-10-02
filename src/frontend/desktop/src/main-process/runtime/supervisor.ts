@@ -31,7 +31,11 @@ import {
 } from "../feature-packs/signature.js";
 import { atomicWrite } from "./atomic-file.js";
 import { RuntimeError, runtimeErrorCode } from "./errors.js";
-import { verifyRuntime, type RuntimeManifest } from "./manifest.js";
+import {
+  runtimePlatform,
+  verifyRuntime,
+  type RuntimeManifest,
+} from "./manifest.js";
 import {
   hasDatabaseData,
   readRuntimeState,
@@ -132,7 +136,10 @@ export class RuntimeSupervisor {
     return next;
   }
   private executable(): string {
-    return path.join(this.options.runtimeRoot, "backend/animama-runtime");
+    return path.join(
+      this.options.runtimeRoot,
+      `backend/animama-runtime${runtimePlatform(process.platform).executableSuffix}`,
+    );
   }
   private environment(): NodeJS.ProcessEnv {
     if (!this.vault || !this.manifest)

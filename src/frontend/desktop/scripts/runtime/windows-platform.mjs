@@ -59,6 +59,13 @@ export function dumpbinDependents(file, { runNative = run, env } = {}) {
   );
 }
 
+/**
+ * Microsoft's VC++ runtime DLLs, including delvewheel's hash-suffixed copies.
+ * They must ship app-local, never resolve from System32.
+ */
+export const VC_RUNTIME_DLL =
+  /^(?:vcruntime140(?:_1)?|msvcp140(?:_\w+)?|concrt140)(?:-[0-9a-f]{32})?\.dll$/iu;
+
 const API_SET = /^(?:api|ext)-ms-win-[\w.-]+\.dll$/u;
 
 /**
@@ -70,9 +77,19 @@ const API_SET = /^(?:api|ext)-ms-win-[\w.-]+\.dll$/u;
 export function resolveDependency(
   name,
   importer,
-  { stagedNames, searchDirs, systemDlls, systemDirectory, exists = existsSync },
+  {
+    stagedNames,
+    searchDirs,
+    systemDlls,
+    systemDirectory,
+    hostImports = new Set(),
+    exists = existsSync,
+  },
 ) {
   if (API_SET.test(name)) return "api-set";
+  // node-gyp's delay-load hook binds an addon's node.exe imports to the host
+  // process, which is the staged Electron executable.
+  if (importer.endsWith(".node") && hostImports.has(name)) return "host";
   for (const directory of [path.posix.dirname(importer), ...searchDirs]) {
     const candidate = path.posix.join(directory, name);
     const staged = stagedNames.get(candidate.toLowerCase());
@@ -87,25 +104,27 @@ export function resolveDependency(
 
 /**
  * Record every PE import under `root` and reject any DLL that would load from
- * outside the stage or the reviewed system set. `searchDirs` are stage-relative
- * directories the process adds to the loader search (its application directory).
+ * outside the stage or the reviewed system set. `searchDirs(importer)` returns
+ * the root-relative folders the importer's process adds to the loader search.
  */
 export function auditWindowsDependencies(
   root,
   names,
   {
-    searchDirs = [],
+    searchDirs = () => [],
     systemDlls,
     systemDirectory = path.join(
       process.env.SystemRoot || "C:\\Windows",
       "System32",
     ),
+    hostImports = [],
     runNative = run,
     env,
   },
 ) {
   const stagedNames = new Map(names.map((name) => [name.toLowerCase(), name]));
   const allowed = new Set(systemDlls.map((name) => name.toLowerCase()));
+  const host = new Set(hostImports);
   const files = [];
   for (const name of names) {
     const file = path.join(root, name);
@@ -117,9 +136,10 @@ export function auditWindowsDependencies(
           name: dependency,
           resolved: resolveDependency(dependency, name, {
             stagedNames,
-            searchDirs,
+            searchDirs: searchDirs(name),
             systemDlls: allowed,
             systemDirectory,
+            hostImports: host,
           }),
         }),
       ),
@@ -144,4 +164,62 @@ export function assertNoEmbeddedPaths(root, names, needles) {
     if (patterns.some((pattern) => bytes.includes(pattern)))
       throw new Error(`${name} embeds a build-machine path`);
   }
+}
+
+/**
+ * Wheels repaired by delvewheel keep their DLLs in `<package>.libs` folders,
+ * which the package adds to the DLL search with os.add_dll_directory.
+ */
+function wheelLibraryDirs(names) {
+  return [
+    ...new Set(
+      names
+        .map((name) => name.match(/^(backend\/_internal\/[^/]+\.libs)\//u)?.[1])
+        .filter(Boolean),
+    ),
+  ];
+}
+
+/**
+ * Folders a staged process adds to the DLL search beyond an importer's own
+ * folder. Processes never share them: PostgreSQL extensions load into
+ * postgres.exe, while the backend's PyInstaller bootloader adds its executable
+ * and `_internal` folders, PyInstaller's pywin32 hook adds `pywin32_system32`,
+ * and delvewheel packages add their `*.libs` folders.
+ */
+export function stageSearchDirs(part, names) {
+  if (part !== "runtime") return () => [];
+  const backend = [
+    "backend",
+    "backend/_internal",
+    "backend/_internal/pywin32_system32",
+    ...wheelLibraryDirs(names),
+  ];
+  return (importer) =>
+    importer.startsWith("postgres/")
+      ? ["postgres/bin"]
+      : importer.startsWith("backend/")
+        ? backend
+        : [];
+}
+
+/** Audit every PE file of a Windows stage, component by component. */
+export function auditWindowsStage(
+  roots,
+  files,
+  { systemDlls, env, runNative = run, systemDirectory },
+) {
+  return Object.fromEntries(
+    Object.entries(files).map(([part, names]) => [
+      part,
+      auditWindowsDependencies(roots[part], names, {
+        searchDirs: stageSearchDirs(part, names),
+        systemDlls,
+        systemDirectory,
+        hostImports: part === "app" ? ["node.exe"] : [],
+        runNative,
+        env,
+      }),
+    ]),
+  );
 }

@@ -73,8 +73,5 @@ if (
   process.argv[1] &&
   pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url
 ) {
-  const target = parseTarget();
-  if (target.platform === "win32")
-    throw new Error("Windows pack staging is not complete yet");
-  await stageFeaturePacks(target);
+  await stageFeaturePacks(parseTarget());
 }

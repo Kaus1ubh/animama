@@ -38,6 +38,7 @@ import {
   assertNoEmbeddedPaths,
   auditWindowsDependencies,
   dumpbinDependents,
+  VC_RUNTIME_DLL,
 } from "./windows-platform.mjs";
 
 // PostgreSQL compiles its configured directories in and relocates them relative
@@ -57,10 +58,6 @@ const UTF8_MANIFEST = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
   </application>
 </assembly>
 `;
-// The VC++ runtime must ship beside the executables that import it; a copy in
-// System32 on the build machine is not evidence that users have one.
-const VC_RUNTIME =
-  /^(?:vcruntime140(?:_1)?|msvcp140(?:_\w+)?|concrt140)\.dll$/u;
 
 /** Build the locked PostgreSQL and pgvector sources with the pinned MSVC toolset. */
 export function buildPostgresWindows(target) {
@@ -308,8 +305,9 @@ function stagePostgresWindows(target, lock, build) {
     "x64",
     "Microsoft.VC143.CRT",
   );
-  // Discover which runtime DLLs the build imports, ship exactly those beside
-  // the executables, then audit the final closure.
+  // Discover which runtime DLLs the build imports and ship exactly those beside
+  // the executables: a copy in the build machine's System32 is not evidence
+  // that users have one. Then audit the final closure.
   const vcRuntime = new Set();
   for (const file of filesIn(dest).filter((name) =>
     /\.(?:exe|dll)$/u.test(name),
@@ -317,7 +315,7 @@ function stagePostgresWindows(target, lock, build) {
     for (const dependency of dumpbinDependents(path.join(dest, file), {
       env: build.env,
     }))
-      if (VC_RUNTIME.test(dependency)) vcRuntime.add(dependency);
+      if (VC_RUNTIME_DLL.test(dependency)) vcRuntime.add(dependency);
   const runtimeFiles = [];
   for (const name of [...vcRuntime].sort()) {
     const source = path.join(redist, name);
@@ -328,7 +326,7 @@ function stagePostgresWindows(target, lock, build) {
   }
   // Extension DLLs load into postgres.exe, so bin\ is their application directory.
   const dependencies = auditWindowsDependencies(dest, filesIn(dest), {
-    searchDirs: ["bin"],
+    searchDirs: () => ["bin"],
     systemDlls: lock.system_dlls,
     env: build.env,
   });

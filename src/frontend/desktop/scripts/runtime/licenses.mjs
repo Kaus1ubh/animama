@@ -23,6 +23,7 @@ import {
   sha256,
   writeJson,
 } from "./common.mjs";
+import { VC_RUNTIME_DLL } from "./windows-platform.mjs";
 
 const NOTICE_NAME =
   /(?:^|[._ -])(?:licen[cs]e|copying|notice|copyright)(?:[._ -]|$)/iu;
@@ -167,6 +168,19 @@ export function writeLicenses(target, contentInventory) {
         },
       ],
     });
+  // Windows ships Microsoft's VC++ runtime DLLs app-local as Visual Studio
+  // distributable code: PostgreSQL's copy from the pinned redistributable, and
+  // copies inside the frozen Python runtime and wheels. The file inventory
+  // binds each copy's bytes.
+  if (target.platform === "win32")
+    records.push({
+      id: "msvc-runtime",
+      name: "Microsoft Visual C++ Redistributable runtime DLLs",
+      version: "14.x (Visual C++ 2015-2022)",
+      license: "Microsoft Visual Studio distributable code terms",
+      source: "https://visualstudio.microsoft.com/license-terms/",
+      review: "pending",
+    });
   const electronDist = path.join(desktopRoot, "node_modules/electron/dist");
   records.push({
     id: "electron",
@@ -200,7 +214,9 @@ export function writeLicenses(target, contentInventory) {
         item.paths?.some((prefix) => name.startsWith(prefix)),
       );
       let refs = ["animama"];
-      if (name.startsWith("backend/"))
+      if (VC_RUNTIME_DLL.test(path.posix.basename(name)))
+        refs = ["msvc-runtime"];
+      else if (name.startsWith("backend/"))
         refs = ["animama", "python-runtime-dependencies"];
       else if (name.startsWith("postgres/"))
         refs = ["postgresql", ...(name.includes("vector") ? ["pgvector"] : [])];

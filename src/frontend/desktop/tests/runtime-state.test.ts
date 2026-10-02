@@ -5,17 +5,19 @@ import {
   randomBytes,
 } from "node:crypto";
 import {
+  chmodSync,
   existsSync,
   lstatSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
   realpathSync,
+  renameSync,
   rmSync,
   symlinkSync,
   writeFileSync,
 } from "node:fs";
-import { tmpdir } from "node:os";
+import { release, tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
@@ -33,6 +35,7 @@ import {
 } from "../src/main-process/runtime/paths.js";
 import { SecretRedactor } from "../src/main-process/runtime/redaction.js";
 import {
+  baseChildEnvironment,
   OwnedProcesses,
   runCommand,
 } from "../src/main-process/runtime/processes.js";
@@ -41,12 +44,17 @@ import {
   installRendererCapability,
 } from "../src/main-process/security/renderer-capability.js";
 import type { App, Session } from "electron";
-import { PrivatePostgres } from "../src/main-process/runtime/postgres.js";
+import {
+  PrivatePostgres,
+  postmasterRecordMatches,
+  reportsPortCollision,
+} from "../src/main-process/runtime/postgres.js";
 import { readBackendReadiness } from "../src/main-process/runtime/readiness.js";
 import {
   verifyRuntime,
   supportsRuntimePlatform,
   type RuntimeManifest,
+  runtimePlatform,
 } from "../src/main-process/runtime/manifest.js";
 
 const roots: string[] = [];
@@ -397,122 +405,277 @@ describe("bounded private readiness", () => {
   });
 });
 
-describe("runtime macOS support boundary", () => {
+describe("private PostgreSQL ownership checks", () => {
+  const dataDir = path.resolve(
+    tmpdir(),
+    "animama-profile",
+    "postgres",
+    "16",
+    "data",
+  );
+
+  it("matches only this postmaster's PID, data directory and port", () => {
+    const record = (pid: number, dir: string, port: number) =>
+      `${pid}\n${dir}\n1700000000\n${port}\n\n`;
+    expect(
+      postmasterRecordMatches(
+        record(4321, dataDir, 55432),
+        4321,
+        dataDir,
+        55432,
+      ),
+    ).toBe(true);
+    expect(
+      postmasterRecordMatches(
+        record(4322, dataDir, 55432),
+        4321,
+        dataDir,
+        55432,
+      ),
+    ).toBe(false);
+    expect(
+      postmasterRecordMatches(
+        record(4321, `${dataDir}-other`, 55432),
+        4321,
+        dataDir,
+        55432,
+      ),
+    ).toBe(false);
+    expect(
+      postmasterRecordMatches(
+        record(4321, dataDir, 55433),
+        4321,
+        dataDir,
+        55432,
+      ),
+    ).toBe(false);
+    expect(
+      postmasterRecordMatches("4321\n\n0\n55432\n", 4321, dataDir, 55432),
+    ).toBe(false);
+  });
+
+  it.skipIf(process.platform !== "win32")(
+    "accepts the forward-slash data directory PostgreSQL writes on Windows",
+    () => {
+      const record = `4321\n${dataDir.replaceAll("\\", "/")}\n1700000000\n55432\n`;
+      expect(postmasterRecordMatches(record, 4321, dataDir, 55432)).toBe(true);
+    },
+  );
+
+  it("recognizes an occupied port by PostgreSQL's hint, in any OS language", () => {
+    const hint =
+      "HINT:  Is another postmaster already running on port 55432? If not, wait a few seconds and retry.";
+    expect(
+      reportsPortCollision(
+        `LOG:  could not bind IPv4 address "127.0.0.1": Address already in use\n${hint}`,
+      ),
+    ).toBe(true);
+    expect(
+      reportsPortCollision(
+        `LOG:  could not bind IPv4 address "127.0.0.1": Normalerweise darf jede Socketadresse nur jeweils einmal verwendet werden.\n${hint}`,
+      ),
+    ).toBe(true);
+    expect(
+      reportsPortCollision("FATAL:  data directory has wrong ownership"),
+    ).toBe(false);
+  });
+});
+
+describe("owned child environment", () => {
+  const source = {
+    PATH: "C:\\Users\\dev\\bin;C:\\Windows\\System32",
+    SystemRoot: "C:\\Windows",
+    SystemDrive: "C:",
+    TEMP: "C:\\Users\\dev\\AppData\\Local\\Temp",
+    TMP: "C:\\Users\\dev\\AppData\\Local\\Temp",
+    USERPROFILE: "C:\\Users\\dev",
+    LOCALAPPDATA: "C:\\Users\\dev\\AppData\\Local",
+    OPENAI_API_KEY: "developer-secret",
+    HOME: "/home/dev",
+  };
+
+  it("gives Windows children only system paths and their own folders", () => {
+    expect(baseChildEnvironment("win32", source)).toEqual({
+      PATH: "C:\\Windows\\System32;C:\\Windows",
+      SystemRoot: "C:\\Windows",
+      SystemDrive: "C:",
+      TEMP: source.TEMP,
+      TMP: source.TMP,
+      USERPROFILE: source.USERPROFILE,
+      LOCALAPPDATA: source.LOCALAPPDATA,
+    });
+  });
+
+  it("keeps the POSIX child environment unchanged", () => {
+    expect(baseChildEnvironment("darwin", source)).toEqual({
+      PATH: "/usr/bin:/bin:/usr/sbin:/sbin",
+      HOME: "/home/dev",
+    });
+  });
+});
+
+describe("runtime platform support boundary", () => {
   it("admits macOS 15 and newer Apple silicon kernels, rejecting older or unknown targets", () => {
     expect(supportsRuntimePlatform("darwin", "arm64", "24.0.0")).toBe(true);
     expect(supportsRuntimePlatform("darwin", "arm64", "25.6.0")).toBe(true);
     for (const release of ["22.0.0", "23.6.0", "unknown", "24", ""])
       expect(supportsRuntimePlatform("darwin", "arm64", release)).toBe(false);
     expect(supportsRuntimePlatform("darwin", "x64", "24.0.0")).toBe(false);
-    expect(supportsRuntimePlatform("win32", "arm64", "24.0.0")).toBe(false);
+  });
+
+  it("admits Windows 11 x64 builds only, by build number", () => {
+    // Node reports Windows as 10.0.<build>; Windows 11 starts at build 22000.
+    expect(supportsRuntimePlatform("win32", "x64", "10.0.22000")).toBe(true);
+    expect(supportsRuntimePlatform("win32", "x64", "10.0.26200")).toBe(true);
+    for (const release of ["10.0.19045", "10.0.21999", "6.3.9600", "10.0", ""])
+      expect(supportsRuntimePlatform("win32", "x64", release)).toBe(false);
+    expect(supportsRuntimePlatform("win32", "arm64", "10.0.26200")).toBe(false);
+    expect(supportsRuntimePlatform("linux", "x64", "6.18.0")).toBe(false);
+  });
+
+  it("names each platform's minimum OS and native executables", () => {
+    expect(runtimePlatform("darwin")).toEqual({
+      minimumOs: "15.0",
+      executableSuffix: "",
+    });
+    expect(runtimePlatform("win32")).toEqual({
+      minimumOs: "10.0.22000",
+      executableSuffix: ".exe",
+    });
   });
 });
 
-describe.skipIf(process.platform !== "darwin" || process.arch !== "arm64")(
-  "runtime manifest custody",
-  () => {
-    async function manifestFixture() {
-      const root = fixture();
-      const id = "a".repeat(64);
-      const payloads = {
-        "backend/animama-runtime": "fixture-backend",
-        "postgres/bin/postgres": "fixture-postgres",
-        "postgres/bin/initdb": "fixture-initdb",
-        "postgres/bin/pg_ctl": "fixture-control",
-        "postgres/bin/pg_isready": "fixture-ready",
-        "postgres/bin/pg_dump": "fixture-dump",
-        "postgres/bin/pg_restore": "fixture-restore",
-        "web/index.html": "fixture-html",
-        "content/included-core/inventory.json": JSON.stringify({ id }),
-        "pack-catalog.json": JSON.stringify({ id }),
-      };
-      const files = Object.entries(payloads)
-        .sort(([a], [b]) => (a < b ? -1 : 1))
-        .map(([name, payload]) => {
-          const target = path.join(root, name);
-          mkdirSync(path.dirname(target), { recursive: true });
-          writeFileSync(target, payload, { mode: 0o644 });
-          return {
-            path: name,
-            size_bytes: Buffer.byteLength(payload),
-            sha256: createHash("sha256").update(payload).digest("hex"),
-            mode: "0644",
-            critical: false,
-            component: "fixture",
-          };
-        });
-      const manifest: RuntimeManifest = {
-        schema: "animama-desktop-runtime/2",
-        app_version: "0.1.0",
-        build_id: createHash("sha256")
-          .update(JSON.stringify(files))
-          .digest("hex"),
-        platform: "darwin",
-        architecture: "arm64",
-        minimum_os: "15.0",
-        postgresql: { major: 16, version: "16.15", pgvector: "0.8.6" },
-        alembic_head: "0011_included_mounts",
-        local_http_schema_version: 1,
-        core_content_inventory_id: id,
-        pack_catalog_id: id,
-        database_schema_sha256: "d".repeat(64),
-        files,
-      };
-      writeFileSync(path.join(root, "manifest.json"), JSON.stringify(manifest));
-      return { root, manifest };
-    }
+// Runs on each supported host: macOS on Apple silicon and Windows 11 x64.
+describe.skipIf(
+  !supportsRuntimePlatform(process.platform, process.arch, release()),
+)("runtime manifest custody", () => {
+  const { executableSuffix, minimumOs } = runtimePlatform(process.platform);
+  const backend = `backend/animama-runtime${executableSuffix}`;
 
-    it("checks executable hashes even if their manifest critical flag is false", async () => {
-      const { root, manifest } = await manifestFixture();
-      expect(await verifyRuntime(root, "0.1.0")).toEqual(manifest);
-      writeFileSync(
-        path.join(root, "backend/animama-runtime"),
-        "changed-backend",
-      );
-      await expect(verifyRuntime(root, "0.1.0")).rejects.toThrow(
-        "runtime_manifest_invalid",
-      );
-    });
-
-    it.each([
-      { schema: "animama-desktop-runtime/1" },
-      { local_http_schema_version: 0 },
-      { gateway_schema_version: 1 },
-      { database_schema_sha256: undefined },
-      { database_schema_sha256: "not-a-digest" },
-    ])(
-      "rejects old or mixed runtime composition before native launch: %j",
-      async (change) => {
-        const { root, manifest } = await manifestFixture();
-        writeFileSync(
-          path.join(root, "manifest.json"),
-          JSON.stringify({ ...manifest, ...change }),
-        );
-        await expect(verifyRuntime(root, "0.1.0")).rejects.toThrow(
-          "runtime_manifest_invalid",
-        );
-      },
+  async function manifestFixture() {
+    const root = fixture();
+    const id = "a".repeat(64);
+    const executables = Object.fromEntries(
+      [
+        ["backend/animama-runtime", "fixture-backend"],
+        ["postgres/bin/postgres", "fixture-postgres"],
+        ["postgres/bin/initdb", "fixture-initdb"],
+        ["postgres/bin/pg_ctl", "fixture-control"],
+        ["postgres/bin/pg_isready", "fixture-ready"],
+        ["postgres/bin/pg_dump", "fixture-dump"],
+        ["postgres/bin/pg_restore", "fixture-restore"],
+      ].map(([name, payload]) => [`${name}${executableSuffix}`, payload]),
     );
+    const payloads = {
+      ...executables,
+      "web/index.html": "fixture-html",
+      "content/included-core/inventory.json": JSON.stringify({ id }),
+      "pack-catalog.json": JSON.stringify({ id }),
+    };
+    const files = Object.entries(payloads)
+      .sort(([a], [b]) => (a < b ? -1 : 1))
+      .map(([name, payload]) => {
+        const target = path.join(root, name);
+        const executable = name in executables;
+        mkdirSync(path.dirname(target), { recursive: true });
+        // NTFS ignores these modes; Windows verification compares bytes only.
+        writeFileSync(target, payload, { mode: executable ? 0o755 : 0o644 });
+        chmodSync(target, executable ? 0o755 : 0o644);
+        return {
+          path: name,
+          size_bytes: Buffer.byteLength(payload),
+          sha256: createHash("sha256").update(payload).digest("hex"),
+          mode: executable ? "0755" : "0644",
+          critical: false,
+          component: "fixture",
+        };
+      });
+    const manifest: RuntimeManifest = {
+      schema: "animama-desktop-runtime/2",
+      app_version: "0.1.0",
+      build_id: createHash("sha256")
+        .update(JSON.stringify(files))
+        .digest("hex"),
+      platform: process.platform,
+      architecture: process.arch,
+      minimum_os: minimumOs,
+      postgresql: { major: 16, version: "16.15", pgvector: "0.8.6" },
+      alembic_head: "0011_included_mounts",
+      local_http_schema_version: 1,
+      core_content_inventory_id: id,
+      pack_catalog_id: id,
+      database_schema_sha256: "d".repeat(64),
+      files,
+    };
+    writeFileSync(path.join(root, "manifest.json"), JSON.stringify(manifest));
+    return { root, manifest };
+  }
 
-    it("rejects composition identifiers that disagree with verified inventories", async () => {
+  it("checks executable hashes even if their manifest critical flag is false", async () => {
+    const { root, manifest } = await manifestFixture();
+    expect(await verifyRuntime(root, "0.1.0")).toEqual(manifest);
+    writeFileSync(path.join(root, backend), "changed-backend");
+    await expect(verifyRuntime(root, "0.1.0")).rejects.toThrow(
+      "runtime_manifest_invalid",
+    );
+  });
+
+  it.skipIf(!executableSuffix)(
+    "requires Windows executable names in a Windows runtime",
+    async () => {
       const { root, manifest } = await manifestFixture();
-      manifest.core_content_inventory_id = "b".repeat(64);
+      const entry = manifest.files.find((file) => file.path === backend)!;
+      entry.path = "backend/animama-runtime";
+      manifest.files.sort((a, b) => (a.path < b.path ? -1 : 1));
+      manifest.build_id = createHash("sha256")
+        .update(JSON.stringify(manifest.files))
+        .digest("hex");
+      renameSync(path.join(root, backend), path.join(root, entry.path));
       writeFileSync(path.join(root, "manifest.json"), JSON.stringify(manifest));
       await expect(verifyRuntime(root, "0.1.0")).rejects.toThrow(
         "runtime_manifest_invalid",
       );
-    });
+    },
+  );
 
-    it("refuses a stale manifest advertising the earlier OS target", async () => {
+  it.each([
+    { schema: "animama-desktop-runtime/1" },
+    { local_http_schema_version: 0 },
+    { gateway_schema_version: 1 },
+    { database_schema_sha256: undefined },
+    { database_schema_sha256: "not-a-digest" },
+  ])(
+    "rejects old or mixed runtime composition before native launch: %j",
+    async (change) => {
       const { root, manifest } = await manifestFixture();
-      manifest.minimum_os = "13.0";
-      writeFileSync(path.join(root, "manifest.json"), JSON.stringify(manifest));
+      writeFileSync(
+        path.join(root, "manifest.json"),
+        JSON.stringify({ ...manifest, ...change }),
+      );
       await expect(verifyRuntime(root, "0.1.0")).rejects.toThrow(
         "runtime_manifest_invalid",
       );
-    });
-  },
-);
+    },
+  );
+
+  it("rejects composition identifiers that disagree with verified inventories", async () => {
+    const { root, manifest } = await manifestFixture();
+    manifest.core_content_inventory_id = "b".repeat(64);
+    writeFileSync(path.join(root, "manifest.json"), JSON.stringify(manifest));
+    await expect(verifyRuntime(root, "0.1.0")).rejects.toThrow(
+      "runtime_manifest_invalid",
+    );
+  });
+
+  it("refuses a stale manifest advertising the earlier OS target", async () => {
+    const { root, manifest } = await manifestFixture();
+    manifest.minimum_os = "13.0";
+    writeFileSync(path.join(root, "manifest.json"), JSON.stringify(manifest));
+    await expect(verifyRuntime(root, "0.1.0")).rejects.toThrow(
+      "runtime_manifest_invalid",
+    );
+  });
+});
 
 describe("owned processes and secret-safe logs", () => {
   it("redacts values, encoded URLs, headers and provider fields", () => {

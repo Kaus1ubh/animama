@@ -29,6 +29,20 @@ export function privateDirectory(directory: string): void {
   }
 }
 
+/**
+ * Make a rename in `directory` durable. Windows cannot flush a directory handle
+ * (it reports EPERM); NTFS journals the metadata change instead.
+ */
+export function syncDirectory(directory: string): void {
+  if (process.platform === "win32") return;
+  const folder = openSync(directory, "r");
+  try {
+    fsyncSync(folder);
+  } finally {
+    closeSync(folder);
+  }
+}
+
 /** Save private state with same-directory promotion and durable directory metadata. */
 export function atomicWrite(file: string, data: string | Buffer): void {
   const parent = path.dirname(file);
@@ -52,12 +66,7 @@ export function atomicWrite(file: string, data: string | Buffer): void {
       if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
     }
     renameSync(temporary, file);
-    const folder = openSync(parent, "r");
-    try {
-      fsyncSync(folder);
-    } finally {
-      closeSync(folder);
-    }
+    syncDirectory(parent);
   } finally {
     if (descriptor !== undefined) closeSync(descriptor);
     rmSync(temporary, { force: true });

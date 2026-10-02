@@ -196,6 +196,19 @@ export function run(
   return result.stdout ?? "";
 }
 
+/** Native executables carry `.exe` on Windows; the target is always the host. */
+export const executableSuffix = process.platform === "win32" ? ".exe" : "";
+
+/**
+ * Run pnpm without a shell. On Windows `pnpm` is a `.cmd` shim that Node will
+ * not spawn directly, so reuse the running pnpm's JavaScript entry point.
+ */
+export function pnpmCommand(args, execpath = process.env.npm_execpath) {
+  return execpath && /\.c?js$/u.test(execpath)
+    ? [process.execPath, [execpath, ...args]]
+    : ["pnpm", args];
+}
+
 /** Each native target has its own pinned compiler inputs and minimum OS. */
 export function nativeLockFile(target) {
   return path.join(

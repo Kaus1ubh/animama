@@ -5,10 +5,12 @@ import {
   cacheRoot,
   copyTree,
   desktopRoot,
+  executableSuffix,
   frontendRoot,
   nativeLockFile,
   normalizeTree,
   parseTarget,
+  pnpmCommand,
   pythonEnvironment,
   readJson,
   removeFinderMetadata,
@@ -33,10 +35,6 @@ import { importBundledTool } from "./bundled-tool.mjs";
 import { sealReleaseModelManifests } from "./release-models.mjs";
 
 const target = parseTarget();
-if (target.platform === "win32")
-  throw new Error(
-    "Windows runtime staging is not complete yet; native-build.mjs builds its PostgreSQL components",
-  );
 const sources = readJson(path.join(sourceRoot, "source-manifest.json"));
 const app = readJson(path.join(desktopRoot, "package.json"));
 const args = ["--platform", target.platform, "--arch", target.arch];
@@ -97,12 +95,14 @@ try {
   const resourceAudit = JSON.parse(
     logged(
       "backend-resource-audit",
-      path.join(target.runtime, "backend/animama-runtime"),
+      path.join(target.runtime, `backend/animama-runtime${executableSuffix}`),
       ["audit-resources"],
       { cwd: target.output, env },
     ),
   );
-  logged("web-check", "pnpm", ["web:check"], { cwd: frontendRoot });
+  const pnpm = (name, args) =>
+    logged(name, ...pnpmCommand(args), { cwd: frontendRoot });
+  pnpm("web-check", ["web:check"]);
   if (
     resourceAudit.local_http_schema_version !==
     sources.local_http_schema_version
@@ -110,24 +110,19 @@ try {
     throw new Error(
       "Frozen local HTTP schema differs from the runtime source manifest",
     );
-  logged(
-    "web-build",
-    "pnpm",
-    [
-      "--filter",
-      "animama-web",
-      "exec",
-      "vite",
-      "build",
-      "--mode",
-      "embedded-desktop",
-      "--outDir",
-      path.join(target.runtime, "web"),
-    ],
-    { cwd: frontendRoot },
-  );
+  pnpm("web-build", [
+    "--filter",
+    "animama-web",
+    "exec",
+    "vite",
+    "build",
+    "--mode",
+    "embedded-desktop",
+    "--outDir",
+    path.join(target.runtime, "web"),
+  ]);
   excludeDesktopWebAssets(path.join(target.runtime, "web"));
-  logged("desktop-build", "pnpm", ["desktop:build"], { cwd: frontendRoot });
+  pnpm("desktop-build", ["desktop:build"]);
   removeFinderMetadata(path.join(target.runtime, "web"));
   mkdirSync(path.join(target.output, "app"), { recursive: true });
   copyTree(

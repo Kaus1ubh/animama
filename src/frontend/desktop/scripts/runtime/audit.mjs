@@ -2,6 +2,7 @@ import { existsSync, lstatSync, rmSync } from "node:fs";
 import path from "node:path";
 import {
   buildPython,
+  executableSuffix,
   filesIn,
   nativeLockFile,
   parseTarget,
@@ -21,13 +22,14 @@ import {
 import { assertBundledImports } from "./js-audit.mjs";
 import { validateSizeReport } from "./size.mjs";
 import { auditMacosMinimum } from "./macos-platform.mjs";
+import { msvcEnvironment } from "./windows-build.mjs";
+import { auditWindowsStage } from "./windows-platform.mjs";
 import { assertDesktopWebAssets } from "./desktop-web.mjs";
 import { resolveBrowserRuntimeAssets } from "../../../scripts/browser-runtime-assets.mjs";
 
 const target = parseTarget();
-if (target.platform === "win32")
-  throw new Error("Windows runtime audit is not complete yet");
 const env = pythonEnvironment();
+const nativeLock = readJson(nativeLockFile(target));
 // A failed current audit must not leave an older success receipt in place.
 rmSync(path.join(target.output, "audit-report.json"), { force: true });
 try {
@@ -42,13 +44,13 @@ try {
   )
     throw new Error("Manifest target mismatch");
   if (
-    manifest.minimum_os !== readJson(nativeLockFile(target)).minimum_os ||
+    manifest.minimum_os !== nativeLock.minimum_os ||
     manifest.minimum_os !==
       readJson(path.join(sourceRoot, "source-manifest.json")).targets[
         target.target
       ]?.minimum_os
   )
-    throw new Error("Minimum macOS target changed; run a fresh runtime stage");
+    throw new Error("Minimum OS target changed; run a fresh runtime stage");
   run(
     buildPython(),
     [
@@ -79,27 +81,37 @@ try {
     )
       throw new Error(`Staged ${part} differs from the build evidence`);
   }
-  // Compiler flags cannot lower the deployment target of prebuilt Python wheels.
-  // Reject incompatible bytes before executing any native runtime probes.
-  const nativePlatforms = {
-    runtime: auditMacosMinimum(
-      target.runtime,
-      manifest.files.map((entry) => entry.path),
-      manifest.minimum_os,
-    ),
+  // Check native compatibility before executing any staged binary: macOS
+  // deployment minimums (compiler flags cannot lower a prebuilt wheel's), or
+  // where every Windows PE import resolves.
+  const roots = {
+    runtime: target.runtime,
+    app: path.join(target.output, "app"),
+    electron: path.join(target.output, "electron"),
+  };
+  const componentFiles = {
+    runtime: manifest.files.map((entry) => entry.path),
     ...Object.fromEntries(
       ["app", "electron"].map((part) => [
         part,
-        auditMacosMinimum(
-          path.join(target.output, part),
-          buildEvidence[part]
-            .filter((entry) => entry.type === "file")
-            .map((entry) => entry.path),
-          manifest.minimum_os,
-        ),
+        buildEvidence[part]
+          .filter((entry) => entry.type === "file")
+          .map((entry) => entry.path),
       ]),
     ),
   };
+  const nativePlatforms =
+    target.platform === "win32"
+      ? auditWindowsStage(roots, componentFiles, {
+          systemDlls: nativeLock.system_dlls,
+          env: msvcEnvironment(nativeLock.toolchain).env,
+        })
+      : Object.fromEntries(
+          Object.entries(componentFiles).map(([part, names]) => [
+            part,
+            auditMacosMinimum(roots[part], names, manifest.minimum_os),
+          ]),
+        );
   const nativeHook = "dist/native/animama_input_hook.node";
   const stagedNativeFiles = filesIn(
     path.join(target.output, "app/dist/native"),
@@ -111,7 +123,9 @@ try {
     throw new Error("First-party global input hook inventory is incomplete");
   const electron = path.join(
     target.output,
-    "electron/Electron.app/Contents/MacOS/Electron",
+    target.platform === "win32"
+      ? "electron/electron.exe"
+      : "electron/Electron.app/Contents/MacOS/Electron",
   );
   const electronEvidence = JSON.parse(
     run(
@@ -137,7 +151,10 @@ try {
       capture: true,
     },
   );
-  const executable = path.join(target.runtime, "backend/animama-runtime");
+  const executable = path.join(
+    target.runtime,
+    `backend/animama-runtime${executableSuffix}`,
+  );
   const resources = JSON.parse(
     run(executable, ["audit-resources"], {
       cwd: target.output,

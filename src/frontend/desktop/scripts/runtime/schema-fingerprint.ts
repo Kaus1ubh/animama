@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { mkdtempSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { runtimePlatform } from "../../src/main-process/runtime/manifest.js";
 import { runtimePaths } from "../../src/main-process/runtime/paths.js";
 import { PrivatePostgres } from "../../src/main-process/runtime/postgres.js";
 import {
@@ -24,7 +25,10 @@ export async function stagedSchemaDigest(runtimeRoot: string): Promise<string> {
   const postgres = new PrivatePostgres(runtimeRoot, paths, owned);
   try {
     const env = await postgres.start(randomBytes(32).toString("hex"));
-    const backend = path.join(runtimeRoot, "backend/animama-runtime");
+    const backend = path.join(
+      runtimeRoot,
+      `backend/animama-runtime${runtimePlatform(process.platform).executableSuffix}`,
+    );
     for (const operation of ["provision", "bootstrap"])
       await runCommand(
         backend,

@@ -11,6 +11,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
+import { symlinksAvailable } from "./fixtures/symlinks.mjs";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
@@ -87,50 +88,56 @@ function fixture() {
 }
 
 describe("desktop runtime packaging", () => {
-  it("includes bundled dependency notices without following symlinks or nested dependencies", () => {
-    const root = fixture();
-    for (const name of ["desktop", "web"]) {
-      mkdirSync(path.join(root, name));
+  it.skipIf(!symlinksAvailable)(
+    "includes bundled dependency notices without following symlinks or nested dependencies",
+    () => {
+      const root = fixture();
+      for (const name of ["desktop", "web"]) {
+        mkdirSync(path.join(root, name));
+        writeFileSync(
+          path.join(root, name, "package.json"),
+          JSON.stringify({
+            name,
+            private: true,
+            dependencies: { vendor: "1.0.0" },
+          }),
+        );
+      }
+      const vendor = path.join(root, "node_modules/vendor");
+      mkdirSync(vendor, { recursive: true });
       writeFileSync(
-        path.join(root, name, "package.json"),
-        JSON.stringify({
-          name,
-          private: true,
-          dependencies: { vendor: "1.0.0" },
-        }),
+        path.join(vendor, "package.json"),
+        JSON.stringify({ name: "vendor", version: "1.0.0", license: "MIT" }),
       );
-    }
-    const vendor = path.join(root, "node_modules/vendor");
-    mkdirSync(vendor, { recursive: true });
-    writeFileSync(
-      path.join(vendor, "package.json"),
-      JSON.stringify({ name: "vendor", version: "1.0.0", license: "MIT" }),
-    );
-    for (const name of [
-      "LICENSE",
-      "lib-vendor/d3/LICENSE",
-      "dist/bundle.js.LICENSE.txt",
-      "dist/icons/copyright.js",
-      "dist/icons/copyright.js.map",
-      "node_modules/undeclared/LICENSE",
-    ]) {
-      mkdirSync(path.dirname(path.join(vendor, name)), { recursive: true });
-      writeFileSync(path.join(vendor, name), name);
-    }
-    symlinkSync(path.join(root, "data.json"), path.join(vendor, "NOTICE.txt"));
-    symlinkSync(root, path.join(vendor, "linked"));
-    const record = javascriptLicenses(root).records.find(
-      (item) => item.name === "vendor",
-    );
-    expect(record.notices).toEqual([
-      { path: "LICENSE", text: "LICENSE" },
-      {
-        path: "dist/bundle.js.LICENSE.txt",
-        text: "dist/bundle.js.LICENSE.txt",
-      },
-      { path: "lib-vendor/d3/LICENSE", text: "lib-vendor/d3/LICENSE" },
-    ]);
-  });
+      for (const name of [
+        "LICENSE",
+        "lib-vendor/d3/LICENSE",
+        "dist/bundle.js.LICENSE.txt",
+        "dist/icons/copyright.js",
+        "dist/icons/copyright.js.map",
+        "node_modules/undeclared/LICENSE",
+      ]) {
+        mkdirSync(path.dirname(path.join(vendor, name)), { recursive: true });
+        writeFileSync(path.join(vendor, name), name);
+      }
+      symlinkSync(
+        path.join(root, "data.json"),
+        path.join(vendor, "NOTICE.txt"),
+      );
+      symlinkSync(root, path.join(vendor, "linked"));
+      const record = javascriptLicenses(root).records.find(
+        (item) => item.name === "vendor",
+      );
+      expect(record.notices).toEqual([
+        { path: "LICENSE", text: "LICENSE" },
+        {
+          path: "dist/bundle.js.LICENSE.txt",
+          text: "dist/bundle.js.LICENSE.txt",
+        },
+        { path: "lib-vendor/d3/LICENSE", text: "lib-vendor/d3/LICENSE" },
+      ]);
+    },
+  );
 
   it("loads every checked-in static license notice", () => {
     const policy = JSON.parse(
@@ -530,27 +537,30 @@ Load command 4
     };
   }
 
-  it("relocates proven Torch aliases before removing duplicate bytes and reaudits real references", () => {
-    const input = workerLibraries();
-    const result = prepareDocumentLibraries(input);
-    expect(result.relocations).toEqual([
-      {
-        path: input.consumer,
-        command: "-change",
-        from: "@rpath/libtorch_cpu.dylib",
-        to: "@loader_path/lib/libtorch_cpu.dylib",
-      },
-    ]);
-    expect(existsSync(path.join(input.executableRoot, input.alias))).toBe(
-      false,
-    );
-    expect(existsSync(path.join(input.frozenRoot, input.alias))).toBe(true);
-    expect(
-      result.files.find((file) => file.path === input.consumer).dependencies,
-    ).toEqual(["@loader_path/lib/libtorch_cpu.dylib"]);
-  });
+  it.skipIf(!symlinksAvailable)(
+    "relocates proven Torch aliases before removing duplicate bytes and reaudits real references",
+    () => {
+      const input = workerLibraries();
+      const result = prepareDocumentLibraries(input);
+      expect(result.relocations).toEqual([
+        {
+          path: input.consumer,
+          command: "-change",
+          from: "@rpath/libtorch_cpu.dylib",
+          to: "@loader_path/lib/libtorch_cpu.dylib",
+        },
+      ]);
+      expect(existsSync(path.join(input.executableRoot, input.alias))).toBe(
+        false,
+      );
+      expect(existsSync(path.join(input.frozenRoot, input.alias))).toBe(true);
+      expect(
+        result.files.find((file) => file.path === input.consumer).dependencies,
+      ).toEqual(["@loader_path/lib/libtorch_cpu.dylib"]);
+    },
+  );
 
-  it.each([
+  it.skipIf(!symlinksAvailable).each([
     [
       "missing dependency",
       { dependencies: ["@loader_path/missing.dylib"] },
@@ -577,70 +587,81 @@ Load command 4
     expect(() => prepareDocumentLibraries(input)).toThrow(message);
   });
 
-  it("retains non-Torch aliases for ctypes while relocating their search paths", () => {
-    const input = workerLibraries();
-    const alias = "_internal/libImage.dylib";
-    const canonical = "_internal/PIL/.dylibs/libImage.dylib";
-    for (const base of [input.frozenRoot, input.executableRoot]) {
-      mkdirSync(path.dirname(path.join(base, canonical)), { recursive: true });
+  it.skipIf(!symlinksAvailable)(
+    "retains non-Torch aliases for ctypes while relocating their search paths",
+    () => {
+      const input = workerLibraries();
+      const alias = "_internal/libImage.dylib";
+      const canonical = "_internal/PIL/.dylibs/libImage.dylib";
+      for (const base of [input.frozenRoot, input.executableRoot]) {
+        mkdirSync(path.dirname(path.join(base, canonical)), {
+          recursive: true,
+        });
+        writeFileSync(
+          path.join(base, canonical),
+          Buffer.from("cffaedfe00000000", "hex"),
+        );
+      }
+      symlinkSync(
+        "PIL/.dylibs/libImage.dylib",
+        path.join(input.frozenRoot, alias),
+      );
       writeFileSync(
-        path.join(base, canonical),
+        path.join(input.executableRoot, alias),
         Buffer.from("cffaedfe00000000", "hex"),
       );
-    }
-    symlinkSync(
-      "PIL/.dylibs/libImage.dylib",
-      path.join(input.frozenRoot, alias),
-    );
-    writeFileSync(
-      path.join(input.executableRoot, alias),
-      Buffer.from("cffaedfe00000000", "hex"),
-    );
-    for (const name of [alias, canonical]) {
-      input.commands.set(name, {
-        dependencies: ["@rpath/libtorch_cpu.dylib"],
-        rpaths: ["@loader_path/../.."],
+      for (const name of [alias, canonical]) {
+        input.commands.set(name, {
+          dependencies: ["@rpath/libtorch_cpu.dylib"],
+          rpaths: ["@loader_path/../.."],
+        });
+      }
+      const result = prepareDocumentLibraries(input);
+      expect(existsSync(path.join(input.executableRoot, alias))).toBe(true);
+      expect(result.relocations).toContainEqual({
+        path: alias,
+        command: "-rpath",
+        from: "@loader_path/../..",
+        to: "@loader_path/.",
       });
-    }
-    const result = prepareDocumentLibraries(input);
-    expect(existsSync(path.join(input.executableRoot, alias))).toBe(true);
-    expect(result.relocations).toContainEqual({
-      path: alias,
-      command: "-rpath",
-      from: "@loader_path/../..",
-      to: "@loader_path/.",
-    });
-    expect(
-      result.files.find((entry) => entry.path === alias).dependencies,
-    ).toEqual(["@loader_path/torch/lib/libtorch_cpu.dylib"]);
-  });
+      expect(
+        result.files.find((entry) => entry.path === alias).dependencies,
+      ).toEqual(["@loader_path/torch/lib/libtorch_cpu.dylib"]);
+    },
+  );
 
-  it("reaudits dependencies after aliases are removed instead of trusting tool success", () => {
-    const input = workerLibraries();
-    const runner = input.runNative;
-    input.runNative = (tool, args) =>
-      tool.endsWith("/install_name_tool") ? "" : runner(tool, args);
-    expect(() => prepareDocumentLibraries(input)).toThrow(
-      "unresolved non-system library",
-    );
-  });
+  it.skipIf(!symlinksAvailable)(
+    "reaudits dependencies after aliases are removed instead of trusting tool success",
+    () => {
+      const input = workerLibraries();
+      const runner = input.runNative;
+      input.runNative = (tool, args) =>
+        tool.endsWith("/install_name_tool") ? "" : runner(tool, args);
+      expect(() => prepareDocumentLibraries(input)).toThrow(
+        "unresolved non-system library",
+      );
+    },
+  );
 
-  it("refuses to discard a changed alias or an unexpected Torch target", () => {
-    const input = workerLibraries();
-    writeFileSync(
-      path.join(input.executableRoot, input.alias),
-      "different library",
-    );
-    expect(() => prepareDocumentLibraries(input)).toThrow("does not match");
-    rmSync(path.join(input.frozenRoot, input.alias));
-    symlinkSync(
-      "../animama-document-worker",
-      path.join(input.frozenRoot, input.alias),
-    );
-    expect(() => prepareDocumentLibraries(input)).toThrow(
-      "Unexpected worker Torch alias",
-    );
-  });
+  it.skipIf(!symlinksAvailable)(
+    "refuses to discard a changed alias or an unexpected Torch target",
+    () => {
+      const input = workerLibraries();
+      writeFileSync(
+        path.join(input.executableRoot, input.alias),
+        "different library",
+      );
+      expect(() => prepareDocumentLibraries(input)).toThrow("does not match");
+      rmSync(path.join(input.frozenRoot, input.alias));
+      symlinkSync(
+        "../animama-document-worker",
+        path.join(input.frozenRoot, input.alias),
+      );
+      expect(() => prepareDocumentLibraries(input)).toThrow(
+        "Unexpected worker Torch alias",
+      );
+    },
+  );
 
   it("keeps public testing previews out of the stable feed and refuses mutation of stable releases", () => {
     const names = [
@@ -1506,17 +1527,28 @@ Load command 4
     removeFinderMetadata(root);
     expect(existsSync(path.join(root, "effects"))).toBe(false);
     expect(inventoryTree(root).map((file) => file.path)).toEqual(["data.json"]);
-    symlinkSync(path.join(root, "data.json"), path.join(root, ".DS_Store"));
-    expect(() => removeFinderMetadata(root)).toThrow("Non-regular");
   });
-  it("rejects symlinks and executable-bit changes", () => {
-    const root = fixture();
-    const inventory = inventoryTree(root);
-    chmodSync(path.join(root, "data.json"), 0o755);
-    expect(() => assertInventory(root, inventory)).toThrow();
-    symlinkSync(path.join(root, "data.json"), path.join(root, "link"));
-    expect(() => inventoryTree(root)).toThrow("Non-regular");
-  });
+  it.skipIf(!symlinksAvailable)(
+    "rejects linked Finder metadata and staged links",
+    () => {
+      const root = fixture();
+      symlinkSync(path.join(root, "data.json"), path.join(root, ".DS_Store"));
+      expect(() => removeFinderMetadata(root)).toThrow("Non-regular");
+      rmSync(path.join(root, ".DS_Store"));
+      symlinkSync(path.join(root, "data.json"), path.join(root, "link"));
+      expect(() => inventoryTree(root)).toThrow("Non-regular");
+    },
+  );
+  // Windows has no POSIX execute bits.
+  it.skipIf(process.platform === "win32")(
+    "rejects executable-bit changes",
+    () => {
+      const root = fixture();
+      const inventory = inventoryTree(root);
+      chmodSync(path.join(root, "data.json"), 0o755);
+      expect(() => assertInventory(root, inventory)).toThrow();
+    },
+  );
   it("does not allow a JS package to escape into developer node_modules", () => {
     const meta = (name) => ({
       inputs: {},

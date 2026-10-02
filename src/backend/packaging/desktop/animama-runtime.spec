@@ -1,6 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
 """Python 3.12 onedir core. Document parsing is a separate optional artifact."""
 import importlib.metadata
+import re
 import sys
 from pathlib import Path
 
@@ -51,7 +52,14 @@ a = Analysis(
     noarchive=False,
 )
 # Editable-install metadata is a build-machine locator, not a runtime resource.
-a.datas = [entry for entry in a.datas if not entry[0].endswith("/direct_url.json")]
+a.datas = [entry for entry in a.datas if Path(entry[0]).name != "direct_url.json"]
+if sys.platform == "win32":
+    # Windows 11 provides the Universal CRT; its forwarder copies add nothing.
+    a.binaries = [
+        entry
+        for entry in a.binaries
+        if not re.fullmatch(r"(api-ms-win-.+|ucrtbase)\.dll", Path(entry[0]).name, re.IGNORECASE)
+    ]
 pyz = PYZ(a.pure)
 exe = EXE(
     pyz, a.scripts, [], exclude_binaries=True, name="animama-runtime",
