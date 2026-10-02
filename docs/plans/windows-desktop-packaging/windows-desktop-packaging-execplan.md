@@ -77,11 +77,11 @@ Paths are repository-relative. `D/` abbreviates `src/frontend/desktop/`.
 
 ### Working environments
 
-- **Plan branch.** This plan was drafted on `docs/windows-desktop-packaging-plan`
-  from `main` at `98bceca2`.
-- **Implementation branch.** Implementation uses one task branch,
-  `build/windows-desktop-packaging`, and one PR, in a WSL worktree. All edits,
-  commits and Linux checks happen there.
+- **Task branch.** One branch, `build/windows-desktop-packaging`, carries this
+  plan and the implementation in one PR. It starts from `main` at `94ee03c5`
+  (the plan was drafted against `98bceca2`; the intervening commits do not touch
+  the desktop runtime). All edits, commits and Linux checks happen in its WSL
+  worktree.
 - **Native execution.** Native steps run in a separate clone, `<windows-clone>`,
   on a Windows 11 x64 host.
   - Before each native run, fetch the task branch, check out the exact commit
@@ -340,8 +340,8 @@ Run desktop commands from `src/frontend` unless a step says otherwise.
 
 **Requirements:** R1 (PostgreSQL and pgvector, DLL audit) and the
 pinned-input and line-ending constraints.
-**Issue:** created at workspace setup.
-**Starting source:** to be recorded.
+**Issue:** [#252](https://github.com/raymond-van/animama/issues/252).
+**Starting source:** `00617e51` (plan commit on `94ee03c5`).
 **Dependencies:** G0.
 
 Changes:
@@ -441,7 +441,7 @@ Pending.
 
 **Requirements:** R1 (full stage and audit, inventories, notices, size report,
 schema digest, backup-restore probe) and R4 (the addon builds and loads).
-**Issue:** created at workspace setup.
+**Issue:** [#253](https://github.com/raymond-van/animama/issues/253).
 **Dependencies:** Phase 1.
 
 Changes:
@@ -525,7 +525,7 @@ Pending.
 ### Phase 3: Storage, secrets and file containment
 
 **Requirements:** R3.
-**Issue:** created at workspace setup.
+**Issue:** [#254](https://github.com/raymond-van/animama/issues/254).
 **Dependencies:** Phase 2, for the stage these tests run against. Phase 4 needs
 this phase because FastAPI cannot serve the app on Windows before item 3.
 
@@ -602,7 +602,7 @@ Pending.
 ### Phase 4: Process guard and supervised Windows runtime
 
 **Requirements:** R2, and the end-to-end part of R3's missing-DLL test.
-**Issue:** created at workspace setup.
+**Issue:** [#255](https://github.com/raymond-van/animama/issues/255).
 **Dependencies:** Phase 3.
 
 Changes:
@@ -695,7 +695,7 @@ Pending.
 ### Phase 5: Unsigned package, installer and native input
 
 **Requirements:** R4 (manual Press-to-talk) and R5.
-**Issue:** created at workspace setup.
+**Issue:** [#256](https://github.com/raymond-van/animama/issues/256).
 **Dependencies:** Phase 4.
 
 Changes:
