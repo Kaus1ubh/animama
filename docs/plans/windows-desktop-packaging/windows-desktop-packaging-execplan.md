@@ -159,11 +159,11 @@ Paths are repository-relative. `D/` abbreviates `src/frontend/desktop/`.
       at `555f8a45` ([#254](https://github.com/raymond-van/animama/issues/254));
       Windows receipts passed; review passed after two repair rounds. The
       DB-backed backend suite passed later at `e3de5f49`.
-- [ ] Phase 4: Process guard and supervised Windows runtime. Agent work and
-      review complete on 2026-10-02 at `5cba6a6a`
+- [x] Phase 4: Process guard and supervised Windows runtime. Complete on
+      2026-10-02 at `5cba6a6a`
       ([#255](https://github.com/raymond-van/animama/issues/255)); Windows
-      receipts passed; review passed after two repair rounds. Awaiting the
-      owner's Task Manager and Run-as-administrator checks.
+      receipts passed; review passed after two repair rounds; the owner's Task
+      Manager and Run-as-administrator checks passed.
 - [ ] Phase 5: Unsigned package, installer and native input. Not started.
 - [ ] Phase 6: Authenticode signing and the release candidate. Not started; needs G1 and G2.
 - [ ] Phase 7: Updates, smoke and publication tooling. Not started; the real upgrade needs G4.
@@ -1190,7 +1190,7 @@ commits `e3de5f49`, `83aaf44f` and `5cba6a6a`):
 - uvicorn 0.38.0 handles `SIGBREAK` (Ctrl+Break) and, after its graceful
   shutdown, re-raises it; the MSVC runtime's default handler then exits with 3,
   which is FastAPI's normal Windows stop code. The workers' handlers exit 0.
-- **Owner gates:**
+- **Owner checks (passed, reported by the owner on 2026-10-02):**
   - Task Manager's End task on Animama leaves no PostgreSQL, FastAPI, worker
     or guard process.
   - Run as administrator shows `administrator_launch_unsupported` with Retry
