@@ -14,7 +14,7 @@ from tempfile import SpooledTemporaryFile
 from typing import BinaryIO, cast
 
 from animama.server.local_runtime import LocalRuntimePaths
-from animama.utils.files import is_link, open_no_follow, replace
+from animama.utils.files import is_directory, is_link, open_no_follow, replace
 
 
 class PrivateFilePathError(ValueError):
@@ -97,7 +97,7 @@ class FilesystemPrivateFileStorage:
                     continue
                 cursor.mkdir()
                 metadata = cursor.lstat()
-            if is_link(metadata) or not stat.S_ISDIR(metadata.st_mode):
+            if not is_directory(metadata):
                 raise PrivateFilePathError("Private locator contains an unsafe directory")
         return destination
 

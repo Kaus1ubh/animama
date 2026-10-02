@@ -23,7 +23,7 @@ import stat
 from pathlib import Path
 
 from animama.domain.model_assets import AssetCatalog, AssetDescriptor, AssetFile
-from animama.utils.files import open_no_follow, path_is_link, replace, sync_directory
+from animama.utils.files import is_directory, open_no_follow, path_is_link, replace, sync_directory
 
 _DIRECTORY_MODE = 0o700
 _FILE_MODE = 0o600
@@ -162,7 +162,7 @@ class FilesystemModelAssetStore:
         path = self._installed_path(asset)
         if asset.is_set:
             try:
-                if not stat.S_ISDIR(path.lstat().st_mode):
+                if not is_directory(path.lstat()):
                     return False
             except OSError:
                 return False

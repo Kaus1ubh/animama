@@ -22,7 +22,7 @@ from typing import Any
 from animama.app.ports.content_store import ContentMutationJournal
 from animama.domain.content_catalog import ContentConflictError, ContentPathError
 from animama.utils.files import (
-    is_link,
+    is_directory,
     open_no_follow,
     path_is_link,
     replace,
@@ -94,7 +94,7 @@ def safe_path(root: Path, relative: str, *, create_parents: bool = False) -> Pat
         while not ancestor.exists():
             missing.append(ancestor)
             ancestor = ancestor.parent
-        if not stat.S_ISDIR(ancestor.lstat().st_mode):
+        if not is_directory(ancestor.lstat()):
             raise ContentPathError("mutation root contains an unsafe directory")
         for directory in reversed(missing):
             directory.mkdir(mode=0o700)
@@ -111,7 +111,7 @@ def safe_path(root: Path, relative: str, *, create_parents: bool = False) -> Pat
             cursor.mkdir(mode=0o700)
             sync_directory(cursor.parent)
             metadata = cursor.lstat()
-        if not stat.S_ISDIR(metadata.st_mode) or is_link(metadata):
+        if not is_directory(metadata):
             raise ContentPathError("mutation path contains an unsafe directory")
     return root.joinpath(*parts.parts)
 
@@ -214,7 +214,7 @@ class MutationJournal:
             metadata = path.lstat()
         except FileNotFoundError:
             return
-        if stat.S_ISDIR(metadata.st_mode):
+        if is_directory(metadata):
             for child in path.iterdir():
                 MutationJournal.remove_temporary(child)
             path.rmdir()
@@ -341,7 +341,7 @@ class MutationJournal:
                 metadata = directory.lstat()
             except FileNotFoundError:
                 continue
-            if not stat.S_ISDIR(metadata.st_mode) or (metadata.st_dev, metadata.st_ino) != (
+            if not is_directory(metadata) or (metadata.st_dev, metadata.st_ino) != (
                 record["device"],
                 record["inode"],
             ):

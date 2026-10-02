@@ -24,7 +24,7 @@ WINDOWS = sys.platform == "win32"
 _REPARSE_POINT = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
 _DIRECTORY = 0x10
 # Antivirus and indexers briefly hold new files open without delete sharing.
-# The desktop's own retries use the same 1.6 second budget.
+# The desktop's own retries use the same 1.575 second budget.
 _SHARING_RETRY_SECONDS = (0.025, 0.05, 0.1, 0.2, 0.4, 0.8)
 
 
@@ -32,6 +32,12 @@ def is_link(info: os.stat_result) -> bool:
     """Treat every Windows reparse point, including junctions, as a link."""
 
     return stat.S_ISLNK(info.st_mode) or bool(getattr(info, "st_file_attributes", 0) & _REPARSE_POINT)
+
+
+def is_directory(info: os.stat_result) -> bool:
+    """A real directory: Windows reports a junction as a directory too."""
+
+    return stat.S_ISDIR(info.st_mode) and not is_link(info)
 
 
 def path_is_link(path: str | os.PathLike[str]) -> bool:

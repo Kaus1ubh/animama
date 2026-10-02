@@ -4,14 +4,13 @@ import ipaddress
 import json
 import os
 import re
-import stat
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
 
 from animama.domain.content_sources import IncludedContentSource
 from animama.server.config import Settings
-from animama.utils.files import is_link, path_is_link
+from animama.utils.files import is_directory, path_is_link
 
 CONTENT_TYPE_DIRECTORIES: tuple[str, ...] = (
     "avatars",
@@ -169,7 +168,7 @@ def _assert_directory(path: Path, *, label: str) -> None:
         metadata = path.lstat()
     except OSError as exc:
         raise LocalRuntimeConfigurationError(f"{label} is unavailable: {path}") from exc
-    if is_link(metadata) or not stat.S_ISDIR(metadata.st_mode):
+    if not is_directory(metadata):
         raise LocalRuntimeConfigurationError(f"{label} must be a real directory, not a symlink: {path}")
 
 

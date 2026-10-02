@@ -450,6 +450,19 @@ def test_startup_removes_obsolete_ids_and_unresumable_staging(data_root: Path, r
     assert sorted(path.name for path in staging.iterdir()) == ["speech"]
 
 
+async def test_a_linked_version_directory_is_not_installed(data_root: Path, release: SetRelease) -> None:
+    service = _service(data_root, release)
+    assert await _install(service) == "installed"
+    version = data_root / "internal" / "model-assets" / "speech" / MANIFEST
+    moved = data_root.parent / "moved"
+    version.rename(moved)
+    link_directory(version, moved)
+
+    asset = _catalog().get("speech")
+    assert asset is not None
+    assert not FilesystemModelAssetStore(data_root).is_installed(asset)
+
+
 def test_startup_removes_directory_links_without_entering_them(data_root: Path, release: SetRelease) -> None:
     outside = data_root.parent / "outside"
     outside.mkdir()

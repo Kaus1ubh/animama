@@ -27,7 +27,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response, StreamingResponse
 from starlette.types import Receive, Scope, Send
 
-from animama.utils.files import WINDOWS, final_path, is_link, open_no_follow
+from animama.utils.files import WINDOWS, final_path, is_directory, open_no_follow
 
 PARAKEET_MOUNT = "/onnx/models/parakeet-tdt-0.6b-v2/"
 # The optional FP16 encoder set; it is served only while its source supplies it.
@@ -180,7 +180,7 @@ def _open_windows(root: Path, name: str) -> int:
     for part in folders:
         current = current / part
         info = os.lstat(current)
-        if is_link(info) or not stat.S_ISDIR(info.st_mode):
+        if not is_directory(info):
             raise ValueError("Asset path cannot traverse a link")
     path = current / leaf
     descriptor = open_no_follow(path, os.O_RDONLY)

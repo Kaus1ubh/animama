@@ -222,7 +222,7 @@ class FilesystemContentStore(ContentStore):
                 continue
             except OSError as exc:
                 raise ContentPathError("content directory could not be inspected") from exc
-            if safe_files.is_link(metadata) or not stat.S_ISDIR(metadata.st_mode):
+            if not safe_files.is_directory(metadata):
                 raise ContentPathError("symlinked content directories are not allowed")
         return candidate
 
@@ -936,12 +936,11 @@ class FilesystemContentStore(ContentStore):
     def _mutation_tree_files(root: Path) -> list[Path]:
         """Inspect every package file without allowing symlink or special-file traversal."""
 
-        if not stat.S_ISDIR(root.lstat().st_mode):
+        if not safe_files.is_directory(root.lstat()):
             raise ContentPathError("package entry is not a safe directory")
         files: list[Path] = []
         for child in sorted(root.iterdir()):
-            mode = child.lstat().st_mode
-            if stat.S_ISDIR(mode):
+            if safe_files.is_directory(child.lstat()):
                 files.extend(FilesystemContentStore._mutation_tree_files(child))
             else:
                 fingerprint(child)
@@ -956,7 +955,7 @@ class FilesystemContentStore(ContentStore):
             metadata = path.lstat()
         except FileNotFoundError:
             return
-        if safe_files.is_link(metadata) or not stat.S_ISDIR(metadata.st_mode):
+        if not safe_files.is_directory(metadata):
             path.unlink()
             return
         for child in path.iterdir():
@@ -1058,10 +1057,10 @@ class FilesystemContentStore(ContentStore):
         """Identify exact legacy package trees without following links."""
 
         try:
-            mode = path.lstat().st_mode
+            metadata = path.lstat()
         except FileNotFoundError:
             return None
-        if stat.S_ISDIR(mode):
+        if safe_files.is_directory(metadata):
             return {
                 "files": {
                     child.relative_to(path).as_posix(): fingerprint(child) for child in cls._mutation_tree_files(path)
@@ -1416,7 +1415,7 @@ class FilesystemContentStore(ContentStore):
                 metadata = cursor.lstat()
             except OSError as exc:
                 raise ContentPathError("Local destination could not be inspected") from exc
-            if safe_files.is_link(metadata) or not stat.S_ISDIR(metadata.st_mode):
+            if not safe_files.is_directory(metadata):
                 raise ContentPathError("Local destination contains an unsafe directory")
         return destination
 
@@ -1434,7 +1433,7 @@ class FilesystemContentStore(ContentStore):
                 metadata = cursor.lstat()
             except OSError as exc:
                 raise ContentPathError("companion directory could not be inspected") from exc
-            if safe_files.is_link(metadata) or not stat.S_ISDIR(metadata.st_mode):
+            if not safe_files.is_directory(metadata):
                 raise ContentPathError("companion path contains an unsafe directory")
         return cursor / relative.name
 

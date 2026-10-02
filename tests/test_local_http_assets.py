@@ -23,7 +23,7 @@ from animama.local.http.assets import (
     ModelMount,
     StaticModelMounts,
 )
-from tests.filesystem_links import require_symlinks
+from tests.filesystem_links import link_directory, require_symlinks
 
 pytestmark = pytest.mark.asyncio
 _HTML = b'<html><script src="/assets/app-abcdefgh.js"></script></html>'
@@ -296,18 +296,23 @@ async def test_reserved_names_cannot_be_served_even_if_the_file_exists(web_root:
         assert response.status_code == 404 and "private" not in response.text
 
 
-async def test_only_navigation_can_fall_back_and_directories_or_links_are_not_documents(
-    web_root: Path, tmp_path: Path
-) -> None:
-    require_symlinks(tmp_path)
+async def test_directories_and_directory_links_are_not_documents(web_root: Path, tmp_path: Path) -> None:
     (web_root / "directory").mkdir()
+    (tmp_path / "private.txt").write_text("private")
+    link_directory(web_root / "linked-dir", tmp_path)
+    async with _client(LocalAssets(web_root)) as client:
+        for path in ("/directory", "/linked-dir/private.txt"):
+            assert (await client.get(path, headers={"accept": "text/html"})).status_code == 404
+
+
+async def test_only_navigation_can_fall_back_and_file_links_are_not_documents(web_root: Path, tmp_path: Path) -> None:
+    require_symlinks(tmp_path)
     (tmp_path / "private.txt").write_text("private")
     (web_root / "link").symlink_to(tmp_path / "private.txt")
     (web_root / "inside").symlink_to(web_root / "index.html")
-    (web_root / "linked-dir").symlink_to(tmp_path, target_is_directory=True)
     async with _client(LocalAssets(web_root)) as client:
         assert (await client.get("/anima")).status_code == 404
-        for path in ("/directory", "/link", "/inside", "/linked-dir/private.txt"):
+        for path in ("/link", "/inside"):
             assert (await client.get(path, headers={"accept": "text/html"})).status_code == 404
         for method in ("POST", "PUT", "DELETE", "OPTIONS"):
             response = await client.request(method, "/index.html", headers={"accept": "text/html"})
@@ -454,7 +459,6 @@ async def test_model_rejects_changed_bytes_or_links(
 async def test_nested_model_directory_substitution_is_rejected(
     web_root: Path, model_mount: ModelMount, tmp_path: Path
 ) -> None:
-    require_symlinks(tmp_path)
     child = model_mount.root / "nested"
     child.mkdir()
     (child / "encoder.onnx").write_bytes(_MODEL)
@@ -465,7 +469,7 @@ async def test_nested_model_directory_substitution_is_rejected(
         (ModelFile("nested/encoder.onnx", model.size_bytes, model.sha256, model.media_type),),
     )
     child.rename(tmp_path / "outside")
-    child.symlink_to(tmp_path / "outside", target_is_directory=True)
+    link_directory(child, tmp_path / "outside")
     async with _client(_mounted(web_root, mount)) as client:
         assert (await client.get(_model_url("nested/encoder.onnx"))).status_code == 404
 

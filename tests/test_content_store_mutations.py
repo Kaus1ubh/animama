@@ -19,6 +19,7 @@ from animama.domain.content_catalog import (
     ContentConflictError,
     ContentIntegrityError,
     ContentKind,
+    ContentPathError,
     ContentScope,
     ContentSource,
     PreparedPackageEntry,
@@ -534,3 +535,34 @@ def test_fingerprint_refuses_a_hard_link_added_after_the_path_check(
     monkeypatch.setattr(mutations, "open_no_follow", link_then_open)
     with pytest.raises(ContentConflictError, match="content_recovery_conflict"):
         mutations.fingerprint(target)
+
+
+def _external_tree(root: Path) -> list[str]:
+    (root / "sub").mkdir(parents=True)
+    (root / "keep.vrma").write_bytes(vrma("external"))
+    (root / "sub/deep.vrma").write_bytes(vrma("external"))
+    return sorted(path.relative_to(root).as_posix() for path in root.rglob("*"))
+
+
+def test_temporary_cleanup_refuses_a_directory_link_without_touching_its_target(tmp_path: Path) -> None:
+    outside = tmp_path / "outside"
+    expected = _external_tree(outside)
+    temporary = tmp_path / "temporary"
+    link_directory(temporary, outside)
+
+    with pytest.raises(ContentPathError):
+        mutations.MutationJournal.remove_temporary(temporary)
+    assert sorted(path.relative_to(outside).as_posix() for path in outside.rglob("*")) == expected
+
+
+def test_package_tree_inspection_refuses_a_directory_link(tmp_path: Path) -> None:
+    outside = tmp_path / "outside"
+    _external_tree(outside)
+    entry = tmp_path / "entry"
+    entry.mkdir()
+    link_directory(entry / "motions", outside)
+
+    with pytest.raises(ContentPathError):
+        FilesystemContentStore._mutation_tree_files(entry)  # noqa: SLF001
+    with pytest.raises(ContentPathError):
+        FilesystemContentStore._mutation_tree_files(entry / "motions")  # noqa: SLF001
