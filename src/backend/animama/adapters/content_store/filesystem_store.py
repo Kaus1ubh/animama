@@ -25,7 +25,6 @@ from animama.adapters.content_store.mutations import (
     fingerprint,
     read_journals,
     safe_path,
-    sync_directory,
 )
 from animama.app.ports.content_store import ContentMutationJournal, ContentStore
 from animama.app.services.content_kind_registry import (
@@ -59,6 +58,7 @@ from animama.domain.content_catalog import (
 )
 from animama.domain.content_documents import ContentDocumentError, TypedContentDocument
 from animama.domain.content_sources import IncludedContentSource
+from animama.utils import files as safe_files
 
 _IGNORED_NAMES = {".DS_Store", ".gitkeep", "README.md"}
 _OPERATION_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
@@ -222,7 +222,7 @@ class FilesystemContentStore(ContentStore):
                 continue
             except OSError as exc:
                 raise ContentPathError("content directory could not be inspected") from exc
-            if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISDIR(metadata.st_mode):
+            if safe_files.is_link(metadata) or not stat.S_ISDIR(metadata.st_mode):
                 raise ContentPathError("symlinked content directories are not allowed")
         return candidate
 
@@ -232,7 +232,7 @@ class FilesystemContentStore(ContentStore):
             metadata = path.lstat()
         except OSError as exc:
             raise ContentPathError("registered content file is unavailable") from exc
-        if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISREG(metadata.st_mode):
+        if safe_files.is_link(metadata) or not stat.S_ISREG(metadata.st_mode):
             raise ContentPathError("registered content must be a regular non-symlink file")
         if metadata.st_nlink != 1:
             raise ContentPathError("hard-linked content files are not allowed")
@@ -261,7 +261,7 @@ class FilesystemContentStore(ContentStore):
                 except OSError:
                     unsafe[relative] = ContentDiagnostic("unreadable_path", "Directory could not be inspected")
                     continue
-                if stat.S_ISLNK(metadata.st_mode):
+                if safe_files.is_link(metadata):
                     unsafe[relative] = ContentDiagnostic("symlink_rejected", "Symlinked directories are not scanned")
                     continue
                 if not stat.S_ISDIR(metadata.st_mode):
@@ -301,7 +301,7 @@ class FilesystemContentStore(ContentStore):
                 except OSError:
                     unsafe[relative] = ContentDiagnostic("unreadable_path", "File could not be inspected")
                     continue
-                if stat.S_ISLNK(metadata.st_mode):
+                if safe_files.is_link(metadata):
                     unsafe[relative] = ContentDiagnostic("symlink_rejected", "Symlinked files are not scanned")
                 elif not stat.S_ISREG(metadata.st_mode):
                     unsafe[relative] = ContentDiagnostic("special_file_rejected", "Only regular files are scanned")
@@ -674,9 +674,8 @@ class FilesystemContentStore(ContentStore):
             raise ContentPathError("Registered source does not match the active library")
         path = self._safe_path(source, relative_path)
         self._assert_regular_file(path)
-        flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
         try:
-            descriptor = os.open(path, flags)
+            descriptor = safe_files.open_no_follow(path, os.O_RDONLY)
         except OSError as exc:
             raise ContentPathError("registered content file could not be opened") from exc
         handle = os.fdopen(descriptor, "rb")
@@ -703,16 +702,16 @@ class FilesystemContentStore(ContentStore):
             return
         destination = safe_path(self._operations_root, f"{operation_id}.json", create_parents=True)
         temporary = destination.with_name(f".{operation_id}.{uuid.uuid4().hex}.json.tmp")
-        descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+        descriptor = safe_files.open_no_follow(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
         try:
             with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
                 json.dump(payload, handle, sort_keys=True)
                 handle.flush()
                 os.fsync(handle.fileno())
-            if destination.exists() or destination.is_symlink():
+            if destination.exists() or safe_files.path_is_link(destination):
                 self._assert_regular_file(destination)
-            os.replace(temporary, destination)
-            sync_directory(destination.parent)
+            safe_files.replace(temporary, destination)
+            safe_files.sync_directory(destination.parent)
         finally:
             temporary.unlink(missing_ok=True)
 
@@ -768,7 +767,7 @@ class FilesystemContentStore(ContentStore):
                 "sha256": file.sha256,
             }
             inventory.append(facts)
-            if destination.exists() or destination.is_symlink():
+            if destination.exists() or safe_files.path_is_link(destination):
                 self._assert_regular_file(destination)
                 if destination.stat().st_size != file.size_bytes or _sha256_file(destination) != file.sha256:
                     raise ContentConflictError("content_transition_original_conflict")
@@ -784,15 +783,15 @@ class FilesystemContentStore(ContentStore):
             temporary = destination.with_name(f".{name}.{uuid.uuid4().hex}.tmp")
             try:
                 with source.handle, temporary.open("xb") as target:
-                    os.fchmod(target.fileno(), 0o600)
+                    safe_files.set_mode(target.fileno(), 0o600)
                     while chunk := source.handle.read(1024 * 1024):
                         target.write(chunk)
                     target.flush()
                     os.fsync(target.fileno())
                 if temporary.stat().st_size != file.size_bytes or _sha256_file(temporary) != file.sha256:
                     raise ContentIntegrityError("content transition original changed while retaining it")
-                os.replace(temporary, destination)
-                sync_directory(destination.parent)
+                safe_files.replace(temporary, destination)
+                safe_files.sync_directory(destination.parent)
             finally:
                 source.handle.close()
                 temporary.unlink(missing_ok=True)
@@ -809,7 +808,7 @@ class FilesystemContentStore(ContentStore):
             sort_keys=True,
             separators=(",", ":"),
         ).encode()
-        if manifest_path.exists() or manifest_path.is_symlink():
+        if manifest_path.exists() or safe_files.path_is_link(manifest_path):
             self._assert_regular_file(manifest_path)
             if manifest_path.read_bytes() != payload:
                 raise ContentConflictError("content_transition_original_conflict")
@@ -817,12 +816,12 @@ class FilesystemContentStore(ContentStore):
         temporary = manifest_path.with_name(f".manifest.{uuid.uuid4().hex}.tmp")
         try:
             with temporary.open("xb") as target:
-                os.fchmod(target.fileno(), 0o600)
+                safe_files.set_mode(target.fileno(), 0o600)
                 target.write(payload)
                 target.flush()
                 os.fsync(target.fileno())
-            os.replace(temporary, manifest_path)
-            sync_directory(manifest_path.parent)
+            safe_files.replace(temporary, manifest_path)
+            safe_files.sync_directory(manifest_path.parent)
         finally:
             temporary.unlink(missing_ok=True)
 
@@ -888,7 +887,7 @@ class FilesystemContentStore(ContentStore):
         if self._mutation is not None:
             self._mutation.replace(staged, destination, require_new=require_new)
         else:
-            os.replace(staged, destination)
+            safe_files.replace(staged, destination)
 
     def _delete_local(self, destination: Path) -> None:
         """Keep the original registered bytes until catalog deletion is durable."""
@@ -913,7 +912,7 @@ class FilesystemContentStore(ContentStore):
                 destination = safe_path(local_root, relative)
                 if target["directory"] and destination.exists():
                     old_files.update(self._mutation_tree_files(destination))
-                elif destination.exists() or destination.is_symlink():
+                elif destination.exists() or safe_files.path_is_link(destination):
                     fingerprint(destination)
                     old_files.add(destination)
             for relative in target["new_paths"]:
@@ -957,7 +956,7 @@ class FilesystemContentStore(ContentStore):
             metadata = path.lstat()
         except FileNotFoundError:
             return
-        if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISDIR(metadata.st_mode):
+        if safe_files.is_link(metadata) or not stat.S_ISDIR(metadata.st_mode):
             path.unlink()
             return
         for child in path.iterdir():
@@ -1043,12 +1042,12 @@ class FilesystemContentStore(ContentStore):
                         if self._package_signature(destination) != expected:
                             raise ContentConflictError("content_recovery_conflict")
                         self._remove_private_tree(destination)
-                        os.replace(temporary, destination)
+                        safe_files.replace(temporary, destination)
                     finally:
                         self._remove_private_tree(temporary)
                 else:
                     self._remove_private_tree(destination)
-                sync_directory(destination.parent)
+                safe_files.sync_directory(destination.parent)
             payload["status"] = "rolled_back"
             self._receipt(f"package-install-{operation_id}", payload)
         self._remove_private_tree(stage_root)
@@ -1184,7 +1183,7 @@ class FilesystemContentStore(ContentStore):
                     if member.source_path is not None:
                         if not stat.S_ISREG(member.source_path.lstat().st_mode):
                             raise ContentPathError("package member is not a regular private file")
-                        source_context = os.fdopen(os.open(member.source_path, os.O_RDONLY | os.O_NOFOLLOW), "rb")
+                        source_context = os.fdopen(safe_files.open_no_follow(member.source_path, os.O_RDONLY), "rb")
                     else:
                         assert member.handle is not None
                         source_context = nullcontext(member.handle)
@@ -1275,7 +1274,7 @@ class FilesystemContentStore(ContentStore):
                     backup = backup_root.joinpath(*relative.parts)
                     if destination.exists():
                         backup.parent.mkdir(parents=True, exist_ok=True)
-                        os.replace(destination, backup)
+                        safe_files.replace(destination, backup)
                 for relative_value in new_paths:
                     assert isinstance(relative_value, str)
                     relative = _validate_relative_path(
@@ -1285,7 +1284,7 @@ class FilesystemContentStore(ContentStore):
                     staged = stage_root.joinpath(*relative.parts)
                     destination = local_root.joinpath(*relative.parts)
                     destination.parent.mkdir(parents=True, exist_ok=True)
-                    os.replace(staged, destination)
+                    safe_files.replace(staged, destination)
                 cast_promoted = receipt["promoted"]
                 assert isinstance(cast_promoted, list)
                 cast_promoted.append(index)
@@ -1320,7 +1319,7 @@ class FilesystemContentStore(ContentStore):
         names = {unicodedata.normalize("NFC", destination.name).casefold()}
         if locator.suffix:
             names.add(unicodedata.normalize("NFC", destination.with_suffix(".meta.json").name).casefold())
-        if destination.exists() or destination.is_symlink():
+        if destination.exists() or safe_files.path_is_link(destination):
             return True
         if destination.parent.exists():
             return any(
@@ -1417,7 +1416,7 @@ class FilesystemContentStore(ContentStore):
                 metadata = cursor.lstat()
             except OSError as exc:
                 raise ContentPathError("Local destination could not be inspected") from exc
-            if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISDIR(metadata.st_mode):
+            if safe_files.is_link(metadata) or not stat.S_ISDIR(metadata.st_mode):
                 raise ContentPathError("Local destination contains an unsafe directory")
         return destination
 
@@ -1435,7 +1434,7 @@ class FilesystemContentStore(ContentStore):
                 metadata = cursor.lstat()
             except OSError as exc:
                 raise ContentPathError("companion directory could not be inspected") from exc
-            if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISDIR(metadata.st_mode):
+            if safe_files.is_link(metadata) or not stat.S_ISDIR(metadata.st_mode):
                 raise ContentPathError("companion path contains an unsafe directory")
         return cursor / relative.name
 
@@ -1716,7 +1715,7 @@ class FilesystemContentStore(ContentStore):
                     owns_marker = True
                 except FileExistsError as exc:
                     raise ContentValidationError("descriptor entry already has an active or interrupted Save") from exc
-            elif operation_marker.exists() or operation_marker.is_symlink():
+            elif operation_marker.exists() or safe_files.path_is_link(operation_marker):
                 raise ContentConflictError("content_mutation_recovery_required")
             companion_digests: dict[str, str] = {}
             for name, (payload_stream, payload_size_bytes) in companion_files.items():

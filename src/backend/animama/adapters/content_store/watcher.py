@@ -10,6 +10,7 @@ from pathlib import Path
 from watchfiles import awatch
 
 from animama.domain.content_catalog import ContentSource
+from animama.utils.files import path_is_link
 
 type _PathSignature = tuple[int, int, int, int, int]
 _NOT_TRACKED = object()
@@ -64,6 +65,8 @@ class ContentWatcher:
                     signature = self._signature(path)
                     if signature is not None:
                         self._signatures[path] = signature
+                # os.walk descends into Windows junctions even without followlinks.
+                directory_names[:] = [name for name in directory_names if not path_is_link(parent / name)]
 
     def _classify_changed_path(self, changed_path: str) -> tuple[ContentSource, str] | None:
         """Classify lexically so a new symlink cannot redirect watcher bookkeeping."""

@@ -177,8 +177,13 @@ detail and use `no-store`. Existing product errors are unchanged.
 resolves the current `ModelMount` of `ModelFile` records on each request; with
 `asset-store` it reads the backend's installed model-asset sets, which were
 digest-verified before activation. Requests use directory-relative, no-follow
-regular-file opens and stream the checked descriptor. Model size/link checks do
-not replace that digest verification. A different build requires a new
+regular-file opens and stream the checked descriptor. Windows has no directory
+descriptors, so there every folder is checked for a reparse point (symbolic link
+or junction) before it is entered, the leaf is opened as itself rather than
+through a link, and the opened file's resolved path must equal the requested
+path. That last check also refuses a folder swapped after its check and an 8.3
+short-name alias of a hidden folder. Model size/link checks do not replace that
+digest verification. A different build requires a new
 responder instance; installing or removing a set does not.
 
 Missing API, script, model, private and reserved paths never become HTML. SPA

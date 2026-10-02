@@ -10,7 +10,11 @@ import {
   type CredentialStatus,
 } from "../../../../shared/desktop-runtime.js";
 import path from "node:path";
-import { atomicWrite, privateDirectory } from "./atomic-file.js";
+import {
+  atomicWrite,
+  privateDirectory,
+  privateFileMode,
+} from "./atomic-file.js";
 import { RuntimeError } from "./errors.js";
 
 export type Encryption = {
@@ -127,7 +131,7 @@ export class CredentialVault {
           !stat.isFile() ||
           stat.isSymbolicLink() ||
           stat.nlink !== 1 ||
-          (stat.mode & 0o777) !== 0o600 ||
+          !privateFileMode(stat) ||
           stat.size > maxVaultBytes
         )
           throw new Error();
@@ -176,7 +180,15 @@ export class CredentialVault {
   private save(next: VaultData): void {
     if (!this.encryption.isEncryptionAvailable())
       throw new RuntimeError("secure_storage_unavailable");
-    atomicWrite(this.file, this.encryption.encryptString(JSON.stringify(next)));
+    let encrypted: Buffer;
+    try {
+      encrypted = this.encryption.encryptString(JSON.stringify(next));
+    } catch {
+      // Windows reports encryption as available once the app is ready; a
+      // failing DPAPI call surfaces only here.
+      throw new RuntimeError("secure_storage_unavailable");
+    }
+    atomicWrite(this.file, encrypted);
     this.data = next;
   }
   databasePassword(): string {

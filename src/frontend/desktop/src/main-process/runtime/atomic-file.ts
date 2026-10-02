@@ -6,6 +6,7 @@ import {
   openSync,
   renameSync,
   rmSync,
+  type Stats,
   writeFileSync,
 } from "node:fs";
 import path from "node:path";
@@ -27,6 +28,56 @@ export function privateDirectory(directory: string): void {
       mkdirSync(cursor, { mode: 0o700 });
     }
   }
+}
+
+// Antivirus and indexers briefly open new files without delete sharing, and
+// Windows then refuses a rename with EPERM, EACCES or EBUSY.
+const SHARING_ERRORS = new Set(["EPERM", "EACCES", "EBUSY"]);
+const SHARING_RETRY_MS = [25, 50, 100, 200, 400, 800];
+
+function retryable(error: unknown, delay: number | undefined): boolean {
+  return (
+    process.platform === "win32" &&
+    delay !== undefined &&
+    SHARING_ERRORS.has((error as NodeJS.ErrnoException).code ?? "")
+  );
+}
+
+/** Run a filesystem change, retrying briefly while Windows reports sharing. */
+export function retrySharingViolations<T>(
+  operation: () => T,
+  delays: number[] = SHARING_RETRY_MS,
+): T {
+  for (const delay of [...delays, undefined]) {
+    try {
+      return operation();
+    } catch (error) {
+      if (!retryable(error, delay)) throw error;
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, delay);
+    }
+  }
+  throw new Error("unreachable");
+}
+
+/** The asynchronous form of {@link retrySharingViolations}. */
+export async function retrySharingViolationsAsync<T>(
+  operation: () => Promise<T>,
+  delays: number[] = SHARING_RETRY_MS,
+): Promise<T> {
+  for (const delay of [...delays, undefined]) {
+    try {
+      return await operation();
+    } catch (error) {
+      if (!retryable(error, delay)) throw error;
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+  throw new Error("unreachable");
+}
+
+/** POSIX private files are owner-only; Windows protects them by profile ACL. */
+export function privateFileMode(stat: Stats): boolean {
+  return process.platform === "win32" || (stat.mode & 0o777) === 0o600;
 }
 
 /**
@@ -65,7 +116,7 @@ export function atomicWrite(file: string, data: string | Buffer): void {
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
     }
-    renameSync(temporary, file);
+    retrySharingViolations(() => renameSync(temporary, file));
     syncDirectory(parent);
   } finally {
     if (descriptor !== undefined) closeSync(descriptor);

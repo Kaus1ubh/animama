@@ -11,7 +11,13 @@ import {
 } from "node:fs";
 import path from "node:path";
 import { randomBytes } from "node:crypto";
-import { atomicWrite, privateDirectory, syncDirectory } from "./atomic-file.js";
+import {
+  atomicWrite,
+  privateDirectory,
+  privateFileMode,
+  retrySharingViolations,
+  syncDirectory,
+} from "./atomic-file.js";
 import { RuntimeError } from "./errors.js";
 import { runCommand } from "./processes.js";
 import type { RuntimePaths } from "./paths.js";
@@ -123,13 +129,14 @@ export class MigrationBackup {
         this.paths.base,
       );
       await this.verify(partial);
-      const fd = openSync(partial, "r");
+      // Windows flushes only a handle opened for writing.
+      const fd = openSync(partial, "r+");
       try {
         fsyncSync(fd);
       } finally {
         closeSync(fd);
       }
-      renameSync(partial, destination);
+      retrySharingViolations(() => renameSync(partial, destination));
       syncDirectory(path.dirname(destination));
       this.write({
         version: 1,
@@ -158,7 +165,7 @@ export class MigrationBackup {
         stat.isSymbolicLink() ||
         stat.nlink !== 1 ||
         stat.size < 1 ||
-        (stat.mode & 0o777) !== 0o600
+        !privateFileMode(stat)
       )
         throw new Error();
       await runCommand(

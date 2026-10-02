@@ -21,6 +21,15 @@ from typing import Any
 
 from animama.app.ports.content_store import ContentMutationJournal
 from animama.domain.content_catalog import ContentConflictError, ContentPathError
+from animama.utils.files import (
+    is_link,
+    open_no_follow,
+    path_is_link,
+    replace,
+    retry_sharing_violations,
+    set_mode,
+    sync_directory,
+)
 
 _DIGEST = re.compile(r"^[a-f0-9]{64}$")
 _IDENTIFIER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
@@ -39,7 +48,7 @@ def publish_new(source: Path, destination: Path) -> None:
     """
 
     if sys.platform == "win32":
-        os.rename(source, destination)
+        retry_sharing_violations(lambda: os.rename(source, destination))
         return
     native = ctypes.CDLL(None, use_errno=True)
     if sys.platform == "darwin" and hasattr(native, "renamex_np"):
@@ -57,16 +66,6 @@ def publish_new(source: Path, destination: Path) -> None:
     if result != 0:
         error = ctypes.get_errno()
         raise OSError(error, os.strerror(error), destination)
-
-
-def sync_directory(directory: Path) -> None:
-    """Persist directory-entry changes, including rename and unlink."""
-
-    descriptor = os.open(directory, os.O_RDONLY | os.O_DIRECTORY)
-    try:
-        os.fsync(descriptor)
-    finally:
-        os.close(descriptor)
 
 
 def relative_path(relative: str) -> PurePosixPath:
@@ -112,7 +111,7 @@ def safe_path(root: Path, relative: str, *, create_parents: bool = False) -> Pat
             cursor.mkdir(mode=0o700)
             sync_directory(cursor.parent)
             metadata = cursor.lstat()
-        if not stat.S_ISDIR(metadata.st_mode) or stat.S_ISLNK(metadata.st_mode):
+        if not stat.S_ISDIR(metadata.st_mode) or is_link(metadata):
             raise ContentPathError("mutation path contains an unsafe directory")
     return root.joinpath(*parts.parts)
 
@@ -131,7 +130,7 @@ def fingerprint(path: Path, *, expected_identity: dict[str, int] | None = None) 
         expected_identity["inode"],
     ):
         raise ContentConflictError("content_recovery_conflict")
-    descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+    descriptor = open_no_follow(path, os.O_RDONLY)
     with os.fdopen(descriptor, "rb") as handle:
         opened = os.fstat(handle.fileno())
         if (opened.st_dev, opened.st_ino) != (before.st_dev, before.st_ino):
@@ -141,7 +140,10 @@ def fingerprint(path: Path, *, expected_identity: dict[str, int] | None = None) 
             hasher.update(chunk)
         digest = hasher.hexdigest()
         after = os.fstat(handle.fileno())
-    if (before.st_size, before.st_mtime_ns, before.st_ctime_ns) != (
+    # Compare the open handle with itself: Windows path metadata can lag the
+    # file's own, and the digest is read through this handle. A hard link added
+    # after the path check still shows in the link count.
+    if after.st_nlink != 1 or (opened.st_size, opened.st_mtime_ns, opened.st_ctime_ns) != (
         after.st_size,
         after.st_mtime_ns,
         after.st_ctime_ns,
@@ -153,9 +155,9 @@ def fingerprint(path: Path, *, expected_identity: dict[str, int] | None = None) 
 def copy_file(source: Path, destination: Path, expected: dict[str, Any]) -> None:
     """Copy to an exclusive file and verify it before it can become recovery authority."""
 
-    source_descriptor = os.open(source, os.O_RDONLY | os.O_NOFOLLOW)
+    source_descriptor = open_no_follow(source, os.O_RDONLY)
     try:
-        target_descriptor = os.open(destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+        target_descriptor = open_no_follow(destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     except BaseException:
         os.close(source_descriptor)
         raise
@@ -163,7 +165,7 @@ def copy_file(source: Path, destination: Path, expected: dict[str, Any]) -> None
         while chunk := incoming.read(1024 * 1024):
             outgoing.write(chunk)
         outgoing.flush()
-        os.fchmod(outgoing.fileno(), expected["mode"])
+        set_mode(outgoing.fileno(), expected["mode"])
         os.fsync(outgoing.fileno())
     if fingerprint(destination) != expected:
         raise ContentConflictError("content_recovery_conflict")
@@ -228,7 +230,7 @@ class MutationJournal:
             raise ContentConflictError("content_mutation_too_large")
         destination = self.path
         temporary = destination.with_name(f".{destination.name}.{uuid.uuid4().hex}.tmp")
-        descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+        descriptor = open_no_follow(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
         try:
             with os.fdopen(descriptor, "wb") as handle:
                 handle.write(encoded)
@@ -236,7 +238,7 @@ class MutationJournal:
                 os.fsync(handle.fileno())
             if destination.exists():
                 fingerprint(destination)
-            os.replace(temporary, destination)
+            replace(temporary, destination)
             sync_directory(destination.parent)
         finally:
             temporary.unlink(missing_ok=True)
@@ -288,7 +290,7 @@ class MutationJournal:
                 raise ContentConflictError("package_destination_changed") from exc
             sync_directory(staged.parent)
         else:
-            os.replace(staged, destination)
+            replace(staged, destination)
         sync_directory(destination.parent)
 
     def _create_destination_parents(self, relative: str) -> None:
@@ -297,7 +299,7 @@ class MutationJournal:
         for component in PurePosixPath(relative).parts[:-1]:
             cursor /= component
             if cursor.exists():
-                if cursor.is_symlink() or not cursor.is_dir():
+                if path_is_link(cursor) or not cursor.is_dir():
                     raise ContentPathError("unsafe mutation destination directory")
                 continue
             self._create_owned_directory(cursor)
@@ -399,7 +401,7 @@ class MutationJournal:
                             self.payload["status"] = "conflict"
                             self.persist()
                             raise ContentConflictError("content_recovery_conflict")
-                        os.replace(temporary, destination)
+                        replace(temporary, destination)
                     finally:
                         temporary.unlink(missing_ok=True)
                 sync_directory(destination.parent)

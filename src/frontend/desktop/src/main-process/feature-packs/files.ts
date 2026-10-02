@@ -39,14 +39,6 @@ export async function hashFile(
   }
   return hash.digest("hex");
 }
-export async function syncDirectory(directory: string): Promise<void> {
-  const handle = await open(directory, "r");
-  try {
-    await handle.sync();
-  } finally {
-    await handle.close();
-  }
-}
 
 /** Revalidate the complete inventory at startup and before executing a worker. */
 export async function verifyPackFiles(
@@ -89,7 +81,9 @@ export async function verifyPackFiles(
           !stat.isFile() ||
           stat.nlink !== 1 ||
           stat.size !== entry.size_bytes ||
-          (stat.mode & 0o7777) !== Number.parseInt(entry.mode, 8) ||
+          // Windows has no POSIX modes; its size and hash are still checked.
+          (process.platform !== "win32" &&
+            (stat.mode & 0o7777) !== Number.parseInt(entry.mode, 8)) ||
           (await hashFile(file, signal)) !== entry.sha256
         )
           throw new RuntimeError("pack_file_invalid");

@@ -4,6 +4,7 @@ from pathlib import Path
 
 from animama.adapters.content_store import ContentWatcher
 from animama.domain.content_catalog import ContentSource
+from tests.filesystem_links import link_directory
 
 
 def test_watcher_classifies_registered_roots_without_resolving_symlinks(tmp_path: Path) -> None:
@@ -13,9 +14,14 @@ def test_watcher_classifies_registered_roots_without_resolving_symlinks(tmp_path
     local.mkdir()
     outside = tmp_path / "outside"
     outside.mkdir()
+    (outside / "kept.vrma").write_bytes(b"glTF")
     linked = local / "gestures"
-    linked.symlink_to(outside, target_is_directory=True)
+    link_directory(linked, outside)
     watcher = ContentWatcher(included_root=included, local_root=local)
+
+    # The initial snapshot records the link itself but never enters it.
+    assert linked.absolute() in watcher._signatures  # noqa: SLF001
+    assert (linked / "kept.vrma").absolute() not in watcher._signatures  # noqa: SLF001
 
     assert watcher._classify_changed_path(str(linked / "wave.vrma")) == (  # noqa: SLF001
         ContentSource.LOCAL,

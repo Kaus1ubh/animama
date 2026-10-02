@@ -11,6 +11,7 @@ from pathlib import Path
 
 from animama.domain.content_sources import IncludedContentSource
 from animama.server.config import Settings
+from animama.utils.files import is_link, path_is_link
 
 CONTENT_TYPE_DIRECTORIES: tuple[str, ...] = (
     "avatars",
@@ -144,7 +145,7 @@ def _included_sources(settings: Settings, *, local_root: Path, data_root: Path) 
                 raise ValueError("Included sources require one leading core and unique IDs")
             names.add(identifier)
             root = Path(entry["root"])
-            if not root.is_absolute() or root.is_symlink():
+            if not root.is_absolute() or path_is_link(root):
                 raise ValueError("Included source must be an absolute, non-symlink directory")
             resolved = root.resolve(strict=True)
             if resolved != root or not root.is_dir():
@@ -165,10 +166,10 @@ def _included_sources(settings: Settings, *, local_root: Path, data_root: Path) 
 
 def _assert_directory(path: Path, *, label: str) -> None:
     try:
-        mode = path.lstat().st_mode
+        metadata = path.lstat()
     except OSError as exc:
         raise LocalRuntimeConfigurationError(f"{label} is unavailable: {path}") from exc
-    if stat.S_ISLNK(mode) or not stat.S_ISDIR(mode):
+    if is_link(metadata) or not stat.S_ISDIR(metadata.st_mode):
         raise LocalRuntimeConfigurationError(f"{label} must be a real directory, not a symlink: {path}")
 
 

@@ -14,6 +14,7 @@ from tempfile import SpooledTemporaryFile
 from typing import BinaryIO, cast
 
 from animama.server.local_runtime import LocalRuntimePaths
+from animama.utils.files import is_link, open_no_follow, replace
 
 
 class PrivateFilePathError(ValueError):
@@ -96,7 +97,7 @@ class FilesystemPrivateFileStorage:
                     continue
                 cursor.mkdir()
                 metadata = cursor.lstat()
-            if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISDIR(metadata.st_mode):
+            if is_link(metadata) or not stat.S_ISDIR(metadata.st_mode):
                 raise PrivateFilePathError("Private locator contains an unsafe directory")
         return destination
 
@@ -108,7 +109,7 @@ class FilesystemPrivateFileStorage:
             raise PrivateFileNotFoundError from exc
         except OSError as exc:
             raise PrivateFileReadError from exc
-        if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISREG(metadata.st_mode) or metadata.st_nlink != 1:
+        if is_link(metadata) or not stat.S_ISREG(metadata.st_mode) or metadata.st_nlink != 1:
             raise PrivateFileReadError("Private file is not an ordinary single-link file")
         return metadata
 
@@ -143,7 +144,7 @@ class FilesystemPrivateFileStorage:
                     expected_size_bytes=content_length,
                     actual_size_bytes=written,
                 )
-            os.replace(temporary, destination)
+            replace(temporary, destination)
             return True
         except Exception:
             try:
@@ -170,9 +171,8 @@ class FilesystemPrivateFileStorage:
         spool = SpooledTemporaryFile(max_size=1024 * 1024, mode="w+b")
         digest = hashlib.sha256()
         actual = 0
-        flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
         try:
-            descriptor = os.open(path, flags)
+            descriptor = open_no_follow(path, os.O_RDONLY)
             with os.fdopen(descriptor, "rb") as source:
                 while chunk := source.read(1024 * 1024):
                     actual += len(chunk)
@@ -212,8 +212,7 @@ class FilesystemPrivateFileStorage:
             metadata = self._regular(path)
             if max_bytes is not None and metadata.st_size > max_bytes:
                 raise PrivateFileReadError("Private file exceeds its read bound")
-            flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
-            descriptor = os.open(path, flags)
+            descriptor = open_no_follow(path, os.O_RDONLY)
             with os.fdopen(descriptor, "rb") as handle:
                 payload = handle.read((max_bytes + 1) if max_bytes is not None else -1)
             if max_bytes is not None and len(payload) > max_bytes:

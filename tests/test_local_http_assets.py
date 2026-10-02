@@ -23,6 +23,7 @@ from animama.local.http.assets import (
     ModelMount,
     StaticModelMounts,
 )
+from tests.filesystem_links import require_symlinks
 
 pytestmark = pytest.mark.asyncio
 _HTML = b'<html><script src="/assets/app-abcdefgh.js"></script></html>'
@@ -185,7 +186,13 @@ async def test_new_build_changes_same_length_normalized_html_and_drops_old_chunk
         assert (await client.get("/assets/app-ijklmnop.js")).headers["cache-control"] == IMMUTABLE_APP_ASSET_CACHE
 
 
-@pytest.mark.parametrize("manifest", [None, b"not json", b"[]", b"null", b" " * (4 * 1024 * 1024 + 1)])
+@pytest.mark.parametrize(
+    "manifest",
+    [None, b"not json", b"[]", b"null", b" " * (4 * 1024 * 1024 + 1)],
+    # Short IDs: pytest copies the ID into an environment variable, which
+    # Windows limits to 32,767 characters.
+    ids=["missing", "invalid", "array", "null", "oversized"],
+)
 async def test_missing_invalid_or_oversized_manifest_degrades_safely(web_root: Path, manifest: bytes | None) -> None:
     path = web_root / ".vite/manifest.json"
     if manifest is None:
@@ -292,6 +299,7 @@ async def test_reserved_names_cannot_be_served_even_if_the_file_exists(web_root:
 async def test_only_navigation_can_fall_back_and_directories_or_links_are_not_documents(
     web_root: Path, tmp_path: Path
 ) -> None:
+    require_symlinks(tmp_path)
     (web_root / "directory").mkdir()
     (tmp_path / "private.txt").write_text("private")
     (web_root / "link").symlink_to(tmp_path / "private.txt")
@@ -432,6 +440,7 @@ async def test_model_rejects_changed_bytes_or_links(
     else:
         path.unlink()
         if replacement == "symlink":
+            require_symlinks(tmp_path)
             private = tmp_path / "private.onnx"
             private.write_bytes(_MODEL)
             path.symlink_to(private)
@@ -445,6 +454,7 @@ async def test_model_rejects_changed_bytes_or_links(
 async def test_nested_model_directory_substitution_is_rejected(
     web_root: Path, model_mount: ModelMount, tmp_path: Path
 ) -> None:
+    require_symlinks(tmp_path)
     child = model_mount.root / "nested"
     child.mkdir()
     (child / "encoder.onnx").write_bytes(_MODEL)
@@ -495,6 +505,7 @@ async def test_inventory_is_immutable_and_invalid_private_configuration_fails(mo
 
 
 async def test_replacement_between_selection_and_send_cannot_escape(web_root: Path, tmp_path: Path) -> None:
+    require_symlinks(tmp_path)
     assets = LocalAssets(web_root)
 
     async def app(scope, receive, send):

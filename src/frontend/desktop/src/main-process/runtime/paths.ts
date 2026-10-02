@@ -61,6 +61,19 @@ export function migrateLegacyTree(
   }
 }
 
+/**
+ * The deepest app-managed path below the data root is a staged single-file
+ * model asset, `data\staging\model-assets\<id>\<sha256>\<sha256>`, 188
+ * characters. A 70-character root keeps it under Windows' 259-character
+ * MAX_PATH, which PostgreSQL and Python still use. `%LOCALAPPDATA%\Animama`
+ * fits for profile folder names of up to 39 characters.
+ */
+export const MAX_WINDOWS_DATA_ROOT = 70;
+
+export function dataRootFits(platform: string, root: string): boolean {
+  return platform !== "win32" || root.length <= MAX_WINDOWS_DATA_ROOT;
+}
+
 /** Call before creating sessions, logs or safeStorage; no packaged URL overrides. */
 export function prepareDesktopIdentity(application: App): RuntimePaths {
   application.setName("Animama");
@@ -75,6 +88,8 @@ export function prepareDesktopIdentity(application: App): RuntimePaths {
     ? process.env.ANIMAMA_DESKTOP_DEV_USER_DATA
     : undefined;
   const paths = runtimePaths(override || root);
+  if (!dataRootFits(process.platform, paths.base))
+    throw new RuntimeError("data_path_too_long");
   if (
     application.isPackaged &&
     Object.keys(process.env).some(

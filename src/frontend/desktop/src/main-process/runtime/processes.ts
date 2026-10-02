@@ -193,6 +193,15 @@ export class OwnedProcesses {
   }
 }
 
+// NTSTATUS exit codes from the Windows loader: a dependent DLL is missing, is
+// not a valid image for this architecture, or failed to initialize.
+const NATIVE_LOAD_FAILURES = new Set([0xc0000135, 0xc000007b, 0xc0000142]);
+
+/** Did a child exit because Windows could not load one of its runtime DLLs? */
+export function nativeLoadFailure(code: number | null): boolean {
+  return code !== null && NATIVE_LOAD_FAILURES.has(code >>> 0);
+}
+
 /** Bounded command output is internal to main; arguments never contain secrets. */
 export async function runCommand(
   executable: string,
@@ -240,7 +249,14 @@ export async function runCommand(
       clearTimeout(timer);
       if (code !== 0 || failure) {
         writeLog("error", runtimeRedactor.redact(stderr).slice(-8192));
-        reject(new RuntimeError(failure ?? "runtime_command_failed"));
+        reject(
+          new RuntimeError(
+            failure ??
+              (nativeLoadFailure(code)
+                ? "runtime_file_invalid"
+                : "runtime_command_failed"),
+          ),
+        );
       } else resolve(stdout);
     });
   });

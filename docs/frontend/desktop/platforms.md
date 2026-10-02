@@ -175,6 +175,11 @@ pnpm desktop:build
 pnpm build
 ```
 
+`pnpm desktop:test:vault` checks the credential vault against the host's real
+protected storage (DPAPI on Windows, Keychain on macOS) inside Electron, using a
+disposable profile folder that it removes afterwards. On macOS, Electron still
+adds an "Electron Safe Storage" Keychain item.
+
 Verify the actual packaged app with development servers stopped:
 
 1. Open the app without Docker, Node, Python, or PostgreSQL already running.

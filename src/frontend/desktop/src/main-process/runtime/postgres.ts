@@ -7,7 +7,11 @@ import {
   rmSync,
 } from "node:fs";
 import path from "node:path";
-import { atomicWrite, privateDirectory } from "./atomic-file.js";
+import {
+  atomicWrite,
+  privateDirectory,
+  retrySharingViolations,
+} from "./atomic-file.js";
 import { RuntimeError } from "./errors.js";
 import { runtimePlatform } from "./manifest.js";
 import type { RuntimePaths } from "./paths.js";
@@ -105,7 +109,7 @@ export class PrivatePostgres {
           {},
           this.paths.base,
         );
-        renameSync(pending, this.paths.pgData);
+        retrySharingViolations(() => renameSync(pending, this.paths.pgData));
       } finally {
         rmSync(passwordFile, { force: true });
         // Only this attempt's never-published initialization directory is disposable.

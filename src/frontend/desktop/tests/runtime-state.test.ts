@@ -16,6 +16,7 @@ import {
   rmSync,
   symlinkSync,
   writeFileSync,
+  type Stats,
 } from "node:fs";
 import { release, tmpdir } from "node:os";
 import path from "node:path";
@@ -26,8 +27,15 @@ import {
   validateProvider,
   type Encryption,
 } from "../src/main-process/runtime/vault.js";
-import { atomicWrite } from "../src/main-process/runtime/atomic-file.js";
 import {
+  atomicWrite,
+  privateFileMode,
+  retrySharingViolations,
+  retrySharingViolationsAsync,
+} from "../src/main-process/runtime/atomic-file.js";
+import {
+  dataRootFits,
+  MAX_WINDOWS_DATA_ROOT,
   migrateLegacyTree,
   prepareDesktopIdentity,
   readRuntimeState,
@@ -36,6 +44,7 @@ import {
 import { SecretRedactor } from "../src/main-process/runtime/redaction.js";
 import {
   baseChildEnvironment,
+  nativeLoadFailure,
   OwnedProcesses,
   runCommand,
 } from "../src/main-process/runtime/processes.js";
@@ -58,10 +67,8 @@ import {
 } from "../src/main-process/runtime/manifest.js";
 
 const roots: string[] = [];
-function fixture(): string {
-  const root = mkdtempSync(
-    path.join(realpathSync(tmpdir()), "animama-runtime-state-"),
-  );
+function fixture(prefix = "animama-runtime-state-"): string {
+  const root = mkdtempSync(path.join(realpathSync(tmpdir()), prefix));
   roots.push(root);
   return root;
 }
@@ -110,7 +117,7 @@ describe("private local state and vault", () => {
     vault.set("openai", key);
     expect(readFileSync(file).includes(Buffer.from(key))).toBe(false);
     expect(readFileSync(file).includes(Buffer.from(password))).toBe(false);
-    expect(lstatSync(file).mode & 0o777).toBe(0o600);
+    expect(privateFileMode(lstatSync(file))).toBe(true);
     expect(JSON.stringify(vault.list())).not.toContain(key);
     const restarted = new CredentialVault(file, crypto, true);
     expect(restarted.databasePassword()).toBe(password);
@@ -144,6 +151,16 @@ describe("private local state and vault", () => {
         ),
     ).toThrow("secure_storage_unavailable");
     expect(existsSync(file)).toBe(false);
+    const failingEncryption = {
+      ...crypto,
+      encryptString: (): Buffer => {
+        throw new Error("DPAPI failed");
+      },
+    };
+    expect(() => new CredentialVault(file, failingEncryption, false)).toThrow(
+      "secure_storage_unavailable",
+    );
+    expect(existsSync(file)).toBe(false);
     expect(() => new CredentialVault(file, crypto, true)).toThrow(
       "vault_missing_for_database",
     );
@@ -155,7 +172,8 @@ describe("private local state and vault", () => {
     const target = path.join(root, "outside");
     mkdirSync(target);
     const link = path.join(root, "linked");
-    symlinkSync(target, link);
+    // A junction is Windows' unprivileged directory link; POSIX ignores the type.
+    symlinkSync(target, link, "junction");
     expect(() => atomicWrite(path.join(link, "secret"), "secret")).toThrow(
       "private_state_path_invalid",
     );
@@ -322,7 +340,8 @@ describe("private local state and vault", () => {
   });
 
   it("creates the selected userData directory before Electron setPath", () => {
-    const base = path.join(fixture(), "new-profile");
+    // A short prefix keeps the root within the Windows data-root budget.
+    const base = path.join(fixture("a-"), "new-profile");
     vi.stubEnv("ANIMAMA_DESKTOP_DEV_USER_DATA", base);
     const setPath = vi.fn((_name: string, value: string) => {
       // Electron's real setPath rejects a directory that does not exist yet.
@@ -481,6 +500,119 @@ describe("private PostgreSQL ownership checks", () => {
   });
 });
 
+describe("Windows file semantics", () => {
+  const sharing = (code: string) =>
+    Object.assign(new Error(code), { code }) as NodeJS.ErrnoException;
+
+  it("retries a rename that antivirus briefly blocks on Windows only", () => {
+    vi.spyOn(process, "platform", "get").mockReturnValue("win32");
+    const operation = vi
+      .fn()
+      .mockImplementationOnce(() => {
+        throw sharing("EPERM");
+      })
+      .mockImplementationOnce(() => {
+        throw sharing("EBUSY");
+      })
+      .mockReturnValue("done");
+    expect(retrySharingViolations(operation, [0, 0, 0])).toBe("done");
+    expect(operation).toHaveBeenCalledTimes(3);
+    const blocked = vi.fn(() => {
+      throw sharing("EACCES");
+    });
+    expect(() => retrySharingViolations(blocked, [0, 0])).toThrow("EACCES");
+    expect(blocked).toHaveBeenCalledTimes(3);
+    const missing = vi.fn(() => {
+      throw sharing("ENOENT");
+    });
+    expect(() => retrySharingViolations(missing, [0, 0])).toThrow("ENOENT");
+    expect(missing).toHaveBeenCalledOnce();
+  });
+
+  it("never retries on POSIX, where a sharing error is a real failure", async () => {
+    vi.spyOn(process, "platform", "get").mockReturnValue("darwin");
+    const operation = vi.fn(() => {
+      throw sharing("EPERM");
+    });
+    expect(() => retrySharingViolations(operation, [0])).toThrow("EPERM");
+    expect(operation).toHaveBeenCalledOnce();
+    const asynchronous = vi.fn(async () => {
+      throw sharing("EBUSY");
+    });
+    await expect(
+      retrySharingViolationsAsync(asynchronous, [0]),
+    ).rejects.toThrow("EBUSY");
+    expect(asynchronous).toHaveBeenCalledOnce();
+  });
+
+  it("requires owner-only POSIX modes but not on Windows, which has none", () => {
+    const stat = (mode: number) => ({ mode }) as Stats;
+    vi.spyOn(process, "platform", "get").mockReturnValue("darwin");
+    expect(privateFileMode(stat(0o100600))).toBe(true);
+    expect(privateFileMode(stat(0o100644))).toBe(false);
+    vi.spyOn(process, "platform", "get").mockReturnValue("win32");
+    expect(privateFileMode(stat(0o100666))).toBe(true);
+  });
+
+  it("keeps Windows data roots short enough for MAX_PATH", () => {
+    const root = (length: number) => `C:\\${"u".repeat(length - 3)}`;
+    expect(dataRootFits("win32", root(MAX_WINDOWS_DATA_ROOT))).toBe(true);
+    expect(dataRootFits("win32", root(MAX_WINDOWS_DATA_ROOT + 1))).toBe(false);
+    expect(dataRootFits("darwin", `/${"u".repeat(400)}`)).toBe(true);
+  });
+
+  it("fits every model-asset file below the longest Windows data root", () => {
+    const catalog = JSON.parse(
+      readFileSync(
+        path.join(
+          import.meta.dirname,
+          "../../../backend/animama/resources/model-assets.v1.json",
+        ),
+        "utf8",
+      ),
+    ) as {
+      assets: {
+        id: string;
+        sha256?: string;
+        manifest_sha256?: string;
+        files?: { path: string }[];
+      }[];
+    };
+    // The backend stages and installs below the desktop's data folder: a set
+    // as <id>/<manifest digest>/<path>, a single file named by its digest.
+    const store = (area: string, ...parts: string[]) =>
+      path.win32.join("data", area, "model-assets", ...parts).length;
+    const deepest = Math.max(
+      ...catalog.assets.flatMap((asset) =>
+        asset.files
+          ? asset.files.flatMap((file) =>
+              ["staging", "internal"].map((area) =>
+                store(
+                  area,
+                  asset.id,
+                  asset.manifest_sha256!,
+                  ...file.path.split("/"),
+                ),
+              ),
+            )
+          : [
+              store("staging", asset.id, asset.sha256!, asset.sha256!),
+              store("internal", asset.id, asset.sha256!),
+            ],
+      ),
+    );
+    // MAX_PATH is 260 characters including the terminating null.
+    expect(MAX_WINDOWS_DATA_ROOT + 1 + deepest).toBeLessThanOrEqual(259);
+  });
+
+  it("reports a runtime DLL the loader could not use as a damaged runtime file", () => {
+    for (const code of [0xc0000135, 0xc000007b, 0xc0000142])
+      expect(nativeLoadFailure(code)).toBe(true);
+    for (const code of [0, 1, 3, 0xc0000005])
+      expect(nativeLoadFailure(code)).toBe(false);
+  });
+});
+
 describe("owned child environment", () => {
   const source = {
     PATH: "C:\\Users\\dev\\bin;C:\\Windows\\System32",
@@ -568,6 +700,7 @@ describe.skipIf(
     );
     const payloads = {
       ...executables,
+      "postgres/lib/vector.dll": "fixture-extension",
       "web/index.html": "fixture-html",
       "content/included-core/inventory.json": JSON.stringify({ id }),
       "pack-catalog.json": JSON.stringify({ id }),
@@ -615,6 +748,19 @@ describe.skipIf(
     const { root, manifest } = await manifestFixture();
     expect(await verifyRuntime(root, "0.1.0")).toEqual(manifest);
     writeFileSync(path.join(root, backend), "changed-backend");
+    await expect(verifyRuntime(root, "0.1.0")).rejects.toThrow(
+      "runtime_manifest_invalid",
+    );
+  });
+
+  it("rejects a damaged or missing runtime library before launch", async () => {
+    const { root } = await manifestFixture();
+    const library = path.join(root, "postgres/lib/vector.dll");
+    writeFileSync(library, "fixture-extensioN");
+    await expect(verifyRuntime(root, "0.1.0")).rejects.toThrow(
+      "runtime_manifest_invalid",
+    );
+    rmSync(library);
     await expect(verifyRuntime(root, "0.1.0")).rejects.toThrow(
       "runtime_manifest_invalid",
     );
