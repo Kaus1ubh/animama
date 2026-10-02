@@ -41,7 +41,8 @@ account or writable by others; remove or fix that directory rather than
 bypassing the check.
 
 The strict target parser rejects cross-builds and unsupported combinations before
-deleting outputs or downloading dependencies. Windows native staging is unsupported. `desktop:dist:mac` and `desktop:smoke:mac` use the
+deleting outputs or downloading dependencies. Windows staging is not complete yet;
+see [Native Windows build](#native-windows-build). `desktop:dist:mac` and `desktop:smoke:mac` use the
 [signed-release gates](releases.md), including explicit Apple, inventory and
 intended repository configuration. The repository may remain private for local
 signed candidates; anonymous public access is checked only at publication.
@@ -108,6 +109,45 @@ Each staging pass clears only `desktop/.desktop-runtime/darwin-arm64`, then:
    the frozen backend asset catalog into `runtime/model-manifests/` (metadata
    only; no model bytes). The compressed feasibility archive is **not** a signed DMG or
    update ZIP. Their overhead is measured by the signed-release producer.
+
+## Native Windows build
+
+Windows 11 x64 staging is in progress. Only the PostgreSQL and pgvector
+component builds today; `desktop:runtime:stage` and `desktop:runtime:audit` still refuse
+`win32`. Use a Windows clone checked out with `core.autocrlf=false`, because
+builds hash committed bytes. Every build refuses a checkout whose LF files were
+converted to CRLF. Install Visual Studio 2022 with the MSVC v143 14.44 toolset,
+Windows SDK 10.0.26100, Node, pnpm and `uv`. From `src/frontend`:
+
+```powershell
+node desktop/scripts/runtime/native-build.mjs --platform win32 --arch x64
+```
+
+The build uses `C:\animama-build` as its neutral root: the pinned interpreter,
+build tools and the PostgreSQL work tree live there, because MSVC embeds source
+paths in the binaries. The first run creates the folder with an explicit ACL
+for the current user, SYSTEM and Administrators. A later run refuses the folder,
+or any build folder inside it, if it is a link or junction, or if another account
+can modify it. The folder holds only rebuildable inputs, so delete it and rerun
+the build to recreate it privately. Strawberry Perl, meson, ninja, win_flex_bison and busybox
+(`sed`, `gzip`) download once from the URLs and SHA-256 digests in
+`desktop/runtime/native-components.win32-x64.lock.json`, which also pins the
+compiler, redistributable and SDK versions the build must find.
+
+The output in `desktop/.desktop-runtime/win32-x64` contains the staged
+`runtime/postgres` tree, its PDB symbols outside the runtime, and two reports.
+`native-dependencies.json` lists every PE import and where it resolves. A DLL
+that is neither staged nor named in the lock's reviewed `system_dlls` list
+fails the build. The VC++ runtime DLLs the executables import are copied from
+the pinned redistributable; a copy in the build machine's System32 never
+satisfies the audit. `native-build.json` records the compiler, SDK, redistributable and
+tool versions. The PostgreSQL executables carry a UTF-8 active code page
+manifest; without it, `initdb` cannot use a data directory whose path contains
+characters outside the system's ANSI code page. Check the build with:
+
+```powershell
+desktop\.desktop-runtime\build-venv\win32-x64\Scripts\python.exe ..\backend\packaging\desktop\probe_postgres.py --runtime desktop\.desktop-runtime\win32-x64\runtime --postgres-only
+```
 
 ## Evidence and gates
 

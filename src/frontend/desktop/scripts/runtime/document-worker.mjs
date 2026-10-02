@@ -20,6 +20,9 @@ import { prepareDocumentLibraries } from "./document-native.mjs";
 import { auditMacosMinimum } from "./macos-platform.mjs";
 
 const target = parseTarget();
+// The executable document worker is signed and verified for macOS only.
+if (target.platform !== "darwin")
+  throw new Error("The document worker builds only on macOS");
 const source = readJson(path.join(sourceRoot, "source-manifest.json"));
 const release = readJson(path.join(sourceRoot, "feature-pack-releases.json"));
 const minimumOs = readJson(

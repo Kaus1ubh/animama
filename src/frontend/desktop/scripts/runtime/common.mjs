@@ -4,6 +4,7 @@ import {
   chmodSync,
   closeSync,
   copyFileSync,
+  existsSync,
   lstatSync,
   mkdirSync,
   openSync,
@@ -12,6 +13,7 @@ import {
   readlinkSync,
   readSync,
   realpathSync,
+  renameSync,
   rmdirSync,
   rmSync,
   symlinkSync,
@@ -20,6 +22,7 @@ import {
 } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { assertPrivateWindowsDirectory, systemPath } from "./windows-acl.mjs";
 
 export const desktopRoot = fileURLToPath(new URL("../..", import.meta.url));
 export const frontendRoot = path.dirname(desktopRoot);
@@ -67,8 +70,6 @@ export function parseTarget(argv = process.argv.slice(2)) {
       "Runtime builds and audits must run on the native target; cross-building is unsupported",
     );
   }
-  if (platform !== "darwin")
-    throw new Error("Windows runtime staging is gated on desktop Phase 5");
   const target = `${platform}-${arch}`;
   const output = path.join(cacheRoot, target);
   return {
@@ -195,20 +196,102 @@ export function run(
   return result.stdout ?? "";
 }
 
-// The frozen runtime embeds the interpreter's sysconfig paths. uv's default
-// install directory is inside the builder's home, so pin a neutral one.
-const PYTHON_INSTALL_DIR = "/Users/Shared/animama-build/uv-python";
+/** Each native target has its own pinned compiler inputs and minimum OS. */
+export function nativeLockFile(target) {
+  return path.join(
+    sourceRoot,
+    target.platform === "win32"
+      ? "native-components.win32-x64.lock.json"
+      : "native-components.lock.json",
+  );
+}
+
+/** Windows tools (curl, bsdtar, cmd, icacls) come from System32, never PATH. */
+export function systemTool(name) {
+  return process.platform === "win32" ? systemPath(`${name}.exe`) : name;
+}
+
+/** Download a pinned upstream input once, accepting it only at its exact digest. */
+export function downloadVerified(url, digest, file) {
+  if (!existsSync(file)) {
+    mkdirSync(path.dirname(file), { recursive: true });
+    const pending = `${file}.partial`;
+    run(systemTool("curl"), [
+      "--fail",
+      "--silent",
+      "--show-error",
+      "--location",
+      "--retry",
+      "2",
+      "--output",
+      pending,
+      url,
+    ]);
+    if (sha256(pending) !== digest)
+      throw new Error(`${path.basename(file)} digest mismatch`);
+    renameSync(pending, file);
+  }
+  if (sha256(file) !== digest)
+    throw new Error(`${path.basename(file)} digest mismatch`);
+  return file;
+}
+
+/** Paths whose working-tree bytes were converted from LF to CRLF at checkout. */
+export function crlfConvertedPaths(eolListing) {
+  return eolListing
+    .split("\n")
+    .map((line) => line.match(/^i\/lf\s+w\/crlf\s+\S.*?\t(.+)$/u)?.[1])
+    .filter(Boolean);
+}
+
+/** Hashed build inputs must keep their committed bytes; CRLF checkouts change them. */
+export function assertLfCheckout() {
+  const autocrlf = spawnSync("git", ["config", "--get", "core.autocrlf"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+  }).stdout.trim();
+  if (autocrlf === "true")
+    throw new Error(
+      "Build checkouts must not convert line endings; set core.autocrlf=false and check out again",
+    );
+  const converted = crlfConvertedPaths(
+    run("git", ["ls-files", "--eol"], { capture: true }),
+  );
+  if (converted.length)
+    throw new Error(
+      `Build checkout has CRLF copies of LF files (for example ${converted.slice(0, 3).join(", ")}); check out again with core.autocrlf=false`,
+    );
+}
+
+const hostTarget = `${process.platform}-${process.arch}`;
+
+// The frozen runtime embeds the interpreter's sysconfig paths, and native
+// builds embed their prefix. uv's default install directory is inside the
+// builder's home, so pin a neutral one.
+export const buildRoot =
+  process.platform === "win32"
+    ? "C:\\animama-build"
+    : "/Users/Shared/animama-build";
+const PYTHON_INSTALL_DIR = path.join(buildRoot, "uv-python");
 
 /**
- * /Users/Shared is writable by every account. uv would run, and the build would
- * freeze, an interpreter another account planted there, so require private
- * ownership before any command installs or uses it.
+ * The neutral build root is writable by other accounts by default (/Users/Shared,
+ * or inherited Authenticated Users rights below C:\). uv would run, and the
+ * build would freeze, an interpreter another account planted there, so require
+ * private ownership before any command installs or uses it.
  */
 export function assertPrivatePythonInstallDir() {
-  for (const directory of [
-    path.dirname(PYTHON_INSTALL_DIR),
-    PYTHON_INSTALL_DIR,
-  ]) {
+  if (process.platform === "win32") {
+    for (const directory of [
+      buildRoot,
+      PYTHON_INSTALL_DIR,
+      pythonEnvironment().UV_CACHE_DIR,
+    ])
+      if (directory.startsWith(buildRoot))
+        assertPrivateWindowsDirectory(directory);
+    return;
+  }
+  for (const directory of [buildRoot, PYTHON_INSTALL_DIR]) {
     mkdirSync(directory, { recursive: true, mode: 0o755 });
     const stat = lstatSync(directory);
     if (
@@ -224,18 +307,47 @@ export function assertPrivatePythonInstallDir() {
 
 export function pythonEnvironment() {
   return {
-    UV_CACHE_DIR: process.env.UV_CACHE_DIR || "/private/tmp/animama-uv-cache",
+    UV_CACHE_DIR:
+      process.env.UV_CACHE_DIR ||
+      (process.platform === "win32"
+        ? path.join(buildRoot, "uv-cache")
+        : "/private/tmp/animama-uv-cache"),
     UV_PYTHON_INSTALL_DIR: PYTHON_INSTALL_DIR,
-    UV_PROJECT_ENVIRONMENT: path.join(cacheRoot, "build-venv", "darwin-arm64"),
+    UV_PROJECT_ENVIRONMENT: path.join(cacheRoot, "build-venv", hostTarget),
     PYTHONHASHSEED: "0",
     SOURCE_DATE_EPOCH: String(normalizedTime.getTime() / 1000),
-    MACOSX_DEPLOYMENT_TARGET: "15.0",
+    ...(process.platform === "darwin"
+      ? { MACOSX_DEPLOYMENT_TARGET: "15.0" }
+      : {}),
     PYINSTALLER_CONFIG_DIR: path.join(cacheRoot, "pyinstaller-cache"),
     ANIMAMA_LOG_TO_FILE: "0",
     ANIMAMA_LOG_TO_CONSOLE: "0",
   };
 }
 
+/** Create or refresh the locked build interpreter outside the repository's .venv. */
+export function syncBuildEnvironment() {
+  assertPrivatePythonInstallDir();
+  run(
+    "uv",
+    [
+      "sync",
+      "--python",
+      readJson(path.join(sourceRoot, "source-manifest.json")).python,
+      "--frozen",
+      "--no-default-groups",
+      "--group",
+      "desktop-build",
+      "--extra",
+      "server",
+    ],
+    { env: pythonEnvironment() },
+  );
+}
+
 export function buildPython() {
-  return path.join(pythonEnvironment().UV_PROJECT_ENVIRONMENT, "bin", "python");
+  const venv = pythonEnvironment().UV_PROJECT_ENVIRONMENT;
+  return process.platform === "win32"
+    ? path.join(venv, "Scripts", "python.exe")
+    : path.join(venv, "bin", "python");
 }

@@ -61,3 +61,8 @@ src/frontend/web/public/onnx/** -filter -diff -merge -text
 
 # Small provider marks and their notice ship as ordinary Git text, not LFS inputs.
 src/frontend/web/public/provider-logos/** -filter diff merge text eol=lf
+
+# Desktop builds hash these inputs, so every checkout keeps their LF bytes.
+src/frontend/desktop/runtime/*.json text eol=lf
+src/frontend/pnpm-lock.yaml text eol=lf
+uv.lock text eol=lf

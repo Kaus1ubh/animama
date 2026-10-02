@@ -3,6 +3,7 @@ import path from "node:path";
 import {
   buildPython,
   filesIn,
+  nativeLockFile,
   parseTarget,
   pythonEnvironment,
   readJson,
@@ -24,6 +25,8 @@ import { assertDesktopWebAssets } from "./desktop-web.mjs";
 import { resolveBrowserRuntimeAssets } from "../../../scripts/browser-runtime-assets.mjs";
 
 const target = parseTarget();
+if (target.platform === "win32")
+  throw new Error("Windows runtime audit is not complete yet");
 const env = pythonEnvironment();
 // A failed current audit must not leave an older success receipt in place.
 rmSync(path.join(target.output, "audit-report.json"), { force: true });
@@ -39,9 +42,7 @@ try {
   )
     throw new Error("Manifest target mismatch");
   if (
-    manifest.minimum_os !==
-      readJson(path.join(sourceRoot, "native-components.lock.json"))
-        .minimum_os ||
+    manifest.minimum_os !== readJson(nativeLockFile(target)).minimum_os ||
     manifest.minimum_os !==
       readJson(path.join(sourceRoot, "source-manifest.json")).targets[
         target.target

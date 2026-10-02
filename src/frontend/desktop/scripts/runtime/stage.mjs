@@ -1,12 +1,12 @@
 import { mkdirSync, rmSync } from "node:fs";
 import path from "node:path";
 import {
-  assertPrivatePythonInstallDir,
   buildPython,
   cacheRoot,
   copyTree,
   desktopRoot,
   frontendRoot,
+  nativeLockFile,
   normalizeTree,
   parseTarget,
   pythonEnvironment,
@@ -15,6 +15,7 @@ import {
   repoRoot,
   run,
   sourceRoot,
+  syncBuildEnvironment,
   writeJson,
 } from "./common.mjs";
 import {
@@ -32,6 +33,10 @@ import { importBundledTool } from "./bundled-tool.mjs";
 import { sealReleaseModelManifests } from "./release-models.mjs";
 
 const target = parseTarget();
+if (target.platform === "win32")
+  throw new Error(
+    "Windows runtime staging is not complete yet; native-build.mjs builds its PostgreSQL components",
+  );
 const sources = readJson(path.join(sourceRoot, "source-manifest.json"));
 const app = readJson(path.join(desktopRoot, "package.json"));
 const args = ["--platform", target.platform, "--arch", target.arch];
@@ -51,22 +56,7 @@ const logged = (name, command, argv, options = {}) => {
 };
 
 try {
-  assertPrivatePythonInstallDir();
-  run(
-    "uv",
-    [
-      "sync",
-      "--python",
-      sources.python,
-      "--frozen",
-      "--no-default-groups",
-      "--group",
-      "desktop-build",
-      "--extra",
-      "server",
-    ],
-    { env },
-  );
+  syncBuildEnvironment();
   logged(
     "starter-content",
     buildPython(),
@@ -180,7 +170,7 @@ try {
   normalizeTree(target.runtime);
   normalizeTree(path.join(target.output, "app"));
   const inventory = inventoryTree(target.runtime);
-  const native = readJson(path.join(sourceRoot, "native-components.lock.json"));
+  const native = readJson(nativeLockFile(target));
   const core = readJson(
     path.join(target.runtime, "content/included-core/inventory.json"),
   );

@@ -14,6 +14,7 @@ import {
   desktopRoot,
   filesIn,
   frontendRoot,
+  nativeLockFile,
   pythonEnvironment,
   readJson,
   repoRoot,
@@ -146,7 +147,7 @@ export function writeLicenses(target, contentInventory) {
     ...group,
     notices: (group.notice_files ?? []).map(readStaticLicenseNotice),
   }));
-  const native = readJson(path.join(sourceRoot, "native-components.lock.json"));
+  const native = readJson(nativeLockFile(target));
   const records = [...policyRecords, ...python, ...js.records];
   for (const name of ["postgresql", "pgvector"])
     records.push({
@@ -242,10 +243,7 @@ export function writeLicenses(target, contentInventory) {
         ["pnpm-lock.yaml", path.join(frontendRoot, "pnpm-lock.yaml")],
         ["runtime-sources", path.join(sourceRoot, "source-manifest.json")],
         ["license-sources", path.join(sourceRoot, "license-sources.json")],
-        [
-          "native-components",
-          path.join(sourceRoot, "native-components.lock.json"),
-        ],
+        ["native-components", nativeLockFile(target)],
       ].map(([name, file]) => [name, sha256(file)]),
     ),
     source_assets: filesIn(target.runtime)
