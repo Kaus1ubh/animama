@@ -33,6 +33,7 @@ import { excludeDesktopWebAssets } from "./desktop-web.mjs";
 import { writeRedistributionReview } from "./review-packet.mjs";
 import { importBundledTool } from "./bundled-tool.mjs";
 import { sealReleaseModelManifests } from "./release-models.mjs";
+import { buildProcessGuard } from "./process-guard.mjs";
 
 const target = parseTarget();
 const sources = readJson(path.join(sourceRoot, "source-manifest.json"));
@@ -72,6 +73,7 @@ try {
     path.join(desktopRoot, "scripts/runtime/native-build.mjs"),
     ...args,
   ]);
+  if (target.platform === "win32") buildProcessGuard(target);
   logged(
     "backend-build",
     buildPython(),

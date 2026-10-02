@@ -45,6 +45,14 @@ export function reportsPortCollision(output: string): boolean {
   return /Is another postmaster already running on port/u.test(output);
 }
 
+/**
+ * PostgreSQL refuses to run with an elevated Windows token. Animama does not
+ * drop privileges for it; an elevated launch stops with clear advice.
+ */
+export function refusesAdministrator(output: string): boolean {
+  return /administrative permissions is not\s+permitted/u.test(output);
+}
+
 export class PrivatePostgres {
   process?: OwnedProcess;
   port = 0;
@@ -71,7 +79,7 @@ export class PrivatePostgres {
         this.owned.children.has(owned) &&
         postmasterRecordMatches(
           readFileSync(file, "utf8"),
-          owned.child.pid,
+          owned.processId,
           this.paths.pgData,
           this.port,
         )
@@ -175,7 +183,9 @@ export class PrivatePostgres {
         }
       }
       const collision = reportsPortCollision(process.output);
+      const elevated = refusesAdministrator(process.output);
       await this.owned.terminate(process);
+      if (elevated) throw new RuntimeError("administrator_launch_unsupported");
       if (!collision) throw new RuntimeError("postgres_start_failed");
     }
     throw new RuntimeError("internal_port_unavailable");

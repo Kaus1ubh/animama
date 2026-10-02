@@ -22,6 +22,7 @@ import { release, tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  awaitDurableEncryptionKey,
   CredentialVault,
   validateCredential,
   validateProvider,
@@ -44,10 +45,17 @@ import {
 import { SecretRedactor } from "../src/main-process/runtime/redaction.js";
 import {
   baseChildEnvironment,
+  guardHandshake,
   nativeLoadFailure,
   OwnedProcesses,
   runCommand,
+  useProcessGuard,
 } from "../src/main-process/runtime/processes.js";
+import { reportsAddressInUse } from "../src/main-process/runtime/ports.js";
+import {
+  ownedProcessesLaunchable,
+  stagedProcessGuard,
+} from "./fixtures/process-guard.js";
 import {
   createRendererCapability,
   installRendererCapability,
@@ -56,6 +64,7 @@ import type { App, Session } from "electron";
 import {
   PrivatePostgres,
   postmasterRecordMatches,
+  refusesAdministrator,
   reportsPortCollision,
 } from "../src/main-process/runtime/postgres.js";
 import { readBackendReadiness } from "../src/main-process/runtime/readiness.js";
@@ -136,6 +145,35 @@ describe("private local state and vault", () => {
         false,
       ).databasePassword(),
     ).not.toBe(password);
+  });
+
+  it("creates a Windows vault only after Chromium has saved its encryption key", async () => {
+    const root = fixture();
+    const vault = path.join(root, "secrets", "vault.bin");
+    const state = path.join(root, "Local State");
+    await expect(
+      awaitDurableEncryptionKey(root, vault, "darwin", 0),
+    ).resolves.toBeUndefined();
+    await expect(
+      awaitDurableEncryptionKey(root, vault, "win32", 300),
+    ).rejects.toThrow("secure_storage_unavailable");
+    writeFileSync(state, JSON.stringify({ os_crypt: {} }));
+    const waiting = awaitDurableEncryptionKey(root, vault, "win32", 5000);
+    setTimeout(
+      () =>
+        writeFileSync(
+          state,
+          JSON.stringify({ os_crypt: { encrypted_key: "fixture" } }),
+        ),
+      400,
+    );
+    await expect(waiting).resolves.toBeUndefined();
+    rmSync(state);
+    mkdirSync(path.dirname(vault));
+    writeFileSync(vault, "existing");
+    await expect(
+      awaitDurableEncryptionKey(root, vault, "win32", 0),
+    ).resolves.toBeUndefined();
   });
 
   it("fails closed on unavailable encryption, loss, corruption, and links without replacing data", () => {
@@ -498,6 +536,46 @@ describe("private PostgreSQL ownership checks", () => {
       reportsPortCollision("FATAL:  data directory has wrong ownership"),
     ).toBe(false);
   });
+
+  it("recognizes PostgreSQL's refusal of an elevated Windows token", () => {
+    expect(
+      refusesAdministrator(
+        "Execution of PostgreSQL by a user with administrative permissions is not\npermitted.\nThe server must be started under an unprivileged user ID to prevent\n",
+      ),
+    ).toBe(true);
+    expect(refusesAdministrator("FATAL:  could not create lock file")).toBe(
+      false,
+    );
+  });
+
+  it("recognizes an occupied backend port on POSIX and in any Windows language", () => {
+    expect(
+      reportsAddressInUse(
+        "ERROR: [Errno 98] error while attempting to bind on address ('127.0.0.1', 8000): address already in use",
+      ),
+    ).toBe(true);
+    expect(
+      reportsAddressInUse(
+        "ERROR: [Errno 10048] error while attempting to bind on address ('127.0.0.1', 8000): normalerweise darf jede socketadresse nur jeweils einmal verwendet werden",
+      ),
+    ).toBe(true);
+    expect(reportsAddressInUse("ERROR: [Errno 13] permission denied")).toBe(
+      false,
+    );
+  });
+
+  it("reads the service PID only from the guard's exact handshake", () => {
+    expect(guardHandshake("animama-process-guard pid=4321")).toBe(4321);
+    expect(guardHandshake("animama-process-guard pid=4321\r")).toBe(4321);
+    for (const line of [
+      "animama-process-guard pid=0",
+      "animama-process-guard pid=-1",
+      "animama-process-guard pid=12 extra",
+      "LOG:  animama-process-guard pid=12",
+      "",
+    ])
+      expect(guardHandshake(line)).toBeUndefined();
+  });
 });
 
 describe("Windows file semantics", () => {
@@ -689,6 +767,9 @@ describe.skipIf(
     const id = "a".repeat(64);
     const executables = Object.fromEntries(
       [
+        ...(executableSuffix
+          ? [["bin/animama-process-guard", "fixture-guard"]]
+          : []),
         ["backend/animama-runtime", "fixture-backend"],
         ["postgres/bin/postgres", "fixture-postgres"],
         ["postgres/bin/initdb", "fixture-initdb"],
@@ -777,6 +858,23 @@ describe.skipIf(
         .update(JSON.stringify(manifest.files))
         .digest("hex");
       renameSync(path.join(root, backend), path.join(root, entry.path));
+      writeFileSync(path.join(root, "manifest.json"), JSON.stringify(manifest));
+      await expect(verifyRuntime(root, "0.1.0")).rejects.toThrow(
+        "runtime_manifest_invalid",
+      );
+    },
+  );
+
+  it.skipIf(!executableSuffix)(
+    "requires the process guard in a Windows runtime",
+    async () => {
+      const { root, manifest } = await manifestFixture();
+      manifest.files = manifest.files.filter(
+        (file) => file.path !== "bin/animama-process-guard.exe",
+      );
+      manifest.build_id = createHash("sha256")
+        .update(JSON.stringify(manifest.files))
+        .digest("hex");
       writeFileSync(path.join(root, "manifest.json"), JSON.stringify(manifest));
       await expect(verifyRuntime(root, "0.1.0")).rejects.toThrow(
         "runtime_manifest_invalid",
@@ -889,40 +987,91 @@ describe("owned processes and secret-safe logs", () => {
     expect(kill.mock.calls).toEqual([[process.pid, 0]]);
   });
 
-  it("stops only an exact owned child handle and clears the ownership record", async () => {
-    const root = fixture();
-    const file = path.join(root, "processes.json");
-    const owned = new OwnedProcesses(file);
-    const child = owned.launch(
-      "fixture",
-      process.execPath,
-      ["-e", "setInterval(()=>{},1000)"],
-      {},
-      root,
+  it("treats a live recorded service behind a dead guard as an earlier runtime", () => {
+    const file = path.join(fixture(), "processes.json");
+    const record = (servicePid: unknown) =>
+      atomicWrite(
+        file,
+        JSON.stringify({
+          version: 1,
+          children: [
+            { pid: 2 ** 30, servicePid, name: "postgres", startToken: "stale" },
+          ],
+        }),
+      );
+    vi.spyOn(process, "kill").mockImplementation((pid) => {
+      if (pid === process.pid) return true;
+      throw Object.assign(new Error("gone"), { code: "ESRCH" });
+    });
+    record(process.pid);
+    expect(() => new OwnedProcesses(file)).toThrow("previous_runtime_running");
+    record("4321");
+    expect(() => new OwnedProcesses(file)).toThrow(
+      "process_ownership_record_invalid",
     );
-    const unrelatedKill = vi.fn();
+    record(undefined);
+    expect(() => new OwnedProcesses(file)).not.toThrow();
+  });
+
+  it("refuses to launch a Windows service without the process guard", async () => {
+    const platform = vi.spyOn(process, "platform", "get");
+    platform.mockReturnValue("win32");
     try {
-      await owned.terminate({ child: { kill: unrelatedKill } } as never, 100);
-      expect(unrelatedKill).not.toHaveBeenCalled();
-      await owned.terminate(child, 1000);
-      expect(owned.children.size).toBe(0);
-      expect(JSON.parse(readFileSync(file, "utf8")).children).toEqual([]);
+      useProcessGuard(undefined);
+      const owned = new OwnedProcesses(path.join(fixture(), "processes.json"));
+      expect(() =>
+        owned.launch("fixture", process.execPath, [], {}, fixture()),
+      ).toThrow("process_guard_unavailable");
+      await expect(
+        runCommand(process.execPath, [], {}, fixture()),
+      ).rejects.toThrow("process_guard_unavailable");
     } finally {
-      await owned.terminate(child, 100);
+      platform.mockRestore();
     }
   });
 
-  it("does not inherit unrelated developer credentials into commands", async () => {
-    vi.stubEnv("ANIMAMA_TEST_PRIVATE_SENTINEL", "must-not-leak");
-    const output = await runCommand(
-      process.execPath,
-      [
-        "-e",
-        "process.stdout.write(String(process.env.ANIMAMA_TEST_PRIVATE_SENTINEL === undefined))",
-      ],
-      {},
-      fixture(),
-    );
-    expect(output).toBe("true");
-  });
+  it.skipIf(!ownedProcessesLaunchable)(
+    "stops only an exact owned child handle and clears the ownership record",
+    async () => {
+      useProcessGuard(stagedProcessGuard);
+      const root = fixture();
+      const file = path.join(root, "processes.json");
+      const owned = new OwnedProcesses(file);
+      const child = owned.launch(
+        "fixture",
+        process.execPath,
+        ["-e", "setInterval(()=>{},1000)"],
+        {},
+        root,
+      );
+      const unrelatedKill = vi.fn();
+      try {
+        await owned.terminate({ child: { kill: unrelatedKill } } as never, 100);
+        expect(unrelatedKill).not.toHaveBeenCalled();
+        await owned.terminate(child, 1000);
+        expect(owned.children.size).toBe(0);
+        expect(JSON.parse(readFileSync(file, "utf8")).children).toEqual([]);
+      } finally {
+        await owned.terminate(child, 100);
+      }
+    },
+  );
+
+  it.skipIf(!ownedProcessesLaunchable)(
+    "does not inherit unrelated developer credentials into commands",
+    async () => {
+      useProcessGuard(stagedProcessGuard);
+      vi.stubEnv("ANIMAMA_TEST_PRIVATE_SENTINEL", "must-not-leak");
+      const output = await runCommand(
+        process.execPath,
+        [
+          "-e",
+          "process.stdout.write(String(process.env.ANIMAMA_TEST_PRIVATE_SENTINEL === undefined))",
+        ],
+        {},
+        fixture(),
+      );
+      expect(output).toBe("true");
+    },
+  );
 });

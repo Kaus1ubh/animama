@@ -22,6 +22,7 @@ import {
   type PackManifest,
 } from "../src/main-process/feature-packs/catalog.js";
 import { credentialTarget } from "../../shared/desktop-runtime";
+import { useProcessGuard } from "../src/main-process/runtime/processes.js";
 import { DOCUMENT_EXECUTABLE } from "../src/main-process/feature-packs/signature.js";
 import { RuntimeError } from "../src/main-process/runtime/errors.js";
 
@@ -95,12 +96,16 @@ vi.mock("../src/main-process/runtime/manifest.js", async (importOriginal) => ({
   >()),
   verifyRuntime: fixture.verify,
 }));
-vi.mock("../src/main-process/runtime/ports.js", () => ({
+vi.mock("../src/main-process/runtime/ports.js", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("../src/main-process/runtime/ports.js")
+  >()),
   unusedLoopbackPort: async () => 41234,
   assertLoopbackPortAvailable: fixture.available,
 }));
 vi.mock("../src/main-process/runtime/processes.js", () => ({
   runCommand: fixture.command,
+  useProcessGuard: vi.fn(),
   OwnedProcesses: class {
     children = new Set<(typeof fixture.launches)[number]>();
     constructor() {
@@ -121,6 +126,7 @@ vi.mock("../src/main-process/runtime/processes.js", () => ({
         env,
         args,
         child: { pid: 1000 + fixture.launches.length },
+        processId: 1000 + fixture.launches.length,
         output: "",
         token: `fixture-process-token-${fixture.launches.length}`,
         exit,
@@ -613,6 +619,25 @@ describe("runtime supervision", () => {
         "80",
       ]);
     expect(readFileSync(current.options.paths.state, "utf8")).toBe(saved);
+  });
+
+  it("selects the verified process guard before any Windows service starts", async () => {
+    const platform = vi.spyOn(process, "platform", "get");
+    platform.mockReturnValue("win32");
+    try {
+      const current = create();
+      await current.runtime.start();
+      expect(useProcessGuard).toHaveBeenCalledWith(
+        path.join(current.options.runtimeRoot, "bin/animama-process-guard.exe"),
+      );
+      const selected = vi.mocked(useProcessGuard).mock.invocationCallOrder[0]!;
+      expect(fixture.verify.mock.invocationCallOrder[0]).toBeLessThan(selected);
+      expect(
+        fixture.postgresStarts.mock.invocationCallOrder[0],
+      ).toBeGreaterThan(selected);
+    } finally {
+      platform.mockRestore();
+    }
   });
 
   it("shows stable-port collision recovery without starting a database or changing the saved origin", async () => {

@@ -9,13 +9,61 @@ import { writeLog } from "../logging.js";
 
 export type OwnedProcess = {
   name: string;
+  /** On Windows this is the process guard; the service runs inside its job. */
   child: ChildProcess;
+  /** The service's own PID, once known. Health and postmaster checks use it. */
+  processId?: number;
   token: string;
   executable: string;
   dataRoot: string;
   output: string;
   exit: Promise<void>;
 };
+
+const GUARD_HANDSHAKE = /^animama-process-guard pid=([1-9]\d*)\r?$/u;
+let processGuard: string | undefined;
+
+/**
+ * Windows runs every owned process inside the process guard's kill-on-close
+ * job, so nothing outlives Electron. The supervisor selects the verified guard.
+ */
+export function useProcessGuard(executable: string | undefined): void {
+  processGuard = executable;
+}
+
+/**
+ * Spawn a service directly, or on Windows through the guard. The guard's stdin
+ * is its lifeline: closing it, or Electron exiting, stops the service.
+ */
+function spawnService(
+  executable: string,
+  args: string[],
+  env: NodeJS.ProcessEnv,
+  cwd: string,
+): ChildProcess {
+  if (process.platform !== "win32")
+    return spawn(executable, args, {
+      cwd,
+      env,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+  if (!processGuard) throw new RuntimeError("process_guard_unavailable");
+  const guard = spawn(processGuard, ["--", executable, ...args], {
+    cwd,
+    env,
+    stdio: ["pipe", "pipe", "pipe"],
+    windowsHide: true,
+  });
+  // Closing the lifeline of a guard that already exited is not an error.
+  guard.stdin!.on("error", () => undefined);
+  return guard;
+}
+
+/** Parse the guard's first stdout line, which precedes any service output. */
+export function guardHandshake(line: string): number | undefined {
+  const match = GUARD_HANDSHAKE.exec(line);
+  return match ? Number(match[1]) : undefined;
+}
 
 /**
  * Inherit OS locale, home and temporary folders only; never leak unrelated
@@ -47,10 +95,15 @@ export function baseChildEnvironment(
   return env;
 }
 
-function logLines(child: ChildProcess, owned: OwnedProcess): void {
+function logLines(
+  child: ChildProcess,
+  owned: OwnedProcess,
+  onHandshake: () => void,
+): void {
   for (const stream of [child.stdout, child.stderr]) {
     let pending = "";
     let discarding = false;
+    let handshake = stream === child.stdout && owned.processId === undefined;
     stream?.setEncoding("utf8");
     stream?.on("data", (chunk: string) => {
       pending += chunk;
@@ -59,6 +112,15 @@ function logLines(child: ChildProcess, owned: OwnedProcess): void {
         if (newline < 0) break;
         const line = pending.slice(0, newline);
         pending = pending.slice(newline + 1);
+        if (handshake) {
+          handshake = false;
+          owned.processId = guardHandshake(line);
+          if (owned.processId !== undefined) {
+            onHandshake();
+            continue;
+          }
+          writeLog("error", `[${owned.name}] process guard handshake missing`);
+        }
         if (!discarding) {
           const safe = runtimeRedactor.redact(line);
           owned.output = (owned.output + safe + "\n").slice(-8192);
@@ -93,13 +155,16 @@ export class OwnedProcesses {
       if (record.version !== 1 || !Array.isArray(record.children))
         throw new Error();
       for (const item of record.children) {
-        if (!Number.isInteger(item.pid) || item.pid < 1) throw new Error();
-        try {
-          process.kill(item.pid, 0);
-          throw new RuntimeError("previous_runtime_running");
-        } catch (error) {
-          if ((error as NodeJS.ErrnoException).code !== "ESRCH") throw error;
-        }
+        const pids = [item.pid, item.servicePid ?? item.pid];
+        if (!pids.every((pid) => Number.isInteger(pid) && pid >= 1))
+          throw new Error();
+        for (const pid of pids)
+          try {
+            process.kill(pid, 0);
+            throw new RuntimeError("previous_runtime_running");
+          } catch (error) {
+            if ((error as NodeJS.ErrnoException).code !== "ESRCH") throw error;
+          }
       }
     } catch (error) {
       if (error instanceof RuntimeError) throw error;
@@ -116,6 +181,7 @@ export class OwnedProcesses {
           .map((item) => ({
             name: item.name,
             pid: item.child.pid,
+            servicePid: item.processId,
             startToken: item.token,
             executable: item.executable,
             dataRoot: item.dataRoot,
@@ -131,18 +197,21 @@ export class OwnedProcesses {
     cwd: string,
   ): OwnedProcess {
     const token = randomUUID();
-    const child = spawn(executable, args, {
-      cwd,
-      env: {
+    const child = spawnService(
+      executable,
+      args,
+      {
         ...baseChildEnvironment(),
         ...env,
         ANIMAMA_PROCESS_START_TOKEN: token,
       },
-      stdio: ["ignore", "pipe", "pipe"],
-    });
+      cwd,
+    );
     const item: OwnedProcess = {
       name,
       child,
+      // Without the guard the child is the service itself.
+      processId: process.platform === "win32" ? undefined : child.pid,
       token,
       executable,
       dataRoot: cwd,
@@ -165,12 +234,21 @@ export class OwnedProcesses {
     });
     this.children.add(item);
     this.persist();
-    logLines(child, item);
+    logLines(child, item, () => {
+      try {
+        this.persist();
+      } catch {
+        writeLog("error", "process_ownership_record_write_failed");
+      }
+    });
     return item;
   }
   async terminate(item: OwnedProcess, timeoutMs = 15_000): Promise<void> {
     if (!this.children.has(item)) return;
-    item.child.kill("SIGTERM");
+    // Closing the guard's lifeline sends the service Ctrl+Break, then ends
+    // its job if it is still running after the guard's grace period.
+    if (item.child.stdin) item.child.stdin.end();
+    else item.child.kill("SIGTERM");
     let timer: ReturnType<typeof setTimeout> | undefined;
     const expired = await Promise.race([
       item.exit.then(() => false),
@@ -211,11 +289,18 @@ export async function runCommand(
   timeoutMs = 120_000,
 ): Promise<string> {
   return new Promise((resolve, reject) => {
-    const child = spawn(executable, args, {
-      cwd,
-      env: { ...baseChildEnvironment(), ...env },
-      stdio: ["ignore", "pipe", "pipe"],
-    });
+    let child: ChildProcess;
+    try {
+      child = spawnService(
+        executable,
+        args,
+        { ...baseChildEnvironment(), ...env },
+        cwd,
+      );
+    } catch (error) {
+      reject(error);
+      return;
+    }
     let stdout = "";
     let stderr = "";
     let failure: string | undefined;
@@ -223,9 +308,9 @@ export async function runCommand(
       failure = "runtime_command_timeout";
       child.kill("SIGKILL");
     }, timeoutMs);
-    child.stdout.setEncoding("utf8");
-    child.stderr.setEncoding("utf8");
-    child.stdout.on("data", (data: string) => {
+    child.stdout!.setEncoding("utf8");
+    child.stderr!.setEncoding("utf8");
+    child.stdout!.on("data", (data: string) => {
       if (failure) return;
       stdout += data;
       if (stdout.length > 1024 * 1024) {
@@ -233,7 +318,7 @@ export async function runCommand(
         child.kill("SIGKILL");
       }
     });
-    child.stderr.on("data", (data: string) => {
+    child.stderr!.on("data", (data: string) => {
       if (failure) return;
       stderr += data;
       if (stderr.length > 1024 * 1024) {
@@ -257,7 +342,12 @@ export async function runCommand(
                 : "runtime_command_failed"),
           ),
         );
-      } else resolve(stdout);
+      } else
+        resolve(
+          process.platform === "win32"
+            ? stdout.replace(/^animama-process-guard pid=\d+\r?\n/u, "")
+            : stdout,
+        );
     });
   });
 }

@@ -29,6 +29,9 @@ export type RuntimeManifest = {
   }[];
 };
 
+/** Windows runs every owned process inside this guard's kill-on-close job. */
+export const PROCESS_GUARD_PATH = "bin/animama-process-guard.exe";
+
 /** Minimum OS and executable naming for each supported runtime platform. */
 export function runtimePlatform(platform: string): {
   minimumOs: string;
@@ -185,6 +188,7 @@ export async function verifyRuntime(
         "postgres/bin/pg_dump",
         "postgres/bin/pg_restore",
       ].map((name) => `${name}${executableSuffix}`),
+      ...(process.platform === "win32" ? [PROCESS_GUARD_PATH] : []),
       "web/index.html",
       "content/included-core/inventory.json",
       "pack-catalog.json",

@@ -17,6 +17,35 @@ import {
 } from "./atomic-file.js";
 import { RuntimeError } from "./errors.js";
 
+/**
+ * On Windows, Electron encrypts with a key that Chromium keeps in `Local State`
+ * and first writes about 10 seconds after startup. A vault encrypted before
+ * that write could never be read again if the app stopped in between, so a new
+ * vault waits until the key is on disk.
+ */
+export async function awaitDurableEncryptionKey(
+  userData: string,
+  vaultFile: string,
+  platform: NodeJS.Platform = process.platform,
+  timeoutMs = 30_000,
+): Promise<void> {
+  if (platform !== "win32" || existsSync(vaultFile)) return;
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    try {
+      const state = JSON.parse(
+        readFileSync(path.join(userData, "Local State"), "utf8"),
+      );
+      if (typeof state?.os_crypt?.encrypted_key === "string") return;
+    } catch {
+      // Absent or mid-write; Chromium replaces the file atomically.
+    }
+    if (Date.now() >= deadline)
+      throw new RuntimeError("secure_storage_unavailable");
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+}
+
 export type Encryption = {
   isEncryptionAvailable(): boolean;
   encryptString(value: string): Buffer;

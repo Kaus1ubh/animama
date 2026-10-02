@@ -11,8 +11,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   atomicWrite,
   privateDirectory,
@@ -25,15 +24,16 @@ import { PrivatePostgres } from "../src/main-process/runtime/postgres.js";
 import {
   OwnedProcesses,
   runCommand,
+  useProcessGuard,
 } from "../src/main-process/runtime/processes.js";
+import {
+  stagedProcessGuard,
+  stagedWindowsRuntime as stagedRuntime,
+} from "./fixtures/process-guard.js";
 
-const stagedRuntime = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "../.desktop-runtime/win32-x64/runtime",
-);
-const staged = existsSync(
-  path.join(stagedRuntime, "postgres/bin/postgres.exe"),
-);
+const staged =
+  existsSync(path.join(stagedRuntime, "postgres/bin/postgres.exe")) &&
+  existsSync(stagedProcessGuard);
 const roots: string[] = [];
 function fixture(name = "animama-windows-storage-"): string {
   const root = mkdtempSync(path.join(tmpdir(), name));
@@ -109,6 +109,8 @@ describe.skipIf(process.platform !== "win32")("Windows private storage", () => {
 describe.skipIf(process.platform !== "win32" || !staged)(
   "staged Windows runtime",
   () => {
+    beforeEach(() => useProcessGuard(stagedProcessGuard));
+
     it("reports a missing runtime DLL as a damaged runtime file", async () => {
       // pg_isready imports libpq.dll and the VC++ runtime from its own folder.
       const alone = path.join(fixture(), "pg_isready.exe");

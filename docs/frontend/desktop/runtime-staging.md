@@ -158,6 +158,12 @@ audit. The PostgreSQL executables carry a UTF-8 active code page manifest;
 without it, `initdb` cannot use a data directory whose path contains characters
 outside the system's ANSI code page. The probe always uses such a path.
 
+The stage also compiles the first-party process guard,
+`desktop/native/process-guard/process_guard.cpp`, into
+`runtime/bin/animama-process-guard.exe` with the pinned toolset, the static CRT,
+Control Flow Guard, high-entropy ASLR and CET compatibility. It imports only
+`KERNEL32.dll`, and the runtime manifest must include it.
+
 `native-dependencies.json` and `native-build.json` describe the PostgreSQL
 component; `audit-report.json` holds the whole stage's dependency report. To
 build and check PostgreSQL on its own:

@@ -38,6 +38,7 @@ import {
   createRuntimePage,
 } from "./main-process/runtime/recovery.js";
 import { RuntimeSupervisor } from "./main-process/runtime/supervisor.js";
+import { awaitDurableEncryptionKey } from "./main-process/runtime/vault.js";
 import {
   closeProductSession,
   destroyProductWindows,
@@ -437,6 +438,8 @@ else {
         appVersion: app.getVersion(),
         paths,
         encryption: safeStorage,
+        beforeNewVault: () =>
+          awaitDurableEncryptionKey(paths.base, paths.vault),
         onStatus: updateStatus,
         isPackaged: app.isPackaged,
         packCatalogPath: process.env.ANIMAMA_DESKTOP_DEV_PACK_CATALOG_PATH,
