@@ -165,17 +165,19 @@ Paths are repository-relative. `D/` abbreviates `src/frontend/desktop/`.
       ([#255](https://github.com/raymond-van/animama/issues/255)); Windows
       receipts passed; review passed after two repair rounds; the owner's Task
       Manager and Run-as-administrator checks passed.
-- [x] Phase 5: Unsigned package, installer and native input. Complete on
-      2026-10-03 at `127b09c2`
+- [ ] Phase 5: Unsigned package, installer and native input. Agent work
+      complete on 2026-10-03 at `127b09c2`
       ([#256](https://github.com/raymond-van/animama/issues/256)); Windows
       receipts, uninstall tests and the installer journey passed; review passed
       after two repair rounds. The owner's keyboard Press-to-talk check
-      passed; the mouse-button check is pending.
+      passed. Open owner gates: the mouse-button Press-to-talk check, and the
+      owner's acceptance of the agent-run installer journey.
 - [ ] Phase 6: Authenticode signing and the release candidate. Not started; needs G1 and G2.
 - [ ] Phase 7: Updates, smoke and publication tooling. Not started; the real upgrade needs G4.
 - [ ] Phase 8: Platform audit, clean-machine journey and documentation. Not started; needs G3.
 - [ ] Final integration review. Phases 1–5: review #1 blocked on FI-01, which
-      is resolved; the recheck is recorded below. Phases 6–8: not started.
+      is resolved; recheck #2 passed after one record repair (below).
+      Phases 6–8: not started.
 
 ## Surprises & Discoveries
 
@@ -1455,7 +1457,8 @@ commits `7bff9848`, `3587a882` and `db32bb1e`):
 - **Not run:** any macOS step. macOS packaging keeps its own `mac:`
   resources and target; the configs deep-merge, so its overrides keep them.
 - Left for Phase 8: `overview.md` and `installation.md` still describe Windows
-  packaging as unavailable.
+  packaging as unavailable. (`overview.md` was later corrected in `c69969c2`
+  for FI-03; `installation.md` remains Phase 8's.)
 
 Final results (2026-10-03, after the final integration review; commits
 `6c2dd5f2`, `c69969c2` and `127b09c2`):
@@ -1492,7 +1495,9 @@ Final results (2026-10-03, after the final integration review; commits
 - **Linux** at `c69969c2` (`127b09c2` changes only the NSIS include and a doc):
   `pnpm desktop:check` clean; `pnpm desktop:test` 420 passed, 26 skipped.
 - **Owner:** Press-to-talk with a keyboard key passed in the packaged app. The
-  mouse-button hold is not yet confirmed.
+  mouse-button hold is not yet confirmed. The owner asked the agent to run the
+  installer journey (2026-10-02); the journey above is the agent's run, and
+  the owner has not yet accepted it as the manual gate.
 
 #### Code Review #1 Findings
 
@@ -1594,6 +1599,8 @@ Changes:
      - the signing and size reports;
      - the model candidates;
      - the Windows artifact index and checksums (P-g).
+5. **Uninstaller hardening (FI2-05).** The data-removal command runs `cmd`
+   with `/v:off`, and a failed removal tells the person which folder remains.
 
 Checks:
 
@@ -1829,6 +1836,30 @@ passes, subject to the Phase 5 owner gates.
   real defect (item 30), fixed in `127b09c2`.
 - FI-07: the installer journey launched the installed build to ready four
   times (Phase 5 results).
+
+#### Final Integration Review #2 Findings
+
+Targeted recheck of `a7ccb22f` (repair round 1): every FI finding is resolved
+or carried as recorded, and the `rd /s /q` removal is gated, quoted and
+stack-balanced. Result: blocked on a record issue.
+
+- **FI2-01 (blocking):** Phase 5 was checked complete while its mouse-button
+  Press-to-talk gate was still open, and the agent-run journey was not
+  recorded as distinct from the owner's manual gate.
+- Non-blocking: FI2-02 `docs/backend/operations/desktop-runtime.md` still
+  called Windows packaging deferred; FI2-03 the Phase 5 note about
+  `overview.md` was stale; FI2-04 the progress line pointed at an unrecorded
+  recheck; FI2-05 hardening for the removal command: `cmd` expands `%NAME%`
+  in its command line (and `!NAME!` when delayed expansion is enabled in the
+  registry), and a partial removal is not reported; FI2-06 pre-existing
+  Prettier table-width drift in `releases.md` and this plan.
+
+#### Final Integration Review #2 Revisions
+
+In repair round 2 (record and docs only): FI2-01, -02, -03 and -04 accepted
+and corrected. FI2-05 is carried to Phase 6, whose signed installer is
+rebuilt anyway: add `/v:off` and report a failed removal. FI2-06 is
+pre-existing and unchanged.
 
 ## Validation and acceptance
 

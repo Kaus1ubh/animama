@@ -1,11 +1,12 @@
 # Embedded desktop backend operations
 
-This is the macOS desktop composition of the same accountless backend used by
-the local Compose stack. Electron supervises private PostgreSQL 16, the frozen
+This is the desktop composition (macOS arm64 and Windows 11 x64) of the same
+accountless backend used by the local Compose stack. Electron supervises private PostgreSQL 16, the frozen
 FastAPI application, upload cleanup and an optional independently frozen document
 worker. FastAPI serves the production React files on the saved loopback origin;
 there is no Vite server or external Python/Node installation in the installed app.
-Signed release acceptance remains pending. Windows native packaging is deferred.
+Signed release acceptance remains pending. Windows has an unsigned development
+package and installer; signed Windows releases are not implemented.
 
 For end-user instructions use [Installation](../../frontend/desktop/installation.md)
 and [Troubleshooting](../../frontend/desktop/troubleshooting.md). For
