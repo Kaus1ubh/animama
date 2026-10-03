@@ -170,8 +170,8 @@ Paths are repository-relative. `D/` abbreviates `src/frontend/desktop/`.
       ([#256](https://github.com/raymond-van/animama/issues/256)); Windows
       receipts, uninstall tests and the installer journey passed; review passed
       after two repair rounds. The owner's keyboard Press-to-talk check
-      passed. Open owner gates: the mouse-button Press-to-talk check, and the
-      owner's acceptance of the agent-run installer journey.
+      passed; the owner waived the mouse-button check on 2026-10-03. Open
+      owner gate: acceptance of the agent-run installer journey.
 - [ ] Phase 6: Authenticode signing and the release candidate. Not started; needs G1 and G2.
 - [ ] Phase 7: Updates, smoke and publication tooling. Not started; the real upgrade needs G4.
 - [ ] Phase 8: Platform audit, clean-machine journey and documentation. Not started; needs G3.
@@ -507,6 +507,14 @@ These planning findings come from inspecting the source at `98bceca2` on
   - The Windows recovery advice (FI-04) and PID reuse after a crash (FI-05)
     belong to Phase 8's documentation and crash-recovery work; both fail
     closed today.
+- **2026-10-03, owner:** waived Phase 5's mouse-button Press-to-talk hold; the
+  keyboard hold passed in the packaged app.
+- **2026-10-03, owner (G1):** reported the Artifact Signing account set up
+  and Azure CLI signed in on the Windows host. Non-secret values: endpoint
+  `https://eus.codesigning.azure.net/`, account `animama-signing`, certificate
+  profile `animama-public`. The agent confirmed Azure CLI 2.90.0 is signed in
+  as a user and that Windows SDK `signtool` 10.0.26100 is installed. Identity
+  validation and the signer role are first proven by Phase 6's first signature.
 
 ## Gates
 
@@ -1494,10 +1502,10 @@ Final results (2026-10-03, after the final integration review; commits
      its recorded origin, and its identity was unchanged.
 - **Linux** at `c69969c2` (`127b09c2` changes only the NSIS include and a doc):
   `pnpm desktop:check` clean; `pnpm desktop:test` 420 passed, 26 skipped.
-- **Owner:** Press-to-talk with a keyboard key passed in the packaged app. The
-  mouse-button hold is not yet confirmed. The owner asked the agent to run the
-  installer journey (2026-10-02); the journey above is the agent's run, and
-  the owner has not yet accepted it as the manual gate.
+- **Owner:** Press-to-talk with a keyboard key passed in the packaged app; the
+  owner waived the mouse-button hold on 2026-10-03. The owner asked the agent
+  to run the installer journey (2026-10-02); the journey above is the agent's
+  run, and the owner has not yet accepted it as the manual gate.
 
 #### Code Review #1 Findings
 
