@@ -696,17 +696,19 @@ Load command 4
       github: { owner: "example", repo: "releases" },
     };
     const policy = {
-      schema: "animama-release-policy/2",
+      schema: "animama-release-policy/3",
       channel: "stable",
       distributions,
       distribution_basis: {
         commercial: false,
         pocket_tts_onnx_license: "CC-BY-4.0",
       },
-      redistribution_review: {
-        inventory_sha256: "a".repeat(64),
-        reviewed_by: "Fixture reviewer",
-        reviewed_on: "2026-09-01",
+      redistribution_reviews: {
+        "darwin-arm64": {
+          inventory_sha256: "a".repeat(64),
+          reviewed_by: "Fixture reviewer",
+          reviewed_on: "2026-09-01",
+        },
       },
     };
     const packs = {
@@ -794,7 +796,24 @@ Load command 4
     ).toThrow("noncommercial installer/update policy");
     expect(() =>
       validateReleasePolicy(
-        { ...policy, redistribution_review: null },
+        { ...policy, redistribution_reviews: {} },
+        packs,
+        "0.1.0",
+      ),
+    ).toThrow("human redistribution review");
+    // A receipt binds one target's inventory; it never stands in for another.
+    expect(() =>
+      validateReleasePolicy(policy, packs, "0.1.0", { target: "win32-x64" }),
+    ).toThrow("human redistribution review");
+    expect(() =>
+      validateReleasePolicy(
+        {
+          ...policy,
+          redistribution_reviews: {
+            ...policy.redistribution_reviews,
+            "linux-x64": policy.redistribution_reviews["darwin-arm64"],
+          },
+        },
         packs,
         "0.1.0",
       ),
@@ -897,17 +916,21 @@ Load command 4
       bucket: "example-releases",
     };
     json(path.join(source, "release-policy.json"), {
-      schema: "animama-release-policy/2",
+      schema: "animama-release-policy/3",
       distributions: { r2, github },
       channel: "stable",
       distribution_basis: {
         commercial: false,
         pocket_tts_onnx_license: "CC-BY-4.0",
       },
-      redistribution_review: {
-        inventory_sha256: sha256(path.join(runtime, "licenses/inventory.json")),
-        reviewed_by: "Fixture reviewer",
-        reviewed_on: "2026-09-01",
+      redistribution_reviews: {
+        "darwin-arm64": {
+          inventory_sha256: sha256(
+            path.join(runtime, "licenses/inventory.json"),
+          ),
+          reviewed_by: "Fixture reviewer",
+          reviewed_on: "2026-09-01",
+        },
       },
     });
     json(path.join(source, "feature-pack-releases.json"), {

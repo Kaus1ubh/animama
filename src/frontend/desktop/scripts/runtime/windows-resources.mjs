@@ -1,4 +1,5 @@
 import { readFileSync, writeFileSync } from "node:fs";
+import path from "node:path";
 import * as ResEdit from "resedit";
 
 const RT_GROUP_ICON = 14;
@@ -65,4 +66,17 @@ export function brandWindowsExecutable(
   info.outputToResourceEntries(resources.entries);
   resources.outputResource(executable);
   writeFileSync(file, Buffer.from(executable.generate()));
+}
+
+/** Brand the packaged `Animama.exe` from electron-builder's `afterPack` context. */
+export function brandPackagedApp({ appOutDir, packager }, iconPath) {
+  const exe = path.join(appOutDir, `${packager.appInfo.productFilename}.exe`);
+  brandWindowsExecutable(exe, {
+    icon: readFileSync(iconPath),
+    productName: packager.appInfo.productName,
+    companyName: packager.appInfo.companyName,
+    copyright: packager.appInfo.copyright,
+    version: packager.appInfo.shortVersion ?? packager.appInfo.version,
+  });
+  return exe;
 }

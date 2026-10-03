@@ -5,6 +5,13 @@
     "signing_identity": "Developer ID Application: RAYMOND VAN (9XHPMZ723L)",
     "designated_requirement": "identifier \"com.animama.document-worker\" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] exists and certificate leaf[field.1.2.840.113635.100.6.1.13] exists and certificate leaf[subject.OU] = \"9XHPMZ723L\""
   },
+  "windows": {
+    "endpoint": "https://eus.codesigning.azure.net/",
+    "account": "animama-signing",
+    "certificate_profile": "animama-public",
+    "certificate_subject": "CN=Raymond Van, O=Raymond Van, L=Vaughan, S=on, C=CA",
+    "identity_validation_eku": "1.3.6.1.4.1.311.97.501455605.589778807.751065437.326116033"
+  },
   "packs": {
     "expanded-included-content": {
       "release_status": "deferred",

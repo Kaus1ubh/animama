@@ -53,7 +53,7 @@ export default async function sign(options) {
   // approval invented by the build. Keep inventory-time observations intact.
   writeJson(path.join(runtime, "licenses/REDISTRIBUTION_REVIEW.json"), {
     schema: "animama-redistribution-review/1",
-    ...release.policy.redistribution_review,
+    ...release.review,
   });
   const notices = path.join(runtime, "licenses/THIRD_PARTY_NOTICES.txt");
   writeFileSync(

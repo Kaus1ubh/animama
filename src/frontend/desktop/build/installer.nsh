@@ -30,8 +30,12 @@
     MessageBox MB_YESNO|MB_ICONQUESTION|MB_DEFBUTTON2 "Also delete your Animama data?$\r$\n$\r$\n$LOCALAPPDATA\Animama$\r$\n$\r$\nThis permanently removes your chats, Animas, Local content, settings, saved keys and downloaded speech models. Choose No to keep them for a later reinstall." IDNO animama_keep_data
     ; NSIS's RMDir /r follows directory junctions and would delete files
     ; outside the data folder; rd removes a junction without entering it.
-    nsExec::Exec '"$SYSDIR\cmd.exe" /d /c rd /s /q "$LOCALAPPDATA\Animama"'
+    ; /v:off keeps a "!" in the profile path literal.
+    nsExec::Exec '"$SYSDIR\cmd.exe" /d /v:off /c rd /s /q "$LOCALAPPDATA\Animama"'
     Pop $R1
+    ${If} ${FileExists} "$LOCALAPPDATA\Animama\*.*"
+      MessageBox MB_OK|MB_ICONEXCLAMATION "Some Animama data could not be deleted:$\r$\n$\r$\n$LOCALAPPDATA\Animama$\r$\n$\r$\nClose any program using it, then delete that folder yourself."
+    ${EndIf}
     animama_keep_data:
   ${EndIf}
   Pop $R1

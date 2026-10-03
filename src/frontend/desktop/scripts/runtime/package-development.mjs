@@ -1,10 +1,10 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import path from "node:path";
 import { build, Platform, Arch } from "electron-builder";
 import { desktopRoot, parseTarget, readJson, writeJson } from "./common.mjs";
 import { buildWindowsIcon } from "./icon.mjs";
 import { assertInventory, componentInventory } from "./inventory.mjs";
-import { brandWindowsExecutable } from "./windows-resources.mjs";
+import { brandPackagedApp } from "./windows-resources.mjs";
 
 /**
  * Build a local unsigned app for this host's target without mutating the
@@ -45,18 +45,9 @@ await build({
         // A one-click per-user install folder takes the package name:
         // %LOCALAPPDATA%\Programs\Animama, not ...\animama-desktop.
         extraMetadata: { name: "Animama" },
-        afterPack: ({ appOutDir, packager }) =>
-          brandWindowsExecutable(
-            path.join(appOutDir, `${packager.appInfo.productFilename}.exe`),
-            {
-              icon: readFileSync(icon),
-              productName: packager.appInfo.productName,
-              companyName: packager.appInfo.companyName,
-              copyright: packager.appInfo.copyright,
-              version:
-                packager.appInfo.shortVersion ?? packager.appInfo.version,
-            },
-          ),
+        afterPack: (context) => {
+          brandPackagedApp(context, icon);
+        },
       }
     : {
         extends: extends_,

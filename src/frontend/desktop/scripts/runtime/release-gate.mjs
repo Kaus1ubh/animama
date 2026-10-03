@@ -6,13 +6,15 @@ try {
     await (await import("./release-macos.mjs")).releaseMac(args);
   else if (command === "smoke-mac")
     await (await import("./smoke-macos.mjs")).smokeMac(args);
-  else if (command?.includes("windows"))
+  else if (command === "windows")
+    await (await import("./release-windows.mjs")).releaseWindows(args);
+  else if (command === "smoke-windows")
     throw new Error(
-      "Signed Windows releases remain gated on desktop Phase 6; use pnpm desktop:win:installer for an unsigned local installer",
+      "Windows installed-artifact smoke is not implemented yet (desktop Phase 7)",
     );
   else
     throw new Error(
-      "Expected mac [--resume-app-notarization <submission-id>] or smoke-mac --artifact <signed.dmg>",
+      "Expected mac [--resume-app-notarization <submission-id>], windows [--signing-rehearsal] or smoke-mac --artifact <signed.dmg>",
     );
 } catch (error) {
   console.error(
