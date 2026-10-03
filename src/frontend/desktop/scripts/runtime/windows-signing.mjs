@@ -177,13 +177,40 @@ export function signFiles(files, tools, publisher) {
       }),
     );
     for (let index = 0; index < files.length; index += BATCH)
-      run(
-        tools.signtool,
-        signtoolArguments(tools, metadata, files.slice(index, index + BATCH)),
-        { capture: true },
-      );
+      signBatch(files.slice(index, index + BATCH), tools, metadata);
   } finally {
     rmSync(directory, { recursive: true, force: true });
+  }
+}
+
+/**
+ * signtool stops at the first file it cannot sign, often a transient
+ * timestamp or network failure. Retry only the files still unsigned, since
+ * every request uses a signature, and give up after a few attempts.
+ */
+function signBatch(files, tools, metadata, attempts = 3) {
+  let pending = files;
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      run(tools.signtool, signtoolArguments(tools, metadata, pending), {
+        capture: true,
+      });
+      return;
+    } catch (error) {
+      const state = readSignatures("", pending);
+      pending = pending.filter((file) => state.get(file).status !== "Valid");
+      if (!pending.length) return;
+      if (attempt === attempts) throw error;
+      console.warn(
+        `Signing failed; retrying ${pending.length} unsigned file(s) (attempt ${attempt + 1} of ${attempts})`,
+      );
+      Atomics.wait(
+        new Int32Array(new SharedArrayBuffer(4)),
+        0,
+        0,
+        5000 * attempt,
+      );
+    }
   }
 }
 
