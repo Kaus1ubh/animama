@@ -1,6 +1,7 @@
 # Native Windows 11 x64 desktop packaging
 
-Status: Plan approved 2026-10-02. Phases 1–5 authorized; implementation not started.
+Status: Plan approved 2026-10-02. Phases 1–5 implemented and reviewed; Phases
+6–8 not yet authorized.
 Source agreement: [raymond-van/animama#245](https://github.com/raymond-van/animama/issues/245)
 as published on 2026-10-01 (created and last updated 2026-10-01T20:53:18Z), plus
 the owner decisions of 2026-10-01 and 2026-10-02 recorded in the
@@ -164,15 +165,17 @@ Paths are repository-relative. `D/` abbreviates `src/frontend/desktop/`.
       ([#255](https://github.com/raymond-van/animama/issues/255)); Windows
       receipts passed; review passed after two repair rounds; the owner's Task
       Manager and Run-as-administrator checks passed.
-- [ ] Phase 5: Unsigned package, installer and native input. Agent work and
-      review complete on 2026-10-02 at `db32bb1e`
+- [x] Phase 5: Unsigned package, installer and native input. Complete on
+      2026-10-03 at `127b09c2`
       ([#256](https://github.com/raymond-van/animama/issues/256)); Windows
-      receipts passed; review passed after two repair rounds. Awaiting the
-      owner's Press-to-talk check and installer journey.
+      receipts, uninstall tests and the installer journey passed; review passed
+      after two repair rounds. The owner's keyboard Press-to-talk check
+      passed; the mouse-button check is pending.
 - [ ] Phase 6: Authenticode signing and the release candidate. Not started; needs G1 and G2.
 - [ ] Phase 7: Updates, smoke and publication tooling. Not started; the real upgrade needs G4.
 - [ ] Phase 8: Platform audit, clean-machine journey and documentation. Not started; needs G3.
-- [ ] Final integration review. Not started.
+- [ ] Final integration review. Phases 1–5: review #1 blocked on FI-01, which
+      is resolved; the recheck is recorded below. Phases 6–8: not started.
 
 ## Surprises & Discoveries
 
@@ -302,7 +305,7 @@ These planning findings come from inspecting the source at `98bceca2` on
     Node 24.15.0, the CI pin. Docker is unavailable in this WSL session, so
     testcontainer and Compose backend tests error (`DockerException`) regardless
     of source. `desktop/tests/feature-packs.test.ts` is not Prettier-clean on
-    `main`; this work does not touch it.
+    `main` (line 904); this work edits other lines of it, not that one.
 
 17. **Windows staging needed workspace fixes outside the desktop scripts
     (Phase 2).** `packages:build` used single-quoted pnpm filters, which
@@ -361,11 +364,33 @@ These planning findings come from inspecting the source at `98bceca2` on
 27. **The one-click uninstaller runs its section in silent mode (Phase 5).**
     After its own confirmation, electron-builder's `un.onInit` calls
     `SetSilent silent`, so the data-removal prompt checks for `/S` on the
-    command line instead.
+    command line instead. Silent mode does not hide a `MessageBox` that has no
+    `/SD` answer, so the question still appears (item 29).
 28. **A one-click per-user install folder takes the package name (Phase 5).**
     electron-builder uses the package `name` (`animama-desktop`), not the
     product name, for that folder. The Windows build sets the packaged name to
     `Animama` to match D4.
+29. **An agent-run installer journey deleted the owner's data folder
+    (Phase 5).** The first agent-run journey used the owner's development
+    profile, against this plan's recovery rule. The agent's UI Automation
+    script could not see the uninstall dialogs' buttons, so it never answered
+    them. The owner, seeing the data question on screen, chose Yes, and the
+    uninstaller deleted `%LOCALAPPDATA%\Animama` as designed. A backup taken
+    before the journey restored it with the same cluster, vault and state
+    identity. The agent first misread its trace as NSIS answering Yes by itself
+    in silent mode. It rewrote the prompt on that basis, but screenshots
+    showed the question on screen, so the change was dropped before push.
+    Since then, journeys that can delete data run on a disposable data folder,
+    with the owner's folder moved aside and restored. Dialogs are found and
+    answered through Win32 window enumeration, which sees MessageBox buttons
+    where UI Automation did not. The owner is told beforehand not to answer
+    them.
+30. **NSIS `RMDir /r` follows directory junctions (Phase 5).** The dummy-data
+    removal test put a junction inside the data folder; explicit removal
+    deleted the file it pointed to outside `%LOCALAPPDATA%\Animama`. The
+    uninstaller now removes the folder with `rd /s /q`, which a probe showed
+    deletes junctions and directory symlinks, inside the folder or as the
+    folder itself, without entering them.
 
 ## Decision Log
 
@@ -473,6 +498,13 @@ These planning findings come from inspecting the source at `98bceca2` on
   because electron-builder's own Windows signing path would fetch the legacy
   `winCodeSign` archive again. The release build reuses the branding and the
   `Animama` package name (item 28).
+- **2026-10-03, agent (final integration review, Phases 1–5):**
+  - Explicit data removal uses `rd /s /q`, not NSIS `RMDir /r` (item 30).
+  - Agent-run installer journeys move the owner's data folder aside and work
+    on a disposable one (item 29).
+  - The Windows recovery advice (FI-04) and PID reuse after a crash (FI-05)
+    belong to Phase 8's documentation and crash-recovery work; both fail
+    closed today.
 
 ## Gates
 
@@ -1425,6 +1457,43 @@ commits `7bff9848`, `3587a882` and `db32bb1e`):
 - Left for Phase 8: `overview.md` and `installation.md` still describe Windows
   packaging as unavailable.
 
+Final results (2026-10-03, after the final integration review; commits
+`6c2dd5f2`, `c69969c2` and `127b09c2`):
+
+- **Windows receipt at `127b09c2`** (clean `git status` before and after;
+  Developer Mode off):
+  - `pnpm install --frozen-lockfile` passed.
+  - N+1 for the journey: with `desktop/package.json` set locally to `0.1.2`,
+    stage, audit and `desktop:win:installer` passed; the file was then
+    restored.
+  - At `0.1.1`: `desktop:runtime:stage` (4,980 files, none missing or
+    unexpected) and `desktop:runtime:audit` ("runtime audit: OK");
+    `desktop:win:installer` ("runtime inventory: OK");
+    `desktop:test:native-input` ("native input (Windows): OK");
+    `desktop:test` 390 passed, 55 skipped, 0 failed.
+- **Uninstall tests** with the owner's folder moved aside and a dummy data
+  folder, run against the `127b09c2` installer; dialogs answered by the
+  script:
+  - A person-started uninstall showed the confirmation, then the data question
+    with the exact path; No kept the folder and removed the app.
+  - Yes removed exactly `%LOCALAPPDATA%\Animama`; a file behind a junction
+    inside it survived (item 30).
+  - A silent uninstall and an install over an installed copy showed no dialog
+    and kept the data.
+- **Installer journey** (FI-07), same conditions:
+  1. Installed 0.1.1 from no data; the installed app reached ready.
+  2. Installed 0.1.2 over it: no uninstall dialog; ready on the same origin,
+     with the same cluster, vault and state.
+  3. A person-started uninstall, answered No: app and shortcuts removed, data
+     identity unchanged.
+  4. Reinstalled 0.1.1: ready with the same data.
+  5. With the owner's folder restored, the installed 0.1.1 reached ready on
+     its recorded origin, and its identity was unchanged.
+- **Linux** at `c69969c2` (`127b09c2` changes only the NSIS include and a doc):
+  `pnpm desktop:check` clean; `pnpm desktop:test` 420 passed, 26 skipped.
+- **Owner:** Press-to-talk with a keyboard key passed in the packaged app. The
+  mouse-button hold is not yet confirmed.
+
 #### Code Review #1 Findings
 
 Independent reviewer, `7bff9848` against `606df41c`, full initial review.
@@ -1656,7 +1725,11 @@ Steps:
      denial shows a clear error.
    - **WebSockets:** upgrades work.
    - **PostgreSQL crash recovery:** after killing `postgres.exe`, and after
-     killing the whole tree.
+     killing the whole tree. Include a delayed relaunch after a crash, when
+     Windows may have reused a recorded PID: a reuse by another user's or an
+     elevated process gives `process_ownership_record_invalid`, which needs
+     advice, and recording each process's creation time would tell reuse
+     apart (FI-05).
    - **Pack replacement while antivirus scans:** the fixture catalog with a
      held-handle test, plus Parakeet install and removal with real-time
      protection on.
@@ -1681,6 +1754,12 @@ Steps:
      model-store note, `src/frontend/AGENTS.md` and `README.md`.
    - Remove the "Windows deferred" statements, while keeping acceptance and
      publication gates honest.
+   - Windows recovery advice (FI-04): `database_schema_mismatch` and
+     `content_startup_failed` point Windows developers at
+     `pnpm desktop:mac:reset`, which refuses non-macOS hosts; the
+     troubleshooting rows for `secure_storage_unavailable` and vault restore
+     (which also needs `<userData>\Local State`) are macOS-only; and
+     `data_path_too_long` has no row.
 4. **ADR.** If the [ADR guide](../../adr/README.md) criteria hold, record ADR
    0013 for the Windows packaging decisions: the signing identity, per-user
    scope, shared distribution layout and guard ownership.
@@ -1711,7 +1790,45 @@ candidate commit or an unchanged input. It confirms that:
 - no development override is reachable in packaged builds;
 - secrets stay out of command lines, logs and reports.
 
-The repair-round limits are the same as for phases. Findings: pending.
+The repair-round limits are the same as for phases.
+
+Phases 1–5 (the authorized subset) had their final integration review on
+2026-10-02 and 2026-10-03. Phases 6–8 will need their own.
+
+#### Final Integration Review #1 Findings
+
+Independent reviewer, `917fa58c` against `94ee03c5`, full review of the
+combined Phases 1–5 change. Result: blocked on FI-01; otherwise the change
+passes, subject to the Phase 5 owner gates.
+
+- **FI-01 (blocking):** the stage and audit receipt at `ff61b560` predates
+  `7bff9848`, which added `resedit` to `pnpm-lock.yaml`. The stage hashes that
+  lock into the license inventory, so "later commits change no stage input"
+  was false.
+- **FI-02:** the plan's status line and item 16's wording were stale.
+- **FI-03:** `overview.md`, `releases.md`, `release-process.md` and
+  `src/frontend/AGENTS.md` still called Windows packaging deferred.
+- **FI-04:** Windows recovery advice and troubleshooting rows are incomplete.
+- **FI-05:** after a crash, Windows PID reuse can make a delayed relaunch fail
+  with `process_ownership_record_invalid`. It fails closed.
+- **FI-06:** explicit removal also deletes the default developer model store;
+  the docs and the question did not say so. Optional: check that removal does
+  not follow a junction.
+- **FI-07:** no agent receipt launched the installed app to ready.
+- **FI-08 (nit):** the guard path was defined three times.
+
+#### Final Integration Review #1 Revisions
+
+- FI-01: a clean-tree Windows stage and audit at the final commit (Phase 5
+  results).
+- FI-02: corrected here.
+- FI-03 and FI-08: `c69969c2`.
+- FI-04 and FI-05: carried to Phase 8 (steps 1 and 3).
+- FI-06: `6c2dd5f2` names speech models in the question and tells testers to
+  use a separate account or a backup. The optional junction check found a
+  real defect (item 30), fixed in `127b09c2`.
+- FI-07: the installer journey launched the installed build to ready four
+  times (Phase 5 results).
 
 ## Validation and acceptance
 
