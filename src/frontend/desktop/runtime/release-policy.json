@@ -20,6 +20,11 @@
       "inventory_sha256": "13f6218a5d66b5f123157b80713355c37d5b7ed72098be7ea66fe22886d3197c",
       "reviewed_by": "raymond-van",
       "reviewed_on": "2026-09-26"
+    },
+    "win32-x64": {
+      "inventory_sha256": "fb1508b381d314ecf4a30c10526f9d477309a899a832ab7543d64fe0f7c61979",
+      "reviewed_by": "raymond-van",
+      "reviewed_on": "2026-10-03"
     }
   }
 }

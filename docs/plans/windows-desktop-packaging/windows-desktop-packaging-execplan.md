@@ -551,6 +551,14 @@ These planning findings come from inspecting the source at `98bceca2` on
   - Feature packs stay macOS-only; a Windows release refuses any active pack.
   - Model sets keep their shared names, provided the bytes match for both
     targets; Phase 7 checks that before publishing (P6-R1-03).
+- **2026-10-03, owner (G2):** reviewed and approved the Windows redistribution
+  packet for stage build `23a1a213…` (744 records, sizes within the caps). The
+  agent recorded the `win32-x64` receipt for inventory SHA-256 `fb1508b3…`, as
+  the owner asked. The candidate is built from that exact stage, made at
+  `127b09c2`. Later commits change release tooling, docs and the two release
+  input files. The stage reads those two files, but its outputs from them, the
+  update policy and pack catalog, are unchanged, and the release compares both
+  against the stage.
 
 ## Gates
 
