@@ -26,8 +26,11 @@ remain pending for the exact current candidate.
 | Native acceptance             | Check physical microphone/audio, windows/shortcuts, in-place offline speech install/removal and offline dictation, packs/document conversion, failures/recovery and a real forward signed upgrade. Record supported OS and compatible app/pack versions actually exercised.                                                                                                     |
 | Stable promotion              | `raymond-van` reviews the exact DMG-bound manual receipt and required-name smoke/network reports, then runs the final publisher command.                                                                                                                                                                                                                                        |
 
-Signed Windows releases are not implemented yet; Windows x64 has only an
-unsigned development package and installer. macOS 15 is the declared minimum; actual
+Windows x64 can build a signed local candidate (`pnpm desktop:dist:windows`
+after a Windows stage and audit, with the `win32-x64` redistribution receipt
+recorded); see [Build a signed Windows candidate](releases.md#build-a-signed-windows-candidate).
+Windows smoke, updates and publication are not implemented yet, so no Windows
+candidate can pass the later gates. macOS 15 is the declared minimum; actual
 minimum-OS, clean-machine and signed acceptance require separate evidence.
 Run native audits against matching current inputs and preserve their receipts.
 

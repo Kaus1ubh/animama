@@ -1,13 +1,15 @@
-# macOS releases and updates
+# Desktop releases and updates
 
 The release tools build signed macOS 15+ Apple-silicon candidates and support
 guarded updates, upgrade snapshots and installed-artifact smoke tests.
 **No accepted public release is available.** Fresh matching artifacts, complete
 starter inputs, inventory review, minimum-OS/native acceptance and a real forward
 upgrade remain required. Unit tests do not approve redistribution or publication.
-Windows x64 has an unsigned development package and installer; signed Windows
-releases are not implemented yet. Release commands use isolated native
-profiles; they do not reset or create Compose stacks.
+Windows x64 has an unsigned development package and installer and a signed
+candidate builder ([Build a signed Windows candidate](#build-a-signed-windows-candidate));
+Windows updates, installed-artifact smoke and publication are not implemented
+yet. Release commands use isolated native profiles; they do not reset or create
+Compose stacks.
 
 Initial publication runs manually from reviewed `main` inputs. Start with the
 [maintainer release process](release-process.md) for ordered gates; this page is
@@ -85,7 +87,8 @@ before uploading); for R2, that the custom domain answers and the public feed
 does not already name this or a newer version. If the feed already names this
 version, the release is complete; verify it instead of publishing again. The destinations supply pinned future URLs, not a private download
 feed. `feature-pack-releases.json` records pack policy and exact inventory
-receipts; `release-policy.json` records the core inventory receipt. A source or
+receipts; `release-policy.json` records one core inventory receipt per target
+(`darwin-arm64`, `win32-x64`), since each target's inventory differs. A source or
 notice change requires fresh matching review rather than reuse of an older hash.
 
 Both publishers work without a local distribution checkout: GitHub through the
@@ -97,8 +100,10 @@ explicit publication decision; these commands do not select one.
 
 | Input                                           | Required operator decision                                                                                                                                                                                     |
 | ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `desktop/runtime/release-policy.json`           | Both distributions (R2 public base URL and bucket; GitHub `owner`/`repo`), stable channel, human redistribution receipt                                                                                        |
+| `desktop/runtime/release-policy.json`           | Both distributions (R2 public base URL and bucket; GitHub `owner`/`repo`), stable channel, one human redistribution receipt per target                                                                         |
 | `desktop/runtime/feature-pack-releases.json`    | Approved active-pack hashes, explicit deferred-pack status, Apple Team ID, Developer ID identity, document-helper designated requirement. Pack URLs are derived from the selected distribution, never set here |
+| `feature-pack-releases.json` `windows`          | Artifact Signing endpoint, account and certificate profile, and the certificate subject and identity-validation EKU every Windows signature must carry. None is a secret                                       |
+| `desktop/runtime/windows-signing.lock.json`     | The Windows SDK `signtool` and Artifact Signing client library, pinned by version and SHA-256                                                                                                                  |
 | `desktop/runtime/macos-acceptance.example.json` | Template only; a reviewer must supply the actual DMG hash, date, identity, prior signed version, and completed checks                                                                                          |
 | `desktop/runtime/size-baseline.json`            | Update only from a successfully released artifact, never a partial stage or estimate                                                                                                                           |
 
@@ -217,6 +222,63 @@ its dependency coverage conservatively; it is not a claim of complete license
 clearance. Reports use relative resource paths, never user profiles or keys.
 Both distribution archives must be at most 750 MiB; the installed core at most
 1.5 GiB. Existing component and optional-pack regression gates also apply.
+
+## Build a signed Windows candidate
+
+On the Windows 11 x64 build host, signing uses Azure Artifact Signing through
+the pinned Windows SDK `signtool` and the pinned Artifact Signing client
+library, which the build downloads into `C:\animama-build\tools`. The host
+needs:
+
+- the Windows SDK version named in `windows-signing.lock.json` (its
+  `signtool.exe` must match the pinned hash), and the .NET 8 x64 runtime;
+- the Azure CLI, signed in with `az login` as an account holding the Artifact
+  Signing Certificate Profile Signer role on the configured profile. The client
+  authenticates through that sign-in only; no credential is passed on a command
+  line or stored in the repository.
+
+After a fresh stage and audit, and once `release-policy.json` holds the
+`win32-x64` receipt for that exact inventory:
+
+```sh
+pnpm desktop:dist:windows
+```
+
+This verifies the audit and receipt, refuses active feature packs (Windows
+packs are not built yet), and builds the per-user installer without
+electron-builder's own Windows signing. Every PE file lacking a valid signature
+is signed with SHA-256 file and timestamp digests, timestamped by
+`http://timestamp.acs.microsoft.com`; valid vendor signatures, such as
+Microsoft's, are kept. Nested code under `resources` is signed first, deepest
+first. The review receipt is then added and the runtime manifest recomputed,
+since signing changes file hashes, before the outer app (`Animama.exe` last),
+the uninstaller and the installer are signed. A transient timestamp or network
+failure is retried for the still-unsigned files only.
+
+`desktop/release/signing-report.json` lists every PE file with its signature,
+plus the installer and uninstaller. The candidate is refused unless every file
+is `Valid` and every file Animama signed carries the pinned subject,
+identity-validation EKU and a timestamp. Artifact Signing certificates last
+only a few days, so the timestamp is what keeps signatures valid.
+
+The resulting `desktop/release/publish/` is a local candidate only. It contains
+the installer, `latest.yml`, the runtime and pack manifests, notices and review
+receipt, SBOM, signing, size and pack reports, model candidates and checksums.
+Windows evidence that shares a version folder with macOS files takes a
+`-win32-x64` suffix, for example `size-report-win32-x64.json` and
+`SHA256SUMS-win32-x64.txt`. The installer must be at most 750 MiB and the
+installed app at most 1.5 GiB.
+
+Each candidate uses about 140 signatures from the account's monthly quota, plus
+any retries. Sign only intentional candidates. To exercise signing before the
+redistribution review exists:
+
+```sh
+pnpm desktop:dist:windows -- --signing-rehearsal
+```
+
+A rehearsal signs, verifies and measures the same files but embeds no review
+receipt and writes no publish folder; its report says `release_ready: false`.
 
 ## Installed-artifact smoke and manual acceptance
 

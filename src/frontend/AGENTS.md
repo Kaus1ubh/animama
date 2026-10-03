@@ -272,8 +272,10 @@ or migration behavior.
   are excluded from tracked runtime definitions; never restore their ignored
   bytes or metadata as build inputs. Component tests are not substitutes for
   packaged acceptance. Windows has an unsigned development package and
-  installer (`pnpm desktop:win`, `pnpm desktop:win:installer`); its signed
-  release is not implemented yet. Linux self-contained packaging is deferred.
+  installer (`pnpm desktop:win`, `pnpm desktop:win:installer`) and a signed
+  candidate builder (`pnpm desktop:dist:windows`, Artifact Signing through the
+  host's Azure CLI sign-in); its updates, smoke and publication are not
+  implemented yet. Linux self-contained packaging is deferred.
   Signing, updates and installed-artifact smoke tools require exact source/input
   review, matching artifacts and native acceptance. Read
   `../../docs/frontend/desktop/releases.md` before using those commands.

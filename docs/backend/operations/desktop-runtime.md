@@ -6,7 +6,8 @@ FastAPI application, upload cleanup and an optional independently frozen documen
 worker. FastAPI serves the production React files on the saved loopback origin;
 there is no Vite server or external Python/Node installation in the installed app.
 Signed release acceptance remains pending. Windows has an unsigned development
-package and installer; signed Windows releases are not implemented.
+package and installer and builds signed local candidates; Windows updates and
+publication are not implemented.
 
 For end-user instructions use [Installation](../../frontend/desktop/installation.md)
 and [Troubleshooting](../../frontend/desktop/troubleshooting.md). For
