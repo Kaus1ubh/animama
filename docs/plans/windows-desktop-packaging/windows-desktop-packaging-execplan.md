@@ -1664,7 +1664,8 @@ receipts never carry over. Signing failures leave unsigned outputs, which the
 release gate refuses.
 
 Results (2026-10-03, issue [#259](https://github.com/raymond-van/animama/issues/259),
-commits `349dde45`, `c128a0ea`, `4ab78811`, `be315669` and `6c1b46d6`):
+commits `349dde45`, `c128a0ea`, `4ab78811`, `be315669`, `6c1b46d6`, `482c90da`
+and the Review #3 follow-up):
 
 - **G1 proven.** One probe signature of a throwaway copy of the guard returned
   `Valid` with a Microsoft timestamp. It gave the certificate subject and the
@@ -1702,8 +1703,8 @@ commits `349dde45`, `c128a0ea`, `4ab78811`, `be315669` and `6c1b46d6`):
     because the Parakeet sets were never acquired there, so the real candidate
     needs the release model inputs first.
 - **Linux** (Node 24.15.0) at `be315669`: `pnpm desktop:check` clean;
-  `pnpm desktop:test` 431 passed, 26 skipped. At `6c1b46d6` the Windows release
-  and packaging suites pass (79 passed, 1 skipped) and `desktop:check` is clean.
+  `pnpm desktop:test` 431 passed, 26 skipped. At `519f8026`: `desktop:check`
+  clean; `pnpm desktop:test` 432 passed, 26 skipped.
 - **Not done, gated:** `pnpm desktop:dist:windows` without the rehearsal flag
   needs G2 (the `win32-x64` receipt) and the acquired release model sets. The
   owner's signed installer journey and SmartScreen record follow that
@@ -1775,6 +1776,21 @@ In `482c90da` and this record (repair round 2):
   publication changes.
 - P6-R2-03 accepted in the Decision Log.
 
+#### Code Review #3 Findings
+
+Final targeted recheck of `519f8026` (repair round 2): P6-R2-01 resolved,
+with the same certificate-table reading the reviewer used on the installed
+files; the plan text corrected; no regression. Result: pass. Non-blocking:
+P6-R3-01 the certificate-table check read whole files, up to the 337 MB
+installer, for four header fields; P6-R3-02 the Results commit list and Linux
+line were not current; P6-R3-03 the P6-R2-02 deferral was missing from Phase 7.
+
+#### Code Review #3 Revisions
+
+All three accepted in a follow-up commit: the check reads only the PE header,
+the Results are current, and Phase 7 change 3 carries P6-R2-02. The Windows
+release suite passes (12 tests); the reading itself is unchanged.
+
 ### Phase 7: Updates, smoke and publication tooling
 
 **Requirements:** R7.
@@ -1814,7 +1830,9 @@ Changes:
      the shared `backend-model-assets.json` bytes match, before uploading it
      under the shared name (P6-R1-03). Phase 6 builds
      `Animama-<version>-x64-setup.exe` (Phase 5's artifact name); the update
-     policy takes that name.
+     policy takes that name. The release's model preflight copies every set
+     once more than needed; a check that resolves and verifies without copying
+     would save that time (P6-R2-02).
 4. **`smoke:windows`** (`smoke-windows.mjs`). In a separate Windows test
    account that has no `%LOCALAPPDATA%\Animama`, it:
    1. silently installs the exact installer for that user;

@@ -1,8 +1,11 @@
 import {
+  closeSync,
   existsSync,
   mkdtempSync,
+  openSync,
   readdirSync,
   readFileSync,
+  readSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
@@ -188,14 +191,23 @@ export function signFiles(files, tools, publisher) {
  * signature; 0 when the file carries none.
  */
 export function certificateTableSize(file) {
-  const bytes = readFileSync(file);
-  const pe = bytes.readUInt32LE(0x3c);
-  const optional = pe + 24;
-  // PE32+ data directories start 112 bytes into the optional header, PE32 96.
-  const directories =
-    optional + (bytes.readUInt16LE(optional) === 0x20b ? 112 : 96);
-  // Directory 4 is the certificate table: an offset, then a size.
-  return bytes.readUInt32LE(directories + 4 * 8 + 4);
+  const descriptor = openSync(file, "r");
+  try {
+    const read = (offset, length) => {
+      const bytes = Buffer.alloc(length);
+      if (readSync(descriptor, bytes, 0, length, offset) !== length)
+        throw new Error(`${path.basename(file)} has a truncated PE header`);
+      return bytes;
+    };
+    const optional = read(0x3c, 4).readUInt32LE(0) + 24;
+    // PE32+ data directories start 112 bytes into the optional header, PE32 96.
+    const directories =
+      optional + (read(optional, 2).readUInt16LE(0) === 0x20b ? 112 : 96);
+    // Directory 4 is the certificate table: an offset, then a size.
+    return read(directories + 4 * 8 + 4, 4).readUInt32LE(0);
+  } finally {
+    closeSync(descriptor);
+  }
 }
 
 /**
