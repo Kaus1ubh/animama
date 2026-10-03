@@ -2116,6 +2116,9 @@ Results (in progress):
   runtime staging, the release docs, `src/frontend/AGENTS.md`, `README.md` and
   the model-store note describe Windows; no "Windows deferred" statement remains
   outside plans.
+- ADR [0013](../../adr/0013-native-windows-desktop-packaging.md) records D1–D4
+  and guard ownership: the signing identity, per-user scope, shared
+  distribution and process guard meet the ADR criteria.
 - Windows `pnpm desktop:test` at `e15a37d6`: 425 passed, 1 failed. The failing
   test recorded a fake executable for a live PID, which FI-05 now correctly
   treats as reused; the test records the real image on Windows.
