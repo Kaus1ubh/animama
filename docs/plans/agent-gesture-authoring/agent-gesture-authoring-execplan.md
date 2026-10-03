@@ -59,7 +59,7 @@ Paths are relative to `src/frontend/web/src/` unless stated:
 - [x] Owner authorized all phases (2026-10-03); spec published as #260 and read
       back; phase issues #261–#265 created; branch renamed and fast-forwarded to
       `origin/main` `401ac3b8`.
-- [ ] Phase 1: Motion description, anatomy and baking.
+- [x] Phase 1: Motion description, anatomy and baking. Review #3 passed.
 - [ ] Phase 2: Automated motion checks.
 - [ ] Phase 3: Gesture layer mutes and expression precedence.
 - [ ] Phase 4: Review renders and the `animama-animation` skill.
@@ -78,9 +78,13 @@ Paths are relative to `src/frontend/web/src/` unless stated:
   basis. Named anatomical motions can therefore be a static axis table in the
   canonical basis, verified by forward kinematics on both Avatars, rather than a
   per-Avatar measurement.
-- Hands-preset thumb fitting depends on the live normalized pose of the
-  metacarpal's parent chain. The generator must fit with the arm/hand context it
-  bakes, on a fixed reference Avatar.
+- Hands-preset thumb fitting depends only on the thumb metacarpal's rotation
+  relative to the hand, which generated clips keep at base. Fitting once on the
+  reference Avatar posed at `relaxedRest` is therefore equivalent to fitting per
+  sample.
+- Textured `.vrm` files load in Node (about 15 ms each) once a GLTFLoader plugin
+  resolves textures to placeholders, so no browser fallback is needed for
+  generation or checks.
 
 ## Decision Log
 
@@ -110,6 +114,12 @@ Paths are relative to `src/frontend/web/src/` unless stated:
   - **Muting mechanism:** a non-owning suppression multiplier in the procedural
     controller.
   - **R8 descriptions:** committed as generator examples.
+- 2026-10-03, implementation (Phase 1 review): `auto` tangents are clamped
+  (Fritsch–Butland), with no unclamped option; overshoot is authored as keys.
+  Hand-shape keys always settle (ease in-out) with no tangent option. The
+  reference Avatar is fixed to the VRM 1 sample because the leg solver needs a
+  VRM 1 rig, so the plan's `--fit-avatar` option was dropped. Finger and thumb
+  segments are keyable joints whose axes match the Hands tool.
 
 ## Preparation once implementation is authorized
 
@@ -210,6 +220,114 @@ and the FK axis table on both Avatars. Run `pnpm web:lint` and `pnpm check` from
 Completion: a hand-written sample description, for example a right-hand wave,
 generates a valid clip. Parsing it with `parseAnimaPoseClip` and sampling it
 reproduces the curves within tolerance on both Avatars.
+
+#### Phase 1 evidence
+
+- Issue #261. Starting source `93cd6a99`.
+- Delivered in `src/frontend/web/src/lib/avatar/motion-authoring/`:
+  - headless VRM loader;
+  - anatomical joint model with a cited range-of-motion table, including finger
+    and thumb segments;
+  - description schema and validation;
+  - clamped cubic Hermite tracks with loop wrap;
+  - planted-leg two-bone solver;
+  - Hands-tool preset reuse;
+  - baker with tolerance-driven densification (1° / 5 mm) and exact steps;
+  - `pnpm animation joints|base|generate` through Vite SSR
+    (`web/scripts/animation.mjs`);
+  - wave example.
+- Hand authoring types were narrowed to `Pick<Avatar, "vrm">`. This is a
+  type-only change.
+- Checks from `src/frontend/web`:
+  - `pnpm exec vitest run src/lib/avatar/motion-authoring src/ui/pose-creator`:
+    pass (43 motion tests; the pose-creator suites still pass).
+  - `pnpm check:source`: pass.
+  - eslint: pass.
+  - prettier `--check`: pass.
+  - `pnpm -s animation generate …/wave-hello.motion.json`: 99 keyframes,
+    0.385° / 0.00003 m.
+- Not established: rendered appearance (Phase 4).
+
+#### Code Review #1 Findings
+
+Independent `sdlc-reviewer`, working tree on `93cd6a99`. Checks: vitest, tsc,
+eslint, prettier and CLI all passed, plus edge-case probes.
+
+- **P1-R1-F1 (required):** no stated bake tolerance, and over-tolerance output
+  was written (a 10 Hz fast elbow gave 15.6°).
+- **P1-R1-F2 (required):** loop hand-shape tracks did not wrap and were not
+  validated, so the seam snapped.
+- **P1-R1-F3 (required):** R2 unpreset finger tracks were impossible because
+  there were no finger joints.
+- **P1-R1-F4 (required):** the Phase 1 completion criterion was not tested
+  (playback versus the curves on both Avatars).
+- **P1-R1-F5 (optional):** steps were baked as ramps.
+- **P1-R1-F6 (optional):** hand keys always stop; this was undocumented.
+- **P1-R1-F7 (optional):** the clamped-tangent deviation was not recorded.
+- **P1-R1-F8 (optional):** `--fit-avatar` was missing and unknown flags were
+  ignored.
+- **P1-R1-F9 (optional):** the bake error ignored hips position.
+- **P1-R1-F10 (optional):** the plan's thumb-fit claim was wrong, and the
+  reference re-posing side effect was undocumented.
+
+#### Code Review #1 Revisions
+
+All findings were verified and accepted.
+
+- **F1:** added `BAKE_TOLERANCE_DEGREES`/`_METRES` (1° / 5 mm). Segments are
+  subdivided down to 1/120 s, the report carries `withinTolerance`, and the CLI
+  refuses to write when it is false.
+- **F2:** hand shapes wrap across the loop seam, and validation rejects
+  mismatched hand shapes at 0 and the duration.
+- **F3:** added `finger` (curl, splay) and `thumb` (curl) joints for the
+  proximal, intermediate and distal segments. Axes are proven equal to the
+  Hands tool, and keyed finger joints override hand shapes.
+- **F4:** a test samples the parsed clip at off-grid times against the
+  evaluator (≤ 1.05°) and compares fingertip positions on both Avatars
+  (< 12 mm).
+- **F5:** steps hold until 1 ms before the next key, with a test.
+- **F6, F7:** documented on `HandShapeKey`/`ScalarTrack` and in the Decision Log.
+- **F8:** dropped `--fit-avatar` (see the Decision Log); unknown or valueless
+  options exit 2.
+- **F9:** added hips-position error to refinement and to the report.
+- **F10:** corrected the Surprises entry and documented the re-posing side
+  effect.
+
+Verification: vitest motion-authoring 43/43, `check:source`, eslint and
+prettier pass. Repair budget: one round remaining after recheck #2.
+
+#### Code Review #2 Findings
+
+Targeted recheck: F1–F10 are resolved, and the probes were reproduced.
+
+- **P1-R2-F1 (required):** the one-component thumb joint discarded about 8° of
+  `relaxedRest` thumb rotation, so `"base"`/untracked thumbs did not hold base.
+- **Optional:** no unit test covered the loop hand-shape rejection. Segments
+  under 2 ms are skipped in error measurement (accepted as step-lead handling).
+
+#### Code Review #2 Revisions
+
+- **P1-R2-F1, accepted:** the thumb joint gained `palmarAbduction` (z) and
+  `twist` (x) components. `relaxedRest` thumbs decompose exactly (0° residual),
+  and a test proves keyed thumbs start and end at base.
+- Writing that test exposed that `Quaternion.angleTo` is ill-conditioned near
+  zero for 6-decimal rounded quaternions (0.1° false error).
+  `angularDistanceDegrees` now normalizes and uses the relative rotation's
+  vector part.
+- **Optional, accepted:** added a loop hand-shape rejection unit test. The
+  2 ms skip is retained.
+
+Verification: vitest motion-authoring + pose-creator 208/208, `check:source`
+and eslint pass. Wave example unchanged (0.385°).
+
+#### Code Review #3 Findings and Revisions
+
+Final targeted recheck: P1-R2-F1 is resolved and the revisions caused no
+regression. The wave output is byte-identical to round 2. Result: **pass**.
+
+One optional note was accepted: the thumb curl axis matches the Hands tool
+only when abduction and twist are zero. This is documented on the thumb joint
+definition. The repair budget is exhausted for Phase 1.
 
 ### Phase 2 — Automated motion checks
 

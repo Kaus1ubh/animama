@@ -10,6 +10,8 @@ import {
 } from "@/lib/avatar/poses/poseRetargeting";
 import { getPoseCreatorNormalizedBoneNode } from "./poseCreatorAuthoring";
 
+/** Hand authoring reads only the loaded VRM, so headless tools can pass one. */
+export type HandAuthoringAvatar = Pick<Avatar, "vrm">;
 export type HandTarget = "left" | "right" | "both";
 export type HandSide = Exclude<HandTarget, "both">;
 export type HandDigit = "thumb" | "index" | "middle" | "ring" | "little";
@@ -53,7 +55,7 @@ export type HandBone = {
 };
 /** Availability is per actual bone, so Both never invents a missing counterpart. */
 export function resolveHandBones(
-  avatar: Avatar | null,
+  avatar: HandAuthoringAvatar | null,
   target: HandTarget,
   segmentIds = HAND_SEGMENTS.map((segment) => segment.id),
 ) {
@@ -129,7 +131,7 @@ export function adjustHandQuaternion(
 export function handPresetQuaternion(
   bone: HandBone,
   preset: HandPreset,
-  avatar?: Avatar | null,
+  avatar?: HandAuthoringAvatar | null,
 ): Quaternion {
   if (preset === "relaxed") {
     const rotation = Object.entries(
@@ -206,7 +208,7 @@ export function handPresetQuaternion(
  * Normalized joint offsets provide the rest directions without altering the rig.
  */
 function fitThumbPreset(
-  avatar: Avatar,
+  avatar: HandAuthoringAvatar,
   side: HandSide,
   preset: HandPreset,
 ): Quaternion | null {
