@@ -1,14 +1,15 @@
 # Native Windows 11 x64 desktop packaging
 
-Status: Plan approved 2026-10-02. Phases 1–5 implemented and reviewed; Phases
-6–8 not yet authorized.
+Status: Plan approved 2026-10-02. Phases 1–5 merged; Phase 6 in progress;
+Phases 7–8 not yet authorized.
 Source agreement: [raymond-van/animama#245](https://github.com/raymond-van/animama/issues/245)
 as published on 2026-10-01 (created and last updated 2026-10-01T20:53:18Z), plus
 the owner decisions of 2026-10-01 and 2026-10-02 recorded in the
 [Decision Log](#decision-log).
-Authorized scope: Phases 1–5, approved by the owner on 2026-10-02. Phases 6–8
-and the final integration review need separate authorization. Nothing in this
-plan authorizes publishing a release, uploading to a distribution or changing
+Authorized scope: Phases 1–5, approved by the owner on 2026-10-02 and merged
+in [#258](https://github.com/raymond-van/animama/pull/258); Phase 6, approved on
+2026-10-03. Phases 7–8 need separate authorization. Nothing in this plan
+authorizes publishing a release, uploading to a distribution or changing
 repository visibility.
 
 ## Purpose and context
@@ -172,7 +173,12 @@ Paths are repository-relative. `D/` abbreviates `src/frontend/desktop/`.
       after two repair rounds. The owner's keyboard Press-to-talk check
       passed; the owner waived the mouse-button check and accepted the
       agent-run installer journey on 2026-10-03.
-- [ ] Phase 6: Authenticode signing and the release candidate. Not started; needs G1 and G2.
+- [ ] Phase 6: Authenticode signing and the release candidate. Authorized and
+      started on 2026-10-03 ([#259](https://github.com/raymond-van/animama/issues/259))
+      on branch `build/windows-desktop-signing` from `main` at `401ac3b8`
+      (Phases 1–5 merged in
+      [#258](https://github.com/raymond-van/animama/pull/258)). G1 is set up;
+      G2 is open.
 - [ ] Phase 7: Updates, smoke and publication tooling. Not started; the real upgrade needs G4.
 - [ ] Phase 8: Platform audit, clean-machine journey and documentation. Not started; needs G3.
 - [ ] Final integration review. Phases 1–5: review #1 blocked on FI-01, which
@@ -1567,7 +1573,7 @@ No change needed.
 
 **Requirements:** R6, and R7's candidate gates (exact hash, size, license
 inventory).
-**Issue:** created at workspace setup.
+**Issue:** [#259](https://github.com/raymond-van/animama/issues/259).
 **Dependencies:** Phase 5. Signed evidence needs G1, and a passing release gate
 needs G2. Implementation and unit tests may proceed before both.
 
