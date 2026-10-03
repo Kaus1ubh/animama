@@ -26,8 +26,27 @@ Declare intended touches so the checks verify them and stop flagging them:
 ]
 ```
 
-`offset` is metres in the target bone's rest-aligned frame (x Avatar's left,
-y up, z forward); a contact with the head also clears the neck.
+`bone` and `target` are VRM humanoid bone names, for example `head`, `neck`,
+`chest`, `upperChest`, `spine`, `hips`, `leftHand`, `rightIndexDistal`,
+`rightThumbDistal`, `leftLowerArm`. `offset` is metres in the target bone's
+rest-aligned frame (x Avatar's left, y up, z forward). The `head` bone sits at
+the skull base with the eyes about 6 cm above it, so the chin is roughly level
+with it and 5–7 cm forward. A hand (wrist bone) resting under the chin sits
+about `[0, -0.06, 0.11]` from `head`; confirm with the reported actual offset. A failed contact reports where the bone
+actually is as an offset from the target, which tells you which way to move
+the arm (or which offset you really meant).
+
+The offset axes are the target bone's T-pose axes carried along with the
+bone: for a hand target, the palm faces −y and the fingers point outward
+(+x for the left hand, −x for the right). The two Included Avatars have
+different proportions (A_1's forearms are longer), so exact touches between
+two moving hands land a few centimetres apart on one of them; use tolerances
+of 4–7 cm and check both Avatars' renders.
+
+A contact clears intersections only between the two body volumes it names:
+a hand or finger bone covers the hand, a `LowerArm` bone the forearm, `head`
+the head and neck, torso bones the torso. Declare a second contact if the
+forearm also rests on the body.
 
 ## Review renders
 

@@ -63,11 +63,20 @@ Real joints rarely move alone. Add the partners:
 - **Palms up, forearms out (shrug, "who knows"):** upper arm elevation ~20,
   plane ~15, external rotation ~45; elbow ~85; supination ~75–80; wrist
   `flexion` −10 to −20 (bent back); `open-together` hands. Elbows stay near the ribs.
+- **Hands meeting in front (clap, prayer):** arms forward and slightly
+  raised with upper-arm rotation bringing the forearms together (about 43°
+  closed, 60–70° open), elbows 70–100 and wrists bent back −30 so the palms
+  face each other. Find the exact values with a declared hand-to-hand contact
+  and the reported actual offset rather than by eye.
 - **Pointing or reaching to the side:** plane 15–30 (slightly forward reads
   more natural than pure lateral), elevation 70–85, elbow 5–15, rotation near
   0 and supination near 0 for a palm-down point; add the `point` hand preset.
 - **Touching the head or chest:** combine elevation, plane and elbow flexion
-  to bring the hand there, check with a declared contact, then fine-tune.
+  to bring the hand there, check with a declared contact, then fine-tune. With
+  the arm forward, positive (external) rotation lifts the bent forearm toward
+  the face; for a hand under the chin try elevation ~60, plane ~90,
+  rotation ~55, elbow ~140. A forearm folded across the body under the other
+  elbow uses rotation ~20 and elbow ~80.
 
 ## Planted feet
 

@@ -212,6 +212,8 @@ describe("checkMotion", () => {
       "AvatarSample_Y_0",
     ]);
     expect(contacts[0]).toMatchObject({ subject: "rightIndexDistal→head" });
+    // The hand hangs well below the head, so the reported offset points down.
+    expect(contacts[0].actualOffset![1]).toBeLessThan(-0.5);
     expect(contacts[0].from).toBeCloseTo(0.4, 1);
     expect(contacts[0].to).toBeCloseTo(0.8, 1);
   });

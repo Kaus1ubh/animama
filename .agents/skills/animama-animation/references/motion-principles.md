@@ -16,7 +16,9 @@ Write the prompt as 3–6 beats with times before keying anything, for example
 | Held/looping pose (thinking, hand on heart) | 1.5–4 s loop | reach once in the clip's fade-in, then an alive hold that loops |
 
 Fades (`fadeIn` 0.25–0.35 s, `fadeOut` 0.3–0.45 s) blend from and back to the
-live pose; start and end one-shots at `"base"` values.
+live pose; start and end one-shots at `"base"` values. A held loop that starts
+already in position (hand on chin) is reached during its fade-in, so give it
+0.6–0.8 s; the fade is a straight blend, so check it in the creator.
 
 ## Make it read
 

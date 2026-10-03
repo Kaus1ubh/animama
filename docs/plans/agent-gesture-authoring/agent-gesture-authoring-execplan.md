@@ -65,7 +65,8 @@ Paths are relative to `src/frontend/web/src/` unless stated:
       passed; F7 (fade-scaled mutes) awaits owner confirmation.
 - [x] Phase 4: Review renders and the `animama-animation` skill. Review #2
       passed; owner review of the skill guidance (R1) is pending.
-- [ ] Phase 5: Evaluation on #243 prompts 1–6 (owner scoring gate).
+- [ ] Phase 5: Evaluation on #243 prompts 1–6. Gestures authored, checked,
+      saved and chat-played; owner scoring gate pending.
 - [ ] Final integration review; PR; owner acceptance.
 
 ## Surprises & Discoveries
@@ -839,6 +840,56 @@ scoring, and score the results.
    Limit skill fixes discovered here to guidance and checks within this scope.
 
 Completion: the owner's rubric table, captures and decision are posted (R8).
+
+#### Phase 5 evidence (agent work; owner scoring pending)
+
+- Issue #265. Starting source `35324958`.
+- **Authoring:**
+  - five fresh agents each followed only the skill for one #243 prompt
+    (1, 3, 4, 5, 6); prompt 2 uses the wave example authored and
+    render-revised in Phase 4;
+  - each agent iterated 3–9 times on checks and renders;
+  - descriptions are committed in `motion-authoring/examples/`, and
+    `examples.test.ts` regenerates and checks every example on both
+    Avatars.
+
+  | # | Prompt | Gesture | Kind / length | Checks | Agent self-score (naturalness / fidelity) |
+  | --- | --- | --- | --- | --- | --- |
+  | 1 | Nod yes twice, gently | `gentle-double-nod` | one-shot 1.7 s | pass | 3.5 / 4 |
+  | 2 | Wave hello with the right hand | `wave-hello` | one-shot 2.6 s | pass | — |
+  | 3 | Shrug with both palms turned up | `palms-up-shrug` | one-shot 2.0 s | pass | 3.5 / 4.5 |
+  | 4 | Clap excitedly three times | `excited-triple-clap` | one-shot 2.8 s | pass, 2 WARN (upper-arm acceleration at the first clap rebound, kept as a sharp stop) | 3.5 / 4 |
+  | 5 | Rest a hand on the chin and look up, thinking | `thinking-chin-rest` | loop 3.6 s | pass (2 contacts) | 3.5 / 4 |
+  | 6 | Laugh hard, shoulders bouncing, leaning back | `hearty-laugh` | one-shot 3.4 s | pass | 3 / 4 |
+
+  Agent self-scores come from still frames only and are not the rubric.
+- **Creator:** each generated clip was imported through the Gesture creator
+  (Clip → Import) and saved as Local content on the task stack. Stored files
+  match the generated clips; differences are only quaternion normalization
+  (< 1e-6) and an omitted `loop: false`.
+- **Chat runtime:** each saved clip played on the mounted chat Avatar
+  (60 Hz `Avatar.update` driven by script). Sway was fully muted while
+  playing and restored after; keyed `happy` peaked as authored; one-shots
+  completed, and the loop held until stopped.
+- **Skill and check improvements from authoring:**
+  - contact failures report the bone's actual offset;
+  - contact target names and offset frames are documented;
+  - recipes for palms-up, hand-under-chin and hands-meeting poses;
+  - guidance on longer fade-ins for held reaches, blink and eye narrowing,
+    and proportion differences between the Avatars.
+- **Known limits (owner review):**
+  - A_1's chin fist sits nearer the jaw;
+  - the nod looks slightly sleepy on A_1 at its lowest point;
+  - the laugh's left arm is passive;
+  - the clap's palms meet a few centimetres apart on Y_0;
+  - fades are linear blends that only the creator or chat shows;
+  - none was watched in real-time playback by the agents.
+- **Owner gates (pending):**
+  - confirm or revise the prompt set, rubric and threshold;
+  - score the six on both Avatars at
+    http://animama-gesture-authoring.localhost:8260 (Library → Gestures, or
+    `/gestures/<id>/edit` → Clip → Play);
+  - decide on follow-up format work.
 
 ## Final integration review
 

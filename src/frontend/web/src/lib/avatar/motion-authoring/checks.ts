@@ -53,6 +53,11 @@ export type MotionCheckFinding = {
   limit: number;
   unit: string;
   detail: string;
+  /**
+   * Contacts only: where the bone actually is relative to the target, in the
+   * target's rest-aligned frame (metres). Usable directly as `offset`.
+   */
+  actualOffset?: [number, number, number];
 };
 
 export type MotionCheckReport = {
@@ -790,9 +795,18 @@ function checkContacts(
       const offset = new Vector3(
         ...(contact.offset ?? [0, 0, 0]),
       ).applyQuaternion(delta);
+      const actual = from
+        .clone()
+        .sub(to)
+        .applyQuaternion(delta.clone().invert());
       const distance = from.distanceTo(to.add(offset));
       if (distance > tolerance)
         findings.push({
+          actualOffset: actual.toArray().map((n) => round(n, 3)) as [
+            number,
+            number,
+            number,
+          ],
           category: "contact",
           severity: "fail",
           avatar,
@@ -976,8 +990,10 @@ function mergeFindings(
     const current = open.get(key);
     if (current && finding.from - current.to <= gap) {
       current.to = Math.max(current.to, finding.to);
-      if (Math.abs(finding.value) > Math.abs(current.value))
+      if (Math.abs(finding.value) > Math.abs(current.value)) {
         current.value = finding.value;
+        if (finding.actualOffset) current.actualOffset = finding.actualOffset;
+      }
     } else {
       const copy = { ...finding };
       merged.push(copy);
@@ -1000,7 +1016,10 @@ export function formatMotionCheckReport(report: MotionCheckReport): string {
         ? `${finding.from.toFixed(2)}s`
         : `${finding.from.toFixed(2)}–${finding.to.toFixed(2)}s`;
     const who = ` [${finding.avatar ?? "canonical"}]`;
-    return `${finding.severity.toUpperCase()} ${finding.category}${who} ${finding.subject} at ${when}: ${finding.detail} (${finding.value}${finding.unit}, limit ${finding.limit}${finding.unit})`;
+    const where = finding.actualOffset
+      ? `; the bone is at offset [${finding.actualOffset.join(", ")}] m from the target`
+      : "";
+    return `${finding.severity.toUpperCase()} ${finding.category}${who} ${finding.subject} at ${when}: ${finding.detail} (${finding.value}${finding.unit}, limit ${finding.limit}${finding.unit}${where})`;
   });
   const failures = report.findings.filter((f) => f.severity === "fail").length;
   lines.push(
