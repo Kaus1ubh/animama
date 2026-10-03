@@ -1,6 +1,6 @@
 # Native Windows 11 x64 desktop packaging
 
-Status: Plan approved 2026-10-02. Phases 1–5 merged; Phase 6 in progress;
+Status: Plan approved 2026-10-02. Phases 1–5 merged; Phase 6 complete;
 Phases 7–8 not yet authorized.
 Source agreement: [raymond-van/animama#245](https://github.com/raymond-van/animama/issues/245)
 as published on 2026-10-01 (created and last updated 2026-10-01T20:53:18Z), plus
@@ -173,14 +173,13 @@ Paths are repository-relative. `D/` abbreviates `src/frontend/desktop/`.
       after two repair rounds. The owner's keyboard Press-to-talk check
       passed; the owner waived the mouse-button check and accepted the
       agent-run installer journey on 2026-10-03.
-- [ ] Phase 6: Authenticode signing and the release candidate. Authorized and
-      started on 2026-10-03 ([#259](https://github.com/raymond-van/animama/issues/259))
-      on branch `build/windows-desktop-signing` from `main` at `401ac3b8`
-      (Phases 1–5 merged in
-      [#258](https://github.com/raymond-van/animama/pull/258)). Agent work
-      and reviews done at `482c90da`; the signing rehearsal passed on Windows.
-      Open: the release candidate, which needs G2 and the release model inputs
-      on the Windows host, and the owner's signed installer journey.
+- [x] Phase 6: Authenticode signing and the release candidate. Complete on
+      2026-10-03 ([#259](https://github.com/raymond-van/animama/issues/259)),
+      on branch `build/windows-desktop-signing` from `main` at `401ac3b8`.
+      Review passed after two repair rounds. G2 approved by the owner. The
+      signed candidate built at `4ac1d21b`. The signed installer journey,
+      which the owner asked the agent to run, passed. SmartScreen warned about
+      an unrecognized app, as expected for a new signing identity.
 - [ ] Phase 7: Updates, smoke and publication tooling. Not started; the real upgrade needs G4.
 - [ ] Phase 8: Platform audit, clean-machine journey and documentation. Not started; needs G3.
 - [ ] Final integration review. Phases 1–5: review #1 blocked on FI-01, which
@@ -1713,10 +1712,43 @@ and the Review #3 follow-up):
 - **Linux** (Node 24.15.0) at `be315669`: `pnpm desktop:check` clean;
   `pnpm desktop:test` 431 passed, 26 skipped. At `519f8026`: `desktop:check`
   clean; `pnpm desktop:test` 432 passed, 26 skipped.
-- **Not done, gated:** `pnpm desktop:dist:windows` without the rehearsal flag
-  needs G2 (the `win32-x64` receipt) and the acquired release model sets. The
-  owner's signed installer journey and SmartScreen record follow that
-  candidate.
+- **Release candidate** at `4ac1d21b`, after G2 (Decision Log), with the release
+  model sets (both Parakeet sets, the Pocket voices and cloning encoder, and
+  browser speech) acquired from the published objects and verified on the
+  host:
+  - `pnpm desktop:dist:windows` passed against the reviewed stage, inventory
+    SHA-256 `fb1508b3…`. 141 files signed; all 146 PE files valid, including
+    seven kept Microsoft signatures (`d3dcompiler_47.dll`, `dxil.dll` and five
+    VC++ runtime DLLs). The report says `release_ready: true` and carries the
+    embedded receipt.
+  - Installer `Animama-0.1.1-x64-setup.exe`, SHA-256 `4b56558d…`, 336,730,448
+    bytes; installed 981,569,333 bytes; no size failures.
+  - The publish folder holds the installer, `latest.yml` (`v0.1.1/…`,
+    `minimumSystemVersion` `10.0.22000`, platform `win32`), the model
+    candidates and the `-win32-x64` evidence files. It is preserved outside the
+    release directory.
+  - A fresh stage at `4ac1d21b`, made after the candidate, reproduced the
+    same inventory SHA-256, so the receipt binds the final source.
+  - About 640 signatures used in total; the account's usage page is exact.
+- **Signed installer journey**, run by the agent at the owner's request (the
+  owner's folder moved aside and restored, as in item 29; dialogs answered by
+  the script):
+  1. Installed the candidate (0.1.1) from no data; `Animama.exe` signature
+     `Valid`; reached ready.
+  2. Ran a signed 0.1.2 rehearsal installer over it: no uninstall dialog; ready
+     on the same origin with the same cluster, vault and state.
+  3. A person-started uninstall showed the confirmation and the data question
+     with the exact path; No removed the app and shortcuts and kept the data.
+  4. Reinstalled the candidate: ready with the same data.
+  5. With the owner's folder restored, the installed candidate reached ready
+     on its recorded origin; identity unchanged.
+- **SmartScreen.** A copy of the candidate installer carried the Mark of the
+  Web a browser adds (Zone 3). Opening it showed "Windows protected your PC:
+  Microsoft Defender SmartScreen prevented an unrecognized app from starting",
+  and the installer did not run. A new Artifact Signing identity has no
+  download reputation yet, so this is expected until reputation builds. Users
+  can choose More info, then Run anyway. Phase 8's clean-machine audit
+  records it again (R8).
 
 #### Code Review #1 Findings
 
