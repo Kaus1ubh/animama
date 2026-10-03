@@ -534,8 +534,8 @@ node desktop/scripts/runtime/publish-macos.mjs --confirm-publication
 On the Windows host, `publish-windows.mjs` takes the same two options and
 publishes the Windows candidate, with `ANIMAMA_WINDOWS_ACCEPTANCE` for stable
 promotion. It refuses a signing rehearsal. Files whose names both targets use,
-such as `backend-model-assets.json`, must match byte for byte: on R2 the
-Windows publisher checks them before uploading anything.
+such as `backend-model-assets.json`, must match byte for byte: each target's
+publisher checks them, on R2 and GitHub, before uploading anything.
 
 The publisher verifies local checksums, smoke hashes, manual acceptance and scan
 coverage, then uploads a fixed artifact list:

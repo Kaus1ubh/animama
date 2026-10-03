@@ -192,9 +192,10 @@ Paths are repository-relative. `D/` abbreviates `src/frontend/desktop/`.
       complete at `fa2574c3`; review passed after one repair round; automated
       R8 items passed. Open: the owner's manual checks, the non-ASCII account,
       the clean-machine journey and default `MAX_PATH` (G3), and G4.
-- [ ] Final integration review. Phases 1–5: review #1 blocked on FI-01, which
+- [x] Final integration review. Phases 1–5: review #1 blocked on FI-01, which
       is resolved; review #2 blocked on FI2-01; review #3 passed (below).
-      Phases 6–8: not started.
+      Phases 6–8: review #1 passed at `9bef2a4e`, with three optional items
+      applied.
 
 ## Surprises & Discoveries
 
@@ -2106,8 +2107,8 @@ Results (in progress):
   image: the guard (now recorded with each PID) or the recorded service. An
   unreadable image was never Animama's, which never runs elevated; a failed
   lookup still blocks. This compares image paths rather than creation times,
-  which needs no extra query at launch. The native crash-recovery audit is
-  pending.
+  which needs no extra query at launch. The R8 audit below exercised it
+  natively.
 - FI-04 at `98b12b1a`: the recovery page tells Windows developers to rename
   `%LOCALAPPDATA%\Animama` instead of running `pnpm desktop:mac:reset`;
   troubleshooting covers Windows storage, vault restore with `Local State`,
@@ -2277,6 +2278,28 @@ line misdescribed review #2's result; FI3-02 the FI2-05 record omitted the
 #### Final Integration Review #3 Revisions
 
 FI3-01 and FI3-02 corrected in the record.
+
+#### Final Integration Review #1 Findings (Phases 6–8)
+
+Independent reviewer, `9bef2a4e` against `733d2315`, the Phase 7–8 change with
+its Phase 6 integration. Checks: `tsc` clean; `vitest` 456 passed; `pnpm check`
+clean. It confirmed that macOS behavior is preserved (the smoke split is a pure
+extraction, and every target-aware helper defaults to macOS), that no packaged
+override was added, that secrets stay out of command lines, logs and reports,
+that the open gates are stated honestly, and that commits after `fa2574c3`
+change only docs, the plan and the ADR. Result: pass. Non-blocking:
+
+- **FI-P78-01:** `releases.md` said only the Windows publisher checks shared
+  names.
+- **FI-P78-02:** the FI-05 note still called the native audit pending.
+- **FI-P78-03:** the smoke's silent installer and process query inherited the
+  full environment, including the smoke key; nothing logged it.
+
+#### Final Integration Review #1 Revisions (Phases 6–8)
+
+All three accepted and corrected. The smoke's helpers now run with the minimal
+launch environment; this changes release tooling only, not the candidate.
+`vitest` 456 passed afterwards.
 
 ## Validation and acceptance
 

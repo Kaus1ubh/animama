@@ -1,6 +1,7 @@
+import { execFileSync } from "node:child_process";
 import { lstatSync, realpathSync } from "node:fs";
 import path from "node:path";
-import { frontendRoot, parseTarget, readJson, run, sha256 } from "./common.mjs";
+import { frontendRoot, parseTarget, readJson, sha256 } from "./common.mjs";
 import { assertInventory, inventoryId } from "./inventory.mjs";
 import { loadReleasePolicy } from "./release-policy.mjs";
 import {
@@ -17,12 +18,22 @@ const win = path.win32;
 /** Lower-cased, so Windows paths compare case-insensitively. */
 const folded = (file) => win.resolve(file).toLowerCase();
 
+/** Run a helper with the minimal launch environment, never the smoke key. */
+function runMinimal(command, args) {
+  return execFileSync(command, args, {
+    encoding: "utf8",
+    env: windowsLaunchEnvironment(),
+    windowsHide: true,
+    maxBuffer: 16 * 1024 * 1024,
+  });
+}
+
 /**
  * Every running process's image path by PID. CIM reports processes of this
  * account; others' image paths are empty and never match an installed path.
  */
 export function processImages() {
-  const output = run(
+  const output = runMinimal(
     path.join(
       systemRoot(),
       "System32\\WindowsPowerShell\\v1.0\\powershell.exe",
@@ -33,7 +44,6 @@ export function processImages() {
       "-Command",
       'Get-CimInstance Win32_Process | ForEach-Object { "$($_.ProcessId)`t$($_.ExecutablePath)" }',
     ],
-    { capture: true },
   );
   return parseProcessImages(output);
 }
@@ -168,7 +178,7 @@ export async function smokeWindows(args) {
       async install(evidence) {
         verifySigned(path.dirname(artifact), path.basename(artifact));
         // The one-click installer waits until the per-user install completes.
-        run(artifact, ["/S"], { capture: true });
+        runMinimal(artifact, ["/S"]);
         verifySigned(installed, "Animama.exe");
         const manifest = readJson(path.join(runtime, "manifest.json"));
         evidence(
