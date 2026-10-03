@@ -12,6 +12,7 @@ import {
   signatureEntry,
   signFiles,
   signingOrder,
+  verifyEmbeddedSignatures,
 } from "./windows-signing.mjs";
 
 /**
@@ -38,6 +39,10 @@ export function signWindowsApp(app, { release, tools, rehearsal }) {
     list.filter((file) => !hasEmbeddedSignature(before.get(file)));
   const absolute = (list) => list.map((file) => path.join(app, file));
   const ours = new Set([...unsigned(nested), ...unsigned(outer)]);
+  verifyEmbeddedSignatures(
+    absolute(files.filter((file) => !ours.has(file))),
+    tools,
+  );
 
   signFiles(absolute(unsigned(nested)), tools, publisher);
   if (!rehearsal) embedRedistributionReview(runtime, release);

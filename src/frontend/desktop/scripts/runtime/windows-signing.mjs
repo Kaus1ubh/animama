@@ -184,12 +184,34 @@ export function signFiles(files, tools, publisher) {
 }
 
 /**
- * A signature embedded in the file that verifies everywhere. A catalog
- * signature is trusted only on the machine holding the catalog, so it does not
- * count as a vendor signature to keep.
+ * Size of a PE file's certificate table, which holds an embedded Authenticode
+ * signature; 0 when the file carries none.
+ */
+export function certificateTableSize(file) {
+  const bytes = readFileSync(file);
+  const pe = bytes.readUInt32LE(0x3c);
+  const optional = pe + 24;
+  // PE32+ data directories start 112 bytes into the optional header, PE32 96.
+  const directories =
+    optional + (bytes.readUInt16LE(optional) === 0x20b ? 112 : 96);
+  // Directory 4 is the certificate table: an offset, then a size.
+  return bytes.readUInt32LE(directories + 4 * 8 + 4);
+}
+
+/**
+ * A valid signature embedded in the file, which verifies on every machine.
+ * Get-AuthenticodeSignature consults the system catalogs first, so its status
+ * alone can be a catalog signature trusted only on this host; the certificate
+ * table shows whether the file carries its own.
  */
 export function hasEmbeddedSignature(signature) {
-  return signature?.status === "Valid" && signature.type === "Authenticode";
+  return signature?.status === "Valid" && signature.embedded === true;
+}
+
+/** Check kept vendor files' own signatures with signtool, which reads no catalog. */
+export function verifyEmbeddedSignatures(files, tools) {
+  if (files.length)
+    run(tools.signtool, ["verify", "/pa", ...files], { capture: true });
 }
 
 /**
@@ -236,7 +258,6 @@ $out = foreach ($file in $files) {
   $certificate = $signature.SignerCertificate
   [pscustomobject]@{
     status = [string]$signature.Status
-    type = [string]$signature.SignatureType
     subject = if ($certificate) { $certificate.Subject } else { $null }
     timestamped = [bool]$signature.TimeStamperCertificate
     eku = @(if ($certificate) { $certificate.Extensions | Where-Object { $_.Oid.Value -eq "2.5.29.37" } | ForEach-Object { $_.EnhancedKeyUsages } | ForEach-Object { $_.Value } })
@@ -272,7 +293,15 @@ export function readSignatures(root, files) {
     const signatures = [JSON.parse(readFileSync(output, "utf8"))].flat();
     if (signatures.length !== files.length)
       throw new Error("Could not read every Authenticode signature");
-    return new Map(files.map((file, index) => [file, signatures[index]]));
+    return new Map(
+      files.map((file, index) => [
+        file,
+        {
+          ...signatures[index],
+          embedded: certificateTableSize(path.join(root, file)) > 0,
+        },
+      ]),
+    );
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
@@ -293,7 +322,7 @@ export function signatureEntry(file, digest, signature, publisher, ours) {
         signature.eku?.includes(publisher.identity_validation_eku)));
   if (!valid)
     throw new Error(
-      `${file} is not ${ours ? "validly signed and timestamped by the pinned publisher" : "validly signed"} (${signature?.status ?? "unread"}, ${signature?.type ?? "no signature"})`,
+      `${file} is not ${ours ? "validly signed and timestamped by the pinned publisher" : "validly signed"} (${signature?.status ?? "unread"}${signature?.embedded ? "" : ", no embedded signature"})`,
     );
   return {
     path: file,

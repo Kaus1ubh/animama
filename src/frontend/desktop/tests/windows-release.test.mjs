@@ -17,6 +17,7 @@ import {
   writeArtifactIndex,
 } from "../scripts/runtime/release-artifacts.mjs";
 import {
+  certificateTableSize,
   portableExecutables,
   signatureEntry,
   signingOrder,
@@ -165,6 +166,32 @@ describe("Windows signing", () => {
     expect(order.outer).toEqual(["ffmpeg.dll", "Animama.exe"]);
   });
 
+  it("reads an embedded signature from the PE certificate table, not from catalog trust", () => {
+    const root = fixture();
+    // A minimal PE header: PE32+ or PE32 optional header with data directory 4.
+    const image = (magic, size) => {
+      const bytes = Buffer.alloc(512);
+      bytes.write("MZ", 0, "latin1");
+      bytes.writeUInt32LE(64, 0x3c);
+      bytes.write("PE\0\0", 64, "latin1");
+      const optional = 64 + 24;
+      bytes.writeUInt16LE(magic, optional);
+      const directories = optional + (magic === 0x20b ? 112 : 96);
+      bytes.writeUInt32LE(size ? 400 : 0, directories + 32);
+      bytes.writeUInt32LE(size, directories + 36);
+      return bytes;
+    };
+    for (const [name, magic, size] of [
+      ["signed64.dll", 0x20b, 10600],
+      ["catalog-only.dll", 0x20b, 0],
+      ["signed32.exe", 0x10b, 9000],
+    ])
+      writeFileSync(path.join(root, name), image(magic, size));
+    expect(certificateTableSize(path.join(root, "signed64.dll"))).toBe(10600);
+    expect(certificateTableSize(path.join(root, "catalog-only.dll"))).toBe(0);
+    expect(certificateTableSize(path.join(root, "signed32.exe"))).toBe(9000);
+  });
+
   it("signs with SHA-256 file and timestamp digests through the pinned client, never a credential argument", () => {
     const args = signtoolArguments(
       {
@@ -194,7 +221,7 @@ describe("Windows signing", () => {
   it("accepts only valid signatures: Animama's with its identity and a timestamp, or a kept vendor signature", () => {
     const ours = {
       status: "Valid",
-      type: "Authenticode",
+      embedded: true,
       subject: publisher.certificate_subject,
       timestamped: true,
       eku: ["1.3.6.1.5.5.7.3.3", publisher.identity_validation_eku],
@@ -211,7 +238,7 @@ describe("Windows signing", () => {
     });
     const vendor = {
       status: "Valid",
-      type: "Authenticode",
+      embedded: true,
       subject: "CN=Microsoft Corporation",
       timestamped: false,
       eku: [],
@@ -229,10 +256,10 @@ describe("Windows signing", () => {
       expect(() =>
         signatureEntry("a.dll", "f".repeat(64), bad, publisher, true),
       ).toThrow("a.dll");
-    // A catalog signature verifies only on a machine holding that catalog.
+    // A catalog signature, valid only on this host, carries no certificate table.
     for (const bad of [
       { ...vendor, status: "NotSigned" },
-      { ...vendor, type: "Catalog" },
+      { ...vendor, embedded: false },
     ])
       expect(() =>
         signatureEntry("x.dll", "f".repeat(64), bad, publisher, false),
