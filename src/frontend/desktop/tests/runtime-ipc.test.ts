@@ -419,7 +419,12 @@ describe("independent runtime recovery page", () => {
       page.render({ state: "error", code });
       const message = String(page.element("#message").textContent);
       expect(message).toMatch(/local data is preserved/iu);
-      expect(message).toContain("pnpm desktop:mac:reset");
+      // Windows has no reset helper; the data folder is renamed by hand.
+      expect(message).toContain(
+        process.platform === "win32"
+          ? "rename %LOCALAPPDATA%\\Animama"
+          : "pnpm desktop:mac:reset",
+      );
       expect(page.element("#code").textContent).toBe(code);
       expect(page.element("#retry").hidden).toBe(retryHidden);
     },
