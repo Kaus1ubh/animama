@@ -220,6 +220,17 @@ export async function runSmokeJourney({ report, provider, platform }) {
       ),
     );
     observeChildren();
+    // A packaged app offers updates only after its own signature matched the
+    // sealed publisher; otherwise it reports "unavailable". Before the first
+    // release the feed itself may be missing, which is an error state.
+    step = "update-publisher";
+    const update = await page.evaluate(() =>
+      window.animamaDesktop.updates.check(),
+    );
+    evidence(
+      "update_publisher_verified",
+      typeof update?.state === "string" && update.state !== "unavailable",
+    );
     // Setup is three steps: Welcome (required name and 18+) → AI → Voice.
     step = "setup-welcome";
     const continueButton = page.getByRole("button", {
