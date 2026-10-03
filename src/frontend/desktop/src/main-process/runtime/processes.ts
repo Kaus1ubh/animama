@@ -1,4 +1,4 @@
-import { spawn, type ChildProcess } from "node:child_process";
+import { execFile, spawn, type ChildProcess } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { existsSync, lstatSync, readFileSync } from "node:fs";
 import path from "node:path";
@@ -9,34 +9,135 @@ import { writeLog } from "../logging.js";
 
 export type OwnedProcess = {
   name: string;
+  /** On Windows this is the process guard; the service runs inside its job. */
   child: ChildProcess;
+  /** The service's own PID, once known. Health and postmaster checks use it. */
+  processId?: number;
   token: string;
   executable: string;
   dataRoot: string;
   output: string;
   exit: Promise<void>;
+  /** Settles once the output pipes have closed, after `exit`. */
+  closed: Promise<void>;
 };
 
-/** Inherit OS locale/home only; never leak unrelated developer credentials to children. */
-function baseChildEnvironment(): NodeJS.ProcessEnv {
-  const env: NodeJS.ProcessEnv = { PATH: "/usr/bin:/bin:/usr/sbin:/sbin" };
-  for (const key of [
-    "HOME",
-    "TMPDIR",
-    "LANG",
-    "LC_ALL",
-    "TZ",
-    "USER",
-    "LOGNAME",
-  ])
-    if (process.env[key]) env[key] = process.env[key];
+const GUARD_HANDSHAKE = /^animama-process-guard pid=([1-9]\d*)\r?$/u;
+let processGuard: string | undefined;
+
+/**
+ * Windows runs every owned process inside the process guard's kill-on-close
+ * job, so nothing outlives Electron. The supervisor selects the verified guard.
+ */
+export function useProcessGuard(executable: string | undefined): void {
+  processGuard = executable;
+}
+
+/**
+ * Spawn a service directly, or on Windows through the guard. The guard's stdin
+ * is its lifeline: closing it, or Electron exiting, stops the service.
+ */
+function spawnService(
+  executable: string,
+  args: string[],
+  env: NodeJS.ProcessEnv,
+  cwd: string,
+): ChildProcess {
+  if (process.platform !== "win32")
+    return spawn(executable, args, {
+      cwd,
+      env,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+  if (!processGuard) throw new RuntimeError("process_guard_unavailable");
+  const guard = spawn(processGuard, ["--", executable, ...args], {
+    cwd,
+    env,
+    stdio: ["pipe", "pipe", "pipe"],
+    windowsHide: true,
+  });
+  // Closing the lifeline of a guard that already exited is not an error.
+  guard.stdin!.on("error", () => undefined);
+  return guard;
+}
+
+// Windows integrity levels of an elevated administrator and of SYSTEM. The
+// SIDs are not localized, unlike the group names `whoami` prints beside them.
+const ELEVATED_LABELS = ["S-1-16-12288", "S-1-16-16384"];
+
+/** Does `whoami /groups` output show an elevated token? */
+export function elevatedGroups(output: string): boolean {
+  return ELEVATED_LABELS.some((label) => output.includes(`"${label}"`));
+}
+
+/**
+ * PostgreSQL refuses to run with an elevated Windows token. Detect one before
+ * anything is created, so an elevated launch leaves no files a normal launch
+ * cannot use. A failed check returns false; PostgreSQL's own refusal remains.
+ */
+export function runsElevated(): Promise<boolean> {
+  const whoami = path.join(
+    process.env.SystemRoot || "C:\\Windows",
+    "System32",
+    "whoami.exe",
+  );
+  // Asynchronous: resolving group names can stall on an offline domain member,
+  // and the startup window must stay responsive meanwhile.
+  return new Promise((resolve) =>
+    execFile(
+      whoami,
+      ["/groups", "/fo", "csv", "/nh"],
+      { encoding: "utf8", timeout: 10_000, windowsHide: true },
+      (error, stdout) => resolve(!error && elevatedGroups(stdout)),
+    ),
+  );
+}
+
+/** Parse the guard's first stdout line, which precedes any service output. */
+export function guardHandshake(line: string): number | undefined {
+  const match = GUARD_HANDSHAKE.exec(line);
+  return match ? Number(match[1]) : undefined;
+}
+
+/**
+ * Inherit OS locale, home and temporary folders only; never leak unrelated
+ * developer credentials to children. Windows children also need SystemRoot
+ * (Winsock fails without it) and a PATH limited to the system folders.
+ */
+export function baseChildEnvironment(
+  platform: NodeJS.Platform = process.platform,
+  source: NodeJS.ProcessEnv = process.env,
+): NodeJS.ProcessEnv {
+  const windows = platform === "win32";
+  const systemRoot = source.SystemRoot || "C:\\Windows";
+  const env: NodeJS.ProcessEnv = {
+    PATH: windows
+      ? [`${systemRoot}\\System32`, systemRoot].join(";")
+      : "/usr/bin:/bin:/usr/sbin:/sbin",
+  };
+  const keys = windows
+    ? [
+        "SystemRoot",
+        "SystemDrive",
+        "TEMP",
+        "TMP",
+        "USERPROFILE",
+        "LOCALAPPDATA",
+      ]
+    : ["HOME", "TMPDIR", "LANG", "LC_ALL", "TZ", "USER", "LOGNAME"];
+  for (const key of keys) if (source[key]) env[key] = source[key];
   return env;
 }
 
-function logLines(child: ChildProcess, owned: OwnedProcess): void {
+function logLines(
+  child: ChildProcess,
+  owned: OwnedProcess,
+  onHandshake: () => void,
+): void {
   for (const stream of [child.stdout, child.stderr]) {
     let pending = "";
     let discarding = false;
+    let handshake = stream === child.stdout && owned.processId === undefined;
     stream?.setEncoding("utf8");
     stream?.on("data", (chunk: string) => {
       pending += chunk;
@@ -45,6 +146,15 @@ function logLines(child: ChildProcess, owned: OwnedProcess): void {
         if (newline < 0) break;
         const line = pending.slice(0, newline);
         pending = pending.slice(newline + 1);
+        if (handshake) {
+          handshake = false;
+          owned.processId = guardHandshake(line);
+          if (owned.processId !== undefined) {
+            onHandshake();
+            continue;
+          }
+          writeLog("error", `[${owned.name}] process guard handshake missing`);
+        }
         if (!discarding) {
           const safe = runtimeRedactor.redact(line);
           owned.output = (owned.output + safe + "\n").slice(-8192);
@@ -79,13 +189,16 @@ export class OwnedProcesses {
       if (record.version !== 1 || !Array.isArray(record.children))
         throw new Error();
       for (const item of record.children) {
-        if (!Number.isInteger(item.pid) || item.pid < 1) throw new Error();
-        try {
-          process.kill(item.pid, 0);
-          throw new RuntimeError("previous_runtime_running");
-        } catch (error) {
-          if ((error as NodeJS.ErrnoException).code !== "ESRCH") throw error;
-        }
+        const pids = [item.pid, item.servicePid ?? item.pid];
+        if (!pids.every((pid) => Number.isInteger(pid) && pid >= 1))
+          throw new Error();
+        for (const pid of pids)
+          try {
+            process.kill(pid, 0);
+            throw new RuntimeError("previous_runtime_running");
+          } catch (error) {
+            if ((error as NodeJS.ErrnoException).code !== "ESRCH") throw error;
+          }
       }
     } catch (error) {
       if (error instanceof RuntimeError) throw error;
@@ -102,6 +215,7 @@ export class OwnedProcesses {
           .map((item) => ({
             name: item.name,
             pid: item.child.pid,
+            servicePid: item.processId,
             startToken: item.token,
             executable: item.executable,
             dataRoot: item.dataRoot,
@@ -117,23 +231,30 @@ export class OwnedProcesses {
     cwd: string,
   ): OwnedProcess {
     const token = randomUUID();
-    const child = spawn(executable, args, {
-      cwd,
-      env: {
+    const child = spawnService(
+      executable,
+      args,
+      {
         ...baseChildEnvironment(),
         ...env,
         ANIMAMA_PROCESS_START_TOKEN: token,
       },
-      stdio: ["ignore", "pipe", "pipe"],
-    });
+      cwd,
+    );
     const item: OwnedProcess = {
       name,
       child,
+      // Without the guard the child is the service itself.
+      processId: process.platform === "win32" ? undefined : child.pid,
       token,
       executable,
       dataRoot: cwd,
       output: "",
       exit: Promise.resolve(),
+      closed: new Promise((resolve) => {
+        child.once("close", () => resolve());
+        child.once("error", () => resolve());
+      }),
     };
     item.exit = new Promise((resolve) => {
       const finished = () => {
@@ -151,12 +272,22 @@ export class OwnedProcesses {
     });
     this.children.add(item);
     this.persist();
-    logLines(child, item);
+    logLines(child, item, () => {
+      try {
+        this.persist();
+      } catch {
+        writeLog("error", "process_ownership_record_write_failed");
+      }
+    });
     return item;
   }
   async terminate(item: OwnedProcess, timeoutMs = 15_000): Promise<void> {
     if (!this.children.has(item)) return;
-    item.child.kill("SIGTERM");
+    const started = Date.now();
+    // Closing the guard's lifeline sends the service Ctrl+Break, then ends
+    // its job if it is still running after the guard's grace period.
+    if (item.child.stdin) item.child.stdin.end();
+    else item.child.kill("SIGTERM");
     let timer: ReturnType<typeof setTimeout> | undefined;
     const expired = await Promise.race([
       item.exit.then(() => false),
@@ -173,10 +304,23 @@ export class OwnedProcesses {
       item.child.kill("SIGKILL");
       await item.exit;
     }
+    writeLog(
+      "info",
+      `Owned ${item.name} stopped in ${Date.now() - started} ms (exit ${item.child.exitCode ?? item.child.signalCode})`,
+    );
   }
   async terminateAll(): Promise<void> {
     for (const item of [...this.children].reverse()) await this.terminate(item);
   }
+}
+
+// NTSTATUS exit codes from the Windows loader: a dependent DLL is missing, is
+// not a valid image for this architecture, or failed to initialize.
+const NATIVE_LOAD_FAILURES = new Set([0xc0000135, 0xc000007b, 0xc0000142]);
+
+/** Did a child exit because Windows could not load one of its runtime DLLs? */
+export function nativeLoadFailure(code: number | null): boolean {
+  return code !== null && NATIVE_LOAD_FAILURES.has(code >>> 0);
 }
 
 /** Bounded command output is internal to main; arguments never contain secrets. */
@@ -188,11 +332,18 @@ export async function runCommand(
   timeoutMs = 120_000,
 ): Promise<string> {
   return new Promise((resolve, reject) => {
-    const child = spawn(executable, args, {
-      cwd,
-      env: { ...baseChildEnvironment(), ...env },
-      stdio: ["ignore", "pipe", "pipe"],
-    });
+    let child: ChildProcess;
+    try {
+      child = spawnService(
+        executable,
+        args,
+        { ...baseChildEnvironment(), ...env },
+        cwd,
+      );
+    } catch (error) {
+      reject(error);
+      return;
+    }
     let stdout = "";
     let stderr = "";
     let failure: string | undefined;
@@ -200,9 +351,9 @@ export async function runCommand(
       failure = "runtime_command_timeout";
       child.kill("SIGKILL");
     }, timeoutMs);
-    child.stdout.setEncoding("utf8");
-    child.stderr.setEncoding("utf8");
-    child.stdout.on("data", (data: string) => {
+    child.stdout!.setEncoding("utf8");
+    child.stderr!.setEncoding("utf8");
+    child.stdout!.on("data", (data: string) => {
       if (failure) return;
       stdout += data;
       if (stdout.length > 1024 * 1024) {
@@ -210,7 +361,7 @@ export async function runCommand(
         child.kill("SIGKILL");
       }
     });
-    child.stderr.on("data", (data: string) => {
+    child.stderr!.on("data", (data: string) => {
       if (failure) return;
       stderr += data;
       if (stderr.length > 1024 * 1024) {
@@ -226,8 +377,20 @@ export async function runCommand(
       clearTimeout(timer);
       if (code !== 0 || failure) {
         writeLog("error", runtimeRedactor.redact(stderr).slice(-8192));
-        reject(new RuntimeError(failure ?? "runtime_command_failed"));
-      } else resolve(stdout);
+        reject(
+          new RuntimeError(
+            failure ??
+              (nativeLoadFailure(code)
+                ? "runtime_file_invalid"
+                : "runtime_command_failed"),
+          ),
+        );
+      } else
+        resolve(
+          process.platform === "win32"
+            ? stdout.replace(/^animama-process-guard pid=\d+\r?\n/u, "")
+            : stdout,
+        );
     });
   });
 }

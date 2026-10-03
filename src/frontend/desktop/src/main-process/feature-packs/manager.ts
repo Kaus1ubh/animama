@@ -6,7 +6,12 @@ import {
   type FeaturePackId,
   type FeaturePackStatus,
 } from "../../../../shared/desktop-runtime.js";
-import { atomicWrite, privateDirectory } from "../runtime/atomic-file.js";
+import {
+  atomicWrite,
+  privateDirectory,
+  retrySharingViolationsAsync,
+  syncDirectory,
+} from "../runtime/atomic-file.js";
 import { RuntimeError, runtimeErrorCode } from "../runtime/errors.js";
 import {
   PACK_METADATA,
@@ -20,7 +25,7 @@ import {
 } from "./catalog.js";
 import { downloadPack } from "./download.js";
 import { extractPack } from "./extract.js";
-import { realDirectory, syncDirectory, verifyPackFiles } from "./files.js";
+import { realDirectory, verifyPackFiles } from "./files.js";
 import { verifyExecutablePack } from "./signature.js";
 
 export type ActivePack = { manifest: PackManifest; root: string };
@@ -430,28 +435,36 @@ export class FeaturePackManager {
             // its evidence or changing any still-active version in place.
             if (this.active[id]?.root === destination)
               throw new RuntimeError("pack_in_use");
-            rejected = path.join(versions, `.rejected-${randomUUID()}`);
-            await rename(destination, rejected);
+            const evidence = path.join(versions, `.rejected-${randomUUID()}`);
+            await retrySharingViolationsAsync(() =>
+              rename(destination, evidence),
+            );
+            rejected = evidence;
           }
         }
         let promoted = false;
         try {
           if (!exists || rejected) {
-            await rename(staging, destination);
+            await retrySharingViolationsAsync(() =>
+              rename(staging, destination),
+            );
             promoted = true;
             this.retainedFiles.add(id);
-            await syncDirectory(versions);
+            syncDirectory(versions);
           } else await rm(staging, { recursive: true });
           // From the pointer switch onwards, finish or roll back the transition;
           // cancellation never strands a half-switched service graph.
           await this.change(id, { root: destination, manifest });
         } catch (error) {
           if (rejected) {
+            const evidence = rejected;
             // Restore even when promotion itself fails, before a pointer switch.
             if (promoted)
               await rm(destination, { recursive: true, force: true });
-            await rename(rejected, destination);
-            await syncDirectory(versions);
+            await retrySharingViolationsAsync(() =>
+              rename(evidence, destination),
+            );
+            syncDirectory(versions);
           }
           throw error;
         }
@@ -490,7 +503,7 @@ export class FeaturePackManager {
               force: true,
             });
         }
-        await syncDirectory(versions);
+        syncDirectory(versions);
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
           this.retainedFiles.add(id);

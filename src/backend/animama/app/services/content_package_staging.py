@@ -24,6 +24,7 @@ from typing import Any, BinaryIO, Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from animama.domain.content_catalog import ContentConflictError
+from animama.utils.files import path_is_link, replace, sync_directory
 
 StageKind = Literal["import", "export"]
 StageState = Literal[
@@ -91,15 +92,6 @@ class StageRecord(_RecordModel):
     expires_at: datetime
 
 
-def _fsync_directory(path: Path) -> None:
-    if os.name != "nt":
-        descriptor = os.open(path, os.O_RDONLY)
-        try:
-            os.fsync(descriptor)
-        finally:
-            os.close(descriptor)
-
-
 def _write_record(path: Path, record: StageRecord) -> None:
     payload = record.model_dump_json().encode()
     if len(payload) > _RECORD_LIMIT:
@@ -111,8 +103,8 @@ def _write_record(path: Path, record: StageRecord) -> None:
             handle.write(payload)
             handle.flush()
             os.fsync(handle.fileno())
-        os.replace(temporary, path)
-        _fsync_directory(path.parent)
+        replace(temporary, path)
+        sync_directory(path.parent)
     finally:
         temporary.unlink(missing_ok=True)
 
@@ -189,7 +181,7 @@ class PackageStageService:
     @staticmethod
     def _read(directory: Path) -> StageRecord:
         try:
-            if directory.is_symlink():
+            if path_is_link(directory):
                 raise ValueError("symlink stage")
             with (directory / "record.json").open("rb") as handle:
                 payload = handle.read(_RECORD_LIMIT + 1)
@@ -206,7 +198,7 @@ class PackageStageService:
             if directory.exists():
                 for child in directory.iterdir():
                     if _ID.fullmatch(child.name) and child.is_dir():
-                        if not child.is_symlink() and not (child / "record.json").exists():
+                        if not path_is_link(child) and not (child / "record.json").exists():
                             # Allocation publishes its record before accepting any
                             # payload. Only this empty/temp-only interrupted state
                             # can be reclaimed without a durable reservation.
@@ -214,7 +206,7 @@ class PackageStageService:
                             if all(_TEMP_RECORD.fullmatch(item.name) and item.is_file() for item in leftovers):
                                 with self._stage_lock(owner, child.name, kind):
                                     shutil.rmtree(child)
-                                    _fsync_directory(child.parent)
+                                    sync_directory(child.parent)
                                 continue
                         records.append((child, self._read(child)))
         return records
@@ -300,7 +292,7 @@ class PackageStageService:
             directory.mkdir(parents=True, mode=0o700)
             try:
                 _write_record(directory / "record.json", record)
-                _fsync_directory(directory.parent)
+                sync_directory(directory.parent)
                 lock = self._stage_lock(owner, record.stage_id, kind) if leased else None
             except BaseException:
                 shutil.rmtree(directory)
@@ -369,7 +361,7 @@ class PackageStageService:
                     current = self._read(directory)
                     if eligible(current):
                         shutil.rmtree(directory)
-                        _fsync_directory(directory.parent)
+                        sync_directory(directory.parent)
             except ContentConflictError as exc:
                 if exc.code != "package_stage_active":
                     raise
@@ -426,7 +418,7 @@ class StageLease:
         if self._record.state in _PROTECTED:
             raise ContentConflictError("package_stage_active")
         shutil.rmtree(self.directory)
-        _fsync_directory(self.directory.parent)
+        sync_directory(self.directory.parent)
 
     def set_state(self, state: StageState) -> StageRecord:
         return self._update(state=state)

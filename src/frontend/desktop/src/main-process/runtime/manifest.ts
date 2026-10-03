@@ -29,18 +29,39 @@ export type RuntimeManifest = {
   }[];
 };
 
-/** macOS 15 uses Darwin 24; Node reports the kernel release, not the product version. */
+/** Windows runs every owned process inside this guard's kill-on-close job. */
+export const PROCESS_GUARD_PATH = "bin/animama-process-guard.exe";
+
+/** Minimum OS and executable naming for each supported runtime platform. */
+export function runtimePlatform(platform: string): {
+  minimumOs: string;
+  executableSuffix: string;
+} {
+  return platform === "win32"
+    ? { minimumOs: "10.0.22000", executableSuffix: ".exe" }
+    : { minimumOs: "15.0", executableSuffix: "" };
+}
+
+/**
+ * Node reports the kernel release, not the product version: macOS 15 is
+ * Darwin 24, and Windows 11 is 10.0 with build 22000 or later.
+ */
 export function supportsRuntimePlatform(
   platform: string,
   architecture: string,
   kernelRelease: string,
 ): boolean {
-  return (
-    platform === "darwin" &&
-    architecture === "arm64" &&
-    /^\d+\.\d+\.\d+$/u.test(kernelRelease) &&
-    Number(kernelRelease.split(".")[0]) >= 24
-  );
+  if (platform === "darwin" && architecture === "arm64")
+    return (
+      /^\d+\.\d+\.\d+$/u.test(kernelRelease) &&
+      Number(kernelRelease.split(".")[0]) >= 24
+    );
+  if (platform === "win32" && architecture === "x64")
+    return (
+      /^10\.0\.\d+$/u.test(kernelRelease) &&
+      Number(kernelRelease.split(".")[2]) >= 22000
+    );
+  return false;
 }
 
 function portable(name: string): boolean {
@@ -84,7 +105,7 @@ export async function verifyRuntime(
       manifest.postgresql?.major !== 16 ||
       !/^16\.\d+$/u.test(manifest.postgresql?.version) ||
       !/^\d+\.\d+\.\d+$/u.test(manifest.postgresql?.pgvector) ||
-      manifest.minimum_os !== "15.0" ||
+      manifest.minimum_os !== runtimePlatform(process.platform).minimumOs ||
       !/^[a-f0-9]{64}$/u.test(manifest.core_content_inventory_id) ||
       !/^[a-f0-9]{64}$/u.test(manifest.pack_catalog_id) ||
       !/^[a-f0-9]{64}$/u.test(manifest.database_schema_sha256) ||
@@ -147,21 +168,27 @@ export async function verifyRuntime(
         stat.isSymbolicLink() ||
         stat.nlink !== 1 ||
         stat.size !== file.size_bytes ||
-        (stat.mode & 0o777) !== Number.parseInt(file.mode, 8)
+        // Windows has no POSIX modes; its size and hash are still checked.
+        (process.platform !== "win32" &&
+          (stat.mode & 0o777) !== Number.parseInt(file.mode, 8))
       )
         throw new Error();
       const hash = createHash("sha256");
       for await (const chunk of createReadStream(absolute)) hash.update(chunk);
       if (hash.digest("hex") !== file.sha256) throw new Error();
     }
+    const { executableSuffix } = runtimePlatform(process.platform);
     for (const required of [
-      "backend/animama-runtime",
-      "postgres/bin/postgres",
-      "postgres/bin/initdb",
-      "postgres/bin/pg_ctl",
-      "postgres/bin/pg_isready",
-      "postgres/bin/pg_dump",
-      "postgres/bin/pg_restore",
+      ...[
+        "backend/animama-runtime",
+        "postgres/bin/postgres",
+        "postgres/bin/initdb",
+        "postgres/bin/pg_ctl",
+        "postgres/bin/pg_isready",
+        "postgres/bin/pg_dump",
+        "postgres/bin/pg_restore",
+      ].map((name) => `${name}${executableSuffix}`),
+      ...(process.platform === "win32" ? [PROCESS_GUARD_PATH] : []),
       "web/index.html",
       "content/included-core/inventory.json",
       "pack-catalog.json",

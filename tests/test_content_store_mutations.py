@@ -19,11 +19,14 @@ from animama.domain.content_catalog import (
     ContentConflictError,
     ContentIntegrityError,
     ContentKind,
+    ContentPathError,
     ContentScope,
     ContentSource,
     PreparedPackageEntry,
     PreparedPackageFile,
 )
+from animama.utils import files
+from tests.filesystem_links import link_directory, require_symlinks
 
 
 def vrma(label: str) -> bytes:
@@ -300,7 +303,7 @@ def test_delete_preserves_unregistered_siblings_while_pruning_registered_parents
     elif manual_kind == "directory":
         manual.mkdir()
     else:
-        manual.symlink_to(outside, target_is_directory=True)
+        link_directory(manual, outside)
     journal = begin(store)
     store.delete_entry(entry=entry)
     store.finalize_mutation(journal_id=journal, commit=True)
@@ -313,7 +316,7 @@ def test_delete_preserves_unregistered_siblings_while_pruning_registered_parents
     elif manual_kind == "directory":
         assert list(manual.iterdir()) == []
     else:
-        assert manual.is_symlink()
+        assert files.path_is_link(manual)
 
 
 def test_descriptor_rollback_restores_stale_companions_and_original_descriptor(tmp_path: Path) -> None:
@@ -449,11 +452,12 @@ def test_recovery_rejects_replaced_paths_without_touching_external_bytes(tmp_pat
     external_file.write_bytes(vrma("external"))
     target = tmp_path / "local/gestures/wave.vrma"
     if kind == "file_symlink":
+        require_symlinks(tmp_path)
         target.unlink()
         target.symlink_to(external_file)
     elif kind == "parent_symlink":
         target.parent.rename(tmp_path / "displaced")
-        target.parent.symlink_to(external, target_is_directory=True)
+        link_directory(target.parent, external)
     else:
         next((tmp_path / f"local/.animama-mutations/{journal_id}").glob("*.original")).write_bytes(b"corrupt")
     with pytest.raises(ContentConflictError, match="content_recovery_conflict"):
@@ -516,3 +520,49 @@ def test_legacy_absent_target_restores_and_repeated_recovery_preserves_later_edi
     target.write_bytes(vrma("manual"))
     store.recover_package_installs()
     assert target.read_bytes() == vrma("manual")
+
+
+def test_fingerprint_refuses_a_hard_link_added_after_the_path_check(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    target = tmp_path / "wave.vrma"
+    target.write_bytes(vrma("before"))
+
+    def link_then_open(path: Path, flags: int, mode: int = 0o777) -> int:
+        os.link(path, tmp_path / "alias.vrma")
+        return files.open_no_follow(path, flags, mode)
+
+    monkeypatch.setattr(mutations, "open_no_follow", link_then_open)
+    with pytest.raises(ContentConflictError, match="content_recovery_conflict"):
+        mutations.fingerprint(target)
+
+
+def _external_tree(root: Path) -> list[str]:
+    (root / "sub").mkdir(parents=True)
+    (root / "keep.vrma").write_bytes(vrma("external"))
+    (root / "sub/deep.vrma").write_bytes(vrma("external"))
+    return sorted(path.relative_to(root).as_posix() for path in root.rglob("*"))
+
+
+def test_temporary_cleanup_refuses_a_directory_link_without_touching_its_target(tmp_path: Path) -> None:
+    outside = tmp_path / "outside"
+    expected = _external_tree(outside)
+    temporary = tmp_path / "temporary"
+    link_directory(temporary, outside)
+
+    with pytest.raises(ContentPathError):
+        mutations.MutationJournal.remove_temporary(temporary)
+    assert sorted(path.relative_to(outside).as_posix() for path in outside.rglob("*")) == expected
+
+
+def test_package_tree_inspection_refuses_a_directory_link(tmp_path: Path) -> None:
+    outside = tmp_path / "outside"
+    _external_tree(outside)
+    entry = tmp_path / "entry"
+    entry.mkdir()
+    link_directory(entry / "motions", outside)
+
+    with pytest.raises(ContentPathError):
+        FilesystemContentStore._mutation_tree_files(entry)  # noqa: SLF001
+    with pytest.raises(ContentPathError):
+        FilesystemContentStore._mutation_tree_files(entry / "motions")  # noqa: SLF001

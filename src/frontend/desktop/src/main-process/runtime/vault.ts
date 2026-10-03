@@ -10,8 +10,41 @@ import {
   type CredentialStatus,
 } from "../../../../shared/desktop-runtime.js";
 import path from "node:path";
-import { atomicWrite, privateDirectory } from "./atomic-file.js";
+import {
+  atomicWrite,
+  privateDirectory,
+  privateFileMode,
+} from "./atomic-file.js";
 import { RuntimeError } from "./errors.js";
+
+/**
+ * On Windows, Electron encrypts with a key that Chromium keeps in `Local State`
+ * and first writes about 10 seconds after startup. A vault encrypted before
+ * that write could never be read again if the app stopped in between, so a new
+ * vault waits until the key is on disk.
+ */
+export async function awaitDurableEncryptionKey(
+  userData: string,
+  vaultFile: string,
+  platform: NodeJS.Platform = process.platform,
+  timeoutMs = 30_000,
+): Promise<void> {
+  if (platform !== "win32" || existsSync(vaultFile)) return;
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    try {
+      const state = JSON.parse(
+        readFileSync(path.join(userData, "Local State"), "utf8"),
+      );
+      if (typeof state?.os_crypt?.encrypted_key === "string") return;
+    } catch {
+      // Absent or mid-write; Chromium replaces the file atomically.
+    }
+    if (Date.now() >= deadline)
+      throw new RuntimeError("secure_storage_unavailable");
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+}
 
 export type Encryption = {
   isEncryptionAvailable(): boolean;
@@ -127,7 +160,7 @@ export class CredentialVault {
           !stat.isFile() ||
           stat.isSymbolicLink() ||
           stat.nlink !== 1 ||
-          (stat.mode & 0o777) !== 0o600 ||
+          !privateFileMode(stat) ||
           stat.size > maxVaultBytes
         )
           throw new Error();
@@ -176,7 +209,15 @@ export class CredentialVault {
   private save(next: VaultData): void {
     if (!this.encryption.isEncryptionAvailable())
       throw new RuntimeError("secure_storage_unavailable");
-    atomicWrite(this.file, this.encryption.encryptString(JSON.stringify(next)));
+    let encrypted: Buffer;
+    try {
+      encrypted = this.encryption.encryptString(JSON.stringify(next));
+    } catch {
+      // Windows reports encryption as available once the app is ready; a
+      // failing DPAPI call surfaces only here.
+      throw new RuntimeError("secure_storage_unavailable");
+    }
+    atomicWrite(this.file, encrypted);
     this.data = next;
   }
   databasePassword(): string {

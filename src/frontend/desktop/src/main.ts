@@ -38,9 +38,11 @@ import {
   createRuntimePage,
 } from "./main-process/runtime/recovery.js";
 import { RuntimeSupervisor } from "./main-process/runtime/supervisor.js";
+import { awaitDurableEncryptionKey } from "./main-process/runtime/vault.js";
 import {
   closeProductSession,
   destroyProductWindows,
+  quitWhenMainWindowCloses,
   installProductRequestGate,
   ProductSessionCleanup,
 } from "./main-process/runtime/product-windows.js";
@@ -65,6 +67,8 @@ try {
   identityError = error;
   paths = runtimePaths(app.getPath("userData"));
 }
+// Taskbar grouping and notifications use the ID the installer's shortcuts carry.
+if (process.platform === "win32") app.setAppUserModelId("com.animama.desktop");
 
 // The lock precedes database migrations, sessions, safeStorage, logs and services.
 const ownsInstance = app.requestSingleInstanceLock();
@@ -288,6 +292,7 @@ else {
           window.on("closed", () => {
             if (mainWindow === window) mainWindow = undefined;
           });
+          quitWhenMainWindowCloses(window, app);
         },
       });
       if (currentStatus.state === "ready" || currentStatus.state === "external")
@@ -314,10 +319,17 @@ else {
         );
     }
     callers.broadcast(status);
-    writeLog(
-      "info",
-      `Runtime ${status.state}${status.state === "error" ? `: ${status.code}` : status.state === "starting" ? `: ${status.stage}` : ""}`,
-    );
+    // Support and the Windows termination harness follow these lines. Stage
+    // names, error codes and the loopback origin are not secret.
+    const detail =
+      status.state === "error"
+        ? status.code
+        : status.state === "starting"
+          ? status.stage
+          : status.state === "ready"
+            ? status.origin
+            : undefined;
+    writeLog("info", `Runtime ${status.state}${detail ? `: ${detail}` : ""}`);
     if (status.state === "ready") {
       void initializeUpdates();
       void showApplication(status.origin).catch((error) =>
@@ -437,6 +449,8 @@ else {
         appVersion: app.getVersion(),
         paths,
         encryption: safeStorage,
+        beforeNewVault: () =>
+          awaitDurableEncryptionKey(paths.base, paths.vault),
         onStatus: updateStatus,
         isPackaged: app.isPackaged,
         packCatalogPath: process.env.ANIMAMA_DESKTOP_DEV_PACK_CATALOG_PATH,

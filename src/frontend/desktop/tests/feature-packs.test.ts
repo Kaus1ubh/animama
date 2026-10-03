@@ -422,9 +422,11 @@ describe("feature-packs extraction", () => {
     expect(await readFile(path.join(root, "staging/config.json"))).toEqual(
       input.bytes,
     );
-    expect(
-      (await stat(path.join(root, "staging/config.json"))).mode & 0o777,
-    ).toBe(0o644);
+    // Windows has no POSIX modes to preserve.
+    if (process.platform !== "win32")
+      expect(
+        (await stat(path.join(root, "staging/config.json"))).mode & 0o777,
+      ).toBe(0o644);
   });
   it.each(["../escape", "/absolute", "a//b", "config.json/config.json"])(
     "does not extract malicious archive path %s",

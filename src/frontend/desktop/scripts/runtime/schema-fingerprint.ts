@@ -2,11 +2,16 @@ import { randomBytes } from "node:crypto";
 import { mkdtempSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import {
+  PROCESS_GUARD_PATH,
+  runtimePlatform,
+} from "../../src/main-process/runtime/manifest.js";
 import { runtimePaths } from "../../src/main-process/runtime/paths.js";
 import { PrivatePostgres } from "../../src/main-process/runtime/postgres.js";
 import {
   OwnedProcesses,
   runCommand,
+  useProcessGuard,
 } from "../../src/main-process/runtime/processes.js";
 import { databaseSchemaDigest } from "../../src/main-process/runtime/schema.js";
 
@@ -20,11 +25,17 @@ export async function stagedSchemaDigest(runtimeRoot: string): Promise<string> {
     path.join(realpathSync(tmpdir()), "animama-schema-profile-"),
   );
   const paths = runtimePaths(base);
+  // The stage builds the guard before this step, as a launch would find it.
+  if (process.platform === "win32")
+    useProcessGuard(path.join(runtimeRoot, PROCESS_GUARD_PATH));
   const owned = new OwnedProcesses(paths.processes);
   const postgres = new PrivatePostgres(runtimeRoot, paths, owned);
   try {
     const env = await postgres.start(randomBytes(32).toString("hex"));
-    const backend = path.join(runtimeRoot, "backend/animama-runtime");
+    const backend = path.join(
+      runtimeRoot,
+      `backend/animama-runtime${runtimePlatform(process.platform).executableSuffix}`,
+    );
     for (const operation of ["provision", "bootstrap"])
       await runCommand(
         backend,

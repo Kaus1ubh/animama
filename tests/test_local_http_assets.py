@@ -23,6 +23,7 @@ from animama.local.http.assets import (
     ModelMount,
     StaticModelMounts,
 )
+from tests.filesystem_links import link_directory, require_symlinks
 
 pytestmark = pytest.mark.asyncio
 _HTML = b'<html><script src="/assets/app-abcdefgh.js"></script></html>'
@@ -185,7 +186,13 @@ async def test_new_build_changes_same_length_normalized_html_and_drops_old_chunk
         assert (await client.get("/assets/app-ijklmnop.js")).headers["cache-control"] == IMMUTABLE_APP_ASSET_CACHE
 
 
-@pytest.mark.parametrize("manifest", [None, b"not json", b"[]", b"null", b" " * (4 * 1024 * 1024 + 1)])
+@pytest.mark.parametrize(
+    "manifest",
+    [None, b"not json", b"[]", b"null", b" " * (4 * 1024 * 1024 + 1)],
+    # Short IDs: pytest copies the ID into an environment variable, which
+    # Windows limits to 32,767 characters.
+    ids=["missing", "invalid", "array", "null", "oversized"],
+)
 async def test_missing_invalid_or_oversized_manifest_degrades_safely(web_root: Path, manifest: bytes | None) -> None:
     path = web_root / ".vite/manifest.json"
     if manifest is None:
@@ -289,17 +296,23 @@ async def test_reserved_names_cannot_be_served_even_if_the_file_exists(web_root:
         assert response.status_code == 404 and "private" not in response.text
 
 
-async def test_only_navigation_can_fall_back_and_directories_or_links_are_not_documents(
-    web_root: Path, tmp_path: Path
-) -> None:
+async def test_directories_and_directory_links_are_not_documents(web_root: Path, tmp_path: Path) -> None:
     (web_root / "directory").mkdir()
+    (tmp_path / "private.txt").write_text("private")
+    link_directory(web_root / "linked-dir", tmp_path)
+    async with _client(LocalAssets(web_root)) as client:
+        for path in ("/directory", "/linked-dir/private.txt"):
+            assert (await client.get(path, headers={"accept": "text/html"})).status_code == 404
+
+
+async def test_only_navigation_can_fall_back_and_file_links_are_not_documents(web_root: Path, tmp_path: Path) -> None:
+    require_symlinks(tmp_path)
     (tmp_path / "private.txt").write_text("private")
     (web_root / "link").symlink_to(tmp_path / "private.txt")
     (web_root / "inside").symlink_to(web_root / "index.html")
-    (web_root / "linked-dir").symlink_to(tmp_path, target_is_directory=True)
     async with _client(LocalAssets(web_root)) as client:
         assert (await client.get("/anima")).status_code == 404
-        for path in ("/directory", "/link", "/inside", "/linked-dir/private.txt"):
+        for path in ("/link", "/inside"):
             assert (await client.get(path, headers={"accept": "text/html"})).status_code == 404
         for method in ("POST", "PUT", "DELETE", "OPTIONS"):
             response = await client.request(method, "/index.html", headers={"accept": "text/html"})
@@ -432,6 +445,7 @@ async def test_model_rejects_changed_bytes_or_links(
     else:
         path.unlink()
         if replacement == "symlink":
+            require_symlinks(tmp_path)
             private = tmp_path / "private.onnx"
             private.write_bytes(_MODEL)
             path.symlink_to(private)
@@ -455,7 +469,7 @@ async def test_nested_model_directory_substitution_is_rejected(
         (ModelFile("nested/encoder.onnx", model.size_bytes, model.sha256, model.media_type),),
     )
     child.rename(tmp_path / "outside")
-    child.symlink_to(tmp_path / "outside", target_is_directory=True)
+    link_directory(child, tmp_path / "outside")
     async with _client(_mounted(web_root, mount)) as client:
         assert (await client.get(_model_url("nested/encoder.onnx"))).status_code == 404
 
@@ -495,6 +509,7 @@ async def test_inventory_is_immutable_and_invalid_private_configuration_fails(mo
 
 
 async def test_replacement_between_selection_and_send_cannot_escape(web_root: Path, tmp_path: Path) -> None:
+    require_symlinks(tmp_path)
     assets = LocalAssets(web_root)
 
     async def app(scope, receive, send):

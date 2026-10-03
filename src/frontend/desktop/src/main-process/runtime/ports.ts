@@ -26,3 +26,11 @@ export function unusedLoopbackPort(): Promise<number> {
 export async function assertLoopbackPortAvailable(port: number): Promise<void> {
   await probeLoopbackPort(port);
 }
+
+/**
+ * Python reports an occupied port as "Address already in use" on POSIX. On
+ * Windows the text is localized, so match Winsock's WSAEADDRINUSE number.
+ */
+export function reportsAddressInUse(output: string): boolean {
+  return /address already in use|\[Errno 10048\]/iu.test(output);
+}

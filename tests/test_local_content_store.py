@@ -20,6 +20,7 @@ from animama.domain.content_catalog import (
 from animama.domain.content_sources import IncludedContentSource
 from animama.server.config import Settings
 from animama.server.local_runtime import initialize_local_runtime
+from tests.filesystem_links import link_directory, require_symlinks
 
 
 class _ReadArguments(TypedDict):
@@ -216,7 +217,7 @@ def test_descriptor_save_does_not_follow_nested_symlink(tmp_path: Path) -> None:
     entry_root.mkdir()
     outside = tmp_path / "outside"
     outside.mkdir()
-    (entry_root / "assets").symlink_to(outside, target_is_directory=True)
+    link_directory(entry_root / "assets", outside)
     descriptor = json.dumps(
         {
             "schema_version": 1,
@@ -307,7 +308,21 @@ def test_save_rejects_traversal_wrong_kind_and_malformed_bytes(tmp_path: Path) -
         )
 
 
+def test_scan_reports_a_linked_directory_without_entering_it(tmp_path: Path) -> None:
+    store, local_root, _ = _store(tmp_path)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "wave.vrma").write_bytes(_glb())
+    link_directory(local_root / "gestures/linked", outside)
+
+    files, unsafe = store._walk_definition(local_root)
+
+    assert unsafe["gestures/linked"].code == "symlink_rejected"
+    assert all(outside not in path.parents and "linked" not in path.parts for path in files)
+
+
 def test_scan_does_not_follow_symlinks_or_admit_arbitrary_files(tmp_path: Path) -> None:
+    require_symlinks(tmp_path)
     store, local_root, _ = _store(tmp_path)
     outside = tmp_path / "outside.vrma"
     outside.write_bytes(_glb())

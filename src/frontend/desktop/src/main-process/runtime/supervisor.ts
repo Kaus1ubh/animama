@@ -31,13 +31,22 @@ import {
 } from "../feature-packs/signature.js";
 import { atomicWrite } from "./atomic-file.js";
 import { RuntimeError, runtimeErrorCode } from "./errors.js";
-import { verifyRuntime, type RuntimeManifest } from "./manifest.js";
+import {
+  PROCESS_GUARD_PATH,
+  runtimePlatform,
+  verifyRuntime,
+  type RuntimeManifest,
+} from "./manifest.js";
 import {
   hasDatabaseData,
   readRuntimeState,
   type RuntimePaths,
 } from "./paths.js";
-import { assertLoopbackPortAvailable, unusedLoopbackPort } from "./ports.js";
+import {
+  assertLoopbackPortAvailable,
+  reportsAddressInUse,
+  unusedLoopbackPort,
+} from "./ports.js";
 import { PrivatePostgres } from "./postgres.js";
 import { MigrationBackup } from "./migrations.js";
 import {
@@ -46,7 +55,13 @@ import {
   readTerminalStartupFailure,
 } from "./readiness.js";
 import { databaseSchemaDigest } from "./schema.js";
-import { OwnedProcesses, type OwnedProcess, runCommand } from "./processes.js";
+import {
+  OwnedProcesses,
+  type OwnedProcess,
+  runCommand,
+  runsElevated,
+  useProcessGuard,
+} from "./processes.js";
 import { runtimeRedactor } from "./redaction.js";
 import {
   CredentialVault,
@@ -65,6 +80,8 @@ export type SupervisorOptions = {
   appVersion: string;
   paths: RuntimePaths;
   encryption: Encryption;
+  /** Resolves once a new vault's encryption key cannot be lost (Windows). */
+  beforeNewVault?: () => Promise<void>;
   onStatus(status: RuntimeStatus): void;
   isPackaged?: boolean;
   packCatalogPath?: string;
@@ -132,7 +149,10 @@ export class RuntimeSupervisor {
     return next;
   }
   private executable(): string {
-    return path.join(this.options.runtimeRoot, "backend/animama-runtime");
+    return path.join(
+      this.options.runtimeRoot,
+      `backend/animama-runtime${runtimePlatform(process.platform).executableSuffix}`,
+    );
   }
   private environment(): NodeJS.ProcessEnv {
     if (!this.vault || !this.manifest)
@@ -258,10 +278,17 @@ export class RuntimeSupervisor {
       try {
         await this.stopServices();
         this.stage("validating");
+        if (process.platform === "win32" && (await runsElevated()))
+          throw new RuntimeError("administrator_launch_unsupported");
         this.manifest = await verifyRuntime(
           this.options.runtimeRoot,
           this.options.appVersion,
         );
+        // The verified manifest includes the guard on Windows.
+        if (process.platform === "win32")
+          useProcessGuard(
+            path.join(this.options.runtimeRoot, PROCESS_GUARD_PATH),
+          );
         if (!this.packs) {
           const catalog = await loadPackCatalog({
             runtimeRoot: this.options.runtimeRoot,
@@ -282,6 +309,7 @@ export class RuntimeSupervisor {
         this.activePacks = this.packs.activePacks();
         mkdirSync(this.options.paths.base, { recursive: true, mode: 0o700 });
         this.stage("vault");
+        if (!this.vault) await this.options.beforeNewVault?.();
         this.vault ??= new CredentialVault(
           this.options.paths.vault,
           this.options.encryption,
@@ -476,7 +504,7 @@ export class RuntimeSupervisor {
             health.build_id !== manifest.build_id ||
             health.alembic_head !== manifest.alembic_head ||
             health.installation_principal_id !== principalId ||
-            health.process_id !== child.child.pid ||
+            health.process_id !== child.processId ||
             health.process_start_token !== child.token
           )
             throw new RuntimeError("backend_readiness_mismatch");
@@ -492,7 +520,7 @@ export class RuntimeSupervisor {
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
     if (!ready) {
-      const collision = /address already in use/iu.test(child.output);
+      const collision = reportsAddressInUse(child.output);
       await owned.terminate(child);
       throw new RuntimeError(
         collision ? "gateway_port_in_use" : "backend_start_failed",

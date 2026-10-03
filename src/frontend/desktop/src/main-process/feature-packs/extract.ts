@@ -6,7 +6,7 @@ import { Transform, type TransformCallback } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { constants as zstdConstants, createZstdDecompress } from "node:zlib";
 import { extract } from "tar-stream";
-import { atomicWrite } from "../runtime/atomic-file.js";
+import { atomicWrite, syncDirectory } from "../runtime/atomic-file.js";
 import { RuntimeError } from "../runtime/errors.js";
 import {
   MAX_ENTRIES,
@@ -15,7 +15,7 @@ import {
   portablePath,
   type PackManifest,
 } from "./catalog.js";
-import { syncDirectory, verifyPackFiles } from "./files.js";
+import { verifyPackFiles } from "./files.js";
 
 /** Reject extension/sparse/special headers before tar-stream can buffer them.
  * Our producer emits USTAR only: no PAX/GNU long-header allocation is needed.
@@ -190,6 +190,6 @@ export async function extractPack(
   atomicWrite(path.join(destination, PACK_METADATA), JSON.stringify(manifest));
   await verifyPackFiles(destination, manifest, signal);
   for (const directory of [...directories].sort().reverse())
-    await syncDirectory(path.join(destination, directory));
-  await syncDirectory(destination);
+    syncDirectory(path.join(destination, directory));
+  syncDirectory(destination);
 }

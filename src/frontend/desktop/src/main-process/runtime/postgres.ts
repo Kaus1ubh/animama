@@ -7,11 +7,51 @@ import {
   rmSync,
 } from "node:fs";
 import path from "node:path";
-import { atomicWrite, privateDirectory } from "./atomic-file.js";
+import {
+  atomicWrite,
+  privateDirectory,
+  retrySharingViolations,
+} from "./atomic-file.js";
 import { RuntimeError } from "./errors.js";
+import { runtimePlatform } from "./manifest.js";
 import type { RuntimePaths } from "./paths.js";
 import { unusedLoopbackPort } from "./ports.js";
 import { OwnedProcesses, type OwnedProcess, runCommand } from "./processes.js";
+
+/**
+ * postmaster.pid starts with the postmaster PID, its data directory (written
+ * with forward slashes on Windows), start time and port.
+ */
+export function postmasterRecordMatches(
+  record: string,
+  pid: number | undefined,
+  dataDir: string,
+  port: number | undefined,
+): boolean {
+  const [recordPid, recordDir, , recordPort] = record.split("\n");
+  return (
+    Number(recordPid) === pid &&
+    Boolean(recordDir) &&
+    path.resolve(recordDir) === path.resolve(dataDir) &&
+    Number(recordPort) === port
+  );
+}
+
+/**
+ * The OS error text is localized on Windows. PostgreSQL adds this hint only
+ * for an occupied port, in English because NLS is disabled in the bundled build.
+ */
+export function reportsPortCollision(output: string): boolean {
+  return /Is another postmaster already running on port/u.test(output);
+}
+
+/**
+ * PostgreSQL refuses to run with an elevated Windows token. Animama does not
+ * drop privileges for it; an elevated launch stops with clear advice.
+ */
+export function refusesAdministrator(output: string): boolean {
+  return /administrative permissions is not\s+permitted/u.test(output);
+}
 
 export class PrivatePostgres {
   process?: OwnedProcess;
@@ -23,7 +63,11 @@ export class PrivatePostgres {
     private owned: OwnedProcesses,
   ) {}
   bin(name: string): string {
-    return path.join(this.runtime, "postgres/bin", name);
+    return path.join(
+      this.runtime,
+      "postgres/bin",
+      `${name}${runtimePlatform(process.platform).executableSuffix}`,
+    );
   }
   private postmasterMatches(owned: OwnedProcess): boolean {
     try {
@@ -31,12 +75,14 @@ export class PrivatePostgres {
       const stat = lstatSync(file);
       if (!stat.isFile() || stat.isSymbolicLink() || stat.size > 4096)
         return false;
-      const pid = readFileSync(file, "utf8").split("\n");
       return (
         this.owned.children.has(owned) &&
-        Number(pid[0]) === owned.child.pid &&
-        pid[1] === this.paths.pgData &&
-        Number(pid[3]) === this.port
+        postmasterRecordMatches(
+          readFileSync(file, "utf8"),
+          owned.processId,
+          this.paths.pgData,
+          this.port,
+        )
       );
     } catch {
       return false;
@@ -71,7 +117,7 @@ export class PrivatePostgres {
           {},
           this.paths.base,
         );
-        renameSync(pending, this.paths.pgData);
+        retrySharingViolations(() => renameSync(pending, this.paths.pgData));
       } finally {
         rmSync(passwordFile, { force: true });
         // Only this attempt's never-published initialization directory is disposable.
@@ -136,8 +182,16 @@ export class PrivatePostgres {
           await new Promise((resolve) => setTimeout(resolve, 150));
         }
       }
-      const collision = /address already in use/iu.test(process.output);
+      // An exited process can still have output in flight; let it drain.
+      if (!this.owned.children.has(process))
+        await Promise.race([
+          process.closed,
+          new Promise((resolve) => setTimeout(resolve, 2000)),
+        ]);
+      const collision = reportsPortCollision(process.output);
+      const elevated = refusesAdministrator(process.output);
       await this.owned.terminate(process);
+      if (elevated) throw new RuntimeError("administrator_launch_unsupported");
       if (!collision) throw new RuntimeError("postgres_start_failed");
     }
     throw new RuntimeError("internal_port_unavailable");

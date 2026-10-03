@@ -1,0 +1,134 @@
+{
+  "schema": "animama-native-components/1",
+  "target": "win32-x64",
+  "minimum_os": "10.0.22000",
+  "toolchain": {
+    "msvc_tools": "14.44.35207",
+    "cl_version": "19.44.35222",
+    "msvc_redist": "14.44.35112",
+    "windows_sdk": "10.0.26100.0"
+  },
+  "build_tools": {
+    "strawberry_perl": {
+      "version": "5.42.3.1",
+      "url": "https://github.com/StrawberryPerl/Perl-Dist-Strawberry/releases/download/SP_54231_64bit/strawberry-perl-5.42.3.1-64bit-portable.zip",
+      "sha256": "6a081a811781c30aca51dbc036afd93092af91e3297901f02c17043795a10690",
+      "executable": "perl/bin/perl.exe"
+    },
+    "win_flex_bison": {
+      "version": "2.5.25",
+      "url": "https://github.com/lexxmark/winflexbison/releases/download/v2.5.25/win_flex_bison-2.5.25.zip",
+      "sha256": "8d324b62be33604b2c45ad1dd34ab93d722534448f55a16ca7292de32b6ac135",
+      "flex": "win_flex.exe",
+      "bison": "win_bison.exe"
+    },
+    "meson": {
+      "version": "1.12.1",
+      "url": "https://files.pythonhosted.org/packages/57/99/36cd25f9598eef70db97577440a70a360af505f6f01c2338a18d1556079c/meson-1.12.1-py3-none-any.whl",
+      "sha256": "930bc7542cbd9f57009e182fd014eba48cf1a0180a7b9006d2d32d8f168d8b02"
+    },
+    "ninja": {
+      "version": "1.13.2",
+      "url": "https://files.pythonhosted.org/packages/3f/dd/3766b5f4d32e8a9b97d195496b0b01fbbe2e1a41669dab0cd6492a6ce199/ninja-1.13.2-py3-none-win_amd64.whl",
+      "sha256": "1293f4078278b70d0ee4b6cc8f3a9e030656c9b2f59909970343c4fe76070118",
+      "executable": "ninja-1.13.2.data/scripts/ninja.exe"
+    },
+    "busybox": {
+      "version": "FRP-6075-g169694ebd",
+      "url": "https://frippery.org/files/busybox/busybox-w64-FRP-6075-g169694ebd.exe",
+      "sha256": "07bb1e5b095b00d68a695481f9240879f33c5724b40aa2308f999d54ed78f075",
+      "applets": ["gzip", "sed"]
+    }
+  },
+  "postgresql": {
+    "version": "16.15",
+    "url": "https://ftp.postgresql.org/pub/source/v16.15/postgresql-16.15.tar.bz2",
+    "sha256": "c1575341fa7bd40f5274ea465b34390f4dc64cdd0770af327005caaeb9f6b7ed",
+    "checksum_url": "https://ftp.postgresql.org/pub/source/v16.15/postgresql-16.15.tar.bz2.sha256",
+    "license": "PostgreSQL",
+    "license_file": "COPYRIGHT",
+    "meson": [
+      "--buildtype=debugoptimized",
+      "--auto-features=disabled",
+      "-Db_vscrt=md",
+      "-Dssl=none",
+      "-Duuid=none"
+    ],
+    "link": "/PDBALTPATH:%_PDB%"
+  },
+  "pgvector": {
+    "version": "0.8.6",
+    "url": "https://github.com/pgvector/pgvector/archive/refs/tags/v0.8.6.tar.gz",
+    "sha256": "10bf9938906e5d643bbc4a7eea104b6f57ba4898e5b76b20e60484ea1d5a7f8f",
+    "license": "PostgreSQL",
+    "license_file": "LICENSE",
+    "nmake": ["OPTFLAGS=/MD"]
+  },
+  "executables": [
+    "initdb",
+    "pg_ctl",
+    "pg_dump",
+    "pg_isready",
+    "pg_restore",
+    "postgres"
+  ],
+  "extensions": ["pg_trgm", "vector"],
+  "system_dlls": [
+    "advapi32.dll",
+    "bcrypt.dll",
+    "bcryptprimitives.dll",
+    "bthprops.cpl",
+    "cfgmgr32.dll",
+    "comctl32.dll",
+    "comdlg32.dll",
+    "crypt32.dll",
+    "d3d11.dll",
+    "d3d12.dll",
+    "d3d9.dll",
+    "dbghelp.dll",
+    "dcomp.dll",
+    "dhcpcsvc.dll",
+    "dwmapi.dll",
+    "dwrite.dll",
+    "dxgi.dll",
+    "fontsub.dll",
+    "gdi32.dll",
+    "hid.dll",
+    "iphlpapi.dll",
+    "kernel32.dll",
+    "mf.dll",
+    "mfplat.dll",
+    "mfreadwrite.dll",
+    "mmdevapi.dll",
+    "msvcrt.dll",
+    "ncrypt.dll",
+    "ntdll.dll",
+    "ole32.dll",
+    "oleacc.dll",
+    "oleaut32.dll",
+    "pdh.dll",
+    "powrprof.dll",
+    "propsys.dll",
+    "psapi.dll",
+    "rpcrt4.dll",
+    "secur32.dll",
+    "setupapi.dll",
+    "shell32.dll",
+    "shlwapi.dll",
+    "uiautomationcore.dll",
+    "urlmon.dll",
+    "user32.dll",
+    "userenv.dll",
+    "uxtheme.dll",
+    "version.dll",
+    "wevtapi.dll",
+    "winhttp.dll",
+    "winmm.dll",
+    "winspool.drv",
+    "wintrust.dll",
+    "winusb.dll",
+    "wldap32.dll",
+    "ws2_32.dll",
+    "wtsapi32.dll"
+  ]
+}

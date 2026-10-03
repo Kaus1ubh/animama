@@ -4,7 +4,7 @@ import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
-const appPath = join(desktopRoot, "release", "win-unpacked", "Anima.exe");
+const appPath = join(desktopRoot, "release", "win-unpacked", "Animama.exe");
 
 if (process.platform !== "win32") {
   console.error("run:win must be executed on Windows.");
@@ -14,7 +14,7 @@ if (process.platform !== "win32") {
 
 if (!existsSync(appPath)) {
   console.error(`Windows app was not found at ${appPath}`);
-  console.error("Run pnpm pack:win first.");
+  console.error("Run pnpm desktop:win first.");
   process.exit(1);
 }
 

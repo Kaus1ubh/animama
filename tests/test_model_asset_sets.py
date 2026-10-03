@@ -30,6 +30,7 @@ from animama.domain.request_principal import RequestPrincipal
 from animama.server.deps import get_current_principal
 from animama.server.model_assets import get_model_asset_service
 from animama.server.routers import model_assets
+from tests.filesystem_links import link_directory
 from tests.local_http_client import local_client
 
 RELEASE = "https://downloads.animama.ai/models"
@@ -184,7 +185,9 @@ def _tree(root: Path) -> dict[str, int]:
 
     if not root.exists():
         return {}
-    return {str(path.relative_to(root)): path.stat().st_size for path in sorted(root.rglob("*")) if path.is_file()}
+    return {
+        path.relative_to(root).as_posix(): path.stat().st_size for path in sorted(root.rglob("*")) if path.is_file()
+    }
 
 
 def _installed(data_root: Path) -> dict[str, int]:
@@ -229,7 +232,8 @@ async def test_set_installs_as_one_version_directory(data_root: Path, release: S
     assert _staged(data_root) == {}
     installed = service.installed_set("speech")
     assert installed is not None and installed.version == MANIFEST
-    assert [(path.name, path.read_bytes()) for path in sorted(installed.root.iterdir())] == sorted(FILES.items())
+    # Sort by name: Windows paths compare case-insensitively.
+    assert sorted((path.name, path.read_bytes()) for path in installed.root.iterdir()) == sorted(FILES.items())
 
 
 async def test_activation_replaces_previous_versions_and_requires_every_file(
@@ -444,6 +448,37 @@ def test_startup_removes_obsolete_ids_and_unresumable_staging(data_root: Path, r
     assert sorted(path.name for path in installed.iterdir()) == ["speech"]
     assert _staged(data_root) == {f"speech/{MANIFEST}/model.onnx": len(b"partial")}
     assert sorted(path.name for path in staging.iterdir()) == ["speech"]
+
+
+async def test_a_linked_version_directory_is_not_installed(data_root: Path, release: SetRelease) -> None:
+    service = _service(data_root, release)
+    assert await _install(service) == "installed"
+    version = data_root / "internal" / "model-assets" / "speech" / MANIFEST
+    moved = data_root.parent / "moved"
+    version.rename(moved)
+    link_directory(version, moved)
+
+    asset = _catalog().get("speech")
+    assert asset is not None
+    assert not FilesystemModelAssetStore(data_root).is_installed(asset)
+
+
+def test_startup_removes_directory_links_without_entering_them(data_root: Path, release: SetRelease) -> None:
+    outside = data_root.parent / "outside"
+    outside.mkdir()
+    (outside / "model.onnx").write_bytes(b"kept")
+    staging = data_root / "staging" / "model-assets"
+    staging.mkdir(parents=True)
+    link_directory(staging / "speech", outside)
+    installed = data_root / "internal" / "model-assets"
+    installed.mkdir(parents=True)
+    link_directory(installed / "obsolete", outside)
+
+    _service(data_root, release)
+
+    assert list(staging.iterdir()) == []
+    assert list(installed.iterdir()) == []
+    assert (outside / "model.onnx").read_bytes() == b"kept"
 
 
 # Leases and requirements

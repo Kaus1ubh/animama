@@ -28,6 +28,7 @@ from animama.domain.content_catalog import (
     ContentStatus,
     ScannedContentEntry,
 )
+from animama.utils.files import path_is_link
 
 
 def _regular_path(root: Path, relative: str) -> Path:
@@ -42,7 +43,7 @@ def _regular_path(root: Path, relative: str) -> Path:
     candidate = root
     for part in parts.parts:
         candidate /= part
-        if candidate.is_symlink():
+        if path_is_link(candidate):
             raise ValueError(f"Symlinked content path: {relative}")
     metadata = candidate.lstat()
     if not stat.S_ISREG(metadata.st_mode) or metadata.st_nlink != 1:

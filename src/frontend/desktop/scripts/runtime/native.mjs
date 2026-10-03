@@ -1,23 +1,18 @@
-import {
-  copyFileSync,
-  cpSync,
-  existsSync,
-  mkdirSync,
-  readdirSync,
-  rmSync,
-} from "node:fs";
+import { copyFileSync, cpSync, mkdirSync, readdirSync, rmSync } from "node:fs";
 import path from "node:path";
 import { cpus } from "node:os";
 import {
   cacheRoot,
+  downloadVerified,
   filesIn,
+  nativeLockFile,
   normalizeTree,
   readJson,
   run,
   sha256,
-  sourceRoot,
   writeJson,
 } from "./common.mjs";
+import { buildPostgresWindows } from "./native-windows.mjs";
 
 // Configure-time paths are compiled into PostgreSQL. Build against this neutral
 // prefix and install through DESTDIR so the build machine's directories never
@@ -27,14 +22,19 @@ import {
 const INSTALL_PREFIX = "/opt/animama";
 const installedRoot = (work) => path.join(work, "destdir", INSTALL_PREFIX);
 
-/** Build pinned sources with the Xcode toolchain, never a Homebrew database. */
 export function buildPostgres(target) {
-  const lock = readJson(path.join(sourceRoot, "native-components.lock.json"));
+  return target.platform === "win32"
+    ? buildPostgresWindows(target)
+    : buildPostgresMacos(target);
+}
+
+/** Build pinned sources with the Xcode toolchain, never a Homebrew database. */
+function buildPostgresMacos(target) {
+  const lock = readJson(nativeLockFile(target));
   if (lock.target !== target.target)
     throw new Error("No native component lock for this target");
   const work = path.join(cacheRoot, "native-build", target.target);
   const downloads = path.join(cacheRoot, "downloads");
-  mkdirSync(downloads, { recursive: true });
   rmSync(work, { recursive: true, force: true });
   mkdirSync(work, { recursive: true });
   for (const [name, component] of [
@@ -42,28 +42,11 @@ export function buildPostgres(target) {
     ["pgvector", lock.pgvector],
   ]) {
     const suffix = name === "postgresql" ? "tar.bz2" : "tar.gz";
-    const archive = path.join(
-      downloads,
-      `${name}-${component.version}.${suffix}`,
+    const archive = downloadVerified(
+      component.url,
+      component.sha256,
+      path.join(downloads, `${name}-${component.version}.${suffix}`),
     );
-    if (!existsSync(archive)) {
-      const pending = `${archive}.partial`;
-      run("curl", [
-        "--fail",
-        "--location",
-        "--retry",
-        "2",
-        "--output",
-        pending,
-        component.url,
-      ]);
-      if (sha256(pending) !== component.sha256)
-        throw new Error(`${name} source digest mismatch`);
-      cpSync(pending, archive);
-      rmSync(pending);
-    }
-    if (sha256(archive) !== component.sha256)
-      throw new Error(`${name} source digest mismatch`);
     // Source archives are exact, digest-pinned upstream inputs, not user packs.
     run("tar", ["-xf", archive, "-C", work]);
   }
@@ -218,7 +201,7 @@ function stagePostgres(target, lock, work) {
     );
   }
   writeJson(path.join(target.output, "native-build.json"), {
-    lock_sha256: sha256(path.join(sourceRoot, "native-components.lock.json")),
+    lock_sha256: sha256(nativeLockFile(target)),
     target: target.target,
     compiler: run("clang", ["--version"], { capture: true }).split("\n")[0],
     sdk: run("xcrun", ["--show-sdk-version"], { capture: true }).trim(),

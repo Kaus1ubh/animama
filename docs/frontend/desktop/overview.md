@@ -54,6 +54,20 @@ shows recovery; it does not silently switch origins or create another owner.
 Quitting drains requests and stops retained child handles. The app never kills
 a process merely because it occupies a port or appears in an old PID record.
 
+On Windows every owned process, including short commands such as `pg_isready`,
+starts through `runtime/bin/animama-process-guard.exe`. The guard puts the
+service in a kill-on-close Job Object before it runs, reports the service PID
+on its first output line, and holds a stdin pipe from Electron as its lifeline.
+Stopping a service, or Electron exiting for any reason, closes that pipe: the
+guard sends Ctrl+Break, which PostgreSQL and Python handle as a clean shutdown,
+then ends the job after 15 seconds, the backend's own graceful-shutdown limit.
+Each stop logs its duration and exit code. Killing the guard ends the job at
+once, so no service or descendant outlives the app. `processes.json` records both the
+guard and service PIDs; the readiness and `postmaster.pid` checks use the
+service PID. PostgreSQL refuses an elevated token, so a launch with Run as
+administrator stops with `administrator_launch_unsupported` while validating,
+before it creates any data; PostgreSQL's own refusal maps to the same code.
+
 Unpackaged `pnpm desktop:dev` remains the external-stack workflow. It loads
 `ANIMAMA_DESKTOP_WEB_URL` or `http://localhost:8000` and does not start services.
 An explicit unpackaged `ANIMAMA_DESKTOP_DEV_RUNTIME_ROOT` selects embedded
@@ -245,6 +259,11 @@ not reset data; Open Backups appears only for a relevant snapshot. See
 requires a complete build to be reinstalled. A missing
 vault beside a database requires recovery of the matching vault and data;
 restoring a vault on another machine may also require its original OS keychain.
+On Windows the vault's key is Chromium's DPAPI-protected `Local State` file in
+the same profile folder, readable only by the same Windows account; keep it with
+the vault. A new vault waits until Chromium has written that key (about 10
+seconds after the first launch starts), so a crash cannot leave a vault whose
+key was never saved.
 Missing installation ownership fails closed, rather than generating a new owner
 over existing data.
 
@@ -400,9 +419,10 @@ Renderer DevTools are available with `Ctrl+Shift+I`. Use
 
 See [Platform builds](platforms.md) for packaging commands.
 
-The unsigned development package targets macOS 15+ arm64 and requires a fresh,
-complete audited stage. Windows and Linux self-contained packaging is deferred;
-external-stack `desktop:dev` is available on those platforms. Signed releases
+The unsigned development package targets macOS 15+ arm64 and Windows 11 x64 and
+requires a fresh, complete audited stage. Signed Windows releases are not
+implemented yet, and Linux self-contained packaging is deferred; external-stack
+`desktop:dev` is available on Linux. Signed releases
 require separate signing, notarization, minimum-OS and native acceptance.
 Initial publication uses the manual process from reviewed `main` inputs. The
 optional executable worker requires Developer ID signing, notarization and

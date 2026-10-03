@@ -57,6 +57,7 @@ from animama.domain.content_documents import (
     ReactionDocumentV1,
     TypedContentDocument,
 )
+from animama.utils.files import path_is_link
 
 _CHUNK_BYTES = 1024 * 1024
 MAX_ZIP_DIRECTORY_BYTES = 16 * 1024 * 1024
@@ -134,7 +135,7 @@ class ContentPackageArchive:
 
     def inspect(self, archive_path: Path, *, destination: Path) -> InspectedPackage:
         """Return an owned private tree; caller removes it after review or publication."""
-        if destination.exists() or destination.is_symlink():
+        if destination.exists() or path_is_link(destination):
             raise ContentConflictError("package_inspection_destination_exists")
         created = False
         try:

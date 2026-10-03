@@ -5,6 +5,7 @@ import {
   destroyProductWindows,
   installProductRequestGate,
   ProductSessionCleanup,
+  quitWhenMainWindowCloses,
   validatedApplicationRoute,
 } from "../src/main-process/runtime/product-windows.js";
 
@@ -186,5 +187,31 @@ describe("independent product-window recovery", () => {
     expect(request(origin + "/")).toEqual({ cancel: false });
     ready = false;
     expect(request(origin + "/v1/chats")).toEqual({ cancel: true });
+  });
+});
+
+describe("closing the main window", () => {
+  it("quits on Windows and Linux, where nothing could reopen the window", () => {
+    for (const platform of ["win32", "linux"] as const) {
+      const listeners: Record<string, () => void> = {};
+      const quit = vi.fn();
+      quitWhenMainWindowCloses(
+        {
+          on: (event: string, listener: () => void) =>
+            (listeners[event] = listener),
+        } as never,
+        { quit },
+        platform,
+      );
+      expect(quit).not.toHaveBeenCalled();
+      listeners.close!();
+      expect(quit).toHaveBeenCalledOnce();
+    }
+  });
+
+  it("leaves macOS apps running for the Dock to reopen", () => {
+    const on = vi.fn();
+    quitWhenMainWindowCloses({ on } as never, { quit: vi.fn() }, "darwin");
+    expect(on).not.toHaveBeenCalled();
   });
 });

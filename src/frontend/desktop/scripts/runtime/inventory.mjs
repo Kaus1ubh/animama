@@ -29,6 +29,16 @@ export function assertPortablePath(relative) {
   }
 }
 
+// Windows has no POSIX mode bits; its executable code is the PE files.
+const WINDOWS_EXECUTABLE = /\.(?:exe|dll|pyd|node)$/iu;
+
+/** Native builds only target their host, so the host decides the mode model. */
+function isExecutable(relative, stat) {
+  return process.platform === "win32"
+    ? WINDOWS_EXECUTABLE.test(relative)
+    : Boolean(stat.mode & 0o111);
+}
+
 export function inventoryTree(root) {
   return filesIn(root)
     .filter((name) => name !== "manifest.json")
@@ -36,14 +46,15 @@ export function inventoryTree(root) {
       assertPortablePath(relative);
       const file = path.join(root, relative);
       const stat = lstatSync(file);
+      const executable = isExecutable(relative, stat);
       return {
         path: relative,
         size_bytes: stat.size,
         sha256: sha256(file),
-        mode: stat.mode & 0o111 ? "0755" : "0644",
+        mode: executable ? "0755" : "0644",
         component: componentFor(relative),
         critical:
-          Boolean(stat.mode & 0o111) ||
+          executable ||
           /\.(?:sql|json|py|pyc|dylib|so|dll|exe|node)$/u.test(relative),
       };
     });
@@ -118,6 +129,7 @@ export function assertInventory(root, expected) {
   for (const file of actual) {
     if (/better[-_]auth|(?:^|\/)\.env(?:\.|$)|\.DS_Store$/iu.test(file.path))
       throw new Error("Forbidden local runtime payload");
+    if (process.platform === "win32") continue;
     const mode = lstatSync(path.join(root, file.path)).mode & 0o777;
     if (mode !== Number.parseInt(file.mode, 8))
       throw new Error(`Non-normalized file mode: ${file.path}`);

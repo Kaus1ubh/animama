@@ -41,7 +41,8 @@ account or writable by others; remove or fix that directory rather than
 bypassing the check.
 
 The strict target parser rejects cross-builds and unsupported combinations before
-deleting outputs or downloading dependencies. Windows native staging is unsupported. `desktop:dist:mac` and `desktop:smoke:mac` use the
+deleting outputs or downloading dependencies. For Windows, see
+[Native Windows build](#native-windows-build). `desktop:dist:mac` and `desktop:smoke:mac` use the
 [signed-release gates](releases.md), including explicit Apple, inventory and
 intended repository configuration. The repository may remain private for local
 signed candidates; anonymous public access is checked only at publication.
@@ -109,6 +110,73 @@ Each staging pass clears only `desktop/.desktop-runtime/darwin-arm64`, then:
    only; no model bytes). The compressed feasibility archive is **not** a signed DMG or
    update ZIP. Their overhead is measured by the signed-release producer.
 
+## Native Windows build
+
+Windows 11 x64 uses the same stage and audit commands on a native Windows x64
+host; [platform builds](platforms.md#unsigned-windows-package) packages the
+result. Prepare the host:
+
+- Check out a Windows clone with `core.autocrlf=false`; builds hash committed
+  bytes and refuse a checkout whose LF files were converted to CRLF.
+- Install Visual Studio 2022 with the MSVC v143 14.44 toolset, Windows SDK
+  10.0.26100, Node, pnpm and `uv`, then run `pnpm install` in `src/frontend`.
+- Acquire the browser speech inputs:
+  `py -3 scripts/models/browser_speech.py acquire`. On a machine that also runs
+  Animama, first set `ANIMAMA_MODEL_ROOT` to a folder outside both
+  `%LOCALAPPDATA%\Animama` (the app's data) and `C:\animama-build`, such as
+  `$env:USERPROFILE\animama-models` in PowerShell.
+
+From `src/frontend`:
+
+```powershell
+pnpm desktop:runtime:stage -- --platform win32 --arch x64
+pnpm desktop:runtime:audit -- --platform win32 --arch x64
+```
+
+The build uses `C:\animama-build` as its neutral root: the pinned interpreter,
+build tools and the PostgreSQL work tree live there, because MSVC embeds source
+paths in the binaries. The first run creates the folder with an explicit ACL
+for the current user, SYSTEM and Administrators. A later run refuses the folder,
+or any build folder inside it, if it is a link or junction, or if another account
+can modify it. The folder holds only rebuildable inputs, so delete it and rerun
+the build to recreate it privately. Strawberry Perl, meson, ninja,
+win_flex_bison and busybox (`sed`, `gzip`) download once from the URLs and
+SHA-256 digests in `desktop/runtime/native-components.win32-x64.lock.json`,
+which also pins the compiler, redistributable and SDK versions the build must
+find. node-gyp downloads the matching Node headers when it builds the input
+addon.
+
+Windows has no POSIX modes, so the inventory marks PE files (`.exe`, `.dll`,
+`.pyd`, `.node`) as `0755` and does not compare file modes. The audit reads
+every PE import with `dumpbin` and records where it resolves: an API set, a
+staged file in the importer's folder or a folder its process searches
+(PostgreSQL's `bin`, the frozen backend's `_internal`, `pywin32_system32` and
+wheel `*.libs` folders), the host process for the addon's `node.exe`, or a
+Windows DLL named in the lock's reviewed `system_dlls` list. Anything else fails.
+The VC++ runtime DLLs PostgreSQL imports are copied from the pinned
+redistributable; a copy in the build machine's System32 never satisfies the
+audit. The PostgreSQL executables carry a UTF-8 active code page manifest;
+without it, `initdb` cannot use a data directory whose path contains characters
+outside the system's ANSI code page. The probe always uses such a path.
+
+The stage also compiles the first-party process guard,
+`desktop/native/process-guard/process_guard.cpp`, into
+`runtime/bin/animama-process-guard.exe` with the pinned toolset, the static CRT,
+Control Flow Guard, high-entropy ASLR and CET compatibility. It imports only
+`KERNEL32.dll`, and the runtime manifest must include it.
+
+`native-dependencies.json` and `native-build.json` describe the PostgreSQL
+component; `audit-report.json` holds the whole stage's dependency report. To
+build and check PostgreSQL on its own:
+
+```powershell
+node desktop/scripts/runtime/native-build.mjs --platform win32 --arch x64
+```
+
+```powershell
+desktop\.desktop-runtime\build-venv\win32-x64\Scripts\python.exe ..\backend\packaging\desktop\probe_postgres.py --runtime desktop\.desktop-runtime\win32-x64\runtime --postgres-only
+```
+
 ## Evidence and gates
 
 The target directory contains `runtime/manifest.json`,
@@ -146,8 +214,7 @@ acceptance gates.
 
 Use the [model-store workflow](../../backend/operations/model-assets.md) for
 `ANIMAMA_MODEL_ROOT`, Windows `%LOCALAPPDATA%\Animama\models` and WSL/Linux
-defaults. Windows model acquisition support does not enable Windows native
-runtime staging.
+defaults.
 
 ## Release model inputs
 

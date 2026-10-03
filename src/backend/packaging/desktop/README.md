@@ -93,7 +93,9 @@ tables, and a real custom-format backup restored into a second fresh database.
 It checks the restored principal, schema head, pgvector version, and exact
 owner-scoped marker rows after changing the source database. This does not
 replace application upgrade acceptance or back up Local files and credentials.
-It generates a temporary password and never writes
+The cluster path contains a space and non-ASCII characters, as a user profile
+path may. `--postgres-only` skips the frozen backend steps to check a native
+PostgreSQL build on its own. It generates a temporary password and never writes
 credentials to command arguments or reports. It does not touch Compose.
 When running `audit-resources` directly, set `ANIMAMA_LOG_TO_FILE=0` and
 `ANIMAMA_LOG_TO_CONSOLE=0` to avoid audit-time files inside immutable resources.

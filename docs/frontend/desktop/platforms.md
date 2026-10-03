@@ -129,6 +129,62 @@ These commands reset the standard packaged macOS profile only, not a custom
 `ANIMAMA_DESKTOP_DEV_USER_DATA` directory. They are explicit fresh-setup tools,
 not a migration repair or a full-profile restore procedure.
 
+### Unsigned Windows package
+
+On a Windows 11 x64 host, after a fresh stage and audit
+(see [runtime staging](runtime-staging.md#native-windows-build)), run from
+`src/frontend`:
+
+```powershell
+pnpm desktop:win
+pnpm desktop:win:run
+pnpm desktop:win:installer
+```
+
+`desktop:win` builds the unsigned app in `desktop/release/win-unpacked`, checks
+the packaged runtime against the audited inventory and writes
+`desktop/release/development-package-report.json`; `desktop:win:run` launches
+it. `desktop:win:installer` also builds
+`desktop/release/Animama-<version>-x64-setup.exe`, an unsigned one-click
+per-user installer for local installer testing. Windows may warn about an
+unsigned installer; none of these artifacts is a release. The development
+package signs nothing, so the staged runtime keeps its audited hashes, and the
+build host needs no Developer Mode.
+
+The installer puts Animama in `%LOCALAPPDATA%\Programs\Animama` without a UAC
+prompt and adds Start menu and Desktop shortcuts; it refuses Windows builds
+below 22000. The data lives separately in `%LOCALAPPDATA%\Animama` and
+survives uninstall, updates and reinstall. Only an uninstall that a person
+starts offers to delete it: after the uninstall confirmation it shows that exact
+path and defaults to keeping it; removal deletes links inside it without
+following them. Uninstalls run with `/S`, including those an installer runs
+during an upgrade, never ask and never delete data.
+
+To test an upgrade, build two installers. An upgrade is the newer installer
+run over the installed app; automatic updates arrive in a later phase.
+
+1. Build version N with `pnpm desktop:win:installer`, and copy
+   `Animama-<N>-x64-setup.exe` out of `desktop/release`.
+2. Set a higher `version` in `desktop/package.json` locally, for example
+   `0.1.2`. Do not commit it.
+3. Stage, audit and build again. The runtime manifest records the app version,
+   and the app refuses a runtime staged for another version.
+4. Install N, run it, then run the N+1 installer: it replaces N in place and
+   keeps `%LOCALAPPDATA%\Animama`.
+5. Restore `desktop/package.json`, then stage and audit again before the next
+   package: the stage still records version N+1.
+
+Only one version is installed at a time; to repeat the journey from N,
+uninstall (keeping the data) and install N again. Test explicit data removal in
+a separate Windows account, or back up `%LOCALAPPDATA%\Animama` first: it also
+holds the default developer model store unless `ANIMAMA_MODEL_ROOT` points
+elsewhere.
+
+With the app packaged, `pnpm desktop:test:native-input` checks the input hook
+on Windows: it loads the addon from the packaged `app.asar.unpacked` inside
+`Animama.exe` and requires an injected F24 key press to arrive as one down and
+one up. Press-to-talk with a real key and mouse button remains a manual check.
+
 ### Supervised development
 
 For supervised development without repackaging, use a complete stage with an
@@ -150,18 +206,18 @@ development-only and rejected in packaged mode.
 | Target                             | Current status                                                                                  |
 | ---------------------------------- | ----------------------------------------------------------------------------------------------- |
 | macOS 15+, arm64                   | Development packaging implemented; fresh-source native, minimum-OS and signed acceptance remain |
-| Windows 11, x64                    | Native packaging and recovery deferred                                                          |
+| Windows 11, x64                    | Unsigned development package and installer implemented; signing and acceptance in progress      |
 | Linux                              | External-stack development only; packaging deferred beyond the current supported release        |
 | Intel/universal macOS, Windows ARM | Not supported                                                                                   |
 
-Windows/Linux builder targets and command names remain in configuration,
-but the prebuild gate rejects them until their native runtime is implemented.
+The Linux builder target remains in configuration, but the prebuild gate
+rejects it because Linux has no embedded runtime.
 Do not advertise their former shell artifacts as current self-contained builds.
 Core signing, notarization, update feeds, and clean-machine smoke are implemented
 as gated tooling; an actual accepted release remains outstanding. The deferred
 document worker requires signing, notarization and publisher verification before execution; see the
-[pack producer](runtime-staging.md#optional-pack-producer). Windows release/smoke
-commands reject unsupported targets.
+[pack producer](runtime-staging.md#optional-pack-producer). Windows release and
+smoke commands remain gated until signing is implemented.
 
 ## Validation
 
@@ -174,6 +230,20 @@ pnpm desktop:test
 pnpm desktop:build
 pnpm build
 ```
+
+On Windows, after staging the runtime and running `pnpm desktop:build`,
+`pnpm desktop:test:termination` force-kills unpackaged Electron at every
+startup stage, requires that no process from the staged runtime survives within
+30 seconds, and requires the next launch on the same data to reach ready with
+the same origin and serve the app. It then quits normally twice, closing the
+windows as a user would, and requires every service to stop on Ctrl+Break
+without the guard's 15 second job termination. It uses a disposable data
+folder.
+
+`pnpm desktop:test:vault` checks the credential vault against the host's real
+protected storage (DPAPI on Windows, Keychain on macOS) inside Electron, using a
+disposable profile folder that it removes afterwards. On macOS, Electron still
+adds an "Electron Safe Storage" Keychain item.
 
 Verify the actual packaged app with development servers stopped:
 

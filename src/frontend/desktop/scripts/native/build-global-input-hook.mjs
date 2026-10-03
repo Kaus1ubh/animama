@@ -10,8 +10,9 @@ const outputRoot = path.join(desktopRoot, "dist/native");
 const require = createRequire(new URL("../../package.json", import.meta.url));
 
 /** Build the first-party N-API hook against the installed Node headers.
- * N-API keeps the result compatible with Electron's Node runtime while avoiding
- * downloads during a reviewed runtime stage.
+ * N-API keeps the result compatible with Electron's Node runtime. macOS Node
+ * installs include headers; on Windows node-gyp downloads the matching headers
+ * and node.lib, verified against nodejs.org's checksums.
  */
 export function buildGlobalInputHook({
   platform = process.platform,

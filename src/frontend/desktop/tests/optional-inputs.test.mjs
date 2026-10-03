@@ -22,6 +22,7 @@ import {
   sha256,
   writeJson,
 } from "../scripts/runtime/common.mjs";
+import { symlinksAvailable } from "./fixtures/symlinks.mjs";
 
 const roots = [];
 afterEach(() => {
@@ -90,25 +91,27 @@ describe("verified local model-set inputs for publication", () => {
       );
     }
   });
-  it.each(["missing", "corrupt", "symlink", "extra"])(
-    "rejects %s local model inputs",
-    (kind) => {
-      const value = fixture();
-      const manifest = modelManifest(value.spec, value.manifestFile);
-      const file = path.join(value.source, "encoder-model.int8.onnx");
-      if (kind === "missing") rmSync(file);
-      if (kind === "corrupt") writeFileSync(file, "corrupt");
-      if (kind === "extra")
-        writeFileSync(path.join(value.source, "extra.onnx"), "unexpected");
-      if (kind === "symlink") {
-        rmSync(file);
-        symlinkSync(path.join(value.source, "vocab.txt"), file);
-      }
-      expect(() => verifyInputs(value.spec, value.source, manifest)).toThrow(
-        "Parakeet input",
-      );
-    },
-  );
+  it.each([
+    "missing",
+    "corrupt",
+    ...(symlinksAvailable ? ["symlink"] : []),
+    "extra",
+  ])("rejects %s local model inputs", (kind) => {
+    const value = fixture();
+    const manifest = modelManifest(value.spec, value.manifestFile);
+    const file = path.join(value.source, "encoder-model.int8.onnx");
+    if (kind === "missing") rmSync(file);
+    if (kind === "corrupt") writeFileSync(file, "corrupt");
+    if (kind === "extra")
+      writeFileSync(path.join(value.source, "extra.onnx"), "unexpected");
+    if (kind === "symlink") {
+      rmSync(file);
+      symlinkSync(path.join(value.source, "vocab.txt"), file);
+    }
+    expect(() => verifyInputs(value.spec, value.source, manifest)).toThrow(
+      "Parakeet input",
+    );
+  });
   it("treats an absent default store as unavailable but an absent selected store as an error", () => {
     const value = fixture();
     vi.stubEnv("HOME", value.root);

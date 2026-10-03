@@ -9,7 +9,6 @@ from __future__ import annotations
 import asyncio
 import inspect
 import os
-import signal
 import socket
 import time
 from collections.abc import Awaitable, Callable
@@ -33,6 +32,7 @@ from animama.domain.user_file_processing import ClaimedUserFileProcessingJob
 from animama.logging_config import get_logger
 from animama.server.config import settings
 from animama.server.local_runtime import initialize_local_runtime
+from animama.workers.shutdown import install_shutdown_handlers
 
 log = get_logger("user-file.processing-worker")
 
@@ -340,13 +340,10 @@ async def main() -> None:
         instance_id=settings.animama_document_worker_instance_id,
     )
 
-    loop = asyncio.get_event_loop()
-
     def handle_signal() -> None:
         asyncio.create_task(worker.stop())
 
-    for sig in (signal.SIGTERM, signal.SIGINT):
-        loop.add_signal_handler(sig, handle_signal)
+    install_shutdown_handlers(asyncio.get_running_loop(), handle_signal)
 
     try:
         await worker.start()

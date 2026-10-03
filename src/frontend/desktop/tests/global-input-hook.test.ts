@@ -1,3 +1,5 @@
+import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { describe, expect, it, vi } from "vitest";
 
 import {
@@ -32,9 +34,10 @@ const keyboard = {
 
 describe("first-party global input hook", () => {
   it("loads the native binary only from beside the bundled main process", () => {
-    expect(
-      nativeGlobalInputBindingPath("file:///Applications/Animama/dist/main.js"),
-    ).toBe("/Applications/Animama/dist/native/animama_input_hook.node");
+    const main = path.resolve("/Applications/Animama/dist/main.js");
+    expect(nativeGlobalInputBindingPath(pathToFileURL(main).href)).toBe(
+      path.join(path.dirname(main), "native", "animama_input_hook.node"),
+    );
     expect(() => validateNativeGlobalInputBinding({ start() {} })).toThrow(
       "invalid interface",
     );

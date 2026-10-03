@@ -1,20 +1,23 @@
 import { mkdirSync, rmSync } from "node:fs";
 import path from "node:path";
 import {
-  assertPrivatePythonInstallDir,
   buildPython,
   cacheRoot,
   copyTree,
   desktopRoot,
+  executableSuffix,
   frontendRoot,
+  nativeLockFile,
   normalizeTree,
   parseTarget,
+  pnpmCommand,
   pythonEnvironment,
   readJson,
   removeFinderMetadata,
   repoRoot,
   run,
   sourceRoot,
+  syncBuildEnvironment,
   writeJson,
 } from "./common.mjs";
 import {
@@ -30,6 +33,7 @@ import { excludeDesktopWebAssets } from "./desktop-web.mjs";
 import { writeRedistributionReview } from "./review-packet.mjs";
 import { importBundledTool } from "./bundled-tool.mjs";
 import { sealReleaseModelManifests } from "./release-models.mjs";
+import { buildProcessGuard } from "./process-guard.mjs";
 
 const target = parseTarget();
 const sources = readJson(path.join(sourceRoot, "source-manifest.json"));
@@ -51,22 +55,7 @@ const logged = (name, command, argv, options = {}) => {
 };
 
 try {
-  assertPrivatePythonInstallDir();
-  run(
-    "uv",
-    [
-      "sync",
-      "--python",
-      sources.python,
-      "--frozen",
-      "--no-default-groups",
-      "--group",
-      "desktop-build",
-      "--extra",
-      "server",
-    ],
-    { env },
-  );
+  syncBuildEnvironment();
   logged(
     "starter-content",
     buildPython(),
@@ -84,6 +73,7 @@ try {
     path.join(desktopRoot, "scripts/runtime/native-build.mjs"),
     ...args,
   ]);
+  if (target.platform === "win32") buildProcessGuard(target);
   logged(
     "backend-build",
     buildPython(),
@@ -107,12 +97,14 @@ try {
   const resourceAudit = JSON.parse(
     logged(
       "backend-resource-audit",
-      path.join(target.runtime, "backend/animama-runtime"),
+      path.join(target.runtime, `backend/animama-runtime${executableSuffix}`),
       ["audit-resources"],
       { cwd: target.output, env },
     ),
   );
-  logged("web-check", "pnpm", ["web:check"], { cwd: frontendRoot });
+  const pnpm = (name, args) =>
+    logged(name, ...pnpmCommand(args), { cwd: frontendRoot });
+  pnpm("web-check", ["web:check"]);
   if (
     resourceAudit.local_http_schema_version !==
     sources.local_http_schema_version
@@ -120,24 +112,19 @@ try {
     throw new Error(
       "Frozen local HTTP schema differs from the runtime source manifest",
     );
-  logged(
-    "web-build",
-    "pnpm",
-    [
-      "--filter",
-      "animama-web",
-      "exec",
-      "vite",
-      "build",
-      "--mode",
-      "embedded-desktop",
-      "--outDir",
-      path.join(target.runtime, "web"),
-    ],
-    { cwd: frontendRoot },
-  );
+  pnpm("web-build", [
+    "--filter",
+    "animama-web",
+    "exec",
+    "vite",
+    "build",
+    "--mode",
+    "embedded-desktop",
+    "--outDir",
+    path.join(target.runtime, "web"),
+  ]);
   excludeDesktopWebAssets(path.join(target.runtime, "web"));
-  logged("desktop-build", "pnpm", ["desktop:build"], { cwd: frontendRoot });
+  pnpm("desktop-build", ["desktop:build"]);
   removeFinderMetadata(path.join(target.runtime, "web"));
   mkdirSync(path.join(target.output, "app"), { recursive: true });
   copyTree(
@@ -180,7 +167,7 @@ try {
   normalizeTree(target.runtime);
   normalizeTree(path.join(target.output, "app"));
   const inventory = inventoryTree(target.runtime);
-  const native = readJson(path.join(sourceRoot, "native-components.lock.json"));
+  const native = readJson(nativeLockFile(target));
   const core = readJson(
     path.join(target.runtime, "content/included-core/inventory.json"),
   );

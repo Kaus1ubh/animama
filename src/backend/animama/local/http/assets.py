@@ -27,6 +27,8 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response, StreamingResponse
 from starlette.types import Receive, Scope, Send
 
+from animama.utils.files import WINDOWS, final_path, is_directory, open_no_follow
+
 PARAKEET_MOUNT = "/onnx/models/parakeet-tdt-0.6b-v2/"
 # The optional FP16 encoder set; it is served only while its source supplies it.
 PARAKEET_WEBGPU_MOUNT = "/onnx/models/parakeet-tdt-0.6b-v2-webgpu/"
@@ -149,8 +151,9 @@ def _open_regular(root: Path, name: str, *, model: ModelFile | None = None) -> B
             raise ValueError("Asset root cannot traverse a symlink")
     except RuntimeError as exc:  # Path resolution can report symlink loops this way.
         raise ValueError("Asset root cannot traverse a symlink loop") from exc
+    if WINDOWS:
+        return _checked_handle(_open_windows(root, name), model)
     directory = os.open(root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
-    descriptor: int | None = None
     try:
         parts = name.split("/")
         for part in parts[:-1]:
@@ -159,18 +162,50 @@ def _open_regular(root: Path, name: str, *, model: ModelFile | None = None) -> B
             directory = child
         # NONBLOCK avoids waiting on a substituted FIFO before fstat rejects it.
         descriptor = os.open(parts[-1], os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=directory)
+    finally:
+        os.close(directory)
+    return _checked_handle(descriptor, model)
+
+
+def _open_windows(root: Path, name: str) -> int:
+    """Windows has no directory descriptors: refuse a reparse point at every level.
+
+    Each folder is checked before it is entered and the leaf is opened as itself.
+    The opened file's resolved path must then be exactly the requested one, which
+    also refuses a folder swapped after its check and an 8.3 short-name alias.
+    """
+
+    *folders, leaf = name.split("/")
+    current = root
+    for part in folders:
+        current = current / part
+        info = os.lstat(current)
+        if not is_directory(info):
+            raise ValueError("Asset path cannot traverse a link")
+    path = current / leaf
+    descriptor = open_no_follow(path, os.O_RDONLY)
+    try:
+        if os.path.normcase(final_path(descriptor)) != os.path.normcase(path):
+            raise ValueError("Asset path resolved outside its requested location")
+    except BaseException:
+        os.close(descriptor)
+        raise
+    return descriptor
+
+
+def _checked_handle(descriptor: int, model: ModelFile | None) -> BinaryIO:
+    """Accept only a regular file; model files must also be single-link and exact-size."""
+
+    try:
         metadata = os.fstat(descriptor)
         if not stat.S_ISREG(metadata.st_mode) or (
             model is not None and (metadata.st_nlink != 1 or metadata.st_size != model.size_bytes)
         ):
             raise ValueError("Asset is not an eligible regular file")
-        handle = os.fdopen(descriptor, "rb")
-        descriptor = None
-        return handle
-    finally:
-        os.close(directory)
-        if descriptor is not None:
-            os.close(descriptor)
+        return os.fdopen(descriptor, "rb")
+    except BaseException:
+        os.close(descriptor)
+        raise
 
 
 def _inspect_file(root: Path, name: str, model: ModelFile | None = None) -> tuple[os.stat_result, bytes | None]:

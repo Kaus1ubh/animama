@@ -7,13 +7,22 @@ import {
   inventoryId,
 } from "./runtime/inventory.mjs";
 
+const PACKAGED_TARGETS = new Set(["darwin-arm64", "win32-x64"]);
+
+/** The embedded runtime target an electron-builder context packages. */
+export function packagedTarget(context) {
+  const target = `${context.platform.nodeName}-${context.arch}`;
+  if (!PACKAGED_TARGETS.has(target))
+    throw new Error(
+      "Embedded packaging supports macOS arm64 and Windows x64 only; other targets remain gated.",
+    );
+  return target;
+}
+
 /** Never publish a thin wrapper, stale bundle, or partial runtime as a desktop app. */
 export default function beforeBuild(context) {
-  if (context.platform.nodeName !== "darwin" || context.arch !== "arm64")
-    throw new Error(
-      "Embedded packaging currently supports macOS arm64 only; other targets remain gated by their plan phase.",
-    );
-  const output = path.join(desktopRoot, ".desktop-runtime/darwin-arm64");
+  const target = packagedTarget(context);
+  const output = path.join(desktopRoot, ".desktop-runtime", target);
   const runtime = path.join(output, "runtime");
   if (
     existsSync(path.join(output, "stage-failure.json")) ||

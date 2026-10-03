@@ -23,24 +23,17 @@ import stat
 from pathlib import Path
 
 from animama.domain.model_assets import AssetCatalog, AssetDescriptor, AssetFile
+from animama.utils.files import is_directory, open_no_follow, path_is_link, replace, sync_directory
 
 _DIRECTORY_MODE = 0o700
 _FILE_MODE = 0o600
 _REHASH_CHUNK = 1024 * 1024
 
 
-def _fsync_directory(path: Path) -> None:
-    descriptor = os.open(path, os.O_RDONLY | os.O_DIRECTORY)
-    try:
-        os.fsync(descriptor)
-    finally:
-        os.close(descriptor)
-
-
 def _remove(path: Path) -> None:
     """Delete a file, link or directory tree without following links."""
 
-    if path.is_dir() and not path.is_symlink():
+    if path.is_dir() and not path_is_link(path):
         shutil.rmtree(path)
     else:
         path.unlink(missing_ok=True)
@@ -59,7 +52,7 @@ class _StagedFile:
 
     def __init__(self, path: Path, expected_size: int) -> None:
         self._path = path
-        descriptor = os.open(path, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, _FILE_MODE)
+        descriptor = open_no_follow(path, os.O_RDWR | os.O_CREAT, _FILE_MODE)
         try:
             if not stat.S_ISREG(os.fstat(descriptor).st_mode):
                 raise OSError(f"Staged asset file {path.name} is not a regular file")
@@ -116,26 +109,26 @@ class FilesystemModelAssetStore:
         self.staging_root = root / "staging" / "model-assets"
 
     def prune(self, catalog: AssetCatalog) -> None:
-        if self.installed_root.is_dir() and not self.installed_root.is_symlink():
+        if self.installed_root.is_dir() and not path_is_link(self.installed_root):
             for entry in self.installed_root.iterdir():
                 if catalog.get(entry.name) is None:
                     _remove(entry)
-        if self.staging_root.is_symlink():
+        if path_is_link(self.staging_root):
             self.staging_root.unlink()
         if not self.staging_root.is_dir():
             return
         for entry in self.staging_root.iterdir():
             asset = catalog.get(entry.name)
-            if asset is None or not entry.is_dir() or entry.is_symlink():
+            if asset is None or not entry.is_dir() or path_is_link(entry):
                 _remove(entry)
                 continue
             names = {file.path for file in asset.files}
             for version in entry.iterdir():
-                if version.name != asset.version or not version.is_dir() or version.is_symlink():
+                if version.name != asset.version or not version.is_dir() or path_is_link(version):
                     _remove(version)
                     continue
                 for staged in version.iterdir():
-                    if staged.name not in names or staged.is_symlink() or not staged.is_file():
+                    if staged.name not in names or path_is_link(staged) or not staged.is_file():
                         _remove(staged)
 
     def free_bytes(self) -> int:
@@ -169,7 +162,7 @@ class FilesystemModelAssetStore:
         path = self._installed_path(asset)
         if asset.is_set:
             try:
-                if not stat.S_ISDIR(path.lstat().st_mode):
+                if not is_directory(path.lstat()):
                     return False
             except OSError:
                 return False
@@ -197,23 +190,23 @@ class FilesystemModelAssetStore:
         if asset.is_set:
             # The version directory becomes the installed set in one rename, so
             # a crash leaves either the previous state or the complete set.
-            _fsync_directory(staging)
+            sync_directory(staging)
             _remove(target)  # An incomplete leftover can never be installed state.
-            os.replace(staging, target)
+            replace(staging, target)
         else:
-            os.replace(staging / asset.files[0].path, target)
-        _fsync_directory(target.parent)
+            replace(staging / asset.files[0].path, target)
+        sync_directory(target.parent)
         _remove_siblings(target)
         self.discard_staged(asset)
 
     def discard_staged(self, asset: AssetDescriptor) -> None:
         directory = self.staging_root / asset.id
-        if directory.exists() or directory.is_symlink():
+        if directory.exists() or path_is_link(directory):
             _remove(directory)
 
     def remove(self, asset: AssetDescriptor) -> None:
         directory = self.installed_root / asset.id
-        if directory.is_dir() and not directory.is_symlink():
+        if directory.is_dir() and not path_is_link(directory):
             shutil.rmtree(directory)
 
     def content_location(self, asset: AssetDescriptor) -> tuple[Path, str]:

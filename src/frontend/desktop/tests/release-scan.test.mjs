@@ -103,7 +103,9 @@ async function scan(root, directory, options = {}) {
   });
 }
 
-describe("release candidate scan", () => {
+// The scan expands macOS candidates with stub POSIX tools; the Windows
+// candidate scan arrives with the Windows release tooling.
+describe.skipIf(process.platform === "win32")("release candidate scan", () => {
   it("finds a needle split across read chunks without recording its value", async () => {
     const root = scratch();
     const file = path.join(root, "blob.bin");

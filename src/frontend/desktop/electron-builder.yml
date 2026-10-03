@@ -13,11 +13,6 @@ files:
     to: .
     filter:
       - LICENSE
-extraResources:
-  - from: .desktop-runtime/darwin-arm64/runtime
-    to: runtime
-    filter:
-      - "**/*"
 asarUnpack:
   - dist/native/*.node
 extraMetadata:
@@ -36,6 +31,29 @@ mac:
   artifactName: ${productName}-${version}-${arch}.${ext}
   extendInfo:
     NSMicrophoneUsageDescription: Animama uses the microphone for dictation and voice mode.
+  # Each target packages exactly its own audited stage.
+  extraResources:
+    - from: .desktop-runtime/darwin-arm64/runtime
+      to: runtime
+      filter:
+        - "**/*"
 win:
   defaultArch: x64
   artifactName: ${productName}-${version}-${arch}.${ext}
+  requestedExecutionLevel: asInvoker
+  extraResources:
+    - from: .desktop-runtime/win32-x64/runtime
+      to: runtime
+      filter:
+        - "**/*"
+# A one-click, per-user installer: %LOCALAPPDATA%\Programs\Animama, no UAC.
+nsis:
+  oneClick: true
+  perMachine: false
+  allowElevation: false
+  packElevateHelper: false
+  createStartMenuShortcut: true
+  shortcutName: Animama
+  deleteAppDataOnUninstall: false
+  include: build/installer.nsh
+  artifactName: ${productName}-${version}-${arch}-setup.${ext}

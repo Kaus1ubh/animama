@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import asyncio
 import os
-import signal
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
@@ -24,6 +23,7 @@ from animama.server.avatar_uploads import (
 )
 from animama.server.config import settings
 from animama.server.user_file_storage import delete_private_file
+from animama.workers.shutdown import install_shutdown_handlers
 
 log = get_logger("avatar-upload.cleanup")
 
@@ -120,13 +120,10 @@ async def main() -> None:
         batch_size=settings.avatar_upload_cleanup_batch_size,
     )
 
-    loop = asyncio.get_event_loop()
-
     def handle_signal() -> None:
         asyncio.create_task(worker.stop())
 
-    for sig in (signal.SIGTERM, signal.SIGINT):
-        loop.add_signal_handler(sig, handle_signal)
+    install_shutdown_handlers(asyncio.get_running_loop(), handle_signal)
 
     try:
         await worker.start()
