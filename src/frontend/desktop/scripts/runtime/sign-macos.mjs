@@ -1,4 +1,4 @@
-import { readFileSync, rmSync, writeFileSync } from "node:fs";
+import { rmSync } from "node:fs";
 import path from "node:path";
 import { desktopRoot, readJson, run, writeJson } from "./common.mjs";
 import {
@@ -8,6 +8,7 @@ import {
   inventoryTree,
 } from "./inventory.mjs";
 import {
+  embedRedistributionReview,
   loadReleasePolicy,
   sealedDistribution,
   verifyRedistributionReview,
@@ -49,20 +50,7 @@ export default async function sign(options) {
     );
   for (const name of [...code.native, ...code.bundles])
     signOne(path.join(app, name), inherited);
-  // This receipt is a human decision about the immutable inventory, not a legal
-  // approval invented by the build. Keep inventory-time observations intact.
-  writeJson(path.join(runtime, "licenses/REDISTRIBUTION_REVIEW.json"), {
-    schema: "animama-redistribution-review/1",
-    ...release.review,
-  });
-  const notices = path.join(runtime, "licenses/THIRD_PARTY_NOTICES.txt");
-  writeFileSync(
-    notices,
-    readFileSync(notices, "utf8").replace(
-      "Development feasibility build. Redistribution approval is pending.",
-      "Release inventory reviewed; see REDISTRIBUTION_REVIEW.json. Per-record review labels below are inventory-time observations.",
-    ),
-  );
+  embedRedistributionReview(runtime, release);
   manifest.files = inventoryTree(runtime);
   manifest.build_id = inventoryId(manifest.files);
   writeJson(path.join(runtime, "manifest.json"), manifest);

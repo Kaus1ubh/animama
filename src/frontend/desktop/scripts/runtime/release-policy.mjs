@@ -1,5 +1,12 @@
+import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { desktopRoot, readJson, sha256, sourceRoot } from "./common.mjs";
+import {
+  desktopRoot,
+  readJson,
+  sha256,
+  sourceRoot,
+  writeJson,
+} from "./common.mjs";
 
 const HASH = /^[a-f0-9]{64}$/u;
 const PART = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,99}$/u;
@@ -285,6 +292,26 @@ export function sealedDistribution(runtime) {
   if (!["r2", "github"].includes(distribution?.kind))
     throw new Error("The runtime has no sealed release distribution");
   return distribution;
+}
+
+/**
+ * Ship the human receipt inside a runtime about to be signed, and point the
+ * notices at it. The receipt is a decision about the exact inventory, not an
+ * approval invented by the build; per-record labels stay as observed.
+ */
+export function embedRedistributionReview(runtime, release) {
+  writeJson(path.join(runtime, "licenses/REDISTRIBUTION_REVIEW.json"), {
+    schema: "animama-redistribution-review/1",
+    ...release.review,
+  });
+  const notices = path.join(runtime, "licenses/THIRD_PARTY_NOTICES.txt");
+  writeFileSync(
+    notices,
+    readFileSync(notices, "utf8").replace(
+      "Development feasibility build. Redistribution approval is pending.",
+      "Release inventory reviewed; see REDISTRIBUTION_REVIEW.json. Per-record review labels below are inventory-time observations.",
+    ),
+  );
 }
 
 export function verifyRedistributionReview(runtime, release) {

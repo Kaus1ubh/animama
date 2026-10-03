@@ -194,6 +194,7 @@ describe("Windows signing", () => {
   it("accepts only valid signatures: Animama's with its identity and a timestamp, or a kept vendor signature", () => {
     const ours = {
       status: "Valid",
+      type: "Authenticode",
       subject: publisher.certificate_subject,
       timestamped: true,
       eku: ["1.3.6.1.5.5.7.3.3", publisher.identity_validation_eku],
@@ -210,6 +211,7 @@ describe("Windows signing", () => {
     });
     const vendor = {
       status: "Valid",
+      type: "Authenticode",
       subject: "CN=Microsoft Corporation",
       timestamped: false,
       eku: [],
@@ -227,15 +229,14 @@ describe("Windows signing", () => {
       expect(() =>
         signatureEntry("a.dll", "f".repeat(64), bad, publisher, true),
       ).toThrow("a.dll");
-    expect(() =>
-      signatureEntry(
-        "x.dll",
-        "f".repeat(64),
-        { ...vendor, status: "NotSigned" },
-        publisher,
-        false,
-      ),
-    ).toThrow("x.dll");
+    // A catalog signature verifies only on a machine holding that catalog.
+    for (const bad of [
+      { ...vendor, status: "NotSigned" },
+      { ...vendor, type: "Catalog" },
+    ])
+      expect(() =>
+        signatureEntry("x.dll", "f".repeat(64), bad, publisher, false),
+      ).toThrow("x.dll");
   });
 
   it("rejects a signing report with any unsigned file or an unsigned installer", () => {

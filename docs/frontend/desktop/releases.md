@@ -235,7 +235,10 @@ needs:
 - the Azure CLI, signed in with `az login` as an account holding the Artifact
   Signing Certificate Profile Signer role on the configured profile. The client
   authenticates through that sign-in only; no credential is passed on a command
-  line or stored in the repository.
+  line or stored in the repository;
+- `python3` and the acquired release model sets (see
+  [Commands and inputs](release-process.md#commands-and-inputs)). The build
+  checks that every required set resolves before it signs anything.
 
 After a fresh stage and audit, and once `release-policy.json` holds the
 `win32-x64` receipt for that exact inventory:
@@ -246,14 +249,16 @@ pnpm desktop:dist:windows
 
 This verifies the audit and receipt, refuses active feature packs (Windows
 packs are not built yet), and builds the per-user installer without
-electron-builder's own Windows signing. Every PE file lacking a valid signature
-is signed with SHA-256 file and timestamp digests, timestamped by
-`http://timestamp.acs.microsoft.com`; valid vendor signatures, such as
-Microsoft's, are kept. Nested code under `resources` is signed first, deepest
-first. The review receipt is then added and the runtime manifest recomputed,
-since signing changes file hashes, before the outer app (`Animama.exe` last),
-the uninstaller and the installer are signed. A transient timestamp or network
-failure is retried for the still-unsigned files only.
+electron-builder's own Windows signing. Every PE file lacking a valid embedded
+signature is signed with SHA-256 file and timestamp digests, timestamped by
+`http://timestamp.acs.microsoft.com`; valid embedded vendor signatures, such as
+Microsoft's, are kept. A catalog signature is not kept, since it verifies only
+on a machine holding that catalog. Nested code under `resources` is signed
+first, deepest first. The review receipt is then added and the runtime manifest
+recomputed, since signing changes file hashes, before the outer app
+(`Animama.exe` last), the uninstaller and the installer are signed. A transient
+timestamp or network failure is retried only for the files not yet signed and
+timestamped.
 
 `desktop/release/signing-report.json` lists every PE file with its signature,
 plus the installer and uninstaller. The candidate is refused unless every file
@@ -269,8 +274,10 @@ Windows evidence that shares a version folder with macOS files takes a
 `SHA256SUMS-win32-x64.txt`. The installer must be at most 750 MiB and the
 installed app at most 1.5 GiB.
 
-Each candidate uses about 140 signatures from the account's monthly quota, plus
-any retries. Sign only intentional candidates. To exercise signing before the
+Each candidate uses about 140 signatures from the account's monthly quota. The
+report's `signed_files` counts the files signed; retried or failed requests use
+more, so check the account's usage for the exact figure. Sign only intentional
+candidates. To exercise signing before the
 redistribution review exists:
 
 ```sh

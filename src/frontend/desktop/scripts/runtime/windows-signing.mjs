@@ -184,9 +184,19 @@ export function signFiles(files, tools, publisher) {
 }
 
 /**
+ * A signature embedded in the file that verifies everywhere. A catalog
+ * signature is trusted only on the machine holding the catalog, so it does not
+ * count as a vendor signature to keep.
+ */
+export function hasEmbeddedSignature(signature) {
+  return signature?.status === "Valid" && signature.type === "Authenticode";
+}
+
+/**
  * signtool stops at the first file it cannot sign, often a transient
- * timestamp or network failure. Retry only the files still unsigned, since
- * every request uses a signature, and give up after a few attempts.
+ * timestamp or network failure. Retry only the files not yet signed and
+ * timestamped, since every request uses a signature, and give up after a few
+ * attempts.
  */
 function signBatch(files, tools, metadata, attempts = 3) {
   let pending = files;
@@ -198,7 +208,11 @@ function signBatch(files, tools, metadata, attempts = 3) {
       return;
     } catch (error) {
       const state = readSignatures("", pending);
-      pending = pending.filter((file) => state.get(file).status !== "Valid");
+      pending = pending.filter(
+        (file) =>
+          !hasEmbeddedSignature(state.get(file)) ||
+          !state.get(file).timestamped,
+      );
       if (!pending.length) return;
       if (attempt === attempts) throw error;
       console.warn(
@@ -222,6 +236,7 @@ $out = foreach ($file in $files) {
   $certificate = $signature.SignerCertificate
   [pscustomobject]@{
     status = [string]$signature.Status
+    type = [string]$signature.SignatureType
     subject = if ($certificate) { $certificate.Subject } else { $null }
     timestamped = [bool]$signature.TimeStamperCertificate
     eku = @(if ($certificate) { $certificate.Extensions | Where-Object { $_.Oid.Value -eq "2.5.29.37" } | ForEach-Object { $_.EnhancedKeyUsages } | ForEach-Object { $_.Value } })
@@ -266,18 +281,19 @@ export function readSignatures(root, files) {
 /**
  * One report entry. A file Animama signed must carry the pinned publisher's
  * subject and identity-validation EKU and a timestamp, since Artifact Signing
- * certificates last only days. A vendor's signature only has to be valid.
+ * certificates last only days. A vendor's signature has to be valid and
+ * embedded in the file.
  */
 export function signatureEntry(file, digest, signature, publisher, ours) {
   const valid =
-    signature?.status === "Valid" &&
+    hasEmbeddedSignature(signature) &&
     (!ours ||
       (signature.subject === publisher.certificate_subject &&
         signature.timestamped === true &&
         signature.eku?.includes(publisher.identity_validation_eku)));
   if (!valid)
     throw new Error(
-      `${file} is not ${ours ? "validly signed and timestamped by the pinned publisher" : "validly signed"} (${signature?.status ?? "unread"})`,
+      `${file} is not ${ours ? "validly signed and timestamped by the pinned publisher" : "validly signed"} (${signature?.status ?? "unread"}, ${signature?.type ?? "no signature"})`,
     );
   return {
     path: file,

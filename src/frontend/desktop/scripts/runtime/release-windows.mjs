@@ -129,12 +129,23 @@ export async function releaseWindows(args = []) {
   // These paths contain derived artifacts only, never the user-data directory.
   for (const name of [
     "publish",
+    "model-preflight",
     "win-unpacked",
     "signing-report.json",
+    releaseName(TARGET, "size-report.json"),
+    "RELEASE-NEXT-STEPS.txt",
     installerName,
     `${installerName}.blockmap`,
   ])
     rmSync(path.join(directory, name), { recursive: true, force: true });
+  if (!rehearsal) {
+    // Model candidates are copied only after signing; prove now, from the
+    // staged runtime, that every required set resolves and verifies, so a
+    // missing set cannot waste a candidate's signatures.
+    const preflight = path.join(directory, "model-preflight");
+    stageReleaseModels({ runtime: target.runtime, directory: preflight });
+    rmSync(preflight, { recursive: true, force: true });
+  }
 
   let signed = null;
   const builderFiles = new Map();

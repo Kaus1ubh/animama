@@ -1,9 +1,12 @@
-import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { readJson, sha256, writeJson } from "./common.mjs";
 import { assertInventory, inventoryId, inventoryTree } from "./inventory.mjs";
-import { verifyRedistributionReview } from "./release-policy.mjs";
 import {
+  embedRedistributionReview,
+  verifyRedistributionReview,
+} from "./release-policy.mjs";
+import {
+  hasEmbeddedSignature,
   portableExecutables,
   readSignatures,
   signatureEntry,
@@ -32,27 +35,12 @@ export function signWindowsApp(app, { release, tools, rehearsal }) {
   const before = readSignatures(app, files);
   const { nested, outer } = signingOrder(files);
   const unsigned = (list) =>
-    list.filter((file) => before.get(file).status !== "Valid");
+    list.filter((file) => !hasEmbeddedSignature(before.get(file)));
   const absolute = (list) => list.map((file) => path.join(app, file));
   const ours = new Set([...unsigned(nested), ...unsigned(outer)]);
 
   signFiles(absolute(unsigned(nested)), tools, publisher);
-  if (!rehearsal) {
-    // The receipt is a human decision about the exact inventory, not an
-    // approval invented by the build; it ships inside the signed runtime.
-    writeJson(path.join(runtime, "licenses/REDISTRIBUTION_REVIEW.json"), {
-      schema: "animama-redistribution-review/1",
-      ...release.review,
-    });
-    const notices = path.join(runtime, "licenses/THIRD_PARTY_NOTICES.txt");
-    writeFileSync(
-      notices,
-      readFileSync(notices, "utf8").replace(
-        "Development feasibility build. Redistribution approval is pending.",
-        "Release inventory reviewed; see REDISTRIBUTION_REVIEW.json. Per-record review labels below are inventory-time observations.",
-      ),
-    );
-  }
+  if (!rehearsal) embedRedistributionReview(runtime, release);
   manifest.files = inventoryTree(runtime);
   manifest.build_id = inventoryId(manifest.files);
   writeJson(path.join(runtime, "manifest.json"), manifest);
