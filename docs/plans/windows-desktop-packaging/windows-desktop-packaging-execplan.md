@@ -177,8 +177,10 @@ Paths are repository-relative. `D/` abbreviates `src/frontend/desktop/`.
       started on 2026-10-03 ([#259](https://github.com/raymond-van/animama/issues/259))
       on branch `build/windows-desktop-signing` from `main` at `401ac3b8`
       (Phases 1–5 merged in
-      [#258](https://github.com/raymond-van/animama/pull/258)). G1 is set up;
-      G2 is open.
+      [#258](https://github.com/raymond-van/animama/pull/258)). Agent work
+      and review #1 done at `6c1b46d6`; the signing rehearsal passed on Windows.
+      Open: the release candidate, which needs G2 and the release model inputs
+      on the Windows host, and the owner's signed installer journey.
 - [ ] Phase 7: Updates, smoke and publication tooling. Not started; the real upgrade needs G4.
 - [ ] Phase 8: Platform audit, clean-machine journey and documentation. Not started; needs G3.
 - [ ] Final integration review. Phases 1–5: review #1 blocked on FI-01, which
@@ -399,6 +401,14 @@ These planning findings come from inspecting the source at `98bceca2` on
     uninstaller now removes the folder with `rd /s /q`, which a probe showed
     deletes junctions and directory symlinks, inside the folder or as the
     folder itself, without entering them.
+31. **Electron ships two DLLs that are only catalog-signed (Phase 6).**
+    `d3dcompiler_47.dll` and `dxil.dll` read as `Valid` on the build host only
+    because Windows holds their catalog. Smart App Control on another machine
+    may not, so the release signs them like any unsigned file.
+32. **A release failure could exit 0 after electron-builder ran (Phase 6).**
+    The gate set `process.exitCode = 1`, but the process still exited 0 after a
+    post-build failure. electron-builder's own CLI re-asserts the code in an
+    `exit` listener, and the gate now does the same.
 
 ## Decision Log
 
@@ -522,6 +532,20 @@ These planning findings come from inspecting the source at `98bceca2` on
   profile `animama-public`. The agent confirmed Azure CLI 2.90.0 is signed in
   as a user and that Windows SDK `signtool` 10.0.26100 is installed. Identity
   validation and the signer role are first proven by Phase 6's first signature.
+- **2026-10-03, agent (Phase 6, within P-a, P-b and P-g):**
+  - `release-policy.json` moves to `animama-release-policy/3` with one receipt
+    per target under `redistribution_reviews`; the macOS receipt moves under
+    `darwin-arm64` unchanged. A Windows release also requires the `windows`
+    publisher; staging still needs no receipt.
+  - The signing tools are pinned in `runtime/windows-signing.lock.json`, not the
+    native component lock, so changing them does not change the staged
+    inventory under review.
+  - The client authenticates only through the Azure CLI; every other
+    DefaultAzureCredential source is excluded in its metadata.
+  - `--signing-rehearsal` proves signing before G2 without producing anything
+    the release gate or a publisher can accept.
+  - Feature packs stay macOS-only; a Windows release refuses any active pack.
+  - Model sets keep their shared names, as the same bytes serve both targets.
 
 ## Gates
 
@@ -1634,15 +1658,90 @@ signature or input change creates a new candidate that needs fresh review;
 receipts never carry over. Signing failures leave unsigned outputs, which the
 release gate refuses.
 
-Results: pending.
+Results (2026-10-03, issue [#259](https://github.com/raymond-van/animama/issues/259),
+commits `349dde45`, `c128a0ea`, `4ab78811`, `be315669` and `6c1b46d6`):
+
+- **G1 proven.** One probe signature of a throwaway copy of the guard returned
+  `Valid` with a Microsoft timestamp. It gave the certificate subject and the
+  identity-validation EKU now pinned in the `windows` publisher entry.
+- **Design.** electron-builder's Windows signing and executable editing stay off
+  (items 5 and 26). Its `afterPack` hook brands `Animama.exe` and signs the
+  packaged app in place. Its `signtoolOptions.sign` hook, which electron-builder
+  26.8.1 still calls for the uninstaller and installer when
+  `signAndEditExecutable` is off, signs those two. A rehearsal mode
+  (`--signing-rehearsal`) signs and measures without a redistribution receipt
+  and writes no publish folder, so signing could be proven before G2.
+- **Windows receipts** (Developer Mode off; clean `git status` before and
+  after):
+  - Signing rehearsal at `4ab78811` on the `127b09c2` stage: 141 files signed (139
+    PE files in the app plus the uninstaller and installer); all 146 PE files
+    `Valid`; seven Microsoft files kept with their own signatures; every file
+    Animama signed timestamped. Installer 336,730,304 bytes (cap 786,432,000);
+    installed 981,569,126 bytes (cap 1,610,612,736).
+  - Two earlier attempts failed and are not evidence: a transient timestamp
+    failure (now retried for unsigned files only, `c128a0ea`), then a wrong
+    uninstaller lookup that also exited 0 (`4ab78811`).
+  - About 350 signatures were used in total, including the probe and both
+    failed attempts.
+  - Installed silently from the rehearsal installer, the signed app reached
+    ready on fresh data and on the owner's data, with the owner's folder moved
+    aside and restored as in item 29. The signed rehearsal build stays
+    installed on the development host.
+  - `pnpm desktop:test` at `be315669`: 401 passed, 55 skipped, 0 failed.
+    `smoke:windows` still refuses (Phase 7).
+  - Read-only checks at `6c1b46d6` against the rehearsal output: 144 files carry
+    embedded signatures, and Electron's `d3dcompiler_47.dll` and `dxil.dll` only
+    catalog signatures. Under the revised rule, the next candidate signs these
+    two as well. The model preflight fails on this host because the Parakeet
+    sets were never acquired there, so the real candidate needs the release model
+    inputs first.
+- **Linux** (Node 24.15.0) at `be315669`: `pnpm desktop:check` clean;
+  `pnpm desktop:test` 431 passed, 26 skipped. At `6c1b46d6` the Windows release
+  and packaging suites pass (79 passed, 1 skipped) and `desktop:check` is clean.
+- **Not done, gated:** `pnpm desktop:dist:windows` without the rehearsal flag
+  needs G2 (the `win32-x64` receipt) and the acquired release model sets. The
+  owner's signed installer journey and SmartScreen record follow that
+  candidate.
 
 #### Code Review #1 Findings
 
-Pending.
+Independent reviewer, `be315669` against `27e4acf3`, full initial review. Result:
+pass, no blocking findings. The reviewer read electron-builder 26.8.1 to confirm
+when the signing hook runs, the uninstaller's name, and that nothing changes
+`Animama.exe` after `afterPack`.
+
+- **P6-R1-01:** a retry dropped a file that was signed but not timestamped.
+- **P6-R1-02:** model candidates were resolved only after signing; a missing set
+  or `python3` would waste a candidate's signatures. The docs did not list them.
+- **P6-R1-03:** `backend-model-assets.json` keeps its shared name; its source
+  has no `eol=lf` rule, so a CRLF Windows checkout could publish different
+  bytes under the macOS name.
+- **P6-R1-04:** a catalog signature, valid only where the catalog is installed,
+  was accepted as a vendor signature.
+- **P6-R1-05:** the receipt and notices code duplicated `sign-macos.mjs`.
+- **P6-R1-06:** cleanup left `RELEASE-NEXT-STEPS.txt` and the rehearsal size
+  report.
+- **P6-R1-07:** `signed_files` does not count retried or failed requests.
+- **P6-R1-08:** a rehearsal leaves a signed, installable installer marked only by
+  `release_ready: false`; publication allowlists still expect macOS names.
 
 #### Code Review #1 Revisions
 
-Pending.
+In `6c1b46d6` (repair round 1):
+
+- P6-R1-01 accepted: a retry keeps any file without an embedded, timestamped
+  signature.
+- P6-R1-02 accepted: before any signing, the release stages the model candidates
+  from the staged runtime into a scratch folder. The docs now list `python3` and
+  the model sets. The Windows check above proved the gap was real.
+- P6-R1-04 accepted: only an embedded `Authenticode` signature counts, for
+  vendor files and Animama's own.
+- P6-R1-05 accepted: `embedRedistributionReview` is shared by both signers.
+- P6-R1-06 accepted.
+- P6-R1-07 accepted as documentation: the report's count is a lower bound; the
+  account's usage is exact.
+- P6-R1-03 and P6-R1-08 deferred to Phase 7, which owns publication (its
+  change 3).
 
 ### Phase 7: Updates, smoke and publication tooling
 
@@ -1677,6 +1776,13 @@ Changes:
    - Add `windows-acceptance.example.json` and `ANIMAMA_WINDOWS_ACCEPTANCE`.
    - Generalize the macOS publisher or add a Windows one, whichever change is
      smaller.
+   - From Phase 6: publication and scans refuse a candidate whose signing report
+     is not `release_ready: true` (a rehearsal), and use the `-win32-x64`
+     evidence names (P6-R1-08). Pin LF for `model-assets.v1.json`, or check that
+     the shared `backend-model-assets.json` bytes match, before uploading it
+     under the shared name (P6-R1-03). Phase 6 builds
+     `Animama-<version>-x64-setup.exe` (Phase 5's artifact name); the update
+     policy takes that name.
 4. **`smoke:windows`** (`smoke-windows.mjs`). In a separate Windows test
    account that has no `%LOCALAPPDATA%\Animama`, it:
    1. silently installs the exact installer for that user;
