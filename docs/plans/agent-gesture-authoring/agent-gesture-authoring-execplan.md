@@ -82,7 +82,8 @@ Paths are relative to `src/frontend/web/src/` unless stated:
   - creator play and reopen for each evaluation Gesture on both Avatars;
   - skill guidance review (R1);
   - R8 scoring.
-- [ ] Final integration review; PR; owner acceptance.
+- [x] Final integration review passed (review #2).
+- [ ] PR and owner acceptance.
 
 ## Surprises & Discoveries
 
@@ -954,7 +955,15 @@ Independent `sdlc-reviewer` on `d862576c`.
   - a test feeds a reported `actualOffset` back and satisfies the contact
     within 5 mm;
   - `pnpm build` rerun (exit 0);
-  - Outcomes & Retrospective filled. Then open the PR with the default template, separating local, browser,
+  - Outcomes & Retrospective filled.
+
+#### Final Integration Review #2 Findings and Revisions
+
+Targeted recheck: F1 and F2 are resolved, with no regressions. Result:
+**pass**. One cosmetic note was applied: the procedural PR sentence is moved
+back out of the revision list.
+
+Then open the PR with the default template, separating local, browser,
 chat and hosted evidence. Merge needs owner approval of the exact candidate.
 
 ## Validation and acceptance
