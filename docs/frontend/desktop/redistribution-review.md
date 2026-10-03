@@ -71,9 +71,13 @@ fresh inventory review. Allowlist entries in `release-scan.gitleaks.toml` that
 only covered those packages can be dropped once that scan passes without them.
 
 The generated `desktop/release/review/redistribution-review.md` packet links the
-current local artifacts. Keep the reviewer's decision with exact inventory and
-artifact hashes. `release-policy.json` and `feature-pack-releases.json` supply
-machine-checked receipts; they are valid only when the produced inventory matches.
+current local artifacts for the target last staged. Keep the reviewer's
+decision with exact inventory and artifact hashes. `release-policy.json` and
+`feature-pack-releases.json` supply machine-checked receipts; they are valid
+only when the produced inventory matches. Each target has its own native
+components and lock, so `release-policy.json` keeps one receipt per target under
+`redistribution_reviews` (`darwin-arm64`, `win32-x64`); a receipt for one never
+admits the other.
 
 Fresh native notice bundles, complete starter behavior and signed/native
 acceptance remain release gates. Follow [Releases](releases.md) and the

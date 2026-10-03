@@ -1,5 +1,5 @@
 {
-  "schema": "animama-release-policy/2",
+  "schema": "animama-release-policy/3",
   "distributions": {
     "r2": {
       "base_url": "https://downloads.animama.ai/desktop",
@@ -15,9 +15,16 @@
     "commercial": false,
     "pocket_tts_onnx_license": "CC-BY-4.0"
   },
-  "redistribution_review": {
-    "inventory_sha256": "13f6218a5d66b5f123157b80713355c37d5b7ed72098be7ea66fe22886d3197c",
-    "reviewed_by": "raymond-van",
-    "reviewed_on": "2026-09-26"
+  "redistribution_reviews": {
+    "darwin-arm64": {
+      "inventory_sha256": "13f6218a5d66b5f123157b80713355c37d5b7ed72098be7ea66fe22886d3197c",
+      "reviewed_by": "raymond-van",
+      "reviewed_on": "2026-09-26"
+    },
+    "win32-x64": {
+      "inventory_sha256": "fb1508b381d314ecf4a30c10526f9d477309a899a832ab7543d64fe0f7c61979",
+      "reviewed_by": "raymond-van",
+      "reviewed_on": "2026-10-03"
+    }
   }
 }

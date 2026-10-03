@@ -17,6 +17,51 @@ async function sha512(file) {
 }
 
 /**
+ * What differs between release targets. Both targets share one versioned
+ * distribution folder, so Windows evidence files that would collide with the
+ * macOS names carry a `-win32-x64` suffix; macOS names stay unchanged.
+ */
+export const RELEASE_TARGETS = {
+  "darwin-arm64": {
+    label: "macOS 15",
+    platform: "darwin",
+    architecture: "arm64",
+    minimumOs: "15.0",
+    // macOS 15 is Darwin 24. electron-updater compares os.release(), not the product version.
+    minimumSystemVersion: "24.0.0",
+    feed: "latest-mac.yml",
+    runtime: "Contents/Resources/runtime",
+    measurement: "signed-stapled-app-and-final-distribution-archives",
+    suffix: "",
+    // The first entry is the feed's primary download.
+    downloads: (version) => [
+      ["zip", `Animama-${version}-arm64.zip`],
+      ["dmg", `Animama-${version}-arm64.dmg`],
+    ],
+  },
+  "win32-x64": {
+    label: "Windows 11",
+    platform: "win32",
+    architecture: "x64",
+    minimumOs: "10.0.22000",
+    // On Windows os.release() is the kernel version, which matches the build.
+    minimumSystemVersion: "10.0.22000",
+    feed: "latest.yml",
+    runtime: "resources/runtime",
+    measurement: "signed-app-and-installer",
+    suffix: "-win32-x64",
+    downloads: (version) => [["nsis", `Animama-${version}-x64-setup.exe`]],
+  },
+};
+
+/** A target's evidence file name in the shared folder: `size-report.json` → `size-report-win32-x64.json`. */
+export function releaseName(target, name) {
+  const { suffix } = RELEASE_TARGETS[target];
+  const dot = name.indexOf(".");
+  return `${name.slice(0, dot)}${suffix}${name.slice(dot)}`;
+}
+
+/**
  * Feed metadata is derived from the final signed bytes, never hand-entered
  * estimates. An R2 feed sits above per-version folders, so its file paths
  * include the folder and it carries the tag GitHub would otherwise supply.
@@ -27,18 +72,19 @@ export async function updateFeed(
   installedBytes,
   catalog,
   distribution,
+  target = "darwin-arm64",
 ) {
+  const spec = RELEASE_TARGETS[target];
   const version = manifest.app_version;
   if (!/^\d+\.\d+\.\d+$/u.test(version))
     throw new Error("Invalid release version");
-  if (manifest.minimum_os !== "15.0")
-    throw new Error("Update feed requires the macOS 15 runtime manifest");
+  if (manifest.minimum_os !== spec.minimumOs)
+    throw new Error(`Update feed requires the ${spec.label} runtime manifest`);
   if (!["r2", "github"].includes(distribution?.kind))
     throw new Error("Update feed requires the selected release distribution");
   const folder = distribution.kind === "r2" ? `v${version}/` : "";
   const files = [];
-  for (const extension of ["zip", "dmg"]) {
-    const name = `Animama-${version}-arm64.${extension}`;
+  for (const [, name] of spec.downloads(version)) {
     const url = `${folder}${name}`;
     const file = path.join(directory, name);
     const stat = lstatSync(file);
@@ -60,13 +106,12 @@ export async function updateFeed(
     files,
     path: files[0].url,
     sha512: files[0].sha512,
-    // macOS 15 is Darwin 24. electron-updater compares os.release(), not the product version.
-    minimumSystemVersion: "24.0.0",
+    minimumSystemVersion: spec.minimumSystemVersion,
     releaseDate: new Date().toISOString(),
     animama: {
       schema: "animama-update/1",
-      platform: "darwin",
-      architecture: "arm64",
+      platform: spec.platform,
+      architecture: spec.architecture,
       installed_bytes: installedBytes,
       runtime_build_id: manifest.build_id,
       packs: catalog.entries.map((pack) => ({
@@ -79,15 +124,25 @@ export async function updateFeed(
   };
 }
 
-/** Measure the actual app and both distribution archives, including signature/installer overhead. */
-export function releaseSizes(app, directory, manifest, catalog) {
+/** Measure the actual app and its distribution files, including signature/installer overhead. */
+export function releaseSizes(
+  app,
+  directory,
+  manifest,
+  catalog,
+  target = "darwin-arm64",
+) {
+  const spec = RELEASE_TARGETS[target];
   const installed = componentInventory(app).reduce(
     (sum, file) => sum + file.size_bytes,
     0,
   );
+  const manifestBytes = lstatSync(
+    path.join(app, spec.runtime, "manifest.json"),
+  ).size;
   const runtimeBytes =
     manifest.files.reduce((sum, file) => sum + file.size_bytes, 0) +
-    lstatSync(path.join(app, "Contents/Resources/runtime/manifest.json")).size;
+    manifestBytes;
   const components = new Map([["electron", installed - runtimeBytes]]);
   for (const file of manifest.files)
     components.set(
@@ -96,26 +151,19 @@ export function releaseSizes(app, directory, manifest, catalog) {
     );
   components.set(
     "package_overhead",
-    (components.get("package_overhead") ?? 0) +
-      lstatSync(path.join(app, "Contents/Resources/runtime/manifest.json"))
-        .size,
+    (components.get("package_overhead") ?? 0) + manifestBytes,
   );
   const downloads = Object.fromEntries(
-    ["dmg", "zip"].map((extension) => [
-      extension,
-      lstatSync(
-        path.join(
-          directory,
-          `Animama-${manifest.app_version}-arm64.${extension}`,
-        ),
-      ).size,
-    ]),
+    spec
+      .downloads(manifest.app_version)
+      .map(([kind, name]) => [kind, lstatSync(path.join(directory, name)).size])
+      .sort(([a], [b]) => a.localeCompare(b)),
   );
   const report = {
     schema: "animama-size-report/1",
-    target: "darwin-arm64",
+    target,
     app_version: manifest.app_version,
-    measurement: "signed-stapled-app-and-final-distribution-archives",
+    measurement: spec.measurement,
     installed_bytes: installed,
     download_bytes: Math.max(...Object.values(downloads)),
     downloads,
@@ -186,8 +234,17 @@ export function candidateDistribution(directory) {
   }
 }
 
-/** Publish only a fixed allowlist, not release directories, build logs, or source maps. */
-export function writeArtifactIndex(directory, version, names, extra = {}) {
+/**
+ * Publish only a fixed allowlist, not release directories, build logs, or
+ * source maps. A target's index and checksums take its evidence suffix.
+ */
+export function writeArtifactIndex(
+  directory,
+  version,
+  names,
+  extra = {},
+  target = "darwin-arm64",
+) {
   const files = [...new Set(names)].sort().map((name) => {
     if (!/^[A-Za-z0-9][A-Za-z0-9_.-]{0,150}$/u.test(name))
       throw new Error("Unsafe release artifact name");
@@ -203,16 +260,21 @@ export function writeArtifactIndex(directory, version, names, extra = {}) {
     ...extra,
     files,
   };
-  writeJson(path.join(directory, "release-artifacts.json"), index);
+  writeJson(
+    path.join(directory, releaseName(target, "release-artifacts.json")),
+    index,
+  );
   writeFileSync(
-    path.join(directory, "SHA256SUMS.txt"),
+    path.join(directory, releaseName(target, "SHA256SUMS.txt")),
     files.map((file) => `${file.sha256}  ${file.name}\n`).join(""),
   );
   return index;
 }
 
-export function verifyArtifactIndex(directory) {
-  for (const name of ["release-artifacts.json", "SHA256SUMS.txt"]) {
+export function verifyArtifactIndex(directory, target = "darwin-arm64") {
+  const indexName = releaseName(target, "release-artifacts.json");
+  const sumsName = releaseName(target, "SHA256SUMS.txt");
+  for (const name of [indexName, sumsName]) {
     const stat = lstatSync(path.join(directory, name));
     if (
       !stat.isFile() ||
@@ -222,7 +284,7 @@ export function verifyArtifactIndex(directory) {
     )
       throw new Error("Invalid release artifact index");
   }
-  const index = readJson(path.join(directory, "release-artifacts.json"));
+  const index = readJson(path.join(directory, indexName));
   if (
     index.schema !== "animama-release-artifacts/1" ||
     !Array.isArray(index.files) ||
@@ -241,25 +303,25 @@ export function verifyArtifactIndex(directory) {
       !Number.isSafeInteger(file.size_bytes) ||
       file.size_bytes < 1 ||
       names.has(file.name) ||
-      ["release-artifacts.json", "SHA256SUMS.txt"].includes(file.name)
+      [indexName, sumsName].includes(file.name)
     )
       throw new Error("Invalid release artifact entry");
     names.add(file.name);
-    const target = path.join(directory, file.name);
-    const stat = lstatSync(target);
+    const artifact = path.join(directory, file.name);
+    const stat = lstatSync(artifact);
     if (
       !stat.isFile() ||
       stat.isSymbolicLink() ||
       stat.nlink !== 1 ||
       stat.size !== file.size_bytes ||
-      sha256(target) !== file.sha256
+      sha256(artifact) !== file.sha256
     )
       throw new Error("Release artifact changed after verification");
   }
   const sums = index.files
     .map((file) => `${file.sha256}  ${file.name}\n`)
     .join("");
-  if (readFileSync(path.join(directory, "SHA256SUMS.txt"), "utf8") !== sums)
+  if (readFileSync(path.join(directory, sumsName), "utf8") !== sums)
     throw new Error("Release checksum list changed");
   return index;
 }

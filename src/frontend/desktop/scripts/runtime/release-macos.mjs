@@ -19,6 +19,7 @@ import {
 import { assertInventory, inventoryId } from "./inventory.mjs";
 import { componentInventory } from "./inventory.mjs";
 import {
+  builderPublishConfig,
   loadReleasePolicy,
   releaseTagBase,
   sealedDistribution,
@@ -65,23 +66,7 @@ export function macBuilderOptions({ app, icon, release }) {
     config: {
       extends: path.join(desktopRoot, "electron-builder.yml"),
       forceCodeSigning: true,
-      // Writes the app-update.yml electron-builder embeds; the updater itself
-      // takes its transport from the staged update policy.
-      publish: [
-        release.distribution.name === "r2"
-          ? {
-              provider: "generic",
-              url: release.distribution.base_url,
-              channel: "latest",
-            }
-          : {
-              provider: "github",
-              owner: release.distribution.owner,
-              repo: release.distribution.repo,
-              private: false,
-              releaseType: "release",
-            },
-      ],
+      publish: builderPublishConfig(release.distribution),
       mac: {
         icon,
         minimumSystemVersion: "15.0",
