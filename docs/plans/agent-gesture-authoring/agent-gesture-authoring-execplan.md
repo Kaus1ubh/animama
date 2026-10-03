@@ -63,7 +63,8 @@ Paths are relative to `src/frontend/web/src/` unless stated:
 - [x] Phase 2: Automated motion checks. Review #2 passed.
 - [x] Phase 3: Gesture layer mutes and expression precedence. Review #2
       passed; F7 (fade-scaled mutes) awaits owner confirmation.
-- [ ] Phase 4: Review renders and the `animama-animation` skill.
+- [x] Phase 4: Review renders and the `animama-animation` skill. Review #2
+      passed; owner review of the skill guidance (R1) is pending.
 - [ ] Phase 5: Evaluation on #243 prompts 1–6 (owner scoring gate).
 - [ ] Final integration review; PR; owner acceptance.
 
@@ -121,6 +122,13 @@ Paths are relative to `src/frontend/web/src/` unless stated:
   reference Avatar is fixed to the VRM 1 sample because the leg solver needs a
   VRM 1 rig, so the plan's `--fit-avatar` option was dropped. Finger and thumb
   segments are keyable joints whose axes match the Hands tool.
+- 2026-10-03, implementation (Phase 4, owner acceptance requested): review
+  renders use the app's VRM loader steps, `sampleAnimaPoseClip` and canonical
+  posing (the same sampler and VRM 0 conversion as playback) in headless
+  Chromium, not the full `Avatar` class, which needs a prepared runtime
+  catalog. Creator playback and a chat check remain the confirmation that the
+  real runtime matches. Descriptions are kept in the owner's chosen location,
+  or by default in `motion-authoring/examples/` on the task branch.
 - 2026-10-03, implementation (Phase 2 review):
   - **Not checked:** jerk. Vector acceleration spikes, pops and stall warnings
     cover the visible failure modes.
@@ -706,6 +714,103 @@ checklist; dry-run notes.
 
 Completion: renders and the skill workflow work end to end on the sample, and
 the owner is asked to review the skill guidance (R1).
+
+#### Phase 4 evidence
+
+- Issue #264. Starting source `e6253091`.
+- **Review renderer** (`web/scripts/animation-render.mjs`, harness under
+  `web/scripts/animation-render/`):
+  - Vite plus headless Chromium (SwiftShader WebGL) loads both textured
+    Included Avatars;
+  - plays the clip through `sampleAnimaPoseClip` and canonical posing;
+  - draws rows of front, ¾ and side views (from the Avatar's `--side`)
+    plus a face close-up;
+  - about 6 s per sheet.
+  - Deviation: it uses the app's loader plugins and sampler, not the full
+    `Avatar` class, which would need runtime catalog preparation; live layers
+    are excluded as in the creator.
+  - `scripts/animation-render.browser.test.mjs` passes.
+- **Skill** `.agents/skills/animama-animation/`:
+  - `SKILL.md`, `agents/openai.yaml`;
+  - references: motion principles, description format, human movement,
+    hands and face, checks and review.
+  - `animama-vrm` links to it; `docs/frontend/runtime/avatar-animation.md`
+    lists the commands.
+- **Creator confirmation:** the procedure is documented in the skill and was
+  exercised in Phase 3 (import, mutes, Save, reopen).
+- **Wave example:** revised from its renders. The elbow stays bent while the
+  arm lowers, and external rotation unwinds before the return, so the
+  forearm no longer swings out sideways.
+- **Dry run:** a fresh agent with only the skill authored "point to the right
+  and look, curious". Checks passed after three iterations and the renders
+  read clearly. Its nine guidance gaps were fixed:
+  - mood blend table;
+  - gaze and look-preset guidance;
+  - side and face views, plus the `--side` option and help text;
+  - front-view mirroring note;
+  - lateral pointing values;
+  - intersection fix advice;
+  - one-arm counterbalance directions;
+  - setup clarity;
+  - consistent `pnpm -s` usage.
+- **Owner gate:** review of the skill guidance (R1) is requested at hand-off.
+
+#### Code Review #1 Findings
+
+Independent `sdlc-reviewer` on `e6253091` plus the working tree. It verified
+the skill's claims against the code, and the renderer test, eslint,
+prettier, example check and a render all pass.
+
+- **P4-R1-F1 (required):** the skill said tracks hold outside their keys, but
+  loops wrap.
+- **P4-R1-F2 (required):** no lasting location for descriptions (R7).
+- **P4-R1-F3 (required):** the renderer's departure from "production Avatar
+  runtime" was not in the Decision Log.
+- **Optional:**
+  - renderer arguments were lax (missing `--out` exited 0; NaN times);
+  - a browser launch failure leaked the Vite server; harness errors
+    surfaced only as a 60 s timeout;
+  - missing pose references rendered silently;
+  - toes were wrongly documented as unkeyable with planted feet;
+  - at 2.30 s the wave forearm still angles out slightly.
+
+#### Code Review #1 Revisions
+
+- **F1, accepted:** the loop wrap rule is now in `description-format.md` and
+  `motion-principles.md`.
+- **F2, accepted:** descriptions go to the owner's location, or by default
+  `motion-authoring/examples/` on the task branch (SKILL.md steps 2 and 8,
+  hand-off list); clips and renders may stay in scratch.
+- **F3, accepted:** added a Decision Log entry; flagged for owner acceptance.
+- **Optional, applied:**
+  - strict renderer options (unknown, valueless or invalid exit 2; `--help`);
+  - launch and listen moved inside cleanup;
+  - fail-fast harness errors;
+  - missing pose references reported as a warning;
+  - `--tile` option, documented;
+  - toe documentation corrected.
+- **Wave forearm, retained:** the residual outward angle at 2.30 s is the
+  forearm passing through its natural carry angle while lowering. Recorded as
+  a limitation.
+- **Also folded in from Phase 5 authoring agents:**
+  - the finger splay natural range is widened to ±22°, so the Hands tool's
+    Open · spread preset no longer warns;
+  - the skill gained a palms-up recipe and blink/eye-narrowing guidance.
+
+#### Code Review #2 Findings and Revisions
+
+Targeted recheck: F1–F3 and the applied optional items are resolved, with no
+regressions. Result: **pass**.
+
+Optional notes, all applied:
+- the Node side now races the ready wait against `pageerror`, so harness
+  import failures surface immediately;
+- `--tile` dimensions must be 10–9999 px;
+- the header comment lists `--tile`;
+- the palms-up recipe names wrist `flexion` −10 to −20;
+- sheet labels drop the `AvatarSample_` prefix.
+
+Renderer test passes and eslint is clean.
 
 ### Phase 5 — Evaluation (R8)
 

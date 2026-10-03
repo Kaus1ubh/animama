@@ -1,0 +1,76 @@
+# Checks, review and hand-off
+
+## Motion checks
+
+`pnpm -s animation check <motion.json | clip.json> [--description <motion.json>] [--json]`
+plays the clip through the production sampler on `AvatarSample_Y_0` (VRM 0)
+and `AvatarSample_A_1_New` (VRM 1) and exits 1 on any FAIL. A description
+supplies `contacts` and `plantFeet`; pass `--description` when checking a clip.
+
+| Category | Means | Typical fix |
+| --- | --- | --- |
+| `pose` | A referenced pose is missing from the catalog | Use inline values (generated clips always do) |
+| `range` | A joint exceeds its natural (WARN) or anatomical (FAIL) range | Reduce the value or share it with neighbouring joints |
+| `smoothness` | Pop, speed or acceleration spike, or a mid-motion stall (WARN) | Spread keys, remove `step`/`linear` jumps, add an easing key, drop accidental `flat` holds |
+| `intersection` | Hand or forearm passes into the torso, neck, head or the other arm (capsule approximation, calibrated against the base pose) | Raise elevation before or with elbow flexion (a bent elbow on a hanging arm drives the forearm into the hip); move the arm outward or forward; avoid shoulder depression with a bent elbow; declare an intended touch as a contact |
+| `contact` | A declared touch is not within tolerance | Adjust arm/elbow/wrist until the bone reaches the target |
+| `feet` | A planted foot slides, lifts or sinks | Reduce hips offset or pelvis rotation; keep `plantFeet` |
+| `loopSeam` | A loop's end does not meet its start, or speed jumps there | Match end keys and keep motion consistent across the seam |
+| `parity` | A bone turns differently on the two Avatars | Report it: this indicates a conversion bug, not an authoring choice |
+
+Declare intended touches so the checks verify them and stop flagging them:
+
+```json
+"contacts": [
+  { "bone": "leftHand", "target": "head", "from": 0.6, "to": 1.4, "offset": [0, -0.08, 0.06], "tolerance": 0.06 }
+]
+```
+
+`offset` is metres in the target bone's rest-aligned frame (x Avatar's left,
+y up, z forward); a contact with the head also clears the neck.
+
+## Review renders
+
+`pnpm -s animation:render <clip.json> --out <dir> [--times 0,0.4,0.8] [--rows 8] [--side right|left]`
+writes `<clip id>.png`: one row per time and, for each Avatar, a front view,
+a ¾ and a side view from the Avatar's own `--side` (default right) and a face
+close-up, without live layers. The front view faces the Avatar, so its right
+hand appears on the viewer's left. Use `--side left` when the left arm acts,
+and larger tiles (`--tile 440x660`) with a few `--times` to judge small
+motions, palms or hand shapes. Render the beats (keys of the main action) and a
+few in-between times. Look for: readable silhouette at each beat, staggered
+arrival, arcs, hand shapes, facial expression, odd forearm directions, wrist
+breaks, intersections the capsules miss, and agreement between the Avatars.
+Write output to a scratch directory, never the repository.
+
+## Creator confirmation and save
+
+1. Open `/gestures/new`, Clip tab → Import → paste the clip JSON (or choose
+   the file) → Import.
+2. Check Clip settings (timeline settings button) → Mute while playing.
+3. Play it with each Avatar selected in the preview; the creator runs no live
+   layers.
+4. Fill the name and AI description, then **Save** (Local content). Use
+   Save & Equip only when the owner asks.
+5. Reopen the saved Gesture and play it again.
+
+## Chat check
+
+On a test Anima, equip the Gesture (or use the debug Gesture trigger) and
+watch it in a chat: muted layers should settle while it plays, keyed
+expressions should replace the emotion face, and everything should return
+afterwards.
+
+## Hand-off
+
+Report:
+
+- the saved item and Avatars reviewed;
+- the description path (in the owner's location or `motion-authoring/examples/`;
+  regenerate rather than hand-editing a dense clip);
+- check results with any accepted WARNs and why;
+- render sheets and the chat check;
+- known limits.
+
+Automated checks and renders do not prove natural-looking motion. Say which
+reviews were done and leave the final judgement to the owner.

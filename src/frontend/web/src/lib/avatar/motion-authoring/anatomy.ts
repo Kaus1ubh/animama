@@ -316,7 +316,8 @@ export const JOINT_DEFINITIONS = {
       splay: {
         axis: "y",
         sign: -1,
-        soft: [-15, 15],
+        // The Hands tool's Open · spread preset reaches about ±21°.
+        soft: [-22, 22],
         hard: [-30, 30],
         description:
           "Fan the segment toward the thumb side (+) or the little-finger side (−); use on proximal segments.",

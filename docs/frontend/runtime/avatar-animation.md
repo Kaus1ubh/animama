@@ -504,6 +504,21 @@ Particle exposes its elapsed preview clock, while Avatar/Scene rulers show saved
 lifetime configuration without seeking or an elapsed playhead. Avatar's run-end
 buffer starts after a conversation run; it is not a standalone preview deadline.
 
+Agent-authored Gestures start from a per-bone motion description
+(`animamaMotion/1`). Commands run from `src/frontend/web`:
+
+- `pnpm -s animation joints` lists joints, components and ranges.
+- `pnpm -s animation generate <motion.json>` bakes a dense
+  `animaPoseClip/1.0` sequence, within 1° / 5 mm of the described curves.
+- `pnpm -s animation check <motion|clip>` runs motion checks on both
+  Included Avatars.
+- `pnpm -s animation:render <clip.json> --out <dir>` draws review sheets.
+
+The workflow, conventions and review guidance live in the
+`animama-animation` agent skill. The code is in
+`src/lib/avatar/motion-authoring/`. Import a generated clip through the
+Gesture creator and edit its description, not the dense keyframes.
+
 There is no separate generic Pose Creator route or raw package save provider.
 Clip JSON remains `animaPoseClip/1.0`; a separate versioned project envelope is
 available when typed effect/sound dependencies must round-trip with the sequence.

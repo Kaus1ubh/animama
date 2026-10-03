@@ -27,6 +27,7 @@ Reference baseline: researched 2026-09-24; Animama revision `f09d5d7c63fb17f9434
 | Pose bones, orient hands, use a gizmo, retarget or serialize a pose | [Bones and posing](references/bones-and-posing.md) |
 | Load/update/dispose three-vrm; work with expressions, gaze, constraints, springs, VRMA | [three-vrm runtime](references/three-vrm-runtime.md) |
 | Find the canvas owner, understand chat versus creator previews, navigate app contracts | [Animama runtime and creators](references/animama-runtime-and-creators.md) |
+| Author a new Gesture's motion from a text prompt | The `animama-animation` skill |
 | Inspect skinning/materials, choose or troubleshoot an Avatar Effect, use UV/placement guides | [Materials and Avatar VFX](references/materials-and-avatar-vfx.md) |
 
 For a creator task, read its domain reference plus the applicable section of the app reference. Do not load every reference for a narrow question. Prefer the linked specifications, API docs, and version-matched implementation to Unity examples or generic tutorials.

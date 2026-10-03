@@ -6,6 +6,7 @@
   "scripts": {
     "routes:generate": "node scripts/generate-routes.mjs",
     "animation": "node scripts/animation.mjs",
+    "animation:render": "node scripts/animation-render.mjs",
     "dev": "pnpm --dir .. poses:check && pnpm --dir .. packages:build && pnpm routes:generate && vite",
     "build": "pnpm --dir .. packages:build && pnpm build:source",
     "check": "pnpm --dir .. packages:build && pnpm check:source",
