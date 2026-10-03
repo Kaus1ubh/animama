@@ -83,7 +83,7 @@ export async function publishGithub({
     (asset) =>
       !ownName(asset.name) && !SHARED_RELEASE_NAMES.includes(asset.name),
   );
-  if (shared && !published && !(preview && remote.prerelease))
+  if (shared && !published && !(preview && remote.prerelease && !remote.draft))
     throw new PublicationError(
       "This version's release holds the other target's unpublished draft or preview; publish that target first",
     );

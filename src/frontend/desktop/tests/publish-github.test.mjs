@@ -100,6 +100,12 @@ describe("GitHub publication into a shared release", () => {
       ).rejects.toThrow("publish that target first");
       expect(api.uploads).toEqual([]);
     }
+    // An interrupted preview is still a draft; another preview never opens it.
+    const draftPreview = github({ ...preview, draft: true }, macAssets);
+    await expect(
+      publish({ files: files("Animama-0.2.0-x64-setup.exe"), preview: true }),
+    ).rejects.toThrow("publish that target first");
+    expect(draftPreview.uploads).toEqual([]);
     // Both previews may share one prerelease; the first description stays.
     const api = github(preview, macAssets);
     await publish({

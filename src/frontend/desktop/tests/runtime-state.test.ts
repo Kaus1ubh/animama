@@ -991,14 +991,22 @@ describe("owned processes and secret-safe logs", () => {
             pid: process.pid,
             name: "unrelated",
             startToken: "stale",
-            executable: "/unrelated",
+            // Windows also requires the recorded image still to be running.
+            executable:
+              process.platform === "win32" ? process.execPath : "/unrelated",
           },
         ],
       }),
     );
     const kill = vi.spyOn(process, "kill");
     expect(() => new OwnedProcesses(file)).toThrow("previous_runtime_running");
-    expect(kill.mock.calls).toEqual([[process.pid, 0]]);
+    // Only existence probes, never a signal.
+    expect(kill.mock.calls.length).toBeGreaterThan(0);
+    expect(
+      kill.mock.calls.every(
+        ([pid, signal]) => pid === process.pid && signal === 0,
+      ),
+    ).toBe(true);
   });
 
   it("tells a reused Windows PID from the earlier runtime by its image", () => {

@@ -51,8 +51,11 @@ writable by the setup user. Do not run a privileged downloader.
 
 On native Windows, use `py -3` in place of `python3`. The acquisition CLI has
 Windows locking and file-safety handling; it does not make the Bash/Compose
-workflow a native PowerShell workflow. The packaged Windows app downloads its
-own speech models into this same default store.
+workflow a native PowerShell workflow. The packaged app does not use this
+store: it keeps its downloaded speech models under its own data folder
+(`%LOCALAPPDATA%\Animama\data` on Windows). The Windows developer store
+sits inside the app's `%LOCALAPPDATA%\Animama` folder, so removing the app's data
+also removes it.
 
 Each immutable set lives at
 `<root>/parakeet-tdt-0.6b-v2/<sha256-of-manifest-bytes>/`. Different manifest

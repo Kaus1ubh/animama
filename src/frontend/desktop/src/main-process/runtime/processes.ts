@@ -252,7 +252,7 @@ export class OwnedProcesses {
         if (!pids.every((pid) => Number.isInteger(pid) && pid >= 1))
           throw new Error();
         // The first PID is the guard on Windows; the second runs the service.
-        const images = [processGuard, item.executable];
+        const images = [item.guard ?? processGuard, item.executable];
         for (const [index, pid] of pids.entries())
           try {
             process.kill(pid, 0);
@@ -289,6 +289,8 @@ export class OwnedProcesses {
             name: item.name,
             pid: item.child.pid,
             servicePid: item.processId,
+            // The guard this launch used, should a later launch run elsewhere.
+            ...(processGuard ? { guard: processGuard } : {}),
             startToken: item.token,
             executable: item.executable,
             dataRoot: item.dataRoot,

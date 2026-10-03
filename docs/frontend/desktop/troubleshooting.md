@@ -1,8 +1,12 @@
 # Desktop troubleshooting and recovery
 
-These instructions describe the embedded macOS runtime. Signed release and
-clean-machine acceptance are still pending; see [Installation](installation.md)
-for the current platform status. They do not reset a Compose development stack.
+These instructions describe the embedded runtime on macOS and Windows. Signed
+release and clean-machine acceptance are still pending; see
+[Installation](installation.md) for the current platform status. They do not
+reset a Compose development stack.
+
+Below, `<data>` is Animama's data folder: `~/Library/Application Support/Animama`
+on macOS and `%LOCALAPPDATA%\Animama` on Windows.
 
 ## First response to a startup error
 
@@ -11,7 +15,7 @@ Record the displayed error code and what happened immediately before it. Use
 without resetting ownership or erasing data. **Open Backups** appears when a
 migration snapshot is relevant. **Quit** stops Animama's owned services.
 
-Logs are under `~/Library/Application Support/Animama/runtime/logs`; `main.log`
+Logs are under `<data>/runtime/logs`; `main.log`
 records desktop startup, and the same directory holds child-service logs.
 `backend_start_failed` is a category, not the cause: inspect the relevant recent
 backend log before deciding on a repair.
@@ -65,8 +69,12 @@ development flag. Use the runtime logs and recovery controls to investigate prod
 
 ## Microphone and speech
 
-Open the `.app` through Finder, start a microphone-dependent feature and inspect
-System Settings → Privacy & Security → Microphone. Allow Animama when prompted.
+Open the app normally (on macOS the `.app` through Finder), start a
+microphone-dependent feature and check the system's microphone privacy setting.
+On macOS that is System Settings → Privacy & Security → Microphone; allow
+Animama when prompted. On Windows, Settings → Privacy & security → Microphone
+must allow microphone access and **Let desktop apps access your microphone**;
+Windows lists desktop apps there without a per-app switch.
 An automation launch or generated-audio test does not verify physical microphone
 permission or capture. If there is no prompt or entry, record the app build,
 launch method and displayed state; do not reset the privacy database blindly.
@@ -123,8 +131,7 @@ has not advanced beyond it; ask for help when uncertain.
 
 ## Backups and recovery
 
-Migration snapshots live under
-`~/Library/Application Support/Animama/backups/pre-migration`. Startup creates
+Migration snapshots live under `<data>/backups/pre-migration`. Startup creates
 a verified custom-format database dump before changing an existing schema.
 Retry reuses the original snapshot. After two distinct successful app launches,
 older known-successful snapshots may be pruned; the newest, failed/interrupted,
@@ -132,23 +139,27 @@ and unrecognized snapshots stay. Provider restarts and Retry are not new launche
 
 These dumps are **not full backups**: they omit Local files, uploads, the vault
 and macOS keychain. Quit Animama and wait for its services to stop before a
-coordinated backup of the whole `~/Library/Application Support/Animama` tree.
-Keep the matching app version and protect the backup as private data. Encryption
-may require the original OS account/keychain; moving the directory alone is not
-a tested cross-machine migration. There is no supported one-click full backup,
-restore or reset UI yet. Developers who explicitly choose fresh setup can use
-the [desktop reset commands](platforms.md#reset-desktop-data-for-fresh-setup),
-which archive the old profile before launching a new one.
+coordinated backup of the whole `<data>` tree; on Windows that includes
+`Local State`, which holds the vault's protected key. Keep the matching app
+version and protect the backup as private data. Encryption may require the
+original OS account or keychain; moving the directory alone is not a tested
+cross-machine migration. There is no supported one-click full backup, restore
+or reset UI yet. Developers who explicitly choose fresh setup can use the
+[macOS reset commands](platforms.md#reset-desktop-data-for-fresh-setup), which
+archive the old profile before launching a new one; on Windows, quit Animama
+and rename `%LOCALAPPDATA%\Animama` instead.
 
 Restore is an operator-assisted procedure after preserving the current closed
 state. Never restore automatically after a failed migration; newer data may be
 lost. Do not run Compose `reset.sh`, `backup-local.sh` or `restore-local.sh`
 against desktop data. Removing/reinstalling `Animama.app` leaves the data tree
-alone; uninstalling the bundle is not a data reset.
+alone; uninstalling the app is not a data reset. On Windows, only an
+uninstall a person starts offers to delete `%LOCALAPPDATA%\Animama`, and it
+defaults to keeping it.
 
 ## What to send for support
 
-Share the app version/build, macOS version, CPU architecture, error code,
+Share the app version/build, macOS or Windows version, CPU architecture, error code,
 approximate time, recent action and a short reviewed log excerpt. Mention
 whether this was a packaged app or an unpackaged development run. Redaction is
 defensive, not permission to share all logs: remove personal content and paths.

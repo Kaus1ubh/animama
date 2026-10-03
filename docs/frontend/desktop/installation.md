@@ -32,9 +32,9 @@ require Docker, Python, Node.js, PostgreSQL, Homebrew or a source checkout.
    in `%LOCALAPPDATA%\Programs\Animama`, without an administrator prompt, adds
    Start menu and desktop shortcuts and opens Animama. Until the publisher has
    download reputation, Microsoft Defender SmartScreen may show "Windows
-   protected your PC". Choose **More info** and continue only if the publisher
-   reads **Raymond Van** and the file's SHA-256 matches the release checksums;
-   otherwise stop. Open Animama normally, never with **Run as administrator**,
+   protected your PC". Choose **More info**; continue with **Run anyway** only
+   if the publisher shown matches the one named in the release notes and the
+   file's SHA-256 matches the release checksums; otherwise stop. Open Animama normally, never with **Run as administrator**,
    which it refuses.
 3. Let Animama prepare its private database. No local account, password or hosted
    Animama account is required. One internal installation owner is generated

@@ -1982,11 +1982,32 @@ All accepted.
   Tests cover both.
 - P7-R1-02: install rechecks size and SHA-512, then the publisher; tested with
   swapped bytes.
-- P7-R1-03: the check sets UTF-8 output; the native probe above confirmed it.
+- P7-R1-03: the check sets UTF-8 output. The native probe above ran the
+  same script with that line; the final candidate's smoke repeats it in the app.
 - P7-R1-04: both targets check `SHARED_RELEASE_NAMES` before uploading.
 - P7-R1-05: the scan fails unless the installer expands to `resources/app.asar`.
 - P7-R1-06 and P7-R1-07: docs and message corrected.
 - Linux after the repair: `vitest` 455 passed, 26 skipped; `tsc` clean.
+
+#### Code Review #2 Findings
+
+Targeted recheck of `a82bb302` (repair round 1): P7-R1-02 to -07 fixed; P7-R1-01
+fixed for stable runs. Result: blocked on P7-R2-01.
+
+- **P7-R2-01 (blocking):** a preview may join only a published prerelease, but
+  the check let it join a draft prerelease, so an interrupted macOS preview
+  would become public through a Windows preview.
+- Non-blocking: the installer's 7-Zip expansion to `resources/app.asar` awaits
+  the native scan; the shared-name 5xx path and an unexpected own file in a
+  shared release lack direct tests; the P7-R1-03 record overstated the probe.
+
+#### Code Review #2 Revisions
+
+- P7-R2-01 accepted: a preview joins only a published, non-draft prerelease;
+  tested.
+- The native scan of the final candidate covers the 7-Zip assertion. The
+  untested branches are small and fail closed; not added. The P7-R1-03 record is
+  corrected above.
 
 ### Phase 8: Platform audit, clean-machine journey and documentation
 
@@ -2054,15 +2075,57 @@ manual results are recorded here with the tested Windows build and app version.
 Completion: every R8 item is resolved and the clean-machine journey is
 recorded. Any item that still depends on G4 is listed as open.
 
-Results: pending.
+Results (in progress):
+
+- FI-05 at `98b12b1a`: on Windows, a recorded PID that is alive, or that this
+  account cannot read, blocks startup only while it still runs the recorded
+  image: the guard (now recorded with each PID) or the recorded service. An
+  unreadable image was never Animama's, which never runs elevated; a failed
+  lookup still blocks. This compares image paths rather than creation times,
+  which needs no extra query at launch. The native crash-recovery audit is
+  pending.
+- FI-04 at `98b12b1a`: the recovery page tells Windows developers to rename
+  `%LOCALAPPDATA%\Animama` instead of running `pnpm desktop:mac:reset`;
+  troubleshooting covers Windows storage, vault restore with `Local State`,
+  `data_path_too_long`, logs, microphone, backups and support.
+- Docs at `e15a37d6`: installation, troubleshooting, platforms, overview,
+  runtime staging, the release docs, `src/frontend/AGENTS.md`, `README.md` and
+  the model-store note describe Windows; no "Windows deferred" statement remains
+  outside plans.
+- Windows `pnpm desktop:test` at `e15a37d6`: 425 passed, 1 failed. The failing
+  test recorded a fake executable for a live PID, which FI-05 now correctly
+  treats as reused; the test records the real image on Windows.
+- Pending: the R8 audit and the account checks, which need the owner's test
+  accounts; the clean-machine journey (G3) and the prompted update (G4).
 
 #### Code Review #1 Findings
 
-Pending.
+Independent reviewer, full review of `e15a37d6` against `a82bb302`. Checks:
+`tsc` clean; `vitest` 456 passed. Result: blocked on P8-R1-01 and P8-R1-02.
+
+- **P8-R1-01 (blocking):** the model-store note said the packaged app downloads
+  into the developer store; it uses `<userData>\data`.
+- **P8-R1-02 (blocking):** troubleshooting's intro, logs, microphone, backups
+  and support sections were still macOS-only.
+- Non-blocking: the guard's expected image came from the current launch, not
+  the record; the PowerShell lookup is synchronous on the main process (only
+  when a recorded PID is live); the FI-05 approach should be recorded; the
+  constructor's Windows branch needs the native audit; SmartScreen wording,
+  the microphone settings label and uninstall prompt timing need native
+  confirmation; "Windows 11 x64 host" overstated what the build checks;
+  Prettier width warnings in docs.
 
 #### Code Review #1 Revisions
 
-Pending.
+- P8-R1-01 and P8-R1-02 accepted and corrected.
+- The guard path is now recorded with each PID. The FI-05 approach is
+  recorded above. The SmartScreen text names **Run anyway** and no longer
+  hard-codes the publisher; the native audit confirms the rest. The staging
+  line says "Windows x64 host".
+- Not changed: the synchronous lookup runs only after an unclean exit with a
+  live recorded PID, and is bounded at 15 seconds.
+  Docs are outside the Prettier check.
+- Linux after the repair: `vitest` 456 passed; `tsc` clean.
 
 ## Final integration review
 
