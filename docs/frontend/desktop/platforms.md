@@ -156,8 +156,9 @@ prompt and adds Start menu and Desktop shortcuts; it refuses Windows builds
 below 22000. The data lives separately in `%LOCALAPPDATA%\Animama` and
 survives uninstall, updates and reinstall. Only an uninstall that a person
 starts offers to delete it: after the uninstall confirmation it shows that exact
-path and defaults to keeping it. Uninstalls run with `/S`, including those an
-installer runs during an upgrade, never ask and never delete data.
+path and defaults to keeping it; removal deletes links inside it without
+following them. Uninstalls run with `/S`, including those an installer runs
+during an upgrade, never ask and never delete data.
 
 To test an upgrade, build two installers. An upgrade is the newer installer
 run over the installed app; automatic updates arrive in a later phase.

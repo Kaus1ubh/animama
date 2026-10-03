@@ -28,7 +28,10 @@
   ${AndIfNot} ${isUpdated}
   ${AndIf} $LOCALAPPDATA != ""
     MessageBox MB_YESNO|MB_ICONQUESTION|MB_DEFBUTTON2 "Also delete your Animama data?$\r$\n$\r$\n$LOCALAPPDATA\Animama$\r$\n$\r$\nThis permanently removes your chats, Animas, Local content, settings, saved keys and downloaded speech models. Choose No to keep them for a later reinstall." IDNO animama_keep_data
-    RMDir /r "$LOCALAPPDATA\Animama"
+    ; NSIS's RMDir /r follows directory junctions and would delete files
+    ; outside the data folder; rd removes a junction without entering it.
+    nsExec::Exec '"$SYSDIR\cmd.exe" /d /c rd /s /q "$LOCALAPPDATA\Animama"'
+    Pop $R1
     animama_keep_data:
   ${EndIf}
   Pop $R1
