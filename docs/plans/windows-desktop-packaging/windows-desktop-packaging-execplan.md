@@ -1,6 +1,7 @@
 # Native Windows 11 x64 desktop packaging
 
-Status: Plan approved 2026-10-02. Phases 1–6 merged; Phases 7–8 in progress.
+Status: Plan approved 2026-10-02. Phases 1–6 merged; Phases 7–8 agent work
+complete, with owner gates open (smoke and account checks, manual checks, G3, G4).
 Source agreement: [raymond-van/animama#245](https://github.com/raymond-van/animama/issues/245)
 as published on 2026-10-01 (created and last updated 2026-10-01T20:53:18Z), plus
 the owner decisions of 2026-10-01 and 2026-10-02 recorded in the
@@ -181,13 +182,16 @@ Paths are repository-relative. `D/` abbreviates `src/frontend/desktop/`.
       which the owner asked the agent to run, passed. SmartScreen warned about
       an unrecognized app, as expected for a new signing identity.
 - [ ] Phase 7: Updates, smoke and publication tooling
-      ([#268](https://github.com/raymond-van/animama/issues/268)). In progress
-      on branch `build/windows-desktop-updates` from `main` at `733d2315`. The
-      owner chose to keep the G4 upgrade pending.
+      ([#268](https://github.com/raymond-van/animama/issues/268)). Agent work
+      complete at `fa2574c3` on branch `build/windows-desktop-updates` from
+      `main` at `733d2315`; review passed after two repair rounds; final
+      candidate built and scanned. Open: the Windows smoke in a fresh account
+      (owner to create it) and the G4 upgrade (owner chose to keep it pending).
 - [ ] Phase 8: Platform audit, clean-machine journey and documentation
-      ([#269](https://github.com/raymond-van/animama/issues/269)). Not started.
-      In place of the G3 VM for now, the owner provides a standard and a
-      non-ASCII account on the development PC.
+      ([#269](https://github.com/raymond-van/animama/issues/269)). Agent work
+      complete at `fa2574c3`; review passed after one repair round; automated
+      R8 items passed. Open: the owner's manual checks, the non-ASCII account,
+      the clean-machine journey and default `MAX_PATH` (G3), and G4.
 - [ ] Final integration review. Phases 1–5: review #1 blocked on FI-01, which
       is resolved; review #2 blocked on FI2-01; review #3 passed (below).
       Phases 6–8: not started.
@@ -1946,9 +1950,19 @@ Results (in progress):
   - The app's Authenticode check, run with no `PSModulePath` and a system-only
     PATH against that installer, read the exact subject and the
     identity-validation EKU.
-- Pending: the final candidate, `desktop:smoke:windows` in a fresh standard
-  account, `desktop:release:scan`, and the G4 upgrade (the owner chose on
-  2026-10-03 to keep it pending).
+- Final candidate at `fa2574c3` on Windows 11 x64 (build 26200), preserved in
+  `C:\animama-build\candidate-final` on the build host:
+  - A fresh stage and audit reproduced inventory `fb1508b3…`.
+  - `pnpm desktop:dist:windows`: 141 files signed, `release_ready: true`.
+  - `pnpm desktop:test`: 426 passed, 55 skipped, 0 failed.
+  - `pnpm desktop:release:scan` with the pinned Gitleaks 8.30.1 Windows build
+    (its archive matched the pin): the app candidate and all four model
+    candidates passed with no findings; the canary was detected; 6 archives
+    expanded, including the installer's app payload; about 13,000 files
+    scanned; the Windows home-directory needles were all searched.
+- Pending owner gates: `desktop:smoke:windows` in a fresh standard account
+  (the owner has not yet created the account or its smoke key), and the G4
+  upgrade (the owner chose on 2026-10-03 to keep it pending).
 
 #### Code Review #1 Findings
 
@@ -2008,6 +2022,16 @@ fixed for stable runs. Result: blocked on P7-R2-01.
 - The native scan of the final candidate covers the 7-Zip assertion. The
   untested branches are small and fail closed; not added. The P7-R1-03 record is
   corrected above.
+
+#### Code Review #3 Findings
+
+Final targeted recheck of `fa2574c3` (repair round 2): P7-R2-01 resolved, with a
+test for an interrupted draft preview; no regressions. Result: pass. Both
+repair rounds were used.
+
+#### Code Review #3 Revisions
+
+None needed.
 
 ### Phase 8: Platform audit, clean-machine journey and documentation
 
@@ -2095,8 +2119,31 @@ Results (in progress):
 - Windows `pnpm desktop:test` at `e15a37d6`: 425 passed, 1 failed. The failing
   test recorded a fake executable for a live PID, which FI-05 now correctly
   treats as reused; the test records the real image on Windows.
-- Pending: the R8 audit and the account checks, which need the owner's test
-  accounts; the clean-machine journey (G3) and the prompted update (G4).
+- R8 audit of the final candidate (`fa2574c3`), installed per-user on the
+  development host (Windows 11 build 26200, Defender real-time protection on,
+  Smart App Control off, `LongPathsEnabled=1`), on disposable data with the
+  owner's data folder moved aside and restored. Automated by an agent script:
+
+  | Item | Result |
+  | --- | --- |
+  | Defender | First launch on fresh data reached ready in 39.6 s, the second in 9.8 s; no detection during the audit. |
+  | SmartScreen | A browser-downloaded signed installer shows "Windows protected your PC… unrecognized app" (Phase 6), expected for a new identity; documented. |
+  | Smart App Control | Off on this host; untested. Needs the G3 VM. |
+  | Firewall | No prompt; no firewall rule exists for the app. |
+  | Loopback binding | The two owned listeners bind only to `127.0.0.1`. |
+  | WebSockets | An upgrade to the local `/v1/logs` endpoint opened. |
+  | PostgreSQL killed | The app shows `postgres_exited` and stops; after Quit no installed process remains, and a relaunch reached ready in 11.2 s. |
+  | Whole tree killed | No installed process remained; with the stale record, a relaunch reached ready in 10.6 s. |
+  | PID reuse (FI-05) | A record naming a live unrelated process of this user was ignored (ready); the same PID recorded with its real image blocked with `previous_runtime_running`. |
+  | Pack replacement under antivirus | Parakeet installed in 40 s and was removed with real-time protection on; the fixture held-handle tests pass natively. |
+  | PiP, quick chat, shortcuts | Keyboard Press-to-talk passed in Phase 5 (owner). PiP click-through and quick chat need the owner's manual check. |
+  | Microphone privacy | Needs the owner's manual check with the setting on and off. |
+  | Elevated launch | Refused with `administrator_launch_unsupported` (Phase 4 owner check, same code); unit-tested. |
+  | Non-ASCII account | Pending: the owner has not yet created the account. |
+  | Default `MAX_PATH` | Pending: this host enables long paths; needs the G3 VM or the setting turned off. The 70-character data-root rule is unit-tested. |
+
+- Pending: the owner's manual checks and test accounts above, the clean-machine
+  journey (G3) and the prompted update (G4).
 
 #### Code Review #1 Findings
 
@@ -2123,9 +2170,22 @@ Independent reviewer, full review of `e15a37d6` against `a82bb302`. Checks:
   hard-codes the publisher; the native audit confirms the rest. The staging
   line says "Windows x64 host".
 - Not changed: the synchronous lookup runs only after an unclean exit with a
-  live recorded PID, and is bounded at 15 seconds.
-  Docs are outside the Prettier check.
+  live recorded PID, and is bounded at 15 seconds. The changed docs pass
+  Prettier.
 - Linux after the repair: `vitest` 456 passed; `tsc` clean.
+
+#### Code Review #2 Findings
+
+Targeted recheck of `fa2574c3` (repair round 1): P8-R1-01 and P8-R1-02
+resolved and checked against the code; the recorded guard path, SmartScreen
+wording, staging line and Windows-aware test verified; macOS records
+unchanged. Result: pass. Non-blocking: P8-R2-01, `item.guard` is not
+type-checked explicitly, though a non-string fails closed.
+
+#### Code Review #2 Revisions
+
+P8-R2-01 not changed: a bad value already fails closed, and the record lives in
+the private data folder.
 
 ## Final integration review
 
