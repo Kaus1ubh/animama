@@ -176,7 +176,7 @@ Paths are repository-relative. `D/` abbreviates `src/frontend/desktop/`.
 - [ ] Phase 7: Updates, smoke and publication tooling. Not started; the real upgrade needs G4.
 - [ ] Phase 8: Platform audit, clean-machine journey and documentation. Not started; needs G3.
 - [ ] Final integration review. Phases 1–5: review #1 blocked on FI-01, which
-      is resolved; recheck #2 passed after one record repair (below).
+      is resolved; review #2 blocked on FI2-01; review #3 passed (below).
       Phases 6–8: not started.
 
 ## Surprises & Discoveries
@@ -1858,8 +1858,22 @@ stack-balanced. Result: blocked on a record issue.
 
 In repair round 2 (record and docs only): FI2-01, -02, -03 and -04 accepted
 and corrected. FI2-05 is carried to Phase 6, whose signed installer is
-rebuilt anyway: add `/v:off` and report a failed removal. FI2-06 is
+rebuilt anyway: add `/v:off` and report a failed removal. The `%NAME%`
+expansion has no simple fix inside `cmd /c`; its risk is accepted, because
+the target still ends in `\Animama` under the user's own profile. FI2-06 is
 pre-existing and unchanged.
+
+#### Final Integration Review #3 Findings
+
+Final targeted recheck of `2b13540f` (repair round 2): every Review #2
+finding resolved or carried as recorded; no new blocking issue. Result: pass.
+The two Phase 5 owner gates remain open. Non-blocking: FI3-01 the progress
+line misdescribed review #2's result; FI3-02 the FI2-05 record omitted the
+`%NAME%` part.
+
+#### Final Integration Review #3 Revisions
+
+FI3-01 and FI3-02 corrected in the record.
 
 ## Validation and acceptance
 
