@@ -145,8 +145,12 @@ Important behavior:
   3. blend any automatic idle VRMA exit back to the default `relaxedRest` base
      pose
   4. update `PoseController` so active `animaPoseClip/1.0` samples can layer
-     on top of mixer output
-  5. apply procedural animation layers on top of that pose
+     on top of mixer output, then pass the clip's presence (fade weight,
+     `mutedProceduralLayers` and sampled expressions) to the procedural and
+     expression controllers
+  5. apply procedural animation layers on top of that pose; layers a playing
+     clip mutes are scaled down by its fade weight and ease back over the
+     activation blend time (0.28 s) when it ends, is stopped or is replaced
   6. sample active reaction clips into expression overlays and effect events
   7. update expressions, look-at, lip-sync, and VFX
   8. update spring-bone physics settings before three-vrm evaluates spring bones
@@ -331,6 +335,21 @@ Important behavior:
   use this with `phases: ["talking"]` and `scope: "activeRun"` so they fade in
   and hold for the same speaking run, then fade out when talking ends or the
   run changes. `whileAvatarState` is available for future state-owned clips.
+- `mutedProceduralLayers` optionally lists live layers (`breathing`, `sway`,
+  `bounce`, `headNod`, `headSideTilt`, `cursorLookAt`, `emotionPosture`) muted
+  while the clip plays, including Idle Style playback. Muting never changes
+  layer settings or planner ownership; a clip without the field leaves layers
+  untouched. `talkingHands` is already suppressed for every Gesture. The Gesture
+  creator sets these under Clip settings → Mute while playing; its preview runs
+  no live layers, so check muting in a chat.
+- Expressions keyed by a playing clip take precedence over the emotion system:
+  keyed values blend in by the clip's fade weight, and if the clip keys any
+  emotion preset (`happy`, `angry`, `sad`, `relaxed`, `surprised`, `neutral`)
+  the emotion system's whole face fades out by the same weight. A keyed `blink`
+  overrides automatic blinking; lip-sync and manual overrides still apply last.
+- The parser validates known fields and preserves unknown top-level fields
+  verbatim. The Gesture creator writes back fields it does not edit (for
+  example `playback`, `role` or tool metadata) on Save and export.
 - Clip fade envelopes are objects with `duration` plus optional `easing` and
   optional interpolation overrides. Fade interpolation is usually omitted: it
   resolves from `fadeIn`/`fadeOut`, then `defaultTransition`, then the schema

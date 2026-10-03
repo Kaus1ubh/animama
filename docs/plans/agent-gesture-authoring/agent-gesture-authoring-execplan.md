@@ -61,7 +61,8 @@ Paths are relative to `src/frontend/web/src/` unless stated:
       `origin/main` `401ac3b8`.
 - [x] Phase 1: Motion description, anatomy and baking. Review #3 passed.
 - [x] Phase 2: Automated motion checks. Review #2 passed.
-- [ ] Phase 3: Gesture layer mutes and expression precedence.
+- [x] Phase 3: Gesture layer mutes and expression precedence. Review #2
+      passed; F7 (fade-scaled mutes) awaits owner confirmation.
 - [ ] Phase 4: Review renders and the `animama-animation` skill.
 - [ ] Phase 5: Evaluation on #243 prompts 1–6 (owner scoring gate).
 - [ ] Final integration review; PR; owner acceptance.
@@ -541,6 +542,118 @@ Checks:
 Completion: tests pass and browser and chat evidence are recorded. Gate: the
 owner's idle-lane decision is applied. If it is unanswered by phase completion,
 the default is applied and recorded.
+
+#### Phase 3 evidence
+
+- Issue #263. Starting source `fe613455`.
+- **Schema** (`schema.ts`):
+  - optional `mutedProceduralLayers`, canonicalized; unknown ids ignored;
+    non-array rejected;
+  - unknown top-level fields preserved.
+- **Creator draft:** `mutedProceduralLayers` plus an `extraFields`
+  passthrough, carried through build, hydrate, fallback serializer and
+  empty-sequence hydration. Clip settings gained "Mute while playing"
+  switches (Gesture only).
+- **Runtime:**
+  - `PoseController.getClipPresence()`;
+  - `ProceduralAnimationController.setClipLayerMutes()`: non-owning
+    suppression eased over 0.28 s;
+  - `ExpressionController.setClipExpressionPrecedence()`;
+  - all wired in `Avatar.update` from the playing clip's presence, so
+    Idle Style playback is included (default decision applied).
+- **Docs:** `avatar-animation.md`, `avatar-emotion.md`.
+- **Local checks**, from `src/frontend`:
+  - `pnpm check` exit 0;
+  - `pnpm web:lint` exit 0;
+  - `pnpm web:test` exit 0 (375 files, 2,530 tests);
+  - `pnpm build` exit 0;
+  - web `prettier:check` clean. The workspace `prettier:check` fails on
+    `desktop/tests/feature-packs.test.ts`, which is unchanged here and already
+    unformatted on `main`.
+- **Backend:** `uv run pytest -q tests/test_content_mutation_workflows.py -k layer_mutes`
+  passed. Saving a Gesture stores the clip byte-for-byte, including the
+  mutes and an unknown field. The planned pose fixture is a Pose, not a clip,
+  so this test replaces that step.
+- **Browser** (task stack `animama-gesture-authoring`,
+  http://animama-gesture-authoring.localhost:8260, development mode, no
+  profiles; only the web service is published):
+  - a generated clip pasted into Gesture Import showed its imported mutes in
+    Clip settings;
+  - Breathing was toggled on and the clip saved as Local;
+  - the stored file contained the four mutes and the unknown `generator`
+    field;
+  - reopening restored all switch states.
+- **Chat runtime** (mounted chat Avatar, `Avatar.update` driven at 60 Hz by
+  script because the hidden pane throttles animation frames):
+  - with sway and cursor look-at muted, both layers' activation weight went
+    1 → 0.67 (0.1 s) → 0 (0.3 s) while breathing stayed 1;
+  - they recovered 0.25 → 0.75 → 1 through the fade-out and after the end;
+  - under the `gloom` emotion, a `happy` clip moved sad 0.7 → 0.35 → 0 and
+    happy 0 → 0.45 → 0.9, and sad returned to 0.7 afterwards.
+- **Not done:** the planner/equip dispatch path was not exercised in a chat;
+  the clip started via `avatar.playAnimaPoseClip`, the same playback code.
+  Save & Equip is disabled without unsaved changes.
+
+#### Code Review #1 Findings
+
+Independent `sdlc-reviewer` on `fe613455` plus the working tree. Ran 785
+tests, `check:source`, eslint, prettier and the backend workflow tests.
+
+- **P3-R1-F1 (required):** no package export/import round-trip test.
+- **P3-R1-F2 (required):** no lip-sync precedence test; blink was checked only
+  at weight 1.
+- **P3-R1-F3 (optional):** the shared creator now preserves fields for
+  Reactions too. Gesture-only mutes would be stored on Reactions with no
+  control.
+- **P3-R1-F4 (optional):** unknown mute ids are dropped without the planned
+  diagnostic.
+- **P3-R1-F5 (optional):** the clip still writes expressions directly and
+  `ExpressionController` overrides them later in the frame; this deviates from
+  plan step 4.
+- **P3-R1-F6 (optional):** an index signature on `AnimaPoseClip` disabled
+  excess-property checks.
+- **P3-R1-F7 (optional, owner):** mutes scale with the clip's fade weight, so
+  layers are only partly muted during fades.
+- **P3-R1-F8 (optional):** duplicated layer filtering, and small per-frame
+  allocations.
+
+#### Code Review #1 Revisions
+
+- **F1, accepted:** the backend test now exports and imports the saved
+  Gesture as a package. Both copies keep `mutedProceduralLayers` and the
+  unknown field; the package re-serializes the JSON, so content is compared
+  rather than bytes.
+- **F2, accepted:** tests now cover a keyed `aa` losing to an active vowel
+  lip-sync frame, and keyed blink at weight 0.5 staying ≥ 0.5.
+- **F3, accepted:** `sanitizeReactionSequence` drops `mutedProceduralLayers`.
+  A test proves a Reaction keeps `playback` and unknown fields but not mutes.
+  Reactions keeping `role`/`playback` through edits is an intended R6b effect.
+- **F4, deviation recorded:** the schema module has no logger, and ignoring is
+  documented on `sanitizeAnimaPoseClipLayerMutes`.
+- **F5, deviation recorded:** the direct clip write is kept so creator
+  previews, which run no `ExpressionController`, still show expressions. In
+  chat, `ExpressionController` applies precedence afterwards in the same frame.
+- **F6, accepted:** removed the index signature; unknown fields are read
+  through `Record<string, unknown>`.
+- **F7, recorded for owner confirmation:** mutes follow the fade weight (and
+  ease over 0.28 s) so layers hand over without pops. Fully muted while
+  playing, partially during fades.
+- **F8:** layer filtering is shared through `sanitizeAnimaPoseClipLayerMutes`.
+  The per-frame allocations (a few small objects) are retained as negligible.
+
+Verification:
+- vitest `src/lib/avatar src/ui/action-editor src/ui/pose-creator tests/avatar`:
+  96 files, 788 tests pass;
+- `tsc -p tsconfig.app.json` passes;
+- `uv run pytest -q tests/test_content_mutation_workflows.py`: 18 pass;
+- ruff check and format pass.
+
+#### Code Review #2 Findings and Revisions
+
+Targeted recheck: F1–F8 are resolved or acceptably recorded, with no
+regressions. Result: **pass**. One optional note: the blink test asserts only
+the 0.5 floor. Accepted as sufficient; an automatic blink peak is
+nondeterministic.
 
 ### Phase 4 — Review renders and the `animama-animation` skill
 

@@ -24,6 +24,10 @@ import {
 } from "@/ui/components/select";
 import { Switch } from "@/ui/components/switch";
 import {
+  ANIMA_POSE_CLIP_MUTABLE_LAYER_IDS,
+  type AnimaPoseClipMutableLayerId,
+} from "@/lib/avatar/poses/animaPoseClip/schema";
+import {
   findPoseCreatorClipKeyframeAtTime,
   isPoseCreatorBaseKeyframe,
   POSE_CREATOR_CLIP_EASING_OPTIONS,
@@ -33,6 +37,16 @@ import { usePoseCreatorPreview } from "./PoseCreatorPreviewProvider";
 import { usePoseCreatorClipUndoGrouping } from "./usePoseCreatorUndoGrouping";
 
 const INHERIT_VALUE = "__inherit__";
+/** Names for the live procedural layers a Gesture can mute. */
+const MUTABLE_LAYER_LABELS: Record<AnimaPoseClipMutableLayerId, string> = {
+  breathing: "Breathing",
+  sway: "Sway",
+  bounce: "Bounce",
+  headNod: "Head nod",
+  headSideTilt: "Head tilt",
+  cursorLookAt: "Cursor look-at",
+  emotionPosture: "Emotion posture",
+};
 const NO_BASE_VALUE = "__no_base__";
 
 /** Focus the selected timeline item and common Clip settings in desktop or mobile workspaces. */
@@ -230,6 +244,47 @@ export function PoseCreatorClipWorkspaceInspector({
                 }
               />
             </InspectorRow>
+
+            {allowHumanoid ? (
+              <fieldset className="space-y-1 pt-1">
+                <legend
+                  className="text-foreground text-xs font-semibold"
+                  title="Live idle motion that chat adds on top of a Gesture. The editor preview never shows it."
+                >
+                  Mute while playing
+                </legend>
+                {ANIMA_POSE_CLIP_MUTABLE_LAYER_IDS.map((layerId) => {
+                  const label = MUTABLE_LAYER_LABELS[layerId];
+                  return (
+                    <label
+                      key={layerId}
+                      className="text-muted-foreground flex min-h-8 items-center justify-between gap-3 text-xs font-medium"
+                    >
+                      {label}
+                      <Switch
+                        checked={clipDraft.mutedProceduralLayers.includes(
+                          layerId,
+                        )}
+                        onCheckedChange={(muted) =>
+                          updateClipDraft({
+                            // Keep the canonical layer order for stable files.
+                            mutedProceduralLayers:
+                              ANIMA_POSE_CLIP_MUTABLE_LAYER_IDS.filter((id) =>
+                                id === layerId
+                                  ? muted
+                                  : clipDraft.mutedProceduralLayers.includes(
+                                      id,
+                                    ),
+                              ),
+                          })
+                        }
+                        aria-label={`Mute ${label.toLowerCase()} while playing`}
+                      />
+                    </label>
+                  );
+                })}
+              </fieldset>
+            ) : null}
           </div>
         </section>
       ) : null}

@@ -5,7 +5,10 @@ import {
   HAND_PRESETS,
   type HandPreset,
 } from "@/ui/pose-creator/poseCreatorHandAuthoring";
-import type { ProceduralAnimationLayerId } from "../proc-animation/types";
+import {
+  ANIMA_POSE_CLIP_MUTABLE_LAYER_IDS,
+  type AnimaPoseClipMutableLayerId,
+} from "../poses/animaPoseClip/schema";
 import { JOINT_DEFINITIONS, resolveJoint, type Side } from "./anatomy";
 
 /**
@@ -54,21 +57,9 @@ export type MotionContact = {
   tolerance?: number;
 };
 
-export type MutableProceduralLayerId = Exclude<
-  ProceduralAnimationLayerId,
-  "talkingHands"
->;
+export type MutableProceduralLayerId = AnimaPoseClipMutableLayerId;
 
-export const MUTABLE_PROCEDURAL_LAYER_IDS: readonly MutableProceduralLayerId[] =
-  [
-    "breathing",
-    "sway",
-    "bounce",
-    "headNod",
-    "headSideTilt",
-    "cursorLookAt",
-    "emotionPosture",
-  ];
+export const MUTABLE_PROCEDURAL_LAYER_IDS = ANIMA_POSE_CLIP_MUTABLE_LAYER_IDS;
 
 /** Generated Gestures mute every live layer except breathing by default. */
 export const DEFAULT_GENERATED_MUTED_LAYERS: readonly MutableProceduralLayerId[] =

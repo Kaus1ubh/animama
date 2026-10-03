@@ -167,6 +167,9 @@ export function sanitizeReactionSequence(
 ): Record<string, unknown> {
   const sanitized = structuredClone(sequence);
   delete sanitized.basePose;
+  // Reactions never run body layers through the Gesture lane; mutes are
+  // Gesture-only and would otherwise be stored with no control to change them.
+  delete sanitized.mutedProceduralLayers;
 
   const poses = isRecord(sanitized.poses) ? sanitized.poses : {};
   const retainedPoses: Record<string, unknown> = {};

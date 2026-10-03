@@ -1,4 +1,5 @@
 import { type VRMPose, type VRMPoseTransform } from "@pixiv/three-vrm";
+import type { AnimaPoseClipMutableLayerId } from "@/lib/avatar/poses/animaPoseClip/schema";
 
 import {
   DEFAULT_ANIMA_POSE_CLIP_TRANSITION,
@@ -91,6 +92,13 @@ export type PoseCreatorClipDraft = {
   defaultTransition: AnimaPoseClipTransition;
   fadeIn?: AnimaPoseClipFade;
   fadeOut?: AnimaPoseClipFade;
+  /** Live procedural layers the clip mutes while it plays. */
+  mutedProceduralLayers: AnimaPoseClipMutableLayerId[];
+  /**
+   * Imported top-level clip fields the editor does not edit (for example
+   * `playback`, `role` or newer metadata), written back unchanged on save.
+   */
+  extraFields: Record<string, unknown>;
   poses: Record<string, AnimaPoseClipPose>;
   keyframes: PoseCreatorClipKeyframeDraft[];
   events: PoseCreatorClipEventDraft[];
@@ -108,6 +116,8 @@ export type PoseCreatorClipDraftPatch = Partial<
   defaultTransition?: AnimaPoseClipTransition;
   fadeIn?: AnimaPoseClipFade | null;
   fadeOut?: AnimaPoseClipFade | null;
+  mutedProceduralLayers?: AnimaPoseClipMutableLayerId[];
+  extraFields?: Record<string, unknown>;
 };
 
 export type PoseCreatorClipValidationOptions = {
@@ -176,6 +186,8 @@ export function createDefaultPoseCreatorClipDraft(
     loop: false,
     basePose,
     defaultTransition: cloneDefaultTransition(),
+    mutedProceduralLayers: [],
+    extraFields: {},
     poses: {},
     keyframes: [],
     events: [],
@@ -279,6 +291,8 @@ export function buildAnimaPoseClipFromPoseCreatorDraft(
 
   try {
     return parseAnimaPoseClip({
+      ...structuredClone(draft.extraFields),
+      ...serializePoseCreatorClipLayerMutes(draft),
       schema: ANIMA_POSE_CLIP_SCHEMA,
       id: draft.id.trim(),
       name: draft.name.trim() || DEFAULT_POSE_CREATOR_CLIP_NAME,
@@ -319,6 +333,43 @@ export function buildAnimaPoseClipFromPoseCreatorDraft(
   } catch {
     return null;
   }
+}
+
+/** Top-level clip fields the editor owns; everything else is passed through. */
+const POSE_CREATOR_OWNED_CLIP_FIELDS = new Set([
+  "schema",
+  "id",
+  "name",
+  "duration",
+  "loop",
+  "basePose",
+  "defaultTransition",
+  "fadeIn",
+  "fadeOut",
+  "poses",
+  "poseKeyframes",
+  "events",
+  "mutedProceduralLayers",
+]);
+
+/** Imported fields the editor does not own, cloned for the draft. */
+export function getPoseCreatorClipExtraFields(
+  clip: Record<string, unknown>,
+): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(clip)
+      .filter(([key]) => !POSE_CREATOR_OWNED_CLIP_FIELDS.has(key))
+      .map(([key, value]) => [key, structuredClone(value)]),
+  );
+}
+
+/** The draft's layer mutes as clip fields (omitted when none are muted). */
+export function serializePoseCreatorClipLayerMutes(
+  draft: Pick<PoseCreatorClipDraft, "mutedProceduralLayers">,
+): { mutedProceduralLayers?: AnimaPoseClipMutableLayerId[] } {
+  return draft.mutedProceduralLayers.length > 0
+    ? { mutedProceduralLayers: [...draft.mutedProceduralLayers] }
+    : {};
 }
 
 export function createPoseCreatorClipDraftFromAnimaPoseClip(
@@ -365,6 +416,8 @@ export function createPoseCreatorClipDraftFromAnimaPoseClip(
       ...(clip.fadeOut
         ? { fadeOut: clonePoseCreatorClipFade(clip.fadeOut) }
         : {}),
+      mutedProceduralLayers: [...(clip.mutedProceduralLayers ?? [])],
+      extraFields: getPoseCreatorClipExtraFields(clip),
       poses: clonePoseCreatorClipPoses(clip.poses),
       keyframes,
       events,

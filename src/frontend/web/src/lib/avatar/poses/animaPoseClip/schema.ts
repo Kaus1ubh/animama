@@ -8,6 +8,7 @@ import {
   type AnimaPose,
 } from "../animaPose";
 import type { AvatarAnimationState } from "../../types";
+import type { ProceduralAnimationLayerId } from "../../proc-animation/types";
 import {
   PARTICLE_VFX_ANCHORS,
   type ParticleVFXAnchor,
@@ -16,6 +17,26 @@ import {
 } from "../../particle-vfx/types";
 
 export const ANIMA_POSE_CLIP_SCHEMA = "animaPoseClip/1.0" as const;
+
+/**
+ * Live procedural layers a clip may mute while it plays. `talkingHands` is
+ * excluded: Gestures already suppress it.
+ */
+export type AnimaPoseClipMutableLayerId = Exclude<
+  ProceduralAnimationLayerId,
+  "talkingHands"
+>;
+
+export const ANIMA_POSE_CLIP_MUTABLE_LAYER_IDS: readonly AnimaPoseClipMutableLayerId[] =
+  [
+    "breathing",
+    "sway",
+    "bounce",
+    "headNod",
+    "headSideTilt",
+    "cursorLookAt",
+    "emotionPosture",
+  ];
 
 export type AnimaPoseClipRole = "motion" | "reaction";
 export type AnimaPoseClipPlaybackScope = "activeRun";
@@ -180,7 +201,31 @@ export type AnimaPoseClip = {
   poses: Record<string, AnimaPoseClipPose>;
   poseKeyframes: AnimaPoseClipKeyframe[];
   events?: AnimaPoseClipEvent[];
+  /** Live procedural layers muted while this clip plays (absent: none). */
+  mutedProceduralLayers?: AnimaPoseClipMutableLayerId[];
+  // Parsing also preserves top-level fields this version does not know, so
+  // newer or tool-specific metadata survives import, edit and save. They are
+  // deliberately untyped; read them through `Record<string, unknown>`.
 };
+
+/** Top-level fields the parser validates; every other field is preserved. */
+const KNOWN_CLIP_FIELDS = new Set([
+  "schema",
+  "id",
+  "name",
+  "role",
+  "duration",
+  "loop",
+  "playback",
+  "basePose",
+  "defaultTransition",
+  "fadeIn",
+  "fadeOut",
+  "poses",
+  "poseKeyframes",
+  "events",
+  "mutedProceduralLayers",
+]);
 
 export type AnimaPoseClipSample = AnimaPoseSnapshot;
 
@@ -280,6 +325,18 @@ export function parseAnimaPoseClip(value: unknown): AnimaPoseClip {
   return clip;
 }
 
+/**
+ * Validate a layer-mute list: null unless it is an array; known ids in
+ * canonical order. Unknown ids (for example from a newer version) are ignored.
+ */
+export function sanitizeAnimaPoseClipLayerMutes(
+  value: unknown,
+): AnimaPoseClipMutableLayerId[] | null {
+  if (!Array.isArray(value)) return null;
+  const requested = new Set(value);
+  return ANIMA_POSE_CLIP_MUTABLE_LAYER_IDS.filter((id) => requested.has(id));
+}
+
 export function sanitizeAnimaPoseClip(value: unknown): AnimaPoseClip | null {
   if (!isRecord(value)) return null;
   if (value.schema !== ANIMA_POSE_CLIP_SCHEMA) return null;
@@ -346,6 +403,15 @@ export function sanitizeAnimaPoseClip(value: unknown): AnimaPoseClip | null {
     return null;
   }
 
+  let mutedProceduralLayers: AnimaPoseClipMutableLayerId[] | undefined;
+  if (value.mutedProceduralLayers !== undefined) {
+    const sanitized = sanitizeAnimaPoseClipLayerMutes(
+      value.mutedProceduralLayers,
+    );
+    if (!sanitized) return null;
+    mutedProceduralLayers = sanitized;
+  }
+
   // Finite clips may omit duration when their authored timeline has an end.
   // Effect duration is deliberately excluded: it cannot extend the clip clock.
   const timelineDuration =
@@ -354,7 +420,14 @@ export function sanitizeAnimaPoseClip(value: unknown): AnimaPoseClip | null {
     return null;
   }
 
+  const unknownFields = Object.fromEntries(
+    Object.entries(value)
+      .filter(([key]) => !KNOWN_CLIP_FIELDS.has(key))
+      .map(([key, field]) => [key, structuredClone(field)]),
+  );
+
   return {
+    ...unknownFields,
     schema: ANIMA_POSE_CLIP_SCHEMA,
     id,
     name,
@@ -369,6 +442,9 @@ export function sanitizeAnimaPoseClip(value: unknown): AnimaPoseClip | null {
     poses,
     poseKeyframes,
     ...(events && events.length > 0 ? { events } : {}),
+    ...(mutedProceduralLayers && mutedProceduralLayers.length > 0
+      ? { mutedProceduralLayers }
+      : {}),
   };
 }
 

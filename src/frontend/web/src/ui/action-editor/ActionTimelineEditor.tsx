@@ -4,9 +4,13 @@ import { useEffect, useMemo, useRef } from "react";
 
 import { usePoseCreatorStore } from "@/stores/pose-creator-store";
 import { parseAnimaPoseClip } from "@/lib/avatar/poses/animaPoseClip";
+import { sanitizeAnimaPoseClipLayerMutes } from "@/lib/avatar/poses/animaPoseClip/schema";
 import { PoseCreatorClipTimeline } from "@/ui/pose-creator/PoseCreatorClipTimeline";
 import { cn } from "@/lib/utils";
-import type { PoseCreatorClipDraftPatch } from "@/ui/pose-creator/poseCreatorClipAuthoring";
+import {
+  getPoseCreatorClipExtraFields,
+  type PoseCreatorClipDraftPatch,
+} from "@/ui/pose-creator/poseCreatorClipAuthoring";
 import { sanitizeReactionSequence } from "./actionDocument";
 import { actionSequenceFromTimelineDraft } from "./actionPersistence";
 
@@ -204,6 +208,11 @@ export function ActionTimelineDocumentSync({
         if (value && typeof value === "object")
           settings[key] = value as PoseCreatorClipDraftPatch[typeof key];
       }
+      const mutes = sanitizeAnimaPoseClipLayerMutes(
+        editorSequence.mutedProceduralLayers,
+      );
+      if (mutes) settings.mutedProceduralLayers = mutes;
+      settings.extraFields = getPoseCreatorClipExtraFields(editorSequence);
       usePoseCreatorStore.getState().updateClipDraft(settings);
       recordHydratedBaseline();
       // The reset is the successful hydration for an intentionally blank
