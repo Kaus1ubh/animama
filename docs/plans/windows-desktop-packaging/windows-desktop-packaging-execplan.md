@@ -165,13 +165,13 @@ Paths are repository-relative. `D/` abbreviates `src/frontend/desktop/`.
       ([#255](https://github.com/raymond-van/animama/issues/255)); Windows
       receipts passed; review passed after two repair rounds; the owner's Task
       Manager and Run-as-administrator checks passed.
-- [ ] Phase 5: Unsigned package, installer and native input. Agent work
-      complete on 2026-10-03 at `127b09c2`
+- [x] Phase 5: Unsigned package, installer and native input. Complete on
+      2026-10-03 at `127b09c2`
       ([#256](https://github.com/raymond-van/animama/issues/256)); Windows
       receipts, uninstall tests and the installer journey passed; review passed
       after two repair rounds. The owner's keyboard Press-to-talk check
-      passed; the owner waived the mouse-button check on 2026-10-03. Open
-      owner gate: acceptance of the agent-run installer journey.
+      passed; the owner waived the mouse-button check and accepted the
+      agent-run installer journey on 2026-10-03.
 - [ ] Phase 6: Authenticode signing and the release candidate. Not started; needs G1 and G2.
 - [ ] Phase 7: Updates, smoke and publication tooling. Not started; the real upgrade needs G4.
 - [ ] Phase 8: Platform audit, clean-machine journey and documentation. Not started; needs G3.
@@ -507,8 +507,9 @@ These planning findings come from inspecting the source at `98bceca2` on
   - The Windows recovery advice (FI-04) and PID reuse after a crash (FI-05)
     belong to Phase 8's documentation and crash-recovery work; both fail
     closed today.
-- **2026-10-03, owner:** waived Phase 5's mouse-button Press-to-talk hold; the
-  keyboard hold passed in the packaged app.
+- **2026-10-03, owner:** waived Phase 5's mouse-button Press-to-talk hold (the
+  keyboard hold passed in the packaged app) and accepted the agent-run
+  installer journey as Phase 5's manual journey. Phase 6 repeats it signed.
 - **2026-10-03, owner (G1):** reported the Artifact Signing account set up
   and Azure CLI signed in on the Windows host. Non-secret values: endpoint
   `https://eus.codesigning.azure.net/`, account `animama-signing`, certificate
@@ -1505,7 +1506,7 @@ Final results (2026-10-03, after the final integration review; commits
 - **Owner:** Press-to-talk with a keyboard key passed in the packaged app; the
   owner waived the mouse-button hold on 2026-10-03. The owner asked the agent
   to run the installer journey (2026-10-02); the journey above is the agent's
-  run, and the owner has not yet accepted it as the manual gate.
+  run, which the owner accepted as the manual gate on 2026-10-03.
 
 #### Code Review #1 Findings
 
