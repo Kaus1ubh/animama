@@ -154,10 +154,10 @@ build host needs no Developer Mode.
 The installer puts Animama in `%LOCALAPPDATA%\Programs\Animama` without a UAC
 prompt and adds Start menu and Desktop shortcuts; it refuses Windows builds
 below 22000. The data lives separately in `%LOCALAPPDATA%\Animama` and
-survives uninstall, updates and reinstall. Only the interactive uninstaller
-offers to delete it: it shows that exact path and defaults to keeping it.
-Uninstalls run with `/S`, including those an installer runs during an upgrade,
-never ask and never delete data.
+survives uninstall, updates and reinstall. Only an uninstall that a person
+starts offers to delete it: after the uninstall confirmation it shows that exact
+path and defaults to keeping it. Uninstalls run with `/S`, including those an
+installer runs during an upgrade, never ask and never delete data.
 
 To test an upgrade, build two installers. An upgrade is the newer installer
 run over the installed app; automatic updates arrive in a later phase.
@@ -174,7 +174,10 @@ run over the installed app; automatic updates arrive in a later phase.
    package: the stage still records version N+1.
 
 Only one version is installed at a time; to repeat the journey from N,
-uninstall (keeping the data) and install N again.
+uninstall (keeping the data) and install N again. Test explicit data removal in
+a separate Windows account, or back up `%LOCALAPPDATA%\Animama` first: it also
+holds the default developer model store unless `ANIMAMA_MODEL_ROOT` points
+elsewhere.
 
 With the app packaged, `pnpm desktop:test:native-input` checks the input hook
 on Windows: it loads the addon from the packaged `app.asar.unpacked` inside
