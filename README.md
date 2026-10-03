@@ -5,9 +5,10 @@ avatar and behavior, and keep conversations and content in your own local
 installation. The application is accountless and uses a FastAPI backend with a
 React interface and Electron desktop shell.
 
-The desktop target is macOS 15 or later on Apple silicon. No signed public
-release is available yet. Single-owner self-hosting is supported through Docker
-Compose; Windows and Linux packaging are not supported release targets.
+The desktop targets are macOS 15 or later on Apple silicon and Windows 11 on
+x64. No signed public release is available yet. Single-owner self-hosting is
+supported through Docker Compose; Linux packaging is not a supported release
+target.
 
 ## Run from source
 
