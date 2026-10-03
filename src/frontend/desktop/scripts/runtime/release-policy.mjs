@@ -232,7 +232,15 @@ export function validateReleasePolicy(
           ? { kind: "r2", base_url: selected.base_url }
           : { kind: "github", owner: selected.owner, repo: selected.repo },
       channel: "stable",
-      team_id: publisher.team_id,
+      // Installed apps accept updates only from their own platform's publisher.
+      ...(target === "win32-x64"
+        ? {
+            windows_publisher: {
+              certificate_subject: windowsPublisher.certificate_subject,
+              identity_validation_eku: windowsPublisher.identity_validation_eku,
+            },
+          }
+        : { team_id: publisher.team_id }),
     },
   };
 }
@@ -264,9 +272,9 @@ export async function isPublicReleaseRepository({ owner, repo }) {
   }
 }
 
-/** Staging seals the selected distribution; it needs no redistribution review yet. */
-export function stagedUpdatePolicy() {
-  return loadReleasePolicy({ requireReview: false }).updatePolicy;
+/** Staging seals the selected distribution and the target's publisher; it needs no redistribution review yet. */
+export function stagedUpdatePolicy(target) {
+  return loadReleasePolicy({ requireReview: false, target }).updatePolicy;
 }
 
 /**

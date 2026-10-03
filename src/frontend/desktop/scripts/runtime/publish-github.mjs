@@ -1,7 +1,11 @@
 import { createReadStream, lstatSync } from "node:fs";
 import path from "node:path";
 import { isPublicReleaseRepository } from "./release-policy.mjs";
-import { mayResumeRelease } from "./release-artifacts.mjs";
+import {
+  RELEASE_TARGETS,
+  isWindowsReleaseName,
+  mayResumeRelease,
+} from "./release-artifacts.mjs";
 import { PublicationError } from "./publication.mjs";
 
 /** Anonymous visibility is checked before reading a token or preparing reports. */
@@ -16,6 +20,8 @@ export async function preflightGithub(distribution) {
  * Upload a fixed file list as a GitHub release of this version: a testing
  * prerelease for previews, the latest stable release otherwise. Byte-identical
  * assets in the same draft or preview resume; nothing is replaced or deleted.
+ * Both targets share one release: each adds only its own files and leaves the
+ * other target's alone, and a stable promotion uploads its feed last.
  */
 export async function publishGithub({
   distribution,
@@ -24,6 +30,7 @@ export async function publishGithub({
   files,
   preview,
   releaseBody,
+  target = "darwin-arm64",
 }) {
   const token = process.env.ANIMAMA_RELEASE_TOKEN;
   if (!token)
@@ -59,8 +66,23 @@ export async function publishGithub({
     throw new PublicationError(
       "Public anonymous installer/update downloads are required",
     );
+  const feed = RELEASE_TARGETS[target].feed;
+  const ownName = (name) =>
+    isWindowsReleaseName(name) === (target === "win32-x64");
   let remote = await api(`/releases/tags/v${version}`);
-  if (remote && !mayResumeRelease(remote, version))
+  const existing = remote
+    ? await api(`/releases/${remote.id}/assets?per_page=100`)
+    : [];
+  if (!Array.isArray(existing) || existing.length > 64)
+    throw new PublicationError("Unexpected release assets");
+  const published = remote && !remote.draft && !remote.prerelease;
+  if (
+    remote &&
+    !mayResumeRelease(remote, version, {
+      preview,
+      feedPublished: existing.some((asset) => asset.name === feed),
+    })
+  )
     throw new PublicationError(
       "Only this version's draft or testing prerelease may advance. Never replace a stable release; use a new version",
     );
@@ -71,28 +93,38 @@ export async function publishGithub({
     prerelease: preview,
     body: releaseBody,
   });
-  if (!mayResumeRelease(remote, version))
+  if (
+    !mayResumeRelease(remote, version, {
+      preview,
+      feedPublished: existing.some((asset) => asset.name === feed),
+    })
+  )
     throw new PublicationError("Invalid GitHub release response");
-  // Resume only byte-identical assets in the same draft/preview. Never delete or overwrite one.
-  const existing = await api(`/releases/${remote.id}/assets?per_page=100`);
-  if (!Array.isArray(existing) || existing.length > 64)
-    throw new PublicationError("Unexpected release assets");
-  if (existing.some((asset) => !files.some((file) => file.name === asset.name)))
+  // Resume only byte-identical assets. Never delete or overwrite one; the
+  // other target's own files are left as they are.
+  if (
+    existing.some(
+      (asset) =>
+        ownName(asset.name) && !files.some((file) => file.name === asset.name),
+    )
+  )
     throw new PublicationError(
       "Release contains unexpected assets; review it manually",
     );
   for (const file of files) {
     const found = existing.find((asset) => asset.name === file.name);
-    if (found) {
-      if (
-        found.state !== "uploaded" ||
-        found.digest !== `sha256:${file.sha256}`
-      )
-        throw new PublicationError(
-          "Existing release asset differs or is incomplete; review it manually before retrying",
-        );
-      continue;
-    }
+    if (
+      found &&
+      (found.state !== "uploaded" || found.digest !== `sha256:${file.sha256}`)
+    )
+      throw new PublicationError(
+        "Existing release asset differs or is incomplete; review it manually before retrying",
+      );
+  }
+  const pending = files
+    .filter((file) => !existing.some((asset) => asset.name === file.name))
+    .sort((a, b) => Number(a.name === feed) - Number(b.name === feed));
+  for (const file of pending) {
     const response = await fetch(
       `https://uploads.github.com/repos/${repo}/releases/${remote.id}/assets?name=${encodeURIComponent(file.name)}`,
       {
@@ -119,16 +151,17 @@ export async function publishGithub({
         "Release asset upload was not verified; stable promotion did not occur",
       );
   }
-  const published = await api(`/releases/${remote.id}`, "PATCH", {
+  // A release the other target already published keeps its description.
+  const outcome = await api(`/releases/${remote.id}`, "PATCH", {
     draft: false,
     prerelease: preview,
     make_latest: preview ? "false" : "true",
-    body: releaseBody,
+    ...(published ? {} : { body: releaseBody }),
   });
   if (
-    published.draft !== false ||
-    published.prerelease !== preview ||
-    published.tag_name !== `v${version}`
+    outcome.draft !== false ||
+    outcome.prerelease !== preview ||
+    outcome.tag_name !== `v${version}`
   )
     throw new PublicationError(
       "Publication outcome is uncertain. Inspect this release before retrying",

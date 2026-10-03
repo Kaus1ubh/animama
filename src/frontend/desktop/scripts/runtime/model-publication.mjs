@@ -100,13 +100,12 @@ const shape = (files) =>
   );
 
 /**
- * Copy a verified model-store set and its manifest into a scannable candidate
- * directory with a release artifact index. The store is resolved offline; this
- * never downloads.
+ * Resolve and verify the acquired local set a candidate would copy, without
+ * copying it. Release builds check every required set this way before
+ * spending signatures.
  */
-export function stageModelCandidate({
+export function verifiedModelSource({
   modelId,
-  directory,
   modelRoot,
   manifestFile = path.join(repoRoot, "models", modelId, "manifest.json"),
 }) {
@@ -128,6 +127,25 @@ export function stageModelCandidate({
     throw new PublicationError(
       `Acquire the set first: python3 ${spec.script} acquire`,
     );
+  return { manifest, files, source };
+}
+
+/**
+ * Copy a verified model-store set and its manifest into a scannable candidate
+ * directory with a release artifact index. The store is resolved offline; this
+ * never downloads.
+ */
+export function stageModelCandidate({
+  modelId,
+  directory,
+  modelRoot,
+  manifestFile = path.join(repoRoot, "models", modelId, "manifest.json"),
+}) {
+  const { manifest, files, source } = verifiedModelSource({
+    modelId,
+    modelRoot,
+    manifestFile,
+  });
   mkdirSync(path.dirname(directory), { recursive: true });
   const temporary = mkdtempSync(
     path.join(path.dirname(directory), `.${modelId}-`),

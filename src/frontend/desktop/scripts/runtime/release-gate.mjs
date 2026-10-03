@@ -9,12 +9,10 @@ try {
   else if (command === "windows")
     await (await import("./release-windows.mjs")).releaseWindows(args);
   else if (command === "smoke-windows")
-    throw new Error(
-      "Windows installed-artifact smoke is not implemented yet (desktop Phase 7)",
-    );
+    await (await import("./smoke-windows.mjs")).smokeWindows(args);
   else
     throw new Error(
-      "Expected mac [--resume-app-notarization <submission-id>], windows [--signing-rehearsal] or smoke-mac --artifact <signed.dmg>",
+      "Expected mac [--resume-app-notarization <submission-id>], windows [--signing-rehearsal], smoke-mac --artifact <signed.dmg> or smoke-windows --artifact <setup.exe>",
     );
 } catch (error) {
   console.error(

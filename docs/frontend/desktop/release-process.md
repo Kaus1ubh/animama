@@ -26,13 +26,11 @@ remain pending for the exact current candidate.
 | Native acceptance             | Check physical microphone/audio, windows/shortcuts, in-place offline speech install/removal and offline dictation, packs/document conversion, failures/recovery and a real forward signed upgrade. Record supported OS and compatible app/pack versions actually exercised.                                                                                                     |
 | Stable promotion              | `raymond-van` reviews the exact DMG-bound manual receipt and required-name smoke/network reports, then runs the final publisher command.                                                                                                                                                                                                                                        |
 
-Windows x64 can build a signed local candidate (`pnpm desktop:dist:windows`
-after a Windows stage and audit, with the `win32-x64` redistribution receipt
-recorded); see [Build a signed Windows candidate](releases.md#build-a-signed-windows-candidate).
-Windows smoke, updates and publication are not implemented yet, so no Windows
-candidate can pass the later gates. macOS 15 is the declared minimum; actual
-minimum-OS, clean-machine and signed acceptance require separate evidence.
-Run native audits against matching current inputs and preserve their receipts.
+Windows 11 x64 passes the same gates with its own commands; see
+[Windows candidates](#windows-candidates). macOS 15 and Windows build 22000 are
+the declared minimums; actual minimum-OS, clean-machine and signed acceptance
+require separate evidence. Run native audits against matching current inputs
+and preserve their receipts.
 
 Use a separate macOS test account, log in normally and verify that no Animama or
 `Anima` profile or test app exists before running smoke. Do not fake HOME, reset
@@ -106,8 +104,12 @@ ANIMAMA_GITLEAKS=<verified-gitleaks> pnpm desktop:release:scan
 
 Run it on the staged build machine: expanding the frozen backend uses the build
 interpreter from `desktop:runtime:stage`. The scan mounts the DMG and expands the
-update ZIP and archive feature packs, then every nested archive named `.zip`, `.whl`,
-`.jar`, `.tar.gz`, `.tgz`, `.tar.zst` or `.asar`, and any PyInstaller executable.
+update ZIP and archive feature packs, or opens the Windows installer's app
+payload with electron-builder's pinned 7-Zip, then every nested archive named
+`.zip`, `.whl`, `.jar`, `.7z`, `.tar.gz`, `.tgz`, `.tar.zst` or `.asar`, and any
+PyInstaller executable (Mach-O or PE). The installer's own NSIS code and the
+uninstaller it carries are not expanded; both are signed electron-builder
+template output.
 Other compressed formats are scanned only as raw strings. Gitleaks must first
 detect a generated canary token. It then scans every expanded file under a
 neutral numbered name and header line, so its built-in path and file-type
@@ -117,7 +119,8 @@ are excluded from Gitleaks because quantized tensors produce chance token
 matches; the receipt counts them. Every expanded file, including ONNX, is also
 byte-searched for this machine's home directory, the Git author email and any
 extra values in `ANIMAMA_SCAN_PRIVATE_TEXT` (one per line; keep them out of
-source and shell history). A symlink fails the scan when its target is absolute
+source and shell history). On Windows the home directory is searched as
+`\Users\<name>\` with either separator, JSON-escaped and in UTF-16LE. A symlink fails the scan when its target is absolute
 or escapes its artifact, except an installer's `/Applications` link.
 
 `release-scan.json` records the scanned file hashes, coverage counts, rule IDs
@@ -156,6 +159,39 @@ Load these privately for the command; do not commit them, print them, place lite
 secrets in shell history or bundle a GitHub token into the app. Clear the release
 credential from the shell when finished. The example acceptance JSON is an
 unapproved template and must never be filled automatically from test success.
+
+## Windows candidates
+
+On the Windows 11 x64 build host, from `src/frontend` in a clone checked out at
+the exact commit, with the same `ANIMAMA_RELEASE_DISTRIBUTION` throughout:
+
+```sh
+pnpm desktop:runtime:stage -- --platform win32 --arch x64
+pnpm desktop:runtime:audit -- --platform win32 --arch x64
+pnpm desktop:dist:windows
+```
+
+The build needs the `win32-x64` redistribution receipt for that exact stage, the
+Artifact Signing sign-in and the acquired model sets
+([Build a signed Windows candidate](releases.md#build-a-signed-windows-candidate)).
+Then, in a separate standard Windows account that has never run Animama:
+
+```sh
+pnpm desktop:smoke:windows -- --artifact desktop/release/publish/Animama-<version>-x64-setup.exe --setup name
+```
+
+Back on the build account, scan with the pinned Gitleaks Windows build
+(`windows_x64` in `scanner-pins.json`); the target defaults to the host's:
+
+```sh
+ANIMAMA_GITLEAKS=<verified-gitleaks.exe> pnpm desktop:release:scan
+```
+
+Preview and stable publication use `publish-windows.mjs` with the options
+above; stable promotion needs `ANIMAMA_WINDOWS_ACCEPTANCE`. Windows evidence in
+the shared version folder carries a `-win32-x64` suffix (for example
+`signing-report-win32-x64.json`, `manual-acceptance-win32-x64.json`), and its
+feed is `latest.yml`.
 
 Under the currently implemented transport, installed pack testing and first-release
 upgrade QA still require preview/QA feeds in

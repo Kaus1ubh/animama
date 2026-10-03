@@ -11,12 +11,21 @@ const UPDATE_RESERVE_BYTES = 256 * 1024 ** 2;
 export type ReleaseDistribution =
   | { kind: "r2"; base_url: string }
   | { kind: "github"; owner: string; repo: string };
-export type UpdatePolicy = {
+/** The Authenticode identity every Windows update must be signed by. */
+export type WindowsPublisher = {
+  certificate_subject: string;
+  identity_validation_eku: string;
+};
+type PolicyBase = {
   schema: "animama-update-policy/2";
   distribution: ReleaseDistribution;
   channel: "stable";
-  team_id: string;
 };
+/** macOS builds name their Apple Team ID; Windows builds their Authenticode publisher. */
+export type UpdatePolicy =
+  | (PolicyBase & { team_id: string })
+  | (PolicyBase & { windows_publisher: WindowsPublisher });
+export type UpdatePlatform = "darwin" | "win32";
 export type UpdateCandidate = {
   version: string;
   filename: string;
@@ -26,6 +35,27 @@ export type UpdateCandidate = {
   runtimeBuildId: string;
   packDigests: Partial<Record<FeaturePackId, string>>;
 };
+
+/** What each platform's feed must name; the first file is the one the updater installs. */
+const PLATFORMS = {
+  darwin: {
+    architecture: "arm64",
+    feed: "latest-mac.yml",
+    // macOS 15 is Darwin 24; electron-updater compares os.release().
+    minimumSystemVersion: "24.0.0",
+    files: (version: string) => [
+      `Animama-${version}-arm64.zip`,
+      `Animama-${version}-arm64.dmg`,
+    ],
+  },
+  win32: {
+    architecture: "x64",
+    feed: "latest.yml",
+    // Windows 11 is build 22000 and later.
+    minimumSystemVersion: "10.0.22000",
+    files: (version: string) => [`Animama-${version}-x64-setup.exe`],
+  },
+} as const;
 
 const VERSION = /^(0|[1-9]\d{0,4})\.(0|[1-9]\d{0,4})\.(0|[1-9]\d{0,4})$/u;
 const HASH = /^[a-f0-9]{64}$/u;
@@ -84,22 +114,50 @@ export function isReleaseDistribution(
         repositoryPart.test(item.repo);
 }
 
+function isWindowsPublisher(value: unknown): value is WindowsPublisher {
+  const item = value as Record<string, unknown> | null;
+  return (
+    !!item &&
+    typeof item === "object" &&
+    Object.keys(item).sort().join(",") ===
+      "certificate_subject,identity_validation_eku" &&
+    typeof item.certificate_subject === "string" &&
+    /^CN=[^\x00-\x1f\x7f]{1,500}$/u.test(item.certificate_subject) &&
+    typeof item.identity_validation_eku === "string" &&
+    // An Artifact Signing identity validation's own OID under 1.3.6.1.4.1.311.97.
+    /^1\.3\.6\.1\.4\.1\.311\.97(\.\d{1,10}){4}$/u.test(
+      item.identity_validation_eku,
+    )
+  );
+}
+
+/** The platform whose publisher a policy names. */
+export function updatePlatform(policy: UpdatePolicy): UpdatePlatform {
+  return "team_id" in policy ? "darwin" : "win32";
+}
+
 /** Read only the non-secret policy embedded in verified application resources. */
-export function validateUpdatePolicy(value: unknown): UpdatePolicy {
-  const policy = value as UpdatePolicy;
+export function validateUpdatePolicy(
+  value: unknown,
+  platform: UpdatePlatform = "darwin",
+): UpdatePolicy {
+  const policy = value as Record<string, unknown> | null;
+  const publisher = platform === "darwin" ? "team_id" : "windows_publisher";
   if (
     !policy ||
     policy.schema !== "animama-update-policy/2" ||
     policy.channel !== "stable" ||
     !isReleaseDistribution(policy.distribution) ||
-    typeof policy.team_id !== "string" ||
-    !/^[A-Z0-9]{10}$/u.test(policy.team_id) ||
+    !(platform === "darwin"
+      ? typeof policy.team_id === "string" &&
+        /^[A-Z0-9]{10}$/u.test(policy.team_id)
+      : isWindowsPublisher(policy.windows_publisher)) ||
     Object.keys(policy).sort().join(",") !==
-      "channel,distribution,schema,team_id"
+      `channel,distribution,schema,${publisher}`
   ) {
     throw new RuntimeError("updates_not_configured");
   }
-  return policy;
+  return policy as UpdatePolicy;
 }
 
 /** Gate untrusted feed data before disk estimates, downloads, or pack preflight. */
@@ -107,7 +165,9 @@ export function validateUpdateCandidate(
   value: unknown,
   currentVersion: string,
   distribution: ReleaseDistribution,
+  platform: UpdatePlatform = "darwin",
 ): UpdateCandidate {
+  const spec = PLATFORMS[platform];
   const info = value as Record<string, unknown>;
   if (
     !info ||
@@ -116,24 +176,30 @@ export function validateUpdateCandidate(
     info.tag !== `v${info.version}` ||
     !Array.isArray(info.files) ||
     info.files.length < 1 ||
-    info.files.length > 2 ||
-    info.minimumSystemVersion !== "24.0.0" ||
+    info.files.length > spec.files(info.version).length ||
+    info.minimumSystemVersion !== spec.minimumSystemVersion ||
     info.stagingPercentage !== undefined
   ) {
     throw new RuntimeError("update_metadata_invalid");
   }
-  const filename = `Animama-${info.version}-arm64.zip`;
+  const allowed = spec.files(info.version);
+  const filename = allowed[0];
   // R2 feeds sit above per-version folders; GitHub resolves names within the tag.
   const folder = distribution.kind === "r2" ? `v${info.version}/` : "";
   const names = new Set<string>();
   let archive: { url: string; size: number; sha512: string } | undefined;
   for (const entry of info.files) {
-    const file = entry as { url: string; size: number; sha512: string };
+    const file = entry as {
+      url: string;
+      size: number;
+      sha512: string;
+      isAdminRightsRequired?: unknown;
+    };
     if (
       !file ||
-      ![filename, `Animama-${info.version}-arm64.dmg`]
-        .map((name) => `${folder}${name}`)
-        .includes(file.url) ||
+      !allowed.map((name) => `${folder}${name}`).includes(file.url) ||
+      // A per-user installer never asks the updater to elevate.
+      file.isAdminRightsRequired !== undefined ||
       names.has(file.url) ||
       !Number.isSafeInteger(file.size) ||
       file.size < 1 ||
@@ -151,8 +217,8 @@ export function validateUpdateCandidate(
     !archive ||
     !metadata ||
     metadata.schema !== "animama-update/1" ||
-    metadata.platform !== "darwin" ||
-    metadata.architecture !== "arm64" ||
+    metadata.platform !== platform ||
+    metadata.architecture !== spec.architecture ||
     !Number.isSafeInteger(metadata.installed_bytes) ||
     Number(metadata.installed_bytes) < 1 ||
     Number(metadata.installed_bytes) > MAX_INSTALLED_BYTES ||
@@ -188,7 +254,10 @@ export function validateUpdateCandidate(
   };
 }
 
-/** Include download cache, Squirrel staging, replacement bytes and a conservative SQL snapshot. */
+/**
+ * Include the download cache, Squirrel staging or the installer's own
+ * extraction, replacement bytes and a conservative SQL snapshot.
+ */
 export function updateFreeBytes(
   candidate: UpdateCandidate,
   databaseBytes: number,
@@ -226,7 +295,10 @@ export function allowedUpdateUrl(value: string, policy: UpdatePolicy): boolean {
       const base = new URL(distribution.base_url);
       if (url.origin !== base.origin) return false;
       // electron-updater's generic provider adds noCache=<base-32 time> to feed requests.
-      if (url.pathname === `${base.pathname}/latest-mac.yml`)
+      if (
+        url.pathname ===
+        `${base.pathname}/${PLATFORMS[updatePlatform(policy)].feed}`
+      )
         return !url.search || /^\?noCache=[0-9a-v]{1,16}$/u.test(url.search);
       const [tag, name, ...extra] = url.pathname.startsWith(`${base.pathname}/`)
         ? url.pathname.slice(base.pathname.length + 1).split("/")

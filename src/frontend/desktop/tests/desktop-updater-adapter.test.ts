@@ -4,8 +4,11 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { EventEmitter } from "node:events";
+import { spawn } from "node:child_process";
+import { app } from "electron";
 import {
   createMacUpdateAdapter,
+  createWindowsUpdateAdapter,
   verifyUpdaterPublisher,
 } from "../src/main-process/updates/electron-adapter.js";
 import { runCommand } from "../src/main-process/runtime/processes.js";
@@ -38,46 +41,60 @@ vi.mock("electron", async () => {
   fixture.native = Object.assign(new EventEmitter(), {
     checkForUpdates: vi.fn(),
   });
-  return { autoUpdater: fixture.native };
+  return { autoUpdater: fixture.native, app: { quit: vi.fn() } };
+});
+vi.mock("node:child_process", async () => {
+  const { EventEmitter } = await import("node:events");
+  return {
+    // Emits "spawn", or "error" for an installer path ending in "missing".
+    spawn: vi.fn((file: string) => {
+      const child = Object.assign(new EventEmitter(), { unref: vi.fn() });
+      setImmediate(() =>
+        file.endsWith("missing")
+          ? child.emit("error", new Error("ENOENT"))
+          : child.emit("spawn"),
+      );
+      return child;
+    }),
+  };
 });
 vi.mock("../src/main-process/runtime/processes.js", () => ({
   runCommand: vi.fn(async () => ""),
 }));
 vi.mock("electron-updater", async () => {
   const { EventEmitter } = await import("node:events");
-  return {
-    MacUpdater: class extends EventEmitter {
-      autoDownload = true;
-      autoInstallOnAppQuit = true;
-      allowDowngrade = true;
-      logger: unknown = {};
-      quitAndInstall = vi.fn();
-      netSession = {
-        webRequest: {
-          onBeforeRequest: (callback: typeof fixture.beforeRequest) => {
-            fixture.beforeRequest = callback;
-          },
-          onHeadersReceived: vi.fn(),
+  const Updater = class extends EventEmitter {
+    autoDownload = true;
+    autoInstallOnAppQuit = true;
+    allowDowngrade = true;
+    logger: unknown = {};
+    quitAndInstall = vi.fn();
+    netSession = {
+      webRequest: {
+        onBeforeRequest: (callback: typeof fixture.beforeRequest) => {
+          fixture.beforeRequest = callback;
         },
+        onHeadersReceived: vi.fn(),
+      },
+    };
+    constructor(options: unknown) {
+      super();
+      fixture.mac = this;
+      fixture.options = options;
+    }
+    async checkForUpdates() {
+      return {
+        isUpdateAvailable: true,
+        updateInfo: fixture.info,
+        cancellationToken: { cancel: fixture.cancel },
       };
-      constructor(options: unknown) {
-        super();
-        fixture.mac = this;
-        fixture.options = options;
-      }
-      async checkForUpdates() {
-        return {
-          isUpdateAvailable: true,
-          updateInfo: fixture.info,
-          cancellationToken: { cancel: fixture.cancel },
-        };
-      }
-      async downloadUpdate() {
-        this.emit("download-progress", { transferred: 6 });
-        this.emit("update-downloaded", { downloadedFile: fixture.file });
-      }
-    },
+    }
+    async downloadUpdate() {
+      this.emit("download-progress", { transferred: 6 });
+      this.emit("update-downloaded", { downloadedFile: fixture.file });
+    }
   };
+  return { MacUpdater: Updater, NsisUpdater: Updater };
 });
 
 const policy = {
@@ -258,5 +275,150 @@ describe("macOS updater adapter", () => {
     expect(permitQuit).not.toHaveBeenCalled();
     expect(fixture.mac.quitAndInstall).not.toHaveBeenCalled();
     adapter.close();
+  });
+});
+
+describe("Windows updater adapter", () => {
+  const windowsPolicy = {
+    schema: "animama-update-policy/2" as const,
+    distribution: {
+      kind: "r2" as const,
+      base_url: "https://downloads.example.test/desktop",
+    },
+    channel: "stable" as const,
+    windows_publisher: {
+      certificate_subject: "CN=Example Publisher, O=Example Publisher, C=CA",
+      identity_validation_eku: "1.3.6.1.4.1.311.97.1.2.3.4",
+    },
+  };
+  const signedBy = (subject: string, ekus: string) =>
+    vi.mocked(runCommand).mockResolvedValue(`${subject}\r\n${ekus}`);
+  const valid = () =>
+    signedBy(
+      windowsPolicy.windows_publisher.certificate_subject,
+      "1.3.6.1.5.5.7.3.3,1.3.6.1.4.1.311.97.1.2.3.4,1.3.6.1.4.1.311.97.1.0",
+    );
+  const windowsCandidate = () => {
+    const info = fixture.info as {
+      minimumSystemVersion: string;
+      files: { url: string }[];
+      animama: { platform: string; architecture: string };
+    };
+    info.minimumSystemVersion = "10.0.22000";
+    info.files[0].url = "v0.2.0/Animama-0.2.0-x64-setup.exe";
+    info.animama.platform = "win32";
+    info.animama.architecture = "x64";
+    return validateUpdateCandidate(
+      info,
+      "0.1.0",
+      windowsPolicy.distribution,
+      "win32",
+    );
+  };
+  afterEach(() => vi.mocked(runCommand).mockReset());
+
+  it("passes the file through the environment and requires the exact subject and identity EKU", async () => {
+    const file = path.join(root, "Animama.exe");
+    valid();
+    await verifyUpdaterPublisher(file, windowsPolicy);
+    const [executable, args, env, cwd] = vi.mocked(runCommand).mock.calls[0]!;
+    expect(executable).toMatch(/WindowsPowerShell.v1\.0.powershell\.exe$/u);
+    expect(args.join(" ")).not.toContain(file);
+    expect(env).toEqual({ ANIMAMA_SIGNED_FILE: file });
+    expect(cwd).toBe(root);
+    for (const [subject, ekus] of [
+      ["CN=Example Publisher, O=Other, C=CA", "1.3.6.1.4.1.311.97.1.2.3.4"],
+      [
+        windowsPolicy.windows_publisher.certificate_subject,
+        "1.3.6.1.4.1.311.97.1.0",
+      ],
+      [windowsPolicy.windows_publisher.certificate_subject, ""],
+    ]) {
+      signedBy(subject!, ekus!);
+      await expect(verifyUpdaterPublisher(file, windowsPolicy)).rejects.toThrow(
+        "update_publisher_invalid",
+      );
+    }
+    // An invalid or missing signature makes the check exit non-zero.
+    vi.mocked(runCommand).mockRejectedValue(new Error("exit 3"));
+    await expect(verifyUpdaterPublisher(file, windowsPolicy)).rejects.toThrow(
+      "update_publisher_invalid",
+    );
+  });
+
+  it("rejects a download from another publisher and never installs it", async () => {
+    const permitQuit = vi.fn();
+    const adapter = createWindowsUpdateAdapter(
+      windowsPolicy,
+      "0.1.0",
+      permitQuit,
+    );
+    signedBy("CN=Someone Else", "1.3.6.1.4.1.311.97.9.9.9.9");
+    await expect(adapter.download(windowsCandidate(), vi.fn())).rejects.toThrow(
+      "update_publisher_invalid",
+    );
+    await expect(adapter.install()).rejects.toThrow("update_download_required");
+    expect(spawn).not.toHaveBeenCalled();
+    expect(permitQuit).not.toHaveBeenCalled();
+  });
+
+  it("rechecks the publisher, starts the installer as an update and only then quits", async () => {
+    const permitQuit = vi.fn();
+    const adapter = createWindowsUpdateAdapter(
+      windowsPolicy,
+      "0.1.0",
+      permitQuit,
+    );
+    expect(fixture.options).toEqual({
+      provider: "generic",
+      url: "https://downloads.example.test/desktop",
+    });
+    expect(fixture.mac).toMatchObject({
+      autoDownload: false,
+      autoInstallOnAppQuit: false,
+      allowDowngrade: false,
+      logger: null,
+    });
+    valid();
+    await adapter.download(windowsCandidate(), vi.fn());
+    expect(runCommand).toHaveBeenCalledTimes(1);
+    await adapter.install();
+    expect(runCommand).toHaveBeenCalledTimes(2);
+    expect(spawn).toHaveBeenCalledWith(
+      fixture.file,
+      ["--updated", "--force-run"],
+      expect.objectContaining({ detached: true, stdio: "ignore" }),
+    );
+    expect(permitQuit).toHaveBeenCalledOnce();
+    expect(app.quit).toHaveBeenCalledOnce();
+    expect(fixture.mac.quitAndInstall).not.toHaveBeenCalled();
+  });
+
+  it("reports a replaced or unstartable installer before quitting", async () => {
+    const permitQuit = vi.fn();
+    const adapter = createWindowsUpdateAdapter(
+      windowsPolicy,
+      "0.1.0",
+      permitQuit,
+    );
+    valid();
+    await adapter.download(windowsCandidate(), vi.fn());
+    vi.mocked(runCommand).mockRejectedValueOnce(new Error("exit 3"));
+    await expect(adapter.install()).rejects.toThrow("update_install_failed");
+    expect(spawn).not.toHaveBeenCalled();
+
+    const missing = path.join(root, "missing");
+    writeFileSync(missing, "zip fixture");
+    fixture.file = missing;
+    await adapter.download(windowsCandidate(), vi.fn());
+    await expect(adapter.install()).rejects.toThrow("update_install_failed");
+    expect(permitQuit).not.toHaveBeenCalled();
+    expect(app.quit).not.toHaveBeenCalled();
+  });
+
+  it("refuses a macOS policy", () => {
+    expect(() => createWindowsUpdateAdapter(policy, "0.1.0", vi.fn())).toThrow(
+      "updates_not_configured",
+    );
   });
 });

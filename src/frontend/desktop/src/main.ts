@@ -52,6 +52,7 @@ import { DesktopUpdateController } from "./main-process/updates/controller.js";
 import { validateUpdatePolicy } from "./main-process/updates/policy.js";
 import {
   createMacUpdateAdapter,
+  createWindowsUpdateAdapter,
   verifyUpdaterPublisher,
 } from "./main-process/updates/electron-adapter.js";
 
@@ -120,32 +121,41 @@ else {
 
   /** Updates are optional, packaged-only infrastructure and never delay application readiness. */
   function initializeUpdates(): Promise<void> {
-    if (
-      !app.isPackaged ||
-      process.platform !== "darwin" ||
-      process.arch !== "arm64" ||
-      !supervisor
-    )
-      return Promise.resolve();
+    const platform =
+      process.platform === "darwin" && process.arch === "arm64"
+        ? "darwin"
+        : process.platform === "win32" && process.arch === "x64"
+          ? "win32"
+          : undefined;
+    if (!app.isPackaged || !platform || !supervisor) return Promise.resolve();
     updateInitialization ??= (async () => {
       const policy = validateUpdatePolicy(
         await readBoundedJson(
           join(process.resourcesPath, "runtime/update-policy.json"),
           4096,
         ),
+        platform,
       );
+      // The signed app bundle on macOS; the signed Animama.exe on Windows.
       await verifyUpdaterPublisher(
-        resolve(process.resourcesPath, "../.."),
+        platform === "darwin"
+          ? resolve(process.resourcesPath, "../..")
+          : process.execPath,
         policy,
       );
       if (quitting) return;
-      const adapter = createMacUpdateAdapter(policy, app.getVersion(), () => {
+      const permitQuit = () => {
         allowQuit = true;
         quitting = true;
-      });
+      };
+      const adapter =
+        platform === "darwin"
+          ? createMacUpdateAdapter(policy, app.getVersion(), permitQuit)
+          : createWindowsUpdateAdapter(policy, app.getVersion(), permitQuit);
       updates = new DesktopUpdateController({
         version: app.getVersion(),
         distribution: policy.distribution,
+        platform,
         adapter,
         disk: () => supervisor!.updateDisk(),
         preflight: (candidate) => supervisor!.preflightUpdate(candidate),

@@ -48,11 +48,42 @@ export const manualMacChecks = [
   "native_network",
 ];
 
+export const manualWindowsChecks = [
+  "avatar_animation",
+  "pocket_tts",
+  "microphone",
+  "pip",
+  "quick_chat",
+  "global_shortcuts",
+  "offline_dictation",
+  "smartscreen_download",
+  "installer_upgrade_uninstall_reinstall",
+  "update_preserves_local_state",
+  "migration_snapshot_recovery",
+  "native_network",
+];
+
+/** What each target's smoke report and human acceptance are bound to. */
+const ACCEPTANCE = {
+  "darwin-arm64": {
+    schema: "animama-macos-acceptance/1",
+    artifact: "dmg_sha256",
+    label: "DMG",
+    checks: manualMacChecks,
+  },
+  "win32-x64": {
+    schema: "animama-windows-acceptance/1",
+    artifact: "installer_sha256",
+    label: "installer",
+    checks: manualWindowsChecks,
+  },
+};
+
 /** Accept current required-name evidence only for the exact candidate artifact. */
 export function acceptsRequiredNameSmoke(
   smoke,
   network,
-  { dmgSha256, runtimeBuildId },
+  { artifactSha256, runtimeBuildId, target = "darwin-arm64" },
 ) {
   return (
     smoke?.passed === true &&
@@ -66,7 +97,7 @@ export function acceptsRequiredNameSmoke(
     smoke.checks?.temporary_provider_removed === true &&
     smoke.checks?.temporary_provider_removal_persists === true &&
     !smoke.cleanup_required &&
-    smoke.dmg_sha256 === dmgSha256 &&
+    smoke[ACCEPTANCE[target].artifact] === artifactSha256 &&
     smoke.runtime_build_id === runtimeBuildId &&
     network?.violations === 0
   );
@@ -84,29 +115,35 @@ function olderStableVersion(previous, current) {
   return false;
 }
 
-/** This is an explicit human attestation bound to the exact signed DMG, not a test override. */
-export function validateManualAcceptance(value, dmgSha256, version) {
+/** This is an explicit human attestation bound to the exact signed artifact, not a test override. */
+export function validateManualAcceptance(
+  value,
+  artifactSha256,
+  version,
+  target = "darwin-arm64",
+) {
+  const spec = ACCEPTANCE[target];
   if (
-    value?.schema !== "animama-macos-acceptance/1" ||
+    value?.schema !== spec.schema ||
     value.app_version !== version ||
-    value.dmg_sha256 !== dmgSha256 ||
+    value[spec.artifact] !== artifactSha256 ||
     typeof value.reviewed_by !== "string" ||
     !/^[^\x00-\x1f\x7f]{1,100}$/u.test(value.reviewed_by) ||
     !/^\d{4}-\d{2}-\d{2}$/u.test(value.reviewed_on ?? "") ||
     value.reviewed_on > new Date().toISOString().slice(0, 10) ||
-    !manualMacChecks.every((name) => value.checks?.[name] === true) ||
+    !spec.checks.every((name) => value.checks?.[name] === true) ||
     !olderStableVersion(value.prior_signed_version, version)
   )
     throw new Error(
-      "Manual native/update acceptance is missing or does not match this exact DMG. Complete the release checklist; do not manufacture an approval.",
+      `Manual native/update acceptance is missing or does not match this exact ${spec.label}. Complete the release checklist; do not manufacture an approval.`,
     );
   return {
     schema: value.schema,
     app_version: version,
-    dmg_sha256: dmgSha256,
+    [spec.artifact]: artifactSha256,
     reviewed_by: value.reviewed_by,
     reviewed_on: value.reviewed_on,
     prior_signed_version: value.prior_signed_version,
-    checks: Object.fromEntries(manualMacChecks.map((name) => [name, true])),
+    checks: Object.fromEntries(spec.checks.map((name) => [name, true])),
   };
 }

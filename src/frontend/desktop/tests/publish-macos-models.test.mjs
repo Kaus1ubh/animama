@@ -78,6 +78,9 @@ async function runCandidate({
     },
     writeArtifactIndex: () => index,
     previewAssets: () => index.files,
+    RELEASE_TARGETS: { "darwin-arm64": { feed: "latest-mac.yml" } },
+    releaseName: (_target, name) => name,
+    isWindowsReleaseName: () => false,
   }));
   vi.doMock("../scripts/runtime/publication.mjs", () => ({
     PublicationError,
