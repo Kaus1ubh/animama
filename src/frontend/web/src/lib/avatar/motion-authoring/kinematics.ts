@@ -27,12 +27,3 @@ export function rawBoneWorldPosition(
   const node = vrm.humanoid.getRawBoneNode(bone);
   return node ? node.getWorldPosition(new Vector3()) : null;
 }
-
-/** Height of the hips above the feet at rest, used to normalize distances. */
-export function avatarScale(vrm: VRM): number {
-  applyCanonicalPose(vrm, {});
-  const hips = rawBoneWorldPosition(vrm, "hips");
-  const foot = rawBoneWorldPosition(vrm, "leftFoot");
-  if (!hips || !foot) throw new Error("The Avatar has no hips or feet.");
-  return hips.y - foot.y;
-}

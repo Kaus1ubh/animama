@@ -60,7 +60,7 @@ Paths are relative to `src/frontend/web/src/` unless stated:
       back; phase issues #261–#265 created; branch renamed and fast-forwarded to
       `origin/main` `401ac3b8`.
 - [x] Phase 1: Motion description, anatomy and baking. Review #3 passed.
-- [ ] Phase 2: Automated motion checks.
+- [x] Phase 2: Automated motion checks. Review #2 passed.
 - [ ] Phase 3: Gesture layer mutes and expression precedence.
 - [ ] Phase 4: Review renders and the `animama-animation` skill.
 - [ ] Phase 5: Evaluation on #243 prompts 1–6 (owner scoring gate).
@@ -120,6 +120,17 @@ Paths are relative to `src/frontend/web/src/` unless stated:
   reference Avatar is fixed to the VRM 1 sample because the leg solver needs a
   VRM 1 rig, so the plan's `--fit-avatar` option was dropped. Finger and thumb
   segments are keyable joints whose axes match the Hands tool.
+- 2026-10-03, implementation (Phase 2 review):
+  - **Not checked:** jerk. Vector acceleration spikes, pops and stall warnings
+    cover the visible failure modes.
+  - **Intersection volumes:** rest-calibrated capsules (torso to the upper
+    chest, neck, skull, forearms, hands) with height-scaled radii. Upper-arm
+    capsules are omitted because the arm meets the torso at the shoulder.
+  - **Thresholds:** they assume 60 Hz sampling.
+  - **Wave example:** its anticipation dip was removed after it grazed the hip.
+  - **Range limits:** thumb abduction, knee, shoulder depression, wrist
+    deviation and arm rotation ranges were widened to accept solver output and
+    shipped hand-authored content.
 
 ## Preparation once implementation is authorized
 
@@ -359,6 +370,105 @@ Checks: focused vitest suites, `pnpm web:lint`, `pnpm check`.
 
 Completion: every category detects its seeded fault on both Avatars, and the
 Phase 1 sample passes or has recorded, justified findings.
+
+#### Phase 2 evidence
+
+- Issue #262. Starting source `e0509b51`.
+- `motion-authoring/checks.ts` plays clips through `sampleAnimaPoseClip` with
+  catalog pose resolution, `poseRetargeting` and both Avatars. Checks:
+  - unresolved pose references;
+  - range of motion (soft = warn, hard = fail);
+  - smoothness: pops, speed, vector acceleration, and mid-motion stalls
+    (warn);
+  - intersection: rest-calibrated torso/neck/head/forearm/hand capsules;
+  - declared contacts;
+  - planted feet;
+  - loop seam (gap and velocity);
+  - VRM 0/1 parity of each bone's world rotation from rest.
+- Thresholds live in `MOTION_CHECK_THRESHOLDS`.
+- `pnpm animation check <motion|clip> [--description] [--json]` exits 1 on
+  failure.
+- Checks from `src/frontend/web`:
+  - vitest motion-authoring + pose-creator: 223 pass;
+  - `check:source`, eslint and prettier: pass.
+- The wave example passes on both Avatars in about 0.5 s.
+- Shipped hand-authored Gestures are not a gate. Several report intersections
+  where they touch the body without declared contacts, and a few exceed range
+  limits (for example `meme-dab` head lateral flexion).
+
+#### Code Review #1 Findings
+
+Independent `sdlc-reviewer` on `e0509b51` plus the working tree. Checks pass,
+shipped clips were probed.
+
+- **P2-R1-F1 (required):** the torso capsule covered the chin, and a face
+  contact didn't clear it (`thinking-hand-on-chin-hold`).
+- **P2-R1-F2 (required):** non-`relaxedRest` pose references were dropped
+  silently, giving false passes and false failures.
+- **P2-R1-F3 (required):** acceleration came from speed magnitude, so
+  reversals were missed.
+- **P2-R1-F4 (required):** unintended stops were not checked; jerk was absent.
+- **P2-R1-F5 (required):** parity used limb directions only, missing
+  head/wrist/twist errors.
+- **P2-R1-F6 (required):** tests did not assert bone, time and Avatar per
+  category; there were no regressions for F1–F5.
+- **Optional:**
+  - contact offsets were scaled though documented as metres;
+  - the head capsule did not rotate;
+  - `--description` was ignored silently;
+  - `avatarScale` was duplicated;
+  - canonical findings were labelled ambiguously;
+  - the loop seam compared speed magnitude only;
+  - plan evidence and decisions were missing;
+  - shipped chin pose shoulder depression exceeded the hard limit.
+
+#### Code Review #1 Revisions
+
+All findings were verified and accepted, except jerk (see the Decision Log).
+
+- **F1:**
+  - the torso capsule now ends at `upperChest`;
+  - added a neck capsule and an eye-oriented skull capsule;
+  - face contacts clear both head and neck;
+  - regression test with the shipped chin hold.
+- **F2:**
+  - catalog resolution as in playback;
+  - missing references are a `pose` failure;
+  - tests cover a missing reference and `right-face-palm` (no false pops).
+- **F3:** acceleration uses rotation-vector velocity differences; reversal
+  test added.
+- **F4:** a stall warning with a look-around window; test added.
+- **F5:** parity compares per-bone world rotation from T-pose across Avatars
+  (spine, neck, head, arms, hands, legs, index and thumb); synthetic test added.
+- **F6:** category tests now assert subject, Avatar and time. CLI tests cover
+  exit codes 0/1/2 and `--json`.
+- **Optional, applied:**
+  - contact offsets are unscaled metres;
+  - rotating skull capsule;
+  - `--description` warning;
+  - removed `avatarScale`;
+  - findings are labelled `[canonical]`;
+  - velocity-vector seam check;
+  - shoulder depression hard limit −15°;
+  - wrist deviation and arm rotation limits widened to −40..25° and
+    −95..105°. This covers most shipped content, but `left-ok-sign` (wrist
+    30.7°) and `right-face-palm` (arm rotation 127.8°) still exceed them.
+
+Verification: 223 tests, `check:source`, eslint and prettier pass.
+
+#### Code Review #2 Findings and Revisions
+
+Targeted recheck: F1–F6 and the optional items are resolved with no
+regressions. Result: **pass**.
+
+Optional notes, all applied:
+- the plan wording on widened limits is corrected (above);
+- a loop-seam failure now reports its own limit, with the finger factor;
+- the skull capsule falls back when an Avatar has no eye bones;
+- CLI tests remove their temporary directories.
+
+Shipped touch Gestures fail intersection unless contacts are declared. Treat
+them accordingly when they serve as R8 baselines.
 
 ### Phase 3 — Gesture layer mutes and expression precedence
 

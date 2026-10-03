@@ -13,9 +13,12 @@ import {
   BAKE_TOLERANCE_METRES,
   bakeMotion,
 } from "./bake";
+import { checkMotion, formatMotionCheckReport } from "./checks";
 import {
+  MOTION_DESCRIPTION_SCHEMA,
   formatMotionDescriptionIssues,
   parseMotionDescription,
+  type MotionDescription,
 } from "./description";
 import {
   INCLUDED_AVATAR_FILES,
@@ -39,7 +42,10 @@ Commands:
   joints                      List joints, components, meanings and ranges.
   base                        Print the base pose (Relaxed Rest) as joint values.
   generate <motion.json> [--out <clip.json>]
-                              Validate a motion description and bake a Gesture clip.`;
+                              Validate a motion description and bake a Gesture clip.
+  check <motion.json | clip.json> [--description <motion.json>] [--json]
+                              Run the motion checks on both Included Avatars.
+                              A description supplies contacts and plantFeet.`;
 
 /** Run a motion-authoring command. Returns the process exit code. */
 export async function runMotionCli(
@@ -56,6 +62,8 @@ export async function runMotionCli(
       return 0;
     case "generate":
       return generate(rest, context);
+    case "check":
+      return check(rest, context);
     default:
       context.out(USAGE);
       return command === undefined || command === "help" ? 0 : 2;
@@ -138,6 +146,98 @@ function parseOptions(
 function displayPath(file: string, cwd: string): string {
   const relative = path.relative(cwd, file);
   return relative.startsWith("..") ? file : relative;
+}
+
+async function readJson(
+  file: string,
+  context: MotionCliContext,
+): Promise<{ value: unknown } | { error: string }> {
+  try {
+    return {
+      value: JSON.parse(
+        await readFile(path.resolve(context.cwd, file), "utf8"),
+      ),
+    };
+  } catch (error) {
+    return { error: `Cannot read ${file}: ${(error as Error).message}` };
+  }
+}
+
+function describe(
+  value: unknown,
+  context: MotionCliContext,
+): MotionDescription | null {
+  const parsed = parseMotionDescription(value);
+  if (parsed.ok) return parsed.description;
+  context.out(
+    `Invalid motion description (${parsed.issues.length} issue(s)):\n` +
+      formatMotionDescriptionIssues(parsed.issues),
+  );
+  return null;
+}
+
+async function check(
+  args: readonly string[],
+  context: MotionCliContext,
+): Promise<number> {
+  const input = args[0];
+  const json = args.includes("--json");
+  const options = parseOptions(
+    args.slice(1).filter((arg) => arg !== "--json"),
+    ["--description"],
+  );
+  if (!input || "error" in options) {
+    context.out(`${"error" in options ? `${options.error}\n\n` : ""}${USAGE}`);
+    return 2;
+  }
+  const read = await readJson(input, context);
+  if ("error" in read) {
+    context.out(read.error);
+    return 1;
+  }
+  const avatars = await Promise.all(
+    (Object.keys(INCLUDED_AVATAR_FILES) as IncludedAvatarId[]).map(
+      async (id) => ({ id, vrm: await loadAvatar(id, context) }),
+    ),
+  );
+  let clip = read.value;
+  let description: MotionDescription | null = null;
+  const isDescription =
+    typeof read.value === "object" &&
+    read.value !== null &&
+    (read.value as { schema?: unknown }).schema === MOTION_DESCRIPTION_SCHEMA;
+  if (isDescription) {
+    description = describe(read.value, context);
+    if (!description) return 1;
+    if (options.values["--description"])
+      context.out(
+        "Ignoring --description: the input is already a description.",
+      );
+    const reference = avatars.find(({ id }) => id === REFERENCE_AVATAR_ID)!;
+    clip = bakeMotion(description, reference.vrm).clip;
+  } else if (options.values["--description"]) {
+    const extra = await readJson(options.values["--description"], context);
+    if ("error" in extra) {
+      context.out(extra.error);
+      return 1;
+    }
+    description = describe(extra.value, context);
+    if (!description) return 1;
+  }
+  let report;
+  try {
+    report = checkMotion(clip, avatars, {
+      contacts: description?.contacts,
+      plantFeet: description?.plantFeet !== false,
+    });
+  } catch (error) {
+    context.out(`Cannot check ${input}: ${(error as Error).message}`);
+    return 1;
+  }
+  context.out(
+    json ? JSON.stringify(report, null, 2) : formatMotionCheckReport(report),
+  );
+  return report.ok ? 0 : 1;
 }
 
 export async function loadAvatar(

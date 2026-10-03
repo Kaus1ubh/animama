@@ -137,8 +137,9 @@ export const JOINT_DEFINITIONS = {
       elevation: {
         axis: "z",
         sign: 1,
-        soft: [-8, 25],
-        hard: [-10, 35],
+        soft: [-10, 25],
+        // Shipped thinking poses depress the shoulder to about −14°.
+        hard: [-15, 35],
         description: "Shrug the shoulder girdle up (+) or depress it (−).",
       },
       protraction: {
@@ -174,8 +175,9 @@ export const JOINT_DEFINITIONS = {
       rotation: {
         axis: "x",
         sign: -1,
-        soft: [-70, 80],
-        hard: [-90, 90],
+        // Shipped salutes and thumbs-up reach about 90° external rotation.
+        soft: [-75, 90],
+        hard: [-95, 105],
         description:
           "Axial rotation: external (+) turns the palm forward from the hanging, palm-in position; internal (−).",
       },
@@ -216,8 +218,8 @@ export const JOINT_DEFINITIONS = {
       deviation: {
         axis: "y",
         sign: -1,
-        soft: [-25, 15],
-        hard: [-30, 20],
+        soft: [-30, 20],
+        hard: [-40, 25],
         description: "Tilt the hand toward the thumb (+) or little finger (−).",
       },
     },
@@ -256,7 +258,8 @@ export const JOINT_DEFINITIONS = {
       flexion: {
         axis: "x",
         sign: 1,
-        soft: [0, 120],
+        // The planted-leg solver leaves nearly straight knees near −1°.
+        soft: [-3, 120],
         hard: [-5, 140],
         description: "Bend the knee (+).",
       },
@@ -341,8 +344,9 @@ export const JOINT_DEFINITIONS = {
       palmarAbduction: {
         axis: "z",
         sign: -1,
-        soft: [-20, 40],
-        hard: [-30, 50],
+        // The Hands tool's fitted open presets reach about −31°.
+        soft: [-35, 40],
+        hard: [-45, 50],
         description:
           "Lift the thumb out of the hand's plane toward the palm side (+) or back (−).",
       },
