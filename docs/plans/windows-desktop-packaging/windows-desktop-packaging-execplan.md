@@ -1,14 +1,14 @@
 # Native Windows 11 x64 desktop packaging
 
-Status: Plan approved 2026-10-02. Phases 1–5 merged; Phase 6 complete;
-Phases 7–8 not yet authorized.
+Status: Plan approved 2026-10-02. Phases 1–6 merged; Phases 7–8 in progress.
 Source agreement: [raymond-van/animama#245](https://github.com/raymond-van/animama/issues/245)
 as published on 2026-10-01 (created and last updated 2026-10-01T20:53:18Z), plus
 the owner decisions of 2026-10-01 and 2026-10-02 recorded in the
 [Decision Log](#decision-log).
 Authorized scope: Phases 1–5, approved by the owner on 2026-10-02 and merged
 in [#258](https://github.com/raymond-van/animama/pull/258); Phase 6, approved on
-2026-10-03. Phases 7–8 need separate authorization. Nothing in this plan
+2026-10-03 and merged in [#266](https://github.com/raymond-van/animama/pull/266);
+Phases 7–8, approved on 2026-10-03. Nothing in this plan
 authorizes publishing a release, uploading to a distribution or changing
 repository visibility.
 
@@ -180,8 +180,14 @@ Paths are repository-relative. `D/` abbreviates `src/frontend/desktop/`.
       signed candidate built at `4ac1d21b`. The signed installer journey,
       which the owner asked the agent to run, passed. SmartScreen warned about
       an unrecognized app, as expected for a new signing identity.
-- [ ] Phase 7: Updates, smoke and publication tooling. Not started; the real upgrade needs G4.
-- [ ] Phase 8: Platform audit, clean-machine journey and documentation. Not started; needs G3.
+- [ ] Phase 7: Updates, smoke and publication tooling
+      ([#268](https://github.com/raymond-van/animama/issues/268)). In progress
+      on branch `build/windows-desktop-updates` from `main` at `733d2315`. The
+      owner chose to keep the G4 upgrade pending.
+- [ ] Phase 8: Platform audit, clean-machine journey and documentation
+      ([#269](https://github.com/raymond-van/animama/issues/269)). Not started.
+      In place of the G3 VM for now, the owner provides a standard and a
+      non-ASCII account on the development PC.
 - [ ] Final integration review. Phases 1–5: review #1 blocked on FI-01, which
       is resolved; review #2 blocked on FI2-01; review #3 passed (below).
       Phases 6–8: not started.
@@ -1834,7 +1840,7 @@ release suite passes (12 tests); the reading itself is unchanged.
 ### Phase 7: Updates, smoke and publication tooling
 
 **Requirements:** R7.
-**Issue:** created at workspace setup.
+**Issue:** [#268](https://github.com/raymond-van/animama/issues/268).
 **Dependencies:** Phase 6. The real forward upgrade needs G4.
 
 Changes:
@@ -1926,7 +1932,7 @@ Pending.
 
 **Requirements:** R8, the clean-machine acceptance and the documentation
 acceptance.
-**Issue:** created at workspace setup.
+**Issue:** [#269](https://github.com/raymond-van/animama/issues/269).
 **Dependencies:** Phase 7 and G3.
 
 Steps:
