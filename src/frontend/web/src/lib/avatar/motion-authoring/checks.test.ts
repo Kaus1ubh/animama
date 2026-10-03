@@ -214,6 +214,29 @@ describe("checkMotion", () => {
     expect(contacts[0]).toMatchObject({ subject: "rightIndexDistal→head" });
     // The hand hangs well below the head, so the reported offset points down.
     expect(contacts[0].actualOffset![1]).toBeLessThan(-0.5);
+    // Feeding the reported offset back as the contact's offset satisfies it.
+    const fixed = check(
+      describeMotion({
+        contacts: [
+          {
+            bone: "rightIndexDistal",
+            target: "head",
+            from: 0.4,
+            to: 0.4,
+            offset: report.findings.find(
+              (f) =>
+                f.category === "contact" && f.avatar === "AvatarSample_A_1_New",
+            )!.actualOffset,
+            tolerance: 0.005,
+          },
+        ],
+      }),
+    );
+    expect(
+      failures(fixed.findings, "contact").filter(
+        (f) => f.avatar === "AvatarSample_A_1_New",
+      ),
+    ).toEqual([]);
     expect(contacts[0].from).toBeCloseTo(0.4, 1);
     expect(contacts[0].to).toBeCloseTo(0.8, 1);
   });

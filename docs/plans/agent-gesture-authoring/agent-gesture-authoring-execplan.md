@@ -66,7 +66,22 @@ Paths are relative to `src/frontend/web/src/` unless stated:
 - [x] Phase 4: Review renders and the `animama-animation` skill. Review #2
       passed; owner review of the skill guidance (R1) is pending.
 - [ ] Phase 5: Evaluation on #243 prompts 1–6. Gestures authored, checked,
-      saved and chat-played; owner scoring gate pending.
+      imported and saved through the creator, and played on the mounted chat
+      Avatar by script; owner scoring gate pending.
+- [ ] Owner decisions requested:
+  1. **Fade-scaled mutes:** layers fade with the Gesture rather than staying
+     fully muted through fades (R6 wording).
+  2. **Renderer pieces:** renders use the app's loader and sampler instead of
+     the full `Avatar` class (R5 wording).
+  3. **Idle Style playback:** mutes and expression precedence also apply when
+     a Gesture plays through an Idle Style (the default applied).
+  4. **Description location:** descriptions live in the owner's location, or
+     by default in `motion-authoring/examples/`.
+- [ ] Owner checks:
+  - a real-dispatch chat check of an equipped Gesture (planner path);
+  - creator play and reopen for each evaluation Gesture on both Avatars;
+  - skill guidance review (R1);
+  - R8 scoring.
 - [ ] Final integration review; PR; owner acceptance.
 
 ## Surprises & Discoveries
@@ -867,8 +882,21 @@ Completion: the owner's rubric table, captures and decision are posted (R8).
   (Clip → Import) and saved as Local content on the task stack. Stored files
   match the generated clips; differences are only quaternion normalization
   (< 1e-6) and an omitted `loop: false`.
+- **Saved Local items** (task stack):
+  - `wave-hello` 8b00b8a3-547f-4c81-9b1c-61557274056d
+  - `gentle-double-nod` e67ca116-1d38-411f-9fd3-0f90b63cd801
+  - `palms-up-shrug` 2af034a8-e8ed-4db5-894e-71663f8f94aa
+  - `thinking-chin-rest` bd1e63c4-59a3-4351-b2d6-8547584dd6c9
+  - `hearty-laugh` d05bc265-e980-414d-a33a-004608ee35dd
+  - `excited-triple-clap` 81429d93-2c4b-4ab0-af32-12f2d650f188
+
+  Not done by the agent: playing each one in the creator on both Avatars and
+  reopening it; this is left as an owner check.
 - **Chat runtime:** each saved clip played on the mounted chat Avatar
-  (60 Hz `Avatar.update` driven by script). Sway was fully muted while
+  (60 Hz `Avatar.update` driven by script, the same playback code as
+  dispatch). Not exercised: the planner/equip dispatch path in a real chat,
+  and cursor look-at per Gesture (shown for one clip in Phase 3). Both are
+  owner checks. Sway was fully muted while
   playing and restored after; keyed `happy` peaked as authored; one-shots
   completed, and the loop held until stopped.
 - **Skill and check improvements from authoring:**
@@ -895,7 +923,38 @@ Completion: the owner's rubric table, captures and decision are posted (R8).
 
 After Phase 5, run one full integration review of the combined branch against
 R1–R8 and R6a, reusing still-valid phase evidence, with at most two repair
-rounds. Then open the PR with the default template, separating local, browser,
+rounds.
+
+#### Final Integration Review #1 Findings
+
+Independent `sdlc-reviewer` on `d862576c`.
+- **Checks:** `pnpm check`, `pnpm web:lint` and `pnpm web:test` pass (376
+  files, 2,539 tests, browser scripts); the backend pytest passes (25); ruff
+  and `git diff --check` are clean.
+- **Code:** no defects found.
+- **FI-R1-F1 (required):** the plan overstated chat and creator evidence.
+  Playback was script-driven, without the planner dispatch, creator
+  play/reopen or item ids.
+- **FI-R1-F2 (required):** spec deviations and defaulted open questions had
+  not been put to the owner.
+- **Optional:**
+  - the `actualOffset` claim was not round-trip tested;
+  - `pnpm build` was not rerun after Phase 3;
+  - the retrospective was empty.
+
+#### Final Integration Review #1 Revisions
+
+- **F1, accepted:** Progress and the Phase 5 evidence now say exactly what was
+  done and record the saved item ids. The planner/equip real-chat check and
+  per-Gesture creator play/reopen are listed as owner checks.
+- **F2, accepted:** Progress lists four owner decisions (fade-scaled mutes,
+  renderer pieces, Idle Style lane, description location). The spec's open
+  questions record the defaults as implemented pending owner confirmation.
+- **Optional, applied:**
+  - a test feeds a reported `actualOffset` back and satisfies the contact
+    within 5 mm;
+  - `pnpm build` rerun (exit 0);
+  - Outcomes & Retrospective filled. Then open the PR with the default template, separating local, browser,
 chat and hosted evidence. Merge needs owner approval of the exact candidate.
 
 ## Validation and acceptance
@@ -931,4 +990,25 @@ Record exact commands and results per phase, and state any unperformed check.
 
 ## Outcomes & Retrospective
 
-Not started.
+- **Delivered:**
+  - per-bone motion descriptions with anatomical joints (including fingers),
+    planted-leg solving, Hands-tool presets and tolerance-driven baking into
+    `animaPoseClip/1.0`;
+  - motion checks on both Included Avatars;
+  - review renders;
+  - per-Gesture live-layer muting with a creator control;
+  - Gesture expression precedence;
+  - creator preservation of unknown clip fields;
+  - the `animama-animation` skill;
+  - six evaluation Gestures, written by fresh agents following only the skill
+    (the wave by the implementing agent), all checked, saved through the
+    creator and played on the chat runtime.
+- **Lessons:**
+  - Rendered review caught problems the checks could not. Forearms swung out
+    on returns, arms swept through a T-pose, and the arm's rotation decided
+    where a bent forearm pointed. Agents needed 3–9 iterations per Gesture,
+    mostly driven by renders.
+  - Contact authoring improved once the checks reported actual offsets, and
+    Avatar proportion differences limit exact touches.
+- **Remaining:** the owner decisions and checks above, then the R8
+  follow-up decision (track-based clip format, creator timeline).

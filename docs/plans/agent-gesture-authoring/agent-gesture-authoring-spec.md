@@ -344,10 +344,17 @@ Open:
    #243 prompts 1–6 and its rubric; the owner may revise them before R8 scoring.
 2. **Pass threshold:** the R8 threshold is a proposal awaiting owner confirmation.
 3. **Idle-lane playback:** whether mutes also apply when a Gesture plays through
-   an Idle Style. Default proposal: yes, because the setting belongs to the Gesture.
+   an Idle Style. The proposed default (yes) is implemented, pending owner
+   confirmation.
 4. **Description retention:** where descriptions for Local Gestures are kept so
-   they can be revised. For example, beside the agent's working output, with the
-   R8 descriptions attached to or committed for the owning issue.
+   they can be revised. Proposed and implemented, pending owner confirmation:
+   the owner's chosen location, otherwise `motion-authoring/examples/` on the
+   task branch.
+5. **Implementation deviations awaiting owner acceptance:**
+   - R6 mutes follow the Gesture's fade weight, so layers fade instead of
+     staying fully muted during fades.
+   - R5 renders use the app's loader and sampler rather than the full
+     `Avatar` class.
 
 ## Spec
 
