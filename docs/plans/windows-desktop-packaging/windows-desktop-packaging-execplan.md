@@ -178,7 +178,7 @@ Paths are repository-relative. `D/` abbreviates `src/frontend/desktop/`.
       on branch `build/windows-desktop-signing` from `main` at `401ac3b8`
       (Phases 1–5 merged in
       [#258](https://github.com/raymond-van/animama/pull/258)). Agent work
-      and review #1 done at `6c1b46d6`; the signing rehearsal passed on Windows.
+      and reviews done at `482c90da`; the signing rehearsal passed on Windows.
       Open: the release candidate, which needs G2 and the release model inputs
       on the Windows host, and the owner's signed installer journey.
 - [ ] Phase 7: Updates, smoke and publication tooling. Not started; the real upgrade needs G4.
@@ -401,10 +401,14 @@ These planning findings come from inspecting the source at `98bceca2` on
     uninstaller now removes the folder with `rd /s /q`, which a probe showed
     deletes junctions and directory symlinks, inside the folder or as the
     folder itself, without entering them.
-31. **Electron ships two DLLs that are only catalog-signed (Phase 6).**
-    `d3dcompiler_47.dll` and `dxil.dll` read as `Valid` on the build host only
-    because Windows holds their catalog. Smart App Control on another machine
-    may not, so the release signs them like any unsigned file.
+31. **`Get-AuthenticodeSignature` reports catalog trust first (Phase 6).** For
+    Electron's `d3dcompiler_47.dll` and `dxil.dll` it reports `SignatureType`
+    `Catalog`, because their hashes are in a Windows catalog on the build host,
+    although both also carry embedded Microsoft signatures. Its
+    `-Content` form reports `NotSigned` for every file in Windows PowerShell 5.1.
+    Whether a file has its own signature is therefore read from its PE
+    certificate table, and kept vendor signatures are confirmed with
+    `signtool verify /pa`, which reads no catalog.
 32. **A release failure could exit 0 after electron-builder ran (Phase 6).**
     The gate set `process.exitCode = 1`, but the process still exited 0 after a
     post-build failure. electron-builder's own CLI re-asserts the code in an
@@ -545,7 +549,8 @@ These planning findings come from inspecting the source at `98bceca2` on
   - `--signing-rehearsal` proves signing before G2 without producing anything
     the release gate or a publisher can accept.
   - Feature packs stay macOS-only; a Windows release refuses any active pack.
-  - Model sets keep their shared names, as the same bytes serve both targets.
+  - Model sets keep their shared names, provided the bytes match for both
+    targets; Phase 7 checks that before publishing (P6-R1-03).
 
 ## Gates
 
@@ -1689,12 +1694,13 @@ commits `349dde45`, `c128a0ea`, `4ab78811`, `be315669` and `6c1b46d6`):
     installed on the development host.
   - `pnpm desktop:test` at `be315669`: 401 passed, 55 skipped, 0 failed.
     `smoke:windows` still refuses (Phase 7).
-  - Read-only checks at `6c1b46d6` against the rehearsal output: 144 files carry
-    embedded signatures, and Electron's `d3dcompiler_47.dll` and `dxil.dll` only
-    catalog signatures. Under the revised rule, the next candidate signs these
-    two as well. The model preflight fails on this host because the Parakeet
-    sets were never acquired there, so the real candidate needs the release model
-    inputs first.
+  - Read-only check at `482c90da` against the rehearsal output: all 146 PE files
+    carry valid embedded signatures, and `signtool verify /pa` passes for all
+    of them, including Electron's Microsoft-signed `d3dcompiler_47.dll` and
+    `dxil.dll` (item 31).
+  - Read-only check at `6c1b46d6`: the model preflight fails on this host
+    because the Parakeet sets were never acquired there, so the real candidate
+    needs the release model inputs first.
 - **Linux** (Node 24.15.0) at `be315669`: `pnpm desktop:check` clean;
   `pnpm desktop:test` 431 passed, 26 skipped. At `6c1b46d6` the Windows release
   and packaging suites pass (79 passed, 1 skipped) and `desktop:check` is clean.
@@ -1734,14 +1740,40 @@ In `6c1b46d6` (repair round 1):
 - P6-R1-02 accepted: before any signing, the release stages the model candidates
   from the staged runtime into a scratch folder. The docs now list `python3` and
   the model sets. The Windows check above proved the gap was real.
-- P6-R1-04 accepted: only an embedded `Authenticode` signature counts, for
-  vendor files and Animama's own.
+- P6-R1-04 accepted: only a signature embedded in the file counts. The first
+  repair read this from `SignatureType`, which was wrong (P6-R2-01).
 - P6-R1-05 accepted: `embedRedistributionReview` is shared by both signers.
 - P6-R1-06 accepted.
 - P6-R1-07 accepted as documentation: the report's count is a lower bound; the
   account's usage is exact.
 - P6-R1-03 and P6-R1-08 deferred to Phase 7, which owns publication (its
   change 3).
+
+#### Code Review #2 Findings
+
+Targeted recheck of `b6853ea5` (repair round 1). Result: blocked on one
+finding; the other repairs passed without regression.
+
+- **P6-R2-01 (blocking):** `SignatureType` reports catalog trust first, so the
+  P6-R1-04 repair would have replaced the embedded Microsoft signatures of
+  `d3dcompiler_47.dll` and `dxil.dll`, against P-b. The reviewer read both
+  files' certificate tables. The plan record repeated the misreading.
+- Non-blocking: P6-R2-02 the model preflight copies every set once more than
+  needed; P6-R2-03 the Decision Log states the shared model names as fact
+  while P6-R1-03 is open.
+
+#### Code Review #2 Revisions
+
+In `482c90da` and this record (repair round 2):
+
+- P6-R2-01 accepted. An embedded signature is read from the PE certificate
+  table, and kept vendor signatures must also pass `signtool verify /pa`. The
+  Windows check above confirms all 146 files. Item 31, the Results bullet and
+  the P6-R1-04 revision are corrected.
+- P6-R2-02 deferred: the copy costs disk time, not signatures, and it fails
+  before any signing as required. A no-copy check can come with Phase 7's
+  publication changes.
+- P6-R2-03 accepted in the Decision Log.
 
 ### Phase 7: Updates, smoke and publication tooling
 

@@ -252,8 +252,9 @@ packs are not built yet), and builds the per-user installer without
 electron-builder's own Windows signing. Every PE file lacking a valid embedded
 signature is signed with SHA-256 file and timestamp digests, timestamped by
 `http://timestamp.acs.microsoft.com`; valid embedded vendor signatures, such as
-Microsoft's, are kept. A catalog signature is not kept, since it verifies only
-on a machine holding that catalog. Nested code under `resources` is signed
+Microsoft's, are kept after `signtool verify /pa` confirms them. A file signed
+only through a system catalog is signed, since a catalog verifies only on a
+machine holding it. Nested code under `resources` is signed
 first, deepest first. The review receipt is then added and the runtime manifest
 recomputed, since signing changes file hashes, before the outer app
 (`Animama.exe` last), the uninstaller and the installer are signed. A transient
