@@ -176,7 +176,7 @@ export async function releaseWindows(args = []) {
       (entry) =>
         signatureEntry(
           entry.path,
-          entry.sha256,
+          sha256(path.join(app, entry.path)),
           final.get(entry.path),
           release.windowsPublisher,
           entry.signer === "animama",
@@ -184,8 +184,9 @@ export async function releaseWindows(args = []) {
     )
   )
     throw new Error("The packaged app changed after signing");
-  const uninstaller = builderFiles.get(
-    `${path.basename(installerName, ".exe")}__uninstaller.exe`,
+  // electron-builder names it `<installer>.__uninstaller.exe`.
+  const uninstaller = [...builderFiles.values()].find((entry) =>
+    entry.path.endsWith("__uninstaller.exe"),
   );
   const installerEntry = signatureEntry(
     installerName,
@@ -207,7 +208,7 @@ export async function releaseWindows(args = []) {
       tools: tools.versions,
       stage_build_id: signed.stage_build_id,
       runtime_build_id: signed.runtime_build_id,
-      signatures_used:
+      signed_files:
         signed.files.filter((entry) => entry.signer === "animama").length + 2,
       files: signed.files,
       installer: installerEntry,
@@ -223,7 +224,7 @@ export async function releaseWindows(args = []) {
       sizes,
     );
     console.log(
-      `Signing rehearsal complete: ${report.signatures_used} signatures, every PE file valid. Not a release candidate: no redistribution receipt is embedded and no publish folder was written.`,
+      `Signing rehearsal complete: ${report.signed_files} files signed, every PE file valid. Not a release candidate: no redistribution receipt is embedded and no publish folder was written.`,
     );
     return;
   }
@@ -296,6 +297,6 @@ export async function releaseWindows(args = []) {
     "Local signed Windows candidate only. Repeat the installer journey with this exact installer in a separate Windows account and record SmartScreen's behavior on download. Updates, smoke and publication tooling for Windows arrive in a later phase; nothing was uploaded by this build. Each build used Artifact Signing signatures; rebuild only for an intentional new candidate.\n",
   );
   console.log(
-    `Signed Windows candidate built and size-checked (${report.signatures_used} signatures). Publication remains gated on installer acceptance and later phases.`,
+    `Signed Windows candidate built and size-checked (${report.signed_files} files signed). Publication remains gated on installer acceptance and later phases.`,
   );
 }

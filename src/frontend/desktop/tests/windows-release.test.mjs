@@ -257,7 +257,7 @@ describe("Windows signing", () => {
       files: [entry],
       installer: { ...entry, path: "Animama-0.1.0-x64-setup.exe" },
       uninstaller: { ...entry, path: "uninstaller" },
-      signatures_used: 3,
+      signed_files: 3,
     };
     expect(validateSigningReport(report, publisher)).toBe(report);
     expect(() =>
@@ -270,8 +270,8 @@ describe("Windows signing", () => {
       validateSigningReport({ ...report, uninstaller: null }, publisher),
     ).toThrow("uninstaller");
     expect(() =>
-      validateSigningReport({ ...report, signatures_used: 2 }, publisher),
-    ).toThrow("signatures");
+      validateSigningReport({ ...report, signed_files: 2 }, publisher),
+    ).toThrow("count of signed files");
     expect(() =>
       validateSigningReport(
         { ...report, runtime_build_id: report.stage_build_id },

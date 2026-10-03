@@ -21,4 +21,9 @@ try {
     `Desktop ${command}: ${error instanceof Error ? error.message : "release failed"}`,
   );
   process.exitCode = 1;
+  // After a build, electron-builder's dependencies can still end the process
+  // with a zero code (its own CLI guards the same way), so keep the failure.
+  process.on("exit", () => {
+    process.exitCode = 1;
+  });
 }

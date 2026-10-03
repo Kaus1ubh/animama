@@ -312,11 +312,11 @@ export function validateSigningReport(report, publisher) {
     if (!ours(report[name]))
       throw new Error(`The ${name} is not signed by the pinned publisher`);
   if (
-    report.signatures_used !==
+    report.signed_files !==
     report.files.filter((entry) => entry.signer === "animama").length + 2
   )
     throw new Error(
-      "The report's count of signatures does not match its files",
+      "The report's count of signed files does not match its entries",
     );
   if (
     !/^[a-f0-9]{64}$/u.test(report.runtime_build_id ?? "") ||
