@@ -406,6 +406,10 @@ describe("Windows updater adapter", () => {
     vi.mocked(runCommand).mockRejectedValueOnce(new Error("exit 3"));
     await expect(adapter.install()).rejects.toThrow("update_install_failed");
     expect(spawn).not.toHaveBeenCalled();
+    // A same-publisher file swapped in after download is not the approved one.
+    writeFileSync(fixture.file, "old fixture");
+    await expect(adapter.install()).rejects.toThrow("update_install_failed");
+    expect(spawn).not.toHaveBeenCalled();
 
     const missing = path.join(root, "missing");
     writeFileSync(missing, "zip fixture");

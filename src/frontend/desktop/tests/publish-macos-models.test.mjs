@@ -80,7 +80,7 @@ async function runCandidate({
     previewAssets: () => index.files,
     RELEASE_TARGETS: { "darwin-arm64": { feed: "latest-mac.yml" } },
     releaseName: (_target, name) => name,
-    isWindowsReleaseName: () => false,
+    SHARED_RELEASE_NAMES: ["backend-model-assets.json"],
   }));
   vi.doMock("../scripts/runtime/publication.mjs", () => ({
     PublicationError,

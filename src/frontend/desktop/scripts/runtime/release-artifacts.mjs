@@ -348,6 +348,9 @@ export function previewAssets(index, target = "darwin-arm64") {
   return index.files.filter((file) => !withheld.includes(file.name));
 }
 
+/** Names both targets publish with identical bytes into the same version folder. */
+export const SHARED_RELEASE_NAMES = ["backend-model-assets.json"];
+
 /**
  * Whether a published name belongs to the Windows candidate. Windows names
  * carry the `-win32-x64` suffix or are its feed and installer; every other

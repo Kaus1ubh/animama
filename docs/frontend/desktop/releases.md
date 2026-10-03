@@ -352,7 +352,9 @@ On Windows, use a separate standard (non-administrator) Windows account that
 has never run Animama: no `%LOCALAPPDATA%\Animama`, no
 `%LOCALAPPDATA%\Programs\Animama` and no `%APPDATA%\Animama`. Sign in to it
 normally, with `ANIMAMA_SMOKE_OPENAI_KEY` set in that account's environment and
-read access to a checkout whose dependencies are installed:
+read and write access to a checkout whose dependencies are installed. The
+smoke writes its reports to that checkout's `desktop/release/smoke-name/`, where
+the publisher, run from the build account, reads them:
 
 ```sh
 pnpm desktop:smoke:windows -- --artifact desktop/release/publish/Animama-<version>-x64-setup.exe --setup name
@@ -541,8 +543,10 @@ coverage, then uploads a fixed artifact list:
 - **GitHub:** creates or resumes only a draft or testing prerelease of the exact
   version and verifies GitHub's asset digests before promotion. A stable
   promotion may also add its target's files to a release the other target
-  already published, until its own feed is there; the other target's files and
-  the release description are left as they are, and the feed is uploaded last.
+  already published, until its own feed is there. That changes only the
+  release's files: not its description, nor which release is Latest. The feed
+  is uploaded last. A run never makes the other target's draft or preview
+  public or stable; two previews may share one prerelease.
 - **R2:** uploads each file create-only (`If-None-Match: *`) to
   `<base>/v<version>/<name>`, signed with its SHA-256 so R2 rejects altered
   bytes, with `Cache-Control: public, max-age=31536000, immutable`. It then

@@ -280,9 +280,17 @@ async function expandArchive(kind, file, into, work) {
   if (kind === "asar") extractAll(file, into);
   else if (kind === "zip" && process.platform === "darwin")
     tool(work, "ditto", ["-x", "-k", file, into]);
-  else if (kind === "zip" || kind === "7z")
+  else if (kind === "zip" || kind === "7z") {
     tool(work, sevenZip(), ["x", "-y", "-bd", `-o${into}`, file]);
-  else if (kind === "tar.gz") tool(work, "tar", ["-xzf", file, "-C", into]);
+    // 7-Zip finds the installer's app payload by its signature; prove it did.
+    if (
+      file.endsWith("-setup.exe") &&
+      !existsSync(path.join(into, "resources", "app.asar"))
+    )
+      throw new ScanError(
+        "The Windows installer's app payload could not be expanded",
+      );
+  } else if (kind === "tar.gz") tool(work, "tar", ["-xzf", file, "-C", into]);
   else if (kind === "tar.zst") {
     const tar = path.join(work, "pack.tar");
     await pipeline(

@@ -105,13 +105,12 @@ export async function publishR2({
       `${base.origin}/${keyPath(versionKey(file.name))}`,
     );
     if (response.status === 404) continue;
-    const bytes = response.ok
-      ? Buffer.from(await response.arrayBuffer())
-      : null;
-    if (
-      !bytes ||
-      createHash("sha256").update(bytes).digest("hex") !== file.sha256
-    )
+    if (!response.ok)
+      throw new PublicationError(
+        `The public R2 domain did not answer for ${file.name}; check it before retrying`,
+      );
+    const bytes = Buffer.from(await response.arrayBuffer());
+    if (createHash("sha256").update(bytes).digest("hex") !== file.sha256)
       throw new PublicationError(
         `${file.name} is already published with different bytes; both targets must publish identical shared files`,
       );

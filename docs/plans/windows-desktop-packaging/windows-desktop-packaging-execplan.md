@@ -1918,15 +1918,75 @@ authorized and run. Recovery:
   snapshot intact. The user reruns the installer.
 - Publishing resumes byte-identical uploads only, as it does for macOS.
 
-Results: pending.
+Results (in progress):
+
+- Implemented at `ab98694e` and `4bfbddc4`, as planned, with these choices:
+  - The update policy keeps schema `animama-update-policy/2` and names either
+    `team_id` (macOS) or `windows_publisher` (Windows); each build accepts only
+    its own platform's shape, feed name and file.
+  - The Windows adapter starts the installer itself (`--updated --force-run`)
+    rather than through electron-updater's `quitAndInstall`, so a failure to
+    start it is reported before Animama quits.
+  - The publisher is shared (`publish-release.mjs`), with `publish-macos.mjs`
+    and `publish-windows.mjs` as entry points; the smoke journey is shared
+    (`smoke-journey.mjs`) by `smoke-macos.mjs` and `smoke-windows.mjs`.
+  - Carry-forwards: P6-R1-08 (rehearsal refused, suffixed names) and
+    P6-R2-02 (`verifyReleaseModels` checks without copying) are done.
+    P6-R1-03: the shared `backend-model-assets.json` must match byte for byte;
+    the R2 publisher checks it before any upload and GitHub before any upload.
+- Linux (Node 24.15.0) at `4bfbddc4`: `tsc` clean; `vitest` 454 passed,
+  26 skipped.
+- Windows 11 x64 (build 26200) at `4bfbddc4`:
+  - A fresh stage and audit passed and reproduced inventory `fb1508b3…`, so
+    the owner's G2 receipt still covers it (the update-policy change alters the
+    runtime build ID, not the reviewed inventory).
+  - `pnpm desktop:dist:windows` built a signed candidate (141 files signed).
+    It is an intermediate candidate: review #1 changed the app afterwards.
+  - `pnpm desktop:test`: 424 passed, 55 skipped, 0 failed.
+  - The app's Authenticode check, run with no `PSModulePath` and a system-only
+    PATH against that installer, read the exact subject and the
+    identity-validation EKU.
+- Pending: the final candidate, `desktop:smoke:windows` in a fresh standard
+  account, `desktop:release:scan`, and the G4 upgrade (the owner chose on
+  2026-10-03 to keep it pending).
 
 #### Code Review #1 Findings
 
-Pending.
+Independent reviewer, full review of `4bfbddc4` against `733d2315`. Checks:
+`tsc` clean; `vitest` 454 passed; Prettier clean on changed files. Result:
+blocked on P7-R1-01.
+
+- **P7-R1-01 (blocking):** on GitHub, a stable promotion of one target could
+  publish the other target's draft or preview as stable and Latest, rewriting
+  its description; adding to an older published release would move Latest back
+  to it, hiding newer macOS updates.
+- **P7-R1-02:** at install, only the publisher was rechecked, not the approved
+  size and SHA-512.
+- **P7-R1-03:** Windows PowerShell 5.1 writes redirected output in the OEM
+  code page, so a non-ASCII subject would never match (fail-closed).
+- **P7-R1-04:** the shared-name byte check ran only for Windows; macOS
+  publishing second would spend immutable objects before failing.
+- **P7-R1-05:** nothing proved that 7-Zip expanded the installer's app payload.
+- **P7-R1-06:** the Windows smoke docs omitted that the smoke writes reports in
+  the checkout and that they return to the build account.
+- **P7-R1-07:** a 5xx during the shared-name check was reported as different
+  bytes.
 
 #### Code Review #1 Revisions
 
-Pending.
+All accepted.
+
+- P7-R1-01: a run never makes another target's draft or preview public or
+  stable; two previews may share a prerelease, keeping the first description.
+  Adding to a published release changes nothing but its files (no `PATCH`).
+  Tests cover both.
+- P7-R1-02: install rechecks size and SHA-512, then the publisher; tested with
+  swapped bytes.
+- P7-R1-03: the check sets UTF-8 output; the native probe above confirmed it.
+- P7-R1-04: both targets check `SHARED_RELEASE_NAMES` before uploading.
+- P7-R1-05: the scan fails unless the installer expands to `resources/app.asar`.
+- P7-R1-06 and P7-R1-07: docs and message corrected.
+- Linux after the repair: `vitest` 455 passed, 26 skipped; `tsc` clean.
 
 ### Phase 8: Platform audit, clean-machine journey and documentation
 

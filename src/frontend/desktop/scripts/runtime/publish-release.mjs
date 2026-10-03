@@ -5,7 +5,7 @@ import { loadReleasePolicy } from "./release-policy.mjs";
 import {
   RELEASE_TARGETS,
   candidateDistribution,
-  isWindowsReleaseName,
+  SHARED_RELEASE_NAMES,
   releaseName,
   verifyArtifactIndex,
   writeArtifactIndex,
@@ -176,14 +176,9 @@ export async function publishRelease(target, args) {
       preview,
       credentials,
       feed,
-      // Shared names, such as the backend model catalog, may already be
-      // published by macOS; Windows checks them before uploading anything.
-      shared:
-        target === "win32-x64"
-          ? files
-              .map((file) => file.name)
-              .filter((name) => !isWindowsReleaseName(name))
-          : [],
+      // The other target may already have published these shared names;
+      // they are checked before anything is uploaded.
+      shared: SHARED_RELEASE_NAMES,
     });
   else
     await publishGithub({

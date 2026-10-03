@@ -3,6 +3,7 @@ import path from "node:path";
 import { isPublicReleaseRepository } from "./release-policy.mjs";
 import {
   RELEASE_TARGETS,
+  SHARED_RELEASE_NAMES,
   isWindowsReleaseName,
   mayResumeRelease,
 } from "./release-artifacts.mjs";
@@ -76,6 +77,16 @@ export async function publishGithub({
   if (!Array.isArray(existing) || existing.length > 64)
     throw new PublicationError("Unexpected release assets");
   const published = remote && !remote.draft && !remote.prerelease;
+  // The other target's files mean this release is not only ours: a draft or
+  // prerelease of theirs is never made public or stable by this run.
+  const shared = existing.some(
+    (asset) =>
+      !ownName(asset.name) && !SHARED_RELEASE_NAMES.includes(asset.name),
+  );
+  if (shared && !published && !(preview && remote.prerelease))
+    throw new PublicationError(
+      "This version's release holds the other target's unpublished draft or preview; publish that target first",
+    );
   if (
     remote &&
     !mayResumeRelease(remote, version, {
@@ -151,13 +162,18 @@ export async function publishGithub({
         "Release asset upload was not verified; stable promotion did not occur",
       );
   }
-  // A release the other target already published keeps its description.
-  const outcome = await api(`/releases/${remote.id}`, "PATCH", {
-    draft: false,
-    prerelease: preview,
-    make_latest: preview ? "false" : "true",
-    ...(published ? {} : { body: releaseBody }),
-  });
+  // Adding files to a release the other target already published changes
+  // nothing else: not its description, and not which release is Latest, which
+  // could otherwise move back to an older version. A shared preview keeps the
+  // first target's description.
+  const outcome = published
+    ? remote
+    : await api(`/releases/${remote.id}`, "PATCH", {
+        draft: false,
+        prerelease: preview,
+        make_latest: preview ? "false" : "true",
+        ...(shared ? {} : { body: releaseBody }),
+      });
   if (
     outcome.draft !== false ||
     outcome.prerelease !== preview ||

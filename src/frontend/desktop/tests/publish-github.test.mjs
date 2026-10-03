@@ -72,7 +72,7 @@ const publish = (options) =>
   });
 
 describe("GitHub publication into a shared release", () => {
-  it("adds Windows files to the published macOS release, feed last, keeping its description", async () => {
+  it("adds Windows files to the published macOS release, feed last, changing nothing else", async () => {
     const api = github(stable, macAssets);
     await publish({
       files: files(
@@ -87,8 +87,27 @@ describe("GitHub publication into a shared release", () => {
       "size-report-win32-x64.json",
       "latest.yml",
     ]);
+    // Neither its description nor which release is Latest changes.
+    expect(api.patches).toEqual([]);
+  });
+
+  it("never makes the other target's preview or draft stable", async () => {
+    const preview = { ...stable, prerelease: true };
+    for (const release of [preview, { ...stable, draft: true }]) {
+      const api = github(release, macAssets);
+      await expect(
+        publish({ files: files("latest.yml"), preview: false }),
+      ).rejects.toThrow("publish that target first");
+      expect(api.uploads).toEqual([]);
+    }
+    // Both previews may share one prerelease; the first description stays.
+    const api = github(preview, macAssets);
+    await publish({
+      files: files("Animama-0.2.0-x64-setup.exe"),
+      preview: true,
+    });
     expect(api.patches).toEqual([
-      { draft: false, prerelease: false, make_latest: "true" },
+      { draft: false, prerelease: true, make_latest: "false" },
     ]);
   });
 
@@ -108,7 +127,6 @@ describe("GitHub publication into a shared release", () => {
 
   it("refuses an unexpected file of its own target before uploading anything", async () => {
     const api = github({ ...stable, draft: true }, [
-      ...macAssets,
       { name: "notes-win32-x64.txt", state: "uploaded", digest: "sha256:x" },
     ]);
     await expect(

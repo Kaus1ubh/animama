@@ -174,7 +174,9 @@ pnpm desktop:dist:windows
 The build needs the `win32-x64` redistribution receipt for that exact stage, the
 Artifact Signing sign-in and the acquired model sets
 ([Build a signed Windows candidate](releases.md#build-a-signed-windows-candidate)).
-Then, in a separate standard Windows account that has never run Animama:
+Then, in a separate standard Windows account that has never run Animama, using
+the same checkout (the smoke writes `desktop/release/smoke-name/` there for the
+publisher):
 
 ```sh
 pnpm desktop:smoke:windows -- --artifact desktop/release/publish/Animama-<version>-x64-setup.exe --setup name

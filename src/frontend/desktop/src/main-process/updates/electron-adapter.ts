@@ -51,8 +51,10 @@ export async function verifyUpdaterPublisher(
 }
 
 // The path arrives through the environment, so no file name is ever parsed as
-// PowerShell. Status Valid means a trusted chain and an intact file.
+// PowerShell. Status Valid means a trusted chain and an intact file. Output is
+// UTF-8 so a non-ASCII subject compares exactly.
 const AUTHENTICODE_SCRIPT = [
+  "[Console]::OutputEncoding = [Text.Encoding]::UTF8",
   "$s = Get-AuthenticodeSignature -LiteralPath $env:ANIMAMA_SIGNED_FILE",
   "if ($s.Status -ne 'Valid') { exit 3 }",
   "$c = $s.SignerCertificate",
@@ -129,7 +131,7 @@ function createUpdateAdapter(
   currentVersion: string,
   updater: AppUpdater,
   verifyDownload: (file: string) => Promise<void>,
-  installDownloaded: (file: string) => Promise<void>,
+  installDownloaded: (file: string, expected: UpdateCandidate) => Promise<void>,
 ): UpdateAdapter {
   const { distribution } = policy;
   const platform = updatePlatform(policy);
@@ -224,10 +226,10 @@ function createUpdateAdapter(
       }
     },
     async install() {
-      if (closed || !downloadedFile)
+      if (closed || !downloadedFile || !candidate)
         throw new RuntimeError("update_download_required");
       // Only called after explicit Restart and successful owned-service shutdown.
-      await installDownloaded(downloadedFile);
+      await installDownloaded(downloadedFile, candidate);
     },
     close() {
       closed = true;
@@ -313,8 +315,10 @@ export function createWindowsUpdateAdapter(
     currentVersion,
     new NsisUpdater(providerOptions(policy)),
     verify,
-    async (file) => {
+    async (file, expected) => {
+      // The same approved bytes and publisher as at download.
       try {
+        await verifyDownloadedBytes(file, expected);
         await verify(file);
       } catch {
         throw new RuntimeError("update_install_failed");
