@@ -2,7 +2,8 @@
 
 Status: Plan approved 2026-10-02. Phases 1–6 merged; Phases 7–8 agent work
 complete. The Windows smoke, the owner's manual checks and the clean-machine
-journey (G3) passed; the prompted update (G4) stays pending by owner choice.
+journey (G3) passed. The prompted update (G4) and Smart App Control in enforcing
+mode are deferred to [#271](https://github.com/raymond-van/animama/issues/271).
 Source agreement: [raymond-van/animama#245](https://github.com/raymond-van/animama/issues/245)
 as published on 2026-10-01 (created and last updated 2026-10-01T20:53:18Z), plus
 the owner decisions of 2026-10-01 and 2026-10-02 recorded in the
@@ -2174,7 +2175,8 @@ Results:
     tree all worked as intended. The avatar does not render without WebGL, so
     avatar and animation evidence comes from the non-ASCII account on real
     hardware.
-- Pending: the prompted update (G4), by owner choice.
+- Deferred to [#271](https://github.com/raymond-van/animama/issues/271): the
+  prompted update (G4) and Smart App Control in enforcing mode.
 
 #### Code Review #1 Findings
 

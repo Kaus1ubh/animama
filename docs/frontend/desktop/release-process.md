@@ -174,6 +174,15 @@ pnpm desktop:dist:windows
 The build needs the `win32-x64` redistribution receipt for that exact stage, the
 Artifact Signing sign-in and the acquired model sets
 ([Build a signed Windows candidate](releases.md#build-a-signed-windows-candidate)).
+
+Each signed build spends about 140 Artifact Signing signatures (one per PE file)
+from a monthly quota, so sign once, at the end. Iterate on unsigned installers
+from `pnpm desktop:win:installer`, and run `desktop:dist:windows` only after
+reviews pass, for the exact commit you intend to ship. A
+`--signing-rehearsal` costs the same and produces nothing publishable; run it
+only when the signing code changes. Unsigned builds skip the publisher checks,
+so the signed candidate still gets the full smoke below.
+
 Then, in a separate standard Windows account that has never run Animama, using
 the same checkout (the smoke writes `desktop/release/smoke-name/` there for the
 publisher):
