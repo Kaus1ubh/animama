@@ -252,7 +252,11 @@ export async function runSmokeJourney({ report, provider, platform }) {
       .waitFor({ timeout: 60_000 });
     // Set before submission: even a failed save response may have persisted it.
     providerMayBeSaved = true;
-    await page.getByLabel("OpenAI", { exact: true }).fill(provider);
+    // The OpenAI provider tab's panel carries the same label as its key field.
+    await page
+      .getByLabel("OpenAI", { exact: true })
+      .and(page.locator("input"))
+      .fill(provider);
     // A key save applies in place: the same window and FastAPI process remain.
     const backendBeforeSave = fastapiPid();
     await page.evaluate(() => {
@@ -563,7 +567,11 @@ export async function runSmokeJourney({ report, provider, platform }) {
     // Playwright/OS exceptions may contain key input, URLs and machine paths,
     // so they reach neither the report nor the console unless asked for here.
     report.failed_step = step;
-    if (process.env.ANIMAMA_SMOKE_DEBUG === "1") console.error(error);
+    // Playwright's call log repeats typed input, so the key is masked first.
+    if (process.env.ANIMAMA_SMOKE_DEBUG === "1")
+      console.error(
+        String(error?.stack ?? error).replaceAll(provider, "[provider key]"),
+      );
   } finally {
     await cleanupProvider().catch(() => {
       report.passed = false;
