@@ -1417,11 +1417,14 @@ Load command 4
   });
 
   it("rejects obsolete or mismatched setup smoke evidence before publication", () => {
-    const expected = { dmgSha256: "a".repeat(64), runtimeBuildId: "build-1" };
+    const expected = {
+      artifactSha256: "a".repeat(64),
+      runtimeBuildId: "build-1",
+    };
     const smoke = {
       passed: true,
       setup: "name",
-      dmg_sha256: expected.dmgSha256,
+      dmg_sha256: expected.artifactSha256,
       runtime_build_id: expected.runtimeBuildId,
       checks: {
         required_private_name: true,

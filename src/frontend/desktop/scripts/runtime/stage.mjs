@@ -159,7 +159,7 @@ try {
   // Large files are resources, never developer node_modules or ASAR contents.
   writeJson(
     path.join(target.runtime, "update-policy.json"),
-    stagedUpdatePolicy(),
+    stagedUpdatePolicy(`${target.platform}-${target.arch}`),
   );
   const licenses = writeLicenses(target, content);
   const { id: catalogId } = await stageFeaturePacks(target);

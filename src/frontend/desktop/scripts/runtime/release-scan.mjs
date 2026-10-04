@@ -18,6 +18,8 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
+import { createRequire } from "node:module";
+import { homedir } from "node:os";
 import path from "node:path";
 import { pipeline } from "node:stream/promises";
 import { createZstdDecompress } from "node:zlib";
@@ -25,6 +27,7 @@ import { extractAll } from "@electron/asar";
 import {
   assertPrivatePythonInstallDir,
   buildPython,
+  desktopRoot,
   pythonEnvironment,
   readJson,
   repoRoot,
@@ -32,7 +35,7 @@ import {
   sha256,
   writeJson,
 } from "./common.mjs";
-import { verifyArtifactIndex } from "./release-artifacts.mjs";
+import { releaseName, verifyArtifactIndex } from "./release-artifacts.mjs";
 
 /** Messages the CLI may print: they never contain paths, output or values. */
 export class ScanError extends Error {}
@@ -45,6 +48,16 @@ const VIEW_HEADER = "animama-scan-view\n";
 const GITLEAKS_LEAKS_EXIT = 2;
 const PYINSTALLER_COOKIE = Buffer.from("MEI\x0c\x0b\x0a\x0b\x0e", "latin1");
 const MACHO_MAGIC = ["cffaedfe", "cefaedfe", "cafebabe", "bebafeca"];
+// "MZ": a Windows PE executable, which may also be a PyInstaller archive.
+const PE_MAGIC = "4d5a";
+
+/** The 7-Zip that electron-builder itself uses (`7zip-bin`, pinned by the lockfile). */
+function sevenZip() {
+  let resolve = createRequire(path.join(desktopRoot, "package.json"));
+  for (const name of ["electron-builder", "builder-util"])
+    resolve = createRequire(resolve.resolve(`${name}/package.json`));
+  return resolve("7zip-bin").path7za;
+}
 
 const pins = () =>
   readJson(path.join(repoRoot, "scripts/repository-boundary/scanner-pins.json"))
@@ -74,6 +87,37 @@ function head(file, length) {
 
 /** Git's heuristic: a NUL byte near the start means binary content. */
 const isBinary = (file) => head(file, 8000).includes(0);
+
+/**
+ * The build user's profile path as it may appear in shipped bytes. On Windows
+ * that is `\Users\<name>\` with either separator, JSON-escaped, and in UTF-16LE,
+ * the encoding of Windows' own strings. The drive letter is left out because
+ * its case varies.
+ */
+export function homeDirectoryNeedles(
+  home = homedir(),
+  platform = process.platform,
+) {
+  if (platform !== "win32")
+    return [{ label: "home-directory", value: `${home}/` }];
+  const parts = path.win32.parse(home);
+  const relative = home.slice(parts.root.length - 1).replace(/\\+$/u, "");
+  const slash = `${relative.replaceAll("\\", "/")}/`;
+  const backslash = `${relative}\\`;
+  return [
+    { label: "home-directory", value: backslash },
+    { label: "home-directory-slash", value: slash },
+    { label: "home-directory-json", value: backslash.replaceAll("\\", "\\\\") },
+    {
+      label: "home-directory-utf16le",
+      value: Buffer.from(backslash, "utf16le"),
+    },
+    {
+      label: "home-directory-slash-utf16le",
+      value: Buffer.from(slash, "utf16le"),
+    },
+  ];
+}
 
 /**
  * Report which labelled byte sequences occur in a file. Values stay with the
@@ -220,7 +264,11 @@ async function archiveKind(file) {
   if (name.endsWith(".tar.zst")) return "tar.zst";
   if (name.endsWith(".tar.gz") || name.endsWith(".tgz")) return "tar.gz";
   if (/\.(zip|whl|jar)$/u.test(name)) return "zip";
-  if (!MACHO_MAGIC.includes(head(file, 4).toString("hex"))) return null;
+  // electron-builder's NSIS installer carries the app as a 7z payload, which
+  // 7-Zip opens in place; the installer's own code is NSIS's.
+  if (name.endsWith(".7z") || name.endsWith("-setup.exe")) return "7z";
+  const magic = head(file, 4).toString("hex");
+  if (!MACHO_MAGIC.includes(magic) && !magic.startsWith(PE_MAGIC)) return null;
   const [found] = await searchNeedles(file, [
     { label: "pyinstaller", value: PYINSTALLER_COOKIE },
   ]);
@@ -230,8 +278,19 @@ async function archiveKind(file) {
 async function expandArchive(kind, file, into, work) {
   mkdirSync(into);
   if (kind === "asar") extractAll(file, into);
-  else if (kind === "zip") tool(work, "ditto", ["-x", "-k", file, into]);
-  else if (kind === "tar.gz") tool(work, "tar", ["-xzf", file, "-C", into]);
+  else if (kind === "zip" && process.platform === "darwin")
+    tool(work, "ditto", ["-x", "-k", file, into]);
+  else if (kind === "zip" || kind === "7z") {
+    tool(work, sevenZip(), ["x", "-y", "-bd", `-o${into}`, file]);
+    // 7-Zip finds the installer's app payload by its signature; prove it did.
+    if (
+      file.endsWith("-setup.exe") &&
+      !existsSync(path.join(into, "resources", "app.asar"))
+    )
+      throw new ScanError(
+        "The Windows installer's app payload could not be expanded",
+      );
+  } else if (kind === "tar.gz") tool(work, "tar", ["-xzf", file, "-C", into]);
   else if (kind === "tar.zst") {
     const tar = path.join(work, "pack.tar");
     await pipeline(
@@ -396,7 +455,10 @@ async function privateTextFindings(expanded, needles, skip) {
     const rules = [
       ...(outside ? ["symlink-outside-artifact"] : []),
       ...needles
-        .filter((needle) => target.includes(needle.value))
+        .filter(
+          (needle) =>
+            typeof needle.value === "string" && target.includes(needle.value),
+        )
         .map((needle) => needle.label),
     ];
     for (const rule of rules)
@@ -413,7 +475,8 @@ async function privateTextFindings(expanded, needles, skip) {
 /**
  * Scan an indexed release candidate for secrets and private text and write
  * `release-scan.json` beside it. The receipt names the exact files scanned so a
- * publisher can refuse bytes that were never cleared.
+ * publisher can refuse bytes that were never cleared. `target` selects the
+ * index names; model candidates use the unsuffixed ones.
  */
 export async function scanCandidate({
   directory,
@@ -421,10 +484,11 @@ export async function scanCandidate({
   needles,
   config = null,
   workRoot,
+  target = "darwin-arm64",
 }) {
   let index;
   try {
-    index = verifyArtifactIndex(directory);
+    index = verifyArtifactIndex(directory, target);
   } catch {
     throw new ScanError(
       "The candidate's release-artifacts.json is missing, invalid or does not match its files",
@@ -460,7 +524,7 @@ export async function scanCandidate({
       schema: "animama-release-scan/1",
       app_version: index.app_version,
       artifact_index_sha256: sha256(
-        path.join(directory, "release-artifacts.json"),
+        path.join(directory, releaseName(target, "release-artifacts.json")),
       ),
       scanner: {
         name: "gitleaks",

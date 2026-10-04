@@ -1,28 +1,33 @@
 import path from "node:path";
 import { desktopRoot, readJson, repoRoot, sha256 } from "./common.mjs";
+import { releaseName } from "./release-artifacts.mjs";
 
 /** Only deliberately bounded messages may reach CI logs. */
 export class PublicationError extends Error {}
 
 /**
  * Files the publisher derives after scanning: sanitized categorical smoke
- * reports, the human acceptance receipt and the regenerated integrity index.
- * Every other uploaded file must be covered by the candidate's scan receipt.
+ * reports, the human acceptance receipt and the regenerated integrity index,
+ * under the target's evidence names. Every other uploaded file must be
+ * covered by the candidate's scan receipt.
  */
-const POST_SCAN_FILES = new Set([
-  "smoke-name-report.json",
-  "network-name-report.json",
-  "manual-acceptance.json",
-  "release-artifacts.json",
-  "SHA256SUMS.txt",
-]);
+const postScanFiles = (target) =>
+  new Set(
+    [
+      "smoke-name-report.json",
+      "network-name-report.json",
+      "manual-acceptance.json",
+      "release-artifacts.json",
+      "SHA256SUMS.txt",
+    ].map((name) => releaseName(target, name)),
+  );
 
 /**
  * Refuse to publish bytes that the pinned secret/privacy scan did not clear.
  * The receipt lists each scanned file's SHA-256, so it stays valid when stable
  * promotion rewrites the artifact index.
  */
-export function verifyScanReceipt(directory, files) {
+export function verifyScanReceipt(directory, files, target = "darwin-arm64") {
   let receipt;
   try {
     receipt = readJson(path.join(directory, "release-scan.json"));
@@ -48,11 +53,9 @@ export function verifyScanReceipt(directory, files) {
   const scanned = new Map(
     receipt.files.map((file) => [file.name, file.sha256]),
   );
+  const derived = postScanFiles(target);
   for (const file of files)
-    if (
-      !POST_SCAN_FILES.has(file.name) &&
-      scanned.get(file.name) !== file.sha256
-    )
+    if (!derived.has(file.name) && scanned.get(file.name) !== file.sha256)
       throw new PublicationError(
         "The release scan does not cover these exact artifacts; scan this candidate again",
       );

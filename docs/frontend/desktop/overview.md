@@ -420,9 +420,9 @@ Renderer DevTools are available with `Ctrl+Shift+I`. Use
 See [Platform builds](platforms.md) for packaging commands.
 
 The unsigned development package targets macOS 15+ arm64 and Windows 11 x64 and
-requires a fresh, complete audited stage. Windows can build a signed local
-candidate, but its updates, smoke and publication are not implemented yet, and
-Linux self-contained packaging is deferred; external-stack
+requires a fresh, complete audited stage. Windows has the same signed
+candidate, update, smoke and publication tooling as macOS (no Windows feature
+packs yet), and Linux self-contained packaging is deferred; external-stack
 `desktop:dev` is available on Linux. Signed releases
 require separate signing, notarization, minimum-OS and native acceptance.
 Initial publication uses the manual process from reviewed `main` inputs. The

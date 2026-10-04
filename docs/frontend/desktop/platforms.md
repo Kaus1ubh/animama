@@ -161,7 +161,8 @@ following them. Uninstalls run with `/S`, including those an installer runs
 during an upgrade, never ask and never delete data.
 
 To test an upgrade, build two installers. An upgrade is the newer installer
-run over the installed app; automatic updates arrive in a later phase.
+run over the installed app. A signed release build updates itself through the
+same installer; see [Releases](releases.md#what-people-see).
 
 1. Build version N with `pnpm desktop:win:installer`, and copy
    `Animama-<N>-x64-setup.exe` out of `desktop/release`.
@@ -206,7 +207,7 @@ development-only and rejected in packaged mode.
 | Target                             | Current status                                                                                  |
 | ---------------------------------- | ----------------------------------------------------------------------------------------------- |
 | macOS 15+, arm64                   | Development packaging implemented; fresh-source native, minimum-OS and signed acceptance remain |
-| Windows 11, x64                    | Unsigned development package and installer implemented; signing and acceptance in progress      |
+| Windows 11, x64                    | Development package, installer and signed release tooling implemented; clean-machine acceptance and a real signed upgrade remain |
 | Linux                              | External-stack development only; packaging deferred beyond the current supported release        |
 | Intel/universal macOS, Windows ARM | Not supported                                                                                   |
 
@@ -214,10 +215,11 @@ The Linux builder target remains in configuration, but the prebuild gate
 rejects it because Linux has no embedded runtime.
 Do not advertise their former shell artifacts as current self-contained builds.
 Core signing, notarization, update feeds, and clean-machine smoke are implemented
-as gated tooling; an actual accepted release remains outstanding. The deferred
-document worker requires signing, notarization and publisher verification before execution; see the
-[pack producer](runtime-staging.md#optional-pack-producer). Windows release and
-smoke commands remain gated until signing is implemented.
+as gated tooling for both macOS and Windows; an actual accepted release remains
+outstanding. The deferred document worker requires signing, notarization and
+publisher verification before execution; see the
+[pack producer](runtime-staging.md#optional-pack-producer). Windows feature
+packs are not built yet, so a Windows release refuses any active pack.
 
 ## Validation
 

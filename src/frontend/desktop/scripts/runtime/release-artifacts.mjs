@@ -222,12 +222,18 @@ export function releaseSbom(manifest, inventory) {
   };
 }
 
-/** The distribution a candidate was built for, as its signing report records it; null if absent. */
-export function candidateDistribution(directory) {
+/**
+ * The distribution a candidate was built for, as its signing report records
+ * it; null if absent. A Windows signing rehearsal is never `release_ready`, so
+ * it names no distribution a publisher could accept.
+ */
+export function candidateDistribution(directory, target = "darwin-arm64") {
   try {
-    const distribution = readJson(
-      path.join(directory, "signing-report.json"),
-    ).distribution;
+    const report = readJson(
+      path.join(directory, releaseName(target, "signing-report.json")),
+    );
+    if (target === "win32-x64" && report.release_ready !== true) return null;
+    const { distribution } = report;
     return ["r2", "github"].includes(distribution?.kind) ? distribution : null;
   } catch {
     return null;
@@ -327,27 +333,54 @@ export function verifyArtifactIndex(directory, target = "darwin-arm64") {
 }
 
 /** A public testing preview exposes immutable payloads/notices, never the stable feed or final acceptance. */
-export function previewAssets(index) {
-  return index.files.filter(
-    (file) =>
-      ![
-        "latest-mac.yml",
-        "manual-acceptance.json",
-        "release-artifacts.json",
-        "SHA256SUMS.txt",
-      ].includes(file.name) &&
-      !/^(?:smoke|network)-(?:skip|name)-report\.json$/u.test(file.name),
+export function previewAssets(index, target = "darwin-arm64") {
+  const withheld = [
+    RELEASE_TARGETS[target].feed,
+    ...[
+      "manual-acceptance.json",
+      "release-artifacts.json",
+      "SHA256SUMS.txt",
+      ...["smoke", "network"].flatMap((kind) =>
+        ["skip", "name"].map((setup) => `${kind}-${setup}-report.json`),
+      ),
+    ].map((name) => releaseName(target, name)),
+  ];
+  return index.files.filter((file) => !withheld.includes(file.name));
+}
+
+/** Names both targets publish with identical bytes into the same version folder. */
+export const SHARED_RELEASE_NAMES = ["backend-model-assets.json"];
+
+/**
+ * Whether a published name belongs to the Windows candidate. Windows names
+ * carry the `-win32-x64` suffix or are its feed and installer; every other
+ * name is macOS's or shared by both targets.
+ */
+export function isWindowsReleaseName(name) {
+  return (
+    name === RELEASE_TARGETS["win32-x64"].feed ||
+    /-win32-x64\.[A-Za-z0-9.]+$/u.test(name) ||
+    /^Animama-\d+\.\d+\.\d+-x64-setup\.exe$/u.test(name)
   );
 }
 
-/** Only the exact version's draft or explicit prerelease can advance; stable releases are immutable. */
-export function mayResumeRelease(remote, version) {
+/**
+ * Only the exact version's draft or explicit prerelease can advance. A
+ * published stable release may still receive the other target's files, by a
+ * stable promotion that has not yet uploaded its own feed; nothing in it is
+ * ever replaced.
+ */
+export function mayResumeRelease(
+  remote,
+  version,
+  { preview = true, feedPublished = true } = {},
+) {
   return (
     Number.isSafeInteger(remote?.id) &&
     remote.id > 0 &&
     remote.tag_name === `v${version}` &&
     typeof remote.draft === "boolean" &&
     typeof remote.prerelease === "boolean" &&
-    (remote.draft || remote.prerelease)
+    (remote.draft || remote.prerelease || (!preview && !feedPublished))
   );
 }

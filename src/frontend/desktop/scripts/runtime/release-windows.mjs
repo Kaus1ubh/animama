@@ -31,7 +31,7 @@ import {
   updateFeed,
   writeArtifactIndex,
 } from "./release-artifacts.mjs";
-import { stageReleaseModels } from "./release-models.mjs";
+import { stageReleaseModels, verifyReleaseModels } from "./release-models.mjs";
 import { signBuilderFile, signWindowsApp } from "./sign-windows.mjs";
 import { brandPackagedApp } from "./windows-resources.mjs";
 import {
@@ -129,7 +129,6 @@ export async function releaseWindows(args = []) {
   // These paths contain derived artifacts only, never the user-data directory.
   for (const name of [
     "publish",
-    "model-preflight",
     "win-unpacked",
     "signing-report.json",
     releaseName(TARGET, "size-report.json"),
@@ -138,14 +137,10 @@ export async function releaseWindows(args = []) {
     `${installerName}.blockmap`,
   ])
     rmSync(path.join(directory, name), { recursive: true, force: true });
-  if (!rehearsal) {
-    // Model candidates are copied only after signing; prove now, from the
-    // staged runtime, that every required set resolves and verifies, so a
-    // missing set cannot waste a candidate's signatures.
-    const preflight = path.join(directory, "model-preflight");
-    stageReleaseModels({ runtime: target.runtime, directory: preflight });
-    rmSync(preflight, { recursive: true, force: true });
-  }
+  // Model candidates are copied only after signing; prove now, from the
+  // staged runtime, that every required set resolves and verifies, so a
+  // missing set cannot waste a candidate's signatures.
+  if (!rehearsal) verifyReleaseModels({ runtime: target.runtime });
 
   let signed = null;
   const builderFiles = new Map();
@@ -305,7 +300,7 @@ export async function releaseWindows(args = []) {
   );
   writeFileSync(
     path.join(directory, "RELEASE-NEXT-STEPS.txt"),
-    "Local signed Windows candidate only. Repeat the installer journey with this exact installer in a separate Windows account and record SmartScreen's behavior on download. Updates, smoke and publication tooling for Windows arrive in a later phase; nothing was uploaded by this build. Each build used Artifact Signing signatures; rebuild only for an intentional new candidate.\n",
+    "Local signed Windows candidate only; nothing was uploaded. Next: run pnpm desktop:smoke:windows with this exact installer in a fresh Windows account, run pnpm desktop:release:scan, and complete the manual acceptance checklist (including SmartScreen's behavior on download). Publication is a separate, explicitly approved step: node desktop/scripts/runtime/publish-windows.mjs. Each build used Artifact Signing signatures; rebuild only for an intentional new candidate.\n",
   );
   console.log(
     `Signed Windows candidate built and size-checked (${report.signed_files} files signed). Publication remains gated on installer acceptance and later phases.`,

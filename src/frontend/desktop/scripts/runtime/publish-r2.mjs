@@ -23,10 +23,10 @@ function compareVersions(left, right) {
 }
 
 /** The public stable feed's bytes, bypassing caches, or null before the first release. */
-async function fetchFeed(fetchImpl, distribution) {
+async function fetchFeed(fetchImpl, distribution, feed) {
   const response = await publicGet(
     fetchImpl,
-    `${distribution.base_url}/latest-mac.yml?noCache=${randomBytes(6).toString("hex")}`,
+    `${distribution.base_url}/${feed}?noCache=${randomBytes(6).toString("hex")}`,
   );
   if (response.status === 404) return null;
   if (!response.ok)
@@ -36,12 +36,15 @@ async function fetchFeed(fetchImpl, distribution) {
   return Buffer.from(await response.arrayBuffer());
 }
 
-/** The version the public stable feed currently names, or null for an empty bucket. */
-async function publishedVersion(fetchImpl, distribution) {
-  const feed = await fetchFeed(fetchImpl, distribution);
-  if (!feed) return null;
-  const version = /^version:\s*['"]?([^'"\s]+)/mu.exec(
-    feed.toString("utf8"),
+/**
+ * The version the target's public stable feed currently names, or null before
+ * its first release. A YAML feed has `version: x`; a JSON one `"version": "x"`.
+ */
+async function publishedVersion(fetchImpl, distribution, feed) {
+  const bytes = await fetchFeed(fetchImpl, distribution, feed);
+  if (!bytes) return null;
+  const version = /^\s*"?version"?:\s*['"]?([^'",\s]+)/mu.exec(
+    bytes.toString("utf8"),
   )?.[1];
   if (!version || !VERSION.test(version))
     throw new PublicationError(
@@ -52,14 +55,16 @@ async function publishedVersion(fetchImpl, distribution) {
 
 /**
  * Before reading credentials or preparing reports: the public domain must
- * answer, and this version must be newer than the published stable feed.
+ * answer, and this version must be newer than the target's published stable
+ * feed (`latest-mac.yml` or `latest.yml`).
  */
 export async function preflightR2({
   distribution,
   version,
+  feed = "latest-mac.yml",
   fetch: fetchImpl = fetch,
 }) {
-  const current = await publishedVersion(fetchImpl, distribution);
+  const current = await publishedVersion(fetchImpl, distribution, feed);
   if (current === version)
     throw new PublicationError(
       "The public feed already names this version, so it is published; verify it rather than publishing again",
@@ -72,10 +77,11 @@ export async function preflightR2({
 
 /**
  * Publish to R2: create-only uploads into `<base>/v<version>/`, anonymous
- * verification of every object, and, for stable promotion only, the root
- * `latest-mac.yml` written last. Nothing is overwritten except that feed, so
- * an interrupted run leaves the previous stable release in place and resumes
- * with byte-identical objects.
+ * verification of every object, and, for stable promotion only, the target's
+ * root feed written last. Nothing is overwritten except that feed, so an
+ * interrupted run leaves the previous stable release in place and resumes
+ * with byte-identical objects. `shared` names files the other target may
+ * already have published; they must match byte for byte before any upload.
  */
 export async function publishR2({
   distribution,
@@ -85,12 +91,30 @@ export async function publishR2({
   files,
   preview,
   credentials,
+  feed = "latest-mac.yml",
+  shared = [],
   fetch: fetchImpl = fetch,
   retryDelayMs = 5_000,
 }) {
   const base = new URL(distribution.base_url);
   const prefix = base.pathname.slice(1);
   const versionKey = (name) => `${prefix}/v${version}/${name}`;
+  for (const file of files.filter((item) => shared.includes(item.name))) {
+    const response = await publicGet(
+      fetchImpl,
+      `${base.origin}/${keyPath(versionKey(file.name))}`,
+    );
+    if (response.status === 404) continue;
+    if (!response.ok)
+      throw new PublicationError(
+        `The public R2 domain did not answer for ${file.name}; check it before retrying`,
+      );
+    const bytes = Buffer.from(await response.arrayBuffer());
+    if (createHash("sha256").update(bytes).digest("hex") !== file.sha256)
+      throw new PublicationError(
+        `${file.name} is already published with different bytes; both targets must publish identical shared files`,
+      );
+  }
   const put = r2Writer({ bucket, credentials, fetch: fetchImpl });
   const verify = (key, sha256) =>
     verifyPublicObject({
@@ -117,16 +141,16 @@ export async function publishR2({
 
   // Stable: recheck the feed, then replace it last so installed apps only ever
   // see a fully uploaded and verified release.
-  await preflightR2({ distribution, version, fetch: fetchImpl });
-  const feed = path.join(directory, "latest-mac.yml");
+  await preflightR2({ distribution, version, feed, fetch: fetchImpl });
+  const feedFile = path.join(directory, feed);
   const feedSha256 = createHash("sha256")
-    .update(readFileSync(feed))
+    .update(readFileSync(feedFile))
     .digest("hex");
-  await put(`${prefix}/latest-mac.yml`, feed, feedSha256, {
+  await put(`${prefix}/${feed}`, feedFile, feedSha256, {
     createOnly: false,
     cacheControl: "no-cache",
   });
-  const published = await fetchFeed(fetchImpl, distribution);
+  const published = await fetchFeed(fetchImpl, distribution, feed);
   if (
     !published ||
     createHash("sha256").update(published).digest("hex") !== feedSha256

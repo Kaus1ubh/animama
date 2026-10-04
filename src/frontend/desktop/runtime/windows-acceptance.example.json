@@ -1,0 +1,22 @@
+{
+  "schema": "animama-windows-acceptance/1",
+  "app_version": "0.1.0",
+  "installer_sha256": null,
+  "reviewed_by": null,
+  "reviewed_on": null,
+  "prior_signed_version": null,
+  "checks": {
+    "avatar_animation": false,
+    "pocket_tts": false,
+    "microphone": false,
+    "pip": false,
+    "quick_chat": false,
+    "global_shortcuts": false,
+    "offline_dictation": false,
+    "smartscreen_download": false,
+    "installer_upgrade_uninstall_reinstall": false,
+    "update_preserves_local_state": false,
+    "migration_snapshot_recovery": false,
+    "native_network": false
+  }
+}

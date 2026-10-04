@@ -40,6 +40,7 @@ async function scan({
   }));
   vi.doMock("../scripts/runtime/release-scan.mjs", () => ({
     ScanError,
+    homeDirectoryNeedles: () => [],
     scanCandidate: async (options) => {
       expect(options.gitleaks).toBe(path.resolve("fixture-gitleaks"));
       calls.push(options.directory);

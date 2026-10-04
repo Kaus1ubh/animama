@@ -251,6 +251,72 @@ describe("R2 publication", () => {
     ).rejects.toThrow("does not match this candidate's feed");
   });
 
+  it("promotes the Windows feed independently and reads the JSON feeds releases write", async () => {
+    const feed = (version) =>
+      JSON.stringify({ version, tag: `v${version}` }, null, 2);
+    const { directory, files } = candidate({
+      "Animama-0.2.0-x64-setup.exe": "installer bytes",
+      "latest.yml": feed("0.2.0"),
+    });
+    const r2 = fakeR2({
+      "desktop/latest.yml": feed("0.1.0"),
+      // macOS already promoted this version; its feed is left alone.
+      "desktop/latest-mac.yml": feed("0.2.0"),
+    });
+    await publish(r2, { directory, files, preview: false, feed: "latest.yml" });
+    expect(r2.writes.at(-1)).toBe("desktop/latest.yml");
+    expect(r2.writes).not.toContain("desktop/latest-mac.yml");
+    expect(r2.objects.get("desktop/latest.yml").body.toString()).toBe(
+      feed("0.2.0"),
+    );
+    await expect(
+      preflightR2({
+        distribution,
+        version: "0.2.0",
+        feed: "latest.yml",
+        fetch: r2.fetch,
+      }),
+    ).rejects.toThrow("verify it rather than publishing again");
+    await expect(
+      preflightR2({
+        distribution,
+        version: "0.2.0",
+        fetch: fakeR2({ "desktop/latest-mac.yml": feed("0.3.0") }).fetch,
+      }),
+    ).rejects.toThrow("Never replace a stable release");
+  });
+
+  it("checks files shared with the other target before uploading anything", async () => {
+    const { directory, files } = candidate({
+      "Animama-0.2.0-x64-setup.exe": "installer bytes",
+      "backend-model-assets.json": "{}\r\n",
+    });
+    const r2 = fakeR2({
+      "desktop/v0.2.0/backend-model-assets.json": "{}\n",
+    });
+    await expect(
+      publish(r2, {
+        directory,
+        files,
+        preview: true,
+        shared: ["backend-model-assets.json"],
+      }),
+    ).rejects.toThrow(
+      "backend-model-assets.json is already published with different bytes",
+    );
+    expect(r2.writes).toEqual([]);
+    const same = fakeR2({
+      "desktop/v0.2.0/backend-model-assets.json": "{}\r\n",
+    });
+    await publish(same, {
+      directory,
+      files,
+      preview: true,
+      shared: ["backend-model-assets.json"],
+    });
+    expect(same.writes).toContain("desktop/v0.2.0/Animama-0.2.0-x64-setup.exe");
+  });
+
   it("accepts an empty bucket but not an unreachable public domain", async () => {
     await expect(
       preflightR2({ distribution, version: "0.2.0", fetch: fakeR2().fetch }),

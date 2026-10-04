@@ -5,6 +5,7 @@ import {
   validateUpdateCandidate,
   type ReleaseDistribution,
   type UpdateCandidate,
+  type UpdatePlatform,
 } from "./policy.js";
 
 /** The adapter keeps Electron, native Squirrel and download paths outside renderer contracts. */
@@ -21,6 +22,8 @@ export type UpdateControllerOptions = {
   version: string;
   /** The build's sealed distribution, which fixes where feed files may live. */
   distribution: ReleaseDistribution;
+  /** The platform whose feed shape this build accepts. */
+  platform: UpdatePlatform;
   adapter: UpdateAdapter;
   disk(): Promise<{ free: bigint; databaseBytes: number }>;
   preflight(candidate: UpdateCandidate): Promise<void>;
@@ -121,6 +124,7 @@ export class DesktopUpdateController {
         result.info,
         this.options.version,
         this.options.distribution,
+        this.options.platform,
       );
       const disk = await this.options.disk();
       this.minimumFreeBytes = updateFreeBytes(

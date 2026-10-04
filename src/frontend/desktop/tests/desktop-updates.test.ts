@@ -6,6 +6,7 @@ import {
 import {
   allowedUpdateUrl,
   updateFreeBytes,
+  updatePlatform,
   validateUpdateCandidate,
   validateUpdatePolicy,
 } from "../src/main-process/updates/policy.js";
@@ -58,6 +59,7 @@ function controller() {
   const options = {
     version: "0.1.0",
     distribution: policy.distribution,
+    platform: "darwin" as const,
     adapter,
     checkTimeoutMs: 10,
     disk: vi.fn(async () => ({ free: 10_000_000_000n, databaseBytes: 2000 })),
@@ -208,6 +210,139 @@ describe("public stable macOS update policy", () => {
         2000,
       ),
     ).toBe(2 * 1000 + 2 * 5000 + 2 * 2000 + 256 * 1024 ** 2);
+  });
+});
+
+describe("public stable Windows update policy", () => {
+  const { team_id: _teamId, ...base } = r2Policy;
+  const windowsPolicy = {
+    ...base,
+    windows_publisher: {
+      certificate_subject: "CN=Example Publisher, O=Example Publisher, C=CA",
+      identity_validation_eku: "1.3.6.1.4.1.311.97.1.2.3.4",
+    },
+  };
+  const windowsFeed = () => ({
+    ...feed(),
+    minimumSystemVersion: "10.0.22000",
+    files: [
+      {
+        url: "v0.2.0/Animama-0.2.0-x64-setup.exe",
+        size: 1000,
+        sha512: Buffer.alloc(64).toString("base64"),
+      },
+    ],
+    animama: { ...feed().animama, platform: "win32", architecture: "x64" },
+  });
+
+  it("names an Authenticode publisher instead of a Team ID", () => {
+    expect(validateUpdatePolicy(windowsPolicy, "win32")).toEqual(windowsPolicy);
+    expect(updatePlatform(windowsPolicy)).toBe("win32");
+    expect(updatePlatform(policy)).toBe("darwin");
+    // Each platform reads only its own publisher shape.
+    expect(() => validateUpdatePolicy(windowsPolicy)).toThrow(
+      "updates_not_configured",
+    );
+    expect(() => validateUpdatePolicy(policy, "win32")).toThrow(
+      "updates_not_configured",
+    );
+    for (const windows_publisher of [
+      {
+        certificate_subject: "O=No common name",
+        identity_validation_eku: "1.3.6.1.4.1.311.97.1.2.3.4",
+      },
+      // The public-trust marker identifies no one.
+      {
+        certificate_subject: "CN=Example",
+        identity_validation_eku: "1.3.6.1.4.1.311.97.1.0",
+      },
+      {
+        certificate_subject: "CN=Example\n",
+        identity_validation_eku: "1.3.6.1.4.1.311.97.1.2.3.4",
+      },
+      {
+        certificate_subject: "CN=Example",
+        identity_validation_eku: "1.3.6.1.4.1.311.97.1.2.3.4",
+        thumbprint: "x",
+      },
+    ])
+      expect(() =>
+        validateUpdatePolicy({ ...windowsPolicy, windows_publisher }, "win32"),
+      ).toThrow("updates_not_configured");
+    expect(() =>
+      validateUpdatePolicy(
+        { ...windowsPolicy, team_id: "ABCDE12345" },
+        "win32",
+      ),
+    ).toThrow("updates_not_configured");
+  });
+
+  it("accepts only the per-user installer for Windows 11 x64", () => {
+    const candidate = validateUpdateCandidate(
+      windowsFeed(),
+      "0.1.0",
+      windowsPolicy.distribution,
+      "win32",
+    );
+    expect(candidate).toMatchObject({
+      filename: "Animama-0.2.0-x64-setup.exe",
+      downloadBytes: 1000,
+      installedBytes: 5000,
+    });
+    const file = windowsFeed().files[0];
+    for (const field of [
+      { minimumSystemVersion: "10.0.19045" },
+      { minimumSystemVersion: "24.0.0" },
+      { files: [{ ...file, url: "v0.2.0/Animama-0.2.0-x64.exe" }] },
+      { files: [{ ...file, url: "v0.2.0/Animama-0.2.0-arm64.zip" }] },
+      { files: [file, { ...file, url: "v0.2.0/Animama-0.2.0-x64.zip" }] },
+      { files: [{ ...file, isAdminRightsRequired: true }] },
+      { files: [{ ...file, isAdminRightsRequired: false }] },
+      { animama: { ...windowsFeed().animama, platform: "darwin" } },
+      { animama: { ...windowsFeed().animama, architecture: "arm64" } },
+    ])
+      expect(() =>
+        validateUpdateCandidate(
+          { ...windowsFeed(), ...field },
+          "0.1.0",
+          windowsPolicy.distribution,
+          "win32",
+        ),
+      ).toThrow("update_metadata_invalid");
+    // A macOS feed never satisfies a Windows build, nor the reverse.
+    expect(() =>
+      validateUpdateCandidate(
+        {
+          ...feed(),
+          files: [
+            { ...feed().files[0], url: "v0.2.0/Animama-0.2.0-arm64.zip" },
+          ],
+        },
+        "0.1.0",
+        windowsPolicy.distribution,
+        "win32",
+      ),
+    ).toThrow("update_metadata_invalid");
+    expect(() =>
+      validateUpdateCandidate(windowsFeed(), "0.1.0", r2Policy.distribution),
+    ).toThrow("update_metadata_invalid");
+  });
+
+  it("reads latest.yml, never the macOS feed", () => {
+    const root = "https://downloads.example.test/desktop";
+    for (const url of [
+      `${root}/latest.yml`,
+      `${root}/latest.yml?noCache=1j2k3l4m`,
+      `${root}/v0.2.0/Animama-0.2.0-x64-setup.exe`,
+    ])
+      expect(allowedUpdateUrl(url, windowsPolicy)).toBe(true);
+    for (const url of [
+      `${root}/latest-mac.yml`,
+      `${root}/latest.yml?token=secret`,
+      `${root}/beta.yml`,
+    ])
+      expect(allowedUpdateUrl(url, windowsPolicy)).toBe(false);
+    expect(allowedUpdateUrl(`${root}/latest.yml`, r2Policy)).toBe(false);
   });
 });
 

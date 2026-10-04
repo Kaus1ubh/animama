@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
+import { createHash } from "node:crypto";
 import {
   mkdirSync,
   mkdtempSync,
@@ -28,6 +29,26 @@ import {
   parseWindowsReleaseArgs,
   windowsBuilderOptions,
 } from "../scripts/runtime/release-windows.mjs";
+import {
+  candidateDistribution,
+  isWindowsReleaseName,
+  mayResumeRelease,
+  previewAssets,
+} from "../scripts/runtime/release-artifacts.mjs";
+import { verifyScanReceipt } from "../scripts/runtime/publication.mjs";
+import {
+  acceptsRequiredNameSmoke,
+  manualWindowsChecks,
+  validateManualAcceptance,
+} from "../scripts/runtime/smoke-policy.mjs";
+import { homeDirectoryNeedles } from "../scripts/runtime/release-scan.mjs";
+import {
+  ownedWindowsChild,
+  parseProcessImages,
+  windowsLaunchEnvironment,
+  windowsProfile,
+} from "../scripts/runtime/smoke-windows.mjs";
+import { validateUpdatePolicy } from "../src/main-process/updates/policy.js";
 
 const roots = [];
 function fixture() {
@@ -462,5 +483,336 @@ describe("Windows release candidate", () => {
         { name: "package_overhead", installed_bytes: 2 },
       ]),
     );
+  });
+});
+
+describe("Windows update policy and publication", () => {
+  it("seals the Authenticode publisher, not the Team ID, into a Windows stage", () => {
+    const windows = validateReleasePolicy(policy, packs, "0.1.0", {
+      distribution: "r2",
+      target: "win32-x64",
+    }).updatePolicy;
+    expect(windows).toEqual({
+      schema: "animama-update-policy/2",
+      distribution: {
+        kind: "r2",
+        base_url: "https://downloads.example.test/desktop",
+      },
+      channel: "stable",
+      windows_publisher: {
+        certificate_subject: publisher.certificate_subject,
+        identity_validation_eku: publisher.identity_validation_eku,
+      },
+    });
+    // The installed app reads exactly what the stage seals.
+    expect(validateUpdatePolicy(windows, "win32")).toEqual(windows);
+    const mac = validateReleasePolicy(
+      {
+        ...policy,
+        redistribution_reviews: { "darwin-arm64": review },
+      },
+      packs,
+      "0.1.0",
+      { distribution: "r2" },
+    ).updatePolicy;
+    expect(mac.team_id).toBe("TESTTEAM01");
+    expect(mac).not.toHaveProperty("windows_publisher");
+  });
+
+  it("publishes only a release-ready candidate under its own evidence names", () => {
+    const root = fixture();
+    const distribution = { kind: "r2", base_url: "https://d.example.test/x" };
+    const report = (data) =>
+      writeFileSync(
+        path.join(root, "signing-report-win32-x64.json"),
+        JSON.stringify({ distribution, ...data }),
+      );
+    report({ release_ready: false });
+    expect(candidateDistribution(root, "win32-x64")).toBeNull();
+    report({ release_ready: true });
+    expect(candidateDistribution(root, "win32-x64")).toEqual(distribution);
+    // The macOS name in the same folder is a different candidate.
+    expect(candidateDistribution(root)).toBeNull();
+
+    const names = [
+      "Animama-0.2.0-x64-setup.exe",
+      "latest.yml",
+      "latest-mac.yml",
+      "backend-model-assets.json",
+      "size-report-win32-x64.json",
+      "manual-acceptance-win32-x64.json",
+      "release-artifacts-win32-x64.json",
+      "SHA256SUMS-win32-x64.txt",
+      "smoke-name-report-win32-x64.json",
+    ];
+    expect(
+      previewAssets(
+        { files: names.map((name) => ({ name })) },
+        "win32-x64",
+      ).map((file) => file.name),
+    ).toEqual([
+      "Animama-0.2.0-x64-setup.exe",
+      "latest-mac.yml",
+      "backend-model-assets.json",
+      "size-report-win32-x64.json",
+    ]);
+    expect(names.filter(isWindowsReleaseName)).toEqual([
+      "Animama-0.2.0-x64-setup.exe",
+      "latest.yml",
+      "size-report-win32-x64.json",
+      "manual-acceptance-win32-x64.json",
+      "release-artifacts-win32-x64.json",
+      "SHA256SUMS-win32-x64.txt",
+      "smoke-name-report-win32-x64.json",
+    ]);
+  });
+
+  it("adds a target to a published stable release only until its own feed is there", () => {
+    const remote = {
+      id: 7,
+      tag_name: "v0.2.0",
+      draft: false,
+      prerelease: false,
+    };
+    expect(
+      mayResumeRelease(remote, "0.2.0", {
+        preview: false,
+        feedPublished: false,
+      }),
+    ).toBe(true);
+    expect(
+      mayResumeRelease(remote, "0.2.0", {
+        preview: false,
+        feedPublished: true,
+      }),
+    ).toBe(false);
+    // A preview would turn a stable release back into a prerelease.
+    expect(
+      mayResumeRelease(remote, "0.2.0", {
+        preview: true,
+        feedPublished: false,
+      }),
+    ).toBe(false);
+    expect(mayResumeRelease(remote, "0.2.0")).toBe(false);
+  });
+
+  it("lets only the publisher's derived Windows files skip the scan receipt", () => {
+    const root = fixture();
+    const scanned = {
+      name: "Animama-0.2.0-x64-setup.exe",
+      sha256: "a".repeat(64),
+    };
+    writeFileSync(
+      path.join(root, "release-scan.json"),
+      JSON.stringify({
+        schema: "animama-release-scan/1",
+        result: "pass",
+        scanner: {
+          version: JSON.parse(
+            readFileSync(
+              path.join(
+                import.meta.dirname,
+                "../../../../scripts/repository-boundary/scanner-pins.json",
+              ),
+            ),
+          ).gitleaks.version,
+          canary: "detected",
+          config_sha256: createHash("sha256")
+            .update(
+              readFileSync(
+                path.join(
+                  import.meta.dirname,
+                  "../runtime/release-scan.gitleaks.toml",
+                ),
+              ),
+            )
+            .digest("hex"),
+        },
+        files: [scanned],
+      }),
+    );
+    const derived = {
+      name: "manual-acceptance-win32-x64.json",
+      sha256: "b".repeat(64),
+    };
+    expect(() =>
+      verifyScanReceipt(root, [scanned, derived], "win32-x64"),
+    ).not.toThrow();
+    // The macOS name is not a Windows derived file.
+    expect(() =>
+      verifyScanReceipt(
+        root,
+        [scanned, { ...derived, name: "manual-acceptance.json" }],
+        "win32-x64",
+      ),
+    ).toThrow("does not cover these exact artifacts");
+  });
+
+  it("binds smoke and human acceptance to the exact installer", () => {
+    const smoke = {
+      passed: true,
+      setup: "name",
+      installer_sha256: "a".repeat(64),
+      runtime_build_id: "build-1",
+      checks: {
+        required_private_name: true,
+        empty_name_rejected: true,
+        blank_name_rejected: true,
+        adult_confirmation_required: true,
+        setup_steps: true,
+        first_anima_chat: true,
+        temporary_provider_removed: true,
+        temporary_provider_removal_persists: true,
+      },
+    };
+    const expected = {
+      artifactSha256: "a".repeat(64),
+      runtimeBuildId: "build-1",
+      target: "win32-x64",
+    };
+    expect(acceptsRequiredNameSmoke(smoke, { violations: 0 }, expected)).toBe(
+      true,
+    );
+    expect(
+      acceptsRequiredNameSmoke(
+        { ...smoke, installer_sha256: "b".repeat(64) },
+        { violations: 0 },
+        expected,
+      ),
+    ).toBe(false);
+    // A DMG hash field never satisfies the Windows binding.
+    expect(
+      acceptsRequiredNameSmoke(
+        { ...smoke, installer_sha256: undefined, dmg_sha256: "a".repeat(64) },
+        { violations: 0 },
+        expected,
+      ),
+    ).toBe(false);
+    const accepted = {
+      schema: "animama-windows-acceptance/1",
+      app_version: "0.2.0",
+      installer_sha256: "a".repeat(64),
+      reviewed_by: "Fixture reviewer",
+      reviewed_on: "2026-09-01",
+      prior_signed_version: "0.1.0",
+      checks: Object.fromEntries(
+        manualWindowsChecks.map((name) => [name, true]),
+      ),
+    };
+    expect(
+      validateManualAcceptance(accepted, "a".repeat(64), "0.2.0", "win32-x64")
+        .installer_sha256,
+    ).toBe("a".repeat(64));
+    expect(() =>
+      validateManualAcceptance(accepted, "b".repeat(64), "0.2.0", "win32-x64"),
+    ).toThrow("exact installer");
+    expect(() =>
+      validateManualAcceptance(
+        { ...accepted, schema: "animama-macos-acceptance/1" },
+        "a".repeat(64),
+        "0.2.0",
+        "win32-x64",
+      ),
+    ).toThrow();
+    expect(() =>
+      validateManualAcceptance(
+        {
+          ...accepted,
+          checks: { ...accepted.checks, smartscreen_download: false },
+        },
+        "a".repeat(64),
+        "0.2.0",
+        "win32-x64",
+      ),
+    ).toThrow();
+  });
+});
+
+describe("Windows smoke and scan helpers", () => {
+  const runtime =
+    "C:\\Users\\Smoke Test\\AppData\\Local\\Programs\\Animama\\resources\\runtime";
+  const postgres = `${runtime}\\postgres\\bin\\postgres.exe`;
+  const guard = `${runtime}\\bin\\animama-process-guard.exe`;
+
+  it("owns a child only when its guard and service run from the installed runtime", () => {
+    const images = parseProcessImages(
+      `4\t\r\n100\t${guard.toUpperCase()}\r\n101\t${postgres}\r\n200\tC:\\Windows\\System32\\cmd.exe\r\n`,
+    );
+    expect(images.get(4)).toBeUndefined();
+    const child = { pid: 100, servicePid: 101, executable: postgres };
+    expect(ownedWindowsChild(child, runtime, images)).toBe(true);
+    expect(
+      ownedWindowsChild({ ...child, servicePid: 200 }, runtime, images),
+    ).toBe(false);
+    expect(ownedWindowsChild({ ...child, pid: 101 }, runtime, images)).toBe(
+      false,
+    );
+    expect(
+      ownedWindowsChild(
+        {
+          ...child,
+          executable: "C:\\Windows\\System32\\cmd.exe",
+          servicePid: 200,
+        },
+        runtime,
+        images,
+      ),
+    ).toBe(false);
+    // A sibling folder that only shares the prefix is outside the runtime.
+    expect(
+      ownedWindowsChild(
+        { ...child, executable: `${runtime}-old\\postgres.exe` },
+        runtime,
+        new Map([...images, [101, `${runtime}-old\\postgres.exe`]]),
+      ),
+    ).toBe(false);
+  });
+
+  it("checks the canonical profile and launches with only system paths", () => {
+    const env = {
+      SystemRoot: "C:\\Windows",
+      LOCALAPPDATA: "C:\\Users\\Zoë\\AppData\\Local",
+      APPDATA: "C:\\Users\\Zoë\\AppData\\Roaming",
+      USERPROFILE: "C:\\Users\\Zoë",
+      PATH: "C:\\tools;C:\\Windows\\System32",
+      NODE_OPTIONS: "--inspect",
+      ANIMAMA_SMOKE_OPENAI_KEY: "sk-fixture",
+    };
+    expect(windowsProfile(env)).toMatchObject({
+      userData: "C:\\Users\\Zoë\\AppData\\Local\\Animama",
+      installed: "C:\\Users\\Zoë\\AppData\\Local\\Programs\\Animama",
+    });
+    expect(windowsProfile(env).existing).toContain(
+      "C:\\Users\\Zoë\\AppData\\Roaming\\Animama",
+    );
+    expect(windowsLaunchEnvironment(env)).toEqual({
+      PATH: "C:\\Windows\\System32;C:\\Windows",
+      SystemRoot: "C:\\Windows",
+      LOCALAPPDATA: env.LOCALAPPDATA,
+      APPDATA: env.APPDATA,
+      USERPROFILE: env.USERPROFILE,
+    });
+    expect(() => windowsProfile({})).toThrow("normal Windows user session");
+  });
+
+  it("searches for the Windows profile path with both separators and in UTF-16LE", () => {
+    const needles = homeDirectoryNeedles("C:\\Users\\Zoë Test", "win32");
+    expect(
+      Object.fromEntries(
+        needles.map(({ label, value }) => [
+          label,
+          Buffer.isBuffer(value) ? value.toString("utf16le") : value,
+        ]),
+      ),
+    ).toEqual({
+      "home-directory": "\\Users\\Zoë Test\\",
+      "home-directory-slash": "/Users/Zoë Test/",
+      "home-directory-json": "\\\\Users\\\\Zoë Test\\\\",
+      "home-directory-utf16le": "\\Users\\Zoë Test\\",
+      "home-directory-slash-utf16le": "/Users/Zoë Test/",
+    });
+    expect(homeDirectoryNeedles("/Users/fixture", "darwin")).toEqual([
+      { label: "home-directory", value: "/Users/fixture/" },
+    ]);
   });
 });

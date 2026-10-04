@@ -274,8 +274,9 @@ or migration behavior.
   packaged acceptance. Windows has an unsigned development package and
   installer (`pnpm desktop:win`, `pnpm desktop:win:installer`) and a signed
   candidate builder (`pnpm desktop:dist:windows`, Artifact Signing through the
-  host's Azure CLI sign-in); its updates, smoke and publication are not
-  implemented yet. Linux self-contained packaging is deferred.
+  host's Azure CLI sign-in), with the same update, smoke
+  (`pnpm desktop:smoke:windows`), scan and publication (`publish-windows.mjs`)
+  gates as macOS. Linux self-contained packaging is deferred.
   Signing, updates and installed-artifact smoke tools require exact source/input
   review, matching artifacts and native acceptance. Read
   `../../docs/frontend/desktop/releases.md` before using those commands.

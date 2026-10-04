@@ -16,9 +16,16 @@ import {
   modelObjectsForManifest,
   planModelPublication,
   stageModelCandidate,
+  verifiedModelSource,
 } from "./model-publication.mjs";
 import { PublicationError, verifyScanReceipt } from "./publication.mjs";
-import { verifyArtifactIndex } from "./release-artifacts.mjs";
+import { releaseName, verifyArtifactIndex } from "./release-artifacts.mjs";
+
+/** The signing report each target's candidate carries. */
+const SIGNING_SCHEMAS = {
+  "darwin-arm64": "animama-macos-signing/1",
+  "win32-x64": "animama-windows-signing/1",
+};
 
 const manifestPath = (id) => `model-manifests/${id}.json`;
 const backendCatalogPath = (names) => {
@@ -187,21 +194,39 @@ function boundModels({
   return { ids, catalog };
 }
 
-/** Called only after the caller verifies the actual signed app and runtime inventory. */
-export function stageReleaseModels({ runtime, directory, modelRoot }) {
+/** The model sets a staged or signed runtime requires, bound to its catalogs. */
+function runtimeModels(runtime) {
   const manifest = readJson(path.join(runtime, "manifest.json"));
   const catalogFile = path.join(
     runtime,
     backendCatalogPath(manifest.files.map((file) => file.path)),
   );
-  const { origin } = modelDistribution();
   const { ids } = boundModels({
     manifest,
     catalogFile,
     packCatalogFile: path.join(runtime, "pack-catalog.json"),
-    origin,
+    origin: modelDistribution().origin,
     modelManifestFile: (id) => path.join(runtime, manifestPath(id)),
   });
+  return { ids, catalogFile };
+}
+
+/**
+ * Prove, without copying, that every model set the runtime requires is
+ * acquired locally and verifies, so a missing set cannot waste a build.
+ */
+export function verifyReleaseModels({ runtime, modelRoot }) {
+  for (const modelId of runtimeModels(runtime).ids)
+    verifiedModelSource({
+      modelId,
+      modelRoot,
+      manifestFile: path.join(runtime, manifestPath(modelId)),
+    });
+}
+
+/** Called only after the caller verifies the actual signed app and runtime inventory. */
+export function stageReleaseModels({ runtime, directory, modelRoot }) {
+  const { ids, catalogFile } = runtimeModels(runtime);
   mkdirSync(directory, { recursive: true });
   copyFileSync(catalogFile, path.join(directory, "backend-model-assets.json"));
   const models = path.join(directory, "models");
@@ -218,25 +243,33 @@ export function stageReleaseModels({ runtime, directory, modelRoot }) {
   return ["backend-model-assets.json"];
 }
 
-/** Validate all signed bindings and model bytes before scanning; no receipts are bypassed. */
-export function releaseModelCandidates({ directory, origin }) {
-  const index = verifyArtifactIndex(directory);
+/**
+ * Validate all signed bindings and model bytes before scanning; no receipts
+ * are bypassed. The backend catalog keeps its shared name on every target.
+ */
+export function releaseModelCandidates({
+  directory,
+  origin,
+  target = "darwin-arm64",
+}) {
+  const index = verifyArtifactIndex(directory, target);
+  const named = (name) => releaseName(target, name);
   const required = [
-    "runtime-manifest.json",
-    "pack-catalog.json",
+    named("runtime-manifest.json"),
+    named("pack-catalog.json"),
     "backend-model-assets.json",
-    "signing-report.json",
+    named("signing-report.json"),
   ];
   if (required.some((name) => !index.files.some((file) => file.name === name)))
     throw new PublicationError(
       "The release artifact index omits required model binding metadata",
     );
-  const manifest = readJson(path.join(directory, "runtime-manifest.json"));
-  const signing = readJson(path.join(directory, "signing-report.json"));
+  const manifest = readJson(path.join(directory, required[0]));
+  const signing = readJson(path.join(directory, required[3]));
   if (
     index.runtime_build_id !== manifest.build_id ||
     index.app_version !== manifest.app_version ||
-    signing.schema !== "animama-macos-signing/1" ||
+    signing.schema !== SIGNING_SCHEMAS[target] ||
     signing.runtime_build_id !== manifest.build_id ||
     signing.app_version !== manifest.app_version
   )
@@ -246,7 +279,7 @@ export function releaseModelCandidates({ directory, origin }) {
   const { ids, catalog } = boundModels({
     manifest,
     catalogFile: path.join(directory, "backend-model-assets.json"),
-    packCatalogFile: path.join(directory, "pack-catalog.json"),
+    packCatalogFile: path.join(directory, required[1]),
     origin,
     modelManifestFile: (id) =>
       path.join(directory, "models", id, "manifest.json"),

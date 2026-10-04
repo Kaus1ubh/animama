@@ -1,14 +1,17 @@
 # Native Windows 11 x64 desktop packaging
 
-Status: Plan approved 2026-10-02. Phases 1–5 merged; Phase 6 complete;
-Phases 7–8 not yet authorized.
+Status: Plan approved 2026-10-02. Phases 1–6 merged; Phases 7–8 agent work
+complete. The Windows smoke, the owner's manual checks and the clean-machine
+journey (G3) passed. The prompted update (G4) and Smart App Control in enforcing
+mode are deferred to [#271](https://github.com/raymond-van/animama/issues/271).
 Source agreement: [raymond-van/animama#245](https://github.com/raymond-van/animama/issues/245)
 as published on 2026-10-01 (created and last updated 2026-10-01T20:53:18Z), plus
 the owner decisions of 2026-10-01 and 2026-10-02 recorded in the
 [Decision Log](#decision-log).
 Authorized scope: Phases 1–5, approved by the owner on 2026-10-02 and merged
 in [#258](https://github.com/raymond-van/animama/pull/258); Phase 6, approved on
-2026-10-03. Phases 7–8 need separate authorization. Nothing in this plan
+2026-10-03 and merged in [#266](https://github.com/raymond-van/animama/pull/266);
+Phases 7–8, approved on 2026-10-03. Nothing in this plan
 authorizes publishing a release, uploading to a distribution or changing
 repository visibility.
 
@@ -180,11 +183,22 @@ Paths are repository-relative. `D/` abbreviates `src/frontend/desktop/`.
       signed candidate built at `4ac1d21b`. The signed installer journey,
       which the owner asked the agent to run, passed. SmartScreen warned about
       an unrecognized app, as expected for a new signing identity.
-- [ ] Phase 7: Updates, smoke and publication tooling. Not started; the real upgrade needs G4.
-- [ ] Phase 8: Platform audit, clean-machine journey and documentation. Not started; needs G3.
-- [ ] Final integration review. Phases 1–5: review #1 blocked on FI-01, which
+- [x] Phase 7: Updates, smoke and publication tooling
+      ([#268](https://github.com/raymond-van/animama/issues/268)). Agent work
+      complete at `fa2574c3` on branch `build/windows-desktop-updates` from
+      `main` at `733d2315`; review passed after two repair rounds; final
+      candidate built and scanned. The Windows smoke passed in a fresh
+      non-ASCII account at `9a539338`. Open: the G4 upgrade (owner chose to
+      keep it pending).
+- [x] Phase 8: Platform audit, clean-machine journey and documentation
+      ([#269](https://github.com/raymond-van/animama/issues/269)). Agent work
+      complete at `fa2574c3`; review passed after one repair round; automated
+      R8 items passed; the owner's manual checks, the non-ASCII account and
+      the clean-machine journey with default `MAX_PATH` (G3) passed. Open: G4.
+- [x] Final integration review. Phases 1–5: review #1 blocked on FI-01, which
       is resolved; review #2 blocked on FI2-01; review #3 passed (below).
-      Phases 6–8: not started.
+      Phases 6–8: review #1 passed at `9bef2a4e`, with three optional items
+      applied.
 
 ## Surprises & Discoveries
 
@@ -1834,7 +1848,7 @@ release suite passes (12 tests); the reading itself is unchanged.
 ### Phase 7: Updates, smoke and publication tooling
 
 **Requirements:** R7.
-**Issue:** created at workspace setup.
+**Issue:** [#268](https://github.com/raymond-van/animama/issues/268).
 **Dependencies:** Phase 6. The real forward upgrade needs G4.
 
 Changes:
@@ -1912,21 +1926,135 @@ authorized and run. Recovery:
   snapshot intact. The user reruns the installer.
 - Publishing resumes byte-identical uploads only, as it does for macOS.
 
-Results: pending.
+Results (in progress):
+
+- Implemented at `ab98694e` and `4bfbddc4`, as planned, with these choices:
+  - The update policy keeps schema `animama-update-policy/2` and names either
+    `team_id` (macOS) or `windows_publisher` (Windows); each build accepts only
+    its own platform's shape, feed name and file.
+  - The Windows adapter starts the installer itself (`--updated --force-run`)
+    rather than through electron-updater's `quitAndInstall`, so a failure to
+    start it is reported before Animama quits.
+  - The publisher is shared (`publish-release.mjs`), with `publish-macos.mjs`
+    and `publish-windows.mjs` as entry points; the smoke journey is shared
+    (`smoke-journey.mjs`) by `smoke-macos.mjs` and `smoke-windows.mjs`.
+  - Carry-forwards: P6-R1-08 (rehearsal refused, suffixed names) and
+    P6-R2-02 (`verifyReleaseModels` checks without copying) are done.
+    P6-R1-03: the shared `backend-model-assets.json` must match byte for byte;
+    the R2 publisher checks it before any upload and GitHub before any upload.
+- Linux (Node 24.15.0) at `4bfbddc4`: `tsc` clean; `vitest` 454 passed,
+  26 skipped.
+- Windows 11 x64 (build 26200) at `4bfbddc4`:
+  - A fresh stage and audit passed and reproduced inventory `fb1508b3…`, so
+    the owner's G2 receipt still covers it (the update-policy change alters the
+    runtime build ID, not the reviewed inventory).
+  - `pnpm desktop:dist:windows` built a signed candidate (141 files signed).
+    It is an intermediate candidate: review #1 changed the app afterwards.
+  - `pnpm desktop:test`: 424 passed, 55 skipped, 0 failed.
+  - The app's Authenticode check, run with no `PSModulePath` and a system-only
+    PATH against that installer, read the exact subject and the
+    identity-validation EKU.
+- Final candidate at `fa2574c3` on Windows 11 x64 (build 26200), preserved in
+  `C:\animama-build\candidate-final` on the build host:
+  - A fresh stage and audit reproduced inventory `fb1508b3…`.
+  - `pnpm desktop:dist:windows`: 141 files signed, `release_ready: true`.
+  - `pnpm desktop:test`: 426 passed, 55 skipped, 0 failed.
+  - `pnpm desktop:release:scan` with the pinned Gitleaks 8.30.1 Windows build
+    (its archive matched the pin): the app candidate and all four model
+    candidates passed with no findings; the canary was detected; 6 archives
+    expanded, including the installer's app payload; about 13,000 files
+    scanned; the Windows home-directory needles were all searched.
+- `desktop:smoke:windows` (owner, 2026-10-04) on the final installer
+  (`d9fd055a…`) in a fresh standard account whose name has a non-ASCII
+  character and a space: all 33 checks passed, including
+  `update_publisher_verified` and `owned_child_paths`; 0 network violations.
+  Getting there needed three smoke-tooling fixes, none of which changes the
+  candidate:
+  - `0b9f598f`: `ANIMAMA_SMOKE_DEBUG=1` prints a failed step's error locally.
+  - `337f012e`: Windows PowerShell 5.1 wrote the process query in the OEM code
+    page, garbling the profile path, so `owned_child_paths` failed; the query
+    now writes UTF-8.
+  - `9a539338`: after the provider tabs change, the "OpenAI" label also named
+    a tab panel; the smoke now targets the key input. Debug output masks the
+    key, because Playwright's call log repeats typed input; an earlier debug
+    run printed a key, which was deleted and revoked.
+- Pending owner gate: the G4 upgrade (the owner chose on 2026-10-03 to keep it
+  pending).
 
 #### Code Review #1 Findings
 
-Pending.
+Independent reviewer, full review of `4bfbddc4` against `733d2315`. Checks:
+`tsc` clean; `vitest` 454 passed; Prettier clean on changed files. Result:
+blocked on P7-R1-01.
+
+- **P7-R1-01 (blocking):** on GitHub, a stable promotion of one target could
+  publish the other target's draft or preview as stable and Latest, rewriting
+  its description; adding to an older published release would move Latest back
+  to it, hiding newer macOS updates.
+- **P7-R1-02:** at install, only the publisher was rechecked, not the approved
+  size and SHA-512.
+- **P7-R1-03:** Windows PowerShell 5.1 writes redirected output in the OEM
+  code page, so a non-ASCII subject would never match (fail-closed).
+- **P7-R1-04:** the shared-name byte check ran only for Windows; macOS
+  publishing second would spend immutable objects before failing.
+- **P7-R1-05:** nothing proved that 7-Zip expanded the installer's app payload.
+- **P7-R1-06:** the Windows smoke docs omitted that the smoke writes reports in
+  the checkout and that they return to the build account.
+- **P7-R1-07:** a 5xx during the shared-name check was reported as different
+  bytes.
 
 #### Code Review #1 Revisions
 
-Pending.
+All accepted.
+
+- P7-R1-01: a run never makes another target's draft or preview public or
+  stable; two previews may share a prerelease, keeping the first description.
+  Adding to a published release changes nothing but its files (no `PATCH`).
+  Tests cover both.
+- P7-R1-02: install rechecks size and SHA-512, then the publisher; tested with
+  swapped bytes.
+- P7-R1-03: the check sets UTF-8 output. The native probe above ran the
+  same script with that line; the final candidate's smoke repeats it in the app.
+- P7-R1-04: both targets check `SHARED_RELEASE_NAMES` before uploading.
+- P7-R1-05: the scan fails unless the installer expands to `resources/app.asar`.
+- P7-R1-06 and P7-R1-07: docs and message corrected.
+- Linux after the repair: `vitest` 455 passed, 26 skipped; `tsc` clean.
+
+#### Code Review #2 Findings
+
+Targeted recheck of `a82bb302` (repair round 1): P7-R1-02 to -07 fixed; P7-R1-01
+fixed for stable runs. Result: blocked on P7-R2-01.
+
+- **P7-R2-01 (blocking):** a preview may join only a published prerelease, but
+  the check let it join a draft prerelease, so an interrupted macOS preview
+  would become public through a Windows preview.
+- Non-blocking: the installer's 7-Zip expansion to `resources/app.asar` awaits
+  the native scan; the shared-name 5xx path and an unexpected own file in a
+  shared release lack direct tests; the P7-R1-03 record overstated the probe.
+
+#### Code Review #2 Revisions
+
+- P7-R2-01 accepted: a preview joins only a published, non-draft prerelease;
+  tested.
+- The native scan of the final candidate covers the 7-Zip assertion. The
+  untested branches are small and fail closed; not added. The P7-R1-03 record is
+  corrected above.
+
+#### Code Review #3 Findings
+
+Final targeted recheck of `fa2574c3` (repair round 2): P7-R2-01 resolved, with a
+test for an interrupted draft preview; no regressions. Result: pass. Both
+repair rounds were used.
+
+#### Code Review #3 Revisions
+
+None needed.
 
 ### Phase 8: Platform audit, clean-machine journey and documentation
 
 **Requirements:** R8, the clean-machine acceptance and the documentation
 acceptance.
-**Issue:** created at workspace setup.
+**Issue:** [#269](https://github.com/raymond-van/animama/issues/269).
 **Dependencies:** Phase 7 and G3.
 
 Steps:
@@ -1988,15 +2116,109 @@ manual results are recorded here with the tested Windows build and app version.
 Completion: every R8 item is resolved and the clean-machine journey is
 recorded. Any item that still depends on G4 is listed as open.
 
-Results: pending.
+Results:
+
+- FI-05 at `98b12b1a`: on Windows, a recorded PID that is alive, or that this
+  account cannot read, blocks startup only while it still runs the recorded
+  image: the guard (now recorded with each PID) or the recorded service. An
+  unreadable image was never Animama's, which never runs elevated; a failed
+  lookup still blocks. This compares image paths rather than creation times,
+  which needs no extra query at launch. The R8 audit below exercised it
+  natively.
+- FI-04 at `98b12b1a`: the recovery page tells Windows developers to rename
+  `%LOCALAPPDATA%\Animama` instead of running `pnpm desktop:mac:reset`;
+  troubleshooting covers Windows storage, vault restore with `Local State`,
+  `data_path_too_long`, logs, microphone, backups and support.
+- Docs at `e15a37d6`: installation, troubleshooting, platforms, overview,
+  runtime staging, the release docs, `src/frontend/AGENTS.md`, `README.md` and
+  the model-store note describe Windows; no "Windows deferred" statement remains
+  outside plans.
+- ADR [0013](../../adr/0013-native-windows-desktop-packaging.md) records D1–D4
+  and guard ownership: the signing identity, per-user scope, shared
+  distribution and process guard meet the ADR criteria.
+- Windows `pnpm desktop:test` at `e15a37d6`: 425 passed, 1 failed. The failing
+  test recorded a fake executable for a live PID, which FI-05 now correctly
+  treats as reused; the test records the real image on Windows.
+- R8 audit of the final candidate (`fa2574c3`), installed per-user on the
+  development host (Windows 11 build 26200, Defender real-time protection on,
+  Smart App Control off, `LongPathsEnabled=1`), on disposable data with the
+  owner's data folder moved aside and restored. Automated by an agent script:
+
+  | Item | Result |
+  | --- | --- |
+  | Defender | First launch on fresh data reached ready in 39.6 s, the second in 9.8 s; no detection during the audit. |
+  | SmartScreen | A browser-downloaded signed installer shows "Windows protected your PC… unrecognized app" (Phase 6), expected for a new identity; documented. |
+  | Smart App Control | Off on this host. On the clean machine (below) it was in evaluation mode, which logs rather than blocks; nothing failed. Enforcing mode is untested. |
+  | Firewall | No prompt; no firewall rule exists for the app. |
+  | Loopback binding | The two owned listeners bind only to `127.0.0.1`. |
+  | WebSockets | An upgrade to the local `/v1/logs` endpoint opened. |
+  | PostgreSQL killed | The app shows `postgres_exited` and stops; after Quit no installed process remains, and a relaunch reached ready in 11.2 s. |
+  | Whole tree killed | No installed process remained; with the stale record, a relaunch reached ready in 10.6 s. |
+  | PID reuse (FI-05) | A record naming a live unrelated process of this user was ignored (ready); the same PID recorded with its real image blocked with `previous_runtime_running`. |
+  | Pack replacement under antivirus | Parakeet installed in 40 s and was removed with real-time protection on; the fixture held-handle tests pass natively. |
+  | PiP, quick chat, shortcuts | Passed (owner manual check, non-ASCII account); keyboard Press-to-talk also passed in Phase 5. |
+  | Microphone privacy | Passed with the setting on and off (owner manual check, non-ASCII account). |
+  | Elevated launch | Refused with `administrator_launch_unsupported` (Phase 4 owner check, same code); unit-tested. |
+  | Non-ASCII account | Passed: the smoke and the owner's manual checks (avatar, PocketTTS, dictation, PiP, quick chat, shortcuts, microphone privacy, restart) in a standard account whose name has a non-ASCII character and a space. |
+  | Default `MAX_PATH` | Passed on the clean machine (below), `LongPathsEnabled=0`; the 70-character data-root rule is unit-tested. |
+
+- Clean-machine journey (G3), owner, 2026-10-04, in Windows Sandbox (Windows 11
+  build 26100, `LongPathsEnabled=0`, Smart App Control in evaluation mode). The
+  Sandbox's own account is elevated, so a standard `tester` account installed
+  and ran the final installer (`d9fd055a…`, hash checked inside the Sandbox).
+  - With the default virtual GPU the window stayed white, although the backend
+    reached ready and the page loaded and called the API; `main.log` showed no
+    error. Started with `--disable-gpu`, the app rendered. Troubleshooting now
+    has this case.
+  - Software rendering: the owner reports first run, the required name, a
+    provider key, chat, restart and recovery after a forced kill of the whole
+    tree all worked as intended. The avatar does not render without WebGL, so
+    avatar and animation evidence comes from the non-ASCII account on real
+    hardware.
+- Deferred to [#271](https://github.com/raymond-van/animama/issues/271): the
+  prompted update (G4) and Smart App Control in enforcing mode.
 
 #### Code Review #1 Findings
 
-Pending.
+Independent reviewer, full review of `e15a37d6` against `a82bb302`. Checks:
+`tsc` clean; `vitest` 456 passed. Result: blocked on P8-R1-01 and P8-R1-02.
+
+- **P8-R1-01 (blocking):** the model-store note said the packaged app downloads
+  into the developer store; it uses `<userData>\data`.
+- **P8-R1-02 (blocking):** troubleshooting's intro, logs, microphone, backups
+  and support sections were still macOS-only.
+- Non-blocking: the guard's expected image came from the current launch, not
+  the record; the PowerShell lookup is synchronous on the main process (only
+  when a recorded PID is live); the FI-05 approach should be recorded; the
+  constructor's Windows branch needs the native audit; SmartScreen wording,
+  the microphone settings label and uninstall prompt timing need native
+  confirmation; "Windows 11 x64 host" overstated what the build checks;
+  Prettier width warnings in docs.
 
 #### Code Review #1 Revisions
 
-Pending.
+- P8-R1-01 and P8-R1-02 accepted and corrected.
+- The guard path is now recorded with each PID. The FI-05 approach is
+  recorded above. The SmartScreen text names **Run anyway** and no longer
+  hard-codes the publisher; the native audit confirms the rest. The staging
+  line says "Windows x64 host".
+- Not changed: the synchronous lookup runs only after an unclean exit with a
+  live recorded PID, and is bounded at 15 seconds. The changed docs pass
+  Prettier.
+- Linux after the repair: `vitest` 456 passed; `tsc` clean.
+
+#### Code Review #2 Findings
+
+Targeted recheck of `fa2574c3` (repair round 1): P8-R1-01 and P8-R1-02
+resolved and checked against the code; the recorded guard path, SmartScreen
+wording, staging line and Windows-aware test verified; macOS records
+unchanged. Result: pass. Non-blocking: P8-R2-01, `item.guard` is not
+type-checked explicitly, though a non-string fails closed.
+
+#### Code Review #2 Revisions
+
+P8-R2-01 not changed: a bad value already fails closed, and the record lives in
+the private data folder.
 
 ## Final integration review
 
@@ -2085,6 +2307,28 @@ line misdescribed review #2's result; FI3-02 the FI2-05 record omitted the
 #### Final Integration Review #3 Revisions
 
 FI3-01 and FI3-02 corrected in the record.
+
+#### Final Integration Review #1 Findings (Phases 6–8)
+
+Independent reviewer, `9bef2a4e` against `733d2315`, the Phase 7–8 change with
+its Phase 6 integration. Checks: `tsc` clean; `vitest` 456 passed; `pnpm check`
+clean. It confirmed that macOS behavior is preserved (the smoke split is a pure
+extraction, and every target-aware helper defaults to macOS), that no packaged
+override was added, that secrets stay out of command lines, logs and reports,
+that the open gates are stated honestly, and that commits after `fa2574c3`
+change only docs, the plan and the ADR. Result: pass. Non-blocking:
+
+- **FI-P78-01:** `releases.md` said only the Windows publisher checks shared
+  names.
+- **FI-P78-02:** the FI-05 note still called the native audit pending.
+- **FI-P78-03:** the smoke's silent installer and process query inherited the
+  full environment, including the smoke key; nothing logged it.
+
+#### Final Integration Review #1 Revisions (Phases 6–8)
+
+All three accepted and corrected. The smoke's helpers now run with the minimal
+launch environment; this changes release tooling only, not the candidate.
+`vitest` 456 passed afterwards.
 
 ## Validation and acceptance
 

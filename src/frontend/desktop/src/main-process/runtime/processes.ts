@@ -1,4 +1,9 @@
-import { execFile, spawn, type ChildProcess } from "node:child_process";
+import {
+  execFile,
+  execFileSync,
+  spawn,
+  type ChildProcess,
+} from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { existsSync, lstatSync, readFileSync } from "node:fs";
 import path from "node:path";
@@ -175,6 +180,58 @@ function logLines(
   }
 }
 
+/**
+ * Windows reuses process IDs soon after a crash. A live recorded PID is the
+ * earlier runtime only while it still runs the recorded image: the process
+ * guard for a guard PID, or the recorded service. An image that cannot be read
+ * (another user's or an elevated process) was never ours, since Animama never
+ * runs elevated. An unknown expected image, or a failed lookup, still blocks.
+ */
+export function recordedImageRunning(
+  live: { pid: number; image: string | undefined }[],
+  images: Map<number, string> | null,
+): boolean {
+  return live.some(
+    ({ pid, image }) =>
+      !image ||
+      !images ||
+      (images.get(pid) ?? "").toLowerCase() ===
+        path.win32.resolve(image).toLowerCase(),
+  );
+}
+
+/** Image paths of these PIDs that this account may read; null if the lookup fails. */
+function windowsImages(pids: number[]): Map<number, string> | null {
+  try {
+    const output = execFileSync(
+      path.join(
+        process.env.SystemRoot || "C:\\Windows",
+        "System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+      ),
+      [
+        "-NoProfile",
+        "-NonInteractive",
+        "-Command",
+        "[Console]::OutputEncoding = [Text.Encoding]::UTF8; Get-Process -Id ($env:ANIMAMA_PIDS -split ',') -ErrorAction SilentlyContinue | ForEach-Object { \"$($_.Id)`t$($_.Path)\" }",
+      ],
+      {
+        encoding: "utf8",
+        timeout: 15_000,
+        windowsHide: true,
+        env: { ...baseChildEnvironment(), ANIMAMA_PIDS: pids.join(",") },
+      },
+    );
+    const images = new Map<number, string>();
+    for (const line of output.split(/\r?\n/u)) {
+      const [pid, image] = line.split("\t");
+      if (/^\d+$/u.test(pid ?? "") && image) images.set(Number(pid), image);
+    }
+    return images;
+  } catch {
+    return null;
+  }
+}
+
 /** Track exact handles. A stale persisted PID is evidence, never kill authority. */
 export class OwnedProcesses {
   readonly children = new Set<OwnedProcess>();
@@ -188,18 +245,34 @@ export class OwnedProcesses {
       const record = JSON.parse(readFileSync(recordFile, "utf8"));
       if (record.version !== 1 || !Array.isArray(record.children))
         throw new Error();
+      const windows = process.platform === "win32";
+      const live: { pid: number; image: string | undefined }[] = [];
       for (const item of record.children) {
         const pids = [item.pid, item.servicePid ?? item.pid];
         if (!pids.every((pid) => Number.isInteger(pid) && pid >= 1))
           throw new Error();
-        for (const pid of pids)
+        // The first PID is the guard on Windows; the second runs the service.
+        const images = [item.guard ?? processGuard, item.executable];
+        for (const [index, pid] of pids.entries())
           try {
             process.kill(pid, 0);
-            throw new RuntimeError("previous_runtime_running");
+            if (!windows) throw new RuntimeError("previous_runtime_running");
+            live.push({ pid, image: images[index] });
           } catch (error) {
-            if ((error as NodeJS.ErrnoException).code !== "ESRCH") throw error;
+            const code = (error as NodeJS.ErrnoException).code;
+            if (code === "EPERM" && windows)
+              live.push({ pid, image: images[index] });
+            else if (code !== "ESRCH") throw error;
           }
       }
+      if (
+        live.length &&
+        recordedImageRunning(
+          live,
+          windowsImages([...new Set(live.map((entry) => entry.pid))]),
+        )
+      )
+        throw new RuntimeError("previous_runtime_running");
     } catch (error) {
       if (error instanceof RuntimeError) throw error;
       throw new RuntimeError("process_ownership_record_invalid");
@@ -216,6 +289,8 @@ export class OwnedProcesses {
             name: item.name,
             pid: item.child.pid,
             servicePid: item.processId,
+            // The guard this launch used, should a later launch run elsewhere.
+            ...(processGuard ? { guard: processGuard } : {}),
             startToken: item.token,
             executable: item.executable,
             dataRoot: item.dataRoot,

@@ -5,11 +5,12 @@ guarded updates, upgrade snapshots and installed-artifact smoke tests.
 **No accepted public release is available.** Fresh matching artifacts, complete
 starter inputs, inventory review, minimum-OS/native acceptance and a real forward
 upgrade remain required. Unit tests do not approve redistribution or publication.
-Windows x64 has an unsigned development package and installer and a signed
-candidate builder ([Build a signed Windows candidate](#build-a-signed-windows-candidate));
-Windows updates, installed-artifact smoke and publication are not implemented
-yet. Release commands use isolated native profiles; they do not reset or create
-Compose stacks.
+Windows 11 x64 has the same tooling: a signed candidate builder
+([Build a signed Windows candidate](#build-a-signed-windows-candidate)), guarded
+updates through its per-user installer, installed-artifact smoke and
+publication. No Windows release has been published, and a real signed Windows
+upgrade has not been run. Release commands use isolated native profiles; they
+do not reset or create Compose stacks.
 
 Initial publication runs manually from reviewed `main` inputs. Start with the
 [maintainer release process](release-process.md) for ordered gates; this page is
@@ -28,7 +29,8 @@ accepts no release URL, version, token, executable, or filesystem path. It retur
 bounded status, byte counts, progress, and safe error categories. The updater
 uses a separate Electron network session restricted to the build's sealed
 distribution (see [Distribution selection](#distribution-selection)): for R2,
-only `<base_url>/latest-mac.yml` and `<base_url>/v<version>/` files; for GitHub,
+only the platform's feed (`<base_url>/latest-mac.yml` on macOS,
+`<base_url>/latest.yml` on Windows) and `<base_url>/v<version>/` files; for GitHub,
 only the configured repository's releases and asset CDN. Archive packs follow
 the same rule. Backend model-asset downloads, including Parakeet, always use the
 fixed `https://downloads.animama.ai/models/` origin, with no redirects. R2 app downloads
@@ -36,12 +38,29 @@ also follow no redirects. No Animama account or token
 is required for the installed application.
 
 The pinned `electron-updater` 6.8.9 adapter sets `autoDownload=false` and
-`autoInstallOnAppQuit=false`, permits stable forward arm64 updates only, and
-disables differential downloads. It checks the exact approved ZIP size/SHA-512
-and refreshes the feed before downloading so a changed candidate needs another
-check. Squirrel, Electron's native macOS installer, performs replacement
-signature verification only after explicit Restart and successful shutdown.
-Do not copy options from a newer updater version without checking its API.
+`autoInstallOnAppQuit=false`, permits stable forward updates for the build's own
+platform and architecture only, and disables differential downloads and web
+installers. It checks the exact approved download's size and SHA-512 and
+refreshes the feed before downloading, so a changed candidate needs another
+check. Each platform's update must come from its own publisher, sealed into
+`runtime/update-policy.json` at staging: on macOS the Apple Team ID, on Windows
+the Authenticode certificate subject and identity-validation EKU.
+
+- **macOS** downloads `Animama-<version>-arm64.zip`. Squirrel, Electron's
+  native macOS installer, performs replacement signature verification only after
+  explicit Restart and successful shutdown.
+- **Windows** downloads `Animama-<version>-x64-setup.exe` for build 22000 or
+  later. A feed asking for elevation is refused. The installer's Authenticode
+  signature must be `Valid` and carry the sealed subject and EKU, checked when
+  the download completes and again just before it runs. After Restart stops the
+  local services, the app starts the installer with `--updated` and quits; the
+  installer replaces the per-user app without asking about data and starts the
+  new version. If the installer cannot start, the services restart and the
+  current version keeps running.
+
+At startup an installed app first checks its own signature against the sealed
+publisher; a build that fails offers no updates. Do not copy options from a
+newer updater version without checking its API.
 
 Before both download and restart, the supervisor checks free space, active pack
 operations, document jobs, and expanded-content references. An update that would
@@ -60,10 +79,14 @@ any other value fails. The choice is sealed into the staged
 a selection that differs from the one used for staging. Installed apps never read
 this variable and have no runtime override.
 
-| Distribution | Update feed                   | Installers, notices and archive packs                             |
-| ------------ | ----------------------------- | ----------------------------------------------------------------- |
-| `r2`         | `<base_url>/latest-mac.yml`   | `<base_url>/v<version>/<asset>`                                   |
-| `github`     | The repository's release feed | `https://github.com/<owner>/<repo>/releases/download/v<version>/` |
+| Distribution | Update feed                                                 | Installers, notices and archive packs                             |
+| ------------ | ----------------------------------------------------------- | ----------------------------------------------------------------- |
+| `r2`         | `<base_url>/latest-mac.yml` (macOS), `latest.yml` (Windows) | `<base_url>/v<version>/<asset>`                                   |
+| `github`     | The repository's release feed                               | `https://github.com/<owner>/<repo>/releases/download/v<version>/` |
+
+Both targets share a version's folder or GitHub release, and each publishes and
+promotes independently. On GitHub, a release holding only one target's files
+makes the other target's update checks fail until its files are added.
 
 An app only ever updates from the distribution it was built for, and it accepts
 only a feed in that distribution's format. Moving installed users between
@@ -98,14 +121,15 @@ is manually dispatched, with publishing disabled by default and separate gates.
 Changing the eventual source/history or distribution arrangement requires an
 explicit publication decision; these commands do not select one.
 
-| Input                                           | Required operator decision                                                                                                                                                                                     |
-| ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `desktop/runtime/release-policy.json`           | Both distributions (R2 public base URL and bucket; GitHub `owner`/`repo`), stable channel, one human redistribution receipt per target                                                                         |
-| `desktop/runtime/feature-pack-releases.json`    | Approved active-pack hashes, explicit deferred-pack status, Apple Team ID, Developer ID identity, document-helper designated requirement. Pack URLs are derived from the selected distribution, never set here |
-| `feature-pack-releases.json` `windows`          | Artifact Signing endpoint, account and certificate profile, and the certificate subject and identity-validation EKU every Windows signature must carry. None is a secret                                       |
-| `desktop/runtime/windows-signing.lock.json`     | The Windows SDK `signtool` and Artifact Signing client library, pinned by version and SHA-256                                                                                                                  |
-| `desktop/runtime/macos-acceptance.example.json` | Template only; a reviewer must supply the actual DMG hash, date, identity, prior signed version, and completed checks                                                                                          |
-| `desktop/runtime/size-baseline.json`            | Update only from a successfully released artifact, never a partial stage or estimate                                                                                                                           |
+| Input                                             | Required operator decision                                                                                                                                                                                     |
+| ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `desktop/runtime/release-policy.json`             | Both distributions (R2 public base URL and bucket; GitHub `owner`/`repo`), stable channel, one human redistribution receipt per target                                                                         |
+| `desktop/runtime/feature-pack-releases.json`      | Approved active-pack hashes, explicit deferred-pack status, Apple Team ID, Developer ID identity, document-helper designated requirement. Pack URLs are derived from the selected distribution, never set here |
+| `feature-pack-releases.json` `windows`            | Artifact Signing endpoint, account and certificate profile, and the certificate subject and identity-validation EKU every Windows signature must carry. None is a secret                                       |
+| `desktop/runtime/windows-signing.lock.json`       | The Windows SDK `signtool` and Artifact Signing client library, pinned by version and SHA-256                                                                                                                  |
+| `desktop/runtime/macos-acceptance.example.json`   | Template only; a reviewer must supply the actual DMG hash, date, identity, prior signed version, and completed checks                                                                                          |
+| `desktop/runtime/windows-acceptance.example.json` | The same template for the Windows installer hash and its manual checks                                                                                                                                         |
+| `desktop/runtime/size-baseline.json`              | Update only from a successfully released artifact, never a partial stage or estimate                                                                                                                           |
 
 Review the [current content gate](runtime-staging.md#current-content-gate),
 third-party inputs and required notices. `NOASSERTION` and a generated inventory
@@ -286,7 +310,8 @@ pnpm desktop:dist:windows -- --signing-rehearsal
 ```
 
 A rehearsal signs, verifies and measures the same files but embeds no review
-receipt and writes no publish folder; its report says `release_ready: false`.
+receipt and writes no publish folder; its report says `release_ready: false`,
+and no publisher accepts it.
 
 ## Installed-artifact smoke and manual acceptance
 
@@ -315,16 +340,38 @@ The smoke rejects empty and all-whitespace names before completing named setup.
 Required-name evidence gates publication.
 The harness checks the signed DMG and contained app, installs into the absent
 `~/Applications/Animama.app`, launches with a system-only PATH, verifies child
-executables belong to app resources, and tests setup, a provider key applied
+executables belong to app resources and that its update check passes the
+publisher check, and tests setup, a provider key applied
 without a window or backend restart, provider status, local HTTP
 rejection, core capabilities, both starter chats, exact typed bytes, private
 upload, restart persistence, temporary-key removal, and owned shutdown. It leaves the profile and app
 intact for inspection. A missing provider or failed journey is a failure, not a
 skipped success.
 
+On Windows, use a separate standard (non-administrator) Windows account that
+has never run Animama: no `%LOCALAPPDATA%\Animama`, no
+`%LOCALAPPDATA%\Programs\Animama` and no `%APPDATA%\Animama`. Sign in to it
+normally, with `ANIMAMA_SMOKE_OPENAI_KEY` set in that account's environment and
+read and write access to a checkout whose dependencies are installed. The
+smoke writes its reports to that checkout's `desktop/release/smoke-name/`, where
+the publisher, run from the build account, reads them:
+
+```sh
+pnpm desktop:smoke:windows -- --artifact desktop/release/publish/Animama-<version>-x64-setup.exe --setup name
+```
+
+It checks the installer's signature, installs it silently for that user,
+checks the installed `Animama.exe` signature and runtime inventory, and runs
+the same journey with a system-only PATH. Each recorded child must run from the
+installed runtime inside its process guard. After every quit, no process from
+the install folder may remain. The report binds `installer_sha256` and the
+runtime build ID.
+
 `desktop/release/smoke-name/` contains sanitized smoke and categorical
 renderer request/response reports. They retain no URLs, principal/chat IDs,
-credentials, message bodies, or absolute host paths. Capture begins when the
+credentials, message bodies, or absolute host paths. A failed step is named
+without its error; set `ANIMAMA_SMOKE_DEBUG=1` to print the underlying error to
+your own console, with the provider key masked; it can include paths. Capture begins when the
 harness attaches; it is not a system-wide packet trace or proof of every native
 process's network behavior. Any observed second renderer host/object-store URL
 fails, and successful typed bytes must be same-origin and match their descriptor.
@@ -343,6 +390,17 @@ unsigned development journey does not approve the signed entitlement set.
 Test migration failure/recovery with a disposable profile, preserving its dump.
 Record the exact candidate DMG hash and an **older** signed test version in the
 acceptance receipt. Never downgrade a profile already opened by the new app.
+
+On a clean Windows 11 test machine, the Windows receipt
+(`ANIMAMA_WINDOWS_ACCEPTANCE`, from `windows-acceptance.example.json`) records:
+
+- avatar animation, PocketTTS, the microphone, PiP, quick chat, global
+  shortcuts and offline dictation;
+- SmartScreen's behavior when the installer is downloaded in a browser;
+- the installer's upgrade, uninstall-keeps-data and reinstall journey;
+- a prompted upgrade from an older signed version that keeps local state, and
+  migration snapshot recovery;
+- native network behavior.
 
 With the current embedded catalog, pack installation needs the selected
 distribution to serve anonymous public URLs before native download acceptance
@@ -425,12 +483,12 @@ The standalone commands are the manual mechanism; credentials and authorization
 for public distribution remain separate. Do not change visibility or billing,
 or create unprotected environments, to bypass an approval gate.
 
-| Environment                 | Secrets and purpose                                                                                                                                                                                                          |
-| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `desktop-macos-signing`     | `ANIMAMA_MACOS_CERTIFICATE_BASE64` (P12), `ANIMAMA_MACOS_CERTIFICATE_PASSWORD`, `ANIMAMA_APPLE_ID`, `ANIMAMA_APPLE_APP_PASSWORD`                                                                                             |
-| `desktop-macos-smoke`       | `ANIMAMA_SMOKE_OPENAI_KEY` for the explicitly requested real API smoke                                                                                                                                                       |
+| Environment                 | Secrets and purpose                                                                                                                                                                                                                       |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `desktop-macos-signing`     | `ANIMAMA_MACOS_CERTIFICATE_BASE64` (P12), `ANIMAMA_MACOS_CERTIFICATE_PASSWORD`, `ANIMAMA_APPLE_ID`, `ANIMAMA_APPLE_APP_PASSWORD`                                                                                                          |
+| `desktop-macos-smoke`       | `ANIMAMA_SMOKE_OPENAI_KEY` for the explicitly requested real API smoke                                                                                                                                                                    |
 | `desktop-macos-preview`     | `ANIMAMA_R2_ACCOUNT_ID`, `ANIMAMA_R2_ACCESS_KEY_ID`, `ANIMAMA_R2_SECRET_ACCESS_KEY` for model objects in both app distributions; also scoped `ANIMAMA_RELEASE_TOKEN` for GitHub app artifacts. Separate public-preview approval required. |
-| `desktop-macos-publication` | The same credentials and exact human `ANIMAMA_MACOS_ACCEPTANCE` JSON; require separate `raymond-van` approval under the sole-maintainer policy. |
+| `desktop-macos-publication` | The same credentials and exact human `ANIMAMA_MACOS_ACCEPTANCE` JSON; require separate `raymond-van` approval under the sole-maintainer policy.                                                                                           |
 
 The signing helper creates a temporary CI Keychain, imports credentials without
 printing them, stores the notary profile, and restores/deletes its Keychain in an
@@ -475,17 +533,29 @@ After manual acceptance, supply its JSON and promote the same bytes:
 node desktop/scripts/runtime/publish-macos.mjs --confirm-publication
 ```
 
-It verifies local checksums, smoke hashes, manual acceptance and scan coverage,
-then uploads a fixed artifact list:
+On the Windows host, `publish-windows.mjs` takes the same two options and
+publishes the Windows candidate, with `ANIMAMA_WINDOWS_ACCEPTANCE` for stable
+promotion. It refuses a signing rehearsal. Files whose names both targets use,
+such as `backend-model-assets.json`, must match byte for byte: each target's
+publisher checks them, on R2 and GitHub, before uploading anything.
+
+The publisher verifies local checksums, smoke hashes, manual acceptance and scan
+coverage, then uploads a fixed artifact list:
 
 - **GitHub:** creates or resumes only a draft or testing prerelease of the exact
-  version and verifies GitHub's asset digests before promotion.
+  version and verifies GitHub's asset digests before promotion. A stable
+  promotion may also add its target's files to a release the other target
+  already published, until its own feed is there. That changes only the
+  release's files: not its description, nor which release is Latest. The feed
+  is uploaded last. A run never makes the other target's draft or preview
+  public or stable; two previews may share one prerelease.
 - **R2:** uploads each file create-only (`If-None-Match: *`) to
   `<base>/v<version>/<name>`, signed with its SHA-256 so R2 rejects altered
   bytes, with `Cache-Control: public, max-age=31536000, immutable`. It then
   downloads every object through the public domain and compares SHA-256. A
-  preview stops there. Stable promotion rechecks the feed and writes
-  `<base>/latest-mac.yml` last (`Cache-Control: no-cache`), then reads it back.
+  preview stops there. Stable promotion rechecks the feed and writes the
+  target's own feed, `<base>/latest-mac.yml` or `<base>/latest.yml`, last
+  (`Cache-Control: no-cache`), then reads it back.
 
 Stable publication adds the feed, checksum index and acceptance reports without
 replacing preview payloads. Interrupted uploads leave the previous stable feed in

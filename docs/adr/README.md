@@ -26,6 +26,7 @@ production readiness or publication rights.
 | 0010 | [Shared voice model objects and optional downloads](0010-shared-model-object-distribution.md)                                                      | accepted; partly superseded by 0012   |
 | 0011 | [Application-owned companion features and composition catalog policy](0011-application-owned-companion-features-and-composition-catalog-policy.md) | accepted                              |
 | 0012 | [Parakeet speech models as backend model assets](0012-backend-parakeet-model-assets.md)                                                            | accepted                              |
+| 0013 | [Native Windows desktop packaging](0013-native-windows-desktop-packaging.md)                                                                       | accepted                              |
 
 ## When and how to record a decision
 

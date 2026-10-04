@@ -1,9 +1,13 @@
 import { spawnSync } from "node:child_process";
-import { homedir, tmpdir } from "node:os";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { parseArgs } from "node:util";
 import { desktopRoot } from "./common.mjs";
-import { ScanError, scanCandidate } from "./release-scan.mjs";
+import {
+  ScanError,
+  homeDirectoryNeedles,
+  scanCandidate,
+} from "./release-scan.mjs";
 import { verifyArtifactIndex } from "./release-artifacts.mjs";
 import { releaseModelCandidates } from "./release-models.mjs";
 import { modelDistribution } from "./model-publication.mjs";
@@ -14,7 +18,7 @@ import { modelDistribution } from "./model-publication.mjs";
  * in ANIMAMA_SCAN_PRIVATE_TEXT (one per line).
  */
 function privateText() {
-  const needles = [{ label: "home-directory", value: `${homedir()}/` }];
+  const needles = homeDirectoryNeedles();
   const email = spawnSync("git", ["config", "user.email"], {
     encoding: "utf8",
   }).stdout?.trim();
@@ -42,14 +46,21 @@ async function main() {
         type: "string",
         default: path.join(desktopRoot, "runtime/release-scan.gitleaks.toml"),
       },
+      // Each host builds its own target's candidate.
+      target: {
+        type: "string",
+        default: process.platform === "win32" ? "win32-x64" : "darwin-arm64",
+      },
     },
   });
+  if (!["darwin-arm64", "win32-x64"].includes(values.target))
+    throw new ScanError("--target must be darwin-arm64 or win32-x64");
   if (!values.gitleaks)
     throw new ScanError(
       "Pass --gitleaks or set ANIMAMA_GITLEAKS to the verified pinned scanner binary",
     );
   const directory = path.resolve(values.candidate);
-  const index = verifyArtifactIndex(directory);
+  const index = verifyArtifactIndex(directory, values.target);
   // A model-only candidate remains independently scannable. An app candidate
   // first binds all private model directories to its sealed runtime references.
   const directories = index.model_id
@@ -58,6 +69,7 @@ async function main() {
         ...releaseModelCandidates({
           directory,
           origin: modelDistribution().origin,
+          target: values.target,
         }).map((candidate) => candidate.directory),
         directory,
       ];
@@ -68,7 +80,12 @@ async function main() {
     workRoot: tmpdir(),
   };
   for (const candidate of directories) {
-    const receipt = await scanCandidate({ ...options, directory: candidate });
+    // Model candidates keep the unsuffixed names on every target.
+    const receipt = await scanCandidate({
+      ...options,
+      directory: candidate,
+      ...(candidate === directory ? { target: values.target } : {}),
+    });
     const summary = Object.entries(
       Object.groupBy(receipt.findings, (item) => `${item.source}:${item.rule}`),
     ).map(([rule, items]) => `${rule} ×${items.length}`);

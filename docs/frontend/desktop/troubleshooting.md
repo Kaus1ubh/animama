@@ -1,8 +1,12 @@
 # Desktop troubleshooting and recovery
 
-These instructions describe the embedded macOS runtime. Signed release and
-clean-machine acceptance are still pending; see [Installation](installation.md)
-for the current platform status. They do not reset a Compose development stack.
+These instructions describe the embedded runtime on macOS and Windows. Signed
+release and clean-machine acceptance are still pending; see
+[Installation](installation.md) for the current platform status. They do not
+reset a Compose development stack.
+
+Below, `<data>` is Animama's data folder: `~/Library/Application Support/Animama`
+on macOS and `%LOCALAPPDATA%\Animama` on Windows.
 
 ## First response to a startup error
 
@@ -11,7 +15,7 @@ Record the displayed error code and what happened immediately before it. Use
 without resetting ownership or erasing data. **Open Backups** appears when a
 migration snapshot is relevant. **Quit** stops Animama's owned services.
 
-Logs are under `~/Library/Application Support/Animama/runtime/logs`; `main.log`
+Logs are under `<data>/runtime/logs`; `main.log`
 records desktop startup, and the same directory holds child-service logs.
 `backend_start_failed` is a category, not the cause: inspect the relevant recent
 backend log before deciding on a repair.
@@ -20,16 +24,17 @@ backend log before deciding on a repair.
 | --------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `gateway_port_in_use`                                                                               | Close the known application using the saved port, then Retry. Do not change `runtime/state.json` merely to get another origin.                                                |
 | `administrator_launch_unsupported`                                                                  | Windows only. Quit and open Animama normally, not with Run as administrator; PostgreSQL refuses an elevated token. Data is unchanged.                                        |
-| `previous_runtime_running`, `owned_services_stop_failed`                                            | Quit the previous Animama instance. On Windows, a crashed launch's services stop within 15 seconds, so wait briefly and Retry. Restart the computer if necessary. Never kill processes by name or use a stale PID file as authority.                                        |
+| `previous_runtime_running`, `owned_services_stop_failed`                                            | Quit the previous Animama instance. On Windows, a crashed launch's services stop within 15 seconds, so wait briefly and Retry; a recorded process ID that Windows has since given to another program is recognized and ignored. Restart the computer if necessary. Never kill processes by name or use a stale PID file as authority. |
+| `data_path_too_long`                                                                                | Windows only. `%LOCALAPPDATA%\Animama` is longer than 70 characters (a profile folder name over about 39 characters), leaving too little room under Windows' 260-character path limit, which PostgreSQL and Python still use. Use a Windows account with a shorter profile folder. Data is unchanged. |
 | `runtime_manifest_invalid`, `runtime_file_invalid`                                                  | Reinstall a complete compatible Animama build, preserving data. Never edit hashes or signature checks.                                                                        |
 | `packaged_runtime_override_rejected`                                                                | Launch normally without development web-URL, runtime/data or sandbox override variables. Do not use them to bypass packaged isolation.                                        |
-| `secure_storage_unavailable`                                                                        | Unlock the macOS login keychain and Retry. There is no plaintext fallback.                                                                                                    |
-| `vault_unreadable`, `vault_missing_for_database`                                                    | Preserve both database and vault. Restore a matching backup/keychain with support; simply re-entering provider keys does not restore the database password.                   |
+| `secure_storage_unavailable`                                                                        | macOS: unlock the login keychain and Retry. Windows: sign in with your own Windows account, not a temporary profile, and Retry; the protection is tied to that account. There is no plaintext fallback. |
+| `vault_unreadable`, `vault_missing_for_database`                                                    | Preserve both database and vault. Restore a matching backup with support: on macOS with its login keychain, on Windows with `%LOCALAPPDATA%\Animama\Local State`, which holds the vault's protected key, in the same Windows account. Simply re-entering provider keys does not restore the database password. |
 | `legacy_profile_conflict`, `legacy_profile_invalid`                                                 | Preserve both old `Anima` and new `Animama` trees. Do not merge them; ask for a reviewed recovery procedure.                                                                  |
 | `unsupported_postgresql_major`, `postgres_ownership_mismatch`                                       | Stop. The app owns a specific PostgreSQL 16 cluster; pointing it at another database or replacing its binaries is not an upgrade.                                             |
 | `database_initialization_incomplete`, `database_version_mismatch`, `installation_principal_missing` | Preserve data and inspect the bootstrap logs. Never generate a replacement owner over existing owner-scoped rows.                                                             |
-| `database_schema_mismatch`                                                                          | The profile schema differs from this build (often an edited development baseline). Retry cannot fix it. Development: quit, then `pnpm desktop:mac:reset` archives it.         |
-| `content_startup_failed`                                                                            | Inspect the backend log for the reconciliation error. A constraint failure on a development profile needs `pnpm desktop:mac:reset`; otherwise fix it and Retry.               |
+| `database_schema_mismatch`                                                                          | The profile schema differs from this build (often an edited development baseline). Retry cannot fix it. Development: quit, then archive the profile: `pnpm desktop:mac:reset` on macOS, or rename `%LOCALAPPDATA%\Animama` on Windows. |
+| `content_startup_failed`                                                                            | Inspect the backend log for the reconciliation error. A constraint failure on a development profile needs the same archive (`pnpm desktop:mac:reset`, or renaming `%LOCALAPPDATA%\Animama` on Windows); otherwise fix it and Retry. |
 | `pre_migration_backup_failed`                                                                       | Check disk space and logs. No migration was started; retry only after the snapshot can be verified.                                                                           |
 | `migration_failed`, `migration_recovery_required`, `migration_journal_invalid`                      | Preserve the current database and snapshot. Retry the same intended version only after resolving the cause; do not reset, auto-restore or downgrade.                          |
 | `backend_start_failed`, `backend_readiness_mismatch`, `runtime_command_failed`                      | Inspect recent child logs; check for a complete matching app and adequate disk space. Escalate repeated errors rather than deleting state.                                    |
@@ -62,10 +67,22 @@ Application debug panels and inspector targets are deliberately absent in
 production, including embedded desktop, regardless of saved preferences or a
 development flag. Use the runtime logs and recovery controls to investigate production failures.
 
+### The window stays white on a virtual machine
+
+If `main.log` shows the backend ready and page requests succeeding but the
+window stays white, the virtual GPU is not presenting. Windows Sandbox does
+this with its default virtual GPU. Start `Animama.exe --disable-gpu` to use
+software rendering; the app works, but the avatar needs WebGL and does not
+render. On a real PC, update the graphics driver instead.
+
 ## Microphone and speech
 
-Open the `.app` through Finder, start a microphone-dependent feature and inspect
-System Settings → Privacy & Security → Microphone. Allow Animama when prompted.
+Open the app normally (on macOS the `.app` through Finder), start a
+microphone-dependent feature and check the system's microphone privacy setting.
+On macOS that is System Settings → Privacy & Security → Microphone; allow
+Animama when prompted. On Windows, Settings → Privacy & security → Microphone
+must allow microphone access and **Let desktop apps access your microphone**;
+Windows lists desktop apps there without a per-app switch.
 An automation launch or generated-audio test does not verify physical microphone
 permission or capture. If there is no prompt or entry, record the app build,
 launch method and displayed state; do not reset the privacy database blindly.
@@ -122,8 +139,7 @@ has not advanced beyond it; ask for help when uncertain.
 
 ## Backups and recovery
 
-Migration snapshots live under
-`~/Library/Application Support/Animama/backups/pre-migration`. Startup creates
+Migration snapshots live under `<data>/backups/pre-migration`. Startup creates
 a verified custom-format database dump before changing an existing schema.
 Retry reuses the original snapshot. After two distinct successful app launches,
 older known-successful snapshots may be pruned; the newest, failed/interrupted,
@@ -131,23 +147,27 @@ and unrecognized snapshots stay. Provider restarts and Retry are not new launche
 
 These dumps are **not full backups**: they omit Local files, uploads, the vault
 and macOS keychain. Quit Animama and wait for its services to stop before a
-coordinated backup of the whole `~/Library/Application Support/Animama` tree.
-Keep the matching app version and protect the backup as private data. Encryption
-may require the original OS account/keychain; moving the directory alone is not
-a tested cross-machine migration. There is no supported one-click full backup,
-restore or reset UI yet. Developers who explicitly choose fresh setup can use
-the [desktop reset commands](platforms.md#reset-desktop-data-for-fresh-setup),
-which archive the old profile before launching a new one.
+coordinated backup of the whole `<data>` tree; on Windows that includes
+`Local State`, which holds the vault's protected key. Keep the matching app
+version and protect the backup as private data. Encryption may require the
+original OS account or keychain; moving the directory alone is not a tested
+cross-machine migration. There is no supported one-click full backup, restore
+or reset UI yet. Developers who explicitly choose fresh setup can use the
+[macOS reset commands](platforms.md#reset-desktop-data-for-fresh-setup), which
+archive the old profile before launching a new one; on Windows, quit Animama
+and rename `%LOCALAPPDATA%\Animama` instead.
 
 Restore is an operator-assisted procedure after preserving the current closed
 state. Never restore automatically after a failed migration; newer data may be
 lost. Do not run Compose `reset.sh`, `backup-local.sh` or `restore-local.sh`
 against desktop data. Removing/reinstalling `Animama.app` leaves the data tree
-alone; uninstalling the bundle is not a data reset.
+alone; uninstalling the app is not a data reset. On Windows, only an
+uninstall a person starts offers to delete `%LOCALAPPDATA%\Animama`, and it
+defaults to keeping it.
 
 ## What to send for support
 
-Share the app version/build, macOS version, CPU architecture, error code,
+Share the app version/build, macOS or Windows version, CPU architecture, error code,
 approximate time, recent action and a short reviewed log excerpt. Mention
 whether this was a packaged app or an unpackaged development run. Redaction is
 defensive, not permission to share all logs: remove personal content and paths.
