@@ -42,7 +42,8 @@ export function processImages() {
       "-NoProfile",
       "-NonInteractive",
       "-Command",
-      'Get-CimInstance Win32_Process | ForEach-Object { "$($_.ProcessId)`t$($_.ExecutablePath)" }',
+      // UTF-8, or a non-ASCII profile path arrives in the console code page.
+      '[Console]::OutputEncoding = [Text.Encoding]::UTF8; Get-CimInstance Win32_Process | ForEach-Object { "$($_.ProcessId)`t$($_.ExecutablePath)" }',
     ],
   );
   return parseProcessImages(output);
