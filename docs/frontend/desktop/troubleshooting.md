@@ -67,6 +67,14 @@ Application debug panels and inspector targets are deliberately absent in
 production, including embedded desktop, regardless of saved preferences or a
 development flag. Use the runtime logs and recovery controls to investigate production failures.
 
+### The window stays white on a virtual machine
+
+If `main.log` shows the backend ready and page requests succeeding but the
+window stays white, the virtual GPU is not presenting. Windows Sandbox does
+this with its default virtual GPU. Start `Animama.exe --disable-gpu` to use
+software rendering; the app works, but the avatar needs WebGL and does not
+render. On a real PC, update the graphics driver instead.
+
 ## Microphone and speech
 
 Open the app normally (on macOS the `.app` through Finder), start a

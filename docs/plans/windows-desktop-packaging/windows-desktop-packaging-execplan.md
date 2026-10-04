@@ -1,7 +1,8 @@
 # Native Windows 11 x64 desktop packaging
 
 Status: Plan approved 2026-10-02. Phases 1–6 merged; Phases 7–8 agent work
-complete, with owner gates open (smoke and account checks, manual checks, G3, G4).
+complete. The Windows smoke, the owner's manual checks and the clean-machine
+journey (G3) passed; the prompted update (G4) stays pending by owner choice.
 Source agreement: [raymond-van/animama#245](https://github.com/raymond-van/animama/issues/245)
 as published on 2026-10-01 (created and last updated 2026-10-01T20:53:18Z), plus
 the owner decisions of 2026-10-01 and 2026-10-02 recorded in the
@@ -181,17 +182,18 @@ Paths are repository-relative. `D/` abbreviates `src/frontend/desktop/`.
       signed candidate built at `4ac1d21b`. The signed installer journey,
       which the owner asked the agent to run, passed. SmartScreen warned about
       an unrecognized app, as expected for a new signing identity.
-- [ ] Phase 7: Updates, smoke and publication tooling
+- [x] Phase 7: Updates, smoke and publication tooling
       ([#268](https://github.com/raymond-van/animama/issues/268)). Agent work
       complete at `fa2574c3` on branch `build/windows-desktop-updates` from
       `main` at `733d2315`; review passed after two repair rounds; final
-      candidate built and scanned. Open: the Windows smoke in a fresh account
-      (owner to create it) and the G4 upgrade (owner chose to keep it pending).
-- [ ] Phase 8: Platform audit, clean-machine journey and documentation
+      candidate built and scanned. The Windows smoke passed in a fresh
+      non-ASCII account at `9a539338`. Open: the G4 upgrade (owner chose to
+      keep it pending).
+- [x] Phase 8: Platform audit, clean-machine journey and documentation
       ([#269](https://github.com/raymond-van/animama/issues/269)). Agent work
       complete at `fa2574c3`; review passed after one repair round; automated
-      R8 items passed. Open: the owner's manual checks, the non-ASCII account,
-      the clean-machine journey and default `MAX_PATH` (G3), and G4.
+      R8 items passed; the owner's manual checks, the non-ASCII account and
+      the clean-machine journey with default `MAX_PATH` (G3) passed. Open: G4.
 - [x] Final integration review. Phases 1–5: review #1 blocked on FI-01, which
       is resolved; review #2 blocked on FI2-01; review #3 passed (below).
       Phases 6–8: review #1 passed at `9bef2a4e`, with three optional items
@@ -1961,9 +1963,22 @@ Results (in progress):
     candidates passed with no findings; the canary was detected; 6 archives
     expanded, including the installer's app payload; about 13,000 files
     scanned; the Windows home-directory needles were all searched.
-- Pending owner gates: `desktop:smoke:windows` in a fresh standard account
-  (the owner has not yet created the account or its smoke key), and the G4
-  upgrade (the owner chose on 2026-10-03 to keep it pending).
+- `desktop:smoke:windows` (owner, 2026-10-04) on the final installer
+  (`d9fd055a…`) in a fresh standard account whose name has a non-ASCII
+  character and a space: all 33 checks passed, including
+  `update_publisher_verified` and `owned_child_paths`; 0 network violations.
+  Getting there needed three smoke-tooling fixes, none of which changes the
+  candidate:
+  - `0b9f598f`: `ANIMAMA_SMOKE_DEBUG=1` prints a failed step's error locally.
+  - `337f012e`: Windows PowerShell 5.1 wrote the process query in the OEM code
+    page, garbling the profile path, so `owned_child_paths` failed; the query
+    now writes UTF-8.
+  - `9a539338`: after the provider tabs change, the "OpenAI" label also named
+    a tab panel; the smoke now targets the key input. Debug output masks the
+    key, because Playwright's call log repeats typed input; an earlier debug
+    run printed a key, which was deleted and revoked.
+- Pending owner gate: the G4 upgrade (the owner chose on 2026-10-03 to keep it
+  pending).
 
 #### Code Review #1 Findings
 
@@ -2100,7 +2115,7 @@ manual results are recorded here with the tested Windows build and app version.
 Completion: every R8 item is resolved and the clean-machine journey is
 recorded. Any item that still depends on G4 is listed as open.
 
-Results (in progress):
+Results:
 
 - FI-05 at `98b12b1a`: on Windows, a recorded PID that is alive, or that this
   account cannot read, blocks startup only while it still runs the recorded
@@ -2132,7 +2147,7 @@ Results (in progress):
   | --- | --- |
   | Defender | First launch on fresh data reached ready in 39.6 s, the second in 9.8 s; no detection during the audit. |
   | SmartScreen | A browser-downloaded signed installer shows "Windows protected your PC… unrecognized app" (Phase 6), expected for a new identity; documented. |
-  | Smart App Control | Off on this host; untested. Needs the G3 VM. |
+  | Smart App Control | Off on this host. On the clean machine (below) it was in evaluation mode, which logs rather than blocks; nothing failed. Enforcing mode is untested. |
   | Firewall | No prompt; no firewall rule exists for the app. |
   | Loopback binding | The two owned listeners bind only to `127.0.0.1`. |
   | WebSockets | An upgrade to the local `/v1/logs` endpoint opened. |
@@ -2140,14 +2155,26 @@ Results (in progress):
   | Whole tree killed | No installed process remained; with the stale record, a relaunch reached ready in 10.6 s. |
   | PID reuse (FI-05) | A record naming a live unrelated process of this user was ignored (ready); the same PID recorded with its real image blocked with `previous_runtime_running`. |
   | Pack replacement under antivirus | Parakeet installed in 40 s and was removed with real-time protection on; the fixture held-handle tests pass natively. |
-  | PiP, quick chat, shortcuts | Keyboard Press-to-talk passed in Phase 5 (owner). PiP click-through and quick chat need the owner's manual check. |
-  | Microphone privacy | Needs the owner's manual check with the setting on and off. |
+  | PiP, quick chat, shortcuts | Passed (owner manual check, non-ASCII account); keyboard Press-to-talk also passed in Phase 5. |
+  | Microphone privacy | Passed with the setting on and off (owner manual check, non-ASCII account). |
   | Elevated launch | Refused with `administrator_launch_unsupported` (Phase 4 owner check, same code); unit-tested. |
-  | Non-ASCII account | Pending: the owner has not yet created the account. |
-  | Default `MAX_PATH` | Pending: this host enables long paths; needs the G3 VM or the setting turned off. The 70-character data-root rule is unit-tested. |
+  | Non-ASCII account | Passed: the smoke and the owner's manual checks (avatar, PocketTTS, dictation, PiP, quick chat, shortcuts, microphone privacy, restart) in a standard account whose name has a non-ASCII character and a space. |
+  | Default `MAX_PATH` | Passed on the clean machine (below), `LongPathsEnabled=0`; the 70-character data-root rule is unit-tested. |
 
-- Pending: the owner's manual checks and test accounts above, the clean-machine
-  journey (G3) and the prompted update (G4).
+- Clean-machine journey (G3), owner, 2026-10-04, in Windows Sandbox (Windows 11
+  build 26100, `LongPathsEnabled=0`, Smart App Control in evaluation mode). The
+  Sandbox's own account is elevated, so a standard `tester` account installed
+  and ran the final installer (`d9fd055a…`, hash checked inside the Sandbox).
+  - With the default virtual GPU the window stayed white, although the backend
+    reached ready and the page loaded and called the API; `main.log` showed no
+    error. Started with `--disable-gpu`, the app rendered. Troubleshooting now
+    has this case.
+  - Software rendering: the owner reports first run, the required name, a
+    provider key, chat, restart and recovery after a forced kill of the whole
+    tree all worked as intended. The avatar does not render without WebGL, so
+    avatar and animation evidence comes from the non-ASCII account on real
+    hardware.
+- Pending: the prompted update (G4), by owner choice.
 
 #### Code Review #1 Findings
 
