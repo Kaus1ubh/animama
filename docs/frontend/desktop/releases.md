@@ -369,7 +369,9 @@ runtime build ID.
 
 `desktop/release/smoke-name/` contains sanitized smoke and categorical
 renderer request/response reports. They retain no URLs, principal/chat IDs,
-credentials, message bodies, or absolute host paths. Capture begins when the
+credentials, message bodies, or absolute host paths. A failed step is named
+without its error; set `ANIMAMA_SMOKE_DEBUG=1` to print the underlying error to
+your own console, which can include paths or typed input. Capture begins when the
 harness attaches; it is not a system-wide packet trace or proof of every native
 process's network behavior. Any observed second renderer host/object-store URL
 fails, and successful typed bytes must be same-origin and match their descriptor.

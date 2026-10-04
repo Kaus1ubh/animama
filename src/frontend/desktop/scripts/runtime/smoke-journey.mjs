@@ -559,9 +559,11 @@ export async function runSmokeJourney({ report, provider, platform }) {
     }
     evidence("logs_present", scanned > 0);
     report.passed = true;
-  } catch {
-    // Playwright/OS exceptions may contain key input, URLs and machine paths.
+  } catch (error) {
+    // Playwright/OS exceptions may contain key input, URLs and machine paths,
+    // so they reach neither the report nor the console unless asked for here.
     report.failed_step = step;
+    if (process.env.ANIMAMA_SMOKE_DEBUG === "1") console.error(error);
   } finally {
     await cleanupProvider().catch(() => {
       report.passed = false;
