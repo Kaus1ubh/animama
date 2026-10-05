@@ -7,6 +7,9 @@ Owner decision: the 2026-10-05 `implement` invocation authorizes the resolved
 specification and both implementation phases, including standalone VitePress
 1.6.4 and explicit loopback preview. Rendered-content acceptance, publication
 and exact-candidate merge remain separate gates.
+Accepted scope refinement, 2026-10-05: permit Cloudflare's cookie-free Web
+Analytics/RUM on the docs hostname through provider injection, while retaining
+the advertising/cross-site tracking, app-cookie and hosted-integration boundaries.
 
 ## Problem and intended users
 
@@ -97,7 +100,10 @@ tooling or an HTTP 200 response alone does not establish release acceptance.
   backend services, Cloud artifacts and provider credentials.
 - Cloudflare Pages serves static output outside the app's authenticated origin.
   Add no hosted API calls, account/session integration, application cookies,
-  analytics or third-party tracking.
+  advertising or cross-site trackers. Cookie-free Cloudflare Web Analytics/RUM
+  is allowed on `docs.animama.ai` through provider injection. Keep source builds
+  free of embedded analytics scripts and credentials. Confirm actual provider
+  injection and canonical privacy behavior separately after approved publication.
 - Keep build dependencies locked. With them installed, local build and preview
   require no Cloudflare account, application stack or external content fetch.
 - Use semantic headings, accessible navigation, keyboard focus and readable

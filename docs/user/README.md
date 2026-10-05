@@ -27,17 +27,24 @@ fixtures test those failures. The existing `Validation` workflow installs,
 tests, builds and checks this package for its `docs` and `full` profiles.
 Executable/configuration/lock changes and new files still require full validation.
 
-`site-links.json` records reviewed readiness for the fixed product home and
-download URLs. It starts with both unavailable. Keep “Coming soon” as ordinary
-text until anonymous verification and content review authorize a literal link;
-change the readiness record and affected pages together. A readiness flag is a
-reviewed assertion, not a network probe or publication approval.
+`site-links.json` records reviewed readiness for `https://animama.ai/` and
+`https://animama.ai/download`. Both destinations are verified and linked; a live
+download page does not establish installer availability. Keep “Coming soon” for
+unavailable installers. Change the readiness record and affected pages together
+and rerun build/check. A readiness flag is a reviewed assertion, not a network
+probe or publication approval.
 
 ## Publication readiness
 
 Only `.vitepress/dist` is an upload input. Obtain owner acceptance of the rendered
 content at the recorded source SHA, then record the checked output inventory,
 SHA-256 digest and toolchain. Changed source or output needs fresh review.
+
+Cloudflare's cookie-free Web Analytics/RUM may be injected by the provider on
+`docs.animama.ai`. Advertising and cross-site trackers, hosted API/session
+integration and application cookies remain prohibited. Keep source builds free
+of embedded analytics scripts or credentials; verify actual provider injection
+and privacy behavior separately on the canonical site after approved publication.
 
 First inventory the account, existing Pages projects/deployments and domain/DNS
 state read-only. Resolve the proposed `animama-docs` name and Direct Upload mode.

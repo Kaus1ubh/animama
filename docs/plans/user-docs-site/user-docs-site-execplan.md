@@ -56,8 +56,12 @@ feature guides, custom styling, search and translations stay deferred.
 - [x] Phase 2: first-run/browser/publication preparation and review pass;
       committed at `1fe7cf8e`.
 - [x] Final local integration analysis and checks pass with no new findings.
-- [ ] Draft PR handoff and actual full hosted checks, linked from the owning issue.
-- [ ] Rendered-content acceptance, authorized publication and canonical checks.
+- [x] Draft [PR #283](https://github.com/raymond-van/animama/pull/283) and actual
+      full hosted Validation pass at `6dde3ba4`; owner accepted that rendered content.
+- [x] Product home/download HTTPS readiness verified; planned backlinks prepared.
+- [x] Owner accepted cookie-free Cloudflare Web Analytics/RUM through provider injection.
+- [ ] Changed backlink rendering, targeted independent review and new-head full CI.
+- [ ] Exact-candidate content approval, authorized docs publication and canonical checks.
 - [ ] Final-candidate owner merge approval and accepted handoff.
 
 ## Surprises & Discoveries
@@ -82,6 +86,12 @@ feature guides, custom styling, search and translations stay deferred.
 | 2026-10-05 | Owner decision | Include minimal docs in the initial delivery; unavailable destinations show “Coming soon” until verified.                                                      |
 | 2026-10-05 | Agent proposal | Independent `docs/user` package, VitePress 1.6.4 default theme, four reader pages; a separate source directory prevents publishing maintainer material.        |
 | 2026-10-05 | Agent proposal | Manual Pages Direct Upload of reviewed output; builds and CI never publish or require Cloudflare credentials. This preserves approval of each external action. |
+
+2026-10-05 owner scope refinement: allow cookie-free Cloudflare Web Analytics/RUM
+on `docs.animama.ai` through provider injection. Advertising/cross-site trackers,
+hosted API/session integration and application cookies remain prohibited. Source
+builds stay free of embedded analytics scripts and credentials; this decision
+does not apply a provider setting or complete canonical privacy acceptance.
 
 ## Phased implementation
 
@@ -212,8 +222,10 @@ issue: [#281](https://github.com/raymond-van/animama/issues/281), blocked by #28
    nav/anchors, test an unknown route, use keyboard focus/navigation and inspect
    code-block overflow and contrast. Repeat direct visits with JavaScript
    disabled: core prose and ordinary links must remain readable. Check requests,
-   cookies and storage for absent hosted API/session/tracking integration;
-   distinguish harmless default-theme appearance preference from identity state.
+   cookies and storage for absent hosted API/session integration, application
+   cookies and advertising/cross-site trackers. Distinguish harmless default-theme
+   appearance preference from identity state; verify permitted provider-injected
+   cookie-free RUM separately after publication.
    Use existing browser tools for this small manual acceptance scope; avoid
    introducing a general browser-test platform just for four pages.
 2. Perform one meaningful fresh built self-host journey using
@@ -306,7 +318,8 @@ four correct reader headings, all 28 assets matching SHA-256 bytes, genuine usef
 origin; no cookies. That transient server was stopped.
 Publication inventory SHA-256:
 `915be4bcdd3b90bc885174eaf315b562c0ab55fef4c9f88ee47ab4b5c36f4739`.
-Owner rendered-content acceptance and actual hosted Validation await handoff.
+At Phase 2 completion, owner rendered-content acceptance and hosted Validation
+awaited handoff; subsequent candidate evidence is recorded below.
 
 #### Code Review #1 Findings
 
@@ -409,6 +422,56 @@ Agent readiness does not establish owner acceptance.
 
 ## Validation and acceptance
 
+### Publication-triggered backlink preparation
+
+2026-10-05: the owner accepted the initial rendered four-page content. The previous
+candidate `6dde3ba49826f006a56374ee847e3939813979fa` passed actual
+[full hosted Validation](https://github.com/raymond-van/animama/actions/runs/37355813685/job/111917811749)
+with persistent `ci:full` on [PR #283](https://github.com/raymond-van/animama/pull/283).
+That approval and run do not cover the changed backlink candidate.
+
+Anonymous canonical product checks passed: `https://animama.ai/` returns 200;
+`https://animama.ai/download` redirects 308 to `/download/`, which returns 200;
+an unknown route returns 404. Browser navigation/reload and active-domain HTTPS
+were verified. Enable the fixed Home/Download links in the selected reader pages
+and readiness record. Installer availability still reads “Coming soon”.
+
+The owner also accepted the spec's cookie-free Cloudflare Web Analytics/RUM
+allowance. No provider setting changed during this preparation. Source output
+still embeds no analytics scripts or credentials; provider-injected RUM and
+canonical privacy acceptance remain separate hosted evidence.
+
+Affected local checks pass: `pnpm --dir docs/user test` (7 tests), `build`, `check`
+(5 pages, 33 files, 108 links) and `format:check`, plus explicit plan/spec Prettier
+and `git diff --check`. The existing unavailable-destination fixture now supplies
+unavailable readiness explicitly, preserving its meaning after production flags
+change. Prose/readiness changes use artifact checks; no tests mirror their text
+or flag values.
+
+Refreshed publication inventory SHA-256:
+`fa89a2c19b9bd9fd1839f92d7f67238f33d52b82309df3e7c32529e8a64d95e7`.
+All 33 ZIP entries match inventory hashes; the previous inventory/archive are
+retained separately. Targeted independent analysis and output/check review pass:
+the seven-file follow-up preserves unavailable-destination guards and the approved
+provider-only analytics allowance. Both reviewers found no actionable issue; no
+repair round was used and the existing review budgets are unchanged.
+
+Coordinator browser observation confirms the changed Overview/Desktop copy and
+working Home/Download backlinks at a measured 1280×720 viewport. The requested
+390×844 override did not take effect in the available browser, including a fresh
+tab; this is not new narrow-layout evidence. Prior independent desktop/narrow,
+keyboard, no-JavaScript and accessibility results remain valid for the unchanged
+theme/layout. Independent browser access was unavailable to the targeted checks
+delegate. Screenshots and the limitation are retained with the publication
+receipt; the temporary override was reset.
+
+Changed rendered-content approval, new-head full Validation, each
+provider/create/upload/domain action, canonical docs verification and
+exact-final-head merge remain pending. This follow-up does not restart the review
+budgets or require a new branch/PR.
+
+### Evidence boundaries
+
 Keep distinct records for exact-source local build/output checks, browser/keyboard
 and no-JavaScript evidence, isolated first-run evidence, hosted CI, rendered
 content approval, provider actions and canonical HTTPS results. Do not promote
@@ -452,8 +515,13 @@ local integration review passes. Draft PR handoff and actual hosted Validation
 are tracked in the owning issue and PR. The full hosted profile remains required
 for this new tooling.
 
-No provider or merge action occurred. Authenticated Pages/domain inventory,
-rendered-content acceptance, per-action publication approval, canonical HTTPS
-verification and exact-final-head merge remain explicit gates. Public backlinks
-remain “Coming soon” until destinations are verified and approved. The broader
-styling/docs revamp stays deferred.
+The initial rendered content and full hosted Validation passed at `6dde3ba4`.
+Verified product Home/Download destinations now permit the planned backlinks;
+affected checks and targeted independent review pass, with changed rendering
+observed by the coordinator. New-candidate full CI and changed-content approval
+remain pending. Cookie-free
+Cloudflare Web Analytics/RUM is an accepted provider-injection allowance; no
+provider setting changed as part of this preparation. No docs publication or
+merge action occurred. Exact-candidate content approval, per-action publication,
+canonical docs/privacy verification and exact-final-head merge remain gates. The
+broader styling/docs revamp stays deferred.

@@ -17,10 +17,11 @@ there is no bundled offline chat model.
 
 ## Availability
 
-**Desktop download: Coming soon.** No signed public installer is available yet.
+Visit the [desktop download page](https://animama.ai/download) for availability.
+**Installers: Coming soon.** No signed public installer is available yet.
 The declared targets are Apple silicon Macs with macOS 15 or later and Windows
 11 x64. Native release acceptance and publication are still pending.
 
-**Product home: Coming soon.**
+[Product home](https://animama.ai/).
 
 If you run into a problem, start with [Troubleshooting](./troubleshooting.md).

@@ -1,4 +1,4 @@
 {
-  "home": false,
-  "download": false
+  "home": true,
+  "download": true
 }

@@ -69,7 +69,10 @@ test("unavailable destinations cannot accidentally become active links", (t) => 
     "index.html",
     page('<a href="https://animama.ai/download">Download</a>'),
   );
-  assert.throws(() => checkSite(output), /Unverified external destination/);
+  assert.throws(
+    () => checkSite(output, { home: false, download: false }),
+    /Unverified external destination/,
+  );
   assert.doesNotThrow(() => checkSite(output, { home: false, download: true }));
   write("index.html", page('<a href="/desktop">Coming soon</a>'));
   assert.throws(() => checkSite(output), /Coming soon.*active link/);

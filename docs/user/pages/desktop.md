@@ -1,6 +1,7 @@
 # Desktop getting started
 
-**Desktop download: Coming soon.** No signed public installer is available yet.
+See the [desktop download page](https://animama.ai/download) for availability.
+**Installers: Coming soon.** No signed public installer is available yet.
 The steps below describe the implemented setup flow for an approved release.
 
 ## Requirements
