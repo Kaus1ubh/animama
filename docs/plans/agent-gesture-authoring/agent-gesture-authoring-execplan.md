@@ -116,7 +116,7 @@ Paths are relative to `src/frontend/web/src/` unless stated:
     for expression weights;
   - a generator refusal for clips over the limit.
 
-  The six items were re-saved in place; the laugh is now 0.82 MB.
+  The six items were re-saved in place; the laugh is now 719 KB.
 
 ## Decision Log
 
