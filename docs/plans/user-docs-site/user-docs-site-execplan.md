@@ -24,7 +24,7 @@ Planning inspected the assigned Animama worktree, clean except for the proposed
 spec, on `docs/minimal-user-docs`, starting at
 `f90c080fc343a159cb9d7f9059a35127f871c021`. `main` was clean at the same source.
 Reuse this branch/worktree; record its repository-relative handoff identity and
-new source revisions when execution begins. No stack or docs preview is running.
+new source revisions when execution begins. The fresh built task stack and docs preview described below are retained for review.
 
 Relevant implementation and authoring references:
 
@@ -53,7 +53,8 @@ feature guides, custom styling, search and translations stay deferred.
 - [x] Owner accepted the resolved specification/tooling/plan through `implement`.
 - [x] Implementation authorized; issues #279, #280 and #281 published/read back.
 - [x] Phase 1: independent four-page site/output guards/CI checks pass bounded review.
-- [ ] Phase 2: first-run and browser evidence, reviewed publication preparation.
+- [ ] Phase 2: first-run/browser/publication preparation and review pass;
+      phase commit and draft PR handoff pending.
 - [ ] Rendered-content acceptance, authorized publication and canonical checks.
 - [ ] Final integration review, final-candidate owner merge approval and handoff.
 
@@ -179,7 +180,7 @@ Preview contract: loopback-only 4175, clean routes 200, unknown/asset directory
 404; preview stopped. Reader prose/configuration uses source/artifact checks,
 not sentence-matching tests. No application source or dependencies changed;
 full hosted selection remains required for new tooling/workflow files.
-Independent targeted Review #2 passes. Commit pending; actual hosted CI pending push.
+Independent targeted Review #2 passes. Phase 1 commit: `b360ae4a7c0ff0ace541863e9e5075502b32c49a`; hosted CI pending push.
 
 #### Code Review #1 Findings
 
@@ -202,7 +203,7 @@ ordinary output still passes. No regression findings or prose-matching tests.
 Requirements: the spec's fresh self-host evidence, browser/keyboard/layout checks,
 no-JavaScript readability, safe publication and destination verification.
 Dependencies: Phase 1 checks/review passed and authorization for Phase 2. Phase
-issue: [#281](https://github.com/raymond-van/animama/issues/281), blocked by #280. Starting source: Phase 1's recorded reviewed commit.
+issue: [#281](https://github.com/raymond-van/animama/issues/281), blocked by #280. Starting source: `b360ae4a7c0ff0ace541863e9e5075502b32c49a`.
 
 1. Test the built docs at the loopback preview using desktop first (1440×900),
    then a narrow viewport (390×844). Visit each route directly, reload, follow
@@ -269,19 +270,59 @@ content-review/publication-ready candidate is recorded. Actual provider actions,
 canonical acceptance and exact-candidate merge remain separate gates.
 
 Phase commit proposal: `docs(docs)[p2]: verify first-run guidance and prepare publication`.
-Issue / commit / first-run source and environment / browser evidence / hosted
-evidence / unperformed checks: pending.
+Issue: #281. Phase 2 commit pending. Source app remains unchanged from
+`f90c080fc343a159cb9d7f9059a35127f871c021`; docs Phase 1 is `b360ae4a`.
+Fresh built project `animama-docs-first-run`, base 8460, distinct
+`.animama-docs-first-run.env` record and `.animama-stacks/animama-docs-first-run/`
+Local/private/cache roots. Tracked LFS assets hydrated. Clean environment with
+Python 3.12, no provider keys/profiles and a fresh empty model store. Actual
+startup used the planned named built-mode command plus `--build animama-server`;
+image `79f6794b73454820f6112a8fa6c5ddd0a6fd78556721d4f0d7db7ebf6b723aaa`.
+Only FastAPI publishes `127.0.0.1:8460`; PostgreSQL remains private. Startup
+completed baseline/bootstrap/content reconciliation without model acquisition.
+Manual browser: Welcome fixture name/adult confirmation → AI missing-key message
+and Skip → Voice optional CPU/GPU downloads (none requested) → Finish → Annie
+chat with Caitlyn navigation. Runtime readiness is ready, failed steps empty,
+both starters have avatar refs. Scoped restart of PostgreSQL and application
+preserves principal, completed setup/name, starter IDs and aggregate revisions;
+services remain healthy. No shared data or model store was borrowed/purged.
+Retained app: `http://animama-docs-first-run.localhost:8460`; docs preview:
+`http://127.0.0.1:4175`. No paid chat, physical microphone, speech acquisition,
+native installer, backup/restore or canonical publication acceptance was run.
+
+Independent browser evidence: all four pages/direct reloads at 1440×900 and
+390×844, real unknown 404, navigation/anchors/mobile menu, visible keyboard
+focus, no page overflow and internally scrolling long code. No-JavaScript prose
+and ordinary links work in both viewports. 321 requests remain on loopback;
+no page errors/cookies/session storage; only default-theme appearance `auto` in
+local storage. Actual screenshots inspected. Initial contrast finding and repair
+are recorded below. Published-output build/check and package formatting pass. All 33 files copied
+outside the repository serve independently on an owned ephemeral loopback server:
+four correct reader headings, all 28 assets matching SHA-256 bytes, genuine useful
+404s for unknown/source/app/plan paths. 116 requests stayed on copied-output
+origin; no cookies. That transient server was stopped.
+Publication inventory SHA-256:
+`915be4bcdd3b90bc885174eaf315b562c0ab55fef4c9f88ee47ab4b5c36f4739`.
+Owner rendered-content acceptance and actual hosted Validation await handoff.
 
 #### Code Review #1 Findings
 
-Not run. Review source claims, first-run evidence, standalone output, browser
-acceptance and publication preparation at the recorded source. Identify supported
-findings with stable IDs; owner content preference remains an explicit human gate.
+Independent browser/check review #1, 2026-10-05: DOCS-P2-A11Y-1, code labels
+contrast 2.87:1 and highlighted export token 4.23:1 on self-host/troubleshooting
+in both viewports, below WCAG AA 4.5:1. The other 26 observable checks passed.
+Independent source/first-run/publication analysis passes with no additional
+findings; readiness and same-owner/setup/starter restart receipts verified.
 
 #### Code Review #1 Revisions
 
-Not run. Record dispositions, targeted fixes and fresh evidence. Repair rounds
-used: 0 of 2. Preserve the count if destination activation changes this scope.
+DOCS-P2-A11Y-1 accepted from actual axe output. A minimal default-theme extension
+uses normal text colors for code labels/tokens; no brand/theme redesign. Build
+and output inventory pass. Targeted independent Review #2: eight light/dark,
+desktop/narrow axe scans on affected pages have zero violations. Label contrast
+5.21:1 light/6.31:1 dark; code 10.13:1/13.48:1. Repaired blocks visually inspected,
+readable and within the viewport. Valid prior functionality/privacy evidence
+reused. Repair rounds used: 1 of 2. The self-host requirements clarify Python is
+needed by startup as observed in the reset script, not only optional acquisition.
 
 ## Publication and owner gates
 
@@ -304,8 +345,8 @@ approval. Examples below are **future gate templates**, not runnable/currently
 authorized operations; replace all placeholders with reviewed inputs:
 
 ```text
-<PINNED_WRANGLER> pages project create <APPROVED_PROJECT> --production-branch main
-<PINNED_WRANGLER> pages deploy docs/user/.vitepress/dist --project-name <APPROVED_PROJECT> --branch <APPROVED_BRANCH> --commit-hash <APPROVED_SOURCE_SHA>
+pnpm dlx wrangler@4.147.0 pages project create <APPROVED_PROJECT> --production-branch main
+pnpm dlx wrangler@4.147.0 pages deploy docs/user/.vitepress/dist --project-name <APPROVED_PROJECT> --branch <APPROVED_BRANCH> --commit-hash <APPROVED_SOURCE_SHA>
 ```
 
 Preview upload is publication too. For production, use the project's recorded
@@ -388,11 +429,16 @@ approved concrete action; no automatic deletion or global cache purge is planned
 
 ## Outcomes & Retrospective
 
-2026-10-05: plan drafted from the proposed scope. No site files, workflow changes,
-phase issues, commits, services, uploads, DNS actions or public acceptance have
-been delivered by this planning step. Record delivered behavior, remaining gates,
-follow-up scope and lessons here as execution proceeds.
+2026-10-05: local four-page documentation site, strict publication/link guards,
+existing CI receipt integration and minimal accessibility color correction are
+implemented and independently reviewed. Phase 1 commit: `b360ae4a7c0ff0ace541863e9e5075502b32c49a`.
+Fresh built self-host setup and restart preserve the same owner and both starter
+Animas; desktop/narrow, keyboard, no-JavaScript and standalone copied-output
+checks pass. Phase 2/final integration commit, draft PR and actual hosted
+Validation pending. The full hosted profile remains required for this new tooling.
 
-2026-10-05: implementation authorized; owning public spec published/read back
-and native phase issues #280/#281 established. Worktree/branch/base verified;
-no provider action or merge is authorized.
+No provider or merge action occurred. Authenticated Pages/domain inventory,
+rendered-content acceptance, per-action publication approval, canonical HTTPS
+verification and exact-final-head merge remain explicit gates. Public backlinks
+remain “Coming soon” until destinations are verified and approved. The broader
+styling/docs revamp stays deferred.

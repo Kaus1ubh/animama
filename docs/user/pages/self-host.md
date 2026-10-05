@@ -8,7 +8,7 @@ available through this guide.
 ## Requirements
 
 Install Docker with Docker Compose, Git LFS, and Python 3.11 or newer for the
-optional model acquisition scripts. Run the following commands from the checkout
+startup and model scripts. Run the following commands from the checkout
 root. Initial image builds, dependencies and optional model acquisition need
 Internet access.
 

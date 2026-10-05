@@ -33,9 +33,38 @@ text until anonymous verification and content review authorize a literal link;
 change the readiness record and affected pages together. A readiness flag is a
 reviewed assertion, not a network probe or publication approval.
 
-Before publication, review the rendered pages and run the output check at the
-exact candidate. Only `.vitepress/dist` is an upload input. Pages creation,
-uploads, custom-domain association, DNS changes and merge each need their own
-recorded owner approval. Local output checks do not establish release acceptance
-or live-site availability. See the [execution plan](../plans/user-docs-site/user-docs-site-execplan.md)
-for browser, fresh-start and publication evidence requirements.
+## Publication readiness
+
+Only `.vitepress/dist` is an upload input. Obtain owner acceptance of the rendered
+content at the recorded source SHA, then record the checked output inventory,
+SHA-256 digest and toolchain. Changed source or output needs fresh review.
+
+First inventory the account, existing Pages projects/deployments and domain/DNS
+state read-only. Resolve the proposed `animama-docs` name and Direct Upload mode.
+Direct Upload projects cannot later switch to Git integration without a new
+project. Keep operator credentials outside this package and CI.
+
+Each command below is a separate approval template. Create only if the reviewed
+inventory confirms the project does not exist; never let deploy create it implicitly:
+
+```text
+pnpm dlx wrangler@4.147.0 pages project create <APPROVED_PROJECT> --production-branch main
+```
+
+After separate approval, upload the exact reviewed output:
+
+```text
+pnpm dlx wrangler@4.147.0 pages deploy docs/user/.vitepress/dist --project-name <APPROVED_PROJECT> --branch main --commit-hash <APPROVED_SOURCE_SHA> --commit-dirty=false
+```
+
+`main` selects production even when the approved source remains on the task
+branch. Preview uploads also require approval. Present custom-domain association
+and every DNS effect separately before acting; Pages association can create a
+managed-zone record. Preserve existing DNS and previous deployment identity.
+
+After approved publication, anonymously verify HTTPS `/`, `/desktop`,
+`/self-host`, `/troubleshooting`, required assets and an unknown-route 404.
+Record deployment identity and results. Local checks do not establish live-site
+availability or native release acceptance. See the
+[execution plan](../plans/user-docs-site/user-docs-site-execplan.md) for remaining
+verification and approval gates.

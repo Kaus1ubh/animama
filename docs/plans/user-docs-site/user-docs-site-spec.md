@@ -152,4 +152,5 @@ approved publication; implementation is underway.
   Phases: [#280](https://github.com/raymond-van/animama/issues/280) and
   [#281](https://github.com/raymond-van/animama/issues/281). PR pending.
 - Task branch: `docs/minimal-user-docs`, starting revision
-  `f90c080fc343a159cb9d7f9059a35127f871c021`. No stack was started.
+  `f90c080fc343a159cb9d7f9059a35127f871c021`. Current stack/preview
+  handoff is recorded in the execution plan.
