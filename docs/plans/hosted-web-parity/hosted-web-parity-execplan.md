@@ -94,7 +94,7 @@ contract instead of maintaining a second truth.
 - [x] 2026-10-05 [A1 / #273](https://github.com/raymond-van/animama/issues/273): agent-verified contracts/complete action map; required checks and independent review #1 passed, repairs 0 of 2. Phase commit recorded below; the consumer requirements gate C1 has passed.
 - [x] 2026-10-05 [A2 / #274](https://github.com/raymond-van/animama/issues/274): corrected portable preference merger committed at `6a150fd45d5e215e7f134010b53b9c62e4316ede`; targeted independent review #3 and clean installed-wheel gate pass. Repair rounds used: 2 of 2. Neutral services are ready for isolated consumer C2 repair and A4.
 - [x] 2026-10-05 [A3 / #275](https://github.com/raymond-van/animama/issues/275): committed at `e8ef7768d2edcfc7cef58c508bf3fb66ba0d2302`; targeted independent review #2 passes after repair 1 of 2 for chat cache partitioning and durable recovery cleanup.
-- [ ] 2026-10-05 [A4 / #276](https://github.com/raymond-van/animama/issues/276): implementation entered from `e8ef7768d2edcfc7cef58c508bf3fb66ba0d2302`; A2 corrected artifact and A3 review gates pass. Retained workflow and browser resource checks are in progress.
+- [x] 2026-10-05 [A4 / #276](https://github.com/raymond-van/animama/issues/276): public retained-workflow and resource-lifetime engineering passes independent analysis/checks #1, repairs 0 of 2. Physical capture/heard output and actual hosted/provider/device acceptance remain explicit C5/C7 gates; this is not a declaration of delivered voice parity.
 - [ ] 2026-10-05 [A5 / #277](https://github.com/raymond-van/animama/issues/277): planned; depends on A4 and its prerequisites.
 - [ ] 2026-10-05 [A6 / #278](https://github.com/raymond-van/animama/issues/278): planned; depends on A5/all public gates; coordinate with C6 without requiring a future main pin.
 
@@ -650,7 +650,7 @@ verified commit without changing the six exclusions.
 Scope: R1–R10 and R12; depends on A2 and A3. Issue: [A4 / #276](https://github.com/raymond-van/animama/issues/276).
 Implementation entered on2026-10-05 from clean task commit
 `e8ef7768d2edcfc7cef58c508bf3fb66ba0d2302`; A2 corrected installed-wheel and
-A3 independent review gates are satisfied. Review/phase commit remain pending.
+A3 independent review gates are satisfied. Independent review now passes; the phase commit is recorded at A5 entry.
 Apply the common contracts to the existing screens rather than recreating them.
 Finish any composition assumptions discovered by the coverage map: settings/model
 roles, chat/history/tools/safety, existing Anima editing, memory/Reflection,
@@ -693,12 +693,49 @@ safe receipt-based recovery after legitimate reentry.
 
 #### Code Review #1 Findings
 
-Not run. Cover the complete action map, resource cleanup and excluded alternatives.
-Repair rounds used: 0 of 2.
+PASS. Independent analysis and independent checks each verify the same27 frozen
+source paths before/after, aggregate
+`c41d61840e52c8b9a60fbd2e10c10a13ce8388433b7bf62638a5943cb73cffa5`.
+No required findings. Repair rounds used: 0 of 2. Root's package metadata extension
+is included: product-ui0.5.0 carries additive server-speech descriptor/session
+bindings; runtime-contracts0.3.0 and local-http3.0.0 remain unchanged.
 
 #### Code Review #1 Revisions
 
-None. Record dispositions, visual/audio limits and affected checks.
+No source repair required. One evidence correction is recorded: author tooling
+ran Node24.15.0; the temporary receipt's Node22 label was inaccurate. Independent
+checks bind the actual environment and source, verify all15 author log hashes,
+and independently repeat16 Chromium HTTP cases,25 package tests, three package
+declaration checks, the copied emitted0.5 consumer,27-path format and whitespace.
+
+Author checks from `src/frontend` pass: `pnpm check`, `pnpm web:lint`,
+`pnpm web:test` (2514 unit tests and50 browser fixtures), `pnpm packages:check`,
+`pnpm packages:test`, `pnpm build`, `pnpm web:build:hosted`,
+`pnpm desktop:check`, `pnpm verify:tts-assets` (21 files/280549335 bytes),
+`pnpm e2e:list`, `pnpm e2e:check` and `pnpm openapi-ts:check` (17 current files).
+The final affected16-case `node --test web/scripts/hosted-workflows.browser.test.mjs`
+supersedes the12 HTTP cases in the broad browser baseline; the other38 browser
+cases retain unchanged source evidence. The repository-root guard pair
+`tests/test_accountless_repository_boundaries.py` and
+`tests/test_shared_backend_boundary.py` passes13 tests.
+
+Meaningful red/green fixes cover dropped tokenless server-TTS descriptors,
+late PiP completion after route teardown, authoritative sharing receipt recovery
+after a lost reply, empty Save responses, hosted Library host-scan controls,
+body-bearing204 response reconstruction, and text fallback closing the real audio
+context. The final browser fixture exercises the checked-in worklet and a real
+same-origin cookie/Origin WebSocket, permission denial, lifetime teardown,
+settings/profile inheritance, creators/loadouts, sharing and excluded imports.
+
+Selected mutation-authorized Chromium journeys on the task-owned local stack
+`http://localhost:8360` pass5 tests for Stop/subsequent durable reply, content
+export/import/fresh entry, Scene import/save/playback and loadout viewport. An
+additional3 selected visual journeys pass. All four exact operation cleanup
+ledgers report zero remaining work. Actual creator/Library/live companion and
+narrow sharing screenshots were inspected independently. Chat uses the task-only
+deterministic provider; Chromium audio/worklet tests do not establish heard output
+or physical microphone fidelity. Large-resource closure/cost/rollback is A5 work;
+real Cloud/provider/quota/device behavior remains C5–C7 acceptance.
 
 ### Phase 5: Produce and validate the immutable hosted application (A5)
 

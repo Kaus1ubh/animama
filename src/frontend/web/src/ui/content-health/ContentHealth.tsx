@@ -3,6 +3,7 @@
 import { AlertTriangle, LoaderCircle, WifiOff } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { useRuntimeCapabilities } from "@/query/hooks/useRuntimeCapabilities";
 import {
   useContentCatalog,
   useRescanContent,
@@ -24,6 +25,8 @@ export function ContentHealth({
 }) {
   const catalog = useContentCatalog();
   const rescan = useRescanContent();
+  const { data: capabilities } = useRuntimeCapabilities();
+  const canScan = capabilities?.local_filesystem_administration === true;
   const affected = (catalog.data?.items ?? []).filter(
     (item) => item.status !== "valid",
   );
@@ -62,9 +65,7 @@ export function ContentHealth({
       >
         <p className="font-medium">{label}</p>
         {catalog.isError ? (
-          <p>
-            Could not load the content library. Retry the scan to check again.
-          </p>
+          <p>Could not load the content library. Retry to check again.</p>
         ) : null}
         {affected.length ? (
           <ul className="max-h-64 space-y-3 overflow-y-auto">
@@ -99,7 +100,11 @@ export function ContentHealth({
             ))}
           </ul>
         ) : catalog.data?.scan_required ? (
-          <p>Local changes need another scan.</p>
+          <p>
+            {canScan
+              ? "Local changes need another scan."
+              : "The operator is reconciling content changes."}
+          </p>
         ) : null}
         {rescan.isError ? (
           <p role="alert" className="text-destructive">
@@ -110,14 +115,26 @@ export function ContentHealth({
           type="button"
           size="sm"
           variant="outline"
-          disabled={rescan.isPending}
-          onClick={() => rescan.mutate()}
+          disabled={canScan ? rescan.isPending : catalog.isFetching}
+          onClick={() => {
+            if (canScan) rescan.mutate();
+            else void catalog.refetch();
+          }}
         >
-          {rescan.isPending ? (
+          {canScan && rescan.isPending ? (
             <LoaderCircle className="size-4 animate-spin" />
           ) : null}
-          {rescan.isPending ? "Scanning…" : "Retry scan"}
+          {canScan
+            ? rescan.isPending
+              ? "Scanning…"
+              : "Retry scan"
+            : "Retry Library"}
         </Button>
+        {!canScan ? (
+          <p className="text-muted-foreground text-xs">
+            Host file scanning is managed by the operator.
+          </p>
+        ) : null}
       </PopoverContent>
     </Popover>
   );

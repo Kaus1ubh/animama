@@ -4,11 +4,15 @@ Inventory source: `339878dd81bea806359e4375732070e7745ec03d`, audited on 2026-10
 Product authority: [#272](https://github.com/raymond-van/animama/issues/272); requirements
 refer to the [spec snapshot](hosted-web-parity-spec.md). Contract handoff:
 [common web contracts](../../../contracts/hosted-web.md). Paths below are repository-relative.
-A1 verifies contract/schema fixtures only. Retained workflow, browser/audio and
-actual hosted evidence remains pending in its assigned phases. Missing services
-are delivery gaps, never additional exceptions.
+A1 contracts, A2 neutral services, A3 composition and A4 retained public workflow
+engineering are independently reviewed. A4's27-path source aggregate is
+`c41d61840e52c8b9a60fbd2e10c10a13ce8388433b7bf62638a5943cb73cffa5`;
+initial analysis/checks pass with0 of2 repair rounds used. A5 whole-artifact and
+C3–C7 hosted service/provider/device gates remain pending. Local fixtures do not
+establish actual hosted or heard-audio/physical-microphone acceptance. Missing
+services are delivery gaps, never additional exceptions.
 
-## Contract handoff and concrete gaps
+## Contract handoff and baseline gaps
 
 Use the existing Python `RuntimeCapabilities` as the single wire schema and generated TypeScript view. A1 adds the keys `chat`, `model_selection`, `model_role_selection`, `provider_credentials`, `local_filesystem_administration`, `native_features` are sufficient for the current six exclusions alongside existing `anima_creation`, `chat_file_uploads`, `user_file_processing.enabled`, `model_configuration`, `web_search.configuration`. Retained content/voice/memory workflows do not need a new family of permission booleans. Browser support/engine resource readiness and temporary failures must remain distinct from operation permission. `native_features` describes composition permission, while existing runtime-platform detection still proves actual bridge support; hosted is a web platform, not a third browser implementation.
 
@@ -22,50 +26,70 @@ Use the existing Python `RuntimeCapabilities` as the single wire schema and gene
 - `web/src/ui/main/chat/ChatInterface.tsx:487`: uploader hook is still instantiated even if its UI is withheld. Selected/uploaded IDs are collected later; test capability transition and direct submit, paste/drop, existing-file selection, not only hidden attach button. Existing gate does suppress visible uploader/drop overlay/tray and disables user-file query when false.
 - Existing Anima details route gates only the optional Create button, correctly preserving identity/memories/emotions/loadout/settings. No current frontend Anima deletion action was found; do not invent one. Backend deletion remains a lifecycle/empty-state requirement; no last-Anima resurrection or forced creation link.
 
+## Public retained-workflow checkpoint
+
+The14 workflow groups below share the existing screens. A4 validation includes
+2514 unit tests/50 browser fixtures, a fresh16-case actual Chromium HTTP suite,
+25 emitted-package tests and local/hosted builds. The fixtures cover navigation,
+chat/history/search, existing Anima edits, all six loadout commit families, all
+creator families, Library/preview, sharing/recovery, settings/model roles, memory,
+voice controls and admission/session cleanup. Anima-bearing imports fail before
+commit; identifier-only durable receipt recovery survives legitimate reentry,
+while owner/session resources and draft bytes are disposed.
+
+The speech fixture uses the actual worklet and cookie/Origin WebSocket with
+controlled audio/provider responses. Separate local-service journeys exercise
+Stop/reply persistence, Scene save/playback and content import/export, with exact
+cleanup receipts. Browser fullscreen and transferred popup lifecycle pass;
+Document PiP's window API is simulated where Chromium does not supply it.
+Physical microphone capture, heard speech and real hosted/provider/device proof
+remain required consumer gates. The baseline observations above explain the
+starting seams; the A3/A4 records identify their resolved public behavior.
+
 ## Every route file
 
 TanStack IDs include pathless `/_app`; user-facing paths omit that segment. Generated router output is regenerated, never hand-edited.
 
-| Source under web/src/routes | Route ID | Hosted disposition |
-| --- | --- | --- |
-| `__root.tsx` | `(root)` | Retain shared layout; inject neutral admission/session |
-| `_app/$animaId/c/$chatId.tsx` | `/_app/$animaId/c/$chatId` | Retain same screen, actions and route semantics |
-| `_app/$animaId/index.tsx` | `/_app/$animaId/` | Retain same screen, actions and route semantics |
-| `_app/$animaId.tsx` | `/_app/$animaId` | Retain same screen, actions and route semantics |
-| `_app/animas/$animaId/identity.tsx` | `/_app/animas/$animaId/identity` | Retain same screen, actions and route semantics |
-| `_app/animas/$animaId.tsx` | `/_app/animas/$animaId` | Retain same screen, actions and route semantics |
-| `_app/animas/index.tsx` | `/_app/animas/` | Retain same screen, actions and route semantics |
-| `_app/animas.new.tsx` | `/_app/animas/new` | E1: disable action and direct deep link with explanation |
-| `_app/animas.tsx` | `/_app/animas` | Retain same screen, actions and route semantics |
-| `_app/avatar-effects/index.tsx` | `/_app/avatar-effects/` | Retain current redirect/deep-link behavior |
-| `_app/avatar-effects.$avatarEffectId.edit.tsx` | `/_app/avatar-effects/$avatarEffectId/edit` | Retain same screen, actions and route semantics |
-| `_app/avatar-effects.new.tsx` | `/_app/avatar-effects/new` | Retain same screen, actions and route semantics |
-| `_app/avatar-portrait-debug.tsx` | `/_app/avatar-portrait-debug` | Development diagnostic only; retain existing production guard |
-| `_app/create.tsx` | `/_app/create` | Retain same screen, actions and route semantics |
-| `_app/gestures.$gestureId.edit.tsx` | `/_app/gestures/$gestureId/edit` | Retain same screen, actions and route semantics |
-| `_app/gestures.new.tsx` | `/_app/gestures/new` | Retain same screen, actions and route semantics |
-| `_app/idle-styles.$idleStyleId.edit.tsx` | `/_app/idle-styles/$idleStyleId/edit` | Retain same screen, actions and route semantics |
-| `_app/idle-styles.new.tsx` | `/_app/idle-styles/new` | Retain same screen, actions and route semantics |
-| `_app/index.tsx` | `/_app/` | Retain selected-Anima navigation; empty hosted roster must not redirect to creation or recreate deleted Anima |
-| `_app/library.tsx` | `/_app/library` | Retain same screen, actions and route semantics |
-| `_app/memories.tsx` | `/_app/memories` | Retain same screen, actions and route semantics |
-| `_app/particle-effects.$particleEffectId.edit.tsx` | `/_app/particle-effects/$particleEffectId/edit` | Retain same screen, actions and route semantics |
-| `_app/particle-effects.new.tsx` | `/_app/particle-effects/new` | Retain same screen, actions and route semantics |
-| `_app/poses.$poseId.edit.tsx` | `/_app/poses/$poseId/edit` | Retain same screen, actions and route semantics |
-| `_app/reactions.$reactionId.edit.tsx` | `/_app/reactions/$reactionId/edit` | Retain same screen, actions and route semantics |
-| `_app/reactions.new.tsx` | `/_app/reactions/new` | Retain same screen, actions and route semantics |
-| `_app/scene-effects/index.tsx` | `/_app/scene-effects/` | Retain current redirect/deep-link behavior |
-| `_app/scene-effects.$sceneEffectId.edit.tsx` | `/_app/scene-effects/$sceneEffectId/edit` | Retain same screen, actions and route semantics |
-| `_app/scene-effects.new.tsx` | `/_app/scene-effects/new` | Retain same screen, actions and route semantics |
-| `_app/sound-effects.$soundEffectId.edit.tsx` | `/_app/sound-effects/$soundEffectId/edit` | Retain current redirect/deep-link behavior |
-| `_app/sound-effects.new.tsx` | `/_app/sound-effects/new` | Retain current redirect/deep-link behavior |
-| `_app.tsx` | `/_app` | Retain shared layout; inject neutral admission/session |
-| `a/$.tsx` | `/a/$` | Retain current redirect/deep-link behavior |
-| `a.tsx` | `/a` | Retain current redirect/deep-link behavior |
-| `desktop/pip/$animaId.tsx` | `/desktop/pip/$animaId` | E6: native route unavailable hosted; retain browser PiP/fullscreen elsewhere |
-| `desktop/quick-chat/$animaId.tsx` | `/desktop/quick-chat/$animaId` | E6: native route unavailable hosted; retain browser PiP/fullscreen elsewhere |
-| `safety.tsx` | `/safety` | Retain same screen, actions and route semantics |
-| `setup.tsx` | `/setup` | Composition onboarding: local setup retained; hosted admission replaces local bootstrap |
+| Source under web/src/routes                        | Route ID                                        | Hosted disposition                                                                                            |
+| -------------------------------------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `__root.tsx`                                       | `(root)`                                        | Retain shared layout; inject neutral admission/session                                                        |
+| `_app/$animaId/c/$chatId.tsx`                      | `/_app/$animaId/c/$chatId`                      | Retain same screen, actions and route semantics                                                               |
+| `_app/$animaId/index.tsx`                          | `/_app/$animaId/`                               | Retain same screen, actions and route semantics                                                               |
+| `_app/$animaId.tsx`                                | `/_app/$animaId`                                | Retain same screen, actions and route semantics                                                               |
+| `_app/animas/$animaId/identity.tsx`                | `/_app/animas/$animaId/identity`                | Retain same screen, actions and route semantics                                                               |
+| `_app/animas/$animaId.tsx`                         | `/_app/animas/$animaId`                         | Retain same screen, actions and route semantics                                                               |
+| `_app/animas/index.tsx`                            | `/_app/animas/`                                 | Retain same screen, actions and route semantics                                                               |
+| `_app/animas.new.tsx`                              | `/_app/animas/new`                              | E1: disable action and direct deep link with explanation                                                      |
+| `_app/animas.tsx`                                  | `/_app/animas`                                  | Retain same screen, actions and route semantics                                                               |
+| `_app/avatar-effects/index.tsx`                    | `/_app/avatar-effects/`                         | Retain current redirect/deep-link behavior                                                                    |
+| `_app/avatar-effects.$avatarEffectId.edit.tsx`     | `/_app/avatar-effects/$avatarEffectId/edit`     | Retain same screen, actions and route semantics                                                               |
+| `_app/avatar-effects.new.tsx`                      | `/_app/avatar-effects/new`                      | Retain same screen, actions and route semantics                                                               |
+| `_app/avatar-portrait-debug.tsx`                   | `/_app/avatar-portrait-debug`                   | Development diagnostic only; retain existing production guard                                                 |
+| `_app/create.tsx`                                  | `/_app/create`                                  | Retain same screen, actions and route semantics                                                               |
+| `_app/gestures.$gestureId.edit.tsx`                | `/_app/gestures/$gestureId/edit`                | Retain same screen, actions and route semantics                                                               |
+| `_app/gestures.new.tsx`                            | `/_app/gestures/new`                            | Retain same screen, actions and route semantics                                                               |
+| `_app/idle-styles.$idleStyleId.edit.tsx`           | `/_app/idle-styles/$idleStyleId/edit`           | Retain same screen, actions and route semantics                                                               |
+| `_app/idle-styles.new.tsx`                         | `/_app/idle-styles/new`                         | Retain same screen, actions and route semantics                                                               |
+| `_app/index.tsx`                                   | `/_app/`                                        | Retain selected-Anima navigation; empty hosted roster must not redirect to creation or recreate deleted Anima |
+| `_app/library.tsx`                                 | `/_app/library`                                 | Retain same screen, actions and route semantics                                                               |
+| `_app/memories.tsx`                                | `/_app/memories`                                | Retain same screen, actions and route semantics                                                               |
+| `_app/particle-effects.$particleEffectId.edit.tsx` | `/_app/particle-effects/$particleEffectId/edit` | Retain same screen, actions and route semantics                                                               |
+| `_app/particle-effects.new.tsx`                    | `/_app/particle-effects/new`                    | Retain same screen, actions and route semantics                                                               |
+| `_app/poses.$poseId.edit.tsx`                      | `/_app/poses/$poseId/edit`                      | Retain same screen, actions and route semantics                                                               |
+| `_app/reactions.$reactionId.edit.tsx`              | `/_app/reactions/$reactionId/edit`              | Retain same screen, actions and route semantics                                                               |
+| `_app/reactions.new.tsx`                           | `/_app/reactions/new`                           | Retain same screen, actions and route semantics                                                               |
+| `_app/scene-effects/index.tsx`                     | `/_app/scene-effects/`                          | Retain current redirect/deep-link behavior                                                                    |
+| `_app/scene-effects.$sceneEffectId.edit.tsx`       | `/_app/scene-effects/$sceneEffectId/edit`       | Retain same screen, actions and route semantics                                                               |
+| `_app/scene-effects.new.tsx`                       | `/_app/scene-effects/new`                       | Retain same screen, actions and route semantics                                                               |
+| `_app/sound-effects.$soundEffectId.edit.tsx`       | `/_app/sound-effects/$soundEffectId/edit`       | Retain current redirect/deep-link behavior                                                                    |
+| `_app/sound-effects.new.tsx`                       | `/_app/sound-effects/new`                       | Retain current redirect/deep-link behavior                                                                    |
+| `_app.tsx`                                         | `/_app`                                         | Retain shared layout; inject neutral admission/session                                                        |
+| `a/$.tsx`                                          | `/a/$`                                          | Retain current redirect/deep-link behavior                                                                    |
+| `a.tsx`                                            | `/a`                                            | Retain current redirect/deep-link behavior                                                                    |
+| `desktop/pip/$animaId.tsx`                         | `/desktop/pip/$animaId`                         | E6: native route unavailable hosted; retain browser PiP/fullscreen elsewhere                                  |
+| `desktop/quick-chat/$animaId.tsx`                  | `/desktop/quick-chat/$animaId`                  | E6: native route unavailable hosted; retain browser PiP/fullscreen elsewhere                                  |
+| `safety.tsx`                                       | `/safety`                                       | Retain same screen, actions and route semantics                                                               |
+| `setup.tsx`                                        | `/setup`                                        | Composition onboarding: local setup retained; hosted admission replaces local bootstrap                       |
 
 ## Screen/action coverage groups and implementation assignment
 
@@ -79,43 +103,43 @@ creator routes → W07, Library → W06/W08, Memory → W09, shell/index/legacy 
 setup/account → W12, native/browser utilities → W13, Safety → W11. The portrait
 diagnostic preserves its existing development-only guard (W14). A3 owns neutral shell/transport and exact exception UI. A4 owns retained feature and lifetime verification. A5 owns static/resource artifact closure. Public fixture evidence is not real hosted acceptance.
 
-| Group | Retained actions; narrow exclusion | Source / API contract consumers | Assignment / requirements / evidence |
-| --- | --- | --- | --- |
-| W01 Shell and navigation | New chat, Animas, Memory, Library, Search; Create menu; recents; account/settings dialogs; deep links; keyboard/responsive layout; preview dock | `web/src/ui/sidebar/{SidebarShell,SidebarUserMenu,SidebarCreateMenu}.tsx`; router and root layouts | A3+A4; R1–R5,R12; admission/action fixture + real browser later |
-| W02 Chat/history/search | Create/select/rename/delete chats; search; streamed text/tool updates; stop/retry; Markdown; chat/avatar layouts; operator-catalog model selection; attachment button/paste/drop/reuse/IDs excluded | `web/src/ui/main/chat/{ChatInterface,useChatSession}.tsx` (hook is `.ts`); `query/hooks/useChat*`; `query/mutations/{useCreateChat,useChatSse,useSearchChatMessages}.ts`; `/v1/chats`, `/v1/animas/{id}/chat:sse` | A2+A3+A4; R1–R5,R7,R9,R12 |
-| W03 Existing Anima identity | Select/adjacent Anima; identity/profile and relationship memory editor/repair; emotions; settings inheritance; image/background upload/crop/framing; no user creation/import equivalent | `web/src/ui/animas/{AnimaDetailsPage,AnimaIdentitySection,AnimaMemoriesSection,AnimaAppearanceDialog}.tsx`; `query/mutations/useUpdateAnima*`, `useRepairAnimaMemories` | A2+A3+A4; R1–R7,R10,R12 |
-| W04 Loadout | Choose avatar, voice, gestures, reactions, idle style; preview, plan/review/commit, stale-revision recovery | `web/src/ui/animas/{AnimaLoadout,VoiceLoadoutSection}.tsx`; `query/hooks/useAnimaLoadout.ts`, `query/mutations/useAnimaLoadoutMutations.ts`; family plan/commit contracts | A2+A4; R4–R10,R12 |
-| W05 Live companion and preview | VRM/portrait, gesture/idle/emotion/expressions, lip sync, camera/canvas controls, avatar/particle/scene effects, sound; distinct Library/creator/Anima stages | `web/src/ui/app/AnimaRouteProviders.tsx`; `ui/content-preview/`; `lib/runtime-content/`; `ui/main/`; `ui/sound/SoundProvider.tsx` | A2+A4+A5; R4,R5,R7–R12; real playback required later |
-| W06 Library/catalog | All/avatars/actions/fx; search/filter; thumbnails; validation; customize/edit/delete; equipped-content handling; preview and selections; only chat uploads and host scan/repair excluded | `web/src/ui/library/{LibraryPage,LibraryContentInventory,LibraryChatUploads}.tsx`; `ui/content-health/ContentHealth.tsx`; `query/hooks/useContentCatalog.ts`; catalog/items/files, typed family APIs | A2+A3+A4; R1–R5,R9,R10,R12 |
-| W07 Creators | Create hub; Gesture/Pose/Clip, Reaction, Idle Style, Avatar/Particle/Scene effects; sound upload/edit; Save/Save & Equip; imported assets, review, dependency resolution, discard/recovery | `web/src/ui/{gesture-editor,pose-editor,pose-creator,reaction-editor,creator,avatar-effect-creator,particle-vfx-creator,scene-effect-creator}/`; content/appearance mutation hooks | A2+A4; R1,R4,R5,R9,R10,R12; Pose new is in Gesture editor, sound route redirects Library; no new standalone music feature |
-| W08 Sharing | Content ZIP/creator formats import/export; selection/review/collision handling/install/export download/retry/discard/recovery; Anima export kept; Anima package import rejected atomically | `web/src/query/hooks/useLibrarySharingFlow.ts`; `query/mutations/packageSharingApi.ts`; `lib/content-sharing/` | A2+A3+A4; R3–R5,R9,R10,R12 |
-| W09 Memory | Virtual files/folders; create/edit/move/rename/delete, preview/conflict/history/revert/search; identity/Anima scope; user-started Memory Manager/Reflection, episode processing/approvals/undo/run continuation | `web/src/ui/memory/`; `query/hooks/{useMemoryEntries,useMemoryEpisodes,useMemoryManagerRun}.ts`; memory mutation hooks | A2+A4; R4–R6,R9,R12; virtual files are NOT host filesystem administration |
-| W10 Voice | Dictation, Voice Mode, device/test/sensitivity; STT/TTS engine/model/voice selection; cloning voice samples, playback/stop/mute; stream/finalized grouping; browser assets | `web/src/lib/voice/`, `lib/anima-voice/`; `ui/animas/VoiceLoadoutSection.tsx`; `ui/animas/VoiceCloneLibrary.tsx`; voice clone/selection hooks | A2+A4+A5; R4–R9,R12; separate browser engine downloads from server-global model administration |
-| W11 Safety / behavior | Shared defaults and per-Anima inheritance; emotion/memory influence/updates, AI notice/reminder and crisis resource settings; preserve authority and memory semantics | `web/src/ui/settings/{SettingsProvider,SafetySettingsSection}.tsx`; `ui/main/header/AnimaSettingsModal.tsx`; safety providers/routes | A2+A3+A4; R4–R9,R12 |
-| W12 Account and admission | Sign-in/out/account/usage actions; ineligible/restricted/loading/outage/expired sessions; resource teardown, safe retry; owner never chosen by browser | new neutral interfaces in existing `packages/runtime-contracts`; composition injection into existing shell | A1 contracts, A3 consumption, consumer owns auth; R1,R2,R5,R9,R12 |
-| W13 Browser utilities | DOM fullscreen and Document PiP retained; native quick chat, native windows/global shortcut/updater/key vault excluded | `web/src/platform/runtime-platform.ts`; `web/src/hooks/{useFullscreen,usePictureInPicture,useDocumentPiP}.ts` | A3+A4; R1–R3,R5,R12 |
+| Group                          | Retained actions; narrow exclusion                                                                                                                                                                              | Source / API contract consumers                                                                                                                                                                                   | Assignment / requirements / evidence                                                                                      |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| W01 Shell and navigation       | New chat, Animas, Memory, Library, Search; Create menu; recents; account/settings dialogs; deep links; keyboard/responsive layout; preview dock                                                                 | `web/src/ui/sidebar/{SidebarShell,SidebarUserMenu,SidebarCreateMenu}.tsx`; router and root layouts                                                                                                                | A3+A4; R1–R5,R12; admission/action fixture + real browser later                                                           |
+| W02 Chat/history/search        | Create/select/rename/delete chats; search; streamed text/tool updates; stop/retry; Markdown; chat/avatar layouts; operator-catalog model selection; attachment button/paste/drop/reuse/IDs excluded             | `web/src/ui/main/chat/{ChatInterface,useChatSession}.tsx` (hook is `.ts`); `query/hooks/useChat*`; `query/mutations/{useCreateChat,useChatSse,useSearchChatMessages}.ts`; `/v1/chats`, `/v1/animas/{id}/chat:sse` | A2+A3+A4; R1–R5,R7,R9,R12                                                                                                 |
+| W03 Existing Anima identity    | Select/adjacent Anima; identity/profile and relationship memory editor/repair; emotions; settings inheritance; image/background upload/crop/framing; no user creation/import equivalent                         | `web/src/ui/animas/{AnimaDetailsPage,AnimaIdentitySection,AnimaMemoriesSection,AnimaAppearanceDialog}.tsx`; `query/mutations/useUpdateAnima*`, `useRepairAnimaMemories`                                           | A2+A3+A4; R1–R7,R10,R12                                                                                                   |
+| W04 Loadout                    | Choose avatar, voice, gestures, reactions, idle style; preview, plan/review/commit, stale-revision recovery                                                                                                     | `web/src/ui/animas/{AnimaLoadout,VoiceLoadoutSection}.tsx`; `query/hooks/useAnimaLoadout.ts`, `query/mutations/useAnimaLoadoutMutations.ts`; family plan/commit contracts                                         | A2+A4; R4–R10,R12                                                                                                         |
+| W05 Live companion and preview | VRM/portrait, gesture/idle/emotion/expressions, lip sync, camera/canvas controls, avatar/particle/scene effects, sound; distinct Library/creator/Anima stages                                                   | `web/src/ui/app/AnimaRouteProviders.tsx`; `ui/content-preview/`; `lib/runtime-content/`; `ui/main/`; `ui/sound/SoundProvider.tsx`                                                                                 | A2+A4+A5; R4,R5,R7–R12; real playback required later                                                                      |
+| W06 Library/catalog            | All/avatars/actions/fx; search/filter; thumbnails; validation; customize/edit/delete; equipped-content handling; preview and selections; only chat uploads and host scan/repair excluded                        | `web/src/ui/library/{LibraryPage,LibraryContentInventory,LibraryChatUploads}.tsx`; `ui/content-health/ContentHealth.tsx`; `query/hooks/useContentCatalog.ts`; catalog/items/files, typed family APIs              | A2+A3+A4; R1–R5,R9,R10,R12                                                                                                |
+| W07 Creators                   | Create hub; Gesture/Pose/Clip, Reaction, Idle Style, Avatar/Particle/Scene effects; sound upload/edit; Save/Save & Equip; imported assets, review, dependency resolution, discard/recovery                      | `web/src/ui/{gesture-editor,pose-editor,pose-creator,reaction-editor,creator,avatar-effect-creator,particle-vfx-creator,scene-effect-creator}/`; content/appearance mutation hooks                                | A2+A4; R1,R4,R5,R9,R10,R12; Pose new is in Gesture editor, sound route redirects Library; no new standalone music feature |
+| W08 Sharing                    | Content ZIP/creator formats import/export; selection/review/collision handling/install/export download/retry/discard/recovery; Anima export kept; Anima package import rejected atomically                      | `web/src/query/hooks/useLibrarySharingFlow.ts`; `query/mutations/packageSharingApi.ts`; `lib/content-sharing/`                                                                                                    | A2+A3+A4; R3–R5,R9,R10,R12                                                                                                |
+| W09 Memory                     | Virtual files/folders; create/edit/move/rename/delete, preview/conflict/history/revert/search; identity/Anima scope; user-started Memory Manager/Reflection, episode processing/approvals/undo/run continuation | `web/src/ui/memory/`; `query/hooks/{useMemoryEntries,useMemoryEpisodes,useMemoryManagerRun}.ts`; memory mutation hooks                                                                                            | A2+A4; R4–R6,R9,R12; virtual files are NOT host filesystem administration                                                 |
+| W10 Voice                      | Dictation, Voice Mode, device/test/sensitivity; STT/TTS engine/model/voice selection; cloning voice samples, playback/stop/mute; stream/finalized grouping; browser assets                                      | `web/src/lib/voice/`, `lib/anima-voice/`; `ui/animas/VoiceLoadoutSection.tsx`; `ui/animas/VoiceCloneLibrary.tsx`; voice clone/selection hooks                                                                     | A2+A4+A5; R4–R9,R12; separate browser engine downloads from server-global model administration                            |
+| W11 Safety / behavior          | Shared defaults and per-Anima inheritance; emotion/memory influence/updates, AI notice/reminder and crisis resource settings; preserve authority and memory semantics                                           | `web/src/ui/settings/{SettingsProvider,SafetySettingsSection}.tsx`; `ui/main/header/AnimaSettingsModal.tsx`; safety providers/routes                                                                              | A2+A3+A4; R4–R9,R12                                                                                                       |
+| W12 Account and admission      | Sign-in/out/account/usage actions; ineligible/restricted/loading/outage/expired sessions; resource teardown, safe retry; owner never chosen by browser                                                          | new neutral interfaces in existing `packages/runtime-contracts`; composition injection into existing shell                                                                                                        | A1 contracts, A3 consumption, consumer owns auth; R1,R2,R5,R9,R12                                                         |
+| W13 Browser utilities          | DOM fullscreen and Document PiP retained; native quick chat, native windows/global shortcut/updater/key vault excluded                                                                                          | `web/src/platform/runtime-platform.ts`; `web/src/hooks/{useFullscreen,usePictureInPicture,useDocumentPiP}.ts`                                                                                                     | A3+A4; R1–R3,R5,R12                                                                                                       |
 
 ## Capability, consumer owner and acceptance map
 
 All cases below remain pending workflow verification. A1's Python/generated schema
 fixtures establish the six exception values and retained model/role choice only.
 
-| Coverage | Capability / support | HTTP/service and consumer assignment | Acceptance evidence |
-| --- | --- | --- | --- |
-| W01 | Admitted session | Readiness/owner context and route adapter, A3; consumer foundation C1/C2 and cutover C6 | Deep-link/reload/sidebar/empty-roster browser fixture; `RuntimeOwnerContext.test.tsx` and planned admission tests. |
-| W02 | `chat`; `model_selection`; E2 attachments false | `/v1/chats`, messages/search, `/v1/animas/{id}/chat:sse`; shared ChatService/executor A2; history C2 and bounded turn C3 | `chat-lifecycle.test.mjs`, `ChatUploadCapability.test.tsx`; two-account history, stop/retry, terminal SSE and nested usage. |
-| W03 | Existing owner; E1 creation false | Anima PATCH/settings, memory identity/repair and appearance contracts; A2; C2/C4 | Existing identity/loadout suites plus save/reload/private-portrait/stale conflict browser cases. |
-| W04 | Admitted catalog choices | Loadout GET and avatar/voice/gesture/reaction/idle/appearance plan/commit; shared services A2; C4/C5 | Preview/review/commit/conflict fixtures and equipped runtime after reload. |
-| W05 | Browser WebGL/audio; current engine/assets | Runtime revisions/renew/json-bundle/bytes; content/runtime ports A2; C4/C5 | Existing mount/byte-loader suites; actual creator, Library and live-Anima playback measured separately in A4/C7. |
-| W06 | E2 upload false, E5 host scans false; catalog retained | Catalog/items/typed-family preview/edit/delete; A2/A3; C4 | Catalog/content-edit tests, query-string attachment denial, retained content health/error recovery. |
-| W07 | E1 only Anima creation false | Typed saves, preview, staging, uploads and save/equip; A2/A4; C4 | Each existing creator's save/import/discard/stale-revision/recovery tests and browser proof. |
-| W08 | E1 Anima import false; content import and Anima export retained | Package allocation/inspection/review/commit/export/receipt APIs; ContentPackageService A2; C4 | Sharing suites plus atomic Anima-package denial before installing dependencies and ambiguous receipt recovery. |
-| W09 | Logical paths; admitted owner/role choice | MemoryEntry/EpisodeService, MemoryManager/Reflection APIs A2; C2/C3 | Memory/version/conflict/approval-resume suites and two-account logical-path isolation; no physical memory roots. |
-| W10 | Browser mic/WebGPU/WASM/secure context and engine readiness; E4 key false | Voice catalog/clone/content/STT/TTS/model resource interfaces A2/A4/A5; C5 | Dictation/TTS/clone unit suites plus heard output, physical mic, device/browser downloads and quota/cancel C7. |
-| W11 | Safety authority + saved settings | User/Anima settings and safety/crisis APIs; A2/A4; C2/C3 | Inheritance/reset/reload and server guardrail tests, shared `/safety` page. |
-| W12 | Admitted session, optional account actions | Composition adapter A3; consumer login/logout/account/quotas/events C1/C6 | State mapping, same-owner reauth/cross-owner teardown, no product data before readiness; C7 real lifecycle. |
-| W13 | E6 `native_features=false`; browser support separate | RuntimePlatform and browser utility hooks A3/A4 | DOM fullscreen/PiP cases; unavailable native deep links/global shortcuts/update/key vault. |
-| W14 | Existing development guard in both builds | Portrait/debug only; A3/A4 | Production direct navigation is notFound; ordinary portrait capture/edit remains W03. |
+| Coverage | Capability / support                                                      | HTTP/service and consumer assignment                                                                                     | Acceptance evidence                                                                                                         |
+| -------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------- |
+| W01      | Admitted session                                                          | Readiness/owner context and route adapter, A3; consumer foundation C1/C2 and cutover C6                                  | Deep-link/reload/sidebar/empty-roster browser fixture; `RuntimeOwnerContext.test.tsx` and planned admission tests.          |
+| W02      | `chat`; `model_selection`; E2 attachments false                           | `/v1/chats`, messages/search, `/v1/animas/{id}/chat:sse`; shared ChatService/executor A2; history C2 and bounded turn C3 | `chat-lifecycle.test.mjs`, `ChatUploadCapability.test.tsx`; two-account history, stop/retry, terminal SSE and nested usage. |
+| W03      | Existing owner; E1 creation false                                         | Anima PATCH/settings, memory identity/repair and appearance contracts; A2; C2/C4                                         | Existing identity/loadout suites plus save/reload/private-portrait/stale conflict browser cases.                            |
+| W04      | Admitted catalog choices                                                  | Loadout GET and avatar/voice/gesture/reaction/idle/appearance plan/commit; shared services A2; C4/C5                     | Preview/review/commit/conflict fixtures and equipped runtime after reload.                                                  |
+| W05      | Browser WebGL/audio; current engine/assets                                | Runtime revisions/renew/json-bundle/bytes; content/runtime ports A2; C4/C5                                               | Existing mount/byte-loader suites; actual creator, Library and live-Anima playback measured separately in A4/C7.            |
+| W06      | E2 upload false, E5 host scans false; catalog retained                    | Catalog/items/typed-family preview/edit/delete; A2/A3; C4                                                                | Catalog/content-edit tests, query-string attachment denial, retained content health/error recovery.                         |
+| W07      | E1 only Anima creation false                                              | Typed saves, preview, staging, uploads and save/equip; A2/A4; C4                                                         | Each existing creator's save/import/discard/stale-revision/recovery tests and browser proof.                                |
+| W08      | E1 Anima import false; content import and Anima export retained           | Package allocation/inspection/review/commit/export/receipt APIs; ContentPackageService A2; C4                            | Sharing suites plus atomic Anima-package denial before installing dependencies and ambiguous receipt recovery.              |
+| W09      | Logical paths; admitted owner/role choice                                 | MemoryEntry/EpisodeService, MemoryManager/Reflection APIs A2; C2/C3                                                      | Memory/version/conflict/approval-resume suites and two-account logical-path isolation; no physical memory roots.            |
+| W10      | Browser mic/WebGPU/WASM/secure context and engine readiness; E4 key false | Voice catalog/clone/content/STT/TTS/model resource interfaces A2/A4/A5; C5                                               | Dictation/TTS/clone unit suites plus heard output, physical mic, device/browser downloads and quota/cancel C7.              |
+| W11      | Safety authority + saved settings                                         | User/Anima settings and safety/crisis APIs; A2/A4; C2/C3                                                                 | Inheritance/reset/reload and server guardrail tests, shared `/safety` page.                                                 |
+| W12      | Admitted session, optional account actions                                | Composition adapter A3; consumer login/logout/account/quotas/events C1/C6                                                | State mapping, same-owner reauth/cross-owner teardown, no product data before readiness; C7 real lifecycle.                 |
+| W13      | E6 `native_features=false`; browser support separate                      | RuntimePlatform and browser utility hooks A3/A4                                                                          | DOM fullscreen/PiP cases; unavailable native deep links/global shortcuts/update/key vault.                                  |
+| W14      | Existing development guard in both builds                                 | Portrait/debug only; A3/A4                                                                                               | Production direct navigation is notFound; ordinary portrait capture/edit remains W03.                                       |
 
 ## Every App Settings entry/group
 
@@ -127,20 +151,20 @@ preferences browser-local. Existing `model-configuration-state.test.ts`, voice
 download tests and SettingsProvider regressions are reused; retained settings
 save/reload/reset and excluded search-result tests are required. Evidence is pending. These search-index rows also determine discoverability and may not retain links to excluded controls.
 
-| Section | Entries | Hosted behavior |
-| --- | --- | --- |
-| General | `display-name`, `volume`, `feature-packs` | Keep profile/audio; feature packs native-only excluded |
-| Models | `model-connections`, `default-chat-model`, `memory-manager-model`, `compaction-model`, `embeddings-model`, `web-search` | Keep all four role choices via catalog; exclude connection/provider/endpoint and search service admin; runtime web search retained |
-| API Keys | `provider-keys` | Exclude key administration |
-| About | `about-version`, `updates`, `open-logs`, `copy-diagnostics` | Keep applicable version and safe summary; exclude native updater/log folder |
-| Appearance | `appearance-mode`, all basic/advanced `appearance-${token.key}`, `appearance-reset-colours`, `appearance-advanced-toggle` | Keep same controls and account preferences |
-| Voice input | `microphone-device`, `microphone-sensitivity`, `microphone-test`, `stt-provider`, `stt-downloads` | Keep input controls/engine selection/browser resources; hide only server-global installation/removal; device preference browser-local |
-| Voice output | `tts-enabled`, `tts-stream`, `tts-provider`, `elevenlabs-key`, `elevenlabs-model`, `elevenlabs-audio-grouping`, `voice-clone` | Keep all except key; preserve supported engine choices and voice sample upload/clone |
-| Shortcuts | all `shortcut-${row.action}` | Existing settings are desktop global shortcuts only; excluded. Retain existing browser keyboard behavior elsewhere, no invented browser shortcuts settings |
-| Memory & Emotion | `behavior-memory_influence`, `behavior-memory_updates`, `behavior-emotion_updates` | Keep app defaults and existing inheritance semantics |
-| Safety | `safety` | Keep region/reminder settings; operator authority unchanged |
-| Data | `reset-app-settings` | Keep account preference reset; preserve saved Animas/chats/memory/content and existing documented reset semantics |
-| Advanced | `chat-markdown`, `avatar-transform-controls` | Keep both |
+| Section          | Entries                                                                                                                       | Hosted behavior                                                                                                                                            |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| General          | `display-name`, `volume`, `feature-packs`                                                                                     | Keep profile/audio; feature packs native-only excluded                                                                                                     |
+| Models           | `model-connections`, `default-chat-model`, `memory-manager-model`, `compaction-model`, `embeddings-model`, `web-search`       | Keep all four role choices via catalog; exclude connection/provider/endpoint and search service admin; runtime web search retained                         |
+| API Keys         | `provider-keys`                                                                                                               | Exclude key administration                                                                                                                                 |
+| About            | `about-version`, `updates`, `open-logs`, `copy-diagnostics`                                                                   | Keep applicable version and safe summary; exclude native updater/log folder                                                                                |
+| Appearance       | `appearance-mode`, all basic/advanced `appearance-${token.key}`, `appearance-reset-colours`, `appearance-advanced-toggle`     | Keep same controls and account preferences                                                                                                                 |
+| Voice input      | `microphone-device`, `microphone-sensitivity`, `microphone-test`, `stt-provider`, `stt-downloads`                             | Keep input controls/engine selection/browser resources; hide only server-global installation/removal; device preference browser-local                      |
+| Voice output     | `tts-enabled`, `tts-stream`, `tts-provider`, `elevenlabs-key`, `elevenlabs-model`, `elevenlabs-audio-grouping`, `voice-clone` | Keep all except key; preserve supported engine choices and voice sample upload/clone                                                                       |
+| Shortcuts        | all `shortcut-${row.action}`                                                                                                  | Existing settings are desktop global shortcuts only; excluded. Retain existing browser keyboard behavior elsewhere, no invented browser shortcuts settings |
+| Memory & Emotion | `behavior-memory_influence`, `behavior-memory_updates`, `behavior-emotion_updates`                                            | Keep app defaults and existing inheritance semantics                                                                                                       |
+| Safety           | `safety`                                                                                                                      | Keep region/reminder settings; operator authority unchanged                                                                                                |
+| Data             | `reset-app-settings`                                                                                                          | Keep account preference reset; preserve saved Animas/chats/memory/content and existing documented reset semantics                                          |
+| Advanced         | `chat-markdown`, `avatar-transform-controls`                                                                                  | Keep both                                                                                                                                                  |
 
 Locale/timezone are specified preference semantics; no standalone current searchable settings row was found. Do not invent a missing screen merely to match the inventory wording. Existing Anima Settings are only inheritable emotion updates, memory influence and memory updates.
 

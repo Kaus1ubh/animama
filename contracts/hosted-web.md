@@ -53,7 +53,7 @@ in `local-http` version **3.0.0** with capability `schema_version: 2`. The gener
 TypeScript `RuntimeCapabilities` and validator are the same contract.
 `ProductRuntimeCapabilities` is a derived `Pick` for the existing extracted chat
 surface, not another wire schema. `runtime-contracts` is version 0.3.0 and
-`product-ui` is version 0.4.0. Consumers explicitly admit
+`product-ui` is version 0.5.0. Consumers explicitly admit
 the new contract major before adoption.
 
 Permissions are separate from browser support and temporary errors:
@@ -94,6 +94,22 @@ same-origin range semantics; private data is `Cache-Control: no-store` and never
 enters a shared CDN/service-worker cache. Content-only package import/export,
 Anima export, stale revisions, drafts and ambiguous-commit recovery retain their
 existing receipts and error semantics. Anima import is denied regardless of UI.
+
+## Realtime speech session descriptor
+
+An SSE `tts.session` may additionally declare `transport: "server"` and
+`websocket_url` instead of a provider token. The browser accepts a WebSocket URL
+only under `/v1/` on the admitted application origin, using `wss` for HTTPS and
+`ws` for local HTTP. Embedded credentials, query strings, fragments and foreign
+origins are rejected; a missing/invalid server descriptor never falls back to a
+direct provider. The cookie authorizes the handshake. The consumer validates the
+current session and Origin, reserves before provider dispatch, and owns bounded
+cancellation and settlement. Browser fixtures do not establish those server gates.
+
+The existing local session remains `transport: "direct"` (or an omitted legacy
+transport) with its backend-issued short-lived token. Direct playback additionally
+requires `provider_credentials: true`. Both paths fence late session/audio work,
+close audio resources on failure or teardown, and preserve text fallback.
 
 ## Static application format (A5 producer / consumer contract)
 

@@ -84,7 +84,16 @@ export class SessionRequestScope {
   /** Fence body reads too: headers arriving before sign-out do not admit late data. */
   private guardResponse(response: Response): Response {
     let guarded = response;
-    if (response.body) {
+    // Browser network replies may expose an empty stream for these statuses.
+    // A Response constructor forbids bodies here, including wrapped empty ones.
+    if ([204, 205, 304].includes(response.status)) {
+      void response.body?.cancel();
+      guarded = new Response(null, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: response.headers,
+      });
+    } else if (response.body) {
       const reader = response.body.getReader();
       let unregister = () => {};
       const body = new ReadableStream<Uint8Array>({

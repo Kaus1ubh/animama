@@ -6,6 +6,7 @@ import { createLogger } from "@/lib/logger";
 import { PCMPlayerWorklet } from "@/lib/speech/audio/PCMPlayerWorklet.js";
 import { mapNormalizedVolumeToPocketGain } from "@/lib/speech/pocket/audio/volume.js";
 import { redactUrlForLogging } from "@/lib/utils";
+import { useRuntimeCapabilities } from "@/query/hooks/useRuntimeCapabilities";
 
 const ELEVENLABS_SAMPLE_RATE = 24000;
 const ELEVENLABS_DEFAULT_WS_BASE = "wss://api.elevenlabs.io";
@@ -29,6 +30,8 @@ export type ElevenLabsSessionResponse = {
   language_code?: string | null;
   token?: string | null;
   websocket_base_url?: string | null;
+  transport?: "direct" | "server";
+  websocket_url?: string | null;
 };
 
 export type ElevenLabsSessionError = {
@@ -195,25 +198,66 @@ async function createAudioResources(): Promise<{
     sampleRate: ELEVENLABS_SAMPLE_RATE,
     latencyHint: "interactive",
   });
-  const player = new PCMPlayerWorklet(audioContext, {
-    workletModuleUrl: "/tts/audio/pcm-processor.worklet.js",
-    minBufferBeforePlaybackMs: 180,
-    bufferSizeSamples: ELEVENLABS_SAMPLE_RATE * 60,
-  });
-  await player.initPromise;
-  if (audioContext.state === "suspended") {
-    await audioContext.resume();
+  try {
+    const player = new PCMPlayerWorklet(audioContext, {
+      workletModuleUrl: "/tts/audio/pcm-processor.worklet.js",
+      minBufferBeforePlaybackMs: 180,
+      bufferSizeSamples: ELEVENLABS_SAMPLE_RATE * 60,
+    });
+    await player.initPromise;
+    if (audioContext.state === "suspended") {
+      await audioContext.resume();
+    }
+    return { audioContext, player };
+  } catch (error) {
+    // Initialization can fail before the run owns these resources (missing
+    // worklet, unsupported device or interrupted session). Close that context.
+    await audioContext.close().catch(() => {});
+    throw error;
   }
-  return { audioContext, player };
 }
 
 /**
- * Build the direct ElevenLabs realtime TTS websocket URL from backend-issued
- * session data, including the selected realtime model id.
+ * Resolve an admitted speech session. Server sockets use cookies and never inherit
+ * provider tokens; the existing local direct path requires connection authority.
+ * The historical export name remains compatible with local consumers.
  */
 export function buildDirectElevenLabsRealtimeWsUrl(
   session: ElevenLabsSessionResponse,
+  policy: { origin: string; allowDirect: boolean } = {
+    origin:
+      typeof window === "undefined"
+        ? "http://localhost"
+        : window.location.origin,
+    allowDirect: true,
+  },
 ): string {
+  if (session.transport === "server") {
+    if (!session.websocket_url)
+      throw new Error("Server speech stream is unavailable.");
+    const origin = new URL(policy.origin);
+    const expected = `${origin.protocol === "https:" ? "wss:" : "ws:"}//${origin.host}`;
+    // Resolve only relative paths against a websocket origin; an HTTP URL is not a socket.
+    const url = new URL(session.websocket_url, expected);
+    if (
+      url.origin !== expected ||
+      url.username ||
+      url.password ||
+      url.search ||
+      url.hash ||
+      !url.pathname.startsWith("/v1/")
+    )
+      throw new Error(
+        "Server speech stream must use the admitted application origin.",
+      );
+    return url.href;
+  }
+  if (
+    !policy.allowDirect ||
+    !session.token ||
+    (session.transport && session.transport !== "direct")
+  )
+    throw new Error("Direct speech provider access is unavailable.");
   const query = new URLSearchParams({
     model_id: session.model_id,
     output_format: session.output_format,
@@ -230,6 +274,15 @@ export function buildDirectElevenLabsRealtimeWsUrl(
 export function useElevenLabsTtsRuntime(
   options: UseElevenLabsTtsRuntimeOptions,
 ) {
+  const { data: capabilities } = useRuntimeCapabilities();
+  const socketPolicy = useRef({
+    origin: window.location.origin,
+    allowDirect: false,
+  });
+  socketPolicy.current = {
+    origin: window.location.origin,
+    allowDirect: capabilities?.provider_credentials === true,
+  };
   const optionsRef = useRef(options);
   optionsRef.current = options;
   const loggerRef = useRef(createLogger("ElevenLabsTTSRuntime"));
@@ -452,15 +505,21 @@ export function useElevenLabsTtsRuntime(
 
       activeRuntimeRef.current = runtime;
 
-      const [{ audioContext, player }, session] = await Promise.all([
-        createAudioResources(),
-        resolveSessionForRun(runtime),
-      ]);
-      if (!session.token) {
-        throw new Error(
-          "ElevenLabs realtime TTS session did not include a token.",
-        );
+      const session = await resolveSessionForRun(runtime);
+      const wsUrl = buildDirectElevenLabsRealtimeWsUrl(
+        session,
+        socketPolicy.current,
+      );
+      if (activeRuntimeRef.current !== runtime || runtime.closed)
+        throw createRunCancelledError();
+      const { audioContext, player } = await createAudioResources();
+      if (activeRuntimeRef.current !== runtime || runtime.closed) {
+        player.reset();
+        await audioContext.close();
+        throw createRunCancelledError();
       }
+      runtime.audioContext = audioContext;
+      runtime.player = player;
 
       loggerRef.current.info(
         "Bootstrap",
@@ -483,8 +542,6 @@ export function useElevenLabsTtsRuntime(
         throw createRunCancelledError();
       }
 
-      runtime.audioContext = audioContext;
-      runtime.player = player;
       runtime.player.volume = volumeRef.current;
 
       player.addEventListener(
@@ -510,13 +567,12 @@ export function useElevenLabsTtsRuntime(
         void closeRuntime(runtime);
       });
 
-      const wsUrl = buildDirectElevenLabsRealtimeWsUrl(session);
       loggerRef.current.info(
         "Socket",
         "Opening ElevenLabs realtime websocket",
         {
           runId,
-          transport: "direct",
+          transport: session.transport ?? "direct",
           wsUrl: redactUrlForLogging(wsUrl),
         },
       );
@@ -533,7 +589,7 @@ export function useElevenLabsTtsRuntime(
           "ElevenLabs realtime websocket opened",
           {
             runId,
-            transport: "direct",
+            transport: session.transport ?? "direct",
           },
         );
         socket.send(JSON.stringify({ text: " " }));
@@ -548,7 +604,7 @@ export function useElevenLabsTtsRuntime(
           "ElevenLabs realtime websocket error",
           {
             runId,
-            transport: "direct",
+            transport: session.transport ?? "direct",
           },
         );
         handleRuntimeFailure(
@@ -565,7 +621,7 @@ export function useElevenLabsTtsRuntime(
           "ElevenLabs realtime websocket closed",
           {
             runId,
-            transport: "direct",
+            transport: session.transport ?? "direct",
             sawStreamFinished: runtime.sawStreamFinished,
             closed: runtime.closed,
             requestedStreamEnd: runtime.requestedStreamEnd,
@@ -675,7 +731,11 @@ export function useElevenLabsTtsRuntime(
       const runtime = createInitialRuntime(runId, context);
       activeRuntimeRef.current = runtime;
       const startPromise = startRun(runtime).catch((error) => {
-        if (error instanceof Error && error.name === "AbortError") {
+        if (
+          error instanceof Error &&
+          error.name === "AbortError" &&
+          (activeRuntimeRef.current !== runtime || runtime.closed)
+        ) {
           loggerRef.current.info(
             "Run",
             "ElevenLabs realtime run cancelled before start completed",

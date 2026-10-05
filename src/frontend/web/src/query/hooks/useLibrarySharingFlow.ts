@@ -12,7 +12,10 @@ import type {
   ExportReview,
   PackageSelectionRequest,
 } from "@animama/runtime-contracts/api-types";
-import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
+import {
+  useRuntimeCacheKey,
+  useRuntimeOwnerId,
+} from "@/app/runtime/RuntimeOwnerContext";
 import {
   PackageImportSession,
   type RecoveryStore,
@@ -40,6 +43,7 @@ import {
 import { useAnimas } from "./useAnimas";
 import { useSharingInventory } from "./useSharingInventory";
 import { fetchAnimaRuntimeCatalog } from "./useAnimaRuntimeCatalog";
+import { useRuntimeCapabilities } from "./useRuntimeCapabilities";
 
 function storage(owner: string): RecoveryStore {
   try {
@@ -69,17 +73,23 @@ export function useLibrarySharingFlow(): LibrarySharingFlow {
     [apiClient],
   );
   const owner = useRuntimeCacheKey() ?? "__anon__";
+  const recoveryOwner = useRuntimeOwnerId() ?? "__anon__";
   const client = useQueryClient();
   const navigate = useNavigate();
   const session = useMemo(
-    () => new PackageImportSession(packageImportApi, storage(owner)),
-    [owner, packageImportApi],
+    // Only opaque receipt identifiers survive reentry; private queries, drafts and
+    // bytes still belong to the fresh session. The server authorizes every receipt.
+    () => new PackageImportSession(packageImportApi, storage(recoveryOwner)),
+    [recoveryOwner, packageImportApi],
   );
   const imported = useSyncExternalStore(
     session.subscribe,
     session.getSnapshot,
     session.getSnapshot,
   );
+  const { data: capabilities } = useRuntimeCapabilities();
+  const animaImportUnavailable =
+    imported.review?.kind === "anima" && capabilities?.anima_creation !== true;
   const [open, setOpenState] = useState(false);
   const [page, setPage] = useState<
     "export-selection" | "export-review" | "import"
@@ -232,6 +242,9 @@ export function useLibrarySharingFlow(): LibrarySharingFlow {
     busy,
     progress: imported.progress,
     error:
+      (animaImportUnavailable
+        ? "Importing an Anima package is unavailable here. Import content or export an existing Anima instead."
+        : null) ??
       error ??
       (page === "import"
         ? imported.error
@@ -342,7 +355,7 @@ export function useLibrarySharingFlow(): LibrarySharingFlow {
       void session.refresh();
     },
     commitImport: () => {
-      void session.commit();
+      if (!animaImportUnavailable) void session.commit();
     },
     recover: () => {
       setPage("import");

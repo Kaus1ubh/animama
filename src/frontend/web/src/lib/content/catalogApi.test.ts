@@ -104,6 +104,27 @@ describe("saveCatalogItem error boundary", () => {
       }),
     );
   });
+
+  it("preserves a recoverable Save failure when the generated client has no HTTP response", async () => {
+    // throwOnError:false returns a rejected fetch as a result, rather than throwing.
+    clientMocks.saveGesture.mockResolvedValue({
+      data: undefined,
+      error: new TypeError("Failed to fetch"),
+      response: undefined,
+    });
+    await expect(
+      saveCatalogItem(testApiClient, {
+        kind: "gesture",
+        entryName: "Wave",
+        files: [],
+        operationId: "save-operation",
+      }),
+    ).rejects.toMatchObject({
+      name: "ContentSaveApiError",
+      status: null,
+      message: expect.stringContaining("Your draft is preserved"),
+    });
+  });
 });
 
 describe("Pose catalog transport", () => {

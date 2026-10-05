@@ -1215,7 +1215,12 @@ export function useProductChatSession({
               typeof data.model_id !== "string" ||
               typeof data.output_format !== "string" ||
               typeof data.sync_alignment !== "boolean" ||
-              typeof data.token !== "string"
+              (data.transport === "server"
+                ? typeof data.websocket_url !== "string" ||
+                  !data.websocket_url.trim()
+                : (data.transport != null && data.transport !== "direct") ||
+                  typeof data.token !== "string" ||
+                  !data.token)
             ) {
               skippedTtsRunIdsRef.current.add(sessionRunId);
               markElevenLabsSessionFailed(
@@ -1230,8 +1235,14 @@ export function useProductChatSession({
               output_format: data.output_format,
               sync_alignment: data.sync_alignment,
               language_code: data.language_code ?? null,
-              token: data.token ?? null,
-              websocket_base_url: data.websocket_base_url ?? null,
+              transport: data.transport === "server" ? "server" : "direct",
+              websocket_url:
+                data.transport === "server" ? data.websocket_url : null,
+              token: data.transport === "server" ? null : (data.token ?? null),
+              websocket_base_url:
+                data.transport === "server"
+                  ? null
+                  : (data.websocket_base_url ?? null),
             });
           },
           onTtsSessionError: (data) => {

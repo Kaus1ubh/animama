@@ -78,7 +78,7 @@ export type ChatSseTtsSession = {
   type: "tts.session";
   run_id?: string | null;
   provider?: "elevenlabs" | string | null;
-  transport?: "direct" | string | null;
+  transport?: "direct" | "server" | string | null;
   voice_id?: string | null;
   model_id?: string | null;
   output_format?: string | null;
@@ -86,6 +86,7 @@ export type ChatSseTtsSession = {
   language_code?: string | null;
   token?: string | null;
   websocket_base_url?: string | null;
+  websocket_url?: string | null;
 };
 
 export type ChatSseTtsSessionError = {

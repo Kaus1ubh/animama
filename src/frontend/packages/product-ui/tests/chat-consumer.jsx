@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   useProductChatSession,
   describeChatFailure,
+  textOnlyChatEffects,
 } from "@animama/product-ui/chat";
 import { ChatConversation } from "@animama/product-ui/components";
 import { queryKeys, useChatSse } from "@animama/product-ui/query";
@@ -18,6 +19,9 @@ const histories = {};
 let stopOnToken = false;
 let run = 0;
 let api;
+let speechEnabled = false;
+const speechSessions = [];
+const speechFailures = [];
 const transport = {
   baseUrl: "https://chat-fixture.invalid",
   fetch: async (request) => {
@@ -124,6 +128,21 @@ function SessionConsumer() {
     animaId: "anima-fixture",
     routeChatId: chatId,
     runtime,
+    speech: speechEnabled
+      ? {
+          enabled: true,
+          provider: "elevenlabs",
+          elevenLabsModelId: "eleven_flash_v2_5",
+          finalizedElevenLabs: false,
+        }
+      : undefined,
+    effects: {
+      ...textOnlyChatEffects,
+      acceptElevenLabsSession: (runId, value) =>
+        speechSessions.push({ runId, value }),
+      markElevenLabsSessionFailed: (runId, error) =>
+        speechFailures.push({ runId, error }),
+    },
     openDraftChatRoute: () => {},
     replaceChatRoute: () => {},
   });
@@ -196,6 +215,12 @@ function mount(owner = "owner-fixture", session = false, sessionKey = owner) {
 }
 window.fixture = {
   mount,
+  enableSpeech: () => {
+    speechEnabled = true;
+    mount("owner-fixture", true);
+  },
+  speechSessions: () => speechSessions,
+  speechFailures: () => speechFailures,
   mountSession: (sessionKey = "owner-fixture") =>
     mount("owner-fixture", true, sessionKey),
   seedSessionCaches: (key) => {

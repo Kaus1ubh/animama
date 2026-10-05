@@ -76,7 +76,7 @@ export type CatalogSaveInput = {
 type ContentSaveResponse<T> = {
   data: T | undefined;
   error: unknown;
-  response: Response;
+  response?: Response;
 };
 
 /** Preserve generated-client HTTP context while exposing one real Save error. */
@@ -88,6 +88,13 @@ async function contentSaveData<T>(
     result = await request;
   } catch (cause) {
     throw toContentSaveApiError(cause);
+  }
+  // A lost reply is uncertain: keep the operation ID and draft for receipt-based retry.
+  // The generated client returns fetch failures without an HTTP response.
+  if (!result.response) {
+    throw toContentSaveApiError(
+      result.error ?? new TypeError("Failed to fetch"),
+    );
   }
   if (result.error !== undefined) {
     throw toContentSaveApiError(result.error, result.response.status);

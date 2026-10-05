@@ -82,6 +82,7 @@ async function mount(
   route = "/",
   state = "active",
   viewport = { width: 1280, height: 800 },
+  { utilities = false } = {},
 ) {
   const page = await browser.newPage({ viewport });
   const errors = [];
@@ -105,6 +106,23 @@ async function mount(
       },
     });
   });
+  if (utilities)
+    await page.addInitScript(() => {
+      window.pendingPipWindows = [];
+      window.createdPipWindows = [];
+      Object.defineProperty(window, "documentPictureInPicture", {
+        configurable: true,
+        value: {
+          requestWindow: () => {
+            const popup = window.open("about:blank", "fixture-pip");
+            window.createdPipWindows.push(popup);
+            return new Promise((resolve) =>
+              window.pendingPipWindows.push(() => resolve(popup)),
+            );
+          },
+        },
+      });
+    });
   await page.route("**/v1/**", async (requestRoute) => {
     const request = requestRoute.request();
     const url = new URL(request.url());
@@ -172,7 +190,7 @@ async function mount(
     });
   });
   await page.goto(
-    `${origin}/${fixture}/index.html?route=${encodeURIComponent(route)}`,
+    `${origin}/${fixture}/index.html?route=${encodeURIComponent(route)}${utilities ? "&utilities=1" : ""}`,
   );
   try {
     await page.waitForFunction(
@@ -195,6 +213,59 @@ async function mount(
     },
   };
 }
+
+test("leaving the companion route closes a late browser PiP window without moving private DOM", async () => {
+  const { page } = await mount("/", "active", undefined, { utilities: true });
+  await page
+    .getByRole("button", { name: "Open browser PiP", exact: true })
+    .click();
+  await page.waitForFunction(() => window.pendingPipWindows.length === 1);
+  await page
+    .getByRole("button", { name: "Leave companion route", exact: true })
+    .click();
+  await page.getByText("Companion route ended", { exact: true }).waitFor();
+  await page.evaluate(() => window.pendingPipWindows[0]());
+  await page.evaluate(
+    () => new Promise((resolve) => requestAnimationFrame(() => resolve())),
+  );
+  assert.equal(
+    await page.evaluate(() => window.createdPipWindows[0].closed),
+    true,
+  );
+  assert.equal(await page.locator("#utility-private-surface").count(), 0);
+  await page.close();
+});
+
+test("browser fullscreen and PiP preserve the private companion host until closure", async () => {
+  const { page } = await mount("/", "active", undefined, { utilities: true });
+  await page
+    .getByRole("button", { name: "Enter browser fullscreen", exact: true })
+    .click();
+  await page.waitForFunction(
+    () => document.fullscreenElement?.id === "utility-private-surface",
+  );
+  await page.evaluate(() => document.exitFullscreen());
+  await page.waitForFunction(() => document.fullscreenElement === null);
+  await page
+    .getByRole("button", { name: "Open browser PiP", exact: true })
+    .click();
+  await page.waitForFunction(() => window.pendingPipWindows.length === 1);
+  await page.evaluate(() => window.pendingPipWindows[0]());
+  await page.waitForFunction(() =>
+    window.createdPipWindows[0].document.body.querySelector(
+      "#utility-private-surface",
+    ),
+  );
+  await page
+    .getByRole("button", { name: "Close browser PiP", exact: true })
+    .click();
+  assert.equal(
+    await page.evaluate(() => window.createdPipWindows[0].closed),
+    true,
+  );
+  assert.equal(await page.locator("#utility-private-surface").count(), 1);
+  await page.close();
+});
 
 test("common hosted shell shows a useful empty roster, account and usage at desktop and narrow widths", async () => {
   for (const viewport of [

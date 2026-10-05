@@ -508,6 +508,46 @@ async function sessionIdle(page) {
   );
 }
 
+test("server speech session reaches the playback adapter without provider credentials", async (t) => {
+  const page = await consumer(t);
+  await page.evaluate(() => window.fixture.enableSpeech());
+  await page.waitForFunction(
+    () => document.querySelector("#submit")?.disabled === false,
+  );
+  await submitSession(page, "Speak through the admitted server");
+  await page.evaluate(() => {
+    window.fixture.respond(0);
+    const run_id = window.fixture.requests()[0].body.run_id;
+    window.fixture.send(0, [
+      {
+        type: "tts.session",
+        run_id,
+        provider: "elevenlabs",
+        transport: "server",
+        websocket_url: "/v1/voice/streams/fixture",
+        voice_id: "voice-fixture",
+        model_id: "eleven_flash_v2_5",
+        output_format: "pcm_24000",
+        sync_alignment: true,
+      },
+    ]);
+    window.fixture.close(0);
+  });
+  await sessionIdle(page);
+  const received = await page.evaluate(() => ({
+    sessions: window.fixture.speechSessions(),
+    failures: window.fixture.speechFailures(),
+  }));
+  assert.deepEqual(received.failures, []);
+  assert.equal(received.sessions.length, 1);
+  assert.equal(received.sessions[0].value.transport, "server");
+  assert.equal(
+    received.sessions[0].value.websocket_url,
+    "/v1/voice/streams/fixture",
+  );
+  assert.equal(received.sessions[0].value.token, null);
+});
+
 test("completed turns and related cache effects stay in the distinct browser session partition", async (t) => {
   const page = await consumer(t);
   await page.evaluate(() => {

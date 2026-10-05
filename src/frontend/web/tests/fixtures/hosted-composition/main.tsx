@@ -11,8 +11,12 @@ import {
   queueCreatorRecovery,
 } from "./creator-recovery";
 import "@/index.css";
+import { BrowserUtilityFixture } from "./utilities";
+import { HostedWorkflowObserver } from "./workflows";
 
 const route = new URL(location.href).searchParams.get("route") ?? "/";
+const utilities = new URL(location.href).searchParams.has("utilities");
+const workflows = new URL(location.href).searchParams.has("workflows");
 history.replaceState(null, "", route);
 const observations = {
   navigations: [] as string[],
@@ -101,6 +105,7 @@ Object.assign(window, {
 });
 createRoot(document.getElementById("root")!).render(
   <AppProviders controller={controller}>
-    <AppRouter />
+    {utilities ? <BrowserUtilityFixture /> : <AppRouter />}
+    {workflows ? <HostedWorkflowObserver /> : null}
   </AppProviders>,
 );

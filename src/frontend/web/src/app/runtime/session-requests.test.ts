@@ -36,6 +36,34 @@ it("fences async iterators and transformed private streams after sign-out", asyn
 
 const origin = "https://app.example.test";
 
+it.each([204, 205, 304])(
+  "preserves bodyless HTTP %s replies and still fences them after session end",
+  async (status) => {
+    // Chromium may expose an empty stream for bodyless network responses.
+    const cancelled = vi.fn();
+    const emptyBody = new ReadableStream({ cancel: cancelled });
+    const response = new Proxy(new Response(null, { status }), {
+      get(target, key) {
+        if (key === "body") return emptyBody;
+        const value = Reflect.get(target, key, target);
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    });
+    const scope = new SessionRequestScope("bodyless", {
+      baseUrl: origin,
+      fetch: async () => response,
+    });
+    const reply = await scope.fetch("/v1/content/package-imports/stage");
+    expect(reply.status).toBe(status);
+    expect(reply.body).toBeNull();
+    expect(cancelled).toHaveBeenCalledOnce();
+    const clone = reply.clone();
+    expect(await reply.text()).toBe("");
+    await scope.end();
+    await expect(clone.text()).rejects.toMatchObject({ name: "AbortError" });
+  },
+);
+
 describe("admitted request lifetime", () => {
   it("rejects foreign product origins before dispatch", async () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response());

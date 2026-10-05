@@ -12,6 +12,7 @@ import type { PyContentCatalog } from "@/lib/content/catalogTypes";
 import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { refreshContentCatalogViews } from "@/query/contentCatalogInvalidation";
 import { queryKeys } from "@/query/keys";
+import { useRuntimeCapabilities } from "./useRuntimeCapabilities";
 
 /** Read the operator-inspectable Included/Local catalog for the signed-in user. */
 export function useContentCatalog() {
@@ -53,6 +54,7 @@ export function useRescanContent() {
 
   const userId = useRuntimeCacheKey();
   const queryClient = useQueryClient();
+  const { data: capabilities } = useRuntimeCapabilities();
   return useMutation({
     onMutate: async () => {
       if (userId) {
@@ -61,14 +63,17 @@ export function useRescanContent() {
         });
       }
     },
-    mutationFn: async () =>
-      (
+    mutationFn: async () => {
+      if (capabilities?.local_filesystem_administration !== true)
+        throw new Error("Host file scanning is managed by the operator.");
+      return (
         await rescanContentCatalogV1ContentRescanPost({
           client: apiClient,
           responseValidator: undefined,
           throwOnError: true,
         })
-      ).data,
+      ).data;
+    },
     onSuccess: async (result) => {
       if (!userId) return;
       const previous = queryClient.getQueryData<PyContentCatalog>(
