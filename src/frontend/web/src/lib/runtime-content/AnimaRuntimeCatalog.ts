@@ -30,6 +30,7 @@ import type {
   ResolvedAnimaPose,
 } from "@/lib/avatar/poses/animaPose";
 import {
+  MAX_ANIMA_POSE_CLIP_BYTES,
   parseAnimaPoseClip,
   validateAnimaPoseClipEventCatalogRefs,
   type AnimaPoseClip,
@@ -62,7 +63,6 @@ import {
   preparedRuntimeResourceUrls,
 } from "./runtimeContentDelivery";
 
-const MAX_POSE_CLIP_BYTES = 2 * 1024 * 1024;
 const MAX_EAGER_PRELOAD_BYTES = 64 * 1024 * 1024;
 const logger = createLogger("AnimaRuntimeCatalog");
 
@@ -903,7 +903,7 @@ export class AnimaRuntimeCatalog
           source: { ...source, files: [sequence] },
         })
       : null;
-    if (!sequence || !url || sequence.size_bytes > MAX_POSE_CLIP_BYTES) {
+    if (!sequence || !url || sequence.size_bytes > MAX_ANIMA_POSE_CLIP_BYTES) {
       this.recordInvalid(
         entry,
         "Private pose clip sequence is unavailable or oversized",
@@ -998,7 +998,7 @@ export class AnimaRuntimeCatalog
       try {
         const payload = await readBoundedJsonResponse(
           response,
-          MAX_POSE_CLIP_BYTES,
+          MAX_ANIMA_POSE_CLIP_BYTES,
         );
         parsed = parseAnimaPoseClip(payload);
       } catch (error) {

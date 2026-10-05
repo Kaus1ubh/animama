@@ -33,6 +33,15 @@ import {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const EMOTION_FADE_SPEED = 2.0; // Increased speed for snappier expression changes
+/** Presets whose presence in a Gesture hands it the whole emotional face. */
+const CLIP_EMOTION_PRESETS = new Set([
+  "happy",
+  "angry",
+  "sad",
+  "relaxed",
+  "surprised",
+  "neutral",
+]);
 const IGNORE_LIPSYNC_SHAPES = new Set(EYE_MOVEMENT_BLENDSHAPES);
 const VOWEL5_CHANNEL_ORDER = ["A", "E", "I", "O", "U"] as const;
 type Vowel5Channel = (typeof VOWEL5_CHANNEL_ORDER)[number];
@@ -653,6 +662,12 @@ export class ExpressionController {
   private _currentWeights = new Map<string, number>();
   private _expressionOverlays = new Map<string, ExpressionOverlayMap>();
   private _lastExpressionOverlayKeys = new Set<string>();
+  /** Expressions keyed by the playing Gesture clip, with its fade weight. */
+  private _clipExpressions: {
+    weight: number;
+    expressions: Readonly<Record<string, number>>;
+  } | null = null;
+  private _lastClipExpressionKeys = new Set<string>();
 
   private _manualTargets: Record<string, number> = {};
   private _resolvedVowelExpressions: ResolvedVowelExpressionMap = {};
@@ -700,6 +715,8 @@ export class ExpressionController {
     this.clearLipSync();
     this._expressionOverlays.clear();
     this._lastExpressionOverlayKeys.clear();
+    this._clipExpressions = null;
+    this._lastClipExpressionKeys.clear();
     this._autoBlink = null;
     this._targetExpressions.clear();
     this._currentWeights.clear();
@@ -709,6 +726,31 @@ export class ExpressionController {
   // ─────────────────────────────────────────────────────────────────────────
   // Expression API
   // ─────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Give a playing Gesture clip's keyed expressions precedence (call each
+   * frame; null when no clip plays or it keys no expressions).
+   *
+   * Keyed expressions blend from the composed value to the clip's value by the
+   * clip's fade `weight`. If the clip keys any emotion preset, the emotion
+   * system's whole contribution is faded out by the same weight so faces do
+   * not mix. A keyed `blink` overrides automatic blinking the same way.
+   * Lip-sync and manual overrides still apply afterwards.
+   */
+  setClipExpressionPrecedence(
+    clip: {
+      weight: number;
+      expressions: Readonly<Record<string, number>>;
+    } | null,
+  ): void {
+    this._clipExpressions =
+      clip && Object.keys(clip.expressions).length > 0
+        ? {
+            weight: clampUnit(clip.weight),
+            expressions: { ...clip.expressions },
+          }
+        : null;
+  }
 
   /**
    * Set an expression value directly (for UI sliders).
@@ -1053,22 +1095,40 @@ export class ExpressionController {
     }
 
     const expressionOverlay = this._mergeExpressionOverlays();
+    const clip = this._clipExpressions;
+    const clipWeight = clip?.weight ?? 0;
+    const clipKeysEmotion = Boolean(
+      clip &&
+      Object.keys(clip.expressions).some((key) =>
+        CLIP_EMOTION_PRESETS.has(key),
+      ),
+    );
+    const emotionScale = clipKeysEmotion ? 1 - clipWeight : 1;
 
-    // 3. Apply emotion expressions (except blink, handled next)
+    // 3. Apply emotion expressions (except blink, handled next). A playing
+    // Gesture's keyed expressions take precedence over the emotion system.
     const expressionKeys = new Set([
       ...this._currentWeights.keys(),
       ...expressionOverlay.keys(),
       ...this._lastExpressionOverlayKeys,
+      ...Object.keys(clip?.expressions ?? {}),
+      ...this._lastClipExpressionKeys,
     ]);
     for (const key of expressionKeys) {
       if (key === "blink") continue;
-      const weight = clampUnit(
-        (this._currentWeights.get(key) ?? 0) +
-          (expressionOverlay.get(key) ?? 0),
-      );
+      const emotion = this._currentWeights.get(key) ?? 0;
+      const clipValue = clip?.expressions[key];
+      const composed =
+        clipValue === undefined
+          ? emotion * emotionScale
+          : emotion * (1 - clipWeight) + clipValue * clipWeight;
+      const weight = clampUnit(composed + (expressionOverlay.get(key) ?? 0));
       this._expressionManager?.setValue(key, weight);
     }
     this._lastExpressionOverlayKeys = new Set(expressionOverlay.keys());
+    this._lastClipExpressionKeys = new Set(
+      Object.keys(clip?.expressions ?? {}),
+    );
 
     // 4. Update AutoBlink
     // Get the base blink level from the current emotion state (e.g., sad eyes)
@@ -1078,7 +1138,13 @@ export class ExpressionController {
     );
 
     // AutoBlink calculates the final blink value, respecting the base level as the "open" state
-    const blinkValue = this._autoBlink?.update(delta, baseBlink) ?? baseBlink;
+    const autoBlinkValue =
+      this._autoBlink?.update(delta, baseBlink) ?? baseBlink;
+    const clipBlink = clip?.expressions.blink;
+    const blinkValue =
+      clipBlink === undefined
+        ? autoBlinkValue
+        : autoBlinkValue * (1 - clipWeight) + clipBlink * clipWeight;
 
     // Apply final blink value
     this._expressionManager?.setValue("blink", blinkValue);

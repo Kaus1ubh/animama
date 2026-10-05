@@ -5,6 +5,7 @@ import type {
   PyActionPreview,
   PyReaction,
 } from "@/lib/content/catalogTypes";
+import { MAX_ANIMA_POSE_CLIP_BYTES } from "@/lib/avatar/poses/animaPoseClip";
 import { BUILT_IN_AVATAR_MOTION_CATALOG } from "@/lib/avatar/motion/AvatarMotionCatalog";
 import { fetchContentPreviewFile } from "@/lib/content/contentPreview";
 import { actionClosure } from "@/lib/content-preview/ActionPreviewSession";
@@ -117,10 +118,10 @@ async function ownedSequence(
   if (!response.ok) {
     throw new Error("This Action could not be downloaded.");
   }
-  return (await readBoundedJsonResponse(response, 512 * 1024)) as Record<
-    string,
-    unknown
-  >;
+  return (await readBoundedJsonResponse(
+    response,
+    MAX_ANIMA_POSE_CLIP_BYTES,
+  )) as Record<string, unknown>;
 }
 
 function builtinSequence(

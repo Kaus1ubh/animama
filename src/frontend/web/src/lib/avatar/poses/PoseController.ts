@@ -45,6 +45,7 @@ import {
   interpolateSamples,
 } from "./animaPoseClip/interpolation";
 import type { AvatarPoseClipSnapshot, AvatarPoseSnapshot } from "./types";
+import type { AnimaPoseClipMutableLayerId } from "./animaPoseClip/schema";
 import {
   retargetClipSampleForVrm0,
   retargetPoseForVrm0,
@@ -139,6 +140,16 @@ type ClipActiveEventEffect = {
 
 type ClipPlaybackPhase = "fadeIn" | "playing" | "fadeOut";
 
+/** What a playing clip asks of the layers composed after it. */
+export type AnimaPoseClipPresence = {
+  /** 0–1: rises through the fade-in, 1 while playing, falls through the fade-out. */
+  weight: number;
+  /** Live procedural layers the clip mutes. */
+  mutedLayers: readonly AnimaPoseClipMutableLayerId[];
+  /** The clip's own sampled expression weights at the current time, before fades. */
+  expressions: Readonly<Record<string, number>>;
+};
+
 type ClipRuntimeState = {
   clip: AnimaPoseClip | null;
   playbackId: number;
@@ -159,6 +170,8 @@ type ClipRuntimeState = {
   resolvedExpressions: string[];
   missingExpressions: string[];
   missingPoseRefs: string[];
+  /** Latest sampled clip expressions, before the fade envelope. */
+  sampledExpressions: Record<string, number>;
   expressionBaseline: Map<string, number>;
   firedEventKeys: Set<string>;
   firedEventIds: Set<string>;
@@ -219,6 +232,38 @@ export class PoseController {
       clip !== null &&
       (!clipId || clip.id === clipId)
     );
+  }
+
+  /**
+   * The playing clip's fade weight, layer mutes and sampled expressions, or
+   * null when no clip is playing. Avatar uses it each frame to mute live
+   * layers and give the clip's expressions precedence over emotion.
+   */
+  getClipPresence(): AnimaPoseClipPresence | null {
+    const state = this._clipState;
+    const clip = state.clip;
+    if (!clip || !state.playing || this._isDisposed) return null;
+    let weight = 1;
+    if (state.phase === "fadeIn") {
+      const transition = resolveClipFadeTransition(clip, clip.fadeIn);
+      weight = easeProgress(
+        this._getCurrentClipFadeProgress(state.fadeInDurationSec),
+        transition.easing,
+      );
+    } else if (state.phase === "fadeOut") {
+      const transition = resolveClipFadeTransition(clip, clip.fadeOut);
+      weight =
+        1 -
+        easeProgress(
+          this._getCurrentClipFadeProgress(state.fadeOutDurationSec),
+          transition.easing,
+        );
+    }
+    return {
+      weight: Math.min(1, Math.max(0, weight)),
+      mutedLayers: clip.mutedProceduralLayers ?? [],
+      expressions: state.sampledExpressions,
+    };
   }
 
   getClipSnapshot(clipId?: string): AvatarPoseClipSnapshot {
@@ -745,6 +790,9 @@ export class PoseController {
       atFiniteEnd ? cycle : timeSec,
       this._resolveClipPoseRef,
     );
+    this._clipState.sampledExpressions = {
+      ...(sampleResult.sample.expressions ?? {}),
+    };
     const result = this._applyClipSample(
       this._applyClipPlaybackEnvelope(
         this._retargetClipSampleForRuntime(sampleResult.sample),
@@ -1242,6 +1290,7 @@ function createClipRuntimeState(): ClipRuntimeState {
     resolvedExpressions: [],
     missingExpressions: [],
     missingPoseRefs: [],
+    sampledExpressions: {},
     expressionBaseline: new Map<string, number>(),
     firedEventKeys: new Set<string>(),
     firedEventIds: new Set<string>(),

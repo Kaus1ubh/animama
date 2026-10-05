@@ -594,7 +594,7 @@ export function replacePoseCreatorDraftWithAnimaPose(
 
 /** Resolves only standard normalized humanoid bones accepted by pose assets. */
 export function getPoseCreatorNormalizedBoneNode(
-  avatar: Avatar | null,
+  avatar: Pick<Avatar, "vrm"> | null,
   boneName: string,
 ) {
   if (!isPoseCreatorHumanBoneName(boneName)) return null;

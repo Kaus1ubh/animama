@@ -471,10 +471,15 @@ export function ActionEditorPage({
     setHydrationReady(true);
   }, [intent, itemId, replaceLoadedDocument, userId]);
 
+  // The catalog item whose automatic hydration failed. The loader callback is
+  // recreated whenever mutation state changes, so without this guard a failed
+  // load would retry in a tight loop. A changed item gets one fresh attempt.
+  const failedHydrationItem = useRef<PyGesture | PyReaction | null>(null);
   useEffect(() => {
     if (hydrated.current || hydrating.current) return;
     const item = existing.data;
     if (!item || item.state !== "ready") return;
+    if (failedHydrationItem.current === item) return;
     hydrating.current = true;
     void hydrateCatalogAction(item, false)
       .then((loaded) => {
@@ -482,7 +487,9 @@ export function ActionEditorPage({
         hydrated.current = true;
         setHydrationReady(true);
       })
-      .catch(() => undefined)
+      .catch(() => {
+        failedHydrationItem.current = item;
+      })
       .finally(() => {
         hydrating.current = false;
       });

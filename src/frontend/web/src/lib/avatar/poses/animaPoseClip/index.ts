@@ -1,6 +1,10 @@
 export { analyzeAnimaPoseClipChannels } from "./channels";
 export {
   ANIMA_POSE_CLIP_SCHEMA,
+  ANIMA_POSE_CLIP_DECIMALS,
+  MAX_ANIMA_POSE_CLIP_BYTES,
+  roundAnimaPoseClipNumber,
+  serializeAnimaPoseClipFile,
   DEFAULT_ANIMA_POSE_CLIP_TRANSITION,
   isAnimaPoseClipRef,
   isAnimaPoseSnapshot,
