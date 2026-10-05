@@ -104,6 +104,18 @@ Paths are relative to `src/frontend/web/src/` unless stated:
 - Textured `.vrm` files load in Node (about 15 ms each) once a GLTFLoader plugin
   resolves textures to placeholders, so no browser fallback is needed for
   generation or checks.
+- Owner testing found that four of the six saved evaluation Gestures would not
+  reopen in the creator, and that the editor flooded the backend with preview
+  requests. The editor capped clip files at 512 KB, below the runtime's 2 MiB,
+  and a failed load retried in a loop. The creator also saved clips indented,
+  with 17-digit renormalized quaternions: the saved laugh was 2.33 MB, over even
+  the runtime limit. Fixed in `1dcdda35`:
+  - one shared `MAX_ANIMA_POSE_CLIP_BYTES` limit;
+  - no automatic retry after a failed load;
+  - compact saves rounded to eight decimals;
+  - a generator refusal for clips over the limit.
+
+  The six items were re-saved in place; the laugh is now 0.82 MB.
 
 ## Decision Log
 
