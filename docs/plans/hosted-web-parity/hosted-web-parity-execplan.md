@@ -1,0 +1,539 @@
+# Build one web application for self-hosted and hosted use
+
+This is a living ExecPlan governed by [PLANS.md](../../../PLANS.md) and
+[SDLC.md](../../../SDLC.md). Maintain Progress, Surprises & Discoveries,
+Decision Log and Outcomes & Retrospective during execution.
+
+Source agreement: [issue #272](https://github.com/raymond-van/animama/issues/272),
+the [spec snapshot](hosted-web-parity-spec.md) published at
+`2026-10-05T15:40:14Z`, and the owner's 2026-10-05 approval of option 3 followed
+by the instruction to prepare an ExecPlan. The spec snapshot is committed at
+`fab1acc9f01dde2cb1aa567df521ff6b4eb66335`.
+
+Authorization: **planning only**. This document proposes Animama phases A1–A6
+for review; it does not start implementation, paid calls, publication or deployment.
+After implementation is authorized, use one branch and PR for this plan, with
+one issue per authorized phase. #272 remains the product scope authority.
+Cloud owns a separate implementation plan and assignments. Public work must
+remain understandable and executable without access to that private plan.
+
+## Purpose and context
+
+Build an explicit hosted entrypoint from the existing React/Vite application,
+sharing its product router, screens, settings, creators and browser runtime with
+self-hosted web. Deliver a verified immutable static application alongside the
+shared backend packages. A hosted consumer supplies authentication, tenancy,
+storage, providers, quotas and operations through documented interfaces.
+
+The completed product outcome retains every existing end-user web workflow
+except Anima creation, chat attachments, document ingestion/OCR, provider
+credential/connection administration, local filesystem administration and
+Electron features. Missing hosted support is implementation work, not another
+exception. Voice, avatars, effects, memory, Library, creators and content sharing
+remain in scope. This plan's phases are engineering checkpoints toward that
+whole outcome, not separately accepted reduced hosted products.
+
+Animama owns shared browser source, reusable services, contracts and artifact
+production. It does not own hosted sessions, database migrations, object stores,
+billing policy or deployment. Keep the existing libraries and dependency
+direction; do not extract the entire application into another npm package,
+copy product routes or introduce a general plugin/capability framework.
+
+### Starting source and environment
+
+Reuse the assigned `animama` task worktree on `feat/hosted-web-parity`, starting
+from spec commit `fab1acc9f01dde2cb1aa567df521ff6b4eb66335`; its inspected
+implementation baseline is `f90c080fc343a159cb9d7f9059a35127f871c021`.
+Before implementation, verify Git root, branch, HEAD, dirty state and current
+base. Preserve later task work. Planning has started no stack. Record any later
+stack name, URL and source in the phase evidence; use the existing named-stack
+workflow and do not reuse an unrelated installation's data.
+
+Read the root and scoped agent guides, `docs/backend/README.md`,
+`docs/frontend/README.md`, `GLOSSARY.md` and the relevant ADRs before editing.
+Hydrate needed LFS files before treating missing avatar/model bytes as regressions.
+Use frozen dependency installation and the repository's existing tool versions.
+
+### Source map and parity coverage
+
+Paths below are repository-relative. Route files are under
+`src/frontend/web/src/routes/`; UI paths are under
+`src/frontend/web/src/`. The table maps the inspected source, not an invented
+future route tree. A1 must enumerate individual actions beneath these groups,
+including dialogs and menu actions, and attach API and test coverage to them.
+
+| Surface and source | Retained actions and implementation assignment |
+| --- | --- |
+| `__root.tsx`, `_app.tsx`, `_app/index.tsx`, `app/router.tsx`, `ui/sidebar/` | Shared shell, sidebar, preview dock, deep links, reload, keyboard and responsive navigation. A3 replaces installation-specific gates through composition adapters. Empty hosted rosters remain useful. |
+| `_app/$animaId.tsx`, `_app/$animaId/index.tsx`, `_app/$animaId/c/$chatId.tsx`, `ui/main/chat/` | Chat/history/search, rename/delete, stop/retry, Markdown, layouts and model selection. A3 preserves the mounted companion across chat changes; A4 verifies all actions against shared contracts. |
+| `_app/animas.tsx`, `_app/animas/index.tsx`, `_app/animas/$animaId.tsx`, `_app/animas/$animaId/identity.tsx`, `ui/animas/` | Existing-Anima identity, relationship memory, settings, portrait/background framing, appearance, avatar/voice and loadouts. Retain existing management actions; do not invent a deletion UI. |
+| `_app/create.tsx`, `_app/animas.new.tsx` | Retain the Create hub and content creators; block Anima creation and direct creation navigation with a concise reason. Account bootstrap belongs to the consumer, not this route. |
+| `_app/library.tsx`, `ui/library/`, `ui/content-preview/`, `ui/content-health/` | Existing tabs, search/filter, thumbnails, validation, preview, customize/edit/delete, selection and recovery. Omit host directory scan/path administration only. |
+| `_app/poses.$poseId.edit.tsx`, Gesture/Reaction/Idle Style `.new` and `.edit` routes | Retain Pose/Pose Clip and timeline/content workflows, Save, Save & Equip, draft/conflict recovery and format import/export. Pose Clip is not new Anima equipment. |
+| Avatar/Particle/Scene Effect `.new`, `.edit` and existing index routes; Sound Effect routes | Retain each existing creator and its asset/audio controls. Verify creator, Library and live-Anima playback separately. Do not restore a standalone music Library feature. |
+| `lib/content-sharing/`, `query/hooks/useLibrarySharingFlow.ts` | Content-package inspection/review/commit/export and supported creator formats; Anima export remains. Reject Anima-package import before installing any contents. |
+| `_app/memories.tsx`, `ui/memory/`, memory queries/mutations | Account-shared user memories, episodes, virtual files/folders, history/conflicts, Anima memories and user-started Memory Manager/Reflection. Logical memory paths are retained, host paths are not exposed. |
+| `ui/sidebar/ApplicationSettingsModal.tsx` | General, Appearance, Memory & Emotion, Safety, applicable Data reset, Advanced and About remain. Models retains model/role choices but omits connection/key/search-provider administration. Voice retains microphone, engine/voice choices, readiness, download and clone workflows. API Keys is omitted. Shortcuts retain browser actions and omit native actions. About omits native updates/host logs while retaining applicable product information. |
+| `ui/app/AnimaRouteProviders.tsx`, `ui/main/MainShell.tsx`, `lib/avatar/`, `lib/runtime-content/` | Runtime snapshots/leases, expressions, gestures, reactions, idle, camera, lip-sync, effects/background/audio and revision/remount behavior. A2 supplies neutral service interfaces; A4 handles browser delivery and lifetime. |
+| `lib/speech/`, `workers/`, `hooks/use-tts-playback.ts`, `ui/animas/VoiceCloneLibrary.tsx`, `ui/settings/VoiceDownloads.tsx` | Dictation, Voice Mode, microphone selection/test/sensitivity, STT/TTS, clone/voice catalog, playback/stop/mute and locale/readiness/fallback. Browser model downloads are retained; server-wide model installation is excluded. |
+| `setup.tsx`, `desktop/pip/$animaId.tsx`, `desktop/quick-chat/$animaId.tsx`, `a.tsx`, `a/$.tsx`, `safety.tsx`, `_app/avatar-portrait-debug.tsx` | Local setup/native windows remain local composition utilities. Preserve current legacy navigation and safety behavior where applicable. Classify the portrait diagnostic by its actual entry points in A1; ordinary portrait editing stays included. Browser fullscreen/PiP remain available by browser support. |
+| New thin hosted composition/account integration | Sign-in/out, eligibility/readiness, restriction/outage, account access and usage/limits in the common shell. Document HTTP contracts; no identity implementation or provider credentials enter the bundle. |
+
+The backend reference is `src/backend/animama/app/{contracts,ports,services}`,
+`app/chat`, `app/model_clients` and supported `adapters`. Existing local route
+behavior under `server/routers` identifies observable contracts but is not a
+hosted import surface. `app/contracts/runtime_capabilities.py` is richer than the
+current `{chat: boolean}` browser product capability type; extend the existing
+contract instead of maintaining a second truth.
+
+## Progress
+
+- [ ] 2026-10-05 A1: planned; contract/action coverage and implementation authorization pending.
+- [ ] 2026-10-05 A2: planned; neutral shared service work depends on A1.
+- [ ] 2026-10-05 A3: planned; shared composition work depends on A1.
+- [ ] 2026-10-05 A4: planned; retained browser workflow validation depends on A2 and A3.
+- [ ] 2026-10-05 A5: planned; complete immutable artifact depends on A3 and A4.
+- [ ] 2026-10-05 A6: planned; independent public acceptance and handoff depend on A1–A5.
+
+## Surprises & Discoveries
+
+At the inspected source, sharing the router alone is insufficient: startup
+directly depends on local readiness, the API client is configured through a
+module-level default, and settings hide model-role selection under provider
+administration. These are composition seams to fix without duplicating screens.
+
+Shared content code still assumes local files. `ContentStore` exposes scanning,
+`Path` and mutation journals; `ContentSaveService._preflight` rescans and locks
+the Local source; `ContentPackageService` receives filesystem staging roots.
+Passing object-store keys as local paths would not establish a reusable boundary.
+
+The package-set producer currently emits a wheel, three npm tarballs and two
+schemas. Its verifier requires that exact inventory and rejects extra payloads.
+The hosted static application needs an explicitly versioned manifest extension.
+Existing accountless browser tests cannot establish hosted account isolation.
+
+## Decision Log
+
+2026-10-05, owner: selected option 3 and whole-app near parity with the six
+exceptions. Reuse the existing web source and explicit entrypoints; stop treating
+the former hosted text-only implementation as the target feature scope.
+
+2026-10-05, planning decision: keep one plan/branch/PR per implementation
+repository. A2 and A3 can proceed independently after A1; resource packaging
+spikes can begin after A1, but A5 cannot pass with an incomplete app. Sequence
+does not change the accepted product outcome.
+
+2026-10-05, planning decision: premerge integration uses independently installed
+immutable candidate artifacts. Public source readiness does not require a hosted
+main pin that cannot exist before public merge. Overall #272 acceptance still
+requires actual hosted integration, owned by the consumer's plan.
+
+## Interfaces and Dependencies
+
+At later workspace setup, re-read #272 and reconcile any reviewed changes to this
+snapshot. Reuse existing issues and this branch; create phase assignments only
+for authorized implementation. A phase issue records its starting HEAD,
+requirements, files, dependency status and acceptance. Commit each verified phase
+with the repository's `<type>(<scope>)[p#]: <summary>` convention. Do not close
+#272 merely because the public PR merges.
+
+The common handoff consists of runtime-owner/readiness and account-action HTTP
+contracts, operation capabilities, request/error/SSE schemas, content and memory
+revision semantics, provider usage/cancellation ports, and a versioned static
+artifact/resource manifest. A1 records concrete field and endpoint decisions in
+their existing owning contract files and new contract documentation where needed.
+Do not infer permission from a generated SDK method or a browser owner ID.
+
+The consumer must supply account-owned implementations for settings, profiles,
+Animas/loadouts, chat/history, memory/runs/approvals, catalog/bytes/drafts/jobs,
+voice and bounded provider work. A public contract fixture may simulate those
+services to verify this app independently. It is not evidence that hosted
+tenancy, real providers or full parity have been delivered.
+
+## Phased implementation
+
+### Phase 1: Map all operations and define compatible contracts (A1)
+
+Scope: R1–R6 and R8–R12. Issue: create/reuse at implementation setup; starting
+source: record actual HEAD. Expand the source map into
+`docs/plans/hosted-web-parity/hosted-web-parity-coverage.md` (new), with one row
+per route/action/settings group, requirement, capability, API/service, owner,
+test and evidence status. Include paste/drop/direct API equivalents of excluded
+actions. Every retained operation must have an implementation assignment.
+
+Inspect `RuntimeOwnerContext.tsx`, `app/providers/AppProviders.tsx`,
+`lib/api/configureAnimaApiClient.ts`, `query/runtime-capabilities.ts`,
+`packages/runtime-contracts/src/index.ts` and backend runtime capability schemas.
+Define narrow injected composition interfaces for readiness, owner/session,
+transport, capabilities and account actions. Keep the existing capability
+mechanism; distinguish product operation permission, browser support and
+temporary failure. Separate model/role choice from connection administration.
+
+Document shared contract compatibility and authenticated byte/stream/resource
+requirements. Design an additive versioned package-set format for the static
+app, including a closed asset inventory, entry document, MIME types, workers,
+WASM/model references, checksums, notices and supported backend contract bounds.
+Decide which resources are shipped or separately admitted lazy downloads; do not
+embed all development assets by default or remove retained engines silently.
+Follow `contracts/versions.json` and `scripts/package-sets/README.md`: structural
+OpenAPI/schema changes currently require a major contract bump, and changed
+emitted TypeScript declarations require a package version bump.
+
+Validation: from the root run `uv run pytest -q tests/test_runtime_capabilities.py
+tests/test_shared_backend_boundary.py` after applicable contract changes; from
+`src/frontend` regenerate with `pnpm openapi-ts`, then run
+`pnpm openapi-ts:check`, `pnpm packages:check` and `pnpm packages:test`.
+Review every source-map group against routes, sidebar menus and searchable
+settings. Add fixture cases for all six exclusions and model-selection retention.
+Expected result: no unassigned retained action and no competing capability schema.
+
+Completion/progression: agent-verified contract checks and bounded review. Record
+the consumer handoff and unresolved implementation details with their dependent
+phase. New exclusions, altered memory meaning or changes to existing security
+authority require a product decision before dependent work. No implementation
+detail in this phase authorizes a hosted resource purchase or paid test.
+
+Evidence/issue/commit: pending. Recovery: keep changes additive where possible;
+revert the candidate contract and fixture changes together before adoption.
+
+#### Code Review #1 Findings
+
+Not run. Record exact source, independent reviewers, checks and numbered findings.
+Repair rounds used: 0 of 2.
+
+#### Code Review #1 Revisions
+
+None. Record accepted/rejected/deferred findings, reasons, fixes and affected checks.
+
+### Phase 2: Make retained backend behavior composition-independent (A2)
+
+Scope: R3–R10 and R12; depends on A1. Issue/source/commit: pending implementation
+setup. Supply reusable services and ports needed by the mapped hosted workflows,
+without importing local installation or HTTP composition into shared code.
+
+Refactor the actual blocking assumptions in `app/ports/content_store.py`,
+`app/services/content_save_service.py`, `content_package_service.py`, package
+staging/import/export services and runtime/catalog services. Separate local scan,
+host-path locking and filesystem journaling from account-owned catalog mutation,
+bounded temporary staging, verified-byte reads and idempotent transaction receipts.
+Use existing ports where sufficient; add only the operations required by the
+retained workflows. Preserve the local filesystem adapter's atomicity, recovery,
+source provenance and Included/Local meaning. Hosted writable content is not a
+license to redefine those source terms or expose server paths.
+
+Check settings/profile, memory files/episodes/Reflection/Memory Manager,
+Anima/loadout/presentation and chat title/compaction services for implicit owner,
+global session or server-only dependencies. Extract only required neutral
+schemas/orchestration; leave FastAPI admission and installation startup local.
+Memory paths remain logical references with owner and Anima scope. Preserve
+incognito, memory-disabled and suppressed-response behavior.
+
+Extend existing `app/ports/voice.py`, model-client and memory-manager runtime
+ports where needed to express actual usage, bounded requests, cancellation and
+recoverable completion for hosted adapters. Keep provider credentials and quota
+policy outside shared browser code. A server-proxied speech contract must not
+require issuing an unbounded paid provider token to the browser.
+
+Validation from root: run `uv run --no-sync python
+scripts/repository-boundary/check-python-imports.py` and focused tests:
+`uv run pytest -q tests/test_shared_backend_boundary.py
+tests/test_content_save_service.py tests/test_typed_content_save_replay.py
+tests/test_content_package_import_atomic.py tests/test_content_package_import_anima.py
+tests/test_memory_files_api.py tests/test_memory_manager_reflection.py
+tests/test_anima_runtime_delivery.py tests/test_anima_voice_catalog_api.py`.
+Add independent non-filesystem fake-port consumer cases for transaction replay,
+conflicts, account IDs, resource release and staging cleanup. Run `make check-test`
+for the resulting shared runtime/persistence change. Regenerate clients only
+through the owning OpenAPI workflow when schemas change.
+
+Completion/progression: local behavior remains covered and a packaged consumer
+can instantiate the retained services without importing `animama.local`,
+`animama.server`, local migrations or private code. A2 supplies the backend
+artifact handoff for parallel hosted service implementation. Recovery: retain
+old adapter behavior until replacement parity passes; no development data reset
+is implied. Local schema changes, if needed, follow the baseline-only rule.
+
+#### Code Review #1 Findings
+
+Not run. Include dependency-boundary and transaction/recovery analysis.
+Repair rounds used: 0 of 2.
+
+#### Code Review #1 Revisions
+
+None. Record dispositions, fixes and affected local/shared checks.
+
+### Phase 3: Compose one router and application shell (A3)
+
+Scope: R1–R6 and R12; depends on A1 and may run alongside A2. Issue/source/commit:
+pending. Add `src/frontend/web/src/main.hosted.tsx` as a thin new entrypoint beside
+`main.local.tsx`. Share `AppProviders`, the product router/screens and styles.
+Explicit build inputs select adapters; do not add `VITE_*` local/hosted product flags.
+
+Inject transport and runtime startup into the existing owner/provider structure.
+Remove local readiness/bootstrap imports from shared router guards and implicit
+module-global client configuration where it would leak across compositions.
+Keep local CSRF/installation admission and hosted session/CSRF handling in their
+own adapters. The browser never selects authoritative account identity.
+
+Retain local setup and Electron utility entrypoints in their existing composition.
+Host a useful signed-out, eligibility, restriction, outage and empty-roster state
+without entering installation setup. Add account and usage affordances through
+the common shell. Use consistent disabled-action reasons and direct-route
+unavailable states; omit only irrelevant native/server administration controls.
+
+Define owner/session transitions that abort requests, dispose playback/runtime
+resources, clear private query/store state and namespace browser persistence.
+Inventory private data outside query caches, including drafts, object URLs,
+workers and module stores. Account settings stay account-owned; physical device
+preferences retain browser-local semantics. Ordinary sign-out preserves server data.
+
+Validation from `src/frontend`: `pnpm check`, `pnpm web:lint`, `pnpm web:test`,
+`pnpm build`, `pnpm desktop:check`. Add composition/route tests and a new hosted
+fixture build command, `pnpm web:build:hosted`, as an explicit script rather than
+claiming the current `pnpm build` already covers hosted. Exercise deep links,
+reload/back, excluded direct routes, owner A → sign-out → owner B, expired
+sessions and empty rosters. Assert zero local installation calls in hosted.
+
+Completion/progression: both entrypoints use the same product definitions and
+pass bounded review. Fixture screens do not establish missing API functionality;
+track that coverage in A4 and the hosted handoff. Recovery: keep the current local
+entrypoint working throughout; retire temporary composition scaffolding before A6.
+
+#### Code Review #1 Findings
+
+Not run. Include route sharing, transport lifetime and private browser-state review.
+Repair rounds used: 0 of 2.
+
+#### Code Review #1 Revisions
+
+None. Record dispositions and affected composition/local regression checks.
+
+### Phase 4: Verify every retained workflow and browser resource lifetime (A4)
+
+Scope: R1–R10 and R12; depends on A2 and A3. Issue/source/commit: pending.
+Apply the common contracts to the existing screens rather than recreating them.
+Finish any composition assumptions discovered by the coverage map: settings/model
+roles, chat/history/tools/safety, existing Anima editing, memory/Reflection,
+Library and all creators, sharing, voice catalogs/cloning and loadouts.
+
+In `lib/runtime-content/{VerifiedByteLoader,RuntimeMountPreparer,
+RuntimeJsonBundleLoader,PreviewByteSession}.ts`, avatar and speech runtimes,
+verify authenticated same-origin bytes, snapshot leases, expected hashes,
+revision conflicts, cleanup and optional-asset fault isolation. Preserve
+companion mounting across chat changes and intentional revision remounts after
+equip. Export excludes private chat/relationship history. Interrupted commits
+resolve their operation receipt before retry; cancelling a request is not rollback.
+
+In `lib/speech/`, workers, TTS hooks and voice settings, support the agreed
+browser and server-proxied engines without leaking provider credentials. Keep
+model/voice selection distinct from server model administration. Exercise
+permission refusal, locale/readiness, mic device/sensitivity, interruption,
+quota/error fallback and teardown. Runtime model/worker versions must match.
+
+Validation from `src/frontend`: `pnpm web:test`, `pnpm check`, `pnpm web:lint`,
+`pnpm verify:tts-assets`, `pnpm e2e:list`, `pnpm e2e:check`. Extend meaningful
+behavior helpers from `accountless-content-sharing`, `accountless-imported-playback`,
+`playback-library`, `playback-anima-loadout` and creator journeys. Add a hosted
+session fixture; do not use installation bootstrap for hosted tests. Run selected
+journeys through `pnpm e2e:test` using the runner's documented selection and
+mutation controls, recording exact commands and source. Browser evidence must
+cover save/reload, preview/equip, import/export, conflict/retry and two-owner cleanup.
+
+Completion/progression: every public UI action has working contract behavior
+and independent fixture coverage, including all six explained exclusions.
+Visually inspect creator, Library and live playback; record actual local audio
+and microphone evidence separately from fake/automated runs. Hosted real-provider,
+device-matrix and tenancy acceptance remain required consumer evidence, not a
+claim made from fixtures. If physical audio evidence cannot be obtained, keep
+that acceptance item pending without declaring voice parity.
+
+Recovery: do not delete unsaved drafts on quota or provider failure. Dispose only
+the abandoned owner/runtime resources; preserve completed operations and allow
+safe receipt-based recovery after legitimate reentry.
+
+#### Code Review #1 Findings
+
+Not run. Cover the complete action map, resource cleanup and excluded alternatives.
+Repair rounds used: 0 of 2.
+
+#### Code Review #1 Revisions
+
+None. Record dispositions, visual/audio limits and affected checks.
+
+### Phase 5: Produce and validate the immutable hosted application (A5)
+
+Scope: R4, R8, R11–R12; depends on A3 and A4. Issue/source/commit: pending.
+Implement the A1 artifact format in `scripts/package-sets/build.py`,
+`package_set.py`, their tests, `src/frontend` build scripts and
+`scripts/repository-boundary/check-packed-artifacts.py`. Include its independent
+consumer fixtures in `.github/workflows/validate-public.yml`. Keep old supported
+format verification explicit; do not silently accept additional unverified files.
+
+Build from a clean exact tracked source snapshot, with no Cloud checkout,
+credentials or user state. The manifest binds the app and compatible backend
+contracts, entry and lazy resources, notices and all supplied bytes/references.
+Document required MIME, CSP, worker/media/WASM and range behavior for an ordinary
+HTTP consumer. Public approved immutable resources and account-private bytes
+have separate delivery/cache contracts. No generic arbitrary-directory serving
+or service-worker private-data cache is introduced.
+
+Load large avatar and speech resources on demand. Measure first-load shell,
+first avatar, first voice, peak memory and cleanup against the same local
+baseline. Record actual sizes; old text-only consumer measurements cannot pass
+this build. Asset redistribution/hosting/export permissions must cover the exact
+included set. Resolve or replace pending assets without dropping retained features.
+
+Validation from root, using new paths outside the checkout:
+
+    uv run --no-sync python -m unittest discover -s scripts/package-sets -p 'test_*.py'
+    uv run --no-sync python -m unittest discover -s scripts/repository-boundary -p 'test_*.py'
+    uv run --no-sync python scripts/check-repository-dependencies.py
+    uv run --no-sync python scripts/package-sets/build.py build --source <animama-checkout> --commit <full-candidate-commit> --output <new-package-set-directory>
+    uv run --no-sync python scripts/package-sets/build.py validate <new-package-set-directory> --work-dir <new-independent-consumer-directory>
+    uv run --no-sync python scripts/package-sets/build.py compare <reviewed-baseline-set> <new-package-set-directory>
+
+From `src/frontend`, run `pnpm build` and the new `pnpm web:build:hosted`.
+The isolated consumer must open deep links and lazy workers/audio/avatars with
+the source checkout unavailable, and reject missing/modified assets, traversal,
+unsupported formats and incompatible backend bounds. Exercise supported upgrade
+and rollback with retained assets and an old open tab. Version bumps alone are
+not semantic compatibility evidence.
+
+Completion/progression: clean artifact, manifest-bound validation receipt and
+independent browser evidence pass review. A development dirty snapshot is useful
+only for labelled rehearsal and cannot replace this gate. Recovery: retain the
+previous compatible set and its resource inventory; do not overwrite immutable
+names or remove assets still required by the supported rollback/open-tab window.
+
+#### Code Review #1 Findings
+
+Not run. Include package inventory, provenance, resource policy and independent build.
+Repair rounds used: 0 of 2.
+
+#### Code Review #1 Revisions
+
+None. Record dispositions and exact manifest-bound validation results.
+
+### Phase 6: Complete public acceptance and hand off for hosted adoption (A6)
+
+Scope: all requirements within Animama ownership; depends on A1–A5.
+Issue/source/commit: pending. Review the complete source/action coverage map and
+remove duplicate hosted screen implementations or temporary flags introduced
+during development. Update useful current guidance and boundary ADRs for the
+static app artifact, composition interfaces and neutral services. Preserve
+local/native behavior and the separate source/native release gates.
+
+Run the required final public checks listed below against the exact candidate.
+Compare desktop-sized and narrower local/hosted-fixture journeys, including
+visual/audio evidence and failure recovery. Record public readiness separately
+from real hosted parity. An independently runnable public CI remains sufficient
+for public source review; it must not require the private consumer checkout.
+
+Provide the consumer the clean candidate set, manifest digest, schema versions,
+resource policy, operation coverage and still-required integration scenarios.
+It can rehearse that artifact before merge using an explicit test-only path.
+Consumer incompatibilities return as public contract defects when applicable,
+not private implementation imports. After exact-candidate owner merge approval,
+select a newly validated `main` package set for ordinary consumer adoption.
+Development follows the newest validated `main` through explicit compatible
+repins; there is no floating checkout or automatic permission to publish.
+
+Completion/progression: all public checks and bounded integration review pass;
+create/update this plan's PR when implementation is authorized. Record remaining
+hosted acceptance as a dependency of #272, not as public test results. Owner
+approval is required for the exact merge candidate. Artifact promotion,
+production launch and signed native release retain their separate authority.
+
+Recovery: if final integration exposes a public defect, repair its owning phase
+and rerun affected checks while retaining review counts. Do not force a consumer
+lock or weaken compatibility to conceal an incomplete contract.
+
+#### Code Review #1 Findings
+
+Not run. Reuse phase evidence and inspect combined public acceptance.
+Repair rounds used: 0 of 2.
+
+#### Code Review #1 Revisions
+
+None. Record dispositions, fixes and remaining external acceptance dependencies.
+
+## Final integration review
+
+Use A6's review as the final integration review, not a second unrestricted pass.
+Each scope receives one comprehensive independent review and at most two repair
+rounds. Record later findings/revisions with matching numbers; rechecks target
+accepted fixes and their regressions. Supported blockers remaining at the limit
+stop dependent work. Advisory preferences do not block completion. Record exact
+reviewed source, check results and remaining gates in the PR.
+
+## Validation and acceptance
+
+Final public verification from repository root is `uv run ruff check`,
+`make check-test`, the dependency/import boundary commands, package-set tests,
+and clean producer/isolated-consumer/compatibility validation from A5. From
+`src/frontend`, run `pnpm openapi-ts:check`, `pnpm check`, `pnpm web:lint`,
+`pnpm web:test`, `pnpm packages:check`, `pnpm packages:test`, `pnpm build`,
+the new `pnpm web:build:hosted`, `pnpm desktop:test` and `pnpm e2e:check`.
+Run affected browser journeys; add checks only for changed or unresolved behavior.
+Record actual hosted `Validation` scope separately from local checks.
+
+Acceptance evidence must identify source and artifact, route/action coverage,
+both browser layouts, settings and memory persistence, creator/import recovery,
+avatar/effect playback surfaces, heard speech/microphone tests and owner cleanup.
+The hosted consumer additionally owes real API/provider behavior, two-account
+HTTP and database-role isolation, private cache/byte/job/export tests, bounded
+cost/storage/lifecycle behavior and compatible release/rollback evidence. Those
+are necessary for the overall #272 parity claim, even though public CI uses
+independent fixtures. Missing backend features, fake-only chat or absent default
+assets must remain visibly unfinished.
+
+## Idempotence and recovery
+
+Keep local and hosted composition changes reversible through their entrypoints
+while development proceeds. Preserve local data; do not purge a stack to simplify
+testing. Content save/import/export uses stable operation IDs, request digests,
+revision preconditions and recoverable receipts. Temporary staging is bounded
+and cleaned after denial/cancellation according to the authoritative operation
+outcome. Account switching clears private browser resources without implying
+rollback of already admitted server work.
+
+Artifact retries use fresh output directories and clean commits. Never hand-edit
+generated SDKs, package integrity or validation receipts. Regenerate outputs
+from reviewed source. Roll back only to a compatible complete artifact set;
+the hosted consumer separately owns schema/data recovery and deletion fencing.
+
+## Artifacts and Notes
+
+Planning evidence, 2026-10-05: inspected the spec source, shared/local boundaries,
+route/settings inventory, content ports and package-set producer/consumer rules.
+No implementation, browser tests, paid calls or deployment was performed while
+authoring this plan. The coverage file and hosted build script above are planned
+new artifacts, not existing passing checks.
+
+An independent authoring review on 2026-10-05 found no blocking findings against
+the spec, phase dependencies, source paths, commands or public/private boundary.
+This read-only planning review does not consume an implementation review round
+or constitute runtime acceptance.
+
+Authoring checks passed for phase/review records, living sections, local Markdown
+links, whitespace and absence of private paths in this public plan. Product
+tests were not run for this documentation-only change.
+
+Record per-phase issue, starting/reviewed/committed source, exact commands/results,
+public-safe browser evidence and limitations here or in the phase. Do not place
+private checkout paths, account data, credentials or raw transcripts in this
+public plan. Detailed resource/contract decisions belong with their owning
+contracts; the coverage map tracks acceptance rather than duplicating the spec.
+
+## Outcomes & Retrospective
+
+Execution has not started. This plan is ready for review of implementation order,
+contract ownership and acceptance gates. Product scope is resolved. Remaining
+engineering determinations are the concrete compatible artifact schema and
+resource inventory, individual service seams and measured resource budgets;
+A1/A5 and the consumer's policy work resolve these before dependent acceptance.
+Any conflict with existing approved provider/spend/asset policy needs an explicit
+decision, not an undocumented feature exclusion.
+
+Revision note, 2026-10-05: initial plan separates reusable public implementation
+from hosted operations and prevents a circular public-merge/consumer-pin gate.
