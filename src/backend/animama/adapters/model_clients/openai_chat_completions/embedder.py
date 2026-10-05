@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Iterable, Mapping
+from itertools import islice
 from typing import Any
 
 import httpx
@@ -11,7 +13,9 @@ from openai import OpenAIError
 from animama.app.model_clients import ModelClientProviderError, ModelClientTimeoutError
 from animama.app.model_clients.credentials import ModelCredentialResolver
 from animama.app.model_clients.error_categories import model_error_category
+from animama.app.ports.text_embedder import EmbeddingLimits, EmbeddingResult
 from animama.domain import ModelProvider
+from animama.domain.usage import Usage
 
 from ..openai_errors import classify_openai_exception
 from .connection_sdk import (
@@ -40,7 +44,9 @@ class ConnectionEmbedder:
         credential_resolver: ModelCredentialResolver,
         openai_base_url: str,
         default_timeout_seconds: float | None,
+        limits: EmbeddingLimits | None = None,
     ) -> None:
+        self._limits = limits
         self._model_provider = model_provider
         self._credentials = credential_resolver
         self._openai_base_url = openai_base_url
@@ -51,9 +57,16 @@ class ConnectionEmbedder:
         return self._model_provider.id
 
     async def embed_texts(self, texts: Iterable[str]) -> list[list[float]]:
-        payload = list(texts)
+        return (await self.embed_texts_with_usage(texts)).vectors
+
+    async def embed_texts_with_usage(self, texts: Iterable[str]) -> EmbeddingResult:
+        """Expose provider usage before a composition settles this exact call."""
+        limits = self._limits
+        payload = list(islice(texts, limits.max_texts + 1)) if limits is not None else list(texts)
+        if limits is not None and (len(payload) > limits.max_texts or sum(map(len, payload)) > limits.max_characters):
+            raise ValueError("Embedding input exceeds the admitted limit")
         if not payload:
-            return []
+            return EmbeddingResult([], Usage())
         connection = connection_for_request(self._model_provider)
         credential = self._credentials.resolve(connection)
         if not credential.usable:
@@ -71,9 +84,11 @@ class ConnectionEmbedder:
             base_url=connection_base_url(connection, openai_base_url=self._openai_base_url),
             timeout=connection_timeout(timeout),
         )
+        if limits is not None:
+            client = client.with_options(max_retries=0, timeout=limits.timeout_seconds)
         model = self._model_provider.model
         try:
-            async with client:
+            async with client, asyncio.timeout(limits.timeout_seconds if limits is not None else None):
                 response = await client.embeddings.create(
                     model=model,
                     input=payload,
@@ -91,7 +106,15 @@ class ConnectionEmbedder:
             raise ModelClientProviderError(
                 _failure_message(connection.name, "openai_connection_error", None), code="openai_connection_error"
             ) from exc
-        return [list(item.embedding) for item in sorted(response.data, key=lambda item: item.index)]
+        reported = getattr(response, "usage", None)
+        usage = (
+            Usage(requests=1, input_tokens=reported.prompt_tokens, total_tokens=reported.total_tokens)
+            if reported is not None
+            else None
+        )
+        return EmbeddingResult(
+            [list(item.embedding) for item in sorted(response.data, key=lambda item: item.index)], usage
+        )
 
 
 def _failure_message(connection_name: str, code: str, metadata: Mapping[str, Any] | None) -> str:

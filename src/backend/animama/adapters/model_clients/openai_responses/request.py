@@ -60,6 +60,10 @@ def create_response_kwargs(
         "stream": True,
         "store": True if store is None else store,
     }
+    if spec.limits is not None:
+        payload["max_output_tokens"] = spec.limits.max_output_tokens
+        if spec.limits.max_native_tool_calls is not None:
+            payload["max_tool_calls"] = spec.limits.max_native_tool_calls
     instructions = prompt_instruction_text(spec.prompt)
     if instructions is not None:
         # Keep request-local developer guidance such as the memory map in Responses

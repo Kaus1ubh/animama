@@ -18,7 +18,7 @@ import pytest
 from animama.adapters.content_store import FilesystemContentStore
 from animama.app.contracts.content_package import portable_revision
 from animama.app.services.content_package_archive import ContentPackageArchive
-from animama.domain.content_catalog import ContentConflictError
+from animama.domain.content_catalog import ContentConflictError, ContentPathError
 
 
 def sound_package() -> tuple[dict[str, Any], dict[str, bytes]]:
@@ -126,7 +126,7 @@ def test_valid_inspection_returns_verified_paths_without_touching_library(tmp_pa
     entry = result.entries["sound"]
     assert entry.document.content_id == "sound"
     assert entry.scanned.display_name == "Tone"
-    assert {name: path.read_bytes() for name, path in entry.files.items()} == {
+    assert {name: Path(path).read_bytes() for name, path in entry.files.items() if isinstance(path, Path)} == {
         Path(name).name: value for name, value in payloads.items()
     }
     assert not (tmp_path / "local").exists()
@@ -290,7 +290,9 @@ def test_large_member_is_streamed_in_bounded_reads(tmp_path: Path, monkeypatch: 
     monkeypatch.setattr(ZipExtFile, "read", bounded_read)
     result = inspector(tmp_path).inspect(archive, destination=tmp_path / "inspection")
     assert len(reads) > 128
-    assert result.entries["sound"].files["tone.wav"].stat().st_size == member["size_bytes"]
+    inspected_file = result.entries["sound"].files["tone.wav"]
+    assert isinstance(inspected_file, Path)
+    assert inspected_file.stat().st_size == member["size_bytes"]
 
 
 @pytest.mark.parametrize("loop_count,accepted", [(2, True), (None, False)])
@@ -604,3 +606,19 @@ def test_inferred_sequence_role_still_requires_real_clip_validation(tmp_path: Pa
         with pytest.raises(ContentConflictError):
             inspector(tmp_path).inspect(archive, destination=tmp_path / "inspection")
         assert not (tmp_path / "inspection").exists()
+
+
+def test_reopened_inspection_member_cannot_follow_a_replaced_symlink(tmp_path: Path) -> None:
+    manifest, payloads = sound_package()
+    archive = tmp_path / "package.zip"
+    write_package(archive, manifest, payloads)
+    inspected = inspector(tmp_path).inspect(archive, destination=tmp_path / "inspection")
+    member = inspected.entries["sound"].files["tone.wav"]
+    secret = tmp_path / "unrelated-private-bytes"
+    secret.write_bytes(b"must not be opened")
+    assert isinstance(member, Path)
+    member.unlink()
+    member.symlink_to(secret)
+    with pytest.raises((OSError, ContentPathError)):
+        with inspected.entries["sound"].open_file("tone.wav") as handle:
+            handle.read()

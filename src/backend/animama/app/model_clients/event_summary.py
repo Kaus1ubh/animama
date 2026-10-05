@@ -288,6 +288,7 @@ class ModelClientStreamEventObserver:
         return ModelClientFinal(
             text=final.text,
             usage=final.usage,
+            usage_reported=final.usage_reported,
             raw_provider_metadata=raw_provider_metadata,
             structured_payload=final.structured_payload,
             tool_calls=final.tool_calls,

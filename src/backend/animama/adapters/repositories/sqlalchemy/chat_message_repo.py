@@ -330,7 +330,6 @@ class SQLAlchemyChatMessageRepository(ChatMessageRepository):
                 FROM chat_messages m
                 JOIN chats c ON c.id = m.chat_id
                 JOIN anima p ON p.id = c.anima_id
-                LEFT JOIN avatar a ON a.id = p.avatar_id
                 CROSS JOIN search_query
                 WHERE c.user_id = :user_id
                     AND m.internal IS FALSE

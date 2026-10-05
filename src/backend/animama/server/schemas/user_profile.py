@@ -1,26 +1,8 @@
-"""HTTP schemas for private local display-name personalization."""
+"""Compatibility exports for the shared product contracts."""
 
-from __future__ import annotations
-
-from typing import Annotated
-
-from pydantic import BaseModel, ConfigDict, Field
-
-from animama.app.services.user_profile_service import DISPLAY_NAME_MAX_LENGTH
-
-from .base import Base
-
-DisplayName = Annotated[str, Field(min_length=1, max_length=DISPLAY_NAME_MAX_LENGTH)]
-
-
-class PyUserProfile(Base):
-    display_name: str | None
-
-
-class PyUserProfileUpdate(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    display_name: DisplayName
-
-
-__all__ = ["PyUserProfile", "PyUserProfileUpdate"]
+from animama.app.contracts.user_profile import (
+    DisplayName as DisplayName,
+    PyUserProfile as PyUserProfile,
+    PyUserProfileUpdate as PyUserProfileUpdate,
+    __all__ as __all__,
+)

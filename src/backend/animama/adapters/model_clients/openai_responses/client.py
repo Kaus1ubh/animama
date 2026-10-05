@@ -273,6 +273,7 @@ class OpenAIResponsesModelClient:
                                 final=ModelClientFinal(
                                     text=final_text,
                                     usage=final_parts.usage,
+                                    usage_reported=response.usage is not None,
                                     raw_provider_metadata=metadata,
                                     tool_calls=final_parts.tool_calls,
                                     input_moderation=final_parts.input_moderation,
@@ -317,7 +318,9 @@ class OpenAIResponsesModelClient:
                     model=spec.model_provider.model,
                     previous_response_id=previous_id,
                 )
-                if should_retry_openai_error(info, attempt=attempt, stream_started=state.stream_started):
+                if spec.limits is None and should_retry_openai_error(
+                    info, attempt=attempt, stream_started=state.stream_started
+                ):
                     _log.warning(
                         "OpenAI Responses stream retrying after provider error",
                         **model_client_request_log_context(spec),
@@ -373,10 +376,12 @@ class OpenAIResponsesModelClient:
         """Create the OpenAI SDK Responses stream."""
 
         client = self._client_for_spec(spec, credential)
+        if spec.limits is not None:
+            client = client.with_options(max_retries=0)
         kwargs = create_response_kwargs(
             spec,
             previous_response_id,
-            timeout=self._timeout,
+            timeout=spec.limits.timeout_seconds if spec.limits is not None else self._timeout,
             compaction_threshold_tokens=self._compaction_threshold_tokens,
         )
         return await client.responses.create(**kwargs)

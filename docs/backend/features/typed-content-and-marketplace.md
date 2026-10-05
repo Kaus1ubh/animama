@@ -47,6 +47,58 @@ newly saved, packaged or admitted to runtime. Exact completed Save/import and Mu
 replay their stored result; no legacy package migration is supported. Static
 Poses, Action clip JSON and TTS/SFX remain supported.
 
+## Account-owned content composition
+
+The same catalog, Save and package use cases can run over an account-owned byte
+store. Construct `ContentCatalogService` with a catalog and store declaring the
+same server-resolved `owner_id`, plus explicit `ContentMutations` and
+`ContentPublication` adapters. The service rejects a different caller before
+catalog access or receipt replay. Every adapter operation without an owner
+argument, including locator lookup, locks and invalidation, still belongs to
+that bound namespace. Two owners may use identical readable locators; those
+locators are neither object keys nor host paths. Included content remains
+ownerless and read-only.
+
+`ContentMutations` owns atomic byte visibility, catalog writes and the durable
+operation receipt. A failed publication exposes none of the closure; an unknown
+commit outcome is resolved from the receipt. Retries return its original result
+before consulting expired or missing temporary stages. Cancellation must finish
+owned work and release resources before propagating. `ContentPublication.refresh`
+admits verified projections inside that transaction without requiring a filesystem
+scan. The default local composition continues to use its existing scanner,
+filesystem journals, source locks and compensation. Its installation-wide SQL
+catalog is not an account catalog; storage-key prefixes alone do not change that.
+
+Construct `ContentPackageService` with explicit `PackageStages` and
+`PackageInspector` adapters for an account composition. Leases expose streams,
+bounded reservations, immutable review metadata and cleanup exclusion. The
+inspector owns its bounded resources until publication finishes and must enforce
+all existing archive, member, hash, typed-document, capability and runtime
+validation rules. `TemporaryPackageInspector` provides the canonical validator
+for opaque stage streams using an owned, bounded temporary tree. It verifies
+sealed bytes while copying, checks archive and expansion limits, and cleans the
+tree on success or failure. It imports no installation composition. Prepared imports reopen
+verified resources one at a time; they do not require object keys to masquerade
+as paths. Export callers use `exports.download` and close its lease after the
+response. `get_export`/`exports.cached` retain their local-path compatibility
+contract and are not the account download API.
+
+A composition may set `allow_anima_import=False` to reject Anima-bearing package
+reviews and commits before installing any dependencies. Policy denial releases
+the temporary archive and stage reservation after inspection closes, unless the
+publication coordinator still has an unresolved operation that needs recovery.
+Ordinary content imports
+and exports remain available. Avatar registration and full Anima import, when
+enabled, still require the aggregate unit of work to share the publication
+transaction; it must not commit independently.
+
+The standalone `scripts/repository-boundary/consumers/content.py` fixture exercises
+these services with opaque memory adapters and can run against an installed wheel
+outside this checkout. It covers owner isolation, actual package bytes, conflicts,
+rollback, receipt recovery, cancellation and cleanup. It runs both a narrow
+memory-only Gesture inspector and the production temporary inspector over the
+same opaque persistent store. The narrow inspector is only a test adapter.
+
 ## Product APIs
 
 The infrastructure surface remains neutral:

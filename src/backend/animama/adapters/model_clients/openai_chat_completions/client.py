@@ -205,7 +205,9 @@ class OpenAIChatCompletionsModelClient:
                     provider_type=OPENAI_HTTP_PROVIDER_TYPE,
                     model=spec.model_provider.model,
                 )
-                if should_retry_openai_error(info, attempt=attempt, stream_started=stream_started):
+                if spec.limits is None and should_retry_openai_error(
+                    info, attempt=attempt, stream_started=stream_started
+                ):
                     _log.warning(
                         "OpenAI Chat Completions stream retrying after provider error",
                         **model_client_request_log_context(spec),
@@ -247,6 +249,7 @@ class OpenAIChatCompletionsModelClient:
             final=ModelClientFinal(
                 text=final_text,
                 usage=usage,
+                usage_reported=usage_seen,
                 raw_provider_metadata=metadata,
                 tool_calls=tool_calls,
             ),
@@ -269,6 +272,9 @@ class OpenAIChatCompletionsModelClient:
         connection = connection_for_request(spec.model_provider)
         timeout = self._timeout_for_connection(connection)
         client = self._client_for_connection(connection, timeout=timeout, credential=credential)
+        if spec.limits is not None:
+            client = client.with_options(max_retries=0)
+            timeout = spec.limits.timeout_seconds
         kwargs = create_chat_completion_kwargs(spec, timeout=connection_timeout(timeout))
         extra_headers = keyless_request_headers(connection, credential)
         if extra_headers is not None:

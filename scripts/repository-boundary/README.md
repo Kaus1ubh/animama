@@ -30,7 +30,10 @@ Vite and mounts two fake owners in Chromium. It exercises real Anima selection,
 chat/session/SSE code, cancellation, stale event fencing, failed-POST retry
 policy, emitted CSS and transport-supplied thumbnails. The backend installs the
 wheel into a new virtual environment and exercises real bootstrap, Anima and
-chat services with fake ports/model clients. Local-composition imports are
+chat services with fake ports/model clients. Separate consumers render the shared
+request/response schemas and exercise content save, export, import and receipt
+recovery with owner-scoped memory storage and the canonical archive inspector.
+Local-composition imports are
 actively blocked and loaded modules must not resolve into the source checkout.
 
 From the repository root:

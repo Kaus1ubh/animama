@@ -367,12 +367,93 @@ is implied. Local schema changes, if needed, follow the baseline-only rule.
 
 #### Code Review #1 Findings
 
-Not run. Include dependency-boundary and transaction/recovery analysis.
-Repair rounds used: 0 of 2.
+Independent analysis (`a2_review_analysis`) found one required defect; independent
+checks (`cloud_runtime`, limited to content/contracts it did not author) found two
+integration check failures. Initial review is **blocked**. Reviewed frozen A2
+working tree at `9fd8d10e05dc41a12152a14fcec97e289393b949` against `3006ca3`;
+88-file source digest `b1cc50ac51eb396d4548f164bc3ce320d827dc6757f1142e3491b05b6c11f088`,
+plus the artifact checker/README integration. Repair rounds used: 0 of 2.
+
+- A2-R1 (P2): fresh review, cached review and commit reject Anima-bearing packages
+  without reclaiming temporary stage bytes/reservations. Two denied packages can
+  exhaust the stage allowance and block a permitted content import. R3/H3 require
+  cleanup before any installation, while preserving committed receipt replay and
+  genuinely unresolved publication recovery.
+- A2-CHECK1: A3's explicit hosted adapter trips the broad accountless source guard
+  on its comment and OAuth `authorization_url` field. The A3 owner reconciled the
+  specific wire-field spelling while retaining same-origin/no-credential checks;
+  all eight affected tests passed. This is an A3 integration change, not a new
+  local authentication path.
+- A2-CHECK2: the retention fixture's unconstrained `Mock` invents an owner ID and
+  fails the new store/catalog owner match before testing reference retention.
+  The fixture must explicitly describe an unbound local store; production owner
+  checks must remain intact.
+
+Reviewed existing evidence: 331 runtime tests, 133 content regressions, 71 final
+focused content and 77 local compatibility regressions, six neutral boundary
+checks, exact equality of 188 wire-schema snapshots, current generated SDK and
+zero forbidden shared imports. Ruff/format and full mypy passed (713 files).
+The source-bound full regression run finished: 3,147 passed, 10 skipped,
+and the two reported integration/fixture failures above. The frozen source stayed
+unchanged throughout the run; affected checks after their correction replace
+those failures without repeating unchanged passing suites.
+
+A separately installed development wheel passed all three consumers (real chat,
+168 neutral schemas and memory-backed content with the canonical inspector), plus
+new runtime import checks, under Python 3.12.13 with frozen declared dependencies.
+Independent checks verified the wheel origin is external site-packages with no
+editable source redirect and reran the consumers. Wheel SHA-256:
+`98978991c52f8232d84675bfc454e299d59485948aeb75ac457a6116760ddb5a`.
+This is A2 development-snapshot evidence; A5 still requires clean exact-commit
+artifacts. No paid provider, actual hosted parity or promotion is established.
 
 #### Code Review #1 Revisions
 
-None. Record dispositions, fixes and affected local/shared checks.
+A2-R1 and A2-CHECK2 were accepted after source/spec verification. Repair round
+1 of 2 reclaims stages through their lease after the inspector closes on definitive
+policy denial. It preserves genuine pending publication and receipt-first replay;
+the local mock explicitly binds `owner_id=None`. Five behavioral stage-retention
+failures preceded the repair. The repaired focused suite passed 46 tests; other
+package/publication/mutation regressions passed 310 tests. Full mypy passed its
+713-file scope. Ruff/format, boundary audit and standalone source consumer pass.
+
+A new isolated consumer requirement exposed one unused avatar-table LEFT JOIN in
+shared chat search. The selected fields already come from Anima; no avatar value
+is used. A real PostgreSQL three-family fixture failed on the absent avatar table,
+then passed after removing that join, together with six existing search cases.
+It verifies two-owner visibility, internal-message exclusion, structured text,
+Anima portrait, prefix matching and pagination. Selected Ruff/format/mypy pass.
+This narrow consumer repair is part of targeted review #2, without restarting
+review or its persistent repair budget.
+
+A2-CHECK1 is resolved by A3's specific hosted wire-field guard exception, with
+all eight guards passing. The combined repaired boundary is frozen at
+`9fd8d10e05dc41a12152a14fcec97e289393b949`: 93-file digest
+`fbb57ec6ce330816f9e97ce54441f8fdbe90f09bbdd7248f3aa05c47d76c92ed`.
+Targeted independent analysis and checks review #2 **PASS**; no required finding
+or repair regression remains. A clean exact-commit candidate wheel remains required
+before phase completion and consumer C2 entry.
+
+#### Code Review #2 Findings
+
+Targeted analysis (`a2_review_analysis`) and independent content/contract checks
+(`cloud_runtime`) pass at the frozen 93-file digest above. A2-R1 and A2-CHECK2
+are resolved, A3's A2-CHECK1 integration check passes, and the narrow search
+consumer repair passes. Reviewers verified source hashes and retained prior phase
+evidence; no broad review restart or additional repair is claimed. Repair rounds
+used: 1 of 2; one remains.
+
+#### Code Review #2 Revisions
+
+No further corrections required. Final root Ruff and formatting pass for all 714
+backend/test files; full mypy passes 714 files. Fresh root accountless checks pass
+eight tests. Reuse the source-bound full-suite result with affected post-repair
+checks: 46 import/materializer, 310 other content/publication/recovery and seven
+search tests pass. The repair commands were reported by their author after
+execution, bound to its unchanged freeze manifest; they are not presented as
+independently rerun or live-provider evidence. Commit the reviewed code to obtain
+a clean immutable build input, validate its installed wheel, then record phase
+completion. A2 is not marked complete before that artifact gate.
 
 ### Phase 3: Compose one router and application shell (A3)
 

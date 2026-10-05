@@ -9,6 +9,7 @@ from animama.domain.model_provider import ModelProvider
 from animama.domain.usage import Usage
 
 from .event_types import MCEvent
+from .limits import ModelCallLimits
 
 if TYPE_CHECKING:
     from .prompt import DirectChatPrompt
@@ -119,6 +120,8 @@ class ModelClientFinal:
     structured_payload: Mapping[str, Any] | None = None
     tool_calls: tuple[ModelClientToolCall, ...] = ()
     input_moderation: ModelClientModeration | None = None
+    usage_reported: bool = False
+    """True only for provider-reported usage, never estimates or default zero."""
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "raw_provider_metadata", _frozen_mapping(self.raw_provider_metadata))
@@ -276,6 +279,7 @@ class ModelClientRequest:
     prompt: DirectChatPrompt
     provider_options: ModelClientProviderOptions = field(default_factory=ModelClientProviderOptions)
     continuation: ModelClientContinuation | None = None
+    limits: ModelCallLimits | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "provider_options", ModelClientProviderOptions.from_value(self.provider_options))

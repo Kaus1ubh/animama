@@ -186,3 +186,29 @@ When adding or changing voice behavior:
 3. prefer short-lived credentials or proxied backend calls for browser access
 4. document the supported transport and its compatibility constraints
 5. add tests around auth, provider error mapping, and binary/audio responses
+
+
+## Shared bounded speech ports
+
+`app/ports/voice.py` retains the local STT/TTS provider protocols and adds
+composition-owned `SpeechCall`, `SpeechLimits` and `SpeechCallBoundary`.
+`app/services/bounded_speech.py` admits one server-proxied call, caps text and
+PCM16 input before forwarding it, caps output bytes, enforces a deadline and
+closes streams on disconnect. Disposal and receipt persistence have separate
+finite cleanup deadlines. It returns no browser provider token. The
+composition must select a provider that does not retry internally; every paid
+retry needs a fresh admission.
+
+`SpeechCallOutcome` separates observed transport units from optional measured
+provider units. Legacy speech providers expose no billing receipt, so the shared
+adapter leaves `provider_usage` unknown, including on successful completion.
+This does not settle an uncertain call as zero. Paid compositions must reconcile
+provider usage in their boundary rather than infer charges from delivered bytes.
+
+`OwnerVoiceCatalog` makes list, clone and delete ownership explicit. Clone
+samples are bytes with names/content types, never local paths. Implementations
+validate and bound sample count, bytes and duration before provider dispatch,
+authorize the selected voice, and meter clone operations. Browser-local voice
+engines may keep clones as owned content. Existing local ElevenLabs routes and
+browser-local model execution continue using their current adapters; these ports
+do not themselves activate hosted speech or change those local workflows.

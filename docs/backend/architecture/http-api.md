@@ -8,6 +8,13 @@ The local composition resolves the bootstrap-owned principal from server-owned
 admission state. Browser identity and Authorization headers select no owner.
 Tests use explicit fixture bootstrap and dependency overrides.
 
+Retained product HTTP schemas live under `app/contracts/`, including chat/history,
+manual memory/Memory Manager, model roles, content/loadouts/runtime and profile
+views. Delivery modules reexport those definitions for existing local callers.
+Consumers reuse the schemas and neutral services with their own admission, tenant
+persistence, provider and byte adapters; importing a schema grants no route access.
+Local setup and host/key administration schemas remain in the server composition.
+
 ## Router Map
 
 - `server/app.py`: internal `/health` and private desktop readiness.

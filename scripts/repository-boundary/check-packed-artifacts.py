@@ -191,7 +191,8 @@ def main() -> int:
 
     backend = work / "backend"
     backend.mkdir()
-    shutil.copy2(FIXTURES / "backend.py", backend / "consumer.py")
+    for fixture in ("backend", "contracts", "content"):
+        shutil.copy2(FIXTURES / f"{fixture}.py", backend / f"{fixture}_consumer.py")
     shutil.copy2(wheel, backend / wheel.name)
     run(["uv", "venv", "--python", sys.executable, str(backend / ".venv")],
         cwd=backend, logs=logs, name="backend-environment", env=env)
@@ -208,8 +209,11 @@ def main() -> int:
          "for d in m.distributions()], key=lambda d: d['name'].lower()), indent=2))"],
         cwd=backend, logs=logs, name="backend-dependencies", env=env)
     assert_no_checkout_links(backend)
-    run([str(python), "-I", "consumer.py", "--forbid-source", str(ROOT)],
+    run([str(python), "-I", "backend_consumer.py", "--forbid-source", str(ROOT)],
         cwd=backend, logs=logs, name="backend-consumer", env=env)
+    for fixture in ("contracts", "content"):
+        run([str(python), "-I", f"{fixture}_consumer.py"],
+            cwd=backend, logs=logs, name=f"backend-{fixture}-consumer", env=env)
     dependencies = dependency_receipt(
         [frontend_lock, logs / "frontend-dependencies.log", logs / "backend-dependencies.log"], work,
     )

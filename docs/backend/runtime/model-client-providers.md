@@ -33,10 +33,11 @@ opened stream.
   and `error` domain events
 - persists user and assistant chat messages through `ChatManager`
 
-The public `run.completed` SSE frame is route-owned by `chat_sse.py`, not an
-app-layer direct-turn event. That lets the route wait for TTS, title
-generation, compaction, and cleanup-sensitive side effects before sending the
-single public completion frame. Model clients never create chats or write SQL
+The public `run.completed` SSE frame is formatted by `chat_sse.py`. The shared
+`app/chat/completion.py` sequence flushes safety/emotion events, TTS, title and
+compaction before invoking that completion callback once. Incognito skips title
+and compaction; memory-update switches remain the executor's responsibility.
+Compositions supply authorized effect callbacks and cancel them on disconnect. Model clients never create chats or write SQL
 rows directly.
 
 ## Shared Model Clients
@@ -653,3 +654,55 @@ and falls back to the client and slug only for chats without a row ID.
 
 Follow [Adding AI model support](adding-ai-models.md) for catalog, adapter,
 registration, schema, and validation changes.
+
+
+## Composition-owned provider admission
+
+`app/model_clients/call_boundary.py` supplies `AccountedModelClient` for a
+request-scoped registry. Its boundary reserves first and returns an
+`AdmittedModelCall` with authenticated owner, root operation, unique call ID and
+bounded request. The composition owns policy, durable receipts and replay
+rejection. Use that same scoped registry for the direct turn and
+`DirectModelPromptRunner` (titles and compaction), so each nested invocation
+enters admission independently. A retry is another invocation and reservation.
+Do not put a request-scoped boundary into a process-global registry.
+
+`ModelCallLimits` caps output and the whole stream's elapsed time. Bounded
+adapters disable their internal retries and OpenAI SDK retries. Responses also
+sends `max_tool_calls` when native tools are admitted; this is a limit across all
+built-in calls, not a per-tool budget. Admission may narrow `native_tools` before
+dispatch. The composition must reject provider/model combinations that cannot
+honor its controls rather than drop a limit. Local calls without limits preserve
+their existing request and retry behavior.
+
+Only `ModelClientFinal.usage_reported=True` establishes measured token usage.
+Estimates, missing finals, errors, timeouts and cancellation never imply a zero
+charge. The boundary persists the outcome before forwarding a final delta;
+failed settlement leaves recovery responsible for the existing reservation.
+Cleanup and settlement each have a finite cleanup deadline; a stalled provider
+close cannot hold the request forever. A rejected admitted request reports
+`not_dispatched` before any provider call, allowing a composition to release it.
+`unmeasured_native_tools` remains explicit even with known token counts: these
+adapters do not provide authoritative non-token billing receipts. A composition
+must reserve/reconcile those units separately. Counting streamed tool events is
+not proof of a provider invoice.
+
+`ConnectionEmbedder.embed_texts_with_usage` exposes vectors and optional measured
+usage; `EmbeddingLimits` bounds batch input/deadline and disables SDK retries.
+Compositions wrap **each** embed call, including tool-driven retrieval, with
+admission. `WebSearchBackend.search` is already an injectable per-search boundary;
+its result list contains no provider billing receipt, so a paid implementation
+must retain uncertainty or reconcile its own authoritative receipt.
+
+`OpenAIAgentsMemoryManagerRuntime` accepts a `model_wrapper(model, run)` applied
+to the actual Agents SDK `Model`, including pinned-model approval resumes and
+Reflection. Its wrapper must admit every `get_response`/`stream_response`, not
+only the outer runner. `model_limits` disables SDK retries and sets output and
+request timeout; `max_model_turns` caps each runner segment. The wrapper still
+owns whole-call cancellation, input/tool admission, usage and root lifetime
+across resumed segments. These seams grant no provider activation or quota policy.
+
+The request controls follow the official [Chat Completions API](https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create),
+[Responses API](https://developers.openai.com/api/reference/resources/responses/methods/create),
+[SDK retry controls](https://github.com/openai/openai-python#retries), and
+[Agents model interface](https://openai.github.io/openai-agents-python/ref/models/interface/).

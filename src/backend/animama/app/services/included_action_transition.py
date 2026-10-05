@@ -5,7 +5,9 @@ from __future__ import annotations
 import asyncio
 import json
 from dataclasses import asdict, dataclass, replace
+from typing import cast
 
+from animama.app.ports.content_store import LocalContentStore
 from animama.app.ports.content_transition import ContentTransitionBindings
 from animama.app.services.action_clip_transition import ActionClipTransitionService
 from animama.app.services.content_catalog_service import ContentCatalogService
@@ -186,7 +188,7 @@ class IncludedActionTransitionService:
                 if current is None or current.revision_sha256 != source.revision_sha256:
                     raise ContentConflictError("content_transition_source_changed")
                 await asyncio.to_thread(
-                    self._content.mutations.store.retain_transition_originals,
+                    cast(LocalContentStore, self._content.mutations.store).retain_transition_originals,
                     operation_id=f"{operation_id}-{mutation_digest({'source': source.id})[:16]}",
                     entry=source,
                     binding_facts=[asdict(value) for value in consumers],

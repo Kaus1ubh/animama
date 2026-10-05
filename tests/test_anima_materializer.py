@@ -881,7 +881,7 @@ async def test_reference_retention_precedes_filesystem_delete_and_missing_conten
         plan_digest=plan.digest,
         idempotency_key="remove-background",
     )
-    store = Mock()
+    store = Mock(owner_id=None)  # Model the explicitly unbound local store contract.
     store.pending_mutations.return_value = ()
     catalog = SQLAlchemyContentCatalog(async_session)
     service = ContentCatalogService(store=store, catalog=catalog)

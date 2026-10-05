@@ -18,7 +18,7 @@ from typing import Any, BinaryIO, TypeVar
 from pydantic import TypeAdapter
 
 from animama.app.ports.content_catalog import ContentCatalog
-from animama.app.ports.content_store import ContentStore
+from animama.app.ports.content_store import LocalContentStore
 from animama.domain.content_catalog import ContentConflictError
 
 T = TypeVar("T")
@@ -71,10 +71,16 @@ def mutation_digest(command: dict[str, object], streams: tuple[BinaryIO, ...] = 
 class LocalContentMutations:
     """One owner for the catalog/store pair and their publication lifetime."""
 
-    def __init__(self, *, store: ContentStore, catalog: ContentCatalog) -> None:
+    def __init__(self, *, store: LocalContentStore, catalog: ContentCatalog) -> None:
         self.store = store
         self.catalog = catalog
         self._active: ContextVar[bool] = ContextVar("local_content_mutation_active", default=False)
+
+    def has_pending(self, *, user_id: str, operation_id: str) -> bool:
+        """Keep filesystem journal identities behind the publication boundary."""
+        return any(
+            item.user_id == user_id and item.operation_id == operation_id for item in self.store.pending_mutations()
+        )
 
     async def _recover(self) -> None:
         """Resolve journals only while holding the Local source transaction lock."""
@@ -118,6 +124,11 @@ class LocalContentMutations:
     ) -> T:
         """Finish publication even if the requesting connection is cancelled."""
 
+        owner_id = getattr(self.store, "owner_id", None)
+        if owner_id is not None and user_id != owner_id:
+            from animama.domain.content_catalog import ContentNotFoundError
+
+            raise ContentNotFoundError("content owner was not found")
         return await _finish_owned_work(
             self._run(
                 user_id=user_id,

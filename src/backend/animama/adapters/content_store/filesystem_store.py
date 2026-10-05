@@ -1176,10 +1176,12 @@ class FilesystemContentStore(ContentStore):
                         raise ContentConflictError("package_destination_collision")
                     target_path.parent.mkdir(parents=True, exist_ok=True)
                     written = 0
-                    if (member.handle is None) == (member.source_path is None):
+                    if sum(value is not None for value in (member.handle, member.source_path, member.open_source)) != 1:
                         raise ContentValidationError("package member requires exactly one byte source")
                     source_context: AbstractContextManager[BinaryIO]
-                    if member.source_path is not None:
+                    if member.open_source is not None:
+                        source_context = member.open_source()
+                    elif member.source_path is not None:
                         if not stat.S_ISREG(member.source_path.lstat().st_mode):
                             raise ContentPathError("package member is not a regular private file")
                         source_context = os.fdopen(safe_files.open_no_follow(member.source_path, os.O_RDONLY), "rb")

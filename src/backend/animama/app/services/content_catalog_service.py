@@ -5,10 +5,12 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from typing import cast
 from uuid import uuid4
 
 from animama.app.ports.content_catalog import ContentCatalog
-from animama.app.ports.content_store import ContentStore
+from animama.app.ports.content_publication import ContentMutations, ContentPublication
+from animama.app.ports.content_store import ContentStore, LocalContentStore
 from animama.app.services.content_access_policy import ContentAccessPolicy
 from animama.app.services.content_kind_registry import RETIRED_CONTENT_KINDS
 from animama.app.services.local_content_mutations import LocalContentMutations, mutation_digest
@@ -36,17 +38,39 @@ class ContentRescanResult:
 
 
 class ContentCatalogService:
-    """Coordinate the filesystem and catalog without depending on FastAPI."""
+    """Coordinate verified bytes and catalog publication without FastAPI."""
 
     def __init__(
         self,
         *,
         store: ContentStore,
         catalog: ContentCatalog,
+        mutations: ContentMutations | None = None,
+        publication: ContentPublication | None = None,
     ) -> None:
         self._store = store
         self._catalog = catalog
-        self.mutations = LocalContentMutations(store=store, catalog=catalog)
+        owners = {getattr(adapter, "owner_id", None) for adapter in (store, catalog)}
+        if len(owners) != 1:
+            raise ValueError("content catalog and store must bind the same owner")
+        self.owner_id = owners.pop()
+        if self.owner_id is not None and (not isinstance(self.owner_id, str) or not self.owner_id):
+            raise ValueError("content owner must be a nonempty server-resolved identity")
+        if publication is not None and publication.owner_id != self.owner_id:
+            raise ValueError("content publication must bind the same owner")
+        if mutations is not None and (mutations.store is not store or mutations.catalog is not catalog):
+            raise ValueError("content mutation coordinator must own the same adapters")
+        if self.owner_id is not None and (mutations is None or publication is None):
+            raise ValueError("an owner-bound content composition requires explicit publication and mutation authority")
+        self._publication = publication
+        self.mutations: ContentMutations = mutations or LocalContentMutations(
+            store=cast(LocalContentStore, store), catalog=catalog
+        )
+
+    def require_owner(self, user_id: str) -> None:
+        """Reject cross-owner calls before replay, catalog lookup or byte access."""
+        if self.owner_id is not None and user_id != self.owner_id:
+            raise ContentNotFoundError("content owner was not found")
 
     async def rescan(
         self,
@@ -58,6 +82,7 @@ class ContentCatalogService:
     ) -> ContentRescanResult:
         """Recover unfinished mutations before admitting a complete source scan."""
 
+        self.require_owner(user_id)
         return await self.mutations.reconcile(
             lambda: self._rescan(
                 user_id=user_id,
@@ -77,6 +102,14 @@ class ContentCatalogService:
     ) -> ContentRescanResult:
         """Scan registered roots; a bad entry never prevents reconciliation of peers."""
 
+        if self._publication is not None:
+            published_summaries = await self._publication.refresh(
+                user_id=user_id,
+                include_included=include_included,
+                creator_claim_locator=creator_claim_locator,
+                planned_item_ids=planned_item_ids,
+            )
+            return await self.visible_scan_result(published_summaries, user_id=user_id)
         sources = [ContentSource.LOCAL]
         if include_included:
             sources.insert(0, ContentSource.INCLUDED)
@@ -86,7 +119,7 @@ class ContentCatalogService:
             # A coordinated Save holds this fence from file promotion through
             # owner admission. Scan only after that commit, never in its gap.
             await self._catalog.lock_source(source=source)
-            scanned = await asyncio.to_thread(self._store.scan, source)
+            scanned = await asyncio.to_thread(cast(LocalContentStore, self._store).scan, source)
             if source is ContentSource.INCLUDED:
                 scope = ContentScope.INCLUDED
                 owner_user_id = None
@@ -121,6 +154,7 @@ class ContentCatalogService:
 
     async def list_visible(self, *, user_id: str) -> list[CatalogContentEntry]:
         """List supported content; raw retired rows remain private transition evidence."""
+        self.require_owner(user_id)
         return [
             item for item in await self._catalog.list_visible(user_id=user_id) if item.kind not in RETIRED_CONTENT_KINDS
         ]
@@ -159,6 +193,7 @@ class ContentCatalogService:
     ) -> None:
         """Delete one exact revision with compensation until catalog commit."""
 
+        self.require_owner(user_id)
         await self.mutations.run(
             user_id=user_id,
             operation_id=str(uuid4()),
@@ -192,6 +227,7 @@ class ContentCatalogService:
     async def open_registered_file(self, *, file_ref: str, user_id: str) -> VerifiedContentFile:
         """Authorize the opaque registration before resolving and verifying bytes."""
 
+        self.require_owner(user_id)
         registered = await self._catalog.get_visible_file(file_ref=file_ref, user_id=user_id)
         if registered is None:
             raise ContentNotFoundError("registered content file was not found")
@@ -215,6 +251,7 @@ class ContentCatalogService:
     ) -> ContentPreview:
         """Issue one capability from an already resolved caller-visible union."""
 
+        self.require_owner(user_id)
         unique = {entry.id: entry for entry in entries}
         if anchor.id not in unique or any(
             entry.status is not ContentStatus.VALID or entry.revision_sha256 is None for entry in unique.values()
@@ -237,6 +274,7 @@ class ContentCatalogService:
     ) -> VerifiedContentFile:
         """Open only a file whose exact facts were frozen into this preview."""
 
+        self.require_owner(user_id)
         registered: ContentPreviewFile | None = await self._catalog.get_preview_file(
             preview_id=preview_id,
             revision_sha256=revision_sha256,
@@ -276,7 +314,7 @@ class ContentCatalogService:
                 await self._catalog.mark_scan_required(source=source, relative_paths=relative_paths)
                 return
             try:
-                scanned = await asyncio.to_thread(self._store.scan, source)
+                scanned = await asyncio.to_thread(cast(LocalContentStore, self._store).scan, source)
             except Exception:
                 # Failure is uncertainty, never permission to keep serving an
                 # affected revision. The scheduled rescan reports its failure.

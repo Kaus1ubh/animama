@@ -9,8 +9,9 @@ from contextlib import ExitStack
 from dataclasses import dataclass, replace
 from io import BytesIO
 from pathlib import PurePosixPath
-from typing import BinaryIO
+from typing import BinaryIO, cast
 
+from animama.app.ports.content_store import LocalContentStore
 from animama.app.services.content_catalog_service import ContentCatalogService
 from animama.app.services.content_kind_registry import handler_for_kind
 from animama.app.services.local_content_mutations import mutation_digest
@@ -106,7 +107,7 @@ class ActionClipTransitionService:
                         current = await catalog.get_visible_item(item_id=expected.id, user_id=user_id, for_update=True)
                         if current is None or current.revision_sha256 != expected.revision_sha256:
                             raise ContentConflictError("content_transition_source_changed")
-                    store = self._content.mutations.store
+                    store = cast(LocalContentStore, self._content.mutations.store)
                     for label, entry in (("action", before), ("clip", motion)):
                         await asyncio.to_thread(
                             store.retain_transition_originals,
@@ -179,7 +180,7 @@ class ActionClipTransitionService:
             ),
         )
         descriptor = json.dumps(handler_for_kind(source.kind).catalog_projection(converted)).encode()
-        store = self._content.mutations.store
+        store = cast(LocalContentStore, self._content.mutations.store)
         with ExitStack() as stack:
             companions: dict[str, tuple[BinaryIO, int]] = {}
             for file in [*resources, sequence]:
