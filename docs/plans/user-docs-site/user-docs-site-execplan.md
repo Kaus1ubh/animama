@@ -53,10 +53,12 @@ feature guides, custom styling, search and translations stay deferred.
 - [x] Owner accepted the resolved specification/tooling/plan through `implement`.
 - [x] Implementation authorized; issues #279, #280 and #281 published/read back.
 - [x] Phase 1: independent four-page site/output guards/CI checks pass bounded review.
-- [ ] Phase 2: first-run/browser/publication preparation and review pass;
-      phase commit and draft PR handoff pending.
+- [x] Phase 2: first-run/browser/publication preparation and review pass;
+      committed at `1fe7cf8e`.
+- [x] Final local integration analysis and checks pass with no new findings.
+- [ ] Draft PR handoff and actual full hosted checks, linked from the owning issue.
 - [ ] Rendered-content acceptance, authorized publication and canonical checks.
-- [ ] Final integration review, final-candidate owner merge approval and handoff.
+- [ ] Final-candidate owner merge approval and accepted handoff.
 
 ## Surprises & Discoveries
 
@@ -270,7 +272,8 @@ content-review/publication-ready candidate is recorded. Actual provider actions,
 canonical acceptance and exact-candidate merge remain separate gates.
 
 Phase commit proposal: `docs(docs)[p2]: verify first-run guidance and prepare publication`.
-Issue: #281. Phase 2 commit pending. Source app remains unchanged from
+Issue: #281. Phase 2 commit: `1fe7cf8ed50f9ea90a8a8a81ac23e67e51cc5f1b`.
+Source app remains unchanged from
 `f90c080fc343a159cb9d7f9059a35127f871c021`; docs Phase 1 is `b360ae4a`.
 Fresh built project `animama-docs-first-run`, base 8460, distinct
 `.animama-docs-first-run.env` record and `.animama-stacks/animama-docs-first-run/`
@@ -385,14 +388,24 @@ do not restart the review budget or repeat unchanged passing checks.
 
 ### Code Review #1 Findings
 
-Not run. Record baseline/head, combined acceptance, stable findings, remaining
-owner/publication gates and actual `Validation` profile/result.
+2026-10-05: independent final integration analysis and checks pass at
+`1fe7cf8ed50f9ea90a8a8a81ac23e67e51cc5f1b` against the recorded base. No new
+actionable findings. Valid phase evidence supports independent builds/output,
+reader navigation, accessibility/privacy, CI receipt integration and fresh
+self-host setup/restart. Current source formatting, syntax, Git boundaries, locked
+package inputs and five-page/33-file/105-link output checks pass. Public plans and
+reader content have no private repository or machine-path dependency. The final
+handoff changes only this evidence record.
 
 ### Code Review #1 Revisions
 
-Not run. Record verified dispositions and resulting evidence. Repair rounds used:
-0 of 2 for final integration. Stop automatic progression if supported blockers
-remain after two repairs. Agent readiness does not establish owner acceptance.
+No required revisions; final repair rounds used: 0 of 2. Phase 1 and Phase 2 each
+used 1 of 2, with targeted rechecks passing. Hosted full checks, owner content
+acceptance, authenticated provider inventory, each publication action and exact-head
+merge remain separate gates. Reviewed output inventory SHA-256:
+`915be4bcdd3b90bc885174eaf315b562c0ab55fef4c9f88ee47ab4b5c36f4739`.
+The owning issue and draft PR carry current candidate/check/deployment links.
+Agent readiness does not establish owner acceptance.
 
 ## Validation and acceptance
 
@@ -434,8 +447,10 @@ existing CI receipt integration and minimal accessibility color correction are
 implemented and independently reviewed. Phase 1 commit: `b360ae4a7c0ff0ace541863e9e5075502b32c49a`.
 Fresh built self-host setup and restart preserve the same owner and both starter
 Animas; desktop/narrow, keyboard, no-JavaScript and standalone copied-output
-checks pass. Phase 2/final integration commit, draft PR and actual hosted
-Validation pending. The full hosted profile remains required for this new tooling.
+checks pass. Phase 2 commit: `1fe7cf8ed50f9ea90a8a8a81ac23e67e51cc5f1b`; final
+local integration review passes. Draft PR handoff and actual hosted Validation
+are tracked in the owning issue and PR. The full hosted profile remains required
+for this new tooling.
 
 No provider or merge action occurred. Authenticated Pages/domain inventory,
 rendered-content acceptance, per-action publication approval, canonical HTTPS
