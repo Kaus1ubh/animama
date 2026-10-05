@@ -119,9 +119,17 @@ async function generate(
     return 1;
   }
   // Measure the file the creator will save, after its own sanitization.
-  const savedBytes = Buffer.byteLength(
-    serializeAnimaPoseClipFile(parseAnimaPoseClip(clip)),
-  );
+  let savedBytes: number;
+  try {
+    savedBytes = Buffer.byteLength(
+      serializeAnimaPoseClipFile(parseAnimaPoseClip(clip)),
+    );
+  } catch (error) {
+    context.out(
+      `Not written: the baked clip is not a valid animaPoseClip (${(error as Error).message}).`,
+    );
+    return 1;
+  }
   if (savedBytes > MAX_ANIMA_POSE_CLIP_BYTES) {
     context.out(
       `Not written: the clip saves as ${formatKilobytes(savedBytes)}, over the ${formatKilobytes(MAX_ANIMA_POSE_CLIP_BYTES)} the app will load. ` +

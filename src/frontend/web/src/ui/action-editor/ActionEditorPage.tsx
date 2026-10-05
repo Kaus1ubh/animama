@@ -473,7 +473,7 @@ export function ActionEditorPage({
 
   // The catalog item whose automatic hydration failed. The loader callback is
   // recreated whenever mutation state changes, so without this guard a failed
-  // load would retry in a tight loop. A refetched item gets one fresh attempt.
+  // load would retry in a tight loop. A changed item gets one fresh attempt.
   const failedHydrationItem = useRef<PyGesture | PyReaction | null>(null);
   useEffect(() => {
     if (hydrated.current || hydrating.current) return;

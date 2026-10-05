@@ -305,16 +305,18 @@ function sampleTimes(description: MotionDescription): number[] {
   const times = new Set<number>();
   const count = Math.ceil(duration * rate - 1e-9);
   for (let index = 0; index <= count; index += 1)
-    times.add(round(Math.min(index / rate, duration), 4));
+    times.add(
+      round(Math.min(index / rate, duration), ANIMA_POSE_CLIP_DECIMALS.time),
+    );
   const addKeys = (
     keys: readonly { t: number; interp?: string }[] | undefined,
   ) =>
     keys?.forEach((key, index) => {
-      times.add(round(key.t, 4));
+      times.add(round(key.t, ANIMA_POSE_CLIP_DECIMALS.time));
       // Hold a step's value until just before the next key.
       const next = keys[index + 1];
       if (key.interp === "step" && next)
-        times.add(round(next.t - STEP_LEAD, 4));
+        times.add(round(next.t - STEP_LEAD, ANIMA_POSE_CLIP_DECIMALS.time));
     });
   for (const components of Object.values(description.joints ?? {}))
     Object.values(components).forEach(addKeys);
@@ -366,7 +368,10 @@ function refineSamples(
     }
     if (inserts.length === 0) break;
     for (const index of inserts.reverse()) {
-      const middle = round((times[index] + times[index + 1]) / 2, 4);
+      const middle = round(
+        (times[index] + times[index + 1]) / 2,
+        ANIMA_POSE_CLIP_DECIMALS.time,
+      );
       times.splice(index + 1, 0, middle);
       sampled.splice(index + 1, 0, evaluator.humanoid(middle));
     }

@@ -74,7 +74,12 @@ export function serializeAnimaPoseClipFile(clip: unknown): string {
       return value.map((entry) =>
         round(entry, ANIMA_POSE_CLIP_DECIMALS.transform),
       );
-    if (key === "expressions" && value && typeof value === "object")
+    if (
+      key === "expressions" &&
+      value &&
+      typeof value === "object" &&
+      !Array.isArray(value)
+    )
       return Object.fromEntries(
         Object.entries(value).map(([name, weight]) => [
           name,

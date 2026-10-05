@@ -13,7 +13,10 @@ import type {
   PyGesture,
   PyReaction,
 } from "@/lib/content/catalogTypes";
-import { serializeAnimaPoseClipFile } from "@/lib/avatar/poses/animaPoseClip";
+import {
+  MAX_ANIMA_POSE_CLIP_BYTES,
+  serializeAnimaPoseClipFile,
+} from "@/lib/avatar/poses/animaPoseClip";
 import { catalogViewItem } from "@/lib/content/catalogTypes";
 import { typedActionPreview } from "@/lib/content/typedPreviewAdapters";
 import {
@@ -165,14 +168,23 @@ export function useActionEditorActions(intent: ActionIntent) {
       document,
       logicalKey,
     );
-    const file =
+    const sequenceText =
       document.implementation === "vrma"
+        ? null
+        : serializeAnimaPoseClipFile(document.sequence);
+    if (
+      sequenceText &&
+      new Blob([sequenceText]).size > MAX_ANIMA_POSE_CLIP_BYTES
+    ) {
+      throw contentSaveFieldError(
+        "This clip is larger than the 2 MB the app can play. Shorten it or remove keyframes.",
+        "files",
+      );
+    }
+    const file =
+      sequenceText === null
         ? pending.file
-        : new File(
-            [serializeAnimaPoseClipFile(document.sequence)],
-            companionName,
-            { type: "application/json" },
-          );
+        : new File([sequenceText], companionName, { type: "application/json" });
     if (!file)
       throw contentSaveFieldError("Choose a VRMA file before saving.", "files");
     const saved = await saveCatalogItem({
