@@ -65,25 +65,18 @@ Paths are relative to `src/frontend/web/src/` unless stated:
       passed; F7 (fade-scaled mutes) awaits owner confirmation.
 - [x] Phase 4: Review renders and the `animama-animation` skill. Review #2
       passed; owner review of the skill guidance (R1) is pending.
-- [ ] Phase 5: Evaluation on #243 prompts 1–6. Gestures authored, checked,
+- [x] Phase 5: Evaluation on #243 prompts 1–6. Gestures authored, checked,
       imported and saved through the creator, and played on the mounted chat
-      Avatar by script; owner scoring gate pending.
-- [ ] Owner decisions requested:
-  1. **Fade-scaled mutes:** layers fade with the Gesture rather than staying
-     fully muted through fades (R6 wording).
-  2. **Renderer pieces:** renders use the app's loader and sampler instead of
-     the full `Avatar` class (R5 wording).
-  3. **Idle Style playback:** mutes and expression precedence also apply when
-     a Gesture plays through an Idle Style (the default applied).
-  4. **Description location:** descriptions live in the owner's location, or
-     by default in `motion-authoring/examples/`.
-- [ ] Owner checks:
-  - a real-dispatch chat check of an equipped Gesture (planner path);
-  - creator play and reopen for each evaluation Gesture on both Avatars;
-  - skill guidance review (R1);
-  - R8 scoring.
+      Avatar by script. The owner reviewed them in the browser, judged the
+      motion smooth and natural, and waived rubric scoring (2026-10-05).
+- [x] Owner decisions (2026-10-05): the defaults stand for fade-scaled mutes,
+      loader-and-sampler renders, Idle Style playback and the default
+      description location.
+- [x] Owner checks: the owner tested playback and creator reopen in the
+      browser, which found the clip size defects fixed before merge. Merge
+      approval covers the remaining checks.
 - [x] Final integration review passed (review #2).
-- [ ] PR and owner acceptance.
+- [x] PR and owner acceptance: merge approved 2026-10-05.
 
 ## Surprises & Discoveries
 
@@ -131,6 +124,12 @@ Paths are relative to `src/frontend/web/src/` unless stated:
 - 2026-10-03, owner: authorize all phases; add R6b so the creator stops
   dropping unknown clip fields.
 - 2026-10-03, owner: prompt set and rubric are not final; proceed as-is.
+- 2026-10-05, owner: accept the four implementation defaults; waive R8
+  scoring on the owner's review. Format follow-up: proceed with a track-based
+  `animaPoseClip` format under a separate issue, spec and plan. Baked v1 clips
+  cost about 100 times their descriptions (the laugh is 719 KB baked from a
+  7 KB description), cap busy motion near 8 seconds and cannot be edited by
+  hand in the creator.
 - 2026-10-03, planning (spec refinement, owner review requested):
   - R2: thumb fitting uses one reference Avatar, as in the creator.
   - R5: review renders use the production Avatar runtime, plus a creator playback
