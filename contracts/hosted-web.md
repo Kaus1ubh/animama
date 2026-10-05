@@ -121,23 +121,40 @@ identity is `sets/v2/<source-commit>/<canonical-manifest-sha256>/`; dirty rehear
 use the existing development identity and cannot be promoted. `SHA256SUMS` includes
 the app archive. All provenance and payloads bind the same exact tracked snapshot.
 
-The tar contains only regular files rooted at the app directory: `index.html`,
-`app-manifest.json`, build output and notices. Reject links, absolute/encoded paths,
+The tar contains only regular files rooted at `animama-hosted-web/`: `index.html`,
+`app-manifest.json`, build output, notices and the non-static `catalog-seed/`.
+Reject links, absolute/encoded paths,
 empty/dot/parent segments, duplicate members, unknown files, size/hash drift and
 unsupported manifest/contract versions before serving. Archive extraction is
 bounded and verifies the complete inventory before atomically selecting a build.
+Raw intake counts fixed headers and expanded transport bytes before reading
+extension bodies. Only one canonical local PAX `path` record, at most 1,024 bytes,
+may precede its matching producer long-path member; chained, duplicate, global
+and GNU extension metadata is rejected before allocation or recursive parsing.
+Tar termination requires two zero blocks, bounded zero padding and a verified
+gzip footer.
 No source maps, development test assets, `.env`, private accounts, keys, upload
 bytes or host paths belong in it. No Cloud build reconstructs product routes.
 
 `app-manifest.json` version **1** records `source_commit`, `app_version`,
 `entry_document`, `backend_contracts` (explicit inclusive minimum/exclusive maximum
-major bounds), `files`, `lazy_resources` and `notices`. The manifest does not hash
-itself; its archive hash binds it. Every other file appears once with relative
+major bounds), `files`, `lazy_resources`, `notices` and `catalog_seed`. The manifest
+does not hash itself; its archive hash binds it. Every static file appears once with relative
 `path`, `sha256`, `size`, explicit `mime_type`, `cache` (`revalidate` or `immutable`)
 and `range` (boolean). `entry_document` is `index.html`; referenced entry/chunk,
 worker, CSS, font, image, audio and WASM files must exist in the inventory. Only
 fingerprinted build files or hash/version-bound resources gain immutable caching;
 HTML revalidates. API/missing-resource requests never fall back to HTML.
+
+Static URLs start with `/_animama/static/<digest>/`. The producer first emits with
+the reserved base `/__animama_resource_template__/`, adds exact runtime, model
+descriptor and notice bytes, then hashes canonical sorted JSON mapping each
+relative file (including entry HTML) to `{sha256,size}`. Canonical JSON uses compact
+separators, UTF-8 and one trailing newline. Only then does it substitute the digest
+prefix in text and relocate static files. Verification reverses that substitution
+and recomputes the digest. This avoids circular hashing and distinguishes changed
+emitted bytes from the same source commit or different tooling. Vite chunk names
+remain fingerprinted inside that prefix. Local builds retain `/`.
 
 Resource decisions for the full app:
 
@@ -146,7 +163,7 @@ Resource decisions for the full app:
 | Entry, chunks, workers, CSS/fonts/icons and reviewed small runtime art       | Shipped in the closed app inventory; Vite dependencies and notices retained.                                                                                                                                                                                                    |
 | Existing 21-file browser speech runtime                                      | Preserve every pinned engine/model variant from `models/browser-runtime/manifest.json`. Ship verified engine/runtime and baseline Pocket/Smart Turn bytes; fetch model bytes only when voice requests them. A hosted build may not pass by silently omitting its speech models. |
 | Optional Pocket voice/language sets, cloning encoder and Parakeet CPU/WebGPU | Fixed, versioned lazy resource descriptors from the existing model manifests; separately admitted public model bytes from the application origin. Retain the browser download/readiness flow; no user-triggered global server install or arbitrary download URL.                |
-| Included avatars, loadouts, appearances/effects and content dependencies     | Consumer catalog/runtime services supply reviewed immutable source versions and authenticated manifests/bytes. No blanket copy of development `content/included` into the static app. Required starter behavior is verified separately.                                         |
+| Included avatars, loadouts, appearances/effects and content dependencies     | The archive carries the closed non-static seed resolved by the existing `starter_inventory`. Consumer owner APIs supply its catalog/runtime descriptors and authenticated bytes. Seed members never become ordinary static routes.                                              |
 | Owner VRM/image/audio/samples, drafts, exports and previews                  | Account-owned service bytes outside the static inventory and shared caches; ownership, quota, validation, leases and cleanup remain server-enforced.                                                                                                                            |
 
 A `lazy_resources` entry identifies the fixed resource ID, version, manifest
@@ -157,6 +174,28 @@ A5 binds the referenced manifest/notice bytes in the app artifact. C1/C5 supply
 an admitted resource catalog and capacity evidence; publication rights are a
 separate gate from a valid checksum.
 
+Each optional route is `/_animama/models/<id>/<raw-manifest-sha256>/<file.path>`.
+Only verified regular files from that exact manifest may be opened; an active
+application switch cannot replace an older tab's model bytes. The archive includes
+the original manifest and its notice bytes, not optional weights. The baseline
+speech inventory retains all 21 files (280,549,335 bytes), including unused model
+variants; readiness cannot silently replace or omit them.
+
+`catalog_seed` is exactly `{manifest,sha256,size}`, naming
+`catalog-seed/manifest.json`. Its version-1 manifest is exactly
+`{schema_version,artifact,source_commit,source_tree,inventory,files,notices}` with
+`artifact: "animama-included-content"`. Each seed file is
+`{path,sha256,size_bytes}` relative to `catalog-seed/` under `included/` or
+`notices/`. `inventory` is the existing `animama-starter-content/1` resolver output
+with its digest, per-file license/provenance and two diagnostic-free starters.
+The only extra Included file is `included/licenses/inventory.json`. Verify both
+source pins, every byte and the closed seed inventory before importing it into
+the owner catalog. Ordinary app HTTP serving excludes the entire `catalog-seed/`
+subtree. The installed public wheel must resolve both starters from these bytes
+without a source checkout. Public permission records live under
+[`licenses/`](../licenses/README.md) and the seed retains their exact notice bytes;
+final binary publication remains separately authorized.
+
 The consumer reviews MIME, `nosniff`, single-range/If-Range, ETag/HEAD, cookie/CSRF,
 CSP worker/media/image/font/connect sources and WASM requirements against these
 inventories. Public immutable resources and private no-store bytes have distinct
@@ -164,3 +203,27 @@ cache policies. CSP never permits arbitrary provider origins or executable
 uploads. Independent artifact fixtures verify route navigation, dependency
 closure and hostile manifests without a Cloud checkout. C7 additionally proves
 real providers, physical audio and hosted tenancy against the selected release.
+
+The entry document needs same-origin scripts, workers, connection and media
+sources; `blob:` for owned worker/media/image lifetimes; image `data:`; inline
+styles; and `wasm-unsafe-eval` for the retained engines. Serve WASM as
+`application/wasm`, JavaScript as `text/javascript`, and enable COOP `same-origin`
+and COEP `require-corp` with same-origin resource policy. The exact verified
+`/_animama/static/<digest>/tts/workers/inference-worker.js` response additionally
+requires `script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval'`: the retained
+sentencepiece Emscripten binding constructs JavaScript call wrappers. An actual
+Chromium fixture initializes Pocket and observes nonzero PCM plus worklet
+`playback-started` under this worker policy. The entry document and all other
+responses retain their restriction against `unsafe-eval`; executable uploads
+never receive this allowance.
+
+Keep previous verified resource/model inventories for the supported old-tab and
+rollback window. A two-selection browser fixture changes the entry selection
+while an old page creates its worker, then loads the new page and rolls back.
+Controlled byte-change fixtures prove the selection mechanism and are labelled
+separately from compatibility between two exact clean source revisions. Format
+1 has no application and cannot serve as that rollback predecessor.
+Both selections must retain additive clip metadata through import, edit and
+save, and share the runtime's 2 MiB clip read/save bound. Preserving a newer
+layer-mute descriptor as data does not implement its playback behavior; verify
+that semantic limit explicitly alongside common clips in the selected pair.

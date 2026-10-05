@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
 import json
 import os
 import shutil
@@ -28,7 +29,11 @@ PACKAGES = ("@animama/runtime-contracts", "@animama/product-ui", "@animama/disco
 
 def digest(path: Path) -> str:
     """Fingerprint exactly the artifact that the isolated consumer installs."""
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    result = hashlib.sha256()
+    with path.open("rb") as stream:
+        while chunk := stream.read(1024 * 1024):
+            result.update(chunk)
+    return result.hexdigest()
 
 
 def export_targets(value):
@@ -127,10 +132,21 @@ def main() -> int:
     parser.add_argument("artifacts", type=Path, help="Directory containing one wheel and all three npm tarballs")
     parser.add_argument("--offline", action="store_true", help="Use previously cached dependency artifacts only")
     parser.add_argument("--work-dir", type=Path, help="New, empty consumer directory outside the repository")
-    parser.add_argument("--pnpm-store", type=Path,
-                        help="Optional content-addressed pnpm cache (copied, never source-linked)")
+    parser.add_argument(
+        "--pnpm-store", type=Path, help="Optional content-addressed pnpm cache (copied, never source-linked)"
+    )
+    parser.add_argument(
+        "--previous-app-set", type=Path, help="Verified clean format-2 predecessor for actual app upgrade/rollback"
+    )
     args = parser.parse_args()
     artifact_dir = args.artifacts.resolve()
+    # Verification tooling is reviewed public code; runtime consumers below
+    # receive only copied fixtures, installed artifacts and verified app bytes.
+    sys.path.insert(0, str(ROOT / "scripts/package-sets"))
+    from application import unpack_application
+    from package_set import compare, verify
+
+    manifest = verify(artifact_dir)
     artifacts = {}
     reports = []
     for path in sorted(artifact_dir.glob("*.tgz")):
@@ -171,8 +187,14 @@ def main() -> int:
     package["dependencies"].update(overrides)
     package["pnpm"] = {"overrides": overrides}
     (frontend / "package.json").write_text(json.dumps(package, indent=2) + "\n")
-    install = ["pnpm", "install", "--ignore-workspace", "--no-frozen-lockfile", "--ignore-scripts",
-               "--package-import-method=copy"]
+    install = [
+        "pnpm",
+        "install",
+        "--ignore-workspace",
+        "--no-frozen-lockfile",
+        "--ignore-scripts",
+        "--package-import-method=copy",
+    ]
     if args.offline:
         install.append("--offline")
     if args.pnpm_store:
@@ -182,20 +204,99 @@ def main() -> int:
     # environment. This consumer deliberately tests fresh dependency resolution.
     frontend_lock = logs / "frontend-pnpm-lock.yaml"
     shutil.copy2(frontend / "pnpm-lock.yaml", frontend_lock)
-    run(["pnpm", "list", "--depth", "Infinity", "--json"],
-        cwd=frontend, logs=logs, name="frontend-dependencies", env=env)
+    run(
+        ["pnpm", "list", "--depth", "Infinity", "--json"],
+        cwd=frontend,
+        logs=logs,
+        name="frontend-dependencies",
+        env=env,
+    )
     assert_no_checkout_links(frontend)
     run(["pnpm", "exec", "tsc", "--noEmit"], cwd=frontend, logs=logs, name="frontend-types", env=env)
     run(["pnpm", "exec", "vite", "build"], cwd=frontend, logs=logs, name="frontend-build", env=env)
     run(["node", "verify.mjs"], cwd=frontend, logs=logs, name="frontend-browser", env=env)
 
+    application = None
+    whole_app = None
+    if manifest.get("applications"):
+        record = manifest["applications"][0]
+        application = work / "application"
+        app_manifest = unpack_application(
+            artifact_dir / record["file"],
+            application,
+            manifest["source"]["commit"],
+            record["version"],
+            manifest["contracts"],
+            archive_sha256=record["sha256"],
+            source_tree=manifest["source"]["tree"],
+        )
+        tooling = frontend / "hosted-app"
+        shutil.copytree(FIXTURES / "hosted-app", tooling)
+        shutil.copy2(
+            ROOT / "src/frontend/web/scripts/fixtures/hosted-workflows-http.mjs", tooling / "hosted-workflows-http.mjs"
+        )
+        if args.previous_app_set:
+            previous_directory = args.previous_app_set.resolve()
+            previous = verify(previous_directory)
+            if previous["schema_version"] != 2 or previous["source"]["dirty"] or manifest["source"]["dirty"]:
+                raise ValueError("Actual app upgrade/rollback requires two clean format-2 sets")
+            compare(previous_directory, artifact_dir)
+            previous_record = previous["applications"][0]
+            previous_application = work / "previous-application"
+            unpack_application(
+                previous_directory / previous_record["file"],
+                previous_application,
+                previous["source"]["commit"],
+                previous_record["version"],
+                previous["contracts"],
+                archive_sha256=previous_record["sha256"],
+                source_tree=previous["source"]["tree"],
+            )
+            selection_kind = "verified-clean-package-set-pair"
+        else:
+            spec = importlib.util.spec_from_file_location("selection_fixture", tooling / "selection_fixture.py")
+            fixture = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(fixture)
+            previous_application = fixture.previous_resource_fixture(
+                application, work / "controlled-selection", manifest["contracts"]
+            )
+            selection_kind = "controlled-resource-variant"
+        run(
+            ["node", "verify.mjs", str(application), str(previous_application), selection_kind],
+            cwd=tooling,
+            logs=logs,
+            name="whole-application-browser",
+            env=env,
+        )
+        whole_app = {
+            "artifact": record,
+            "manifest_sha256": digest(application / "app-manifest.json"),
+            "catalog_seed": app_manifest["catalog_seed"],
+            "selection_kind": selection_kind,
+            "exact_clean_upgrade_rollback": selection_kind == "verified-clean-package-set-pair",
+            "browser_receipt": {
+                "path": str((tooling / "whole-app-receipt.json").relative_to(work)),
+                "sha256": digest(tooling / "whole-app-receipt.json"),
+            },
+            "fixture_inputs": {
+                str(path.relative_to(ROOT)): digest(path)
+                for path in sorted((FIXTURES / "hosted-app").glob("*"))
+                if path.is_file()
+            },
+        }
+
     backend = work / "backend"
     backend.mkdir()
-    for fixture in ("backend", "contracts", "content"):
+    for fixture in ("backend", "contracts", "content", "catalog_seed"):
         shutil.copy2(FIXTURES / f"{fixture}.py", backend / f"{fixture}_consumer.py")
     shutil.copy2(wheel, backend / wheel.name)
-    run(["uv", "venv", "--python", sys.executable, str(backend / ".venv")],
-        cwd=backend, logs=logs, name="backend-environment", env=env)
+    run(
+        ["uv", "venv", "--python", sys.executable, str(backend / ".venv")],
+        cwd=backend,
+        logs=logs,
+        name="backend-environment",
+        env=env,
+    )
     python = backend / ".venv" / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
     install = ["uv", "pip", "install", "--python", str(python), str(backend / wheel.name)]
     if args.offline:
@@ -203,23 +304,57 @@ def main() -> int:
     run(install, cwd=backend, logs=logs, name="backend-install", env=env)
     # Name/version inventory contains no inherited registry credentials or
     # developer paths. It describes installed distributions, not wheel hashes.
-    run([str(python), "-I", "-c",
-         "import importlib.metadata as m, json; "
-         "print(json.dumps(sorted([{'name': d.metadata['Name'], 'version': d.version} "
-         "for d in m.distributions()], key=lambda d: d['name'].lower()), indent=2))"],
-        cwd=backend, logs=logs, name="backend-dependencies", env=env)
-    assert_no_checkout_links(backend)
-    run([str(python), "-I", "backend_consumer.py", "--forbid-source", str(ROOT)],
-        cwd=backend, logs=logs, name="backend-consumer", env=env)
-    for fixture in ("contracts", "content"):
-        run([str(python), "-I", f"{fixture}_consumer.py"],
-            cwd=backend, logs=logs, name=f"backend-{fixture}-consumer", env=env)
-    dependencies = dependency_receipt(
-        [frontend_lock, logs / "frontend-dependencies.log", logs / "backend-dependencies.log"], work,
+    run(
+        [
+            str(python),
+            "-I",
+            "-c",
+            "import importlib.metadata as m, json; "
+            "print(json.dumps(sorted([{'name': d.metadata['Name'], 'version': d.version} "
+            "for d in m.distributions()], key=lambda d: d['name'].lower()), indent=2))",
+        ],
+        cwd=backend,
+        logs=logs,
+        name="backend-dependencies",
+        env=env,
     )
-    summary = {"artifacts": reports, "wheel": wheel_report, "consumer_directory": str(work),
-               "dependency_resolution": dependencies,
-               "source_checkout_available_to_consumers": False, "result": "passed"}
+    assert_no_checkout_links(backend)
+    run(
+        [str(python), "-I", "backend_consumer.py", "--forbid-source", str(ROOT)],
+        cwd=backend,
+        logs=logs,
+        name="backend-consumer",
+        env=env,
+    )
+    for fixture in ("contracts", "content"):
+        run(
+            [str(python), "-I", f"{fixture}_consumer.py"],
+            cwd=backend,
+            logs=logs,
+            name=f"backend-{fixture}-consumer",
+            env=env,
+        )
+    if application:
+        run(
+            [str(python), "-I", "catalog_seed_consumer.py", str(application / "catalog-seed")],
+            cwd=backend,
+            logs=logs,
+            name="backend-included-seed-consumer",
+            env=env,
+        )
+    dependencies = dependency_receipt(
+        [frontend_lock, logs / "frontend-dependencies.log", logs / "backend-dependencies.log"],
+        work,
+    )
+    summary = {
+        "artifacts": reports,
+        "wheel": wheel_report,
+        "consumer_directory": str(work),
+        "dependency_resolution": dependencies,
+        "whole_application": whole_app,
+        "source_checkout_available_to_consumers": False,
+        "result": "passed",
+    }
     (work / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
     print(json.dumps(summary, indent=2))
     return 0

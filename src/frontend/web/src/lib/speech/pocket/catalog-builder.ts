@@ -1,6 +1,7 @@
 "use client";
 
 import type { Client } from "@animama/runtime-contracts/sdk";
+import { publicResourceUrl } from "@/lib/resource-urls";
 
 import {
   DEFAULT_POCKET_VOICE,
@@ -413,7 +414,7 @@ class PocketCatalogWorkerClient {
 
 function createPocketCatalogWorkerClient(): PocketCatalogWorkerClient {
   const workerUrl = new URL(
-    "/tts/workers/inference-worker.js",
+    publicResourceUrl("tts/workers/inference-worker.js"),
     window.location.origin,
   );
   const worker = new Worker(workerUrl, {

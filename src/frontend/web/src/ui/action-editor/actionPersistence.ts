@@ -29,6 +29,7 @@ export function actionSequenceFromTimelineDraft(
       // Creator export validator requires a pose/keyframe, so fall back to the
       // actual animaPoseClip schema after removing editor-only draft fields.
       const serializedDraft = {
+        ...structuredClone(draft.extraFields),
         schema: "animaPoseClip/1.0",
         id: draft.id.trim(),
         name: draft.name.trim() || "New Clip",

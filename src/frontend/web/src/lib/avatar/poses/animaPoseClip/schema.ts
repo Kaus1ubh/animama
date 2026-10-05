@@ -17,6 +17,80 @@ import {
 
 export const ANIMA_POSE_CLIP_SCHEMA = "animaPoseClip/1.0" as const;
 
+/**
+ * Largest clip file the runtime and the creator will read. Clips are saved as
+ * compact JSON, so this bounds the serialized `JSON.stringify(clip)` size.
+ */
+export const MAX_ANIMA_POSE_CLIP_BYTES = 2 * 1024 * 1024;
+
+/**
+ * Decimal places kept in saved clip files. Five decimals hold rotations to
+ * about a thousandth of a degree; four hold times to a tenth of a millisecond,
+ * and three hold expression weights to a thousandth. Coarser rotations would
+ * drift down bone chains and turn slow motion into visible steps.
+ */
+export const ANIMA_POSE_CLIP_DECIMALS = {
+  transform: 5,
+  time: 4,
+  expressionWeight: 3,
+  other: 5,
+} as const;
+
+const TIME_FIELDS: ReadonlySet<string> = new Set([
+  "time",
+  "duration",
+  "fadeIn",
+  "fadeOut",
+  "from",
+  "to",
+]);
+
+/** Round to fixed decimal places without emitting negative zero. */
+export function roundAnimaPoseClipNumber(
+  value: number,
+  decimals: number,
+): number {
+  const rounded = Number(value.toFixed(decimals));
+  return Object.is(rounded, -0) ? 0 : rounded;
+}
+
+/**
+ * Serialize a clip as a saved file: compact JSON with fractions rounded to
+ * {@link ANIMA_POSE_CLIP_DECIMALS}. Generated clips repeat every animated bone
+ * in each keyframe, so indentation and 17-digit renormalized quaternions would
+ * roughly quadruple the file.
+ */
+export function serializeAnimaPoseClipFile(clip: unknown): string {
+  const round = (value: unknown, decimals: number): unknown =>
+    typeof value === "number" && !Number.isInteger(value)
+      ? roundAnimaPoseClipNumber(value, decimals)
+      : value;
+  return `${JSON.stringify(clip, (key, value: unknown) => {
+    if (
+      (key === "rotation" || key === "position" || key === "scale") &&
+      Array.isArray(value)
+    )
+      return value.map((entry) =>
+        round(entry, ANIMA_POSE_CLIP_DECIMALS.transform),
+      );
+    if (
+      key === "expressions" &&
+      value &&
+      typeof value === "object" &&
+      !Array.isArray(value)
+    )
+      return Object.fromEntries(
+        Object.entries(value).map(([name, weight]) => [
+          name,
+          round(weight, ANIMA_POSE_CLIP_DECIMALS.expressionWeight),
+        ]),
+      );
+    if (TIME_FIELDS.has(key))
+      return round(value, ANIMA_POSE_CLIP_DECIMALS.time);
+    return round(value, ANIMA_POSE_CLIP_DECIMALS.other);
+  })}\n`;
+}
+
 export type AnimaPoseClipRole = "motion" | "reaction";
 export type AnimaPoseClipPlaybackScope = "activeRun";
 
@@ -180,7 +254,26 @@ export type AnimaPoseClip = {
   poses: Record<string, AnimaPoseClipPose>;
   poseKeyframes: AnimaPoseClipKeyframe[];
   events?: AnimaPoseClipEvent[];
+  // Unknown top-level fields are retained for newer artifacts and authoring tools.
 };
+
+/** Top-level fields the parser validates; every other field is preserved. */
+const KNOWN_CLIP_FIELDS = new Set([
+  "schema",
+  "id",
+  "name",
+  "role",
+  "duration",
+  "loop",
+  "playback",
+  "basePose",
+  "defaultTransition",
+  "fadeIn",
+  "fadeOut",
+  "poses",
+  "poseKeyframes",
+  "events",
+]);
 
 export type AnimaPoseClipSample = AnimaPoseSnapshot;
 
@@ -354,7 +447,14 @@ export function sanitizeAnimaPoseClip(value: unknown): AnimaPoseClip | null {
     return null;
   }
 
+  const unknownFields = Object.fromEntries(
+    Object.entries(value)
+      .filter(([key]) => !KNOWN_CLIP_FIELDS.has(key))
+      .map(([key, field]) => [key, structuredClone(field)]),
+  );
+
   return {
+    ...unknownFields,
     schema: ANIMA_POSE_CLIP_SCHEMA,
     id,
     name,

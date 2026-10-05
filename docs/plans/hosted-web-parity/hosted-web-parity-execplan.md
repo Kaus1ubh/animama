@@ -95,7 +95,7 @@ contract instead of maintaining a second truth.
 - [x] 2026-10-05 [A2 / #274](https://github.com/raymond-van/animama/issues/274): corrected portable preference merger committed at `6a150fd45d5e215e7f134010b53b9c62e4316ede`; targeted independent review #3 and clean installed-wheel gate pass. Repair rounds used: 2 of 2. Neutral services are ready for isolated consumer C2 repair and A4.
 - [x] 2026-10-05 [A3 / #275](https://github.com/raymond-van/animama/issues/275): committed at `e8ef7768d2edcfc7cef58c508bf3fb66ba0d2302`; targeted independent review #2 passes after repair 1 of 2 for chat cache partitioning and durable recovery cleanup.
 - [x] 2026-10-05 [A4 / #276](https://github.com/raymond-van/animama/issues/276): public retained-workflow and resource-lifetime engineering passes independent analysis/checks #1, repairs 0 of 2. Physical capture/heard output and actual hosted/provider/device acceptance remain explicit C5/C7 gates; this is not a declaration of delivered voice parity.
-- [ ] 2026-10-05 [A5 / #277](https://github.com/raymond-van/animama/issues/277): planned; depends on A4 and its prerequisites.
+- [ ] 2026-10-05 [A5 / #277](https://github.com/raymond-van/animama/issues/277): targeted source review #2 PASS after combined repair 1 of 2 at A4 HEAD `8b91bbf3faf45eec85e6cdd7964fdc423e48c0a0` plus 51 source paths. A reviewed source checkpoint enables the clean producer; clean artifacts, local production comparison and two meaningful selections remain completion gates.
 - [ ] 2026-10-05 [A6 / #278](https://github.com/raymond-van/animama/issues/278): planned; depends on A5/all public gates; coordinate with C6 without requiring a future main pin.
 
 ## Surprises & Discoveries
@@ -650,7 +650,7 @@ verified commit without changing the six exclusions.
 Scope: R1–R10 and R12; depends on A2 and A3. Issue: [A4 / #276](https://github.com/raymond-van/animama/issues/276).
 Implementation entered on2026-10-05 from clean task commit
 `e8ef7768d2edcfc7cef58c508bf3fb66ba0d2302`; A2 corrected installed-wheel and
-A3 independent review gates are satisfied. Independent review now passes; the phase commit is recorded at A5 entry.
+A3 independent review gates are satisfied. Independent review passed with no required findings or repairs. Phase commit: `8b91bbf3faf45eec85e6cdd7964fdc423e48c0a0`.
 Apply the common contracts to the existing screens rather than recreating them.
 Finish any composition assumptions discovered by the coverage map: settings/model
 roles, chat/history/tools/safety, existing Anima editing, memory/Reflection,
@@ -740,7 +740,7 @@ real Cloud/provider/quota/device behavior remains C5–C7 acceptance.
 ### Phase 5: Produce and validate the immutable hosted application (A5)
 
 Scope: R4, R8, R11–R12; depends on A3 and A4. Issue: [A5 / #277](https://github.com/raymond-van/animama/issues/277);
-implementation source/commit pending.
+entered from verified clean task HEAD `8b91bbf3faf45eec85e6cdd7964fdc423e48c0a0`. A4 analysis/checks pass with0of2 repairs used. Root owns the plan/tracker/commits; the A5 author owns the public producer, verifier, asset build and isolated consumer. Clean exact-source producer/consumer remains an explicit completion gate.
 Implement the A1 artifact format in `scripts/package-sets/build.py`,
 `package_set.py`, their tests, `src/frontend` build scripts and
 `scripts/repository-boundary/check-packed-artifacts.py`. Include its independent
@@ -785,12 +785,107 @@ names or remove assets still required by the supported rollback/open-tab window.
 
 #### Code Review #1 Findings
 
-Not run. Include package inventory, provenance, resource policy and independent build.
-Repair rounds used: 0 of 2.
+A5 source review checkpoint, 2026-10-05 23:13 UTC: authoring is paused at
+`8b91bbf3faf45eec85e6cdd7964fdc423e48c0a0` plus51 intended source paths.
+The coordinator verified the complete tracked/untracked boundary, all raw file
+hashes, unchanged dependency/contracts/package declarations and no staged paths.
+Source aggregate `eec144c0617f83d2e5dc7cfa40e8f8e76191a4548af4ed00af2cd01b55fb2313`
+uses SHA-256 of sorted path, space, raw file SHA-256 and newline. The author's
+separate canonical JSON-map aggregate is `ab6ddb09da4a692046abb475ea56ea9d77478578b4b8081e9c1de997266f18d3`.
+The single comprehensive initial independent analysis and checks are complete:
+source review **BLOCKED** on the two required findings below. All51 source and
+seven sealed hashes match before/after both reviewers. At initial review,
+repair rounds used:0of2; combined repair1of2 now proceeds.
+
+- A5-R1 (P1): Python consumes raw PAX/GNU extension metadata before yielding a
+  regular tar member, bypassing the verifier's expanded-byte/header limits. The
+  independent valid-app proof and coordinator reproduction accept an8,173-byte
+  gzip with1,520,000 PAX bytes despite a65,536-byte aggregate ceiling. This is a
+  demonstrated bound omission, not a measured production memory-exhaustion event.
+  Required repair bounds transport/header size and count before parsing, retains
+  legitimate producer path extensions, and adds hostile-header regressions.
+- A5-CHECK1 (P2): two new long lines in configured source JavaScript fail the
+  required formatter. The initial38-file author selection omitted `.js`.
+  `PCMPlayerWorklet.js` and `PocketTTSCore.js` are included by the normal source
+  glob and were formatter-clean at HEAD. Format them and refresh the scoped
+  check; the raw public workers' formatting is advisory under their separate
+  configured scope, without requiring an unrelated vendor rewrite.
+
+Fresh independent checks pass10 existing archive cases, two HTTP cases,
+24 clip/resource cases, Ruff/format for nine Python paths, repository dependency
+boundary,21 exact baseline assets/280,549,335 bytes and complete51-file
+whitespace/source verification. Existing source-bound141/19/13/6, type/lint and
+both builds are reused. The old desktop69 receipt reconstructed a Node command
+for a Vitest log; it is not accepted as exact execution evidence. The author
+retained that error and replaced the claim with an actual fresh exact-source
+`pnpm exec vitest run tests/runtime-packaging.test.mjs --reporter=dot` run:
+69 pass, zero skipped, all51 hashes stable.
+
+Author evidence includes141 affected frontend tests, type/lint checks, both web
+builds, archive/HTTP/boundary tests and read-only formatting checks. A real emitted
+creator journey first reproduced dropped clip metadata; the narrow compatibility
+bridge retains it for normal and effect-only clips through import, edit, save,
+export and reopen. Reopen exports match and test-owned clips are removed on
+cleanup. The pre-sync app preserves newer layer-mute metadata as opaque data;
+it does not execute newer procedural-layer behavior. Fixture setup failures are
+retained separately from the product regression and passing run.
+
+These are source/labelled dirty-rehearsal results. A reviewed provisional source
+commit can enable the exact clean producer, but does not complete A5. Clean
+producer/isolated installed and emitted consumers, same-source production-local
+measurement comparison, and two meaningful clean app revisions with saved-clip,
+old-tab, upgrade and rollback behavior remain required. A worker-comment variant
+or a version bump cannot replace that semantic compatibility gate. Physical
+microphone/heard-output and real provider/device/hosted acceptance remain C7.
 
 #### Code Review #1 Revisions
 
-None. Record dispositions and exact manifest-bound validation results.
+Accepted A5-R1 and A5-CHECK1. One combined repair round1of2 is authorized:
+add the hostile archive regression before the early bound, format the two
+configured source files and refresh affected evidence. Preserve initial source
+and failed receipts; freeze the delta for targeted independent review2. The
+formatter advice for raw workers is optional and must not expand into unrelated
+vendor changes. No source checkpoint commit or A5 completion occurs before the
+accepted fixes pass. Clean artifact, production comparison and meaningful
+cross-revision browser gates still follow the reviewed provisional commit.
+
+#### Code Review #2 Findings
+
+A5 source review checkpoint, 2026-10-05 23:38 UTC: targeted independent
+analysis and checks **PASS** after combined repair 1 of 2. The complete 51-path
+source aggregate is `931b396f9420792e787c19cec1077ef60f8bd389112ab3a7885cace38f2ccf0f`
+using the same sorted path/space/raw-hash/newline recipe. Five paths changed;
+the other 46 and all seven sealed dependency/contracts/package inputs remain
+unchanged before and after both reviews. No new required finding remains.
+
+A5-R1 is resolved by flat 512-byte tar header framing. The verifier bounds
+expanded transport and raw header count before consuming extension bodies;
+it accepts only one canonical bounded producer long-path record followed by
+its matching regular file. The original complete-app hostile archive rejects
+before payload intake. Fresh independent analysis passes six focused cases;
+fresh checks pass all 23 package/archive cases, repaired Python lint/format,
+the contract and both source JavaScript formatter checks, selected ESLint and
+complete tracked/untracked whitespace verification. A5-CHECK1 is resolved;
+raw worker formatting remains advisory. Source-bound unaffected evidence is
+reused rather than described as a fresh execution.
+
+The author also reverified the existing 169,600,835-byte dirty rehearsal
+archive with the repaired parser: all 311 static files, including 310 long
+paths, and its separate seed still verify. This read-only parser compatibility
+check preserves both source and archive hashes; it is not a clean build or
+whole-phase acceptance.
+
+#### Code Review #2 Revisions
+
+Accepted both targeted PASS verdicts. Repair rounds used: **1 of 2**; one
+remains for this scope. Commit the reviewed source and living record as a
+provisional checkpoint so the exact clean producer can run. A5 stays unchecked.
+Build the first clean set, perform isolated installed/emitted consumer and
+same-source local production measurements, then integrate the reviewed Gesture
+changes from main for a second meaningful clean set. Verify saved normal and
+effect-only clips, old-tab resources, upgrade and rollback across that pair.
+Preserve the explicit older app's opaque layer-mute playback limitation and
+all separate physical/provider/hosted/publication gates.
 
 ### Phase 6: Complete public acceptance and hand off for hosted adoption (A6)
 
@@ -910,8 +1005,9 @@ Full coordinated implementation is authorized. The C1 tenancy/cost/resource
 requirements gate passed; A2 content/provider services and its clean artifact
 handoff passed, including the independently reviewed portable preference repair
 and replacement clean artifact. A3 browser composition is reviewed and committed.
-A4 verification and consumer C2 repair proceed against those exact artifacts.
-No consumer product UI cutover, hosted deployment
+A4 is committed at8b91bbf3; C2–C5 engineering gates pass. A5 targeted source
+review #2 passes after repair 1 of 2. Clean artifact, production comparison and
+semantic compatibility gates remain pending. No consumer product UI cutover, hosted deployment
 or actual parity acceptance has occurred. Product scope is resolved. Remaining
 engineering determinations are the concrete compatible artifact schema and
 resource inventory, individual service seams and measured resource budgets;

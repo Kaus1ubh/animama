@@ -353,6 +353,44 @@ describe("Starter action customization", () => {
 });
 
 describe("owned action reopening", () => {
+  it.each([1024 * 1024, 2 * 1024 * 1024 + 1])(
+    "uses the runtime clip byte bound when reopening a %s-byte sequence",
+    async (size) => {
+      const sequence = JSON.stringify({
+        schema: "animaPoseClip/1.0",
+        id: "saved-reaction",
+        name: "Saved Reaction",
+        duration: 1,
+        poses: { smile: { expressions: { happy: 1 } } },
+        poseKeyframes: [{ time: 0, pose: "smile" }],
+      });
+      vi.stubGlobal(
+        "fetch",
+        vi.fn<typeof fetch>(
+          async () =>
+            new Response(sequence + " ".repeat(size - sequence.length), {
+              headers: {
+                "Content-Type": "application/json",
+                "Content-Length": String(size),
+              },
+            }),
+        ),
+      );
+      const reopened = actionDocumentFromPreview({
+        intent: "reaction",
+        item: ownedReaction(),
+        preview: privateReactionPreview(),
+        base: createReactionDocument(),
+      });
+      if (size > 2 * 1024 * 1024) {
+        await expect(reopened).rejects.toThrow(/too large|exceeds|size/i);
+      } else {
+        await expect(reopened).resolves.toMatchObject({
+          sequence: { schema: "animaPoseClip/1.0" },
+        });
+      }
+    },
+  );
   it.each(["local", "included"])(
     "reopens converted %s Action-owned sequence and promoted effect references",
     async (catalogSource) => {

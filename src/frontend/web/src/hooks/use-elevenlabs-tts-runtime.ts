@@ -6,6 +6,7 @@ import { createLogger } from "@/lib/logger";
 import { PCMPlayerWorklet } from "@/lib/speech/audio/PCMPlayerWorklet.js";
 import { mapNormalizedVolumeToPocketGain } from "@/lib/speech/pocket/audio/volume.js";
 import { redactUrlForLogging } from "@/lib/utils";
+import { publicResourceUrl } from "@/lib/resource-urls";
 import { useRuntimeCapabilities } from "@/query/hooks/useRuntimeCapabilities";
 
 const ELEVENLABS_SAMPLE_RATE = 24000;
@@ -200,7 +201,7 @@ async function createAudioResources(): Promise<{
   });
   try {
     const player = new PCMPlayerWorklet(audioContext, {
-      workletModuleUrl: "/tts/audio/pcm-processor.worklet.js",
+      workletModuleUrl: publicResourceUrl("tts/audio/pcm-processor.worklet.js"),
       minBufferBeforePlaybackMs: 180,
       bufferSizeSamples: ELEVENLABS_SAMPLE_RATE * 60,
     });

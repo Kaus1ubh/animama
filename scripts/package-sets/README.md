@@ -20,8 +20,9 @@ From the Animama root, using the Python environment installed by `uv sync`:
       /tmp/previous-package-set /tmp/package-set
 
 `--output` and consumer directories must be new paths outside the checkout.
-The build emits one Python wheel, three npm tarballs, an offline local OpenAPI
-schema and the neutral RuntimeOwner JSON Schema. Contract versions come from
+Format 2 emits one Python wheel, three npm tarballs, an offline local OpenAPI
+schema, the neutral RuntimeOwner JSON Schema and a complete hosted application
+archive with its non-static Included seed. Contract versions come from
 `contracts/versions.json` in the exact source snapshot.
 
 The canonical `manifest.json` records the full source commit/tree, copied source
@@ -33,11 +34,40 @@ separately when current reviewed tooling packages an older commit. Content
 identity deliberately distinguishes different build bytes from the same commit;
 no universal cross-platform byte-reproducibility claim is made.
 
-The identity is `sets/v1/<commit>/<manifest-sha256>/`. `SHA256SUMS` inventories
-all six payloads. The validation command installs packages in empty independent
+The identity is `sets/v2/<commit>/<manifest-sha256>/`. Strict format 1 remains
+supported for older sources and contains only its original six payloads; current
+tooling never patches those sources into a whole application. `SHA256SUMS`
+inventories every payload. The validation command installs packages in empty independent
 Python/npm environments, runs real shared services with fake ports, mounts the
-Anima/chat UI in Chromium, and emits `validation.json` bound to this manifest.
+Anima/chat UI, then opens the actual emitted app in Chromium with an independent
+cookie/CSRF HTTP authority. It resolves both real Included starters through the
+installed wheel, opens creator/deep links and a real VRM, initializes the retained
+Pocket engine, observes nonzero PCM and worklet playback, and verifies logout
+cleanup. The browser cannot request source modules or Vite. The consumer records
+cold/warm shell/avatar/voice timings, transfer, page heap and browser process RSS.
+It emits `validation.json` bound to this manifest and the detailed consumer summary.
 The receipt is test evidence, not a signature or an automatic publication grant.
+
+The closed app archive, versioned URLs, MIME/cache/range policy, worker CSP and
+non-static seed layout are specified in [the hosted contract](../../contracts/hosted-web.md#static-application-format-a5-producer--consumer-contract).
+The verified baseline speech runtime is a required offline build input; set
+`ANIMAMA_BROWSER_MODEL_DIR` to the existing directory returned by
+`scripts/models/browser_speech.py path`. The producer never downloads runtime
+models or substitutes missing files. Optional manifests/notices are shipped;
+optional weights stay in separately provisioned exact catalogs and remain lazy.
+
+Pass `validate --previous-app-set /tmp/previous-whole-app` to run actual
+upgrade/rollback against a verified compatible clean format-2 predecessor.
+Both sets must have distinct resource bytes/prefixes. Without that argument,
+validation uses a labelled worker-comment byte-change fixture to exercise old-tab
+late worker creation, new selection and rollback. Its receipt explicitly leaves
+the two-exact-source revision gate unperformed. Format-1 compatibility, that
+controlled fixture, local production comparison and physical heard-audio
+acceptance are separate evidence; none is inferred from a version bump.
+
+`validate --offline --pnpm-store /path/to/store` reuses cached dependency bytes
+in copied isolated installs. It does not change the fresh-resolution consumer
+semantics below.
 
 Source builds use the committed frozen locks. Independent consumers intentionally
 resolve fresh dependencies from package metadata; even `--offline` uses cached

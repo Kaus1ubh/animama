@@ -1,10 +1,15 @@
 import type { Client } from "@animama/runtime-contracts/sdk";
+import { optionalModelResourceUrl } from "@/lib/resource-urls";
 import type { PyModelAssetState } from "@animama/runtime-contracts/api-types";
 import { getModelAssetV1ModelAssetsAssetIdGet } from "@animama/runtime-contracts/sdk";
 
 export const POCKET_VOICE_ENCODER_ASSET_ID = "pocket-tts-voice-cloning-encoder";
 /** Only the verified backend content route is given to an encoding worker. */
-export const POCKET_VOICE_ENCODER_CONTENT_URL = `/v1/model-assets/${POCKET_VOICE_ENCODER_ASSET_ID}/content`;
+export const POCKET_VOICE_ENCODER_CONTENT_URL = optionalModelResourceUrl(
+  "pocket-tts-voice-cloning",
+  "mimi_encoder.onnx",
+  `/v1/model-assets/${POCKET_VOICE_ENCODER_ASSET_ID}/content`,
+);
 
 export type PocketVoiceEncoderOptions = {
   signal?: AbortSignal;

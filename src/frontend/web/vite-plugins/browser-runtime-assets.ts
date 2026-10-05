@@ -77,7 +77,9 @@ export function browserRuntimeAssetsPlugin(): Plugin {
   let config: ResolvedConfig;
   let assets: RuntimeAsset[] = [];
   const resolve = (builtRoot?: string) => {
-    const allowMissingModels = config.mode !== "embedded-desktop";
+    const allowMissingModels = !["embedded-desktop", "hosted"].includes(
+      config.mode,
+    );
     const resolved = resolveBrowserRuntimeAssets({
       builtRoot,
       allowMissingModels,

@@ -22,10 +22,26 @@ const DEFAULT_CLIENT_PARAKEET_MODELS: ClientParakeetModels = {
   webgpuBaseUrl: "/onnx/models/parakeet-tdt-0.6b-v2-webgpu",
 };
 
-export const CLIENT_PARAKEET_MODELS: ClientParakeetModels =
+const selectedModels: ClientParakeetModels =
   typeof __CLIENT_PARAKEET_MODELS__ === "object" && __CLIENT_PARAKEET_MODELS__
     ? __CLIENT_PARAKEET_MODELS__
     : DEFAULT_CLIENT_PARAKEET_MODELS;
+export const CLIENT_PARAKEET_MODELS: ClientParakeetModels =
+  selectedModels.source === "asset-store"
+    ? {
+        ...selectedModels,
+        baseUrl: optionalModelResourceUrl(
+          "parakeet-tdt-0.6b-v2",
+          "",
+          selectedModels.baseUrl,
+        ),
+        webgpuBaseUrl: optionalModelResourceUrl(
+          "parakeet-tdt-0.6b-v2-webgpu",
+          "",
+          selectedModels.webgpuBaseUrl,
+        ),
+      }
+    : selectedModels;
 
 /** Whether this build installs Parakeet sets in the app. */
 export const PARAKEET_DOWNLOADS_OFFERED =
@@ -48,3 +64,4 @@ export const CLIENT_PARAKEET_MODEL_ASSET_PATHS = {
  * so an uninstalled set is simply a 404.
  */
 export const CLIENT_PARAKEET_WEBGPU_ENCODER_URL = `${CLIENT_PARAKEET_MODELS.webgpuBaseUrl.replace(/\/$/, "")}/encoder-model.fp16.onnx`;
+import { optionalModelResourceUrl } from "@/lib/resource-urls";

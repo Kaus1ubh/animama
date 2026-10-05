@@ -214,7 +214,7 @@ export const ModelSelectorLogo = ({
     >
       {hasLogo ? (
         <img
-          src={`/provider-logos/${normalizedProvider}.svg`}
+          src={publicResourceUrl(`provider-logos/${normalizedProvider}.svg`)}
           alt=""
           aria-hidden="true"
           className={cn(
@@ -254,3 +254,4 @@ export const ModelSelectorName = ({
 }: ModelSelectorNameProps) => (
   <span className={cn("flex-1 truncate text-left", className)} {...props} />
 );
+import { publicResourceUrl } from "@/lib/resource-urls";

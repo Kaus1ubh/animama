@@ -274,6 +274,36 @@ describe("Pocket generation limits", () => {
 });
 
 describe("resolveBuiltInVoices", () => {
+  it("accepts only the artifact's exact hosted voice file address", () => {
+    const voiceResourcePrefix =
+      "/_animama/models/pocket-tts-voices/" + "a".repeat(64) + "/";
+    expect(
+      resolveBuiltInVoices(
+        {
+          voices: ["eve", "clara"],
+          defaultVoice: "eve",
+          voiceUrls: { clara: voiceResourcePrefix + "clara.safetensors" },
+        },
+        { voiceResourcePrefix },
+      ).voiceUrls,
+    ).toEqual({ clara: voiceResourcePrefix + "clara.safetensors" });
+    for (const url of [
+      voiceResourcePrefix + "eve.safetensors",
+      voiceResourcePrefix + "clara.safetensors?token=secret",
+      voiceResourcePrefix.replace("a".repeat(64), "b".repeat(64)) +
+        "clara.safetensors",
+      "/v1/model-assets/pocket-voice-clara/content",
+      "https://example.test/clara.safetensors",
+    ]) {
+      expect(() =>
+        resolveBuiltInVoices(
+          { voices: ["clara"], voiceUrls: { clara: url } },
+          { voiceResourcePrefix },
+        ),
+      ).toThrow(/voice URL/);
+    }
+  });
+
   it("keeps the configured order and default", () => {
     expect(
       resolveBuiltInVoices({

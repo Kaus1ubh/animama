@@ -1,10 +1,11 @@
 import { Link } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
+import { publicResourceUrl } from "@/lib/resource-urls";
 
 export const LogoMark = ({ className }: { className?: string }) => {
   return (
     <img
-      src="/brand/animama-mark.png"
+      src={publicResourceUrl("brand/animama-mark.png")}
       alt=""
       width={32}
       height={32}
@@ -25,7 +26,7 @@ export const Logo = () => {
         aria-hidden="true"
         className="bg-sidebar-foreground block h-8 w-[90px] shrink-0"
         style={{
-          maskImage: "url(/brand/animama-wordmark.png)",
+          maskImage: `url(${publicResourceUrl("brand/animama-wordmark.png")})`,
           maskSize: "contain",
           maskPosition: "center",
           maskRepeat: "no-repeat",

@@ -91,6 +91,8 @@ export type PoseCreatorClipDraft = {
   defaultTransition: AnimaPoseClipTransition;
   fadeIn?: AnimaPoseClipFade;
   fadeOut?: AnimaPoseClipFade;
+  /** Imported fields this editor does not own, retained when saving. */
+  extraFields: Record<string, unknown>;
   poses: Record<string, AnimaPoseClipPose>;
   keyframes: PoseCreatorClipKeyframeDraft[];
   events: PoseCreatorClipEventDraft[];
@@ -108,6 +110,7 @@ export type PoseCreatorClipDraftPatch = Partial<
   defaultTransition?: AnimaPoseClipTransition;
   fadeIn?: AnimaPoseClipFade | null;
   fadeOut?: AnimaPoseClipFade | null;
+  extraFields?: Record<string, unknown>;
 };
 
 export type PoseCreatorClipValidationOptions = {
@@ -176,6 +179,7 @@ export function createDefaultPoseCreatorClipDraft(
     loop: false,
     basePose,
     defaultTransition: cloneDefaultTransition(),
+    extraFields: {},
     poses: {},
     keyframes: [],
     events: [],
@@ -279,6 +283,7 @@ export function buildAnimaPoseClipFromPoseCreatorDraft(
 
   try {
     return parseAnimaPoseClip({
+      ...structuredClone(draft.extraFields),
       schema: ANIMA_POSE_CLIP_SCHEMA,
       id: draft.id.trim(),
       name: draft.name.trim() || DEFAULT_POSE_CREATOR_CLIP_NAME,
@@ -319,6 +324,33 @@ export function buildAnimaPoseClipFromPoseCreatorDraft(
   } catch {
     return null;
   }
+}
+
+/** Top-level clip fields the editor owns; everything else is passed through. */
+const POSE_CREATOR_OWNED_CLIP_FIELDS = new Set([
+  "schema",
+  "id",
+  "name",
+  "duration",
+  "loop",
+  "basePose",
+  "defaultTransition",
+  "fadeIn",
+  "fadeOut",
+  "poses",
+  "poseKeyframes",
+  "events",
+]);
+
+/** Imported fields the editor does not own, cloned for the draft. */
+export function getPoseCreatorClipExtraFields(
+  clip: Record<string, unknown>,
+): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(clip)
+      .filter(([key]) => !POSE_CREATOR_OWNED_CLIP_FIELDS.has(key))
+      .map(([key, value]) => [key, structuredClone(value)]),
+  );
 }
 
 export function createPoseCreatorClipDraftFromAnimaPoseClip(
@@ -365,6 +397,7 @@ export function createPoseCreatorClipDraftFromAnimaPoseClip(
       ...(clip.fadeOut
         ? { fadeOut: clonePoseCreatorClipFade(clip.fadeOut) }
         : {}),
+      extraFields: getPoseCreatorClipExtraFields(clip),
       poses: clonePoseCreatorClipPoses(clip.poses),
       keyframes,
       events,

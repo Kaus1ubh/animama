@@ -1,6 +1,7 @@
 "use client";
 
 import type { Client } from "@animama/runtime-contracts/sdk";
+import { publicResourceUrl } from "@/lib/resource-urls";
 
 import { PocketTTSCore } from "@/lib/speech/pocket/index.js";
 import {
@@ -15,7 +16,7 @@ import {
 
 export function createPocketTTS(apiClient: Client) {
   return new PocketTTSCore({
-    assetBaseUrl: "/tts",
+    assetBaseUrl: publicResourceUrl("tts"),
     playbackStrategy: "adaptive",
     enableVoiceCloning: true,
     beforeVoiceEncode: (
