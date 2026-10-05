@@ -16,19 +16,19 @@ The route accepts `PyAnimaChatRequest`:
 
 ```json
 {
-  "message": "Hello",
-  "chat_id": "optional-existing-or-client-id",
-  "run_id": "optional-client-run-id",
-  "model_provider_id": "optional-model-providers-id",
-  "runtime_revision": "mounted-runtime-revision",
-  "dispatch_options": {
-    "main_structured_response": true,
-    "incognito": false
-  },
-  "client_context": {
-    "time_zone": "America/Toronto",
-    "locale": "en-US"
-  }
+    "message": "Hello",
+    "chat_id": "optional-existing-or-client-id",
+    "run_id": "optional-client-run-id",
+    "model_provider_id": "optional-model-providers-id",
+    "runtime_revision": "mounted-runtime-revision",
+    "dispatch_options": {
+        "main_structured_response": true,
+        "incognito": false
+    },
+    "client_context": {
+        "time_zone": "America/Toronto",
+        "locale": "en-US"
+    }
 }
 ```
 

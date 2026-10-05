@@ -65,22 +65,22 @@ Paths below are repository-relative. Route files are under
 future route tree. A1 must enumerate individual actions beneath these groups,
 including dialogs and menu actions, and attach API and test coverage to them.
 
-| Surface and source | Retained actions and implementation assignment |
-| --- | --- |
-| `__root.tsx`, `_app.tsx`, `_app/index.tsx`, `app/router.tsx`, `ui/sidebar/` | Shared shell, sidebar, preview dock, deep links, reload, keyboard and responsive navigation. A3 replaces installation-specific gates through composition adapters. Empty hosted rosters remain useful. |
-| `_app/$animaId.tsx`, `_app/$animaId/index.tsx`, `_app/$animaId/c/$chatId.tsx`, `ui/main/chat/` | Chat/history/search, rename/delete, stop/retry, Markdown, layouts and model selection. A3 preserves the mounted companion across chat changes; A4 verifies all actions against shared contracts. |
-| `_app/animas.tsx`, `_app/animas/index.tsx`, `_app/animas/$animaId.tsx`, `_app/animas/$animaId/identity.tsx`, `ui/animas/` | Existing-Anima identity, relationship memory, settings, portrait/background framing, appearance, avatar/voice and loadouts. Retain existing management actions; do not invent a deletion UI. |
-| `_app/create.tsx`, `_app/animas.new.tsx` | Retain the Create hub and content creators; block Anima creation and direct creation navigation with a concise reason. Account bootstrap belongs to the consumer, not this route. |
-| `_app/library.tsx`, `ui/library/`, `ui/content-preview/`, `ui/content-health/` | Existing tabs, search/filter, thumbnails, validation, preview, customize/edit/delete, selection and recovery. Omit host directory scan/path administration only. |
-| `_app/poses.$poseId.edit.tsx`, Gesture/Reaction/Idle Style `.new` and `.edit` routes | Retain Pose/Pose Clip and timeline/content workflows, Save, Save & Equip, draft/conflict recovery and format import/export. Pose Clip is not new Anima equipment. |
-| Avatar/Particle/Scene Effect `.new`, `.edit` and existing index routes; Sound Effect routes | Retain each existing creator and its asset/audio controls. Verify creator, Library and live-Anima playback separately. Do not restore a standalone music Library feature. |
-| `lib/content-sharing/`, `query/hooks/useLibrarySharingFlow.ts` | Content-package inspection/review/commit/export and supported creator formats; Anima export remains. Reject Anima-package import before installing any contents. |
-| `_app/memories.tsx`, `ui/memory/`, memory queries/mutations | Account-shared user memories, episodes, virtual files/folders, history/conflicts, Anima memories and user-started Memory Manager/Reflection. Logical memory paths are retained, host paths are not exposed. |
-| `ui/sidebar/ApplicationSettingsModal.tsx` | General, Appearance, Memory & Emotion, Safety, applicable Data reset, Advanced and About remain. Models retains model/role choices but omits connection/key/search-provider administration. Voice retains microphone, engine/voice choices, readiness, download and clone workflows. API Keys is omitted. Shortcuts retain browser actions and omit native actions. About omits native updates/host logs while retaining applicable product information. |
-| `ui/app/AnimaRouteProviders.tsx`, `ui/main/MainShell.tsx`, `lib/avatar/`, `lib/runtime-content/` | Runtime snapshots/leases, expressions, gestures, reactions, idle, camera, lip-sync, effects/background/audio and revision/remount behavior. A2 supplies neutral service interfaces; A4 handles browser delivery and lifetime. |
-| `lib/speech/`, `workers/`, `hooks/use-tts-playback.ts`, `ui/animas/VoiceCloneLibrary.tsx`, `ui/settings/VoiceDownloads.tsx` | Dictation, Voice Mode, microphone selection/test/sensitivity, STT/TTS, clone/voice catalog, playback/stop/mute and locale/readiness/fallback. Browser model downloads are retained; server-wide model installation is excluded. |
-| `setup.tsx`, `desktop/pip/$animaId.tsx`, `desktop/quick-chat/$animaId.tsx`, `a.tsx`, `a/$.tsx`, `safety.tsx`, `_app/avatar-portrait-debug.tsx` | Local setup/native windows remain local composition utilities. Preserve current legacy navigation and safety behavior where applicable. Classify the portrait diagnostic by its actual entry points in A1; ordinary portrait editing stays included. Browser fullscreen/PiP remain available by browser support. |
-| New thin hosted composition/account integration | Sign-in/out, eligibility/readiness, restriction/outage, account access and usage/limits in the common shell. Document HTTP contracts; no identity implementation or provider credentials enter the bundle. |
+| Surface and source                                                                                                                             | Retained actions and implementation assignment                                                                                                                                                                                                                                                                                                                                                                                                           |
+| ---------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `__root.tsx`, `_app.tsx`, `_app/index.tsx`, `app/router.tsx`, `ui/sidebar/`                                                                    | Shared shell, sidebar, preview dock, deep links, reload, keyboard and responsive navigation. A3 replaces installation-specific gates through composition adapters. Empty hosted rosters remain useful.                                                                                                                                                                                                                                                   |
+| `_app/$animaId.tsx`, `_app/$animaId/index.tsx`, `_app/$animaId/c/$chatId.tsx`, `ui/main/chat/`                                                 | Chat/history/search, rename/delete, stop/retry, Markdown, layouts and model selection. A3 preserves the mounted companion across chat changes; A4 verifies all actions against shared contracts.                                                                                                                                                                                                                                                         |
+| `_app/animas.tsx`, `_app/animas/index.tsx`, `_app/animas/$animaId.tsx`, `_app/animas/$animaId/identity.tsx`, `ui/animas/`                      | Existing-Anima identity, relationship memory, settings, portrait/background framing, appearance, avatar/voice and loadouts. Retain existing management actions; do not invent a deletion UI.                                                                                                                                                                                                                                                             |
+| `_app/create.tsx`, `_app/animas.new.tsx`                                                                                                       | Retain the Create hub and content creators; block Anima creation and direct creation navigation with a concise reason. Account bootstrap belongs to the consumer, not this route.                                                                                                                                                                                                                                                                        |
+| `_app/library.tsx`, `ui/library/`, `ui/content-preview/`, `ui/content-health/`                                                                 | Existing tabs, search/filter, thumbnails, validation, preview, customize/edit/delete, selection and recovery. Omit host directory scan/path administration only.                                                                                                                                                                                                                                                                                         |
+| `_app/poses.$poseId.edit.tsx`, Gesture/Reaction/Idle Style `.new` and `.edit` routes                                                           | Retain Pose/Pose Clip and timeline/content workflows, Save, Save & Equip, draft/conflict recovery and format import/export. Pose Clip is not new Anima equipment.                                                                                                                                                                                                                                                                                        |
+| Avatar/Particle/Scene Effect `.new`, `.edit` and existing index routes; Sound Effect routes                                                    | Retain each existing creator and its asset/audio controls. Verify creator, Library and live-Anima playback separately. Do not restore a standalone music Library feature.                                                                                                                                                                                                                                                                                |
+| `lib/content-sharing/`, `query/hooks/useLibrarySharingFlow.ts`                                                                                 | Content-package inspection/review/commit/export and supported creator formats; Anima export remains. Reject Anima-package import before installing any contents.                                                                                                                                                                                                                                                                                         |
+| `_app/memories.tsx`, `ui/memory/`, memory queries/mutations                                                                                    | Account-shared user memories, episodes, virtual files/folders, history/conflicts, Anima memories and user-started Memory Manager/Reflection. Logical memory paths are retained, host paths are not exposed.                                                                                                                                                                                                                                              |
+| `ui/sidebar/ApplicationSettingsModal.tsx`                                                                                                      | General, Appearance, Memory & Emotion, Safety, applicable Data reset, Advanced and About remain. Models retains model/role choices but omits connection/key/search-provider administration. Voice retains microphone, engine/voice choices, readiness, download and clone workflows. API Keys is omitted. Shortcuts retain browser actions and omit native actions. About omits native updates/host logs while retaining applicable product information. |
+| `ui/app/AnimaRouteProviders.tsx`, `ui/main/MainShell.tsx`, `lib/avatar/`, `lib/runtime-content/`                                               | Runtime snapshots/leases, expressions, gestures, reactions, idle, camera, lip-sync, effects/background/audio and revision/remount behavior. A2 supplies neutral service interfaces; A4 handles browser delivery and lifetime.                                                                                                                                                                                                                            |
+| `lib/speech/`, `workers/`, `hooks/use-tts-playback.ts`, `ui/animas/VoiceCloneLibrary.tsx`, `ui/settings/VoiceDownloads.tsx`                    | Dictation, Voice Mode, microphone selection/test/sensitivity, STT/TTS, clone/voice catalog, playback/stop/mute and locale/readiness/fallback. Browser model downloads are retained; server-wide model installation is excluded.                                                                                                                                                                                                                          |
+| `setup.tsx`, `desktop/pip/$animaId.tsx`, `desktop/quick-chat/$animaId.tsx`, `a.tsx`, `a/$.tsx`, `safety.tsx`, `_app/avatar-portrait-debug.tsx` | Local setup/native windows remain local composition utilities. Preserve current legacy navigation and safety behavior where applicable. Classify the portrait diagnostic by its actual entry points in A1; ordinary portrait editing stays included. Browser fullscreen/PiP remain available by browser support.                                                                                                                                         |
+| New thin hosted composition/account integration                                                                                                | Sign-in/out, eligibility/readiness, restriction/outage, account access and usage/limits in the common shell. Document HTTP contracts; no identity implementation or provider credentials enter the bundle.                                                                                                                                                                                                                                               |
 
 The backend reference is `src/backend/animama/app/{contracts,ports,services}`,
 `app/chat`, `app/model_clients` and supported `adapters`. Existing local route
@@ -92,9 +92,9 @@ contract instead of maintaining a second truth.
 ## Progress
 
 - [x] 2026-10-05 [A1 / #273](https://github.com/raymond-van/animama/issues/273): agent-verified contracts/complete action map; required checks and independent review #1 passed, repairs 0 of 2. Phase commit recorded below; the consumer requirements gate C1 has passed.
-- [ ] 2026-10-05 [A2 / #274](https://github.com/raymond-van/animama/issues/274): agent-verified at `c4cd0ef621b5e10a10cf9a29bf806db8f149cd86`; targeted independent review #2 and clean installed-wheel gate passed after repair round 1 of 2. Neutral services are ready for isolated consumer C2 entry.
-- [x] 2026-10-05 [A3 / #275](https://github.com/raymond-van/animama/issues/275): targeted review#2 PASS; repair1of2 resolved chat session-cache and durable recovery cleanup. Verified phase commit/handoff follows.
-- [ ] 2026-10-05 [A4 / #276](https://github.com/raymond-van/animama/issues/276): planned; depends on A2 and A3.
+- [x] 2026-10-05 [A2 / #274](https://github.com/raymond-van/animama/issues/274): corrected portable preference merger committed at `6a150fd45d5e215e7f134010b53b9c62e4316ede`; targeted independent review #3 and clean installed-wheel gate pass. Repair rounds used: 2 of 2. Neutral services are ready for isolated consumer C2 repair and A4.
+- [x] 2026-10-05 [A3 / #275](https://github.com/raymond-van/animama/issues/275): committed at `e8ef7768d2edcfc7cef58c508bf3fb66ba0d2302`; targeted independent review #2 passes after repair 1 of 2 for chat cache partitioning and durable recovery cleanup.
+- [ ] 2026-10-05 [A4 / #276](https://github.com/raymond-van/animama/issues/276): implementation entered from `e8ef7768d2edcfc7cef58c508bf3fb66ba0d2302`; A2 corrected artifact and A3 review gates pass. Retained workflow and browser resource checks are in progress.
 - [ ] 2026-10-05 [A5 / #277](https://github.com/raymond-van/animama/issues/277): planned; depends on A4 and its prerequisites.
 - [ ] 2026-10-05 [A6 / #278](https://github.com/raymond-van/animama/issues/278): planned; depends on A5/all public gates; coordinate with C6 without requiring a future main pin.
 
@@ -148,13 +148,13 @@ No dependency installation or stack startup was needed for tracker preparation.
 No implementation PR exists yet. Do not change the primary checkout or another
 agent's deployment worktree.
 
-| Order | Work and handoff |
-| --- | --- |
-| 1 | [A1 / #273](https://github.com/raymond-van/animama/issues/273) → hosted consumer foundation C1; reconcile its public-safe contract/ownership/cost needs before A2/A3. |
-| 2 | [A2 / #274](https://github.com/raymond-van/animama/issues/274) and [A3 / #275](https://github.com/raymond-van/animama/issues/275) may proceed in parallel. |
-| 3 | [A4 / #276](https://github.com/raymond-van/animama/issues/276) → [A5 / #277](https://github.com/raymond-van/animama/issues/277) alongside consumer C2 → (C3, C4) → C5. Hosted service work uses isolated candidate artifacts after A2. |
-| 4 | Common-app consumer cutover C6 alongside [A6 / #278](https://github.com/raymond-van/animama/issues/278); public readiness remains independent of a future main pin. |
-| 5 | Exact-candidate approved Animama merge → validated main package set → authorized promotion/readback → C7 actual hosted acceptance. |
+| Order | Work and handoff                                                                                                                                                                                                                       |
+| ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1     | [A1 / #273](https://github.com/raymond-van/animama/issues/273) → hosted consumer foundation C1; reconcile its public-safe contract/ownership/cost needs before A2/A3.                                                                  |
+| 2     | [A2 / #274](https://github.com/raymond-van/animama/issues/274) and [A3 / #275](https://github.com/raymond-van/animama/issues/275) may proceed in parallel.                                                                             |
+| 3     | [A4 / #276](https://github.com/raymond-van/animama/issues/276) → [A5 / #277](https://github.com/raymond-van/animama/issues/277) alongside consumer C2 → (C3, C4) → C5. Hosted service work uses isolated candidate artifacts after A2. |
+| 4     | Common-app consumer cutover C6 alongside [A6 / #278](https://github.com/raymond-van/animama/issues/278); public readiness remains independent of a future main pin.                                                                    |
+| 5     | Exact-candidate approved Animama merge → validated main package set → authorized promotion/readback → C7 actual hosted acceptance.                                                                                                     |
 
 The native phase relationships and public-safe combined progress table are in
 [#272](https://github.com/raymond-van/animama/issues/272). C phases have private implementation assignments;
@@ -167,7 +167,9 @@ passed. Do not close #272 at the public merge alone.
 Implementation will use the checks and explicit gates in each phase below.
 A1 is committed at `9ed028cfffd298707fade2636dd742d4454b36d5`; the C1
 consumer requirements review passed after one bounded repair round. A2/A3 are
-in progress from `3006ca3f3c5c6b68c0287cec41dc635f8a94969e`. All provider/device, artifact and release gates remain separate.
+committed and independently reviewed, including the consumer-discovered A2
+preference correction. A4 and isolated consumer C2 repair are in progress. All
+provider/device, whole-app artifact and release gates remain separate.
 
 Setup validation: all phase issue bodies, native parent memberships and dependency
 edges were read back from GitHub, including C1 before A2/A3. The published scope,
@@ -247,8 +249,7 @@ and product UI are 0.3.0; the extracted chat capability is derived from generate
 HTTP types. ADR 0014 records the approved full-app reuse and catalog-role choice.
 
 TDD: seven Python capability cases failed for absent fields/schema, then passed;
-the generated validator fixture failed on schema version 1, then passed on version
-2. Documentation/type-only interface design uses schema, declaration, source-map
+the generated validator fixture failed on schema version 1, then passed on version 2. Documentation/type-only interface design uses schema, declaration, source-map
 and link checks instead of invented runtime tests. A3 owns actual admission/UI
 and lifetime implementation. No behavior in a subsequent phase is claimed done.
 
@@ -514,9 +515,19 @@ C2/A4 dependencies must retain this new correction gate. Repair budget used:
 
 A2-R2 accepted and implemented by moving the existing policy; local composition
 resolves the same settings as before and reexports the identical shared function.
-Public HTTP schemas and SDK are unchanged. Exact replacement artifact/consumer
-checks remain pending after the reviewed implementation commit; normal production pin and
-provider/promotion/deployment gates are unchanged.
+Public HTTP schemas and SDK are unchanged. The correction is committed at
+`6a150fd45d5e215e7f134010b53b9c62e4316ede`. A separate clean checkout produced
+backend0.3 wheel SHA256
+`ec97678057c52b5421adc6b9d6db3076d93b702d91919407f11fb62978f7f7cb`,
+with528 source inputs at digest
+`cf8c629f4185f670f8789baf2c65c14a055854856f573cc80f41ed880fa1deb2`.
+Fresh isolated Python3.12 installed consumers pass backend, content lifecycle and
+14 neutral DTO modules/168 schemas, plus public-only dependency checks. Independent
+artifact review passes clean commit/tree/input provenance, wheel RECORD and all504
+installed payload files, fixture provenance, isolation and seven fresh preference
+scenario groups. No public editable or sibling source path is used. This completes
+the replacement A2 artifact gate; normal production pin, A5 complete static app
+and provider/promotion/deployment gates remain unchanged.
 
 ### Phase 3: Compose one router and application shell (A3)
 
@@ -629,13 +640,17 @@ index and ten entry resources exist. Unchanged full2494-unit/34-browser baseline
 is reused; it is not reported as rerun after the repair. Browser fixtures use
 loopback Vite/headless Chromium with intercepted HTTP and simulated microphones;
 real Cloud, provider, physical audio/avatar fidelity and native acceptance remain
-separate. A3 is ready for its phase commit. A4 still requires the clean corrected
-A2 installed-wheel handoff and then advances automatically.
+separate. The232 reviewed code paths are committed at
+`e8ef7768d2edcfc7cef58c508bf3fb66ba0d2302`, together with the phase record.
+The corrected A2 clean installed-wheel gate also passes; A4 advances from this
+verified commit without changing the six exclusions.
 
 ### Phase 4: Verify every retained workflow and browser resource lifetime (A4)
 
-Scope: R1–R10 and R12; depends on A2 and A3. Issue: [A4 / #276](https://github.com/raymond-van/animama/issues/276);
-implementation source/commit pending.
+Scope: R1–R10 and R12; depends on A2 and A3. Issue: [A4 / #276](https://github.com/raymond-van/animama/issues/276).
+Implementation entered on2026-10-05 from clean task commit
+`e8ef7768d2edcfc7cef58c508bf3fb66ba0d2302`; A2 corrected installed-wheel and
+A3 independent review gates are satisfied. Review/phase commit remain pending.
 Apply the common contracts to the existing screens rather than recreating them.
 Finish any composition assumptions discovered by the coverage map: settings/model
 roles, chat/history/tools/safety, existing Anima editing, memory/Reflection,
@@ -856,8 +871,10 @@ contracts; the coverage map tracks acceptance rather than duplicating the spec.
 A1 contracts and the complete action/settings/route map are agent-verified.
 Full coordinated implementation is authorized. The C1 tenancy/cost/resource
 requirements gate passed; A2 content/provider services and its clean artifact
-handoff passed. A3 browser composition remains in progress while consumer C2
-begins against the reviewed installed wheel. No product UI cutover, hosted deployment
+handoff passed, including the independently reviewed portable preference repair
+and replacement clean artifact. A3 browser composition is reviewed and committed.
+A4 verification and consumer C2 repair proceed against those exact artifacts.
+No consumer product UI cutover, hosted deployment
 or actual parity acceptance has occurred. Product scope is resolved. Remaining
 engineering determinations are the concrete compatible artifact schema and
 resource inventory, individual service seams and measured resource budgets;
