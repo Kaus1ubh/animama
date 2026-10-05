@@ -79,7 +79,13 @@ has no direct-chat standard fail setup with `chat_api_standard_unsupported`.
 `dispatch_options` reuses `PyAnimaDispatchOptions`, so the direct path
 receives the same request-level controls used by chat settings: memory
 influence, memory updates, emotion influence, emotion updates, incognito,
-main-structured response, native tools, and reasoning effort. Direct chat always
+main-structured response, native tools, and reasoning effort. Direct chat
+resolves boolean controls through the neutral
+`app.chat.options.merge_chat_request_options`: explicit request values take
+precedence over per-Anima settings and then owner defaults. Disabling memory
+influence also disables memory updates, including across preference layers. Each
+composition loads its owned settings before calling this shared policy.
+Direct chat always
 opens the anima identity file because it is anima configuration. With memory
 influence enabled it also opens the Anima's `MEMORIES.md` and places it as
 `# Anima Memories` directly after `# Anima Identity`; a missing, blank or

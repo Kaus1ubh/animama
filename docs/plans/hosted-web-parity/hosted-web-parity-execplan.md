@@ -92,7 +92,7 @@ contract instead of maintaining a second truth.
 ## Progress
 
 - [x] 2026-10-05 [A1 / #273](https://github.com/raymond-van/animama/issues/273): agent-verified contracts/complete action map; required checks and independent review #1 passed, repairs 0 of 2. Phase commit recorded below; the consumer requirements gate C1 has passed.
-- [x] 2026-10-05 [A2 / #274](https://github.com/raymond-van/animama/issues/274): agent-verified at `c4cd0ef621b5e10a10cf9a29bf806db8f149cd86`; targeted independent review #2 and clean installed-wheel gate passed after repair round 1 of 2. Neutral services are ready for isolated consumer C2 entry.
+- [ ] 2026-10-05 [A2 / #274](https://github.com/raymond-van/animama/issues/274): agent-verified at `c4cd0ef621b5e10a10cf9a29bf806db8f149cd86`; targeted independent review #2 and clean installed-wheel gate passed after repair round 1 of 2. Neutral services are ready for isolated consumer C2 entry.
 - [ ] 2026-10-05 [A3 / #275](https://github.com/raymond-van/animama/issues/275): in progress from `3006ca3f3c5c6b68c0287cec41dc635f8a94969e`; shared admission/transport/session composition runs alongside A2 after the passing C1 handoff.
 - [ ] 2026-10-05 [A4 / #276](https://github.com/raymond-van/animama/issues/276): planned; depends on A2 and A3.
 - [ ] 2026-10-05 [A5 / #277](https://github.com/raymond-van/animama/issues/277): planned; depends on A4 and its prerequisites.
@@ -471,6 +471,53 @@ candidate; normal production pin and main-promotion policy remain unchanged.
 This backend handoff does not satisfy A5's complete static-app/resource gate or
 provider, physical device, whole-app and deployment acceptance.
 
+#### Consumer-discovered A2-R2 and repair round 2
+
+C2 initial independent analysis reproduced a saved memory-update default being
+ignored when chat dispatch overrides are absent. The consumer passed only
+request flags; the canonical request → Anima → owner merger still lived beneath
+`server/chat_options.py`, so the installed neutral surface did not supply it.
+Root verified the producer policy and accepted A2-R2: move that existing pure
+policy into `app.chat.options`, retaining the local resolver and compatibility
+reexport. C2 must load owned settings in its existing tenant session and consume
+this helper, preserving explicit false, absent flags, memory-influence-implies-
+no-updates, emotion and request-only incognito semantics. No duplicated Cloud
+policy or local-server import is permitted.
+
+This is repair round **2 of 2**, based on new consumer evidence after the original
+A2 pass. Targeted independent checks and analysis review #3 PASS for the four-path
+correction; no full review restart or
+previous finding is reopened. The four-path correction is frozen at `b8ff551e`,
+source digest `94974e550cc68aed4eea1710c42179400df4fd0602469b93efb67777c3ffcb80`.
+The new neutral import fails before correction; afterward10 inheritance checks
+and194 existing settings/direct-turn/local-SSE tests pass. Scoped Ruff/format
+and the repository's configured mypy714 pass; shared import closure remains
+297 reachable/230 shared/zero forbidden. The first affected test attempt had
+43 Docker sandbox fixture errors alongside151 passes; the permitted disposable
+PostgreSQL rerun passes all194. An initial packaging-inclusive mypy command was
+outside the configured gate; the correct repository command passes. Neither
+invalid attempt is represented as a product pass.
+
+#### Code Review #3 Findings
+
+Targeted independent checks (`animama_boundary`) and analysis (`cloud_runtime`)
+**PASS** for the four-path digest above. Checks rerun10 inheritance tests and the
+neutral import checker; analysis verifies AST-equivalent extraction and a fresh
+neutral import without local/server modules. Source hashes match before/after.
+No new required finding or repair regression remains.
+The earlier A2-R1 and fixture findings retain their passed dispositions. The
+replacement clean exact-commit installed-wheel gate follows reviewed code;
+C2/A4 dependencies must retain this new correction gate. Repair budget used:
+2 of 2; no further automatic repair round remains for this review scope.
+
+#### Code Review #3 Revisions
+
+A2-R2 accepted and implemented by moving the existing policy; local composition
+resolves the same settings as before and reexports the identical shared function.
+Public HTTP schemas and SDK are unchanged. Exact replacement artifact/consumer
+checks remain pending after the reviewed implementation commit; normal production pin and
+provider/promotion/deployment gates are unchanged.
+
 ### Phase 3: Compose one router and application shell (A3)
 
 Scope: R1–R6 and R12; depends on A1 and C1's requirements handoff, then may
@@ -511,12 +558,50 @@ entrypoint working throughout; retire temporary composition scaffolding before A
 
 #### Code Review #1 Findings
 
-Not run. Include route sharing, transport lifetime and private browser-state review.
-Repair rounds used: 0 of 2.
+Initial review is **blocked** at HEAD
+`b8ff551e61831d0f20e9414ccbf7bc4c0da57d37` plus 222 frozen
+tracked/untracked/deleted paths; aggregate SHA-256
+`0c85fcbfea49b50997361dd6849eb5d0d3785cbf78d74ba5a61d4f301ecf49c0`.
+Independent checks (`cloud_runtime`) **PASS**. Independent analysis
+(`a3_review_analysis`) verified the same hashes and identified two required fixes:
+
+- A3-R1 (P1): `packages/product-ui/src/chat/useProductChatSession.ts` still
+  derives its cache key from the actual owner ID. Readers now use the separate
+  session key. Stream completion writes messages into the wrong partition, then
+  clears its local/stream state; the completed turn disappears until another
+  history fetch. Title/emotion/memory/runtime invalidations miss too. Preserve
+  actual owner identity while using one session partition for all private caches.
+- A3-R2 (P2): `web/src/app/runtime/private-session-state.ts` clears localStorage
+  recovery only. The Particle, Avatar Effect and Scene Effect stores use
+  IndexedDB. A disposable Chromium reproduction using actual recovery modules
+  and the common controller leaves all three former-session records after
+  awaited sign-out, including readable private image bytes. Purge the ended
+  hosted session and fence pending writes without clearing local recovery,
+  unrelated namespaces, device preferences or public model caches.
+
+The full source-bound baseline passed `pnpm check`, `pnpm web:lint`,
+`pnpm build`, `pnpm web:build:hosted`, `pnpm desktop:check` and
+`pnpm web:test`: 371 files / 2,494 unit tests plus 34 browser fixtures, no skips.
+Only the hosted adapter and its unit test changed afterward for immediate
+cross-window logout; check/lint/hosted build/eight repository guards/22 affected
+unit/five hosted browser/format/whitespace checks were refreshed. Independent
+checks verified receipt reuse and all source hashes, then reran the 22 affected
+unit tests successfully. Hosted `index.html` and ten referenced resources exist.
+Browser evidence uses loopback Vite/headless Chromium at desktop and narrow
+sizes with intercepted HTTP and simulated microphones. This does not establish
+actual Cloud, provider, physical audio/VRM fidelity or native acceptance.
+Repair rounds used at initial review: 0 of 2.
 
 #### Code Review #1 Revisions
 
-None. Record dispositions and affected composition/local regression checks.
+A3-R1 and A3-R2 are **accepted** after root verified the cache readers/writer
+and the persisted-recovery implementation/reproduction against R5 and A3.
+Combined repair round 1 of 2 is in progress. Add observable distinct-owner/session
+stream completion and invalidation regressions, plus real IndexedDB purge/late
+write regressions for all three creators. Refresh affected package/browser/static
+checks, retain unchanged source-bound evidence, freeze the repaired boundary and
+request targeted review #2. A3 and its A4 dependent gate remain incomplete.
+No additional product exception or paid/provider/device claim is introduced.
 
 ### Phase 4: Verify every retained workflow and browser resource lifetime (A4)
 
