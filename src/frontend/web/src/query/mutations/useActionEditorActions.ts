@@ -13,6 +13,7 @@ import type {
   PyGesture,
   PyReaction,
 } from "@/lib/content/catalogTypes";
+import { serializeAnimaPoseClipFile } from "@/lib/avatar/poses/animaPoseClip";
 import { catalogViewItem } from "@/lib/content/catalogTypes";
 import { typedActionPreview } from "@/lib/content/typedPreviewAdapters";
 import {
@@ -168,7 +169,7 @@ export function useActionEditorActions(intent: ActionIntent) {
       document.implementation === "vrma"
         ? pending.file
         : new File(
-            [JSON.stringify(document.sequence, null, 2) + "\n"],
+            [serializeAnimaPoseClipFile(document.sequence)],
             companionName,
             { type: "application/json" },
           );

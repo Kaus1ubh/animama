@@ -19,6 +19,27 @@ import {
 export const ANIMA_POSE_CLIP_SCHEMA = "animaPoseClip/1.0" as const;
 
 /**
+ * Largest clip file the runtime and the creator will read. Clips are saved as
+ * compact JSON, so this bounds the serialized `JSON.stringify(clip)` size.
+ */
+export const MAX_ANIMA_POSE_CLIP_BYTES = 2 * 1024 * 1024;
+
+/**
+ * Serialize a clip as a saved file: compact JSON with fractions rounded to
+ * eight decimals. Generated clips repeat every animated bone in each keyframe,
+ * so indentation and 17-digit renormalized quaternions would roughly quadruple
+ * the file. Eight decimals keep rotations exact to far below a thousandth of a
+ * degree.
+ */
+export function serializeAnimaPoseClipFile(clip: unknown): string {
+  return `${JSON.stringify(clip, (_key, value: unknown) =>
+    typeof value === "number" && !Number.isInteger(value)
+      ? Number(value.toFixed(8))
+      : value,
+  )}\n`;
+}
+
+/**
  * Live procedural layers a clip may mute while it plays. `talkingHands` is
  * excluded: Gestures already suppress it.
  */

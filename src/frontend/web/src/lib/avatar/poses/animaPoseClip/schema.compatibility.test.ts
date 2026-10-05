@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import compatibilityValid from "./fixtures/compatibility-valid.json";
-import { parseAnimaPoseClip } from "./schema";
+import { parseAnimaPoseClip, serializeAnimaPoseClipFile } from "./schema";
 
 describe("animaPoseClip backend compatibility fixture", () => {
   it("is consumed by the runtime parser without dropping supported fields", () => {
@@ -87,4 +87,24 @@ describe("per-event accompanying sound", () => {
       ).toThrow();
     },
   );
+});
+
+describe("saved clip sequences", () => {
+  it("serializes compactly with rotations rounded to eight decimals", () => {
+    const text = serializeAnimaPoseClipFile({
+      duration: 2,
+      poses: {
+        a: {
+          humanoid: {
+            head: {
+              rotation: [-0.018871991336201027, 0, -1e-12, 0.9998145410027465],
+            },
+          },
+        },
+      },
+    });
+    expect(text).toBe(
+      '{"duration":2,"poses":{"a":{"humanoid":{"head":{"rotation":[-0.01887199,0,0,0.99981454]}}}}}\n',
+    );
+  });
 });

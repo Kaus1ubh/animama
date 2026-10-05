@@ -1,6 +1,11 @@
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
+import {
+  MAX_ANIMA_POSE_CLIP_BYTES,
+  parseAnimaPoseClip,
+  serializeAnimaPoseClipFile,
+} from "../poses/animaPoseClip";
 import { RELAXED_REST_POSE_ID, getResolvedAvatarPose } from "../poses/catalog";
 import {
   JOINT_DEFINITIONS,
@@ -113,6 +118,17 @@ async function generate(
     );
     return 1;
   }
+  // Measure the file the creator will save, after its own sanitization.
+  const savedBytes = Buffer.byteLength(
+    serializeAnimaPoseClipFile(parseAnimaPoseClip(clip)),
+  );
+  if (savedBytes > MAX_ANIMA_POSE_CLIP_BYTES) {
+    context.out(
+      `Not written: the clip saves as ${formatKilobytes(savedBytes)}, over the ${formatKilobytes(MAX_ANIMA_POSE_CLIP_BYTES)} the app will load. ` +
+        `Shorten the clip, or remove keys that add little visible motion.`,
+    );
+    return 1;
+  }
   await writeFile(outputPath, `${JSON.stringify(clip, null, 2)}\n`);
   context.out(
     [
@@ -120,6 +136,7 @@ async function generate(
       `  id ${clip.id}, ${clip.duration}s, ${clip.loop ? "loop" : "one-shot"}, ${report.keyframes} keyframes`,
       `  animated bones: ${report.animatedBones.length}; expressions: ${report.expressions.join(", ") || "none"}`,
       `  max bake error: ${report.maxBakeErrorDegrees}°, ${report.maxBakePositionError} m`,
+      `  saved size: ${formatKilobytes(savedBytes)} of ${formatKilobytes(MAX_ANIMA_POSE_CLIP_BYTES)}`,
       `  muted layers: ${clip.mutedProceduralLayers.join(", ") || "none"}`,
     ].join("\n"),
   );
@@ -289,4 +306,8 @@ function formatJointTable(): string {
       );
   }
   return lines.join("\n");
+}
+
+function formatKilobytes(bytes: number): string {
+  return `${Math.round(bytes / 1024)} KB`;
 }

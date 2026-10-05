@@ -32,8 +32,10 @@ not needed for these commands).
    [human movement](references/human-movement.md) and
    [hands and face](references/hands-and-face.md).
 3. **Generate:** `pnpm -s animation generate <file>.motion.json --out <clip.json>`.
-   It refuses invalid descriptions and baked playback that strays beyond 1° /
-   5 mm from the curves.
+   It refuses invalid descriptions, baked playback that strays beyond 1° /
+   5 mm from the curves, and clips that would save larger than the 2 MB the
+   app loads. Every keyframe stores every animated bone, so long, busy clips
+   grow fast; the output reports the saved size.
 4. **Check:** `pnpm -s animation check <file>.motion.json`. Fix every FAIL;
    treat WARN as a prompt to look. See [checks and review](references/checks-and-review.md).
 5. **Render and look:** `pnpm -s animation:render <clip.json> --out <dir>`
