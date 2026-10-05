@@ -60,8 +60,8 @@ feature guides, custom styling, search and translations stay deferred.
       full hosted Validation pass at `6dde3ba4`; owner accepted that rendered content.
 - [x] Product home/download HTTPS readiness verified; planned backlinks prepared.
 - [x] Owner accepted cookie-free Cloudflare Web Analytics/RUM through provider injection.
-- [ ] Changed backlink rendering, targeted independent review and new-head full CI.
-- [ ] Exact-candidate content approval, authorized docs publication and canonical checks.
+- [x] Changed backlink rendering, targeted independent review and full CI at `446b853e`.
+- [x] Exact-content approval, authorized docs publication and canonical checks.
 - [ ] Final-candidate owner merge approval and accepted handoff.
 
 ## Surprises & Discoveries
@@ -465,10 +465,51 @@ theme/layout. Independent browser access was unavailable to the targeted checks
 delegate. Screenshots and the limitation are retained with the publication
 receipt; the temporary override was reset.
 
-Changed rendered-content approval, new-head full Validation, each
-provider/create/upload/domain action, canonical docs verification and
-exact-final-head merge remain pending. This follow-up does not restart the review
-budgets or require a new branch/PR.
+Changed rendered-content approval, exact-source full Validation and each
+provider/create/upload/domain action are complete, with canonical checks recorded
+below. Exact-final-head merge remains pending. This follow-up does not restart
+the review budgets or require a new branch/PR.
+
+### Approved canonical publication
+
+2026-10-05: the owner approved revised rendered content at
+`446b853e61cc4e390b017f85038195d439e6dc84`, empty Pages Direct Upload project
+`animama-docs`, and the exact reviewed upload after full CI passes.
+[Validation run 37367519403](https://github.com/raymond-van/animama/actions/runs/37367519403)
+passed on that PR head with persistent `ci:full`, using source merge candidate
+`422ab592ae1ad24c65d23493b180fcb655d4fa1c`. The full profile and all 42 command
+receipts passed; no local-first substitution was used.
+
+Production/main deployment `8021c42d-3d13-41da-a078-8f92118ff70e` serves the
+33 reviewed files at [the provider hostname](https://animama-docs.pages.dev/).
+Approved archive SHA-256:
+`2081582957e7a6473c40182321e5a8fe8a64279f47211c0cc84f9a16b494503f`.
+The inventory SHA-256 above remains current. A first project-creation error was
+read back against the account inventory before retrying the same name; one
+project was created. Its settings have no Git connection, variables/secrets or
+bindings. All 33 served files matched the reviewed bytes before domain connection.
+
+The owner separately approved connecting `docs.animama.ai`. Pages association and
+DNS activation added one proxied Auto-TTL CNAME to `animama-docs.pages.dev`, with
+all nine existing zone records unchanged. Pages reports Active with SSL enabled.
+[Canonical docs](https://docs.animama.ai/) pass 37 anonymous HTTPS checks: all
+four reader routes and required assets work, and missing/source paths return
+the reviewed 404 with status 404. Asset bytes match the inventory. Canonical HTML
+matches after removing only the observed empty provider RUM script and its
+inserted newline before the closing body; raw response hashes are also retained.
+No response sets a cookie. The owner-approved RUM policy remains in effect,
+without any analytics setting change.
+
+Coordinator browser navigation/reloads on all four pages, 404-to-home recovery
+and clicked Home/Download backlinks pass; console warnings/errors are empty.
+Full browser network/storage tracing is unavailable and is not claimed. The
+unchanged theme/layout retains its earlier independent evidence; no new complete
+narrow-layout matrix is claimed. This publication-record-only update changes no
+reader source or uploaded bytes and needs no renewed content/upload approval.
+Its explicit plan Prettier and Git diff checks pass. Targeted independent record
+analysis passes without actionable findings or a repair round; Final Public
+remains 0 of 2. Fresh exact-head full CI remains pending for the final merge
+handoff. The existing reviewed reader output and upload approval are unchanged.
 
 ### Evidence boundaries
 
@@ -518,10 +559,11 @@ for this new tooling.
 The initial rendered content and full hosted Validation passed at `6dde3ba4`.
 Verified product Home/Download destinations now permit the planned backlinks;
 affected checks and targeted independent review pass, with changed rendering
-observed by the coordinator. New-candidate full CI and changed-content approval
-remain pending. Cookie-free
-Cloudflare Web Analytics/RUM is an accepted provider-injection allowance; no
-provider setting changed as part of this preparation. No docs publication or
-merge action occurred. Exact-candidate content approval, per-action publication,
-canonical docs/privacy verification and exact-final-head merge remain gates. The
-broader styling/docs revamp stays deferred.
+observed by the coordinator. The owner approved that content at `446b853e` and
+its full hosted Validation passed. Approved project/upload/domain/DNS actions
+published the reviewed output at `docs.animama.ai`, with canonical HTTPS and
+navigation verification above. Cookie-free Cloudflare Web Analytics/RUM is an
+accepted provider-injection allowance; no analytics setting changed. This final
+record update leaves reader content/output unchanged. Its current-head CI and
+exact-final-head owner merge approval remain pending. The broader styling/docs
+revamp stays deferred.
