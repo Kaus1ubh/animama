@@ -5,15 +5,18 @@ This is a living ExecPlan governed by [PLANS.md](../../../PLANS.md) and
 Decision Log and Outcomes & Retrospective during execution.
 
 Source agreement: [issue #272](https://github.com/raymond-van/animama/issues/272),
-the [spec snapshot](hosted-web-parity-spec.md) published at
-`2026-10-05T15:40:14Z`, and the owner's 2026-10-05 approval of option 3 followed
-by the instruction to prepare an ExecPlan. The spec snapshot is committed at
-`fab1acc9f01dde2cb1aa567df521ff6b4eb66335`.
+the [current spec snapshot](hosted-web-parity-spec.md) read back at
+`2026-10-05T16:26:16Z`, and the owner's 2026-10-05 approval of option 3,
+the coordinated execution order and workspace setup. The initial spec snapshot
+is retained at `fab1acc9f01dde2cb1aa567df521ff6b4eb66335`; the reviewed initial
+plan is `6ddf2f2a20f2cad07d376dd4294fce2e0234ae1c`.
 
-Authorization: **planning only**. This document proposes Animama phases A1–A6
-for review; it does not start implementation, paid calls, publication or deployment.
-After implementation is authorized, use one branch and PR for this plan, with
-one issue per authorized phase. #272 remains the product scope authority.
+Authorization: **workspace and tracker setup complete; implementation pending**.
+The owner requested the phase assignments and agreed implementation order on
+2026-10-05, with implementation to begin on a subsequent instruction. All A1–A6
+assignments exist; none has started. Use one branch and PR for this plan. This
+setup grants no merge, paid-call, artifact-promotion or deployment authority.
+#272 remains the product scope authority and combined progress record.
 Cloud owns a separate implementation plan and assignments. Public work must
 remain understandable and executable without access to that private plan.
 
@@ -45,7 +48,7 @@ Reuse the assigned `animama` task worktree on `feat/hosted-web-parity`, starting
 from spec commit `fab1acc9f01dde2cb1aa567df521ff6b4eb66335`; its inspected
 implementation baseline is `f90c080fc343a159cb9d7f9059a35127f871c021`.
 Before implementation, verify Git root, branch, HEAD, dirty state and current
-base. Preserve later task work. Planning has started no stack. Record any later
+base. Preserve later task work. Setup has started no stack. Record any later
 stack name, URL and source in the phase evidence; use the existing named-stack
 workflow and do not reuse an unrelated installation's data.
 
@@ -88,12 +91,12 @@ contract instead of maintaining a second truth.
 
 ## Progress
 
-- [ ] 2026-10-05 A1: planned; contract/action coverage and implementation authorization pending.
-- [ ] 2026-10-05 A2: planned; neutral shared service work depends on A1.
-- [ ] 2026-10-05 A3: planned; shared composition work depends on A1.
-- [ ] 2026-10-05 A4: planned; retained browser workflow validation depends on A2 and A3.
-- [ ] 2026-10-05 A5: planned; complete immutable artifact depends on A3 and A4.
-- [ ] 2026-10-05 A6: planned; independent public acceptance and handoff depend on A1–A5.
+- [ ] 2026-10-05 [A1 / #273](https://github.com/raymond-van/animama/issues/273): ready for the next implementation instruction; no implementation checks or review run.
+- [ ] 2026-10-05 [A2 / #274](https://github.com/raymond-van/animama/issues/274): planned; A1 and the hosted consumer requirements review C1 must pass first.
+- [ ] 2026-10-05 [A3 / #275](https://github.com/raymond-van/animama/issues/275): planned; A1 and C1 handoff first; may proceed alongside A2.
+- [ ] 2026-10-05 [A4 / #276](https://github.com/raymond-van/animama/issues/276): planned; depends on A2 and A3.
+- [ ] 2026-10-05 [A5 / #277](https://github.com/raymond-van/animama/issues/277): planned; depends on A4 and its prerequisites.
+- [ ] 2026-10-05 [A6 / #278](https://github.com/raymond-van/animama/issues/278): planned; depends on A5/all public gates; coordinate with C6 without requiring a future main pin.
 
 ## Surprises & Discoveries
 
@@ -119,7 +122,8 @@ exceptions. Reuse the existing web source and explicit entrypoints; stop treatin
 the former hosted text-only implementation as the target feature scope.
 
 2026-10-05, planning decision: keep one plan/branch/PR per implementation
-repository. A2 and A3 can proceed independently after A1; resource packaging
+repository. A2 and A3 can proceed independently after A1 and the C1 requirements
+handoff; resource packaging
 spikes can begin after A1, but A5 cannot pass with an incomplete app. Sequence
 does not change the accepted product outcome.
 
@@ -128,11 +132,52 @@ immutable candidate artifacts. Public source readiness does not require a hosted
 main pin that cannot exist before public merge. Overall #272 acceptance still
 requires actual hosted integration, owned by the consumer's plan.
 
+2026-10-05, owner: agreed the coordinated sequence recorded below and requested
+workspace/phase-issue setup before beginning implementation. Native issue
+dependencies preserve C1 before A2/A3; phase status and parent progress are updated
+at each handoff.
+
+## Workspace setup and coordinated order
+
+Setup completed on 2026-10-05 against public base
+`f90c080fc343a159cb9d7f9059a35127f871c021` and initial task HEAD
+`6ddf2f2a20f2cad07d376dd4294fce2e0234ae1c`. Reuse the assigned Animama
+worktree and `feat/hosted-web-parity`; its absolute path is supplied by the task
+handoff, not stored in public records. Both reviewed spec/plan commits are pushed.
+No dependency installation or stack startup was needed for tracker preparation.
+No implementation PR exists yet. Do not change the primary checkout or another
+agent's deployment worktree.
+
+| Order | Work and handoff |
+| --- | --- |
+| 1 | [A1 / #273](https://github.com/raymond-van/animama/issues/273) → hosted consumer foundation C1; reconcile its public-safe contract/ownership/cost needs before A2/A3. |
+| 2 | [A2 / #274](https://github.com/raymond-van/animama/issues/274) and [A3 / #275](https://github.com/raymond-van/animama/issues/275) may proceed in parallel. |
+| 3 | [A4 / #276](https://github.com/raymond-van/animama/issues/276) → [A5 / #277](https://github.com/raymond-van/animama/issues/277) alongside consumer C2 → (C3, C4) → C5. Hosted service work uses isolated candidate artifacts after A2. |
+| 4 | Common-app consumer cutover C6 alongside [A6 / #278](https://github.com/raymond-van/animama/issues/278); public readiness remains independent of a future main pin. |
+| 5 | Exact-candidate approved Animama merge → validated main package set → authorized promotion/readback → C7 actual hosted acceptance. |
+
+The native phase relationships and public-safe combined progress table are in
+[#272](https://github.com/raymond-van/animama/issues/272). C phases have private implementation assignments;
+no private source or operational detail is required to understand public work.
+At phase entry, completion or a readiness-changing blocker, update the child,
+this plan and #272 together with exact source/artifact, checks, review outcome,
+remaining gates and next ready phase. An unchecked phase means its gate has not
+passed. Do not close #272 at the public merge alone.
+
+Implementation will use the checks and explicit gates in each phase below.
+The immediate next assignment is A1, followed by the C1 consumer requirements
+review. All provider/device, artifact and release gates remain separate.
+
+Setup validation: all phase issue bodies, native parent memberships and dependency
+edges were read back from GitHub, including C1 before A2/A3. The published scope,
+requirements and acceptance criteria are unchanged. Documentation link, privacy
+and whitespace checks passed; no product tests were run for this setup-only change.
+
 ## Interfaces and Dependencies
 
-At later workspace setup, re-read #272 and reconcile any reviewed changes to this
-snapshot. Reuse existing issues and this branch; create phase assignments only
-for authorized implementation. A phase issue records its starting HEAD,
+On resumption, re-read #272 and reconcile later reviewed changes to this snapshot.
+Reuse the existing phase issues and task branch; do not duplicate this setup.
+A phase issue records its starting HEAD,
 requirements, files, dependency status and acceptance. Commit each verified phase
 with the repository's `<type>(<scope>)[p#]: <summary>` convention. Do not close
 #272 merely because the public PR merges.
@@ -154,8 +199,8 @@ tenancy, real providers or full parity have been delivered.
 
 ### Phase 1: Map all operations and define compatible contracts (A1)
 
-Scope: R1–R6 and R8–R12. Issue: create/reuse at implementation setup; starting
-source: record actual HEAD. Expand the source map into
+Scope: R1–R6 and R8–R12. Issue: [A1 / #273](https://github.com/raymond-van/animama/issues/273); starting implementation
+source: record actual HEAD at phase entry. Expand the source map into
 `docs/plans/hosted-web-parity/hosted-web-parity-coverage.md` (new), with one row
 per route/action/settings group, requirement, capability, API/service, owner,
 test and evidence status. Include paste/drop/direct API equivalents of excluded
@@ -193,7 +238,7 @@ phase. New exclusions, altered memory meaning or changes to existing security
 authority require a product decision before dependent work. No implementation
 detail in this phase authorizes a hosted resource purchase or paid test.
 
-Evidence/issue/commit: pending. Recovery: keep changes additive where possible;
+Evidence and implementation commit: pending; assignment [A1 / #273](https://github.com/raymond-van/animama/issues/273). Recovery: keep changes additive where possible;
 revert the candidate contract and fixture changes together before adoption.
 
 #### Code Review #1 Findings
@@ -207,8 +252,8 @@ None. Record accepted/rejected/deferred findings, reasons, fixes and affected ch
 
 ### Phase 2: Make retained backend behavior composition-independent (A2)
 
-Scope: R3–R10 and R12; depends on A1. Issue/source/commit: pending implementation
-setup. Supply reusable services and ports needed by the mapped hosted workflows,
+Scope: R3–R10 and R12; depends on A1 and the C1 requirements handoff.
+Issue: [A2 / #274](https://github.com/raymond-van/animama/issues/274); implementation source/commit pending. Supply reusable services and ports needed by the mapped hosted workflows,
 without importing local installation or HTTP composition into shared code.
 
 Refactor the actual blocking assumptions in `app/ports/content_store.py`,
@@ -264,8 +309,8 @@ None. Record dispositions, fixes and affected local/shared checks.
 
 ### Phase 3: Compose one router and application shell (A3)
 
-Scope: R1–R6 and R12; depends on A1 and may run alongside A2. Issue/source/commit:
-pending. Add `src/frontend/web/src/main.hosted.tsx` as a thin new entrypoint beside
+Scope: R1–R6 and R12; depends on A1 and C1's requirements handoff, then may
+run alongside A2. Issue: [A3 / #275](https://github.com/raymond-van/animama/issues/275); implementation source/commit pending. Add `src/frontend/web/src/main.hosted.tsx` as a thin new entrypoint beside
 `main.local.tsx`. Share `AppProviders`, the product router/screens and styles.
 Explicit build inputs select adapters; do not add `VITE_*` local/hosted product flags.
 
@@ -310,7 +355,8 @@ None. Record dispositions and affected composition/local regression checks.
 
 ### Phase 4: Verify every retained workflow and browser resource lifetime (A4)
 
-Scope: R1–R10 and R12; depends on A2 and A3. Issue/source/commit: pending.
+Scope: R1–R10 and R12; depends on A2 and A3. Issue: [A4 / #276](https://github.com/raymond-van/animama/issues/276);
+implementation source/commit pending.
 Apply the common contracts to the existing screens rather than recreating them.
 Finish any composition assumptions discovered by the coverage map: settings/model
 roles, chat/history/tools/safety, existing Anima editing, memory/Reflection,
@@ -362,7 +408,8 @@ None. Record dispositions, visual/audio limits and affected checks.
 
 ### Phase 5: Produce and validate the immutable hosted application (A5)
 
-Scope: R4, R8, R11–R12; depends on A3 and A4. Issue/source/commit: pending.
+Scope: R4, R8, R11–R12; depends on A3 and A4. Issue: [A5 / #277](https://github.com/raymond-van/animama/issues/277);
+implementation source/commit pending.
 Implement the A1 artifact format in `scripts/package-sets/build.py`,
 `package_set.py`, their tests, `src/frontend` build scripts and
 `scripts/repository-boundary/check-packed-artifacts.py`. Include its independent
@@ -417,7 +464,7 @@ None. Record dispositions and exact manifest-bound validation results.
 ### Phase 6: Complete public acceptance and hand off for hosted adoption (A6)
 
 Scope: all requirements within Animama ownership; depends on A1–A5.
-Issue/source/commit: pending. Review the complete source/action coverage map and
+Issue: [A6 / #278](https://github.com/raymond-van/animama/issues/278); implementation source/commit pending. Review the complete source/action coverage map and
 remove duplicate hosted screen implementations or temporary flags introduced
 during development. Update useful current guidance and boundary ADRs for the
 static app artifact, composition interfaces and neutral services. Preserve
@@ -527,8 +574,9 @@ contracts; the coverage map tracks acceptance rather than duplicating the spec.
 
 ## Outcomes & Retrospective
 
-Execution has not started. This plan is ready for review of implementation order,
-contract ownership and acceptance gates. Product scope is resolved. Remaining
+Workspace and tracker setup are complete; implementation has not started.
+The owner agreed the coordinated order and requested all phase assignments.
+The next implementation instruction starts A1, then C1. Product scope is resolved. Remaining
 engineering determinations are the concrete compatible artifact schema and
 resource inventory, individual service seams and measured resource budgets;
 A1/A5 and the consumer's policy work resolve these before dependent acceptance.
@@ -537,3 +585,7 @@ decision, not an undocumented feature exclusion.
 
 Revision note, 2026-10-05: initial plan separates reusable public implementation
 from hosted operations and prevents a circular public-merge/consumer-pin gate.
+
+Revision note, 2026-10-05: recorded the approved cross-repository order, native
+phase assignments and ongoing parent-progress updates during workspace setup.
+No implementation phase or deployment gate was advanced.

@@ -1,9 +1,11 @@
 # Hosted web app parity
 
-Status: Specification draft for review. The product scope and option 3 architecture
-were approved on 2026-10-05; detailed acceptance below is proposed for review.
+Status: Specification and ExecPlan baseline adopted for workspace setup on 2026-10-05.
+The owner approved the coordinated implementation order and creation of the phase
+assignments. Setup is prepared; implementation has not started and begins on the
+next implementation instruction.
 Authority: [issue #272](https://github.com/raymond-van/animama/issues/272).
-Issue snapshot: published and read back at `2026-10-05T15:40:14Z`.
+Issue snapshot: published and read back at `2026-10-05T16:26:16Z`.
 Source baseline: Animama `f90c080fc343a159cb9d7f9059a35127f871c021`.
 
 ## Problem and intended users
@@ -278,7 +280,7 @@ instead of reporting completion with unnamed follow-ups.
 - **Replaced:** the earlier option 2 draft, the individual-screen extraction
   direction in #235's Hosted UI reuse notes, and #272's backend-allowlist limit.
   #235 continues to own source-release readiness; this issue owns parity.
-- **Proposed detail for review:** R2 keeps meaningful disabled product entry points
+- **Recorded implementation behavior:** R2 keeps meaningful disabled product entry points
   explanatory while hiding irrelevant server/native administration. R3 specifies a
   useful empty roster without introducing a new deletion control or automatically
   restoring intentionally deleted Animas.
@@ -290,27 +292,84 @@ instead of reporting completion with unnamed follow-ups.
 ## Spec
 
 This issue is the published specification authority. The repository file is a
-dated snapshot after publication. Architecture and scope are approved; detailed
-requirements and acceptance remain a draft until reviewed. Implementation and
-its ExecPlan are not started by this specification update.
+dated snapshot after publication. The specification and repository-scoped plans
+are the agreed workspace-setup baseline as of 2026-10-05. This update creates the
+assignments and records their order; implementation has not started.
 
 ## ExecPlan
 
-Required after spec review. Keep repository-scoped implementation plans and
-assignments under this common outcome: Animama owns shared browser source,
-contracts and artifact production; Cloud owns its server integration, private
-persistence/operations and artifact adoption. Do not make public work depend on
-access to private implementation or plans.
+[Reviewed Animama ExecPlan](https://github.com/raymond-van/animama/blob/6ddf2f2a20f2cad07d376dd4294fce2e0234ae1c/docs/plans/hosted-web-parity/hosted-web-parity-execplan.md) · [Current plan and execution evidence](https://github.com/raymond-van/animama/blob/feat/hosted-web-parity/docs/plans/hosted-web-parity/hosted-web-parity-execplan.md).
+
+One branch/PR per plan in each repository. Animama owns shared browser source,
+contracts, reusable services and artifact production. Cloud owns hosted APIs,
+tenancy, provider custody, storage/jobs, quotas and artifact adoption. **Private
+plan retained by maintainers.** The public scope and dependencies below remain
+understandable without access to private implementation or plans.
+
+## Implementation order and live progress
+
+**Next phase: A1. All implementation phases are planned; none have started.**
+`A` denotes Animama work; `C` denotes the hosted consumer's Cloud work.
+These are engineering milestones toward complete near parity, not separate
+reduced-product releases.
+
+| Order | Implementation sequence | Completion / handoff |
+| --- | --- | --- |
+| 1 | A1 → C1 | Define the shared action/contracts map, then validate hosted ownership, storage, operation and quota requirements before dependent shared implementation. |
+| 2 | A2 and A3, in parallel where useful | Deliver neutral shared services and the common app composition. C1 supplies a public-safe requirements handoff, never private source. |
+| 3 | A4 → A5 alongside C2 → (C3 and C4) → C5 | Finish retained browser behavior/artifacts while hosted services use isolated installed candidate artifacts. C3 and C4 can run in parallel after C2. |
+| 4 | C6 and A6 | Connect the complete common app and finish independent public regression/integration review. A6 does not wait for a future Cloud main pin. |
+| 5 | Approved Animama merge → validated main artifacts → authorized promotion/readback → C7 | Explicitly adopt the compatible main package set and prove actual hosted parity. Merge, paid tests, artifact promotion and deployment retain their existing gates. |
+
+| Animama phase | Assignment | Status / prerequisites |
+| --- | --- | --- |
+| A1 — Contracts and complete action map | [#273](https://github.com/raymond-van/animama/issues/273) | Ready for the next implementation instruction; no work begun. |
+| A2 — Neutral shared backend services | [#274](https://github.com/raymond-van/animama/issues/274) | Planned; A1 and C1 requirements handoff. |
+| A3 — One router and application composition | [#275](https://github.com/raymond-van/animama/issues/275) | Planned; A1 and C1 requirements handoff; can run with A2. |
+| A4 — Retained workflows and resource lifetime | [#276](https://github.com/raymond-van/animama/issues/276) | Planned; A2 and A3. |
+| A5 — Immutable whole-app artifact | [#277](https://github.com/raymond-van/animama/issues/277) | Planned; A4 and its dependencies. |
+| A6 — Public acceptance and adoption handoff | [#278](https://github.com/raymond-van/animama/issues/278) | Planned; A5 and preceding public gates; coordinate with C6. |
+
+| Hosted consumer phase | Status / public-facing dependency |
+| --- | --- |
+| C1 — Contract, tenant, operation and policy foundation | Planned; A1 input. |
+| C2 — Settings, existing Animas, history and manual memory | Planned; C1 and A2 interfaces. |
+| C3 — Bounded companion, tools, Memory Manager and Reflection | Planned; C2, A2 and C1 policy. |
+| C4 — Content, creators, runtime and sharing services | Planned; C2 and A2 content interfaces. |
+| C5 — Voice and cloning services | Planned; C3 metering, C4 content and shared voice interfaces. |
+| C6 — Whole-app consumption and UI cutover | Planned; C2–C5 and A5. |
+| C7 — Actual hosted parity and validated-main adoption | Planned; C6/A6, approved merge/main artifact handoff and existing live acceptance gates. |
+
+Cloud owns its phase assignments and private execution evidence. This table tracks
+only their public-safe readiness and acceptance summary. C2–C5 service fixtures
+do not prove final hosted parity; C7 requires actual providers, microphone/audio,
+avatar/effect playback, two-account isolation, quota/lifecycle and applicable
+staging/recovery evidence. The separate deployment Phase 7 retains its own gates.
+
+### Progress update rule
+
+At every phase start, completion, or blocker that changes readiness, update the
+owning child issue, the repository ExecPlan and this parent in the same handoff.
+Record status, exact source/artifact revision, passed/failed/unperformed checks,
+review result and remaining gates, plus the next ready phase. Keep private
+operational details in the Cloud records and reflect only their public-safe
+outcome here. A phase is complete only when its stated gate passes; a merged
+public PR does not close this parent before full hosted acceptance.
+
+Setup evidence: six native Animama sub-issues created with dependency links;
+Cloud assignments are tracked in their owning repository. Existing task branches
+and worktrees are reused. No services, migrations or product code were changed.
+No PR is opened yet; the implementation handoff will create/update the plan's PR.
 
 ## Delivery links
 
 - Parent release-readiness issue: [#235](https://github.com/raymond-van/animama/issues/235).
-- Boundary: [ADR 0001](../../adr/0001-independent-local-product-and-packaged-sharing.md)
-  and [ADR 0005](../../adr/0005-client-rendered-ui-and-local-native-composition.md).
+- Boundary: [ADR 0001](https://github.com/raymond-van/animama/blob/f90c080fc343a159cb9d7f9059a35127f871c021/docs/adr/0001-independent-local-product-and-packaged-sharing.md)
+  and [ADR 0005](https://github.com/raymond-van/animama/blob/f90c080fc343a159cb9d7f9059a35127f871c021/docs/adr/0005-client-rendered-ui-and-local-native-composition.md).
   Implementation must update their current boundary descriptions for the new
   static artifact without weakening independent builds.
-- Existing contracts: [runtime capabilities](../../../src/backend/animama/app/contracts/runtime_capabilities.py)
-  and [content/runtime delivery](../../frontend/architecture/local-content-runtime.md).
-- Product references: [Anima management](../../frontend/features/anima-management.md),
-  [Library](../../frontend/features/library.md), [memory](../../frontend/features/anima-memory.md),
-  [voice](../../frontend/runtime/voice.md) and [models](../../frontend/features/model-settings.md).
+- Existing contracts: [runtime capabilities](https://github.com/raymond-van/animama/blob/f90c080fc343a159cb9d7f9059a35127f871c021/src/backend/animama/app/contracts/runtime_capabilities.py)
+  and [content/runtime delivery](https://github.com/raymond-van/animama/blob/f90c080fc343a159cb9d7f9059a35127f871c021/docs/frontend/architecture/local-content-runtime.md).
+- Product references: [Anima management](https://github.com/raymond-van/animama/blob/f90c080fc343a159cb9d7f9059a35127f871c021/docs/frontend/features/anima-management.md),
+  [Library](https://github.com/raymond-van/animama/blob/f90c080fc343a159cb9d7f9059a35127f871c021/docs/frontend/features/library.md), [memory](https://github.com/raymond-van/animama/blob/f90c080fc343a159cb9d7f9059a35127f871c021/docs/frontend/features/anima-memory.md),
+  [voice](https://github.com/raymond-van/animama/blob/f90c080fc343a159cb9d7f9059a35127f871c021/docs/frontend/runtime/voice.md) and [models](https://github.com/raymond-van/animama/blob/f90c080fc343a159cb9d7f9059a35127f871c021/docs/frontend/features/model-settings.md).
