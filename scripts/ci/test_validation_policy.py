@@ -151,6 +151,18 @@ class ClassificationTests(unittest.TestCase):
 
 
 class SelectionTests(unittest.TestCase):
+    def test_docs_site_checks_cannot_be_omitted_from_docs_or_full_profiles(self):
+        checks = {"node", "pnpm-setup", "docs-install", "docs-test", "docs-build", "docs-check"}
+        for plan in (
+            choose_plan("pull_request", event(), [modified("docs/user/pages/desktop.md")]),
+            choose_plan("workflow_dispatch", {}, None),
+        ):
+            self.assertTrue(checks <= set(plan["required"]))
+            for check in checks:
+                steps = results(plan)
+                del steps[check]
+                self.assertFalse(evaluate(plan, steps)["success"])
+
     def test_hosted_reuse_is_only_for_verified_main_pushes(self):
         changes = [modified("uv.lock")]
         self.assertEqual(choose_plan("push", main_event(), changes, hosted_verified=True)["mode"], "reused")
@@ -184,7 +196,6 @@ class SelectionTests(unittest.TestCase):
                 "hydrate",
                 "browser-install",
                 "model-inputs",
-                "node",
                 "pnpm-install",
                 "backend-tests",
                 "browser-smoke",
