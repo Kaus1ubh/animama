@@ -112,7 +112,8 @@ Paths are relative to `src/frontend/web/src/` unless stated:
   the runtime limit. Fixed in `1dcdda35`:
   - one shared `MAX_ANIMA_POSE_CLIP_BYTES` limit;
   - no automatic retry after a failed load;
-  - compact saves rounded to eight decimals;
+  - compact saves at five decimals for transforms, four for times and three
+    for expression weights;
   - a generator refusal for clips over the limit.
 
   The six items were re-saved in place; the laugh is now 0.82 MB.

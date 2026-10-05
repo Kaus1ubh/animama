@@ -90,7 +90,7 @@ describe("per-event accompanying sound", () => {
 });
 
 describe("saved clip sequences", () => {
-  it("serializes compactly with rotations rounded to eight decimals", () => {
+  it("serializes compactly with rotations rounded to five decimals", () => {
     const text = serializeAnimaPoseClipFile({
       duration: 2,
       poses: {
@@ -104,7 +104,34 @@ describe("saved clip sequences", () => {
       },
     });
     expect(text).toBe(
-      '{"duration":2,"poses":{"a":{"humanoid":{"head":{"rotation":[-0.01887199,0,0,0.99981454]}}}}}\n',
+      '{"duration":2,"poses":{"a":{"humanoid":{"head":{"rotation":[-0.01887,0,0,0.99981]}}}}}\n',
     );
+  });
+});
+
+describe("saved clip precision", () => {
+  it("rounds transforms, times and expression weights separately", () => {
+    const text = serializeAnimaPoseClipFile({
+      duration: 1.23456789,
+      fadeIn: 0.300004,
+      poses: {
+        a: {
+          humanoid: { hips: { position: [0.0123456789, 0.98765432, 0] } },
+          expressions: { happy: 0.123456 },
+        },
+      },
+      poseKeyframes: [{ time: 0.033333333, pose: "a" }],
+    });
+    expect(JSON.parse(text)).toEqual({
+      duration: 1.2346,
+      fadeIn: 0.3,
+      poses: {
+        a: {
+          humanoid: { hips: { position: [0.01235, 0.98765, 0] } },
+          expressions: { happy: 0.123 },
+        },
+      },
+      poseKeyframes: [{ time: 0.0333, pose: "a" }],
+    });
   });
 });

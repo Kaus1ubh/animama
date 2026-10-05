@@ -25,18 +25,66 @@ export const ANIMA_POSE_CLIP_SCHEMA = "animaPoseClip/1.0" as const;
 export const MAX_ANIMA_POSE_CLIP_BYTES = 2 * 1024 * 1024;
 
 /**
+ * Decimal places kept in saved clip files. Five decimals hold rotations to
+ * about a thousandth of a degree; four hold times to a tenth of a millisecond,
+ * and three hold expression weights to a thousandth. Coarser rotations would
+ * drift down bone chains and turn slow motion into visible steps.
+ */
+export const ANIMA_POSE_CLIP_DECIMALS = {
+  transform: 5,
+  time: 4,
+  expressionWeight: 3,
+  other: 5,
+} as const;
+
+const TIME_FIELDS: ReadonlySet<string> = new Set([
+  "time",
+  "duration",
+  "fadeIn",
+  "fadeOut",
+  "from",
+  "to",
+]);
+
+/** Round to fixed decimal places without emitting negative zero. */
+export function roundAnimaPoseClipNumber(
+  value: number,
+  decimals: number,
+): number {
+  const rounded = Number(value.toFixed(decimals));
+  return Object.is(rounded, -0) ? 0 : rounded;
+}
+
+/**
  * Serialize a clip as a saved file: compact JSON with fractions rounded to
- * eight decimals. Generated clips repeat every animated bone in each keyframe,
- * so indentation and 17-digit renormalized quaternions would roughly quadruple
- * the file. Eight decimals keep rotations exact to far below a thousandth of a
- * degree.
+ * {@link ANIMA_POSE_CLIP_DECIMALS}. Generated clips repeat every animated bone
+ * in each keyframe, so indentation and 17-digit renormalized quaternions would
+ * roughly quadruple the file.
  */
 export function serializeAnimaPoseClipFile(clip: unknown): string {
-  return `${JSON.stringify(clip, (_key, value: unknown) =>
+  const round = (value: unknown, decimals: number): unknown =>
     typeof value === "number" && !Number.isInteger(value)
-      ? Number(value.toFixed(8))
-      : value,
-  )}\n`;
+      ? roundAnimaPoseClipNumber(value, decimals)
+      : value;
+  return `${JSON.stringify(clip, (key, value: unknown) => {
+    if (
+      (key === "rotation" || key === "position" || key === "scale") &&
+      Array.isArray(value)
+    )
+      return value.map((entry) =>
+        round(entry, ANIMA_POSE_CLIP_DECIMALS.transform),
+      );
+    if (key === "expressions" && value && typeof value === "object")
+      return Object.fromEntries(
+        Object.entries(value).map(([name, weight]) => [
+          name,
+          round(weight, ANIMA_POSE_CLIP_DECIMALS.expressionWeight),
+        ]),
+      );
+    if (TIME_FIELDS.has(key))
+      return round(value, ANIMA_POSE_CLIP_DECIMALS.time);
+    return round(value, ANIMA_POSE_CLIP_DECIMALS.other);
+  })}\n`;
 }
 
 /**

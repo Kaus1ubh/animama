@@ -8,7 +8,9 @@ import { Quaternion, Vector3 } from "three";
 
 import { RELAXED_REST_POSE_ID, getResolvedAvatarPose } from "../poses/catalog";
 import {
+  ANIMA_POSE_CLIP_DECIMALS,
   ANIMA_POSE_CLIP_SCHEMA,
+  roundAnimaPoseClipNumber as round,
   type AnimaPoseClip,
   type AnimaPoseSnapshot,
 } from "../poses/animaPoseClip";
@@ -112,7 +114,10 @@ export function bakeMotion(
         ? { expressions: roundWeights(expressions) }
         : {}),
     };
-    poseKeyframes.push({ time: round(time, 4), pose: alias });
+    poseKeyframes.push({
+      time: round(time, ANIMA_POSE_CLIP_DECIMALS.time),
+      pose: alias,
+    });
   });
 
   const clip: GeneratedGestureClip = {
@@ -401,16 +406,13 @@ function segmentError(from: Sample, to: Sample, exact: Sample): BakeError {
 
 function roundTransform(transform: VRMPoseTransform): VRMPoseTransform {
   const rotation = transform.rotation
-    ? (normalizeTuple(transform.rotation).map((n) => round(n, 6)) as [
-        number,
-        number,
-        number,
-        number,
-      ])
+    ? (normalizeTuple(transform.rotation).map((n) =>
+        round(n, ANIMA_POSE_CLIP_DECIMALS.transform),
+      ) as [number, number, number, number])
     : undefined;
-  const position = transform.position?.map((n) => round(n, 5)) as
-    | [number, number, number]
-    | undefined;
+  const position = transform.position?.map((n) =>
+    round(n, ANIMA_POSE_CLIP_DECIMALS.transform),
+  ) as [number, number, number] | undefined;
   return {
     ...(rotation ? { rotation } : {}),
     ...(position ? { position } : {}),
@@ -434,12 +436,9 @@ function normalizeTuple(
 
 function roundWeights(weights: Record<string, number>): Record<string, number> {
   return Object.fromEntries(
-    Object.entries(weights).map(([name, value]) => [name, round(value, 4)]),
+    Object.entries(weights).map(([name, value]) => [
+      name,
+      round(value, ANIMA_POSE_CLIP_DECIMALS.expressionWeight),
+    ]),
   );
-}
-
-function round(value: number, digits: number): number {
-  const factor = 10 ** digits;
-  const rounded = Math.round(value * factor) / factor;
-  return Object.is(rounded, -0) ? 0 : rounded;
 }
