@@ -92,7 +92,7 @@ contract instead of maintaining a second truth.
 ## Progress
 
 - [x] 2026-10-05 [A1 / #273](https://github.com/raymond-van/animama/issues/273): agent-verified contracts/complete action map; required checks and independent review #1 passed, repairs 0 of 2. Phase commit recorded below; the consumer requirements gate C1 has passed.
-- [ ] 2026-10-05 [A2 / #274](https://github.com/raymond-van/animama/issues/274): in progress from `3006ca3f3c5c6b68c0287cec41dc635f8a94969e`; A1 and consumer requirements review C1 passed. Content ports and bounded provider/orchestration work run independently.
+- [x] 2026-10-05 [A2 / #274](https://github.com/raymond-van/animama/issues/274): agent-verified at `c4cd0ef621b5e10a10cf9a29bf806db8f149cd86`; targeted independent review #2 and clean installed-wheel gate passed after repair round 1 of 2. Neutral services are ready for isolated consumer C2 entry.
 - [ ] 2026-10-05 [A3 / #275](https://github.com/raymond-van/animama/issues/275): in progress from `3006ca3f3c5c6b68c0287cec41dc635f8a94969e`; shared admission/transport/session composition runs alongside A2 after the passing C1 handoff.
 - [ ] 2026-10-05 [A4 / #276](https://github.com/raymond-van/animama/issues/276): planned; depends on A2 and A3.
 - [ ] 2026-10-05 [A5 / #277](https://github.com/raymond-van/animama/issues/277): planned; depends on A4 and its prerequisites.
@@ -431,8 +431,8 @@ all eight guards passing. The combined repaired boundary is frozen at
 `9fd8d10e05dc41a12152a14fcec97e289393b949`: 93-file digest
 `fbb57ec6ce330816f9e97ce54441f8fdbe90f09bbdd7248f3aa05c47d76c92ed`.
 Targeted independent analysis and checks review #2 **PASS**; no required finding
-or repair regression remains. A clean exact-commit candidate wheel remains required
-before phase completion and consumer C2 entry.
+or repair regression remains. The subsequent clean exact-commit candidate wheel
+gate passed independently, completing A2 and enabling consumer C2 entry.
 
 #### Code Review #2 Findings
 
@@ -451,9 +451,25 @@ eight tests. Reuse the source-bound full-suite result with affected post-repair
 checks: 46 import/materializer, 310 other content/publication/recovery and seven
 search tests pass. The repair commands were reported by their author after
 execution, bound to its unchanged freeze manifest; they are not presented as
-independently rerun or live-provider evidence. Commit the reviewed code to obtain
-a clean immutable build input, validate its installed wheel, then record phase
-completion. A2 is not marked complete before that artifact gate.
+independently rerun or live-provider evidence.
+
+Implementation commit `c4cd0ef621b5e10a10cf9a29bf806db8f149cd86` supplies clean
+immutable inputs (tree `364d87e409994a9ba555bef06e17e8d5092928e1`). The backend
+wheel is `animama_backend-0.3.0-py3-none-any.whl`, SHA-256
+`af776bf060ab9bff9a78320649bc5c8b5cecffa75faf2159074fe47fb3b9ccc6`.
+The clean receipt covers 528 build inputs with digest
+`4cb1b72301bc90ac87a6a667b30ec9ea0a58ca117dd8627c7bcf9ba122f0a57f`.
+Independent artifact checks verify the committed fixture bytes, installed wheel
+bytes and origin, no editable/source redirects, and no LFS pointers in the wheel.
+From an isolated Python 3.12.13 consumer, `python -I backend_consumer.py
+--forbid-source <clean-source>`, `python -I contracts_consumer.py` and
+`python -I content_consumer.py` all pass: two owners, two chat turns, six events,
+four persisted messages, 168 neutral schemas and real owner-isolated content
+save/export/import/replay/conflict/rollback/cancellation/cleanup; zero local imports.
+A2 phase gate **PASS**. Consumer C2 begins using this explicit artifact-only
+candidate; normal production pin and main-promotion policy remain unchanged.
+This backend handoff does not satisfy A5's complete static-app/resource gate or
+provider, physical device, whole-app and deployment acceptance.
 
 ### Phase 3: Compose one router and application shell (A3)
 
@@ -725,8 +741,9 @@ contracts; the coverage map tracks acceptance rather than duplicating the spec.
 
 A1 contracts and the complete action/settings/route map are agent-verified.
 Full coordinated implementation is authorized. The C1 tenancy/cost/resource
-requirements gate passed; A2 content/provider services and A3 browser composition
-are in progress in parallel. No product UI cutover, hosted deployment
+requirements gate passed; A2 content/provider services and its clean artifact
+handoff passed. A3 browser composition remains in progress while consumer C2
+begins against the reviewed installed wheel. No product UI cutover, hosted deployment
 or actual parity acceptance has occurred. Product scope is resolved. Remaining
 engineering determinations are the concrete compatible artifact schema and
 resource inventory, individual service seams and measured resource budgets;
