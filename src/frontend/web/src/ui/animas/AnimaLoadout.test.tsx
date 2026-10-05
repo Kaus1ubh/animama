@@ -1,4 +1,4 @@
-import { renderToString } from "react-dom/server";
+import { renderToString } from "@/test/runtime-markup";
 import { describe, expect, it, vi } from "vitest";
 
 import { AnimaLoadout } from "./AnimaLoadout";

@@ -1,3 +1,4 @@
+import { useProductApiClient } from "@animama/product-ui";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import type {
@@ -52,6 +53,8 @@ export function VoiceCloneLibrary({
   onDeleteClose: () => void;
   onBusyChange: (busy: boolean) => void;
 }) {
+  const apiClient = useProductApiClient();
+
   const actions = useVoiceCloneActions();
   const modelAction = useModelAssetAction();
   const input = useRef<HTMLInputElement>(null);
@@ -109,7 +112,7 @@ export function VoiceCloneLibrary({
           setEncoder(asset);
         }
         setStatus("Checking voice cloning…");
-        const next = await prepareVoiceClone({
+        const next = await prepareVoiceClone(apiClient, {
           name: name.trim(),
           file,
           encoder: {

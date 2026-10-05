@@ -1,5 +1,7 @@
 "use client";
 
+import { useProductApiClient } from "@animama/product-ui";
+
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import {
@@ -10,7 +12,7 @@ import type {
   PyUserSettings,
   PyUserSettingsUpdate,
 } from "@/lib/content/catalogTypes";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import {
   mergePreferences,
   type SettingsPreferences,
@@ -22,13 +24,16 @@ export type UpdateUserSettingsArgs = {
 };
 
 export function useUpdateUserSettings() {
+  const apiClient = useProductApiClient();
+
   const queryClient = useQueryClient();
-  const userId = useRuntimeOwnerId();
+  const userId = useRuntimeCacheKey();
   const userKey = userId ?? "__anon__";
 
   return useMutation<PyUserSettings, Error, UpdateUserSettingsArgs>({
     mutationFn: async (args) => {
       const { data } = await patchUserSettingsV1UsersMeSettingsPatch({
+        client: apiClient,
         body: args.body,
         responseValidator: undefined,
         throwOnError: true,
@@ -55,8 +60,10 @@ export function useUpdateUserSettings() {
  * (setup) use it so other preferences are never overwritten.
  */
 export function useMergeUserPreferences() {
+  const apiClient = useProductApiClient();
+
   const queryClient = useQueryClient();
-  const userKey = useRuntimeOwnerId() ?? "__anon__";
+  const userKey = useRuntimeCacheKey() ?? "__anon__";
   const update = useUpdateUserSettings();
   return useMutation<PyUserSettings, Error, SettingsPreferences>({
     mutationFn: async (patch) => {
@@ -66,6 +73,7 @@ export function useMergeUserPreferences() {
         queryFn: async () =>
           (
             await getUserSettingsV1UsersMeSettingsGet({
+              client: apiClient,
               responseValidator: undefined,
               throwOnError: true,
             })

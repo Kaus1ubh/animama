@@ -7,12 +7,12 @@ import type {
   PyChatResponse,
 } from "@animama/runtime-contracts/api-types";
 import { queryKeys } from "../keys";
-import { useRuntimeOwnerId } from "../../runtime/ProductRuntimeProvider";
+import { useRuntimeCacheKey } from "../../runtime/ProductRuntimeProvider";
 
 export function useCreateChat() {
   const queryClient = useQueryClient();
   const client = useProductApiClient();
-  const userId = useRuntimeOwnerId();
+  const userId = useRuntimeCacheKey();
   const userKey = userId ?? "__anon__";
 
   return useMutation({

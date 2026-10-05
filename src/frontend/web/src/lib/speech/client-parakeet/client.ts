@@ -1,3 +1,4 @@
+import type { Client } from "@animama/runtime-contracts/sdk";
 import { createLogger } from "@/lib/logger";
 import { fetchRuntimeCapabilities } from "@/query/runtime-capabilities";
 import {
@@ -8,6 +9,7 @@ import {
 } from "@/lib/speech/client-parakeet/assets";
 import {
   holdModelAssetLease,
+  createModelAssetLeaseApi,
   type ModelAssetLease,
 } from "@/lib/speech/client-parakeet/lease";
 import {
@@ -103,7 +105,10 @@ let pendingLeaseReleases: Promise<unknown> = Promise.resolve();
 export const LEASE_RELEASE_WAIT_MS = 2000;
 
 /** Lease exactly `assetIds`, keeping existing leases and releasing others. */
-async function leaseLoadedSets(assetIds: readonly string[]): Promise<void> {
+async function leaseLoadedSets(
+  apiClient: Client | null,
+  assetIds: readonly string[],
+): Promise<void> {
   const releases: Promise<void>[] = [];
   for (const [assetId, lease] of setLeases) {
     if (assetIds.includes(assetId)) continue;
@@ -114,13 +119,18 @@ async function leaseLoadedSets(assetIds: readonly string[]): Promise<void> {
     pendingLeaseReleases = Promise.all([pendingLeaseReleases, ...releases]);
   for (const assetId of assetIds) {
     if (!setLeases.has(assetId))
-      setLeases.set(assetId, holdModelAssetLease(assetId));
+      setLeases.set(
+        assetId,
+        holdModelAssetLease(assetId, {
+          api: createModelAssetLeaseApi(apiClient!),
+        }),
+      );
   }
   await Promise.all(setLeases.values());
 }
 
 function releaseSetLeases(): void {
-  void leaseLoadedSets([]);
+  void leaseLoadedSets(null, []);
 }
 
 /** The backend chosen by the most recent load in this page, if any. */
@@ -457,12 +467,15 @@ function postRequest<T>(
   });
 }
 
-export async function loadClientParakeetWorker({
-  preferWebgpu = false,
-  sampleRateHz = DEFAULT_SAMPLE_RATE_HZ,
-  modelUrls,
-}: LoadClientParakeetWorkerArgs = {}): Promise<ClientParakeetLoadResult> {
-  const capabilities = await fetchRuntimeCapabilities();
+export async function loadClientParakeetWorker(
+  apiClient: Client,
+  {
+    preferWebgpu = false,
+    sampleRateHz = DEFAULT_SAMPLE_RATE_HZ,
+    modelUrls,
+  }: LoadClientParakeetWorkerArgs = {},
+): Promise<ClientParakeetLoadResult> {
+  const capabilities = await fetchRuntimeCapabilities(apiClient);
   if (!capabilities.offline_speech_enabled) {
     throw new Error(
       "Install offline speech recognition in Settings to use dictation and Voice Mode.",
@@ -496,7 +509,7 @@ export async function loadClientParakeetWorker({
       ),
     );
     // Installed sets report a version; lease them before their files load.
-    await leaseLoadedSets([
+    await leaseLoadedSets(apiClient, [
       ...(capabilities.offline_speech_asset_version ? [PARAKEET_ASSET_ID] : []),
       ...(backend === "webgpu" && capabilities.offline_speech_gpu_asset_version
         ? [PARAKEET_WEBGPU_ASSET_ID]

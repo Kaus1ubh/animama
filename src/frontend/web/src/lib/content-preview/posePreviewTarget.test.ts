@@ -1,3 +1,4 @@
+import { client as testApiClient } from "@animama/runtime-contracts/default-client";
 import { describe, expect, it, vi } from "vitest";
 import type { PyPose } from "@animama/runtime-contracts/api-types";
 import {
@@ -34,7 +35,10 @@ const pose = {
 describe("static Pose preview", () => {
   it("holds the checked effective values in an isolated clip without source references", async () => {
     mocks.load.mockResolvedValue({ item, pose });
-    const target = await resolvePosePreviewTarget(posePreviewTarget(item));
+    const target = await resolvePosePreviewTarget(
+      testApiClient,
+      posePreviewTarget(item),
+    );
     const runtime = prepareContentPreview(target, target.entry).runtime;
     expect(runtime.gestures).toEqual([]);
     expect(runtime.poses).toEqual([target.entry]);
@@ -61,7 +65,10 @@ describe("static Pose preview", () => {
   });
   it("keeps a standalone Pose playable when an equipped Gesture has the same logical leaf", async () => {
     mocks.load.mockResolvedValue({ item, pose });
-    const target = await resolvePosePreviewTarget(posePreviewTarget(item));
+    const target = await resolvePosePreviewTarget(
+      testApiClient,
+      posePreviewTarget(item),
+    );
     const runtime = prepareContentPreview(target, target.entry).runtime;
     runtime.gestures = [
       {
@@ -105,6 +112,7 @@ describe("static Pose preview", () => {
     );
     const abort = new AbortController();
     const pending = resolvePosePreviewTarget(
+      testApiClient,
       posePreviewTarget(item),
       abort.signal,
     );
@@ -117,7 +125,7 @@ describe("static Pose preview", () => {
       new Error("The Pose descriptor is unavailable."),
     );
     await expect(
-      resolvePosePreviewTarget(posePreviewTarget(item)),
+      resolvePosePreviewTarget(testApiClient, posePreviewTarget(item)),
     ).rejects.toThrow("unavailable");
   });
 });

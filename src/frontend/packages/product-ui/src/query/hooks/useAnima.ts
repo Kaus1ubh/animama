@@ -6,7 +6,7 @@ import { getAnimaV1AnimasAnimaIdGet } from "@animama/runtime-contracts/sdk";
 import type { PyAnimaResponse } from "@animama/runtime-contracts/api-types";
 import { queryKeys } from "../keys";
 import { useProductLogger } from "../../runtime/diagnostics";
-import { useRuntimeOwnerId } from "../../runtime/ProductRuntimeProvider";
+import { useRuntimeCacheKey } from "../../runtime/ProductRuntimeProvider";
 
 export type UseAnimaOptions = {
   enabled?: boolean;
@@ -18,7 +18,7 @@ export function useAnima(
 ) {
   const logger = useProductLogger("useAnima");
   const client = useProductApiClient();
-  const userId = useRuntimeOwnerId();
+  const userId = useRuntimeCacheKey();
   const userKey = userId ?? "__anon__";
   const enabled =
     (opts?.enabled ?? true) && Boolean(animaId) && Boolean(userId);

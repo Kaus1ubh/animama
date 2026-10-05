@@ -1,5 +1,9 @@
 import type { ParticleVFXEditorCatalogDraft } from "@/lib/avatar/particle-vfx";
 import type { JsonObject } from "@/lib/avatar/particle-vfx/editor/types";
+import {
+  recoverySessionIsActive,
+  writeSessionRecovery,
+} from "./recovery-session";
 export const PARTICLE_VFX_RECOVERY_SCHEMA =
   "animama/particle-effect-recovery/2";
 export const PARTICLE_VFX_RECOVERY_MAX_BYTES = 5 * 1024 * 1024;
@@ -36,44 +40,53 @@ function recoveryKey(
 export async function saveParticleVFXRecovery(
   recovery: ParticleVFXRecovery,
 ): Promise<ParticleVFXRecoveryWriteResult> {
-  if (typeof window === "undefined") return { stored: false, warning: null };
-  const serialized = JSON.stringify(recovery);
-  const size = new Blob([serialized]).size;
-  if (size > PARTICLE_VFX_RECOVERY_MAX_BYTES) {
-    return {
-      stored: false,
-      warning:
-        "This effect is too large for browser crash recovery. Save can still continue.",
-    };
-  }
-  try {
-    const database = await openDatabase();
-    await databasePut(
-      database,
-      recoveryKey(recovery.userId, recovery.source),
-      serialized,
-    );
-    database.close();
-    clearLocalFallback(recovery.userId, recovery.source);
-    return { stored: true, warning: null };
-  } catch {
-    if (size <= LOCAL_STORAGE_FALLBACK_MAX_BYTES) {
+  return writeSessionRecovery(
+    recovery.userId,
+    async () => {
+      if (typeof window === "undefined")
+        return { stored: false, warning: null };
+      const serialized = JSON.stringify(recovery);
+      const size = new Blob([serialized]).size;
+      if (size > PARTICLE_VFX_RECOVERY_MAX_BYTES) {
+        return {
+          stored: false,
+          warning:
+            "This effect is too large for browser crash recovery. Save can still continue.",
+        };
+      }
       try {
-        window.localStorage.setItem(
-          localFallbackKey(recovery.userId, recovery.source),
+        const database = await openDatabase();
+        await databasePut(
+          database,
+          recoveryKey(recovery.userId, recovery.source),
           serialized,
         );
+        database.close();
+        clearLocalFallback(recovery.userId, recovery.source);
         return { stored: true, warning: null };
       } catch {
-        // The ordinary Save pipeline must not fail because recovery is unavailable.
+        if (!recoverySessionIsActive(recovery.userId))
+          return { stored: false, warning: null };
+        if (size <= LOCAL_STORAGE_FALLBACK_MAX_BYTES) {
+          try {
+            window.localStorage.setItem(
+              localFallbackKey(recovery.userId, recovery.source),
+              serialized,
+            );
+            return { stored: true, warning: null };
+          } catch {
+            // The ordinary Save pipeline must not fail because recovery is unavailable.
+          }
+        }
+        return {
+          stored: false,
+          warning:
+            "Browser crash recovery is unavailable. Keep this tab open until Save finishes.",
+        };
       }
-    }
-    return {
-      stored: false,
-      warning:
-        "Browser crash recovery is unavailable. Keep this tab open until Save finishes.",
-    };
-  }
+    },
+    { stored: false, warning: null },
+  );
 }
 
 /** Restore only a bounded record for the exact signed-in user and editor. */
@@ -200,8 +213,11 @@ function databasePut(
   key: string,
   value: string,
 ): Promise<void> {
-  return databaseRequest(database, "readwrite", (store) =>
-    store.put(value, key),
+  return databaseRequest(
+    database,
+    "readwrite",
+    (store) => store.put(value, key),
+    true,
   ).then(() => undefined);
 }
 

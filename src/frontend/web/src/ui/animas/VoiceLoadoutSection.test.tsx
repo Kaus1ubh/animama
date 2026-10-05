@@ -1,4 +1,5 @@
-import { renderToStaticMarkup } from "react-dom/server";
+import { client as testApiClient } from "@animama/runtime-contracts/default-client";
+import { renderToStaticMarkup } from "@/test/runtime-markup";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AnimaVoicesEditor } from "./VoiceLoadoutSection";
 import { filteredPocketVoices, PocketVoiceList } from "./PocketVoicePicker";
@@ -195,7 +196,7 @@ describe("Anima voice configuration", () => {
         disabled={false}
         hasCustomVoice={false}
         onSelect={async () => undefined}
-        clones={[voiceCloneSampleSource(clone)]}
+        clones={[voiceCloneSampleSource(testApiClient, clone)]}
         availability={() => null}
         onDownload={() => undefined}
         onSelected={() => undefined}

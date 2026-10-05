@@ -1,4 +1,4 @@
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToStaticMarkup } from "@/test/runtime-markup";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -34,8 +34,8 @@ describe("runtime feature gate", () => {
     fixture.query = { data: undefined };
   });
 
-  it("keeps entry points while capabilities are loading or unreadable", () => {
-    expect(render()).toBe('true<a href="/animas/new">Create Anima</a>');
+  it("withholds entry points while capabilities are loading or unreadable", () => {
+    expect(render()).toBe("false");
   });
 
   it("hides only the capability the backend reports disabled", () => {

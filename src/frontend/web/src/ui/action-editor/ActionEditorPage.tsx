@@ -10,7 +10,7 @@ import type {
   PyReaction,
 } from "@/lib/content/catalogTypes";
 import { contentSaveFieldError } from "@/lib/content/contentSaveErrors";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { useContentSaveFailure } from "@/hooks/useContentSaveFailure";
 import {
   clearActionRecovery,
@@ -197,7 +197,7 @@ export function ActionEditorPage({
   const internalNavigation = useRef(false);
   const initialComponentApplied = useRef(false);
   const actions = useActionEditorActions(intent);
-  const userId = useRuntimeOwnerId();
+  const userId = useRuntimeCacheKey();
   const navigate = useNavigate();
   const existing = useAction(intent, itemId ?? null);
   const previewDependenciesRef = useRef({

@@ -2,6 +2,10 @@ import type {
   SceneEffectEditorDocument,
   SceneEffectEditorImageResource,
 } from "./types";
+import {
+  recoverySessionIsActive,
+  writeSessionRecovery,
+} from "@/lib/content/recovery-session";
 
 export const SCENE_EFFECT_RECOVERY_SCHEMA =
   "animama/scene-effect-recovery/1" as const;
@@ -29,51 +33,66 @@ export type SceneEffectRecoveryWriteResult = {
 export async function saveSceneEffectRecovery(
   recovery: SceneEffectRecovery,
 ): Promise<SceneEffectRecoveryWriteResult> {
-  if (typeof window === "undefined")
-    return { stored: false, metadataOnly: false, warning: null };
-  const bytes =
-    new Blob([JSON.stringify(metadata(recovery))]).size +
-    recovery.imageResources.reduce(
-      (sum, resource) => sum + resource.file.size,
-      0,
-    );
-  if (bytes > MAX_RECOVERY_BYTES)
-    return {
-      stored: false,
-      metadataOnly: false,
-      warning:
-        "These images are too large for browser crash recovery. Keep this tab open until Save completes.",
-    };
-  try {
-    const database = await openDatabase();
-    await request(database, "readwrite", (store) =>
-      store.put(recovery, recoveryKey(recovery.userId, recovery.documentKey)),
-    );
-    database.close();
-    clearFallback(recovery.userId, recovery.documentKey);
-    return { stored: true, metadataOnly: false, warning: null };
-  } catch {
-    try {
-      window.localStorage.setItem(
-        fallbackKey(recovery.userId, recovery.documentKey),
-        JSON.stringify(metadata(recovery)),
-      );
-      return {
-        stored: true,
-        metadataOnly: true,
-        warning: recovery.imageResources.length
-          ? "Image bytes could not be stored for crash recovery. Reselect private images after restoring this draft."
-          : null,
-      };
-    } catch {
-      return {
-        stored: false,
-        metadataOnly: false,
-        warning:
-          "Browser crash recovery is unavailable. Keep this tab open until Save completes.",
-      };
-    }
-  }
+  return writeSessionRecovery(
+    recovery.userId,
+    async () => {
+      if (typeof window === "undefined")
+        return { stored: false, metadataOnly: false, warning: null };
+      const bytes =
+        new Blob([JSON.stringify(metadata(recovery))]).size +
+        recovery.imageResources.reduce(
+          (sum, resource) => sum + resource.file.size,
+          0,
+        );
+      if (bytes > MAX_RECOVERY_BYTES)
+        return {
+          stored: false,
+          metadataOnly: false,
+          warning:
+            "These images are too large for browser crash recovery. Keep this tab open until Save completes.",
+        };
+      try {
+        const database = await openDatabase();
+        await request(
+          database,
+          "readwrite",
+          (store) =>
+            store.put(
+              recovery,
+              recoveryKey(recovery.userId, recovery.documentKey),
+            ),
+          true,
+        );
+        database.close();
+        clearFallback(recovery.userId, recovery.documentKey);
+        return { stored: true, metadataOnly: false, warning: null };
+      } catch {
+        if (!recoverySessionIsActive(recovery.userId))
+          return { stored: false, metadataOnly: false, warning: null };
+        try {
+          window.localStorage.setItem(
+            fallbackKey(recovery.userId, recovery.documentKey),
+            JSON.stringify(metadata(recovery)),
+          );
+          return {
+            stored: true,
+            metadataOnly: true,
+            warning: recovery.imageResources.length
+              ? "Image bytes could not be stored for crash recovery. Reselect private images after restoring this draft."
+              : null,
+          };
+        } catch {
+          return {
+            stored: false,
+            metadataOnly: false,
+            warning:
+              "Browser crash recovery is unavailable. Keep this tab open until Save completes.",
+          };
+        }
+      }
+    },
+    { stored: false, metadataOnly: false, warning: null },
+  );
 }
 
 export async function loadSceneEffectRecovery(

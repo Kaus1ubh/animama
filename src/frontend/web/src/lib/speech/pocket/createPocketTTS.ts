@@ -1,5 +1,7 @@
 "use client";
 
+import type { Client } from "@animama/runtime-contracts/sdk";
+
 import { PocketTTSCore } from "@/lib/speech/pocket/index.js";
 import {
   DEFAULT_POCKET_VOICE,
@@ -11,12 +13,14 @@ import {
   POCKET_VOICE_ENCODER_CONTENT_URL,
 } from "./voice-cloning-encoder";
 
-export function createPocketTTS() {
+export function createPocketTTS(apiClient: Client) {
   return new PocketTTSCore({
     assetBaseUrl: "/tts",
     playbackStrategy: "adaptive",
     enableVoiceCloning: true,
-    beforeVoiceEncode: ensurePocketVoiceCloningEncoder,
+    beforeVoiceEncode: (
+      options: Parameters<typeof ensurePocketVoiceCloningEncoder>[1],
+    ) => ensurePocketVoiceCloningEncoder(apiClient, options),
     voiceEncoderUrl: POCKET_VOICE_ENCODER_CONTENT_URL,
     // Downloadable voices load from the downloader's content route once installed.
     voices: POCKET_VOICES.map((voice) => voice.id),

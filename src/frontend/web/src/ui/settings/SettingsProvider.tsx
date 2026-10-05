@@ -28,7 +28,7 @@ import type {
   PyUserSettings,
   PyUserSettingsUpdate,
 } from "@/lib/content/catalogTypes";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import {
   mergePreferences,
   normalizeThemeSetting,
@@ -90,7 +90,7 @@ export function SettingsProvider({
   animaId?: string | null;
 }) {
   const resolvedAnimaId = animaId ?? null;
-  const userId = useRuntimeOwnerId();
+  const userId = useRuntimeCacheKey();
   const { theme, setTheme } = useTheme();
   const logger = useMemo(() => createLogger("Settings"), []);
 

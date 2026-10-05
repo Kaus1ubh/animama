@@ -118,6 +118,7 @@ const runtime = {
   remountLatest: () => {},
 };
 function SessionConsumer() {
+  const owner = useRuntimeOwnerId();
   const [chatId, setChatId] = useState("chat-fixture");
   const session = useProductChatSession({
     animaId: "anima-fixture",
@@ -133,6 +134,7 @@ function SessionConsumer() {
   };
   return (
     <main>
+      <span id="owner">{owner}</span>
       <textarea
         id="draft"
         value={session.input}
@@ -178,10 +180,11 @@ function SessionConsumer() {
 }
 
 const root = createRoot(document.getElementById("root"));
-function mount(owner = "owner-fixture", session = false) {
+function mount(owner = "owner-fixture", session = false, sessionKey = owner) {
   root.render(
     <ProductRuntimeProvider
       owner={{ id: owner }}
+      sessionKey={sessionKey}
       capabilities={{ chat: true }}
       transport={transport}
     >
@@ -193,7 +196,39 @@ function mount(owner = "owner-fixture", session = false) {
 }
 window.fixture = {
   mount,
-  mountSession: () => mount("owner-fixture", true),
+  mountSession: (sessionKey = "owner-fixture") =>
+    mount("owner-fixture", true, sessionKey),
+  seedSessionCaches: (key) => {
+    queryClient.setQueryData(queryKeys.chats.list(key), [
+      { id: "chat-fixture", title: "Before" },
+    ]);
+    queryClient.setQueryData(
+      [...queryKeys.animas.all(key), "fixture"],
+      [{ id: "anima-fixture", emotional_state: { joy: 0 } }],
+    );
+    queryClient.setQueryData(queryKeys.memoryEntries.all(key), []);
+    queryClient.setQueryData(queryKeys.memoryEpisodes.all(key), []);
+    queryClient.setQueryData(
+      queryKeys.animaLoadouts.runtime(key, "anima-fixture"),
+      { revision: "before" },
+    );
+  },
+  sessionCaches: (key) => ({
+    messages: queryClient.getQueryData(
+      queryKeys.chats.messages(key, "chat-fixture"),
+    ),
+    title: queryClient.getQueryData(queryKeys.chats.list(key))?.[0]?.title,
+    joy: queryClient.getQueryData([
+      ...queryKeys.animas.all(key),
+      "fixture",
+    ])?.[0]?.emotional_state?.joy,
+    invalidated: [
+      queryKeys.memoryEntries.all(key),
+      queryKeys.memoryEpisodes.all(key),
+      queryKeys.animaLoadouts.runtime(key, "anima-fixture"),
+      queryKeys.chats.list(key),
+    ].map((queryKey) => queryClient.getQueryState(queryKey)?.isInvalidated),
+  }),
   switchChat: () => api.switchChat(),
   setHistory: (chatId, messages) => {
     histories[chatId] = messages;

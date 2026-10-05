@@ -1,5 +1,7 @@
 "use client";
 
+import { useProductApiClient } from "@animama/product-ui";
+
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { createMemoryEntryV1MemoryEntriesPost } from "@animama/runtime-contracts/sdk";
@@ -7,7 +9,7 @@ import type {
   PyMemoryEntryCreateRequest,
   PyMemoryEntryResponse,
 } from "@/lib/content/catalogTypes";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { MemoryEntryApiError } from "@/lib/memory-entries/errors";
 import { queryKeys } from "@/query/keys";
 import { invalidateAnimaDefinition } from "@/query/animaDefinitionInvalidation";
@@ -17,13 +19,16 @@ export type CreateMemoryEntryArgs = {
 };
 
 export function useCreateMemoryEntry() {
+  const apiClient = useProductApiClient();
+
   const queryClient = useQueryClient();
-  const userId = useRuntimeOwnerId();
+  const userId = useRuntimeCacheKey();
   const userKey = userId ?? "__anon__";
 
   return useMutation<PyMemoryEntryResponse, Error, CreateMemoryEntryArgs>({
     mutationFn: async ({ body }) => {
       const result = await createMemoryEntryV1MemoryEntriesPost({
+        client: apiClient,
         body,
         responseValidator: undefined,
         throwOnError: false,

@@ -1,3 +1,4 @@
+import { useProductApiClient } from "@animama/product-ui";
 import type { PyVoiceContent } from "@animama/runtime-contracts/api-types";
 import { useEffect, useState } from "react";
 
@@ -36,6 +37,8 @@ export function CreateAnimaVoiceStep({
   disabled: boolean;
   onBusyChange: (busy: boolean) => void;
 }) {
+  const apiClient = useProductApiClient();
+
   const { effectivePreferences, isLoading } = useSettings();
   const voice = draft.voice;
   const library = useVoiceClones({ enabled: voice?.provider === "pocket_tts" });
@@ -146,7 +149,7 @@ export function CreateAnimaVoiceStep({
               value={selected}
               disabled={disabled || library.isPending || library.isError}
               hasCustomVoice={false}
-              clones={clones.map(voiceCloneSampleSource)}
+              clones={clones.map(voiceCloneSampleSource.bind(null, apiClient))}
               unavailableSelection={
                 selectedId &&
                 !clones.some((clone) => clone.item_id === selectedId)

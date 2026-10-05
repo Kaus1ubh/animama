@@ -2,6 +2,10 @@ import type {
   AvatarEffectEditorDocument,
   AvatarEffectEditorImageResource,
 } from "./types";
+import {
+  recoverySessionIsActive,
+  writeSessionRecovery,
+} from "@/lib/content/recovery-session";
 
 export const AVATAR_EFFECT_RECOVERY_SCHEMA =
   "animama/avatar-effect-recovery/1" as const;
@@ -29,48 +33,64 @@ export type AvatarEffectRecoveryWriteResult = {
 export async function saveAvatarEffectRecovery(
   recovery: AvatarEffectRecovery,
 ): Promise<AvatarEffectRecoveryWriteResult> {
-  if (typeof window === "undefined")
-    return { stored: false, metadataOnly: false, warning: null };
-  const metadataBytes = new Blob([JSON.stringify(metadata(recovery))]).size;
-  const totalBytes = metadataBytes + (recovery.imageResource?.file.size ?? 0);
-  if (totalBytes > MAX_RECOVERY_BYTES) {
-    return {
-      stored: false,
-      metadataOnly: false,
-      warning:
-        "This image is too large for browser crash recovery. Keep this tab open until Save completes.",
-    };
-  }
-  try {
-    const database = await openDatabase();
-    await request(database, "readwrite", (store) =>
-      store.put(recovery, recoveryKey(recovery.userId, recovery.documentKey)),
-    );
-    database.close();
-    clearFallback(recovery.userId, recovery.documentKey);
-    return { stored: true, metadataOnly: false, warning: null };
-  } catch {
-    try {
-      window.localStorage.setItem(
-        fallbackKey(recovery.userId, recovery.documentKey),
-        JSON.stringify(metadata(recovery)),
-      );
-      return {
-        stored: true,
-        metadataOnly: true,
-        warning: recovery.document.image
-          ? "Image bytes could not be stored for crash recovery. Reselect the image after restoring this draft."
-          : null,
-      };
-    } catch {
-      return {
-        stored: false,
-        metadataOnly: false,
-        warning:
-          "Browser crash recovery is unavailable. Keep this tab open until Save completes.",
-      };
-    }
-  }
+  return writeSessionRecovery(
+    recovery.userId,
+    async () => {
+      if (typeof window === "undefined")
+        return { stored: false, metadataOnly: false, warning: null };
+      const metadataBytes = new Blob([JSON.stringify(metadata(recovery))]).size;
+      const totalBytes =
+        metadataBytes + (recovery.imageResource?.file.size ?? 0);
+      if (totalBytes > MAX_RECOVERY_BYTES) {
+        return {
+          stored: false,
+          metadataOnly: false,
+          warning:
+            "This image is too large for browser crash recovery. Keep this tab open until Save completes.",
+        };
+      }
+      try {
+        const database = await openDatabase();
+        await request(
+          database,
+          "readwrite",
+          (store) =>
+            store.put(
+              recovery,
+              recoveryKey(recovery.userId, recovery.documentKey),
+            ),
+          true,
+        );
+        database.close();
+        clearFallback(recovery.userId, recovery.documentKey);
+        return { stored: true, metadataOnly: false, warning: null };
+      } catch {
+        if (!recoverySessionIsActive(recovery.userId))
+          return { stored: false, metadataOnly: false, warning: null };
+        try {
+          window.localStorage.setItem(
+            fallbackKey(recovery.userId, recovery.documentKey),
+            JSON.stringify(metadata(recovery)),
+          );
+          return {
+            stored: true,
+            metadataOnly: true,
+            warning: recovery.document.image
+              ? "Image bytes could not be stored for crash recovery. Reselect the image after restoring this draft."
+              : null,
+          };
+        } catch {
+          return {
+            stored: false,
+            metadataOnly: false,
+            warning:
+              "Browser crash recovery is unavailable. Keep this tab open until Save completes.",
+          };
+        }
+      }
+    },
+    { stored: false, metadataOnly: false, warning: null },
+  );
 }
 
 export async function loadAvatarEffectRecovery(

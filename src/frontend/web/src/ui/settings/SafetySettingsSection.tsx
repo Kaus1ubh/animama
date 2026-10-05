@@ -1,10 +1,11 @@
+import { useProductApiClient } from "@animama/product-ui";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { preferredClientLocale } from "@animama/product-ui/chat";
 import { getCrisisResourcesV1SafetyCrisisResourcesGet } from "@animama/runtime-contracts/sdk";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { queryKeys } from "@/query/keys";
 import { useRuntimeCapabilities } from "@/query/hooks/useRuntimeCapabilities";
 import { reminderHourOptions } from "@/lib/safety/reminderOptions";
@@ -46,7 +47,9 @@ export function SafetySettingsSection({
   updateUserPreferences,
   disabled = false,
 }: SafetySettingsSectionProps) {
-  const ownerId = useRuntimeOwnerId();
+  const apiClient = useProductApiClient();
+
+  const ownerId = useRuntimeCacheKey();
   const capabilities = useRuntimeCapabilities();
   const locale = preferredClientLocale() ?? "";
   const resources = useQuery({
@@ -55,6 +58,7 @@ export function SafetySettingsSection({
     queryFn: async ({ signal }) =>
       (
         await getCrisisResourcesV1SafetyCrisisResourcesGet({
+          client: apiClient,
           query: { locale },
           signal,
           throwOnError: true,

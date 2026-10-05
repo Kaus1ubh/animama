@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { renderToString } from "react-dom/server";
+import { renderToString } from "@/test/runtime-markup";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { normalizeContentLibrarySearch } from "@/lib/content/librarySearch";
 import { LibraryContentInventory } from "./LibraryContentInventory";

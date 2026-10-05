@@ -7,6 +7,8 @@ import { useAnimas } from "@/query/hooks/useAnimas";
 import { AppShellPage } from "@/ui/app/AppShellPage";
 import { Button } from "@/ui/components/button";
 import { Card, CardContent } from "@/ui/components/card";
+import { useRuntimeAdmission } from "@/app/runtime/RuntimeAdmissionProvider";
+import { EmptyAnimaRoster } from "@/ui/animas/EmptyAnimaRoster";
 
 export const Route = createFileRoute("/_app/animas/")({
   component: AnimaResolverRoute,
@@ -19,6 +21,9 @@ export const Route = createFileRoute("/_app/animas/")({
 function AnimaResolverRoute() {
   const navigate = useNavigate({ from: "/animas/" });
   const animasQuery = useAnimas();
+  const { admission } = useRuntimeAdmission();
+  const creationAllowed =
+    admission.status === "ready" && admission.capabilities.anima_creation;
   const redirectStarted = useRef(false);
   const firstAnimaId = resolveFirstOwnedAnimaId(
     sortAnimasByRecent(animasQuery.data ?? []).map((anima) => anima.id),
@@ -28,7 +33,8 @@ function AnimaResolverRoute() {
     if (
       redirectStarted.current ||
       animasQuery.isPending ||
-      animasQuery.isError
+      animasQuery.isError ||
+      (!firstAnimaId && !creationAllowed)
     ) {
       return;
     }
@@ -43,7 +49,16 @@ function AnimaResolverRoute() {
       return;
     }
     void navigate({ to: "/animas/new", replace: true });
-  }, [animasQuery.isError, animasQuery.isPending, firstAnimaId, navigate]);
+  }, [
+    animasQuery.isError,
+    animasQuery.isPending,
+    firstAnimaId,
+    navigate,
+    creationAllowed,
+  ]);
+
+  if (animasQuery.isSuccess && !firstAnimaId && !creationAllowed)
+    return <EmptyAnimaRoster />;
 
   if (animasQuery.isError) {
     return (

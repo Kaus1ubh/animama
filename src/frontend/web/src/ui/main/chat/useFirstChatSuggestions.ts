@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { useChats } from "@/query/hooks/useChats";
 import { useSettings } from "@/ui/settings/SettingsProvider";
 
@@ -8,7 +8,7 @@ import { useSettings } from "@/ui/settings/SettingsProvider";
 export function useFirstChatSuggestions(
   messages: readonly { role: string }[],
 ): boolean {
-  const ownerId = useRuntimeOwnerId();
+  const ownerId = useRuntimeCacheKey();
   const chats = useChats();
   const { userSettings, userPreferences, updateUserPreferences } =
     useSettings();

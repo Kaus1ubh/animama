@@ -1,10 +1,12 @@
 "use client";
 
+import { useProductApiClient } from "@animama/product-ui";
+
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { processUserFileV1FilesFileIdProcessPost } from "@animama/runtime-contracts/sdk";
 import type { PyUserFileProcessResponse } from "@/lib/content/catalogTypes";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { queryKeys } from "@/query/keys";
 
 export type ProcessUserFileArgs = {
@@ -13,13 +15,16 @@ export type ProcessUserFileArgs = {
 };
 
 export function useProcessUserFile() {
+  const apiClient = useProductApiClient();
+
   const queryClient = useQueryClient();
-  const userId = useRuntimeOwnerId();
+  const userId = useRuntimeCacheKey();
   const userKey = userId ?? "__anon__";
 
   return useMutation<PyUserFileProcessResponse, Error, ProcessUserFileArgs>({
     mutationFn: async ({ fileId, force = false }) => {
       const { data } = await processUserFileV1FilesFileIdProcessPost({
+        client: apiClient,
         path: { file_id: fileId },
         body: { force },
         responseValidator: undefined,

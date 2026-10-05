@@ -22,6 +22,7 @@
     "e2e:install": "playwright install chromium",
     "web:dev": "pnpm --filter animama-web dev",
     "web:build": "pnpm --filter animama-web build",
+    "web:build:hosted": "pnpm --filter animama-web build:hosted",
     "web:check": "pnpm --filter animama-web check",
     "web:lint": "pnpm --filter animama-web lint",
     "web:test": "pnpm --filter animama-web test",

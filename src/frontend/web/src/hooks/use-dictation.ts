@@ -1,5 +1,7 @@
 "use client";
 
+import { useProductApiClient } from "@animama/product-ui";
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { createLogger } from "@/lib/logger";
@@ -240,6 +242,8 @@ function normalizeSmartTurnOverrideText(value: string): string {
 }
 
 export function useDictation(options: UseDictationOptions = {}) {
+  const apiClient = useProductApiClient();
+
   const logger = useMemo(() => createLogger("Dictation"), []);
   const [isDictating, setIsDictating] = useState(false);
   const [activeMode, setActiveMode] = useState<DictationMode | null>(null);
@@ -1890,7 +1894,7 @@ export function useDictation(options: UseDictationOptions = {}) {
           runIdRef.current === runId &&
           turnIdRef.current === turnId;
 
-        const parakeetLoadPromise = loadClientParakeetWorker({
+        const parakeetLoadPromise = loadClientParakeetWorker(apiClient, {
           preferWebgpu: parakeetWebgpuPreferredRef.current,
           sampleRateHz: DEFAULT_SAMPLE_RATE,
         });
@@ -2251,6 +2255,7 @@ export function useDictation(options: UseDictationOptions = {}) {
       }
     },
     [
+      apiClient,
       armVoiceSilenceResetTimer,
       clearParakeetPreview,
       clearTranscriptPreview,
@@ -2829,7 +2834,7 @@ export function useDictation(options: UseDictationOptions = {}) {
           effectivePreferences.speech?.stt_provider,
         );
 
-        const capabilities = await fetchRuntimeCapabilities();
+        const capabilities = await fetchRuntimeCapabilities(apiClient);
         const resolved = resolvePreferredSttProvider({
           savedProvider: preferredProvider,
           platform,
@@ -2895,6 +2900,7 @@ export function useDictation(options: UseDictationOptions = {}) {
       }
     },
     [
+      apiClient,
       effectivePreferences.speech?.stt_provider,
       clearBrowserStopReason,
       clearTranscriptPreview,

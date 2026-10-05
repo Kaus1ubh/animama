@@ -1,3 +1,4 @@
+import { client as testApiClient } from "@animama/runtime-contracts/default-client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ClientParakeetWorkerRequest } from "./worker-protocol";
@@ -17,7 +18,8 @@ const fixture = vi.hoisted(() => ({
 vi.mock("@/query/runtime-capabilities", () => ({
   fetchRuntimeCapabilities: async () => fixture.capabilities,
 }));
-vi.mock("@/lib/speech/client-parakeet/lease", () => ({
+vi.mock("@/lib/speech/client-parakeet/lease", async (original) => ({
+  ...(await original<typeof import("@/lib/speech/client-parakeet/lease")>()),
   holdModelAssetLease: async (assetId: string) => {
     fixture.events.push(`lease:${assetId}`);
     return {
@@ -97,7 +99,7 @@ afterEach(() => {
 describe("client Parakeet set leases", () => {
   it("leases the installed CPU set before loading it", async () => {
     const parakeet = await client();
-    await parakeet.loadClientParakeetWorker();
+    await parakeet.loadClientParakeetWorker(testApiClient);
     expect(fixture.events).toEqual(["lease:parakeet-stt", "load:wasm"]);
   });
 
@@ -106,7 +108,9 @@ describe("client Parakeet set leases", () => {
     const parakeet = await client();
     // The fake worker fails WebGPU loads, so the client falls back to WASM
     // and releases the GPU lease it no longer needs.
-    await parakeet.loadClientParakeetWorker({ preferWebgpu: true });
+    await parakeet.loadClientParakeetWorker(testApiClient, {
+      preferWebgpu: true,
+    });
     expect(fixture.events.slice(0, 3)).toEqual([
       "lease:parakeet-stt",
       "lease:parakeet-stt-webgpu",
@@ -128,7 +132,7 @@ describe("client Parakeet set leases", () => {
       offline_speech_gpu_asset_version: null,
     };
     const parakeet = await client();
-    await parakeet.loadClientParakeetWorker();
+    await parakeet.loadClientParakeetWorker(testApiClient);
     expect(fixture.events).toEqual(["load:wasm"]);
     fixture.capabilities = {
       ...fixture.capabilities,
@@ -140,9 +144,9 @@ describe("client Parakeet set leases", () => {
   it("releases its leases when the load fails", async () => {
     fixture.failLoads = true;
     const parakeet = await client();
-    await expect(parakeet.loadClientParakeetWorker()).rejects.toThrow(
-      "load failed",
-    );
+    await expect(
+      parakeet.loadClientParakeetWorker(testApiClient),
+    ).rejects.toThrow("load failed");
     await vi.waitFor(() =>
       expect(fixture.events).toContain("release:parakeet-stt"),
     );
@@ -152,7 +156,7 @@ describe("client Parakeet set leases", () => {
 describe("disposing an idle worker before removal", () => {
   it("refuses while a dictation session uses the worker", async () => {
     const parakeet = await client();
-    await parakeet.loadClientParakeetWorker();
+    await parakeet.loadClientParakeetWorker(testApiClient);
     await expect(parakeet.disposeIdleClientParakeetWorker()).resolves.toBe(
       false,
     );
@@ -161,7 +165,7 @@ describe("disposing an idle worker before removal", () => {
 
   it("disposes an idle worker and waits for its lease releases", async () => {
     const parakeet = await client();
-    await parakeet.loadClientParakeetWorker();
+    await parakeet.loadClientParakeetWorker(testApiClient);
     parakeet.armClientParakeetIdleDispose("test");
     fixture.releaseDelayMs = 50;
     await expect(parakeet.disposeIdleClientParakeetWorker()).resolves.toBe(
@@ -173,7 +177,7 @@ describe("disposing an idle worker before removal", () => {
   it("stops waiting for a slow release after its bound", async () => {
     vi.useFakeTimers();
     const parakeet = await client();
-    await parakeet.loadClientParakeetWorker();
+    await parakeet.loadClientParakeetWorker(testApiClient);
     parakeet.armClientParakeetIdleDispose("test");
     fixture.releaseDelayMs = 60_000;
     const disposed = parakeet.disposeIdleClientParakeetWorker();

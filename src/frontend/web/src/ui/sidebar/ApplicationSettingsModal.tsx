@@ -1,5 +1,7 @@
 "use client";
 
+import { useProductApiClient } from "@animama/product-ui";
+
 import {
   useCallback,
   useEffect,
@@ -378,6 +380,8 @@ export function ApplicationSettingsModal({
   open,
   onOpenChange,
 }: ApplicationSettingsModalProps) {
+  const apiClient = useProductApiClient();
+
   const {
     chatMarkdownEnabled,
     setChatMarkdownEnabled,
@@ -592,7 +596,7 @@ export function ApplicationSettingsModal({
 
     void (async () => {
       try {
-        const capabilities = await fetchRuntimeCapabilities();
+        const capabilities = await fetchRuntimeCapabilities(apiClient);
         const resolved = resolvePreferredSttProvider({
           savedProvider: initialSavedSttProvider,
           platform,
@@ -658,7 +662,7 @@ export function ApplicationSettingsModal({
     return () => {
       cancelled = true;
     };
-  }, [open, platform]);
+  }, [apiClient, open, platform]);
 
   // After a search selection renders its section, scroll the setting into
   // view, move focus to its control and briefly highlight the row.

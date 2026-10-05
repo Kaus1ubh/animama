@@ -130,30 +130,43 @@ classification, transcript, and composer primitives. It exports query hooks via
 these implementations, so the ordinary application uses the packed core.
 
 `ProductRuntimeProvider` takes an explicit `RuntimeOwner`, chat capability,
-`ProductApiTransport`, and optional diagnostics adapter. The host provides a
-TanStack `QueryClientProvider`; queries partition by owner and the generated
-client is created separately for each transport. Changing owner or base URL
-remounts the product subtree and aborts its previous session. No installation
+`ProductApiTransport`, optional session key and diagnostics adapter. The host
+provides a TanStack `QueryClientProvider`; private queries and recovery drafts
+partition by session key, and the generated client is created separately for each
+transport. `useRuntimeOwnerId` remains the opaque product owner;
+`useRuntimeCacheKey` identifies the private browser lifetime. No installation
 readiness, local account policy, desktop bridge, router, or settings provider is
 imported by the package. Runtime image URLs resolve against this transport and
 keep owner-scoped Blob leases; they never assume the consuming page's origin.
 
-The local `RuntimeOwnerProvider` adapts the ready installation principal to this
-provider, supplies the same-origin application transport and trace headers, and keeps
-browser-wide CSRF handling in the local composition. Local hooks outside the
-shared product surface continue to use the neutral generated default client configured
-by `configureAnimaApiClient.ts`. New shared hooks must take the provider's client.
+`RuntimeOwnerProvider` adapts admitted ownership to this provider. Shared hooks
+use `useProductApiClient`; content and speech helpers receive that client
+explicitly. Each entrypoint installs its same-origin transport before React.
+Local requests retain the mutation CSRF marker; hosted requests use current
+cookie and CSRF authority without a browser credential store or owner header.
+
+`main.local.tsx` and `main.hosted.tsx` mount the same providers, router, screens
+and styles. `RuntimeController` owns each query cache and request/body lifetime.
+Sign-out, revoked admission and a changed session key abort old work, clear private
+module state and dispose workers, microphone tracks, playback, audio graphs and
+object URLs before the next session mounts. Hosted recovery drafts use a fresh
+session namespace, including same-owner reauthentication; local recovery retains
+its installation namespace. Hosted teardown fences new recovery writes, waits
+for started writes, then removes that lifetime's creator IndexedDB records,
+private image bytes and recovery fallbacks. Awaited sign-out and replacement
+admission wait for the deletion commits. Browser device preferences and downloaded public
+model data retain their existing storage. See the [hosted contract](../../../contracts/hosted-web.md).
 
 ## Local Runtime And Profile
 
-`LocalRuntimeProvider` first calls `GET /v1/runtime-context`. A ready backend
+The local adapter first calls `GET /v1/runtime-context`. A ready backend
 does not need another content scan or defaults ensure. Only a `repair_required`
 response triggers `POST /v1/runtime/bootstrap:ensure`; its returned context is
-used directly without another GET. The provider shares concurrent initialization
+used directly without another GET. The adapter shares concurrent initialization
 requests but retains no completed-context cache. It exposes loading, ready, and
-recoverable-error states; Retry makes a fresh context read and repairs only if
+unavailable states; Retry makes a fresh context read and repairs only if
 needed. Network/authorization failures are surfaced without issuing repair
-mutations. Only a ready provider supplies `installation_principal_id` to shared
+mutations. Only admitted state supplies the installation principal to shared
 features through `RuntimeOwnerContext`. First-run state remains local to the
 local composition.
 

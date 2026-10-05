@@ -1,5 +1,7 @@
 "use client";
 
+import { useProductApiClient } from "@animama/product-ui";
+
 import {
   DndContext,
   DragOverlay,
@@ -61,6 +63,8 @@ export function ActionCatalogDragProvider({
 }: {
   children: ReactNode;
 }) {
+  const apiClient = useProductApiClient();
+
   const workspace = useActionEditorWorkspace();
   const liveWorkspace = useRef(workspace);
   liveWorkspace.current = workspace;
@@ -281,7 +285,7 @@ export function ActionCatalogDragProvider({
             const restoreCollapse = autoExpanded.current;
             // End the pointer gesture immediately; only successful insertion retains expansion.
             finish(true);
-            void insertActionEditorSavedPose(item.pose, {
+            void insertActionEditorSavedPose(apiClient, item.pose, {
               timeSec: next.time,
               isCurrent: () =>
                 alive.current &&

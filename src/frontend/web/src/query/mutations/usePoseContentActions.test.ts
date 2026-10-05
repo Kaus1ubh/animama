@@ -1,6 +1,10 @@
+import { client as testApiClient } from "@animama/runtime-contracts/default-client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({ save: vi.fn() }));
-vi.mock("@animama/runtime-contracts/sdk", () => ({ savePose: mocks.save }));
+vi.mock("@animama/runtime-contracts/sdk", async (original) => ({
+  ...(await original<typeof import("@animama/runtime-contracts/sdk")>()),
+  savePose: mocks.save,
+}));
 import { savePoseContent } from "./usePoseContentActions";
 import { preparePoseSaveAttempt } from "@/lib/content/poseContent";
 const pose = {
@@ -22,12 +26,14 @@ describe("Pose saves", () => {
       },
     });
     mocks.save.mockRejectedValueOnce(new Error("Connection lost"));
-    await expect(savePoseContent(attempt.input)).rejects.toThrow();
+    await expect(
+      savePoseContent(testApiClient, attempt.input),
+    ).rejects.toThrow();
     mocks.save.mockResolvedValue({
       data: { item_id: "item", revision_sha256: "saved" },
       error: undefined,
     });
-    expect(await savePoseContent(attempt.input)).toMatchObject({
+    expect(await savePoseContent(testApiClient, attempt.input)).toMatchObject({
       revision_sha256: "saved",
     });
     const first = mocks.save.mock.calls[0][0];
@@ -48,7 +54,9 @@ describe("Pose saves", () => {
       response: new Response(null, { status: 409 }),
     });
     const attempt = preparePoseSaveAttempt({ name: "Rest", pose });
-    await expect(savePoseContent(attempt.input)).rejects.toMatchObject({
+    await expect(
+      savePoseContent(testApiClient, attempt.input),
+    ).rejects.toMatchObject({
       status: 409,
       code: "catalog_revision_conflict",
     });

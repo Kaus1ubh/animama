@@ -1,5 +1,7 @@
 "use client";
 
+import { useProductApiClient } from "@animama/product-ui";
+
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { createMemoryManagerRunV1MemoryManagerRunsPost } from "@animama/runtime-contracts/sdk";
@@ -7,7 +9,7 @@ import type {
   PyMemoryManagerRunCreateRequest,
   PyMemoryManagerRunResponse,
 } from "@/lib/content/catalogTypes";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { MemoryManagerApiError } from "@/lib/memory-manager/errors";
 import { queryKeys } from "@/query/keys";
 import {
@@ -20,8 +22,10 @@ export type CreateMemoryManagerRunArgs = {
 };
 
 export function useCreateMemoryManagerRun() {
+  const apiClient = useProductApiClient();
+
   const queryClient = useQueryClient();
-  const userId = useRuntimeOwnerId();
+  const userId = useRuntimeCacheKey();
   const userKey = userId ?? "__anon__";
 
   return useMutation<
@@ -31,6 +35,7 @@ export function useCreateMemoryManagerRun() {
   >({
     mutationFn: async (args) => {
       const result = await createMemoryManagerRunV1MemoryManagerRunsPost({
+        client: apiClient,
         body: args?.body ?? { metadata: {} },
         responseValidator: undefined,
         throwOnError: false,

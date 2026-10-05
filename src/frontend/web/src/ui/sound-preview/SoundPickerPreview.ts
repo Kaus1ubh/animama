@@ -1,3 +1,4 @@
+import type { Client } from "@animama/runtime-contracts/sdk";
 import { previewCatalogItem } from "@/lib/content/catalogApi";
 import {
   contentPreviewPrimaryFile,
@@ -31,13 +32,14 @@ export class SoundPickerPreview {
     this.changed(null);
   }
 
-  async play(itemId: string): Promise<void> {
+  async play(apiClient: Client, itemId: string): Promise<void> {
     this.stop();
     const request = new AbortController();
     this.request = request;
     this.changed(itemId);
     try {
       const preview = await previewCatalogItem(
+        apiClient,
         itemId,
         request.signal,
         "sound_effect",

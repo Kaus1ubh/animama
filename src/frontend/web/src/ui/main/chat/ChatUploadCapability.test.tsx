@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToStaticMarkup } from "@/test/runtime-markup";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { UserFileUploadUppy } from "@/hooks/useUserFileUpload";
@@ -92,22 +92,25 @@ describe("chat file upload entry points", () => {
     fixture.capabilities = undefined;
   });
 
-  it.each([
-    ["reported", { chat_file_uploads: true }],
-    ["still loading", undefined],
-  ])("are offered when uploads are %s", (_label, capabilities) => {
-    fixture.capabilities = capabilities;
-    const html = render();
-    expect(html).toContain("Attach files");
-    expect(html).toContain("Upload tray");
-    expect(html).toContain("Drop files");
-  });
+  it.each([["reported", { chat_file_uploads: true }]])(
+    "are offered when uploads are %s",
+    (_label, capabilities) => {
+      fixture.capabilities = capabilities;
+      const html = render();
+      expect(html).toContain("Attach files");
+      expect(html).toContain("Upload tray");
+      expect(html).toContain("Drop files");
+    },
+  );
 
-  it("are hidden when the runtime reports uploads disabled", () => {
-    fixture.capabilities = { chat_file_uploads: false };
-    const html = render();
-    expect(html).not.toContain("Attach files");
-    expect(html).not.toContain("Upload tray");
-    expect(html).not.toContain("Drop files");
-  });
+  it.each([{ chat_file_uploads: false }, undefined])(
+    "are hidden when capabilities are disabled or unreadable: %s",
+    (capabilities) => {
+      fixture.capabilities = capabilities;
+      const html = render();
+      expect(html).not.toContain("Attach files");
+      expect(html).not.toContain("Upload tray");
+      expect(html).not.toContain("Drop files");
+    },
+  );
 });

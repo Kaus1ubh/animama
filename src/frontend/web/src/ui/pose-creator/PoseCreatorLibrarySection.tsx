@@ -1,5 +1,7 @@
 "use client";
 
+import { useProductApiClient } from "@animama/product-ui";
+
 import { CreatorHeaderDocument } from "@/ui/content-creator/CreatorHeaderDocument";
 
 import {
@@ -333,6 +335,8 @@ export function PoseCreatorLibrarySection({
   /** Item editing in Library does not introduce another New Pose entry. */
   hideNew?: boolean;
 }) {
+  const apiClient = useProductApiClient();
+
   const runtimePlatform = useRuntimePlatform();
   const alive = useRef(true);
   useEffect(() => {
@@ -456,7 +460,10 @@ export function PoseCreatorLibrarySection({
         submittedDraft.draftName.trim() ||
         (previous && !previous.submittedDraft.draftName.trim()
           ? previous.attempt.input.name
-          : createUniqueContentName("New Pose", await fetchPoseNames()));
+          : createUniqueContentName(
+              "New Pose",
+              await fetchPoseNames(apiClient),
+            ));
       if (usePoseCreatorStore.getState().poseSessionToken !== sessionToken)
         return null;
       const pose = buildPoseCreatorAnimaPoseForExport(
@@ -634,7 +641,9 @@ export function PoseCreatorLibrarySection({
   };
 
   const handleLoadSavedDraft = (item: PyPose) => {
-    void editActionEditorSavedPose(item, { isCurrent: () => alive.current });
+    void editActionEditorSavedPose(apiClient, item, {
+      isCurrent: () => alive.current,
+    });
   };
 
   /** Creates an independent, unsaved pose snapshot from the supplied pose. */
@@ -650,7 +659,7 @@ export function PoseCreatorLibrarySection({
 
     const captured = usePoseCreatorStore.getState();
     try {
-      const existingNames = await fetchPoseNames();
+      const existingNames = await fetchPoseNames(apiClient);
       const current = usePoseCreatorStore.getState();
       if (
         !alive.current ||
@@ -684,7 +693,7 @@ export function PoseCreatorLibrarySection({
   };
 
   const handleCreateBranch = (item: PyPose) => {
-    void editActionEditorSavedPose(item, {
+    void editActionEditorSavedPose(apiClient, item, {
       customize: true,
       isCurrent: () => alive.current,
     });

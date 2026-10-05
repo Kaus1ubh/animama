@@ -1,5 +1,8 @@
 "use client";
 
+import { useProductApiClient } from "@animama/product-ui";
+import type { Client } from "@animama/runtime-contracts/sdk";
+
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 
 import {
@@ -17,7 +20,7 @@ import type {
   PyContentPage,
 } from "@/lib/content/catalogTypes";
 import { typedComponentCatalogViewItem } from "@/lib/content/catalogTypes";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { queryKeys } from "@/query/keys";
 
 export type ContentOrigin = "all" | "builtin" | "owned";
@@ -42,30 +45,32 @@ type EffectListInput = EffectCatalogInput & {
 };
 
 async function effectRows(
+  apiClient: Client,
   kind: ActionComponentType,
 ): Promise<PyCatalogViewItem[]> {
   const options = { responseValidator: undefined, throwOnError: true as const };
   switch (kind) {
     case "particle_effect":
-      return (await listParticleEffects(options)).data.items.map(
-        typedComponentCatalogViewItem,
-      );
+      return (
+        await listParticleEffects({ ...options, client: apiClient })
+      ).data.items.map(typedComponentCatalogViewItem);
     case "avatar_effect":
-      return (await listAvatarEffects(options)).data.items.map(
-        typedComponentCatalogViewItem,
-      );
+      return (
+        await listAvatarEffects({ ...options, client: apiClient })
+      ).data.items.map(typedComponentCatalogViewItem);
     case "scene_effect":
-      return (await listSceneEffects(options)).data.items.map(
-        typedComponentCatalogViewItem,
-      );
+      return (
+        await listSceneEffects({ ...options, client: apiClient })
+      ).data.items.map(typedComponentCatalogViewItem);
     case "sound_effect":
-      return (await listSoundEffects(options)).data.items.map(
-        typedComponentCatalogViewItem,
-      );
+      return (
+        await listSoundEffects({ ...options, client: apiClient })
+      ).data.items.map(typedComponentCatalogViewItem);
   }
 }
 
 async function effectItem(
+  apiClient: Client,
   kind: ActionComponentType,
   itemId: string,
 ): Promise<PyCatalogViewItem> {
@@ -77,30 +82,31 @@ async function effectItem(
   switch (kind) {
     case "particle_effect":
       return typedComponentCatalogViewItem(
-        (await getParticleEffect(options)).data,
+        (await getParticleEffect({ ...options, client: apiClient })).data,
       );
     case "avatar_effect":
       return typedComponentCatalogViewItem(
-        (await getAvatarEffect(options)).data,
+        (await getAvatarEffect({ ...options, client: apiClient })).data,
       );
     case "scene_effect":
       return typedComponentCatalogViewItem(
-        (await getSceneEffect(options)).data,
+        (await getSceneEffect({ ...options, client: apiClient })).data,
       );
     case "sound_effect":
       return typedComponentCatalogViewItem(
-        (await getSoundEffect(options)).data,
+        (await getSoundEffect({ ...options, client: apiClient })).data,
       );
   }
 }
 
 async function effectPage(
+  apiClient: Client,
   kind: ActionComponentType,
   input: EffectCatalogInput,
 ): Promise<PyContentPage> {
   const origin = input.origin ?? "all";
   const needle = (input.query ?? "").trim().toLocaleLowerCase();
-  const rows = (await effectRows(kind)).filter(
+  const rows = (await effectRows(apiClient, kind)).filter(
     (item) =>
       (origin === "all" ||
         (origin === "builtin"
@@ -119,18 +125,20 @@ function useEffectPage(
   key: readonly unknown[],
   input: EffectCatalogInput,
 ) {
-  const userId = useRuntimeOwnerId();
+  const apiClient = useProductApiClient();
+
+  const userId = useRuntimeCacheKey();
   return useInfiniteQuery<PyContentPage>({
     queryKey: [...key, input.limit ?? 50],
     enabled: Boolean(userId && input.enabled !== false),
     initialPageParam: null as string | null,
-    queryFn: async () => effectPage(kind, input),
+    queryFn: async () => effectPage(apiClient, kind, input),
     getNextPageParam: () => undefined,
   });
 }
 
 export function useParticleEffects(input: EffectCatalogInput = {}) {
-  const userId = useRuntimeOwnerId();
+  const userId = useRuntimeCacheKey();
   const query = input.query ?? "";
   const origin = input.origin ?? "all";
   const sort = input.sort ?? (query ? "relevance" : "updated");
@@ -142,7 +150,7 @@ export function useParticleEffects(input: EffectCatalogInput = {}) {
 }
 
 export function useSoundEffects(input: EffectCatalogInput = {}) {
-  const userId = useRuntimeOwnerId();
+  const userId = useRuntimeCacheKey();
   const query = input.query ?? "";
   const origin = input.origin ?? "all";
   const sort = input.sort ?? (query ? "relevance" : "updated");
@@ -158,18 +166,20 @@ function useEffectItem(
   itemId: string | null,
   key: readonly unknown[],
 ) {
-  const userId = useRuntimeOwnerId();
+  const apiClient = useProductApiClient();
+
+  const userId = useRuntimeCacheKey();
   return useQuery<PyCatalogViewItem>({
     queryKey: key,
     enabled: Boolean(userId && itemId),
     queryFn: async () => {
-      return effectItem(kind, itemId!);
+      return effectItem(apiClient, kind, itemId!);
     },
   });
 }
 
 export function useParticleEffect(itemId: string | null) {
-  const userId = useRuntimeOwnerId();
+  const userId = useRuntimeCacheKey();
   return useEffectItem(
     "particle_effect",
     itemId,
@@ -181,7 +191,7 @@ export function useParticleEffect(itemId: string | null) {
 }
 
 export function useSoundEffect(itemId: string | null) {
-  const userId = useRuntimeOwnerId();
+  const userId = useRuntimeCacheKey();
   return useEffectItem(
     "sound_effect",
     itemId,
@@ -190,7 +200,7 @@ export function useSoundEffect(itemId: string | null) {
 }
 
 export function useAvatarEffect(itemId: string | null) {
-  const userId = useRuntimeOwnerId();
+  const userId = useRuntimeCacheKey();
   return useEffectItem(
     "avatar_effect",
     itemId,
@@ -199,7 +209,7 @@ export function useAvatarEffect(itemId: string | null) {
 }
 
 export function useSceneEffect(itemId: string | null) {
-  const userId = useRuntimeOwnerId();
+  const userId = useRuntimeCacheKey();
   return useEffectItem(
     "scene_effect",
     itemId,
@@ -211,7 +221,9 @@ export function useActionComponent(
   contentType: ActionComponentType | null,
   itemId: string | null,
 ) {
-  const userId = useRuntimeOwnerId();
+  const apiClient = useProductApiClient();
+
+  const userId = useRuntimeCacheKey();
   return useQuery<PyCatalogViewItem>({
     queryKey: [
       "action-component",
@@ -221,13 +233,13 @@ export function useActionComponent(
     ],
     enabled: Boolean(userId && contentType && itemId),
     queryFn: async () => {
-      return effectItem(contentType!, itemId!);
+      return effectItem(apiClient, contentType!, itemId!);
     },
   });
 }
 
 export function useAvatarEffectsPage(input: EffectListInput = {}) {
-  const userId = useRuntimeOwnerId();
+  const userId = useRuntimeCacheKey();
   return useEffectPage(
     "avatar_effect",
     [
@@ -243,7 +255,7 @@ export function useAvatarEffectsPage(input: EffectListInput = {}) {
 }
 
 export function useSceneEffectsPage(input: EffectListInput = {}) {
-  const userId = useRuntimeOwnerId();
+  const userId = useRuntimeCacheKey();
   return useEffectPage(
     "scene_effect",
     [

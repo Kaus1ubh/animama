@@ -1,5 +1,7 @@
 "use client";
 
+import { useProductApiClient } from "@animama/product-ui";
+
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { patchMemoryEntryV1MemoryEntriesEntryIdPatch } from "@animama/runtime-contracts/sdk";
@@ -7,7 +9,7 @@ import type {
   PyMemoryEntryPatchRequest,
   PyMemoryEntryResponse,
 } from "@/lib/content/catalogTypes";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { MemoryEntryApiError } from "@/lib/memory-entries/errors";
 import { queryKeys } from "@/query/keys";
 import { invalidateAnimaDefinition } from "@/query/animaDefinitionInvalidation";
@@ -18,13 +20,16 @@ export type PatchMemoryEntryArgs = {
 };
 
 export function usePatchMemoryEntry() {
+  const apiClient = useProductApiClient();
+
   const queryClient = useQueryClient();
-  const userId = useRuntimeOwnerId();
+  const userId = useRuntimeCacheKey();
   const userKey = userId ?? "__anon__";
 
   return useMutation<PyMemoryEntryResponse, Error, PatchMemoryEntryArgs>({
     mutationFn: async ({ entryId, body }) => {
       const result = await patchMemoryEntryV1MemoryEntriesEntryIdPatch({
+        client: apiClient,
         path: { entry_id: entryId },
         body,
         responseValidator: undefined,

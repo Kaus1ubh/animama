@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { listChatMessagesV1ChatsChatIdMessagesGet } from "@animama/runtime-contracts/sdk";
 import type { PyChatMessage } from "@animama/runtime-contracts/api-types";
 import { queryKeys } from "../keys";
-import { useRuntimeOwnerId } from "../../runtime/ProductRuntimeProvider";
+import { useRuntimeCacheKey } from "../../runtime/ProductRuntimeProvider";
 
 export type UseChatMessagesOptions = {
   enabled?: boolean;
@@ -15,7 +15,7 @@ export function useChatMessages(
   opts?: UseChatMessagesOptions,
 ) {
   const client = useProductApiClient();
-  const userId = useRuntimeOwnerId();
+  const userId = useRuntimeCacheKey();
   const userKey = userId ?? "__anon__";
   const enabled = (opts?.enabled ?? true) && Boolean(chatId) && Boolean(userId);
   const keyId = chatId || "__none__";

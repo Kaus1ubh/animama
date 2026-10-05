@@ -259,7 +259,14 @@ async function mount(options = {}) {
     if (pathname === "/v1/runtime-capabilities")
       return route.fulfill({
         json: {
+          schema_version: 2,
           runtime_kind: "desktop",
+          chat: true,
+          provider_credentials: true,
+          local_filesystem_administration: true,
+          native_features: true,
+          model_selection: true,
+          model_role_selection: true,
           offline_speech_enabled: false,
           offline_speech_asset_version: null,
           model_configuration: options.modelConfiguration ?? true,

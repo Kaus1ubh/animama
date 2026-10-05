@@ -1,5 +1,7 @@
 "use client";
 
+import { useProductApiClient } from "@animama/product-ui";
+
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { patchMemoryEntryV1MemoryEntriesEntryIdPatch } from "@animama/runtime-contracts/sdk";
@@ -7,7 +9,7 @@ import type {
   PyMemoryEntryHeader,
   PyMemoryEntryResponse,
 } from "@/lib/content/catalogTypes";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { MemoryEntryApiError } from "@/lib/memory-entries/errors";
 import { memoryMovePaths } from "@/lib/memory-entries/workspace-moves";
 import { queryKeys } from "@/query/keys";
@@ -21,8 +23,10 @@ export type MoveMemoryEntryArgs = {
 
 /** Sends a move/rename patch and retires caches addressed by old paths. */
 export function useMoveMemoryEntry() {
+  const apiClient = useProductApiClient();
+
   const queryClient = useQueryClient();
-  const userId = useRuntimeOwnerId();
+  const userId = useRuntimeCacheKey();
   const userKey = userId ?? "__anon__";
 
   return useMutation<PyMemoryEntryResponse, Error, MoveMemoryEntryArgs>({
@@ -31,6 +35,7 @@ export function useMoveMemoryEntry() {
         throw new Error("A memory relocation requires a parent or name change");
       }
       const result = await patchMemoryEntryV1MemoryEntriesEntryIdPatch({
+        client: apiClient,
         path: { entry_id: source.id },
         body: {
           expected_version: source.version,

@@ -13,6 +13,7 @@ import {
 
 type ProductRuntime = {
   owner: RuntimeOwner;
+  sessionKey: string;
   capabilities: ProductRuntimeCapabilities;
   transport: ProductApiTransport;
   client: Client;
@@ -25,12 +26,15 @@ export function ProductRuntimeProvider({
   owner,
   capabilities,
   transport,
+  sessionKey = owner.id,
   diagnostics = silentProductDiagnostics,
   children,
 }: {
   owner: RuntimeOwner;
   capabilities: ProductRuntimeCapabilities;
   transport: ProductApiTransport;
+  /** Changes on every admitted browser lifetime, including same-owner reauthentication. */
+  sessionKey?: string;
   diagnostics?: ProductDiagnostics;
   children: ReactNode;
 }) {
@@ -39,12 +43,12 @@ export function ProductRuntimeProvider({
     [transport.baseUrl, transport.fetch],
   );
   const runtime = useMemo(
-    () => ({ owner, capabilities, transport, client }),
-    [owner, capabilities, transport, client],
+    () => ({ owner, sessionKey, capabilities, transport, client }),
+    [owner, sessionKey, capabilities, transport, client],
   );
   return (
     <ProductRuntimeContext.Provider
-      key={`${owner.id}:${transport.baseUrl}`}
+      key={`${sessionKey}:${transport.baseUrl}`}
       value={runtime}
     >
       <ProductDiagnosticsContext.Provider value={diagnostics}>
@@ -61,11 +65,16 @@ export function useProductRuntime(): ProductRuntime {
   return runtime;
 }
 
-/** Read only the cache partition, without importing installation readiness. */
+/** Read the admitted principal, without importing installation readiness. */
 export function useRuntimeOwnerId(): string | null {
   return useContext(ProductRuntimeContext)?.owner.id ?? null;
 }
 
 export function useProductApiClient(): Client {
   return useProductRuntime().client;
+}
+
+/** Private cache and recovery identity; this is never sent as an HTTP owner selector. */
+export function useRuntimeCacheKey(): string | null {
+  return useContext(ProductRuntimeContext)?.sessionKey || null;
 }

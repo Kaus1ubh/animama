@@ -1,2 +1,2 @@
-/** Neutral generated default; only the local adapter configures singleton web calls. */
+/** Compatibility default for standalone consumers; application compositions supply explicit clients. */
 export { client } from "./generated/client.gen";

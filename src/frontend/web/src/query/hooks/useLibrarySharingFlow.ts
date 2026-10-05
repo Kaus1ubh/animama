@@ -1,3 +1,4 @@
+import { useProductApiClient } from "@animama/product-ui";
 import {
   useEffect,
   useMemo,
@@ -11,7 +12,7 @@ import type {
   ExportReview,
   PackageSelectionRequest,
 } from "@animama/runtime-contracts/api-types";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import {
   PackageImportSession,
   type RecoveryStore,
@@ -33,8 +34,8 @@ import {
 import { invalidateContentCatalogViews } from "@/query/contentCatalogInvalidation";
 import { queryKeys } from "@/query/keys";
 import {
-  packageExportApi,
-  packageImportApi,
+  createPackageExportApi,
+  createPackageImportApi,
 } from "@/query/mutations/packageSharingApi";
 import { useAnimas } from "./useAnimas";
 import { useSharingInventory } from "./useSharingInventory";
@@ -57,12 +58,22 @@ function storage(owner: string): RecoveryStore {
 
 /** Own exact export snapshots and one recoverable import independently of dialog presentation. */
 export function useLibrarySharingFlow(): LibrarySharingFlow {
-  const owner = useRuntimeOwnerId() ?? "__anon__";
+  const apiClient = useProductApiClient();
+
+  const packageImportApi = useMemo(
+    () => createPackageImportApi(apiClient),
+    [apiClient],
+  );
+  const packageExportApi = useMemo(
+    () => createPackageExportApi(apiClient),
+    [apiClient],
+  );
+  const owner = useRuntimeCacheKey() ?? "__anon__";
   const client = useQueryClient();
   const navigate = useNavigate();
   const session = useMemo(
     () => new PackageImportSession(packageImportApi, storage(owner)),
-    [owner],
+    [owner, packageImportApi],
   );
   const imported = useSyncExternalStore(
     session.subscribe,
@@ -361,7 +372,7 @@ export function useLibrarySharingFlow(): LibrarySharingFlow {
         let transferred = false;
         setNotice("Your Anima is imported. Preparing its content…");
         try {
-          const typed = await fetchAnimaRuntimeCatalog(id, signal);
+          const typed = await fetchAnimaRuntimeCatalog(apiClient, id, signal);
           mount = await new RuntimeMountPreparer().prepare(typed, { signal });
           signal.throwIfAborted();
           if (mount.playbackStatus === "degraded" || !typed.can_chat)

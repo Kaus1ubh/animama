@@ -139,6 +139,8 @@ export const ResponsiveSidebar = ({
         />
       ) : null}
       <div
+        aria-hidden={!isDesktop && !open}
+        inert={!isDesktop && !open}
         className={cn(
           "group/sidebar-shell fixed top-0 left-0 z-[120] flex h-full w-[242px] flex-shrink-0 flex-col overflow-hidden px-[6px] py-3 md:translate-x-0",
           open

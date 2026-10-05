@@ -1,5 +1,8 @@
 "use client";
 
+import { useProductApiClient } from "@animama/product-ui";
+import type { Client } from "@animama/runtime-contracts/sdk";
+
 import { CreatorTimelineTransport } from "@/ui/content-creator/CreatorTimeline";
 
 import { AvatarEffectAnimationControls } from "./AvatarEffectAnimationControls";
@@ -44,7 +47,7 @@ import {
   type AvatarEffectEditorDocument,
   type AvatarEffectEditorImageResource,
 } from "@/lib/avatar/vfx/editor";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import type {
   AvatarVFXCatalogEntry,
   AvatarVFXSnapshot,
@@ -121,8 +124,10 @@ type PreviewStatus = {
 type HydrationState = PreviewStatus;
 
 export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
+  const apiClient = useProductApiClient();
+
   const navigate = useNavigate();
-  const userId = useRuntimeOwnerId();
+  const userId = useRuntimeCacheKey();
   const existingQuery = useAvatarEffect(itemId ?? null);
   const { document, imageResource, history, dispatch, resetDocument } =
     useAvatarEffectHistory();
@@ -294,6 +299,7 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
       return;
     }
     void previewCatalogItem(
+      apiClient,
       document.sound.source.catalog_item_id,
       undefined,
       "sound_effect",
@@ -307,7 +313,7 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
     return () => {
       cancelled = true;
     };
-  }, [document.sound]);
+  }, [apiClient, document.sound]);
 
   useEffect(() => {
     if (
@@ -329,7 +335,7 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
     }
     const controller = new AbortController();
     setHydration({ state: "loading", message: "Loading saved content…" });
-    void hydrateAvatarEffect({
+    void hydrateAvatarEffect(apiClient, {
       itemId: item.item_id,
       name: item.name,
       description: item.description ?? "",
@@ -362,6 +368,7 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
       load.cancel();
     };
   }, [
+    apiClient,
     contentSave.recovered,
     contentSave.recoveryReady,
     existingQuery.data,
@@ -1873,16 +1880,20 @@ function InlineError({ message }: { message: string }) {
   );
 }
 
-async function hydrateAvatarEffect(args: {
-  itemId: string;
-  name: string;
-  description: string;
-  signal: AbortSignal;
-}): Promise<{
+async function hydrateAvatarEffect(
+  apiClient: Client,
+  args: {
+    itemId: string;
+    name: string;
+    description: string;
+    signal: AbortSignal;
+  },
+): Promise<{
   document: AvatarEffectEditorDocument;
   image: AvatarEffectEditorImageResource;
 }> {
   const preview = await previewCatalogItem(
+    apiClient,
     args.itemId,
     args.signal,
     "avatar_effect",

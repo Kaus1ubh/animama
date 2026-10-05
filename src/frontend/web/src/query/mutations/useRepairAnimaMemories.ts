@@ -1,10 +1,12 @@
 "use client";
 
+import { useProductApiClient } from "@animama/product-ui";
+
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { repairAnimaMemoriesV1MemoryAnimaMemoriesAnimaIdRepairPost } from "@animama/runtime-contracts/sdk";
 import type { PyMemoryEntryHeader } from "@/lib/content/catalogTypes";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { MemoryEntryApiError } from "@/lib/memory-entries/errors";
 import { queryKeys } from "@/query/keys";
 
@@ -17,14 +19,17 @@ export type RepairAnimaMemoriesArgs = { animaId: string };
  * repaired file (or drops a deleted Anima) before the caller reports success.
  */
 export function useRepairAnimaMemories() {
+  const apiClient = useProductApiClient();
+
   const queryClient = useQueryClient();
-  const userId = useRuntimeOwnerId();
+  const userId = useRuntimeCacheKey();
   const userKey = userId ?? "__anon__";
 
   return useMutation<PyMemoryEntryHeader, Error, RepairAnimaMemoriesArgs>({
     mutationFn: async ({ animaId }) => {
       const result =
         await repairAnimaMemoriesV1MemoryAnimaMemoriesAnimaIdRepairPost({
+          client: apiClient,
           path: { anima_id: animaId },
           responseValidator: undefined,
           throwOnError: false,

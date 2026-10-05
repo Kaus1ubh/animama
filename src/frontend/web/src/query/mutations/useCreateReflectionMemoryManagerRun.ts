@@ -1,5 +1,7 @@
 "use client";
 
+import { useProductApiClient } from "@animama/product-ui";
+
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { createReflectionMemoryManagerRunV1MemoryManagerRunsReflectPost } from "@animama/runtime-contracts/sdk";
@@ -7,7 +9,7 @@ import type {
   PyMemoryManagerReflectionRunCreateRequest,
   PyMemoryManagerRunResponse,
 } from "@/lib/content/catalogTypes";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { MemoryManagerApiError } from "@/lib/memory-manager/errors";
 import { queryKeys } from "@/query/keys";
 import { publishMemoryManagerSnapshot } from "@/query/mutations/memoryManagerMutationCache";
@@ -22,8 +24,10 @@ export type CreateReflectionMemoryManagerRunArgs = {
  * `MEMORIES.md` or a concurrent run) creates no run and leaves the open one.
  */
 export function useCreateReflectionMemoryManagerRun() {
+  const apiClient = useProductApiClient();
+
   const queryClient = useQueryClient();
-  const userId = useRuntimeOwnerId();
+  const userId = useRuntimeCacheKey();
   const userKey = userId ?? "__anon__";
 
   return useMutation<
@@ -34,6 +38,7 @@ export function useCreateReflectionMemoryManagerRun() {
     mutationFn: async ({ body }) => {
       const result =
         await createReflectionMemoryManagerRunV1MemoryManagerRunsReflectPost({
+          client: apiClient,
           body,
           responseValidator: undefined,
           throwOnError: false,

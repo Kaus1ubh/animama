@@ -1,5 +1,8 @@
 "use client";
 
+import { useProductApiClient } from "@animama/product-ui";
+import type { Client } from "@animama/runtime-contracts/sdk";
+
 import { CreatorTimelineTransport } from "@/ui/content-creator/CreatorTimeline";
 
 import { SoundUploadButton } from "@/ui/sound-upload/SoundUploadButton";
@@ -57,7 +60,7 @@ import {
   type SceneEffectEditorSound,
   type SceneEffectTemplateId,
 } from "@/lib/scene-vfx/editor";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { SCENE_BACKGROUND_EMOJI_LINE_ITEMS } from "@/lib/scene-vfx/assets";
 import { buildSceneVFXRuntimeEntry } from "@/lib/scene-vfx/runtime-state";
 import {
@@ -128,8 +131,10 @@ type BackgroundLayer = "marquee" | "pattern" | "solid";
 
 /** Product Scene Effect creator backed by ordinary editable catalog files. */
 export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
+  const apiClient = useProductApiClient();
+
   const navigate = useNavigate();
-  const userId = useRuntimeOwnerId();
+  const userId = useRuntimeCacheKey();
   const existingQuery = useSceneEffect(itemId ?? null);
   const {
     document,
@@ -204,6 +209,7 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
       return;
     }
     void previewCatalogItem(
+      apiClient,
       document.sound.source.catalog_item_id,
       undefined,
       "sound_effect",
@@ -217,7 +223,7 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
     return () => {
       cancelled = true;
     };
-  }, [document.sound]);
+  }, [apiClient, document.sound]);
 
   const validation = useMemo(
     () => validateSceneEffectDocument(document, imageResources),
@@ -326,7 +332,7 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
     }
     const controller = new AbortController();
     setHydration({ state: "loading", message: "Loading saved content…" });
-    void hydrateSceneEffect({
+    void hydrateSceneEffect(apiClient, {
       itemId: item.item_id,
       name: item.name,
       description: item.description ?? "",
@@ -358,6 +364,7 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
       load.cancel();
     };
   }, [
+    apiClient,
     contentSave.recovered,
     contentSave.recoveryReady,
     existingQuery.data,
@@ -2094,16 +2101,20 @@ function InlineError({ message }: { message: string }) {
   );
 }
 
-async function hydrateSceneEffect(args: {
-  itemId: string;
-  name: string;
-  description: string;
-  signal: AbortSignal;
-}): Promise<{
+async function hydrateSceneEffect(
+  apiClient: Client,
+  args: {
+    itemId: string;
+    name: string;
+    description: string;
+    signal: AbortSignal;
+  },
+): Promise<{
   document: SceneEffectEditorDocument;
   images: SceneEffectEditorImageResource[];
 }> {
   const preview = await previewCatalogItem(
+    apiClient,
     args.itemId,
     args.signal,
     "scene_effect",

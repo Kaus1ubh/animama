@@ -1,5 +1,7 @@
 "use client";
 
+import { useProductApiClient } from "@animama/product-ui";
+
 import Uppy from "@uppy/core";
 import type { Meta, UppyFile } from "@uppy/core";
 import { useEffect, useMemo, useRef } from "react";
@@ -101,6 +103,8 @@ export function useUserFileUpload({
   autoProcess = true,
   clearCompletedFiles = false,
 }: UseUserFileUploadOptions) {
+  const apiClient = useProductApiClient();
+
   const initUpload = useInitUserFileUpload();
   const finalizeUpload = useFinalizeUserFileUpload();
   const processFile = useProcessUserFile();
@@ -303,7 +307,7 @@ export function useUserFileUpload({
       });
       // A saved original is a successful upload even when optional processing is absent.
       const capabilities = shouldProcess
-        ? await fetchRuntimeCapabilities().catch(() => null)
+        ? await fetchRuntimeCapabilities(apiClient).catch(() => null)
         : null;
       if (shouldProcess && capabilities?.user_file_processing.enabled) {
         setAnimaFileMeta(uppy, file.id, {
@@ -440,7 +444,7 @@ export function useUserFileUpload({
       uppy.off("upload-error", handleUploadError);
       uppy.off("restriction-failed", handleRestrictionFailed);
     };
-  }, [uppy]);
+  }, [apiClient, uppy]);
 
   useStrictModeSafeDestroy(uppy, (instance) => instance.destroy());
 

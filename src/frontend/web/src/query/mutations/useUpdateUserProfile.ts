@@ -1,5 +1,7 @@
 "use client";
 
+import { useProductApiClient } from "@animama/product-ui";
+
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import {
@@ -7,18 +9,21 @@ import {
   type PyUserProfile,
   type PyUserProfileUpdate,
 } from "@animama/runtime-contracts/sdk";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { UserProfileApiError } from "@/lib/user-profile/errors";
 import { publishUserProfile } from "@/query/mutations/userProfileMutationCache";
 
 /** Update the installation owner's private display-name personalization. */
 export function useUpdateUserProfile() {
+  const apiClient = useProductApiClient();
+
   const queryClient = useQueryClient();
-  const userId = useRuntimeOwnerId();
+  const userId = useRuntimeCacheKey();
 
   return useMutation<PyUserProfile, UserProfileApiError, PyUserProfileUpdate>({
     mutationFn: async (body) => {
       const result = await updateUserProfileV1UsersMeProfilePatch({
+        client: apiClient,
         body,
         responseValidator: undefined,
         throwOnError: false,

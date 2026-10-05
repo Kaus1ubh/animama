@@ -48,7 +48,7 @@ import {
   type DesktopQuickChatSnapshot,
 } from "@/hooks/useDesktopQuickChatRuntime";
 import { resolveDesktopShortcuts } from "@/lib/settings/desktop-shortcuts";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import {
   mergeChatAttachedFileIds,
   selectableChatUserFiles,
@@ -598,7 +598,7 @@ export const ChatInterface = ({
   }, [mountedRuntimeContent.diagnostics, mountedRuntimeContent.playbackStatus]);
   const { chatMarkdownEnabled, userPreferences } = useSettings();
   const queryClient = useQueryClient();
-  const userId = useRuntimeOwnerId();
+  const userId = useRuntimeCacheKey();
   const userKey = userId ?? "__anon__";
 
   const dictationBaseRef = useRef("");

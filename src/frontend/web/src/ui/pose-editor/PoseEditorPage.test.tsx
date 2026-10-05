@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { renderToString } from "react-dom/server";
+import { renderToString } from "@/test/runtime-markup";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { usePoseCreatorStore } from "@/stores/pose-creator-store";
 import { PoseEditorWorkspace } from "./PoseEditorPage";
@@ -59,7 +59,7 @@ vi.mock("@tanstack/react-query", () => ({
   useIsMutating: () => harness.saving,
 }));
 vi.mock("@/app/runtime/RuntimeOwnerContext", () => ({
-  useRuntimeOwnerId: () => "owner",
+  useRuntimeCacheKey: () => "owner",
 }));
 vi.mock("@/query/hooks/usePoses", () => ({
   usePose: () => ({

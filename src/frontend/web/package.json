@@ -7,6 +7,7 @@
     "routes:generate": "node scripts/generate-routes.mjs",
     "dev": "pnpm --dir .. poses:check && pnpm --dir .. packages:build && pnpm routes:generate && vite",
     "build": "pnpm --dir .. packages:build && pnpm build:source",
+    "build:hosted": "pnpm --dir .. packages:build && pnpm build:hosted:source",
     "check": "pnpm --dir .. packages:build && pnpm check:source",
     "lint": "eslint .",
     "test": "pnpm --dir .. packages:build && pnpm test:source",
@@ -15,7 +16,8 @@
     "prettier:check": "prettier --ignore-path ../.prettierignore --check '*.{js,mjs,ts,json,css,md}' 'scripts/**/*.{js,mjs,ts}' 'src/**/*.{ts,tsx,js,jsx,css,md,json}' '../prettier.config.mjs' 'public/**/*.{md,json}'",
     "check:source": "pnpm --dir .. poses:check && tsc -b",
     "test:source": "node --test ../scripts/generate-pose-catalog.test.mjs && node --experimental-vm-modules --test scripts/fast-refresh-lifecycle.test.mjs && vitest run && node --test scripts/*.browser.test.mjs",
-    "build:source": "pnpm --dir .. poses:check && pnpm routes:generate && tsc -b && vite build"
+    "build:source": "pnpm --dir .. poses:check && pnpm routes:generate && tsc -b && vite build",
+    "build:hosted:source": "pnpm --dir .. poses:check && pnpm routes:generate && tsc -b && vite build --config vite.hosted.config.ts"
   },
   "packageManager": "pnpm@10.33.0",
   "dependencies": {

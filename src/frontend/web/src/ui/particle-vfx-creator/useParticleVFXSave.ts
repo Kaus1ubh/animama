@@ -1,5 +1,7 @@
 "use client";
 
+import { useProductApiClient } from "@animama/product-ui";
+
 import { useContentEditorSaveSource } from "@/hooks/useContentEditorSaveSource";
 
 import { useNavigate } from "@tanstack/react-router";
@@ -22,7 +24,7 @@ import {
   createParticleVFXEditorDraftFromImport,
   type ParticleVFXEditorDraft,
 } from "@/lib/avatar/particle-vfx";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { useContentSaveFailure } from "@/hooks/useContentSaveFailure";
 import { saveCatalogItem } from "@/lib/content/catalogApi";
 import { useParticleEffect } from "@/query/hooks/useEffects";
@@ -60,6 +62,8 @@ export function useParticleVFXSave({
   onRestoreDraft: (draft: ParticleVFXEditorDraft) => void;
   onSavedDraft: (draft: ParticleVFXEditorDraft, savedItemId: string) => void;
 }) {
+  const apiClient = useProductApiClient();
+
   const existing = useParticleEffect(itemId ?? null).data;
   const {
     target: saveTargetFor,
@@ -67,7 +71,7 @@ export function useParticleVFXSave({
     resolveName,
   } = useContentEditorSaveSource("particle_effect", itemId, existing);
   const navigate = useNavigate();
-  const userId = useRuntimeOwnerId();
+  const userId = useRuntimeCacheKey();
   const source = useMemo(() => (itemId ? { itemId } : null), [itemId]);
   const documentKey = itemId ?? "new";
   const [stage, setStage] = useState<ParticleVFXSaveStage>("idle");
@@ -252,7 +256,7 @@ export function useParticleVFXSave({
         ],
       };
       setStage("validating");
-      const item = await saveCatalogItem({
+      const item = await saveCatalogItem(apiClient, {
         kind: "particle_effect",
         entryName: name,
         files: [
@@ -294,6 +298,7 @@ export function useParticleVFXSave({
       controllerRef.current = null;
     }
   }, [
+    apiClient,
     canSave,
     captureSaveFailure,
     clearSaveFailure,

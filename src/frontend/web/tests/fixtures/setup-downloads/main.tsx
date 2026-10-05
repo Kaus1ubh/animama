@@ -1,5 +1,4 @@
 import { createRoot } from "react-dom/client";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   createMemoryHistory,
   createRootRoute,
@@ -8,8 +7,10 @@ import {
   Outlet,
   RouterProvider,
 } from "@tanstack/react-router";
-import { LocalRuntimeProvider } from "@/app/local-runtime/LocalRuntimeProvider";
-import { RuntimePlatformProvider } from "@/platform/RuntimePlatformProvider";
+import { AppProviders } from "@/app/providers/AppProviders";
+import { createLocalComposition } from "@/app/local-runtime/local-composition";
+import { RuntimeController } from "@/app/runtime/runtime-controller";
+import { useRuntimeAdmission } from "@/app/runtime/RuntimeAdmissionProvider";
 import { Route } from "@/routes/setup";
 import "@/index.css";
 
@@ -46,9 +47,7 @@ Object.assign(window, {
     },
   },
 });
-const client = new QueryClient({
-  defaultOptions: { queries: { retry: false } },
-});
+const controller = new RuntimeController(createLocalComposition());
 const rootRoute = createRootRoute({ component: Outlet });
 const setupRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -64,12 +63,16 @@ const router = createRouter({
   routeTree: rootRoute.addChildren([setupRoute, completedRoute]),
   history: createMemoryHistory({ initialEntries: ["/setup"] }),
 });
+function FixtureRouter() {
+  const { admission } = useRuntimeAdmission();
+  return admission.status === "ready" ? (
+    <RouterProvider router={router} />
+  ) : (
+    <p>Preparing local runtime</p>
+  );
+}
 createRoot(document.getElementById("root")!).render(
-  <QueryClientProvider client={client}>
-    <RuntimePlatformProvider>
-      <LocalRuntimeProvider>
-        <RouterProvider router={router} />
-      </LocalRuntimeProvider>
-    </RuntimePlatformProvider>
-  </QueryClientProvider>,
+  <AppProviders controller={controller}>
+    <FixtureRouter />
+  </AppProviders>,
 );

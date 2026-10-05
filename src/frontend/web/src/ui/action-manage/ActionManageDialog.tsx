@@ -1,5 +1,7 @@
 "use client";
 
+import { useProductApiClient } from "@animama/product-ui";
+
 import { useMemo, useState } from "react";
 import { useQueries, useQueryClient } from "@tanstack/react-query";
 import { Check, ExternalLink, Loader2, Plus, X } from "lucide-react";
@@ -18,7 +20,7 @@ import type {
   PyReactionIntent,
 } from "@animama/runtime-contracts/api-types";
 import type { PyExactContentSource } from "@/lib/content/catalogTypes";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { invalidateAnimaLoadoutAndRuntime } from "@/query/animaLoadoutInvalidation";
 import { useAnimas } from "@/query/hooks/useAnimas";
 import { queryKeys } from "@/query/keys";
@@ -56,7 +58,9 @@ export function ActionManageDialog({
   target: ManageActionTarget | null;
   onPreview?: () => void;
 }) {
-  const userId = useRuntimeOwnerId() ?? "__anon__";
+  const apiClient = useProductApiClient();
+
+  const userId = useRuntimeCacheKey() ?? "__anon__";
   const animas = useAnimas();
   const queryClient = useQueryClient();
   const [busyAnimaId, setBusyAnimaId] = useState<string | null>(null);
@@ -67,6 +71,7 @@ export function ActionManageDialog({
       queryFn: async () =>
         (
           await getAnimaLoadoutV1AnimasAnimaIdLoadoutGet({
+            client: apiClient,
             path: { anima_id: anima.id },
             responseValidator: undefined,
             throwOnError: true,
@@ -122,6 +127,7 @@ export function ActionManageDialog({
           : { operation: "add", source, config_overrides: {} };
         const plan = (
           await planGestureV1AnimasAnimaIdGesturesPlanPost({
+            client: apiClient,
             path: { anima_id: animaId },
             body: { expected_revision: loadout.revision, intent },
             responseValidator: undefined,
@@ -129,6 +135,7 @@ export function ActionManageDialog({
           })
         ).data;
         await commitGestureV1AnimasAnimaIdGesturesCommitPost({
+          client: apiClient,
           path: { anima_id: animaId },
           body: {
             expected_revision: loadout.revision,
@@ -165,6 +172,7 @@ export function ActionManageDialog({
             };
         const plan = (
           await planReactionV1AnimasAnimaIdReactionsPlanPost({
+            client: apiClient,
             path: { anima_id: animaId },
             body: { expected_revision: loadout.revision, intent },
             responseValidator: undefined,
@@ -172,6 +180,7 @@ export function ActionManageDialog({
           })
         ).data;
         await commitReactionV1AnimasAnimaIdReactionsCommitPost({
+          client: apiClient,
           path: { anima_id: animaId },
           body: {
             expected_revision: loadout.revision,

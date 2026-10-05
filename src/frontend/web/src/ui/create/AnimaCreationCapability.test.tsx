@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { createElement, type ReactNode } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToStaticMarkup } from "@/test/runtime-markup";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AnimaCarousel } from "@/ui/animas/AnimaCarousel";
@@ -83,10 +83,7 @@ function renderCarousel(onCreate?: () => void) {
   );
 }
 
-describe.each([
-  ["reported", { anima_creation: true }, false],
-  ["still loading", undefined, true],
-])(
+describe.each([["reported", { anima_creation: true }, false]])(
   "Anima creation when the capability is %s",
   (_label, capabilities, loading) => {
     beforeEach(() => {

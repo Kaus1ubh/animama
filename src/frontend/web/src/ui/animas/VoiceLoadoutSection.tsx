@@ -1,3 +1,4 @@
+import { useProductApiClient } from "@animama/product-ui";
 import { useRef, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import type { PyVoiceContent } from "@animama/runtime-contracts/api-types";
@@ -63,6 +64,8 @@ export function elevenLabsVoiceId(
 
 /** Persist choices independently of which provider is currently used for replies. */
 export function AnimaVoicesEditor() {
+  const apiClient = useProductApiClient();
+
   const {
     animaId,
     effectivePreferences,
@@ -251,7 +254,7 @@ export function AnimaVoicesEditor() {
                 clones.find((clone) => `clone:${clone.item_id}` === id) ?? null,
               )
             }
-            clones={clones.map(voiceCloneSampleSource)}
+            clones={clones.map(voiceCloneSampleSource.bind(null, apiClient))}
             hasCustomVoice={runtime.hasCustomVoice}
             onSelect={savePocketVoice}
             availability={downloads.availability}

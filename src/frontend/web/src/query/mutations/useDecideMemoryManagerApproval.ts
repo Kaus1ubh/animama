@@ -1,5 +1,7 @@
 "use client";
 
+import { useProductApiClient } from "@animama/product-ui";
+
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { decideMemoryManagerApprovalV1MemoryManagerApprovalsApprovalIdDecidePost } from "@animama/runtime-contracts/sdk";
@@ -7,7 +9,7 @@ import type {
   PyMemoryManagerApproval,
   PyMemoryManagerApprovalDecisionRequest,
 } from "@/lib/content/catalogTypes";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { MemoryManagerApiError } from "@/lib/memory-manager/errors";
 import { queryKeys } from "@/query/keys";
 import {
@@ -21,8 +23,10 @@ export type DecideMemoryManagerApprovalArgs = {
 };
 
 export function useDecideMemoryManagerApproval() {
+  const apiClient = useProductApiClient();
+
   const queryClient = useQueryClient();
-  const userId = useRuntimeOwnerId();
+  const userId = useRuntimeCacheKey();
   const userKey = userId ?? "__anon__";
 
   return useMutation<
@@ -34,6 +38,7 @@ export function useDecideMemoryManagerApproval() {
       const result =
         await decideMemoryManagerApprovalV1MemoryManagerApprovalsApprovalIdDecidePost(
           {
+            client: apiClient,
             path: { approval_id: approvalId },
             body,
             responseValidator: undefined,

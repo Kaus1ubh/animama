@@ -1,5 +1,7 @@
 "use client";
 
+import { useProductApiClient } from "@animama/product-ui";
+
 import {
   BoneIcon,
   HandIcon,
@@ -887,6 +889,8 @@ function EffectsPanel({
   timelineEnabled?: boolean;
   onTimelineEnabledChange?: (enabled: boolean) => void;
 }) {
+  const apiClient = useProductApiClient();
+
   const [localTimelineEnabled, setLocalTimelineEnabled] = useState(true);
   const timelineEnabled = controlledTimelineEnabled ?? localTimelineEnabled;
   const setTimelineEnabled = onTimelineEnabledChange ?? setLocalTimelineEnabled;
@@ -936,18 +940,20 @@ function EffectsPanel({
           onEditPose={
             gesture
               ? (pose) => {
-                  void editActionEditorSavedPose(pose, { isCurrent }).then(
-                    (loaded) => {
-                      if (loaded && isCurrent()) workspace.setMode("pose");
-                    },
-                  );
+                  void editActionEditorSavedPose(apiClient, pose, {
+                    isCurrent,
+                  }).then((loaded) => {
+                    if (loaded && isCurrent()) workspace.setMode("pose");
+                  });
                 }
               : undefined
           }
           onAddPose={
             gesture
               ? (pose) => {
-                  void insertActionEditorSavedPose(pose, { isCurrent });
+                  void insertActionEditorSavedPose(apiClient, pose, {
+                    isCurrent,
+                  });
                 }
               : undefined
           }

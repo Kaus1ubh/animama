@@ -1,12 +1,14 @@
 "use client";
 
+import { useProductApiClient } from "@animama/product-ui";
+
 import { useContentEditorSaveSource } from "@/hooks/useContentEditorSaveSource";
 
 import { useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { useContentSaveFailure } from "@/hooks/useContentSaveFailure";
 import { saveCatalogItem } from "@/lib/content/catalogApi";
 import { ContentRecoveryLifecycle } from "@/lib/content/contentRecoveryLifecycle";
@@ -51,6 +53,8 @@ export function useSceneEffectSave(args: {
   ) => void;
   onSaved: (document: SceneEffectEditorDocument, savedItemId: string) => void;
 }) {
+  const apiClient = useProductApiClient();
+
   const {
     itemId,
     document,
@@ -60,7 +64,7 @@ export function useSceneEffectSave(args: {
     onRestore,
     onSaved,
   } = args;
-  const userId = useRuntimeOwnerId();
+  const userId = useRuntimeCacheKey();
   const existing = useSceneEffect(itemId ?? null).data;
   const {
     target: saveTargetFor,
@@ -244,7 +248,7 @@ export function useSceneEffectSave(args: {
         }),
       );
       setStage("validating");
-      const item = await saveCatalogItem({
+      const item = await saveCatalogItem(apiClient, {
         kind: "scene_effect",
         entryName: displayName,
         files,
@@ -307,6 +311,7 @@ export function useSceneEffectSave(args: {
       controllerRef.current = null;
     }
   }, [
+    apiClient,
     busy,
     captureSaveFailure,
     clearSaveFailure,

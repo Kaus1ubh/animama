@@ -93,7 +93,7 @@ contract instead of maintaining a second truth.
 
 - [x] 2026-10-05 [A1 / #273](https://github.com/raymond-van/animama/issues/273): agent-verified contracts/complete action map; required checks and independent review #1 passed, repairs 0 of 2. Phase commit recorded below; the consumer requirements gate C1 has passed.
 - [ ] 2026-10-05 [A2 / #274](https://github.com/raymond-van/animama/issues/274): agent-verified at `c4cd0ef621b5e10a10cf9a29bf806db8f149cd86`; targeted independent review #2 and clean installed-wheel gate passed after repair round 1 of 2. Neutral services are ready for isolated consumer C2 entry.
-- [ ] 2026-10-05 [A3 / #275](https://github.com/raymond-van/animama/issues/275): in progress from `3006ca3f3c5c6b68c0287cec41dc635f8a94969e`; shared admission/transport/session composition runs alongside A2 after the passing C1 handoff.
+- [x] 2026-10-05 [A3 / #275](https://github.com/raymond-van/animama/issues/275): targeted review#2 PASS; repair1of2 resolved chat session-cache and durable recovery cleanup. Verified phase commit/handoff follows.
 - [ ] 2026-10-05 [A4 / #276](https://github.com/raymond-van/animama/issues/276): planned; depends on A2 and A3.
 - [ ] 2026-10-05 [A5 / #277](https://github.com/raymond-van/animama/issues/277): planned; depends on A4 and its prerequisites.
 - [ ] 2026-10-05 [A6 / #278](https://github.com/raymond-van/animama/issues/278): planned; depends on A5/all public gates; coordinate with C6 without requiring a future main pin.
@@ -596,12 +596,41 @@ Repair rounds used at initial review: 0 of 2.
 
 A3-R1 and A3-R2 are **accepted** after root verified the cache readers/writer
 and the persisted-recovery implementation/reproduction against R5 and A3.
-Combined repair round 1 of 2 is in progress. Add observable distinct-owner/session
-stream completion and invalidation regressions, plus real IndexedDB purge/late
-write regressions for all three creators. Refresh affected package/browser/static
-checks, retain unchanged source-bound evidence, freeze the repaired boundary and
-request targeted review #2. A3 and its A4 dependent gate remain incomplete.
+Combined repair round1of2 is implemented and targeted review#2 PASS.
+Distinct-owner/session stream completion and invalidation regressions reproduce
+and fix the cache partition. Real IndexedDB tests reproduce retained private
+bytes, then verify all three stores, pending/queued writes, delayed failures and
+fallback fencing. Local and unrelated namespaces remain intact. Awaited cleanup
+also required fencing an older admission result so it cannot replace a newer ready
+scope; its red/green regression passes. No further A3 correction is required.
 No additional product exception or paid/provider/device claim is introduced.
+
+#### Code Review #2 Findings
+
+Independent targeted analysis (`animama_boundary`) and checks (`cloud_runtime`)
+**PASS** for232 paths, aggregate
+`fcc229131bae48418e27ee8dbd4486a76ce9600fdc195a10172f4b0abe2606bc`.
+The19-path repair delta resolves A3-R1 and A3-R2 with no required regression.
+Both reviewers verified all hashes before/after; root's new A2 backend correction
+and plan edits are outside this boundary. The original analysis agent could not
+resume under the thread limit; its accepted finding IDs and persistent budget
+were handed to an independent replacement, without another broad audit.
+Independent checks reran three real Chromium regressions: mounted distinct-session
+chat completion and two durable recovery/race scenarios; all pass with no skips.
+Repair rounds used:1of2; one remains.
+
+#### Code Review #2 Revisions
+
+No further changes required. Fresh source-stable check (web/desktop TypeScript),
+lint, package checks,24 package tests, local and hosted builds,13 files/71 affected
+unit tests, all36 browser fixtures, eight repository guards, formatting/docs-link/
+whitespace checks pass. All188 SDK calls have explicit admitted clients. Hosted
+index and ten entry resources exist. Unchanged full2494-unit/34-browser baseline
+is reused; it is not reported as rerun after the repair. Browser fixtures use
+loopback Vite/headless Chromium with intercepted HTTP and simulated microphones;
+real Cloud, provider, physical audio/avatar fidelity and native acceptance remain
+separate. A3 is ready for its phase commit. A4 still requires the clean corrected
+A2 installed-wheel handoff and then advances automatically.
 
 ### Phase 4: Verify every retained workflow and browser resource lifetime (A4)
 

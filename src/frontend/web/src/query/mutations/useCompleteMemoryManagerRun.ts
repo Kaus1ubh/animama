@@ -1,10 +1,12 @@
 "use client";
 
+import { useProductApiClient } from "@animama/product-ui";
+
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { completeMemoryManagerRunV1MemoryManagerRunsRunIdCompletePost } from "@animama/runtime-contracts/sdk";
 import type { PyMemoryManagerRunResponse } from "@/lib/content/catalogTypes";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { MemoryManagerApiError } from "@/lib/memory-manager/errors";
 import { queryKeys } from "@/query/keys";
 
@@ -14,8 +16,10 @@ export type CompleteMemoryManagerRunArgs = {
 
 /** Completes an owned memory-manager run after pending approvals are resolved. */
 export function useCompleteMemoryManagerRun() {
+  const apiClient = useProductApiClient();
+
   const queryClient = useQueryClient();
-  const userId = useRuntimeOwnerId();
+  const userId = useRuntimeCacheKey();
   const userKey = userId ?? "__anon__";
 
   return useMutation<
@@ -26,6 +30,7 @@ export function useCompleteMemoryManagerRun() {
     mutationFn: async ({ runId }) => {
       const result =
         await completeMemoryManagerRunV1MemoryManagerRunsRunIdCompletePost({
+          client: apiClient,
           path: { run_id: runId },
           responseValidator: undefined,
           throwOnError: false,

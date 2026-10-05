@@ -1,5 +1,7 @@
 "use client";
 
+import { useProductApiClient } from "@animama/product-ui";
+
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useMemo, useRef } from "react";
 
@@ -9,7 +11,7 @@ import type {
   PyPreparedPreviewRoot,
   PyTypedContentPreview,
 } from "@animama/runtime-contracts/api-types";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { typedPreviewTransport } from "@/lib/content/catalogApi";
 import type {
   PyContentDependency,
@@ -138,7 +140,9 @@ export function useActionComponentPreviews(
   dependencies: readonly PyContentDependency[],
   options: { enabled?: boolean } = {},
 ) {
-  const userId = useRuntimeOwnerId();
+  const apiClient = useProductApiClient();
+
+  const userId = useRuntimeCacheKey();
   const digest = actionComponentPreviewDigest(dependencies);
   const roots = useMemo(
     () => actionComponentPreviewRequestRoots(dependencies),
@@ -168,6 +172,7 @@ export function useActionComponentPreviews(
     queryFn: async ({ signal }) =>
       (
         await prepareContentPreviews({
+          client: apiClient,
           body: { schema_version: 1, roots },
           signal,
           throwOnError: true,

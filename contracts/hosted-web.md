@@ -1,8 +1,9 @@
 # Common web composition and hosted artifact contracts
 
 This is the A1 contract handoff for [#272](https://github.com/raymond-van/animama/issues/272).
-The shared capability schema and TypeScript interfaces are implemented; application
-composition, resource delivery and artifact production follow in A2–A5. The
+The shared capability schema, TypeScript interfaces and explicit browser
+compositions are implemented; resource delivery and artifact production follow
+in the remaining phases. The
 [coverage map](../docs/plans/hosted-web-parity/hosted-web-parity-coverage.md) assigns
 all retained actions. A consumer implements these contracts without importing
 local routes, installation state or a sibling checkout.
@@ -25,6 +26,12 @@ remains local. Hosted admission uses `/v1/hosted/runtime-context`, repair uses
 Hosted login/callback/logout, session cookies, CSRF and central account URLs remain
 consumer-owned HTTP behavior.
 
+The hosted context may additionally return `account_url`, an optional central
+account navigation URL. The browser accepts HTTPS or its own application origin,
+rejects embedded credentials, and shows an account-access error when it is absent
+or invalid. This field does not authorize API calls or alter the immutable entry
+document. The consumer supplies its configured central account URL.
+
 `RuntimeSession.key` changes on every admitted browser session lifetime, including
 sign-out/reauthentication to the same owner. It is an opaque browser partition key,
 not a bearer token, account ID or server owner selector. Owner changes, revoked
@@ -45,20 +52,21 @@ The sole wire schema is `app/contracts/runtime_capabilities.py`, exported offlin
 in `local-http` version **3.0.0** with capability `schema_version: 2`. The generated
 TypeScript `RuntimeCapabilities` and validator are the same contract.
 `ProductRuntimeCapabilities` is a derived `Pick` for the existing extracted chat
-surface, not another wire schema. Both affected TypeScript packages are version
-0.3.0. Consumers explicitly admit the new contract major before adoption.
+surface, not another wire schema. `runtime-contracts` is version 0.3.0 and
+`product-ui` is version 0.4.0. Consumers explicitly admit
+the new contract major before adoption.
 
 Permissions are separate from browser support and temporary errors:
 
-| Operation | Canonical permission | Hosted target |
-| --- | --- | --- |
-| Chat and operator-catalog model/role choice | `chat`, `model_selection`, `model_role_selection` | Retained; roles may select only admitted models. |
-| Anima creation and Anima-containing package import | `anima_creation` | False; creation-equivalent imports reject atomically before installing content. |
-| Chat attachment entry points, paste/drop and file APIs | `chat_file_uploads` | False; staged creator media is a separate retained API family. |
-| Document ingestion/OCR | `user_file_processing.enabled` | False; no processing enqueue or document originals route is admitted. |
-| Model connections/catalog administration and keys | `model_configuration`, `provider_credentials`, `web_search.configuration` | False; catalog/role reads and selections remain retained. |
-| Host paths, scans, file logs and server model installation | `local_filesystem_administration` | False; virtual memory paths, creator assets and browser model downloads remain retained. |
-| Electron/native controls | `native_features` | False; browser fullscreen/PiP use browser feature detection. |
+| Operation                                                  | Canonical permission                                                      | Hosted target                                                                            |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| Chat and operator-catalog model/role choice                | `chat`, `model_selection`, `model_role_selection`                         | Retained; roles may select only admitted models.                                         |
+| Anima creation and Anima-containing package import         | `anima_creation`                                                          | False; creation-equivalent imports reject atomically before installing content.          |
+| Chat attachment entry points, paste/drop and file APIs     | `chat_file_uploads`                                                       | False; staged creator media is a separate retained API family.                           |
+| Document ingestion/OCR                                     | `user_file_processing.enabled`                                            | False; no processing enqueue or document originals route is admitted.                    |
+| Model connections/catalog administration and keys          | `model_configuration`, `provider_credentials`, `web_search.configuration` | False; catalog/role reads and selections remain retained.                                |
+| Host paths, scans, file logs and server model installation | `local_filesystem_administration`                                         | False; virtual memory paths, creator assets and browser model downloads remain retained. |
+| Electron/native controls                                   | `native_features`                                                         | False; browser fullscreen/PiP use browser feature detection.                             |
 
 `offline_speech_enabled` and its versions describe current Parakeet availability,
 not permission to use voice. An absent optional set does not remove browser voice,
@@ -68,8 +76,8 @@ adding blanket permissions for implementation gaps. Unknown/missing capability
 responses keep hosted operations pending rather than granting permission. No
 frontend flag replaces server admission.
 
-Each SDK call uses its injected client/transport. The legacy default client is
-configured only by an entrypoint adapter, never by reusable packages. All browser
+Each SDK call uses its injected client/transport. Application compositions do not
+configure the compatibility default client. All browser
 API, SSE, byte and model requests stay on the application origin with cookies and
 the composition's mutation CSRF header. Owner IDs in cache keys/URLs are never
 trusted authority. Errors retain existing route contracts, including conflicts,
@@ -117,13 +125,13 @@ HTML revalidates. API/missing-resource requests never fall back to HTML.
 
 Resource decisions for the full app:
 
-| Resource | Delivery and integrity |
-| --- | --- |
-| Entry, chunks, workers, CSS/fonts/icons and reviewed small runtime art | Shipped in the closed app inventory; Vite dependencies and notices retained. |
-| Existing 21-file browser speech runtime | Preserve every pinned engine/model variant from `models/browser-runtime/manifest.json`. Ship verified engine/runtime and baseline Pocket/Smart Turn bytes; fetch model bytes only when voice requests them. A hosted build may not pass by silently omitting its speech models. |
-| Optional Pocket voice/language sets, cloning encoder and Parakeet CPU/WebGPU | Fixed, versioned lazy resource descriptors from the existing model manifests; separately admitted public model bytes from the application origin. Retain the browser download/readiness flow; no user-triggered global server install or arbitrary download URL. |
-| Included avatars, loadouts, appearances/effects and content dependencies | Consumer catalog/runtime services supply reviewed immutable source versions and authenticated manifests/bytes. No blanket copy of development `content/included` into the static app. Required starter behavior is verified separately. |
-| Owner VRM/image/audio/samples, drafts, exports and previews | Account-owned service bytes outside the static inventory and shared caches; ownership, quota, validation, leases and cleanup remain server-enforced. |
+| Resource                                                                     | Delivery and integrity                                                                                                                                                                                                                                                          |
+| ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Entry, chunks, workers, CSS/fonts/icons and reviewed small runtime art       | Shipped in the closed app inventory; Vite dependencies and notices retained.                                                                                                                                                                                                    |
+| Existing 21-file browser speech runtime                                      | Preserve every pinned engine/model variant from `models/browser-runtime/manifest.json`. Ship verified engine/runtime and baseline Pocket/Smart Turn bytes; fetch model bytes only when voice requests them. A hosted build may not pass by silently omitting its speech models. |
+| Optional Pocket voice/language sets, cloning encoder and Parakeet CPU/WebGPU | Fixed, versioned lazy resource descriptors from the existing model manifests; separately admitted public model bytes from the application origin. Retain the browser download/readiness flow; no user-triggered global server install or arbitrary download URL.                |
+| Included avatars, loadouts, appearances/effects and content dependencies     | Consumer catalog/runtime services supply reviewed immutable source versions and authenticated manifests/bytes. No blanket copy of development `content/included` into the static app. Required starter behavior is verified separately.                                         |
+| Owner VRM/image/audio/samples, drafts, exports and previews                  | Account-owned service bytes outside the static inventory and shared caches; ownership, quota, validation, leases and cleanup remain server-enforced.                                                                                                                            |
 
 A `lazy_resources` entry identifies the fixed resource ID, version, manifest
 SHA-256, same-origin route prefix and notice paths. It must resolve only the exact

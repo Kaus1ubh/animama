@@ -56,7 +56,7 @@ import {
 } from "../lib/emotion";
 import { getAnimaDisplayName } from "../lib/anima-profile";
 import {
-  useRuntimeOwnerId,
+  useRuntimeCacheKey,
   useProductRuntime,
 } from "../runtime/ProductRuntimeProvider";
 import {
@@ -232,8 +232,8 @@ export function useProductChatSession({
     useProductDiagnostics();
   const { capabilities } = useProductRuntime();
   const queryClient = useQueryClient();
-  const userId = useRuntimeOwnerId();
-  const userKey = userId ?? "__anon__";
+  // Completion and stream side effects use the same lifetime partition as the query hooks.
+  const userKey = useRuntimeCacheKey() ?? "__anon__";
 
   useEffect(() => {
     logger.info("Route", "Params updated", {
