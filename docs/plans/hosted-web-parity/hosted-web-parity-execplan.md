@@ -91,9 +91,9 @@ contract instead of maintaining a second truth.
 
 ## Progress
 
-- [x] 2026-10-05 [A1 / #273](https://github.com/raymond-van/animama/issues/273): agent-verified contracts/complete action map; required checks and independent review #1 passed, repairs 0 of 2. Phase commit recorded below; C1 is next.
-- [ ] 2026-10-05 [A2 / #274](https://github.com/raymond-van/animama/issues/274): planned; A1 and the hosted consumer requirements review C1 must pass first.
-- [ ] 2026-10-05 [A3 / #275](https://github.com/raymond-van/animama/issues/275): planned; A1 and C1 handoff first; may proceed alongside A2.
+- [x] 2026-10-05 [A1 / #273](https://github.com/raymond-van/animama/issues/273): agent-verified contracts/complete action map; required checks and independent review #1 passed, repairs 0 of 2. Phase commit recorded below; the consumer requirements gate C1 has passed.
+- [ ] 2026-10-05 [A2 / #274](https://github.com/raymond-van/animama/issues/274): in progress from `3006ca3f3c5c6b68c0287cec41dc635f8a94969e`; A1 and consumer requirements review C1 passed. Content ports and bounded provider/orchestration work run independently.
+- [ ] 2026-10-05 [A3 / #275](https://github.com/raymond-van/animama/issues/275): in progress from `3006ca3f3c5c6b68c0287cec41dc635f8a94969e`; shared admission/transport/session composition runs alongside A2 after the passing C1 handoff.
 - [ ] 2026-10-05 [A4 / #276](https://github.com/raymond-van/animama/issues/276): planned; depends on A2 and A3.
 - [ ] 2026-10-05 [A5 / #277](https://github.com/raymond-van/animama/issues/277): planned; depends on A4 and its prerequisites.
 - [ ] 2026-10-05 [A6 / #278](https://github.com/raymond-van/animama/issues/278): planned; depends on A5/all public gates; coordinate with C6 without requiring a future main pin.
@@ -166,7 +166,8 @@ passed. Do not close #272 at the public merge alone.
 
 Implementation will use the checks and explicit gates in each phase below.
 A1 is committed at `9ed028cfffd298707fade2636dd742d4454b36d5`; the C1
-consumer requirements review is in progress. A2/A3 remain gated on that handoff. All provider/device, artifact and release gates remain separate.
+consumer requirements review passed after one bounded repair round. A2/A3 are
+in progress from `3006ca3f3c5c6b68c0287cec41dc635f8a94969e`. All provider/device, artifact and release gates remain separate.
 
 Setup validation: all phase issue bodies, native parent memberships and dependency
 edges were read back from GitHub, including C1 before A2/A3. The published scope,
@@ -278,12 +279,48 @@ C-A1-01 accepted: corrected stale Outcomes when recording this review. This
 bookkeeping correction changes no implementation boundary or test result. No
 required fixes or deferred findings. Phase gate PASS; 2 repair rounds remain.
 A1 handoff is the checked-in capability/fixture, coverage ledger and contract
-design; hosted requirements review C1 must pass before A2/A3.
+design. Hosted requirements review C1 passed; A2/A3 are now in progress.
+
+### Consumer requirements handoff for A2/A3
+
+The consumer requirements/checks gate C1 passed on 2026-10-05 after one repair
+round. The public implementation uses these interface requirements without
+private source or checkout dependencies:
+
+- H1: explicitly owner-bound catalog and verified-byte access, including identical
+  locators under two owners; Included is read-only and Local is writable.
+- H2: injected publication/transaction authority; atomic visibility, revision
+  conflicts, immutable operation receipts, replay before staging lookup and
+  cancellation/ambiguous-commit recovery. Local scan/locking/journaling stays local.
+- H3: bounded opaque staging/import/export streams; traversal/hash/dependency/
+  expansion validation and cleanup. Reject Anima-bearing imports before installing
+  dependencies while retaining Anima export.
+- H4: reuse neutral runtime/loadout/presentation services and persistence where
+  sufficient; extract verified-byte/publication assumptions, preserve revisions,
+  finite leases and Included references.
+- H5: bounded model and nested tool/title/compaction/embedding/search/Memory
+  Manager/Reflection dispatch with operation identity, preflight admission,
+  cancellation and actual usage/outcome. Unknown usage is not zero or undispatched.
+- H6: neutral chat success/safety/TTS orchestration with incognito, memory-disabled
+  and suppressed-response semantics; one ordered completion after admitted work.
+- H7: bounded STT/TTS, usage/uncertainty and cancellation; owner-scoped voice/sample/
+  clone catalog interfaces as needed. Hosted paid speech uses a same-origin server
+  proxy without unbounded browser provider tokens. Preserve browser model readiness,
+  encoding/download continuation and retained engines.
+- H8: reuse settings/profile/manual-memory services, logical owner/Anima paths,
+  conflict/history/repair/reset semantics and canonical model/role authority.
+- H9: composition-owned cookie/CSRF transport before React; A1 admission states and
+  no local bootstrap calls in hosted. Fresh session keys for same-owner reauth,
+  fenced late requests and private cache/draft/resource disposal on sign-out.
+
+These requirements supply A2/A3 implementation inputs; they do not claim consumer
+APIs, actual providers, physical audio or hosted deployment already work.
 
 ### Phase 2: Make retained backend behavior composition-independent (A2)
 
 Scope: R3–R10 and R12; depends on A1 and the C1 requirements handoff.
-Issue: [A2 / #274](https://github.com/raymond-van/animama/issues/274); implementation source/commit pending. Supply reusable services and ports needed by the mapped hosted workflows,
+Issue: [A2 / #274](https://github.com/raymond-van/animama/issues/274); starting source
+`3006ca3f3c5c6b68c0287cec41dc635f8a94969e`; implementation commit pending. Supply reusable services and ports needed by the mapped hosted workflows,
 without importing local installation or HTTP composition into shared code.
 
 Refactor the actual blocking assumptions in `app/ports/content_store.py`,
@@ -340,7 +377,8 @@ None. Record dispositions, fixes and affected local/shared checks.
 ### Phase 3: Compose one router and application shell (A3)
 
 Scope: R1–R6 and R12; depends on A1 and C1's requirements handoff, then may
-run alongside A2. Issue: [A3 / #275](https://github.com/raymond-van/animama/issues/275); implementation source/commit pending. Add `src/frontend/web/src/main.hosted.tsx` as a thin new entrypoint beside
+run alongside A2. Issue: [A3 / #275](https://github.com/raymond-van/animama/issues/275); starting source
+`3006ca3f3c5c6b68c0287cec41dc635f8a94969e`; implementation commit pending. Add `src/frontend/web/src/main.hosted.tsx` as a thin new entrypoint beside
 `main.local.tsx`. Share `AppProviders`, the product router/screens and styles.
 Explicit build inputs select adapters; do not add `VITE_*` local/hosted product flags.
 
@@ -605,8 +643,9 @@ contracts; the coverage map tracks acceptance rather than duplicating the spec.
 ## Outcomes & Retrospective
 
 A1 contracts and the complete action/settings/route map are agent-verified.
-Full coordinated implementation is authorized. The next phase is C1, whose
-tenancy/cost/resource handoff gates A2/A3. No product UI cutover, hosted deployment
+Full coordinated implementation is authorized. The C1 tenancy/cost/resource
+requirements gate passed; A2 content/provider services and A3 browser composition
+are in progress in parallel. No product UI cutover, hosted deployment
 or actual parity acceptance has occurred. Product scope is resolved. Remaining
 engineering determinations are the concrete compatible artifact schema and
 resource inventory, individual service seams and measured resource budgets;
