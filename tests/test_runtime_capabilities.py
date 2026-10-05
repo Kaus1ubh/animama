@@ -271,6 +271,10 @@ async def test_local_composition_reports_uploads_and_anima_creation(async_sessio
         body = (await client.get("/v1/runtime-capabilities")).json()
     assert body["runtime_kind"] == ("desktop" if desktop_token else "self_hosted_web")
     assert (body["chat_file_uploads"], body["anima_creation"]) == (True, True)
+    assert body["schema_version"] == 2
+    assert body["chat"] and body["model_selection"] and body["model_role_selection"]
+    assert body["provider_credentials"] and body["local_filesystem_administration"]
+    assert body["native_features"] is bool(desktop_token)
 
 
 def test_capability_contract_is_neutral_and_admits_hosted_presentation():
@@ -295,3 +299,47 @@ def test_capability_contract_is_neutral_and_admits_hosted_presentation():
     assert getattr(route, "response_model", None) is contract.RuntimeCapabilities
     for flag in ("chat_file_uploads", "anima_creation"):
         assert contract.RuntimeCapabilities.model_fields[flag].is_required()
+
+
+def test_hosted_parity_contract_keeps_choices_independent_of_administration():
+    """The six exceptions never imply loss of chat or operator-catalog choices."""
+
+    import json
+    from pathlib import Path
+
+    from animama.app.contracts.runtime_capabilities import RuntimeCapabilities
+
+    fixture = Path(__file__).parents[1] / "contracts/runtime-capabilities/hosted.json"
+    capabilities = RuntimeCapabilities.model_validate(json.loads(fixture.read_text()))
+    assert capabilities.schema_version == 2
+    assert capabilities.chat is True
+    assert capabilities.model_selection is True
+    assert capabilities.model_role_selection is True
+    assert capabilities.anima_creation is False
+    assert capabilities.chat_file_uploads is False
+    assert capabilities.user_file_processing.enabled is False
+    assert capabilities.model_configuration is False
+    assert capabilities.provider_credentials is False
+    assert capabilities.web_search.configuration is False
+    assert capabilities.local_filesystem_administration is False
+    assert capabilities.native_features is False
+
+
+@pytest.mark.parametrize(
+    "flag",
+    [
+        "chat",
+        "model_selection",
+        "model_role_selection",
+        "provider_credentials",
+        "local_filesystem_administration",
+        "native_features",
+    ],
+)
+def test_compositions_explicitly_report_parity_permissions(flag):
+    """Absent permission must not silently enable or hide a hosted workflow."""
+
+    from animama.app.contracts.runtime_capabilities import RuntimeCapabilities
+
+    assert flag in RuntimeCapabilities.model_fields
+    assert RuntimeCapabilities.model_fields[flag].is_required()

@@ -1,5 +1,9 @@
 # 0005: Client-rendered UI and local native composition
 
+[ADR 0014](0014-common-web-application-and-hosted-artifact.md) extends the UI reuse
+decision to the complete browser application and its hosted static artifact.
+The local/native supervision and acceptance boundaries below remain applicable.
+
 - Status: accepted
 - Recorded: 2026-09-17
 - Retrospective: yes

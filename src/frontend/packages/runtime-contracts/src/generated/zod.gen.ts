@@ -6078,9 +6078,14 @@ export const zWebSearchCapability = z.object({
  */
 export const zRuntimeCapabilities = z.object({
     anima_creation: z.boolean(),
+    chat: z.boolean(),
     chat_file_uploads: z.boolean(),
     companion_safety: zCompanionSafetyCapability,
+    local_filesystem_administration: z.boolean(),
     model_configuration: z.optional(z.boolean()).default(false),
+    model_role_selection: z.boolean(),
+    model_selection: z.boolean(),
+    native_features: z.boolean(),
     offline_speech_asset_version: z.union([
         z.string(),
         z.null()
@@ -6090,12 +6095,13 @@ export const zRuntimeCapabilities = z.object({
         z.string(),
         z.null()
     ])),
+    provider_credentials: z.boolean(),
     runtime_kind: z.enum([
         'desktop',
         'self_hosted_web',
         'hosted'
     ]),
-    schema_version: z.optional(z.literal(1)).default(1),
+    schema_version: z.optional(z.literal(2)).default(2),
     user_file_processing: zUserFileProcessingCapability,
     web_search: z.optional(zWebSearchCapability)
 });

@@ -11,11 +11,11 @@ the coordinated execution order and workspace setup. The initial spec snapshot
 is retained at `fab1acc9f01dde2cb1aa567df521ff6b4eb66335`; the reviewed initial
 plan is `6ddf2f2a20f2cad07d376dd4294fce2e0234ae1c`.
 
-Authorization: **workspace and tracker setup complete; implementation pending**.
-The owner requested the phase assignments and agreed implementation order on
-2026-10-05, with implementation to begin on a subsequent instruction. All A1–A6
-assignments exist; none has started. Use one branch and PR for this plan. This
-setup grants no merge, paid-call, artifact-promotion or deployment authority.
+Authorization: **A1–A6 implementation authorized on 2026-10-05**, coordinated
+with the hosted consumer plan in the agreed order. Workspace setup was verified
+at `339878dd81bea806359e4375732070e7745ec03d`; the assigned worktree and branch
+are clean and reused. Use one branch and PR for this plan. Merge, paid-call,
+artifact-promotion and deployment authority remain separate.
 #272 remains the product scope authority and combined progress record.
 Cloud owns a separate implementation plan and assignments. Public work must
 remain understandable and executable without access to that private plan.
@@ -91,7 +91,7 @@ contract instead of maintaining a second truth.
 
 ## Progress
 
-- [ ] 2026-10-05 [A1 / #273](https://github.com/raymond-van/animama/issues/273): ready for the next implementation instruction; no implementation checks or review run.
+- [x] 2026-10-05 [A1 / #273](https://github.com/raymond-van/animama/issues/273): agent-verified contracts/complete action map; required checks and independent review #1 passed, repairs 0 of 2. Phase commit recorded below; C1 is next.
 - [ ] 2026-10-05 [A2 / #274](https://github.com/raymond-van/animama/issues/274): planned; A1 and the hosted consumer requirements review C1 must pass first.
 - [ ] 2026-10-05 [A3 / #275](https://github.com/raymond-van/animama/issues/275): planned; A1 and C1 handoff first; may proceed alongside A2.
 - [ ] 2026-10-05 [A4 / #276](https://github.com/raymond-van/animama/issues/276): planned; depends on A2 and A3.
@@ -165,7 +165,7 @@ remaining gates and next ready phase. An unchecked phase means its gate has not
 passed. Do not close #272 at the public merge alone.
 
 Implementation will use the checks and explicit gates in each phase below.
-The immediate next assignment is A1, followed by the C1 consumer requirements
+A1 is agent-verified, followed by the C1 consumer requirements
 review. All provider/device, artifact and release gates remain separate.
 
 Setup validation: all phase issue bodies, native parent memberships and dependency
@@ -238,17 +238,47 @@ phase. New exclusions, altered memory meaning or changes to existing security
 authority require a product decision before dependent work. No implementation
 detail in this phase authorizes a hosted resource purchase or paid test.
 
-Evidence and implementation commit: pending; assignment [A1 / #273](https://github.com/raymond-van/animama/issues/273). Recovery: keep changes additive where possible;
+Starting source: `339878dd81bea806359e4375732070e7745ec03d`. Implemented the
+[coverage ledger](hosted-web-parity-coverage.md) and
+[composition/resource contract](../../../contracts/hosted-web.md). The canonical
+capability schema is version 2; offline `local-http` is 3.0.0. TypeScript contracts
+and product UI are 0.3.0; the extracted chat capability is derived from generated
+HTTP types. ADR 0014 records the approved full-app reuse and catalog-role choice.
+
+TDD: seven Python capability cases failed for absent fields/schema, then passed;
+the generated validator fixture failed on schema version 1, then passed on version
+2. Documentation/type-only interface design uses schema, declaration, source-map
+and link checks instead of invented runtime tests. A3 owns actual admission/UI
+and lifetime implementation. No behavior in a subsequent phase is claimed done.
+
+Local checks: capability/shared-boundary pytest **28 passed** (73 pre-existing
+warnings); `pnpm openapi-ts` and `pnpm openapi-ts:check` passed (17 generated files);
+`pnpm packages:build`, `pnpm packages:check`, `pnpm packages:test` passed (runtime
+contracts 3 cases, inert Discover fixtures and 19 mounted chat lifecycle cases).
+Selected Ruff format/lint passed; Python boundary found zero forbidden edges.
+`pnpm web:check` passed. Independent analysis and check review #1 passed; no
+implementation blocker and no repair round used.
+No full backend regression, live provider, physical audio, deployed hosted/browser
+parity or CI evidence exists for this phase. Implementation commit pending; assignment [A1 / #273](https://github.com/raymond-van/animama/issues/273). Recovery: keep changes additive where possible;
 revert the candidate contract and fixture changes together before adoption.
 
 #### Code Review #1 Findings
 
-Not run. Record exact source, independent reviewers, checks and numbered findings.
-Repair rounds used: 0 of 2.
+Reviewed all intended staged/unstaged/untracked A1 paths against starting source
+`339878dd81bea806359e4375732070e7745ec03d`. Independent analysis: `cloud_runtime`;
+independent read-only checks: `animama_boundary`. No implementation findings.
+Checks verified 38 route files/IDs, all searchable settings IDs, local links, JSON,
+privacy, package/schema versions, selected formatting/whitespace and the current
+passing test/SDK/type receipts. C-A1-01 advisory: stale Outcomes claimed work had
+not started. Repair rounds used: 0 of 2.
 
 #### Code Review #1 Revisions
 
-None. Record accepted/rejected/deferred findings, reasons, fixes and affected checks.
+C-A1-01 accepted: corrected stale Outcomes when recording this review. This
+bookkeeping correction changes no implementation boundary or test result. No
+required fixes or deferred findings. Phase gate PASS; 2 repair rounds remain.
+A1 handoff is the checked-in capability/fixture, coverage ledger and contract
+design; hosted requirements review C1 must pass before A2/A3.
 
 ### Phase 2: Make retained backend behavior composition-independent (A2)
 
@@ -574,9 +604,10 @@ contracts; the coverage map tracks acceptance rather than duplicating the spec.
 
 ## Outcomes & Retrospective
 
-Workspace and tracker setup are complete; implementation has not started.
-The owner agreed the coordinated order and requested all phase assignments.
-The next implementation instruction starts A1, then C1. Product scope is resolved. Remaining
+A1 contracts and the complete action/settings/route map are agent-verified.
+Full coordinated implementation is authorized. The next phase is C1, whose
+tenancy/cost/resource handoff gates A2/A3. No product UI cutover, hosted deployment
+or actual parity acceptance has occurred. Product scope is resolved. Remaining
 engineering determinations are the concrete compatible artifact schema and
 resource inventory, individual service seams and measured resource budgets;
 A1/A5 and the consumer's policy work resolve these before dependent acceptance.

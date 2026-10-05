@@ -9020,14 +9020,34 @@ export type RuntimeCapabilities = {
      */
     anima_creation: boolean;
     /**
+     * Chat
+     */
+    chat: boolean;
+    /**
      * Chat File Uploads
      */
     chat_file_uploads: boolean;
     companion_safety: CompanionSafetyCapability;
     /**
+     * Local Filesystem Administration
+     */
+    local_filesystem_administration: boolean;
+    /**
      * Model Configuration
      */
     model_configuration?: boolean;
+    /**
+     * Model Role Selection
+     */
+    model_role_selection: boolean;
+    /**
+     * Model Selection
+     */
+    model_selection: boolean;
+    /**
+     * Native Features
+     */
+    native_features: boolean;
     /**
      * Offline Speech Asset Version
      */
@@ -9041,13 +9061,17 @@ export type RuntimeCapabilities = {
      */
     offline_speech_gpu_asset_version?: string | null;
     /**
+     * Provider Credentials
+     */
+    provider_credentials: boolean;
+    /**
      * Runtime Kind
      */
     runtime_kind: 'desktop' | 'self_hosted_web' | 'hosted';
     /**
      * Schema Version
      */
-    schema_version?: 1;
+    schema_version?: 2;
     user_file_processing: UserFileProcessingCapability;
     web_search?: WebSearchCapability;
 };
@@ -9217,7 +9241,7 @@ export type CreateAnimaV1AnimasPostErrors = {
      */
     410: AnimaCreationErrorResponse;
     /**
-     * Unprocessable Entity
+     * Unprocessable Content
      */
     422: AnimaCreationErrorResponse;
     /**
@@ -9270,7 +9294,7 @@ export type GetAnimaCreationOptionsV1AnimasCreationOptionsGetErrors = {
      */
     410: AnimaCreationErrorResponse;
     /**
-     * Unprocessable Entity
+     * Unprocessable Content
      */
     422: AnimaCreationErrorResponse;
     /**
@@ -9319,7 +9343,7 @@ export type EnsureAnimaStartersV1AnimasStartersEnsurePostErrors = {
      */
     410: AnimaCreationErrorResponse;
     /**
-     * Unprocessable Entity
+     * Unprocessable Content
      */
     422: AnimaCreationErrorResponse;
     /**
@@ -10486,7 +10510,7 @@ export type ValidateAnimaV1AnimasValidatePostErrors = {
      */
     410: AnimaCreationErrorResponse;
     /**
-     * Unprocessable Entity
+     * Unprocessable Content
      */
     422: AnimaCreationErrorResponse;
     /**
