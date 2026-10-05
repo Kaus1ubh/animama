@@ -165,8 +165,8 @@ remaining gates and next ready phase. An unchecked phase means its gate has not
 passed. Do not close #272 at the public merge alone.
 
 Implementation will use the checks and explicit gates in each phase below.
-A1 is agent-verified, followed by the C1 consumer requirements
-review. All provider/device, artifact and release gates remain separate.
+A1 is committed at `9ed028cfffd298707fade2636dd742d4454b36d5`; the C1
+consumer requirements review is in progress. A2/A3 remain gated on that handoff. All provider/device, artifact and release gates remain separate.
 
 Setup validation: all phase issue bodies, native parent memberships and dependency
 edges were read back from GitHub, including C1 before A2/A3. The published scope,
@@ -259,7 +259,7 @@ Selected Ruff format/lint passed; Python boundary found zero forbidden edges.
 `pnpm web:check` passed. Independent analysis and check review #1 passed; no
 implementation blocker and no repair round used.
 No full backend regression, live provider, physical audio, deployed hosted/browser
-parity or CI evidence exists for this phase. Implementation commit pending; assignment [A1 / #273](https://github.com/raymond-van/animama/issues/273). Recovery: keep changes additive where possible;
+parity or CI evidence exists for this phase. Implementation commit: `9ed028cfffd298707fade2636dd742d4454b36d5`; assignment [A1 / #273](https://github.com/raymond-van/animama/issues/273). Recovery: keep changes additive where possible;
 revert the candidate contract and fixture changes together before adoption.
 
 #### Code Review #1 Findings
