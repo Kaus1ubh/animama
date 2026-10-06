@@ -5,6 +5,12 @@ import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { runMotionCli } from "./cli";
+import {
+  addReviewNote,
+  createReviewSidecar,
+  saveReviewSidecar,
+} from "./preview/reviewNotes";
+import { sourceVersion } from "./preview/sources";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const avatarDirectory = path.resolve(
@@ -69,4 +75,41 @@ describe("runMotionCli", () => {
     expect((await run(["check", bad, "--colour", "x"])).code).toBe(2);
     expect((await run(["generate", bad, "--out"])).code).toBe(2);
   }, 30000);
+
+  it("lists review notes and resolves one with the changed source's version", async () => {
+    const dir = await tempDirectory();
+    const source = path.join(dir, "laugh.clip.json");
+    const notes = path.join(dir, "laugh.clip.review.json");
+    await writeFile(source, "first");
+    await saveReviewSidecar(
+      notes,
+      addReviewNote(
+        createReviewSidecar("laugh.clip.json"),
+        { time: 1.25, region: "rightHand", text: "slap the thigh here" },
+        { version: sourceVersion("first"), id: () => "n1" },
+      ),
+    );
+
+    const listed = await run(["review", notes]);
+    expect(listed.code).toBe(0);
+    expect(listed.output).toContain("1 open, 0 resolved");
+    expect(listed.output).toContain("n1  open");
+    expect(listed.output).toContain("slap the thigh here");
+
+    await writeFile(source, "second");
+    const resolved = await run(["resolve", notes, "n1", "Added", "a", "slap"]);
+    expect(resolved.code).toBe(0);
+    const sidecar = JSON.parse(await readFile(notes, "utf8"));
+    expect(sidecar.notes[0]).toMatchObject({
+      status: "resolved",
+      resolution: "Added a slap",
+      resolvedVersion: sourceVersion("second"),
+    });
+    expect(sidecar.versions.map(({ id }: { id: string }) => id)).toEqual([
+      sourceVersion("second"),
+    ]);
+    expect((await run(["resolve", notes, "missing", "x"])).code).toBe(1);
+    expect((await run(["resolve", notes])).code).toBe(2);
+    expect((await run(["review", path.join(dir, "none.json")])).code).toBe(1);
+  });
 });

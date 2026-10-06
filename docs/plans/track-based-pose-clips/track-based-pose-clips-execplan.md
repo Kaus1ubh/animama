@@ -94,7 +94,8 @@ prototype.
       phase issues #289, #292, #290, #293, #294, #295 and #291 created as
       sub-issues with dependencies; branch pushed. Task stack: started when a
       phase first needs it.
-- [ ] Phase 1: Interactive motion preview tool (1.0).
+- [x] Phase 1: Interactive motion preview tool (1.0). Review #2 passed;
+      commit recorded in the Phase 1 record.
 - [ ] Phase 2: `animaPoseClip/2.0` format, sampler and 1.0 conversion.
 - [ ] Phase 3: Runtime and backend acceptance of 2.0.
 - [ ] Phase 4: Authoring tools, migrated examples and skill. Gate G1.
@@ -208,8 +209,9 @@ arrives in Phase 3. Dependency: preparation.
      `{schema, source, notes[], versions[]}`.
    - Note fields: `{id, createdAt, time, beat?, region?, text, version,
      status, resolution?, resolvedVersion?}`.
-   - Retained versions go in a sibling `<name>.review/<versionId>.json`; the
-     version id is a content hash.
+   - Retained versions go in a sibling folder named after the sidecar without
+     `.json`, one `<version>.txt` of source text each; the version id is a
+     content hash.
    - Writes are atomic (temp file then rename) and validated. A malformed
      sidecar is reported, never overwritten.
    - Test: add, resolve, version retention, Library-item sidecar placement and
@@ -260,6 +262,118 @@ Manual: run the tool on the hearty-laugh description, an Included Gesture
 screenshots.
 
 Completion: all R1 behaviors work on 1.0 sources; review passes.
+
+#### Phase 1 record
+
+Starting source: `15101453`. Issue #289.
+
+#### Code Review #1 Findings
+
+`sdlc-reviewer`, full review of the uncommitted Phase 1 working tree against
+`15101453`. Its checks: focused vitest (97 tests), `check:source`, ESLint and
+Prettier on the changed files, and the preview browser test, all passing.
+Scratch probes reproduced P1-F1 and P1-F3.
+
+- **P1-F1 (blocking):** review notes and resolutions could be lost.
+  - Note edits and version retention wrote whole sidecars from in-memory state,
+    with no re-read and no ordering against reloads.
+  - An unwatchable notes folder (`--notes` into a missing directory) hid the
+    agent's resolutions.
+- **P1-F2 (blocking):** scrubbing clamped looping rows to their last frame,
+  and an all-loop wrap did not re-align shorter loops with the playhead.
+- **P1-F3 (blocking):** a `--notes` path without `.json` made the versions
+  folder the sidecar path itself.
+- **Non-blocking:**
+  - P1-N1: Vite CORS allowed other local origins to read GET state.
+  - P1-N2: "previous version" showed an intermediate agent save.
+  - P1-N3: markers are dropped for baked clips of more than 40 keyframes.
+  - P1-N4: docs named sidecars inaccurately.
+  - P1-N5: concurrent page state updates could duplicate Avatars.
+  - P1-N6: note ids could collide.
+  - P1-N7: test gaps (mutes on seek, scrubbing).
+  - P1-N8: Reactions preview through `PoseController`.
+  - P1-N9: duplicated layer list.
+
+#### Code Review #1 Revisions
+
+- **P1-F1, accepted:**
+  - `PreviewSession` serialises reloads and note edits through one queue.
+  - Every note edit and version retention re-reads the sidecar from disk
+    first.
+  - Opening a session creates the notes folder so it can be watched.
+  - Storage errors during retention now show as notes errors, not source
+    errors.
+  - Tests: notes written by another process survive a new note; a note added
+    during a changed-source reload is kept, along with both versions; an
+    explicit notes folder is created.
+- **P1-F2, accepted:** looping rows seek through `seekClip`'s own wrap, and an
+  all-loop wrap re-seeks every row to the playhead.
+- **P1-F3, accepted:** the versions folder is the sidecar path without `.json`,
+  or `<file>.versions`. A test was added.
+- **P1-N1, accepted:** `server.cors: false`, one exact Host check, and any
+  request carrying an `Origin` must match ours.
+- **P1-N2, accepted:** the comparison row is the version the latest note was
+  made against ("Reviewed version"), falling back to the one before the
+  current version.
+- **P1-N4, accepted:** the sidecar naming and Library placement are corrected
+  in the skill, CLI usage and runtime guide. Retained versions are stored as
+  `<version>.txt` (source text) in `<sidecar name>/`.
+- **P1-N5, accepted:** page state updates are applied one at a time.
+- **P1-N6, accepted:** note ids use `crypto.randomUUID()`.
+- **P1-N7, accepted:** the seek test asserts mutes at a sought time, and the
+  browser test scrubs and checks the paused playhead.
+- **P1-N9, accepted:** live-layer toggling iterates the Avatar's own layers.
+- **P1-N3, deferred to Phase 3:** 2.0 clips show their beats. Baked 1.0 bakes
+  are retired in Phase 4.
+- **P1-N8, accepted as a Phase 1 limit:** Reactions play through the Gesture
+  path in the preview. This is revisited when Reactions move to 2.0 in
+  Phase 3.
+
+Verification after the revisions:
+
+- focused vitest: preview modules and CLI, 31 tests; seek, 6 tests;
+- `check:source`, ESLint and Prettier on the changed files: pass;
+- the preview browser test: pass.
+
+#### Code Review #2 Findings
+
+`sdlc-reviewer`, repair round 1: a targeted recheck of the review #1
+dispositions on the same working tree.
+
+- **Result: pass.** P1-F1, P1-F2 and P1-F3 are fixed. Probes of the real
+  server, the `animation resolve` CLI and raw HTTP confirmed:
+  - interleaved notes and reloads kept every note and version;
+  - an external resolve survives;
+  - non-`.json` notes paths work;
+  - the origin and Host checks behave as intended.
+- **Optional findings:**
+  - P1-R1: a version that fails to retain while the notes file is broken is
+    not retained later.
+  - P1-N5 residual: the "Previous version" toggle syncs cells outside the
+    state queue, and an older SSE state can be applied last.
+  - Cross-process races between the server and `animation resolve` lose an
+    edit inside a few-millisecond window.
+  - P1-R2: a hand-typed `localhost` URL gets 403.
+  - Stale plan step text about retained versions.
+
+Checks:
+
+- vitest on motion authoring and seek: 101 tests;
+- `check:source`, ESLint and Prettier: pass;
+- the preview browser test: pass.
+
+#### Code Review #2 Revisions
+
+- **P1-R1 and P1-N5 residual:** deferred to Phase 3, which reworks the
+  preview for 2.0 and runs its own review.
+  - Retain whenever the current version is missing from the notes.
+  - Route the toggle through the state queue and drop stale generations.
+- **Cross-process race:** accepted. Human note rates make it negligible for a
+  local tool.
+- **P1-R2:** accepted. The tool prints and opens the `127.0.0.1` URL.
+- **Plan text:** the step text is corrected.
+
+Phase 1 passes its review (one repair round used).
 
 ### Phase 2 — `animaPoseClip/2.0` format, sampler and conversion (R2, R7, R11 ADR and glossary)
 

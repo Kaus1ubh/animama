@@ -32,6 +32,15 @@ import {
   type IncludedAvatarId,
 } from "./headlessVrm";
 import { Quaternion } from "three";
+import {
+  loadReviewSidecar,
+  resolveReviewNote,
+  retainReviewVersion,
+  reviewPathsFor,
+  saveReviewSidecar,
+  type ReviewSidecar,
+} from "./preview/reviewNotes";
+import { sourceVersion } from "./preview/sources";
 
 export type MotionCliContext = {
   /** Directory holding the Included `.vrm` files. */
@@ -50,7 +59,11 @@ Commands:
                               Validate a motion description and bake a Gesture clip.
   check <motion.json | clip.json> [--description <motion.json>] [--json]
                               Run the motion checks on both Included Avatars.
-                              A description supplies contacts and plantFeet.`;
+                              A description supplies contacts and plantFeet.
+  review <notes.review.json>  List preview review notes with their ids and status.
+  resolve <notes.review.json> <note id> <resolution>
+                              Mark a note resolved by the reviewed source's
+                              current version (run after changing the source).`;
 
 /** Run a motion-authoring command. Returns the process exit code. */
 export async function runMotionCli(
@@ -69,6 +82,10 @@ export async function runMotionCli(
       return generate(rest, context);
     case "check":
       return check(rest, context);
+    case "review":
+      return review(rest, context);
+    case "resolve":
+      return resolve(rest, context);
     default:
       context.out(USAGE);
       return command === undefined || command === "help" ? 0 : 2;
@@ -149,6 +166,101 @@ async function generate(
     ].join("\n"),
   );
   return 0;
+}
+
+async function review(
+  args: readonly string[],
+  context: MotionCliContext,
+): Promise<number> {
+  if (args.length !== 1) {
+    context.out(USAGE);
+    return 2;
+  }
+  const loaded = await loadExistingSidecar(args[0], context);
+  if (!loaded) return 1;
+  context.out(formatReviewNotes(loaded.sidecar));
+  return 0;
+}
+
+async function resolve(
+  args: readonly string[],
+  context: MotionCliContext,
+): Promise<number> {
+  const [file, id, ...words] = args;
+  const resolution = words.join(" ").trim();
+  if (!file || !id || !resolution) {
+    context.out(USAGE);
+    return 2;
+  }
+  const loaded = await loadExistingSidecar(file, context);
+  if (!loaded) return 1;
+  const { sidecar, sidecarPath } = loaded;
+  const sourcePath = path.resolve(path.dirname(sidecarPath), sidecar.source);
+  let text: string;
+  try {
+    text = await readFile(sourcePath, "utf8");
+  } catch (error) {
+    context.out(`Cannot read the reviewed source: ${(error as Error).message}`);
+    return 1;
+  }
+  const version = sourceVersion(text);
+  const note = sidecar.notes.find((candidate) => candidate.id === id);
+  if (!note) {
+    context.out(`No review note "${id}". Run review to list them.`);
+    return 1;
+  }
+  if (note.version === version)
+    context.out(
+      `Note: ${displayPath(sourcePath, context.cwd)} has not changed since this note was made.`,
+    );
+  const paths = reviewPathsFor(
+    { kind: "file", path: sourcePath, name: "" },
+    { cwd: context.cwd, notes: sidecarPath },
+  );
+  // Retain the resolving version so the preview can compare it.
+  const next = resolveReviewNote(
+    await retainReviewVersion(sidecar, paths, version, text),
+    id,
+    resolution,
+    { version },
+  );
+  await saveReviewSidecar(sidecarPath, next);
+  context.out(`Resolved ${id} with source version ${version}.`);
+  return 0;
+}
+
+async function loadExistingSidecar(
+  file: string,
+  context: MotionCliContext,
+): Promise<{ sidecar: ReviewSidecar; sidecarPath: string } | null> {
+  const sidecarPath = path.resolve(context.cwd, file);
+  try {
+    await readFile(sidecarPath);
+    return {
+      sidecar: await loadReviewSidecar(sidecarPath, ""),
+      sidecarPath,
+    };
+  } catch (error) {
+    context.out(
+      (error as NodeJS.ErrnoException).code === "ENOENT"
+        ? `No review notes at ${file}.`
+        : (error as Error).message,
+    );
+    return null;
+  }
+}
+
+function formatReviewNotes(sidecar: ReviewSidecar): string {
+  const open = sidecar.notes.filter(({ status }) => status === "open").length;
+  return [
+    `${sidecar.source}: ${open} open, ${sidecar.notes.length - open} resolved`,
+    ...[...sidecar.notes]
+      .sort((a, b) => a.time - b.time)
+      .flatMap((note) => [
+        `  ${note.id}  ${note.status.padEnd(8)} ${note.time.toFixed(2)}s${note.beat ? ` · ${note.beat}` : ""}${note.region ? ` · ${note.region}` : ""}  ${note.text}`,
+        ...(note.resolution ? [`      → ${note.resolution}`] : []),
+      ]),
+  ].join("\n");
 }
 
 /** Accept only the named `--flag value` options; anything else is an error. */

@@ -513,6 +513,10 @@ Agent-authored Gestures start from a per-bone motion description
 - `pnpm -s animation check <motion|clip>` runs motion checks on both
   Included Avatars.
 - `pnpm -s animation:render <clip.json> --out <dir>` draws review sheets.
+- `pnpm -s animation:preview <source>` plays a description, clip or Library
+  item live on both Included Avatars through `Avatar`/`PoseController`. Review
+  notes are saved beside a file source (in the working directory for a Library
+  item); `animation review` and `animation resolve` manage them.
 
 The workflow, conventions and review guidance live in the
 `animama-animation` agent skill. The code is in

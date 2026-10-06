@@ -13,8 +13,8 @@ quaternions, bypass creator Save, or write into `content/included/`.
 
 Use `animama-vrm` for VRM, coordinate and runtime facts. Repository paths are
 relative to the Animama Git root. Commands run from `src/frontend/web`; in a
-fresh checkout run `pnpm install` in `src/frontend` first (a package build is
-not needed for these commands).
+fresh checkout run `pnpm install` and `pnpm packages:build` in `src/frontend`
+first.
 
 ## Workflow
 
@@ -38,10 +38,14 @@ not needed for these commands).
    grow fast; the output reports the saved size.
 4. **Check:** `pnpm -s animation check <file>.motion.json`. Fix every FAIL;
    treat WARN as a prompt to look. See [checks and review](references/checks-and-review.md).
-5. **Render and look:** `pnpm -s animation:render <clip.json> --out <dir>`
-   (add `--times` for beats and `--side left` for left-handed action). Inspect
-   front, ¾, side and face views on both Avatars. Revise and repeat from step 2
-   until it reads clearly and naturally.
+5. **Preview and look:** `pnpm -s animation:preview <file>.motion.json`
+   plays it live on both Avatars with live layers, beat markers and camera
+   presets, and reloads as you edit. Judge timing there; use
+   `pnpm -s animation:render <clip.json> --out <dir>` for still contact
+   sheets (`--times` for beats, `--side left` for left-handed action). Revise
+   and repeat from step 2 until it reads clearly and naturally. When the owner
+   leaves review notes, apply them and resolve each with
+   `pnpm -s animation resolve` (see checks and review).
 6. **Confirm in the creator and save:** import the clip JSON in
    `/gestures/new` (Clip tab → Import), check Clip settings → Mute while
    playing, play it on each Avatar, then **Save** (not Save & Equip unless the

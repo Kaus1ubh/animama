@@ -45,7 +45,10 @@ import {
   interpolateSamples,
 } from "./animaPoseClip/interpolation";
 import type { AvatarPoseClipSnapshot, AvatarPoseSnapshot } from "./types";
-import type { AnimaPoseClipMutableLayerId } from "./animaPoseClip/schema";
+import {
+  ANIMA_POSE_CLIP_EPSILON,
+  type AnimaPoseClipMutableLayerId,
+} from "./animaPoseClip/schema";
 import {
   retargetClipSampleForVrm0,
   retargetPoseForVrm0,
@@ -161,6 +164,8 @@ type ClipRuntimeState = {
   applied: boolean;
   playing: boolean;
   fadeInSourceSample: AnimaPoseClipSample | null;
+  /** The pose the fade-in started from, kept so seeking can replay the fade. */
+  fadeInStartSample: AnimaPoseClipSample | null;
   fadeOutSourceSample: AnimaPoseClipSample | null;
   fadeOutTargetSample: AnimaPoseClipSample | null;
   fadeInDurationSec: number;
@@ -406,6 +411,7 @@ export class PoseController {
       eventAbort: finite ? new AbortController() : null,
       phase: fadeInDurationSec > 0 ? "fadeIn" : "playing",
       fadeInSourceSample,
+      fadeInStartSample: fadeInSourceSample,
       fadeInDurationSec,
       playing: Boolean(this._vrm && !this._isDisposed),
     };
@@ -489,6 +495,71 @@ export class PoseController {
         this.stopClip({ immediate: true });
       }
     }
+  }
+
+  /**
+   * Move the playing clip to `timeSec` on its playback clock, as if it had
+   * played there. The fade-in, playing and (for a one-shot) fade-out phases
+   * follow from the time; a time past the end holds the final frame instead
+   * of finishing playback. Events at or before the time count as fired: none
+   * are dispatched and running event effects are cleared, so later events
+   * fire when playback resumes. The next `update` applies the pose. Review
+   * tools use this to scrub. Returns false when no clip is playing.
+   */
+  seekClip(timeSec: number): boolean {
+    const state = this._clipState;
+    const clip = state.clip;
+    if (
+      !clip ||
+      !state.playing ||
+      !this._vrm ||
+      this._isDisposed ||
+      state.finitePlayback
+    )
+      return false;
+    const time = Number.isFinite(timeSec) ? Math.max(0, timeSec) : 0;
+    const duration = getAnimaPoseClipTimelineDuration(clip);
+    const pastEnd = shouldAnimaPoseClipAutoComplete(clip, time);
+    // Keep the final frame without reaching the completion threshold.
+    const hold = Math.max(0, duration - 2 * ANIMA_POSE_CLIP_EPSILON);
+
+    this._clearAllClipEventEffects();
+    state.firedEventKeys.clear();
+    state.firedEventIds.clear();
+    for (const dueEvent of collectAnimaPoseClipEventsBetween(
+      clip,
+      0,
+      pastEnd ? duration : time,
+      { includeStart: true },
+    )) {
+      state.firedEventKeys.add(getDueEventKey(dueEvent));
+      state.firedEventIds.add(dueEvent.event.id);
+    }
+
+    state.fadeOutSourceSample = null;
+    state.fadeOutTargetSample = null;
+    if (time < state.fadeInDurationSec && !pastEnd) {
+      state.elapsedSec = time;
+      state.phase = "fadeIn";
+      state.fadeElapsedSec = time;
+      state.fadeInSourceSample = state.fadeInStartSample;
+      return true;
+    }
+    state.phase = "playing";
+    state.fadeElapsedSec = 0;
+    state.fadeInSourceSample = null;
+    state.elapsedSec = pastEnd ? hold : time;
+    if (pastEnd) {
+      // Fade out from the final frame, as natural completion does.
+      this._applyClipSampleAtTime(hold);
+      if (this._beginClipFadeOutIfAvailable()) {
+        state.fadeElapsedSec = Math.min(
+          time - duration,
+          state.fadeOutDurationSec - ANIMA_POSE_CLIP_EPSILON,
+        );
+      }
+    }
+    return true;
   }
 
   clearPose(poseId: string): void {
@@ -1281,6 +1352,7 @@ function createClipRuntimeState(): ClipRuntimeState {
     applied: false,
     playing: false,
     fadeInSourceSample: null,
+    fadeInStartSample: null,
     fadeOutSourceSample: null,
     fadeOutTargetSample: null,
     fadeInDurationSec: 0,

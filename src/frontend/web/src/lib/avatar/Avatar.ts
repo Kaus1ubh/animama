@@ -1112,6 +1112,22 @@ export class Avatar {
     });
   }
 
+  /**
+   * Move the playing pose clip to `timeSec` and show that frame with its
+   * fades, layer mutes and expression precedence, without advancing time
+   * (see `PoseController.seekClip`). Review tools use it to scrub. Returns
+   * false when no clip is playing.
+   */
+  seekPoseClip(timeSec: number): boolean {
+    const poseController = this.poseController;
+    if (this._isDisposed || !poseController) return false;
+    // Seek against the clip pose alone; update(0) then re-adds live layers.
+    this.proceduralAnimationController?.clearActiveOffsets();
+    const sought = poseController.seekClip(timeSec);
+    this.update(0);
+    return sought;
+  }
+
   isClipActive(clipId?: string): boolean {
     return this.poseController?.isClipActive(clipId) ?? false;
   }

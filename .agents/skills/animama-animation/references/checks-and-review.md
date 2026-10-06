@@ -48,6 +48,38 @@ a hand or finger bone covers the hand, a `LowerArm` bone the forearm, `head`
 the head and neck, torso bones the torso. Declare a second contact if the
 forearm also rests on the body.
 
+## Live preview and review notes
+
+`pnpm -s animation:preview <source> [--compare <source>]` opens the motion in
+the system browser on both Included Avatars, through the app's own `Avatar`
+playback: fades, live layers (toggle them off to see the clip alone), layer
+mutes and expression precedence look as they do in chat. A source is a
+description, a clip, a creator project file, or a Library item
+(`library:<folder | selector | name>`, prefixed `included/` or `local/` when
+ambiguous; Local items come from `--local-content <dir>` or the sourced stack
+record). Use it to judge timing, which still frames miss:
+
+- play at 0.25–1× speed, loop, scrub, or click a beat marker;
+- switch camera presets (front, ¾, side, face);
+- `--compare library:<original>` plays an existing Gesture in a second row,
+  for example next to its replacement.
+
+Edits to the source reload the page. Notes the owner adds in the page are
+saved beside a file source as `<file name without .json>.review.json`
+(`laugh.motion.json` → `laugh.motion.review.json`), or in the working
+directory for a Library item (`--notes <file>` overrides). After revising the
+source for a note:
+
+1. `pnpm -s animation review <notes.review.json>` lists notes with their ids.
+2. `pnpm -s animation resolve <notes.review.json> <id> <what you changed>`
+   marks one resolved by the source's current version.
+3. Ask the owner to look again; **Previous version** in the page plays the
+   version the latest note was made against (or else the one before the
+   current version) alongside the current one.
+
+Review sidecars and retained versions are ignored by Git; summarise the notes
+and resolutions in the hand-off instead.
+
 ## Review renders
 
 `pnpm -s animation:render <clip.json> --out <dir> [--times 0,0.4,0.8] [--rows 8] [--side right|left]`
@@ -88,7 +120,8 @@ Report:
 - the description path (in the owner's location or `motion-authoring/examples/`;
   regenerate rather than hand-editing a dense clip);
 - check results with any accepted WARNs and why;
-- render sheets and the chat check;
+- render sheets, preview review notes and their resolutions, and the chat
+  check;
 - known limits.
 
 Automated checks and renders do not prove natural-looking motion. Say which
