@@ -11,12 +11,15 @@ Animama retains a link to the published documentation in its root README. The
 owner subsequently asked why PR #283 could not be removed entirely; this revised
 proposal uses a full merge revert after verified source handoff. This supersedes the
 previous proposal for Animama to implement and publish its own docs Worker.
-Create or reuse the self-contained public parent issue only at authorized setup;
-it then owns acceptance. This plan does not create a competing spec.
+[Issue #285](https://github.com/raymond-van/animama/issues/285), published and read
+back on 2026-10-06 at `updatedAt=2026-10-06T16:59:50Z`, now owns acceptance.
+This plan does not create a competing spec.
 
-Authorization now is planning and read-only inventory only. No cleanup,
-implementation, issue creation, push, provider action or merge is authorized.
-Owner review and subsequent implementation authorization are required.
+The owner invoked `$implement` for both reviewed plans on 2026-10-06, accepting
+the full-revert boundary and authorizing implementation/tracker/PR work within
+its dependencies. The source-custody gate is still pending; no source removal
+may begin before accepted destination merge/CI evidence. Provider actions and
+exact-candidate merges retain their separate approval requirements.
 
 ## Purpose and context
 
@@ -46,12 +49,13 @@ and keep the primary checkout on `main`. No Compose stack is required.
 
 ## Progress
 
-- [ ] (2026-10-06) Phase 1: proposed full merge revert and root docs link; pending revised
-  plan acceptance, implementation authorization and completed source handoff.
+- [ ] (2026-10-06) Phase 1: authorized full merge revert and root docs link;
+  setup complete, waiting for accepted destination merge/CI/source-custody receipt.
 
 Planning review for the earlier selective-removal proposal passed after one
 targeted repair round. The full-revert amendment passed its independent
-affected-boundary recheck; owner review remains pending. Implementation phase and
+affected-boundary recheck; owner plan review is complete through the explicit
+implementation request. Implementation phase and
 integration reviews have not started. Source removal, cleanup merge, post-merge
 acceptance and any later hosting work are unperformed.
 
@@ -90,9 +94,10 @@ acceptance and any later hosting work are unperformed.
 | 2026-10-06 | Agent proposal | Merge and accept the maintained copy first, then one separately approved Animama cleanup PR; provider state stays unchanged. |
 | 2026-10-06 | Agent proposal, superseded | Selective source/CI removal with a link stub and retained original plans/ignore. |
 | 2026-10-06 | Revised proposal following owner question | After verified destination merge, revert all of PR #283, including its original plan/spec and ignore addition; add only a new root README published-docs link. Git/PR history and separately retained Pages evidence provide historical recovery. |
+| 2026-10-06 | Owner, accepted execution | Invoke `$implement` both reviewed plans; full-revert scope and tracker/PR work accepted, with source-custody and separate merge/provider gates preserved. |
 
-Plan review must accept the proposed full-revert boundary, including removal of
-the original tracked spec/plan and task-record ignore. That deliberate removal
+The implementation request accepts the full-revert boundary, including removal
+of the original tracked spec/plan and task-record ignore. That deliberate removal
 replaces the earlier retention proposal; it is not an unapproved plan migration.
 The owning
 maintainer must supply the source-handoff receipt before removal; future hosting
@@ -146,6 +151,13 @@ and read back the self-contained cleanup acceptance in its owning issue; create
 one bounded implementation assignment if required by SDLC. Use one public cleanup
 branch/PR. Do not link inaccessible source-copy records or create an issue for
 provider/manual gates. Record the operator receipt and source revisions here.
+
+Setup on 2026-10-06 created/read back public parent #285 and its bounded
+[assignment #286](https://github.com/raymond-van/animama/issues/286). Reuse the
+assigned task worktree/branch at `608e670e`; primary main remains clean at the
+original source merge. Source files, CI and publication remain intact. No local
+stack is required. The destination custodian is currently implementing its
+source copy; no accepted merged-copy receipt exists yet.
 
 1. Reinspect PR #283's full first-parent diff, current paths and later changes.
    Inventory ignored local output/cache and `.animama-docs-first-run.env` without
@@ -284,8 +296,11 @@ working-tree removal. The current migration plan stays tracked. Accepted Pages d
 `8021c42d-3d13-41da-a078-8f92118ff70e`; recovery provider origin remains
 `animama-docs.pages.dev`. Original archive SHA-256 is
 `2081582957e7a6473c40182321e5a8fe8a64279f47211c0cc84f9a16b494503f`;
-inventory SHA-256 is
+inventory content digest SHA-256 is
 `fa89a2c19b9bd9fd1839f92d7f67238f33d52b82309df3e7c32529e8a64d95e7`.
+The serialized inventory JSON file SHA-256 is
+`2053cdedaf83176c7f9738e9d4259a33c9e2255f042a83532b96fb1421025df4`;
+these are distinct identities, both reverified during source-transfer setup.
 These identities are retention references, not authority to redeploy or alter DNS.
 
 Before retrying setup/removal, inspect actual paths, branch/status, receipt and
@@ -362,10 +377,25 @@ cover the complete revert, including original planning-file and ignore removal.
 
 ## Outcomes & Retrospective
 
-2026-10-06: revised planning only. Read-only inventory established the exact
+2026-10-06, planning before execution authorization: read-only inventory established the exact
 merged source/CI boundary and current main revision. Expanded-scope planning
 analysis/static review passed after one targeted repair; the full-revert proposal
 passed its independent affected-boundary recheck. No copy, cleanup, new
 issue, provider mutation, push or merge occurred. First executable Animama outcome is
 Phase 1 after the accepted source-copy merge/CI receipt and phase authorization.
 Later hosting work waits for the separately merged/accepted source cleanup.
+
+2026-10-06, execution setup: the owner invoked `$implement` for both reviewed
+plans. Parent #285 and native child #286 were published and read back with
+self-contained acceptance and source-custody gates. The assigned branch remains
+`chore/workers-static-assets`, starting implementation setup at
+`608e670ec87c74eaf05abfeb2cdc5ccdac91cf4f`; only this living record has changed.
+The primary checkout remains clean on `main` at the original merge. No source,
+CI, application, provider, publication or merge change was made here.
+
+The destination maintainer has prepared the complete site copy and independently
+verified three package builds against all 33 original archive files. Local
+browser/HTTP evidence and bounded import review pass. Its actual candidate CI,
+separate merge, actual main CI and owner-accepted durable source receipt remain
+pending; this local evidence does not release Animama's source-removal gate.
+Phase 1 and final implementation integration remain unstarted at 0 of 2 repairs.
