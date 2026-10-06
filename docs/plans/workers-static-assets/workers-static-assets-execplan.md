@@ -1,398 +1,322 @@
-# Migrate the existing user documentation to Workers Static Assets
+# Hand off the reader site and remove its local build ownership
 
 Maintain this living plan under [PLANS.md](../../../PLANS.md) and
-[SDLC.md](../../../SDLC.md), updating Progress, Surprises & Discoveries,
-Decision Log and Outcomes & Retrospective at each handoff.
+[SDLC.md](../../../SDLC.md). Preserve its progress, discoveries, decisions,
+review counts and evidence at each handoff.
 
-Source agreement: the owner's accepted documentation migration instructions of
-2026-10-06. Create or reuse the Animama parent issue only at authorized setup;
-it then owns acceptance. This public-safe plan is not a second spec.
-Authorized scope now: research and planning only. Implementation, tracker writes,
-pushes, provider mutations, publication and merge await separate authorization.
+Source agreement: the owner's accepted 2026-10-06 clarification moves the complete
+reader site, including content, generator, tests, lockfile and deployment
+guidance, to its maintained website repository before any Workers migration.
+Animama retains a link to the published documentation. This supersedes the
+previous proposal for Animama to implement and publish its own docs Worker.
+Create or reuse the self-contained public parent issue only at authorized setup;
+it then owns acceptance. This plan does not create a competing spec.
+
+Authorization now is planning and read-only inventory only. No cleanup,
+implementation, issue creation, push, provider action or merge is authorized.
+Owner review and subsequent implementation authorization are required.
 
 ## Purpose and context
 
-Serve the existing four reader pages at `https://docs.animama.ai/` from Workers
-Static Assets while preserving reviewed content, routes, redirects, true 404s,
-assets, availability declarations and Home/Download navigation. Publication stays
-manual. The docs build needs no provider credentials, application build, running
-stack or sibling checkout. Preserve provider-injected cookie-free Web Analytics
-and RUM; do not embed a beacon in source output.
+Animama will continue building and running independently, while readers reach
+its maintained guides at `https://docs.animama.ai/`. Remove the duplicate reader
+site build/test/publication ownership only after its complete maintained source
+has been accepted elsewhere. Keep contributor documentation and its validation,
+application documentation inputs, historical delivery records and recovery
+material. The existing live Pages site stays unchanged through source handoff.
 
-Animama owns `docs/user`, its output guard, deployment configuration and operating
-guidance. The product site has a separate owner and implementation record. Its
-public dependency is only continued HTTPS availability at `https://animama.ai/`
-and `https://animama.ai/download`, with working navigation back to these docs.
-Exclude redesign, docs expansion, authentication, backend/R2 changes and new
-installer or source availability.
+This repository's assignment is one scoped source cleanup and one public PR.
+The destination maintainer owns the full-site copy and its later hosting work.
+Their accepted, independently built copy must be merged first; the separately
+approved Animama cleanup merge must follow before Workers implementation begins.
+The dependency is an operator readiness receipt, never a private checkout,
+source import, sibling build input or inaccessible URL.
 
-Starting source: `10216cd36251b8e011557250f3c4951e8bd39a69` (PR #283 merge).
-The owner supplied successful required PR and actual post-merge CI for that
-completed Pages delivery. Those historical checks do not validate this migration.
-Task branch: `chore/workers-static-assets`; primary stays on `main`. On resumption
-record checkout, verify HEAD/dirty state and preserve other work. No stack needed.
-
-Orientation: `docs/user/.vitepress/config.mts` selects `pages/`, base `/`, clean
-URLs and the default theme. `site-links.json` has Home/Download readiness true;
-the reader pages retain installer/source-download "Coming soon" declarations.
-`scripts/check-site.mjs` restricts publication to five HTML files and required
-assets; fixtures reject leaks, symlinks, broken links and remote runtime assets.
-`docs/user/README.md` describes Pages publication. Existing `Validation` includes
-this independent package.
+Starting application/source baseline:
+`10216cd36251b8e011557250f3c4951e8bd39a69`, PR #283's merge. Local planning commit
+`c4245b1284ffc92f3d0156e22863e1a6ad546952` records the former hosting-only proposal;
+it is not implementation or provider acceptance. Reuse assigned task branch
+`chore/workers-static-assets`, verify checkout/HEAD/dirty state on resumption,
+and keep the primary checkout on `main`. No Compose stack is required.
 
 ## Progress
 
-- [ ] (2026-10-06) Phase 1: proposed local tooling/configuration and compatibility evidence;
-  requires owner plan/phase authorization. No implementation has begun.
-- [ ] (2026-10-06) Phase 2: pending local proof; operator guidance, exact candidate CI and
-  separately approved provider/canary transfer-and-recovery acceptance.
-- [ ] (2026-10-06) Phase 3: pending accepted previews; approved docs cutover, final integration
-  review, evidence and separately approved exact-candidate merge/post-merge checks.
+- [ ] (2026-10-06) Phase 1: proposed scoped source/CI cleanup; pending revised
+  plan acceptance, implementation authorization and completed source handoff.
+
+Planning review for this ownership scope passed after one targeted repair round;
+owner review remains pending. Implementation phase and
+integration reviews have not started. Source removal, cleanup merge, post-merge
+acceptance and any later hosting work are unperformed.
 
 ## Surprises & Discoveries
 
-- The docs output currently contains 33 reviewed files. Its strict guard rejects
-  `_redirects`; preserving Pages behavior requires one deliberately audited
-  serving-control file rather than relaxing the entire allowlist.
-- Fresh anonymous Pages checks on 2026-10-06 matched all reviewed docs files after
-  removing only the observed singleton empty provider script and inserted newline.
-  No checked response set a cookie. The broader two-site check covered 63 requests
-  and 37 archived files; these are baseline findings, not Workers acceptance.
-- Pages uses 308 aliases. Workers automatic HTML handling uses different redirect
-  behavior and can recognize extra index aliases. Use explicit rules and test
-  them; do not silently accept 301/307 changes or newly valid routes.
-- Previous publication observed injected markup, without verified analytics event
-  delivery. A prior Download-to-Docs browser navigation hit
-  `ERR_BLOCKED_BY_CLIENT`; another narrow viewport override did not take effect.
-  Full browser network/storage tracing was unavailable. None is fresh migration
-  evidence, and a blocked navigation must not be reported as passing.
-- The existing zone uses the Free-plan automatic RUM setting "Enable, excluding
-  visitor data in the EU". The proposed canary is under that zone; no analytics
-  setting change is needed. A `workers.dev` preview is not assumed to receive RUM.
-- A Workers Custom Domain cannot coexist with the existing canonical CNAME. The
-  eventual transfer has a possible interruption window; zero downtime is not an
-  accepted or demonstrated property.
+- PR #283's first-parent diff touches 23 paths: 16 site package files, two
+  historical delivery records and five CI/operations/ignore files. A blanket
+  merge revert would remove retained history and an environment-file safeguard.
+- Read-only GitHub inventory on 2026-10-06 confirms `main` still at `10216cd3`;
+  there are no later main commits to the site or CI paths. Its first parent is
+  `b9a1e588ac820e0b50e1622c914668a69650275a`. Refresh before implementation.
+- `docs/user` builds independently with Node 24.15.0, pnpm 10.33.0 and VitePress
+  1.6.4. Its package includes selected Markdown, theme, build/check/test/preview
+  scripts, its own lockfile, output guards and readiness flags. No Worker config
+  has been implemented; publication instructions currently live in its README.
+- The reviewed output contains 33 files and 999,246 bytes. Home/Download readiness
+  is true; installer and public-source declarations remain "Coming soon".
+  Ownership transfer does not change those declarations or reader coverage.
+- Contributor-doc `docs-tests` runs synthetic-document and accountless repository
+  checks. It predates the reader site and must remain after site-specific CI
+  work is removed. Documentation bundled into the application remains an
+  application input, including the safety protocol.
+- Previous delivery had `ERR_BLOCKED_BY_CLIENT` for a Download-to-Docs browser
+  transition and incomplete network/storage and RUM event-delivery evidence.
+  Source handoff does not clear those later hosting-acceptance limits.
 
 ## Decision Log
 
 | Date | Actor/status | Decision and reason |
 | --- | --- | --- |
-| 2026-10-06 | Owner, accepted | Plan the existing static-site migration only; preserve behavior, manual publication, provider-injected cookie-free RUM and retained Pages recovery. |
-| 2026-10-06 | Agent proposal | Pin Wrangler 4.147.0 in this package and use an assets-only Worker with no application code or bindings. |
-| 2026-10-06 | Agent proposal | Worker `animama-docs-static`; temporary zone canary `docs-workers-preview.animama.ai`; retain `docs.animama.ai` as canonical. Names require fresh inventory and later exact-action approval. |
-| 2026-10-06 | Agent proposal | Disable automatic HTML handling; add exact 200 clean-route proxies and 308 aliases, with real 404 fallback. Phase 1 must prove pinned-runtime behavior. |
-| 2026-10-06 | Agent proposal | Accept docs canary first, then transfer docs canonical host before the product-site owner's separately approved landing transfer. |
+| 2026-10-06 | Owner, accepted | Move the complete reader site before the hosting migration; Animama links the published site. |
+| 2026-10-06 | Agent proposal | Merge and accept the maintained copy first, then one separately approved Animama cleanup PR; provider state stays unchanged. |
+| 2026-10-06 | Agent proposal | Remove site source and CI hooks selectively, retain a `docs/user/README.md` link stub, preserve delivery plans and the environment-file ignore. |
 
-Plan review decisions: proposed names/order and acceptance of a possible bounded
-transfer interruption in a later packet. If pinned behavior cannot preserve
-routing or provider injection, stop and present the necessary scope change.
-Do not substitute a source beacon, change canonical behavior or add runtime code
-without an owner decision. Capacity constraints or paid upgrades need a decision.
+No consequential product decision remains for this cleanup proposal. The owning
+maintainer must supply the source-handoff receipt before removal; future hosting
+choices and provider approvals belong to the site's later work. New scope that
+would remove contributor/application docs, weaken validation or change live
+behavior returns to the owner before dependent work.
+
+## Source handoff gate
+
+Before implementing cleanup, obtain a self-contained operator receipt confirming:
+
+1. The complete site source, generator/configuration, seven output-guard tests,
+   independent package/lock and manual deployment guidance have durable maintained
+   ownership. The destination copy is merged into its authoritative main branch.
+2. Fresh independent frozen installation, tests, build, output audit and formatting
+   pass without sibling source, application artifacts or provider credentials.
+   Record toolchain and commands/results; no installed dependency tree is copied.
+3. All 33 original publication files are byte-identical to the reviewed archive.
+   Record relative file inventory, lengths and SHA-256 plus aggregate/archive
+   hashes. Path-only maintainer guidance changes are separately reviewed and do
+   not change reader output. No hosting controls are added during this handoff.
+4. The exact source-copy candidate's actual required CI and actual post-merge
+   checks passed, with their executed scopes and reviewed source identified.
+   A draft, local-only test or old publication CI is not source-handoff acceptance.
+5. `https://docs.animama.ai/`, its four reader routes, required assets and true
+   unknown-route 404 remain live on the retained accepted Pages deployment.
+   No upload, domain/DNS/RUM change or retirement was part of the source copy.
+6. The owner accepts this receipt and authorizes Animama cleanup. The receipt
+   includes public-safe results/identities without requiring private links,
+   checkout paths, accounts, credentials or raw evidence. It is an attestation
+   of maintained ownership, not an Animama build dependency.
+
+If byte equality, independent builds, destination merge or required CI is missing,
+keep Animama's source intact. Resolve the specific failure before cleanup rather
+than changing the gate or treating a live site alone as maintained source custody.
 
 ## Phased implementation
 
-Each phase below is proposed, not authorized now. At approved setup, create or
-reuse one self-contained Animama parent issue and one assignment per authorized
-implementation phase, using `SDLC.md`. Keep provider/human gates in this plan and
-PR, not as separate issues. Use one branch and PR for this plan. Public records
-must describe their contract without private links or machine paths.
-Every phase and final integration gets one full independent review and at most
-two repair rounds. Preserve counts on resumption; unresolved blockers stop work.
+### Phase 1: Remove duplicate site ownership while preserving local validation
 
-### Phase 1: Prove local serving compatibility
+Authorized scope after review: site-only source removal, published-doc links,
+site-specific CI cleanup and useful ownership/validation guidance. Requirements:
+completed source handoff, independent application builds, unchanged live docs,
+retained contributor validation/history and a separately approved exact merge.
+Dependencies: the gate above, owner phase authorization and authorized setup.
+Starting source is the baseline above plus this reviewed planning record.
 
-Scope: docs deployment tooling/configuration, narrowly required output controls
-and behavior fixtures. Requirements: independent builds, unchanged reader/asset
-bytes, pinned tooling, clean routes, exact redirects and true 404s. Dependencies:
-owner plan/phase authorization and approved setup; starting source is above.
+At setup, search existing public issues/PRs and reuse suitable records. Publish
+and read back the self-contained cleanup acceptance in its owning issue; create
+one bounded implementation assignment if required by SDLC. Use one public cleanup
+branch/PR. Do not link inaccessible source-copy records or create an issue for
+provider/manual gates. Record the operator receipt and source revisions here.
 
-1. Add exact development dependency `wrangler: 4.147.0` to `docs/user/package.json`
-   and regenerate its own lockfile using Node 24.15.0 and pnpm 10.33.0. Preserve
-   VitePress 1.6.4 and all existing build/availability behavior.
-2. Add two configurations outside output: `docs/user/wrangler.preview.jsonc`
-   has no routes; `docs/user/wrangler.jsonc` declares the canary and canonical
-   `custom_domain` routes. Both use the same proposed name, compatibility date
-   `2026-10-06`, `workers_dev: true`, `preview_urls: true`, assets directory
-   `.vitepress/dist`, `html_handling: "none"` and
-   `not_found_handling: "404-page"`. Audit their
-   identity/settings invariant; only domain declarations differ. No bindings,
-   secrets, runtime entrypoint, deploy hook or CI provider credentials.
-3. Generate one exact `_redirects` control file. Use relative 200 proxies from
-   `/` to `/index.html`, `/desktop` to `/desktop.html`, `/self-host` to
-   `/self-host.html`, `/troubleshooting` to `/troubleshooting.html`, and `/404`
-   to `/404.html`. Add the recorded literal 308 aliases below.
-   There is no wildcard SPA fallback or proxy to a remote origin.
-4. Extend the guard only for that exact control file and reviewed contents.
-   Retain all existing source/map/symlink/link/asset guards. Add behavior fixtures
-   for missing/changed rules, config divergence, status/Location/query fidelity,
-   no repeated rule processing, deep index aliases and missing-asset 404s.
-5. Compare the 33 reader/assets files against retained reviewed bytes and record
-   a fresh source-bound inventory/hash including the new control file. Any
-   unexplained reader-byte change blocks acceptance.
-6. Run the commands and route matrix below against the pinned local Workers
-   runtime. Dry-run packaging must show only selected static output. Publish
-   nothing and attach no domain in this phase.
+1. Reinspect the PR #283 first-parent diff and current paths. Inventory ignored
+   local output/cache and preserve useful reviewed output before deleting local
+   ignore rules; stop only task-owned previews. Do not run a blanket merge revert,
+   recursive data purge or unrelated stack/worktree cleanup.
+2. Replace `docs/user/README.md` with a short canonical documentation link and a
+   clear statement that this repository no longer builds or publishes the reader
+   site. Remove the other 15 tracked package files: its `.gitignore`,
+   `.prettierignore`, `.prettierrc.json`, `.vitepress` source config/theme,
+   `pages/*.md`, `package.json`, `pnpm-lock.yaml`, `scripts/check-site*.mjs`
+   and `site-links.json`. Do not leave executable publication/build inputs here.
+   Add a User guides link in root `README.md` and a concise ownership note in
+   `docs/architecture/repository-boundaries.md` when useful; no UI redesign.
+3. Update `.github/workflows/validate-public.yml` and
+   `scripts/ci/validation_policy.py` atomically. Remove only `docs-install`,
+   `docs-test`, `docs-build`, `docs-check` and their required-step `DOCS` set.
+   Keep `docs-tests`, `COMMON`, Python installs/audit and the existing `docs`
+   selection profile. Limit Node/pnpm setup back to `full`/`web`; full/frontend
+   checks still require them through `FRONTEND`. Preserve all other profiles,
+   aggregate failure rules, source-bound receipt/reuse policy and full callers.
+4. In `scripts/ci/test_validation_policy.py`, retire the site-specific assertion
+   that requires the removed checks. Update the existing minimal-doc profile
+   contract to ensure site/Node installation is omitted while required Python
+   contributor guards remain fail-closed. Keep added/deleted/renamed/unknown
+   input selection full; cleanup's deletions cannot claim docs-only validation.
+5. Correct only the reader-site scope in the validation-policy table at
+   `docs/backend/operations/development.md`. Retain its synthetic-document and
+   accountless checks, local evidence rules and unrelated operational guidance.
+6. Retain `docs/plans/user-docs-site/user-docs-site-spec.md` and its ExecPlan in
+   place. During implementation add a short explicit ownership supersession note
+   to the historical delivery record, identifying this cleanup and the still-live
+   canonical site; preserve original source/evidence/gates, not a bulk rewrite.
+   Keep `.animama-docs-first-run.env` protected by the root `.gitignore`.
+7. Run the commands below, independently review the exact cleanup boundary and
+   prepare one public PR with the source-handoff receipt and local evidence.
+   Obtain actual full `Validation` for the current candidate; preserve separate
+   evidence for any unperformed checks. A plan approval does not approve merge.
+8. Present the exact final head, actual CI scope/results, bounded phase/final
+   review and limitations for separate owner approval. Use the ordinary merge
+   procedure under SDLC. Read back the merge commit and actual post-merge
+   `Validation` result/profile; a reused profile is not independent re-execution.
+   Do not mark handoff complete or release the subsequent hosting prerequisite
+   until the owner accepts the required post-merge evidence.
 
-Completion: local output/runtime checks and independent review pass; routing is
-resolved and builds remain independent. Stop before preview if research differs.
-Recovery: rebuild only task output/state and retry the same candidate.
-Issue/commit/evidence: pending authorized setup;
-commit form `chore(docs)[p1]: prepare Workers static assets`.
-
-#### Code Review #1 Findings
-
-Not run; repair rounds used 0 of 2. Record exact source, independent
-configuration/output/runtime findings and stable IDs.
-
-#### Code Review #1 Revisions
-
-Pending: dispositions, changed files, checks and remaining repair budget.
-
-### Phase 2: Prepare and accept a provider canary
-
-Scope: current operator guidance, validation/evidence integration if required,
-and the candidate approval packet. Provider execution is a separate manual gate.
-Dependencies: Phase 1 passed, owner authorization for this phase, read-only
-account/project/version/domain/DNS/analytics inventory, and each approved action.
-
-1. Replace obsolete publication guidance in `docs/user/README.md` with pinned
-   manual commands, exact-artifact review, separation of versions and domain
-   triggers, and bounded recovery. Keep historical Pages evidence in its plan.
-2. Refresh account capacity for this small assets-only site: Worker count, asset
-   count/per-file limits, preview/version support and proposed names. Read-only
-   planning inventory shows Free capacity; documented limits are 100 Workers,
-   20,000 files per version and 25 MiB per file. Existing docs are 33 files,
-   999,246 total bytes, largest 120,840 bytes. Static requests/storage are free;
-   script invocation quotas are separate. No paid upgrade or bindings are needed.
-   Record current usage and reconfirm existing RUM/exclusion settings.
-3. Run applicable local checks before push. New configuration/tooling files
-   require actual full `Validation`; retain its selected profile and results.
-   Do not add a deployment workflow or claim local evidence is hosted CI.
-4. Freeze source SHA, exact output/config hashes, toolchain, upload inventory and
-   proposed actions. Obtain acceptance of unchanged rendered content and this
-   candidate. Keep one PR open through authorized provider evidence updates.
-5. After Gate A, use only the preview config for explicit initial Worker
-   creation/upload. Enumerate creation, static upload and initial preview
-   activation together in its packet. Record returned version/deployment URLs;
-   re-read an uncertain outcome before retrying.
-6. Validate the exact version at its provider URL. Obtain Gate B for a bounded
-   canary transfer/recovery rehearsal, enumerating every association/DNS effect.
-   First associate the unused canary with the retained Pages project and verify
-   its proxied Auto-TTL CNAME and accepted production content. Transfer it by
-   removing that CNAME, detaching only its Pages domain, then associating it with
-   the approved Worker Custom Domain. Read back managed DNS/TLS and verify it.
-   No Pages upload, production-pointer change or canonical transfer is needed.
-   Do not assume `workers.dev` proves automatic RUM injection.
-7. Collect fresh route/asset/browser/privacy evidence, including a loaded beacon
-   and associated collector request accepted by the provider. An aggregate
-   dashboard alone does not prove this session's event delivery. Preserve the EU
-   exclusion; no analytics setting change or source beacon is proposed.
-8. Complete Gate B's separately approved reverse rehearsal: remove the canary's
-   Worker association and attributable managed record if still present, then
-   reassociate it with Pages before restoring/verifying its recorded CNAME.
-   Verify accepted Pages content/TLS, then repeat the approved forward transfer
-   to the accepted Worker version and rerun final preview acceptance. Preserve
-   canonical domains and the accepted Pages deployment throughout. Rehearsal
-   does not guarantee canonical activation timing or continuous availability.
-
-Completion: full CI, provider preview and zone-canary acceptance pass; recovery
-is reviewable and the approved version is identified. Keep provider/browser and
-local/CI evidence distinct; blocked navigation or unobserved events stay pending.
-Recovery: retain all Pages resources; canonical DNS is untouched. Any canary
-removal or new version activation requires an exact approved action.
-Issue/commit/evidence: pending; commit form
-`chore(docs)[p2]: document manual Workers publication`.
+Completion: the public tree retains only the link stub under `docs/user`, no
+retired site steps/requirements remain active, contributor/full validation is
+preserved, public records are self-contained, and exact-source checks/reviews,
+owner merge and post-merge acceptance pass. Published docs and retained Pages
+resources remain unchanged. Issue/commit/evidence: pending authorized setup;
+proposed phase commit `chore(docs)[p1]: hand off reader site ownership`.
 
 #### Code Review #1 Findings
 
-Not run; repair rounds used 0 of 2. Record publication/privacy, pinned commands,
-CI and candidate evidence.
+Not run; phase repair rounds used 0 of 2. Review exact source/baseline and
+tracked/untracked boundary, preserved contributor/full CI, removal/link/history
+contracts and the operator receipt. Record stable IDs, evidence and impact.
+One full initial review and at most two repairs; supported blockers stop work.
 
 #### Code Review #1 Revisions
 
-Pending: dispositions, fixes, refreshed checks and repair count.
-
-### Phase 3: Transfer the canonical host and hand off
-
-Scope: final operator/evidence updates. Dependencies: this site's Phase 2
-acceptance and the product-site owner's readiness receipt confirming its own
-provider/canary previews and transfer/recovery rehearsal passed before either
-canonical transfer. The receipt names tested public origins/version, content,
-route/browser/RUM checks and recovery outcome; it supplies no private source or
-build dependency. Also require authorization of this phase, current read-only
-DNS/domain inventory, the approved exact docs cutover/rollback packet and a
-capable browser or owner-run evidence. Readiness supplies no mutation authority.
-
-1. Present Gate C with exact current/expected records, approved version/output,
-   interruption window, rollback triggers and separately approved or concretely
-   preauthorized rollback actions. Never infer cutover approval from plan review.
-2. Transfer docs first: remove only its approved Pages CNAME, detach its Pages
-   domain using the supported procedure, then associate the Workers Custom
-   Domain and verify its generated DNS/TLS state. Read back after each action;
-   preserve unrelated records. Do not run final-config `wrangler deploy` as an
-   implicit trigger-sync shortcut.
-3. Immediately repeat canonical HTTP/assets, direct reloads, clicked cross-site
-   navigation and RUM/privacy acceptance against the approved version. On a
-   supported failure, execute only approved recovery or stop for the exact
-   missing authorization. Record any observed interruption and recovery.
-4. Give the product-site owner the public docs compatibility result. Their
-   later landing cutover is a separate host, candidate and approval; repeat
-   both-direction canonical navigation after that owner reports completion.
-5. Update this plan and operating guidance with actual provider identities,
-   exact evidence and limitations. Refresh affected checks and final candidate
-   CI. Preserve Pages deployment/archive, canary and provider previews until
-   their separately authorized disposition.
-
-Completion: canonical/shared navigation acceptance, operator evidence and final
-review pass. Merge remains Gate D. Issue/commit/evidence: pending;
-commit form `chore(docs)[p3]: record Workers cutover acceptance`.
-
-#### Code Review #1 Findings
-
-Not run; repair rounds used 0 of 2. Record domain sequence, recovery and evidence
-freshness.
-
-#### Code Review #1 Revisions
-
-Pending: dispositions and remaining repairs; unresolved blockers stop.
+Not run. Record accepted/rejected/deferred dispositions, minimal fixes, files,
+affected checks and remaining repair budget. Preserve counts on resumption;
+reviews #2/#3 target accepted fixes and their regressions.
 
 ## Validation and acceptance
 
-From the repository root, after implementation authorization:
+From the assigned repository root, after implementation authorization:
 
 ```bash
-pnpm --dir docs/user install --frozen-lockfile
-pnpm --dir docs/user test
-pnpm --dir docs/user build
-pnpm --dir docs/user check
-pnpm --dir docs/user format:check
-WRANGLER_SEND_METRICS=false pnpm --dir docs/user exec wrangler --version
-WRANGLER_SEND_METRICS=false pnpm --dir docs/user exec wrangler deploy --config wrangler.preview.jsonc --dry-run
-WRANGLER_SEND_METRICS=false pnpm --dir docs/user exec wrangler deploy --config wrangler.jsonc --dry-run
-WRANGLER_SEND_METRICS=false pnpm --dir docs/user exec wrangler dev --config wrangler.preview.jsonc --local --ip 127.0.0.1 --port 4185
+uv run --no-sync python -m unittest discover -s scripts/ci -p 'test_*.py' -v
+uv run --no-sync ruff check scripts/ci/validation_policy.py scripts/ci/test_validation_policy.py
+uv run --no-sync ruff format --check scripts/ci/validation_policy.py scripts/ci/test_validation_policy.py
+uv run --no-sync pytest -q tests/test_generate_synthetic_docs.py tests/test_accountless_repository_boundaries.py
+bash scripts/audit-typed-content.sh
+uv run --no-sync python scripts/repository-boundary/check-python-imports.py
 git diff --check
 ```
 
-Run Git checks outside the running preview. Check ports; stop only task processes.
-Content preview remains `pnpm --dir docs/user preview` at `127.0.0.1:4175`.
-New fixtures use the existing `test` command. For changed CI policy, also run
-`python3.12 -m unittest discover -s scripts/ci -p 'test_*.py' -v`.
+Expected: commands exit 0; policy tests retain conservative full selection and
+fail-closed required guards. Search active workflow/policy/current guidance for
+`docs/user` and retired check IDs; only the intentional link stub and historical
+records may describe the previous reader build. Resolve relative links and verify
+no private imports, source paths or provider credentials entered local builds.
+Use read-only formatting checks, not rewriting formatters. Run any additionally
+applicable checks required by the current scoped guides before candidate push;
+the existing hosted `Validation` workflow remains authoritative.
 
-| Matrix, repeated locally, at provider preview/canary and canonical host | Expected |
+| Surface | Required acceptance |
 | --- | --- |
-| `/`, `/desktop`, `/self-host`, `/troubleshooting` and their heading anchors | 200, correct selected content; direct reload and no-JavaScript readability |
-| `/index.html` | 308 to `/` |
-| `/index` | 308 to `/` |
-| `/<reader>.html`, `/<reader>/` for the three non-root reader routes | 308 to the extensionless route; query preserved |
-| `/<reader>/index` | 308 to `/<reader>/`, then 308 to `/<reader>`; preserve the existing two-hop chain |
-| `/404.html`, `/404/`, and `/404` | First two redirect 308 to `/404`; direct `/404` returns 200 with reviewed 404-page bytes |
-| `/desktop.html?migration=58` | 308 to `/desktop?migration=58` |
-| `/<reader>/index.html`, unknown/deep routes, missing assets and source/plan paths | Actual 404 with reviewed fallback; no SPA 200 or broadened index alias |
-| `/.env`, `/.git/config`, `/docs/plans/`, `/docs/user/pages/index.md`, `/wrangler.jsonc`, `/_redirects` | Actual 404; source/configuration/control files are unservable |
-| Successful and redirect routes with a query, using GET and HEAD | Same status/Location contract; query retained; HEAD body empty; no loop |
-| Every reviewed asset and direct 404-page aliases | Bytes and status/Location match fresh baseline; only the reviewed control file is added |
+| Source custody | Operator receipt confirms accepted merged copy, independent build and unchanged 33-file output plus actual candidate/post-merge CI. |
+| Local source | Only the canonical-link README remains under `docs/user`; no lock, generator, tests, site content or deployment config remains. |
+| Contributor/application docs | Existing contributor guards and app-bundled documentation remain; synthetic-document/accountless tests and typed-content audit pass. |
+| CI | Site steps retired in workflow and required sets together; `docs-tests` and full/frontend requirements remain fail-closed. |
+| Public records | Current links reach `https://docs.animama.ai/`; historical records remain readable without private links or source dependencies. |
+| Merge/evidence | Owner approves exact cleanup head; actual full PR `Validation` and distinct post-merge outcome/scope are recorded and accepted. |
+| Live/provider state | Existing Pages deployment, DNS/domain/RUM, content, flags and archives are untouched; no publication authority is inferred. |
 
-Fresh browser acceptance uses measured desktop and narrow viewports, keyboard
-focus/menu/anchors, no-JavaScript content, console and network traces, and clicked
-Docs-to-Home/Download plus Download-to-Docs navigation. If a tool blocks the
-route or cannot set the viewport, use a capable browser or owner-run evidence;
-do not relabel HTTP success or earlier screenshots as that browser check.
-Check response cookies and browser cookies/storage. Only the documented
-VitePress theme preference is allowed; observe provider-only beacon delivery.
-Report injection, script loading, collector acceptance and reporting separately.
-
-## Exact provider-action and merge gates
-
-Run templates from the repository root with the operator's external approved
-credentials. Fill placeholders; review account targets privately. Log no secrets.
-
-| Gate | Separate approval packet and allowed action |
-| --- | --- |
-| A: initial preview | Approved name/source/output/config hashes, creation + upload + preview activation; `pnpm --dir docs/user exec wrangler deploy --config wrangler.preview.jsonc`. No domain routes. |
-| A2: later version/activation | Exact candidate and actions approved separately: `pnpm --dir docs/user exec wrangler versions upload --config wrangler.jsonc`, then `pnpm --dir docs/user exec wrangler versions deploy '<APPROVED_VERSION>@100%' --config wrangler.jsonc`. These do not synchronize domain triggers. Never redeploy the provider-only config after domain attachment or implicitly synchronize unapproved final routes. |
-| B: zone canary | Exact retained-Pages association, forward/reverse/forward canary transfers, DNS/certificate effects and readbacks; preserve canonical domains and accepted production deployment. No Pages upload. |
-| C: canonical transfer/recovery | Exact old CNAME deletion, Pages detachment, Workers association and DNS/TLS effects; interruption and concrete rollback actions. Each effect is enumerated, never bundled implicitly by CLI. |
-| D: source merge | PR URL, exact final head, actual `Validation` result/scope, bounded reviews and limitations; separate owner approval and ordinary merge commit under SDLC. Verify resulting main and post-merge validation. |
-
-Plan/phase acceptance is not provider authorization. Resource retirement,
-DNS/version rollback and deletion need explicit approval or concrete cutover
-preauthorization; Pages retirement remains excluded.
+No site build or provider migration test belongs to the cleaned Animama package.
+The source-copy receipt establishes moved-site build fidelity; later Workers
+browser, analytics event delivery and cutover acceptance must be obtained by
+that site's owner and are not claimed here.
 
 ## Final integration review
 
-Review combined acceptance at the exact final candidate with still-valid phase
-evidence. Reviewers do not mutate state or rewrite files.
+Perform one full independent integration review and at most two repair rounds,
+separate from Phase 1. Review the complete cleanup against accepted ownership,
+source custody, public links, validation preservation, history and recovery.
+Reuse current phase evidence; optional improvements do not block. Preserve
+counts across resumption and stop at unresolved supported blockers.
 
 ### Code Review #1 Findings
 
-Not run; integration repair rounds used 0 of 2. Record source, stable IDs,
-command/provider/browser evidence and impact.
+Not run; integration repair rounds used 0 of 2. Record exact source, phase
+references, stable IDs, evidence and remaining owner gates.
 
 ### Code Review #1 Revisions
 
-Pending: dispositions, changes, checks and repairs. Owner acceptance and merge
-remain separate.
+Not run. Record dispositions, changes and affected verification. Owner acceptance
+and exact-candidate merge remain separate from agent readiness.
 
 ## Idempotence and recovery
 
-Use pinned commands and inspected identities. Rebuild/review changed source or
-configuration; never upload stale output or repository contents. Read uncertain
-actions back before retrying; preserve unrelated state and previous versions.
-
-Retain Pages project `animama-docs`, deployment
-`8021c42d-3d13-41da-a078-8f92118ff70e`, its reviewed 33-file archive/inventory and
-the verified `animama-docs.pages.dev` recovery destination. The approved archive
-SHA-256 is `2081582957e7a6473c40182321e5a8fe8a64279f47211c0cc84f9a16b494503f`;
+Keep historical delivery records, original publication inventory/archive and
+all Pages resources. Accepted Pages deployment is
+`8021c42d-3d13-41da-a078-8f92118ff70e`; recovery provider origin remains
+`animama-docs.pages.dev`. Original archive SHA-256 is
+`2081582957e7a6473c40182321e5a8fe8a64279f47211c0cc84f9a16b494503f`;
 inventory SHA-256 is
 `fa89a2c19b9bd9fd1839f92d7f67238f33d52b82309df3e7c32529e8a64d95e7`.
-Inspect actual retained state before cutover; baseline evidence is not permission
-to redeploy or change it.
+These identities are retention references, not authority to redeploy or alter DNS.
 
-Concrete canonical rollback: remove the approved Worker domain association and
-its provider-managed DNS record if still present; reassociate `docs.animama.ai`
-with the retained Pages project before restoring/verifying its proxied Auto-TTL
-CNAME to `animama-docs.pages.dev`; then verify Pages activation, TLS, exact content,
-routes, true 404s and navigation. Readback may show a step already completed.
-Mutations require Gate C's explicit rollback authorization or new approval.
-For an accepted domain with a bad Worker version, an exact previously accepted
-version activation may be narrower recovery, but also needs its own approval.
-No global purge, unrelated teardown or Pages retirement is part of recovery.
+Before retrying setup/removal, inspect actual paths, branch/status, receipt and
+issue/PR state. Do not create duplicates or remove ignored data blindly. If
+source-custody evidence becomes invalid before removal, leave source intact.
 
-## Research references
-
-- [Static-asset redirects and first-match 200 proxies](https://developers.cloudflare.com/workers/static-assets/redirects/), [HTML handling](https://developers.cloudflare.com/workers/static-assets/routing/advanced/html-handling/) and [static-site generation/404 serving](https://developers.cloudflare.com/workers/static-assets/routing/static-site-generation/).
-- [Wrangler 4.147.0 release redirect parser](https://raw.githubusercontent.com/cloudflare/workers-sdk/64c1337155a6bc7224b5d47f58ca521d8b8ee3fe/packages/workers-shared/utils/configuration/parseRedirects.ts) accepts 200 rules. Local and uploaded pinned-runtime tests must still prove query preservation, first-match behavior and 404 semantics.
-- [Wrangler Workers commands](https://developers.cloudflare.com/workers/wrangler/commands/workers/) and [version preview URLs](https://developers.cloudflare.com/workers/versions-and-deployments/version-urls/).
-- [Pinned workerd maximum compatibility date](https://raw.githubusercontent.com/cloudflare/workerd/v1.20261001.1/src/workerd/io/maximum-compatibility-date.txt): supports through `2026-10-08`, including the proposed `2026-10-06` date.
-- [Workers Custom Domains](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/) and [Pages custom-domain procedures](https://developers.cloudflare.com/pages/configuration/custom-domains/).
-- [Static asset billing and limits](https://developers.cloudflare.com/workers/static-assets/billing-and-limitations/) and [platform limits](https://developers.cloudflare.com/workers/platform/limits/).
-- [Web Analytics setup](https://developers.cloudflare.com/web-analytics/get-started/), [FAQ](https://developers.cloudflare.com/web-analytics/faq/) and [limits](https://developers.cloudflare.com/web-analytics/limits/).
+If accepted ownership later needs reversal, restore the original Animama site
+source/lock/tests and its scoped CI changes first through an authorized task and
+reviewed inverse of the cleanup, preserving later unrelated work. Verify its
+independent build and original output before any separately approved removal of
+the maintained destination copy. A source revert or restored README does not
+perform DNS rollback, Pages upload or analytics changes. Destination removal,
+source merges and any future provider recovery each require their own authority.
 
 ## Planning review record
 
-Draft authored 2026-10-06. Planning review #1 used independent requirements and
-technical analysis plus read-only static checks. Analysis passed with no required
+### Former hosting-only scope: completed review, superseded approach
+
+The draft committed at `c4245b1` received independent technical analysis and
+read-only static checks. Initial analysis reported no required finding at draft
+SHA-256 `a9baaa5b06a425acfaad446caa2c3c15660561ac7d725cc305637c14768e4f58`.
+ST-01 was advisory: configured policy ignores plans, while a forced Prettier
+check reported differences; no forced formatting pass was claimed. ST-02
+accepted timestamps and ST-03 accepted two-site preview readiness. One repair
+round was used; targeted analysis/static review passed at SHA-256
+`9dfa4ec981a93ab6f3e101318971ce6a52deec75281c849641ddea4f5b41671b`.
+Only the old review-result record changed afterward.
+
+That review covered Animama-owned Workers preparation/cutover, not the newly
+accepted complete-site handoff. It is retained as history and does not establish
+this cleanup plan's readiness. No old implementation/review phase was executed.
+
+### Complete-site ownership scope: initial review and targeted repair
+
+2026-10-06: independent expanded-scope analysis review #1 passed with no required
 findings at this draft's SHA-256
-`a9baaa5b06a425acfaad446caa2c3c15660561ac7d725cc305637c14768e4f58`.
-Static structure, whitespace, links and public privacy boundaries passed.
+`7203ca0507715c2344a2858bf6b89a3ff58a80aff1ce2ebe17a0b9cbbee198cc`.
+Static structure/whitespace/links/privacy checks passed. ST-OWN-01 identified
+missing parity in the coordinating plan for this plan's receipt acceptance,
+cleanup authority and post-merge acceptance gates; the coordinating plan now
+states them explicitly, including honest reporting of reused Validation scope.
+ST-OWN-02 was advisory and accepted there to label the proposed new CI guard file.
 
-Main-agent dispositions: ST-01 is advisory; a forced Prettier check reports
-formatting differences, while configured policy ignores this plan. Retain readable
-Markdown; do not claim forced formatting passed. Accept ST-02 and add timestamps
-to each phase Progress item. Accept ST-03 and explicitly require the product-site
-owner's public-safe preview/recovery readiness receipt before docs cutover.
-The independent runtime date check supports the existing pin; its source is cited.
-
-Planning repair #1 uses one of two allowed rounds. Targeted analysis and static
-review #2 passed: ST-02/ST-03 resolved, no new required findings, links/whitespace/
-public boundaries and phase/final review records remain valid. Reviewed SHA-256
-was `9dfa4ec981a93ab6f3e101318971ce6a52deec75281c849641ddea4f5b41671b`.
-Only this review-result record changed afterward. Implementation phase and
-integration review budgets have not started; owner plan review remains pending.
+Planning repair #1 uses one of two rounds for this accepted new scope. Targeted
+analysis/static review #2 passed: both dispositions verified, no new required
+findings, and whitespace/links/public boundaries remain valid. Reviewed SHA-256
+was `29696d63b995490102286fc27b3c8540e7759f2e5d09a7bfadd9a5ac19c4e131`.
+Only planning-review result summaries changed afterward. This plan's source/CI/
+provider boundaries are unchanged by the repair. Distinct-scope review does not
+reset executed implementation budgets; Phase 1 and final integration remain
+unstarted at 0 of 2 repairs each. Owner plan review remains pending.
 
 ## Outcomes & Retrospective
 
-2026-10-06: planning only; no implementation, issues, provider changes or merge.
-First implementable outcome after authorization: Phase 1 local configuration,
-output and routing proof. Preview, event-delivery, canonical and merge acceptance
-remain unperformed; record actual outcomes as execution advances.
+2026-10-06: revised planning only. Read-only inventory established the exact
+merged source/CI boundary and current main revision. Expanded-scope planning
+analysis/static review passed after one targeted repair. No copy, cleanup, new
+issue, provider mutation, push or merge occurred. First executable Animama outcome is
+Phase 1 after the accepted source-copy merge/CI receipt and phase authorization.
+Later hosting work waits for the separately merged/accepted source cleanup.
