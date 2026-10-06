@@ -58,14 +58,14 @@ and keep the primary checkout on `main`. No Compose stack is required.
 - [ ] (2026-10-06) Phase 1: destination source custody and actual full main CI
   accepted through the owner's merge-then-revert instruction; full inverse and
   root link implemented. All seven scoped local checks and independent phase
-  review pass without findings/repairs. Integration review, actual full PR CI,
+  and final integration review pass without findings/repairs. Actual full PR CI,
   exact cleanup merge and post-merge acceptance remain.
 
 Planning review for the earlier selective-removal proposal passed after one
 targeted repair round. The full-revert amendment passed its independent
 affected-boundary recheck; owner plan review is complete through the explicit
-implementation request. Initial implementation phase review passes with 0 of 2
-repairs used; final integration review is next. Cleanup merge, post-merge
+implementation request. Initial implementation phase and final integration
+reviews each pass with 0 of 2 repairs used. Cleanup merge, post-merge
 acceptance and later hosting work remain unperformed.
 
 ## Surprises & Discoveries
@@ -314,9 +314,11 @@ the root README links the published docs and all PR #283 changes are reversed. N
 retired site steps/requirements remain active, contributor/full validation is
 preserved, public records are self-contained, and exact-source checks/reviews,
 owner merge and post-merge acceptance pass. Published docs and retained Pages
-resources remain unchanged. Owning issues are #285/#286; verified implementation
-is ready for phase commit `chore(docs)[p1]: revert retired reader site ownership`.
-Record the original merge SHA and mainline parent in the commit body.
+resources remain unchanged. Owning issues are #285/#286; phase commit
+`bcfa3e6897a35df556c004e36c8fd2b953a23f7c`
+(`chore(docs)[p1]: revert retired reader site ownership`) records the verified
+implementation and the original merge/mainline-parent identities in its body.
+Subsequent delivery-record changes alter only this living plan.
 
 #### Code Review #1 Findings
 
@@ -406,13 +408,24 @@ counts across resumption and stop at unresolved supported blockers.
 
 ### Code Review #1 Findings
 
-Not run; integration repair rounds used 0 of 2. Record exact source, phase
-references, stable IDs, evidence and remaining owner gates.
+2026-10-06: separate final integration analysis and read-only checks pass local
+delivery readiness, with no required or advisory findings. Reviewed phase commit
+`bcfa3e6897a35df556c004e36c8fd2b953a23f7c` plus its unstaged living-plan commit
+receipt against baseline `dfd8bb15`. All 24 non-plan committed paths match the
+passing phase/local receipts and unchanged source manifest above; seven valid
+checks were reused without repeating unchanged suites. Overall custody,
+full-inverse fidelity, unrelated-work preservation, canonical link, public
+privacy/history/recovery and conservative CI remain valid. Full baseline
+whitespace passes. Reviewed plan before this result-only update is SHA-256
+`974ff57fe49ecabf55b6164670560f3d80a058414e330667f677c85ea27a315d`.
+Actual full PR Validation, exact-head merge and owner-accepted main scope remain
+pending; local integration readiness does not release later hosting work.
 
 ### Code Review #1 Revisions
 
-Not run. Record dispositions, changes and affected verification. Owner acceptance
-and exact-candidate merge remain separate from agent readiness.
+No findings or repairs; integration usage is 0 of 2, separately from phase
+usage 0 of 2. Only living delivery-result records changed after review. Owner
+acceptance and exact-candidate merge remain separate from agent readiness.
 
 ## Idempotence and recovery
 
@@ -529,4 +542,5 @@ approved the exact source-copy merge followed by this full revert. The receipt
 below releases source removal, while the cleanup candidate's exact merge and
 actual post-merge acceptance remain separate. The complete inverse and root link
 now pass all seven scoped local checks and independent phase analysis/checks.
-Phase review used 0 of 2 repairs; final integration remains next at 0 of 2.
+Phase and final integration reviews each pass with 0 of 2 repairs. Actual full
+PR Validation, separate cleanup-head merge and accepted post-merge outcome remain.
