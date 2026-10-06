@@ -12,9 +12,10 @@ permission to publish or redistribute a file.
 flowchart LR
     Desktop[Electron] --> Local[Local FastAPI composition]
     Local --> Core[Shared domain and application services]
-    Web[Local React application] --> UI[Reusable product UI and contracts]
-    Hosted[Future hosted composition] --> Core
-    Hosted --> UI
+    Web[Common React application] --> UI[Reusable product UI and contracts]
+    Web --> Local
+    Web --> Hosted[Hosted HTTP composition]
+    Hosted --> Core
 ```
 
 Shared Python domain/application code accepts explicit owners, ports, policies
@@ -24,36 +25,42 @@ owns those effects, installs the request-principal resolver and authorizes
 requests before resolving the generated installation owner.
 
 The local Alembic graph owns the accountless installation schema. Existing
-`user_id` columns remain installation ownership columns. A future hosted
-composition must provide separate identity resolution, migrations, bootstrap,
-storage and tenant policy. It must not read the local installation tables or
-choose an owner from client headers. Hosted work is deferred; central identity
-code retained privately is not a local dependency or deployed prerequisite.
+`user_id` columns remain installation ownership columns. A hosted
+consumer provides its own identity resolution, migrations, bootstrap, storage,
+providers and tenant/quota policy. It must not read local installation tables or
+choose an owner from client headers. Hosted services are not local dependencies.
 
-Frontend product features accept an injected transport and owner context. Local
-routes, readiness, provider configuration, voice/avatar adapters and Electron
-integration stay in the local application. Package source cannot import
-`web`, `desktop`, private aliases or a sibling checkout.
+The common web application uses explicit local and hosted entrypoints with the
+same router, screens, creators and voice/avatar runtime. A composition supplies
+admission, transport and owner/session context; the local adapter owns installation
+readiness and Electron integration. The hosted capability contract excludes only
+the [six agreed operation groups](../../contracts/hosted-web.md#capabilities-and-requests).
+The whole app is built from `web`; it does not require extracting every screen
+into an npm package. Package source still cannot import `web`, `desktop`, private
+aliases or a sibling checkout.
 
 ## Stable artifact boundary
 
-| Artifact                     | Responsibility                                                                                                    |
-| ---------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| Python wheel                 | Reusable backend domain/application contracts and supported provider adapters.                                    |
-| `@animama/runtime-contracts` | Runtime owner, transport and capabilities; generated API types, SDK and validators.                               |
-| `@animama/product-ui`        | Injected product providers, Anima selection, chat session/stream behavior, transcript and composer.               |
-| `@animama/discover-client`   | Inert compatibility package retained in the artifact set. Discover and local account connection are discontinued. |
+| Artifact                     | Responsibility                                                                                                             |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Hosted application archive   | Complete immutable browser application, closed static/resource inventory and separately admitted non-static Included seed. |
+| Python wheel                 | Reusable backend domain/application contracts and supported provider adapters.                                             |
+| `@animama/runtime-contracts` | Runtime owner, transport and capabilities; generated API types, SDK and validators.                                        |
+| `@animama/product-ui`        | Injected product providers, Anima selection, chat session/stream behavior, transcript and composer.                        |
+| `@animama/discover-client`   | Inert compatibility package retained in the artifact set. Discover and local account connection are discontinued.          |
 
-Private consumers pin immutable commits and packed wheel/npm/contract identities.
+Consumers pin immutable commits and complete application/wheel/npm/contract identities.
 Public builds do not read the private lock or require its checkout. The current
 package set and wire contracts remain stable through local cleanup; see
 [contracts](../../contracts/README.md) and
 [artifact tooling](../../scripts/package-sets/README.md).
 
 Boundary checks build and install artifacts outside the checkout. They exercise
-shared services and browser consumers with explicit fake owners and transports.
-These tests establish portability; they do not establish hosted deployment,
-physical audio, native release acceptance or publication rights.
+shared services with controlled ports and the emitted application through an
+independent cookie/CSRF HTTP fixture, including real VRM and browser speech bytes.
+These tests establish artifact portability and bounded browser behavior. Hosted
+deployment, physical audio, native release acceptance and publication rights
+require separate evidence.
 
 ## Contributor documentation
 

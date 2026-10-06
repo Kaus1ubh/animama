@@ -1,12 +1,11 @@
 # Common web composition and hosted artifact contracts
 
-This is the A1 contract handoff for [#272](https://github.com/raymond-van/animama/issues/272).
-The shared capability schema, TypeScript interfaces and explicit browser
-compositions are implemented; resource delivery and artifact production follow
-in the remaining phases. The
-[coverage map](../docs/plans/hosted-web-parity/hosted-web-parity-coverage.md) assigns
-all retained actions. A consumer implements these contracts without importing
-local routes, installation state or a sibling checkout.
+This contract defines the common browser compositions and immutable hosted
+application produced by Animama. It covers admission, session lifetime, shared
+capabilities, private API traffic and closed application/resource delivery. The
+[coverage map](../docs/plans/hosted-web-parity/hosted-web-parity-coverage.md) records
+retained actions and their verification boundaries. A consumer implements these
+contracts without importing local routes, installation state or a sibling checkout.
 
 ## Admission and browser lifetime
 

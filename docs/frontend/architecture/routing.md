@@ -22,7 +22,9 @@ Typed creators use stable product routes such as `/particle-effects/new`,
   Animas, then replaces `/`
   with `/$animaId` for the last visited owned Anima, or the first in creation
   order (Annie on a fresh installation). A stale ID falls back; no owned Animas
-  opens `/animas/new`. Query failures offer Retry without replacing selection.
+  opens `/animas/new` only when creation is permitted, otherwise an empty-roster
+  view preserves access to the remaining app. Query failures offer Retry without
+  replacing selection.
   Explicit chat and management URLs are unaffected.
 - `a.tsx` and `a/$.tsx`: redirect legacy `/a` and `/a/...` URLs to the same
   path without the prefix, preserving search and hash and staying on-origin.
@@ -60,9 +62,10 @@ Typed creators use stable product routes such as `/particle-effects/new`,
   [Scene Effect authoring](../runtime/scene-vfx.md).
   Bare `/avatar-effects` and `/scene-effects` URLs redirect to their creators.
 - `_app/animas/index.tsx`: compatibility resolver. It replaces `/animas` with
-  the first owned Anima's canonical management URL or redirects an empty
-  installation to `/animas/new`. The latter notice must not redirect back here,
-  because that would create an empty-roster loop.
+  the first owned Anima's canonical management URL. An empty roster opens
+  `/animas/new` only when creation is permitted; otherwise it shows the same
+  empty-roster view. The creation route must not redirect an empty roster back
+  here, because that would create a loop.
 - `_app/animas/$animaId.tsx`: Anima details and management with URL-backed
   Identity, Emotions, Loadout, and Settings tabs. The Loadout view records
   `tab=loadout`. A bare management URL resolves to Identity; invalid tab values
@@ -80,11 +83,18 @@ Typed creators use stable product routes such as `/particle-effects/new`,
 
 ## Router Context
 
-`src/frontend/web/src/app/router.tsx` receives local runtime state and a stable
-TanStack Query client. It waits through loading, presents a bounded Retry state
-for recoverable runtime failures, and mounts routes only when runtime context is
-ready. Shared routes consume the neutral runtime owner rather than importing
-the local provider.
+The explicit local and hosted entrypoints supply a `RuntimeController` to
+`AppProviders`. `RuntimeAdmissionProvider` exposes admission and the current
+session-owned TanStack Query client to `src/frontend/web/src/app/router.tsx`.
+The same router mounts product routes only for ready admission; other states
+show the composition's sign-in, restriction or recovery view. Session replacement
+disposes private resources and caches before readmission. Shared routes consume
+the neutral owner and injected client, never the local startup adapter.
+
+The local composition retains first-run setup. Capability guards explain
+unavailable direct links; native utility routes still require the desktop
+platform. See the [composition contract](../../../contracts/hosted-web.md) for
+consumer-owned admission and the six hosted exceptions.
 
 App Settings opens a route-independent modal without changing the active Anima,
 chat or URL.

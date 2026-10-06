@@ -79,8 +79,8 @@ Start with:
 
 - `web/src/routes/**`: TanStack Router file routes, route guards, params, and
   search parsing.
-- `web/src/app/**`: router setup, global providers, local runtime readiness,
-  neutral owner context, and stable query client.
+- `web/src/app/**`: common router/providers, explicit composition adapters,
+  admission controller, neutral owner context and session-owned query client.
 - `web/src/ui/**`: feature UI, app shell, sidebar, runtime shell, chat, canvas,
   settings, and debug surfaces.
 - `web/src/query/**`: query keys, options, hooks, and mutations.
@@ -104,8 +104,9 @@ Start with:
 
 Critical route composition:
 
-- `web/src/main.local.tsx` -> `AppProviders` -> `LocalRuntimeProvider` ->
-  `AppRouter`
+- `web/src/main.local.tsx` / `main.hosted.tsx` -> explicit composition and
+  `RuntimeController` -> `AppProviders` / `RuntimeAdmissionProvider` ->
+  ready `RuntimeOwnerProvider` -> common `AppRouter`
 - `web/src/routes/_app.tsx` -> first-run gate + settings + app shell + sidebar
 - `web/src/routes/_app/$animaId.tsx` -> anima providers + main shell + chat
   runtime
@@ -146,15 +147,15 @@ or migration behavior.
 - Use generated SDK methods from `@animama/runtime-contracts/sdk` and DTOs from
   `@animama/runtime-contracts/api-types`. Shared product providers create one
   client from their injected `ProductApiTransport` and pass it to each operation.
-  Only the local web adapter configures `@animama/runtime-contracts/default-client`
-  for legacy feature calls; reusable providers must not read or mutate it.
+  Application compositions and feature calls must not configure or use
+  `@animama/runtime-contracts/default-client`.
 - Wrap API access in `web/src/query/hooks/*` or
   `web/src/query/mutations/*`.
 - Use `queryKeys` from `web/src/query/keys.ts`; do not create ad-hoc key
   shapes.
-- Gate owner-scoped queries with local runtime readiness and the neutral owner
-  context. Shared feature code must not import the local provider or
-  installation endpoints.
+- Gate owner-scoped queries with admitted runtime readiness and the neutral owner
+  context. Use the session cache key separately from the server owner ID. Shared
+  feature code must not import the local provider or installation endpoints.
 - On mutation success, update or invalidate caches narrowly.
 - Keep server state in TanStack Query and transient runtime state in Zustand.
 
@@ -166,16 +167,19 @@ or migration behavior.
 - Pass plain ids and callbacks into feature components.
 - Do not add router compatibility facades.
 
-### Local Principal And API Client
+### Runtime Admission And API Client
 
-- FastAPI owns the production application origin. Development Vite proxies
+- Local FastAPI owns the production application origin. Development Vite proxies
   application traffic without rewriting browser metadata into trusted identity.
   API and byte requests stay same-origin without an Animama bearer token.
-- `LocalRuntimeProvider` reads bounded runtime context first and requests
-  backend-owned bootstrap only for a reported repair. It shares in-flight
-  initialization, owns first-run state, and supplies the generated principal
-  through `RuntimeOwnerContext` only after FastAPI admits the request.
-  Feature code must not accept or invent owner IDs.
+- The local composition reads bounded runtime context and requests backend-owned
+  bootstrap only for a reported repair; it retains local first-run setup. The
+  hosted composition maps consumer-owned admission and account actions. Both use
+  `RuntimeController` / `RuntimeAdmissionProvider` and supply owner, capabilities
+  and transport through `RuntimeOwnerContext` only for ready admission. Feature
+  code must not accept or invent owner IDs. Session replacement aborts private
+  requests and disposes caches, drafts, workers and playback before readmission;
+  durable server receipt recovery is distinct from browser draft persistence.
 - The OpenAPI client is generated offline into
   `packages/runtime-contracts/src/generated` with `pnpm openapi-ts`; do not expose
   private FastAPI documentation or point client generation at a running URL.
@@ -230,7 +234,10 @@ or migration behavior.
 - Vite verifies the 21 browser engine files before serving/building and copies
   them into built artifacts. Keep every variant, same-origin URL and notice;
   installed artifacts must not depend on a developer cache.
-- Use root-relative public URLs for runtime fetches.
+- Use `web/src/lib/resource-urls.ts` for build-owned application resources and
+  manifest-bound optional model URLs. Local builds retain root-relative paths;
+  hosted builds use immutable resource prefixes. Private content stays on the
+  admitted API/verified-byte path, never the public resource helper.
 - Run asset verification when changing public runtime assets.
 
 ### Desktop Shell And Platform Builds

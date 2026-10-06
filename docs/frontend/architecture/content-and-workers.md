@@ -25,11 +25,10 @@ git lfs pull
 ```
 
 Speech engine payloads use a separate verified input path. The tracked
-`models/browser-runtime/manifest.json` records all 35 same-origin `/onnx/` assets:
-24 Pocket TTS/Smart Turn files acquired into the shared model store, nine
-ORT 1.24.2 files resolved from the exact dependency alias, and two VAD 0.0.30
-files resolved from its pinned package. Vite verifies their sizes and SHA-256
-hashes before serving or building; it does not fetch model inputs implicitly.
+`models/browser-runtime/manifest.json` is the authoritative inventory of baseline
+Pocket TTS/Smart Turn model-store inputs and exact ORT/VAD dependency files. Vite
+verifies their sizes and SHA-256 hashes before serving or building; it does not
+fetch model inputs implicitly.
 Worker-relative imports and all reviewed ORT variants remain available.
 
 Development serves those verified sources without a duplicate public payload
@@ -45,12 +44,23 @@ Legacy operator-supplied catalogs at
 inputs under `web/public`, using letters, digits, `_` or `-` for the ID. Vite
 serves only existing regular files at those paths and preserves their build
 copies; missing catalogs return 404. They are not hash-approved engine assets
-or members of the 23-file manifest. Normal uploaded catalog URLs are unaffected.
+or members of the baseline engine manifest. Normal uploaded catalog URLs are
+unaffected.
 
 Do not add public aliases for an Avatar, Gesture, Reaction, effect,
 sound, Appearance, or other catalog item. All playable Included
 and Local entries need registered file facts and protected catalog/preview/
 runtime delivery.
+
+Hosted builds address application resources under the immutable
+`/_animama/static/<digest>/` prefix. Use `publicResourceUrl` from
+`web/src/lib/resource-urls.ts` for build-owned resources and
+`optionalModelResourceUrl` for a model's manifest-bound lazy prefix. Local builds
+retain their existing root-relative paths. Optional manifests and notices ship
+with the application; optional model bytes require separate verified provisioning.
+Neither helper turns private catalog or API bytes into static resources. The
+[hosted artifact contract](../../../contracts/hosted-web.md#static-application-format-a5-producer--consumer-contract)
+owns the closed inventories, MIME/cache/range behavior and worker CSP.
 
 ## Included content
 
@@ -59,7 +69,9 @@ the same Content Kind registry as Local files. Included avatar portraits are
 Appearance entries under
 `content/included/appearances/avatar-portraits`; metadata associates each
 portrait with its Avatar model. No generated frontend or backend JSON catalog
-duplicates playable content.
+duplicates playable content. The hosted artifact packages a source-bound Included
+seed separately from its static allowlist. The consumer verifies and admits this
+seed through the neutral catalog; playable bytes retain protected delivery.
 
 `src/backend/animama/resources/starter-loadout.v1.json` is selection policy for
 new Animas, not a byte catalog. It refers to content identities resolved through
@@ -76,9 +88,10 @@ Dependencies imported only by a lazily requested worker must appear in Vite's
 page. Worker input remains bounded and is disposed with its preview or runtime
 session.
 
-Creator Save sends bounded files and an optional descriptor directly to
-FastAPI. The server performs authoritative hashing, type validation, safe
-atomic writes, and catalog reconciliation.
+Creator Save sends bounded files and an optional descriptor through the admitted
+API transport. Shared services perform authoritative hashing, type validation,
+atomic publication and catalog reconciliation through the composition's storage
+ports. Local persistence retains its filesystem atomicity.
 
 ## Runtime preparation
 
@@ -88,6 +101,9 @@ files, verify size and SHA-256, and create ephemeral Blob URLs. Preview and
 runtime sessions are separate. Playback consumes prepared bytes and performs no
 later typed-content request after readiness.
 
-The browser does not persist content in Cache Storage, IndexedDB, or OPFS.
-Ordinary HTTP cache entries and in-memory prepared resources are disposable and
-never part of backup or package export.
+Prepared playback bytes are ephemeral and never part of backup or package export.
+Local creator recovery may persist drafts; hosted private recovery is fenced to
+the admitted session and removed on sign-out or revocation. Identifier-only
+operation receipts support authoritative server recovery after reentry. Immutable
+application/model caches are separate from private content, which must not enter
+a shared HTTP or service-worker cache.
