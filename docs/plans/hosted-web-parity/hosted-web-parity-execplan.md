@@ -96,7 +96,7 @@ contract instead of maintaining a second truth.
 - [x] 2026-10-05 [A3 / #275](https://github.com/raymond-van/animama/issues/275): committed at `e8ef7768d2edcfc7cef58c508bf3fb66ba0d2302`; targeted independent review #2 passes after repair 1 of 2 for chat cache partitioning and durable recovery cleanup.
 - [x] 2026-10-06 [A4 / #276](https://github.com/raymond-van/animama/issues/276): original phase review passed0/2; A6 returned model-role/Library-upload defects. Targeted independent analysis/checks #2 resolve both after owning A4 repair1/2. Corrected immutable binding remains A6; physical/heard voice and hosted/provider/device acceptance remain C5/C7 gates.
 - [x] 2026-10-06 [A5 / #277](https://github.com/raymond-van/animama/issues/277): engineering/artifact gate PASS after independent final analysis/checks. Clean A `8b09e7ff` and reviewed main-integrated B `e4e0661b` pass independent producer/installed-and-emitted consumer, same-source A production observations and genuine A/B/open-tab/rollback/clip gates. Repair rounds remain 1 of 2; measurement and inherited descriptive-field limits are recorded below. C6/A6 are ready; main adoption, provider/device/deployment and exact-candidate owner merge remain separate.
-- [ ] 2026-10-06 [A6 / #278](https://github.com/raymond-van/animama/issues/278): active from `dea867414410d0932004ba474f1a1ee6fcd07a63` (A5 evidence-only record; feature code is reviewed B `e4e0661b`). Earlier A1–A5 gates passed; targeted current guidance/coverage, final public checks and bounded integration review coordinate with C6 independently of a future main pin. Initial final integration review found two A4 UI defects; targeted analysis/checks #2 pass after coordinated A6/A4 repair1/2, with prior A5 budget1/2 unchanged. Corrected clean artifact/consumer binding and actual CI remain pending. Owner merge and external acceptance stay explicit.
+- [ ] 2026-10-06 [A6 / #278](https://github.com/raymond-van/animama/issues/278): public source and corrected clean-artifact integration gate PASS at `c10218ae`, following owning repair `2217e76d`. Targeted analysis/checks #2 and actual emitted desktop/narrow screens resolve R1/R2 after A6/A4 repair1/2; A5 remains1/2. Required local checks and genuine B→C→B upgrade/rollback pass. PR handoff and actual CI remain; real C6/C7, owner merge, main adoption and external acceptance stay separate.
 
 ## Surprises & Discoveries
 
@@ -1130,6 +1130,45 @@ Cloud replacement and actual exact-candidate CI bindings are subsequent gates.
 Full A6 remains incomplete and no main adoption/owner merge/promotion/deployment
 is authorized by this source review. Unchanged broad backend/frontend/package
 checks remain reused; rerun only affected or unresolved evidence.
+
+#### Corrected clean artifact gate — 2026-10-06
+
+Owning repair `2217e76d4ebcb975f8107e922cd1092176765621` and final reviewed
+guidance `c10218aeca1c4c68b37028bd0e5f56372fdfe98a` produce clean C, tree
+`5c0a64bf61358d867f337f2b42c324fa76fffed6`. Producer and independent installed
+consumers PASS with no source checkout available. Manifest
+`25bc4ce3a46b49714b3bff036a3974611dd7bbad74ee9054c33565fb7def41a9`
+binds application archive
+`ecb5b82509af1b7e8e6c501582a1001bd060c6d9744aa4b25664a6e729480640`
+and compatible backend0.3. The whole-app browser also proves genuine B→C→B
+upgrade/rollback; older A/B and same-source production measurements remain
+valid with their recorded population, fidelity and restoration limits.
+
+The existing targeted review #2 continues on actual immutable C screens. Its
+independent receipt SHA
+`618d07a138775baaafd12603748794bca730dee25123c586487b797492100e28`
+binds43 files, all nine closed-set inputs and3,421 clean source paths. Four
+model roles select/search/save/reload with administration omitted at1440×900
+and390×844. Direct and legacy excluded Library routes explain unavailability,
+retain Import/Export and issue zero file queries. All714 fetched static bodies
+match119 declared manifest files; page/observer/external errors are zero.
+Sign-out and context/browser/two-server cleanup pass, with no durable content,
+files, chats, stages or operations created. Root inspected fresh desktop model
+and narrow Library screenshots. The first observer's unrequested exact-four-write
+assumption failed on five valid preference writes; preserve that failed attempt.
+Only the temporary observer changed, with all required assertions retained.
+
+Root adjudication SHA
+`c9fec98327bd9caec5a81dcf9d495a685f60d8b4fdbd5b355a424c84ff1f82ee`
+verifies all bound files/current source and releases the hold for the evidence
+commit and public PR. **Public source/artifact integration gate PASS**; A4/A6
+remain1/2 used and A5 remains1/2. No broad re-audit or repair-budget reset.
+Cloud's explicit test-only authority consumes this C without changing the
+ordinary pin. Actual exact-candidate public CI and PR handoff remain pending;
+real private replacement/hosted acceptance remains Cloud-owned. Public readiness
+does not depend on a future ordinary Cloud main pin. Exact owner merge,
+compatible validated-main adoption/promotion, paid providers, physical capture/
+heard audio, native acceptance and deployment are not authorized or claimed.
 
 ## Final integration review
 
