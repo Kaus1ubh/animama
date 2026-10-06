@@ -43,7 +43,10 @@ control admission. Readiness includes the exact PID/start token and local HTTP
 schema so main verifies its own child before granting renderer access. These
 controls are excluded from OpenAPI and absent in self-host composition.
 `audit-resources` reports `local_http_schema_version: 1`, matching the
-`animama-desktop-runtime/2` resource manifest. See backend operations for inputs.
+`animama-desktop-runtime/2` resource manifest. It also phonemizes a fixed
+sentence, so a build missing gruut's dynamically imported `gruut_lang_en`
+module fails staging instead of silently disabling avatar lip-sync. See backend
+operations for inputs.
 
 `animama-document-worker.spec` independently freezes the parser worker.
 `document_worker_resources.py` prepares pinned Docling layout/table weights,

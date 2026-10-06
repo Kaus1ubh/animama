@@ -38,6 +38,9 @@ for package in ("tiktoken_ext", "gruut", "gruut_lang_en", "llama_index.core", "c
 
 hiddenimports = collect_submodules("animama") + collect_submodules("uvicorn")
 hiddenimports += collect_submodules("psycopg_binary") + collect_submodules("tiktoken_ext")
+# gruut imports its language package by name at runtime. Without the module its
+# data folder imports as a namespace package that lacks get_lang_dir().
+hiddenimports += ["gruut_lang_en"]
 # Namespace packages and telemetry plugins are imported via package entrypoints.
 hiddenimports += collect_submodules("opentelemetry")
 
