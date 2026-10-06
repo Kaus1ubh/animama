@@ -54,6 +54,7 @@ def audit_resources() -> dict[str, Any]:
     from animama.domain.vfx import load_avatar_vfx_catalog
     from animama.prompts.avatar_animation_manifest import get_manifest_gesture_inventory
     from animama.server.app import app
+    from animama.server.gruut_text import build_gruut_sse_text
 
     for name in RESOURCE_INPUTS:
         if not runtime_resource(name).exists():
@@ -77,6 +78,10 @@ def audit_resources() -> dict[str, Any]:
         raise ValueError("Packaged starter or animation/effect resources are empty")
     if "/v1/animas/{anima_id}/chat:sse" not in {getattr(route, "path", "") for route in app.routes}:
         raise ValueError("Frozen FastAPI application is missing its chat route")
+    # Avatar lip-sync depends on phonemes; gruut otherwise fails only per chat turn.
+    phonemes = (build_gruut_sse_text("Hello there.") or {}).get("phonemized_text")
+    if not phonemes:
+        raise ValueError("Packaged gruut phonemizer produced no lip-sync phonemes")
     return {
         "schema": "animama-resource-audit/1",
         "local_http_schema_version": 1,
@@ -88,6 +93,7 @@ def audit_resources() -> dict[str, Any]:
         "effect_count": len(effects),
         "starter_policy": policy["id"],
         "api_route_count": len(app.routes),
+        "phoneme_word_count": len(phonemes),
     }
 
 
