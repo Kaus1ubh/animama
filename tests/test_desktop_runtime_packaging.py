@@ -22,6 +22,13 @@ def test_runtime_resource_audit_has_schema_and_starter_resources() -> None:
     assert evidence["starter_policy"] == "builtin:starter-loadout"
     assert evidence["effect_count"] > 0
     assert evidence["local_http_schema_version"] == 1
+    assert evidence["phoneme_word_count"] == 2
+
+
+def test_runtime_resource_audit_rejects_a_broken_phonemizer(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("animama.server.gruut_text.build_gruut_sse_text", lambda *_args, **_kwargs: None)
+    with pytest.raises(ValueError, match="gruut phonemizer"):
+        resources.audit_resources()
 
 
 def test_sql_runtime_resource_contains_product_seeds_directly() -> None:

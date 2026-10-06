@@ -93,10 +93,10 @@ contract instead of maintaining a second truth.
 
 - [x] 2026-10-06 [A1 / #273](https://github.com/raymond-van/animama/issues/273): engineering/source gate PASS; canonical metadata, SDK freshness and independent targeted review pass. Owning repair2/2 supplies runtime-contracts0.3.1. Clean220c6581 passes the unchanged declaration/installed-consumer guard and rollback; A6 refreshes the new R7 source artifact and actual CI. Original C1 handoff remains valid.
 - [x] 2026-10-05 [A2 / #274](https://github.com/raymond-van/animama/issues/274): corrected portable preference merger committed at `6a150fd45d5e215e7f134010b53b9c62e4316ede`; targeted independent review #3 and clean installed-wheel gate pass. Repair rounds used: 2 of 2. Neutral services are ready for isolated consumer C2 repair and A4.
-- [ ] 2026-10-06 [A3 / #275](https://github.com/raymond-van/animama/issues/275): original session/cache and R5/R6 source review pass; clean220 artifact/rollback and actual hosted durable preferences/desktop Usage pass. Actual mobile Library exposes A6-R7. Approved owning repair3/3 adds the shared header opener; four actual local/hosted Escape/Close regressions pass after a meaningful missing-opener red. Independent targeted source review passes; final immutable binding and full hosted account-switch/acceptance remain pending.
+- [ ] 2026-10-06 [A3 / #275](https://github.com/raymond-van/animama/issues/275): original session/cache and R5/R6 source review pass; actual hosted durable preferences/desktop Usage pass. Approved owning repair3/3 resolves A6-R7 with the shared mobile Library opener and four actual local/hosted Escape/Close regressions after a meaningful missing-opener red. Independent targeted source review and cleanf646cedd consumer/rollback pass. Current-main integration is separately reviewed; its final immutable binding and full hosted account-switch/acceptance remain pending.
 - [x] 2026-10-06 [A4 / #276](https://github.com/raymond-van/animama/issues/276): original phase review passed0/2; A6 returned model-role/Library-upload defects. Targeted independent analysis/checks #2 resolve both after owning A4 repair1/2. Corrected immutable binding remains A6; physical/heard voice and hosted/provider/device acceptance remain C5/C7 gates.
 - [x] 2026-10-06 [A5 / #277](https://github.com/raymond-van/animama/issues/277): engineering/artifact gate PASS after independent final analysis/checks. Clean A `8b09e7ff` and reviewed main-integrated B `e4e0661b` pass independent producer/installed-and-emitted consumer, same-source A production observations and genuine A/B/open-tab/rollback/clip gates. Repair rounds remain 1 of 2; measurement and inherited descriptive-field limits are recorded below. C6/A6 are ready; main adoption, provider/device/deployment and exact-candidate owner merge remain separate.
-- [ ] 2026-10-06 [A6 / #278](https://github.com/raymond-van/animama/issues/278): R4/R5/R6 source review and clean220c6581 producer/guard/consumer/rollback pass within scope; actual CI attempts1/2 remain failed. The owner approved A6-R7 repair4/4, with owning A3 3/3; a mobile Library opener and four real-router regression cases pass author checks. Independent targeted source review passes; clean successor artifact/consumer/Cloud/native CI remain pending. Earlier failures/counts and C6/C7/owner/main gates are retained.
+- [ ] 2026-10-06 [A6 / #278](https://github.com/raymond-van/animama/issues/278): approved R7 repair4/4, with owning A3 3/3, passes author and independent targeted source review. Cleanf646cedd producer/guard/installed-and-emitted consumer/genuine retained-C rollback pass. Main advanced to9abfc771; its four-path desktop integration passes bounded analysis and17 packaging tests after restoring missing declared locked server extras. Final current-tree artifact/Cloud/native CI remain pending; actual220 CI attempts1/2 remain failed. Earlier failures/counts and C6/C7/owner/main gates are retained.
 
 ## Surprises & Discoveries
 
@@ -1486,6 +1486,45 @@ review0of2, clean private releases/final-source acceptance and C7/owner/main/
 provider/device/deployment gates remain separate. This delivery record addendum
 changes no reviewed product or test byte and does not embed its own future commit.
 
+#### Code Review #5 artifact and upstream-main continuation
+
+The approved three-path repair is committed at
+`f646cedd7aff7f57f8338540255cf0a9fea7e557`. Its clean package set, manifest SHA
+`9d483f0dce7eafacea811c665921c6d99356b0ceb164a41efa8ad222b3066bb2`,
+passes producer, unchanged declaration guard, installed/emitted consumer and
+genuine retained-C upgrade/open-tab/rollback. Producer uses Python3.12.13;
+the outer orchestration/consumer uses Python3.14.4, Node24.15.0 and pnpm10.33.0.
+No dirty-build exception, source import or generated metadata edit is used.
+
+Public main then advanced to `9abfc771f25ade6562617c999464d109d42c0e57`.
+Its net four-path delta is the already merged desktop lip-sync packaging fix:
+an explicit phonemizer resource audit, the dynamic English-language hidden
+import, its documentation and focused tests. Conflict-free task integration
+retains every R7 product/test byte. Independent bounded analysis finds no
+required integration defect; the shared import closure remains297 reachable,
+230 shared and zero forbidden. Cloud excludes the changed native audit module;
+HTTP contracts, product admission, shared UI and dependency locks are unchanged.
+
+The first targeted packaging check passes16 and fails1 because this development
+environment lacks declared server-extra gruut packages. Direct import establishes
+the missing dependency, rather than Python incompatibility or a source defect.
+Restore the normal supported development extras with `uv sync --frozen`;
+locked gruut2.4.0, gruut-ipa0.13.0 and gruut-lang-en2.0.1 then import and all17
+packaging tests pass. Configured Python Ruff/format, import closure and whitespace
+pass. The original16/1 result and inapplicable forced PyInstaller-spec checks are
+retained; the latter match unchanged baseline diagnostics. No source repair or
+review-budget reset follows from environment preparation.
+
+This continuation permits the reviewed merge checkpoint and fresh clean
+current-tree producer/guard/installed-and-emitted consumer/retained-C validation.
+The f646 artifact remains historical engineering evidence; the new exact source
+and manifest are derived from that committed checkpoint and bound in the delivery
+record. Full native ci:full and the complete fresh hosted common-app journey
+remain required. A6 stays4of4, A3 stays3of3 and every other count is unchanged.
+The full common PASS still gates duplicate UI retirement; C6 initial review0of2,
+clean private releases/final-source acceptance and C7/main/owner/provider/device/
+deployment gates remain separate.
+
 ## Final integration review
 
 Use A6's review as the final integration review, not a second unrestricted pass.
@@ -1564,7 +1603,9 @@ after independent analysis/checks and matching full frontend validation. Clean22
 producer/installed-consumer/rollback passes; actual native CI attempts1/2 fail.
 The actual hosted journey confirms mobile Library finding R7. Its approved A6
 repair4of4/owning A3 3of3 passes four author browser regressions and independent
-targeted analysis/checks. Clean successor validation remains pending. Full hosted replacement,
+targeted analysis/checks. Cleanf646 successor validation passes; bounded incoming
+main integration passes analysis and17 packaging tests after declared environment
+preparation. Final current-tree artifact binding remains pending. Full hosted replacement,
 fresh actual CI and owner/main/provider/device/deployment gates precede overall
 parity acceptance. Existing failures, resource limits and phase repair counts remain
 recorded above. The agreed interleaved order remains authoritative.
