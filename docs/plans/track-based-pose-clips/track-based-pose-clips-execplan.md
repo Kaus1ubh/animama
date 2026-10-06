@@ -8,8 +8,9 @@ Authorized scope: all phases (1–7), authorized by the owner on 2026-10-06.
 Starting revision: `10216cd36251b8e011557250f3c4951e8bd39a69` (`origin/main`,
 which contains #267's merge `b9a1e588`).
 Branch: the task worktree's generated branch was renamed to
-`feat/track-based-pose-clips`. One branch and one PR for this plan. Parent #282.
-Phase issues are recorded under [Progress](#progress) once created.
+`feat/track-based-pose-clips`. One branch and one PR for this plan. Parent #282;
+phases #289 (P1), #292 (P2), #290 (P3), #293 (P4), #294 (P5), #295 (P6) and
+#291 (P7).
 
 ## Purpose and context
 
@@ -89,8 +90,10 @@ prototype.
 - [x] Owner requests recorded on #282 (2026-10-06,
       [comment](https://github.com/raymond-van/animama/issues/282#issuecomment-6021714609)).
 - [x] Repository surveyed; beat-model prototype run; spec and plan drafted.
-- [ ] Workspace: spec published to #282 and read back; phase issues created;
-      task stack started.
+- [x] Workspace: spec published to #282 and read back (2026-10-06T17:51:22Z);
+      phase issues #289, #292, #290, #293, #294, #295 and #291 created as
+      sub-issues with dependencies; branch pushed. Task stack: started when a
+      phase first needs it.
 - [ ] Phase 1: Interactive motion preview tool (1.0).
 - [ ] Phase 2: `animaPoseClip/2.0` format, sampler and 1.0 conversion.
 - [ ] Phase 3: Runtime and backend acceptance of 2.0.

@@ -10,8 +10,9 @@ questions to the agent's recommendations, to be confirmed by a prototype, and
 asked for the spec, ExecPlan and implementation to proceed. The prototype
 results and the resulting decisions are under
 [Open questions and decisions](#open-questions-and-decisions).
-Authoritative source: https://github.com/raymond-van/animama/issues/282
-(this draft is authoritative until it is published there).
+Authoritative source: https://github.com/raymond-van/animama/issues/282.
+Snapshot captured 2026-10-06T17:51:22Z at publication; refresh from the issue
+before resuming.
 Related: #260 and PR #267 delivered the motion description, generator, checks,
 review renders and the `animama-animation` skill this work builds on.
 
@@ -521,7 +522,7 @@ and exercised the operations headlessly on both Avatars.
 
 ## Spec
 
-This document (agreed draft). After publication: https://github.com/raymond-van/animama/issues/282.
+https://github.com/raymond-van/animama/issues/282 (this file is a snapshot).
 
 ## ExecPlan
 
@@ -530,4 +531,5 @@ Required: substantial, cross-cutting and uncertain work. See
 
 ## Delivery links
 
-Phase issues and the PR are added when created.
+Phases: #289 (P1), #292 (P2), #290 (P3), #293 (P4), #294 (P5), #295 (P6),
+#291 (P7). One PR for the plan.
