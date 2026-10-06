@@ -184,6 +184,85 @@ async function settings(page, owner) {
     .click();
   return page.getByRole("dialog", { name: "App Settings", exact: true });
 }
+
+// Mount the actual Library and shared shell in both compositions. A modal closes
+// the mobile drawer, so the Library header must let the user open it again.
+for (const local of [false, true]) {
+  for (const dismissal of ["Escape", "Close"]) {
+    test(`actual ${local ? "local" : "hosted"} Library restores mobile navigation after ${dismissal}`, async () => {
+      const f = await mount("/library", {}, 390, local);
+      const { page } = f;
+      try {
+        if (!local) {
+          // This screen fixture supplies the hosted quota HTTP boundary too.
+          await page.route("**/v1/hosted/quotas", (route) =>
+            route.fulfill({
+              json: {
+                turns: { used: 2, limit: 100 },
+                chats: { used: 1, limit: 20 },
+                storage_bytes: { used: 0, limit: 1024 },
+                resets_at: "2027-01-01T00:00:00Z",
+              },
+            }),
+          );
+        }
+        const openSidebar = page.getByRole("button", {
+          name: "Open sidebar",
+          exact: true,
+        });
+        await openSidebar.click();
+        await page
+          .getByRole("button")
+          .filter({ hasText: `${f.owner} account` })
+          .click();
+        const action = local ? "App Settings" : "Usage and limits";
+        await page.getByRole("menuitem", { name: action, exact: true }).click();
+        const dialog = page.getByRole("dialog", { name: action, exact: true });
+        await dialog.waitFor();
+        if (!local) {
+          await dialog.getByText("Chat turns", { exact: true }).waitFor();
+          assert.equal(
+            await dialog
+              .getByText("Usage could not be loaded.", { exact: true })
+              .count(),
+            0,
+          );
+        }
+        if (dismissal === "Escape") await page.keyboard.press("Escape");
+        else
+          await dialog
+            .getByRole("button", {
+              name: local ? "Close App Settings" : "Close",
+              exact: true,
+            })
+            .click();
+        await dialog.waitFor({ state: "hidden" });
+
+        // Only ordinary clicks establish that navigation is usable again.
+        await openSidebar.click();
+        const settingsDialog = await settings(page, f.owner);
+        await settingsDialog
+          .getByRole("button", { name: "Close App Settings", exact: true })
+          .click();
+        await settingsDialog.waitFor({ state: "hidden" });
+        await openSidebar.click();
+        await page.getByRole("link", { name: "Library", exact: true }).click();
+        await page
+          .getByRole("heading", { name: "Library", exact: true })
+          .waitFor();
+        const pointerEvents = await page.evaluate(() => ({
+          body: getComputedStyle(document.body).pointerEvents,
+          html: getComputedStyle(document.documentElement).pointerEvents,
+        }));
+        assert.notEqual(pointerEvents.body, "none");
+        assert.notEqual(pointerEvents.html, "none");
+      } finally {
+        await f.close();
+      }
+    });
+  }
+}
+
 const roles = [
   ["Chat", "chat", "default_model_provider_id"],
   ["Memory Manager", "models", "memory_manager_model_provider_id"],

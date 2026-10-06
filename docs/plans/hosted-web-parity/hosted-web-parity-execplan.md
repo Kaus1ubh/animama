@@ -91,12 +91,12 @@ contract instead of maintaining a second truth.
 
 ## Progress
 
-- [ ] 2026-10-06 [A1 / #273](https://github.com/raymond-van/animama/issues/273): metadata correction, SDK freshness and independent targeted source review pass. Owner-authorized owning repair2/2 applies runtime-contracts0.3.1; the actual clean declaration/consumer guard remains pending. Original C1 handoff remains valid.
+- [x] 2026-10-06 [A1 / #273](https://github.com/raymond-van/animama/issues/273): engineering/source gate PASS; canonical metadata, SDK freshness and independent targeted review pass. Owning repair2/2 supplies runtime-contracts0.3.1. Clean220c6581 passes the unchanged declaration/installed-consumer guard and rollback; A6 refreshes the new R7 source artifact and actual CI. Original C1 handoff remains valid.
 - [x] 2026-10-05 [A2 / #274](https://github.com/raymond-van/animama/issues/274): corrected portable preference merger committed at `6a150fd45d5e215e7f134010b53b9c62e4316ede`; targeted independent review #3 and clean installed-wheel gate pass. Repair rounds used: 2 of 2. Neutral services are ready for isolated consumer C2 repair and A4.
-- [ ] 2026-10-06 [A3 / #275](https://github.com/raymond-van/animama/issues/275): original session/cache review #2 and independent targeted R5/R6 source recheck pass. Owner-authorized owning repair2/2 produces13 Usage/browser and24 preference/workflow passes; failed or pending reads cannot write replacement preferences, and session replacement fences stale responses. The corrected immutable consumer and actual Cloud replacement journey remain pending.
+- [ ] 2026-10-06 [A3 / #275](https://github.com/raymond-van/animama/issues/275): original session/cache and R5/R6 source review pass; clean220 artifact/rollback and actual hosted durable preferences/desktop Usage pass. Actual mobile Library exposes A6-R7. Approved owning repair3/3 adds the shared header opener; four actual local/hosted Escape/Close regressions pass after a meaningful missing-opener red. Independent targeted source review passes; final immutable binding and full hosted account-switch/acceptance remain pending.
 - [x] 2026-10-06 [A4 / #276](https://github.com/raymond-van/animama/issues/276): original phase review passed0/2; A6 returned model-role/Library-upload defects. Targeted independent analysis/checks #2 resolve both after owning A4 repair1/2. Corrected immutable binding remains A6; physical/heard voice and hosted/provider/device acceptance remain C5/C7 gates.
 - [x] 2026-10-06 [A5 / #277](https://github.com/raymond-van/animama/issues/277): engineering/artifact gate PASS after independent final analysis/checks. Clean A `8b09e7ff` and reviewed main-integrated B `e4e0661b` pass independent producer/installed-and-emitted consumer, same-source A production observations and genuine A/B/open-tab/rollback/clip gates. Repair rounds remain 1 of 2; measurement and inherited descriptive-field limits are recorded below. C6/A6 are ready; main adoption, provider/device/deployment and exact-candidate owner merge remain separate.
-- [ ] 2026-10-06 [A6 / #278](https://github.com/raymond-van/animama/issues/278): owner-authorized additional repair3/3 resolves R4/R5/R6 in source after independent analysis/checks #4. Current SDK, static checks, full web/desktop tests and local/hosted builds pass. A new clean producer/consumer/rollback and fresh actual CI remain pending. Earlier failed artifact/CI evidence and C6/C7/owner merge/main adoption gates are retained.
+- [ ] 2026-10-06 [A6 / #278](https://github.com/raymond-van/animama/issues/278): R4/R5/R6 source review and clean220c6581 producer/guard/consumer/rollback pass within scope; actual CI attempts1/2 remain failed. The owner approved A6-R7 repair4/4, with owning A3 3/3; a mobile Library opener and four real-router regression cases pass author checks. Independent targeted source review passes; clean successor artifact/consumer/Cloud/native CI remain pending. Earlier failures/counts and C6/C7/owner/main gates are retained.
 
 ## Surprises & Discoveries
 
@@ -1405,6 +1405,87 @@ and full-test/build receipt SHA
 `f38a83266bb4b7aa6c76545d8892658d46fdc8f16425207726c0ae5c986d8b51`
 bind the matching frozen source.
 
+#### Code Review #5 Findings — actual mobile Library navigation
+
+**A6-R7 is required.** The actual hosted Library at mobile width has no accessible
+external drawer opener. Its plain header omits the shared Header; the existing
+opener is inside the closed hidden/inert drawer. Usage or App Settings closes the
+drawer, preventing later navigation. The earlier empty-roster dismissal fixture
+proved pointer release but did not exercise reopening from actual Library.
+A focused actual-browser probe confirms this stable screen defect with normal
+body/html pointer events. Its earlier failure stage does not reproduce or explain
+the timing of the original complete run. That run passed18 checks, including
+private voice reload, cross-owner private content isolation and desktop Usage,
+then failed in mobile navigation; final account-switch/logout/CSP checks remain
+unperformed. Raw partial results are not overall acceptance.
+
+#### Code Review #5 Revisions — approved repair4of4
+
+On2026-10-06 the owner approved the prepared A6-R7 repair and continuation in the
+agreed interleaved order. Resume verification retains clean public220c6581 and
+the existing task worktrees/branches. All unused task containers were removed
+with volumes, images and unrelated stacks preserved. No task runtime is needed
+for these source fixtures. This additional bound is A6 **4of4** and owning A3
+**3of3**; A1/A2 remain2of2, A4/A5 remain1of2. No earlier count, failure or gate
+is reset, and no broad audit or further automatic repair is authorized.
+
+The change boundary is LibraryPage.tsx and retained-screens.browser.test.mjs,
+plus this living record. The header adds a mobile-only existing Button/Menu
+using AppShell.openSidebar. Four actual Library/router/shell cases require
+ordinary navigation after hosted Usage or local App Settings Escape/Close.
+The first case fails against unchanged product source waiting for Open sidebar;
+that is the meaningful behavior red. Product repair makes the local cases pass.
+The initial hosted cases expose a incomplete quota response in the screen
+fixture: it returns only turns. The test supplies chats, storage_bytes and
+resets_at through that existing HTTP boundary in the same test file, then passes. Public
+formatter checks also correct two new wrapped assertions; the prior outside
+format-only result did not establish formatting under the real file configuration.
+The final four cases pass with zero skips and no forced click, style reset,
+reload workaround, extra timeout or quota change. Web type checks and lint pass.
+The affected full real-router screen suite passes8 cases with zero skips, including
+all four new navigation regressions, and both1440/390 screenshots are inspected.
+Desktop keeps its existing header; narrow Library visibly supplies the opener.
+Bounded independent analysis/checks are next.
+
+R4/R5/R6 source results and clean220 immutable evidence remain valid within their
+scope. Actual native CI attempts1/2 remain failed; focused emulated Linux entry
+passes are diagnostic, not CI acceptance or proof of the distinct clip stall.
+After targeted source review, commit the approved repair, regenerate a clean
+immutable set, validate genuine retained-C upgrade/open-tab/rollback and obtain
+fresh exact-source ci:full. The hosted consumer reruns the full corrected app on
+a fresh cohort under the unchanged three-root/$0.15 ceiling. Full common PASS
+still gates duplicate UI retirement. C6 formal initial review remains0of2; clean
+releases, final-source account/common/admin/lifecycle, validated public main,
+owner merge, promotion/readback and provider/device/deployment gates remain.
+
+#### Code Review #5 source release — R7 resolved
+
+Independent targeted analysis and checks both return **SOURCE_RELEASE_PASS** for
+the three-path R7 delta, aggregate `d611e6a2ed7cf38038e17e3e2be0de547619cdc5459b10f80d188212feb3f99e`.
+Analysis receipt SHA `63ff0eece8c3877c8760aa0b35e82adc1b934d90272fe7608301d3e2a7ac4913`; checks receipt SHA
+`7a1f52632894f79b98b279a693fe580fc0d65e7a14f865885a68361093eabb59`. Root verifies their bound evidence and matching
+source hashes. No required regression finding remains. The independent replay
+passes all four actual local/hosted Library Escape/Close cases with zero skips,
+using ordinary pointer actions and unchanged deadlines. The affected full suite
+passes8 cases; web type/lint/format and local production build pass. No physical
+speech or actual provider result is inferred from source fixtures.
+
+The quota evidence wording is corrected: the existing fixture returned200 with
+turns only; the new cases supply the complete chats/storage/reset contract in
+the approved test file. This is a fixture prerequisite, not a product defect or
+another repair. Earlier fixture failures, formatter warnings and reviewer setup
+errors remain recorded and are excluded from passing claims. All nine R4/R5/R6
+source hashes remain unchanged; their historical checks keep their original scope.
+
+Accept A6-R7 as resolved in source. A6 remains4of4 and owning A3 remains3of3;
+all other counts/gates are retained. This permits the scoped verified commit and
+clean producer/installed-and-emitted consumer/retained-C upgrade/open-tab/rollback.
+The new exact-source native ci:full and actual hosted full replacement remain
+required. C6 duplicate UI retirement is still held on common PASS. Initial C6
+review0of2, clean private releases/final-source acceptance and C7/owner/main/
+provider/device/deployment gates remain separate. This delivery record addendum
+changes no reviewed product or test byte and does not embed its own future commit.
+
 ## Final integration review
 
 Use A6's review as the final integration review, not a second unrestricted pass.
@@ -1477,12 +1558,15 @@ contracts; the coverage map tracks acceptance rather than duplicating the spec.
 
 A1–A5 and C1–C5 engineering gates have passed, including clean package production,
 installed/emitted consumers and genuine upgrade/rollback. Final integration and
-the actual Cloud common-app journey exposed six public findings. R1–R3 passed
+the actual Cloud common-app journey exposed seven public findings. R1–R3 passed
 their targeted review; the owner-authorized extra repair resolves R4–R6 in source
-after independent analysis/checks and matching full frontend validation. The new
-clean package consumer, corrected Cloud replacement journey, fresh actual CI and
-remaining owner/main/provider/device/deployment gates still precede overall parity
-acceptance. Existing failures, resource limits and phase repair counts remain
+after independent analysis/checks and matching full frontend validation. Clean220
+producer/installed-consumer/rollback passes; actual native CI attempts1/2 fail.
+The actual hosted journey confirms mobile Library finding R7. Its approved A6
+repair4of4/owning A3 3of3 passes four author browser regressions and independent
+targeted analysis/checks. Clean successor validation remains pending. Full hosted replacement,
+fresh actual CI and owner/main/provider/device/deployment gates precede overall
+parity acceptance. Existing failures, resource limits and phase repair counts remain
 recorded above. The agreed interleaved order remains authoritative.
 
 Revision note, 2026-10-05: initial plan separates reusable public implementation

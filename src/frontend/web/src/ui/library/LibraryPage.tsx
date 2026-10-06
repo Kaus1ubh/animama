@@ -2,10 +2,11 @@
 
 import { useLibrarySharingFlow } from "@/query/hooks/useLibrarySharingFlow";
 import { LibrarySharingDialog } from "./LibrarySharingDialog";
-import { LibraryBig } from "lucide-react";
+import { LibraryBig, Menu } from "lucide-react";
 
 import type { ContentLibrarySearch } from "@/lib/content/librarySearch";
 import { AppShellPage } from "@/ui/app/AppShellPage";
+import { useOptionalAppShell } from "@/ui/app/AppShell";
 import { cn } from "@/lib/utils";
 import { Button } from "@/ui/components/button";
 import {
@@ -33,6 +34,7 @@ export function LibraryPage({
   search: ContentLibrarySearch;
   onSearchChange: (update: Partial<ContentLibrarySearch>) => void;
 }) {
+  const appShell = useOptionalAppShell();
   const sharing = useLibrarySharingFlow();
   const uploadsEnabled = useRuntimeFeatureEnabled("chat_file_uploads");
   return (
@@ -40,6 +42,16 @@ export function LibraryPage({
       <header className="pb-4">
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-3">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="md:hidden"
+              aria-label="Open sidebar"
+              onClick={appShell?.openSidebar}
+            >
+              <Menu aria-hidden="true" />
+            </Button>
             <div className="bg-primary/10 text-primary flex size-10 items-center justify-center rounded-xl">
               <LibraryBig className="size-5" />
             </div>
