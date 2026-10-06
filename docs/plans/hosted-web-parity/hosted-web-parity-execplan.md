@@ -95,7 +95,7 @@ contract instead of maintaining a second truth.
 - [x] 2026-10-05 [A2 / #274](https://github.com/raymond-van/animama/issues/274): corrected portable preference merger committed at `6a150fd45d5e215e7f134010b53b9c62e4316ede`; targeted independent review #3 and clean installed-wheel gate pass. Repair rounds used: 2 of 2. Neutral services are ready for isolated consumer C2 repair and A4.
 - [x] 2026-10-05 [A3 / #275](https://github.com/raymond-van/animama/issues/275): committed at `e8ef7768d2edcfc7cef58c508bf3fb66ba0d2302`; targeted independent review #2 passes after repair 1 of 2 for chat cache partitioning and durable recovery cleanup.
 - [x] 2026-10-05 [A4 / #276](https://github.com/raymond-van/animama/issues/276): public retained-workflow and resource-lifetime engineering passes independent analysis/checks #1, repairs 0 of 2. Physical capture/heard output and actual hosted/provider/device acceptance remain explicit C5/C7 gates; this is not a declaration of delivered voice parity.
-- [ ] 2026-10-05 [A5 / #277](https://github.com/raymond-van/animama/issues/277): source review #2 PASS after repair 1 of 2; first clean set at `8b09e7ff939201e0f48c6c2db8b886f72a0186c0`, isolated consumers and same-source production observations pass independent checks. Reviewed main Gesture integration and affected checks pass; clean second set and genuine A/B/open-tab/rollback remain completion gates.
+- [x] 2026-10-06 [A5 / #277](https://github.com/raymond-van/animama/issues/277): engineering/artifact gate PASS after independent final analysis/checks. Clean A `8b09e7ff` and reviewed main-integrated B `e4e0661b` pass independent producer/installed-and-emitted consumer, same-source A production observations and genuine A/B/open-tab/rollback/clip gates. Repair rounds remain 1 of 2; measurement and inherited descriptive-field limits are recorded below. C6/A6 are ready; main adoption, provider/device/deployment and exact-candidate owner merge remain separate.
 - [ ] 2026-10-05 [A6 / #278](https://github.com/raymond-van/animama/issues/278): planned; depends on A5/all public gates; coordinate with C6 without requiring a future main pin.
 
 ## Surprises & Discoveries
@@ -939,7 +939,66 @@ frontend formatter paths, 38 lint paths, Python lint/format and whitespace.
 Initial package-build race, protected-cache invocation and overbroad formatting
 checks remain in history; corrected checks require no source repair. Independent
 integration analysis and checks pass; the reviewed clean merge checkpoint enables
-B production. A5 remains incomplete, with repair rounds used **1 of 2**.
+B production. The final artifact decision below resolves those remaining gates;
+repair rounds remain **1 of 2**.
+
+#### Final clean artifact gate — 2026-10-06
+
+Independent final artifact analysis and checks **PASS** for clean B
+`e4e0661b1b54a8acad85088831b97f9fc8a0041e`, tree
+`7a4fc6ea442980cbebbda90b92bb89c83a9a10f3`. All 3,418 tracked source hashes,
+179 hydrated LFS inputs, seven sealed inputs and 166 evidence bindings are
+verified. The final author packet SHA is
+`1f849d7857cce8530ad0e024b7f78de0c01ac3adc0eab9b9f7a46a5d9adc4483`;
+independent analysis/check receipts are
+`548fe06a616a38dcbf92c0129c2dfca59ae429f23d0132ac82424f36296544f2` and
+`7440c7059ee5a91c5e515f947150b71896b78f12a1ff0460b361e7191510ab83`.
+No new required finding or source repair remains; budget stays **1 of 2 used**.
+
+B's format2 manifest is
+`7fd7a8d6a2515999b9d40bbef5acbb52c7d4ab211a2c44d9b3c5ef6324c19aa0`;
+its 169,604,612-byte whole-app archive hashes to
+`774ec4fc06daf45aa385a1288c07e979710c080735c9cda614fd5dcf6581901d`,
+and its freshly installed backend0.3 wheel to
+`7459e8df37ea6d3878cbf984750c67fa155d6d7dd35e8041b9a75440e0e3c4da`.
+All 504 implementation payloads match A. The exact isolated consumer passes
+contract, content, owner isolation and closed Included seed checks: 362 Included
+files, 162 entries and two starters. Both app selections have 311 static files
+and 692 closed total files. Four optional model manifests retain their raw hash
+identity; weights remain separately selected resources.
+
+The actual clean A → B → rollback A run has
+`exact_clean_upgrade_rollback=true`. An already-open A page loads its real late
+inference worker after selection changes; fresh B loads B's resources and emits
+nonzero PCM through the actual worklet; rollback uses A's entry/chunks. Both
+owner cleanup paths terminate workers and close audio. Browser errors and
+external/provider requests are empty. Six normal/effect-only creator flows keep
+the same two saved item IDs through these selections, then delete only their
+owned fixtures and sign out with zero remaining owned clips.
+
+A targeted supplement retains 30 synthetic uploaded/exported bodies, including
+16 successful exports. All six upload/export/reopen sequences and dependencies
+are equal, with only deliberately authored IDs/names changing across selections.
+The seven known layer mutes and opaque generator/future metadata survive; old A
+preserves newer mute data without executing B's newer procedural behavior.
+Four full-project export/reopen differences are solely `aiDescription`: authored
+AI selection text reloads as the ordinary description. The same typed projection
+and Action fields exist in the pre-task self-hosted source. This inherited
+local/hosted limitation does not indicate clip/mute/opaque-data loss; full project
+byte identity, intended normalization and arbitrary future mute execution are
+not claimed. The first supplemental observer failure is preserved; its corrected
+owner-scoped persisted-item GET capture and exact cleanup pass.
+
+The exact-A same-source production comparison above is reused; B did not repeat
+that local benchmark. B's literal initial/core JS/CSS gzip inventory is
+1,296,020/2,270,386 bytes, distinct from baseline models and browser transfer
+counters. Preserve the toolchain/population/headless and original selected-Anima
+restoration limits above. Physical microphone/heard audio, actual Cloud/provider/
+device/native/deployment and publication/promotion acceptance remain separate.
+
+Root adjudication: **A5 complete within its public engineering/artifact scope**.
+Release the held source and advance the agreed parallel C6/A6 work. This neither
+changes the normal Cloud pin nor grants owner merge or main-artifact adoption.
 
 ### Phase 6: Complete public acceptance and hand off for hosted adoption (A6)
 
