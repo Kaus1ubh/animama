@@ -173,4 +173,22 @@ describe("PreviewSession", () => {
     );
     expect((await stat(path.join(dir, "reviews"))).isDirectory()).toBe(true);
   });
+
+  it("retains a version it could not record while the notes file was broken", async () => {
+    const source = path.join(dir, "nod.clip.json");
+    const notes = path.join(dir, "nod.clip.review.json");
+    await writeFile(source, JSON.stringify(clip(1)));
+    const session = await open();
+    const good = await readFile(notes, "utf8");
+    await writeFile(notes, "[]");
+    await writeFile(source, JSON.stringify(clip(2)));
+    await session.reload();
+    await writeFile(notes, good);
+    await session.reload();
+    const state = session.state();
+    expect(state.review.error).toBeNull();
+    expect(state.review.sidecar?.versions.map(({ id }) => id)).toContain(
+      state.rows[0].version,
+    );
+  });
 });

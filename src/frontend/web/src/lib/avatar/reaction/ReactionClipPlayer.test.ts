@@ -194,6 +194,84 @@ describe("ReactionClipPlayer", () => {
     expect(cleared).toEqual(["timed", "with-action"]);
   });
 
+  it("plays a 2.0 Reaction's expression track", () => {
+    const overlays: Record<string, number>[] = [];
+    const player = new ReactionClipPlayer({
+      setExpressionOverlay: (_ownerId, expressions) => {
+        overlays.push({ ...expressions });
+        return true;
+      },
+      clearExpressionOverlay: () => true,
+    });
+    player.play({
+      ownerId: "owner",
+      runId: "run",
+      sourceEventId: "source",
+      emotionEventId: "emotion",
+      clip: {
+        schema: "animaPoseClip/2.0",
+        id: "joy-1",
+        name: "Joy 1",
+        role: "reaction",
+        duration: 1,
+        beats: [
+          { id: "start", label: "Start", time: 0 },
+          { id: "peak", label: "Peak", time: 1, ease: "linear" },
+        ],
+        expressions: {
+          happy: [
+            { beat: "start", v: 0 },
+            { beat: "peak", v: 0.8 },
+          ],
+        },
+        joints: { head: { flexion: [{ beat: "peak", v: 10 }] } },
+      },
+    });
+    player.update(0.5);
+    expect(overlays.at(-1)).toEqual({ happy: expect.closeTo(0.4) });
+  });
+
+  it("times a 2.0 Reaction's events and clears them when it ends", () => {
+    const applied: string[] = [];
+    const cleared: string[] = [];
+    const player = new ReactionClipPlayer(
+      { setExpressionOverlay: () => true, clearExpressionOverlay: () => true },
+      {
+        eventSink: {
+          applyAvatarVFX: (event) => {
+            applied.push(event.id);
+          },
+          clearAvatarVFX: (event) => {
+            cleared.push(event.id);
+          },
+        },
+      },
+    );
+    player.play({
+      ownerId: "owner",
+      runId: "run",
+      sourceEventId: "source",
+      emotionEventId: "emotion",
+      clip: {
+        schema: "animaPoseClip/2.0",
+        id: "sparkle",
+        name: "Sparkle",
+        duration: 1,
+        beats: [{ id: "start", label: "Start", time: 0 }],
+        expressions: { happy: [{ beat: "start", v: 1 }] },
+        events: [
+          { id: "stars", time: 0.5, kind: "avatar_vfx", effectId: "stars" },
+        ],
+      },
+    });
+    player.update(0.25);
+    expect(applied).toEqual([]);
+    player.update(0.5);
+    expect(applied).toEqual(["stars"]);
+    player.clear("owner", { immediate: true });
+    expect(cleared).toEqual(["stars"]);
+  });
+
   it("accepts a generic clip with body motion and applies only expressions", () => {
     const overlays: Record<string, number>[] = [];
     const player = new ReactionClipPlayer({

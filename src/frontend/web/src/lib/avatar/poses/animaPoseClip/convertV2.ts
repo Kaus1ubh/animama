@@ -11,8 +11,10 @@ import {
 } from "./schema";
 import {
   ANIMA_POSE_CLIP_V2_LIMITS,
-  ANIMA_POSE_CLIP_V2_MIN_SPACING,
+  ANIMA_POSE_CLIP_V2_MIN_SPACING_TICKS,
   ANIMA_POSE_CLIP_V2_SCHEMA,
+  fromAnimaPoseClipTicks,
+  toAnimaPoseClipTicks,
   type AnimaPoseClipBeat,
   type AnimaPoseClipEase,
   type AnimaPoseClipRotationKey,
@@ -59,7 +61,19 @@ export function convertAnimaPoseClipToV2(
         0,
         ANIMA_POSE_CLIP_V2_LIMITS.labelLength,
       ),
-      time: keyframe.time,
+      // 1.0 keyframes only need to increase; 2.0 beats sit at least
+      // ANIMA_POSE_CLIP_V2_MIN_SPACING_TICKS apart once saved, so very
+      // close keyframes are spread by at most that much.
+      time:
+        index === 0
+          ? keyframe.time
+          : fromAnimaPoseClipTicks(
+              Math.max(
+                toAnimaPoseClipTicks(keyframe.time),
+                toAnimaPoseClipTicks(beats[index - 1].time) +
+                  ANIMA_POSE_CLIP_V2_MIN_SPACING_TICKS,
+              ),
+            ),
       ease: easing,
     });
   });
@@ -78,7 +92,12 @@ export function convertAnimaPoseClipToV2(
   if (loop && beats.length > 0) {
     // A 1.0 loop holds its last keyframe until the duration, then snaps to
     // the first: arrive at the first keyframe with a hold across the seam.
-    if (beats[0].time >= ANIMA_POSE_CLIP_V2_MIN_SPACING) {
+    if (
+      toAnimaPoseClipTicks(beats[0].time) < ANIMA_POSE_CLIP_V2_MIN_SPACING_TICKS
+    ) {
+      // Too close to 0 for a beat of its own: start the cycle on it.
+      beats[0].time = 0;
+    } else {
       // It also holds the first keyframe from the start of each cycle.
       beats.unshift({
         id: uniqueId("loop-start", usedIds),
@@ -155,7 +174,7 @@ export function convertAnimaPoseClipToV2(
     duration:
       Math.max(
         getAnimaPoseClipTimelineDuration(clip),
-        keyframes.at(-1)?.time ?? 0,
+        beats.at(-1)?.time ?? 0,
       ) || 1,
     beats,
     ...(Object.keys(rotations).length > 0 ? { rotations } : {}),

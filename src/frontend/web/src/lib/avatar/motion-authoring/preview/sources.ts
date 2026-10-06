@@ -3,9 +3,13 @@ import { readFile, readdir, stat } from "node:fs/promises";
 import path from "node:path";
 
 import {
+  ANIMA_POSE_CLIP_V2_SCHEMA,
   getAnimaPoseClipTimelineDuration,
+  isAnimaPoseClipV2,
   sanitizeAnimaPoseClip,
+  validateAnimaPoseClipV2,
   type AnimaPoseClip,
+  type AnyAnimaPoseClip,
 } from "../../poses/animaPoseClip";
 import { getAnimaPoseClipFadeDuration } from "../../poses/animaPoseClip/playback";
 import {
@@ -36,8 +40,12 @@ export type PreviewSource = {
 export type PreviewMarker = { id: string; time: number; label: string };
 
 export type PreviewClip = {
-  format: "animaPoseClip/1.0" | "animamaMotion/1" | "animamaActionProject/1.0";
-  clip: AnimaPoseClip;
+  format:
+    | "animaPoseClip/1.0"
+    | "animaPoseClip/2.0"
+    | "animamaMotion/1"
+    | "animamaActionProject/1.0";
+  clip: AnyAnimaPoseClip;
   markers: PreviewMarker[];
   /** Timeline length in seconds, excluding the fade-out. */
   duration: number;
@@ -103,14 +111,23 @@ export function previewClipFromText(
   }
   if (schema === PROJECT_SCHEMA && isRecord(value))
     return describeClip(PROJECT_SCHEMA, parseClip(value.sequence));
-  if (schema === "animaPoseClip/1.0")
-    return describeClip("animaPoseClip/1.0", parseClip(value));
+  if (schema === "animaPoseClip/1.0" || schema === ANIMA_POSE_CLIP_V2_SCHEMA)
+    return describeClip(schema, parseClip(value));
   throw new PreviewSourceError(
-    `Unsupported schema ${JSON.stringify(schema ?? null)}. Expected animaPoseClip/1.0, ${MOTION_DESCRIPTION_SCHEMA} or ${PROJECT_SCHEMA}.`,
+    `Unsupported schema ${JSON.stringify(schema ?? null)}. Expected animaPoseClip/1.0, ${ANIMA_POSE_CLIP_V2_SCHEMA}, ${MOTION_DESCRIPTION_SCHEMA} or ${PROJECT_SCHEMA}.`,
   );
 }
 
-function parseClip(value: unknown): AnimaPoseClip {
+function parseClip(value: unknown): AnyAnimaPoseClip {
+  if (isAnimaPoseClipV2(value)) {
+    const result = validateAnimaPoseClipV2(value);
+    if (!result.ok)
+      throw new PreviewSourceError(
+        `Invalid ${ANIMA_POSE_CLIP_V2_SCHEMA} (${result.issues.length} issue(s)).`,
+        result.issues,
+      );
+    return result.clip;
+  }
   const clip = sanitizeAnimaPoseClip(value);
   if (!clip)
     throw new PreviewSourceError(
@@ -121,12 +138,24 @@ function parseClip(value: unknown): AnimaPoseClip {
 
 function describeClip(
   format: PreviewClip["format"],
-  clip: AnimaPoseClip,
+  clip: AnyAnimaPoseClip,
 ): PreviewClip {
-  const keyframes = clip.poseKeyframes;
-  return {
+  const common = {
     format,
     clip,
+    duration: getAnimaPoseClipTimelineDuration(clip),
+    fadeOut: getAnimaPoseClipFadeDuration(clip.fadeOut),
+    loop: clip.loop === true,
+  };
+  // 2.0 beats are the markers: notes pin to their ids.
+  if (isAnimaPoseClipV2(clip))
+    return {
+      ...common,
+      markers: clip.beats.map(({ id, time, label }) => ({ id, time, label })),
+    };
+  const keyframes = clip.poseKeyframes;
+  return {
+    ...common,
     markers:
       keyframes.length <= MAX_KEYFRAME_MARKERS
         ? keyframes.map((keyframe, index) => ({
@@ -135,9 +164,6 @@ function describeClip(
             label: keyframe.pose,
           }))
         : [],
-    duration: getAnimaPoseClipTimelineDuration(clip),
-    fadeOut: getAnimaPoseClipFadeDuration(clip.fadeOut),
-    loop: clip.loop === true,
   };
 }
 

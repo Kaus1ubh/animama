@@ -523,3 +523,48 @@ async def test_gesture_save_and_package_keep_layer_mutes_and_unknown_clip_fields
     ]
     # The original and the imported copy carry the same fields.
     assert clips == [json.loads(sequence)] * 2
+
+
+async def test_gesture_with_a_2_0_clip_round_trips_through_a_package(workflow: _Workflow) -> None:
+    """A beat-based clip saves as Local content and survives package export and import unchanged."""
+
+    clip = json.loads(
+        (
+            Path(__file__).parents[1]
+            / "src/frontend/web/src/lib/avatar/poses/animaPoseClip/fixtures/compatibility-valid-v2.json"
+        ).read_text()
+    )
+    clip["id"] = "beat-wave"
+    sequence = json.dumps(clip).encode()
+    saved = await workflow.saves.save_descriptor(
+        user_id=workflow.owner,
+        kind=ContentKind.GESTURE,
+        entry_name="Beat Wave",
+        descriptor=json.dumps(
+            {
+                "schema_version": 1,
+                "content_type": "gesture",
+                "content_id": "local:gesture:beat-wave",
+                "name": "Beat Wave",
+                "semantic_key": "beat-wave",
+                "implementation": {"kind": "anima_clip", "file_role": "sequence"},
+                "files": [{"path": "beat-wave.json", "role": "sequence"}],
+            }
+        ).encode(),
+        companion_files={"beat-wave.json": sequence},
+        operation_id="beat-wave-save",
+        catalog_item_id=None,
+        expected_revision=None,
+    )
+    exported = await reviewed_export(workflow.packages, user_id=workflow.owner, root_item_id=saved.item.id)
+    command = await reviewed_import(
+        workflow.packages, user_id=workflow.owner, archive_path=exported.path, operation_id="beat-wave-import"
+    )
+    imported = await workflow.packages.imports.commit(**command)
+    assert imported.items[0].item_id != saved.item.id
+    clips = [
+        json.loads(data)
+        for path, data in workflow.local_files().items()
+        if path.endswith(".json") and not path.endswith(".meta.json") and b'"beat-wave"' in data
+    ]
+    assert clips == [clip] * 2

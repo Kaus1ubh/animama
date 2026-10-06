@@ -23,10 +23,7 @@ import {
   countAnimaPoseClipEventsByKind,
   getAnimaPoseClipTimelineDuration,
   isAnimaPoseClipVFXEvent,
-  parseAnimaPoseClip,
-  sampleAnimaPoseClip,
   shouldAnimaPoseClipAutoComplete,
-  type AnimaPoseClip,
   type AnimaPoseClipAvatarVFXEvent,
   type AnimaPoseClipDueEvent,
   type AnimaPoseClipEvent,
@@ -45,6 +42,14 @@ import {
   interpolateSamples,
 } from "./animaPoseClip/interpolation";
 import type { AvatarPoseClipSnapshot, AvatarPoseSnapshot } from "./types";
+import {
+  parseAnyAnimaPoseClip,
+  type AnyAnimaPoseClip,
+} from "./animaPoseClip/anyClip";
+import {
+  createAnimaPoseClipProgram,
+  type AnimaPoseClipProgram,
+} from "./animaPoseClip/program";
 import {
   ANIMA_POSE_CLIP_EPSILON,
   type AnimaPoseClipMutableLayerId,
@@ -154,7 +159,9 @@ export type AnimaPoseClipPresence = {
 };
 
 type ClipRuntimeState = {
-  clip: AnimaPoseClip | null;
+  clip: AnyAnimaPoseClip | null;
+  /** How the clip samples, prepared for this Avatar when it starts. */
+  program: AnimaPoseClipProgram | null;
   playbackId: number;
   finitePlayback: FinitePoseClipPlayback | null;
   eventAbort: AbortController | null;
@@ -357,13 +364,13 @@ export class PoseController {
   }
 
   playAnimaPoseClip(
-    clip: AnimaPoseClip,
+    clip: AnyAnimaPoseClip,
     options?: PoseControllerPlayClipOptions,
   ): AvatarPoseClipSnapshot {
     const finite = options?.finitePlayback;
     // Admission combines the raw clip and Gesture config; these repetitions
     // therefore override the raw loop flag for this idle occurrence only.
-    const sanitizedClip = parseAnimaPoseClip(
+    const sanitizedClip = parseAnyAnimaPoseClip(
       finite ? { ...clip, loop: finite.repetitions > 1 } : clip,
     );
     if (
@@ -388,15 +395,17 @@ export class PoseController {
       sanitizedClip.fadeIn,
       options?.fadeInDurationSec,
     );
+    const program = createAnimaPoseClipProgram(sanitizedClip, {
+      vrm: this._vrm,
+      resolvePose: this._resolveClipPoseRef,
+    });
     const fadeInSourceSample =
       fadeInDurationSec > 0
-        ? this._captureCurrentSample(
-            getClipExpressionNames(sanitizedClip, this._resolveClipPoseRef),
-          )
+        ? this._captureCurrentSample(program.expressionNames)
         : null;
 
     // An event-only clip does not replace the selected body/expression pose.
-    const hasPoseKeyframes = sanitizedClip.poseKeyframes.length > 0;
+    const hasPoseKeyframes = program.hasPose;
     const hadActivePose = hasPoseKeyframes && this._activePoseId !== null;
     if (hasPoseKeyframes) this._clearActivePoseState(true);
     this._clearActiveClipState(true, false);
@@ -406,6 +415,7 @@ export class PoseController {
     this._clipState = {
       ...createClipRuntimeState(),
       clip: sanitizedClip,
+      program,
       playbackId: this._nextClipPlaybackId,
       finitePlayback: finite ?? null,
       eventAbort: finite ? new AbortController() : null,
@@ -851,16 +861,17 @@ export class PoseController {
     if (!clip || !this._vrm || this._isDisposed) return;
     // Fades must not synthesize body samples from the current/default pose for
     // a clip that only owns effects. Its event clock still advances normally.
-    if (clip.poseKeyframes.length === 0) return;
+    const program = this._clipState.program;
+    if (!program?.hasPose) return;
 
     const finite = this._clipState.finitePlayback;
     const cycle = finite ? getAnimaPoseClipTimelineDuration(clip) : 0;
-    const atFiniteEnd = finite && timeSec >= cycle * finite.repetitions;
-    const sampleResult = sampleAnimaPoseClip(
-      atFiniteEnd ? { ...clip, loop: false } : clip,
-      atFiniteEnd ? cycle : timeSec,
-      this._resolveClipPoseRef,
+    const atFiniteEnd = Boolean(
+      finite && timeSec >= cycle * finite.repetitions,
     );
+    const sampleResult = program.sample(atFiniteEnd ? cycle : timeSec, {
+      atEnd: atFiniteEnd,
+    });
     this._clipState.sampledExpressions = {
       ...(sampleResult.sample.expressions ?? {}),
     };
@@ -939,10 +950,8 @@ export class PoseController {
       return false;
     }
 
-    const currentSample = sampleAnimaPoseClip(
-      clip,
+    const currentSample = this._clipState.program!.sample(
       this._clipState.elapsedSec,
-      this._resolveClipPoseRef,
     ).sample;
     const currentExpressionNames = getSampleExpressionNames(currentSample);
     const fadeOutSourceSample = this._captureCurrentSample(
@@ -1154,7 +1163,8 @@ export class PoseController {
     if (restoreExpressions && this._vrm && !this._isDisposed) {
       this._restoreClipExpressionBaseline();
     }
-    if (resetHumanoid && this._clipState.clip?.poseKeyframes.length !== 0) {
+    // An effect-only clip never replaced the pose, so it has nothing to reset.
+    if (resetHumanoid && (this._clipState.program?.hasPose ?? true)) {
       this._resetHumanoidToRestPose();
     }
     this._clipState = createClipRuntimeState();
@@ -1343,6 +1353,7 @@ function createPoseRuntimeState(defaultPose: AnimaPose): PoseRuntimeState {
 function createClipRuntimeState(): ClipRuntimeState {
   return {
     clip: null,
+    program: null,
     playbackId: 0,
     finitePlayback: null,
     eventAbort: null,
@@ -1378,20 +1389,6 @@ function hasAnimaPoseTargets(pose: AnimaPose): boolean {
     getAnimaPoseHumanoidBoneNames(pose).length > 0 ||
     getAnimaPoseExpressionNames(pose).length > 0
   );
-}
-
-function getClipExpressionNames(
-  clip: AnimaPoseClip,
-  resolvePoseRef: (poseId: string) => AnimaPose | AnimaPoseClipSample | null,
-): string[] {
-  const expressionNames = new Set<string>();
-  for (const keyframe of clip.poseKeyframes) {
-    const result = sampleAnimaPoseClip(clip, keyframe.time, resolvePoseRef);
-    for (const expressionName of getSampleExpressionNames(result.sample)) {
-      expressionNames.add(expressionName);
-    }
-  }
-  return [...expressionNames];
 }
 
 function getSampleExpressionNames(sample: AnimaPoseClipSample): string[] {

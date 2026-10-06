@@ -145,7 +145,17 @@ export class PreviewSession {
           continue;
         }
         const version = sourceVersion(text);
-        if (version === row.version && !row.error) continue;
+        if (version === row.version && !row.error) {
+          // Retain it now if an earlier attempt failed (for example while
+          // the notes file was broken).
+          if (
+            row.role === "main" &&
+            this.sidecar &&
+            !this.sidecar.versions.some(({ id }) => id === version)
+          )
+            await this.retain(version, text);
+          continue;
+        }
         try {
           row.clip = previewClipFromText(text, { bake: this.options.bake });
         } catch (error) {

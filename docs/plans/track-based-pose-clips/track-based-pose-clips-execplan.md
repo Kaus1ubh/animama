@@ -98,7 +98,8 @@ prototype.
       commit recorded in the Phase 1 record.
 - [x] Phase 2: `animaPoseClip/2.0` format, sampler and 1.0 conversion.
       Review #2 passed.
-- [ ] Phase 3: Runtime and backend acceptance of 2.0.
+- [x] Phase 3: Runtime and backend acceptance of 2.0. Review #3 passed
+      (both repair rounds used).
 - [ ] Phase 4: Authoring tools, migrated examples and skill. Gate G1.
 - [ ] Phase 5: Creator editing of 2.0. Gate G2.
 - [ ] Phase 6: Wave 1 content. Gates G3 and G4.
@@ -161,6 +162,14 @@ prototype.
     them into the owner's main Local library after merge is an owner step.
   - **Before screenshots:** captured at the start of Phase 5 from the Phase 4
     head, which does not yet change the creator UI.
+- 2026-10-06, Phase 3 (agent): clips are prepared when they start playing,
+  not once per Avatar when they load (spec R3). Preparation takes 0.5–0.7 ms
+  and does not depend on the Avatar's current pose (the Phase 3 review
+  measured no difference on either Avatar), so a per-load cache would add
+  invalidation without benefit.
+- 2026-10-06, Phase 3 (agent): 2.0 clips are limited to 3,600 s, so every
+  time stays finite and the backend's decimal rounding cannot overflow. Value
+  bounds and the limit are part of the shared vocabulary fixture.
 
 ## Preparation (workspace setup)
 
@@ -693,6 +702,198 @@ Checks:
 Manual: a 2.0 Gesture plays in a chat on the task stack (load through import
 and Save once Phase 5 lands; until then, a Local item placed by the creator's
 1.0 path cannot carry 2.0, so use the preview tool and tests).
+
+#### Phase 3 record
+
+Starting source: `944f7d74`. Issue #290.
+
+Phase 2's deferred items, applied first:
+
+- tick validation rounds like the serializer, and `duration` is kept in
+  ticks;
+- conversion spreads 1.0 keyframes closer than 0.5 ms and snaps a loop's
+  first keyframe within 0.5 ms of 0 onto 0;
+- the speed test takes the best of three runs and states the measured margin;
+- the preview keeps the current version when its sidecar lost it (P1-R1), and
+  the previous-version toggle goes through the state queue (P1-N5).
+
+Delivered:
+
+- **Clip programs** (`animaPoseClip/program.ts`):
+  `createAnimaPoseClipProgram(clip, { vrm, resolvePose })` returns `hasPose`,
+  `expressionNames` and `sample(time, { atEnd })`. 1.0 clips are parsed once
+  and wrap the existing sampler; 2.0 clips are prepared for the Avatar.
+  `PoseController`, `ReactionClipPlayer` and `animation:render` sample through
+  it.
+- **Either schema** (`animaPoseClip/anyClip.ts`): `AnyAnimaPoseClip`,
+  `isAnimaPoseClipV2`, `parseAnyAnimaPoseClip`, `sanitizeAnyAnimaPoseClip`
+  and `animaPoseClipHasPose`. `parseAnyAnimaPoseClip` returns a clip it
+  already produced unchanged, so per-frame timing and event helpers no longer
+  re-validate clips.
+- **Accepted wherever runtime clips load:** `AnimaRuntimeCatalog` (an invalid
+  2.0 clip is skipped with an `invalid_motion_manifest` diagnostic naming the
+  field), the built-in motion catalog, `Avatar`, the planner's Reaction
+  lifetime, content preview, the debug panel and `lib/avatar/index.ts`.
+  Timing, event and channel helpers accept both schemas.
+- **2.0 rule tightened:** a clip needs at least one track key or event (it
+  previously accepted beats alone, which play nothing), matching 1.0's rule.
+- **Backend:** `validate_clip_v2_timeline` mirrors the frontend validator.
+  Its vocabulary (eases, hand presets and limits, joints and components,
+  limits) is checked against the shared `fixtures/v2-vocabulary.json`.
+  `idle_playback.py` accepts 2.0. The package capability
+  `animaPoseClip/2.0` is supported; a 2.0 clip requires it plus its base
+  pose's built-in ref. The retired `POSE_CLIP` kind stays 1.0. No API schema
+  changed.
+- **Tooling:** the preview tool and `animation:render` play 2.0 clips. The
+  preview shows beats as markers with their labels, and notes pin beat ids.
+- **Docs:** the 2.0 format, playback and limits in
+  `docs/frontend/runtime/avatar-animation.md`; both schemas in the backend
+  content docs.
+- **Not done as planned:** programs are not cached per Avatar and clip.
+  Preparing one at each play costs 0.5–0.7 ms for 2.0 and one parse for 1.0,
+  so a cache would add invalidation without a measurable gain.
+
+Evidence:
+
+- **Tests:**
+  - `PoseController` with 2.0: tracks applied, fades and mutes, stop
+    mid-clip (fades from the reached frame, then restores the rest pose and
+    face), replacing a 1.0 clip, events with finite repetitions, an
+    effect-only clip;
+  - `ReactionClipPlayer` with a 2.0 expression track;
+  - `AnimaRuntimeCatalog`: a valid 2.0 clip loads; an invalid one is skipped
+    with its diagnostic;
+  - programs: 1.0 and 2.0 sampling, `atEnd` on a loop, a missing base pose,
+    and the parse cache;
+  - 22 shared `clip2-*` Idle Style cases (frontend parser and backend
+    validator agree), the shared valid fixture, package requirements and tick
+    rounding;
+  - a package export and import round trip of a 2.0 Gesture;
+  - the preview tool with a 2.0 clip (Playwright), sources, sessions and
+    `animation:render`.
+- **Checks** (before review; the revisions below record the final run):
+  - from `src/frontend`: `pnpm check` and `pnpm web:lint` pass;
+    `pnpm web:test`: 386 files, 2,740 tests, plus 32 Node tests;
+    `pnpm build` and the web `prettier:check` pass;
+  - full `uv run pytest`: 3,136 passed, 10 skipped;
+  - from the repository root: `uv run ruff check` and
+    `ruff format --check` pass; `tests/test_idle_playback.py`,
+    `tests/test_pose_clip_v2.py` and
+    `tests/test_content_package_capabilities.py`: 126 passed.
+- **Benchmark** (one-off script): a dense 1.0 clip of 247 keyframes samples in
+  0.020 ms per frame through its program, against 3.75 ms when parsed per
+  call.
+- **Manual:** a 2.0 Gesture in a chat waits for Phase 5's import and Save
+  (see the Phase 3 manual note); the preview tool plays 2.0 clips on both
+  Avatars.
+
+#### Code Review #1 Findings (Phase 3)
+
+`sdlc-reviewer`, full initial review of the uncommitted Phase 3 tree against
+`944f7d74`. Result: blocked by P3-F1 and P3-F2, both in the backend 2.0
+validator.
+
+- **P3-F1 (blocking):** hostile input crashes the backend validator instead of
+  being rejected. A time of 1e24 or more raises `decimal.InvalidOperation` in
+  `_v2_ticks`; a list or dict contact bone raises `TypeError` in the bone
+  lookup. Idle eligibility answers 500 and package import fails unhandled.
+  The frontend turns a duration of about 1.8e304 into `Infinity`.
+- **P3-F2 (blocking):** the backend admits clips the frontend rejects:
+  `"playback": null`; beat ids with surrounding spaces (the backend strips
+  them, the frontend keeps them); contact `offset` and `tolerance` are not
+  checked; and the contact window is checked in ticks on one side and in
+  floats on the other.
+- **Optional:**
+  - P3-N1: conversion spreads close keyframes in floats, so half-tick inputs
+    can still produce invalid clips (14 of 3,000 fuzzed cases);
+  - P3-N2: smaller parity gaps (a beat at −0.00004 s, UTF-16 against code
+    point lengths, events against the unrounded duration, value bounds not in
+    the shared vocabulary);
+  - P3-N3: a joint with no components counts as a pose;
+  - P3-N4: leg-solver construction errors are swallowed;
+  - P3-N5: the preview's previous-version toggle lacks the queue's `.catch`;
+  - P3-N6: the speed test compares against per-call 1.0 parsing, not the
+    program path (about 10× instead of 55–80×);
+  - P3-N7: an unused export, a cast in the debug panel, a linear beat lookup
+    in the backend;
+  - P3-N8: docs overstate 2.0 support before Phase 5; the spec's "prepared
+    once per Avatar" differs from preparing at play; no package capability
+    doc names 2.0;
+  - P3-N9: no 2.0 Reaction-with-events test.
+- The parse cache's immutability assumption holds: no caller mutates a parsed
+  clip.
+
+#### Code Review #1 Revisions (Phase 3)
+
+- **P3-F1 accepted, fixed.** `_v2_ticks` rejects magnitudes above 1e9 s
+  before rounding, and contact bones are type-checked before the lookup. 2.0
+  clips are limited to 3,600 s on both sides (the shared vocabulary carries the
+  limit), so the frontend never produces an infinite duration. Pytest cases
+  assert the exact rejected field for huge durations, beat times and contact
+  windows and for list or object bones.
+- **P3-F2 accepted, fixed.** The backend now rejects `playback` (including
+  `null`), keeps beat ids unstripped as the frontend does, checks contact
+  `offset` and `tolerance`, and both sides check the contact window in ticks
+  (the serializer rounds `from` and `to`). Fifteen new shared `clip2-*` cases
+  cover these and P3-N2/P3-N3; the frontend parser and backend validator agree
+  on all of them.
+- **P3-N1 accepted, fixed:** conversion spreads in ticks; a seeded test
+  converts 300 random close-keyframe clips, all valid.
+- **P3-N2 accepted, fixed:** beat times are rounded before the 0 check, lengths
+  count UTF-16 units, events and the returned cycle use the tick-rounded
+  duration, and the value bounds join the shared vocabulary. Validating
+  `mutedProceduralLayers` on the backend is pre-existing 1.0 behavior and stays
+  out of scope.
+- **P3-N3 accepted, fixed:** a joint with no components is rejected on both
+  sides, and `animaPoseClipHasPose` counts only tracks with keys.
+- **P3-N4 accepted, fixed:** the solver is skipped only when leg bones are
+  missing; other construction errors surface.
+- **P3-N5 accepted, fixed:** the toggle's queue step catches and shows errors.
+- **P3-N6 accepted, fixed:** the speed test compares with the 1.0 program path
+  (about 10×; the test requires 2×).
+- **P3-N7 accepted, fixed:** the unused export is removed, the debug panel
+  narrows with `isAnimaPoseClipV2`, and the backend uses a beat-position map.
+- **P3-N8 accepted, fixed:** the runtime doc names what accepts 2.0 today (the
+  creator and the built-in App catalog still use 1.0); the decision log records
+  preparing at play; the package doc names both clip capabilities.
+- **P3-N9 accepted, fixed:** a 2.0 Reaction test times and clears an event.
+
+Evidence: affected pytest files 165 passed (`test_pose_clip_v2`,
+`test_idle_playback`, `test_content_package_capabilities`,
+`test_content_mutation_workflows`); `ruff check` and `ruff format --check`
+pass. From `src/frontend`: `pnpm check` and `pnpm web:lint` pass;
+`pnpm web:test`: 387 files, 2,767 tests and 32 Node tests; web
+`prettier:check` passes (the desktop package's `tests/feature-packs.test.ts`
+warning predates this branch and is unchanged).
+
+#### Code Review #2 Findings (Phase 3)
+
+`sdlc-reviewer`, repair round 1: a targeted recheck of the review #1
+revisions. P3-F1, P3-F2 and P3-N1 to P3-N9 are verified fixed: every earlier
+hostile and parity probe is now rejected or accepted identically by both
+sides, and a 3,000-case conversion fuzz gives no invalid clips (it gave 14).
+
+- **P3-F3 (blocking, regression from the P3-N2 revision):** the new UTF-16
+  length count raises `UnicodeEncodeError` on a lone surrogate, which JSON can
+  carry, so idle eligibility and package import fail unhandled again. The
+  frontend accepts such a label.
+
+#### Code Review #2 Revisions (Phase 3)
+
+- **P3-F3 accepted, fixed:** the count encodes with `surrogatepass`, so a lone
+  surrogate counts as one unit as in JavaScript. A test checks 80 and 81 lone
+  surrogates and 41 emoji against the 80-unit label limit. Affected pytest
+  files: 166 passed; `ruff` passes.
+
+#### Code Review #3 Findings (Phase 3)
+
+`sdlc-reviewer`, repair round 2: a targeted recheck of P3-F3. **Result:
+pass.** Lone surrogates in beat ids and labels are accepted or rejected
+identically by the frontend and both backend paths (80/81 lone surrogates,
+64/65 in ids, 40/41 emoji, mixed pairs), with no regressions. Both repair
+rounds are used.
+
+Phase 3 passes its review.
 
 ### Phase 4 — Authoring tools, migrated examples and skill (R4)
 

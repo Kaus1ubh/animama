@@ -73,6 +73,54 @@ describe("previewClipFromText", () => {
     ]);
   });
 
+  it("plays a 2.0 clip with its beats as markers", () => {
+    const result = previewClipFromText(
+      JSON.stringify({
+        schema: "animaPoseClip/2.0",
+        id: "wave",
+        name: "Wave",
+        duration: 2,
+        fadeOut: { duration: 0.3 },
+        beats: [
+          { id: "start", label: "Start", time: 0 },
+          { id: "raise", label: "Raise", time: 0.5 },
+        ],
+        expressions: { happy: [{ beat: "raise", v: 1 }] },
+      }),
+      { bake },
+    );
+    expect(result).toMatchObject({
+      format: "animaPoseClip/2.0",
+      duration: 2,
+      fadeOut: 0.3,
+      markers: [
+        { id: "start", time: 0, label: "Start" },
+        { id: "raise", time: 0.5, label: "Raise" },
+      ],
+    });
+  });
+
+  it("reports a 2.0 clip's problems with their paths", () => {
+    try {
+      previewClipFromText(
+        JSON.stringify({
+          schema: "animaPoseClip/2.0",
+          id: "wave",
+          name: "Wave",
+          duration: 2,
+          beats: [{ id: "start", label: "Start", time: 0 }],
+          expressions: { happy: [{ beat: "missing", v: 1 }] },
+        }),
+        { bake },
+      );
+      throw new Error("expected a failure");
+    } catch (error) {
+      expect(
+        (error as PreviewSourceError).issues.map(({ path }) => path),
+      ).toEqual(["expressions.happy[0].beat"]);
+    }
+  });
+
   it("omits markers for densely baked clips", () => {
     const poseKeyframes = Array.from({ length: 60 }, (_, index) => ({
       time: index / 40,

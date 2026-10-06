@@ -4,10 +4,9 @@ import {
   countAnimaPoseClipEventsByKind,
   getAnimaPoseClipTimelineDuration,
   isAnimaPoseClipVFXEvent,
-  parseAnimaPoseClip,
-  sampleAnimaPoseClip,
+  parseAnyAnimaPoseClip,
   shouldAnimaPoseClipAutoComplete,
-  type AnimaPoseClip,
+  type AnyAnimaPoseClip,
   type AnimaPoseClipDueEvent,
   type AnimaPoseClipEventKindCounts,
   type AnimaPoseClipEvent,
@@ -16,6 +15,10 @@ import {
   type AnimaPoseClipSample,
   type AnimaPoseClipVFXEvent,
 } from "../poses/animaPoseClip";
+import {
+  createAnimaPoseClipProgram,
+  type AnimaPoseClipProgram,
+} from "../poses/animaPoseClip/program";
 import {
   resolveAnimaPoseClipFadeDuration,
   resolveAnimaPoseClipFadeTransition,
@@ -42,7 +45,7 @@ export type ReactionClipPlayRequest = {
   runId: string;
   sourceEventId: string;
   emotionEventId: string | null;
-  clip: AnimaPoseClip;
+  clip: AnyAnimaPoseClip;
 };
 
 export type ReactionClipPlayerOptions = {
@@ -86,7 +89,9 @@ type ReactionClipActiveEffect = {
 };
 
 type ReactionClipRuntimeState = {
-  clip: AnimaPoseClip;
+  clip: AnyAnimaPoseClip;
+  /** Samples the clip's expression lane (2.0 clips are prepared once). */
+  program: AnimaPoseClipProgram;
   ownerId: string;
   runId: string;
   sourceEventId: string;
@@ -163,7 +168,10 @@ export class ReactionClipPlayer {
   }
 
   play(request: ReactionClipPlayRequest): boolean {
-    const clip = parseAnimaPoseClip(request.clip);
+    const clip = parseAnyAnimaPoseClip(request.clip);
+    const program = createAnimaPoseClipProgram(clip, {
+      resolvePose: this._resolvePoseRef,
+    });
     this.clear(null, { immediate: true });
     const fadeInDurationSec = resolveAnimaPoseClipFadeDuration(
       clip.fadeIn,
@@ -171,6 +179,7 @@ export class ReactionClipPlayer {
     );
     this._state = {
       clip,
+      program,
       ownerId: request.ownerId,
       runId: request.runId,
       sourceEventId: request.sourceEventId,
@@ -288,11 +297,7 @@ export class ReactionClipPlayer {
     const state = this._state;
     if (!state) return { expressions: {} };
 
-    const sample = sampleAnimaPoseClip(
-      state.clip,
-      timeSec,
-      this._resolvePoseRef,
-    ).sample;
+    const sample = state.program.sample(timeSec).sample;
     return { expressions: { ...(sample.expressions ?? {}) } };
   }
 

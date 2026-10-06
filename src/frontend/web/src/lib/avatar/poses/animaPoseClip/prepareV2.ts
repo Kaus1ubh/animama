@@ -153,7 +153,7 @@ export function prepareAnimaPoseClipV2(
     ([name, keys]) => [name, scalarTrack(keys, 0)] as const,
   );
 
-  const legSolver = clip.plantFeet && vrm ? new PlantedLegSolver(vrm) : null;
+  const legSolver = clip.plantFeet && vrm ? plantedLegSolver(vrm) : null;
   const clipTime = (timeSec: number) => {
     const t = Number.isFinite(timeSec) ? Math.max(0, timeSec) : 0;
     return loopDuration
@@ -213,6 +213,28 @@ export function prepareAnimaPoseClipV2(
       };
     },
   };
+}
+
+const PLANTED_LEG_BONES: readonly VRMHumanBoneName[] = [
+  "hips",
+  "leftUpperLeg",
+  "leftLowerLeg",
+  "leftFoot",
+  "rightUpperLeg",
+  "rightLowerLeg",
+  "rightFoot",
+];
+
+/**
+ * The Avatar's leg solver, or null when its rig lacks leg bones: such a clip
+ * plays without planted-leg solving rather than failing.
+ */
+function plantedLegSolver(vrm: VRM): PlantedLegSolver | null {
+  return PLANTED_LEG_BONES.every((bone) =>
+    vrm.humanoid.getNormalizedBoneNode(bone),
+  )
+    ? new PlantedLegSolver(vrm)
+    : null;
 }
 
 function setJoint(

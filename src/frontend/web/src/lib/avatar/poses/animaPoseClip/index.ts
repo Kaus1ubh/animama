@@ -93,3 +93,9 @@ export type {
   AnimaPoseClipV2Issue,
   AnimaPoseClipV2Validation,
 } from "./schemaV2";
+export {
+  animaPoseClipHasPose,
+  isAnimaPoseClipV2,
+  parseAnyAnimaPoseClip,
+} from "./anyClip";
+export type { AnyAnimaPoseClip } from "./anyClip";

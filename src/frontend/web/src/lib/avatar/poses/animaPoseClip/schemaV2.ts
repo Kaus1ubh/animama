@@ -10,6 +10,7 @@ import {
 import {
   ANIMA_POSE_CLIP_DECIMALS,
   KNOWN_ANIMA_POSE_CLIP_EASINGS,
+  roundAnimaPoseClipNumber,
   sanitizeAnimaPoseClipEvents,
   sanitizeAnimaPoseClipFade,
   sanitizeAnimaPoseClipLayerMutes,
@@ -120,11 +121,23 @@ export type AnimaPoseClipV2Validation =
 
 /** Bounds that keep parsing untrusted clips cheap. */
 export const ANIMA_POSE_CLIP_V2_LIMITS = {
+  /** Seconds; far beyond any Gesture, it keeps every time finite. */
+  duration: 3600,
   beats: 1000,
   tracks: 400,
   keys: 50_000,
   idLength: 64,
   labelLength: 80,
+} as const;
+
+/** Value bounds for track keys, shared with the backend validator. */
+export const ANIMA_POSE_CLIP_V2_VALUE_BOUNDS = {
+  /** Joint components, degrees either side of zero. */
+  jointDegrees: 360,
+  /** Hips offset from rest, metres either side of zero. */
+  hipsMetres: 1,
+  /** Smallest accepted quaternion length. */
+  minQuaternionLength: 1e-6,
 } as const;
 
 const KNOWN_FIELDS = new Set([
@@ -157,9 +170,8 @@ export const ANIMA_POSE_CLIP_EASES: ReadonlySet<string> = new Set<string>([
 ]);
 const HAND_PRESET_IDS = new Set<string>(HAND_PRESETS.map(({ id }) => id));
 const LEG_JOINT = /^(left|right)(UpperLeg|LowerLeg|Foot)$/;
-const MAX_DEGREES = 360;
-const MAX_HIPS_OFFSET = 1;
-const TIME_EPSILON = 1e-6;
+const MAX_DEGREES = ANIMA_POSE_CLIP_V2_VALUE_BOUNDS.jointDegrees;
+const MAX_HIPS_OFFSET = ANIMA_POSE_CLIP_V2_VALUE_BOUNDS.hipsMetres;
 /**
  * Minimum spacing between beats, between keys of a track, and between a key
  * and its beat's neighbours. Saved files round times to 0.1 ms, so closer
@@ -171,11 +183,19 @@ export const ANIMA_POSE_CLIP_V2_MIN_SPACING = 0.0005;
  * (0.1 ms), so a clip that validates in memory validates the same once saved.
  */
 const TICKS_PER_SECOND = 10 ** ANIMA_POSE_CLIP_DECIMALS.time;
-const MIN_SPACING_TICKS = Math.round(
+export const ANIMA_POSE_CLIP_V2_MIN_SPACING_TICKS = Math.round(
   ANIMA_POSE_CLIP_V2_MIN_SPACING * TICKS_PER_SECOND,
 );
-const toTicks = (seconds: number) => Math.round(seconds * TICKS_PER_SECOND);
-const fromTicks = (ticks: number) => ticks / TICKS_PER_SECOND;
+/** Whole ticks, rounding exactly as the saved file does. */
+export const toAnimaPoseClipTicks = (seconds: number) =>
+  Math.round(
+    roundAnimaPoseClipNumber(seconds, ANIMA_POSE_CLIP_DECIMALS.time) *
+      TICKS_PER_SECOND,
+  );
+export const fromAnimaPoseClipTicks = (ticks: number) =>
+  ticks / TICKS_PER_SECOND;
+const toTicks = toAnimaPoseClipTicks;
+const fromTicks = fromAnimaPoseClipTicks;
 
 /** Validate a 2.0 clip, reporting every problem with its JSON path. */
 export function validateAnimaPoseClipV2(
@@ -206,12 +226,17 @@ export function validateAnimaPoseClipV2(
       ? undefined
       : (sanitizeAnimaPoseClipPlayback(value.playback) ??
         fail("playback", "Invalid playback lifetime."));
+  // Kept at the saved precision, like every other time.
   const duration =
     typeof value.duration === "number" &&
     Number.isFinite(value.duration) &&
-    value.duration > 0
-      ? value.duration
-      : fail("duration", "Expected a positive number of seconds.");
+    toTicks(value.duration) > 0 &&
+    value.duration <= ANIMA_POSE_CLIP_V2_LIMITS.duration
+      ? fromTicks(toTicks(value.duration))
+      : fail(
+          "duration",
+          `Expected a positive number of seconds, at most ${ANIMA_POSE_CLIP_V2_LIMITS.duration}.`,
+        );
   if (value.loop !== undefined && typeof value.loop !== "boolean")
     fail("loop", "Expected true or false.");
   if (value.plantFeet !== undefined && typeof value.plantFeet !== "boolean")
@@ -237,7 +262,6 @@ export function validateAnimaPoseClipV2(
       ? undefined
       : (sanitizeAnimaPoseClipLayerMutes(value.mutedProceduralLayers) ??
         fail("mutedProceduralLayers", "Expected an array of layer ids."));
-  const end = duration ?? Number.POSITIVE_INFINITY;
   const endTicks = duration ? toTicks(duration) : Number.POSITIVE_INFINITY;
   const plantFeet = value.plantFeet === true;
 
@@ -280,7 +304,7 @@ export function validateAnimaPoseClipV2(
           : Number.NEGATIVE_INFINITY;
       if (time === null || time < 0 || time > endTicks)
         fail(`${path}.time`, "Expected a time from 0 to the clip duration.");
-      else if (time < previous + MIN_SPACING_TICKS)
+      else if (time < previous + ANIMA_POSE_CLIP_V2_MIN_SPACING_TICKS)
         fail(
           `${path}.time`,
           `Beat times must increase by at least ${ANIMA_POSE_CLIP_V2_MIN_SPACING} s.`,
@@ -340,14 +364,14 @@ export function validateAnimaPoseClipV2(
           `Key time ${fromTicks(time)} is outside 0 to the clip duration.`,
         );
       else if (
-        time < lower + MIN_SPACING_TICKS ||
-        time > upper - MIN_SPACING_TICKS
+        time < lower + ANIMA_POSE_CLIP_V2_MIN_SPACING_TICKS ||
+        time > upper - ANIMA_POSE_CLIP_V2_MIN_SPACING_TICKS
       )
         fail(
           `${keyPath}.dt`,
           `Key time ${fromTicks(time)} must lie between the neighbouring beats of "${beats[owner].id}".`,
         );
-      else if (time < previous + MIN_SPACING_TICKS)
+      else if (time < previous + ANIMA_POSE_CLIP_V2_MIN_SPACING_TICKS)
         fail(
           `${keyPath}.dt`,
           `Key times must increase by at least ${ANIMA_POSE_CLIP_V2_MIN_SPACING} s within a track.`,
@@ -410,7 +434,7 @@ export function validateAnimaPoseClipV2(
           );
           continue;
         }
-        if (!isRecord(components)) {
+        if (!isRecord(components) || Object.keys(components).length === 0) {
           fail(path, "Expected an object of component tracks.");
           continue;
         }
@@ -468,7 +492,8 @@ export function validateAnimaPoseClipV2(
               !Array.isArray(q) ||
               q.length !== 4 ||
               !q.every((n) => typeof n === "number" && Number.isFinite(n)) ||
-              Math.hypot(...(q as number[])) < 1e-6
+              Math.hypot(...(q as number[])) <
+                ANIMA_POSE_CLIP_V2_VALUE_BOUNDS.minQuaternionLength
             )
               return fail(
                 `${keyPath}.q`,
@@ -589,16 +614,16 @@ export function validateAnimaPoseClipV2(
             `${path}.beat`,
             `Unknown beat ${JSON.stringify(contact.beat ?? null)}.`,
           );
+        // Checked in ticks, like key times, so it holds once saved.
+        const beatTicks = toTicks(beats[beatIndex.get(contact.beat)!].time);
         if (
           typeof contact.from !== "number" ||
           typeof contact.to !== "number" ||
           !Number.isFinite(contact.from) ||
           !Number.isFinite(contact.to) ||
-          contact.to < contact.from ||
-          beats[beatIndex.get(contact.beat)!].time + contact.from <
-            -TIME_EPSILON ||
-          beats[beatIndex.get(contact.beat)!].time + contact.to >
-            end + TIME_EPSILON
+          beatTicks + toTicks(contact.from) < 0 ||
+          toTicks(contact.to) < toTicks(contact.from) ||
+          beatTicks + toTicks(contact.to) > endTicks
         )
           return fail(
             path,
@@ -617,7 +642,11 @@ export function validateAnimaPoseClipV2(
         const tolerance = contact.tolerance;
         if (
           tolerance !== undefined &&
-          !(typeof tolerance === "number" && tolerance > 0)
+          !(
+            typeof tolerance === "number" &&
+            Number.isFinite(tolerance) &&
+            tolerance > 0
+          )
         )
           return fail(
             `${path}.tolerance`,
@@ -627,8 +656,8 @@ export function validateAnimaPoseClipV2(
           bone,
           target,
           beat: contact.beat,
-          from: contact.from,
-          to: contact.to,
+          from: fromTicks(toTicks(contact.from)),
+          to: fromTicks(toTicks(contact.to)),
           ...(offset ? { offset: offset as [number, number, number] } : {}),
           ...(tolerance !== undefined ? { tolerance } : {}),
         });
@@ -645,8 +674,9 @@ export function validateAnimaPoseClipV2(
     fail("$", `At most ${ANIMA_POSE_CLIP_V2_LIMITS.tracks} tracks.`);
   if (keyCount > ANIMA_POSE_CLIP_V2_LIMITS.keys)
     fail("$", `At most ${ANIMA_POSE_CLIP_V2_LIMITS.keys} keys.`);
-  if (beats.length === 0 && (!events || events.length === 0))
-    fail("beats", "A clip needs at least one beat or event.");
+  // Like 1.0, a clip must move something or trigger something.
+  if (keyCount === 0 && (!events || events.length === 0))
+    fail("$", "A clip needs at least one track key or event.");
 
   if (issues.length > 0 || !id || !name || !duration)
     return { ok: false, issues };

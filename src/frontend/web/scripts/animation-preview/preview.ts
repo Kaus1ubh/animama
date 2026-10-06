@@ -377,9 +377,15 @@ ui.cameras.addEventListener("click", (event) => {
     other.setAttribute("aria-pressed", String(other === button));
 });
 ui.liveLayers.addEventListener("change", () => cells.forEach(applyLiveLayers));
-ui.previous.addEventListener("change", async () => {
-  await syncCells();
-  seekAll(playback.time);
+ui.previous.addEventListener("change", () => {
+  // Through the state queue, so cells are never synced twice at once. A
+  // failure is shown and must not stop later state updates.
+  applying = applying
+    .then(async () => {
+      await syncCells();
+      seekAll(playback.time);
+    })
+    .catch(showError);
 });
 
 // ── Review notes ────────────────────────────────────────────────────────
@@ -410,7 +416,14 @@ ui.noteForm.addEventListener("submit", async (event) => {
   );
   const body = {
     time: marker ? marker.time : Number(playback.time.toFixed(3)),
-    ...(marker ? { beat: marker.label } : {}),
+    ...(marker
+      ? {
+          beat:
+            rows[0]?.clip?.format === "animaPoseClip/2.0"
+              ? marker.id
+              : marker.label,
+        }
+      : {}),
     ...(ui.noteRegion.value ? { region: ui.noteRegion.value } : {}),
     text: ui.noteText.value,
   };
@@ -445,7 +458,9 @@ function renderNotes() {
       head.className = "note-head";
       head.textContent = [
         `${note.time.toFixed(2)} s`,
-        note.beat,
+        // A 2.0 note names its beat by id; show the beat's label.
+        rows[0]?.clip?.markers.find(({ id }) => id === note.beat)?.label ??
+          note.beat,
         note.region ? REVIEW_REGION_LABELS[note.region] : null,
       ]
         .filter(Boolean)
@@ -533,6 +548,8 @@ function applyState(state: ServerState): Promise<void> {
 }
 
 async function applyStateNow(state: ServerState) {
+  // An older state can arrive after a newer one; keep the newer.
+  if (server && state.generation < server.generation) return;
   server = state;
   rows = state.rows.map((row) => ({
     key: row.role,
@@ -597,9 +614,14 @@ async function start() {
         await applyState(await fetchState());
     };
   } catch (error) {
-    window.animationPreview.error = (error as Error).message;
-    ui.status.textContent = `Error: ${(error as Error).message}`;
+    showError(error);
   }
+}
+
+function showError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  window.animationPreview.error = message;
+  ui.status.textContent = `Error: ${message}`;
 }
 
 void start();

@@ -137,6 +137,10 @@ bundled without the original recording, installed as an independent Local Voice
 and selected with fresh PocketTTS preferences. Presets, inactive clones and
 ElevenLabs IDs do not travel. The `animama/pocket-voice/1` capability requires
 validated binary contents; standalone Voice entries and raw recordings reject.
+A Gesture or Reaction clip requires the capability named by its schema,
+`animaPoseClip/1.0` or `animaPoseClip/2.0`, plus each built-in Pose it
+references (a 2.0 clip references only its base pose). A reader without a
+required capability rejects the package.
 Effective provider changes invalidate a pending export review.
 
 Export summary resolves source revisions and saved facts; preparation requires

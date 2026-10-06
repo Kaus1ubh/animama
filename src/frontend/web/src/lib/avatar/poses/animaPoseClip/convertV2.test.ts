@@ -142,6 +142,52 @@ describe("convertAnimaPoseClipToV2", () => {
     expect(result.weight).toBeLessThan(0.001);
   });
 
+  it("spreads keyframes closer than the 2.0 minimum spacing", () => {
+    const clip = loopClip(2, [
+      [0, 0, 0],
+      [1, 40, 1],
+      [1.0003, 41, 1],
+    ]);
+    const converted = convertAnimaPoseClipToV2(
+      { ...clip, loop: false },
+      resolvePose,
+    );
+    expect(validateAnimaPoseClipV2(converted).ok).toBe(true);
+    expect(converted.beats.map(({ time }) => time)).toEqual([0, 1, 1.0005]);
+  });
+
+  it("spreads close keyframes at any sub-tick time into a valid clip", () => {
+    // Seeded, so failures reproduce. Half-tick times used to round the
+    // spread spacing below the minimum.
+    let seed = 7;
+    const random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    for (let run = 0; run < 300; run += 1) {
+      let time = 0;
+      const keyframes: [number, number, number][] = [[0, 0, 0]];
+      for (let index = 1; index < 6; index += 1) {
+        time += 0.00005 + random() * 0.0008;
+        keyframes.push([time, index * 5, 0]);
+      }
+      const converted = convertAnimaPoseClipToV2(
+        { ...loopClip(1, keyframes), loop: false },
+        resolvePose,
+      );
+      expect(validateAnimaPoseClipV2(converted).ok).toBe(true);
+    }
+  });
+
+  it("starts a loop on a first keyframe just after 0", () => {
+    const converted = convertAnimaPoseClipToV2(
+      loopClip(2, [
+        [0.0002, 0, 0],
+        [1, 40, 1],
+      ]),
+      resolvePose,
+    );
+    expect(converted.beats[0]).toMatchObject({ time: 0, ease: "hold" });
+    expect(converted.beats).toHaveLength(2);
+  });
+
   it("labels beats from pose names and keeps fields it does not replace", () => {
     const converted = convertAnimaPoseClipToV2(
       {

@@ -16,7 +16,7 @@ import {
 import { handShapeRotations } from "../anatomy/handPresets";
 import { RELAXED_REST_POSE_ID, getResolvedAvatarPose } from "../catalog";
 import { prepareAnimaPoseClipV2 } from "./prepareV2";
-import { sampleAnimaPoseClip } from "./sampling";
+import { createAnimaPoseClipProgram } from "./program";
 import type { AnimaPoseClipV2 } from "./schemaV2";
 
 const resolvePose = (id: string) => getResolvedAvatarPose(id);
@@ -314,15 +314,25 @@ describe("prepareAnimaPoseClipV2", () => {
       ),
     });
     const prepared = prepareAnimaPoseClipV2(v2, { vrm: a1, resolvePose });
-    const cost = (sample: (t: number) => unknown) => {
-      const start = performance.now();
-      for (let frame = 0; frame < 120; frame += 1) sample((frame / 120) * 3);
-      return performance.now() - start;
-    };
-    const v1 = cost((t) => sampleAnimaPoseClip(baked, t, resolvePose));
+    // The best of three runs, so a busy machine does not decide the result.
+    const cost = (sample: (t: number) => unknown) =>
+      Math.min(
+        ...[0, 1, 2].map(() => {
+          const start = performance.now();
+          for (let frame = 0; frame < 120; frame += 1)
+            sample((frame / 120) * 3);
+          return performance.now() - start;
+        }),
+      );
+    // The 1.0 bake as the runtime plays it: parsed once, then sampled.
+    const v1Program = createAnimaPoseClipProgram(baked, {
+      vrm: a1,
+      resolvePose,
+    });
+    const v1 = cost((t) => v1Program.sample(t));
     const v2Cost = cost((t) => prepared.sample(t));
-    // Measured about 900× faster on a laptop; 10× leaves room for slow CI.
-    expect(v2Cost * 10).toBeLessThan(v1);
+    // About 10× faster for this motion; 2× leaves room for slow machines.
+    expect(v2Cost * 2).toBeLessThan(v1);
   });
 
   it("matches the motion description's curves for the same keys", () => {
