@@ -529,6 +529,34 @@ P4–P7 continue while G1 is pending.
 
 #### Phase 3 record
 
+Issue #301. On 2026-10-06 a private, owner-only prototype was published as a
+Design canvas Artifact. It is not committed and its link is not recorded here.
+It has three boards:
+
+- **Flow (interactive).** Covers the sidebar **New → Effect…** entry, the
+  Create page **Effect** card and the `/effects/new` picker:
+  - Avatar Effects come first, grouped by intent: Eyes, Whole face, Above the
+    head, Mouth (marked preview only) and Start from scratch. The thumbnails
+    are real Annie captures from `effects:render --thumbnail`.
+  - The Particle and Scene sections open their creators.
+  - Choosing a template seeds an editor at
+    `/avatar-effects/new?template=<id>`. If a dirty draft exists, the user is
+    asked to continue it or discard it.
+  - The editor has a plain-language attachment chooser, then Spot, Which eyes,
+    Art (other-eye image, flipbook), Look (opacity, blend, tint), Motion, Eyes
+    underneath and Advanced (numeric fields in cm, ×, °; keyframes).
+  - Direct manipulation: drag to move, a corner handle to scale, a round
+    handle to rotate, one undo step per drag, and arrow-key nudges.
+  - Face, Front and ¾ views on Annie and Y_0.
+  - A Face parts tab shows each part's status (Found, Uncertain, Missing,
+    Corrected). Click-to-correct saves the correction with the Avatar.
+  - A leave guard.
+- **States.** Loading skeletons, a starter with placeholder art, a Save error
+  naming its field, and a missing part on the selected model.
+- **Narrow width.** 760 px.
+
+**G1:** awaiting owner approval. P4–P7 proceed meanwhile.
+
 ### Phase 4 — Avatar Effect v2, one definition source, envelope and conversion (R1, R2 except new attachment rendering, R3, R6)
 
 1. **Schema.** Add the Pydantic models in `app/contracts/avatar_effect.py`. Draft
