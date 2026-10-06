@@ -22,17 +22,18 @@ import {
   decomposeJointRotation,
   resolveJoint,
   type ResolvedJoint,
-} from "./anatomy";
-import { ScalarTrack, type ResolvedKey } from "./curves";
+} from "../poses/anatomy/anatomy";
+import { ScalarTrack, type ResolvedKey } from "../poses/anatomy/curves";
 import {
   DEFAULT_GENERATED_MUTED_LAYERS,
   type MotionDescription,
   type MotionKey,
   type MutableProceduralLayerId,
 } from "./description";
-import { handShapeRotations, sampleHandShapes } from "./hands";
+import { handShapeRotations } from "../poses/anatomy/handPresets";
+import { sampleHandShapes } from "./hands";
 import { applyCanonicalPose } from "./kinematics";
-import { PlantedLegSolver } from "./legs";
+import { PlantedLegSolver } from "../poses/anatomy/legs";
 
 /** Gesture clip with the optional live-layer mutes it declares. */
 export type GeneratedGestureClip = AnimaPoseClip & {
@@ -170,16 +171,24 @@ export function createMotionEvaluator(
 ): MotionEvaluator {
   const loopDuration =
     description.kind === "loop" ? description.duration : null;
+  // Description keys set the segment that leaves them; tracks take the ease
+  // that arrives at each key, so each key inherits its predecessor's.
   const track = (keys: readonly MotionKey[], base: number) =>
     new ScalarTrack(
-      keys.map(
-        (key): ResolvedKey => ({
+      keys.map((key, index): ResolvedKey => {
+        const leaving =
+          index > 0
+            ? keys[index - 1].interp
+            : loopDuration !== null
+              ? keys[keys.length - 1].interp
+              : undefined;
+        return {
           t: key.t,
           v: key.v === "base" ? base : key.v,
           tangent: key.tangent ?? "auto",
-          interp: key.interp ?? "smooth",
-        }),
-      ),
+          ease: leaving === "step" ? "hold" : (leaving ?? "smooth"),
+        };
+      }),
       loopDuration,
     );
   const constant = (value: number) => track([{ t: 0, v: value }], value);
@@ -220,7 +229,12 @@ export function createMotionEvaluator(
     return {
       keys: keys!,
       shapes: keys!.map((key) =>
-        handShapeRotations(referenceVrm, handSide, key),
+        handShapeRotations(
+          referenceVrm,
+          handSide,
+          key,
+          basePose[`${handSide}ThumbMetacarpal`]?.rotation,
+        ),
       ),
     };
   });

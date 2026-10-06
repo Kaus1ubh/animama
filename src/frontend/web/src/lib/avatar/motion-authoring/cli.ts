@@ -12,7 +12,8 @@ import {
   JOINT_IDS,
   decomposeJointRotation,
   resolveJoint,
-} from "./anatomy";
+  type JointComponentDefinition,
+} from "../poses/anatomy/anatomy";
 import {
   BAKE_TOLERANCE_DEGREES,
   BAKE_TOLERANCE_METRES,
@@ -420,9 +421,14 @@ function formatJointTable(): string {
   for (const [type, definition] of Object.entries(JOINT_DEFINITIONS)) {
     const ids = JOINT_IDS.filter((id) => resolveJoint(id)!.type === type);
     lines.push(`${ids.join(", ")}`);
-    for (const [name, component] of Object.entries(definition.components))
+    for (const [name, component] of Object.entries(definition.components) as [
+      string,
+      JointComponentDefinition,
+    ][])
       lines.push(
-        `  ${name}: ${component.description} Natural ${component.soft[0]}..${component.soft[1]}, limit ${component.hard[0]}..${component.hard[1]}.`,
+        component.auxiliary
+          ? `  ${name} (auxiliary, leave at base): ${component.description}`
+          : `  ${name}: ${component.description} Natural ${component.soft[0]}..${component.soft[1]}, limit ${component.hard[0]}..${component.hard[1]}.`,
       );
   }
   return lines.join("\n");

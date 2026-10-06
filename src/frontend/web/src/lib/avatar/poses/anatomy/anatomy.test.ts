@@ -11,9 +11,12 @@ import {
   resolveJoint,
   type JointId,
 } from "./anatomy";
-import { adjustHandQuaternion } from "@/ui/pose-creator/poseCreatorHandAuthoring";
-import { applyCanonicalPose, rawBoneWorldPosition } from "./kinematics";
-import { loadTestAvatar } from "./testing/includedAvatars";
+import { adjustHandQuaternion } from "./handPresets";
+import {
+  applyCanonicalPose,
+  rawBoneWorldPosition,
+} from "../../motion-authoring/kinematics";
+import { loadTestAvatar } from "../../motion-authoring/testing/includedAvatars";
 
 const avatars: Record<string, VRM> = {};
 
@@ -332,5 +335,42 @@ describe("joint composition", () => {
   it("rejects unknown joints", () => {
     expect(resolveJoint("leftWing")).toBeNull();
     expect(resolveJoint("tail")).toBeNull();
+  });
+
+  it("represents any rotation exactly, using auxiliary components where needed", () => {
+    let seed = 7;
+    const random = () =>
+      ((seed = (seed * 16807) % 2147483647) / 2147483647) * 2 - 1;
+    for (const id of JOINT_IDS) {
+      const joint = resolveJoint(id)!;
+      for (let sample = 0; sample < 20; sample += 1) {
+        const rotation = new Quaternion(
+          random(),
+          random(),
+          random(),
+          2,
+        ).normalize();
+        const values = decomposeJointRotation(joint, rotation);
+        expect(
+          angularDistanceDegrees(composeJointRotation(joint, values), rotation),
+        ).toBeLessThan(1e-6);
+      }
+    }
+  });
+
+  it("decomposes near given values without jumping branches", () => {
+    const joint = resolveJoint("leftLowerArm")!;
+    const near = { flexion: 30, supination: 175, deviation: 0 };
+    const rotation = composeJointRotation(joint, {
+      flexion: 30,
+      supination: 185,
+      deviation: 0,
+    });
+    const values = decomposeJointRotation(joint, rotation, near);
+    expect(values.supination).toBeCloseTo(185);
+    expect(values.flexion).toBeCloseTo(30);
+    expect(
+      angularDistanceDegrees(composeJointRotation(joint, values), rotation),
+    ).toBeLessThan(1e-6);
   });
 });

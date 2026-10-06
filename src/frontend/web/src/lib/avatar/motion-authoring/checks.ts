@@ -14,7 +14,7 @@ import {
   decomposeJointRotation,
   resolveJoint,
   type JointComponentDefinition,
-} from "./anatomy";
+} from "../poses/anatomy/anatomy";
 import type { MotionContact } from "./description";
 import { applyCanonicalPose, rawBoneWorldPosition } from "./kinematics";
 

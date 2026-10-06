@@ -96,7 +96,8 @@ prototype.
       phase first needs it.
 - [x] Phase 1: Interactive motion preview tool (1.0). Review #2 passed;
       commit recorded in the Phase 1 record.
-- [ ] Phase 2: `animaPoseClip/2.0` format, sampler and 1.0 conversion.
+- [x] Phase 2: `animaPoseClip/2.0` format, sampler and 1.0 conversion.
+      Review #2 passed.
 - [ ] Phase 3: Runtime and backend acceptance of 2.0.
 - [ ] Phase 4: Authoring tools, migrated examples and skill. Gate G1.
 - [ ] Phase 5: Creator editing of 2.0. Gate G2.
@@ -115,6 +116,17 @@ prototype.
 - Hand-made 1.0 poses bend joints about non-anatomical axes (for example the
   lower arm about its own z axis), so the anatomical model cannot carry them
   without auxiliary components and slerp. See the prototype.
+- The 1.0 sampler re-parses the whole clip on every call. Sampling the
+  hearty laugh's 1.0 bake (247 keyframes) costs 12.7 ms per frame on the
+  development machine; `PoseController` samples several times per frame. Its
+  2.0 form costs 0.014 ms per frame after a 0.7 ms preparation (the clap: 5.9
+  against 0.012 ms). Generated 1.0 Gestures are therefore expensive in chat
+  today.
+- Importing the 2.0 schema from the clip index created a cycle (hand presets →
+  pose catalog → clip index → schema → hand presets). Preset ids now live in a
+  dependency-free `handPresetIds.ts`, and the heavier 2.0 modules are imported
+  by path rather than through the index.
+- The Phase 1 commit is `04498690`.
 - `tests/test_content_package_capabilities.py:42–45` asserts that
   `animaPoseClip/2.0` is unavailable, and must change.
 - The creator's Pose-alias select re-points a keyframe to a shared pose. 2.0
@@ -443,6 +455,182 @@ Checks: the focused vitest suites, `pnpm check`, `pnpm web:lint` and
 
 Completion: the library can parse, validate, play (sample) and convert 2.0 on
 both Avatars headlessly; review passes.
+
+#### Phase 2 record
+
+Starting source: `04498690`. Issue #292.
+
+Delivered in `src/frontend/web/src/lib/avatar/poses/` (moved files keep their
+history):
+
+- `anatomy/`:
+  - `anatomy.ts`, `curves.ts` and `legs.ts`, moved from motion authoring;
+  - `handPresets.ts`, moved from the creator's `poseCreatorHandAuthoring.ts`
+    with its UI dependency removed;
+  - `handPresetIds.ts`.
+- **Joint model:** ten auxiliary components (eyes roll; shoulder, hand, foot
+  and shin rotation; forearm, shin and toe deviation; toe rotation; finger
+  twist). None has a measurable value in Relaxed Rest (all below 0.05°), so
+  authored motion is unchanged. `decomposeJointRotation` takes optional
+  `near` values to stay on one Euler branch.
+- **Curves:** `ScalarTrack` keys carry an arrival `ease` (`smooth`, `linear`,
+  `hold` or a 1.0 easing). The motion-description generator maps its leaving
+  `interp` onto the following key.
+- **Leg solver:** works on VRM 0 rigs by turning their offsets into the
+  canonical basis.
+- **Hand shapes:** `handShapeRotations(vrm, side, shape, metacarpal)` fits
+  thumbs with the metacarpal at its base value and restores it afterwards.
+- **`animaPoseClip/schemaV2.ts`:**
+  - types, `validateAnimaPoseClipV2` with JSON-path issues, `sanitize` and
+    `parse`;
+  - limits of 1,000 beats, 400 tracks and 50,000 keys;
+  - 1.0 fade, playback, role and event rules reused;
+  - unknown top-level fields kept.
+- **`animaPoseClip/prepareV2.ts`:** `prepareAnimaPoseClipV2(clip, { vrm,
+  resolvePose })`, which samples canonical poses.
+- **`animaPoseClip/convertV2.ts`:** `convertAnimaPoseClipToV2(clip,
+  resolvePose)`.
+- **Serialiser:** rounds `q` like transforms and `dt` like times.
+- **Docs:** ADR 0014 and its index entry; glossary entries for Gesture, Beat
+  and generated detail.
+- **Dropped:** moving `actionClipId` out of the creator. Only the bake step
+  uses it, and the bake is retired in Phase 4.
+
+Evidence:
+
+- **Tests:**
+  - 2.0 validation: each structural rejection has its path.
+  - Sampling:
+    - eases and beat eases, offsets, base values, slerp, loops;
+    - hand presets fitted on both Avatars, with finger-track overrides;
+    - planted feet within 2 mm on both Avatars;
+    - VRM 0/1 parity;
+    - agreement with the motion-description generator within 1e-4°.
+  - Conversion: all 22 Included Gestures and 72 Included Reactions match 1.0
+    sampling at 120 Hz within 0.01°, 0.1 mm and 0.001 weight.
+  - Joints: exact round trips for every joint, and branch-stable
+    decomposition.
+  - Legs: both Avatars hold within 1 mm while leaning, shifting and
+    crouching.
+  - Serialisation of 2.0 clips.
+- **Checks:** from `src/frontend/web`,
+  - `pnpm exec vitest run src/lib/avatar tests/avatar src/ui/pose-creator
+    src/ui/action-editor`: 105 files, 947 tests;
+  - `pnpm -s check:source`: pass;
+  - ESLint and Prettier on the changed folders: pass.
+- **Benchmark** (a one-off script, not committed), on the development
+  machine: per-frame sampling of 0.014 ms (2.0) against 12.7 ms (1.0 bake) for
+  the hearty laugh, and 0.012 against 5.9 ms for the clap; 2.0 preparation
+  takes 0.5–0.7 ms.
+
+#### Code Review #1 Findings (Phase 2)
+
+`sdlc-reviewer`, full review of the uncommitted Phase 2 tree against
+`04498690`. Its checks: the 947 tests, `check:source`, ESLint and Prettier,
+all passing. Scratch vitest probes reproduced each blocking finding.
+
+- **P2-F1 (blocking):** names from `Object.prototype` (`toString`,
+  `constructor`, `__proto__`) passed as joints or components. Validation could
+  throw, and preparation could crash on a "valid" clip.
+- **P2-F2 (blocking):** scalar loop tracks dropped the key at the duration,
+  losing its value and ease, unlike rotation and hand tracks.
+- **P2-F3 (blocking):** 1.0 loop conversion was wrong.
+  - The closing keyframe was sampled with wrap-around.
+  - 2.0 wrapped smoothly where 1.0 holds the last keyframe and then snaps.
+  - The Included loops all close on their first pose, so the tests missed it.
+- **P2-F4 (blocking):** hips position ignored the base pose: `"base"` meant 0,
+  untracked axes were zeroed, and the leg solver used the wrong offset.
+- **P2-F5 (blocking):** the VRM skill reference still named the moved Hands
+  module.
+- **Non-blocking:**
+  - P2-N1: rounding on save could invalidate a clip that validated in memory.
+  - P2-N2: long 1.0 pose aliases became over-length labels.
+  - P2-N3: thumbs were fitted to the base metacarpal even when it had a
+    track.
+  - P2-N4: contact bones were not checked, and contact windows could leave
+    the clip.
+  - P2-N5: the benchmark was not reproducible from the tree.
+  - P2-N6: the ADR stated beat ordering as settled.
+  - P2-N7: the joint parity test could not fail.
+
+#### Code Review #1 Revisions (Phase 2)
+
+- **P2-F1, accepted:** `resolveJoint` and the component check use
+  `Object.hasOwn`, and `__proto__` is rejected as an expression name. Test:
+  inherited names produce issues and never throw.
+- **P2-F2, accepted:** `ScalarTrack` keeps a loop's closing key. When keys sit
+  at both 0 and the duration, tangents span the seam and no wrap segment is
+  needed. Test: the closing key's value and `hold` ease apply.
+- **P2-F3, accepted:**
+  - Keyframes are sampled without wrapping.
+  - A 1.0 loop's first beat arrives with `hold`.
+  - A "Loop start" beat is added when its first keyframe is after 0.
+  - Tests: three non-Included loop shapes (a different closing pose, ending
+    before the duration, starting after 0). Every conversion is now checked
+    across two cycles for loops.
+- **P2-F4, accepted:** hips axes hold, and `"base"` resolves to, the base
+  pose's hips offset, and the leg solver uses the effective offset. Test
+  added.
+- **P2-F5, accepted:** the VRM skill reference names
+  `lib/avatar/poses/anatomy/handPresets.ts` and its test.
+- **P2-N1, accepted:**
+  - Times are validated and kept in whole 0.1 ms ticks (the saved
+    precision).
+  - Beats, keys and neighbours must be at least 0.5 ms apart
+    (`ANIMA_POSE_CLIP_V2_MIN_SPACING`).
+  - Test: a clip at the minimum spacing stays valid after saving.
+- **P2-N2, accepted:** converted labels are truncated to 80 characters, and
+  length errors name the limit. Clip `id` and `name` are no longer capped
+  (1.0 names are unbounded; the 2 MiB file limit bounds them).
+- **P2-N3, accepted:** a hand key's thumb fit uses the metacarpal track's
+  value at that time when the clip has one.
+- **P2-N4, accepted:** contacts require humanoid bone names and must lie
+  inside the clip.
+- **P2-N5, accepted:** a committed test asserts that 2.0 sampling is at least
+  10× cheaper than the 1.0 bake of the same motion. The measured gap is about
+  900×.
+- **P2-N6, accepted:** ADR decision 5 marks beat ordering as awaiting owner
+  confirmation.
+- **P2-N7, accepted:** the tautological parity test is replaced. VRM 0/1
+  parity for hands and legs stays covered.
+
+Verification after the revisions:
+
+- from `src/frontend/web`, `pnpm exec vitest run src/lib/avatar tests/avatar
+  src/ui/pose-creator src/ui/action-editor`: 105 files, 957 tests;
+- `check:source`, ESLint and Prettier: pass.
+
+#### Code Review #2 Findings (Phase 2)
+
+`sdlc-reviewer`, repair round 1: a targeted recheck of the review #1
+revisions.
+
+- **Result: pass.** P2-F1 to P2-F5 are fixed, verified by scratch probes:
+  - inherited names produce issues without throwing;
+  - seam slopes are continuous;
+  - 3,000 random description tracks match the previous `ScalarTrack`;
+  - 1.0 loop shapes match exactly across three cycles;
+  - planted feet hold with a base hips offset.
+
+  Checks: 957 tests, `check:source`, ESLint and Prettier: pass.
+- **Optional findings:**
+  - P2-R1: conversion of 1.0 keyframes closer than 0.5 ms.
+  - P2-R2: tick rounding differs from the serializer's `toFixed` at
+    half-ticks, and `duration` is not kept in ticks.
+  - A 1.0 loop whose first keyframe is within 0.5 ms after 0.
+  - The closing key's tangent now governs arrival at the seam (intended).
+  - The speed test's margin: about 55–80× measured, not the 900× stated.
+  - Stale test counts in this record.
+
+#### Code Review #2 Revisions (Phase 2)
+
+- The optional items (P2-R1, P2-R2, the loop-start edge and the speed-test
+  margin and comment) are deferred to the start of Phase 3. That way the
+  Phase 3 review covers them, and this phase is committed as reviewed.
+- The tangent behaviour is accepted as intended.
+- The test counts are updated here: 957.
+
+Phase 2 passes its review (one repair round used).
 
 ### Phase 3 — Runtime and backend acceptance (R3, R6)
 

@@ -11,7 +11,7 @@ import {
   createPoseCreatorDraftsFromAnimaPose,
   formatPoseCreatorAnimaPoseJson,
 } from "./poseCreatorAuthoring";
-import { HAND_SEGMENTS } from "./poseCreatorHandAuthoring";
+import { HAND_SEGMENTS } from "@/lib/avatar/poses/anatomy/handPresets";
 import { createHandInteractionController } from "./poseCreatorHandInteraction";
 
 function fixture(version: "0" | "1" = "1") {

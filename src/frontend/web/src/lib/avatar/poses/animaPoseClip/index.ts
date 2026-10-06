@@ -73,3 +73,23 @@ export type {
   AnimaPoseSnapshot,
   ResolvedAnimaPoseClipTransition,
 } from "./schema";
+export {
+  ANIMA_POSE_CLIP_EASES,
+  ANIMA_POSE_CLIP_V2_LIMITS,
+  ANIMA_POSE_CLIP_V2_SCHEMA,
+  formatAnimaPoseClipV2Issues,
+  parseAnimaPoseClipV2,
+  sanitizeAnimaPoseClipV2,
+  validateAnimaPoseClipV2,
+} from "./schemaV2";
+export type {
+  AnimaPoseClipBeat,
+  AnimaPoseClipContact,
+  AnimaPoseClipEase,
+  AnimaPoseClipHandKey,
+  AnimaPoseClipRotationKey,
+  AnimaPoseClipScalarKey,
+  AnimaPoseClipV2,
+  AnimaPoseClipV2Issue,
+  AnimaPoseClipV2Validation,
+} from "./schemaV2";

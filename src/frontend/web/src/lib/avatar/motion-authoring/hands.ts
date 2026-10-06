@@ -1,55 +1,7 @@
-import type { VRM, VRMHumanBoneName } from "@pixiv/three-vrm";
+import type { VRMHumanBoneName } from "@pixiv/three-vrm";
 import { Quaternion } from "three";
 
-import {
-  adjustHandQuaternion,
-  handPresetQuaternion,
-  resolveHandBones,
-  type HandBone,
-} from "@/ui/pose-creator/poseCreatorHandAuthoring";
-import type { Side } from "./anatomy";
 import type { HandShapeKey } from "./description";
-
-/**
- * Finger rotations for a hand-shape key, using the creator Hands tool's
- * presets and relative Curl/Spread exactly as the tool applies them. The
- * reference Avatar must already hold the base pose so thumb fitting sees the
- * retained metacarpal orientation. Thumb metacarpals are never written.
- */
-export function handShapeRotations(
-  referenceVrm: VRM,
-  side: Side,
-  key: HandShapeKey,
-): Map<VRMHumanBoneName, Quaternion> {
-  const avatar = { vrm: referenceVrm };
-  const { available } = resolveHandBones(avatar, side);
-  const rotations = new Map<VRMHumanBoneName, Quaternion>();
-  for (const bone of available) {
-    let rotation = handPresetQuaternion(bone, key.preset, avatar);
-    rotation = applyAdjustment(rotation, bone, "curl", key.curl);
-    if (bone.segment.spread)
-      rotation = applyAdjustment(rotation, bone, "spread", key.spread);
-    rotations.set(bone.boneName as VRMHumanBoneName, rotation);
-  }
-  return rotations;
-}
-
-function applyAdjustment(
-  rotation: Quaternion,
-  bone: HandBone,
-  adjustment: "curl" | "spread",
-  degrees: number | undefined,
-): Quaternion {
-  return degrees
-    ? adjustHandQuaternion(
-        rotation,
-        bone.side,
-        bone.segment.digit,
-        adjustment,
-        degrees,
-      )
-    : rotation;
-}
 
 /**
  * Sample a hand-shape track. Each key is a held shape: the hand blends between

@@ -4,12 +4,16 @@ import {
   HAND_ADJUSTMENT_LIMITS,
   HAND_PRESETS,
   type HandPreset,
-} from "@/ui/pose-creator/poseCreatorHandAuthoring";
+} from "../poses/anatomy/handPresets";
 import {
   ANIMA_POSE_CLIP_MUTABLE_LAYER_IDS,
   type AnimaPoseClipMutableLayerId,
 } from "../poses/animaPoseClip/schema";
-import { JOINT_DEFINITIONS, resolveJoint, type Side } from "./anatomy";
+import {
+  JOINT_DEFINITIONS,
+  resolveJoint,
+  type Side,
+} from "../poses/anatomy/anatomy";
 
 /**
  * Agent-facing motion description: independent keyed tracks per joint

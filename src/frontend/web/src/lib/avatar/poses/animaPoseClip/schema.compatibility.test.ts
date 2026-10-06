@@ -135,3 +135,27 @@ describe("saved clip precision", () => {
     });
   });
 });
+
+describe("saved 2.0 clips", () => {
+  it("rounds quaternion keys, offsets and values compactly", () => {
+    const text = serializeAnimaPoseClipFile({
+      schema: "animaPoseClip/2.0",
+      beats: [{ id: "a", label: "A", time: 0.123456 }],
+      rotations: {
+        head: [{ beat: "a", dt: 0.0333333, q: [0.1234567, 0, 0, 0.9923456] }],
+      },
+      joints: { head: { flexion: [{ beat: "a", v: 12.3456789 }] } },
+      expressions: { happy: [{ beat: "a", v: 0.123456789 }] },
+    });
+    expect(JSON.parse(text)).toEqual({
+      schema: "animaPoseClip/2.0",
+      beats: [{ id: "a", label: "A", time: 0.1235 }],
+      rotations: {
+        head: [{ beat: "a", dt: 0.0333, q: [0.12346, 0, 0, 0.99235] }],
+      },
+      joints: { head: { flexion: [{ beat: "a", v: 12.34568 }] } },
+      expressions: { happy: [{ beat: "a", v: 0.12346 }] },
+    });
+    expect(text).not.toContain("\n  ");
+  });
+});

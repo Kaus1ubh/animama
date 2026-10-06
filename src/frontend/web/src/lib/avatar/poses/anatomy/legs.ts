@@ -1,6 +1,7 @@
 import type { VRM, VRMHumanBoneName } from "@pixiv/three-vrm";
 import { Quaternion, Vector3 } from "three";
 
+import { isVrm0 } from "../poseRetargeting";
 import type { Side } from "./anatomy";
 
 type LegRest = {
@@ -16,22 +17,24 @@ type LegRest = {
  * Two-bone leg solver that keeps each ankle and foot orientation at rest while
  * the hips rotate or translate (weight shifts, crouches, leans).
  *
- * It works in the canonical basis on the VRM 1 reference Avatar's normalized
- * rig, whose bones have identity rest rotations and model-aligned offsets.
- * Resulting angles transfer to other Avatars; the motion checks measure the
- * remaining foot drift on each Avatar.
+ * It works in the canonical basis on an Avatar's normalized rig, whose bones
+ * have identity rest rotations and model-aligned offsets. A VRM 0 rig faces
+ * the other way, so its offsets are turned into the canonical basis; the
+ * resulting rotations are canonical and go through the usual VRM 0 conversion
+ * at playback. Solving on each Avatar's own rig keeps its feet planted
+ * despite different proportions.
  */
 export class PlantedLegSolver {
   private readonly hipsRest: Vector3;
   private readonly legs: Record<Side, LegRest>;
 
   constructor(vrm: VRM) {
-    if (vrm.meta.metaVersion !== "1")
-      throw new Error("The leg solver needs a VRM 1 reference Avatar.");
+    const vrm0 = isVrm0(vrm);
     const offset = (bone: VRMHumanBoneName) => {
       const node = vrm.humanoid.getNormalizedBoneNode(bone);
-      if (!node) throw new Error(`The reference Avatar has no ${bone}.`);
-      return node.position.clone();
+      if (!node) throw new Error(`The Avatar has no ${bone} bone.`);
+      const { x, y, z } = node.position;
+      return vrm0 ? new Vector3(-x, y, -z) : new Vector3(x, y, z);
     };
     this.hipsRest = offset("hips");
     const leg = (side: Side): LegRest => {

@@ -10,7 +10,7 @@ import {
   HAND_SEGMENTS,
   handPresetQuaternion,
   adjustHandQuaternion,
-} from "./poseCreatorHandAuthoring";
+} from "./handPresets";
 describe("hand adjustments", () => {
   it("curls normalized fingers in corresponding opposite directions", () => {
     const left = adjustHandQuaternion(

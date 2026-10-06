@@ -15,7 +15,7 @@ import {
   HAND_SEGMENTS,
   type HandAdjustment,
   type HandSegment,
-} from "./poseCreatorHandAuthoring";
+} from "@/lib/avatar/poses/anatomy/handPresets";
 import type { PoseCreatorHands } from "./usePoseCreatorHands";
 
 const label = (value: string) => value[0].toUpperCase() + value.slice(1);

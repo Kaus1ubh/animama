@@ -1,31 +1,27 @@
+import type { VRM, VRMHumanBoneName } from "@pixiv/three-vrm";
 import { MathUtils, Quaternion, Vector3 } from "three";
-import type { Avatar } from "@/lib/avatar";
-import {
-  AVATAR_POSE_CATALOG,
-  RELAXED_REST_POSE_ID,
-} from "@/lib/avatar/poses/catalog";
-import {
-  convertPoseQuaternionBasis,
-  isVrm0,
-} from "@/lib/avatar/poses/poseRetargeting";
-import { getPoseCreatorNormalizedBoneNode } from "./poseCreatorAuthoring";
+
+import { isVRMHumanBoneName } from "../animaPose";
+import { AVATAR_POSE_CATALOG, RELAXED_REST_POSE_ID } from "../catalog";
+import { convertPoseQuaternionBasis, isVrm0 } from "../poseRetargeting";
+import { HAND_ADJUSTMENT_LIMITS, type HandPreset } from "./handPresetIds";
+
+/**
+ * The Hands tool's presets, Curl and Spread, shared by the Gesture creator,
+ * clip playback (which fits presets to each Avatar) and the motion tools.
+ */
 
 /** Hand authoring reads only the loaded VRM, so headless tools can pass one. */
-export type HandAuthoringAvatar = Pick<Avatar, "vrm">;
+export type HandAuthoringAvatar = { vrm: VRM | null };
 export type HandTarget = "left" | "right" | "both";
 export type HandSide = Exclude<HandTarget, "both">;
 export type HandDigit = "thumb" | "index" | "middle" | "ring" | "little";
 export type HandAdjustment = "curl" | "spread";
-export const HAND_PRESETS = [
-  { id: "fist", name: "Fist" },
-  { id: "open-spread", name: "Open · spread" },
-  { id: "open-together", name: "Open · together" },
-  { id: "relaxed", name: "Relaxed" },
-  { id: "point", name: "Point" },
-  { id: "peace", name: "Peace" },
-  { id: "thumbs-up", name: "Thumbs up" },
-] as const;
-export type HandPreset = (typeof HAND_PRESETS)[number]["id"];
+export {
+  HAND_ADJUSTMENT_LIMITS,
+  HAND_PRESETS,
+  type HandPreset,
+} from "./handPresetIds";
 export type HandSegment = {
   id: string;
   digit: HandDigit;
@@ -70,14 +66,13 @@ export function resolveHandBones(
         side,
         segment,
       };
-      (getPoseCreatorNormalizedBoneNode(avatar, bone.boneName)
+      (normalizedBoneNode(avatar, bone.boneName)
         ? available
         : unavailable
       ).push(bone);
     }
   return { available, unavailable };
 }
-export const HAND_ADJUSTMENT_LIMITS = { curl: 90, spread: 30 } as const;
 const spreadWeight: Record<HandDigit, number> = {
   thumb: 1,
   index: -0.65,
@@ -212,8 +207,7 @@ function fitThumbPreset(
   side: HandSide,
   preset: HandPreset,
 ): Quaternion | null {
-  const node = (name: string) =>
-    getPoseCreatorNormalizedBoneNode(avatar, `${side}${name}`);
+  const node = (name: string) => normalizedBoneNode(avatar, `${side}${name}`);
   const proximal = node("ThumbProximal");
   const distal = node("ThumbDistal");
   const index = node("IndexProximal");
@@ -292,4 +286,74 @@ function fitThumbPreset(
     targetDirection,
   );
   return convertPoseQuaternionBasis(avatar.vrm, runtime);
+}
+
+function normalizedBoneNode(
+  avatar: HandAuthoringAvatar | null | undefined,
+  boneName: string,
+) {
+  if (!isVRMHumanBoneName(boneName)) return null;
+  return avatar?.vrm?.humanoid.getNormalizedBoneNode(boneName) ?? null;
+}
+
+/** A hand-shape key: a preset, then relative Curl and Spread in degrees. */
+export type HandShape = { preset: HandPreset; curl?: number; spread?: number };
+
+/**
+ * Finger rotations (canonical basis) for a hand shape, exactly as the Hands
+ * tool applies a preset followed by relative Curl and Spread. Thumbs are
+ * fitted to the Avatar with its thumb metacarpal held at `metacarpal` (the
+ * base pose's value; hand shapes never move it), so the result does not
+ * depend on the pose the Avatar happens to hold. Without an Avatar, thumbs
+ * use the unfitted presets. Thumb metacarpals are never written.
+ */
+export function handShapeRotations(
+  vrm: VRM | null,
+  side: HandSide,
+  shape: HandShape,
+  metacarpal: readonly [number, number, number, number] | undefined,
+): Map<VRMHumanBoneName, Quaternion> {
+  const avatar = vrm ? { vrm } : null;
+  const bones: HandBone[] = avatar
+    ? resolveHandBones(avatar, side).available
+    : HAND_SEGMENTS.map((segment) => ({
+        boneName: `${side}${capitalize(segment.id)}`,
+        side,
+        segment,
+      }));
+  const node = normalizedBoneNode(avatar, `${side}ThumbMetacarpal`);
+  const saved = node?.quaternion.clone();
+  if (node && vrm)
+    node.quaternion.copy(
+      convertPoseQuaternionBasis(
+        vrm,
+        new Quaternion(...(metacarpal ?? [0, 0, 0, 1])),
+      ),
+    );
+  try {
+    const rotations = new Map<VRMHumanBoneName, Quaternion>();
+    for (const bone of bones) {
+      let rotation = handPresetQuaternion(bone, shape.preset, avatar);
+      if (shape.curl)
+        rotation = adjustHandQuaternion(
+          rotation,
+          bone.side,
+          bone.segment.digit,
+          "curl",
+          shape.curl,
+        );
+      if (shape.spread && bone.segment.spread)
+        rotation = adjustHandQuaternion(
+          rotation,
+          bone.side,
+          bone.segment.digit,
+          "spread",
+          shape.spread,
+        );
+      rotations.set(bone.boneName as VRMHumanBoneName, rotation);
+    }
+    return rotations;
+  } finally {
+    if (node && saved) node.quaternion.copy(saved);
+  }
 }

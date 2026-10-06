@@ -1,31 +1,46 @@
-import type { MotionInterpolation, MotionTangent } from "./description";
+import { easeProgress } from "../animaPoseClip/interpolation";
+import type { AnimaPoseClipEase } from "../animaPoseClip/schemaV2";
 
-/** A key whose `"base"` value has been resolved to a number. */
+/** A key with its time and value resolved. */
 export type ResolvedKey = {
   t: number;
   v: number;
-  tangent: MotionTangent;
-  interp: MotionInterpolation;
+  /** `flat` stops motion at the key; `auto` lets velocity carry through. */
+  tangent: "auto" | "flat";
+  /** How motion arrives at this key from the previous one. */
+  ease: AnimaPoseClipEase;
 };
 
 /**
- * A scalar track evaluated with cubic Hermite segments.
- *
- * `auto` tangents follow Fritsch–Butland monotone slopes: velocity carries
- * through a key, but a key that is a local peak or valley stops there and no
- * segment overshoots the authored values. Overshoot and settle are therefore
- * authored explicitly as keys. Outside its keys a track holds the nearest
- * value; a looping track wraps over the clip duration instead.
+ * A scalar track. Segments arrive at each key with that key's ease:
+ * `smooth` segments are cubic Hermite with Fritsch–Butland monotone slopes
+ * (velocity carries through a key, but a key that is a local peak or valley
+ * stops there and no segment overshoots the authored values); `linear`,
+ * `hold` and the 1.0 easings interpolate directly. Overshoot and settle are
+ * therefore authored explicitly as keys. Outside its keys a track holds the
+ * nearest value; a looping track wraps over the clip duration instead.
  */
 export class ScalarTrack {
   private readonly keys: ResolvedKey[];
   private readonly slopes: number[];
   private readonly loopDuration: number | null;
+  /**
+   * A loop with keys at both 0 and its duration: the key at the duration
+   * closes the loop (its value and ease shape the end of the cycle), so the
+   * seam needs no wrap segment.
+   */
+  private readonly closed: boolean;
 
   constructor(keys: readonly ResolvedKey[], loopDuration: number | null) {
     if (keys.length === 0) throw new Error("A track needs at least one key.");
     this.loopDuration = loopDuration;
-    this.keys = normalizeLoopKeys(keys, loopDuration);
+    this.keys = [...keys];
+    const last = keys[keys.length - 1];
+    this.closed =
+      loopDuration !== null &&
+      keys.length > 1 &&
+      Math.abs(keys[0].t) < 1e-6 &&
+      Math.abs(last.t - loopDuration) < 1e-6;
     this.slopes = this.keys.map((_, index) => this.tangentAt(index));
   }
 
@@ -51,7 +66,7 @@ export class ScalarTrack {
     const keys = this.keys;
     const wrapped = ((time % period) + period) % period;
     const last = keys[keys.length - 1];
-    if (wrapped >= keys[0].t && wrapped < last.t) {
+    if (this.closed || (wrapped >= keys[0].t && wrapped < last.t)) {
       const index = this.segmentIndex(wrapped);
       return this.evaluateSegment(
         keys[index],
@@ -62,11 +77,10 @@ export class ScalarTrack {
       );
     }
     // The wrap segment runs from the last key to the first key one period later.
-    const from = last;
     const to = { ...keys[0], t: keys[0].t + period };
     const local = wrapped < keys[0].t ? wrapped + period : wrapped;
     return this.evaluateSegment(
-      from,
+      last,
       to,
       this.slopes[keys.length - 1],
       this.slopes[0],
@@ -95,35 +109,45 @@ export class ScalarTrack {
   ): number {
     const span = to.t - from.t;
     const u = span > 0 ? (time - from.t) / span : 1;
-    if (from.interp === "step") return from.v;
-    if (from.interp === "linear") return from.v + (to.v - from.v) * u;
-    const u2 = u * u;
-    const u3 = u2 * u;
-    return (
-      (2 * u3 - 3 * u2 + 1) * from.v +
-      (u3 - 2 * u2 + u) * span * fromSlope +
-      (-2 * u3 + 3 * u2) * to.v +
-      (u3 - u2) * span * toSlope
-    );
+    switch (to.ease) {
+      case "hold":
+        return u >= 1 ? to.v : from.v;
+      case "smooth": {
+        const u2 = u * u;
+        const u3 = u2 * u;
+        return (
+          (2 * u3 - 3 * u2 + 1) * from.v +
+          (u3 - 2 * u2 + u) * span * fromSlope +
+          (-2 * u3 + 3 * u2) * to.v +
+          (u3 - u2) * span * toSlope
+        );
+      }
+      default:
+        return from.v + (to.v - from.v) * easeProgress(u, to.ease);
+    }
   }
 
-  /** Slope (value per second) at a key. */
+  /** Slope (value per second) at a key, for smooth segments. */
   private tangentAt(index: number): number {
     const keys = this.keys;
     const key = keys[index];
     if (key.tangent === "flat") return 0;
     const loop = this.loopDuration;
+    // In a closed loop, the keys at 0 and the duration are one moment of the
+    // cycle, so each takes its neighbour from across the seam.
+    const wrapLast = keys.length - (this.closed ? 2 : 1);
+    const wrapFirst = this.closed ? 1 : 0;
     const previous =
       index > 0
         ? keys[index - 1]
         : loop !== null
-          ? { ...keys[keys.length - 1], t: keys[keys.length - 1].t - loop }
+          ? { ...keys[wrapLast], t: keys[wrapLast].t - loop }
           : null;
     const next =
       index < keys.length - 1
         ? keys[index + 1]
         : loop !== null
-          ? { ...keys[0], t: keys[0].t + loop }
+          ? { ...keys[wrapFirst], t: keys[wrapFirst].t + loop }
           : null;
     // Clip ends start and finish at rest velocity.
     if (!previous || !next) return 0;
@@ -137,16 +161,4 @@ export class ScalarTrack {
     const w1 = h1 + 2 * h0;
     return (w0 + w1) / (w0 / d0 + w1 / d1);
   }
-}
-
-/** A loop's key at the duration duplicates its key at 0; keep one of them. */
-function normalizeLoopKeys(
-  keys: readonly ResolvedKey[],
-  loopDuration: number | null,
-): ResolvedKey[] {
-  if (loopDuration === null || keys.length < 2) return [...keys];
-  const last = keys[keys.length - 1];
-  return Math.abs(last.t - loopDuration) < 1e-6 && keys[0].t === 0
-    ? keys.slice(0, -1)
-    : [...keys];
 }

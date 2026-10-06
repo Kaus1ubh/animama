@@ -25,6 +25,12 @@ export type JointComponentDefinition = {
   /** Anatomical limit; values outside fail the motion checks. */
   hard: [number, number];
   description: string;
+  /**
+   * Completes a joint's three rotation axes so any rotation (for example a
+   * creator edit) is represented exactly. Not a natural motion of the joint:
+   * authored motion leaves it at its base value.
+   */
+  auxiliary?: true;
 };
 
 export type JointDefinition = {
@@ -128,6 +134,14 @@ export const JOINT_DEFINITIONS = {
         hard: [-20, 20],
         description: "Look up (+) or down (−).",
       },
+      roll: {
+        axis: "z",
+        sign: 1,
+        soft: [-5, 5],
+        hard: [-30, 30],
+        description: "Roll the eyes about the line of sight.",
+        auxiliary: true,
+      },
     },
   },
   shoulder: {
@@ -148,6 +162,14 @@ export const JOINT_DEFINITIONS = {
         soft: [-15, 15],
         hard: [-20, 20],
         description: "Round the shoulder forward (+) or pull it back (−).",
+      },
+      rotation: {
+        axis: "x",
+        sign: 1,
+        soft: [-5, 5],
+        hard: [-30, 30],
+        description: "Turn the shoulder girdle about the collarbone.",
+        auxiliary: true,
       },
     },
   },
@@ -202,6 +224,14 @@ export const JOINT_DEFINITIONS = {
         description:
           "Forearm rotation: supination (+) turns the palm up or forward; pronation (−) turns it down or back.",
       },
+      deviation: {
+        axis: "z",
+        sign: 1,
+        soft: [-5, 5],
+        hard: [-30, 30],
+        description: "Swing the forearm sideways at the elbow.",
+        auxiliary: true,
+      },
     },
   },
   hand: {
@@ -221,6 +251,15 @@ export const JOINT_DEFINITIONS = {
         soft: [-30, 20],
         hard: [-40, 25],
         description: "Tilt the hand toward the thumb (+) or little finger (−).",
+      },
+      rotation: {
+        axis: "x",
+        sign: 1,
+        soft: [-5, 5],
+        hard: [-30, 30],
+        description:
+          "Twist the hand about the forearm (forearm supination normally does this).",
+        auxiliary: true,
       },
     },
   },
@@ -263,6 +302,22 @@ export const JOINT_DEFINITIONS = {
         hard: [-5, 140],
         description: "Bend the knee (+).",
       },
+      rotation: {
+        axis: "y",
+        sign: 1,
+        soft: [-5, 5],
+        hard: [-30, 30],
+        description: "Twist the shin about its length.",
+        auxiliary: true,
+      },
+      deviation: {
+        axis: "z",
+        sign: 1,
+        soft: [-5, 5],
+        hard: [-30, 30],
+        description: "Swing the shin sideways at the knee.",
+        auxiliary: true,
+      },
     },
   },
   foot: {
@@ -283,6 +338,14 @@ export const JOINT_DEFINITIONS = {
         hard: [-20, 35],
         description: "Turn the sole inward (+) or outward (−).",
       },
+      rotation: {
+        axis: "y",
+        sign: 1,
+        soft: [-10, 10],
+        hard: [-30, 30],
+        description: "Turn the foot about the shin.",
+        auxiliary: true,
+      },
     },
   },
   toes: {
@@ -295,6 +358,22 @@ export const JOINT_DEFINITIONS = {
         soft: [-30, 30],
         hard: [-40, 40],
         description: "Curl the toes down (+) or lift them (−).",
+      },
+      rotation: {
+        axis: "y",
+        sign: 1,
+        soft: [-5, 5],
+        hard: [-30, 30],
+        description: "Turn the toes about the foot's vertical axis.",
+        auxiliary: true,
+      },
+      deviation: {
+        axis: "z",
+        sign: 1,
+        soft: [-5, 5],
+        hard: [-30, 30],
+        description: "Tilt the toes sideways.",
+        auxiliary: true,
       },
     },
   },
@@ -321,6 +400,14 @@ export const JOINT_DEFINITIONS = {
         hard: [-30, 30],
         description:
           "Fan the segment toward the thumb side (+) or the little-finger side (−); use on proximal segments.",
+      },
+      twist: {
+        axis: "x",
+        sign: 1,
+        soft: [-5, 5],
+        hard: [-30, 30],
+        description: "Roll the segment about its own length.",
+        auxiliary: true,
       },
     },
   },
@@ -409,7 +496,11 @@ const SIDED_TYPES: Record<string, JointType> = {
 export function resolveJoint(id: string): ResolvedJoint | null {
   if (id === "eyes")
     return { id, type: "eyes", side: null, bones: ["leftEye", "rightEye"] };
-  if (id in JOINT_DEFINITIONS && !JOINT_DEFINITIONS[id as JointType].sided)
+  // Own properties only: names such as "constructor" are not joints.
+  if (
+    Object.hasOwn(JOINT_DEFINITIONS, id) &&
+    !JOINT_DEFINITIONS[id as JointType].sided
+  )
     return {
       id: id as JointId,
       type: id as JointType,
@@ -417,7 +508,10 @@ export function resolveJoint(id: string): ResolvedJoint | null {
       bones: [id as VRMHumanBoneName],
     };
   const match = /^(left|right)([A-Z][A-Za-z]+)$/.exec(id);
-  const type = match ? SIDED_TYPES[match[2]] : undefined;
+  const type =
+    match && Object.hasOwn(SIDED_TYPES, match[2])
+      ? SIDED_TYPES[match[2]]
+      : undefined;
   if (!match || !type) return null;
   return {
     id: id as JointId,
@@ -471,6 +565,12 @@ export function composeJointRotation(
 export function decomposeJointRotation(
   joint: ResolvedJoint,
   rotation: Quaternion,
+  /**
+   * Values to stay close to. Every rotation has two Euler solutions, each
+   * repeating every 360°; this picks the one nearest these values, so an edit
+   * near a gimbal singularity or across ±180° does not jump branches.
+   */
+  near?: Readonly<Record<string, number>>,
 ): Record<string, number> {
   const definition: JointDefinition = JOINT_DEFINITIONS[joint.type];
   const local =
@@ -479,12 +579,41 @@ export function decomposeJointRotation(
     local.normalize(),
     definition.order,
   );
-  const values: Record<string, number> = {};
-  for (const [name, component] of Object.entries(definition.components)) {
-    const angle = MathUtils.radToDeg(euler[component.axis]);
-    values[name] = (angle - (component.offset ?? 0)) / component.sign;
-  }
-  return values;
+  const toValues = (angles: Record<"x" | "y" | "z", number>) => {
+    const values: Record<string, number> = {};
+    for (const [name, component] of Object.entries(definition.components)) {
+      const angle = MathUtils.radToDeg(angles[component.axis]);
+      values[name] = (angle - (component.offset ?? 0)) / component.sign;
+    }
+    return values;
+  };
+  const primary = toValues(euler);
+  if (!near) return primary;
+  // The alternative solution: first and last axes turned half a turn, middle
+  // axis reflected.
+  const [first, middle, last] = definition.order.toLowerCase().split("") as (
+    | "x"
+    | "y"
+    | "z"
+  )[];
+  const alternative = { x: euler.x, y: euler.y, z: euler.z };
+  alternative[first] += Math.PI;
+  alternative[middle] = Math.PI - alternative[middle];
+  alternative[last] += Math.PI;
+  const unwrap = (values: Record<string, number>) => {
+    let distance = 0;
+    const result: Record<string, number> = {};
+    for (const [name, value] of Object.entries(values)) {
+      const target = near[name] ?? value;
+      const wrapped = value + 360 * Math.round((target - value) / 360);
+      result[name] = wrapped;
+      distance += (wrapped - target) ** 2;
+    }
+    return { result, distance };
+  };
+  const a = unwrap(primary);
+  const b = unwrap(toValues(alternative));
+  return a.distance <= b.distance ? a.result : b.result;
 }
 
 /**

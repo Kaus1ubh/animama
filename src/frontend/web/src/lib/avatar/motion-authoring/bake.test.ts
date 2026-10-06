@@ -5,7 +5,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import {
   handPresetQuaternion,
   resolveHandBones,
-} from "@/ui/pose-creator/poseCreatorHandAuthoring";
+} from "../poses/anatomy/handPresets";
 import {
   parseAnimaPoseClip,
   sampleAnimaPoseClip,
@@ -15,7 +15,7 @@ import {
   angularDistanceDegrees,
   composeJointRotation,
   resolveJoint,
-} from "./anatomy";
+} from "../poses/anatomy/anatomy";
 import { bakeMotion, createMotionEvaluator } from "./bake";
 import {
   DEFAULT_GENERATED_MUTED_LAYERS,

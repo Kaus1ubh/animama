@@ -10,7 +10,7 @@ const key = (
   t,
   v,
   tangent: "auto",
-  interp: "smooth",
+  ease: "smooth",
   ...extra,
 });
 
@@ -55,17 +55,23 @@ describe("ScalarTrack", () => {
       expect(track.evaluate(t)).toBeLessThanOrEqual(50 + 1e-9);
   });
 
-  it("supports linear and step segments", () => {
+  it("arrives at each key with that key's ease", () => {
     const track = new ScalarTrack(
       [
-        key(0, 0, { interp: "linear" }),
-        key(1, 10, { interp: "step" }),
-        key(2, 20),
+        key(0, 0),
+        key(1, 10, { ease: "linear" }),
+        key(2, 20, { ease: "hold" }),
+        key(3, 30, { ease: "easeInOutSine" }),
       ],
       null,
     );
     expect(track.evaluate(0.25)).toBeCloseTo(2.5);
     expect(track.evaluate(1.9)).toBe(10);
+    expect(track.evaluate(2)).toBe(20);
+    expect(track.evaluate(2.5)).toBeCloseTo(25);
+    expect(track.evaluate(2.25)).toBeCloseTo(
+      20 + (10 * (1 - Math.cos(Math.PI / 4))) / 2,
+    );
   });
 
   it("wraps a loop without a seam", () => {
@@ -77,5 +83,20 @@ describe("ScalarTrack", () => {
     expect(Math.abs(slope(offset, 1, -1) - slope(offset, 1, 1))).toBeLessThan(
       1,
     );
+  });
+
+  it("keeps a loop's closing key with its own value and ease", () => {
+    const linear = new ScalarTrack(
+      [key(0, 0), key(1, 1, { ease: "linear" })],
+      1,
+    );
+    expect(linear.evaluate(0.25)).toBeCloseTo(0.25);
+    expect(linear.evaluate(1.25)).toBeCloseTo(0.25);
+    const held = new ScalarTrack(
+      [key(0, 0), key(0.5, 1), key(1, 0, { ease: "hold" })],
+      1,
+    );
+    expect(held.evaluate(0.75)).toBe(1);
+    expect(held.evaluate(1)).toBe(0);
   });
 });
