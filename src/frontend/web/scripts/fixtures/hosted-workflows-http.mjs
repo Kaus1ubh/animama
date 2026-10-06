@@ -72,6 +72,7 @@ function ownerState(label) {
     label,
     profile: { display_name: `${label} account` },
     settings: { theme: "system", preferences: {}, last_active_anima_id: null },
+    settingsReadFailure: false,
     animaSettings: { preferences: {} },
     anima: {
       id: "fixture-anima",
@@ -111,7 +112,9 @@ function ownerState(label) {
 export async function createHostedWorkflowHttp({ workletSource } = {}) {
   const sessions = new Map(),
     owners = new Map(),
-    calls = [];
+    calls = [],
+    settingsReads = new Map(),
+    heldSettingsReads = new Set();
   let origin,
     workletAvailable = false;
   const voiceConnections = [];
@@ -153,6 +156,13 @@ export async function createHostedWorkflowHttp({ workletSource } = {}) {
         capabilities: hostedCapabilities,
         account_url: `${origin}/central-account`,
       });
+    if (url.pathname === "/api/cloud/auth/login") {
+      if (request.method !== "POST" || request.headers.origin !== origin)
+        return error(response, "origin_required", 403);
+      return json(response, {
+        authorization_url: "https://identity.example.test/sign-in",
+      });
+    }
     if (!session) return error(response, "session_required", 401);
     if (write && (!validCsrf || request.headers.origin !== origin))
       return error(response, "csrf_required", 403);
@@ -181,6 +191,20 @@ export async function createHostedWorkflowHttp({ workletSource } = {}) {
         path === "/v1/animas/fixture-anima/settings"
       ) {
         const key = path.includes("users") ? "settings" : "animaSettings";
+        if (key === "settings" && method === "GET") {
+          const snapshot = structuredClone(state.settings);
+          const failed = state.settingsReadFailure;
+          const held = settingsReads.get(session.owner)?.shift();
+          held?.start();
+          if (held) await held.wait;
+          try {
+            return failed
+              ? error(response, "fixture_settings_read_failed", 503)
+              : json(response, snapshot);
+          } finally {
+            held?.complete();
+          }
+        }
         if (method === "DELETE") state[key] = { preferences: {} };
         if (method === "PATCH") Object.assign(state[key], await body(request));
         return json(response, state[key]);
@@ -852,11 +876,40 @@ export async function createHostedWorkflowHttp({ workletSource } = {}) {
       sessions.set(cookie, { owner, csrf: randomUUID() });
       return { cookie, state: owners.get(owner), owner };
     },
-    close: () =>
-      new Promise((resolve) => {
+    /** Hold one actual HTTP read, including its original snapshot, until released. */
+    holdSettingsRead: (owner) => {
+      if (!owners.has(owner)) throw new Error("Unknown fixture owner");
+      let start, release, complete;
+      const started = new Promise((resolve) => {
+        start = resolve;
+      });
+      const wait = new Promise((resolve) => {
+        release = resolve;
+      });
+      const completed = new Promise((resolve) => {
+        complete = resolve;
+      });
+      const held = {
+        start,
+        wait,
+        complete,
+        release: () => {
+          heldSettingsReads.delete(held);
+          release();
+        },
+      };
+      heldSettingsReads.add(held);
+      if (!settingsReads.has(owner)) settingsReads.set(owner, []);
+      settingsReads.get(owner).push(held);
+      return { started, completed, release: held.release };
+    },
+    close: () => {
+      for (const held of heldSettingsReads) held.release();
+      return new Promise((resolve) => {
         server.closeAllConnections();
         server.close(resolve);
-      }),
+      });
+    },
   };
 }
 async function bodyBytes(request) {

@@ -64,7 +64,7 @@ after(async () => {
 
 const fixtureUrl = (route = "/") =>
   `${origin}/${fixture}/index.html?workflows=1&route=${encodeURIComponent(route)}`;
-async function mount(route = "/", owner) {
+async function mount(route = "/", owner, { waitForSettings = true } = {}) {
   const admission = api.admit(owner),
     page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   const errors = [];
@@ -82,9 +82,10 @@ async function mount(route = "/", owner) {
   await page.goto(fixtureUrl(route));
   try {
     await page.waitForFunction(
-      () =>
-        window.workflowFixture && !window.workflowFixture.settings.isLoading,
-      null,
+      (waitForSettings) =>
+        window.workflowFixture &&
+        (!waitForSettings || !window.workflowFixture.settings.isLoading),
+      waitForSettings,
       { timeout: 15000 },
     );
   } catch (cause) {
@@ -125,9 +126,53 @@ function assertAuthority(owner) {
   assert.equal(
     calls
       .filter((call) => !["GET", "HEAD"].includes(call.method))
-      .every((call) => call.csrf && call.origin === origin),
+      .every(
+        (call) =>
+          (call.path === "/api/cloud/auth/login" || call.csrf) &&
+          call.origin === origin,
+      ),
     true,
   );
+}
+
+const savedPreferences = {
+  chat: { default_model_provider_id: "saved-chat-model" },
+  models: {
+    utility_model_provider_id: "saved-utility-model",
+    memory_manager_model_provider_id: "saved-memory-model",
+    embedding_model_provider_id: "saved-embedding-model",
+  },
+  speech: { tts_enabled: false, mic_sensitivity: "normal" },
+  presentation: { render_markdown: false },
+  futurePreference: { retained: "owner choice" },
+};
+function settingsWrites(owner) {
+  return api.calls.filter(
+    (call) =>
+      call.owner === owner &&
+      call.path === "/v1/users/me/settings" &&
+      call.method === "PATCH",
+  );
+}
+async function startPreferenceSave(page, patch) {
+  await page.evaluate((patch) => {
+    window.preferenceSaveResult = null;
+    window.preferenceSave = window.workflowFixture.settings
+      .updateUserPreferences(patch)
+      .then(
+        (settings) => ({ status: "saved", preferences: settings?.preferences }),
+        (cause) => ({ status: "failed", code: cause?.detail?.code }),
+      )
+      .then((result) => (window.preferenceSaveResult = result));
+  }, patch);
+}
+async function assertPreferenceSavePending(page) {
+  await page.waitForFunction(() => window.workflowFixture?.settings.isUpdating);
+  assert.equal(
+    await page.getByLabel("App preference save status").textContent(),
+    "Saving",
+  );
+  assert.equal(await page.evaluate(() => window.preferenceSaveResult), null);
 }
 
 test("hosted settings hooks persist retained groups, explicit false and Anima inheritance across a fresh entry", async () => {
@@ -207,6 +252,264 @@ test("hosted settings hooks persist retained groups, explicit false and Anima in
   assert.deepEqual(errors, []);
   assertAuthority(owner);
   await page.close();
+});
+
+test("preference saves surface failed initial and fresh reads without writes, then preserve saved choices on retry", async (t) => {
+  for (const initialFailure of [true, false]) {
+    await t.test(
+      initialFailure ? "initial read failed" : "fresh read failed",
+      async () => {
+        const admitted = api.admit();
+        admitted.state.settings.preferences = structuredClone(savedPreferences);
+        admitted.state.settingsReadFailure = initialFailure;
+        const { page, state, owner, errors } = await mount("/", admitted.owner);
+        try {
+          if (initialFailure) {
+            assert.equal(
+              await page.evaluate(
+                () => window.workflowFixture.settings.userPreferences,
+              ),
+              null,
+            );
+          }
+          state.settingsReadFailure = true;
+          await startPreferenceSave(page, {
+            speech: { mic_sensitivity: "high" },
+          });
+          const outcome = await page.evaluate(() => window.preferenceSave);
+          assert.deepEqual(outcome, {
+            status: "failed",
+            code: "fixture_settings_read_failed",
+          });
+          assert.equal(settingsWrites(owner).length, 0);
+          assert.deepEqual(state.settings.preferences, savedPreferences);
+          await page.waitForFunction(
+            () => !window.workflowFixture.settings.isUpdating,
+          );
+          assert.equal(
+            await page.getByLabel("App preference save status").textContent(),
+            "Idle",
+          );
+          state.settingsReadFailure = false;
+          await startPreferenceSave(page, {
+            speech: { mic_sensitivity: "high" },
+          });
+          const expected = {
+            ...savedPreferences,
+            speech: { ...savedPreferences.speech, mic_sensitivity: "high" },
+          };
+          assert.deepEqual(await page.evaluate(() => window.preferenceSave), {
+            status: "saved",
+            preferences: expected,
+          });
+          assert.deepEqual(state.settings.preferences, expected);
+          await page.goto(fixtureUrl());
+          await page.waitForFunction(
+            () =>
+              window.workflowFixture &&
+              !window.workflowFixture.settings.isLoading,
+          );
+          assert.deepEqual(
+            await page.evaluate(
+              () => window.workflowFixture.settings.userPreferences,
+            ),
+            expected,
+          );
+          assert.deepEqual(errors, []);
+          assertAuthority(owner);
+        } finally {
+          await page.close();
+        }
+      },
+    );
+  }
+});
+
+test("preference saves wait for the unfinished initial read and expose pending state without losing stored choices", async () => {
+  const admitted = api.admit();
+  admitted.state.settings.preferences = structuredClone(savedPreferences);
+  const held = api.holdSettingsRead(admitted.owner);
+  const { page, state, owner, errors } = await mount("/", admitted.owner, {
+    waitForSettings: false,
+  });
+  try {
+    await held.started;
+    assert.equal(
+      await page.evaluate(() => window.workflowFixture.settings.isLoading),
+      true,
+    );
+    await startPreferenceSave(page, { speech: { mic_sensitivity: "high" } });
+    await assertPreferenceSavePending(page);
+    assert.equal(settingsWrites(owner).length, 0);
+    held.release();
+    const expected = {
+      ...savedPreferences,
+      speech: { ...savedPreferences.speech, mic_sensitivity: "high" },
+    };
+    assert.deepEqual(await page.evaluate(() => window.preferenceSave), {
+      status: "saved",
+      preferences: expected,
+    });
+    assert.deepEqual(state.settings.preferences, expected);
+    await page.waitForFunction(
+      () => !window.workflowFixture.settings.isUpdating,
+    );
+    assert.equal(
+      await page.getByLabel("App preference save status").textContent(),
+      "Idle",
+    );
+    assert.deepEqual(errors, []);
+    assertAuthority(owner);
+  } finally {
+    held.release();
+    await page.close();
+  }
+});
+
+test("preference saves read current durable choices rather than a stale cached object and stay pending through that read", async () => {
+  const admitted = api.admit();
+  admitted.state.settings.preferences = structuredClone(savedPreferences);
+  const { page, state, owner, errors } = await mount("/", admitted.owner);
+  const latest = {
+    ...savedPreferences,
+    chat: { default_model_provider_id: "latest-chat-model" },
+    models: {
+      ...savedPreferences.models,
+      utility_model_provider_id: "latest-utility-model",
+    },
+    futurePreference: { retained: "updated in another view" },
+  };
+  state.settings.preferences = structuredClone(latest);
+  const held = api.holdSettingsRead(owner);
+  try {
+    await startPreferenceSave(page, { speech: { mic_sensitivity: "high" } });
+    await held.started;
+    await assertPreferenceSavePending(page);
+    assert.equal(settingsWrites(owner).length, 0);
+    held.release();
+    const expected = {
+      ...latest,
+      speech: { ...latest.speech, mic_sensitivity: "high" },
+    };
+    assert.deepEqual(await page.evaluate(() => window.preferenceSave), {
+      status: "saved",
+      preferences: expected,
+    });
+    assert.deepEqual(state.settings.preferences, expected);
+    await page.goto(fixtureUrl());
+    await page.waitForFunction(
+      () =>
+        window.workflowFixture && !window.workflowFixture.settings.isLoading,
+    );
+    assert.deepEqual(
+      await page.evaluate(
+        () => window.workflowFixture.settings.userPreferences,
+      ),
+      expected,
+    );
+    assert.deepEqual(errors, []);
+    assertAuthority(owner);
+  } finally {
+    held.release();
+    await page.close();
+  }
+});
+
+test("preference fresh reads cannot write or publish late choices after session replacement", async (t) => {
+  for (const sameOwner of [true, false]) {
+    await t.test(
+      sameOwner ? "same-owner reauthentication" : "another owner",
+      async () => {
+        const admitted = api.admit();
+        admitted.state.settings.preferences = structuredClone(savedPreferences);
+        const { page, state, owner, errors } = await mount("/", admitted.owner);
+        const key = await page.evaluate(() => window.workflowFixture.key);
+        const held = api.holdSettingsRead(owner);
+        try {
+          await startPreferenceSave(page, {
+            speech: { mic_sensitivity: "high" },
+          });
+          await held.started;
+          await assertPreferenceSavePending(page);
+          await page.evaluate(() => window.hostedFixture.signOut());
+          await page.waitForFunction(() => !window.workflowFixture);
+          assert.equal(
+            (await page.evaluate(() => window.preferenceSave)).status,
+            "failed",
+          );
+          const next = api.admit(sameOwner ? owner : undefined);
+          const nextPreferences = {
+            ...savedPreferences,
+            chat: { default_model_provider_id: "replacement-session-model" },
+            futurePreference: { retained: "replacement choices" },
+          };
+          next.state.settings.preferences = structuredClone(nextPreferences);
+          await page.context().addCookies([
+            {
+              name: "fixture_session",
+              value: next.cookie,
+              url: origin,
+              httpOnly: true,
+              sameSite: "Lax",
+            },
+          ]);
+          await page.evaluate(() => window.hostedFixture.reauthenticate());
+          await page.waitForFunction(
+            (oldKey) =>
+              window.workflowFixture &&
+              window.workflowFixture.key !== oldKey &&
+              !window.workflowFixture.settings.isLoading,
+            key,
+          );
+          held.release();
+          await held.completed;
+          assert.equal(settingsWrites(owner).length, 0);
+          assert.equal(settingsWrites(next.owner).length, 0);
+          assert.deepEqual(next.state.settings.preferences, nextPreferences);
+          assert.deepEqual(
+            state.settings.preferences,
+            sameOwner ? nextPreferences : savedPreferences,
+          );
+          assert.deepEqual(
+            await page.evaluate(
+              () => window.workflowFixture.settings.userPreferences,
+            ),
+            nextPreferences,
+          );
+          await startPreferenceSave(page, {
+            presentation: { render_markdown: true },
+          });
+          const expected = {
+            ...nextPreferences,
+            presentation: { render_markdown: true },
+          };
+          assert.deepEqual(await page.evaluate(() => window.preferenceSave), {
+            status: "saved",
+            preferences: expected,
+          });
+          assert.deepEqual(next.state.settings.preferences, expected);
+          await page.goto(fixtureUrl());
+          await page.waitForFunction(
+            () =>
+              window.workflowFixture &&
+              !window.workflowFixture.settings.isLoading,
+          );
+          assert.deepEqual(
+            await page.evaluate(
+              () => window.workflowFixture.settings.userPreferences,
+            ),
+            expected,
+          );
+          assert.deepEqual(errors, []);
+          assertAuthority(owner);
+          assertAuthority(next.owner);
+        } finally {
+          held.release();
+          await page.close();
+        }
+      },
+    );
+  }
 });
 
 test("existing Anima identity, emotion and relationship repair use the admitted client and survive reentry", async () => {

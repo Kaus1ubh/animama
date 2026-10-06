@@ -320,6 +320,40 @@ test("common hosted shell shows a useful empty roster, account and usage at desk
   }
 });
 
+for (const viewport of [
+  { width: 1280, height: 800 },
+  { width: 390, height: 844 },
+]) {
+  for (const dismissal of ["Escape", "Close"]) {
+    test(`Usage modal dismissal by ${dismissal} restores navigation at ${viewport.width}px`, async () => {
+      const { page } = await mount("/", "active", viewport);
+      try {
+        await page.getByText("Your Animas will appear here").waitFor();
+        if (viewport.width < 768)
+          await page.getByRole("button", { name: "Open sidebar" }).click();
+        await page.getByRole("button", { name: "Fixture account" }).click();
+        await page.getByRole("menuitem", { name: "Usage and limits" }).click();
+        const dialog = page.getByRole("dialog");
+        await dialog.getByText("Chat turns", { exact: true }).waitFor();
+        if (dismissal === "Escape") await page.keyboard.press("Escape");
+        else
+          await dialog
+            .getByRole("button", { name: "Close", exact: true })
+            .click();
+        await dialog.waitFor({ state: "detached" });
+
+        // A dismissed modal must release the page for ordinary pointer navigation.
+        await page
+          .getByRole("link", { name: "Open Library" })
+          .click({ timeout: 3000 });
+        assert.equal(new URL(page.url()).pathname, "/library");
+      } finally {
+        await page.close();
+      }
+    });
+  }
+}
+
 test("six excluded direct routes render their reason without issuing product mutations", async () => {
   for (const [route, reason] of [
     ["/animas/new", "Creating Animas"],

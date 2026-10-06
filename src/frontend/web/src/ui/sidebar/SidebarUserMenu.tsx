@@ -127,7 +127,9 @@ export function SidebarUserMenu() {
                 Account
               </DropdownMenuItem>
               <DropdownMenuItem
-                onSelect={() => {
+                onSelect={(event) => {
+                  event.preventDefault();
+                  setMenuOpen(false);
                   if (!window.matchMedia("(min-width: 768px)").matches)
                     setOpen(false);
                   setUsageOpen(true);

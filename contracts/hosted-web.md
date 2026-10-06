@@ -51,7 +51,7 @@ The sole wire schema is `app/contracts/runtime_capabilities.py`, exported offlin
 in `local-http` version **3.0.0** with capability `schema_version: 2`. The generated
 TypeScript `RuntimeCapabilities` and validator are the same contract.
 `ProductRuntimeCapabilities` is a derived `Pick` for the existing extracted chat
-surface, not another wire schema. `runtime-contracts` is version 0.3.0 and
+surface, not another wire schema. `runtime-contracts` is version 0.3.1 and
 `product-ui` is version 0.5.0. Consumers explicitly admit
 the new contract major before adoption.
 

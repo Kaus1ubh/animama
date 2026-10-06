@@ -91,12 +91,12 @@ contract instead of maintaining a second truth.
 
 ## Progress
 
-- [x] 2026-10-06 [A1 / #273](https://github.com/raymond-van/animama/issues/273): original contracts/action-map and C1 handoff passed. CI return A6-R3 resolves after owning A1 repair1/2 and targeted independent review #2; complete OpenAPI and17 generated files match exactly across Python3.12/3.14. Final clean artifact/actual CI remain A6 gates.
+- [ ] 2026-10-06 [A1 / #273](https://github.com/raymond-van/animama/issues/273): metadata correction, SDK freshness and independent targeted source review pass. Owner-authorized owning repair2/2 applies runtime-contracts0.3.1; the actual clean declaration/consumer guard remains pending. Original C1 handoff remains valid.
 - [x] 2026-10-05 [A2 / #274](https://github.com/raymond-van/animama/issues/274): corrected portable preference merger committed at `6a150fd45d5e215e7f134010b53b9c62e4316ede`; targeted independent review #3 and clean installed-wheel gate pass. Repair rounds used: 2 of 2. Neutral services are ready for isolated consumer C2 repair and A4.
-- [x] 2026-10-05 [A3 / #275](https://github.com/raymond-van/animama/issues/275): committed at `e8ef7768d2edcfc7cef58c508bf3fb66ba0d2302`; targeted independent review #2 passes after repair 1 of 2 for chat cache partitioning and durable recovery cleanup.
+- [ ] 2026-10-06 [A3 / #275](https://github.com/raymond-van/animama/issues/275): original session/cache review #2 and independent targeted R5/R6 source recheck pass. Owner-authorized owning repair2/2 produces13 Usage/browser and24 preference/workflow passes; failed or pending reads cannot write replacement preferences, and session replacement fences stale responses. The corrected immutable consumer and actual Cloud replacement journey remain pending.
 - [x] 2026-10-06 [A4 / #276](https://github.com/raymond-van/animama/issues/276): original phase review passed0/2; A6 returned model-role/Library-upload defects. Targeted independent analysis/checks #2 resolve both after owning A4 repair1/2. Corrected immutable binding remains A6; physical/heard voice and hosted/provider/device acceptance remain C5/C7 gates.
 - [x] 2026-10-06 [A5 / #277](https://github.com/raymond-van/animama/issues/277): engineering/artifact gate PASS after independent final analysis/checks. Clean A `8b09e7ff` and reviewed main-integrated B `e4e0661b` pass independent producer/installed-and-emitted consumer, same-source A production observations and genuine A/B/open-tab/rollback/clip gates. Repair rounds remain 1 of 2; measurement and inherited descriptive-field limits are recorded below. C6/A6 are ready; main adoption, provider/device/deployment and exact-candidate owner merge remain separate.
-- [ ] 2026-10-06 [A6 / #278](https://github.com/raymond-van/animama/issues/278): corrected C source/artifact and actual screens resolve R1/R2. CI return A6-R3 resolves after final repair2/2, owning A1 repair1/2, and targeted independent source review #3. Refreshed clean immutable binding and actual required CI remain. Original failed run is retained; A4/A5 stay1/2 and real C6/C7/owner merge/main adoption remain separate.
+- [ ] 2026-10-06 [A6 / #278](https://github.com/raymond-van/animama/issues/278): owner-authorized additional repair3/3 resolves R4/R5/R6 in source after independent analysis/checks #4. Current SDK, static checks, full web/desktop tests and local/hosted builds pass. A new clean producer/consumer/rollback and fresh actual CI remain pending. Earlier failed artifact/CI evidence and C6/C7/owner merge/main adoption gates are retained.
 
 ## Surprises & Discoveries
 
@@ -653,6 +653,26 @@ separate. The232 reviewed code paths are committed at
 `e8ef7768d2edcfc7cef58c508bf3fb66ba0d2302`, together with the phase record.
 The corrected A2 clean installed-wheel gate also passes; A4 advances from this
 verified commit without changing the six exclusions.
+
+#### A6 integration return — Usage dismissal (A6-R5)
+
+Fresh normal-browser evidence against immutable C
+`c10218aeca1c4c68b37028bd0e5f56372fdfe98a` exposes a required shell regression.
+After Usage and limits closes through Escape or its real Close button, the body
+retains `pointer-events:none`; there are no dialogs and one menu, and an ordinary
+sidebar/profile click times out after30 seconds. No forced click, style mutation
+or security relaxation produced this result. The selected C
+`SidebarUserMenu.tsx` is byte-identical to the current reviewed source. Its new
+Usage item opens the dialog without the existing App Settings item's explicit
+menu-close handling.
+
+A6-R5 is accepted against the usable account/usage affordance in A3. The prepared
+proposal follows that existing handling, with actual-browser dismissal and next-
+interaction regression coverage at desktop and narrow sizes. It has not been
+applied or tested. Owning A3 remains1/2; the proposed second owning repair is held
+because final integration A6 has exhausted2/2. An expanded one-round owner
+exception now covers A6-R4/R5/R6 (complete proposal in A6 below). Existing session/cache evidence stays
+valid; no default review budget is reset.
 
 ### Phase 4: Verify every retained workflow and browser resource lifetime (A4)
 
@@ -1227,6 +1247,164 @@ R1/R2 browser and broad-suite evidence with its original limits. This is a sourc
 gate, not a CI waiver, completed final artifact binding or merge approval. The
 original failed CI remains failed; final actual required CI must still pass.
 
+#### Code Review #3 artifact continuation — A6-R4
+
+The reviewed correction is committed clean at
+`698beecab4225d6be4d2f08d8adcbcd0afafdbaf`, tree
+`6ac8247bdba1122c4ba75779d05fac8e2c408df9`. Its pinned clean producer passes
+at manifest `05305c19e66a5b01de9d1403603a77e371c4a4fba0643868377f0b4b22adc6e6`;
+producer receipt SHA
+`1691485b5d4ef6f52ddcdfb1683c0a6143a516f16a664843a04386ce35e86e5a`.
+The fresh installed consumer then fails the unchanged compatibility guard:
+`Changed declarations require package version bump: @animama/runtime-contracts`.
+The four corrected generated comments change packaged declarations while version
+remains0.3.0. Generic package/browser checks passed before this guard; the actual
+whole-app C→D→C upgrade/rollback did not execute and cannot be claimed. Failed
+consumer receipt SHA
+`fa23bcc5994edbf585aa39b86fabfff3127906c059fdec39a37ea672546ddae8`.
+
+**A6-R4 is accepted and required.** The concrete proposal changes only
+`src/frontend/packages/runtime-contracts/package.json` version0.3.0→0.3.1, followed
+by affected generated packaging metadata/checks, targeted independent review and
+clean producer/consumer/actual CI. Do not weaken declaration comparison or edit
+generated artifacts by hand. A6's repair2/2 limit is exhausted; the skill requires
+an explicit owner exception before this additional repair. That exception has
+been requested, not assumed. Counts remain A1 1/2, A6 2/2 and all others unchanged.
+New source publication, final artifact/candidate replacement and dependent
+acceptance are held. Independent Cloud fixture work may continue against verified
+C; C is not relabeled the SDK-corrected final candidate.
+
+#### Code Review #3 browser continuation — A6-R5 and expanded proposal
+
+Actual normal-browser integration against verified C independently reproduces
+Usage dismissal blocking subsequent ordinary sidebar clicks through both Escape
+and the Close button. Bound failing receipt SHA
+`4df4443e829b5726e818b2416d81d39b375bca7c4e44622b1f8fd3d95118cb8a`.
+The affected transition is in `web/src/ui/sidebar/SidebarUserMenu.tsx`; the Usage
+action omits the established explicit dropdown-close handling used by App Settings.
+This action was introduced by A3, and is unchanged between selected C and
+metadata-corrected local `698beeca`.
+
+**A6-R5 is accepted and required.** The expanded concrete proposal combines the
+runtime-contracts0.3.1 bump with this focused Usage transition correction and
+behavior coverage. Proposal patch SHA
+`c0b67609ee81ad84ad744d7963aa741a408d2b29f0db6c5d0d70003bcdab0017`;
+unapplied proposal receipt SHA
+`7f586b9ca2a7ccf6775a9d43ee42670d3ec76dd37e28c557ac2c72c7d58f763f`.
+It supersedes the earlier version-only approval request. No proposed source has
+been applied or tested. A6 remains2/2 and A3 remains1/2; one additional targeted
+A6 repair round requires the pending explicit owner exception, retaining counts.
+Subsequent independent recheck, clean app producer/installed consumer/rollback,
+full browser acceptance and actual required CI remain gates. Unaffected consumer
+checks may continue; the blocked replacement journey cannot authorize duplicate
+product retirement or a final artifact replacement.
+
+#### Code Review #3 browser continuation — A6-R6 and complete proposal
+
+**A6-R6 is accepted and required.** Actual immutable C saves the chosen chat model
+through preferences PATCH200 and two GET200 readbacks. On reload, settings GETs
+return429. Automatic speech initialization then sends a speech-only whole
+preferences replacement; PATCH200 and subsequent GET200 confirm the saved chat
+model is erased. Sanitized chronology SHA
+`8097459ae565e897812ef7eab974aea410e718c45a71b04e3fec44e251f0d703`, proof
+receipt SHA `761b025628393f30b638240a68a8a361499368666aa5c37613b62ae4bc0bc114`.
+Root verifies its four evidence hashes and exact C/current698/snapshot equality
+for SettingsProvider, the modal and the update hook. The rendered-preferences
+merger is inherited except for A3's owner/cache key; its demonstrated integration
+impact still violates durable settings acceptance. No private merge semantics,
+admission or rate-limit change is proposed.
+
+The complete unapplied proposal adds reuse of the existing fresh-read
+`useMergeUserPreferences` helper in SettingsProvider to the R4 version bump and R5
+Usage transition repair. Patch SHA
+`87ec96bef80c2a8933053bb32c2fcb0bd63d4cb0d26867e5a1d5fa658121ef78`, proposal
+receipt SHA `39cf72c0ec62539bdebf10ee5a1bb2f0799c2cf8129541d124fe74aaf7fa833e`.
+Dry-run application checks the three current source preimages; no proposed source
+is applied or tested. Required coverage includes delayed/failed reads, no PATCH
+when the fresh read fails, successful retry preserving unrelated preferences,
+session replacement, actual model save/reload/reopen, and both Usage dismissal
+paths at desktop and narrow sizes. Independent recheck, a clean producer/installed
+consumer, genuine upgrade/rollback and actual required CI stay explicit gates.
+
+This complete three-finding request supersedes the earlier one- and two-finding
+requests. **Approval remains pending.** A6 stays2/2, owning A1/A3 stay1/2; the
+proposed bounded exception allows A6 round3/3 and owning A1/A3 round2/2 without
+resetting counts. Until then, dependent repairs, final artifact replacement, push
+and consumer retirement remain held. Raw partial-browser failures are retained;
+the driver lacked a separately captured pre-run hash and later corrected its own
+intentional source404 probe observation. Partial chat/history, recovery, Memory
+Manager and owner/session observations are not full replacement acceptance.
+
+Subsequent unaffected consumer admin and lifecycle journeys each pass8 checks,
+including actual quota UI recovery, plan/data preservation and coordinated deletion
+of the synthetic target. The sealed consumer partial packet SHA
+`4d027b6e81faee7ee581e9fcc274c41f95f52a257d9c64163f24ab8d3e2884d1` has pre-run
+bindings for those journeys; root verifies its source/evidence hashes. Full shared
+app acceptance still fails R5/R6, final artifact consumer still fails R4, and no
+public repair, source push, retirement or review-budget exception is inferred.
+
+#### Code Review #4 Revisions — authorized additional repair round
+
+On 2026-10-06 the owner authorized the complete R4/R5/R6 blocker repair and
+continuation in the agreed interleaved phase order. This supersedes the pending
+exception above. Resume verification confirms public HEAD
+`698beecab4225d6be4d2f08d8adcbcd0afafdbaf` and the existing task branch/worktree;
+the retained plan is the only public dirty path at entry. Consumer C6 source is
+retained in its separate task worktree. No checkout, dependency or service reset
+is needed for workspace preparation.
+
+The additional A6 repair round is **3 of 3**, with owning A1 and A3 repairs each
+**2 of 2**; earlier counts and failed evidence are preserved. Its boundary is the
+runtime-contracts patch version, Usage menu/dialog transition, and the shared
+preferences merger with focused delayed/error/retry/session regressions. Author
+checks, independent targeted analysis/checks, a clean producer and installed/emitted
+consumer with real upgrade/rollback, and fresh required CI precede completion.
+Consumer UI retirement follows the corrected app's actual replacement journey.
+Exact-candidate owner merge, validated main adoption/promotion, and C7's separate
+provider/device/deployment gates remain unchanged.
+
+#### Code Review #4 Findings — targeted R4/R5/R6 source recheck
+
+Independent analysis and checks both return **SOURCE_RELEASE_PASS** for the nine
+frozen contract/package/frontend/fixture paths. Root verifies their hashes and
+the exact diff. The source aggregate is
+`d4899323fe3787db33e0f5cd88eb700df5c48a18d1515e4ecb98bb0f40ac8a66`;
+the mutable delivery record is excluded. Analysis receipt SHA
+`511e6309ab0b35cff4cbf87658f9e637b655230bfc8db9e6735f353326e9d2d1`
+and checks receipt SHA
+`5c87343df54e7e60c18e8ae785afd2558c733ea05826cb7875a71b0b146e7483`
+bind this scope and the retained author evidence.
+
+- R4: runtime-contracts0.3.1 and its contract documentation agree. The declaration
+  compatibility guard is unchanged; only a real new package consumer can pass it.
+- R5: Usage uses the existing controlled dropdown-to-dialog transition. All four
+  desktop/narrow Escape/Close regressions pass independent replay. The author
+  affected suite passes13 cases. Ordinary link clicking is proven; the minimal
+  fixture does not establish a fully rendered destination Library inventory.
+- R6: SettingsProvider reuses the existing fresh-read preferences merger and
+  exposes its pending state. Failed/missing/stale reads, retries, unknown and
+  false-valued fields, and same-/cross-owner stale responses are covered through
+  the actual provider/hooks and whole-object HTTP replacement. Independent
+  replay passes8 tests without skips; the full affected suite passes24. This
+  does not add compare-and-swap between simultaneous settings writers.
+
+Root accepts these dispositions with no remaining required source finding in
+this repair boundary. A6 remains3/3 and owning A1/A3 each2/2. Source release
+permits the clean commit and artifact pipeline; it does not complete the actual
+declaration guard, emitted consumer, Cloud acceptance, CI or owner gates.
+
+Fresh local checks pass: offline SDK freshness17 files, web/desktop/package/e2e
+types, package tests, web lint, full web Vitest383 files/2,603 tests plus71 browser
+tests with zero skips, desktop468 passed/14 platform-dependent skipped, and both
+local and hosted source builds. The earlier desktop deadline failure is retained;
+its full rerun passes without code or timeout edits. Existing unchanged backend,
+boundary and package-policy results are reused from the earlier final integration
+record. No fresh backend run or physical/native acceptance is claimed. Static
+receipt SHA `5d0c7507d63a27655b1c3c94492ddead769d56097945f570ea9449cfaacf97b8`
+and full-test/build receipt SHA
+`f38a83266bb4b7aa6c76545d8892658d46fdc8f16425207726c0ae5c986d8b51`
+bind the matching frozen source.
+
 ## Final integration review
 
 Use A6's review as the final integration review, not a second unrestricted pass.
@@ -1297,20 +1475,15 @@ contracts; the coverage map tracks acceptance rather than duplicating the spec.
 
 ## Outcomes & Retrospective
 
-A1 contracts and the complete action/settings/route map are agent-verified.
-Full coordinated implementation is authorized. The C1 tenancy/cost/resource
-requirements gate passed; A2 content/provider services and its clean artifact
-handoff passed, including the independently reviewed portable preference repair
-and replacement clean artifact. A3 browser composition is reviewed and committed.
-A4 is committed at8b91bbf3; C2–C5 engineering gates pass. A5 targeted source
-review #2 passes after repair 1 of 2. Clean artifact, production comparison and
-semantic compatibility gates remain pending. No consumer product UI cutover, hosted deployment
-or actual parity acceptance has occurred. Product scope is resolved. Remaining
-engineering determinations are the concrete compatible artifact schema and
-resource inventory, individual service seams and measured resource budgets;
-A1/A5 and the consumer's policy work resolve these before dependent acceptance.
-Any conflict with existing approved provider/spend/asset policy needs an explicit
-decision, not an undocumented feature exclusion.
+A1–A5 and C1–C5 engineering gates have passed, including clean package production,
+installed/emitted consumers and genuine upgrade/rollback. Final integration and
+the actual Cloud common-app journey exposed six public findings. R1–R3 passed
+their targeted review; the owner-authorized extra repair resolves R4–R6 in source
+after independent analysis/checks and matching full frontend validation. The new
+clean package consumer, corrected Cloud replacement journey, fresh actual CI and
+remaining owner/main/provider/device/deployment gates still precede overall parity
+acceptance. Existing failures, resource limits and phase repair counts remain
+recorded above. The agreed interleaved order remains authoritative.
 
 Revision note, 2026-10-05: initial plan separates reusable public implementation
 from hosted operations and prevents a circular public-merge/consumer-pin gate.

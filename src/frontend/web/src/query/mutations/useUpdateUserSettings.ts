@@ -56,8 +56,8 @@ export function useUpdateUserSettings() {
 /**
  * Merge a preferences patch into the owner's saved preferences and save them.
  * `PATCH /v1/users/me/settings` replaces the whole preferences object, so this
- * reads the current settings fresh first; callers outside `SettingsProvider`
- * (setup) use it so other preferences are never overwritten.
+ * reads the current settings fresh first. Both `SettingsProvider` and setup
+ * use it to preserve preferences outside the patch; a failed read makes no write.
  */
 export function useMergeUserPreferences() {
   const apiClient = useProductApiClient();

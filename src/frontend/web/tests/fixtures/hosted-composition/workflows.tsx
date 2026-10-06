@@ -154,7 +154,11 @@ function WorkflowObserver() {
     complete.mutateAsync,
     queryClient,
   ]);
-  return null;
+  return (
+    <output aria-label="App preference save status">
+      {settings.isUpdating ? "Saving" : "Idle"}
+    </output>
+  );
 }
 
 export function HostedWorkflowObserver() {
