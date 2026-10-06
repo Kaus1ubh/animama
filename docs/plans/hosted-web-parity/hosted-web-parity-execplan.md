@@ -91,12 +91,12 @@ contract instead of maintaining a second truth.
 
 ## Progress
 
-- [x] 2026-10-05 [A1 / #273](https://github.com/raymond-van/animama/issues/273): agent-verified contracts/complete action map; required checks and independent review #1 passed, repairs 0 of 2. Phase commit recorded below; the consumer requirements gate C1 has passed.
+- [x] 2026-10-06 [A1 / #273](https://github.com/raymond-van/animama/issues/273): original contracts/action-map and C1 handoff passed. CI return A6-R3 resolves after owning A1 repair1/2 and targeted independent review #2; complete OpenAPI and17 generated files match exactly across Python3.12/3.14. Final clean artifact/actual CI remain A6 gates.
 - [x] 2026-10-05 [A2 / #274](https://github.com/raymond-van/animama/issues/274): corrected portable preference merger committed at `6a150fd45d5e215e7f134010b53b9c62e4316ede`; targeted independent review #3 and clean installed-wheel gate pass. Repair rounds used: 2 of 2. Neutral services are ready for isolated consumer C2 repair and A4.
 - [x] 2026-10-05 [A3 / #275](https://github.com/raymond-van/animama/issues/275): committed at `e8ef7768d2edcfc7cef58c508bf3fb66ba0d2302`; targeted independent review #2 passes after repair 1 of 2 for chat cache partitioning and durable recovery cleanup.
 - [x] 2026-10-06 [A4 / #276](https://github.com/raymond-van/animama/issues/276): original phase review passed0/2; A6 returned model-role/Library-upload defects. Targeted independent analysis/checks #2 resolve both after owning A4 repair1/2. Corrected immutable binding remains A6; physical/heard voice and hosted/provider/device acceptance remain C5/C7 gates.
 - [x] 2026-10-06 [A5 / #277](https://github.com/raymond-van/animama/issues/277): engineering/artifact gate PASS after independent final analysis/checks. Clean A `8b09e7ff` and reviewed main-integrated B `e4e0661b` pass independent producer/installed-and-emitted consumer, same-source A production observations and genuine A/B/open-tab/rollback/clip gates. Repair rounds remain 1 of 2; measurement and inherited descriptive-field limits are recorded below. C6/A6 are ready; main adoption, provider/device/deployment and exact-candidate owner merge remain separate.
-- [ ] 2026-10-06 [A6 / #278](https://github.com/raymond-van/animama/issues/278): public source and corrected clean-artifact integration gate PASS at `c10218ae`, following owning repair `2217e76d`. Targeted analysis/checks #2 and actual emitted desktop/narrow screens resolve R1/R2 after A6/A4 repair1/2; A5 remains1/2. Required local checks and genuine B→C→B upgrade/rollback pass. PR handoff and actual CI remain; real C6/C7, owner merge, main adoption and external acceptance stay separate.
+- [ ] 2026-10-06 [A6 / #278](https://github.com/raymond-van/animama/issues/278): corrected C source/artifact and actual screens resolve R1/R2. CI return A6-R3 resolves after final repair2/2, owning A1 repair1/2, and targeted independent source review #3. Refreshed clean immutable binding and actual required CI remain. Original failed run is retained; A4/A5 stay1/2 and real C6/C7/owner merge/main adoption remain separate.
 
 ## Surprises & Discoveries
 
@@ -281,6 +281,15 @@ bookkeeping correction changes no implementation boundary or test result. No
 required fixes or deferred findings. Phase gate PASS; 2 repair rounds remain.
 A1 handoff is the checked-in capability/fixture, coverage ledger and contract
 design. Hosted requirements review C1 passed; A2/A3 are now in progress.
+
+Final integration CI later exposes A6-R3 in A1's SDK regeneration: four default
+HTTP422 descriptions vary with the Python standard library. The actual payload
+schemas and runtime client behavior are identical. Owning A1 repair1/2 resolves
+the return after explicit route metadata, normal offline regeneration and targeted
+independent review #2. The complete schema and17 generated files are byte-identical
+under frozen Python3.12.13 and3.14.4. A6's final targeted review #3 records the same
+source gate below; artifact and actual CI acceptance remain separate.
+This does not reopen A2 or reset any completed phase budget.
 
 ### Consumer requirements handoff for A2/A3
 
@@ -1169,6 +1178,54 @@ real private replacement/hosted acceptance remains Cloud-owned. Public readiness
 does not depend on a future ordinary Cloud main pin. Exact owner merge,
 compatible validated-main adoption/promotion, paid providers, physical capture/
 heard audio, native acceptance and deployment are not authorized or claimed.
+
+#### CI return — A6-R3, final repair 2 of 2
+
+Full [Validation run37401998099](https://github.com/raymond-van/animama/actions/runs/37401998099)
+on PR #284 fails the SDK freshness guard; later required tests/builds are skipped.
+Read-only diagnosis reproduces the same failure at clean task `d9b21ab4` under
+frozen Python3.12.13, while the unchanged3.14.4 environment passes17 files.
+The complete OpenAPI and canonical generated diffs contain exactly four HTTP422
+descriptions/comments: stdlib `Unprocessable Entity` versus `Unprocessable Content`.
+There is no payload/path/schema difference. Shared response metadata in
+`anima_creation.py` omitted the description, and A1 regeneration `9ed028cf`
+introduced the collateral3.14 wording. Diagnosis receipt SHA
+`2ba12073a8c91a98809692d100310352a13dc8ec0fde2478d9347cdd8163b073`.
+
+**A6-R3 is accepted and required.** Correct the explicit canonical422 description
+at its source, regenerate through the existing offline tool and prove all four
+real routes plus complete identical schema/17-file output under both interpreters.
+Preserve the byte freshness guard, locks, CI policy and failed run. Count this as
+owning A1 repair1/2 and final A6 repair2/2; A4/A5 remain1/2, A3 remains1/2 and
+A2 remains2/2. The final targeted independent review #3 checks only this finding
+and caused regressions, without another broad audit. Final immutable source/wheel
+bindings and affected consumer inventory must refresh before acceptance. Prior
+corrected C is an engineering baseline; no final CI or merge gate passes yet.
+
+#### Code Review #3 Findings — targeted SDK source correction
+
+Independent analysis and checks **PASS** the three-path correction at aggregate
+`581c9e7ef6f9e21da865a2a2a4c55b030fa20d2aac24d427c284ec3da37cb22a`.
+Analysis receipt SHA
+`4da004ec760e9519d924eee272943e5448faf6135f604220723fa3787acb0dc0`;
+checks receipt SHA
+`f8211c3bdd20dae563272a47c036af047b904dd31e77faaf142270d5b829d162`.
+Neither reviewer authored the public correction. Both verified three source and
+seven unchanged generator/exporter/workflow/lock hashes before/after;51 author
+evidence/log bindings match. Fresh real exports pass6 cases under each interpreter
+with0 skips, plus scoped Ruff/read-only format/mypy/whitespace. Complete raw OpenAPI
+and all17 generated files are byte-identical across3.12.13/3.14.4 and checked-in
+output. The same seven response codes/models and four real paths/handlers remain;
+the generated delta contains only four comments. No new required finding.
+
+#### Code Review #3 Revisions — source release
+
+Accept A6-R3 as resolved. Owning A1 remains repair1/2 and final A6 remains2/2;
+all other budgets are unchanged. Release the source hold for the scoped verified
+commit and clean immutable producer/installed-consumer refresh. Reuse unchanged
+R1/R2 browser and broad-suite evidence with its original limits. This is a source
+gate, not a CI waiver, completed final artifact binding or merge approval. The
+original failed CI remains failed; final actual required CI must still pass.
 
 ## Final integration review
 

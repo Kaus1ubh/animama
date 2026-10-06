@@ -9241,7 +9241,7 @@ export type CreateAnimaV1AnimasPostErrors = {
      */
     410: AnimaCreationErrorResponse;
     /**
-     * Unprocessable Content
+     * Unprocessable Entity
      */
     422: AnimaCreationErrorResponse;
     /**
@@ -9294,7 +9294,7 @@ export type GetAnimaCreationOptionsV1AnimasCreationOptionsGetErrors = {
      */
     410: AnimaCreationErrorResponse;
     /**
-     * Unprocessable Content
+     * Unprocessable Entity
      */
     422: AnimaCreationErrorResponse;
     /**
@@ -9343,7 +9343,7 @@ export type EnsureAnimaStartersV1AnimasStartersEnsurePostErrors = {
      */
     410: AnimaCreationErrorResponse;
     /**
-     * Unprocessable Content
+     * Unprocessable Entity
      */
     422: AnimaCreationErrorResponse;
     /**
@@ -10510,7 +10510,7 @@ export type ValidateAnimaV1AnimasValidatePostErrors = {
      */
     410: AnimaCreationErrorResponse;
     /**
-     * Unprocessable Content
+     * Unprocessable Entity
      */
     422: AnimaCreationErrorResponse;
     /**
