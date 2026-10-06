@@ -1,20 +1,29 @@
 # Hosted web parity coverage
 
-Inventory source: `339878dd81bea806359e4375732070e7745ec03d`, audited on 2026-10-05.
+Baseline inventory source: `339878dd81bea806359e4375732070e7745ec03d`, audited on 2026-10-05.
+Public source/artifact checkpoint: `e4e0661b1b54a8acad85088831b97f9fc8a0041e`.
 Product authority: [#272](https://github.com/raymond-van/animama/issues/272); requirements
 refer to the [spec snapshot](hosted-web-parity-spec.md). Contract handoff:
 [common web contracts](../../../contracts/hosted-web.md). Paths below are repository-relative.
 A1 contracts, A2 neutral services, A3 composition and A4 retained public workflow
-engineering are independently reviewed. A4's27-path source aggregate is
+engineering are independently reviewed. A4's 27-path source aggregate is
 `c41d61840e52c8b9a60fbd2e10c10a13ce8388433b7bf62638a5943cb73cffa5`;
-initial analysis/checks pass with0 of2 repair rounds used. A5 whole-artifact and
-C3–C7 hosted service/provider/device gates remain pending. Local fixtures do not
+initial analysis/checks passed. Final integration found two actual-screen visibility
+gaps; the owning A4 and A6 repair records now use 1 of 2 repair rounds, with
+targeted independent review pending. A5 clean
+whole-artifact, isolated-consumer and genuine two-source upgrade/rollback gates
+also pass. Actual hosted cutover/provider/device/deployment
+acceptance remains separately gated. Local fixtures do not
 establish actual hosted or heard-audio/physical-microphone acceptance. Missing
 services are delivery gaps, never additional exceptions.
 
-## Contract handoff and baseline gaps
+## Contract handoff and dated baseline gaps
 
-Use the existing Python `RuntimeCapabilities` as the single wire schema and generated TypeScript view. A1 adds the keys `chat`, `model_selection`, `model_role_selection`, `provider_credentials`, `local_filesystem_administration`, `native_features` are sufficient for the current six exclusions alongside existing `anima_creation`, `chat_file_uploads`, `user_file_processing.enabled`, `model_configuration`, `web_search.configuration`. Retained content/voice/memory workflows do not need a new family of permission booleans. Browser support/engine resource readiness and temporary failures must remain distinct from operation permission. `native_features` describes composition permission, while existing runtime-platform detection still proves actual bridge support; hosted is a web platform, not a third browser implementation.
+The observations below describe the A1 starting point at the baseline revision;
+they are not unresolved defects in the current composition. A2–A5 delivery
+records and the public checkpoints below establish the implemented seams.
+
+Use the existing Python `RuntimeCapabilities` as the single wire schema and generated TypeScript view. The A1 keys `chat`, `model_selection`, `model_role_selection`, `provider_credentials`, `local_filesystem_administration`, `native_features` are sufficient for the current six exclusions alongside existing `anima_creation`, `chat_file_uploads`, `user_file_processing.enabled`, `model_configuration`, `web_search.configuration`. Retained content/voice/memory workflows do not need a new family of permission booleans. Browser support/engine resource readiness and temporary failures must remain distinct from operation permission. `native_features` describes composition permission, while existing runtime-platform detection still proves actual bridge support; hosted is a web platform, not a third browser implementation.
 
 - `packages/runtime-contracts/src/index.ts`: `ProductRuntimeCapabilities` is now the derived `Pick<generated RuntimeCapabilities, 'chat'>`, with one canonical wire schema. Keep opaque owner ID separate from session lifetime/cache key. Shared composition types can expose `RuntimeAdmission`, admitted `RuntimeSession`, transport, retry/onboarding and optional account/usage/sign-out actions without Cloud imports or browser token/owner authority.
 - `web/src/app/runtime/RuntimeOwnerContext.tsx`: hardcodes `{chat:true}`, origin transport and telemetry-wrapped global fetch. Accept neutral composition inputs rather than interpreting local/hosted mode. `packages/product-ui/src/runtime/ProductRuntimeProvider.tsx` currently keys by owner ID+base URL only: same-account revocation/re-admission needs distinct lifetime key and disposal.
@@ -33,7 +42,16 @@ The14 workflow groups below share the existing screens. A4 validation includes
 25 emitted-package tests and local/hosted builds. The fixtures cover navigation,
 chat/history/search, existing Anima edits, all six loadout commit families, all
 creator families, Library/preview, sharing/recovery, settings/model roles, memory,
-voice controls and admission/session cleanup. Anima-bearing imports fail before
+voice controls and admission/session cleanup. These workflow fixtures did not establish
+actual App Settings model-role visibility or the Library upload-tab gate. The
+focused `web/scripts/retained-screens.browser.test.mjs` now mounts the real router,
+modal and Library against controlled HTTP authority: all four role choices save,
+reload and appear in search without exposing administration; denied/missing upload
+permissions and capability loss prevent the upload child from mounting. Direct
+and legacy links show an explanation and return action at desktop and narrow
+widths, while local uploads and model administration remain available. This is
+source-fixture evidence; a corrected clean artifact and independent review remain
+required. Anima-bearing imports fail before
 commit; identifier-only durable receipt recovery survives legitimate reentry,
 while owner/session resources and draft bytes are disposed.
 
@@ -45,6 +63,27 @@ Document PiP's window API is simulated where Chromium does not supply it.
 Physical microphone capture, heard speech and real hosted/provider/device proof
 remain required consumer gates. The baseline observations above explain the
 starting seams; the A3/A4 records identify their resolved public behavior.
+
+## Public whole-artifact checkpoint
+
+Clean A (`8b09e7ff939201e0f48c6c2db8b886f72a0186c0`) and clean B
+(`e4e0661b1b54a8acad85088831b97f9fc8a0041e`) exercise a meaningful
+Gesture-runtime upgrade, with distinct immutable resource prefixes. The isolated
+consumer verifies the emitted application, complete non-static Included seed,
+actual VRM, Pocket PCM/worklet playback, old-tab late worker, fresh selection and
+rollback. Normal and effect-only clips retain sequence/dependency values, all
+seven current mute IDs and opaque generator metadata through A/B/A
+import/edit/save/export/reopen. A preserves the newer mute data without executing
+B's newer procedural mute behavior; arbitrary future IDs are not covered.
+
+The clip round trip retains an inherited descriptive-field limitation:
+`aiDescription` reloads from the generic description in the existing typed
+projection. This is not whole-project or byte-identical serialization evidence.
+Same-source production timing/transfer/memory observations use clean A only,
+with sampled headless-browser metrics and explicit fixture/environment limits.
+Neither artifact verification nor those observations establishes physical audio,
+real-provider behavior, live hosted acceptance or publication rights. Exact
+validation records remain in the [ExecPlan](hosted-web-parity-execplan.md).
 
 ## Every route file
 
@@ -96,8 +135,10 @@ TanStack IDs include pathless `/_app`; user-facing paths omit that segment. Gene
 Paths in the Source column are under `src/frontend/` unless marked backend.
 Each row covers the named actions, including alternate entry points. Shared APIs
 and use cases are Animama-owned; hosted HTTP authority, repositories and jobs
-are consumer-owned. A2 supplies the missing neutral interfaces. All row evidence
-is **pending** beyond the A1 canonical capability fixture. Route rows inherit the
+are consumer-owned. A2 supplies the neutral interfaces. Public source and fixture
+evidence is established by the A3/A4/A5 checkpoints above; actual consumer
+integration and live acceptance must be recorded separately for each row. Route
+rows inherit the
 workflow assignment/API/test below: chat routes → W02, Anima routes → W03/W04,
 creator routes → W07, Library → W06/W08, Memory → W09, shell/index/legacy → W01,
 setup/account → W12, native/browser utilities → W13, Safety → W11. The portrait
@@ -105,7 +146,7 @@ diagnostic preserves its existing development-only guard (W14). A3 owns neutral 
 
 | Group                          | Retained actions; narrow exclusion                                                                                                                                                                              | Source / API contract consumers                                                                                                                                                                                   | Assignment / requirements / evidence                                                                                      |
 | ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| W01 Shell and navigation       | New chat, Animas, Memory, Library, Search; Create menu; recents; account/settings dialogs; deep links; keyboard/responsive layout; preview dock                                                                 | `web/src/ui/sidebar/{SidebarShell,SidebarUserMenu,SidebarCreateMenu}.tsx`; router and root layouts                                                                                                                | A3+A4; R1–R5,R12; admission/action fixture + real browser later                                                           |
+| W01 Shell and navigation       | New chat, Animas, Memory, Library, Search; Create menu; recents; account/settings dialogs; deep links; keyboard/responsive layout; preview dock                                                                 | `web/src/ui/sidebar/{SidebarShell,SidebarUserMenu,SidebarCreateMenu}.tsx`; router and root layouts                                                                                                                | A3+A4; R1–R5,R12; public admission/action/browser fixtures; live consumer acceptance separate                             |
 | W02 Chat/history/search        | Create/select/rename/delete chats; search; streamed text/tool updates; stop/retry; Markdown; chat/avatar layouts; operator-catalog model selection; attachment button/paste/drop/reuse/IDs excluded             | `web/src/ui/main/chat/{ChatInterface,useChatSession}.tsx` (hook is `.ts`); `query/hooks/useChat*`; `query/mutations/{useCreateChat,useChatSse,useSearchChatMessages}.ts`; `/v1/chats`, `/v1/animas/{id}/chat:sse` | A2+A3+A4; R1–R5,R7,R9,R12                                                                                                 |
 | W03 Existing Anima identity    | Select/adjacent Anima; identity/profile and relationship memory editor/repair; emotions; settings inheritance; image/background upload/crop/framing; no user creation/import equivalent                         | `web/src/ui/animas/{AnimaDetailsPage,AnimaIdentitySection,AnimaMemoriesSection,AnimaAppearanceDialog}.tsx`; `query/mutations/useUpdateAnima*`, `useRepairAnimaMemories`                                           | A2+A3+A4; R1–R7,R10,R12                                                                                                   |
 | W04 Loadout                    | Choose avatar, voice, gestures, reactions, idle style; preview, plan/review/commit, stale-revision recovery                                                                                                     | `web/src/ui/animas/{AnimaLoadout,VoiceLoadoutSection}.tsx`; `query/hooks/useAnimaLoadout.ts`, `query/mutations/useAnimaLoadoutMutations.ts`; family plan/commit contracts                                         | A2+A4; R4–R10,R12                                                                                                         |
@@ -116,17 +157,19 @@ diagnostic preserves its existing development-only guard (W14). A3 owns neutral 
 | W09 Memory                     | Virtual files/folders; create/edit/move/rename/delete, preview/conflict/history/revert/search; identity/Anima scope; user-started Memory Manager/Reflection, episode processing/approvals/undo/run continuation | `web/src/ui/memory/`; `query/hooks/{useMemoryEntries,useMemoryEpisodes,useMemoryManagerRun}.ts`; memory mutation hooks                                                                                            | A2+A4; R4–R6,R9,R12; virtual files are NOT host filesystem administration                                                 |
 | W10 Voice                      | Dictation, Voice Mode, device/test/sensitivity; STT/TTS engine/model/voice selection; cloning voice samples, playback/stop/mute; stream/finalized grouping; browser assets                                      | `web/src/lib/voice/`, `lib/anima-voice/`; `ui/animas/VoiceLoadoutSection.tsx`; `ui/animas/VoiceCloneLibrary.tsx`; voice clone/selection hooks                                                                     | A2+A4+A5; R4–R9,R12; separate browser engine downloads from server-global model administration                            |
 | W11 Safety / behavior          | Shared defaults and per-Anima inheritance; emotion/memory influence/updates, AI notice/reminder and crisis resource settings; preserve authority and memory semantics                                           | `web/src/ui/settings/{SettingsProvider,SafetySettingsSection}.tsx`; `ui/main/header/AnimaSettingsModal.tsx`; safety providers/routes                                                                              | A2+A3+A4; R4–R9,R12                                                                                                       |
-| W12 Account and admission      | Sign-in/out/account/usage actions; ineligible/restricted/loading/outage/expired sessions; resource teardown, safe retry; owner never chosen by browser                                                          | new neutral interfaces in existing `packages/runtime-contracts`; composition injection into existing shell                                                                                                        | A1 contracts, A3 consumption, consumer owns auth; R1,R2,R5,R9,R12                                                         |
+| W12 Account and admission      | Sign-in/out/account/usage actions; ineligible/restricted/loading/outage/expired sessions; resource teardown, safe retry; owner never chosen by browser                                                          | `packages/runtime-contracts`; `web/src/app/{local-runtime,hosted-runtime,runtime}`; composition injection into existing shell                                                                                     | A1 contracts, A3 consumption, consumer owns auth; R1,R2,R5,R9,R12                                                         |
 | W13 Browser utilities          | DOM fullscreen and Document PiP retained; native quick chat, native windows/global shortcut/updater/key vault excluded                                                                                          | `web/src/platform/runtime-platform.ts`; `web/src/hooks/{useFullscreen,usePictureInPicture,useDocumentPiP}.ts`                                                                                                     | A3+A4; R1–R3,R5,R12                                                                                                       |
 
 ## Capability, consumer owner and acceptance map
 
-All cases below remain pending workflow verification. A1's Python/generated schema
-fixtures establish the six exception values and retained model/role choice only.
+The cases below identify the required evidence for each workflow; the public
+checkpoints above distinguish completed fixtures from separate consumer and live
+gates. A1's Python/generated schema fixture alone establishes only the six
+exception values and retained model/role choice.
 
 | Coverage | Capability / support                                                      | HTTP/service and consumer assignment                                                                                     | Acceptance evidence                                                                                                         |
 | -------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------- |
-| W01      | Admitted session                                                          | Readiness/owner context and route adapter, A3; consumer foundation C1/C2 and cutover C6                                  | Deep-link/reload/sidebar/empty-roster browser fixture; `RuntimeOwnerContext.test.tsx` and planned admission tests.          |
+| W01      | Admitted session                                                          | Readiness/owner context and route adapter, A3; consumer foundation C1/C2 and cutover C6                                  | Deep-link/reload/sidebar/empty-roster browser fixture; `RuntimeOwnerContext.test.tsx` and runtime admission/session tests.  |
 | W02      | `chat`; `model_selection`; E2 attachments false                           | `/v1/chats`, messages/search, `/v1/animas/{id}/chat:sse`; shared ChatService/executor A2; history C2 and bounded turn C3 | `chat-lifecycle.test.mjs`, `ChatUploadCapability.test.tsx`; two-account history, stop/retry, terminal SSE and nested usage. |
 | W03      | Existing owner; E1 creation false                                         | Anima PATCH/settings, memory identity/repair and appearance contracts; A2; C2/C4                                         | Existing identity/loadout suites plus save/reload/private-portrait/stale conflict browser cases.                            |
 | W04      | Admitted catalog choices                                                  | Loadout GET and avatar/voice/gesture/reaction/idle/appearance plan/commit; shared services A2; C4/C5                     | Preview/review/commit/conflict fixtures and equipped runtime after reload.                                                  |
@@ -149,7 +192,10 @@ verification. Profile/settings use C2; model roles, search and safety use C3;
 voice/resources use C5. App/account settings are owner-scoped, microphone/device
 preferences browser-local. Existing `model-configuration-state.test.ts`, voice
 download tests and SettingsProvider regressions are reused; retained settings
-save/reload/reset and excluded search-result tests are required. Evidence is pending. These search-index rows also determine discoverability and may not retain links to excluded controls.
+save/reload/reset and excluded search-result tests are required. Public
+persistence/visibility fixtures are covered by A3/A4; actual consumer acceptance
+remains separate. These search-index rows also determine discoverability and may
+not retain links to excluded controls.
 
 | Section          | Entries                                                                                                                       | Hosted behavior                                                                                                                                            |
 | ---------------- | ----------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -180,7 +226,7 @@ Private bytes must be fetched/authenticated using the same admitted transport be
 
 A1: canonical Python schema/local capabilities roundtrip and existing shared backend boundary; generated SDK freshness; package declaration compatibility. Contract fixture table must represent all six exclusions independently and retain model/role selection, content import, voice cloning and virtual memory. Admission tests must distinguish unauthenticated/ineligible/restricted/unavailable/ready; no private UI before ready; session key changes on authority lifetime change, retry and account actions remain adapters. A1 does not need to implement A3's UI cutover.
 
-Useful existing suites: `tests/test_runtime_capabilities.py`, `tests/test_shared_backend_boundary.py`; `web/src/app/runtime/{RuntimeOwnerContext.test.tsx,runtime-boundaries.test.ts}`; `web/src/ui/app/RuntimeFeatureGate.test.tsx`; `web/src/ui/settings/models/model-configuration-state.test.ts`; `web/src/ui/create/AnimaCreationCapability.test.tsx`; `web/src/ui/main/chat/ChatUploadCapability.test.tsx`; package `chat-lifecycle.test.mjs`. Add behavior tests for direct Library chat-uploads query, package import Anima denial before install, empty roster, global-default-client injected transport, and same-owner session reset in their implementation phases.
+Useful existing suites: `tests/test_runtime_capabilities.py`, `tests/test_shared_backend_boundary.py`; `web/src/app/runtime/{RuntimeOwnerContext.test.tsx,runtime-boundaries.test.ts}`; `web/src/ui/app/RuntimeFeatureGate.test.tsx`; `web/src/ui/settings/models/model-configuration-state.test.ts`; `web/src/ui/create/AnimaCreationCapability.test.tsx`; `web/src/ui/main/chat/ChatUploadCapability.test.tsx`; package `chat-lifecycle.test.mjs`. The retained-screen browser suite covers direct/legacy Library upload queries and actual model-role controls; package import denial, empty roster, injected transport and same-owner session reset retain their separate lifecycle suites.
 
 Commands already in A1 plan: root `uv run pytest -q tests/test_runtime_capabilities.py tests/test_shared_backend_boundary.py`; frontend `pnpm openapi-ts`, `pnpm openapi-ts:check`, `pnpm packages:check`, `pnpm packages:test`. Source/fixture checks cannot satisfy subsequent real chat/mic/voice/VRM/playback/isolation/hosted acceptance gates.
 

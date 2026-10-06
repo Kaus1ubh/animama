@@ -14,6 +14,7 @@ import {
 } from "@/ui/components/tabs";
 import { LibraryChatUploads } from "@/ui/library/LibraryChatUploads";
 import { LibraryContentInventory } from "@/ui/library/LibraryContentInventory";
+import { useRuntimeFeatureEnabled } from "@/ui/app/RuntimeFeatureGate";
 import { ContentHealth } from "@/ui/content-health/ContentHealth";
 
 const SECTIONS = [
@@ -33,6 +34,7 @@ export function LibraryPage({
   onSearchChange: (update: Partial<ContentLibrarySearch>) => void;
 }) {
   const sharing = useLibrarySharingFlow();
+  const uploadsEnabled = useRuntimeFeatureEnabled("chat_file_uploads");
   return (
     <AppShellPage contentClassName="gap-0">
       <header className="pb-4">
@@ -56,7 +58,9 @@ export function LibraryPage({
           UNDERLINE_TAB_LIST_CLASS,
         )}
       >
-        {SECTIONS.map(([value, label]) => (
+        {SECTIONS.filter(
+          ([value]) => value !== "chat-uploads" || uploadsEnabled,
+        ).map(([value, label]) => (
           <button
             key={value}
             type="button"
@@ -107,7 +111,34 @@ export function LibraryPage({
       ) : null}
       <div className="pt-5">
         {search.section === "chat-uploads" ? (
-          <LibraryChatUploads search={search} onSearchChange={onSearchChange} />
+          uploadsEnabled ? (
+            <LibraryChatUploads
+              search={search}
+              onSearchChange={onSearchChange}
+            />
+          ) : (
+            <section
+              className="space-y-3"
+              aria-labelledby="library-uploads-unavailable"
+            >
+              <h2
+                id="library-uploads-unavailable"
+                className="text-lg font-semibold"
+              >
+                Chat Uploads unavailable
+              </h2>
+              <p className="text-muted-foreground">
+                Chat attachments and document uploads are unavailable here. You
+                can still import, create and share Library content.
+              </p>
+              <Button
+                variant="outline"
+                onClick={() => onSearchChange({ section: "all" })}
+              >
+                Back to Library
+              </Button>
+            </section>
+          )
         ) : (
           <LibraryContentInventory
             search={search}

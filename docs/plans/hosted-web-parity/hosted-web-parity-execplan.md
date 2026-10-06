@@ -94,9 +94,9 @@ contract instead of maintaining a second truth.
 - [x] 2026-10-05 [A1 / #273](https://github.com/raymond-van/animama/issues/273): agent-verified contracts/complete action map; required checks and independent review #1 passed, repairs 0 of 2. Phase commit recorded below; the consumer requirements gate C1 has passed.
 - [x] 2026-10-05 [A2 / #274](https://github.com/raymond-van/animama/issues/274): corrected portable preference merger committed at `6a150fd45d5e215e7f134010b53b9c62e4316ede`; targeted independent review #3 and clean installed-wheel gate pass. Repair rounds used: 2 of 2. Neutral services are ready for isolated consumer C2 repair and A4.
 - [x] 2026-10-05 [A3 / #275](https://github.com/raymond-van/animama/issues/275): committed at `e8ef7768d2edcfc7cef58c508bf3fb66ba0d2302`; targeted independent review #2 passes after repair 1 of 2 for chat cache partitioning and durable recovery cleanup.
-- [x] 2026-10-05 [A4 / #276](https://github.com/raymond-van/animama/issues/276): public retained-workflow and resource-lifetime engineering passes independent analysis/checks #1, repairs 0 of 2. Physical capture/heard output and actual hosted/provider/device acceptance remain explicit C5/C7 gates; this is not a declaration of delivered voice parity.
+- [x] 2026-10-06 [A4 / #276](https://github.com/raymond-van/animama/issues/276): original phase review passed0/2; A6 returned model-role/Library-upload defects. Targeted independent analysis/checks #2 resolve both after owning A4 repair1/2. Corrected immutable binding remains A6; physical/heard voice and hosted/provider/device acceptance remain C5/C7 gates.
 - [x] 2026-10-06 [A5 / #277](https://github.com/raymond-van/animama/issues/277): engineering/artifact gate PASS after independent final analysis/checks. Clean A `8b09e7ff` and reviewed main-integrated B `e4e0661b` pass independent producer/installed-and-emitted consumer, same-source A production observations and genuine A/B/open-tab/rollback/clip gates. Repair rounds remain 1 of 2; measurement and inherited descriptive-field limits are recorded below. C6/A6 are ready; main adoption, provider/device/deployment and exact-candidate owner merge remain separate.
-- [ ] 2026-10-05 [A6 / #278](https://github.com/raymond-van/animama/issues/278): planned; depends on A5/all public gates; coordinate with C6 without requiring a future main pin.
+- [ ] 2026-10-06 [A6 / #278](https://github.com/raymond-van/animama/issues/278): active from `dea867414410d0932004ba474f1a1ee6fcd07a63` (A5 evidence-only record; feature code is reviewed B `e4e0661b`). Earlier A1–A5 gates passed; targeted current guidance/coverage, final public checks and bounded integration review coordinate with C6 independently of a future main pin. Initial final integration review found two A4 UI defects; targeted analysis/checks #2 pass after coordinated A6/A4 repair1/2, with prior A5 budget1/2 unchanged. Corrected clean artifact/consumer binding and actual CI remain pending. Owner merge and external acceptance stay explicit.
 
 ## Surprises & Discoveries
 
@@ -737,6 +737,15 @@ deterministic provider; Chromium audio/worklet tests do not establish heard outp
 or physical microphone fidelity. Large-resource closure/cost/rollback is A5 work;
 real Cloud/provider/quota/device behavior remains C5–C7 acceptance.
 
+#### A6 final integration return — A4 repair 1 of 2
+
+A6-R1/R2 are accepted defects in retained model-role settings and excluded
+Library Chat Uploads. The original A4 review passed at `8b91bbf3` with 0 of 2
+repairs; actual emitted B screen observations now establish the missing coverage.
+Count this owning-phase correction as repair1/2 while preserving that initial
+review history and all other phase budgets. A6 owns the single targeted integration
+recheck; completion of this correction remains pending.
+
 ### Phase 5: Produce and validate the immutable hosted application (A5)
 
 Scope: R4, R8, R11–R12; depends on A3 and A4. Issue: [A5 / #277](https://github.com/raymond-van/animama/issues/277);
@@ -1003,7 +1012,7 @@ changes the normal Cloud pin nor grants owner merge or main-artifact adoption.
 ### Phase 6: Complete public acceptance and hand off for hosted adoption (A6)
 
 Scope: all requirements within Animama ownership; depends on A1–A5.
-Issue: [A6 / #278](https://github.com/raymond-van/animama/issues/278); implementation source/commit pending. Review the complete source/action coverage map and
+Issue: [A6 / #278](https://github.com/raymond-van/animama/issues/278); entered 2026-10-06 from `dea867414410d0932004ba474f1a1ee6fcd07a63`, with unchanged reviewed B feature code and all A1–A5 gates passed. Final checked/reviewed source and phase commit remain pending. Review the complete source/action coverage map and
 remove duplicate hosted screen implementations or temporary flags introduced
 during development. Update useful current guidance and boundary ADRs for the
 static app artifact, composition interfaces and neutral services. Preserve
@@ -1034,14 +1043,93 @@ Recovery: if final integration exposes a public defect, repair its owning phase
 and rerun affected checks while retaining review counts. Do not force a consumer
 lock or weaken compatibility to conceal an incomplete contract.
 
+Author checks complete on the unchanged reviewed B feature source. Full backend `make check-test`: 3,160 passed, 10 skipped; Ruff and 714-file format check pass. Public frontend API/type/lint, full web source/browser tests, package checks/tests, local/hosted builds and e2e typing pass. Repository-boundary 13 tests, package-set/archive 23 tests and static import closure (297 reachable, 230 shared, zero forbidden edges) pass.
+
+The first full web attempt failed on sandbox loopback `EPERM`; the permitted full rerun passes with identical source. Full desktop tests had 467 passed, 14 skipped and one unchanged guard-handshake deadline failure; its actual 62-case targeted suite then passed 59 with 3 skips without code or timeout edits. The initial failure and unproven scheduling cause remain recorded. Physical/native acceptance is separate.
+
+Eight scoped guidance/coverage files are frozen; 35 local links/anchors and formatting pass. A5's inherited descriptive-field and original-selected-Anima restoration limitations remain explicit. Author receipt `5cb5dc77ddad6cee24584efc2e9e27e69e5aeb243163807f416a6ae7186b872a` binds local checks, failures, recovery and accepted A5 evidence. Independent final integration review has not run; budget remains 0 of 2. A clean final-source artifact refresh and explicit test-only consumer binding still precede final CI, while ordinary main adoption follows owner merge and its own gates.
+
 #### Code Review #1 Findings
 
-Not run. Reuse phase evidence and inspect combined public acceptance.
-Repair rounds used: 0 of 2.
+Independent final integration analysis and checks are **BLOCKED** on two
+required public UI findings. All 3,418 frozen source paths and exact A6/A5 evidence
+bindings match. Existing command evidence remains valid, including the explicit
+full-desktop failure and unchanged passing targeted recheck; no additional check
+finding was found. Analysis receipt SHA
+`3270fdb673e112c4624d535454996700ad0e382ffcaf64b832aa69a8c59113dc`;
+checks receipt SHA
+`e5c5bdfa56eafb5d64046ef425f6765ae1e73556b0e00330f4dd7b732fd65448`.
+
+- **A6-R1 / required:** `ApplicationSettingsModal` hides all default model-role
+  rows using provider administration (`model_configuration`) even when hosted
+  `model_role_selection` is true. The actual emitted B modal shows no Models
+  section or four retained role controls. Expose the existing catalog/role choices
+  and search entries without granting provider/key/search-service administration.
+- **A6-R2 / required:** `LibraryPage` unconditionally mounts Chat Uploads via tab
+  or direct/legacy search navigation. The actual emitted B screen requests
+  `GET /v1/files` and offers Upload despite `chat_file_uploads=false`. Guard before
+  dependent queries mount, explain direct-route unavailability and retain local
+  uploads and hosted creator/sharing workflows.
+
+The same emitted-app proof reproduces both counterexamples, with zero external
+calls or live-data writes. Receipt SHA
+`7a46d10d007d0a9644770f8dfc9b3aad47e14344dca9ae05599860ff941309cf`.
+Earlier wrapper fixtures do not establish these actual screen boundaries.
+Repair rounds used at initial review: 0 of 2; no reviewer implemented a finding.
 
 #### Code Review #1 Revisions
 
-None. Record dispositions, fixes and remaining external acceptance dependencies.
+Both findings are accepted as A4-owned retained-workflow defects. Release the
+initial public source hold and perform one coordinated repair round, counted as
+A6 repair 1 of 2 and A4 owning-phase repair 1 of 2. A5 stays 1 of 2; A2/A3 and
+all completed Cloud review counts remain unchanged. This final integration review
+does not restart their comprehensive audits. Changes are limited to the two
+capability consumers, meaningful actual-screen regressions and affected coverage.
+
+RED proof is the actual accepted B observation. GREEN must show hosted model-role
+choices/save/reload with provider administration excluded, and absent Chat Uploads
+navigation/queries with explained direct/legacy access, local retention and
+capability transitions. Refresh affected frontend checks and clean emitted-artifact
+binding. Initial command failures and B artifact proof remain historical evidence;
+B is not relabelled a corrected candidate. Targeted independent analysis/checks #2
+will recheck accepted findings and caused regressions. Required fixes/artifact
+refresh are pending; C6's final replacement journey uses the corrected artifact.
+
+#### Code Review #2 Findings — targeted repair source
+
+Independent analysis and checks PASS the repaired source; A6-R1/R2 are resolved
+with no new required repair regression. All3,421 frozen paths, the exact nine-path
+delta and eight-path author aggregate match. Author receipt SHA
+`163eef9fac2b2d531f70881a8b78a5be136cba78e4f6cb80c93cc472d1048743`.
+Analysis JSON SHA
+`2bb57ada2139d783051767677ec77c2a499037758fd413e931c658ca6959d22d`;
+checks JSON SHA
+`4d6402b3b2951a86d93c49be6803c5b7e79c4b473724041471c5387fb8c6045e`.
+The checks reviewer independently ran73 focused unit cases and four actual
+AppProviders/AppRouter/Settings/Library Chromium cases, then inspected five
+own desktop/narrow screenshots. Source/evidence holds pass before and after.
+No broad review, source write or budget reset occurred.
+
+R1 now derives model-role selection independently of provider/search service
+administration. All four roles save, reload and remain searchable; admin controls
+stay omitted. R2 guards before the upload child/query mounts, hides its tab and
+explains direct/legacy access with a return action. False/missing/transition
+permissions fail closed; local uploads and Library Import/Export remain usable.
+Genuine RED is separated from intermediate fixture/locator corrections in the
+bound author evidence.
+
+#### Code Review #2 Revisions — source release and artifact refresh
+
+Accept the resolved dispositions. A4 and A6 remain repair1/2 used, one remaining;
+A5 stays1/2 and every other phase budget is preserved. Root adjudication SHA
+`715f47e758845c8b8534457c4032edcd72f979eac32d7d29f387e68ad563947d`
+releases the public source hold for scoped verified commits and a new clean
+whole-app producer. Retain original B evidence as historical proof; do not label
+it the corrected app. Clean corrected producer, emitted-screen/isolated consumer,
+Cloud replacement and actual exact-candidate CI bindings are subsequent gates.
+Full A6 remains incomplete and no main adoption/owner merge/promotion/deployment
+is authorized by this source review. Unchanged broad backend/frontend/package
+checks remain reused; rerun only affected or unresolved evidence.
 
 ## Final integration review
 

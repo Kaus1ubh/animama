@@ -466,18 +466,27 @@ export function modelCapabilityChips(
 }
 
 /**
- * Which Models settings App Settings shows: only what the runtime lets the
- * owner configure (desktop and self-hosted web). The hosted composition
- * reports neither, so Models stays hidden there.
+ * Model choices and provider administration are independent permissions.
+ * Hosted owners can select admitted role models without configuring providers.
  */
 export function modelSettingsAvailability(
   capabilities:
-    | Pick<RuntimeCapabilities, "model_configuration" | "web_search">
+    | Partial<
+        Pick<
+          RuntimeCapabilities,
+          "model_configuration" | "model_role_selection" | "web_search"
+        >
+      >
     | null
     | undefined,
-): { modelConfiguration: boolean; webSearchConfiguration: boolean } {
+): {
+  modelConfiguration: boolean;
+  modelRoleSelection: boolean;
+  webSearchConfiguration: boolean;
+} {
   return {
     modelConfiguration: capabilities?.model_configuration === true,
+    modelRoleSelection: capabilities?.model_role_selection === true,
     webSearchConfiguration: capabilities?.web_search?.configuration === true,
   };
 }

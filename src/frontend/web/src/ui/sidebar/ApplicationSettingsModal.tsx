@@ -433,9 +433,10 @@ export function ApplicationSettingsModal({
   const runtimeCapabilities = useRuntimeCapabilities();
   const parakeetAvailable =
     runtimeCapabilities.data?.offline_speech_enabled ?? null;
-  // The hosted composition reports neither, so Models stays hidden there.
+  // Role choices do not grant provider or search-service administration.
   const {
     modelConfiguration: modelConfigurationEnabled,
+    modelRoleSelection: modelRoleSelectionEnabled,
     webSearchConfiguration: webSearchConfigurationEnabled,
   } = modelSettingsAvailability(runtimeCapabilities.data);
   const initializedForOpenRef = useRef(false);
@@ -1163,7 +1164,7 @@ export function ApplicationSettingsModal({
         label: MODEL_DEFAULTS[role].label,
         description: MODEL_DEFAULTS[role].description,
         keywords,
-        hidden: !modelConfigurationEnabled,
+        hidden: !modelRoleSelectionEnabled,
         render: () => <ModelDefaultSetting role={role} disabled={isBusy} />,
       }),
     ),
