@@ -69,7 +69,7 @@ work proceeds.
 - [x] Workspace: parent #298 published and read back; phase issues #299–#309
       created as sub-issues with dependencies (2026-10-06).
 - [x] Phase 1: Definition fixes and Save validation.
-- [ ] Phase 2: Effect render harness, baselines and thumbnail capture.
+- [x] Phase 2: Effect render harness, baselines and thumbnail capture.
 - [ ] Phase 3: Creator prototype. Gate G1.
 - [ ] Phase 4: Avatar Effect v2, one definition source, envelope and conversion.
       Gate G2 if renders differ.
@@ -412,9 +412,92 @@ checked them visually; thumbnails render on Annie.
 
 #### Phase 2 record
 
+Starting source and issue: `023a8d14`, #300. P1 commit: `023a8d14`.
+
+Delivered:
+
+- `pnpm -s effects:render` (`web/scripts/effect-render.mjs`,
+  `effect-render-sources.mjs` and `effect-render/{index.html,render.ts}`).
+  - Vite binds to 127.0.0.1 with `fs.strict`; only the web root, the Included
+    Avatars, Included Avatar Effects and an optional `--local-content` root
+    are served. A path source outside those roots is inlined only after its
+    real path (symlinks resolved) is checked to be inside its folder.
+  - Each effect gets a fresh real `Avatar` per Included Avatar, with automatic
+    animation off, a 1 s settle pre-roll, chat-canvas rendering and fixed 1/60 s
+    steps through `updatePoseCreatorAvatarFrame`. Renders are deterministic
+    (repeat runs differ by 0 pixels).
+  - A warning, a failed apply or no active effect fails the run (exit 1) after
+    every sheet is written; usage errors exit 2.
+  - Options: `--times` (0–30 s), `--tile`, `--views`, `--expression`,
+    `--with-clip` (Anima Clip Gestures; pose and expressions only),
+    `--thumbnail` (Annie, `captureAvatarPortrait` with the new
+    `expression: "live"`), `--diff` (threshold 8/255).
+- `Avatar.runWithPortraitCaptureState` gained `keepLiveExpressions`; the app's
+  only caller keeps the old behaviour.
+- Docs: `docs/frontend/runtime/avatar-vfx.md` §10.
+
+Baselines: 16 sheets (1600×1308) and 3 Annie thumbnails, rendered on the `/1`
+runtime, are kept outside the repository in
+`worktrees/avatar-effects-v2-baselines/` with a `MANIFEST.txt` of digests.
+Sample digests: `eye_vv_pair.png` `ddad150b…`, `texture_sick_2.png`
+`0356bff4…`, `star.png` `6d7edfc2…`. After the review revisions both re-render
+with 0 differing pixels. To recover, rerun `--all-included` from this phase's
+commit.
+
+Agent visual check: all 16 effects are visible and placed as expected on both
+Avatars. Existing `/1` traits to watch at G2:
+
+- Eye hovers draw over Annie's bangs.
+- On Annie, the face textures show a lighter band at the hairline.
+- `texture_sick_1` puts a green patch on Y_0's right temple.
+
+Checks: `node --test scripts/effect-render-sources.test.mjs
+scripts/effect-render.browser.test.mjs` 8/8; the animation-render browser test
+passes; vitest for `src/lib/avatar/portrait` and the new
+`AvatarPortraitCaptureState.test.ts` 30/30; `pnpm check`, `pnpm web:lint`;
+prettier and eslint clean on the changed files. Not run: full `pnpm web:test`.
+
 #### Code Review #1 Findings
 
+Reviewed source: uncommitted tree on `023a8d14`. Result: **blocking findings
+remain**.
+
+1. **Blocking.** Source containment compared unresolved paths, so a symlinked
+   image or clip inside an effect folder could point anywhere. It was then
+   inlined into the page, and parse errors could quote its contents.
+2. `parseTimes` accepted empty entries as 0 s and had no upper bound.
+3. `withRendererPage` skipped `server.close()` when `browser.close()` rejected.
+4. `renderThumbnail` skipped `renderer.dispose()` if opening the session failed.
+5. The `keepLiveExpressions` branch had no test, and its interaction with
+   `expressionName` was undocumented.
+6. The Vite and Playwright setup duplicates `animation-render.mjs`.
+7. `render.ts` is outside `tsc -b`, as is the precedent's.
+8. The sources test hard-codes 16 Included effects.
+9. The baseline manifest names an uncommitted source.
+
 #### Code Review #1 Revisions
+
+1. Fixed: containment uses the real paths of the folder and the file, for
+   images and clips; `readJson` no longer echoes parser messages. A unit test
+   covers a symlink.
+2. Fixed: rejects empty, negative, non-finite and values over 30 s.
+3. Fixed: nested `try`/`finally`.
+4. Fixed: the renderer is disposed in `finally`.
+5. Fixed: a doc comment and `AvatarPortraitCaptureState.test.ts`.
+6. Accepted: the plan asked to follow the precedent; extraction can come with P10.
+7. Accepted: same as the precedent; the agent and reviewer type-checked
+   `render.ts` with a scratch tsconfig.
+8. Accepted: Included content is fixed for this plan; P4 updates the count if
+   it changes.
+9. Fixed: this record names the phase commit, and the re-renders match.
+
+#### Code Review #2 (repair round 1)
+
+Result: **pass**. The reviewer reproduced the symlink escape again for images and
+clips, by library spec and by path, and both are now rejected. All revisions
+were confirmed with no regressions. One non-blocking note: a descriptor
+symlinked from outside a library root now fails every `library:` lookup for that
+root instead of being skipped. This is accepted as an explicit failure.
 
 ### Phase 3 — Creator prototype (R9, gate G1)
 

@@ -518,6 +518,38 @@ Not every axis is equally meaningful for every render mode.
 | Texture        | Full-face overlays or iris replacement | Match the original UV layout.                                             |
 | Hover plane    | Art floating in front of the face      | Use transparent images framed around the intended landmark.               |
 
+## 10) Headless review renders
+
+From `src/frontend/web`, `pnpm -s effects:render` renders effects on both
+Included Avatars without a running stack (headless Chromium with SwiftShader):
+
+```bash
+pnpm -s effects:render library:eye_vv_pair --out /tmp/eye_vv_pair.png
+pnpm -s effects:render --all-included --out /tmp/effect-sheets
+pnpm -s effects:render ./my-effect --thumbnail /tmp/my-effect.webp
+pnpm -s effects:render --diff before.png after.png --out diff.png
+```
+
+- A source is an effect folder, a descriptor `.json`, or
+  `library:[included/|local/]<stem|content_id|name>`. `library:local/…` needs
+  `--local-content <content root>`, such as `content/local`.
+- Each sheet row is a time after applying (`--times`, default 0.1, 0.5, 1 and
+  2 s). Each Avatar gets front, ¾ (from its right) and face tiles (`--views`,
+  `--tile`). `--expression <name>` holds a VRM expression, and `--with-clip`
+  samples an Anima Pose Clip Gesture (body and expressions only, no clip
+  events) at the same times.
+- The page mounts real `Avatar`s with the chat canvas settings (ACES Filmic,
+  sRGB, default scene lights, transparent clear over a grey tile). It applies
+  the effect through the runtime parser and `applyAvatarVFXEffectById`, then
+  steps fixed 60 Hz frames with automatic animation off. Renders are
+  deterministic, so the same source and revision should diff to 0 pixels.
+- The run exits 1 when the controller reports a warning or no active effect.
+- `--thumbnail` renders Annie with the portrait capture's head framing and
+  lighting, keeping the effect's live expression state (no forced smile).
+- `--diff` counts a pixel as different when a channel changes by more than
+  `--threshold` (default 8 of 255). It reports the share of such pixels and
+  the largest channel change, and writes a red-on-grey diff image.
+
 ## 11) Performance profile
 
 The runtime still keeps several expensive operations one-time:

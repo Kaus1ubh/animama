@@ -1430,10 +1430,14 @@ export class Avatar {
    * The callback cannot yield, so animation and lip-sync clocks cannot advance
    * while WebGL reads this capture frame. Keeping the already-rendered pose also
    * avoids VRM 0.x raw/normalized rest-axis differences.
+   *
+   * `keepLiveExpressions` renders the current expression state unchanged;
+   * `expressionName` is then ignored, so callers pass null.
    */
   runWithPortraitCaptureState<T>(
     expressionName: string | null,
     callback: () => T,
+    options: { keepLiveExpressions?: boolean } = {},
   ): T {
     if (!this.vrm) {
       throw new Error("avatar_portrait_model_not_ready");
@@ -1445,7 +1449,7 @@ export class Avatar {
       return callback();
     };
 
-    return this.expressionController
+    return this.expressionController && !options.keepLiveExpressions
       ? this.expressionController.runWithTemporaryValues(values, run)
       : run();
   }

@@ -7,6 +7,7 @@
     "routes:generate": "node scripts/generate-routes.mjs",
     "animation": "node scripts/animation.mjs",
     "animation:render": "node scripts/animation-render.mjs",
+    "effects:render": "node scripts/effect-render.mjs",
     "dev": "pnpm --dir .. poses:check && pnpm --dir .. packages:build && pnpm routes:generate && vite",
     "build": "pnpm --dir .. packages:build && pnpm build:source",
     "check": "pnpm --dir .. packages:build && pnpm check:source",
@@ -16,7 +17,7 @@
     "prettier": "prettier --ignore-path ../.prettierignore --write '*.{js,mjs,ts,json,css,md}' 'scripts/**/*.{js,mjs,ts}' 'src/**/*.{ts,tsx,js,jsx,css,md,json}' '../prettier.config.mjs' 'public/**/*.{md,json}'",
     "prettier:check": "prettier --ignore-path ../.prettierignore --check '*.{js,mjs,ts,json,css,md}' 'scripts/**/*.{js,mjs,ts}' 'src/**/*.{ts,tsx,js,jsx,css,md,json}' '../prettier.config.mjs' 'public/**/*.{md,json}'",
     "check:source": "pnpm --dir .. poses:check && tsc -b",
-    "test:source": "node --test ../scripts/generate-pose-catalog.test.mjs && node --experimental-vm-modules --test scripts/fast-refresh-lifecycle.test.mjs && vitest run && node --test scripts/*.browser.test.mjs",
+    "test:source": "node --test ../scripts/generate-pose-catalog.test.mjs scripts/effect-render-sources.test.mjs && node --experimental-vm-modules --test scripts/fast-refresh-lifecycle.test.mjs && vitest run && node --test scripts/*.browser.test.mjs",
     "build:source": "pnpm --dir .. poses:check && pnpm routes:generate && tsc -b && vite build"
   },
   "packageManager": "pnpm@10.33.0",
