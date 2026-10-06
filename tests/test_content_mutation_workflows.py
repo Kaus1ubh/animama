@@ -467,3 +467,59 @@ async def test_save_publication_is_invisible_and_rescan_waits_until_the_owned_co
             await asyncio.gather(*pending, return_exceptions=True)
             await scan_session.rollback()
             await observer_session.rollback()
+
+
+async def test_gesture_save_and_package_keep_layer_mutes_and_unknown_clip_fields(workflow: _Workflow) -> None:
+    """Optional clip metadata is stored and packaged verbatim; the backend does not strip it."""
+
+    sequence = json.dumps(
+        {
+            "schema": "animaPoseClip/1.0",
+            "id": "wave-hello",
+            "name": "Wave Hello",
+            "poses": {"rest": {}},
+            "poseKeyframes": [{"time": 0, "pose": "rest"}],
+            "duration": 1,
+            "mutedProceduralLayers": ["sway", "cursorLookAt"],
+            "generator": {"tool": "animama-animation"},
+        }
+    ).encode()
+    saved = await workflow.saves.save_descriptor(
+        user_id=workflow.owner,
+        kind=ContentKind.GESTURE,
+        entry_name="Wave Hello",
+        descriptor=json.dumps(
+            {
+                "schema_version": 1,
+                "content_type": "gesture",
+                "content_id": "local:gesture:wave-hello",
+                "name": "Wave Hello",
+                "semantic_key": "wave-hello",
+                "implementation": {"kind": "anima_clip", "file_role": "sequence"},
+                "files": [{"path": "wave-hello.json", "role": "sequence"}],
+            }
+        ).encode(),
+        companion_files={"wave-hello.json": sequence},
+        operation_id="wave-hello-save",
+        catalog_item_id=None,
+        expected_revision=None,
+    )
+    assert saved.item.kind is ContentKind.GESTURE
+    stored = [data for path, data in workflow.local_files().items() if path.endswith("wave-hello.json")]
+    assert stored == [sequence]
+
+    # A portable package re-serializes the clip but keeps every field.
+    exported = await reviewed_export(workflow.packages, user_id=workflow.owner, root_item_id=saved.item.id)
+    command = await reviewed_import(
+        workflow.packages, user_id=workflow.owner, archive_path=exported.path, operation_id="wave-hello-import"
+    )
+    imported = await workflow.packages.imports.commit(**command)
+    item = await workflow.catalog.get_visible_item(item_id=imported.items[0].item_id, user_id=workflow.owner)
+    assert item is not None and item.id != saved.item.id
+    clips = [
+        json.loads(data)
+        for path, data in workflow.local_files().items()
+        if path.endswith(".json") and not path.endswith(".meta.json") and b'"wave-hello"' in data
+    ]
+    # The original and the imported copy carry the same fields.
+    assert clips == [json.loads(sequence)] * 2

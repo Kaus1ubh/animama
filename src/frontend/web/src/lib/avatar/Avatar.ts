@@ -685,6 +685,15 @@ export class Avatar {
       });
     }
 
+    // A playing clip may mute live layers and own its keyed expressions; both
+    // follow its fade weight and release as soon as it ends or is stopped.
+    const clipPresence = this.poseController?.getClipPresence() ?? null;
+    this.proceduralAnimationController?.setClipLayerMutes(
+      clipPresence?.mutedLayers ?? [],
+      clipPresence?.weight ?? 0,
+    );
+    this.expressionController?.setClipExpressionPrecedence(clipPresence);
+
     // 5. Add procedural animation offsets on top of the mixer/clip pose.
     this.proceduralAnimationController?.update(delta, {
       avatarState: this.state,

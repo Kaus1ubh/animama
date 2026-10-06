@@ -112,6 +112,15 @@ export class ProceduralAnimationController {
     LayerActivationState
   >();
   private _plannerPolicyLayerIds = new Set<ProceduralAnimationLayerId>();
+  /**
+   * Temporary per-layer suppression requested by a playing clip (0 = none,
+   * 1 = fully muted). It scales activation without changing enabled state,
+   * weights, user settings or planner ownership, and eases toward its target.
+   */
+  private _clipSuppression = new Map<
+    ProceduralAnimationLayerId,
+    { current: number; target: number }
+  >();
 
   constructor(vrm: VRM, options: ProceduralAnimationControllerOptions = {}) {
     this._vrm = vrm;
@@ -165,9 +174,13 @@ export class ProceduralAnimationController {
       const activation = this._getLayerActivationState(layer);
       this._advancePendingLayerDeactivation(layer, activation, clampedDeltaSec);
       this._advanceLayerActivationState(activation, clampedDeltaSec);
+      const suppression = this._advanceClipSuppression(
+        layer.id,
+        clampedDeltaSec,
+      );
       layer.update(clampedDeltaSec, {
         ...context,
-        layerActivationWeight: activation.currentWeight,
+        layerActivationWeight: activation.currentWeight * (1 - suppression),
         layerDeactivationRequested: !activation.desiredEnabled,
       });
       this._completePendingLayerDeactivationIfReady(layer, activation);
@@ -199,6 +212,47 @@ export class ProceduralAnimationController {
         };
       }),
     };
+  }
+
+  /**
+   * Mute the given layers in proportion to `weight` (a clip's fade weight,
+   * 0–1) and release every other layer. Call each frame with the current clip
+   * state; an empty list releases all mutes. Changes ease in and out over the
+   * layer activation blend time so nothing pops.
+   */
+  setClipLayerMutes(
+    layerIds: readonly ProceduralAnimationLayerId[],
+    weight: number,
+  ): void {
+    const target = Number.isFinite(weight)
+      ? Math.min(1, Math.max(0, weight))
+      : 0;
+    const muted = new Set(layerIds);
+    for (const id of this._layers.keys()) {
+      const state = this._clipSuppression.get(id);
+      const next = muted.has(id) ? target : 0;
+      if (state) state.target = next;
+      else if (next > 0)
+        this._clipSuppression.set(id, { current: 0, target: next });
+    }
+  }
+
+  private _advanceClipSuppression(
+    id: ProceduralAnimationLayerId,
+    deltaSec: number,
+  ): number {
+    const state = this._clipSuppression.get(id);
+    if (!state) return 0;
+    const step = deltaSec / LAYER_ACTIVATION_BLEND_SEC;
+    state.current =
+      state.current < state.target
+        ? Math.min(state.target, state.current + step)
+        : Math.max(state.target, state.current - step);
+    if (state.current <= 0 && state.target <= 0) {
+      this._clipSuppression.delete(id);
+      return 0;
+    }
+    return state.current;
   }
 
   setLayerEnabled(id: ProceduralAnimationLayerId, enabled: boolean): boolean {
@@ -376,6 +430,7 @@ export class ProceduralAnimationController {
     }
     this._layers.clear();
     this._layerActivationStates.clear();
+    this._clipSuppression.clear();
     this._plannerPolicyLayerIds.clear();
     this._vrm = null;
     this._isDisposed = true;

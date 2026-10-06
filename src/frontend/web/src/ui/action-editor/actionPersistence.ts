@@ -3,6 +3,7 @@ import { parseAnimaPoseClip } from "@/lib/avatar/poses/animaPoseClip";
 import {
   buildAnimaPoseClipFromPoseCreatorDraft,
   createPoseCreatorClipDraftFromAnimaPoseClip,
+  serializePoseCreatorClipLayerMutes,
   type PoseCreatorClipDraft,
 } from "@/ui/pose-creator/poseCreatorClipAuthoring";
 import { pruneUnusedDependencies } from "./actionDependencies";
@@ -30,6 +31,7 @@ export function actionSequenceFromTimelineDraft(
       // actual animaPoseClip schema after removing editor-only draft fields.
       const serializedDraft = {
         ...structuredClone(draft.extraFields),
+        ...serializePoseCreatorClipLayerMutes(draft),
         schema: "animaPoseClip/1.0",
         id: draft.id.trim(),
         name: draft.name.trim() || "New Clip",

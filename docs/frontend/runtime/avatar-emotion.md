@@ -310,6 +310,11 @@ Current expression presets:
 - `gloom -> sad`
 - `neutral -> neutral`
 
+While a Gesture clip that keys emotion presets plays, its keyed expressions
+replace this face, blended by the clip's fade weight (see Pose and clip JSON
+artifacts in `avatar-animation.md`). The emotion state itself is unchanged and
+returns as the clip fades out.
+
 Relevant files:
 
 - `src/frontend/web/src/lib/avatar/emotionExpressionPresets.ts`

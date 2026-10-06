@@ -57,9 +57,11 @@ function avatarHarness(automatic = true) {
   } as never;
   const clearOffsets = vi.fn();
   const updateProcedural = vi.fn();
+  const setLayerMutes = vi.fn();
   avatar.proceduralAnimationController = {
     clearActiveOffsets: clearOffsets,
     update: updateProcedural,
+    setClipLayerMutes: setLayerMutes,
   } as never;
   avatar.setAutomaticAnimationPlaybackEnabled(automatic);
   avatar.applyPose("relaxedRest");
@@ -87,6 +89,7 @@ function avatarHarness(automatic = true) {
     setPose,
     clearOffsets,
     updateProcedural,
+    setLayerMutes,
     applyScene,
     clearScene,
   };
@@ -127,6 +130,25 @@ describe.each([true, false])(
     );
   },
 );
+
+describe("Avatar clip layer mutes", () => {
+  it("forwards a playing clip's mutes each frame and releases them after stop", () => {
+    const h = avatarHarness();
+    h.avatar.playAnimaPoseClip({
+      ...eventClip,
+      id: "muted",
+      mutedProceduralLayers: ["sway", "cursorLookAt"],
+    });
+    h.avatar.update(0.25);
+    expect(h.setLayerMutes).toHaveBeenLastCalledWith(
+      ["sway", "cursorLookAt"],
+      1,
+    );
+    h.avatar.stopClip();
+    h.avatar.update(0.1);
+    expect(h.setLayerMutes).toHaveBeenLastCalledWith([], 0);
+  });
+});
 
 describe("Avatar body-clip coordination", () => {
   it("continues an automatic rest transition while an effect-only clip runs", () => {

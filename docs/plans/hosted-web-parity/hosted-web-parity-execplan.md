@@ -95,7 +95,7 @@ contract instead of maintaining a second truth.
 - [x] 2026-10-05 [A2 / #274](https://github.com/raymond-van/animama/issues/274): corrected portable preference merger committed at `6a150fd45d5e215e7f134010b53b9c62e4316ede`; targeted independent review #3 and clean installed-wheel gate pass. Repair rounds used: 2 of 2. Neutral services are ready for isolated consumer C2 repair and A4.
 - [x] 2026-10-05 [A3 / #275](https://github.com/raymond-van/animama/issues/275): committed at `e8ef7768d2edcfc7cef58c508bf3fb66ba0d2302`; targeted independent review #2 passes after repair 1 of 2 for chat cache partitioning and durable recovery cleanup.
 - [x] 2026-10-05 [A4 / #276](https://github.com/raymond-van/animama/issues/276): public retained-workflow and resource-lifetime engineering passes independent analysis/checks #1, repairs 0 of 2. Physical capture/heard output and actual hosted/provider/device acceptance remain explicit C5/C7 gates; this is not a declaration of delivered voice parity.
-- [ ] 2026-10-05 [A5 / #277](https://github.com/raymond-van/animama/issues/277): targeted source review #2 PASS after combined repair 1 of 2 at A4 HEAD `8b91bbf3faf45eec85e6cdd7964fdc423e48c0a0` plus 51 source paths. A reviewed source checkpoint enables the clean producer; clean artifacts, local production comparison and two meaningful selections remain completion gates.
+- [ ] 2026-10-05 [A5 / #277](https://github.com/raymond-van/animama/issues/277): source review #2 PASS after repair 1 of 2; first clean set at `8b09e7ff939201e0f48c6c2db8b886f72a0186c0`, isolated consumers and same-source production observations pass independent checks. Reviewed main Gesture integration and affected checks pass; clean second set and genuine A/B/open-tab/rollback remain completion gates.
 - [ ] 2026-10-05 [A6 / #278](https://github.com/raymond-van/animama/issues/278): planned; depends on A5/all public gates; coordinate with C6 without requiring a future main pin.
 
 ## Surprises & Discoveries
@@ -886,6 +886,60 @@ changes from main for a second meaningful clean set. Verify saved normal and
 effect-only clips, old-tab resources, upgrade and rollback across that pair.
 Preserve the explicit older app's opaque layer-mute playback limitation and
 all separate physical/provider/hosted/publication gates.
+
+#### Clean artifact A and second-source integration
+
+The reviewed provisional source commit is `8b09e7ff939201e0f48c6c2db8b886f72a0186c0`,
+tree `9d09c947a9bce79a1caef0176dc67571f4d2e331`. Its clean format2 set has
+manifest SHA `522285ff243d1b4d7cb01c105731ec3a070ecf53bf54888d65377729ae1c6d79`.
+The 169,601,194-byte application archive hashes to
+`4a1de89b0294c8064c528ceabf84075099a96d0722688ea2673721237e2bb486`;
+the actually installed backend wheel hashes to
+`89d02d3a3e7ea5f4b4b14589da85bd52343426444200392a7efffcb4f1a43ce5`.
+Independent checks verify all 3,378 tracked inputs, 179 hydrated LFS objects,
+seven payloads, 311 static files, the closed Included seed and installed wheel
+RECORD. All 504 implementation payloads equal the corrected A2 wheel. The
+copied format1 baseline comparison passes; it is not an app rollback point.
+
+A separate exact-A browser run passes retained deep links, real VRM loading,
+Pocket worker/model initialization, nonzero PCM through the real audio worklet,
+normal/effect-only clip reopen/export and owner cleanup. The canonical validator's
+controlled comment-variant run remains explicitly separate from the genuine
+clean-revision compatibility gate. No source modules, installation bootstrap,
+paid-provider calls or external requests are used by the emitted consumer.
+
+The task-owned production stack at `http://localhost:8360` captures the same
+held clean source with all 482 served files recorded. Cold shell/first avatar/
+voice-ready observations are 785/1,341/3,125 ms for exact hosted A and
+929/1,561/3,216 ms locally. The comparison preserves cold/warm raw observations,
+CDP heap checkpoints, sampled summed browser RSS and cleanup evidence. Local
+Library population, different synthetic replies and cleanup actions, Docker
+Node22/Python3.12.15 versus producer Node24/Python3.12.13, and headless SwiftShader
+limit performance conclusions. Declared body bytes, page encoded traffic and
+gzip inventories remain distinct. This is measured comparison evidence, not a
+production capacity or physical fidelity claim. Literal initial resources are
+1,295,417 gzip bytes; all 215 addressed core JS/CSS files are 2,269,412 gzip bytes.
+
+Failed measurement-driver attempts remain recorded. Final attempt3 saves
+recovery state before mutation, deletes its exact Anima/chat with GET404 and
+restores preferences and selected Anima to that recorded baseline; the catalog
+is unchanged. Earlier attempt2 omitted a durable original selected-Anima value.
+Its recovery removes only ledger-owned records and conditionally clears their
+dangling selection; exact restoration of the pre-A5 task-stack selection is
+unproven. No unrelated valid selection or record was changed during recovery.
+
+Main `b9a1e588ac820e0b50e1622c914668a69650275a` supplies a meaningful second
+source: actual runtime layer-mute semantics and Gesture authoring. The three
+predicted conflicts use complete reviewed main implementations. Preserve the
+injected client/session cache keys, combine the failed-hydration guard and retain
+hosted build mode. The 59-path merge boundary and seven sealed inputs are stable.
+Affected checks pass 153 Vitest tests, frontend/desktop typing, one disposable
+PostgreSQL save/export regression, the two-Avatar Chromium render, 45 scoped
+frontend formatter paths, 38 lint paths, Python lint/format and whitespace.
+Initial package-build race, protected-cache invocation and overbroad formatting
+checks remain in history; corrected checks require no source repair. Independent
+integration analysis and checks pass; the reviewed clean merge checkpoint enables
+B production. A5 remains incomplete, with repair rounds used **1 of 2**.
 
 ### Phase 6: Complete public acceptance and hand off for hosted adoption (A6)
 
