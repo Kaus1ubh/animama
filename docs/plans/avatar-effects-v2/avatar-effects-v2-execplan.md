@@ -1,15 +1,16 @@
 # Deliver Avatar Effects v2 and the unified effects creator (Plan 1, platform)
 
-Source agreement: [avatar-effects-v2-spec.md](avatar-effects-v2-spec.md), agreed
-draft. On 2026-10-06 the owner accepted its proposals, added the template picker
-and effect-intent requirements, and asked for this plan.
-Authorized scope: planning only. Implementation starts when the owner approves
-this plan and authorizes a phase range.
+Source agreement: [#298](https://github.com/raymond-van/animama/issues/298)
+(snapshot: [avatar-effects-v2-spec.md](avatar-effects-v2-spec.md)). On 2026-10-06
+the owner accepted its proposals, added the template picker and effect-intent
+requirements, and asked for this plan.
+Authorized scope: all phases, P1–P11 (owner, 2026-10-06). Explicit gates G1–G5
+still apply.
 Starting revision: `9abfc771` (`origin/main`).
 Branch: `feat/avatar-effects-v2`, in a dedicated task worktree. One branch and
 one PR for this plan.
-Issues: the parent issue and phase issues (P1–P11) are created by
-`workspace-setup`. Related: #297 (deferred Particle and Scene work), #282 and #289
+Issues: parent #298; phases P1 #299, P2 #300, P3 #301, P4 #302, P5 #303,
+P6 #304, P7 #305, P8 #306, P9 #307, P10 #308, P11 #309. Related: #297 (deferred Particle and Scene work), #282 and #289
 (track-based clips and the motion preview tool), #291 (wave 2 reactions).
 
 ## Purpose and context
@@ -64,8 +65,9 @@ work proceeds.
 ## Progress
 
 - [x] Spec agreed (2026-10-06); repository surveyed; plan drafted.
-- [ ] Owner review of this plan and authorization of a phase range.
-- [ ] Workspace: parent issue published and read back; phase issues created.
+- [x] Owner review of this plan; P1–P11 authorized (2026-10-06).
+- [x] Workspace: parent #298 published and read back; phase issues #299–#309
+      created as sub-issues with dependencies (2026-10-06).
 - [ ] Phase 1: Definition fixes and Save validation.
 - [ ] Phase 2: Effect render harness, baselines and thumbnail capture.
 - [ ] Phase 3: Creator prototype. Gate G1.

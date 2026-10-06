@@ -8,8 +8,8 @@ two-plan delivery and the decisions listed under
 template picker (R7) and effect-intent (R14, R15) requirements, and asked for
 the Plan 1 ExecPlan. That request accepts this specification as the planning
 basis.
-Authoritative source: this draft, until `workspace-setup` publishes it to a
-parent issue.
+Authoritative source: [#298](https://github.com/raymond-van/animama/issues/298).
+This file is a snapshot of the issue as published on 2026-10-06T21:35Z.
 Related: [#297](https://github.com/raymond-van/animama/issues/297) (deferred
 Particle and Scene Effect work), [#282](https://github.com/raymond-van/animama/issues/282)
 (track-based Anima Pose Clips), [#289](https://github.com/raymond-van/animama/issues/289)
@@ -527,14 +527,14 @@ Open:
 
 ## Spec
 
-This document, until `workspace-setup` publishes it to a parent issue.
+[#298](https://github.com/raymond-van/animama/issues/298); this file is its
+2026-10-06 snapshot.
 
 ## ExecPlan
 
 Plan 1 (R1–R11): [avatar-effects-v2-execplan.md](avatar-effects-v2-execplan.md),
-awaiting owner review. Plan 2 (R12–R16) is planned after Plan 1 merges.
+approved; the owner authorized P1–P11 on 2026-10-06. Plan 2 (R12–R16) is planned after Plan 1 merges.
 
 ## Delivery links
 
-Follow-up: [#297](https://github.com/raymond-van/animama/issues/297). Parent,
-phase issues and PRs to be added at publication.
+Parent: #298. Plan 1 phase issues: #299 (P1) – #309 (P11). Follow-up: #297.
