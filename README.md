@@ -50,6 +50,7 @@ Desktop development and packaging use the separate
 
 ## Documentation and checks
 
+- [User guides](https://docs.animama.ai/): desktop setup, self-hosting and troubleshooting.
 - [Development lifecycle](SDLC.md): issues, planning, validation, review and merge.
 - [Specifications](SPECS.md) and [execution plans](PLANS.md): repository-owned planning and evidence.
 - [Shared language](GLOSSARY.md): common domain meanings for humans and agents.

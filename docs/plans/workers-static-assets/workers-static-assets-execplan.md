@@ -17,9 +17,11 @@ This plan does not create a competing spec.
 
 The owner invoked `$implement` for both reviewed plans on 2026-10-06, accepting
 the full-revert boundary and authorizing implementation/tracker/PR work within
-its dependencies. The source-custody gate is still pending; no source removal
-may begin before accepted destination merge/CI evidence. Provider actions and
-exact-candidate merges retain their separate approval requirements.
+its dependencies. On 2026-10-06 the owner explicitly approved the destination
+copy's merge and directed the complete PR #283 revert afterward. That merge and
+its actual full main CI now pass, releasing source removal under that instruction
+and the operator receipt below. Provider actions and the cleanup candidate's
+exact-head merge retain their separate approval requirements.
 
 ## Purpose and context
 
@@ -41,7 +43,11 @@ The dependency is an operator readiness receipt, never a private checkout,
 source import, sibling build input or inaccessible URL.
 
 Starting application/source baseline:
-`10216cd36251b8e011557250f3c4951e8bd39a69`, PR #283's merge. Local planning commit
+`10216cd36251b8e011557250f3c4951e8bd39a69`, PR #283's merge. Current main is
+`dfd8bb15a2c4f09eaffc527803fe2878fd414b11`; its unrelated PR #288 desktop fix
+must remain. The existing task branch merged that main without rewriting its
+planning history and starts this inverse at `6d35989efa77f9c883d307e6e2278605fac069a0`.
+Local planning commit
 `c4245b1284ffc92f3d0156e22863e1a6ad546952` records the former hosting-only proposal;
 it is not implementation or provider acceptance. Reuse assigned task branch
 `chore/workers-static-assets`, verify checkout/HEAD/dirty state on resumption,
@@ -49,15 +55,18 @@ and keep the primary checkout on `main`. No Compose stack is required.
 
 ## Progress
 
-- [ ] (2026-10-06) Phase 1: authorized full merge revert and root docs link;
-  setup complete, waiting for accepted destination merge/CI/source-custody receipt.
+- [ ] (2026-10-06) Phase 1: destination source custody and actual full main CI
+  accepted through the owner's merge-then-revert instruction; full inverse and
+  root link implemented. All seven scoped local checks and independent phase
+  review pass without findings/repairs. Integration review, actual full PR CI,
+  exact cleanup merge and post-merge acceptance remain.
 
 Planning review for the earlier selective-removal proposal passed after one
 targeted repair round. The full-revert amendment passed its independent
 affected-boundary recheck; owner plan review is complete through the explicit
-implementation request. Implementation phase and
-integration reviews have not started. Source removal, cleanup merge, post-merge
-acceptance and any later hosting work are unperformed.
+implementation request. Initial implementation phase review passes with 0 of 2
+repairs used; final integration review is next. Cleanup merge, post-merge
+acceptance and later hosting work remain unperformed.
 
 ## Surprises & Discoveries
 
@@ -68,9 +77,10 @@ acceptance and any later hosting work are unperformed.
   not mutate the manually published Pages deployments or retained archives.
   The earlier selective-removal rationale confused current-tree retention with
   preservation of history; neither a link stub nor that old ignore is required.
-- Read-only GitHub inventory on 2026-10-06 confirms `main` still at `10216cd3`;
-  there are no later main commits to the site or CI paths. Its first parent is
-  `b9a1e588ac820e0b50e1622c914668a69650275a`. Refresh before implementation.
+- Refreshed Git inventory on 2026-10-06 finds main at `dfd8bb15`, including the
+  unrelated desktop packaging fix in PR #288. All 23 PR #283 paths still exactly
+  match their `10216cd3` blobs; the complete inverse has no later-path collision.
+  Its first parent is `b9a1e588ac820e0b50e1622c914668a69650275a`.
 - `docs/user` builds independently with Node 24.15.0, pnpm 10.33.0 and VitePress
   1.6.4. Its package includes selected Markdown, theme, build/check/test/preview
   scripts, its own lockfile, output guards and readiness flags. No Worker config
@@ -95,6 +105,7 @@ acceptance and any later hosting work are unperformed.
 | 2026-10-06 | Agent proposal, superseded | Selective source/CI removal with a link stub and retained original plans/ignore. |
 | 2026-10-06 | Revised proposal following owner question | After verified destination merge, revert all of PR #283, including its original plan/spec and ignore addition; add only a new root README published-docs link. Git/PR history and separately retained Pages evidence provide historical recovery. |
 | 2026-10-06 | Owner, accepted execution | Invoke `$implement` both reviewed plans; full-revert scope and tracker/PR work accepted, with source-custody and separate merge/provider gates preserved. |
+| 2026-10-06 | Owner, accepted continuation | Approve the destination-copy merge, then direct the full Animama #283 revert. Actual full destination main CI passed before source removal; separate cleanup-head merge and post-merge acceptance still apply. |
 
 The implementation request accepts the full-revert boundary, including removal
 of the original tracked spec/plan and task-record ignore. That deliberate removal
@@ -134,6 +145,97 @@ If byte equality, independent builds, destination merge or required CI is missin
 keep Animama's source intact. Resolve the specific failure before cleanup rather
 than changing the gate or treating a live site alone as maintained source custody.
 
+## Accepted source-custody receipt
+
+2026-10-06, operator attestation before source removal: the owner approved the
+reviewed destination copy's ordinary merge and explicitly directed the full
+Animama PR #283 revert afterward. All conditional source-custody checks below
+passed before the inverse. This record is self-contained and requires no private
+checkout, service account, source import or inaccessible link.
+
+- Complete maintained source: all 16 package files transferred. Fifteen blobs are
+  identical; only the maintainer README's relocated operator references changed,
+  with no reader, generator/config, lockfile or seven output-guard changes.
+  Opaque reviewed candidate identity is `69eff39cfca8552c4b26aaac703d9534c0e3d5a3`;
+  accepted destination main identity is `968fbf0f54f3176d32799581f004fb5aa8e6797f`.
+  Candidate and main trees are identical; no Worker hosting controls were added.
+- Three independent frozen installs/builds: original source extracted from
+  `10216cd3`, the extracted destination package and the maintained package each
+  used Node `24.15.0`, pnpm `10.33.0` and VitePress `1.6.4`. From each package,
+  `pnpm --ignore-workspace install --frozen-lockfile` with its own isolated store,
+  then `pnpm --ignore-workspace test`, `build`, `check` and `format:check` all
+  exited 0. Each ran seven guards and audited five HTML files/108 links. Clean
+  environments supplied no provider credentials, sibling source or application
+  artifacts; installed dependencies were not copied.
+- Publication fidelity: each build matches all 33 relative paths, lengths and
+  SHA-256 values below, totaling 999,246 bytes. Archive SHA-256 is
+  `2081582957e7a6473c40182321e5a8fe8a64279f47211c0cc84f9a16b494503f`.
+  Reviewed inventory content digest is
+  `fa89a2c19b9bd9fd1839f92d7f67238f33d52b82309df3e7c32529e8a64d95e7`;
+  its serialized JSON file digest is
+  `2053cdedaf83176c7f9738e9d4259a33c9e2255f042a83532b96fb1421025df4`.
+  Those distinct identities and every archive byte were reverified.
+- Actual CI: the exact source-copy candidate's push and PR runs passed both
+  independent static-doc checks and the full service foundation. The actual
+  destination main-push run completed successfully at 18:38:31 UTC, executing
+  both jobs, including frozen docs installation/test/build/audit/format and the
+  foundation's build/static/Python/hosted-schema/composition/identity/browser
+  checks. No reduction, reuse, waiver or old publication run supplied acceptance.
+  Bounded independent import review passed after one repair; scoped integration
+  passed without repairs. Full run metadata and artifacts are retained by the
+  operator; this public attestation does not expose private records.
+- Continuing publication: a fresh read-only Pages probe at 18:34:01 UTC passed
+  38 checks: all 33 docs files, three landing entry/asset files and each site's
+  true unknown-route 404. The four guide routes and assets remain available at
+  `https://docs.animama.ai/`. No upload, DNS/domain, analytics or retirement action
+  occurred. The accepted docs Pages deployment remains
+  `8021c42d-3d13-41da-a078-8f92118ff70e`, with archives retained separately.
+- Limits: these HTTP checks observed no cookies and no RUM beacon. They establish
+  Pages bytes/availability, not new Workers behavior, full browser privacy,
+  canonical new-tab navigation or correlated analytics event delivery. The prior
+  `ERR_BLOCKED_BY_CLIENT` navigation limitation and unverified event delivery
+  remain explicit requirements of the later hosting migration.
+
+The owner's merge-then-revert instruction accepts continuation once these checks
+pass; the cleanup head's separate merge approval and actual post-merge acceptance
+remain outstanding. This attestation is an operator readiness dependency only.
+
+| Publication file | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `404.html` | 2097 | `4d5e76085e9a552d1949718d0555d3b7a06e378402cbc68703afeaddb135c434` |
+| `assets/app.Br4IF3YI.js` | 1352 | `526ef3d0d5c918331fc719f08e5b64a8966aafe10fbf1bf2dc21341055e66a31` |
+| `assets/chunks/framework.C4zpkcTP.js` | 104615 | `e7a84b125edfdceca50c01abfd8bebf000d8e7c62c5885f79141cf552604eae4` |
+| `assets/chunks/theme.Be-zRBiP.js` | 53214 | `ec625e2b129f861ba6a8ebbb8f0318f02444e9a774e2269da8013fd10bb76752` |
+| `assets/desktop.md.BDntYtf9.js` | 4882 | `6a856bf4a2de56836be96bde5a790102e95f0a3be2b13a71a276a053c0828c69` |
+| `assets/desktop.md.BDntYtf9.lean.js` | 391 | `61b217c63df38a8e9817b70c45d2c83bb07765dd35dca8bf02152210a53bc00c` |
+| `assets/index.md.D3Uq1osL.js` | 2212 | `b0f3bb5f4955c392b027b62a0316b48cb7c6fbbb66f825bfa5143a8c5f5fb160` |
+| `assets/index.md.D3Uq1osL.lean.js` | 373 | `4cd737a7c3fdbb12f7570f6cf445a9ce6cf24efc17b6781cc4203fa1c83a6578` |
+| `assets/inter-italic-cyrillic-ext.r48I6akx.woff2` | 43112 | `3f2ea09e148441f83171eae388d00da780b24b9bd155c141d0b5fbb0d803871d` |
+| `assets/inter-italic-cyrillic.By2_1cv3.woff2` | 31300 | `2a1c3126375078cd85d262aad635ac9d9ff9ac2c18b8143b2d21d540f9cd3dfb` |
+| `assets/inter-italic-greek-ext.1u6EdAuj.woff2` | 17404 | `bae39b1cc79168c9ac47f120c3eaa82cb634dc17e457cdd484725d8c7a60ab3e` |
+| `assets/inter-italic-greek.DJ8dCoTZ.woff2` | 32564 | `138cf731e5a284e262c576f765a6cb8f58045cb798d16693091e2251a0f63559` |
+| `assets/inter-italic-latin-ext.CN1xVJS-.woff2` | 120840 | `3e166de9aeff2d6a3d13c9228e03f7ff76369f5fa95fe0ab1d1d44235d5516aa` |
+| `assets/inter-italic-latin.C2AdPX0b.woff2` | 74784 | `3570e65005ccd9ecd87c6ccc7c713fc474a80ff7c3abbb1063f0e8ab4f8dc891` |
+| `assets/inter-italic-vietnamese.BSbpV94h.woff2` | 14884 | `a0aae13c473b99b63f3c0b8b692b3b2a4023145171aa86964f268235573e4ce5` |
+| `assets/inter-roman-cyrillic-ext.BBPuwvHQ.woff2` | 40488 | `a49e47fb34f94acf8ceb57603cb2fc4c01861527a9a304de3a0236b7b67da2c6` |
+| `assets/inter-roman-cyrillic.C5lxZ8CY.woff2` | 29164 | `d888610b6342164a592e59a4ce91a3755126a6ca2ee4e0d75c8e915eebaeed68` |
+| `assets/inter-roman-greek-ext.CqjqNYQ-.woff2` | 16272 | `7b7519f21aff6b3a011099999cec8a9d4c99173a8c9adeecffb0bd032fc49f69` |
+| `assets/inter-roman-greek.BBVDIX6e.woff2` | 29920 | `1a1997dfdcd7a9e0d2b26944b4b7fd1f1b2fde91bb405cb7a5870f93b45d2e05` |
+| `assets/inter-roman-latin-ext.4ZJIpNVo.woff2` | 110160 | `539d139f99942e93bead7bbcd18bc00f5a73932eb3a8997367f2b79f4f75bc60` |
+| `assets/inter-roman-latin.Di8DUHzh.woff2` | 67792 | `f7ab715caa2c78facb4334b211c81ee66f037cf9c99ca3f24acd543e84a93278` |
+| `assets/inter-roman-vietnamese.BjW4sHH5.woff2` | 14072 | `b315417b28ce251a54000a824d73c5af36798a88b3c05594f28dada0cbffab5a` |
+| `assets/self-host.md.DMl_F7N_.js` | 8366 | `ffd1666a2e63db48b4db03a2ee43e152d785eebdd7f0388ba3a6b41b72fd02a9` |
+| `assets/self-host.md.DMl_F7N_.lean.js` | 400 | `c60f37f86154d13686d2d691f9f2164efa3bda8142bf90569dd190ed4e0f9016` |
+| `assets/style.C04r2E4u.css` | 108435 | `d80e316837b6a1427f0bfca284c848ce05bb63ee8a9866357f101f2c6e6d3eb9` |
+| `assets/troubleshooting.md.BGLMDK8f.js` | 6967 | `fcdaf1cabda34d233bd8142c5aeeaf048ebd72783d68b6168d384cb17046bfd6` |
+| `assets/troubleshooting.md.BGLMDK8f.lean.js` | 412 | `32030407e30c455d82fccca51b2a72a8c77d66d6a5124b327b8f1ed2eec255fa` |
+| `desktop.html` | 15036 | `b73a34e5e65382847253f59980173a2d783d0a3035b1c8038fc899e98822684c` |
+| `hashmap.json` | 106 | `61e86effe6b473ceaf4db4f1be86240762b1d70ec0c93eb69dc4b1425dc15069` |
+| `index.html` | 12167 | `01dfb732574e40b88b3761b8be2d973f67250e1f81f12971f0db4ec3131e9653` |
+| `self-host.html` | 18536 | `b80edba41f366e2241f8d580baa6e66b0ff99c256fb6f6e8e88bd37ed1823f99` |
+| `troubleshooting.html` | 16929 | `0d5b5ea6801dd1bf113f7b7a75ba2d137e537a37b496418f42a2e06310f4aa22` |
+| `vp-icons.css` | 0 | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
+
 ## Phased implementation
 
 ### Phase 1: Revert the original site PR after verified source handoff
@@ -154,10 +256,14 @@ provider/manual gates. Record the operator receipt and source revisions here.
 
 Setup on 2026-10-06 created/read back public parent #285 and its bounded
 [assignment #286](https://github.com/raymond-van/animama/issues/286). Reuse the
-assigned task worktree/branch at `608e670e`; primary main remains clean at the
-original source merge. Source files, CI and publication remain intact. No local
-stack is required. The destination custodian is currently implementing its
-source copy; no accepted merged-copy receipt exists yet.
+assigned task worktree/branch, initially at `608e670e` and now at `6d35989e`
+after merging current main `dfd8bb15`. Primary main remains clean; no local
+stack is required. The destination copy is merged with actual full main CI
+success and the source-custody receipt below. Neither checkout contains ignored
+docs output, dependencies, cache or a docs-first-run record to relocate. Existing
+primary environment/stack files were inspected only for existence/mode and left
+untouched. Frozen Python 3.12.13 server dependencies were installed in this task's
+own environment; no sibling environment or installed dependency tree was copied.
 
 1. Reinspect PR #283's full first-parent diff, current paths and later changes.
    Inventory ignored local output/cache and `.animama-docs-first-run.env` without
@@ -208,23 +314,34 @@ the root README links the published docs and all PR #283 changes are reversed. N
 retired site steps/requirements remain active, contributor/full validation is
 preserved, public records are self-contained, and exact-source checks/reviews,
 owner merge and post-merge acceptance pass. Published docs and retained Pages
-resources remain unchanged. Issue/commit/evidence: pending authorized setup;
-proposed phase commit `chore(docs)[p1]: revert retired reader site ownership`.
+resources remain unchanged. Owning issues are #285/#286; verified implementation
+is ready for phase commit `chore(docs)[p1]: revert retired reader site ownership`.
 Record the original merge SHA and mainline parent in the commit body.
 
 #### Code Review #1 Findings
 
-Not run; phase repair rounds used 0 of 2. Review exact source/baseline and
-tracked/untracked boundary, exact full inverse, preserved contributor/full CI,
-root link and revision-addressable history
-contracts and the operator receipt. Record stable IDs, evidence and impact.
-One full initial review and at most two repairs; supported blockers stop work.
+2026-10-06: independent analysis and read-only checks pass with no required or
+advisory findings. Reviewed HEAD `6d35989efa77f9c883d307e6e2278605fac069a0`
+plus all staged inverse changes and unstaged root README/living plan, against
+main `dfd8bb15a2c4f09eaffc527803fe2878fd414b11`: 25 paths, no untracked source.
+Both reviewers independently verify all 23 inverse paths in index and worktree,
+five exact first-parent restorations, eighteen additions removed and four
+unrelated desktop paths preserved. Contributor `docs-tests`, full/frontend
+requirements, conservative full selection and the final fail-closed guard remain.
+The root link, public custody inventory, history and ordered source recovery pass.
+
+Source manifest excluding this living plan is SHA-256
+`3fb1d1096c0056986e1cab18b0855a8488cce96598f6f7fb6992e4206b66d211`
+(path-ordered file/bytes/SHA-256 entries; deleted paths use null bytes/hash;
+compact sorted-key JSON). The reviewed plan hash before this result-only update
+is `f71825541145c58bdcfd8e1f378e2e69a6c4e0fd3b308d0886c993e6e82e002c`.
+Actual full PR CI, exact-head merge and post-merge acceptance remain separate.
 
 #### Code Review #1 Revisions
 
-Not run. Record accepted/rejected/deferred dispositions, minimal fixes, files,
-affected checks and remaining repair budget. Preserve counts on resumption;
-reviews #2/#3 target accepted fixes and their regressions.
+No findings or repairs. Phase repair usage is 0 of 2; no source changes followed
+the review, only these delivery-result records. Preserve this count on resumption;
+any later supported repair receives a targeted recheck.
 
 ## Validation and acceptance
 
@@ -239,6 +356,18 @@ bash scripts/audit-typed-content.sh
 uv run --no-sync python scripts/repository-boundary/check-python-imports.py
 git diff --check
 ```
+
+2026-10-06 local execution: all seven commands above exited 0 in the frozen
+task-local Python 3.12.13 environment. CI-policy discovery ran 95 tests;
+synthetic-document/accountless tests ran 20, with existing FastAPI lifespan
+deprecation warnings. Ruff lint and read-only format pass. Typed-content audit
+passes; Python import audit reports zero forbidden edges, 268 reachable modules
+and 207 shared modules. Whitespace passes for the complete baseline diff.
+Exact inverse/retained-path assertions also pass. No application/frontend suite
+was rerun locally for this mechanical inverse; actual full hosted Validation
+remains required. The TDD exception uses the existing conservative CI/contributor
+guards and exact Git inverse proof, without artificial implementation-mirroring
+tests. No local stack or provider operation was needed.
 
 Expected: commands exit 0; policy tests retain conservative full selection and
 fail-closed required guards. Search active workflow/policy/current guidance for
@@ -393,9 +522,11 @@ self-contained acceptance and source-custody gates. The assigned branch remains
 The primary checkout remains clean on `main` at the original merge. No source,
 CI, application, provider, publication or merge change was made here.
 
-The destination maintainer has prepared the complete site copy and independently
-verified three package builds against all 33 original archive files. Local
-browser/HTTP evidence and bounded import review pass. Its actual candidate CI,
-separate merge, actual main CI and owner-accepted durable source receipt remain
-pending; this local evidence does not release Animama's source-removal gate.
-Phase 1 and final implementation integration remain unstarted at 0 of 2 repairs.
+The destination maintainer independently verified three complete package builds
+against all 33 original archive files. Local browser/HTTP evidence and bounded
+import review pass. Actual full candidate and main CI passed, and the owner
+approved the exact source-copy merge followed by this full revert. The receipt
+below releases source removal, while the cleanup candidate's exact merge and
+actual post-merge acceptance remain separate. The complete inverse and root link
+now pass all seven scoped local checks and independent phase analysis/checks.
+Phase review used 0 of 2 repairs; final integration remains next at 0 of 2.

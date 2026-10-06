@@ -9,7 +9,6 @@ node_modules/
 **/.env.*
 !**/.env.example
 .animama-stack.env
-.animama-docs-first-run.env
 # Signing keys and certificates stay outside the repository.
 *.p12
 *.p8
