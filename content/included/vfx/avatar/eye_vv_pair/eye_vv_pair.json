@@ -14,10 +14,6 @@
     "disableTargetRoles": [
       "eye_highlight"
     ],
-    "lifetime": {
-      "kind": "duration",
-      "runEndBufferSec": 5
-    },
     "image": "eye_vv.png"
   },
   "files": [

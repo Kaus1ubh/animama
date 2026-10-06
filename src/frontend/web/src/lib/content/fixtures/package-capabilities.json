@@ -2,18 +2,103 @@
   "effects": [
     {
       "kind": "avatar_effect",
-      "name": "Angry",
+      "name": "Eye hover",
+      "definition": {
+        "schema": "animama/avatar-effect/1",
+        "kind": "hover",
+        "region": "eyes",
+        "transform": {
+          "offset": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "scale": {
+            "x": 0.6,
+            "y": 0.6,
+            "z": 1
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "hoverKind": "eye_hover",
+        "side": "right",
+        "requiresMirror": true,
+        "forceBlink": true,
+        "autoDisableEyeMaterials": true,
+        "disableTargetRoles": ["eye_highlight"],
+        "skinBackdrop": true,
+        "faceCleanup": true,
+        "image": "eye.png"
+      },
+      "files": [
+        {
+          "path": "eye.png",
+          "role": "image"
+        }
+      ]
+    },
+    {
+      "kind": "avatar_effect",
+      "name": "Mouth hover",
+      "definition": {
+        "schema": "animama/avatar-effect/1",
+        "kind": "hover",
+        "region": "mouth",
+        "transform": {
+          "offset": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "hoverKind": "mouth_hover",
+        "skinBackdrop": true,
+        "faceCleanup": false,
+        "image": "mouth.png"
+      },
+      "files": [
+        {
+          "path": "mouth.png",
+          "role": "image"
+        }
+      ]
+    },
+    {
+      "kind": "avatar_effect",
+      "name": "Box hover",
       "definition": {
         "schema": "animama/avatar-effect/1",
         "kind": "hover",
         "region": "emote",
-        "hoverKind": "box_hover",
-        "placement": "forehead-left",
         "transform": {
+          "offset": {
+            "x": 0,
+            "y": 0.02,
+            "z": 0
+          },
           "scale": {
             "x": 0.8,
             "y": 0.8,
             "z": 1
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
           }
         },
         "animationConfig": {
@@ -23,10 +108,8 @@
           "rotationAmountTurns": 0.03,
           "rotationDirection": "clockwise"
         },
-        "lifetime": {
-          "kind": "duration",
-          "runEndBufferSec": 5
-        },
+        "hoverKind": "box_hover",
+        "placement": "forehead-left",
         "image": "angry.png"
       },
       "files": [
@@ -38,95 +121,154 @@
     },
     {
       "kind": "avatar_effect",
-      "name": "Eye =",
+      "name": "Face decal single",
       "definition": {
         "schema": "animama/avatar-effect/1",
-        "kind": "hover",
-        "region": "eyes",
-        "hoverKind": "eye_hover",
-        "disableTargetRoles": ["eye_highlight"],
-        "side": "right",
-        "requiresMirror": true,
+        "kind": "face_anchored",
+        "region": "blush",
         "transform": {
+          "offset": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
           "scale": {
-            "x": 0.6,
-            "y": 0.6,
+            "x": 1,
+            "y": 1,
             "z": 1
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
           }
         },
-        "lifetime": {
-          "kind": "duration",
-          "runEndBufferSec": 5
-        },
-        "image": "eye_=_r.png"
+        "anchor": "blush",
+        "pivot": "center",
+        "layout": "single",
+        "side": "left",
+        "requiresMirror": true,
+        "image": "blush.png"
       },
       "files": [
         {
-          "path": "eye_=_r.png",
+          "path": "blush.png",
           "role": "image"
         }
       ]
     },
     {
       "kind": "avatar_effect",
-      "name": "Mouth Hover w",
+      "name": "Face decal span",
       "definition": {
         "schema": "animama/avatar-effect/1",
-        "kind": "hover",
-        "region": "mouth",
-        "hoverKind": "mouth_hover",
-        "skinBackdrop": true,
-        "lifetime": {
-          "kind": "duration",
-          "runEndBufferSec": 5
+        "kind": "face_anchored",
+        "region": "undereye",
+        "transform": {
+          "offset": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 5
+          }
         },
-        "image": "mouth_w.png"
+        "animationConfig": {
+          "driftPerSecond": {
+            "x": 0,
+            "y": 0.08
+          }
+        },
+        "anchor": "undereye",
+        "pivot": "top-center",
+        "layout": "span",
+        "image": "undereye.png"
       },
       "files": [
         {
-          "path": "mouth_w.png",
+          "path": "undereye.png",
           "role": "image"
         }
       ]
     },
     {
       "kind": "avatar_effect",
-      "name": "Mouth w",
+      "name": "Face decal mouth",
       "definition": {
         "schema": "animama/avatar-effect/1",
         "kind": "face_anchored",
         "region": "mouth",
+        "transform": {
+          "offset": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
         "anchor": "mouth",
         "pivot": "center",
-        "image": "mouth_w.png"
+        "faceCleanup": true,
+        "image": "mouth-decal.png"
       },
       "files": [
         {
-          "path": "mouth_w.png",
+          "path": "mouth-decal.png",
           "role": "image"
         }
       ]
     },
     {
       "kind": "avatar_effect",
-      "name": "Star",
+      "name": "Texture",
       "definition": {
         "schema": "animama/avatar-effect/1",
         "kind": "texture",
         "region": "eyes",
-        "targetRole": "eye_iris",
-        "disableTargetRoles": ["eye_highlight"],
-        "assetShape": "single_eye",
-        "applyMode": "overlay",
+        "transform": {
+          "offset": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
         "animationConfig": {
           "pulseScaleMin": 0.8,
           "pulseScaleMax": 1.2,
           "pulseCyclesPerSecond": 1.6
         },
-        "lifetime": {
-          "kind": "duration",
-          "runEndBufferSec": 5
-        },
+        "targetRole": "eye_iris",
+        "disableTargetRoles": ["eye_highlight"],
+        "assetShape": "single_eye",
+        "applyMode": "overlay",
+        "requiresMirror": false,
         "image": "star.png"
       },
       "files": [

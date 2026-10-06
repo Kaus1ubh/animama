@@ -33,11 +33,10 @@ uv run --no-sync python scripts/repository-boundary/check-python-imports.py
 uv build --wheel
 ```
 
-The animation manifest and VFX catalog keep their canonical sources at
-`src/frontend/web/src/assets/vrm/animations/manifest.json` and
-`src/frontend/web/src/assets/effects/vfx/catalog.json`. The generated copies in
-`src/backend/animama/resources/` are packaged into the wheel and frozen runtime;
-shared code accesses them through `importlib.resources`, without walking source
+The animation manifest keeps its canonical source at
+`src/frontend/web/src/assets/vrm/animations/manifest.json`. The generated copy in
+`src/backend/animama/resources/` is packaged into the wheel and frozen runtime;
+shared code accesses it through `importlib.resources`, without walking source
 directories or importing desktop helpers. After changing a canonical JSON file:
 
 ```bash
@@ -955,7 +954,7 @@ server extra and intentionally omits Docling/parser dependencies. The
 `animama-file-worker` target installs the full `docling` package and resolves
 PyTorch through uv's explicit CPU-only `pytorch-cpu` index, avoiding CUDA
 runtime packages in the worker image. Backend images copy the backend package,
-migrations/init SQL, and shared animation/VFX catalogs. The server image also
+migrations/init SQL, and the shared animation manifest. The server image also
 receives the React output from a frontend build stage. The Docker context admits
 those frontend build inputs while excluding desktop assets, installed dependencies
 and private local files. Plain `./reset.sh` can rebuild the backend image through

@@ -12,10 +12,6 @@
     "region": "mouth",
     "hoverKind": "mouth_hover",
     "skinBackdrop": true,
-    "lifetime": {
-      "kind": "duration",
-      "runEndBufferSec": 5
-    },
     "image": "mouth_w.png"
   },
   "files": [

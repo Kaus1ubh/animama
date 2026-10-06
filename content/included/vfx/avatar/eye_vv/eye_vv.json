@@ -16,10 +16,6 @@
     ],
     "side": "right",
     "requiresMirror": true,
-    "lifetime": {
-      "kind": "duration",
-      "runEndBufferSec": 5
-    },
     "image": "eye_vv_right.png"
   },
   "files": [

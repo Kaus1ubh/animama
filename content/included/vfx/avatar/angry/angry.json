@@ -26,10 +26,6 @@
       "rotationAmountTurns": 0.03,
       "rotationDirection": "clockwise"
     },
-    "lifetime": {
-      "kind": "duration",
-      "runEndBufferSec": 5
-    },
     "image": "angry.png"
   },
   "files": [

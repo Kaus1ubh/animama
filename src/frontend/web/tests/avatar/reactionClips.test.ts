@@ -21,11 +21,28 @@ import {
 } from "@/lib/avatar";
 import { PoseController } from "@/lib/avatar";
 import { ReactionClipPlayer } from "@/lib/avatar/reaction/ReactionClipPlayer";
-import { AVATAR_VFX_CATALOG } from "@/lib/avatar/vfx/catalog";
 import { TRACKED_EMOTIONS } from "@/lib/emotion";
 import { getSceneBackgroundLayerPresetIds } from "@/lib/scene-vfx/catalog";
 
 const emotionReactionIntensities = [1, 2, 3] as const;
+const INCLUDED_AVATAR_EFFECT_ALIASES = [
+  "angry",
+  "emote_!",
+  "eye_0",
+  "eye_=",
+  "eye_confused_swirl",
+  "eye_o",
+  "eye_vv",
+  "eye_vv_pair",
+  "mouth_hover_w",
+  "mouth_w",
+  "star",
+  "star3",
+  "texture_black_1",
+  "texture_sick_1",
+  "texture_sick_2",
+  "texture_sick_3",
+];
 const reactionParticleDurations = {
   hearts: 1.8,
   stars: 1.4,
@@ -474,13 +491,9 @@ describe("reaction clip catalog", () => {
 
   it("keeps every reaction clip composable and catalog-referenced", () => {
     const eventCatalogs = {
-      // Angry and Exclamation are descriptor-backed Included items. They
-      // deliberately do not live in the code-shipped fallback registry.
-      avatarVFXIds: [
-        ...AVATAR_VFX_CATALOG.map((entry) => entry.id),
-        "angry",
-        "emote_!",
-      ],
+      // Avatar Effects are descriptor-backed Included items; reactions bind
+      // them by these dependency aliases.
+      avatarVFXIds: INCLUDED_AVATAR_EFFECT_ALIASES,
       sceneBackgroundLayerPresetIds: getSceneBackgroundLayerPresetIds(),
       sceneFocusLinePresetIds: [],
       particleVFXIds: AVATAR_PARTICLE_VFX_CATALOG.map((entry) => entry.id),

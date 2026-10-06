@@ -6,7 +6,6 @@ import type {
   AvatarVFXHoverKind,
   AvatarVFXHoverPlacement,
   AvatarVFXKind,
-  AvatarVFXLifetime,
   AvatarVFXRegion,
   AvatarVFXSide,
   AvatarVFXTargetRole,
@@ -72,7 +71,6 @@ export type AvatarEffectEditorDocument = {
   regionMode: "automatic" | "custom";
   transform: AvatarVFXTransform;
   animationConfig: AvatarVFXAnimationConfig | null;
-  lifetime: AvatarVFXLifetime | null;
   image: AvatarEffectEditorImage | null;
   sound: AvatarEffectEditorSound | null;
   hover: AvatarEffectHoverSettings;

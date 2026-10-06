@@ -13,10 +13,6 @@
     "targetRole": "face_skin",
     "assetShape": "full_face",
     "applyMode": "overlay",
-    "lifetime": {
-      "kind": "turns",
-      "turns": 3
-    },
     "image": "texture_sick_2.png"
   },
   "files": [

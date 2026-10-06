@@ -3,8 +3,7 @@ import { PerspectiveCamera } from "three";
 
 import { Avatar } from "../Avatar";
 import type { AnimaPoseClip } from "../poses/animaPoseClip";
-import { AVATAR_VFX_CATALOG } from "../vfx/catalog";
-import { isHoverVFXEntry } from "../vfx/types";
+import { TEST_HOVER_VFX_ENTRY } from "../vfx/avatarVFXTestFixtures";
 import { ReactionClipPlayer } from "./ReactionClipPlayer";
 
 function deferred<T>() {
@@ -22,7 +21,7 @@ describe("ReactionClipPlayer", () => {
     "keeps the %s loop occurrence owned after an older Avatar load rejects",
     async (replacement) => {
       const active = new Set(["unrelated-effect"]);
-      const effect = AVATAR_VFX_CATALOG.find(isHoverVFXEntry)!;
+      const effect = TEST_HOVER_VFX_ENTRY;
       const first = deferred<typeof effect>();
       const second = deferred<typeof effect>();
       const loadAvatarVFX = vi

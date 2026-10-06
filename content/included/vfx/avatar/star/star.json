@@ -21,10 +21,6 @@
       "pulseScaleMax": 1.2,
       "pulseCyclesPerSecond": 1.6
     },
-    "lifetime": {
-      "kind": "duration",
-      "runEndBufferSec": 5
-    },
     "image": "star.png"
   },
   "files": [

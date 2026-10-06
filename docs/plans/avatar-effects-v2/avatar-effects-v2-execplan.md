@@ -68,7 +68,7 @@ work proceeds.
 - [x] Owner review of this plan; P1–P11 authorized (2026-10-06).
 - [x] Workspace: parent #298 published and read back; phase issues #299–#309
       created as sub-issues with dependencies (2026-10-06).
-- [ ] Phase 1: Definition fixes and Save validation.
+- [x] Phase 1: Definition fixes and Save validation.
 - [ ] Phase 2: Effect render harness, baselines and thumbnail capture.
 - [ ] Phase 3: Creator prototype. Gate G1.
 - [ ] Phase 4: Avatar Effect v2, one definition source, envelope and conversion.
@@ -294,11 +294,66 @@ definition is refused at Save with its field; nothing reads `lifetime`,
 
 #### Phase 1 record
 
-Starting source and issue: to be recorded.
+Starting source and issue: `5e8adf03`, #299.
+
+Delivered:
+
+- Export accepts `forceBlink`, `autoDisableEyeMaterials` and `faceCleanup`
+  (booleans). The package fixtures hold one creator-shaped effect per current
+  kind (eye, mouth and box hover; single, span and mouth decals; texture). A
+  vitest proves each fixture is exactly what the creator writes, and pytest
+  round-trips each through Save → export → import → re-export.
+- `validate_avatar_effect_document` is shared by export and Save. Save refuses an
+  invalid definition with 422
+  `{code: content_invalid, reason: avatar_effect_definition_invalid, message, field}`,
+  where `field` is a JSON path, before any write. The creator's message names the
+  setting.
+- `lifetime` was removed from 15 Included effects (none had `emotions`), along
+  with every frontend reader. Old editor drafts drop a leftover `lifetime`. The
+  backend `/1` validator still accepts `lifetime` until P4; it never accepted
+  `emotions`, which the creator never wrote.
+- The bundled `assets/effects/vfx/catalog.json` was deleted. A `runtime_catalog`
+  Avatar Effect source reports `avatar_vfx_source_unsupported`. Its backend copy
+  (`resources/vfx-catalog.json`) and the unused emotion-driven selector
+  `domain/vfx.py` were removed with their audit, Dockerfile and packaging
+  entries. The creator never used the bundled catalog; templates return in P8.
+
+Checks (agent, 2026-10-06):
+
+- Focused backend pytest over 46 content/package/save files: 661 passed. Boundary
+  and packaging files: 181 passed, 1 failed. The failure is
+  `test_runtime_resource_audit_has_schema_and_starter_resources`, at the gruut
+  phonemizer step after the resource checks pass, because gruut is not
+  installed in this venv.
+- `uv run ruff check`, `make format-check`, the import-boundary check and the
+  `shared_catalogs.py` drift check pass.
+- Full web vitest: 376 files, 2,555 tests passed. `pnpm check` and
+  `pnpm web:lint` pass. `pnpm prettier:check` passes for web; the desktop package
+  fails on `desktop/tests/feature-packs.test.ts`, which is unchanged from `main`.
+- Not run: the browser Save error notice, `pnpm build`, Compose config checks.
 
 #### Code Review #1 Findings
 
+Reviewed source: uncommitted tree on `5e8adf03`. Result: **pass**, no blocking
+findings. Non-blocking:
+
+1. Comments called the returned `message` a "fixed validator sentence", but
+   `_fields` quotes a submitted key.
+2. `content/included/vfx/avatar/face/**` and the `/effects/vfx/face` Vite alias
+   appear orphaned now that the bundled catalog is gone.
+3. `_child` joins JSON paths without escaping keys that contain `.` or `[`.
+4. A failure on `definition.image` does not highlight the creator's image
+   control; the message still names the setting.
+5. The Phase 1 record was not filled in.
+
 #### Code Review #1 Revisions
+
+1. Fixed: both comments now say "validator message"
+   (`server/routers/content.py`, `lib/content/contentSaveErrors.ts`); ruff passes.
+2. Deferred to P4, which rewrites the Included effects and their support images.
+3. Accepted: the path only appears in an error message.
+4. Deferred to P9, whose editor maps definition paths to controls.
+5. Fixed: this record.
 
 ### Phase 2 — Effect render harness, baselines and thumbnail capture (R10 headless; supports R3 and R7)
 

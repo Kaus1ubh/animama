@@ -23,7 +23,10 @@ FRONTEND = Path(__file__).parents[1] / "src/frontend/web/src/lib"
 EFFECTS = json.loads((FRONTEND / "content/fixtures/package-capabilities.json").read_text())["effects"]
 
 
-def _effect(kind: ContentKind) -> tuple[bytes, dict[str, bytes]]:
+AVATAR_EFFECT_FIXTURES = [fixture for fixture in EFFECTS if fixture["kind"] == ContentKind.AVATAR_EFFECT.value]
+
+
+def _effect(kind: ContentKind, fixture_name: str | None = None) -> tuple[bytes, dict[str, bytes]]:
     """Use valid renderer fixtures with a texture named after its containing item."""
     image = BytesIO()
     Image.new("RGBA", (2, 2), (255, 100, 20, 255)).save(image, format="PNG")
@@ -46,7 +49,11 @@ def _effect(kind: ContentKind) -> tuple[bytes, dict[str, bytes]]:
             {"path": "shared.png", "role": "texture"},
         ]
     else:
-        definition = next(fixture["definition"] for fixture in EFFECTS if fixture["kind"] == kind.value)
+        definition = next(
+            fixture["definition"]
+            for fixture in EFFECTS
+            if fixture["kind"] == kind.value and fixture_name in {None, fixture["name"]}
+        )
         document["definition"] = json.loads(json.dumps(definition))
         if kind is ContentKind.AVATAR_EFFECT:
             document["definition"]["image"] = "shared.png"
@@ -58,13 +65,21 @@ def _effect(kind: ContentKind) -> tuple[bytes, dict[str, bytes]]:
     return json.dumps(document).encode(), files
 
 
-@pytest.mark.parametrize("kind", [ContentKind.AVATAR_EFFECT, ContentKind.SCENE_EFFECT, ContentKind.PARTICLE_EFFECT])
+@pytest.mark.parametrize(
+    ("kind", "fixture_name"),
+    [
+        # Every current Avatar Effect kind, with the fields its creator writes.
+        *((ContentKind.AVATAR_EFFECT, fixture["name"]) for fixture in AVATAR_EFFECT_FIXTURES),
+        (ContentKind.SCENE_EFFECT, None),
+        (ContentKind.PARTICLE_EFFECT, None),
+    ],
+)
 async def test_suffix_import_preserves_effect_resource_references_and_can_export_again(
-    async_session: AsyncSession, tmp_path: Path, kind: ContentKind
+    async_session: AsyncSession, tmp_path: Path, kind: ContentKind, fixture_name: str | None
 ) -> None:
     paths, catalog, content, saves, packages = package_services(async_session, tmp_path)
     try:
-        descriptor, companions = _effect(kind)
+        descriptor, companions = _effect(kind, fixture_name)
         saved = await saves.save_descriptor(
             user_id="package-owner",
             kind=kind,
@@ -104,6 +119,9 @@ async def test_suffix_import_preserves_effect_resource_references_and_can_export
                 else {item["image"] for item in definition["marquee"]["items"]}
             )
         assert referenced_images == resources == {"shared.png"}
+        if kind is ContentKind.AVATAR_EFFECT:
+            # Save, export and import keep every creator-written field unchanged.
+            assert definition == json.loads(descriptor)["definition"]
         assert (paths.local_root / copied.relative_locator / "shared.png").read_bytes() == companions["shared.png"]
         await content.rescan(user_id="package-owner", include_included=False)
         reexported = await reviewed_export(packages, user_id="package-owner", root_item_id=copied.id)

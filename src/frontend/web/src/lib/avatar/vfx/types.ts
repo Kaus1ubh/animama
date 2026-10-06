@@ -1,5 +1,3 @@
-import type { EmotionValue } from "@/lib/emotion";
-
 export const AVATAR_VFX_TARGET_ROLES = [
   "eye_iris",
   "eye_highlight",
@@ -108,8 +106,6 @@ export const AVATAR_VFX_ROTATION_DIRECTIONS = [
 export type AvatarVFXRotationDirection =
   (typeof AVATAR_VFX_ROTATION_DIRECTIONS)[number];
 
-export const AVATAR_VFX_LIFETIME_KINDS = ["duration", "turns"] as const;
-
 export type AvatarVFXTransformAxisTriple = {
   x: number;
   y: number;
@@ -134,20 +130,6 @@ export type AvatarVFXAnimationConfig = {
     y?: number;
   };
 };
-
-export type AvatarVFXDurationLifetime = {
-  kind: "duration";
-  runEndBufferSec: number;
-};
-
-export type AvatarVFXTurnsLifetime = {
-  kind: "turns";
-  turns: number;
-};
-
-export type AvatarVFXLifetime =
-  | AvatarVFXDurationLifetime
-  | AvatarVFXTurnsLifetime;
 
 export type AvatarVFXResolvedAnimationConfig = {
   pulseEnabled: boolean;
@@ -200,8 +182,6 @@ type AvatarVFXBaseEntry = {
   region: AvatarVFXRegion;
   transform: AvatarVFXTransform;
   animationConfig?: AvatarVFXAnimationConfig;
-  emotions?: EmotionValue[];
-  lifetime?: AvatarVFXLifetime;
   sound?: AvatarVFXSoundConfig;
 };
 
@@ -382,12 +362,6 @@ const AVATAR_VFX_STACKABLE_REGION_SET = new Set<string>(
   AVATAR_VFX_STACKABLE_REGIONS,
 );
 
-export const DEFAULT_AVATAR_VFX_DURATION_LIFETIME =
-  Object.freeze<AvatarVFXDurationLifetime>({
-    kind: "duration",
-    runEndBufferSec: 5,
-  });
-
 export function isAvatarVFXRegion(value: unknown): value is AvatarVFXRegion {
   return typeof value === "string" && AVATAR_VFX_REGION_SET.has(value);
 }
@@ -444,12 +418,6 @@ export function getAvatarVFXRegion(
   return effect.region;
 }
 
-export function getAvatarVFXLifetime(
-  effect: AvatarVFXCatalogEntry,
-): AvatarVFXLifetime | null {
-  return effect.lifetime ?? null;
-}
-
 export function getAvatarVFXTargetRole(
   effect: AvatarVFXCatalogEntry,
 ): AvatarVFXTargetRole {
@@ -472,17 +440,4 @@ export function getAvatarVFXApplyMode(
     return "overlay";
   }
   return null;
-}
-
-export function isEmotionSelectableVFXEntry(
-  effect: AvatarVFXCatalogEntry,
-): effect is AvatarVFXCatalogEntry & {
-  emotions: EmotionValue[];
-  lifetime: AvatarVFXLifetime;
-} {
-  return (
-    Array.isArray(effect.emotions) &&
-    effect.emotions.length > 0 &&
-    effect.lifetime !== undefined
-  );
 }

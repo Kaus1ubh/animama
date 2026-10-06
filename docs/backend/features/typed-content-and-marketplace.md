@@ -91,6 +91,13 @@ arbitrary model selectors are rejected. A parent action's reference map binds
 local event aliases to resolved support items so similarly named resources
 cannot be substituted globally.
 
+Avatar Effect Save applies the package export rules
+(`validate_avatar_effect_document`), so every saved effect can be exported.
+A rejected definition returns 422 with
+`{"code": "content_invalid", "reason": "avatar_effect_definition_invalid",
+"message": …, "field": "definition.<json path>"}`; other document errors carry
+the same `message` and, when known, `field`.
+
 ## Anima loadout and runtime
 
 `GET /v1/animas/{anima_id}/loadout` returns the typed aggregate. Each family

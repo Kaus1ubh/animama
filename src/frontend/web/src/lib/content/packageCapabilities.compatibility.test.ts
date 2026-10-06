@@ -2,6 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import { AVATAR_POSE_CATALOG } from "@/lib/avatar/poses/catalog";
 import { parseAvatarVFXCatalogEntry } from "@/lib/avatar/vfx/catalog";
+import {
+  avatarEffectDefinition,
+  createAvatarEffectDocumentFromDefinition,
+} from "@/lib/avatar/vfx/editor";
 import { parseSceneVFXEntry } from "@/lib/scene-vfx/catalog";
 import fixture from "./fixtures/package-capabilities.json";
 
@@ -11,6 +15,31 @@ describe("portable package renderer capabilities", () => {
       fixture.builtinPoses,
     );
   });
+
+  it.each(fixture.effects.filter((effect) => effect.kind === "avatar_effect"))(
+    "matches what the Avatar Effect creator writes for $name",
+    (effect) => {
+      const definition = structuredClone(effect.definition) as Record<
+        string,
+        unknown
+      >;
+      const document = createAvatarEffectDocumentFromDefinition({
+        name: effect.name,
+        description: "",
+        definition,
+        image: {
+          logicalName: String(definition.image),
+          originalName: String(definition.image),
+          contentType: "image/png",
+          sizeBytes: 1,
+          sha256: null,
+        },
+        sound: null,
+      });
+      // The backend export and Save validators accept exactly these fields.
+      expect(avatarEffectDefinition(document)).toEqual(definition);
+    },
+  );
 
   it.each(fixture.effects)(
     "parses the shared $name primitive without kind fallback",

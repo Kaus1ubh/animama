@@ -206,8 +206,8 @@ See [region verification](how.md#verify-the-region) before saving a new effect.
 
 Current authoring stores reusable appearance and motion. Its **Gesture or Reaction
 event** owns Start and End, ending with the Action or after a configured duration.
-Legacy `lifetime` metadata can be read, but the current creator does not author it
-and conversation-turn/run-end expiry is not the current playback contract.
+Legacy `lifetime` metadata in older Local content is ignored by the runtime and
+dropped by the creator; conversation-turn/run-end expiry is not a playback contract.
 Procedural motion speed does not set effect lifetime.
 
 ## Playback integration
@@ -229,8 +229,7 @@ Live playback uses mounted Included/Local catalog entries. Image bytes are fetch
 through registered, revision-scoped file references, bounded by frontend media
 budgets, and made available as owned Blob URLs. Sound aliases resolve through the
 dependency map. A runtime ID missing from that catalog does not fall back to a
-similarly named global template. The bundled frontend catalog remains an
-authoring/debug source.
+similarly named global template; there is no bundled Avatar Effect catalog.
 
 Clip occurrences receive their own applied IDs, so cancellation or completion can
 clear the effects they started. Accompanying sound belongs to that occurrence and

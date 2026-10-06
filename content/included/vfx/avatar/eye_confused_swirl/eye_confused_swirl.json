@@ -27,10 +27,6 @@
       "rotationRadiansPerSecond": 3,
       "rotationDirection": "clockwise"
     },
-    "lifetime": {
-      "kind": "duration",
-      "runEndBufferSec": 5
-    },
     "image": "eye_confused_swirl_r.png"
   },
   "files": [

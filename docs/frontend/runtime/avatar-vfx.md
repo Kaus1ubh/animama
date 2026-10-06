@@ -19,22 +19,15 @@ See [VRM inspection](vrm-inspector-editor.md) for debug session ownership.
 - `src/frontend/web/src/ui/avatar-effect-creator/AvatarEffectCreatorPage.tsx`
 - `src/frontend/web/src/ui/debug/VRMEditorDebugModal.tsx`
 
-Authoring-template source:
-
-- `src/frontend/web/src/assets/effects/vfx/catalog.json`
-
-The catalog is imported into bundled frontend code through `vfx/catalog.ts`
-for creator templates and explicit debug tools. It is application-version
-coupled and is not a mounted typed-content source or package member.
-
-Live Anima routes do not query that global catalog by effect ID. Every Included
+There is no bundled Avatar Effect catalog. Every Included
 and Local Avatar Effect descriptor contains its strict portable definition and
 registered image file. The mounted `AnimaRuntimeCatalog` consumes those
 handler-owned projections, fetches images through revision-scoped authorized
 file references, bounds them by media budgets, converts them to owned Blob
 URLs, and revokes them when the catalog is disposed. An absent or unknown
-runtime ID fails locally without a static/public fallback. Standalone editors
-and debug tools may construct the explicitly named authoring provider.
+runtime ID fails locally without a static/public fallback. A `runtime_catalog`
+Avatar Effect source cannot resolve and records the
+`avatar_vfx_source_unsupported` runtime-catalog diagnostic.
 
 Avatar Effects use the closed `animama/avatar-effect/1` definition. The runtime
 rewrites its canonical logical image name and optional local Sound alias
@@ -97,9 +90,9 @@ definition (blocks Save) from a model-specific missing binding or landmark
 preview controls. Transform and animation settings define the reusable effect;
 its Gesture or Reaction event owns Start and End (with the Action, or after a
 specified duration). Selecting an event exposes these settings in the Action
-inspector; Reactions place that inspector above Expressions. Legacy avatar
-lifetime metadata is accepted when reading content but is not authored or used
-for conversation-turn/run-end expiry.
+inspector; Reactions place that inspector above Expressions. A legacy
+`lifetime` field in older Local content is still admitted by the backend but
+ignored by the runtime and dropped by the creator.
 
 The common Library previews Local and Included Avatar Effects through the typed
 preview route and links owned rows back to the stable edit route. After a ready

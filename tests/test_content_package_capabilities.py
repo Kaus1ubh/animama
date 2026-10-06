@@ -17,6 +17,7 @@ from animama.app.services.content_package_capabilities import (
     derive_capabilities,
     derive_document_capabilities,
     derive_file_capabilities,
+    validate_avatar_effect_document,
     validate_capabilities,
     validate_declared_capabilities,
 )
@@ -57,6 +58,80 @@ def test_declarations_must_match_actual_requirements() -> None:
 def test_shared_effect_definitions_derive_real_versions(fixture: dict[str, Any]) -> None:
     document = _document(fixture["kind"], definition=fixture["definition"], files=fixture["files"])
     assert derive_document_capabilities(document) == (fixture["definition"]["schema"],)
+
+
+def test_fixtures_cover_every_current_avatar_effect_kind() -> None:
+    shapes = set()
+    for fixture in FIXTURES["effects"]:
+        definition = fixture["definition"]
+        if fixture["kind"] != "avatar_effect":
+            continue
+        variant = definition.get("hoverKind") or definition.get("layout") or definition.get("anchor")
+        shapes.add((definition["kind"], variant if definition["kind"] != "texture" else None))
+    assert shapes == {
+        ("hover", "eye_hover"),
+        ("hover", "mouth_hover"),
+        ("hover", "box_hover"),
+        ("face_anchored", "single"),
+        ("face_anchored", "span"),
+        ("face_anchored", "mouth"),
+        ("texture", None),
+    }
+
+
+def _avatar_fixture(**selector: str) -> dict[str, Any]:
+    return next(
+        fixture
+        for fixture in FIXTURES["effects"]
+        if fixture["kind"] == "avatar_effect"
+        and all(fixture["definition"].get(key) == value for key, value in selector.items())
+    )
+
+
+@pytest.mark.parametrize(
+    ("selector", "mutation", "field"),
+    [
+        ({"hoverKind": "box_hover"}, {"placement": "behind-head"}, "definition.placement"),
+        ({"hoverKind": "eye_hover"}, {"forceBlink": "yes"}, "definition.forceBlink"),
+        ({"hoverKind": "eye_hover"}, {"glow": True}, "definition.glow"),
+        (
+            {"hoverKind": "eye_hover"},
+            {"disableTargetRoles": ["eye_iris", "tongue"]},
+            "definition.disableTargetRoles[1]",
+        ),
+        ({"kind": "texture"}, {"applyMode": "erase"}, "definition.applyMode"),
+        ({"kind": "texture"}, {"image": "missing.png"}, "definition.image"),
+        ({"kind": "texture"}, {"schema": "animama/avatar-effect/9"}, "definition.schema"),
+        (
+            {"kind": "texture"},
+            {"transform": {"offset": {"x": "far", "y": 0, "z": 0}}},
+            "definition.transform.offset.x",
+        ),
+        ({"kind": "texture"}, {"transform": {"skew": {"x": 0}}}, "definition.transform.skew"),
+        (
+            {"layout": "span"},
+            {"animationConfig": {"driftPerSecond": {"x": 0, "z": 1}}},
+            "definition.animationConfig.driftPerSecond.z",
+        ),
+        ({"anchor": "mouth"}, {"anchor": "chin"}, "definition.anchor"),
+        ({"anchor": "mouth"}, {"soundAlias": "boop"}, "definition.soundAlias"),
+        ({"kind": "texture"}, {"emotions": [{"emotion": "joy", "value": 0}]}, "definition.emotions"),
+    ],
+)
+def test_avatar_effect_validation_names_the_offending_field(
+    selector: dict[str, str], mutation: dict[str, Any], field: str
+) -> None:
+    fixture = _avatar_fixture(**selector)
+    document = _document(fixture["kind"], definition={**fixture["definition"], **mutation}, files=fixture["files"])
+    with pytest.raises(ContentDocumentError) as raised:
+        validate_avatar_effect_document(document, code="avatar_effect_definition_invalid")
+    assert raised.value.code == "avatar_effect_definition_invalid"
+    assert raised.value.field == field
+    # Package export keeps its existing code and reports the same field path.
+    with pytest.raises(ContentDocumentError) as exported:
+        derive_document_capabilities(document)
+    assert exported.value.code == "package_definition_invalid"
+    assert exported.value.field == field
 
 
 def test_unknown_primitive_cannot_hide_behind_supported_schema() -> None:

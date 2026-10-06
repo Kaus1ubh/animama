@@ -81,7 +81,8 @@ export type AnimaRuntimeCatalogDiagnostic = {
     | "motion_resource_failed"
     | "invalid_motion_manifest"
     | "missing_event_reference"
-    | "runtime_resource_pending";
+    | "runtime_resource_pending"
+    | "avatar_vfx_source_unsupported";
   slot: RuntimeContentSlot;
   runtimeId: string;
   message: string;
@@ -103,6 +104,7 @@ export class AnimaRuntimeCatalog
   private readonly admittedEntries = new Map<string, RuntimeCatalogEntry>();
   private readonly issuedRoots = new Map<string, readonly string[]>();
   private readonly pendingWarnings = new Set<string>();
+  private readonly unsupportedAvatarVFX = new Set<string>();
   private readonly getRootReadiness?: RuntimePreparationSession["getRootReadiness"];
   private readonly listeners = new Set<() => void>();
   private availabilityVersion = 0;
@@ -209,6 +211,7 @@ export class AnimaRuntimeCatalog
     };
 
     this.addMotion(runtime);
+    this.recordUnsupportedAvatarVFX(runtime.avatar_vfx);
     this.mediaCatalog = new AnimaRuntimeMediaCatalog(
       this.mediaEntries(runtime),
       {
@@ -268,6 +271,7 @@ export class AnimaRuntimeCatalog
       this.effectiveEventIds.sfxCueIds.add(entry.runtime_id);
     const previousCount = this.admittedEntries.size;
     this.addMotion(runtime);
+    this.recordUnsupportedAvatarVFX(runtime.avatar_vfx);
     const mediaChanged = this.mediaCatalog.admitPrepared(
       this.mediaEntries(runtime),
     );
@@ -1075,6 +1079,27 @@ export class AnimaRuntimeCatalog
       }
     }
     return normalized;
+  }
+
+  /**
+   * Avatar Effects play only from registered definition files. The bundled
+   * fallback registry is retired, so a `runtime_catalog` source cannot resolve.
+   */
+  private recordUnsupportedAvatarVFX(
+    entries: readonly RuntimeCatalogEntry[],
+  ): void {
+    for (const entry of entries) {
+      if (entry.source.type !== "runtime_catalog") continue;
+      const key = this.entryKey(entry);
+      if (this.unsupportedAvatarVFX.has(key)) continue;
+      this.unsupportedAvatarVFX.add(key);
+      this.diagnostics.push({
+        code: "avatar_vfx_source_unsupported",
+        slot: entry.slot,
+        runtimeId: entry.runtime_id,
+        message: "Avatar Effect requires a registered definition file",
+      });
+    }
   }
 
   private recordDuplicate(entry: RuntimeCatalogEntry): void {

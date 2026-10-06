@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { AVATAR_PARTICLE_VFX_CATALOG } from "@/lib/avatar/particle-vfx/catalog";
-import { AVATAR_VFX_CATALOG } from "@/lib/avatar/vfx/catalog";
 import { getSceneBackgroundLayerPresetIds } from "@/lib/scene-vfx/catalog";
 import type { RuntimeCatalogEntry, RuntimeContentSlot } from "./types";
 import { AnimaRuntimeMediaCatalog } from "./AnimaRuntimeMediaCatalog";
@@ -101,33 +100,28 @@ function mediaCatalog(args: {
 }
 
 describe("AnimaRuntimeMediaCatalog", () => {
-  it("resolves shipped Avatar VFX without cues from the unlicensed sound pack", () => {
-    for (const fixture of AVATAR_VFX_CATALOG) {
-      const avatarVfx = builtInEntry({
-        kind: "avatar_vfx",
-        slot: "avatar_vfx",
-        runtimeId: "opaque-avatar-vfx",
-        source: {
-          type: "runtime_catalog",
-          catalog: "avatar_vfx",
-          key: fixture.id,
-        },
-      });
-      const catalog = new AnimaRuntimeMediaCatalog(
-        mediaCatalog({ avatarVfx: [avatarVfx] }),
-      );
+  it("has no bundled Avatar VFX registry for runtime_catalog sources", async () => {
+    const avatarVfx = builtInEntry({
+      kind: "avatar_vfx",
+      slot: "avatar_vfx",
+      runtimeId: "opaque-avatar-vfx",
+      source: { type: "runtime_catalog", catalog: "avatar_vfx", key: "star" },
+    });
+    const catalog = new AnimaRuntimeMediaCatalog(
+      mediaCatalog({ avatarVfx: [avatarVfx] }),
+    );
 
-      const projected = catalog.resolveAvatarVFX("opaque-avatar-vfx");
-      expect(projected?.id).toBe("opaque-avatar-vfx");
-      expect(projected?.sound).toBeUndefined();
-    }
+    expect(catalog.resolveAvatarVFX("opaque-avatar-vfx")).toBeNull();
+    await expect(
+      catalog.loadAvatarVFX("opaque-avatar-vfx"),
+    ).resolves.toBeNull();
+    expect(catalog.listAvatarVFX()).toEqual([]);
   });
 
   it("resolves only exact mounted built-in entries for every media family", async () => {
     const particleFixture = AVATAR_PARTICLE_VFX_CATALOG[0];
-    const avatarVfxFixture = AVATAR_VFX_CATALOG[0];
     const sceneFixtureId = getSceneBackgroundLayerPresetIds()[0];
-    if (!particleFixture || !avatarVfxFixture || !sceneFixtureId) {
+    if (!particleFixture || !sceneFixtureId) {
       throw new Error("Missing built-in media fixtures");
     }
     const particle = builtInEntry({
@@ -135,16 +129,6 @@ describe("AnimaRuntimeMediaCatalog", () => {
       slot: "particle_vfx",
       runtimeId: "mounted-particle",
       source: { type: "public_url", url: particleFixture.assetPath },
-    });
-    const avatarVfx = builtInEntry({
-      kind: "avatar_vfx",
-      slot: "avatar_vfx",
-      runtimeId: "mounted-avatar-vfx",
-      source: {
-        type: "runtime_catalog",
-        catalog: "avatar_vfx",
-        key: avatarVfxFixture.id,
-      },
     });
     const sceneVfx = builtInEntry({
       kind: "scene_vfx",
@@ -166,7 +150,6 @@ describe("AnimaRuntimeMediaCatalog", () => {
     const catalog = new AnimaRuntimeMediaCatalog(
       mediaCatalog({
         particleVfx: [particle],
-        avatarVfx: [avatarVfx],
         sceneBackgroundVfx: [sceneVfx],
         sfx: [sfx],
       }),
@@ -178,10 +161,6 @@ describe("AnimaRuntimeMediaCatalog", () => {
       id: "mounted-particle",
     });
     await expect(catalog.resolveParticleVFX("hearts")).resolves.toBeNull();
-    expect(catalog.resolveAvatarVFX("mounted-avatar-vfx")?.id).toBe(
-      "mounted-avatar-vfx",
-    );
-    expect(catalog.resolveAvatarVFX(avatarVfxFixture.id)).toBeNull();
     expect(
       catalog.resolveSceneVFX("background_layers", "mounted-scene-vfx")?.id,
     ).toBe("mounted-scene-vfx");

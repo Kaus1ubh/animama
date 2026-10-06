@@ -61,7 +61,7 @@ export function cloneAvatarEffectDocument(
   const defaults = createDefaultAvatarEffectDocument();
   return structuredClone({
     ...defaults,
-    ...document,
+    ...withoutLegacyFields(document),
     regionMode: document.regionMode ?? "custom",
     hover: { ...defaults.hover, ...document.hover },
     face: { ...defaults.face, ...document.face },
@@ -285,7 +285,7 @@ export function parseAvatarEffectEditorExport(
   const defaults = createDefaultAvatarEffectDocument();
   const document = {
     ...defaults,
-    ...raw,
+    ...withoutLegacyFields(raw),
     schema: AVATAR_EFFECT_EDITOR_SCHEMA,
     regionMode: raw.regionMode ?? "custom",
     transform: object(raw.transform) as AvatarEffectEditorDocument["transform"],
@@ -328,7 +328,6 @@ export function createAvatarEffectDocumentFromDefinition(args: {
   document.animationConfig = parsed.animationConfig
     ? structuredClone(parsed.animationConfig)
     : null;
-  document.lifetime = parsed.lifetime ? structuredClone(parsed.lifetime) : null;
   document.image = args.image;
   document.sound = args.sound;
   if (parsed.kind === "hover") {
@@ -397,6 +396,16 @@ export function animationConfigForPreset(
       : {}),
     ...(preset === "drift" ? { driftPerSecond: { x: 0, y: 0.08 } } : {}),
   };
+}
+
+/**
+ * Older drafts and editor exports may carry `lifetime`; Action events own
+ * timing now, so the editor drops it instead of round-tripping it.
+ */
+function withoutLegacyFields<T extends object>(value: T): T {
+  const next = { ...value };
+  delete (next as { lifetime?: unknown }).lifetime;
+  return next;
 }
 
 function object(value: unknown): Record<string, unknown> | null {

@@ -23,10 +23,6 @@
       "rotationRadiansPerSecond": 1.4,
       "rotationAmountTurns": 0.02
     },
-    "lifetime": {
-      "kind": "duration",
-      "runEndBufferSec": 5
-    },
     "image": "emote.png"
   },
   "files": [

@@ -1,11 +1,3 @@
-import {
-  EMOTION_MAX_VALUE,
-  EMOTION_MIN_VALUE,
-  isTrackedEmotion,
-  type EmotionValue,
-} from "@/lib/emotion";
-import rawCatalog from "@/assets/effects/vfx/catalog.json";
-
 import type {
   AvatarBoxHoverVFXEntry,
   AvatarEyeHoverVFXEntry,
@@ -21,7 +13,6 @@ import type {
   AvatarVFXHoverKind,
   AvatarVFXHoverPlacement,
   AvatarVFXKind,
-  AvatarVFXLifetime,
   AvatarVFXRegion,
   AvatarVFXRotationDirection,
   AvatarVFXSide,
@@ -38,14 +29,12 @@ import {
   AVATAR_VFX_HOVER_KINDS,
   AVATAR_VFX_HOVER_PLACEMENTS,
   AVATAR_VFX_KINDS,
-  AVATAR_VFX_LIFETIME_KINDS,
   AVATAR_VFX_ROTATION_DIRECTIONS,
   AVATAR_VFX_SIDES,
   AVATAR_VFX_TARGET_ROLES,
   AVATAR_VFX_TEXTURE_ANCHORS,
   AVATAR_VFX_TEXTURE_LAYOUTS,
   AVATAR_VFX_TEXTURE_PIVOTS,
-  DEFAULT_AVATAR_VFX_DURATION_LIFETIME,
   isAvatarVFXRegion,
 } from "./types";
 
@@ -76,7 +65,6 @@ const VFX_HOVER_PLACEMENT_SET = createAllowedValueSet(
 const VFX_ROTATION_DIRECTION_SET = createAllowedValueSet(
   AVATAR_VFX_ROTATION_DIRECTIONS,
 );
-const VFX_LIFETIME_KIND_SET = createAllowedValueSet(AVATAR_VFX_LIFETIME_KINDS);
 
 function isRecord(value: unknown): value is RawCatalogEntry {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -171,19 +159,6 @@ function cloneTransform(value: AvatarVFXTransform): AvatarVFXTransform {
     offset: { ...value.offset },
     scale: { ...value.scale },
     rotation: { ...value.rotation },
-  };
-}
-
-function cloneLifetime(value: AvatarVFXLifetime): AvatarVFXLifetime {
-  if (value.kind === "duration") {
-    return {
-      kind: "duration",
-      runEndBufferSec: value.runEndBufferSec,
-    };
-  }
-  return {
-    kind: "turns",
-    turns: value.turns,
   };
 }
 
@@ -337,87 +312,6 @@ function normalizeAnimationConfig(
   return Object.keys(next).length > 0 ? next : undefined;
 }
 
-function clampEmotionThreshold(value: number): number {
-  return Math.max(
-    EMOTION_MIN_VALUE,
-    Math.min(EMOTION_MAX_VALUE, Math.round(value)),
-  );
-}
-
-function normalizeEmotions(
-  value: unknown,
-  context: string,
-): EmotionValue[] | undefined {
-  if (value === undefined) return undefined;
-  if (!Array.isArray(value)) {
-    throw createError(context, `"emotions" must be an array when provided.`);
-  }
-
-  return value.map((item, index) => {
-    if (!isRecord(item)) {
-      throw createError(context, `"emotions[${index}]" must be an object.`);
-    }
-    const emotion = readString(
-      item.emotion,
-      `emotions[${index}].emotion`,
-      context,
-    );
-    if (!isTrackedEmotion(emotion)) {
-      throw createError(
-        context,
-        `"emotions[${index}].emotion" has unsupported value "${emotion}".`,
-      );
-    }
-    return {
-      emotion,
-      value: clampEmotionThreshold(
-        readFiniteNumber(item.value, `emotions[${index}].value`, context),
-      ),
-    };
-  });
-}
-
-function normalizeLifetime(
-  value: unknown,
-  context: string,
-  options: { hasEmotionTags: boolean },
-): AvatarVFXLifetime | undefined {
-  if (value === undefined) {
-    return options.hasEmotionTags
-      ? cloneLifetime(DEFAULT_AVATAR_VFX_DURATION_LIFETIME)
-      : undefined;
-  }
-  if (!isRecord(value)) {
-    throw createError(context, `"lifetime" must be an object when provided.`);
-  }
-  const kind = readEnumValue<AvatarVFXLifetime["kind"]>(
-    value.kind,
-    "lifetime.kind",
-    context,
-    VFX_LIFETIME_KIND_SET,
-  );
-  if (kind === "duration") {
-    return {
-      kind,
-      runEndBufferSec: Math.max(
-        0,
-        readFiniteNumber(
-          value.runEndBufferSec,
-          "lifetime.runEndBufferSec",
-          context,
-        ),
-      ),
-    };
-  }
-  return {
-    kind,
-    turns: Math.max(
-      0,
-      Math.round(readFiniteNumber(value.turns, "lifetime.turns", context)),
-    ),
-  };
-}
-
 type NormalizedBaseEntry = {
   id: string;
   label: string;
@@ -426,8 +320,6 @@ type NormalizedBaseEntry = {
   region: AvatarVFXRegion;
   transform: AvatarVFXTransform;
   animationConfig?: AvatarVFXAnimationConfig;
-  emotions?: EmotionValue[];
-  lifetime?: AvatarVFXLifetime;
   sound?: AvatarVFXSoundConfig;
 };
 
@@ -459,10 +351,6 @@ function normalizeBaseEntry(
     throw createError(context, `"region" has unsupported value "${region}".`);
   }
 
-  const emotions = normalizeEmotions(raw.emotions, context);
-  const lifetime = normalizeLifetime(raw.lifetime, context, {
-    hasEmotionTags: Boolean(emotions && emotions.length > 0),
-  });
   const sound = normalizeSoundConfig(raw.sound, context);
 
   return {
@@ -473,8 +361,6 @@ function normalizeBaseEntry(
     region,
     transform: normalizeTransform(raw.transform, context),
     animationConfig: normalizeAnimationConfig(raw.animationConfig, context),
-    ...(emotions ? { emotions } : {}),
-    ...(lifetime ? { lifetime } : {}),
     ...(sound ? { sound } : {}),
   };
 }
@@ -819,19 +705,9 @@ function normalizeCatalogEntry(
   }
 }
 
-/** Parse one code-shipped or runtime-projected Avatar VFX entry defensively. */
+/** Parse one runtime-projected or creator Avatar VFX entry defensively. */
 export function parseAvatarVFXCatalogEntry(
   value: unknown,
 ): AvatarVFXCatalogEntry {
   return normalizeCatalogEntry(value, 0);
 }
-
-const RAW_CATALOG = rawCatalog as unknown;
-
-if (!Array.isArray(RAW_CATALOG)) {
-  throw createError("root", "Catalog JSON must be an array.");
-}
-
-export const AVATAR_VFX_CATALOG: AvatarVFXCatalogEntry[] = RAW_CATALOG.map(
-  (entry, index) => normalizeCatalogEntry(entry, index),
-);

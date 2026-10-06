@@ -55,7 +55,7 @@ The Avatar Effect creator uses `useContentCreatorAvatar` to own a static avatar 
 
 Gesture Pose mode uses canonical drafts and the helpers in [bones and posing](bones-and-posing.md). Capturing/editing a static pose, inserting it into a timeline, and saving a reusable Pose are distinct operations. Selected poses copy effective values into the Gesture, including inherited/base channels; insertion bakes the candidate clip so later source edits/deletion do not change it. Reaction's Relaxed Rest body is preview-only and is not serialized into its document. Reuse current action/pose persistence APIs rather than writing live Three.js objects into editor state.
 
-Avatar Effects are reusable dependencies selected inside Gestures/Reactions. The action event owns Start/End timing. An effect's artwork/transform/animation settings are content, while preview camera/guides/Play state are authoring controls. Legacy effect lifetime fields can still be read but are not the current action timing contract.
+Avatar Effects are reusable dependencies selected inside Gestures/Reactions. The action event owns Start/End timing. An effect's artwork/transform/animation settings are content, while preview camera/guides/Play state are authoring controls. Legacy effect `lifetime` fields are ignored.
 
 ## Inspection is not export
 

@@ -8,7 +8,7 @@ There is no checkout discovery or local-runtime fallback in this module.
 from importlib.resources import files
 from pathlib import Path
 
-CATALOG_NAMES = frozenset({"animation-manifest.json", "vfx-catalog.json"})
+CATALOG_NAMES = frozenset({"animation-manifest.json"})
 
 
 def catalog_resource(name: str) -> Path:

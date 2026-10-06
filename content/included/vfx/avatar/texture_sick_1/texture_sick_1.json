@@ -19,10 +19,6 @@
         "y": 0
       }
     },
-    "lifetime": {
-      "kind": "turns",
-      "turns": 3
-    },
     "image": "texture_sick_1.png"
   },
   "files": [

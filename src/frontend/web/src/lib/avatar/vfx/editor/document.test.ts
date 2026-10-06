@@ -24,14 +24,40 @@ const image = {
 };
 
 describe("Avatar Effect editor document", () => {
-  it("authors effects without conversation lifetime while accepting legacy metadata", () => {
-    const document = { ...createDefaultAvatarEffectDocument(), image };
-    expect(document.lifetime).toBeNull();
-    document.lifetime = { kind: "duration", runEndBufferSec: 5 };
-    expect(avatarEffectDefinition(document)).not.toHaveProperty("lifetime");
+  it("drops legacy lifetime from saved definitions, drafts and exports", () => {
+    const opened = createAvatarEffectDocumentFromDefinition({
+      name: "Legacy",
+      description: "",
+      definition: {
+        schema: "animama/avatar-effect/1",
+        kind: "hover",
+        region: "emote",
+        hoverKind: "box_hover",
+        placement: "forehead-left",
+        lifetime: { kind: "duration", runEndBufferSec: 5 },
+        image: image.logicalName,
+      },
+      image,
+      sound: null,
+    });
+    expect(opened).not.toHaveProperty("lifetime");
+    expect(avatarEffectDefinition(opened)).not.toHaveProperty("lifetime");
     expect(
-      validateAvatarEffectDocument(document, { imageBytesAvailable: true }),
+      validateAvatarEffectDocument(opened, { imageBytesAvailable: true }),
     ).toEqual([]);
+
+    const draft = {
+      ...createDefaultAvatarEffectDocument(),
+      image,
+      lifetime: { kind: "duration", runEndBufferSec: 5 },
+    };
+    expect(cloneAvatarEffectDocument(draft)).not.toHaveProperty("lifetime");
+    expect(
+      parseAvatarEffectEditorExport({
+        schema: "animama/avatar-effect-editor/1",
+        document: draft,
+      }),
+    ).not.toHaveProperty("lifetime");
   });
 
   it.each([

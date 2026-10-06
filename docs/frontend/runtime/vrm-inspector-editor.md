@@ -225,7 +225,7 @@ placement and animation.
 
 The debug modal includes an `Effects` section with:
 
-- the bundled effect catalog
+- the Anima runtime catalog effects that have been resolved
 - detected VFX target bindings
 - original runtime slot sizes
 - active effect counts and active effect lists per binding

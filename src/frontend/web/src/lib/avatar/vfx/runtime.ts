@@ -1,5 +1,4 @@
 import type { Avatar } from "../Avatar";
-import { AVATAR_VFX_CATALOG } from "./catalog";
 import {
   isFaceAnchoredVFXEntry,
   isHoverVFXEntry,
@@ -7,26 +6,17 @@ import {
   type AvatarVFXCatalogEntry,
 } from "./types";
 
-const AVATAR_VFX_CATALOG_BY_ID = new Map<string, AvatarVFXCatalogEntry>(
-  AVATAR_VFX_CATALOG.map((entry) => [entry.id, entry]),
-);
-
-export function getAvatarVFXCatalogEntryById(
-  effectId: string,
-): AvatarVFXCatalogEntry | null {
-  return AVATAR_VFX_CATALOG_BY_ID.get(effectId) ?? null;
-}
-
+/**
+ * Apply one resolved Avatar Effect. Callers resolve `effectEntry` through the
+ * Anima's runtime catalog; there is no bundled fallback catalog.
+ */
 export async function applyAvatarVFXEffectById(args: {
   avatar: Avatar | null;
   effectId: string;
   appliedEffectId?: string;
-  effectEntry?: AvatarVFXCatalogEntry | null;
+  effectEntry: AvatarVFXCatalogEntry | null;
 }): Promise<boolean> {
-  const effect =
-    args.effectEntry === undefined
-      ? getAvatarVFXCatalogEntryById(args.effectId)
-      : args.effectEntry;
+  const effect = args.effectEntry;
   const controller = args.avatar?.vfxController ?? null;
 
   if (!effect || !controller) {

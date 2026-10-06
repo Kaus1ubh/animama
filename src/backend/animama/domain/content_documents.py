@@ -231,11 +231,16 @@ type TypedContentDocument = (
 
 
 class ContentDocumentError(ValueError):
-    """A product document cannot be admitted by its registered type handler."""
+    """A product document cannot be admitted by its registered type handler.
 
-    def __init__(self, code: str, message: str) -> None:
+    ``field`` is an optional JSON path to the offending value, such as
+    ``definition.transform.offset.x``, so callers can point at one control.
+    """
+
+    def __init__(self, code: str, message: str, field: str | None = None) -> None:
         super().__init__(message)
         self.code = code
+        self.field = field
 
 
 __all__ = [

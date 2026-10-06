@@ -1,13 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import { PerspectiveCamera } from "three";
 import { Avatar } from "./Avatar";
-import { AVATAR_VFX_CATALOG } from "./vfx/catalog";
-import { isHoverVFXEntry } from "./vfx/types";
+import { TEST_HOVER_VFX_ENTRY } from "./vfx/avatarVFXTestFixtures";
 import type { AnimaPoseClipEventSink } from "./poses/PoseController";
 
 /** Exercise the installed player sinks; renderer effects are the external boundary. */
 function fixture(player: "gesture" | "reaction") {
-  const effect = AVATAR_VFX_CATALOG.find(isHoverVFXEntry)!;
+  const effect = TEST_HOVER_VFX_ENTRY;
   const loadAvatarVFX = vi
     .fn()
     .mockResolvedValue({ ...effect, sound: { onApply: "attached" } });

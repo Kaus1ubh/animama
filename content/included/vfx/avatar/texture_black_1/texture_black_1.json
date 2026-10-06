@@ -13,10 +13,6 @@
     "targetRole": "face_skin",
     "assetShape": "full_face",
     "applyMode": "overlay",
-    "lifetime": {
-      "kind": "turns",
-      "turns": 3
-    },
     "image": "texture_black_1.png"
   },
   "files": [

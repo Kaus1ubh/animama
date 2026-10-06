@@ -23,10 +23,6 @@
         "z": 1
       }
     },
-    "lifetime": {
-      "kind": "duration",
-      "runEndBufferSec": 5
-    },
     "image": "eye_=_r.png"
   },
   "files": [

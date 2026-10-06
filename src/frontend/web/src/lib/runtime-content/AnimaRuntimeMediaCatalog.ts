@@ -6,10 +6,7 @@ import type {
   ParticleVFXCatalogEntry,
   ParticleVFXPreloadTier,
 } from "@/lib/avatar/particle-vfx/types";
-import {
-  AVATAR_VFX_CATALOG,
-  parseAvatarVFXCatalogEntry,
-} from "@/lib/avatar/vfx/catalog";
+import { parseAvatarVFXCatalogEntry } from "@/lib/avatar/vfx/catalog";
 import type { AvatarVFXCatalogEntry } from "@/lib/avatar/vfx/types";
 import {
   getSceneBackgroundLayerPresetById,
@@ -209,9 +206,9 @@ export class AnimaRuntimeMediaCatalog implements AnimaRuntimeMediaProvider {
     for (const entry of uniqueRuntimeEntries(entries.avatarVfx)) {
       if (this.avatarVFXSources.has(entry.runtime_id)) continue;
       changed = true;
+      // Avatar Effects resolve only from registered files; a `runtime_catalog`
+      // source has no bundled registry and is reported by the runtime catalog.
       this.avatarVFXSources.set(entry.runtime_id, entry);
-      const effect = resolveAppAvatarVFX(entry);
-      if (effect) this.avatarVFXEntries.set(entry.runtime_id, effect);
     }
     for (const entry of uniqueRuntimeEntries(entries.sceneBackgroundVfx)) {
       if (
@@ -894,39 +891,6 @@ function resolveBuiltinParticleVFX(entry: RuntimeCatalogEntry) {
       (effect) => effect.assetPath === source.url,
     ) ?? null
   );
-}
-
-function resolveAppAvatarVFX(
-  entry: RuntimeCatalogEntry,
-): AvatarVFXCatalogEntry | null {
-  if (
-    entry.source.type !== "runtime_catalog" ||
-    entry.source.catalog !== "avatar_vfx"
-  )
-    return null;
-  const source = entry.source;
-  const effect = AVATAR_VFX_CATALOG.find(
-    (candidate) => candidate.id === source.key,
-  );
-  if (!effect) return null;
-  const references =
-    entry.config.runtime_reference_map &&
-    typeof entry.config.runtime_reference_map === "object"
-      ? (entry.config.runtime_reference_map as Record<string, unknown>)
-      : {};
-  const onApply = effect.sound?.onApply;
-  return {
-    ...effect,
-    id: entry.runtime_id,
-    ...(onApply
-      ? {
-          sound: {
-            ...effect.sound,
-            onApply: String(references[onApply] ?? onApply),
-          },
-        }
-      : {}),
-  };
 }
 
 function resolveAppSceneVFX(

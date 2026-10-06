@@ -1,25 +1,21 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { Avatar } from "../Avatar";
-import { AVATAR_VFX_CATALOG } from "./catalog";
+import { TEST_HOVER_VFX_ENTRY } from "./avatarVFXTestFixtures";
 import { applyAvatarVFXEffectById } from "./runtime";
-import { isHoverVFXEntry } from "./types";
 
 describe("applyAvatarVFXEffectById", () => {
-  it("does not fall back to the built-in catalog when live resolution returns null", async () => {
+  it("applies nothing when live runtime resolution returns null", async () => {
     const controller = {
       applyHoverVFX: vi.fn(),
       applyFaceAnchoredVFX: vi.fn(),
       applyTextureVFX: vi.fn(),
     };
     const avatar = { vfxController: controller } as unknown as Avatar;
-    const builtIn = AVATAR_VFX_CATALOG[0];
-    expect(builtIn).toBeDefined();
-
     await expect(
       applyAvatarVFXEffectById({
         avatar,
-        effectId: builtIn!.id,
+        effectId: "star",
         effectEntry: null,
       }),
     ).resolves.toBe(false);
@@ -35,8 +31,7 @@ describe("applyAvatarVFXEffectById", () => {
       applyTextureVFX: vi.fn(),
     };
     const avatar = { vfxController: controller } as unknown as Avatar;
-    const effect = AVATAR_VFX_CATALOG.find(isHoverVFXEntry);
-    if (!effect) throw new Error("Missing hover VFX fixture");
+    const effect = TEST_HOVER_VFX_ENTRY;
 
     await expect(
       applyAvatarVFXEffectById({

@@ -67,7 +67,7 @@ Animated texture effects redraw/upload composites on VFX ticks; static segments 
 
 Implementation: `src/frontend/web/src/ui/avatar-effect-creator/AvatarEffectCreatorPage.tsx`, `AvatarEffectGuideRenderer.tsx`, `AvatarEffectUvPreview.tsx`, `useAvatarEffectSave.ts` in that directory, and `src/frontend/web/src/lib/avatar/vfx/editor/document.ts`.
 
-The portable definition is `animama/avatar-effect/1`. Its logical image name and optional Sound alias resolve through the exact content revision's file/dependency map. `src/frontend/web/src/assets/effects/vfx/catalog.json` supplies authoring templates/debug content; it is not the live mounted content source. Preserve the distinction when an effect appears in the creator but not a runtime catalog.
+The portable definition is `animama/avatar-effect/1`. Its logical image name and optional Sound alias resolve through the exact content revision's file/dependency map. There is no bundled Avatar Effect catalog; Included and Local descriptors are the only sources.
 
 ## Cleanup and useful diagnostics
 
