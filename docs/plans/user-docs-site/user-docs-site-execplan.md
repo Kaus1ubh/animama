@@ -1,0 +1,569 @@
+# Deliver the minimal Animama user documentation site
+
+Status: Authorized execution plan, 2026-10-05.
+
+Source agreement: the owner's 2026-10-05 `implement` invocation accepts the
+resolved [spec snapshot](user-docs-site-spec.md) of authoritative
+[issue #279](https://github.com/raymond-van/animama/issues/279), captured at
+2026-10-05T17:40:54Z. Standalone VitePress 1.6.4, http-server 14.1.1 and manual
+Pages Direct Upload are the accepted implementation defaults.
+
+Authorized scope: Phases 1–2 below, one owning Animama issue, one issue per
+phase, the existing task branch and one draft PR. Rendered-content acceptance,
+each provider action and exact-candidate merge remain explicit owner gates.
+
+## Purpose and context
+
+Provide four short reader pages at `https://docs.animama.ai/`: Overview,
+Desktop getting started, Self-host quick start and Troubleshooting. The site
+contains selected user guidance and static assets; it builds independently of
+the application and any other repository. The spec owns behavior and acceptance;
+this plan explains delivery without creating a second requirements contract.
+
+Planning inspected the assigned Animama worktree, clean except for the proposed
+spec, on `docs/minimal-user-docs`, starting at
+`f90c080fc343a159cb9d7f9059a35127f871c021`. `main` was clean at the same source.
+Reuse this branch/worktree; record its repository-relative handoff identity and
+new source revisions when execution begins. The fresh built task stack and docs preview described below are retained for review.
+
+Relevant implementation and authoring references:
+
+- `README.md`, `docs/frontend/desktop/installation.md` and
+  `docs/frontend/desktop/troubleshooting.md`: local product, desktop availability,
+  setup, keys, speech, storage and recovery. Current guides report no signed
+  public installer; publication approval and native acceptance remain separate.
+- `docs/backend/operations/development.md`, `model-assets.md`, `local-models.md`
+  and `docs/frontend/features/model-settings.md`: built self-host startup,
+  provider configuration, optional speech, persistence and the loopback boundary.
+- `docs/architecture/repository-boundaries.md` and `docs/agents/domain.md`:
+  public-safe content, independent builds and deliberate publication. Current
+  repository visibility/licensing does not imply source-download availability.
+- `.github/workflows/validate-public.yml`, `scripts/ci/validation_policy.py`
+  and `scripts/ci/validation.py`: the existing `Validation` check and evidence
+  machinery. Follow `SDLC.md`, `PLANS.md` and the PR template.
+
+Existing contributor docs remain authoring references. Do not publish their whole
+tree, plans, source files or review evidence. Broader documentation cleanup,
+feature guides, custom styling, search and translations stay deferred.
+
+## Progress
+
+- [x] Inspect the spec, task source, documentation boundaries and CI selector.
+- [x] Draft two implementation phases and separate publication gates.
+- [x] Owner accepted the resolved specification/tooling/plan through `implement`.
+- [x] Implementation authorized; issues #279, #280 and #281 published/read back.
+- [x] Phase 1: independent four-page site/output guards/CI checks pass bounded review.
+- [x] Phase 2: first-run/browser/publication preparation and review pass;
+      committed at `1fe7cf8e`.
+- [x] Final local integration analysis and checks pass with no new findings.
+- [x] Draft [PR #283](https://github.com/raymond-van/animama/pull/283) and actual
+      full hosted Validation pass at `6dde3ba4`; owner accepted that rendered content.
+- [x] Product home/download HTTPS readiness verified; planned backlinks prepared.
+- [x] Owner accepted cookie-free Cloudflare Web Analytics/RUM through provider injection.
+- [x] Changed backlink rendering, targeted independent review and full CI at `446b853e`.
+- [x] Exact-content approval, authorized docs publication and canonical checks.
+- [ ] Final-candidate owner merge approval and accepted handoff.
+
+## Surprises & Discoveries
+
+- There is no existing docs generator or publishing workflow to preserve.
+- The current selector reduces only modified eligible `docs/**/*.md` files.
+  New files, package manifests, lockfiles, TypeScript and Python/JavaScript
+  tooling select `full`. A read-only classification probe on Python 3.12
+  confirmed these cases. The host's default Python was too old for this helper;
+  use the repository's supported Python 3.12 toolchain for CI-policy checks.
+- Even `full` currently installs/builds only the application's frontend; it does
+  not validate an independent `docs/user` package. Add its checks to the existing
+  workflow during implementation, including future Markdown-only changes.
+- The official VitePress stable docs are 1.6.4; the main docs currently describe
+  a 2.0 alpha. Its built-in 1.6.4 preview calls `listen(port)` without a loopback
+  address, so the proposed local preview uses an explicit loopback static server.
+
+## Decision Log
+
+| Date       | Actor/status   | Decision and rationale                                                                                                                                         |
+| ---------- | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-10-05 | Owner decision | Include minimal docs in the initial delivery; unavailable destinations show “Coming soon” until verified.                                                      |
+| 2026-10-05 | Agent proposal | Independent `docs/user` package, VitePress 1.6.4 default theme, four reader pages; a separate source directory prevents publishing maintainer material.        |
+| 2026-10-05 | Agent proposal | Manual Pages Direct Upload of reviewed output; builds and CI never publish or require Cloudflare credentials. This preserves approval of each external action. |
+
+2026-10-05 owner scope refinement: allow cookie-free Cloudflare Web Analytics/RUM
+on `docs.animama.ai` through provider injection. Advertising/cross-site trackers,
+hosted API/session integration and application cookies remain prohibited. Source
+builds stay free of embedded analytics scripts and credentials; this decision
+does not apply a provider setting or complete canonical privacy acceptance.
+
+## Phased implementation
+
+### Phase 1: Build the selected site and validate its output
+
+Requirements: the spec's four-page content, standalone build, static delivery,
+availability handling, publication allowlist and basic navigation. Dependency:
+accepted spec/plan and authorization for this phase. Owning issue: [#279](https://github.com/raymond-van/animama/issues/279);
+phase issue: [#280](https://github.com/raymond-van/animama/issues/280). Starting source:
+`f90c080fc343a159cb9d7f9059a35127f871c021` plus the reviewed planning artifacts.
+
+1. Follow `workspace-setup`: inspect remote/base/status, publish and read back the
+   accepted public-safe spec in its owning Animama issue, and create/reuse this
+   phase's issue. Preserve concurrent edits. Do not expose private coordination
+   records. Keep `docs/minimal-user-docs` and one plan PR.
+2. Add an independent package at `docs/user/`, its own `package.json` and
+   `pnpm-lock.yaml`, and narrow ignores for generated dependencies/cache/output.
+   Proposed pins are VitePress 1.6.4 and http-server 14.1.1; verify compatibility
+   and lock their resolved dependencies at implementation. Reuse the maintained
+   CI Node/pnpm pins, currently Node 24.15.0 and pnpm 10.33.0, rather than adding
+   a separate toolchain policy. No application imports, sibling inputs, backend,
+   provider keys or external content fetching are allowed for the site build.
+3. Use `.vitepress/config.mts` with `srcDir: './pages'`, base `/`, clean URLs,
+   strict dead-link handling and the default theme. Author only
+   `pages/index.md`, `desktop.md`, `self-host.md` and `troubleshooting.md`.
+   Keep package-maintainer instructions outside `pages/`. Any static public
+   assets must be explicitly selected inside this site's source root. Inspect
+   generated output rather than trusting the source-directory setting alone.
+4. Prepare short guidance from the references above; check current implementation
+   where needed. Preserve release/source-access caveats, no bundled offline chat
+   model, accountless ownership, opt-in speech and non-destructive recovery.
+   Use literal reviewed external links only after anonymous destination
+   verification; otherwise render “Coming soon” as text without a dummy href.
+   Build/CI must never probe canonical external sites to decide availability.
+5. Add a small read-only `check` script that verifies generated page/asset
+   inventory, internal targets/anchors and unavailable entries without enabled
+   links. It must reject plans, maintainer/source files, symlinks and source maps
+   in publication output. Use the generator's own broken-link check and avoid
+   tests that simply assert every prose sentence. Add only behavior fixtures
+   needed to prove a failure detected by newly authored tooling.
+6. Extend the existing `Validation` workflow to install, build and check
+   `docs/user` using its frozen lock for `full` and `docs` profiles. Include
+   Node/pnpm setup for that docs work while leaving application installs under
+   their existing conditions. Register the required command receipts in the
+   existing evidence machinery and test that contract. Preserve conservative
+   classification of added files and executable/config/lock changes as `full`;
+   do not label new tooling as docs-only or create a second workflow matrix.
+   There are no workflow edits during planning.
+
+The following interfaces are implemented. From the
+repository root:
+
+```bash
+pnpm --dir docs/user install --frozen-lockfile
+pnpm --dir docs/user build
+pnpm --dir docs/user check
+pnpm --dir docs/user preview
+```
+
+`build` runs `vitepress build .`; output is `docs/user/.vitepress/dist`.
+`check` examines that output after a successful build. Proposed `preview` runs
+the locked `http-server .vitepress/dist -a 127.0.0.1 -p 4175 -c-1 -e html -d false`.
+Check the port first; a collision must fail, not stop another preview. Preview
+serves only output and needs no provider/account. Verify its routing/404 behavior
+and report its actual origin; it is not proof of Cloudflare serving behavior.
+The stable generator supports a separate source directory and output root;
+pin APIs against the [1.6.4 configuration reference](https://vuejs.github.io/vitepress/v1/reference/site-config).
+The preview flags come from [http-server's maintained usage](https://github.com/http-party/http-server/blob/master/README.md).
+
+Meaningful checks and expected evidence:
+
+- Fresh frozen docs install, successful build/check, and inventory showing the
+  four reader pages, `404.html` and required static assets only. A build copied
+  outside the repository must serve without source/application access.
+- `git diff --check`; CI-policy/evidence tests through the supported Python:
+  `python3.12 -m unittest discover -s scripts/ci -p 'test_*.py' -v`.
+  Record executable/version and results. Run applicable read-only format/lint
+  checks for any tooling changed, plus repository-required local pre-push checks;
+  fix failures before pushing. New tooling/workflow changes retain hosted full
+  validation and cannot use the local-first reduction exemption.
+- Record actual hosted `Validation` profile/run separately; it must execute the
+  new docs commands. Application checks in that workflow do not substitute for
+  docs output checks, and docs checks do not establish native installer readiness.
+
+Complete when the site is independently buildable, content is ready for rendered
+review, its publication inventory is checked, and required checks/independent
+phase review pass. Publication and owner content acceptance remain pending.
+
+Phase commit proposal: `feat(docs)[p1]: add the minimal user documentation site`.
+Issue: #280. Reviewed base: `f90c080fc343a159cb9d7f9059a35127f871c021` plus
+intended docs/site/CI/guide/planning files; no unrelated changes. Node 24.15.0,
+pnpm 10.33.0, Python 3.12. Initial guard/CI tests failed for intended missing
+behavior; implementation passed six guards and 96 CI-policy/evidence tests.
+D1-01 root-symlink regression failed before repair, then passed: seven guards.
+Frozen install (task-local pnpm store), docs build/check/format and scoped guide
+format/Git/Ruff checks pass. Output: five HTML pages, 33 files, 105 links.
+Preview contract: loopback-only 4175, clean routes 200, unknown/asset directory
+404; preview stopped. Reader prose/configuration uses source/artifact checks,
+not sentence-matching tests. No application source or dependencies changed;
+full hosted selection remains required for new tooling/workflow files.
+Independent targeted Review #2 passes. Phase 1 commit: `b360ae4a7c0ff0ace541863e9e5075502b32c49a`; hosted CI pending push.
+
+#### Code Review #1 Findings
+
+Initial independent analysis and read-only checks completed on 2026-10-05.
+D1-01 (P2), `docs/user/scripts/check-site.mjs`: the checker rejected child symlinks
+but followed a symlink at the publication root, violating the output boundary.
+A temporary linked root passed the real build check. Other analysis/checks had
+no actionable findings; existing workflow YAML format style is unchanged.
+
+#### Code Review #1 Revisions
+
+D1-01 accepted and reproduced with a failing root-symlink fixture. The checker
+now inspects the root with `lstat` and requires an ordinary directory. Seven
+behavior tests, actual output check and docs formatting pass. Repair rounds used:
+1 of 2. Independent targeted Review #2 rejected symlink and regular-file roots;
+ordinary output still passes. No regression findings or prose-matching tests.
+
+### Phase 2: Verify instructions and prepare publication
+
+Requirements: the spec's fresh self-host evidence, browser/keyboard/layout checks,
+no-JavaScript readability, safe publication and destination verification.
+Dependencies: Phase 1 checks/review passed and authorization for Phase 2. Phase
+issue: [#281](https://github.com/raymond-van/animama/issues/281), blocked by #280. Starting source: `b360ae4a7c0ff0ace541863e9e5075502b32c49a`.
+
+1. Test the built docs at the loopback preview using desktop first (1440×900),
+   then a narrow viewport (390×844). Visit each route directly, reload, follow
+   nav/anchors, test an unknown route, use keyboard focus/navigation and inspect
+   code-block overflow and contrast. Repeat direct visits with JavaScript
+   disabled: core prose and ordinary links must remain readable. Check requests,
+   cookies and storage for absent hosted API/session integration, application
+   cookies and advertising/cross-site trackers. Distinguish harmless default-theme
+   appearance preference from identity state; verify permitted provider-injected
+   cookie-free RUM separately after publication.
+   Use existing browser tools for this small manual acceptance scope; avoid
+   introducing a general browser-test platform just for four pages.
+2. Perform one meaningful fresh built self-host journey using
+   `animama-local-stacks` and the assigned worktree. Read its skill and current
+   preparation guide; inspect LFS hydration, active stack labels/mounts and free
+   ports before starting. Select a previously unused task-only project and
+   disjoint data roots. Never purge or borrow shared state as a setup step.
+   Keep the generated task stack record ignored. With a supported clean
+   environment, a free base port and that distinct record, the existing interface
+   is:
+
+    ```bash
+    git lfs pull
+    ANIMAMA_WEB_BUILD_MODE=production ./reset.sh --name docs-first-run --base-port <FREE_BASE_PORT> --stack-env-file .animama-docs-first-run.env
+    source .animama-docs-first-run.env
+    docker compose -p "$COMPOSE_PROJECT_NAME" ps
+    ```
+
+    The angle-bracket value is a resolved setup input, not a literal command.
+    Record the actual project, source, environment, built-mode URL, image build
+    and model readiness. Use external owner-only credentials only if needed;
+    neither logs nor evidence may contain them. Test the reader's documented
+    built-startup steps, Welcome/AI/Voice setup, starter readiness and arrival in
+    the app. Verify only the application port is published on loopback and all
+    infrastructure remains private. Confirm storage/backup guidance against the
+    generated task roots. A restart must preserve the new task installation;
+    this does not require restoring any data. Optional missing speech should
+    show the documented unavailable state and never trigger an automatic download.
+    No paid request or speech acquisition is necessary for setup verification.
+    A successful real chat, physical microphone test or model download needs its
+    own supplied inputs/authorization; report those checks as unperformed if so.
+
+3. Correct only proven inaccuracies in the selected pages and rerun affected
+   docs checks/browser steps. Missing LFS or service/environment failures are
+   separate from documentation defects. If repair is needed, follow supported
+   bootstrap/readiness recovery; preserve task data and never repair by resetting
+   another installation. If a genuine application defect prevents the documented
+   journey, record it and the blocked acceptance rather than silently widening
+   this docs implementation into an application fix.
+4. Prepare one reviewable draft PR with local/browser/first-run/CI evidence,
+   unperformed native/provider checks and rendered pages for owner content
+   review. Keep the PR open through any approved publication/backlink updates.
+   Exact-candidate content approval may authorize an unmerged source for upload;
+   it does not authorize merge. Update the final source/evidence after changes.
+5. Prepare the publication record below. Independently verify public product
+   home/download readiness when supplied. If live, enable those canonical docs
+   backlinks on this same branch, rebuild, rerun affected checks and obtain
+   rendered-content approval for that candidate. Otherwise retain “Coming soon”.
+   Local cross-site checks may substitute explicit loopback targets inside test
+   fixtures; they must not change canonical production links or require another
+   checkout to build this site. Publication can wait without losing local work.
+
+Complete the implementation phase when source-based instructions have meaningful
+fresh-start evidence, browser checks pass, supported findings are resolved and a
+content-review/publication-ready candidate is recorded. Actual provider actions,
+canonical acceptance and exact-candidate merge remain separate gates.
+
+Phase commit proposal: `docs(docs)[p2]: verify first-run guidance and prepare publication`.
+Issue: #281. Phase 2 commit: `1fe7cf8ed50f9ea90a8a8a81ac23e67e51cc5f1b`.
+Source app remains unchanged from
+`f90c080fc343a159cb9d7f9059a35127f871c021`; docs Phase 1 is `b360ae4a`.
+Fresh built project `animama-docs-first-run`, base 8460, distinct
+`.animama-docs-first-run.env` record and `.animama-stacks/animama-docs-first-run/`
+Local/private/cache roots. Tracked LFS assets hydrated. Clean environment with
+Python 3.12, no provider keys/profiles and a fresh empty model store. Actual
+startup used the planned named built-mode command plus `--build animama-server`;
+image `79f6794b73454820f6112a8fa6c5ddd0a6fd78556721d4f0d7db7ebf6b723aaa`.
+Only FastAPI publishes `127.0.0.1:8460`; PostgreSQL remains private. Startup
+completed baseline/bootstrap/content reconciliation without model acquisition.
+Manual browser: Welcome fixture name/adult confirmation → AI missing-key message
+and Skip → Voice optional CPU/GPU downloads (none requested) → Finish → Annie
+chat with Caitlyn navigation. Runtime readiness is ready, failed steps empty,
+both starters have avatar refs. Scoped restart of PostgreSQL and application
+preserves principal, completed setup/name, starter IDs and aggregate revisions;
+services remain healthy. No shared data or model store was borrowed/purged.
+Retained app: `http://animama-docs-first-run.localhost:8460`; docs preview:
+`http://127.0.0.1:4175`. No paid chat, physical microphone, speech acquisition,
+native installer, backup/restore or canonical publication acceptance was run.
+
+Independent browser evidence: all four pages/direct reloads at 1440×900 and
+390×844, real unknown 404, navigation/anchors/mobile menu, visible keyboard
+focus, no page overflow and internally scrolling long code. No-JavaScript prose
+and ordinary links work in both viewports. 321 requests remain on loopback;
+no page errors/cookies/session storage; only default-theme appearance `auto` in
+local storage. Actual screenshots inspected. Initial contrast finding and repair
+are recorded below. Published-output build/check and package formatting pass. All 33 files copied
+outside the repository serve independently on an owned ephemeral loopback server:
+four correct reader headings, all 28 assets matching SHA-256 bytes, genuine useful
+404s for unknown/source/app/plan paths. 116 requests stayed on copied-output
+origin; no cookies. That transient server was stopped.
+Publication inventory SHA-256:
+`915be4bcdd3b90bc885174eaf315b562c0ab55fef4c9f88ee47ab4b5c36f4739`.
+At Phase 2 completion, owner rendered-content acceptance and hosted Validation
+awaited handoff; subsequent candidate evidence is recorded below.
+
+#### Code Review #1 Findings
+
+Independent browser/check review #1, 2026-10-05: DOCS-P2-A11Y-1, code labels
+contrast 2.87:1 and highlighted export token 4.23:1 on self-host/troubleshooting
+in both viewports, below WCAG AA 4.5:1. The other 26 observable checks passed.
+Independent source/first-run/publication analysis passes with no additional
+findings; readiness and same-owner/setup/starter restart receipts verified.
+
+#### Code Review #1 Revisions
+
+DOCS-P2-A11Y-1 accepted from actual axe output. A minimal default-theme extension
+uses normal text colors for code labels/tokens; no brand/theme redesign. Build
+and output inventory pass. Targeted independent Review #2: eight light/dark,
+desktop/narrow axe scans on affected pages have zero violations. Label contrast
+5.21:1 light/6.31:1 dark; code 10.13:1/13.48:1. Repaired blocks visually inspected,
+readable and within the viewport. Valid prior functionality/privacy evidence
+reused. Repair rounds used: 1 of 2. The self-host requirements clarify Python is
+needed by startup as observed in the reset script, not only optional acquisition.
+
+## Publication and owner gates
+
+Proposed method: manual Cloudflare Pages Direct Upload of exactly
+`docs/user/.vitepress/dist`. No Git integration, auto-deploy hook, deployment CI
+or source upload is planned. Direct Upload cannot later switch to Git integration
+without a new project; owner review of that tradeoff precedes project creation.
+See [Cloudflare Direct Upload](https://developers.cloudflare.com/pages/get-started/direct-upload/).
+
+Before requesting any mutation, complete unaffected local work and read-only
+inventory: existing account/project mode, project-name collisions, docs-domain/DNS
+state and any current deployment. Proposed project name is `animama-docs` with
+production branch `main`; resolve actual identity before presenting a command.
+Choose and record a reviewed exact Wrangler version; run its local help to check
+syntax. Do not run `@latest`, place tokens in the plan, or implicitly create a
+project by using deploy. No provider credentials belong in the site package/CI.
+
+Present each concrete action and its intended effect separately for explicit
+approval. Examples below are **future gate templates**, not runnable/currently
+authorized operations; replace all placeholders with reviewed inputs:
+
+```text
+pnpm dlx wrangler@4.147.0 pages project create <APPROVED_PROJECT> --production-branch main
+pnpm dlx wrangler@4.147.0 pages deploy docs/user/.vitepress/dist --project-name <APPROVED_PROJECT> --branch <APPROVED_BRANCH> --commit-hash <APPROVED_SOURCE_SHA>
+```
+
+Preview upload is publication too. For production, use the project's recorded
+production branch explicitly even if the approved source is on the task branch.
+Record output inventory/digest, source SHA, toolchain, content approval,
+deployment ID/URL and exact approved action. A changed build requires fresh
+candidate review. The CLI documents
+[project-create and deploy arguments](https://developers.cloudflare.com/workers/wrangler/commands/pages/).
+
+Associating `docs.animama.ai` with that Pages project is another explicit gate.
+Present the exact custom-domain operation and any DNS changes it triggers before
+execution; do not merely write a CNAME. Cloudflare requires Pages domain
+association, and its managed-zone flow may add DNS automatically. Inventory and
+preserve existing records; namespace/access/source-visibility changes need their
+own authority. See [Pages custom domains](https://developers.cloudflare.com/pages/configuration/custom-domains/).
+
+After an approved upload/domain action, perform anonymous HTTPS checks for `/`,
+`/desktop`, `/self-host`, `/troubleshooting`, assets, direct reloads and a genuine 404. Confirm readable content, absence of account/private-repository requirements
+and correct backlinks. Local preview success is not canonical deployment success;
+Pages' extensionless routing and top-level 404 behavior need provider evidence.
+See [Pages serving behavior](https://developers.cloudflare.com/pages/configuration/serving-pages/).
+
+Keep the docs PR open until any approved backlink activation is validated.
+Record canonical docs readiness for external consumers to enable their Docs link
+only after verification. That external update is outside this repository's plan.
+Refresh final integration evidence before requesting owner approval to merge the
+exact final head with the ordinary merge method. Merge/content approval does not
+authorize further uploads, DNS changes or new projects.
+
+## Final integration review
+
+Perform one independent full initial review of the combined docs/site/tooling and
+accepted outcome at the current source; reuse still-valid phase evidence.
+Publication-triggered backlink edits get targeted review and affected checks;
+do not restart the review budget or repeat unchanged passing checks.
+
+### Code Review #1 Findings
+
+2026-10-05: independent final integration analysis and checks pass at
+`1fe7cf8ed50f9ea90a8a8a81ac23e67e51cc5f1b` against the recorded base. No new
+actionable findings. Valid phase evidence supports independent builds/output,
+reader navigation, accessibility/privacy, CI receipt integration and fresh
+self-host setup/restart. Current source formatting, syntax, Git boundaries, locked
+package inputs and five-page/33-file/105-link output checks pass. Public plans and
+reader content have no private repository or machine-path dependency. The final
+handoff changes only this evidence record.
+
+### Code Review #1 Revisions
+
+No required revisions; final repair rounds used: 0 of 2. Phase 1 and Phase 2 each
+used 1 of 2, with targeted rechecks passing. Hosted full checks, owner content
+acceptance, authenticated provider inventory, each publication action and exact-head
+merge remain separate gates. Reviewed output inventory SHA-256:
+`915be4bcdd3b90bc885174eaf315b562c0ab55fef4c9f88ee47ab4b5c36f4739`.
+The owning issue and draft PR carry current candidate/check/deployment links.
+Agent readiness does not establish owner acceptance.
+
+## Validation and acceptance
+
+### Publication-triggered backlink preparation
+
+2026-10-05: the owner accepted the initial rendered four-page content. The previous
+candidate `6dde3ba49826f006a56374ee847e3939813979fa` passed actual
+[full hosted Validation](https://github.com/raymond-van/animama/actions/runs/37355813685/job/111917811749)
+with persistent `ci:full` on [PR #283](https://github.com/raymond-van/animama/pull/283).
+That approval and run do not cover the changed backlink candidate.
+
+Anonymous canonical product checks passed: `https://animama.ai/` returns 200;
+`https://animama.ai/download` redirects 308 to `/download/`, which returns 200;
+an unknown route returns 404. Browser navigation/reload and active-domain HTTPS
+were verified. Enable the fixed Home/Download links in the selected reader pages
+and readiness record. Installer availability still reads “Coming soon”.
+
+The owner also accepted the spec's cookie-free Cloudflare Web Analytics/RUM
+allowance. No provider setting changed during this preparation. Source output
+still embeds no analytics scripts or credentials; provider-injected RUM and
+canonical privacy acceptance remain separate hosted evidence.
+
+Affected local checks pass: `pnpm --dir docs/user test` (7 tests), `build`, `check`
+(5 pages, 33 files, 108 links) and `format:check`, plus explicit plan/spec Prettier
+and `git diff --check`. The existing unavailable-destination fixture now supplies
+unavailable readiness explicitly, preserving its meaning after production flags
+change. Prose/readiness changes use artifact checks; no tests mirror their text
+or flag values.
+
+Refreshed publication inventory SHA-256:
+`fa89a2c19b9bd9fd1839f92d7f67238f33d52b82309df3e7c32529e8a64d95e7`.
+All 33 ZIP entries match inventory hashes; the previous inventory/archive are
+retained separately. Targeted independent analysis and output/check review pass:
+the seven-file follow-up preserves unavailable-destination guards and the approved
+provider-only analytics allowance. Both reviewers found no actionable issue; no
+repair round was used and the existing review budgets are unchanged.
+
+Coordinator browser observation confirms the changed Overview/Desktop copy and
+working Home/Download backlinks at a measured 1280×720 viewport. The requested
+390×844 override did not take effect in the available browser, including a fresh
+tab; this is not new narrow-layout evidence. Prior independent desktop/narrow,
+keyboard, no-JavaScript and accessibility results remain valid for the unchanged
+theme/layout. Independent browser access was unavailable to the targeted checks
+delegate. Screenshots and the limitation are retained with the publication
+receipt; the temporary override was reset.
+
+Changed rendered-content approval, exact-source full Validation and each
+provider/create/upload/domain action are complete, with canonical checks recorded
+below. Exact-final-head merge remains pending. This follow-up does not restart
+the review budgets or require a new branch/PR.
+
+### Approved canonical publication
+
+2026-10-05: the owner approved revised rendered content at
+`446b853e61cc4e390b017f85038195d439e6dc84`, empty Pages Direct Upload project
+`animama-docs`, and the exact reviewed upload after full CI passes.
+[Validation run 37367519403](https://github.com/raymond-van/animama/actions/runs/37367519403)
+passed on that PR head with persistent `ci:full`, using source merge candidate
+`422ab592ae1ad24c65d23493b180fcb655d4fa1c`. The full profile and all 42 command
+receipts passed; no local-first substitution was used.
+
+Production/main deployment `8021c42d-3d13-41da-a078-8f92118ff70e` serves the
+33 reviewed files at [the provider hostname](https://animama-docs.pages.dev/).
+Approved archive SHA-256:
+`2081582957e7a6473c40182321e5a8fe8a64279f47211c0cc84f9a16b494503f`.
+The inventory SHA-256 above remains current. A first project-creation error was
+read back against the account inventory before retrying the same name; one
+project was created. Its settings have no Git connection, variables/secrets or
+bindings. All 33 served files matched the reviewed bytes before domain connection.
+
+The owner separately approved connecting `docs.animama.ai`. Pages association and
+DNS activation added one proxied Auto-TTL CNAME to `animama-docs.pages.dev`, with
+all nine existing zone records unchanged. Pages reports Active with SSL enabled.
+[Canonical docs](https://docs.animama.ai/) pass 37 anonymous HTTPS checks: all
+four reader routes and required assets work, and missing/source paths return
+the reviewed 404 with status 404. Asset bytes match the inventory. Canonical HTML
+matches after removing only the observed empty provider RUM script and its
+inserted newline before the closing body; raw response hashes are also retained.
+No response sets a cookie. The owner-approved RUM policy remains in effect,
+without any analytics setting change.
+
+Coordinator browser navigation/reloads on all four pages, 404-to-home recovery
+and clicked Home/Download backlinks pass; console warnings/errors are empty.
+Full browser network/storage tracing is unavailable and is not claimed. The
+unchanged theme/layout retains its earlier independent evidence; no new complete
+narrow-layout matrix is claimed. This publication-record-only update changes no
+reader source or uploaded bytes and needs no renewed content/upload approval.
+Its explicit plan Prettier and Git diff checks pass. Targeted independent record
+analysis passes without actionable findings or a repair round; Final Public
+remains 0 of 2. Fresh exact-head full CI remains pending for the final merge
+handoff. The existing reviewed reader output and upload approval are unchanged.
+
+### Evidence boundaries
+
+Keep distinct records for exact-source local build/output checks, browser/keyboard
+and no-JavaScript evidence, isolated first-run evidence, hosted CI, rendered
+content approval, provider actions and canonical HTTPS results. Do not promote
+pending/unperformed results to passing or call a draft accepted.
+
+Use the PR template's single source reference:
+`Validated revision: <short SHA> · baseline: <short SHA>` with commit links and
+dirty-state disclosure when relevant. Link phase issues, the owning spec issue
+and this plan at its reviewed revision. Record limitations, branch/worktree
+identity, any task stack/preview URL and retained resources. Exact final merge
+approval must identify the current candidate and actual required checks.
+
+## Idempotence and recovery
+
+Frozen installs/builds are repeatable and affect only task-local dependencies,
+cache and output. Rebuild after source changes; never deploy stale output or
+upload the repository root. Stop only preview processes created by this task.
+
+For first-run services, source the trusted task-specific record before
+project-scoped commands. Inspect task labels, mounts/consumers and ignored data
+before cleanup; preserve evidence and useful state, stop only that named project,
+and follow the existing task-stack cleanup guide. Do not purge by default, restore
+shared data, remove shared model stores or prune global Docker/Git resources.
+
+After an uncertain Pages action, inspect its outcome before retrying: do not
+create a duplicate project or upload a different candidate. Preserve the previous
+deployment identity, reviewed output and pre-change DNS values. If publication
+fails, retain the local build and report canonical acceptance pending. Rollback,
+redeploy, DNS restoration and project/domain deletion each require an explicitly
+approved concrete action; no automatic deletion or global cache purge is planned.
+
+## Outcomes & Retrospective
+
+2026-10-05: local four-page documentation site, strict publication/link guards,
+existing CI receipt integration and minimal accessibility color correction are
+implemented and independently reviewed. Phase 1 commit: `b360ae4a7c0ff0ace541863e9e5075502b32c49a`.
+Fresh built self-host setup and restart preserve the same owner and both starter
+Animas; desktop/narrow, keyboard, no-JavaScript and standalone copied-output
+checks pass. Phase 2 commit: `1fe7cf8ed50f9ea90a8a8a81ac23e67e51cc5f1b`; final
+local integration review passes. Draft PR handoff and actual hosted Validation
+are tracked in the owning issue and PR. The full hosted profile remains required
+for this new tooling.
+
+The initial rendered content and full hosted Validation passed at `6dde3ba4`.
+Verified product Home/Download destinations now permit the planned backlinks;
+affected checks and targeted independent review pass, with changed rendering
+observed by the coordinator. The owner approved that content at `446b853e` and
+its full hosted Validation passed. Approved project/upload/domain/DNS actions
+published the reviewed output at `docs.animama.ai`, with canonical HTTPS and
+navigation verification above. Cookie-free Cloudflare Web Analytics/RUM is an
+accepted provider-injection allowance; no analytics setting changed. This final
+record update leaves reader content/output unchanged. Its current-head CI and
+exact-final-head owner merge approval remain pending. The broader styling/docs
+revamp stays deferred.

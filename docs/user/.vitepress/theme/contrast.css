@@ -1,0 +1,8 @@
+/* Keep the default theme; code labels and syntax use readable text colors. */
+.vp-doc div[class*="language-"] > span.lang {
+  color: var(--vp-c-text-2);
+}
+
+.vp-doc div[class*="language-"] .vp-code span {
+  color: var(--vp-c-text-1);
+}
