@@ -8,21 +8,15 @@ import {
   isAnimaPoseClipV2,
   sanitizeAnimaPoseClip,
   validateAnimaPoseClipV2,
-  type AnimaPoseClip,
+  type AnimaPoseClipV2Issue,
   type AnyAnimaPoseClip,
 } from "../../poses/animaPoseClip";
 import { getAnimaPoseClipFadeDuration } from "../../poses/animaPoseClip/playback";
-import {
-  MOTION_DESCRIPTION_SCHEMA,
-  parseMotionDescription,
-  type MotionDescription,
-  type MotionDescriptionIssue,
-} from "../description";
 
 /**
- * Sources the motion preview tool can play: clip files, motion descriptions,
- * creator project envelopes and Library items (read from the Included and
- * Local content directories, never written).
+ * Sources the motion preview tool can play: clip files, creator project
+ * envelopes and Library items (read from the Included and Local content
+ * directories, never written).
  */
 
 export type PreviewSource = {
@@ -43,7 +37,6 @@ export type PreviewClip = {
   format:
     | "animaPoseClip/1.0"
     | "animaPoseClip/2.0"
-    | "animamaMotion/1"
     | "animamaActionProject/1.0";
   clip: AnyAnimaPoseClip;
   markers: PreviewMarker[];
@@ -62,10 +55,13 @@ export type PreviewRoots = {
   local?: string | null;
 };
 
+/** A problem with one field of a source, by its JSON path. */
+export type PreviewIssue = AnimaPoseClipV2Issue;
+
 /** A source that cannot be played, with any per-field problems. */
 export class PreviewSourceError extends Error {
-  readonly issues: MotionDescriptionIssue[];
-  constructor(message: string, issues: MotionDescriptionIssue[] = []) {
+  readonly issues: PreviewIssue[];
+  constructor(message: string, issues: PreviewIssue[] = []) {
     super(message);
     this.name = "PreviewSourceError";
     this.issues = issues;
@@ -75,6 +71,9 @@ export class PreviewSourceError extends Error {
 /** Keyframe markers would only clutter the scrubber of a dense bake. */
 const MAX_KEYFRAME_MARKERS = 40;
 const PROJECT_SCHEMA = "animamaActionProject/1.0";
+/** The per-bone description format that 2.0 clips replaced. */
+export const RETIRED_DESCRIPTION_SCHEMA = "animamaMotion/1";
+export const RETIRED_DESCRIPTION_MESSAGE = `${RETIRED_DESCRIPTION_SCHEMA} descriptions are retired: write an ${ANIMA_POSE_CLIP_V2_SCHEMA} clip instead (see the animama-animation skill).`;
 const LIBRARY_KINDS = ["gestures", "reactions"] as const;
 
 /** Content hash identifying one version of a source. */
@@ -82,14 +81,8 @@ export function sourceVersion(text: string): string {
   return createHash("sha256").update(text).digest("hex").slice(0, 12);
 }
 
-/**
- * Turn source text into a playable clip. Descriptions are generated with the
- * injected baker (it needs the reference Avatar).
- */
-export function previewClipFromText(
-  text: string,
-  deps: { bake: (description: MotionDescription) => AnimaPoseClip },
-): PreviewClip {
+/** Turn source text into a playable clip. */
+export function previewClipFromText(text: string): PreviewClip {
   let value: unknown;
   try {
     value = JSON.parse(text);
@@ -97,24 +90,14 @@ export function previewClipFromText(
     throw new PreviewSourceError(`Not valid JSON: ${(error as Error).message}`);
   }
   const schema = isRecord(value) ? value.schema : undefined;
-  if (schema === MOTION_DESCRIPTION_SCHEMA) {
-    const parsed = parseMotionDescription(value);
-    if (!parsed.ok)
-      throw new PreviewSourceError(
-        `Invalid motion description (${parsed.issues.length} issue(s)).`,
-        parsed.issues,
-      );
-    return describeClip(
-      MOTION_DESCRIPTION_SCHEMA,
-      deps.bake(parsed.description),
-    );
-  }
+  if (schema === RETIRED_DESCRIPTION_SCHEMA)
+    throw new PreviewSourceError(RETIRED_DESCRIPTION_MESSAGE);
   if (schema === PROJECT_SCHEMA && isRecord(value))
     return describeClip(PROJECT_SCHEMA, parseClip(value.sequence));
   if (schema === "animaPoseClip/1.0" || schema === ANIMA_POSE_CLIP_V2_SCHEMA)
     return describeClip(schema, parseClip(value));
   throw new PreviewSourceError(
-    `Unsupported schema ${JSON.stringify(schema ?? null)}. Expected animaPoseClip/1.0, ${ANIMA_POSE_CLIP_V2_SCHEMA}, ${MOTION_DESCRIPTION_SCHEMA} or ${PROJECT_SCHEMA}.`,
+    `Unsupported schema ${JSON.stringify(schema ?? null)}. Expected ${ANIMA_POSE_CLIP_V2_SCHEMA}, animaPoseClip/1.0 or ${PROJECT_SCHEMA}.`,
   );
 }
 

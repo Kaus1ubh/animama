@@ -27,7 +27,6 @@ async function open(sources: [string] | [string, string] = ["nod.clip.json"]) {
   return PreviewSession.open({
     sources,
     roots: { cwd: dir, included: path.join(dir, "included") },
-    bake: () => clip(9),
     now: () => new Date("2026-10-06T12:00:00Z"),
   });
 }
@@ -166,7 +165,6 @@ describe("PreviewSession", () => {
       sources: ["nod.clip.json"],
       roots: { cwd: dir, included: path.join(dir, "included") },
       notes: "reviews/round-1.review.json",
-      bake: () => clip(9),
     });
     expect(session.watchPaths).toContain(
       path.join(dir, "reviews/round-1.review.json"),

@@ -552,24 +552,27 @@ Particle exposes its elapsed preview clock, while Avatar/Scene rulers show saved
 lifetime configuration without seeking or an elapsed playhead. Avatar's run-end
 buffer starts after a conversation run; it is not a standalone preview deadline.
 
-Agent-authored Gestures start from a per-bone motion description
-(`animamaMotion/1`). Commands run from `src/frontend/web`:
+Agents author Gestures directly as `animaPoseClip/2.0` clips. Commands run
+from `src/frontend/web`:
 
 - `pnpm -s animation joints` lists joints, components and ranges.
-- `pnpm -s animation generate <motion.json>` bakes a dense
-  `animaPoseClip/1.0` sequence, within 1° / 5 mm of the described curves.
-- `pnpm -s animation check <motion|clip>` runs motion checks on both
-  Included Avatars.
+- `pnpm -s animation validate <clip.json> [--out <compact.json>]` reports
+  structural problems and values beyond anatomical limits by JSON path and the
+  saved size; `--out` writes the compact saved form only when valid.
+- `pnpm -s animation check <clip.json>` runs motion checks on both Included
+  Avatars, each with its own prepared clip; a 2.0 clip supplies its contacts
+  and `plantFeet`.
 - `pnpm -s animation:render <clip.json> --out <dir>` draws review sheets.
-- `pnpm -s animation:preview <source>` plays a description, clip or Library
+- `pnpm -s animation:preview <source>` plays a clip, project file or Library
   item live on both Included Avatars through `Avatar`/`PoseController`. Review
   notes are saved beside a file source (in the working directory for a Library
   item); `animation review` and `animation resolve` manage them.
 
 The workflow, conventions and review guidance live in the
 `animama-animation` agent skill. The code is in
-`src/lib/avatar/motion-authoring/`. Import a generated clip through the
-Gesture creator and edit its description, not the dense keyframes.
+`src/lib/avatar/motion-authoring/`, with example clips in its `examples/`
+folder. The earlier `animamaMotion/1` description format and its bake step are
+retired; the tools explain this when given a description.
 
 There is no separate generic Pose Creator route or raw package save provider.
 Clip JSON remains `animaPoseClip/1.0`; a separate versioned project envelope is

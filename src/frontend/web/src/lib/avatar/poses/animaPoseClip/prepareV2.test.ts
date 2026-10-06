@@ -2,7 +2,6 @@ import type { VRM, VRMHumanBoneName } from "@pixiv/three-vrm";
 import { Quaternion } from "three";
 import { beforeAll, describe, expect, it } from "vitest";
 
-import { bakeMotion, createMotionEvaluator } from "../../motion-authoring/bake";
 import {
   applyCanonicalPose,
   rawBoneWorldPosition,
@@ -270,12 +269,16 @@ describe("prepareAnimaPoseClipV2", () => {
     ]);
   });
 
-  it("samples far faster than the 1.0 bake of the same motion", () => {
-    const description = {
-      schema: "animamaMotion/1" as const,
-      name: "Busy",
-      kind: "oneShot" as const,
+  it("samples far faster than a 1.0 bake of the same motion", () => {
+    const keys = (index: number) =>
+      Array.from({ length: 25 }, (_, key) => ({
+        beat: "a",
+        dt: key * 0.125,
+        v: 20 + ((key + index) % 2) * 8,
+      }));
+    const v2 = clip({
       duration: 3,
+      beats: [{ id: "a", label: "A", time: 0 }],
       joints: Object.fromEntries(
         (
           [
@@ -289,31 +292,29 @@ describe("prepareAnimaPoseClipV2", () => {
         ).map((joint, index) => [
           joint,
           {
-            [joint.endsWith("UpperArm") ? "elevation" : "flexion"]: Array.from(
-              { length: 25 },
-              (_, key) => ({ t: key * 0.125, v: 20 + ((key + index) % 2) * 8 }),
-            ),
+            [joint.endsWith("UpperArm") ? "elevation" : "flexion"]: keys(index),
           },
-        ]),
-      ),
-    };
-    const baked = bakeMotion(description, a1).clip;
-    const v2 = clip({
-      duration: 3,
-      beats: [{ id: "a", label: "A", time: 0 }],
-      joints: Object.fromEntries(
-        Object.entries(description.joints).map(([joint, components]) => [
-          joint,
-          Object.fromEntries(
-            Object.entries(components).map(([name, keys]) => [
-              name,
-              keys.map(({ t, v }) => ({ beat: "a", dt: t, v })),
-            ]),
-          ),
         ]),
       ),
     });
     const prepared = prepareAnimaPoseClipV2(v2, { vrm: a1, resolvePose });
+    // The 1.0 form the retired generator produced: a keyframe every 1/30 s.
+    const frames = Array.from({ length: 91 }, (_, frame) => frame / 30);
+    const baked = {
+      schema: "animaPoseClip/1.0" as const,
+      id: "busy",
+      name: "Busy",
+      duration: 3,
+      basePose: RELAXED_REST_POSE_ID,
+      defaultTransition: { easing: "linear" as const },
+      poses: Object.fromEntries(
+        frames.map((time, frame) => [
+          `f${frame}`,
+          { humanoid: prepared.sample(time).humanoid },
+        ]),
+      ),
+      poseKeyframes: frames.map((time, frame) => ({ time, pose: `f${frame}` })),
+    };
     // The best of three runs, so a busy machine does not decide the result.
     const cost = (sample: (t: number) => unknown) =>
       Math.min(
@@ -331,119 +332,7 @@ describe("prepareAnimaPoseClipV2", () => {
     });
     const v1 = cost((t) => v1Program.sample(t));
     const v2Cost = cost((t) => prepared.sample(t));
-    // About 10× faster for this motion; 2× leaves room for slow machines.
+    // Several times faster for this motion; 2× leaves room for slow machines.
     expect(v2Cost * 2).toBeLessThan(v1);
-  });
-
-  it("matches the motion description's curves for the same keys", () => {
-    const description = {
-      schema: "animamaMotion/1" as const,
-      name: "Probe",
-      kind: "oneShot" as const,
-      duration: 2,
-      joints: {
-        rightUpperArm: {
-          elevation: [
-            { t: 0, v: "base" as const },
-            { t: 0.55, v: 108 },
-            { t: 1.2, v: 100 },
-            { t: 2, v: "base" as const },
-          ],
-        },
-        head: {
-          flexion: [
-            { t: 0, v: 0 },
-            { t: 0.4, v: -5 },
-            { t: 1.6, v: 3 },
-          ],
-        },
-      },
-      hipsPosition: {
-        x: [
-          { t: 0, v: 0 },
-          { t: 1, v: 0.015 },
-          { t: 2, v: 0 },
-        ],
-      },
-      hands: {
-        right: [
-          { t: 0, preset: "relaxed" as const },
-          { t: 0.45, preset: "open-together" as const, spread: 8 },
-        ],
-      },
-      expressions: {
-        happy: [
-          { t: 0, v: 0 },
-          { t: 0.5, v: 0.7 },
-          { t: 2, v: 0 },
-        ],
-      },
-    };
-    const v2 = clip({
-      plantFeet: true,
-      beats: [
-        { id: "start", label: "Start", time: 0 },
-        { id: "raise", label: "Raise", time: 0.5 },
-        { id: "settle", label: "Settle", time: 2 },
-      ],
-      joints: {
-        rightUpperArm: {
-          elevation: [
-            { beat: "start", v: "base" },
-            { beat: "raise", dt: 0.05, v: 108 },
-            { beat: "raise", dt: 0.7, v: 100 },
-            { beat: "settle", v: "base" },
-          ],
-        },
-        head: {
-          flexion: [
-            { beat: "start", v: 0 },
-            { beat: "raise", dt: -0.1, v: -5 },
-            { beat: "raise", dt: 1.1, v: 3 },
-          ],
-        },
-      },
-      hipsPosition: {
-        x: [
-          { beat: "start", v: 0 },
-          { beat: "raise", dt: 0.5, v: 0.015 },
-          { beat: "settle", v: 0 },
-        ],
-      },
-      hands: {
-        right: [
-          { beat: "start", preset: "relaxed" },
-          { beat: "raise", dt: -0.05, preset: "open-together", spread: 8 },
-        ],
-      },
-      expressions: {
-        happy: [
-          { beat: "start", v: 0 },
-          { beat: "raise", v: 0.7 },
-          { beat: "settle", v: 0 },
-        ],
-      },
-    });
-    const evaluator = createMotionEvaluator(
-      { ...description, plantFeet: true },
-      base,
-      a1,
-    );
-    const prepared = prepareAnimaPoseClipV2(v2, { vrm: a1, resolvePose });
-    for (let t = 0; t <= 2; t += 0.05) {
-      const expected = evaluator.humanoid(t);
-      const sample = prepared.sample(t);
-      for (const [bone, transform] of expected)
-        expect(
-          angularDistanceDegrees(
-            new Quaternion(...transform.rotation!),
-            rotationOf(sample, bone),
-          ),
-        ).toBeLessThan(1e-4);
-      expect(sample.expressions!.happy).toBeCloseTo(
-        evaluator.expressions(t).happy,
-        6,
-      );
-    }
   });
 });

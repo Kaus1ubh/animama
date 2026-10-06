@@ -2,27 +2,30 @@
 
 ## Motion checks
 
-`pnpm -s animation check <motion.json | clip.json> [--description <motion.json>] [--json]`
-plays the clip through the production sampler on `AvatarSample_Y_0` (VRM 0)
-and `AvatarSample_A_1_New` (VRM 1) and exits 1 on any FAIL. A description
-supplies `contacts` and `plantFeet`; pass `--description` when checking a clip.
+`pnpm -s animation check <clip.json> [--json]` plays the clip through the
+production sampler on `AvatarSample_Y_0` (VRM 0) and `AvatarSample_A_1_New`
+(VRM 1), each with its own fitted hands and solved legs, and exits 1 on any
+FAIL. A 2.0 clip supplies its `contacts`; feet are checked unless it keys its
+legs itself without `plantFeet`. 1.0 clips are checked with planted feet and
+no contacts.
 
 | Category | Means | Typical fix |
 | --- | --- | --- |
-| `pose` | A referenced pose is missing from the catalog | Use inline values (generated clips always do) |
+| `pose` | A referenced pose is missing from the catalog | Use `"relaxedRest"` as the base pose; 2.0 tracks reference no other poses |
 | `range` | A joint exceeds its natural (WARN) or anatomical (FAIL) range | Reduce the value or share it with neighbouring joints |
-| `smoothness` | Pop, speed or acceleration spike, or a mid-motion stall (WARN) | Spread keys, remove `step`/`linear` jumps, add an easing key, drop accidental `flat` holds |
+| `smoothness` | Pop, speed or acceleration spike, or a mid-motion stall (WARN) | Spread keys, remove `hold`/`linear` jumps, add an easing key, drop accidental `flat` holds |
 | `intersection` | Hand or forearm passes into the torso, neck, head or the other arm (capsule approximation, calibrated against the base pose) | Raise elevation before or with elbow flexion (a bent elbow on a hanging arm drives the forearm into the hip); move the arm outward or forward; avoid shoulder depression with a bent elbow; declare an intended touch as a contact |
 | `contact` | A declared touch is not within tolerance | Adjust arm/elbow/wrist until the bone reaches the target |
 | `feet` | A planted foot slides, lifts or sinks | Reduce hips offset or pelvis rotation; keep `plantFeet` |
 | `loopSeam` | A loop's end does not meet its start, or speed jumps there | Match end keys and keep motion consistent across the seam |
 | `parity` | A bone turns differently on the two Avatars | Report it: this indicates a conversion bug, not an authoring choice |
 
-Declare intended touches so the checks verify them and stop flagging them:
+Declare intended touches so the checks verify them and stop flagging them.
+`from` and `to` are seconds from the named beat, so the touch moves with it:
 
 ```json
 "contacts": [
-  { "bone": "leftHand", "target": "head", "from": 0.6, "to": 1.4, "offset": [0, -0.08, 0.06], "tolerance": 0.06 }
+  { "bone": "leftHand", "target": "head", "beat": "touch", "from": 0, "to": 0.8, "offset": [0, -0.08, 0.06], "tolerance": 0.06 }
 ]
 ```
 
@@ -53,8 +56,8 @@ forearm also rests on the body.
 `pnpm -s animation:preview <source> [--compare <source>]` opens the motion in
 the system browser on both Included Avatars, through the app's own `Avatar`
 playback: fades, live layers (toggle them off to see the clip alone), layer
-mutes and expression precedence look as they do in chat. A source is a
-description, a clip, a creator project file, or a Library item
+mutes and expression precedence look as they do in chat. A source is a clip
+(2.0 or 1.0), a creator project file, or a Library item
 (`library:<folder | selector | name>`, prefixed `included/` or `local/` when
 ambiguous; Local items come from `--local-content <dir>` or the sourced stack
 record). Use it to judge timing, which still frames miss:
@@ -66,7 +69,7 @@ record). Use it to judge timing, which still frames miss:
 
 Edits to the source reload the page. Notes the owner adds in the page are
 saved beside a file source as `<file name without .json>.review.json`
-(`laugh.motion.json` → `laugh.motion.review.json`), or in the working
+(`laugh.clip.json` → `laugh.clip.review.json`), or in the working
 directory for a Library item (`--notes <file>` overrides). After revising the
 source for a note:
 
@@ -96,14 +99,34 @@ Write output to a scratch directory, never the repository.
 
 ## Creator confirmation and save
 
-1. Open `/gestures/new`, Clip tab → Import → paste the clip JSON (or choose
-   the file) → Import.
-2. Check Clip settings (timeline settings button) → Mute while playing.
+Save through the Gesture creator so the Library item, its metadata and the
+runtime catalog stay consistent. Import a project file to set the name, the AI
+description (when chat should choose the Gesture) and the Selector ID together:
+
+```json
+{
+  "schema": "animamaActionProject/1.0",
+  "intent": "gesture",
+  "name": "Mild Laugh",
+  "aiDescription": "A short, light laugh at something mildly funny.",
+  "semanticKey": "laugh_mild",
+  "sequence": { "schema": "animaPoseClip/2.0", "…": "the clip" },
+  "dependencies": []
+}
+```
+
+1. Open `/gestures/new`, Clip tab → Import → choose the file (or paste it) →
+   Import. A plain clip file also imports: a new Gesture takes the clip's
+   name and the Selector ID follows it, so fill only the AI description.
+2. Check the beats on the Pose lane and Clip settings (timeline settings
+   button) → Mute while playing.
 3. Play it with each Avatar selected in the preview; the creator runs no live
    layers.
-4. Fill the name and AI description, then **Save** (Local content). Use
-   Save & Equip only when the owner asks.
+4. **Save** (Local content). Use Save & Equip only when the owner asks.
 5. Reopen the saved Gesture and play it again.
+
+To revise a saved Gesture, open it from the Library, import the revised clip
+on the Clip tab and Save; the item keeps its identity and Selector ID.
 
 ## Chat check
 
@@ -117,8 +140,8 @@ afterwards.
 Report:
 
 - the saved item and Avatars reviewed;
-- the description path (in the owner's location or `motion-authoring/examples/`;
-  regenerate rather than hand-editing a dense clip);
+- the clip path (in the owner's location or `motion-authoring/examples/`);
+  the saved Library item holds the same clip, so it can be revised later;
 - check results with any accepted WARNs and why;
 - render sheets, preview review notes and their resolutions, and the chat
   check;

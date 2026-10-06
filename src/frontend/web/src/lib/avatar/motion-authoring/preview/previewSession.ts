@@ -1,8 +1,6 @@
 import { mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 
-import type { AnimaPoseClip } from "../../poses/animaPoseClip";
-import type { MotionDescription, MotionDescriptionIssue } from "../description";
 import {
   addReviewNote,
   deleteReviewNote,
@@ -21,6 +19,7 @@ import {
   resolvePreviewSource,
   sourceVersion,
   type PreviewClip,
+  type PreviewIssue,
   type PreviewRoots,
   type PreviewSource,
 } from "./sources";
@@ -31,7 +30,6 @@ export type PreviewSessionOptions = {
   roots: PreviewRoots;
   /** Explicit review-notes file (`--notes`). */
   notes?: string;
-  bake: (description: MotionDescription) => AnimaPoseClip;
   now?: () => Date;
 };
 
@@ -44,7 +42,7 @@ export type PreviewRow = {
   version: string | null;
   /** The last valid clip (kept while the source is invalid). */
   clip: PreviewClip | null;
-  error: { message: string; issues: MotionDescriptionIssue[] } | null;
+  error: { message: string; issues: PreviewIssue[] } | null;
 };
 
 export type PreviewState = {
@@ -157,7 +155,7 @@ export class PreviewSession {
           continue;
         }
         try {
-          row.clip = previewClipFromText(text, { bake: this.options.bake });
+          row.clip = previewClipFromText(text);
         } catch (error) {
           changed =
             setRowError(
@@ -211,7 +209,7 @@ export class PreviewSession {
   /** Replay a retained version of the reviewed source. */
   async versionClip(versionId: string): Promise<PreviewClip> {
     const text = await readRetainedVersion(this.paths, versionId);
-    return previewClipFromText(text, { bake: this.options.bake });
+    return previewClipFromText(text);
   }
 
   private serialize<T>(task: () => Promise<T>): Promise<T> {
@@ -283,7 +281,7 @@ export class PreviewSession {
 function setRowError(
   row: PreviewRow,
   message: string,
-  issues: MotionDescriptionIssue[] = [],
+  issues: PreviewIssue[] = [],
 ): boolean {
   const same =
     row.error?.message === message &&

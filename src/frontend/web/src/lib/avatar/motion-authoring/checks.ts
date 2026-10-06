@@ -2,10 +2,16 @@ import type { VRM, VRMHumanBoneName, VRMPose } from "@pixiv/three-vrm";
 import { Quaternion, Vector3 } from "three";
 
 import {
-  parseAnimaPoseClip,
-  sampleAnimaPoseClip,
-  type AnimaPoseClip,
+  getAnimaPoseClipTimelineDuration,
+  isAnimaPoseClipV2,
+  parseAnyAnimaPoseClip,
+  type AnimaPoseClipV2,
+  type AnyAnimaPoseClip,
 } from "../poses/animaPoseClip";
+import {
+  createAnimaPoseClipProgram,
+  type AnimaPoseClipProgram,
+} from "../poses/animaPoseClip/program";
 import { RELAXED_REST_POSE_ID, getResolvedAvatarPose } from "../poses/catalog";
 import {
   JOINT_DEFINITIONS,
@@ -15,15 +21,15 @@ import {
   resolveJoint,
   type JointComponentDefinition,
 } from "../poses/anatomy/anatomy";
-import type { MotionContact } from "./description";
 import { applyCanonicalPose, rawBoneWorldPosition } from "./kinematics";
 
 /**
- * Automated motion checks for a generated or hand-made Gesture clip.
+ * Automated motion checks for an agent-authored or hand-made Gesture clip.
  *
  * Checks play the clip through the production sampler on each loaded Avatar
- * and report plausibility problems. They cannot establish natural-looking
- * motion; they catch anatomy, continuity, collision and grounding mistakes.
+ * (2.0 clips prepared for that Avatar, as at runtime) and report plausibility
+ * problems. They cannot establish natural-looking motion; they catch anatomy,
+ * continuity, collision and grounding mistakes.
  */
 
 export type MotionCheckCategory =
@@ -68,9 +74,27 @@ export type MotionCheckReport = {
 
 export type MotionCheckAvatar = { id: string; vrm: VRM };
 
+/** An intended touch, in seconds from the clip's start. */
+export type MotionCheckContact = {
+  /** Humanoid bone that should touch, for example `rightIndexDistal`. */
+  bone: string;
+  /** Humanoid bone it touches, for example `head`. */
+  target: string;
+  /** Offset from the target bone in its rest-aligned frame, metres (x left, y up, z forward). */
+  offset?: [number, number, number];
+  from: number;
+  to: number;
+  /** Allowed distance, metres. Defaults to `contactTolerance`. */
+  tolerance?: number;
+};
+
 export type MotionCheckOptions = {
-  contacts?: readonly MotionContact[];
-  /** Check that feet stay at their base-pose positions (default true). */
+  /** Contacts to check besides those a 2.0 clip declares. */
+  contacts?: readonly MotionCheckContact[];
+  /**
+   * Check that feet stay at their base-pose positions. Defaults to true
+   * unless a 2.0 clip keys its legs itself without `plantFeet`.
+   */
   plantFeet?: boolean;
   sampleRate?: number;
 };
@@ -126,15 +150,32 @@ export function checkMotion(
   avatars: readonly MotionCheckAvatar[],
   options: MotionCheckOptions = {},
 ): MotionCheckReport {
-  const clip = parseAnimaPoseClip(clipValue);
+  const clip = parseAnyAnimaPoseClip(clipValue);
   const sampleRate = options.sampleRate ?? 60;
-  const duration = clipDuration(clip);
+  const duration = getAnimaPoseClipTimelineDuration(clip);
   const times: number[] = [];
   for (let index = 0; index * (1 / sampleRate) < duration - 1e-9; index += 1)
     times.push(index / sampleRate);
   times.push(duration);
+  const contacts = [...clipContacts(clip), ...(options.contacts ?? [])];
+  // Feet should stay put unless the clip moves its legs itself.
+  const plantFeet =
+    options.plantFeet ??
+    (isAnimaPoseClipV2(clip)
+      ? clip.plantFeet === true || !keysLegs(clip)
+      : true);
+  // Each Avatar plays its own preparation (fitted hands, solved legs). Checks
+  // on canonical values use the first Avatar's.
+  const programs = avatars.map(({ vrm }) =>
+    createAnimaPoseClipProgram(clip, { vrm, resolvePose: resolveCatalogPose }),
+  );
+  const canonical =
+    programs[0] ??
+    createAnimaPoseClipProgram(clip, { resolvePose: resolveCatalogPose });
   const missingPoseRefs = new Set<string>();
-  const poses = times.map((time) => samplePose(clip, time, missingPoseRefs));
+  const samplesOf = (program: AnimaPoseClipProgram) =>
+    times.map((time) => samplePose(program, time, missingPoseRefs));
+  const canonicalPoses = samplesOf(canonical);
   const base = getResolvedAvatarPose(RELAXED_REST_POSE_ID).humanoid ?? {};
 
   const raw: MotionCheckFinding[] = [
@@ -153,18 +194,20 @@ export function checkMotion(
           "referenced pose is not in the application catalog, so its bones fall back to the T-pose",
       }),
     ),
-    ...checkRanges(times, poses),
-    ...checkSmoothness(times, poses),
-    ...(clip.loop ? checkLoopSeam(clip, duration, sampleRate) : []),
+    ...checkRanges(times, canonicalPoses),
+    ...checkSmoothness(times, canonicalPoses),
+    ...(clip.loop ? checkLoopSeam(canonical, duration, sampleRate) : []),
   ];
   const rotationsFromRest: Record<string, Map<string, Quaternion>[]> = {};
-  for (const avatar of avatars) {
+  for (const [index, avatar] of avatars.entries()) {
+    const avatarPoses =
+      index === 0 ? canonicalPoses : samplesOf(programs[index]);
     const body = new AvatarBody(avatar.vrm);
     const restPositions = body.capture(base);
     const restPenetration = penetrations(body.capsules(restPositions));
     const restRotations = body.rotations({});
-    const frames = poses.map((pose) => body.capture(pose));
-    rotationsFromRest[avatar.id] = poses.map((pose) =>
+    const frames = avatarPoses.map((pose) => body.capture(pose));
+    rotationsFromRest[avatar.id] = avatarPoses.map((pose) =>
       body.rotationsFromRest(pose, restRotations),
     );
     raw.push(
@@ -173,12 +216,17 @@ export function checkMotion(
         times,
         frames.map((frame) => body.capsules(frame)),
         restPenetration,
-        options.contacts ?? [],
+        contacts,
       ),
-      ...checkContacts(avatar.id, times, poses, body, restRotations, options),
-      ...(options.plantFeet === false
-        ? []
-        : checkFeet(avatar.id, times, frames, restPositions)),
+      ...checkContacts(
+        avatar.id,
+        times,
+        avatarPoses,
+        body,
+        restRotations,
+        contacts,
+      ),
+      ...(plantFeet ? checkFeet(avatar.id, times, frames, restPositions) : []),
     );
   }
   raw.push(...checkParity(times, rotationsFromRest));
@@ -191,9 +239,24 @@ export function checkMotion(
   };
 }
 
-function clipDuration(clip: AnimaPoseClip): number {
-  const last = clip.poseKeyframes.at(-1)?.time ?? 0;
-  return clip.duration ?? last;
+const LEG_BONE = /^(left|right)(UpperLeg|LowerLeg|Foot|Toes)$/;
+
+/** Whether a 2.0 clip keys any leg bone itself (instead of planting feet). */
+function keysLegs(clip: AnimaPoseClipV2): boolean {
+  return [
+    ...Object.keys(clip.joints ?? {}),
+    ...Object.keys(clip.rotations ?? {}),
+  ].some((bone) => LEG_BONE.test(bone));
+}
+
+/** A 2.0 clip's declared contacts, in seconds from its start. */
+function clipContacts(clip: AnyAnimaPoseClip): MotionCheckContact[] {
+  if (!isAnimaPoseClipV2(clip)) return [];
+  const beatTimes = new Map(clip.beats.map(({ id, time }) => [id, time]));
+  return (clip.contacts ?? []).map(({ beat, from, to, ...contact }) => {
+    const time = beatTimes.get(beat) ?? 0;
+    return { ...contact, from: time + from, to: time + to };
+  });
 }
 
 /** Resolve pose references the way playback does: from the app catalog. */
@@ -206,11 +269,12 @@ function resolveCatalogPose(id: string) {
 }
 
 function samplePose(
-  clip: AnimaPoseClip,
+  program: AnimaPoseClipProgram,
   time: number,
   missingPoseRefs?: Set<string>,
+  options?: { atEnd?: boolean },
 ): Pose {
-  const result = sampleAnimaPoseClip(clip, time, resolveCatalogPose);
+  const result = program.sample(time, options);
   for (const id of result.diagnostics.missingPoseRefs) missingPoseRefs?.add(id);
   return result.sample.humanoid ?? {};
 }
@@ -468,16 +532,15 @@ function findStalls(
 }
 
 function checkLoopSeam(
-  clip: AnimaPoseClip,
+  program: AnimaPoseClipProgram,
   duration: number,
   sampleRate: number,
 ): MotionCheckFinding[] {
-  const linear = { ...clip, loop: false };
   const dt = 1 / sampleRate;
-  const end = samplePose(linear, duration);
-  const start = samplePose(clip, 0);
-  const before = samplePose(linear, duration - dt);
-  const after = samplePose(clip, dt);
+  const end = samplePose(program, duration, undefined, { atEnd: true });
+  const start = samplePose(program, 0);
+  const before = samplePose(program, duration - dt);
+  const after = samplePose(program, dt);
   const findings: MotionCheckFinding[] = [];
   for (const bone of new Set([...Object.keys(end), ...Object.keys(start)])) {
     const name = bone as VRMHumanBoneName;
@@ -718,7 +781,7 @@ function checkIntersections(
   times: readonly number[],
   frames: readonly Record<string, Capsule>[],
   rest: Map<string, number>,
-  contacts: readonly MotionContact[],
+  contacts: readonly MotionCheckContact[],
 ): MotionCheckFinding[] {
   const findings: MotionCheckFinding[] = [];
   frames.forEach((capsules, index) => {
@@ -762,10 +825,10 @@ function checkContacts(
   poses: readonly Pose[],
   body: AvatarBody,
   restRotations: Map<VRMHumanBoneName, Quaternion>,
-  options: MotionCheckOptions,
+  contacts: readonly MotionCheckContact[],
 ): MotionCheckFinding[] {
   const findings: MotionCheckFinding[] = [];
-  for (const contact of options.contacts ?? []) {
+  for (const contact of contacts) {
     const tolerance = contact.tolerance ?? T.contactTolerance;
     const bone = contact.bone as VRMHumanBoneName;
     const target = contact.target as VRMHumanBoneName;

@@ -1,15 +1,16 @@
 ---
 name: animama-animation
-description: Author natural, expressive Animama Gestures from a text prompt by writing a per-bone motion description, generating an animaPoseClip/1.0 sequence, running the motion checks and review renders on both Included Avatars, and saving it as Local content through the Gesture creator. Use for new or revised body-and-face Gesture motion; VRM internals, Avatar Effects and particle effects have their own skills.
+description: Author natural, expressive Animama Gestures from a text prompt by writing an animaPoseClip/2.0 clip (beats and per-joint tracks), validating it, running the motion checks, live preview and review renders on both Included Avatars, and saving it as Local content through the Gesture creator; also revises saved Gestures from their Library item. Use for new or revised body-and-face Gesture motion; VRM internals, Avatar Effects and particle effects have their own skills.
 ---
 
 # Animama Animation
 
-Turn a motion prompt into a Gesture that reads well in chat. You write a
-**motion description**: anatomical joint angles keyed per bone over time. The
-generator turns it into a smooth `animaPoseClip/1.0` sequence; checks and
-renders show what it does on both Included Avatars. Never hand-write
-quaternions, bypass creator Save, or write into `content/included/`.
+Turn a motion prompt into a Gesture that reads well in chat. You write an
+**`animaPoseClip/2.0` clip**: named beats on a timeline, and anatomical joint
+angles keyed to those beats. The same file plays in chat, opens in the Gesture
+creator and is what Save stores. Checks, the live preview and renders show
+what it does on both Included Avatars. Never hand-write quaternions, bypass
+creator Save, or write into `content/included/`.
 
 Use `animama-vrm` for VRM, coordinate and runtime facts. Repository paths are
 relative to the Animama Git root. Commands run from `src/frontend/web`; in a
@@ -20,57 +21,74 @@ first.
 
 1. **Plan the performance.** Read the prompt into beats with times:
    anticipation → action → follow-through → settle (one-shot), or an alive hold
-   that loops seamlessly (held). Choose duration, kind, which body regions lead
+   that loops seamlessly (held). Choose duration, loop, which body regions lead
    and lag, facial expressions, hand shapes, contacts and layer mutes.
    Read [motion principles](references/motion-principles.md).
-2. **Write the description** as `<name>.motion.json` in the location the
-   owner names; otherwise in
-   `src/frontend/web/src/lib/avatar/motion-authoring/examples/` on the task
-   branch, where it stays visible for review and future edits. Look up joints and ranges
-   with `pnpm -s animation joints` and base values with `pnpm -s animation base`.
-   Read [description format](references/description-format.md),
+2. **Write the clip** as `<name>.clip.json` in the location the owner names;
+   otherwise in `src/frontend/web/src/lib/avatar/motion-authoring/examples/`
+   on the task branch, where it stays visible for review and future edits.
+   Look up joints and ranges with `pnpm -s animation joints` and base values
+   with `pnpm -s animation base`. Read [clip format](references/clip-format.md),
    [human movement](references/human-movement.md) and
    [hands and face](references/hands-and-face.md).
-3. **Generate:** `pnpm -s animation generate <file>.motion.json --out <clip.json>`.
-   It refuses invalid descriptions, baked playback that strays beyond 1° /
-   5 mm from the curves, and clips that would save larger than the 2 MB the
-   app loads. Every keyframe stores every animated bone, so long, busy clips
-   grow fast; the output reports the saved size.
-4. **Check:** `pnpm -s animation check <file>.motion.json`. Fix every FAIL;
+3. **Validate:** `pnpm -s animation validate <file>.clip.json`. It reports
+   structural problems and values beyond anatomical limits with JSON paths,
+   and the saved size against the 2 MB the app loads.
+4. **Check:** `pnpm -s animation check <file>.clip.json`. Fix every FAIL;
    treat WARN as a prompt to look. See [checks and review](references/checks-and-review.md).
-5. **Preview and look:** `pnpm -s animation:preview <file>.motion.json`
+5. **Preview and look:** `pnpm -s animation:preview <file>.clip.json`
    plays it live on both Avatars with live layers, beat markers and camera
    presets, and reloads as you edit. Judge timing there; use
-   `pnpm -s animation:render <clip.json> --out <dir>` for still contact
+   `pnpm -s animation:render <file>.clip.json --out <dir>` for still contact
    sheets (`--times` for beats, `--side left` for left-handed action). Revise
    and repeat from step 2 until it reads clearly and naturally. When the owner
    leaves review notes, apply them and resolve each with
    `pnpm -s animation resolve` (see checks and review).
-6. **Confirm in the creator and save:** import the clip JSON in
-   `/gestures/new` (Clip tab → Import), check Clip settings → Mute while
-   playing, play it on each Avatar, then **Save** (not Save & Equip unless the
-   owner asks). Reopen and confirm playback.
+6. **Save through the creator** (see checks and review): import a project
+   file carrying the clip, name, AI description and Selector ID, play it on
+   each Avatar, then **Save** (not Save & Equip unless the owner asks).
+   Reopen and confirm playback.
 7. **Chat check** when mutes or expressions matter: play it on a test Anima.
-8. **Hand off** with the saved item, description path, check summary, render
-   sheets, the chat check and known limits. Keep the description out of
-   scratch space: it is the only editable source of a generated clip. Clips
-   and renders can go to scratch; regenerate them from the description.
+8. **Hand off** with the saved item, clip path, check summary, preview notes,
+   render sheets, the chat check and known limits.
+
+**Revising a saved Gesture:** start from the Library item itself. Preview it
+with `pnpm -s animation:preview library:<selector>`, which prints its clip
+file's path. Copy that file to your working location, edit it, then validate, check
+and preview with `--compare library:<selector>` to see old and new together.
+Open the Gesture in the creator, import the revised clip and Save. A 1.0
+Gesture (most Included content) must first be opened and saved once in the
+creator, which converts it to 2.0; `validate` accepts only 2.0.
 
 ## Decision rules
 
-- Describe intent anatomically (degrees on named joint components); let the
-  generator handle bases, VRM 0 conversion, smoothing and planted legs.
+- Describe intent anatomically (degrees on named joint components) on
+  readable beats; playback handles bases, VRM 0 conversion, smoothing, hand
+  fitting and planted legs on each Avatar.
+- Keep each key on the beat it belongs to, offset with `dt`, so retiming a
+  beat in the creator moves the right motion with it.
 - Stagger regions: the eyes/head lead, the torso follows, arms trail and
   overshoot, hands and fingers settle last. Uniform timing looks robotic.
-- Keep feet planted (`plantFeet` default) and move weight through hips offset
-  and small pelvis rotation; the legs are solved automatically.
+- Set `"plantFeet": true` (2.0 clips do not plant feet unless asked) and move
+  weight through hips offset and small pelvis rotation; the legs are solved
+  automatically on each Avatar.
 - Prefer the Hands-tool presets for hand shapes; key finger joints only for
   shapes presets cannot make.
 - A Gesture's keyed emotion expressions replace the emotion face while it
   plays. Key expressions that suit the motion, and leave them out when the
   Gesture should keep the Anima's current emotion.
-- Mute live layers that would fight the motion (default: all but breathing).
-  Keep `cursorLookAt` unmuted only when the head does not move.
+- List `mutedProceduralLayers` explicitly: a clip without it mutes nothing.
+  Usually mute all but `breathing`; keep `cursorLookAt` unmuted only when the
+  head does not move.
+- **Selector IDs and tiers:** the Selector ID is how chat picks a Gesture.
+  Use lowercase snake_case naming the action (`wave_hello`); for intensity
+  tiers of one action, share the stem and add the tier (`laugh_mild`,
+  `laugh_medium`, `laugh_hysterical`), and say in each AI description when
+  that tier fits. Ask the owner which Selector ID a replacement for an
+  existing Gesture should use.
+- Long Gestures (10–20 s) are sequences of short actions: give each its own
+  beats, let each settle briefly before the next, and keep loops of attention
+  (blinks, small head moves) alive through the holds.
 - Checks catch anatomy, collisions, grounding and continuity; they cannot
-  judge naturalness. Always look at the renders, and report what was not
-  reviewed.
+  judge naturalness. Always look at the preview and renders, and report what
+  was not reviewed.

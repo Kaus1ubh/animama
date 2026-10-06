@@ -58,10 +58,8 @@ async function libraryItem(
 }
 
 describe("previewClipFromText", () => {
-  const bake = () => clip({ id: "baked" });
-
   it("plays a 1.0 clip with its keyframes as markers and its fade-out tail", () => {
-    const result = previewClipFromText(JSON.stringify(clip()), { bake });
+    const result = previewClipFromText(JSON.stringify(clip()));
     expect(result.format).toBe("animaPoseClip/1.0");
     expect(result.duration).toBe(1.5);
     expect(result.fadeOut).toBe(0.4);
@@ -87,7 +85,6 @@ describe("previewClipFromText", () => {
         ],
         expressions: { happy: [{ beat: "raise", v: 1 }] },
       }),
-      { bake },
     );
     expect(result).toMatchObject({
       format: "animaPoseClip/2.0",
@@ -111,7 +108,6 @@ describe("previewClipFromText", () => {
           beats: [{ id: "start", label: "Start", time: 0 }],
           expressions: { happy: [{ beat: "missing", v: 1 }] },
         }),
-        { bake },
       );
       throw new Error("expected a failure");
     } catch (error) {
@@ -126,10 +122,7 @@ describe("previewClipFromText", () => {
       time: index / 40,
       pose: "rest",
     }));
-    const result = previewClipFromText(
-      JSON.stringify(clip({ poseKeyframes })),
-      { bake },
-    );
+    const result = previewClipFromText(JSON.stringify(clip({ poseKeyframes })));
     expect(result.markers).toEqual([]);
   });
 
@@ -140,35 +133,20 @@ describe("previewClipFromText", () => {
         intent: "gesture",
         sequence: clip({ id: "wrapped" }),
       }),
-      { bake },
     );
     expect(result.clip.id).toBe("wrapped");
   });
 
-  it("generates a motion description through the injected baker", () => {
-    const description = {
-      schema: "animamaMotion/1",
-      name: "Nod",
-      kind: "oneShot",
-      duration: 1,
-      joints: {
-        head: {
-          flexion: [
-            { t: 0, v: 0 },
-            { t: 1, v: 5 },
-          ],
-        },
-      },
-    };
-    const result = previewClipFromText(JSON.stringify(description), { bake });
-    expect(result.format).toBe("animamaMotion/1");
-    expect(result.clip.id).toBe("baked");
+  it("explains that motion descriptions are retired", () => {
+    expect(() =>
+      previewClipFromText(JSON.stringify({ schema: "animamaMotion/1" })),
+    ).toThrow(/retired.*animaPoseClip\/2\.0/);
   });
 
   it("reports invalid input with its problems", () => {
     const failure = (text: string) => {
       try {
-        previewClipFromText(text, { bake });
+        previewClipFromText(text);
       } catch (error) {
         return error as PreviewSourceError;
       }
@@ -180,10 +158,10 @@ describe("previewClipFromText", () => {
       failure(JSON.stringify(clip({ poseKeyframes: [] }))).message,
     ).toMatch(/animaPoseClip\/1\.0/);
     const issues = failure(
-      JSON.stringify({ schema: "animamaMotion/1", name: "", kind: "x" }),
+      JSON.stringify({ schema: "animaPoseClip/2.0", name: "", beats: [] }),
     ).issues;
     expect(issues.map(({ path }) => path)).toEqual(
-      expect.arrayContaining(["name", "kind", "duration"]),
+      expect.arrayContaining(["id", "name", "duration"]),
     );
   });
 

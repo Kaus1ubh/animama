@@ -10,7 +10,7 @@ import { createServer } from "vite";
  *   pnpm -s animation:preview <source> [--compare <source>] [--notes <file>]
  *     [--local-content <dir>] [--port <n>] [--no-open]
  *
- * Plays a clip, motion description, project envelope or Library item on both
+ * Plays a clip, project envelope or Library item on both
  * Included Avatars through the app's own Avatar playback, in the system
  * browser. Serves on 127.0.0.1 only; writes only review notes and retained
  * versions (see src/lib/avatar/motion-authoring/preview/).
@@ -153,15 +153,14 @@ export async function startPreviewServer({
       client.write(`data: ${session.state().generation}\n\n`);
   };
 
-  const { openPreviewSession } = await server.ssrLoadModule(
-    "/src/lib/avatar/motion-authoring/preview/openPreviewSession.ts",
+  const { PreviewSession } = await server.ssrLoadModule(
+    "/src/lib/avatar/motion-authoring/preview/previewSession.ts",
   );
   try {
-    session = await openPreviewSession({
+    session = await PreviewSession.open({
       sources,
       notes,
       roots: { cwd, included: includedDir, local: localContent ?? null },
-      avatarDirectory: avatarDir,
     });
   } catch (error) {
     await server.close();
@@ -265,8 +264,8 @@ function openBrowser(url) {
 const USAGE = `Usage: pnpm -s animation:preview <source> [--compare <source>] [--notes <file>]
                                 [--local-content <dir>] [--port <n>] [--no-open]
 
-A source is a clip file (animaPoseClip/1.0), a motion description
-(animamaMotion/1), a creator project envelope, or a Library item:
+A source is a clip file (animaPoseClip/2.0 or 1.0), a creator project
+envelope, or a Library item:
 library:<folder | selector | name>, optionally prefixed included/ or local/.
 Local items come from --local-content or the sourced stack's
 ANIMAMA_LOCAL_CONTENT_HOST_PATH.
@@ -327,6 +326,11 @@ async function main(argv) {
     return 1;
   }
   console.log(`Preview: ${preview.url}`);
+  // The clip files, so a Library item can be copied and revised.
+  for (const row of preview.session.state().rows)
+    console.log(
+      `${row.role === "main" ? "Reviewing" : "Comparing"}: ${row.label} (${row.path})`,
+    );
   console.log(`Review notes: ${preview.session.reviewPaths.sidecar}`);
   console.log("Press Ctrl+C to stop.");
   if (open) openBrowser(preview.url);

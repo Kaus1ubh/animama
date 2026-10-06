@@ -1,0 +1,136 @@
+{
+  "schema": "animaPoseClip/2.0",
+  "id": "gentle-double-nod",
+  "name": "Gentle Double Nod",
+  "duration": 1.7,
+  "basePose": "relaxedRest",
+  "fadeIn": { "duration": 0.25 },
+  "fadeOut": { "duration": 0.35 },
+  "mutedProceduralLayers": [
+    "sway",
+    "bounce",
+    "headNod",
+    "headSideTilt",
+    "cursorLookAt",
+    "emotionPosture"
+  ],
+  "plantFeet": true,
+  "beats": [
+    { "id": "start", "label": "Start", "time": 0 },
+    { "id": "anticipate", "label": "Anticipate", "time": 0.13 },
+    { "id": "nod", "label": "Nod", "time": 0.36 },
+    { "id": "lift", "label": "Lift", "time": 0.62 },
+    { "id": "nod-again", "label": "Nod again", "time": 0.86 },
+    { "id": "recover", "label": "Recover", "time": 1.12 },
+    { "id": "settle", "label": "Settle", "time": 1.6 }
+  ],
+  "joints": {
+    "head": {
+      "flexion": [
+        { "beat": "start", "v": "base" },
+        { "beat": "anticipate", "v": -2.5 },
+        { "beat": "nod", "v": 11 },
+        { "beat": "lift", "v": -1.5 },
+        { "beat": "nod-again", "v": 8 },
+        { "beat": "recover", "v": -1 },
+        { "beat": "settle", "dt": -0.3, "v": 0.8 },
+        { "beat": "settle", "dt": -0.05, "v": "base" }
+      ],
+      "lateralFlexion": [
+        { "beat": "start", "v": "base" },
+        { "beat": "nod", "dt": 0.09, "v": 3.5 },
+        { "beat": "recover", "dt": -0.02, "v": 4.5 },
+        { "beat": "settle", "v": "base" }
+      ],
+      "rotation": [
+        { "beat": "start", "v": "base" },
+        { "beat": "lift", "dt": -0.12, "v": 2 },
+        { "beat": "recover", "dt": 0.08, "v": 1 },
+        { "beat": "settle", "v": "base" }
+      ]
+    },
+    "neck": {
+      "flexion": [
+        { "beat": "start", "v": "base" },
+        { "beat": "anticipate", "dt": 0.04, "v": -1 },
+        { "beat": "nod", "dt": 0.05, "v": 5 },
+        { "beat": "lift", "dt": 0.05, "v": 0 },
+        { "beat": "nod-again", "dt": 0.05, "v": 3.5 },
+        { "beat": "recover", "dt": 0.06, "v": 0 },
+        { "beat": "settle", "v": "base" }
+      ]
+    },
+    "upperChest": {
+      "flexion": [
+        { "beat": "start", "v": "base" },
+        { "beat": "anticipate", "dt": 0.07, "v": -0.8 },
+        { "beat": "nod", "dt": 0.1, "v": 1.8 },
+        { "beat": "lift", "dt": 0.11, "v": 0.3 },
+        { "beat": "nod-again", "dt": 0.11, "v": 1.3 },
+        { "beat": "settle", "dt": -0.32, "v": 0 },
+        { "beat": "settle", "dt": 0.05, "v": "base" }
+      ]
+    },
+    "chest": {
+      "flexion": [
+        { "beat": "start", "v": "base" },
+        { "beat": "lift", "dt": -0.07, "v": 1.2 },
+        { "beat": "recover", "dt": -0.07, "v": 0.9 },
+        { "beat": "settle", "dt": 0.05, "v": "base" }
+      ],
+      "lateralFlexion": [
+        { "beat": "start", "v": "base" },
+        { "beat": "lift", "dt": -0.02, "v": 0.8 },
+        { "beat": "settle", "dt": 0.05, "v": "base" }
+      ]
+    },
+    "leftShoulder": {
+      "elevation": [
+        { "beat": "start", "v": "base" },
+        { "beat": "anticipate", "dt": 0.09, "v": -1.5 },
+        { "beat": "lift", "dt": -0.04, "v": -3.6 },
+        { "beat": "recover", "dt": -0.02, "v": -3.3 },
+        { "beat": "settle", "dt": 0.05, "v": "base" }
+      ]
+    },
+    "rightShoulder": {
+      "elevation": [
+        { "beat": "start", "v": "base" },
+        { "beat": "anticipate", "dt": 0.12, "v": -1.8 },
+        { "beat": "lift", "v": -3.8 },
+        { "beat": "recover", "v": -3.4 },
+        { "beat": "settle", "dt": 0.05, "v": "base" }
+      ]
+    },
+    "eyes": {
+      "pitch": [
+        { "beat": "start", "v": "base" },
+        { "beat": "nod", "v": 3 },
+        { "beat": "lift", "v": 0 },
+        { "beat": "nod-again", "v": 2.5 },
+        { "beat": "recover", "v": 0 },
+        { "beat": "settle", "dt": -0.05, "v": "base" }
+      ]
+    }
+  },
+  "expressions": {
+    "relaxed": [
+      { "beat": "start", "v": 0 },
+      { "beat": "anticipate", "dt": 0.12, "v": 0.4 },
+      { "beat": "recover", "dt": 0.08, "v": 0.45 },
+      { "beat": "settle", "dt": 0.05, "v": 0 }
+    ],
+    "happy": [
+      { "beat": "start", "v": 0 },
+      { "beat": "nod", "dt": -0.06, "v": 0.3 },
+      { "beat": "recover", "dt": 0.08, "v": 0.35 },
+      { "beat": "settle", "dt": 0.05, "v": 0 }
+    ],
+    "blink": [
+      { "beat": "start", "v": 0 },
+      { "beat": "anticipate", "dt": 0.12, "v": 0 },
+      { "beat": "nod", "dt": 0.02, "v": 0.3 },
+      { "beat": "lift", "dt": -0.08, "v": 0 }
+    ]
+  }
+}

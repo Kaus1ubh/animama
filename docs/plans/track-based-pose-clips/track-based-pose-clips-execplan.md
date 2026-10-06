@@ -100,7 +100,8 @@ prototype.
       Review #2 passed.
 - [x] Phase 3: Runtime and backend acceptance of 2.0. Review #3 passed
       (both repair rounds used).
-- [ ] Phase 4: Authoring tools, migrated examples and skill. Gate G1.
+- [x] Phase 4: Authoring tools, migrated examples and skill. Review #2
+      passed. Gate G1 (owner) pending.
 - [ ] Phase 5: Creator editing of 2.0. Gate G2.
 - [ ] Phase 6: Wave 1 content. Gates G3 and G4.
 - [ ] Phase 7: Replacements and wave 2. Gate G3.
@@ -933,6 +934,104 @@ Dependency: Phase 3.
 
 Checks: `pnpm exec vitest run src/lib/avatar/motion-authoring`; the CLI on all
 examples; `pnpm check`, `pnpm web:lint` and `pnpm web:test`.
+
+#### Phase 4 record
+
+Starting source: `afeb618a` (Phase 3 commit). Issue #293. Task stack:
+`animama-track-clips` at http://animama-track-clips.localhost:8240.
+
+Delivered:
+
+- `animation validate <clip> [--out]` (structure, anatomical hard limits,
+  saved size; writes the compact file only when valid); `check` takes 1.0 and
+  2.0 clips, with contacts and `plantFeet` read from the clip and each Avatar
+  sampled through its own prepared program; `generate`, `bake.ts`,
+  `description.ts`, `hands.ts` and the `.motion.json` examples removed; the
+  preview and both tools explain that `animamaMotion/1` is retired, and the
+  preview prints each source's file path.
+- The six examples migrated to `examples/<name>.clip.json` with the prototype
+  beats. A one-off migration test (kept outside Git in `.animama-stacks/g1-review/`) showed
+  the 2.0 playback matches the described curves on both Avatars at 120 Hz:
+
+  | Example | Beats | Max rotation | Max hips | Max weight | 2.0 saved | 1.0 bake | Ratio |
+  | --- | --- | --- | --- | --- | --- | --- | --- |
+  | wave-hello | 5 | 2.1e-14° | 0 m | 0 | 3.0 KB | 152 KB | 1.9% |
+  | gentle-double-nod | 7 | 3.2e-15° | 0 m | 4.2e-16 | 2.9 KB | 36 KB | 8.2% |
+  | hearty-laugh | 7 | 5.3e-14° | 1.7e-17 m | 1.1e-15 | 12.4 KB | 719 KB | 1.7% |
+  | excited-triple-clap | 8 | 4.4e-13° | 6.1e-18 m | 0 | 12.5 KB | 319 KB | 3.9% |
+  | palms-up-shrug | 6 | 5.2e-14° | 4.4e-18 m | 1.7e-16 | 5.8 KB | 252 KB | 2.3% |
+  | thinking-chin-rest | 3 | 3.5e-15° | 0 m | 0 | 3.5 KB | 305 KB | 1.1% |
+
+- All six pass the checks on both Avatars with no findings; the 1.0 bake of
+  the clap had two smoothness warnings that 2.0 does not.
+- Skill: `SKILL.md`, `references/clip-format.md` (renamed from
+  `description-format.md`), `checks-and-review.md` (project-file import with
+  Selector ID, beat-relative contacts, revising a saved Gesture),
+  `motion-principles.md`, `hands-and-face.md`, `human-movement.md`, tiers and
+  Selector IDs; runtime doc authoring section.
+- Checks: `tsc -b`, ESLint, web `prettier:check` pass; `pnpm web:test`: 385
+  files, 2,753 tests and 32 Node tests pass.
+- Phase 5 "before" screenshots (Pose and Clip tabs, new and imported clips,
+  1440 and 900 px) were captured from the stack with a scratch Playwright
+  script; at 900 px the sidebar rail overlaps the creator header (existing).
+
+Remaining: gate G1 (the owner compares each example with its 1.0 bake:
+`pnpm -s animation:preview src/lib/avatar/motion-authoring/examples/<name>.clip.json --compare ../../../.animama-stacks/g1-review/<name>.v1.clip.json`
+from `src/frontend/web`).
+
+#### Code Review #1 Findings (Phase 4)
+
+`sdlc-reviewer`, full initial review of the uncommitted Phase 4 tree against
+`afeb618a`. The migration was verified key by key against the retired
+descriptions; all six examples validate and pass the checks. Result: blocked
+by P4-F1.
+
+- **P4-F1 (blocking):** two unchanged skill decision rules still describe the
+  description format's defaults ("`plantFeet` default", "default: all but
+  breathing"). A 2.0 clip plants nothing and mutes nothing unless it says so,
+  and the checks then skip the feet: a clip following the rule with a 6 cm hips
+  shift passed with both feet sliding 6 cm.
+- **Optional:** P4-N1 `validate` reports anatomical limits only after the
+  structure is valid; P4-N2 range, smoothness and seam checks use only the first
+  Avatar's preparation; P4-N3 the retired-format message is duplicated; P4-N4
+  revising a 1.0 Library item fails at `validate` and `check` suggests
+  `validate` for 1.0 clips; P4-N5 no 2.0 loop-seam test; P4-N6 two doc nits;
+  P4-N7 the skill's Selector ID rule for replacements is unagreed policy.
+
+#### Code Review #1 Revisions (Phase 4)
+
+- **P4-F1 accepted, fixed:** the skill now says to set `"plantFeet": true` and
+  list the mutes explicitly. As a safeguard, `check` also checks the feet of a
+  2.0 clip that keys no leg bones, whatever `plantFeet` says; a test shows the
+  sliding case fails and the planted one passes.
+- **P4-N1 accepted, fixed:** anatomical limits are read from the raw clip and
+  reported with structural issues in one run (test updated).
+- **P4-N2 accepted as a recorded limitation:** canonical-value checks use the
+  first Avatar; the reviewer's per-Avatar probe found no range breach on A_1
+  that Y_0 lacked, and parity compares the Avatars at 10°.
+- **P4-N3 accepted, fixed:** one exported constant and message in `sources.ts`.
+- **P4-N4 accepted, fixed:** the skill says to open and save a 1.0 item in the
+  creator first; `check` suggests `validate` only for 2.0 clips.
+- **P4-N5 accepted, fixed:** a 2.0 loop-seam test.
+- **P4-N6 accepted, fixed:** 1.1–8.2%; a plain-clip import needs only the AI
+  description.
+- **P4-N7 accepted:** the rule is replaced by "ask the owner"; the question is
+  carried to Phase 7.
+
+Evidence: `vitest run src/lib/avatar/motion-authoring`: 57 tests pass; `tsc -b`
+and ESLint pass.
+
+#### Code Review #2 Findings (Phase 4)
+
+`sdlc-reviewer`, repair round 1. **Result: pass.** P4-F1 is fixed (the 6 cm
+hips probe now fails with 8 feet findings, and passes when planted); P4-N1,
+N3–N7 are resolved; no regressions (196 tests in the authoring and clip
+folders; all six examples pass `check`). Two wording nits about the new feet
+default (the `MotionCheckOptions.plantFeet` comment and `checks-and-review.md`)
+were fixed before commit.
+
+Phase 4 passes its review (one repair round used). Gate G1 (owner comparison)
+remains open; Phases 5–7 proceed.
 
 ### Phase 5 — Creator editing of 2.0 (R5)
 
