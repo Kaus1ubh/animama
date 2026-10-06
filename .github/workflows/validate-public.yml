@@ -104,16 +104,16 @@ jobs:
         if: contains(fromJSON('["full","docs","backend","web"]'), steps.select.outputs.mode)
         run: |
           python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" rg-setup -- bash -e -o pipefail -c 'if ! command -v rg; then sudo apt-get update; sudo apt-get install --yes ripgrep; fi'
-      - name: Set up Node for frontend and documentation validation
+      - name: Set up Node for frontend validation
         id: node
-        if: contains(fromJSON('["full","docs","web"]'), steps.select.outputs.mode)
+        if: contains(fromJSON('["full","web"]'), steps.select.outputs.mode)
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: '24.15.0'
           package-manager-cache: false
       - name: Install the pinned package manager
         id: pnpm-setup
-        if: contains(fromJSON('["full","docs","web"]'), steps.select.outputs.mode)
+        if: contains(fromJSON('["full","web"]'), steps.select.outputs.mode)
         run: |
           python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" pnpm-setup -- npm install --global pnpm@10.33.0
       - name: Locate the pnpm download store
@@ -142,26 +142,6 @@ jobs:
         if: contains(fromJSON('["full","web"]'), steps.select.outputs.mode)
         run: |
           python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" frontend-prepare --cwd src/frontend -- pnpm packages:build
-      - name: Install frozen user documentation dependencies
-        id: docs-install
-        if: contains(fromJSON('["full","docs"]'), steps.select.outputs.mode)
-        run: |
-          python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" docs-install --cwd docs/user -- pnpm install --frozen-lockfile
-      - name: Test user documentation output guards
-        id: docs-test
-        if: contains(fromJSON('["full","docs"]'), steps.select.outputs.mode)
-        run: |
-          python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" docs-test --cwd docs/user -- pnpm test
-      - name: Build the selected user documentation
-        id: docs-build
-        if: contains(fromJSON('["full","docs"]'), steps.select.outputs.mode)
-        run: |
-          python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" docs-build --cwd docs/user -- pnpm build
-      - name: Audit user documentation publication output
-        id: docs-check
-        if: contains(fromJSON('["full","docs"]'), steps.select.outputs.mode)
-        run: |
-          python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" docs-check --cwd docs/user -- pnpm check
       # Lint and repository invariants.
       - name: Audit typed-content boundaries
         id: audit

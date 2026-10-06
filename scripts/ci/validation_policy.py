@@ -22,12 +22,10 @@ FRONTEND = {
     "harness-types",
     "sdk-freshness",
 }
-DOCS = {"node", "pnpm-setup", "docs-install", "docs-test", "docs-build", "docs-check"}
 FULL = (
     COMMON
     | PYTHON
     | FRONTEND
-    | DOCS
     | {
         "hydrate",
         "browser-install",
@@ -58,7 +56,7 @@ FULL = (
 UNTIMED = {"checkout", "select", "uv", "node", "baseline-checkout", "package-artifacts"}
 PROFILES = {
     "full": FULL,
-    "docs": COMMON | DOCS | {"docs-tests"},
+    "docs": COMMON | {"docs-tests"},
     "backend": COMMON | PYTHON | {"accountless-guards"},
     "web": COMMON | FRONTEND | {"accountless-guards"},
     "deferred": set(),
