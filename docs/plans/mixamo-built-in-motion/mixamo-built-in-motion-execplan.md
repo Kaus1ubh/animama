@@ -1,15 +1,17 @@
 # Ship Mixamo-derived motion as non-portable Included content in desktop and hosted builds
 
 Source agreement: [issue #242](https://github.com/raymond-van/animama/issues/242),
-Status Agreed, read back at `2026-10-07T17:35:01Z` (snapshot:
+Status Agreed, read back at `2026-10-07T21:54:47Z` (snapshot:
 [mixamo-built-in-motion-spec.md](mixamo-built-in-motion-spec.md)). Owner
 decisions D1–D7 from intent discovery on 2026-10-07.
-Authorized scope: none yet. The owner reviews this plan before implementation.
-Starting revision: `d4f7028f` (`origin/main`, 2026-10-07).
-Branch: `docs/mixamo-built-in-motion` (spec and plan only). Rename it to
-`feat/mixamo-built-in-motion` when implementation starts. One branch and one PR
-for this plan. Phase issues are created by `workspace-setup` when implementation
-is authorized.
+Authorized scope: the whole plan, authorized by the owner's `/implement` request
+on 2026-10-07. Phase 5 stops at owner gates G1–G3; release gate G4 stays outside
+the PR.
+Starting revision: `d9fc7f91` (`origin/main`, 2026-10-07, after #310's promotion
+merged); first planned at `d4f7028f`.
+Branch: `feat/mixamo-built-in-motion` (renamed from `docs/mixamo-built-in-motion`).
+One branch and one PR for this plan. Parent #242; phases #323 (P1), #324 (P2),
+#325 (P3), #326 (P4) and #327 (P5), linked as sub-issues with dependencies.
 
 ## Purpose and context
 
@@ -62,7 +64,10 @@ Paths are relative to `src/backend/animama/` (backend) or `src/frontend/web/src/
 - [x] Intent discovery with the owner (2026-10-07); spec agreed, #242 updated and
       read back; snapshot refreshed (`e83936a1`).
 - [x] Repository surveyed; plan drafted.
-- [ ] Owner review of this plan and authorization of a phase range.
+- [x] Implementation authorized for the whole plan (`/implement`, 2026-10-07).
+- [x] Workspace: branch rebased onto `d9fc7f91`, renamed and pushed; phase issues
+      #323–#327 created as sub-issues of #242 with dependencies; #242 links the
+      plan. Task stack: started when a phase first needs it.
 - [ ] Phase 1: Non-portable class in the backend catalog.
 - [ ] Phase 2: Backend export, import and save enforcement.
 - [ ] Phase 3: Frontend affordances.

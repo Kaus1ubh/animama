@@ -4,7 +4,7 @@ Status: Agreed
 Owner decision: intent discovery with the owner on 2026-10-07 (D1–D7 under
 Open questions and decisions).
 Authoritative source: [issue #242](https://github.com/raymond-van/animama/issues/242).
-This file is an issue snapshot, published and read back at `2026-10-07T17:35:01Z`.
+This file is an issue snapshot, published and read back at `2026-10-07T21:54:47Z`.
 Source baseline: `d4f7028f` (`origin/main`, 2026-10-07).
 
 ## Problem and intended users
@@ -388,7 +388,7 @@ No blocking questions remain. The ExecPlan inventories the creator sampling path
 
 ## ExecPlan
 
-Required before implementation: substantial, licence-sensitive work spanning backend enforcement, frontend affordances, private build inputs and release gates. To be written next at `docs/plans/mixamo-built-in-motion/mixamo-built-in-motion-execplan.md`.
+[mixamo-built-in-motion-execplan.md](mixamo-built-in-motion-execplan.md). Phases: #323, #324, #325, #326, #327.
 
 ## Delivery links
 
