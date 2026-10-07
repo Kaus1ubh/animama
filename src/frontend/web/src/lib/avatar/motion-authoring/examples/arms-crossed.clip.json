@@ -24,26 +24,26 @@
   "joints": {
     "rightUpperArm": {
       "elevation": [
-        { "v": 38, "beat": "loop" },
-        { "v": 39, "beat": "settle" },
-        { "v": 38, "beat": "end" }
+        { "v": 46, "beat": "loop" },
+        { "v": 47, "beat": "settle" },
+        { "v": 46, "beat": "end" }
       ],
       "planeOfElevation": [
-        { "v": 70, "beat": "loop" },
-        { "v": 71, "beat": "settle" },
-        { "v": 70, "beat": "end" }
+        { "v": 55, "beat": "loop" },
+        { "v": 56, "beat": "settle" },
+        { "v": 55, "beat": "end" }
       ],
       "rotation": [
-        { "v": 10, "beat": "loop" },
-        { "v": 11, "beat": "settle" },
-        { "v": 10, "beat": "end" }
+        { "v": 15, "beat": "loop" },
+        { "v": 16, "beat": "settle" },
+        { "v": 15, "beat": "end" }
       ]
     },
     "rightLowerArm": {
       "flexion": [
-        { "v": 100, "beat": "loop" },
-        { "v": 101, "beat": "settle" },
-        { "v": 100, "beat": "end" }
+        { "v": 125, "beat": "loop" },
+        { "v": 126, "beat": "settle" },
+        { "v": 125, "beat": "end" }
       ],
       "supination": [
         { "v": 0, "beat": "loop" },
@@ -60,14 +60,14 @@
     },
     "leftUpperArm": {
       "elevation": [
-        { "v": 44, "beat": "loop" },
-        { "v": 45, "beat": "settle" },
-        { "v": 44, "beat": "end" }
+        { "v": 48, "beat": "loop" },
+        { "v": 49, "beat": "settle" },
+        { "v": 48, "beat": "end" }
       ],
       "planeOfElevation": [
-        { "v": 68, "beat": "loop" },
-        { "v": 69, "beat": "settle" },
-        { "v": 68, "beat": "end" }
+        { "v": 70, "beat": "loop" },
+        { "v": 71, "beat": "settle" },
+        { "v": 70, "beat": "end" }
       ],
       "rotation": [
         { "v": 20, "beat": "loop" },
@@ -77,9 +77,9 @@
     },
     "leftLowerArm": {
       "flexion": [
-        { "v": 98, "beat": "loop" },
-        { "v": 99, "beat": "settle" },
-        { "v": 98, "beat": "end" }
+        { "v": 105, "beat": "loop" },
+        { "v": 106, "beat": "settle" },
+        { "v": 105, "beat": "end" }
       ],
       "supination": [
         { "v": -10, "beat": "loop" },
@@ -173,8 +173,8 @@
       "beat": "loop",
       "from": 0,
       "to": 2.4,
-      "offset": [0.072, 0.027, 0],
-      "tolerance": 0.06
+      "offset": [0.16, 0.034, 0.046],
+      "tolerance": 0.05
     }
   ]
 }

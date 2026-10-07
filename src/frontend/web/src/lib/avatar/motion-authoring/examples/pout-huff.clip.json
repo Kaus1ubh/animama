@@ -27,72 +27,72 @@
     "rightUpperArm": {
       "elevation": [
         { "v": "base", "beat": "start" },
-        { "v": 22.8, "beat": "start", "dt": 0.25 },
-        { "v": 38, "beat": "cross", "dt": -0.15 },
-        { "v": 38, "beat": "lower", "dt": -0.18 },
-        { "v": 20, "beat": "lower", "dt": 0.05 },
+        { "v": 27.6, "beat": "start", "dt": 0.3 },
+        { "v": 46, "beat": "cross", "dt": -0.12 },
+        { "v": 46, "beat": "lower", "dt": -0.18 },
+        { "v": 20, "beat": "lower", "dt": 0.12 },
         { "v": "base", "beat": "settle" }
       ],
       "planeOfElevation": [
         { "v": "base", "beat": "start" },
-        { "v": 42, "beat": "start", "dt": 0.25 },
-        { "v": 70, "beat": "cross", "dt": -0.15 },
-        { "v": 70, "beat": "lower", "dt": -0.18 },
-        { "v": 25, "beat": "lower", "dt": 0.05 },
+        { "v": 33, "beat": "start", "dt": 0.3 },
+        { "v": 55, "beat": "cross", "dt": -0.12 },
+        { "v": 55, "beat": "lower", "dt": -0.18 },
+        { "v": 25, "beat": "lower", "dt": 0.12 },
         { "v": "base", "beat": "settle" }
       ],
       "rotation": [
         { "v": "base", "beat": "start" },
-        { "v": 6, "beat": "start", "dt": 0.25 },
-        { "v": 10, "beat": "cross", "dt": -0.15 },
-        { "v": 10, "beat": "lower", "dt": -0.18 },
-        { "v": 5, "beat": "lower", "dt": 0.05 },
+        { "v": 9, "beat": "start", "dt": 0.3 },
+        { "v": 15, "beat": "cross", "dt": -0.12 },
+        { "v": 15, "beat": "lower", "dt": -0.18 },
+        { "v": 5, "beat": "lower", "dt": 0.12 },
         { "v": "base", "beat": "settle" }
       ]
     },
     "rightLowerArm": {
       "flexion": [
         { "v": "base", "beat": "start" },
-        { "v": 60, "beat": "start", "dt": 0.25 },
-        { "v": 100, "beat": "cross", "dt": -0.15 },
-        { "v": 100, "beat": "lower", "dt": -0.18 },
-        { "v": 40, "beat": "lower", "dt": 0.05 },
+        { "v": 75, "beat": "start", "dt": 0.3 },
+        { "v": 125, "beat": "cross", "dt": -0.12 },
+        { "v": 125, "beat": "lower", "dt": -0.18 },
+        { "v": 40, "beat": "lower", "dt": 0.12 },
         { "v": "base", "beat": "settle" }
       ]
     },
     "rightHand": {
       "flexion": [
         { "v": "base", "beat": "start" },
-        { "v": 6, "beat": "start", "dt": 0.25 },
-        { "v": 10, "beat": "cross", "dt": -0.15 },
+        { "v": 6, "beat": "start", "dt": 0.3 },
+        { "v": 10, "beat": "cross", "dt": -0.12 },
         { "v": 10, "beat": "lower", "dt": -0.18 },
-        { "v": 5, "beat": "lower", "dt": 0.05 },
+        { "v": 5, "beat": "lower", "dt": 0.12 },
         { "v": "base", "beat": "settle" }
       ]
     },
     "leftUpperArm": {
       "elevation": [
         { "v": "base", "beat": "start" },
-        { "v": 58, "beat": "cross", "dt": -0.25 },
-        { "v": 44, "beat": "cross" },
-        { "v": 44, "beat": "turn-away", "dt": 0.3 },
+        { "v": 64, "beat": "cross", "dt": -0.14 },
+        { "v": 48, "beat": "cross", "dt": 0.1 },
+        { "v": 48, "beat": "turn-away", "dt": 0.3 },
         { "v": 66, "beat": "lower", "dt": -0.18 },
         { "v": 46.2, "beat": "lower", "dt": 0.05 },
         { "v": "base", "beat": "settle" }
       ],
       "planeOfElevation": [
         { "v": "base", "beat": "start" },
-        { "v": 55, "beat": "cross", "dt": -0.25 },
-        { "v": 68, "beat": "cross" },
-        { "v": 68, "beat": "turn-away", "dt": 0.3 },
+        { "v": 55, "beat": "cross", "dt": -0.14 },
+        { "v": 70, "beat": "cross", "dt": 0.1 },
+        { "v": 70, "beat": "turn-away", "dt": 0.3 },
         { "v": 45, "beat": "lower", "dt": -0.18 },
         { "v": 31.5, "beat": "lower", "dt": 0.05 },
         { "v": "base", "beat": "settle" }
       ],
       "rotation": [
         { "v": "base", "beat": "start" },
-        { "v": 20, "beat": "cross", "dt": -0.25 },
-        { "v": 20, "beat": "cross" },
+        { "v": 20, "beat": "cross", "dt": -0.14 },
+        { "v": 20, "beat": "cross", "dt": 0.1 },
         { "v": 20, "beat": "turn-away", "dt": 0.3 },
         { "v": 15, "beat": "lower", "dt": -0.18 },
         { "v": 10.5, "beat": "lower", "dt": 0.05 },
@@ -102,17 +102,17 @@
     "leftLowerArm": {
       "flexion": [
         { "v": "base", "beat": "start" },
-        { "v": 75, "beat": "cross", "dt": -0.25 },
-        { "v": 98, "beat": "cross" },
-        { "v": 98, "beat": "turn-away", "dt": 0.3 },
+        { "v": 75, "beat": "cross", "dt": -0.14 },
+        { "v": 105, "beat": "cross", "dt": 0.1 },
+        { "v": 105, "beat": "turn-away", "dt": 0.3 },
         { "v": 85, "beat": "lower", "dt": -0.18 },
         { "v": 59.5, "beat": "lower", "dt": 0.05 },
         { "v": "base", "beat": "settle" }
       ],
       "supination": [
         { "v": "base", "beat": "start" },
-        { "v": -10, "beat": "cross", "dt": -0.25 },
-        { "v": -10, "beat": "cross" },
+        { "v": -10, "beat": "cross", "dt": -0.14 },
+        { "v": -10, "beat": "cross", "dt": 0.1 },
         { "v": -10, "beat": "turn-away", "dt": 0.3 },
         { "v": -10, "beat": "lower", "dt": -0.18 },
         { "v": -7, "beat": "lower", "dt": 0.05 },
@@ -122,8 +122,8 @@
     "leftHand": {
       "flexion": [
         { "v": "base", "beat": "start" },
-        { "v": 10, "beat": "cross", "dt": -0.25 },
-        { "v": 10, "beat": "cross" },
+        { "v": 10, "beat": "cross", "dt": -0.14 },
+        { "v": 10, "beat": "cross", "dt": 0.1 },
         { "v": 10, "beat": "turn-away", "dt": 0.3 },
         { "v": 10, "beat": "lower", "dt": -0.18 },
         { "v": 7, "beat": "lower", "dt": 0.05 },
@@ -214,10 +214,10 @@
       "bone": "rightHand",
       "target": "leftLowerArm",
       "beat": "cross",
-      "from": -0.2,
-      "to": 0.96,
-      "offset": [0.145, -0.045, 0.025],
-      "tolerance": 0.07
+      "from": 0.12,
+      "to": 0.82,
+      "offset": [0.195, 0.01, 0.05],
+      "tolerance": 0.05
     }
   ]
 }

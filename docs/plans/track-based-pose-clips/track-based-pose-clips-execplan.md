@@ -1466,11 +1466,13 @@ Starting source: `0aa1b0e9`. Issue #291.
   review revisions: no failures anywhere; warnings only on
   - cheeky-finger-guns: forearm speed 379°/s during the quick draw;
   - celebration: upper-arm speed 457°/s as the arms fly up (cheer);
-  - enthusiastic-yes: forearm speed 507°/s in the fist pump;
+  - enthusiastic-yes: forearm speed 507°/s and upper-arm speed 361°/s in the
+    fist pump;
+  - pout-huff: forearm speed 369°/s and 384°/s as the arms cross and drop;
   - small-shy-wave: forearm speed 425°/s and 376°/s in the wave flicks;
   - surprise-gasp: forearm speed 460°/s in the startle;
   each accepted because the gesture's character is a quick, deliberate move
-  (the limit, 360°/s, targets unintended snaps). The other twelve pass with
+  (the limit, 360°/s, targets unintended snaps). The other eleven pass with
   no warnings.
 - Saved as Local content on the task stack through the creator (revised in
   place after review; all 17 equal their sources apart from `id`, and the
@@ -1520,11 +1522,12 @@ named bone's offset from its target and the capsule intersections.
   (`rightIndexDistal→head`, 5 cm), with no hand/head overlap.
 - **P7-F3 accepted, fixed:** hands-on-hips rests the hands on the sides of
   the waist, fingers forward (hand→hips contacts, 6 cm; render checked);
-  surprise-gasp puts both palms on the cheeks (5 cm) and its description now
-  says so; blow-a-kiss touches the fingertips to the lips (5 cm); shy-giggle
+  surprise-gasp puts both palms on the cheeks (5 cm) and its AI description
+  now says so; blow-a-kiss touches the fingertips to the lips (5 cm); shy-giggle
   hides the mouth behind the right hand (5 cm) with the left palm on the
-  cheek (6 cm), since two hands over the mouth collide, and its description
-  says so. Arrival and release paths were widened so the hands do not brush.
+  cheek (6 cm), since two hands over the mouth collide, and its AI
+  description says so (the user-facing descriptions of both items are left
+  for the owner at G3). Arrival and release paths were widened so the hands do not brush.
 - **P7-F4 accepted, fixed:** arms-crossed declares the measured rest
   (offset along the left forearm, 6 cm); pout-huff one contact over arrival,
   hold and release (7 cm), centred between the Avatars' measured positions.
@@ -1535,6 +1538,34 @@ named bone's offset from its target and the capsule intersections.
 - Evidence: `check` per item as listed; the example test passes (28); the
   nine changed Local items were revised in the creator and all 17 equal
   their sources.
+
+#### Code Review #2 Findings (Phase 7)
+
+`sdlc-reviewer`, targeted recheck of `958ae8f1` (repair round 1). P7-F1,
+P7-F2, P7-F3 and P7-F5 verified. Blocking:
+
+- **P7-R2-F1:** the arms-crossed and pout-huff contacts met the stated rule
+  but still hid the right wrist passing through the left forearm (1.1–2.6 cm
+  from its axis; 4.8 cm capsule overlap with the contacts removed).
+
+Optional: the warning list missed enthusiastic-yes' upper-arm warning; the
+record called the edited text "description" although only the AI
+descriptions changed; G3 notes on shy-giggle's left palm (3.3 cm capsule
+overlap on Y_0, a flat-hand approximation), the head-scratch lift between
+strokes and the hands-on-hips gap.
+
+#### Code Review #2 Revisions (Phase 7)
+
+- **P7-R2-F1 accepted, fixed:** the crossed arms were re-posed so the right
+  wrist rests on the left forearm surface near its wrist (4.8–6.9 cm from the
+  axis on the two Avatars) with no intersections at all with the contacts
+  removed; the contacts are 5 cm at the measured midpoints. In pout-huff the
+  right arm settles before the left folds over it, and the contact covers
+  only the hold. Both Local items were revised.
+- Optional: the warning list and description wording are corrected; the G3
+  notes stay for the owner.
+- Evidence: `check` per item (pout-huff now lists two speed warnings);
+  example test passes (28); the Local copies equal their sources.
 
 ## Final integration review
 
