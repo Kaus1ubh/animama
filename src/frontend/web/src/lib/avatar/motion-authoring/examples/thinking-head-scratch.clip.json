@@ -1,0 +1,168 @@
+{
+  "schema": "animaPoseClip/2.0",
+  "id": "thinking-head-scratch",
+  "name": "thinking-head-scratch",
+  "duration": 2.4,
+  "loop": true,
+  "basePose": "relaxedRest",
+  "fadeIn": { "duration": 0.6 },
+  "fadeOut": { "duration": 0.45 },
+  "mutedProceduralLayers": [
+    "sway",
+    "bounce",
+    "headNod",
+    "headSideTilt",
+    "cursorLookAt",
+    "emotionPosture"
+  ],
+  "plantFeet": true,
+  "beats": [
+    { "id": "loop", "label": "Loop", "time": 0 },
+    { "id": "scratch-1", "label": "Scratch", "time": 0.6 },
+    { "id": "scratch-2", "label": "Scratch again", "time": 1.2 },
+    { "id": "look-up", "label": "Look up", "time": 1.8 },
+    { "id": "end", "label": "End", "time": 2.4 }
+  ],
+  "joints": {
+    "rightLowerArm": {
+      "flexion": [
+        { "v": 128, "beat": "loop" },
+        { "v": 139, "beat": "loop", "dt": 0.3 },
+        { "v": 128, "beat": "scratch-1" },
+        { "v": 139, "beat": "scratch-2", "dt": -0.3 },
+        { "v": 128, "beat": "scratch-2" },
+        { "v": 137, "beat": "scratch-2", "dt": 0.3 },
+        { "v": 129, "beat": "look-up" },
+        { "v": 134, "beat": "end", "dt": -0.3 },
+        { "v": 128, "beat": "end" }
+      ]
+    },
+    "rightUpperArm": {
+      "elevation": [
+        { "v": 100, "beat": "loop" },
+        { "v": 102, "beat": "scratch-2" },
+        { "v": 100, "beat": "end" }
+      ],
+      "planeOfElevation": [
+        { "v": 72, "beat": "loop" },
+        { "v": 74, "beat": "scratch-2" },
+        { "v": 72, "beat": "end" }
+      ],
+      "rotation": [
+        { "v": 86, "beat": "loop" },
+        { "v": 88, "beat": "scratch-2" },
+        { "v": 86, "beat": "end" }
+      ]
+    },
+    "rightShoulder": {
+      "elevation": [
+        { "v": 12, "beat": "loop" },
+        { "v": 14, "beat": "scratch-2" },
+        { "v": 12, "beat": "end" }
+      ]
+    },
+    "rightHand": {
+      "flexion": [
+        { "v": 20, "beat": "loop" },
+        { "v": 30, "beat": "loop", "dt": 0.3 },
+        { "v": 20, "beat": "scratch-1" },
+        { "v": 30, "beat": "scratch-2", "dt": -0.3 },
+        { "v": 20, "beat": "scratch-2" },
+        { "v": 28, "beat": "scratch-2", "dt": 0.3 },
+        { "v": 20, "beat": "look-up" },
+        { "v": 20, "beat": "end" }
+      ]
+    },
+    "head": {
+      "lateralFlexion": [
+        { "v": -8, "beat": "loop" },
+        { "v": -10, "beat": "scratch-2" },
+        { "v": -8, "beat": "end" }
+      ],
+      "flexion": [
+        { "v": 4, "beat": "loop" },
+        { "v": 6, "beat": "scratch-2", "dt": -0.3 },
+        { "v": -2, "beat": "look-up" },
+        { "v": 4, "beat": "end" }
+      ],
+      "rotation": [
+        { "v": 6, "beat": "loop" },
+        { "v": 3, "beat": "scratch-2" },
+        { "v": 8, "beat": "look-up" },
+        { "v": 6, "beat": "end" }
+      ]
+    },
+    "eyes": {
+      "pitch": [
+        { "v": 6, "beat": "loop" },
+        { "v": 10, "beat": "look-up", "dt": -0.2 },
+        { "v": 6, "beat": "end" }
+      ],
+      "yaw": [
+        { "v": 4, "beat": "loop" },
+        { "v": 8, "beat": "look-up", "dt": -0.2 },
+        { "v": 4, "beat": "end" }
+      ]
+    },
+    "chest": {
+      "lateralFlexion": [
+        { "v": 2, "beat": "loop" },
+        { "v": 3, "beat": "scratch-2" },
+        { "v": 2, "beat": "end" }
+      ]
+    },
+    "leftUpperArm": {
+      "elevation": [
+        { "v": 18, "beat": "loop" },
+        { "v": 18, "beat": "end" }
+      ]
+    },
+    "leftLowerArm": {
+      "flexion": [
+        { "v": 12, "beat": "loop" },
+        { "v": 16, "beat": "scratch-2" },
+        { "v": 12, "beat": "end" }
+      ]
+    }
+  },
+  "hands": {
+    "right": [
+      { "preset": "relaxed", "curl": 30, "beat": "loop" },
+      { "preset": "relaxed", "curl": 55, "beat": "loop", "dt": 0.3 },
+      { "preset": "relaxed", "curl": 30, "beat": "scratch-1" },
+      { "preset": "relaxed", "curl": 55, "beat": "scratch-2", "dt": -0.3 },
+      { "preset": "relaxed", "curl": 30, "beat": "scratch-2" },
+      { "preset": "relaxed", "curl": 40, "beat": "look-up" },
+      { "preset": "relaxed", "curl": 30, "beat": "end" }
+    ]
+  },
+  "expressions": {
+    "relaxed": [
+      { "v": 0.25, "beat": "loop" },
+      { "v": 0.25, "beat": "end" }
+    ],
+    "ou": [
+      { "v": 0.1, "beat": "loop" },
+      { "v": 0.2, "beat": "scratch-2" },
+      { "v": 0.1, "beat": "end" }
+    ]
+  },
+  "contacts": [
+    {
+      "bone": "rightHand",
+      "target": "head",
+      "beat": "loop",
+      "from": 0,
+      "to": 2.4,
+      "tolerance": 0.3
+    },
+    {
+      "bone": "rightLowerArm",
+      "target": "head",
+      "beat": "loop",
+      "from": 0,
+      "to": 2.4,
+      "tolerance": 0.4
+    }
+  ]
+}

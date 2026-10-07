@@ -1387,6 +1387,25 @@ Dependency: Phase 6's process. Runs item by item.
    `content/included/`. Promotion is recorded as a follow-up issue with its
    licence inventory step.
 
+#### Phase 7 record
+
+Starting source: `0aa1b0e9`. Issue #291.
+
+- Sources in `motion-authoring/examples/`: the six replacements
+  (right-face-palm, thinking-head-scratch, arms-crossed, cheeky-finger-guns,
+  hands-on-hips, cat-monster-rawr; each keeps its original's kind, loops stay
+  loops) and the eleven wave 2 items. All 27 examples pass the example test
+  (validate, size, motion checks on both Avatars); six wave 2 items have
+  warnings only.
+- Saved as Local content on the task stack through the creator. Wave 2
+  Selector IDs: `surprise_gasp`, `head_shake_no`, `enthusiastic_yes`,
+  `shy_giggle`, `deflated_sigh`, `pout_huff`, `celebration`, `blow_kiss`,
+  `shy_wave`, `polite_bow`, `attentive_lean_in`. Replacements use provisional
+  IDs `<original>-v2` until the owner chooses (skill rule).
+- Pending: Phase 7 code review; owner G3 review (replacements with
+  `--compare library:<original>`); the owner's choice of replacement Selector
+  IDs; the promotion follow-up issue with its licence inventory step.
+
 ## Final integration review
 
 After Phase 7 (or the last completed phase), run one full `sdlc-reviewer` pass

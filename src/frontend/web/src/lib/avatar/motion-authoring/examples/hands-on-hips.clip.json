@@ -1,0 +1,149 @@
+{
+  "schema": "animaPoseClip/2.0",
+  "id": "hands-on-hips",
+  "name": "hands-on-hips",
+  "duration": 2.4,
+  "loop": true,
+  "basePose": "relaxedRest",
+  "fadeIn": { "duration": 0.6 },
+  "fadeOut": { "duration": 0.45 },
+  "mutedProceduralLayers": [
+    "sway",
+    "bounce",
+    "headNod",
+    "headSideTilt",
+    "cursorLookAt",
+    "emotionPosture"
+  ],
+  "plantFeet": true,
+  "beats": [
+    { "id": "loop", "label": "Loop", "time": 0 },
+    { "id": "shift", "label": "Shift weight", "time": 1.2 },
+    { "id": "end", "label": "End", "time": 2.4 }
+  ],
+  "joints": {
+    "leftUpperArm": {
+      "elevation": [
+        { "v": 42, "beat": "loop" },
+        { "v": 43, "beat": "shift" },
+        { "v": 42, "beat": "end" }
+      ],
+      "planeOfElevation": [
+        { "v": -2, "beat": "loop" },
+        { "v": -2, "beat": "end" }
+      ],
+      "rotation": [
+        { "v": -45, "beat": "loop" },
+        { "v": -45, "beat": "end" }
+      ]
+    },
+    "leftLowerArm": {
+      "flexion": [
+        { "v": 95, "beat": "loop" },
+        { "v": 95, "beat": "end" }
+      ],
+      "supination": [
+        { "v": -20, "beat": "loop" },
+        { "v": -20, "beat": "end" }
+      ]
+    },
+    "leftHand": {
+      "flexion": [
+        { "v": -25, "beat": "loop" },
+        { "v": -25, "beat": "end" }
+      ]
+    },
+    "leftShoulder": {
+      "protraction": [
+        { "v": -6, "beat": "loop" },
+        { "v": -6, "beat": "end" }
+      ]
+    },
+    "rightUpperArm": {
+      "elevation": [
+        { "v": 42, "beat": "loop" },
+        { "v": 43, "beat": "shift" },
+        { "v": 42, "beat": "end" }
+      ],
+      "planeOfElevation": [
+        { "v": -2, "beat": "loop" },
+        { "v": -2, "beat": "end" }
+      ],
+      "rotation": [
+        { "v": -45, "beat": "loop" },
+        { "v": -45, "beat": "end" }
+      ]
+    },
+    "rightLowerArm": {
+      "flexion": [
+        { "v": 95, "beat": "loop" },
+        { "v": 95, "beat": "end" }
+      ],
+      "supination": [
+        { "v": -20, "beat": "loop" },
+        { "v": -20, "beat": "end" }
+      ]
+    },
+    "rightHand": {
+      "flexion": [
+        { "v": -25, "beat": "loop" },
+        { "v": -25, "beat": "end" }
+      ]
+    },
+    "rightShoulder": {
+      "protraction": [
+        { "v": -6, "beat": "loop" },
+        { "v": -6, "beat": "end" }
+      ]
+    },
+    "chest": {
+      "flexion": [
+        { "v": -4, "beat": "loop" },
+        { "v": -5, "beat": "shift" },
+        { "v": -4, "beat": "end" }
+      ]
+    },
+    "head": {
+      "flexion": [
+        { "v": -4, "beat": "loop" },
+        { "v": -5, "beat": "shift" },
+        { "v": -4, "beat": "end" }
+      ],
+      "lateralFlexion": [
+        { "v": 3, "beat": "loop" },
+        { "v": -3, "beat": "shift" },
+        { "v": 3, "beat": "end" }
+      ]
+    },
+    "hips": {
+      "lateralFlexion": [
+        { "v": -2, "beat": "loop" },
+        { "v": 2, "beat": "shift" },
+        { "v": -2, "beat": "end" }
+      ]
+    }
+  },
+  "hipsPosition": {
+    "x": [
+      { "v": 0.012, "beat": "loop" },
+      { "v": -0.012, "beat": "shift" },
+      { "v": 0.012, "beat": "end" }
+    ]
+  },
+  "hands": {
+    "left": [
+      { "preset": "open-together", "curl": 10, "beat": "loop" },
+      { "preset": "open-together", "curl": 10, "beat": "end" }
+    ],
+    "right": [
+      { "preset": "open-together", "curl": 10, "beat": "loop" },
+      { "preset": "open-together", "curl": 10, "beat": "end" }
+    ]
+  },
+  "expressions": {
+    "happy": [
+      { "v": 0.35, "beat": "loop" },
+      { "v": 0.35, "beat": "end" }
+    ]
+  }
+}
