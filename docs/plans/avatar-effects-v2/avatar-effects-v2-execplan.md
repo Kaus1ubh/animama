@@ -4,7 +4,7 @@ Source agreement: [#298](https://github.com/raymond-van/animama/issues/298)
 (snapshot: [avatar-effects-v2-spec.md](avatar-effects-v2-spec.md)). On 2026-10-06
 the owner accepted its proposals, added the template picker and effect-intent
 requirements, and asked for this plan.
-Authorized scope: all phases, P1–P11 (owner, 2026-10-06). Explicit gates G1–G5
+Authorized scope: all phases, P1–P11 (owner, 2026-10-06). Explicit gates G2–G5
 still apply.
 Starting revision: `9abfc771` (`origin/main`).
 Branch: `feat/avatar-effects-v2`, in a dedicated task worktree. One branch and
@@ -70,15 +70,17 @@ work proceeds.
       created as sub-issues with dependencies (2026-10-06).
 - [x] Phase 1: Definition fixes and Save validation.
 - [x] Phase 2: Effect render harness, baselines and thumbnail capture.
-- [ ] Phase 3: Creator prototype. Gate G1.
+- [x] Phase 3: Creator prototype. Superseded: the owner withdrew G1 and kept
+      the existing creator UI (2026-10-06).
 - [ ] Phase 4: Avatar Effect v2, one definition source, envelope and conversion.
       Gate G2 if renders differ.
 - [ ] Phase 5: Model-agnostic face and eye parts, with corrections. Gate G3 if
       the spike fails.
 - [ ] Phase 6: Attachments beyond the face and the performance budget.
 - [ ] Phase 7: Shared creator save, undo and draft recovery.
-- [ ] Phase 8: Template picker and entry points. Requires G1.
-- [ ] Phase 9: Avatar Effect editor and direct manipulation. Requires G1.
+- [ ] Phase 8: Template picker and entry points (existing UI components).
+- [ ] Phase 9: Avatar Effect creator `/2` controls and direct manipulation
+      (existing layout and styling).
 - [ ] Phase 10: Headed effect preview. Gate G4.
 - [ ] Phase 11: Documentation and acceptance. Gate G5.
 - [ ] Final integration review and PR.
@@ -124,6 +126,11 @@ probe):
   prototype gate.
 - **2026-10-06, owner (plan review):** development databases are reset for the
   new correction table; no migration is needed.
+- **2026-10-06, owner (prototype review):** the effect creators keep their
+  existing UI and styling; this is not a UI redesign. P8 and P9 reuse existing
+  components (for example `sectioned-modal-frame` and the current inspector
+  controls) and extend the current Avatar Effect creator layout. G1 and the
+  prototype are withdrawn. The spec's R7–R9 were narrowed to match.
 - **2026-10-06, planning (agent; implementation choices revisable within the
   accepted scope):**
   1. **One definition source.**
@@ -195,7 +202,7 @@ probe):
 
 | Gate | When | Who | Effect |
 | --- | --- | --- | --- |
-| G1 | End of P3 | Owner approves the clickable prototype | P8 and P9 start only after approval |
+| G1 | Withdrawn 2026-10-06 | — | The owner kept the existing creator UI; P8 and P9 proceed without a prototype |
 | G2 | P4, only if converted renders differ from baselines | Owner accepts or rejects each difference | P4 completes after acceptance or a fix |
 | G3 | P5, only if the spike cannot find face skin or an eye without names on an Included Avatar | Owner decides whether name fallback is acceptable for that part | P5 continues as decided |
 | G4 | Before P10 | #282's PR (with #289) must be merged; otherwise the owner decides to wait or to deliver the headed preview separately | P10 starts or is re-planned |
@@ -499,7 +506,7 @@ were confirmed with no regressions. One non-blocking note: a descriptor
 symlinked from outside a library root now fails every `library:` lookup for that
 root instead of being skipped. This is accepted as an explicit failure.
 
-### Phase 3 — Creator prototype (R9, gate G1)
+### Phase 3 — Creator prototype (R9, gate G1; superseded 2026-10-06)
 
 1. Build a self-contained, clickable HTML prototype that does not use app code.
    It covers:
@@ -555,7 +562,9 @@ It has three boards:
   naming its field, and a missing part on the selected model.
 - **Narrow width.** 760 px.
 
-**G1:** awaiting owner approval. P4–P7 proceed meanwhile.
+**G1:** withdrawn on 2026-10-06. The owner could not judge the final product
+from the prototype and chose to keep the existing creator UI and styling. The
+prototype is not used further.
 
 ### Phase 4 — Avatar Effect v2, one definition source, envelope and conversion (R1, R2 except new attachment rendering, R3, R6)
 
@@ -849,7 +858,10 @@ except Particle autosave.
 
 #### Code Review #1 Revisions
 
-### Phase 8 — Template picker and entry points (R7). Requires G1.
+### Phase 8 — Template picker and entry points (R7)
+
+Owner decision (2026-10-06): build the dialog from existing UI components and
+styling, without a new visual design.
 
 1. **Registry.** `lib/effects/effectTemplates.ts`.
    - **Avatar:** curated Included effect content IDs grouped by intent, plus a
@@ -864,7 +876,8 @@ except Particle autosave.
      (`licenses/third-party/art-NOTICES.md` and the runtime notice inventory).
    - A test checks that every template has a thumbnail and every thumbnail a
      template.
-3. **Dialog.** `EffectTemplatePickerDialog`, as approved at G1.
+3. **Dialog.** `EffectTemplatePickerDialog`, built on the existing modal frame and
+   card styles.
    - One section per kind, Avatar first.
    - A keyboard-navigable grid with loading, empty and error states.
 4. **Entry points.**
@@ -896,7 +909,10 @@ and Library Edit links still work.
 
 #### Code Review #1 Revisions
 
-### Phase 9 — Avatar Effect editor and direct manipulation (R8, R9, R4 interface). Requires G1.
+### Phase 9 — Avatar Effect creator `/2` controls and direct manipulation (R8, R9, R4 interface)
+
+Owner decision (2026-10-06): keep the current creator layout and styling and
+extend it; reuse existing inspector components. No new visual design.
 
 1. **Document.**
    - The editor document mirrors `/2`, with art resources (image, other-eye
@@ -904,9 +920,9 @@ and Library Edit links still work.
    - The export schema becomes `animama/avatar-effect-editor/2`.
    - Older drafts are dropped with a notice.
    - Delete P4's temporary adapter.
-2. **Interface, as approved at G1:**
-   - attachment chooser, default controls and Advanced numeric fields with units
-     (degrees);
+2. **Interface, within the existing layout:**
+   - an attachment control and only the fields that apply to it, with units
+     (degrees), using the existing inspector components;
    - art, appearance, motion (presets and a keyframe list), sound and
      description;
    - validation, loading, empty, error and unsaved states;
@@ -1017,7 +1033,7 @@ replace G5 or merge approval.
 | R4 | Name-free detection tests on both Avatars (G3); correction persistence, reload and chat tests; package tests; browser correction | P5, P9 |
 | R5, R6 | `--with-clip` sheets; envelope tests; chat check | P4, P6, P11 |
 | Performance | `effects:bench` numbers ≤ 2 ms mean added | P6 |
-| R7–R9 | G1 approval; e2e journeys; screenshots; G5 walkthrough | P3, P7–P9, P11 |
+| R7–R9 | e2e journeys; screenshots; G5 walkthrough | P7–P9, P11 |
 | R10 | Render and preview browser tests; owner use | P2, P10 |
 | R11 | Documentation diff | P11 |
 

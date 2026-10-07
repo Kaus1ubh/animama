@@ -98,8 +98,9 @@ In scope:
    user correction saved with the Avatar.
 4. Effects attached to the body, offset stickers beside the avatar and a
    silhouette overlay.
-5. One effects creator for all three effect kinds, with a template picker and a
-   redesigned Avatar Effect editor that supports direct manipulation.
+5. A template picker for all three effect kinds, shared creator infrastructure,
+   and the existing Avatar Effect creator extended for `/2` with direct
+   manipulation, keeping the current UI and styling.
 6. A headed and headless effect preview on both Included Avatars.
 7. A shared effect-asset skill and a reworked Avatar Effect authoring skill.
 8. About 25 high-quality Avatar Effects, Reactions wired per emotion, and
@@ -226,17 +227,19 @@ can be expressed in v2 without visible change.
   - Choosing a template goes to that kind's creator route with a new, unsaved
     Local draft based on it. Included content is never modified. Closing the
     modal returns the user to where they were.
-- All three effect kinds share one workspace layout, preview canvas with model and
-  view selection, Play/Stop, save, undo and draft recovery.
-- The Avatar Effect editor is redesigned (R8). The Particle and Scene editors move
-  into the shared workspace with their current inspector controls.
+- All three effect kinds share one implementation of save, undo and draft
+  recovery. Each creator keeps its existing layout and styling (owner,
+  2026-10-06: no UI redesign at this point).
+- The picker and creator changes reuse the existing UI components and styling.
+  The Particle and Scene editors keep their current inspector controls.
 - Existing creator routes and Library Edit links keep working.
 
 #### R8 — Avatar Effect editor and direct manipulation
 
-- The default view offers only the controls needed for the chosen attachment.
-  Raw numeric fields are under Advanced, labelled with units that match the
-  attachment (rotation in degrees).
+- The existing Avatar Effect creator layout and styling are kept and extended
+  for `/2`. It shows only the controls that apply to the chosen attachment,
+  labelled with units that match the attachment (rotation in degrees), using
+  the existing inspector components.
 - The user positions art by dragging it on the preview avatar. It moves along its
   attachment: across the face for face-surface art, and in the attachment's plane
   for landmark, body and sticker art. Handles scale and rotate it.
@@ -247,8 +250,6 @@ can be expressed in v2 without visible change.
 
 #### R9 — Creator quality
 
-- Before Plan 1 implements R7 and R8, the owner approves a clickable prototype of
-  the template picker and the Avatar Effect editor flow.
 - The creator has defined loading, empty, error and unsaved-change states, and no
   layout shifts while previews load or panels change.
 - Every editing action can be undone.
@@ -436,8 +437,7 @@ it before Plan 2 starts.
       body effect, an offset sticker and a silhouette overlay follow the avatar
       through a Gesture, and an event's fade in and out is visible. Tests cover
       the envelope timing.
-- [ ] **R7–R9:** The owner approves the clickable prototype before
-      implementation. A browser walkthrough with screenshots at desktop and
+- [ ] **R7–R9:** A browser walkthrough with screenshots at desktop and
       narrow widths covers: creating each kind from a template; placing art by
       dragging, scaling and rotating; undo and redo; correcting a part; save and
       reopen; recovering a draft; and opening each kind from a Library Edit link
@@ -471,7 +471,8 @@ Decisions (owner, 2026-10-06):
 - Delivery is two plans, platform then content, under this spec. Particle and
   Scene content, their inspector redesign and their skills move to #297.
 - The unified creator covers all three kinds through a shared shell and a
-  template picker. Only the Avatar Effect editor is redesigned now.
+  template picker. Only the Avatar Effect editor is redesigned now. (Narrowed on
+  2026-10-06: the existing UI and styling are kept; see Later decisions.)
 - Proof uses the two Included Avatars. Detection must not depend on material
   names. When detection fails, the user chooses the right part, and the choice is
   saved with the Avatar.
@@ -482,7 +483,8 @@ Decisions (owner, 2026-10-06):
 - Flipbook art is part of v2.
 - `/1` effects are converted directly rather than read permanently.
 - An effect owns its own motion; the Action event owns timing and fade.
-- The owner approves a clickable prototype before creator implementation.
+- ~~The owner approves a clickable prototype before creator implementation.~~
+  Withdrawn on 2026-10-06; see Later decisions.
 - Texture generation uses a shared effect-asset skill built on the owner's global
   `image-gen` skill.
 - Reactions are wired per emotion. Effects applied to the lip-synced mouth are
@@ -515,6 +517,13 @@ Additions (owner, 2026-10-06):
   Annie thumbnails, starting with Avatar Effects (R7).
 - Every new effect, its assets and its Reaction assignments follow a written
   brief with a clear intent, preferring comedic uses (R14, R15).
+
+Later decisions (owner, 2026-10-06, after the prototype review):
+
+- The effect creators keep their existing UI and styling; this work is not a UI
+  redesign. The picker and the Avatar Effect creator's `/2` controls, direct
+  manipulation and part panel reuse existing UI components. The prototype gate
+  is withdrawn.
 
 Open:
 
