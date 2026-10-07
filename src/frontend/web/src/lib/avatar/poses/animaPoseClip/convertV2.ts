@@ -1,7 +1,10 @@
 import type { VRMHumanBoneName } from "@pixiv/three-vrm";
 
 import { isVRMHumanBoneName } from "../animaPose";
-import { getAnimaPoseClipTimelineDuration } from "./playback";
+import {
+  getAnimaPoseClipTimelineDuration,
+  resolveAnimaPoseClipFadeTransition,
+} from "./playback";
 import { sampleAnimaPoseClip } from "./sampling";
 import {
   DEFAULT_ANIMA_POSE_CLIP_TRANSITION,
@@ -174,9 +177,19 @@ export function convertAnimaPoseClipToV2(
     ]),
   );
 
-  const kept = Object.fromEntries(
+  const kept: Record<string, unknown> = Object.fromEntries(
     Object.entries(clip).filter(([key]) => !REPLACED_FIELDS.has(key)),
   );
+  // 1.0 fades fall back to the clip's default transition, which 2.0 drops.
+  if (clip.defaultTransition)
+    for (const field of ["fadeIn", "fadeOut"] as const) {
+      const fade = clip[field];
+      if (fade)
+        kept[field] = {
+          ...resolveAnimaPoseClipFadeTransition(clip, fade),
+          duration: fade.duration,
+        };
+    }
   return {
     ...kept,
     schema: ANIMA_POSE_CLIP_V2_SCHEMA,

@@ -63,7 +63,7 @@ runtime keeps playing 1.0.
 
 ## Consequences
 
-- Generated clips shrink to 1–8% of their 1.0 bakes and can run about 20 s or
+- Generated clips shrink to 1.1–8.2% of their 1.0 bakes and can run about 20 s or
   more within the existing limit. Sampling them is far cheaper than sampling a
   dense 1.0 bake (0.014 ms against 12.7 ms per frame for the hearty laugh, whose
   1.0 sampler re-parses all 247 keyframes on each call).

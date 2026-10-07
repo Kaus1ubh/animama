@@ -231,3 +231,23 @@ describe("convertAnimaPoseClipToV2", () => {
     expect(converted).not.toHaveProperty("defaultTransition");
   });
 });
+
+describe("convertAnimaPoseClipToV2 fades", () => {
+  it("keeps the easing a fade inherited from the clip's default transition", () => {
+    const converted = convertAnimaPoseClipToV2(
+      {
+        schema: "animaPoseClip/1.0",
+        id: "fade",
+        name: "Fade",
+        duration: 1,
+        defaultTransition: { easing: "linear" },
+        fadeIn: { duration: 0.2 },
+        poses: { a: { expressions: { happy: 1 } } },
+        poseKeyframes: [{ time: 0, pose: "a" }],
+      } as AnimaPoseClip,
+      () => null,
+    );
+    expect(converted.fadeIn).toMatchObject({ duration: 0.2, easing: "linear" });
+    expect(validateAnimaPoseClipV2(converted).ok).toBe(true);
+  });
+});

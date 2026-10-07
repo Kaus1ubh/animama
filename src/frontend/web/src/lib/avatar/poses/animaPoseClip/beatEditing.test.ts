@@ -13,6 +13,7 @@ import {
   beatKeyPose,
   deleteBeat,
   detachBasePose,
+  fitContactsToClip,
   flattenHandToFingerTracks,
   insertBeat,
   retimeBeat,
@@ -391,5 +392,25 @@ describe("detachBasePose", () => {
         { vrm: a1, resolvePose: () => null },
       ),
     ).toBeNull();
+  });
+});
+
+describe("contacts follow the clip", () => {
+  it("keeps a whole-clip contact inside the clip when its beat moves", () => {
+    const clip = example("thinking-chin-rest");
+    for (const beat of clip.beats)
+      for (let time = 0; time <= clip.duration; time += clip.duration / 12)
+        valid(retimeBeat(clip, beat.id, time));
+  });
+
+  it("clamps a window to the duration and drops one that collapses", () => {
+    const clip = example("arms-crossed");
+    const shortened = fitContactsToClip({ ...clip, duration: 2 });
+    expect(shortened.contacts?.[0]).toMatchObject({ from: 0, to: 2 });
+    const beyond = fitContactsToClip({
+      ...clip,
+      contacts: [{ ...clip.contacts![0], from: 2.5, to: 2.6 }],
+    });
+    expect(beyond.contacts).toBeUndefined();
   });
 });

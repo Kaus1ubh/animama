@@ -324,7 +324,7 @@ function moveBeat(
     scales.set(beat.id, { forward: ratio(1), backward: ratio(-1) });
   });
   const times = new Map(beats.map((beat) => [beat.id, beat.time]));
-  return mapTracks({ ...clip, beats }, ({ keys }) =>
+  const retimed = mapTracks({ ...clip, beats }, ({ keys }) =>
     sortKeys(
       times,
       keys.map((key) => {
@@ -338,6 +338,34 @@ function moveBeat(
       }),
     ),
   );
+  return fitContactsToClip(retimed);
+}
+
+/**
+ * Keep every contact window inside the clip after its beat or the duration
+ * moved: the window is clamped to 0…duration, a single-instant contact stays
+ * a single instant, and a window that collapses to nothing is dropped.
+ */
+export function fitContactsToClip(clip: AnimaPoseClipV2): AnimaPoseClipV2 {
+  if (!clip.contacts?.length) return clip;
+  const times = new Map(clip.beats.map((beat) => [beat.id, beat.time]));
+  let changed = false;
+  const contacts = clip.contacts.flatMap((contact) => {
+    const time = times.get(contact.beat);
+    if (time === undefined) return [contact];
+    const start = Math.min(Math.max(time + contact.from, 0), clip.duration);
+    const end = Math.min(Math.max(time + contact.to, 0), clip.duration);
+    if (start === time + contact.from && end === time + contact.to)
+      return [contact];
+    changed = true;
+    if (end - start <= 0 && contact.to > contact.from) return [];
+    return [
+      { ...contact, from: roundTime(start - time), to: roundTime(end - time) },
+    ];
+  });
+  if (!changed) return clip;
+  const rest = without(clip, "contacts") as AnimaPoseClipV2;
+  return contacts.length > 0 ? { ...rest, contacts } : rest;
 }
 
 // ── Delete, ease, label ──────────────────────────────────────────────────

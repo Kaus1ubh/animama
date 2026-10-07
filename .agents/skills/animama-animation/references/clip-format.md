@@ -42,7 +42,8 @@ anything is invalid. The full format is described in
 }
 ```
 
-The six full examples are in
+Full examples (the six evaluation Gestures, the laugh tiers, storytelling,
+the Included-Gesture replacements and more) are in
 `src/frontend/web/src/lib/avatar/motion-authoring/examples/*.clip.json`.
 
 ## Fields

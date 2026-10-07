@@ -107,7 +107,8 @@ prototype.
 - [ ] After G1: revise the #267 weaknesses (A_1 chin fist in thinking-chin-rest
       and storytelling's Think beat, A_1 nod energy, Y_0 clap contact).
 - [x] Phase 7: Replacements and wave 2 (authored, checked, saved; review passed). Gate G3 and the replacements' Selector IDs pending; promotion in #310.
-- [ ] Final integration review and PR.
+- [x] Final integration review: one blocking finding fixed (recheck below).
+- [ ] PR opened; CI; owner gates; merge approval.
 
 ## Surprises & Discoveries
 
@@ -185,7 +186,8 @@ prototype.
   no beats. Included files stay unchanged (the brief forbids writing
   `content/included/`); a test opens all 94 Included Gesture and Reaction
   clips as valid 2.0 drafts. The creator's 1.0 keyframe-editing branches are
-  now unreachable and are left for a follow-up cleanup.
+  now unreachable; their removal runs as a separate follow-up task (branch
+  `refactor/remove-v1-creator-paths`), not in this PR.
 
 - 2026-10-06, Phase 6 (agent): the #267-weakness revisions of the migrated
   examples (step 3) wait for G1, since changing them first would invalidate
@@ -1583,6 +1585,40 @@ over the combined diff against R1–R11 (with at most two repair rounds). Reuse
 still-valid phase evidence. Then run the full frontend and affected backend
 checks, open the PR using the template, and record the outstanding owner gates.
 
+### Final Integration Review #1 Findings
+
+`sdlc-reviewer`, whole branch `10216cd3..302cc4f6` against R1–R11. Blocking:
+
+- **FI-F1:** retiming a beat or shortening the duration could push a
+  beat-relative contact window outside the clip, leaving a draft that could
+  not be saved (216 of 14,168 swept retimes, all in the four loops with
+  whole-clip contacts).
+
+Optional: FI-N1 conversion dropped `defaultTransition`, the 1.0 fallback for
+fades without an easing (no Included clip affected); FI-N2 whitespace-parity
+gaps between the frontend and backend string checks for hostile input
+(`"\u001c"`, `"\u0085"`, a lone BOM); FI-N3 stale doc lines (six examples,
+1.0-only mentions in the VRM skill and particle-VFX guide, the ADR size
+range, the ADR index alignment); FI-N4 record items (cleanup reference,
+Outcomes & Retrospective).
+
+### Final Integration Review #1 Revisions
+
+- **FI-F1 accepted, fixed:** `fitContactsToClip` keeps every contact window
+  inside 0…duration (single-instant contacts stay instants; a collapsed
+  window is dropped); beat retiming applies it, and so does the creator's
+  clip build, which covers duration edits. Tests: every retime of
+  thinking-chin-rest stays valid; shortening arms-crossed to 2 s in the store
+  stays saveable.
+- **FI-N1 accepted, fixed:** conversion writes the resolved fade transition
+  into `fadeIn`/`fadeOut` when the 1.0 clip has a default transition (test).
+- **FI-N3 accepted, fixed:** the doc lines and the ADR index are corrected.
+- **FI-N4 accepted, fixed:** the cleanup is referenced as a separate task and
+  Outcomes & Retrospective is written.
+- **FI-N2 deferred:** both sides reject or accept these characters without a
+  crash, the gap matches the existing 1.0 string checks, and no authored or
+  Included content contains them; a shared fixture is a follow-up.
+
 ## Validation and acceptance
 
 - Per-phase checks as listed. Before pushing a CI-triggering candidate, run the
@@ -1621,4 +1657,24 @@ checks, open the PR using the template, and record the outstanding owner gates.
 
 ## Outcomes & Retrospective
 
-To be completed at the end of the work.
+Delivered: `animaPoseClip/2.0` (beats with per-joint tracks, beat-relative
+contacts and `plantFeet`), its sampler, the 1.0 conversion, runtime playback
+and backend acceptance; agent authoring tools (validate, check, live preview
+with review notes, renders) and the rewritten skill; creator editing in
+which every Gesture and Reaction edits as beats (1.0 converts when opened)
+and every save writes 2.0; and 27 authored Gestures (the six migrated
+evaluation Gestures, the laugh tiers, a 20 s storytelling sequence, six
+Included-Gesture replacements and eleven wave 2 items), saved as Local
+content on the task stack.
+
+What worked: authoring per bone and editing by beat kept agent detail
+intact through creator edits; checks with real contact offsets caught
+problems that loose contacts had hidden; probing static poses on both
+Avatars was the fastest way to fit touches. What to watch: contacts need
+measured offsets and tight tolerances, not wide ones; Avatar proportions
+differ by several centimetres, so touches sit between the two; the
+creator's 1.0 paths are now dead code (separate cleanup).
+
+Open: owner gates G1–G3 (and confirming G4), the replacements' Selector
+IDs, the #267-weakness revisions after G1, promotion to Included (#310) and
+the FI-N2 parity fixture.

@@ -6,6 +6,7 @@ import {
 } from "@/lib/avatar/poses/animaPoseClip/anyClip";
 import {
   beatDetailSummary,
+  fitContactsToClip,
   type BeatDetailSummary,
 } from "@/lib/avatar/poses/animaPoseClip/beatEditing";
 import { convertAnimaPoseClipToV2 } from "@/lib/avatar/poses/animaPoseClip/convertV2";
@@ -431,7 +432,7 @@ export function poseCreatorMotionClip(
   motion: PoseCreatorClipMotion,
   options: PoseCreatorClipValidationOptions = {},
 ): AnimaPoseClipV2 {
-  return {
+  return fitContactsToClip({
     ...structuredClone(draft.extraFields),
     ...serializePoseCreatorClipLayerMutes(draft),
     schema: ANIMA_POSE_CLIP_V2_SCHEMA,
@@ -456,7 +457,7 @@ export function poseCreatorMotionClip(
           ),
         }
       : {}),
-  } as AnimaPoseClipV2;
+  } as AnimaPoseClipV2);
 }
 
 /** The timeline view of beats: one keyframe per beat. */

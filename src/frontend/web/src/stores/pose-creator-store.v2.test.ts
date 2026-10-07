@@ -243,6 +243,18 @@ describe("pose creator store with an animaPoseClip/2.0 draft", () => {
   });
 });
 
+describe("pose creator store with a whole-clip contact", () => {
+  it("stays saveable after the loop is shortened", () => {
+    state().resetWorkspace();
+    expect(state().hydrateClipDocument(example("arms-crossed"))).toBe(true);
+    state().moveClipKeyframe("end", 2.0);
+    state().updateClipDraft({ duration: 2.0 });
+    const clip = built();
+    expect(clip.duration).toBe(2);
+    expect(clip.contacts?.[0]).toMatchObject({ from: 0, to: 2 });
+  });
+});
+
 describe("pose creator store with a 2.0 Reaction draft", () => {
   it("sets the expressions of the beat at the playhead", () => {
     state().resetWorkspace();
