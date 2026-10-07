@@ -186,9 +186,9 @@ test("accountless Scene JSON import, preview, save and owned cleanup", async ({
     expect(hydrated.item_id).toBe(owned.itemId);
     expect(hydrated.revision_sha256).toBe(owned.revisionSha256);
     await expect(
-      page.getByRole("button", { name: "JSON", exact: true }),
+      page.getByRole("button", { name: "View JSON", exact: true }),
     ).toBeVisible();
-    await page.getByRole("button", { name: "JSON", exact: true }).click();
+    await page.getByRole("button", { name: "View JSON", exact: true }).click();
     const saved = JSON.parse(
       await page.getByRole("dialog").locator("textarea").inputValue(),
     );
@@ -214,9 +214,13 @@ test("accountless Scene JSON import, preview, save and owned cleanup", async ({
   }
 });
 
-/** Real layout and hit testing are required; DOM-only rendering cannot detect occlusion. */
+/**
+ * Real layout and hit testing are required; DOM-only rendering cannot detect occlusion.
+ * Content health is attention-only, so a healthy fixture catalog must render no
+ * health control beside Save.
+ */
 for (const creator of ["scene", "avatar", "particle"] as const) {
-  test(`${creator} creator health and Save remain independently reachable`, async ({
+  test(`${creator} creator Save stays reachable with silent healthy content`, async ({
     page,
     animamaEvidence,
   }) => {
@@ -241,14 +245,8 @@ for (const creator of ["scene", "avatar", "particle"] as const) {
         });
     }
     const save = page.getByRole("button", { name: "Save", exact: true });
-    const health = page.getByRole("status").filter({
-      has: page.getByRole("button", { name: /View content health details/ }),
-    });
-    const details = health.getByRole("button", {
-      name: /View content health details/,
-    });
-    const rescan = health.getByRole("button", {
-      name: "Rescan content library",
+    const health = page.getByRole("button", {
+      name: /^(Content needs attention|Content library unavailable)$/,
     });
     await expect(save).toBeEnabled({ timeout: 30_000 });
     if (creator === "avatar") {
@@ -263,7 +261,7 @@ for (const creator of ["scene", "avatar", "particle"] as const) {
         page.getByRole("button", { name: "Play preview", exact: true }),
       ).toBeVisible();
     }
-    await expect(health).toBeVisible();
+    await expect(health).toHaveCount(0);
     const measurements: unknown[] = [];
     for (const width of [1440, 1280, 1024, 768, 390]) {
       await page.setViewportSize({ width, height: 900 });
@@ -272,18 +270,10 @@ for (const creator of ["scene", "avatar", "particle"] as const) {
       await page.keyboard.press("Escape");
       await expect(page.getByRole("tooltip")).toHaveCount(0);
       await expect(save).toBeInViewport();
+      await expect(health).toHaveCount(0);
       const saveRect = await save.boundingBox();
-      const healthRect = await health.boundingBox();
       expect(saveRect).not.toBeNull();
-      expect(healthRect).not.toBeNull();
-      if (!saveRect || !healthRect)
-        throw new Error("Creator controls lost their layout.");
-      const intersect =
-        saveRect.x < healthRect.x + healthRect.width &&
-        saveRect.x + saveRect.width > healthRect.x &&
-        saveRect.y < healthRect.y + healthRect.height &&
-        saveRect.y + saveRect.height > healthRect.y;
-      expect(intersect).toBe(false);
+      if (!saveRect) throw new Error("Creator Save lost its layout.");
       // Hit testing and normal actionability must both hold for valid drafts.
       await expect
         .poll(() =>
@@ -299,9 +289,7 @@ for (const creator of ["scene", "avatar", "particle"] as const) {
         )
         .toBe(true);
       await save.click({ trial: true });
-      await details.click({ trial: true });
-      await rescan.click({ trial: true });
-      measurements.push({ width, saveRect, healthRect, intersect });
+      measurements.push({ width, saveRect });
       if (width === 768 || width === 390) {
         await page.mouse.move(width - 1, 899);
         await page.keyboard.press("Escape");
