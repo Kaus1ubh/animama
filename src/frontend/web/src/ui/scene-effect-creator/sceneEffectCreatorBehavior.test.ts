@@ -4,7 +4,6 @@ import {
   createSceneEffectObjectUrlLease,
   sceneEffectCreatorKeyboardAction,
   SCENE_EFFECT_PREVIEW_MOTION_CLASS,
-  shouldBlockSceneEffectNavigation,
 } from "./sceneEffectCreatorBehavior";
 
 describe("Scene Effect creator behavior", () => {
@@ -36,25 +35,6 @@ describe("Scene Effect creator behavior", () => {
         editing: false,
       }),
     ).toBe("toggle-preview");
-  });
-
-  it("blocks only cross-route navigation while dirty or saving", () => {
-    expect(
-      shouldBlockSceneEffectNavigation({
-        dirty: true,
-        busy: false,
-        currentPath: "/scene-effects/new",
-        nextPath: "/library",
-      }),
-    ).toBe(true);
-    expect(
-      shouldBlockSceneEffectNavigation({
-        dirty: true,
-        busy: false,
-        currentPath: "/scene-effects/new",
-        nextPath: "/scene-effects/new",
-      }),
-    ).toBe(false);
   });
 
   it("releases every private-image preview URL exactly once", () => {

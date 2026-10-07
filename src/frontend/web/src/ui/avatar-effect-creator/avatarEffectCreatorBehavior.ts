@@ -1,3 +1,56 @@
+import {
+  avatarEffectDocumentFingerprint,
+  avatarEffectEditorReducer,
+  createDefaultAvatarEffectDocument,
+  type AvatarEffectEditorDocument,
+  type AvatarEffectEditorImageResource,
+} from "@/lib/avatar/vfx/editor";
+
+/** One undo step: the authored document and the image bytes it references. */
+export type AvatarEffectHistorySnapshot = {
+  document: AvatarEffectEditorDocument;
+  imageResource: AvatarEffectEditorImageResource | null;
+};
+
+export function createAvatarEffectHistorySnapshot(): AvatarEffectHistorySnapshot {
+  return { document: createDefaultAvatarEffectDocument(), imageResource: null };
+}
+
+/** Compare authored data and immutable File identities without serializing bytes. */
+export function equalAvatarEffectHistorySnapshots(
+  left: AvatarEffectHistorySnapshot,
+  right: AvatarEffectHistorySnapshot,
+): boolean {
+  return (
+    avatarEffectDocumentFingerprint(left.document) ===
+      avatarEffectDocumentFingerprint(right.document) &&
+    left.imageResource?.file === right.imageResource?.file &&
+    left.imageResource?.sha256 === right.imageResource?.sha256
+  );
+}
+
+/**
+ * Build one undoable edit from a reducer action. Omitting `imageResource`
+ * keeps the current bytes; `null` clears them with the same step.
+ */
+export function avatarEffectHistoryEdit(
+  action: Parameters<typeof avatarEffectEditorReducer>[1],
+  imageResource?: AvatarEffectEditorImageResource | null,
+): (snapshot: AvatarEffectHistorySnapshot) => AvatarEffectHistorySnapshot {
+  return (snapshot) => ({
+    document: avatarEffectEditorReducer(snapshot.document, action),
+    imageResource:
+      imageResource === undefined ? snapshot.imageResource : imageResource,
+  });
+}
+
+/** Save and recovery fingerprint: the document plus its image digest. */
+export function avatarEffectSnapshotFingerprint(
+  snapshot: AvatarEffectHistorySnapshot,
+): string {
+  return `${avatarEffectDocumentFingerprint(snapshot.document)}:${snapshot.imageResource?.sha256 ?? "missing"}`;
+}
+
 export type AvatarEffectCreatorKeyboardAction =
   | "save"
   | "toggle-preview"
@@ -14,15 +67,6 @@ export function avatarEffectCreatorKeyboardAction(args: {
     return "save";
   if (!args.editing && args.code === "Space") return "toggle-preview";
   return null;
-}
-
-export function shouldBlockAvatarEffectNavigation(args: {
-  dirty: boolean;
-  busy: boolean;
-  currentPath: string;
-  nextPath: string;
-}): boolean {
-  return (args.dirty || args.busy) && args.currentPath !== args.nextPath;
 }
 
 export const AVATAR_EFFECT_PREVIEW_MOTION_CLASS =

@@ -42,6 +42,79 @@ async function readPortableJson(page: Page, title: string): Promise<string> {
   return value;
 }
 
+type StoredDraftExpectation = {
+  /** IndexedDB database the creator writes; localStorage is always checked. */
+  database: string | null;
+  name: string;
+  setting: { path: string[]; value: number } | null;
+};
+
+/**
+ * Wait until browser recovery holds this exact draft, rather than guessing the
+ * creator's autosave debounce. Never opens a database the page has not
+ * created, so the creator's own schema upgrade still runs.
+ */
+async function waitForStoredDraft(
+  page: Page,
+  expected: StoredDraftExpectation,
+): Promise<void> {
+  await expect
+    .poll(
+      () =>
+        page.evaluate(async ({ database, name, setting }) => {
+          const matches = (record: unknown): boolean => {
+            if (!record || typeof record !== "object") return false;
+            const document = (record as { document?: unknown }).document;
+            if (!document || typeof document !== "object") return false;
+            if ((document as { name?: unknown }).name !== name) return false;
+            if (!setting) return true;
+            let value: unknown = document;
+            for (const key of setting.path)
+              value = (value as Record<string, unknown> | null)?.[key];
+            return value === setting.value;
+          };
+          for (let index = 0; index < localStorage.length; index += 1) {
+            const raw = localStorage.getItem(localStorage.key(index) ?? "");
+            try {
+              if (raw && matches(JSON.parse(raw))) return true;
+            } catch {
+              // Unrelated non-JSON settings.
+            }
+          }
+          if (!database) return false;
+          const known = await indexedDB.databases();
+          if (!known.some((entry) => entry.name === database)) return false;
+          return new Promise<boolean>((resolve) => {
+            const opening = indexedDB.open(database);
+            opening.onerror = () => resolve(false);
+            opening.onsuccess = () => {
+              const db = opening.result;
+              const stores = Array.from(db.objectStoreNames);
+              if (stores.length === 0) {
+                db.close();
+                resolve(false);
+                return;
+              }
+              const request = db
+                .transaction(stores[0]!, "readonly")
+                .objectStore(stores[0]!)
+                .getAll();
+              request.onsuccess = () => {
+                db.close();
+                resolve(request.result.some(matches));
+              };
+              request.onerror = () => {
+                db.close();
+                resolve(false);
+              };
+            };
+          });
+        }, expected),
+      { message: "browser recovery stores the edited draft" },
+    )
+    .toBe(true);
+}
+
 /** Exercise the actual navigation blocker, without clearing browser storage. */
 async function discardToLibrary(page: Page): Promise<void> {
   await page.getByRole("link", { name: "Library", exact: true }).click();
@@ -104,6 +177,7 @@ for (const item of cases) {
           .getByRole("textbox", { name: item.nameLabel, exact: true })
           .fill(discardedName);
         let changedJson: string | null = null;
+        let changedSetting: StoredDraftExpectation["setting"] = null;
         if (item.section !== "gesture") {
           const setting =
             item.section === "avatar"
@@ -120,6 +194,10 @@ for (const item of cases) {
             (item.section === "avatar" ? 0.25 : 1);
           await setting.fill(String(nextValue));
           await setting.blur();
+          changedSetting =
+            item.section === "avatar"
+              ? { path: ["transform", "offset", "x"], value: nextValue }
+              : { path: ["durationMs"], value: nextValue * 1000 };
           changedJson = await readPortableJson(page, item.jsonTitle);
           const changedDocument = JSON.parse(changedJson).document;
           expect(
@@ -135,9 +213,19 @@ for (const item of cases) {
             exact: true,
           }),
         ).toBeVisible();
-        // Recovery writes debounce for 350ms. Give this real draft time to persist
-        // before discarding, so the journey detects recovery resurrecting it.
-        if (origin !== "immediate") await page.waitForTimeout(700);
+        // Let this real draft reach browser recovery before discarding, so the
+        // journey detects recovery resurrecting it.
+        if (origin !== "immediate")
+          await waitForStoredDraft(page, {
+            database:
+              item.section === "avatar"
+                ? "animama-avatar-effect-creator-recovery"
+                : item.section === "scene"
+                  ? "animama-scene-effect-creator-recovery"
+                  : null,
+            name: discardedName,
+            setting: changedSetting,
+          });
         if (item.section === "avatar" && origin === "existing") {
           page.once("dialog", (dialog) => dialog.accept());
           await page.reload();

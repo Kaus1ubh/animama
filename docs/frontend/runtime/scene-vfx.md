@@ -78,9 +78,10 @@ settings-owned media URL.
 - `src/frontend/web/src/lib/scene-vfx/editor/`
 - `src/frontend/web/src/lib/content/catalogApi.ts`
 
-The creator uses the neutral Effect creator presentation primitives in
-`ui/content-creator/`; the document, recovery, file collection, and catalog Save lifecycle
-remain Scene-specific.
+The creator uses the neutral Effect creator primitives in
+`ui/content-creator/`, including the shared Save, recovery and leave flow
+described in [local content runtime](../architecture/local-content-runtime.md).
+The document and private image collection are Scene-specific.
 
 ## 3) High-level model
 
@@ -159,8 +160,8 @@ the catalog; there is no server draft or immutable-release finalization step.
 Recovery stores the document, operation identity, and bounded image Blobs in
 IndexedDB. A metadata-only localStorage fallback keeps the authored document
 and save identity but surfaces a repair state requiring the user to reselect
-private images. Retries preserve the operation identity. Reloads retain recovery;
-a successful Save or explicit discard clears it. Discarding never changes the
+private images. Retries preserve the operation identity. Reloads retain recovery
+while changes are unsaved; a successful Save or explicit discard clears it. Discarding never changes the
 saved Library item.
 
 The preview reuses the production pure scene renderers and an editor-owned

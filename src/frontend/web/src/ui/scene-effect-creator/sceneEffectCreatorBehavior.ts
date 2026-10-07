@@ -1,4 +1,63 @@
-import type { SceneEffectEditorImageResource } from "@/lib/scene-vfx/editor";
+import {
+  createDefaultSceneEffectDocument,
+  sceneEffectDocumentFingerprint,
+  sceneEffectEditorReducer,
+  type SceneEffectEditorDocument,
+  type SceneEffectEditorImageResource,
+} from "@/lib/scene-vfx/editor";
+
+/** One undo step: the authored document and the private images it references. */
+export type SceneEffectHistorySnapshot = {
+  document: SceneEffectEditorDocument;
+  imageResources: SceneEffectEditorImageResource[];
+};
+
+export function createSceneEffectHistorySnapshot(): SceneEffectHistorySnapshot {
+  return { document: createDefaultSceneEffectDocument(), imageResources: [] };
+}
+
+/** Compare authored data and immutable File identities without serializing bytes. */
+export function equalSceneEffectHistorySnapshots(
+  left: SceneEffectHistorySnapshot,
+  right: SceneEffectHistorySnapshot,
+): boolean {
+  return (
+    sceneEffectDocumentFingerprint(left.document) ===
+      sceneEffectDocumentFingerprint(right.document) &&
+    left.imageResources.length === right.imageResources.length &&
+    left.imageResources.every(
+      (resource, index) =>
+        resource.logicalName === right.imageResources[index]?.logicalName &&
+        resource.sha256 === right.imageResources[index]?.sha256 &&
+        resource.file === right.imageResources[index]?.file,
+    )
+  );
+}
+
+/**
+ * Build one undoable edit from a reducer action. Omitting `imageResources`
+ * keeps the current images; a list replaces them with the same step.
+ */
+export function sceneEffectHistoryEdit(
+  action: Parameters<typeof sceneEffectEditorReducer>[1],
+  imageResources?: SceneEffectEditorImageResource[],
+): (snapshot: SceneEffectHistorySnapshot) => SceneEffectHistorySnapshot {
+  return (snapshot) => ({
+    document: sceneEffectEditorReducer(snapshot.document, action),
+    imageResources: imageResources ?? snapshot.imageResources,
+  });
+}
+
+/** Save and recovery fingerprint: the document plus its image digests. */
+export function sceneEffectSnapshotFingerprint(
+  snapshot: SceneEffectHistorySnapshot,
+): string {
+  const digests = [...snapshot.imageResources]
+    .sort((left, right) => left.logicalName.localeCompare(right.logicalName))
+    .map((resource) => `${resource.logicalName}:${resource.sha256}`)
+    .join("|");
+  return `${sceneEffectDocumentFingerprint(snapshot.document)}:${digests}`;
+}
 
 export type SceneEffectCreatorKeyboardAction = "save" | "toggle-preview" | null;
 
@@ -13,15 +72,6 @@ export function sceneEffectCreatorKeyboardAction(args: {
     return "save";
   if (!args.editing && args.code === "Space") return "toggle-preview";
   return null;
-}
-
-export function shouldBlockSceneEffectNavigation(args: {
-  dirty: boolean;
-  busy: boolean;
-  currentPath: string;
-  nextPath: string;
-}): boolean {
-  return (args.dirty || args.busy) && args.currentPath !== args.nextPath;
 }
 
 export const SCENE_EFFECT_PREVIEW_MOTION_CLASS =

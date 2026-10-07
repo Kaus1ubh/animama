@@ -157,8 +157,9 @@ hydrates the current Local descriptor, exact Sound source, and authorized image
 bytes into a new editor session. Save validates through the Avatar Effect
 handler and directly replaces the editable Local entry through
 `PUT /v1/avatar-effects/{entry_name}`; it creates no draft release or finalize
-step. Browser recovery remains authoring state only. It survives reloads and
-interrupted work, but is cleared after a successful Save or explicit discard.
+step. Browser recovery remains authoring state only. It keeps unsaved changes
+across reloads and interrupted work, and is cleared after a successful Save or
+explicit discard.
 Discarding never changes the saved Library item.
 
 The live preview calls the production `AvatarVFXController` against the

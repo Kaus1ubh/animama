@@ -9,6 +9,17 @@ export function particleVFXDocumentFingerprint(
   );
 }
 
+/** History equality: equal authored content creates no undo step. */
+export function equalParticleVFXDrafts(
+  left: ParticleVFXEditorDraft,
+  right: ParticleVFXEditorDraft,
+): boolean {
+  return (
+    particleVFXDocumentFingerprint(left) ===
+    particleVFXDocumentFingerprint(right)
+  );
+}
+
 function canonicalJson(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(canonicalJson);
   if (value && typeof value === "object") {

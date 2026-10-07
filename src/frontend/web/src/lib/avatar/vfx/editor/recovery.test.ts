@@ -3,9 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createDefaultAvatarEffectDocument } from "./defaults";
 import {
   AVATAR_EFFECT_RECOVERY_SCHEMA,
-  clearAvatarEffectRecovery,
-  loadAvatarEffectRecovery,
-  saveAvatarEffectRecovery,
+  avatarEffectRecoveryStore,
 } from "./recovery";
 
 afterEach(() => vi.unstubAllGlobals());
@@ -30,7 +28,7 @@ describe("Avatar Effect recovery", () => {
       sha256: "a".repeat(64),
     };
 
-    const result = await saveAvatarEffectRecovery({
+    const result = await avatarEffectRecoveryStore.save({
       schema: AVATAR_EFFECT_RECOVERY_SCHEMA,
       userId: "user-1",
       documentKey: "item-1",
@@ -40,7 +38,7 @@ describe("Avatar Effect recovery", () => {
       contentFingerprint: "fingerprint",
       updatedAt: "2026-08-17T00:00:00.000Z",
     });
-    const restored = await loadAvatarEffectRecovery("user-1", "item-1");
+    const restored = await avatarEffectRecoveryStore.load("user-1", "item-1");
 
     expect(result).toMatchObject({ stored: true, metadataOnly: true });
     expect(restored).toMatchObject({
@@ -48,7 +46,7 @@ describe("Avatar Effect recovery", () => {
       imageResource: null,
     });
 
-    await clearAvatarEffectRecovery("user-1", "item-1");
-    expect(await loadAvatarEffectRecovery("user-1", "item-1")).toBeNull();
+    await avatarEffectRecoveryStore.clear("user-1", "item-1");
+    expect(await avatarEffectRecoveryStore.load("user-1", "item-1")).toBeNull();
   });
 });

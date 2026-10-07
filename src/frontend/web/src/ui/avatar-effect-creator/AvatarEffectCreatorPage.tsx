@@ -15,9 +15,8 @@ import { SoundUploadButton } from "@/ui/sound-upload/SoundUploadButton";
 import { ContentEditorHydration } from "@/lib/content/contentEditorSource";
 
 import { useFrame } from "@react-three/fiber";
-import { useBlocker, useNavigate } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import {
-  AlertTriangleIcon,
   Code2Icon,
   FileImageIcon,
   FolderOpenIcon,
@@ -35,14 +34,14 @@ import type {
 } from "@/lib/content/catalogTypes";
 import { Avatar } from "@/lib/avatar";
 import {
-  avatarEffectDocumentFingerprint,
   avatarEffectEditorReducer,
+  avatarEffectRecoveryStore,
   avatarEffectRuntimeEntry,
   buildAvatarEffectEditorExport,
   canonicalAvatarEffectImageName,
+  cloneAvatarEffectDocument,
   createAvatarEffectDocumentFromDefinition,
   createDefaultAvatarEffectDocument,
-  clearAvatarEffectRecovery,
   parseAvatarEffectEditorExport,
   validateAvatarEffectDocument,
   type AvatarEffectEditorDocument,
@@ -77,7 +76,10 @@ import {
   CreatorField as Field,
   CreatorFloatingPanel as FloatingPanel,
   CreatorImportDialog,
+  CreatorInlineError,
   CreatorJsonDialog,
+  CreatorLeaveDialog,
+  CreatorLoading,
   CreatorNumberField as NumberField,
   CreatorSaveNotice,
   CreatorToggleRow as SwitchRow,
@@ -85,15 +87,9 @@ import {
   CreatorWorkspaceShell,
 } from "@/ui/content-creator";
 import { ContentHealth } from "@/ui/content-health/ContentHealth";
+import { useCreatorLeaveGuard } from "@/ui/content-creator/useCreatorLeaveGuard";
+import { useCreatorDocumentHistory } from "@/ui/creator-history/useCreatorDocumentHistory";
 import { Button } from "@/ui/components/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/ui/components/dialog";
 import { Label } from "@/ui/components/label";
 import {
   Select,
@@ -107,12 +103,15 @@ import { Textarea } from "@/ui/components/textarea";
 import { cn } from "@/lib/utils";
 import {
   avatarEffectCreatorKeyboardAction,
+  avatarEffectHistoryEdit,
   avatarEffectPreviewCompatibility,
+  avatarEffectSnapshotFingerprint,
+  createAvatarEffectHistorySnapshot,
   createAvatarEffectObjectUrlLease,
-  shouldBlockAvatarEffectNavigation,
+  equalAvatarEffectHistorySnapshots,
+  type AvatarEffectHistorySnapshot,
 } from "./avatarEffectCreatorBehavior";
 import { useAvatarEffectSave } from "./useAvatarEffectSave";
-import { useAvatarEffectHistory } from "./useAvatarEffectHistory";
 
 const IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
 const MAX_IMAGE_BYTES = 16 * 1024 * 1024;
@@ -128,8 +127,34 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
   const navigate = useNavigate();
   const userId = useRuntimeOwnerId();
   const existingQuery = useAvatarEffect(itemId ?? null);
-  const { document, imageResource, history, dispatch, resetDocument } =
-    useAvatarEffectHistory();
+  const {
+    present: snapshot,
+    history,
+    update,
+    reset,
+  } = useCreatorDocumentHistory({
+    initialValue: createAvatarEffectHistorySnapshot,
+    equals: equalAvatarEffectHistorySnapshots,
+  });
+  const { document, imageResource } = snapshot;
+  const dispatch = useCallback(
+    (
+      action: Parameters<typeof avatarEffectEditorReducer>[1],
+      nextImage?: AvatarEffectEditorImageResource | null,
+    ) => update(avatarEffectHistoryEdit(action, nextImage)),
+    [update],
+  );
+  const resetDocument = useCallback(
+    (
+      nextDocument: AvatarEffectEditorDocument,
+      nextImage: AvatarEffectEditorImageResource | null,
+    ) =>
+      reset({
+        document: cloneAvatarEffectDocument(nextDocument),
+        imageResource: nextImage,
+      }),
+    [reset],
+  );
   const [selectedModel, setSelectedModel] =
     useState<ContentCreatorModelSource | null>(null);
   const [previewAvatar, setPreviewAvatar] = useState<Avatar | null>(null);
@@ -153,7 +178,6 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
     message: null,
   });
   const [imageBusy, setImageBusy] = useState(false);
-  const [discarding, setDiscarding] = useState(false);
   const [hasAttemptedSave, setHasAttemptedSave] = useState(false);
   const [imageError, setImageError] = useState<string | null>(null);
   const [jsonOpen, setJsonOpen] = useState(false);
@@ -177,28 +201,25 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
   );
   const hydratedItemRef = useRef(new ContentEditorHydration());
   const initialFingerprintRef = useRef(
-    `${avatarEffectDocumentFingerprint(document)}:missing`,
+    avatarEffectSnapshotFingerprint(snapshot),
   );
 
   const onRestore = useCallback(
-    (
-      recoveredDocument: AvatarEffectEditorDocument,
-      recoveredImage: AvatarEffectEditorImageResource | null,
-    ) => {
+    (recovered: AvatarEffectHistorySnapshot) => {
       setHasAttemptedSave(false);
-      resetDocument(recoveredDocument, recoveredImage);
+      resetDocument(recovered.document, recovered.imageResource);
       setHydration({ state: "ready", message: "Recovered local draft" });
       setPreviewRevision((value) => value + 1);
     },
     [resetDocument],
   );
   const onSaved = useCallback(
-    (savedDocument: AvatarEffectEditorDocument, savedItemId: string) => {
-      dispatch({ type: "patch", patch: { name: savedDocument.name } });
+    (saved: AvatarEffectHistorySnapshot, savedItemId: string) => {
+      dispatch({ type: "patch", patch: { name: saved.document.name } });
       hydratedItemRef.current.preserve(savedItemId);
-      initialFingerprintRef.current = `${avatarEffectDocumentFingerprint(savedDocument)}:${imageResource?.sha256 ?? "missing"}`;
+      initialFingerprintRef.current = avatarEffectSnapshotFingerprint(saved);
     },
-    [dispatch, imageResource?.sha256],
+    [dispatch],
   );
 
   const validation = useMemo(
@@ -212,28 +233,25 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
   const hasBlockingIssues = validation.some(
     (issue) => issue.severity === "error",
   );
+  const isDirty =
+    avatarEffectSnapshotFingerprint(snapshot) !== initialFingerprintRef.current;
   const contentSave = useAvatarEffectSave({
     itemId,
-    document,
-    imageResource,
+    snapshot,
+    dirty: isDirty,
     initialized: hydration.state === "ready",
-    ready: !hasBlockingIssues && !imageBusy && hydration.state === "ready",
+    ready:
+      !hasBlockingIssues &&
+      !imageBusy &&
+      hydration.state === "ready" &&
+      Boolean(imageResource),
     onRestore,
     onSaved,
   });
-
-  const currentFingerprint = `${avatarEffectDocumentFingerprint(document)}:${imageResource?.sha256 ?? "missing"}`;
-  const isDirty = currentFingerprint !== initialFingerprintRef.current;
-  const blocker = useBlocker({
-    shouldBlockFn: ({ current, next }) =>
-      shouldBlockAvatarEffectNavigation({
-        dirty: isDirty,
-        busy: contentSave.isBusy,
-        currentPath: current.pathname,
-        nextPath: next.pathname,
-      }),
-    enableBeforeUnload: () => isDirty || contentSave.isBusy,
-    withResolver: true,
+  const leaveGuard = useCreatorLeaveGuard({
+    dirty: isDirty,
+    busy: contentSave.isBusy,
+    discard: contentSave.discardChanges,
   });
 
   const discardCurrentDraft = useCallback(async () => {
@@ -248,21 +266,6 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
       return false;
     }
   }, [contentSave]);
-
-  // Explicit discard ends browser recovery too; ordinary unload still preserves it.
-  const leaveCreator = async () => {
-    if (discarding) return;
-    if (contentSave.isBusy) {
-      blocker.proceed?.();
-      return;
-    }
-    setDiscarding(true);
-    try {
-      if (await discardCurrentDraft()) blocker.proceed?.();
-    } finally {
-      setDiscarding(false);
-    }
-  };
 
   const modelPreview = useContentCreatorModelPreview({
     ownerKey: `avatar-effect-creator:${itemId ?? "new"}`,
@@ -347,7 +350,10 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
         initialFingerprintRef.current =
           item.origin === "builtin"
             ? "__included_copy__"
-            : `${avatarEffectDocumentFingerprint(loadedDocument)}:${image.sha256}`;
+            : avatarEffectSnapshotFingerprint({
+                document: loadedDocument,
+                imageResource: image,
+              });
         setHydration({ state: "ready", message: null });
         setPreviewRevision((value) => value + 1);
       })
@@ -526,7 +532,9 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
     try {
       if (itemId) {
         if (userId)
-          await clearAvatarEffectRecovery(userId, "new", { strict: true });
+          await avatarEffectRecoveryStore.clear(userId, "new", {
+            strict: true,
+          });
         if (!(await discardCurrentDraft())) return;
         await navigate({
           to: "/avatar-effects/new",
@@ -536,11 +544,13 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
         return;
       }
 
-      const nextDocument = createDefaultAvatarEffectDocument();
-      const nextFingerprint = `${avatarEffectDocumentFingerprint(nextDocument)}:missing`;
-      if (!(await contentSave.resetSession(nextFingerprint))) return;
+      const next = {
+        document: createDefaultAvatarEffectDocument(),
+        imageResource: null,
+      };
+      if (!(await contentSave.resetSession(next))) return;
       setHasAttemptedSave(false);
-      resetDocument(nextDocument, null);
+      resetDocument(next.document, next.imageResource);
       setImageError(null);
       setImageBusy(false);
       setVfxSnapshot(null);
@@ -550,7 +560,7 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
       setImportOpen(false);
       setImportText("");
       setImportError(null);
-      initialFingerprintRef.current = nextFingerprint;
+      initialFingerprintRef.current = avatarEffectSnapshotFingerprint(next);
       setHydration({ state: "ready", message: null });
       setPreviewRevision((value) => value + 1);
     } catch (error) {
@@ -842,7 +852,7 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
       overlays={
         <>
           {hydration.state === "error" ? (
-            <InlineError
+            <CreatorInlineError
               message={hydration.message ?? "Unable to open effect."}
             />
           ) : null}
@@ -909,17 +919,7 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
             onTextChange={setImportText}
             onImport={importDocument}
           />
-          <AvatarEffectLeaveDialog
-            open={blocker.status === "blocked"}
-            onOpenChange={(open) => {
-              if (!open && !discarding && blocker.status === "blocked")
-                blocker.reset?.();
-            }}
-            busy={contentSave.isBusy}
-            onStay={() => blocker.reset?.()}
-            discarding={discarding}
-            onLeave={() => void leaveCreator()}
-          />
+          <CreatorLeaveDialog guard={leaveGuard} contentLabel="Avatar Effect" />
         </>
       }
     />
@@ -1814,73 +1814,6 @@ function AvatarEffectAxisFields({
           onChange={(value) => onValueChange(axis, value)}
         />
       ))}
-    </div>
-  );
-}
-
-function AvatarEffectLeaveDialog({
-  open,
-  onOpenChange,
-  busy,
-  discarding,
-  onStay,
-  onLeave,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  busy: boolean;
-  discarding: boolean;
-  onStay: () => void;
-  onLeave: () => void;
-}) {
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>
-            {busy
-              ? "Leave while content is being saved?"
-              : "Discard authoring changes?"}
-          </DialogTitle>
-          <DialogDescription>
-            {busy
-              ? "This Avatar Effect is still being saved. Local recovery remains available when you return."
-              : "This Avatar Effect has local authoring changes. Discarding removes these changes and their browser recovery draft. Saved content is unchanged."}
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <Button variant="outline" disabled={discarding} onClick={onStay}>
-            Stay
-          </Button>
-          <Button disabled={discarding} onClick={onLeave}>
-            {discarding
-              ? "Discarding…"
-              : busy
-                ? "Leave and keep recovery"
-                : "Discard and continue"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function CreatorLoading({ message }: { message: string }) {
-  return (
-    <div className="bg-background flex h-full items-center justify-center">
-      <div className="text-muted-foreground flex items-center gap-2">
-        <LoaderCircleIcon className="animate-spin" />
-        {message}
-      </div>
-    </div>
-  );
-}
-
-function InlineError({ message }: { message: string }) {
-  return (
-    <div className="bg-background text-destructive border-destructive/30 absolute top-[calc(var(--creator-header-height)+0.5rem)] left-1/2 z-[60] flex max-w-[calc(100%-2rem)] -translate-x-1/2 items-center gap-2 rounded-lg border px-3 py-2 text-sm">
-      <AlertTriangleIcon className="size-4" />
-      {message}
     </div>
   );
 }

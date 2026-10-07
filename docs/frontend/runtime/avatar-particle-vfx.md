@@ -80,8 +80,9 @@ document, selects its bounded resources, previews it in its isolated Canvas,
 and saves one editable Local entry.
 
 Included sources are read-only. Editing an Included template starts a new Local
-typed item rather than modifying shipped files. Unsaved recovery stays browser
-authoring state; the stable editor route carries only the catalog item ID.
+typed item rather than modifying shipped files. Unsaved changes autosave to
+browser recovery, as in the other effect creators; the stable editor route
+carries only the catalog item ID.
 
 The editor preserves the existing curated texture manifest, particle-budget
 validation, import/export tools, and Three.quarks preview lifecycle. Save uses

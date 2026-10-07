@@ -5,7 +5,6 @@ import {
   avatarEffectCreatorKeyboardAction,
   avatarEffectPreviewCompatibility,
   createAvatarEffectObjectUrlLease,
-  shouldBlockAvatarEffectNavigation,
 } from "./avatarEffectCreatorBehavior";
 
 describe("Avatar Effect creator behavior", () => {
@@ -37,25 +36,6 @@ describe("Avatar Effect creator behavior", () => {
         editing: false,
       }),
     ).toBe("toggle-preview");
-  });
-
-  it("blocks only cross-route navigation while dirty or saving", () => {
-    expect(
-      shouldBlockAvatarEffectNavigation({
-        dirty: true,
-        busy: false,
-        currentPath: "/avatar-effects/new",
-        nextPath: "/library",
-      }),
-    ).toBe(true);
-    expect(
-      shouldBlockAvatarEffectNavigation({
-        dirty: true,
-        busy: false,
-        currentPath: "/avatar-effects/new",
-        nextPath: "/avatar-effects/new",
-      }),
-    ).toBe(false);
   });
 
   it("cleans up editor-owned object URLs exactly once", () => {

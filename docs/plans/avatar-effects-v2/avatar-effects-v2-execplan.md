@@ -78,7 +78,7 @@ work proceeds.
       spike passed on both Avatars.
 - [x] Phase 6: Attachments beyond the face and the performance budget
       (budget met: added mean GPU time is at most 1.15 ms).
-- [ ] Phase 7: Shared creator save, undo and draft recovery.
+- [x] Phase 7: Shared creator save, undo and draft recovery.
 - [ ] Phase 8: Template picker and entry points (existing UI components).
 - [ ] Phase 9: Avatar Effect creator `/2` controls and direct manipulation
       (existing layout and styling).
@@ -1348,9 +1348,154 @@ except Particle autosave.
 
 #### Phase 7 record
 
+Starting source and issue: `7f8be8e4`, #305.
+
+Delivered:
+
+- **Save: `ui/content-creator/useCreatorSave.ts`.**
+  - The hook is backed by a React-free `runCreatorSave` pipeline: name, payload,
+    Particle notice review, recovery write, `saveCatalogItem`, recovery clear,
+    then a `replace` navigation that bypasses the leave guard.
+  - A retry reuses the operation ID, and an interrupted save shows "Save paused".
+  - The per-kind `use*Save.ts` hooks are now thin adapters.
+- **Recovery: `lib/content/creatorRecoveryStore.ts`.** IndexedDB with a
+  localStorage fallback, configured per kind. The database, store and fallback
+  names, schemas and size caps are unchanged, so existing drafts load; a test
+  reads records in the old format.
+- **History: `ui/creator-history/useCreatorDocumentHistory.ts`** replaces the
+  three history wrappers.
+- **Leave guard: `ui/content-creator/useCreatorLeaveGuard.ts`.** A change to
+  the search parameters on a `/new` route counts as leaving, ready for P8's
+  `?template=`. A shared `CreatorLeaveDialog` and `CreatorStatus` replace the
+  per-creator copies. Layout and styling are unchanged.
+- **Particle** now autosaves its recovery draft.
+- **Deliberate fix: autosave runs only while there are unsaved changes.**
+  - The draft is cleared once the document matches what was loaded or saved.
+  - Before, all three creators wrote a draft right after opening or saving, so
+    reopening a saved Scene or Avatar Effect showed **Unsaved** and asked
+    before leaving. The agent reproduced this on the task stack with the old
+    code.
+  - The reviewer judged the change correct and safe.
+- **Docs:** `docs/frontend/architecture/local-content-runtime.md`, with brief
+  lines in the runtime guides.
+
+**Task stack:** `animama-avatar-fx`, base port 8600, development build,
+http://animama-avatar-fx.localhost:8600. Secrets come from
+`COMPOSE_ENV_FILES`. It contains test items named `probe-*`.
+
+**Manual check (Playwright on the task stack):** the agent checked the Avatar,
+Particle and Scene creators.
+
+- A new draft is restored after a reload.
+- Leaving through Library shows the shared dialog. Discarding clears the draft.
+- After saving, the editor shows Saved. It still shows Saved after a reload and
+  after reopening, with no recovery notice.
+- Editing a saved item and reloading restores the edit.
+- No page errors.
+
+**Checks (agent):**
+
+- Focused vitest: 436 passed. Full `pnpm web:test`: 385 files, 2,677 tests
+  passed.
+- `pnpm check`, `web:lint`, prettier and `pnpm build` pass.
+- e2e `accountless-creator-discard`: 9/9.
+- `creator-foundation`: 6/6, run through a temporary config. The Playwright
+  config does not select this spec.
+
+The Gesture-only `accountless-creator-discard-local` failed once in the
+agent's runs. The reviewer found the cause was Vite reloads from concurrent
+edits plus a navigation flake, both outside this phase. The reviewer's two
+reruns passed 3/3.
+
 #### Code Review #1 Findings
 
+Reviewed source: uncommitted tree on `7f8be8e4`. Result: **pass**, with no
+blocking findings. Non-blocking:
+
+1. A failed save of an unchanged document clears the recovery record that holds
+   the retry ID, so a reload retries under a new ID.
+2. On an edit route, Particle's "Discard recovery" after a failed save autosaves
+   a blank document.
+3. Drafts written by the old code still look unsaved (development data only).
+4. `recoveryKey` is unused until P8.
+5. Particle Save is enabled while the saved item is still loading. This
+   predates P7.
+6. Avatar recovery is sometimes written more than 700 ms after an edit, so the
+   e2e's fixed 700 ms wait is borderline. This predates P7.
+7. There are no tests at the hook level for autosave, restore and discard.
+8. The Particle leave dialog wording changed to the shared wording, as
+   expected.
+
+The reviewer confirmed that the Gesture failures are unrelated: the Gesture
+creator imports no changed module, and the spec passed twice.
+
 #### Code Review #1 Revisions
+
+1. Fixed: a draft that holds an unresolved save (failed, paused or restored
+   after a reload) is kept until that save succeeds or is discarded.
+2. Fixed: on edit routes, Particle uses the shared `discardRecovery`, which
+   keeps the document and issues a new operation ID. `/new` still resets to
+   blank.
+3. Accepted: this affects development data only.
+4. Kept: P8 uses `recoveryKey`.
+5. Fixed: Particle passes `ready: loadState.state === "ready"`.
+6. Fixed: the e2e test's fixed 700 ms wait is replaced by `waitForStoredDraft`,
+   which polls storage for the edited draft.
+7. Fixed: added `useCreatorSave.hook.test.tsx`. It runs under `happy-dom`, a
+   new dev dependency scoped to that file; the reviewer judged it appropriate,
+   since no DOM test environment existed. It covers:
+   - restore before autosave;
+   - autosave only while changed;
+   - clearing when the document is unchanged;
+   - the retry ID surviving a reload;
+   - `discardRecovery`, `discardChanges` and `resetSession`;
+   - Particle recovery after a reload.
+8. Accepted: Particle now uses the shared dialog wording.
+
+Checks after revisions (agent):
+
+- vitest: 386 files, 2,684 tests passed.
+- `pnpm check`, `web:lint`, prettier, `e2e:check:source` and `pnpm build`
+  pass.
+- e2e discard and discard-local: 11/11.
+- `creator-foundation`: 6/6.
+
+#### Code Review #2 (repair round 1)
+
+Result: **blocking findings remain**. Finding 1 is fixed for its scenario,
+finding 2 is fixed, and `happy-dom` and `waitForStoredDraft` are sound. New
+blocking finding:
+
+1. While a save is pending, a document that is unchanged is neither cleared
+   nor rewritten. So if you undo back to the saved document after a failed
+   save, reloading restores the undone edit. The reviewer reproduced this
+   with a scratch test.
+
+#### Code Review #2 Revisions
+
+1. Fixed (by me): the autosave timer clears only when the document is
+   unchanged and no save is pending. Otherwise it persists the current
+   document under the existing session, keeping the operation ID.
+   - New test: "stores the unchanged document after undoing to it following
+     a failed Save". It fails with the old line (1 of 8) and passes with the
+     fix (8/8).
+   - Focused vitest: 23 files, 103 tests passed. `tsc`, eslint and prettier
+     are clean.
+
+#### Code Review #3 (repair round 2)
+
+Result: **pass**. The finding from Review #2 is fixed and the reviewer's
+scenario passes. Scratch tests confirmed there are no regressions:
+
+- a reload followed by a retry keeps the operation ID, then clears;
+- `discardRecovery` and `discardChanges` are unchanged;
+- behaviour without a pending save is unchanged.
+
+The reviewer's focused vitest run passed 381 tests.
+
+Non-blocking, accepted: a save that fails before the server is reached (for
+example Scene's "Reselect…") still marks a save as pending. A clean document
+is then stored once with an unused operation ID. Nothing is lost.
 
 ### Phase 8 — Template picker and entry points (R7)
 

@@ -6,7 +6,7 @@ import { SoundUploadButton } from "@/ui/sound-upload/SoundUploadButton";
 
 import { ContentEditorHydration } from "@/lib/content/contentEditorSource";
 
-import { useBlocker, useNavigate } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import {
   AlertTriangleIcon,
   ArrowDownIcon,
@@ -39,13 +39,12 @@ import {
   buildSceneEffectEditorExport,
   canonicalSceneEffectImageName,
   createDefaultSceneEffectDocument,
-  clearSceneEffectRecovery,
   createSceneEffectDocumentFromDefinition,
   parseSceneEffectEditorExport,
   SCENE_EFFECT_TEMPLATE_OPTIONS,
-  sceneEffectDocumentFingerprint,
   sceneEffectEditorReducer,
   sceneEffectImageMetadata,
+  sceneEffectRecoveryStore,
   sceneEffectRuntimeEntry,
   SCENE_EFFECT_IMAGE_TYPES,
   uniqueSceneEffectImageName,
@@ -78,7 +77,10 @@ import {
   CreatorField as Field,
   CreatorFloatingPanel as FloatingPanel,
   CreatorImportDialog,
+  CreatorInlineError,
   CreatorJsonDialog,
+  CreatorLeaveDialog,
+  CreatorLoading,
   CreatorNumberField as NumberField,
   CreatorSaveNotice,
   CreatorToggleRow as ToggleRow,
@@ -89,15 +91,9 @@ import { ContentHealth } from "@/ui/content-health/ContentHealth";
 import type { ContentCreatorModelSource } from "@/ui/content-creator/contentCreatorModelPreview";
 import { useContentCreatorAvatar } from "@/ui/content-creator/useContentCreatorAvatar";
 import { useContentCreatorModelPreview } from "@/ui/content-creator/useContentCreatorModelPreview";
+import { useCreatorLeaveGuard } from "@/ui/content-creator/useCreatorLeaveGuard";
+import { useCreatorDocumentHistory } from "@/ui/creator-history/useCreatorDocumentHistory";
 import { Button } from "@/ui/components/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/ui/components/dialog";
 import { Input } from "@/ui/components/input";
 import { Label } from "@/ui/components/label";
 import { Switch } from "@/ui/components/switch";
@@ -111,12 +107,15 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/components/tabs";
 import { Textarea } from "@/ui/components/textarea";
 import {
+  createSceneEffectHistorySnapshot,
   createSceneEffectObjectUrlLease,
+  equalSceneEffectHistorySnapshots,
   sceneEffectCreatorKeyboardAction,
-  shouldBlockSceneEffectNavigation,
+  sceneEffectHistoryEdit,
+  sceneEffectSnapshotFingerprint,
+  type SceneEffectHistorySnapshot,
 } from "./sceneEffectCreatorBehavior";
 import { useSceneEffectSave } from "./useSceneEffectSave";
-import { useSceneEffectHistory } from "./useSceneEffectHistory";
 
 const MAX_SCENE_IMAGE_BYTES = 32 * 1024 * 1024;
 type PreviewStatus = {
@@ -132,13 +131,30 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
   const userId = useRuntimeOwnerId();
   const existingQuery = useSceneEffect(itemId ?? null);
   const {
-    document,
-    imageResources,
+    present: snapshot,
     history,
-    dispatch,
-    resetDocument,
+    update,
+    reset,
     getSnapshot,
-  } = useSceneEffectHistory();
+  } = useCreatorDocumentHistory({
+    initialValue: createSceneEffectHistorySnapshot,
+    equals: equalSceneEffectHistorySnapshots,
+  });
+  const { document, imageResources } = snapshot;
+  const dispatch = useCallback(
+    (
+      action: Parameters<typeof sceneEffectEditorReducer>[1],
+      nextImages?: SceneEffectEditorImageResource[],
+    ) => update(sceneEffectHistoryEdit(action, nextImages)),
+    [update],
+  );
+  const resetDocument = useCallback(
+    (
+      nextDocument: SceneEffectEditorDocument,
+      nextImages: SceneEffectEditorImageResource[],
+    ) => reset({ document: nextDocument, imageResources: nextImages }),
+    [reset],
+  );
   const [imageUrls, setImageUrls] = useState<ReadonlyMap<string, string>>(
     () => new Map(),
   );
@@ -161,7 +177,6 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
     message: null,
   });
   const [imageBusy, setImageBusy] = useState(false);
-  const [discarding, setDiscarding] = useState(false);
   const [imageError, setImageError] = useState<string | null>(null);
   const [jsonOpen, setJsonOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
@@ -172,7 +187,7 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
   );
   const hydratedItemRef = useRef(new ContentEditorHydration());
   const initialFingerprintRef = useRef(
-    sceneSaveFingerprint(document, imageResources),
+    sceneEffectSnapshotFingerprint(snapshot),
   );
 
   const modelPreview = useContentCreatorModelPreview({
@@ -227,31 +242,27 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
     (issue) => issue.severity === "error",
   );
   const onRestore = useCallback(
-    (
-      recoveredDocument: SceneEffectEditorDocument,
-      recoveredImages: SceneEffectEditorImageResource[],
-    ) => {
-      resetDocument(recoveredDocument, recoveredImages);
+    (recovered: SceneEffectHistorySnapshot) => {
+      resetDocument(recovered.document, recovered.imageResources);
       setHydration({ state: "ready", message: "Recovered local draft" });
       setPreviewRevision((value) => value + 1);
     },
     [resetDocument],
   );
   const onSaved = useCallback(
-    (savedDocument: SceneEffectEditorDocument, savedItemId: string) => {
-      dispatch({ type: "patch", patch: { name: savedDocument.name } });
+    (saved: SceneEffectHistorySnapshot, savedItemId: string) => {
+      dispatch({ type: "patch", patch: { name: saved.document.name } });
       hydratedItemRef.current.preserve(savedItemId);
-      initialFingerprintRef.current = sceneSaveFingerprint(
-        savedDocument,
-        imageResources,
-      );
+      initialFingerprintRef.current = sceneEffectSnapshotFingerprint(saved);
     },
-    [dispatch, imageResources],
+    [dispatch],
   );
+  const isDirty =
+    sceneEffectSnapshotFingerprint(snapshot) !== initialFingerprintRef.current;
   const contentSave = useSceneEffectSave({
     itemId,
-    document,
-    imageResources,
+    snapshot,
+    dirty: isDirty,
     initialized: hydration.state === "ready",
     ready: !hasBlockingIssues && !imageBusy && hydration.state === "ready",
     onRestore,
@@ -264,18 +275,10 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
     )
       setSelectedLayer("marquee");
   }, [contentSave.errorField, document.kind]);
-  const currentFingerprint = sceneSaveFingerprint(document, imageResources);
-  const isDirty = currentFingerprint !== initialFingerprintRef.current;
-  const blocker = useBlocker({
-    shouldBlockFn: ({ current, next }) =>
-      shouldBlockSceneEffectNavigation({
-        dirty: isDirty,
-        busy: contentSave.isBusy,
-        currentPath: current.pathname,
-        nextPath: next.pathname,
-      }),
-    enableBeforeUnload: () => isDirty || contentSave.isBusy,
-    withResolver: true,
+  const leaveGuard = useCreatorLeaveGuard({
+    dirty: isDirty,
+    busy: contentSave.isBusy,
+    discard: contentSave.discardChanges,
   });
 
   const discardCurrentDraft = useCallback(async () => {
@@ -290,21 +293,6 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
       return false;
     }
   }, [contentSave]);
-
-  // Explicit discard ends browser recovery too; ordinary unload still preserves it.
-  const leaveCreator = async () => {
-    if (discarding) return;
-    if (contentSave.isBusy) {
-      blocker.proceed?.();
-      return;
-    }
-    setDiscarding(true);
-    try {
-      if (await discardCurrentDraft()) blocker.proceed?.();
-    } finally {
-      setDiscarding(false);
-    }
-  };
 
   useEffect(() => {
     if (
@@ -339,7 +327,10 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
         initialFingerprintRef.current =
           item.origin === "builtin"
             ? "__included_copy__"
-            : sceneSaveFingerprint(loadedDocument, images);
+            : sceneEffectSnapshotFingerprint({
+                document: loadedDocument,
+                imageResources: images,
+              });
         setHydration({ state: "ready", message: null });
         setPreviewRevision((value) => value + 1);
       })
@@ -563,7 +554,9 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
     try {
       if (itemId) {
         if (userId)
-          await clearSceneEffectRecovery(userId, "new", { strict: true });
+          await sceneEffectRecoveryStore.clear(userId, "new", {
+            strict: true,
+          });
         if (!(await discardCurrentDraft())) return;
         await navigate({
           to: "/scene-effects/new",
@@ -573,10 +566,12 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
         return;
       }
 
-      const nextDocument = createDefaultSceneEffectDocument();
-      const nextFingerprint = sceneSaveFingerprint(nextDocument, []);
-      if (!(await contentSave.resetSession(nextFingerprint))) return;
-      resetDocument(nextDocument, []);
+      const next = {
+        document: createDefaultSceneEffectDocument(),
+        imageResources: [],
+      };
+      if (!(await contentSave.resetSession(next))) return;
+      resetDocument(next.document, next.imageResources);
       setSelectedLayer("marquee");
       setImageBusy(false);
       setImageError(null);
@@ -586,7 +581,7 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
       setImportText("");
       setImportError(null);
       setSoundPreview(null);
-      initialFingerprintRef.current = nextFingerprint;
+      initialFingerprintRef.current = sceneEffectSnapshotFingerprint(next);
       setHydration({ state: "ready", message: null });
       setPreviewRevision((value) => value + 1);
     } catch (error) {
@@ -819,7 +814,7 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
       overlays={
         <>
           {hydration.state === "error" ? (
-            <InlineError
+            <CreatorInlineError
               message={hydration.message ?? "Unable to open effect."}
             />
           ) : null}
@@ -885,17 +880,7 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
             onTextChange={setImportText}
             onImport={importDocument}
           />
-          <LeaveDialog
-            busy={contentSave.isBusy}
-            open={blocker.status === "blocked"}
-            onOpenChange={(open) => {
-              if (!open && !discarding && blocker.status === "blocked")
-                blocker.reset?.();
-            }}
-            onStay={() => blocker.reset?.()}
-            discarding={discarding}
-            onLeave={() => void leaveCreator()}
-          />
+          <CreatorLeaveDialog guard={leaveGuard} contentLabel="Scene Effect" />
         </>
       }
     />
@@ -2027,73 +2012,6 @@ function ScenePreviewActor({
   return sceneObject ? <primitive object={sceneObject} dispose={null} /> : null;
 }
 
-function LeaveDialog({
-  busy,
-  discarding,
-  open,
-  onOpenChange,
-  onStay,
-  onLeave,
-}: {
-  busy: boolean;
-  discarding: boolean;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onStay: () => void;
-  onLeave: () => void;
-}) {
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>
-            {busy
-              ? "Leave while content is being saved?"
-              : "Discard authoring changes?"}
-          </DialogTitle>
-          <DialogDescription>
-            {busy
-              ? "This Scene Effect is still being saved. Local recovery remains available when you return."
-              : "This Scene Effect has local authoring changes. Discarding removes these changes and their browser recovery draft. Saved content is unchanged."}
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <Button variant="outline" disabled={discarding} onClick={onStay}>
-            Stay
-          </Button>
-          <Button disabled={discarding} onClick={onLeave}>
-            {discarding
-              ? "Discarding…"
-              : busy
-                ? "Leave and keep recovery"
-                : "Discard and continue"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function CreatorLoading({ message }: { message: string }) {
-  return (
-    <div className="bg-background flex h-full items-center justify-center">
-      <div className="text-muted-foreground flex items-center gap-2">
-        <LoaderCircleIcon className="animate-spin" />
-        {message}
-      </div>
-    </div>
-  );
-}
-
-function InlineError({ message }: { message: string }) {
-  return (
-    <div className="bg-background text-destructive border-destructive/30 absolute top-[calc(var(--creator-header-height)+0.5rem)] left-1/2 z-[60] flex max-w-[calc(100%-2rem)] -translate-x-1/2 items-center gap-2 rounded-lg border px-3 py-2 text-sm">
-      <AlertTriangleIcon className="size-4" />
-      {message}
-    </div>
-  );
-}
-
 async function hydrateSceneEffect(args: {
   itemId: string;
   name: string;
@@ -2189,16 +2107,6 @@ function moveItem<T>(items: T[], from: number, to: number): T[] {
   const [item] = next.splice(from, 1);
   next.splice(to, 0, item);
   return next;
-}
-
-function sceneSaveFingerprint(
-  document: SceneEffectEditorDocument,
-  resources: SceneEffectEditorImageResource[],
-) {
-  return `${sceneEffectDocumentFingerprint(document)}:${[...resources]
-    .sort((left, right) => left.logicalName.localeCompare(right.logicalName))
-    .map((resource) => `${resource.logicalName}:${resource.sha256}`)
-    .join("|")}`;
 }
 
 function soundSourceKey(source: PyExactContentSource | null): string {
