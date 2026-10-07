@@ -1,8 +1,9 @@
 import type { PyContentDependency } from "@/lib/content/catalogTypes";
 import { parseAvatarEffectDefinition } from "@/lib/avatar/vfx/definition";
-import type {
-  AvatarVFXAnimationConfig,
-  AvatarVFXCatalogEntry,
+import {
+  isAttachmentVFXEntry,
+  type AvatarVFXAnimationConfig,
+  type AvatarVFXCatalogEntry,
 } from "@/lib/avatar/vfx/types";
 import { createDefaultAvatarEffectDocument } from "./defaults";
 import { legacyAvatarEffectDefinitionToV2 } from "./legacyDefinitionAdapter";
@@ -182,7 +183,7 @@ export function avatarEffectRuntimeEntry(
     ...(document.sound ? { sound: { onApply: document.sound.alias } } : {}),
   });
   // The editor only produces face attachments; body, sticker and silhouette arrive in Phase 9.
-  if (entry.kind === "deferred_attachment")
+  if (isAttachmentVFXEntry(entry))
     throw new Error("This attachment cannot be edited yet.");
   return entry;
 }
@@ -332,9 +333,9 @@ export function createAvatarEffectDocumentFromDefinition(args: {
     assetPath: "blob:avatar-effect-hydration",
     otherEyeAssetPath: "blob:avatar-effect-hydration-other-eye",
   });
-  if (parsed.kind === "deferred_attachment")
+  if (isAttachmentVFXEntry(parsed))
     throw new Error(
-      `This ${parsed.attachmentKind} Avatar Effect cannot be edited in this creator yet.`,
+      `This ${parsed.kind} Avatar Effect cannot be edited in this creator yet.`,
     );
   // The temporary editor cannot represent these /2 features; refuse rather
   // than silently dropping them on the next Save.

@@ -197,7 +197,13 @@ class FaceLandmarkAttachment(_Strict):
 
 
 class BodyAttachment(_Strict):
-    """A plane attached to a humanoid body point (rendering arrives in Phase 6)."""
+    """A plane on a humanoid body point that follows its normalized bone.
+
+    ``offset`` is in metres in the bone's frame (+x toward the viewer's right
+    when facing the avatar, +y up, +z forward), ``size`` is the plane height in
+    metres and ``rotationDeg`` turns the plane in its own plane. ``facing``
+    keeps it toward the camera or in the bone's orientation.
+    """
 
     kind: Literal["body"]
     bone: BodyBone
@@ -208,7 +214,11 @@ class BodyAttachment(_Strict):
 
 
 class StickerAttachment(_Strict):
-    """A camera-facing image beside the avatar (rendering arrives in Phase 6)."""
+    """A camera-facing image beside the head or body centre that follows the avatar.
+
+    ``size`` (plane height) and ``offset`` (in the screen plane) are fractions
+    of the avatar's height; stickers draw over the avatar.
+    """
 
     kind: Literal["sticker"]
     around: Literal["head", "body"] = "head"
@@ -218,7 +228,12 @@ class StickerAttachment(_Strict):
 
 
 class SilhouetteAttachment(_Strict):
-    """Art masked to the avatar's visible outline (rendering arrives in Phase 6)."""
+    """Art drawn only over the avatar's visible pixels, without changing its materials.
+
+    ``pattern`` tiles the art in screen space (at ``patternScale`` 1 a tile is a
+    quarter of the avatar's on-screen height); ``tint`` fills with the art's
+    average colour. ``scroll`` moves the pattern in tiles per second.
+    """
 
     kind: Literal["silhouette"]
     fill: Literal["pattern", "tint"] = "pattern"

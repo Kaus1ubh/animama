@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Avatar } from "../Avatar";
 import { buildRuntimePrimitiveBindings } from "../vrmEditorInspection";
 import { AvatarVFXController } from "./AvatarVFXController";
+import { parseAvatarEffectDefinition } from "./definition";
 import { loadEffectImage } from "./effect-image";
 import type { AvatarFacePartMap, AvatarFacePartRole } from "./faceParts";
 import type { AvatarFaceLandmarksSnapshot } from "./landmark-types";
@@ -14,6 +15,8 @@ import type {
 import type {
   AvatarFaceAnchoredSingleDecalVFXEntry,
   AvatarHoverVFXEntry,
+  AvatarSilhouetteVFXEntry,
+  AvatarStickerVFXEntry,
   AvatarVFXCatalogEntry,
 } from "./types";
 
@@ -599,21 +602,6 @@ describe("Avatar Effect v2 runtime features", () => {
     expect(material.opacity).toBeCloseTo(1);
   });
 
-  it("reports body, sticker and silhouette attachments as not yet supported", () => {
-    controller.reportUnsupportedAttachment({
-      kind: "deferred_attachment",
-      attachmentKind: "sticker",
-      id: "sticker",
-      label: "Doki",
-      description: "",
-      assetPath: "blob:x",
-      region: "sticker",
-    });
-    expect(controller.getSnapshot().warnings.join(" ")).toMatch(
-      /sticker attachment, which is not yet supported/,
-    );
-  });
-
   describe("face parts", () => {
     const part = (role: AvatarFacePartRole, bindings: string[]) => ({
       role,
@@ -802,6 +790,87 @@ describe("Avatar Effect v2 runtime features", () => {
       partController.removeEffect("decal-applied");
       expect(faceMesh().material).toBe(originalMaterial);
       expectNoOrphans(partController, originalMaterial);
+    });
+  });
+
+  describe("silhouette over a face texture effect", () => {
+    const faceMesh = () =>
+      vi
+        .mocked(buildRuntimePrimitiveBindings)(avatarStub)
+        .entries.find((entry) => entry.bindingKey === "face")!
+        .object as THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>;
+
+    it("cuts out with the face's own map, never the effect's composite", async () => {
+      const original = faceMesh().material;
+      original.alphaTest = 0.5;
+      const target = new AvatarVFXController({
+        ...avatarStub,
+        scene: new THREE.Group(),
+      } as unknown as Avatar);
+      controllers.push(target);
+      await target.applyFaceAnchoredVFX({
+        effectId: "decal",
+        effectEntry: { ...decalEffect(), id: "decal" },
+      });
+      const composite = faceMesh().material;
+      expect(composite).not.toBe(original);
+      const compositeMap = composite.map!;
+      const compositeDispose = vi.spyOn(compositeMap, "dispose");
+
+      await target.applyAttachmentVFX({
+        effectId: "shade",
+        effectEntry: parseAvatarEffectDefinition(
+          {
+            schema: "animama/avatar-effect/2",
+            region: "silhouette",
+            attachment: { kind: "silhouette" },
+            art: { image: "a.png" },
+          },
+          { id: "shade", label: "Shade", description: "", assetPath: "blob:a" },
+        ) as AvatarSilhouetteVFXEntry,
+      });
+      const overlay = faceMesh().children.find((child) =>
+        child.name.startsWith("AvatarSilhouetteVFX:"),
+      ) as THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial>;
+      const uniforms = overlay.material.uniforms;
+      expect(uniforms.sourceMap!.value).toBe(original.map);
+      expect(uniforms.sourceAlphaTest!.value).toBe(0.5);
+
+      target.removeEffect("decal");
+      expect(compositeDispose).toHaveBeenCalled();
+      expect(faceMesh().material).toBe(original);
+      expect(uniforms.sourceMap!.value).toBe(original.map);
+      expect(uniforms.sourceMap!.value).not.toBe(compositeMap);
+      target.removeEffect("shade");
+      expect(faceMesh().children).toEqual([]);
+    });
+
+    it("keeps a face effect when an attachment under its ID fails to build", async () => {
+      const target = new AvatarVFXController(avatarStub);
+      controllers.push(target);
+      await target.applyFaceAnchoredVFX({
+        effectId: "shared",
+        effectEntry: { ...decalEffect(), id: "shared" },
+      });
+      // The stub avatar has no scene, so the sticker cannot be built.
+      await target.applyAttachmentVFX({
+        effectId: "shared",
+        effectEntry: parseAvatarEffectDefinition(
+          {
+            schema: "animama/avatar-effect/2",
+            region: "sticker",
+            attachment: { kind: "sticker" },
+            art: { image: "a.png" },
+          },
+          { id: "doki", label: "Doki", description: "", assetPath: "blob:a" },
+        ) as AvatarStickerVFXEntry,
+      });
+      expect(
+        target
+          .getSnapshot()
+          .activeEffects.map((effect) => effect.appliedEffectId),
+      ).toEqual(["shared"]);
+      expect(target.getSnapshot().attachmentEffects).toEqual([]);
     });
   });
 });

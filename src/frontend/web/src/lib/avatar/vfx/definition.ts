@@ -6,6 +6,7 @@ import { assertAvatarEffectDefinitionSize } from "./effect-image-limits";
 import type {
   AvatarVFXAnimationConfig,
   AvatarVFXAppearance,
+  AvatarVFXAttachmentEntry,
   AvatarVFXCatalogEntry,
   AvatarVFXFlipbook,
   AvatarVFXHoverPlacement,
@@ -262,12 +263,85 @@ function faceRegion(definition: AvatarEffectDefinitionV2): AvatarVFXRegion {
 }
 
 /**
+ * Normalize a body, sticker or silhouette definition. The schema already ties
+ * the region to the attachment and forbids face options and other-eye art.
+ */
+function attachmentEntry(
+  definition: AvatarEffectDefinitionV2,
+  context: AvatarEffectEntryContext,
+): AvatarVFXAttachmentEntry | null {
+  const attachment = definition.attachment;
+  if (
+    attachment.kind !== "body" &&
+    attachment.kind !== "sticker" &&
+    attachment.kind !== "silhouette"
+  ) {
+    return null;
+  }
+  if (definition.region !== attachment.kind) {
+    invalid(
+      `a ${attachment.kind} attachment uses the ${attachment.kind} region`,
+      "definition.region",
+    );
+  }
+  const animation = animationConfig(definition);
+  const frames = flipbook(definition);
+  const timeline = keyframes(definition);
+  const base = {
+    id: context.id,
+    label: context.label,
+    description: context.description,
+    assetPath: context.assetPath,
+    appearance: appearance(definition),
+    ...(animation ? { animationConfig: animation } : {}),
+    ...(context.sound ? { sound: context.sound } : {}),
+    ...(frames ? { flipbook: frames } : {}),
+    ...(timeline ? { keyframes: timeline } : {}),
+  };
+  if (attachment.kind === "body") {
+    return {
+      ...base,
+      kind: "body",
+      region: "body",
+      bone: attachment.bone,
+      offset: {
+        x: attachment.offset?.x ?? 0,
+        y: attachment.offset?.y ?? 0,
+        z: attachment.offset?.z ?? 0,
+      },
+      size: attachment.size ?? 0.2,
+      facing: attachment.facing ?? "camera",
+      rotation: (attachment.rotationDeg ?? 0) * DEGREES_TO_RADIANS,
+    };
+  }
+  if (attachment.kind === "sticker") {
+    return {
+      ...base,
+      kind: "sticker",
+      region: "sticker",
+      around: attachment.around ?? "head",
+      offset: { x: attachment.offset?.x ?? 0, y: attachment.offset?.y ?? 0 },
+      size: attachment.size ?? 0.25,
+      rotation: (attachment.rotationDeg ?? 0) * DEGREES_TO_RADIANS,
+    };
+  }
+  return {
+    ...base,
+    kind: "silhouette",
+    region: "silhouette",
+    fill: attachment.fill ?? "pattern",
+    patternScale: attachment.patternScale ?? 1,
+    scroll: { x: attachment.scroll?.x ?? 0, y: attachment.scroll?.y ?? 0 },
+  };
+}
+
+/**
  * Validate a stored `/2` definition and normalize it into the controller's
  * internal render entry. Throws {@link AvatarEffectDefinitionError}.
  *
  * Face attachments map to the internal `hover`, `face_anchored` and `texture`
- * entries; rotations become radians. Body, sticker and silhouette attachments
- * are valid but are returned as deferred entries until their renderers exist.
+ * entries; body, sticker and silhouette attachments keep their own kinds.
+ * Rotations become radians.
  */
 export function parseAvatarEffectDefinition(
   value: unknown,
@@ -275,22 +349,10 @@ export function parseAvatarEffectDefinition(
 ): AvatarVFXParsedEntry {
   const definition = validateAvatarEffectDefinition(value);
   const attachment = definition.attachment;
-  if (
-    attachment.kind === "body" ||
-    attachment.kind === "sticker" ||
-    attachment.kind === "silhouette"
-  ) {
-    return {
-      kind: "deferred_attachment",
-      attachmentKind: attachment.kind,
-      id: context.id,
-      label: context.label,
-      description: context.description,
-      assetPath: context.assetPath,
-      region: definition.region,
-      ...(context.sound ? { sound: context.sound } : {}),
-    };
-  }
+  const attached = attachmentEntry(definition, context);
+  if (attached) return attached;
+  if (attachment.kind !== "face_surface" && attachment.kind !== "face_landmark")
+    invalid("unsupported attachment", "definition.attachment.kind");
   if (definition.art.otherEyeImage && !context.otherEyeAssetPath) {
     invalid(
       "the other-eye image is unavailable",

@@ -1,6 +1,6 @@
 import type { Avatar } from "../Avatar";
 import {
-  isDeferredAttachmentVFXEntry,
+  isAttachmentVFXEntry,
   isFaceAnchoredVFXEntry,
   isHoverVFXEntry,
   isTextureVFXEntry,
@@ -37,10 +37,13 @@ export async function applyAvatarVFXEffectById(args: {
     return false;
   }
 
-  if (isDeferredAttachmentVFXEntry(effect)) {
-    // Body, sticker and silhouette effects are valid but not rendered yet.
-    controller.reportUnsupportedAttachment(effect);
-    return false;
+  if (isAttachmentVFXEntry(effect)) {
+    await controller.applyAttachmentVFX({
+      effectId: runtimeEffectId,
+      effectEntry: { ...effect, id: runtimeEffectId },
+      logicalEffectId: effect.id,
+    });
+    return true;
   }
 
   if (isHoverVFXEntry(effect)) {

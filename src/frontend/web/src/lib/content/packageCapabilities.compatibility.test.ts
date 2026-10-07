@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { AVATAR_POSE_CATALOG } from "@/lib/avatar/poses/catalog";
 import { parseAvatarEffectDefinition } from "@/lib/avatar/vfx/definition";
+import { isAttachmentVFXEntry } from "@/lib/avatar/vfx/types";
 import {
   avatarEffectDefinition,
   createAvatarEffectDocumentFromDefinition,
@@ -52,7 +53,8 @@ describe("portable package renderer capabilities", () => {
           description: "Shared backend compatibility fixture",
           assetPath: "blob:verified-package-resource",
         });
-        expect(parsed.kind).not.toBe("deferred_attachment");
+        // Every shared fixture is a face effect.
+        expect(isAttachmentVFXEntry(parsed)).toBe(false);
         return;
       }
       const runtime = definition as Record<string, unknown>;

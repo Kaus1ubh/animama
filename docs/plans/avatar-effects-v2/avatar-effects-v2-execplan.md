@@ -76,7 +76,8 @@ work proceeds.
       Renders are identical, so G2 is not needed.
 - [x] Phase 5: Model-agnostic face and eye parts, with corrections. The G3
       spike passed on both Avatars.
-- [ ] Phase 6: Attachments beyond the face and the performance budget.
+- [x] Phase 6: Attachments beyond the face and the performance budget
+      (budget met: added mean GPU time is at most 1.15 ms).
 - [ ] Phase 7: Shared creator save, undo and draft recovery.
 - [ ] Phase 8: Template picker and entry points (existing UI components).
 - [ ] Phase 9: Avatar Effect creator `/2` controls and direct manipulation
@@ -1135,9 +1136,186 @@ is met and its numbers are recorded.
 
 #### Phase 6 record
 
+Starting source and issue: `97e1e6c4`, #304.
+
+**Silhouette spike** (flat magenta at 50% opacity, both Included Avatars, real
+GPU, 600 frames of `shy-finger-poke-loop`):
+
+- **Fidelity:** geometry overlays and a stencil pass look the same. They differ
+  on 0.64% (Y_0) and 0.60% (A_1) of pixels, which is edge antialiasing.
+  Neither shows gaps, and outlines are excluded in both.
+- **Polygon offset:** factor −1, units −4 double-covered Y_0's layered cuffs, so
+  factor 0, units −1 is used.
+- **GPU mean added:**
+
+  | Avatar | Geometry overlay | Stencil pass |
+  | --- | --- | --- |
+  | Y_0 | −0.01 ms | +0.05 ms |
+  | A_1 | +0.21 ms | +0.15 ms |
+
+- **Decision:** geometry overlays, as in Decision 6. They need no canvas
+  stencil buffer and change no material.
+
+Delivered:
+
+- **Shared anchors:** `lib/avatar/humanoidAnchors.ts`
+  (`resolveHumanoidAnchorObject`) is shared with the particle runtime, whose
+  results are unchanged.
+- **Body:** a plane parented to the normalized bone and camera-facing by
+  default. It is oriented in `onBeforeRender`, so each camera sees it face-on.
+  - `offset` is in metres in the bone's frame. A VRM 0 yaw correction gives
+    the same result on both versions.
+  - `size` is the plane height in metres.
+  - A bone fallback shows in the snapshot target.
+- **Sticker:** follows the head bone, or the hips–head midpoint for the body.
+  Size and offset are fractions of the avatar height, measured at load from
+  bind-pose bounds and scaled with world scale. `depthTest:false`, renderOrder
+  960.
+- **Silhouette** (`vfx/silhouetteOverlay.ts`): child overlay meshes share the
+  geometry, skeleton and `morphTargetInfluences` of their source.
+  - They honour the source's alpha cutout. `LessEqual` depth with polygon
+    offset 0/−1, renderOrder 940, one material, so MToon outlines are
+    excluded.
+  - Transparent layers that write no depth get no overlay: iris, highlight,
+    brows, eye lines and lashes.
+  - The `pattern` fill tiles in screen space, anchored at the hips. At
+    `patternScale` 1 a tile is a quarter of the avatar's on-screen height;
+    `scroll` is in tiles per second.
+  - The `tint` fill is a flat fill in the art's alpha-weighted average colour
+    multiplied by `appearance.tint`. This is the agent's reading; the owner
+    was told and may redefine it.
+- **Coexistence:** at most four body, sticker or silhouette effects
+  (`MAX_ACTIVE_ATTACHMENT_EFFECTS`). A fifth removes the oldest and logs
+  `avatar_effect_attachment_limit`. Attachments survive `refreshFaceParts`.
+  An attachment and a face effect with the same applied ID replace each
+  other.
+- **Tools:**
+  - `effects:render --together` applies several sources on one sheet.
+  - `pnpm -s effects:bench` runs the frame-cost benchmark.
+
+Following motion: test art is drawn in code (a pulsing chest heart, a spinning
+star on the right hand, a "DOKI!" sticker by the head and a scrolling stripe
+silhouette).
+
+- The sheets `follow-cat-monster-rawr.png` and `follow-soldier-salute.png`
+  are in `worktrees/avatar-effects-v2-p6/`, outside the repository.
+- They show all four attachments following both Avatars, with no gaps or
+  doubled patches.
+- The pattern is in screen space, so a hand in front of the face shares the
+  face's continuous pattern; the reviewer confirmed it is overlaid.
+- `--all-included` still diffs to 0 pixels.
+
+**Performance** (`effects:bench`, headless with a real GPU: `ANGLE Metal
+Renderer: Apple M5`; 1600×1200 at DPR 2, antialiasing, ACES,
+`shy-finger-poke-loop`, 600 frames after 120 warm-up). The heavy combination
+is `texture_sick_1`, `eye_confused_swirl`, a pulsing chest heart and a
+scrolling silhouette.
+
+| Avatar | Scenario | CPU mean / p95 | GPU mean / p95 | Draw calls |
+| --- | --- | --- | --- | --- |
+| Y_0 | No effects | 1.54 / 1.80 ms | 1.11 / 1.94 ms | 26 |
+| Y_0 | Heavy | 1.68 / 1.90 ms | 1.69 / 3.29 ms | 41 |
+| A_1_New | No effects | 1.08 / 1.20 ms | 0.91 / 1.75 ms | 20 |
+| A_1_New | Heavy | 1.33 / 1.60 ms | 1.63 / 3.42 ms | 34 |
+
+Mean added: Y_0 +0.14 ms CPU and +0.58 ms GPU; A_1 +0.25 ms CPU and +0.72 ms
+GPU. Both are within the 2 ms budget.
+
+Checks (agent):
+
+- `tsc` clean; focused vitest 552 passed; full `pnpm web:test` 384 files, 2,656
+  tests passed.
+- `pnpm check`, `web:lint`, prettier and `pnpm build` pass;
+  `openapi-ts:check` is current.
+- Render tests 9/9.
+- `make check` passes; pytest 118 passed.
+
 #### Code Review #1 Findings
 
+Reviewed source: uncommitted tree on `97e1e6c4`. Result: **blocking findings
+remain**.
+
+1. **Blocking.** The silhouette copies its source's map once. When a face
+   texture effect is active, that map is the controller's composite texture.
+   Once the face effect disposes it, three re-uploads it on the next bind and
+   nothing frees it again. That leaks one face-size GPU texture each time,
+   and the cutout uses stale alpha.
+2. The cutout uses texture alpha even on opaque materials.
+3. The hover skin backdrop draws over the silhouette.
+4. Bench method:
+   - it runs headless rather than headed, as Decision 9 said;
+   - it uses a fixed none→heavy order;
+   - the disjoint flag is read once per batch.
+5. The spike and bench results were not recorded.
+6. The frame-aspect logic is duplicated.
+7. A `Vector2` is allocated on every draw.
+8. A stale pending intensity is kept after an eviction.
+9. A failed attachment apply loses a same-ID face effect.
+10. Tests do not cover body and sticker disposal or multiple cameras.
+
+The reviewer verified billboarding per camera, the VRM 0 yaw, sticker scaling,
+shared-data immutability, outline exclusion, the cap, clip removal, the limits
+and the anchor resolver with no findings.
+
 #### Code Review #1 Revisions
+
+1. Fixed: overlays read map, opacity, alpha test and side from the avatar's
+   original material, through a `materialOf` callback that returns a face
+   binding's `originalMaterial`. They never hold a composite owned by the
+   controller. A test covers the reviewer's sequence (decal → silhouette →
+   remove decal → remove silhouette) and fails with the old code.
+2. Fixed: the map is sampled only when the material uses alpha test or
+   transparency. Tested.
+3. Accepted: a design trait recorded for P9 and the G5 walkthrough.
+4. Fixed:
+   - `none` and `heavy` now alternate over `--rounds` (default 2).
+   - A disjoint event voids the queries in flight, and the count is
+     reported.
+   - `--headed` is documented. It ran once on both Avatars and agrees with
+     headless.
+5. Fixed: recorded above and below.
+6. Fixed: reuses `resolveArtFrameSize`.
+7. Fixed: a module-level scratch vector.
+8. Accepted: follows the existing face-effect pattern and is harmless unless
+   the ID is re-applied.
+9. Fixed: a same-ID face effect is removed only after the attachment is
+   built. Tested.
+10. Fixed: tests for body and sticker disposal and for two cameras.
+
+Bench after revisions (Apple M5, ANGLE Metal; 600 frames per scenario over 2
+alternating rounds; no voided GPU samples). Times are mean / p95 in ms.
+
+| Mode | Avatar | No effects, CPU | No effects, GPU | Heavy, CPU | Heavy, GPU | Added mean (CPU / GPU) |
+| --- | --- | --- | --- | --- | --- | --- |
+| Headless | Y_0 | 1.47 / 1.80 | 1.52 / 2.00 | 1.63 / 1.90 | 2.67 / 5.64 | 0.17 / 1.15 |
+| Headless | A_1_New | 1.03 / 1.20 | 1.37 / 1.76 | 1.20 / 1.40 | 2.41 / 4.91 | 0.18 / 1.04 |
+| Headed | Y_0 | 1.43 / 1.60 | 1.54 / 2.02 | 1.62 / 1.90 | 2.61 / 5.52 | 0.19 / 1.07 |
+| Headed | A_1_New | 1.03 / 1.20 | 1.37 / 1.76 | 1.23 / 1.40 | 2.29 / 4.67 | 0.20 / 0.92 |
+
+- **Budget:** every run is within 2 ms, including `--rounds 1` and
+  `--rounds 4`, which added 0.93–1.29 ms GPU. The **performance budget is
+  met**.
+- **Variance:** GPU baselines vary between sessions. The no-effects GPU time
+  rose along with the added time compared with the first run, which suggests
+  GPU clock state rather than the revisions.
+- **p95:** the heavy GPU p95 appears to come from the animated full-face
+  texture re-uploading at 30 FPS. This is inferred from the effect mix, not
+  measured per effect.
+
+Checks after revisions (agent):
+
+- Focused vitest 559 passed; full `pnpm web:test` 384 files, 2,663 tests
+  passed.
+- `pnpm check`, `web:lint`, prettier and `pnpm build` pass.
+- Render tests 9/9.
+- The `--all-included` diff is 0 pixels.
+
+#### Code Review #2 (repair round 1)
+
+Result: **pass**. Finding 1 is fixed and verified against the reviewer's
+scenario, because `originalMaterial` is never a composite clone. The other
+revisions caused no regressions. The bench rounds and disjoint handling are
+sound.
 
 ### Phase 7 — Shared creator save, undo and draft recovery (R7)
 

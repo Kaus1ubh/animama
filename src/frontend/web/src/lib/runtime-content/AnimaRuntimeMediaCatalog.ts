@@ -16,7 +16,7 @@ import {
   MAX_AVATAR_EFFECT_IMAGE_BYTES,
 } from "@/lib/avatar/vfx/effect-image-limits";
 import {
-  isDeferredAttachmentVFXEntry,
+  isAttachmentVFXEntry,
   type AvatarVFXCatalogEntry,
   type AvatarVFXParsedEntry,
 } from "@/lib/avatar/vfx/types";
@@ -309,7 +309,7 @@ export class AnimaRuntimeMediaCatalog implements AnimaRuntimeMediaProvider {
 
   resolveAvatarVFX(runtimeId: string): AvatarVFXCatalogEntry | null {
     const entry = this.avatarVFXEntries.get(runtimeId);
-    return entry && !isDeferredAttachmentVFXEntry(entry) ? entry : null;
+    return entry && !isAttachmentVFXEntry(entry) ? entry : null;
   }
 
   loadAvatarVFX(runtimeId: string): Promise<AvatarVFXParsedEntry | null> {
@@ -341,8 +341,7 @@ export class AnimaRuntimeMediaCatalog implements AnimaRuntimeMediaProvider {
 
   listAvatarVFX(): readonly AvatarVFXCatalogEntry[] {
     return Array.from(this.avatarVFXEntries.values()).filter(
-      (entry): entry is AvatarVFXCatalogEntry =>
-        !isDeferredAttachmentVFXEntry(entry),
+      (entry): entry is AvatarVFXCatalogEntry => !isAttachmentVFXEntry(entry),
     );
   }
 

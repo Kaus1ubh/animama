@@ -10,7 +10,7 @@ import {
   parseAvatarEffectDefinition,
 } from "./definition";
 import v1Snapshot from "./fixtures/included-v1-runtime-entries.json";
-import type { AvatarVFXParsedEntry } from "./types";
+import { isAttachmentVFXEntry, type AvatarVFXParsedEntry } from "./types";
 
 const INCLUDED = resolve(process.cwd(), "../../../content/included/vfx/avatar");
 
@@ -200,7 +200,7 @@ describe("parseAvatarEffectDefinition", () => {
       flipbook: { columns: 4, rows: 2, frames: 6, fps: 12, loop: "pingpong" },
       keyframes: { loop: true },
     });
-    if (parsed.kind === "deferred_attachment") throw new Error("unexpected");
+    if (isAttachmentVFXEntry(parsed)) throw new Error("unexpected");
     expect(parsed.keyframes?.frames[1]?.rotation).toBeCloseTo(Math.PI / 2);
   });
 
@@ -258,25 +258,80 @@ describe("parseAvatarEffectDefinition", () => {
     ).toThrow(/flipbook/);
   });
 
-  it("returns body, sticker and silhouette attachments as deferred entries", () => {
-    for (const [attachment, region] of [
-      [{ kind: "body", bone: "chest" }, "body"],
-      [{ kind: "sticker", around: "head" }, "sticker"],
-      [{ kind: "silhouette", fill: "tint" }, "silhouette"],
-    ] as const) {
-      const parsed = parseAvatarEffectDefinition(
+  it("normalizes body, sticker and silhouette attachments with defaults", () => {
+    const parse = (
+      attachment: Record<string, unknown>,
+      region: string,
+      extra: Record<string, unknown> = {},
+    ) =>
+      parseAvatarEffectDefinition(
         {
           schema: "animama/avatar-effect/2",
           region,
           attachment,
           art: { image: "a.png" },
+          ...extra,
         },
         { id: region, label: region, description: region, assetPath: "blob:a" },
       );
-      expect(parsed).toMatchObject({
-        kind: "deferred_attachment",
-        attachmentKind: attachment.kind,
-      });
-    }
+    expect(parse({ kind: "body", bone: "chest" }, "body")).toMatchObject({
+      kind: "body",
+      region: "body",
+      bone: "chest",
+      offset: { x: 0, y: 0, z: 0 },
+      size: 0.2,
+      facing: "camera",
+      rotation: 0,
+      appearance: { opacity: 1, tint: null, blend: "normal" },
+    });
+    expect(
+      parse(
+        {
+          kind: "sticker",
+          around: "body",
+          offset: { x: 0.3, y: -0.1 },
+          size: 0.4,
+          rotationDeg: 90,
+        },
+        "sticker",
+        { motion: { pulse: {} }, appearance: { opacity: 0.5 } },
+      ),
+    ).toMatchObject({
+      kind: "sticker",
+      around: "body",
+      offset: { x: 0.3, y: -0.1 },
+      size: 0.4,
+      rotation: Math.PI / 2,
+      animationConfig: { pulseCyclesPerSecond: 2 },
+      appearance: { opacity: 0.5 },
+    });
+    expect(
+      parse({ kind: "silhouette", fill: "tint" }, "silhouette", {
+        art: {
+          image: "a.png",
+          flipbook: { columns: 2, rows: 1, frames: 2, fps: 8 },
+        },
+      }),
+    ).toMatchObject({
+      kind: "silhouette",
+      fill: "tint",
+      patternScale: 1,
+      scroll: { x: 0, y: 0 },
+      flipbook: { columns: 2, rows: 1, frames: 2, fps: 8, loop: "loop" },
+    });
+  });
+
+  it("refuses an attachment whose region belongs to another attachment", () => {
+    expect(() =>
+      parseAvatarEffectDefinition(
+        {
+          schema: "animama/avatar-effect/2",
+          region: "sticker",
+          attachment: { kind: "body", bone: "head" },
+          art: { image: "a.png" },
+        },
+        { id: "x", label: "X", description: "X", assetPath: "blob:x" },
+      ),
+    ).toThrow(AvatarEffectDefinitionError);
   });
 });

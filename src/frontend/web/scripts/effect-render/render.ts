@@ -6,41 +6,30 @@ import { BUILT_IN_AVATAR_MOTION_CATALOG } from "@/lib/avatar/motion/AvatarMotion
 import { captureAvatarPortrait } from "@/lib/avatar/portrait";
 import { sampleAnimaPoseClip } from "@/lib/avatar/poses/animaPoseClip";
 import { getResolvedAvatarPose } from "@/lib/avatar/poses/catalog";
-import { parseAvatarEffectDefinition } from "@/lib/avatar/vfx/definition";
 import { applyAvatarVFXEffectById } from "@/lib/avatar/vfx/runtime";
 import { EMPTY_RUNTIME_MEDIA_PROVIDER } from "@/lib/runtime-content/AnimaRuntimeMediaCatalog";
-import {
-  buildSceneCameraPreset,
-  DEFAULT_SCENE_LIGHTS,
-} from "@/ui/main/canvas/sceneCameraPresets";
+import { buildSceneCameraPreset } from "@/ui/main/canvas/sceneCameraPresets";
 import { updatePoseCreatorAvatarFrame } from "@/ui/pose-creator/poseCreatorAvatarFrame";
+
+import { createStage, effectEntry, type EffectSource } from "./stage";
 
 /**
  * Headless Avatar Effect renderer (driven by `scripts/effect-render.mjs`).
  *
  * Each request mounts a fresh production `Avatar` per Included Avatar, renders
  * it like the chat canvas (ACES Filmic, sRGB, default scene lights,
- * transparent clear, no stencil buffer), applies one effect through the
- * runtime parser and `applyAvatarVFXEffectById`, then advances fixed 60 Hz
+ * transparent clear, no stencil buffer), applies one effect (or several
+ * together) through the runtime parser and `applyAvatarVFXEffectById`, then
+ * advances fixed 60 Hz
  * frames with the Pose Creator ordering (effects → `vrm.update` → particles).
  * Automatic animation stays off, so the result is deterministic.
  */
 
 type ViewName = "front" | "three-quarter" | "face";
 
-type EffectSource = {
-  stem: string;
-  contentId: string;
-  name: string;
-  description: string;
-  definition: Record<string, unknown>;
-  imageUrl: string;
-  /** Served `art.otherEyeImage`, when the definition names one. */
-  otherImageUrl: string | null;
-};
-
 type CommonRequest = {
-  effect: EffectSource;
+  /** Applied together, in order: one effect, or several to check coexistence. */
+  effects: EffectSource[];
   /** VRM expression held at full weight while rendering, or null. */
   expression: string | null;
   /** Gesture clip sampled at each frame's time after applying, or null. */
@@ -92,45 +81,6 @@ const VIEWS: Record<ViewName, { label: string; angle: number }> = {
   "three-quarter": { label: "3/4 right", angle: -Math.PI / 4 },
   face: { label: "face", angle: 0 },
 };
-
-function createStage(width: number, height: number) {
-  const renderer = new THREE.WebGLRenderer({
-    antialias: true,
-    alpha: true,
-    stencil: false,
-    preserveDrawingBuffer: true,
-  });
-  renderer.setPixelRatio(1);
-  renderer.setSize(width, height);
-  // React Three Fiber defaults used by the chat canvas (`Scene.tsx`).
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.outputColorSpace = THREE.SRGBColorSpace;
-  renderer.setClearColor(0x000000, 0);
-  const scene = new THREE.Scene();
-  scene.add(
-    new THREE.AmbientLight(0xffffff, DEFAULT_SCENE_LIGHTS.ambientIntensity),
-  );
-  for (const light of DEFAULT_SCENE_LIGHTS.directional) {
-    const directional = new THREE.DirectionalLight(0xffffff, light.intensity);
-    directional.position.set(...light.position);
-    scene.add(directional);
-  }
-  const camera = new THREE.PerspectiveCamera(35, width / height, 0.01, 20);
-  return { renderer, scene, camera };
-}
-
-function effectEntry(effect: EffectSource) {
-  // Same parser as runtime catalog loading of a stored `/2` definition.
-  return parseAvatarEffectDefinition(effect.definition, {
-    id: effect.contentId,
-    label: effect.name,
-    description: effect.description || effect.name,
-    assetPath: effect.imageUrl,
-    ...(effect.otherImageUrl
-      ? { otherEyeAssetPath: effect.otherImageUrl }
-      : {}),
-  });
-}
 
 const resolvePose = (id: string) => {
   try {
@@ -190,13 +140,18 @@ class EffectSession {
     }
   }
 
-  async apply(effect: EffectSource): Promise<void> {
-    const entry = effectEntry(effect);
-    this.applied = await applyAvatarVFXEffectById({
-      avatar: this.avatar,
-      effectId: entry.id,
-      effectEntry: entry,
-    });
+  /** Apply every effect; `applied` is true only when all of them applied. */
+  async apply(effects: EffectSource[]): Promise<void> {
+    this.applied = effects.length > 0;
+    for (const effect of effects) {
+      const entry = effectEntry(effect);
+      const applied = await applyAvatarVFXEffectById({
+        avatar: this.avatar,
+        effectId: entry.id,
+        effectEntry: entry,
+      });
+      this.applied &&= applied;
+    }
   }
 
   /** Pose the Avatar from the clip at `time`, as the Gesture creator previews it. */
@@ -233,7 +188,10 @@ class EffectSession {
     return {
       id,
       applied: this.applied,
-      activeEffectIds: snapshot?.activeEffects.map((e) => e.effectId) ?? [],
+      activeEffectIds: [
+        ...(snapshot?.activeEffects ?? []),
+        ...(snapshot?.attachmentEffects ?? []),
+      ].map((effect) => effect.effectId),
       warnings: snapshot?.warnings ?? ["The Avatar has no effect controller."],
       missingPoseRefs: [...this.missingPoseRefs],
     };
@@ -314,7 +272,7 @@ async function renderSheet(
       try {
         scene.add(avatar.scene!);
         const framing = portraitFraming(avatar);
-        await session.apply(request.effect);
+        await session.apply(request.effects);
         request.views.forEach((view, viewIndex) =>
           label(
             `${avatarSource.id.replace("AvatarSample_", "")} · ${VIEWS[view].label}`,
@@ -375,7 +333,7 @@ async function renderThumbnail(
     const { avatar } = session;
     scene.add(avatar.scene!);
     const framing = portraitFraming(avatar);
-    await session.apply(request.effect);
+    await session.apply(request.effects);
     session.advanceTo(request.time);
     // The capture keeps only the view direction of this front camera.
     placeCamera(camera, "front", avatar, framing);

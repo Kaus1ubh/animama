@@ -10,6 +10,10 @@ See [VRM inspection](vrm-inspector-editor.md) for debug session ownership.
 ## 1) Main files
 
 - `src/frontend/web/src/lib/avatar/vfx/AvatarVFXController.ts`
+- `src/frontend/web/src/lib/avatar/vfx/AvatarAttachmentEffects.ts` and
+  `silhouetteOverlay.ts` (body, sticker and silhouette effects)
+- `src/frontend/web/src/lib/avatar/humanoidAnchors.ts` (body points shared
+  with Particle Effects)
 - `src/frontend/web/src/lib/avatar/vfx/definition.ts`
 - `src/frontend/web/src/lib/avatar/vfx/types.ts`
 - `src/frontend/web/src/lib/avatar/vfx/faceParts.ts`
@@ -45,10 +49,9 @@ A `/2` definition describes:
   part; `full`/`eyes` areas use the part's texture layout, `undereye`/`blush`/
   `mouth` place a decal on `face_skin`), `face_landmark` (a plane at the eyes,
   mouth, forehead, top or top edge, with a free offset in metres), and `body`,
-  `sticker` and `silhouette`. The last three are valid but not rendered yet;
-  the controller reports "attachment … is not yet supported" and applies
-  nothing. Rotations are degrees. A mirrored eye placement mirrors its
-  horizontal offset.
+  `sticker` and `silhouette` (see [Attachments beyond the
+  face](#attachments-beyond-the-face)). Rotations are degrees. A mirrored eye
+  placement mirrors its horizontal offset.
 - **`art`**: `image`, an optional `otherEyeImage` that the mirrored eye or side
   draws unmirrored, and an optional `flipbook` grid (`columns`, `rows`,
   `frames`, `fps`, `loop`: `loop`/`once`/`pingpong`).
@@ -190,6 +193,53 @@ pivot, offset, scale, rotation and animation. **Skin coverage** reveals relevant
 flattening regions and the sampled skin patch. Guides and UV controls affect only
 the preview, never the saved effect. Stopped effects retain available reference
 markers but have no live artwork outline.
+
+### Attachments beyond the face
+
+Body, sticker and silhouette effects need no face part. They follow the avatar
+through Gestures, Reactions and idle motion, and `AvatarVFXController`
+delegates them to `AvatarAttachmentEffects` (`applyAttachmentVFX`).
+
+- **`body`**: a plane on a humanoid body point (`root`, `hips`, `spine`,
+  `chest`, `neck`, `head`, hands or feet), parented to the normalized bone.
+  `resolveHumanoidAnchorObject` resolves the point with the same fallback
+  chain as Particle Effect anchors (for example `chest` → `upperChest` →
+  `spine` → `hips`). `offset` is in metres in the bone's frame (+x toward the
+  viewer's right when facing the avatar, +y up, +z forward, on VRM 0 and 1),
+  `size` is the plane height in metres and `rotationDeg` turns it in its own
+  plane. It faces the camera (`facing: "camera"`, oriented per render for each
+  camera) or keeps the bone's orientation (`facing: "bone"`).
+- **`sticker`**: a camera-facing image beside the head (`around: "head"`) or
+  the body centre (between the hips and head bones). `size` (plane height) and
+  `offset` (in the screen plane) are fractions of the avatar's height, measured
+  once from its bind-pose bounds at load, so stickers keep a readable size on
+  any model and scale with the avatar. Stickers ignore depth (render order
+  960), so the avatar never hides them.
+- **`silhouette`**: art drawn only over the avatar's visible pixels. Each
+  depth-writing primitive gets an overlay mesh that shares its geometry,
+  skeleton and live `morphTargetInfluences`, as a child with an identity
+  transform. For cutout or blended primitives the overlay reuses the
+  primitive's original base-map alpha (never a face effect's composite
+  texture); opaque primitives ignore map alpha, as their own shader does. It uses
+  `LessEqual` depth with a one-unit polygon offset (render order 940), and
+  changes no avatar material or canvas option. MToon outlines and transparent
+  layers that write no depth (irises, highlights, brows, eye lines, lashes) get
+  no overlay; the skin and eye whites beneath already cover them. `fill:
+  "pattern"` tiles the art in screen space, anchored at the hips: at
+  `patternScale` 1 a tile is a quarter of the avatar's on-screen height, so
+  tileable art works best. `fill: "tint"` fills with the art's alpha-weighted
+  average colour. `scroll` moves the pattern in tiles per second, and the
+  motion presets move, turn and scale it.
+
+Appearance, flipbooks, keyframes and event fades apply to all three; keyframe
+offsets use each attachment's offset units. Face effects on the same region
+still replace each other, but attachments coexist with face effects and with
+each other: at most four (`MAX_ACTIVE_ATTACHMENT_EFFECTS`) are active, and
+applying a fifth removes the oldest, logging
+`avatar_effect_attachment_limit` and adding a snapshot warning. They appear in
+the snapshot's `attachmentEffects` and the observation snapshot, survive a face
+part correction, and are disposed by `removeEffect`, `clearAllEffects`, clip
+cleanup and `presentation.disable_vfx`. The creator cannot edit them yet.
 
 ## 2) High-level model
 
@@ -660,6 +710,9 @@ pnpm -s effects:render --diff before.png after.png --out diff.png
   steps fixed 60 Hz frames with automatic animation off. Renders are
   deterministic, so the same source and revision should diff to 0 pixels.
 - The run exits 1 when the controller reports a warning or no active effect.
+- `--together` applies every source at once on one sheet (`<a+b+c>.png`),
+  for example a body effect, a sticker and a silhouette with `--with-clip
+  library:soldier-salute` to check that they follow the avatar.
 - `--thumbnail` renders Annie with the portrait capture's head framing and
   lighting, keeping the effect's live expression state (no forced smile).
 - `--diff` counts a pixel as different when a channel changes by more than
@@ -695,6 +748,25 @@ Animated texture effects require canvas redraw and texture upload on animation
 ticks; account for that work when measuring VFX performance.
 
 There is no per-frame face landmark solve in the normal path.
+
+Attachments add little per frame: camera-facing planes and stickers compose
+one matrix per render, and a silhouette adds one skinned draw per overlaid
+primitive (about 11–13 on the Included Avatars) with a simple fragment shader.
+
+`pnpm -s effects:bench` (from `src/frontend/web`) measures the frame cost on
+the development machine's GPU. It plays a looping Gesture through
+`Avatar.update` on a chat-equivalent canvas (800 × 600 at DPR 2,
+antialiasing, ACES) and times `avatar.update` + `render` on the CPU and the
+render on the GPU (`EXT_disjoint_timer_query_webgl2`) over 600 frames per
+scenario, per Included Avatar, with no effects and with the heavy combination
+(an animated full-face texture, an animated eye hover, a body effect and a
+silhouette). The scenarios alternate over `--rounds` passes (default 2, each
+after a 120-frame warm-up) so drift favours neither, and GPU samples voided by
+a disjoint event are dropped and counted. The budget is a mean added frame time of at
+most 2 ms. Chromium runs headless with Metal flags and falls back to a small
+headed window when the WebGL renderer is software; a software renderer is
+refused because its timings are not representative. Options: `--frames`,
+`--warmup`, `--rounds`, `--clip`, `--effects`, `--headed`, `--json <file>`.
 
 ## 12) Current limitations
 

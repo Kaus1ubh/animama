@@ -23,7 +23,7 @@ import {
 } from "./avatarRuntimeTargeting";
 import { resolveAvatarVFXModelProfile } from "./profiles";
 import {
-  isDeferredAttachmentVFXEntry,
+  isAttachmentVFXEntry,
   isEyeHoverVFXEntry,
   isTextureVFXEntry,
   type AvatarVFXParsedEntry,
@@ -249,7 +249,7 @@ export function findMissingFacePart(
   const missing = (role: AvatarFacePartRole) =>
     map.parts[role].bindings.length === 0;
   // Body, sticker and silhouette attachments need no face part.
-  if (isDeferredAttachmentVFXEntry(effect)) return null;
+  if (isAttachmentVFXEntry(effect)) return null;
   if (isTextureVFXEntry(effect)) {
     if (effect.targetRole === "eye_iris") {
       return missing("eye_left") && missing("eye_right") ? "eye_left" : null;

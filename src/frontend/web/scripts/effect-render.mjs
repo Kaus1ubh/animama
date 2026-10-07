@@ -34,7 +34,12 @@ import {
  */
 const webRoot = fileURLToPath(new URL("..", import.meta.url));
 const avatarDir = path.join(REPO_ROOT, "content/included/avatars");
-const AVATARS = ["AvatarSample_Y_0", "AvatarSample_A_1_New"];
+/** The Included Avatars every sheet and benchmark covers. */
+export const AVATARS = ["AvatarSample_Y_0", "AvatarSample_A_1_New"];
+
+/** The page URL of an Included Avatar's VRM. */
+export const avatarFileUrl = (fsUrl, id) =>
+  fsUrl(path.join(avatarDir, `${id}.vrm`));
 /** Annie, the Library thumbnail Avatar. */
 const THUMBNAIL_AVATAR = "AvatarSample_A_1_New";
 
@@ -67,13 +72,17 @@ export class EffectRenderFailure extends Error {
   }
 }
 
-/** Failures for one Avatar's diagnostics from the page. */
-function avatarFailures(avatar) {
+/** Failures for one Avatar's diagnostics after applying `expected` effects. */
+function avatarFailures(avatar, expected = 1) {
   const failures = avatar.warnings.map(
     (warning) => `${avatar.id} warning: ${truncate(warning)}`,
   );
   if (!avatar.applied || avatar.activeEffectIds.length === 0)
     failures.push(`${avatar.id} has no active effect`);
+  else if (avatar.activeEffectIds.length < expected)
+    failures.push(
+      `${avatar.id} has ${avatar.activeEffectIds.length} of ${expected} effects active`,
+    );
   return failures;
 }
 
@@ -82,12 +91,24 @@ function truncate(text, limit = 240) {
   return text.length > limit ? `${text.slice(0, limit)}…` : text;
 }
 
+/** Software WebGL: deterministic review renders on any machine. */
+const SWIFTSHADER_LAUNCH = {
+  headless: true,
+  args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
+};
+
 /**
- * Start the page, run `callback(page, imageUrl)`, and always shut down.
- * Vite serves only the web root, the Included Avatars, the Included effects
- * and an optional local content root; any other effect image is inlined.
+ * Start a page, run `callback({ page, fsUrl, imageUrl })`, and always shut
+ * down. Vite serves only the web root, the Included Avatars, the Included
+ * effects and an optional local content root; any other effect image is
+ * inlined. `pageDir` names the page under `scripts/` (default the review
+ * renderer); it must set `window.effectRendererReady`. `launch` holds the
+ * Playwright Chromium launch options plus an optional page `viewport`.
  */
-async function withRendererPage({ localContent }, callback) {
+export async function withRendererPage(
+  { localContent, pageDir = "effect-render", launch = SWIFTSHADER_LAUNCH },
+  callback,
+) {
   const allow = [webRoot, avatarDir, INCLUDED_EFFECT_ROOT];
   if (localContent) allow.push(localContent);
   const server = await createServer({
@@ -107,7 +128,7 @@ async function withRendererPage({ localContent }, callback) {
       },
     },
     optimizeDeps: {
-      entries: [path.join(webRoot, "scripts/effect-render/render.ts")],
+      entries: [path.join(webRoot, `scripts/${pageDir}/index.html`)],
     },
     server: { host: "127.0.0.1", port: 0, fs: { strict: true, allow } },
   });
@@ -115,11 +136,9 @@ async function withRendererPage({ localContent }, callback) {
   try {
     await server.listen();
     const origin = `http://127.0.0.1:${server.httpServer.address().port}`;
-    browser = await chromium.launch({
-      headless: true,
-      args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
-    });
-    const page = await browser.newPage();
+    const { viewport, ...launchOptions } = launch;
+    browser = await chromium.launch(launchOptions);
+    const page = await browser.newPage(viewport ? { viewport } : {});
     const errors = [];
     // Any page error (including a failed module import) ends the wait early.
     const pageError = new Promise((_, reject) =>
@@ -129,7 +148,7 @@ async function withRendererPage({ localContent }, callback) {
       }),
     );
     pageError.catch(() => undefined);
-    await page.goto(`${origin}/scripts/effect-render/index.html`);
+    await page.goto(`${origin}/scripts/${pageDir}/index.html`);
     await Promise.race([
       page.waitForFunction(() => window.effectRendererReady === true, null, {
         timeout: 120_000,
@@ -158,7 +177,7 @@ async function withRendererPage({ localContent }, callback) {
   }
 }
 
-async function pageEffect(effect, imageUrl) {
+export async function pageEffect(effect, imageUrl) {
   return {
     stem: effect.stem,
     contentId: effect.contentId,
@@ -178,12 +197,14 @@ function decodeDataUrl(dataUrl) {
 
 /**
  * Render one contact sheet per effect: rows are `times` after applying,
- * columns are `views` for each Included Avatar. Every effect is attempted;
- * sheets are written even for failed effects, then `EffectRenderFailure`
- * is thrown if any effect failed.
+ * columns are `views` for each Included Avatar. With `together`, all effects
+ * are applied at once on a single sheet (stem `a+b+c`), to check that they
+ * coexist. Every sheet is attempted and written even when it fails, then
+ * `EffectRenderFailure` is thrown if any failed.
  */
 export async function renderEffectSheets({
   effects,
+  together = false,
   outFileFor,
   times = DEFAULT_TIMES,
   tile = DEFAULT_TILE,
@@ -198,16 +219,21 @@ export async function renderEffectSheets({
     async ({ page, fsUrl, imageUrl }) => {
       const avatars = AVATARS.map((id) => ({
         id,
-        url: fsUrl(path.join(avatarDir, `${id}.vrm`)),
+        url: avatarFileUrl(fsUrl, id),
       }));
       const results = [];
-      for (const effect of effects) {
-        const result = { stem: effect.stem, outFile: null, failures: [] };
+      const groups = together ? [effects] : effects.map((effect) => [effect]);
+      for (const group of groups) {
+        const stem = group.map((effect) => effect.stem).join("+");
+        const result = { stem, outFile: null, failures: [] };
         try {
+          const pageEffects = [];
+          for (const effect of group)
+            pageEffects.push(await pageEffect(effect, imageUrl));
           const rendered = await page.evaluate(
             (request) => window.renderEffectSheet(request),
             {
-              effect: await pageEffect(effect, imageUrl),
+              effects: pageEffects,
               avatars,
               times,
               tile,
@@ -217,8 +243,10 @@ export async function renderEffectSheets({
             },
           );
           result.avatars = rendered.avatars;
-          result.failures = rendered.avatars.flatMap(avatarFailures);
-          result.outFile = outFileFor(effect);
+          result.failures = rendered.avatars.flatMap((avatar) =>
+            avatarFailures(avatar, group.length),
+          );
+          result.outFile = outFileFor(group.length === 1 ? group[0] : { stem });
           await mkdir(path.dirname(result.outFile), { recursive: true });
           await writeFile(result.outFile, decodeDataUrl(rendered.dataUrl));
         } catch (error) {
@@ -253,10 +281,10 @@ export async function renderEffectThumbnail({
       const rendered = await page.evaluate(
         (request) => window.renderEffectThumbnail(request),
         {
-          effect: await pageEffect(effect, imageUrl),
+          effects: [await pageEffect(effect, imageUrl)],
           avatar: {
             id: THUMBNAIL_AVATAR,
-            url: fsUrl(path.join(avatarDir, `${THUMBNAIL_AVATAR}.vrm`)),
+            url: avatarFileUrl(fsUrl, THUMBNAIL_AVATAR),
           },
           time,
           size,
@@ -359,6 +387,7 @@ const USAGE = [
   "  --views front,three-quarter,face",
   "  --expression <name>     hold a VRM expression at full weight",
   "  --with-clip <path|library:...>  sample an Anima Pose Clip Gesture at the same times",
+  "  --together              apply every source at once on one sheet (<a+b+c>.png)",
   "  --local-content <dir>   content root for library:local/... (e.g. content/local)",
   "  --size 512              thumbnail edge in pixels (256-2048), Annie only",
   "",
@@ -379,7 +408,12 @@ const VALUE_OPTIONS = new Set([
   "--size",
   "--threshold",
 ]);
-const FLAG_OPTIONS = new Set(["--all-included", "--diff", "--help"]);
+const FLAG_OPTIONS = new Set([
+  "--all-included",
+  "--diff",
+  "--help",
+  "--together",
+]);
 
 /** Split argv into positional inputs, value options and flags. */
 export function parseArgs(argv) {
@@ -523,9 +557,11 @@ async function main(argv) {
     if (effects.length === 0)
       throw new EffectSourceError("Name a source or --all-included.");
     const out = resolveOut(values["--out"]);
-    const single = effects.length === 1 && out.endsWith(".png");
+    const together = flags.has("--together");
+    const single = (together || effects.length === 1) && out.endsWith(".png");
     await renderEffectSheets({
       effects,
+      together,
       outFileFor: (effect) =>
         single ? out : path.join(out, `${effect.stem}.png`),
       times: parseTimes(values["--times"], DEFAULT_TIMES),

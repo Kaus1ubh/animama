@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { Avatar } from "../Avatar";
 import { TEST_HOVER_VFX_ENTRY } from "./avatarVFXTestFixtures";
+import { parseAvatarEffectDefinition } from "./definition";
 import { applyAvatarVFXEffectById } from "./runtime";
 
 describe("applyAvatarVFXEffectById", () => {
@@ -81,5 +82,47 @@ describe("applyAvatarVFXEffectById", () => {
       effect,
       "eye_left",
     );
+  });
+
+  it("applies body, sticker and silhouette effects as attachments", async () => {
+    const controller = {
+      applyAttachmentVFX: vi.fn(),
+      applyHoverVFX: vi.fn(),
+      findUnavailableFacePart: vi.fn(() => null),
+      reportUnavailableFacePart: vi.fn(),
+    };
+    const avatar = { vfxController: controller } as unknown as Avatar;
+    const effect = parseAvatarEffectDefinition(
+      {
+        schema: "animama/avatar-effect/2",
+        region: "sticker",
+        attachment: { kind: "sticker", around: "head" },
+        art: { image: "doki.png" },
+      },
+      {
+        id: "doki",
+        label: "Doki",
+        description: "Doki",
+        assetPath: "blob:doki",
+      },
+    );
+
+    await expect(
+      applyAvatarVFXEffectById({
+        avatar,
+        effectId: "doki",
+        appliedEffectId: "clip:event",
+        effectEntry: effect,
+      }),
+    ).resolves.toBe(true);
+    expect(controller.applyAttachmentVFX).toHaveBeenCalledWith({
+      effectId: "clip:event",
+      effectEntry: expect.objectContaining({
+        kind: "sticker",
+        id: "clip:event",
+      }),
+      logicalEffectId: "doki",
+    });
+    expect(controller.applyHoverVFX).not.toHaveBeenCalled();
   });
 });

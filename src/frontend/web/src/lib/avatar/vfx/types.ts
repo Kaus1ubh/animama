@@ -3,8 +3,11 @@ import type {
   AvatarEffectDefinitionV2,
   AvatarEffectFlipbook,
   AvatarEffectSpin,
+  BodyAttachment,
   FaceLandmarkAttachment,
   FaceSurfaceAttachment,
+  SilhouetteAttachment,
+  StickerAttachment,
 } from "@animama/runtime-contracts/api-types";
 import {
   zAvatarEffectDefinitionV2,
@@ -36,13 +39,16 @@ export type AvatarVFXHoverKind = "eye_hover" | "mouth_hover" | "box_hover";
 
 export type AvatarVFXTextureAnchor = "undereye" | "blush" | "mouth";
 
-/** Attachments whose rendering is not implemented yet (Phase 6). */
-export type AvatarVFXDeferredAttachmentKind = Extract<
+/**
+ * Attachments beyond the face. Each uses the region of the same name, needs no
+ * face part, and coexists with face effects and with each other up to a cap.
+ */
+export type AvatarVFXAttachmentKind = Extract<
   AvatarEffectDefinitionV2["attachment"]["kind"],
   "body" | "sticker" | "silhouette"
 >;
 
-/** Face regions; body, sticker and silhouette regions belong to deferred attachments. */
+/** Face regions; body, sticker and silhouette have their own attachments. */
 export const AVATAR_VFX_REGIONS =
   zAvatarEffectDefinitionV2.shape.region.options.filter(
     (region): region is AvatarVFXRegion =>
@@ -50,7 +56,7 @@ export const AVATAR_VFX_REGIONS =
   );
 export type AvatarVFXRegion = Exclude<
   AvatarEffectDefinitionV2["region"],
-  AvatarVFXDeferredAttachmentKind
+  AvatarVFXAttachmentKind
 >;
 
 export const AVATAR_VFX_STACKABLE_REGIONS = [
@@ -300,30 +306,83 @@ export type AvatarVFXCatalogEntry =
   | AvatarFaceAnchoredVFXEntry
   | AvatarTextureVFXEntry;
 
-/**
- * A valid `/2` effect whose attachment has no renderer yet. The controller
- * reports it as unsupported instead of applying it.
- */
-export type AvatarVFXDeferredAttachmentEntry = {
-  kind: "deferred_attachment";
-  attachmentKind: AvatarVFXDeferredAttachmentKind;
+/** Art, appearance and motion shared by body, sticker and silhouette entries. */
+type AvatarVFXAttachmentBaseEntry = {
   id: string;
   label: string;
   description: string;
   assetPath: string;
-  region: AvatarEffectDefinitionV2["region"];
+  appearance: AvatarVFXAppearance;
+  animationConfig?: AvatarVFXAnimationConfig;
   sound?: AvatarVFXSoundConfig;
+  flipbook?: AvatarVFXFlipbook;
+  keyframes?: AvatarVFXKeyframes;
 };
+
+export type AvatarVFXBodyBone = BodyAttachment["bone"];
+
+/**
+ * A plane on a humanoid body point. `offset` is in metres in the bone's frame
+ * (+x toward the viewer's right when facing the avatar, +y up, +z forward);
+ * `size` is the plane height in metres; `rotation` turns it in its own plane.
+ */
+export type AvatarBodyVFXEntry = AvatarVFXAttachmentBaseEntry & {
+  kind: "body";
+  region: "body";
+  bone: AvatarVFXBodyBone;
+  offset: AvatarVFXTransformAxisTriple;
+  size: number;
+  facing: NonNullable<BodyAttachment["facing"]>;
+  /** Radians. */
+  rotation: number;
+};
+
+/**
+ * A camera-facing image beside the avatar that follows it. `offset` and `size`
+ * are fractions of the avatar's height; `offset` is in the screen plane.
+ */
+export type AvatarStickerVFXEntry = AvatarVFXAttachmentBaseEntry & {
+  kind: "sticker";
+  region: "sticker";
+  around: NonNullable<StickerAttachment["around"]>;
+  offset: { x: number; y: number };
+  size: number;
+  /** Radians. */
+  rotation: number;
+};
+
+/**
+ * Art drawn only over the avatar's visible pixels. `pattern` tiles the art in
+ * screen space (one tile is `patternScale` quarters of the avatar's on-screen
+ * height); `tint` fills with the art's average colour. `scroll` is in tiles
+ * per second.
+ */
+export type AvatarSilhouetteVFXEntry = AvatarVFXAttachmentBaseEntry & {
+  kind: "silhouette";
+  region: "silhouette";
+  fill: NonNullable<SilhouetteAttachment["fill"]>;
+  patternScale: number;
+  scroll: { x: number; y: number };
+};
+
+export type AvatarVFXAttachmentEntry =
+  | AvatarBodyVFXEntry
+  | AvatarStickerVFXEntry
+  | AvatarSilhouetteVFXEntry;
 
 /** Everything the definition parser can produce. */
 export type AvatarVFXParsedEntry =
   | AvatarVFXCatalogEntry
-  | AvatarVFXDeferredAttachmentEntry;
+  | AvatarVFXAttachmentEntry;
 
-export function isDeferredAttachmentVFXEntry(
+export function isAttachmentVFXEntry(
   effect: AvatarVFXParsedEntry,
-): effect is AvatarVFXDeferredAttachmentEntry {
-  return effect.kind === "deferred_attachment";
+): effect is AvatarVFXAttachmentEntry {
+  return (
+    effect.kind === "body" ||
+    effect.kind === "sticker" ||
+    effect.kind === "silhouette"
+  );
 }
 
 export type AvatarVFXNormalizedRect = {
@@ -391,10 +450,31 @@ export type AvatarVFXAppliedEffectSnapshot = {
   animationConfig: AvatarVFXResolvedAnimationConfig;
 };
 
+/** How an attachment effect is drawn. */
+export type AvatarVFXAttachmentRenderMode =
+  | "body_plane"
+  | "sticker_plane"
+  | "silhouette_overlay";
+
+/** One active body, sticker or silhouette effect, oldest first. */
+export type AvatarVFXAttachmentEffectSnapshot = {
+  appliedEffectId: string;
+  effectId: string;
+  effectLabel: string;
+  attachmentKind: AvatarVFXAttachmentKind;
+  renderMode: AvatarVFXAttachmentRenderMode;
+  animationPreset: AvatarVFXAnimationPreset | null;
+  /** The resolved body bone, sticker root or overlaid primitive count. */
+  target: string;
+};
+
 export type AvatarVFXSnapshot = {
   catalog: AvatarVFXCatalogEntry[];
   targetBindings: AvatarVFXTargetBindingSnapshot[];
+  /** Face effects, which live on face-part bindings. */
   activeEffects: AvatarVFXAppliedEffectSnapshot[];
+  /** Body, sticker and silhouette effects. */
+  attachmentEffects: AvatarVFXAttachmentEffectSnapshot[];
   flatten: AvatarVFXFaceFlattenSnapshot;
   warnings: string[];
 };
@@ -406,9 +486,10 @@ export type AvatarVFXSnapshot = {
 export type AvatarVFXObservationSnapshot = {
   activeEffects: Array<{
     effectId: string;
-    targetRole: AvatarVFXTargetRole;
+    /** The face part, or the attachment kind for body, sticker and silhouette. */
+    targetRole: AvatarVFXTargetRole | AvatarVFXAttachmentKind;
     animationPreset: AvatarVFXAnimationPreset | null;
-    renderMode: AvatarVFXRenderMode;
+    renderMode: AvatarVFXRenderMode | AvatarVFXAttachmentRenderMode;
   }>;
   warningCount: number;
 };

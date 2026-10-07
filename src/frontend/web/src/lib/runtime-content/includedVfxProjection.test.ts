@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { parseAvatarEffectDefinition } from "@/lib/avatar/vfx/definition";
+import { isAttachmentVFXEntry } from "@/lib/avatar/vfx/types";
 import { parseSceneVFXEntry } from "@/lib/scene-vfx/catalog";
 
 type JsonObject = Record<string, unknown>;
@@ -50,7 +51,8 @@ describe("Included typed VFX runtime projection", () => {
           ? { sound: { onApply: "registered-sound" } }
           : {}),
       });
-      expect(parsed.kind).not.toBe("deferred_attachment");
+      // Every Included effect is a face effect.
+      expect(isAttachmentVFXEntry(parsed)).toBe(false);
     }
   });
 

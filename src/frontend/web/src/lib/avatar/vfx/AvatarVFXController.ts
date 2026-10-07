@@ -2,7 +2,20 @@
 
 import * as THREE from "three";
 
+import {
+  AvatarAttachmentEffects,
+  MAX_ACTIVE_ATTACHMENT_EFFECTS,
+} from "./AvatarAttachmentEffects";
 import { loadEffectImage } from "./effect-image";
+import {
+  applyFlipbookFrameToTexture,
+  configureEffectBlend,
+  createTextureFromImage,
+  disposeObjectTree,
+  getImageSize,
+  isAnimatedEffect,
+  resolveArtFrameSize,
+} from "./effectArt";
 import {
   rectangleGuidePoints,
   resolveTexturePlacementTransform,
@@ -49,7 +62,7 @@ import type {
   AvatarVFXAppearance,
   AvatarVFXAppliedEffectSnapshot,
   AvatarVFXBlend,
-  AvatarVFXDeferredAttachmentEntry,
+  AvatarVFXAttachmentEntry,
   AvatarVFXApplyMode,
   AvatarVFXCatalogEntry,
   AvatarVFXParsedEntry,
@@ -461,92 +474,6 @@ function midpointVector3(a: THREE.Vector3, b: THREE.Vector3): THREE.Vector3 {
 
 function clampNumber(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
-}
-
-function getImageSize(image: CanvasImageSource): Size | null {
-  const imageRecord = image as {
-    width?: number;
-    height?: number;
-    videoWidth?: number;
-    videoHeight?: number;
-    displayWidth?: number;
-    displayHeight?: number;
-  };
-  const width =
-    (typeof imageRecord.width === "number" && imageRecord.width > 0
-      ? imageRecord.width
-      : null) ??
-    (typeof imageRecord.videoWidth === "number" && imageRecord.videoWidth > 0
-      ? imageRecord.videoWidth
-      : null) ??
-    (typeof imageRecord.displayWidth === "number" &&
-    imageRecord.displayWidth > 0
-      ? imageRecord.displayWidth
-      : null);
-  const height =
-    (typeof imageRecord.height === "number" && imageRecord.height > 0
-      ? imageRecord.height
-      : null) ??
-    (typeof imageRecord.videoHeight === "number" && imageRecord.videoHeight > 0
-      ? imageRecord.videoHeight
-      : null) ??
-    (typeof imageRecord.displayHeight === "number" &&
-    imageRecord.displayHeight > 0
-      ? imageRecord.displayHeight
-      : null);
-  if (!width || !height) return null;
-  return { width, height };
-}
-
-function createTextureFromImage(image: CanvasImageSource): THREE.Texture {
-  const texture = new THREE.Texture(image as TexImageSource);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.needsUpdate = true;
-  texture.wrapS = THREE.ClampToEdgeWrapping;
-  texture.wrapT = THREE.ClampToEdgeWrapping;
-  texture.minFilter = THREE.LinearFilter;
-  texture.magFilter = THREE.LinearFilter;
-  return texture;
-}
-
-function disposeMaterial(material: THREE.Material | THREE.Material[]): void {
-  if (Array.isArray(material)) {
-    material.forEach((entry) => disposeMaterial(entry));
-    return;
-  }
-
-  const materialRecord = material as THREE.Material & {
-    map?: THREE.Texture | null;
-    alphaMap?: THREE.Texture | null;
-    shadeMultiplyTexture?: THREE.Texture | null;
-  };
-  Array.from(
-    new Set(
-      [
-        materialRecord.map,
-        materialRecord.alphaMap,
-        materialRecord.shadeMultiplyTexture,
-      ].filter(
-        (value): value is THREE.Texture => value instanceof THREE.Texture,
-      ),
-    ),
-  ).forEach((texture) => texture.dispose());
-  material.dispose();
-}
-
-function disposeObjectTree(root: THREE.Object3D): void {
-  root.traverse((object) => {
-    const meshObject = object as THREE.Mesh;
-    if (meshObject.geometry instanceof THREE.BufferGeometry) {
-      meshObject.geometry.dispose();
-    }
-    if (
-      meshObject.material instanceof THREE.Material ||
-      Array.isArray(meshObject.material)
-    ) {
-      disposeMaterial(meshObject.material);
-    }
-  });
 }
 
 function getTextureSlot(
@@ -1388,19 +1315,6 @@ function createTintedImage(
   return canvas;
 }
 
-/** The size of one flipbook cell, or the whole image without a flipbook. */
-function resolveArtFrameSize(
-  image: CanvasImageSource,
-  flipbook: AvatarVFXFlipbook | undefined,
-): Size | null {
-  const size = getImageSize(image);
-  if (!size || !flipbook) return size;
-  return {
-    width: size.width / Math.max(1, flipbook.columns),
-    height: size.height / Math.max(1, flipbook.rows),
-  };
-}
-
 /** Source rectangle of one flipbook frame, left to right then top to bottom. */
 function resolveFlipbookSourceRect(
   image: CanvasImageSource,
@@ -1419,48 +1333,6 @@ function resolveFlipbookSourceRect(
     width,
     height,
   };
-}
-
-/** Point a flipbook texture at one frame without re-uploading it. */
-function applyFlipbookFrameToTexture(
-  texture: THREE.Texture,
-  flipbook: AvatarVFXFlipbook | undefined,
-  frame: number,
-): void {
-  if (!flipbook) return;
-  const columns = Math.max(1, flipbook.columns);
-  const rows = Math.max(1, flipbook.rows);
-  texture.repeat.set(1 / columns, 1 / rows);
-  // Textures are flipped on upload, so row 0 (top of the image) is at v = 1.
-  texture.offset.set(
-    (frame % columns) / columns,
-    1 - (Math.floor(frame / columns) + 1) / rows,
-  );
-}
-
-/**
- * Configure a hover plane's blend mode. Multiply uses premultiplied output so
- * transparent pixels leave the scene unchanged: dst × (src·a + 1 − a).
- */
-function configureHoverMaterialBlend(
-  material: THREE.MeshBasicMaterial,
-  blend: AvatarVFXBlend,
-): void {
-  if (blend === "additive") {
-    material.blending = THREE.AdditiveBlending;
-    return;
-  }
-  if (blend === "multiply") {
-    material.premultipliedAlpha = true;
-    material.blending = THREE.CustomBlending;
-    material.blendEquation = THREE.AddEquation;
-    material.blendSrc = THREE.DstColorFactor;
-    material.blendDst = THREE.OneMinusSrcAlphaFactor;
-    material.blendSrcAlpha = THREE.ZeroFactor;
-    material.blendDstAlpha = THREE.OneFactor;
-    return;
-  }
-  material.blending = THREE.NormalBlending;
 }
 
 function applyHoverInstanceOpacity(
@@ -1504,24 +1376,6 @@ function applyAnimationToHoverInstances(args: {
       animationState.frame,
     );
   });
-}
-
-function hasAnimatedVFXConfig(
-  config: AvatarVFXResolvedAnimationConfig,
-): boolean {
-  return config.pulseEnabled || config.spinEnabled || config.driftEnabled;
-}
-
-/** Whether an effect changes over its own timeline and needs the 30 FPS tick. */
-function isAnimatedEffect(
-  effect: AvatarVFXCatalogEntry,
-  config: AvatarVFXResolvedAnimationConfig,
-): boolean {
-  return (
-    hasAnimatedVFXConfig(config) ||
-    Boolean(effect.keyframes) ||
-    (effect.flipbook?.frames ?? 1) > 1
-  );
 }
 
 function getTextureEffectKindOrder(effect: AvatarVFXCatalogEntry): number {
@@ -1904,6 +1758,8 @@ export class AvatarVFXController {
   private _pendingIntensities = new Map<string, number>();
   /** Effect and part pairs already reported as skipped, so each logs once. */
   private _reportedUnavailableParts = new Set<string>();
+  /** Body, sticker and silhouette effects, which live outside face bindings. */
+  private readonly _attachments: AvatarAttachmentEffects;
 
   constructor(
     avatar: Avatar,
@@ -1917,6 +1773,14 @@ export class AvatarVFXController {
     this._profile = resolveAvatarVFXModelProfile({
       sourceKey: this._sourceKey,
       sourceUrl: this._sourceUrl,
+    });
+    this._attachments = new AvatarAttachmentEffects(avatar, {
+      // A face binding's material may be a composite clone this controller
+      // owns and disposes; overlays read the binding's original instead.
+      materialOf: (mesh) =>
+        Array.from(this._bindings.values()).find(
+          (binding) => binding.object === mesh,
+        )?.originalMaterial ?? mesh.material,
     });
     this._rebuildBindings();
     this._snapshot = this._createSnapshot();
@@ -2334,10 +2198,7 @@ export class AvatarVFXController {
       await run();
     } finally {
       const after = this._applyTokens.get(appliedEffectId) ?? 0;
-      const active = Array.from(this._bindings.values()).some((binding) =>
-        binding.activeEffects.has(appliedEffectId),
-      );
-      if (after <= before + 1 && !active) {
+      if (after <= before + 1 && !this._isApplied(appliedEffectId)) {
         this._pendingIntensities.delete(appliedEffectId);
       }
     }
@@ -2490,14 +2351,76 @@ export class AvatarVFXController {
   }
 
   /**
-   * Record that a valid effect uses an attachment without a renderer yet
-   * (body, sticker or silhouette). Nothing is applied.
+   * Apply a body, sticker or silhouette effect. These coexist with face
+   * effects and with each other; beyond {@link MAX_ACTIVE_ATTACHMENT_EFFECTS}
+   * the oldest is removed with a diagnostic. Re-applying an ID replaces it.
    */
-  reportUnsupportedAttachment(effect: AvatarVFXDeferredAttachmentEntry): void {
-    if (this._isDisposed) return;
-    this._pushWarning(
-      `Avatar Effect "${effect.label}" uses a ${effect.attachmentKind} attachment, which is not yet supported.`,
+  async applyAttachmentVFX(args: {
+    effectId: string;
+    effectEntry: AvatarVFXAttachmentEntry;
+    logicalEffectId?: string;
+  }): Promise<void> {
+    await this._applyTracked(args.effectId, () =>
+      this._applyAttachmentNow(args),
     );
+  }
+
+  private async _applyAttachmentNow(args: {
+    effectId: string;
+    effectEntry: AvatarVFXAttachmentEntry;
+    logicalEffectId?: string;
+  }): Promise<void> {
+    if (this._isDisposed) return;
+    const appliedEffectId = args.effectId;
+    const entry = args.effectEntry;
+    const token = (this._applyTokens.get(appliedEffectId) ?? 0) + 1;
+    this._applyTokens.set(appliedEffectId, token);
+
+    let art: CanvasImageSource;
+    try {
+      art = await loadEffectImage(entry.assetPath);
+    } catch (error) {
+      if (this._applyTokens.get(appliedEffectId) !== token) return;
+      this._pushWarning(error instanceof Error ? error.message : String(error));
+      return;
+    }
+    if (this._isDisposed || this._applyTokens.get(appliedEffectId) !== token) {
+      return;
+    }
+
+    const result = this._attachments.apply({
+      appliedEffectId,
+      effectId: args.logicalEffectId ?? entry.id,
+      entry,
+      art,
+      intensity: this._takePendingIntensity(appliedEffectId),
+    });
+    if (!result.ok) {
+      this._pushWarning(result.warning);
+      return;
+    }
+    // A face effect applied earlier under the same ID gives way, as a
+    // re-apply of any effect does, once its replacement exists.
+    this._removeAppliedEffect(appliedEffectId, { emit: false });
+    for (const evicted of result.evicted) {
+      // Its owner (a clip, a preview) may still remove it later; that is a no-op.
+      this._pendingIntensities.delete(evicted.appliedEffectId);
+      logger.warn(
+        "Attachments",
+        "Removed the oldest body, sticker or silhouette effect",
+        {
+          code: "avatar_effect_attachment_limit",
+          limit: MAX_ACTIVE_ATTACHMENT_EFFECTS,
+          removedEffectId: evicted.effectId,
+          appliedEffectId: evicted.appliedEffectId,
+          addedEffectId: args.logicalEffectId ?? entry.id,
+        },
+      );
+      this._pushWarning(
+        `Removed "${evicted.effectLabel}": at most ${MAX_ACTIVE_ATTACHMENT_EFFECTS} body, sticker or silhouette effects can be active.`,
+      );
+    }
+    this._emit();
   }
 
   /**
@@ -2562,7 +2485,8 @@ export class AvatarVFXController {
         this._applyTokens.get(effect.appliedEffectId) ?? 0,
       ]),
     );
-    this.clearAllEffects();
+    // Body, sticker and silhouette effects use no face part and stay as they are.
+    this._clearFaceEffects();
     this._bindings.forEach((binding) => {
       this._disposeTextureCompositeState(binding);
     });
@@ -2604,6 +2528,7 @@ export class AvatarVFXController {
     const intensity = Number.isFinite(value)
       ? Math.min(1, Math.max(0, value))
       : 1;
+    if (this._attachments.setIntensity(appliedEffectId, intensity)) return;
     for (const binding of this._bindings.values()) {
       const active = binding.activeEffects.get(appliedEffectId);
       if (!active) continue;
@@ -2639,16 +2564,36 @@ export class AvatarVFXController {
       appliedEffectId,
       (this._applyTokens.get(appliedEffectId) ?? 0) + 1,
     );
+    if (this._attachments.remove(appliedEffectId)) {
+      this._emit();
+      return;
+    }
     this._removeAppliedEffect(appliedEffectId);
   }
 
   clearAllEffects(): void {
     if (this._isDisposed) return;
+    this._attachments.clear();
+    this._clearFaceEffects();
+  }
+
+  /** Remove every face effect, restoring bindings; attachments stay. */
+  private _clearFaceEffects(): void {
     this._bindings.forEach((binding) => {
       this._restoreBinding(binding);
     });
     this._syncForcedBlinkExpression();
     this._emit();
+  }
+
+  /** Whether an applied ID is active as a face or attachment effect. */
+  private _isApplied(appliedEffectId: string): boolean {
+    return (
+      this._attachments.has(appliedEffectId) ||
+      Array.from(this._bindings.values()).some((binding) =>
+        binding.activeEffects.has(appliedEffectId),
+      )
+    );
   }
 
   update(delta: number): void {
@@ -2661,6 +2606,7 @@ export class AvatarVFXController {
       this._animationFrameAccumulatorSec =
         this._animationFrameAccumulatorSec % VFX_ANIMATION_FRAME_INTERVAL_SEC;
     }
+    this._attachments.update(delta, shouldAdvanceAnimationFrame);
 
     this._bindings.forEach((binding) => {
       let shouldRedrawTextureComposite = false;
@@ -2919,6 +2865,8 @@ export class AvatarVFXController {
       await this._applyAutoResolvedEffect(effect, applyMode, logicalEffectId);
       return;
     }
+    // A body, sticker or silhouette effect under the same ID gives way.
+    if (this._attachments.remove(appliedEffectId)) this._emit();
 
     if (renderMode === "hover_plane") {
       if (!isHoverVFXEntry(effect)) {
@@ -4169,7 +4117,7 @@ export class AvatarVFXController {
         opacity: appearance.opacity,
       });
       if (appearance.tint) material.color.set(appearance.tint);
-      configureHoverMaterialBlend(material, appearance.blend);
+      configureEffectBlend(material, appearance.blend);
       const placementRoot = new THREE.Group();
       placementRoot.name = `${effect.id}:${placement.label}:anchor`;
       placementRoot.position.copy(placement.position);
@@ -4325,6 +4273,7 @@ export class AvatarVFXController {
       catalog: [...this._catalog],
       targetBindings,
       activeEffects,
+      attachmentEffects: this._attachments.snapshot(),
       flatten,
       warnings: [...this._warnings],
     };
@@ -4332,14 +4281,22 @@ export class AvatarVFXController {
 
   private _createObservationSnapshot(): AvatarVFXObservationSnapshot {
     return {
-      activeEffects: Array.from(this._bindings.values()).flatMap((binding) =>
-        this._getSortedActiveEffects(binding).map((effect) => ({
+      activeEffects: [
+        ...Array.from(this._bindings.values()).flatMap((binding) =>
+          this._getSortedActiveEffects(binding).map((effect) => ({
+            effectId: effect.effectId,
+            targetRole: binding.targetRole,
+            animationPreset: effect.animationPreset,
+            renderMode: effect.renderMode,
+          })),
+        ),
+        ...this._attachments.snapshot().map((effect) => ({
           effectId: effect.effectId,
-          targetRole: binding.targetRole,
+          targetRole: effect.attachmentKind,
           animationPreset: effect.animationPreset,
           renderMode: effect.renderMode,
         })),
-      ),
+      ],
       warningCount: this._warnings.length,
     };
   }
