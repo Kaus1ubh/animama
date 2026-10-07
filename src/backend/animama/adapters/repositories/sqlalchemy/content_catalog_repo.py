@@ -14,7 +14,7 @@ from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
 from typing import Any
 
-from sqlalchemy import delete, or_, select, text, update
+from sqlalchemy import case, delete, or_, select, text, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -23,6 +23,7 @@ from animama.app.ports.content_catalog import ContentCatalog
 from animama.app.services.content_access_policy import ContentAccessPolicy
 from animama.app.services.content_kind_registry import handler_for_kind
 from animama.domain.content_catalog import (
+    CONTENT_SOURCE_LOCK_ORDER,
     CatalogContentEntry,
     CatalogContentFile,
     ContentConflictError,
@@ -627,10 +628,20 @@ class SQLAlchemyContentCatalog(ContentCatalog):
 
         Coordinated Save/Rescan and deletion lock these same rows. No database
         lock can prevent an operator editing bytes, so callers recheck files too.
+
+        Parents follow the full rescan's source order before ID, so a mixed
+        Included and Local closure cannot invert it. They take FOR NO KEY UPDATE:
+        it still excludes reconciliation, updates and deletion, but admits the
+        KEY SHARE that a Local-only rescan's dependency foreign keys take on
+        Included targets after it has locked Local rows.
         """
 
         if not item_ids:
             return
+        source_rank = case(
+            {source.value: rank for rank, source in enumerate(CONTENT_SOURCE_LOCK_ORDER)},
+            value=ORMContentCatalogItem.source,
+        )
         locked = await self._session.scalars(
             select(ORMContentCatalogItem.id)
             .where(
@@ -642,8 +653,8 @@ class SQLAlchemyContentCatalog(ContentCatalog):
                     ORMContentCatalogItem.owner_user_id == user_id,
                 ),
             )
-            .order_by(ORMContentCatalogItem.id)
-            .with_for_update()
+            .order_by(source_rank, ORMContentCatalogItem.id)
+            .with_for_update(key_share=True)
         )
         visible_ids = tuple(locked)
         await self._session.execute(
@@ -744,6 +755,9 @@ class SQLAlchemyContentCatalog(ContentCatalog):
             with_for_update=True if for_update else None,
             populate_existing=for_update,
         )
+        return await self._visible_entry(row, user_id=user_id)
+
+    async def _visible_entry(self, row: ORMContentCatalogItem | None, *, user_id: str) -> CatalogContentEntry | None:
         if row is None:
             return None
         if not ContentAccessPolicy.can_read(
@@ -983,9 +997,12 @@ class SQLAlchemyContentCatalog(ContentCatalog):
         closure = tuple(by_id[item_id] for item_id in sorted(by_id))
         await self.lock_items(user_id=user_id, item_ids=tuple(by_id))
         # A pack may have been withdrawn after the caller read the catalog.
-        # Recheck custody under the same row locks used by source reconciliation.
+        # Recheck custody under the row locks just taken. Refresh without
+        # upgrading them to FOR UPDATE, which would conflict with a concurrent
+        # rescan's dependency foreign-key checks.
         for entry in closure:
-            current = await self.get_visible_item(item_id=entry.id, user_id=user_id, for_update=True)
+            row = await self._session.get(ORMContentCatalogItem, entry.id, populate_existing=True)
+            current = await self._visible_entry(row, user_id=user_id)
             if (
                 current is None
                 or current.status is not ContentStatus.VALID
