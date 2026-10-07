@@ -13,7 +13,6 @@ import { ContentEditorHydration } from "@/lib/content/contentEditorSource";
 import { useFrame } from "@react-three/fiber";
 import { useBlocker, useNavigate } from "@tanstack/react-router";
 import {
-  AlertTriangleIcon,
   Code2Icon,
   FileImageIcon,
   FolderOpenIcon,
@@ -74,11 +73,15 @@ import {
   CreatorFloatingPanel as FloatingPanel,
   CreatorImportDialog,
   CreatorJsonDialog,
+  CreatorLoadingState,
   CreatorNumberField as NumberField,
   CreatorSaveNotice,
   CreatorToggleRow as SwitchRow,
   CreatorToolbar,
+  CreatorUnavailableState,
   CreatorWorkspaceShell,
+  creatorItemUnavailableMessage,
+  isCreatorItemOpenable,
 } from "@/ui/content-creator";
 import { ContentHealth } from "@/ui/content-health/ContentHealth";
 import { Button } from "@/ui/components/button";
@@ -220,15 +223,27 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
 
   const currentFingerprint = `${avatarEffectDocumentFingerprint(document)}:${imageResource?.sha256 ?? "missing"}`;
   const isDirty = currentFingerprint !== initialFingerprintRef.current;
+  const unavailableMessage = creatorItemUnavailableMessage({
+    itemId,
+    label: "Avatar Effect",
+    item: existingQuery.data,
+    readFailed: existingQuery.isError,
+    loadError:
+      hydration.state === "error"
+        ? (hydration.message ?? "The Avatar Effect could not be opened.")
+        : null,
+  });
+  // The unavailable state has no leave dialog, so it must never block navigation.
+  const guardLeave = !unavailableMessage;
   const blocker = useBlocker({
     shouldBlockFn: ({ current, next }) =>
       shouldBlockAvatarEffectNavigation({
-        dirty: isDirty,
-        busy: contentSave.isBusy,
+        dirty: guardLeave && isDirty,
+        busy: guardLeave && contentSave.isBusy,
         currentPath: current.pathname,
         nextPath: next.pathname,
       }),
-    enableBeforeUnload: () => isDirty || contentSave.isBusy,
+    enableBeforeUnload: () => guardLeave && (isDirty || contentSave.isBusy),
     withResolver: true,
   });
 
@@ -317,16 +332,11 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
       !existingQuery.data
     )
       return;
+    const item = existingQuery.data;
+    // creatorItemUnavailableMessage reports an unreadable or locked item.
+    if (!isCreatorItemOpenable(item)) return;
     const load = hydratedItemRef.current.begin(itemId);
     if (!load) return;
-    const item = existingQuery.data;
-    if (item.state !== "ready" || (item.origin === "owned" && !item.editable)) {
-      setHydration({
-        state: "error",
-        message: "This Avatar Effect is unavailable.",
-      });
-      return;
-    }
     const controller = new AbortController();
     setHydration({ state: "loading", message: "Loading saved content…" });
     void hydrateAvatarEffect({
@@ -580,11 +590,19 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
     [dispatch, document.transform, restartPreview],
   );
 
-  if (hydration.state === "loading" && itemId) {
+  if (unavailableMessage)
     return (
-      <CreatorLoading message={hydration.message ?? "Loading Avatar Effect…"} />
+      <CreatorUnavailableState
+        label="Avatar Effect"
+        message={unavailableMessage}
+      />
     );
-  }
+  if (hydration.state === "loading" && itemId)
+    return (
+      <CreatorLoadingState
+        message={hydration.message ?? "Loading Avatar Effect…"}
+      />
+    );
 
   return (
     <CreatorWorkspaceShell
@@ -643,7 +661,7 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
             avatar={previewAvatar}
             sceneVFX={null}
             status={
-              hydration.state === "error" || avatarStatus.state === "error"
+              avatarStatus.state === "error"
                 ? "error"
                 : hydration.state === "loading" ||
                     avatarStatus.state === "loading" ||
@@ -681,9 +699,6 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
             ].filter((message): message is string => Boolean(message)),
             ...(avatarStatus.state === "error"
               ? [avatarStatus.message ?? "Unable to load the preview Avatar."]
-              : []),
-            ...(hydration.state === "error"
-              ? [hydration.message ?? "Unable to open effect."]
               : []),
           ]}
           history={history}
@@ -829,11 +844,6 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
       }
       overlays={
         <>
-          {hydration.state === "error" ? (
-            <InlineError
-              message={hydration.message ?? "Unable to open effect."}
-            />
-          ) : null}
           {contentSave.error || contentSave.recoveryWarning ? (
             <CreatorSaveNotice
               className="absolute top-[calc(var(--creator-header-height)+0.5rem)] right-4 left-4 z-[60] sm:left-auto sm:max-w-md lg:top-auto lg:bottom-28"
@@ -1850,26 +1860,6 @@ function AvatarEffectLeaveDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
-}
-
-function CreatorLoading({ message }: { message: string }) {
-  return (
-    <div className="bg-background flex h-full items-center justify-center">
-      <div className="text-muted-foreground flex items-center gap-2">
-        <LoaderCircleIcon className="animate-spin" />
-        {message}
-      </div>
-    </div>
-  );
-}
-
-function InlineError({ message }: { message: string }) {
-  return (
-    <div className="bg-background text-destructive border-destructive/30 absolute top-[calc(var(--creator-header-height)+0.5rem)] left-1/2 z-[60] flex max-w-[calc(100%-2rem)] -translate-x-1/2 items-center gap-2 rounded-lg border px-3 py-2 text-sm">
-      <AlertTriangleIcon className="size-4" />
-      {message}
-    </div>
   );
 }
 
