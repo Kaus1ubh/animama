@@ -112,6 +112,14 @@ export class PreviewSession {
     return session;
   }
 
+  /**
+   * Continue numbering after a session this one replaces (the page picked
+   * other sources), so pages never take its state for older state.
+   */
+  continueAfter(generation: number) {
+    this.generation = Math.max(this.generation, generation + 1);
+  }
+
   /** Files whose changes should trigger `reload`. */
   get watchPaths(): string[] {
     return [...this.sources.map(({ path }) => path), this.paths.sidecar];

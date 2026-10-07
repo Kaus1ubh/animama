@@ -8,14 +8,18 @@ import {
   REVIEW_REGIONS,
   REVIEW_REGION_LABELS,
 } from "@/lib/avatar/motion-authoring/preview/reviewRegions";
-import type { PreviewClip } from "@/lib/avatar/motion-authoring/preview/sources";
+import type {
+  PreviewChoice,
+  PreviewClip,
+} from "@/lib/avatar/motion-authoring/preview/sources";
 import { EMPTY_RUNTIME_MEDIA_PROVIDER } from "@/lib/runtime-content/AnimaRuntimeMediaCatalog";
 
 /**
  * Motion preview page (served by `scripts/animation-preview.mjs`). Each row
  * plays one source on both Included Avatars through the app's own `Avatar`
  * playback, so fades, live-layer mutes and expression precedence look as they
- * do in chat. The page keeps one playback clock for all rows.
+ * do in chat. The page keeps one playback clock for all rows. The Review and
+ * Compare pickers switch the server to other listed sources.
  */
 
 type ServerState = PreviewState & { avatars: { id: string; url: string }[] };
@@ -24,6 +28,8 @@ type CameraPreset = "front" | "threeQuarter" | "side" | "face";
 type RowView = {
   key: string;
   label: string;
+  /** The clip file; a different path means another source was picked. */
+  path: string;
   clip: PreviewClip | null;
   version: string | null;
 };
@@ -47,8 +53,9 @@ const FRAME = 1 / 30;
 const element = <T extends HTMLElement>(id: string) =>
   document.getElementById(id) as T;
 const ui = {
-  title: element<HTMLHeadingElement>("title"),
   status: element<HTMLSpanElement>("status"),
+  pickSource: element<HTMLSelectElement>("pick-source"),
+  pickCompare: element<HTMLSelectElement>("pick-compare"),
   errors: element<HTMLDivElement>("errors"),
   views: element<HTMLDivElement>("views"),
   canvas: element<HTMLCanvasElement>("canvas"),
@@ -503,6 +510,68 @@ function renderNotes() {
   );
 }
 
+// ── Source pickers ──────────────────────────────────────────────────────
+
+let choices: PreviewChoice[] = [];
+
+/** Fill a picker with the choices, grouped as the server lists them. */
+function fillPicker(select: HTMLSelectElement, none: string | null) {
+  select.replaceChildren();
+  if (none) select.append(new Option(none, ""));
+  const groups = new Map<string, HTMLOptGroupElement>();
+  for (const choice of choices) {
+    let group = groups.get(choice.group);
+    if (!group) {
+      group = document.createElement("optgroup");
+      group.label = choice.group;
+      groups.set(choice.group, group);
+      select.append(group);
+    }
+    group.append(new Option(choice.label, choice.spec));
+  }
+}
+
+/** Show the playing sources in the pickers. */
+function showSelection() {
+  const specFor = (row: RowView | undefined) =>
+    choices.find(({ path }) => path === row?.path)?.spec ?? "";
+  ui.pickSource.value = specFor(rows[0]);
+  ui.pickCompare.value = specFor(rows[1]);
+}
+
+async function loadChoices() {
+  const response = await fetch("/__preview/choices");
+  if (!response.ok) return;
+  choices = await response.json();
+  fillPicker(ui.pickSource, null);
+  fillPicker(ui.pickCompare, "None");
+  showSelection();
+}
+
+/** Ask the server to play the picked sources. */
+async function pick() {
+  ui.status.textContent = "Loading…";
+  const response = await fetch("/__preview/select", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      source: ui.pickSource.value,
+      compare: ui.pickCompare.value || null,
+    }),
+  });
+  const result = await response.json();
+  if (!response.ok) {
+    showSelection();
+    showError(new Error(result.error));
+    return;
+  }
+  await applyState(result);
+}
+ui.pickSource.addEventListener("change", () => void pick());
+ui.pickCompare.addEventListener("change", () => void pick());
+// New clips or Library items appear when the page regains focus.
+window.addEventListener("focus", () => void loadChoices());
+
 // ── Server state ────────────────────────────────────────────────────────
 
 async function fetchState(): Promise<ServerState> {
@@ -533,6 +602,7 @@ async function loadPreviousRow(state: ServerState): Promise<RowView | null> {
   if (!response.ok) return null;
   return {
     key: "previous",
+    path: "",
     label: `${previous.id === latestNote?.version ? "Reviewed" : "Previous"} version (${new Date(previous.savedAt).toLocaleTimeString()})`,
     clip: await response.json(),
     version: previous.id,
@@ -551,16 +621,25 @@ async function applyStateNow(state: ServerState) {
   // An older state can arrive after a newer one; keep the newer.
   if (server && state.generation < server.generation) return;
   server = state;
+  const before = rows.map(({ path }) => path).join("\n");
   rows = state.rows.map((row) => ({
     key: row.role,
     label: row.label,
+    path: row.path,
     clip: row.clip,
     version: row.version,
   }));
+  // Another source was picked: start it from the top.
+  const switched =
+    before !== "" && before !== rows.map(({ path }) => path).join("\n");
+  if (switched) {
+    playback.time = 0;
+    ui.previous.checked = false;
+  }
+  showSelection();
   previousRow = await loadPreviousRow(state);
   ui.previous.disabled = !previousRow;
   if (!previousRow) ui.previous.checked = false;
-  ui.title.textContent = rows.map(({ label }) => label).join(" vs ");
   const problems = state.rows.filter(({ error }) => error);
   ui.errors.hidden = problems.length === 0;
   ui.errors.textContent = problems
@@ -575,7 +654,8 @@ async function applyStateNow(state: ServerState) {
   // Restart any row whose source changed, keeping the playhead.
   const time = Math.min(playback.time, totalDuration());
   for (const cell of cells)
-    if (cell.playingVersion !== rowFor(cell)?.version) startCell(cell, time);
+    if (switched || cell.playingVersion !== rowFor(cell)?.version)
+      startCell(cell, time);
   playback.time = time;
   renderMarkers();
   renderPinOptions();
@@ -605,6 +685,7 @@ window.animationPreview = {
 
 async function start() {
   try {
+    await loadChoices();
     await applyState(await fetchState());
     updatePlayButton();
     requestAnimationFrame(frame);

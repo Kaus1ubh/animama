@@ -599,8 +599,10 @@ from `src/frontend/web`:
   Avatars, each with its own prepared clip; a 2.0 clip supplies its contacts
   and `plantFeet`.
 - `pnpm -s animation:render <clip.json> --out <dir>` draws review sheets.
-- `pnpm -s animation:preview <source>` plays a clip, project file or Library
-  item live on both Included Avatars through `Avatar`/`PoseController`. Review
+- `pnpm -s animation:preview [<source>]` plays a clip, project file or Library
+  item live on both Included Avatars through `Avatar`/`PoseController`. Its
+  Review and Compare pickers switch to any example clip, any clip beside a
+  file source and any Library Gesture or Reaction without a restart. Review
   notes are saved beside a file source (in the working directory for a Library
   item); `animation review` and `animation resolve` manage them.
 

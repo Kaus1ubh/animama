@@ -171,3 +171,90 @@ test("previews an animaPoseClip/2.0 clip", async () => {
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+// The pickers switch sources without a restart, and only to listed ones.
+test("picks another source and a comparison in the page", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "animama-preview-pick-"));
+  await writeFile(path.join(dir, "first.json"), JSON.stringify(clip(0.2588)));
+  await writeFile(path.join(dir, "second.json"), JSON.stringify(clip(0.5)));
+  const preview = await startPreviewServer({
+    sources: ["first.json"],
+    notes: "custom.review.json",
+    cwd: dir,
+    localContent: null,
+  });
+  const browser = await chromium.launch({
+    headless: true,
+    args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
+  });
+  try {
+    const page = await browser.newPage();
+    const errors = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    await page.goto(preview.url);
+    await page.waitForFunction(() => window.animationPreview?.ready, null, {
+      timeout: 90_000,
+    });
+    const second = path.join(dir, "second.json");
+    assert.equal(
+      await page.inputValue("#pick-source"),
+      path.join(dir, "first.json"),
+    );
+    // Included Library items are offered too.
+    assert.ok(
+      await page
+        .locator("#pick-source option[value^='library:included/']")
+        .count(),
+    );
+
+    // Pause past the middle, so the switch's reset to 0 is observable.
+    await page.click("#play");
+    await page.evaluate(() => {
+      const scrubber = document.querySelector("#scrubber");
+      scrubber.value = "0.8";
+      scrubber.dispatchEvent(new Event("input"));
+    });
+    await page.selectOption("#pick-source", second);
+    await page.waitForFunction(() =>
+      document.querySelector(".view-label")?.textContent?.includes("second"),
+    );
+    assert.equal(preview.session.state().rows[0].path, second);
+    assert.equal(await page.evaluate(() => window.animationPreview.time), 0);
+
+    await page.selectOption("#pick-compare", path.join(dir, "first.json"));
+    await page.waitForFunction(
+      () => document.querySelectorAll(".view-label").length === 4,
+    );
+
+    // Anything not listed is refused, and the open session stays.
+    const refused = await page.evaluate(async () => {
+      const response = await fetch("/__preview/select", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ source: "/etc/hosts" }),
+      });
+      return response.status;
+    });
+    assert.equal(refused, 400);
+    assert.equal(preview.session.state().rows[0].path, second);
+
+    // --notes stays with the source it was given for.
+    assert.equal(
+      preview.session.reviewPaths.sidecar,
+      path.join(dir, "second.review.json"),
+    );
+    await page.selectOption("#pick-source", path.join(dir, "first.json"));
+    await page.waitForFunction(() =>
+      document.querySelector(".view-label")?.textContent?.includes("first"),
+    );
+    assert.equal(
+      preview.session.reviewPaths.sidecar,
+      path.join(dir, "custom.review.json"),
+    );
+    assert.deepEqual(errors, []);
+  } finally {
+    await browser.close();
+    await preview.close();
+    await rm(dir, { recursive: true, force: true });
+  }
+});

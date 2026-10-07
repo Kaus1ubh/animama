@@ -65,12 +65,17 @@ record). Use it to judge timing, which still frames miss:
 - play at 0.25–1× speed, loop, scrub, or click a beat marker;
 - switch camera presets (front, ¾, side, face);
 - `--compare library:<original>` plays an existing Gesture in a second row,
-  for example next to its replacement.
+  for example next to its replacement;
+- switch sources in the page: the **Review** and **Compare** pickers list the
+  example clips, the clips in each file source's folder, and the Included and
+  Local Gestures and Reactions. To hand the owner several Gestures, start one
+  preview and name the items to pick; there is no need for one run per item.
 
 Edits to the source reload the page. Notes the owner adds in the page are
 saved beside a file source as `<file name without .json>.review.json`
 (`laugh.clip.json` → `laugh.clip.review.json`), or in the working
-directory for a Library item (`--notes <file>` overrides). After revising the
+directory for a Library item (`--notes <file>` overrides this for the
+command-line source). After revising the
 source for a note:
 
 1. `pnpm -s animation review <notes.review.json>` lists notes with their ids.

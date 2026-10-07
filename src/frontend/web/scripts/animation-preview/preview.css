@@ -57,7 +57,8 @@ button[aria-pressed="true"] {
 
 .bar {
   display: flex;
-  align-items: baseline;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 12px;
   padding: 10px 16px;
   border-bottom: 1px solid var(--line);
@@ -161,6 +162,11 @@ select {
 
 .field.inline select {
   width: auto;
+}
+
+/* Long Library names must not push the status off the bar. */
+.picker select {
+  max-width: 260px;
 }
 
 .row {

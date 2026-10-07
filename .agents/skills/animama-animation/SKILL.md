@@ -38,7 +38,8 @@ first.
    treat WARN as a prompt to look. See [checks and review](references/checks-and-review.md).
 5. **Preview and look:** `pnpm -s animation:preview <file>.clip.json`
    plays it live on both Avatars with live layers, beat markers and camera
-   presets, and reloads as you edit. Judge timing there; use
+   presets, and reloads as you edit; its pickers switch to other clips and
+   Library items without a restart. Judge timing there; use
    `pnpm -s animation:render <file>.clip.json --out <dir>` for still contact
    sheets (`--times` for beats, `--side left` for left-handed action). Revise
    and repeat from step 2 until it reads clearly and naturally. When the owner

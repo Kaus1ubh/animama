@@ -174,6 +174,7 @@ export async function resolvePreviewSource(
 
 type LibraryCandidate = {
   origin: "included" | "local";
+  kind: (typeof LIBRARY_KINDS)[number];
   folder: string;
   stem: string;
   meta: Record<string, unknown>;
@@ -213,13 +214,7 @@ async function resolveLibrarySource(
     );
 
   const [match] = matches;
-  const files = Array.isArray(match.meta.files) ? match.meta.files : [];
-  const sequence = files.find(
-    (file): file is { path: string } =>
-      isRecord(file) &&
-      file.role === "sequence" &&
-      typeof file.path === "string",
-  );
+  const sequence = sequenceFile(match);
   if (!sequence)
     throw new PreviewSourceError(
       `${match.origin}/${match.stem} has no clip (sequence) file.`,
@@ -259,7 +254,7 @@ async function listLibraryItems(
         const meta = JSON.parse(
           await readFile(path.join(folder, `${stem}.meta.json`), "utf8"),
         ) as unknown;
-        if (isRecord(meta)) items.push({ origin, folder, stem, meta });
+        if (isRecord(meta)) items.push({ origin, kind, folder, stem, meta });
       } catch {
         // Not an Action folder (or unreadable): skip it.
       }
@@ -268,11 +263,111 @@ async function listLibraryItems(
   return items;
 }
 
+/** The item's clip file entry, if it has one. */
+function sequenceFile({ meta }: LibraryCandidate) {
+  const files = Array.isArray(meta.files) ? meta.files : [];
+  return files.find(
+    (file): file is { path: string } =>
+      isRecord(file) &&
+      file.role === "sequence" &&
+      typeof file.path === "string",
+  );
+}
+
+/** One entry of the preview page's source picker. */
+export type PreviewChoice = {
+  /** A source spec `resolvePreviewSource` accepts. */
+  spec: string;
+  label: string;
+  /** Picker group, such as a folder or "Local Gestures". */
+  group: string;
+  /** The clip file it plays, which identifies the selected choice. */
+  path: string;
+};
+
+/**
+ * Everything the preview page offers to play: the clip and project files in
+ * `dirs`, grouped by folder name (review sidecars excluded), then the
+ * Included and Local Gestures and Reactions that have a clip file. Unreadable
+ * folders are skipped; a choice that cannot be played reports why when it is
+ * selected.
+ */
+export async function listPreviewChoices(
+  roots: PreviewRoots,
+  dirs: string[],
+): Promise<PreviewChoice[]> {
+  const choices: PreviewChoice[] = [];
+  for (const dir of new Set(dirs.map((value) => path.resolve(value)))) {
+    let names: string[];
+    try {
+      names = (await readdir(dir, { withFileTypes: true }))
+        .filter(
+          (entry) =>
+            entry.isFile() &&
+            entry.name.endsWith(".json") &&
+            !entry.name.endsWith(".review.json"),
+        )
+        .map(({ name }) => name)
+        .sort();
+    } catch {
+      continue;
+    }
+    const group = `${path.basename(dir)}/`;
+    for (const name of names)
+      if (await isClipFile(path.join(dir, name)))
+        choices.push({
+          spec: path.join(dir, name),
+          label: name,
+          group,
+          path: path.join(dir, name),
+        });
+  }
+  for (const origin of ["included", "local"] as const) {
+    const root = origin === "included" ? roots.included : roots.local;
+    if (!root) continue;
+    const items = (await listLibraryItems(origin, root)).filter((item) =>
+      sequenceFile(item),
+    );
+    for (const kind of LIBRARY_KINDS) {
+      const group = `${origin === "included" ? "Included" : "Local"} ${kind === "gestures" ? "Gestures" : "Reactions"}`;
+      choices.push(
+        ...items
+          .filter((item) => item.kind === kind)
+          .map((item) => ({
+            spec: `library:${origin}/${item.stem}`,
+            label:
+              typeof item.meta.name === "string" ? item.meta.name : item.stem,
+            group,
+            path: path.resolve(item.folder, sequenceFile(item)!.path),
+          }))
+          .sort((a, b) => a.label.localeCompare(b.label)),
+      );
+    }
+  }
+  return choices;
+}
+
 /** Lower-cased identifiers a query may use for an item. */
 function libraryKeys({ stem, meta }: LibraryCandidate): string[] {
   return [stem, meta.semantic_key, meta.name, meta.content_id]
     .filter((value): value is string => typeof value === "string")
     .map((value) => value.toLowerCase());
+}
+
+const PLAYABLE_SCHEMAS = new Set<unknown>([
+  "animaPoseClip/1.0",
+  ANIMA_POSE_CLIP_V2_SCHEMA,
+  PROJECT_SCHEMA,
+]);
+
+/** Whether a JSON file names a schema the preview plays (cheap pre-filter). */
+async function isClipFile(file: string): Promise<boolean> {
+  try {
+    const value = JSON.parse(await readFile(file, "utf8")) as unknown;
+    return isRecord(value) && PLAYABLE_SCHEMAS.has(value.schema);
+  } catch {
+    return false;
+  }
 }
 
 async function isFile(file: string): Promise<boolean> {

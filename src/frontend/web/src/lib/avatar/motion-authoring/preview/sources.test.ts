@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { AnimaPoseClip } from "../../poses/animaPoseClip";
 import {
   PreviewSourceError,
+  listPreviewChoices,
   previewClipFromText,
   resolvePreviewSource,
   sourceVersion,
@@ -250,5 +251,80 @@ describe("resolvePreviewSource", () => {
     await expect(resolvePreviewSource("missing.json", roots)).rejects.toThrow(
       /missing\.json/,
     );
+  });
+});
+
+describe("listPreviewChoices", () => {
+  it("lists clip files, then Library Gestures and Reactions with a clip", async () => {
+    // Only playable JSON is listed: not sidecars, configs or other files.
+    const clips = path.join(dir, "clips");
+    const included = path.join(dir, "included");
+    const local = path.join(dir, "local");
+    await mkdir(path.join(clips, "wave.clip.review"), { recursive: true });
+    for (const name of ["wave.clip.json", "nod.clip.json", "notes.txt"])
+      await writeFile(path.join(clips, name), JSON.stringify(clip()));
+    for (const name of ["wave.clip.review.json", "package.json", "broken.json"])
+      await writeFile(
+        path.join(clips, name),
+        name === "broken.json" ? "{" : "{}",
+      );
+    await libraryItem(
+      included,
+      "gestures",
+      "salute",
+      { name: "Salute" },
+      clip(),
+    );
+    await libraryItem(included, "reactions", "gasp", {}, clip());
+    await libraryItem(local, "gestures", "laugh", { name: "Laugh" }, clip());
+    await mkdir(path.join(local, "gestures", "no-clip"), { recursive: true });
+    await writeFile(
+      path.join(local, "gestures", "no-clip", "no-clip.meta.json"),
+      JSON.stringify({ files: [] }),
+    );
+
+    const choices = await listPreviewChoices({ cwd: dir, included, local }, [
+      clips,
+      `${clips}/`,
+      path.join(dir, "missing"),
+    ]);
+    expect(choices).toEqual([
+      {
+        spec: path.join(clips, "nod.clip.json"),
+        label: "nod.clip.json",
+        group: "clips/",
+        path: path.join(clips, "nod.clip.json"),
+      },
+      {
+        spec: path.join(clips, "wave.clip.json"),
+        label: "wave.clip.json",
+        group: "clips/",
+        path: path.join(clips, "wave.clip.json"),
+      },
+      {
+        spec: "library:included/salute",
+        label: "Salute",
+        group: "Included Gestures",
+        path: path.join(included, "gestures/salute/salute.json"),
+      },
+      {
+        spec: "library:included/gasp",
+        label: "gasp",
+        group: "Included Reactions",
+        path: path.join(included, "reactions/gasp/gasp.json"),
+      },
+      {
+        spec: "library:local/laugh",
+        label: "Laugh",
+        group: "Local Gestures",
+        path: path.join(local, "gestures/laugh/laugh.json"),
+      },
+    ]);
+    // Every choice resolves to the file it names.
+    for (const choice of choices)
+      expect(
+        (await resolvePreviewSource(choice.spec, { cwd: dir, included, local }))
+          .path,
+      ).toBe(choice.path);
   });
 });

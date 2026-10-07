@@ -7,13 +7,15 @@ import { createServer } from "vite";
 /**
  * Live motion preview with review notes.
  *
- *   pnpm -s animation:preview <source> [--compare <source>] [--notes <file>]
+ *   pnpm -s animation:preview [<source>] [--compare <source>] [--notes <file>]
  *     [--local-content <dir>] [--port <n>] [--no-open]
  *
  * Plays a clip, project envelope or Library item on both
  * Included Avatars through the app's own Avatar playback, in the system
- * browser. Serves on 127.0.0.1 only; writes only review notes and retained
- * versions (see src/lib/avatar/motion-authoring/preview/).
+ * browser. The page's pickers switch to any example clip, any clip beside a
+ * file source and any Library Gesture or Reaction without a restart. Serves
+ * on 127.0.0.1 only; writes only review notes and retained versions (see
+ * src/lib/avatar/motion-authoring/preview/).
  */
 const webRoot = fileURLToPath(new URL("..", import.meta.url));
 const repoRoot = path.resolve(webRoot, "../../..");
@@ -21,6 +23,11 @@ const avatarDir = path.join(repoRoot, "content/included/avatars");
 const includedDir = path.join(repoRoot, "content/included");
 const AVATARS = ["AvatarSample_Y_0", "AvatarSample_A_1_New"];
 const PAGE = "/scripts/animation-preview/index.html";
+const EXAMPLES_DIR = path.join(
+  webRoot,
+  "src/lib/avatar/motion-authoring/examples",
+);
+const PREVIEW_MODULES = "/src/lib/avatar/motion-authoring/preview";
 const MAX_BODY_BYTES = 64 * 1024;
 
 /**
@@ -35,8 +42,17 @@ export async function startPreviewServer({
   port = 0,
 }) {
   const clients = new Set();
-  let session;
+  /** The open session and its file watchers; replaced when the page picks. */
+  let current;
   let origin = "";
+  const roots = { cwd, included: includedDir, local: localContent ?? null };
+  // Picker folders: the examples and the folders of file sources named here.
+  const choiceDirs = [
+    EXAMPLES_DIR,
+    ...sources
+      .filter((spec) => !spec.startsWith("library:"))
+      .map((spec) => path.dirname(path.resolve(cwd, spec))),
+  ];
 
   const server = await createServer({
     configFile: false,
@@ -103,31 +119,38 @@ export async function startPreviewServer({
     }
     const route = url.pathname.slice("/__preview/".length);
     if (request.method === "GET" && route === "state") {
-      sendJson(response, 200, pageState(session.state()));
+      sendJson(response, 200, pageState(current.session.state()));
+    } else if (request.method === "GET" && route === "choices") {
+      sendJson(response, 200, await listChoices());
+    } else if (request.method === "POST" && route === "select") {
+      await respond(response, async () =>
+        pageState(await select(await readJsonBody(request))),
+      );
+      broadcast();
     } else if (request.method === "GET" && route === "events") {
       response.writeHead(200, {
         "content-type": "text/event-stream",
         "cache-control": "no-cache",
         connection: "keep-alive",
       });
-      response.write(`data: ${session.state().generation}\n\n`);
+      response.write(`data: ${current.session.state().generation}\n\n`);
       clients.add(response);
       request.on("close", () => clients.delete(response));
     } else if (request.method === "GET" && route.startsWith("versions/")) {
       sendJson(
         response,
         200,
-        await session.versionClip(route.slice("versions/".length)),
+        await current.session.versionClip(route.slice("versions/".length)),
       );
     } else if (request.method === "POST" && route === "notes") {
       await respond(response, async () =>
-        pageState(await session.addNote(await readJsonBody(request))),
+        pageState(await current.session.addNote(await readJsonBody(request))),
       );
       broadcast();
     } else if (request.method === "DELETE" && route.startsWith("notes/")) {
       await respond(response, async () =>
         pageState(
-          await session.deleteNote(
+          await current.session.deleteNote(
             decodeURIComponent(route.slice("notes/".length)),
           ),
         ),
@@ -150,46 +173,104 @@ export async function startPreviewServer({
 
   const broadcast = () => {
     for (const client of clients)
-      client.write(`data: ${session.state().generation}\n\n`);
+      client.write(`data: ${current.session.state().generation}\n\n`);
   };
 
   const { PreviewSession } = await server.ssrLoadModule(
-    "/src/lib/avatar/motion-authoring/preview/previewSession.ts",
+    `${PREVIEW_MODULES}/previewSession.ts`,
   );
-  try {
-    session = await PreviewSession.open({
-      sources,
-      notes,
-      roots: { cwd, included: includedDir, local: localContent ?? null },
+  const { listPreviewChoices } = await server.ssrLoadModule(
+    `${PREVIEW_MODULES}/sources.ts`,
+  );
+  const listChoices = () => listPreviewChoices(roots, choiceDirs);
+
+  /** Open a session for `specs` and watch its files. */
+  async function openSession(specs, notesFile) {
+    const session = await PreviewSession.open({
+      sources: specs,
+      notes: notesFile,
+      roots,
     });
+    // Watch directories, not files: editors often replace files on save.
+    let timer = null;
+    const reload = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        session.reload().then(
+          (changed) => changed && broadcast(),
+          (error) => console.error(`Reload failed: ${error.message}`),
+        );
+      }, 120);
+    };
+    const watched = new Set(session.watchPaths);
+    const watchers = [
+      ...new Set([...watched].map((file) => path.dirname(file))),
+    ]
+      .map((dir) => {
+        try {
+          return watch(dir, (_event, name) => {
+            if (name && watched.has(path.join(dir, name.toString()))) reload();
+          });
+        } catch {
+          return null;
+        }
+      })
+      .filter(Boolean);
+    return {
+      session,
+      close() {
+        clearTimeout(timer);
+        watchers.forEach((watcher) => watcher.close());
+      },
+    };
+  }
+
+  /**
+   * Switch to sources the page picked. Only listed choices are accepted, so
+   * the page cannot make the server read other files. The open session stays
+   * if the new one cannot open.
+   */
+  let switching = Promise.resolve();
+  /** The command-line source's file, which keeps `--notes`. */
+  let initialPath;
+  function select(body) {
+    const next = switching.then(async () => {
+      const { source, compare = null } = body ?? {};
+      const choices = await listChoices();
+      const listed = new Set(choices.map(({ spec }) => spec));
+      if (typeof source !== "string" || !listed.has(source))
+        throw new Error("Pick a listed source to review.");
+      if (
+        compare !== null &&
+        (typeof compare !== "string" || !listed.has(compare))
+      )
+        throw new Error("Pick a listed source to compare with.");
+      // --notes stays with the source it was given for.
+      const { path: picked } = choices.find(({ spec }) => spec === source);
+      const opened = await openSession(
+        compare ? [source, compare] : [source],
+        picked === initialPath ? notes : undefined,
+      );
+      // Number after everything the old session showed, so pages take it.
+      opened.session.continueAfter(current.session.state().generation);
+      current.close();
+      current = opened;
+      return current.session.state();
+    });
+    switching = next.catch(() => undefined);
+    return next;
+  }
+
+  try {
+    const initial =
+      sources.length > 0 ? sources : [(await listChoices())[0]?.spec];
+    if (!initial[0]) throw new Error("No clips to preview: name a source.");
+    current = await openSession(initial, notes);
+    initialPath = current.session.state().rows[0].path;
   } catch (error) {
     await server.close();
     throw error;
   }
-
-  // Watch directories, not files: editors often replace files on save.
-  let timer = null;
-  const reload = () => {
-    clearTimeout(timer);
-    timer = setTimeout(() => {
-      session.reload().then(
-        (changed) => changed && broadcast(),
-        (error) => console.error(`Reload failed: ${error.message}`),
-      );
-    }, 120);
-  };
-  const watched = new Set(session.watchPaths);
-  const watchers = [...new Set([...watched].map((file) => path.dirname(file)))]
-    .map((dir) => {
-      try {
-        return watch(dir, (_event, name) => {
-          if (name && watched.has(path.join(dir, name.toString()))) reload();
-        });
-      } catch {
-        return null;
-      }
-    })
-    .filter(Boolean);
   const keepAlive = setInterval(() => {
     for (const client of clients) client.write(": keep-alive\n\n");
   }, 15_000);
@@ -199,11 +280,14 @@ export async function startPreviewServer({
   return {
     url: `${origin}${PAGE}`,
     origin,
-    session,
+    get session() {
+      return current.session;
+    },
     async close() {
       clearInterval(keepAlive);
-      clearTimeout(timer);
-      watchers.forEach((watcher) => watcher.close());
+      // A pick in flight installs its session first, then it is closed.
+      await switching;
+      current.close();
       for (const client of clients) client.end();
       await server.close();
     },
@@ -261,7 +345,7 @@ function openBrowser(url) {
   child.unref();
 }
 
-const USAGE = `Usage: pnpm -s animation:preview <source> [--compare <source>] [--notes <file>]
+const USAGE = `Usage: pnpm -s animation:preview [<source>] [--compare <source>] [--notes <file>]
                                 [--local-content <dir>] [--port <n>] [--no-open]
 
 A source is a clip file (animaPoseClip/2.0 or 1.0), a creator project
@@ -270,9 +354,13 @@ library:<folder | selector | name>, optionally prefixed included/ or local/.
 Local items come from --local-content or the sourced stack's
 ANIMAMA_LOCAL_CONTENT_HOST_PATH.
 
+The page's Review and Compare pickers list the example clips, the clips in
+the folder of each file source named here, and the Library's Gestures and
+Reactions. Without a source, the first example plays.
+
 Review notes are saved beside a file source as <file name without .json>.review.json
 (laugh.clip.json -> laugh.clip.review.json), or in the working directory for a
-Library item, unless --notes names a file.`;
+Library item, unless --notes names a file (for the sources named here).`;
 
 async function main(argv) {
   const values = {};
@@ -301,7 +389,12 @@ async function main(argv) {
     } else positional.push(argument);
   }
   const port = Number(values["--port"] ?? 0);
-  if (positional.length !== 1 || !Number.isInteger(port) || port < 0) {
+  if (
+    positional.length > 1 ||
+    (positional.length === 0 && values["--compare"]) ||
+    !Number.isInteger(port) ||
+    port < 0
+  ) {
     console.log(USAGE);
     return 2;
   }
@@ -311,9 +404,7 @@ async function main(argv) {
   let preview;
   try {
     preview = await startPreviewServer({
-      sources: values["--compare"]
-        ? [positional[0], values["--compare"]]
-        : [positional[0]],
+      sources: [...positional, values["--compare"]].filter(Boolean),
       notes: values["--notes"],
       localContent: localContent ? path.resolve(cwd, localContent) : null,
       cwd,
