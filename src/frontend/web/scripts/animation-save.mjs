@@ -15,9 +15,13 @@ import { fileURLToPath } from "node:url";
  *   Selector ID) is imported into a new Gesture and saved; the Library
  *   description defaults to the AI description;
  * - a Local Gesture's Selector ID: that item is opened, the clip is imported
- *   into it (keeping its components, notes and description), its name and AI
- *   description are set, and it is saved as a revision (reported unchanged
- *   only if the creator finds nothing to save).
+ *   into it (keeping its name, components, notes and description), its AI
+ *   description is set, and it is saved as a revision (reported unchanged
+ *   only if the creator finds nothing to save). The item's name must match:
+ *   renaming is refused, since the creator can re-derive the Selector ID
+ *   from a new name.
+ *
+ * After each save the Library item is read back to confirm its Selector ID.
  *
  * The app origin defaults to the sourced stack's ANIMAMA_PUBLIC_ORIGIN, then
  * http://localhost:8000.
@@ -85,6 +89,12 @@ export function planSaves(items, libraryItems) {
       throw new Error(
         `Selector ID "${item.selectorId}" belongs to an Included Gesture; give the Local Gesture its own Selector ID.`,
       );
+    // The creator re-derives a saved Gesture's Selector ID from a new name
+    // when they match, so a rename could silently change how chat selects it.
+    if (local && local.name !== item.name)
+      throw new Error(
+        `"${item.selectorId}" is saved as "${local.name}": keep that name to revise it (a rename can change its Selector ID).`,
+      );
     return local ? { itemId: local.item_id, name: local.name } : null;
   });
 }
@@ -142,7 +152,6 @@ export async function saveGestures(items, origin, onSaved = () => {}) {
       name: "Save content",
       exact: true,
     });
-    const nameField = page.getByLabel("gesture name", { exact: true }).first();
 
     for (const [index, item] of items.entries()) {
       let step = "open the creator";
@@ -198,8 +207,6 @@ export async function saveGestures(items, origin, onSaved = () => {}) {
           });
           await page.getByText("Anima Pose Clip imported.").first().waitFor();
           await page.keyboard.press("Escape");
-          if ((await nameField.inputValue()) !== item.name)
-            await nameField.fill(item.name);
           await page
             .getByLabel("AI selection description", { exact: true })
             .first()
@@ -246,14 +253,30 @@ export async function saveGestures(items, origin, onSaved = () => {}) {
           throw new Error(
             `the app refused the save (${result.status()}): ${(await result.text()).slice(0, 300)}`,
           );
+        // The creator announces the save once it has finished (and cleared
+        // its local draft), so the reopen loads the saved item.
+        await page
+          .getByText("Gesture saved.", { exact: true })
+          .first()
+          .waitFor({ timeout: 60_000 });
         if (!target)
           await page.waitForURL(/\/gestures\/[^/]+\/edit/, { timeout: 60_000 });
-        // The creator finishes saving (clean again) before the reopen.
-        await page.waitForFunction(
-          () => document.querySelector('[aria-label="Save content"]')?.disabled,
-          null,
-          { timeout: 60_000 },
-        );
+        step = "confirm the Selector ID";
+        const itemId =
+          target?.itemId ??
+          decodeURIComponent(
+            new URL(page.url()).pathname.split("/").at(-2) ?? "",
+          );
+        const savedKey = await page.evaluate(async (id) => {
+          const response = await fetch(
+            `/v1/gestures/${encodeURIComponent(id)}`,
+          );
+          return response.ok ? (await response.json()).semantic_key : null;
+        }, itemId);
+        if (savedKey !== item.selectorId)
+          throw new Error(
+            `saved with Selector ID "${savedKey}" instead of "${item.selectorId}"`,
+          );
         step = "reopen the saved item";
         const url = page.url();
         await page.reload();

@@ -83,13 +83,18 @@ test("revises a Local Gesture by Selector ID and refuses an Included one", () =>
       item_id: "l1",
       source: "local",
       semantic_key: "wave_hello",
-      name: "My Wave",
+      name: "Wave Hello",
     },
   ];
   assert.deepEqual(planSaves(items, library), [
-    { itemId: "l1", name: "My Wave" },
+    { itemId: "l1", name: "Wave Hello" },
     null,
   ]);
+  // A rename could change the Selector ID in the creator, so it is refused.
+  assert.throws(
+    () => planSaves(items, [{ ...library[1], name: "My Wave" }]),
+    /saved as "My Wave": keep that name/,
+  );
   assert.throws(
     () => planSaves(items, library.slice(0, 1)),
     /"wave_hello" belongs to an Included Gesture/,

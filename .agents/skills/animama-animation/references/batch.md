@@ -77,8 +77,13 @@ sets a new Gesture's Library description (it defaults to the AI description).
 The tool saves the items one after another through the Gesture creator,
 exactly as a person would. A new Selector ID becomes a new Local Gesture. A
 Local Gesture's Selector ID revises that item in place: the clip is imported
-into it (its components, notes and description are kept), its name and AI
-description are set, and it is saved as a revision. A Selector ID that belongs to an Included Gesture is refused. Each
+into it (its name, components, notes and description are kept), its AI
+description is set, and it is saved as a revision. The item's name must stay
+the same, because renaming in the creator can re-derive the Selector ID from
+the new name (renaming by hand can do the same, so leave renames to the
+owner). A
+Selector ID that belongs to an Included Gesture is refused. After each save
+the tool reads the item back to confirm its Selector ID. Each
 saved item is reopened to confirm its beats load. The tool prints each item
 as it goes, so a failure part-way does not hide earlier saves; fix the
 failing item and run again (saved items are revised, not duplicated). Then
