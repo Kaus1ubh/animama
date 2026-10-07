@@ -2365,6 +2365,27 @@ Non-blocking:
 7. Fixed: these records.
 8. Listed for the owner in the PR's G5 gate.
 
+**Additional fix from the candidate e2e run.** The picker test "opens from every
+entry point" failed a third time (16/17 on `ce3ee200`): the hover menu reopened
+after the picker closed.
+
+- **Cause:** the focus returned to the Create link could fire more than once,
+  and the guard against reopening was cleared by the first focus event.
+- **Fix:** the guard now lasts until focus leaves the trigger.
+- **Evidence:**
+  - a new unit test in `SidebarCreateMenu.test.tsx` fails with the old guard
+    and passes with the fix;
+  - the picker spec passed 9/9 with `--repeat-each 4`.
+
+**Candidate e2e (`ce3ee200` plus this fix).**
+
+- Direct manipulation, creator-discard (9/9), vfx-layout (5/5) and the picker
+  journeys pass.
+- Known failures outside this branch's scope are recorded in P11:
+  - `accountless-journeys` :9 (LLM mock);
+  - imported-playback (flaky);
+  - pose-content naming (failing on `main`).
+
 ## Validation and acceptance
 
 | Spec criterion | Evidence | Phase |

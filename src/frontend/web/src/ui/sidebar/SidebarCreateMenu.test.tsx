@@ -6,10 +6,25 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { SidebarProvider } from "./Sidebar";
 import { SidebarCreateMenu } from "./SidebarCreateMenu";
 
-const picker = vi.hoisted(() => ({ open: false }));
+const picker = vi.hoisted(() => ({
+  open: false,
+  returnFocus: null as null | (() => HTMLElement | null),
+}));
 
 vi.mock("@tanstack/react-router", () => ({
-  Link: ({ children }: { children: ReactNode }) => <a href="#">{children}</a>,
+  Link: ({
+    children,
+    ...props
+  }: { children?: ReactNode } & Record<string, unknown>) => {
+    const attributes = Object.fromEntries(
+      Object.entries(props).filter(([key]) => key !== "to" && key !== "search"),
+    );
+    return (
+      <a href="#" {...attributes}>
+        {children}
+      </a>
+    );
+  },
   useLocation: () => "/library",
 }));
 vi.mock("@/ui/components/popover", () => ({
@@ -21,8 +36,15 @@ vi.mock("@/ui/app/RuntimeFeatureGate", () => ({
   useRuntimeFeatureEnabled: () => true,
 }));
 vi.mock("@/ui/create/EffectTemplatePickerDialog", () => ({
-  EffectTemplatePickerDialog: ({ open }: { open: boolean }) => {
+  EffectTemplatePickerDialog: ({
+    open,
+    returnFocus,
+  }: {
+    open: boolean;
+    returnFocus?: () => HTMLElement | null;
+  }) => {
     picker.open = open;
+    picker.returnFocus = returnFocus ?? null;
     return null;
   },
 }));
@@ -52,8 +74,12 @@ function mount(width: number) {
   const effects = Array.from(
     container.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'),
   ).find((item) => item.textContent?.includes("Effects"));
+  const trigger = container.querySelector<HTMLElement>(
+    '[aria-label="Create"][aria-haspopup="menu"]',
+  )!;
   return {
     setOpen,
+    trigger,
     clickEffects: () => act(() => effects!.click()),
     unmount: () => {
       act(() => root.unmount());
@@ -68,6 +94,7 @@ describe("sidebar Create menu Effects item", () => {
     cleanup?.();
     cleanup = null;
     picker.open = false;
+    picker.returnFocus = null;
     vi.unstubAllGlobals();
   });
 
@@ -85,5 +112,26 @@ describe("sidebar Create menu Effects item", () => {
     view.clickEffects();
     expect(view.setOpen).not.toHaveBeenCalled();
     expect(picker.open).toBe(true);
+  });
+
+  it("keeps the menu closed while focus returned by the picker stays on Create", () => {
+    const view = mount(1440);
+    cleanup = view.unmount;
+    view.clickEffects();
+    let returned: HTMLElement | null | undefined;
+    act(() => {
+      returned = picker.returnFocus?.();
+    });
+    expect(returned).toBe(view.trigger);
+    // The returned focus may arrive more than once; none of it reopens the menu.
+    act(() => view.trigger.focus());
+    act(() =>
+      view.trigger.dispatchEvent(new FocusEvent("focusin", { bubbles: true })),
+    );
+    expect(view.trigger.getAttribute("aria-expanded")).toBe("false");
+    // Focus that arrives after leaving the trigger opens the menu again.
+    act(() => view.trigger.blur());
+    act(() => view.trigger.focus());
+    expect(view.trigger.getAttribute("aria-expanded")).toBe("true");
   });
 });

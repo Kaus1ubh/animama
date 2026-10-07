@@ -152,13 +152,15 @@ export function SidebarCreateMenu() {
               onClick={closeMenu}
               ref={triggerRef}
               onFocus={() => {
-                if (suppressFocusOpenRef.current) {
-                  suppressFocusOpenRef.current = false;
-                  return;
-                }
+                // Focus returned by the closed Effects picker must not reopen
+                // the menu; the guard lasts until focus leaves the trigger.
+                if (suppressFocusOpenRef.current) return;
                 openMenu();
               }}
-              onBlur={scheduleClose}
+              onBlur={() => {
+                suppressFocusOpenRef.current = false;
+                scheduleClose();
+              }}
               onKeyDown={(event) => {
                 if (event.key === "Escape") {
                   cancelClose();
