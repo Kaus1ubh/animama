@@ -79,8 +79,9 @@ import {
   countAnimaPoseClipEventsByKind,
   DEFAULT_ANIMA_POSE_CLIP_TRANSITION,
   getAnimaPoseClipTimelineDuration,
-  parseAnimaPoseClip,
-  type AnimaPoseClip,
+  animaPoseClipHasPose,
+  parseAnyAnimaPoseClip,
+  type AnyAnimaPoseClip,
   type AnimaPoseClipSample,
 } from "./poses/animaPoseClip";
 import {
@@ -1034,7 +1035,7 @@ export class Avatar {
     return this._motionCatalog.listAnimations();
   }
 
-  getLoadedMotionPoseClip(clipId: string): AnimaPoseClip | null {
+  getLoadedMotionPoseClip(clipId: string): AnyAnimaPoseClip | null {
     return this._motionCatalog.getPoseClip(clipId);
   }
 
@@ -1042,17 +1043,17 @@ export class Avatar {
     return this._motionCatalog.listReactionClips();
   }
 
-  getLoadedMotionReactionClip(clipId: string): AnimaPoseClip | null {
+  getLoadedMotionReactionClip(clipId: string): AnyAnimaPoseClip | null {
     return this._motionCatalog.getReactionClip(clipId);
   }
 
   playAnimaPoseClip(
-    clip: AnimaPoseClip,
+    clip: AnyAnimaPoseClip,
     options?: PoseClipPlayOptions,
   ): AvatarPoseClipSnapshot {
-    const parsedClip = parseAnimaPoseClip(clip);
+    const parsedClip = parseAnyAnimaPoseClip(clip);
     // Effect-only clips share the event clock without replacing the pose base.
-    if (parsedClip.poseKeyframes.length === 0) {
+    if (!animaPoseClipHasPose(parsedClip)) {
       return this._playAnimaPoseClip(parsedClip, options);
     }
     return this._replacePoseBase(options, () =>
@@ -1061,7 +1062,7 @@ export class Avatar {
   }
 
   private _playAnimaPoseClip(
-    clip: AnimaPoseClip,
+    clip: AnyAnimaPoseClip,
     options?: PoseClipPlayOptions,
   ): AvatarPoseClipSnapshot {
     const poseController = this.poseController;
@@ -1070,7 +1071,7 @@ export class Avatar {
     }
 
     this._poseClipOnFinished = null;
-    const replacesPose = clip.poseKeyframes.length > 0;
+    const replacesPose = animaPoseClipHasPose(clip);
     if (!replacesPose && this._poseClipAutomaticPlaybackWasEnabled !== null) {
       // Finish a previous body clip's ownership before starting an effect-only
       // replacement, so its suspended automatic animation can resume now.
@@ -1110,6 +1111,22 @@ export class Avatar {
         this._poseClipPreserveProceduralOffsets,
       transition: options?.transition,
     });
+  }
+
+  /**
+   * Move the playing pose clip to `timeSec` and show that frame with its
+   * fades, layer mutes and expression precedence, without advancing time
+   * (see `PoseController.seekClip`). Review tools use it to scrub. Returns
+   * false when no clip is playing.
+   */
+  seekPoseClip(timeSec: number): boolean {
+    const poseController = this.poseController;
+    if (this._isDisposed || !poseController) return false;
+    // Seek against the clip pose alone; update(0) then re-adds live layers.
+    this.proceduralAnimationController?.clearActiveOffsets();
+    const sought = poseController.seekClip(timeSec);
+    this.update(0);
+    return sought;
   }
 
   isClipActive(clipId?: string): boolean {

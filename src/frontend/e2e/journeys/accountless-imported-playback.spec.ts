@@ -400,36 +400,43 @@ async function proveImportedPoseInsertion(args: {
   ) as {
     schema: string;
     id: string;
-    poses: Record<
-      string,
-      {
-        humanoid?: Record<string, { rotation?: number[]; position?: number[] }>;
-        expressions?: Record<string, number>;
-      }
-    >;
-    poseKeyframes: Array<{ time: number; pose: string }>;
+    beats: Array<{ id: string; label: string; time: number }>;
+    rotations?: Record<string, Array<{ beat: string; q: number[] }>>;
+    hipsPosition?: Record<string, Array<{ beat: string; v: number }>>;
+    expressions?: Record<string, Array<{ beat: string; v: number }>>;
   };
-  expect(clip.schema).toBe("animaPoseClip/1.0");
-  const copied = Object.entries(clip.poses).filter(
-    ([alias]) => alias !== "base",
-  );
+  // The clip as Save writes it: 2.0, the copied Pose as a beat at 0 whose
+  // values are the Pose's own (base endpoints are separate "Base" beats).
+  expect(clip.schema).toBe("animaPoseClip/2.0");
+  const copied = clip.beats.filter((beat) => beat.label !== "Base");
   expect(copied).toHaveLength(1);
-  const [alias, inline] = copied[0]!;
-  expect(clip.poseKeyframes).toContainEqual({ time: 0, pose: alias });
-  expect(inline.expressions).toEqual(pose.expressions);
-  // The Pose editor exports resolved mapped bones. Compare every exported
-  // transform, allowing only normalization roundoff from the VRM authoring UI.
+  const [beat] = copied;
+  expect(beat!.time).toBe(0);
+  const at = <K extends { beat: string }>(keys: K[] | undefined) =>
+    keys?.find((key) => key.beat === beat!.id);
+  for (const [name, value] of Object.entries(
+    (pose.expressions ?? {}) as Record<string, number>,
+  ))
+    expect(at(clip.expressions?.[name])?.v).toBeCloseTo(value, 4);
   for (const [bone, transform] of Object.entries(
-    pose.humanoid as NonNullable<typeof inline.humanoid>,
+    pose.humanoid as Record<
+      string,
+      { rotation?: number[]; position?: number[] }
+    >,
   )) {
-    for (const field of ["rotation", "position"] as const) {
-      transform[field]?.forEach((value, index) =>
-        expect(inline.humanoid?.[bone]?.[field]?.[index]).toBeCloseTo(
+    transform.rotation?.forEach((value, index) =>
+      expect(Math.abs(at(clip.rotations?.[bone])?.q[index] ?? NaN)).toBeCloseTo(
+        Math.abs(value),
+        5,
+      ),
+    );
+    if (bone === "hips")
+      transform.position?.forEach((value, index) =>
+        expect(at(clip.hipsPosition?.[["x", "y", "z"][index]!])?.v).toBeCloseTo(
           value,
-          12,
+          4,
         ),
       );
-    }
   }
   expect(JSON.stringify(clip)).not.toContain(item.item_id);
   if (item.logical_key)
@@ -443,7 +450,7 @@ async function proveImportedPoseInsertion(args: {
   await page.keyboard.press("Escape");
   const target = await readyTarget(stage.surface);
   expect(target.runtimeId).toBe(clip.id);
-  expect(Number(inline.expressions?.sad)).toBeGreaterThan(0.2);
+  expect(Number(at(clip.expressions?.sad)?.v)).toBeGreaterThan(0.2);
   const playing = observePlaybackWindow({
     surface: stage.surface,
     surfaceKind: "creator-stage",

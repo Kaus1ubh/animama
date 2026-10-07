@@ -7,7 +7,7 @@ import {
   collectAnimaPoseClipEventsBetween,
   isAnimaPoseClipVFXEvent,
   sampleAnimaPoseClipActiveEventsAtTime,
-  type AnimaPoseClip,
+  type AnyAnimaPoseClip,
   type AnimaPoseClipActiveVFXEvent,
   type AnimaPoseClipDueEvent,
   type AnimaPoseClipEventContext,
@@ -365,7 +365,7 @@ export function PoseCreatorClipPreviewSync({
 
 function buildPoseCreatorPreviewClip(
   draft: PoseCreatorClipDraft,
-): AnimaPoseClip | null {
+): AnyAnimaPoseClip | null {
   return buildAnimaPoseClipFromPoseCreatorDraft(draft, {
     omittedBasePoseId: POSE_CREATOR_VRM_T_POSE_BASE_POSE_ID,
   });
@@ -461,7 +461,7 @@ function dispatchPoseCreatorClipDueEvents({
   soundController,
   catalog,
 }: {
-  clip: AnimaPoseClip;
+  clip: AnyAnimaPoseClip;
   fromPlaybackTimeSec: number;
   toPlaybackTimeSec: number;
   includeStart: boolean;
@@ -500,7 +500,7 @@ function dispatchPoseCreatorClipDueEvent({
   soundController,
   catalog,
 }: {
-  clip: AnimaPoseClip;
+  clip: AnyAnimaPoseClip;
   dueEvent: AnimaPoseClipDueEvent;
   runtimeState: EffectPreviewRuntimeState;
   activeAvatar: Avatar;
@@ -550,7 +550,7 @@ function applyPoseCreatorClipActiveVFXAtTime({
   catalog,
   excludeEventsStartingAtSample = false,
 }: {
-  clip: AnimaPoseClip;
+  clip: AnyAnimaPoseClip;
   playbackTimeSec: number;
   runtimeState: EffectPreviewRuntimeState;
   activeAvatar: Avatar;
@@ -583,7 +583,7 @@ function applyPoseCreatorClipActiveVFXEvent({
   mode,
   catalog,
 }: {
-  clip: AnimaPoseClip;
+  clip: AnyAnimaPoseClip;
   activeEvent: AnimaPoseClipActiveVFXEvent;
   runtimeState: EffectPreviewRuntimeState;
   activeAvatar: Avatar;

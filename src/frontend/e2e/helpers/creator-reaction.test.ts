@@ -9,22 +9,29 @@ import {
 
 function clip() {
   return {
-    schema: "animaPoseClip/1.0",
+    schema: "animaPoseClip/2.0",
     id: "react-0827123456",
     name: "react-0827123456",
     duration: 1.2,
-    defaultTransition: {
-      easing: "easeInOutSine",
-      interpolation: { expression: "linear" },
-    },
-    poses: {
-      "expression-1": { expressions: { happy: 1 } },
-      "expression-2": { expressions: { angry: 1 } },
-    },
-    poseKeyframes: [
-      { time: 0, pose: "expression-1" },
-      { time: 0.3, pose: "expression-2" },
+    beats: [
+      { id: "expression", label: "Expression", time: 0, ease: "easeInOutSine" },
+      {
+        id: "expression-2",
+        label: "Expression 2",
+        time: 0.3,
+        ease: "easeInOutSine",
+      },
     ],
+    expressions: {
+      happy: [
+        { beat: "expression", v: 1 },
+        { beat: "expression-2", v: 0 },
+      ],
+      angry: [
+        { beat: "expression", v: 0 },
+        { beat: "expression-2", v: 1 },
+      ],
+    },
   };
 }
 
@@ -43,20 +50,17 @@ test("accepts the exact two-landmark portable Reaction clip", () => {
   );
 });
 
-test("rejects extra landmarks, events, and positive Happy at the second pose", () => {
+test("rejects extra beats, events, body tracks and positive Happy at the second beat", () => {
   assert.throws(
     () =>
       validateReactionClipDocument(
         {
           ...clip(),
-          poseKeyframes: [
-            ...clip().poseKeyframes,
-            { time: 0.6, pose: "expression-2" },
-          ],
+          beats: [...clip().beats, { id: "more", label: "More", time: 0.6 }],
         },
         "react-0827123456",
       ),
-    /exactly two poses and keyframes/,
+    /exactly two beats/,
   );
   assert.throws(
     () =>
@@ -66,16 +70,19 @@ test("rejects extra landmarks, events, and positive Happy at the second pose", (
       ),
     /must not contain events/,
   );
-  const wrongSecond = {
-    ...clip(),
-    poses: {
-      ...clip().poses,
-      "expression-2": { expressions: { angry: 1, happy: 0.2 } },
-    },
-  };
+  assert.throws(
+    () =>
+      validateReactionClipDocument(
+        { ...clip(), joints: { head: {} } },
+        "react-0827123456",
+      ),
+    /joints tracks/,
+  );
+  const wrongSecond = structuredClone(clip());
+  wrongSecond.expressions.happy[1].v = 0.2;
   assert.throws(
     () => validateReactionClipDocument(wrongSecond, "react-0827123456"),
-    /second expressions/,
+    /expression values/,
   );
 });
 

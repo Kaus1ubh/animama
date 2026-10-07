@@ -5,13 +5,16 @@ import type { AvatarAnimationState } from "../../types";
 import {
   ANIMA_POSE_CLIP_EPSILON,
   DEFAULT_ANIMA_POSE_CLIP_TRANSITION,
-  parseAnimaPoseClip,
-  type AnimaPoseClip,
   type AnimaPoseClipFade,
   type AnimaPoseClipPlayback,
   type AnimaPoseClipPlaybackLifetime,
   type ResolvedAnimaPoseClipTransition,
 } from "./schema";
+import {
+  isAnimaPoseClipV2,
+  parseAnyAnimaPoseClip,
+  type AnyAnimaPoseClip,
+} from "./anyClip";
 
 export type AnimaPoseClipPlaybackFacts = {
   interactionPhase: AvatarInteractionPhase;
@@ -24,8 +27,12 @@ export type AnimaPoseClipPlaybackFacts = {
  * Returns the authored timeline extent, excluding VFX durations because those
  * describe effect lifetime rather than pose/expression timeline length.
  */
-export function getAnimaPoseClipTimelineDuration(clip: AnimaPoseClip): number {
-  const sanitizedClip = parseAnimaPoseClip(clip);
+export function getAnimaPoseClipTimelineDuration(
+  clip: AnyAnimaPoseClip,
+): number {
+  const sanitizedClip = parseAnyAnimaPoseClip(clip);
+  // 2.0 clips always have a duration.
+  if (isAnimaPoseClipV2(sanitizedClip)) return sanitizedClip.duration;
   if (
     typeof sanitizedClip.duration === "number" &&
     Number.isFinite(sanitizedClip.duration)
@@ -44,10 +51,10 @@ export function getAnimaPoseClipTimelineDuration(clip: AnimaPoseClip): number {
 }
 
 export function getAnimaPoseClipSampleTime(
-  clip: AnimaPoseClip,
+  clip: AnyAnimaPoseClip,
   playbackTimeSec: number,
 ): number {
-  const sanitizedClip = parseAnimaPoseClip(clip);
+  const sanitizedClip = parseAnyAnimaPoseClip(clip);
   const time = Number.isFinite(playbackTimeSec)
     ? Math.max(playbackTimeSec, 0)
     : 0;
@@ -60,10 +67,10 @@ export function getAnimaPoseClipSampleTime(
 }
 
 export function shouldAnimaPoseClipAutoComplete(
-  clip: AnimaPoseClip,
+  clip: AnyAnimaPoseClip,
   playbackTimeSec: number,
 ): boolean {
-  const sanitizedClip = parseAnimaPoseClip(clip);
+  const sanitizedClip = parseAnyAnimaPoseClip(clip);
   if (sanitizedClip.loop === true || sanitizedClip.playback) return false;
   return (
     playbackTimeSec >=
@@ -92,26 +99,30 @@ export function resolveAnimaPoseClipFadeDuration(
 }
 
 export function resolveAnimaPoseClipFadeTransition(
-  clip: AnimaPoseClip,
+  clip: AnyAnimaPoseClip,
   fade: AnimaPoseClipFade | undefined,
 ): ResolvedAnimaPoseClipTransition {
+  // 2.0 clips have no clip-wide transition; their fades use the defaults.
+  const defaultTransition = isAnimaPoseClipV2(clip)
+    ? undefined
+    : clip.defaultTransition;
   return {
     easing:
       fade?.easing ??
-      clip.defaultTransition?.easing ??
+      defaultTransition?.easing ??
       DEFAULT_ANIMA_POSE_CLIP_TRANSITION.easing,
     interpolation: {
       humanoidRotation:
         fade?.interpolation?.humanoidRotation ??
-        clip.defaultTransition?.interpolation?.humanoidRotation ??
+        defaultTransition?.interpolation?.humanoidRotation ??
         DEFAULT_ANIMA_POSE_CLIP_TRANSITION.interpolation.humanoidRotation,
       humanoidPosition:
         fade?.interpolation?.humanoidPosition ??
-        clip.defaultTransition?.interpolation?.humanoidPosition ??
+        defaultTransition?.interpolation?.humanoidPosition ??
         DEFAULT_ANIMA_POSE_CLIP_TRANSITION.interpolation.humanoidPosition,
       expression:
         fade?.interpolation?.expression ??
-        clip.defaultTransition?.interpolation?.expression ??
+        defaultTransition?.interpolation?.expression ??
         DEFAULT_ANIMA_POSE_CLIP_TRANSITION.interpolation.expression,
     },
   };

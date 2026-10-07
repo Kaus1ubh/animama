@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Motion preview</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="./preview.css" />
+  </head>
+  <body>
+    <header class="bar">
+      <h1 id="title">Motion preview</h1>
+      <label class="field picker inline">
+        <span>Review</span>
+        <select id="pick-source"></select>
+      </label>
+      <label class="field picker inline">
+        <span>Compare</span>
+        <select id="pick-compare"></select>
+      </label>
+      <span id="status" class="muted">Loading Avatars…</span>
+    </header>
+    <div id="errors" class="errors" hidden></div>
+    <main class="stage">
+      <div class="views" id="views">
+        <canvas id="canvas"></canvas>
+        <div id="labels"></div>
+      </div>
+      <aside class="notes" aria-label="Review notes">
+        <h2>Review notes</h2>
+        <p id="notes-file" class="muted small"></p>
+        <form id="note-form">
+          <label class="field">
+            <span>Note</span>
+            <textarea
+              id="note-text"
+              rows="3"
+              placeholder="For example: slap the thigh here, or settle slower"
+              required
+            ></textarea>
+          </label>
+          <div class="row">
+            <label class="field">
+              <span>Pin to</span>
+              <select id="note-pin"></select>
+            </label>
+            <label class="field">
+              <span>Body region</span>
+              <select id="note-region"></select>
+            </label>
+          </div>
+          <button type="submit" id="note-add">Add note</button>
+          <p id="note-error" class="error small" hidden></p>
+        </form>
+        <ol id="notes-list" class="notes-list"></ol>
+      </aside>
+    </main>
+    <footer class="transport">
+      <div class="row">
+        <button type="button" id="play" aria-label="Play">Play</button>
+        <button type="button" id="restart">Restart</button>
+        <button type="button" id="step-back" aria-label="Back one frame">
+          ‹
+        </button>
+        <button type="button" id="step-forward" aria-label="Forward one frame">
+          ›
+        </button>
+        <label class="check"
+          ><input type="checkbox" id="loop" checked /> Loop</label
+        >
+        <label class="field inline">
+          <span>Speed</span>
+          <select id="speed">
+            <option value="0.25">0.25×</option>
+            <option value="0.5">0.5×</option>
+            <option value="0.75">0.75×</option>
+            <option value="1" selected>1×</option>
+          </select>
+        </label>
+        <span id="time" class="time">0.00 / 0.00 s</span>
+        <span class="spacer"></span>
+        <span class="muted small">Camera</span>
+        <div class="segmented" id="cameras" role="group" aria-label="Camera">
+          <button type="button" data-camera="front" aria-pressed="true">
+            Front
+          </button>
+          <button type="button" data-camera="threeQuarter">¾</button>
+          <button type="button" data-camera="side">Side</button>
+          <button type="button" data-camera="face">Face</button>
+        </div>
+        <label class="check"
+          ><input type="checkbox" id="live-layers" checked /> Live layers</label
+        >
+        <label class="check"
+          ><input type="checkbox" id="previous" disabled /> Previous
+          version</label
+        >
+      </div>
+      <div class="scrubber">
+        <input
+          type="range"
+          id="scrubber"
+          min="0"
+          max="1"
+          step="0.001"
+          value="0"
+          aria-label="Playback time"
+        />
+        <div id="markers" class="markers"></div>
+      </div>
+    </footer>
+    <script type="module" src="./preview.ts"></script>
+  </body>
+</html>

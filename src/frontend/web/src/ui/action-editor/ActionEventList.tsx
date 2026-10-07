@@ -49,9 +49,10 @@ export function ActionEventList({ onSelect }: { onSelect?: () => void }) {
       id: `keyframe:${frame.id}`,
       time: frame.time,
       label:
-        workspace.document.intent === "reaction"
+        frame.label ??
+        (workspace.document.intent === "reaction"
           ? "Expression"
-          : labelFor(frame.pose),
+          : labelFor(frame.pose)),
       remove: () => {
         selectKeyframe(frame.id);
         deleteKeyframe();

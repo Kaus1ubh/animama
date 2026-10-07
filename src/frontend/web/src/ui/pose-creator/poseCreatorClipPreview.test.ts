@@ -12,8 +12,18 @@ import {
 
 import {
   createDefaultPoseCreatorClipDraft,
+  createPoseCreatorClipDraftFromAnimaPoseClip,
   buildAnimaPoseClipFromPoseCreatorDraft,
+  withPoseCreatorClipValidation,
 } from "./poseCreatorClipAuthoring";
+
+/** A new no-base Reaction draft holding only these events, validated as edits are. */
+function createEventOnlyDraft(events: AnimaPoseClipEvent[]) {
+  return withPoseCreatorClipValidation({
+    ...createDefaultPoseCreatorClipDraft(""),
+    events,
+  });
+}
 
 describe("Reaction preview posture", () => {
   it.each([
@@ -29,12 +39,14 @@ describe("Reaction preview posture", () => {
   ] satisfies AnimaPoseClipEvent[])(
     "previews an event-only $kind without adding pose keyframes",
     (event) => {
-      const draft = createDefaultPoseCreatorClipDraft("");
-      draft.events = [event];
+      const draft = createEventOnlyDraft([event]);
       const before = structuredClone(draft);
       const payload = buildAnimaPoseClipFromPoseCreatorDraft(draft);
-      expect(payload?.events).toEqual([event]);
-      expect(payload?.poseKeyframes).toEqual([]);
+      expect(payload).toMatchObject({
+        schema: "animaPoseClip/2.0",
+        beats: [],
+        events: [event],
+      });
       const applyAnimaPose = vi.fn();
       const avatar = {
         vrm: { humanoid: { resetNormalizedPose: vi.fn() }, update: vi.fn() },
@@ -54,13 +66,24 @@ describe("Reaction preview posture", () => {
   it.each(["expressions", "events", "empty"] as const)(
     "keeps Relaxed Rest for %s without changing the Reaction payload",
     (content) => {
-      const draft = createDefaultPoseCreatorClipDraft("");
-      if (content === "expressions") {
-        draft.poses = { smile: { expressions: { happy: 0.7 } } };
-        draft.keyframes = [{ id: "smile", pose: "smile", time: 0 }];
-      }
-      if (content === "events")
-        draft.events = [{ id: "sound", kind: "sfx", cueId: "bell", time: 0 }];
+      const draft =
+        content === "expressions"
+          ? createPoseCreatorClipDraftFromAnimaPoseClip(
+              {
+                schema: "animaPoseClip/2.0",
+                id: "smile",
+                name: "Smile",
+                duration: 1,
+                beats: [{ id: "smile", label: "Smile", time: 0 }],
+                expressions: { happy: [{ beat: "smile", v: 0.7 }] },
+              },
+              { fallbackBasePose: "" },
+            )
+          : createEventOnlyDraft(
+              content === "events"
+                ? [{ id: "sound", kind: "sfx", cueId: "bell", time: 0 }]
+                : [],
+            );
       const applyPose = vi.fn();
       const applyAnimaPose = vi.fn();
       const setExpression = vi.fn();

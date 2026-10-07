@@ -6,7 +6,7 @@ import {
   HAND_PRESETS,
   HAND_SEGMENTS,
   resolveHandBones,
-} from "./poseCreatorHandAuthoring";
+} from "@/lib/avatar/poses/anatomy/handPresets";
 import { createHandInteractionController } from "./poseCreatorHandInteraction";
 function fixture() {
   const nodes = new Map<string, Object3D>();

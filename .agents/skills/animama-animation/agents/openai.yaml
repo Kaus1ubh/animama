@@ -1,4 +1,4 @@
 interface:
   display_name: "Animama Animation"
   short_description: "Author natural Gesture motion from a text prompt"
-  default_prompt: "Use $animama-animation to create a Gesture for: <describe the motion>. Generate, check, review and save it as Local content, then hand it off."
+  default_prompt: "Use $animama-animation to create a Gesture for: <describe the motion>. Write it as an animaPoseClip/2.0 clip, validate, check, preview and save it as Local content, then hand it off."

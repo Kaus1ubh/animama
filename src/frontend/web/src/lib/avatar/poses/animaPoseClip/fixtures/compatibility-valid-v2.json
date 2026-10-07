@@ -1,0 +1,141 @@
+{
+  "schema": "animaPoseClip/2.0",
+  "id": "compatibility-v2",
+  "name": "Compatibility V2",
+  "duration": 2,
+  "basePose": "relaxedRest",
+  "plantFeet": true,
+  "fadeIn": {
+    "duration": 0.25
+  },
+  "fadeOut": {
+    "duration": 0.4,
+    "easing": "easeOutSine"
+  },
+  "mutedProceduralLayers": ["sway", "bounce"],
+  "beats": [
+    {
+      "id": "start",
+      "label": "Start",
+      "time": 0
+    },
+    {
+      "id": "raise",
+      "label": "Raise",
+      "time": 0.5,
+      "ease": "smooth"
+    },
+    {
+      "id": "settle",
+      "label": "Settle",
+      "time": 1.8,
+      "ease": "easeInOutSine"
+    }
+  ],
+  "joints": {
+    "rightUpperArm": {
+      "elevation": [
+        {
+          "beat": "start",
+          "v": "base"
+        },
+        {
+          "beat": "raise",
+          "dt": 0.05,
+          "v": 108
+        },
+        {
+          "beat": "raise",
+          "dt": 0.3,
+          "v": 100,
+          "tangent": "flat"
+        },
+        {
+          "beat": "settle",
+          "v": "base"
+        }
+      ]
+    },
+    "head": {
+      "flexion": [
+        {
+          "beat": "start",
+          "v": 0
+        },
+        {
+          "beat": "raise",
+          "dt": -0.1,
+          "v": -4,
+          "ease": "linear"
+        },
+        {
+          "beat": "settle",
+          "v": 0,
+          "ease": "hold"
+        }
+      ]
+    }
+  },
+  "rotations": {
+    "jaw": [
+      {
+        "beat": "raise",
+        "q": [0.05, 0, 0, 0.99875]
+      }
+    ]
+  },
+  "hipsPosition": {
+    "x": [
+      {
+        "beat": "start",
+        "v": 0
+      },
+      {
+        "beat": "raise",
+        "dt": 0.15,
+        "v": 0.015
+      }
+    ]
+  },
+  "hands": {
+    "right": [
+      {
+        "beat": "start",
+        "preset": "relaxed"
+      },
+      {
+        "beat": "raise",
+        "dt": -0.05,
+        "preset": "open-together",
+        "spread": 8
+      }
+    ]
+  },
+  "expressions": {
+    "happy": [
+      {
+        "beat": "start",
+        "v": 0
+      },
+      {
+        "beat": "raise",
+        "v": 0.75
+      },
+      {
+        "beat": "settle",
+        "v": 0
+      }
+    ]
+  },
+  "contacts": [
+    {
+      "bone": "rightHand",
+      "target": "head",
+      "beat": "raise",
+      "from": 0.1,
+      "to": 0.4,
+      "tolerance": 0.08
+    }
+  ],
+  "generator": "kept as an unknown field"
+}

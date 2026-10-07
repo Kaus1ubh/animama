@@ -9,7 +9,7 @@ import type {
   AnimaPose,
   ResolvedAnimaPose,
 } from "@/lib/avatar/poses/animaPose";
-import type { AnimaPoseClip } from "@/lib/avatar/poses/animaPoseClip";
+import type { AnyAnimaPoseClip } from "@/lib/avatar/poses/animaPoseClip";
 import type { NormalizedEmotionReactionIntensity } from "@/lib/avatar/reactionClips";
 import type { EmotionRuntimeState } from "@/lib/emotion";
 import type {
@@ -94,11 +94,11 @@ export class PreviewRuntimeCatalogSession
     return this.motion.listAnimations();
   }
 
-  getPoseClip(runtimeId: string): AnimaPoseClip | null {
+  getPoseClip(runtimeId: string): AnyAnimaPoseClip | null {
     return this.motion.getPoseClip(runtimeId);
   }
 
-  loadPoseClip(runtimeId: string): Promise<AnimaPoseClip | null> {
+  loadPoseClip(runtimeId: string): Promise<AnyAnimaPoseClip | null> {
     return this.motion.loadPoseClip(runtimeId);
   }
 
@@ -106,11 +106,11 @@ export class PreviewRuntimeCatalogSession
     return this.motion.listPoseClips();
   }
 
-  getReactionClip(runtimeId: string): AnimaPoseClip | null {
+  getReactionClip(runtimeId: string): AnyAnimaPoseClip | null {
     return this.motion.getReactionClip(runtimeId);
   }
 
-  loadReactionClip(runtimeId: string): Promise<AnimaPoseClip | null> {
+  loadReactionClip(runtimeId: string): Promise<AnyAnimaPoseClip | null> {
     return this.motion.loadReactionClip(runtimeId);
   }
 

@@ -100,6 +100,7 @@ function clipContentFingerprint(
     fadeOut: draft.fadeOut,
     poses: draft.poses,
     keyframes: draft.keyframes,
+    motion: draft.motion,
     events: draft.events,
   });
 }

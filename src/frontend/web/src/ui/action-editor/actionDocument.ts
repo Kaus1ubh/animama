@@ -1,3 +1,4 @@
+import { ANIMA_POSE_CLIP_V2_SCHEMA } from "@/lib/avatar/poses/animaPoseClip/schemaV2";
 import { RELAXED_REST_POSE_ID } from "@/lib/avatar/poses/catalog";
 import type { PyContentDependency } from "@/lib/content/catalogTypes";
 
@@ -170,6 +171,11 @@ export function sanitizeReactionSequence(
   // Reactions never run body layers through the Gesture lane; mutes are
   // Gesture-only and would otherwise be stored with no control to change them.
   delete sanitized.mutedProceduralLayers;
+  if (sanitized.schema === ANIMA_POSE_CLIP_V2_SCHEMA) {
+    // 2.0 Reactions keep their beats, expression tracks and events.
+    for (const field of REACTION_V2_BODY_FIELDS) delete sanitized[field];
+    return sanitized;
+  }
 
   const poses = isRecord(sanitized.poses) ? sanitized.poses : {};
   const retainedPoses: Record<string, unknown> = {};
@@ -298,6 +304,12 @@ export function referencedAliases(sequence: Record<string, unknown>): string[] {
 }
 
 export function hasHumanoidTracks(sequence: Record<string, unknown>): boolean {
+  if (sequence.schema === ANIMA_POSE_CLIP_V2_SCHEMA)
+    return ["joints", "rotations", "hipsPosition", "hands"].some(
+      (field) =>
+        isRecord(sequence[field]) &&
+        Object.keys(sequence[field] as Record<string, unknown>).length > 0,
+    );
   const poses = sequence.poses;
   return Boolean(
     poses &&
@@ -310,6 +322,16 @@ export function hasHumanoidTracks(sequence: Record<string, unknown>): boolean {
     ),
   );
 }
+
+/** 2.0 fields that move the body, which Reactions never carry. */
+const REACTION_V2_BODY_FIELDS = [
+  "joints",
+  "rotations",
+  "hipsPosition",
+  "hands",
+  "contacts",
+  "plantFeet",
+] as const;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);

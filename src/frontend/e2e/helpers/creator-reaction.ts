@@ -5,12 +5,12 @@ import { expect, type Page } from "playwright/test";
 type JsonRecord = Record<string, unknown>;
 
 export type ValidatedReactionClip = JsonRecord & {
-  schema: "animaPoseClip/1.0";
+  schema: "animaPoseClip/2.0";
   id: string;
   name: string;
   duration: number;
-  poses: JsonRecord;
-  poseKeyframes: unknown[];
+  beats: unknown[];
+  expressions: JsonRecord;
 };
 
 function record(value: unknown, label: string): JsonRecord {
@@ -117,14 +117,17 @@ export async function authorHappyToAngryReaction(page: Page): Promise<void> {
   ).toHaveValue("0.3");
 }
 
-/** Validate the exact portable clip shown by View JSON and saved to disk. */
+/**
+ * Validate the exact portable clip shown by View JSON and saved to disk: the
+ * 2.0 form of the authored timeline, one beat per expression keyframe.
+ */
 export function validateReactionClipDocument(
   value: unknown,
   expectedName: string,
 ): ValidatedReactionClip {
   const clip = record(value, "Reaction Clip JSON");
-  if (clip.schema !== "animaPoseClip/1.0") {
-    throw new Error("Reaction Clip JSON must use animaPoseClip/1.0.");
+  if (clip.schema !== "animaPoseClip/2.0") {
+    throw new Error("Reaction Clip JSON must use animaPoseClip/2.0.");
   }
   if (clip.id !== expectedName || clip.name !== expectedName) {
     throw new Error("Reaction Clip JSON ID and name must match the run name.");
@@ -133,69 +136,44 @@ export function validateReactionClipDocument(
   if ((clip.loop ?? false) !== false) {
     throw new Error("Reaction Clip JSON must be effectively non-looping.");
   }
+  for (const field of ["joints", "rotations", "hipsPosition", "hands"])
+    if (field in clip)
+      throw new Error(`A Reaction Clip must not carry ${field} tracks.`);
 
-  const transition = record(
-    clip.defaultTransition,
-    "Reaction Clip defaultTransition",
+  const beats = array(clip.beats, "Reaction Clip beats").map((beat, index) =>
+    record(beat, `Reaction Clip beats[${index}]`),
   );
-  if (transition.easing !== "easeInOutSine") {
-    throw new Error("Reaction Clip must keep the default easing.");
+  if (beats.length !== 2) {
+    throw new Error("Reaction Clip must contain exactly two beats.");
   }
-  exactRecord(
-    record(
-      transition.interpolation,
-      "Reaction Clip defaultTransition.interpolation",
-    ),
-    { expression: "linear" },
-    "Reaction Clip expression interpolation",
-  );
+  exactNumber(beats[0].time, 0, "Reaction Clip beats[0].time");
+  exactNumber(beats[1].time, 0.3, "Reaction Clip beats[1].time");
+  const ids = beats.map((beat) => beat.id);
+  if (typeof ids[0] !== "string" || ids[0] === ids[1]) {
+    throw new Error("Reaction Clip beats must have two distinct ids.");
+  }
 
-  const poses = record(clip.poses, "Reaction Clip poses");
-  const keyframes = array(clip.poseKeyframes, "Reaction Clip poseKeyframes");
-  if (Object.keys(poses).length !== 2 || keyframes.length !== 2) {
-    throw new Error(
-      "Reaction Clip must contain exactly two poses and keyframes.",
+  // Each expression is keyed at both beats: happy, then angry.
+  const expressions = record(clip.expressions, "Reaction Clip expressions");
+  const valuesAtBeats = (name: string) =>
+    array(expressions[name], `Reaction Clip expressions.${name}`).map(
+      (key, index) => {
+        const entry = record(
+          key,
+          `Reaction Clip expressions.${name}[${index}]`,
+        );
+        if (entry.beat !== ids[index] || entry.dt !== undefined)
+          throw new Error(`Reaction ${name} keys must sit on the two beats.`);
+        return entry.v;
+      },
     );
-  }
-  const first = record(keyframes[0], "Reaction Clip poseKeyframes[0]");
-  const second = record(keyframes[1], "Reaction Clip poseKeyframes[1]");
-  exactNumber(first.time, 0, "Reaction Clip poseKeyframes[0].time");
-  exactNumber(second.time, 0.3, "Reaction Clip poseKeyframes[1].time");
-  if (
-    typeof first.pose !== "string" ||
-    typeof second.pose !== "string" ||
-    first.pose === second.pose
-  ) {
-    throw new Error(
-      "Reaction Clip keyframes must reference two distinct poses.",
-    );
-  }
-  const referencedAliases = [first.pose, second.pose].sort();
-  const poseAliases = Object.keys(poses).sort();
-  if (JSON.stringify(referencedAliases) !== JSON.stringify(poseAliases)) {
-    throw new Error("Reaction Clip contains an unreferenced or missing pose.");
-  }
-
-  const firstPose = record(
-    poses[first.pose],
-    "Reaction Clip first inline pose",
-  );
-  const secondPose = record(
-    poses[second.pose],
-    "Reaction Clip second inline pose",
-  );
-  if ("ref" in firstPose || "ref" in secondPose) {
-    throw new Error("Reaction Clip expression poses must be inline.");
+  if (Object.keys(expressions).sort().join() !== "angry,happy") {
+    throw new Error("Reaction Clip must key exactly happy and angry.");
   }
   exactRecord(
-    record(firstPose.expressions, "Reaction Clip first expressions"),
-    { happy: 1 },
-    "Reaction Clip first expressions",
-  );
-  exactRecord(
-    record(secondPose.expressions, "Reaction Clip second expressions"),
-    { angry: 1 },
-    "Reaction Clip second expressions",
+    { happy: valuesAtBeats("happy"), angry: valuesAtBeats("angry") },
+    { happy: [1, 0], angry: [0, 1] },
+    "Reaction Clip expression values",
   );
 
   const normalizedEvents =

@@ -7,7 +7,7 @@ import {
   type HandAdjustment,
   type HandPreset,
   type HandTarget,
-} from "./poseCreatorHandAuthoring";
+} from "@/lib/avatar/poses/anatomy/handPresets";
 import { createHandInteractionController } from "./poseCreatorHandInteraction";
 
 /** Workspace-owned state survives responsive panel mounts without persisting in poses. */

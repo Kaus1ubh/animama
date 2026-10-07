@@ -80,7 +80,7 @@ Real joints rarely move alone. Add the partners:
 
 ## Planted feet
 
-With `plantFeet` true the generator solves hip, knee and ankle each frame on
-the reference Avatar. Keep pelvis rotation within ±15° and offsets within a
-few centimetres; the checks report slides and lifts on each Avatar because
-proportions differ.
+With `plantFeet` true, playback solves hip, knee and ankle each frame on each
+Avatar's own rig, so both keep their feet still. Keep pelvis rotation within
+±15° and offsets within a few centimetres so the legs can reach; the checks
+report slides and lifts on each Avatar.

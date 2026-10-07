@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useRef } from "react";
 
 import { usePoseCreatorStore } from "@/stores/pose-creator-store";
-import { parseAnimaPoseClip } from "@/lib/avatar/poses/animaPoseClip";
+import { parseAnyAnimaPoseClip } from "@/lib/avatar/poses/animaPoseClip";
+import { ANIMA_POSE_CLIP_V2_SCHEMA } from "@/lib/avatar/poses/animaPoseClip/schemaV2";
 import { sanitizeAnimaPoseClipLayerMutes } from "@/lib/avatar/poses/animaPoseClip/schema";
 import { PoseCreatorClipTimeline } from "@/ui/pose-creator/PoseCreatorClipTimeline";
 import { cn } from "@/lib/utils";
@@ -46,6 +47,12 @@ export function syncActionTimelineMetadata(
 export function isEmptyActionTimeline(
   sequence: Record<string, unknown>,
 ): boolean {
+  if (sequence.schema === ANIMA_POSE_CLIP_V2_SCHEMA)
+    return (
+      Array.isArray(sequence.beats) &&
+      sequence.beats.length === 0 &&
+      (!Array.isArray(sequence.events) || sequence.events.length === 0)
+    );
   const poses = sequence.poses;
   const keyframes = sequence.poseKeyframes;
   const events = sequence.events;
@@ -221,7 +228,7 @@ export function ActionTimelineDocumentSync({
     }
     try {
       if (
-        hydrate(parseAnimaPoseClip(editorSequence), {
+        hydrate(parseAnyAnimaPoseClip(editorSequence), {
           ...(preservePlayhead ? { currentTimeSec } : {}),
         })
       ) {

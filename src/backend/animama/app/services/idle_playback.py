@@ -12,7 +12,11 @@ from animama.app.ports.content_store import ContentStore
 from animama.app.services.content_file_validation import ContentFileInvalidError
 from animama.app.services.content_gltf import canonicalize_vrma_stream
 from animama.app.services.content_kind_registry import MAX_JSON_BYTES, _validate_bounded_json
-from animama.app.services.idle_clip_validation import validate_idle_clip_timeline
+from animama.app.services.idle_clip_validation import (
+    ANIMA_POSE_CLIP_V2_SCHEMA,
+    validate_clip_v2_timeline,
+    validate_idle_clip_timeline,
+)
 from animama.domain.content_catalog import CatalogContentEntry
 from animama.domain.content_documents import ContentDocumentError, GestureDocumentV1
 
@@ -79,7 +83,8 @@ def derive_idle_playback(document: GestureDocumentV1, payload: BinaryIO) -> Idle
                 clip = json.loads(payload.read(MAX_JSON_BYTES + 1))
             except (ValueError, UnicodeError, RecursionError) as exc:
                 raise ContentDocumentError("idle_motion_invalid", "Gesture clip is not valid JSON") from exc
-            if not isinstance(clip, dict) or clip.get("schema") != "animaPoseClip/1.0":
+            schema = clip.get("schema") if isinstance(clip, dict) else None
+            if schema not in {"animaPoseClip/1.0", ANIMA_POSE_CLIP_V2_SCHEMA}:
                 raise ContentDocumentError("idle_motion_invalid", "Gesture clip schema is unsupported")
             _validate_bounded_json(clip)
             if clip.get("playback") is not None:
@@ -88,8 +93,11 @@ def derive_idle_playback(document: GestureDocumentV1, payload: BinaryIO) -> Idle
                 )
             if not isinstance(clip.get("loop", False), bool):
                 raise ContentDocumentError("idle_loop_invalid", "Gesture clip loop must be boolean")
-            declared_duration = _positive(clip["duration"], "idle_duration_invalid") if "duration" in clip else None
-            cycle = validate_idle_clip_timeline(clip, declared_duration)
+            if schema == ANIMA_POSE_CLIP_V2_SCHEMA:
+                cycle = validate_clip_v2_timeline(clip)
+            else:
+                declared_duration = _positive(clip["duration"], "idle_duration_invalid") if "duration" in clip else None
+                cycle = validate_idle_clip_timeline(clip, declared_duration)
             loop = "repeat" if document.config.get("loop", clip.get("loop", False)) is True else "once"
             if "loop" in document.config and not isinstance(document.config["loop"], bool):
                 raise ContentDocumentError("idle_loop_invalid", "Gesture clip loop override must be boolean")

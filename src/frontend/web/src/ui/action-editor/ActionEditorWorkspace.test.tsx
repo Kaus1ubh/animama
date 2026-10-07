@@ -2,7 +2,12 @@ import type { ReactNode } from "react";
 import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { usePoseCreatorStore } from "@/stores/pose-creator-store";
+import { createAnimaPoseClipProgram } from "@/lib/avatar/poses/animaPoseClip/program";
+import {
+  POSE_CREATOR_CLIP_VALIDATION_OPTIONS,
+  usePoseCreatorStore,
+} from "@/stores/pose-creator-store";
+import { buildAnimaPoseClipFromPoseCreatorDraft } from "@/ui/pose-creator/poseCreatorClipAuthoring";
 import {
   ActionEditorWorkspace,
   captureActionEditorPoseAtPlayhead,
@@ -179,25 +184,33 @@ describe("Action editor viewport ownership", () => {
 });
 
 it("captures the current copied pose when a baked timeline has no external base", () => {
-  usePoseCreatorStore.setState((state) => ({
-    clipDraft: {
-      ...state.clipDraft,
-      basePose: "",
-      currentTimeSec: 0.5,
-      poses: {
-        start: {
-          humanoid: { hips: { position: [0, 0.4, 0] } },
-          expressions: { happy: 0.6 },
-        },
+  const store = usePoseCreatorStore.getState();
+  store.hydrateClipDocument({
+    schema: "animaPoseClip/1.0",
+    id: "copied",
+    name: "Copied",
+    duration: 1,
+    poses: {
+      start: {
+        humanoid: { hips: { position: [0, 0.4, 0] } },
+        expressions: { happy: 0.6 },
       },
-      keyframes: [{ id: "start", pose: "start", time: 0 }],
-      selectedKeyframeId: null,
     },
-  }));
+    poseKeyframes: [{ time: 0, pose: "start" }],
+  });
+  store.setClipCurrentTime(0.5);
   expect(captureActionEditorPoseAtPlayhead()).toBe(true);
   const { clipDraft, clipUndoHistory } = usePoseCreatorStore.getState();
-  const added = clipDraft.keyframes.find((frame) => frame.time === 0.5)!;
-  expect(clipDraft.poses[added.pose]).toMatchObject({
+  expect(clipDraft.keyframes.map(({ time }) => time)).toEqual([0, 0.5]);
+  const clip = buildAnimaPoseClipFromPoseCreatorDraft(
+    clipDraft,
+    POSE_CREATOR_CLIP_VALIDATION_OPTIONS,
+  )!;
+  expect(clip).not.toHaveProperty("basePose");
+  expect(
+    createAnimaPoseClipProgram(clip, { resolvePose: () => null }).sample(0.5)
+      .sample,
+  ).toMatchObject({
     humanoid: { hips: { position: [0, 0.4, 0] } },
     expressions: { happy: 0.6 },
   });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseAnimaPoseClip } from "@/lib/avatar/poses/animaPoseClip";
+import { parseAnyAnimaPoseClip } from "@/lib/avatar/poses/animaPoseClip";
 import {
   DEFAULT_POSE_CREATOR_BASE_POSE,
   usePoseCreatorStore,
@@ -112,7 +112,7 @@ describe("actionDependencies", () => {
       );
       usePoseCreatorStore
         .getState()
-        .hydrateClipDocument(parseAnimaPoseClip(inserted.sequence), {
+        .hydrateClipDocument(parseAnyAnimaPoseClip(inserted.sequence), {
           fallbackBasePose: DEFAULT_POSE_CREATOR_BASE_POSE,
         });
       const sequence = actionSequenceFromTimelineDraft(
