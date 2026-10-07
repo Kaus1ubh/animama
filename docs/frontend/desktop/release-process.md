@@ -67,6 +67,11 @@ pnpm desktop:runtime:audit -- --platform darwin --arch arm64
 pnpm desktop:dist:mac
 ```
 
+Once the tracked [Mixamo-motion manifest](../../backend/operations/mixamo-motion-pack.md)
+lists files, run `pnpm desktop:mixamo-motion fetch` first and stage with
+`ANIMAMA_REQUIRE_MIXAMO_MOTION=1`, so a candidate cannot silently ship without
+the pack. While the manifest is empty, release candidates have no pack.
+
 The signed helper and reviewed pack/core inputs must already be configured.
 Public visibility and release-repository API availability are not candidate build
 preconditions; dependency downloads and Apple notarization still need network access.

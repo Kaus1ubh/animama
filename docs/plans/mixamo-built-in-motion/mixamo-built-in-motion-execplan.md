@@ -71,7 +71,8 @@ Paths are relative to `src/backend/animama/` (backend) or `src/frontend/web/src/
 - [x] Phase 1: Non-portable class in the backend catalog (#323). Review #2 passed.
 - [x] Phase 2: Backend export, import and save enforcement (#324). Review #2 passed.
 - [x] Phase 3: Frontend affordances (#325). Review #2 passed.
-- [ ] Phase 4: Private build inputs, staging allowlist and leak checks.
+- [x] Phase 4: Private build inputs, staging allowlist and leak checks (#326).
+      Review #2 passed.
 - [ ] Phase 5: Content acquisition and integration (owner gates G1–G3).
 - [ ] Final integration review.
 - [ ] PR opened. Hosted CI is disabled; local checks are the evidence.
@@ -687,11 +688,13 @@ Intended changes:
    - `scan <path>` hash-scans a directory or archive for manifest hashes;
    - `publish --confirm` uploads a verified pack and private inventory (owner
      only).
-3. **Desktop staging.** `stage_content.py` and `stage.mjs` stage the pack as
+3. **Desktop staging.** `stage.mjs` (implemented in the shared pack module, not
+   `stage_content.py`) stages the pack as
    `runtime/content/mixamo-motion` only from `build-inputs/mixamo-motion/`, only
    after `verify` passes, and copy the tracked inventory into it. Without the
    input, staging still succeeds (a self-built desktop app without the pack). A
-   `--require-mixamo-motion` flag, used for release candidates, fails instead.
+   `ANIMAMA_REQUIRE_MIXAMO_MOTION=1` setting, used for release candidates,
+   fails instead.
    The Electron supervisor declares the source in
    `ANIMAMA_INCLUDED_CONTENT_SOURCES_JSON` when the staged pack exists. The
    runtime audit records its files.
@@ -738,9 +741,155 @@ without the pack); then `bash -n reset.sh` and both
 Completion: a fixture pack stages and audits; every leak check passes on a clean
 tree; docs and the ADR are drafted for owner acceptance; review passes.
 
+Results (2026-10-07, starting revision `d3cf244e`):
+
+- **Implemented:**
+  - pack module `src/frontend/desktop/scripts/runtime/mixamo-motion.mjs`
+    (manifest parsing, exact verification with private-provenance
+    completeness, staging, hash scan of directories and zip/wheel/tar archives,
+    R2 signed fetch and create-only publish);
+  - owner CLI `mixamo-motion-cli.mjs` (`pnpm desktop:mixamo-motion verify |
+    fetch | publish [--confirm] | scan <paths> | scan --git | manifest`);
+  - `stage.mjs` staging (`ANIMAMA_REQUIRE_MIXAMO_MOTION=1` for release
+    candidates);
+  - the pack licence in `licenses.mjs`;
+  - the supervisor mount (`content/mixamo-motion` → `pack_id: "mixamo-motion"`);
+  - the `desktop:release:scan` hash deny list outside
+    `runtime/content/mixamo-motion`;
+  - `/build-inputs/` in `.gitignore` and `.dockerignore`;
+  - the tracked pack inventory `scripts/mixamo-motion/inventory.json`;
+  - removal of the two stale Mixamo rules from
+    `content/included/licenses/inventory.json`.
+- **Docs:**
+  - ADR 0015 (proposed, for owner acceptance with the PR) and the glossary entry
+    **Non-portable content**;
+  - new guide `docs/backend/operations/mixamo-motion-pack.md`, including the
+    hosted contract and leak-check commands;
+  - updates to the redistribution review, platforms, runtime staging, feature
+    packs, Mixamo acquisition, `README.md`, `licenses/README.md`,
+    `art-NOTICES.md`, the public-release README, development operations and the
+    packaged notice `included-content-attribution.txt`.
+- **Decisions (agent):**
+  - One manifest file, the backend resource, serves the backend deny list and
+    the tool, instead of a synced copy.
+  - Verification and staging live in one JS module that the CLI and `stage.mjs`
+    share.
+  - The private inventory is keyed by clip folder and must name a payload hash
+    from the manifest.
+  - The legacy `animation-manifest.json` stays unchanged: it is still used by
+    the avatar prompts and the runtime audit, and holds names and descriptions
+    only, not Mixamo-derived bytes.
+- **Tests:**
+  - `src/frontend/desktop/tests/mixamo-motion.test.mjs`, 8 tests with a
+    synthetic pack: exact pass; missing, extra, changed, linked and provenance
+    problems named by path only; staging absent, required, mismatched and empty
+    manifest; scan of a directory and tar with the allowed prefix; dry-run and
+    refused publish; fetch with verification before replacement;
+  - a supervisor mount test (staged and not staged);
+  - integrity tests for the public-safe pack inventory and the removed rules.
+- **Checks:**
+  - `pnpm desktop:check` passes; `pnpm desktop:test` 478 passed (14 skipped);
+  - `pnpm desktop:runtime:stage` and `:audit` for darwin arm64 succeed without
+    the pack ("No Mixamo-motion build input; staging without it");
+  - `bash -n reset.sh` and both `docker compose … config --quiet` pass;
+    `uv run ruff check` passes;
+  - `pnpm desktop:mixamo-motion scan --git` and a scan of `content/included`
+    report no pack bytes. This is trivial while the manifest is empty; the real
+    scans run in P5.
+- **Not performed:** a stage with a real or synthetic pack under the tracked
+  manifest (that would change the tracked file); unit tests cover staging with a
+  pack, and P5 repeats it with real content.
+
 #### Code Review #1 Findings
 
+Reviewer: independent `sdlc-reviewer`, staged source on `d3cf244e`.
+
+- **P4-F1 (required):** `scan --git` would crash once the manifest had hashes:
+  a tracked symlink to a directory (`.claude/skills`) gave `EISDIR`, and deleted
+  tracked files would give `ENOENT`. Hidden by the early return for an empty
+  manifest.
+- **P4-F2 (required):** provenance was required for every two-segment folder,
+  including the owner-authored Idle Style, and `record.sha256` could match any
+  file in the folder. The private inventory shape was undocumented.
+- **P4-F3 (required):** create-only publish treated an existing object (412) as
+  success, so corrections silently did not land.
+- **P4-F4 (required):** the scan read every file fully into memory, which is
+  unbounded for release scans and image exports.
+- **P4-F5 (required):** `manifest <dir>` resolved from the package directory,
+  not the caller's.
+- **P4-F6 (required):** `content/included/README.md` was not updated; the release
+  procedure lacked the fetch/require step; P5 steps were stale.
+- **Optional:**
+  - the allow rule was a substring match;
+  - temp extraction directories could collide;
+  - over-deep archives were skipped (fail-open);
+  - `manifest.version` was unvalidated;
+  - `fetch` with an empty manifest crashed;
+  - the CLI hid `PublicationError` messages;
+  - the pack licence leaked into core content records;
+  - the `docker export` example left a container and wrote to stdout;
+  - several test gaps;
+  - R8's public entry now lives in the pack inventory (deliberate; note at
+    final review).
+
 #### Code Review #1 Revisions
+
+- **P4-F1 accepted.** Top-level targets are `lstat`ed: symlinks are skipped, a
+  missing path fails with a named `PackError`, and `--git` skips tracked files
+  deleted from the worktree. Tests cover a symlinked directory and missing paths.
+- **P4-F2 accepted.** Provenance is required only for folders holding a `.vrma`
+  payload, and `sha256` must equal that payload's hash. The fixture's Idle Style
+  has no record. The guide documents `{"clips": {"gestures/<id>": {…}}}`.
+- **P4-F3 accepted.** `publish --confirm` checks each key with a signed HEAD and
+  refuses any existing object, naming it and asking for a new version. A test
+  shows no PUT is sent.
+- **P4-F4 accepted.** Only files whose size equals a pack file's size are hashed.
+- **P4-F5 accepted.** `manifest` resolves from `INIT_CWD`.
+- **P4-F6 accepted.**
+  - `content/included/README.md` explains `non-portable` and links the pack.
+  - `release-process.md` adds the conditional fetch and
+    `ANIMAMA_REQUIRE_MIXAMO_MOTION=1` step for a non-empty manifest. The
+    workflow change is a P5 step, since the flag would fail while the manifest
+    is empty.
+  - P5 steps 4–5 and P4 step 3 updated.
+- **Optional accepted:**
+  - the release-scan allow pattern is anchored to `(Contents/)?Resources/runtime/content/mixamo-motion/`;
+  - extraction directories use a counter;
+  - over-deep archives are findings;
+  - `version` is pattern-checked;
+  - `fetch` refuses an empty manifest;
+  - the CLI prints `PublicationError` messages;
+  - pack licence records are kept separate from core content;
+  - the `docker export` example is fixed.
+- **Optional not changed:**
+  - release-scan, `licenses.mjs` and credential-message tests (the paths are
+    small and reviewed);
+  - the verify-then-copy window on the owner machine.
+- Verification: pack and release-scan tests 20 passed; `pnpm desktop:check`
+  passes; `pnpm desktop:test` 481 passed (14 skipped); integrity tests pass;
+  `scan --git` runs.
+
+#### Code Review #2 Findings
+
+Targeted recheck (repair round 1): **pass**. P4-F1 to F6 and the accepted
+optional items are fixed. Checked with a synthetic non-empty manifest: the full
+`git ls-files` scan runs in 19 ms; nested tars at depths 1–3 are found and depth
+4 is reported.
+
+- **P4-F7 (optional):** the allow regex is not anchored at the start.
+- **P4-F8 (optional):** an interrupted publish can only finish under a new
+  version.
+- **P4-F9 (optional):** only one `.vrma` per folder is checked for provenance.
+- **P4-F10 (optional):** `manifest` output is not validated before printing.
+
+#### Code Review #2 Revisions
+
+- **P4-F8 accepted:** the guide says to publish again under a new version.
+- **P4-F7, F9, F10 not changed:**
+  - the anchored layout is acceptable;
+  - the Phase 5 layout has one payload per Gesture folder;
+  - owner review of the manifest catches invalid output.
+- One repair round remains for this phase.
 
 ### Phase 5: Content acquisition and integration
 
@@ -765,11 +914,13 @@ on P2, P3 and P4. Contains owner gates.
    content ID or Selector ID collides with core Included content or with #310's
    promoted Gestures. Author one Included Idle Style pooling the six loops by
    emotion, based on the `idle_style_document` template. Run `verify`.
-4. **Publish** (owner runs `publish --confirm`). Commit the tracked
-   `manifest.json` and `inventory.json` (public-safe review before commit) and
-   the regenerated backend hash resource.
+4. **Publish** (owner runs `pnpm desktop:mixamo-motion publish --confirm`).
+   Commit the tracked manifest `src/backend/animama/resources/mixamo-motion-manifest.json`
+   (generated with `manifest`; public-safe review before commit). Add
+   `fetch`, `verify` and `ANIMAMA_REQUIRE_MIXAMO_MOTION=1` to the release
+   procedure and workflow now that the manifest is non-empty.
 5. **Verify builds.** `fetch` + `verify`; stage a desktop runtime with
-   `--require-mixamo-motion`; audit it; run every leak check from P4 on the real
+   `ANIMAMA_REQUIRE_MIXAMO_MOTION=1`; audit it; run every leak check from P4 on the real
    manifest; confirm self-host `./reset.sh` still creates both starters without
    the store, and that the Local installer still installs Local content.
 6. **Gate G3 (owner): playback.** In the desktop app, play all 29 clips and the

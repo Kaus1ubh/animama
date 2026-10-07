@@ -1,11 +1,10 @@
 ANIMAMA INCLUDED CONTENT ATTRIBUTION
 
 Adobe Mixamo animations
-Earlier private builds embedded VRMA animations converted from Adobe Mixamo
-FBX files. These bytes are now excluded from source tracking and Docker build
-contexts. Existing private copies are not cleared for public redistribution.
-Manual user acquisition is planned; conversion and packaging remain deferred.
-This historical attribution grants no redistribution rights. Do not use the
+Builds that include the Mixamo-motion pack contain VRMA animations converted
+from Adobe Mixamo FBX files by the Animama project owner. They are part of this
+product for avatar playback only: they are not offered as reusable files,
+cannot be exported or copied, and grant no redistribution rights. Do not use the
 Mixamo content to create, train, test, or improve machine-learning systems.
 Source and terms:
 https://helpx.adobe.com/creative-cloud/faq/mixamo-faq.html

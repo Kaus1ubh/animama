@@ -409,6 +409,12 @@ do not authorize restoring excluded bytes or silently changing an Anima.
 The source checkout excludes Mixamo-derived `.vrma` files from tracking and
 Docker contexts. The [optional Local installer](../runtime/mixamo-acquisition.md)
 adds manually converted motions to the Local library, outside staged content.
+`stage.mjs` stages the non-portable [Mixamo-motion pack](../../backend/operations/mixamo-motion-pack.md)
+as `runtime/content/mixamo-motion` only when `build-inputs/mixamo-motion/`
+exactly matches the tracked manifest with complete private provenance. Without
+the input the stage proceeds without the pack; set
+`ANIMAMA_REQUIRE_MIXAMO_MOTION=1` for release candidates so a missing pack
+fails. The supervisor mounts a staged pack as its own Included source.
 The starter closure contains 21 authored gestures, 72 reactions and no required
 Idle Style. The tracked-only staging gate still fails on an unavailable selected
 dependency, even if an ignored local copy exists. Full native stage and packaged

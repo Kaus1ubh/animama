@@ -1126,6 +1126,8 @@ Included library supplies both starters without Mixamo animations. Report any
 missing required dependency instead of substituting private or synthetic assets.
 [Mixamo acquisition and conversion](../../frontend/runtime/mixamo-acquisition.md)
 are optional steps for adding Local motions; neither is a startup prerequisite.
+The non-portable [Mixamo-motion pack](mixamo-motion-pack.md) is a private build
+input for desktop and hosted builds, not a development requirement.
 
 Install host dependencies only for the host commands the task needs. A
 Compose-only run uses image dependencies and its project-scoped frontend volume;

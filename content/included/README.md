@@ -41,6 +41,14 @@ Files remain available in the private development checkout. The exclusion is
 not a deletion or an approval for other distribution paths, including a future
 public source repository. User-imported local media remains supported.
 
+`"distribution": "non-portable"` marks content that plays in the product but
+never leaves it as files. It is also omitted from both desktop partitions: such
+content ships only as its own private Included source, like the
+[Mixamo-motion pack](../../docs/backend/operations/mixamo-motion-pack.md), which
+has its own tracked licence inventory (`scripts/mixamo-motion/inventory.json`).
+This library holds no non-portable content. See
+[ADR 0015](../../docs/adr/0015-non-portable-included-content.md).
+
 The private comedy sound pack under ignored `sfx/comedy/1/` has no distribution
 license. Shipped effects and the shy-finger-poke gesture intentionally omit its
 decorative audio cues while retaining their visuals and motion. Desktop staging

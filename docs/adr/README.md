@@ -28,6 +28,7 @@ production readiness or publication rights.
 | 0012 | [Parakeet speech models as backend model assets](0012-backend-parakeet-model-assets.md)                                                            | accepted                              |
 | 0013 | [Native Windows desktop packaging](0013-native-windows-desktop-packaging.md)                                                                       | accepted                              |
 | 0014 | [Track-based Anima Pose Clips organised by beats](0014-track-based-anima-pose-clips.md)                                                            | accepted                              |
+| 0015 | [Non-portable Included content for licensed built-in motion](0015-non-portable-included-content.md)                                                | proposed                              |
 
 ## When and how to record a decision
 

@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "rules": [
+    {
+      "glob": "**",
+      "creator": "Adobe Mixamo; converted to VRMA by the Animama project owner",
+      "license_id": "LicenseRef-Adobe-Mixamo-embedded-product",
+      "provenance": "Mixamo animations downloaded by the Animama project owner under the owner's Adobe account and converted to VRMA. Shipped only inside the desktop app and the hosted service as non-portable Included content for avatar playback: never in source, self-host images or public packages, never exportable or copyable, and never used to create, train, test or improve machine-learning systems. Per-clip provenance is kept privately by the owner. Decision: https://github.com/raymond-van/animama/issues/242 and docs/adr/0015-non-portable-included-content.md.",
+      "redistribution_review": "pending",
+      "distribution": "non-portable"
+    }
+  ]
+}
