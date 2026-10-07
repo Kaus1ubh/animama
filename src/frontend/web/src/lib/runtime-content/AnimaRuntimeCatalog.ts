@@ -31,9 +31,9 @@ import type {
 } from "@/lib/avatar/poses/animaPose";
 import {
   MAX_ANIMA_POSE_CLIP_BYTES,
-  parseAnimaPoseClip,
+  parseAnyAnimaPoseClip,
   validateAnimaPoseClipEventCatalogRefs,
-  type AnimaPoseClip,
+  type AnyAnimaPoseClip,
   type AnimaPoseClipEventCatalogRefDiagnostics,
 } from "@/lib/avatar/poses/animaPoseClip";
 import type { NormalizedEmotionReactionIntensity } from "@/lib/avatar/reactionClips";
@@ -128,19 +128,19 @@ export class AnimaRuntimeCatalog
     string,
     AvatarMotionClipDescriptor
   >();
-  private readonly poseClips = new Map<string, AnimaPoseClip>();
-  private readonly reactionClips = new Map<string, AnimaPoseClip>();
+  private readonly poseClips = new Map<string, AnyAnimaPoseClip>();
+  private readonly reactionClips = new Map<string, AnyAnimaPoseClip>();
   private readonly lazyPoseClips = new Map<string, LazyClipSource>();
   private readonly lazyReactionClips = new Map<string, LazyClipSource>();
   private readonly poseClipSources = new Map<string, RuntimeCatalogEntry>();
   private readonly rejectedPoseRuntimeIds = new Set<string>();
   private readonly pendingPoseClips = new Map<
     string,
-    Promise<AnimaPoseClip | null>
+    Promise<AnyAnimaPoseClip | null>
   >();
   private readonly pendingReactionClips = new Map<
     string,
-    Promise<AnimaPoseClip | null>
+    Promise<AnyAnimaPoseClip | null>
   >();
   private readonly vrmaResources = new Map<string, AvatarVrmaResource>();
   private readonly vrmaCache: NonNullable<AvatarVrmaResource["cache"]> =
@@ -471,11 +471,11 @@ export class AnimaRuntimeCatalog
     ];
   }
 
-  getPoseClip(runtimeId: string): AnimaPoseClip | null {
+  getPoseClip(runtimeId: string): AnyAnimaPoseClip | null {
     return this.poseClips.get(normalizeFile(runtimeId)) ?? null;
   }
 
-  loadPoseClip(runtimeId: string): Promise<AnimaPoseClip | null> {
+  loadPoseClip(runtimeId: string): Promise<AnyAnimaPoseClip | null> {
     if (
       this.pending("pose", runtimeId) ||
       this.pending("gesture", runtimeId) ||
@@ -498,11 +498,11 @@ export class AnimaRuntimeCatalog
     }));
   }
 
-  getReactionClip(runtimeId: string): AnimaPoseClip | null {
+  getReactionClip(runtimeId: string): AnyAnimaPoseClip | null {
     return this.reactionClips.get(normalizeFile(runtimeId)) ?? null;
   }
 
-  loadReactionClip(runtimeId: string): Promise<AnimaPoseClip | null> {
+  loadReactionClip(runtimeId: string): Promise<AnyAnimaPoseClip | null> {
     if (this.pending("reaction", runtimeId)) return Promise.resolve(null);
     return this.loadClip(
       normalizeFile(runtimeId),
@@ -931,7 +931,9 @@ export class AnimaRuntimeCatalog
     return true;
   }
 
-  private resolveBuiltInClip(entry: RuntimeCatalogEntry): AnimaPoseClip | null {
+  private resolveBuiltInClip(
+    entry: RuntimeCatalogEntry,
+  ): AnyAnimaPoseClip | null {
     if (entry.source.type !== "runtime_catalog") return null;
     if (entry.source.catalog === "avatar_pose_clips") {
       return BUILT_IN_AVATAR_MOTION_CATALOG.getPoseClip(entry.source.key);
@@ -945,10 +947,10 @@ export class AnimaRuntimeCatalog
   private loadClip(
     runtimeId: string,
     slot: "pose" | "reaction",
-    loaded: Map<string, AnimaPoseClip>,
+    loaded: Map<string, AnyAnimaPoseClip>,
     lazy: Map<string, LazyClipSource>,
-    pending: Map<string, Promise<AnimaPoseClip | null>>,
-  ): Promise<AnimaPoseClip | null> {
+    pending: Map<string, Promise<AnyAnimaPoseClip | null>>,
+  ): Promise<AnyAnimaPoseClip | null> {
     if (!runtimeId || this.disposed) return Promise.resolve(null);
     const existing = loaded.get(runtimeId);
     if (existing) return Promise.resolve(existing);
@@ -983,7 +985,7 @@ export class AnimaRuntimeCatalog
 
   private async fetchClip(
     source: LazyClipSource,
-  ): Promise<AnimaPoseClip | null> {
+  ): Promise<AnyAnimaPoseClip | null> {
     const controller = new AbortController();
     this.abortControllers.add(controller);
     try {
@@ -1001,13 +1003,13 @@ export class AnimaRuntimeCatalog
           `Motion manifest fetch failed with HTTP ${response.status}`,
         );
       }
-      let parsed: AnimaPoseClip;
+      let parsed: AnyAnimaPoseClip;
       try {
         const payload = await readBoundedJsonResponse(
           response,
           MAX_ANIMA_POSE_CLIP_BYTES,
         );
-        parsed = parseAnimaPoseClip(payload);
+        parsed = parseAnyAnimaPoseClip(payload);
       } catch (error) {
         this.diagnostics.push({
           code: "invalid_motion_manifest",
@@ -1028,8 +1030,8 @@ export class AnimaRuntimeCatalog
 
   private normalizeLoadedClip(
     entry: RuntimeCatalogEntry,
-    clip: AnimaPoseClip,
-  ): AnimaPoseClip | null {
+    clip: AnyAnimaPoseClip,
+  ): AnyAnimaPoseClip | null {
     const referenceMap =
       entry.config.runtime_reference_map &&
       typeof entry.config.runtime_reference_map === "object"
@@ -1053,7 +1055,7 @@ export class AnimaRuntimeCatalog
         effectId: String(referenceMap[event.effectId] ?? event.effectId),
       };
     });
-    const normalized = parseAnimaPoseClip({
+    const normalized = parseAnyAnimaPoseClip({
       ...clip,
       id: normalizeFile(entry.runtime_id),
       name: entry.display_name,

@@ -1,0 +1,302 @@
+:root {
+  --bg: #f4f3ef;
+  --panel: #ffffff;
+  --text: #1f1f1d;
+  --muted: #6b6a64;
+  --line: #dddbd3;
+  --accent: #3b6fd8;
+  --accent-soft: #e4ecfb;
+  --open: #b8610d;
+  --resolved: #2f7d4f;
+  --error: #b42318;
+  font-family:
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    sans-serif;
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+}
+
+button,
+select,
+textarea,
+input {
+  font: inherit;
+}
+
+button {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  border-radius: 6px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+button:hover {
+  border-color: var(--accent);
+}
+
+button[aria-pressed="true"] {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.bar h1 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.small {
+  font-size: 12px;
+}
+
+.error {
+  color: var(--error);
+}
+
+.errors {
+  margin: 8px 16px 0;
+  padding: 8px 12px;
+  border: 1px solid var(--error);
+  border-radius: 6px;
+  background: #fff4f2;
+  color: var(--error);
+  white-space: pre-wrap;
+}
+
+.stage {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  min-height: 0;
+}
+
+.views {
+  position: relative;
+  min-height: 0;
+}
+
+#canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.view-label {
+  position: absolute;
+  padding: 2px 6px;
+  font-size: 12px;
+  background: rgb(255 255 255 / 80%);
+  border-radius: 4px;
+  pointer-events: none;
+}
+
+.notes {
+  border-left: 1px solid var(--line);
+  background: var(--panel);
+  padding: 12px 14px;
+  overflow: auto;
+}
+
+.notes h2 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.field {
+  display: grid;
+  gap: 3px;
+  margin-bottom: 8px;
+  flex: 1;
+}
+
+.field > span {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.field.inline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  flex: none;
+}
+
+textarea,
+select {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 4px 6px;
+  background: var(--panel);
+  width: 100%;
+}
+
+.field.inline select {
+  width: auto;
+}
+
+/* Long Library names must not push the status off the bar. */
+.picker select {
+  max-width: 260px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.notes-list {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.note {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px;
+  cursor: pointer;
+}
+
+.note:hover {
+  border-color: var(--accent);
+}
+
+.note-head {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.note-status {
+  margin-left: auto;
+  font-weight: 600;
+}
+
+.note-status.open {
+  color: var(--open);
+}
+
+.note-status.resolved {
+  color: var(--resolved);
+}
+
+.note p {
+  margin: 4px 0 0;
+}
+
+.note .resolution {
+  color: var(--resolved);
+  font-size: 12px;
+}
+
+.transport {
+  border-top: 1px solid var(--line);
+  padding: 8px 16px 12px;
+  display: grid;
+  gap: 6px;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.time {
+  font-variant-numeric: tabular-nums;
+  min-width: 120px;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.segmented {
+  display: flex;
+  gap: 2px;
+}
+
+.scrubber {
+  position: relative;
+  padding-bottom: 24px;
+}
+
+.scrubber input {
+  width: 100%;
+}
+
+.markers {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  top: 20px;
+  height: 22px;
+}
+
+.marker {
+  position: absolute;
+  transform: translateX(-50%);
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+  border: none;
+  background: none;
+  padding: 0;
+}
+
+.marker::before {
+  content: "";
+  display: block;
+  width: 2px;
+  height: 6px;
+  margin: 0 auto 1px;
+  background: var(--accent);
+}
+
+@media (max-width: 900px) {
+  .stage {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr auto;
+  }
+  .notes {
+    border-left: none;
+    border-top: 1px solid var(--line);
+    max-height: 40vh;
+  }
+}

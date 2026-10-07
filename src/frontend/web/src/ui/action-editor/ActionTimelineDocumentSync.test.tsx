@@ -171,7 +171,7 @@ describe("ActionTimelineDocumentSync history roundtrip", () => {
     renderSync();
     renderSync();
     const authored = actionAuthoringSnapshot(document);
-    expect(authored.sequence.poseKeyframes).toHaveLength(2);
+    expect(authored.sequence.beats).toHaveLength(2);
     expect(history.past).toHaveLength(1);
 
     history = undoCreatorHistory(history);

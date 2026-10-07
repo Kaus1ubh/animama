@@ -74,8 +74,9 @@ reactions/happy/
 ```
 
 The `.meta.json` file is the typed Action control document; the `.json` file is
-the actual `animaPoseClip/1.0` sequence owned by that Action. Idle Styles reference
-Gestures whose Action files contain their clip or VRMA. Independently reusable VFX and
+the actual `animaPoseClip/1.0` or `animaPoseClip/2.0` sequence owned by that
+Action. Idle Styles reference Gestures whose Action files contain their clip or
+VRMA. Independently reusable VFX and
 SFX remain typed dependencies and are included through the runtime/package
 closure.
 

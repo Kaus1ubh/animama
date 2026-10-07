@@ -45,7 +45,7 @@ from .avatar_effect_conversion import (
     avatar_effect_validation_error,
 )
 from .content_voice import POCKET_CLONE_CODEC, validate_pocket_clone_document
-from .idle_clip_validation import validate_idle_clip_timeline
+from .idle_clip_validation import ANIMA_POSE_CLIP_V2_SCHEMA, validate_clip_v2_timeline, validate_idle_clip_timeline
 from .pocket_voice_catalog import MAX_POCKET_VOICE_CATALOG_BYTES, validate_pocket_voice_catalog_bytes
 
 MAX_DEFINITION_BYTES = 16 * 1024 * 1024
@@ -65,6 +65,7 @@ SUPPORTED_CAPABILITIES = frozenset(
     {
         "animaPose/1.0",
         "animaPoseClip/1.0",
+        "animaPoseClip/2.0",
         "VRM/0.0",
         "VRMC_vrm/1.0",
         "VRMC_vrm_animation/1.0",
@@ -499,7 +500,8 @@ def _clip_event_dependencies(
 def _clip(
     value: dict[str, Any], document: TypedContentDocument, documents: Mapping[str, TypedContentDocument] | None
 ) -> set[str]:
-    _require(value.get("schema") == "animaPoseClip/1.0", "Unsupported Action clip schema")
+    schema = value.get("schema")
+    _require(schema in {"animaPoseClip/1.0", ANIMA_POSE_CLIP_V2_SCHEMA}, "Unsupported Action clip schema")
     _booleans(value, "loop")
     duration = None if "duration" not in value else _number(value["duration"], "Clip duration")
     _require(duration is None or duration > 0, "Clip duration must be positive")
@@ -533,13 +535,23 @@ def _clip(
         _require(len(set(values)) == len(values), "Clip lifetime selections must be unique")
     # The existing validator admits the same timeline/pose/event primitives. Its
     # finite-idle policy excludes lifetime, already checked above for general Actions.
+    timeline = {key: item for key, item in value.items() if key != "playback"}
     try:
-        validate_idle_clip_timeline({key: item for key, item in value.items() if key != "playback"}, duration)
+        if schema == ANIMA_POSE_CLIP_V2_SCHEMA:
+            validate_clip_v2_timeline(timeline)
+        else:
+            validate_idle_clip_timeline(timeline, duration)
     except ContentDocumentError as exc:
         raise ContentDocumentError(
             "package_definition_invalid", str(exc).replace("Gesture clip", "Action clip")
         ) from exc
     _clip_event_dependencies(value, document, documents)
+    if schema == ANIMA_POSE_CLIP_V2_SCHEMA:
+        # 2.0 tracks hold values; only the base pose names a built-in Pose.
+        requirements = {ANIMA_POSE_CLIP_V2_SCHEMA}
+        if "basePose" in value:
+            requirements.add(_builtin_pose(value["basePose"]))
+        return requirements
     requirements = {"animaPoseClip/1.0", "animaPose/1.0"}
     if "basePose" in value:
         requirements.add(_builtin_pose(value["basePose"]))

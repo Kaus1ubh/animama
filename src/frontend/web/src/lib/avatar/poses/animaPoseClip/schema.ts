@@ -44,6 +44,8 @@ const TIME_FIELDS: ReadonlySet<string> = new Set([
   "fadeOut",
   "from",
   "to",
+  // 2.0 key offsets from their beat.
+  "dt",
 ]);
 
 /** Round to fixed decimal places without emitting negative zero. */
@@ -56,8 +58,8 @@ export function roundAnimaPoseClipNumber(
 }
 
 /**
- * Serialize a clip as a saved file: compact JSON with fractions rounded to
- * {@link ANIMA_POSE_CLIP_DECIMALS}. Generated clips repeat every animated bone
+ * Serialize a 1.0 or 2.0 clip as a saved file: compact JSON with fractions
+ * rounded to {@link ANIMA_POSE_CLIP_DECIMALS}. Generated clips repeat every animated bone
  * in each keyframe, so indentation and 17-digit renormalized quaternions would
  * roughly quadruple the file.
  */
@@ -67,8 +69,12 @@ export function serializeAnimaPoseClipFile(clip: unknown): string {
       ? roundAnimaPoseClipNumber(value, decimals)
       : value;
   return `${JSON.stringify(clip, (key, value: unknown) => {
+    // `q` holds 2.0 rotation-track quaternions.
     if (
-      (key === "rotation" || key === "position" || key === "scale") &&
+      (key === "rotation" ||
+        key === "position" ||
+        key === "scale" ||
+        key === "q") &&
       Array.isArray(value)
     )
       return value.map((entry) =>
@@ -1273,3 +1279,13 @@ function getAuthoredTimelineDuration(
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
+
+// The 2.0 parser keeps 1.0's easing names and its fade, playback, role and
+// event rules.
+export {
+  KNOWN_EASINGS as KNOWN_ANIMA_POSE_CLIP_EASINGS,
+  sanitizeClipEvents as sanitizeAnimaPoseClipEvents,
+  sanitizeClipRole as sanitizeAnimaPoseClipRole,
+  sanitizeFade as sanitizeAnimaPoseClipFade,
+  sanitizePlayback as sanitizeAnimaPoseClipPlayback,
+};

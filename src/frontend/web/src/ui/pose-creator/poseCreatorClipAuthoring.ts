@@ -1,12 +1,29 @@
 import { type VRMPose, type VRMPoseTransform } from "@pixiv/three-vrm";
+import {
+  isAnimaPoseClipV2,
+  parseAnyAnimaPoseClip,
+  type AnyAnimaPoseClip,
+} from "@/lib/avatar/poses/animaPoseClip/anyClip";
+import {
+  beatDetailSummary,
+  fitContactsToClip,
+  type BeatDetailSummary,
+} from "@/lib/avatar/poses/animaPoseClip/beatEditing";
+import { convertAnimaPoseClipToV2 } from "@/lib/avatar/poses/animaPoseClip/convertV2";
 import type { AnimaPoseClipMutableLayerId } from "@/lib/avatar/poses/animaPoseClip/schema";
+import { getResolvedAvatarPose } from "@/lib/avatar/poses/catalog";
+import {
+  ANIMA_POSE_CLIP_V2_SCHEMA,
+  validateAnimaPoseClipV2,
+  type AnimaPoseClipEase,
+  type AnimaPoseClipV2,
+} from "@/lib/avatar/poses/animaPoseClip/schemaV2";
 
 import {
   DEFAULT_ANIMA_POSE_CLIP_TRANSITION,
   ANIMA_POSE_CLIP_SCHEMA,
   cloneVRMPose,
   cloneVRMPoseTransform,
-  getAnimaPoseClipTimelineDuration,
   cloneParticleVFXTransform,
   isAnimaPoseClipRef,
   isAnimaPoseClipVFXEvent,
@@ -39,6 +56,12 @@ export type PoseCreatorAuthoringMode = "pose" | "clip";
 
 export type PoseCreatorClipKeyframeDraft = AnimaPoseClipKeyframe & {
   id: string;
+  /** 2.0 drafts: the beat's readable name. */
+  label?: string;
+  /** 2.0 drafts: how motion arrives at the beat's keys. */
+  ease?: AnimaPoseClipEase;
+  /** 2.0 drafts: the beat's generated detail, null when it has none. */
+  detail?: BeatDetailSummary | null;
 };
 
 export type PoseCreatorClipEventDraft = AnimaPoseClipEvent;
@@ -49,6 +72,10 @@ export type PoseCreatorClipKeyframeDraftPatch = Partial<
   Pick<PoseCreatorClipKeyframeDraft, "time" | "pose">
 > & {
   transition?: AnimaPoseClipTransition | null;
+  /** 2.0 drafts: the beat's arrival ease (null restores the defaults). */
+  ease?: AnimaPoseClipEase | null;
+  /** 2.0 drafts: the beat's label. */
+  label?: string;
 };
 
 export type PoseCreatorClipEventDraftPatch = {
@@ -104,6 +131,12 @@ export type PoseCreatorClipDraft = {
   extraFields: Record<string, unknown>;
   poses: Record<string, AnimaPoseClipPose>;
   keyframes: PoseCreatorClipKeyframeDraft[];
+  /**
+   * The beats and tracks of a draft opened from an `animaPoseClip/2.0` clip.
+   * When present it is the source of truth and `keyframes`/`poses` are its
+   * view (see poseCreatorClipMotion.ts).
+   */
+  motion?: PoseCreatorClipMotion;
   events: PoseCreatorClipEventDraft[];
   currentTimeSec: number;
   selectedKeyframeId: string | null;
@@ -193,6 +226,7 @@ export function createDefaultPoseCreatorClipDraft(
     extraFields: {},
     poses: {},
     keyframes: [],
+    motion: { beats: [] },
     events: [],
     currentTimeSec: 0,
     selectedKeyframeId: null,
@@ -227,6 +261,8 @@ export function isPoseCreatorBaseKeyframe(
   draft: PoseCreatorClipDraft,
   frame: PoseCreatorClipKeyframeDraft,
 ): boolean {
+  // 2.0 drafts mark base endpoints with beats labelled "Base".
+  if (draft.motion) return frame.label === POSE_CREATOR_BASE_BEAT_LABEL;
   const pose = draft.poses[frame.pose];
   return Boolean(
     pose && isAnimaPoseClipRef(pose) && pose.ref === draft.basePose,
@@ -288,7 +324,20 @@ export function patchPoseCreatorClipDraft(
 export function buildAnimaPoseClipFromPoseCreatorDraft(
   draft: PoseCreatorClipDraft,
   options: PoseCreatorClipValidationOptions = {},
-): AnimaPoseClip | null {
+): AnyAnimaPoseClip | null {
+  if (draft.motion) {
+    // One 2.0 validation covers the beat and track rules.
+    if (
+      hasPoseCreatorClipValidationErrors(
+        validatePoseCreatorClipDraftFields(draft, options),
+      )
+    )
+      return null;
+    const result = validateAnimaPoseClipV2(
+      poseCreatorMotionClip(draft, draft.motion, options),
+    );
+    return result.ok ? result.clip : null;
+  }
   const validationIssues = validatePoseCreatorClipDraft(draft, options);
   if (hasPoseCreatorClipValidationErrors(validationIssues)) return null;
 
@@ -338,6 +387,97 @@ export function buildAnimaPoseClipFromPoseCreatorDraft(
   }
 }
 
+/** The beat and track fields of a 2.0 clip. */
+export type PoseCreatorClipMotion = Pick<AnimaPoseClipV2, "beats"> &
+  Partial<
+    Pick<
+      AnimaPoseClipV2,
+      | "joints"
+      | "rotations"
+      | "hipsPosition"
+      | "hands"
+      | "expressions"
+      | "contacts"
+      | "plantFeet"
+    >
+  >;
+
+const MOTION_FIELDS = [
+  "beats",
+  "joints",
+  "rotations",
+  "hipsPosition",
+  "hands",
+  "expressions",
+  "contacts",
+  "plantFeet",
+] as const;
+
+/** 2.0 fields a draft owns besides those 1.0 drafts own. */
+export const POSE_CREATOR_MOTION_FIELDS: ReadonlySet<string> = new Set(
+  MOTION_FIELDS,
+);
+
+/** The label of beats that hold the base pose at the clip's start or end. */
+export const POSE_CREATOR_BASE_BEAT_LABEL = "Base";
+
+export function motionFromClip(clip: AnimaPoseClipV2): PoseCreatorClipMotion {
+  const motion: PoseCreatorClipMotion = { beats: [] };
+  for (const field of MOTION_FIELDS)
+    if (clip[field] !== undefined)
+      (motion as Record<string, unknown>)[field] = structuredClone(clip[field]);
+  return motion;
+}
+
+/** The draft as an (unvalidated) 2.0 clip. */
+export function poseCreatorMotionClip(
+  draft: PoseCreatorClipDraft,
+  motion: PoseCreatorClipMotion,
+  options: PoseCreatorClipValidationOptions = {},
+): AnimaPoseClipV2 {
+  return fitContactsToClip({
+    ...structuredClone(draft.extraFields),
+    ...serializePoseCreatorClipLayerMutes(draft),
+    schema: ANIMA_POSE_CLIP_V2_SCHEMA,
+    id: draft.id.trim(),
+    name: draft.name.trim() || DEFAULT_POSE_CREATOR_CLIP_NAME,
+    duration: draft.duration,
+    ...(draft.loop ? { loop: true } : {}),
+    ...(draft.basePose && draft.basePose !== options.omittedBasePoseId
+      ? { basePose: draft.basePose }
+      : {}),
+    ...(draft.fadeIn && draft.fadeIn.duration > 0
+      ? { fadeIn: clonePoseCreatorClipFade(draft.fadeIn) }
+      : {}),
+    ...(draft.fadeOut && draft.fadeOut.duration > 0
+      ? { fadeOut: clonePoseCreatorClipFade(draft.fadeOut) }
+      : {}),
+    ...structuredClone(motion),
+    ...(draft.events.length > 0
+      ? {
+          events: sortPoseCreatorClipEvents(draft.events).map(
+            clonePoseCreatorClipEvent,
+          ),
+        }
+      : {}),
+  } as AnimaPoseClipV2);
+}
+
+/** The timeline view of beats: one keyframe per beat. */
+export function poseCreatorMotionKeyframes(
+  clip: Pick<AnimaPoseClipV2, "beats"> & Partial<AnimaPoseClipV2>,
+): PoseCreatorClipKeyframeDraft[] {
+  const full = clip as AnimaPoseClipV2;
+  return clip.beats.map((beat) => ({
+    id: beat.id,
+    time: beat.time,
+    pose: beat.id,
+    label: beat.label,
+    ...(beat.ease ? { ease: beat.ease } : {}),
+    detail: beatDetailSummary(full, beat.id),
+  }));
+}
+
 /** Top-level clip fields the editor owns; everything else is passed through. */
 const POSE_CREATOR_OWNED_CLIP_FIELDS = new Set([
   "schema",
@@ -361,7 +501,11 @@ export function getPoseCreatorClipExtraFields(
 ): Record<string, unknown> {
   return Object.fromEntries(
     Object.entries(clip)
-      .filter(([key]) => !POSE_CREATOR_OWNED_CLIP_FIELDS.has(key))
+      .filter(
+        ([key]) =>
+          !POSE_CREATOR_OWNED_CLIP_FIELDS.has(key) &&
+          !POSE_CREATOR_MOTION_FIELDS.has(key),
+      )
       .map(([key, value]) => [key, structuredClone(value)]),
   );
 }
@@ -379,54 +523,65 @@ export function createPoseCreatorClipDraftFromAnimaPoseClip(
   value: unknown,
   options: PoseCreatorClipImportOptions,
 ): PoseCreatorClipDraft {
-  const clip = parseAnimaPoseClip(value);
-  const keyframes: PoseCreatorClipKeyframeDraft[] = [];
-  const usedKeyframeIds = new Set<string>();
-  const events = sortPoseCreatorClipEvents(
-    (clip.events ?? []).map(clonePoseCreatorClipEvent),
+  const parsed = parseAnyAnimaPoseClip(value);
+  // Every draft edits as beats: 1.0 clips open converted, one beat per keyframe.
+  return createPoseCreatorClipDraftFromV2(
+    isAnimaPoseClipV2(parsed) ? parsed : convertPoseCreatorClipToV2(parsed),
+    options,
   );
+}
 
-  for (const keyframe of clip.poseKeyframes) {
-    const id = generatePoseCreatorClipKeyframeId(usedKeyframeIds);
-    usedKeyframeIds.add(id);
-    keyframes.push({
-      id,
-      time: keyframe.time,
-      pose: keyframe.pose,
-      ...(keyframe.transition
-        ? { transition: clonePoseCreatorClipTransition(keyframe.transition) }
-        : {}),
-    });
+/** Resolves catalog poses the way creator playback does. */
+export function resolvePoseCreatorCatalogPose(id: string) {
+  try {
+    return getResolvedAvatarPose(id);
+  } catch {
+    return null;
   }
+}
 
-  const firstKeyframe = keyframes[0] ?? null;
-  const timelineDuration = getAnimaPoseClipTimelineDuration(clip);
+/**
+ * A 1.0 clip as 2.0, with pose references resolved from the catalog and base
+ * endpoints labelled as Base beats.
+ */
+export function convertPoseCreatorClipToV2(
+  clip: AnimaPoseClip,
+): AnimaPoseClipV2 {
+  return convertAnimaPoseClipToV2(clip, resolvePoseCreatorCatalogPose, {
+    baseBeatLabel: POSE_CREATOR_BASE_BEAT_LABEL,
+  });
+}
+
+/** A 2.0 clip as a draft whose motion is the clip's beats and tracks. */
+function createPoseCreatorClipDraftFromV2(
+  clip: AnimaPoseClipV2,
+  options: PoseCreatorClipImportOptions,
+): PoseCreatorClipDraft {
+  const keyframes = poseCreatorMotionKeyframes(clip);
+  const first = keyframes[0] ?? null;
   return withPoseCreatorClipValidation(
     {
       id: clip.id,
       name: clip.name,
-      // Legacy reaction clips can be lifetime-driven and therefore have no
-      // finite editor duration. Imported clips are generic, so give
-      // those retained App documents a deterministic finite save timeline.
-      duration: timelineDuration > 0 ? timelineDuration : clip.playback ? 1 : 0,
+      duration: clip.duration,
       loop: clip.loop === true,
-      // Absence is an explicit standalone snapshot, never an implicit live default.
       basePose: clip.basePose ?? "",
-      defaultTransition: clip.defaultTransition
-        ? clonePoseCreatorClipTransition(clip.defaultTransition)
-        : cloneDefaultTransition(),
+      defaultTransition: cloneDefaultTransition(),
       ...(clip.fadeIn ? { fadeIn: clonePoseCreatorClipFade(clip.fadeIn) } : {}),
       ...(clip.fadeOut
         ? { fadeOut: clonePoseCreatorClipFade(clip.fadeOut) }
         : {}),
       mutedProceduralLayers: [...(clip.mutedProceduralLayers ?? [])],
       extraFields: getPoseCreatorClipExtraFields(clip),
-      poses: clonePoseCreatorClipPoses(clip.poses),
+      poses: Object.fromEntries(keyframes.map(({ pose }) => [pose, {}])),
       keyframes,
-      events,
-      currentTimeSec: firstKeyframe?.time ?? 0,
-      selectedKeyframeId: firstKeyframe?.id ?? null,
-      selectedPoseAlias: firstKeyframe?.pose ?? null,
+      motion: motionFromClip(clip),
+      events: sortPoseCreatorClipEvents(
+        (clip.events ?? []).map(clonePoseCreatorClipEvent),
+      ),
+      currentTimeSec: first?.time ?? 0,
+      selectedKeyframeId: first?.id ?? null,
+      selectedPoseAlias: first?.pose ?? null,
       selectedEventId: null,
       isDirty: true,
       validationIssues: [],
@@ -438,14 +593,15 @@ export function createPoseCreatorClipDraftFromAnimaPoseClip(
 export function buildPoseCreatorClipForExport(
   draft: PoseCreatorClipDraft,
   options: PoseCreatorClipExportOptions,
-): AnimaPoseClip | null {
+): AnyAnimaPoseClip | null {
   const validationIssues = validatePoseCreatorClipDraft(draft, options);
   if (hasPoseCreatorClipValidationErrors(validationIssues)) return null;
 
   const clip = buildAnimaPoseClipFromPoseCreatorDraft(draft, options);
   if (!clip) return null;
 
-  if (options.mode === "referenced") return clip;
+  // 2.0 tracks hold values; only 1.0 pose references can be baked.
+  if (options.mode === "referenced" || isAnimaPoseClipV2(clip)) return clip;
   return bakePoseCreatorClipReferences(clip, options);
 }
 
@@ -454,7 +610,7 @@ export function formatPoseCreatorClipJsonForExport(
   options: PoseCreatorClipExportOptions,
 ): string | null {
   const clip = buildPoseCreatorClipForExport(draft, options);
-  return clip ? JSON.stringify(parseAnimaPoseClip(clip), null, 2) : null;
+  return clip ? JSON.stringify(parseAnyAnimaPoseClip(clip), null, 2) : null;
 }
 
 export function bakePoseCreatorClipReferences(
@@ -518,6 +674,29 @@ export function bakePoseCreatorClipReferences(
 export function validatePoseCreatorClipDraft(
   draft: PoseCreatorClipDraft,
   options: PoseCreatorClipValidationOptions = {},
+): PoseCreatorClipValidationIssue[] {
+  const issues = validatePoseCreatorClipDraftFields(draft, options);
+  // 2.0 drafts also follow the beat and track rules.
+  if (draft.motion && draft.keyframes.length > 0) {
+    const result = validateAnimaPoseClipV2(
+      poseCreatorMotionClip(draft, draft.motion, options),
+    );
+    if (!result.ok)
+      for (const issue of result.issues)
+        issues.push({
+          severity: "error",
+          code: "invalid-beat-track",
+          message: `${issue.path}: ${issue.message}`,
+          target: issue.path,
+        });
+  }
+  return issues;
+}
+
+/** The draft-level checks, without a 2.0 draft's beat and track rules. */
+function validatePoseCreatorClipDraftFields(
+  draft: PoseCreatorClipDraft,
+  options: PoseCreatorClipValidationOptions,
 ): PoseCreatorClipValidationIssue[] {
   const issues: PoseCreatorClipValidationIssue[] = [];
   const localAliases = new Set(Object.keys(draft.poses));
@@ -1281,17 +1460,6 @@ function clonePoseCreatorClipVFXParameterKeyframe(
       ? { transition: clonePoseCreatorClipTransition(keyframe.transition) }
       : {}),
   };
-}
-
-function clonePoseCreatorClipPoses(
-  poses: Record<string, AnimaPoseClipPose>,
-): Record<string, AnimaPoseClipPose> {
-  return Object.fromEntries(
-    Object.entries(poses).map(([alias, pose]) => [
-      alias,
-      clonePoseCreatorClipPose(pose),
-    ]),
-  );
 }
 
 function resolvePoseSnapshot(

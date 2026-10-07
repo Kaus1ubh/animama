@@ -5,9 +5,11 @@ chat size, feels weighted and alive, and suits a desktop companion.
 
 ## Plan in beats
 
-Write the prompt as 3–6 beats with times before keying anything, for example
-"wave hello": anticipation 0–0.15 s, raise 0.15–0.55 s, three waves
-0.55–1.8 s, lower 1.8–2.45 s, settle to 2.6 s.
+Write the prompt as 3–8 beats with times before keying anything; they become
+the clip's `beats`. For example "wave hello": start 0, raise 0.5 s, wave
+0.9 s, lower 2.0 s, settle 2.5 s, with the anticipation keyed just before
+"raise". Label beats by what the viewer sees, so the owner can retime them in
+the creator.
 
 | Kind | Typical length | Shape |
 | --- | --- | --- |
@@ -26,9 +28,9 @@ already in position (hand on chin) is reached during its fade-in, so give it
   draw the head back 2–4°, inhale with the chest) 0.1–0.2 s ahead.
 - **Staggered timing (overlap):** never key every region at the same time.
   Order of arrival for most gestures: eyes/head → chest/spine → upper arm →
-  forearm → hand → fingers, each 0.03–0.12 s behind the previous. The
-  generator interpolates each component independently, so offset key times
-  per joint.
+  forearm → hand → fingers, each 0.03–0.12 s behind the previous. Each
+  component interpolates independently, so offset key times per joint with
+  `dt` on the shared beat.
 - **Follow-through and settle:** let the trailing segment pass its target and
   come back (overshoot 3–8° on forearm/hand, 1–3° on the head) instead of
   stopping dead. Overshoot must be authored as an extra key; `auto` tangents
@@ -57,9 +59,9 @@ face center unless the prompt calls for it (and declare the contact).
 
 ## Loops
 
-A loop's keys at 0 and the duration must match (validation enforces it). When
-a track's keys start later or end earlier, the generator blends from its last
-key back to its first across the seam rather than holding. Build
+A loop's values at 0 and at the duration must match (the loop seam check
+enforces it). When a track's keys start later or end earlier, playback blends
+from its last key back to its first across the seam rather than holding. Build
 held loops as small oscillations around the held pose with different periods
 per region (for example head 2.4 s, chest 1.2 s within a 2.4 s loop) so the
 repetition is not obvious. Hand-shape and expression tracks in loops should

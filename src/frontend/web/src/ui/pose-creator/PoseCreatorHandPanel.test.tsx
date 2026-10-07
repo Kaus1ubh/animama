@@ -12,7 +12,7 @@ import { usePoseCreatorStore } from "@/stores/pose-creator-store";
 import { createHandInteractionController } from "./poseCreatorHandInteraction";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { HAND_SEGMENTS } from "./poseCreatorHandAuthoring";
+import { HAND_SEGMENTS } from "@/lib/avatar/poses/anatomy/handPresets";
 import {
   HandAdjustmentControl,
   PoseCreatorHandPanel,

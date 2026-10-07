@@ -2,8 +2,9 @@
 
 ## Hand shapes
 
-Hands use the Gesture creator Hands tool's presets, fitted to the reference
-Avatar, with optional relative `curl` (±90°) and `spread` (±30°):
+Hands use the Gesture creator Hands tool's presets, fitted to each Avatar's
+fingers when it plays, with optional relative `curl` (±90°) and `spread`
+(±30°):
 
 `relaxed`, `fist`, `open-spread`, `open-together`, `point`, `peace`,
 `thumbs-up`.
@@ -11,10 +12,10 @@ Avatar, with optional relative `curl` (±90°) and `spread` (±30°):
 ```json
 "hands": {
   "right": [
-    { "t": 0, "preset": "relaxed" },
-    { "t": 0.4, "preset": "open-together", "spread": 8 },
-    { "t": 1.8, "preset": "open-together", "spread": 8 },
-    { "t": 2.3, "preset": "relaxed" }
+    { "beat": "start", "preset": "relaxed" },
+    { "beat": "raise", "dt": -0.1, "preset": "open-together", "spread": 8 },
+    { "beat": "lower", "dt": -0.2, "preset": "open-together", "spread": 8 },
+    { "beat": "settle", "dt": -0.2, "preset": "relaxed" }
   ]
 }
 ```
@@ -27,8 +28,8 @@ Avatar, with optional relative `curl` (±90°) and `spread` (±30°):
 - For shapes presets cannot make (a pinch, an OK sign, a curled index), key
   finger segments in `joints` (for example `rightIndexDistal.curl`). Keyed
   finger joints replace the preset on that segment for the whole clip.
-- If a shape still needs work, finish it in the creator's Hands tool and
-  record that the saved Gesture differs from the description.
+- If a shape still needs work, finish it in the creator's Hands tool on that
+  beat and say so in the hand-off.
 
 ## Facial expressions
 

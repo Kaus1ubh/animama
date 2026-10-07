@@ -12,12 +12,16 @@ import {
   isPoseCreatorBaseKeyframe,
   patchPoseCreatorClipEventDraft,
 } from "./poseCreatorClipAuthoring";
+import { insertPoseCreatorBeat } from "./poseCreatorClipMotion";
 
 describe("createUniquePoseCreatorClipName", () => {
   it("allows the first authored pose after zero when Start base is off", () => {
-    const draft = createDefaultPoseCreatorClipDraft("relaxedRest");
-    draft.poses = { smile: { expressions: { happy: 0.5 } } };
-    draft.keyframes = [{ id: "late", pose: "smile", time: 1 }];
+    const draft = insertPoseCreatorBeat(
+      createDefaultPoseCreatorClipDraft("relaxedRest"),
+      { timeSec: 1, label: "Smile", pose: { expressions: { happy: 0.5 } } },
+      null,
+    );
+    expect(draft.keyframes.map(({ time }) => time)).toEqual([1]);
     expect(validatePoseCreatorClipDraft(draft)).toEqual([]);
   });
 
@@ -97,7 +101,13 @@ describe("standalone clip hydration", () => {
         },
       });
       expect(exported?.basePose).toBeUndefined();
-      expect(exported?.poses).toEqual(input.poses);
+      // The copied expression is kept by value, with no base posture added.
+      expect(exported).toMatchObject({
+        schema: "animaPoseClip/2.0",
+        beats: [{ time: 0 }],
+        expressions: { happy: [{ v: 0.5 }] },
+      });
+      expect(exported).not.toHaveProperty("rotations");
     }
   });
 });
@@ -174,8 +184,8 @@ describe("event-only authoring", () => {
       mode: "referenced",
     });
     expect(exported).toMatchObject({
-      poses: {},
-      poseKeyframes: [],
+      schema: "animaPoseClip/2.0",
+      beats: [],
       events: [{ id: "chime", kind: "sfx", cueId: "chime", time: 0 }],
     });
     expect(
@@ -183,14 +193,14 @@ describe("event-only authoring", () => {
         fallbackBasePose: "relaxedRest",
       }).events,
     ).toHaveLength(1);
-    draft.events = [];
+    const empty = { ...draft, events: [] };
     expect(
-      validatePoseCreatorClipDraft(draft).some(
+      validatePoseCreatorClipDraft(empty).some(
         (issue) => issue.severity === "error",
       ),
     ).toBe(true);
     expect(
-      buildPoseCreatorClipForExport(draft, { mode: "referenced" }),
+      buildPoseCreatorClipForExport(empty, { mode: "referenced" }),
     ).toBeNull();
   });
 });

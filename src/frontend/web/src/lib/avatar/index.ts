@@ -67,8 +67,12 @@ export type {
 } from "./poses/animaPose";
 export {
   ANIMA_POSE_CLIP_SCHEMA,
+  ANIMA_POSE_CLIP_V2_SCHEMA,
   DEFAULT_ANIMA_POSE_CLIP_TRANSITION,
   analyzeAnimaPoseClipChannels,
+  animaPoseClipHasPose,
+  isAnimaPoseClipV2,
+  parseAnyAnimaPoseClip,
   collectAnimaPoseClipEventsBetween,
   countAnimaPoseClipEventsByKind,
   getAnimaPoseClipFadeDuration,
@@ -90,6 +94,8 @@ export {
 } from "./poses/animaPoseClip";
 export type {
   AnimaPoseClip,
+  AnimaPoseClipV2,
+  AnyAnimaPoseClip,
   AnimaPoseClipActiveVFXEvent,
   AnimaPoseClipAvatarVFXEvent,
   AnimaPoseClipCatalogIdCollection,

@@ -40,7 +40,7 @@ def _document(kind: str, **values: object) -> TypedContentDocument:
     )
 
 
-@pytest.mark.parametrize("capability", ["unknown/1", "animaPoseClip/2.0", "animama/avatar-effect/3"])
+@pytest.mark.parametrize("capability", ["unknown/1", "animaPoseClip/3.0", "animama/avatar-effect/3"])
 def test_rejects_unavailable_renderer_before_install(capability: str) -> None:
     with pytest.raises(ContentDocumentError, match="capability"):
         validate_declared_capabilities([capability])

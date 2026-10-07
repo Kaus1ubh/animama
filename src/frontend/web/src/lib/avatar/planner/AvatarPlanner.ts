@@ -19,7 +19,7 @@ import {
 import {
   getAnimaPoseClipTimelineDuration,
   isAnimaPoseClipPlaybackLifetimeActive,
-  type AnimaPoseClip,
+  type AnyAnimaPoseClip,
 } from "../poses/animaPoseClip";
 import { selectThinkingPoseClip } from "../thinkingPoseSelection";
 import type { NormalizedEmotionReactionIntensity } from "../reactionClips";
@@ -782,7 +782,7 @@ function planReactionClip(args: {
 }
 
 function isReactionClipStartLifetimeActive(
-  clip: AnimaPoseClip | null,
+  clip: AnyAnimaPoseClip | null,
   runId: string | null,
   input: AvatarPlannerInput,
 ): boolean {

@@ -27,7 +27,6 @@ import {
   getResolvedAvatarPose,
   isAnimaPoseClipRef,
   parseAnimaPose,
-  sampleAnimaPoseClip,
   type AnimaPose,
   type AnimaPoseClipPose,
 } from "@/lib/avatar";
@@ -39,6 +38,7 @@ import {
   selectCanRedoPose,
   selectCanUndoPose,
   selectCanUndoClip,
+  POSE_CREATOR_VRM_T_POSE_BASE_POSE_ID,
   usePoseCreatorStore,
 } from "@/stores/pose-creator-store";
 import { Button } from "@/ui/components/button";
@@ -85,10 +85,8 @@ import { useSceneVFXStore } from "@/stores/scene-vfx-store";
 import { pruneUnusedTimelineDependencies } from "./actionDependencies";
 import { actionEditorCapabilities } from "./actionEditorCapabilities";
 import { retainActionEditorWorkspace } from "./actionEditorStoreLifecycle";
-import {
-  buildAnimaPoseClipFromPoseCreatorDraft,
-  findPoseCreatorClipKeyframeAtTime,
-} from "@/ui/pose-creator/poseCreatorClipAuthoring";
+import { findPoseCreatorClipKeyframeAtTime } from "@/ui/pose-creator/poseCreatorClipAuthoring";
+import { samplePoseCreatorDraft } from "@/ui/pose-creator/poseCreatorClipMotion";
 import { samplePoseCreatorClipExpressions } from "@/ui/pose-creator/poseCreatorClipPreview";
 import { useActionEditorDesktopLayout } from "./useActionEditorDesktopLayout";
 
@@ -97,10 +95,7 @@ export function captureActionEditorPoseAtPlayhead(): boolean {
   const state = usePoseCreatorStore.getState();
   try {
     const draft = state.clipDraft;
-    const clip = buildAnimaPoseClipFromPoseCreatorDraft(draft);
-    const sample = clip
-      ? sampleAnimaPoseClip(clip, draft.currentTimeSec, getResolvedAvatarPose)
-      : null;
+    const sample = samplePoseCreatorDraft(draft, draft.currentTimeSec, null);
     if (sample?.diagnostics.missingPoseRefs.length)
       throw new Error("Some clip poses are unavailable.");
     const pose = sample
@@ -301,14 +296,16 @@ function ActionEditorWorkspaceContent() {
     () =>
       Array.from(
         new Set(
-          Object.values(clipDraft.poses).flatMap((pose) =>
-            isAnimaPoseClipRef(pose) || !pose.expressions
-              ? []
-              : Object.keys(pose.expressions),
-          ),
+          clipDraft.motion
+            ? Object.keys(clipDraft.motion.expressions ?? {})
+            : Object.values(clipDraft.poses).flatMap((pose) =>
+                isAnimaPoseClipRef(pose) || !pose.expressions
+                  ? []
+                  : Object.keys(pose.expressions),
+              ),
         ),
       ).sort(),
-    [clipDraft.poses],
+    [clipDraft.motion, clipDraft.poses],
   );
   const expressionKeyframeAtPlayhead = useMemo(
     () =>
@@ -357,7 +354,24 @@ function ActionEditorWorkspaceContent() {
     if (!keyframe) return false;
     let next = usePoseCreatorStore.getState();
     let alias = keyframe.pose;
-    let pose = next.clipDraft.poses[alias];
+    let pose: AnimaPoseClipPose | undefined = next.clipDraft.poses[alias];
+    if (next.clipDraft.motion) {
+      // A 2.0 beat's key pose is what the creator Avatar plays at its time.
+      const sampled = samplePoseCreatorDraft(
+        next.clipDraft,
+        keyframe.time,
+        next.activeAvatar?.vrm ?? null,
+        { omittedBasePoseId: POSE_CREATOR_VRM_T_POSE_BASE_POSE_ID },
+      )?.sample;
+      pose = sampled
+        ? {
+            ...(sampled.humanoid ? { humanoid: sampled.humanoid } : {}),
+            ...(sampled.expressions
+              ? { expressions: sampled.expressions }
+              : {}),
+          }
+        : undefined;
+    }
     if (!pose) return false;
     if (isAnimaPoseClipRef(pose)) {
       const converted = next.convertSelectedClipPoseRefToInline();

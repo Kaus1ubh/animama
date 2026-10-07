@@ -908,4 +908,74 @@ describe("AnimaRuntimeCatalog", () => {
       ]),
     );
   });
+
+  it("loads a 2.0 clip and names it for this runtime", async () => {
+    const entry = runtimeEntry({
+      slot: "pose",
+      runtimeId: "beat-pose",
+      kind: "anima_pose_clip",
+    });
+    const clip = {
+      schema: "animaPoseClip/2.0",
+      id: "authored",
+      name: "Authored",
+      duration: 1,
+      beats: [{ id: "a", label: "A", time: 0 }],
+      expressions: { happy: [{ beat: "a", v: 0.5 }] },
+    };
+    const catalog = new AnimaRuntimeCatalog(
+      runtimeContent({ poses: [entry] }),
+      {
+        fetcher: async (input) =>
+          authorizedSource(input)
+            ? new Response(JSON.stringify(clip), { status: 200 })
+            : authorizedDownload(String(input)),
+      },
+    );
+
+    const loaded = await catalog.loadPoseClip("beat-pose");
+    expect(loaded).toMatchObject({
+      schema: "animaPoseClip/2.0",
+      id: "beat-pose",
+      beats: clip.beats,
+    });
+  });
+
+  it("skips an invalid 2.0 clip with a diagnostic", async () => {
+    const entry = runtimeEntry({
+      slot: "pose",
+      runtimeId: "broken-pose",
+      kind: "anima_pose_clip",
+    });
+    const catalog = new AnimaRuntimeCatalog(
+      runtimeContent({ poses: [entry] }),
+      {
+        fetcher: async (input) =>
+          authorizedSource(input)
+            ? new Response(
+                JSON.stringify({
+                  schema: "animaPoseClip/2.0",
+                  id: "broken",
+                  name: "Broken",
+                  duration: 1,
+                  beats: [{ id: "a", label: "A", time: 0 }],
+                  expressions: { happy: [{ beat: "missing", v: 1 }] },
+                }),
+                { status: 200 },
+              )
+            : authorizedDownload(String(input)),
+      },
+    );
+
+    await expect(catalog.loadPoseClip("broken-pose")).resolves.toBeNull();
+    expect(catalog.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "invalid_motion_manifest",
+          runtimeId: "broken-pose",
+          message: expect.stringContaining("expressions.happy[0].beat"),
+        }),
+      ]),
+    );
+  });
 });

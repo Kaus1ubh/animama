@@ -6,13 +6,13 @@ import type {
 import { MathUtils } from "three";
 
 import { cloneVRMPose, isVRMHumanBoneName } from "../animaPose";
+import { parseAnyAnimaPoseClip } from "./anyClip";
 import { easeProgress, interpolateSamples } from "./interpolation";
 import { getAnimaPoseClipSampleTime } from "./playback";
 import {
   ANIMA_POSE_CLIP_EPSILON,
   DEFAULT_ANIMA_POSE_CLIP_TRANSITION,
   isAnimaPoseClipRef,
-  parseAnimaPoseClip,
   sanitizePoseSnapshot,
   type AnimaPoseClip,
   type AnimaPoseClipKeyframe,
@@ -31,7 +31,8 @@ export function sampleAnimaPoseClip(
   timeSec: number,
   resolvePoseRef: AnimaPoseClipPoseResolver = () => null,
 ): AnimaPoseClipSampleResult {
-  const sanitizedClip = parseAnimaPoseClip(clip);
+  // Parsed once per clip object; see parseAnyAnimaPoseClip.
+  const sanitizedClip = parseAnyAnimaPoseClip(clip) as AnimaPoseClip;
   const diagnostics: AnimaPoseClipSampleDiagnostics = {
     missingPoseRefs: [],
   };

@@ -80,7 +80,7 @@ export default defineConfig({
     {
       name: "chromium",
       testMatch:
-        /accountless-(?:library|journeys|vfx-layout|pose-content|content-sharing|imported-playback|numeric-input|creator-discard(?:-local)?|effect-template-picker|avatar-effect-direct-manipulation)\.spec\.ts/,
+        /accountless-(?:library|journeys|vfx-layout|pose-content|content-sharing|imported-playback|numeric-input|creator-discard(?:-local)?|effect-template-picker|avatar-effect-direct-manipulation|creator-generated-gesture)\.spec\.ts/,
       dependencies: ["installation-setup"],
       use: {
         browserName: "chromium",

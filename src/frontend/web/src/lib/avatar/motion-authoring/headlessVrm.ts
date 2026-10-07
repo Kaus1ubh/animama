@@ -16,9 +16,6 @@ export const INCLUDED_AVATAR_FILES = {
 
 export type IncludedAvatarId = keyof typeof INCLUDED_AVATAR_FILES;
 
-/** VRM 1 reference Avatar used to fit hand presets and solve planted legs. */
-export const REFERENCE_AVATAR_ID: IncludedAvatarId = "AvatarSample_A_1_New";
-
 /**
  * Textures are irrelevant to kinematics and cannot decode outside a browser,
  * so every texture resolves to an empty placeholder.
