@@ -13,9 +13,10 @@ one table of briefs to confirm:
 | Name | Selector ID | Intent | Once/held | Length | Intensity | Hand | Contacts | Face |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 
-Check the Selector IDs before authoring: unique in the batch, not already
-used in the Library unless the item is meant to revise that Gesture, and
-tiers of one action sharing a stem (`laugh_mild`, `laugh_medium`).
+Check the Selector IDs before authoring: unique in the batch, not used by an
+Included Gesture (a replacement gets its own ID), reusing a Local Gesture's
+ID only to revise that Gesture, and tiers of one action sharing a stem
+(`laugh_mild`, `laugh_medium`).
 
 ## 2. Author items in parallel
 
@@ -57,7 +58,7 @@ Write one items file and save every item in one run:
 ```json
 [
   {
-    "clip": "../src/lib/avatar/motion-authoring/examples/shy-wave.clip.json",
+    "clip": "/absolute/path/to/src/frontend/web/src/lib/avatar/motion-authoring/examples/shy-wave.clip.json",
     "name": "Shy Wave",
     "aiDescription": "A small, bashful wave for greetings when shy.",
     "selectorId": "shy_wave"
@@ -70,15 +71,18 @@ source ../../../.animama-stack.env   # from src/frontend/web: the stack's origin
 pnpm -s animation:save <items.json>
 ```
 
-Clip paths are relative to the items file; an optional `description` sets
-the Library description shown to people (it defaults to the AI description).
+Keep the items file in a scratch directory, outside the repository; clip
+paths are absolute or relative to the items file. An optional `description`
+sets a new Gesture's Library description (it defaults to the AI description).
 The tool saves the items one after another through the Gesture creator,
-exactly as a person would: a new Selector ID becomes a new Local Gesture, an
-existing Local one is revised in place (or reported as unchanged when it
-already matches), and each saved item is reopened to confirm its beats load.
-It prints each item as it goes, so a failure part-way does not hide earlier
-saves; fix the failing item and run again (saved items are revised, not
-duplicated). Then run the chat check on a sample of the batch.
+exactly as a person would. A new Selector ID becomes a new Local Gesture. A
+Local Gesture's Selector ID revises that item in place: the clip is imported
+into it (its components, notes and description are kept), its name and AI
+description are set, and it is saved as a revision. A Selector ID that belongs to an Included Gesture is refused. Each
+saved item is reopened to confirm its beats load. The tool prints each item
+as it goes, so a failure part-way does not hide earlier saves; fix the
+failing item and run again (saved items are revised, not duplicated). Then
+run the chat check on a sample of the batch.
 
 ## 6. Hand off
 

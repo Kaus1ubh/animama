@@ -8,16 +8,23 @@ import { fileURLToPath } from "node:url";
  *   pnpm -s animation:save <items.json> [--url <app origin>]
  *
  * `items.json` lists `{ clip, name, aiDescription, selectorId, description? }`
- * entries (clip paths are relative to the items file; the Library description
- * defaults to the AI description). Each item is saved in turn in
- * a headless browser, exactly as a person would: a new Gesture is imported as
- * a creator project file and saved; when a Local Gesture with that Selector
- * ID already exists, its clip is imported into that item and saved as a
- * revision. The app origin defaults to the sourced stack's
- * ANIMAMA_PUBLIC_ORIGIN, then http://localhost:8000.
+ * entries (clip paths are relative to the items file). Each item is saved in
+ * turn in a headless browser, exactly as a person would:
+ *
+ * - a new Selector ID: a creator project file (clip, name, descriptions and
+ *   Selector ID) is imported into a new Gesture and saved; the Library
+ *   description defaults to the AI description;
+ * - a Local Gesture's Selector ID: that item is opened, the clip is imported
+ *   into it (keeping its components, notes and description), its name and AI
+ *   description are set, and it is saved as a revision (reported unchanged
+ *   only if the creator finds nothing to save).
+ *
+ * The app origin defaults to the sourced stack's ANIMAMA_PUBLIC_ORIGIN, then
+ * http://localhost:8000.
  */
 
-const SELECTOR_ID = /^[a-z][a-z0-9_]*$/;
+/** The Selector IDs the backend accepts. */
+const SELECTOR_ID = /^[a-z0-9][a-z0-9._-]{0,127}$/;
 const PROJECT_SCHEMA = "animamaActionProject/1.0";
 
 /** A save item as the tool uses it, or a thrown error naming the problem. */
@@ -32,7 +39,7 @@ export function parseSaveItems(value, itemsFile) {
         throw new Error(`${where}: "${field}" must be a non-empty string.`);
     if (!SELECTOR_ID.test(item.selectorId))
       throw new Error(
-        `${where}: Selector ID "${item.selectorId}" must be lowercase snake_case.`,
+        `${where}: Selector ID "${item.selectorId}" must be lowercase letters, digits, "_", "-" or "." (snake_case preferred).`,
       );
     if (seen.has(item.selectorId))
       throw new Error(`${where}: Selector ID "${item.selectorId}" repeats.`);
@@ -63,14 +70,40 @@ export function gestureProject(item, sequence) {
   };
 }
 
+/**
+ * Which Library item each save targets: a Local item to revise, or none (a
+ * new item). A Selector ID held only by an Included Gesture is refused: a
+ * Local copy needs its own Selector ID.
+ */
+export function planSaves(items, libraryItems) {
+  return items.map((item) => {
+    const matches = libraryItems.filter(
+      ({ semantic_key }) => semantic_key === item.selectorId,
+    );
+    const local = matches.find(({ source }) => source === "local");
+    if (!local && matches.length > 0)
+      throw new Error(
+        `Selector ID "${item.selectorId}" belongs to an Included Gesture; give the Local Gesture its own Selector ID.`,
+      );
+    return local ? { itemId: local.item_id, name: local.name } : null;
+  });
+}
+
 async function readClip(file) {
-  const sequence = JSON.parse(await readFile(file, "utf8"));
-  if (sequence?.schema !== "animaPoseClip/2.0")
+  let sequence;
+  try {
+    sequence = JSON.parse(await readFile(file, "utf8"));
+  } catch (error) {
+    throw new Error(`${file}: ${error.message}`);
+  }
+  if (sequence?.schema !== "animaPoseClip/2.0" || !sequence.beats?.length)
     throw new Error(
       `${file}: expected an animaPoseClip/2.0 clip (run animation validate).`,
     );
   return sequence;
 }
+
+const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 /**
  * Save each item through the creator, in order. `onSaved` receives
@@ -98,29 +131,55 @@ export async function saveGestures(items, origin, onSaved = () => {}) {
     page.setDefaultTimeout(30_000);
     page.setDefaultNavigationTimeout(240_000);
     await page.goto("/");
-    // Same-origin read of the Library, as the app itself makes it.
-    const existing = await page.evaluate(async () => {
-      const response = await fetch("/v1/gestures?limit=500");
-      if (!response.ok) throw new Error(`Library ${response.status}`);
-      const body = await response.json();
-      return (body.items ?? [])
-        .filter((item) => item.source === "local" && item.semantic_key)
-        .map((item) => [item.semantic_key, item.item_id]);
+    // Same-origin read of the whole Library, as the app itself makes it.
+    const library = await page.evaluate(async () => {
+      const response = await fetch("/v1/gestures");
+      if (!response.ok) throw new Error(`Library request ${response.status}`);
+      return (await response.json()).items ?? [];
     });
-    const localIds = new Map(existing);
+    const targets = planSaves(items, library);
+    const save = page.getByRole("button", {
+      name: "Save content",
+      exact: true,
+    });
+    const nameField = page.getByLabel("gesture name", { exact: true }).first();
 
     for (const [index, item] of items.entries()) {
+      let step = "open the creator";
       try {
         const sequence = clips[index];
-        const itemId = localIds.get(item.selectorId);
+        const target = targets[index];
         await page.goto(
-          itemId
-            ? `/gestures/${encodeURIComponent(itemId)}/edit`
+          target
+            ? `/gestures/${encodeURIComponent(target.itemId)}/edit`
             : "/gestures/new",
         );
         await page
           .locator('[data-testid="action-editor-canvas"]:visible')
           .waitFor();
+        if (target) {
+          // Import only once the saved item has loaded: a late load would
+          // replace the imported clip.
+          step = "load the saved item";
+          await page.waitForFunction(
+            (name) =>
+              document.querySelector('[aria-label="gesture name"]')?.value ===
+              name,
+            target.name,
+            { timeout: 60_000 },
+          );
+          // A clean item shows Save disabled; an unsaved local draft of it
+          // keeps Save enabled, and the import below replaces that draft.
+          await page
+            .waitForFunction(
+              () =>
+                document.querySelector('[aria-label="Save content"]')?.disabled,
+              null,
+              { timeout: 5_000 },
+            )
+            .catch(() => {});
+        }
+        step = "import the clip";
         await page.getByRole("tab", { name: "Clip", exact: true }).click();
         await page
           .getByRole("button", { name: "Import", exact: true })
@@ -129,17 +188,33 @@ export async function saveGestures(items, origin, onSaved = () => {}) {
         const file = page.locator(
           '[role="dialog"] input[type="file"][accept=".json,application/json"]',
         );
-        // A project file sets the clip, name, AI description and Selector ID
-        // together; imported into an open item, it keeps that item.
-        await file.setInputFiles({
-          name: `${item.selectorId}.project.json`,
-          mimeType: "application/json",
-          buffer: Buffer.from(JSON.stringify(gestureProject(item, sequence))),
-        });
-        await page
-          .getByText("Typed project imported with exact dependency pins.")
-          .waitFor();
-        await page.keyboard.press("Escape");
+        if (target) {
+          // A plain clip import keeps the item's components, notes and
+          // description; only the clip, name and AI description change.
+          await file.setInputFiles({
+            name: `${item.selectorId}.clip.json`,
+            mimeType: "application/json",
+            buffer: Buffer.from(JSON.stringify(sequence)),
+          });
+          await page.getByText("Anima Pose Clip imported.").first().waitFor();
+          await page.keyboard.press("Escape");
+          if ((await nameField.inputValue()) !== item.name)
+            await nameField.fill(item.name);
+          await page
+            .getByLabel("AI selection description", { exact: true })
+            .first()
+            .fill(item.aiDescription);
+        } else {
+          await file.setInputFiles({
+            name: `${item.selectorId}.project.json`,
+            mimeType: "application/json",
+            buffer: Buffer.from(JSON.stringify(gestureProject(item, sequence))),
+          });
+          await page
+            .getByText("Typed project imported with exact dependency pins.")
+            .waitFor();
+          await page.keyboard.press("Escape");
+        }
         // The import notice can cover Save; wait for it to close.
         await page.mouse.move(0, 0);
         await page
@@ -147,12 +222,8 @@ export async function saveGestures(items, origin, onSaved = () => {}) {
           .getByText(/imported/)
           .waitFor({ state: "detached", timeout: 15_000 })
           .catch(() => {});
-        const save = page.getByRole("button", {
-          name: "Save content",
-          exact: true,
-        });
         // Save stays disabled when the saved item already matches.
-        if (itemId && (await save.isDisabled())) {
+        if (target && (await save.isDisabled())) {
           onSaved({
             selectorId: item.selectorId,
             url: page.url(),
@@ -160,35 +231,46 @@ export async function saveGestures(items, origin, onSaved = () => {}) {
           });
           continue;
         }
-        const saved = page.waitForResponse(
-          (response) =>
-            ["PUT", "POST", "PATCH"].includes(response.request().method()) &&
-            /\/v1\/gestures/.test(response.url()) &&
-            response.ok(),
+        step = "save";
+        const response = page.waitForResponse(
+          (candidate) =>
+            ["PUT", "POST", "PATCH"].includes(candidate.request().method()) &&
+            /\/v1\/gestures/.test(candidate.url()),
           { timeout: 60_000 },
         );
         // Settled even if the click fails, so the failure is the one reported.
-        saved.catch(() => {});
+        response.catch(() => {});
         await save.click();
-        await saved;
-        if (!itemId)
+        const result = await response;
+        if (!result.ok())
+          throw new Error(
+            `the app refused the save (${result.status()}): ${(await result.text()).slice(0, 300)}`,
+          );
+        if (!target)
           await page.waitForURL(/\/gestures\/[^/]+\/edit/, { timeout: 60_000 });
-        // Reopen: the saved clip must load with its beats.
+        // The creator finishes saving (clean again) before the reopen.
+        await page.waitForFunction(
+          () => document.querySelector('[aria-label="Save content"]')?.disabled,
+          null,
+          { timeout: 60_000 },
+        );
+        step = "reopen the saved item";
         const url = page.url();
         await page.reload();
         await page.getByRole("tab", { name: "Clip", exact: true }).click();
-        const first = sequence.beats[0];
         await page
           .getByRole("button", {
             name: new RegExp(
-              `^${first.label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} keyframe at 0\\.00s`,
+              `^${escapeRegExp(sequence.beats[0].label)} keyframe at`,
             ),
           })
           .first()
           .waitFor();
-        onSaved({ selectorId: item.selectorId, url, revised: Boolean(itemId) });
+        onSaved({ selectorId: item.selectorId, url, revised: Boolean(target) });
       } catch (error) {
-        throw new Error(`${item.selectorId}: ${error.message.split("\n")[0]}`);
+        throw new Error(
+          `${item.selectorId}: could not ${step}: ${error.message.split("\n")[0]}`,
+        );
       }
     }
   } finally {

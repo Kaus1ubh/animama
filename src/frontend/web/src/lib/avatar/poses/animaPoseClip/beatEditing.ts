@@ -22,7 +22,7 @@ import type {
   AnimaPoseClipSample,
   QuaternionTuple,
 } from "./schema";
-import { ANIMA_POSE_CLIP_DECIMALS } from "./schema";
+import { ANIMA_POSE_CLIP_DECIMALS, roundAnimaPoseClipNumber } from "./schema";
 import {
   ANIMA_POSE_CLIP_V2_LIMITS,
   ANIMA_POSE_CLIP_V2_MIN_SPACING_TICKS,
@@ -1025,7 +1025,7 @@ function quaternionKey(rotation: Quaternion): QuaternionTuple {
   return rotation
     .toArray()
     .map((value) =>
-      round(value, ANIMA_POSE_CLIP_DECIMALS.transform),
+      roundAnimaPoseClipNumber(value, ANIMA_POSE_CLIP_DECIMALS.transform),
     ) as QuaternionTuple;
 }
 

@@ -2,7 +2,11 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { test } from "node:test";
 
-import { gestureProject, parseSaveItems } from "./animation-save.mjs";
+import {
+  gestureProject,
+  parseSaveItems,
+  planSaves,
+} from "./animation-save.mjs";
 
 const itemsFile = path.join("/work", "batch", "items.json");
 const item = {
@@ -60,5 +64,34 @@ test("imports a new Gesture as a creator project with its Selector ID", () => {
       sequence,
       dependencies: [],
     },
+  );
+});
+
+test("revises a Local Gesture by Selector ID and refuses an Included one", () => {
+  const items = parseSaveItems(
+    [item, { ...item, clip: "b.json", selectorId: "shy_wave" }],
+    itemsFile,
+  );
+  const library = [
+    {
+      item_id: "i1",
+      source: "included",
+      semantic_key: "wave_hello",
+      name: "Wave",
+    },
+    {
+      item_id: "l1",
+      source: "local",
+      semantic_key: "wave_hello",
+      name: "My Wave",
+    },
+  ];
+  assert.deepEqual(planSaves(items, library), [
+    { itemId: "l1", name: "My Wave" },
+    null,
+  ]);
+  assert.throws(
+    () => planSaves(items, library.slice(0, 1)),
+    /"wave_hello" belongs to an Included Gesture/,
   );
 });
