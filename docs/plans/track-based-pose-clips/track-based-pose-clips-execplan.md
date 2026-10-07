@@ -103,7 +103,7 @@ prototype.
 - [x] Phase 4: Authoring tools, migrated examples and skill. Review #2
       passed. Gate G1 (owner) pending.
 - [x] Phase 5: Creator editing of 2.0 (agent work complete; review passed). Gate G2 pending.
-- [ ] Phase 6: Wave 1 content. Gates G3 and G4.
+- [x] Phase 6: Wave 1 content (authored, checked, saved; G4 run). Gate G3 pending.
 - [ ] Phase 7: Replacements and wave 2. Gate G3.
 - [ ] Final integration review and PR.
 
@@ -1111,6 +1111,7 @@ stack.
 #### Phase 5 record
 
 Starting source: `40d70aa1`. Issue #294. Task stack `animama-track-clips`.
+Commit: `a7689f1b`.
 
 Design as built: every draft keeps its clip's beats and tracks as `motion`,
 its source of truth, and its keyframes and poses become a view of the beats.
@@ -1335,6 +1336,41 @@ Dependency: Phases 4–5.
    chat on the task stack with mutes active. Record it.
 6. **Gates:** G3 (owner review in the preview tool, notes resolved) for each
    item; G4 (the chat check, agent-run, owner may confirm).
+
+#### Phase 6 record
+
+Starting source: `a7689f1b` (Phase 5 commit). Issue #295.
+
+- Sources: `motion-authoring/examples/mild-laugh.clip.json`,
+  `medium-laugh.clip.json`, `hysterical-laughter.clip.json` and
+  `storytelling.clip.json` (20 s; 16 named beats from Start through Think,
+  Idea!, Explain, Shrug and Laugh to Settle). The example test validates
+  them, checks the saved size and runs the motion checks on both Avatars.
+- Checks: `validate` and `check` pass on both Avatars with no warnings for
+  all four.
+- Local content on the task stack, saved through the creator with project
+  files and reopened (the stored clips equal the sources): Mild Laugh
+  (`laugh_mild`), Medium Laugh (`laugh_medium`), Hysterical Laughter
+  (`laugh_hysterical`), Storytelling (`tell_story`). Selector IDs follow the
+  skill's tier convention; each AI description says when the tier fits.
+- **G4 (chat check, agent-run):** the four were equipped on Annie (task
+  stack) and played through the chat-path Gesture trigger (Avatar Planner
+  debug, stack started with `VITE_ENABLE_DEBUG_PANEL=true`). Storytelling ran
+  its whole sequence (think with a hand at the chin, the "idea!" finger,
+  explaining with both hands, the shrug, the laugh) and returned to rest;
+  each laugh played and returned to rest. Frame timing in the pane is coarse
+  (screenshots add latency), so this confirms playback and return, not exact
+  timing. A plain chat prompt with the real model was also run; gesture
+  choices are not stored with messages, so it is not used as evidence.
+- #267 weaknesses: the passive laugh arm is addressed by Medium Laugh. The A_1
+  chin fist, the A_1 nod energy and the Y_0 clap contact are left in the
+  migrated examples until G1, because revising them now would invalidate the
+  G1 comparison with their 1.0 bakes.
+- **G3 pending (owner):** review each item in the preview tool, e.g. from
+  `src/frontend/web`:
+  `pnpm -s animation:preview src/lib/avatar/motion-authoring/examples/storytelling.clip.json`
+  or `pnpm -s animation:preview library:tell_story`; notes are applied and
+  resolved, then the Local item is re-saved.
 
 ### Phase 7 — Replacements and wave 2 (R9, R10)
 
