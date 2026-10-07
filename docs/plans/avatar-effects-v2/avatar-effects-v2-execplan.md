@@ -87,7 +87,8 @@ work proceeds.
       (`777e9a79`) and fixed a mypy failure that came in from `main` in
       `idle_clip_validation.py` (`40bab4fc`).
 - [x] Phase 10: Headed effect preview (G4 cleared when #311 merged).
-- [ ] Phase 11: Documentation and acceptance. Gate G5.
+- [x] Phase 11: Documentation and acceptance. Agent work complete; G5 owner
+      review pending.
 - [ ] Final integration review and PR.
 
 ## Surprises & Discoveries
@@ -2136,6 +2137,161 @@ Non-blocking, carried into P11:
    PR.
 
 #### Phase 11 record
+
+Starting source and issue: `0829c8f1`, #309.
+
+**Documentation (R11):**
+
+- `docs/frontend/runtime/avatar-vfx.md` was rewritten as one current guide:
+  `/2`, conversion, limits, face parts and corrections, attachments, fades,
+  the creator, tools, troubleshooting.
+- The Particle and Scene guides now mention the Effects picker.
+- `GLOSSARY.md` gained Avatar Effect, Particle Effect, Scene Effect and Face
+  part.
+- The ADR is **0015, "One Avatar Effect definition source and model-agnostic
+  face parts"**, added to the index.
+- `docs/backend/operations/development.md` now has the required database reset
+  (`./reset.sh --purge`).
+- The skills were updated:
+  - `animama-vrm` materials reference;
+  - `animama-avatar-vfx`, which notes the Plan 2 pipeline rework with a gated
+    Promote to Included step like #310;
+  - `animama-animation`, covering effect previews, chat lighting and where
+    notes go;
+  - the `animama-particle-vfx` creator note.
+- The `animation:preview` usage text was updated.
+- Two source fixes: the `AvatarEffectFaceOptions` docstring now says
+  `skinBackdrop` defaults off, and the client was regenerated. The Avatar FX
+  picker description was reworded from the v1 terms.
+
+**Task stack:** `animama-avatar-fx`, reset with `--purge` so the new baseline
+schema applies (46 tables), at http://animama-avatar-fx.localhost:8600.
+
+**Chat checks (R4–R6).** Clips were played on the chat canvas's own Avatar
+through the development debug panel, on both Included Avatars:
+
+| Check | Result |
+| --- | --- |
+| (a) Converted Included effect in a Reaction (`confusion-2`) | Pass |
+| (b) Fading event (Local Reaction, fade in and out 0.7 s) | Pass after D1 |
+| (c) Body, sticker and silhouette effects through a Local Gesture | Pass: they follow the motion, the sticker stays readable, and the silhouette covers only the avatar |
+| (d) Corrected face part applies in chat | Pass after D2 |
+| (e) Missing part skipped, with a diagnostic and no errors | Pass |
+
+**G5 walkthrough (R7–R9)** at 1440×900 and 760×900. All seven steps were
+completed:
+
+- creating each kind from the picker;
+- dragging, scaling and rotating;
+- undo and redo;
+- correcting a part, then resetting it;
+- saving and reopening;
+- recovering a draft;
+- opening from Library Edit links and old routes.
+
+Its report and screenshots are kept as local evidence for the owner.
+
+**Acceptance defects found and fixed on this branch:**
+
+- **D1.** Fades now cover face changes. Forced blink is weighted by intensity,
+  and hidden parts and face cleanup switch at ≥ 0.5. The skin backing already
+  faded with the art since P4.
+- **D2.** A corrected part wins over a detected role. Bindings carry
+  `targetRoles`, with the edited part first, and hiding eye details never hides
+  face skin or an iris.
+- **D3.** At narrow widths the sidebar drawer closes before the picker opens.
+- **R3.** The Avatar and Scene creators show the shared recovery notice with
+  Discard recovery. A page error on reload after Discard was fixed.
+- **R2.** The panels end above the canvas controls, and the stage banner
+  wraps.
+- **R4.**
+  - Views now suit the effect: Portrait for above-head, forehead, body and
+    sticker effects, and full body for a silhouette.
+  - Save keeps the chosen model and view.
+  - Scene shows its starting template's name.
+- **R5.** Handles are at least 32 px, a 12 px grab margin moves the art
+  instead of orbiting, and guide labels sit below.
+- **R6.** Only edited parts show Corrected, and the panel no longer covers Save
+  at narrow widths.
+- **R7.** The End select is full width, and the Gesture and Reaction creator
+  preview applies fades, closing the P4 gap.
+- The e2e locator at `accountless-journeys:223` was updated for the
+  other-side image input.
+
+Not done: keeping art handles inside the stage near the side panels, because
+the panels sit above the handle canvas.
+
+**Split out**, because these are present on `main`:
+
+- creator error states for a missing item, and Save & Equip for a new Gesture
+  (task chip);
+- a `:preview` deadlock between the bundle and catalog-source locks, and the
+  pose-content e2e copy naming (task chip);
+- the R1 body default depth on Y_0's collar, which is a content tuning item
+  for Plan 2.
+
+**e2e:**
+
+- "keep Eye" ×3 on a quiet machine passed (about 47 s, under the 90 s limit,
+  so the timeout stays).
+- After the fixes:
+  - direct manipulation, the picker (2/2), `accountless-journeys` :80 and
+    :223, `vfx-layout` (5/5) and `creator-discard` (9/9) pass;
+  - `accountless-journeys` :9 fails because this stack uses real OpenAI rather
+    than the LLM mock (environment).
+- Known and handled separately: `imported-playback` is flaky, and the
+  pose-content naming tests fail on `main`.
+
+**Checks after the fixes:**
+
+- full `pnpm web:test`: 407 files, 3,140 tests passed;
+- `pnpm check`, `web:lint`, prettier, `pnpm build` and `e2e:check:source`
+  pass;
+- `openapi-ts:check` is current;
+- the `--all-included` diff is 0 pixels.
+
+#### Code Review #1 Findings
+
+Reviewed source: uncommitted tree on `0829c8f1`. Result: **pass**, no blocking
+findings. The reviewer verified:
+
+- **D1:** the blink writers keep their order, and thresholds stay consistent
+  through apply, release and refresh.
+- **D2:** with no part edited, the primary role and the name fallback are
+  unchanged, and hiding can only hide fewer meshes.
+- **R3:** no draft is lost.
+- **R2:** only the three effect creators use the shell.
+- **Docs:** checked against the code, and ADR 0015 follows the template.
+
+Non-blocking:
+
+1. At partial intensity, forced blink replaces auto-blink and any emotion base
+   blink instead of adding to them.
+2. `previewAfterSave` was written on every Save. A later reopening of an item
+   saved earlier could reuse a stale Model and View.
+3. Discarding recovery on a saved item re-persists the draft until the saved
+   version reloads (a pre-existing timing window, shared with Particle).
+4. A Particle comment contradicted the shared Discard behaviour.
+5. `avatar-vfx.md` §4 said forced blink holds 1, without the fade qualifier.
+6. The P11 record overstated the backdrop fade as new.
+7. The `--creator-canvas-controls-height` variable would become stale if a
+   creator dropped `canvasControls`; this is theoretical.
+8. No test covers discarding a new draft in the Avatar or Scene creator.
+9. Art smaller than the 32 px handle box scales by the box's corner.
+
+#### Code Review #1 Revisions
+
+1. Accepted and documented: the fades section describes the weighted blink.
+   It is cosmetic, during the first frames of a fade.
+2. Fixed: `previewAfterSave` is written only when a Save moves the creator to
+   a new edit route.
+3. Accepted: pre-existing and bounded.
+4. Fixed: the comment.
+5. Fixed: §4 qualifies the full-intensity case.
+6. Fixed: this record.
+7. Accepted: theoretical.
+8. Accepted: unit tests cover `resetSession`, and e2e covers saved items.
+9. Accepted: UX only.
 
 ## Final integration review
 

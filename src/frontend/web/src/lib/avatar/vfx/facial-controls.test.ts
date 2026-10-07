@@ -10,6 +10,7 @@ import type {
   AvatarFaceTextureAnchorsSnapshot,
   AvatarFaceTextureAnchorSnapshot,
 } from "./texture-anchor-types";
+import type { AvatarFacePartMap, AvatarFacePartRole } from "./faceParts";
 import type { AvatarEyeHoverVFXEntry, AvatarVFXCatalogEntry } from "./types";
 
 vi.mock("../vrmEditorInspection", () => ({
@@ -368,6 +369,237 @@ describe("authored facial behavior", () => {
     expect(controller.getSnapshot().flatten.autoEyes).toBe(false);
     expect(avatar.clearExpressionOverride).toHaveBeenCalledWith("blink");
     expect(meshes.face.material).toBe(originalFaceMaterial);
+  });
+
+  it("fades the face changes with the event envelope", async () => {
+    const findBackdrop = () => {
+      let found: THREE.Mesh | null = null;
+      anchor.traverse((object) => {
+        if (object instanceof THREE.Mesh && object.name.endsWith(":backdrop")) {
+          found = object;
+        }
+      });
+      return found as THREE.Mesh | null;
+    };
+    const backdropOpacity = () =>
+      (findBackdrop()?.material as THREE.Material | undefined)?.opacity;
+    const hidden = () => ({
+      highlight: !meshes.eye_highlight.visible,
+      eyeline: !meshes.eyeline.visible,
+      cleanup: controller.getSnapshot().flatten.autoEyes,
+      faceComposited: meshes.face.material !== originalFaceMaterial,
+    });
+    const allOff = {
+      highlight: false,
+      eyeline: false,
+      cleanup: false,
+      faceComposited: false,
+    };
+    const allOn = {
+      highlight: true,
+      eyeline: true,
+      cleanup: true,
+      faceComposited: true,
+    };
+
+    // The first faint frame closes the eyes a little and hides nothing.
+    controller.setEffectIntensity("preview", 0.2);
+    await apply({ ...eyeEffect(), skinBackdrop: true });
+    expect(avatar.setExpression).toHaveBeenLastCalledWith("blink", 0.2);
+    expect(hidden()).toEqual(allOff);
+    expect(backdropOpacity()).toBeCloseTo(0.2);
+
+    // Hidden parts and face cleanup switch on at the midpoint.
+    controller.setEffectIntensity("preview", 0.5);
+    expect(avatar.setExpression).toHaveBeenLastCalledWith("blink", 0.5);
+    expect(hidden()).toEqual(allOn);
+    expect(backdropOpacity()).toBeCloseTo(0.5);
+
+    controller.setEffectIntensity("preview", 0.8);
+    expect(avatar.setExpression).toHaveBeenLastCalledWith("blink", 0.8);
+    expect(hidden()).toEqual(allOn);
+
+    // A fade-out restores them below the midpoint and releases the blink at 0.
+    controller.setEffectIntensity("preview", 0.3);
+    expect(avatar.setExpression).toHaveBeenLastCalledWith("blink", 0.3);
+    expect(hidden()).toEqual(allOff);
+    expect(backdropOpacity()).toBeCloseTo(0.3);
+    controller.setEffectIntensity("preview", 0);
+    expect(avatar.clearExpressionOverride).toHaveBeenLastCalledWith("blink");
+    expect(hidden()).toEqual(allOff);
+
+    controller.setEffectIntensity("preview", 1);
+    expect(avatar.setExpression).toHaveBeenLastCalledWith("blink", 1);
+    expect(hidden()).toEqual(allOn);
+    expect(backdropOpacity()).toBeCloseTo(1);
+    controller.removeEffect("preview");
+    expect(hidden()).toEqual(allOff);
+  });
+
+  it("switches hidden texture parts and mouth cleanup at the midpoint", async () => {
+    await controller.applyTextureVFX({
+      effectId: "texture",
+      effectEntry: {
+        ...base(),
+        id: "texture",
+        kind: "texture",
+        targetRole: "eye_iris",
+        applyMode: "overlay",
+        assetShape: "single_eye",
+        side: "left",
+        disableTargetRoles: ["eyelash"],
+      },
+    });
+    controller.setEffectIntensity("texture", 0.49);
+    expect(meshes.eyelash.visible).toBe(true);
+    controller.setEffectIntensity("texture", 0.5);
+    expect(meshes.eyelash.visible).toBe(false);
+    controller.clearAllEffects();
+    expect(meshes.eyelash.visible).toBe(true);
+
+    const mouth = {
+      ...base(),
+      kind: "face_anchored" as const,
+      anchor: "mouth" as const,
+    };
+    controller.setEffectIntensity(mouth.id, 0.1);
+    await apply(mouth);
+    expect(controller.getSnapshot().flatten.autoMouth).toBe(false);
+    controller.setEffectIntensity(mouth.id, 0.7);
+    expect(controller.getSnapshot().flatten.autoMouth).toBe(true);
+    controller.setEffectIntensity(mouth.id, 0.2);
+    expect(controller.getSnapshot().flatten.autoMouth).toBe(false);
+  });
+
+  it("paints a corrected part on a mesh that also holds a detected part", async () => {
+    // Annie's lashes are drawn in her eye-line mesh: the user corrects
+    // Eyelashes to that mesh while detection keeps it as the eye line.
+    (meshes.eyeline.material as THREE.MeshBasicMaterial).map =
+      new THREE.Texture(originalTexture as unknown as HTMLCanvasElement);
+    const part = (role: AvatarFacePartRole, bindings: string[]) => ({
+      role,
+      bindings,
+      source: bindings.length ? ("signals" as const) : ("missing" as const),
+      confidence: bindings.length ? 0.9 : 0,
+    });
+    const map: AvatarFacePartMap = {
+      parts: {
+        face_skin: part("face_skin", ["face"]),
+        eye_left: part("eye_left", ["iris"]),
+        eye_right: part("eye_right", ["iris"]),
+        eye_highlight: part("eye_highlight", ["eye_highlight"]),
+        eyeline: part("eyeline", ["eyeline"]),
+        eyelash: {
+          role: "eyelash",
+          bindings: ["eyeline"],
+          source: "corrected",
+          confidence: 1,
+          detected: part("eyelash", []),
+        },
+        hair: part("hair", []),
+      },
+      eyeWhite: [],
+      diagnostics: [],
+    };
+    const partController = new AvatarVFXController({
+      ...avatar,
+      facePartMap: map,
+    } as Avatar);
+    controllers.push(partController);
+    const originalLineMaterial = meshes.eyeline.material;
+    const paint = (role: "eyelash" | "eyeline") => ({
+      ...base(),
+      id: `paint-${role}`,
+      region: "eyes" as const,
+      kind: "texture" as const,
+      targetRole: role,
+      applyMode: "overlay" as const,
+      assetShape: "full_face" as const,
+    });
+
+    // The corrected role is the mesh's primary role.
+    expect(
+      partController
+        .getSnapshot()
+        .targetBindings.find((binding) => binding.bindingKey === "eyeline")
+        ?.targetRole,
+    ).toBe("eyelash");
+    expect(
+      partController.getPlacementGuides(paint("eyelash"), "x").messages,
+    ).not.toContain(
+      "No compatible material target is available on this avatar.",
+    );
+
+    await partController.applyTextureVFX({
+      effectId: "paint-eyelash",
+      effectEntry: paint("eyelash"),
+    });
+    expect(partController.getSnapshot().activeEffects).toEqual([
+      expect.objectContaining({
+        appliedEffectId: "paint-eyelash",
+        bindingKey: "eyeline",
+      }),
+    ]);
+    expect(meshes.eyeline.material).not.toBe(originalLineMaterial);
+    expect(partController.getSnapshot().warnings).toEqual([]);
+
+    // An effect on the detected eye line still finds the same mesh.
+    partController.clearAllEffects();
+    await partController.applyTextureVFX({
+      effectId: "paint-eyeline",
+      effectEntry: paint("eyeline"),
+    });
+    expect(partController.getSnapshot().activeEffects).toEqual([
+      expect.objectContaining({ bindingKey: "eyeline" }),
+    ]);
+
+    // Hiding eye details hides the shared mesh once, and restores it.
+    partController.clearAllEffects();
+    await partController.applyHoverVFX({
+      effectId: "preview",
+      effectEntry: eyeEffect(),
+    });
+    expect(meshes.eyeline.visible).toBe(false);
+    expect(meshes.face.visible).toBe(true);
+    partController.clearAllEffects();
+    expect(meshes.eyeline.visible).toBe(true);
+    expect(meshes.eyeline.material).toBe(originalLineMaterial);
+  });
+
+  it("never hides face skin that a correction also named an eye detail", async () => {
+    const part = (role: AvatarFacePartRole, bindings: string[]) => ({
+      role,
+      bindings,
+      source: "signals" as const,
+      confidence: 0.9,
+    });
+    const partController = new AvatarVFXController({
+      ...avatar,
+      facePartMap: {
+        parts: {
+          face_skin: part("face_skin", ["face"]),
+          eye_left: part("eye_left", ["iris"]),
+          eye_right: part("eye_right", ["iris"]),
+          eye_highlight: part("eye_highlight", ["eye_highlight"]),
+          eyeline: part("eyeline", ["eyeline"]),
+          eyelash: {
+            ...part("eyelash", ["face"]),
+            source: "corrected",
+            detected: part("eyelash", []),
+          },
+          hair: part("hair", []),
+        },
+        eyeWhite: [],
+        diagnostics: [],
+      },
+    } as unknown as Avatar);
+    controllers.push(partController);
+    await partController.applyHoverVFX({
+      effectId: "preview",
+      effectEntry: eyeEffect(),
+    });
+    expect(meshes.eyeline.visible).toBe(false);
+    expect(meshes.face.visible).toBe(true);
   });
 
   it.each(["hover", "face_anchored"] as const)(

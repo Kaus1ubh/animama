@@ -58,7 +58,7 @@ import { matchAvatarTargetRole } from "./avatarRuntimeTargeting";
 import {
   AVATAR_FACE_PART_LABELS,
   findMissingFacePart,
-  resolveFacePartTargetRole,
+  resolveFacePartTargetRoles,
   type AvatarFacePartRole,
 } from "./faceParts";
 import { createLogger } from "@/lib/logger";
@@ -167,6 +167,9 @@ type ActiveBindingEffect = {
   hoverGroup: THREE.Group | null;
   hoverInstances: HoverPlaneInstanceState[];
   hoverRuntimeMaterials: THREE.Material[];
+  /** Face part roles the effect hides while its face changes are on. */
+  autoDisabledRoles: AvatarVFXTargetRole[];
+  /** Bindings hidden right now; empty below {@link FACE_CHANGE_MIN_INTENSITY}. */
   disabledBindingKeys: string[];
   elapsedSec: number;
   /** Redrawn on each animation tick: own motion, or a fade below full intensity. */
@@ -183,7 +186,10 @@ type ActiveBindingEffect = {
 
 type BindingState = {
   bindingKey: string;
+  /** Primary role: a corrected face part first, else name-matcher precedence. */
   targetRole: AvatarVFXTargetRole;
+  /** Every role the mesh serves (primary first); effects on any of them use it. */
+  targetRoles: AvatarVFXTargetRole[];
   materialIndex: number | null;
   materialName: string | null;
   objectName: string | null;
@@ -307,6 +313,13 @@ const HOVER_SKIN_BACKDROP_HEIGHT_SCALE = 0.4;
 const HOVER_SKIN_BACKDROP_Z_OFFSET = -0.0001;
 const HOVER_RENDER_ORDER = 950;
 const EYE_HOVER_FORCE_BLINK_EXPRESSION = "blink";
+/**
+ * Envelope value at which an effect's on/off face changes (hidden parts and
+ * face cleanup) switch on, so a fade-in hides the eyes once its art is half
+ * visible rather than on its first faint frame. The forced blink and the art
+ * fade continuously instead.
+ */
+const FACE_CHANGE_MIN_INTENSITY = 0.5;
 const VFX_ANIMATION_FRAME_INTERVAL_SEC = 1 / 30;
 /** Composites redrawn for a transform edit at most this often (30 FPS). */
 const TRANSFORM_REDRAW_INTERVAL_MS = 1000 / 30;
@@ -456,6 +469,22 @@ function cloneCatalogEffectEntry(
 
 function shouldForceBlink(effect: AvatarVFXCatalogEntry): boolean {
   return isEyeHoverVFXEntry(effect) && (effect.forceBlink ?? true);
+}
+
+/**
+ * Whether hiding these roles hides a mesh that serves `roles`. A mesh that is
+ * also face skin or an iris stays visible unless that role is hidden too, so
+ * hiding eye details never removes the face or the eyes.
+ */
+function bindingIsHiddenByRoles(
+  roles: readonly AvatarVFXTargetRole[],
+  hidden: readonly AvatarVFXTargetRole[],
+): boolean {
+  if (!roles.some((role) => hidden.includes(role))) return false;
+  return roles.every(
+    (role) =>
+      hidden.includes(role) || (role !== "face_skin" && role !== "eye_iris"),
+  );
 }
 
 function getAutoDisabledRoles(
@@ -2593,7 +2622,9 @@ export class AvatarVFXController {
       const active = binding.activeEffects.get(appliedEffectId);
       if (!active) continue;
       if (active.intensity === intensity) return;
+      const previousIntensity = active.intensity;
       active.intensity = intensity;
+      this._syncEffectFaceChanges(binding, active, previousIntensity);
       if (active.renderMode === "hover_plane") {
         applyAnimationToHoverInstances({
           instances: active.hoverInstances,
@@ -3059,7 +3090,7 @@ export class AvatarVFXController {
     }
 
     const effectTargetRole = getAvatarVFXTargetRole(effect);
-    if (effectTargetRole !== binding.targetRole) {
+    if (!binding.targetRoles.includes(effectTargetRole)) {
       binding.warning = `Effect "${effect.label}" does not target ${binding.targetRole}.`;
       this._pushWarning(
         `Effect "${effect.label}" is not compatible with ${binding.targetRole}.`,
@@ -3169,10 +3200,12 @@ export class AvatarVFXController {
       } else {
         this._removeAppliedEffectsInRegion(effectRegion, { emit: false });
       }
+      const intensity = this._takePendingIntensity(appliedEffectId);
+      const autoDisabledRoles = getAutoDisabledRoles(effect);
       const disabledBindingKeys = this._applyAutoDisabledBindings(
         appliedEffectId,
         binding,
-        getAutoDisabledRoles(effect),
+        intensity >= FACE_CHANGE_MIN_INTENSITY ? autoDisabledRoles : [],
       );
       const forcesBlink = shouldForceBlink(effect);
       binding.activeEffects.set(appliedEffectId, {
@@ -3188,13 +3221,14 @@ export class AvatarVFXController {
         hoverGroup: hoverEffectState.group,
         hoverInstances: hoverEffectState.instances,
         hoverRuntimeMaterials: hoverEffectState.runtimeMaterials,
+        autoDisabledRoles,
         disabledBindingKeys,
         elapsedSec: 0,
         isAnimated,
         hasOwnMotion: isAnimated,
         animationState: initialAnimationState,
         appliedOrder: ++this._nextAppliedOrder,
-        intensity: this._takePendingIntensity(appliedEffectId),
+        intensity,
         tintedImages: new Map(),
       });
       this._cachedFaceFlattenState = null;
@@ -3202,7 +3236,7 @@ export class AvatarVFXController {
         instances: hoverEffectState.instances,
         animationState: initialAnimationState,
         effect,
-        intensity: binding.activeEffects.get(appliedEffectId)?.intensity ?? 1,
+        intensity,
       });
       binding.warning = null;
       if (isEyeHoverVFXEntry(effect) || isMouthHoverVFXEntry(effect)) {
@@ -3241,10 +3275,12 @@ export class AvatarVFXController {
       this._removeAppliedEffectsInRegion(effectRegion, { emit: false });
     }
     this._markTextureCompositeStaticDirty(binding);
+    const intensity = this._takePendingIntensity(appliedEffectId);
+    const autoDisabledRoles = getAutoDisabledRoles(effect);
     const disabledBindingKeys = this._applyAutoDisabledBindings(
       appliedEffectId,
       binding,
-      getAutoDisabledRoles(effect),
+      intensity >= FACE_CHANGE_MIN_INTENSITY ? autoDisabledRoles : [],
     );
     const forcesBlink = shouldForceBlink(effect);
     binding.activeEffects.set(appliedEffectId, {
@@ -3260,13 +3296,14 @@ export class AvatarVFXController {
       hoverGroup: null,
       hoverInstances: [],
       hoverRuntimeMaterials: [],
+      autoDisabledRoles,
       disabledBindingKeys,
       elapsedSec: 0,
       isAnimated,
       hasOwnMotion: isAnimated,
       animationState: initialAnimationState,
       appliedOrder: ++this._nextAppliedOrder,
-      intensity: this._takePendingIntensity(appliedEffectId),
+      intensity,
       tintedImages: new Map(),
     });
     this._cachedFaceFlattenState = null;
@@ -3382,7 +3419,7 @@ export class AvatarVFXController {
 
     return (
       Array.from(this._bindings.values()).find((binding) => {
-        if (binding.targetRole !== getAvatarVFXTargetRole(effect)) {
+        if (!binding.targetRoles.includes(getAvatarVFXTargetRole(effect))) {
           return false;
         }
         if (applyMode === "overlay") {
@@ -3406,8 +3443,8 @@ export class AvatarVFXController {
       return this._bindings.get(faceLandmarks.faceBindingKey) ?? null;
     }
     return (
-      Array.from(this._bindings.values()).find(
-        (binding) => binding.targetRole === "face_skin",
+      Array.from(this._bindings.values()).find((binding) =>
+        binding.targetRoles.includes("face_skin"),
       ) ?? null
     );
   }
@@ -3415,8 +3452,10 @@ export class AvatarVFXController {
   private _hasAutoFaceFlattenEyes(): boolean {
     return Array.from(this._bindings.values()).some((binding) =>
       Array.from(binding.activeEffects.values()).some(
-        ({ effectEntry }) =>
-          isEyeHoverVFXEntry(effectEntry) && (effectEntry.faceCleanup ?? true),
+        ({ effectEntry, intensity }) =>
+          intensity >= FACE_CHANGE_MIN_INTENSITY &&
+          isEyeHoverVFXEntry(effectEntry) &&
+          (effectEntry.faceCleanup ?? true),
       ),
     );
   }
@@ -3424,7 +3463,8 @@ export class AvatarVFXController {
   private _hasAutoFaceFlattenMouth(): boolean {
     return Array.from(this._bindings.values()).some((binding) =>
       Array.from(binding.activeEffects.values()).some(
-        ({ effectEntry }) =>
+        ({ effectEntry, intensity }) =>
+          intensity >= FACE_CHANGE_MIN_INTENSITY &&
           ((isFaceAnchoredVFXEntry(effectEntry) &&
             effectEntry.anchor === "mouth") ||
             isMouthHoverVFXEntry(effectEntry)) &&
@@ -3443,7 +3483,7 @@ export class AvatarVFXController {
     const activeEyes = previewEyes || autoEyes;
     const activeMouth = previewMouth || autoMouth;
 
-    if (!binding || binding.targetRole !== "face_skin") {
+    if (!binding || !binding.targetRoles.includes("face_skin")) {
       return {
         status: "unavailable",
         faceBindingKey: binding?.bindingKey ?? null,
@@ -3634,9 +3674,12 @@ export class AvatarVFXController {
     const partMap = this._avatar.facePartMap ?? null;
     runtimeResult.entries.forEach((entry) => {
       const mainMaterial = getRenderableMainMaterial(entry.object);
-      const targetRole = partMap
-        ? resolveFacePartTargetRole(partMap, entry.bindingKey)
-        : matchAvatarTargetRole(entry.materialName, this._profile);
+      const targetRoles = partMap
+        ? resolveFacePartTargetRoles(partMap, entry.bindingKey)
+        : [matchAvatarTargetRole(entry.materialName, this._profile)].filter(
+            (role): role is AvatarVFXTargetRole => role !== null,
+          );
+      const targetRole = targetRoles[0];
       if (!mainMaterial || !targetRole) return;
 
       const textureSlots: BindingTextureState[] = [];
@@ -3655,7 +3698,9 @@ export class AvatarVFXController {
       });
 
       const availableEffectIds = this._catalog
-        .filter((effect) => getAvatarVFXTargetRole(effect) === targetRole)
+        .filter((effect) =>
+          targetRoles.includes(getAvatarVFXTargetRole(effect)),
+        )
         .map((effect) => effect.id);
 
       // Creator effects arrive after discovery and may suppress any recognized
@@ -3663,6 +3708,7 @@ export class AvatarVFXController {
       this._bindings.set(entry.bindingKey, {
         bindingKey: entry.bindingKey,
         targetRole,
+        targetRoles,
         materialIndex: entry.materialIndex,
         materialName: entry.materialName,
         objectName: entry.objectName,
@@ -4182,18 +4228,57 @@ export class AvatarVFXController {
     }
   }
 
+  /**
+   * Hold the blink override at the strongest envelope of the effects that
+   * close the eyes, so a fading effect opens and closes them gradually.
+   */
   private _syncForcedBlinkExpression(): void {
-    const shouldForceBlink = Array.from(this._bindings.values()).some(
-      (binding) =>
-        Array.from(binding.activeEffects.values()).some(
-          (effect) => effect.forcesBlink,
-        ),
-    );
-    if (shouldForceBlink) {
-      this._avatar.setExpression(EYE_HOVER_FORCE_BLINK_EXPRESSION, 1);
+    let weight = 0;
+    for (const binding of this._bindings.values()) {
+      for (const effect of binding.activeEffects.values()) {
+        if (effect.forcesBlink) weight = Math.max(weight, effect.intensity);
+      }
+    }
+    if (weight > 0) {
+      this._avatar.setExpression(EYE_HOVER_FORCE_BLINK_EXPRESSION, weight);
       return;
     }
     this._avatar.clearExpressionOverride(EYE_HOVER_FORCE_BLINK_EXPRESSION);
+  }
+
+  /**
+   * Follow an envelope change with the effect's face changes: the blink weight
+   * tracks it, while hidden parts and face cleanup switch at
+   * {@link FACE_CHANGE_MIN_INTENSITY}.
+   */
+  private _syncEffectFaceChanges(
+    binding: BindingState,
+    active: ActiveBindingEffect,
+    previousIntensity: number,
+  ): void {
+    if (active.forcesBlink) this._syncForcedBlinkExpression();
+    const wasOn = previousIntensity >= FACE_CHANGE_MIN_INTENSITY;
+    const isOn = active.intensity >= FACE_CHANGE_MIN_INTENSITY;
+    if (wasOn === isOn) return;
+    if (isOn) {
+      active.disabledBindingKeys = this._applyAutoDisabledBindings(
+        active.appliedEffectId,
+        binding,
+        active.autoDisabledRoles,
+      );
+    } else {
+      this._releaseAutoDisabledBindings(active);
+      active.disabledBindingKeys = [];
+    }
+    const entry = active.effectEntry;
+    if (
+      isEyeHoverVFXEntry(entry) ||
+      isMouthHoverVFXEntry(entry) ||
+      (isFaceAnchoredVFXEntry(entry) && entry.anchor === "mouth")
+    ) {
+      this._refreshFaceFlattenComposite();
+    }
+    this._emit();
   }
 
   private _applyAutoDisabledBindings(
@@ -4206,7 +4291,9 @@ export class AvatarVFXController {
     const disabledBindingKeys: string[] = [];
     this._bindings.forEach((binding) => {
       if (binding.bindingKey === sourceBinding.bindingKey) return;
-      if (!disableTargetRoles.includes(binding.targetRole)) return;
+      if (!bindingIsHiddenByRoles(binding.targetRoles, disableTargetRoles)) {
+        return;
+      }
       if (binding.autoDisableSources.size === 0) {
         binding.visibleBeforeAutoDisable = binding.object.visible;
       }
@@ -4248,15 +4335,24 @@ export class AvatarVFXController {
       return null;
     }
 
-    if (isEyeHoverVFXEntry(effect) && binding.targetRole !== "eye_iris") {
+    if (
+      isEyeHoverVFXEntry(effect) &&
+      !binding.targetRoles.includes("eye_iris")
+    ) {
       binding.warning = `Effect "${effect.label}" requires an eye iris target.`;
       return null;
     }
-    if (isBoxHoverVFXEntry(effect) && binding.targetRole !== "face_skin") {
+    if (
+      isBoxHoverVFXEntry(effect) &&
+      !binding.targetRoles.includes("face_skin")
+    ) {
       binding.warning = `Effect "${effect.label}" requires a face skin target.`;
       return null;
     }
-    if (isMouthHoverVFXEntry(effect) && binding.targetRole !== "face_skin") {
+    if (
+      isMouthHoverVFXEntry(effect) &&
+      !binding.targetRoles.includes("face_skin")
+    ) {
       binding.warning = `Effect "${effect.label}" requires a face skin target.`;
       return null;
     }
@@ -4506,6 +4602,7 @@ export class AvatarVFXController {
         return {
           bindingKey: binding.bindingKey,
           targetRole: binding.targetRole,
+          targetRoles: [...binding.targetRoles],
           materialIndex: binding.materialIndex,
           materialName: binding.materialName,
           objectName: binding.objectName,

@@ -19,7 +19,11 @@ import {
 } from "@/ui/components/popover";
 import { useRuntimeFeatureEnabled } from "@/ui/app/RuntimeFeatureGate";
 import { EffectTemplatePickerDialog } from "@/ui/create/EffectTemplatePickerDialog";
-import { SidebarLink, type SidebarLinkItem } from "@/ui/sidebar/Sidebar";
+import {
+  SidebarLink,
+  useCloseMobileSidebar,
+  type SidebarLinkItem,
+} from "@/ui/sidebar/Sidebar";
 
 const CLOSE_DELAY_MS = 140;
 
@@ -81,6 +85,7 @@ export function SidebarCreateMenu() {
   const triggerRef = useRef<HTMLAnchorElement>(null);
   /** Focus returned from the picker must not reopen the hover menu. */
   const suppressFocusOpenRef = useRef(false);
+  const closeMobileSidebar = useCloseMobileSidebar();
   const animaCreation = useRuntimeFeatureEnabled("anima_creation");
   const primaryLinks = PRIMARY_CREATE_LINKS.filter(
     (item) => animaCreation || item.to !== "/animas/new",
@@ -226,6 +231,9 @@ export function SidebarCreateMenu() {
                 className={`${MENU_ITEM_CLASS_NAME} w-full`}
                 onClick={() => {
                   closeMenu();
+                  // The picker opens in place, so the mobile drawer must not
+                  // stay drawn over it.
+                  closeMobileSidebar();
                   setEffectsPickerOpen(true);
                 }}
               >

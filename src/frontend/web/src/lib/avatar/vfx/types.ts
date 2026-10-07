@@ -470,7 +470,10 @@ export type AvatarVFXTargetBindingTextureSlot = {
 
 export type AvatarVFXTargetBindingSnapshot = {
   bindingKey: string;
+  /** Primary role; a corrected face part comes first. */
   targetRole: AvatarVFXTargetRole;
+  /** Every role the mesh serves, primary first. */
+  targetRoles: AvatarVFXTargetRole[];
   materialIndex: number | null;
   materialName: string | null;
   objectName: string | null;

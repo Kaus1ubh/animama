@@ -1,89 +1,187 @@
 # Materials, skinning, and Avatar VFX
 
-Use for avatar appearance inspection, generated texture integration, and Avatar Effect creator work. Paths are relative to the active Animama repository.
+Use for avatar appearance inspection, generated texture integration, and Avatar
+Effect creator work. Paths are relative to the active Animama repository. The
+maintained guide is `docs/frontend/runtime/avatar-vfx.md`; this reference adds
+the VRM reasoning behind it.
 
 ## Separate skinning, surfaces, and shader state
 
-A glTF **skin** is a joint/inverse-bind-matrix relationship; `face_skin` in Animama is a **detected face part**, not a glTF concept. Neither a skin nor the humanoid mapping defines a universal face UV atlas. A mesh has primitives that reference materials; multiple usages can share one material or texture. Morphs/skinning move vertices, while UVs identify positions in textures. A UV decal deforms with its surface; a head-attached plane has different behavior.
+A glTF **skin** is a joint/inverse-bind-matrix relationship; `face_skin` in
+Animama is a **detected face part**, not a glTF concept. Neither a skin nor the
+humanoid mapping defines a universal face UV atlas. A mesh has primitives that
+reference materials; multiple usages can share one material or texture.
+Morphs/skinning move vertices, while UVs identify positions in textures. A UV
+decal deforms with its surface; a head-attached plane has different behavior.
 
-Inspect the rendered primitive, material instance, texture slot, UVs, and relevant deformation, not just a suggestive material name. This also distinguishes a missing UV/material binding from a bone-orientation problem. [glTF meshes, skins, materials, and textures](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html)
+Inspect the rendered primitive, material instance, texture slot, UVs, and
+relevant deformation, not just a suggestive material name. This also
+distinguishes a missing UV/material binding from a bone-orientation problem.
+[glTF meshes, skins, materials, and textures](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html)
 
-MToon supplies lit/shade colors and textures, toon shading, rim/matcap effects, outlines, alpha handling, and UV animation. Replacing an MToon material with a generic material discards behavior. Preserve the relevant shader properties and expression bindings. Base/shade color textures use color-space handling distinct from numerical masks/normal maps; do not mark all textures sRGB. [MToon specification](https://github.com/vrm-c/vrm-specification/blob/master/specification/VRMC_materials_mtoon-1.0/README.md)
+MToon supplies lit/shade colors and textures, toon shading, rim/matcap effects,
+outlines, alpha handling, and UV animation. Replacing an MToon material with a
+generic material discards behavior. Preserve the relevant shader properties and
+expression bindings. Base/shade color textures use color-space handling distinct
+from numerical masks/normal maps; do not mark all textures sRGB.
+[MToon specification](https://github.com/vrm-c/vrm-specification/blob/master/specification/VRMC_materials_mtoon-1.0/README.md)
 
-When replacing a glTF-loaded texture, preserve its sampler, UV transform/channel as applicable, orientation, color space, and alpha behavior. Do not fix upside-down art with an arbitrary global `flipY` toggle. Animama's controller has `copyTextureSettings` and placement helpers for its CanvasTexture path; use that established behavior and inspect supported fields for the installed Three.js version.
+When replacing a glTF-loaded texture, preserve its sampler, UV transform/channel
+as applicable, orientation, color space, and alpha behavior. Do not fix
+upside-down art with an arbitrary global `flipY` toggle. Animama's controller has
+`copyTextureSettings` and placement helpers for its CanvasTexture path; use that
+established behavior and inspect supported fields for the installed Three.js
+version.
 
-## App attachment and classification
+## Face parts
 
-Read `docs/frontend/runtime/avatar-vfx.md` and these sources for the relevant operation:
+The VRM specification does not define material names, so Avatar Effects find
+the face from VRM signals (`src/frontend/web/src/lib/avatar/vfx/faceParts.ts`,
+`detectAvatarFaceParts`):
 
-- `src/frontend/web/src/lib/avatar/vfx/AvatarVFXController.ts`: bindings, application, composites, hover planes, restoration/disposal.
-- `src/frontend/web/src/lib/avatar/vfx/types.ts`: actual discriminated union and transform fields.
-- `src/frontend/web/src/lib/avatar/vfx/faceParts.ts`: face part detection from VRM signals (eye bones, skin weights, `blink`/`aa` morphs, spring joints), name fallback and saved corrections.
-- `src/frontend/web/src/lib/avatar/vfx/profiles.ts`: material-name patterns for the fallback and optional per-model layout overrides.
-- `src/frontend/web/src/lib/avatar/vfx/AvatarFaceLandmarks.ts`: face bounds and eye landmarks from live primitive geometry, normalized eye/head information, and fallbacks.
-- `src/frontend/web/src/lib/avatar/vfx/AvatarFaceTextureAnchors.ts`: face-surface projection and interpolated UV anchors; mouth expression-based/fallback anchors and flatten regions.
-- `src/frontend/web/src/lib/avatar/vrmEditorInspection.ts`: `buildRuntimePrimitiveBindings` for exact live usages.
+- **Irises** (`eye_left`, `eye_right`): primitives with at least half their skin
+  weight on the humanoid `leftEye`/`rightEye` bones, or whose material a look-at
+  expression moves through a texture transform. Iris, white and highlight are
+  separated by projected area and depth. One primitive may hold both eyes, and
+  eye whites are often skinned to the head.
+- **Face skin**: the head-skinned primitive of the mesh that both `blink` and
+  `aa` morph, with the most area around the eyes.
+- **Eye lines and eyelashes**: small primitives of that mesh that `blink` moves
+  almost entirely.
+- **Hair**: primitives in the head subtree with a real share of spring-joint
+  weight (VRoid bangs keep most weight on the head bone).
 
-Roles include face skin, iris (left and right eye parts), eyeline, eyelashes, eye highlights and hair. Detection uses VRM signals first; material names are only a per-role fallback, and a saved correction (keyed to the VRM's sha256) overrides both. Each part reports its source and confidence, and an effect whose part is missing is skipped with a logged warning. Check the part map, snapshot warnings and the exact binding before proposing a correction or profile change.
+Material and node names (`profiles.ts`) are only a per-part fallback. Each part
+reports `node:mesh:primitive` bindings (from `buildRuntimePrimitiveBindings` in
+`vrmEditorInspection.ts`), a source (`signals`, `names`, `corrected`, `missing`)
+and a confidence. Detection must not write world matrices; doing so once skewed
+VRM 0 landmarks.
 
-Landmarks prefer the normalized head as their anchor object, then use available fallback objects. Version-specific face-front handling remains necessary even after the scene-root facing correction. The normal path builds landmarks/UV anchors at load and placement at effect application; it is not a fresh semantic face solve every frame. Do not assume an attachment follows every facial morph perfectly.
+A user corrects parts in the creator's **Face parts** panel. The
+`animama/avatar-face-parts/1` correction lists primitive keys and the VRM file's
+sha256, so it applies only to identical bytes; a mismatch is ignored with a
+diagnostic. Local Avatars keep it in their `.meta.json` sidecar; Included Avatars
+get an owner-scoped override bound to their revision.
+`Avatar.setFacePartCorrections` rebuilds parts, landmarks, anchors and bindings
+and re-applies active effects. An effect whose part is missing is skipped with
+`avatar_effect_face_part_unavailable`; the Action continues.
 
-## Choose the effect kind
+Landmarks (`AvatarFaceLandmarks.ts`) prefer the normalized head as their anchor
+object. Version-specific face-front handling remains necessary even after the
+scene-root facing correction. UV anchors (`AvatarFaceTextureAnchors.ts`) project
+landmarks onto the face-skin mesh and interpolate UVs; the mouth anchor uses
+expression geometry when available. Landmarks and anchors are built at load (and
+after a correction), placements when an effect applies; there is no per-frame
+face solve, so do not assume an attachment follows every facial morph.
 
-The catalog union has three `kind` values; the renderer has two surfaces:
+## The `/2` definition and attachments
 
-| Creator kind / data | Render surface | Suitable artwork |
-| --- | --- | --- |
-| Face decal / `face_anchored` | Composite texture on `face_skin` | Blush, tears, under-eye marks, mouth decals |
-| Texture / `texture` | Composite texture on classified target role | UV-matched overlays or iris replacement |
-| Hover / `hover` | Separate `hover_plane` | Stylized eyes/mouth or floating forehead symbols |
+`animama/avatar-effect/2` is defined once, in
+`src/backend/animama/app/contracts/avatar_effect.py`, and generated into the
+frontend types and zod validators; `lib/avatar/vfx/definition.ts` parses it.
+`/1` is refused until converted. There is no bundled Avatar Effect catalog;
+Included and Local descriptors are the only sources, and image names and the
+Sound alias resolve through the exact content revision's file/dependency map.
 
-For `face_anchored`, `anchor` is `undereye`, `blush`, or `mouth`. Bilateral anchors use `single` (one side asset with side/mirror controls) or `span` (one wide image covering both anchors once). Mouth uses its own center anchor. An anchor/reference rectangle sets placement, pivot, and scale; it is not a clipping boundary. Transparent image padding therefore affects apparent scale and placement.
+| Attachment                                        | Render surface                                                                    | Suitable artwork                                 |
+| ------------------------------------------------- | --------------------------------------------------------------------------------- | ------------------------------------------------ |
+| `face_surface`, area `undereye`, `blush`, `mouth` | Decal composited into `face_skin` at a UV anchor                                  | Blush, tears, under-eye marks, mouth marks       |
+| `face_surface`, area `full`, `eyes`               | Composite on the part's own texture layout                                        | UV-matched face shading, iris replacement        |
+| `face_landmark`                                   | Plane on the head bone at the eyes, mouth, forehead, top or above the head        | Stylized eyes or mouth, anger marks, punctuation |
+| `body`                                            | Plane on a humanoid bone (shared resolver with Particle Effects)                  | Hearts on the chest, a glow in a hand            |
+| `sticker`                                         | Camera-facing quad beside the head or body, sized by avatar height, no depth test | Comic lettering, stickers                        |
+| `silhouette`                                      | Overlay meshes sharing each primitive's geometry, skeleton and morph weights      | Gloom shading, patterns over the whole figure    |
 
-`texture` supports `overlay` (retain original appearance below the effect) and `replace` (effect result replaces that texture slot). Full-face art requires matching UV layout; do not assume a face-shaped PNG automatically maps to every VRM.
+Decal anchors set position, pivot and reference size; they are not clipping
+boundaries, so transparent padding affects apparent size and placement. `span`
+spreads one image across both anchors. Full-surface art must match the model's
+UV layout; a face-shaped PNG does not map to every VRM.
 
-`hover` subtypes:
-
-- `eye_hover`: art in front of iris landmarks; can disable selected underlying roles.
-- `mouth_hover`: art near the projected mouth surface, sized from its anchor and image aspect ratio.
-- `box_hover`: named face/forehead/top-edge placements for anger marks and other symbols.
-
-Left/right refer to the avatar's anatomy, not screen sides. Hover offsets operate in the resolved head/anchor-local placement space; texture offsets operate in UV/compositor space. Runtime transform rotations are radians. The applicable axes and placement math differ by kind; do not copy numeric values unchanged between them. `placement-transform.ts` shares the texture compositor/guide transform, while anchored pivot/scale placement is resolved in the controller before that transform.
+Left and right are the avatar's anatomy, not screen sides. Units differ by
+attachment: UV fractions for surfaces, metres in head or bone space for planes,
+fractions of avatar height for stickers. Rotations are degrees. Do not copy
+numbers between attachments. A mirrored copy mirrors its horizontal offset and
+can use a separate `otherEyeImage`.
 
 ## Composite and masking behavior
 
-Texture effects clone the material per active primitive usage, maintaining one composite canvas/CanvasTexture per active compatible slot. Current slots are `map` and `shadeMultiplyTexture`. Full-surface layers precede anchored decals; later applications of the same kind render above earlier ones. Reapplying the same effect ID replaces that logical instance. Avoid bypassing this controller with a shared original-material mutation.
+Surface effects clone the material per active primitive usage, keeping one
+composite canvas/CanvasTexture per active slot (`map` and
+`shadeMultiplyTexture`). Full-surface layers precede decals; later applies of the
+same kind draw above earlier ones; re-applying an applied ID replaces it. Do not
+bypass this with a shared original-material mutation.
 
-The controller's **face flatten** prepass samples skin color and paints soft fills before VFX layers. Eye hover enables eye flattening; mouth decals/hover enable mouth flattening. This hides conflicting painted detail and is not another VFX kind or a mesh deformation. Optional `skinBackdrop` on eye/mouth hover generates a skin-colored layer behind the art. Its quality depends on the sample/anchor and original geometry; do not bake one avatar's skin color into a reusable transparent asset to compensate.
+The **face cleanup** pass samples skin colour and paints soft fills over the
+painted eyes or mouth before effect layers draw (eye planes, mouth planes and
+mouth decals request it). It hides conflicting painted detail and is neither an
+effect nor a mesh deformation. `skinBackdrop` adds a skin-coloured plane behind
+eye or mouth art. Quality depends on the sample and anchors; do not bake one
+avatar's skin colour into a reusable transparent asset to compensate.
 
-Animated texture effects redraw/upload composites on VFX ticks; static segments are cached. Hover animation changes transforms. When diagnosing performance, distinguish texture upload cost from landmark setup or React rendering.
+Silhouette overlays read alpha from the avatar's original material, never a face
+effect's composite, and skip MToon outlines and layers that write no depth.
+
+Animated surface effects redraw and upload composites on the 30 FPS VFX tick;
+static segments are cached. Planes animate transforms; flipbooks on planes move
+texture offsets without a re-upload. When diagnosing performance, use
+`pnpm -s effects:bench` and distinguish texture upload cost from landmark setup
+or React rendering.
 
 ## Use the in-app creator
 
-1. Open `/avatar-effects/new` or the intended existing effect's edit route, select the intended avatar preview, and choose the kind based on how the art should attach.
-2. Import the image and configure the target/anchor/side/mirroring. Current creator input is one PNG, JPEG, or WebP. Check actual transparency; a checkerboard painted into an image is not alpha.
-3. Use **Guides** to inspect reference anchors versus the solid artwork footprint. The footprint includes transparent padding. Use **UV preview** for the selected live texture slot and **Skin coverage** for flatten/sample regions. Estimated anchors are marked. These controls affect preview only.
-4. Tune scale, pivot, offset, rotation, and supported animation. Play/Stop/restart, inspect front and oblique views, and check relevant facial expressions. Resolve definition errors separately from model compatibility warnings: the former block Save; the latter can mean a valid effect lacks a binding on this model.
-5. When persistence is requested, use the creator's Save flow and verify reopening. Add it to a Gesture/Reaction through the typed dependency handoff when requested; the action event supplies timing.
+1. Start from the Effects template picker (sidebar Create → **Effects**, the
+   Create page's Avatar FX card or `/effects/new`), choose **Avatar FX**, then a
+   template or **Start from scratch**. Saved effects reopen at
+   `/avatar-effects/{id}/edit`. Choose the **Model** (Annie, Caitlyn or the
+   active Anima's model) and **View** (Face, Three-quarter, Portrait, Full
+   body).
+2. In **Effect Setup**, choose **Attach to** (Floating on the face, Painted on
+   the face, On the body, Sticker beside the avatar, Fill the silhouette), then
+   the attachment's fields, the image (PNG, JPEG or WebP; check for real alpha,
+   not a painted checkerboard), an optional other side image or animated sprite
+   sheet, and the face options.
+3. Open **Face parts** and confirm the parts the effect needs are found on this
+   model; correct uncertain or missing ones and save the correction.
+4. Drag the art on the preview, and use the corner and round handles to resize
+   and turn it; the **Placement** tab shows the same values. Use **Guides**,
+   **UV preview** and **Skin coverage** to compare anchors, the full image
+   rectangle and the cleanup regions. These affect the preview only.
+5. Set **Look** and **Motion**, Play and Restart, and check front, three-quarter
+   and face views on both Included Avatars. A definition error blocks Save and
+   names its field; a missing part is a model compatibility problem.
+6. Save when requested, reopen, and add it to a Gesture or Reaction through
+   **Use in…**; the Action event owns timing and fades. For a review outside the
+   app, use `pnpm -s effects:render` (sheets) or `pnpm -s animation:preview`
+   (live, both Avatars) from `src/frontend/web`.
 
-Implementation: `src/frontend/web/src/ui/avatar-effect-creator/AvatarEffectCreatorPage.tsx`, `AvatarEffectGuideRenderer.tsx`, `AvatarEffectUvPreview.tsx`, `useAvatarEffectSave.ts` in that directory, and `src/frontend/web/src/lib/avatar/vfx/editor/document.ts`.
-
-The portable definition is `animama/avatar-effect/2` (contract: `src/backend/animama/app/contracts/avatar_effect.py`; parser: `src/frontend/web/src/lib/avatar/vfx/definition.ts`), and `/1` is refused until converted. The creator still edits the older kinds above through a temporary adapter. Its logical image names and optional Sound alias resolve through the exact content revision's file/dependency map. There is no bundled Avatar Effect catalog; Included and Local descriptors are the only sources.
+Implementation: `src/frontend/web/src/ui/avatar-effect-creator/` (page, setup
+fields, inspector, manipulator, face parts panel, guides, UV preview, save hook)
+and `src/frontend/web/src/lib/avatar/vfx/editor/document.ts`.
 
 ## Cleanup and useful diagnostics
 
-The serializable editor document holds logical metadata/digest, not File objects, Blob URLs, live Avatar objects, or Three.js textures. Preview media and catalog leases have separate owners. `effect-image.ts` shares only pending loads and removes settled promises; completed images belong to active effects. Retaining completed promises by temporary Blob URL pins decoded images after a preview is destroyed.
+The serializable editor document holds logical metadata/digests, not File
+objects, Blob URLs, live Avatar objects, or Three.js textures. Preview media and
+catalog leases have separate owners. `effect-image.ts` shares only pending loads
+and removes settled promises; completed images belong to active effects.
+Retaining completed promises by temporary Blob URL pins decoded images after a
+preview is destroyed.
 
-`AvatarVFXController` restores original material/visibility state and disposes owned composites/planes. Stop/unmount should remove the applicable instances without clearing unrelated effects. For clip-owned effects, preserve their event/instance ownership instead of broadly clearing the canvas.
+`AvatarVFXController` restores original material/visibility state and disposes
+owned composites, planes and overlays. Stop/unmount should remove the applicable
+instances without clearing unrelated effects. For clip-owned effects, preserve
+their event/instance ownership instead of broadly clearing the canvas.
 
-| Symptom | First boundary to inspect |
-| --- | --- |
-| Missing effect | Catalog readiness, binding role, compatible slot, image load, snapshot warnings |
-| Mirrored or opposite-side art | Anatomical side, `requiresMirror`, model UV layout, anchor basis |
-| Correct center but wrong size | Transparent padding, single/span choice, reference rectangle, scale/pivot |
-| Washed-out or dark art | Color space, source color multipliers, lit and shade slots, expression/material writer |
-| Flicker, hair intersection, visible painted mouth | Plane depth/placement, flatten anchors, backdrop, role visibility |
-| Preview works, saved playback fails | Portable definition, logical media alias, exact revision dependency closure, action timing |
-| Growth after repeated replacement | Owned canvases/textures/images, settled promises, URL leases, controller disposal |
+| Symptom                                           | First boundary to inspect                                                                                                        |
+| ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| Missing effect                                    | Part map and `avatar_effect_face_part_unavailable`, catalog readiness, compatible slot, image load and limits, snapshot warnings |
+| Correction ignored                                | `vrm_sha256` or Included revision changed                                                                                        |
+| Mirrored or opposite-side art                     | Anatomical side, `mirror`, `otherEyeImage`, model UV layout, anchor basis                                                        |
+| Correct centre but wrong size                     | Transparent padding, single/span choice, reference rectangle, scale/pivot                                                        |
+| Washed-out or dark art                            | Colour space, source colour multipliers, lit and shade slots, blend mode, expression/material writer                             |
+| Flicker, hair intersection, visible painted mouth | Plane depth/placement, hair part, cleanup anchors, backdrop, part visibility                                                     |
+| Preview works, saved playback fails               | Portable definition, logical media alias, exact revision dependency closure, action timing                                       |
+| Growth after repeated replacement                 | Owned canvases/textures/images, settled promises, URL leases, controller disposal                                                |
 
-Source-backed diagnosis is a starting point. Verify the affected model and route before claiming visual compatibility or a fixed resource leak.
+Source-backed diagnosis is a starting point. Verify the affected model and route
+before claiming visual compatibility or a fixed resource leak.

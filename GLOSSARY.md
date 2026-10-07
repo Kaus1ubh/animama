@@ -91,6 +91,35 @@ pool and optional emotion/intensity pools. An omitted cell inherits Default;
 explicit None suppresses idle playback for that cell. Selecting an Idle Style
 does not equip its Gestures for AI invocation.
 
+## Avatar Effect
+
+Reusable art drawn on or around an Avatar during a Gesture or Reaction: painted
+on the face, floating in front of it, on a body point, as a sticker beside the
+Avatar or filling its silhouette. The effect owns its art, look and motion; the
+Action event that plays it owns when it starts, ends and fades. It is never
+equipped directly. One image moving as one piece is an Avatar Effect, not a
+Particle Effect.
+
+## Particle Effect
+
+A three.quarks emitter of many independently moving sprites, such as sparkles,
+hearts or bursts, attached to a point on the Avatar and played by a Gesture or
+Reaction.
+
+## Scene Effect
+
+Background layers, marquees or focus lines drawn in page layers behind or in
+front of the Avatar, outside its 3D scene, and played by a Gesture or Reaction.
+It never changes the Avatar itself.
+
+## Face part
+
+A part of an Avatar's face that Avatar Effects use: face skin, each eye's iris,
+eye highlights, eye lines, eyelashes or hair. The app detects parts from VRM
+signals, not material names. A user's correction is saved with that Avatar and
+applies only to the exact model file it was made on. "Face skin" is a detected
+part, not a glTF skin.
+
 ## Portable package
 
 A local `.zip` file containing selected content and its required dependencies,

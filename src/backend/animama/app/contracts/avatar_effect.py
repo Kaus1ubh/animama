@@ -340,7 +340,11 @@ class AvatarEffectMotion(_Strict):
 
 
 class AvatarEffectFaceOptions(_Strict):
-    """Face cleanup options for eye and mouth effects; each defaults on where it applies."""
+    """Face cleanup options for eye and mouth effects.
+
+    Where an option applies, ``forceBlink``, ``hideEyeDetails`` and ``faceCleanup`` default on and
+    ``skinBackdrop`` defaults off.
+    """
 
     forceBlink: bool | None = None
     hideEyeDetails: bool | None = None

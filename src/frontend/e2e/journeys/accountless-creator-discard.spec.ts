@@ -157,7 +157,7 @@ for (const item of cases) {
             name: discardedName,
             setting: changedSetting,
           });
-        if (item.section === "avatar" && origin === "existing") {
+        if (item.section !== "gesture" && origin === "existing") {
           page.once("dialog", (dialog) => dialog.accept());
           await page.reload();
           await expect(
@@ -166,6 +166,28 @@ for (const item of cases) {
           expect(await readPortableJson(page, item.jsonTitle)).toBe(
             changedJson,
           );
+          // The restored draft is announced, as in the Particle creator, and
+          // Discard recovery returns to the item's saved version.
+          const recoveryNotice = page.getByRole("status").filter({
+            hasText: `Recovered unsaved ${
+              item.section === "avatar" ? "Avatar Effect" : "Scene Effect"
+            } changes.`,
+          });
+          await expect(recoveryNotice).toBeVisible();
+          await recoveryNotice
+            .getByRole("button", { name: "Discard recovery", exact: true })
+            .click();
+          await expect(recoveryNotice).toBeHidden();
+          await expect(
+            page.getByRole("textbox", { name: item.nameLabel, exact: true }),
+          ).toHaveValue(expectedName);
+          expect(await readPortableJson(page, item.jsonTitle)).toBe(
+            originalJson,
+          );
+          // Edit again so the blocker below still has a draft to discard.
+          await page
+            .getByRole("textbox", { name: item.nameLabel, exact: true })
+            .fill(discardedName);
         }
         await discardToLibrary(page);
         await openExisting();

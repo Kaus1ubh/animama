@@ -49,7 +49,7 @@ export const EFFECT_TEMPLATE_KIND_INFO: Record<
   },
   avatar: {
     label: "Avatar FX",
-    description: "Add face decals, hover art, and Avatar textures.",
+    description: "Add art on the face, the body or beside the Avatar.",
     route: "/avatar-effects/new",
   },
   scene: {

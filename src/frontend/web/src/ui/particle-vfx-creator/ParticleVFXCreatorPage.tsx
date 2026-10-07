@@ -115,7 +115,9 @@ import {
   CreatorLeaveDialog,
   CreatorNumberField as NumberField,
   CreatorPreviewBar,
+  CreatorDiscardRecoveryButton,
   CreatorSaveNotice,
+  creatorRecoveredMessage,
   CreatorToolbar,
   CreatorWorkspaceShell,
 } from "@/ui/content-creator";
@@ -546,9 +548,9 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
 
   /**
    * A new effect's recovered draft is replaced with a blank one. On an edit
-   * route the document stays and only its preserved Save operation is
-   * dropped, as in the Avatar and Scene creators, so a blank draft is never
-   * stored under the item.
+   * route the recovered draft and its preserved Save operation are dropped and
+   * the saved item reloads, as in the Avatar and Scene creators, so a blank
+   * draft is never stored under the item.
    */
   const discardRecoveredDraft = useCallback(async () => {
     if (itemId) {
@@ -1265,7 +1267,7 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
                   : null) ??
                 (contentSave.isBusy
                   ? `${saveStageLabel(contentSave.stage)} private content…`
-                  : "Recovered unsaved Particle VFX changes.")
+                  : creatorRecoveredMessage("Particle VFX"))
               }
               actions={
                 contentSave.recovered && !contentSave.isBusy ? (
@@ -1280,15 +1282,10 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
                         Retry Save
                       </Button>
                     ) : null}
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
+                    <CreatorDiscardRecoveryButton
                       disabled={discardPending}
-                      onClick={() => void runDiscard(discardRecoveredDraft)}
-                    >
-                      Discard recovery
-                    </Button>
+                      onDiscard={() => void runDiscard(discardRecoveredDraft)}
+                    />
                   </div>
                 ) : null
               }

@@ -5,6 +5,7 @@ import {
   type AvatarEffectEditorDocument,
   type AvatarEffectEditorImageResources,
 } from "@/lib/avatar/vfx/editor";
+import type { CreatorCameraPreset } from "@/ui/main/canvas/sceneCameraPresets";
 import {
   avatarVFXEffectTransformOf,
   type AvatarVFXEffectTransform,
@@ -164,4 +165,29 @@ export function createAvatarEffectObjectUrlLease(
       api.revokeObjectURL(url);
     },
   };
+}
+
+/**
+ * The preview View an effect opens in, so its art is in frame: Face for art on
+ * the eyes, mouth and face, Portrait for art above the head or on the
+ * forehead (which Face crops), for body art and for stickers, and Full body
+ * for a silhouette fill.
+ */
+export function avatarEffectInitialView(
+  document: AvatarEffectEditorDocument,
+): CreatorCameraPreset {
+  const attachment = document.attachment;
+  switch (attachment.kind) {
+    case "face_surface":
+      return "portrait-close";
+    case "face_landmark":
+      return attachment.landmark === "eyes" || attachment.landmark === "mouth"
+        ? "portrait-close"
+        : "portrait";
+    case "body":
+    case "sticker":
+      return "portrait";
+    case "silhouette":
+      return "full-body";
+  }
 }

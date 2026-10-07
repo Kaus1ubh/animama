@@ -1,13 +1,48 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  avatarEffectEditorReducer,
+  createDefaultAvatarEffectDocument,
+  type AvatarEffectEditorAttachmentKind,
+} from "@/lib/avatar/vfx/editor";
+import {
   AVATAR_EFFECT_PREVIEW_MOTION_CLASS,
   avatarEffectCreatorKeyboardAction,
+  avatarEffectInitialView,
   avatarEffectPreviewCompatibility,
   createAvatarEffectObjectUrlLease,
 } from "./avatarEffectCreatorBehavior";
 
 describe("Avatar Effect creator behavior", () => {
+  it("opens each attachment in a View that frames its art", () => {
+    const attached = (
+      kind: AvatarEffectEditorAttachmentKind,
+      landmark?: "eyes" | "mouth" | "forehead" | "top" | "top_edge",
+    ) => {
+      let document = avatarEffectEditorReducer(
+        createDefaultAvatarEffectDocument(),
+        { type: "set-attachment", kind },
+      );
+      if (landmark)
+        document = avatarEffectEditorReducer(document, {
+          type: "patch-attachment",
+          patch: { landmark },
+        });
+      return avatarEffectInitialView(document);
+    };
+    expect(avatarEffectInitialView(createDefaultAvatarEffectDocument())).toBe(
+      "portrait-close",
+    );
+    expect(attached("face_surface")).toBe("portrait-close");
+    expect(attached("face_landmark", "mouth")).toBe("portrait-close");
+    // Face crops art above the head or on the forehead, as in Emote !.
+    for (const landmark of ["forehead", "top", "top_edge"] as const)
+      expect(attached("face_landmark", landmark)).toBe("portrait");
+    expect(attached("body")).toBe("portrait");
+    expect(attached("sticker")).toBe("portrait");
+    expect(attached("silhouette")).toBe("full-body");
+  });
+
   it("maps save and preview keyboard shortcuts without stealing text input space", () => {
     expect(
       avatarEffectCreatorKeyboardAction({

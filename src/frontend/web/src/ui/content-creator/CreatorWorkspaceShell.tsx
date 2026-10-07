@@ -54,6 +54,7 @@ export function CreatorWorkspaceShell({
   const [previewExpanded, setPreviewExpanded] = useState(true);
   const rootRef = useRef<HTMLDivElement>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
+  const canvasControlsRef = useRef<HTMLDivElement>(null);
   // The header can gain a second row as available width or document actions change.
   useLayoutEffect(() => {
     const toolbarElement = toolbarRef.current;
@@ -68,6 +69,22 @@ export function CreatorWorkspaceShell({
     observer.observe(toolbarElement);
     return () => observer.disconnect();
   }, []);
+  // On desktop the floating canvas controls are wider than the stage between
+  // the panels, so the panels end above them instead of running underneath.
+  const hasCanvasControls = Boolean(canvasControls);
+  useLayoutEffect(() => {
+    const controls = canvasControlsRef.current;
+    if (!controls) return;
+    const measure = () =>
+      rootRef.current?.style.setProperty(
+        "--creator-canvas-controls-height",
+        `${controls.getBoundingClientRect().height}px`,
+      );
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(controls);
+    return () => observer.disconnect();
+  }, [hasCanvasControls]);
   const style = {
     "--creator-left-panel-width": clampLayoutSize(leftPanelWidth, 280, 440),
     "--creator-right-panel-width": clampLayoutSize(rightPanelWidth, 300, 480),
@@ -81,7 +98,7 @@ export function CreatorWorkspaceShell({
     <div
       ref={rootRef}
       className={cn(
-        "bg-background text-foreground relative flex h-full min-h-0 flex-col overflow-hidden [--creator-header-height:80px] [--creator-inset:1rem] xl:[--creator-inset:2rem]",
+        "bg-background text-foreground relative flex h-full min-h-0 flex-col overflow-hidden [--creator-canvas-controls-height:0px] [--creator-header-height:80px] [--creator-inset:1rem] xl:[--creator-inset:2rem]",
         className,
       )}
       style={style}
@@ -127,7 +144,7 @@ export function CreatorWorkspaceShell({
             <TabsContent
               value="setup"
               forceMount
-              className="m-0 min-h-0 flex-1 overflow-y-auto p-3 data-[state=inactive]:hidden sm:pl-16 lg:absolute lg:top-[var(--creator-header-height)] lg:bottom-[calc(var(--creator-bottom-chrome-height)+2rem)] lg:left-[calc(var(--app-shell-sidebar-inset)+var(--creator-inset))] lg:z-20 lg:flex lg:w-[min(var(--creator-left-panel-width),26vw)] lg:flex-col lg:overflow-visible lg:p-0 lg:data-[state=inactive]:flex"
+              className="m-0 min-h-0 flex-1 overflow-y-auto p-3 data-[state=inactive]:hidden sm:pl-16 lg:absolute lg:top-[var(--creator-header-height)] lg:bottom-[calc(var(--creator-bottom-chrome-height)+var(--creator-canvas-controls-height)+2.75rem)] lg:left-[calc(var(--app-shell-sidebar-inset)+var(--creator-inset))] lg:z-20 lg:flex lg:w-[min(var(--creator-left-panel-width),26vw)] lg:flex-col lg:overflow-visible lg:p-0 lg:data-[state=inactive]:flex"
             >
               {leftPanel}
             </TabsContent>
@@ -136,7 +153,7 @@ export function CreatorWorkspaceShell({
             <TabsContent
               value="inspector"
               forceMount
-              className="m-0 min-h-0 flex-1 overflow-y-auto p-3 data-[state=inactive]:hidden sm:pl-16 lg:absolute lg:top-[var(--creator-header-height)] lg:right-[var(--creator-inset)] lg:bottom-[calc(var(--creator-bottom-chrome-height)+2rem)] lg:z-20 lg:flex lg:w-[min(var(--creator-right-panel-width),27vw)] lg:flex-col lg:overflow-visible lg:p-0 lg:data-[state=inactive]:flex"
+              className="m-0 min-h-0 flex-1 overflow-y-auto p-3 data-[state=inactive]:hidden sm:pl-16 lg:absolute lg:top-[var(--creator-header-height)] lg:right-[var(--creator-inset)] lg:bottom-[calc(var(--creator-bottom-chrome-height)+var(--creator-canvas-controls-height)+2.75rem)] lg:z-20 lg:flex lg:w-[min(var(--creator-right-panel-width),27vw)] lg:flex-col lg:overflow-visible lg:p-0 lg:data-[state=inactive]:flex"
             >
               {rightPanel}
             </TabsContent>
@@ -147,7 +164,10 @@ export function CreatorWorkspaceShell({
             className="m-0 min-h-0 flex-1 space-y-3 overflow-y-auto p-3 data-[state=inactive]:hidden sm:pl-16 lg:contents lg:data-[state=inactive]:contents"
           >
             {canvasControls ? (
-              <div className="lg:absolute lg:right-1/2 lg:bottom-[calc(var(--creator-bottom-chrome-height)+2rem)] lg:z-30 lg:flex lg:w-max lg:max-w-[calc(100%-2rem)] lg:translate-x-1/2 lg:justify-center">
+              <div
+                ref={canvasControlsRef}
+                className="lg:absolute lg:right-1/2 lg:bottom-[calc(var(--creator-bottom-chrome-height)+2rem)] lg:z-30 lg:flex lg:w-max lg:max-w-[calc(100%-2rem)] lg:translate-x-1/2 lg:justify-center"
+              >
                 {canvasControls}
               </div>
             ) : null}

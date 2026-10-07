@@ -6,6 +6,7 @@ import {
   handleRotationDelta,
   handleScaleFactor,
   hitTestManipulation,
+  MIN_HANDLE_BOX,
   planeDragOffset,
   pointerRay,
   projectWorldPoint,
@@ -169,6 +170,74 @@ describe("Avatar Effect direct manipulation maths", () => {
       "move",
     );
     expect(hitTestManipulation(placements, { x: 200, y: 200 })).toBeNull();
+  });
+
+  it("moves art from a press just outside its edge, never orbiting the camera", () => {
+    const placements = [square({ x: 100, y: 100 })];
+    expect(hitTestManipulation(placements, { x: 129, y: 100 })?.mode).toBe(
+      "move",
+    );
+    expect(hitTestManipulation(placements, { x: 100, y: 131 })?.mode).toBe(
+      "move",
+    );
+    expect(hitTestManipulation(placements, { x: 134, y: 100 })).toBeNull();
+  });
+
+  it("keeps handles of tiny art apart at a minimum on-screen size", () => {
+    const camera = frontCamera();
+    const frame = (half: number) => ({
+      attachment: "face_landmark" as const,
+      placements: [
+        {
+          label: "Eye right",
+          mirrored: false,
+          rotationSense: 1 as const,
+          corners: [
+            new THREE.Vector3(-half, half, 0),
+            new THREE.Vector3(half, half, 0),
+            new THREE.Vector3(half, -half, 0),
+            new THREE.Vector3(-half, -half, 0),
+          ] as [THREE.Vector3, THREE.Vector3, THREE.Vector3, THREE.Vector3],
+          center: new THREE.Vector3(),
+        },
+      ],
+      offsetSpace: null,
+      surface: null,
+      unitLength: 1.6,
+    });
+    const side = (placement: ScreenPlacement) =>
+      placement.corners[1].x - placement.corners[0].x;
+    // About 4 px of art: the handle box grows to the minimum around its centre.
+    const [tiny] = screenPlacements(
+      frame(0.003),
+      camera,
+      VIEW.width,
+      VIEW.height,
+    );
+    expect(side(tiny!)).toBeCloseTo(MIN_HANDLE_BOX);
+    expect(tiny!.corners[3].y - tiny!.corners[0].y).toBeCloseTo(MIN_HANDLE_BOX);
+    expect((tiny!.corners[0].x + tiny!.corners[2].x) / 2).toBeCloseTo(200);
+    expect(tiny!.rotateHandle.y).toBeCloseTo(tiny!.corners[0].y - 28);
+    expect(hitTestManipulation([tiny!], tiny!.corners[2])?.mode).toBe("scale");
+    expect(hitTestManipulation([tiny!], tiny!.rotateHandle)?.mode).toBe(
+      "rotate",
+    );
+    // Art larger than the minimum keeps its own corners.
+    const [large] = screenPlacements(
+      frame(0.05),
+      camera,
+      VIEW.width,
+      VIEW.height,
+    );
+    expect(side(large!)).toBeGreaterThan(MIN_HANDLE_BOX);
+    expect(large!.corners[0].x).toBeCloseTo(
+      projectWorldPoint(
+        new THREE.Vector3(-0.05, 0.05, 0),
+        camera,
+        VIEW.width,
+        VIEW.height,
+      )!.x,
+    );
   });
 
   it("projects a frame's corners and puts the rotate handle beyond the top edge", () => {

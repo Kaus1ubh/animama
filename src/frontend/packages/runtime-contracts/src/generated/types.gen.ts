@@ -464,7 +464,10 @@ export type AvatarEffectDrift = {
 /**
  * AvatarEffectFaceOptions
  *
- * Face cleanup options for eye and mouth effects; each defaults on where it applies.
+ * Face cleanup options for eye and mouth effects.
+ *
+ * Where an option applies, ``forceBlink``, ``hideEyeDetails`` and ``faceCleanup`` default on and
+ * ``skinBackdrop`` defaults off.
  */
 export type AvatarEffectFaceOptions = {
     /**

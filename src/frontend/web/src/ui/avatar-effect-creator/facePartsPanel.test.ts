@@ -74,6 +74,39 @@ describe("face parts panel", () => {
     expect(byRole.hair).toMatchObject({ status: "corrected" });
   });
 
+  it("marks only the parts the user changed as corrected", () => {
+    const detected = partMap();
+    const pinned = (role: AvatarFacePartRole, bindings: string[]) => ({
+      bindings,
+      source: "corrected" as const,
+      confidence: 1,
+      detected: detected.parts[role],
+    });
+    // The saved correction pins the required parts as detected and names
+    // the eye-line mesh as the eyelashes.
+    const rows = facePartRows(
+      partMap({
+        face_skin: pinned("face_skin", ["91:0:3"]),
+        eye_left: pinned("eye_left", ["91:0:1"]),
+        eye_right: pinned("eye_right", ["91:0:1"]),
+        eyelash: pinned("eyelash", ["91:0:6"]),
+      }),
+      primitives,
+    );
+    const byRole = Object.fromEntries(rows.map((row) => [row.role, row]));
+    for (const role of ["face_skin", "eye_left", "eye_right"] as const) {
+      expect(byRole[role]).toMatchObject({
+        status: "detected",
+        statusLabel: "Detected · 90%",
+      });
+    }
+    expect(byRole.eyelash).toMatchObject({
+      status: "corrected",
+      statusLabel: "Corrected",
+      bindings: [{ key: "91:0:6" }],
+    });
+  });
+
   it("toggles mesh parts and saves a complete correction", () => {
     const map = partMap();
     let draft = toggleFacePartBinding(map, {}, "face_skin", "91:0:4");

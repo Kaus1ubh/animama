@@ -32,6 +32,14 @@ export type ManipulationHit = {
 export const ROTATE_HANDLE_OFFSET = 28;
 /** Pointer radius that grabs a corner or the rotate handle. */
 export const HANDLE_HIT_RADIUS = 10;
+/**
+ * Smallest side of the handle box, in CSS pixels. Art drawn smaller (such as
+ * eye art at a narrow width) gets its handles on this box around its centre,
+ * so the corners stay apart and grabbable.
+ */
+export const MIN_HANDLE_BOX = 32;
+/** A press this close outside the art still moves it rather than the camera. */
+export const ART_GRAB_MARGIN = 12;
 
 /** Project a world point to CSS pixels; null behind the camera. */
 export function projectWorldPoint(
@@ -85,7 +93,11 @@ export function screenPlacements(
     );
     const center = projectWorldPoint(placement.center, camera, width, height);
     if (!center || corners.some((corner) => corner === null)) return;
-    const [topLeft, topRight] = corners as ScreenPoint[];
+    const handleCorners = withMinimumSize(
+      corners as ScreenPlacement["corners"],
+      center,
+    );
+    const [topLeft, topRight] = handleCorners;
     const top = {
       x: (topLeft!.x + topRight!.x) / 2,
       y: (topLeft!.y + topRight!.y) / 2,
@@ -97,7 +109,7 @@ export function screenPlacements(
       label: placement.label,
       mirrored: placement.mirrored,
       rotationSense: placement.rotationSense,
-      corners: corners as ScreenPlacement["corners"],
+      corners: handleCorners,
       center,
       rotateHandle: {
         x: top.x + (away.x / length) * ROTATE_HANDLE_OFFSET,
@@ -106,6 +118,64 @@ export function screenPlacements(
     });
   });
   return result;
+}
+
+/**
+ * The art's corners, or for art smaller than {@link MIN_HANDLE_BOX} on a side,
+ * the same box (same centre, turn and handedness) grown to that size.
+ */
+function withMinimumSize(
+  corners: ScreenPlacement["corners"],
+  center: ScreenPoint,
+): ScreenPlacement["corners"] {
+  const [topLeft, topRight, , bottomLeft] = corners;
+  const half = (from: ScreenPoint, to: ScreenPoint) => ({
+    x: (to.x - from.x) / 2,
+    y: (to.y - from.y) / 2,
+  });
+  const grow = (axis: ScreenPoint, fallback: ScreenPoint) => {
+    const length = Math.hypot(axis.x, axis.y);
+    const minimum = MIN_HANDLE_BOX / 2;
+    if (length >= minimum) return axis;
+    if (length < 1e-6)
+      return { x: fallback.x * minimum, y: fallback.y * minimum };
+    return {
+      x: (axis.x / length) * minimum,
+      y: (axis.y / length) * minimum,
+    };
+  };
+  const xHalf = half(topLeft, topRight);
+  const yHalf = half(topLeft, bottomLeft);
+  const x = grow(xHalf, { x: 1, y: 0 });
+  const y = grow(yHalf, { x: 0, y: 1 });
+  if (x === xHalf && y === yHalf) return corners;
+  const at = (sx: number, sy: number) => ({
+    x: center.x + sx * x.x + sy * y.x,
+    y: center.y + sx * x.y + sy * y.y,
+  });
+  return [at(-1, -1), at(1, -1), at(1, 1), at(-1, 1)];
+}
+
+/** Shortest distance from a point to a segment. */
+function distanceToSegment(
+  point: ScreenPoint,
+  a: ScreenPoint,
+  b: ScreenPoint,
+): number {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const lengthSquared = dx * dx + dy * dy;
+  const t =
+    lengthSquared > 0
+      ? Math.min(
+          1,
+          Math.max(
+            0,
+            ((point.x - a.x) * dx + (point.y - a.y) * dy) / lengthSquared,
+          ),
+        )
+      : 0;
+  return Math.hypot(point.x - (a.x + t * dx), point.y - (a.y + t * dy));
 }
 
 function inside(point: ScreenPoint, polygon: readonly ScreenPoint[]): boolean {
@@ -125,7 +195,11 @@ function inside(point: ScreenPoint, polygon: readonly ScreenPoint[]): boolean {
 const distance = (a: ScreenPoint, b: ScreenPoint) =>
   Math.hypot(a.x - b.x, a.y - b.y);
 
-/** Which handle (if any) is under the pointer: rotate, then corners, then the art. */
+/**
+ * Which handle (if any) is under the pointer: rotate, then corners, then the
+ * art, then just outside its edge (within {@link ART_GRAB_MARGIN}), so a press
+ * that slightly misses small art still moves it instead of the camera.
+ */
 export function hitTestManipulation(
   placements: readonly ScreenPlacement[],
   point: ScreenPoint,
@@ -137,9 +211,18 @@ export function hitTestManipulation(
     if (placement.corners.some((corner) => distance(point, corner) <= radius))
       return { mode: "scale", placement };
   }
-  const placement = placements.find((candidate) =>
-    inside(point, candidate.corners),
-  );
+  const placement =
+    placements.find((candidate) => inside(point, candidate.corners)) ??
+    placements.find((candidate) =>
+      candidate.corners.some(
+        (corner, index) =>
+          distanceToSegment(
+            point,
+            corner,
+            candidate.corners[(index + 1) % candidate.corners.length]!,
+          ) <= ART_GRAB_MARGIN,
+      ),
+    );
   return placement ? { mode: "move", placement } : null;
 }
 

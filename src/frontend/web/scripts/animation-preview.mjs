@@ -430,6 +430,8 @@ ANIMAMA_LOCAL_CONTENT_HOST_PATH.
 A Gesture or Reaction plays its Avatar and Particle Effects as in chat. An
 effect source loops; --duration applies it for that many seconds (up to
 ${MAX_PREVIEW_DURATION_SEC}) and then removes it. Changing a descriptor or its images reloads it.
+Keep each effect descriptor in its own <stem>/ folder: that folder is watched
+recursively, so unrelated files beside it would also reload the effect.
 
 The page's Review and Compare pickers list the example clips, the clips in
 the folder of each file source named here, the Library's Gestures, Reactions
@@ -437,9 +439,11 @@ and Avatar Effects, and the effect sources named here. Without a source, the
 first example plays.
 
 Review notes are saved beside a file source as <file name without .json>.review.json
-(laugh.clip.json -> laugh.clip.review.json), beside an effect's folder
-(sparkle/ -> sparkle.review.json), or in the working directory for a Library
-item, unless --notes names a file (for the sources named here).`;
+(laugh.clip.json -> laugh.clip.review.json) or beside an effect's folder
+(sparkle/ -> sparkle.review.json). They go in the working directory instead for
+a Library item and for any file inside Library content: under the Included or
+Local root, in a vfx/avatar/<stem>/ folder, or in a <stem>/ folder that holds
+<stem>.meta.json. --notes names another file (for the sources named here).`;
 
 async function main(argv) {
   const values = {};

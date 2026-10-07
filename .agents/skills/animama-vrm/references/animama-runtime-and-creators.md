@@ -45,7 +45,7 @@ This makes writer ownership concrete. A new per-frame React mutation outside the
 | Gesture creator | `/gestures/new`, `/gestures/:gestureId/edit`; Anima Clip documents expose Pose and Clip modes in the shared Action editor; VRMA imports have a different editing surface |
 | Saved Pose editing | `/poses/:poseId/edit`; static bone/expression content |
 | Reaction creator | Action editor for expression/effect/sound timing; rejects humanoid tracks |
-| Avatar Effect creator | `/avatar-effects/new`, `/avatar-effects/:avatarEffectId/edit`; portrait preview using production VFX controller |
+| Avatar Effect creator | `/avatar-effects/new` (usually opened from the Effects template picker, optionally with `?template=<id>`), `/avatar-effects/:avatarEffectId/edit`; preview on either Included Avatar or the active Anima's model using the production VFX controller |
 
 For browser work, navigate through the available UI and confirm the loaded item/model. Treat a creator's draft, Play/Stop, and Save as different operations; use the user's requested scope to decide whether to persist changes.
 

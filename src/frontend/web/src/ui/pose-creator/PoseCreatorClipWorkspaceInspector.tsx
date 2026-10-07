@@ -340,8 +340,8 @@ function EventInspector({
         </InspectorRow>
 
         {isAnimaPoseClipVFXEvent(event) ? (
-          <InspectorRow label="End">
-            <div className="flex w-[176px] min-w-0 items-center gap-2">
+          <>
+            <InspectorRow label="End">
               <Select
                 value={event.duration === undefined ? "action" : "duration"}
                 disabled={disabled}
@@ -350,28 +350,30 @@ function EventInspector({
                 }
               >
                 <SelectTrigger
-                  className="h-9 min-w-0 flex-1 gap-1 px-2"
+                  className="h-9 w-[176px]"
                   aria-label="Selected event end"
                 >
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="action">With Action</SelectItem>
-                  <SelectItem value="duration">After</SelectItem>
+                  <SelectItem value="duration">After a duration</SelectItem>
                 </SelectContent>
               </Select>
-              {event.duration !== undefined ? (
+            </InspectorRow>
+            {/* Its own row, so the End choice is never truncated. */}
+            {event.duration !== undefined ? (
+              <InspectorRow label="Duration">
                 <DurationInput
                   value={event.duration}
                   label="Selected event duration"
                   disabled={disabled}
                   min={0.001}
-                  compact
                   onChange={(duration) => onUpdate({ duration })}
                 />
-              ) : null}
-            </div>
-          </InspectorRow>
+              </InspectorRow>
+            ) : null}
+          </>
         ) : null}
 
         {event.kind === "avatar_vfx" && event.duration !== undefined ? (
@@ -779,19 +781,17 @@ function DurationInput({
   label,
   disabled = false,
   min = 0,
-  compact = false,
   onChange,
 }: {
   value: number;
   label: string;
   disabled?: boolean;
   min?: number;
-  compact?: boolean;
   onChange: (value: number) => void;
 }) {
   const { beginUndoGroup, endUndoGroup } = usePoseCreatorClipUndoGrouping();
   return (
-    <div className={compact ? "relative w-20 shrink-0" : "relative w-[176px]"}>
+    <div className="relative w-[176px]">
       <Input
         type="number"
         min={min}
@@ -801,11 +801,7 @@ function DurationInput({
         onChange={(event) => onChange(Number(event.currentTarget.value))}
         onFocus={beginUndoGroup}
         onBlur={endUndoGroup}
-        className={
-          compact
-            ? "h-9 [appearance:textfield] pr-5 pl-2 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-            : "h-9 pr-8"
-        }
+        className="h-9 pr-8"
         aria-label={label}
       />
       <span className="text-muted-foreground pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-xs">

@@ -612,8 +612,9 @@ from `src/frontend/web`:
   [Avatar VFX guide](avatar-vfx.md#headed-preview)). Its Review and Compare
   pickers switch to any example clip, any clip beside a file source and any
   Library Gesture, Reaction or Avatar Effect without a restart. Review notes
-  are saved beside a file source (in the working directory for a Library
-  item); `animation review` and `animation resolve` manage them.
+  are saved beside a file source (in the working directory for a Library item
+  or any file inside Library content); `animation review` and
+  `animation resolve` manage them.
 
 The workflow, conventions and review guidance live in the
 `animama-animation` agent skill. The code is in

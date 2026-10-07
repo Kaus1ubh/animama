@@ -69,6 +69,12 @@ export type AvatarFacePart = {
   source: AvatarFacePartSource;
   /** 0 (missing) to 1 (corrected); signals report how clearly they separated. */
   confidence: number;
+  /**
+   * For a corrected part, what detection found without the correction. A
+   * saved correction pins every required part, so only a part whose bindings
+   * differ from detection was changed by the user ({@link isFacePartEdited}).
+   */
+  detected?: AvatarFacePart;
 };
 
 /**
@@ -207,23 +213,55 @@ export function detectAvatarFaceParts(
   };
 }
 
+/** True when the user changed this part's bindings from what was detected. */
+export function isFacePartEdited(part: AvatarFacePart): boolean {
+  if (part.source !== "corrected") return false;
+  const detected = new Set(part.detected?.bindings ?? []);
+  return (
+    part.bindings.length !== detected.size ||
+    part.bindings.some((key) => !detected.has(key))
+  );
+}
+
+/** VFX target roles in the name matcher's precedence: detail, iris, skin. */
+const TARGET_ROLE_PARTS: ReadonlyArray<
+  [AvatarVFXTargetRole, readonly AvatarFacePartRole[]]
+> = [
+  ["eye_highlight", ["eye_highlight"]],
+  ["eyeline", ["eyeline"]],
+  ["eyelash", ["eyelash"]],
+  ["eye_iris", ["eye_left", "eye_right"]],
+  ["face_skin", ["face_skin"]],
+];
+
 /**
- * The single VFX target role for a binding, in the name matcher's precedence
- * (detail roles before iris before skin). Hair is not a VFX target.
+ * Every VFX target role a binding serves. One mesh can hold several parts,
+ * such as eyelashes drawn in the eye-line mesh, and an effect on any of them
+ * uses it. A part the user corrected comes first, so it is the primary role;
+ * the rest follow the name matcher's precedence. Hair is not a VFX target.
  */
+export function resolveFacePartTargetRoles(
+  map: AvatarFacePartMap | null,
+  bindingKey: string,
+): AvatarVFXTargetRole[] {
+  if (!map) return [];
+  const held = TARGET_ROLE_PARTS.filter(([, roles]) =>
+    roles.some((role) => map.parts[role].bindings.includes(bindingKey)),
+  );
+  const edited = held.filter(([, roles]) =>
+    roles.some((role) => isFacePartEdited(map.parts[role])),
+  );
+  return [...edited, ...held.filter((entry) => !edited.includes(entry))].map(
+    ([target]) => target,
+  );
+}
+
+/** The primary VFX target role for a binding ({@link resolveFacePartTargetRoles}). */
 export function resolveFacePartTargetRole(
   map: AvatarFacePartMap | null,
   bindingKey: string,
 ): AvatarVFXTargetRole | null {
-  if (!map) return null;
-  const has = (role: AvatarFacePartRole) =>
-    map.parts[role].bindings.includes(bindingKey);
-  if (has("eye_highlight")) return "eye_highlight";
-  if (has("eyeline")) return "eyeline";
-  if (has("eyelash")) return "eyelash";
-  if (has("eye_left") || has("eye_right")) return "eye_iris";
-  if (has("face_skin")) return "face_skin";
-  return null;
+  return resolveFacePartTargetRoles(map, bindingKey)[0] ?? null;
 }
 
 /** Live entries for a part, in binding order. */
@@ -1040,7 +1078,13 @@ function applyCorrections(
       );
     }
     if (requested.length > 0 && bindings.length === 0) continue;
-    parts[role] = { role, bindings, source: "corrected", confidence: 1 };
+    parts[role] = {
+      role,
+      bindings,
+      source: "corrected",
+      confidence: 1,
+      detected: parts[role],
+    };
   }
 }
 

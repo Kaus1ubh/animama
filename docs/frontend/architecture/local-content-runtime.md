@@ -242,7 +242,11 @@ for Particle, packaging notices to review before saving again.
   from a template (`useCreatorTemplateStart`), so a template never replaces the
   plain new draft. IndexedDB holds image Blobs; the
   localStorage fallback keeps the document without them. Each kind's database,
-  store and fallback names are fixed so existing drafts keep loading.
+  store and fallback names are fixed so existing drafts keep loading. A
+  restored draft shows "Recovered unsaved … changes." with **Discard
+  recovery** (`CreatorRecoveryNotice`, or Particle's combined notice): a new
+  document returns to blank and a saved one reloads its saved version. A
+  template route asks in its own dialog instead.
 - **Save** resolves a blank name, writes recovery, then saves with the draft's
   operation ID. A retry after a failure or pause reuses that ID. Success clears
   recovery and replaces the route with the edit route, bypassing the guard.

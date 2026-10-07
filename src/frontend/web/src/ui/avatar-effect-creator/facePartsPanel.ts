@@ -3,6 +3,7 @@ import type { AvatarFacePartCorrection } from "@animama/runtime-contracts/api-ty
 import {
   AVATAR_FACE_PARTS_SCHEMA,
   AVATAR_FACE_PART_ROLES,
+  isFacePartEdited,
   type AvatarFacePartMap,
   type AvatarFacePartRole,
 } from "@/lib/avatar/vfx/faceParts";
@@ -57,9 +58,15 @@ export function facePartRows(
   const nameOf = (key: string) =>
     primitives.find((primitive) => primitive.key === key)?.name ?? key;
   return AVATAR_FACE_PART_ROLES.map((role) => {
-    const part = map.parts[role];
+    const saved = map.parts[role];
+    // A saved correction pins the required parts; one the user left as
+    // detected keeps showing its detection.
+    const part =
+      saved.source === "corrected" && !isFacePartEdited(saved) && saved.detected
+        ? saved.detected
+        : saved;
     const edited = draft[role];
-    const keys = edited ?? part.bindings;
+    const keys = edited ?? saved.bindings;
     let status: FacePartStatus;
     let statusLabel: string;
     if (edited) {

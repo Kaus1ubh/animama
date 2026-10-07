@@ -85,7 +85,8 @@ import {
   CreatorLeaveDialog,
   CreatorLoading,
   CreatorNumberField as NumberField,
-  CreatorSaveNotice,
+  CREATOR_STAGE_NOTICE_CLASS,
+  CreatorRecoveryNotice,
   CreatorToggleRow as ToggleRow,
   CreatorToolbar,
   CreatorWorkspaceShell,
@@ -176,6 +177,9 @@ export function SceneEffectCreatorPage({
   const [imageUrls, setImageUrls] = useState<ReadonlyMap<string, string>>(
     () => new Map(),
   );
+  /** The template this draft started from, shown in Setup; null for Custom. */
+  const [startingTemplate, setStartingTemplate] =
+    useState<SceneEffectTemplateId | null>(templateId ?? null);
   const [selectedLayer, setSelectedLayer] =
     useState<BackgroundLayer>("marquee");
   const [selectedModel, setSelectedModel] =
@@ -190,6 +194,8 @@ export function SceneEffectCreatorPage({
     "full-body",
   );
   const [previewRevision, setPreviewRevision] = useState(0);
+  /** The document whose workspace has shown; see the loading screen below. */
+  const [shownDocument, setShownDocument] = useState<string | null>(null);
   const [hydration, setHydration] = useState<PreviewStatus>({
     state: itemId || templateId ? "loading" : "ready",
     message: null,
@@ -596,6 +602,47 @@ export function SceneEffectCreatorPage({
     [document],
   );
 
+  /** Replace the document with a blank one on the plain `/new` route. */
+  const resetToBlank = useCallback(async () => {
+    const next = {
+      document: createDefaultSceneEffectDocument(),
+      imageResources: [],
+    };
+    if (!(await contentSave.resetSession(next))) return;
+    resetDocument(next.document, next.imageResources);
+    setStartingTemplate(null);
+    setSelectedLayer("marquee");
+    setImageBusy(false);
+    setImageError(null);
+    setPlaying(true);
+    setJsonOpen(false);
+    setImportOpen(false);
+    setImportText("");
+    setImportError(null);
+    setSoundPreview(null);
+    initialFingerprintRef.current = sceneEffectSnapshotFingerprint(next);
+    setHydration({ state: "ready", message: null });
+    setPreviewRevision((value) => value + 1);
+  }, [contentSave, resetDocument]);
+
+  /**
+   * Discard a restored draft, as the Particle creator does: a saved item
+   * drops the draft and reloads its saved version, a new one starts blank.
+   */
+  const discardRecoveredDraft = useCallback(async () => {
+    if (contentSave.isBusy || imageBusy) return;
+    try {
+      if (itemId) await contentSave.discardRecovery();
+      else await resetToBlank();
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "The draft could not be discarded.",
+      );
+    }
+  }, [contentSave, imageBusy, itemId, resetToBlank]);
+
   const startNewDocument = useCallback(async () => {
     if (contentSave.isBusy || imageBusy) return;
     if (
@@ -622,24 +669,7 @@ export function SceneEffectCreatorPage({
         return;
       }
 
-      const next = {
-        document: createDefaultSceneEffectDocument(),
-        imageResources: [],
-      };
-      if (!(await contentSave.resetSession(next))) return;
-      resetDocument(next.document, next.imageResources);
-      setSelectedLayer("marquee");
-      setImageBusy(false);
-      setImageError(null);
-      setPlaying(true);
-      setJsonOpen(false);
-      setImportOpen(false);
-      setImportText("");
-      setImportError(null);
-      setSoundPreview(null);
-      initialFingerprintRef.current = sceneEffectSnapshotFingerprint(next);
-      setHydration({ state: "ready", message: null });
-      setPreviewRevision((value) => value + 1);
+      await resetToBlank();
     } catch (error) {
       toast.error(
         error instanceof Error
@@ -654,7 +684,7 @@ export function SceneEffectCreatorPage({
     isDirty,
     itemId,
     navigate,
-    resetDocument,
+    resetToBlank,
     templateId,
     userId,
   ]);
@@ -669,7 +699,16 @@ export function SceneEffectCreatorPage({
     }
   }, [document, imageUrls, playing, previewRevision]);
 
-  if (hydration.state === "loading" && (itemId || templateId))
+  // Once this document has shown, a reload (Discard recovery on a saved item)
+  // keeps the workspace and its preview Canvas mounted.
+  const documentKey = itemId ?? templateId ?? "new";
+  if (hydration.state === "ready" && shownDocument !== documentKey)
+    setShownDocument(documentKey);
+  if (
+    hydration.state === "loading" &&
+    (itemId || templateId) &&
+    shownDocument !== documentKey
+  )
     return (
       <>
         <CreatorLoading
@@ -810,6 +849,8 @@ export function SceneEffectCreatorPage({
           selectedLayer={selectedLayer}
           soundOptions={soundOptions}
           soundPending={soundQuery.isPending}
+          startingTemplate={startingTemplate}
+          onStartingTemplate={setStartingTemplate}
           onSelectedLayer={setSelectedLayer}
           onDispatch={(action) => {
             dispatch(action);
@@ -883,24 +924,17 @@ export function SceneEffectCreatorPage({
               message={hydration.message ?? "Unable to open effect."}
             />
           ) : null}
-          {contentSave.error || contentSave.recoveryWarning ? (
-            <CreatorSaveNotice
-              className="absolute top-[calc(var(--creator-header-height)+0.5rem)] right-4 left-4 z-[60] sm:left-auto sm:max-w-md lg:top-auto lg:bottom-28"
-              message={contentSave.error ?? contentSave.recoveryWarning}
-              tone={contentSave.error ? "error" : "warning"}
-              actions={
-                contentSave.error ? (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => void contentSave.discardRecovery()}
-                  >
-                    Discard preserved server draft
-                  </Button>
-                ) : null
-              }
-            />
-          ) : null}
+          <CreatorRecoveryNotice
+            className={CREATOR_STAGE_NOTICE_CLASS}
+            error={contentSave.error}
+            recoveryWarning={contentSave.recoveryWarning}
+            // A template route asks about its draft in a dialog instead.
+            recovered={contentSave.recovered && !templateId}
+            busy={contentSave.isBusy || imageBusy}
+            contentLabel="Scene Effect"
+            onDiscardServerDraft={() => void contentSave.discardRecovery()}
+            onDiscardRecovery={() => void discardRecoveredDraft()}
+          />
           <CreatorJsonDialog
             open={jsonOpen}
             onOpenChange={setJsonOpen}
@@ -958,11 +992,15 @@ function SceneSetupPanel({
   selectedLayer,
   soundOptions,
   soundPending,
+  startingTemplate,
+  onStartingTemplate,
   onSelectedLayer,
   onDispatch,
 }: {
   document: SceneEffectEditorDocument;
   selectedLayer: BackgroundLayer;
+  startingTemplate: SceneEffectTemplateId | null;
+  onStartingTemplate: (templateId: SceneEffectTemplateId) => void;
   soundOptions: Array<{
     item_id: string;
     name: string;
@@ -998,16 +1036,26 @@ function SceneSetupPanel({
       <div className="mt-3 space-y-3">
         <Field label="Starting template">
           <Select
-            value=""
-            onValueChange={(value) =>
+            // The template shows while the document is still of its kind.
+            value={
+              SCENE_EFFECT_TEMPLATE_OPTIONS.some(
+                (template) =>
+                  template.id === startingTemplate &&
+                  template.kind === document.kind,
+              )
+                ? (startingTemplate ?? "")
+                : ""
+            }
+            onValueChange={(value) => {
+              onStartingTemplate(value as SceneEffectTemplateId);
               onDispatch({
                 type: "replace",
                 document: applySceneEffectTemplate(
                   document,
                   value as SceneEffectTemplateId,
                 ),
-              })
-            }
+              });
+            }}
           >
             <SelectTrigger size="sm" className="w-full text-xs">
               <SelectValue placeholder="Custom" />

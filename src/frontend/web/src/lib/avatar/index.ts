@@ -87,6 +87,7 @@ export {
   resolveAnimaPoseClipFadeTransition,
   sampleAnimaPoseClip,
   sampleAnimaPoseClipActiveEventsAtTime,
+  sampleAnimaPoseClipAvatarVFXIntensity,
   sampleAnimaPoseClipVFXEventState,
   sanitizeAnimaPoseClip,
   shouldAnimaPoseClipAutoComplete,

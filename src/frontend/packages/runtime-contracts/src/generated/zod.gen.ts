@@ -148,7 +148,10 @@ export const zAvatarEffectDrift = z.object({
 /**
  * AvatarEffectFaceOptions
  *
- * Face cleanup options for eye and mouth effects; each defaults on where it applies.
+ * Face cleanup options for eye and mouth effects.
+ *
+ * Where an option applies, ``forceBlink``, ``hideEyeDetails`` and ``faceCleanup`` default on and
+ * ``skinBackdrop`` defaults off.
  */
 export const zAvatarEffectFaceOptions = z.object({
     faceCleanup: z.optional(z.union([

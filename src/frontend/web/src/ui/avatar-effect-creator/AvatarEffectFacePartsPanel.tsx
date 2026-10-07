@@ -172,7 +172,11 @@ export function AvatarEffectFacePartsPanel({
       <PopoverContent
         align="end"
         // Below the controls on narrow layouts, where the preview is above.
+        // It stays there (scrolling inside) rather than flipping up over the
+        // name and Save.
         side={wide ? "top" : "bottom"}
+        avoidCollisions={wide}
+        collisionPadding={8}
         className="flex max-h-[min(70vh,560px,var(--radix-popover-content-available-height))] w-[min(92vw,380px)] flex-col gap-3 overflow-y-auto p-3"
         aria-labelledby={headingId}
         // While picking, clicks on the avatar must not close the panel.

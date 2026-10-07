@@ -5,6 +5,13 @@ import type { AvatarVFXPlacementGuides } from "@/lib/avatar/vfx/placement-guide-
 type Point = { x: number; y: number };
 const REFERENCE = "#0284c7";
 const ARTWORK = "#db2777";
+/**
+ * A guide label's offset below its reference point, in CSS pixels: clear of
+ * the bottom corner handles of art drawn at the minimum handle box.
+ */
+const GUIDE_LABEL_OFFSET = 30;
+/** …and its least gap below the art's lowest point, past the corner handles. */
+const GUIDE_LABEL_ART_GAP = 20;
 
 /** Project a face-local point through the current model and camera transforms. */
 export function projectPlacementGuidePoint(
@@ -104,6 +111,7 @@ export function drawPlacementGuides(
   for (const guide of guides.spatial) {
     const reference = project(guide.reference);
     const artwork = guide.artwork.map(project);
+    let artBottom = -Infinity;
     if (artwork.length && artwork.every((point) => point !== null)) {
       const points = artwork as Point[];
       stroke(ctx, [...points, points[0]], ARTWORK);
@@ -115,6 +123,7 @@ export function drawPlacementGuides(
         { x: 0, y: 0 },
       );
       if (reference) stroke(ctx, [reference, center], REFERENCE, true);
+      artBottom = Math.max(...points.map((point) => point.y));
     }
     if (!reference) continue;
     ctx.beginPath();
@@ -125,11 +134,15 @@ export function drawPlacementGuides(
     ctx.lineWidth = 2;
     ctx.setLineDash([]);
     ctx.stroke();
+    // Below the point and the art: the art's rotate handle sits above it.
     badge(
       ctx,
       guide.label + (guide.source === "fallback" ? " · estimated" : ""),
       reference.x,
-      reference.y - 20,
+      Math.max(
+        reference.y + GUIDE_LABEL_OFFSET,
+        artBottom + GUIDE_LABEL_ART_GAP,
+      ),
       width,
     );
   }

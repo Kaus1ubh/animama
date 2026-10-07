@@ -71,7 +71,8 @@ import {
   CreatorJsonDialog,
   CreatorLeaveDialog,
   CreatorLoading,
-  CreatorSaveNotice,
+  CREATOR_STAGE_NOTICE_CLASS,
+  CreatorRecoveryNotice,
   CreatorToolbar,
   CreatorWorkspaceShell,
 } from "@/ui/content-creator";
@@ -96,6 +97,7 @@ import type { AvatarPreviewCameraProfile } from "@/ui/avatar-preview/AvatarPrevi
 import {
   avatarEffectCreatorKeyboardAction,
   avatarEffectHistoryEdit,
+  avatarEffectInitialView,
   avatarEffectPreviewApplyKey,
   avatarEffectPreviewChange,
   avatarEffectPreviewCompatibility,
@@ -122,6 +124,16 @@ const IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
 const MAX_IMAGE_BYTES = 16 * 1024 * 1024;
 /** The applied ID of the creator's own preview effect. */
 const PREVIEW_EFFECT_ID = "avatar-effect-editor-preview";
+
+/**
+ * The preview's Model and View, kept across the remount from `/new` to the
+ * saved item's edit route so Save does not reset them.
+ */
+let previewAfterSave: {
+  itemId: string;
+  model: ContentCreatorModelSource | null;
+  view: AvatarPreviewCameraProfile;
+} | null = null;
 
 type PreviewStatus = {
   state: "idle" | "loading" | "ready" | "error";
@@ -183,8 +195,15 @@ export function AvatarEffectCreatorPage({
       }),
     [reset],
   );
+  // Read once: a preview kept by the Save that opened this edit route.
+  const [keptPreview] = useState(() =>
+    itemId && previewAfterSave?.itemId === itemId ? previewAfterSave : null,
+  );
+  useEffect(() => {
+    previewAfterSave = null;
+  }, []);
   const [selectedModel, setSelectedModel] =
-    useState<ContentCreatorModelSource | null>(null);
+    useState<ContentCreatorModelSource | null>(keptPreview?.model ?? null);
   const [previewAvatar, setPreviewAvatar] = useState<Avatar | null>(null);
   const [avatarStatus, setAvatarStatus] = useState<PreviewStatus>({
     state: "idle",
@@ -202,7 +221,16 @@ export function AvatarEffectCreatorPage({
   const stageRef = useRef<HTMLDivElement>(null);
   const manipulationRef = useRef(createAvatarEffectManipulationState());
   const [cameraProfile, setCameraProfile] =
-    useState<AvatarPreviewCameraProfile>("portrait-close");
+    useState<AvatarPreviewCameraProfile>(keptPreview?.view ?? "portrait-close");
+  const previewSettingsRef = useRef({
+    model: selectedModel,
+    view: cameraProfile,
+  });
+  useEffect(() => {
+    previewSettingsRef.current = { model: selectedModel, view: cameraProfile };
+  }, [cameraProfile, selectedModel]);
+  /** The document whose workspace has shown; see the loading screen below. */
+  const [shownDocument, setShownDocument] = useState<string | null>(null);
   const [hydration, setHydration] = useState<HydrationState>({
     state: itemId || templateId ? "loading" : "ready",
     message: null,
@@ -272,18 +300,27 @@ export function AvatarEffectCreatorPage({
       }
       setHasAttemptedSave(false);
       resetDocument(recovered.document, recovered.imageResources);
+      if (!keptPreview)
+        setCameraProfile(avatarEffectInitialView(recovered.document));
       setHydration({ state: "ready", message: "Recovered local draft" });
       setPreviewRevision((value) => value + 1);
     },
-    [resetDocument, templateId],
+    [keptPreview, resetDocument, templateId],
   );
   const onSaved = useCallback(
     (saved: AvatarEffectHistorySnapshot, savedItemId: string) => {
+      // Only a first Save remounts the creator on the new edit route.
+      if (savedItemId !== itemId) {
+        previewAfterSave = {
+          itemId: savedItemId,
+          ...previewSettingsRef.current,
+        };
+      }
       dispatch({ type: "patch", patch: { name: saved.document.name } });
       hydratedItemRef.current.preserve(savedItemId);
       initialFingerprintRef.current = avatarEffectSnapshotFingerprint(saved);
     },
-    [dispatch],
+    [dispatch, itemId],
   );
 
   const validation = useMemo(
@@ -325,6 +362,7 @@ export function AvatarEffectCreatorPage({
     (next: AvatarEffectHistorySnapshot) => {
       setHasAttemptedSave(false);
       resetDocument(next.document, next.imageResources);
+      setCameraProfile(avatarEffectInitialView(next.document));
       setPreviewRevision((value) => value + 1);
     },
     [resetDocument],
@@ -453,6 +491,8 @@ export function AvatarEffectCreatorPage({
         load.complete();
         setHasAttemptedSave(false);
         resetDocument(loaded.document, loaded.imageResources);
+        if (!keptPreview)
+          setCameraProfile(avatarEffectInitialView(loaded.document));
         initialFingerprintRef.current =
           item.origin === "builtin"
             ? "__included_copy__"
@@ -479,6 +519,7 @@ export function AvatarEffectCreatorPage({
     contentSave.recoveryReady,
     existingQuery.data,
     itemId,
+    keptPreview,
     resetDocument,
   ]);
 
@@ -641,6 +682,47 @@ export function AvatarEffectCreatorPage({
     }
   }, [dispatch, importText, isDirty, restartPreview]);
 
+  /** Replace the document with a blank one on the plain `/new` route. */
+  const resetToBlank = useCallback(async () => {
+    const next = {
+      document: createDefaultAvatarEffectDocument(),
+      imageResources: NO_AVATAR_EFFECT_IMAGES,
+    };
+    if (!(await contentSave.resetSession(next))) return;
+    setHasAttemptedSave(false);
+    resetDocument(next.document, next.imageResources);
+    setImageError(null);
+    setImageBusy(null);
+    setVfxSnapshot(null);
+    setModelCompatible(null);
+    setPlaying(true);
+    setJsonOpen(false);
+    setImportOpen(false);
+    setImportText("");
+    setImportError(null);
+    initialFingerprintRef.current = avatarEffectSnapshotFingerprint(next);
+    setHydration({ state: "ready", message: null });
+    setPreviewRevision((value) => value + 1);
+  }, [contentSave, resetDocument]);
+
+  /**
+   * Discard a restored draft, as the Particle creator does: a saved item
+   * drops the draft and reloads its saved version, a new one starts blank.
+   */
+  const discardRecoveredDraft = useCallback(async () => {
+    if (contentSave.isBusy || imageBusy) return;
+    try {
+      if (itemId) await contentSave.discardRecovery();
+      else await resetToBlank();
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "The draft could not be discarded.",
+      );
+    }
+  }, [contentSave, imageBusy, itemId, resetToBlank]);
+
   const startNewDocument = useCallback(async () => {
     if (contentSave.isBusy || imageBusy) return;
     if (
@@ -667,25 +749,7 @@ export function AvatarEffectCreatorPage({
         return;
       }
 
-      const next = {
-        document: createDefaultAvatarEffectDocument(),
-        imageResources: NO_AVATAR_EFFECT_IMAGES,
-      };
-      if (!(await contentSave.resetSession(next))) return;
-      setHasAttemptedSave(false);
-      resetDocument(next.document, next.imageResources);
-      setImageError(null);
-      setImageBusy(null);
-      setVfxSnapshot(null);
-      setModelCompatible(null);
-      setPlaying(true);
-      setJsonOpen(false);
-      setImportOpen(false);
-      setImportText("");
-      setImportError(null);
-      initialFingerprintRef.current = avatarEffectSnapshotFingerprint(next);
-      setHydration({ state: "ready", message: null });
-      setPreviewRevision((value) => value + 1);
+      await resetToBlank();
     } catch (error) {
       toast.error(
         error instanceof Error
@@ -700,7 +764,7 @@ export function AvatarEffectCreatorPage({
     isDirty,
     itemId,
     navigate,
-    resetDocument,
+    resetToBlank,
     templateId,
     userId,
   ]);
@@ -793,7 +857,16 @@ export function AvatarEffectCreatorPage({
   const invalidField =
     (saveErrorField ?? firstIssueField)?.replace(/^definition\.?/, "") || null;
 
-  if (hydration.state === "loading" && (itemId || templateId)) {
+  // Once this document has shown, a reload (Discard recovery on a saved item)
+  // keeps the workspace and its preview Canvas mounted.
+  const documentKey = itemId ?? templateId ?? "new";
+  if (hydration.state === "ready" && shownDocument !== documentKey)
+    setShownDocument(documentKey);
+  if (
+    hydration.state === "loading" &&
+    (itemId || templateId) &&
+    shownDocument !== documentKey
+  ) {
     return (
       <>
         <CreatorLoading
@@ -853,12 +926,16 @@ export function AvatarEffectCreatorPage({
                   data-testid="avatar-effect-handles"
                 />
                 {stageBadge ? (
-                  <p
-                    role="status"
-                    className="bg-background/90 text-foreground pointer-events-none absolute top-[calc(var(--creator-header-height,3.5rem)+0.75rem)] left-1/2 z-40 max-w-[min(90%,28rem)] -translate-x-1/2 rounded-md px-3 py-1.5 text-center text-xs shadow-sm"
-                  >
-                    {stageBadge}
-                  </p>
+                  // Centred on the stage between the desktop panels, so a
+                  // long message wraps instead of running under them.
+                  <div className="pointer-events-none absolute inset-x-0 top-[calc(var(--creator-header-height,3.5rem)+0.75rem)] z-40 flex justify-center px-4 lg:right-[calc(var(--creator-inset)+min(var(--creator-right-panel-width),27vw)+0.75rem)] lg:left-[calc(var(--app-shell-sidebar-inset)+var(--creator-inset)+min(var(--creator-left-panel-width),26vw)+0.75rem)] lg:px-0">
+                    <p
+                      role="status"
+                      className="bg-background/90 text-foreground max-w-[28rem] rounded-md px-3 py-1.5 text-center text-xs shadow-sm"
+                    >
+                      {stageBadge}
+                    </p>
+                  </div>
                 ) : null}
               </>
             }
@@ -1123,24 +1200,17 @@ export function AvatarEffectCreatorPage({
               message={hydration.message ?? "Unable to open effect."}
             />
           ) : null}
-          {contentSave.error || contentSave.recoveryWarning ? (
-            <CreatorSaveNotice
-              className="absolute top-[calc(var(--creator-header-height)+0.5rem)] right-4 left-4 z-[60] sm:left-auto sm:max-w-md lg:top-auto lg:bottom-28"
-              message={contentSave.error ?? contentSave.recoveryWarning}
-              tone={contentSave.error ? "error" : "warning"}
-              actions={
-                contentSave.error ? (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => void contentSave.discardRecovery()}
-                  >
-                    Discard preserved server draft
-                  </Button>
-                ) : null
-              }
-            />
-          ) : null}
+          <CreatorRecoveryNotice
+            className={CREATOR_STAGE_NOTICE_CLASS}
+            error={contentSave.error}
+            recoveryWarning={contentSave.recoveryWarning}
+            // A template route asks about its draft in a dialog instead.
+            recovered={contentSave.recovered && !templateId}
+            busy={contentSave.isBusy || Boolean(imageBusy)}
+            contentLabel="Avatar Effect"
+            onDiscardServerDraft={() => void contentSave.discardRecovery()}
+            onDiscardRecovery={() => void discardRecoveredDraft()}
+          />
 
           <CreatorJsonDialog
             open={jsonOpen}
