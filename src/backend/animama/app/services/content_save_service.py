@@ -21,6 +21,7 @@ from animama.app.services.content_image import (
     validate_appearance_image_stream,
 )
 from animama.app.services.content_kind_registry import RETIRED_CONTENT_KINDS, definition_for_kind, handler_for_kind
+from animama.app.services.content_portability import reject_restricted_bytes
 from animama.app.services.local_content_mutations import mutation_digest
 from animama.app.services.typed_content_service import TypedContentService, validate_idle_style
 from animama.domain.content_catalog import (
@@ -196,6 +197,9 @@ class ContentSaveService:
 
             if kind in RETIRED_CONTENT_KINDS:
                 raise ContentConflictError("content_kind_retired")
+            await asyncio.to_thread(
+                reject_restricted_bytes, self._store.restricted_sha256, (payload_stream,), (metadata_sidecar,)
+            )
 
             if metadata_sidecar is not None:
                 document = (
@@ -390,6 +394,12 @@ class ContentSaveService:
 
             if kind in RETIRED_CONTENT_KINDS:
                 raise ContentConflictError("content_kind_retired")
+            await asyncio.to_thread(
+                reject_restricted_bytes,
+                self._store.restricted_sha256,
+                (stream for stream, _ in companion_files.values()),
+                (descriptor,),
+            )
             document = (
                 handler_for_kind(kind)
                 .parse_document(json.loads(descriptor), fallback_path=Path(entry_name), descriptor_backed=True)

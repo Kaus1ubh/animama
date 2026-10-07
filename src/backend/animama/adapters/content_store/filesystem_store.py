@@ -211,6 +211,12 @@ class FilesystemContentStore(ContentStore):
         }
 
     @property
+    def restricted_sha256(self) -> frozenset[str]:
+        """Hashes of non-portable bytes that must never enter Local content."""
+
+        return self._restricted_sha256
+
+    @property
     def included_mount_ids(self) -> tuple[str, ...] | None:
         """None retains the development single-root reconciliation contract."""
 

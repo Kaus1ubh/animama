@@ -69,7 +69,7 @@ Paths are relative to `src/backend/animama/` (backend) or `src/frontend/web/src/
       #323–#327 created as sub-issues of #242 with dependencies; #242 links the
       plan. Task stack: started when a phase first needs it.
 - [x] Phase 1: Non-portable class in the backend catalog (#323). Review #2 passed.
-- [ ] Phase 2: Backend export, import and save enforcement.
+- [x] Phase 2: Backend export, import and save enforcement (#324). Review #2 passed.
 - [ ] Phase 3: Frontend affordances.
 - [ ] Phase 4: Private build inputs, staging allowlist and leak checks.
 - [ ] Phase 5: Content acquisition and integration (owner gates G1–G3).
@@ -384,9 +384,121 @@ Checks: as in P1, then a regenerated client and `pnpm check`.
 Completion: every route enforces the rule server-side; errors name items without
 echoing bytes; review passes.
 
+Results (2026-10-07, starting revision `80268f7b`):
+
+- Implemented: export refusal and Idle Style stripping
+  (`content_package_export.py` `_strip_non_portable`, run after portraits),
+  omitted Anima bindings (`anima_package_source_service.py`
+  `OmittedAnimaBinding`), the manifest field `non_portable_references` with
+  `PackageNonPortableReference`/`PackageNonPortableUse` and its validator,
+  capability `animama/non-portable-references/1`, archive hash rejection,
+  import rebind/fallback (`content_package_import.py` `_plan_non_portable`,
+  `_restored_idle_refs`, `_rebind_anima`), pool strip/restore helpers
+  (`non_portable_packages.py`), typed-save hash rejection
+  (`content_portability.reject_restricted_bytes`), `ContentConflictError.items`
+  surfaced as `detail.items`, review fields `omitted` and `non_portable`, and
+  docs (`docs/backend/features/typed-content-and-marketplace.md`,
+  `docs/backend/architecture/http-api.md`).
+- Decisions (agent, within the accepted outcome):
+  - **Save check placement.** The hash check sits in both `ContentSaveService`
+    save paths, not `LocalContentMutations`, which has no shared byte-handling
+    entry point. The other Local writers are package import (checked in the
+    archive), the startup transitions (guarded in P1) and Pocket voice uploads
+    (not motion). Files dropped in by hand are scanned as non-portable.
+  - **Dependency rule scope.** Only a portable v2 Idle Style pooling a
+    non-portable Gesture is stripped and referenced. Any other dependency on a
+    non-portable item refuses the export by name: no other kind can drop a
+    dependency without changing what it is, and the Mixamo pack holds only
+    Gestures and one Idle Style. The same applies to Anima bindings other than
+    Gestures and the Idle Style.
+  - **Compatibility.** `non_portable_references` is serialized only when
+    present, so every other package is byte-for-byte unchanged. Earlier readers
+    reject a package that has references at manifest parsing
+    (`package_invalid`, because the manifest forbids unknown fields). The
+    capability gives clear rejection in readers that tolerate unknown fields.
+  - **Import errors name the entry**, by its display name, not the member path.
+  - **Rebinding requires a unique logical key** among all visible items, the
+    same rule dependency admission uses; otherwise the item is `unavailable`.
+  - **Missing pack.** An Anima bound to a non-portable item that later
+    disappears already resolves to an `unresolved:` runtime selection
+    (`anima_runtime_service.py`), the generic path for any removed Included
+    item. Verified by code reading; no new code.
+  - **Implicit starter Idle Style surprise.** It does not affect these tests: the
+    fixture's starter style exists. The implicit-starter test makes it v2 to
+    mirror the shipped pack.
+- Tests: `tests/test_non_portable_packages.py`:
+  - helper round trip;
+  - content export refusal, Idle Style strip, hostile-manifest validation, and
+    import rebind and fallback;
+  - restricted bytes refused on save and on import;
+  - Anima explicit Gestures, and implicit starter Gestures plus the Idle Style,
+    each with rebind and fallback;
+  - refusal of other non-portable bindings;
+  - prepare recheck after the summary.
+
+  Also `tests/test_content_package_http.py` (409 with `detail.items`) and
+  `tests/test_pose_content.py` (no `Content-Disposition` on the file route).
+- Checks: `ruff check`, `make format-check`, import boundary (0 forbidden edges),
+  `pnpm openapi-ts:check` and `pnpm check` pass; full `uv run pytest -q` before
+  review: 3176 passed, 1 failed (the same environment-only gruut failure as P1).
+
 #### Code Review #1 Findings
 
+Reviewer: independent `sdlc-reviewer`, staged source on `80268f7b`.
+
+- **P2-F1 (required):** implicit starter Gesture and Idle Style omission, Idle
+  Style rebinding and the refusal of other bindings were untested; the Anima
+  test name overclaimed.
+- **P2-F2 (required):** the plan record lacked Phase 2 results and decisions
+  (save placement, dependency scope, compatibility, error naming, starter
+  surprise).
+- **P2-F3 (optional):** stripping ran before portraits were added, so a
+  non-portable portrait could bypass the name check.
+- **P2-F4 (optional):** synthetic rebind ids could shadow a packaged entry;
+  rebinding was keyed by logical key alone; validator error paths were untested.
+- **P2-F5 (optional):** rebinding accepted a key that dependency admission
+  would reject when another visible item shares it.
+- **P2-F6 (optional):** the save check rehashed streams even with an empty
+  restricted set.
+- **P2-F7 (optional):** `_plan_non_portable` computed twice; a duplicate Avatar
+  check; `save_descriptor_streams` path untested; missing pack verified by code
+  reading only.
+
 #### Code Review #1 Revisions
+
+- **P2-F1 accepted.** Test renamed (`..._explicit_...`), and
+  `test_anima_export_omits_implicit_starter_gestures_and_idle_style` (rebind and
+  fallback) and `test_anima_export_refuses_other_non_portable_bindings` added.
+- **P2-F2 accepted.** Results and decisions recorded above.
+- **P2-F3 accepted.** `_strip_non_portable` runs after portrait resolution.
+- **P2-F4 accepted.** Synthetic ids skip existing entry ids; rebinding is keyed
+  by `(kind, logical_key)`; six hostile manifest variants are rejected in
+  `test_content_export_and_import_handle_non_portable_items`.
+- **P2-F5 accepted.** Rebinding requires a unique visible logical key.
+- **P2-F6 accepted.** Early return when nothing is restricted. The extra hash
+  over the save streams remains; it costs one read of the upload.
+- **P2-F7 partly accepted.** Computed once; duplicate check removed. The
+  descriptor-stream path shares `reject_restricted_bytes` with the tested
+  standalone path, and the missing-pack evidence stays code reading. Both are
+  recorded limitations.
+- Verification: 38 package tests pass (`test_non_portable_packages.py`,
+  `test_content_package_http.py`, `test_content_package_export_review.py`,
+  `test_content_package_import_anima.py`); `ruff check` passes.
+
+#### Code Review #2 Findings
+
+Targeted recheck (repair round 1): **pass**. P2-F1 to F7 resolved or
+acceptably dispositioned; coverage confirms the new paths run (export 91%,
+import 81%, Anima source 80% of the touched services). Only the explicit Idle
+Style row branch stays unexercised, which the finding allowed.
+
+- **P2-F8 (optional):** the synthetic-id collision branch is untested; a crafted
+  manifest forcing long suffixes fails `PortableId` validation safely.
+
+#### Code Review #2 Revisions
+
+- **P2-F8 not changed:** the failure is safe and covered by contract
+  validation. One repair round remains for this phase.
 
 ### Phase 3: Frontend affordances
 

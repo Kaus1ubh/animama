@@ -351,3 +351,8 @@ async def test_catalog_responses_report_non_portable_included_content(pose_api) 
     assert typed == {"included": "non-portable", "local": "portable"}
     listed = (await client.get("/v1/content/catalog")).json()["items"]
     assert {row["source"]: row["portability"] for row in listed if row["kind"] == "pose"} == typed
+    # Playback bytes stay readable but are never offered as a download (R6).
+    included = next(row for row in listed if row["kind"] == "pose" and row["source"] == "included")
+    served = await client.get(f"/v1/content/files/{included['files'][0]['file_ref']}")
+    assert served.status_code == 200
+    assert "content-disposition" not in served.headers

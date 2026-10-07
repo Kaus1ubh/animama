@@ -30,6 +30,12 @@ class ContentMutationJournal:
 class ContentStore(Protocol):
     """Scan, safely save, and open exact registered local content bytes."""
 
+    @property
+    def restricted_sha256(self) -> frozenset[str]:
+        """Hashes of non-portable bytes that must never enter Local content."""
+
+        raise NotImplementedError
+
     def begin_mutation(self, *, operation_id: str, user_id: str, request_digest: str) -> str:
         """Start recoverable writes after the caller has acquired the Local mutation lock."""
 

@@ -11,14 +11,15 @@ also covers Local copies and re-uploads in builds that do not mount the pack.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 from collections.abc import Iterable
 from functools import cache
 from importlib.resources import files
-from typing import Any, Literal
+from typing import Any, BinaryIO, Literal
 
-from animama.domain.content_catalog import CatalogContentEntry, ContentSource
+from animama.domain.content_catalog import CatalogContentEntry, ContentConflictError, ContentSource
 
 DISTRIBUTION_KEY = "distribution"
 DISTRIBUTION_EXCLUDED = "excluded"
@@ -66,6 +67,28 @@ def resolve_rule_distribution(values: Iterable[Any]) -> str | None:
     if found - {DISTRIBUTION_EXCLUDED}:
         return DISTRIBUTION_NON_PORTABLE
     return DISTRIBUTION_EXCLUDED if found else None
+
+
+def reject_restricted_bytes(
+    restricted: frozenset[str], streams: Iterable[BinaryIO] = (), payloads: Iterable[bytes | None] = ()
+) -> None:
+    """Refuse any incoming file whose bytes are non-portable; never echo contents."""
+
+    if not restricted:
+        return
+    digests = [hashlib.sha256(payload).hexdigest() for payload in payloads if payload is not None]
+    for stream in streams:
+        position = stream.tell()
+        try:
+            stream.seek(0)
+            digest = hashlib.sha256()
+            while chunk := stream.read(1024 * 1024):
+                digest.update(chunk)
+            digests.append(digest.hexdigest())
+        finally:
+            stream.seek(position)
+    if restricted.intersection(digests):
+        raise ContentConflictError("content_non_portable", field="files")
 
 
 def effective_provenance(

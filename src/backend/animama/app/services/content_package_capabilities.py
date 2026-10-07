@@ -16,6 +16,7 @@ from collections.abc import Iterable, Mapping
 from pathlib import Path, PurePosixPath
 from typing import Any, BinaryIO
 
+from animama.app.contracts.content_package import NON_PORTABLE_REFERENCES_CAPABILITY
 from animama.domain.content_catalog import ContentKind
 from animama.domain.content_documents import (
     AvatarEffectDocumentV1,
@@ -59,6 +60,7 @@ SUPPORTED_CAPABILITIES = frozenset(
         "animama/scene-effect/1",
         "animama/pocket-voice/1",
         "three.quarks/3.0",
+        NON_PORTABLE_REFERENCES_CAPABILITY,
     }
     | {f"animama/builtin-pose/1/{name}" for name in BUILTIN_POSES}
     | {f"animama/twemoji/14.0.2/{name}" for name in BUILTIN_EMOJI}

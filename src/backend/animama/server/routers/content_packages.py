@@ -92,7 +92,10 @@ class PackageRoute(APIRoute):
                     "package_export_expired": 410,
                     "package_stage_disk_full": 507,
                 }.get(code, 409)
-                return JSONResponse(status_code=status, content={"detail": {"code": code}})
+                detail: dict[str, Any] = {"code": code}
+                if isinstance(exc, ContentConflictError) and exc.items:
+                    detail["items"] = list(exc.items)
+                return JSONResponse(status_code=status, content={"detail": detail})
             except (ContentIntegrityError, ContentPathError, ContentValidationError, ValueError):
                 return JSONResponse(status_code=422, content={"detail": {"code": "package_invalid"}})
             except OSError as exc:

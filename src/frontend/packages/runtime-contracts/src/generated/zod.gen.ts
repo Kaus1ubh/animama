@@ -581,6 +581,14 @@ export const zEnsureAnimaStartersResult = z.object({
 });
 
 /**
+ * ExportOmittedItem
+ */
+export const zExportOmittedItem = z.object({
+    kind: z.string(),
+    name: z.string()
+});
+
+/**
  * ExportSelectionItem
  */
 export const zExportSelectionItem = z.object({
@@ -945,6 +953,56 @@ export const zPackageEntry = z.object({
 });
 
 /**
+ * PackageNonPortableUse
+ *
+ * One place an omitted non-portable item was used, so import can rebind it.
+ *
+ * Exactly one target: an Anima slot (``gesture`` with its selector and
+ * binding config, or ``idle_style``) or a packaged Idle Style entry and the
+ * pools (``default`` or ``<emotion>.<1|2|3>``) it was removed from.
+ */
+export const zPackageNonPortableUse = z.object({
+    anima_slot: z.optional(z.union([
+        z.enum(['gesture', 'idle_style']),
+        z.null()
+    ])),
+    config: z.optional(z.record(z.string(), z.unknown())),
+    entry_id: z.optional(z.union([
+        z.string().min(1).max(128).regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/),
+        z.null()
+    ])),
+    pools: z.optional(z.array(z.string().min(1).max(64)).max(64)),
+    semantic_key: z.optional(z.union([
+        z.string().regex(/^[a-z0-9][a-z0-9._-]{0,127}$/),
+        z.null()
+    ]))
+});
+
+/**
+ * PackageNonPortableReference
+ *
+ * An item omitted from the archive because it is non-portable: identity only, no bytes.
+ */
+export const zPackageNonPortableReference = z.object({
+    display_name: z.string().min(1).max(120),
+    kind: z.enum([
+        'appearance',
+        'avatar',
+        'avatar_effect',
+        'gesture',
+        'idle_style',
+        'particle_effect',
+        'pose',
+        'reaction',
+        'scene_effect',
+        'sound_effect',
+        'voice'
+    ]),
+    logical_key: z.string().min(1).max(128).regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/),
+    uses: z.array(zPackageNonPortableUse).min(1).max(2048)
+});
+
+/**
  * PackageOperationStatus
  */
 export const zPackageOperationStatus = z.object({
@@ -1069,6 +1127,7 @@ export const zExportSummary = z.object({
     digest: z.string(),
     estimated_size_bytes: z.int(),
     items: z.array(zExportSelectionItem),
+    omitted: z.optional(z.array(zExportOmittedItem)).default([]),
     required_count: z.int(),
     selected_count: z.int()
 });
@@ -1087,6 +1146,7 @@ export const zPackageManifest = z.object({
     capabilities: z.array(z.string().min(1).max(128)).max(128),
     entries: z.array(zPackageEntry).min(1).max(2048),
     kind: z.enum(['content', 'anima']),
+    non_portable_references: z.optional(z.array(zPackageNonPortableReference).max(2048)),
     root_entry_ids: z.optional(z.array(z.string().min(1).max(128).regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/)).max(2048)),
     schema: z.literal('animama-content-package/3')
 });
@@ -5711,6 +5771,32 @@ export const zReviewedImportItem = z.object({
 });
 
 /**
+ * ReviewedNonPortableItem
+ *
+ * A non-portable item the sender omitted, and what this installation does with it.
+ *
+ * ``rebound`` uses this installation's own matching item; ``unavailable`` falls
+ * back (no Gesture, the Default pool without it, or no Idle Style).
+ */
+export const zReviewedNonPortableItem = z.object({
+    kind: z.enum([
+        'appearance',
+        'avatar',
+        'avatar_effect',
+        'gesture',
+        'idle_style',
+        'particle_effect',
+        'pose',
+        'reaction',
+        'scene_effect',
+        'sound_effect',
+        'voice'
+    ]),
+    name: z.string(),
+    outcome: z.enum(['rebound', 'unavailable'])
+});
+
+/**
  * ReviewedPackageImport
  *
  * User-visible whole-package proposal; never exposes receiver paths or reserved IDs.
@@ -5724,6 +5810,7 @@ export const zReviewedPackageImport = z.object({
     filename: z.string(),
     items: z.array(zReviewedImportItem),
     kind: z.enum(['content', 'anima']),
+    non_portable: z.optional(z.array(zReviewedNonPortableItem)).default([]),
     operation_id: z.string(),
     package_sha256: z.string(),
     required_count: z.int(),

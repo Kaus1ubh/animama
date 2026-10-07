@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 from collections.abc import AsyncIterator
 from io import BytesIO
@@ -22,6 +23,7 @@ from animama.orm.user_profile import ORMUserProfile
 from animama.server.deps import get_async_session, get_current_principal
 from animama.server.routers import router
 from tests.content_package_helpers import package_services, save_wave
+from tests.test_pose_content import pose_document
 
 
 async def test_http_export_reviews_then_streams_the_same_package(async_session: AsyncSession, tmp_path: Path) -> None:
@@ -214,3 +216,35 @@ async def test_http_rejects_non_package_zip_before_library_admission(
             assert await catalog.get_mutation_receipt(user_id="package-owner", operation_id="not-package") is None
     finally:
         await async_session.rollback()
+
+
+async def test_http_export_names_non_portable_items(async_session: AsyncSession, tmp_path: Path) -> None:
+    paths, _catalog, content, _saves, _packages = package_services(async_session, tmp_path)
+    rule = {"creator": "Fixture", "license_id": "fixture-only", "provenance": "Fixture"}
+    (paths.included_licenses_root / "inventory.json").write_text(
+        json.dumps({"schema_version": 1, "rules": [{"glob": "**", "distribution": "non-portable", **rule}]})
+    )
+    folder = paths.included_root / "poses/salute"
+    folder.mkdir(parents=True)
+    document = pose_document()
+    document["content_id"] = document["pose"]["id"] = "included-salute"
+    (folder / "salute.json").write_text(json.dumps(document))
+    items = (await content.rescan(user_id="package-owner")).items
+    app = FastAPI()
+    app.state.local_runtime_paths = paths
+    app.include_router(router)
+
+    async def session() -> AsyncIterator[AsyncSession]:
+        yield async_session
+
+    app.dependency_overrides[get_async_session] = session
+    app.dependency_overrides[get_current_principal] = lambda: RequestPrincipal("package-owner")
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            refused = await client.post("/v1/content/package-exports:summary", json={"item_ids": [items[0].id]})
+        assert refused.status_code == 409
+        assert refused.json()["detail"] == {"code": "package_non_portable", "items": [items[0].display_name]}
+    finally:
+        await async_session.rollback()
+        await async_session.execute(delete(ORMContentCatalogItem))
+        await async_session.commit()
