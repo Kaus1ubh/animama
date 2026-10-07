@@ -26,14 +26,37 @@ const server = await createServer({
 });
 let exitCode = 1;
 try {
-  const { runMotionCli } = await server.ssrLoadModule(
+  const { runMotionCli, compactClipFile } = await server.ssrLoadModule(
     "/src/lib/avatar/motion-authoring/cli.ts",
   );
-  exitCode = await runMotionCli(process.argv.slice(2), {
-    avatarDirectory: path.resolve(webRoot, "../../../content/included/avatars"),
-    cwd: process.env.INIT_CWD ?? process.cwd(),
-    out: (text) => process.stdout.write(`${text}\n`),
-  });
+  const [command, ...rest] = process.argv.slice(2);
+  const cwd = process.env.INIT_CWD ?? process.cwd();
+  const out = (text) => process.stdout.write(`${text}\n`);
+  if (command === "promote") {
+    // Writes repository files, so it lives beside the other repo scripts and
+    // only borrows the CLI's validation and saved-file serializer.
+    const { runPromote } = await import("./animation-promote.mjs");
+    exitCode = await runPromote(rest, {
+      repoRoot: path.resolve(webRoot, "../../.."),
+      cwd,
+      compactClip: compactClipFile,
+      maxClipBytes: (
+        await server.ssrLoadModule(
+          "/src/lib/avatar/poses/animaPoseClip/index.ts",
+        )
+      ).MAX_ANIMA_POSE_CLIP_BYTES,
+      out,
+    });
+  } else {
+    exitCode = await runMotionCli(process.argv.slice(2), {
+      avatarDirectory: path.resolve(
+        webRoot,
+        "../../../content/included/avatars",
+      ),
+      cwd,
+      out,
+    });
+  }
 } finally {
   await server.close();
 }

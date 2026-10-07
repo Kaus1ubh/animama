@@ -9,8 +9,9 @@ Turn a motion prompt into a Gesture that reads well in chat. You write an
 **`animaPoseClip/2.0` clip**: named beats on a timeline, and anatomical joint
 angles keyed to those beats. The same file plays in chat, opens in the Gesture
 creator and is what Save stores. Checks, the live preview and renders show
-what it does on both Included Avatars. Never hand-write quaternions, bypass
-creator Save, or write into `content/included/`.
+what it does on both Included Avatars. Never hand-write quaternions or bypass
+creator Save. Never write into `content/included/` except through the gated
+**Promote to Included** step (step 9).
 
 Use `animama-vrm` for VRM, coordinate and runtime facts. Repository paths are
 relative to the Animama Git root. Commands run from `src/frontend/web`; in a
@@ -61,6 +62,11 @@ first.
 7. **Chat check** when mutes or expressions matter: play it on a test Anima.
 8. **Hand off** with the saved item, clip path, check summary, preview notes,
    render sheets, the chat check and known limits.
+9. **Promote to Included** (never by default): only when the owner explicitly
+   approves each item and its licence entries, on a task branch with a PR.
+   `pnpm -s animation promote <items.json> --dry-run`, then without
+   `--dry-run`, writes the Included Gesture, metadata, frontend mirror,
+   licence rule and source-review records. See [promote](references/promote.md).
 
 **Several Gestures at once:** follow [batch mode](references/batch.md) for up
 to ten per batch: every animation's interview questions sent at once,
@@ -73,8 +79,9 @@ file's path. Copy that file to your working location, edit it, then validate, ch
 and preview with `--compare library:<selector>` to see old and new together.
 Save it with `animation:save` under the same Selector ID (or import it in
 the creator and Save); the item keeps its identity. A 1.0
-Gesture (most Included content) must first be opened and saved once in the
-creator, which converts it to 2.0; `validate` accepts only 2.0.
+Gesture (older Included content) must first be opened and saved once in the
+creator, which converts it to 2.0; `validate` accepts only 2.0. Changing an
+Included Gesture's bytes is a promotion (step 9) with `mode: "replace"`.
 
 ## Decision rules
 
