@@ -6,7 +6,7 @@ import { BUILT_IN_AVATAR_MOTION_CATALOG } from "@/lib/avatar/motion/AvatarMotion
 import { captureAvatarPortrait } from "@/lib/avatar/portrait";
 import { sampleAnimaPoseClip } from "@/lib/avatar/poses/animaPoseClip";
 import { getResolvedAvatarPose } from "@/lib/avatar/poses/catalog";
-import { parseAvatarVFXCatalogEntry } from "@/lib/avatar/vfx/catalog";
+import { parseAvatarEffectDefinition } from "@/lib/avatar/vfx/definition";
 import { applyAvatarVFXEffectById } from "@/lib/avatar/vfx/runtime";
 import { EMPTY_RUNTIME_MEDIA_PROVIDER } from "@/lib/runtime-content/AnimaRuntimeMediaCatalog";
 import {
@@ -35,6 +35,8 @@ type EffectSource = {
   description: string;
   definition: Record<string, unknown>;
   imageUrl: string;
+  /** Served `art.otherEyeImage`, when the definition names one. */
+  otherImageUrl: string | null;
 };
 
 type CommonRequest = {
@@ -118,13 +120,15 @@ function createStage(width: number, height: number) {
 }
 
 function effectEntry(effect: EffectSource) {
-  // Same projection as runtime catalog loading of a stored definition.
-  return parseAvatarVFXCatalogEntry({
-    ...effect.definition,
+  // Same parser as runtime catalog loading of a stored `/2` definition.
+  return parseAvatarEffectDefinition(effect.definition, {
     id: effect.contentId,
     label: effect.name,
     description: effect.description || effect.name,
     assetPath: effect.imageUrl,
+    ...(effect.otherImageUrl
+      ? { otherEyeAssetPath: effect.otherImageUrl }
+      : {}),
   });
 }
 

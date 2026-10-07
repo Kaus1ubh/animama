@@ -7,19 +7,22 @@
   "description": "Uneasy face overlay with subtle drift for disgust, nausea, or anxious discomfort.",
   "dependencies": [],
   "definition": {
-    "schema": "animama/avatar-effect/1",
-    "kind": "texture",
+    "schema": "animama/avatar-effect/2",
     "region": "full_face",
-    "targetRole": "face_skin",
-    "assetShape": "full_face",
-    "applyMode": "overlay",
-    "animationConfig": {
-      "driftPerSecond": {
+    "attachment": {
+      "kind": "face_surface",
+      "part": "face_skin",
+      "area": "full"
+    },
+    "art": {
+      "image": "texture_sick_1.png"
+    },
+    "motion": {
+      "drift": {
         "x": 0.03,
         "y": 0
       }
-    },
-    "image": "texture_sick_1.png"
+    }
   },
   "files": [
     {

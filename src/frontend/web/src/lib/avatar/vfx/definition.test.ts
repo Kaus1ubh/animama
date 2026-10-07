@@ -1,0 +1,282 @@
+import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { resolve } from "node:path";
+
+import { describe, expect, it } from "vitest";
+
+import conversion from "@/lib/content/fixtures/avatar-effect-conversion.json";
+import { resolveAvatarVFXAnimationConfig } from "./animation";
+import {
+  AvatarEffectDefinitionError,
+  parseAvatarEffectDefinition,
+} from "./definition";
+import v1Snapshot from "./fixtures/included-v1-runtime-entries.json";
+import type { AvatarVFXParsedEntry } from "./types";
+
+const INCLUDED = resolve(process.cwd(), "../../../content/included/vfx/avatar");
+
+type JsonObject = Record<string, unknown>;
+
+function includedDefinitions(): Map<string, JsonObject> {
+  const result = new Map<string, JsonObject>();
+  for (const entry of readdirSync(INCLUDED, { withFileTypes: true })) {
+    const path = resolve(INCLUDED, entry.name, `${entry.name}.json`);
+    if (!entry.isDirectory() || !existsSync(path)) continue;
+    result.set(entry.name, JSON.parse(readFileSync(path, "utf8")));
+  }
+  return result;
+}
+
+/**
+ * The comparison form of a runtime entry. Intentional `/2` differences are
+ * normalized here, and only here:
+ * - `appearance` is new; converted effects carry the default (opaque, untinted,
+ *   normal blend), which renders as `/1` did.
+ * - Animation presets are compared after resolution: `/2` writes preset
+ *   defaults explicitly where `/1` left them implied.
+ * - An explicit `requiresMirror: false` is the same as no mirror; `/2` omits it.
+ * - Numbers are compared to 1e-6, since rotations round-trip through degrees.
+ */
+function comparable(entry: AvatarVFXParsedEntry | JsonObject): JsonObject {
+  const value = { ...(entry as JsonObject) };
+  if (value.appearance !== undefined) {
+    expect(value.appearance).toEqual({
+      opacity: 1,
+      tint: null,
+      blend: "normal",
+    });
+    delete value.appearance;
+  }
+  if (value.requiresMirror === false) delete value.requiresMirror;
+  value.animationConfig = resolveAvatarVFXAnimationConfig(
+    value.animationConfig as Parameters<
+      typeof resolveAvatarVFXAnimationConfig
+    >[0],
+  );
+  return value;
+}
+
+function expectClose(actual: unknown, expected: unknown, path = "entry"): void {
+  if (typeof expected === "number") {
+    expect(typeof actual, path).toBe("number");
+    expect(Math.abs((actual as number) - expected), path).toBeLessThan(1e-6);
+    return;
+  }
+  if (expected && typeof expected === "object") {
+    expect(actual && typeof actual === "object", path).toBe(true);
+    const actualRecord = actual as JsonObject;
+    const expectedRecord = expected as JsonObject;
+    expect(Object.keys(actualRecord).sort(), path).toEqual(
+      Object.keys(expectedRecord).sort(),
+    );
+    for (const key of Object.keys(expectedRecord)) {
+      expectClose(actualRecord[key], expectedRecord[key], `${path}.${key}`);
+    }
+    return;
+  }
+  expect(actual, path).toEqual(expected);
+}
+
+describe("parseAvatarEffectDefinition", () => {
+  it("parses each converted Included effect into the entry the /1 parser produced", () => {
+    const included = includedDefinitions();
+    const snapshot = v1Snapshot.included as Record<string, JsonObject>;
+    expect([...included.keys()].sort()).toEqual(Object.keys(snapshot).sort());
+    for (const [name, document] of included) {
+      const definition = document.definition as JsonObject;
+      const art = definition.art as JsonObject;
+      const parsed = parseAvatarEffectDefinition(definition, {
+        id: String(document.content_id),
+        label: String(document.name),
+        description: String(document.description),
+        assetPath: `registered:${String(art.image)}`,
+      });
+      expectClose(comparable(parsed), comparable(snapshot[name]!), name);
+    }
+  });
+
+  it("parses each converted creator kind into the entry the /1 parser produced", () => {
+    const snapshot = v1Snapshot.creator as Record<string, JsonObject>;
+    for (const [name, expected] of Object.entries(snapshot)) {
+      const pair = conversion.pairs.find(
+        (item) => item.name === `creator/${name}`,
+      );
+      expect(pair, name).toBeDefined();
+      const parsed = parseAvatarEffectDefinition(pair!.v2, {
+        id: `fixture:${name}`,
+        label: name,
+        description: name,
+        assetPath: `registered:${String((pair!.v2 as JsonObject & { art: JsonObject }).art.image)}`,
+      });
+      expectClose(comparable(parsed), comparable(expected), name);
+    }
+  });
+
+  it("refuses /1 with the conversion command and other schemas as invalid", () => {
+    const context = {
+      id: "x",
+      label: "X",
+      description: "X",
+      assetPath: "blob:x",
+    };
+    const legacy = () =>
+      parseAvatarEffectDefinition(conversion.pairs[0]!.v1, context);
+    expect(legacy).toThrow(AvatarEffectDefinitionError);
+    expect(legacy).toThrow(/content_cli/);
+    try {
+      legacy();
+    } catch (error) {
+      expect((error as AvatarEffectDefinitionError).code).toBe(
+        "avatar_effect_conversion_required",
+      );
+    }
+    expect(() =>
+      parseAvatarEffectDefinition(
+        { schema: "animama/avatar-effect/3" },
+        context,
+      ),
+    ).toThrow(/unsupported schema/);
+    expect(() =>
+      parseAvatarEffectDefinition(
+        { ...conversion.pairs[0]!.v2, appearance: { opacity: 3 } },
+        context,
+      ),
+    ).toThrow(AvatarEffectDefinitionError);
+  });
+
+  it("maps appearance, other-eye art, flipbooks and keyframes", () => {
+    const parsed = parseAvatarEffectDefinition(
+      {
+        schema: "animama/avatar-effect/2",
+        region: "eyes",
+        attachment: {
+          kind: "face_landmark",
+          landmark: "eyes",
+          side: "right",
+          mirror: true,
+        },
+        art: {
+          image: "right.png",
+          otherEyeImage: "left.png",
+          flipbook: {
+            columns: 4,
+            rows: 2,
+            frames: 6,
+            fps: 12,
+            loop: "pingpong",
+          },
+        },
+        appearance: { opacity: 0.5, tint: "#ff8800", blend: "additive" },
+        motion: {
+          keyframes: {
+            loop: true,
+            frames: [
+              { t: 0, opacity: 0, rotationDeg: 0 },
+              {
+                t: 1,
+                opacity: 1,
+                rotationDeg: 90,
+                scale: 2,
+                offset: { x: 0.1, y: 0 },
+              },
+            ],
+          },
+        },
+      },
+      {
+        id: "eyes",
+        label: "Eyes",
+        description: "Eyes",
+        assetPath: "blob:right",
+        otherEyeAssetPath: "blob:left",
+      },
+    );
+    expect(parsed).toMatchObject({
+      kind: "hover",
+      hoverKind: "eye_hover",
+      side: "right",
+      requiresMirror: true,
+      otherEyeAssetPath: "blob:left",
+      appearance: { opacity: 0.5, tint: "#ff8800", blend: "additive" },
+      flipbook: { columns: 4, rows: 2, frames: 6, fps: 12, loop: "pingpong" },
+      keyframes: { loop: true },
+    });
+    if (parsed.kind === "deferred_attachment") throw new Error("unexpected");
+    expect(parsed.keyframes?.frames[1]?.rotation).toBeCloseTo(Math.PI / 2);
+  });
+
+  it("reads the API projection, which writes defaults and nulls", () => {
+    // `AvatarEffectDefinitionV2.model_dump(mode="json")` of Included "eye".
+    const projected = {
+      schema: "animama/avatar-effect/2",
+      region: "eyes",
+      attachment: {
+        kind: "face_landmark",
+        landmark: "eyes",
+        position: null,
+        side: "right",
+        mirror: true,
+        offset: { x: 0.0, y: 0.0, z: 0.0 },
+        scale: { x: 0.6, y: 0.6 },
+        rotationDeg: { x: 0.0, y: 0.0, z: 0.0 },
+      },
+      art: { image: "eye_=_r.png", otherEyeImage: null, flipbook: null },
+      appearance: { opacity: 1.0, tint: null, blend: "normal" },
+      motion: { pulse: null, spin: null, drift: null, keyframes: null },
+      faceOptions: {
+        forceBlink: null,
+        hideEyeDetails: null,
+        faceCleanup: null,
+        skinBackdrop: null,
+        hideParts: ["eye_highlight"],
+      },
+      soundAlias: null,
+    };
+    const context = {
+      id: "eye",
+      label: "Eye",
+      description: "Eye",
+      assetPath: "x",
+    };
+    const stored = includedDefinitions().get("eye")!.definition;
+    expect(parseAvatarEffectDefinition(projected, context)).toEqual(
+      parseAvatarEffectDefinition(stored, context),
+    );
+  });
+
+  it("refuses a flipbook with more frames than cells", () => {
+    expect(() =>
+      parseAvatarEffectDefinition(
+        {
+          ...conversion.pairs[0]!.v2,
+          art: {
+            image: "a.png",
+            flipbook: { columns: 2, rows: 2, frames: 5, fps: 10 },
+          },
+        },
+        { id: "x", label: "X", description: "X", assetPath: "blob:x" },
+      ),
+    ).toThrow(/flipbook/);
+  });
+
+  it("returns body, sticker and silhouette attachments as deferred entries", () => {
+    for (const [attachment, region] of [
+      [{ kind: "body", bone: "chest" }, "body"],
+      [{ kind: "sticker", around: "head" }, "sticker"],
+      [{ kind: "silhouette", fill: "tint" }, "silhouette"],
+    ] as const) {
+      const parsed = parseAvatarEffectDefinition(
+        {
+          schema: "animama/avatar-effect/2",
+          region,
+          attachment,
+          art: { image: "a.png" },
+        },
+        { id: region, label: region, description: region, assetPath: "blob:a" },
+      );
+      expect(parsed).toMatchObject({
+        kind: "deferred_attachment",
+        attachmentKind: attachment.kind,
+      });
+    }
+  });
+});

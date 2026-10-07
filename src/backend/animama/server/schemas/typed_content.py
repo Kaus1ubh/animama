@@ -5,9 +5,9 @@ from __future__ import annotations
 from dataclasses import asdict, replace
 from datetime import datetime
 from pathlib import PurePosixPath
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from animama.app.anima_creation_contract import (
     ItemId,
@@ -16,6 +16,11 @@ from animama.app.anima_creation_contract import (
     SourceKind,
     SourceRevision,
     StrictCreationModel,
+)
+from animama.app.contracts.avatar_effect import (
+    AvatarEffectDefinitionError,
+    AvatarEffectDefinitionV2,
+    avatar_effect_projection_fields,
 )
 from animama.app.services.content_kind_registry import idle_cells_projection
 from animama.app.services.runtime_budget_policy import MAX_RUNTIME_ENTRIES
@@ -180,10 +185,18 @@ class PyParticleEffect(PyTypedContentBase):
 
 
 class PyAvatarEffect(PyTypedContentBase):
+    """An Avatar Effect; an unreadable stored definition is reported, not raised."""
+
     kind: Literal["avatar_effect"] = "avatar_effect"
     runtime_defaults: dict[str, object] = Field(default_factory=dict)
     technical_source: dict[str, object] | None = None
-    definition: dict[str, object] | None = None
+    definition: AvatarEffectDefinitionV2 | None = None
+    definition_error: AvatarEffectDefinitionError | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _project_definition(cls, data: Any) -> Any:
+        return avatar_effect_projection_fields(data)
 
 
 class PySceneEffect(PyTypedContentBase):

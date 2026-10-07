@@ -39,11 +39,15 @@ import { resolveAvatarVFXModelProfile } from "./profiles";
 import { buildRuntimePrimitiveBindings } from "../vrmEditorInspection";
 import type {
   AvatarVFXAnimationPreset,
+  AvatarVFXAppearance,
   AvatarVFXAppliedEffectSnapshot,
+  AvatarVFXBlend,
+  AvatarVFXDeferredAttachmentEntry,
   AvatarVFXApplyMode,
   AvatarVFXCatalogEntry,
   AvatarVFXFaceFlattenSnapshot,
   AvatarVFXFlattenColorSnapshot,
+  AvatarVFXFlipbook,
   AvatarEyeHoverVFXEntry,
   AvatarFaceAnchoredVFXEntry,
   AvatarHoverVFXEntry,
@@ -94,6 +98,8 @@ type BindingTextureState = {
 type EffectLayerCanvasState = {
   slot: AvatarVFXTextureSlot;
   image: CanvasImageSource;
+  /** Unmirrored art for mirrored placements, when the effect has one. */
+  otherImage: CanvasImageSource | null;
   placements: TexturePixelPlacementInstance[];
   width: number;
   height: number;
@@ -107,6 +113,8 @@ type CompositeTextureSlotState = {
   staticSegments: StaticCompositeSegmentState[];
   width: number;
   height: number;
+  /** Whether the static cache drew the original slot beneath its effects. */
+  baseDrawn: boolean;
 };
 
 type BindingTextureCompositeState = {
@@ -130,9 +138,16 @@ type ActiveBindingEffect = {
   hoverRuntimeMaterials: THREE.Material[];
   disabledBindingKeys: string[];
   elapsedSec: number;
+  /** Redrawn on each animation tick: own motion, or a fade below full intensity. */
   isAnimated: boolean;
+  /** The effect's own motion (presets, keyframes or flipbook), without fades. */
+  hasOwnMotion: boolean;
   animationState: AvatarVFXAnimationState;
   appliedOrder: number;
+  /** Event envelope value (0–1) that multiplies opacity; 1 without a fade. */
+  intensity: number;
+  /** Pre-tinted copies of the effect's images, built once per image. */
+  tintedImages: Map<CanvasImageSource, HTMLCanvasElement>;
 };
 
 type BindingState = {
@@ -170,6 +185,8 @@ type HoverPlacementInstance = {
 type TexturePlacementInstance = {
   label: string;
   mirrorX: boolean;
+  /** The effect's own mirrored copy; see `TexturePlacement.effectMirror`. */
+  effectMirror?: boolean;
   rect: {
     x: number;
     y: number;
@@ -181,6 +198,8 @@ type TexturePlacementInstance = {
 type TexturePixelPlacementInstance = {
   label: string;
   mirrorX: boolean;
+  /** The effect's own mirrored copy; see `TexturePlacement.effectMirror`. */
+  effectMirror?: boolean;
   rect: {
     x: number;
     y: number;
@@ -200,6 +219,12 @@ type HoverPlaneInstanceState = {
   animatedGroup: THREE.Group;
   planeWidth: number;
   planeHeight: number;
+  /** Mirrored placements mirror keyframe offsets as well as static ones. */
+  mirrored: boolean;
+  material: THREE.MeshBasicMaterial;
+  texture: THREE.Texture;
+  backdropMaterial: THREE.Material | null;
+  backdropBaseOpacity: number;
 };
 
 type HoverEffectGroupState = {
@@ -1167,6 +1192,7 @@ function resolveAnchoredTexturePlacementInstances(args: {
     instances.push({
       label: oppositeSide,
       mirrorX: true,
+      effectMirror: true,
       rect: createAnchoredTexturePlacementRect({
         anchorUv: oppositeAnchor.uv,
         referenceSizeUv: oppositeAnchor.referenceSizeUv,
@@ -1213,6 +1239,7 @@ function resolveTextureEffectPlacements(args: {
           placements.push({
             label: effect.side === "left" ? "right" : "left",
             mirrorX: true,
+            effectMirror: true,
             rect: oppositeRect,
           });
         }
@@ -1257,7 +1284,8 @@ function resolveTextureEffectPlacements(args: {
         warning: "Face texture anchors are unavailable for anchored decals.",
       };
     }
-    const imageSize = getImageSize(image);
+    // Flipbook decals are sized from one frame, not the whole sheet.
+    const imageSize = resolveArtFrameSize(image, effect.flipbook);
     const resolved = resolveAnchoredTexturePlacementInstances({
       effect,
       faceTextureAnchors,
@@ -1273,6 +1301,7 @@ function resolveTextureEffectPlacements(args: {
       placements: resolved.instances.map((instance) => ({
         label: instance.label,
         mirrorX: instance.mirrorX,
+        ...(instance.effectMirror ? { effectMirror: true } : {}),
         rect: toPixelFloatRect(size, instance.rect),
       })),
     };
@@ -1295,21 +1324,175 @@ function resolveTextureEffectPlacements(args: {
   };
 }
 
+const DEFAULT_APPEARANCE: AvatarVFXAppearance = {
+  opacity: 1,
+  tint: null,
+  blend: "normal",
+};
+
+function resolveAppearance(effect: AvatarVFXCatalogEntry): AvatarVFXAppearance {
+  return effect.appearance ?? DEFAULT_APPEARANCE;
+}
+
+/** Appearance opacity × keyframe opacity × event envelope, clamped to 0–1. */
+function resolveEffectiveOpacity(args: {
+  effect: AvatarVFXCatalogEntry;
+  animationState: AvatarVFXAnimationState;
+  intensity: number;
+}): number {
+  const value =
+    resolveAppearance(args.effect).opacity *
+    args.animationState.opacity *
+    args.intensity;
+  return Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 1;
+}
+
+function compositeOperationForBlend(
+  blend: AvatarVFXBlend,
+): GlobalCompositeOperation {
+  if (blend === "additive") return "lighter";
+  if (blend === "multiply") return "multiply";
+  return "source-over";
+}
+
+/** Multiply an image by a tint colour while keeping its alpha. */
+function createTintedImage(
+  image: CanvasImageSource,
+  tint: string,
+): HTMLCanvasElement | null {
+  const size = getImageSize(image);
+  if (!size) return null;
+  let created: ReturnType<typeof createCanvas>;
+  try {
+    created = createCanvas(size.width, size.height);
+  } catch {
+    return null;
+  }
+  const { canvas, context } = created;
+  context.drawImage(image, 0, 0, size.width, size.height);
+  context.globalCompositeOperation = "multiply";
+  context.fillStyle = tint;
+  context.fillRect(0, 0, size.width, size.height);
+  context.globalCompositeOperation = "destination-in";
+  context.drawImage(image, 0, 0, size.width, size.height);
+  return canvas;
+}
+
+/** The size of one flipbook cell, or the whole image without a flipbook. */
+function resolveArtFrameSize(
+  image: CanvasImageSource,
+  flipbook: AvatarVFXFlipbook | undefined,
+): Size | null {
+  const size = getImageSize(image);
+  if (!size || !flipbook) return size;
+  return {
+    width: size.width / Math.max(1, flipbook.columns),
+    height: size.height / Math.max(1, flipbook.rows),
+  };
+}
+
+/** Source rectangle of one flipbook frame, left to right then top to bottom. */
+function resolveFlipbookSourceRect(
+  image: CanvasImageSource,
+  flipbook: AvatarVFXFlipbook | undefined,
+  frame: number,
+): { x: number; y: number; width: number; height: number } | null {
+  const size = getImageSize(image);
+  if (!size) return null;
+  if (!flipbook) return { x: 0, y: 0, ...size };
+  const columns = Math.max(1, flipbook.columns);
+  const width = size.width / columns;
+  const height = size.height / Math.max(1, flipbook.rows);
+  return {
+    x: (frame % columns) * width,
+    y: Math.floor(frame / columns) * height,
+    width,
+    height,
+  };
+}
+
+/** Point a flipbook texture at one frame without re-uploading it. */
+function applyFlipbookFrameToTexture(
+  texture: THREE.Texture,
+  flipbook: AvatarVFXFlipbook | undefined,
+  frame: number,
+): void {
+  if (!flipbook) return;
+  const columns = Math.max(1, flipbook.columns);
+  const rows = Math.max(1, flipbook.rows);
+  texture.repeat.set(1 / columns, 1 / rows);
+  // Textures are flipped on upload, so row 0 (top of the image) is at v = 1.
+  texture.offset.set(
+    (frame % columns) / columns,
+    1 - (Math.floor(frame / columns) + 1) / rows,
+  );
+}
+
+/**
+ * Configure a hover plane's blend mode. Multiply uses premultiplied output so
+ * transparent pixels leave the scene unchanged: dst × (src·a + 1 − a).
+ */
+function configureHoverMaterialBlend(
+  material: THREE.MeshBasicMaterial,
+  blend: AvatarVFXBlend,
+): void {
+  if (blend === "additive") {
+    material.blending = THREE.AdditiveBlending;
+    return;
+  }
+  if (blend === "multiply") {
+    material.premultipliedAlpha = true;
+    material.blending = THREE.CustomBlending;
+    material.blendEquation = THREE.AddEquation;
+    material.blendSrc = THREE.DstColorFactor;
+    material.blendDst = THREE.OneMinusSrcAlphaFactor;
+    material.blendSrcAlpha = THREE.ZeroFactor;
+    material.blendDstAlpha = THREE.OneFactor;
+    return;
+  }
+  material.blending = THREE.NormalBlending;
+}
+
+function applyHoverInstanceOpacity(
+  instance: HoverPlaneInstanceState,
+  opacity: number,
+  baseOpacity: number,
+): void {
+  instance.material.opacity = baseOpacity * opacity;
+  // The skin backdrop fades with its art so a fade never leaves a bare patch.
+  if (instance.backdropMaterial) {
+    instance.backdropMaterial.opacity =
+      instance.backdropBaseOpacity * baseOpacity * opacity;
+  }
+}
+
 function applyAnimationToHoverInstances(args: {
   instances: HoverPlaneInstanceState[];
   animationState: AvatarVFXAnimationState;
+  effect: AvatarVFXCatalogEntry;
+  intensity: number;
 }) {
   const { instances, animationState } = args;
   const scale = Math.max(0.0001, animationState.scale);
+  const opacity = animationState.opacity * args.intensity;
+  const baseOpacity = resolveAppearance(args.effect).opacity;
 
   instances.forEach((instance) => {
+    const mirrorSign = instance.mirrored ? -1 : 1;
     instance.animatedGroup.position.set(
-      animationState.driftX * instance.planeWidth,
-      animationState.driftY * instance.planeHeight,
+      animationState.driftX * instance.planeWidth +
+        animationState.offsetX * mirrorSign,
+      animationState.driftY * instance.planeHeight + animationState.offsetY,
       0,
     );
     instance.animatedGroup.rotation.z = animationState.rotationRadians;
     instance.animatedGroup.scale.setScalar(scale);
+    applyHoverInstanceOpacity(instance, opacity, baseOpacity);
+    applyFlipbookFrameToTexture(
+      instance.texture,
+      args.effect.flipbook,
+      animationState.frame,
+    );
   });
 }
 
@@ -1317,6 +1500,18 @@ function hasAnimatedVFXConfig(
   config: AvatarVFXResolvedAnimationConfig,
 ): boolean {
   return config.pulseEnabled || config.spinEnabled || config.driftEnabled;
+}
+
+/** Whether an effect changes over its own timeline and needs the 30 FPS tick. */
+function isAnimatedEffect(
+  effect: AvatarVFXCatalogEntry,
+  config: AvatarVFXResolvedAnimationConfig,
+): boolean {
+  return (
+    hasAnimatedVFXConfig(config) ||
+    Boolean(effect.keyframes) ||
+    (effect.flipbook?.frames ?? 1) > 1
+  );
 }
 
 function getTextureEffectKindOrder(effect: AvatarVFXCatalogEntry): number {
@@ -1329,12 +1524,35 @@ function drawCompositedLayerCanvas(args: {
   effect: AvatarVFXCatalogEntry;
   size: Size;
   animationState: AvatarVFXAnimationState;
+  opacity: number;
+  tinted: (image: CanvasImageSource) => CanvasImageSource;
 }) {
   const { context, layerState, effect, size, animationState } = args;
+  if (args.opacity <= 0) return;
+  const appearance = resolveAppearance(effect);
   context.save();
+  context.globalAlpha = args.opacity;
+  context.globalCompositeOperation = compositeOperationForBlend(
+    appearance.blend,
+  );
   layerState.placements.forEach((placement) => {
+    // The effect's mirrored copy draws its own art, unmirrored, when it has one.
+    const useOtherImage =
+      placement.effectMirror === true && layerState.otherImage !== null;
+    const image = args.tinted(
+      useOtherImage ? layerState.otherImage! : layerState.image,
+    );
+    const source = effect.flipbook
+      ? resolveFlipbookSourceRect(
+          useOtherImage ? layerState.otherImage! : layerState.image,
+          effect.flipbook,
+          animationState.frame,
+        )
+      : null;
+    if (effect.flipbook && !source) return;
+    // Unflipped, but still the mirrored copy: its offsets stay mirrored.
     const transform = resolveTexturePlacementTransform(
-      placement,
+      useOtherImage ? { ...placement, mirrorX: false } : placement,
       effect,
       size,
       animationState,
@@ -1345,13 +1563,28 @@ function drawCompositedLayerCanvas(args: {
     // Texture decals rotate in their 2D surface; spin adds to the authored angle.
     context.rotate(transform.rotation);
     context.scale(transform.scaleX, transform.scaleY);
-    context.drawImage(
-      layerState.image,
-      -placement.rect.width * 0.5,
-      -placement.rect.height * 0.5,
-      placement.rect.width,
-      placement.rect.height,
-    );
+    if (source) {
+      // Flipbooks draw one frame through a source rectangle.
+      context.drawImage(
+        image,
+        source.x,
+        source.y,
+        source.width,
+        source.height,
+        -placement.rect.width * 0.5,
+        -placement.rect.height * 0.5,
+        placement.rect.width,
+        placement.rect.height,
+      );
+    } else {
+      context.drawImage(
+        image,
+        -placement.rect.width * 0.5,
+        -placement.rect.height * 0.5,
+        placement.rect.width,
+        placement.rect.height,
+      );
+    }
     context.restore();
   });
   context.restore();
@@ -1514,10 +1747,11 @@ function resolveHoverPlacementInstances(args: {
         {
           label: oppositeLabel,
           mirrored: true,
-          position: applyHoverPlacementOffset(
-            oppositePosition,
-            effect.transform.offset,
-          ),
+          // The mirrored eye mirrors its lateral offset (avatar-effect/2).
+          position: applyHoverPlacementOffset(oppositePosition, {
+            ...effect.transform.offset,
+            x: -effect.transform.offset.x,
+          }),
           referenceSizeLocal: null,
         },
       ];
@@ -1656,6 +1890,8 @@ export class AvatarVFXController {
   private _flattenPreviewEyes = false;
   private _flattenPreviewMouth = false;
   private _cachedFaceFlattenState: ResolvedFaceFlattenState | null = null;
+  /** Envelope values received while an effect's apply is still in flight. */
+  private _pendingIntensities = new Map<string, number>();
 
   constructor(
     avatar: Avatar,
@@ -2073,7 +2309,37 @@ export class AvatarVFXController {
     };
   }
 
+  /**
+   * Run one apply and drop an envelope value held for it when the apply fails,
+   * unless a newer apply or removal of the same ID has taken over.
+   */
+  private async _applyTracked(
+    appliedEffectId: string,
+    run: () => Promise<void>,
+  ): Promise<void> {
+    const before = this._applyTokens.get(appliedEffectId) ?? 0;
+    try {
+      await run();
+    } finally {
+      const after = this._applyTokens.get(appliedEffectId) ?? 0;
+      const active = Array.from(this._bindings.values()).some((binding) =>
+        binding.activeEffects.has(appliedEffectId),
+      );
+      if (after <= before + 1 && !active) {
+        this._pendingIntensities.delete(appliedEffectId);
+      }
+    }
+  }
+
   async applyHoverVFX(args: {
+    effectId: string;
+    effectEntry?: AvatarHoverVFXEntry;
+    logicalEffectId?: string;
+  }): Promise<void> {
+    await this._applyTracked(args.effectId, () => this._applyHoverVFXNow(args));
+  }
+
+  private async _applyHoverVFXNow(args: {
     effectId: string;
     effectEntry?: AvatarHoverVFXEntry;
     logicalEffectId?: string;
@@ -2091,6 +2357,16 @@ export class AvatarVFXController {
   }
 
   async applyFaceAnchoredVFX(args: {
+    effectId: string;
+    effectEntry?: AvatarFaceAnchoredVFXEntry;
+    logicalEffectId?: string;
+  }): Promise<void> {
+    await this._applyTracked(args.effectId, () =>
+      this._applyFaceAnchoredVFXNow(args),
+    );
+  }
+
+  private async _applyFaceAnchoredVFXNow(args: {
     effectId: string;
     effectEntry?: AvatarFaceAnchoredVFXEntry;
     logicalEffectId?: string;
@@ -2117,6 +2393,17 @@ export class AvatarVFXController {
     effectEntry?: AvatarTextureVFXEntry;
     logicalEffectId?: string;
   }): Promise<void> {
+    await this._applyTracked(args.effectId, () =>
+      this._applyTextureVFXNow(args),
+    );
+  }
+
+  private async _applyTextureVFXNow(args: {
+    effectId: string;
+    applyMode?: AvatarVFXApplyMode;
+    effectEntry?: AvatarTextureVFXEntry;
+    logicalEffectId?: string;
+  }): Promise<void> {
     const effect = this._resolveEffectSource(args.effectId, args.effectEntry);
     if (!effect) {
       this._pushWarning(`Unknown VFX effect "${args.effectId}".`);
@@ -2135,6 +2422,16 @@ export class AvatarVFXController {
   }
 
   async applyEffect(args: {
+    bindingKey: string;
+    effectId: string;
+    applyMode?: AvatarVFXApplyMode;
+    effectEntry?: AvatarVFXCatalogEntry;
+    logicalEffectId?: string;
+  }): Promise<void> {
+    await this._applyTracked(args.effectId, () => this._applyEffectNow(args));
+  }
+
+  private async _applyEffectNow(args: {
     bindingKey: string;
     effectId: string;
     applyMode?: AvatarVFXApplyMode;
@@ -2180,8 +2477,57 @@ export class AvatarVFXController {
     );
   }
 
+  /**
+   * Record that a valid effect uses an attachment without a renderer yet
+   * (body, sticker or silhouette). Nothing is applied.
+   */
+  reportUnsupportedAttachment(effect: AvatarVFXDeferredAttachmentEntry): void {
+    if (this._isDisposed) return;
+    this._pushWarning(
+      `Avatar Effect "${effect.label}" uses a ${effect.attachmentKind} attachment, which is not yet supported.`,
+    );
+  }
+
+  /**
+   * Set an applied effect's event envelope (0–1), which multiplies its
+   * opacity. A value for an effect that is still loading is held and used when
+   * the apply finishes. Composite effects redraw on the next animation tick.
+   */
+  setEffectIntensity(appliedEffectId: string, value: number): void {
+    if (this._isDisposed) return;
+    const intensity = Number.isFinite(value)
+      ? Math.min(1, Math.max(0, value))
+      : 1;
+    for (const binding of this._bindings.values()) {
+      const active = binding.activeEffects.get(appliedEffectId);
+      if (!active) continue;
+      if (active.intensity === intensity) return;
+      active.intensity = intensity;
+      if (active.renderMode === "hover_plane") {
+        applyAnimationToHoverInstances({
+          instances: active.hoverInstances,
+          animationState: active.animationState,
+          effect: active.effectEntry,
+          intensity,
+        });
+        return;
+      }
+      // A fading composite joins the animated layers so each tick redraws it;
+      // at a steady full intensity it returns to the static cache.
+      const animated = active.hasOwnMotion || intensity !== 1;
+      if (active.isAnimated !== animated) {
+        active.isAnimated = animated;
+        this._markTextureCompositeStaticDirty(binding);
+        this._redrawBindingTextureComposite(binding);
+      }
+      return;
+    }
+    this._pendingIntensities.set(appliedEffectId, intensity);
+  }
+
   removeEffect(appliedEffectId: string): void {
     if (this._isDisposed) return;
+    this._pendingIntensities.delete(appliedEffectId);
     // Invalidate an in-flight image load as well as any already-applied layer.
     this._applyTokens.set(
       appliedEffectId,
@@ -2229,6 +2575,8 @@ export class AvatarVFXController {
         activeEffect.animationState = evaluateAvatarVFXAnimation({
           elapsedSec: activeEffect.elapsedSec,
           config: activeEffect.animationConfig,
+          keyframes: activeEffect.effectEntry.keyframes,
+          flipbook: activeEffect.effectEntry.flipbook,
         });
 
         if (activeEffect.renderMode === "texture") {
@@ -2239,6 +2587,8 @@ export class AvatarVFXController {
         applyAnimationToHoverInstances({
           instances: activeEffect.hoverInstances,
           animationState: activeEffect.animationState,
+          effect: activeEffect.effectEntry,
+          intensity: activeEffect.intensity,
         });
       });
 
@@ -2258,6 +2608,7 @@ export class AvatarVFXController {
     this._listeners.clear();
     this._bindings.clear();
     this._applyTokens.clear();
+    this._pendingIntensities.clear();
     this._nextAppliedOrder = 0;
     this._warnings = [];
     this._snapshot = this._createSnapshot();
@@ -2398,10 +2749,12 @@ export class AvatarVFXController {
     const animationConfig = resolveAvatarVFXAnimationConfig(
       effect.animationConfig,
     );
-    const isAnimated = hasAnimatedVFXConfig(animationConfig);
+    const isAnimated = isAnimatedEffect(effect, animationConfig);
     const initialAnimationState = evaluateAvatarVFXAnimation({
       elapsedSec: 0,
       config: animationConfig,
+      keyframes: effect.keyframes,
+      flipbook: effect.flipbook,
     });
 
     const appliedEffectId = effect.id;
@@ -2410,8 +2763,14 @@ export class AvatarVFXController {
     this._applyTokens.set(appliedEffectId, token);
 
     let effectImage: CanvasImageSource;
+    let otherImage: CanvasImageSource | null = null;
     try {
-      effectImage = await loadEffectImage(effect.assetPath);
+      [effectImage, otherImage] = await Promise.all([
+        loadEffectImage(effect.assetPath),
+        effect.otherEyeAssetPath
+          ? loadEffectImage(effect.otherEyeAssetPath)
+          : Promise.resolve(null),
+      ]);
     } catch (error) {
       if (this._applyTokens.get(appliedEffectId) !== token) return;
       binding.warning = error instanceof Error ? error.message : String(error);
@@ -2433,6 +2792,7 @@ export class AvatarVFXController {
         binding,
         effect,
         effectImage,
+        otherImage,
       });
       if (!hoverEffectState) {
         binding.warning =
@@ -2469,16 +2829,19 @@ export class AvatarVFXController {
         disabledBindingKeys,
         elapsedSec: 0,
         isAnimated,
+        hasOwnMotion: isAnimated,
         animationState: initialAnimationState,
         appliedOrder: ++this._nextAppliedOrder,
+        intensity: this._takePendingIntensity(appliedEffectId),
+        tintedImages: new Map(),
       });
       this._cachedFaceFlattenState = null;
-      if (isAnimated) {
-        applyAnimationToHoverInstances({
-          instances: hoverEffectState.instances,
-          animationState: initialAnimationState,
-        });
-      }
+      applyAnimationToHoverInstances({
+        instances: hoverEffectState.instances,
+        animationState: initialAnimationState,
+        effect,
+        intensity: binding.activeEffects.get(appliedEffectId)?.intensity ?? 1,
+      });
       binding.warning = null;
       if (isEyeHoverVFXEntry(effect) || isMouthHoverVFXEntry(effect)) {
         this._refreshFaceFlattenComposite();
@@ -2499,6 +2862,7 @@ export class AvatarVFXController {
       effect,
       applyMode,
       effectImage,
+      otherImage,
       faceTextureAnchors,
     });
     if (builtLayerCanvases.layerCanvases.size === 0) {
@@ -2537,10 +2901,18 @@ export class AvatarVFXController {
       disabledBindingKeys,
       elapsedSec: 0,
       isAnimated,
+      hasOwnMotion: isAnimated,
       animationState: initialAnimationState,
       appliedOrder: ++this._nextAppliedOrder,
+      intensity: this._takePendingIntensity(appliedEffectId),
+      tintedImages: new Map(),
     });
     this._cachedFaceFlattenState = null;
+    const appliedEffect = binding.activeEffects.get(appliedEffectId);
+    if (appliedEffect && appliedEffect.intensity !== 1) {
+      // A fade already in progress redraws on each animation tick.
+      appliedEffect.isAnimated = true;
+    }
 
     const redrawSucceeded = this._redrawBindingTextureComposite(binding);
     if (!redrawSucceeded) {
@@ -2562,6 +2934,7 @@ export class AvatarVFXController {
     effect: AvatarVFXCatalogEntry;
     applyMode: AvatarVFXApplyMode;
     effectImage: CanvasImageSource;
+    otherImage: CanvasImageSource | null;
     faceTextureAnchors: AvatarFaceTextureAnchorsSnapshot | null;
   }): {
     layerCanvases: Map<AvatarVFXTextureSlot, EffectLayerCanvasState>;
@@ -2593,6 +2966,7 @@ export class AvatarVFXController {
       layerCanvases.set(slotState.slot, {
         slot: slotState.slot,
         image: args.effectImage,
+        otherImage: args.otherImage,
         placements: drawResult.placements,
         width: slotState.width,
         height: slotState.height,
@@ -3030,6 +3404,7 @@ export class AvatarVFXController {
       staticSegments: [],
       width: args.slotState.width,
       height: args.slotState.height,
+      baseDrawn: false,
     };
     compositeState.slotStates.set(args.slotState.slot, nextState);
     return nextState;
@@ -3106,9 +3481,14 @@ export class AvatarVFXController {
       const slotEffects = textureEffects.filter((effect) =>
         effect.layerCanvases.has(slotState.slot),
       );
+      // A replacement below full opacity shows the original slot beneath it.
       const shouldDrawBaseTexture =
         slotEffects.length === 0 ||
-        slotEffects.every((effect) => effect.applyMode === "overlay");
+        slotEffects.every(
+          (effect) =>
+            effect.applyMode === "overlay" ||
+            this._resolveActiveEffectOpacity(effect) < 1,
+        );
       const flattenColorForSlot =
         flattenState.sampledColorsBySlot[slotState.slot] ?? null;
       const shouldApplyFlattenToSlot =
@@ -3137,7 +3517,10 @@ export class AvatarVFXController {
       activeSlots.add(slotState.slot);
 
       const animatedEffects = slotEffects.filter((effect) => effect.isAnimated);
-      const shouldRebuildStaticCache = compositeState.staticCacheDirty;
+      const shouldRebuildStaticCache =
+        compositeState.staticCacheDirty ||
+        compositeSlotState.baseDrawn !== shouldDrawBaseTexture;
+      compositeSlotState.baseDrawn = shouldDrawBaseTexture;
       if (shouldRebuildStaticCache) {
         const staticSegments = this._ensureStaticCompositeSegments({
           compositeSlotState,
@@ -3214,6 +3597,8 @@ export class AvatarVFXController {
               height: slotState.height,
             },
             animationState: effect.animationState,
+            opacity: this._resolveActiveEffectOpacity(effect),
+            tinted: (image) => this._tintedEffectImage(effect, image),
           });
         });
       }
@@ -3259,6 +3644,8 @@ export class AvatarVFXController {
             height: slotState.height,
           },
           animationState: animatedEffect.animationState,
+          opacity: this._resolveActiveEffectOpacity(animatedEffect),
+          tinted: (image) => this._tintedEffectImage(animatedEffect, image),
         });
       });
 
@@ -3281,6 +3668,36 @@ export class AvatarVFXController {
     materialClone.needsUpdate = true;
     compositeState.staticCacheDirty = false;
     return activeSlots.size > 0;
+  }
+
+  private _resolveActiveEffectOpacity(effect: ActiveBindingEffect): number {
+    return resolveEffectiveOpacity({
+      effect: effect.effectEntry,
+      animationState: effect.animationState,
+      intensity: effect.intensity,
+    });
+  }
+
+  /** Return the effect's image tinted by its appearance, cached per image. */
+  private _tintedEffectImage(
+    effect: ActiveBindingEffect,
+    image: CanvasImageSource,
+  ): CanvasImageSource {
+    const tint = resolveAppearance(effect.effectEntry).tint;
+    if (!tint) return image;
+    const cached = effect.tintedImages.get(image);
+    if (cached) return cached;
+    const tinted = createTintedImage(image, tint);
+    if (!tinted) return image;
+    effect.tintedImages.set(image, tinted);
+    return tinted;
+  }
+
+  /** Consume an envelope value set before the effect finished applying. */
+  private _takePendingIntensity(appliedEffectId: string): number {
+    const pending = this._pendingIntensities.get(appliedEffectId);
+    this._pendingIntensities.delete(appliedEffectId);
+    return pending ?? 1;
   }
 
   private _ensureOverrideMaterial(
@@ -3455,8 +3872,9 @@ export class AvatarVFXController {
     binding: BindingState;
     effect: AvatarHoverVFXEntry;
     effectImage: CanvasImageSource;
+    otherImage: CanvasImageSource | null;
   }): HoverEffectGroupState | null {
-    const { binding, effect, effectImage } = args;
+    const { binding, effect, effectImage, otherImage } = args;
     const faceLandmarks = this._avatar.getFaceLandmarksSnapshot();
     const faceTextureAnchors = this._avatar.getFaceTextureAnchorsSnapshot();
     const anchorObject = this._avatar.faceLandmarks?.getAnchorObject() ?? null;
@@ -3508,7 +3926,8 @@ export class AvatarVFXController {
       return null;
     }
 
-    const imageSize = getImageSize(effectImage);
+    // A flipbook plane takes its aspect from one frame, not the whole sheet.
+    const imageSize = resolveArtFrameSize(effectImage, effect.flipbook);
     if (!imageSize) {
       binding.warning = `Effect "${effect.label}" has no readable image size.`;
       return null;
@@ -3576,7 +3995,12 @@ export class AvatarVFXController {
       return null;
     }
 
+    const appearance = resolveAppearance(effect);
     const texture = createTextureFromImage(effectImage);
+    const otherTexture = otherImage ? createTextureFromImage(otherImage) : null;
+    for (const value of [texture, otherTexture]) {
+      if (value) applyFlipbookFrameToTexture(value, effect.flipbook, 0);
+    }
     const facingRotationY = resolveHoverFacingRotationY(faceLandmarks);
 
     const group = new THREE.Group();
@@ -3591,14 +4015,21 @@ export class AvatarVFXController {
         planeSize.width,
         planeSize.height,
       );
+      // The mirrored eye uses its own art, unmirrored, when the effect has one.
+      const usesOtherArt = placement.mirrored && otherTexture !== null;
+      const placementTexture = usesOtherArt ? otherTexture : texture;
+      const mirrorScale = placement.mirrored && !usesOtherArt ? -1 : 1;
       const material = new THREE.MeshBasicMaterial({
-        map: texture,
+        map: placementTexture,
         transparent: true,
         depthTest: true,
         depthWrite: false,
         side: THREE.DoubleSide,
         toneMapped: false,
+        opacity: appearance.opacity,
       });
+      if (appearance.tint) material.color.set(appearance.tint);
+      configureHoverMaterialBlend(material, appearance.blend);
       const placementRoot = new THREE.Group();
       placementRoot.name = `${effect.id}:${placement.label}:anchor`;
       placementRoot.position.copy(placement.position);
@@ -3620,6 +4051,7 @@ export class AvatarVFXController {
       );
       animatedGroup.add(staticGroup);
 
+      let backdropMaterialForFade: THREE.Material | null = null;
       if (hoverSkinBackdropColor && hoverBackdropSourceBinding) {
         const backdropGeometry = new THREE.PlaneGeometry(
           planeSize.width * HOVER_SKIN_BACKDROP_WIDTH_SCALE,
@@ -3645,16 +4077,13 @@ export class AvatarVFXController {
           backdropMesh.frustumCulled = false;
           staticGroup.add(backdropMesh);
           runtimeMaterials.push(backdropMaterial);
+          backdropMaterialForFade = backdropMaterial;
         }
       }
 
       const mesh = new THREE.Mesh(geometry, material);
       mesh.name = `${effect.id}:${placement.label}`;
-      mesh.scale.set(
-        (placement.mirrored ? -1 : 1) * staticScaleX,
-        staticScaleY,
-        staticScaleZ,
-      );
+      mesh.scale.set(mirrorScale * staticScaleX, staticScaleY, staticScaleZ);
       mesh.renderOrder = HOVER_RENDER_ORDER;
       mesh.frustumCulled = false;
       staticGroup.add(mesh);
@@ -3666,9 +4095,23 @@ export class AvatarVFXController {
         animatedGroup,
         planeWidth: planeSize.width * staticScaleX,
         planeHeight: planeSize.height * staticScaleY,
+        mirrored: placement.mirrored,
+        material,
+        texture: placementTexture,
+        backdropMaterial: backdropMaterialForFade,
+        backdropBaseOpacity: backdropMaterialForFade?.opacity ?? 1,
       });
+      if (backdropMaterialForFade) {
+        backdropMaterialForFade.opacity *= appearance.opacity;
+      }
     });
 
+    if (
+      otherTexture &&
+      !instances.some((value) => value.texture === otherTexture)
+    ) {
+      otherTexture.dispose();
+    }
     anchorObject.add(group);
     binding.warning = null;
     return {

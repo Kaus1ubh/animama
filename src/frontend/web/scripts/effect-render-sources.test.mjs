@@ -32,7 +32,12 @@ async function writeEffect(root, stem, { name = stem, image = `${stem}.png` }) {
       content_type: "avatar_effect",
       content_id: `local:avatar-effect:${stem}`,
       name,
-      definition: { kind: "texture", image },
+      definition: {
+        schema: "animama/avatar-effect/2",
+        region: "full_face",
+        attachment: { kind: "face_surface", part: "face_skin", area: "full" },
+        art: { image },
+      },
     }),
   );
   return folder;

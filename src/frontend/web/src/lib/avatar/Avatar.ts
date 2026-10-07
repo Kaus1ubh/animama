@@ -2275,6 +2275,7 @@ export class Avatar {
     this.poseController.setClipEventSink({
       applyAvatarVFX: this._applyPoseClipAvatarVFX,
       clearAvatarVFX: this._clearPoseClipAvatarVFX,
+      setAvatarVFXIntensity: this._setClipAvatarVFXIntensity,
       applyParticleVFX: this._applyPoseClipParticleVFX,
       clearParticleVFX: this._clearPoseClipParticleVFX,
       ...(externalSink?.applySceneVFX
@@ -2293,6 +2294,7 @@ export class Avatar {
     this.reactionClipPlayer.setEventSink({
       applyAvatarVFX: this._applyReactionClipAvatarVFX,
       clearAvatarVFX: this._clearReactionClipAvatarVFX,
+      setAvatarVFXIntensity: this._setClipAvatarVFXIntensity,
       applyParticleVFX: this._applyReactionClipParticleVFX,
       clearParticleVFX: this._clearReactionClipParticleVFX,
       ...(externalSink?.applySceneVFX
@@ -2304,6 +2306,18 @@ export class Avatar {
       ...(externalSink?.playSfx ? { playSfx: externalSink.playSfx } : {}),
     });
   }
+
+  /** Forward a clip event's fade to the effect it owns (held while it loads). */
+  private _setClipAvatarVFXIntensity = (
+    _event: Parameters<
+      NonNullable<AnimaPoseClipEventSink["setAvatarVFXIntensity"]>
+    >[0],
+    context: AnimaPoseClipEventContext,
+    intensity: number,
+  ): void => {
+    if (!this._clipOwnedAvatarVFXIds.has(context.appliedId)) return;
+    this.vfxController?.setEffectIntensity(context.appliedId, intensity);
+  };
 
   private _applyPoseClipAvatarVFX = async (
     event: Parameters<NonNullable<AnimaPoseClipEventSink["applyAvatarVFX"]>>[0],

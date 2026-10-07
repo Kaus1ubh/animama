@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from time import perf_counter
 
 from animama.app.ports.content_catalog import ContentCatalog
+from animama.app.services.avatar_effect_conversion import is_unconverted_avatar_effect
 from animama.app.services.runtime_budget_policy import MAX_RUNTIME_BYTES, MAX_RUNTIME_ENTRIES
 from animama.app.services.typed_content_service import (
     TypedCatalogItem,
@@ -95,6 +96,10 @@ _SAFE_MESSAGES = {
     "root_declaration_conflict": "The same catalog source was declared with conflicting requirements.",
     "content_kind_retired": "This content kind is no longer supported.",
     "content_dependency_retired": "This Action needs conversion before it can be used.",
+    "avatar_effect_conversion_required": (
+        "This content uses an Avatar Effect that has not been converted to animama/avatar-effect/2. "
+        "Check that effect's Content Health diagnostic."
+    ),
     "source_unavailable": "The selected source is unavailable.",
     "source_kind_mismatch": "The selected source has a different content kind.",
     "source_revision_changed": "The selected source revision changed.",
@@ -184,6 +189,13 @@ class TypedContentBatchResolver:
                         exc.code,
                         item_id=exc.item_id if exc.item_id in visible else None,
                     )
+                )
+                continue
+
+            unconverted = next((entry for entry in closure if is_unconverted_avatar_effect(entry.document)), None)
+            if unconverted is not None:
+                diagnostics.append(
+                    _diagnostic(root_key, "avatar_effect_conversion_required", item_id=unconverted.item.id)
                 )
                 continue
 

@@ -1,4 +1,4 @@
-"""Avatar Effect Save applies the package export rules before writing Local content."""
+"""Avatar Effect Save applies the shared ``/2`` contract before writing Local content."""
 
 from __future__ import annotations
 
@@ -32,9 +32,9 @@ def _png() -> bytes:
 
 
 def _form(definition_patch: dict[str, Any], *, operation_id: str) -> tuple[dict[str, str], list[Any]]:
-    """Build the creator's multipart Save request for one box-hover fixture."""
-    fixture = next(item for item in FIXTURES if item["definition"].get("hoverKind") == "box_hover")
-    definition = {**fixture["definition"], "image": "effect.png", **definition_patch}
+    """Build the creator's multipart Save request for the forehead landmark fixture."""
+    fixture = next(item for item in FIXTURES if item["definition"]["attachment"].get("landmark") == "forehead")
+    definition = {**fixture["definition"], "art": {"image": "effect.png"}, **definition_patch}
     descriptor = {
         "schema_version": 1,
         "content_type": "avatar_effect",
@@ -78,8 +78,16 @@ async def effect_api(async_session, tmp_path: Path) -> AsyncIterator[tuple[Any, 
 @pytest.mark.parametrize(
     ("patch", "field"),
     [
-        ({"placement": "behind-head"}, "definition.placement"),
-        ({"transform": {"offset": {"x": "far", "y": 0, "z": 0}}}, "definition.transform.offset.x"),
+        (
+            {"attachment": {"kind": "face_landmark", "landmark": "forehead", "position": "behind"}},
+            "definition.attachment.position",
+        ),
+        (
+            {"attachment": {"kind": "face_landmark", "landmark": "top", "offset": {"x": "far"}, "position": "left"}},
+            "definition.attachment.offset.x",
+        ),
+        ({"appearance": {"opacity": 2}}, "definition.appearance.opacity"),
+        ({"art": {"image": "missing.png"}}, "definition.art.image"),
         ({"lifetimeSeconds": 3}, "definition.lifetimeSeconds"),
     ],
 )
@@ -106,4 +114,27 @@ async def test_valid_avatar_effect_definition_saves(effect_api: tuple[Any, Path]
     assert saved.status_code == 200, saved.text
     assert saved.json()["kind"] == "avatar_effect"
     stored = [json.loads(path.read_text()) for path in (local_root / "vfx/avatar").rglob("checked.json")]
-    assert [document["definition"]["placement"] for document in stored] == ["forehead-left"]
+    assert [document["definition"]["attachment"]["position"] for document in stored] == ["left"]
+
+
+async def test_v1_avatar_effect_is_refused_with_the_conversion_hint(effect_api: tuple[Any, Path]) -> None:
+    client, local_root = effect_api
+    legacy = {
+        "schema": "animama/avatar-effect/1",
+        "kind": "hover",
+        "region": "emote",
+        "hoverKind": "box_hover",
+        "placement": "forehead-left",
+        "image": "effect.png",
+    }
+    data, files = _form({}, operation_id="legacy-effect")
+    descriptor = json.loads(data["descriptor_json"])
+    descriptor["definition"] = legacy
+    data["descriptor_json"] = json.dumps(descriptor)
+    refused = await client.put("/v1/avatar-effects/Checked", data=data, files=files)
+    assert refused.status_code == 422, refused.text
+    detail = refused.json()["detail"]
+    assert detail["reason"] == "avatar_effect_conversion_required"
+    assert detail["field"] == "definition.schema"
+    assert "content_cli" in detail["message"] and "convert_avatar_effects.py" in detail["message"]
+    assert not list((local_root / "vfx/avatar").rglob("*.json"))

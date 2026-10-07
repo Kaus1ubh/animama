@@ -5,8 +5,13 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from animama.app.contracts.avatar_effect import (
+    AvatarEffectDefinitionError,
+    AvatarEffectDefinitionV2,
+    avatar_effect_projection_fields,
+)
 from animama.server.schemas.idle_style import PyIdleCell, PyIdlePlayback
 
 
@@ -84,6 +89,23 @@ class PyRuntimeSupport(BaseModel):
     logical_resource_urls: dict[str, str] = Field(default_factory=dict)
     provenance: list[str] = Field(default_factory=list)
     files: list[PyRuntimeFile] = Field(default_factory=list)
+
+
+class PyRuntimeAvatarEffect(PyRuntimeSupport):
+    """A mounted Avatar Effect with its typed ``/2`` definition.
+
+    A definition that is not valid ``/2`` is projected as ``definition_error``
+    so one unconverted Local effect cannot fail the whole runtime snapshot.
+    """
+
+    content_type: Literal["avatar_effect"] = "avatar_effect"
+    definition: AvatarEffectDefinitionV2 | None = None  # type: ignore[assignment]
+    definition_error: AvatarEffectDefinitionError | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _project_definition(cls, data: Any) -> Any:
+        return avatar_effect_projection_fields(data)
 
 
 class PyRuntimeIdleAnimation(BaseModel):
@@ -256,7 +278,7 @@ class PyAnimaRuntime(BaseModel):
     voice: PyRuntimeVoice | None = None
     appearances: list[PyRuntimeAppearance] = Field(default_factory=list)
     particle_effects: list[PyRuntimeSupport] = Field(default_factory=list)
-    avatar_effects: list[PyRuntimeSupport] = Field(default_factory=list)
+    avatar_effects: list[PyRuntimeAvatarEffect] = Field(default_factory=list)
     scene_effects: list[PyRuntimeSupport] = Field(default_factory=list)
     sound_effects: list[PyRuntimeSupport] = Field(default_factory=list)
     warnings: list[PyRuntimeWarning] = Field(default_factory=list)

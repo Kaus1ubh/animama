@@ -1,9 +1,11 @@
 import type { Avatar } from "../Avatar";
 import {
+  isDeferredAttachmentVFXEntry,
   isFaceAnchoredVFXEntry,
   isHoverVFXEntry,
   isTextureVFXEntry,
   type AvatarVFXCatalogEntry,
+  type AvatarVFXParsedEntry,
 } from "./types";
 
 /**
@@ -14,7 +16,7 @@ export async function applyAvatarVFXEffectById(args: {
   avatar: Avatar | null;
   effectId: string;
   appliedEffectId?: string;
-  effectEntry: AvatarVFXCatalogEntry | null;
+  effectEntry: AvatarVFXParsedEntry | null;
 }): Promise<boolean> {
   const effect = args.effectEntry;
   const controller = args.avatar?.vfxController ?? null;
@@ -24,6 +26,12 @@ export async function applyAvatarVFXEffectById(args: {
   }
 
   const runtimeEffectId = args.appliedEffectId ?? effect.id;
+
+  if (isDeferredAttachmentVFXEntry(effect)) {
+    // Body, sticker and silhouette effects are valid but not rendered yet.
+    controller.reportUnsupportedAttachment(effect);
+    return false;
+  }
 
   if (isHoverVFXEntry(effect)) {
     await controller.applyHoverVFX({

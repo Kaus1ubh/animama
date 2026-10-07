@@ -26,6 +26,7 @@ from animama.app.contracts.content_package_import import (
     ReviewedPackageImport,
 )
 from animama.app.services.anima_package_source_service import AnimaPackageSourceService
+from animama.app.services.avatar_effect_conversion import CONVERSION_REQUIRED, PACKAGE_CONVERSION_HINT
 from animama.app.services.content_catalog_service import ContentCatalogService
 from animama.app.services.content_package_export import (
     ContentPackageExportService,
@@ -92,7 +93,11 @@ class PackageRoute(APIRoute):
                     "package_export_expired": 410,
                     "package_stage_disk_full": 507,
                 }.get(code, 409)
-                return JSONResponse(status_code=status, content={"detail": {"code": code}})
+                detail: dict[str, str] = {"code": code}
+                if code == CONVERSION_REQUIRED:
+                    # A fixed server hint naming the conversion steps, never submitted data.
+                    detail["message"] = PACKAGE_CONVERSION_HINT
+                return JSONResponse(status_code=status, content={"detail": detail})
             except (ContentIntegrityError, ContentPathError, ContentValidationError, ValueError):
                 return JSONResponse(status_code=422, content={"detail": {"code": "package_invalid"}})
             except OSError as exc:

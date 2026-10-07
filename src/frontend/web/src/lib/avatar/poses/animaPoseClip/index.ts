@@ -27,6 +27,7 @@ export {
   countAnimaPoseClipEventsByKind,
   isAnimaPoseClipVFXEvent,
   sampleAnimaPoseClipActiveEventsAtTime,
+  sampleAnimaPoseClipAvatarVFXIntensity,
   sampleAnimaPoseClipVFXEventState,
   validateAnimaPoseClipEventCatalogRefs,
 } from "./events";

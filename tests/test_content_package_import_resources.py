@@ -56,7 +56,7 @@ def _effect(kind: ContentKind, fixture_name: str | None = None) -> tuple[bytes, 
         )
         document["definition"] = json.loads(json.dumps(definition))
         if kind is ContentKind.AVATAR_EFFECT:
-            document["definition"]["image"] = "shared.png"
+            document["definition"]["art"]["image"] = "shared.png"
         else:
             document["definition"]["marquee"].update(
                 enabled=True,
@@ -114,7 +114,7 @@ async def test_suffix_import_preserves_effect_resource_references_and_can_export
             definition = document.definition
             assert definition is not None
             referenced_images = (
-                {definition["image"]}
+                {definition["art"]["image"]}
                 if kind is ContentKind.AVATAR_EFFECT
                 else {item["image"] for item in definition["marquee"]["items"]}
             )

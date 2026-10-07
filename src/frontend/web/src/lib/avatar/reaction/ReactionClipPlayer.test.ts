@@ -193,6 +193,54 @@ describe("ReactionClipPlayer", () => {
     expect(cleared).toEqual(["timed", "with-action"]);
   });
 
+  it("sends an Avatar Effect event's fade in and fade out to the sink", () => {
+    const values: number[] = [];
+    const player = new ReactionClipPlayer(
+      { setExpressionOverlay: () => true, clearExpressionOverlay: () => true },
+      {
+        eventSink: {
+          applyAvatarVFX: () => undefined,
+          clearAvatarVFX: () => undefined,
+          setAvatarVFXIntensity: (_event, _context, intensity) => {
+            values.push(Number(intensity.toFixed(3)));
+          },
+        },
+      },
+    );
+    player.play({
+      ownerId: "owner",
+      runId: "run",
+      sourceEventId: "source",
+      emotionEventId: "emotion",
+      clip: {
+        schema: "animaPoseClip/1.0",
+        id: "fade",
+        name: "Fade",
+        duration: 4,
+        poses: {},
+        poseKeyframes: [],
+        events: [
+          {
+            id: "blush",
+            time: 0,
+            duration: 2,
+            kind: "avatar_vfx",
+            effectId: "blush",
+            envelope: {
+              intensity: { fadeIn: 1, fadeOut: 0.5, easing: "linear" },
+            },
+          },
+        ],
+      },
+    });
+    // A zero-time event gets its first value at play, before any frame renders.
+    expect(values).toEqual([0]);
+    player.update(0.5);
+    player.update(0.5);
+    player.update(0.75);
+    expect(values).toEqual([0, 0.5, 1, 0.5]);
+  });
+
   it("accepts a generic clip with body motion and applies only expressions", () => {
     const overlays: Record<string, number>[] = [];
     const player = new ReactionClipPlayer({

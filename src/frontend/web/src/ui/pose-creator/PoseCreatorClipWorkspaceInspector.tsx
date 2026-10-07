@@ -368,6 +368,27 @@ function EventInspector({
           </InspectorRow>
         ) : null}
 
+        {event.kind === "avatar_vfx" && event.duration !== undefined ? (
+          <>
+            <InspectorRow label="Fade in">
+              <DurationInput
+                value={event.envelope?.intensity?.fadeIn ?? 0}
+                label="Selected event fade in"
+                disabled={disabled}
+                onChange={(fadeIn) => onUpdate({ fadeIn })}
+              />
+            </InspectorRow>
+            <InspectorRow label="Fade out">
+              <DurationInput
+                value={event.envelope?.intensity?.fadeOut ?? 0}
+                label="Selected event fade out"
+                disabled={disabled}
+                onChange={(fadeOut) => onUpdate({ fadeOut })}
+              />
+            </InspectorRow>
+          </>
+        ) : null}
+
         {accompanyingSound &&
         (event.kind === "avatar_vfx" || event.kind === "scene_vfx") ? (
           <>

@@ -1,5 +1,9 @@
 "use client";
 
+import {
+  assertAvatarEffectImageWithinLimits,
+  MAX_AVATAR_EFFECT_IMAGE_DIMENSION,
+} from "@/lib/avatar/vfx/effect-image-limits";
 import { CreatorTimelineTransport } from "@/ui/content-creator/CreatorTimeline";
 
 import { AvatarEffectAnimationControls } from "./AvatarEffectAnimationControls";
@@ -443,6 +447,14 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
       }
       setImageBusy(true);
       try {
+        // Size and dimensions come from the header, before the browser decodes it.
+        try {
+          await assertAvatarEffectImageWithinLimits(source);
+        } catch {
+          throw new Error(
+            `The effect image must be at most ${MAX_AVATAR_EFFECT_IMAGE_DIMENSION} px on each side.`,
+          );
+        }
         const preflight = await preflightContentFile("image", source);
         if (preflight.error) throw new Error(preflight.error);
         const logicalName = canonicalAvatarEffectImageName(source.name);

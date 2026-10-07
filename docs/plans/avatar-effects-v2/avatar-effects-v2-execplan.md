@@ -72,8 +72,8 @@ work proceeds.
 - [x] Phase 2: Effect render harness, baselines and thumbnail capture.
 - [x] Phase 3: Creator prototype. Superseded: the owner withdrew G1 and kept
       the existing creator UI (2026-10-06).
-- [ ] Phase 4: Avatar Effect v2, one definition source, envelope and conversion.
-      Gate G2 if renders differ.
+- [x] Phase 4: Avatar Effect v2, one definition source, envelope and conversion.
+      Renders are identical, so G2 is not needed.
 - [ ] Phase 5: Model-agnostic face and eye parts, with corrections. Gate G3 if
       the spike fails.
 - [ ] Phase 6: Attachments beyond the face and the performance budget.
@@ -703,9 +703,176 @@ saves `/2`; the frontend and backend share one definition source.
 
 #### Phase 4 record
 
+Starting source and issue: `2f214bab` (code), `429d87ae` (docs head), #302.
+
+Delivered:
+
+- **One definition source.** `app/contracts/avatar_effect.py` holds strict
+  `/2` models (`extra="forbid"`, `strict=True`). Their validation-mode JSON
+  Schema types `PyAvatarEffect.definition` and the new
+  `PyRuntimeAvatarEffect`, which feed the generated TypeScript and zod. The
+  frontend enums derive from the generated schema.
+- **Final `/2` shape.**
+  - `attachment` is one of `face_surface`, `face_landmark`, `body`, `sticker`
+    or `silhouette`.
+  - `art` holds `image`, an optional `otherEyeImage` (only with a mirrored or
+    paired eye) and an optional `flipbook`.
+  - `appearance` holds `opacity`, `tint` and `blend`.
+  - `motion` holds `pulse`, `spin`, `drift` and `keyframes`.
+  - `faceOptions` are accepted only where the renderer honours them.
+  - `region` must match the attachment family; `soundAlias` is optional.
+  - Body, sticker and silhouette effects parse, and the controller reports
+    "not yet supported" until P6.
+- **Limits.**
+
+  | What | Limit |
+  | --- | --- |
+  | Image size | 16 MiB |
+  | Image dimensions | 4096 px per side, 16.7 M pixels; read from the header before decode and checked again before upload |
+  | Definition size | 64 KiB |
+  | Flipbook | grid at most 16×16, at most 256 frames, at most 60 fps |
+  | Keyframes | at most 64, t ≤ 600 s |
+  | Scale | at most 20 |
+  | Rotation | ±3600° |
+
+  Effect images are not canonicalized on the backend, which admits up to
+  16,384 px. Larger Local or imported images fail closed on load.
+- **Refusing `/1`.**
+  - Refused at Save, preview, batch preview, loadout and package import with
+    `avatar_effect_conversion_required`.
+  - The Local hint says conversion happens automatically at startup or Rescan,
+    or with `content_cli`, and points to Content Health when a conversion
+    failed.
+  - The package hint says to convert in the exporting installation and export
+    again, because the manifest and member digests make in-place package
+    conversion impossible.
+  - API projections tolerate a stored `/1` through `definition_error`.
+- **Conversion.**
+  - `app/services/avatar_effect_conversion.py` does the conversion.
+    `AvatarEffectTransitionService` runs after the Action clip transition. It
+    converts in place, uses a deterministic operation ID, keeps originals and
+    records failures.
+  - `scripts/content/convert_avatar_effects.py` converts descriptor folders;
+    it is a dry run by default.
+  - All 16 Included effects are converted. Golden pairs are in
+    `lib/content/fixtures/avatar-effect-conversion.json`: the 16 Included
+    effects, 7 creator kinds and 3 edge cases.
+- **Offset mirroring (Decision 12).**
+  - Only an effect's own mirrored copy mirrors its offsets, tracked by the
+    `effectMirror` flag.
+  - A Local `/1` mirrored eye effect with a nonzero `offset.x` therefore
+    changes after conversion. The transition logs
+    `avatar_effect_offset_mirrored` and the script prints a note. No Included
+    effect is affected.
+- **Runtime.**
+  - Appearance (multiply on planes uses premultiplied blending), the
+    other-eye image, flipbooks and keyframes.
+  - Envelope fades are sampled in both players and passed through
+    `Avatar.setAvatarVFXIntensity` to
+    `AvatarVFXController.setEffectIntensity`. The value is held until the
+    apply finishes and dropped if it fails. A finished fade stops redrawing.
+  - The inspector has Fade in and Fade out fields: "With Action" removes the
+    envelope, and changing the duration re-clamps the fades.
+- **Creator.** A temporary `editor/legacyDefinitionAdapter.ts`, deleted in P9.
+  It refuses to reopen effects that use features it cannot edit.
+- **Removed.**
+  - The `/1` parser (`vfx/catalog.ts`).
+  - The orphaned `content/included/vfx/avatar/face/**` support images, their
+    Vite alias and their licence records.
+
+Render comparison (G2): all 16 converted effects re-render with 0 differing
+pixels and identical sha256 against the P2 baselines, before and after the
+review revisions (`worktrees/avatar-effects-v2-after/`). G2 needs no owner
+decision.
+
+Known limits: the Gesture creator's own preview sync does not apply fades;
+chat and the runtime players do.
+
 #### Code Review #1 Findings
 
+Reviewed source: uncommitted tree on `429d87ae`. Result: **blocking findings
+remain**.
+
+1. **Blocking:** `make check` failed on 16 mypy errors in changed files.
+2. **Blocking:** the package-import hint told users to convert an unpacked
+   package with the script. A repacked package still fails, because of its
+   manifest capability and member digests.
+3. **Blocking:** offset mirroring keyed on `mirrorX`, which the profile's
+   `mirrorRight` also sets. An unmirrored single-eye texture with an x offset
+   flipped on one eye.
+
+Non-blocking:
+
+4. Local `/1` effects with x offsets change on conversion.
+5. zod is looser than Pydantic.
+6. `populate_by_name` accepted `schema_`.
+7. Hand-written blend and loop unions.
+8. Dead code.
+9. An image-limit comment overstated canonicalization.
+10. Finished fades kept composites redrawing.
+11. A held intensity leaked after a failed apply.
+12. Fade inspector leftovers.
+13. Eye options ignore the fade.
+14. Refusal messages varied.
+15. Edge cases in the schema.
+
 #### Code Review #1 Revisions
+
+1. Fixed: typing fixes. `make check` passes and mypy is clean on 688 files.
+2. Fixed: separate Local and package hints, with corrected docs and script
+   docstring. The batch message points to Content Health. A new HTTP test in
+   `test_content_package_http.py` covers the package refusal.
+3. Fixed: an explicit `effectMirror` flag. Tests cover mirrored and unmirrored
+   texture and hover placements, with static and keyframe offsets.
+4. Documented, and flagged by `mirrors_offset_differently()`: the transition
+   logs a warning and the script prints a note.
+5. Accepted: the API validates with Pydantic before the frontend parses.
+6. Fixed, with a test.
+7. Fixed: derived from the generated types.
+8. Fixed: removed.
+9. Fixed: the comment and docs now describe the real limits.
+10. Fixed: `hasOwnMotion`, with a test.
+11. Fixed: `_applyTracked`, with a test.
+12. Fixed, with tests.
+13. Accepted: only the art and skin backdrop fade, a documented limit.
+14. Fixed with item 2. The loadout 409 keeps its code-only body, as other
+    loadout conflicts do.
+15. Accepted: the runtime ignores these cases.
+
+Also removed during revision: the orphaned `face/**` images, their Vite alias
+and licence records, and their test line.
+
+Checks after revisions (agent):
+
+- `make check` passes.
+- Focused pytest over 18 files: 295 passed. Inventory and release-prep tests:
+  96 passed.
+- `pnpm -s openapi-ts:check` reports the SDK is current. `pnpm check` and
+  `pnpm web:lint` pass; web prettier is clean.
+- Focused vitest: 846 passed. Render tests: 8/8.
+- The `--all-included` diff shows 0 pixels for all 16 effects.
+
+Checks run by me after the revisions: full `pnpm web:test` (379 files, 2,611
+tests) and `pnpm build` pass.
+
+#### Code Review #2 (repair round 1)
+
+Result: **pass**. All three blocking findings are fixed, and the reviewer's
+failure scenarios no longer reproduce. No regressions were found. The
+reviewer's own runs:
+
+- `make check` passes.
+- Focused pytest: 205 passed.
+- Vitest: 846 passed (3 runs).
+- `openapi-ts:check`, `pnpm check` and `web:lint` pass.
+
+Non-blocking, accepted:
+
+- `PackageRoute` would return the import-oriented hint if an export ever hit
+  the error, which cannot happen after startup conversion.
+- An apply that replaces a same-ID effect can leave a held value until it is
+  removed. The leak is bounded.
+- One vitest file failed to load under concurrent load; three reruns passed.
 
 ### Phase 5 — Model-agnostic face and eye parts, with corrections (R4)
 

@@ -10,7 +10,7 @@ See [VRM inspection](vrm-inspector-editor.md) for debug session ownership.
 ## 1) Main files
 
 - `src/frontend/web/src/lib/avatar/vfx/AvatarVFXController.ts`
-- `src/frontend/web/src/lib/avatar/vfx/catalog.ts`
+- `src/frontend/web/src/lib/avatar/vfx/definition.ts`
 - `src/frontend/web/src/lib/avatar/vfx/types.ts`
 - `src/frontend/web/src/lib/avatar/vfx/profiles.ts`
 - `src/frontend/web/src/lib/avatar/vfx/AvatarFaceLandmarks.ts`
@@ -29,11 +29,79 @@ runtime ID fails locally without a static/public fallback. A `runtime_catalog`
 Avatar Effect source cannot resolve and records the
 `avatar_vfx_source_unsupported` runtime-catalog diagnostic.
 
-Avatar Effects use the closed `animama/avatar-effect/1` definition. The runtime
-rewrites its canonical logical image name and optional local Sound alias
+Avatar Effects use the closed `animama/avatar-effect/2` definition. Its one
+source is the strict Pydantic contract in
+`src/backend/animama/app/contracts/avatar_effect.py`; OpenAPI carries it to the
+generated TypeScript type and `zAvatarEffectDefinitionV2` validator, which
+`parseAvatarEffectDefinition` (`lib/avatar/vfx/definition.ts`) uses before
+normalizing into the controller's internal entries. Backend Save, typed
+preview, loadout and package import/export validate with the same models and
+report a JSON path such as `definition.attachment.offset.x`.
+
+A `/2` definition describes:
+
+- **`attachment`**, discriminated by `kind`: `face_surface` (painted on a face
+  part; `full`/`eyes` areas use the part's texture layout, `undereye`/`blush`/
+  `mouth` place a decal on `face_skin`), `face_landmark` (a plane at the eyes,
+  mouth, forehead, top or top edge, with a free offset in metres), and `body`,
+  `sticker` and `silhouette`. The last three are valid but not rendered yet;
+  the controller reports "attachment … is not yet supported" and applies
+  nothing. Rotations are degrees. A mirrored eye placement mirrors its
+  horizontal offset.
+- **`art`**: `image`, an optional `otherEyeImage` that the mirrored eye or side
+  draws unmirrored, and an optional `flipbook` grid (`columns`, `rows`,
+  `frames`, `fps`, `loop`: `loop`/`once`/`pingpong`).
+- **`appearance`**: `opacity`, an optional `#rrggbb` `tint` and `blend`
+  (`normal`, `additive`, `multiply`). A `replace` texture below full opacity
+  shows the original slot beneath it.
+- **`motion`**: the `pulse`, `spin` and `drift` presets (a preset is enabled
+  when present) plus optional `keyframes` (`t` in seconds; `opacity`, `scale`,
+  `rotationDeg`, `offset`) on the effect's own timeline. Keyframe scale and
+  opacity multiply the presets; rotation and offset add.
+- **`faceOptions`** where they apply (eye landmark: `forceBlink`,
+  `hideEyeDetails`, `faceCleanup`, `skinBackdrop`, `hideParts`; mouth landmark:
+  `faceCleanup`, `skinBackdrop`; mouth decal: `faceCleanup`; texture:
+  `hideParts`), plus `region` and an optional `soundAlias`.
+
+The runtime rewrites the logical image names and optional local Sound alias
 through the exact catalog revision's file and dependency maps before applying
 the effect. Avatar Effects are selected as dependencies inside Gestures and
 Reactions rather than independently equipped to an Anima.
+
+Untrusted images and definitions are bounded before decoding or GPU upload:
+16 MiB and at most 4096 px per side (16.7 M pixels) per image, checked from the
+PNG, JPEG or WebP header before an object URL is created and again from the
+decoded size; definitions at most 64 KiB; flipbooks at most 16 × 16 cells and
+256 frames; at most 64 keyframes. Stored effect images are not resized (the backend
+admits up to 16384 px per side), so the creator refuses an oversized image when
+it is chosen, and an imported or hand-placed Local image over the limit fails
+closed when it loads: the effect is skipped with a diagnostic.
+
+`/1` definitions are no longer accepted. Local `/1` effects convert in place
+(keeping their folder, content ID and files, with the originals retained in the
+transition journal) at startup, on `POST /v1/content:rescan`, or with
+`uv run python -m animama.server.content_cli`. A descriptor folder outside the
+Local library, such as Included content, converts with
+`uv run python scripts/content/convert_avatar_effects.py --write <folder>`
+(a dry run without `--write`). Content packages cannot be converted: their
+manifest, sizes and digests cover the original bytes. Import refuses a `/1`
+package and asks for the source content to be converted and exported again.
+Anything else still `/1` is refused with `avatar_effect_conversion_required`
+and a hint, and the API lists it with `definition: null` and
+`definition_error`.
+
+A Local `/1` eye effect with a mirrored placement and a nonzero
+`transform.offset.x` now mirrors that offset on the other eye; `/1` shifted
+both eyes the same way. The Local transition logs an
+`avatar_effect_offset_mirrored` warning naming such effects, and the conversion
+script prints a note (no Included effect has an x offset).
+
+An event's fade belongs to the Gesture or Reaction: for an `avatar_vfx` event
+with an End of "After", the inspector's **Fade in** and **Fade out** write
+`envelope.intensity`. Both clip players sample it each frame and pass it to
+`AvatarVFXController.setEffectIntensity`, which multiplies opacity (a value that
+arrives while the effect is still loading is held until it applies). Events
+that end with their Action do not fade.
 
 ### Avatar Effect creator
 
@@ -56,6 +124,12 @@ Choosing a region manually preserves it across those changes. New effects defaul
 to Automatic; existing definitions and older editor documents preserve their
 region as a manual choice. The editor stores this choice in `regionMode`; runtime
 definitions always contain the resolved region.
+
+Until the editor redesign, the creator keeps its `/1`-shaped editor document
+and saves and reopens `/2` through a temporary adapter
+(`lib/avatar/vfx/editor/legacyDefinitionAdapter.ts`). It refuses to reopen an
+effect that uses appearance, other-eye, flipbook or keyframe settings, which it
+could not keep.
 
 Eye hover exposes **Force blink**, **Hide eye details**, **Clean up eye area**,
 and **Additional hidden materials**. Mouth hover and mouth decals expose **Clean
@@ -90,9 +164,7 @@ definition (blocks Save) from a model-specific missing binding or landmark
 preview controls. Transform and animation settings define the reusable effect;
 its Gesture or Reaction event owns Start and End (with the Action, or after a
 specified duration). Selecting an event exposes these settings in the Action
-inspector; Reactions place that inspector above Expressions. A legacy
-`lifetime` field in older Local content is still admitted by the backend but
-ignored by the runtime and dropped by the creator.
+inspector; Reactions place that inspector above Expressions.
 
 The common Library previews Local and Included Avatar Effects through the typed
 preview route and links owned rows back to the stable edit route. After a ready
@@ -120,7 +192,12 @@ markers but have no live artwork outline.
 
 ## 2) High-level model
 
-The runtime models VFX as a discriminated catalog union:
+`parseAvatarEffectDefinition` maps each `/2` face attachment to one internal
+render entry; sections 4–8 use these internal names (`face_landmark` eyes,
+mouth and forehead/top/top-edge become `hover` `eye_hover`, `mouth_hover` and
+`box_hover`; `face_surface` decal areas become `face_anchored`; `full` and
+`eyes` areas become `texture`). The runtime models VFX as a discriminated
+catalog union:
 
 1. `texture`
 2. `face_anchored`
@@ -454,8 +531,13 @@ Current supported channels are:
 - pulse
 - spin
 - drift
+- keyframes (opacity, scale, rotation, offset)
+- flipbook frames
 
-The controller resolves animation from `animationConfig`, not from a shader-specific system.
+The controller resolves animation from `animationConfig`, the entry's
+`keyframes` and `flipbook`, not from a shader-specific system. Hover flipbooks
+move texture `repeat`/`offset` (no re-upload) and size the plane from one frame;
+composite flipbooks draw one frame through a source rectangle.
 
 That means:
 
@@ -485,7 +567,7 @@ Common fields include:
 - `pulseScaleMax`
 - `pulseCyclesPerSecond`
 - `rotationAmountTurns`
-- `rotationRadiansPerSecond`
+- `rotationRadiansPerSecond` (the `/2` definition stores `degreesPerSecond`)
 - `rotationDirection`
 - `driftPerSecond`
 

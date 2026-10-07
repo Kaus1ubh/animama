@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { AVATAR_POSE_CATALOG } from "@/lib/avatar/poses/catalog";
-import { parseAvatarVFXCatalogEntry } from "@/lib/avatar/vfx/catalog";
+import { parseAvatarEffectDefinition } from "@/lib/avatar/vfx/definition";
 import {
   avatarEffectDefinition,
   createAvatarEffectDocumentFromDefinition,
@@ -28,8 +28,8 @@ describe("portable package renderer capabilities", () => {
         description: "",
         definition,
         image: {
-          logicalName: String(definition.image),
-          originalName: String(definition.image),
+          logicalName: String((definition.art as { image: string }).image),
+          originalName: String((definition.art as { image: string }).image),
           contentType: "image/png",
           sizeBytes: 1,
           sha256: null,
@@ -46,14 +46,13 @@ describe("portable package renderer capabilities", () => {
     (effect) => {
       const definition = structuredClone(effect.definition);
       if (effect.kind === "avatar_effect") {
-        const parsed = parseAvatarVFXCatalogEntry({
-          ...definition,
+        const parsed = parseAvatarEffectDefinition(definition, {
           id: "package-fixture",
           label: effect.name,
           description: "Shared backend compatibility fixture",
           assetPath: "blob:verified-package-resource",
         });
-        expect(parsed.kind).toBe(definition.kind);
+        expect(parsed.kind).not.toBe("deferred_attachment");
         return;
       }
       const runtime = definition as Record<string, unknown>;

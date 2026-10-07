@@ -7,23 +7,26 @@
   "description": "Floating exclamation mark for sudden alarm, urgency, or alerted curiosity.",
   "dependencies": [],
   "definition": {
-    "schema": "animama/avatar-effect/1",
-    "kind": "hover",
+    "schema": "animama/avatar-effect/2",
     "region": "emote",
-    "hoverKind": "box_hover",
-    "placement": "top-edge-right-corner",
-    "transform": {
+    "attachment": {
+      "kind": "face_landmark",
+      "landmark": "top_edge",
+      "position": "right_corner",
       "scale": {
         "x": 1.4,
-        "y": 1.4,
-        "z": 1
+        "y": 1.4
       }
     },
-    "animationConfig": {
-      "rotationRadiansPerSecond": 1.4,
-      "rotationAmountTurns": 0.02
+    "art": {
+      "image": "emote.png"
     },
-    "image": "emote.png"
+    "motion": {
+      "spin": {
+        "degreesPerSecond": 80.214091,
+        "amountTurns": 0.02
+      }
+    }
   },
   "files": [
     {

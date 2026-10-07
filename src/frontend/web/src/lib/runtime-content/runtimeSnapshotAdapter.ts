@@ -56,6 +56,9 @@ function privateEntry(
       runtime_reference_map: object(node.reference_map),
     },
     definition: object(node.definition),
+    ...(typeof node.definition_error === "string"
+      ? { definition_error: node.definition_error }
+      : {}),
     content_revision: `${revision}:${runtimeId}`,
     source: {
       type: prepared ? "prepared_files" : "authorized_files",

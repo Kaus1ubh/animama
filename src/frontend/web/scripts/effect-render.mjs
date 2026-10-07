@@ -166,6 +166,9 @@ async function pageEffect(effect, imageUrl) {
     description: effect.description,
     definition: effect.definition,
     imageUrl: await imageUrl(effect.imagePath),
+    otherImageUrl: effect.otherImagePath
+      ? await imageUrl(effect.otherImagePath)
+      : null,
   };
 }
 

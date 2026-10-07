@@ -53,7 +53,10 @@ import type {
   ParticleVFXCatalogEntry,
   ParticleVFXPreloadTier,
 } from "@/lib/avatar/particle-vfx/types";
-import type { AvatarVFXCatalogEntry } from "@/lib/avatar/vfx/types";
+import type {
+  AvatarVFXCatalogEntry,
+  AvatarVFXParsedEntry,
+} from "@/lib/avatar/vfx/types";
 import type { SceneVFXEntry, SceneVFXKind } from "@/lib/scene-vfx/types";
 import {
   fetchPrivateRuntimeContentResponse,
@@ -572,7 +575,7 @@ export class AnimaRuntimeCatalog
     return this.mediaCatalog.resolveAvatarVFX(runtimeId);
   }
 
-  loadAvatarVFX(runtimeId: string): Promise<AvatarVFXCatalogEntry | null> {
+  loadAvatarVFX(runtimeId: string): Promise<AvatarVFXParsedEntry | null> {
     if (this.pending("avatar_vfx", runtimeId)) return Promise.resolve(null);
     return this.mediaCatalog.loadAvatarVFX(runtimeId);
   }

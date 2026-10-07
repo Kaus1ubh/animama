@@ -7,26 +7,31 @@
   "description": "Comic anger glyph that sharpens irritated, disapproving, or combative reactions.",
   "dependencies": [],
   "definition": {
-    "schema": "animama/avatar-effect/1",
-    "kind": "hover",
+    "schema": "animama/avatar-effect/2",
     "region": "emote",
-    "hoverKind": "box_hover",
-    "placement": "forehead-left",
-    "transform": {
+    "attachment": {
+      "kind": "face_landmark",
+      "landmark": "forehead",
+      "position": "left",
       "scale": {
         "x": 0.8,
-        "y": 0.8,
-        "z": 1
+        "y": 0.8
       }
     },
-    "animationConfig": {
-      "pulseScaleMin": 0.5,
-      "pulseScaleMax": 0.8,
-      "rotationRadiansPerSecond": 1.2,
-      "rotationAmountTurns": 0.03,
-      "rotationDirection": "clockwise"
+    "art": {
+      "image": "angry.png"
     },
-    "image": "angry.png"
+    "motion": {
+      "pulse": {
+        "scaleMin": 0.5,
+        "scaleMax": 0.8
+      },
+      "spin": {
+        "degreesPerSecond": 68.754935,
+        "amountTurns": 0.03,
+        "direction": "clockwise"
+      }
+    }
   },
   "files": [
     {

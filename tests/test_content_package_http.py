@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 from collections.abc import AsyncIterator
 from io import BytesIO
@@ -13,15 +14,17 @@ from zipfile import ZipFile
 import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
+from PIL import Image
 from sqlalchemy import delete, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from animama.domain.content_catalog import ContentKind
 from animama.domain.request_principal import RequestPrincipal
 from animama.orm.content_catalog import ORMContentCatalogItem
 from animama.orm.user_profile import ORMUserProfile
 from animama.server.deps import get_async_session, get_current_principal
 from animama.server.routers import router
-from tests.content_package_helpers import package_services, save_wave
+from tests.content_package_helpers import package_services, reviewed_export, save_wave
 
 
 async def test_http_export_reviews_then_streams_the_same_package(async_session: AsyncSession, tmp_path: Path) -> None:
@@ -214,3 +217,77 @@ async def test_http_rejects_non_package_zip_before_library_admission(
             assert await catalog.get_mutation_receipt(user_id="package-owner", operation_id="not-package") is None
     finally:
         await async_session.rollback()
+
+
+async def test_http_import_of_a_v1_avatar_effect_package_names_the_conversion(
+    async_session: AsyncSession, tmp_path: Path
+) -> None:
+    """A package declaring ``animama/avatar-effect/1`` is refused at review with the re-export hint."""
+    paths, catalog, _content, saves, packages = package_services(async_session, tmp_path)
+    fixtures = json.loads(
+        (Path(__file__).parents[1] / "src/frontend/web/src/lib/content/fixtures/package-capabilities.json").read_text()
+    )["effects"]
+    fixture = next(item for item in fixtures if item["kind"] == "avatar_effect")
+    definition = {**fixture["definition"], "art": {"image": "shared.png"}}
+    image = BytesIO()
+    Image.new("RGBA", (4, 4), (255, 0, 0, 255)).save(image, format="PNG")
+    descriptor = {
+        "schema_version": 1,
+        "content_type": "avatar_effect",
+        "name": "Legacy",
+        "definition": definition,
+        "files": [{"path": "shared.png", "role": "image"}],
+    }
+    app = FastAPI()
+    app.state.local_runtime_paths = paths
+    app.include_router(router)
+
+    async def session() -> AsyncIterator[AsyncSession]:
+        yield async_session
+
+    app.dependency_overrides[get_async_session] = session
+    app.dependency_overrides[get_current_principal] = lambda: RequestPrincipal("package-owner")
+    try:
+        saved = await saves.save_descriptor(
+            user_id="package-owner",
+            kind=ContentKind.AVATAR_EFFECT,
+            entry_name="Legacy",
+            descriptor=json.dumps(descriptor).encode(),
+            companion_files={"shared.png": image.getvalue()},
+            operation_id="save-legacy-effect",
+            catalog_item_id=None,
+            expected_revision=None,
+        )
+        exported = await reviewed_export(packages, user_id="package-owner", root_item_id=saved.item.id)
+        # Rewrite only the manifest, as an older installation would have declared it.
+        payload = BytesIO()
+        with ZipFile(exported.path) as source, ZipFile(payload, "w") as target:
+            for info in source.infolist():
+                data = source.read(info)
+                if info.filename == "package.json":
+                    data = data.replace(b"animama/avatar-effect/2", b"animama/avatar-effect/1")
+                target.writestr(info, data)
+        body = payload.getvalue()
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            allocated = await client.post(
+                "/v1/content/package-imports",
+                json={"filename": "legacy.zip", "expected_size_bytes": len(body), "operation_id": "legacy-import"},
+            )
+            assert allocated.status_code == 201, allocated.text
+            base = f"/v1/content/package-imports/{allocated.json()['stage_id']}"
+            uploaded = await client.put(f"{base}/parts/0", content=body)
+            assert uploaded.status_code == 200, uploaded.text
+            reviewed = await client.post(f"{base}/review")
+            assert reviewed.status_code == 409, reviewed.text
+            detail = reviewed.json()["detail"]
+            assert detail["code"] == "avatar_effect_conversion_required"
+            assert "animama.server.content_cli" in detail["message"]
+            assert "export the package again" in detail["message"]
+            assert "convert_avatar_effects.py" not in detail["message"]
+        assert [item.id for item in await catalog.list_visible(user_id="package-owner")] == [saved.item.id]
+    finally:
+        await async_session.rollback()
+        await async_session.execute(
+            delete(ORMContentCatalogItem).where(ORMContentCatalogItem.owner_user_id == "package-owner")
+        )
+        await async_session.commit()

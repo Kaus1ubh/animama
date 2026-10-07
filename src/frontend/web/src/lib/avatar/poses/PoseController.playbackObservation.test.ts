@@ -197,3 +197,70 @@ describe("finite authored timeline admission", () => {
     expect(() => parseAnimaPoseClip({ ...base, events })).toThrow();
   });
 });
+
+describe("Avatar Effect event envelopes", () => {
+  const fadingClip = (envelope: boolean): AnimaPoseClip =>
+    parseAnimaPoseClip({
+      schema: "animaPoseClip/1.0",
+      id: "fade",
+      name: "Fade",
+      duration: 4,
+      poses: {},
+      poseKeyframes: [],
+      events: [
+        {
+          id: "glow",
+          kind: "avatar_vfx",
+          effectId: "glow",
+          time: 0.5,
+          duration: 2,
+          ...(envelope
+            ? {
+                envelope: {
+                  intensity: { fadeIn: 0.5, fadeOut: 1, easing: "linear" },
+                },
+              }
+            : {}),
+        },
+      ],
+    });
+
+  it("sends the fade in and fade out on the event's own timeline", () => {
+    const controller = new PoseController(minimalVrm());
+    const values: Array<[string, number]> = [];
+    controller.setClipEventSink({
+      applyAvatarVFX: () => undefined,
+      clearAvatarVFX: () => undefined,
+      setAvatarVFXIntensity: (event, _context, intensity) => {
+        values.push([event.id, Number(intensity.toFixed(3))]);
+      },
+    });
+    controller.playAnimaPoseClip(fadingClip(true));
+    controller.update(0.5); // starts at 0.5 s: local 0
+    controller.update(0.25); // local 0.25: halfway through the fade in
+    controller.update(0.5); // local 0.75: full
+    controller.update(0.25); // local 1.0: still full, unchanged values are skipped
+    controller.update(0.75); // local 1.75: halfway through the fade out
+    expect(values).toEqual([
+      ["glow", 0],
+      ["glow", 0.5],
+      ["glow", 1],
+      ["glow", 0.25],
+    ]);
+  });
+
+  it("leaves events without an envelope at full intensity", () => {
+    const controller = new PoseController(minimalVrm());
+    const values: number[] = [];
+    controller.setClipEventSink({
+      applyAvatarVFX: () => undefined,
+      setAvatarVFXIntensity: (_event, _context, intensity) => {
+        values.push(intensity);
+      },
+    });
+    controller.playAnimaPoseClip(fadingClip(false));
+    controller.update(0.5);
+    controller.update(1);
+    expect(values).toEqual([]);
+  });
+});

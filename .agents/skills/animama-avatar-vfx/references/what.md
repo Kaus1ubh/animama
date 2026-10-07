@@ -27,7 +27,7 @@ Three related formats serve different purposes:
 
 | Format | Purpose |
 | --- | --- |
-| Runtime definition, `animama/avatar-effect/1` | Describes the effect and names its logical image resource and optional sound alias. |
+| Runtime definition, `animama/avatar-effect/2` | Describes the effect and names its logical image resource and optional sound alias. |
 | Editor export, `animama/avatar-effect-editor/1` | Wraps an authoring `document` for the creator's JSON Import. Includes image metadata, not image bytes. |
 | Saved catalog item | Stores the definition, registered image file, optional exact sound dependency, and authoring data as Local or Included content. |
 

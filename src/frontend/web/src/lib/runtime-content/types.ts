@@ -59,6 +59,8 @@ export type RuntimeCatalogEntry = {
   config_schema_version: number;
   config: Record<string, unknown>;
   definition?: Record<string, unknown> | null;
+  /** Avatar Effects whose stored definition is not valid `/2` report a code here. */
+  definition_error?: string | null;
   content_revision: string;
   source:
     | { type: "public_url"; url: string }

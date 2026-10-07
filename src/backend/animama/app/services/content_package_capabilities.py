@@ -16,6 +16,14 @@ from collections.abc import Iterable, Mapping
 from pathlib import Path, PurePosixPath
 from typing import Any, BinaryIO
 
+from pydantic import ValidationError
+
+from animama.app.contracts.avatar_effect import (
+    AVATAR_EFFECT_SCHEMA_V1,
+    AVATAR_EFFECT_SCHEMA_V2,
+    MAX_DEFINITION_BYTES as MAX_AVATAR_EFFECT_DEFINITION_BYTES,
+    AvatarEffectDefinitionV2,
+)
 from animama.domain.content_catalog import ContentKind
 from animama.domain.content_documents import (
     AvatarEffectDocumentV1,
@@ -30,6 +38,12 @@ from animama.domain.content_documents import (
     VoiceDocumentV1,
 )
 
+from .avatar_effect_conversion import (
+    CONVERSION_HINT,
+    CONVERSION_REQUIRED as AVATAR_EFFECT_CONVERSION_REQUIRED,
+    PACKAGE_CONVERSION_HINT,
+    avatar_effect_validation_error,
+)
 from .content_voice import POCKET_CLONE_CODEC, validate_pocket_clone_document
 from .idle_clip_validation import validate_idle_clip_timeline
 from .pocket_voice_catalog import MAX_POCKET_VOICE_CATALOG_BYTES, validate_pocket_voice_catalog_bytes
@@ -54,7 +68,7 @@ SUPPORTED_CAPABILITIES = frozenset(
         "VRM/0.0",
         "VRMC_vrm/1.0",
         "VRMC_vrm_animation/1.0",
-        "animama/avatar-effect/1",
+        AVATAR_EFFECT_SCHEMA_V2,
         "animama/scene-effect/1",
         "animama/pocket-voice/1",
         "three.quarks/3.0",
@@ -62,7 +76,6 @@ SUPPORTED_CAPABILITIES = frozenset(
     | {f"animama/builtin-pose/1/{name}" for name in BUILTIN_POSES}
     | {f"animama/twemoji/14.0.2/{name}" for name in BUILTIN_EMOJI}
 )
-_AVATAR_ROLES = frozenset("eye_iris eye_highlight eyeline eyelash face_skin".split())
 _PARTICLE_TYPES = frozenset(
     "ConstantValue IntervalValue PiecewiseBezier ConstantColor ColorRange RandomColor RandomColorBetweenGradient "
     "Gradient CLinearFunction AxisAngle Euler RandomQuat ColorOverLife ForceOverLife FrameOverLife "
@@ -212,6 +225,9 @@ def validate_declared_capabilities(capabilities: Iterable[str]) -> None:
     """Reject unsupported or duplicate claims before archive extraction."""
     seen: set[str] = set()
     for capability in capabilities:
+        if capability == AVATAR_EFFECT_SCHEMA_V1:
+            # Name the conversion instead of a generic unavailable capability.
+            raise ContentDocumentError(AVATAR_EFFECT_CONVERSION_REQUIRED, PACKAGE_CONVERSION_HINT)
         if not isinstance(capability, str) or capability not in SUPPORTED_CAPABILITIES:
             raise ContentDocumentError("package_capability_unsupported", "Package requires an unavailable capability")
         if capability in seen:
@@ -232,158 +248,47 @@ def validate_capabilities(declared: Iterable[str], required: Iterable[str]) -> N
 _AVATAR_EFFECT_PATH = "definition"
 
 
-def _avatar_effect(definition: dict[str, Any], document: TypedContentDocument) -> None:
-    """Validate an ``animama/avatar-effect/1`` definition, naming each failing JSON path.
-
-    The allowlist matches what the Avatar Effect creator writes and the runtime
-    parser reads. ``lifetime`` stays accepted until the v2 conversion removes it;
-    ``emotions`` was never written by the creator and stays rejected.
-    """
-    root = _AVATAR_EFFECT_PATH
-
-    def at(key: str) -> str | None:
-        return _child(root, key)
-
-    _fields(
-        definition,
-        "schema kind region image transform animationConfig lifetime soundAlias hoverKind "
-        "placement side requiresMirror skinBackdrop anchor pivot layout targetRole assetShape applyMode "
-        "disableTargetRoles forceBlink autoDisableEyeMaterials faceCleanup",
-        "Avatar Effect",
-        path=root,
-    )
-    kind = _enum(definition.get("kind"), {"hover", "face_anchored", "texture"}, "Avatar Effect kind", path=at("kind"))
-    _enum(
-        definition.get("region"),
-        {"eyes", "undereye", "blush", "mouth", "emote", "full_face"},
-        "region",
-        path=at("region"),
-    )
-    _resource(definition.get("image"), document, {"image", "texture"}, path=at("image"))
-    _booleans(definition, "requiresMirror skinBackdrop forceBlink autoDisableEyeMaterials faceCleanup", path=root)
-    if "side" in definition:
-        _enum(definition["side"], {"left", "right"}, "side", path=at("side"))
-    if "disableTargetRoles" in definition:
-        roles_path = at("disableTargetRoles")
-        for index, role in enumerate(_array(definition["disableTargetRoles"], "disableTargetRoles", path=roles_path)):
-            _enum(role, _AVATAR_ROLES, "disabled target role", path=_child(roles_path, index))
-    if kind == "hover":
-        hover = _enum(
-            definition.get("hoverKind"), {"eye_hover", "mouth_hover", "box_hover"}, "hover", path=at("hoverKind")
-        )
-        if hover == "box_hover":
-            _enum(
-                definition.get("placement"),
-                {
-                    "forehead-left",
-                    "forehead-middle",
-                    "forehead-right",
-                    "top-left",
-                    "top-middle",
-                    "top-right",
-                    "top-edge-left-corner",
-                    "top-edge-left",
-                    "top-edge-middle",
-                    "top-edge-right",
-                    "top-edge-right-corner",
-                },
-                "hover placement",
-                path=at("placement"),
-            )
-    elif kind == "face_anchored":
-        anchor = _enum(definition.get("anchor"), {"undereye", "blush", "mouth"}, "face anchor", path=at("anchor"))
-        if anchor != "mouth":
-            layout = _enum(definition.get("layout"), {"single", "span"}, "face layout", path=at("layout"))
-            if layout == "single":
-                _enum(definition.get("side"), {"left", "right"}, "face side", path=at("side"))
-        if "pivot" in definition:
-            _enum(
-                definition["pivot"],
-                {
-                    "top-left",
-                    "top-center",
-                    "top-right",
-                    "center-left",
-                    "center",
-                    "center-right",
-                    "bottom-left",
-                    "bottom-center",
-                    "bottom-right",
-                },
-                "face pivot",
-                path=at("pivot"),
-            )
-    else:
-        _enum(definition.get("targetRole"), _AVATAR_ROLES, "texture role", path=at("targetRole"))
-        _enum(
-            definition.get("assetShape"),
-            {"single_eye", "double_eye", "full_face"},
-            "texture shape",
-            path=at("assetShape"),
-        )
-        _enum(definition.get("applyMode"), {"replace", "overlay"}, "texture application", path=at("applyMode"))
-    if "transform" in definition:
-        transform_path = at("transform")
-        transform = _object(definition["transform"], "transform", path=transform_path)
-        _fields(transform, "offset scale rotation", "transform", path=transform_path)
-        for key, value in transform.items():
-            axes_path = _child(transform_path, key)
-            axes = _object(value, key, path=axes_path)
-            _fields(axes, "x y z", key, path=axes_path)
-            _numbers(axes, " ".join(axes), path=axes_path)
-    if "animationConfig" in definition:
-        animation_path = at("animationConfig")
-        animation = _object(definition["animationConfig"], "animationConfig", path=animation_path)
-        _fields(
-            animation,
-            "pulseScaleMin pulseScaleMax pulseCyclesPerSecond rotationAmountTurns "
-            "rotationRadiansPerSecond rotationDirection driftPerSecond",
-            "Avatar animation",
-            path=animation_path,
-        )
-        for key, value in animation.items():
-            value_path = _child(animation_path, key)
-            if key == "rotationDirection":
-                _enum(value, {"clockwise", "counterclockwise"}, key, path=value_path)
-            elif key == "driftPerSecond":
-                axes = _object(value, key, path=value_path)
-                _fields(axes, "x y", key, path=value_path)
-                _numbers(axes, " ".join(axes), path=value_path)
-            else:
-                _number(value, key, path=value_path)
-    if "lifetime" in definition:
-        lifetime_path = at("lifetime")
-        lifetime = _object(definition["lifetime"], "lifetime", path=lifetime_path)
-        lifetime_kind = _enum(
-            lifetime.get("kind"), {"duration", "turns"}, "Avatar lifetime", path=_child(lifetime_path, "kind")
-        )
-        amount = "runEndBufferSec" if lifetime_kind == "duration" else "turns"
-        _fields(lifetime, f"kind {amount}", "lifetime", path=lifetime_path)
-        _number(lifetime.get(amount), "lifetime", path=_child(lifetime_path, amount))
+def _avatar_effect_model(definition: dict[str, Any]) -> AvatarEffectDefinitionV2:
+    """Validate the ``/2`` shape, naming the first failing JSON path."""
+    try:
+        return AvatarEffectDefinitionV2.model_validate(definition)
+    except ValidationError as exc:
+        path, message = avatar_effect_validation_error(exc)
+        raise ContentDocumentError("package_definition_invalid", f"{path}: {message}", field=path) from exc
 
 
 def validate_avatar_effect_document(
     document: AvatarEffectDocumentV1, *, code: str = "package_definition_invalid"
 ) -> str:
-    """Validate an Avatar Effect definition with the package export rules.
+    """Validate an ``animama/avatar-effect/2`` definition with the shared contract.
 
-    Save and package export share these rules. Failures raise
+    Save, preview, package export and import share these rules. Failures raise
     ``ContentDocumentError(code, message, field=<JSON path>)``; the path starts
-    at ``definition``. Returns the definition schema capability.
+    at ``definition``. A ``/1`` definition raises
+    ``avatar_effect_conversion_required`` with the conversion hint instead.
+    Returns the definition schema capability.
     """
-    schema = "animama/avatar-effect/1"
+    schema = AVATAR_EFFECT_SCHEMA_V2
+    schema_path = _child(_AVATAR_EFFECT_PATH, "schema")
     try:
         definition = _object(document.definition, "Effect definition", path=_AVATAR_EFFECT_PATH)
+        if definition.get("schema") == AVATAR_EFFECT_SCHEMA_V1:
+            raise ContentDocumentError(AVATAR_EFFECT_CONVERSION_REQUIRED, CONVERSION_HINT, field=schema_path)
         _safe_data(definition, path=_AVATAR_EFFECT_PATH)
         _require(
-            definition.get("schema") == schema,
-            "Unsupported effect definition schema",
-            _child(_AVATAR_EFFECT_PATH, "schema"),
+            len(json.dumps(definition, separators=(",", ":")).encode()) <= MAX_AVATAR_EFFECT_DEFINITION_BYTES,
+            "Avatar Effect definition exceeds its size limit",
+            _AVATAR_EFFECT_PATH,
         )
+        _require(definition.get("schema") == schema, "Unsupported effect definition schema", schema_path)
+        model = _avatar_effect_model(definition)
+        art_path = _child(_AVATAR_EFFECT_PATH, "art")
+        _resource(model.art.image, document, {"image", "texture"}, path=_child(art_path, "image"))
+        if model.art.otherEyeImage is not None:
+            _resource(model.art.otherEyeImage, document, {"image", "texture"}, path=_child(art_path, "otherEyeImage"))
         _sound(definition, document, path=_AVATAR_EFFECT_PATH)
-        _avatar_effect(definition, document)
     except ContentDocumentError as exc:
-        if exc.code == code:
+        if exc.code in {code, AVATAR_EFFECT_CONVERSION_REQUIRED}:
             raise
         raise ContentDocumentError(code, str(exc), field=exc.field) from exc
     return schema

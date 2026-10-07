@@ -59,7 +59,16 @@ describe("Avatar Effect animation controls", () => {
       },
     };
     const definition = avatarEffectDefinition(document);
-    expect(definition.animationConfig).toEqual(animationConfig);
+    // Saved as /2 presets; spin speed is stored in degrees.
+    expect(definition.motion).toEqual({
+      pulse: { scaleMin: 0.8, scaleMax: 1.4, cyclesPerSecond: 0.75 },
+      spin: {
+        degreesPerSecond: 171.887339,
+        amountTurns: 0.25,
+        direction: "counterclockwise",
+      },
+      drift: { x: -0.04, y: 0.02 },
+    });
     const restored = createAvatarEffectDocumentFromDefinition({
       name: "Custom motion",
       description: "",
@@ -67,6 +76,10 @@ describe("Avatar Effect animation controls", () => {
       image: document.image,
       sound: null,
     });
-    expect(restored.animationConfig).toEqual(animationConfig);
+    const { rotationRadiansPerSecond, ...rest } = restored.animationConfig!;
+    const { rotationRadiansPerSecond: expectedSpeed, ...expectedRest } =
+      animationConfig;
+    expect(rest).toEqual(expectedRest);
+    expect(rotationRadiansPerSecond).toBeCloseTo(expectedSpeed, 6);
   });
 });

@@ -817,7 +817,10 @@ uv run python -m animama.server.content_cli
 
 It resolves committed or interrupted journals before scanning readable
 Included/Local files through the one Content Kind registry, recomputes exact
-digests and dependencies, and marks malformed or missing entries inert. A
+digests and dependencies, and marks malformed or missing entries inert. It also
+runs the content transitions, including the in-place conversion of Local
+`animama/avatar-effect/1` effects to `/2` (see
+[local content storage](../architecture/local-content-storage.md)). A
 recovery conflict stops admission while retaining both versions. `reset.sh`
 invokes the containerized form after Alembic and
 principal setup. Runtime/preview leases are internal database state and are

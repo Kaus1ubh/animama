@@ -1,10 +1,11 @@
 import type { PyContentDependency } from "@/lib/content/catalogTypes";
-import { parseAvatarVFXCatalogEntry } from "@/lib/avatar/vfx/catalog";
+import { parseAvatarEffectDefinition } from "@/lib/avatar/vfx/definition";
 import type {
   AvatarVFXAnimationConfig,
   AvatarVFXCatalogEntry,
 } from "@/lib/avatar/vfx/types";
 import { createDefaultAvatarEffectDocument } from "./defaults";
+import { legacyAvatarEffectDefinitionToV2 } from "./legacyDefinitionAdapter";
 import {
   AVATAR_EFFECT_EDITOR_SCHEMA,
   type AvatarEffectEditorAction,
@@ -81,7 +82,18 @@ export function canonicalAvatarEffectImageName(filename: string): string {
   return `${stem}.${extension === "jpeg" ? "jpg" : (extension ?? "webp")}`;
 }
 
+/**
+ * The `animama/avatar-effect/2` definition this editor document saves.
+ * Until Phase 9 the editor keeps its `/1`-shaped settings and converts them
+ * through the temporary adapter.
+ */
 export function avatarEffectDefinition(
+  document: AvatarEffectEditorDocument,
+): Record<string, unknown> {
+  return legacyAvatarEffectDefinitionToV2(legacyEditorDefinition(document));
+}
+
+function legacyEditorDefinition(
   document: AvatarEffectEditorDocument,
 ): Record<string, unknown> {
   const common: Record<string, unknown> = {
@@ -160,9 +172,7 @@ export function avatarEffectRuntimeEntry(
   document: AvatarEffectEditorDocument,
   imageUrl: string,
 ): AvatarVFXCatalogEntry {
-  const definition = avatarEffectDefinition(document);
-  return parseAvatarVFXCatalogEntry({
-    ...definition,
+  const entry = parseAvatarEffectDefinition(avatarEffectDefinition(document), {
     id: "avatar-effect-editor-preview",
     label: document.name || "Avatar Effect preview",
     description:
@@ -171,6 +181,10 @@ export function avatarEffectRuntimeEntry(
     assetPath: imageUrl,
     ...(document.sound ? { sound: { onApply: document.sound.alias } } : {}),
   });
+  // The editor only produces face attachments; body, sticker and silhouette arrive in Phase 9.
+  if (entry.kind === "deferred_attachment")
+    throw new Error("This attachment cannot be edited yet.");
+  return entry;
 }
 
 export function avatarEffectDependencies(
@@ -310,14 +324,33 @@ export function createAvatarEffectDocumentFromDefinition(args: {
 }): AvatarEffectEditorDocument {
   const raw = object(args.definition);
   if (!raw) throw new Error("The Avatar Effect definition is unavailable.");
-  const parsed = parseAvatarVFXCatalogEntry({
-    ...raw,
+  const parsed = parseAvatarEffectDefinition(raw, {
     id: "avatar-effect-editor-hydration",
     label: args.name,
     // Runtime entries require display copy; the authoring description is optional.
     description: args.description.trim() || args.name,
     assetPath: "blob:avatar-effect-hydration",
+    otherEyeAssetPath: "blob:avatar-effect-hydration-other-eye",
   });
+  if (parsed.kind === "deferred_attachment")
+    throw new Error(
+      `This ${parsed.attachmentKind} Avatar Effect cannot be edited in this creator yet.`,
+    );
+  // The temporary editor cannot represent these /2 features; refuse rather
+  // than silently dropping them on the next Save.
+  const appearance = parsed.appearance;
+  if (
+    parsed.otherEyeAssetPath ||
+    parsed.flipbook ||
+    parsed.keyframes ||
+    (appearance &&
+      (appearance.opacity !== 1 ||
+        appearance.tint !== null ||
+        appearance.blend !== "normal"))
+  )
+    throw new Error(
+      "This Avatar Effect uses appearance, other-eye, flipbook or keyframe settings that this creator cannot edit yet.",
+    );
   const document = createDefaultAvatarEffectDocument();
   document.name = args.name;
   document.description = args.description;

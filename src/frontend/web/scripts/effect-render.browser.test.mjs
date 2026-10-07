@@ -21,13 +21,10 @@ test("renders effect sheets and fails on a controller warning", async () => {
         content_type: "avatar_effect",
         name: "Broken",
         definition: {
-          schema: "animama/avatar-effect/1",
-          kind: "texture",
+          schema: "animama/avatar-effect/2",
           region: "full_face",
-          targetRole: "face_skin",
-          assetShape: "full_face",
-          applyMode: "overlay",
-          image: "broken.png",
+          attachment: { kind: "face_surface", part: "face_skin", area: "full" },
+          art: { image: "broken.png" },
         },
       }),
     );

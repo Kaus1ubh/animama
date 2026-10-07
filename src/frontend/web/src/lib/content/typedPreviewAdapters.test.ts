@@ -201,7 +201,18 @@ describe("typed preview adapters", () => {
         ],
         runtime_defaults: {},
         technical_source: null,
-        definition: { image: "star3.png", soundAlias: "Bright_Idea" },
+        definition: {
+          schema: "animama/avatar-effect/2",
+          region: "eyes",
+          attachment: {
+            kind: "face_surface",
+            part: "eye_iris",
+            area: "eyes",
+            layout: "single",
+          },
+          art: { image: "star3.png" },
+          soundAlias: "Bright_Idea",
+        },
         files: [
           {
             file_ref: "image-ref",

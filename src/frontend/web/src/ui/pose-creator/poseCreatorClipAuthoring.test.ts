@@ -216,6 +216,71 @@ describe("VFX event end ownership", () => {
   });
 });
 
+describe("Avatar Effect event fades", () => {
+  const timed = {
+    id: "effect",
+    time: 0.5,
+    kind: "avatar_vfx" as const,
+    effectId: "eyes",
+    duration: 2,
+  };
+
+  it("writes Fade in and Fade out into the intensity envelope", () => {
+    const faded = patchPoseCreatorClipEventDraft(timed, { fadeIn: 0.25 }, 3);
+    expect(faded).toMatchObject({
+      envelope: { intensity: { fadeIn: 0.25, fadeOut: 0 } },
+    });
+    const both = patchPoseCreatorClipEventDraft(faded, { fadeOut: 5 }, 3);
+    // A fade cannot outlast its event.
+    expect(both).toMatchObject({
+      envelope: { intensity: { fadeIn: 0.25, fadeOut: 2 } },
+    });
+    expect(
+      patchPoseCreatorClipEventDraft(both, { fadeIn: 0, fadeOut: 0 }, 3),
+    ).not.toHaveProperty("envelope");
+  });
+
+  it("removes the fades when End switches to With Action", () => {
+    const faded = patchPoseCreatorClipEventDraft(
+      timed,
+      { fadeIn: 0.5, fadeOut: 0.5 },
+      3,
+    );
+    const withAction = patchPoseCreatorClipEventDraft(
+      faded,
+      { duration: null },
+      3,
+    );
+    expect(withAction).not.toHaveProperty("envelope");
+    expect(withAction).not.toHaveProperty("duration");
+  });
+
+  it("re-clamps the fades when the duration shortens", () => {
+    const faded = patchPoseCreatorClipEventDraft(
+      timed,
+      { fadeIn: 1.5, fadeOut: 2 },
+      3,
+    );
+    expect(
+      patchPoseCreatorClipEventDraft(faded, { duration: 1 }, 3),
+    ).toMatchObject({
+      duration: 1,
+      envelope: { intensity: { fadeIn: 1, fadeOut: 1 } },
+    });
+  });
+
+  it("ignores fades for events that end with their Action", () => {
+    const withAction = patchPoseCreatorClipEventDraft(
+      timed,
+      { duration: null },
+      3,
+    );
+    expect(
+      patchPoseCreatorClipEventDraft(withAction, { fadeIn: 1 }, 3),
+    ).not.toHaveProperty("envelope");
+  });
+});
+
 it("defaults every new VFX event to ending with its Action", () => {
   const draft = createDefaultPoseCreatorClipDraft("relaxedRest");
   const events = [

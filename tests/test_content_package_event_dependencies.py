@@ -227,7 +227,9 @@ def _scene_package(
     fixture = json.loads(
         (Path(__file__).parents[1] / "src/frontend/web/src/lib/content/fixtures/package-capabilities.json").read_text()
     )
-    definition = next(value["definition"] for value in fixture["effects"] if value["definition"]["kind"] == target_kind)
+    definition = next(
+        value["definition"] for value in fixture["effects"] if value["definition"].get("kind") == target_kind
+    )
     if target_kind == "background_layers":
         definition["marquee"]["items"] = []
     scene = {

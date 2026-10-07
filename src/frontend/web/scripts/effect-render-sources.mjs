@@ -228,6 +228,20 @@ export async function resolveEffectSource(
   return loadEffectDescriptor(descriptorPath, descriptor);
 }
 
+async function containedImage(descriptorPath, logicalName) {
+  const imagePath = await containedFile(
+    path.dirname(descriptorPath),
+    logicalName,
+    "Effect image",
+  );
+  if ((await stat(imagePath)).size > MAX_EFFECT_IMAGE_BYTES) {
+    throw new EffectSourceError(
+      `${descriptorPath}: image "${logicalName}" exceeds 16 MiB.`,
+    );
+  }
+  return imagePath;
+}
+
 async function loadEffectDescriptor(descriptorPath, descriptor) {
   const definition = descriptor?.definition;
   if (descriptor?.content_type !== "avatar_effect") {
@@ -235,25 +249,23 @@ async function loadEffectDescriptor(descriptorPath, descriptor) {
       `${descriptorPath} is not an Avatar Effect descriptor (content_type "avatar_effect").`,
     );
   }
-  if (
-    !definition ||
-    typeof definition !== "object" ||
-    typeof definition.image !== "string"
-  ) {
+  if (definition?.schema === "animama/avatar-effect/1") {
     throw new EffectSourceError(
-      `${descriptorPath} has no definition with an image.`,
+      `${descriptorPath} uses animama/avatar-effect/1; convert it with \`uv run python scripts/content/convert_avatar_effects.py --write <folder>\`.`,
     );
   }
-  const imagePath = await containedFile(
-    path.dirname(descriptorPath),
-    definition.image,
-    "Effect image",
-  );
-  if ((await stat(imagePath)).size > MAX_EFFECT_IMAGE_BYTES) {
+  const art =
+    definition && typeof definition === "object" ? definition.art : null;
+  if (!art || typeof art !== "object" || typeof art.image !== "string") {
     throw new EffectSourceError(
-      `${descriptorPath}: image "${definition.image}" exceeds 16 MiB.`,
+      `${descriptorPath} has no animama/avatar-effect/2 definition with an image.`,
     );
   }
+  const imagePath = await containedImage(descriptorPath, art.image);
+  const otherImagePath =
+    typeof art.otherEyeImage === "string"
+      ? await containedImage(descriptorPath, art.otherEyeImage)
+      : null;
   const stem = path.basename(descriptorPath, KINDS.effect.suffix);
   return {
     stem,
@@ -264,6 +276,7 @@ async function loadEffectDescriptor(descriptorPath, descriptor) {
       typeof descriptor.description === "string" ? descriptor.description : "",
     definition,
     imagePath,
+    otherImagePath,
   };
 }
 

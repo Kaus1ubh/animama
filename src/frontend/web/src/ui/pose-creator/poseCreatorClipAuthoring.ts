@@ -55,6 +55,9 @@ export type PoseCreatorClipEventDraftPatch = {
   playAccompanyingSound?: boolean;
   time?: number;
   duration?: number | null;
+  /** Avatar Effect fade in and out (seconds) for an event with a duration. */
+  fadeIn?: number;
+  fadeOut?: number;
   effectId?: string;
   sceneKind?: AnimaPoseClipSceneVFXKind;
   presetId?: string;
@@ -1615,6 +1618,7 @@ export function patchPoseCreatorClipEventDraft(
       nextEvent.playAccompanyingSound = patch.playAccompanyingSound;
     if (patch.effectId !== undefined) nextEvent.effectId = patch.effectId;
     applyPoseCreatorClipVFXDurationPatch(nextEvent, patch);
+    applyPoseCreatorClipAvatarVFXFadePatch(nextEvent, patch);
     return nextEvent;
   }
 
@@ -1664,6 +1668,33 @@ function applyPoseCreatorClipVFXDurationPatch(
     return;
   }
   event.duration = normalizePoseCreatorClipEventDuration(patch.duration);
+}
+
+/**
+ * Write Fade in and Fade out into `envelope.intensity`, and re-clamp existing
+ * fades when the duration changes. Fades need a duration (ending with the
+ * Action removes the envelope); the envelope is removed when both are zero.
+ */
+function applyPoseCreatorClipAvatarVFXFadePatch(
+  event: AnimaPoseClipAvatarVFXEvent,
+  patch: PoseCreatorClipEventDraftPatch,
+): void {
+  const fadePatched = patch.fadeIn !== undefined || patch.fadeOut !== undefined;
+  const reclamp =
+    typeof patch.duration === "number" &&
+    event.envelope?.intensity !== undefined;
+  if (!fadePatched && !reclamp) return;
+  if (event.duration === undefined) return;
+  const current = event.envelope?.intensity ?? {};
+  const clamp = (value: number) =>
+    Number.isFinite(value) ? Math.min(event.duration!, Math.max(0, value)) : 0;
+  const fadeIn = clamp(patch.fadeIn ?? current.fadeIn ?? 0);
+  const fadeOut = clamp(patch.fadeOut ?? current.fadeOut ?? 0);
+  if (fadeIn === 0 && fadeOut === 0) {
+    delete event.envelope;
+    return;
+  }
+  event.envelope = { intensity: { ...current, fadeIn, fadeOut } };
 }
 
 function applyPoseCreatorClipParticleVFXPatch(

@@ -14,6 +14,7 @@ import {
   parseAvatarEffectEditorExport,
   validateAvatarEffectDocument,
 } from ".";
+import { legacyAvatarEffectDefinitionToV2 } from "./legacyDefinitionAdapter";
 
 const image = {
   logicalName: "eye-star.png",
@@ -28,7 +29,7 @@ describe("Avatar Effect editor document", () => {
     const opened = createAvatarEffectDocumentFromDefinition({
       name: "Legacy",
       description: "",
-      definition: {
+      definition: legacyAvatarEffectDefinitionToV2({
         schema: "animama/avatar-effect/1",
         kind: "hover",
         region: "emote",
@@ -36,7 +37,7 @@ describe("Avatar Effect editor document", () => {
         placement: "forehead-left",
         lifetime: { kind: "duration", runEndBufferSec: 5 },
         image: image.logicalName,
-      },
+      }),
       image,
       sound: null,
     });
@@ -61,10 +62,10 @@ describe("Avatar Effect editor document", () => {
   });
 
   it.each([
-    ["hover", "hoverKind", "eye_hover"],
-    ["face_anchored", "anchor", "undereye"],
-    ["texture", "targetRole", "face_skin"],
-  ] as const)("serializes the %s variant", (kind, field, expected) => {
+    ["hover", { kind: "face_landmark", landmark: "eyes" }],
+    ["face_anchored", { kind: "face_surface", area: "undereye" }],
+    ["texture", { kind: "face_surface", part: "face_skin", area: "full" }],
+  ] as const)("serializes the %s variant as /2", (kind, attachment) => {
     const document = {
       ...createDefaultAvatarEffectDocument(),
       name: "Eye Star",
@@ -73,10 +74,9 @@ describe("Avatar Effect editor document", () => {
     };
 
     expect(avatarEffectDefinition(document)).toMatchObject({
-      schema: "animama/avatar-effect/1",
-      kind,
-      image: "eye-star.png",
-      [field]: expected,
+      schema: "animama/avatar-effect/2",
+      art: { image: "eye-star.png" },
+      attachment,
     });
     expect(
       validateAvatarEffectDocument(document, { imageBytesAvailable: true }),
@@ -253,7 +253,12 @@ describe("Avatar Effect editor document", () => {
     },
   ])(
     "preserves suppression and cleanup through edit, export and save: $kind/$region",
-    (definition) => {
+    (legacy) => {
+      const definition = legacyAvatarEffectDefinitionToV2({
+        schema: "animama/avatar-effect/1",
+        image: image.logicalName,
+        ...legacy,
+      });
       const hydrated = createAvatarEffectDocumentFromDefinition({
         name: "Existing effect",
         description: "",
@@ -264,7 +269,9 @@ describe("Avatar Effect editor document", () => {
       const imported = parseAvatarEffectEditorExport(
         buildAvatarEffectEditorExport(hydrated),
       );
-      expect(avatarEffectDefinition(imported)).toMatchObject(definition);
+      expect(avatarEffectDefinition(imported)).toMatchObject({
+        faceOptions: definition.faceOptions,
+      });
     },
   );
 
@@ -330,10 +337,12 @@ describe("Avatar Effect editor document", () => {
     }
     const imported = parseAvatarEffectEditorExport(legacy);
     expect(avatarEffectDefinition(imported)).toMatchObject({
-      forceBlink: true,
-      autoDisableEyeMaterials: true,
-      faceCleanup: true,
-      disableTargetRoles: [],
+      faceOptions: {
+        forceBlink: true,
+        hideEyeDetails: true,
+        faceCleanup: true,
+        hideParts: [],
+      },
     });
   });
   it("keeps explicit regions even when they match the automatic suggestion", () => {
@@ -352,6 +361,25 @@ describe("Avatar Effect editor document", () => {
       patch: { regionMode: "automatic" },
     });
     expect(document.region).toBe("emote");
+  });
+
+  it("refuses to hydrate /2 features this temporary editor cannot keep", () => {
+    const definition = {
+      ...avatarEffectDefinition({
+        ...createDefaultAvatarEffectDocument(),
+        image,
+      }),
+      appearance: { opacity: 0.5 },
+    };
+    expect(() =>
+      createAvatarEffectDocumentFromDefinition({
+        name: "Faded",
+        description: "",
+        definition,
+        image,
+        sound: null,
+      }),
+    ).toThrow(/cannot edit yet/);
   });
 
   it("restores older recovery documents without losing their assigned region", () => {
