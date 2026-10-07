@@ -2,13 +2,15 @@
 
 Use batch mode when the owner asks for several Gestures at once (up to ten
 per batch; split larger requests). The steps per item are the normal
-workflow; the batch adds one shared interview, parallel authoring, a
-consistency pass, one review session and one save run.
+workflow; the batch sends every animation's interview questions at once,
+then adds parallel authoring, a consistency pass, one review session and one
+save run.
 
 ## 1. Brief every item together
 
-Run the [interview](interview.md) for the whole batch in one round, then show
-one table of briefs to confirm:
+Prepare each animation's own [interview](interview.md) questions and send
+them all in one message, grouped by animation. With the answers, show one
+table of briefs to confirm:
 
 | Name | Selector ID | Intent | Once/held | Length | Intensity | Hand | Contacts | Face |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |

@@ -22,9 +22,10 @@ first.
 0. **Interview.** Before planning, ask the owner the few questions whose
    answers would change the clip (when chat uses it, one-shot or held,
    intensity, leading hand, contacts, face), with your recommended option
-   first, and confirm the resulting brief. Skip it when the prompt already
-   settles the performance or the owner says to use your judgement. See
-   [interview](references/interview.md).
+   first, and confirm the resulting brief. Each animation gets its own
+   questions; for several animations, send all of them in one message. Skip
+   it when the prompt already settles the performance or the owner says to
+   use your judgement. See [interview](references/interview.md).
 1. **Plan the performance.** Read the prompt into beats with times:
    anticipation → action → follow-through → settle (one-shot), or an alive hold
    that loops seamlessly (held). Choose duration, loop, which body regions lead
@@ -62,8 +63,9 @@ first.
    render sheets, the chat check and known limits.
 
 **Several Gestures at once:** follow [batch mode](references/batch.md) for up
-to ten per batch: one interview round, parallel authoring, a consistency
-pass, one preview for the owner and one save run.
+to ten per batch: every animation's interview questions sent at once,
+parallel authoring, a consistency pass, one preview for the owner and one
+save run.
 
 **Revising a saved Gesture:** start from the Library item itself. Preview it
 with `pnpm -s animation:preview library:<selector>`, which prints its clip

@@ -13,9 +13,13 @@ record the answers as the brief you author from.
 - Skip the interview when the prompt already settles the performance, when
   the owner says to go ahead with your judgement, or for a revision whose
   notes already say what to change.
-- Ask once, before writing the clip. Ask at most four questions at a time,
-  each with two to four concrete options and your recommendation first. Use
-  the structured question tool when the host has one.
+- Ask once, before writing the clip: up to four questions for the
+  animation, each with two to four concrete options and your recommendation
+  first. Use the structured question tool when the host has one.
+- Every animation gets its own questions, chosen for that prompt; never one
+  shared set for several animations. When several are requested together,
+  send all of their questions at once (see below), not one animation at a
+  time.
 
 ## What to ask about
 
@@ -42,5 +46,13 @@ planned beats with times. Show it to the owner with your defaults filled in
 for anything not asked, and author from it once the owner confirms. Keep the
 brief in the hand-off so later revisions can see the intent.
 
-For a batch, ask about every item in one round and show one table of briefs
-to confirm (see [batch mode](batch.md)).
+## Several animations at once
+
+Prepare each animation's questions on its own, then send them together in
+one message, grouped under each animation's name, so the owner answers
+everything in one pass. When the structured question tool holds fewer
+questions than the batch needs, write the grouped questions as text (each
+numbered, options lettered, recommendation first) instead of splitting them
+across rounds. An animation whose prompt is already clear says so and asks
+nothing. Then show one table of briefs to confirm (see
+[batch mode](batch.md)).

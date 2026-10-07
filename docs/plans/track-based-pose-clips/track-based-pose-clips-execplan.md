@@ -1609,8 +1609,10 @@ for these changes in this PR:
   Pre-existing and unchanged: with component dependencies, each preview lease
   refresh still rebuilds the catalog.
 - **Interview, batch mode and `animation:save`** (`7040ea6a`, `1d5be5de`):
-  skill step 0 asks the owner the few questions that would change the clip;
-  `references/batch.md` authors up to ten Gestures (one interview round,
+  skill step 0 asks the owner the few questions that would change the clip,
+  per animation (for several, every animation's own questions are sent in one
+  message, as the owner asked); `references/batch.md` authors up to ten
+  Gestures (all interview questions at once,
   parallel subagents, a consistency pass, one preview, one save run);
   `pnpm -s animation:save <items.json>` saves through the creator headlessly
   (a new item by project import; a Local item with that Selector ID revised by
