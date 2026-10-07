@@ -259,7 +259,7 @@ describe("animaPoseClip/2.0 persistence", () => {
       readFileSync(
         fileURLToPath(
           new URL(
-            "../../lib/avatar/motion-authoring/examples/wave-hello.clip.json",
+            "../../../../../../content/included/gestures/wave-hello/wave-hello.json",
             import.meta.url,
           ),
         ),

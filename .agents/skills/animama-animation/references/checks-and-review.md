@@ -148,8 +148,9 @@ afterwards.
 Report:
 
 - the saved item and Avatars reviewed;
-- the clip path (in the owner's location or `motion-authoring/examples/`);
-  the saved Library item holds the same clip, so it can be revised later;
+- the saved Library item (`library:local/<selector>`), which holds the clip
+  and is where later revisions start; drafts in `.animama-drafts/` are not
+  kept;
 - check results with any accepted WARNs and why;
 - render sheets, preview review notes and their resolutions, and the chat
   check;

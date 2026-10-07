@@ -24,7 +24,7 @@ const example = (name: string): AnimaPoseClipV2 => {
       readFileSync(
         fileURLToPath(
           new URL(
-            `../lib/avatar/motion-authoring/examples/${name}.clip.json`,
+            `../../../../../content/included/gestures/${name}/${name}.json`,
             import.meta.url,
           ),
         ),
