@@ -4,8 +4,14 @@ import { AlertTriangleIcon, LoaderCircleIcon } from "lucide-react";
 export function CreatorLoading({ message }: { message: string }) {
   return (
     <div className="bg-background flex h-full items-center justify-center">
-      <div className="text-muted-foreground flex items-center gap-2">
-        <LoaderCircleIcon className="animate-spin" />
+      <div
+        className="text-muted-foreground flex items-center gap-2"
+        role="status"
+      >
+        <LoaderCircleIcon
+          className="animate-spin motion-reduce:animate-none"
+          aria-hidden="true"
+        />
         {message}
       </div>
     </div>

@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:surprise-gasp",
+  "version": 1,
+  "semantic_key": "surprise_gasp",
+  "name": "Surprise Gasp",
+  "ai_description": "A quick startled gasp: leans back with both hands to the cheeks and wide eyes. Use for a sudden surprise or shocking news.",
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [],
+  "files": [
+    {
+      "path": "surprise-gasp.json",
+      "role": "sequence"
+    }
+  ]
+}

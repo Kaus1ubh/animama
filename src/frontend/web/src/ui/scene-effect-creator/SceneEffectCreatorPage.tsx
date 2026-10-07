@@ -89,7 +89,10 @@ import {
   CreatorRecoveryNotice,
   CreatorToggleRow as ToggleRow,
   CreatorToolbar,
+  CreatorUnavailableState,
   CreatorWorkspaceShell,
+  creatorItemUnavailableMessage,
+  isCreatorItemOpenable,
 } from "@/ui/content-creator";
 import { ContentHealth } from "@/ui/content-health/ContentHealth";
 import type { ContentCreatorModelSource } from "@/ui/content-creator/contentCreatorModelPreview";
@@ -309,9 +312,21 @@ export function SceneEffectCreatorPage({
     )
       setSelectedLayer("marquee");
   }, [contentSave.errorField, document.kind]);
+  const unavailableMessage = creatorItemUnavailableMessage({
+    itemId,
+    label: "Scene Effect",
+    item: existingQuery.data,
+    readFailed: existingQuery.isError,
+    loadError:
+      hydration.state === "error"
+        ? (hydration.message ?? "The Scene Effect could not be opened.")
+        : null,
+  });
+  // The unavailable state has no leave dialog, so it must never block navigation.
+  const guardLeave = !unavailableMessage;
   const leaveGuard = useCreatorLeaveGuard({
-    dirty: isDirty,
-    busy: contentSave.isBusy,
+    dirty: guardLeave && isDirty,
+    busy: guardLeave && contentSave.isBusy,
     discard: contentSave.discardChanges,
   });
   const installTemplateStart = useCallback(
@@ -363,16 +378,11 @@ export function SceneEffectCreatorPage({
       !existingQuery.data
     )
       return;
+    const item = existingQuery.data;
+    // creatorItemUnavailableMessage reports an unreadable or locked item.
+    if (!isCreatorItemOpenable(item)) return;
     const load = hydratedItemRef.current.begin(itemId);
     if (!load) return;
-    const item = existingQuery.data;
-    if (item.state !== "ready" || (item.origin === "owned" && !item.editable)) {
-      setHydration({
-        state: "error",
-        message: "This Scene Effect is unavailable.",
-      });
-      return;
-    }
     const controller = new AbortController();
     setHydration({ state: "loading", message: "Loading saved content…" });
     void hydrateSceneEffect({
@@ -704,6 +714,13 @@ export function SceneEffectCreatorPage({
   const documentKey = itemId ?? templateId ?? "new";
   if (hydration.state === "ready" && shownDocument !== documentKey)
     setShownDocument(documentKey);
+  if (unavailableMessage)
+    return (
+      <CreatorUnavailableState
+        label="Scene Effect"
+        message={unavailableMessage}
+      />
+    );
   if (
     hydration.state === "loading" &&
     (itemId || templateId) &&

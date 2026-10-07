@@ -166,7 +166,7 @@ test("rejects ambiguous, missing and escaping sources", async () => {
 
 test("resolves Gesture clips from the library and from paths", async () => {
   const included = await resolveClipSource("library:arms-crossed");
-  assert.equal(included.clip.schema, "animaPoseClip/1.0");
+  assert.equal(included.clip.schema, "animaPoseClip/2.0");
   assert.equal(included.clip.id, "arms-crossed");
   const local = await resolveClipSource("library:local/local:gesture:wave", {
     localContent,

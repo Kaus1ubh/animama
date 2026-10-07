@@ -66,7 +66,10 @@ Commands:
   review <notes.review.json>  List preview review notes with their ids and status.
   resolve <notes.review.json> <note id> <resolution>
                               Mark a note resolved by the reviewed source's
-                              current version (run after changing the source).`;
+                              current version (run after changing the source).
+  promote <items.json> [--dry-run]
+                              Promote owner-approved Gestures to Included
+                              content (owner approval and a PR required).`;
 
 /** Run a motion-authoring command. Returns the process exit code. */
 export async function runMotionCli(
@@ -110,33 +113,12 @@ async function validate(
     context.out(read.error);
     return 1;
   }
-  if (schemaOf(read.value) === RETIRED_DESCRIPTION_SCHEMA) {
-    context.out(RETIRED_DESCRIPTION_MESSAGE);
+  const compacted = compactClipFile(read.value);
+  if (!compacted.ok) {
+    context.out(compacted.message);
     return 1;
   }
-  const result = validateAnimaPoseClipV2(read.value);
-  // Both kinds of problem at once, so one run lists everything to fix.
-  const issues = [
-    ...(result.ok ? [] : result.issues),
-    ...anatomicalLimitIssues(read.value),
-  ];
-  if (!result.ok || issues.length > 0) {
-    context.out(
-      `Invalid ${ANIMA_POSE_CLIP_V2_SCHEMA} (${issues.length} issue(s)):\n` +
-        issues.map(({ path, message }) => `  ${path}: ${message}`).join("\n"),
-    );
-    return 1;
-  }
-  const clip = result.clip;
-  // Measure the file the creator saves.
-  const saved = serializeAnimaPoseClipFile(clip);
-  const savedBytes = Buffer.byteLength(saved);
-  if (savedBytes > MAX_ANIMA_POSE_CLIP_BYTES) {
-    context.out(
-      `Too large: the clip saves as ${formatKilobytes(savedBytes)}, over the ${formatKilobytes(MAX_ANIMA_POSE_CLIP_BYTES)} the app will load.`,
-    );
-    return 1;
-  }
+  const { clip, saved, savedBytes } = compacted;
   const outputPath = options.values["--out"]
     ? path.resolve(context.cwd, options.values["--out"])
     : null;
@@ -153,6 +135,42 @@ async function validate(
     ].join("\n"),
   );
   return 0;
+}
+
+/** A valid clip and the compact file the creator saves for it. */
+export type CompactClipFile =
+  | { ok: true; clip: AnimaPoseClipV2; saved: string; savedBytes: number }
+  | { ok: false; message: string };
+
+/**
+ * Validate a 2.0 clip (structure, anatomical limits and saved size) and
+ * serialize the file the creator saves. Shared by `validate --out` and the
+ * Included promotion tool, so both write the same bytes.
+ */
+export function compactClipFile(value: unknown): CompactClipFile {
+  if (schemaOf(value) === RETIRED_DESCRIPTION_SCHEMA)
+    return { ok: false, message: RETIRED_DESCRIPTION_MESSAGE };
+  const result = validateAnimaPoseClipV2(value);
+  // Both kinds of problem at once, so one run lists everything to fix.
+  const issues = [
+    ...(result.ok ? [] : result.issues),
+    ...anatomicalLimitIssues(value),
+  ];
+  if (!result.ok || issues.length > 0)
+    return {
+      ok: false,
+      message:
+        `Invalid ${ANIMA_POSE_CLIP_V2_SCHEMA} (${issues.length} issue(s)):\n` +
+        issues.map(({ path, message }) => `  ${path}: ${message}`).join("\n"),
+    };
+  const saved = serializeAnimaPoseClipFile(result.clip);
+  const savedBytes = Buffer.byteLength(saved);
+  if (savedBytes > MAX_ANIMA_POSE_CLIP_BYTES)
+    return {
+      ok: false,
+      message: `Too large: the clip saves as ${formatKilobytes(savedBytes)}, over the ${formatKilobytes(MAX_ANIMA_POSE_CLIP_BYTES)} the app will load.`,
+    };
+  return { ok: true, clip: result.clip, saved, savedBytes };
 }
 
 /**

@@ -4,7 +4,13 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import clipSamples from "./fixtures/starter-clip-samples-before-reduction.json";
-import { parseAnimaPoseClip, sampleAnimaPoseClip } from "./animaPoseClip";
+import {
+  isAnimaPoseClipV2,
+  parseAnimaPoseClip,
+  parseAnyAnimaPoseClip,
+  sampleAnimaPoseClip,
+  type AnimaPoseClip,
+} from "./animaPoseClip";
 import originalInventory from "./fixtures/starter-inventory-before-content.json";
 import { parseAnimaPose, resolveAnimaPose } from "./animaPose";
 import {
@@ -13,6 +19,7 @@ import {
   AVATAR_POSE_IDS,
   AVATAR_REACTION_CLIP_CATALOG,
   DEFAULT_AVATAR_POSE_IDS,
+  getAvatarPoseClip,
   getResolvedAvatarPose,
 } from "./catalog";
 
@@ -34,6 +41,26 @@ function roundedCanonical(value: unknown): unknown {
     ? Number(value.toFixed(originalInventory.numeric_precision))
     : value;
 }
+
+/** 1.0 clips, the only ones that reference internal poses. */
+const v1Clips = Object.values(AVATAR_POSE_CLIP_CATALOG).filter(
+  (clip): clip is AnimaPoseClip => !isAnimaPoseClipV2(clip),
+);
+
+/**
+ * Internal poses of Gestures replaced by 2.0 clips. No shipped clip references
+ * them, but imported 1.0 packages may (content package capabilities list them
+ * as built-in poses), so they stay in the runtime catalog.
+ */
+const RETAINED_INTERNAL_POSE_IDS = [
+  "arms-crossed",
+  "cat-monster-rawr",
+  "cat-monster-rawr-2",
+  "cheeky-finger-guns",
+  "cheeky-finger-guns-2",
+  "hands-on-hips",
+  "right-face-palm",
+];
 
 const starterNames: Record<string, string> = {
   relaxedRest: "Relaxed Rest",
@@ -89,8 +116,9 @@ describe("Included Pose starter collection", () => {
   });
 
   it("keeps shipped gesture refs resolvable without exposing their dependencies as content", () => {
-    expect(AVATAR_POSE_CLIP_CATALOG["arms-crossed"].poses.armsCrossed).toEqual({
-      ref: "arms-crossed",
+    const meme = AVATAR_POSE_CLIP_CATALOG["meme-dab"];
+    expect(!isAnimaPoseClipV2(meme) && meme.poses["meme-dab"]).toEqual({
+      ref: "meme-dab",
     });
     expect(AVATAR_POSE_CLIP_CATALOG["double-thumbs-up"].basePose).toBe(
       "double-thumbs-up",
@@ -98,16 +126,31 @@ describe("Included Pose starter collection", () => {
     const referencedIds = new Set<string>();
     for (const clip of Object.values(AVATAR_POSE_CLIP_CATALOG)) {
       if (clip.basePose) referencedIds.add(clip.basePose);
+    }
+    for (const clip of v1Clips) {
       for (const pose of Object.values(clip.poses)) {
         if ("ref" in pose) referencedIds.add(pose.ref);
       }
     }
-    expect([...AVATAR_POSE_IDS].sort()).toEqual([...referencedIds].sort());
     expect(
-      [...referencedIds].filter((id) => !(id in starterNames)),
-    ).toHaveLength(21);
-    for (const original of originalInventory.poses.filter(
-      (pose) => referencedIds.has(pose.id) && !(pose.id in starterNames),
+      RETAINED_INTERNAL_POSE_IDS.filter((id) => referencedIds.has(id)),
+    ).toEqual([]);
+    // Starter Poses are Included content whether or not a clip uses them.
+    expect([...AVATAR_POSE_IDS].sort()).toEqual(
+      [
+        ...new Set([
+          ...referencedIds,
+          ...RETAINED_INTERNAL_POSE_IDS,
+          ...Object.keys(starterNames),
+        ]),
+      ].sort(),
+    );
+    const internalIds = [...AVATAR_POSE_IDS].filter(
+      (id) => !(id in starterNames),
+    );
+    expect(internalIds).toHaveLength(21);
+    for (const original of originalInventory.poses.filter((pose) =>
+      internalIds.includes(pose.id),
     )) {
       expect(existsSync(`${includedRoot}/${original.id}`)).toBe(false);
       expect(
@@ -123,10 +166,12 @@ describe("Included Pose starter collection", () => {
   });
 
   it("keeps all shipped clip references and expression-only reactions resolvable", () => {
-    expect(Object.keys(AVATAR_POSE_CLIP_CATALOG)).toHaveLength(22);
+    expect(Object.keys(AVATAR_POSE_CLIP_CATALOG)).toHaveLength(43);
     expect(Object.keys(AVATAR_REACTION_CLIP_CATALOG)).toHaveLength(72);
+    for (const clip of Object.values(AVATAR_POSE_CLIP_CATALOG))
+      if (clip.basePose) expect(AVATAR_POSE_IDS).toContain(clip.basePose);
     for (const clip of [
-      ...Object.values(AVATAR_POSE_CLIP_CATALOG),
+      ...v1Clips,
       ...Object.values(AVATAR_REACTION_CLIP_CATALOG),
     ]) {
       if (clip.basePose) expect(AVATAR_POSE_IDS).toContain(clip.basePose);
@@ -137,10 +182,11 @@ describe("Included Pose starter collection", () => {
   });
 
   it("preserves every shipped clip sample with internal pose dependencies", () => {
-    expect(clipSamples.clips).toHaveLength(22);
+    // The six Gestures replaced by 2.0 clips are pinned by their bytes below.
+    expect(clipSamples.clips).toHaveLength(16);
     for (const original of clipSamples.clips) {
-      const clip = AVATAR_POSE_CLIP_CATALOG[original.id];
-      expect(clip).toBeDefined();
+      const clip = v1Clips.find(({ id }) => id === original.id);
+      if (!clip) throw new Error(`${original.id} is not a 1.0 clip`);
       const included = JSON.parse(
         readFileSync(
           `${includedRoot}/../gestures/${clip.id}/${clip.id}.json`,
@@ -159,9 +205,39 @@ describe("Included Pose starter collection", () => {
           createHash("sha256")
             .update(JSON.stringify(roundedCanonical(result.sample)))
             .digest("hex"),
+          `${original.id} at ${expected.time}`,
         ).toBe(expected.sha256);
       }
     }
+  });
+
+  it("loads every Included clip Gesture straight from content/included", () => {
+    const gesturesRoot = `${includedRoot}/../gestures`;
+    const clipGestures = readdirSync(gesturesRoot)
+      .filter((slug) => {
+        const meta = JSON.parse(
+          readFileSync(`${gesturesRoot}/${slug}/${slug}.meta.json`, "utf8"),
+        );
+        return meta.implementation.kind === "anima_clip";
+      })
+      .sort();
+    expect(clipGestures).toEqual(Object.keys(AVATAR_POSE_CLIP_CATALOG).sort());
+    const v2Ids: string[] = [];
+    for (const slug of clipGestures) {
+      const included = parseAnyAnimaPoseClip(
+        JSON.parse(
+          readFileSync(`${gesturesRoot}/${slug}/${slug}.json`, "utf8"),
+        ),
+      );
+      expect(included).toEqual(AVATAR_POSE_CLIP_CATALOG[slug]);
+      if (isAnimaPoseClipV2(included)) v2Ids.push(slug);
+    }
+    expect(v2Ids).toHaveLength(27);
+    // A 2.0 Gesture plays from the built-in catalog as a fresh copy.
+    const replaced = getAvatarPoseClip("arms-crossed-clip");
+    expect(isAnimaPoseClipV2(replaced) && replaced.loop).toBe(true);
+    expect(replaced).toEqual(AVATAR_POSE_CLIP_CATALOG["arms-crossed"]);
+    expect(replaced).not.toBe(AVATAR_POSE_CLIP_CATALOG["arms-crossed"]);
   });
 
   it("uses the current resolver's inheritance flags and partial-transform semantics", () => {

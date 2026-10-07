@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:gentle-head-shake",
+  "version": 1,
+  "semantic_key": "head_shake_no",
+  "name": "Gentle Head Shake",
+  "ai_description": "A soft side-to-side head shake meaning no. Use to decline gently or disagree kindly.",
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [],
+  "files": [
+    {
+      "path": "gentle-head-shake.json",
+      "role": "sequence"
+    }
+  ]
+}

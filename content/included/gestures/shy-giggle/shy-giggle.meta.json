@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:shy-giggle",
+  "version": 1,
+  "semantic_key": "shy_giggle",
+  "name": "Shy Giggle",
+  "ai_description": "A bashful giggle, hiding the mouth behind one hand with the other palm on the cheek. Use when flattered, embarrassed or teased.",
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [],
+  "files": [
+    {
+      "path": "shy-giggle.json",
+      "role": "sequence"
+    }
+  ]
+}

@@ -457,12 +457,13 @@ as self-contained, parent-free content descriptors. The synchronous App provider
 uses a generated projection; run `pnpm poses:generate` from `src/frontend` after
 changing these descriptors. The web build and source check reject projection drift.
 
-Built-in runtime inputs behind the App provider live under:
+Built-in runtime inputs behind the App provider are:
 
-- `src/frontend/web/src/lib/avatar/poses/pose_catalog.json` (defaults and clip manifest)
 - `src/frontend/web/src/lib/avatar/poses/pose_catalog.generated.json` (generated poses)
-- `src/frontend/web/src/lib/avatar/poses/json/clips/*.json`
-- `src/frontend/web/src/lib/avatar/poses/json/clips/reactions/*.json`
+- `src/frontend/web/src/lib/avatar/poses/json/internal-poses/*.json` (runtime-only poses)
+- the Included Gesture and Reaction clips, bundled straight from
+  `content/included/gestures/<id>/<id>.json` and
+  `content/included/reactions/<id>/<id>.json` (metadata files excluded)
 
 `catalog.ts` validates these files on load and exposes raw and resolved pose
 helpers. Missing, invalid, duplicate, or id-mismatched pose/clip entries are
@@ -471,15 +472,19 @@ parent chain cannot resolve are also skipped, so UI lists only usable catalog
 poses. `getAvatarPose(...)` returns the raw catalog artifact, while
 `getResolvedAvatarPose(...)` returns a parent-free clone from a cached resolved
 catalog path so per-frame clip playback does not repeatedly walk parent
-chains. To register an exported clip for runtime debug playback, add the clip
-JSON under `poses/json/clips/` and add its id/path metadata to
-`pose_catalog.json`.
+chains. Gesture clips may be `animaPoseClip/1.0` or `/2.0`; `getAvatarPoseClip(...)`
+returns a fresh copy of either. The clip id is the Included folder name; the
+default pose is `relaxedRest`. There is no frontend copy of Included clips:
+the Vite dev server allows `content/included` (`server.fs.allow`), the
+development web container mounts it at `/content/included`, and the
+production image copies it before the web build. Internal poses of Gestures
+replaced by 2.0 clips stay in `json/internal-poses/` for imported 1.0 packages.
 
-Reaction clips are loaded separately from `poses/json/clips/reactions/` by file
+Reaction clips are loaded separately from `content/included/reactions/` by file
 name. The canonical catalog contains 72 files: each `TRACKED_EMOTIONS` value
 from `src/frontend/web/src/lib/emotion` at intensities `1`, `2`, and `3`, using
-`<emotion>-<intensity>.json` ids. Reaction clips are not added to
-`pose_catalog.json`, do not run through `Avatar.playClip(...)`, and are skipped
+`<emotion>-<intensity>.json` ids. Reaction clips are not in the Gesture clip
+catalog, do not run through `Avatar.playClip(...)`, and are skipped
 if channel analysis finds any humanoid transforms. This strict authoring rule
 applies to Included and Local Reaction entries. Playback projects Reaction
 sequences to expressions/events and defensively ignores humanoid samples.
@@ -610,16 +615,17 @@ from `src/frontend/web`:
   show. Scene Effects and sounds are not played, and the page says so. It
   also previews Avatar Effect sources (see the
   [Avatar VFX guide](avatar-vfx.md#headed-preview)). Its Review and Compare
-  pickers switch to any example clip, any clip beside a file source and any
-  Library Gesture, Reaction or Avatar Effect without a restart. Review notes
-  are saved beside a file source (in the working directory for a Library item
-  or any file inside Library content); `animation review` and
-  `animation resolve` manage them.
+  pickers switch to any clip beside a file source and any Library Gesture,
+  Reaction or Avatar Effect without a restart. Review notes are saved beside a
+  file source (in the working directory for a Library item or any file inside
+  Library content); `animation review` and `animation resolve` manage them.
 
 The workflow, conventions and review guidance live in the
 `animama-animation` agent skill. The code is in
-`src/lib/avatar/motion-authoring/`, with example clips in its `examples/`
-folder. The earlier `animamaMotion/1` description format and its bake step are
+`src/lib/avatar/motion-authoring/`. Clips live only as content: drafts in the
+ignored `.animama-drafts/` folder until saved, then Local items in
+`content/local/`, and owner-approved Gestures in `content/included/` (through
+`pnpm -s animation promote`). The earlier `animamaMotion/1` description format and its bake step are
 retired; the tools explain this when given a description.
 
 There is no separate generic Pose Creator route or raw package save provider.

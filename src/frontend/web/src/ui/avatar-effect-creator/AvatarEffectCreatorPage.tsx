@@ -74,7 +74,10 @@ import {
   CREATOR_STAGE_NOTICE_CLASS,
   CreatorRecoveryNotice,
   CreatorToolbar,
+  CreatorUnavailableState,
   CreatorWorkspaceShell,
+  creatorItemUnavailableMessage,
+  isCreatorItemOpenable,
 } from "@/ui/content-creator";
 import {
   contentCreatorModelCatalogItemId,
@@ -353,9 +356,21 @@ export function AvatarEffectCreatorPage({
     onRestore,
     onSaved,
   });
+  const unavailableMessage = creatorItemUnavailableMessage({
+    itemId,
+    label: "Avatar Effect",
+    item: existingQuery.data,
+    readFailed: existingQuery.isError,
+    loadError:
+      hydration.state === "error"
+        ? (hydration.message ?? "The Avatar Effect could not be opened.")
+        : null,
+  });
+  // The unavailable state has no leave dialog, so it must never block navigation.
+  const guardLeave = !unavailableMessage;
   const leaveGuard = useCreatorLeaveGuard({
-    dirty: isDirty,
-    busy: contentSave.isBusy,
+    dirty: guardLeave && isDirty,
+    busy: guardLeave && contentSave.isBusy,
     discard: contentSave.discardChanges,
   });
   const installTemplateStart = useCallback(
@@ -468,16 +483,11 @@ export function AvatarEffectCreatorPage({
       !existingQuery.data
     )
       return;
+    const item = existingQuery.data;
+    // creatorItemUnavailableMessage reports an unreadable or locked item.
+    if (!isCreatorItemOpenable(item)) return;
     const load = hydratedItemRef.current.begin(itemId);
     if (!load) return;
-    const item = existingQuery.data;
-    if (item.state !== "ready" || (item.origin === "owned" && !item.editable)) {
-      setHydration({
-        state: "error",
-        message: "This Avatar Effect is unavailable.",
-      });
-      return;
-    }
     const controller = new AbortController();
     setHydration({ state: "loading", message: "Loading saved content…" });
     void hydrateAvatarEffect({
@@ -862,6 +872,13 @@ export function AvatarEffectCreatorPage({
   const documentKey = itemId ?? templateId ?? "new";
   if (hydration.state === "ready" && shownDocument !== documentKey)
     setShownDocument(documentKey);
+  if (unavailableMessage)
+    return (
+      <CreatorUnavailableState
+        label="Avatar Effect"
+        message={unavailableMessage}
+      />
+    );
   if (
     hydration.state === "loading" &&
     (itemId || templateId) &&

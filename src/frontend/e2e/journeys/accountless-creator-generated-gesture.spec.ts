@@ -18,13 +18,13 @@ import type { Page } from "playwright/test";
 const JOURNEY_KEY = "creator-generated-gesture-round-trip";
 const V1_GESTURE = fileURLToPath(
   new URL(
-    "../../../../content/included/gestures/right-face-palm/right-face-palm.json",
+    "../../../../content/included/gestures/double-thumbs-up/double-thumbs-up.json",
     import.meta.url,
   ),
 );
 const EXAMPLE = fileURLToPath(
   new URL(
-    "../../web/src/lib/avatar/motion-authoring/examples/hearty-laugh.clip.json",
+    "../../../../content/included/gestures/hearty-laugh/hearty-laugh.json",
     import.meta.url,
   ),
 );

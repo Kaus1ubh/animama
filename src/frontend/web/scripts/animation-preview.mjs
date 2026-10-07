@@ -20,10 +20,10 @@ import {
  * Plays a clip, project envelope, Library Gesture or Reaction (with its
  * Avatar and Particle Effects), or an Avatar Effect source on both Included
  * Avatars through the app's own Avatar playback, in the system browser. The
- * page's pickers switch to any example clip, any clip beside a file source,
- * any Library Gesture or Reaction and any Library Avatar Effect without a
- * restart. Serves on 127.0.0.1 only; writes only review notes and retained
- * versions (see src/lib/avatar/motion-authoring/preview/).
+ * page's pickers switch to any clip beside a file source, any Library Gesture
+ * or Reaction and any Library Avatar Effect without a restart. Serves on
+ * 127.0.0.1 only; writes only review notes and retained versions (see
+ * src/lib/avatar/motion-authoring/preview/).
  */
 const webRoot = fileURLToPath(new URL("..", import.meta.url));
 const repoRoot = path.resolve(webRoot, "../../..");
@@ -31,10 +31,6 @@ const avatarDir = path.join(repoRoot, "content/included/avatars");
 const includedDir = path.join(repoRoot, "content/included");
 const AVATARS = ["AvatarSample_Y_0", "AvatarSample_A_1_New"];
 const PAGE = "/scripts/animation-preview/index.html";
-const EXAMPLES_DIR = path.join(
-  webRoot,
-  "src/lib/avatar/motion-authoring/examples",
-);
 const PREVIEW_MODULES = "/src/lib/avatar/motion-authoring/preview";
 const MAX_BODY_BYTES = 64 * 1024;
 
@@ -61,13 +57,15 @@ export async function startPreviewServer({
   for (const spec of sources)
     if (await media.resolve(spec, roots).catch(() => null))
       effectSpecs.push(spec);
-  // Picker folders: the examples and the folders of clip files named here.
+  // Picker folders: the folders of clip files named here (Library items and
+  // effect sources are listed separately).
   const choiceDirs = [
-    EXAMPLES_DIR,
-    ...sources
-      .filter((spec) => !spec.startsWith("library:"))
-      .filter((spec) => !effectSpecs.includes(spec))
-      .map((spec) => path.dirname(path.resolve(cwd, spec))),
+    ...new Set(
+      sources
+        .filter((spec) => !spec.startsWith("library:"))
+        .filter((spec) => !effectSpecs.includes(spec))
+        .map((spec) => path.dirname(path.resolve(cwd, spec))),
+    ),
   ];
 
   const server = await createServer({
@@ -433,10 +431,10 @@ ${MAX_PREVIEW_DURATION_SEC}) and then removes it. Changing a descriptor or its i
 Keep each effect descriptor in its own <stem>/ folder: that folder is watched
 recursively, so unrelated files beside it would also reload the effect.
 
-The page's Review and Compare pickers list the example clips, the clips in
-the folder of each file source named here, the Library's Gestures, Reactions
-and Avatar Effects, and the effect sources named here. Without a source, the
-first example plays.
+The page's Review and Compare pickers list the clips in the folder of each
+file source named here, the Library's Gestures, Reactions and Avatar Effects,
+and the effect sources named here. Without a source, the first listed item
+plays.
 
 Review notes are saved beside a file source as <file name without .json>.review.json
 (laugh.clip.json -> laugh.clip.review.json) or beside an effect's folder

@@ -12,6 +12,7 @@ import { getAnimaPoseClipTimelineDuration } from "./playback";
 import { prepareAnimaPoseClipV2 } from "./prepareV2";
 import { sampleAnimaPoseClip } from "./sampling";
 import type { AnimaPoseClip } from "./schema";
+import { isAnimaPoseClipV2 } from "./anyClip";
 import { validateAnimaPoseClipV2 } from "./schemaV2";
 
 const resolvePose = (id: string) => {
@@ -63,16 +64,18 @@ function conversionError(clip: AnimaPoseClip) {
 }
 
 describe("convertAnimaPoseClipToV2", () => {
-  it.each(Object.entries(AVATAR_POSE_CLIP_CATALOG))(
-    "plays Included Gesture %s as before",
-    (_id, clip) => {
-      const result = conversionError(clip);
-      expect(result.degrees).toBeLessThan(0.01);
-      expect(result.metres).toBeLessThan(0.0001);
-      expect(result.weight).toBeLessThan(0.001);
-      expect(result.converted.beats).toHaveLength(clip.poseKeyframes.length);
-    },
+  // 2.0 Included Gestures are authored as 2.0; only 1.0 ones convert.
+  const v1Gestures = Object.entries(AVATAR_POSE_CLIP_CATALOG).filter(
+    (entry): entry is [string, AnimaPoseClip] => !isAnimaPoseClipV2(entry[1]),
   );
+
+  it.each(v1Gestures)("plays Included Gesture %s as before", (_id, clip) => {
+    const result = conversionError(clip);
+    expect(result.degrees).toBeLessThan(0.01);
+    expect(result.metres).toBeLessThan(0.0001);
+    expect(result.weight).toBeLessThan(0.001);
+    expect(result.converted.beats).toHaveLength(clip.poseKeyframes.length);
+  });
 
   it.each(Object.entries(AVATAR_REACTION_CLIP_CATALOG))(
     "plays Included Reaction %s as before",

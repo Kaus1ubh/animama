@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:mild-laugh",
+  "version": 1,
+  "semantic_key": "laugh_mild",
+  "name": "Mild Laugh",
+  "ai_description": "A light chuckle with a small shoulder shake and a hand near the mouth. Use for mildly amusing moments, a gentle joke or a polite laugh.",
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [],
+  "files": [
+    {
+      "path": "mild-laugh.json",
+      "role": "sequence"
+    }
+  ]
+}

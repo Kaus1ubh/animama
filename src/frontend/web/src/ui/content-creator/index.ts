@@ -14,6 +14,7 @@ export { CreatorJsonDialog } from "./CreatorJsonDialog";
 export { CreatorLeaveDialog } from "./CreatorLeaveDialog";
 export { CreatorInlineError, CreatorLoading } from "./CreatorStatus";
 export { CreatorNumberField } from "./CreatorNumberField";
+export { CreatorUnavailableState } from "./CreatorPageState";
 export { CreatorPreviewBar } from "./CreatorPreviewBar";
 export {
   CREATOR_STAGE_NOTICE_CLASS,
@@ -26,3 +27,7 @@ export { CreatorToggleRow } from "./CreatorToggleRow";
 export { CreatorToolbar } from "./CreatorToolbar";
 export type { CreatorDocumentStatus } from "./CreatorToolbar";
 export { CreatorWorkspaceShell } from "./CreatorWorkspaceShell";
+export {
+  creatorItemUnavailableMessage,
+  isCreatorItemOpenable,
+} from "./creatorItemAvailability";

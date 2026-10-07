@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:hysterical-laughter",
+  "version": 1,
+  "semantic_key": "laugh_hysterical",
+  "name": "Hysterical Laughter",
+  "ai_description": "Uncontrollable laughter: doubles over holding the stomach, slaps the thigh, wipes away a tear and recovers. Use for something hilarious.",
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [],
+  "files": [
+    {
+      "path": "hysterical-laughter.json",
+      "role": "sequence"
+    }
+  ]
+}
