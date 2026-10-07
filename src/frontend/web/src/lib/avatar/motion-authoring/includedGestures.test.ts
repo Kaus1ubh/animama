@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import type { VRM } from "@pixiv/three-vrm";
 import { beforeAll, describe, expect, it } from "vitest";
@@ -20,10 +20,12 @@ const directory = fileURLToPath(
 );
 const clips = readdirSync(directory)
   .map((slug) => `${slug}/${slug}.json`)
+  // VRMA-only Gestures have no clip file.
   .filter(
     (file) =>
+      existsSync(directory + file) &&
       JSON.parse(readFileSync(directory + file, "utf8")).schema ===
-      "animaPoseClip/2.0",
+        "animaPoseClip/2.0",
   );
 
 let vrm0: VRM;
