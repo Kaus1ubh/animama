@@ -22,6 +22,7 @@ import type {
   AnimaPoseClipSample,
   QuaternionTuple,
 } from "./schema";
+import { ANIMA_POSE_CLIP_DECIMALS } from "./schema";
 import {
   ANIMA_POSE_CLIP_V2_LIMITS,
   ANIMA_POSE_CLIP_V2_MIN_SPACING_TICKS,
@@ -575,9 +576,9 @@ function anchorKey(
     case "rotation":
       return {
         beat: beatId,
-        q: evaluate
-          .rotation(track.keys as AnimaPoseClipRotationKey[], time)
-          .toArray() as QuaternionTuple,
+        q: quaternionKey(
+          evaluate.rotation(track.keys as AnimaPoseClipRotationKey[], time),
+        ),
       } as AnimaPoseClipRotationKey;
     case "joint": {
       const joint = resolveJoint(track.group)!;
@@ -721,25 +722,23 @@ export function setBeatPose(
           ? key
           : {
               ...key,
-              q: (key.dt
-                ? new Quaternion(...key.q).multiply(delta)
-                : next
-              ).toArray() as QuaternionTuple,
+              q: quaternionKey(
+                key.dt ? new Quaternion(...key.q).multiply(delta) : next,
+              ),
             },
       );
       rotations[bone] = owned.some((key) => !key.dt)
         ? updated
         : (sortKeys(beatTimes(working), [
             ...updated,
-            { beat: beatId, q: next.toArray() as QuaternionTuple },
+            { beat: beatId, q: quaternionKey(next) },
           ]) as AnimaPoseClipRotationKey[]);
     } else {
       rotations[bone] = working.beats.map((other) => ({
         beat: other.id,
-        q: (other.id === beatId
-          ? next
-          : rotationOf(sampleAt(other), bone)
-        ).toArray() as QuaternionTuple,
+        q: quaternionKey(
+          other.id === beatId ? next : rotationOf(sampleAt(other), bone),
+        ),
       }));
     }
     working = { ...working, rotations };
@@ -938,7 +937,9 @@ export function detachBasePose(
       !shaped(bone) &&
       !(clip.plantFeet && LEG_BONE.test(bone))
     )
-      rotations[bone] = [{ beat: first.id, q: [...q] as QuaternionTuple }];
+      rotations[bone] = [
+        { beat: first.id, q: quaternionKey(new Quaternion(...q)) },
+      ];
   }
 
   const baseHips = basePose.hips?.position;
@@ -1000,7 +1001,7 @@ export function flattenHandToFingerTracks(
         beat: key.beat,
         ...(key.dt ? { dt: key.dt } : {}),
         ...(key.ease ? { ease: key.ease } : {}),
-        q: rotation.toArray() as QuaternionTuple,
+        q: quaternionKey(rotation),
       });
     }
   }
@@ -1017,6 +1018,15 @@ export function flattenHandToFingerTracks(
 
 function axisIndex(axis: string): 0 | 1 | 2 {
   return axis === "x" ? 0 : axis === "y" ? 1 : 2;
+}
+
+/** A rotation key at the precision Save writes, so drafts match saved clips. */
+function quaternionKey(rotation: Quaternion): QuaternionTuple {
+  return rotation
+    .toArray()
+    .map((value) =>
+      round(value, ANIMA_POSE_CLIP_DECIMALS.transform),
+    ) as QuaternionTuple;
 }
 
 function round(value: number, decimals = 4): number {

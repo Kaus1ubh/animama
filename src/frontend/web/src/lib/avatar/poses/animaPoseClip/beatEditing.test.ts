@@ -237,6 +237,10 @@ describe("setBeatPose", () => {
       "b",
       "c",
     ]);
+    // Keys carry the saved precision, so the draft equals what Save writes.
+    for (const key of edited.rotations!.leftHand!)
+      for (const component of key.q)
+        expect(component).toBe(Number(component.toFixed(5)));
     expect(
       angularDistanceDegrees(
         rotation(edited, "leftHand", 0),
@@ -376,7 +380,8 @@ describe("detachBasePose", () => {
                 new Quaternion(...transform.rotation),
                 new Quaternion(...other.rotation!),
               ),
-            ).toBeLessThan(1e-3);
+              // Frozen keys are stored at the saved precision (5 decimals).
+            ).toBeLessThan(5e-3);
           transform?.position?.forEach((value, index) =>
             expect(other.position![index]).toBeCloseTo(value, 6),
           );

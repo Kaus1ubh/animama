@@ -231,6 +231,47 @@ test.describe("Generated Gesture creator round trip", () => {
         ).toBeVisible();
         expect(await readClipJson(page)).toEqual(saved);
       });
+
+      await test.step("Click a saved Gesture's Avatar without reloading it", async () => {
+        // A saved item mounts its preview runtime; creator re-renders (bone
+        // markers, the gizmo) must not rebuild it and reload the Avatar.
+        await page
+          .getByRole("button", { name: /^Recover keyframe at 2\.40s/ })
+          .click();
+        await page.getByRole("tab", { name: "Pose", exact: true }).click();
+        await expect(
+          page.getByLabel("X rotation degrees", { exact: true }),
+        ).toBeVisible();
+        await page.evaluate(() => {
+          const flags = window as unknown as { avatarReloads: number };
+          flags.avatarReloads = 0;
+          new MutationObserver(() => {
+            if (document.body.innerText.includes("Loading Avatar…"))
+              flags.avatarReloads += 1;
+          }).observe(document.body, { childList: true, subtree: true });
+        });
+        const box = await page
+          .locator('[data-testid="action-editor-canvas"]:visible')
+          .boundingBox();
+        expect(box).not.toBeNull();
+        for (const [fx, fy] of [
+          [0.5, 0.3],
+          [0.45, 0.4],
+          [0.55, 0.7],
+          [0.5, 0.5],
+        ])
+          await page.mouse.click(
+            box!.x + box!.width * fx,
+            box!.y + box!.height * fy,
+          );
+        await page.waitForTimeout(500);
+        expect(
+          await page.evaluate(
+            () =>
+              (window as unknown as { avatarReloads: number }).avatarReloads,
+          ),
+        ).toBe(0);
+      });
     } catch (error) {
       // Report the journey's own failure ahead of any cleanup failure.
       failure = error;

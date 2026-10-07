@@ -223,7 +223,8 @@ describe("hand edits through existing pose content paths", () => {
           .angleTo(
             new Quaternion().fromArray(edited.humanoid![name]!.rotation!),
           ),
-      ).toBeLessThan(1e-6);
+        // Keys are stored at the saved precision (5 decimals).
+      ).toBeLessThan(1e-4);
     }
     usePoseCreatorStore.getState().undoClip();
     expect(builtClip()).toEqual(original);
