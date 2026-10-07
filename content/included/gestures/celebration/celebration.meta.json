@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:celebration",
+  "version": 1,
+  "semantic_key": "celebration",
+  "name": "Celebration",
+  "ai_description": "Throws both arms up in a cheer and bounces. Use to celebrate good news or a win.",
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [],
+  "files": [
+    {
+      "path": "celebration.json",
+      "role": "sequence"
+    }
+  ]
+}

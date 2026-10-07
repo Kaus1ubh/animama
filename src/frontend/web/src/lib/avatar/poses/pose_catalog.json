@@ -89,6 +89,66 @@
     {
       "id": "meme-dab",
       "source": "./json/clips/meme-dab.json"
+    },
+    {
+      "id": "attentive-lean-in",
+      "source": "./json/clips/attentive-lean-in.json"
+    },
+    {
+      "id": "blow-a-kiss",
+      "source": "./json/clips/blow-a-kiss.json"
+    },
+    {
+      "id": "celebration",
+      "source": "./json/clips/celebration.json"
+    },
+    {
+      "id": "deflated-sigh",
+      "source": "./json/clips/deflated-sigh.json"
+    },
+    {
+      "id": "enthusiastic-yes",
+      "source": "./json/clips/enthusiastic-yes.json"
+    },
+    {
+      "id": "gentle-head-shake",
+      "source": "./json/clips/gentle-head-shake.json"
+    },
+    {
+      "id": "hysterical-laughter",
+      "source": "./json/clips/hysterical-laughter.json"
+    },
+    {
+      "id": "medium-laugh",
+      "source": "./json/clips/medium-laugh.json"
+    },
+    {
+      "id": "mild-laugh",
+      "source": "./json/clips/mild-laugh.json"
+    },
+    {
+      "id": "polite-bow",
+      "source": "./json/clips/polite-bow.json"
+    },
+    {
+      "id": "pout-huff",
+      "source": "./json/clips/pout-huff.json"
+    },
+    {
+      "id": "shy-giggle",
+      "source": "./json/clips/shy-giggle.json"
+    },
+    {
+      "id": "small-shy-wave",
+      "source": "./json/clips/small-shy-wave.json"
+    },
+    {
+      "id": "storytelling",
+      "source": "./json/clips/storytelling.json"
+    },
+    {
+      "id": "surprise-gasp",
+      "source": "./json/clips/surprise-gasp.json"
     }
   ]
 }

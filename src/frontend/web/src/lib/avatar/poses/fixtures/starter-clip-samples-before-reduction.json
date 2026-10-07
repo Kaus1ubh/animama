@@ -68,31 +68,6 @@
       ]
     },
     {
-      "id": "thinking-head-scratch",
-      "samples": [
-        {
-          "time": 0,
-          "sha256": "31e207292d8294c750e0a921e9f22fda5cba23b8a6cdb867a74516cf41531db4"
-        },
-        {
-          "time": 0.3,
-          "sha256": "de28a8578764e99d7ed55cf3e2b4d62be59314799179f100f8dbbd5396fe4c84"
-        },
-        {
-          "time": 0.6,
-          "sha256": "ef3c7dbac791875684f40fae5c9797f589e72075f05ec27fa8c1573b6ba5f78c"
-        },
-        {
-          "time": 0.8999999999999999,
-          "sha256": "e499ac7362b6da98925d708fd53854f5a742b0e27fd3412d0103a287f8494a3f"
-        },
-        {
-          "time": 1.2,
-          "sha256": "31e207292d8294c750e0a921e9f22fda5cba23b8a6cdb867a74516cf41531db4"
-        }
-      ]
-    },
-    {
       "id": "thinking-hand-on-chin-hold",
       "samples": [
         {
@@ -191,40 +166,6 @@
         {
           "time": 1,
           "sha256": "8bf8efb70e5632251b315d047227ef1dce611be4b5a518d826f000a45db4c0b4"
-        }
-      ]
-    },
-    {
-      "id": "hands-on-hips",
-      "samples": [
-        {
-          "time": 0,
-          "sha256": "00fdcf810516d216b4504797e51975af78c5806e47054dce66d4bdf8b93a8c51"
-        },
-        {
-          "time": 0.5,
-          "sha256": "00fdcf810516d216b4504797e51975af78c5806e47054dce66d4bdf8b93a8c51"
-        },
-        {
-          "time": 1,
-          "sha256": "00fdcf810516d216b4504797e51975af78c5806e47054dce66d4bdf8b93a8c51"
-        }
-      ]
-    },
-    {
-      "id": "arms-crossed",
-      "samples": [
-        {
-          "time": 0,
-          "sha256": "e448a164cdde6c2fad886f2d496f3297f72496422d816f00178730adf12811f6"
-        },
-        {
-          "time": 0.5,
-          "sha256": "e448a164cdde6c2fad886f2d496f3297f72496422d816f00178730adf12811f6"
-        },
-        {
-          "time": 1,
-          "sha256": "e448a164cdde6c2fad886f2d496f3297f72496422d816f00178730adf12811f6"
         }
       ]
     },
@@ -339,63 +280,6 @@
         {
           "time": 2.25,
           "sha256": "7c8a28dd4c88aa44815d7fcad05a1b30506109ddb0f0534a7d8c985709bc40d1"
-        }
-      ]
-    },
-    {
-      "id": "right-face-palm",
-      "samples": [
-        {
-          "time": 0,
-          "sha256": "d784f413ba500094e0b558a86e18eda3b79cc70e19b2a3755e691a06bb0e9466"
-        },
-        {
-          "time": 0.3,
-          "sha256": "0810e3f45c53f143ca7781b5ad02c74b236a359a421b1606ed6923aa866ffb2c"
-        },
-        {
-          "time": 0.6,
-          "sha256": "b70a7fe48d261df41da7ffe3a1ba08bd4360fd1b2ec32430782be26fedc7e1ea"
-        },
-        {
-          "time": 0.7749999999999999,
-          "sha256": "52be5c1e1fd97ab13c40e0d3f403f7fc8ab7a9210f8f44a7c1167166b943d8d6"
-        },
-        {
-          "time": 0.95,
-          "sha256": "3ceefd8396c29291ebf5116fa4bb8b5e8deb384d880f4f3ee37a0964dc0d797d"
-        },
-        {
-          "time": 1.115,
-          "sha256": "2e4d73575347269cd72ea2e9f9324836da0bc963f50be3dee1465001e44e83c6"
-        },
-        {
-          "time": 1.28,
-          "sha256": "3efab54da967673d334611c0f1b9951201d9caa32353dd4de93724fbb374db78"
-        },
-        {
-          "time": 1.4500000000000002,
-          "sha256": "6b99d01dc0c751ddd4dddddfb26ce31a1b40cdb357f4101864ca849e963ba2dc"
-        },
-        {
-          "time": 1.62,
-          "sha256": "cab9a72913d2373b09aea0a247ef2b5c618cdbf21d289ebfe993bfa6f5135d34"
-        },
-        {
-          "time": 1.835,
-          "sha256": "8716e2dd7449cf74773e7038634665d971658d547cfd25abb8a1fd95a0d233ed"
-        },
-        {
-          "time": 2.05,
-          "sha256": "b70a7fe48d261df41da7ffe3a1ba08bd4360fd1b2ec32430782be26fedc7e1ea"
-        },
-        {
-          "time": 2.325,
-          "sha256": "0810e3f45c53f143ca7781b5ad02c74b236a359a421b1606ed6923aa866ffb2c"
-        },
-        {
-          "time": 2.6,
-          "sha256": "d784f413ba500094e0b558a86e18eda3b79cc70e19b2a3755e691a06bb0e9466"
         }
       ]
     },
@@ -551,88 +435,6 @@
         },
         {
           "time": 1.6,
-          "sha256": "accc32772e93811b79a94d55e23b17369e52a896d91fc8ac48e1c748a7f128f4"
-        }
-      ]
-    },
-    {
-      "id": "cheeky-finger-guns",
-      "samples": [
-        {
-          "time": 0,
-          "sha256": "accc32772e93811b79a94d55e23b17369e52a896d91fc8ac48e1c748a7f128f4"
-        },
-        {
-          "time": 0.125,
-          "sha256": "dccbcbee44e55c670fdb64000196be9e5ba05715a9583e989c04f7818cb391f2"
-        },
-        {
-          "time": 0.25,
-          "sha256": "2f453da042cdc32c2b162ee0eb025f3eddb5b135fb3a5477d3618dd7a3e8382a"
-        },
-        {
-          "time": 0.435,
-          "sha256": "2d223138893749a60d6be8c81af15db911c226d9abfa11321f38c9ef60c09bb6"
-        },
-        {
-          "time": 0.62,
-          "sha256": "9038baa3df23a6428ccf5d4abbf6a0598fa9a0cd8e8bf464f5cea267b8eb3eaf"
-        },
-        {
-          "time": 0.76,
-          "sha256": "2d223138893749a60d6be8c81af15db911c226d9abfa11321f38c9ef60c09bb6"
-        },
-        {
-          "time": 0.9,
-          "sha256": "2f453da042cdc32c2b162ee0eb025f3eddb5b135fb3a5477d3618dd7a3e8382a"
-        },
-        {
-          "time": 1.175,
-          "sha256": "dccbcbee44e55c670fdb64000196be9e5ba05715a9583e989c04f7818cb391f2"
-        },
-        {
-          "time": 1.45,
-          "sha256": "accc32772e93811b79a94d55e23b17369e52a896d91fc8ac48e1c748a7f128f4"
-        }
-      ]
-    },
-    {
-      "id": "cat-monster-rawr",
-      "samples": [
-        {
-          "time": 0,
-          "sha256": "accc32772e93811b79a94d55e23b17369e52a896d91fc8ac48e1c748a7f128f4"
-        },
-        {
-          "time": 0.14,
-          "sha256": "b09ba1cef30c38fe6160895bc5e89a6da7cb071b6e95e5f17d3c19985e73029d"
-        },
-        {
-          "time": 0.28,
-          "sha256": "49e48bcebb5ae4a15f1c82c42b24a694ad6d196b104de27ea3976aad4de89860"
-        },
-        {
-          "time": 0.48000000000000004,
-          "sha256": "ccc482818c5beb400a3a875b96edc817261aedaccc9b8314e8883ecfd34998d1"
-        },
-        {
-          "time": 0.68,
-          "sha256": "6d36f08a8dc475ff46a69e6f7b982ebcf173321685513640e9558280e7e45ca9"
-        },
-        {
-          "time": 0.8300000000000001,
-          "sha256": "ccc482818c5beb400a3a875b96edc817261aedaccc9b8314e8883ecfd34998d1"
-        },
-        {
-          "time": 0.98,
-          "sha256": "49e48bcebb5ae4a15f1c82c42b24a694ad6d196b104de27ea3976aad4de89860"
-        },
-        {
-          "time": 1.2650000000000001,
-          "sha256": "b09ba1cef30c38fe6160895bc5e89a6da7cb071b6e95e5f17d3c19985e73029d"
-        },
-        {
-          "time": 1.55,
           "sha256": "accc32772e93811b79a94d55e23b17369e52a896d91fc8ac48e1c748a7f128f4"
         }
       ]

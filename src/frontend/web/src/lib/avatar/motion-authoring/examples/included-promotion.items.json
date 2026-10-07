@@ -1,0 +1,401 @@
+[
+  {
+    "clip": "./arms-crossed.clip.json",
+    "mode": "replace",
+    "name": "arms-crossed",
+    "selectorId": "arms-crossed",
+    "aiDescription": "Cross both arms to express skepticism, disagreement, or a firm stance.",
+    "licence": {
+      "creator": "Animama project; authored by an AI coding agent under the owner's direction",
+      "provenance": "Agent-authored animaPoseClip/2.0 Gesture definition and metadata, written from text prompts with the animama-animation skill (#282) under the owner's direction; source tracked in src/frontend/web/src/lib/avatar/motion-authoring/examples/. Contains no third-party animation, motion-capture or VRMA data. The owner reviewed the motion and approved inclusion on 2026-10-07 (gates G1-G4). The owner-authorship attestation for gestures/**/*.json does not cover these files; copyright status of AI-generated material must be reviewed before public release.",
+      "license_id": "LicenseRef-Animama-agent-authored",
+      "redistribution_review": "pending"
+    },
+    "sourceReview": {
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill); owner-reviewed and approved 2026-10-07; no third-party animation data",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    }
+  },
+  {
+    "clip": "./cat-monster-rawr.clip.json",
+    "mode": "replace",
+    "name": "cat-monster-rawr",
+    "selectorId": "cat-monster-rawr",
+    "aiDescription": "Make a playful clawing pose for a pretend roar, mischievous teasing, or mock intimidation.",
+    "licence": {
+      "creator": "Animama project; authored by an AI coding agent under the owner's direction",
+      "provenance": "Agent-authored animaPoseClip/2.0 Gesture definition and metadata, written from text prompts with the animama-animation skill (#282) under the owner's direction; source tracked in src/frontend/web/src/lib/avatar/motion-authoring/examples/. Contains no third-party animation, motion-capture or VRMA data. The owner reviewed the motion and approved inclusion on 2026-10-07 (gates G1-G4). The owner-authorship attestation for gestures/**/*.json does not cover these files; copyright status of AI-generated material must be reviewed before public release.",
+      "license_id": "LicenseRef-Animama-agent-authored",
+      "redistribution_review": "pending"
+    },
+    "sourceReview": {
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill); owner-reviewed and approved 2026-10-07; no third-party animation data",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    }
+  },
+  {
+    "clip": "./cheeky-finger-guns.clip.json",
+    "mode": "replace",
+    "name": "cheeky-finger-guns",
+    "selectorId": "cheeky-finger-guns",
+    "aiDescription": "Point playful finger guns to punctuate a joke, cheeky compliment, or confident agreement.",
+    "licence": {
+      "creator": "Animama project; authored by an AI coding agent under the owner's direction",
+      "provenance": "Agent-authored animaPoseClip/2.0 Gesture definition and metadata, written from text prompts with the animama-animation skill (#282) under the owner's direction; source tracked in src/frontend/web/src/lib/avatar/motion-authoring/examples/. Contains no third-party animation, motion-capture or VRMA data. The owner reviewed the motion and approved inclusion on 2026-10-07 (gates G1-G4). The owner-authorship attestation for gestures/**/*.json does not cover these files; copyright status of AI-generated material must be reviewed before public release.",
+      "license_id": "LicenseRef-Animama-agent-authored",
+      "redistribution_review": "pending"
+    },
+    "sourceReview": {
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill); owner-reviewed and approved 2026-10-07; no third-party animation data",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    }
+  },
+  {
+    "clip": "./hands-on-hips.clip.json",
+    "mode": "replace",
+    "name": "hands-on-hips",
+    "selectorId": "hands-on-hips",
+    "aiDescription": "Place both hands on the hips to express confidence, determination, or playful impatience.",
+    "licence": {
+      "creator": "Animama project; authored by an AI coding agent under the owner's direction",
+      "provenance": "Agent-authored animaPoseClip/2.0 Gesture definition and metadata, written from text prompts with the animama-animation skill (#282) under the owner's direction; source tracked in src/frontend/web/src/lib/avatar/motion-authoring/examples/. Contains no third-party animation, motion-capture or VRMA data. The owner reviewed the motion and approved inclusion on 2026-10-07 (gates G1-G4). The owner-authorship attestation for gestures/**/*.json does not cover these files; copyright status of AI-generated material must be reviewed before public release.",
+      "license_id": "LicenseRef-Animama-agent-authored",
+      "redistribution_review": "pending"
+    },
+    "sourceReview": {
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill); owner-reviewed and approved 2026-10-07; no third-party animation data",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    }
+  },
+  {
+    "clip": "./right-face-palm.clip.json",
+    "mode": "replace",
+    "name": "right-face-palm",
+    "selectorId": "right-face-palm",
+    "aiDescription": "Cover the face with the right hand to react to an obvious mistake, awkward moment, or exasperating situation.",
+    "licence": {
+      "creator": "Animama project; authored by an AI coding agent under the owner's direction",
+      "provenance": "Agent-authored animaPoseClip/2.0 Gesture definition and metadata, written from text prompts with the animama-animation skill (#282) under the owner's direction; source tracked in src/frontend/web/src/lib/avatar/motion-authoring/examples/. Contains no third-party animation, motion-capture or VRMA data. The owner reviewed the motion and approved inclusion on 2026-10-07 (gates G1-G4). The owner-authorship attestation for gestures/**/*.json does not cover these files; copyright status of AI-generated material must be reviewed before public release.",
+      "license_id": "LicenseRef-Animama-agent-authored",
+      "redistribution_review": "pending"
+    },
+    "sourceReview": {
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill); owner-reviewed and approved 2026-10-07; no third-party animation data",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    }
+  },
+  {
+    "clip": "./thinking-head-scratch.clip.json",
+    "mode": "replace",
+    "name": "thinking-head-scratch",
+    "selectorId": "thinking-head-scratch",
+    "aiDescription": "Scratch the head to express puzzlement, uncertainty, or an attempt to work something out.",
+    "licence": {
+      "creator": "Animama project; authored by an AI coding agent under the owner's direction",
+      "provenance": "Agent-authored animaPoseClip/2.0 Gesture definition and metadata, written from text prompts with the animama-animation skill (#282) under the owner's direction; source tracked in src/frontend/web/src/lib/avatar/motion-authoring/examples/. Contains no third-party animation, motion-capture or VRMA data. The owner reviewed the motion and approved inclusion on 2026-10-07 (gates G1-G4). The owner-authorship attestation for gestures/**/*.json does not cover these files; copyright status of AI-generated material must be reviewed before public release.",
+      "license_id": "LicenseRef-Animama-agent-authored",
+      "redistribution_review": "pending"
+    },
+    "sourceReview": {
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill); owner-reviewed and approved 2026-10-07; no third-party animation data",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    }
+  },
+  {
+    "clip": "./attentive-lean-in.clip.json",
+    "mode": "add",
+    "name": "Attentive Lean In",
+    "selectorId": "attentive_lean_in",
+    "aiDescription": "A looping, attentive lean forward with small nods and head tilts. Use while listening closely or showing interest.",
+    "licence": {
+      "creator": "Animama project; authored by an AI coding agent under the owner's direction",
+      "provenance": "Agent-authored animaPoseClip/2.0 Gesture definition and metadata, written from text prompts with the animama-animation skill (#282) under the owner's direction; source tracked in src/frontend/web/src/lib/avatar/motion-authoring/examples/. Contains no third-party animation, motion-capture or VRMA data. The owner reviewed the motion and approved inclusion on 2026-10-07 (gates G1-G4). The owner-authorship attestation for gestures/**/*.json does not cover these files; copyright status of AI-generated material must be reviewed before public release.",
+      "license_id": "LicenseRef-Animama-agent-authored",
+      "redistribution_review": "pending"
+    },
+    "sourceReview": {
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill); owner-reviewed and approved 2026-10-07; no third-party animation data",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    }
+  },
+  {
+    "clip": "./blow-a-kiss.clip.json",
+    "mode": "add",
+    "name": "Blow a Kiss",
+    "selectorId": "blow_kiss",
+    "aiDescription": "Kisses the fingertips and sends the kiss forward with a smile. Use for affectionate goodbyes or thanks.",
+    "licence": {
+      "creator": "Animama project; authored by an AI coding agent under the owner's direction",
+      "provenance": "Agent-authored animaPoseClip/2.0 Gesture definition and metadata, written from text prompts with the animama-animation skill (#282) under the owner's direction; source tracked in src/frontend/web/src/lib/avatar/motion-authoring/examples/. Contains no third-party animation, motion-capture or VRMA data. The owner reviewed the motion and approved inclusion on 2026-10-07 (gates G1-G4). The owner-authorship attestation for gestures/**/*.json does not cover these files; copyright status of AI-generated material must be reviewed before public release.",
+      "license_id": "LicenseRef-Animama-agent-authored",
+      "redistribution_review": "pending"
+    },
+    "sourceReview": {
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill); owner-reviewed and approved 2026-10-07; no third-party animation data",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    }
+  },
+  {
+    "clip": "./celebration.clip.json",
+    "mode": "add",
+    "name": "Celebration",
+    "selectorId": "celebration",
+    "aiDescription": "Throws both arms up in a cheer and bounces. Use to celebrate good news or a win.",
+    "licence": {
+      "creator": "Animama project; authored by an AI coding agent under the owner's direction",
+      "provenance": "Agent-authored animaPoseClip/2.0 Gesture definition and metadata, written from text prompts with the animama-animation skill (#282) under the owner's direction; source tracked in src/frontend/web/src/lib/avatar/motion-authoring/examples/. Contains no third-party animation, motion-capture or VRMA data. The owner reviewed the motion and approved inclusion on 2026-10-07 (gates G1-G4). The owner-authorship attestation for gestures/**/*.json does not cover these files; copyright status of AI-generated material must be reviewed before public release.",
+      "license_id": "LicenseRef-Animama-agent-authored",
+      "redistribution_review": "pending"
+    },
+    "sourceReview": {
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill); owner-reviewed and approved 2026-10-07; no third-party animation data",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    }
+  },
+  {
+    "clip": "./deflated-sigh.clip.json",
+    "mode": "add",
+    "name": "Deflated Sigh",
+    "selectorId": "deflated_sigh",
+    "aiDescription": "A long sigh: breathes in, then the shoulders and chest slump. Use for disappointment, tiredness or resignation.",
+    "licence": {
+      "creator": "Animama project; authored by an AI coding agent under the owner's direction",
+      "provenance": "Agent-authored animaPoseClip/2.0 Gesture definition and metadata, written from text prompts with the animama-animation skill (#282) under the owner's direction; source tracked in src/frontend/web/src/lib/avatar/motion-authoring/examples/. Contains no third-party animation, motion-capture or VRMA data. The owner reviewed the motion and approved inclusion on 2026-10-07 (gates G1-G4). The owner-authorship attestation for gestures/**/*.json does not cover these files; copyright status of AI-generated material must be reviewed before public release.",
+      "license_id": "LicenseRef-Animama-agent-authored",
+      "redistribution_review": "pending"
+    },
+    "sourceReview": {
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill); owner-reviewed and approved 2026-10-07; no third-party animation data",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    }
+  },
+  {
+    "clip": "./enthusiastic-yes.clip.json",
+    "mode": "add",
+    "name": "Enthusiastic Yes",
+    "selectorId": "enthusiastic_yes",
+    "aiDescription": "An eager nod with a small fist pump. Use to agree excitedly or say an emphatic yes.",
+    "licence": {
+      "creator": "Animama project; authored by an AI coding agent under the owner's direction",
+      "provenance": "Agent-authored animaPoseClip/2.0 Gesture definition and metadata, written from text prompts with the animama-animation skill (#282) under the owner's direction; source tracked in src/frontend/web/src/lib/avatar/motion-authoring/examples/. Contains no third-party animation, motion-capture or VRMA data. The owner reviewed the motion and approved inclusion on 2026-10-07 (gates G1-G4). The owner-authorship attestation for gestures/**/*.json does not cover these files; copyright status of AI-generated material must be reviewed before public release.",
+      "license_id": "LicenseRef-Animama-agent-authored",
+      "redistribution_review": "pending"
+    },
+    "sourceReview": {
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill); owner-reviewed and approved 2026-10-07; no third-party animation data",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    }
+  },
+  {
+    "clip": "./gentle-head-shake.clip.json",
+    "mode": "add",
+    "name": "Gentle Head Shake",
+    "selectorId": "head_shake_no",
+    "aiDescription": "A soft side-to-side head shake meaning no. Use to decline gently or disagree kindly.",
+    "licence": {
+      "creator": "Animama project; authored by an AI coding agent under the owner's direction",
+      "provenance": "Agent-authored animaPoseClip/2.0 Gesture definition and metadata, written from text prompts with the animama-animation skill (#282) under the owner's direction; source tracked in src/frontend/web/src/lib/avatar/motion-authoring/examples/. Contains no third-party animation, motion-capture or VRMA data. The owner reviewed the motion and approved inclusion on 2026-10-07 (gates G1-G4). The owner-authorship attestation for gestures/**/*.json does not cover these files; copyright status of AI-generated material must be reviewed before public release.",
+      "license_id": "LicenseRef-Animama-agent-authored",
+      "redistribution_review": "pending"
+    },
+    "sourceReview": {
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill); owner-reviewed and approved 2026-10-07; no third-party animation data",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    }
+  },
+  {
+    "clip": "./hysterical-laughter.clip.json",
+    "mode": "add",
+    "name": "Hysterical Laughter",
+    "selectorId": "laugh_hysterical",
+    "aiDescription": "Uncontrollable laughter: doubles over holding the stomach, slaps the thigh, wipes away a tear and recovers. Use for something hilarious.",
+    "licence": {
+      "creator": "Animama project; authored by an AI coding agent under the owner's direction",
+      "provenance": "Agent-authored animaPoseClip/2.0 Gesture definition and metadata, written from text prompts with the animama-animation skill (#282) under the owner's direction; source tracked in src/frontend/web/src/lib/avatar/motion-authoring/examples/. Contains no third-party animation, motion-capture or VRMA data. The owner reviewed the motion and approved inclusion on 2026-10-07 (gates G1-G4). The owner-authorship attestation for gestures/**/*.json does not cover these files; copyright status of AI-generated material must be reviewed before public release.",
+      "license_id": "LicenseRef-Animama-agent-authored",
+      "redistribution_review": "pending"
+    },
+    "sourceReview": {
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill); owner-reviewed and approved 2026-10-07; no third-party animation data",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    }
+  },
+  {
+    "clip": "./medium-laugh.clip.json",
+    "mode": "add",
+    "name": "Medium Laugh",
+    "selectorId": "laugh_medium",
+    "aiDescription": "A hearty laugh: the head tips back, the shoulders bounce, one hand comes to the belly and the other bounces at the side. Use when something is clearly funny.",
+    "licence": {
+      "creator": "Animama project; authored by an AI coding agent under the owner's direction",
+      "provenance": "Agent-authored animaPoseClip/2.0 Gesture definition and metadata, written from text prompts with the animama-animation skill (#282) under the owner's direction; source tracked in src/frontend/web/src/lib/avatar/motion-authoring/examples/. Contains no third-party animation, motion-capture or VRMA data. The owner reviewed the motion and approved inclusion on 2026-10-07 (gates G1-G4). The owner-authorship attestation for gestures/**/*.json does not cover these files; copyright status of AI-generated material must be reviewed before public release.",
+      "license_id": "LicenseRef-Animama-agent-authored",
+      "redistribution_review": "pending"
+    },
+    "sourceReview": {
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill); owner-reviewed and approved 2026-10-07; no third-party animation data",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    }
+  },
+  {
+    "clip": "./mild-laugh.clip.json",
+    "mode": "add",
+    "name": "Mild Laugh",
+    "selectorId": "laugh_mild",
+    "aiDescription": "A light chuckle with a small shoulder shake and a hand near the mouth. Use for mildly amusing moments, a gentle joke or a polite laugh.",
+    "licence": {
+      "creator": "Animama project; authored by an AI coding agent under the owner's direction",
+      "provenance": "Agent-authored animaPoseClip/2.0 Gesture definition and metadata, written from text prompts with the animama-animation skill (#282) under the owner's direction; source tracked in src/frontend/web/src/lib/avatar/motion-authoring/examples/. Contains no third-party animation, motion-capture or VRMA data. The owner reviewed the motion and approved inclusion on 2026-10-07 (gates G1-G4). The owner-authorship attestation for gestures/**/*.json does not cover these files; copyright status of AI-generated material must be reviewed before public release.",
+      "license_id": "LicenseRef-Animama-agent-authored",
+      "redistribution_review": "pending"
+    },
+    "sourceReview": {
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill); owner-reviewed and approved 2026-10-07; no third-party animation data",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    }
+  },
+  {
+    "clip": "./polite-bow.clip.json",
+    "mode": "add",
+    "name": "Polite Bow",
+    "selectorId": "polite_bow",
+    "aiDescription": "A polite bow from the hips with the arms at the sides. Use to thank, apologise or greet formally.",
+    "licence": {
+      "creator": "Animama project; authored by an AI coding agent under the owner's direction",
+      "provenance": "Agent-authored animaPoseClip/2.0 Gesture definition and metadata, written from text prompts with the animama-animation skill (#282) under the owner's direction; source tracked in src/frontend/web/src/lib/avatar/motion-authoring/examples/. Contains no third-party animation, motion-capture or VRMA data. The owner reviewed the motion and approved inclusion on 2026-10-07 (gates G1-G4). The owner-authorship attestation for gestures/**/*.json does not cover these files; copyright status of AI-generated material must be reviewed before public release.",
+      "license_id": "LicenseRef-Animama-agent-authored",
+      "redistribution_review": "pending"
+    },
+    "sourceReview": {
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill); owner-reviewed and approved 2026-10-07; no third-party animation data",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    }
+  },
+  {
+    "clip": "./pout-huff.clip.json",
+    "mode": "add",
+    "name": "Pout Huff",
+    "selectorId": "pout_huff",
+    "aiDescription": "Crosses the arms, huffs and turns the head away with a pout. Use for playful annoyance or sulking.",
+    "licence": {
+      "creator": "Animama project; authored by an AI coding agent under the owner's direction",
+      "provenance": "Agent-authored animaPoseClip/2.0 Gesture definition and metadata, written from text prompts with the animama-animation skill (#282) under the owner's direction; source tracked in src/frontend/web/src/lib/avatar/motion-authoring/examples/. Contains no third-party animation, motion-capture or VRMA data. The owner reviewed the motion and approved inclusion on 2026-10-07 (gates G1-G4). The owner-authorship attestation for gestures/**/*.json does not cover these files; copyright status of AI-generated material must be reviewed before public release.",
+      "license_id": "LicenseRef-Animama-agent-authored",
+      "redistribution_review": "pending"
+    },
+    "sourceReview": {
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill); owner-reviewed and approved 2026-10-07; no third-party animation data",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    }
+  },
+  {
+    "clip": "./shy-giggle.clip.json",
+    "mode": "add",
+    "name": "Shy Giggle",
+    "selectorId": "shy_giggle",
+    "aiDescription": "A bashful giggle, hiding the mouth behind one hand with the other palm on the cheek. Use when flattered, embarrassed or teased.",
+    "licence": {
+      "creator": "Animama project; authored by an AI coding agent under the owner's direction",
+      "provenance": "Agent-authored animaPoseClip/2.0 Gesture definition and metadata, written from text prompts with the animama-animation skill (#282) under the owner's direction; source tracked in src/frontend/web/src/lib/avatar/motion-authoring/examples/. Contains no third-party animation, motion-capture or VRMA data. The owner reviewed the motion and approved inclusion on 2026-10-07 (gates G1-G4). The owner-authorship attestation for gestures/**/*.json does not cover these files; copyright status of AI-generated material must be reviewed before public release.",
+      "license_id": "LicenseRef-Animama-agent-authored",
+      "redistribution_review": "pending"
+    },
+    "sourceReview": {
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill); owner-reviewed and approved 2026-10-07; no third-party animation data",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    }
+  },
+  {
+    "clip": "./small-shy-wave.clip.json",
+    "mode": "add",
+    "name": "Small Shy Wave",
+    "selectorId": "shy_wave",
+    "aiDescription": "A small, shy wave close to the body with a tilted head. Use for a timid hello or goodbye.",
+    "licence": {
+      "creator": "Animama project; authored by an AI coding agent under the owner's direction",
+      "provenance": "Agent-authored animaPoseClip/2.0 Gesture definition and metadata, written from text prompts with the animama-animation skill (#282) under the owner's direction; source tracked in src/frontend/web/src/lib/avatar/motion-authoring/examples/. Contains no third-party animation, motion-capture or VRMA data. The owner reviewed the motion and approved inclusion on 2026-10-07 (gates G1-G4). The owner-authorship attestation for gestures/**/*.json does not cover these files; copyright status of AI-generated material must be reviewed before public release.",
+      "license_id": "LicenseRef-Animama-agent-authored",
+      "redistribution_review": "pending"
+    },
+    "sourceReview": {
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill); owner-reviewed and approved 2026-10-07; no third-party animation data",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    }
+  },
+  {
+    "clip": "./storytelling.clip.json",
+    "mode": "add",
+    "name": "Storytelling",
+    "selectorId": "tell_story",
+    "aiDescription": "A 20-second storytelling sequence: thinks, has an idea with a finger up, explains with both hands, shrugs, then laughs. Use when telling a story or explaining an idea at length.",
+    "licence": {
+      "creator": "Animama project; authored by an AI coding agent under the owner's direction",
+      "provenance": "Agent-authored animaPoseClip/2.0 Gesture definition and metadata, written from text prompts with the animama-animation skill (#282) under the owner's direction; source tracked in src/frontend/web/src/lib/avatar/motion-authoring/examples/. Contains no third-party animation, motion-capture or VRMA data. The owner reviewed the motion and approved inclusion on 2026-10-07 (gates G1-G4). The owner-authorship attestation for gestures/**/*.json does not cover these files; copyright status of AI-generated material must be reviewed before public release.",
+      "license_id": "LicenseRef-Animama-agent-authored",
+      "redistribution_review": "pending"
+    },
+    "sourceReview": {
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill); owner-reviewed and approved 2026-10-07; no third-party animation data",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    }
+  },
+  {
+    "clip": "./surprise-gasp.clip.json",
+    "mode": "add",
+    "name": "Surprise Gasp",
+    "selectorId": "surprise_gasp",
+    "aiDescription": "A quick startled gasp: leans back with both hands to the cheeks and wide eyes. Use for a sudden surprise or shocking news.",
+    "licence": {
+      "creator": "Animama project; authored by an AI coding agent under the owner's direction",
+      "provenance": "Agent-authored animaPoseClip/2.0 Gesture definition and metadata, written from text prompts with the animama-animation skill (#282) under the owner's direction; source tracked in src/frontend/web/src/lib/avatar/motion-authoring/examples/. Contains no third-party animation, motion-capture or VRMA data. The owner reviewed the motion and approved inclusion on 2026-10-07 (gates G1-G4). The owner-authorship attestation for gestures/**/*.json does not cover these files; copyright status of AI-generated material must be reviewed before public release.",
+      "license_id": "LicenseRef-Animama-agent-authored",
+      "redistribution_review": "pending"
+    },
+    "sourceReview": {
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill); owner-reviewed and approved 2026-10-07; no third-party animation data",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    }
+  }
+]

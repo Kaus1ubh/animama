@@ -471,9 +471,12 @@ parent chain cannot resolve are also skipped, so UI lists only usable catalog
 poses. `getAvatarPose(...)` returns the raw catalog artifact, while
 `getResolvedAvatarPose(...)` returns a parent-free clone from a cached resolved
 catalog path so per-frame clip playback does not repeatedly walk parent
-chains. To register an exported clip for runtime debug playback, add the clip
-JSON under `poses/json/clips/` and add its id/path metadata to
-`pose_catalog.json`.
+chains. Gesture clips may be `animaPoseClip/1.0` or `/2.0`; `getAvatarPoseClip(...)`
+returns a fresh copy of either. Each Included `anima_clip` Gesture has a
+byte-identical copy under `poses/json/clips/`, registered in `pose_catalog.json`
+(`catalog.content.test.ts` enforces this); the animation skill's
+`pnpm -s animation promote` keeps the two in step. Internal poses of Gestures
+replaced by 2.0 clips stay in `json/internal-poses/` for imported 1.0 packages.
 
 Reaction clips are loaded separately from `poses/json/clips/reactions/` by file
 name. The canonical catalog contains 72 files: each `TRACKED_EMOTIONS` value

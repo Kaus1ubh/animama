@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:attentive-lean-in",
+  "version": 1,
+  "semantic_key": "attentive_lean_in",
+  "name": "Attentive Lean In",
+  "ai_description": "A looping, attentive lean forward with small nods and head tilts. Use while listening closely or showing interest.",
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [],
+  "files": [
+    {
+      "path": "attentive-lean-in.json",
+      "role": "sequence"
+    }
+  ]
+}
