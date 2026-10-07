@@ -13,7 +13,7 @@ import {
   type MotionCheckContact,
   type MotionCheckFinding,
 } from "./checks";
-import wave from "./examples/wave-hello.clip.json";
+import wave from "../../../../../../../content/included/gestures/wave-hello/wave-hello.json";
 import { getAvatarPoseClip } from "../poses/catalog";
 import { loadTestAvatar } from "./testing/includedAvatars";
 
@@ -100,7 +100,7 @@ const headTurn = (degrees: number) => ({
 });
 
 describe("checkMotion", () => {
-  it("passes the shipped example on both Avatars", () => {
+  it("passes an Included Gesture on both Avatars", () => {
     const report = checkMotion(wave, avatars());
     expect(report.findings.filter((f) => f.severity === "fail")).toEqual([]);
     expect(report.ok).toBe(true);

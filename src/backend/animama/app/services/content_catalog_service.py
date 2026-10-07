@@ -13,6 +13,7 @@ from animama.app.services.content_access_policy import ContentAccessPolicy
 from animama.app.services.content_kind_registry import RETIRED_CONTENT_KINDS
 from animama.app.services.local_content_mutations import LocalContentMutations, mutation_digest
 from animama.domain.content_catalog import (
+    CONTENT_SOURCE_LOCK_ORDER,
     CatalogContentEntry,
     ContentConflictError,
     ContentKind,
@@ -77,9 +78,8 @@ class ContentCatalogService:
     ) -> ContentRescanResult:
         """Scan registered roots; a bad entry never prevents reconciliation of peers."""
 
-        sources = [ContentSource.LOCAL]
-        if include_included:
-            sources.insert(0, ContentSource.INCLUDED)
+        # Row-lock helpers rely on this order; see CONTENT_SOURCE_LOCK_ORDER.
+        sources = [source for source in CONTENT_SOURCE_LOCK_ORDER if include_included or source is ContentSource.LOCAL]
         summaries: list[ContentScanSummary] = []
         included_mount_ids = getattr(self._store, "included_mount_ids", None)
         for source in sources:

@@ -31,6 +31,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/ui/components/dialog";
+import {
+  actionManageLoadoutSource,
+  actionManageRowState,
+} from "./actionManageTarget";
 
 export type ManageActionTarget = {
   kind: "gesture" | "reaction";
@@ -91,15 +95,7 @@ export function ActionManageDialog({
   ) => {
     setBusyAnimaId(animaId);
     try {
-      const source =
-        target.source?.type === "catalog" && target.source.source
-          ? {
-              type: "catalog" as const,
-              catalog_item_id: target.source.catalog_item_id,
-              logical_key: target.source.logical_key,
-              source: target.source.source,
-            }
-          : null;
+      const source = actionManageLoadoutSource(target);
       if (!equipped && !source) {
         throw new Error("This Action is not available in the local catalog.");
       }
@@ -211,19 +207,9 @@ export function ActionManageDialog({
         </DialogHeader>
         <div className="space-y-2 py-2">
           {rows.map(({ anima, loadout, pending }) => {
-            const gestureBinding = loadout?.gestures.find(
-              (candidate) => candidate.semantic_key === target.semanticKey,
-            );
-            const reactionCell = loadout?.reactions.find(
-              (candidate) =>
-                candidate.emotion === (target.emotion ?? "joy") &&
-                candidate.intensity === (target.intensity ?? 1),
-            );
-            const selected =
-              target.kind === "gesture" ? gestureBinding : reactionCell;
-            const equipped =
-              selected?.source?.catalog_item_id === target.itemId;
-            const replacing = Boolean(selected && !equipped);
+            const { equipped, replacing } = loadout
+              ? actionManageRowState(target, loadout)
+              : { equipped: false, replacing: false };
             const busy = busyAnimaId === anima.id;
             return (
               <div

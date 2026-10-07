@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:excited-triple-clap",
+  "version": 1,
+  "semantic_key": "excited_clap",
+  "name": "Excited Triple Clap",
+  "ai_description": "Claps three quick times with a big smile. Use to cheer good news, applaud or celebrate someone.",
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [],
+  "files": [
+    {
+      "path": "excited-triple-clap.json",
+      "role": "sequence"
+    }
+  ]
+}

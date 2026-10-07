@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:blow-a-kiss",
+  "version": 1,
+  "semantic_key": "blow_kiss",
+  "name": "Blow a Kiss",
+  "ai_description": "Kisses the fingertips and sends the kiss forward with a smile. Use for affectionate goodbyes or thanks.",
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [],
+  "files": [
+    {
+      "path": "blow-a-kiss.json",
+      "role": "sequence"
+    }
+  ]
+}

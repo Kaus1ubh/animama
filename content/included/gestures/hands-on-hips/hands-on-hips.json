@@ -1,39 +1,342 @@
 {
-  "schema": "animaPoseClip/1.0",
+  "schema": "animaPoseClip/2.0",
   "id": "hands-on-hips",
   "name": "hands-on-hips",
-  "duration": 1,
+  "duration": 2.4,
   "loop": true,
   "basePose": "relaxedRest",
-  "defaultTransition": {
-    "easing": "easeInOutSine",
-    "interpolation": {
-      "humanoidRotation": "slerp",
-      "humanoidPosition": "linear",
-      "expression": "linear"
-    }
-  },
   "fadeIn": {
-    "duration": 0.7,
-    "easing": "easeInOutSine"
+    "duration": 0.6
   },
   "fadeOut": {
-    "duration": 0.7,
-    "easing": "easeInOutSine"
+    "duration": 0.45
   },
-  "poses": {
-    "handsOnHips": {
-      "ref": "hands-on-hips"
-    }
-  },
-  "poseKeyframes": [
+  "mutedProceduralLayers": [
+    "sway",
+    "bounce",
+    "headNod",
+    "headSideTilt",
+    "cursorLookAt",
+    "emotionPosture"
+  ],
+  "plantFeet": true,
+  "beats": [
     {
-      "time": 0,
-      "pose": "handsOnHips"
+      "id": "loop",
+      "label": "Loop",
+      "time": 0
     },
     {
-      "time": 1,
-      "pose": "handsOnHips"
+      "id": "shift",
+      "label": "Shift weight",
+      "time": 1.2
+    },
+    {
+      "id": "end",
+      "label": "End",
+      "time": 2.4
+    }
+  ],
+  "joints": {
+    "leftUpperArm": {
+      "elevation": [
+        {
+          "v": 45,
+          "beat": "loop"
+        },
+        {
+          "v": 46,
+          "beat": "shift"
+        },
+        {
+          "v": 45,
+          "beat": "end"
+        }
+      ],
+      "planeOfElevation": [
+        {
+          "v": -35,
+          "beat": "loop"
+        },
+        {
+          "v": -35,
+          "beat": "end"
+        }
+      ],
+      "rotation": [
+        {
+          "v": -50,
+          "beat": "loop"
+        },
+        {
+          "v": -50,
+          "beat": "end"
+        }
+      ]
+    },
+    "leftLowerArm": {
+      "flexion": [
+        {
+          "v": 100,
+          "beat": "loop"
+        },
+        {
+          "v": 100,
+          "beat": "end"
+        }
+      ],
+      "supination": [
+        {
+          "v": -20,
+          "beat": "loop"
+        },
+        {
+          "v": -20,
+          "beat": "end"
+        }
+      ]
+    },
+    "leftHand": {
+      "flexion": [
+        {
+          "v": -10,
+          "beat": "loop"
+        },
+        {
+          "v": -10,
+          "beat": "end"
+        }
+      ]
+    },
+    "leftShoulder": {
+      "protraction": [
+        {
+          "v": -8,
+          "beat": "loop"
+        },
+        {
+          "v": -8,
+          "beat": "end"
+        }
+      ]
+    },
+    "rightUpperArm": {
+      "elevation": [
+        {
+          "v": 45,
+          "beat": "loop"
+        },
+        {
+          "v": 46,
+          "beat": "shift"
+        },
+        {
+          "v": 45,
+          "beat": "end"
+        }
+      ],
+      "planeOfElevation": [
+        {
+          "v": -35,
+          "beat": "loop"
+        },
+        {
+          "v": -35,
+          "beat": "end"
+        }
+      ],
+      "rotation": [
+        {
+          "v": -50,
+          "beat": "loop"
+        },
+        {
+          "v": -50,
+          "beat": "end"
+        }
+      ]
+    },
+    "rightLowerArm": {
+      "flexion": [
+        {
+          "v": 100,
+          "beat": "loop"
+        },
+        {
+          "v": 100,
+          "beat": "end"
+        }
+      ],
+      "supination": [
+        {
+          "v": -20,
+          "beat": "loop"
+        },
+        {
+          "v": -20,
+          "beat": "end"
+        }
+      ]
+    },
+    "rightHand": {
+      "flexion": [
+        {
+          "v": -10,
+          "beat": "loop"
+        },
+        {
+          "v": -10,
+          "beat": "end"
+        }
+      ]
+    },
+    "rightShoulder": {
+      "protraction": [
+        {
+          "v": -8,
+          "beat": "loop"
+        },
+        {
+          "v": -8,
+          "beat": "end"
+        }
+      ]
+    },
+    "chest": {
+      "flexion": [
+        {
+          "v": -4,
+          "beat": "loop"
+        },
+        {
+          "v": -5,
+          "beat": "shift"
+        },
+        {
+          "v": -4,
+          "beat": "end"
+        }
+      ]
+    },
+    "head": {
+      "flexion": [
+        {
+          "v": -4,
+          "beat": "loop"
+        },
+        {
+          "v": -5,
+          "beat": "shift"
+        },
+        {
+          "v": -4,
+          "beat": "end"
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": 3,
+          "beat": "loop"
+        },
+        {
+          "v": -3,
+          "beat": "shift"
+        },
+        {
+          "v": 3,
+          "beat": "end"
+        }
+      ]
+    },
+    "hips": {
+      "lateralFlexion": [
+        {
+          "v": -2,
+          "beat": "loop"
+        },
+        {
+          "v": 2,
+          "beat": "shift"
+        },
+        {
+          "v": -2,
+          "beat": "end"
+        }
+      ]
+    }
+  },
+  "hipsPosition": {
+    "x": [
+      {
+        "v": 0.012,
+        "beat": "loop"
+      },
+      {
+        "v": -0.012,
+        "beat": "shift"
+      },
+      {
+        "v": 0.012,
+        "beat": "end"
+      }
+    ]
+  },
+  "hands": {
+    "left": [
+      {
+        "preset": "open-together",
+        "curl": 10,
+        "beat": "loop"
+      },
+      {
+        "preset": "open-together",
+        "curl": 10,
+        "beat": "end"
+      }
+    ],
+    "right": [
+      {
+        "preset": "open-together",
+        "curl": 10,
+        "beat": "loop"
+      },
+      {
+        "preset": "open-together",
+        "curl": 10,
+        "beat": "end"
+      }
+    ]
+  },
+  "expressions": {
+    "happy": [
+      {
+        "v": 0.35,
+        "beat": "loop"
+      },
+      {
+        "v": 0.35,
+        "beat": "end"
+      }
+    ]
+  },
+  "contacts": [
+    {
+      "bone": "leftHand",
+      "target": "hips",
+      "beat": "loop",
+      "from": 0,
+      "to": 2.4,
+      "offset": [0.188, 0.093, 0.054],
+      "tolerance": 0.06
+    },
+    {
+      "bone": "rightHand",
+      "target": "hips",
+      "beat": "loop",
+      "from": 0,
+      "to": 2.4,
+      "offset": [-0.188, 0.093, 0.054],
+      "tolerance": 0.06
     }
   ]
 }

@@ -34,6 +34,8 @@ deprecated/
 cache/
 artifacts/synthetic-user-files/
 .animama-stacks/
+# Animation skill drafts before their first save (saved clips live in content/).
+.animama-drafts/
 backups/
 
 # Durable self-hosted files are operator data. Keep only their guides tracked.
