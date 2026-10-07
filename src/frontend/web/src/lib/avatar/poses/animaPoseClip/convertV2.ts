@@ -5,6 +5,7 @@ import { getAnimaPoseClipTimelineDuration } from "./playback";
 import { sampleAnimaPoseClip } from "./sampling";
 import {
   DEFAULT_ANIMA_POSE_CLIP_TRANSITION,
+  isAnimaPoseClipRef,
   type AnimaPoseClip,
   type AnimaPoseClipPoseResolver,
   type QuaternionTuple,
@@ -41,10 +42,14 @@ const REPLACED_FIELDS = new Set([
  * 0). Two 1.0 behaviours are not reproduced (no Included clip uses them): a
  * bone that a keyframe omits without a base pose holds its last value instead
  * of jumping, and `nlerp` rotations become slerp.
+ *
+ * `baseBeatLabel` labels the beats of keyframes that reference the clip's
+ * base pose (the creator's base endpoints).
  */
 export function convertAnimaPoseClipToV2(
   clip: AnimaPoseClip,
   resolvePose: AnimaPoseClipPoseResolver,
+  options: { baseBeatLabel?: string } = {},
 ): AnimaPoseClipV2 {
   const keyframes = clip.poseKeyframes;
   const loop = clip.loop === true;
@@ -55,12 +60,18 @@ export function convertAnimaPoseClipToV2(
       keyframe.transition?.easing ??
       clip.defaultTransition?.easing ??
       DEFAULT_ANIMA_POSE_CLIP_TRANSITION.easing;
+    const pose = clip.poses[keyframe.pose];
+    const isBase =
+      options.baseBeatLabel !== undefined &&
+      clip.basePose !== undefined &&
+      isAnimaPoseClipRef(pose) &&
+      pose.ref === clip.basePose;
     beats.push({
       id: uniqueId(slug(keyframe.pose) || `beat-${index + 1}`, usedIds),
-      label: (humanize(keyframe.pose) || `Beat ${index + 1}`).slice(
-        0,
-        ANIMA_POSE_CLIP_V2_LIMITS.labelLength,
-      ),
+      label: (isBase
+        ? options.baseBeatLabel!
+        : humanize(keyframe.pose) || `Beat ${index + 1}`
+      ).slice(0, ANIMA_POSE_CLIP_V2_LIMITS.labelLength),
       // 1.0 keyframes only need to increase; 2.0 beats sit at least
       // ANIMA_POSE_CLIP_V2_MIN_SPACING_TICKS apart once saved, so very
       // close keyframes are spread by at most that much.

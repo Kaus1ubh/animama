@@ -1,18 +1,15 @@
 import {
   ANIMA_POSE_SCHEMA,
-  getResolvedAvatarPose,
   parseAnimaPose,
-  sampleAnimaPoseClip,
   type AnimaPose,
-  type AnimaPoseClipPoseResolver,
   type AnimaPoseClipSample,
   type AnimaPoseClipSampleDiagnostics,
   type Avatar,
 } from "@/lib/avatar";
 import { POSE_CREATOR_VRM_T_POSE_BASE_POSE_ID } from "@/stores/pose-creator-store";
 import { applyPoseCreatorBasePose } from "./poseCreatorAuthoring";
+import { samplePoseCreatorDraft } from "./poseCreatorClipMotion";
 import {
-  buildAnimaPoseClipFromPoseCreatorDraft,
   type PoseCreatorClipDraft,
   type PoseCreatorClipPreviewDiagnostics,
 } from "./poseCreatorClipAuthoring";
@@ -35,10 +32,13 @@ export function applyPoseCreatorClipPreview(
     };
   }
 
-  const clip = buildAnimaPoseClipFromPoseCreatorDraft(draft, {
-    omittedBasePoseId: POSE_CREATOR_VRM_T_POSE_BASE_POSE_ID,
-  });
-  if (!clip) {
+  const result = samplePoseCreatorDraft(
+    draft,
+    draft.currentTimeSec,
+    avatar.vrm ?? null,
+    { omittedBasePoseId: POSE_CREATOR_VRM_T_POSE_BASE_POSE_ID },
+  );
+  if (!result) {
     // An empty document still owns the canvas state. Restore it after a prior
     // preview's cleanup or a late Avatar mount instead of retaining old edits.
     applyPoseCreatorBasePose(avatar, previewBasePose ?? draft.basePose);
@@ -50,17 +50,12 @@ export function applyPoseCreatorClipPreview(
     };
   }
 
-  const result = sampleAnimaPoseClip(
-    clip,
-    draft.currentTimeSec,
-    resolveCatalogPose,
-  );
   applyPoseCreatorBasePose(avatar, previewBasePose ?? draft.basePose);
   // Humanoid poses can be written directly, but facial values must go through
   // Avatar's expression controller. Direct VRM expression-manager writes are
   // overwritten by Avatar.update() on the next frame, which made a one-off
   // timeline seek disagree with the sampled values shown in the editor.
-  avatar.applyAnimaPose(createPreviewPose(result.sample, clip.id, clip.name));
+  avatar.applyAnimaPose(createPreviewPose(result.sample, draft.id, draft.name));
   applyPoseCreatorClipPreviewExpressions(avatar, result.sample.expressions);
   avatar.vrm?.update(0);
 
@@ -92,14 +87,10 @@ export function applyPoseCreatorClipPreviewExpressions(
 export function samplePoseCreatorClipExpressions(
   draft: PoseCreatorClipDraft,
 ): Record<string, number> {
-  const clip = buildAnimaPoseClipFromPoseCreatorDraft(draft, {
-    omittedBasePoseId: POSE_CREATOR_VRM_T_POSE_BASE_POSE_ID,
-  });
-  if (!clip) return {};
-
   return {
-    ...(sampleAnimaPoseClip(clip, draft.currentTimeSec, resolveCatalogPose)
-      .sample.expressions ?? {}),
+    ...(samplePoseCreatorDraft(draft, draft.currentTimeSec, null, {
+      omittedBasePoseId: POSE_CREATOR_VRM_T_POSE_BASE_POSE_ID,
+    })?.sample.expressions ?? {}),
   };
 }
 
@@ -126,14 +117,6 @@ export function createPoseCreatorClipPreviewDiagnostics(
     ],
   };
 }
-
-const resolveCatalogPose: AnimaPoseClipPoseResolver = (poseId) => {
-  try {
-    return getResolvedAvatarPose(poseId);
-  } catch {
-    return null;
-  }
-};
 
 function createPreviewPose(
   sample: AnimaPoseClipSample,

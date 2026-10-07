@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -5,11 +7,10 @@ import {
   usePoseCreatorStore,
 } from "@/stores/pose-creator-store";
 import { createDefaultPoseCreatorClipDraft } from "@/ui/pose-creator/poseCreatorClipAuthoring";
+import { insertPoseCreatorBeat } from "@/ui/pose-creator/poseCreatorClipMotion";
 import { parseAnimaPose } from "@/lib/avatar/poses/animaPose";
-import {
-  parseAnimaPoseClip,
-  sampleAnimaPoseClip,
-} from "@/lib/avatar/poses/animaPoseClip";
+import { parseAnyAnimaPoseClip } from "@/lib/avatar/poses/animaPoseClip";
+import { createAnimaPoseClipProgram } from "@/lib/avatar/poses/animaPoseClip/program";
 import { createActionProject, parseActionImport } from "./actionProject";
 import {
   createActionDocument,
@@ -27,7 +28,7 @@ describe("actionDocumentForPersistence", () => {
     "preserves live timeline and name edits during automatic naming (%s)",
     async (typedName) => {
       const document = createActionDocument("reaction");
-      const draft = createDefaultPoseCreatorClipDraft(
+      let draft = createDefaultPoseCreatorClipDraft(
         DEFAULT_POSE_CREATOR_BASE_POSE,
       );
       let finishLookup!: (name: string) => void;
@@ -40,17 +41,24 @@ describe("actionDocumentForPersistence", () => {
           }),
       );
       document.name = typedName;
-      draft.poses = { smile: { expressions: { happy: 0.75 } } };
-      draft.keyframes = [{ id: "smile", time: 0.4, pose: "smile" }];
+      // A timeline edit lands while the name lookup is pending.
+      draft = insertPoseCreatorBeat(
+        draft,
+        {
+          timeSec: 0.4,
+          label: "Smile",
+          pose: { expressions: { happy: 0.75 } },
+        },
+        null,
+      );
       finishLookup("New Reaction 1");
       const saved = await pending;
       expect(saved.name).toBe(typedName || "New Reaction 1");
-      expect(saved.sequence.poses).toEqual({
-        smile: { expressions: { happy: 0.75 } },
+      expect(saved.sequence).toMatchObject({
+        schema: "animaPoseClip/2.0",
+        beats: [{ id: "smile", label: "Smile", time: 0.4 }],
+        expressions: { happy: [{ beat: "smile", v: 0.75 }] },
       });
-      expect(saved.sequence.poseKeyframes).toEqual([
-        { time: 0.4, pose: "smile" },
-      ]);
     },
   );
   it("captures the live timeline and removes declarations unused by that snapshot", () => {
@@ -139,13 +147,16 @@ describe("copied pose persistence", () => {
       usePoseCreatorStore.getState().clipDraft,
     );
     const canonical = canonicalizeActionComponentInsertion(persisted);
+    // Save writes 2.0.
+    expect(persisted.sequence.schema).toBe("animaPoseClip/2.0");
     expect(persisted.sequence.basePose).toBeUndefined();
     expect(canonical.sequence.basePose).toBeUndefined();
     expect(canonical.dependencies).toEqual([]);
-    const expected = sampleAnimaPoseClip(
-      parseAnimaPoseClip(canonical.sequence),
-      0.5,
-    );
+    const sample = (clip: unknown) =>
+      createAnimaPoseClipProgram(parseAnyAnimaPoseClip(clip), {
+        resolvePose: () => null,
+      }).sample(0.5);
+    const expected = sample(canonical.sequence);
     for (const serialized of [
       JSON.stringify(canonical.sequence),
       JSON.stringify(createActionProject(canonical)),
@@ -156,7 +167,7 @@ describe("copied pose persistence", () => {
           ? imported.sequence
           : imported.project.sequence;
       expect(clip.basePose).toBeUndefined();
-      expect(sampleAnimaPoseClip(clip, 0.5, () => null)).toEqual(expected);
+      expect(sample(clip)).toEqual(expected);
       expect(store.hydrateClipDocument(clip)).toBe(true);
       expect(usePoseCreatorStore.getState().clipDraft.basePose).toBe("");
     }
@@ -171,10 +182,9 @@ describe("empty authoring timeline history", () => {
       allowEmpty: true,
     })!;
     expect(empty).toEqual(sanitizeReactionSequence(empty));
+    expect(empty).toMatchObject({ schema: "animaPoseClip/2.0", beats: [] });
     expect(empty).not.toHaveProperty("basePose");
-    expect(empty.defaultTransition).not.toHaveProperty(
-      "interpolation.humanoidRotation",
-    );
+    expect(empty).not.toHaveProperty("defaultTransition");
   });
   it.each(["pose", "event"])(
     "records the final %s deletion without making empty clips saveable",
@@ -205,7 +215,7 @@ describe("empty authoring timeline history", () => {
               ]
             : [],
       };
-      store.hydrateClipDocument(parseAnimaPoseClip(sequence));
+      store.hydrateClipDocument(parseAnyAnimaPoseClip(sequence));
       if (kind === "pose") store.deleteSelectedClipKeyframe();
       else {
         store.selectClipEvent("hearts");
@@ -216,14 +226,15 @@ describe("empty authoring timeline history", () => {
         allowEmpty: true,
       });
       expect(empty).toMatchObject({
+        schema: "animaPoseClip/2.0",
         id: "last-marker",
         name: "Last marker",
         duration: 4,
         fadeIn: { duration: 0.3 },
-        poses: {},
-        poseKeyframes: [],
-        events: [],
+        beats: [],
       });
+      expect(empty).not.toHaveProperty("expressions");
+      expect(empty?.events ?? []).toEqual([]);
       expect(actionSequenceFromTimelineDraft(draft, "reaction")).toBeNull();
       expect(() =>
         actionDocumentForPersistence(createActionDocument("reaction"), draft),
@@ -233,11 +244,46 @@ describe("empty authoring timeline history", () => {
         usePoseCreatorStore.getState().clipDraft,
         "reaction",
       );
-      expect(next?.poseKeyframes).toEqual([]);
+      expect(next?.beats).toEqual([]);
       expect(next?.events).toEqual([
         expect.objectContaining({ kind: "sfx", cueId: "new-sound" }),
       ]);
       store.resetWorkspace();
     },
   );
+});
+
+describe("animaPoseClip/2.0 persistence", () => {
+  it("saves, exports and imports a 2.0 Gesture with its beats and detail", () => {
+    const clip = JSON.parse(
+      readFileSync(
+        fileURLToPath(
+          new URL(
+            "../../lib/avatar/motion-authoring/examples/wave-hello.clip.json",
+            import.meta.url,
+          ),
+        ),
+        "utf8",
+      ),
+    );
+    const store = usePoseCreatorStore.getState();
+    store.resetWorkspace();
+    expect(store.hydrateClipDocument(parseAnyAnimaPoseClip(clip))).toBe(true);
+    const document = createActionDocument("gesture");
+    document.name = "Wave Hello";
+    document.semanticKey = "wave_hello";
+    const saved = actionDocumentForPersistence(
+      document,
+      usePoseCreatorStore.getState().clipDraft,
+    );
+    expect(saved.sequence).toEqual({ ...clip, id: "wave-hello" });
+    const imported = parseActionImport(
+      JSON.parse(JSON.stringify(createActionProject(saved))),
+      "gesture",
+    );
+    expect(imported.kind === "project" && imported.project.sequence).toEqual(
+      saved.sequence,
+    );
+    store.resetWorkspace();
+  });
 });

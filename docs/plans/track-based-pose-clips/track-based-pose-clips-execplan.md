@@ -102,7 +102,7 @@ prototype.
       (both repair rounds used).
 - [x] Phase 4: Authoring tools, migrated examples and skill. Review #2
       passed. Gate G1 (owner) pending.
-- [ ] Phase 5: Creator editing of 2.0. Gate G2.
+- [x] Phase 5: Creator editing of 2.0 (agent work complete; review passed). Gate G2 pending.
 - [ ] Phase 6: Wave 1 content. Gates G3 and G4.
 - [ ] Phase 7: Replacements and wave 2. Gate G3.
 - [ ] Final integration review and PR.
@@ -171,6 +171,19 @@ prototype.
 - 2026-10-06, Phase 3 (agent): 2.0 clips are limited to 3,600 s, so every
   time stays finite and the backend's decimal rounding cannot overflow. Value
   bounds and the limit are part of the shared vocabulary fixture.
+
+- 2026-10-06, Phase 5 (agent): 2.0 drafts edit through beat operations;
+  1.0 and new drafts keep keyframe editing and convert to 2.0 when saved or
+  exported. Converting every draft at open would have rewritten all 1.0
+  creator paths for no behavioral gain, since a 1.0 keyframe is a beat
+  without detail. Superseded the same day: review P5-F5 classed this as a
+  deviation from R5 Opening, and the owner asked for existing (Included)
+  Gestures and Reactions to be converted to 2.0 directly. Every draft now
+  edits as 2.0: 1.0 clips convert when opened and new documents start with
+  no beats. Included files stay unchanged (the brief forbids writing
+  `content/included/`); a test opens all 94 Included Gesture and Reaction
+  clips as valid 2.0 drafts. The creator's 1.0 keyframe-editing branches are
+  now unreachable and are left for a follow-up cleanup.
 
 ## Preparation (workspace setup)
 
@@ -1094,6 +1107,208 @@ Dependency: Phase 3 (runtime); Phase 4 for generated test content.
 Checks: the focused vitest suites; `pnpm check`, `pnpm web:lint`,
 `pnpm web:test` and `pnpm build`; the Playwright journey against the task
 stack.
+
+#### Phase 5 record
+
+Starting source: `40d70aa1`. Issue #294. Task stack `animama-track-clips`.
+
+Design as built: every draft keeps its clip's beats and tracks as `motion`,
+its source of truth, and its keyframes and poses become a view of the beats.
+1.0 clips convert when opened (`convertPoseCreatorClipToV2`; base-pose
+references become Base beats) and new documents start with no beats (see the
+decision log for the earlier convert-at-Save design and why it changed).
+
+Delivered:
+
+- `lib/avatar/poses/animaPoseClip/beatEditing.ts`: `retimeBeat` (rigid own
+  keys, facing detail of neighbours scaled with the gap, detail beats cannot
+  pass, detail-free beats pass detail-free beats, clamped to the nearest
+  ordered time), `deleteBeat`, `setBeatEase`, `setBeatLabel`, `beatKeyPose`,
+  `setBeatPose` (re-targets a changed joint's owned keys, anchors untracked
+  components, rotation keys turn with the edit, untracked bones get a track at
+  every beat, planted legs are not edited), `insertBeat` (pins current values,
+  re-owns neighbour keys it separates), `flattenHandToFingerTracks`, and
+  `beatDetailSummary`.
+- `ui/pose-creator/poseCreatorClipMotion.ts`: draft-level operations and the
+  sampler both formats share (`samplePoseCreatorDraft`, cached per motion and
+  Avatar).
+- Store actions branch to the operations for 2.0 drafts: move, Time, label,
+  ease, delete, capture, Library Pose insert, inline Pose-tab commit (the beat's
+  sampled key pose starts the edit), Reaction expressions, base endpoints
+  (beats labelled "Base"), duration changes; undo snapshots carry the motion.
+- Hydrate, build and validation accept 2.0 (unknown fields kept); import
+  accepts 2.0 clips and projects; Save, Clip JSON and project export write
+  2.0; Reactions are sanitised for 2.0 (no body tracks).
+- UI: beat labels on the lane, aria labels and the event list; a dot on
+  diamonds of beats with detail; the inspector's Pose select becomes a Label
+  field for beats, its Easing adds Smooth and Hold to the 1.0 easings (its
+  "Clip default" clears the beat's ease, so keys use their track defaults),
+  and a read-only note describes the detail.
+- E2E: `accountless-creator-generated-gesture.spec.ts` (generated 2.0 Gesture:
+  import, retime, Pose-tab edit, save, reopen with detail; a 1.0 Gesture and a
+  1.0 Reaction save as 2.0 and reopen), added to the Playwright allowlist; the
+  imported-playback, pose-content and creator-reaction helpers now check the
+  2.0 Clip JSON.
+- Docs: the runtime guide's creator section and the browser-journeys guide.
+
+Evidence:
+
+- Tests: `beatEditing.test.ts` (14), `pose-creator-store.v2.test.ts` (8), the
+  inspector (5), persistence (8, including a 2.0 save/export/import that
+  reproduces the example exactly); `pnpm web:test`: 387 files, 2,780 tests
+  and 32 Node tests; `tsc -b`, ESLint and web Prettier pass; `pnpm
+  e2e:test:unit` 19 pass; `e2e:check:source` passes.
+- Browser: `pnpm e2e:test accountless-creator-generated-gesture` on the task
+  stack: 4 passed (setup plus the three round trips).
+- Screenshots (G2), at 1440×900 and 900×900 through a scratch Playwright
+  script: the new Pose and Clip tabs, an Included 1.0 Gesture
+  (right-face-palm) and the 1.0 wave bake on both tabs are visually identical
+  before and after (pixel differences only in the import toast and the live
+  Avatar). The hearty laugh (2.0) shows labelled beats, detail dots and the
+  Label field. The before set was captured from `afeb618a`, whose creator UI
+  is the same as `40d70aa1`'s. At 900 px the sidebar rail overlaps the
+  creator header in both sets (existing).
+
+#### Code Review #1 Findings (Phase 5)
+
+`sdlc-reviewer`, full initial review of the uncommitted Phase 5 tree against
+`40d70aa1`, spec R5 and ADR 0014. Blocking:
+
+- **P5-F1:** a Pose-tab Reset bone, Reset all or Clear all expressions on a 2.0
+  beat was ignored: `setBeatPose` treated bones and expressions missing from
+  the committed pose as unchanged, while on 1.0 drafts they return to base.
+- **P5-F2:** creator-added Base beats hold values, so on 2.0 drafts they kept
+  the old base pose after a Base pose change; the store comment claimed they
+  key `"base"`.
+- **P5-F3 (low):** the 2.0 sample cache alternated between the preview's VRM
+  and the expression sampler's null each frame, re-preparing the clip twice
+  per frame; building a 2.0 draft validated it twice.
+- **P5-F4:** the G2 screenshots lacked 390×844 and a Reaction pair (plan steps
+  1 and 7).
+- **P5-F5:** the design deviation (1.0 and new drafts keep keyframe editing
+  until the first Save) does not literally meet R5 Opening ("a 1.0 Gesture
+  opens as beats without detail") and creates differences before and after
+  the first Save; record it as a spec-level deviation or remove it.
+- **P5-F6 (low):** `docs/frontend/architecture/routing.md` still named 1.0 as
+  the JSON interchange.
+
+Optional: N1 (`insertBeat` re-owns neighbour keys and skips the ordering
+check), N2 (undo-snapshot equality and the saved-pose fingerprint ignore
+`motion`), N3 (`trackEvaluator` duplicates prepareV2's track construction;
+`setBeatPose` re-prepares per beat), N4 (`savedActionSequence` returns
+unvalidated output; the Clip JSON view is empty for a 1.0 sequence the
+parser rejects), N5 (playback observation reads 1.0 poses only), N6
+(duplicated Base label and label limit; a typed "Base" label marks a beat as
+a base endpoint), N7 (store actions without UI callers lack 2.0 branches), N8
+(record accuracy on Easing), N9 (two e2e files unformatted), N10 (weak e2e
+quaternion checks; retime rounding compounds during drags).
+
+#### Code Review #1 Revisions (Phase 5)
+
+- **P5-F1 accepted, fixed:** `BeatPose.complete` marks a whole key pose:
+  bones the beat currently poses but the edit omits return to the clip's base
+  pose (or rest), the hips offset to the base, and omitted expressions to 0;
+  bones the Avatar lacks are left alone. Pose-tab commits pass it. Library
+  Pose inserts pass it too, matching R5's "by value, as today" and 1.0
+  behaviour. Test: a commit without the head and expressions returns both to
+  the base (fails without the fix).
+- **P5-F2 accepted, fixed:** a Base pose change on a 2.0 draft re-poses its
+  Base beats with the new base pose (`reposePoseCreatorBaseBeats`); the comment
+  now says so. Test: after switching to `hands-on-hips`, the end Base beat
+  samples that pose (fails without the fix).
+- **P5-F3 accepted, fixed:** programs are cached per motion and per VRM;
+  building a 2.0 draft runs the draft-field checks plus one 2.0 validation.
+- **P5-F4 accepted, partly met:** the after set (stored outside the
+  repository) now covers 1440×900, 900×900 and 390×844 for the new Pose and
+  Clip tabs, an Included 1.0 Gesture (right-face-palm), the 1.0 wave bake,
+  the hearty laugh (2.0), and a new, a 1.0 and a 2.0 Reaction, captured after
+  the convert-at-open change. Before shots exist only at 1440 and 900 for the
+  Gesture cases: capturing the 390×844 and Reaction before shots needs the
+  Phase 4 creator running (the main stack on :3000 is down, and swapping
+  this worktree's source was not permitted), so they are left for the owner
+  at G2. The 1.0 Gesture pairs differ only as intended: humanized beat
+  labels, the Label field in place of the Pose select, and each beat's
+  converted easing in place of "Clip default".
+- **P5-F5 accepted, fixed (owner direction):** 1.0 clips now convert when
+  opened and new documents start as 2.0, so every draft edits as beats and
+  there is no before/after-first-Save split. Migrating the 1.0-shaped tests
+  exposed and fixed further 2.0-path regressions: a Library Pose insert
+  cleared no effect selection; Start base overwrote an authored beat already
+  at 0; a zero-duration clip's end toggle acted on its start; a Library Pose
+  matching the base keyed nothing (now `keyAll`: a whole pose is keyed by
+  value); and a Library Pose insert kept the external base pose, breaking
+  the documented independence of saved clips (now `detachBasePose` freezes
+  the base into the tracks and removes the reference in the same edit,
+  preserving samples on the migrated examples, and an unresolvable base
+  rejects the insert as in 1.0). `includedActionConversion.test.ts` opens and
+  saves all 94 Included clips as 2.0. The 1.0-shaped unit tests were
+  migrated to 2.0 drafts (none deleted); `pnpm web:test` 388 files, 2,882
+  tests pass.
+- **P5-F6 accepted, fixed:** `routing.md` names 2.0 as the interchange.
+- Repair evidence: `tsc -b`, ESLint and Prettier on the changed sources
+  pass; `pnpm web:test` 388 files, 2,882 tests. Browser, on the task stack:
+  `accountless-creator-generated-gesture` (the 1.0 Gesture and Reaction
+  steps now also check that opening yields 2.0), `accountless-creator-discard`,
+  `accountless-creator-discard-local`, `accountless-imported-playback` and
+  `accountless-numeric-input` pass (the Avatar discard and imported-playback
+  steps failed once each and passed on rerun). Failures outside this phase:
+  `accountless-pose-content` expects the "<name> 1 copy" naming that
+  `54a6ce2b` replaced with "<name> N" (unchanged by this branch); the chat
+  step of `accountless-journeys` needs a stack with `ANIMAMA_LLM_SKIP=1`
+  (this stack uses the real provider for G4), and its VFX-creator health
+  steps look for a "Rescan content library" control that no source on this
+  branch or `main` renders (stale on `main`).
+- **N2 fixed** (now user-visible: a Pose-tab commit recorded no undo):
+  undo-snapshot equality and the saved-pose fingerprint include `motion`.
+- **N5 fixed:** observation reads a 2.0 draft's expression tracks. **N6
+  partly fixed:** one Base label constant and finder; the label field uses
+  the schema's limit; a beat is a Base endpoint only at an end (the label
+  alone still marks it for duration and base-pose follow-up, accepted). **N9
+  fixed:** e2e files formatted. **N8:** record corrected below. N1, N3, N4,
+  N7, N10 deferred: rare or latent, no current caller or user-visible
+  failure; the spec allows `insertBeat`'s re-owning as part of pinning.
+
+#### Code Review #2 Findings (Phase 5)
+
+`sdlc-reviewer`, targeted recheck (repair round 1). P5-F1, F2, F3 and F5
+resolved; N2, N5, N8 and N9 resolved; N6 partly fixed as recorded. Blocking:
+
+- **P5-R2-F1:** with an End base beat, a Duration edit selected that beat,
+  cleared the effect selection and moved the playhead (the end-beat retime
+  returned its own selection); after P5-F5 this affects every Gesture.
+- **P5-R2-F2 (low):** `routing.md` said opened 1.0 clips convert on Save.
+
+P5-F4: before shots at 390×844 and for Reactions still need to be supplied
+or waived by the owner at G2. Optional: the migrated "freezes base" store
+test lost its undo/redo `basePose` checks; converted 1.0 clips hold the base
+by value, so a base-pose change moves only Base beats (as documented); after
+a Library Pose insert detaches the base, Base switches show checked but
+disabled; every edit now runs a full 2.0 validation (unmeasured).
+
+#### Code Review #2 Revisions (Phase 5)
+
+- **P5-R2-F1 accepted, fixed:** the duration branch keeps the pre-edit
+  selection, effect selection and playhead after retiming the End base. Test:
+  "keeps the selection and playhead when the duration moves the End base".
+- **P5-R2-F2 accepted, fixed:** `routing.md` says 1.0 clips convert when
+  opened.
+- Optional: the `basePose` undo/redo/rehydrate checks are restored. The
+  base-by-value behaviour is documented; the disabled-switch display and the
+  validation cost are left as they are.
+- Checks: `tsc -b` passes; the affected suites (`src/stores`,
+  `src/ui/pose-creator`, `src/ui/action-editor`, `src/lib/avatar/poses`) pass,
+  679 tests.
+
+#### Code Review #3 Findings (Phase 5)
+
+`sdlc-reviewer`, final targeted recheck (repair round 2): **pass**.
+P5-R2-F1 fixed with no regression (the restored playhead is already clamped
+to a shortened duration; retiming never removes a beat, so the restored
+selection stays valid; Base re-posing keeps the selection); P5-R2-F2 fixed;
+the `basePose` assertions are restored. Checks: `tsc -b`, the affected
+suites (65 files, 679 tests), ESLint and Prettier on the 31 changed web
+files. Remaining owner gate: G2, including the before shots at 390×844 and
+for Reactions (P5-F4).
 
 ### Phase 6 — Wave 1 content (R8)
 

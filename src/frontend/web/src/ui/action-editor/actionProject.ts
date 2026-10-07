@@ -3,10 +3,11 @@ import type {
   PyExactContentSource,
 } from "@/lib/content/catalogTypes";
 import {
-  parseAnimaPoseClip,
-  type AnimaPoseClip,
+  parseAnyAnimaPoseClip,
+  type AnyAnimaPoseClip,
 } from "@/lib/avatar/poses/animaPoseClip";
 import type { ActionComponentType } from "./actionDependencies";
+import { savedActionSequence } from "./actionPersistence";
 import {
   actionNameSlug,
   normalizeActionDocument,
@@ -26,12 +27,12 @@ export type ActionProject = {
   suggestedEmotion: string;
   suggestedIntensity: 1 | 2 | 3;
   notes: string;
-  sequence: AnimaPoseClip;
+  sequence: AnyAnimaPoseClip;
   dependencies: PyContentDependency[];
 };
 
 export type ActionImport =
-  | { kind: "clip"; sequence: AnimaPoseClip }
+  | { kind: "clip"; sequence: AnyAnimaPoseClip }
   | { kind: "project"; project: ActionProject };
 
 export type UnresolvedActionReference = {
@@ -132,7 +133,10 @@ export function createActionProject(document: ActionDocument): ActionProject {
     suggestedEmotion: normalized.suggestedEmotion,
     suggestedIntensity: normalized.suggestedIntensity,
     notes: normalized.notes,
-    sequence: parseAnimaPoseClip(normalized.sequence),
+    // Exported projects carry the 2.0 sequence that Save would write.
+    sequence: parseAnyAnimaPoseClip(
+      savedActionSequence(normalized.sequence, normalized.intent),
+    ),
     dependencies: structuredClone(normalized.dependencies),
   };
 }
@@ -144,7 +148,7 @@ export function parseActionImport(
 ): ActionImport {
   if (!isRecord(value)) throw new Error("JSON must contain an object.");
   if (value.schema !== ACTION_PROJECT_SCHEMA) {
-    return { kind: "clip", sequence: parseAnimaPoseClip(value) };
+    return { kind: "clip", sequence: parseAnyAnimaPoseClip(value) };
   }
   if (value.intent !== expectedIntent) {
     throw new Error(
@@ -167,7 +171,7 @@ export function parseActionImport(
       suggestedEmotion: optionalString(value.suggestedEmotion),
       suggestedIntensity: intensity as 1 | 2 | 3,
       notes: optionalString(value.notes),
-      sequence: parseAnimaPoseClip(value.sequence),
+      sequence: parseAnyAnimaPoseClip(value.sequence),
       dependencies: parseDependencies(value.dependencies),
     },
   };

@@ -9,7 +9,8 @@ import {
 } from "./actionProject";
 
 function addNeutralKeyframe(document: ReturnType<typeof createActionDocument>) {
-  document.sequence.poses = { neutral: {} };
+  // 2.0 (what export writes) needs a key: a light smile.
+  document.sequence.poses = { neutral: { expressions: { happy: 0.2 } } };
   document.sequence.poseKeyframes = [{ time: 0, pose: "neutral" }];
   return document;
 }

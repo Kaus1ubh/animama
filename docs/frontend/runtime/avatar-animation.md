@@ -304,9 +304,9 @@ Important behavior:
 two schemas: `animaPoseClip/1.0` (pose keyframes) and `animaPoseClip/2.0`
 (beats and tracks; see
 [ADR 0014](../../adr/0014-track-based-anima-pose-clips.md)). Gesture, Reaction
-and Idle Style playback, the runtime catalog, the preview and render tools and
-package import accept both. The creator and the built-in App catalog still
-read and save 1.0.
+and Idle Style playback, the runtime catalog, the creator, the preview and
+render tools and package import accept both; the creator saves 2.0. The
+built-in App catalog still reads 1.0.
 
 - `animaPose/1.0` is a single absolute pose snapshot. It can contain partial
   normalized humanoid bone transforms, expression weights, and an optional
@@ -546,6 +546,42 @@ Both adjusts each hand from its own current values independently of the
 single-bone mirror option. Selection and tool visibility are transient; Save and
 inline keyframe completion use the existing pose contract without helper metadata.
 
+Gesture and Reaction clips open as beats, shown as keyframes on the Pose (or
+Expression) lane and named by their labels; the draft keeps the clip's tracks
+as their source (`poseCreatorClipMotion.ts`, operations in
+`lib/avatar/poses/animaPoseClip/beatEditing.ts`). A new document starts with
+no beats. A 1.0 clip (an Included Gesture or Reaction, or an imported file) is
+converted when opened (`convertPoseCreatorClipToV2`): one beat per keyframe,
+labelled from its pose alias, with keyframes that reference the base pose
+becoming Base beats; Included files are not changed. A beat that owns generated
+detail (keys away from its own time) shows a dot in its diamond, and the
+keyframe inspector shows a read-only note on how far that detail reaches. The
+inspector's Label field renames the beat; its Easing sets how motion arrives
+at all of the beat's keys. Editing follows the beat:
+
+- moving a beat (drag or Time) moves its keys with it; the facing detail of
+  neighbouring beats stretches or compresses with the gap, a beat with detail
+  stops before it would pass a neighbour, and beats without detail may pass
+  other beats without detail;
+- a Pose tab edit applies to the beat: a changed joint's keys owned by the beat
+  shift by the change (so overshoots ride along), untouched joints keep their
+  keys, bones the edit resets return to the base pose and cleared expressions
+  to 0, and bones without tracks gain a track keyed at every beat; editing a
+  finger of a hand driven by Hands-tool presets first turns that hand's presets
+  into equivalent finger keys;
+- deleting a beat removes all of its keys; capturing at the playhead adds a
+  beat holding the current motion, and inserting a Library Pose adds (or
+  re-poses) a beat with the pose by value, its omitted bones at the base pose,
+  then freezes the base pose into the tracks and removes the reference
+  (`detachBasePose`) in the same undoable edit;
+- Start and End base add Base beats holding the base pose, which follow a Base
+  pose change (an authored beat already at that end is kept).
+
+Save, Clip JSON and project export write `animaPoseClip/2.0`
+(`savedActionSequence`, which also converts a 1.0 document that was never
+opened in the timeline). A timeline whose beats hold no keys, such as Base
+beats alone, cannot be saved, because a 2.0 clip needs a track key or event.
+
 `CreatorTimeline` supplies controlled transport and track presentation to Gesture,
 Reaction and all three VFX creators. Each editor retains its own playback owner:
 Particle exposes its elapsed preview clock, while Avatar/Scene rulers show saved
@@ -575,8 +611,10 @@ folder. The earlier `animamaMotion/1` description format and its bake step are
 retired; the tools explain this when given a description.
 
 There is no separate generic Pose Creator route or raw package save provider.
-Clip JSON remains `animaPoseClip/1.0`; a separate versioned project envelope is
-available when typed effect/sound dependencies must round-trip with the sequence.
+Clip JSON is `animaPoseClip/2.0`; a separate versioned project envelope
+(`animamaActionProject/1.0`) carries the name, AI description, Selector ID and
+typed effect/sound dependencies with the sequence. Import accepts either
+format, with a 1.0 or 2.0 sequence.
 
 For an Action implemented by an Anima Pose Clip, the Action display name is
 the authoritative authoring name. The embedded clip `name` matches it, and the
