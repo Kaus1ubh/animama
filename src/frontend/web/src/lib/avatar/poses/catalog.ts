@@ -12,8 +12,11 @@ import {
 import {
   analyzeAnimaPoseClipChannels,
   isAnimaPoseClipRef,
+  isAnimaPoseClipV2,
   parseAnimaPoseClip,
+  parseAnimaPoseClipV2,
   type AnimaPoseClip,
+  type AnyAnimaPoseClip,
 } from "./animaPoseClip";
 
 export const RELAXED_REST_POSE_ID = "relaxedRest" as const;
@@ -67,8 +70,10 @@ const loadedPoseCatalog = pruneUnresolvablePoseCatalog(
 export const AVATAR_POSE_CATALOG: Readonly<Record<string, AnimaPose>> =
   Object.freeze(loadedPoseCatalog);
 
-export const AVATAR_POSE_CLIP_CATALOG: Readonly<Record<string, AnimaPoseClip>> =
-  Object.freeze(loadPoseClipCatalog(manifest, AVATAR_POSE_CATALOG));
+/** Built-in Gesture clips; 1.0 clips may reference internal poses, 2.0 clips are self-contained. */
+export const AVATAR_POSE_CLIP_CATALOG: Readonly<
+  Record<string, AnyAnimaPoseClip>
+> = Object.freeze(loadPoseClipCatalog(manifest, AVATAR_POSE_CATALOG));
 
 export const AVATAR_REACTION_CLIP_CATALOG: Readonly<
   Record<string, AnimaPoseClip>
@@ -118,13 +123,13 @@ export function getResolvedAvatarPose(poseId: string): ResolvedAnimaPose {
   ) as ResolvedAnimaPose;
 }
 
-export function getAvatarPoseClip(clipId: string): AnimaPoseClip {
+export function getAvatarPoseClip(clipId: string): AnyAnimaPoseClip {
   const normalizedClipId = normalizeAvatarPoseClipId(clipId);
   const clip = AVATAR_POSE_CLIP_CATALOG[normalizedClipId];
   if (!clip) {
     throw new Error(`Unknown avatar pose clip id "${clipId}"`);
   }
-  return parseAnimaPoseClip(clip);
+  return parseCatalogClip(clip);
 }
 
 export function getAvatarReactionClip(clipId: string): AnimaPoseClip {
@@ -174,8 +179,8 @@ function loadPoseCatalog(
 function loadPoseClipCatalog(
   catalogManifest: PoseCatalogManifest,
   poseCatalog: Readonly<Record<string, AnimaPose>>,
-): Record<string, AnimaPoseClip> {
-  const catalog: Record<string, AnimaPoseClip> = {};
+): Record<string, AnyAnimaPoseClip> {
+  const catalog: Record<string, AnyAnimaPoseClip> = {};
   for (const entry of catalogManifest.clips) {
     if (catalog[entry.id]) {
       logger.warn("Clip", "Skipping duplicate avatar pose clip catalog entry", {
@@ -194,9 +199,9 @@ function loadPoseClipCatalog(
       continue;
     }
 
-    let clip: AnimaPoseClip;
+    let clip: AnyAnimaPoseClip;
     try {
-      clip = parseAnimaPoseClip(rawClip);
+      clip = parseCatalogClip(rawClip);
     } catch (error) {
       logger.warn("Clip", "Skipping invalid avatar pose clip JSON source", {
         clipId: entry.id,
@@ -219,6 +224,17 @@ function loadPoseClipCatalog(
     catalog[entry.id] = clip;
   }
   return catalog;
+}
+
+/**
+ * Parse a built-in clip of either schema into a fresh copy, so callers never
+ * share (or mutate) the catalog's object. Unlike the cached
+ * `parseAnyAnimaPoseClip`, this always sanitizes again, as 1.0 playback did.
+ */
+function parseCatalogClip(value: unknown): AnyAnimaPoseClip {
+  return isAnimaPoseClipV2(value)
+    ? parseAnimaPoseClipV2(value)
+    : parseAnimaPoseClip(value);
 }
 
 function loadReactionClipCatalog(
@@ -332,7 +348,7 @@ function resolveDefaultAvatarPoseIds(
 
 function warnForMissingClipPoseRefs(
   entry: PoseCatalogEntry,
-  clip: AnimaPoseClip,
+  clip: AnyAnimaPoseClip,
   poseCatalog: Readonly<Record<string, AnimaPose>>,
 ): void {
   const missingPoseRefs = collectMissingClipPoseRefs(clip, poseCatalog);
@@ -346,9 +362,11 @@ function warnForMissingClipPoseRefs(
 }
 
 function collectMissingClipPoseRefs(
-  clip: AnimaPoseClip,
+  clip: AnyAnimaPoseClip,
   poseCatalog: Readonly<Record<string, AnimaPose>>,
 ): string[] {
+  // 2.0 clips carry their own values and have no pose refs.
+  if (isAnimaPoseClipV2(clip)) return [];
   const refs = new Set<string>();
   if (clip.basePose && !poseCatalog[clip.basePose]) {
     refs.add(clip.basePose);
