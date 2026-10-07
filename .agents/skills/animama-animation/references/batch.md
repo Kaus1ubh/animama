@@ -1,0 +1,86 @@
+# Batch mode
+
+Use batch mode when the owner asks for several Gestures at once (up to ten
+per batch; split larger requests). The steps per item are the normal
+workflow; the batch adds one shared interview, parallel authoring, a
+consistency pass, one review session and one save run.
+
+## 1. Brief every item together
+
+Run the [interview](interview.md) for the whole batch in one round, then show
+one table of briefs to confirm:
+
+| Name | Selector ID | Intent | Once/held | Length | Intensity | Hand | Contacts | Face |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+
+Check the Selector IDs before authoring: unique in the batch, not already
+used in the Library unless the item is meant to revise that Gesture, and
+tiers of one action sharing a stem (`laugh_mild`, `laugh_medium`).
+
+## 2. Author items in parallel
+
+When the host can run subagents, give each item its own: authoring is the
+slow step, and a fresh context per item keeps attention on one motion. Run
+about five at a time. Each subagent receives the confirmed brief, this skill
+and its references, the clip path to write
+(`motion-authoring/examples/<name>.clip.json`), and these instructions:
+
+- follow workflow steps 1–5: write, validate, check (fix every FAIL) and
+  render contact sheets to a scratch directory;
+- inspect its own sheets and revise until the motion reads as the brief;
+- do not save, start a preview for the owner, or change other items;
+- return the clip path, the check summary with any accepted WARNs, the sheet
+  paths, and what it could not judge.
+
+Without subagents, author the items one after another the same way. Either
+way, never run two saves at once: they share one app and one browser.
+
+## 3. Consistency pass
+
+Before the owner sees anything, compare the items side by side: matching
+energy for the same intensity, the same hand-shape and expression style,
+similar settle timing, and tiers that clearly step up. Fix outliers in their
+clips and re-run validate and check on each changed item.
+
+## 4. One review session
+
+Start one preview with the first item (`pnpm -s animation:preview
+<first>.clip.json`) and tell the owner to pick each item in the **Review**
+picker, with **Compare** set to the original for a replacement. Notes are kept
+per item. Apply each note, resolve it with `animation resolve`, and ask the
+owner to look again.
+
+## 5. Save the batch
+
+Write one items file and save every item in one run:
+
+```json
+[
+  {
+    "clip": "../src/lib/avatar/motion-authoring/examples/shy-wave.clip.json",
+    "name": "Shy Wave",
+    "aiDescription": "A small, bashful wave for greetings when shy.",
+    "selectorId": "shy_wave"
+  }
+]
+```
+
+```bash
+source ../../../.animama-stack.env   # from src/frontend/web: the stack's origin
+pnpm -s animation:save <items.json>
+```
+
+Clip paths are relative to the items file; an optional `description` sets
+the Library description shown to people (it defaults to the AI description).
+The tool saves the items one after another through the Gesture creator,
+exactly as a person would: a new Selector ID becomes a new Local Gesture, an
+existing Local one is revised in place (or reported as unchanged when it
+already matches), and each saved item is reopened to confirm its beats load.
+It prints each item as it goes, so a failure part-way does not hide earlier
+saves; fix the failing item and run again (saved items are revised, not
+duplicated). Then run the chat check on a sample of the batch.
+
+## 6. Hand off
+
+One table with a row per item: name, Selector ID, clip path, saved item URL,
+check summary, review notes and resolutions, and known limits.

@@ -105,8 +105,11 @@ Write output to a scratch directory, never the repository.
 ## Creator confirmation and save
 
 Save through the Gesture creator so the Library item, its metadata and the
-runtime catalog stay consistent. Import a project file to set the name, the AI
-description (when chat should choose the Gesture) and the Selector ID together:
+runtime catalog stay consistent. `pnpm -s animation:save <items.json>` does
+this headlessly for one or more clips (see [batch mode](batch.md) for the
+items file); the steps below are the same save by hand. Import a project file
+to set the name, the AI description (when chat should choose the Gesture) and
+the Selector ID together:
 
 ```json
 {

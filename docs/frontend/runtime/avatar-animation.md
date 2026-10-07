@@ -599,6 +599,9 @@ from `src/frontend/web`:
   Avatars, each with its own prepared clip; a 2.0 clip supplies its contacts
   and `plantFeet`.
 - `pnpm -s animation:render <clip.json> --out <dir>` draws review sheets.
+- `pnpm -s animation:save <items.json>` saves clips as Local Gestures through
+  the Gesture creator in a headless browser, revising an existing Local
+  Gesture with the same Selector ID.
 - `pnpm -s animation:preview [<source>]` plays a clip, project file or Library
   item live on both Included Avatars through `Avatar`/`PoseController`. Its
   Review and Compare pickers switch to any example clip, any clip beside a

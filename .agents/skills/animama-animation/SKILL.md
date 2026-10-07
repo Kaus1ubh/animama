@@ -1,6 +1,6 @@
 ---
 name: animama-animation
-description: Author natural, expressive Animama Gestures from a text prompt by writing an animaPoseClip/2.0 clip (beats and per-joint tracks), validating it, running the motion checks, live preview and review renders on both Included Avatars, and saving it as Local content through the Gesture creator; also revises saved Gestures from their Library item. Use for new or revised body-and-face Gesture motion; VRM internals, Avatar Effects and particle effects have their own skills.
+description: Author natural, expressive Animama Gestures from a text prompt by writing an animaPoseClip/2.0 clip (beats and per-joint tracks), validating it, running the motion checks, live preview and review renders on both Included Avatars, and saving it as Local content through the Gesture creator; starts with a short clarifying interview, authors up to ten Gestures as a batch, and revises saved Gestures from their Library item. Use for new or revised body-and-face Gesture motion; VRM internals, Avatar Effects and particle effects have their own skills.
 ---
 
 # Animama Animation
@@ -19,6 +19,12 @@ first.
 
 ## Workflow
 
+0. **Interview.** Before planning, ask the owner the few questions whose
+   answers would change the clip (when chat uses it, one-shot or held,
+   intensity, leading hand, contacts, face), with your recommended option
+   first, and confirm the resulting brief. Skip it when the prompt already
+   settles the performance or the owner says to use your judgement. See
+   [interview](references/interview.md).
 1. **Plan the performance.** Read the prompt into beats with times:
    anticipation → action → follow-through → settle (one-shot), or an alive hold
    that loops seamlessly (held). Choose duration, loop, which body regions lead
@@ -45,19 +51,26 @@ first.
    and repeat from step 2 until it reads clearly and naturally. When the owner
    leaves review notes, apply them and resolve each with
    `pnpm -s animation resolve` (see checks and review).
-6. **Save through the creator** (see checks and review): import a project
-   file carrying the clip, name, AI description and Selector ID, play it on
-   each Avatar, then **Save** (not Save & Equip unless the owner asks).
-   Reopen and confirm playback.
+6. **Save through the creator:** `pnpm -s animation:save <items.json>` saves
+   each listed clip with its name, AI description and Selector ID through the
+   Gesture creator (a new Local Gesture, or a revision when that Selector ID
+   is already saved) and reopens it; or do the same by hand (see
+   [checks and review](references/checks-and-review.md)). Never Save & Equip
+   unless the owner asks.
 7. **Chat check** when mutes or expressions matter: play it on a test Anima.
 8. **Hand off** with the saved item, clip path, check summary, preview notes,
    render sheets, the chat check and known limits.
+
+**Several Gestures at once:** follow [batch mode](references/batch.md) for up
+to ten per batch: one interview round, parallel authoring, a consistency
+pass, one preview for the owner and one save run.
 
 **Revising a saved Gesture:** start from the Library item itself. Preview it
 with `pnpm -s animation:preview library:<selector>`, which prints its clip
 file's path. Copy that file to your working location, edit it, then validate, check
 and preview with `--compare library:<selector>` to see old and new together.
-Open the Gesture in the creator, import the revised clip and Save. A 1.0
+Save it with `animation:save` under the same Selector ID (or import it in
+the creator and Save); the item keeps its identity. A 1.0
 Gesture (most Included content) must first be opened and saved once in the
 creator, which converts it to 2.0; `validate` accepts only 2.0.
 
