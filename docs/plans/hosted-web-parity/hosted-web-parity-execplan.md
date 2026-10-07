@@ -96,7 +96,7 @@ contract instead of maintaining a second truth.
 - [ ] 2026-10-06 [A3 / #275](https://github.com/raymond-van/animama/issues/275): original session/cache and R5/R6 source review pass; earlier hosted durable preferences/desktop Usage pass. Approved owning repair3/3 resolves A6-R7 with four actual Library local/hosted Escape/Close regressions and independent source review. Clean5d95 producer/guard/installed-emitted consumer/genuine rollback pass. Native CI fails two initial10s load waits before behavior assertions; fresh hosted fixture7 stops at the first Settings body read after six checks. Full account-switch/hosted acceptance remains pending; causes are not proved product regressions.
 - [x] 2026-10-06 [A4 / #276](https://github.com/raymond-van/animama/issues/276): original phase review passed0/2; A6 returned model-role/Library-upload defects. Targeted independent analysis/checks #2 resolve both after owning A4 repair1/2. Corrected immutable binding remains A6; physical/heard voice and hosted/provider/device acceptance remain C5/C7 gates.
 - [x] 2026-10-06 [A5 / #277](https://github.com/raymond-van/animama/issues/277): engineering/artifact gate PASS after independent final analysis/checks. Clean A `8b09e7ff` and reviewed main-integrated B `e4e0661b` pass independent producer/installed-and-emitted consumer, same-source A production observations and genuine A/B/open-tab/rollback/clip gates. Repair rounds remain 1 of 2; measurement and inherited descriptive-field limits are recorded below. C6/A6 are ready; main adoption, provider/device/deployment and exact-candidate owner merge remain separate.
-- [ ] 2026-10-06 [A6 / #278](https://github.com/raymond-van/animama/issues/278): approved R7 repair4/4 and owning A3 3/3 pass source review. Reviewed main-integrated5d95 clean producer/guard/all eight installed-emitted consumer/genuine retained-C rollback checks pass. Actual native ci:full37536127901 passes backend/preceding checks and2,603 Vitest cases but fails two initial10s page loads,73/75 browser cases; later required gates are skipped. Hosted fixture7 full run fails after six checks at first Settings body retrieval, with zero paid roots and memory cleanup complete. The owner approved one additional bounded A6 validation repair5/5; diagnostics and evidence-supported fixture repair are active, with all other counts/gates retained. Earlier failures, counts and C6/C7/owner/main gates remain.
+- [ ] 2026-10-06 [A6 / #278](https://github.com/raymond-van/animama/issues/278): clean de6108c2 producer/guard/all eight installed-emitted consumer/genuine retained-C rollback checks pass. Native ci:full37550197183 fails two initial10s page loads,77/79 browser cases; diagnostics retain completed HTML and unfinished module entry. Serial scheduling's author79/79 and independent78/79 cancellation-marker failure remain retained. Approved A6 repair6/6 applies the prepared test-only settlement fix with original deadlines/assertions. Author5/5, independent source review and independent cold all79/79 pass, zero skips; fresh clean artifact and actual native CI remain next. Hosted fixture7 FAIL6, zero paid roots, cleanup and all earlier failures remain. Full common, retirement/final C6 review0/2 and C7/owner/main/provider/device/deployment gates remain; owning A3 stays3/3 and all other counts are unchanged.
 
 ## Surprises & Discoveries
 
@@ -1610,6 +1610,122 @@ full retry or prior-cohort reset. Full common PASS still gates duplicate UI
 retirement. C6 formal review, clean releases, final-source browser acceptance,
 validated public main, owner merge, promotion/readback and provider/device/live
 deployment gates remain separate. A6 is not marked complete by this source release.
+
+#### Native diagnostics and serial browser scheduling — approved round5/5
+
+Clean de6108c2, tree a4eae4a2, passes the fresh producer, unchanged comparison
+and all eight installed/emitted consumer checks, including genuine retained-C
+upgrade/open-tab/rollback. Actual native ci:full37550197183 attempt1 still fails:
+3,165 backend tests pass with10 skipped, and2,603 Vitest cases pass; browser results are77/79, zero
+skips. Both initial-entry failures retain document200, completed HTML and main
+frame commit, but no DOMContentLoaded/load within the unchanged10s deadline.
+Library retains42 pending module requests. Settings evidence is truncated, so
+its64 completed retained requests do not establish that all requests finished.
+The four real loopback diagnostic controls pass. Later required CI gates are
+skipped; local artifact receipts do not establish their archive bytes were tested
+by CI. Earlier failed evidence remains retained.
+
+Independent diagnosis supports explicit serial browser-file scheduling as the
+smallest fixture repair candidate. The existing command starts eight expensive
+Vite/Chromium test files with Node's hardware-dependent default concurrency.
+The command now sets --test-concurrency=1; process isolation, all79 cases,
+original10s navigation and15s hosted readiness deadlines, assertions and passive
+diagnostics remain unchanged. The exact optimizer/CPU/renderer cause is unproved;
+no Vite warmup, retry, readiness relaxation or product change is added.
+
+Before applying that one-line change, an author cold-cache experiment at clean
+de6108c2 passes all79 cases, zero skips, in142.95s. Both task-only optimizer
+caches are preserved outside the checkout before the run. Utility-scoped idle
+sleep prevention ends with the test process and changes no persistent power
+setting. Receipt SHA abc28d39d9359cf16c1cff6c998e6be1d8087416e98ccc9b73f7c8dc3c7f53b2;
+independent diagnosis SHA93e6a79b53f4eef4365eb65a2b8ce1a2c3c5b94785a250aadb3d13e3588c9120.
+This local result is not native CI acceptance. Targeted independent recheck,
+fresh clean immutable artifacts and actual native ci:full remain required before
+Cloud metadata refresh, candidate capture or the single full common journey.
+This continuation remains within approved A6 repair5/5; A3 stays3/3 and all
+other counts and C6/C7 gates above remain unchanged.
+
+#### Targeted serial recheck blocker — approved round5/5 exhausted
+
+Independent frozen-source analysis reports no actionable findings in the
+two-path scheduling/record change. Its cold serial replay fails78/79, zero
+skipped/cancelled, in133.59s. Both prior native entry failures, all four real
+loopback controls and all eight retained-screen cases pass. The different failure
+is the cross-window held-install test at
+scripts/model-download-coordination.browser.test.mjs:363: after Cancel, source
+shows not_installed but retries still contains the cloning encoder ID. Static
+checks pass and source remains unchanged. Failed receipt SHA
+4ed506ad61d24d0bb0ab81bda5603018d03b37595f5b7a9eeb3dab0631a92aff;
+source-analysis SHA74f0e73cda3d53a46be61d30966767b1cad7ceb7e452189943436dcc075c574f.
+The author79/79 result is retained separately, not substituted for this failure.
+
+Source inspection supports a fixture race: cancellation broadcasts the existing
+attempt before DELETE; a sibling can read the removed manager state before the
+cancelling window consumes its response and publishes the cleared marker. The
+failed log does not prove that exact interleaving or rule out a persistent product
+defect. The prepared test-only proposal first observes downloading in both
+windows with the original concurrent2,500ms deadlines, then observes
+not_installed and empty retry markers in both under the unchanged concurrent
+default deadline. Both final assertions remain. No product code, fixed sleep,
+retry, skip or deadline relaxation is proposed. Patch SHA
+3ff6dbccc79a50148e0276e1491461ae5718b823b981fceb96c21de65cabcd0e;
+syntax/format are checked outside the checkout, but runtime validation and source
+application are unperformed.
+
+Approved A6 repair5/5 has reached its failed targeted recheck. Further source
+repair and dependent commit/artifact/native CI/Cloud work require an explicit
+owner extension under the bounded review policy. No automatic retry or budget
+reset follows. The serial command and this failure record remain uncommitted;
+last clean source/artifact is de6108c2/c43f205b. Cloud source, ordinary pins,
+accounts and preserved resources remain unchanged and no fixture8 is launched.
+
+#### Code Review #7 Findings — cancellation completion readiness
+
+A6-CANCEL-SETTLEMENT-1: the independent78/79 replay above fails the existing
+cross-window cancellation assertion. Independent source diagnosis supports a gap
+between manager-state visibility and retry-marker reconciliation; the exact failed
+runtime interleaving is unmeasured. The proposed stronger readiness still fails
+if marker reconciliation is persistently broken. Diagnosis SHA
+672c7544ba7ca191adb24ecf012aae7bbeccd16c28ce0ce595a3e2ae24a95277.
+
+#### Code Review #7 Revisions — approved repair6/6
+
+On2026-10-06 the owner approves one additional bounded A6 repair6/6 for the
+prepared test-only settlement fix, affected checks, independent recheck, fresh
+clean artifact and actual native CI, then continuation in the agreed Cloud order
+only when those gates pass. Accept A6-CANCEL-SETTLEMENT-1 and apply exactly the
+prepared patch3ff6dbcc. Both windows must first report downloading within the
+unchanged concurrent2,500ms waits, preventing an initial idle snapshot from
+satisfying cancellation readiness. Both then report not_installed and empty
+retry markers within the unchanged concurrent default deadline. Original final
+assertions and all79 cases remain. Product code is unchanged; no fixed sleep,
+retry, skip, relaxed navigation/readiness or quota change is introduced.
+
+The meaningful RED is the retained independent78/79 result. The applied test
+SHA33ced1667d9eb6e66bef81be4d28f93da745695190f3ea80c756fa73b20816e0
+matches the prepared proposal. Author checks and targeted independent analysis/
+checks are next; no runtime pass is claimed yet. Earlier source, CI, Cloud
+failures and receipts remain retained. A6 is6/6 active; A3 stays3/3, A1/A2 each
+2/2, A4/A5 each1/2 and C6 formal initial review remains unstarted0/2. The
+extension supplies no merge, publication, ordinary pin adoption, promotion,
+provider/device or live deployment acceptance.
+
+Targeted independent source analysis finds no actionable issues. Author affected
+browser checks pass5/5, zero skips; configured formatting, lint, syntax and
+whitespace pass. An initial sandbox loopback EPERM prevented server startup;
+that environment failure is retained and is not the meaningful RED or runtime
+acceptance. Same-source execution with loopback access passes. Independent cold
+all-eight-file replay passes79/79, zero skipped/cancelled, in144.83s. Only the
+three named affected fixture optimizer caches are preserved outside and recreated
+empty; this is not a global cold-cache claim. Source hashes/modes and all three
+backup inventories match before/after. The cancellation case and both original
+entry failures pass. Source-analysis SHA
+d8d86c7e89ccb53ee0039ebbe7567ad3e3e9f279997736d0bb4f6430e92e6c0e;
+independent-checks SHA30556bcaa7f393b27a550e7b3544b1fc02ffe0a6090efdca30b170170a09217d.
+Accept the targeted source/check result for the corrected fixture. Fresh clean
+producer/comparison/all eight installed-emitted consumer/genuine-C rollback and
+actual native ci:full remain required. No passing native CI, Cloud replacement,
+retirement or phase completion is inferred from this local source release.
 
 ## Final integration review
 
