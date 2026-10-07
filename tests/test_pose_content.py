@@ -313,3 +313,41 @@ async def test_rescan_retires_removed_included_pose_starters_from_typed_listing(
     assert {entry["pose_id"] for entry in after} == kept
     assert all(entry["source"] == "included" for entry in after)
     assert (await client.get(f"/v1/poses/{sorted(retired_ids)[0]}")).status_code == 404
+
+
+async def test_catalog_responses_report_non_portable_included_content(pose_api) -> None:  # noqa: ANN001
+    client, (paths, _catalog, service, _saves, _packages), _principal = pose_api
+    root = paths.included_root / "poses" / "salute"
+    root.mkdir(parents=True)
+    document = pose_document()
+    document["content_id"] = document["pose"]["id"] = "included-salute"
+    # A descriptor cannot lift the restriction that its Included rule sets.
+    document["provenance"] = {"distribution": "portable"}
+    (root / "salute.json").write_text(json.dumps(document))
+    (paths.included_licenses_root / "inventory.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "rules": [
+                    {
+                        "glob": "poses/**",
+                        "creator": "Test suite",
+                        "provenance": "Original test data",
+                        "license_id": "fixture-only",
+                        "distribution": "non-portable",
+                    }
+                ],
+            }
+        )
+    )
+    saved = await client.put(
+        "/v1/poses/Owned", data={"operation_id": "create-owned", "descriptor_json": json.dumps(pose_document())}
+    )
+    assert saved.status_code == 200, saved.text
+    assert saved.json()["portability"] == "portable"
+    await service.rescan(user_id="package-owner")
+
+    typed = {row["source"]: row["portability"] for row in (await client.get("/v1/poses")).json()["items"]}
+    assert typed == {"included": "non-portable", "local": "portable"}
+    listed = (await client.get("/v1/content/catalog")).json()["items"]
+    assert {row["source"]: row["portability"] for row in listed if row["kind"] == "pose"} == typed

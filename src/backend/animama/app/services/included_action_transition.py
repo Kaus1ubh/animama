@@ -10,6 +10,7 @@ from animama.app.ports.content_transition import ContentTransitionBindings
 from animama.app.services.action_clip_transition import ActionClipTransitionService
 from animama.app.services.content_catalog_service import ContentCatalogService
 from animama.app.services.content_kind_registry import handler_for_kind
+from animama.app.services.content_portability import is_non_portable
 from animama.app.services.local_content_mutations import mutation_digest
 from animama.app.services.typed_content_service import (
     TypedContentAdmissionError,
@@ -88,6 +89,8 @@ class IncludedActionTransitionService:
                 item.source is not ContentSource.INCLUDED
                 or item.status is not ContentStatus.VALID
                 or item.kind not in {ContentKind.GESTURE, ContentKind.REACTION}
+                # Non-portable motion is never copied into Local content.
+                or is_non_portable(item)
             ):
                 continue
             document = TypedContentService.parse(item).document
@@ -111,6 +114,10 @@ class IncludedActionTransitionService:
                     # a deleted result. The immutable source may still be scanned.
                     logical_replacements[item.id] = str(receipt["result"]["value"]["logical_key"])
                     completed[item.id] = str(receipt["result"]["value"]["item_id"])
+                    continue
+                if is_non_portable(motion):
+                    # Leave the source as it is; never copy non-portable motion
+                    # bytes into Local content.
                     continue
                 copies.append(planned)
                 logical_replacements[item.id] = planned.logical

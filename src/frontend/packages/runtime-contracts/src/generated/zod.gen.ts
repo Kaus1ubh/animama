@@ -1960,6 +1960,7 @@ export const zPyContentItem = z.object({
     metadata: z.record(z.string(), z.unknown()),
     name: z.string(),
     origin: z.enum(['included', 'local']),
+    portability: z.optional(z.enum(['portable', 'non-portable'])),
     provenance: z.record(z.string(), z.unknown()),
     relative_locator: z.string(),
     revision_sha256: z.union([
@@ -4712,6 +4713,7 @@ export const zPyAppearance = z.object({
         z.null()
     ])),
     name: z.string(),
+    portability: z.optional(z.enum(['portable', 'non-portable'])),
     presentation: z.optional(z.record(z.string(), z.unknown())),
     revision_sha256: z.string().regex(/^[0-9a-f]{64}$/),
     source: z.enum(['included', 'local']),
@@ -4748,6 +4750,7 @@ export const zPyAvatarContent = z.object({
     ])),
     model_role: z.optional(z.literal('model')).default('model'),
     name: z.string(),
+    portability: z.optional(z.enum(['portable', 'non-portable'])),
     revision_sha256: z.string().regex(/^[0-9a-f]{64}$/),
     source: z.enum(['included', 'local'])
 });
@@ -4781,6 +4784,7 @@ export const zPyAvatarEffect = z.object({
         z.null()
     ])),
     name: z.string(),
+    portability: z.optional(z.enum(['portable', 'non-portable'])),
     revision_sha256: z.string().regex(/^[0-9a-f]{64}$/),
     runtime_defaults: z.optional(z.record(z.string(), z.unknown())),
     source: z.enum(['included', 'local']),
@@ -4817,6 +4821,7 @@ export const zPyGesture = z.object({
         z.null()
     ])),
     name: z.string(),
+    portability: z.optional(z.enum(['portable', 'non-portable'])),
     revision_sha256: z.string().regex(/^[0-9a-f]{64}$/),
     semantic_key: z.string(),
     source: z.enum(['included', 'local'])
@@ -4860,6 +4865,7 @@ export const zPyIdleStyle = z.object({
         z.null()
     ])),
     name: z.string(),
+    portability: z.optional(z.enum(['portable', 'non-portable'])),
     revision_sha256: z.string().regex(/^[0-9a-f]{64}$/),
     schema_version: z.optional(z.union([z.literal(1), z.literal(2)])),
     source: z.enum(['included', 'local'])
@@ -4894,6 +4900,7 @@ export const zPyParticleEffect = z.object({
         z.null()
     ])),
     name: z.string(),
+    portability: z.optional(z.enum(['portable', 'non-portable'])),
     revision_sha256: z.string().regex(/^[0-9a-f]{64}$/),
     runtime_defaults: z.optional(z.record(z.string(), z.unknown())),
     source: z.enum(['included', 'local'])
@@ -4926,6 +4933,7 @@ export const zPyPose = z.object({
         z.null()
     ])),
     name: z.string(),
+    portability: z.optional(z.enum(['portable', 'non-portable'])),
     pose_id: z.string(),
     revision_sha256: z.string().regex(/^[0-9a-f]{64}$/),
     source: z.enum(['included', 'local'])
@@ -4970,6 +4978,7 @@ export const zPyReaction = z.object({
         z.null()
     ])),
     name: z.string(),
+    portability: z.optional(z.enum(['portable', 'non-portable'])),
     revision_sha256: z.string().regex(/^[0-9a-f]{64}$/),
     source: z.enum(['included', 'local'])
 });
@@ -5003,6 +5012,7 @@ export const zPySceneEffect = z.object({
         z.null()
     ])),
     name: z.string(),
+    portability: z.optional(z.enum(['portable', 'non-portable'])),
     revision_sha256: z.string().regex(/^[0-9a-f]{64}$/),
     runtime_defaults: z.optional(z.record(z.string(), z.unknown())),
     source: z.enum(['included', 'local']),
@@ -5046,6 +5056,7 @@ export const zPySoundEffect = z.object({
         z.null()
     ])),
     name: z.string(),
+    portability: z.optional(z.enum(['portable', 'non-portable'])),
     revision_sha256: z.string().regex(/^[0-9a-f]{64}$/),
     source: z.enum(['included', 'local'])
 });
@@ -5538,6 +5549,7 @@ export const zPyVoiceContent = z.object({
         z.null()
     ])),
     name: z.string(),
+    portability: z.optional(z.enum(['portable', 'non-portable'])),
     revision_sha256: z.string().regex(/^[0-9a-f]{64}$/),
     sample_rate_hz: z.optional(z.union([
         z.int().gt(0),

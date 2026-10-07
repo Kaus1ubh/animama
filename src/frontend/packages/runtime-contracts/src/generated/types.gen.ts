@@ -2648,6 +2648,10 @@ export type PyAppearance = {
      */
     name: string;
     /**
+     * Portability
+     */
+    portability?: 'portable' | 'non-portable';
+    /**
      * Presentation
      */
     presentation?: {
@@ -3187,6 +3191,10 @@ export type PyAvatarContent = {
      */
     name: string;
     /**
+     * Portability
+     */
+    portability?: 'portable' | 'non-portable';
+    /**
      * Revision Sha256
      */
     revision_sha256: string;
@@ -3248,6 +3256,10 @@ export type PyAvatarEffect = {
      * Name
      */
     name: string;
+    /**
+     * Portability
+     */
+    portability?: 'portable' | 'non-portable';
     /**
      * Revision Sha256
      */
@@ -4015,6 +4027,10 @@ export type PyContentItem = {
      */
     origin: 'included' | 'local';
     /**
+     * Portability
+     */
+    portability?: 'portable' | 'non-portable';
+    /**
      * Provenance
      */
     provenance: {
@@ -4539,6 +4555,10 @@ export type PyGesture = {
      */
     name: string;
     /**
+     * Portability
+     */
+    portability?: 'portable' | 'non-portable';
+    /**
      * Revision Sha256
      */
     revision_sha256: string;
@@ -4864,6 +4884,10 @@ export type PyIdleStyle = {
      * Name
      */
     name: string;
+    /**
+     * Portability
+     */
+    portability?: 'portable' | 'non-portable';
     /**
      * Revision Sha256
      */
@@ -6814,6 +6838,10 @@ export type PyParticleEffect = {
      */
     name: string;
     /**
+     * Portability
+     */
+    portability?: 'portable' | 'non-portable';
+    /**
      * Revision Sha256
      */
     revision_sha256: string;
@@ -6877,6 +6905,10 @@ export type PyPose = {
      * Name
      */
     name: string;
+    /**
+     * Portability
+     */
+    portability?: 'portable' | 'non-portable';
     /**
      * Pose Id
      */
@@ -7004,6 +7036,10 @@ export type PyReaction = {
      * Name
      */
     name: string;
+    /**
+     * Portability
+     */
+    portability?: 'portable' | 'non-portable';
     /**
      * Revision Sha256
      */
@@ -7912,6 +7948,10 @@ export type PySceneEffect = {
      */
     name: string;
     /**
+     * Portability
+     */
+    portability?: 'portable' | 'non-portable';
+    /**
      * Revision Sha256
      */
     revision_sha256: string;
@@ -8082,6 +8122,10 @@ export type PySoundEffect = {
      * Name
      */
     name: string;
+    /**
+     * Portability
+     */
+    portability?: 'portable' | 'non-portable';
     /**
      * Revision Sha256
      */
@@ -8814,6 +8858,10 @@ export type PyVoiceContent = {
      * Name
      */
     name: string;
+    /**
+     * Portability
+     */
+    portability?: 'portable' | 'non-portable';
     /**
      * Revision Sha256
      */

@@ -13,6 +13,7 @@ from typing import BinaryIO
 
 from animama.app.services.content_catalog_service import ContentCatalogService
 from animama.app.services.content_kind_registry import handler_for_kind
+from animama.app.services.content_portability import is_non_portable
 from animama.app.services.local_content_mutations import mutation_digest
 from animama.app.services.typed_content_service import (
     TypedContentAdmissionError,
@@ -76,6 +77,10 @@ class ActionClipTransitionService:
                 clip_entry = visible.get(target_id or "")
                 if clip_entry is None or clip_entry.kind is not ContentKind.POSE_CLIP:
                     raise ContentDocumentError("action_clip_transition_source_invalid", "Action clip is unavailable")
+                if is_non_portable(clip_entry):
+                    # Leave the legacy Action as it is; never copy non-portable
+                    # motion bytes into Local content.
+                    continue
                 if not any(
                     file.role == "descriptor"
                     and str(PurePosixPath(file.relative_path).parent) == source.relative_locator

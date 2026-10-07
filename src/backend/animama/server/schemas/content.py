@@ -7,6 +7,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict
 
+from animama.app.services.content_portability import Portability, portability
 from animama.domain.content_catalog import (
     CatalogContentEntry,
     ContentPreview,
@@ -93,6 +94,7 @@ class PyContentItem(BaseModel):
     implementation_kind: str | None
     origin: Literal["included", "local"]
     editable: bool
+    portability: Portability = "portable"
     selection: PyContentSelection
 
     @classmethod
@@ -147,6 +149,7 @@ class PyContentItem(BaseModel):
             implementation_kind=implementation_kind if isinstance(implementation_kind, str) else None,
             origin=item.source.value,
             editable=item.source.value == "local",
+            portability=portability(item),
             selection=PyContentSelection(
                 catalog_item_id=item.id,
                 logical_key=item.logical_key,

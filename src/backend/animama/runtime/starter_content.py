@@ -17,6 +17,11 @@ from typing import Any
 
 from animama.adapters.content_store import FilesystemContentStore
 from animama.app.services.anima_starter_service import STARTER_ANIMA_SPECS
+from animama.app.services.content_portability import (
+    DISTRIBUTION_EXCLUDED,
+    DISTRIBUTION_NON_PORTABLE,
+    INVENTORY_DISTRIBUTIONS,
+)
 from animama.app.services.starter_loadout_policy import starter_loadout_policy, starter_pack_identity
 from animama.app.services.typed_content_service import TypedContentAdmissionError, TypedContentResolutionContext
 from animama.domain.content_catalog import (
@@ -109,7 +114,7 @@ def starter_inventory(included_root: Path, *, allowed_paths: set[str] | None = N
         record = next((rule for rule in rules if fnmatch.fnmatchcase(relative_path, rule["glob"])), None)
         if not record or not record.get("license_id") or not record.get("provenance"):
             raise ValueError(f"Missing license record: {relative_path}")
-        if record.get("distribution") not in (None, "excluded"):
+        if record.get("distribution") not in (None, *INVENTORY_DISTRIBUTIONS):
             raise ValueError(f"Invalid distribution policy: {relative_path}")
         return dict(record)
 
@@ -122,10 +127,14 @@ def starter_inventory(included_root: Path, *, allowed_paths: set[str] | None = N
             raise ValueError(f"Missing license record: {entry.relative_locator}")
         if allowed_paths is not None and any(f.relative_path not in allowed_paths for f in entry.files):
             excluded.append({"locator": entry.relative_locator, "reason": "not_tracked_distribution_input"})
-        elif any(file_license(f.relative_path).get("distribution") == "excluded" for f in entry.files):
+        elif any(file_license(f.relative_path).get("distribution") == DISTRIBUTION_EXCLUDED for f in entry.files):
             # Exclude the whole typed entry from both partitions. A required
             # starter dependency then fails resolution instead of being trimmed.
             excluded.append({"locator": entry.relative_locator, "reason": "redistribution_excluded"})
+        elif any(file_license(f.relative_path).get("distribution") == DISTRIBUTION_NON_PORTABLE for f in entry.files):
+            # Non-portable content ships only as its own private Included source,
+            # never in core or the publicly downloadable expanded pack.
+            excluded.append({"locator": entry.relative_locator, "reason": "non_portable"})
         else:
             admitted.append(entry)
     visible = catalog_from_scan(admitted)

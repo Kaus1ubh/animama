@@ -68,7 +68,7 @@ Paths are relative to `src/backend/animama/` (backend) or `src/frontend/web/src/
 - [x] Workspace: branch rebased onto `d9fc7f91`, renamed and pushed; phase issues
       #323–#327 created as sub-issues of #242 with dependencies; #242 links the
       plan. Task stack: started when a phase first needs it.
-- [ ] Phase 1: Non-portable class in the backend catalog.
+- [x] Phase 1: Non-portable class in the backend catalog (#323). Review #2 passed.
 - [ ] Phase 2: Backend export, import and save enforcement.
 - [ ] Phase 3: Frontend affordances.
 - [ ] Phase 4: Private build inputs, staging allowlist and leak checks.
@@ -167,16 +167,36 @@ Paths are relative to `src/backend/animama/` (backend) or `src/frontend/web/src/
   - **Catalog property.** A read-only `portability: "portable" | "non-portable"`
     on catalog items. The backend derives it from an Included source and its
     matching rule, or from a payload hash match. Descriptors never supply it.
-  - **Tracked paths and tool.** The public-safe manifest and inventory live in
-    `scripts/mixamo-motion/`, beside the existing installer manifest. The backend
-    deny-list resource is a synced copy, validated the way
-    `src/backend/packaging/shared_catalogs.py` validates its copies. The ignored
+  - **Tracked paths and tool.** The public-safe manifest is the backend resource
+    `src/backend/animama/resources/mixamo-motion-manifest.json` (one source of
+    truth, superseding the earlier synced-copy idea; revised 2026-10-07 in P1).
+    The pack's public-safe inventory lives in `scripts/mixamo-motion/`. The ignored
     build-input directory is `build-inputs/mixamo-motion/`, excluded by
     `.gitignore` and `.dockerignore`. The owner tool is a desktop runtime script,
     `src/frontend/desktop/scripts/runtime/mixamo-motion.mjs`, exposed through
     `pnpm` commands. It reuses `r2-objects.mjs`, which gains a signed GET helper,
     so no new storage dependency is added. Hosted deploy fetches with Cloud's own
     tooling against the documented manifest contract.
+- 2026-10-07, agent (Phase 1 implementation and review #1):
+  - **Portability is persisted as `provenance["distribution"]`**, written by the
+    scanner after the descriptor merge (any descriptor value is dropped), instead
+    of a new `CatalogContentEntry` field or column. Reconciliation already
+    rewrites provenance on every scan, so no schema change or database reset is
+    needed. `content_portability.is_non_portable` is the one reader.
+  - **Restricted hashes come only from the tracked manifest**, not from rehashing
+    mounted entries. Local-only rescans skip Included content, so mount hashes
+    would need a full Included rescan or new state. Staging guarantees a mounted
+    pack matches the manifest exactly (P4). Consequence until P5 fills the
+    manifest: a Local byte copy of a mounted non-portable file is portable; no
+    real pack exists before then.
+  - **Staging omits non-portable content** from both core and expanded inputs
+    (reason `non_portable`) rather than admitting it; the pack is staged as its
+    own source in P4.
+  - **Rule matching fails closed.** The scanner matches the locator and every
+    file case-sensitively (like staging); any non-portable or unrecognised
+    distribution on any path restricts the entry.
+  - **`portability` defaults to `"portable"` in the response schema** so the
+    many existing frontend fixtures stay valid; the server always sets it.
 
 ## Phased implementation
 
@@ -192,9 +212,8 @@ nothing.
 Intended changes:
 
 1. Accept `"distribution": "non-portable"` in inventory rules. In
-   `runtime/starter_content.py`, non-portable entries are admitted (not
-   excluded), never become starter roots, and appear in the audit with their
-   distribution. Unknown values are still rejected.
+   `runtime/starter_content.py`, non-portable entries are omitted from core and
+   expanded inputs (reason `non_portable`). Unknown values are still rejected.
 2. Allow `pack_id: "mixamo-motion"` in `_included_sources`, keeping `core`
    first and unique IDs. Document the source in the backend operations docs.
 3. Derive portability during the scan (`filesystem_store.py`), separately from
@@ -203,12 +222,10 @@ Intended changes:
    inventory, read before the descriptor's provenance is merged. Local entries
    are portable unless a payload hash matches step 4. A descriptor's
    `provenance.distribution` never changes the result; add a test where a Local
-   and an Included descriptor try both directions. Carry the value on
-   `CatalogContentEntry` (`domain/content_catalog.py:111–131`).
-4. Add a restricted-hash index: the SHA-256 hashes of payload files from mounted
-   non-portable entries, plus the tracked manifest hashes shipped as a backend
-   resource (an empty manifest until P5). Expose it to services through one
-   small interface.
+   and an Included descriptor try both directions. Persist the value as
+   `provenance["distribution"]` (Decision Log).
+4. Add a restricted-hash set from the tracked manifest resource (empty until
+   P5), injectable for tests (Decision Log).
 5. Add `portability` to `PyContentItem` (`server/schemas/content.py:72`) and
    `PyTypedContentBase` (`server/schemas/typed_content.py:125`, filled by
    `_base()`). Persist it with the catalog row only if reconciliation needs it;
@@ -216,8 +233,8 @@ Intended changes:
    revision. Regenerate `openapi.json` and the frontend client offline
    (`pnpm openapi-ts`; `openapi-ts:check` must pass).
 6. Make the startup transitions (`convert_idle_styles`,
-   `IncludedActionTransitionService.convert`) skip non-portable entries and their
-   bytes.
+   `IncludedActionTransitionService.convert`, `ActionClipTransitionService.convert`)
+   skip non-portable entries and never copy a non-portable dependency's bytes.
 
 Tests (TDD; synthetic fixture source with a project-authored clip Gesture and a
 fake VRMA payload marked non-portable in a fixture inventory):
@@ -232,9 +249,86 @@ Checks: `uv run pytest -q`, `uv run ruff check`, `make format-check`; from
 Completion: the property is visible in the catalog for a mounted fixture source;
 starter and integrity tests pass unchanged; review passes.
 
+Results (2026-10-07, starting revision `b3f5ee68`):
+
+- Implemented: `app/services/content_portability.py` (policy, manifest parsing,
+  fail-closed rule resolution), `resources/mixamo-motion-manifest.json` (empty),
+  scanner derivation in `filesystem_store.py`, `mixamo-motion` pack id
+  (`server/local_runtime.py`), staging omission (`runtime/starter_content.py`),
+  transition guards (three services), `portability` on `PyContentItem` and
+  `PyTypedContentBase`, regenerated client, and docs
+  (`docs/backend/architecture/local-content-storage.md`,
+  `docs/backend/operations/desktop-runtime.md`,
+  `docs/frontend/desktop/runtime-staging.md`).
+- Tests: `tests/test_content_portability.py` (new), additions to
+  `test_starter_content_closure.py`, `test_included_action_transition.py`
+  (whole-source and dependency-only cases; both shown red without their guard)
+  and `test_pose_content.py` (typed and catalog API property).
+- Checks: `uv run ruff check` and `make format-check` pass; import-boundary
+  check 0 forbidden edges; `pnpm openapi-ts:check` current; `pnpm check` pass;
+  full `uv run pytest -q`: 3167 passed, 1 failed
+  (`test_desktop_runtime_packaging.py::test_runtime_resource_audit_has_schema_and_starter_resources`,
+  "Packaged gruut phonemizer produced no lip-sync phonemes"). That test also
+  failed on the pre-change baseline in this worktree's fresh environment; it is
+  an environment limitation, not caused by this phase.
+
 #### Code Review #1 Findings
 
+Reviewer: independent `sdlc-reviewer` agent, staged source on `b3f5ee68`.
+
+- **P1-F1 (required):** startup transitions copied a non-portable dependency's
+  bytes into Local: Included action → clip (`included_action_transition.py`),
+  idle lane owner (`content_transition_service._gesture`) and Local action →
+  Included clip (`action_clip_transition.py`). Only top-level items were checked.
+- **P1-F2 (required):** the plan contradicted the implementation (storage in
+  provenance, manifest-only hashes, staging omission) without Decision Log
+  entries.
+- **P1-F3 (required):** step 2's documentation was not done; staging docs named
+  only `excluded`.
+- **P1-F4 (optional):** scanner matching differed from staging (`fnmatch` vs
+  `fnmatchcase`, first-match break) and dropped unknown values, failing open.
+- **P1-F5 (optional):** missing tests for a v1 Idle Style skip and a Local
+  descriptor claiming `portable` on restricted bytes.
+- Checks run by the reviewer: `pnpm openapi-ts:check` current; 32 targeted
+  tests passed.
+
 #### Code Review #1 Revisions
+
+- **P1-F1 accepted.** Each copy path raises `content_non_portable` (recorded as
+  a transition diagnostic) when the motion, lane owner or clip is non-portable.
+  New test `test_portable_actions_never_copy_a_non_portable_clip_into_local`
+  (red without the guard, green with it).
+- **P1-F2 accepted.** Steps 1, 3, 4 and 6 and the Decision Log updated.
+- **P1-F3 accepted.** The three docs listed under Results updated.
+- **P1-F4 accepted.** Shared `resolve_rule_distribution`: every path's
+  first-matching rule (`fnmatchcase`), and any non-portable or unrecognised
+  value restricts the entry. Test `test_an_unknown_or_mixed_distribution_fails_closed`.
+- **P1-F5 partly accepted.** The Local "claims portable" case was added to
+  `test_local_entries_are_restricted_only_by_byte_match`. The v1 Idle Style
+  case is deferred: the legacy v1 conversion has no non-portable producer, and
+  the guard is the same one-line check that the action tests cover.
+- Verification: 42 targeted tests pass (portability, transitions, starter).
+
+#### Code Review #2 Findings
+
+Targeted recheck (repair round 1) by the same reviewer: **pass**. P1-F1 to F5
+resolved; no blocking findings. 40 targeted tests and `ruff check` passed.
+
+- **P1-F6 (optional):** the dependency guards raised `content_non_portable`,
+  which `record_transition_failure` turns into an INVALID source with a
+  misleading "repair" diagnostic; the included-action guard also ran before the
+  completed-copy receipt check.
+
+#### Code Review #2 Revisions
+
+- **P1-F6 accepted for the two action paths.** `included_action_transition` and
+  `action_clip_transition` now skip (`continue`) a source whose clip is
+  non-portable, after the receipt check, so the source stays valid and playable
+  as before. The test asserts the Included actions stay VALID with no
+  diagnostics. The idle-lane path (`_gesture`) keeps its failure: a legacy v1
+  Style with a non-portable lane cannot be converted without copying the bytes.
+- Verification: 22 transition tests pass; `ruff check` passes. Repair budget:
+  one round remains for this phase.
 
 ### Phase 2: Backend export, import and save enforcement
 

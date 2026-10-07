@@ -18,6 +18,7 @@ from animama.app.anima_creation_contract import (
     StrictCreationModel,
 )
 from animama.app.services.content_kind_registry import idle_cells_projection
+from animama.app.services.content_portability import Portability, portability
 from animama.app.services.runtime_budget_policy import MAX_RUNTIME_ENTRIES
 from animama.app.services.typed_content_batch_service import (
     BuiltinTypedRoot,
@@ -132,6 +133,7 @@ class PyTypedContentBase(BaseModel):
     description: str | None = None
     revision_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     editable: bool
+    portability: Portability = "portable"
     dependencies: list[PyTypedDependency] = Field(default_factory=list)
     files: list[PyTypedContentFile] = Field(default_factory=list)
 
@@ -281,6 +283,7 @@ def _base(value: TypedCatalogItem) -> dict[str, object]:
         "description": document.description,
         "revision_sha256": item.revision_sha256 or "",
         "editable": item.source.value == "local",
+        "portability": portability(item),
         "dependencies": [
             PyTypedDependency(
                 ref=dependency.ref,

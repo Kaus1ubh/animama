@@ -414,8 +414,10 @@ Idle Style. The tracked-only staging gate still fails on an unavailable selected
 dependency, even if an ignored local copy exists. Full native stage and packaged
 acceptance remain separate checks; do not infer them from a passing content test.
 
-Content with `distribution: excluded` is omitted from core and expanded inputs.
-An excluded required dependency fails closure resolution. Local Appearance,
+Content with `distribution: excluded` or `distribution: non-portable` is
+omitted from core and expanded inputs (reasons `redistribution_excluded` and
+`non_portable`). An omitted required dependency fails closure resolution.
+Non-portable content ships only as its own private Included source. Local Appearance,
 voice content and Sound Effects remain supported. Speech-engine models and
 built-in voices are separate from imported example recordings. Music and
 standalone catalog Clips are outside the active content closure; preserved

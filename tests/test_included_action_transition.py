@@ -326,3 +326,80 @@ async def test_later_styles_and_consumers_respect_completed_action_copy(
         await cleanup_loadout_fixture(async_session, fixture)
         await async_session.execute(delete(ORMContentCatalogItem).where(ORMContentCatalogItem.source == "included"))
         await async_session.commit()
+
+
+async def test_non_portable_included_actions_are_never_copied_into_local(async_session, tmp_path) -> None:  # noqa: ANN001
+    fixture = await create_loadout_fixture(async_session)
+    paths, catalog, content, _, _ = package_services(async_session, tmp_path)
+    _included_fixture(content, paths)
+    (paths.included_root / "licenses").mkdir(exist_ok=True)
+    (paths.included_root / "licenses/inventory.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "rules": [
+                    {"glob": "**", "creator": "Fixture", "license_id": "Fixture", "distribution": "non-portable"}
+                ],
+            }
+        )
+    )
+    try:
+        local_before = _bytes(paths.local_root)
+        service = ContentTransitionService(content=content, bindings=SQLAlchemyContentTransitionBindings(async_session))
+        await service.transition(user_id=fixture.user_id)
+        visible = await catalog.list_visible(user_id=fixture.user_id)
+        assert {item.kind for item in visible if item.source is ContentSource.INCLUDED} >= {
+            ContentKind.GESTURE,
+            ContentKind.REACTION,
+        }
+        assert not [
+            item
+            for item in visible
+            if item.source is ContentSource.LOCAL and item.kind in {ContentKind.GESTURE, ContentKind.REACTION}
+        ]
+        assert _bytes(paths.local_root) == local_before
+    finally:
+        await async_session.rollback()
+        await cleanup_loadout_fixture(async_session, fixture)
+        await async_session.execute(delete(ORMContentCatalogItem).where(ORMContentCatalogItem.source == "included"))
+        await async_session.commit()
+
+
+async def test_portable_actions_never_copy_a_non_portable_clip_into_local(async_session, tmp_path) -> None:  # noqa: ANN001
+    fixture = await create_loadout_fixture(async_session)
+    paths, catalog, content, _, _ = package_services(async_session, tmp_path)
+    _included_fixture(content, paths)
+    (paths.included_root / "licenses").mkdir(exist_ok=True)
+    rule = {"creator": "Fixture", "license_id": "Fixture"}
+    (paths.included_root / "licenses/inventory.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "rules": [{"glob": "pose-clips/**", "distribution": "non-portable", **rule}, {"glob": "**", **rule}],
+            }
+        )
+    )
+    try:
+        local_before = _bytes(paths.local_root)
+        service = ContentTransitionService(content=content, bindings=SQLAlchemyContentTransitionBindings(async_session))
+        await service.transition(user_id=fixture.user_id)
+        visible = await catalog.list_visible(user_id=fixture.user_id)
+        included_actions = [
+            item
+            for item in visible
+            if item.source is ContentSource.INCLUDED and item.kind in {ContentKind.GESTURE, ContentKind.REACTION}
+        ]
+        assert included_actions and all(item.provenance.get("distribution") is None for item in included_actions)
+        # Skipped, not invalidated: the source stays usable as it was.
+        assert all(item.status is ContentStatus.VALID and not item.diagnostics for item in included_actions)
+        assert not [
+            item
+            for item in visible
+            if item.source is ContentSource.LOCAL and item.kind in {ContentKind.GESTURE, ContentKind.REACTION}
+        ]
+        assert _bytes(paths.local_root) == local_before
+    finally:
+        await async_session.rollback()
+        await cleanup_loadout_fixture(async_session, fixture)
+        await async_session.execute(delete(ORMContentCatalogItem).where(ORMContentCatalogItem.source == "included"))
+        await async_session.commit()
