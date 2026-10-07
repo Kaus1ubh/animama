@@ -113,7 +113,11 @@ function creatorEffectRuntimeId(
     : alias;
 }
 
-/** Generated Actions must activate every imported dependency, not merely dispatch events. */
+/**
+ * Generated Actions must activate every imported dependency, not merely dispatch events.
+ * `start` begins playback only after the Playing observer is armed; a short clip
+ * can otherwise finish before a slow page reports it.
+ */
 async function proveIntegratedAction(args: {
   surface: Locator;
   target: ExpectedPlaybackTarget;
@@ -122,6 +126,7 @@ async function proveIntegratedAction(args: {
   evidence: EvidenceAttachment;
   name: string;
   reaction: boolean;
+  start?: () => Promise<unknown>;
 }) {
   const creator =
     (await readPlaybackObservation(args.surface)).surface === "creator-stage";
@@ -129,7 +134,7 @@ async function proveIntegratedAction(args: {
   if (creator)
     for (const item of args.effects)
       expect(args.creatorEffectRuntimeIds?.get(item.item_id)).toBeTruthy();
-  return observePlaybackWindow({
+  const playing = observePlaybackWindow({
     surface: args.surface,
     expectedTarget: args.target,
     evidence: args.evidence,
@@ -183,6 +188,9 @@ async function proveIntegratedAction(args: {
       );
     },
   });
+  if (!args.start) return playing;
+  const [samples] = await Promise.all([playing, args.start()]);
+  return samples;
 }
 
 async function proveItem(args: {
@@ -193,6 +201,7 @@ async function proveItem(args: {
   creatorEffectRuntimeIds?: ReadonlyMap<string, string>;
   evidence: EvidenceAttachment;
   name: string;
+  start?: () => Promise<unknown>;
 }): Promise<PlaybackObservation[]> {
   const { item, surface, target, evidence, name } = args;
   const base = {
@@ -992,10 +1001,8 @@ test("imported playback covers every supported content kind in Library and appli
       const restart = page.getByRole("button", {
         name: /^(Restart clip preview|Restart preview)$/,
       });
-      if (item.kind === "gesture" || item.kind === "reaction") {
+      if (item.kind === "gesture" || item.kind === "reaction")
         await expect(restart).toHaveCount(1);
-        await restart.click();
-      }
       if (effectTypeLabel) {
         await page
           .getByRole("button", { name: /^Restart (?:effect )?preview$/ })
@@ -1009,6 +1016,11 @@ test("imported playback covers every supported content kind in Library and appli
         creatorEffectRuntimeIds,
         evidence: animamaEvidence,
         name: `imported-${item.kind}-creator`,
+        // The 3s fixture clips must be observed from Restart, not after it.
+        start:
+          item.kind === "gesture" || item.kind === "reaction"
+            ? () => restart.click()
+            : undefined,
       });
       if (
         (item.kind === "gesture" &&
