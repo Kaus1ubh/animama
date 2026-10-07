@@ -375,6 +375,56 @@ export type AvatarVFXParsedEntry =
   | AvatarVFXCatalogEntry
   | AvatarVFXAttachmentEntry;
 
+/**
+ * Placement an applied effect can change in place, without reloading its art
+ * (`AvatarVFXController.updateEffectTransform`). Face effects carry their
+ * transform (rotations in radians); body and sticker effects their offset,
+ * size and in-plane rotation (radians). Silhouettes have no placement.
+ */
+export type AvatarVFXEffectTransform =
+  | { kind: "face"; transform: AvatarVFXTransform }
+  | {
+      kind: "body";
+      offset: AvatarVFXTransformAxisTriple;
+      size: number;
+      rotation: number;
+    }
+  | {
+      kind: "sticker";
+      offset: { x: number; y: number };
+      size: number;
+      rotation: number;
+    };
+
+/** The placement of a parsed entry, or null for a silhouette. */
+export function avatarVFXEffectTransformOf(
+  effect: AvatarVFXParsedEntry,
+): AvatarVFXEffectTransform | null {
+  if (effect.kind === "silhouette") return null;
+  if (effect.kind === "body")
+    return {
+      kind: "body",
+      offset: { ...effect.offset },
+      size: effect.size,
+      rotation: effect.rotation,
+    };
+  if (effect.kind === "sticker")
+    return {
+      kind: "sticker",
+      offset: { ...effect.offset },
+      size: effect.size,
+      rotation: effect.rotation,
+    };
+  return {
+    kind: "face",
+    transform: {
+      offset: { ...effect.transform.offset },
+      scale: { ...effect.transform.scale },
+      rotation: { ...effect.transform.rotation },
+    },
+  };
+}
+
 export function isAttachmentVFXEntry(
   effect: AvatarVFXParsedEntry,
 ): effect is AvatarVFXAttachmentEntry {

@@ -11,6 +11,7 @@ import { particleVFXSaveAdapter } from "@/ui/particle-vfx-creator/useParticleVFX
 import { sceneEffectSaveAdapter } from "@/ui/scene-effect-creator/useSceneEffectSave";
 import {
   createCreatorSaveSession,
+  CreatorRecoveryDroppedError,
   isCreatorSavePause,
   runCreatorSave,
   type CreatorSaveAdapter,
@@ -209,7 +210,7 @@ describe("effect Save adapters", () => {
 
   it("round-trips an Avatar Effect draft and warns when its image bytes are gone", () => {
     const snapshot = createAvatarEffectHistorySnapshot();
-    snapshot.document.image = {
+    snapshot.document.art.image = {
       logicalName: "effect.webp",
       originalName: "effect.webp",
       contentType: "image/webp",
@@ -228,7 +229,30 @@ describe("effect Save adapters", () => {
 
     expect(restored.snapshot).toEqual(snapshot);
     expect(restored.operationId).toBe("operation-1");
-    expect(restored.warning).toContain("image reselected");
+    expect(restored.warning).toContain("images reselected");
+  });
+
+  it("drops an Avatar Effect draft from the earlier editor format with a notice", () => {
+    const record = avatarEffectSaveAdapter.toRecovery({
+      userId: "owner",
+      documentKey: "new",
+      itemId: undefined,
+      session,
+      snapshot: createAvatarEffectHistorySnapshot(),
+      updatedAt: "2026-10-06T00:00:00.000Z",
+    });
+    expect(() =>
+      avatarEffectSaveAdapter.fromRecovery({
+        ...record,
+        dropped: "old_editor_format",
+      }),
+    ).toThrow(CreatorRecoveryDroppedError);
+    expect(() =>
+      avatarEffectSaveAdapter.fromRecovery({
+        ...record,
+        dropped: "old_editor_format",
+      }),
+    ).toThrow(/earlier version of this creator/);
   });
 
   it("reports a Scene image that must be reselected against the files field", async () => {

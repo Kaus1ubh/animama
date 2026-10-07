@@ -117,42 +117,42 @@ every Included Avatar Effect as a template, grouped by intent in
 Included effect into a new, unsaved Local draft with an unused name; Save
 creates a separate Local item and never changes the Included one.
 
-The author chooses the effect kind first:
+The editor document (`animama/avatar-effect-editor/2`) mirrors the `/2`
+definition: **Attach to** chooses one of the five attachments (floating on the
+face, painted on the face, on the body, sticker beside the avatar, fill the
+silhouette), and Setup shows only that attachment's fields in plain terms
+(where, which eyes or side, body point). Setup also holds the image, an optional
+other side image for mirrored eye or cheek placements, an animated sprite sheet
+(flipbook), the eye and mouth cleanup options the attachment honours, sound and
+description. The Inspector holds **Placement** (position in centimetres, percent
+of the texture or percent of the avatar's height; size; rotation in degrees),
+**Look** (opacity, tint, blend) and **Motion** (pulse, spin and drift presets and
+a keyframe list). **Advanced → Replaces** sets the coexistence region; Automatic
+follows the attachment, and a manual choice is kept while it still suits it.
+Drafts in the earlier editor format are dropped with a notice.
 
-- **Hover** places eye, mouth, or face-box art on live face landmarks.
-- **Face decal** anchors a single or spanning image to under-eye, blush, or
-  mouth UV landmarks.
-- **Texture** overlays or replaces a classified live VRM material role.
+Art is placed by dragging it on the preview: across the face for painted art
+(the pointer's UV on the face mesh), in the head or bone frame's plane for
+floating and body art, and in the screen plane for stickers. Corner handles
+resize and the round handle turns it; each drag is one undo step, and with the
+preview focused the arrow keys nudge the art (Shift moves further). Placement
+edits reach the applied preview through
+`AvatarVFXController.updateEffectTransform`, without reloading the art;
+`getManipulationFrame` reports where each copy is drawn. Other edits re-apply
+the effect.
 
-Each type exposes **Effect region**, which controls replacement rather than
-placement. Regions `eyes`, `undereye`, `blush`, and `mouth` replace earlier effects
-in that region; `emote` and `full_face` allow different instances to coexist.
-**Automatic** follows changes to type, subtype, decal anchor, or texture target.
-Choosing a region manually preserves it across those changes. New effects default
-to Automatic; existing definitions and older editor documents preserve their
-region as a manual choice. The editor stores this choice in `regionMode`; runtime
-definitions always contain the resolved region.
+The preview offers the Anima's Avatar and both Included Avatars, with Face,
+Three-quarter, Portrait and Full body views. **Face parts** lists the selected
+Avatar's detected parts with their source and confidence; a part is corrected by
+ticking mesh parts or clicking the avatar, and Save stores the correction
+through `PUT /v1/avatar-content/{item_id}/face-parts` and rebuilds the preview.
+When the Avatar lacks a part the effect needs, the creator says which.
 
-Until the editor redesign, the creator keeps its `/1`-shaped editor document
-and saves and reopens `/2` through a temporary adapter
-(`lib/avatar/vfx/editor/legacyDefinitionAdapter.ts`). It refuses to reopen an
-effect that uses appearance, other-eye, flipbook or keyframe settings, which it
-could not keep.
-
-Eye hover exposes **Force blink**, **Hide eye details**, **Clean up eye area**,
-and **Additional hidden materials**. Mouth hover and mouth decals expose **Clean
-up mouth area**. Texture exposes **Hidden materials**. These settings persist in
-the definition and editor document. The blink, automatic eye-detail hiding, and
-facial cleanup flags default to enabled when omitted by older content. Explicit
-hidden-material roles are additive to automatic eye-detail hiding; turning off
-Hide eye details does not clear those selections. **Skin backdrop** controls a
-separate hover backing plane and does not enable or disable facial cleanup.
-
-The creator accepts exactly one PNG, JPEG, or WebP image. Its serializable
-editor document stores only logical metadata and a digest; the browser-owned
-`File`, preview Blob URL, upload capability, and live `Avatar`/Three objects
-stay outside that document. The Blob URL is revoked whenever its image is
-replaced or the route unmounts.
+The creator accepts PNG, JPEG, or WebP images. Its serializable editor document
+stores only their logical metadata and digests; the browser-owned `File`s,
+preview Blob URLs, upload capability, and live `Avatar`/Three objects stay
+outside that document. A Blob URL is revoked whenever its image is replaced or
+the route unmounts.
 
 An optional Sound Effect is stored as an exact typed dependency source. The
 portable definition refers to the root-local alias, so the runtime can rewrite
@@ -167,7 +167,7 @@ explicit discard.
 Discarding never changes the saved Library item.
 
 The live preview calls the production `AvatarVFXController` against the
-selected Anima's exact Avatar model. Diagnostics distinguish a malformed
+selected Avatar model. Diagnostics distinguish a malformed
 definition (blocks Save) from a model-specific missing binding or landmark
 (warning only). Play, stop, restart, camera framing, and placement guides are
 preview controls. Transform and animation settings define the reusable effect;
@@ -244,7 +244,7 @@ applying a fifth removes the oldest, logging
 `avatar_effect_attachment_limit` and adding a snapshot warning. They appear in
 the snapshot's `attachmentEffects` and the observation snapshot, survive a face
 part correction, and are disposed by `removeEffect`, `clearAllEffects`, clip
-cleanup and `presentation.disable_vfx`. The creator cannot edit them yet.
+cleanup and `presentation.disable_vfx`.
 
 ## 2) High-level model
 
@@ -500,8 +500,8 @@ VFX definitions.
 
 Texture effects can also specify `disableTargetRoles` to hide recognized material
 bindings for the duration of the effect, independently of Overlay/Replace. The
-creator's Hidden materials selections round-trip this list; it is not restricted
-to eye highlights. Suppression skips the effect's source binding and depends on
+creator's **Hide other face parts** selections round-trip this list
+(`faceOptions.hideParts`); it is not restricted to eye highlights. Suppression skips the effect's source binding and depends on
 the model's material classification.
 
 Use full-surface textures only when the artwork matches the original UV layout.

@@ -101,7 +101,10 @@ export type CreatorSaveAdapter<
     snapshot: TSnapshot;
     updatedAt: string;
   }) => TRecord;
-  /** Throwing discards the unusable record. */
+  /**
+   * Throwing discards the unusable record; a {@link CreatorRecoveryDroppedError}
+   * also shows its message as the recovery notice.
+   */
   fromRecovery: (record: TRecord) => {
     snapshot: TSnapshot;
     operationId: string;
@@ -110,6 +113,17 @@ export type CreatorSaveAdapter<
   };
   editRoute: (itemId: string) => NavigateOptions;
 };
+
+/**
+ * A stored draft the creator can no longer open (for example an older editor
+ * format). The draft is discarded and the message tells the user so.
+ */
+export class CreatorRecoveryDroppedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "CreatorRecoveryDroppedError";
+  }
+}
 
 export function createCreatorSaveSession(
   contentFingerprint: string,
@@ -316,7 +330,9 @@ export function useCreatorSave<
           onRestore(restored.snapshot);
           setRecovered(true);
           if (restored.warning) setRecoveryWarning(restored.warning);
-        } catch {
+        } catch (error) {
+          if (error instanceof CreatorRecoveryDroppedError)
+            setRecoveryWarning(error.message);
           void store.clear(userId, documentKey);
         }
       }

@@ -110,12 +110,12 @@ for (const item of cases) {
         let changedJson: string | null = null;
         let changedSetting: StoredDraftExpectation["setting"] = null;
         if (item.section !== "gesture") {
+          // Avatar Effect positions are shown in centimetres and stored in metres.
           const setting =
             item.section === "avatar"
               ? page
-                  .getByText("Position Offset", { exact: true })
-                  .locator("..")
-                  .getByRole("spinbutton", { name: "X", exact: true })
+                  .getByRole("group", { name: "Position (cm)", exact: true })
+                  .getByRole("spinbutton", { name: "Sideways", exact: true })
               : page.getByRole("spinbutton", {
                   name: "Duration (s)",
                   exact: true,
@@ -127,15 +127,15 @@ for (const item of cases) {
           await setting.blur();
           changedSetting =
             item.section === "avatar"
-              ? { path: ["transform", "offset", "x"], value: nextValue }
+              ? { path: ["attachment", "offset", "x"], value: nextValue / 100 }
               : { path: ["durationMs"], value: nextValue * 1000 };
           changedJson = await readPortableJson(page, item.jsonTitle);
           const changedDocument = JSON.parse(changedJson).document;
           expect(
             item.section === "avatar"
-              ? changedDocument.transform.offset.x
+              ? changedDocument.attachment.offset.x * 100
               : changedDocument.durationMs / 1000,
-          ).toBe(nextValue);
+          ).toBeCloseTo(nextValue, 6);
           if (originalJson !== null) expect(changedJson).not.toBe(originalJson);
         }
         await expect(

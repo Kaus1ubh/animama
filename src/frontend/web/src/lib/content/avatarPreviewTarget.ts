@@ -21,6 +21,8 @@ export function avatarPreviewTarget(
     filename: file.filename,
     content_type: file.media_type,
     size_bytes: file.size_bytes,
+    // The VRM digest lets the preview Avatar apply a saved face part correction.
+    sha256: file.sha256,
     content_revision: file.sha256,
     url: contentPreviewFileUrl(preview, file),
   }));

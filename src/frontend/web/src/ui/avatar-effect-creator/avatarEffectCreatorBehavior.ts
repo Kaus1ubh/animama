@@ -3,17 +3,30 @@ import {
   avatarEffectEditorReducer,
   createDefaultAvatarEffectDocument,
   type AvatarEffectEditorDocument,
-  type AvatarEffectEditorImageResource,
+  type AvatarEffectEditorImageResources,
 } from "@/lib/avatar/vfx/editor";
+import {
+  avatarVFXEffectTransformOf,
+  type AvatarVFXEffectTransform,
+  type AvatarVFXParsedEntry,
+} from "@/lib/avatar/vfx/types";
 
 /** One undo step: the authored document and the image bytes it references. */
 export type AvatarEffectHistorySnapshot = {
   document: AvatarEffectEditorDocument;
-  imageResource: AvatarEffectEditorImageResource | null;
+  imageResources: AvatarEffectEditorImageResources;
+};
+
+export const NO_AVATAR_EFFECT_IMAGES: AvatarEffectEditorImageResources = {
+  image: null,
+  otherEyeImage: null,
 };
 
 export function createAvatarEffectHistorySnapshot(): AvatarEffectHistorySnapshot {
-  return { document: createDefaultAvatarEffectDocument(), imageResource: null };
+  return {
+    document: createDefaultAvatarEffectDocument(),
+    imageResources: NO_AVATAR_EFFECT_IMAGES,
+  };
 }
 
 /** Compare authored data and immutable File identities without serializing bytes. */
@@ -24,31 +37,79 @@ export function equalAvatarEffectHistorySnapshots(
   return (
     avatarEffectDocumentFingerprint(left.document) ===
       avatarEffectDocumentFingerprint(right.document) &&
-    left.imageResource?.file === right.imageResource?.file &&
-    left.imageResource?.sha256 === right.imageResource?.sha256
+    (["image", "otherEyeImage"] as const).every(
+      (slot) =>
+        left.imageResources[slot]?.file === right.imageResources[slot]?.file &&
+        left.imageResources[slot]?.sha256 ===
+          right.imageResources[slot]?.sha256,
+    )
   );
 }
 
 /**
- * Build one undoable edit from a reducer action. Omitting `imageResource`
- * keeps the current bytes; `null` clears them with the same step.
+ * Build one undoable edit from a reducer action. `imageResources` replaces
+ * the given slots' bytes in the same step; omitted slots are kept.
  */
 export function avatarEffectHistoryEdit(
   action: Parameters<typeof avatarEffectEditorReducer>[1],
-  imageResource?: AvatarEffectEditorImageResource | null,
+  imageResources?: Partial<AvatarEffectEditorImageResources>,
 ): (snapshot: AvatarEffectHistorySnapshot) => AvatarEffectHistorySnapshot {
   return (snapshot) => ({
     document: avatarEffectEditorReducer(snapshot.document, action),
-    imageResource:
-      imageResource === undefined ? snapshot.imageResource : imageResource,
+    imageResources: imageResources
+      ? { ...snapshot.imageResources, ...imageResources }
+      : snapshot.imageResources,
   });
 }
 
-/** Save and recovery fingerprint: the document plus its image digest. */
+/** Save and recovery fingerprint: the document plus its image digests. */
 export function avatarEffectSnapshotFingerprint(
   snapshot: AvatarEffectHistorySnapshot,
 ): string {
-  return `${avatarEffectDocumentFingerprint(snapshot.document)}:${snapshot.imageResource?.sha256 ?? "missing"}`;
+  return `${avatarEffectDocumentFingerprint(snapshot.document)}:${snapshot.imageResources.image?.sha256 ?? "missing"}:${snapshot.imageResources.otherEyeImage?.sha256 ?? "none"}`;
+}
+
+/**
+ * The part of a preview entry that needs a fresh apply when it changes.
+ * Placement is left out: it is updated in place with
+ * `AvatarVFXController.updateEffectTransform`.
+ */
+export function avatarEffectPreviewApplyKey(
+  entry: AvatarVFXParsedEntry,
+): string {
+  const rest: Record<string, unknown> = { ...entry };
+  if (entry.kind === "body" || entry.kind === "sticker") {
+    delete rest.offset;
+    delete rest.size;
+    delete rest.rotation;
+  } else if (entry.kind !== "silhouette") {
+    delete rest.transform;
+  }
+  return JSON.stringify(rest);
+}
+
+/**
+ * How the applied preview must change between two entries: nothing, an
+ * in-place transform update, or a fresh apply.
+ */
+export function avatarEffectPreviewChange(
+  previous: AvatarVFXParsedEntry | null,
+  next: AvatarVFXParsedEntry | null,
+):
+  | { kind: "none" }
+  | { kind: "reapply" }
+  | { kind: "transform"; transform: AvatarVFXEffectTransform } {
+  if (!previous || !next)
+    return previous === next ? { kind: "none" } : { kind: "reapply" };
+  if (
+    avatarEffectPreviewApplyKey(previous) !== avatarEffectPreviewApplyKey(next)
+  )
+    return { kind: "reapply" };
+  const before = avatarVFXEffectTransformOf(previous);
+  const after = avatarVFXEffectTransformOf(next);
+  if (!after || JSON.stringify(before) === JSON.stringify(after))
+    return { kind: "none" };
+  return { kind: "transform", transform: after };
 }
 
 export type AvatarEffectCreatorKeyboardAction =

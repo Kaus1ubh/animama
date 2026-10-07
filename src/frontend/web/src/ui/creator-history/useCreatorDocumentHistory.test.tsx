@@ -1,4 +1,5 @@
 import { renderToString } from "react-dom/server";
+import { PerspectiveCamera } from "three";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -15,6 +16,8 @@ import {
   createAvatarEffectHistorySnapshot,
   equalAvatarEffectHistorySnapshots,
 } from "@/ui/avatar-effect-creator/avatarEffectCreatorBehavior";
+import { AvatarEffectDragSession } from "@/ui/avatar-effect-creator/avatarEffectDrag";
+import type { ScreenPlacement } from "@/ui/avatar-effect-creator/directManipulation";
 import { equalParticleVFXDrafts } from "@/ui/particle-vfx-creator/particleVFXDocument";
 import {
   createSceneEffectHistorySnapshot,
@@ -88,20 +91,84 @@ describe("creator document history", () => {
         sha256: resource.sha256,
       };
       editor.update(
-        avatarEffectHistoryEdit({ type: "patch", patch: { image } }, resource),
+        avatarEffectHistoryEdit(
+          { type: "patch-art", patch: { image } },
+          { image: resource },
+        ),
       );
       editor.update(
         avatarEffectHistoryEdit(
           { type: "replace", document: createDefaultAvatarEffectDocument() },
-          null,
+          { image: null, otherEyeImage: null },
         ),
       );
       editor.history.undo();
-      expect(editor.getSnapshot().document.image).toEqual(image);
-      expect(editor.getSnapshot().imageResource?.file).toBe(file);
+      expect(editor.getSnapshot().document.art.image).toEqual(image);
+      expect(editor.getSnapshot().imageResources.image?.file).toBe(file);
       editor.history.redo();
-      expect(editor.getSnapshot().document.image).toBeNull();
-      expect(editor.getSnapshot().imageResource).toBeNull();
+      expect(editor.getSnapshot().document.art.image).toBeNull();
+      expect(editor.getSnapshot().imageResources.image).toBeNull();
+    });
+
+    it("makes one direct-manipulation drag a single undo step", () => {
+      const editor = create();
+      const original = editor.getSnapshot();
+      const placement = {
+        index: 0,
+        label: "right",
+        mirrored: false,
+        rotationSense: -1 as const,
+        corners: [
+          { x: 90, y: 90 },
+          { x: 110, y: 90 },
+          { x: 110, y: 110 },
+          { x: 90, y: 110 },
+        ] as ScreenPlacement["corners"],
+        center: { x: 100, y: 100 },
+        rotateHandle: { x: 100, y: 62 },
+      };
+      const drag = AvatarEffectDragSession.begin({
+        hit: { mode: "scale", placement },
+        pointer: { x: 110, y: 110 },
+        frame: {
+          attachment: "face_landmark",
+          placements: [],
+          offsetSpace: null,
+          surface: null,
+          unitLength: null,
+        },
+        attachment: original.document.attachment,
+        view: { camera: new PerspectiveCamera(), width: 200, height: 200 },
+        target: {
+          beginGroup: editor.history.beginGroup,
+          endGroup: editor.history.endGroup,
+          apply: (patch) =>
+            editor.update(
+              avatarEffectHistoryEdit({ type: "patch-attachment", patch }),
+            ),
+        },
+      })!;
+      for (const step of [115, 120, 130])
+        drag.move(
+          { x: step, y: step },
+          {
+            camera: new PerspectiveCamera(),
+            width: 200,
+            height: 200,
+          },
+        );
+      drag.end();
+      // The corner moved from 10 to 30 px from the centre: three times larger.
+      expect(editor.getSnapshot().document.attachment).toMatchObject({
+        scale: { x: 3, y: 3 },
+      });
+      // One undo returns to the start: the moves were not separate steps.
+      editor.history.undo();
+      expect(editor.getSnapshot()).toEqual(original);
+      editor.history.redo();
+      expect(editor.getSnapshot().document.attachment).toMatchObject({
+        scale: { x: 3, y: 3 },
+      });
     });
 
     it("resets at new, load and recovery boundaries", () => {
@@ -117,7 +184,7 @@ describe("creator document history", () => {
       expect(editor.getSnapshot().document.name).toBe("Second");
       const loaded = {
         document: { ...createDefaultAvatarEffectDocument(), name: "Loaded" },
-        imageResource: null,
+        imageResources: { image: null, otherEyeImage: null },
       };
       editor.reset(loaded);
       editor.history.undo();

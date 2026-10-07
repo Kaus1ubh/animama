@@ -677,4 +677,107 @@ describe("body, sticker and silhouette Avatar Effects", () => {
       expect(controller.getSnapshot().attachmentEffects).toEqual([]);
     });
   });
+
+  describe("in-place transforms", () => {
+    it("moves, resizes and turns a body plane without reloading its art", async () => {
+      await apply(
+        entry(
+          "heart",
+          "body",
+          { bone: "chest", size: 0.2 },
+          {
+            motion: { pulse: {} },
+          },
+        ),
+      );
+      const [plane] = named(rig.chest, "AvatarAttachmentVFX:heart");
+      const mesh = plane as THREE.Mesh;
+      const material = mesh.material;
+      controller.update(0.5);
+      vi.mocked(loadEffectImage).mockClear();
+
+      expect(
+        controller.updateEffectTransform("heart", {
+          kind: "body",
+          offset: { x: 0.1, y: 0.02, z: 0.3 },
+          size: 0.4,
+          rotation: Math.PI / 6,
+        }),
+      ).toBe(true);
+
+      expect(loadEffectImage).not.toHaveBeenCalled();
+      expect(named(rig.chest, "AvatarAttachmentVFX:heart")).toEqual([mesh]);
+      expect(mesh.material).toBe(material);
+      expect(mesh.rotation.z).toBeCloseTo(Math.PI / 6);
+      const size = mesh.geometry.getAttribute("position");
+      expect(size.getY(0) - size.getY(2)).toBeCloseTo(0.4);
+      expect(size.getX(1) - size.getX(0)).toBeCloseTo(0.8);
+      expect(mesh.parent!.parent!.position.toArray()).toEqual([0.1, 0.02, 0.3]);
+
+      const frame = controller.getManipulationFrame("heart", camera)!;
+      expect(frame.attachment).toBe("body");
+      // Offsets are measured in the bone's front frame.
+      const anchor = new THREE.Vector3(0.1, 0.02, 0.3).applyMatrix4(
+        frame.offsetSpace!,
+      );
+      expect(frame.placements[0]!.center.distanceTo(anchor)).toBeLessThan(0.05);
+    });
+
+    it("moves a sticker in the screen plane and reports its height unit", async () => {
+      await apply(
+        entry("doki", "sticker", { offset: { x: 0, y: 0 }, size: 0.2 }),
+      );
+      const [sticker] = named(rig.scene, "AvatarAttachmentVFX:doki");
+      expect(
+        controller.updateEffectTransform("doki", {
+          kind: "sticker",
+          offset: { x: 0.25, y: -0.1 },
+          size: 0.3,
+          rotation: 0,
+        }),
+      ).toBe(true);
+      renderHook(sticker!, camera);
+      const position = new THREE.Vector3().setFromMatrixPosition(
+        sticker!.matrixWorld,
+      );
+      const right = new THREE.Vector3(1, 0, 0).applyQuaternion(
+        camera.quaternion,
+      );
+      const up = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
+      const expected = rig.head
+        .getWorldPosition(new THREE.Vector3())
+        .addScaledVector(right, 0.25 * AVATAR_HEIGHT)
+        .addScaledVector(up, -0.1 * AVATAR_HEIGHT);
+      expect(position.distanceTo(expected)).toBeLessThan(1e-6);
+
+      const frame = controller.getManipulationFrame("doki", camera)!;
+      expect(frame.attachment).toBe("sticker");
+      expect(frame.unitLength).toBeCloseTo(AVATAR_HEIGHT);
+      expect(frame.placements[0]!.center.distanceTo(expected)).toBeLessThan(
+        1e-6,
+      );
+    });
+
+    it("refuses a transform for another attachment or an inactive effect", async () => {
+      await apply(entry("doki", "sticker", {}));
+      expect(
+        controller.updateEffectTransform("doki", {
+          kind: "body",
+          offset: { x: 0, y: 0, z: 0 },
+          size: 1,
+          rotation: 0,
+        }),
+      ).toBe(false);
+      expect(
+        controller.updateEffectTransform("missing", {
+          kind: "sticker",
+          offset: { x: 0, y: 0 },
+          size: 1,
+          rotation: 0,
+        }),
+      ).toBe(false);
+      await apply(entry("tiles", "silhouette", {}));
+      expect(controller.getManipulationFrame("tiles", camera)).toBeNull();
+    });
+  });
 });

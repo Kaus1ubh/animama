@@ -500,6 +500,126 @@ describe("Avatar Effect v2 runtime features", () => {
     );
   });
 
+  describe("in-place transforms", () => {
+    const mirroredEye = () =>
+      ({
+        ...eyeEffect(),
+        side: "right",
+        requiresMirror: true,
+      }) as AvatarHoverVFXEntry;
+    const roots = () =>
+      Object.fromEntries(
+        hoverMeshes().map((mesh) => [
+          mesh.name.split(":").at(-1)!,
+          mesh.parent!.parent!.parent!.position.clone(),
+        ]),
+      );
+
+    it("moves, scales and turns hover planes without reloading the art", async () => {
+      const effect = mirroredEye();
+      await apply(effect);
+      const before = hoverMeshes();
+      expect(loadEffectImage).toHaveBeenCalledTimes(1);
+
+      expect(
+        controller.updateEffectTransform(effect.id, {
+          kind: "face",
+          transform: {
+            offset: vec(0.01, 0.02, 0.003),
+            scale: vec(2, 1.5, 1),
+            rotation: vec(0, 0, 0.5),
+          },
+        }),
+      ).toBe(true);
+
+      expect(loadEffectImage).toHaveBeenCalledTimes(1);
+      expect(hoverMeshes()).toEqual(before);
+      const positions = roots();
+      // The right eye is primary; the mirrored left copy mirrors x.
+      expect(positions.right!.x).toBeCloseTo(-0.04 + 0.01);
+      expect(positions.left!.x).toBeCloseTo(0.04 - 0.01);
+      expect(positions.right!.y).toBeCloseTo(0.04);
+      const primary = before.find((mesh) => mesh.name.endsWith(":right"))!;
+      const mirrored = before.find((mesh) => mesh.name.endsWith(":left"))!;
+      expect(primary.scale.toArray()).toEqual([2, 1.5, 1]);
+      expect(mirrored.scale.toArray()).toEqual([-2, 1.5, 1]);
+      expect(primary.parent!.rotation.z).toBeCloseTo(0.5);
+      // Later re-applies (for example after a part correction) use the new transform.
+      expect(
+        controller.getSnapshot().activeEffects[0]?.effect.transform,
+      ).toBeDefined();
+    });
+
+    it("redraws a moved composite at most every thirtieth of a second", async () => {
+      const now = vi.spyOn(performance, "now").mockReturnValue(1000);
+      const effect = decalEffect();
+      await apply(effect);
+      // A static decal is drawn into the cached static segment.
+      const centre = () =>
+        allDraws()
+          .filter((draw) => draw.image === image)
+          .at(-1)!
+          .points.reduce((sum, point) => sum + point.x, 0) / 4;
+      const start = centre();
+      vi.mocked(loadEffectImage).mockClear();
+
+      const move = (x: number) =>
+        controller.updateEffectTransform(effect.id, {
+          kind: "face",
+          transform: { ...transform(), offset: vec(x, 0, 0) },
+        });
+      expect(move(0.1)).toBe(true);
+      // 0.1 of the 200 px texture.
+      expect(centre()).toBeCloseTo(start + 20);
+      now.mockReturnValue(1010);
+      move(0.2);
+      expect(centre()).toBeCloseTo(start + 20);
+      controller.update(1 / 30);
+      expect(centre()).toBeCloseTo(start + 40);
+      // The tick's redraw counts toward the cap: an edit right after it waits.
+      move(0.3);
+      expect(centre()).toBeCloseTo(start + 40);
+      now.mockReturnValue(1100);
+      move(0.4);
+      expect(centre()).toBeCloseTo(start + 80);
+      expect(loadEffectImage).not.toHaveBeenCalled();
+      now.mockRestore();
+    });
+
+    it("reports where hover planes and surface art are drawn", async () => {
+      const camera = new THREE.PerspectiveCamera();
+      const eye = mirroredEye();
+      await apply(eye);
+      const hover = controller.getManipulationFrame(eye.id, camera)!;
+      expect(hover.attachment).toBe("face_landmark");
+      expect(hover.offsetSpace!.equals(anchor.matrixWorld)).toBe(true);
+      const byLabel = Object.fromEntries(
+        hover.placements.map((placement) => [placement.label, placement]),
+      );
+      expect(byLabel.right).toMatchObject({
+        mirrored: false,
+        rotationSense: -1,
+      });
+      expect(byLabel.left).toMatchObject({ mirrored: true, rotationSense: 1 });
+      expect(byLabel.right!.center.x).toBeCloseTo(-0.04);
+
+      const decal = decalEffect();
+      await apply(decal);
+      const surface = controller.getManipulationFrame(decal.id, camera)!;
+      expect(surface.attachment).toBe("face_surface");
+      expect(
+        (surface.surface?.material as THREE.Material | undefined)?.name,
+      ).toBe("Face Skin");
+      const [placement] = surface.placements;
+      // The 1 × 1 face plane maps u 0.25 to x −0.25 and v 0.5 to y 0.
+      expect(placement!.center.x).toBeCloseTo(-0.25);
+      expect(placement!.center.y).toBeCloseTo(0);
+      expect(placement!.rotationSense).toBe(1);
+      expect(placement!.corners[1].x).toBeGreaterThan(placement!.corners[0].x);
+      expect(controller.getManipulationFrame("missing", camera)).toBeNull();
+    });
+  });
+
   it("plays hover flipbooks through texture repeat and offset", async () => {
     const effect = eyeEffect();
     effect.flipbook = { columns: 2, rows: 2, frames: 4, fps: 10, loop: "loop" };

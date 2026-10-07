@@ -266,37 +266,35 @@ test("accountless vfx guides preserve authored JSON with replacement artwork and
       )
       .toBe("playing");
     // A small, non-square PNG keeps this fixture independent of catalog artwork.
-    await page
-      .locator('input[type="file"][accept="image/png,image/jpeg,image/webp"]')
-      .setInputFiles({
-        name: "guide-check-32x16.png",
-        mimeType: "image/png",
-        buffer: Buffer.from(
-          "iVBORw0KGgoAAAANSUhEUgAAACAAAAAQCAYAAAB3AH1ZAAAAJElEQVR4nGP4H7Dg/0BihlEHjDpg1AGjDhh1wKgDRh0w0A4AAPph3Ey+VSaIAAAAAElFTkSuQmCC",
-          "base64",
-        ),
-      });
+    await page.locator('input[type="file"][aria-label="Image"]').setInputFiles({
+      name: "guide-check-32x16.png",
+      mimeType: "image/png",
+      buffer: Buffer.from(
+        "iVBORw0KGgoAAAANSUhEUgAAACAAAAAQCAYAAAB3AH1ZAAAAJElEQVR4nGP4H7Dg/0BihlEHjDpg1AGjDhh1wKgDRh0w0A4AAPph3Ey+VSaIAAAAAElFTkSuQmCC",
+        "base64",
+      ),
+    });
     await expect(
       page.getByText("guide-check-32x16.png", { exact: true }),
     ).toBeVisible();
+    // Positions are shown in centimetres and stored in metres.
     const positionX = page
-      .getByText("Position Offset", { exact: true })
-      .locator("..")
-      .getByRole("spinbutton", { name: "X", exact: true });
+      .getByRole("group", { name: "Position (cm)", exact: true })
+      .getByRole("spinbutton", { name: "Sideways", exact: true });
     await positionX.fill("");
     await expect(positionX).toHaveValue("");
     await positionX.pressSequentially("-0.25");
     await expect(positionX).toHaveValue("-0.25");
     await positionX.press("Enter");
     const positioned = JSON.parse(await readPortableJson());
-    expect(positioned.document.transform.offset.x).toBe(-0.25);
+    expect(positioned.document.attachment.offset.x).toBe(-0.0025);
     await positionX.fill("");
     await expect(positionX).toHaveValue("");
     await positionX.blur();
     await expect(positionX).toHaveValue("-0.25");
     expect(
-      JSON.parse(await readPortableJson()).document.transform.offset.x,
-    ).toBe(-0.25);
+      JSON.parse(await readPortableJson()).document.attachment.offset.x,
+    ).toBe(-0.0025);
     await positionX.fill("-0.251");
     await expect(positionX).toHaveValue("-0.251");
     await positionX.press("Enter");
@@ -311,7 +309,7 @@ test("accountless vfx guides preserve authored JSON with replacement artwork and
     await expect(positionX).toHaveValue("");
     await positionX.blur();
     await expect(positionX).toHaveValue("-0.25");
-    await page.getByRole("tab", { name: "Animation", exact: true }).click();
+    await page.getByRole("tab", { name: "Motion", exact: true }).click();
     for (const name of ["Pulse", "Spin", "Drift"]) {
       await page.getByRole("switch", { name, exact: true }).check();
     }

@@ -22,9 +22,16 @@ import {
   transformTexturePlacementPoint,
 } from "./placement-transform";
 import type {
+  AvatarVFXManipulationFrame,
+  AvatarVFXManipulationPlacement,
   AvatarVFXPlacementGuides,
   AvatarVFXUvGuide,
 } from "./placement-guide-types";
+import {
+  planeImageCorners,
+  quadManipulationPlacement,
+} from "./manipulationPlacement";
+import { MeshUvLocator } from "./meshUvLocator";
 
 import type { Avatar } from "../Avatar";
 import type {
@@ -65,6 +72,7 @@ import type {
   AvatarVFXAttachmentEntry,
   AvatarVFXApplyMode,
   AvatarVFXCatalogEntry,
+  AvatarVFXEffectTransform,
   AvatarVFXParsedEntry,
   AvatarVFXFaceFlattenSnapshot,
   AvatarVFXFlattenColorSnapshot,
@@ -239,7 +247,15 @@ type StaticCompositeSegmentState = {
 type HoverPlaneInstanceState = {
   label: string;
   mesh: THREE.Mesh;
+  /** Positioned at the placement (landmark plus offset) in anchor space. */
+  placementRoot: THREE.Group;
   animatedGroup: THREE.Group;
+  /** Holds the authored rotation for the art and its backdrop. */
+  staticGroup: THREE.Group;
+  backdropMesh: THREE.Mesh | null;
+  /** Plane size before the authored scale. */
+  baseWidth: number;
+  baseHeight: number;
   planeWidth: number;
   planeHeight: number;
   /** Mirrored placements mirror keyframe offsets as well as static ones. */
@@ -292,6 +308,8 @@ const HOVER_SKIN_BACKDROP_Z_OFFSET = -0.0001;
 const HOVER_RENDER_ORDER = 950;
 const EYE_HOVER_FORCE_BLINK_EXPRESSION = "blink";
 const VFX_ANIMATION_FRAME_INTERVAL_SEC = 1 / 30;
+/** Composites redrawn for a transform edit at most this often (30 FPS). */
+const TRANSFORM_REDRAW_INTERVAL_MS = 1000 / 30;
 const FACE_FLATTEN_EDGE_FEATHER_RATIO = 0.4;
 const EYE_HOVER_AUTO_DISABLED_ROLES: AvatarVFXTargetRole[] = [
   "eye_highlight",
@@ -1734,6 +1752,42 @@ function placementGuideLabel(
   return name.charAt(0).toUpperCase() + name.slice(1);
 }
 
+/** An animation state that leaves the authored placement unchanged. */
+const STILL_ANIMATION_STATE: AvatarVFXAnimationState = {
+  scale: 1,
+  rotationRadians: 0,
+  driftX: 0,
+  driftY: 0,
+  offsetX: 0,
+  offsetY: 0,
+  opacity: 1,
+  frame: 0,
+};
+
+/**
+ * The authored corners of one hover plane: its placement, rotation and
+ * scale, without its own motion, so handles hold still while the art moves.
+ */
+function hoverManipulationPlacement(
+  instance: HoverPlaneInstanceState,
+): AvatarVFXManipulationPlacement {
+  instance.placementRoot.updateWorldMatrix(true, false);
+  instance.staticGroup.updateMatrix();
+  instance.mesh.updateMatrix();
+  const matrix = instance.placementRoot.matrixWorld
+    .clone()
+    .multiply(instance.staticGroup.matrix)
+    .multiply(instance.mesh.matrix);
+  return quadManipulationPlacement({
+    label: instance.label,
+    mirrored: instance.mirrored,
+    corners: planeImageCorners(instance.mesh.geometry, matrix),
+    // The authored z turn moves +x toward +y (up), away from the image's y;
+    // a flipped (mirrored) mesh reverses the image's x.
+    rotationSense: instance.mesh.scale.x < 0 ? 1 : -1,
+  });
+}
+
 export class AvatarVFXController {
   private readonly _avatar: Avatar;
   private readonly _sourceUrl: string | null;
@@ -1760,6 +1814,11 @@ export class AvatarVFXController {
   private _reportedUnavailableParts = new Set<string>();
   /** Body, sticker and silhouette effects, which live outside face bindings. */
   private readonly _attachments: AvatarAttachmentEffects;
+  /** Composites whose transform changed since their last redraw. */
+  private _pendingTransformRedraws = new Set<BindingState>();
+  private _lastTransformRedrawMs = -Infinity;
+  /** UV lookups per face mesh, built on first use for direct manipulation. */
+  private _uvLocators = new WeakMap<THREE.Mesh, MeshUvLocator | null>();
 
   constructor(
     avatar: Avatar,
@@ -2491,6 +2550,7 @@ export class AvatarVFXController {
       this._disposeTextureCompositeState(binding);
     });
     this._reportedUnavailableParts.clear();
+    this._pendingTransformRedraws.clear();
     this._warnings = [];
     this._rebuildBindings();
     this._emit();
@@ -2556,6 +2616,109 @@ export class AvatarVFXController {
     this._pendingIntensities.set(appliedEffectId, intensity);
   }
 
+  /**
+   * Change an applied effect's placement in place: the art is not reloaded,
+   * and its motion clock, fade and material stay. Hover, body and sticker
+   * planes move immediately; a composite redraws at most at 30 FPS, the rest
+   * on the next {@link update} tick. Returns false when the effect is not
+   * applied or the transform is for another attachment.
+   */
+  updateEffectTransform(
+    appliedEffectId: string,
+    transform: AvatarVFXEffectTransform,
+  ): boolean {
+    if (this._isDisposed) return false;
+    if (transform.kind !== "face") {
+      return this._attachments.updateTransform(appliedEffectId, transform);
+    }
+    let updated = false;
+    for (const binding of this._bindings.values()) {
+      const active = binding.activeEffects.get(appliedEffectId);
+      if (!active) continue;
+      const effect = {
+        ...active.effectEntry,
+        transform: cloneEffectTransform(transform.transform),
+      } as AvatarVFXCatalogEntry;
+      if (active.renderMode === "hover_plane") {
+        if (
+          !isHoverVFXEntry(effect) ||
+          !this._updateHoverTransform(active, effect)
+        )
+          continue;
+        active.effectEntry = effect;
+        applyAnimationToHoverInstances({
+          instances: active.hoverInstances,
+          animationState: active.animationState,
+          effect,
+          intensity: active.intensity,
+        });
+        updated = true;
+        continue;
+      }
+      const anchors = isAnchoredFaceTextureEffect(effect)
+        ? this._avatar.getFaceTextureAnchorsSnapshot()
+        : null;
+      // Anchored decals bake offset and scale into their placement rectangles.
+      for (const layer of active.layerCanvases.values()) {
+        const resolved = resolveTextureEffectPlacements({
+          image: layer.image,
+          effect,
+          size: layer,
+          profile: this._profile,
+          faceTextureAnchors: anchors,
+        });
+        if (resolved.placements.length) layer.placements = resolved.placements;
+      }
+      active.effectEntry = effect;
+      this._markTextureCompositeStaticDirty(binding);
+      this._redrawTransformedComposite(binding);
+      updated = true;
+    }
+    return updated;
+  }
+
+  /**
+   * Where an applied effect's art is drawn for `camera`, for creator handles
+   * and dragging. Null for silhouettes and effects that are not applied.
+   */
+  getManipulationFrame(
+    appliedEffectId: string,
+    camera: THREE.Camera,
+  ): AvatarVFXManipulationFrame | null {
+    if (this._isDisposed) return null;
+    const attachment = this._attachments.manipulationFrame(
+      appliedEffectId,
+      camera,
+    );
+    if (attachment) return attachment;
+    for (const binding of this._bindings.values()) {
+      const active = binding.activeEffects.get(appliedEffectId);
+      if (!active) continue;
+      if (active.renderMode === "hover_plane") {
+        const anchor = this._avatar.faceLandmarks?.getAnchorObject() ?? null;
+        if (!anchor) return null;
+        anchor.updateWorldMatrix(true, false);
+        return {
+          attachment: "face_landmark",
+          placements: active.hoverInstances.map((instance) =>
+            hoverManipulationPlacement(instance),
+          ),
+          offsetSpace: anchor.matrixWorld.clone(),
+          surface: null,
+          unitLength: null,
+        };
+      }
+      return {
+        attachment: "face_surface",
+        placements: this._surfaceManipulationPlacements(binding, active),
+        offsetSpace: null,
+        surface: binding.object,
+        unitLength: null,
+      };
+    }
+    return null;
+  }
+
   removeEffect(appliedEffectId: string): void {
     if (this._isDisposed) return;
     this._pendingIntensities.delete(appliedEffectId);
@@ -2609,7 +2772,13 @@ export class AvatarVFXController {
     this._attachments.update(delta, shouldAdvanceAnimationFrame);
 
     this._bindings.forEach((binding) => {
-      let shouldRedrawTextureComposite = false;
+      // A transform edit made within the last frame interval redraws on this tick.
+      let shouldRedrawTextureComposite =
+        shouldAdvanceAnimationFrame &&
+        this._pendingTransformRedraws.delete(binding);
+      // The flush counts toward the transform redraw cap.
+      if (shouldRedrawTextureComposite)
+        this._lastTransformRedrawMs = performance.now();
 
       binding.activeEffects.forEach((activeEffect) => {
         if (activeEffect.isAnimated) {
@@ -2656,6 +2825,7 @@ export class AvatarVFXController {
 
   dispose(): void {
     if (this._isDisposed) return;
+    this._pendingTransformRedraws.clear();
     this.clearAllEffects();
     this._listeners.clear();
     this._bindings.clear();
@@ -2686,6 +2856,112 @@ export class AvatarVFXController {
       undefined,
       logicalEffectId,
     );
+  }
+
+  /** Move, scale and turn hover planes in place for a new transform. */
+  private _updateHoverTransform(
+    active: ActiveBindingEffect,
+    effect: AvatarHoverVFXEntry,
+  ): boolean {
+    const faceLandmarks = this._avatar.getFaceLandmarksSnapshot();
+    if (faceLandmarks?.status !== "ready") return false;
+    const placements = resolveHoverPlacementInstances({
+      effect,
+      faceLandmarks,
+      faceTextureAnchors: this._avatar.getFaceTextureAnchorsSnapshot(),
+    });
+    if (!placements) return false;
+    const scaleX = resolveStaticScaleComponent(effect.transform.scale.x);
+    const scaleY = resolveStaticScaleComponent(effect.transform.scale.y);
+    const scaleZ = resolveStaticScaleComponent(effect.transform.scale.z);
+    for (const instance of active.hoverInstances) {
+      const placement = placements.find(
+        (candidate) => candidate.label === instance.label,
+      );
+      if (!placement) continue;
+      instance.placementRoot.position.copy(placement.position);
+      instance.staticGroup.rotation.set(
+        effect.transform.rotation.x,
+        effect.transform.rotation.y,
+        effect.transform.rotation.z,
+      );
+      const mirrorScale = instance.mesh.scale.x < 0 ? -1 : 1;
+      instance.mesh.scale.set(mirrorScale * scaleX, scaleY, scaleZ);
+      instance.backdropMesh?.scale.set(
+        (instance.mirrored ? -1 : 1) * scaleX,
+        scaleY,
+        scaleZ,
+      );
+      instance.planeWidth = instance.baseWidth * scaleX;
+      instance.planeHeight = instance.baseHeight * scaleY;
+    }
+    return true;
+  }
+
+  /** Redraw now when the last transform redraw is a frame old; otherwise on the next tick. */
+  private _redrawTransformedComposite(binding: BindingState): void {
+    const now = performance.now();
+    if (now - this._lastTransformRedrawMs >= TRANSFORM_REDRAW_INTERVAL_MS) {
+      this._lastTransformRedrawMs = now;
+      this._pendingTransformRedraws.delete(binding);
+      this._redrawBindingTextureComposite(binding);
+      return;
+    }
+    this._pendingTransformRedraws.add(binding);
+  }
+
+  /** The drawn corners of a composite effect, mapped from UV onto the surface. */
+  private _surfaceManipulationPlacements(
+    binding: BindingState,
+    active: ActiveBindingEffect,
+  ): AvatarVFXManipulationPlacement[] {
+    const layer =
+      active.layerCanvases.get("map") ??
+      active.layerCanvases.values().next().value;
+    if (!layer) return [];
+    let locator = this._uvLocators.get(binding.object);
+    if (locator === undefined) {
+      locator = MeshUvLocator.create(binding.object);
+      this._uvLocators.set(binding.object, locator);
+    }
+    if (!locator) return [];
+    const size = { width: layer.width, height: layer.height };
+    const placements: AvatarVFXManipulationPlacement[] = [];
+    for (const placement of layer.placements) {
+      // Match the compositor: the other-eye art is drawn unflipped.
+      const mirrorX =
+        placement.effectMirror === true && layer.otherImage !== null
+          ? false
+          : placement.mirrorX;
+      // The authored placement, without its own motion.
+      const transform = resolveTexturePlacementTransform(
+        { ...placement, mirrorX },
+        active.effectEntry,
+        size,
+        STILL_ANIMATION_STATE,
+      );
+      const halfWidth = placement.rect.width / 2;
+      const halfHeight = placement.rect.height / 2;
+      const corners = [
+        { x: -halfWidth, y: -halfHeight },
+        { x: halfWidth, y: -halfHeight },
+        { x: halfWidth, y: halfHeight },
+        { x: -halfWidth, y: halfHeight },
+      ].map((point) =>
+        locator.toWorld(transformTexturePlacementPoint(point, transform, size)),
+      );
+      if (corners.some((corner) => corner === null)) continue;
+      placements.push(
+        quadManipulationPlacement({
+          label: placement.label,
+          mirrored: placement.effectMirror === true,
+          corners: corners as AvatarVFXManipulationPlacement["corners"],
+          // The canvas turns +x toward +y (down); a flipped copy reverses it.
+          rotationSense: transform.scaleX < 0 ? -1 : 1,
+        }),
+      );
+    }
+    return placements;
   }
 
   private _resolveEffectSource(
@@ -4140,6 +4416,7 @@ export class AvatarVFXController {
       animatedGroup.add(staticGroup);
 
       let backdropMaterialForFade: THREE.Material | null = null;
+      let backdropMeshForUpdate: THREE.Mesh | null = null;
       if (hoverSkinBackdropColor && hoverBackdropSourceBinding) {
         const backdropGeometry = new THREE.PlaneGeometry(
           planeSize.width * HOVER_SKIN_BACKDROP_WIDTH_SCALE,
@@ -4166,6 +4443,7 @@ export class AvatarVFXController {
           staticGroup.add(backdropMesh);
           runtimeMaterials.push(backdropMaterial);
           backdropMaterialForFade = backdropMaterial;
+          backdropMeshForUpdate = backdropMesh;
         }
       }
 
@@ -4180,7 +4458,12 @@ export class AvatarVFXController {
       instances.push({
         label: placement.label,
         mesh,
+        placementRoot,
         animatedGroup,
+        staticGroup,
+        backdropMesh: backdropMeshForUpdate,
+        baseWidth: planeSize.width,
+        baseHeight: planeSize.height,
         planeWidth: planeSize.width * staticScaleX,
         planeHeight: planeSize.height * staticScaleY,
         mirrored: placement.mirrored,

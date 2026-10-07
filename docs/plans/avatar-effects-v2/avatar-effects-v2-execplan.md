@@ -80,8 +80,10 @@ work proceeds.
       (budget met: added mean GPU time is at most 1.15 ms).
 - [x] Phase 7: Shared creator save, undo and draft recovery.
 - [x] Phase 8: Template picker and entry points (existing UI components).
-- [ ] Phase 9: Avatar Effect creator `/2` controls and direct manipulation
-      (existing layout and styling).
+- [x] Phase 9: Avatar Effect creator `/2` controls and direct manipulation
+      (existing layout and styling). "keep Eye" still needs a quiet-machine
+      rerun before the PR.
+- [ ] Paused for G4 until #311 merges (owner, 2026-10-07).
 - [ ] Phase 10: Headed effect preview. Gate G4.
 - [ ] Phase 11: Documentation and acceptance. Gate G5.
 - [ ] Final integration review and PR.
@@ -127,6 +129,9 @@ probe):
   prototype gate.
 - **2026-10-06, owner (plan review):** development databases are reset for the
   new correction table; no migration is needed.
+- **2026-10-07, owner (G4):** #282's PR #311 is still open. Work pauses after
+  P9 until #311 merges. Then this branch syncs with `main`, and P10, P11 and
+  the PR follow. The headed preview is not delivered separately.
 - **2026-10-06, owner (prototype review, refined):** the effect creators keep
   their existing layout and styling; this is not a visual redesign. UX still
   improves: direct manipulation (drag, scale, rotate) on the preview, new and
@@ -209,7 +214,7 @@ probe):
 | G1 | Withdrawn 2026-10-06 | — | The owner kept the existing creator UI; P8 and P9 proceed without a prototype |
 | G2 | P4, only if converted renders differ from baselines | Owner accepts or rejects each difference | P4 completes after acceptance or a fix |
 | G3 | P5, only if the spike cannot find face skin or an eye without names on an Included Avatar | Owner decides whether name fallback is acceptable for that part | P5 continues as decided |
-| G4 | Before P10 | #282's PR (with #289) must be merged; otherwise the owner decides to wait or to deliver the headed preview separately | P10 starts or is re-planned |
+| G4 | Before P10 | #282's PR (with #289) must be merged; otherwise the owner decides to wait or to deliver the headed preview separately | 2026-10-07: the owner chose to wait for #311; P10 starts after it merges |
 | G5 | P11 | Owner reviews the final browser walkthrough | Acceptance evidence; merge approval stays separate |
 
 If the performance budget is exceeded after reasonable optimization, the result
@@ -1759,9 +1764,174 @@ walkthrough.
 
 #### Phase 9 record
 
+Starting source and issue: `952b4ce3`, #307.
+
+Delivered within the existing creator layout and styling:
+
+- **Document.** `lib/avatar/vfx/editor/` mirrors `/2`
+  (`animama/avatar-effect-editor/2`).
+  - It covers all five attachments, art (image, the other-eye image, a
+    flipbook), appearance, motion presets and keyframes, face options, region,
+    sound and description.
+  - Default transforms are left out on save, so an unedited definition is
+    saved unchanged.
+  - Drafts in the old format are dropped with a notice
+    (`CreatorRecoveryDroppedError` in the shared save hook).
+  - P4's `legacyDefinitionAdapter` is deleted.
+- **Legacy controls replaced.**
+
+  | Before | Now |
+  | --- | --- |
+  | Hover / Face decal / Texture tabs | **Attach to**: Floating on the face, Painted on the face, On the body, Sticker beside the avatar, Fill the silhouette |
+  | Hover type and 11 box placements | **Where** and **Position** |
+  | Side, Mirror right eye, Mirror opposite side | **Which eyes / Which side** and **Art is drawn for the** |
+  | Anchor, Asset shape, Target material role | **Where on the face** and **Paint on** (plain part names) |
+  | Apply mode | **Keep the original underneath** |
+  | Image pivot | **Image point placed on the face** |
+  | Effect region | **Advanced → Replaces** |
+  | Offset X/Y/Z for every kind | **Placement** tab with only the axes that apply, in cm, % of the texture or % of the avatar's height; Size; Rotation (°); Tilt (°) for face landmarks |
+  | Hidden materials, Force blink, Skin backdrop | **Hide other face parts**, **Close the eyes**, **Skin-coloured backing** |
+  | Animation tab (spin in turns/s) | **Motion** tab (spin in °/s, plus keyframes) |
+
+  New: a **Look** tab (opacity, tint, blend), an **Other side image**, an
+  **Animated sprite sheet** (flipbook), fields for body, sticker and
+  silhouette, and the **Face parts** panel.
+- **Preview.** The model selector offers Annie, Caitlyn (Y_0) and the active
+  Anima's model, through the `includedAvatars` option. There is a new ¾ view
+  for the creator only; chat presets are unchanged.
+- **Direct manipulation.**
+  - `AvatarVFXController.updateEffectTransform` changes the effect in place
+    without reloading the image. Composite redraws are capped at 30 FPS.
+    `getManipulationFrame` reports where each copy of the art sits.
+  - Face-surface art is placed with a `Raycaster` that finds the UV under the
+    pointer (`meshUvLocator.ts`), following `effectMirror`.
+  - Landmark and body art moves in the plane of its anchor or bone. Stickers
+    move in the screen plane.
+  - Corner and rotate handles are provided, and each gesture is one undo step
+    (`avatarEffectDrag.ts`). Arrow keys nudge by 4 px, or 20 px with Shift.
+  - Fields and art stay in sync.
+- **Face parts panel.**
+  - Shows each part's source, status and confidence.
+  - Parts are corrected with "Pick on the avatar" or a mesh list, and saved
+    through `PUT /v1/avatar-content/{item_id}/face-parts`.
+  - The preview then rebuilds and re-applies the creator's effect, which
+    covers P5's deferred re-apply.
+  - When a part is missing, the stage and the toolbar name it.
+- **Save errors.** A definition `field` path opens the matching tab and
+  outlines the control.
+- **e2e.** `accountless-avatar-effect-direct-manipulation.spec.ts` covers
+  create, drag, undo and redo, save, reopen, correcting a part, and restoring
+  detection.
+
+Screenshots (desktop and 760 px) are in `worktrees/avatar-effects-v2-p9/`. The
+owner was sent the desktop set.
+
+Checks (agent):
+
+- `pnpm web:test`: 392 files, 2,740 tests passed, plus the Node and browser
+  suites.
+- `pnpm check`, `web:lint`, prettier, `pnpm build` and `e2e:check:source`
+  pass.
+- The `--all-included` render diff is 0 pixels.
+- e2e: 17/17.
+
 #### Code Review #1 Findings
 
+Reviewed source: uncommitted tree on `952b4ce3`. Result: **blocking findings
+remain**.
+
+1. **Blocking.** A mirrored eye landmark with no side, as produced by the
+   `/1` converter and the P4 creator, was shown as "between the eyes".
+   Saving it after any edit dropped the mirror and the `otherEyeImage`.
+2. **Blocking.** An unsaved face-part draft stayed in place when the model
+   changed, so Avatar A's binding keys could be saved into Avatar B's
+   correction.
+3. **Blocking.** `accountless-vfx-layout` failed at the Guides step on every
+   run (3/3): the UV preview popover closes when Guides is clicked.
+4. A tick flush did not update `_lastTransformRedrawMs`, so the 30 FPS cap
+   was not strict.
+5. The Included Avatar preview was keyed by the preview grant. A catalog
+   refresh reloaded the preview Avatar mid-session, and a grant could be
+   reused after it expired.
+6. A failed face-parts save did not refetch the revision.
+7. The Replaces select could show blank for a custom region.
+8. Duplication: the corner maths, and `sizeUnit` repeated in the Inspector.
+9. The e2e journey did not assert the mirrored copy.
+10. A main image named like the generated other-eye file gave duplicate
+    companion paths.
+
+The reviewer confirmed that the drag maths, undo grouping, texture reuse in
+`updateEffectTransform`, the re-apply of skipped effects, the old-draft drop
+and the removal of legacy code are sound.
+
 #### Code Review #1 Revisions
+
+1. **Fixed: a sideless mirror is kept.**
+   - Normalizing drops only `mirror: false`.
+   - `sidesChoice` maps any mirror to "mirrored".
+   - "Art is drawn for the" shows `side ?? "right"`.
+   - Round-trip tests cover a converted `/1` eye hover, a P4 eye hover with
+     other-eye art, and a single-layout iris.
+2. **Fixed: face-part edits stay with their Avatar.**
+   - `useFacePartDraft.ts` scopes the draft by `itemId:vrmSha256` and resets
+     it when the scope changes.
+   - `facePartDraftProblem` rejects keys the current model lacks.
+   - Tests cover both.
+3. **Fixed in code; the test's expectation is unchanged.**
+   - The root cause predates P9: the UV preview is a non-modal Radix popover,
+     which closes on any outside pointerdown.
+   - `CreatorCanvasControls` marks `data-creator-preview-controls`, and the
+     popover ignores outside clicks inside it except on controls that open a
+     dialog.
+4. **Fixed: a grant refresh no longer reloads the Avatar.**
+   - The target key is `included-avatar:{itemId}:{revision}`.
+   - The grant refreshes 30 s before it expires, and retry fetches a fresh
+     grant first.
+   - The loader reloads only when the key changes.
+5. Fixed: a failed save refetches the face parts.
+6. Fixed: the Replaces list includes the current custom region.
+7. Fixed: the tick flush updates `_lastTransformRedrawMs`, with a test.
+8. Fixed: `manipulationPlacement.ts` is shared, and `sizeUnits` is computed
+   once.
+9. Fixed: the e2e asserts that the primary moves right and its mirrored copy
+   moves left.
+10. Fixed: `distinctAvatarEffectImageName`, with a test.
+
+Also fixed:
+
+- Below 1024 px, the Face parts popover opens below the controls with a
+  capped height.
+- The model label reads "{name} (Anima)".
+- The new journey has `test.setTimeout(180_000)`, as `content-sharing`
+  already does.
+
+Checks after the revisions (agent):
+
+- Focused vitest: 557 passed. Full `pnpm web:test`: 393 files, 2,746 tests
+  passed.
+- `pnpm check`, `web:lint`, prettier, `e2e:check:source` and `pnpm build`
+  pass.
+- The `--all-included` diff is 0 pixels.
+- e2e:
+  - direct manipulation, creator-foundation (5/5) and creator-discard (8/8)
+    pass;
+  - template-picker seeding passes, and its entry-points test passed 2/2 on
+    rerun.
+
+The machine was heavily loaded (load average 12–25 from other worktrees'
+Playwright runs), so `vfx-layout` failed only by test timeouts.
+
+#### Code Review #2 (repair round 1)
+
+Result: **pass**. Findings 1–3 are fixed, and the reviewer's scratch probe now
+keeps the mirror. The revisions caused no regressions.
+
+**Remaining check before the PR.** In the reviewer's "keep Eye" rerun
+(`--repeat-each 3`), 1 passed in 87.6 s and 2 timed out at 90 s. Line 143 and
+every assertion passed, and the traces show the time ran out in the closing
+checks. The reviewer judged these load timeouts. Before the PR, P11 reruns
+this journey on a quiet machine, and raises its timeout if the duration stays
+near the budget.
 
 ### Phase 10 — Headed effect preview (R10). Gate G4.
 

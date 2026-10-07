@@ -4,11 +4,14 @@ import {
   avatarEffectDefinition,
   avatarEffectDependencies,
   avatarEffectRecoveryStore,
+  avatarEffectUsesOtherEyeImage,
+  AVATAR_EFFECT_OLD_DRAFT_NOTICE,
   AVATAR_EFFECT_RECOVERY_SCHEMA,
   type AvatarEffectRecovery,
 } from "@/lib/avatar/vfx/editor";
 import { useAvatarEffect } from "@/query/hooks/useEffects";
 import {
+  CreatorRecoveryDroppedError,
   useCreatorSave,
   type CreatorSaveAdapter,
 } from "@/ui/content-creator/useCreatorSave";
@@ -34,14 +37,24 @@ export const avatarEffectSaveAdapter: CreatorSaveAdapter<
     document: { ...snapshot.document, name },
   }),
   async buildPayload({ snapshot, name, target, signal, progress }) {
-    const { document, imageResource } = snapshot;
-    if (!imageResource) throw new Error("Choose an image before saving.");
+    const { document, imageResources } = snapshot;
+    const image = imageResources.image;
+    if (!image) throw new Error("Choose an image before saving.");
+    const otherEye = avatarEffectUsesOtherEyeImage(document)
+      ? imageResources.otherEyeImage
+      : null;
+    if (avatarEffectUsesOtherEyeImage(document) && !otherEye)
+      throw new Error("Reselect the other side image before saving.");
     progress("uploading");
     signal.throwIfAborted();
-    const imagePath = document.image?.logicalName ?? imageResource.file.name;
+    const imagePath = document.art.image?.logicalName ?? image.file.name;
+    const otherEyePath =
+      otherEye &&
+      (document.art.otherEyeImage?.logicalName ?? otherEye.file.name);
+    const paths = [imagePath, ...(otherEyePath ? [otherEyePath] : [])];
     return {
-      files: [imageResource.file],
-      companionPaths: [imagePath],
+      files: [image.file, ...(otherEye ? [otherEye.file] : [])],
+      companionPaths: paths,
       descriptor: {
         schema_version: 1,
         id: target.logicalKey,
@@ -57,7 +70,7 @@ export const avatarEffectSaveAdapter: CreatorSaveAdapter<
               : dependency.source.logical_key ||
                 dependency.source.catalog_item_id,
         })),
-        files: [{ path: imagePath, role: "image" }],
+        files: paths.map((path) => ({ path, role: "image" })),
         authoring: document,
       },
       savedSnapshot: snapshot,
@@ -69,22 +82,32 @@ export const avatarEffectSaveAdapter: CreatorSaveAdapter<
     documentKey,
     operationId: session.operationId,
     document: snapshot.document,
-    imageResource: snapshot.imageResource,
+    imageResource: snapshot.imageResources.image,
+    otherEyeImageResource: snapshot.imageResources.otherEyeImage,
     contentFingerprint: session.contentFingerprint,
     updatedAt,
   }),
-  fromRecovery: (record) => ({
-    snapshot: {
-      document: record.document,
-      imageResource: record.imageResource,
-    },
-    operationId: record.operationId,
-    contentFingerprint: record.contentFingerprint,
-    warning:
-      record.document.image && !record.imageResource
-        ? "This recovered draft needs its image reselected before Save."
+  fromRecovery: (record) => {
+    if (record.dropped)
+      throw new CreatorRecoveryDroppedError(AVATAR_EFFECT_OLD_DRAFT_NOTICE);
+    const missingImage =
+      (record.document.art.image && !record.imageResource) ||
+      (record.document.art.otherEyeImage && !record.otherEyeImageResource);
+    return {
+      snapshot: {
+        document: record.document,
+        imageResources: {
+          image: record.imageResource,
+          otherEyeImage: record.otherEyeImageResource ?? null,
+        },
+      },
+      operationId: record.operationId,
+      contentFingerprint: record.contentFingerprint,
+      warning: missingImage
+        ? "This recovered draft needs its images reselected before Save."
         : null,
-  }),
+    };
+  },
   editRoute: (itemId) => ({
     to: "/avatar-effects/$avatarEffectId/edit",
     params: { avatarEffectId: itemId },

@@ -263,12 +263,15 @@ describe("creator recovery store", () => {
     });
     const document = {
       ...old.avatar.document,
-      image: {
-        logicalName: "sparkle.webp",
-        originalName: "sparkle.webp",
-        contentType: "image/webp",
-        sizeBytes: 12,
-        sha256: "a".repeat(64),
+      art: {
+        ...old.avatar.document.art,
+        image: {
+          logicalName: "sparkle.webp",
+          originalName: "sparkle.webp",
+          contentType: "image/webp",
+          sizeBytes: 12,
+          sha256: "a".repeat(64),
+        },
       },
     };
 

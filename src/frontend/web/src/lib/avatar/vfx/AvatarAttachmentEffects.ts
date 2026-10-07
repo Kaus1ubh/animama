@@ -24,6 +24,11 @@ import {
   type SilhouetteOverlay,
 } from "./silhouetteOverlay";
 import { buildRuntimePrimitiveBindings } from "../vrmEditorInspection";
+import {
+  planeImageCorners,
+  quadManipulationPlacement,
+} from "./manipulationPlacement";
+import type { AvatarVFXManipulationFrame } from "./placement-guide-types";
 import type {
   AvatarBodyVFXEntry,
   AvatarSilhouetteVFXEntry,
@@ -32,6 +37,7 @@ import type {
   AvatarVFXAttachmentEffectSnapshot,
   AvatarVFXAttachmentEntry,
   AvatarVFXAttachmentRenderMode,
+  AvatarVFXEffectTransform,
   AvatarVFXResolvedAnimationConfig,
 } from "./types";
 
@@ -72,6 +78,19 @@ type PlaneState = {
   /** Plane size in its own units (metres for body, avatar heights for stickers). */
   width: number;
   height: number;
+  /**
+   * The mesh's world matrix for one camera: billboards are oriented to the
+   * camera that draws them, so `matrixWorld` alone is not current between
+   * renders. `still` leaves out the effect's own motion. Writes into and
+   * returns `target`.
+   */
+  worldMatrix: (
+    camera: THREE.Camera,
+    target: THREE.Matrix4,
+    still?: boolean,
+  ) => THREE.Matrix4;
+  /** Sticker offset in avatar heights, read when the sticker is drawn. */
+  stickerOffset: { x: number; y: number };
 };
 
 type ActiveAttachment = {
@@ -143,22 +162,26 @@ function frontYaw(avatar: Pick<Avatar, "vrm">): number {
 }
 
 /**
- * Orient `plane.mesh` to the camera about to draw it: centred on
- * `position`, scaled by `scale`, then the animated and static transforms.
+ * A camera-facing world matrix for `plane.mesh`: centred on `position`,
+ * scaled by `scale`, then the animated (unless `still`) and static transforms.
  */
 function billboard(
-  plane: PlaneState,
+  plane: Pick<PlaneState, "animatedGroup" | "mesh">,
   camera: THREE.Camera,
   position: THREE.Vector3,
   scale: number,
-): void {
+  target: THREE.Matrix4,
+  still = false,
+): THREE.Matrix4 {
   camera.getWorldQuaternion(scratchQuaternion);
   scratchScale.setScalar(scale);
-  plane.mesh.matrixWorld
-    .compose(position, scratchQuaternion, scratchScale)
-    .multiply(plane.animatedGroup.matrix)
-    .multiply(plane.mesh.matrix);
+  plane.mesh.updateMatrix();
+  target.compose(position, scratchQuaternion, scratchScale);
+  if (!still) target.multiply(plane.animatedGroup.matrix);
+  return target.multiply(plane.mesh.matrix);
 }
+
+const scratchCornerMatrix = new THREE.Matrix4();
 
 function createPlane(args: {
   entry: AvatarBodyVFXEntry | AvatarStickerVFXEntry;
@@ -166,7 +189,10 @@ function createPlane(args: {
   height: number;
   renderOrder: number;
   depthTest: boolean;
-}): Omit<PlaneState, "root" | "anchor"> | null {
+}): Omit<
+  PlaneState,
+  "root" | "anchor" | "worldMatrix" | "stickerOffset"
+> | null {
   const { entry } = args;
   const frame = resolveArtFrameSize(args.art, entry.flipbook);
   if (!frame) return null;
@@ -358,6 +384,100 @@ export class AvatarAttachmentEffects {
   }
 
   /**
+   * Move, resize or turn a body or sticker effect in place, keeping its art,
+   * material and motion clock. False when the effect is not active or the
+   * transform is for another attachment.
+   */
+  updateTransform(
+    appliedEffectId: string,
+    transform: AvatarVFXEffectTransform,
+  ): boolean {
+    const active = this._active.get(appliedEffectId);
+    const plane = active?.plane;
+    if (!active || !plane) return false;
+    const entry = active.entry;
+    if (transform.kind === "body" && entry.kind === "body") {
+      active.entry = {
+        ...entry,
+        offset: { ...transform.offset },
+        size: transform.size,
+        rotation: transform.rotation,
+      };
+      plane.anchor.position.set(
+        transform.offset.x,
+        transform.offset.y,
+        transform.offset.z,
+      );
+    } else if (transform.kind === "sticker" && entry.kind === "sticker") {
+      active.entry = {
+        ...entry,
+        offset: { ...transform.offset },
+        size: transform.size,
+        rotation: transform.rotation,
+      };
+      plane.stickerOffset.x = transform.offset.x;
+      plane.stickerOffset.y = transform.offset.y;
+    } else {
+      return false;
+    }
+    plane.mesh.rotation.z = transform.rotation;
+    const height = Math.max(0.0001, transform.size);
+    if (height !== plane.height) {
+      const width = height * (plane.width / Math.max(0.0001, plane.height));
+      plane.mesh.geometry.dispose();
+      plane.mesh.geometry = new THREE.PlaneGeometry(width, height);
+      plane.width = width;
+      plane.height = height;
+    }
+    plane.mesh.updateMatrix();
+    this._applyState(active);
+    return true;
+  }
+
+  /**
+   * The drawn corners of a body or sticker effect for `camera`, with the
+   * frame its offset is measured in. Null for silhouettes and inactive IDs.
+   */
+  manipulationFrame(
+    appliedEffectId: string,
+    camera: THREE.Camera,
+  ): AvatarVFXManipulationFrame | null {
+    const active = this._active.get(appliedEffectId);
+    const plane = active?.plane;
+    if (!active || !plane || active.entry.kind === "silhouette") return null;
+    // The authored placement, without the effect's own motion.
+    const matrix = plane.worldMatrix(camera, scratchCornerMatrix, true);
+    const placement = quadManipulationPlacement({
+      label: active.entry.kind,
+      mirrored: false,
+      corners: planeImageCorners(plane.mesh.geometry, matrix),
+      // A positive in-plane turn moves +x toward +y (up), away from the image's y.
+      rotationSense: -1,
+    });
+    if (active.entry.kind === "body") {
+      plane.root.updateWorldMatrix(true, false);
+      return {
+        attachment: "body",
+        placements: [placement],
+        offsetSpace: plane.root.matrixWorld.clone(),
+        surface: null,
+        unitLength: null,
+      };
+    }
+    const scene = this._avatar.scene;
+    scratchScale.setFromMatrixScale(
+      scene?.matrixWorld ?? scratchCornerMatrix.identity(),
+    );
+    return {
+      attachment: "sticker",
+      placements: [placement],
+      offsetSpace: null,
+      surface: null,
+      unitLength: this._avatarHeight * scratchScale.y,
+    };
+  }
+
+  /**
    * Advance own motion. `advanceFrame` is the controller's 30 FPS tick, so
    * flipbook frames and motion change at the same rate as face effects.
    */
@@ -455,13 +575,44 @@ export class AvatarAttachmentEffects {
     anchor.position.set(entry.offset.x, entry.offset.y, entry.offset.z);
     root.add(anchor);
     anchor.add(plane.animatedGroup);
-    const state: PlaneState = { ...plane, root, anchor };
-    if (entry.facing === "camera") {
+    const facesCamera = entry.facing === "camera";
+    const state: PlaneState = {
+      ...plane,
+      root,
+      anchor,
+      stickerOffset: { x: 0, y: 0 },
+      worldMatrix: (camera, target, still = false) => {
+        anchor.updateWorldMatrix(true, false);
+        if (!facesCamera) {
+          plane.mesh.updateMatrix();
+          target.copy(anchor.matrixWorld);
+          if (!still) target.multiply(plane.animatedGroup.matrix);
+          return target.multiply(plane.mesh.matrix);
+        }
+        scratchPosition.setFromMatrixPosition(anchor.matrixWorld);
+        scratchScale.setFromMatrixScale(anchor.matrixWorld);
+        return billboard(
+          plane,
+          camera,
+          scratchPosition,
+          scratchScale.y,
+          target,
+          still,
+        );
+      },
+    };
+    if (facesCamera) {
       // World matrices are current here: the renderer updated the scene.
       plane.mesh.onBeforeRender = (_renderer, _scene, camera) => {
         scratchPosition.setFromMatrixPosition(anchor.matrixWorld);
         scratchScale.setFromMatrixScale(anchor.matrixWorld);
-        billboard(state, camera, scratchPosition, scratchScale.y);
+        billboard(
+          plane,
+          camera,
+          scratchPosition,
+          scratchScale.y,
+          plane.mesh.matrixWorld,
+        );
       };
     }
     resolved.object.add(root);
@@ -509,17 +660,31 @@ export class AvatarAttachmentEffects {
     const root = new THREE.Group();
     root.name = `AvatarStickerVFX:${entry.id}`;
     root.add(plane.animatedGroup);
-    const state: PlaneState = { ...plane, root, anchor: root };
-    plane.mesh.onBeforeRender = (_renderer, _scene, camera) => {
+    const stickerOffset = { ...entry.offset };
+    const worldMatrix = (
+      camera: THREE.Camera,
+      target: THREE.Matrix4,
+      still = false,
+    ) => {
       scratchScale.setFromMatrixScale(scene.matrixWorld);
       const height = this._avatarHeight * scratchScale.y;
       camera.getWorldQuaternion(scratchQuaternion);
       scratchRight.set(1, 0, 0).applyQuaternion(scratchQuaternion);
       scratchUp.set(0, 1, 0).applyQuaternion(scratchQuaternion);
       this._stickerRoot(entry.around, scratchPosition)
-        .addScaledVector(scratchRight, entry.offset.x * height)
-        .addScaledVector(scratchUp, entry.offset.y * height);
-      billboard(state, camera, scratchPosition, height);
+        .addScaledVector(scratchRight, stickerOffset.x * height)
+        .addScaledVector(scratchUp, stickerOffset.y * height);
+      return billboard(plane, camera, scratchPosition, height, target, still);
+    };
+    const state: PlaneState = {
+      ...plane,
+      root,
+      anchor: root,
+      stickerOffset,
+      worldMatrix,
+    };
+    plane.mesh.onBeforeRender = (_renderer, _scene, camera) => {
+      worldMatrix(camera, plane.mesh.matrixWorld);
     };
     scene.add(root);
     return { target: entry.around, plane: state, silhouette: null };

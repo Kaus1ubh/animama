@@ -398,6 +398,17 @@ export class Avatar {
   private _vrmaRestPoseTransition: VrmaRestPoseTransition | null = null;
   private _isVrm0: boolean = false;
   private _vrmSha256: string | null = null;
+  private _facePartCorrections: AvatarFacePartCorrections | null = null;
+
+  /** sha256 of the loaded VRM bytes, when the load supplied it. */
+  get vrmSha256(): string | null {
+    return this._vrmSha256;
+  }
+
+  /** The face part correction last given at load or by `setFacePartCorrections`. */
+  get facePartCorrections(): AvatarFacePartCorrections | null {
+    return this._facePartCorrections;
+  }
 
   constructor(
     camera: THREE.Object3D,
@@ -551,6 +562,7 @@ export class Avatar {
       this.sourceKey = null;
       this.facePartMap = null;
       this._vrmSha256 = null;
+      this._facePartCorrections = null;
       this.animationManager = null;
       this.expressionController = null;
     }
@@ -670,6 +682,7 @@ export class Avatar {
   private _detectFaceParts(
     corrections: AvatarFacePartCorrections | null,
   ): void {
+    this._facePartCorrections = corrections;
     if (!this.vrm || !this.sourceGltf) {
       this.facePartMap = null;
       return;
