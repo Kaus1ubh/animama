@@ -1,23 +1,35 @@
 import * as THREE from "three";
 
-import { parseAvatarEffectDefinition } from "@/lib/avatar/vfx/definition";
 import { DEFAULT_SCENE_LIGHTS } from "@/ui/main/canvas/sceneCameraPresets";
 
 /*
- * Stage and effect parsing shared by the review renderer (`render.ts`) and
- * the frame-cost benchmark (`../effect-bench/bench.ts`).
+ * Stage and effect parsing shared by the review renderer (`render.ts`), the
+ * frame-cost benchmark (`../effect-bench/bench.ts`) and the headed preview
+ * (`../animation-preview/preview.ts`).
  */
 
-export type EffectSource = {
-  stem: string;
-  contentId: string;
-  name: string;
-  description: string;
-  definition: Record<string, unknown>;
-  imageUrl: string;
-  /** Served `art.otherEyeImage`, when the definition names one. */
-  otherImageUrl: string | null;
-};
+export {
+  effectSourceEntry as effectEntry,
+  type EffectSource,
+} from "@/lib/avatar/vfx/effectSource";
+
+/** Tone mapping and colour output of the chat canvas (React Three Fiber defaults in `Scene.tsx`). */
+export function applyChatColorPipeline(renderer: THREE.WebGLRenderer): void {
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+}
+
+/** Add the chat canvas's default scene lights to `scene`. */
+export function addChatLights(scene: THREE.Scene): void {
+  scene.add(
+    new THREE.AmbientLight(0xffffff, DEFAULT_SCENE_LIGHTS.ambientIntensity),
+  );
+  for (const light of DEFAULT_SCENE_LIGHTS.directional) {
+    const directional = new THREE.DirectionalLight(0xffffff, light.intensity);
+    directional.position.set(...light.position);
+    scene.add(directional);
+  }
+}
 
 /**
  * A renderer, scene and camera configured like the chat canvas (`Scene.tsx`):
@@ -45,32 +57,10 @@ export function createStage(
   });
   renderer.setPixelRatio(options.pixelRatio ?? 1);
   renderer.setSize(width, height);
-  // React Three Fiber defaults used by the chat canvas (`Scene.tsx`).
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  applyChatColorPipeline(renderer);
   renderer.setClearColor(0x000000, 0);
   const scene = new THREE.Scene();
-  scene.add(
-    new THREE.AmbientLight(0xffffff, DEFAULT_SCENE_LIGHTS.ambientIntensity),
-  );
-  for (const light of DEFAULT_SCENE_LIGHTS.directional) {
-    const directional = new THREE.DirectionalLight(0xffffff, light.intensity);
-    directional.position.set(...light.position);
-    scene.add(directional);
-  }
+  addChatLights(scene);
   const camera = new THREE.PerspectiveCamera(35, width / height, 0.01, 20);
   return { renderer, scene, camera };
-}
-
-/** Parse a source the same way runtime catalog loading parses a stored `/2` definition. */
-export function effectEntry(effect: EffectSource) {
-  return parseAvatarEffectDefinition(effect.definition, {
-    id: effect.contentId,
-    label: effect.name,
-    description: effect.description || effect.name,
-    assetPath: effect.imageUrl,
-    ...(effect.otherImageUrl
-      ? { otherEyeAssetPath: effect.otherImageUrl }
-      : {}),
-  });
 }

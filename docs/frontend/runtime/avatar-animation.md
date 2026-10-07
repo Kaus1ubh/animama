@@ -603,10 +603,16 @@ from `src/frontend/web`:
   the Gesture creator in a headless browser, revising an existing Local
   Gesture with the same Selector ID.
 - `pnpm -s animation:preview [<source>]` plays a clip, project file or Library
-  item live on both Included Avatars through `Avatar`/`PoseController`. Its
-  Review and Compare pickers switch to any example clip, any clip beside a
-  file source and any Library Gesture or Reaction without a restart. Review
-  notes are saved beside a file source (in the working directory for a Library
+  item live on both Included Avatars through `Avatar`/`PoseController`, lit
+  like the chat canvas. A Library Gesture or Reaction, or a project file,
+  plays its Avatar and Particle Effects from its dependencies, with their
+  fades; seeking such a clip replays it from the start so earlier effects
+  show. Scene Effects and sounds are not played, and the page says so. It
+  also previews Avatar Effect sources (see the
+  [Avatar VFX guide](avatar-vfx.md#headed-preview)). Its Review and Compare
+  pickers switch to any example clip, any clip beside a file source and any
+  Library Gesture, Reaction or Avatar Effect without a restart. Review notes
+  are saved beside a file source (in the working directory for a Library
   item); `animation review` and `animation resolve` manage them.
 
 The workflow, conventions and review guidance live in the

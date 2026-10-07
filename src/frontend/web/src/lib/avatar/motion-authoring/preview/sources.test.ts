@@ -127,15 +127,29 @@ describe("previewClipFromText", () => {
     expect(result.markers).toEqual([]);
   });
 
-  it("unwraps a project envelope", () => {
+  it("unwraps a project envelope with the dependencies its events name", () => {
+    const dependencies = [
+      {
+        ref: "builtin:avatar-effect:star",
+        alias: "star",
+        content_type: "avatar_effect",
+        config: {},
+      },
+    ];
     const result = previewClipFromText(
       JSON.stringify({
         schema: "animamaActionProject/1.0",
         intent: "gesture",
         sequence: clip({ id: "wrapped" }),
+        dependencies,
       }),
     );
     expect(result.clip.id).toBe("wrapped");
+    expect(result.dependencies).toEqual(dependencies);
+    // A plain clip carries none: its events cannot resolve effects.
+    expect(previewClipFromText(JSON.stringify(clip())).dependencies).toBe(
+      undefined,
+    );
   });
 
   it("explains that motion descriptions are retired", () => {
@@ -213,6 +227,11 @@ describe("resolvePreviewSource", () => {
       kind: "library",
       path: path.join(included, "gestures/arms-crossed/arms-crossed.json"),
       label: "Included · arms-crossed",
+      // Its dependencies resolve the effects its events name.
+      metaPath: path.join(
+        included,
+        "gestures/arms-crossed/arms-crossed.meta.json",
+      ),
     });
     for (const query of ["laugh_medium", "hearty laugh", "local/laugh"])
       expect(

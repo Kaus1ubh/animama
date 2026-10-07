@@ -86,7 +86,7 @@ work proceeds.
 - [x] Paused for G4 until #311 merged on 2026-10-07. The branch merged `main`
       (`777e9a79`) and fixed a mypy failure that came in from `main` in
       `idle_clip_validation.py` (`40bab4fc`).
-- [ ] Phase 10: Headed effect preview. Gate G4.
+- [x] Phase 10: Headed effect preview (G4 cleared when #311 merged).
 - [ ] Phase 11: Documentation and acceptance. Gate G5.
 - [ ] Final integration review and PR.
 
@@ -475,7 +475,7 @@ Delivered:
 
 Baselines: 16 sheets (1600×1308) and 3 Annie thumbnails, rendered on the `/1`
 runtime, are kept outside the repository in
-`worktrees/avatar-effects-v2-baselines/` with a `MANIFEST.txt` of digests.
+a local evidence folder with a `MANIFEST.txt` of digests.
 Sample digests: `eye_vv_pair.png` `ddad150b…`, `texture_sick_2.png`
 `0356bff4…`, `star.png` `6d7edfc2…`. After the review revisions both re-render
 with 0 differing pixels. To recover, rerun `--all-included` from this phase's
@@ -809,7 +809,7 @@ Delivered:
 
 Render comparison (G2): all 16 converted effects re-render with 0 differing
 pixels and identical sha256 against the P2 baselines, before and after the
-review revisions (`worktrees/avatar-effects-v2-after/`). G2 needs no owner
+review revisions. G2 needs no owner
 decision.
 
 Known limits: the Gesture creator's own preview sync does not apply fades;
@@ -1040,7 +1040,7 @@ Checks (agent):
 - Full `pnpm web:test`: 382 files, 2,630 tests passed. `pnpm build` passes.
 - Render tests: 8/8.
 - The `--all-included` diff shows 0 pixels for all 16 effects
-  (`worktrees/avatar-effects-v2-after-p5`).
+  (local evidence).
 
 Not done:
 
@@ -1224,7 +1224,7 @@ star on the right hand, a "DOKI!" sticker by the head and a scrolling stripe
 silhouette).
 
 - The sheets `follow-cat-monster-rawr.png` and `follow-soldier-salute.png`
-  are in `worktrees/avatar-effects-v2-p6/`, outside the repository.
+  are kept as local evidence outside the repository.
 - They show all four attachments following both Avatars, with no gaps or
   doubled patches.
 - The pattern is in screen space, so a hand in front of the face shares the
@@ -1642,7 +1642,7 @@ Delivered:
     `/new`.
 
 Screenshots (desktop 1440×900 and narrow 760) are in
-`worktrees/avatar-effects-v2-p8/`; the owner was sent the desktop set.
+local evidence; the owner was sent the desktop set.
 Thumbnails to revisit with the Plan 2 art upgrades: the Emote "!" is cropped
 by the head framing, `texture_black_1` reads as a pale wash, and
 `texture_sick_3` is faint.
@@ -1844,7 +1844,7 @@ Delivered within the existing creator layout and styling:
   create, drag, undo and redo, save, reopen, correcting a part, and restoring
   detection.
 
-Screenshots (desktop and 760 px) are in `worktrees/avatar-effects-v2-p9/`. The
+Screenshots (desktop and 760 px) are kept as local evidence. The
 owner was sent the desktop set.
 
 Checks (agent):
@@ -1979,9 +1979,138 @@ both Avatars, with notes.
 
 #### Phase 10 record
 
+Starting source and issue: `6b9fae83` (after the `main` sync), #308.
+
+Delivered:
+
+- **Effect sources in `pnpm -s animation:preview`:**
+  - Accepted sources: a descriptor `.json`, an effect folder, or
+    `library:avatar-effect/[included/|local/]<key>`, resolved with the realpath
+    containment from `effect-render-sources.mjs`.
+  - Both Included Avatars play side by side. An effect loops, re-applying
+    every 4 s, or runs for `--duration s` (up to 600 s), disappears for 0.5 s
+    and loops.
+  - Seeking removes the effect, re-applies it and steps frames to the target
+    time. One version hash covers the descriptor and image bytes, so
+    replacing an image reloads the effect.
+  - The page parses the definition with the `/2` parser. A field-level problem
+    is shown while the last valid effect keeps playing.
+  - Review notes for an effect are saved beside its folder.
+- **Reactions and Gestures with effects:**
+  - `previewMedia.ts` builds a `PreviewMediaProvider` from the clip's
+    dependencies, including Avatar and Particle Effects. This fixes the silent
+    failure on a Library Reaction's effects noted in Surprises.
+  - Scene Effects and sounds play in the chat scene, not on the `Avatar`, so
+    the preview lists them in the new **Effect warnings** panel. That panel
+    also shows controller warnings, failed clip events, skipped face parts and
+    parse problems.
+- **Media route:**
+  - `PreviewMediaFiles` serves only files handed to the page, under
+    `/__preview/media/<token>/…`, rechecking containment on every request,
+    with `no-store`.
+  - `animation resolve` uses the same version hash for effects.
+- **Shared with `effects:render`:** `stage.ts` holds `applyChatColorPipeline`
+  and `addChatLights`, and `lib/avatar/vfx/effectSource.ts` holds the effect
+  entry.
+  - The motion preview now uses the chat canvas lighting (ACES Filmic and the
+    default lights), so plain motion previews look slightly different.
+- **Docs:** `avatar-animation.md` (preview), and `avatar-vfx.md` §10 ("Review
+  renders and headed preview").
+
+Screenshots, kept as local evidence (headed Chromium,
+1600×1000):
+
+- the Eye Confused Swirl source on both Avatars, front and face;
+- `confusion-2` paused mid-fade with its swirl and particle;
+- `amusement-3` with the panel naming its unplayed Scene Effect.
+
+Known limits:
+
+- A Reaction loops its timeline without chat's speech-held lifetime.
+- When a Reaction is scrubbed, an effect that loads during the replay starts
+  its motion when loading finishes.
+- Particles freeze while paused.
+- The skills do not mention the effect preview yet. That is P11 and Plan 2.
+
+Checks (agent):
+
+- Focused vitest: 355 passed.
+- Preview, render, sources and media node tests: 22 passed.
+- Full `pnpm web:test`: 406 files, 3,125 vitest passed. One unrelated browser
+  test, `setup-downloads`, timed out once and passed 19/19 on rerun.
+- `pnpm check`, `web:lint`, prettier and `pnpm build` pass.
+- The `--all-included` diff is 0 pixels.
+
 #### Code Review #1 Findings
 
+Reviewed source: uncommitted tree on `6b9fae83`. Result: **blocking findings
+remain**.
+
+1. **Blocking.** The server watched only the files from the last successful
+   load. If a descriptor names an image that does not exist yet, creating the
+   image later does not reload the effect; the reviewer reproduced this. The
+   same happens when the image is missing at startup.
+2. `pageEffect` is duplicated between the preview and `effects:render`.
+3. The browser tests do not prove a re-apply after a scrub or an image swap,
+   and there is no `--duration` case.
+4. One bad, symlinked descriptor aborts resolving every dependency.
+5. The 4 s loop stretches to the longest compare row.
+6. Review notes can land inside a Library content folder.
+7. The `PreviewMediaFiles` registry grows for the life of the server, and
+   sizes are checked only when a file is registered.
+8. The public plan named local checkout paths. Fixed: evidence locations are
+   now described generically.
+
+The reviewer found no defects in the media route's security, alias
+resolution, the scrub cancellation or `animation resolve`. The lighting
+change was accepted, since the page already promises chat-equivalent looks.
+
 #### Code Review #1 Revisions
+
+1. Fixed: the effect source opens with its descriptor only, through
+   `resolveEffectDescriptor`; a missing image is a row error. `syncWatchers`
+   also watches each effect's descriptor folder recursively (`watchDirs`). New
+   session and node tests cover it.
+2. Fixed: the preview reuses `pageEffect` from `effect-render.mjs`.
+3. Fixed:
+   - `window.animationPreview.effects[]` exposes `version` and `applies`.
+   - The tests assert a re-apply after a scrub, and a new `?v=` and rebuild
+     after an image swap.
+   - A new `--duration 1` test covers removal, the 0.5 s tail and the loop.
+4. Fixed: `findContentRef` skips a descriptor that is linked in or unreadable,
+   with a notice. Tested.
+5. Fixed: effect rows run on their own cycle (`effectCycle`, `effectPhase`)
+   beside longer comparison rows. Docs updated.
+6. Fixed: `isInLibraryContent` routes notes for any clip or effect under
+   Library content to the working directory. Tested.
+   - The scanner would otherwise count such files as item files and change
+     the item's revision.
+7. Fixed: `PreviewMediaFiles` keeps the 64 most recently used folders, and
+   `lookup` re-checks containment and the recorded size limit on every serve.
+   Tested.
+8. Fixed: see above.
+
+Checks after revisions:
+
+- Agent: focused vitest 357 passed; node tests 26/26; `pnpm check`,
+  `web:lint`, prettier and `pnpm build` pass; the `--all-included` diff is 0
+  pixels.
+- Me: full `pnpm web:test` (406 files, 3,127 tests) passes.
+
+#### Code Review #2 (repair round 1)
+
+Result: **pass**. Finding 1 is fixed. The reviewer's probe recovered both
+when the image was named before it existed and when it was missing at
+startup inside a new subfolder, with no reload loop. The watcher rebuild,
+cycle logic, LRU eviction (active sources re-register on every reload) and
+size checks have no regressions.
+
+Non-blocking, carried into P11:
+
+- Document that an effect descriptor should sit in its own `<stem>/`
+  folder, because its folder is watched recursively.
+- Document where notes go in the `animation:preview` usage text and the
+  `animama-animation` skill.
 
 ### Phase 11 — Documentation and acceptance (R11). Gate G5.
 

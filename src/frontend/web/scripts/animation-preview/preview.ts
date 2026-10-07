@@ -3,6 +3,14 @@ import * as THREE from "three";
 import { Avatar } from "@/lib/avatar";
 import { BUILT_IN_AVATAR_MOTION_CATALOG } from "@/lib/avatar/motion/AvatarMotionCatalog";
 import type { ProceduralAnimationLayerId } from "@/lib/avatar/proc-animation/types";
+import {
+  EMPTY_PREVIEW_MEDIA,
+  PreviewMediaProvider,
+  clipUsesMedia,
+  previewMediaNotices,
+  type PreviewEffect,
+  type PreviewMedia,
+} from "@/lib/avatar/motion-authoring/preview/previewMedia";
 import type { PreviewState } from "@/lib/avatar/motion-authoring/preview/previewSession";
 import {
   REVIEW_REGIONS,
@@ -12,14 +20,23 @@ import type {
   PreviewChoice,
   PreviewClip,
 } from "@/lib/avatar/motion-authoring/preview/sources";
-import { EMPTY_RUNTIME_MEDIA_PROVIDER } from "@/lib/runtime-content/AnimaRuntimeMediaCatalog";
+import { effectSourceEntry } from "@/lib/avatar/vfx/effectSource";
+import { applyAvatarVFXEffectById } from "@/lib/avatar/vfx/runtime";
+
+import { addChatLights, applyChatColorPipeline } from "../effect-render/stage";
 
 /**
- * Motion preview page (served by `scripts/animation-preview.mjs`). Each row
- * plays one source on both Included Avatars through the app's own `Avatar`
- * playback, so fades, live-layer mutes and expression precedence look as they
- * do in chat. The page keeps one playback clock for all rows. The Review and
- * Compare pickers switch the server to other listed sources.
+ * Motion and Avatar Effect preview page (served by
+ * `scripts/animation-preview.mjs`). Each row plays one source on both Included
+ * Avatars through the app's own `Avatar` playback, lit and tone-mapped like
+ * the chat canvas, so fades, live-layer mutes, expression precedence and clip
+ * effects look as they do in chat. A Gesture or Reaction plays its Avatar and
+ * Particle Effects through a media provider built from its dependencies; an
+ * effect source is applied through the runtime parser and
+ * `applyAvatarVFXEffectById`, as `effects:render` does. Effect warnings and
+ * anything the preview cannot play are listed on the page. The page keeps one
+ * playback clock for all rows. The Review and Compare pickers switch the
+ * server to other listed sources.
  */
 
 type ServerState = PreviewState & { avatars: { id: string; url: string }[] };
@@ -28,9 +45,12 @@ type CameraPreset = "front" | "threeQuarter" | "side" | "face";
 type RowView = {
   key: string;
   label: string;
-  /** The clip file; a different path means another source was picked. */
+  /** The source file; a different path means another source was picked. */
   path: string;
   clip: PreviewClip | null;
+  effect: PreviewEffect | null;
+  /** Effects the clip's events play; null when it has none. */
+  media: PreviewMedia | null;
   version: string | null;
 };
 
@@ -38,17 +58,54 @@ type Cell = {
   rowKey: string;
   avatarId: string;
   avatar: Avatar;
+  /** Effects the Avatar's clip events resolve; swapped per source. */
+  media: PreviewMediaProvider;
   scene: THREE.Scene;
   camera: THREE.PerspectiveCamera;
   /** Rest head height, which frames every camera preset. */
   headHeight: number;
   label: HTMLDivElement;
   playingVersion: string | null;
+  /**
+   * The source version an effect-playing cell was created for: a changed
+   * effect gets fresh Avatars, so their warnings describe only it.
+   */
+  builtFor: string | null;
+  /** Increases with every effect apply or removal; stale applies stop. */
+  effectRequest: number;
+  /** Why the effect source did not apply, if it did not. */
+  effectProblem: string | null;
+  /** Completed applies of the effect source, for the browser test. */
+  effectApplies: number;
+  /** Latest diagnostics, refreshed a few times a second. */
+  diagnostics: CellDiagnostics;
   /** Which live layers the Avatar enables by default. */
   layerDefaults: Map<ProceduralAnimationLayerId, boolean>;
 };
 
+/** What a cell shows of its effects, for the page and the browser test. */
+type CellDiagnostics = {
+  row: string;
+  avatar: string;
+  /** The source version the cell plays. */
+  version: string | null;
+  /** Completed applies of an effect source (each loop, seek or reload). */
+  applies: number;
+  /** Labels of the active Avatar Effects. */
+  active: string[];
+  /** Running Particle Effect instances. */
+  particles: number;
+  warnings: string[];
+};
+
 const FRAME = 1 / 30;
+/** Applied id of an effect source, distinct from any clip event's. */
+const PREVIEW_EFFECT_ID = "animation-preview:effect";
+/** An effect source without `--duration` is applied again this often. */
+const EFFECT_LOOP_SEC = 4;
+/** Shown after a timed effect is removed, before the loop restarts. */
+const EFFECT_TAIL_SEC = 0.5;
+const DIAGNOSTICS_INTERVAL_MS = 250;
 
 const element = <T extends HTMLElement>(id: string) =>
   document.getElementById(id) as T;
@@ -60,6 +117,7 @@ const ui = {
   views: element<HTMLDivElement>("views"),
   canvas: element<HTMLCanvasElement>("canvas"),
   labels: element<HTMLDivElement>("labels"),
+  notices: element<HTMLDivElement>("effect-notices"),
   play: element<HTMLButtonElement>("play"),
   restart: element<HTMLButtonElement>("restart"),
   stepBack: element<HTMLButtonElement>("step-back"),
@@ -86,7 +144,7 @@ const renderer = new THREE.WebGLRenderer({
   antialias: true,
   preserveDrawingBuffer: true,
 });
-renderer.outputColorSpace = THREE.SRGBColorSpace;
+applyChatColorPipeline(renderer);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setScissorTest(true);
 
@@ -104,32 +162,39 @@ const clock = new THREE.Clock();
 
 // ── Rows and Avatars ─────────────────────────────────────────────────────
 
-/** The longest row's length: a one-shot includes its fade-out. */
+/** The longest row's length. */
 function totalDuration(): number {
-  return Math.max(
-    0.001,
-    ...rows.map(({ clip }) =>
-      clip ? clip.duration + (clip.loop ? 0 : clip.fadeOut) : 0,
-    ),
-  );
+  return Math.max(0.001, ...rows.map(rowEnd));
 }
 
+/**
+ * A row's timeline length: a one-shot clip includes its fade-out; an effect
+ * source loops every `EFFECT_LOOP_SEC`, or runs its duration and then shows
+ * its removal.
+ */
 function rowEnd(row: RowView | undefined): number {
+  if (row?.effect)
+    return row.effect.duration === null
+      ? EFFECT_LOOP_SEC
+      : row.effect.duration + EFFECT_TAIL_SEC;
   if (!row?.clip) return 0;
   return row.clip.duration + (row.clip.loop ? 0 : row.clip.fadeOut);
+}
+
+/** Whether a row uses effects, so its Avatars are rebuilt when it changes. */
+function usesEffects(row: RowView | undefined): boolean {
+  return Boolean(row?.effect || row?.media);
 }
 
 async function createCell(row: RowView, avatarId: string, url: string) {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0xf4f3ef);
-  scene.add(new THREE.AmbientLight(0xffffff, 1.6));
-  const sun = new THREE.DirectionalLight(0xffffff, 1.4);
-  sun.position.set(1, 2, 2);
-  scene.add(sun);
+  addChatLights(scene);
   const camera = new THREE.PerspectiveCamera(30, 1, 0.05, 20);
+  const media = new PreviewMediaProvider(row.media ?? EMPTY_PREVIEW_MEDIA);
   const avatar = new Avatar(camera, ui.canvas, {
     motionCatalog: BUILT_IN_AVATAR_MOTION_CATALOG,
-    mediaCatalog: EMPTY_RUNTIME_MEDIA_PROVIDER,
+    mediaCatalog: media,
   });
   await avatar.load({ filePath: url });
   if (!avatar.scene || !avatar.vrm) throw new Error(`Cannot load ${avatarId}.`);
@@ -145,11 +210,25 @@ async function createCell(row: RowView, avatarId: string, url: string) {
     rowKey: row.key,
     avatarId,
     avatar,
+    media,
     scene,
     camera,
     headHeight: head.y,
     label,
     playingVersion: null,
+    builtFor: usesEffects(row) ? row.version : null,
+    effectRequest: 0,
+    effectProblem: null,
+    effectApplies: 0,
+    diagnostics: {
+      row: row.label,
+      avatar: avatarId,
+      version: null,
+      applies: 0,
+      active: [],
+      particles: 0,
+      warnings: [],
+    },
     layerDefaults: new Map(
       avatar
         .getProceduralAnimationSnapshot()
@@ -164,12 +243,19 @@ async function createCell(row: RowView, avatarId: string, url: string) {
 async function syncCells() {
   if (!server) return;
   const visible = visibleRows();
-  const keep = new Set(visible.map(({ key }) => key));
-  for (const cell of cells.filter(({ rowKey }) => !keep.has(rowKey))) {
+  const keep = (cell: Cell) => {
+    const row = visible.find(({ key }) => key === cell.rowKey);
+    // A changed effect source or effect-playing clip gets fresh Avatars.
+    return Boolean(
+      row &&
+      (usesEffects(row) ? cell.builtFor === row.version : !cell.builtFor),
+    );
+  };
+  for (const cell of cells.filter((cell) => !keep(cell))) {
     cell.avatar.dispose();
     cell.label.remove();
   }
-  cells = cells.filter(({ rowKey }) => keep.has(rowKey));
+  cells = cells.filter(keep);
   for (const row of visible)
     for (const { id, url } of server.avatars)
       if (
@@ -194,11 +280,18 @@ function rowFor(cell: Cell) {
   return visibleRows().find(({ key }) => key === cell.rowKey);
 }
 
-/** (Re)start a cell's clip from the beginning, then move it to `time`. */
+/** (Re)start a cell's source from the beginning, then move it to `time`. */
 function startCell(cell: Cell, time: number) {
   const row = rowFor(cell);
   cell.avatar.stopClip({ transition: { mode: "fadeOut", durationSec: 0 } });
+  clearEffect(cell);
   cell.playingVersion = null;
+  cell.media.setMedia(row?.media ?? EMPTY_PREVIEW_MEDIA);
+  if (row?.effect) {
+    cell.playingVersion = row.version;
+    void applyEffect(cell, time);
+    return;
+  }
   if (!row?.clip) return;
   cell.avatar.playAnimaPoseClip(row.clip.clip, {
     preserveProceduralOffsets: true,
@@ -209,11 +302,93 @@ function startCell(cell: Cell, time: number) {
 
 function seekCell(cell: Cell, time: number) {
   const row = rowFor(cell);
-  if (!cell.avatar.isClipActive()) startCell(cell, 0);
+  if (row?.effect) {
+    void applyEffect(cell, time);
+    return;
+  }
   // A loop wraps on its own clock; a one-shot holds its end once finished.
-  cell.avatar.seekPoseClip(
-    row?.clip?.loop ? time : Math.min(time, Math.max(0, rowEnd(row) - 1e-4)),
-  );
+  const target = row?.clip?.loop
+    ? time
+    : Math.min(time, Math.max(0, rowEnd(row) - 1e-4));
+  if (row?.clip && clipUsesMedia(row.clip.clip)) {
+    replayCell(cell, target);
+    return;
+  }
+  if (!cell.avatar.isClipActive()) startCell(cell, 0);
+  cell.avatar.seekPoseClip(target);
+}
+
+/**
+ * Replay a clip with effect events from its start in frames: seeking alone
+ * would skip the events before `time`, so their effects would not show. An
+ * effect that loads during the replay starts its own motion once loaded.
+ */
+function replayCell(cell: Cell, time: number) {
+  startCell(cell, 0);
+  for (let elapsed = 0; elapsed < time - 1e-6; ) {
+    const step = Math.min(FRAME, time - elapsed);
+    cell.avatar.update(step);
+    elapsed += step;
+  }
+}
+
+/** Remove the cell's effect source and stop any apply still loading. */
+function clearEffect(cell: Cell) {
+  cell.effectRequest += 1;
+  cell.effectProblem = null;
+  cell.avatar.vfxController?.removeEffect(PREVIEW_EFFECT_ID);
+}
+
+/** Which repeat of an effect row's own cycle (`rowEnd`) the playhead is in. */
+function effectCycle(row: RowView, time: number): number {
+  return time <= 0 ? 0 : Math.ceil(time / rowEnd(row)) - 1;
+}
+
+/** Seconds into the effect row's current cycle; a cycle's end belongs to it. */
+function effectPhase(row: RowView, time: number): number {
+  return time - effectCycle(row, time) * rowEnd(row);
+}
+
+/**
+ * Show the row's effect source as it is at playhead `time`: remove it, apply
+ * it again through the runtime path, then step its frames to the time within
+ * its own cycle. A timed effect is absent after its duration.
+ */
+async function applyEffect(cell: Cell, time: number) {
+  clearEffect(cell);
+  const request = cell.effectRequest;
+  const row = rowFor(cell);
+  const effect = row?.effect;
+  if (!row || !effect) return;
+  const phase = effectPhase(row, time);
+  if (effect.duration !== null && phase >= effect.duration) return;
+  let problem: string | null = null;
+  try {
+    const entry = effectSourceEntry(effect);
+    const applied = await applyAvatarVFXEffectById({
+      avatar: cell.avatar,
+      effectId: entry.id,
+      appliedEffectId: PREVIEW_EFFECT_ID,
+      effectEntry: entry,
+    });
+    if (!applied) {
+      const part = cell.avatar.vfxController?.findUnavailableFacePart(entry);
+      problem = part
+        ? `This Avatar has no ${part}, so the effect is skipped (as in chat).`
+        : "The effect could not be applied.";
+    }
+  } catch (error) {
+    problem = error instanceof Error ? error.message : String(error);
+  }
+  if (request !== cell.effectRequest) return;
+  cell.effectProblem = problem;
+  cell.effectApplies += 1;
+  for (let elapsed = 0; elapsed < phase - 1e-6; ) {
+    const step = Math.min(FRAME, phase - elapsed);
+    cell.avatar.vfxController?.update(step);
+    elapsed += step;
+  }
+  refreshDiagnostics();
 }
 
 function seekAll(time: number) {
@@ -241,6 +416,7 @@ function applyLiveLayers(cell: Cell) {
 function advance(delta: number) {
   const total = totalDuration();
   const step = delta * playback.speed;
+  const before = playback.time;
   playback.time += step;
   if (playback.time >= total) {
     if (!ui.loop.checked) {
@@ -253,6 +429,21 @@ function advance(delta: number) {
     if (!rows.every(({ clip }) => clip?.loop)) return restartAll();
     // Re-align shorter loops with the wrapped playhead.
     return seekAll(playback.time - total);
+  }
+  // Effect sources repeat on their own cycle, even beside a longer row, and
+  // a timed one is removed once its duration has passed.
+  for (const cell of cells) {
+    const row = rowFor(cell);
+    const duration = row?.effect?.duration;
+    if (!row?.effect) continue;
+    if (effectCycle(row, playback.time) !== effectCycle(row, before))
+      void applyEffect(cell, playback.time);
+    else if (
+      duration != null &&
+      effectPhase(row, before) < duration &&
+      effectPhase(row, playback.time) >= duration
+    )
+      clearEffect(cell);
   }
   for (const cell of cells) cell.avatar.update(step);
   showTime();
@@ -279,7 +470,16 @@ function render() {
     renderer.render(cell.scene, cell.camera);
     cell.label.style.left = `${x + 6}px`;
     cell.label.style.top = `${row * cellHeight + 6}px`;
-    cell.label.textContent = `${cell.avatarId.replace("AvatarSample_", "")} · ${visible[row]?.label ?? ""}`;
+    const { active, particles } = cell.diagnostics;
+    const effects = [
+      ...active,
+      ...(particles ? [`${particles} particle effect(s)`] : []),
+    ];
+    cell.label.textContent = [
+      cell.avatarId.replace("AvatarSample_", ""),
+      visible[row]?.label ?? "",
+      ...(effects.length ? [effects.join(", ")] : []),
+    ].join(" · ");
   });
 }
 
@@ -309,11 +509,74 @@ function placeCamera(cell: Cell) {
   camera.updateProjectionMatrix();
 }
 
-function frame() {
+let diagnosticsAt = 0;
+function frame(now: number) {
   const delta = Math.min(clock.getDelta(), 0.1);
   if (playback.playing && cells.length > 0) advance(delta);
+  if (now - diagnosticsAt > DIAGNOSTICS_INTERVAL_MS) refreshDiagnostics();
   render();
   requestAnimationFrame(frame);
+}
+
+// ── Effect diagnostics ──────────────────────────────────────────────────
+
+function cellDiagnostics(cell: Cell): CellDiagnostics {
+  const vfx = cell.avatar.vfxController?.getSnapshot();
+  const particles = cell.avatar.particleVFXController?.getSnapshot();
+  const clip = cell.avatar.getClipSnapshot();
+  return {
+    row: rowFor(cell)?.label ?? "",
+    avatar: cell.avatarId,
+    version: cell.playingVersion,
+    applies: cell.effectApplies,
+    active: [
+      ...(vfx?.activeEffects ?? []),
+      ...(vfx?.attachmentEffects ?? []),
+    ].map(({ effectLabel }) => effectLabel),
+    particles: particles?.activeCount ?? 0,
+    warnings: [
+      ...new Set(
+        [
+          ...(vfx?.warnings ?? []),
+          ...(particles?.warnings ?? []),
+          ...(particles?.lastError ? [particles.lastError] : []),
+          ...cell.media.getProblems(),
+          ...(cell.effectProblem ? [cell.effectProblem] : []),
+          ...(clip.lastEventError ? [clip.lastEventError] : []),
+        ].filter(Boolean),
+      ),
+    ],
+  };
+}
+
+/**
+ * Show every controller warning, failed clip event and effect the preview
+ * cannot play, so nothing fails silently.
+ */
+function refreshDiagnostics() {
+  diagnosticsAt = performance.now();
+  for (const cell of cells) cell.diagnostics = cellDiagnostics(cell);
+  const notices = visibleRows().flatMap((row) =>
+    row.clip ? previewMediaNotices(row.clip.clip, row.media) : [],
+  );
+  const lines = [
+    ...new Set([
+      ...notices,
+      ...cells.flatMap(({ avatarId, diagnostics }) =>
+        diagnostics.warnings.map(
+          (warning) =>
+            `${avatarId.replace("AvatarSample_", "")} · ${diagnostics.row}: ${warning}`,
+        ),
+      ),
+    ]),
+  ];
+  const text = lines.join("\n");
+  if (ui.notices.textContent !== text) ui.notices.textContent = text;
+  ui.notices.hidden = lines.length === 0;
+  window.animationPreview.effects = cells.map(({ diagnostics }) => ({
+    ...diagnostics,
+  }));
+  window.animationPreview.notices = lines;
 }
 
 // ── Transport and markers ───────────────────────────────────────────────
@@ -586,6 +849,8 @@ async function fetchState(): Promise<ServerState> {
  * before the current one.
  */
 async function loadPreviousRow(state: ServerState): Promise<RowView | null> {
+  // An effect's retained descriptor lacks its images, so it is not replayed.
+  if (state.rows[0]?.type === "effect") return null;
   const sidecar = state.review.sidecar;
   const versions = sidecar?.versions ?? [];
   const current = state.rows[0]?.version;
@@ -605,6 +870,9 @@ async function loadPreviousRow(state: ServerState): Promise<RowView | null> {
     path: "",
     label: `${previous.id === latestNote?.version ? "Reviewed" : "Previous"} version (${new Date(previous.savedAt).toLocaleTimeString()})`,
     clip: await response.json(),
+    effect: null,
+    // Earlier versions play with the current dependencies.
+    media: state.rows[0]?.media ?? null,
     version: previous.id,
   };
 }
@@ -627,6 +895,8 @@ async function applyStateNow(state: ServerState) {
     label: row.label,
     path: row.path,
     clip: row.clip,
+    effect: row.effect,
+    media: row.media,
     version: row.version,
   }));
   // Another source was picked: start it from the top.
@@ -661,6 +931,7 @@ async function applyStateNow(state: ServerState) {
   renderPinOptions();
   renderNotes();
   showTime();
+  refreshDiagnostics();
   ui.status.textContent = `${rows.length > 1 ? "Comparing" : "Playing"} · live reload on`;
   window.animationPreview.generation = state.generation;
   window.animationPreview.ready = true;
@@ -673,6 +944,10 @@ declare global {
       generation: number;
       time: number;
       error: string | null;
+      /** Each cell's effects and warnings, refreshed a few times a second. */
+      effects: CellDiagnostics[];
+      /** The lines of the effect warnings panel. */
+      notices: string[];
     };
   }
 }
@@ -681,6 +956,8 @@ window.animationPreview = {
   generation: -1,
   time: 0,
   error: null,
+  effects: [],
+  notices: [],
 };
 
 async function start() {

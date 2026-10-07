@@ -689,7 +689,7 @@ Not every axis is equally meaningful for every render mode.
 | Texture        | Full-face overlays or iris replacement | Match the original UV layout.                                             |
 | Hover plane    | Art floating in front of the face      | Use transparent images framed around the intended landmark.               |
 
-## 10) Headless review renders
+## 10) Review renders and headed preview
 
 From `src/frontend/web`, `pnpm -s effects:render` renders effects on both
 Included Avatars without a running stack (headless Chromium with SwiftShader):
@@ -728,6 +728,39 @@ pnpm -s effects:render --diff before.png after.png --out diff.png
 - `--diff` counts a pixel as different when a channel changes by more than
   `--threshold` (default 8 of 255). It reports the share of such pixels and
   the largest channel change, and writes a red-on-grey diff image.
+
+### Headed preview
+
+`pnpm -s animation:preview` reviews an effect live on both Included Avatars in
+the system browser, with the motion preview's camera presets, transport and
+review notes:
+
+```bash
+pnpm -s animation:preview ./my-effect                # folder or descriptor .json
+pnpm -s animation:preview library:avatar-effect/eye_confused_swirl --duration 2
+pnpm -s animation:preview library:included/confusion-2   # a Reaction with its effects
+```
+
+- An effect source is parsed with the `/2` parser and applied through
+  `applyAvatarVFXEffectById`, as `effects:render` does, and resolved with the
+  same code (`scripts/effect-render-sources.mjs`, including its containment
+  checks). `library:avatar-effect/` takes the same keys and scopes as
+  `effects:render`'s `library:`.
+- It is applied again every 4 s, on its own cycle even beside a longer Compare
+  row; `--duration <s>` keeps it for that long, removes it for 0.5 s and then
+  repeats. Seeking removes it, applies it again and steps its frames to the
+  chosen time in its cycle.
+- Any change in the effect's folder reloads it, so an image the descriptor
+  names appears as soon as it is saved; the version covers the image bytes,
+  and a reload with no change does nothing. Notes go beside the effect's
+  folder (`my-effect.review.json`); for anything inside Library content they
+  go in the working directory, because the content scanner would count a
+  notes file inside an item as one of its files.
+- A Gesture or Reaction plays its Avatar and Particle Effects as in chat,
+  resolved from its meta file's dependencies (or a project file's).
+- Controller warnings, failed clip events, a skipped face part and anything the
+  preview cannot play (Scene Effects, sounds, unresolved aliases) are listed
+  above the Avatars, and active effects are named on each view.
 
 ## 11) Performance profile
 

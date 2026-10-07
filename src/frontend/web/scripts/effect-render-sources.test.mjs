@@ -12,10 +12,15 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 
 import {
+  INCLUDED_CONTENT_ROOT,
   INCLUDED_EFFECT_ROOT,
+  effectSourceFiles,
+  effectSourceVersion,
   listIncludedEffects,
   resolveClipSource,
+  resolveEffectRef,
   resolveEffectSource,
+  resolveParticleRef,
 } from "./effect-render-sources.mjs";
 import { MAX_TIME_SEC, parseTimes } from "./effect-render.mjs";
 
@@ -217,6 +222,100 @@ test("rejects symlinks that resolve outside their folder", async () => {
   } finally {
     await rm(path.join(effectRoot, "foreign"), { recursive: true });
   }
+});
+
+test("versions an effect by its descriptor and image bytes", async () => {
+  const effect = await resolveEffectSource("library:local/sparkle", {
+    localContent,
+  });
+  assert.deepEqual(effectSourceFiles(effect), [
+    effect.descriptorPath,
+    effect.imagePath,
+  ]);
+  const first = await effectSourceVersion(effect);
+  assert.match(first, /^[a-f0-9]{12}$/);
+  assert.equal(await effectSourceVersion(effect), first);
+  await writeFile(effect.imagePath, "png, repainted");
+  try {
+    assert.notEqual(await effectSourceVersion(effect), first);
+  } finally {
+    await writeFile(effect.imagePath, "png");
+  }
+});
+
+test("resolves Avatar and Particle Effect dependencies by content id", async () => {
+  const swirl = await resolveEffectRef(
+    "builtin:avatar-effect:eye_confused_swirl",
+  );
+  assert.equal(swirl.stem, "eye_confused_swirl");
+  const local = await resolveEffectRef("local:avatar-effect:sparkle", {
+    localContent,
+  });
+  assert.equal(local.name, "Sparkle Burst");
+  // Included particles nest one folder deeper.
+  const particle = await resolveParticleRef(
+    "builtin:particle-effect:question-marks",
+  );
+  const folder = path.join(
+    INCLUDED_CONTENT_ROOT,
+    "vfx/particle/quark/question-marks",
+  );
+  assert.equal(particle.folder, folder);
+  assert.equal(particle.manifestPath, path.join(folder, "particle.json"));
+  assert.deepEqual(particle.texturePaths, [
+    path.join(folder, "textures/question.png"),
+  ]);
+  assert.equal(particle.defaults.anchor, "head");
+  await assert.rejects(
+    resolveEffectRef("builtin:avatar-effect:nope"),
+    /No avatar effect "builtin:avatar-effect:nope" in Included content/,
+  );
+});
+
+test("skips a linked-in descriptor instead of failing every dependency", async () => {
+  const effectRoot = path.join(localContent, "vfx/avatar");
+  await mkdir(path.join(effectRoot, "aaa-foreign"));
+  await symlink(
+    path.join(outsideDir, "secret.json"),
+    path.join(effectRoot, "aaa-foreign/aaa-foreign.json"),
+  );
+  const skipped = [];
+  try {
+    const effect = await resolveEffectRef("local:avatar-effect:sparkle", {
+      localContent,
+      onSkip: (message) => skipped.push(message),
+    });
+    assert.equal(effect.stem, "sparkle");
+    assert.equal(skipped.length, 1);
+    assert.match(skipped[0], /aaa-foreign\.json.*leaves/);
+  } finally {
+    await rm(path.join(effectRoot, "aaa-foreign"), { recursive: true });
+  }
+});
+
+test("keeps a Particle Effect's files inside its folder", async () => {
+  const folder = path.join(localContent, "vfx/particle/pack/glow");
+  await mkdir(folder, { recursive: true });
+  await writeFile(path.join(folder, "particle.json"), "{}");
+  await symlink(
+    path.join(outsideDir, "secret.png"),
+    path.join(folder, "t.png"),
+  );
+  await writeFile(
+    path.join(folder, "glow.json"),
+    JSON.stringify({
+      content_type: "particle_effect",
+      content_id: "local:particle-effect:glow",
+      files: [
+        { path: "particle.json", role: "manifest" },
+        { path: "t.png", role: "texture" },
+      ],
+    }),
+  );
+  await assert.rejects(
+    resolveParticleRef("local:particle-effect:glow", { localContent }),
+    /Particle texture "t.png" leaves/,
+  );
 });
 
 test("parses --times as bounded ascending seconds", () => {
