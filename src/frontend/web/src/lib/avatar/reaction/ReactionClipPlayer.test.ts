@@ -39,6 +39,7 @@ describe("ReactionClipPlayer", () => {
         applyHoverVFX: async ({ effectId }: { effectId: string }) => {
           active.add(effectId);
         },
+        findUnavailableFacePart: () => null,
       } as unknown as NonNullable<Avatar["vfxController"]>;
       const player = new ReactionClipPlayer({
         setExpressionOverlay: () => true,

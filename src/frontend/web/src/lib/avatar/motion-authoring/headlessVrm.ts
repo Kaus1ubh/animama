@@ -1,7 +1,10 @@
 import { VRMLoaderPlugin, VRMUtils, type VRM } from "@pixiv/three-vrm";
 import { Texture } from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import type { GLTFLoaderPlugin } from "three/examples/jsm/loaders/GLTFLoader.js";
+import type {
+  GLTF,
+  GLTFLoaderPlugin,
+} from "three/examples/jsm/loaders/GLTFLoader.js";
 
 import { canonicalizeCustomPresetExpressions } from "../vrmExpressionPresets";
 
@@ -32,14 +35,29 @@ class PlaceholderTexturePlugin implements GLTFLoaderPlugin {
  * expression canonicalization. Meshes and skeletons are real; textures are not.
  */
 export async function loadHeadlessVrm(bytes: ArrayBuffer): Promise<VRM> {
+  return (await loadHeadlessVrmWithGltf(bytes)).vrm;
+}
+
+/**
+ * Load a VRM headlessly and keep its glTF, whose parser associations give live
+ * primitives their glTF indices. `removeUnnecessaryVertices` matches the app's
+ * `Avatar.load` geometry for checks that read mesh primitives.
+ */
+export async function loadHeadlessVrmWithGltf(
+  bytes: ArrayBuffer,
+  options: { removeUnnecessaryVertices?: boolean } = {},
+): Promise<{ vrm: VRM; gltf: GLTF }> {
   const loader = new GLTFLoader();
   loader.register(() => new PlaceholderTexturePlugin());
   loader.register((parser) => new VRMLoaderPlugin(parser));
   const gltf = await loader.parseAsync(bytes, "");
+  if (options.removeUnnecessaryVertices) {
+    VRMUtils.removeUnnecessaryVertices(gltf.scene);
+  }
   const vrm = (gltf.userData as { vrm?: VRM }).vrm;
   if (!vrm) throw new Error("The file is not a VRM: no VRM extension found.");
   VRMUtils.rotateVRM0(vrm);
   canonicalizeCustomPresetExpressions(vrm);
   vrm.scene.updateMatrixWorld(true);
-  return vrm;
+  return { vrm, gltf };
 }

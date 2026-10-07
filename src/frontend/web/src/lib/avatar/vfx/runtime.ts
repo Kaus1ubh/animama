@@ -10,7 +10,9 @@ import {
 
 /**
  * Apply one resolved Avatar Effect. Callers resolve `effectEntry` through the
- * Anima's runtime catalog; there is no bundled fallback catalog.
+ * Anima's runtime catalog; there is no bundled fallback catalog. Returns false
+ * when nothing was applied, including an effect skipped because the Avatar
+ * lacks its face part (`findUnavailableFacePart` tells the cases apart).
  */
 export async function applyAvatarVFXEffectById(args: {
   avatar: Avatar | null;
@@ -26,6 +28,14 @@ export async function applyAvatarVFXEffectById(args: {
   }
 
   const runtimeEffectId = args.appliedEffectId ?? effect.id;
+
+  // An effect whose face part this Avatar lacks is not applied; the
+  // controller logs it once and lists it in its warnings.
+  const missingPart = controller.findUnavailableFacePart(effect);
+  if (missingPart) {
+    controller.reportUnavailableFacePart(effect, missingPart);
+    return false;
+  }
 
   if (isDeferredAttachmentVFXEntry(effect)) {
     // Body, sticker and silhouette effects are valid but not rendered yet.

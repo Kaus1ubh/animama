@@ -255,6 +255,18 @@ CREATE TABLE avatar (
 
 -- animama-statement --
 
+CREATE TABLE avatar_face_part_overrides (
+    owner_user_id character varying NOT NULL,
+    avatar_item_id character varying NOT NULL,
+    avatar_revision_sha256 character varying(64) NOT NULL,
+    parts jsonb NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT ck_avatar_face_part_overrides_avatar_revision_sha256_format CHECK (((avatar_revision_sha256)::text ~ '^[0-9a-f]{64}$'::text)),
+    CONSTRAINT ck_avatar_face_part_overrides_parts_object CHECK ((jsonb_typeof(parts) = 'object'::text))
+);
+
+-- animama-statement --
+
 CREATE TABLE avatar_upload (
     id character varying NOT NULL,
     user_id character varying NOT NULL,
@@ -1007,6 +1019,11 @@ ALTER TABLE ONLY avatar
 
 -- animama-statement --
 
+ALTER TABLE ONLY avatar_face_part_overrides
+    ADD CONSTRAINT pk_avatar_face_part_overrides PRIMARY KEY (owner_user_id, avatar_item_id);
+
+-- animama-statement --
+
 ALTER TABLE ONLY avatar_upload
     ADD CONSTRAINT pk_avatar_upload PRIMARY KEY (id);
 
@@ -1629,6 +1646,11 @@ ALTER TABLE ONLY archive_passages
 
 ALTER TABLE ONLY avatar
     ADD CONSTRAINT fk_avatar_catalog_item_id_content_catalog_items FOREIGN KEY (catalog_item_id) REFERENCES content_catalog_items(id) ON DELETE RESTRICT;
+
+-- animama-statement --
+
+ALTER TABLE ONLY avatar_face_part_overrides
+    ADD CONSTRAINT fk_avatar_face_part_overrides_avatar_item_id FOREIGN KEY (avatar_item_id) REFERENCES content_catalog_items(id) ON DELETE CASCADE;
 
 -- animama-statement --
 

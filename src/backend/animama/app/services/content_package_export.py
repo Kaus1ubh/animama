@@ -8,7 +8,7 @@ import json
 import os
 import re
 import stat
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
 from tempfile import TemporaryFile
@@ -33,8 +33,10 @@ from animama.app.contracts.content_package import (
     portable_revision,
 )
 from animama.app.contracts.portable_anima import PortableAnima
+from animama.app.ports.avatar_face_parts import AvatarFacePartOverrideRepository
 from animama.app.ports.user_profile_port import UserProfileRepository
 from animama.app.services.anima_package_source_service import AnimaPackageSnapshot, AnimaPackageSourceService
+from animama.app.services.avatar_face_parts import effective_face_parts
 from animama.app.services.content_catalog_service import ContentCatalogService
 from animama.app.services.content_kind_registry import MAX_JSON_BYTES, handler_for_kind
 from animama.app.services.content_package_staging import PackageStageService, StageLease
@@ -49,7 +51,12 @@ from animama.domain.content_catalog import (
     ContentPathError,
     ContentSource,
 )
-from animama.domain.content_documents import AppearanceDocumentV1, PoseDocumentV1, VoiceDocumentV1
+from animama.domain.content_documents import (
+    AppearanceDocumentV1,
+    AvatarDocumentV1,
+    PoseDocumentV1,
+    VoiceDocumentV1,
+)
 
 _PRIVATE_FIELDS = frozenset(
     {
@@ -260,6 +267,8 @@ class _Selection:
     root_ids: tuple[str, ...]
     portraits: dict[str, str | None]
     anima_snapshot: AnimaPackageSnapshot | None = None
+    # Effective face-part corrections by Avatar item id, written into each portable sidecar.
+    face_parts: dict[str, dict[str, Any]] = field(default_factory=dict)
 
 
 def _portraits(
@@ -299,8 +308,10 @@ class ContentPackageExportService:
         anima_sources: AnimaPackageSourceService | None = None,
         stages: PackageStageService | None = None,
         profiles: UserProfileRepository | None = None,
+        face_part_overrides: AvatarFacePartOverrideRepository | None = None,
     ) -> None:
         self._content = content
+        self._face_part_overrides = face_part_overrides
         self._catalog = content.mutations.catalog
         self._store = content.mutations.store
         self._stages = stages or PackageStageService(exports_root.parent / "imports", exports_root)
@@ -336,6 +347,7 @@ class ContentPackageExportService:
             if portrait is not None:
                 for item in context.resolve(portrait):
                     entries[item.item.id] = item
+        face_parts = await self._face_parts(user_id=user_id, entries=tuple(entries.values()))
         total = sum(file.size_bytes for item in entries.values() for file in _shared_files(item.item))
         count = sum(len(_shared_files(item.item)) for item in entries.values())
         count += sum(
@@ -350,6 +362,7 @@ class ContentPackageExportService:
                 "anima": asdict(snapshot) if snapshot else None,
                 "sources": {item.item.id: item.item.revision_sha256 for item in entries.values()},
                 "portraits": portraits,
+                "face_parts": face_parts,
             }
         )
         selected = set(item_ids)
@@ -370,7 +383,32 @@ class ContentPackageExportService:
             ),
             anima=definition,
         )
-        return _Selection(summary, tuple(entries.values()), tuple(roots), portraits, snapshot)
+        return _Selection(summary, tuple(entries.values()), tuple(roots), portraits, snapshot, face_parts)
+
+    async def _face_parts(self, *, user_id: str, entries: tuple[TypedCatalogItem, ...]) -> dict[str, dict[str, Any]]:
+        """Resolve each exported Avatar's effective correction for this owner.
+
+        A Local sidecar travels as authored; an Included Avatar has no editable
+        sidecar, so the owner's current override is merged into the portable
+        document and the imported Local copy keeps it. Stale values are dropped.
+        """
+
+        avatars = [item for item in entries if isinstance(item.document, AvatarDocumentV1)]
+        included = [item.item.id for item in avatars if item.item.source is ContentSource.INCLUDED]
+        overrides = (
+            await self._face_part_overrides.list_for_items(owner_user_id=user_id, avatar_item_ids=included)
+            if self._face_part_overrides is not None and included
+            else {}
+        )
+        result: dict[str, dict[str, Any]] = {}
+        for avatar in avatars:
+            assert isinstance(avatar.document, AvatarDocumentV1)
+            effective = effective_face_parts(
+                item=avatar.item, document=avatar.document, override=overrides.get(avatar.item.id)
+            )
+            if effective.face_parts is not None:
+                result[avatar.item.id] = effective.face_parts
+        return result
 
     async def summarize(
         self, *, user_id: str, item_ids: tuple[str, ...] = (), anima_id: str | None = None
@@ -572,6 +610,10 @@ class ContentPackageExportService:
                     projection["avatar_model"], projection["presentation"] = None, {}
                 if isinstance(document, VoiceDocumentV1):
                     projection["files"] = [file for file in projection["files"] if file["role"] != "source_sample"]
+                if isinstance(document, AvatarDocumentV1):
+                    projection.pop("face_parts", None)
+                    if entry.id in selected.face_parts:
+                        projection["face_parts"] = selected.face_parts[entry.id]
                 aliases = frozenset(edge.alias for edge in document.dependencies if edge.alias)
                 portable = portable_json(projection, references, aliases=aliases)
                 portable_document = handler.parse_document(

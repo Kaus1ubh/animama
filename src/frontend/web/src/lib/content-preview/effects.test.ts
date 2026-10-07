@@ -86,6 +86,7 @@ function avatarHarness() {
         applyHoverVFX,
         applyFaceAnchoredVFX,
         applyTextureVFX,
+        findUnavailableFacePart: () => null,
       },
     } as unknown as Avatar,
     clearEffect,

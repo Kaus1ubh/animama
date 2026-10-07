@@ -185,6 +185,8 @@ export function adaptRuntimeSnapshot(
           name: "Avatar",
           config: {
             avatar_catalog_item_id: String(object(avatar.source).item_id ?? ""),
+            // The effective face part correction; validated where it is read.
+            face_parts: avatar.face_parts ?? null,
           },
         },
         "primary_model",

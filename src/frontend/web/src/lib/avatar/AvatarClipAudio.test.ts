@@ -17,9 +17,13 @@ function fixture(player: "gesture" | "reaction") {
   });
   vi.spyOn(avatar, "isReady", "get").mockReturnValue(true);
   const applyHoverVFX = vi.fn().mockResolvedValue(undefined);
+  const findUnavailableFacePart = vi.fn((): string | null => null);
+  const reportUnavailableFacePart = vi.fn();
   avatar.vfxController = {
     removeEffect: vi.fn(),
     applyHoverVFX,
+    findUnavailableFacePart,
+    reportUnavailableFacePart,
   } as unknown as NonNullable<Avatar["vfxController"]>;
   let sink: AnimaPoseClipEventSink = {};
   const playSfx = vi.fn();
@@ -38,7 +42,15 @@ function fixture(player: "gesture" | "reaction") {
     } as unknown as NonNullable<Avatar["reactionClipPlayer"]>;
     avatar.setReactionClipExternalEventSink({ playSfx });
   }
-  return { sink, effect, playSfx, applyHoverVFX, loadAvatarVFX };
+  return {
+    sink,
+    effect,
+    playSfx,
+    applyHoverVFX,
+    loadAvatarVFX,
+    findUnavailableFacePart,
+    reportUnavailableFacePart,
+  };
 }
 const context = {
   clipId: "clip",
@@ -105,6 +117,30 @@ describe.each(["gesture", "reaction"] as const)(
         );
       },
     );
+
+    it("skips an effect without its face part, without its sound or an event error", async () => {
+      const {
+        sink,
+        effect,
+        playSfx,
+        applyHoverVFX,
+        findUnavailableFacePart,
+        reportUnavailableFacePart,
+      } = fixture(player);
+      findUnavailableFacePart.mockReturnValue("face_skin");
+      await expect(
+        sink.applyAvatarVFX?.(
+          { id: "event", time: 0, kind: "avatar_vfx", effectId: effect.id },
+          context,
+        ),
+      ).resolves.toBeUndefined();
+      expect(applyHoverVFX).not.toHaveBeenCalled();
+      expect(playSfx).not.toHaveBeenCalled();
+      expect(reportUnavailableFacePart).toHaveBeenCalledWith(
+        expect.objectContaining({ id: effect.id }),
+        "face_skin",
+      );
+    });
 
     it("keeps sound choices local to each event using the same effect", async () => {
       const { sink, effect, playSfx, applyHoverVFX } = fixture(player);

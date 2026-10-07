@@ -12,6 +12,7 @@ from animama.app.contracts.avatar_effect import (
     AvatarEffectDefinitionV2,
     avatar_effect_projection_fields,
 )
+from animama.app.contracts.avatar_face_parts import AvatarFacePartCorrection
 from animama.server.schemas.idle_style import PyIdleCell, PyIdlePlayback
 
 
@@ -150,6 +151,8 @@ class PyRuntimeAvatar(BaseModel):
     avatar_id: str
     revision: str
     files: list[PyRuntimeFile] = Field(default_factory=list)
+    # The effective face-part correction (Local sidecar or the owner's Included override).
+    face_parts: AvatarFacePartCorrection | None = None
 
 
 class PyRuntimeAppearance(BaseModel):

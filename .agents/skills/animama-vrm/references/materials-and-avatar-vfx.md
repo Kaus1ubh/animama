@@ -4,7 +4,7 @@ Use for avatar appearance inspection, generated texture integration, and Avatar 
 
 ## Separate skinning, surfaces, and shader state
 
-A glTF **skin** is a joint/inverse-bind-matrix relationship; `face_skin` in Animama is a **material-role heuristic**. Neither a skin nor the humanoid mapping defines a universal face UV atlas. A mesh has primitives that reference materials; multiple usages can share one material or texture. Morphs/skinning move vertices, while UVs identify positions in textures. A UV decal deforms with its surface; a head-attached plane has different behavior.
+A glTF **skin** is a joint/inverse-bind-matrix relationship; `face_skin` in Animama is a **detected face part**, not a glTF concept. Neither a skin nor the humanoid mapping defines a universal face UV atlas. A mesh has primitives that reference materials; multiple usages can share one material or texture. Morphs/skinning move vertices, while UVs identify positions in textures. A UV decal deforms with its surface; a head-attached plane has different behavior.
 
 Inspect the rendered primitive, material instance, texture slot, UVs, and relevant deformation, not just a suggestive material name. This also distinguishes a missing UV/material binding from a bone-orientation problem. [glTF meshes, skins, materials, and textures](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html)
 
@@ -18,12 +18,13 @@ Read `docs/frontend/runtime/avatar-vfx.md` and these sources for the relevant op
 
 - `src/frontend/web/src/lib/avatar/vfx/AvatarVFXController.ts`: bindings, application, composites, hover planes, restoration/disposal.
 - `src/frontend/web/src/lib/avatar/vfx/types.ts`: actual discriminated union and transform fields.
-- `src/frontend/web/src/lib/avatar/vfx/profiles.ts`: material-name role classification and optional per-model layout overrides.
+- `src/frontend/web/src/lib/avatar/vfx/faceParts.ts`: face part detection from VRM signals (eye bones, skin weights, `blink`/`aa` morphs, spring joints), name fallback and saved corrections.
+- `src/frontend/web/src/lib/avatar/vfx/profiles.ts`: material-name patterns for the fallback and optional per-model layout overrides.
 - `src/frontend/web/src/lib/avatar/vfx/AvatarFaceLandmarks.ts`: face bounds and eye landmarks from live primitive geometry, normalized eye/head information, and fallbacks.
 - `src/frontend/web/src/lib/avatar/vfx/AvatarFaceTextureAnchors.ts`: face-surface projection and interpolated UV anchors; mouth expression-based/fallback anchors and flatten regions.
 - `src/frontend/web/src/lib/avatar/vrmEditorInspection.ts`: `buildRuntimePrimitiveBindings` for exact live usages.
 
-Roles include face skin, iris, eyeline, eyelashes, and eye highlights. They are heuristics; the baseline profile override list is empty. Unrecognized material names do not imply an invalid VRM. Check snapshot warnings and the exact binding before proposing a profile change.
+Roles include face skin, iris (left and right eye parts), eyeline, eyelashes, eye highlights and hair. Detection uses VRM signals first; material names are only a per-role fallback, and a saved correction (keyed to the VRM's sha256) overrides both. Each part reports its source and confidence, and an effect whose part is missing is skipped with a logged warning. Check the part map, snapshot warnings and the exact binding before proposing a correction or profile change.
 
 Landmarks prefer the normalized head as their anchor object, then use available fallback objects. Version-specific face-front handling remains necessary even after the scene-root facing correction. The normal path builds landmarks/UV anchors at load and placement at effect application; it is not a fresh semantic face solve every frame. Do not assume an attachment follows every facial morph perfectly.
 

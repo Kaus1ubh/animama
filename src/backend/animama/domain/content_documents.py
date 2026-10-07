@@ -190,6 +190,8 @@ class AvatarDocumentV1(ContentDocumentV1):
 
     model_role: str = "model"
     compatibility: dict[str, Any] = field(default_factory=dict)
+    # A validated ``animama/avatar-face-parts/1`` correction (JSON form), or None.
+    face_parts: dict[str, Any] | None = None
 
 
 @dataclass(frozen=True, slots=True)

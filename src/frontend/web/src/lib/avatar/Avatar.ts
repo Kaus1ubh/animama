@@ -11,6 +11,12 @@ import type { AvatarFaceDebugBox } from "./vfx/AvatarFaceDebugBox";
 import { DEBUG_ENABLED } from "@/platform/env";
 import { AvatarFaceLandmarks } from "./vfx/AvatarFaceLandmarks";
 import { AvatarFaceTextureAnchors } from "./vfx/AvatarFaceTextureAnchors";
+import {
+  detectAvatarFaceParts,
+  type AvatarFacePartCorrections,
+  type AvatarFacePartMap,
+} from "./vfx/faceParts";
+import type { AvatarVFXParsedEntry } from "./vfx/types";
 import { AvatarVFXController } from "./vfx/AvatarVFXController";
 import { ParticleVFXController } from "./particle-vfx/ParticleVFXController";
 import { ExpressionController } from "./ExpressionController";
@@ -335,6 +341,8 @@ export class Avatar {
   public sourceGltf: GLTF | null = null;
   public sourceUrl: string | null = null;
   public sourceKey: string | null = null;
+  /** Detected (or corrected) face and eye parts; read by landmarks and VFX. */
+  public facePartMap: AvatarFacePartMap | null = null;
   public faceLandmarks: AvatarFaceLandmarks | null = null;
   public faceTextureAnchors: AvatarFaceTextureAnchors | null = null;
   public faceDebugBox: AvatarFaceDebugBox | null = null;
@@ -389,6 +397,7 @@ export class Avatar {
   private _clipOwnedParticleVFXIds = new Set<string>();
   private _vrmaRestPoseTransition: VrmaRestPoseTransition | null = null;
   private _isVrm0: boolean = false;
+  private _vrmSha256: string | null = null;
 
   constructor(
     camera: THREE.Object3D,
@@ -491,6 +500,8 @@ export class Avatar {
       obj.frustumCulled = false;
     });
 
+    this._vrmSha256 = spec.vrmSha256?.trim().toLowerCase() || null;
+    this._detectFaceParts(spec.facePartCorrections ?? null);
     this.faceLandmarks = new AvatarFaceLandmarks(this);
     this.faceTextureAnchors = new AvatarFaceTextureAnchors(this);
     this.vfxController = new AvatarVFXController(this, this._mediaCatalog);
@@ -538,6 +549,8 @@ export class Avatar {
       this.sourceGltf = null;
       this.sourceUrl = null;
       this.sourceKey = null;
+      this.facePartMap = null;
+      this._vrmSha256 = null;
       this.animationManager = null;
       this.expressionController = null;
     }
@@ -631,6 +644,68 @@ export class Avatar {
         this.faceDebugBox.setVisible(true);
       })
       .catch(() => logger.warn("Debug", "Unable to load face diagnostics"));
+  }
+
+  /**
+   * Apply a face part correction (or clear it with null). Rebuilds the part
+   * map, landmarks and texture anchors, then the VFX bindings, and re-applies
+   * active effects. A correction for different VRM bytes is ignored with a
+   * diagnostic, as at load.
+   */
+  async setFacePartCorrections(
+    corrections: AvatarFacePartCorrections | null,
+  ): Promise<void> {
+    if (!this.isReady) return;
+    this._detectFaceParts(corrections);
+    this.faceDebugBox?.dispose();
+    this.faceDebugBox = null;
+    this.faceTextureAnchors?.dispose();
+    this.faceLandmarks?.dispose();
+    this.faceLandmarks = new AvatarFaceLandmarks(this);
+    this.faceTextureAnchors = new AvatarFaceTextureAnchors(this);
+    this.setFaceDebugBoxVisible(this._faceDebugVisible);
+    await this.vfxController?.refreshFaceParts();
+  }
+
+  private _detectFaceParts(
+    corrections: AvatarFacePartCorrections | null,
+  ): void {
+    if (!this.vrm || !this.sourceGltf) {
+      this.facePartMap = null;
+      return;
+    }
+    let map: AvatarFacePartMap;
+    try {
+      map = detectAvatarFaceParts(this.vrm, this.sourceGltf, {
+        corrections,
+        vrmSha256: this._vrmSha256,
+        sourceKey: this.sourceKey,
+        sourceUrl: this.sourceUrl,
+      });
+    } catch (error) {
+      // An unusual model must not fail the load: without a part map,
+      // landmarks and VFX bindings use material names as before.
+      this.facePartMap = null;
+      logger.warn("FaceParts", "Face part detection failed; using names", {
+        reason: "avatar_face_parts_detection_failed",
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return;
+    }
+    this.facePartMap = map;
+    logger.info("FaceParts", "Resolved face parts", {
+      parts: Object.fromEntries(
+        Object.values(map.parts).map((part) => [
+          part.role,
+          { source: part.source, bindings: part.bindings.length },
+        ]),
+      ),
+    });
+    if (map.diagnostics.length > 0) {
+      logger.warn("FaceParts", "Face part diagnostics", {
+        diagnostics: map.diagnostics,
+      });
+    }
   }
 
   getFaceLandmarksSnapshot(): AvatarFaceLandmarksSnapshot | null {
@@ -2410,8 +2485,9 @@ export class Avatar {
 
     let didApply = false;
     let soundCueId: string | undefined;
+    let effect: AvatarVFXParsedEntry | null = null;
     try {
-      const effect = await this._mediaCatalog.loadAvatarVFX(event.effectId);
+      effect = await this._mediaCatalog.loadAvatarVFX(event.effectId);
       if (
         context.signal?.aborted ||
         this._wasClipOwnedAvatarVFXCancelled(context.appliedId)
@@ -2441,6 +2517,9 @@ export class Avatar {
       );
       this._clipOwnedAvatarVFXIds.delete(context.appliedId);
       if (wasCancelled) return;
+      // A missing face part is an expected model limit, already logged once
+      // by the controller; the clip continues without the effect.
+      if (effect && this.vfxController?.findUnavailableFacePart(effect)) return;
       throw new Error(`Avatar VFX "${event.effectId}" could not be applied.`);
     }
 

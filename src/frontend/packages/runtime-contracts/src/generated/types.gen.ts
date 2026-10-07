@@ -702,6 +702,97 @@ export type AvatarEffectVector2 = {
 };
 
 /**
+ * AvatarFacePartBindings
+ *
+ * Primitive keys per part. ``eye_left``/``eye_right`` hold the irises; one
+ * primitive may hold both eyes and then appears in both lists.
+ */
+export type AvatarFacePartBindings = {
+    /**
+     * Eye Highlight
+     */
+    eye_highlight?: Array<string> | null;
+    /**
+     * Eye Left
+     */
+    eye_left: Array<string>;
+    /**
+     * Eye Right
+     */
+    eye_right: Array<string>;
+    /**
+     * Eyelash
+     */
+    eyelash?: Array<string> | null;
+    /**
+     * Eyeline
+     */
+    eyeline?: Array<string> | null;
+    /**
+     * Face Skin
+     */
+    face_skin: Array<string>;
+    /**
+     * Hair
+     */
+    hair?: Array<string> | null;
+};
+
+/**
+ * AvatarFacePartCorrection
+ *
+ * A complete correction for one exact VRM file.
+ */
+export type AvatarFacePartCorrection = {
+    parts: AvatarFacePartBindings;
+    /**
+     * Schema
+     */
+    schema: 'animama/avatar-face-parts/1';
+    /**
+     * Vrm Sha256
+     */
+    vrm_sha256: string;
+};
+
+/**
+ * AvatarFacePartsState
+ *
+ * The effective correction for one Avatar and the revision it applies to.
+ */
+export type AvatarFacePartsState = {
+    face_parts?: AvatarFacePartCorrection | null;
+    /**
+     * Item Id
+     */
+    item_id: string;
+    /**
+     * Revision
+     */
+    revision: string;
+    /**
+     * Source
+     */
+    source: 'local_metadata' | 'included_override' | 'none';
+};
+
+/**
+ * AvatarFacePartsUpdate
+ *
+ * Replace (or with ``face_parts: null``, clear) an Avatar's correction.
+ *
+ * ``expected_revision`` fences the write against a concurrent change to the
+ * Avatar; a Local write produces a new Avatar revision.
+ */
+export type AvatarFacePartsUpdate = {
+    /**
+     * Expected Revision
+     */
+    expected_revision: string;
+    face_parts: AvatarFacePartCorrection | null;
+};
+
+/**
  * BodyAttachment
  *
  * A plane attached to a humanoid body point (rendering arrives in Phase 6).
@@ -3604,6 +3695,7 @@ export type PyAvatarContent = {
      * Editable
      */
     editable: boolean;
+    face_parts?: AvatarFacePartCorrection | null;
     /**
      * Files
      */
@@ -7678,6 +7770,7 @@ export type PyRuntimeAvatar = {
      * Avatar Id
      */
     avatar_id: string;
+    face_parts?: AvatarFacePartCorrection | null;
     /**
      * Files
      */
@@ -11285,6 +11378,66 @@ export type GetAvatarContentResponses = {
 };
 
 export type GetAvatarContentResponse = GetAvatarContentResponses[keyof GetAvatarContentResponses];
+
+export type GetAvatarFacePartsData = {
+    body?: never;
+    path: {
+        /**
+         * Item Id
+         */
+        item_id: string;
+    };
+    query?: never;
+    url: '/v1/avatar-content/{item_id}/face-parts';
+};
+
+export type GetAvatarFacePartsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetAvatarFacePartsError = GetAvatarFacePartsErrors[keyof GetAvatarFacePartsErrors];
+
+export type GetAvatarFacePartsResponses = {
+    /**
+     * Successful Response
+     */
+    200: AvatarFacePartsState;
+};
+
+export type GetAvatarFacePartsResponse = GetAvatarFacePartsResponses[keyof GetAvatarFacePartsResponses];
+
+export type SaveAvatarFacePartsData = {
+    body: AvatarFacePartsUpdate;
+    path: {
+        /**
+         * Item Id
+         */
+        item_id: string;
+    };
+    query?: never;
+    url: '/v1/avatar-content/{item_id}/face-parts';
+};
+
+export type SaveAvatarFacePartsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SaveAvatarFacePartsError = SaveAvatarFacePartsErrors[keyof SaveAvatarFacePartsErrors];
+
+export type SaveAvatarFacePartsResponses = {
+    /**
+     * Successful Response
+     */
+    200: AvatarFacePartsState;
+};
+
+export type SaveAvatarFacePartsResponse = SaveAvatarFacePartsResponses[keyof SaveAvatarFacePartsResponses];
 
 export type SaveAvatarPortraitData = {
     body: BodySaveAvatarPortrait;

@@ -18,6 +18,9 @@ from starlette.types import Receive, Scope, Send
 
 from animama.adapters.repositories.sqlalchemy.anima_aggregate_uow import SQLAlchemyAnimaAggregateUnitOfWork
 from animama.adapters.repositories.sqlalchemy.anima_package_source_repo import SQLAlchemyAnimaPackageSourceRepository
+from animama.adapters.repositories.sqlalchemy.avatar_face_part_override_repo import (
+    SQLAlchemyAvatarFacePartOverrideRepository,
+)
 from animama.adapters.repositories.sqlalchemy.content_catalog_repo import SQLAlchemyContentCatalog
 from animama.adapters.repositories.sqlalchemy.user_profile_repo import SQLAlchemyUserProfileRepository
 from animama.app.contracts.content_package_import import (
@@ -134,6 +137,7 @@ def _exports(request: Request, session: AsyncSession) -> ContentPackageExportSer
         exports_root=_paths(request).exports_staging_root,
         stages=_stages(request),
         profiles=SQLAlchemyUserProfileRepository(session),
+        face_part_overrides=SQLAlchemyAvatarFacePartOverrideRepository(session),
         anima_sources=AnimaPackageSourceService(
             catalog=content.mutations.catalog,
             sources=SQLAlchemyAnimaPackageSourceRepository(session),

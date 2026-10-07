@@ -12,6 +12,7 @@ See [VRM inspection](vrm-inspector-editor.md) for debug session ownership.
 - `src/frontend/web/src/lib/avatar/vfx/AvatarVFXController.ts`
 - `src/frontend/web/src/lib/avatar/vfx/definition.ts`
 - `src/frontend/web/src/lib/avatar/vfx/types.ts`
+- `src/frontend/web/src/lib/avatar/vfx/faceParts.ts`
 - `src/frontend/web/src/lib/avatar/vfx/profiles.ts`
 - `src/frontend/web/src/lib/avatar/vfx/AvatarFaceLandmarks.ts`
 - `src/frontend/web/src/lib/avatar/vfx/AvatarFaceTextureAnchors.ts`
@@ -219,14 +220,15 @@ This is all owned by `AvatarVFXController`, which is created by `Avatar` after a
 
 The VFX flow is:
 
-1. `Avatar` loads the VRM and creates:
+1. `Avatar` loads the VRM, detects its face parts (`vfx/faceParts.ts`) and creates:
     - `AvatarFaceLandmarks`
     - `AvatarFaceTextureAnchors`
     - `AvatarVFXController`
 2. `AvatarVFXController` scans live primitive bindings from the rendered avatar scene.
-3. Material-name heuristics and per-model profile rules classify bindings into roles such as:
+3. The face part map classifies bindings into roles such as:
     - `face_skin`
-    - `eye_iris`
+    - `eye_iris` (the `eye_left`/`eye_right` parts)
+    - `eye_highlight`
     - `eyeline`
     - `eyelash`
 4. The mounted provider resolves the entry. Built-ins are immediate; private
@@ -239,6 +241,38 @@ The VFX flow is:
     - contributes texture-backed layers to a binding-level composite texture
     - or creates head-attached hover planes
 7. Active effects are animated at the controller's VFX tick rate when their `animationConfig` enables pulse, spin, or drift.
+
+### Face parts
+
+`detectAvatarFaceParts` reads VRM signals, not material names:
+
+- **Eyes:** primitives skinned mostly to the humanoid `leftEye`/`rightEye`
+  bones (or whose material a look-at expression moves with a texture
+  transform). Iris, white and highlight are separated by projected area and
+  depth, per eye when each eye has its own primitives; one primitive may hold
+  both eyes.
+- **Face skin:** the head-skinned primitive of the mesh that `blink` and `aa`
+  morph with the most area around the eyes.
+- **Eye lines and eyelashes:** small primitives of that mesh that `blink` moves
+  almost entirely; the larger is the eye line.
+- **Hair** (box-hover clearance): primitives under the head with a real share
+  of spring-joint skin weight.
+
+Material and node names are a per-role fallback; if detection itself fails,
+the Avatar still loads and uses name matching throughout. Each part reports
+`node:mesh:primitive` bindings, a source (`signals`, `names`, `corrected` or
+`missing`) and a confidence. A saved `animama/avatar-face-parts/1` correction
+replaces detected roles when its `vrm_sha256` matches the loaded file;
+otherwise it is ignored with a diagnostic. The chat canvas passes the
+Avatar's correction from the runtime snapshot to `Avatar.load`;
+`Avatar.setFacePartCorrections` rebuilds the parts, landmarks, anchors and
+bindings and re-applies active effects.
+
+An effect whose required part is missing (face skin for every face effect, the
+covered eye for an eye hover, the target part for a texture) is not applied.
+The controller logs one structured `avatar_effect_face_part_unavailable`
+warning per effect and part and lists it in its snapshot warnings, which the
+VRM debug panel shows; a Gesture or Reaction continues without the effect.
 
 A binding can hold multiple active effects at once.
 
@@ -664,7 +698,7 @@ There is no per-frame face landmark solve in the normal path.
 
 ## 12) Current limitations
 
-- target matching is still heuristic-first unless a per-model profile override exists
+- face part detection is tuned on VRoid-style models; other models may need a correction
 - anchored decal quality still depends on the quality of the cached anchors
 - `face_skin` usually does not include usable eye geometry
 - full-face overlay artwork may fit poorly when used as an anchored decal

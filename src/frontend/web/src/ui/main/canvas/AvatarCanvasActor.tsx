@@ -17,6 +17,7 @@ import { useOptionalSoundController } from "@/hooks/use-sound-controller";
 import type { SceneVFXKind } from "@/lib/scene-vfx/types";
 import { createLogger } from "@/lib/logger";
 import { runtimeContentEntryLoadKey } from "@/lib/runtime-content/animaRuntimeSnapshot";
+import { resolveRuntimeAvatarFaceParts } from "@/lib/runtime-content/runtimeAvatarFaceParts";
 import {
   runtimeContentDeliveryUrl,
   runtimeContentDownloadUrl,
@@ -456,6 +457,10 @@ export function AvatarCanvasActor({
             sourceUrl: filePath,
             sourceKey: loadedSourceKey,
             resourceUrls: preparedRuntimeResourceUrls(runtimeAvatarEntry),
+            // Saved face part corrections belong to the runtime Avatar only.
+            ...(filePath === loadSpec.requestedAvatarPath
+              ? resolveRuntimeAvatarFaceParts(runtimeAvatarEntry)
+              : {}),
           });
           avatar.setClipVFXEnabled(clipVfxEnabledRef.current);
           avatar.setPoseClipExternalEventSink(poseClipEventSink);

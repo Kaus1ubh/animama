@@ -19,7 +19,7 @@ import {
   collectPrimitiveData,
   type RuntimePrimitiveBindingEntry,
 } from "./avatarPrimitiveUtils";
-import { resolveFaceTargetBinding } from "./avatarRuntimeTargeting";
+import { resolveAvatarFacePartEntries } from "./faceParts";
 import { buildRuntimePrimitiveBindings } from "../vrmEditorInspection";
 import { createLogger } from "@/lib/logger";
 
@@ -316,15 +316,12 @@ export class AvatarFaceTextureAnchors {
 
     const runtimeResult = buildRuntimePrimitiveBindings(this._avatar);
     this._warnings.push(...runtimeResult.warnings);
-    const faceBinding = resolveFaceTargetBinding({
-      sourceKey: this._avatar.sourceKey,
-      sourceUrl: this._avatar.sourceUrl,
-      entries: runtimeResult.entries,
-    });
+    const faceBinding = resolveAvatarFacePartEntries(
+      this._avatar,
+      runtimeResult.entries,
+    ).face;
     if (!faceBinding) {
-      this._warnings.push(
-        "No face skin binding matched the current heuristics.",
-      );
+      this._warnings.push("No face skin part was detected on this avatar.");
       this._snapshot = createEmptySnapshot([...this._warnings]);
       return;
     }

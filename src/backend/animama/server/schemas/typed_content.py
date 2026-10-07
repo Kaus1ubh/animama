@@ -22,6 +22,8 @@ from animama.app.contracts.avatar_effect import (
     AvatarEffectDefinitionV2,
     avatar_effect_projection_fields,
 )
+from animama.app.contracts.avatar_face_parts import AvatarFacePartCorrection
+from animama.app.services.avatar_face_parts import local_face_parts
 from animama.app.services.content_kind_registry import idle_cells_projection
 from animama.app.services.runtime_budget_policy import MAX_RUNTIME_ENTRIES
 from animama.app.services.typed_content_batch_service import (
@@ -248,6 +250,8 @@ class PyAvatarContent(PyTypedContentBase):
     kind: Literal["avatar"] = "avatar"
     model_role: Literal["model"] = "model"
     compatibility: dict[str, object] = Field(default_factory=dict)
+    # The effective face-part correction for this revision and VRM, if any.
+    face_parts: AvatarFacePartCorrection | None = None
 
 
 class PyAppearance(PyTypedContentBase):
@@ -442,7 +446,14 @@ def typed_content_response(value: TypedCatalogItem) -> PyTypedContent:
             compatibility=document.compatibility,
         )
     if isinstance(document, AvatarDocumentV1):
-        return PyAvatarContent(**base, compatibility=document.compatibility)
+        # Typed family routes overlay the caller's Included override; this is the Local sidecar.
+        return PyAvatarContent(
+            **base,
+            compatibility=document.compatibility,
+            face_parts=local_face_parts(
+                source=value.item.source, document_face_parts=document.face_parts, files=value.item.files
+            ),
+        )
     if isinstance(document, AppearanceDocumentV1):
         return PyAppearance(
             **base,

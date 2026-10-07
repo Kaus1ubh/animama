@@ -35,6 +35,13 @@ import {
   resolveAvatarVFXAnimationConfig,
 } from "./animation";
 import { matchAvatarTargetRole } from "./avatarRuntimeTargeting";
+import {
+  AVATAR_FACE_PART_LABELS,
+  findMissingFacePart,
+  resolveFacePartTargetRole,
+  type AvatarFacePartRole,
+} from "./faceParts";
+import { createLogger } from "@/lib/logger";
 import { resolveAvatarVFXModelProfile } from "./profiles";
 import { buildRuntimePrimitiveBindings } from "../vrmEditorInspection";
 import type {
@@ -45,6 +52,7 @@ import type {
   AvatarVFXDeferredAttachmentEntry,
   AvatarVFXApplyMode,
   AvatarVFXCatalogEntry,
+  AvatarVFXParsedEntry,
   AvatarVFXFaceFlattenSnapshot,
   AvatarVFXFlattenColorSnapshot,
   AvatarVFXFlipbook,
@@ -86,6 +94,8 @@ import {
 
 type CanvasContext = CanvasRenderingContext2D;
 type VFXListener = () => void;
+
+const logger = createLogger("AvatarVFXController");
 
 type BindingTextureState = {
   slot: AvatarVFXTextureSlot;
@@ -1892,6 +1902,8 @@ export class AvatarVFXController {
   private _cachedFaceFlattenState: ResolvedFaceFlattenState | null = null;
   /** Envelope values received while an effect's apply is still in flight. */
   private _pendingIntensities = new Map<string, number>();
+  /** Effect and part pairs already reported as skipped, so each logs once. */
+  private _reportedUnavailableParts = new Set<string>();
 
   constructor(
     avatar: Avatar,
@@ -2489,6 +2501,100 @@ export class AvatarVFXController {
   }
 
   /**
+   * The face part this Avatar lacks for an effect, or null. Only an Avatar
+   * with a detected part map is checked.
+   */
+  findUnavailableFacePart(
+    effect: AvatarVFXParsedEntry,
+  ): AvatarFacePartRole | null {
+    const map = this._avatar.facePartMap ?? null;
+    return map ? findMissingFacePart(map, effect) : null;
+  }
+
+  /**
+   * Record an effect skipped for a missing face part: a structured warning
+   * logged once per effect and part, kept in the snapshot for the debug panel.
+   */
+  reportUnavailableFacePart(
+    effect: AvatarVFXParsedEntry,
+    part: AvatarFacePartRole,
+    logicalEffectId: string = effect.id,
+  ): void {
+    if (this._isDisposed) return;
+    const key = `${logicalEffectId}:${part}`;
+    if (this._reportedUnavailableParts.has(key)) return;
+    this._reportedUnavailableParts.add(key);
+    logger.warn("FaceParts", "Skipped an Avatar Effect without its face part", {
+      code: "avatar_effect_face_part_unavailable",
+      effectId: logicalEffectId,
+      label: effect.label,
+      part,
+      avatar: this._sourceKey,
+    });
+    this._pushWarning(
+      `Skipped "${effect.label}": this avatar has no detected ${AVATAR_FACE_PART_LABELS[part]}.`,
+    );
+  }
+
+  /**
+   * Rebuild bindings after the Avatar's face parts change (a correction), then
+   * re-apply active effects in their original order with their intensities.
+   * An effect whose part is now unavailable is skipped and reported.
+   */
+  async refreshFaceParts(): Promise<void> {
+    if (this._isDisposed) return;
+    const active = new Map<string, ActiveBindingEffect>();
+    for (const binding of this._bindings.values()) {
+      for (const effect of binding.activeEffects.values()) {
+        if (!active.has(effect.appliedEffectId)) {
+          active.set(effect.appliedEffectId, effect);
+        }
+      }
+    }
+    const ordered = Array.from(active.values()).sort(
+      (left, right) => left.appliedOrder - right.appliedOrder,
+    );
+    // A removal or newer apply during the awaited loop below bumps the token;
+    // that effect is then left to its new owner instead of being restored.
+    const tokens = new Map(
+      ordered.map((effect) => [
+        effect.appliedEffectId,
+        this._applyTokens.get(effect.appliedEffectId) ?? 0,
+      ]),
+    );
+    this.clearAllEffects();
+    this._bindings.forEach((binding) => {
+      this._disposeTextureCompositeState(binding);
+    });
+    this._reportedUnavailableParts.clear();
+    this._warnings = [];
+    this._rebuildBindings();
+    this._emit();
+
+    for (const effect of ordered) {
+      if (this._isDisposed) return;
+      if (
+        (this._applyTokens.get(effect.appliedEffectId) ?? 0) !==
+        tokens.get(effect.appliedEffectId)
+      ) {
+        continue;
+      }
+      const entry = effect.effectEntry;
+      const part = this.findUnavailableFacePart(entry);
+      if (part) {
+        this.reportUnavailableFacePart(entry, part, effect.effectId);
+        continue;
+      }
+      if (effect.intensity !== 1) {
+        this._pendingIntensities.set(effect.appliedEffectId, effect.intensity);
+      }
+      await this._applyTracked(effect.appliedEffectId, () =>
+        this._applyAutoResolvedEffect(entry, effect.applyMode, effect.effectId),
+      );
+    }
+  }
+
+  /**
    * Set an applied effect's event envelope (0–1), which multiplies its
    * opacity. A value for an effect that is still loading is held and used when
    * the apply finishes. Composite effects redraw on the next animation tick.
@@ -2614,6 +2720,26 @@ export class AvatarVFXController {
     this._snapshot = this._createSnapshot();
     this._observationSnapshot = this._createObservationSnapshot();
     this._isDisposed = true;
+  }
+
+  /** Apply an entry (whose id is its applied id) to its automatic binding. */
+  private _applyAutoResolvedEffect(
+    effect: AvatarVFXCatalogEntry,
+    applyMode: AvatarVFXApplyMode | null,
+    logicalEffectId: string,
+  ): Promise<void> {
+    if (isHoverVFXEntry(effect)) {
+      return this._applyHoverEffect(effect, undefined, logicalEffectId);
+    }
+    if (isFaceAnchoredVFXEntry(effect)) {
+      return this._applyFaceAnchoredEffect(effect, undefined, logicalEffectId);
+    }
+    return this._applyTextureEffect(
+      effect,
+      applyMode ?? undefined,
+      undefined,
+      logicalEffectId,
+    );
   }
 
   private _resolveEffectSource(
@@ -2779,6 +2905,18 @@ export class AvatarVFXController {
     }
 
     if (this._isDisposed || this._applyTokens.get(appliedEffectId) !== token) {
+      return;
+    }
+    if (this._bindings.get(binding.bindingKey) !== binding) {
+      // Face parts were rebuilt while the image loaded: this binding, its
+      // placement and anchors are stale, so apply again on the new bindings.
+      const part = this.findUnavailableFacePart(effect);
+      if (part) {
+        this._pendingIntensities.delete(appliedEffectId);
+        this.reportUnavailableFacePart(effect, part, logicalEffectId);
+        return;
+      }
+      await this._applyAutoResolvedEffect(effect, applyMode, logicalEffectId);
       return;
     }
 
@@ -3267,12 +3405,14 @@ export class AvatarVFXController {
     this._cachedFaceFlattenState = null;
     this._bindings.clear();
 
+    // Roles come from the Avatar's face part map (spec signals, then names,
+    // then corrections); an Avatar without a map uses name matching.
+    const partMap = this._avatar.facePartMap ?? null;
     runtimeResult.entries.forEach((entry) => {
       const mainMaterial = getRenderableMainMaterial(entry.object);
-      const targetRole = matchAvatarTargetRole(
-        entry.materialName,
-        this._profile,
-      );
+      const targetRole = partMap
+        ? resolveFacePartTargetRole(partMap, entry.bindingKey)
+        : matchAvatarTargetRole(entry.materialName, this._profile);
       if (!mainMaterial || !targetRole) return;
 
       const textureSlots: BindingTextureState[] = [];

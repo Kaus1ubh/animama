@@ -143,6 +143,12 @@ pin checks. It is not misclassified as a missing core file.
 catalog revision, expiry, and exact file facts for one ephemeral typed preview.
 Each preview file also retains its exact `source_mount_id`; issuing a preview
 rechecks the current locked item/revision/mount before publishing the lease.
+`ORMAvatarFacePartOverride` maps `avatar_face_part_overrides`: one owner's
+face-part correction for one Included Avatar item, keyed by
+`(owner_user_id, avatar_item_id)` and cascaded with the item. It applies only
+while `avatar_revision_sha256` equals the item's current revision; Local
+Avatars keep the correction in their sidecar instead.
+
 Typed documents themselves are framework-neutral domain values and are parsed
 by the closed kind-handler registry; the catalog's bounded metadata projection
 is not the application semantic model.

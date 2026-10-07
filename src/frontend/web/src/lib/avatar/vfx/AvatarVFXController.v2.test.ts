@@ -5,6 +5,7 @@ import type { Avatar } from "../Avatar";
 import { buildRuntimePrimitiveBindings } from "../vrmEditorInspection";
 import { AvatarVFXController } from "./AvatarVFXController";
 import { loadEffectImage } from "./effect-image";
+import type { AvatarFacePartMap, AvatarFacePartRole } from "./faceParts";
 import type { AvatarFaceLandmarksSnapshot } from "./landmark-types";
 import type {
   AvatarFaceTextureAnchorsSnapshot,
@@ -152,6 +153,7 @@ const allDraws = () => created.flatMap((canvas) => canvas.draws);
 
 describe("Avatar Effect v2 runtime features", () => {
   let controller: AvatarVFXController;
+  let avatarStub: Avatar;
   let anchor: THREE.Group;
   let landmarks: AvatarFaceLandmarksSnapshot;
   let anchors: AvatarFaceTextureAnchorsSnapshot;
@@ -260,7 +262,7 @@ describe("Avatar Effect v2 runtime features", () => {
       entries,
       warnings: [],
     } as ReturnType<typeof buildRuntimePrimitiveBindings>);
-    const avatar = {
+    const avatar = (avatarStub = {
       sourceUrl: null,
       sourceKey: null,
       faceLandmarks: { getAnchorObject: () => anchor },
@@ -268,7 +270,7 @@ describe("Avatar Effect v2 runtime features", () => {
       getFaceTextureAnchorsSnapshot: () => anchors,
       setExpression: vi.fn(),
       clearExpressionOverride: vi.fn(),
-    } as unknown as Avatar;
+    } as unknown as Avatar);
     controller = new AvatarVFXController(avatar);
     controllers.push(controller);
   });
@@ -610,5 +612,196 @@ describe("Avatar Effect v2 runtime features", () => {
     expect(controller.getSnapshot().warnings.join(" ")).toMatch(
       /sticker attachment, which is not yet supported/,
     );
+  });
+
+  describe("face parts", () => {
+    const part = (role: AvatarFacePartRole, bindings: string[]) => ({
+      role,
+      bindings,
+      source: bindings.length ? ("signals" as const) : ("missing" as const),
+      confidence: bindings.length ? 0.9 : 0,
+    });
+    const partMap = (eyes: string[]): AvatarFacePartMap => ({
+      parts: {
+        face_skin: part("face_skin", ["face"]),
+        eye_left: part("eye_left", eyes),
+        eye_right: part("eye_right", eyes),
+        eye_highlight: part("eye_highlight", []),
+        eyeline: part("eyeline", []),
+        eyelash: part("eyelash", []),
+        hair: part("hair", []),
+      },
+      eyeWhite: [],
+      diagnostics: [],
+    });
+    const withParts = (map: AvatarFacePartMap) => {
+      const avatar = { ...avatarStub, facePartMap: map } as Avatar;
+      const partController = new AvatarVFXController(avatar);
+      controllers.push(partController);
+      return { avatar, partController };
+    };
+    const roles = (target: AvatarVFXController) =>
+      target
+        .getSnapshot()
+        .targetBindings.map((binding) => [
+          binding.bindingKey,
+          binding.targetRole,
+        ])
+        .sort();
+
+    it("takes binding roles from the part map instead of material names", () => {
+      // Material names say "Iris", but the map has no eyes on this model.
+      const { partController } = withParts(partMap([]));
+      expect(roles(partController)).toEqual([["face", "face_skin"]]);
+      expect(roles(controller)).toEqual([
+        ["face", "face_skin"],
+        ["iris", "eye_iris"],
+      ]);
+    });
+
+    it("reports an effect without its part once, as a structured warning", () => {
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const { partController } = withParts(partMap([]));
+      const effect = eyeEffect();
+      expect(partController.findUnavailableFacePart(effect)).toBe("eye_left");
+      expect(partController.findUnavailableFacePart(decalEffect())).toBeNull();
+
+      partController.reportUnavailableFacePart(effect, "eye_left");
+      partController.reportUnavailableFacePart(effect, "eye_left");
+
+      expect(warn).toHaveBeenCalledOnce();
+      expect(warn.mock.calls[0]![1]).toMatchObject({
+        code: "avatar_effect_face_part_unavailable",
+        effectId: effect.id,
+        part: "eye_left",
+      });
+      expect(partController.getSnapshot().warnings).toEqual([
+        'Skipped "Test": this avatar has no detected left eye.',
+      ]);
+    });
+
+    it("re-applies active effects after a correction and skips one whose part is gone", async () => {
+      vi.spyOn(console, "warn").mockImplementation(() => {});
+      const { avatar, partController } = withParts(partMap(["iris"]));
+      await partController.applyHoverVFX({
+        effectId: "eye-applied",
+        effectEntry: { ...eyeEffect(), id: "eye-applied" },
+        logicalEffectId: "eye",
+      });
+      await partController.applyFaceAnchoredVFX({
+        effectId: "decal-applied",
+        effectEntry: { ...decalEffect(), id: "decal-applied" },
+        logicalEffectId: "decal",
+      });
+      partController.setEffectIntensity("decal-applied", 0.4);
+      const active = () =>
+        partController
+          .getSnapshot()
+          .activeEffects.map((effect) => effect.appliedEffectId)
+          .sort();
+      expect(active()).toEqual(["decal-applied", "eye-applied"]);
+
+      (avatar as { facePartMap: AvatarFacePartMap }).facePartMap = partMap([]);
+      await partController.refreshFaceParts();
+
+      expect(active()).toEqual(["decal-applied"]);
+      expect(roles(partController)).toEqual([["face", "face_skin"]]);
+      expect(partController.getSnapshot().warnings.join(" ")).toMatch(
+        /no detected left eye/,
+      );
+      // The decal kept its envelope through the rebuild.
+      const surface = partController.getPlacementGuides(
+        { ...decalEffect(), id: "decal-applied" },
+        "decal-applied",
+      ).surfaces[0]!.image as unknown as TestCanvas;
+      const draw = surface.draws
+        .filter((entry) => entry.image === image)
+        .at(-1);
+      expect(draw?.alpha).toBeCloseTo(0.4);
+    });
+
+    /** Hold the next image load until the returned function is called. */
+    const holdNextImage = () => {
+      let release!: () => void;
+      vi.mocked(loadEffectImage).mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            release = () => resolve(image as unknown as HTMLCanvasElement);
+          }),
+      );
+      return () => release();
+    };
+    const faceMesh = () =>
+      vi
+        .mocked(buildRuntimePrimitiveBindings)(avatarStub)
+        .entries.find((entry) => entry.bindingKey === "face")!.object;
+    /** Nothing an effect owned may remain once every effect is removed. */
+    const expectNoOrphans = (
+      target: AvatarVFXController,
+      originalMaterial: THREE.Material | THREE.Material[],
+    ) => {
+      target.clearAllEffects();
+      expect(target.getSnapshot().activeEffects).toEqual([]);
+      expect(anchor.children).toEqual([]);
+      expect(faceMesh().material).toBe(originalMaterial);
+    };
+
+    it("does not restore an effect removed while the refresh is re-applying", async () => {
+      vi.spyOn(console, "warn").mockImplementation(() => {});
+      const originalMaterial = faceMesh().material;
+      const { partController } = withParts(partMap(["iris"]));
+      await partController.applyFaceAnchoredVFX({
+        effectId: "decal-applied",
+        effectEntry: { ...decalEffect(), id: "decal-applied" },
+        logicalEffectId: "decal",
+      });
+      await partController.applyHoverVFX({
+        effectId: "eye-applied",
+        effectEntry: { ...eyeEffect(), id: "eye-applied" },
+        logicalEffectId: "eye",
+      });
+
+      // The decal re-applies first and waits for its image; the clip that
+      // owns the eye effect ends meanwhile.
+      const release = holdNextImage();
+      const refresh = partController.refreshFaceParts();
+      partController.removeEffect("eye-applied");
+      release();
+      await refresh;
+
+      expect(
+        partController
+          .getSnapshot()
+          .activeEffects.map((effect) => effect.appliedEffectId),
+      ).toEqual(["decal-applied"]);
+      expect(hoverMeshes()).toHaveLength(0);
+      expectNoOrphans(partController, originalMaterial);
+    });
+
+    it("moves an apply that was loading during a refresh onto the new bindings", async () => {
+      vi.spyOn(console, "warn").mockImplementation(() => {});
+      const originalMaterial = faceMesh().material;
+      const { partController } = withParts(partMap(["iris"]));
+      const release = holdNextImage();
+      const pending = partController.applyFaceAnchoredVFX({
+        effectId: "decal-applied",
+        effectEntry: { ...decalEffect(), id: "decal-applied" },
+        logicalEffectId: "decal",
+      });
+
+      await partController.refreshFaceParts();
+      release();
+      await pending;
+
+      const active = partController.getSnapshot().activeEffects;
+      expect(active.map((effect) => effect.appliedEffectId)).toEqual([
+        "decal-applied",
+      ]);
+      // The composite lives on the current binding, so removal restores it.
+      expect(faceMesh().material).not.toBe(originalMaterial);
+      partController.removeEffect("decal-applied");
+      expect(faceMesh().material).toBe(originalMaterial);
+      expectNoOrphans(partController, originalMaterial);
+    });
   });
 });

@@ -368,6 +368,80 @@ export const zAvatarEffectMotion = z.object({
 });
 
 /**
+ * AvatarFacePartBindings
+ *
+ * Primitive keys per part. ``eye_left``/``eye_right`` hold the irises; one
+ * primitive may hold both eyes and then appears in both lists.
+ */
+export const zAvatarFacePartBindings = z.object({
+    eye_highlight: z.optional(z.union([
+        z.array(z.string().regex(/^\d{1,6}:\d{1,6}:\d{1,6}$/)).max(64),
+        z.null()
+    ])),
+    eye_left: z.array(z.string().regex(/^\d{1,6}:\d{1,6}:\d{1,6}$/)).min(1).max(64),
+    eye_right: z.array(z.string().regex(/^\d{1,6}:\d{1,6}:\d{1,6}$/)).min(1).max(64),
+    eyelash: z.optional(z.union([
+        z.array(z.string().regex(/^\d{1,6}:\d{1,6}:\d{1,6}$/)).max(64),
+        z.null()
+    ])),
+    eyeline: z.optional(z.union([
+        z.array(z.string().regex(/^\d{1,6}:\d{1,6}:\d{1,6}$/)).max(64),
+        z.null()
+    ])),
+    face_skin: z.array(z.string().regex(/^\d{1,6}:\d{1,6}:\d{1,6}$/)).min(1).max(64),
+    hair: z.optional(z.union([
+        z.array(z.string().regex(/^\d{1,6}:\d{1,6}:\d{1,6}$/)).max(64),
+        z.null()
+    ]))
+});
+
+/**
+ * AvatarFacePartCorrection
+ *
+ * A complete correction for one exact VRM file.
+ */
+export const zAvatarFacePartCorrection = z.object({
+    parts: zAvatarFacePartBindings,
+    schema: z.literal('animama/avatar-face-parts/1'),
+    vrm_sha256: z.string().regex(/^[0-9a-f]{64}$/)
+});
+
+/**
+ * AvatarFacePartsState
+ *
+ * The effective correction for one Avatar and the revision it applies to.
+ */
+export const zAvatarFacePartsState = z.object({
+    face_parts: z.optional(z.union([
+        zAvatarFacePartCorrection,
+        z.null()
+    ])),
+    item_id: z.string(),
+    revision: z.string(),
+    source: z.enum([
+        'local_metadata',
+        'included_override',
+        'none'
+    ])
+});
+
+/**
+ * AvatarFacePartsUpdate
+ *
+ * Replace (or with ``face_parts: null``, clear) an Avatar's correction.
+ *
+ * ``expected_revision`` fences the write against a concurrent change to the
+ * Avatar; a Local write produces a new Avatar revision.
+ */
+export const zAvatarFacePartsUpdate = z.object({
+    expected_revision: z.string().regex(/^[0-9a-f]{64}$/),
+    face_parts: z.union([
+        zAvatarFacePartCorrection,
+        z.null()
+    ])
+});
+
+/**
  * BodyAttachment
  *
  * A plane attached to a humanoid body point (rendering arrives in Phase 6).
@@ -4632,6 +4706,10 @@ export const zPyRuntimeAppearance = z.object({
  */
 export const zPyRuntimeAvatar = z.object({
     avatar_id: z.string(),
+    face_parts: z.optional(z.union([
+        zAvatarFacePartCorrection,
+        z.null()
+    ])),
     files: z.optional(z.array(zPyRuntimeFile)),
     revision: z.string(),
     runtime_root_id: z.optional(z.union([
@@ -5070,6 +5148,10 @@ export const zPyAvatarContent = z.object({
         z.null()
     ])),
     editable: z.boolean(),
+    face_parts: z.optional(z.union([
+        zAvatarFacePartCorrection,
+        z.null()
+    ])),
     files: z.optional(z.array(zPyTypedContentFile)),
     item_id: z.string(),
     kind: z.optional(z.literal('avatar')).default('avatar'),
@@ -7230,6 +7312,32 @@ export const zGetAvatarContentData = z.object({
  * Successful Response
  */
 export const zGetAvatarContentResponse = zPyAvatarContent;
+
+export const zGetAvatarFacePartsData = z.object({
+    body: z.optional(z.never()),
+    path: z.object({
+        item_id: z.string()
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zGetAvatarFacePartsResponse = zAvatarFacePartsState;
+
+export const zSaveAvatarFacePartsData = z.object({
+    body: zAvatarFacePartsUpdate,
+    path: z.object({
+        item_id: z.string()
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zSaveAvatarFacePartsResponse = zAvatarFacePartsState;
 
 export const zSaveAvatarPortraitData = z.object({
     body: zBodySaveAvatarPortrait,

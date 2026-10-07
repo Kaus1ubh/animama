@@ -74,8 +74,8 @@ work proceeds.
       the existing creator UI (2026-10-06).
 - [x] Phase 4: Avatar Effect v2, one definition source, envelope and conversion.
       Renders are identical, so G2 is not needed.
-- [ ] Phase 5: Model-agnostic face and eye parts, with corrections. Gate G3 if
-      the spike fails.
+- [x] Phase 5: Model-agnostic face and eye parts, with corrections. The G3
+      spike passed on both Avatars.
 - [ ] Phase 6: Attachments beyond the face and the performance budget.
 - [ ] Phase 7: Shared creator save, undo and draft recovery.
 - [ ] Phase 8: Template picker and entry points (existing UI components).
@@ -941,9 +941,155 @@ in chat (tests); packages carry corrections. The correction UI is in P9.
 
 #### Phase 5 record
 
+Starting source and issue: `4bc11d71`, #303.
+
+**G3 spike (names disabled): passed.** Face skin and both eyes come from VRM
+signals on both Included Avatars, and every role matches today's name
+matching. Detection takes about 7 ms per Avatar. In both models one primitive
+holds both eyes, and the eye whites are skinned to the head.
+
+| Part | Annie (`A_1_New`, VRM 1) | `Y_0` (VRM 0) |
+| --- | --- | --- |
+| face_skin | `91:0:3` (signals 0.9) | `143:0:3` (signals 0.9) |
+| eye_left / eye_right | `91:0:1` (signals 0.9) | `143:0:1` (signals 0.9) |
+| eye_highlight | `91:0:2` (0.8) | `143:0:2` (0.8) |
+| eyeline | `91:0:6` (0.7) | `143:0:7` (0.6) |
+| eyelash | missing (none on the model) | `143:0:6` (0.6) |
+| hair | `93:2:0`–`93:2:3` (0.8) | `145:2:0`, `145:2:1` (0.8) |
+
+Delivered:
+
+- **Detection.** `lib/avatar/vfx/faceParts.ts` uses these rules; material
+  names are a per-role fallback.
+  - **Eyes:** ≥50% of the skin weight is on the eye bones, and ≥80% on one
+    side assigns the side. Look-at texture-transform irises take priority.
+    Iris, white and highlight are told apart by size and depth.
+  - **Face skin:** the ≥90% head-skinned primitive of the mesh morphed by both
+    `blink` and `aa`, with the largest area in an eye window.
+  - **Eye lines and eyelashes:** strong `blink` displacement near the eyes.
+  - **Hair:** ≥90% in the head subtree with at least a 10% share on spring
+    joints. This departs from the plan, because VRoid bangs put 54–73% of
+    their weight on the head bone.
+  - Detection never writes world matrices. Writing them skewed Y_0's VRM 0
+    landmarks during development; a regression test covers it.
+- **Integration.** Bindings, `AvatarFaceLandmarks` (including hair clearance)
+  and `AvatarFaceTextureAnchors` read the part map.
+  `Avatar.setFacePartCorrections` → `AvatarVFXController.refreshFaceParts`
+  rebuilds them and re-applies the active effects.
+- **Corrections.** The contract is `app/contracts/avatar_face_parts.py`
+  (`animama/avatar-face-parts/1`), shared through OpenAPI.
+  - Keys are `node:mesh:primitive`, unique, with at most 64 per part.
+  - A missing or mismatched `vrm_sha256` ignores the whole correction with a
+    diagnostic.
+  - An empty optional part means the part is absent.
+- **Persistence.**
+  - **Local Avatars:** the `.meta.json` field `face_parts`. Writes go through
+    `save_standalone_stream`, which rewrites the same VRM bytes; an unchanged
+    value creates no new revision.
+  - **Included Avatars:** the `avatar_face_part_overrides` table (primary key
+    `owner_user_id`, `avatar_item_id`) in `0001_baseline.sql`, with 45
+    tables. There is no Alembic revision: development databases are reset.
+  - **Routes:** `GET` and `PUT` `/v1/avatar-content/{item_id}/face-parts`,
+    with an expected revision. A digest mismatch returns 422 `content_invalid`
+    with reason `avatar_face_parts_digest_mismatch`.
+  - **Projections:** `PyAvatarContent` and `PyRuntimeAvatar` carry the parts.
+    An Included override changes the runtime revision, so chat reloads.
+  - **Packages:** Avatar export carries the correction. Anima export merges
+    an Included override, dropping stale values, and import re-checks the
+    digest.
+- **Chat.** The canvas passes the corrections and the VRM digest to
+  `Avatar.load`.
+  - An effect whose required part is unavailable is skipped, with no
+    exception, so the clip continues.
+  - It is logged once as `avatar_effect_face_part_unavailable` and shown in
+    the debug panel's warnings.
+
+Checks (agent):
+
+- `make check` passes, with mypy clean on 695 files.
+- Focused pytest: 359 passed. A wider run over 49 files: 562 passed.
+- `openapi-ts:check` passes.
+- `pnpm check`, `web:lint` and prettier pass.
+- Full `pnpm web:test`: 382 files, 2,630 tests passed. `pnpm build` passes.
+- Render tests: 8/8.
+- The `--all-included` diff shows 0 pixels for all 16 effects
+  (`worktrees/avatar-effects-v2-after-p5`).
+
+Not done:
+
+- No browser check.
+- A saved correction reloads the Avatar in chat; the live
+  `setFacePartCorrections` call arrives in P9.
+- The look-at texture-transform rule and the no-eye-bone fallback have no
+  test on a real model.
+
 #### Code Review #1 Findings
 
+Reviewed source: uncommitted tree on `4bc11d71`. Result: **blocking findings
+remain**.
+
+1. **Blocking.** `refreshFaceParts` races with `removeEffect` and with
+   applies already in flight.
+   - An effect removed during the awaited re-apply loop is re-applied anyway,
+     and nothing owns it.
+   - An apply started before the rebuild writes through a stale binding,
+     which is never released.
+2. A model with separate left and right iris meshes finds only one eye.
+3. A detection error fails the whole Avatar load.
+4. Preview and prepare responses omit an Included Avatar's override.
+5. Concurrent Included saves are last-write-wins.
+6. A Local correction save rewrites the whole VRM.
+7. An invalid sidecar `face_parts` invalidates the whole Local Avatar.
+8. `refreshFaceParts` loses an explicit `bindingKey`, restarts animations, and
+   does not restore effects skipped for a missing part.
+9. The Phase 5 record was empty.
+
+The reviewer verified owner scoping, key validation, digest gating, side
+effects, the chat skip path, the baseline schema and import boundaries with no
+findings.
+
 #### Code Review #1 Revisions
+
+1. Fixed.
+   - `refreshFaceParts` records each effect's apply token before it clears
+     the effects, and skips any effect whose token changed before its turn.
+   - After the image loads, `_applyResolvedEffectToBinding` checks whether its
+     binding is still current. If the binding was rebuilt, it re-runs on the
+     new bindings, or reports the skip if the part is now missing. Nothing is
+     created before that check.
+   - Tests cover an effect removed during a re-apply and an apply already
+     loading when a refresh starts. Both assert that no planes or materials are
+     left behind, and both fail without the guards.
+2. Fixed: irises are classified per side when an eye-bone primitive belongs to
+   one side, with a synthetic two-mesh test.
+3. Fixed: a detection error falls back to name matching and logs
+   `avatar_face_parts_detection_failed`, with a test.
+4. Fixed: `_overlay_face_parts` also covers the family `:preview` route and
+   `previews:prepare`, with test assertions.
+5. Accepted: there is a single local owner, and the docstring states it.
+6. Accepted: the write is correct and atomic, and the revision is rechecked
+   under the source lock.
+7. Accepted (fail closed): this matches the repository's rule that an invalid
+   typed document field invalidates the entry, which then appears in Content
+   Health. A non-fatal path would need a new catalog warning channel.
+8. Deferred to P9: its part panel calls `setFacePartCorrections` live.
+9. Fixed: this record.
+
+Checks after revisions:
+
+- Agent: `make check` passes; focused pytest 359 passed; focused vitest 496
+  passed; `pnpm check`, `web:lint` and prettier pass; render tests 8/8; the
+  `--all-included` diff is 0 pixels.
+- Me: full `pnpm web:test` (382 files, 2,634 tests) and `pnpm build` pass.
+
+#### Code Review #2 (repair round 1)
+
+Result: **pass**. Both scenarios for finding 1 are fixed, and the revisions
+caused no regressions.
+
+Non-blocking, accepted: a re-run on a stale binding whose own image load then
+fails keeps its pending intensity. This is a rare, bounded leak, cleared by
+`removeEffect` or dispose.
 
 ### Phase 6 — Attachments beyond the face and the performance budget (R5, performance)
 

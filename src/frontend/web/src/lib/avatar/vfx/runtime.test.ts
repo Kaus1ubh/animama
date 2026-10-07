@@ -10,6 +10,8 @@ describe("applyAvatarVFXEffectById", () => {
       applyHoverVFX: vi.fn(),
       applyFaceAnchoredVFX: vi.fn(),
       applyTextureVFX: vi.fn(),
+      findUnavailableFacePart: vi.fn(() => null),
+      reportUnavailableFacePart: vi.fn(),
     };
     const avatar = { vfxController: controller } as unknown as Avatar;
     await expect(
@@ -29,6 +31,8 @@ describe("applyAvatarVFXEffectById", () => {
       applyHoverVFX: vi.fn(),
       applyFaceAnchoredVFX: vi.fn(),
       applyTextureVFX: vi.fn(),
+      findUnavailableFacePart: vi.fn(() => null),
+      reportUnavailableFacePart: vi.fn(),
     };
     const avatar = { vfxController: controller } as unknown as Avatar;
     const effect = TEST_HOVER_VFX_ENTRY;
@@ -50,6 +54,32 @@ describe("applyAvatarVFXEffectById", () => {
         }),
         logicalEffectId: effect.id,
       }),
+    );
+  });
+
+  it("skips and reports an effect whose face part the Avatar lacks", async () => {
+    const controller = {
+      applyHoverVFX: vi.fn(),
+      applyFaceAnchoredVFX: vi.fn(),
+      applyTextureVFX: vi.fn(),
+      findUnavailableFacePart: vi.fn(() => "eye_left"),
+      reportUnavailableFacePart: vi.fn(),
+    };
+    const avatar = { vfxController: controller } as unknown as Avatar;
+    const effect = TEST_HOVER_VFX_ENTRY;
+
+    await expect(
+      applyAvatarVFXEffectById({
+        avatar,
+        effectId: effect.id,
+        appliedEffectId: "applied",
+        effectEntry: effect,
+      }),
+    ).resolves.toBe(false);
+    expect(controller.applyHoverVFX).not.toHaveBeenCalled();
+    expect(controller.reportUnavailableFacePart).toHaveBeenCalledWith(
+      effect,
+      "eye_left",
     );
   });
 });
