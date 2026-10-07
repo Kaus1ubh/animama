@@ -8,6 +8,7 @@ import {
 import { attachPlaybackCheckpoint } from "../helpers/checkpoints";
 import { provePoseClipPlayback } from "../helpers/playback-assertions";
 import {
+  expectedPoseCopyName,
   readPoseJson,
   roundTripPosePackage,
   saveTrackedPose,
@@ -84,12 +85,13 @@ test("pose content Included discovery and rendered preview @read-only", async ({
     const customize = page
       .getByRole("article", { name: includedName, exact: true })
       .getByRole("link", { name: "Edit", exact: true });
+    const copyName = await expectedPoseCopyName(page, includedName);
     await customize.focus();
     await expect(customize).toBeFocused();
     await page.keyboard.press("Enter");
     await expect(
       page.getByRole("textbox", { name: "Pose name", exact: true }),
-    ).toHaveValue(`${includedName} copy`, { timeout: 30_000 });
+    ).toHaveValue(copyName, { timeout: 30_000 });
     await expect(
       page.getByTestId("pose-editor-canvas").locator("canvas"),
     ).toBeVisible();
@@ -141,6 +143,7 @@ test("pose content Local save edit reopen and browser storage independence", asy
   const before = await creatorContent.snapshotLocalCatalog();
   await page.goto(posesUrl);
   await page.getByPlaceholder("Search the Library").fill(includedName);
+  const copyName = await expectedPoseCopyName(page, includedName);
   await page
     .getByRole("article", { name: includedName, exact: true })
     .getByRole("link", { name: "Edit", exact: true })
@@ -149,7 +152,7 @@ test("pose content Local save edit reopen and browser storage independence", asy
     name: "Pose name",
     exact: true,
   });
-  await expect(nameInput).toHaveValue(`${includedName} copy`, {
+  await expect(nameInput).toHaveValue(copyName, {
     timeout: 30_000,
   });
   await nameInput.fill(name);
@@ -194,6 +197,7 @@ test("pose content Local save edit reopen and browser storage independence", asy
     page: clipPage,
     selectAnnie: false,
   });
+  await clipPage.getByRole("tab", { name: "Clip", exact: true }).click();
   await clipPage
     .getByRole("button", {
       name: `Insert ${name} at current playhead`,
@@ -436,10 +440,11 @@ test("pose content editor recovers a failed detail load without creating content
     page.getByRole("button", { name: "Save pose", exact: true }),
   ).toBeDisabled();
   await page.unroute(detailUrl);
+  const copyName = await expectedPoseCopyName(page, includedName);
   await page.getByRole("button", { name: "Retry pose", exact: true }).click();
   await expect(
     page.getByRole("textbox", { name: "Pose name", exact: true }),
-  ).toHaveValue(`${includedName} copy`, { timeout: 30_000 });
+  ).toHaveValue(copyName, { timeout: 30_000 });
   await expect(page.getByRole("alert")).toHaveCount(0);
   await creatorContent.assertLocalCatalogUnchanged(before, animamaEvidence);
 });
