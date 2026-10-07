@@ -52,10 +52,12 @@ The active Playwright projects use installation setup and same-origin requests,
 without accounts, stored login state, owner headers or browser bearer tokens.
 The explicit allowlist selects `accountless-library`, `accountless-journeys`,
 `accountless-vfx-layout`, `accountless-pose-content`,
-`accountless-content-sharing` and `accountless-imported-playback` specs. They cover
+`accountless-content-sharing`, `accountless-imported-playback`,
+`accountless-numeric-input`, `accountless-creator-discard(-local)` and
+`accountless-effect-template-picker` specs. They cover
 Library, companion selection, chat Stop/recovery, creator JSON import/preview,
-Save/reload revision integrity, package sharing, and responsive access to review
-and recovery controls.
+Save/reload revision integrity, package sharing, the Effects template picker and
+template drafts, and responsive access to review and recovery controls.
 Older creator journeys remain unselected until individually reviewed; listing
 them is not passing evidence.
 The separate `local:verify:accountless` API journey covers bootstrap, settings,

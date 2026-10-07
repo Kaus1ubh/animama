@@ -238,7 +238,9 @@ for Particle, packaging notices to review before saving again.
 
 - **Recovery** autosaves 350 ms after an edit while the document differs from
   what was loaded or last saved, and clears once it matches again. Drafts are
-  keyed by owner and item ID, or `new`. IndexedDB holds image Blobs; the
+  keyed by owner and item ID, `new`, or `new:template:<id>` for a draft started
+  from a template (`useCreatorTemplateStart`), so a template never replaces the
+  plain new draft. IndexedDB holds image Blobs; the
   localStorage fallback keeps the document without them. Each kind's database,
   store and fallback names are fixed so existing drafts keep loading.
 - **Save** resolves a blank name, writes recovery, then saves with the draft's
@@ -247,6 +249,10 @@ for Particle, packaging notices to review before saving again.
 - **Leaving** a creator with unsaved changes asks to discard them and their
   recovery; leaving during Save keeps recovery. On a `/new` route, a change of
   search parameters (the starting point) counts as leaving.
+- **Templates** seed `/new?template=<id>` as a new, unsaved draft (it shows
+  Unsaved until its first Save). If that template's key already holds a draft
+  that differs from the template, the creator asks to continue it or to discard
+  it and start from the template; an identical draft is continued silently.
 
 Save, filesystem edits, Rescan, and Equip affect a later mount. The active
 route keeps its already prepared exact bytes. Switching Animas or explicitly

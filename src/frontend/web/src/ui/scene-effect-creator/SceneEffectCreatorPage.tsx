@@ -24,7 +24,9 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { previewCatalogItem } from "@/lib/content/catalogApi";
+import { listCatalogItems, previewCatalogItem } from "@/lib/content/catalogApi";
+import { createUniqueContentName } from "@/lib/content/uniqueContentName";
+import { isSceneEffectTemplateId } from "@/lib/effects/effectTemplates";
 import type {
   PyContentDependency,
   PyContentPreview,
@@ -43,6 +45,7 @@ import {
   parseSceneEffectEditorExport,
   SCENE_EFFECT_TEMPLATE_OPTIONS,
   sceneEffectEditorReducer,
+  sceneEffectTemplateLabel,
   sceneEffectImageMetadata,
   sceneEffectRecoveryStore,
   sceneEffectRuntimeEntry,
@@ -91,7 +94,12 @@ import { ContentHealth } from "@/ui/content-health/ContentHealth";
 import type { ContentCreatorModelSource } from "@/ui/content-creator/contentCreatorModelPreview";
 import { useContentCreatorAvatar } from "@/ui/content-creator/useContentCreatorAvatar";
 import { useContentCreatorModelPreview } from "@/ui/content-creator/useContentCreatorModelPreview";
+import { CreatorTemplateDraftDialog } from "@/ui/content-creator/CreatorTemplateDraftDialog";
 import { useCreatorLeaveGuard } from "@/ui/content-creator/useCreatorLeaveGuard";
+import {
+  creatorTemplateRecoveryKey,
+  useCreatorTemplateStart,
+} from "@/ui/content-creator/useCreatorTemplateStart";
 import { useCreatorDocumentHistory } from "@/ui/creator-history/useCreatorDocumentHistory";
 import { Button } from "@/ui/components/button";
 import { Input } from "@/ui/components/input";
@@ -125,8 +133,18 @@ type PreviewStatus = {
 
 type BackgroundLayer = "marquee" | "pattern" | "solid";
 
-/** Product Scene Effect creator backed by ordinary editable catalog files. */
-export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
+/**
+ * Product Scene Effect creator backed by ordinary editable catalog files.
+ * `itemId` edits a saved item; `templateId` starts a new draft from one of the
+ * starting templates (`/scene-effects/new?template=<id>`).
+ */
+export function SceneEffectCreatorPage({
+  itemId,
+  templateId,
+}: {
+  itemId?: string;
+  templateId?: SceneEffectTemplateId;
+}) {
   const navigate = useNavigate();
   const userId = useRuntimeOwnerId();
   const existingQuery = useSceneEffect(itemId ?? null);
@@ -173,9 +191,12 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
   );
   const [previewRevision, setPreviewRevision] = useState(0);
   const [hydration, setHydration] = useState<PreviewStatus>({
-    state: itemId ? "loading" : "ready",
+    state: itemId || templateId ? "loading" : "ready",
     message: null,
   });
+  /** A template route's recovered draft, held until the user chooses. */
+  const [templateDraft, setTemplateDraft] =
+    useState<SceneEffectHistorySnapshot | null>(null);
   const [imageBusy, setImageBusy] = useState(false);
   const [imageError, setImageError] = useState<string | null>(null);
   const [jsonOpen, setJsonOpen] = useState(false);
@@ -243,11 +264,15 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
   );
   const onRestore = useCallback(
     (recovered: SceneEffectHistorySnapshot) => {
+      if (templateId) {
+        setTemplateDraft(recovered);
+        return;
+      }
       resetDocument(recovered.document, recovered.imageResources);
       setHydration({ state: "ready", message: "Recovered local draft" });
       setPreviewRevision((value) => value + 1);
     },
-    [resetDocument],
+    [resetDocument, templateId],
   );
   const onSaved = useCallback(
     (saved: SceneEffectHistorySnapshot, savedItemId: string) => {
@@ -261,6 +286,9 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
     sceneEffectSnapshotFingerprint(snapshot) !== initialFingerprintRef.current;
   const contentSave = useSceneEffectSave({
     itemId,
+    recoveryKey: templateId
+      ? creatorTemplateRecoveryKey(templateId)
+      : undefined,
     snapshot,
     dirty: isDirty,
     initialized: hydration.state === "ready",
@@ -280,6 +308,33 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
     busy: contentSave.isBusy,
     discard: contentSave.discardChanges,
   });
+  const installTemplateStart = useCallback(
+    (next: SceneEffectHistorySnapshot) => {
+      resetDocument(next.document, next.imageResources);
+      setPreviewRevision((value) => value + 1);
+    },
+    [resetDocument],
+  );
+  const templateStart = useCreatorTemplateStart({
+    templateId,
+    loadSeed: loadSceneEffectTemplate,
+    fingerprint: sceneEffectSnapshotFingerprint,
+    recoveryReady: contentSave.recoveryReady,
+    recoveredDraft: templateDraft,
+    resetSession: contentSave.resetSession,
+    install: installTemplateStart,
+    baselineRef: initialFingerprintRef,
+    setHydration,
+  });
+  const templateDraftDialog = (
+    <CreatorTemplateDraftDialog
+      start={templateStart}
+      contentLabel="Scene Effect"
+      templateName={
+        templateId ? sceneEffectTemplateLabel(templateId) : "a template"
+      }
+    />
+  );
 
   const discardCurrentDraft = useCallback(async () => {
     try {
@@ -552,7 +607,8 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
       return;
 
     try {
-      if (itemId) {
+      // A saved item or a template draft starts over on the plain `/new` route.
+      if (itemId || templateId) {
         if (userId)
           await sceneEffectRecoveryStore.clear(userId, "new", {
             strict: true,
@@ -599,6 +655,7 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
     itemId,
     navigate,
     resetDocument,
+    templateId,
     userId,
   ]);
   const sceneVFX = useMemo<SceneVFXRuntimeEntry | null>(() => {
@@ -612,9 +669,17 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
     }
   }, [document, imageUrls, playing, previewRevision]);
 
-  if (hydration.state === "loading" && itemId)
+  if (hydration.state === "loading" && (itemId || templateId))
     return (
-      <CreatorLoading message={hydration.message ?? "Loading Scene Effect…"} />
+      <>
+        <CreatorLoading
+          message={
+            hydration.message ??
+            (templateId ? "Loading template…" : "Loading Scene Effect…")
+          }
+        />
+        {templateDraftDialog}
+      </>
     );
 
   return (
@@ -881,6 +946,7 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
             onImport={importDocument}
           />
           <CreatorLeaveDialog guard={leaveGuard} contentLabel="Scene Effect" />
+          {templateDraftDialog}
         </>
       }
     />
@@ -2127,4 +2193,30 @@ function object(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : null;
+}
+
+/**
+ * A new, unsaved Local draft from one of the code-shipped starting templates,
+ * named after the template with a name no catalog item uses.
+ */
+async function loadSceneEffectTemplate(
+  templateId: string,
+  signal: AbortSignal,
+): Promise<SceneEffectHistorySnapshot> {
+  if (!isSceneEffectTemplateId(templateId))
+    throw new Error("This Scene Effect template is unavailable.");
+  const items = await listCatalogItems("scene_effect", signal);
+  return {
+    document: {
+      ...applySceneEffectTemplate(
+        createDefaultSceneEffectDocument(),
+        templateId,
+      ),
+      name: createUniqueContentName(
+        sceneEffectTemplateLabel(templateId),
+        items.map((item) => item.name),
+      ),
+    },
+    imageResources: [],
+  };
 }

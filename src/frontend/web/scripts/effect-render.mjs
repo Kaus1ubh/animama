@@ -265,6 +265,38 @@ export async function renderEffectSheets({
   return results;
 }
 
+/**
+ * Render and write one thumbnail on an open renderer page. The file is written
+ * even when the render reports failures, so it can be inspected.
+ */
+async function writeThumbnailOnPage(
+  { page, fsUrl, imageUrl },
+  { effect, outFile, time, size, expression, clip },
+) {
+  const rendered = await page.evaluate(
+    (request) => window.renderEffectThumbnail(request),
+    {
+      effects: [await pageEffect(effect, imageUrl)],
+      avatar: {
+        id: THUMBNAIL_AVATAR,
+        url: avatarFileUrl(fsUrl, THUMBNAIL_AVATAR),
+      },
+      time,
+      size,
+      expression,
+      clip,
+    },
+  );
+  await mkdir(path.dirname(outFile), { recursive: true });
+  await writeFile(outFile, decodeDataUrl(rendered.dataUrl));
+  return {
+    stem: effect.stem,
+    outFile,
+    avatars: rendered.avatars,
+    failures: rendered.avatars.flatMap(avatarFailures),
+  };
+}
+
 /** Render a square WebP Library thumbnail of one effect on Annie. */
 export async function renderEffectThumbnail({
   effect,
@@ -275,37 +307,61 @@ export async function renderEffectThumbnail({
   clip = null,
   localContent = null,
 }) {
-  const result = await withRendererPage(
-    { localContent },
-    async ({ page, fsUrl, imageUrl }) => {
-      const rendered = await page.evaluate(
-        (request) => window.renderEffectThumbnail(request),
-        {
-          effects: [await pageEffect(effect, imageUrl)],
-          avatar: {
-            id: THUMBNAIL_AVATAR,
-            url: avatarFileUrl(fsUrl, THUMBNAIL_AVATAR),
-          },
-          time,
-          size,
-          expression,
-          clip,
-        },
-      );
-      return {
-        stem: effect.stem,
-        outFile,
-        avatars: rendered.avatars,
-        failures: rendered.avatars.flatMap(avatarFailures),
-        bytes: decodeDataUrl(rendered.dataUrl),
-      };
-    },
+  const result = await withRendererPage({ localContent }, (context) =>
+    writeThumbnailOnPage(context, {
+      effect,
+      outFile,
+      time,
+      size,
+      expression,
+      clip,
+    }),
   );
-  await mkdir(path.dirname(outFile), { recursive: true });
-  await writeFile(outFile, result.bytes);
-  delete result.bytes;
   if (result.failures.length) throw new EffectRenderFailure([result]);
   return result;
+}
+
+/**
+ * Render several thumbnails on one renderer page (one Vite server and browser
+ * for the whole batch). `jobs` are `{ effect, outFile }`. Every job is
+ * attempted; `EffectRenderFailure` is thrown afterwards if any failed.
+ */
+export async function renderEffectThumbnails({
+  jobs,
+  time = 1,
+  size = 512,
+  onResult,
+}) {
+  const results = await withRendererPage({}, async (context) => {
+    const results = [];
+    for (const { effect, outFile } of jobs) {
+      let result;
+      try {
+        result = await writeThumbnailOnPage(context, {
+          effect,
+          outFile,
+          time,
+          size,
+          expression: null,
+          clip: null,
+        });
+      } catch (error) {
+        result = {
+          stem: effect.stem,
+          outFile,
+          failures: [
+            truncate(error instanceof Error ? error.message : String(error)),
+          ],
+        };
+      }
+      onResult?.(result);
+      results.push(result);
+    }
+    return results;
+  });
+  if (results.some((result) => result.failures.length))
+    throw new EffectRenderFailure(results);
+  return results;
 }
 
 /**

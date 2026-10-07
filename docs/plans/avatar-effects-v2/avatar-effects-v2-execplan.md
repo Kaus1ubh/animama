@@ -79,7 +79,7 @@ work proceeds.
 - [x] Phase 6: Attachments beyond the face and the performance budget
       (budget met: added mean GPU time is at most 1.15 ms).
 - [x] Phase 7: Shared creator save, undo and draft recovery.
-- [ ] Phase 8: Template picker and entry points (existing UI components).
+- [x] Phase 8: Template picker and entry points (existing UI components).
 - [ ] Phase 9: Avatar Effect creator `/2` controls and direct manipulation
       (existing layout and styling).
 - [ ] Phase 10: Headed effect preview. Gate G4.
@@ -1556,9 +1556,154 @@ and Library Edit links still work.
 
 #### Phase 8 record
 
+Starting source and issue: `9d4f577a`, #306.
+
+Delivered:
+
+- **Registry.** `lib/effects/effectTemplates.ts` defines three kinds:
+  - Avatar FX: all 16 Included effects, keyed by their folder stem and grouped
+    by intent (Eyes, Whole face, Above the head, Mouth).
+  - Scene FX: its 5 existing templates.
+  - Particle FX: Start from scratch only.
+  - A test checks the IDs, content IDs and names against the descriptors.
+- **Thumbnails.** `pnpm -s effects:thumbnails` writes 16 Annie WebPs (320 px,
+  about 15 kB each) into `src/assets/effect-templates/` with a provenance
+  README. It batch-renders on one page and removes thumbnails that no longer
+  have a template. The thumbnails are lazily imported, and a test checks that
+  templates and thumbnails match one to one.
+- **Licensing.**
+  - 16 `licenses/source-review.json` entries, treated like the Annie portrait.
+  - A paragraph in `art-NOTICES.md`.
+  - A desktop notice group with
+    `notices/effect-template-thumbnails-attribution.txt`.
+- **Dialog.** `ui/create/EffectTemplatePickerDialog.tsx` is built on the
+  existing `ui/components/dialog.tsx` and the Create page's card styles. Those
+  styles moved into `CreatorCards.tsx` so both share them.
+  - Step 1 shows three centred kind cards.
+  - Step 2 shows Start from scratch and the templates in groups, with Back.
+  - Thumbnail states (loading, none yet, unavailable) sit in fixed square
+    boxes, so the layout does not shift.
+  - The picker uses the existing dialog rather than `sectioned-modal-frame`,
+    because that frame always shows a section sidebar, which does not fit
+    "three centred cards, then Back". The owner was informed.
+- **Entry points.**
+  - The sidebar's effects submenu and `EFFECT_CREATE_LINKS` were removed. A
+    single **Effects** item opens the picker in place.
+  - The Create page keeps its three effect cards, renamed Particle FX, Avatar
+    FX and Scene FX. Each opens step 2 for its kind, with Back available.
+  - `routes/_app/effects.new.tsx` renders the Create page with the picker
+    open.
+- **Seeding.** `?template=` on `/avatar-effects/new` and `/scene-effects/new`,
+  with `validateSearch` and a route key per template. This goes through
+  `ui/content-creator/useCreatorTemplateStart.ts` and
+  `CreatorTemplateDraftDialog.tsx`.
+  - An Avatar template hydrates its Included item through
+    `hydrateAvatarEffect`, which uses `previewCatalogItem`. Its image becomes a
+    new `File`, and the draft has no `itemId`, so Included content is never
+    modified.
+  - A Scene template reuses `applySceneEffectTemplate`.
+  - A seeded draft gets a name no item uses (for example "Eye VV Pair 1") and
+    shows Unsaved until the first Save.
+- **Recovery keys (reading of the owner decision).** A plain draft keeps the
+  key `new`; a template draft uses `new:template:<id>`, so neither overwrites
+  the other.
+  - On a template route, a recovered draft continues silently if it matches
+    the template. Otherwise a dialog offers "Continue draft" or "Discard and
+    use template".
+  - A plain `new` draft is not raised on a template route. During a session,
+    the `/new` leave guard already asks before leaving a dirty draft for
+    `?template=`, and a draft recovered after a crash stays available on
+    `/new`.
+
+Screenshots (desktop 1440×900 and narrow 760) are in
+`worktrees/avatar-effects-v2-p8/`; the owner was sent the desktop set.
+Thumbnails to revisit with the Plan 2 art upgrades: the Emote "!" is cropped
+by the head framing, `texture_black_1` reads as a pale wash, and
+`texture_sick_3` is faint.
+
+Checks (agent):
+
+- Focused vitest: 227 passed. Full `pnpm web:test`: 2,704 passed.
+- `pnpm check`, `web:lint`, prettier and `pnpm build` pass.
+- Desktop runtime-packaging: 69 passed. Render tests: 9/9.
+- e2e on the task stack: the picker journey plus creator-discard, 11/11.
+  `e2e:check:source` passes.
+
 #### Code Review #1 Findings
 
+Reviewed source: uncommitted tree on `9d4f577a`. Result: **blocking findings
+remain**.
+
+1. **Blocking.** Closing the picker does not return focus to the control that
+   opened it; a Playwright probe showed focus on `BODY`. With no trigger and no
+   `onCloseAutoFocus`, Radix has nothing to focus, and the sidebar item
+   unmounts when the menu closes.
+2. Recovery keys: only a draft with the same template key is raised, not a
+   plain `new` draft. This is sound, but should be recorded.
+3. Template drafts for templates never chosen again stay in IndexedDB.
+4. An unedited template draft counts as unsaved.
+5. Duplication: the template-start wiring appears in both creators, and
+   `sceneTemplateLabel` is defined twice.
+6. `TemplateCard` uses a render prop.
+7. Closing the picker opened from `/effects/new` pushes `/create`, so browser
+   Back reopens the picker.
+8. Licensing matches the Annie portrait treatment, and the legacy links are
+   fully removed: no defects.
+9. Two e2e journeys outside this phase failed in the reviewer's run:
+   `accountless-journeys.spec.ts:80` (waits for a button named `JSON`) and
+   `accountless-imported-playback.spec.ts:616`.
+
+The reviewer confirmed that Included content is never modified and that
+`creator-foundation` (6/6) and both vfx-layout journeys pass through the
+picker.
+
 #### Code Review #1 Revisions
+
+1. Fixed. The picker has a `returnFocus` prop, and `onCloseAutoFocus` returns
+   focus when the picker is dismissed; after a choice the app navigates away.
+   - The Create page refocuses the card that opened the picker.
+   - The sidebar refocuses its Create link. A one-shot flag stops that focus
+     from reopening the hover menu.
+   - A new `EffectTemplatePickerDialog.test.tsx` fails without the fix.
+   - The e2e journey asserts focus after closing from each entry point opened
+     in place.
+2. Accepted as a reading of the owner decision. It is recorded above.
+3. Accepted: this is minor development-time storage.
+4. Accepted: this matches "Unsaved until first Save".
+5. Fixed. `useCreatorTemplateStart` now owns the template-start wiring, and
+   each page passes an `install(snapshot)` callback. `sceneEffectTemplateLabel`
+   lives in `lib/scene-vfx/editor/defaults.ts`.
+6. Fixed. `TemplateCard` takes `to`, `search` and `onChoose`.
+7. Fixed. Closing `/effects/new` uses `replace: true`, and the e2e asserts that
+   browser Back does not reopen the picker.
+8. No change needed.
+9. Out of scope.
+   - The `JSON` locator failure predates this branch: the label became "View
+     JSON" in `99e158fa0` on `main`. It has been split into a separate task.
+   - `imported-playback` fails at different steps on different runs and does
+     not use the changed helper for effects.
+
+Checks after revisions:
+
+- Agent:
+  - focused vitest: 250 passed;
+  - `pnpm check`, `web:lint`, prettier, `pnpm build` and `e2e:check:source`
+    pass;
+  - e2e on the stack: 16/16 (setup, creator-discard 8/8, picker 2/2,
+    creator-foundation 5/5).
+- Me: full `pnpm web:test`, 389 files and 2,706 tests, passed.
+
+#### Code Review #2 (repair round 1)
+
+Result: **pass**.
+
+- Finding 1 is fixed. The reviewer's focus probes now land on the opening
+  card and on the sidebar Create link, where before they landed on `BODY`.
+- The sidebar flag works and clears after one use.
+- The consolidated hook keeps the old order of operations.
+- `playwright.config.ts` differs from HEAD only by the picker allowlist entry.
+
+Non-blocking, accepted: the flag is set before `focus()`. This is theoretical.
 
 ### Phase 9 — Avatar Effect creator `/2` controls and direct manipulation (R8, R9, R4 interface)
 

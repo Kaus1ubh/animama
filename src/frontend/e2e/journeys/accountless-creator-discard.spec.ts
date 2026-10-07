@@ -1,7 +1,11 @@
 import type { Page } from "playwright/test";
 
 import { expect, test } from "../fixtures/animama";
-import { openCreatorStage } from "../helpers/creator-surfaces";
+import {
+  openCreatorStage,
+  waitForStoredDraft,
+  type StoredDraftExpectation,
+} from "../helpers/creator-surfaces";
 import {
   CreatorMutationGuard,
   ReadOnlyJourneyGuard,
@@ -40,79 +44,6 @@ async function readPortableJson(page: Page, title: string): Promise<string> {
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
   return value;
-}
-
-type StoredDraftExpectation = {
-  /** IndexedDB database the creator writes; localStorage is always checked. */
-  database: string | null;
-  name: string;
-  setting: { path: string[]; value: number } | null;
-};
-
-/**
- * Wait until browser recovery holds this exact draft, rather than guessing the
- * creator's autosave debounce. Never opens a database the page has not
- * created, so the creator's own schema upgrade still runs.
- */
-async function waitForStoredDraft(
-  page: Page,
-  expected: StoredDraftExpectation,
-): Promise<void> {
-  await expect
-    .poll(
-      () =>
-        page.evaluate(async ({ database, name, setting }) => {
-          const matches = (record: unknown): boolean => {
-            if (!record || typeof record !== "object") return false;
-            const document = (record as { document?: unknown }).document;
-            if (!document || typeof document !== "object") return false;
-            if ((document as { name?: unknown }).name !== name) return false;
-            if (!setting) return true;
-            let value: unknown = document;
-            for (const key of setting.path)
-              value = (value as Record<string, unknown> | null)?.[key];
-            return value === setting.value;
-          };
-          for (let index = 0; index < localStorage.length; index += 1) {
-            const raw = localStorage.getItem(localStorage.key(index) ?? "");
-            try {
-              if (raw && matches(JSON.parse(raw))) return true;
-            } catch {
-              // Unrelated non-JSON settings.
-            }
-          }
-          if (!database) return false;
-          const known = await indexedDB.databases();
-          if (!known.some((entry) => entry.name === database)) return false;
-          return new Promise<boolean>((resolve) => {
-            const opening = indexedDB.open(database);
-            opening.onerror = () => resolve(false);
-            opening.onsuccess = () => {
-              const db = opening.result;
-              const stores = Array.from(db.objectStoreNames);
-              if (stores.length === 0) {
-                db.close();
-                resolve(false);
-                return;
-              }
-              const request = db
-                .transaction(stores[0]!, "readonly")
-                .objectStore(stores[0]!)
-                .getAll();
-              request.onsuccess = () => {
-                db.close();
-                resolve(request.result.some(matches));
-              };
-              request.onerror = () => {
-                db.close();
-                resolve(false);
-              };
-            };
-          });
-        }, expected),
-      { message: "browser recovery stores the edited draft" },
-    )
-    .toBe(true);
 }
 
 /** Exercise the actual navigation blocker, without clearing browser storage. */

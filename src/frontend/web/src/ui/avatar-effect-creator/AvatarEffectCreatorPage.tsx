@@ -26,7 +26,9 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { previewCatalogItem } from "@/lib/content/catalogApi";
+import { listCatalogItems, previewCatalogItem } from "@/lib/content/catalogApi";
+import { createUniqueContentName } from "@/lib/content/uniqueContentName";
+import { avatarEffectTemplate } from "@/lib/effects/effectTemplates";
 import type {
   PyContentDependency,
   PyContentPreview,
@@ -87,7 +89,12 @@ import {
   CreatorWorkspaceShell,
 } from "@/ui/content-creator";
 import { ContentHealth } from "@/ui/content-health/ContentHealth";
+import { CreatorTemplateDraftDialog } from "@/ui/content-creator/CreatorTemplateDraftDialog";
 import { useCreatorLeaveGuard } from "@/ui/content-creator/useCreatorLeaveGuard";
+import {
+  creatorTemplateRecoveryKey,
+  useCreatorTemplateStart,
+} from "@/ui/content-creator/useCreatorTemplateStart";
 import { useCreatorDocumentHistory } from "@/ui/creator-history/useCreatorDocumentHistory";
 import { Button } from "@/ui/components/button";
 import { Label } from "@/ui/components/label";
@@ -123,7 +130,18 @@ type PreviewStatus = {
 
 type HydrationState = PreviewStatus;
 
-export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
+/**
+ * Avatar Effect creator. `itemId` edits a saved item (an Included item is
+ * saved as a Local copy); `templateId` starts a new draft from an Included
+ * template (`/avatar-effects/new?template=<id>`); with neither it starts blank.
+ */
+export function AvatarEffectCreatorPage({
+  itemId,
+  templateId,
+}: {
+  itemId?: string;
+  templateId?: string;
+}) {
   const navigate = useNavigate();
   const userId = useRuntimeOwnerId();
   const existingQuery = useAvatarEffect(itemId ?? null);
@@ -174,9 +192,12 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
     "portrait" | "portrait-close"
   >("portrait-close");
   const [hydration, setHydration] = useState<HydrationState>({
-    state: itemId ? "loading" : "ready",
+    state: itemId || templateId ? "loading" : "ready",
     message: null,
   });
+  /** A template route's recovered draft, held until the user chooses. */
+  const [templateDraft, setTemplateDraft] =
+    useState<AvatarEffectHistorySnapshot | null>(null);
   const [imageBusy, setImageBusy] = useState(false);
   const [hasAttemptedSave, setHasAttemptedSave] = useState(false);
   const [imageError, setImageError] = useState<string | null>(null);
@@ -206,12 +227,16 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
 
   const onRestore = useCallback(
     (recovered: AvatarEffectHistorySnapshot) => {
+      if (templateId) {
+        setTemplateDraft(recovered);
+        return;
+      }
       setHasAttemptedSave(false);
       resetDocument(recovered.document, recovered.imageResource);
       setHydration({ state: "ready", message: "Recovered local draft" });
       setPreviewRevision((value) => value + 1);
     },
-    [resetDocument],
+    [resetDocument, templateId],
   );
   const onSaved = useCallback(
     (saved: AvatarEffectHistorySnapshot, savedItemId: string) => {
@@ -237,6 +262,9 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
     avatarEffectSnapshotFingerprint(snapshot) !== initialFingerprintRef.current;
   const contentSave = useAvatarEffectSave({
     itemId,
+    recoveryKey: templateId
+      ? creatorTemplateRecoveryKey(templateId)
+      : undefined,
     snapshot,
     dirty: isDirty,
     initialized: hydration.state === "ready",
@@ -253,6 +281,32 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
     busy: contentSave.isBusy,
     discard: contentSave.discardChanges,
   });
+  const installTemplateStart = useCallback(
+    (next: AvatarEffectHistorySnapshot) => {
+      setHasAttemptedSave(false);
+      resetDocument(next.document, next.imageResource);
+      setPreviewRevision((value) => value + 1);
+    },
+    [resetDocument],
+  );
+  const templateStart = useCreatorTemplateStart({
+    templateId,
+    loadSeed: loadAvatarEffectTemplate,
+    fingerprint: avatarEffectSnapshotFingerprint,
+    recoveryReady: contentSave.recoveryReady,
+    recoveredDraft: templateDraft,
+    resetSession: contentSave.resetSession,
+    install: installTemplateStart,
+    baselineRef: initialFingerprintRef,
+    setHydration,
+  });
+  const templateDraftDialog = (
+    <CreatorTemplateDraftDialog
+      start={templateStart}
+      contentLabel="Avatar Effect"
+      templateName={avatarEffectTemplate(templateId)?.name ?? "a template"}
+    />
+  );
 
   const discardCurrentDraft = useCallback(async () => {
     try {
@@ -530,7 +584,8 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
       return;
 
     try {
-      if (itemId) {
+      // A saved item or a template draft starts over on the plain `/new` route.
+      if (itemId || templateId) {
         if (userId)
           await avatarEffectRecoveryStore.clear(userId, "new", {
             strict: true,
@@ -578,6 +633,7 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
     itemId,
     navigate,
     resetDocument,
+    templateId,
     userId,
   ]);
 
@@ -602,9 +658,17 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
     [dispatch, document.transform, restartPreview],
   );
 
-  if (hydration.state === "loading" && itemId) {
+  if (hydration.state === "loading" && (itemId || templateId)) {
     return (
-      <CreatorLoading message={hydration.message ?? "Loading Avatar Effect…"} />
+      <>
+        <CreatorLoading
+          message={
+            hydration.message ??
+            (templateId ? "Loading template…" : "Loading Avatar Effect…")
+          }
+        />
+        {templateDraftDialog}
+      </>
     );
   }
 
@@ -920,6 +984,7 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
             onImport={importDocument}
           />
           <CreatorLeaveDialog guard={leaveGuard} contentLabel="Avatar Effect" />
+          {templateDraftDialog}
         </>
       }
     />
@@ -1816,6 +1881,36 @@ function AvatarEffectAxisFields({
       ))}
     </div>
   );
+}
+
+/**
+ * A new, unsaved Local draft copied from an Included template. It gets a name
+ * no catalog item uses, so its first Save creates a separate Local item.
+ */
+async function loadAvatarEffectTemplate(
+  templateId: string,
+  signal: AbortSignal,
+): Promise<AvatarEffectHistorySnapshot> {
+  const template = avatarEffectTemplate(templateId);
+  if (!template) throw new Error("This Avatar Effect template is unavailable.");
+  const items = await listCatalogItems("avatar_effect", signal);
+  const item = items.find(
+    (candidate) =>
+      candidate.source === "included" &&
+      candidate.logical_key === template.contentId,
+  );
+  if (!item)
+    throw new Error(`${template.name} is not available in this installation.`);
+  const { document, image } = await hydrateAvatarEffect({
+    itemId: item.item_id,
+    name: createUniqueContentName(
+      item.name,
+      items.map((candidate) => candidate.name),
+    ),
+    description: item.description ?? "",
+    signal,
+  });
+  return { document, imageResource: image };
 }
 
 async function hydrateAvatarEffect(args: {

@@ -33,6 +33,7 @@ import { Route as AppReactionsNewRouteImport } from "./routes/_app/reactions.new
 import { Route as AppParticleEffectsNewRouteImport } from "./routes/_app/particle-effects.new";
 import { Route as AppIdleStylesNewRouteImport } from "./routes/_app/idle-styles.new";
 import { Route as AppGesturesNewRouteImport } from "./routes/_app/gestures.new";
+import { Route as AppEffectsNewRouteImport } from "./routes/_app/effects.new";
 import { Route as AppAvatarEffectsNewRouteImport } from "./routes/_app/avatar-effects.new";
 import { Route as AppAnimasNewRouteImport } from "./routes/_app/animas.new";
 import { Route as AppAnimasAnimaIdRouteImport } from "./routes/_app/animas/$animaId";
@@ -166,6 +167,11 @@ const AppGesturesNewRoute = AppGesturesNewRouteImport.update({
   path: "/gestures/new",
   getParentRoute: () => AppRoute,
 } as any);
+const AppEffectsNewRoute = AppEffectsNewRouteImport.update({
+  id: "/effects/new",
+  path: "/effects/new",
+  getParentRoute: () => AppRoute,
+} as any);
 const AppAvatarEffectsNewRoute = AppAvatarEffectsNewRouteImport.update({
   id: "/avatar-effects/new",
   path: "/avatar-effects/new",
@@ -255,6 +261,7 @@ export interface FileRoutesByFullPath {
   "/animas/$animaId": typeof AppAnimasAnimaIdRouteWithChildren;
   "/animas/new": typeof AppAnimasNewRoute;
   "/avatar-effects/new": typeof AppAvatarEffectsNewRoute;
+  "/effects/new": typeof AppEffectsNewRoute;
   "/gestures/new": typeof AppGesturesNewRoute;
   "/idle-styles/new": typeof AppIdleStylesNewRoute;
   "/particle-effects/new": typeof AppParticleEffectsNewRoute;
@@ -291,6 +298,7 @@ export interface FileRoutesByTo {
   "/animas/$animaId": typeof AppAnimasAnimaIdRouteWithChildren;
   "/animas/new": typeof AppAnimasNewRoute;
   "/avatar-effects/new": typeof AppAvatarEffectsNewRoute;
+  "/effects/new": typeof AppEffectsNewRoute;
   "/gestures/new": typeof AppGesturesNewRoute;
   "/idle-styles/new": typeof AppIdleStylesNewRoute;
   "/particle-effects/new": typeof AppParticleEffectsNewRoute;
@@ -331,6 +339,7 @@ export interface FileRoutesById {
   "/_app/animas/$animaId": typeof AppAnimasAnimaIdRouteWithChildren;
   "/_app/animas/new": typeof AppAnimasNewRoute;
   "/_app/avatar-effects/new": typeof AppAvatarEffectsNewRoute;
+  "/_app/effects/new": typeof AppEffectsNewRoute;
   "/_app/gestures/new": typeof AppGesturesNewRoute;
   "/_app/idle-styles/new": typeof AppIdleStylesNewRoute;
   "/_app/particle-effects/new": typeof AppParticleEffectsNewRoute;
@@ -371,6 +380,7 @@ export interface FileRouteTypes {
     | "/animas/$animaId"
     | "/animas/new"
     | "/avatar-effects/new"
+    | "/effects/new"
     | "/gestures/new"
     | "/idle-styles/new"
     | "/particle-effects/new"
@@ -407,6 +417,7 @@ export interface FileRouteTypes {
     | "/animas/$animaId"
     | "/animas/new"
     | "/avatar-effects/new"
+    | "/effects/new"
     | "/gestures/new"
     | "/idle-styles/new"
     | "/particle-effects/new"
@@ -446,6 +457,7 @@ export interface FileRouteTypes {
     | "/_app/animas/$animaId"
     | "/_app/animas/new"
     | "/_app/avatar-effects/new"
+    | "/_app/effects/new"
     | "/_app/gestures/new"
     | "/_app/idle-styles/new"
     | "/_app/particle-effects/new"
@@ -649,6 +661,13 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof AppGesturesNewRouteImport;
       parentRoute: typeof AppRoute;
     };
+    "/_app/effects/new": {
+      id: "/_app/effects/new";
+      path: "/effects/new";
+      fullPath: "/effects/new";
+      preLoaderRoute: typeof AppEffectsNewRouteImport;
+      parentRoute: typeof AppRoute;
+    };
     "/_app/avatar-effects/new": {
       id: "/_app/avatar-effects/new";
       path: "/avatar-effects/new";
@@ -793,6 +812,7 @@ interface AppRouteChildren {
   AppMemoriesRoute: typeof AppMemoriesRoute;
   AppIndexRoute: typeof AppIndexRoute;
   AppAvatarEffectsNewRoute: typeof AppAvatarEffectsNewRoute;
+  AppEffectsNewRoute: typeof AppEffectsNewRoute;
   AppGesturesNewRoute: typeof AppGesturesNewRoute;
   AppIdleStylesNewRoute: typeof AppIdleStylesNewRoute;
   AppParticleEffectsNewRoute: typeof AppParticleEffectsNewRoute;
@@ -820,6 +840,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppMemoriesRoute: AppMemoriesRoute,
   AppIndexRoute: AppIndexRoute,
   AppAvatarEffectsNewRoute: AppAvatarEffectsNewRoute,
+  AppEffectsNewRoute: AppEffectsNewRoute,
   AppGesturesNewRoute: AppGesturesNewRoute,
   AppIdleStylesNewRoute: AppIdleStylesNewRoute,
   AppParticleEffectsNewRoute: AppParticleEffectsNewRoute,

@@ -96,8 +96,11 @@ remain transitive dependencies of their owning Gesture or Reaction.
 
 ## Creation
 
-`/create` links to dedicated Anima, Gesture, Reaction, Particle VFX, Avatar
-VFX and Scene VFX creators. Sound uploads live in Gesture/Reaction SFX tabs and
+`/create` links to dedicated Anima, Gesture and Reaction creators. Its effect
+cards, the sidebar Create menu's **Effects** item and `/effects/new` open the
+Effects template picker: choose Particle, Avatar or Scene FX, then a template or
+Start from scratch. A template opens its creator with a new, unsaved Local draft;
+Included content is never changed. Sound uploads live in Gesture/Reaction SFX tabs and
 Avatar/Scene FX accompanying-sound pickers. Creator Save writes ordinary files through
 the matching typed family route, such as `/v1/gestures/{entry_name}` or
 `/v1/particle-effects/{entry_name}`. Editing a Local item updates that item

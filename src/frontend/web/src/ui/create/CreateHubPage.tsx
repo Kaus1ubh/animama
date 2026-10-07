@@ -1,48 +1,34 @@
 "use client";
 
-import { Link } from "@tanstack/react-router";
-import {
-  ArrowRight,
-  Hand,
-  HeartPulse,
-  ImagePlay,
-  Sparkles,
-  UsersRound,
-  WandSparkles,
-} from "lucide-react";
-import type { ComponentType, SVGProps } from "react";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { ArrowRight, Hand, HeartPulse, UsersRound } from "lucide-react";
+import { useRef, useState } from "react";
 
+import {
+  EFFECT_TEMPLATE_KINDS,
+  EFFECT_TEMPLATE_KIND_INFO,
+  type EffectTemplateKind,
+} from "@/lib/effects/effectTemplates";
 import { cn } from "@/lib/utils";
 import { AppShellPage } from "@/ui/app/AppShellPage";
 import { RuntimeFeatureGate } from "@/ui/app/RuntimeFeatureGate";
 import { Button } from "@/ui/components/button";
-
-type CreatorIcon = ComponentType<SVGProps<SVGSVGElement>>;
+import {
+  CREATOR_CARD_CLASS_NAME,
+  CreatorIconTile,
+  EFFECT_KIND_ICONS,
+  type CreatorIcon,
+} from "@/ui/create/CreatorCards";
+import { EffectTemplatePickerDialog } from "@/ui/create/EffectTemplatePickerDialog";
 
 type AvailableCreatorCard = {
   title: string;
   description: string;
   action: string;
-  to:
-    | "/gestures/new"
-    | "/reactions/new"
-    | "/particle-effects/new"
-    | "/avatar-effects/new"
-    | "/scene-effects/new";
+  to: "/gestures/new" | "/reactions/new";
   icon: CreatorIcon;
   iconClassName: string;
 };
-
-type PlannedCreatorCard = {
-  title: string;
-  description: string;
-  icon: CreatorIcon;
-  iconClassName: string;
-};
-
-type EffectCreatorCard =
-  | (AvailableCreatorCard & { status: "available" })
-  | (PlannedCreatorCard & { status: "planned" });
 
 const ACTION_CREATORS: AvailableCreatorCard[] = [
   {
@@ -62,59 +48,6 @@ const ACTION_CREATORS: AvailableCreatorCard[] = [
     iconClassName: "bg-secondary text-secondary-foreground",
   },
 ];
-
-const EFFECT_CREATORS: EffectCreatorCard[] = [
-  {
-    status: "available",
-    title: "Particle VFX",
-    description: "Add bursts, trails, and atmospheric particles.",
-    action: "Create VFX",
-    to: "/particle-effects/new",
-    icon: WandSparkles,
-    iconClassName: "bg-accent text-accent-foreground",
-  },
-  {
-    status: "available",
-    title: "Avatar VFX",
-    description: "Add face decals, hover art, and Avatar textures.",
-    action: "Create Avatar VFX",
-    to: "/avatar-effects/new",
-    icon: Sparkles,
-    iconClassName: "bg-primary text-primary-foreground",
-  },
-  {
-    status: "available",
-    title: "Scene VFX",
-    description: "Compose backgrounds and focus lines around your Anima.",
-    action: "Create Scene VFX",
-    to: "/scene-effects/new",
-    icon: ImagePlay,
-    iconClassName:
-      "bg-violet-200 text-violet-950 dark:bg-violet-900 dark:text-violet-100",
-  },
-];
-
-function CreatorIconTile({
-  icon: Icon,
-  className,
-  large = false,
-}: {
-  icon: CreatorIcon;
-  className: string;
-  large?: boolean;
-}) {
-  return (
-    <span
-      className={cn(
-        "flex shrink-0 items-center justify-center rounded-xl shadow-sm ring-1 ring-black/5",
-        large ? "size-16 md:size-20" : "size-14",
-        className,
-      )}
-    >
-      <Icon className={large ? "size-8 md:size-10" : "size-7"} />
-    </span>
-  );
-}
 
 function ActionCreatorCard({ card }: { card: AvailableCreatorCard }) {
   return (
@@ -141,42 +74,59 @@ function ActionCreatorCard({ card }: { card: AvailableCreatorCard }) {
   );
 }
 
-function AvailableEffectCard({ card }: { card: AvailableCreatorCard }) {
+/** An effect kind's card; it opens the template picker at that kind. */
+function EffectKindCard({
+  kind,
+  onOpen,
+}: {
+  kind: EffectTemplateKind;
+  onOpen: (kind: EffectTemplateKind, opener: HTMLButtonElement) => void;
+}) {
+  const info = EFFECT_TEMPLATE_KIND_INFO[kind];
+  const { icon, className } = EFFECT_KIND_ICONS[kind];
   return (
-    <Link
-      to={card.to}
-      className="border-border/70 bg-card/92 hover:border-primary/45 focus-visible:ring-ring group flex min-h-48 flex-col rounded-2xl border p-5 shadow-lg shadow-black/5 transition-[border-color,box-shadow,transform] outline-none hover:-translate-y-0.5 hover:shadow-xl focus-visible:ring-2"
+    <button
+      type="button"
+      aria-haspopup="dialog"
+      className={cn(CREATOR_CARD_CLASS_NAME, "min-h-48 p-5 text-left")}
+      onClick={(event) => onOpen(kind, event.currentTarget)}
     >
-      <CreatorIconTile icon={card.icon} className={card.iconClassName} />
-      <h3 className="mt-5 text-lg font-semibold">{card.title}</h3>
+      <CreatorIconTile icon={icon} className={className} />
+      <h3 className="mt-5 text-lg font-semibold">{info.label}</h3>
       <p className="text-muted-foreground mt-1.5 flex-1 text-sm leading-6">
-        {card.description}
+        {info.description}
       </p>
       <span className="text-foreground mt-5 flex items-center gap-1 text-sm font-semibold">
-        {card.action}
+        {`Create ${info.label}`}
         <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
       </span>
-    </Link>
+    </button>
   );
 }
 
-function PlannedEffectCard({ card }: { card: PlannedCreatorCard }) {
-  return (
-    <article className="border-border/60 bg-card/55 text-foreground/80 flex min-h-48 flex-col rounded-2xl border border-dashed p-5 shadow-sm">
-      <CreatorIconTile icon={card.icon} className={card.iconClassName} />
-      <h3 className="mt-5 text-lg font-semibold">{card.title}</h3>
-      <p className="text-muted-foreground mt-1.5 flex-1 text-sm leading-6">
-        {card.description}
-      </p>
-      <span className="bg-muted text-muted-foreground mt-5 w-fit rounded-full px-2.5 py-1 text-xs font-medium">
-        In progress
-      </span>
-    </article>
-  );
-}
-
-/** Showcase every supported creator while preserving the product hierarchy. */
-export function CreateHubPage() {
+/**
+ * Showcase every supported creator while preserving the product hierarchy.
+ * Effect cards open the Effects template picker in place. `/effects/new`
+ * renders this page with the picker open (`effectPickerRoute`); closing it
+ * there returns to `/create`.
+ */
+export function CreateHubPage({
+  effectPickerRoute = false,
+}: {
+  effectPickerRoute?: boolean;
+}) {
+  const navigate = useNavigate();
+  const [picker, setPicker] = useState<{
+    open: boolean;
+    kind: EffectTemplateKind | null;
+  }>({ open: effectPickerRoute, kind: null });
+  /** The effect card that opened the picker in place; focus returns to it. */
+  const openerRef = useRef<HTMLButtonElement | null>(null);
+  const closePicker = () => {
+    // Replace, so browser Back does not reopen the picker route.
+    if (effectPickerRoute) void navigate({ to: "/create", replace: true });
+    else setPicker((current) => ({ ...current, open: false }));
+  };
   return (
     <AppShellPage contentClassName="max-w-6xl gap-9 py-8 md:py-10">
       <header className="space-y-2">
@@ -259,15 +209,31 @@ export function CreateHubPage() {
           </p>
         </div>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {EFFECT_CREATORS.map((card) =>
-            card.status === "available" ? (
-              <AvailableEffectCard key={card.to} card={card} />
-            ) : (
-              <PlannedEffectCard key={card.title} card={card} />
-            ),
-          )}
+          {EFFECT_TEMPLATE_KINDS.map((kind) => (
+            <EffectKindCard
+              key={kind}
+              kind={kind}
+              onOpen={(next, opener) => {
+                openerRef.current = opener;
+                setPicker({ open: true, kind: next });
+              }}
+            />
+          ))}
         </div>
       </section>
+      <EffectTemplatePickerDialog
+        open={picker.open}
+        initialKind={picker.kind}
+        onOpenChange={(open) => {
+          if (!open) closePicker();
+        }}
+        returnFocus={() => openerRef.current}
+        onChoose={() => {
+          // On `/effects/new` the chosen creator route replaces this page.
+          if (!effectPickerRoute)
+            setPicker((current) => ({ ...current, open: false }));
+        }}
+      />
     </AppShellPage>
   );
 }

@@ -16,7 +16,13 @@ export type CreatorKind =
   | "Scene VFX";
 
 type CreatorDefinition = {
+  /** Accessible name of the Create page control that opens the creator. */
   actionName: RegExp;
+  /**
+   * Effect cards open the Effects template picker at their kind; the helper
+   * then chooses Start from scratch. Action creators are direct links.
+   */
+  viaTemplatePicker: boolean;
   canvasTestId: string;
   path: string;
   targetKind: PlaybackTargetKind;
@@ -25,30 +31,35 @@ type CreatorDefinition = {
 const CREATORS: Record<CreatorKind, CreatorDefinition> = {
   Gesture: {
     actionName: /^Create Gesture$/,
+    viaTemplatePicker: false,
     canvasTestId: "action-editor-canvas",
     path: "/gestures/new",
     targetKind: "anima_pose_clip",
   },
   Reaction: {
     actionName: /^Create Reaction$/,
+    viaTemplatePicker: false,
     canvasTestId: "action-editor-canvas",
     path: "/reactions/new",
     targetKind: "anima_pose_clip",
   },
   "Particle VFX": {
-    actionName: /^Particle VFX\b.*\bCreate VFX$/,
+    actionName: /^Particle FX\b.*\bCreate Particle FX$/,
+    viaTemplatePicker: true,
     canvasTestId: "particle-vfx-creator-canvas",
     path: "/particle-effects/new",
     targetKind: "particle_vfx",
   },
   "Avatar VFX": {
-    actionName: /^Avatar VFX\b.*\bCreate Avatar VFX$/,
+    actionName: /^Avatar FX\b.*\bCreate Avatar FX$/,
+    viaTemplatePicker: true,
     canvasTestId: "avatar-effect-creator-canvas",
     path: "/avatar-effects/new",
     targetKind: "avatar_vfx",
   },
   "Scene VFX": {
-    actionName: /^Scene VFX\b.*\bCreate Scene VFX$/,
+    actionName: /^Scene FX\b.*\bCreate Scene FX$/,
+    viaTemplatePicker: true,
     canvasTestId: "scene-effect-creator-canvas",
     path: "/scene-effects/new",
     targetKind: "scene_vfx",
@@ -62,8 +73,9 @@ export type CreatorStage = {
 };
 
 /**
- * Select Annie, follow visible Create links, and resolve one real creator
- * preview without deep-link navigation or access to editor/controller state.
+ * Select Annie, follow visible Create links (for effects, the template
+ * picker's Start from scratch), and resolve one real creator preview without
+ * deep-link navigation or access to editor/controller state.
  */
 export async function openCreatorStage(args: {
   creator: CreatorKind;
@@ -86,12 +98,21 @@ export async function openCreatorStage(args: {
     args.page.getByRole("heading", { name: "Create", exact: true }),
   ).toBeVisible();
 
-  const creatorLink = args.page.getByRole("link", {
-    name: definition.actionName,
-  });
-  await expect(creatorLink).toHaveCount(1);
-  await expect(creatorLink).toBeVisible();
-  await creatorLink.click();
+  const creatorEntry = args.page.getByRole(
+    definition.viaTemplatePicker ? "button" : "link",
+    { name: definition.actionName },
+  );
+  await expect(creatorEntry).toHaveCount(1);
+  await expect(creatorEntry).toBeVisible();
+  await creatorEntry.click();
+  if (definition.viaTemplatePicker) {
+    const picker = effectTemplatePicker(args.page);
+    await expect(picker).toBeVisible();
+    await picker
+      .getByRole("link", { name: "Start from scratch", exact: true })
+      .click();
+    await expect(picker).toBeHidden();
+  }
   await expect(args.page).toHaveURL(
     new RegExp(`${escapeRegExp(definition.path)}(?:[/?#]|$)`),
   );
@@ -113,6 +134,84 @@ export async function openCreatorStage(args: {
     surface,
   });
   return { animaId, observation, surface };
+}
+
+export type StoredDraftExpectation = {
+  /** IndexedDB database the creator writes; localStorage is always checked. */
+  database: string | null;
+  name: string;
+  setting: { path: string[]; value: number } | null;
+};
+
+/**
+ * Wait until browser recovery holds this exact draft, rather than guessing the
+ * creator's autosave debounce. Never opens a database the page has not
+ * created, so the creator's own schema upgrade still runs.
+ */
+export async function waitForStoredDraft(
+  page: Page,
+  expected: StoredDraftExpectation,
+): Promise<void> {
+  await expect
+    .poll(
+      () =>
+        page.evaluate(async ({ database, name, setting }) => {
+          const matches = (record: unknown): boolean => {
+            if (!record || typeof record !== "object") return false;
+            const document = (record as { document?: unknown }).document;
+            if (!document || typeof document !== "object") return false;
+            if ((document as { name?: unknown }).name !== name) return false;
+            if (!setting) return true;
+            let value: unknown = document;
+            for (const key of setting.path)
+              value = (value as Record<string, unknown> | null)?.[key];
+            return value === setting.value;
+          };
+          for (let index = 0; index < localStorage.length; index += 1) {
+            const raw = localStorage.getItem(localStorage.key(index) ?? "");
+            try {
+              if (raw && matches(JSON.parse(raw))) return true;
+            } catch {
+              // Unrelated non-JSON settings.
+            }
+          }
+          if (!database) return false;
+          const known = await indexedDB.databases();
+          if (!known.some((entry) => entry.name === database)) return false;
+          return new Promise<boolean>((resolve) => {
+            const opening = indexedDB.open(database);
+            opening.onerror = () => resolve(false);
+            opening.onsuccess = () => {
+              const db = opening.result;
+              const stores = Array.from(db.objectStoreNames);
+              if (stores.length === 0) {
+                db.close();
+                resolve(false);
+                return;
+              }
+              const request = db
+                .transaction(stores[0]!, "readonly")
+                .objectStore(stores[0]!)
+                .getAll();
+              request.onsuccess = () => {
+                db.close();
+                resolve(request.result.some(matches));
+              };
+              request.onerror = () => {
+                db.close();
+                resolve(false);
+              };
+            };
+          });
+        }, expected),
+      { message: "browser recovery stores the edited draft" },
+    )
+    .toBe(true);
+}
+
+/** The Effects template picker dialog, opened by any effect entry point. */
+export function effectTemplatePicker(page: Page): Locator {
+  return page.getByTestId("effect-template-picker");
 }
 
 /** Wait until the selected Annie Avatar and creator lifecycle settle. */

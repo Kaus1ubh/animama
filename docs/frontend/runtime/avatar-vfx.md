@@ -111,7 +111,11 @@ that end with their Action do not fade.
 
 The protected `/avatar-effects/new` and
 `/avatar-effects/:avatarEffectId/edit` routes provide the typed Avatar Effect
-creator with an isolated portrait preview.
+creator with an isolated portrait preview. The Effects template picker offers
+every Included Avatar Effect as a template, grouped by intent in
+`lib/effects/effectTemplates.ts`. `/avatar-effects/new?template=<id>` copies the
+Included effect into a new, unsaved Local draft with an unused name; Save
+creates a separate Local item and never changes the Included one.
 
 The author chooses the effect kind first:
 
@@ -716,6 +720,11 @@ pnpm -s effects:render --diff before.png after.png --out diff.png
   library:soldier-salute` to check that they follow the avatar.
 - `--thumbnail` renders Annie with the portrait capture's head framing and
   lighting, keeping the effect's live expression state (no forced smile).
+- `pnpm -s effects:thumbnails [template-id...]` regenerates the template
+  picker's thumbnails (320 px WebP, 1 s after applying) with the same renderer,
+  into `src/assets/effect-templates/`, and removes files for templates that no
+  longer exist. Run it after changing the template list or an Included effect it
+  uses, review the images and keep that folder's README provenance current.
 - `--diff` counts a pixel as different when a channel changes by more than
   `--threshold` (default 8 of 255). It reports the share of such pixels and
   the largest channel change, and writes a red-on-grey diff image.

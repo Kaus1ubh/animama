@@ -145,7 +145,9 @@ CSS styles, animation, embedded images and external references are rejected on
 Save. Included SVG artwork can be saved unchanged into a Local Scene Effect.
 Focus Lines exposes render placement, procedural geometry, Avatar-face or
 normalized manual-box targeting, flicker animation and style controls.
-Selecting a built-in template updates the editable draft.
+Selecting a built-in template updates the editable draft. The Effects template
+picker offers the same templates; `/scene-effects/new?template=<id>` starts a
+new, unsaved draft from one, named after it.
 
 The portable `animama/scene-effect-editor/1` JSON contains logical image names
 and exact Sound sources only. It never contains Blob URLs, download URLs, or
