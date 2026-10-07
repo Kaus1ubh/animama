@@ -166,7 +166,7 @@ describe("Included Pose starter collection", () => {
   });
 
   it("keeps all shipped clip references and expression-only reactions resolvable", () => {
-    expect(Object.keys(AVATAR_POSE_CLIP_CATALOG)).toHaveLength(37);
+    expect(Object.keys(AVATAR_POSE_CLIP_CATALOG)).toHaveLength(43);
     expect(Object.keys(AVATAR_REACTION_CLIP_CATALOG)).toHaveLength(72);
     for (const clip of Object.values(AVATAR_POSE_CLIP_CATALOG))
       if (clip.basePose) expect(AVATAR_POSE_IDS).toContain(clip.basePose);
@@ -211,7 +211,7 @@ describe("Included Pose starter collection", () => {
     }
   });
 
-  it("mirrors every Included clip Gesture byte for byte in the built-in catalog", () => {
+  it("loads every Included clip Gesture straight from content/included", () => {
     const gesturesRoot = `${includedRoot}/../gestures`;
     const clipGestures = readdirSync(gesturesRoot)
       .filter((slug) => {
@@ -222,18 +222,17 @@ describe("Included Pose starter collection", () => {
       })
       .sort();
     expect(clipGestures).toEqual(Object.keys(AVATAR_POSE_CLIP_CATALOG).sort());
-    const mirrorRoot = fileURLToPath(new URL("./json/clips/", import.meta.url));
     const v2Ids: string[] = [];
     for (const slug of clipGestures) {
-      const bytes = readFileSync(`${gesturesRoot}/${slug}/${slug}.json`);
-      expect(readFileSync(`${mirrorRoot}/${slug}.json`).equals(bytes)).toBe(
-        true,
+      const included = parseAnyAnimaPoseClip(
+        JSON.parse(
+          readFileSync(`${gesturesRoot}/${slug}/${slug}.json`, "utf8"),
+        ),
       );
-      const included = parseAnyAnimaPoseClip(JSON.parse(bytes.toString()));
       expect(included).toEqual(AVATAR_POSE_CLIP_CATALOG[slug]);
       if (isAnimaPoseClipV2(included)) v2Ids.push(slug);
     }
-    expect(v2Ids).toHaveLength(21);
+    expect(v2Ids).toHaveLength(27);
     // A 2.0 Gesture plays from the built-in catalog as a fresh copy.
     const replaced = getAvatarPoseClip("arms-crossed-clip");
     expect(isAnimaPoseClipV2(replaced) && replaced.loop).toBe(true);

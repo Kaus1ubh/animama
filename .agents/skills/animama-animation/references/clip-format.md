@@ -42,9 +42,11 @@ anything is invalid. The full format is described in
 }
 ```
 
-Full examples (the six evaluation Gestures, the laugh tiers, storytelling,
-the Included-Gesture replacements and more) are in
-`src/frontend/web/src/lib/avatar/motion-authoring/examples/*.clip.json`.
+Full examples are the Included 2.0 Gestures in
+`content/included/gestures/<slug>/<slug>.json` (for example `wave-hello`,
+the laugh tiers `mild-laugh`, `medium-laugh` and `hysterical-laughter`, and the
+20 s `storytelling`); preview any of them with
+`pnpm -s animation:preview library:included/<slug>`.
 
 ## Fields
 
@@ -107,8 +109,8 @@ clips; leave them at their base.
 
 ## Size and playback
 
-Clips store keys, not frames: the six examples save at 3–13 KB, 1.1–8.2% of their
-former baked size, and a 20 s Gesture stays far below the 2 MB the app loads
+Clips store keys, not frames: the six migrated evaluation Gestures save at
+3–13 KB, 1.1–8.2% of their former baked size, and a 20 s Gesture stays far below the 2 MB the app loads
 (`validate` reports the saved size). Each Avatar prepares the clip when it
 starts playing: hand presets are fitted to its fingers and planted legs are
 solved on its own rig, so both Included Avatars keep their feet still.

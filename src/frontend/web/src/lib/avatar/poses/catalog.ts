@@ -1,4 +1,3 @@
-import rawCatalog from "./pose_catalog.json";
 import generatedPoses from "./pose_catalog.generated.json";
 import { createLogger } from "@/lib/logger";
 import { isTrackedEmotion } from "@/lib/emotion";
@@ -28,23 +27,27 @@ type PoseCatalogEntry = {
   source: string;
 };
 
-type PoseCatalogManifest = {
-  schema: "animaPoseCatalog/1.0";
-  defaultPoseIds: string[];
-  clips: PoseCatalogEntry[];
-};
-
-const rawClipModules = import.meta.glob("./json/clips/*.json", {
-  eager: true,
-  import: "default",
-}) as Record<string, unknown>;
+/**
+ * Included Gesture and Reaction clips, bundled straight from the canonical
+ * `content/included` tree (each entry's sequence file is
+ * `<folder>/<folder>.json`; metadata files are excluded). The backend serves
+ * the same files at runtime; this synchronous copy backs the creators,
+ * previews and runtime-catalog fallbacks.
+ */
+const rawClipModules = import.meta.glob(
+  [
+    "../../../../../../../content/included/gestures/*/*.json",
+    "!../../../../../../../content/included/gestures/*/*.meta.json",
+  ],
+  { eager: true, import: "default" },
+) as Record<string, unknown>;
 
 const rawReactionClipModules = import.meta.glob(
-  "./json/clips/reactions/*.json",
-  {
-    eager: true,
-    import: "default",
-  },
+  [
+    "../../../../../../../content/included/reactions/*/*.json",
+    "!../../../../../../../content/included/reactions/*/*.meta.json",
+  ],
+  { eager: true, import: "default" },
 ) as Record<string, unknown>;
 
 // Runtime-only dependencies resolve shipped Gesture refs without becoming Library content.
@@ -62,7 +65,6 @@ const internalPoses = Object.fromEntries(
   ]),
 );
 
-const manifest = parsePoseCatalogManifest(rawCatalog);
 const loadedPoseCatalog = pruneUnresolvablePoseCatalog(
   loadPoseCatalog({ ...internalPoses, ...generatedPoses.poses }),
 );
@@ -73,7 +75,7 @@ export const AVATAR_POSE_CATALOG: Readonly<Record<string, AnimaPose>> =
 /** Built-in Gesture clips; 1.0 clips may reference internal poses, 2.0 clips are self-contained. */
 export const AVATAR_POSE_CLIP_CATALOG: Readonly<
   Record<string, AnyAnimaPoseClip>
-> = Object.freeze(loadPoseClipCatalog(manifest, AVATAR_POSE_CATALOG));
+> = Object.freeze(loadPoseClipCatalog(rawClipModules, AVATAR_POSE_CATALOG));
 
 export const AVATAR_REACTION_CLIP_CATALOG: Readonly<
   Record<string, AnimaPoseClip>
@@ -94,7 +96,7 @@ export const AVATAR_REACTION_CLIP_IDS: readonly string[] = Object.freeze(
 );
 
 export const DEFAULT_AVATAR_POSE_IDS: readonly string[] = Object.freeze(
-  resolveDefaultAvatarPoseIds(manifest.defaultPoseIds, AVATAR_POSE_CATALOG),
+  resolveDefaultAvatarPoseIds([RELAXED_REST_POSE_ID], AVATAR_POSE_CATALOG),
 );
 
 const resolvedAvatarPoseCache = new Map<string, ResolvedAnimaPose>();
@@ -177,27 +179,15 @@ function loadPoseCatalog(
 }
 
 function loadPoseClipCatalog(
-  catalogManifest: PoseCatalogManifest,
+  rawModules: Readonly<Record<string, unknown>>,
   poseCatalog: Readonly<Record<string, AnimaPose>>,
 ): Record<string, AnyAnimaPoseClip> {
   const catalog: Record<string, AnyAnimaPoseClip> = {};
-  for (const entry of catalogManifest.clips) {
-    if (catalog[entry.id]) {
-      logger.warn("Clip", "Skipping duplicate avatar pose clip catalog entry", {
-        clipId: entry.id,
-        source: entry.source,
-      });
-      continue;
-    }
-
-    const rawClip = rawClipModules[entry.source];
-    if (!rawClip) {
-      logger.warn("Clip", "Skipping missing avatar pose clip JSON source", {
-        clipId: entry.id,
-        source: entry.source,
-      });
-      continue;
-    }
+  for (const source of Object.keys(rawModules).sort()) {
+    const id = includedSequenceId(source);
+    if (!id) continue;
+    const entry: PoseCatalogEntry = { id, source };
+    const rawClip = rawModules[source];
 
     let clip: AnyAnimaPoseClip;
     try {
@@ -386,59 +376,13 @@ function parseReactionClipSourceId(source: string): string | null {
   return filename.slice(0, -".json".length);
 }
 
-function parsePoseCatalogManifest(value: unknown): PoseCatalogManifest {
-  if (!isRecord(value) || value.schema !== "animaPoseCatalog/1.0") {
-    throw new Error("Invalid avatar pose catalog manifest");
-  }
-  if (!Array.isArray(value.defaultPoseIds)) {
-    throw new Error("Invalid avatar pose catalog entries");
-  }
-  if (value.clips !== undefined && !Array.isArray(value.clips)) {
-    throw new Error("Invalid avatar pose clip catalog entries");
-  }
-
-  return {
-    schema: value.schema,
-    defaultPoseIds: value.defaultPoseIds.map(parseCatalogString),
-    clips: parsePoseCatalogEntries(value.clips ?? [], "clip"),
-  };
-}
-
-function parsePoseCatalogEntries(
-  value: unknown[],
-  kind: "pose" | "clip",
-): PoseCatalogEntry[] {
-  const entries: PoseCatalogEntry[] = [];
-  for (const entry of value) {
-    const parsedEntry = parsePoseCatalogEntry(entry, kind);
-    if (parsedEntry) {
-      entries.push(parsedEntry);
-    }
-  }
-  return entries;
-}
-
-function parsePoseCatalogEntry(
-  value: unknown,
-  kind: "pose" | "clip",
-): PoseCatalogEntry | null {
-  if (!isRecord(value)) {
-    logger.warn("Manifest", "Skipping invalid avatar catalog entry", { kind });
-    return null;
-  }
-
-  const id = sanitizeCatalogString(value.id);
-  const source = sanitizeCatalogString(value.source);
-  if (!id || !source) {
-    logger.warn("Manifest", "Skipping invalid avatar catalog entry", {
-      kind,
-      id: typeof value.id === "string" ? value.id : null,
-      source: typeof value.source === "string" ? value.source : null,
-    });
-    return null;
-  }
-
-  return { id, source };
+/**
+ * The Gesture or Reaction id of an Included sequence file
+ * (`.../<folder>/<folder>.json`), or null for any other file in the folder.
+ */
+function includedSequenceId(source: string): string | null {
+  const [folder, file] = source.split("/").slice(-2);
+  return file === `${folder}.json` ? folder : null;
 }
 
 function getCachedResolvedAvatarPose(poseId: string): ResolvedAnimaPose {
@@ -456,23 +400,4 @@ function getCachedResolvedAvatarPose(poseId: string): ResolvedAnimaPose {
   );
   resolvedAvatarPoseCache.set(poseId, resolvedPose);
   return resolvedPose;
-}
-
-function parseCatalogString(value: unknown): string {
-  const sanitized = sanitizeCatalogString(value);
-  if (!sanitized) {
-    throw new Error("Invalid avatar pose catalog string");
-  }
-  return sanitized;
-}
-
-function sanitizeCatalogString(value: unknown): string | null {
-  if (typeof value !== "string" || value.trim().length === 0) {
-    return null;
-  }
-  return value.trim();
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
 }

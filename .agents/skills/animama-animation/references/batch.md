@@ -25,8 +25,9 @@ ID only to revise that Gesture, and tiers of one action sharing a stem
 When the host can run subagents, give each item its own: authoring is the
 slow step, and a fresh context per item keeps attention on one motion. Run
 about five at a time. Each subagent receives the confirmed brief, this skill
-and its references, the clip path to write
-(`motion-authoring/examples/<name>.clip.json`), and these instructions:
+and its references, the draft path to write
+(`.animama-drafts/<name>.clip.json` at the repository root), and these
+instructions:
 
 - follow workflow steps 1–5: write, validate, check (fix every FAIL) and
   render contact sheets to a scratch directory;
@@ -60,7 +61,7 @@ Write one items file and save every item in one run:
 ```json
 [
   {
-    "clip": "/absolute/path/to/src/frontend/web/src/lib/avatar/motion-authoring/examples/shy-wave.clip.json",
+    "clip": "/absolute/path/to/.animama-drafts/shy-wave.clip.json",
     "name": "Shy Wave",
     "aiDescription": "A small, bashful wave for greetings when shy.",
     "selectorId": "shy_wave"

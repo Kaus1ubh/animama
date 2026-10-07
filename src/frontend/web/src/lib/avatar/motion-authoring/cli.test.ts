@@ -17,7 +17,10 @@ const avatarDirectory = path.resolve(
   here,
   "../../../../../../../content/included/avatars",
 );
-const example = path.join(here, "examples/wave-hello.clip.json");
+const example = path.resolve(
+  here,
+  "../../../../../../../content/included/gestures/wave-hello/wave-hello.json",
+);
 
 async function run(args: string[]) {
   const lines: string[] = [];

@@ -3193,7 +3193,7 @@ export function AnimationDebugModal({ animaLabel }: { animaLabel?: string }) {
             ) : (
               <EmptyState
                 title="No reaction clips"
-                description="Add reaction clips under poses/json/clips/reactions to invoke them from debug."
+                description="Add Reactions under content/included/reactions to invoke them from debug."
               />
             )}
           </Panel>
@@ -3277,7 +3277,7 @@ export function AnimationDebugModal({ animaLabel }: { animaLabel?: string }) {
             ) : (
               <EmptyState
                 title="No reaction clips"
-                description="Add reaction clips under poses/json/clips/reactions to invoke them from debug."
+                description="Add Reactions under content/included/reactions to invoke them from debug."
               />
             )}
           </Panel>

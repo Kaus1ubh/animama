@@ -26,7 +26,7 @@ const itemsFile = path.join("/work", "batch", "items.json");
 
 function item(overrides = {}) {
   return {
-    clip: "../examples/wave-hello.clip.json",
+    clip: "../drafts/wave-hello.clip.json",
     name: "Wave Hello",
     aiDescription: "A friendly wave.",
     selectorId: "wave_hello",
@@ -75,11 +75,6 @@ function fakeRepo() {
         { path: "z.txt" },
       ],
     }),
-    [PROMOTE_PATHS.poseCatalog]: `${JSON.stringify({
-      schema: "animaPoseCatalog/1.0",
-      defaultPoseIds: ["relaxedRest"],
-      clips: [{ id: "arms-crossed", source: "./json/clips/arms-crossed.json" }],
-    })}\n`,
     [PROMOTE_PATHS.clipSamples]: `${JSON.stringify(
       { precision: 12, clips: [{ id: "arms-crossed" }, { id: "meme-dab" }] },
       null,
@@ -109,36 +104,59 @@ async function clipFile(name, clip) {
 const byPath = (writes) =>
   Object.fromEntries(writes.map((write) => [write.path, write]));
 
-test("derives the slug from the clip file and requires mode and licence fields", () => {
-  const [parsed] = parsePromoteItems([item()], itemsFile);
+test("derives the slug from the clip file and requires mode and licence fields", async () => {
+  const [parsed] = await parsePromoteItems([item()], itemsFile);
   assert.equal(parsed.slug, "wave-hello");
   assert.equal(
     parsed.clip,
-    path.join("/work", "examples", "wave-hello.clip.json"),
+    path.join("/work", "drafts", "wave-hello.clip.json"),
   );
-  assert.throws(
-    () => parsePromoteItems([item({ mode: undefined })], itemsFile),
+  await assert.rejects(
+    parsePromoteItems([item({ mode: undefined })], itemsFile),
     /"mode" must be "add" or "replace"/,
   );
-  assert.throws(
-    () =>
-      parsePromoteItems(
-        [item({ licence: { ...licence, provenance: " " } })],
-        itemsFile,
-      ),
+  await assert.rejects(
+    parsePromoteItems(
+      [item({ licence: { ...licence, provenance: " " } })],
+      itemsFile,
+    ),
     /"licence".provenance must be a non-empty string/,
   );
-  assert.throws(
-    () => parsePromoteItems([item({ sourceReview: undefined })], itemsFile),
+  await assert.rejects(
+    parsePromoteItems([item({ sourceReview: undefined })], itemsFile),
     /"sourceReview" must be an object/,
   );
-  assert.throws(
-    () => parsePromoteItems([item(), item({ selectorId: "other" })], itemsFile),
+  await assert.rejects(
+    parsePromoteItems([item(), item({ selectorId: "other" })], itemsFile),
     /slug "wave-hello" repeats/,
   );
 });
 
-test("adds a new Gesture with metadata, mirror, licence rule and records", async () => {
+test("resolves Library sources to the saved item's file and folder name", async () => {
+  const local = path.join("/stack", "content", "local", "gestures");
+  const resolveClip = async (spec) => {
+    if (spec === "library:local/wave_hello")
+      return path.join(local, "wave-hello", "wave-hello.json");
+    throw new Error(`No Library item matches ${spec}.`);
+  };
+  const [parsed] = await parsePromoteItems(
+    [item({ clip: "library:local/wave_hello" })],
+    itemsFile,
+    resolveClip,
+  );
+  assert.equal(parsed.clip, path.join(local, "wave-hello", "wave-hello.json"));
+  assert.equal(parsed.slug, "wave-hello");
+  await assert.rejects(
+    parsePromoteItems(
+      [item({ clip: "library:local/missing" })],
+      itemsFile,
+      resolveClip,
+    ),
+    /item 1: No Library item matches library:local\/missing/,
+  );
+});
+
+test("adds a new Gesture with metadata, licence rule and records", async () => {
   const repo = fakeRepo();
   const clip = await clipFile("wave-hello.clip.json", {
     schema: "animaPoseClip/2.0",
@@ -146,7 +164,7 @@ test("adds a new Gesture with metadata, mirror, licence rule and records", async
     name: "Draft",
   });
   const writes = byPath(
-    await planPromotion([parsePromoteItems([item({ clip })], itemsFile)[0]], {
+    await planPromotion(await parsePromoteItems([item({ clip })], itemsFile), {
       repo,
       compactClip,
       formatJson,
@@ -155,7 +173,6 @@ test("adds a new Gesture with metadata, mirror, licence rule and records", async
   );
   const included = "content/included/gestures/wave-hello/wave-hello.json";
   const metaPath = "content/included/gestures/wave-hello/wave-hello.meta.json";
-  const mirror = `${PROMOTE_PATHS.mirror}/wave-hello.json`;
   assert.equal(writes[included].action, "create");
   // The clip takes the Included id and name.
   assert.deepEqual(JSON.parse(writes[included].content), {
@@ -163,7 +180,6 @@ test("adds a new Gesture with metadata, mirror, licence rule and records", async
     id: "wave-hello",
     name: "Wave Hello",
   });
-  assert.equal(writes[mirror].content, writes[included].content);
   assert.deepEqual(JSON.parse(writes[metaPath].content), {
     ...existingMeta,
     content_id: "builtin:gesture:wave-hello",
@@ -193,14 +209,19 @@ test("adds a new Gesture with metadata, mirror, licence rule and records", async
       "content/included/gestures/arms-crossed/arms-crossed.json",
       included,
       metaPath,
-      mirror,
       "z.txt",
     ],
   );
   assert.deepEqual(records[1], { path: included, ...sourceReview });
+  // Only Included content is written: no frontend copy.
   assert.deepEqual(
-    JSON.parse(writes[PROMOTE_PATHS.poseCatalog].content).clips.at(-1),
-    { id: "wave-hello", source: "./json/clips/wave-hello.json" },
+    Object.keys(writes).sort(),
+    [
+      included,
+      metaPath,
+      PROMOTE_PATHS.inventory,
+      PROMOTE_PATHS.sourceReview,
+    ].sort(),
   );
   // Nothing replaced, so the pinned 1.0 samples are untouched.
   assert.equal(writes[PROMOTE_PATHS.clipSamples], undefined);
@@ -221,7 +242,7 @@ test("replaces an Included Gesture in place, keeping its identity and kind", asy
     mode: "replace",
   });
   const writes = byPath(
-    await planPromotion(parsePromoteItems([replace], itemsFile), {
+    await planPromotion(await parsePromoteItems([replace], itemsFile), {
       repo,
       compactClip,
       formatJson,
@@ -236,15 +257,14 @@ test("replaces an Included Gesture in place, keeping its identity and kind", asy
     ai_description: "New.",
     description: "Crosses both arms.",
   });
-  // The catalog already lists it; the replaced 1.0 samples are dropped.
-  assert.equal(writes[PROMOTE_PATHS.poseCatalog], undefined);
+  // The replaced 1.0 clip's pinned samples are dropped.
   assert.deepEqual(
     JSON.parse(writes[PROMOTE_PATHS.clipSamples].content).clips,
     [{ id: "meme-dab" }],
   );
-  const plan = (overrides) =>
+  const plan = async (overrides) =>
     planPromotion(
-      parsePromoteItems([{ ...replace, ...overrides }], itemsFile),
+      await parsePromoteItems([{ ...replace, ...overrides }], itemsFile),
       { repo, compactClip, formatJson, maxClipBytes },
     );
   await assert.rejects(plan({ selectorId: "arms-crossed-v2" }), /keeps it/);
@@ -266,16 +286,19 @@ test("refuses an invalid clip and plans nothing new for a repeated run", async (
   const repo = fakeRepo();
   const invalid = await clipFile("wave-hello.clip.json", { invalid: true });
   await assert.rejects(
-    planPromotion(parsePromoteItems([item({ clip: invalid })], itemsFile), {
-      repo,
-      compactClip,
-      formatJson,
-      maxClipBytes,
-    }),
+    planPromotion(
+      await parsePromoteItems([item({ clip: invalid })], itemsFile),
+      {
+        repo,
+        compactClip,
+        formatJson,
+        maxClipBytes,
+      },
+    ),
     /wave-hello: Invalid animaPoseClip\/2.0/,
   );
   const clip = await clipFile("wave-hello.clip.json", { schema: "x" });
-  const items = parsePromoteItems([item({ clip })], itemsFile);
+  const items = await parsePromoteItems([item({ clip })], itemsFile);
   for (const write of await planPromotion(items, {
     repo,
     compactClip,
@@ -286,7 +309,7 @@ test("refuses an invalid clip and plans nothing new for a repeated run", async (
   // A second run would replace, not add; as a replacement it changes nothing.
   assert.deepEqual(
     await planPromotion(
-      parsePromoteItems([item({ clip, mode: "replace" })], itemsFile),
+      await parsePromoteItems([item({ clip, mode: "replace" })], itemsFile),
       {
         repo: { ...repo, gestureSlugs: () => ["arms-crossed", "wave-hello"] },
         compactClip,

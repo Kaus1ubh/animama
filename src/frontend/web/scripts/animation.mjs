@@ -45,6 +45,19 @@ try {
           "/src/lib/avatar/poses/animaPoseClip/index.ts",
         )
       ).MAX_ANIMA_POSE_CLIP_BYTES,
+      // File paths and `library:` sources resolve exactly as in the preview.
+      resolveClip: async (spec, directory) => {
+        const { resolvePreviewSource } = await server.ssrLoadModule(
+          "/src/lib/avatar/motion-authoring/preview/sources.ts",
+        );
+        const localContent = process.env.ANIMAMA_LOCAL_CONTENT_HOST_PATH;
+        const source = await resolvePreviewSource(spec, {
+          cwd: directory,
+          included: path.resolve(webRoot, "../../../content/included"),
+          local: localContent ? path.resolve(cwd, localContent) : null,
+        });
+        return source.path;
+      },
       out,
     });
   } else {

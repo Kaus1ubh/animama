@@ -12,14 +12,19 @@ import { checkMotion } from "./checks";
 import { loadTestAvatar } from "./testing/includedAvatars";
 
 /**
- * Every committed example clip (including the evaluation Gestures) must
- * validate, save within the size limit and pass the motion checks on both
- * Included Avatars.
+ * Every Included animaPoseClip/2.0 Gesture must validate, save within the
+ * size limit and pass the motion checks on both Included Avatars.
  */
-const directory = fileURLToPath(new URL("./examples/", import.meta.url));
-const examples = readdirSync(directory).filter((file) =>
-  file.endsWith(".clip.json"),
+const directory = fileURLToPath(
+  new URL("../../../../../../../content/included/gestures/", import.meta.url),
 );
+const clips = readdirSync(directory)
+  .map((slug) => `${slug}/${slug}.json`)
+  .filter(
+    (file) =>
+      JSON.parse(readFileSync(directory + file, "utf8")).schema ===
+      "animaPoseClip/2.0",
+  );
 
 let vrm0: VRM;
 let vrm1: VRM;
@@ -28,12 +33,12 @@ beforeAll(async () => {
   vrm1 = await loadTestAvatar("AvatarSample_A_1_New");
 });
 
-describe("example clips", () => {
-  it("includes the six evaluation Gestures", () => {
-    expect(examples.length).toBeGreaterThanOrEqual(6);
+describe("Included 2.0 Gestures", () => {
+  it("covers every authored Gesture", () => {
+    expect(clips).toHaveLength(27);
   });
 
-  it.each(examples)(
+  it.each(clips)(
     "%s validates and passes the checks",
     (file) => {
       const result = validateAnimaPoseClipV2(

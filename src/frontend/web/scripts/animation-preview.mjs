@@ -12,8 +12,8 @@ import { createServer } from "vite";
  *
  * Plays a clip, project envelope or Library item on both
  * Included Avatars through the app's own Avatar playback, in the system
- * browser. The page's pickers switch to any example clip, any clip beside a
- * file source and any Library Gesture or Reaction without a restart. Serves
+ * browser. The page's pickers switch to any clip beside a file source and
+ * any Library Gesture or Reaction without a restart. Serves
  * on 127.0.0.1 only; writes only review notes and retained versions (see
  * src/lib/avatar/motion-authoring/preview/).
  */
@@ -23,10 +23,6 @@ const avatarDir = path.join(repoRoot, "content/included/avatars");
 const includedDir = path.join(repoRoot, "content/included");
 const AVATARS = ["AvatarSample_Y_0", "AvatarSample_A_1_New"];
 const PAGE = "/scripts/animation-preview/index.html";
-const EXAMPLES_DIR = path.join(
-  webRoot,
-  "src/lib/avatar/motion-authoring/examples",
-);
 const PREVIEW_MODULES = "/src/lib/avatar/motion-authoring/preview";
 const MAX_BODY_BYTES = 64 * 1024;
 
@@ -46,12 +42,14 @@ export async function startPreviewServer({
   let current;
   let origin = "";
   const roots = { cwd, included: includedDir, local: localContent ?? null };
-  // Picker folders: the examples and the folders of file sources named here.
+  // Picker folders: the folders of file sources named here (Library items
+  // are listed from the content roots).
   const choiceDirs = [
-    EXAMPLES_DIR,
-    ...sources
-      .filter((spec) => !spec.startsWith("library:"))
-      .map((spec) => path.dirname(path.resolve(cwd, spec))),
+    ...new Set(
+      sources
+        .filter((spec) => !spec.startsWith("library:"))
+        .map((spec) => path.dirname(path.resolve(cwd, spec))),
+    ),
   ];
 
   const server = await createServer({
@@ -354,9 +352,9 @@ library:<folder | selector | name>, optionally prefixed included/ or local/.
 Local items come from --local-content or the sourced stack's
 ANIMAMA_LOCAL_CONTENT_HOST_PATH.
 
-The page's Review and Compare pickers list the example clips, the clips in
-the folder of each file source named here, and the Library's Gestures and
-Reactions. Without a source, the first example plays.
+The page's Review and Compare pickers list the clips in the folder of each
+file source named here and the Library's Gestures and Reactions. Without a
+source, the first listed item plays.
 
 Review notes are saved beside a file source as <file name without .json>.review.json
 (laugh.clip.json -> laugh.clip.review.json), or in the working directory for a

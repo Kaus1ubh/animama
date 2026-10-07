@@ -32,9 +32,11 @@ first.
    that loops seamlessly (held). Choose duration, loop, which body regions lead
    and lag, facial expressions, hand shapes, contacts and layer mutes.
    Read [motion principles](references/motion-principles.md).
-2. **Write the clip** as `<name>.clip.json` in the location the owner names;
-   otherwise in `src/frontend/web/src/lib/avatar/motion-authoring/examples/`
-   on the task branch, where it stays visible for review and future edits.
+2. **Write the clip** as a draft `<name>.clip.json` in the location the owner
+   names; otherwise in `.animama-drafts/` at the repository root (ignored by
+   Git). Drafts are working files: once saved (step 6), the Library item in
+   `content/local/` is the clip, and Included content lives only in
+   `content/included/`. Do not add clip copies anywhere else in the repository.
    Look up joints and ranges with `pnpm -s animation joints` and base values
    with `pnpm -s animation base`. Read [clip format](references/clip-format.md),
    [human movement](references/human-movement.md) and
@@ -60,25 +62,28 @@ first.
    [checks and review](references/checks-and-review.md)). Never Save & Equip
    unless the owner asks.
 7. **Chat check** when mutes or expressions matter: play it on a test Anima.
-8. **Hand off** with the saved item, clip path, check summary, preview notes,
-   render sheets, the chat check and known limits.
+8. **Hand off** with the saved item, check summary, preview notes, render
+   sheets, the chat check and known limits.
 9. **Promote to Included** (never by default): only when the owner explicitly
    approves each item and its licence entries, on a task branch with a PR.
-   `pnpm -s animation promote <items.json> --dry-run`, then without
-   `--dry-run`, writes the Included Gesture, metadata, frontend mirror,
-   licence rule and source-review records. See [promote](references/promote.md).
+   Promote the saved Local item the owner reviewed (`"clip":
+   "library:local/<selector>"`): `pnpm -s animation promote <items.json>
+   --dry-run`, then without `--dry-run`, writes the Included Gesture, its
+   metadata, licence rule and source-review records. See
+   [promote](references/promote.md).
 
 **Several Gestures at once:** follow [batch mode](references/batch.md) for up
 to ten per batch: every animation's interview questions sent at once,
 parallel authoring, a consistency pass, one preview for the owner and one
 save run.
 
-**Revising a saved Gesture:** start from the Library item itself. Preview it
-with `pnpm -s animation:preview library:<selector>`, which prints its clip
-file's path. Copy that file to your working location, edit it, then validate, check
-and preview with `--compare library:<selector>` to see old and new together.
-Save it with `animation:save` under the same Selector ID (or import it in
-the creator and Save); the item keeps its identity. A 1.0
+**Revising a saved Gesture:** start from the Library item itself
+(`content/local/` or `content/included/`). Preview it with
+`pnpm -s animation:preview library:<selector>`, which prints its clip file's
+path. Copy that file to `.animama-drafts/`, edit it, then validate, check and
+preview with `--compare library:<selector>` to see old and new together.
+Save a Local Gesture with `animation:save` under the same Selector ID (or
+import it in the creator and Save); the item keeps its identity. A 1.0
 Gesture (older Included content) must first be opened and saved once in the
 creator, which converts it to 2.0; `validate` accepts only 2.0. Changing an
 Included Gesture's bytes is a promotion (step 9) with `mode: "replace"`.

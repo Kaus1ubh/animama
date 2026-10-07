@@ -12,22 +12,25 @@ import { pathToFileURL } from "node:url";
  * entries, on a task branch that goes through a PR (see the animama-animation
  * skill's "Promote to Included" step). `items.json` reuses `animation:save`'s
  * items (`clip`, `name`, `aiDescription`, `selectorId`, optional Library
- * `description`) and adds:
+ * `description`). `clip` is a file path (relative to the items file) or a
+ * Library source such as `library:local/<selector>`, resolved like
+ * `animation:preview` sources, so the saved Local item the owner reviewed is
+ * what ships. Each item adds:
  *
  * - `mode`: `"add"` for a new Included Gesture, or `"replace"` to give an
  *   existing one new bytes. A replacement keeps the original's folder, content
  *   ID, Selector ID, name and loop/one-shot kind;
  * - `slug` (optional): the Included folder and content ID suffix; defaults to
- *   the clip file name without `.clip.json`;
+ *   the clip file name without `.clip.json` (a Library item's folder name);
  * - `licence`: the `licenses/inventory.json` rule fields (`creator`,
  *   `provenance`, `license_id`, `redistribution_review`) for the item's files;
  * - `sourceReview`: the `licenses/source-review.json` record fields
  *   (`candidate_license`, `basis`, `copyright`, `review`).
  *
  * For each item it writes `content/included/gestures/<slug>/<slug>.json` and
- * `<slug>.meta.json`, a byte-identical frontend mirror under
- * `poses/json/clips/` (registered in `pose_catalog.json`), a licence rule ahead
- * of the generic `gestures/**\/*.json` rule, and source-review records. A
+ * `<slug>.meta.json` (the frontend's built-in catalog bundles these files
+ * directly), a licence rule ahead of the generic `gestures/**\/*.json` rule,
+ * and source-review records. A
  * replacement also drops the replaced 1.0 clip's pinned samples from
  * `starter-clip-samples-before-reduction.json`. `--dry-run` lists every file
  * it would write and writes nothing. New files must be `git add`ed before the
@@ -55,8 +58,6 @@ export const PROMOTE_PATHS = {
   included: "content/included",
   inventory: "content/included/licenses/inventory.json",
   sourceReview: "licenses/source-review.json",
-  mirror: "src/frontend/web/src/lib/avatar/poses/json/clips",
-  poseCatalog: "src/frontend/web/src/lib/avatar/poses/pose_catalog.json",
   clipSamples:
     "src/frontend/web/src/lib/avatar/poses/fixtures/starter-clip-samples-before-reduction.json",
 };
@@ -81,18 +82,30 @@ function requireFields(value, fields, where) {
   );
 }
 
-/** A promotion item as the tool uses it, or a thrown error naming the problem. */
-export function parsePromoteItems(value, itemsFile) {
+/**
+ * A promotion item as the tool uses it, or a thrown error naming the problem.
+ * `resolveClip(spec, directory)` returns a clip source's absolute path; by
+ * default a plain path relative to the items file.
+ */
+export async function parsePromoteItems(
+  value,
+  itemsFile,
+  resolveClip = async (spec, directory) => path.resolve(directory, spec),
+) {
   if (!Array.isArray(value) || value.length === 0)
     throw new Error(`${itemsFile}: expected a non-empty array of items.`);
   const slugs = new Set();
   const selectorIds = new Set();
-  return value.map((item, index) => {
+  const items = [];
+  for (const [index, item] of value.entries()) {
     const where = `${itemsFile} item ${index + 1}`;
-    const clip = path.resolve(
-      path.dirname(itemsFile),
-      requireText(item?.clip, `${where}: "clip"`),
-    );
+    const spec = requireText(item?.clip, `${where}: "clip"`);
+    let clip;
+    try {
+      clip = await resolveClip(spec, path.dirname(itemsFile));
+    } catch (error) {
+      throw new Error(`${where}: ${error.message}`);
+    }
     if (item.mode !== "add" && item.mode !== "replace")
       throw new Error(`${where}: "mode" must be "add" or "replace".`);
     const slug =
@@ -109,7 +122,7 @@ export function parsePromoteItems(value, itemsFile) {
       throw new Error(`${where}: Selector ID "${selectorId}" repeats.`);
     slugs.add(slug);
     selectorIds.add(selectorId);
-    return {
+    items.push({
       clip,
       slug,
       mode: item.mode,
@@ -133,8 +146,9 @@ export function parsePromoteItems(value, itemsFile) {
         SOURCE_REVIEW_FIELDS,
         `${where}: "sourceReview"`,
       ),
-    };
-  });
+    });
+  }
+  return items;
 }
 
 const jsonFile = (value) => `${JSON.stringify(value, null, 2)}\n`;
@@ -146,8 +160,7 @@ const jsonFile = (value) => `${JSON.stringify(value, null, 2)}\n`;
  * or `null`, `gestureSlugs()` lists the Included Gesture folders.
  * `compactClip(value)` validates a clip and returns `{ ok, clip, saved }` or
  * `{ ok: false, message }` (the motion CLI's `compactClipFile`).
- * `formatJson(value)` formats the clip files and `pose_catalog.json`
- * (prettier's JSON style). `maxClipBytes` is the largest clip file the app
+ * `formatJson(value)` formats the clip files (prettier's JSON style). `maxClipBytes` is the largest clip file the app
  * loads (`MAX_ANIMA_POSE_CLIP_BYTES`).
  * Returns `[{ path, action: "create" | "update", content }]` in write order.
  */
@@ -175,14 +188,12 @@ export async function planPromotion(
 
   const inventory = readJson(PROMOTE_PATHS.inventory);
   const sourceReview = readJson(PROMOTE_PATHS.sourceReview);
-  const poseCatalog = readJson(PROMOTE_PATHS.poseCatalog);
   const clipSamples = readJson(PROMOTE_PATHS.clipSamples);
 
   for (const item of items) {
     const folder = `${PROMOTE_PATHS.included}/gestures/${item.slug}`;
     const clipPath = `${folder}/${item.slug}.json`;
     const metaPath = `${folder}/${item.slug}.meta.json`;
-    const mirrorPath = `${PROMOTE_PATHS.mirror}/${item.slug}.json`;
     const original = includedMetas.get(item.slug);
     const holder = [...includedMetas].find(
       ([slug, meta]) =>
@@ -205,8 +216,8 @@ export async function planPromotion(
       name: item.name,
     });
     if (!compacted.ok) throw new Error(`${item.slug}: ${compacted.message}`);
-    // Prettier's JSON style, as for the other built-in copies (the mirror is
-    // inside the frontend's prettier:check scope); measured as written.
+    // Prettier's JSON style, as for the other Included clips; the size limit
+    // applies to the file as written.
     const clipBytes = await formatJson(JSON.parse(compacted.saved));
     const size = Buffer.byteLength(clipBytes);
     if (size > maxClipBytes)
@@ -260,8 +271,6 @@ export async function planPromotion(
     }
     put(clipPath, clipBytes);
     put(metaPath, jsonFile(meta));
-    // The built-in catalog's fallback copy must match Included byte for byte.
-    put(mirrorPath, clipBytes);
 
     // A specific rule ahead of the generic rule, which records the owner's
     // authorship attestation and does not cover agent-made clips.
@@ -277,18 +286,12 @@ export async function planPromotion(
       );
     inventory.rules.splice(generic, 0, rule);
 
-    for (const file of [clipPath, metaPath, mirrorPath]) {
+    for (const file of [clipPath, metaPath]) {
       sourceReview.files = sourceReview.files.filter(
         (entry) => entry.path !== file,
       );
       sourceReview.files.push({ path: file, ...item.sourceReview });
     }
-
-    if (!poseCatalog.clips.some((entry) => entry.id === item.slug))
-      poseCatalog.clips.push({
-        id: item.slug,
-        source: `./json/clips/${item.slug}.json`,
-      });
 
     // Pinned samples describe the replaced 1.0 clip; a 2.0 clip samples
     // against an Avatar and is pinned by its bytes instead.
@@ -302,7 +305,6 @@ export async function planPromotion(
   );
   put(PROMOTE_PATHS.inventory, jsonFile(inventory));
   put(PROMOTE_PATHS.sourceReview, jsonFile(sourceReview));
-  put(PROMOTE_PATHS.poseCatalog, await formatJson(poseCatalog));
   put(PROMOTE_PATHS.clipSamples, jsonFile(clipSamples));
 
   return [...writes]
@@ -340,19 +342,21 @@ const USAGE = `Usage: pnpm -s animation promote <items.json> [--dry-run]
 
 Promote owner-approved 2.0 Gestures to Included content. Run only with the
 owner's explicit approval of each item and its licence entries, on a task
-branch and PR. Each item: { "clip", "name", "aiDescription", "selectorId",
+branch and PR. "clip" is a file or a Library source (library:local/<selector>;
+Local items come from the sourced stack's ANIMAMA_LOCAL_CONTENT_HOST_PATH).
+Each item: { "clip", "name", "aiDescription", "selectorId",
 "description"?, "mode": "add" | "replace", "slug"?, "licence": { creator, provenance,
 license_id, redistribution_review }, "sourceReview": { candidate_license,
 basis, copyright, review } }. --dry-run lists the files it would write.`;
 
 /**
- * Run the promotion. `compactClip` and `maxClipBytes` come from the motion
- * CLI's modules, loaded by
- * `animation.mjs` through Vite. Returns the process exit code.
+ * Run the promotion. `compactClip`, `maxClipBytes` and `resolveClip` come from
+ * the motion CLI's modules, loaded by `animation.mjs` through Vite. Returns the
+ * process exit code.
  */
 export async function runPromote(
   argv,
-  { repoRoot, cwd, compactClip, maxClipBytes, out },
+  { repoRoot, cwd, compactClip, maxClipBytes, resolveClip, out },
 ) {
   const dryRun = argv.includes("--dry-run");
   const positional = argv.filter((value) => value !== "--dry-run");
@@ -370,9 +374,10 @@ export async function runPromote(
   );
   let writes;
   try {
-    const items = parsePromoteItems(
+    const items = await parsePromoteItems(
       JSON.parse(await readFile(itemsFile, "utf8")),
       itemsFile,
+      resolveClip,
     );
     writes = await planPromotion(items, {
       repo: workingTreeRepo(repoRoot, fs),
