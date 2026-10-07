@@ -1619,6 +1619,19 @@ Outcomes & Retrospective).
   crash, the gap matches the existing 1.0 string checks, and no authored or
   Included content contains them; a shared fixture is a follow-up.
 
+### Final Integration Review #2 Findings
+
+`sdlc-reviewer`, targeted recheck of `23ddce35`: **pass**. The retime sweep
+over all 27 examples (14,348 retimes) and `deleteBeat` give no invalid clip;
+unchanged clips round-trip exactly; the arms-crossed and thinking-chin-rest
+store scenarios stay saveable; the fade conversion and doc edits are right.
+Non-blocking, left as follow-ups: a drag back and forth can shrink a contact
+window for good (contacts only drive the checks; undo restores it; clamping
+only on save would avoid it); shortening a clip whose end beat is not a Base
+beat still reports beats and keys outside the clip, as before.
+
+Repair budget used for the final scope: one of two rounds.
+
 ## Validation and acceptance
 
 - Per-phase checks as listed. Before pushing a CI-triggering candidate, run the
