@@ -106,7 +106,7 @@ prototype.
 - [x] Phase 6: Wave 1 content (authored, checked, saved; G4 run). Gate G3 pending.
 - [ ] After G1: revise the #267 weaknesses (A_1 chin fist in thinking-chin-rest
       and storytelling's Think beat, A_1 nod energy, Y_0 clap contact).
-- [ ] Phase 7: Replacements and wave 2. Gate G3.
+- [x] Phase 7: Replacements and wave 2 (authored, checked, saved; review passed). Gate G3 and the replacements' Selector IDs pending; promotion in #310.
 - [ ] Final integration review and PR.
 
 ## Surprises & Discoveries
@@ -1566,6 +1566,15 @@ strokes and the hands-on-hips gap.
   notes stay for the owner.
 - Evidence: `check` per item (pout-huff now lists two speed warnings);
   example test passes (28); the Local copies equal their sources.
+
+#### Code Review #3 Findings (Phase 7)
+
+`sdlc-reviewer`, final targeted recheck of `2be9cceb` (repair round 2):
+**pass**. With the contacts removed neither crossed-arm item intersects on
+either Avatar; the right wrist stays 4.8–7.3 cm from the left forearm axis
+through every probed frame; the contacts are reached; the warning list and
+Local copies match. G3 note: in pout-huff on Y_0 the right wrist rests at or
+just past the left wrist joint.
 
 ## Final integration review
 
