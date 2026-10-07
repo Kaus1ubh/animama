@@ -467,7 +467,7 @@ export function CreateAnimaAvatarPreviewScene({ file }: { file: File }) {
                           variant="ghost"
                           onClick={handleClearAllExpressionOverrides}
                           disabled={!isAvatarReady}
-                          className="h-6 px-1.5 text-[10px]"
+                          className="h-6 px-1.5 text-2xs"
                         >
                           Clear all
                         </Button>
@@ -496,13 +496,13 @@ export function CreateAnimaAvatarPreviewScene({ file }: { file: File }) {
                             >
                               <div className="mb-2 flex items-center justify-between gap-2">
                                 <span
-                                  className="min-w-0 truncate font-mono text-[11px]"
+                                  className="min-w-0 truncate font-mono text-2xs"
                                   title={expressionName}
                                 >
                                   {expressionName}
                                 </span>
                                 <div className="flex items-center gap-2">
-                                  <span className="text-muted-foreground font-mono text-[10px]">
+                                  <span className="text-muted-foreground font-mono text-2xs">
                                     {formatAvatarExpressionValue(currentValue)}
                                   </span>
                                   <Button
@@ -515,7 +515,7 @@ export function CreateAnimaAvatarPreviewScene({ file }: { file: File }) {
                                       )
                                     }
                                     disabled={!hasOverride}
-                                    className="h-6 px-1.5 text-[10px]"
+                                    className="h-6 px-1.5 text-2xs"
                                   >
                                     Clear
                                   </Button>

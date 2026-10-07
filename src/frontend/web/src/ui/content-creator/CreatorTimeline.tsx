@@ -129,7 +129,7 @@ export function CreatorTimelineRuler({
             <span className="bg-border/80 h-2 w-px" />
             <span
               className={cn(
-                "text-muted-foreground text-[10px] leading-none",
+                "text-muted-foreground text-2xs leading-none",
                 hideTick?.(durationSec * ratio) && "invisible",
               )}
             >
@@ -165,7 +165,7 @@ export function CreatorTimelineLane({
   children?: ReactNode;
 }) {
   const labelClassName =
-    "bg-background text-muted-foreground sticky left-0 z-30 flex h-full items-center px-2 text-[10px] font-medium tracking-normal uppercase backdrop-blur-sm";
+    "bg-background text-muted-foreground sticky left-0 z-30 flex h-full items-center px-2 text-2xs font-medium tracking-normal uppercase backdrop-blur-sm";
   return (
     <div
       className={cn(
@@ -234,7 +234,7 @@ export function CreatorTimelinePlayhead({
       {!hideLabel && !repeatsTick ? (
         <span
           className={cn(
-            "text-foreground absolute -top-7 text-[11px] font-medium tabular-nums",
+            "text-foreground absolute -top-7 text-2xs font-medium tabular-nums",
             percent > 95 ? "right-0" : "left-1/2 -translate-x-1/2",
           )}
           aria-label="Current playhead time"

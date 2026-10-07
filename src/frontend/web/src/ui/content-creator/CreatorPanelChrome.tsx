@@ -83,7 +83,7 @@ export function CreatorCollapsedPanelHeader({
       <div className="min-w-0 flex-1">
         <h2 className="truncate text-sm font-semibold">{label}</h2>
         {summary ? (
-          <p className="text-muted-foreground truncate text-[11px]">
+          <p className="text-muted-foreground truncate text-2xs">
             {summary}
           </p>
         ) : null}

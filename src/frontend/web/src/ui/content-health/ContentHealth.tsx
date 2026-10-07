@@ -47,7 +47,7 @@ export function ContentHealth({
           aria-label={label}
           title={label}
           className={cn(
-            "text-amber-600 dark:text-amber-400",
+            "text-warning",
             compact && "size-6",
             className,
           )}

@@ -201,7 +201,7 @@ function ApprovalCard({
           className={cn(
             "rounded-full px-3 py-1 text-xs font-medium",
             approval.status === "approved" &&
-              "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+              "bg-success/10 text-success",
             approval.status === "rejected" &&
               "bg-rose-500/10 text-rose-700 dark:text-rose-300",
             pending && "bg-muted text-muted-foreground",
@@ -410,7 +410,7 @@ export function MemoryManagerChatPanel({
               className={cn(
                 "mb-4 rounded-lg border p-4 text-sm",
                 processingStatus.state === "processed"
-                  ? "border-emerald-500/30 bg-emerald-500/5 text-emerald-800 dark:text-emerald-200"
+                  ? "border-success/30 bg-success/5 text-success"
                   : processingStatus.state === "failed"
                     ? "border-destructive/30 bg-destructive/5 text-destructive"
                     : "border-primary/25 bg-primary/5 text-foreground",

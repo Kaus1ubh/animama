@@ -113,17 +113,17 @@ export function MemoryWorkspacePreview({
         </div>
         <div className="mt-2 flex flex-wrap gap-2">
           {generated ? (
-            <span className="inline-flex items-center gap-1 rounded-sm bg-sky-500/10 px-2 py-1 text-[11px] font-medium text-sky-700 dark:text-sky-300">
+            <span className="inline-flex items-center gap-1 rounded-sm bg-info/10 px-2 py-1 text-2xs font-medium text-info">
               <Sparkles className="size-3" /> Generated
             </span>
           ) : null}
           {generated ? (
-            <span className="bg-muted text-muted-foreground inline-flex items-center gap-1 rounded-sm px-2 py-1 text-[11px] font-medium">
+            <span className="bg-muted text-muted-foreground inline-flex items-center gap-1 rounded-sm px-2 py-1 text-2xs font-medium">
               <LockKeyhole className="size-3" /> Read only
             </span>
           ) : null}
           {hasUnsavedDraft ? (
-            <span className="rounded-sm bg-amber-500/10 px-2 py-1 text-[11px] font-medium text-amber-700 dark:text-amber-300">
+            <span className="rounded-sm bg-warning/10 px-2 py-1 text-2xs font-medium text-warning">
               {unsavedLabel}
             </span>
           ) : null}

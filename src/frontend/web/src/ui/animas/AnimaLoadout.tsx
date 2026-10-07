@@ -430,7 +430,7 @@ export function AnimaLoadout({
     <div className="space-y-8 pt-5 md:pt-6">
       <h1 className="text-2xl font-semibold">Loadout</h1>
       {loadout.warnings?.length ? (
-        <div className="rounded-lg border border-amber-500/35 p-3 text-sm">
+        <div className="rounded-lg border border-warning/35 p-3 text-sm">
           {loadout.warnings.map((warning) => (
             <p key={`${warning.code}:${warning.message}`}>{warning.message}</p>
           ))}
@@ -581,7 +581,7 @@ export function AnimaLoadout({
               {(reviewed.plan.warnings ?? []).map((warning) => (
                 <p
                   key={warning.code}
-                  className="text-amber-700 dark:text-amber-300"
+                  className="text-warning"
                 >
                   {warning.message}
                 </p>

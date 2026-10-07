@@ -1090,7 +1090,7 @@ export function MemoryLibraryPage({
           {deletionDirtyDraftCount > 0 ? (
             <div
               role="alert"
-              className="flex gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-800 dark:text-amber-200"
+              className="flex gap-2 rounded-md border border-warning/30 bg-warning/10 p-3 text-sm text-warning"
             >
               <AlertTriangle className="mt-0.5 size-4 shrink-0" />
               <span>

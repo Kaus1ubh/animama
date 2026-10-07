@@ -83,6 +83,7 @@ import {
   AppearanceColorSetting,
   ResetColorsSetting,
   AppearanceModeSetting,
+  FontPreviewSetting,
 } from "@/ui/settings/AppearanceSettings";
 import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
 import {
@@ -1260,6 +1261,14 @@ export function ApplicationSettingsModal({
       keywords: ["theme", "mode", "dark", "light", "system", "dark mode"],
       render: () => <AppearanceModeSetting />,
     },
+    {
+      id: "appearance-font-preview",
+      section: "Appearance",
+      group: "Theme",
+      label: "Typeface preview",
+      keywords: ["font", "typeface", "text", "weight", "typography"],
+      render: () => <FontPreviewSetting />,
+    },
     ...APPEARANCE_COLOR_TOKENS.filter((token) => token.group === "basic").map(
       (token): SettingEntry => ({
         id: `appearance-${token.key}`,
@@ -1386,7 +1395,7 @@ export function ApplicationSettingsModal({
           }
         >
           {currentSttOption?.reason ? (
-            <p className="text-xs text-amber-600 dark:text-amber-500">
+            <p className="text-xs text-warning">
               {currentSttOption.reason}
             </p>
           ) : null}
@@ -1498,7 +1507,7 @@ export function ApplicationSettingsModal({
           }
         >
           {currentTtsOption?.reason && ttsEnabled ? (
-            <p className="text-xs text-amber-600 dark:text-amber-500">
+            <p className="text-xs text-warning">
               {currentTtsOption.reason}
             </p>
           ) : null}

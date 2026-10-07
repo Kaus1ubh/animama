@@ -95,7 +95,7 @@ function NumericInput({
       aria-label={ariaLabel}
       className={cn(
         "h-8 px-2 text-right font-mono text-xs tabular-nums",
-        compact && "h-6 px-1 text-[10px]",
+        compact && "h-6 px-1 text-2xs",
       )}
       inputMode="decimal"
       type="text"
@@ -155,7 +155,7 @@ function AxisControl({
         compact && "grid-cols-[0.65rem_minmax(0,1fr)_3rem] gap-1",
       )}
     >
-      <FieldLabel className="text-muted-foreground text-[11px] font-semibold uppercase">
+      <FieldLabel className="text-muted-foreground text-2xs font-semibold uppercase">
         {axis}
       </FieldLabel>
       <Slider
@@ -268,7 +268,7 @@ export function TransformPanel({
               <Field orientation="horizontal">
                 <div className="space-y-0.5">
                   <FieldLabel className="text-xs">Uniform Scale</FieldLabel>
-                  <p className="text-muted-foreground text-[11px]">
+                  <p className="text-muted-foreground text-2xs">
                     Edit all axes together.
                   </p>
                 </div>

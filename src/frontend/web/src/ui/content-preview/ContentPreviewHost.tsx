@@ -837,11 +837,11 @@ export function ContentPreviewHost() {
 
           {missingDependencies.length > 0 ? (
             <aside
-              className="flex max-h-40 shrink-0 gap-2 overflow-y-auto border-t border-amber-500/35 bg-amber-500/10 p-3 text-xs"
+              className="flex max-h-40 shrink-0 gap-2 overflow-y-auto border-t border-warning/35 bg-warning/10 p-3 text-xs"
               aria-label="Content preview dependency warning"
             >
               <AlertTriangle
-                className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400"
+                className="mt-0.5 size-4 shrink-0 text-warning"
                 aria-hidden="true"
               />
               <div className="min-w-0 flex-1">

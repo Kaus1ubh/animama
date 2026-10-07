@@ -204,12 +204,12 @@ function SavedDraftRow({
               {draft.name}
             </p>
             {isCurrent ? (
-              <span className="bg-primary/10 text-primary rounded px-1.5 py-0.5 text-[10px]">
+              <span className="bg-primary/10 text-primary rounded px-1.5 py-0.5 text-2xs">
                 Current
               </span>
             ) : null}
           </div>
-          <p className="text-muted-foreground mt-0.5 text-[10px]">
+          <p className="text-muted-foreground mt-0.5 text-2xs">
             {draft.source === "included" ? "Included" : "Local"}
           </p>
         </div>
@@ -760,7 +760,7 @@ export function PoseCreatorLibrarySection({
               }
             }}
           >
-            <span className="text-muted-foreground ml-1 inline-flex shrink-0 items-center gap-1 text-[10px] font-medium">
+            <span className="text-muted-foreground ml-1 inline-flex shrink-0 items-center gap-1 text-2xs font-medium">
               <PencilIcon className="size-3" />
               Name&nbsp;&nbsp;&nbsp;&nbsp;
             </span>
@@ -781,7 +781,7 @@ export function PoseCreatorLibrarySection({
                 <span
                   className={cn(
                     "size-2 rounded-full",
-                    isSaved ? "bg-emerald-500" : "bg-primary",
+                    isSaved ? "bg-success" : "bg-primary",
                   )}
                 />
               </span>
@@ -972,7 +972,7 @@ export function PoseCreatorLibrarySection({
               </Button>
               <div className="flex items-center gap-3">
                 <span className="bg-border h-px flex-1" />
-                <span className="text-muted-foreground text-[11px] uppercase">
+                <span className="text-muted-foreground text-2xs uppercase">
                   or paste JSON
                 </span>
                 <span className="bg-border h-px flex-1" />
@@ -1189,7 +1189,7 @@ export function PoseCreatorLibrarySection({
           <span className="text-muted-foreground text-xs font-medium">
             Poses
           </span>
-          <span className="text-muted-foreground text-[10px]">
+          <span className="text-muted-foreground text-2xs">
             Included / Local
           </span>
         </div>

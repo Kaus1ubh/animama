@@ -1,3 +1,4 @@
+import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath, URL } from "node:url";
 import { defineConfig } from "vite";
@@ -69,6 +70,23 @@ const parakeetModels = {
 // The GPU set's reviewed attribution is bundled for the settings panel.
 const parakeetWebgpuNoticesRoot = fileURLToPath(
   new URL("../../../models/parakeet-tdt-0.6b-v2-webgpu", import.meta.url),
+);
+// Self-hosted typefaces resolve into the workspace package store, outside the
+// web root; allow only their package directories so dev can serve the files.
+// The candidates beyond Nunito belong to the temporary font preview (#320).
+const requireFromWeb = createRequire(import.meta.url);
+const fontPackageRoots = [
+  "nunito",
+  "figtree",
+  "plus-jakarta-sans",
+  "outfit",
+  "dm-sans",
+  "geist",
+  "onest",
+].map((name) =>
+  path.dirname(
+    requireFromWeb.resolve(`@fontsource-variable/${name}/package.json`),
+  ),
 );
 const rechartsEsToolkitCompat = fileURLToPath(
   new URL("./src/lib/recharts/es-toolkit-compat", import.meta.url),
@@ -267,6 +285,7 @@ export default defineConfig(({ mode, command, isPreview }) => {
           publicPackagesRoot,
           safetyDocsRoot,
           parakeetWebgpuNoticesRoot,
+          ...fontPackageRoots,
         ],
       },
     },

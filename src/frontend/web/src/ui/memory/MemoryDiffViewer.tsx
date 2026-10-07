@@ -22,13 +22,13 @@ type ParsedDiffLine = ReturnType<typeof parseUnifiedDiff>[number];
 
 function diffLineClassName(kind: ParsedDiffLine["kind"]) {
   if (kind === "add") {
-    return "border-emerald-500/30 bg-emerald-500/10 text-emerald-900 dark:text-emerald-100";
+    return "border-success/30 bg-success/10 text-success";
   }
   if (kind === "remove") {
     return "border-rose-500/30 bg-rose-500/10 text-rose-900 dark:text-rose-100";
   }
   if (kind === "hunk") {
-    return "border-sky-500/30 bg-sky-500/10 text-sky-900 dark:text-sky-100";
+    return "border-info/30 bg-info/10 text-info";
   }
   if (kind === "file") {
     return "border-border bg-muted/50 text-muted-foreground";
@@ -125,7 +125,7 @@ function DescriptionValue({
 }) {
   return (
     <div className="border-border/70 bg-muted/20 min-w-0 rounded-md border px-3 py-2">
-      <div className="text-muted-foreground mb-1 text-[11px] font-medium tracking-wide uppercase">
+      <div className="text-muted-foreground mb-1 text-2xs font-medium tracking-wide uppercase">
         {label}
       </div>
       <p

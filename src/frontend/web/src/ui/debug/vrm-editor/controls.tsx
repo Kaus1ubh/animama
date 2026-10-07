@@ -44,7 +44,7 @@ export function KeyValueGrid({
           key={row.label}
           className="border-border/60 bg-background/70 rounded-lg border p-3"
         >
-          <p className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+          <p className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
             {row.label}
           </p>
           <div className="text-foreground mt-1 min-w-0 text-sm break-words">
@@ -105,7 +105,7 @@ export function HeaderCell({
   return (
     <th
       className={cn(
-        "bg-muted/40 text-muted-foreground px-3 py-2 text-[11px] font-semibold tracking-wide uppercase",
+        "bg-muted/40 text-muted-foreground px-3 py-2 text-2xs font-semibold tracking-wide uppercase",
         className,
       )}
       scope="col"

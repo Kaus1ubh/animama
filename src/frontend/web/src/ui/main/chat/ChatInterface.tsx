@@ -331,7 +331,7 @@ export function ChatInterfaceView({
               >
                 <span
                   aria-hidden="true"
-                  className="size-1.5 shrink-0 rounded-full bg-amber-500/80"
+                  className="size-1.5 shrink-0 rounded-full bg-warning/80"
                 />
                 {contentWarning.message}
               </p>

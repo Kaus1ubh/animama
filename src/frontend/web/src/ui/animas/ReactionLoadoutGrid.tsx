@@ -89,7 +89,7 @@ export function ReactionChoice({
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="truncate">{reaction.name}</span>
         {suggestion ? (
-          <span className="text-muted-foreground truncate text-[11px] capitalize">
+          <span className="text-muted-foreground truncate text-2xs capitalize">
             {suggestion}
           </span>
         ) : null}

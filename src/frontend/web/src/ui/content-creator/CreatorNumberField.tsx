@@ -39,7 +39,7 @@ export function CreatorNumberField({
       label={label}
       htmlFor={id}
       className={className}
-      labelClassName={cn(compact && "text-[11px]")}
+      labelClassName={cn(compact && "text-2xs")}
     >
       <Input
         className={cn("h-8 text-xs", compact && "px-2")}

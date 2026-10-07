@@ -41,7 +41,7 @@ export function LandmarkEyeCard({
       <p className="text-foreground text-sm font-semibold">{label}</p>
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
         <div>
-          <p className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+          <p className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
             Binding
           </p>
           <p className="text-foreground mt-1 font-mono text-xs break-all">
@@ -52,13 +52,13 @@ export function LandmarkEyeCard({
           </p>
         </div>
         <div>
-          <p className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+          <p className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
             Center Local
           </p>
           <p className="text-foreground mt-1 font-mono text-xs">
             {formatVector3(eye.centerLocal)}
           </p>
-          <p className="text-muted-foreground mt-2 text-[11px] font-medium tracking-wide uppercase">
+          <p className="text-muted-foreground mt-2 text-2xs font-medium tracking-wide uppercase">
             Projected Front
           </p>
           <p className="text-foreground mt-1 font-mono text-xs">
@@ -66,13 +66,13 @@ export function LandmarkEyeCard({
           </p>
         </div>
         <div>
-          <p className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+          <p className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
             Box Coord
           </p>
           <p className="text-foreground mt-1 font-mono text-xs">
             {formatBoxCoord(eye.normalizedBoxCoord)}
           </p>
-          <p className="text-muted-foreground mt-2 text-[11px] font-medium tracking-wide uppercase">
+          <p className="text-muted-foreground mt-2 text-2xs font-medium tracking-wide uppercase">
             Projected Box Coord
           </p>
           <p className="text-foreground mt-1 font-mono text-xs">
@@ -80,13 +80,13 @@ export function LandmarkEyeCard({
           </p>
         </div>
         <div>
-          <p className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+          <p className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
             Island Bounds Size
           </p>
           <p className="text-foreground mt-1 font-mono text-xs">
             {formatVector3(eye.boundsLocal.size)}
           </p>
-          <p className="text-muted-foreground mt-2 text-[11px] font-medium tracking-wide uppercase">
+          <p className="text-muted-foreground mt-2 text-2xs font-medium tracking-wide uppercase">
             Bounds Center
           </p>
           <p className="text-foreground mt-1 font-mono text-xs">
@@ -121,14 +121,14 @@ export function TextureAnchorCard({
       <p className="text-foreground text-sm font-semibold">{label}</p>
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
         <div>
-          <p className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+          <p className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
             Source
           </p>
           <p className="text-foreground mt-1 text-xs">
             {anchor.source}
             {anchor.side ? ` • ${anchor.side}` : ""}
           </p>
-          <p className="text-muted-foreground mt-2 text-[11px] font-medium tracking-wide uppercase">
+          <p className="text-muted-foreground mt-2 text-2xs font-medium tracking-wide uppercase">
             UV
           </p>
           <p className="text-foreground mt-1 font-mono text-xs">
@@ -136,13 +136,13 @@ export function TextureAnchorCard({
           </p>
         </div>
         <div>
-          <p className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+          <p className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
             Local Point
           </p>
           <p className="text-foreground mt-1 font-mono text-xs">
             {formatVector3(anchor.localPoint)}
           </p>
-          <p className="text-muted-foreground mt-2 text-[11px] font-medium tracking-wide uppercase">
+          <p className="text-muted-foreground mt-2 text-2xs font-medium tracking-wide uppercase">
             Ref Size UV
           </p>
           <p className="text-foreground mt-1 font-mono text-xs">
@@ -442,7 +442,7 @@ export function FaceTextureAnchorUvPreview({
                   }}
                 />
                 <div
-                  className="bg-background/90 absolute -translate-x-1/2 rounded px-1.5 py-0.5 font-mono text-[10px] font-medium shadow-sm"
+                  className="bg-background/90 absolute -translate-x-1/2 rounded px-1.5 py-0.5 font-mono text-2xs font-medium shadow-sm"
                   style={{
                     left: `${anchor.uv.u * 100}%`,
                     top: `calc(${anchor.uv.v * 100}% + 10px)`,
@@ -481,7 +481,7 @@ export function FaceTextureAnchorUvPreview({
                   }}
                 />
                 <div
-                  className="bg-background/90 absolute -translate-x-1/2 rounded px-1.5 py-0.5 font-mono text-[10px] font-medium shadow-sm"
+                  className="bg-background/90 absolute -translate-x-1/2 rounded px-1.5 py-0.5 font-mono text-2xs font-medium shadow-sm"
                   style={{
                     left: `${item.region.uv.u * 100}%`,
                     top: `calc(${(rectTop + item.region.referenceSizeUv.height) * 100}% + 8px)`,
@@ -505,7 +505,7 @@ export function FaceTextureAnchorUvPreview({
               className="h-2.5 w-2.5 rounded-full"
               style={{ backgroundColor: item.color }}
             />
-            <span className="text-foreground text-[11px] font-medium">
+            <span className="text-foreground text-2xs font-medium">
               {item.label}
             </span>
           </div>
@@ -522,7 +522,7 @@ export function FaceTextureAnchorUvPreview({
               )}
               style={{ backgroundColor: item.color }}
             />
-            <span className="text-foreground text-[11px] font-medium">
+            <span className="text-foreground text-2xs font-medium">
               {item.label}
               {item.isActive ? " • active" : ""}
             </span>
