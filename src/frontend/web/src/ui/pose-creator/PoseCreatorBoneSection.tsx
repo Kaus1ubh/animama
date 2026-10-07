@@ -181,7 +181,7 @@ function BoneTreeRow({
       <div
         className={cn(
           variant === "panel"
-            ? "grid grid-cols-[1.5rem_minmax(0,1fr)_5rem] items-stretch gap-1 border-b text-2xs last:border-b-0"
+            ? "text-2xs grid grid-cols-[1.5rem_minmax(0,1fr)_5rem] items-stretch gap-1 border-b last:border-b-0"
             : "grid grid-cols-[1.25rem_minmax(0,1fr)] items-center gap-1 rounded-lg text-xs",
           node.available
             ? "hover:bg-muted/70"
@@ -557,7 +557,7 @@ export function PoseCreatorBoneSection({
         <div className="mb-3 flex items-center justify-between gap-3">
           <div>
             <h2 className="text-sm font-semibold">Bones</h2>
-            <p className="text-muted-foreground mt-0.5 text-2xs">
+            <p className="text-muted-foreground text-2xs mt-0.5">
               {availableBoneCount} available
             </p>
           </div>
@@ -830,7 +830,7 @@ export function PoseCreatorBoneSection({
                           className="h-7 w-full [appearance:textfield] border-0 bg-transparent pr-3 pl-0 text-right font-mono text-xs tabular-nums shadow-none focus-visible:ring-0 dark:bg-transparent [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                           aria-label={`${label} rotation degrees`}
                         />
-                        <span className="text-muted-foreground pointer-events-none absolute top-1/2 right-0 -translate-y-1/2 text-2xs">
+                        <span className="text-muted-foreground text-2xs pointer-events-none absolute top-1/2 right-0 -translate-y-1/2">
                           °
                         </span>
                       </div>
@@ -916,7 +916,7 @@ export function PoseCreatorBoneSection({
           <span className="text-muted-foreground text-xs font-medium">
             Bones
           </span>
-          <span className="text-muted-foreground font-mono text-2xs">
+          <span className="text-muted-foreground text-2xs font-mono">
             X / Y / Z
           </span>
         </div>
@@ -1045,7 +1045,7 @@ export function PoseCreatorBoneSection({
                   type="button"
                   size="sm"
                   variant="ghost"
-                  className="h-5 px-1.5 text-2xs"
+                  className="text-2xs h-5 px-1.5"
                   onClick={() => handleResetAxis(axis)}
                   disabled={!selectedDraft}
                 >

@@ -247,7 +247,7 @@ function ActionModeControl({
         >
           <span
             aria-hidden="true"
-            className="flex size-5 shrink-0 items-center justify-center rounded-full border-2 border-current text-2xs leading-none font-extrabold"
+            className="text-2xs flex size-5 shrink-0 items-center justify-center rounded-full border-2 border-current leading-none font-extrabold"
           >
             1
           </span>
@@ -259,7 +259,7 @@ function ActionModeControl({
         >
           <span
             aria-hidden="true"
-            className="flex size-5 shrink-0 items-center justify-center rounded-full border-2 border-current text-2xs leading-none font-extrabold"
+            className="text-2xs flex size-5 shrink-0 items-center justify-center rounded-full border-2 border-current leading-none font-extrabold"
           >
             2
           </span>
@@ -494,7 +494,7 @@ function ActionDocumentField({ status }: { status: ActionHeaderStatus }) {
           >
             <span
               className={cn(
-                "text-muted-foreground ml-1 inline-flex shrink-0 items-center gap-1 text-2xs font-medium",
+                "text-muted-foreground text-2xs ml-1 inline-flex shrink-0 items-center gap-1 font-medium",
                 nameInvalid && "text-destructive",
               )}
             >
@@ -536,7 +536,7 @@ function ActionDocumentField({ status }: { status: ActionHeaderStatus }) {
                 <TooltipTrigger asChild>
                   <span
                     className={cn(
-                      "text-muted-foreground ml-1 inline-flex shrink-0 items-center gap-1 text-2xs font-medium",
+                      "text-muted-foreground text-2xs ml-1 inline-flex shrink-0 items-center gap-1 font-medium",
                       aiDescriptionInvalid && "text-destructive",
                     )}
                     aria-label="AI selection guidance"
@@ -797,7 +797,7 @@ function ActionLoadGroup({
 }) {
   return (
     <section>
-      <p className="text-muted-foreground mb-1 px-2 text-2xs font-semibold tracking-[0.14em] uppercase">
+      <p className="text-muted-foreground text-2xs mb-1 px-2 font-semibold tracking-[0.14em] uppercase">
         {label}
       </p>
       <div className="space-y-1">
@@ -815,7 +815,7 @@ function ActionLoadGroup({
             ) : null}
             <span className="min-w-0">
               <span className="block truncate text-sm">{item.name}</span>
-              <span className="text-muted-foreground block text-2xs">
+              <span className="text-muted-foreground text-2xs block">
                 {detail}
               </span>
             </span>

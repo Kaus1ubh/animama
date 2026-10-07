@@ -159,7 +159,7 @@ function AvailableUvPreview({
           />
         ) : null}
         <div
-          className="text-muted-foreground flex flex-wrap gap-x-3 gap-y-1 text-2xs"
+          className="text-muted-foreground text-2xs flex flex-wrap gap-x-3 gap-y-1"
           aria-label="UV guide legend"
         >
           <span>

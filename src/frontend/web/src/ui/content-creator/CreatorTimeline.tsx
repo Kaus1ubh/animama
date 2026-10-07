@@ -234,7 +234,7 @@ export function CreatorTimelinePlayhead({
       {!hideLabel && !repeatsTick ? (
         <span
           className={cn(
-            "text-foreground absolute -top-7 text-2xs font-medium tabular-nums",
+            "text-foreground text-2xs absolute -top-7 font-medium tabular-nums",
             percent > 95 ? "right-0" : "left-1/2 -translate-x-1/2",
           )}
           aria-label="Current playhead time"

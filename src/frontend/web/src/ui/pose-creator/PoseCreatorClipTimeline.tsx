@@ -705,7 +705,7 @@ export function PoseCreatorClipTimeline({
                     <span
                       aria-label="Drop time"
                       className={cn(
-                        "text-foreground absolute top-1 text-2xs font-semibold whitespace-nowrap tabular-nums",
+                        "text-foreground text-2xs absolute top-1 font-semibold whitespace-nowrap tabular-nums",
                         dropPercent > 80
                           ? "right-0"
                           : dropPercent < 20
@@ -806,7 +806,7 @@ function KeyframeMarker({
           className="bg-primary pointer-events-none absolute top-1/2 left-1/2 size-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full"
         />
       ) : null}
-      <span className="text-muted-foreground pointer-events-none absolute top-4 left-1/2 w-28 -translate-x-1/2 -rotate-45 truncate text-center text-2xs">
+      <span className="text-muted-foreground text-2xs pointer-events-none absolute top-4 left-1/2 w-28 -translate-x-1/2 -rotate-45 truncate text-center">
         {label}
       </span>
     </button>
@@ -863,7 +863,7 @@ function EventMarker({
         mobile && "min-h-5 min-w-5",
         hasDuration
           ? cn(
-              "h-5 min-w-2 translate-x-0 overflow-hidden rounded border px-1 text-left text-2xs",
+              "text-2xs h-5 min-w-2 translate-x-0 overflow-hidden rounded border px-1 text-left",
               getEventBarClassName(event.kind),
               untilAction && "border-r-dashed border-r-2",
             )

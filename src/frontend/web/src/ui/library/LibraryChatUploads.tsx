@@ -23,12 +23,10 @@ import { LibraryFilterMenu } from "@/ui/library/LibraryFilterMenu";
 const UPLOAD_SEARCH_DEBOUNCE_MS = 300;
 
 const STATUS_STYLES: Record<LibraryUploadStatusTone, string> = {
-  active:
-    "border-warning/30 bg-warning/10 text-warning",
+  active: "border-warning/30 bg-warning/10 text-warning",
   destructive: "border-destructive/30 bg-destructive/10 text-destructive",
   muted: "border-border bg-muted/40 text-muted-foreground",
-  success:
-    "border-success/30 bg-success/10 text-success",
+  success: "border-success/30 bg-success/10 text-success",
   warning: "border-info/30 bg-info/10 text-info",
 };
 

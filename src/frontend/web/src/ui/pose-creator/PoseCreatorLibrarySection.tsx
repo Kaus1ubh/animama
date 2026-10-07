@@ -204,12 +204,12 @@ function SavedDraftRow({
               {draft.name}
             </p>
             {isCurrent ? (
-              <span className="bg-primary/10 text-primary rounded px-1.5 py-0.5 text-2xs">
+              <span className="bg-primary/10 text-primary text-2xs rounded px-1.5 py-0.5">
                 Current
               </span>
             ) : null}
           </div>
-          <p className="text-muted-foreground mt-0.5 text-2xs">
+          <p className="text-muted-foreground text-2xs mt-0.5">
             {draft.source === "included" ? "Included" : "Local"}
           </p>
         </div>
@@ -760,7 +760,7 @@ export function PoseCreatorLibrarySection({
               }
             }}
           >
-            <span className="text-muted-foreground ml-1 inline-flex shrink-0 items-center gap-1 text-2xs font-medium">
+            <span className="text-muted-foreground text-2xs ml-1 inline-flex shrink-0 items-center gap-1 font-medium">
               <PencilIcon className="size-3" />
               Name&nbsp;&nbsp;&nbsp;&nbsp;
             </span>

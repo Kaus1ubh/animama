@@ -40,7 +40,7 @@ export function CreatorFloatingPanel({
                 {title}
               </h2>
               {summary ? (
-                <p className="text-muted-foreground truncate text-2xs">
+                <p className="text-muted-foreground text-2xs truncate">
                   {summary}
                 </p>
               ) : null}

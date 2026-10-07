@@ -200,8 +200,7 @@ function ApprovalCard({
         <span
           className={cn(
             "rounded-full px-3 py-1 text-xs font-medium",
-            approval.status === "approved" &&
-              "bg-success/10 text-success",
+            approval.status === "approved" && "bg-success/10 text-success",
             approval.status === "rejected" &&
               "bg-rose-500/10 text-rose-700 dark:text-rose-300",
             pending && "bg-muted text-muted-foreground",

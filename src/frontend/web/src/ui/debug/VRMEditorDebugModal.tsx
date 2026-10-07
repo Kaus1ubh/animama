@@ -510,7 +510,7 @@ export function VRMEditorDebugModal({ animaLabel }: { animaLabel?: string }) {
                   <BodyCell className="font-mono text-xs">
                     {formatInteger(node.skinIndex)}
                   </BodyCell>
-                  <BodyCell className="font-mono text-2xs">
+                  <BodyCell className="text-2xs font-mono">
                     <div>T {formatJsonValue(node.translation)}</div>
                     <div>R {formatJsonValue(node.rotation)}</div>
                     <div>S {formatJsonValue(node.scale)}</div>
@@ -582,7 +582,7 @@ export function VRMEditorDebugModal({ animaLabel }: { animaLabel?: string }) {
                   <tr key={usage.bindingKey}>
                     <BodyCell>
                       <div>{formatMaybeText(usage.nodeName)}</div>
-                      <div className="text-muted-foreground font-mono text-2xs">
+                      <div className="text-muted-foreground text-2xs font-mono">
                         node {formatInteger(usage.nodeIndex)}
                         {usage.skinIndex !== null
                           ? ` | skin ${usage.skinIndex}`
@@ -591,7 +591,7 @@ export function VRMEditorDebugModal({ animaLabel }: { animaLabel?: string }) {
                     </BodyCell>
                     <BodyCell>
                       <div>{formatMaybeText(usage.meshName)}</div>
-                      <div className="text-muted-foreground font-mono text-2xs">
+                      <div className="text-muted-foreground text-2xs font-mono">
                         mesh {usage.meshIndex}
                       </div>
                     </BodyCell>
@@ -600,7 +600,7 @@ export function VRMEditorDebugModal({ animaLabel }: { animaLabel?: string }) {
                     </BodyCell>
                     <BodyCell>
                       <div>{formatMaybeText(usage.materialName)}</div>
-                      <div className="text-muted-foreground font-mono text-2xs">
+                      <div className="text-muted-foreground text-2xs font-mono">
                         material {formatInteger(usage.materialIndex)}
                       </div>
                     </BodyCell>
@@ -610,14 +610,14 @@ export function VRMEditorDebugModal({ animaLabel }: { animaLabel?: string }) {
                     <BodyCell className="font-mono text-xs">
                       {formatInteger(usage.indexCount)}
                     </BodyCell>
-                    <BodyCell className="font-mono text-2xs">
+                    <BodyCell className="text-2xs font-mono">
                       {usage.attributeNames.length > 0
                         ? usage.attributeNames.join(", ")
                         : "-"}
                     </BodyCell>
                     <BodyCell>
                       <div>{formatMaybeText(usage.runtimeObjectName)}</div>
-                      <div className="text-muted-foreground font-mono text-2xs">
+                      <div className="text-muted-foreground text-2xs font-mono">
                         {usage.runtimeObjectType ?? "-"}
                       </div>
                     </BodyCell>
@@ -672,7 +672,7 @@ export function VRMEditorDebugModal({ animaLabel }: { animaLabel?: string }) {
                     <BodyCell>{bone.humanBoneName}</BodyCell>
                     <BodyCell>
                       <div>{formatMaybeText(bone.nodeName)}</div>
-                      <div className="text-muted-foreground font-mono text-2xs">
+                      <div className="text-muted-foreground text-2xs font-mono">
                         node {formatInteger(bone.nodeIndex)}
                       </div>
                     </BodyCell>
@@ -708,14 +708,14 @@ export function VRMEditorDebugModal({ animaLabel }: { animaLabel?: string }) {
                     <BodyCell>{formatMaybeText(skin.name)}</BodyCell>
                     <BodyCell>
                       <div>{formatMaybeText(skin.skeletonNodeName)}</div>
-                      <div className="text-muted-foreground font-mono text-2xs">
+                      <div className="text-muted-foreground text-2xs font-mono">
                         node {formatInteger(skin.skeletonNodeIndex)}
                       </div>
                     </BodyCell>
                     <BodyCell className="font-mono text-xs">
                       {formatInteger(skin.jointCount)}
                     </BodyCell>
-                    <BodyCell className="font-mono text-2xs">
+                    <BodyCell className="text-2xs font-mono">
                       {skin.jointNames.length > 0
                         ? skin.jointNames.join(", ")
                         : "-"}
@@ -818,7 +818,7 @@ export function VRMEditorDebugModal({ animaLabel }: { animaLabel?: string }) {
                   <BodyCell>{formatMaybeText(material.name)}</BodyCell>
                   <BodyCell>{formatMaybeText(material.alphaMode)}</BodyCell>
                   <BodyCell>{material.doubleSided ? "true" : "false"}</BodyCell>
-                  <BodyCell className="font-mono text-2xs">
+                  <BodyCell className="text-2xs font-mono">
                     {material.extensionNames.length > 0
                       ? material.extensionNames.join(", ")
                       : "-"}
@@ -826,7 +826,7 @@ export function VRMEditorDebugModal({ animaLabel }: { animaLabel?: string }) {
                   <BodyCell className="font-mono text-xs">
                     {formatInteger(material.usageCount)}
                   </BodyCell>
-                  <BodyCell className="font-mono text-2xs">
+                  <BodyCell className="text-2xs font-mono">
                     {material.textureSlots.length > 0
                       ? material.textureSlots
                           .map(
@@ -888,7 +888,7 @@ export function VRMEditorDebugModal({ animaLabel }: { animaLabel?: string }) {
                     )}
                   </BodyCell>
                   <BodyCell>{formatMaybeText(texture.name)}</BodyCell>
-                  <BodyCell className="font-mono text-2xs">
+                  <BodyCell className="text-2xs font-mono">
                     {formatMaybeText(texture.uri)}
                   </BodyCell>
                   <BodyCell>{formatMaybeText(texture.mimeType)}</BodyCell>
@@ -896,7 +896,7 @@ export function VRMEditorDebugModal({ animaLabel }: { animaLabel?: string }) {
                   <BodyCell className="font-mono text-xs">
                     {formatInteger(texture.usageCount)}
                   </BodyCell>
-                  <BodyCell className="font-mono text-2xs">
+                  <BodyCell className="text-2xs font-mono">
                     {texture.usedBy.length > 0
                       ? texture.usedBy
                           .map(

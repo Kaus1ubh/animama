@@ -20,7 +20,7 @@ export function CreatorValidationIndicator({
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="text-destructive focus-visible:ring-ring flex h-6 shrink-0 items-center gap-1 rounded-sm text-2xs outline-none hover:opacity-80 focus-visible:ring-2"
+          className="text-destructive focus-visible:ring-ring text-2xs flex h-6 shrink-0 items-center gap-1 rounded-sm outline-none hover:opacity-80 focus-visible:ring-2"
           aria-label={label}
           title={label}
         >

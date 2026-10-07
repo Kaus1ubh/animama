@@ -58,7 +58,7 @@ export function LandmarkEyeCard({
           <p className="text-foreground mt-1 font-mono text-xs">
             {formatVector3(eye.centerLocal)}
           </p>
-          <p className="text-muted-foreground mt-2 text-2xs font-medium tracking-wide uppercase">
+          <p className="text-muted-foreground text-2xs mt-2 font-medium tracking-wide uppercase">
             Projected Front
           </p>
           <p className="text-foreground mt-1 font-mono text-xs">
@@ -72,7 +72,7 @@ export function LandmarkEyeCard({
           <p className="text-foreground mt-1 font-mono text-xs">
             {formatBoxCoord(eye.normalizedBoxCoord)}
           </p>
-          <p className="text-muted-foreground mt-2 text-2xs font-medium tracking-wide uppercase">
+          <p className="text-muted-foreground text-2xs mt-2 font-medium tracking-wide uppercase">
             Projected Box Coord
           </p>
           <p className="text-foreground mt-1 font-mono text-xs">
@@ -86,7 +86,7 @@ export function LandmarkEyeCard({
           <p className="text-foreground mt-1 font-mono text-xs">
             {formatVector3(eye.boundsLocal.size)}
           </p>
-          <p className="text-muted-foreground mt-2 text-2xs font-medium tracking-wide uppercase">
+          <p className="text-muted-foreground text-2xs mt-2 font-medium tracking-wide uppercase">
             Bounds Center
           </p>
           <p className="text-foreground mt-1 font-mono text-xs">
@@ -128,7 +128,7 @@ export function TextureAnchorCard({
             {anchor.source}
             {anchor.side ? ` • ${anchor.side}` : ""}
           </p>
-          <p className="text-muted-foreground mt-2 text-2xs font-medium tracking-wide uppercase">
+          <p className="text-muted-foreground text-2xs mt-2 font-medium tracking-wide uppercase">
             UV
           </p>
           <p className="text-foreground mt-1 font-mono text-xs">
@@ -142,7 +142,7 @@ export function TextureAnchorCard({
           <p className="text-foreground mt-1 font-mono text-xs">
             {formatVector3(anchor.localPoint)}
           </p>
-          <p className="text-muted-foreground mt-2 text-2xs font-medium tracking-wide uppercase">
+          <p className="text-muted-foreground text-2xs mt-2 font-medium tracking-wide uppercase">
             Ref Size UV
           </p>
           <p className="text-foreground mt-1 font-mono text-xs">
@@ -442,7 +442,7 @@ export function FaceTextureAnchorUvPreview({
                   }}
                 />
                 <div
-                  className="bg-background/90 absolute -translate-x-1/2 rounded px-1.5 py-0.5 font-mono text-2xs font-medium shadow-sm"
+                  className="bg-background/90 text-2xs absolute -translate-x-1/2 rounded px-1.5 py-0.5 font-mono font-medium shadow-sm"
                   style={{
                     left: `${anchor.uv.u * 100}%`,
                     top: `calc(${anchor.uv.v * 100}% + 10px)`,
@@ -481,7 +481,7 @@ export function FaceTextureAnchorUvPreview({
                   }}
                 />
                 <div
-                  className="bg-background/90 absolute -translate-x-1/2 rounded px-1.5 py-0.5 font-mono text-2xs font-medium shadow-sm"
+                  className="bg-background/90 text-2xs absolute -translate-x-1/2 rounded px-1.5 py-0.5 font-mono font-medium shadow-sm"
                   style={{
                     left: `${item.region.uv.u * 100}%`,
                     top: `calc(${(rectTop + item.region.referenceSizeUv.height) * 100}% + 8px)`,

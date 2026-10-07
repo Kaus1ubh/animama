@@ -241,7 +241,7 @@ export function MemoryEntryEditorModal({
         ) : (
           <>
             {conflict && !readOnly ? (
-              <div className="border-b border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
+              <div className="border-warning/30 bg-warning/10 text-warning border-b px-4 py-3 text-sm">
                 This file has a newer server version. Your draft is preserved.
               </div>
             ) : null}

@@ -116,21 +116,21 @@ function ExistingFileCard({
       className="border-border/70 bg-background/80 flex min-h-14 min-w-0 basis-[13rem] items-center gap-2 rounded-lg border px-2 py-1.5 shadow-xs"
       aria-label={`${file.original_filename} ${statusLabel}`}
     >
-      <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-success/10 text-success">
+      <div className="bg-success/10 text-success flex size-7 shrink-0 items-center justify-center rounded-md">
         <CheckCircle2 className="size-3.5" aria-hidden="true" />
       </div>
       <div className="min-w-0 flex-1">
         <div className="text-foreground truncate text-xs font-medium">
           {file.original_filename}
         </div>
-        <div className="text-muted-foreground mt-0.5 flex min-w-0 items-center gap-1.5 text-2xs leading-4">
+        <div className="text-muted-foreground text-2xs mt-0.5 flex min-w-0 items-center gap-1.5 leading-4">
           <span className="shrink-0">
             {normalizeExtension(file.normalized_extension) ?? "file"}
           </span>
           <span className="shrink-0">
             {formatFileSize(file.stored_size_bytes ?? file.declared_size_bytes)}
           </span>
-          <span className="min-w-0 truncate font-medium text-success">
+          <span className="text-success min-w-0 truncate font-medium">
             {statusLabel}
           </span>
         </div>
@@ -232,7 +232,7 @@ export function ChatInputFileTray({
                 <div className="text-foreground truncate text-xs font-medium">
                   {file.name}
                 </div>
-                <div className="text-muted-foreground mt-0.5 flex min-w-0 items-center gap-1.5 text-2xs leading-4">
+                <div className="text-muted-foreground text-2xs mt-0.5 flex min-w-0 items-center gap-1.5 leading-4">
                   <span className="shrink-0">
                     {fileKind(file, backendFile)}
                   </span>
@@ -257,7 +257,7 @@ export function ChatInputFileTray({
                   </div>
                 ) : null}
                 {status.error ? (
-                  <div className="text-destructive mt-0.5 truncate text-2xs leading-4">
+                  <div className="text-destructive text-2xs mt-0.5 truncate leading-4">
                     {status.error}
                   </div>
                 ) : null}

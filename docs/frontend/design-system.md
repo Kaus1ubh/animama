@@ -48,7 +48,8 @@ not rely on a token's current hue. Owners can also override colors in
 Settings, so contrast must hold for the role rather than one specific value.
 
 Status tokens are text and icon hues. Build status surfaces from the same
-token with opacity:
+token with opacity, typically `/10` (or `/5` for quieter) surfaces and `/30`
+borders:
 
 ```tsx
 <div className="border-warning/30 bg-warning/10 text-warning rounded-md border p-3">
@@ -56,7 +57,8 @@ token with opacity:
 
 Use solid `bg-success`, `bg-warning` or `bg-info` only for small indicators such
 as status dots. Palette colors remain acceptable for decorative illustration
-and data categories, such as timeline track kinds or file-type icons.
+and data categories, such as diff lines, timeline track kinds or file-type
+icons.
 
 ## Typography
 

@@ -550,7 +550,7 @@ function ConnectionCard({
             >
               {connection.name}
               {entry.recommended ? (
-                <span className="bg-primary/10 text-primary rounded-sm px-1.5 py-0.5 text-2xs font-medium">
+                <span className="bg-primary/10 text-primary text-2xs rounded-sm px-1.5 py-0.5 font-medium">
                   Recommended
                 </span>
               ) : null}

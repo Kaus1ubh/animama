@@ -113,15 +113,12 @@ export function HandAdjustmentControl({
           onBlur={hands.end}
         />
       </div>
-      <div className="text-muted-foreground ml-15 flex justify-between text-2xs">
+      <div className="text-muted-foreground text-2xs ml-15 flex justify-between">
         <span>{isSpread ? "Bring together" : "Straighten"}</span>
         <span>{hands.adjustment === adjustment ? `${hands.value}°` : "0"}</span>
         <span>{label(adjustment)}</span>
       </div>
-      <p
-        id={descriptionId}
-        className="text-muted-foreground min-h-4 text-2xs"
-      >
+      <p id={descriptionId} className="text-muted-foreground text-2xs min-h-4">
         {reason}
       </p>
     </div>
@@ -302,13 +299,13 @@ export function PoseCreatorHandPanel({
           {hands.selectedAvailable.length}{" "}
           {hands.selectedAvailable.length === 1 ? "bone" : "bones"} selected
         </p>
-        <p className="text-muted-foreground mt-1 text-2xs leading-relaxed">
+        <p className="text-muted-foreground text-2xs mt-1 leading-relaxed">
           {selectedSegments.length
             ? selectedSegments.map((segment) => segment.label).join(" · ")
             : "Click individual segments to select."}
         </p>
         {hands.unavailable.length ? (
-          <p className="text-muted-foreground mt-1 text-2xs">
+          <p className="text-muted-foreground text-2xs mt-1">
             Unavailable:{" "}
             {hands.unavailable
               .map(

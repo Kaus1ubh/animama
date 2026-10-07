@@ -122,7 +122,7 @@ function DebugRow({ label, value, title, mono = false }: DebugRowProps) {
       <span
         className={cn(
           "text-foreground min-w-0 text-right",
-          mono ? "font-mono text-2xs" : "",
+          mono ? "text-2xs font-mono" : "",
         )}
         title={title}
       >
@@ -152,7 +152,7 @@ function Section({
       <button
         type="button"
         onClick={onToggle}
-        className="text-muted-foreground hover:bg-muted/40 flex w-full items-center justify-between gap-2 rounded px-1 py-0.5 text-left text-2xs font-semibold tracking-wide uppercase transition"
+        className="text-muted-foreground hover:bg-muted/40 text-2xs flex w-full items-center justify-between gap-2 rounded px-1 py-0.5 text-left font-semibold tracking-wide uppercase transition"
         aria-expanded={isOpen}
       >
         <span className="truncate">{title}</span>
@@ -1085,7 +1085,7 @@ function AnimaDebugPanelContent({ className }: AnimaDebugPanelProps) {
               variant="ghost"
               onClick={() => setAllSections(false)}
               disabled={allSectionsCollapsed}
-              className="h-6 px-1.5 text-2xs"
+              className="text-2xs h-6 px-1.5"
             >
               Collapse all
             </Button>
@@ -1095,7 +1095,7 @@ function AnimaDebugPanelContent({ className }: AnimaDebugPanelProps) {
               variant="ghost"
               onClick={() => setAllSections(true)}
               disabled={allSectionsExpanded}
-              className="h-6 px-1.5 text-2xs"
+              className="text-2xs h-6 px-1.5"
             >
               Expand all
             </Button>
@@ -1345,7 +1345,7 @@ function AnimaDebugPanelContent({ className }: AnimaDebugPanelProps) {
                 <span className="text-muted-foreground">ST buffer</span>
                 <div className="flex items-center justify-end gap-1">
                   <span
-                    className="text-foreground min-w-0 text-right font-mono text-2xs"
+                    className="text-foreground text-2xs min-w-0 text-right font-mono"
                     title="samples / duration"
                   >
                     {`${smartTurnBufferedSamples} / ${formatSeconds(smartTurnBufferedDurationSec)}`}
@@ -1395,14 +1395,14 @@ function AnimaDebugPanelContent({ className }: AnimaDebugPanelProps) {
             <div className="space-y-1">
               <div className="text-muted-foreground">VAD events</div>
               {recentVadEvents.length === 0 ? (
-                <div className="border-border/60 text-muted-foreground rounded border px-2 py-1 font-mono text-2xs">
+                <div className="border-border/60 text-muted-foreground text-2xs rounded border px-2 py-1 font-mono">
                   none
                 </div>
               ) : (
                 recentVadEvents.map((event) => (
                   <div
                     key={event.id}
-                    className="border-border/60 rounded border px-2 py-1 font-mono text-2xs"
+                    className="border-border/60 text-2xs rounded border px-2 py-1 font-mono"
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span>{event.type}</span>
@@ -1427,14 +1427,14 @@ function AnimaDebugPanelContent({ className }: AnimaDebugPanelProps) {
             <div className="space-y-1">
               <div className="text-muted-foreground">Gate decisions</div>
               {recentVadGateDecisions.length === 0 ? (
-                <div className="border-border/60 text-muted-foreground rounded border px-2 py-1 font-mono text-2xs">
+                <div className="border-border/60 text-muted-foreground text-2xs rounded border px-2 py-1 font-mono">
                   none
                 </div>
               ) : (
                 recentVadGateDecisions.map((decision) => (
                   <div
                     key={decision.id}
-                    className="border-border/60 rounded border px-2 py-1 font-mono text-2xs"
+                    className="border-border/60 text-2xs rounded border px-2 py-1 font-mono"
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span>{decision.decision}</span>
@@ -1452,14 +1452,14 @@ function AnimaDebugPanelContent({ className }: AnimaDebugPanelProps) {
             <div className="space-y-1">
               <div className="text-muted-foreground">Smart-turn events</div>
               {recentSmartTurnEvents.length === 0 ? (
-                <div className="border-border/60 text-muted-foreground rounded border px-2 py-1 font-mono text-2xs">
+                <div className="border-border/60 text-muted-foreground text-2xs rounded border px-2 py-1 font-mono">
                   none
                 </div>
               ) : (
                 recentSmartTurnEvents.map((event) => (
                   <div
                     key={event.id}
-                    className="border-border/60 rounded border px-2 py-1 font-mono text-2xs"
+                    className="border-border/60 text-2xs rounded border px-2 py-1 font-mono"
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span>{event.type}</span>
@@ -1544,14 +1544,14 @@ function AnimaDebugPanelContent({ className }: AnimaDebugPanelProps) {
             <div className="space-y-1">
               <div className="text-muted-foreground">Ranked groups</div>
               {runtime.emotionalState.rankedGroups.length === 0 ? (
-                <div className="border-border/60 text-muted-foreground rounded border px-2 py-1 font-mono text-2xs">
+                <div className="border-border/60 text-muted-foreground text-2xs rounded border px-2 py-1 font-mono">
                   none
                 </div>
               ) : (
                 runtime.emotionalState.rankedGroups.map((group) => (
                   <div
                     key={`${group.group}:${group.average}`}
-                    className="border-border/60 flex items-center justify-between rounded border px-2 py-1 font-mono text-2xs"
+                    className="border-border/60 text-2xs flex items-center justify-between rounded border px-2 py-1 font-mono"
                   >
                     <span>{formatEmotionPresetLabel(group.group)}</span>
                     <span>{`${group.average.toFixed(1)} avg · L${group.intensity}`}</span>
@@ -1562,14 +1562,14 @@ function AnimaDebugPanelContent({ className }: AnimaDebugPanelProps) {
             <div className="space-y-1">
               <div className="text-muted-foreground">Ranked emotions</div>
               {runtime.emotionalState.rankedEmotions.length === 0 ? (
-                <div className="border-border/60 text-muted-foreground rounded border px-2 py-1 font-mono text-2xs">
+                <div className="border-border/60 text-muted-foreground text-2xs rounded border px-2 py-1 font-mono">
                   none
                 </div>
               ) : (
                 runtime.emotionalState.rankedEmotions.map((emotion) => (
                   <div
                     key={`${emotion.emotion}:${emotion.intensity}`}
-                    className="border-border/60 flex items-center justify-between rounded border px-2 py-1 font-mono text-2xs"
+                    className="border-border/60 text-2xs flex items-center justify-between rounded border px-2 py-1 font-mono"
                   >
                     <span>{formatTrackedEmotionLabel(emotion.emotion)}</span>
                     <span>{`${emotion.value} · L${emotion.intensity} · ${emotion.group}`}</span>
@@ -1581,7 +1581,7 @@ function AnimaDebugPanelContent({ className }: AnimaDebugPanelProps) {
               <button
                 type="button"
                 onClick={() => setAllEmotionsOpen((current) => !current)}
-                className="text-muted-foreground hover:bg-muted/40 flex w-full items-center justify-between gap-2 rounded px-1 py-0.5 text-left text-2xs font-semibold tracking-wide uppercase transition"
+                className="text-muted-foreground hover:bg-muted/40 text-2xs flex w-full items-center justify-between gap-2 rounded px-1 py-0.5 text-left font-semibold tracking-wide uppercase transition"
                 aria-expanded={allEmotionsOpen}
               >
                 <span className="truncate">All Emotions</span>
@@ -1609,7 +1609,7 @@ function AnimaDebugPanelContent({ className }: AnimaDebugPanelProps) {
                       </div>
                       {EMOTION_GROUP_MEMBERS[group].map((emotion) => (
                         <div key={emotion} className="space-y-1">
-                          <div className="flex items-center justify-between gap-2 font-mono text-2xs">
+                          <div className="text-2xs flex items-center justify-between gap-2 font-mono">
                             <span>{formatTrackedEmotionLabel(emotion)}</span>
                             <span>{emotionDraftValues[emotion]}</span>
                           </div>
@@ -1643,7 +1643,7 @@ function AnimaDebugPanelContent({ className }: AnimaDebugPanelProps) {
                         updateAnimaEmotionalState.isPending ||
                         !isEmotionDraftDirty
                       }
-                      className="h-7 px-2 text-2xs"
+                      className="text-2xs h-7 px-2"
                     >
                       {updateAnimaEmotionalState.isPending
                         ? "Updating..."
@@ -1690,7 +1690,7 @@ function AnimaDebugPanelContent({ className }: AnimaDebugPanelProps) {
                       key={action.name}
                       className={cn("rounded border px-2 py-1.5", trendClass)}
                     >
-                      <div className="flex items-center justify-between gap-2 font-mono text-2xs">
+                      <div className="text-2xs flex items-center justify-between gap-2 font-mono">
                         <span className="min-w-0 truncate" title={action.name}>
                           {action.name}
                         </span>
@@ -1698,7 +1698,7 @@ function AnimaDebugPanelContent({ className }: AnimaDebugPanelProps) {
                           {action.isCurrent ? "current" : "active"}
                         </span>
                       </div>
-                      <div className="text-muted-foreground mt-1 grid grid-cols-2 gap-x-2 gap-y-0.5 font-mono text-2xs">
+                      <div className="text-muted-foreground text-2xs mt-1 grid grid-cols-2 gap-x-2 gap-y-0.5 font-mono">
                         <span>loop: {action.loopType}</span>
                         <span>
                           t:{" "}
@@ -1958,7 +1958,7 @@ function AnimaDebugPanelContent({ className }: AnimaDebugPanelProps) {
                           : "border-border/60",
                     )}
                   >
-                    <div className="flex items-center justify-between gap-2 font-mono text-2xs">
+                    <div className="text-2xs flex items-center justify-between gap-2 font-mono">
                       <span className="min-w-0 truncate" title={worker.name}>
                         {worker.name}
                       </span>
@@ -1966,7 +1966,7 @@ function AnimaDebugPanelContent({ className }: AnimaDebugPanelProps) {
                         {worker.status}
                       </span>
                     </div>
-                    <div className="text-muted-foreground mt-1 grid grid-cols-2 gap-x-2 gap-y-0.5 font-mono text-2xs">
+                    <div className="text-muted-foreground text-2xs mt-1 grid grid-cols-2 gap-x-2 gap-y-0.5 font-mono">
                       <span>
                         q: {worker.inflightRequestCount} inflight /{" "}
                         {worker.pendingRequestCount} await
@@ -2140,7 +2140,7 @@ function AnimaDebugPanelContent({ className }: AnimaDebugPanelProps) {
                 Sessions ({pocketTtsOrtSessions.length})
               </div>
               {pocketTtsOrtSessions.length === 0 ? (
-                <div className="border-border/60 text-muted-foreground rounded border px-2 py-1 font-mono text-2xs">
+                <div className="border-border/60 text-muted-foreground text-2xs rounded border px-2 py-1 font-mono">
                   No ORT session telemetry yet
                 </div>
               ) : (
@@ -2148,7 +2148,7 @@ function AnimaDebugPanelContent({ className }: AnimaDebugPanelProps) {
                   <div
                     key={session.name}
                     className={cn(
-                      "rounded border px-2 py-1 font-mono text-2xs",
+                      "text-2xs rounded border px-2 py-1 font-mono",
                       session.status === "error"
                         ? "border-rose-500/50 bg-rose-500/5"
                         : session.status === "loading"
@@ -2219,7 +2219,7 @@ function AnimaDebugPanelContent({ className }: AnimaDebugPanelProps) {
                       size="sm"
                       variant="ghost"
                       onClick={handleApplyRuntimeEmotionPreset}
-                      className="h-7 px-2 text-2xs"
+                      className="text-2xs h-7 px-2"
                     >
                       Sync runtime
                     </Button>
@@ -2269,7 +2269,7 @@ function AnimaDebugPanelContent({ className }: AnimaDebugPanelProps) {
                                       intensity,
                                     )
                                   }
-                                  className="h-6 px-2 font-mono text-2xs"
+                                  className="text-2xs h-6 px-2 font-mono"
                                   title={formatEmotionPresetComposition(
                                     composition,
                                   )}
@@ -2286,9 +2286,7 @@ function AnimaDebugPanelContent({ className }: AnimaDebugPanelProps) {
                 </div>
                 <div className="border-border/60 flex items-center justify-between gap-2 rounded border px-2 py-1">
                   <div className="min-w-0">
-                    <div className="text-2xs font-medium">
-                      Manual Overrides
-                    </div>
+                    <div className="text-2xs font-medium">Manual Overrides</div>
                     <div className="text-muted-foreground text-2xs">
                       Sliders persist over emotion/blink/lip-sync until cleared
                     </div>
@@ -2298,7 +2296,7 @@ function AnimaDebugPanelContent({ className }: AnimaDebugPanelProps) {
                     size="sm"
                     variant="ghost"
                     onClick={handleClearAllExpressionOverrides}
-                    className="h-7 px-2 text-2xs"
+                    className="text-2xs h-7 px-2"
                   >
                     Clear all
                   </Button>
@@ -2325,7 +2323,7 @@ function AnimaDebugPanelContent({ className }: AnimaDebugPanelProps) {
                       >
                         <div className="mb-0.5 flex items-center justify-between gap-1.5">
                           <span
-                            className="min-w-0 truncate font-mono text-2xs"
+                            className="text-2xs min-w-0 truncate font-mono"
                             title={expressionName}
                           >
                             {expressionName}
@@ -2408,7 +2406,7 @@ function AnimaDebugPanelContent({ className }: AnimaDebugPanelProps) {
                     variant="ghost"
                     onClick={handleClearManifestAnimation}
                     disabled={!avatar}
-                    className="h-6 gap-1 px-2 text-2xs"
+                    className="text-2xs h-6 gap-1 px-2"
                     aria-label="Clear active manifest animation"
                   >
                     <RotateCcw className="h-3 w-3" aria-hidden="true" />
@@ -2448,7 +2446,7 @@ function AnimaDebugPanelContent({ className }: AnimaDebugPanelProps) {
                     >
                       <div className="flex items-center justify-between gap-2">
                         <span
-                          className="min-w-0 truncate font-mono text-2xs"
+                          className="text-2xs min-w-0 truncate font-mono"
                           title={entry.name}
                         >
                           {entry.name}
@@ -2470,12 +2468,12 @@ function AnimaDebugPanelContent({ className }: AnimaDebugPanelProps) {
                         </div>
                       </div>
                       <div
-                        className="text-muted-foreground mt-0.5 truncate font-mono text-2xs"
+                        className="text-muted-foreground text-2xs mt-0.5 truncate font-mono"
                         title={entry.file}
                       >
                         {truncateMiddle(entry.file, 48)}
                       </div>
-                      <div className="text-muted-foreground mt-1 grid grid-cols-2 gap-x-2 gap-y-0.5 font-mono text-2xs">
+                      <div className="text-muted-foreground text-2xs mt-1 grid grid-cols-2 gap-x-2 gap-y-0.5 font-mono">
                         <span>type: {entry.animation_type ?? "-"}</span>
                         <span>emotion: {emotionSummary}</span>
                         <span>loop: {loopSummary}</span>
@@ -2484,7 +2482,7 @@ function AnimaDebugPanelContent({ className }: AnimaDebugPanelProps) {
                       </div>
                       {entry.type === "vrma" ? (
                         <div className="mt-1.5 grid grid-cols-[3rem_minmax(0,1fr)_2.25rem] items-center gap-1.5">
-                          <span className="text-muted-foreground font-mono text-2xs">
+                          <span className="text-muted-foreground text-2xs font-mono">
                             weight
                           </span>
                           <input
@@ -2500,7 +2498,7 @@ function AnimaDebugPanelContent({ className }: AnimaDebugPanelProps) {
                             className="accent-primary h-3 w-full cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
                             aria-label={`Animation weight for ${entry.name}`}
                           />
-                          <span className="text-muted-foreground text-right font-mono text-2xs">
+                          <span className="text-muted-foreground text-2xs text-right font-mono">
                             {formatNumber(selectedWeight, 2)}
                           </span>
                         </div>
@@ -2517,7 +2515,7 @@ function AnimaDebugPanelContent({ className }: AnimaDebugPanelProps) {
                             )
                           }
                           disabled={!canApply || isApplying}
-                          className="h-6 px-2 text-2xs"
+                          className="text-2xs h-6 px-2"
                         >
                           {isApplying ? "Applying..." : "Apply"}
                         </Button>

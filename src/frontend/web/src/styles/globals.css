@@ -3,8 +3,13 @@
 /* `--app-font-sans` and `--app-body-weight` come from the temporary font
    preview setting (lib/theme/font-preview.ts) and are unset by default. */
 @theme {
-  --font-sans:
-    var(--app-font-sans, "Nunito Variable", ui-sans-serif, system-ui, sans-serif);
+  --font-sans: var(
+    --app-font-sans,
+    "Nunito Variable",
+    ui-sans-serif,
+    system-ui,
+    sans-serif
+  );
 }
 
 .pointer-events-none-deep,

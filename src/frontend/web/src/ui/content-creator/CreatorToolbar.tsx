@@ -202,7 +202,7 @@ export function CreatorToolbar({
             {documentControl ??
               (onDocumentNameChange ? (
                 <>
-                  <span className="text-muted-foreground inline-flex shrink-0 items-center gap-1 text-2xs font-medium">
+                  <span className="text-muted-foreground text-2xs inline-flex shrink-0 items-center gap-1 font-medium">
                     <PencilIcon className="size-3" />
                     Name
                   </span>

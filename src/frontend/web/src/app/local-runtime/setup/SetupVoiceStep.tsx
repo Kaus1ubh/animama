@@ -128,9 +128,7 @@ export function SetupVoiceStep({
           </p>
         ) : null}
         {selected?.disabled && tts.enabled ? (
-          <p className="text-xs text-warning">
-            {selected.reason}
-          </p>
+          <p className="text-warning text-xs">{selected.reason}</p>
         ) : null}
         {/* Always shown on desktop, so a typed key survives a provider change. */}
         <DesktopCredentialsPanel

@@ -32,8 +32,9 @@ constraints, and what must stay unchanged.
 
 ## 2. Explore cheaply, then build for real
 
-- Offer 2–3 directions as compact ASCII previews in `AskUserQuestion`, or as an
-  inline wireframe when spatial structure matters. These judge layout and
+- Offer 2–3 directions as compact ASCII previews in a multiple-choice question
+  (such as Claude Code's `AskUserQuestion`), or as an inline wireframe when
+  spatial structure matters. These judge layout and
   hierarchy only; they do not use Animama's tokens.
 - After the owner picks a direction, build it in the real React components.
   Visual quality is judged only in the running app.
@@ -47,8 +48,9 @@ most often get wrong:
 - Use semantic token classes; never hex, `rgb()` or Tailwind palette colors for
   surfaces, text, borders or brand color. Brand hues are provisional, so never
   depend on a token's current hue.
-- Status messaging uses `success`/`warning`/`info` tokens with `/10` surfaces and
-  `/30` borders.
+- Status messaging uses `success`/`warning`/`info` tokens, typically with `/10`
+  surfaces and `/30` borders; data categories such as diff lines may keep palette
+  colors.
 - Use `text-2xs`/`text-xs`/`text-sm` and larger, never pixel font sizes. Body
   text is regular weight; emphasis comes from `font-medium`/`font-semibold`.
 - Use `@/ui/components/*` primitives instead of hand-rolled controls; one

@@ -95,7 +95,7 @@ function NumericInput({
       aria-label={ariaLabel}
       className={cn(
         "h-8 px-2 text-right font-mono text-xs tabular-nums",
-        compact && "h-6 px-1 text-2xs",
+        compact && "text-2xs h-6 px-1",
       )}
       inputMode="decimal"
       type="text"
