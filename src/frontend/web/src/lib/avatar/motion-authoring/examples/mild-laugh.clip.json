@@ -75,13 +75,13 @@
       "elevation": [
         { "v": "base", "beat": "start" },
         { "v": 2, "beat": "inhale" },
-        { "v": 4.5, "beat": "hand-up", "dt": 0.04 },
-        { "v": 1, "beat": "hand-up", "dt": 0.13 },
-        { "v": 3.625, "beat": "chuckle", "dt": -0.14 },
-        { "v": 1.656, "beat": "chuckle", "dt": -0.05 },
-        { "v": 3.133, "beat": "chuckle", "dt": 0.04 },
-        { "v": 2.025, "beat": "chuckle", "dt": 0.13 },
-        { "v": 2.856, "beat": "lower", "dt": -0.2 },
+        { "v": 4.5, "beat": "hand-up", "dt": 0.02 },
+        { "v": 1, "beat": "hand-up", "dt": 0.11 },
+        { "v": 3.625, "beat": "chuckle", "dt": -0.16 },
+        { "v": 1.656, "beat": "chuckle", "dt": -0.07 },
+        { "v": 3.133, "beat": "chuckle", "dt": 0.02 },
+        { "v": 2.025, "beat": "chuckle", "dt": 0.11 },
+        { "v": 2.856, "beat": "chuckle", "dt": 0.2 },
         { "v": "base", "beat": "lower", "dt": 0.15 }
       ]
     },
@@ -145,24 +145,24 @@
       "elevation": [
         { "v": "base", "beat": "start" },
         { "v": 36, "beat": "inhale", "dt": 0.08 },
-        { "v": 52, "beat": "hand-up", "dt": 0.08 },
-        { "v": 50, "beat": "lower", "dt": -0.08 },
+        { "v": 50, "beat": "hand-up", "dt": 0.08 },
+        { "v": 48, "beat": "lower", "dt": -0.08 },
         { "v": 34, "beat": "lower", "dt": 0.2 },
         { "v": "base", "beat": "settle" }
       ],
       "planeOfElevation": [
         { "v": "base", "beat": "start" },
         { "v": 45, "beat": "inhale", "dt": 0.08 },
-        { "v": 66, "beat": "hand-up", "dt": 0.08 },
-        { "v": 64, "beat": "lower", "dt": -0.05 },
+        { "v": 80, "beat": "hand-up", "dt": 0.08 },
+        { "v": 78, "beat": "lower", "dt": -0.05 },
         { "v": 45, "beat": "lower", "dt": 0.24 },
         { "v": "base", "beat": "settle" }
       ],
       "rotation": [
         { "v": "base", "beat": "start" },
         { "v": 32, "beat": "hand-up", "dt": -0.12 },
-        { "v": 64, "beat": "hand-up", "dt": 0.08 },
-        { "v": 62, "beat": "lower", "dt": -0.05 },
+        { "v": 58, "beat": "hand-up", "dt": 0.08 },
+        { "v": 56, "beat": "lower", "dt": -0.05 },
         { "v": 22, "beat": "settle", "dt": -0.22 },
         { "v": "base", "beat": "settle" }
       ]
@@ -170,9 +170,10 @@
     "rightLowerArm": {
       "flexion": [
         { "v": "base", "beat": "start" },
-        { "v": 50, "beat": "inhale", "dt": 0.06 },
-        { "v": 116, "beat": "hand-up", "dt": 0.08 },
-        { "v": 113, "beat": "lower", "dt": -0.05 },
+        { "v": 30, "beat": "inhale", "dt": -0.04 },
+        { "v": 80, "beat": "hand-up", "dt": -0.12 },
+        { "v": 128, "beat": "hand-up", "dt": 0.08 },
+        { "v": 125, "beat": "lower", "dt": -0.05 },
         { "v": 62, "beat": "lower", "dt": 0.24 },
         { "v": "base", "beat": "settle" }
       ],
@@ -252,5 +253,16 @@
       { "v": 0.04, "beat": "lower", "dt": -0.09 },
       { "v": 0, "beat": "lower", "dt": 0.1 }
     ]
-  }
+  },
+  "contacts": [
+    {
+      "bone": "rightHand",
+      "target": "head",
+      "beat": "hand-up",
+      "from": 0.13,
+      "to": 0.68,
+      "offset": [-0.03, -0.065, 0.185],
+      "tolerance": 0.07
+    }
+  ]
 }

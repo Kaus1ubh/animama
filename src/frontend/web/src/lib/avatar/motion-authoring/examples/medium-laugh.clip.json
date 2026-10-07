@@ -285,6 +285,18 @@
       "elevation": [
         { "v": "base", "beat": "start" },
         { "v": 18, "beat": "burst", "dt": -0.2 },
+        { "v": 25, "beat": "burst" },
+        { "v": 15.75, "beat": "burst", "dt": 0.12 },
+        { "v": 23.613, "beat": "burst", "dt": 0.24 },
+        { "v": 16.929, "beat": "laughing", "dt": -0.24 },
+        { "v": 22.61, "beat": "laughing", "dt": -0.12 },
+        { "v": 17.781, "beat": "laughing" },
+        { "v": 21.886, "beat": "laughing", "dt": 0.12 },
+        { "v": 18.397, "beat": "laughing", "dt": 0.24 },
+        { "v": 21.362, "beat": "laughing", "dt": 0.36 },
+        { "v": 18.842, "beat": "laughing", "dt": 0.48 },
+        { "v": 20.984, "beat": "recover", "dt": -0.6 },
+        { "v": 19.163, "beat": "recover", "dt": -0.48 },
         { "v": 18, "beat": "recover", "dt": -0.1 },
         { "v": "base", "beat": "rebound", "dt": 0.1 }
       ],

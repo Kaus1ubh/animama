@@ -504,14 +504,6 @@
       "tolerance": 0.06
     },
     {
-      "bone": "rightLowerArm",
-      "target": "hips",
-      "beat": "double-over",
-      "from": 0.1,
-      "to": 1.4,
-      "tolerance": 0.4
-    },
-    {
       "bone": "rightIndexIntermediate",
       "target": "head",
       "beat": "wipe",

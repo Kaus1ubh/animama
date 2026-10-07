@@ -104,6 +104,8 @@ prototype.
       passed. Gate G1 (owner) pending.
 - [x] Phase 5: Creator editing of 2.0 (agent work complete; review passed). Gate G2 pending.
 - [x] Phase 6: Wave 1 content (authored, checked, saved; G4 run). Gate G3 pending.
+- [ ] After G1: revise the #267 weaknesses (A_1 chin fist in thinking-chin-rest
+      and storytelling's Think beat, A_1 nod energy, Y_0 clap contact).
 - [ ] Phase 7: Replacements and wave 2. Gate G3.
 - [ ] Final integration review and PR.
 
@@ -184,6 +186,11 @@ prototype.
   `content/included/`); a test opens all 94 Included Gesture and Reaction
   clips as valid 2.0 drafts. The creator's 1.0 keyframe-editing branches are
   now unreachable and are left for a follow-up cleanup.
+
+- 2026-10-06, Phase 6 (agent): the #267-weakness revisions of the migrated
+  examples (step 3) wait for G1, since changing them first would invalidate
+  the comparison with their 1.0 bakes. Storytelling's Think beat shares the
+  thinking-chin-rest pose and is revised with it. Tracked in Progress.
 
 ## Preparation (workspace setup)
 
@@ -1360,17 +1367,69 @@ Starting source: `a7689f1b` (Phase 5 commit). Issue #295.
   explaining with both hands, the shrug, the laugh) and returned to rest;
   each laugh played and returned to rest. Frame timing in the pane is coarse
   (screenshots add latency), so this confirms playback and return, not exact
-  timing. A plain chat prompt with the real model was also run; gesture
+  timing, and it did not separately confirm that muted layers settle and
+  keyed expressions replace the emotion face while playing (owner may
+  confirm at G4). A plain chat prompt with the real model was also run; gesture
   choices are not stored with messages, so it is not used as evidence.
-- #267 weaknesses: the passive laugh arm is addressed by Medium Laugh. The A_1
-  chin fist, the A_1 nod energy and the Y_0 clap contact are left in the
-  migrated examples until G1, because revising them now would invalidate the
-  G1 comparison with their 1.0 bakes.
+- #267 weaknesses: the passive laugh arm is addressed by Medium Laugh (its
+  left arm now bounces in elevation and elbow with the laugh; G3 judges
+  whether it reads as active). The A_1 chin fist, the A_1 nod energy and the
+  Y_0 clap contact remain in the migrated examples until G1, because revising
+  them first would invalidate the G1 comparison with their 1.0 bakes; they
+  are revised after G1 (see Progress). Storytelling's Think beat reuses the
+  thinking-chin-rest pose and so inherits the A_1 chin-fist placement; it is
+  revised together with thinking-chin-rest.
+- Review: render sheets on both Avatars were drawn for all four (stored
+  outside the repository); no preview-tool self-review was recorded. Mild
+  Laugh's hand reaches the mouth on Y_0 and the chin on A_1 (contact within
+  7 cm on both).
 - **G3 pending (owner):** review each item in the preview tool, e.g. from
   `src/frontend/web`:
   `pnpm -s animation:preview src/lib/avatar/motion-authoring/examples/storytelling.clip.json`
   or `pnpm -s animation:preview library:tell_story`; notes are applied and
   resolved, then the Local item is re-saved.
+
+#### Code Review #1 Findings (Phase 6)
+
+`sdlc-reviewer`, full initial review of `0aa1b0e9` against `a7689f1b`.
+Blocking:
+
+- **P6-F1:** the #267-weakness revisions (step 3) were deferred only in the
+  record, with no decision entry or follow-up, and the rationale missed that
+  storytelling's Think beat inherits the A_1 chin-fist placement.
+
+Optional: P6-F2 storytelling's laugh kept both arms still for 2.6 s (and the
+Think supporting-hand contact has a loose 12 cm tolerance); P6-F3 Mild
+Laugh's hand stopped about 15 cm in front of the mouth with no contact;
+P6-F4 Hysterical Laughter's `rightLowerArm→hips` contact (40 cm tolerance)
+was inert; P6-F5 Medium Laugh's left arm only pumped the elbow, and its AI
+description put the right hand "at the side"; P6-F6 the record lacked the
+preview/render review status and the G4 mute/expression scope; P6-F7 Mild
+Laugh's shoulder-pulse keys were owned by different beats per side, and
+storytelling keys many redundant `base` holds.
+
+#### Code Review #1 Revisions (Phase 6)
+
+- **P6-F1 accepted, fixed in the record:** the deferral, its reason and the
+  storytelling inheritance are recorded; a decision-log entry and a Progress
+  follow-up give the revisions a destination after G1.
+- **P6-F2 accepted, fixed:** the arms bounce with the laugh (upper-arm
+  elevation and both elbows pulse). The Think contact is inherited from
+  thinking-chin-rest and is revised with it.
+- **P6-F3 accepted, fixed:** the hand comes to the mouth (wrist 16–20 cm from
+  the head bone, fingers curled toward the face) with a declared
+  `rightHand→head` contact (7 cm); the elbow rise starts earlier to stay under
+  the speed limit.
+- **P6-F4 accepted, fixed:** the inert contact is removed.
+- **P6-F5 accepted, fixed:** the left upper arm pulses with the laugh; the
+  saved AI description now says one hand comes to the belly and the other
+  bounces at the side.
+- **P6-F6 accepted, fixed in the record.** **P6-F7:** Mild Laugh's pulses
+  share beat ownership on both sides; storytelling's full-pose beats are
+  kept (every beat is a readable full pose for creator editing).
+- Evidence: `check` passes with no warnings for all four; render sheets
+  redrawn; the four Local items were revised in the creator (import + Save)
+  and equal the sources; the example test passes.
 
 ### Phase 7 — Replacements and wave 2 (R9, R10)
 
