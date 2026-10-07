@@ -215,18 +215,23 @@ can be expressed in v2 without visible change.
 
 #### R7 — Unified effects creator
 
-- **Template picker.** Choosing to create an effect, from the sidebar's create
-  menu, the Create page or the `/effects/new` route, first opens a modal with
-  one section per effect kind.
-  - The Avatar Effect section shows templates as thumbnails captured on the
-    Included Avatar "Annie" (`AvatarSample_A_1_New`). Templates include the
-    Included Avatar Effects and starter templates for each attachment.
-  - The Particle and Scene sections open their creators as they start today
-    (blank, or Scene's existing starting templates). Thumbnail templates for
-    those kinds arrive with #297.
-  - Choosing a template goes to that kind's creator route with a new, unsaved
-    Local draft based on it. Included content is never modified. Closing the
-    modal returns the user to where they were.
+- **Template picker.** The sidebar's create menu has a single **Effects** entry
+  in place of today's three separate effect links (Particle VFX, Avatar VFX,
+  Scene VFX). It, the Create page and the `/effects/new` route open one modal
+  with two steps:
+  1. **Choose a kind.** Three centered cards: Particle FX, Avatar FX and Scene
+     FX.
+  2. **Choose a starting point.** The chosen kind's templates plus **Start from
+     scratch**, with a way back to step 1.
+     - Avatar FX templates show thumbnails captured on the Included Avatar
+       "Annie" (`AvatarSample_A_1_New`), drawn from the Included Avatar
+       Effects.
+     - Scene FX offers its existing starting templates.
+     - Particle FX offers Start from scratch until its thumbnail templates
+       arrive with #297.
+  - Choosing a template or Start from scratch goes to that kind's creator route,
+    with a new, unsaved Local draft based on the choice. Included content is
+    never modified. Closing the modal returns the user to where they were.
 - All three effect kinds share one implementation of save, undo and draft
   recovery. Each creator keeps its existing layout and styling (owner,
   2026-10-06: no UI redesign at this point).
@@ -529,6 +534,9 @@ Later decisions (owner, 2026-10-06, after the prototype review):
   are removed or replaced (for example jargon such as "Target material role" or
   "Asset shape", and position fields that do nothing for some kinds). The
   prototype gate is withdrawn.
+- The sidebar's three effect links become one **Effects** entry that opens the
+  two-step picker modal (kind cards, then templates or Start from scratch),
+  which redirects to the chosen creator route (R7).
 
 Open:
 

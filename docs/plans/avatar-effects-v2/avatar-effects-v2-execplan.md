@@ -863,15 +863,23 @@ except Particle autosave.
 
 ### Phase 8 — Template picker and entry points (R7)
 
-Owner decision (2026-10-06): build the dialog from existing UI components and
-styling, without a new visual design.
+Owner decisions (2026-10-06):
+
+- Build the dialog from existing UI components and styling, without a new
+  visual design.
+- The sidebar create menu's three effect links (`EFFECT_CREATE_LINKS` in
+  `SidebarCreateMenu.tsx`) become one **Effects** entry that opens a two-step
+  modal:
+  1. three centered kind cards (Particle FX, Avatar FX, Scene FX);
+  2. that kind's templates plus Start from scratch, with Back.
+- A choice redirects to the kind's creator route.
 
 1. **Registry.** `lib/effects/effectTemplates.ts`.
-   - **Avatar:** curated Included effect content IDs grouped by intent, plus a
-     starter for each attachment. A starter is an inline `/2` definition with
-     placeholder art drawn at runtime, and Save asks for real art.
-   - **Particle and Scene:** entries for their creators, plus Scene's existing
-     starting templates.
+   - **Avatar:** curated Included effect content IDs. Start from scratch opens
+     the blank creator, where the attachment is chosen.
+   - **Scene:** its existing starting templates (`lib/scene-vfx/editor/defaults.ts`)
+     plus Start from scratch.
+   - **Particle:** Start from scratch only, until #297 adds templates.
 2. **Thumbnails.**
    - `pnpm -s effects:thumbnails` regenerates every template's Annie thumbnail
      into `src/frontend/web/src/assets/effect-templates/` (WebP, lazily imported).
@@ -881,10 +889,13 @@ styling, without a new visual design.
      template.
 3. **Dialog.** `EffectTemplatePickerDialog`, built on the existing modal frame and
    card styles.
-   - One section per kind, Avatar first.
-   - A keyboard-navigable grid with loading, empty and error states.
+   - Step 1: three centered kind cards. Step 2: the kind's template grid and a
+     Start from scratch card, with Back to step 1.
+   - Keyboard navigable, with loading, empty and error states for thumbnails.
 4. **Entry points.**
-   - The sidebar Create menu and the Create page open the dialog in place.
+   - Replace the sidebar Create menu's effects submenu with a single **Effects**
+     item that opens the dialog in place; the Create page's effect entry does
+     the same.
    - `routes/_app/effects.new.tsx` renders the Create page with the dialog open;
      closing navigates to `/create`.
    - Closing an in-place dialog leaves the user where they were.
@@ -899,8 +910,9 @@ styling, without a new visual design.
    - update `CreatorEntryPoints.test.ts`, `avatarEffectCreatorRoutes.test.ts`
      and the e2e helper `creator-surfaces.ts`;
    - add registry and thumbnail tests;
-   - add an e2e journey: open from each entry point, choose an Avatar template,
-     land seeded, return to the picker on close.
+   - add an e2e journey: open from each entry point, pick a kind, choose an
+     Avatar template, land seeded; Start from scratch for each kind; Back and
+     close.
 7. **Browser:** desktop and narrow screenshots.
 
 Completion: every entry opens the picker; templates seed drafts; existing routes
