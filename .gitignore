@@ -53,7 +53,6 @@ src/legacy/
 src/motion/gesture/translate/models
 src/motion/gesture/app/emage_evaltools
 src/motion/gesture/datasets
-src/webui/public/effects/sfx/kenney_ui-audio
 
 .codex
 /cloud/

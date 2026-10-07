@@ -1,11 +1,2 @@
-# Ignore everything by default
+# Root Prettier formats nothing; src/frontend has its own Prettier config and ignore file.
 *
-
-# Allow src/webui
-!src/
-src/*
-!src/webui/
-!src/webui/**
-
-# Explicitly ignore files inside webui that should be ignored (optional, usually handled by .gitignore but good to be safe if .gitignore isn't picked up for some reason, though Prettier usually respects it)
-# We rely on Prettier respecting .gitignore for standard ignores like node_modules
