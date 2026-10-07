@@ -126,8 +126,11 @@ probe):
   prototype gate.
 - **2026-10-06, owner (plan review):** development databases are reset for the
   new correction table; no migration is needed.
-- **2026-10-06, owner (prototype review):** the effect creators keep their
-  existing UI and styling; this is not a UI redesign. P8 and P9 reuse existing
+- **2026-10-06, owner (prototype review, refined):** the effect creators keep
+  their existing layout and styling; this is not a visual redesign. UX still
+  improves: direct manipulation (drag, scale, rotate) on the preview, new and
+  simpler controls where needed, and removal or replacement of deprecated,
+  legacy or confusing controls. P8 and P9 reuse existing
   components (for example `sectioned-modal-frame` and the current inspector
   controls) and extend the current Avatar Effect creator layout. G1 and the
   prototype are withdrawn. The spec's R7–R9 were narrowed to match.
@@ -912,7 +915,11 @@ and Library Edit links still work.
 ### Phase 9 — Avatar Effect creator `/2` controls and direct manipulation (R8, R9, R4 interface)
 
 Owner decision (2026-10-06): keep the current creator layout and styling and
-extend it; reuse existing inspector components. No new visual design.
+extend it, reusing existing inspector components where possible. Add direct
+manipulation and new, simpler controls where needed. Remove or replace
+deprecated, legacy or confusing controls: the jargon labels ("Target material
+role", "Asset shape", "Effect region"), position fields that do nothing for
+some kinds, and the `/1`-only options. No new visual design.
 
 1. **Document.**
    - The editor document mirrors `/2`, with art resources (image, other-eye

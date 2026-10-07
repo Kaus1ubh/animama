@@ -237,9 +237,11 @@ can be expressed in v2 without visible change.
 #### R8 — Avatar Effect editor and direct manipulation
 
 - The existing Avatar Effect creator layout and styling are kept and extended
-  for `/2`. It shows only the controls that apply to the chosen attachment,
-  labelled with units that match the attachment (rotation in degrees), using
-  the existing inspector components.
+  for `/2`, reusing existing inspector components. It shows only the controls
+  that apply to the chosen attachment, labelled in plain language with units
+  that match the attachment (rotation in degrees). Simpler controls are added
+  where needed, and deprecated, legacy or confusing controls are removed or
+  replaced.
 - The user positions art by dragging it on the preview avatar. It moves along its
   attachment: across the face for face-surface art, and in the attachment's plane
   for landmark, body and sticker art. Handles scale and rotate it.
@@ -520,10 +522,13 @@ Additions (owner, 2026-10-06):
 
 Later decisions (owner, 2026-10-06, after the prototype review):
 
-- The effect creators keep their existing UI and styling; this work is not a UI
-  redesign. The picker and the Avatar Effect creator's `/2` controls, direct
-  manipulation and part panel reuse existing UI components. The prototype gate
-  is withdrawn.
+- The effect creators keep their existing layout and styling; this work is not
+  a visual redesign. Existing UI components are reused where possible. UX still
+  improves: art is dragged, scaled and rotated on the preview; new, simpler
+  controls are added where needed; and deprecated, legacy or confusing controls
+  are removed or replaced (for example jargon such as "Target material role" or
+  "Asset shape", and position fields that do nothing for some kinds). The
+  prototype gate is withdrawn.
 
 Open:
 
