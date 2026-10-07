@@ -6,6 +6,7 @@ import type {
   PyReaction,
 } from "@/lib/content/catalogTypes";
 import type { ContentLibrarySearch } from "@/lib/content/librarySearch";
+import { isNonPortable, NON_PORTABLE_REASON } from "@/lib/content/portability";
 
 export type LibraryProductCard = {
   key: string;
@@ -31,12 +32,16 @@ export type LibraryProductCard = {
   source: PyGesture["source"];
   emotion?: string;
   intensity?: number;
+  /** Usable here but never customized, copied or exported. */
+  nonPortable?: boolean;
 };
 
 export type LibraryProductActionPolicy = {
   preview: boolean;
   manage: boolean;
   edit: boolean;
+  /** Text explaining why Edit is unavailable, when it is. */
+  editUnavailableReason?: string;
   useInGesture: boolean;
   useInReaction: boolean;
 };
@@ -82,10 +87,14 @@ export function libraryProductActionPolicy(
   const action = card.family === "gesture" || card.family === "reaction";
   const reusableEffect =
     !action && card.family !== "pose" && card.family !== "idle-style";
+  // Editing an Included Action makes a Local copy of its motion. An Idle Style
+  // copy stores references only, so it stays editable.
+  const editBlocked = Boolean(card.nonPortable) && card.family !== "idle-style";
   return {
     preview: Boolean(card.source),
     manage: action && Boolean(card.source),
-    edit: Boolean(card.source),
+    edit: Boolean(card.source) && !editBlocked,
+    ...(editBlocked ? { editUnavailableReason: NON_PORTABLE_REASON } : {}),
     useInGesture: reusableEffect && Boolean(card.source),
     useInReaction: reusableEffect && Boolean(card.source),
   };
@@ -175,6 +184,7 @@ export function actionLibraryCard(
       0,
     ),
     source: value.source,
+    nonPortable: isNonPortable(value),
     ...(family === "reaction" ? reactionPlacement(value as PyReaction) : {}),
   };
 }
@@ -235,5 +245,6 @@ export function idleStyleLibraryCard(item: PyIdleStyle): LibraryProductCard {
     equippedCount: 0,
     includedCount: 0,
     source: item.source,
+    nonPortable: isNonPortable(item),
   };
 }

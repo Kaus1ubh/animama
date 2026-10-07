@@ -70,7 +70,7 @@ Paths are relative to `src/backend/animama/` (backend) or `src/frontend/web/src/
       plan. Task stack: started when a phase first needs it.
 - [x] Phase 1: Non-portable class in the backend catalog (#323). Review #2 passed.
 - [x] Phase 2: Backend export, import and save enforcement (#324). Review #2 passed.
-- [ ] Phase 3: Frontend affordances.
+- [x] Phase 3: Frontend affordances (#325). Review #2 passed.
 - [ ] Phase 4: Private build inputs, staging allowlist and leak checks.
 - [ ] Phase 5: Content acquisition and integration (owner gates G1–G3).
 - [ ] Final integration review.
@@ -551,9 +551,114 @@ Checks (from `src/frontend`): `pnpm check`, `pnpm web:lint`, `pnpm web:test`,
 Completion: the inventory is recorded, the R4 acceptance criterion holds in
 tests and the browser, and review passes.
 
+Results (2026-10-07, starting revision `a4475f9d`):
+
+- **Inventory confirmation (step 2).** Every path that samples or copies Gesture
+  motion into new content lives inside the action editor: hydration and Save,
+  pose capture at the playhead, inline keyframe edit, View JSON and Import.
+  The Pose creator never loads Gestures. The preview dock has no capture path
+  (`playbackObservation` is telemetry only). Disposition: gate the whole editor
+  for non-portable items, so none of these paths can receive their motion.
+- **Implemented:**
+  - `lib/content/portability.ts` (`isNonPortable`, `NON_PORTABLE_REASON`);
+  - `ui/action-editor/ActionEditorGate.tsx`, wrapping the Gesture and Reaction
+    editors: a preview-only page with the reason, Preview (preview dock) and
+    Back to Library;
+  - a hydration guard in `ActionEditorPage` and the starter filter in
+    `isCustomizableStarterAction`;
+  - Library policy (`nonPortable` card flag, `editUnavailableReason`) with an
+    aria-disabled "Not editable" action;
+  - export selection (unselectable rows with the reason linked by
+    `aria-describedby`);
+  - `SharingNonPortableItems` in both reviews;
+  - named-item errors (`SharingError.items`, `content_non_portable` save
+    message);
+  - Library docs (`docs/frontend/features/library.md`).
+- **Decision (agent):** the creator gate replaces the editor for non-portable
+  items rather than threading a read-only mode through every editor control. It
+  meets R4 with less risk: the editor never mounts, so no draft, autosave, Save,
+  JSON, Import or sampling path can see the motion. Preview uses the shared
+  preview dock.
+- **Tests:**
+  - `ActionEditorGate.test.tsx`;
+  - additions to `libraryPresentation.test.ts`, `actionDocumentLoader.test.ts`
+    and `LibrarySharingDialog.test.tsx`;
+  - `errors.nonPortable.test.ts`.
+
+  The Idle Style copy behaviour is unchanged and covered by the existing
+  `IdleStyleEditorPage.test.tsx`. E2E journeys were not extended: the e2e
+  harness has no non-portable fixture source, and the browser check below
+  covers the same flows.
+- **Checks:** `pnpm check`, `pnpm web:lint`, `pnpm web:test` (396 files,
+  2961 tests) and `pnpm build` pass. `pnpm prettier:check` reports only
+  `desktop/tests/feature-packs.test.ts`, which this branch does not touch.
+- **Browser check (2026-10-07):** task stack `animama-mixamo` (development
+  mode, `http://animama-mixamo.localhost:8300`) mounted a scratch copy of
+  Included content via `ANIMAMA_INCLUDED_CONTENT_HOST_PATH`, with a synthetic
+  non-portable Gesture (a project-authored clip) and Idle Style. At 1440×900:
+  - Library row: Preview, a lock "Edit unavailable…" action with the reason,
+    and Add / Manage;
+  - direct creator URL: preview-only page; Preview played the fixture in the
+    preview dock with no console errors;
+  - export selection: both fixtures unselectable, with the reason text;
+  - Idle Style copy: saved as a portable Local style;
+  - exporting that copy: the review listed "Not included in the file (1) ·
+    Non-portable fixture".
+
+  At 390×844 the export review reflows without overlap. Not performed: package
+  download and import upload in the browser, which would download a file; import
+  review rendering is unit-tested and import behaviour backend-tested. The first
+  fixture used a looping clip, which Idle Styles reject
+  (`idle_repetitions_invalid`, existing behaviour); a non-looping clip was used
+  instead.
+
 #### Code Review #1 Findings
 
+Reviewer: independent `sdlc-reviewer`, staged source on `a4475f9d`. The path
+audit found no remaining UI route that loads non-portable motion into a savable
+or exportable draft.
+
+- **P3-F1 (required):** in list layout the reason was only in `aria-label` and
+  `title` (not shown on focus or touch). The accessible name did not contain the
+  visible "Not editable" label (WCAG 2.5.3), and the docs overstated it.
+- **P3-F2 (optional):** untested paths: the Library row control, the export
+  review list, the hydration guard, and the gate for Reactions and load errors.
+- **P3-F3 (optional):** the gate showed a blank screen while loading.
+- **P3-F4 (optional):** the error wording read oddly on import.
+- **P3-F5 (nit):** loose `portability` type; portability imports out of group.
+
 #### Code Review #1 Revisions
+
+- **P3-F1 accepted.** The control is now a link named "Not editable" to the
+  preview-only page, which states the reason in text for every user. The reason
+  is also linked with `aria-describedby` (an `sr-only` span) and shown in a
+  tooltip in both layouts. Docs aligned. Browser recheck at 1440×900: link
+  "Not editable" → the item's edit URL, with the description text present.
+  Programmatic focus does not open the Radix tooltip, so the tooltip was not
+  observed.
+- **P3-F2 partly accepted.** Added tests for the export review list, the gate
+  for Reactions and the gate's load-error fall-through. The Library row (a
+  private `ProductRow`) remains covered by the policy test and the browser
+  check. The hydration guard is a second safeguard behind the gate.
+- **P3-F3 accepted.** `role="status"` "Loading…" placeholder.
+- **P3-F4 accepted.** The message now covers both export and import.
+- **P3-F5 accepted.** Literal type; imports regrouped.
+- Verification: 78 test files (570 tests) under `ui/action-editor`, `ui/library`,
+  `lib/content` and `lib/content-sharing` pass; `pnpm check` and `pnpm web:lint`
+  pass.
+
+#### Code Review #2 Findings
+
+Targeted recheck (repair round 1): **pass**. P3-F1 to F5 resolved or acceptably
+handled; no regressions (92 targeted tests, prettier, eslint and `tsc` clean).
+
+- **P3-F6 (optional):** "description" in the Library doc could be read as the
+  item's own description.
+
+#### Code Review #2 Revisions
+
+- **P3-F6 accepted:** reworded to "a description read by screen readers". One
+  repair round remains for this phase.
 
 ### Phase 4: Private build inputs, staging allowlist and leak checks
 

@@ -4,14 +4,27 @@ import { parseContentApiErrorDetail } from "@/lib/content/contentSaveErrors";
 export class SharingError extends Error {
   readonly code: string;
   readonly status: number | null;
-  constructor(code: string, status: number | null = null) {
-    super(sharingMessage(code));
+  /** Display names the server attached, such as items that cannot be exported. */
+  readonly items: readonly string[];
+  constructor(
+    code: string,
+    status: number | null = null,
+    items: readonly string[] = [],
+  ) {
+    super(
+      items.length
+        ? `${sharingMessage(code)} ${items.join(", ")}.`
+        : sharingMessage(code),
+    );
     this.code = code;
     this.status = status;
+    this.items = items;
   }
 }
 
 const messages: Record<string, string> = {
+  package_non_portable:
+    "Some content comes with Animama for use only where it is installed, so it can't be exported or imported:",
   package_transport_unavailable:
     "Animama could not be reached. Check the local app and retry.",
   package_invalid:

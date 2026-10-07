@@ -93,6 +93,56 @@ export function SharingRequiredItems({
   );
 }
 
+/**
+ * Explain non-portable items that a package leaves out. `outcome` is set on
+ * import: `rebound` uses this app's own copy; `unavailable` leaves the slot empty.
+ */
+export function SharingNonPortableItems({
+  items,
+}: {
+  items: { name: string; kind: string; outcome?: string }[];
+}) {
+  if (!items.length) return null;
+  const importing = items.some((item) => item.outcome);
+  return (
+    <section
+      className="space-y-2 rounded-xl border p-4"
+      aria-labelledby="sharing-non-portable-title"
+    >
+      <h4 id="sharing-non-portable-title" className="font-medium">
+        Not included in the file ({items.length})
+      </h4>
+      <p className="text-muted-foreground text-sm">
+        {importing
+          ? "This content comes with Animama and was left out of the package. Where this app has its own copy, it is used instead."
+          : "This content comes with Animama for use here only. The person importing this package uses their own copy if they have one."}
+      </p>
+      <ul className="divide-y">
+        {items.map((item) => (
+          <li
+            key={`${item.kind}:${item.name}`}
+            className="flex items-center justify-between gap-3 py-2 text-sm"
+          >
+            <span className="min-w-0 break-words">
+              {item.name}{" "}
+              <span className="text-muted-foreground text-xs">
+                {sharingKindLabel(item.kind)}
+              </span>
+            </span>
+            {item.outcome ? (
+              <span className="text-muted-foreground shrink-0 text-xs">
+                {item.outcome === "rebound"
+                  ? "Uses this app's copy"
+                  : "Not available here"}
+              </span>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 export function SharingPrivacyNote() {
   return (
     <div className="bg-muted/50 flex gap-3 rounded-xl p-4 text-sm">

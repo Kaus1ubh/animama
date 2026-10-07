@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Search } from "lucide-react";
+import { isNonPortable, NON_PORTABLE_REASON } from "@/lib/content/portability";
 import type { LibrarySharingFlow } from "@/lib/content-sharing/types";
 import { Button } from "@/ui/components/button";
 import { Input } from "@/ui/components/input";
@@ -150,12 +151,17 @@ export function ContentExportSelection({ flow }: { flow: LibrarySharingFlow }) {
               {items.map((item) => (
                 <label
                   key={item.item_id}
-                  className={`flex cursor-pointer items-center gap-3 rounded-lg p-3 ${flow.selectedIds.has(item.item_id) ? "bg-primary/10" : "hover:bg-muted/50"}`}
+                  className={`flex items-center gap-3 rounded-lg p-3 ${isNonPortable(item) ? "cursor-not-allowed opacity-70" : flow.selectedIds.has(item.item_id) ? "bg-primary/10 cursor-pointer" : "hover:bg-muted/50 cursor-pointer"}`}
                 >
                   <Checkbox
                     aria-label={item.name}
+                    aria-describedby={
+                      isNonPortable(item)
+                        ? `non-portable-${item.item_id}`
+                        : undefined
+                    }
                     checked={flow.selectedIds.has(item.item_id)}
-                    disabled={flow.busy}
+                    disabled={flow.busy || isNonPortable(item)}
                     onCheckedChange={() => flow.toggleItem(item.item_id)}
                   />
                   <SharingItemIcon kind={item.kind} />
@@ -166,6 +172,14 @@ export function ContentExportSelection({ flow }: { flow: LibrarySharingFlow }) {
                     <span className="text-muted-foreground text-xs">
                       {sharingKindLabel(item.kind)}
                     </span>
+                    {isNonPortable(item) ? (
+                      <span
+                        id={`non-portable-${item.item_id}`}
+                        className="text-muted-foreground block text-xs"
+                      >
+                        {NON_PORTABLE_REASON}
+                      </span>
+                    ) : null}
                   </span>
                 </label>
               ))}

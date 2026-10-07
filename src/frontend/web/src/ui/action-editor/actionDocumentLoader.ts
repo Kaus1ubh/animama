@@ -1,3 +1,4 @@
+import { isNonPortable } from "@/lib/content/portability";
 import type {
   PyContentDependency,
   PyCatalogViewItem,
@@ -151,7 +152,7 @@ export function isCustomizableStarterAction(
   item: PyCatalogViewItem,
   intent: ActionIntent,
 ): item is PyGesture | PyReaction {
-  if (item.origin !== "builtin") return false;
+  if (item.origin !== "builtin" || isNonPortable(item)) return false;
   const contentId = item.logical_key;
   if (typeof contentId !== "string") return false;
   const prefix = `builtin:${intent}:`;
