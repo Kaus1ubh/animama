@@ -140,9 +140,9 @@
   "hipsPosition": {
     "y": [
       { "v": 0, "beat": "start" },
-      { "v": -0.02, "beat": "raise", "dt": -0.15 },
-      { "v": 0, "beat": "raise" },
-      { "v": -0.025, "beat": "pump-1" },
+      { "v": -0.014, "beat": "raise", "dt": -0.17 },
+      { "v": -0.004, "beat": "raise", "dt": 0.05 },
+      { "v": -0.022, "beat": "pump-1" },
       { "v": -0.005, "beat": "pump-2", "dt": -0.2 },
       { "v": -0.025, "beat": "pump-2" },
       { "v": -0.005, "beat": "pump-2", "dt": 0.3 },

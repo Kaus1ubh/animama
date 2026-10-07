@@ -24,23 +24,23 @@
   "joints": {
     "leftUpperArm": {
       "elevation": [
-        { "v": 42, "beat": "loop" },
-        { "v": 43, "beat": "shift" },
-        { "v": 42, "beat": "end" }
+        { "v": 45, "beat": "loop" },
+        { "v": 46, "beat": "shift" },
+        { "v": 45, "beat": "end" }
       ],
       "planeOfElevation": [
-        { "v": -2, "beat": "loop" },
-        { "v": -2, "beat": "end" }
+        { "v": -35, "beat": "loop" },
+        { "v": -35, "beat": "end" }
       ],
       "rotation": [
-        { "v": -45, "beat": "loop" },
-        { "v": -45, "beat": "end" }
+        { "v": -50, "beat": "loop" },
+        { "v": -50, "beat": "end" }
       ]
     },
     "leftLowerArm": {
       "flexion": [
-        { "v": 95, "beat": "loop" },
-        { "v": 95, "beat": "end" }
+        { "v": 100, "beat": "loop" },
+        { "v": 100, "beat": "end" }
       ],
       "supination": [
         { "v": -20, "beat": "loop" },
@@ -49,35 +49,35 @@
     },
     "leftHand": {
       "flexion": [
-        { "v": -25, "beat": "loop" },
-        { "v": -25, "beat": "end" }
+        { "v": -10, "beat": "loop" },
+        { "v": -10, "beat": "end" }
       ]
     },
     "leftShoulder": {
       "protraction": [
-        { "v": -6, "beat": "loop" },
-        { "v": -6, "beat": "end" }
+        { "v": -8, "beat": "loop" },
+        { "v": -8, "beat": "end" }
       ]
     },
     "rightUpperArm": {
       "elevation": [
-        { "v": 42, "beat": "loop" },
-        { "v": 43, "beat": "shift" },
-        { "v": 42, "beat": "end" }
+        { "v": 45, "beat": "loop" },
+        { "v": 46, "beat": "shift" },
+        { "v": 45, "beat": "end" }
       ],
       "planeOfElevation": [
-        { "v": -2, "beat": "loop" },
-        { "v": -2, "beat": "end" }
+        { "v": -35, "beat": "loop" },
+        { "v": -35, "beat": "end" }
       ],
       "rotation": [
-        { "v": -45, "beat": "loop" },
-        { "v": -45, "beat": "end" }
+        { "v": -50, "beat": "loop" },
+        { "v": -50, "beat": "end" }
       ]
     },
     "rightLowerArm": {
       "flexion": [
-        { "v": 95, "beat": "loop" },
-        { "v": 95, "beat": "end" }
+        { "v": 100, "beat": "loop" },
+        { "v": 100, "beat": "end" }
       ],
       "supination": [
         { "v": -20, "beat": "loop" },
@@ -86,14 +86,14 @@
     },
     "rightHand": {
       "flexion": [
-        { "v": -25, "beat": "loop" },
-        { "v": -25, "beat": "end" }
+        { "v": -10, "beat": "loop" },
+        { "v": -10, "beat": "end" }
       ]
     },
     "rightShoulder": {
       "protraction": [
-        { "v": -6, "beat": "loop" },
-        { "v": -6, "beat": "end" }
+        { "v": -8, "beat": "loop" },
+        { "v": -8, "beat": "end" }
       ]
     },
     "chest": {
@@ -145,5 +145,25 @@
       { "v": 0.35, "beat": "loop" },
       { "v": 0.35, "beat": "end" }
     ]
-  }
+  },
+  "contacts": [
+    {
+      "bone": "leftHand",
+      "target": "hips",
+      "beat": "loop",
+      "from": 0,
+      "to": 2.4,
+      "offset": [0.188, 0.093, 0.054],
+      "tolerance": 0.06
+    },
+    {
+      "bone": "rightHand",
+      "target": "hips",
+      "beat": "loop",
+      "from": 0,
+      "to": 2.4,
+      "offset": [-0.188, 0.093, 0.054],
+      "tolerance": 0.06
+    }
+  ]
 }

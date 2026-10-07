@@ -26,51 +26,50 @@
   "joints": {
     "rightLowerArm": {
       "flexion": [
-        { "v": 128, "beat": "loop" },
-        { "v": 139, "beat": "loop", "dt": 0.3 },
-        { "v": 128, "beat": "scratch-1" },
-        { "v": 139, "beat": "scratch-2", "dt": -0.3 },
-        { "v": 128, "beat": "scratch-2" },
-        { "v": 137, "beat": "scratch-2", "dt": 0.3 },
-        { "v": 129, "beat": "look-up" },
-        { "v": 134, "beat": "end", "dt": -0.3 },
-        { "v": 128, "beat": "end" }
+        { "v": 118, "beat": "loop" },
+        { "v": 116, "beat": "loop", "dt": 0.3 },
+        { "v": 121, "beat": "scratch-1" },
+        { "v": 116, "beat": "scratch-2", "dt": -0.3 },
+        { "v": 121, "beat": "scratch-2" },
+        { "v": 117, "beat": "scratch-2", "dt": 0.3 },
+        { "v": 119, "beat": "look-up" },
+        { "v": 118, "beat": "end" }
       ]
     },
     "rightUpperArm": {
       "elevation": [
         { "v": 100, "beat": "loop" },
-        { "v": 102, "beat": "scratch-2" },
+        { "v": 101, "beat": "scratch-2" },
         { "v": 100, "beat": "end" }
       ],
       "planeOfElevation": [
-        { "v": 72, "beat": "loop" },
-        { "v": 74, "beat": "scratch-2" },
-        { "v": 72, "beat": "end" }
+        { "v": -5, "beat": "loop" },
+        { "v": -4, "beat": "scratch-2" },
+        { "v": -5, "beat": "end" }
       ],
       "rotation": [
-        { "v": 86, "beat": "loop" },
-        { "v": 88, "beat": "scratch-2" },
-        { "v": 86, "beat": "end" }
+        { "v": 89, "beat": "loop" },
+        { "v": 90, "beat": "scratch-2" },
+        { "v": 89, "beat": "end" }
       ]
     },
     "rightShoulder": {
       "elevation": [
-        { "v": 12, "beat": "loop" },
-        { "v": 14, "beat": "scratch-2" },
-        { "v": 12, "beat": "end" }
+        { "v": 14, "beat": "loop" },
+        { "v": 15, "beat": "scratch-2" },
+        { "v": 14, "beat": "end" }
       ]
     },
     "rightHand": {
       "flexion": [
-        { "v": 20, "beat": "loop" },
-        { "v": 30, "beat": "loop", "dt": 0.3 },
-        { "v": 20, "beat": "scratch-1" },
-        { "v": 30, "beat": "scratch-2", "dt": -0.3 },
-        { "v": 20, "beat": "scratch-2" },
-        { "v": 28, "beat": "scratch-2", "dt": 0.3 },
-        { "v": 20, "beat": "look-up" },
-        { "v": 20, "beat": "end" }
+        { "v": -15, "beat": "loop" },
+        { "v": -12, "beat": "loop", "dt": 0.3 },
+        { "v": -6, "beat": "scratch-1" },
+        { "v": -12, "beat": "scratch-2", "dt": -0.3 },
+        { "v": -6, "beat": "scratch-2" },
+        { "v": -12, "beat": "scratch-2", "dt": 0.3 },
+        { "v": -14, "beat": "look-up" },
+        { "v": -15, "beat": "end" }
       ]
     },
     "head": {
@@ -128,11 +127,11 @@
   "hands": {
     "right": [
       { "preset": "relaxed", "curl": 30, "beat": "loop" },
-      { "preset": "relaxed", "curl": 55, "beat": "loop", "dt": 0.3 },
-      { "preset": "relaxed", "curl": 30, "beat": "scratch-1" },
-      { "preset": "relaxed", "curl": 55, "beat": "scratch-2", "dt": -0.3 },
-      { "preset": "relaxed", "curl": 30, "beat": "scratch-2" },
-      { "preset": "relaxed", "curl": 40, "beat": "look-up" },
+      { "preset": "relaxed", "curl": 30, "beat": "loop", "dt": 0.3 },
+      { "preset": "relaxed", "curl": 55, "beat": "scratch-1" },
+      { "preset": "relaxed", "curl": 30, "beat": "scratch-2", "dt": -0.3 },
+      { "preset": "relaxed", "curl": 55, "beat": "scratch-2" },
+      { "preset": "relaxed", "curl": 35, "beat": "look-up" },
       { "preset": "relaxed", "curl": 30, "beat": "end" }
     ]
   },
@@ -149,20 +148,13 @@
   },
   "contacts": [
     {
-      "bone": "rightHand",
+      "bone": "rightMiddleDistal",
       "target": "head",
       "beat": "loop",
       "from": 0,
       "to": 2.4,
-      "tolerance": 0.3
-    },
-    {
-      "bone": "rightLowerArm",
-      "target": "head",
-      "beat": "loop",
-      "from": 0,
-      "to": 2.4,
-      "tolerance": 0.4
+      "offset": [-0.035, 0.18, -0.015],
+      "tolerance": 0.06
     }
   ]
 }

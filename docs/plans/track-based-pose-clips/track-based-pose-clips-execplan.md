@@ -1413,8 +1413,8 @@ storytelling keys many redundant `base` holds.
 - **P6-F1 accepted, fixed in the record:** the deferral, its reason and the
   storytelling inheritance are recorded; a decision-log entry and a Progress
   follow-up give the revisions a destination after G1.
-- **P6-F2 accepted, fixed:** the arms bounce with the laugh (upper-arm
-  elevation and both elbows pulse). The Think contact is inherited from
+- **P6-F2 accepted, fixed:** the arms bounce with the laugh (the right
+  upper-arm elevation and both elbows pulse). The Think contact is inherited from
   thinking-chin-rest and is revised with it.
 - **P6-F3 accepted, fixed:** the hand comes to the mouth (wrist 16–20 cm from
   the head bone, fingers curled toward the face) with a declared
@@ -1430,6 +1430,14 @@ storytelling keys many redundant `base` holds.
 - Evidence: `check` passes with no warnings for all four; render sheets
   redrawn; the four Local items were revised in the creator (import + Save)
   and equal the sources; the example test passes.
+
+#### Code Review #2 Findings (Phase 6)
+
+`sdlc-reviewer`, targeted recheck of `5ee5294b` (repair round 1): **pass**.
+P6-F1 to P6-F7 verified; the four Local copies equal their sources.
+Optional: the P6-F2 revision note overstated the left arm (corrected); the
+Medium Laugh Local item's user-facing description still says "a hand comes
+to the side" (for the owner at G3).
 
 ### Phase 7 — Replacements and wave 2 (R9, R10)
 
@@ -1454,16 +1462,79 @@ Starting source: `0aa1b0e9`. Issue #291.
   (right-face-palm, thinking-head-scratch, arms-crossed, cheeky-finger-guns,
   hands-on-hips, cat-monster-rawr; each keeps its original's kind, loops stay
   loops) and the eleven wave 2 items. All 27 examples pass the example test
-  (validate, size, motion checks on both Avatars); six wave 2 items have
-  warnings only.
-- Saved as Local content on the task stack through the creator. Wave 2
+  (validate, size, motion checks on both Avatars). Checks per item, after
+  review revisions: no failures anywhere; warnings only on
+  - cheeky-finger-guns: forearm speed 379°/s during the quick draw;
+  - celebration: upper-arm speed 457°/s as the arms fly up (cheer);
+  - enthusiastic-yes: forearm speed 507°/s in the fist pump;
+  - small-shy-wave: forearm speed 425°/s and 376°/s in the wave flicks;
+  - surprise-gasp: forearm speed 460°/s in the startle;
+  each accepted because the gesture's character is a quick, deliberate move
+  (the limit, 360°/s, targets unintended snaps). The other twelve pass with
+  no warnings.
+- Saved as Local content on the task stack through the creator (revised in
+  place after review; all 17 equal their sources apart from `id`, and the
+  replacements' provisional names). Wave 2
   Selector IDs: `surprise_gasp`, `head_shake_no`, `enthusiastic_yes`,
   `shy_giggle`, `deflated_sigh`, `pout_huff`, `celebration`, `blow_kiss`,
   `shy_wave`, `polite_bow`, `attentive_lean_in`. Replacements use provisional
   IDs `<original>-v2` until the owner chooses (skill rule).
 - Pending: Phase 7 code review; owner G3 review (replacements with
   `--compare library:<original>`); the owner's choice of replacement Selector
-  IDs; the promotion follow-up issue with its licence inventory step.
+  IDs. Promotion to Included is tracked in #310 (licence inventory first).
+
+#### Code Review #1 Findings (Phase 7)
+
+`sdlc-reviewer`, full initial review of `dcf4b8c5` against `0aa1b0e9`.
+Blocking:
+
+- **P7-F1:** thinking-head-scratch sank the hand and forearm into the head,
+  hidden by contacts with 30–40 cm tolerances and no offsets.
+- **P7-F2:** right-face-palm's fingers sank about 5 cm into the face, hidden
+  by an 11 cm tolerance.
+- **P7-F3:** hands-on-hips, surprise-gasp (R10 "hands to cheeks"),
+  blow-a-kiss and shy-giggle declared no contact and did not reach their
+  defining touch (hands 10–22 cm away); surprise-gasp's description named the
+  chest.
+- **P7-F4:** arms-crossed and pout-huff declared the hand-on-forearm rest
+  with a 20 cm tolerance and no offset.
+- **P7-F5:** the record misstated which items have warnings and gave no
+  per-item summary or reasons.
+
+Optional: the replacements' Local names differ from their sources (follows
+the provisional IDs); beat ownership is mechanical in places (wave flicks
+owned by `lower`, giggle shakes split across beats, scratch strokes between
+beats); several items mirror both arms key for key; celebration keys `happy`
+at 1.0; cheeky-finger-guns' thumb needs a render or G3 look.
+
+#### Code Review #1 Revisions (Phase 7)
+
+All probes below used static poses on both Included Avatars, measuring the
+named bone's offset from its target and the capsule intersections.
+
+- **P7-F1 accepted, fixed:** the hand rests on the upper right of the crown
+  with the elbow out to the side; the strokes curl the fingers and flex the
+  wrist, peaking on the Scratch beats; one fingertip contact
+  (`rightMiddleDistal→head`, 6 cm) replaces the two loose ones.
+- **P7-F2 accepted, fixed:** the fingertips rest on the forehead
+  (`rightIndexDistal→head`, 5 cm), with no hand/head overlap.
+- **P7-F3 accepted, fixed:** hands-on-hips rests the hands on the sides of
+  the waist, fingers forward (hand→hips contacts, 6 cm; render checked);
+  surprise-gasp puts both palms on the cheeks (5 cm) and its description now
+  says so; blow-a-kiss touches the fingertips to the lips (5 cm); shy-giggle
+  hides the mouth behind the right hand (5 cm) with the left palm on the
+  cheek (6 cm), since two hands over the mouth collide, and its description
+  says so. Arrival and release paths were widened so the hands do not brush.
+- **P7-F4 accepted, fixed:** arms-crossed declares the measured rest
+  (offset along the left forearm, 6 cm); pout-huff one contact over arrival,
+  hold and release (7 cm), centred between the Avatars' measured positions.
+- **P7-F5 accepted, fixed:** per-item warnings and reasons are listed above;
+  celebration's lower-leg acceleration spike was fixed (softer dip) rather
+  than accepted.
+- Optional items are left for G3, where the owner judges motion quality.
+- Evidence: `check` per item as listed; the example test passes (28); the
+  nine changed Local items were revised in the creator and all 17 equal
+  their sources.
 
 ## Final integration review
 

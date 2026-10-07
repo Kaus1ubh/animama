@@ -173,7 +173,8 @@
       "beat": "loop",
       "from": 0,
       "to": 2.4,
-      "tolerance": 0.2
+      "offset": [0.072, 0.027, 0],
+      "tolerance": 0.06
     }
   ]
 }

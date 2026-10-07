@@ -93,24 +93,24 @@
       "elevation": [
         { "v": "base", "beat": "start" },
         { "v": 40, "beat": "sigh", "dt": 0.15 },
-        { "v": 62, "beat": "palm" },
-        { "v": 62, "beat": "hold" },
+        { "v": 64, "beat": "palm" },
+        { "v": 64, "beat": "hold" },
         { "v": 40, "beat": "lower", "dt": -0.15 },
         { "v": "base", "beat": "settle", "dt": -0.05 }
       ],
       "planeOfElevation": [
         { "v": "base", "beat": "start" },
         { "v": 60, "beat": "sigh", "dt": 0.15 },
-        { "v": 72, "beat": "palm" },
-        { "v": 72, "beat": "hold" },
+        { "v": 75, "beat": "palm" },
+        { "v": 75, "beat": "hold" },
         { "v": 50, "beat": "lower", "dt": -0.1 },
         { "v": "base", "beat": "settle", "dt": -0.05 }
       ],
       "rotation": [
         { "v": "base", "beat": "start" },
         { "v": 45, "beat": "sigh", "dt": 0.2 },
-        { "v": 76, "beat": "palm" },
-        { "v": 76, "beat": "hold" },
+        { "v": 64, "beat": "palm" },
+        { "v": 64, "beat": "hold" },
         { "v": 30, "beat": "lower", "dt": -0.1 },
         { "v": "base", "beat": "settle", "dt": -0.05 }
       ]
@@ -119,8 +119,8 @@
       "flexion": [
         { "v": "base", "beat": "start" },
         { "v": 80, "beat": "sigh", "dt": 0.17 },
-        { "v": 138, "beat": "palm" },
-        { "v": 138, "beat": "hold" },
+        { "v": 122, "beat": "palm" },
+        { "v": 122, "beat": "hold" },
         { "v": 70, "beat": "lower", "dt": -0.1 },
         { "v": "base", "beat": "settle", "dt": -0.05 }
       ],
@@ -134,8 +134,8 @@
     "rightHand": {
       "flexion": [
         { "v": "base", "beat": "start" },
-        { "v": 5, "beat": "palm" },
-        { "v": 5, "beat": "hold" },
+        { "v": -5, "beat": "palm" },
+        { "v": -5, "beat": "hold" },
         { "v": "base", "beat": "settle", "dt": -0.05 }
       ]
     },
@@ -196,13 +196,13 @@
   },
   "contacts": [
     {
-      "bone": "rightHand",
+      "bone": "rightIndexDistal",
       "target": "head",
       "beat": "palm",
-      "from": -0.1,
-      "to": 1.2,
-      "offset": [-0.1, 0.032, 0.11],
-      "tolerance": 0.11
+      "from": 0,
+      "to": 1.05,
+      "offset": [-0.008, 0.146, 0.112],
+      "tolerance": 0.05
     }
   ]
 }

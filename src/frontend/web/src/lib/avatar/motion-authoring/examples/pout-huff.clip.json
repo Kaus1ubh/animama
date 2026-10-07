@@ -216,7 +216,8 @@
       "beat": "cross",
       "from": -0.2,
       "to": 0.96,
-      "tolerance": 0.2
+      "offset": [0.145, -0.045, 0.025],
+      "tolerance": 0.07
     }
   ]
 }
