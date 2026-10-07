@@ -218,6 +218,140 @@
       ]
     },
     {
+      "kind": "avatar_effect",
+      "name": "Body attachment",
+      "definition": {
+        "schema": "animama/avatar-effect/2",
+        "region": "body",
+        "attachment": {
+          "kind": "body",
+          "bone": "rightHand",
+          "offset": {
+            "x": 0.02,
+            "y": 0.05,
+            "z": 0.1
+          },
+          "size": 0.3,
+          "facing": "bone",
+          "rotationDeg": -20
+        },
+        "art": {
+          "image": "sparkle.png",
+          "flipbook": {
+            "columns": 4,
+            "rows": 2,
+            "frames": 7,
+            "fps": 12,
+            "loop": "pingpong"
+          }
+        },
+        "appearance": {
+          "opacity": 0.8,
+          "tint": "#ff8800",
+          "blend": "additive"
+        },
+        "motion": {
+          "pulse": {
+            "scaleMin": 0.9,
+            "scaleMax": 1.1
+          },
+          "keyframes": {
+            "loop": true,
+            "frames": [
+              {
+                "t": 0,
+                "opacity": 0
+              },
+              {
+                "t": 0.5,
+                "opacity": 1,
+                "scale": 1.2,
+                "rotationDeg": 10
+              },
+              {
+                "t": 1.5,
+                "offset": {
+                  "x": 0.01,
+                  "y": 0
+                }
+              }
+            ]
+          }
+        }
+      },
+      "files": [
+        {
+          "path": "sparkle.png",
+          "role": "image"
+        }
+      ]
+    },
+    {
+      "kind": "avatar_effect",
+      "name": "Sticker",
+      "definition": {
+        "schema": "animama/avatar-effect/2",
+        "region": "sticker",
+        "attachment": {
+          "kind": "sticker",
+          "around": "body",
+          "offset": {
+            "x": -0.3,
+            "y": 0.2
+          },
+          "size": 0.4,
+          "rotationDeg": 8
+        },
+        "art": {
+          "image": "doki.png"
+        },
+        "appearance": {
+          "blend": "additive"
+        },
+        "motion": {
+          "drift": {
+            "x": 0,
+            "y": 0.05
+          }
+        }
+      },
+      "files": [
+        {
+          "path": "doki.png",
+          "role": "image"
+        }
+      ]
+    },
+    {
+      "kind": "avatar_effect",
+      "name": "Silhouette",
+      "definition": {
+        "schema": "animama/avatar-effect/2",
+        "region": "silhouette",
+        "attachment": {
+          "kind": "silhouette",
+          "fill": "pattern",
+          "patternScale": 2,
+          "scroll": {
+            "x": 0.5,
+            "y": 0
+          }
+        },
+        "art": {
+          "image": "stripes.png"
+        },
+        "appearance": {
+          "opacity": 0.4
+        }
+      },
+      "files": [
+        {
+          "path": "stripes.png",
+          "role": "image"
+        }
+      ]
+    },
+    {
       "kind": "scene_effect",
       "name": "Comic Pop",
       "definition": {

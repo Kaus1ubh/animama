@@ -79,8 +79,11 @@ def test_fixtures_cover_every_current_avatar_effect_kind() -> None:
         if attachment["kind"] == "face_surface" and attachment["area"] in {"undereye", "blush"}:
             variant = attachment["layout"]
         shapes.add((attachment["kind"], variant))
-    # One fixture per /1 kind the creator could write, in its /2 form.
+    # One fixture per /1 kind the creator could write, in its /2 form, plus each attachment new in /2.
     assert shapes == {
+        ("body", None),
+        ("sticker", None),
+        ("silhouette", None),
         ("face_landmark", "eyes"),
         ("face_landmark", "mouth"),
         ("face_landmark", "forehead"),

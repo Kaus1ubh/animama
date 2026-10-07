@@ -9,7 +9,7 @@ template picker (R7) and effect-intent (R14, R15) requirements, and asked for
 the Plan 1 ExecPlan. That request accepts this specification as the planning
 basis.
 Authoritative source: [#298](https://github.com/raymond-van/animama/issues/298).
-This file is a snapshot of the issue as published on 2026-10-06T21:35Z.
+This file is a snapshot of the issue as last updated on 2026-10-07T21:34Z.
 Related: [#297](https://github.com/raymond-van/animama/issues/297) (deferred
 Particle and Scene Effect work), [#282](https://github.com/raymond-van/animama/issues/282)
 (track-based Anima Pose Clips), [#289](https://github.com/raymond-van/animama/issues/289)

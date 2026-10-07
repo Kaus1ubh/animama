@@ -89,7 +89,7 @@ work proceeds.
 - [x] Phase 10: Headed effect preview (G4 cleared when #311 merged).
 - [x] Phase 11: Documentation and acceptance. Agent work complete; G5 owner
       review pending.
-- [ ] Final integration review and PR.
+- [x] Final integration review (pass). PR opened; G5 and merge approval pending.
 
 ## Surprises & Discoveries
 
@@ -2300,6 +2300,71 @@ reusing still-valid phase evidence. It gets one full review and at most two
 repair rounds. Record findings and revisions here. Agent readiness does not
 replace G5 or merge approval.
 
+### Code Review #1 Findings (final integration)
+
+Reviewed source: `28e43da3` against merge-base `15816819`, excluding `main`'s
+own changes. Result: **pass**, no blocking findings.
+
+Coverage:
+
+- R1–R4 and R11 are met, with the evidence in the phase records.
+- R5/R6 are met through the P6 sheets, the P11 chat checks and the envelope
+  tests.
+- R7–R9 are met through the P7–P9 work and the P11 walkthrough. G5 is the
+  owner's.
+- R10 is met through `effects:render` and `animation:preview`.
+- Performance is met: P6 measured at most 1.15 ms added GPU time.
+- Compatibility holds: content kind and IDs are unchanged, and 2.0 events
+  reuse the 1.0 event rules.
+- Repository rules hold: baseline SQL only, the generated client is current,
+  no Cloud imports or private paths, licence records for the thumbnails, and
+  no leftover artefacts.
+
+Non-blocking:
+
+1. No automated fade test on a 2.0 clip.
+2. No backend positive-path test for body, sticker and silhouette effects.
+3. Performance was measured only at P6.
+4. The Included alias list in `reactionClips.test.ts` is hard-coded.
+5. The PR must repeat the required database reset and say that no hosted
+   checks ran.
+6. Cloud's hosted inventories still list `domain/vfx.py` and
+   `vfx-catalog.json`.
+7. The plan's final records were not yet written.
+8. Spec readings for the owner to confirm at G5:
+   - the Create page opens the picker at step 2;
+   - `face_landmark` keeps a `position` enum alongside the free offset;
+   - the silhouette `tint` fill.
+
+### Code Review #1 Revisions (final integration)
+
+1–4. Fixed:
+   - A 2.0 fade test was added for each player.
+   - Body, sticker and silhouette fixtures were added to the package
+     capability fixtures. The backend round trip, the creator parity test and
+     the kind coverage test now include them.
+   - `reactionClips.test.ts` derives its aliases from the Included Reactions'
+     effect dependencies.
+   - The bench was re-run. Under the owner's normal desktop load (Chrome's
+     GPU process busy, load 4–13), absolute GPU times were about twice P6's.
+     So P6 (`7f8be8e4`) and the PR head were measured back to back, in three
+     alternating runs of `effects:bench --rounds 2`:
+
+     | Avatar | P6 mean added GPU | PR head mean added GPU |
+     | --- | --- | --- |
+     | Y_0 | 1.53 ms (1.96 / 1.56 / 1.08) | 1.72 ms (2.37 / 1.64 / 1.15) |
+     | A_1_New | 1.32 ms (1.28 / 1.36 / 1.31) | 0.93 ms (0.80 / 1.18 / 0.80) |
+
+     Added CPU time was at most 0.5 ms in every run.
+   - Conclusion: no measurable regression since P6. The quietest run was
+     1.15 / 0.80 ms. One run under load 7 exceeded the budget (2.37 ms on Y_0).
+     An owner re-run on an idle machine would confirm the P6 numbers.
+5. Fixed: in the PR.
+6. Out of scope: Cloud updates its inventories when it adopts a newer
+   artifact. This is noted in the PR as a follow-up in the Cloud repository.
+7. Fixed: these records.
+8. Listed for the owner in the PR's G5 gate.
+
 ## Validation and acceptance
 
 | Spec criterion | Evidence | Phase |
@@ -2345,4 +2410,51 @@ not, the PR states that no hosted checks ran.
 
 ## Outcomes & Retrospective
 
-To be completed at the end of the plan.
+**Outcome (2026-10-07).** Plan 1 delivered R1–R11, with agent acceptance
+complete. G5 (the owner's walkthrough review) and merge approval remain.
+
+- **Definition.** Avatar Effects use one strict `/2` definition shared by the
+  backend and frontend.
+  - It covers five attachments, appearance, the other-eye image, flipbooks,
+    keyframes and event fades.
+  - Every `/1` effect converts with identical renders.
+- **Face parts.** Face parts are detected without material names on both
+  Included Avatars, and corrections are saved with the Avatar.
+- **Creators.** The three creators share save, recovery and undo. Creation
+  starts from a two-step Effects picker. The Avatar Effect creator keeps its
+  layout, gains direct manipulation and plain controls, and has a Face parts
+  panel.
+- **Preview tools.** `effects:render`, `effects:thumbnails`, `effects:bench`
+  and effect sources in `animation:preview` support agent and owner review for
+  Plan 2.
+
+**What went well:**
+
+- The P2 render harness made every later runtime change verifiable with
+  pixel diffs against the baselines. G2 and G3 never needed the owner.
+- Bounded reviews caught real defects in every phase, for example:
+  - the mirrored-offset sign (P4);
+  - the `refreshFaceParts` races (P5);
+  - the silhouette texture leak (P6);
+  - mirror data loss in the creator (P9);
+  - stale preview reloads (P10).
+
+**What to do differently:**
+
+- A standalone HTML prototype was the wrong review artefact for this owner.
+  Show the real app instead.
+- Gates tied to other plans (G4) should state the expected merge order up
+  front.
+- The browser walkthrough (P11) found UX defects that unit tests missed: the
+  fade covering only the art, multi-role parts and the narrow drawer. Run a
+  short browser pass at the end of each UI phase.
+
+**Follow-ups:**
+
+- Plan 2 (R12–R16): the effect-asset and authoring skills, about 25 effects,
+  Reactions per emotion, and promotion modelled on #310.
+- #297: Particle and Scene templates and controls.
+- Pre-existing defects split into separate tasks:
+  - creator missing-item states and Gesture Save & Equip;
+  - the preview deadlock and stale pose-content e2e.
+- Cloud: refresh its hosted inventories.

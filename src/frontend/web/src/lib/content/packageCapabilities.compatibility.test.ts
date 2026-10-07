@@ -53,8 +53,11 @@ describe("portable package renderer capabilities", () => {
           description: "Shared backend compatibility fixture",
           assetPath: "blob:verified-package-resource",
         });
-        // Every shared fixture is a face effect.
-        expect(isAttachmentVFXEntry(parsed)).toBe(false);
+        // Body, sticker and silhouette fixtures parse as attachments; the rest are face effects.
+        const { kind } = definition.attachment as { kind: string };
+        expect(isAttachmentVFXEntry(parsed)).toBe(
+          ["body", "sticker", "silhouette"].includes(kind),
+        );
         return;
       }
       const runtime = definition as Record<string, unknown>;

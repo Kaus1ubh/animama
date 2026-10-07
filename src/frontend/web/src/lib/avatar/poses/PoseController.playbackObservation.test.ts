@@ -1,7 +1,11 @@
 import type { VRM } from "@pixiv/three-vrm";
 import { describe, expect, it } from "vitest";
 
-import { parseAnimaPoseClip, type AnimaPoseClip } from "./animaPoseClip";
+import {
+  parseAnimaPoseClip,
+  parseAnimaPoseClipV2,
+  type AnimaPoseClip,
+} from "./animaPoseClip";
 import {
   PoseController,
   type AnimaPoseClipEventContext,
@@ -247,6 +251,46 @@ describe("Avatar Effect event envelopes", () => {
       ["glow", 1],
       ["glow", 0.25],
     ]);
+  });
+
+  it("fades an Avatar Effect event in a 2.0 clip", () => {
+    const controller = new PoseController(minimalVrm());
+    const values: number[] = [];
+    controller.setClipEventSink({
+      applyAvatarVFX: () => undefined,
+      clearAvatarVFX: () => undefined,
+      setAvatarVFXIntensity: (_event, _context, intensity) => {
+        values.push(Number(intensity.toFixed(3)));
+      },
+    });
+    controller.playAnimaPoseClip(
+      parseAnimaPoseClipV2({
+        schema: "animaPoseClip/2.0",
+        id: "fade-v2",
+        name: "Fade 2.0",
+        duration: 4,
+        beats: [{ id: "start", label: "Start", time: 0 }],
+        expressions: { happy: [{ beat: "start", v: 1 }] },
+        events: [
+          {
+            id: "glow",
+            kind: "avatar_vfx",
+            effectId: "glow",
+            time: 0.5,
+            duration: 2,
+            envelope: {
+              intensity: { fadeIn: 0.5, fadeOut: 1, easing: "linear" },
+            },
+          },
+        ],
+      }),
+    );
+    controller.update(0.5); // starts at 0.5 s: local 0
+    controller.update(0.25); // local 0.25: halfway through the fade in
+    controller.update(0.5); // local 0.75: full
+    controller.update(0.25); // local 1.0: still full, unchanged values are skipped
+    controller.update(0.75); // local 1.75: halfway through the fade out
+    expect(values).toEqual([0, 0.5, 1, 0.25]);
   });
 
   it("leaves events without an envelope at full intensity", () => {
