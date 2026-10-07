@@ -83,7 +83,9 @@ work proceeds.
 - [x] Phase 9: Avatar Effect creator `/2` controls and direct manipulation
       (existing layout and styling). "keep Eye" still needs a quiet-machine
       rerun before the PR.
-- [ ] Paused for G4 until #311 merges (owner, 2026-10-07).
+- [x] Paused for G4 until #311 merged on 2026-10-07. The branch merged `main`
+      (`777e9a79`) and fixed a mypy failure that came in from `main` in
+      `idle_clip_validation.py` (`40bab4fc`).
 - [ ] Phase 10: Headed effect preview. Gate G4.
 - [ ] Phase 11: Documentation and acceptance. Gate G5.
 - [ ] Final integration review and PR.
@@ -129,6 +131,25 @@ probe):
   prototype gate.
 - **2026-10-06, owner (plan review):** development databases are reset for the
   new correction table; no migration is needed.
+- **2026-10-07, sync after #311:** `origin/main` (`15816819`) was merged
+  into this branch (`777e9a79`). Conflicts were resolved as follows:
+  - The players kept #311's `parseAnyAnimaPoseClip` alongside P4's envelope
+    sampling. 2.0 clips reuse the 1.0 event rules, so fades survive 2.0
+    saves.
+  - The player tests kept all tests from both sides.
+  - The Playwright allowlist, the `package.json` scripts, the
+    browser-journey docs and the capability test parameters were combined.
+  - `make check` failed on `main` itself: mypy reported 4 errors in
+    `idle_clip_validation.py` from #311. They are fixed in `40bab4fc`.
+  - Checks after the merge:
+    - full `pnpm web:test`: 405 files, 3,114 tests passed;
+    - `pnpm check` and `openapi-ts:check` pass;
+    - affected backend pytest: 241 passed, and the idle-clip tests 136
+      passed;
+    - `make check` passes.
+- **2026-10-07, owner:** the Plan 2 Avatar Effect skill (R13) follows the
+  `animama-animation` pipeline, including a gated Promote to Included step
+  modelled on #310.
 - **2026-10-07, owner (G4):** #282's PR #311 is still open. Work pauses after
   P9 until #311 merges. Then this branch syncs with `main`, and P10, P11 and
   the PR follow. The headed preview is not delivered separately.

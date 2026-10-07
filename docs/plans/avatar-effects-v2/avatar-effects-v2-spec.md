@@ -301,9 +301,12 @@ A repository skill turns an art brief into textures that are ready to use:
 
 #### R13 — Avatar Effect authoring skill
 
-The `animama-avatar-vfx` skill becomes a generation pipeline: brief → assets
-(R12) → v2 definition → checks → headless renders → the owner's review in the
-headed preview → creator Import and Save as Local content → reopen. The checks
+The `animama-avatar-vfx` skill becomes a generation pipeline that follows the
+`animama-animation` skill's shape: brief → assets (R12) → v2 definition →
+checks → headless renders → the owner's review in the headed preview → creator
+Import and Save as Local content → reopen → an explicit, owner-approved
+**Promote to Included** step (R16), modelled on the Gesture promotion tool and
+skill step from #310. The checks
 cover definition validity, image budgets, a resolved attachment on both Included
 Avatars and visible art in the rendered frames. A fresh-agent dry run follows the
 skill end to end, and the gaps it finds are fixed.
@@ -517,6 +520,12 @@ Accepted proposals (owner, 2026-10-06, on review of this draft):
   accepted, and a `/1` definition is rejected with the conversion hint.
 - **Included content.** Promotion in Plan 2 (R16) is the only place an agent
   writes `content/included/`, and only after the owner's approval in the PR.
+
+Additions (owner, 2026-10-07):
+
+- The Avatar Effect skill (R13) mirrors the `animama-animation` pipeline,
+  including a gated Promote to Included step like the one #310 adds for
+  Gestures.
 
 Additions (owner, 2026-10-06):
 
