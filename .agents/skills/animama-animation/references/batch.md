@@ -74,20 +74,23 @@ pnpm -s animation:save <items.json>
 Keep the items file in a scratch directory, outside the repository; clip
 paths are absolute or relative to the items file. An optional `description`
 sets a new Gesture's Library description (it defaults to the AI description).
+
 The tool saves the items one after another through the Gesture creator,
-exactly as a person would. A new Selector ID becomes a new Local Gesture. A
-Local Gesture's Selector ID revises that item in place: the clip is imported
-into it (its name, components, notes and description are kept), its AI
-description is set, and it is saved as a revision. The item's name must stay
-the same, because renaming in the creator can re-derive the Selector ID from
-the new name (renaming by hand can do the same, so leave renames to the
-owner). A
-Selector ID that belongs to an Included Gesture is refused. After each save
-the tool reads the item back to confirm its Selector ID. Each
-saved item is reopened to confirm its beats load. The tool prints each item
-as it goes, so a failure part-way does not hide earlier saves; fix the
-failing item and run again (saved items are revised, not duplicated). Then
-run the chat check on a sample of the batch.
+exactly as a person would:
+
+- a new Selector ID becomes a new Local Gesture;
+- a Local Gesture's Selector ID revises that item in place: the clip is
+  imported into it (its name, components, notes and description are kept),
+  its AI description is set, and it is saved as a revision. The name must
+  stay the same, because renaming in the creator can re-derive the Selector
+  ID from the new name (by hand too), so leave renames to the owner;
+- a Selector ID that belongs to an Included Gesture is refused.
+
+After each save the tool reads the item back to confirm its Selector ID and
+reopens it to confirm its beats load. It prints each item as it goes, so a
+failure part-way does not hide earlier saves; fix the failing item and run
+again (saved items are revised, not duplicated). Then run the chat check on a
+sample of the batch.
 
 ## 6. Hand off
 

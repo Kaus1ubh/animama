@@ -101,14 +101,19 @@ prototype.
 - [x] Phase 3: Runtime and backend acceptance of 2.0. Review #3 passed
       (both repair rounds used).
 - [x] Phase 4: Authoring tools, migrated examples and skill. Review #2
-      passed. Gate G1 (owner) pending.
-- [x] Phase 5: Creator editing of 2.0 (agent work complete; review passed). Gate G2 pending.
-- [x] Phase 6: Wave 1 content (authored, checked, saved; G4 run). Gate G3 pending.
+      passed. Gate G1 accepted by the owner (2026-10-07).
+- [x] Phase 5: Creator editing of 2.0 (agent work complete; review passed). Gate G2 accepted by the owner (2026-10-07).
+- [x] Phase 6: Wave 1 content (authored, checked, saved; G4 run). Gates G3 and G4 accepted by the owner (2026-10-07).
 - [ ] After G1: revise the #267 weaknesses (A_1 chin fist in thinking-chin-rest
       and storytelling's Think beat, A_1 nod energy, Y_0 clap contact).
-- [x] Phase 7: Replacements and wave 2 (authored, checked, saved; review passed). Gate G3 and the replacements' Selector IDs pending; promotion in #310.
+- [x] Phase 7: Replacements and wave 2 (authored, checked, saved; review passed). Gate G3 accepted (2026-10-07); the replacements' Selector IDs are decided with promotion in #310.
 - [x] Final integration review: one blocking finding fixed (recheck below).
-- [ ] PR opened; CI; owner gates; merge approval.
+- [x] PR opened (#311). Hosted CI is disabled (no Actions minutes, 2026-10-07);
+      local checks are the evidence.
+- [x] Owner follow-ups (2026-10-07, see below): preview source pickers; the
+      creator Avatar reload fix; the interview step, batch mode and
+      `animation:save`.
+- [ ] Merge approval.
 
 ## Surprises & Discoveries
 
@@ -1578,6 +1583,93 @@ through every probed frame; the contacts are reached; the warning list and
 Local copies match. G3 note: in pout-huff on Y_0 the right wrist rests at or
 just past the left wrist joint.
 
+## Owner follow-ups (2026-10-07)
+
+After reviewing the PR, the owner accepted G1–G4 ("good enough") and asked
+for these changes in this PR:
+
+- **Preview source pickers** (`0fe294f8`): the preview page's Review and
+  Compare pickers list the examples, the clips beside each file source and
+  the Library's Gestures and Reactions; the server accepts only listed
+  choices and swaps sessions without a restart. Review #1 passed with
+  optional findings PK-F1–F8; F1 (generation ordering after a swap), F2
+  (`--notes` stays with its source), F3 (only playable JSON is listed), F6
+  (test proves the playhead reset), F7 (close waits for a pick) and F8 were
+  fixed before the commit; F4 (sidecars are ignored only under
+  `src/frontend/web`, where the skill runs the tools) and F5 (stem matching is
+  loose; no current collision) were left as they are.
+- **Creator Avatar reload** (`58c91acc`): in a saved Gesture opened for edit,
+  every click on the Avatar in the Pose tab showed "Loading Avatar…".
+  `useActionComponentPreviews` returned a new list each render, which rebuilt
+  the runtime catalog (same revision, new identity) and made the Avatar actor
+  reload its VRM. The list is now memoized. Beat edits also round quaternion
+  keys to the saved precision, so a draft equals what Save writes (the
+  creator journey compared them). The journey now clicks a reopened saved
+  Gesture's Avatar and fails on any reload (verified to fail without the fix).
+  Pre-existing and unchanged: with component dependencies, each preview lease
+  refresh still rebuilds the catalog.
+- **Interview, batch mode and `animation:save`** (`7040ea6a`, `1d5be5de`):
+  skill step 0 asks the owner the few questions that would change the clip;
+  `references/batch.md` authors up to ten Gestures (one interview round,
+  parallel subagents, a consistency pass, one preview, one save run);
+  `pnpm -s animation:save <items.json>` saves through the creator headlessly
+  (a new item by project import; a Local item with that Selector ID revised by
+  clip import, keeping its components, notes and description; an Included
+  Selector ID refused).
+- **Deflated Sigh**: the owner's manual creator edit was reverted by
+  re-saving the source clip; the Local item equals its source again.
+
+### Follow-up Review #1 Findings (58c91acc, 7040ea6a)
+
+`sdlc-reviewer`, full review of the follow-up scope. Blocking: **FX-F1** the
+save tool could import before a saved item finished loading (the late load
+replaced the import and reported "Unchanged"); **FX-F2** revising by project
+import reset an item's dependencies and notes. Non-blocking: FX-F3 reload
+before the save finished; FX-F4 reopen check assumed a beat at 0 s; FX-F5
+errors did not name the step or the app's response; FX-F6 Selector ID pattern
+narrower than the backend's and Included IDs silently became new items;
+FX-F7 rounding not shared with Save; FX-F8 example items path inside the
+repository. The memoization and rounding were confirmed correct.
+
+### Follow-up Review #1 Revisions
+
+All accepted and fixed in `1d5be5de`: the tool waits for the item's name to
+load before importing; revisions import the plain clip and set the name and
+AI description; it waits for the save to finish before reopening; the reopen
+check matches the first beat's label at any time; errors name the step and a
+refused save reports the app's status; Selector IDs follow the backend
+pattern and an Included Selector ID is refused; `quaternionKey` uses
+`roundAnimaPoseClipNumber`; the batch example uses an absolute path. Evidence:
+`animation-save.test.mjs` 4/4; affected vitest suites 93 files / 903 tests;
+live on the task stack: new → Saved, revise with rename → Revised (same item,
+Selector ID and description kept), Included Selector ID refused; probe items
+deleted.
+
+### Follow-up Review #2 Findings
+
+Targeted recheck of `1d5be5de`: FX-F1, F2 and F4–F8 verified. Blocking:
+**FX-R1** renaming during a revision could re-derive the Selector ID (the
+creator ties a name-derived Selector ID to the name on a loaded item).
+Non-blocking: **FX-F3** the "Save disabled" wait passed while the save was
+still finishing.
+
+### Follow-up Review #2 Revisions
+
+Both accepted and fixed in `3d9583b0`: a revision keeps the saved name (a
+different name is refused before the browser starts) and every save is read
+back to confirm its Selector ID; the tool waits for the creator's "Gesture
+saved." notice before reopening. Live: new → Saved, same name with another
+clip → Revised (Selector ID, name and description kept), rename → refused;
+probe deleted. The creator's own re-derivation on a manual rename predates
+this work and is left as it is.
+
+### Follow-up Review #3 Findings
+
+Final targeted recheck of `3d9583b0`: **pass**. FX-R1 and FX-F3 verified, no
+regressions. Optional: a failed read-back reports the Selector ID as `null`
+rather than the HTTP status; a line break in `batch.md` (reflowed). Repair
+budget for the follow-up scope: both rounds used.
+
 ## Final integration review
 
 After Phase 7 (or the last completed phase), run one full `sdlc-reviewer` pass
@@ -1688,6 +1780,6 @@ measured offsets and tight tolerances, not wide ones; Avatar proportions
 differ by several centimetres, so touches sit between the two; the
 creator's 1.0 paths are now dead code (separate cleanup).
 
-Open: owner gates G1–G3 (and confirming G4), the replacements' Selector
-IDs, the #267-weakness revisions after G1, promotion to Included (#310) and
-the FI-N2 parity fixture.
+Owner gates G1–G4 were accepted on 2026-10-07. Open: the #267-weakness
+revisions (unblocked by G1), promotion to Included with the replacements'
+Selector IDs (#310) and the FI-N2 parity fixture.
