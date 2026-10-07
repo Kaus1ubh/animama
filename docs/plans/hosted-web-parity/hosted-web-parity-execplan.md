@@ -93,10 +93,10 @@ contract instead of maintaining a second truth.
 
 - [x] 2026-10-06 [A1 / #273](https://github.com/raymond-van/animama/issues/273): engineering/source gate PASS; canonical metadata, SDK freshness and independent targeted review pass. Owning repair2/2 supplies runtime-contracts0.3.1. Clean220c6581 passes the unchanged declaration/installed-consumer guard and rollback; A6 refreshes the new R7 source artifact and actual CI. Original C1 handoff remains valid.
 - [x] 2026-10-05 [A2 / #274](https://github.com/raymond-van/animama/issues/274): corrected portable preference merger committed at `6a150fd45d5e215e7f134010b53b9c62e4316ede`; targeted independent review #3 and clean installed-wheel gate pass. Repair rounds used: 2 of 2. Neutral services are ready for isolated consumer C2 repair and A4.
-- [ ] 2026-10-06 [A3 / #275](https://github.com/raymond-van/animama/issues/275): original session/cache and R5/R6 source review pass; actual hosted durable preferences/desktop Usage pass. Approved owning repair3/3 resolves A6-R7 with the shared mobile Library opener and four actual local/hosted Escape/Close regressions after a meaningful missing-opener red. Independent targeted source review and cleanf646cedd consumer/rollback pass. Current-main integration is separately reviewed; its final immutable binding and full hosted account-switch/acceptance remain pending.
+- [ ] 2026-10-06 [A3 / #275](https://github.com/raymond-van/animama/issues/275): original session/cache and R5/R6 source review pass; earlier hosted durable preferences/desktop Usage pass. Approved owning repair3/3 resolves A6-R7 with four actual Library local/hosted Escape/Close regressions and independent source review. Clean5d95 producer/guard/installed-emitted consumer/genuine rollback pass. Native CI fails two initial10s load waits before behavior assertions; fresh hosted fixture7 stops at the first Settings body read after six checks. Full account-switch/hosted acceptance remains pending; causes are not proved product regressions.
 - [x] 2026-10-06 [A4 / #276](https://github.com/raymond-van/animama/issues/276): original phase review passed0/2; A6 returned model-role/Library-upload defects. Targeted independent analysis/checks #2 resolve both after owning A4 repair1/2. Corrected immutable binding remains A6; physical/heard voice and hosted/provider/device acceptance remain C5/C7 gates.
 - [x] 2026-10-06 [A5 / #277](https://github.com/raymond-van/animama/issues/277): engineering/artifact gate PASS after independent final analysis/checks. Clean A `8b09e7ff` and reviewed main-integrated B `e4e0661b` pass independent producer/installed-and-emitted consumer, same-source A production observations and genuine A/B/open-tab/rollback/clip gates. Repair rounds remain 1 of 2; measurement and inherited descriptive-field limits are recorded below. C6/A6 are ready; main adoption, provider/device/deployment and exact-candidate owner merge remain separate.
-- [ ] 2026-10-06 [A6 / #278](https://github.com/raymond-van/animama/issues/278): approved R7 repair4/4, with owning A3 3/3, passes author and independent targeted source review. Cleanf646cedd producer/guard/installed-and-emitted consumer/genuine retained-C rollback pass. Main advanced to9abfc771; its four-path desktop integration passes bounded analysis and17 packaging tests after restoring missing declared locked server extras. Final current-tree artifact/Cloud/native CI remain pending; actual220 CI attempts1/2 remain failed. Earlier failures/counts and C6/C7/owner/main gates are retained.
+- [ ] 2026-10-06 [A6 / #278](https://github.com/raymond-van/animama/issues/278): approved R7 repair4/4 and owning A3 3/3 pass source review. Reviewed main-integrated5d95 clean producer/guard/all eight installed-emitted consumer/genuine retained-C rollback checks pass. Actual native ci:full37536127901 passes backend/preceding checks and2,603 Vitest cases but fails two initial10s page loads,73/75 browser cases; later required gates are skipped. Hosted fixture7 full run fails after six checks at first Settings body retrieval, with zero paid roots and memory cleanup complete. The owner approved one additional bounded A6 validation repair5/5; diagnostics and evidence-supported fixture repair are active, with all other counts/gates retained. Earlier failures, counts and C6/C7/owner/main gates remain.
 
 ## Surprises & Discoveries
 
@@ -1525,6 +1525,92 @@ The full common PASS still gates duplicate UI retirement; C6 initial review0of2,
 clean private releases/final-source acceptance and C7/main/owner/provider/device/
 deployment gates remain separate.
 
+#### Validation blockers after source release — 2026-10-06
+
+The exact clean main-integrated source is5d95dc17, tree844f287e. Its format2
+manifest09f268da and producer, unchanged comparison, all eight installed/emitted
+consumer checks and genuine retained-C upgrade/open-tab/rollback pass. These
+receipts belong to that committed source; this record update is not a new build.
+
+Actual native ci:full run37536127901 attempt1 fails. Its tested mergef182c110
+has the same tree844f287e as5d95. Complete offline backend, preceding checks and
+2,603 Vitest cases pass. Browser results are73/75, zero skips. Hosted settings
+persistence and actual hosted Library Escape fail in initial page.goto load waits
+at the unchanged10,000ms deadline, before behavior assertions. The other three
+new Library dismissal cases pass. Document response, DOMContentLoaded/load and
+request milestones were not captured, so no optimizer, renderer, resource or
+product cause is established. Later desktop tests, production build, browser
+smoke, immutable producer/consumer and baseline comparison are skipped in this
+run. Earlier220 failures remain separate, including the emitted clip stall.
+
+The one fresh complete hosted fixture7 run stops after six checks at the first
+Settings capability response.json with Chromium Network.getResponseBody / No data
+found. Identity18+, admission/bootstrap/Library, deep-link/reload, manual memory
+and attachment exclusion pass. Temporary memory is deleted; A/B paid roots and
+durable pending counts are zero. Matched response status/body and completion were
+not captured before the error; its historical cause is unproved. Isolated real
+Chromium mechanism tests support a held request-association correction and retain
+hard failure for broken new responses. They do not establish hosted acceptance.
+
+All source/custody/failure evidence is sealed. The latest13 task containers and
+three owned networks are removed, preserving all baseline196 volumes,270 images,
+29 unrelated containers and records/cohorts/liability. No reset or reconciliation
+is performed. Full common PASS still gates duplicate UI retirement. C6 initial
+review remains unstarted0/2; final-source releases/browser acceptance, actual CI
+and C7/main/owner/provider/device/deployment remain required. The owner then
+approves one additional bounded A6 validation repair round5/5. Owning A3 stays
+3/3 and all other counts are unchanged. This authorizes test-only diagnostics,
+evidence-supported fixture repair and a fresh complete pre-retirement journey
+under the original three-root/$0.15 ceiling. No deadline/assertion waiver,
+automatic full retry or prior-cohort reset follows.
+
+#### Code Review #6 Findings — targeted validation diagnostics
+
+The owner approved one additional bounded A6 validation repair5/5 on2026-10-06.
+Owning A3 remains3/3, A1/A2 each2/2 and A4/A5 each1/2; C6 formal initial review
+remains unstarted0/2. This targeted round retains earlier failures and resolved
+product findings. Actual native run37536127901 remains failed and its initial
+load cause unconfirmed. Fixture7 FAIL6 remains a distinct unconfirmed body-read
+failure, with zero paid roots and sealed cleanup/custody.
+
+Independent analysis reports no actionable findings in the frozen five-path
+public change. Four test-script paths add passive initial-entry diagnostics and
+owned-context failure cleanup; the fifth is this living record. The unchanged
+10s load and15s workflow readiness conditions, Library heading readiness,
+subsequent visits and product assertions remain. Diagnostics retain the native
+Error and bounded relative paths/status/timing without bodies, headers, cookies
+or query values. Real loopback hanging/delayed resources still fail at10s, and
+normal/network-failure cases verify listener cleanup and context isolation.
+
+Configured syntax, Prettier and ESLint pass. One source-unchanged local run is
+retained as sleep-contaminated:10/12 pass with two click/scroll stability timeouts;
+a900s host-sleep interval is confirmed by the power log. It is not acceptance or
+proof of the historical native CI cause. After the owner confirms the host is
+awake, all8 retained-screen cases and the focused hosted settings persistence
+case pass, zero skips. No deadline, source or assertion change follows that run.
+Independent exact-source checks: all13 browser cases pass, zero skips; syntax/format/lint and diff checks pass. Analysis receipt
+SHA 8e0e6896c138f761b0cfe8a1d72ecf8f08a270eb39c7d5d757a3a099c88fae90; checks receipt SHA ad680ff198eee6a22e7f986ec8c5e6a2270ba245ca2c92e5381b55752a9c465c.
+
+#### Code Review #6 Revisions — source release for approved round5/5
+
+Accept the scoped analysis and checks. No further source repair is requested by
+this recheck. The clean commit, fresh producer/unchanged comparison/all eight
+installed-emitted consumer/genuine retained-C upgrade/open-tab/rollback and actual
+native ci:full remain the next gates. Local diagnostics are not a latency fix or
+CI acceptance. All earlier failed runs and artifact evidence retain their exact
+source scope.
+
+The separate Cloud observer correction associates capability responses with
+requests begun after observation, captures the body immediately and preserves
+hard failure for genuinely broken new responses. Six extracted-loopback controls
+support that mechanism; they do not prove fixture7's cause or hosted acceptance.
+A fresh complete common journey remains subject to reviewed artifact/readiness,
+three inclusive roots/$0.05 each/$0.15 total, ambiguity counted, with no automatic
+full retry or prior-cohort reset. Full common PASS still gates duplicate UI
+retirement. C6 formal review, clean releases, final-source browser acceptance,
+validated public main, owner merge, promotion/readback and provider/device/live
+deployment gates remain separate. A6 is not marked complete by this source release.
+
 ## Final integration review
 
 Use A6's review as the final integration review, not a second unrestricted pass.
@@ -1605,9 +1691,14 @@ The actual hosted journey confirms mobile Library finding R7. Its approved A6
 repair4of4/owning A3 3of3 passes four author browser regressions and independent
 targeted analysis/checks. Cleanf646 successor validation passes; bounded incoming
 main integration passes analysis and17 packaging tests after declared environment
-preparation. Final current-tree artifact binding remains pending. Full hosted replacement,
-fresh actual CI and owner/main/provider/device/deployment gates precede overall
-parity acceptance. Existing failures, resource limits and phase repair counts remain
+preparation. Clean5d95 producer/guard/all eight installed-emitted consumer and
+genuine retained-C rollback checks pass. Actual native CI then fails two initial
+load waits before behavior assertions; hosted fixture7 stops at the first Settings
+body read after six checks and zero paid roots. Causes remain unconfirmed and the
+owner approves one additional bounded A6 validation repair round5/5; all other
+counts remain. Full hosted
+replacement, passing actual CI and owner/main/provider/device/deployment gates
+precede overall parity acceptance. Existing failures, resource limits and phase repair counts remain
 recorded above. The agreed interleaved order remains authoritative.
 
 Revision note, 2026-10-05: initial plan separates reusable public implementation

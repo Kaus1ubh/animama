@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { readFile } from "node:fs/promises";
 import { chromium } from "playwright";
 import { createServer, loadConfigFromFile } from "vite";
+import { observeInitialNavigation } from "./fixtures/initial-navigation-diagnostics.mjs";
 import { createHostedWorkflowHttp } from "./fixtures/hosted-workflows-http.mjs";
 
 const webRoot = fileURLToPath(new URL("..", import.meta.url));
@@ -79,20 +80,19 @@ async function mount(route = "/", owner, { waitForSettings = true } = {}) {
       sameSite: "Lax",
     },
   ]);
-  await page.goto(fixtureUrl(route));
-  try {
-    await page.waitForFunction(
-      (waitForSettings) =>
-        window.workflowFixture &&
-        (!waitForSettings || !window.workflowFixture.settings.isLoading),
-      waitForSettings,
-      { timeout: 15000 },
-    );
-  } catch (cause) {
-    throw new Error(
-      `${cause.message}; errors: ${JSON.stringify(errors)}; calls: ${JSON.stringify(api.calls.filter((call) => call.owner === admission.owner))}; body: ${await page.locator("body").innerText()}`,
-    );
-  }
+  await observeInitialNavigation({
+    page,
+    ownedContext: page.context(),
+    navigate: () => page.goto(fixtureUrl(route)),
+    ready: () =>
+      page.waitForFunction(
+        (waitForSettings) =>
+          window.workflowFixture &&
+          (!waitForSettings || !window.workflowFixture.settings.isLoading),
+        waitForSettings,
+        { timeout: 15000 },
+      ),
+  });
   return { page, errors, ...admission };
 }
 async function invoke(page, name, options = {}) {

@@ -5,6 +5,7 @@ import { mkdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
 import { createServer, loadConfigFromFile } from "vite";
+import { observeInitialNavigation } from "./fixtures/initial-navigation-diagnostics.mjs";
 import {
   createHostedWorkflowHttp,
   hostedCapabilities,
@@ -145,21 +146,28 @@ async function mount(
   const page = await context.newPage();
   page.on("pageerror", (error) => errors.push(error.message));
   page.setDefaultTimeout(10000);
-  const visit = async (next = route) => {
-    await page.goto(
+  const navigate = (next) =>
+    page.goto(
       `${origin}/${fixture}/index.html?local=${local ? "1" : "0"}&route=${encodeURIComponent(next)}`,
     );
+  const ready = () =>
+    page.getByRole("heading", { name: "Library", exact: true }).waitFor();
+  const visit = async (next = route) => {
+    await navigate(next);
     try {
-      await page
-        .getByRole("heading", { name: "Library", exact: true })
-        .waitFor();
+      await ready();
     } catch (error) {
       const body = await page.locator("body").innerText();
       await context.close();
       throw new Error(`${error.message}; body=${body}; errors=${errors}`);
     }
   };
-  await visit();
+  await observeInitialNavigation({
+    page,
+    ownedContext: context,
+    navigate: () => navigate(route),
+    ready,
+  });
   return {
     page,
     calls,
