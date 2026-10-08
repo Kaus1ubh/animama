@@ -261,6 +261,12 @@ export default defineConfig(({ mode, command, isPreview }) => {
       port: 8000,
       strictPort: true,
       proxy: localAPIProxy(localDevelopmentOrigins().apiTarget),
+      watch: {
+        // Vite already skips node_modules, test-results and its cache. These
+        // outputs never feed the app; motion review notes are written to the
+        // working directory or beside the globbed Included clips.
+        ignored: ["**/coverage/**", "**/*.review.json", "**/*.review/**"],
+      },
       fs: {
         allow: [
           webRoot,

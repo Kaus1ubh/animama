@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { useAnimas } from "@/query/hooks/useAnimas";
 import { useSettings } from "@/ui/settings/SettingsProvider";
-import { shouldPersistLastActiveAnima } from "@/ui/content-creator/contentCreatorModelPreview";
+import { createLastActiveAnimaAttempts } from "./lastActiveAnimaAttempts";
 
 /** Persist a valid visited Anima as a non-blocking cross-route preference. */
 export function useRememberLastActiveAnima(
@@ -12,7 +12,7 @@ export function useRememberLastActiveAnima(
 ): void {
   const animasQuery = useAnimas();
   const { userSettings, updateUserSettings } = useSettings();
-  const attemptedAnimaIdRef = useRef<string | null>(null);
+  const [attempts] = useState(createLastActiveAnimaAttempts);
   const ownedAnimaIds = useMemo(
     () => animasQuery.data?.map((anima) => anima.id) ?? [],
     [animasQuery.data],
@@ -20,26 +20,17 @@ export function useRememberLastActiveAnima(
 
   useEffect(() => {
     if (!userSettings || !animasQuery.isSuccess) return;
-    if (
-      !shouldPersistLastActiveAnima({
+    attempts.remember(
+      {
         routeAnimaId,
         rememberedAnimaId: userSettings.last_active_anima_id,
         ownedAnimaIds,
-      }) ||
-      attemptedAnimaIdRef.current === routeAnimaId
-    ) {
-      return;
-    }
-
-    const nextAnimaId = routeAnimaId!;
-    attemptedAnimaIdRef.current = nextAnimaId;
-    void updateUserSettings({ last_active_anima_id: nextAnimaId }).catch(() => {
-      if (attemptedAnimaIdRef.current === nextAnimaId) {
-        attemptedAnimaIdRef.current = null;
-      }
-    });
+      },
+      (animaId) => updateUserSettings({ last_active_anima_id: animaId }),
+    );
   }, [
     animasQuery.isSuccess,
+    attempts,
     ownedAnimaIds,
     routeAnimaId,
     updateUserSettings,

@@ -136,7 +136,9 @@ entries and their dependents as `scan_required`. Included notifications retain
 unconditional invalidation, including license changes. An authoritative scan
 after the quiet window admits genuine changes. This correctness check adds one
 Local source scan per coalesced watcher batch; it does not skip external events
-or introduce a timed suppression window. Startup, `reset.sh`, and
+or introduce a timed suppression window. The watcher ignores hidden paths that
+scans never read, such as mutation staging and backups under
+`.animama-mutations`; `.animama-operation` markers still notify. Startup, `reset.sh`, and
 `POST /v1/content:rescan` use that same reconciliation path. Every scan recovers
 unfinished Local mutations under the source transaction lock before admitting
 files; bootstrap therefore never scans an interrupted publication first.

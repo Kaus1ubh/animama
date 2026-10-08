@@ -1,34 +1,16 @@
-import type { Page } from "playwright/test";
-
 import { expect, test } from "../fixtures/animama";
+import {
+  discardToLibrary,
+  readPortableJson,
+} from "../helpers/creator-surfaces";
 import {
   CreatorMutationGuard,
   type CreatorOwnedResponse,
 } from "../helpers/preview-network";
-import { prepareLibraryPreview } from "../helpers/preview-surfaces";
-
-async function readPortableJson(page: Page, title: string): Promise<string> {
-  await page.getByRole("button", { name: "View JSON", exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: title, exact: true });
-  const value = await dialog.getByRole("textbox").inputValue();
-  await page.keyboard.press("Escape");
-  await expect(dialog).toBeHidden();
-  return value;
-}
-
-/** Exercise the actual navigation blocker, without clearing browser storage. */
-async function discardToLibrary(page: Page): Promise<void> {
-  await page.getByRole("link", { name: "Library", exact: true }).click();
-  const dialog = page.getByRole("dialog", {
-    name: "Discard authoring changes?",
-    exact: true,
-  });
-  await expect(dialog).toBeVisible();
-  await dialog
-    .getByRole("button", { name: "Discard and continue", exact: true })
-    .click();
-  await expect(page).toHaveURL(/\/library(?:[/?#]|$)/);
-}
+import {
+  prepareLibraryPreview,
+  selectAnnieFromSidebar,
+} from "../helpers/preview-surfaces";
 
 for (const failure of [false, true]) {
   test(`accountless Local Gesture discard ${failure ? "storage failure preserves recovery" : "reopens saved content"}`, async ({
@@ -53,6 +35,9 @@ for (const failure of [false, true]) {
       entryName: name,
       logicalKey,
     });
+    // Visiting Annie may persist her as the last active Anima. Do that before
+    // the guard so it limits only this journey's creator writes.
+    await selectAnnieFromSidebar(page);
     const guard = await CreatorMutationGuard.attach(page, apiUrl);
     let owned: CreatorOwnedResponse | null = null;
     try {
@@ -60,6 +45,7 @@ for (const failure of [false, true]) {
         contentName: "shy-finger-poke",
         page,
         section: "gesture",
+        selectAnnie: false,
       });
       await page
         .getByRole("article", { name: "shy-finger-poke", exact: true })

@@ -282,21 +282,27 @@ export function parsePlaybackObservation(value: unknown): PlaybackObservation {
 export async function readPlaybackObservation(
   surface: Locator,
 ): Promise<PlaybackObservation> {
-  const outputs = surface.locator("output[data-playback-observation]");
-  const count = await outputs.count();
-  if (count !== 1) {
+  // Read count, version and text in one browser call. Separate calls each wait
+  // for a busy renderer, which spaces samples far beyond the 5 Hz window.
+  const outputs = await surface
+    .locator("output[data-playback-observation]")
+    .evaluateAll((elements) =>
+      elements.map((element) => ({
+        declaredVersion: element.getAttribute("data-schema-version"),
+        serialized: element.textContent,
+      })),
+    );
+  if (outputs.length !== 1) {
     throw new Error(
-      `Playback surface must contain exactly one observation output; found ${count}.`,
+      `Playback surface must contain exactly one observation output; found ${outputs.length}.`,
     );
   }
-  const output = outputs.first();
-  const declaredVersion = await output.getAttribute("data-schema-version");
+  const { declaredVersion, serialized } = outputs[0]!;
   if (declaredVersion !== "1") {
     throw new Error(
       `Unsupported playback observation data-schema-version ${String(declaredVersion)}; expected 1.`,
     );
   }
-  const serialized = await output.textContent();
   if (!serialized?.trim()) {
     throw new Error("Playback observation output is empty.");
   }

@@ -78,10 +78,18 @@ Compose publishes that application port on loopback; development keeps it
 private and publishes Vite. All supported launchers use the reviewed bounded
 HTTP/WebSocket transport described in [Local HTTP components](local-http-components.md).
 The development Compose override sets `ANIMAMA_BACKEND_RELOAD=1`, so Uvicorn
-restarts the backend when mounted Python files change. Existing polling support
-detects edits across Docker bind mounts. Built production Compose leaves reload
-disabled. Recreate the development backend once to apply this setting; subsequent
-Python edits require no container restart.
+restarts the backend when Python files in `src/backend/animama` change. The
+reloader watches only that package, not frontend dependencies, content roots or
+journey output. Built production Compose leaves reload disabled. Recreate the
+development backend once to apply this setting; subsequent Python edits require
+no container restart.
+
+The backend reloader, the Local content watcher and development Vite use native
+file events by default. OrbStack and native Linux deliver bind-mount events to
+containers, and watchfiles still polls automatically under WSL. If edits are not
+picked up, for example with a file-sharing setup that drops events, set
+`ANIMAMA_FILE_WATCH_POLLING=true` and recreate the stack. Polling scans every
+watched file continuously, so leave the variable empty otherwise.
 
 ## Database
 
@@ -1157,6 +1165,10 @@ another stack's record into this checkout. Start or reset only the selected stac
 ```bash
 ./reset.sh --name abc --base-port 8200
 ```
+
+For browser journeys and live checks that do not need hot reload, prefer a built
+stack (`ANIMAMA_WEB_BUILD_MODE=production`); see
+[Browser Journeys](../../frontend/testing/browser-journeys.md#current-automation-status).
 
 `--base-port 8200` overrides file or inherited application-port settings; optional
 `dev-tools` ports become 8204 and 8220. It does not clear unrelated inherited
