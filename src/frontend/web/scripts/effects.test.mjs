@@ -267,6 +267,26 @@ test("saved definitions compare after normalizing, ignoring image names", () => 
     ),
     null,
   );
+  const flipbook = { columns: 2, rows: 2, frames: 4, fps: 8 };
+  const animated = { ...expected, art: { image: "drop.png", flipbook } };
+  assert.equal(
+    definitionDifference(
+      {
+        ...animated,
+        art: { ...animated.art, flipbook: { ...flipbook, loop: "loop" } },
+      },
+      animated,
+    ),
+    null,
+  );
+  // A default on one side against another value is reported as that value.
+  assert.match(
+    definitionDifference(
+      { ...sticker, attachment: { ...sticker.attachment, around: "head" } },
+      { ...sticker, attachment: { ...sticker.attachment, around: "body" } },
+    ),
+    /^definition\.attachment\.around \(saved "head", expected "body"\)$/,
+  );
   // A field the creator set must still match, and a value only the saved
   // item has is a change unless it is the API's default.
   assert.match(

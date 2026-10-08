@@ -836,6 +836,25 @@ Checks after revisions: asset, effects and render-source tests 54/54,
 prettier and `web:lint` pass; `fix --canvas 128 --art-size 40 --max 64`
 exits 2.
 
+#### P4–P6 Code Review #2 (repair round 1)
+
+R1-01 verified apart from one case, R1-03…06 accepted, the R1-02 deferral
+accepted. Blocking:
+
+1. **P46-R2-01** — the two-sided walk reported a flipbook's `loop`, which
+   the API fills with `"loop"` when the source leaves it out (the documented
+   flipbook example does), so such a save would fail its read-back.
+
+Optional: a default on one side against a different value was reported as
+`saved undefined`; some table entries are redundant with the creator's own
+defaults.
+
+Revisions (accepted): a flipbook's `loop` joins the API defaults, and a
+default is dropped only from a side whose counterpart leaves the field out,
+so a default against another value is reported as both values. Tests added.
+Checks: asset, effects and render-source tests 54/54, prettier and
+`web:lint` pass.
+
 ### P7 — Reaction wiring (R15). Gate G3.
 
 1. Starts after #337 merges and this branch has merged `main`: Included

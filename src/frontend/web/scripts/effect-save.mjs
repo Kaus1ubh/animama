@@ -149,30 +149,44 @@ const API_ATTACHMENT_DEFAULTS = {
   sticker: { around: "head", size: 0.25 },
   silhouette: { fill: "pattern", patternScale: 1, scroll: { x: 0, y: 0 } },
 };
+const API_FLIPBOOK_DEFAULTS = { loop: "loop" };
 
-/** Drop attachment fields that hold the API's default for their kind. */
-function withoutApiDefaults(definition) {
-  const attachment = definition.attachment;
-  const defaults = API_ATTACHMENT_DEFAULTS[attachment?.kind];
-  if (!defaults) return definition;
-  return {
-    ...definition,
-    attachment: Object.fromEntries(
-      Object.entries(attachment).filter(
-        ([key, value]) =>
-          !(key in defaults) ||
-          JSON.stringify(value) !== JSON.stringify(defaults[key]),
-      ),
-    ),
-  };
+/** The objects in a definition the API fills defaults into, with those defaults. */
+function defaultedObjects(definition) {
+  return [
+    [
+      definition.attachment,
+      API_ATTACHMENT_DEFAULTS[definition.attachment?.kind] ?? {},
+    ],
+    [definition.art?.flipbook, API_FLIPBOOK_DEFAULTS],
+  ];
+}
+
+/**
+ * Remove from `side` each field that holds the API's default while `other`
+ * leaves it out: the API filled it, so it is not a change. Both are prepared
+ * copies, so they are changed in place.
+ */
+function dropFilledDefaults(side, other) {
+  const others = defaultedObjects(other);
+  defaultedObjects(side).forEach(([object, defaults], index) => {
+    const [otherObject] = others[index];
+    if (!object) return;
+    for (const [key, value] of Object.entries(defaults))
+      if (
+        JSON.stringify(object[key]) === JSON.stringify(value) &&
+        !(otherObject && key in otherObject)
+      )
+        delete object[key];
+  });
 }
 
 /**
  * The first JSON path where a saved definition differs from the expected
  * one, or null when they match. Nulls are dropped (the API projects unset
  * fields as null), then both go through `normalize`, which should round-trip
- * a definition through the creator so defaults compare equal, and lose the
- * attachment defaults the API fills for fields the creator leaves out. Image
+ * a definition through the creator so defaults compare equal; a default the
+ * API fills for a field the other side leaves out is not a difference. Image
  * names are left out (the creator may rename a file to keep the two images
  * distinct), but an other-eye image must be present on both sides or neither.
  */
@@ -182,9 +196,7 @@ export function definitionDifference(
   normalize = (value) => value,
 ) {
   const prepare = (definition) => {
-    const normalized = withoutApiDefaults(
-      withoutNulls(normalize(withoutNulls(definition))),
-    );
+    const normalized = withoutNulls(normalize(withoutNulls(definition)));
     const {
       image: _image,
       otherEyeImage: _other,
@@ -212,7 +224,10 @@ export function definitionDifference(
     }
     return `${at} (saved ${JSON.stringify(a)}, expected ${JSON.stringify(b)})`;
   };
-  return walk(prepare(saved), prepare(expected), "definition");
+  const [a, b] = [prepare(saved), prepare(expected)];
+  dropFilledDefaults(a, b);
+  dropFilledDefaults(b, a);
+  return walk(a, b, "definition");
 }
 
 /** The Local item a save revises, or null for a new item. */
