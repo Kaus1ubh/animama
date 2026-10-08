@@ -21,8 +21,11 @@ import type {
   AnimaPoseClipPoseResolver,
   AnimaPoseClipSample,
   QuaternionTuple,
-} from "./schema";
-import { ANIMA_POSE_CLIP_DECIMALS, roundAnimaPoseClipNumber } from "./schema";
+} from "./clipVocabulary";
+import {
+  ANIMA_POSE_CLIP_DECIMALS,
+  roundAnimaPoseClipNumber,
+} from "./clipVocabulary";
 import {
   ANIMA_POSE_CLIP_V2_LIMITS,
   ANIMA_POSE_CLIP_V2_MIN_SPACING_TICKS,

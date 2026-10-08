@@ -95,7 +95,7 @@ for (const item of cases) {
             item.section === "avatar"
               ? page
                   .getByRole("group", { name: "Position (cm)", exact: true })
-                  .getByRole("spinbutton", { name: "Sideways", exact: true })
+                  .getByRole("spinbutton", { name: "Right", exact: true })
               : page.getByRole("spinbutton", {
                   name: "Duration (s)",
                   exact: true,

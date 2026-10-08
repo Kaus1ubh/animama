@@ -252,8 +252,13 @@ or pack path enters React.
 
 ## Startup Recovery
 
-The independent recovery page works even when the application listener cannot bind. It
-shows a safe error code with Retry, Open Logs, Open Backups, and Quit. Retry does
+The independent startup and recovery page works even when the application
+listener cannot bind. While services start it shows the logo, the current stage
+and a progress bar (Open Logs and Quit appear if startup stalls); on failure it
+shows the advice and a safe error code with Retry, Open Logs, Open Backups, and
+Quit. It is a self-contained data URL, so it embeds DM Sans, the logo and a copy
+of the theme tokens (`STARTUP_THEME` in `recovery.ts`, kept in sync with
+`theme.css` by a desktop test) and follows the system light or dark setting. Retry does
 not reset data; Open Backups appears only for a relevant snapshot. See
 [Troubleshooting](troubleshooting.md) before changing files. A damaged runtime
 requires a complete build to be reinstalled. A missing

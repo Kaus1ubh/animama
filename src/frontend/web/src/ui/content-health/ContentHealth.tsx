@@ -46,11 +46,7 @@ export function ContentHealth({
           variant="ghost"
           aria-label={label}
           title={label}
-          className={cn(
-            "text-amber-600 dark:text-amber-400",
-            compact && "size-6",
-            className,
-          )}
+          className={cn("text-warning", compact && "size-6", className)}
         >
           <Icon className="size-4" />
         </Button>

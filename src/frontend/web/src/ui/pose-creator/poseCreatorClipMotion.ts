@@ -15,17 +15,13 @@ import {
   createAnimaPoseClipProgram,
   type AnimaPoseClipProgram,
 } from "@/lib/avatar/poses/animaPoseClip/program";
-import type { AnimaPoseClipSampleResult } from "@/lib/avatar/poses/animaPoseClip/schema";
+import type { AnimaPoseClipSampleResult } from "@/lib/avatar/poses/animaPoseClip/clipVocabulary";
 import type {
   AnimaPoseClipEase,
   AnimaPoseClipV2,
 } from "@/lib/avatar/poses/animaPoseClip/schemaV2";
 
-import { isAnimaPoseClipV2 } from "@/lib/avatar/poses/animaPoseClip/anyClip";
-import { sampleAnimaPoseClip } from "@/lib/avatar/poses/animaPoseClip/sampling";
-
 import {
-  buildAnimaPoseClipFromPoseCreatorDraft,
   clampPoseCreatorClipTime,
   hasPoseCreatorClipValidationErrors,
   isPoseCreatorBaseKeyframe,
@@ -45,7 +41,7 @@ import {
  * beats and tracks as `motion`, its source of truth; the timeline's keyframes
  * are a view of the beats (keyframe id = beat id), rebuilt after every edit.
  * Edits go through the beat operations, so a beat's generated detail follows
- * it. New drafts start with empty motion and 1.0 clips open converted.
+ * it. New drafts start with empty motion.
  */
 
 /**
@@ -79,8 +75,6 @@ export function withPoseCreatorMotion(
     {
       ...draft,
       motion,
-      // Beats own their poses; the view needs only an entry per keyframe.
-      poses: Object.fromEntries(keyframes.map(({ pose }) => [pose, {}])),
       keyframes,
       selectedKeyframeId,
       selectedPoseAlias: selectedKeyframeId,
@@ -114,7 +108,6 @@ function editMotion(
   options: PoseCreatorClipValidationOptions,
   edit: MotionEdit,
 ): PoseCreatorClipDraft {
-  if (!draft.motion) return draft;
   const result = edit(
     poseCreatorMotionClip(draft, draft.motion, options),
     poseCreatorBeatContext(vrm),
@@ -259,11 +252,11 @@ export function findPoseCreatorBaseBeat(
   endpoint: "start" | "end",
 ): PoseCreatorClipKeyframeDraft | null {
   // A zero-duration clip has no end distinct from its start.
-  if (!draft.motion || (endpoint === "end" && draft.duration <= 0)) return null;
+  if (endpoint === "end" && draft.duration <= 0) return null;
   return (
     draft.keyframes.find(
       (frame) =>
-        isPoseCreatorBaseKeyframe(draft, frame) &&
+        isPoseCreatorBaseKeyframe(frame) &&
         isAtPoseCreatorEndpoint(draft, frame, endpoint),
     ) ?? null
   );
@@ -358,9 +351,8 @@ export function reposePoseCreatorBaseBeats(
 // ── Sampling ─────────────────────────────────────────────────────────────
 
 /**
- * The draft's pose at a time: 2.0 drafts sample their prepared clip with the
- * creator Avatar; other drafts sample their 1.0 keyframes. Null when the
- * draft does not build.
+ * The draft's pose at a time, sampled from its prepared clip with the creator
+ * Avatar. Null when the draft has validation errors.
  */
 export function samplePoseCreatorDraft(
   draft: PoseCreatorClipDraft,
@@ -368,15 +360,9 @@ export function samplePoseCreatorDraft(
   vrm: VRM | null,
   options: PoseCreatorClipValidationOptions = {},
 ): AnimaPoseClipSampleResult | null {
-  if (draft.motion) {
-    // Edits keep validation current; playback must not re-validate per frame.
-    if (hasPoseCreatorClipValidationErrors(draft.validationIssues)) return null;
-    return samplePoseCreatorMotion(draft, timeSec, vrm, options);
-  }
-  const clip = buildAnimaPoseClipFromPoseCreatorDraft(draft, options);
-  return clip && !isAnimaPoseClipV2(clip)
-    ? sampleAnimaPoseClip(clip, timeSec, resolvePoseCreatorCatalogPose)
-    : null;
+  // Edits keep validation current; playback must not re-validate per frame.
+  if (hasPoseCreatorClipValidationErrors(draft.validationIssues)) return null;
+  return samplePoseCreatorMotion(draft, timeSec, vrm, options);
 }
 
 /** Prepared programs per motion, one per Avatar (null: no Avatar). */
@@ -386,7 +372,7 @@ const programs = new WeakMap<
 >();
 
 /**
- * Sample the draft's 2.0 clip at a time with the creator Avatar (fitted
+ * Sample the draft's clip at a time with the creator Avatar (fitted
  * hands, solved legs). Preparation is reused while the motion and clip
  * settings stay the same, separately for each Avatar the callers pass.
  */
@@ -395,8 +381,7 @@ export function samplePoseCreatorMotion(
   timeSec: number,
   vrm: VRM | null,
   options: PoseCreatorClipValidationOptions = {},
-): AnimaPoseClipSampleResult | null {
-  if (!draft.motion) return null;
+): AnimaPoseClipSampleResult {
   const key = JSON.stringify([
     draft.duration,
     draft.loop,

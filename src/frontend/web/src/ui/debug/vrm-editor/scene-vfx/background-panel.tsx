@@ -100,7 +100,7 @@ export function SceneBackgroundPanel({
             <span>Enabled</span>
           </label>
           <label className="space-y-1">
-            <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+            <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
               Preset
             </span>
             <SelectControl value={presetId} onChange={handlePresetSelect}>
@@ -115,7 +115,7 @@ export function SceneBackgroundPanel({
             </SelectControl>
           </label>
           <label className="space-y-1">
-            <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+            <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
               Duration
             </span>
             <NumberInputControl
@@ -179,7 +179,7 @@ export function SceneBackgroundPanel({
         </div>
 
         <div className="space-y-2">
-          <p className="text-muted-foreground text-[11px] font-semibold tracking-wide uppercase">
+          <p className="text-muted-foreground text-2xs font-semibold tracking-wide uppercase">
             Solid
           </p>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -200,7 +200,7 @@ export function SceneBackgroundPanel({
               <span>Solid enabled</span>
             </label>
             <label className="space-y-1 md:col-span-2">
-              <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+              <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
                 Solid color
               </span>
               <ColorInputControl
@@ -220,7 +220,7 @@ export function SceneBackgroundPanel({
         </div>
 
         <div className="space-y-2">
-          <p className="text-muted-foreground text-[11px] font-semibold tracking-wide uppercase">
+          <p className="text-muted-foreground text-2xs font-semibold tracking-wide uppercase">
             Pattern
           </p>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -241,7 +241,7 @@ export function SceneBackgroundPanel({
               <span>Pattern enabled</span>
             </label>
             <label className="space-y-1">
-              <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+              <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
                 Pattern kind
               </span>
               <SelectControl
@@ -264,7 +264,7 @@ export function SceneBackgroundPanel({
               </SelectControl>
             </label>
             <label className="space-y-1">
-              <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+              <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
                 Pattern color
               </span>
               <ColorInputControl
@@ -281,7 +281,7 @@ export function SceneBackgroundPanel({
               />
             </label>
             <label className="space-y-1">
-              <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+              <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
                 Pattern size
               </span>
               <NumberInputControl
@@ -299,7 +299,7 @@ export function SceneBackgroundPanel({
               />
             </label>
             <label className="space-y-1">
-              <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+              <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
                 Pattern spacing
               </span>
               <NumberInputControl
@@ -317,7 +317,7 @@ export function SceneBackgroundPanel({
               />
             </label>
             <label className="space-y-1">
-              <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+              <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
                 Pattern opacity
               </span>
               <NumberInputControl
@@ -338,7 +338,7 @@ export function SceneBackgroundPanel({
         </div>
 
         <div className="space-y-2">
-          <p className="text-muted-foreground text-[11px] font-semibold tracking-wide uppercase">
+          <p className="text-muted-foreground text-2xs font-semibold tracking-wide uppercase">
             Marquee
           </p>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -359,7 +359,7 @@ export function SceneBackgroundPanel({
               <span>Marquee enabled</span>
             </label>
             <label className="space-y-1">
-              <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+              <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
                 Item 1
               </span>
               <SelectControl
@@ -405,7 +405,7 @@ export function SceneBackgroundPanel({
               </SelectControl>
             </label>
             <label className="space-y-1">
-              <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+              <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
                 Item 2
               </span>
               <SelectControl
@@ -451,7 +451,7 @@ export function SceneBackgroundPanel({
               </SelectControl>
             </label>
             <label className="space-y-1">
-              <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+              <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
                 Direction
               </span>
               <SelectControl
@@ -474,7 +474,7 @@ export function SceneBackgroundPanel({
               </SelectControl>
             </label>
             <label className="space-y-1">
-              <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+              <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
                 Item size
               </span>
               <NumberInputControl
@@ -492,7 +492,7 @@ export function SceneBackgroundPanel({
               />
             </label>
             <label className="space-y-1">
-              <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+              <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
                 Item rotation
               </span>
               <SelectControl
@@ -516,7 +516,7 @@ export function SceneBackgroundPanel({
               </SelectControl>
             </label>
             <label className="space-y-1">
-              <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+              <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
                 Rotation offset deg
               </span>
               <NumberInputControl
@@ -534,7 +534,7 @@ export function SceneBackgroundPanel({
               />
             </label>
             <label className="space-y-1">
-              <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+              <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
                 Gap
               </span>
               <NumberInputControl
@@ -552,7 +552,7 @@ export function SceneBackgroundPanel({
               />
             </label>
             <label className="space-y-1">
-              <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+              <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
                 Row gap
               </span>
               <NumberInputControl
@@ -570,7 +570,7 @@ export function SceneBackgroundPanel({
               />
             </label>
             <label className="space-y-1">
-              <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+              <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
                 Speed px/sec
               </span>
               <NumberInputControl
@@ -588,7 +588,7 @@ export function SceneBackgroundPanel({
               />
             </label>
             <label className="space-y-1">
-              <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+              <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
                 Marquee opacity
               </span>
               <NumberInputControl

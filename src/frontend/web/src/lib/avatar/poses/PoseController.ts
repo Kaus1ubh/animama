@@ -44,9 +44,9 @@ import {
 } from "./animaPoseClip/interpolation";
 import type { AvatarPoseClipSnapshot, AvatarPoseSnapshot } from "./types";
 import {
-  parseAnyAnimaPoseClip,
-  type AnyAnimaPoseClip,
-} from "./animaPoseClip/anyClip";
+  parseAnimaPoseClip,
+  type AnimaPoseClipV2,
+} from "./animaPoseClip/parseClip";
 import {
   createAnimaPoseClipProgram,
   type AnimaPoseClipProgram,
@@ -54,7 +54,7 @@ import {
 import {
   ANIMA_POSE_CLIP_EPSILON,
   type AnimaPoseClipMutableLayerId,
-} from "./animaPoseClip/schema";
+} from "./animaPoseClip/clipVocabulary";
 import {
   retargetClipSampleForVrm0,
   retargetPoseForVrm0,
@@ -168,7 +168,7 @@ export type AnimaPoseClipPresence = {
 };
 
 type ClipRuntimeState = {
-  clip: AnyAnimaPoseClip | null;
+  clip: AnimaPoseClipV2 | null;
   /** How the clip samples, prepared for this Avatar when it starts. */
   program: AnimaPoseClipProgram | null;
   playbackId: number;
@@ -266,13 +266,13 @@ export class PoseController {
     if (!clip || !state.playing || this._isDisposed) return null;
     let weight = 1;
     if (state.phase === "fadeIn") {
-      const transition = resolveClipFadeTransition(clip, clip.fadeIn);
+      const transition = resolveClipFadeTransition(clip.fadeIn);
       weight = easeProgress(
         this._getCurrentClipFadeProgress(state.fadeInDurationSec),
         transition.easing,
       );
     } else if (state.phase === "fadeOut") {
-      const transition = resolveClipFadeTransition(clip, clip.fadeOut);
+      const transition = resolveClipFadeTransition(clip.fadeOut);
       weight =
         1 -
         easeProgress(
@@ -373,13 +373,13 @@ export class PoseController {
   }
 
   playAnimaPoseClip(
-    clip: AnyAnimaPoseClip,
+    clip: AnimaPoseClipV2,
     options?: PoseControllerPlayClipOptions,
   ): AvatarPoseClipSnapshot {
     const finite = options?.finitePlayback;
     // Admission combines the raw clip and Gesture config; these repetitions
     // therefore override the raw loop flag for this idle occurrence only.
-    const sanitizedClip = parseAnyAnimaPoseClip(
+    const sanitizedClip = parseAnimaPoseClip(
       finite ? { ...clip, loop: finite.repetitions > 1 } : clip,
     );
     if (
@@ -931,7 +931,7 @@ export class PoseController {
     if (!clip) return sample;
 
     if (this._clipState.phase === "fadeIn") {
-      const transition = resolveClipFadeTransition(clip, clip.fadeIn);
+      const transition = resolveClipFadeTransition(clip.fadeIn);
       const progress = this._getCurrentClipFadeProgress(
         this._clipState.fadeInDurationSec,
       );
@@ -945,7 +945,7 @@ export class PoseController {
     }
 
     if (this._clipState.phase === "fadeOut") {
-      const transition = resolveClipFadeTransition(clip, clip.fadeOut);
+      const transition = resolveClipFadeTransition(clip.fadeOut);
       const progress = this._getCurrentClipFadeProgress(
         this._clipState.fadeOutDurationSec,
       );

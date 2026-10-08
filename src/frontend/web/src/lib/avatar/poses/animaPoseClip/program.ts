@@ -1,23 +1,15 @@
 import type { VRM } from "@pixiv/three-vrm";
 
-import {
-  animaPoseClipHasPose,
-  isAnimaPoseClipV2,
-  parseAnyAnimaPoseClip,
-  type AnyAnimaPoseClip,
-} from "./anyClip";
-import { getAnimaPoseClipTimelineDuration } from "./playback";
+import { animaPoseClipHasPose } from "./parseClip";
 import { prepareAnimaPoseClipV2 } from "./prepareV2";
-import { sampleAnimaPoseClip } from "./sampling";
 import type {
-  AnimaPoseClip,
   AnimaPoseClipPoseResolver,
   AnimaPoseClipSampleResult,
-} from "./schema";
+} from "./clipVocabulary";
+import type { AnimaPoseClipV2 } from "./schemaV2";
 
 /**
- * What a player needs from a clip of either schema, prepared once when it
- * starts: 1.0 clips sample their keyframes; 2.0 clips are prepared for the
+ * What a player needs from a clip, prepared once when it starts for the
  * Avatar (hand presets fitted, planted legs solved on its rig).
  */
 export type AnimaPoseClipProgram = {
@@ -44,42 +36,7 @@ export type AnimaPoseClipProgramOptions = {
 
 /** Prepare a parsed clip for playback. */
 export function createAnimaPoseClipProgram(
-  clip: AnyAnimaPoseClip,
-  options: AnimaPoseClipProgramOptions,
-): AnimaPoseClipProgram {
-  return isAnimaPoseClipV2(clip)
-    ? createV2Program(clip, options)
-    : createV1Program(clip, options.resolvePose);
-}
-
-function createV1Program(
-  value: AnimaPoseClip,
-  resolvePose: AnimaPoseClipPoseResolver,
-): AnimaPoseClipProgram {
-  // Parsed here once; the sampler then reuses the parsed clips every frame.
-  const clip = parseAnyAnimaPoseClip(value) as AnimaPoseClip;
-  const unwrapped = clip.loop
-    ? (parseAnyAnimaPoseClip({ ...clip, loop: false }) as AnimaPoseClip)
-    : clip;
-  const end = getAnimaPoseClipTimelineDuration(clip);
-  const expressionNames = new Set<string>();
-  for (const keyframe of clip.poseKeyframes) {
-    const { sample } = sampleAnimaPoseClip(clip, keyframe.time, resolvePose);
-    for (const name of Object.keys(sample.expressions ?? {}))
-      expressionNames.add(name);
-  }
-  return {
-    hasPose: clip.poseKeyframes.length > 0,
-    expressionNames: [...expressionNames],
-    sample: (time, sampleOptions) =>
-      sampleOptions?.atEnd
-        ? sampleAnimaPoseClip(unwrapped, end, resolvePose)
-        : sampleAnimaPoseClip(clip, time, resolvePose),
-  };
-}
-
-function createV2Program(
-  clip: Parameters<typeof prepareAnimaPoseClipV2>[0],
+  clip: AnimaPoseClipV2,
   { vrm, resolvePose }: AnimaPoseClipProgramOptions,
 ): AnimaPoseClipProgram {
   const missingPoseRefs =

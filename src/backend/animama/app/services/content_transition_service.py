@@ -11,12 +11,15 @@ from pathlib import PurePosixPath
 from typing import Any
 
 from animama.app.ports.content_transition import ContentTransitionBindings, IdleTransitionBinding
-from animama.app.services.action_clip_transition import ActionClipTransitionService
 from animama.app.services.avatar_effect_transition import AvatarEffectTransitionService
+from animama.app.services.clip_format import (
+    CLIP_FORMAT_UNSUPPORTED,
+    RETIRED_ANIMA_POSE_CLIP_SCHEMA,
+    unsupported_clip_format_message,
+)
 from animama.app.services.content_catalog_service import ContentCatalogService, ContentRescanResult
 from animama.app.services.content_kind_registry import handler_for_kind
 from animama.app.services.idle_playback import derive_idle_playback, read_gesture_idle_playback
-from animama.app.services.included_action_transition import IncludedActionTransitionService
 from animama.app.services.local_content_mutations import mutation_digest
 from animama.app.services.music_retirement_service import MusicRetirementService
 from animama.app.services.typed_content_service import (
@@ -75,13 +78,7 @@ class ContentTransitionService:
             for item in scanned.items
             if item.status is ContentStatus.INVALID and item.diagnostics
         ]
-        failures.extend(await ActionClipTransitionService(content=self._content).convert(user_id=user_id))
         failures.extend(await AvatarEffectTransitionService(content=self._content).convert(user_id=user_id))
-        failures.extend(
-            await IncludedActionTransitionService(content=self._content, bindings=self._bindings).convert(
-                user_id=user_id
-            )
-        )
         await MusicRetirementService(content=self._content, bindings=self._bindings).retire(user_id=user_id)
         catalog = self._content.mutations.catalog
         for item, code in failures:
@@ -329,12 +326,11 @@ class ContentTransitionService:
                 else:
                     document = original_gesture
             if isinstance(document, PoseClipDocumentV1):
-                owner = target if original_gesture is None else owner
-                dependencies = (*dependencies, *document.dependencies)
-                implementation = ActionImplementationV1(kind="anima_clip", file_role="sequence")
-                if original_gesture is None:
-                    config = {**document.playback, **lane.playback}
-            elif not isinstance(document, GestureDocumentV1):
+                # Retired standalone clips were animaPoseClip/1.0, which is rejected.
+                raise ContentDocumentError(
+                    CLIP_FORMAT_UNSUPPORTED, unsupported_clip_format_message(RETIRED_ANIMA_POSE_CLIP_SCHEMA)
+                )
+            if not isinstance(document, GestureDocumentV1):
                 raise ContentDocumentError(
                     "idle_transition_dependency_invalid", "Legacy idle dependency is not an Action or clip"
                 )

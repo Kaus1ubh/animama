@@ -102,7 +102,7 @@ def _model_url(name: str = "encoder.onnx", *, version: str | None = _VERSION) ->
     return PARAKEET_MOUNT + name + ("?v=" + version if version is not None else "")
 
 
-@pytest.mark.parametrize("path", ["/", "/anima", "/anima/", "/index.html"])
+@pytest.mark.parametrize("path", ["/", "/anima", "/anima/", "/index.html", "/effects/new"])
 async def test_navigation_and_head_revalidate_html_bytes(web_root: Path, path: str) -> None:
     async with _client(LocalAssets(web_root)) as client:
         first = await client.get(path, headers={"accept": "text/html"})
@@ -264,7 +264,9 @@ async def test_explicit_mime_binary_bytes_and_head(web_root: Path, name: str, co
         "/assets/missing",
         "/content/missing",
         "/background/missing",
-        "/effects/missing",
+        "/effects/scene-vfx/missing",
+        "/effects/vfx/missing",
+        "/effects/resources/missing",
         "/missing.js",
         "/missing.js/",
         "/missing.",

@@ -50,7 +50,7 @@ export function MemoryManagerPanel({
               <Loader2 className="size-4 animate-spin" />
             ) : null}
             Process episodes
-            <span className="bg-primary text-primary-foreground rounded-full px-1.5 py-0.5 text-[10px]">
+            <span className="bg-primary text-primary-foreground text-2xs rounded-full px-1.5 py-0.5">
               {pendingCountLabel(pendingEpisodeCount)}
             </span>
           </Button>

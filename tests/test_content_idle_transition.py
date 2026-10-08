@@ -9,7 +9,6 @@ from sqlalchemy import delete
 
 from animama.app.services.content_transition_service import ContentTransitionService
 from animama.domain.content_catalog import ContentKind
-from animama.domain.content_documents import IdleStyleDocumentV2
 from animama.orm.content_catalog import ORMContentCatalogItem
 from tests.content_package_helpers import package_services
 from tests.test_content_gltf import _fixture_document, _glb_source
@@ -495,47 +494,16 @@ async def test_referenced_gesture_reuses_only_identical_playback_and_preserves_o
     assert len([item for item in visible if item.kind is ContentKind.GESTURE]) == (1 if lane_speed == 1 else 2)
 
 
-async def test_direct_pose_clip_transition_owns_sequence_and_preserves_effect_sound_closure(
+async def test_legacy_lane_on_a_retired_pose_clip_is_preserved_with_a_clip_format_diagnostic(
     async_session,
     tmp_path,
 ) -> None:  # noqa: ANN001
+    """Retired standalone clips were animaPoseClip/1.0, so their idle lane is not converted to an Action."""
     from animama.adapters.repositories.sqlalchemy.content_transition_repo import SQLAlchemyContentTransitionBindings
-    from animama.app.services.typed_content_service import TypedContentResolutionContext, validate_idle_style
+    from animama.domain.content_catalog import ContentStatus
 
     paths, catalog, content, _, _ = package_services(async_session, tmp_path)
     store = content.mutations.store
-    store.save_standalone(
-        kind=ContentKind.SOUND_EFFECT,
-        relative_locator="sfx/transition-bell.wav",
-        payload=b"RIFF\x24\x00\x00\x00WAVEfmt \x10\x00\x00\x00" + b"\x00" * 32,
-        metadata_sidecar=json.dumps(
-            {"content_type": "sound_effect", "content_id": "local:sound:transition-bell", "name": "Bell"}
-        ).encode(),
-    )
-    effect = {
-        "content_type": "scene_effect",
-        "content_id": "local:scene:transition-glow",
-        "name": "Glow",
-        "dependencies": [
-            {
-                "ref": "local:sound:transition-bell",
-                "content_type": "sound_effect",
-                "alias": "bell",
-                "config": {"gain": 0.3},
-            }
-        ],
-        "definition": {
-            "schema": "animama/scene-effect/1",
-            "kind": "background_layers",
-            "solid": {"enabled": True, "color": "#ffd2e5"},
-        },
-    }
-    store.save_descriptor_entry(
-        kind=ContentKind.SCENE_EFFECT,
-        relative_locator="vfx/scene/transition-glow",
-        descriptor=json.dumps(effect).encode(),
-        companion_files={},
-    )
     clip = {
         "schema": "animaPoseClip/1.0",
         "id": "local:pose-clip:transition",
@@ -544,12 +512,7 @@ async def test_direct_pose_clip_transition_owns_sequence_and_preserves_effect_so
         "loop": False,
         "poses": {},
         "poseKeyframes": [],
-        "events": [
-            {"id": "glow-event", "kind": "scene_vfx", "time": 0, "sceneKind": "background_layers", "presetId": "glow"}
-        ],
-        "dependencies": [
-            {"ref": effect["content_id"], "content_type": "scene_effect", "alias": "glow", "config": {"weight": 0.6}}
-        ],
+        "events": [],
     }
     clip_bytes = json.dumps(clip).encode()
     store.save_standalone(kind=ContentKind.POSE_CLIP, relative_locator="pose-clips/transition.json", payload=clip_bytes)
@@ -572,23 +535,11 @@ async def test_direct_pose_clip_transition_owns_sequence_and_preserves_effect_so
     await ContentTransitionService(
         content=content, bindings=SQLAlchemyContentTransitionBindings(async_session)
     ).convert_idle_styles(user_id="transition-owner")
-    visible = {item.id: item for item in await catalog.list_visible(user_id="transition-owner")}
-    style = next(item for item in visible.values() if item.logical_key == legacy["content_id"])
-    closure = TypedContentResolutionContext(visible).resolve(style.id)
-    assert style.metadata["schema_version"] == 2
-    gesture = next(value.item for value in closure if value.item.kind is ContentKind.GESTURE)
-    assert gesture.metadata["implementation"] == {"kind": "anima_clip", "file_role": "sequence"}
-    assert gesture.metadata["dependencies"] == clip["dependencies"]
-    assert {value.item.kind for value in closure} == {
-        ContentKind.IDLE_STYLE,
-        ContentKind.GESTURE,
-        ContentKind.SCENE_EFFECT,
-        ContentKind.SOUND_EFFECT,
-    }
-    owned = next(file for file in gesture.files if file.role == "sequence")
-    assert (paths.local_root / owned.relative_path).read_bytes() == clip_bytes
+    visible = await catalog.list_visible(user_id="transition-owner")
+    style = next(item for item in visible if item.logical_key == legacy["content_id"])
+    assert style.status is ContentStatus.INVALID
+    assert style.metadata["schema_version"] == 1
+    assert style.diagnostics[0].code == "clip_format_unsupported"
+    assert not any(item.kind is ContentKind.GESTURE for item in visible)
     assert (paths.local_root / "pose-clips/transition.json").read_bytes() == clip_bytes
-    document = closure[-1].document
-    assert isinstance(document, IdleStyleDocumentV2)
-    facts = await validate_idle_style(document=document, visible=visible, store=store)
-    assert facts[gesture.id].duration_seconds == 2
+    assert not store.pending_mutations()

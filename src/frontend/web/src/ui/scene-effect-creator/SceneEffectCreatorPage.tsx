@@ -1671,7 +1671,7 @@ function MarqueeItemRow({
       </div>
       <div className="min-w-0 flex-1">
         <div className="truncate text-sm font-medium">{item.label}</div>
-        <div className="text-muted-foreground truncate text-[11px]">
+        <div className="text-muted-foreground text-2xs truncate">
           {item.kind === "image" ? item.image.logicalName : "Twemoji"}
         </div>
       </div>
@@ -2111,7 +2111,7 @@ function StatusRow({
   return (
     <div className="flex gap-2 text-xs">
       {good ? (
-        <CheckCircle2Icon className="mt-0.5 size-4 shrink-0 text-emerald-600" />
+        <CheckCircle2Icon className="text-success mt-0.5 size-4 shrink-0" />
       ) : (
         <AlertTriangleIcon className="text-destructive mt-0.5 size-4 shrink-0" />
       )}

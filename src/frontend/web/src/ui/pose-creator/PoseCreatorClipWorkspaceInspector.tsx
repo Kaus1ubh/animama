@@ -27,7 +27,7 @@ import { Switch } from "@/ui/components/switch";
 import {
   ANIMA_POSE_CLIP_MUTABLE_LAYER_IDS,
   type AnimaPoseClipMutableLayerId,
-} from "@/lib/avatar/poses/animaPoseClip/schema";
+} from "@/lib/avatar/poses/animaPoseClip/clipVocabulary";
 import {
   findPoseCreatorClipKeyframeAtTime,
   isPoseCreatorBaseKeyframe,
@@ -125,7 +125,6 @@ export function PoseCreatorClipWorkspaceInspector({
           <KeyframeInspector
             embedded={embedded}
             keyframe={selectedKeyframe}
-            poseAliases={Object.keys(clipDraft.poses)}
             allowHumanoid={allowHumanoid}
             disabled={Boolean(clipInlineEdit)}
             onClose={() => selectClipKeyframe(null)}
@@ -191,7 +190,7 @@ export function PoseCreatorClipWorkspaceInspector({
                     endpoint === "start" ? 0 : clipDraft.duration,
                   );
                   const checked = Boolean(
-                    frame && isPoseCreatorBaseKeyframe(clipDraft, frame),
+                    frame && isPoseCreatorBaseKeyframe(frame),
                   );
                   const occupied = Boolean(frame && !checked);
                   const label =
@@ -486,7 +485,6 @@ function EventInspector({
 export function KeyframeInspector({
   embedded,
   keyframe,
-  poseAliases,
   allowHumanoid,
   disabled,
   onClose,
@@ -497,7 +495,6 @@ export function KeyframeInspector({
   keyframe: ReturnType<
     typeof usePoseCreatorStore.getState
   >["clipDraft"]["keyframes"][number];
-  poseAliases: string[];
   allowHumanoid: boolean;
   disabled: boolean;
   onClose: () => void;
@@ -506,13 +503,11 @@ export function KeyframeInspector({
   >["updateSelectedClipKeyframe"];
   onDelete: () => void;
 }) {
-  // A 2.0 draft's keyframes are beats: they carry a label and an arrival ease.
-  const beat = keyframe.label !== undefined;
   return (
     <WorkspaceCard embedded={embedded}>
       <InspectorHeading
         title={allowHumanoid ? "Keyframe" : "Expression keyframe"}
-        subtitle={keyframe.label ?? formatSourceLabel(keyframe.pose)}
+        subtitle={keyframe.label}
         onClose={embedded ? undefined : onClose}
         onDelete={onDelete}
         deleteLabel="Delete selected keyframe"
@@ -527,98 +522,40 @@ export function KeyframeInspector({
             onChange={(time) => onUpdate({ time })}
           />
         </InspectorRow>
-        {beat ? (
-          <InspectorRow label="Label">
-            <BeatLabelInput
-              key={keyframe.id}
-              value={keyframe.label ?? ""}
-              disabled={disabled}
-              onCommit={(label) => onUpdate({ label })}
-            />
-          </InspectorRow>
-        ) : allowHumanoid ? (
-          <InspectorRow label="Pose">
-            <Select
-              value={keyframe.pose}
-              disabled={disabled}
-              onValueChange={(pose) => onUpdate({ pose })}
-            >
-              <SelectTrigger
-                className="h-9 w-[176px]"
-                aria-label="Keyframe pose"
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {poseAliases.map((alias) => (
-                  <SelectItem key={alias} value={alias}>
-                    {formatSourceLabel(alias)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </InspectorRow>
-        ) : null}
+        <InspectorRow label="Label">
+          <BeatLabelInput
+            key={keyframe.id}
+            value={keyframe.label}
+            disabled={disabled}
+            onCommit={(label) => onUpdate({ label })}
+          />
+        </InspectorRow>
         <InspectorRow label="Easing">
-          {beat ? (
-            <Select
-              value={keyframe.ease ?? INHERIT_VALUE}
-              disabled={disabled}
-              onValueChange={(ease) =>
-                onUpdate({
-                  ease:
-                    ease === INHERIT_VALUE ? null : (ease as AnimaPoseClipEase),
-                })
-              }
+          <Select
+            value={keyframe.ease ?? INHERIT_VALUE}
+            disabled={disabled}
+            onValueChange={(ease) =>
+              onUpdate({
+                ease:
+                  ease === INHERIT_VALUE ? null : (ease as AnimaPoseClipEase),
+              })
+            }
+          >
+            <SelectTrigger
+              className="h-9 w-[176px]"
+              aria-label="Keyframe easing"
             >
-              <SelectTrigger
-                className="h-9 w-[176px]"
-                aria-label="Keyframe easing"
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={INHERIT_VALUE}>Clip default</SelectItem>
-                {BEAT_EASE_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ) : (
-            <Select
-              value={keyframe.transition?.easing ?? INHERIT_VALUE}
-              disabled={disabled}
-              onValueChange={(easing) =>
-                onUpdate({
-                  transition:
-                    easing === INHERIT_VALUE
-                      ? null
-                      : {
-                          ...(keyframe.transition ?? {}),
-                          easing:
-                            easing as (typeof POSE_CREATOR_CLIP_EASING_OPTIONS)[number]["value"],
-                        },
-                })
-              }
-            >
-              <SelectTrigger
-                className="h-9 w-[176px]"
-                aria-label="Keyframe easing"
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={INHERIT_VALUE}>Clip default</SelectItem>
-                {POSE_CREATOR_CLIP_EASING_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={INHERIT_VALUE}>Clip default</SelectItem>
+              {BEAT_EASE_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </InspectorRow>
         {keyframe.detail ? (
           <p className="text-muted-foreground text-xs leading-relaxed">
@@ -630,7 +567,7 @@ export function KeyframeInspector({
   );
 }
 
-/** 2.0 arrival eases: the smooth and hold choices, then the 1.0 easings. */
+/** Beat arrival eases: the smooth and hold choices, then the curve easings. */
 const BEAT_EASE_OPTIONS: readonly {
   value: AnimaPoseClipEase;
   label: string;
@@ -856,8 +793,4 @@ function formatIdentifier(value: string): string {
     .replace(/([a-z])([A-Z])/g, "$1 $2")
     .replace(/[_-]+/g, " ")
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
-}
-
-function formatSourceLabel(value: string): string {
-  return formatIdentifier(value);
 }

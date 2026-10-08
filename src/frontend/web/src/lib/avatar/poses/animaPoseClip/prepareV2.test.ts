@@ -15,7 +15,6 @@ import {
 import { handShapeRotations } from "../anatomy/handPresets";
 import { RELAXED_REST_POSE_ID, getResolvedAvatarPose } from "../catalog";
 import { prepareAnimaPoseClipV2 } from "./prepareV2";
-import { createAnimaPoseClipProgram } from "./program";
 import type { AnimaPoseClipV2 } from "./schemaV2";
 
 const resolvePose = (id: string) => getResolvedAvatarPose(id);
@@ -267,72 +266,5 @@ describe("prepareAnimaPoseClipV2", () => {
     expect(prepared.sample(1).humanoid!.hips!.position).toEqual([
       0.05, -0.1, 0.02,
     ]);
-  });
-
-  it("samples far faster than a 1.0 bake of the same motion", () => {
-    const keys = (index: number) =>
-      Array.from({ length: 25 }, (_, key) => ({
-        beat: "a",
-        dt: key * 0.125,
-        v: 20 + ((key + index) % 2) * 8,
-      }));
-    const v2 = clip({
-      duration: 3,
-      beats: [{ id: "a", label: "A", time: 0 }],
-      joints: Object.fromEntries(
-        (
-          [
-            "head",
-            "neck",
-            "chest",
-            "spine",
-            "rightUpperArm",
-            "leftUpperArm",
-          ] as const
-        ).map((joint, index) => [
-          joint,
-          {
-            [joint.endsWith("UpperArm") ? "elevation" : "flexion"]: keys(index),
-          },
-        ]),
-      ),
-    });
-    const prepared = prepareAnimaPoseClipV2(v2, { vrm: a1, resolvePose });
-    // The 1.0 form the retired generator produced: a keyframe every 1/30 s.
-    const frames = Array.from({ length: 91 }, (_, frame) => frame / 30);
-    const baked = {
-      schema: "animaPoseClip/1.0" as const,
-      id: "busy",
-      name: "Busy",
-      duration: 3,
-      basePose: RELAXED_REST_POSE_ID,
-      defaultTransition: { easing: "linear" as const },
-      poses: Object.fromEntries(
-        frames.map((time, frame) => [
-          `f${frame}`,
-          { humanoid: prepared.sample(time).humanoid },
-        ]),
-      ),
-      poseKeyframes: frames.map((time, frame) => ({ time, pose: `f${frame}` })),
-    };
-    // The best of three runs, so a busy machine does not decide the result.
-    const cost = (sample: (t: number) => unknown) =>
-      Math.min(
-        ...[0, 1, 2].map(() => {
-          const start = performance.now();
-          for (let frame = 0; frame < 120; frame += 1)
-            sample((frame / 120) * 3);
-          return performance.now() - start;
-        }),
-      );
-    // The 1.0 bake as the runtime plays it: parsed once, then sampled.
-    const v1Program = createAnimaPoseClipProgram(baked, {
-      vrm: a1,
-      resolvePose,
-    });
-    const v1 = cost((t) => v1Program.sample(t));
-    const v2Cost = cost((t) => prepared.sample(t));
-    // Several times faster for this motion; 2× leaves room for slow machines.
-    expect(v2Cost * 2).toBeLessThan(v1);
   });
 });

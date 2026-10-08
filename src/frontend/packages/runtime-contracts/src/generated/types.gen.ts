@@ -567,7 +567,10 @@ export type AvatarEffectKeyframes = {
 /**
  * AvatarEffectLandmarkOffset
  *
- * Offset in metres, in head space.
+ * Offset in metres in the Avatar's front frame at its anchor.
+ *
+ * +x is toward the viewer's right when facing the Avatar, +y up and +z
+ * forward, on VRM 0 and VRM 1 alike.
  */
 export type AvatarEffectLandmarkOffset = {
     /**

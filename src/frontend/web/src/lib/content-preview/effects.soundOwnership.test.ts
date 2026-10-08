@@ -2,7 +2,7 @@ import type { VRM } from "@pixiv/three-vrm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PoseController } from "@/lib/avatar/poses/PoseController";
-import type { AnimaPoseClip } from "@/lib/avatar/poses/animaPoseClip";
+import type { AnimaPoseClipV2 } from "@/lib/avatar/poses/animaPoseClip";
 import type { ResolvedRuntimeAudio } from "@/lib/runtime-content/AnimaRuntimeMediaCatalog";
 import { getSceneBackgroundLayerPresetById } from "@/lib/scene-vfx/catalog";
 import {
@@ -70,13 +70,12 @@ function fixture(
     playSfx: (runtimeId, signal) => player.play(catalog, runtimeId, signal),
   });
   controller.setClipEventSink(bridge.sink);
-  const clip: AnimaPoseClip = {
-    schema: "animaPoseClip/1.0",
+  const clip: AnimaPoseClipV2 = {
+    schema: "animaPoseClip/2.0",
     id: "finite-preview",
     name: "Finite preview",
     duration: 1,
-    poses: {},
-    poseKeyframes: [],
+    beats: [],
     events: [
       kind === "sfx"
         ? { id: "sound", time: 0, kind, cueId: "tap" }

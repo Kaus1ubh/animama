@@ -379,12 +379,11 @@ describe("adaptRuntimeSnapshot", () => {
       fetcher: async () =>
         new Response(
           JSON.stringify({
-            schema: "animaPoseClip/1.0",
+            schema: "animaPoseClip/2.0",
             id: "joy-3",
             name: "Joy Reaction 3",
             duration: 1,
-            poses: { rest: { humanoid: {} } },
-            poseKeyframes: [{ time: 0, pose: "rest" }],
+            beats: [],
             events: [
               {
                 id: "avatar-emote",

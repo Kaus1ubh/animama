@@ -137,11 +137,13 @@ test("accountless avatar effect vfx guides keep Eye = playing through creator re
           .getByRole("checkbox", { name: "Skin coverage", exact: true })
           .check();
       } else if (phase === "guides-off") {
-        // The UV popover dismisses on the outside Guides click, like any
-        // popover; it must stay available and reopen while Guides is off.
+        // The UV view works independently of Guides: toggling them keeps the
+        // popover open, and it still closes and reopens while Guides is off.
         await guidesToggle.click();
         await expect(guidesToggle).not.toBeChecked();
         await expect(guides).toBeHidden();
+        await expect(uvPanel.getByRole("img")).toBeVisible();
+        await page.keyboard.press("Escape");
         await expect(uvPanel).toBeHidden();
         await expect(uvButton).toBeVisible();
         await uvButton.click();
@@ -281,7 +283,7 @@ test("accountless vfx guides preserve authored JSON with replacement artwork and
     // Positions are shown in centimetres and stored in metres.
     const positionX = page
       .getByRole("group", { name: "Position (cm)", exact: true })
-      .getByRole("spinbutton", { name: "Sideways", exact: true });
+      .getByRole("spinbutton", { name: "Right", exact: true });
     await positionX.fill("");
     await expect(positionX).toHaveValue("");
     await positionX.pressSequentially("-0.25");

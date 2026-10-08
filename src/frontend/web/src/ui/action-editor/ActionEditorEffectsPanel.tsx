@@ -13,7 +13,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { TimelineIcon } from "@/ui/components/TimelineIcon";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 
 import type {
   PyContentDependency,
@@ -23,6 +23,7 @@ import type {
 import { cn } from "@/lib/utils";
 import type { PyPose } from "@animama/runtime-contracts/api-types";
 import { Button } from "@/ui/components/button";
+import { Checkbox } from "@/ui/components/checkbox";
 import { Input } from "@/ui/components/input";
 import { PencilSparklesIcon } from "@/ui/components/PencilSparklesIcon";
 import { Tabs, TabsList, TabsTrigger } from "@/ui/components/tabs";
@@ -156,6 +157,9 @@ export function ActionEditorEffectsPanel({
     preview.stop();
   }, [panelTab, preview]);
   const [poseQuery, setPoseQuery] = useState("");
+  // Local Poses are the user's own ingredients; Included ones are opt-in.
+  const [showIncludedPoses, setShowIncludedPoses] = useState(false);
+  const showIncludedId = useId();
   const activeTab =
     EFFECT_TABS.find((tab) => tab.contentType === activeType) ?? EFFECT_TABS[0];
   const activeSection = sections.find(
@@ -163,11 +167,12 @@ export function ActionEditorEffectsPanel({
   );
   const filteredPoses = useMemo(() => {
     const normalizedQuery = poseQuery.trim().toLocaleLowerCase();
-    if (!normalizedQuery) return poses ?? [];
-    return (poses ?? []).filter((pose) =>
-      pose.name.toLocaleLowerCase().includes(normalizedQuery),
+    return (poses ?? []).filter(
+      (pose) =>
+        (showIncludedPoses || pose.source !== "included") &&
+        pose.name.toLocaleLowerCase().includes(normalizedQuery),
     );
-  }, [poseQuery, poses]);
+  }, [poseQuery, poses, showIncludedPoses]);
   const panelLabel = showsPoses ? "Poses & Effects" : "Effects";
 
   return (
@@ -250,7 +255,7 @@ export function ActionEditorEffectsPanel({
             {showsPoses ? (
               <TabsTrigger
                 value="poses"
-                className="h-8 min-w-0 rounded-md px-1 text-[10px] tracking-tight data-[state=active]:shadow-sm 2xl:text-[11px]"
+                className="text-2xs h-8 min-w-0 rounded-md px-1 tracking-tight data-[state=active]:shadow-sm"
               >
                 <span className="truncate">Poses</span>
               </TabsTrigger>
@@ -259,7 +264,7 @@ export function ActionEditorEffectsPanel({
               <TabsTrigger
                 key={tab.contentType}
                 value={tab.contentType}
-                className="h-8 min-w-0 rounded-md px-1 text-[10px] tracking-tight data-[state=active]:shadow-sm 2xl:text-[11px]"
+                className="text-2xs h-8 min-w-0 rounded-md px-1 tracking-tight data-[state=active]:shadow-sm"
               >
                 <span className="truncate">{tab.label}</span>
               </TabsTrigger>
@@ -297,6 +302,21 @@ export function ActionEditorEffectsPanel({
               <SoundUploadButton className="contents [&>ul]:col-span-full" />
             ) : null}
           </div>
+          {panelTab === "poses" ? (
+            <label
+              htmlFor={showIncludedId}
+              className="mt-2 flex shrink-0 items-center gap-2 text-xs"
+            >
+              <Checkbox
+                id={showIncludedId}
+                checked={showIncludedPoses}
+                onCheckedChange={(checked) =>
+                  setShowIncludedPoses(checked === true)
+                }
+              />
+              Show Included
+            </label>
+          ) : null}
           {previewState.error ? (
             <p role="alert" className="text-destructive mt-2 text-xs">
               {previewState.error}
@@ -311,6 +331,16 @@ export function ActionEditorEffectsPanel({
                 error={posesError}
                 onRetry={onRetryPoses}
                 hasQuery={Boolean(poseQuery.trim())}
+                includedHidden={
+                  !showIncludedPoses &&
+                  (poses ?? []).some(
+                    (pose) =>
+                      pose.source === "included" &&
+                      pose.name
+                        .toLocaleLowerCase()
+                        .includes(poseQuery.trim().toLocaleLowerCase()),
+                  )
+                }
                 onAddPose={onAddPose}
                 onEditPose={onEditPose}
                 onCreatePose={onCreatePose}
@@ -332,7 +362,7 @@ export function ActionEditorEffectsPanel({
                     <p className="text-destructive text-xs font-medium">
                       Could not load {activeTab.catalogLabel.toLowerCase()}
                     </p>
-                    <p className="text-muted-foreground mt-1 line-clamp-2 text-[11px]">
+                    <p className="text-muted-foreground text-2xs mt-1 line-clamp-2">
                       {activeSection.errorMessage}
                     </p>
                     <Button
@@ -420,6 +450,7 @@ function PoseCatalog({
   mobile,
   poses,
   hasQuery,
+  includedHidden,
   pending,
   error,
   onRetry,
@@ -430,6 +461,8 @@ function PoseCatalog({
   mobile: boolean;
   poses: PyPose[];
   hasQuery: boolean;
+  /** Included Poses that match the search are filtered out. */
+  includedHidden: boolean;
   pending?: boolean;
   error?: string | null;
   onRetry?: () => void;
@@ -466,7 +499,7 @@ function PoseCatalog({
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-xs font-medium">{pose.name}</p>
-                  <p className="text-muted-foreground text-[10px]">
+                  <p className="text-muted-foreground text-2xs">
                     {pose.source === "included" ? "Included" : "Local"}
                   </p>
                 </div>
@@ -513,8 +546,12 @@ function PoseCatalog({
           </p>
           <p className="text-muted-foreground mt-1 text-xs">
             {hasQuery
-              ? "Try a different search."
-              : "Create and save a Pose to reuse it as a Gesture keyframe."}
+              ? includedHidden
+                ? "Try a different search, or show Included Poses."
+                : "Try a different search."
+              : includedHidden
+                ? "Create and save a Pose to reuse it as a Gesture keyframe, or show Included Poses."
+                : "Create and save a Pose to reuse it as a Gesture keyframe."}
           </p>
           {!hasQuery ? (
             <Button
@@ -562,7 +599,7 @@ function EffectCatalogRow({
         </span>
         <div className="min-w-0 flex-1">
           <p className="truncate text-xs font-medium">{item.name}</p>
-          <div className="text-muted-foreground flex items-center gap-1.5 text-[10px]">
+          <div className="text-muted-foreground text-2xs flex items-center gap-1.5">
             {item.origin !== "builtin" ? <span>Mine</span> : null}
             {addedCount ? (
               <span className="bg-primary/10 text-primary rounded-full px-1.5 py-0.5 font-medium">

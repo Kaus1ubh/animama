@@ -3,11 +3,10 @@ import type {
   PyExactContentSource,
 } from "@/lib/content/catalogTypes";
 import {
-  parseAnyAnimaPoseClip,
-  type AnyAnimaPoseClip,
+  parseAnimaPoseClip,
+  type AnimaPoseClipV2,
 } from "@/lib/avatar/poses/animaPoseClip";
 import type { ActionComponentType } from "./actionDependencies";
-import { savedActionSequence } from "./actionPersistence";
 import {
   actionNameSlug,
   normalizeActionDocument,
@@ -27,12 +26,12 @@ export type ActionProject = {
   suggestedEmotion: string;
   suggestedIntensity: 1 | 2 | 3;
   notes: string;
-  sequence: AnyAnimaPoseClip;
+  sequence: AnimaPoseClipV2;
   dependencies: PyContentDependency[];
 };
 
 export type ActionImport =
-  | { kind: "clip"; sequence: AnyAnimaPoseClip }
+  | { kind: "clip"; sequence: AnimaPoseClipV2 }
   | { kind: "project"; project: ActionProject };
 
 export type UnresolvedActionReference = {
@@ -133,22 +132,23 @@ export function createActionProject(document: ActionDocument): ActionProject {
     suggestedEmotion: normalized.suggestedEmotion,
     suggestedIntensity: normalized.suggestedIntensity,
     notes: normalized.notes,
-    // Exported projects carry the 2.0 sequence that Save would write.
-    sequence: parseAnyAnimaPoseClip(
-      savedActionSequence(normalized.sequence, normalized.intent),
-    ),
+    sequence: parseAnimaPoseClip(normalized.sequence),
     dependencies: structuredClone(normalized.dependencies),
   };
 }
 
-/** Accept either a direct animaPoseClip or Animama's exact-dependency envelope. */
+/**
+ * Accept either a direct `animaPoseClip/2.0` clip or Animama's
+ * exact-dependency envelope around one. Any other clip format, including the
+ * retired 1.0, throws `UnsupportedAnimaPoseClipFormatError`.
+ */
 export function parseActionImport(
   value: unknown,
   expectedIntent: ActionIntent,
 ): ActionImport {
   if (!isRecord(value)) throw new Error("JSON must contain an object.");
   if (value.schema !== ACTION_PROJECT_SCHEMA) {
-    return { kind: "clip", sequence: parseAnyAnimaPoseClip(value) };
+    return { kind: "clip", sequence: parseAnimaPoseClip(value) };
   }
   if (value.intent !== expectedIntent) {
     throw new Error(
@@ -171,7 +171,7 @@ export function parseActionImport(
       suggestedEmotion: optionalString(value.suggestedEmotion),
       suggestedIntensity: intensity as 1 | 2 | 3,
       notes: optionalString(value.notes),
-      sequence: parseAnyAnimaPoseClip(value.sequence),
+      sequence: parseAnimaPoseClip(value.sequence),
       dependencies: parseDependencies(value.dependencies),
     },
   };

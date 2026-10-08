@@ -86,8 +86,8 @@ import {
   DEFAULT_ANIMA_POSE_CLIP_TRANSITION,
   getAnimaPoseClipTimelineDuration,
   animaPoseClipHasPose,
-  parseAnyAnimaPoseClip,
-  type AnyAnimaPoseClip,
+  parseAnimaPoseClip,
+  type AnimaPoseClipV2,
   type AnimaPoseClipSample,
 } from "./poses/animaPoseClip";
 import {
@@ -1123,7 +1123,7 @@ export class Avatar {
     return this._motionCatalog.listAnimations();
   }
 
-  getLoadedMotionPoseClip(clipId: string): AnyAnimaPoseClip | null {
+  getLoadedMotionPoseClip(clipId: string): AnimaPoseClipV2 | null {
     return this._motionCatalog.getPoseClip(clipId);
   }
 
@@ -1131,15 +1131,15 @@ export class Avatar {
     return this._motionCatalog.listReactionClips();
   }
 
-  getLoadedMotionReactionClip(clipId: string): AnyAnimaPoseClip | null {
+  getLoadedMotionReactionClip(clipId: string): AnimaPoseClipV2 | null {
     return this._motionCatalog.getReactionClip(clipId);
   }
 
   playAnimaPoseClip(
-    clip: AnyAnimaPoseClip,
+    clip: AnimaPoseClipV2,
     options?: PoseClipPlayOptions,
   ): AvatarPoseClipSnapshot {
-    const parsedClip = parseAnyAnimaPoseClip(clip);
+    const parsedClip = parseAnimaPoseClip(clip);
     // Effect-only clips share the event clock without replacing the pose base.
     if (!animaPoseClipHasPose(parsedClip)) {
       return this._playAnimaPoseClip(parsedClip, options);
@@ -1150,7 +1150,7 @@ export class Avatar {
   }
 
   private _playAnimaPoseClip(
-    clip: AnyAnimaPoseClip,
+    clip: AnimaPoseClipV2,
     options?: PoseClipPlayOptions,
   ): AvatarPoseClipSnapshot {
     const poseController = this.poseController;

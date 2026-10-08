@@ -1,8 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
   chatRunMessageId,
   mapServerMessagesForDisplay,
+  messageTimestampMs,
+  sortDisplayMessagesByCreatedAt,
 } from "./display-message-mapping";
 
 describe("display message mapping", () => {
@@ -242,5 +244,60 @@ describe("display message mapping", () => {
         },
       ]),
     ).toEqual([]);
+  });
+});
+
+describe("display message ordering", () => {
+  // A zone west of UTC reproduces persisted rows sorting into the future.
+  const originalTimeZone = process.env.TZ;
+  beforeEach(() => {
+    process.env.TZ = "America/New_York";
+  });
+  afterEach(() => {
+    process.env.TZ = originalTimeZone;
+  });
+
+  it("reads offset-less server timestamps as UTC", () => {
+    const utc = Date.parse("2026-10-08T17:58:01.492Z");
+    expect(messageTimestampMs("2026-10-08T17:58:01.492")).toBe(utc);
+    expect(messageTimestampMs("2026-10-08T17:58:01.492Z")).toBe(utc);
+    expect(messageTimestampMs("2026-10-08T13:58:01.492-04:00")).toBe(utc);
+    expect(messageTimestampMs("2026-10-08T19:58:01.492+0200")).toBe(utc);
+  });
+
+  it("treats missing or invalid timestamps as zero", () => {
+    expect(messageTimestampMs(undefined)).toBe(0);
+    expect(messageTimestampMs("")).toBe(0);
+    expect(messageTimestampMs("not a date")).toBe(0);
+  });
+
+  it("keeps a just-sent message after earlier persisted rows", () => {
+    const messages = [
+      {
+        id: "run-1-user",
+        role: "user" as const,
+        text: "First",
+        createdAt: "2026-10-08T17:58:01.492418",
+      },
+      {
+        id: "run-1-assistant",
+        role: "assistant" as const,
+        text: "Reply",
+        createdAt: "2026-10-08T17:58:01.492418",
+      },
+      {
+        id: "run-2-user",
+        role: "user" as const,
+        text: "Second",
+        createdAt: "2026-10-08T18:00:00.000Z",
+      },
+    ];
+
+    expect(
+      sortDisplayMessagesByCreatedAt([
+        messages[2],
+        ...messages.slice(0, 2),
+      ]).map((message) => message.id),
+    ).toEqual(["run-1-user", "run-1-assistant", "run-2-user"]);
   });
 });

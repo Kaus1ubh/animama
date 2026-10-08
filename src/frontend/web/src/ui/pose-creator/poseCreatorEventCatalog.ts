@@ -1,4 +1,4 @@
-import type { AnimaPoseClipEvent } from "@/lib/avatar/poses/animaPoseClip/schema";
+import type { AnimaPoseClipEvent } from "@/lib/avatar/poses/animaPoseClip/clipVocabulary";
 import type { ParticleVFXCatalogEntry } from "@/lib/avatar/particle-vfx/types";
 import type { AvatarVFXCatalogEntry } from "@/lib/avatar/vfx/types";
 import type { RuntimeAudioDescriptor } from "@/lib/runtime-content/AnimaRuntimeMediaCatalog";

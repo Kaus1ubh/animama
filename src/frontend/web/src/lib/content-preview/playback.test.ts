@@ -45,12 +45,12 @@ function target(kind: "avatar_model" | "animation" | "anima_pose_clip") {
 }
 
 const emptyClip = parseAnimaPoseClip({
-  schema: "animaPoseClip/1.0",
+  schema: "animaPoseClip/2.0",
   id: "fixture",
   name: "Fixture",
   duration: 1,
-  poses: { base: { expressions: { happy: 0.5 } } },
-  poseKeyframes: [{ time: 0, pose: "base" }],
+  beats: [{ id: "base", label: "Base", time: 0 }],
+  expressions: { happy: [{ beat: "base", v: 0.5 }] },
 });
 
 describe("Asset preview playback policy", () => {
@@ -99,12 +99,12 @@ describe("Asset preview playback policy", () => {
 
   it("reports exact missing clip dependencies without rejecting the clip", () => {
     const clip = parseAnimaPoseClip({
-      schema: "animaPoseClip/1.0",
+      schema: "animaPoseClip/2.0",
       id: "fixture",
       name: "Fixture",
       duration: 1,
-      poses: { base: { expressions: { happy: 0.5 } } },
-      poseKeyframes: [{ time: 0, pose: "base" }],
+      beats: [{ id: "base", label: "Base", time: 0 }],
+      expressions: { happy: [{ beat: "base", v: 0.5 }] },
       events: [
         {
           id: "avatar",
@@ -145,12 +145,12 @@ describe("Asset preview playback policy", () => {
 
   it("preloads private Scene and Avatar VFX before reporting diagnostics", async () => {
     const clip = parseAnimaPoseClip({
-      schema: "animaPoseClip/1.0",
+      schema: "animaPoseClip/2.0",
       id: "private-effects",
       name: "Private effects",
       duration: 1,
-      poses: { base: { expressions: { happy: 0.5 } } },
-      poseKeyframes: [{ time: 0, pose: "base" }],
+      beats: [{ id: "base", label: "Base", time: 0 }],
+      expressions: { happy: [{ beat: "base", v: 0.5 }] },
       events: [
         {
           id: "avatar",
@@ -190,12 +190,12 @@ describe("Asset preview playback policy", () => {
 
   it("warns only for dependencies whose preload actually fails", async () => {
     const clip = parseAnimaPoseClip({
-      schema: "animaPoseClip/1.0",
+      schema: "animaPoseClip/2.0",
       id: "failed-effect",
       name: "Failed effect",
       duration: 1,
-      poses: { base: { expressions: { happy: 0.5 } } },
-      poseKeyframes: [{ time: 0, pose: "base" }],
+      beats: [{ id: "base", label: "Base", time: 0 }],
+      expressions: { happy: [{ beat: "base", v: 0.5 }] },
       events: [
         {
           id: "scene",
@@ -227,12 +227,12 @@ describe("Asset preview playback policy", () => {
 
   it("reports dependency loading until a private effect is ready to play", async () => {
     const clip = parseAnimaPoseClip({
-      schema: "animaPoseClip/1.0",
+      schema: "animaPoseClip/2.0",
       id: "loading-effect",
       name: "Loading effect",
       duration: 1,
-      poses: { base: { expressions: { happy: 0.5 } } },
-      poseKeyframes: [{ time: 0, pose: "base" }],
+      beats: [{ id: "base", label: "Base", time: 0 }],
+      expressions: { happy: [{ beat: "base", v: 0.5 }] },
       events: [
         {
           id: "scene",

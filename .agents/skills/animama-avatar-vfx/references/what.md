@@ -99,13 +99,13 @@ not copy numbers between attachments. The creator shows these units; the
 stored definition uses metres where the creator shows cm, and fractions where
 it shows %:
 
-| Attachment           | Position                                                   | Size                     | Rotation                                     |
-| -------------------- | ---------------------------------------------------------- | ------------------------ | -------------------------------------------- |
-| Floating on the face | cm from the face point, in head space (right, up, forward) | width and height factors | degrees, plus tilt forward and turn sideways |
-| Painted on the face  | % of the texture                                           | width and height factors | degrees in the texture plane                 |
-| On the body          | cm from the body point, in the bone's frame                | plane height in cm       | degrees in its own plane                     |
-| Sticker              | % of the avatar's height, in the screen plane              | % of the avatar's height | degrees                                      |
-| Silhouette           | pattern tile size and scroll (tiles/s)                     | —                        | —                                            |
+| Attachment           | Position                                                                              | Size                     | Rotation                                     |
+| -------------------- | ------------------------------------------------------------------------------------- | ------------------------ | -------------------------------------------- |
+| Floating on the face | cm from the face point: +x toward the viewer's right (the avatar's left), up, forward | width and height factors | degrees, plus tilt forward and turn sideways |
+| Painted on the face  | % of the texture                                                                      | width and height factors | degrees in the texture plane                 |
+| On the body          | cm from the body point, in the bone's frame                                           | plane height in cm       | degrees in its own plane                     |
+| Sticker              | % of the avatar's height, in the screen plane                                         | % of the avatar's height | degrees                                      |
+| Silhouette           | pattern tile size and scroll (tiles/s)                                                | —                        | —                                            |
 
 A mirrored copy (the other eye or cheek) mirrors its horizontal offset and can
 use the **Other side image** instead of a mirrored one, so a wink needs one

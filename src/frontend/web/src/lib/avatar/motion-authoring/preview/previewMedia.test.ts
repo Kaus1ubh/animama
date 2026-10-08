@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { AnimaPoseClip } from "../../poses/animaPoseClip";
+import type { AnimaPoseClipV2 } from "../../poses/animaPoseClip";
 import type { EffectSource } from "../../vfx/effectSource";
 import {
   PreviewMediaProvider,
@@ -45,13 +45,12 @@ const media = (overrides: Partial<PreviewMedia> = {}): PreviewMedia => ({
   ...overrides,
 });
 
-const clip = (events: AnimaPoseClip["events"]): AnimaPoseClip => ({
-  schema: "animaPoseClip/1.0",
+const clip = (events: AnimaPoseClipV2["events"]): AnimaPoseClipV2 => ({
+  schema: "animaPoseClip/2.0",
   id: "confusion",
   name: "Confusion",
   duration: 1,
-  poses: { rest: { humanoid: {} } },
-  poseKeyframes: [{ time: 0, pose: "rest" }],
+  beats: [],
   events,
 });
 
@@ -114,7 +113,7 @@ describe("PreviewMediaProvider", () => {
 
 describe("previewMediaNotices", () => {
   it("names effects that will not play and why", () => {
-    const events: AnimaPoseClip["events"] = [
+    const events: AnimaPoseClipV2["events"] = [
       { id: "a", time: 0.1, kind: "avatar_vfx", effectId: "swirl" },
       { id: "b", time: 0.1, kind: "avatar_vfx", effectId: "missing" },
       { id: "c", time: 0.2, kind: "particle_vfx", effectId: "question-marks" },

@@ -48,11 +48,7 @@ export function ActionEventList({ onSelect }: { onSelect?: () => void }) {
     ...draft.keyframes.map((frame) => ({
       id: `keyframe:${frame.id}`,
       time: frame.time,
-      label:
-        frame.label ??
-        (workspace.document.intent === "reaction"
-          ? "Expression"
-          : labelFor(frame.pose)),
+      label: frame.label,
       remove: () => {
         selectKeyframe(frame.id);
         deleteKeyframe();
@@ -103,7 +99,7 @@ export function ActionEventList({ onSelect }: { onSelect?: () => void }) {
               }}
               className="focus-visible:ring-ring flex min-w-0 flex-1 items-center gap-2 rounded-lg px-2 py-1.5 text-left focus-visible:ring-2"
             >
-              <span className="text-muted-foreground shrink-0 text-[10px] tabular-nums">
+              <span className="text-muted-foreground text-2xs shrink-0 tabular-nums">
                 {item.time.toFixed(2)}s
               </span>
               <span className="min-w-0">

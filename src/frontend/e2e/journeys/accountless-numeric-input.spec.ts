@@ -40,12 +40,12 @@ test("accountless optional SFX volume preserves empty values and canonical bound
     const dialog = page.getByRole("dialog", { name: "Import", exact: true });
     await dialog.getByLabel("Creator JSON import").fill(
       JSON.stringify({
-        schema: "animaPoseClip/1.0",
+        schema: "animaPoseClip/2.0",
         id: "optional-number-check",
         name: "Optional number check",
         duration: 2,
-        poses: { neutral: { expressions: { happy: 0 } } },
-        poseKeyframes: [{ time: 0, pose: "neutral" }],
+        beats: [{ id: "neutral", label: "Neutral", time: 0 }],
+        expressions: { happy: [{ beat: "neutral", v: 0 }] },
         events: [
           {
             id: "volume-check",

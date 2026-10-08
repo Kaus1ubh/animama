@@ -618,6 +618,75 @@ describe("Avatar Effect v2 runtime features", () => {
       expect(placement!.corners[1].x).toBeGreaterThan(placement!.corners[0].x);
       expect(controller.getManipulationFrame("missing", camera)).toBeNull();
     });
+
+    /**
+     * Turn the (VRM 1, +Z-facing) fixture into a VRM 0 head: normalized VRM 0
+     * bones keep the model's −Z front, so every landmark turns 180° about y.
+     */
+    const useVrm0Landmarks = () => {
+      const turn = <T extends { x: number; z: number }>(point: T): T => ({
+        ...point,
+        x: -point.x,
+        z: -point.z,
+      });
+      landmarks.faceBoundsLocal = {
+        min: vec(-bounds.max.x, bounds.min.y, -bounds.max.z),
+        max: vec(-bounds.min.x, bounds.max.y, -bounds.min.z),
+        size: bounds.size,
+        center: bounds.center,
+      };
+      landmarks.frontZLocal = -landmarks.frontZLocal!;
+      landmarks.boxHoverFrontZLocal = -landmarks.boxHoverFrontZLocal!;
+      for (const side of ["left", "right"] as const) {
+        const eye = landmarks.eyes[side]!;
+        landmarks.eyes[side] = {
+          ...eye,
+          centerLocal: turn(eye.centerLocal),
+          projectedFrontLocal: turn(eye.projectedFrontLocal),
+        };
+      }
+    };
+
+    it.each([
+      ["1", 1],
+      ["0", -1],
+    ] as const)(
+      "measures floating offsets in the Avatar's front frame on VRM %s",
+      async (version, frontSign) => {
+        if (version === "0") useVrm0Landmarks();
+        const camera = new THREE.PerspectiveCamera();
+        const effect = mirroredEye();
+        await apply(effect);
+        const start = roots();
+        controller.updateEffectTransform(effect.id, {
+          kind: "face",
+          transform: { ...transform(), offset: vec(0.01, 0.02, 0.003) },
+        });
+        const moved = roots();
+        // +x is toward the viewer's right (the Avatar's left) and +z forward
+        // on either model; the mirrored copy mirrors x.
+        const delta = (label: string) =>
+          moved[label]!.clone().sub(start[label]!);
+        expect(delta("right").toArray()).toEqual([
+          expect.closeTo(0.01 * frontSign),
+          expect.closeTo(0.02),
+          expect.closeTo(0.003 * frontSign),
+        ]);
+        expect(delta("left").x).toBeCloseTo(-0.01 * frontSign);
+
+        // The creator's offset frame moves art the way the renderer does, so
+        // a drag stores the same value on either model.
+        const frame = controller.getManipulationFrame(effect.id, camera)!;
+        const framed = new THREE.Vector3(0.01, 0.02, 0.003).applyMatrix3(
+          new THREE.Matrix3().setFromMatrix4(frame.offsetSpace!),
+        );
+        expect(framed.toArray()).toEqual(
+          delta("right")
+            .toArray()
+            .map((value) => expect.closeTo(value)),
+        );
+      },
+    );
   });
 
   it("plays hover flipbooks through texture repeat and offset", async () => {

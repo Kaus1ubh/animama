@@ -42,6 +42,7 @@ from animama.domain.content_documents import (
 from animama.domain.emotions import TRACKED_EMOTION_SET
 
 from .avatar_face_parts import local_face_parts, normalize_face_parts
+from .clip_format import validate_action_clip_files
 from .content_file_validation import ContentFileInvalidError
 from .content_gltf import MAX_VRM_SOURCE_BYTES, validate_vrm_stream
 from .content_image import MAX_APPEARANCE_SOURCE_BYTES, validate_appearance_image_stream
@@ -162,20 +163,8 @@ _KIND_FIELDS: dict[ContentKind, frozenset[str]] = {
         {"semantic_key", "implementation", "config", "runtime_defaults", "technical_source"}
     ),
     ContentKind.POSE: frozenset({"pose"}),
-    ContentKind.POSE_CLIP: frozenset(
-        {
-            "schema",
-            "role",
-            "playback",
-            "defaultTransition",
-            "fadeIn",
-            "fadeOut",
-            "poses",
-            "poseKeyframes",
-            "events",
-            "config",
-        }
-    ),
+    # Retired: parsed as an opaque identity record, so its fields are not checked.
+    ContentKind.POSE_CLIP: frozenset(),
     ContentKind.REACTION: frozenset(
         {"placement_hint", "implementation", "config", "runtime_defaults", "technical_source"}
     ),
@@ -772,7 +761,8 @@ class ContentTypeHandler:
         if descriptor_backed and discriminator is None:
             raise ContentDocumentError("content_type_required", "descriptor-backed content requires content_type")
         unexpected = sorted(set(value) - _COMMON_FIELDS - _KIND_FIELDS[self.kind])
-        if unexpected and not (self.kind is ContentKind.POSE_CLIP and value.get("schema") == "animaPoseClip/1.0"):
+        # A retired Pose Clip is kept as an opaque record for Save-receipt replay.
+        if unexpected and self.kind is not ContentKind.POSE_CLIP:
             raise ContentDocumentError(
                 "unexpected_document_fields",
                 f"Unexpected {self.kind.value} fields: {', '.join(unexpected)}",
@@ -841,22 +831,13 @@ class ContentTypeHandler:
                 pose=validate_resolved_pose(raw.get("pose"), content_id=base["content_id"], name=base["name"]),
             )
         if kind is ContentKind.POSE_CLIP:
-            schema = raw.get("schema")
-            if raw and schema != "animaPoseClip/1.0":
-                raise ContentDocumentError("pose_clip_schema_invalid", "Pose Clip schema must be animaPoseClip/1.0")
-            keyframes = raw.get("poseKeyframes", [])
-            poses = raw.get("poses", {})
-            if not isinstance(keyframes, list) or not all(isinstance(item, dict) for item in keyframes):
-                raise ContentDocumentError("pose_clip_keyframes_invalid", "poseKeyframes must be an object array")
-            if not isinstance(poses, dict):
-                raise ContentDocumentError("pose_clip_poses_invalid", "poses must be an object")
+            # Retired standalone clips are never played or exposed; only their
+            # identity is parsed, so completed Save receipts can still replay.
             return PoseClipDocumentV1(
                 **base,
                 clip_id=_string(raw.get("id"), field_name="id", fallback=str(base["name"])),
                 role=_optional_string(raw.get("role"), field_name="role", maximum=64),
                 playback=_object(raw.get("playback"), field_name="playback"),
-                poses=dict(poses),
-                pose_keyframes=tuple(dict(item) for item in keyframes),
                 clip=dict(raw),
             )
         if kind is ContentKind.PARTICLE_EFFECT:
@@ -1181,6 +1162,8 @@ class ContentTypeHandler:
 
         if isinstance(document, VoiceDocumentV1):
             return validate_pocket_clone_files(document, files)
+        if isinstance(document, GestureDocumentV1 | ReactionDocumentV1):
+            return validate_action_clip_files(document, files)
         return ()
 
     def validate_resolved_dependencies(

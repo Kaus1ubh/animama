@@ -84,9 +84,7 @@ save run.
 path. Copy that file to `.animama-drafts/`, edit it, then validate, check and
 preview with `--compare library:<selector>` to see old and new together.
 Save a Local Gesture with `animation:save` under the same Selector ID (or
-import it in the creator and Save); the item keeps its identity. A 1.0
-Gesture (older Included content) must first be opened and saved once in the
-creator, which converts it to 2.0; `validate` accepts only 2.0. Changing an
+import it in the creator and Save); the item keeps its identity. Changing an
 Included Gesture's bytes is a promotion (step 9) with `mode: "replace"`.
 
 ## Decision rules

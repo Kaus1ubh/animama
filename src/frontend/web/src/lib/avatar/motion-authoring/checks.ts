@@ -3,10 +3,8 @@ import { Quaternion, Vector3 } from "three";
 
 import {
   getAnimaPoseClipTimelineDuration,
-  isAnimaPoseClipV2,
-  parseAnyAnimaPoseClip,
+  parseAnimaPoseClip,
   type AnimaPoseClipV2,
-  type AnyAnimaPoseClip,
 } from "../poses/animaPoseClip";
 import {
   createAnimaPoseClipProgram,
@@ -150,7 +148,7 @@ export function checkMotion(
   avatars: readonly MotionCheckAvatar[],
   options: MotionCheckOptions = {},
 ): MotionCheckReport {
-  const clip = parseAnyAnimaPoseClip(clipValue);
+  const clip = parseAnimaPoseClip(clipValue);
   const sampleRate = options.sampleRate ?? 60;
   const duration = getAnimaPoseClipTimelineDuration(clip);
   const times: number[] = [];
@@ -160,10 +158,7 @@ export function checkMotion(
   const contacts = [...clipContacts(clip), ...(options.contacts ?? [])];
   // Feet should stay put unless the clip moves its legs itself.
   const plantFeet =
-    options.plantFeet ??
-    (isAnimaPoseClipV2(clip)
-      ? clip.plantFeet === true || !keysLegs(clip)
-      : true);
+    options.plantFeet ?? (clip.plantFeet === true || !keysLegs(clip));
   // Each Avatar plays its own preparation (fitted hands, solved legs). Checks
   // on canonical values use the first Avatar's.
   const programs = avatars.map(({ vrm }) =>
@@ -249,9 +244,8 @@ function keysLegs(clip: AnimaPoseClipV2): boolean {
   ].some((bone) => LEG_BONE.test(bone));
 }
 
-/** A 2.0 clip's declared contacts, in seconds from its start. */
-function clipContacts(clip: AnyAnimaPoseClip): MotionCheckContact[] {
-  if (!isAnimaPoseClipV2(clip)) return [];
+/** A clip's declared contacts, in seconds from its start. */
+function clipContacts(clip: AnimaPoseClipV2): MotionCheckContact[] {
   const beatTimes = new Map(clip.beats.map(({ id, time }) => [id, time]));
   return (clip.contacts ?? []).map(({ beat, from, to, ...contact }) => {
     const time = beatTimes.get(beat) ?? 0;

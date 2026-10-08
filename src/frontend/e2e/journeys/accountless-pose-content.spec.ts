@@ -198,6 +198,19 @@ test("pose content Local save edit reopen and browser storage independence", asy
     selectAnnie: false,
   });
   await clipPage.getByRole("tab", { name: "Clip", exact: true }).click();
+  // The Poses tab lists Local Poses; Included ones appear behind Show Included.
+  const includedInsert = clipPage.getByRole("button", {
+    name: "Insert Relaxed Rest at current playhead",
+    exact: true,
+  });
+  await expect(includedInsert).toHaveCount(0);
+  const showIncluded = clipPage.getByRole("checkbox", {
+    name: "Show Included",
+  });
+  await showIncluded.click();
+  await expect(includedInsert).toBeVisible();
+  await showIncluded.click();
+  await expect(includedInsert).toHaveCount(0);
   await clipPage
     .getByRole("button", {
       name: `Insert ${name} at current playhead`,

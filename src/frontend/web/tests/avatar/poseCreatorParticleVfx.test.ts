@@ -33,20 +33,11 @@ function createReadyClipDraft(
     id: "particle-authoring",
     name: "Particle Authoring",
     duration: 2,
-    poses: {
-      rest: {
-        expressions: {
-          happy: 0,
-        },
-      },
+    motion: {
+      beats: [{ id: "rest", label: "Rest", time: 0 }],
+      expressions: { happy: [{ beat: "rest", v: 0 }] },
     },
-    keyframes: [
-      {
-        id: "keyframe_1",
-        time: 0,
-        pose: "rest",
-      },
-    ],
+    keyframes: [{ id: "rest", time: 0, pose: "rest", label: "Rest" }],
     validationIssues: [],
     ...overrides,
   };
@@ -165,9 +156,7 @@ describe("pose creator particle VFX authoring", () => {
       events: [particleEvent],
     });
 
-    const exportedJson = formatPoseCreatorClipJsonForExport(draftWithEvent, {
-      mode: "referenced",
-    });
+    const exportedJson = formatPoseCreatorClipJsonForExport(draftWithEvent);
     expect(exportedJson).not.toBeNull();
 
     const importedDraft = createPoseCreatorClipDraftFromAnimaPoseClip(

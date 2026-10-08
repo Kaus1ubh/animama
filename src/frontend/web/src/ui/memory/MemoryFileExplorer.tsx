@@ -440,7 +440,7 @@ function ExplorerRow({
             <span className="min-w-0 truncate">{node.label}</span>
             {dirty ? (
               <span
-                className="size-1.5 shrink-0 rounded-full bg-amber-500"
+                className="bg-warning size-1.5 shrink-0 rounded-full"
                 title="Unsaved changes"
               />
             ) : null}
@@ -449,25 +449,19 @@ function ExplorerRow({
                 className="shrink-0"
                 title="This name is reserved for Anima identities. Rename it, or move its contents out, to edit them."
               >
-                <AlertTriangle
-                  aria-hidden
-                  className="size-3.5 text-amber-600 dark:text-amber-400"
-                />
+                <AlertTriangle aria-hidden className="text-warning size-3.5" />
                 <span className="sr-only">Reserved name</span>
               </span>
             ) : null}
             {repairNeeded ? (
               <span className="shrink-0" title="Needs repair">
-                <AlertTriangle
-                  aria-hidden
-                  className="size-3.5 text-amber-600 dark:text-amber-400"
-                />
+                <AlertTriangle aria-hidden className="text-warning size-3.5" />
                 <span className="sr-only">Needs repair</span>
               </span>
             ) : null}
           </span>
           {node.kind === "episode-file" ? (
-            <span className="text-muted-foreground block truncate text-[10px] leading-3">
+            <span className="text-muted-foreground text-2xs block truncate leading-3">
               {node.entry.path}
             </span>
           ) : null}
@@ -475,7 +469,7 @@ function ExplorerRow({
         {node.kind === "episode-root" && pendingEpisodeCount > 0 ? (
           <span
             aria-label={`${pendingEpisodeCount} pending ${pendingEpisodeCount === 1 ? "episode" : "episodes"}`}
-            className="bg-primary text-primary-foreground ml-auto shrink-0 rounded-full px-1.5 py-0.5 text-[10px] leading-none"
+            className="bg-primary text-primary-foreground text-2xs ml-auto shrink-0 rounded-full px-1.5 py-0.5 leading-none"
             title={`${pendingEpisodeCount} pending ${pendingEpisodeCount === 1 ? "episode" : "episodes"}`}
           >
             {pendingCountLabel(pendingEpisodeCount)}
@@ -1021,7 +1015,7 @@ export function MemoryFileExplorer({
                 )}
                 <span className="min-w-0">
                   <span className="block truncate">{activeEntry.name}</span>
-                  <span className="text-muted-foreground block truncate text-[10px]">
+                  <span className="text-muted-foreground text-2xs block truncate">
                     {activeEntry.path}
                   </span>
                 </span>

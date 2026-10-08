@@ -74,17 +74,19 @@ reactions/happy/
 ```
 
 The `.meta.json` file is the typed Action control document; the `.json` file is
-the actual `animaPoseClip/1.0` or `animaPoseClip/2.0` sequence owned by that
+the actual `animaPoseClip/2.0` sequence owned by that
 Action. Idle Styles reference Gestures whose Action files contain their clip or
 VRMA. Independently reusable VFX and
 SFX remain typed dependencies and are included through the runtime/package
 closure.
 
 Old `pose-clips/` and `music/` files remain on disk for recovery and do not
-appear as supported Library content. Startup and Rescan preserve originals and
-prior binding facts under `data/internal/operations/transitions/` before
-converting Action references or removing Music bindings. A failed conversion
-retains its evidence and reports a diagnostic instead of discarding content.
+appear as supported Library content. Retired Pose Clips were `animaPoseClip/1.0`,
+so a Local Action whose motion still references one is listed invalid with
+`clip_format_unsupported` rather than converted. Startup and Rescan preserve
+originals and prior binding facts under `data/internal/operations/transitions/`
+before removing Music bindings. A failed transition retains its evidence and
+reports a diagnostic instead of discarding content.
 
 Local Avatar Effects with an `animama/avatar-effect/1` definition convert to
 `/2` in place in the same transition (`AvatarEffectTransitionService`): only

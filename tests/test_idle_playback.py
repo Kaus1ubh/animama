@@ -59,5 +59,5 @@ def test_nonfinite_or_unrepresentable_speed_has_a_safe_validation_error(speed: o
         implementation=ActionImplementationV1(kind="anima_clip"),
     )
     with pytest.raises(ContentDocumentError) as error:
-        derive_idle_playback(document, BytesIO(b'{"schema":"animaPoseClip/1.0","duration":1}'))
+        derive_idle_playback(document, BytesIO(b'{"schema":"animaPoseClip/2.0","duration":1}'))
     assert error.value.code == "idle_speed_invalid"
