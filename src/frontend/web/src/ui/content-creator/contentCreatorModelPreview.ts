@@ -23,12 +23,52 @@ type ContentCreatorModelSourceBase = {
   config: Record<string, unknown>;
 };
 
-export type ContentCreatorModelSource = ContentCreatorModelSourceBase & {
+/** The exact model equipped on an Anima, from its runtime snapshot. */
+export type ContentCreatorAnimaModelSource = ContentCreatorModelSourceBase & {
   sourceType: "resolved_entry";
   animaId: string;
   effectiveRevision: string;
   contentRevision: string;
 };
+
+/** An Included Avatar, previewed through its catalog item. */
+export type ContentCreatorIncludedAvatarSource =
+  ContentCreatorModelSourceBase & {
+    sourceType: "included_avatar";
+    itemId: string;
+  };
+
+export type ContentCreatorModelSource =
+  | ContentCreatorAnimaModelSource
+  | ContentCreatorIncludedAvatarSource;
+
+/** The Avatar catalog item behind a model source, for face part corrections. */
+export function contentCreatorModelCatalogItemId(
+  source: ContentCreatorModelSource | null,
+): string | null {
+  if (!source) return null;
+  if (source.sourceType === "included_avatar") return source.itemId;
+  const itemId = source.config.avatar_catalog_item_id;
+  return typeof itemId === "string" && itemId ? itemId : null;
+}
+
+/** A model option for one Included Avatar catalog item. */
+export function contentCreatorIncludedAvatarSource(item: {
+  catalog_item_id: string;
+  name: string;
+}): ContentCreatorIncludedAvatarSource {
+  return {
+    key: `included:${item.catalog_item_id}`,
+    sourceType: "included_avatar",
+    itemId: item.catalog_item_id,
+    displayName: item.name,
+    versionLabel: "Included Avatar",
+    sourceLabel: "Built-in Avatar",
+    runtimeId: `included-avatar-${item.catalog_item_id}`,
+    configSchemaVersion: 1,
+    config: {},
+  };
+}
 
 /** Select the remembered owned Anima, or the first deterministic fallback. */
 export function selectContentCreatorPreviewAnima(
@@ -61,7 +101,7 @@ export function shouldPersistLastActiveAnima(input: {
 export function contentCreatorModelSourceFromAnima(
   animaId: string,
   runtime: AnimaRuntimeCatalogSnapshot,
-): ContentCreatorModelSource {
+): ContentCreatorAnimaModelSource {
   const entry = runtime.avatar_model;
   if (!entry) {
     throw new Error("The selected Anima does not have an available Avatar.");
@@ -89,7 +129,8 @@ export function contentCreatorModelPreviewTarget(input: {
   ownerKey: string;
 }): ContentPreviewTarget | null {
   const source = input.source;
-  if (!source) return null;
+  // Included Avatars resolve through their catalog preview instead.
+  if (!source || source.sourceType !== "resolved_entry") return null;
   const base = {
     key: `${input.ownerKey}:${source.key}`,
     kind: "avatar_model" as const,

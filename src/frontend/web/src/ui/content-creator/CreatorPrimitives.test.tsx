@@ -8,12 +8,46 @@ import {
   CreatorField,
   CreatorNumberField,
   CreatorPreviewBar,
+  CreatorRecoveryNotice,
   CreatorToggleRow,
   CreatorToolbar,
   CreatorWorkspaceShell,
 } from ".";
 
 describe("creator editor primitives", () => {
+  it("shows a restored draft with Discard recovery, after errors and warnings", () => {
+    const notice = (
+      overrides: Partial<Parameters<typeof CreatorRecoveryNotice>[0]>,
+    ) =>
+      renderToString(
+        <CreatorRecoveryNotice
+          error={null}
+          recoveryWarning={null}
+          recovered={false}
+          busy={false}
+          contentLabel="Avatar Effect"
+          onDiscardServerDraft={() => undefined}
+          onDiscardRecovery={() => undefined}
+          {...overrides}
+        />,
+      );
+    expect(notice({})).toBe("");
+    const recovered = notice({ recovered: true });
+    expect(recovered).toContain("Recovered unsaved Avatar Effect changes.");
+    expect(recovered).toContain("Discard recovery");
+    expect(recovered).toContain('role="status"');
+    expect(notice({ recovered: true, busy: true })).toMatch(
+      /disabled=""[^>]*>Discard recovery/,
+    );
+    const failed = notice({ recovered: true, error: "Save failed." });
+    expect(failed).toContain("Save failed.");
+    expect(failed).toContain("Discard preserved server draft");
+    expect(failed).not.toContain("Discard recovery");
+    expect(
+      notice({ recovered: true, recoveryWarning: "Older draft dropped." }),
+    ).toContain("Older draft dropped.");
+  });
+
   it("omits the optional Guides control while preserving Restart", () => {
     const html = renderToString(
       <CreatorCanvasControls onRestart={() => undefined} />,

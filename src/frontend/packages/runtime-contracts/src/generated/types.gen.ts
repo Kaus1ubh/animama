@@ -371,6 +371,465 @@ export type AppearanceChoice = {
 };
 
 /**
+ * AvatarEffectAppearance
+ *
+ * Opacity, an optional multiplicative tint and the blend mode.
+ */
+export type AvatarEffectAppearance = {
+    /**
+     * Blend
+     */
+    blend?: 'normal' | 'additive' | 'multiply';
+    /**
+     * Opacity
+     */
+    opacity?: number;
+    /**
+     * Tint
+     */
+    tint?: string | null;
+};
+
+/**
+ * AvatarEffectArt
+ *
+ * Registered image names; ``otherEyeImage`` replaces the mirrored copy.
+ */
+export type AvatarEffectArt = {
+    flipbook?: AvatarEffectFlipbook | null;
+    /**
+     * Image
+     */
+    image: string;
+    /**
+     * Othereyeimage
+     */
+    otherEyeImage?: string | null;
+};
+
+/**
+ * AvatarEffectDefinitionV2
+ *
+ * A complete ``animama/avatar-effect/2`` definition.
+ */
+export type AvatarEffectDefinitionV2 = {
+    appearance?: AvatarEffectAppearance;
+    art: AvatarEffectArt;
+    /**
+     * Attachment
+     */
+    attachment: ({
+        kind: 'face_surface';
+    } & FaceSurfaceAttachment) | ({
+        kind: 'face_landmark';
+    } & FaceLandmarkAttachment) | ({
+        kind: 'body';
+    } & BodyAttachment) | ({
+        kind: 'sticker';
+    } & StickerAttachment) | ({
+        kind: 'silhouette';
+    } & SilhouetteAttachment);
+    faceOptions?: AvatarEffectFaceOptions | null;
+    motion?: AvatarEffectMotion;
+    /**
+     * Region
+     */
+    region: 'eyes' | 'undereye' | 'blush' | 'mouth' | 'emote' | 'full_face' | 'body' | 'sticker' | 'silhouette';
+    /**
+     * Schema
+     */
+    schema: 'animama/avatar-effect/2';
+    /**
+     * Soundalias
+     */
+    soundAlias?: string | null;
+};
+
+/**
+ * AvatarEffectDrift
+ *
+ * Constant movement per second, in fractions of the art's size.
+ */
+export type AvatarEffectDrift = {
+    /**
+     * X
+     */
+    x?: number | null;
+    /**
+     * Y
+     */
+    y?: number | null;
+};
+
+/**
+ * AvatarEffectFaceOptions
+ *
+ * Face cleanup options for eye and mouth effects.
+ *
+ * Where an option applies, ``forceBlink``, ``hideEyeDetails`` and ``faceCleanup`` default on and
+ * ``skinBackdrop`` defaults off.
+ */
+export type AvatarEffectFaceOptions = {
+    /**
+     * Facecleanup
+     */
+    faceCleanup?: boolean | null;
+    /**
+     * Forceblink
+     */
+    forceBlink?: boolean | null;
+    /**
+     * Hideeyedetails
+     */
+    hideEyeDetails?: boolean | null;
+    /**
+     * Hideparts
+     */
+    hideParts?: Array<'face_skin' | 'eye_iris' | 'eye_highlight' | 'eyeline' | 'eyelash'> | null;
+    /**
+     * Skinbackdrop
+     */
+    skinBackdrop?: boolean | null;
+};
+
+/**
+ * AvatarEffectFlipbook
+ *
+ * Frames laid out left to right, top to bottom on a grid in ``art.image``.
+ */
+export type AvatarEffectFlipbook = {
+    /**
+     * Columns
+     */
+    columns: number;
+    /**
+     * Fps
+     */
+    fps: number;
+    /**
+     * Frames
+     */
+    frames: number;
+    /**
+     * Loop
+     */
+    loop?: 'loop' | 'once' | 'pingpong';
+    /**
+     * Rows
+     */
+    rows: number;
+};
+
+/**
+ * AvatarEffectKeyframe
+ *
+ * One keyframe; omitted channels are interpolated from neighbouring frames.
+ */
+export type AvatarEffectKeyframe = {
+    offset?: AvatarEffectVector2 | null;
+    /**
+     * Opacity
+     */
+    opacity?: number | null;
+    /**
+     * Rotationdeg
+     */
+    rotationDeg?: number | null;
+    /**
+     * Scale
+     */
+    scale?: number | null;
+    /**
+     * T
+     */
+    t: number;
+};
+
+/**
+ * AvatarEffectKeyframes
+ *
+ * Keyframes on the effect's own timeline, combined with the presets.
+ *
+ * Scale and opacity multiply, rotation and offset add. ``loop`` repeats the
+ * timeline from its last keyframe time; otherwise the last values hold.
+ */
+export type AvatarEffectKeyframes = {
+    /**
+     * Frames
+     */
+    frames: Array<AvatarEffectKeyframe>;
+    /**
+     * Loop
+     */
+    loop?: boolean;
+};
+
+/**
+ * AvatarEffectLandmarkOffset
+ *
+ * Offset in metres, in head space.
+ */
+export type AvatarEffectLandmarkOffset = {
+    /**
+     * X
+     */
+    x?: number;
+    /**
+     * Y
+     */
+    y?: number;
+    /**
+     * Z
+     */
+    z?: number;
+};
+
+/**
+ * AvatarEffectMotion
+ *
+ * Intrinsic motion; a preset is enabled when its object is present.
+ */
+export type AvatarEffectMotion = {
+    drift?: AvatarEffectDrift | null;
+    keyframes?: AvatarEffectKeyframes | null;
+    pulse?: AvatarEffectPulse | null;
+    spin?: AvatarEffectSpin | null;
+};
+
+/**
+ * AvatarEffectPulse
+ *
+ * Scale oscillation between ``scaleMin`` and ``scaleMax``.
+ */
+export type AvatarEffectPulse = {
+    /**
+     * Cyclespersecond
+     */
+    cyclesPerSecond?: number | null;
+    /**
+     * Scalemax
+     */
+    scaleMax?: number | null;
+    /**
+     * Scalemin
+     */
+    scaleMin?: number | null;
+};
+
+/**
+ * AvatarEffectRotation3
+ *
+ * Euler rotation in degrees, applied X then Y then Z.
+ */
+export type AvatarEffectRotation3 = {
+    /**
+     * X
+     */
+    x?: number;
+    /**
+     * Y
+     */
+    y?: number;
+    /**
+     * Z
+     */
+    z?: number;
+};
+
+/**
+ * AvatarEffectScale2
+ *
+ * Positive scale factors; a mirrored placement mirrors the art itself.
+ */
+export type AvatarEffectScale2 = {
+    /**
+     * X
+     */
+    x?: number;
+    /**
+     * Y
+     */
+    y?: number;
+};
+
+/**
+ * AvatarEffectSpin
+ *
+ * Rotation; below one turn it swings back and forth, otherwise it wraps.
+ */
+export type AvatarEffectSpin = {
+    /**
+     * Amountturns
+     */
+    amountTurns?: number | null;
+    /**
+     * Degreespersecond
+     */
+    degreesPerSecond?: number | null;
+    /**
+     * Direction
+     */
+    direction?: 'clockwise' | 'counterclockwise' | null;
+};
+
+/**
+ * AvatarEffectUvOffset
+ *
+ * Offset in fractions of the painted texture (UV space).
+ */
+export type AvatarEffectUvOffset = {
+    /**
+     * X
+     */
+    x?: number;
+    /**
+     * Y
+     */
+    y?: number;
+};
+
+/**
+ * AvatarEffectVector2
+ *
+ * A 2D value; units depend on the attachment that owns it.
+ */
+export type AvatarEffectVector2 = {
+    /**
+     * X
+     */
+    x?: number;
+    /**
+     * Y
+     */
+    y?: number;
+};
+
+/**
+ * AvatarFacePartBindings
+ *
+ * Primitive keys per part. ``eye_left``/``eye_right`` hold the irises; one
+ * primitive may hold both eyes and then appears in both lists.
+ */
+export type AvatarFacePartBindings = {
+    /**
+     * Eye Highlight
+     */
+    eye_highlight?: Array<string> | null;
+    /**
+     * Eye Left
+     */
+    eye_left: Array<string>;
+    /**
+     * Eye Right
+     */
+    eye_right: Array<string>;
+    /**
+     * Eyelash
+     */
+    eyelash?: Array<string> | null;
+    /**
+     * Eyeline
+     */
+    eyeline?: Array<string> | null;
+    /**
+     * Face Skin
+     */
+    face_skin: Array<string>;
+    /**
+     * Hair
+     */
+    hair?: Array<string> | null;
+};
+
+/**
+ * AvatarFacePartCorrection
+ *
+ * A complete correction for one exact VRM file.
+ */
+export type AvatarFacePartCorrection = {
+    parts: AvatarFacePartBindings;
+    /**
+     * Schema
+     */
+    schema: 'animama/avatar-face-parts/1';
+    /**
+     * Vrm Sha256
+     */
+    vrm_sha256: string;
+};
+
+/**
+ * AvatarFacePartsState
+ *
+ * The effective correction for one Avatar and the revision it applies to.
+ */
+export type AvatarFacePartsState = {
+    face_parts?: AvatarFacePartCorrection | null;
+    /**
+     * Item Id
+     */
+    item_id: string;
+    /**
+     * Revision
+     */
+    revision: string;
+    /**
+     * Source
+     */
+    source: 'local_metadata' | 'included_override' | 'none';
+};
+
+/**
+ * AvatarFacePartsUpdate
+ *
+ * Replace (or with ``face_parts: null``, clear) an Avatar's correction.
+ *
+ * ``expected_revision`` fences the write against a concurrent change to the
+ * Avatar; a Local write produces a new Avatar revision.
+ */
+export type AvatarFacePartsUpdate = {
+    /**
+     * Expected Revision
+     */
+    expected_revision: string;
+    face_parts: AvatarFacePartCorrection | null;
+};
+
+/**
+ * BodyAttachment
+ *
+ * A plane on a humanoid body point that follows its normalized bone.
+ *
+ * ``offset`` is in metres in the bone's frame (+x toward the viewer's right
+ * when facing the avatar, +y up, +z forward), ``size`` is the plane height in
+ * metres and ``rotationDeg`` turns the plane in its own plane. ``facing``
+ * keeps it toward the camera or in the bone's orientation.
+ */
+export type BodyAttachment = {
+    /**
+     * Bone
+     */
+    bone: 'root' | 'hips' | 'spine' | 'chest' | 'neck' | 'head' | 'leftHand' | 'rightHand' | 'leftFoot' | 'rightFoot';
+    /**
+     * Facing
+     */
+    facing?: 'camera' | 'bone';
+    /**
+     * Kind
+     */
+    kind: 'body';
+    offset?: AvatarEffectLandmarkOffset;
+    /**
+     * Rotationdeg
+     */
+    rotationDeg?: number;
+    /**
+     * Size
+     */
+    size?: number;
+};
+
+/**
  * Body_audio_isolation_endpoint_v1_elevenlabs_audio_isolation_post
  */
 export type BodyAudioIsolationEndpointV1ElevenlabsAudioIsolationPost = {
@@ -1204,6 +1663,88 @@ export type ExportSummary = {
      * Selected Count
      */
     selected_count: number;
+};
+
+/**
+ * FaceLandmarkAttachment
+ *
+ * A plane in front of an eye, the mouth, the forehead or above the head.
+ */
+export type FaceLandmarkAttachment = {
+    /**
+     * Kind
+     */
+    kind: 'face_landmark';
+    /**
+     * Landmark
+     */
+    landmark: 'eyes' | 'mouth' | 'forehead' | 'top' | 'top_edge';
+    /**
+     * Mirror
+     */
+    mirror?: boolean;
+    offset?: AvatarEffectLandmarkOffset;
+    /**
+     * Position
+     */
+    position?: 'left' | 'middle' | 'right' | 'left_corner' | 'right_corner' | null;
+    rotationDeg?: AvatarEffectRotation3;
+    scale?: AvatarEffectScale2;
+    /**
+     * Side
+     */
+    side?: 'left' | 'right' | null;
+};
+
+/**
+ * FaceSurfaceAttachment
+ *
+ * Art painted onto a detected face part, as an overlay or a replacement.
+ *
+ * ``area`` chooses the placement: ``full`` and ``eyes`` cover the part's
+ * texture layout, while ``undereye``, ``blush`` and ``mouth`` place a decal at
+ * a face anchor on ``face_skin``. ``layout`` chooses one side (``single``) or
+ * one image across both sides (``span``) for the paired areas.
+ */
+export type FaceSurfaceAttachment = {
+    /**
+     * Area
+     */
+    area: 'full' | 'eyes' | 'undereye' | 'blush' | 'mouth';
+    /**
+     * Kind
+     */
+    kind: 'face_surface';
+    /**
+     * Layout
+     */
+    layout?: 'single' | 'span' | null;
+    /**
+     * Mirror
+     */
+    mirror?: boolean;
+    /**
+     * Mode
+     */
+    mode?: 'overlay' | 'replace';
+    offset?: AvatarEffectUvOffset;
+    /**
+     * Part
+     */
+    part: 'face_skin' | 'eye_iris' | 'eye_highlight' | 'eyeline' | 'eyelash';
+    /**
+     * Pivot
+     */
+    pivot?: 'top-left' | 'top-center' | 'top-right' | 'center-left' | 'center' | 'center-right' | 'bottom-left' | 'bottom-center' | 'bottom-right' | null;
+    /**
+     * Rotationdeg
+     */
+    rotationDeg?: number;
+    scale?: AvatarEffectScale2;
+    /**
+     * Side
+     */
+    side?: 'left' | 'right' | null;
 };
 
 /**
@@ -2381,7 +2922,7 @@ export type PyAnimaRuntime = {
     /**
      * Avatar Effects
      */
-    avatar_effects?: Array<PyRuntimeSupport>;
+    avatar_effects?: Array<PyRuntimeAvatarEffect>;
     /**
      * Can Chat
      */
@@ -3162,6 +3703,7 @@ export type PyAvatarContent = {
      * Editable
      */
     editable: boolean;
+    face_parts?: AvatarFacePartCorrection | null;
     /**
      * Files
      */
@@ -3208,14 +3750,15 @@ export type PyAvatarContentPage = {
 
 /**
  * PyAvatarEffect
+ *
+ * An Avatar Effect; an unreadable stored definition is reported, not raised.
  */
 export type PyAvatarEffect = {
+    definition?: AvatarEffectDefinitionV2 | null;
     /**
-     * Definition
+     * Definition Error
      */
-    definition?: {
-        [key: string]: unknown;
-    } | null;
+    definition_error?: 'avatar_effect_conversion_required' | 'avatar_effect_definition_invalid' | null;
     /**
      * Dependencies
      */
@@ -7235,6 +7778,7 @@ export type PyRuntimeAvatar = {
      * Avatar Id
      */
     avatar_id: string;
+    face_parts?: AvatarFacePartCorrection | null;
     /**
      * Files
      */
@@ -7247,6 +7791,73 @@ export type PyRuntimeAvatar = {
      * Runtime Root Id
      */
     runtime_root_id?: string | null;
+    source: PyRuntimeCatalogItemSource;
+};
+
+/**
+ * PyRuntimeAvatarEffect
+ *
+ * A mounted Avatar Effect with its typed ``/2`` definition.
+ *
+ * A definition that is not valid ``/2`` is projected as ``definition_error``
+ * so one unconverted Local effect cannot fail the whole runtime snapshot.
+ */
+export type PyRuntimeAvatarEffect = {
+    /**
+     * Config
+     */
+    config?: {
+        [key: string]: unknown;
+    };
+    /**
+     * Content Type
+     */
+    content_type?: 'avatar_effect';
+    definition?: AvatarEffectDefinitionV2 | null;
+    /**
+     * Definition Error
+     */
+    definition_error?: 'avatar_effect_conversion_required' | 'avatar_effect_definition_invalid' | null;
+    /**
+     * Files
+     */
+    files?: Array<PyRuntimeFile>;
+    /**
+     * Logical Resource Files
+     */
+    logical_resource_files?: {
+        [key: string]: {
+            [key: string]: unknown;
+        };
+    };
+    /**
+     * Logical Resource Urls
+     */
+    logical_resource_urls?: {
+        [key: string]: string;
+    };
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Provenance
+     */
+    provenance?: Array<string>;
+    /**
+     * Reference Map
+     */
+    reference_map?: {
+        [key: string]: string;
+    };
+    /**
+     * Runtime Id
+     */
+    runtime_id: string;
+    /**
+     * Runtime Root Ids
+     */
+    runtime_root_ids?: Array<string>;
     source: PyRuntimeCatalogItemSource;
 };
 
@@ -9077,6 +9688,31 @@ export type RuntimeCapabilities = {
 };
 
 /**
+ * SilhouetteAttachment
+ *
+ * Art drawn only over the avatar's visible pixels, without changing its materials.
+ *
+ * ``pattern`` tiles the art in screen space (at ``patternScale`` 1 a tile is a
+ * quarter of the avatar's on-screen height); ``tint`` fills with the art's
+ * average colour. ``scroll`` moves the pattern in tiles per second.
+ */
+export type SilhouetteAttachment = {
+    /**
+     * Fill
+     */
+    fill?: 'pattern' | 'tint';
+    /**
+     * Kind
+     */
+    kind: 'silhouette';
+    /**
+     * Patternscale
+     */
+    patternScale?: number;
+    scroll?: AvatarEffectVector2;
+};
+
+/**
  * SourceRevision
  */
 export type SourceRevision = {
@@ -9106,6 +9742,34 @@ export type StarterPackIdentity = {
      * Version
      */
     version: 1;
+};
+
+/**
+ * StickerAttachment
+ *
+ * A camera-facing image beside the head or body centre that follows the avatar.
+ *
+ * ``size`` (plane height) and ``offset`` (in the screen plane) are fractions
+ * of the avatar's height; stickers draw over the avatar.
+ */
+export type StickerAttachment = {
+    /**
+     * Around
+     */
+    around?: 'head' | 'body';
+    /**
+     * Kind
+     */
+    kind: 'sticker';
+    offset?: AvatarEffectVector2;
+    /**
+     * Rotationdeg
+     */
+    rotationDeg?: number;
+    /**
+     * Size
+     */
+    size?: number;
 };
 
 /**
@@ -10753,6 +11417,66 @@ export type GetAvatarContentResponses = {
 };
 
 export type GetAvatarContentResponse = GetAvatarContentResponses[keyof GetAvatarContentResponses];
+
+export type GetAvatarFacePartsData = {
+    body?: never;
+    path: {
+        /**
+         * Item Id
+         */
+        item_id: string;
+    };
+    query?: never;
+    url: '/v1/avatar-content/{item_id}/face-parts';
+};
+
+export type GetAvatarFacePartsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetAvatarFacePartsError = GetAvatarFacePartsErrors[keyof GetAvatarFacePartsErrors];
+
+export type GetAvatarFacePartsResponses = {
+    /**
+     * Successful Response
+     */
+    200: AvatarFacePartsState;
+};
+
+export type GetAvatarFacePartsResponse = GetAvatarFacePartsResponses[keyof GetAvatarFacePartsResponses];
+
+export type SaveAvatarFacePartsData = {
+    body: AvatarFacePartsUpdate;
+    path: {
+        /**
+         * Item Id
+         */
+        item_id: string;
+    };
+    query?: never;
+    url: '/v1/avatar-content/{item_id}/face-parts';
+};
+
+export type SaveAvatarFacePartsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SaveAvatarFacePartsError = SaveAvatarFacePartsErrors[keyof SaveAvatarFacePartsErrors];
+
+export type SaveAvatarFacePartsResponses = {
+    /**
+     * Successful Response
+     */
+    200: AvatarFacePartsState;
+};
+
+export type SaveAvatarFacePartsResponse = SaveAvatarFacePartsResponses[keyof SaveAvatarFacePartsResponses];
 
 export type SaveAvatarPortraitData = {
     body: BodySaveAvatarPortrait;

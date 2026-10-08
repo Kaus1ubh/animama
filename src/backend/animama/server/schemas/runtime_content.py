@@ -6,6 +6,7 @@ from animama.app.contracts.runtime_content import (
     PyRuntimeActionImplementation as PyRuntimeActionImplementation,
     PyRuntimeAppearance as PyRuntimeAppearance,
     PyRuntimeAvatar as PyRuntimeAvatar,
+    PyRuntimeAvatarEffect as PyRuntimeAvatarEffect,
     PyRuntimeCatalogItemSource as PyRuntimeCatalogItemSource,
     PyRuntimeContentDescriptor as PyRuntimeContentDescriptor,
     PyRuntimeContentDiagnostic as PyRuntimeContentDiagnostic,

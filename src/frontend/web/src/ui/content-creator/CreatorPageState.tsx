@@ -1,26 +1,7 @@
 import { Link } from "@tanstack/react-router";
-import { LoaderCircleIcon } from "lucide-react";
 
 import { Button } from "@/ui/components/button";
 import { CreatorSaveNotice } from "./CreatorSaveNotice";
-
-/** Full-page placeholder while a creator reads its saved item. */
-export function CreatorLoadingState({ message }: { message: string }) {
-  return (
-    <div className="bg-background flex h-full items-center justify-center">
-      <div
-        className="text-muted-foreground flex items-center gap-2"
-        role="status"
-      >
-        <LoaderCircleIcon
-          className="animate-spin motion-reduce:animate-none"
-          aria-hidden="true"
-        />
-        {message}
-      </div>
-    </div>
-  );
-}
 
 /**
  * Full-page state for a creator route whose saved item is missing or unreadable.

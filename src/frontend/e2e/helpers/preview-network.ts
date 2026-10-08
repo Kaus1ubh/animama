@@ -389,6 +389,25 @@ function exactDeleteRequest(
   }
 }
 
+/** The Avatar item of a face part correction write, or null. */
+function facePartCorrectionItem(
+  request: Request,
+  apiOrigin: string,
+): string | null {
+  if (request.method() !== "PUT") return null;
+  const url = new URL(request.url());
+  if (url.origin !== apiOrigin || url.search) return null;
+  const match = /^\/v1\/avatar-content\/([^/]+)\/face-parts$/.exec(
+    url.pathname,
+  );
+  if (!match?.[1]) return null;
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    return null;
+  }
+}
+
 const CREATOR_KIND_BY_FAMILY: Record<CreatorSaveFamily, string> = {
   gestures: "gesture",
   reactions: "reaction",
@@ -416,6 +435,9 @@ export class CreatorMutationGuard {
   private owned: CreatorOwnedResponse | null = null;
   private deleteArm: CreatorDeleteArm | null = null;
   private deleteObserved = false;
+  /** Face part correction writes still permitted, and the Avatars they named. */
+  private facePartWrites = 0;
+  private readonly facePartItems = new Set<string>();
 
   private constructor(page: Page, apiUrl: string) {
     this.page = page;
@@ -486,6 +508,23 @@ export class CreatorMutationGuard {
     this.deleteArm = arm;
   }
 
+  /**
+   * Permit `count` face part correction writes (for example a correction and
+   * its reset) to `PUT /v1/avatar-content/{item}/face-parts`. They change an
+   * Avatar's correction, not catalog content; the journey must restore it.
+   */
+  armFacePartCorrections(count: number): void {
+    if (!Number.isInteger(count) || count < 1) {
+      throw new Error("Face part corrections need a positive write budget.");
+    }
+    this.facePartWrites += count;
+  }
+
+  /** Avatar item IDs whose face parts the journey wrote. */
+  get correctedAvatarItems(): string[] {
+    return [...this.facePartItems];
+  }
+
   /** Record fixture-owned API cleanup, which is outside the browser Page. */
   recordExternalDelete(arm: CreatorDeleteArm): void {
     if (
@@ -511,6 +550,19 @@ export class CreatorMutationGuard {
       this.allowed.push({
         method: request.method(),
         operation: "typed-local-save",
+      });
+      return true;
+    }
+    const facePartItem =
+      this.facePartWrites > 0
+        ? facePartCorrectionItem(request, this.apiOrigin)
+        : null;
+    if (facePartItem) {
+      this.facePartWrites -= 1;
+      this.facePartItems.add(facePartItem);
+      this.allowed.push({
+        method: request.method(),
+        operation: "face-part-correction",
       });
       return true;
     }

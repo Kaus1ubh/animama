@@ -3,6 +3,8 @@ import {
   discardToLibrary,
   openCreatorStage,
   readPortableJson,
+  waitForStoredDraft,
+  type StoredDraftExpectation,
 } from "../helpers/creator-surfaces";
 import {
   CreatorMutationGuard,
@@ -86,13 +88,14 @@ for (const item of cases) {
           .getByRole("textbox", { name: item.nameLabel, exact: true })
           .fill(discardedName);
         let changedJson: string | null = null;
+        let changedSetting: StoredDraftExpectation["setting"] = null;
         if (item.section !== "gesture") {
+          // Avatar Effect positions are shown in centimetres and stored in metres.
           const setting =
             item.section === "avatar"
               ? page
-                  .getByText("Position Offset", { exact: true })
-                  .locator("..")
-                  .getByRole("spinbutton", { name: "X", exact: true })
+                  .getByRole("group", { name: "Position (cm)", exact: true })
+                  .getByRole("spinbutton", { name: "Sideways", exact: true })
               : page.getByRole("spinbutton", {
                   name: "Duration (s)",
                   exact: true,
@@ -102,13 +105,17 @@ for (const item of cases) {
             (item.section === "avatar" ? 0.25 : 1);
           await setting.fill(String(nextValue));
           await setting.blur();
+          changedSetting =
+            item.section === "avatar"
+              ? { path: ["attachment", "offset", "x"], value: nextValue / 100 }
+              : { path: ["durationMs"], value: nextValue * 1000 };
           changedJson = await readPortableJson(page, item.jsonTitle);
           const changedDocument = JSON.parse(changedJson).document;
           expect(
             item.section === "avatar"
-              ? changedDocument.transform.offset.x
+              ? changedDocument.attachment.offset.x * 100
               : changedDocument.durationMs / 1000,
-          ).toBe(nextValue);
+          ).toBeCloseTo(nextValue, 6);
           if (originalJson !== null) expect(changedJson).not.toBe(originalJson);
         }
         await expect(
@@ -117,10 +124,20 @@ for (const item of cases) {
             exact: true,
           }),
         ).toBeVisible();
-        // Recovery writes debounce for 350ms. Give this real draft time to persist
-        // before discarding, so the journey detects recovery resurrecting it.
-        if (origin !== "immediate") await page.waitForTimeout(700);
-        if (item.section === "avatar" && origin === "existing") {
+        // Let this real draft reach browser recovery before discarding, so the
+        // journey detects recovery resurrecting it.
+        if (origin !== "immediate")
+          await waitForStoredDraft(page, {
+            database:
+              item.section === "avatar"
+                ? "animama-avatar-effect-creator-recovery"
+                : item.section === "scene"
+                  ? "animama-scene-effect-creator-recovery"
+                  : null,
+            name: discardedName,
+            setting: changedSetting,
+          });
+        if (item.section !== "gesture" && origin === "existing") {
           page.once("dialog", (dialog) => dialog.accept());
           await page.reload();
           await expect(
@@ -129,6 +146,28 @@ for (const item of cases) {
           expect(await readPortableJson(page, item.jsonTitle)).toBe(
             changedJson,
           );
+          // The restored draft is announced, as in the Particle creator, and
+          // Discard recovery returns to the item's saved version.
+          const recoveryNotice = page.getByRole("status").filter({
+            hasText: `Recovered unsaved ${
+              item.section === "avatar" ? "Avatar Effect" : "Scene Effect"
+            } changes.`,
+          });
+          await expect(recoveryNotice).toBeVisible();
+          await recoveryNotice
+            .getByRole("button", { name: "Discard recovery", exact: true })
+            .click();
+          await expect(recoveryNotice).toBeHidden();
+          await expect(
+            page.getByRole("textbox", { name: item.nameLabel, exact: true }),
+          ).toHaveValue(expectedName);
+          expect(await readPortableJson(page, item.jsonTitle)).toBe(
+            originalJson,
+          );
+          // Edit again so the blocker below still has a draft to discard.
+          await page
+            .getByRole("textbox", { name: item.nameLabel, exact: true })
+            .fill(discardedName);
         }
         await discardToLibrary(page);
         await openExisting();

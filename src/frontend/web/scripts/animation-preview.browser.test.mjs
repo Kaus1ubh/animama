@@ -1,11 +1,19 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  copyFile,
+  cp,
+  mkdtemp,
+  readFile,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { chromium } from "playwright";
 
 import { startPreviewServer } from "./animation-preview.mjs";
+import { INCLUDED_EFFECT_ROOT } from "./effect-render-sources.mjs";
 
 const clip = (headTurn) => ({
   schema: "animaPoseClip/1.0",
@@ -251,6 +259,253 @@ test("picks another source and a comparison in the page", async () => {
       preview.session.reviewPaths.sidecar,
       path.join(dir, "custom.review.json"),
     );
+    assert.deepEqual(errors, []);
+  } finally {
+    await browser.close();
+    await preview.close();
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+/** Wait until every cell shows `label` among its active Avatar Effects. */
+function waitForActiveEffect(page, label, timeout = 60_000) {
+  return page.waitForFunction(
+    (wanted) => {
+      const cells = window.animationPreview.effects;
+      return (
+        cells.length === 2 &&
+        cells.every(({ active }) => active.includes(wanted))
+      );
+    },
+    label,
+    { timeout },
+  );
+}
+
+/** Each cell's completed effect applies. */
+const appliesOf = (page) =>
+  page.evaluate(() =>
+    window.animationPreview.effects.map(({ applies }) => applies),
+  );
+
+/** Wait until every cell has applied its effect again since `before`. */
+const waitForApplies = (page, before) =>
+  page.waitForFunction(
+    (counts) =>
+      window.animationPreview.effects.every(
+        ({ applies }, index) => applies > counts[index],
+      ),
+    before,
+    { timeout: 60_000 },
+  );
+
+const scrubTo = (page, time) =>
+  page.evaluate((value) => {
+    const scrubber = document.querySelector("#scrubber");
+    scrubber.value = String(value);
+    scrubber.dispatchEvent(new Event("input"));
+  }, time);
+
+// An effect folder: applied through the runtime path, reloaded on change.
+test("previews an effect source and reloads it when its image changes", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "animama-preview-effect-"));
+  const folder = path.join(dir, "eye_confused_swirl");
+  await cp(path.join(INCLUDED_EFFECT_ROOT, "eye_confused_swirl"), folder, {
+    recursive: true,
+  });
+  const preview = await startPreviewServer({
+    sources: ["eye_confused_swirl"],
+    cwd: dir,
+    localContent: null,
+  });
+  const browser = await chromium.launch({
+    headless: true,
+    args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
+  });
+  try {
+    const page = await browser.newPage();
+    const errors = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    await page.goto(preview.url);
+    await page.waitForFunction(() => window.animationPreview?.ready, null, {
+      timeout: 90_000,
+    });
+    await waitForActiveEffect(page, "Eye Confused Swirl");
+    assert.deepEqual(
+      await page.evaluate(() => window.animationPreview.notices),
+      [],
+    );
+    assert.ok(await page.isHidden("#effect-notices"));
+
+    // Scrubbing re-applies the effect and steps it to the time.
+    await page.click("#play");
+    const applies = await appliesOf(page);
+    await scrubTo(page, 1.5);
+    assert.equal(await page.evaluate(() => window.animationPreview.time), 1.5);
+    await waitForApplies(page, applies);
+    await waitForActiveEffect(page, "Eye Confused Swirl");
+
+    // A note on an effect is saved beside its folder, not inside it.
+    await page.fill("#note-text", "Spin slower");
+    await page.click("#note-add");
+    await page.locator(".note").first().waitFor();
+    const sidecar = JSON.parse(
+      await readFile(path.join(dir, "eye_confused_swirl.review.json"), "utf8"),
+    );
+    assert.equal(sidecar.notes[0].text, "Spin slower");
+
+    // Changing only the image is a new version, re-applied on both Avatars.
+    const version = preview.session.state().rows[0].version;
+    const generation = await page.evaluate(
+      () => window.animationPreview.generation,
+    );
+    await copyFile(
+      path.join(INCLUDED_EFFECT_ROOT, "eye_vv_pair/eye_vv.png"),
+      path.join(folder, "eye_confused_swirl_r.png"),
+    );
+    await page.waitForFunction(
+      (before) => window.animationPreview.generation > before,
+      generation,
+      { timeout: 30_000 },
+    );
+    const reloaded = preview.session.state().rows[0];
+    assert.notEqual(reloaded.version, version);
+    assert.ok(reloaded.effect.imageUrl.endsWith(`?v=${reloaded.version}`));
+    // Both Avatars were rebuilt for the new version and applied it.
+    await page.waitForFunction(
+      (wanted) =>
+        window.animationPreview.effects.length === 2 &&
+        window.animationPreview.effects.every(
+          ({ version, applies }) => version === wanted && applies > 0,
+        ),
+      reloaded.version,
+      { timeout: 60_000 },
+    );
+    await waitForActiveEffect(page, "Eye Confused Swirl");
+
+    // An invalid definition is reported by field; the last valid one plays.
+    const descriptorPath = path.join(folder, "eye_confused_swirl.json");
+    const descriptor = JSON.parse(await readFile(descriptorPath, "utf8"));
+    descriptor.definition.region = "nowhere";
+    await writeFile(descriptorPath, JSON.stringify(descriptor));
+    await page.waitForFunction(
+      () =>
+        document
+          .querySelector("#errors")
+          ?.textContent?.includes("definition.region"),
+      null,
+      { timeout: 30_000 },
+    );
+    await waitForActiveEffect(page, "Eye Confused Swirl");
+    assert.deepEqual(errors, []);
+  } finally {
+    await browser.close();
+    await preview.close();
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+// #289's preview applied no Library Reaction effects; they now play as in chat.
+test("plays a Library Reaction with its Avatar and Particle Effects", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "animama-preview-reaction-"));
+  const preview = await startPreviewServer({
+    sources: ["library:included/confusion-2"],
+    cwd: dir,
+    localContent: null,
+  });
+  const browser = await chromium.launch({
+    headless: true,
+    args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
+  });
+  try {
+    const page = await browser.newPage();
+    const errors = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    await page.goto(preview.url);
+    await page.waitForFunction(() => window.animationPreview?.ready, null, {
+      timeout: 90_000,
+    });
+    const media = preview.session.state().rows[0].media;
+    assert.deepEqual(
+      media.avatarEffects.map(({ alias }) => alias),
+      ["eye_confused_swirl"],
+    );
+    assert.deepEqual(
+      media.particleEffects.map(({ alias }) => alias),
+      ["question-marks"],
+    );
+    await waitForActiveEffect(page, "Eye Confused Swirl");
+    await page.waitForFunction(
+      () =>
+        window.animationPreview.effects.every(({ particles }) => particles > 0),
+      null,
+      { timeout: 60_000 },
+    );
+
+    // Pausing and scrubbing replays the events before the time.
+    await page.click("#play");
+    await scrubTo(page, 0.3);
+    await waitForActiveEffect(page, "Eye Confused Swirl");
+    const state = await page.evaluate(() => window.animationPreview);
+    assert.deepEqual(state.notices, []);
+    assert.ok(state.effects.every(({ warnings }) => warnings.length === 0));
+    assert.deepEqual(errors, []);
+  } finally {
+    await browser.close();
+    await preview.close();
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+// --duration: applied, removed at the duration, a 0.5 s tail, then the loop.
+test("applies a timed effect source, removes it and loops", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "animama-preview-timed-"));
+  await cp(
+    path.join(INCLUDED_EFFECT_ROOT, "eye_confused_swirl"),
+    path.join(dir, "eye_confused_swirl"),
+    { recursive: true },
+  );
+  const preview = await startPreviewServer({
+    sources: ["eye_confused_swirl"],
+    cwd: dir,
+    localContent: null,
+    duration: 1,
+  });
+  const browser = await chromium.launch({
+    headless: true,
+    args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
+  });
+  try {
+    const page = await browser.newPage();
+    const errors = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    await page.goto(preview.url);
+    await page.waitForFunction(() => window.animationPreview?.ready, null, {
+      timeout: 90_000,
+    });
+    // The timeline is the duration plus the tail.
+    assert.match(await page.textContent("#time"), /\/ 1\.50 s$/);
+    await waitForActiveEffect(page, "Eye Confused Swirl");
+
+    await page.click("#play");
+    await scrubTo(page, 0.5);
+    await waitForActiveEffect(page, "Eye Confused Swirl");
+    // In the tail the effect is removed.
+    await scrubTo(page, 1.2);
+    await page.waitForFunction(
+      () =>
+        window.animationPreview.effects.length === 2 &&
+        window.animationPreview.effects.every(
+          ({ active }) => active.length === 0,
+        ),
+      null,
+      { timeout: 30_000 },
+    );
+    // Playing on wraps to the start and applies it again.
+    const applies = await appliesOf(page);
+    await page.click("#play");
+    await waitForApplies(page, applies);
+    await waitForActiveEffect(page, "Eye Confused Swirl");
     assert.deepEqual(errors, []);
   } finally {
     await browser.close();

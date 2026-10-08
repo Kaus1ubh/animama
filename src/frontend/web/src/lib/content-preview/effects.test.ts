@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { Avatar } from "@/lib/avatar";
 import type { ParticleVFXCatalogEntry } from "@/lib/avatar/particle-vfx/types";
-import { AVATAR_VFX_CATALOG } from "@/lib/avatar/vfx/catalog";
+import { TEST_HOVER_VFX_ENTRY } from "@/lib/avatar/vfx/avatarVFXTestFixtures";
 import { getSceneBackgroundLayerPresetById } from "@/lib/scene-vfx/catalog";
 import {
   CONTENT_PREVIEW_AVATAR_VFX_APPLIED_ID,
@@ -86,6 +86,7 @@ function avatarHarness() {
         applyHoverVFX,
         applyFaceAnchoredVFX,
         applyTextureVFX,
+        findUnavailableFacePart: () => null,
       },
     } as unknown as Avatar,
     clearEffect,
@@ -157,8 +158,7 @@ describe("Asset preview effect playback", () => {
 
   it("uses one stable applied ID for avatar effects and removes it on clear", async () => {
     const harness = avatarHarness();
-    const effect = AVATAR_VFX_CATALOG[0];
-    if (!effect) throw new Error("Missing Avatar VFX test fixture");
+    const effect = TEST_HOVER_VFX_ENTRY;
     await playContentPreviewEffect({
       avatar: harness.avatar,
       catalog: {

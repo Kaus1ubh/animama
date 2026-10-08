@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from animama.app.ports.anima_aggregate_port import AnimaAggregateUnitOfWork
+from animama.app.ports.avatar_face_parts import AvatarFacePartOverrideRepository
 from animama.app.ports.content_package_staging import PackageInspector, PackageStages
 from animama.app.ports.user_profile_port import UserProfileRepository
 from animama.app.services.anima_package_source_service import AnimaPackageSourceService
@@ -53,6 +54,7 @@ class ContentPackageService:
         uow: AnimaAggregateUnitOfWork | None = None,
         default_model_provider_id: str | None = None,
         max_identity_bytes: int = ANIMA_IDENTITY_MAX_BYTES,
+        face_part_overrides: AvatarFacePartOverrideRepository | None = None,
     ) -> None:
         if stages is None and exports_root is None:
             raise ValueError("package stages or a local export root are required")
@@ -71,6 +73,7 @@ class ContentPackageService:
             stages=self.stages,
             inspector=inspector,
             profiles=profiles,
+            face_part_overrides=face_part_overrides,
         )
         self.imports = ContentPackageImportService(
             content=content,

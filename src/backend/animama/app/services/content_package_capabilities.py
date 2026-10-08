@@ -16,6 +16,14 @@ from collections.abc import Iterable, Mapping
 from pathlib import Path, PurePosixPath
 from typing import Any, BinaryIO
 
+from pydantic import ValidationError
+
+from animama.app.contracts.avatar_effect import (
+    AVATAR_EFFECT_SCHEMA_V1,
+    AVATAR_EFFECT_SCHEMA_V2,
+    MAX_DEFINITION_BYTES as MAX_AVATAR_EFFECT_DEFINITION_BYTES,
+    AvatarEffectDefinitionV2,
+)
 from animama.domain.content_catalog import ContentKind
 from animama.domain.content_documents import (
     AvatarEffectDocumentV1,
@@ -30,6 +38,12 @@ from animama.domain.content_documents import (
     VoiceDocumentV1,
 )
 
+from .avatar_effect_conversion import (
+    CONVERSION_HINT,
+    CONVERSION_REQUIRED as AVATAR_EFFECT_CONVERSION_REQUIRED,
+    PACKAGE_CONVERSION_HINT,
+    avatar_effect_validation_error,
+)
 from .content_voice import POCKET_CLONE_CODEC, validate_pocket_clone_document
 from .idle_clip_validation import ANIMA_POSE_CLIP_V2_SCHEMA, validate_clip_v2_timeline, validate_idle_clip_timeline
 from .pocket_voice_catalog import MAX_POCKET_VOICE_CATALOG_BYTES, validate_pocket_voice_catalog_bytes
@@ -55,7 +69,7 @@ SUPPORTED_CAPABILITIES = frozenset(
         "VRM/0.0",
         "VRMC_vrm/1.0",
         "VRMC_vrm_animation/1.0",
-        "animama/avatar-effect/1",
+        AVATAR_EFFECT_SCHEMA_V2,
         "animama/scene-effect/1",
         "animama/pocket-voice/1",
         "three.quarks/3.0",
@@ -63,7 +77,6 @@ SUPPORTED_CAPABILITIES = frozenset(
     | {f"animama/builtin-pose/1/{name}" for name in BUILTIN_POSES}
     | {f"animama/twemoji/14.0.2/{name}" for name in BUILTIN_EMOJI}
 )
-_AVATAR_ROLES = frozenset("eye_iris eye_highlight eyeline eyelash face_skin".split())
 _PARTICLE_TYPES = frozenset(
     "ConstantValue IntervalValue PiecewiseBezier ConstantColor ColorRange RandomColor RandomColorBetweenGradient "
     "Gradient CLinearFunction AxisAngle Euler RandomQuat ColorOverLife ForceOverLife FrameOverLife "
@@ -87,69 +100,82 @@ _GLTF_EXTENSIONS = frozenset(
 )
 
 
-def _require(condition: bool, message: str) -> None:
+def _require(condition: bool, message: str, path: str | None = None) -> None:
+    """Reject package data; ``path`` names the offending JSON value when known."""
     if not condition:
-        raise ContentDocumentError("package_definition_invalid", message)
+        raise ContentDocumentError("package_definition_invalid", message, field=path)
 
 
-def _object(value: Any, field: str) -> dict[str, Any]:
-    _require(isinstance(value, dict), f"{field} must be an object")
+def _child(path: str | None, key: str | int) -> str | None:
+    """Extend a JSON path with an object key or array index."""
+    if path is None:
+        return None
+    return f"{path}[{key}]" if isinstance(key, int) else f"{path}.{key}"
+
+
+def _object(value: Any, field: str, *, path: str | None = None) -> dict[str, Any]:
+    _require(isinstance(value, dict), f"{field} must be an object", path)
     return dict(value)
 
 
-def _array(value: Any, field: str) -> list[Any]:
-    _require(isinstance(value, list), f"{field} must be an array")
+def _array(value: Any, field: str, *, path: str | None = None) -> list[Any]:
+    _require(isinstance(value, list), f"{field} must be an array", path)
     return list(value)
 
 
-def _string(value: Any, field: str) -> str:
-    _require(isinstance(value, str) and bool(value.strip()), f"{field} must be a nonempty string")
+def _string(value: Any, field: str, *, path: str | None = None) -> str:
+    _require(isinstance(value, str) and bool(value.strip()), f"{field} must be a nonempty string", path)
     return str(value)
 
 
-def _enum(value: Any, allowed: Iterable[str], field: str) -> str:
-    _require(isinstance(value, str) and value in allowed, f"Unsupported {field} primitive")
+def _enum(value: Any, allowed: Iterable[str], field: str, *, path: str | None = None) -> str:
+    _require(isinstance(value, str) and value in allowed, f"Unsupported {field} primitive", path)
     return str(value)
 
 
-def _fields(value: dict[str, Any], allowed: str, field: str) -> None:
-    _require(not set(value).difference(allowed.split()), f"Unsupported {field} fields")
+def _fields(value: dict[str, Any], allowed: str, field: str, *, path: str | None = None) -> None:
+    """Allow only the listed keys; the first unsupported key names the error path."""
+    permitted = set(allowed.split())
+    unsupported = next((key for key in value if key not in permitted), None)
+    _require(unsupported is None, f"Unsupported {field} field: {unsupported}", _child(path, str(unsupported)))
 
 
-def _number(value: Any, field: str) -> float:
-    _require(type(value) in (float, int), f"{field} must be finite")
+def _number(value: Any, field: str, *, path: str | None = None) -> float:
+    _require(type(value) in (float, int), f"{field} must be finite", path)
     try:
         number = float(value)
     except OverflowError as exc:
-        raise ContentDocumentError("package_definition_invalid", f"{field} must be finite") from exc
-    _require(math.isfinite(number), f"{field} must be finite")
+        raise ContentDocumentError("package_definition_invalid", f"{field} must be finite", field=path) from exc
+    _require(math.isfinite(number), f"{field} must be finite", path)
     return number
 
 
-def _numbers(value: dict[str, Any], fields: str) -> None:
+def _numbers(value: dict[str, Any], fields: str, *, path: str | None = None) -> None:
     for field in fields.split():
-        _number(value.get(field), field)
+        _number(value.get(field), field, path=_child(path, field))
 
 
-def _booleans(value: dict[str, Any], fields: str) -> None:
+def _booleans(value: dict[str, Any], fields: str, *, path: str | None = None) -> None:
     for field in fields.split():
         if field in value:
-            _require(type(value[field]) is bool, f"{field} must be boolean")
+            _require(type(value[field]) is bool, f"{field} must be boolean", _child(path, field))
 
 
-def _safe_data(value: Any) -> None:
+def _safe_data(value: Any, *, path: str | None = None) -> None:
     """Bound nested data and reject executable or external-resource escape hatches."""
-    pending = [(value, 0)]
+    pending = [(value, 0, path)]
     count = 0
     while pending:
-        item, depth = pending.pop()
+        item, depth, item_path = pending.pop()
         count += 1
-        _require(depth <= 32 and count <= 100_000, "Package definition exceeds structural limits")
+        _require(depth <= 32 and count <= 100_000, "Package definition exceeds structural limits", path)
         if isinstance(item, dict):
             for key, child in item.items():
+                child_path = _child(item_path, key)
                 _require(
                     key.lower() not in {"script", "scripts", "code", "javascript", "vertexshader", "fragmentshader"},
                     "Executable package definitions are unsupported",
+                    child_path,
                 )
                 if key.lower() in {"url", "uri", "src", "href", "assetpath"} and isinstance(child, str):
                     embedded = child.startswith(
@@ -164,31 +190,35 @@ def _safe_data(value: Any) -> None:
                     _require(
                         embedded or not child.startswith(("/", "\\")) and ":" not in child and "\\" not in child,
                         "External package resources are unsupported",
+                        child_path,
                     )
-                pending.append((child, depth + 1))
+                pending.append((child, depth + 1, child_path))
         elif isinstance(item, list):
-            pending.extend((child, depth + 1) for child in item)
+            pending.extend((child, depth + 1, _child(item_path, index)) for index, child in enumerate(item))
         elif type(item) in (int, float):
-            _number(item, "Definition number")
+            _number(item, "Definition number", path=item_path)
 
 
-def _resource(value: Any, document: TypedContentDocument, roles: set[str]) -> None:
-    name = _string(value, "Resource reference")
+def _resource(value: Any, document: TypedContentDocument, roles: set[str], *, path: str | None = None) -> None:
+    name = _string(value, "Resource reference", path=path)
     _require(
         any(file.path == name and file.role in roles for file in document.files),
         "Resource reference must name a registered package file",
+        path,
     )
 
 
-def _sound(definition: dict[str, Any], document: TypedContentDocument) -> None:
+def _sound(definition: dict[str, Any], document: TypedContentDocument, *, path: str | None = None) -> None:
     if "soundAlias" in definition:
-        alias = _string(definition["soundAlias"], "soundAlias")
+        alias_path = _child(path, "soundAlias")
+        alias = _string(definition["soundAlias"], "soundAlias", path=alias_path)
         _require(
             any(
                 dep.kind is ContentKind.SOUND_EFFECT and (dep.alias or dep.ref) == alias
                 for dep in document.dependencies
             ),
             "Sound alias must name a bundled Sound Effect dependency",
+            alias_path,
         )
 
 
@@ -196,6 +226,9 @@ def validate_declared_capabilities(capabilities: Iterable[str]) -> None:
     """Reject unsupported or duplicate claims before archive extraction."""
     seen: set[str] = set()
     for capability in capabilities:
+        if capability == AVATAR_EFFECT_SCHEMA_V1:
+            # Name the conversion instead of a generic unavailable capability.
+            raise ContentDocumentError(AVATAR_EFFECT_CONVERSION_REQUIRED, PACKAGE_CONVERSION_HINT)
         if not isinstance(capability, str) or capability not in SUPPORTED_CAPABILITIES:
             raise ContentDocumentError("package_capability_unsupported", "Package requires an unavailable capability")
         if capability in seen:
@@ -213,98 +246,53 @@ def validate_capabilities(declared: Iterable[str], required: Iterable[str]) -> N
         raise ContentDocumentError("package_capabilities_mismatch", "Package capabilities do not match its content")
 
 
-def _avatar_effect(definition: dict[str, Any], document: TypedContentDocument) -> None:
-    _fields(
-        definition,
-        "schema kind region image transform animationConfig lifetime soundAlias hoverKind "
-        "placement side requiresMirror skinBackdrop anchor pivot layout targetRole assetShape applyMode "
-        "disableTargetRoles",
-        "Avatar Effect",
-    )
-    kind = _enum(definition.get("kind"), {"hover", "face_anchored", "texture"}, "Avatar Effect kind")
-    _enum(definition.get("region"), {"eyes", "undereye", "blush", "mouth", "emote", "full_face"}, "region")
-    _resource(definition.get("image"), document, {"image", "texture"})
-    _booleans(definition, "requiresMirror skinBackdrop")
-    if "side" in definition:
-        _enum(definition["side"], {"left", "right"}, "side")
-    if "disableTargetRoles" in definition:
-        for role in _array(definition["disableTargetRoles"], "disableTargetRoles"):
-            _enum(role, _AVATAR_ROLES, "disabled target role")
-    if kind == "hover":
-        hover = _enum(definition.get("hoverKind"), {"eye_hover", "mouth_hover", "box_hover"}, "hover")
-        if hover == "box_hover":
-            _enum(
-                definition.get("placement"),
-                {
-                    "forehead-left",
-                    "forehead-middle",
-                    "forehead-right",
-                    "top-left",
-                    "top-middle",
-                    "top-right",
-                    "top-edge-left-corner",
-                    "top-edge-left",
-                    "top-edge-middle",
-                    "top-edge-right",
-                    "top-edge-right-corner",
-                },
-                "hover placement",
-            )
-    elif kind == "face_anchored":
-        anchor = _enum(definition.get("anchor"), {"undereye", "blush", "mouth"}, "face anchor")
-        if anchor != "mouth":
-            layout = _enum(definition.get("layout"), {"single", "span"}, "face layout")
-            if layout == "single":
-                _enum(definition.get("side"), {"left", "right"}, "face side")
-        if "pivot" in definition:
-            _enum(
-                definition["pivot"],
-                {
-                    "top-left",
-                    "top-center",
-                    "top-right",
-                    "center-left",
-                    "center",
-                    "center-right",
-                    "bottom-left",
-                    "bottom-center",
-                    "bottom-right",
-                },
-                "face pivot",
-            )
-    else:
-        _enum(definition.get("targetRole"), _AVATAR_ROLES, "texture role")
-        _enum(definition.get("assetShape"), {"single_eye", "double_eye", "full_face"}, "texture shape")
-        _enum(definition.get("applyMode"), {"replace", "overlay"}, "texture application")
-    if "transform" in definition:
-        transform = _object(definition["transform"], "transform")
-        _fields(transform, "offset scale rotation", "transform")
-        for key, value in transform.items():
-            axes = _object(value, key)
-            _fields(axes, "x y z", key)
-            _numbers(axes, " ".join(axes))
-    if "animationConfig" in definition:
-        animation = _object(definition["animationConfig"], "animationConfig")
-        _fields(
-            animation,
-            "pulseScaleMin pulseScaleMax pulseCyclesPerSecond rotationAmountTurns "
-            "rotationRadiansPerSecond rotationDirection driftPerSecond",
-            "Avatar animation",
+_AVATAR_EFFECT_PATH = "definition"
+
+
+def _avatar_effect_model(definition: dict[str, Any]) -> AvatarEffectDefinitionV2:
+    """Validate the ``/2`` shape, naming the first failing JSON path."""
+    try:
+        return AvatarEffectDefinitionV2.model_validate(definition)
+    except ValidationError as exc:
+        path, message = avatar_effect_validation_error(exc)
+        raise ContentDocumentError("package_definition_invalid", f"{path}: {message}", field=path) from exc
+
+
+def validate_avatar_effect_document(
+    document: AvatarEffectDocumentV1, *, code: str = "package_definition_invalid"
+) -> str:
+    """Validate an ``animama/avatar-effect/2`` definition with the shared contract.
+
+    Save, preview, package export and import share these rules. Failures raise
+    ``ContentDocumentError(code, message, field=<JSON path>)``; the path starts
+    at ``definition``. A ``/1`` definition raises
+    ``avatar_effect_conversion_required`` with the conversion hint instead.
+    Returns the definition schema capability.
+    """
+    schema = AVATAR_EFFECT_SCHEMA_V2
+    schema_path = _child(_AVATAR_EFFECT_PATH, "schema")
+    try:
+        definition = _object(document.definition, "Effect definition", path=_AVATAR_EFFECT_PATH)
+        if definition.get("schema") == AVATAR_EFFECT_SCHEMA_V1:
+            raise ContentDocumentError(AVATAR_EFFECT_CONVERSION_REQUIRED, CONVERSION_HINT, field=schema_path)
+        _safe_data(definition, path=_AVATAR_EFFECT_PATH)
+        _require(
+            len(json.dumps(definition, separators=(",", ":")).encode()) <= MAX_AVATAR_EFFECT_DEFINITION_BYTES,
+            "Avatar Effect definition exceeds its size limit",
+            _AVATAR_EFFECT_PATH,
         )
-        for key, value in animation.items():
-            if key == "rotationDirection":
-                _enum(value, {"clockwise", "counterclockwise"}, key)
-            elif key == "driftPerSecond":
-                axes = _object(value, key)
-                _fields(axes, "x y", key)
-                _numbers(axes, " ".join(axes))
-            else:
-                _number(value, key)
-    if "lifetime" in definition:
-        lifetime = _object(definition["lifetime"], "lifetime")
-        lifetime_kind = _enum(lifetime.get("kind"), {"duration", "turns"}, "Avatar lifetime")
-        _fields(lifetime, "kind runEndBufferSec" if lifetime_kind == "duration" else "kind turns", "lifetime")
-        _number(lifetime.get("runEndBufferSec" if lifetime_kind == "duration" else "turns"), "lifetime")
+        _require(definition.get("schema") == schema, "Unsupported effect definition schema", schema_path)
+        model = _avatar_effect_model(definition)
+        art_path = _child(_AVATAR_EFFECT_PATH, "art")
+        _resource(model.art.image, document, {"image", "texture"}, path=_child(art_path, "image"))
+        if model.art.otherEyeImage is not None:
+            _resource(model.art.otherEyeImage, document, {"image", "texture"}, path=_child(art_path, "otherEyeImage"))
+        _sound(definition, document, path=_AVATAR_EFFECT_PATH)
+    except ContentDocumentError as exc:
+        if exc.code in {code, AVATAR_EFFECT_CONVERSION_REQUIRED}:
+            raise
+        raise ContentDocumentError(code, str(exc), field=exc.field) from exc
+    return schema
 
 
 def _scene_effect(definition: dict[str, Any], document: TypedContentDocument) -> set[str]:
@@ -404,15 +392,14 @@ def derive_document_capabilities(document: TypedContentDocument) -> tuple[str, .
         return ("animama/pocket-voice/1",)
     if isinstance(document, PoseDocumentV1):
         return ("animaPose/1.0",)
-    if isinstance(document, AvatarEffectDocumentV1 | SceneEffectDocumentV1):
+    if isinstance(document, AvatarEffectDocumentV1):
+        return (validate_avatar_effect_document(document),)
+    if isinstance(document, SceneEffectDocumentV1):
         definition = _object(document.definition, "Effect definition")
         _safe_data(definition)
-        schema = "animama/avatar-effect/1" if isinstance(document, AvatarEffectDocumentV1) else "animama/scene-effect/1"
+        schema = "animama/scene-effect/1"
         _require(definition.get("schema") == schema, "Unsupported effect definition schema")
         _sound(definition, document)
-        if isinstance(document, AvatarEffectDocumentV1):
-            _avatar_effect(definition, document)
-            return (schema,)
         return tuple(sorted({schema} | _scene_effect(definition, document)))
     if isinstance(document, ParticleEffectDocumentV1):
         _require(document.definition is None, "Particle Effects require a registered Quarks manifest")

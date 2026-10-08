@@ -1,0 +1,1074 @@
+{
+  "pairs": [
+    {
+      "name": "included/angry",
+      "v1": {
+        "schema": "animama/avatar-effect/1",
+        "kind": "hover",
+        "region": "emote",
+        "hoverKind": "box_hover",
+        "placement": "forehead-left",
+        "transform": {
+          "scale": {
+            "x": 0.8,
+            "y": 0.8,
+            "z": 1
+          }
+        },
+        "animationConfig": {
+          "pulseScaleMin": 0.5,
+          "pulseScaleMax": 0.8,
+          "rotationRadiansPerSecond": 1.2,
+          "rotationAmountTurns": 0.03,
+          "rotationDirection": "clockwise"
+        },
+        "image": "angry.png"
+      },
+      "v2": {
+        "schema": "animama/avatar-effect/2",
+        "region": "emote",
+        "attachment": {
+          "kind": "face_landmark",
+          "landmark": "forehead",
+          "position": "left",
+          "scale": {
+            "x": 0.8,
+            "y": 0.8
+          }
+        },
+        "art": {
+          "image": "angry.png"
+        },
+        "motion": {
+          "pulse": {
+            "scaleMin": 0.5,
+            "scaleMax": 0.8
+          },
+          "spin": {
+            "degreesPerSecond": 68.754935,
+            "amountTurns": 0.03,
+            "direction": "clockwise"
+          }
+        }
+      }
+    },
+    {
+      "name": "included/emote",
+      "v1": {
+        "schema": "animama/avatar-effect/1",
+        "kind": "hover",
+        "region": "emote",
+        "hoverKind": "box_hover",
+        "placement": "top-edge-right-corner",
+        "transform": {
+          "scale": {
+            "x": 1.4,
+            "y": 1.4,
+            "z": 1
+          }
+        },
+        "animationConfig": {
+          "rotationRadiansPerSecond": 1.4,
+          "rotationAmountTurns": 0.02
+        },
+        "image": "emote.png"
+      },
+      "v2": {
+        "schema": "animama/avatar-effect/2",
+        "region": "emote",
+        "attachment": {
+          "kind": "face_landmark",
+          "landmark": "top_edge",
+          "position": "right_corner",
+          "scale": {
+            "x": 1.4,
+            "y": 1.4
+          }
+        },
+        "art": {
+          "image": "emote.png"
+        },
+        "motion": {
+          "spin": {
+            "degreesPerSecond": 80.214091,
+            "amountTurns": 0.02
+          }
+        }
+      }
+    },
+    {
+      "name": "included/eye",
+      "v1": {
+        "schema": "animama/avatar-effect/1",
+        "kind": "hover",
+        "region": "eyes",
+        "hoverKind": "eye_hover",
+        "disableTargetRoles": ["eye_highlight"],
+        "side": "right",
+        "requiresMirror": true,
+        "transform": {
+          "scale": {
+            "x": 0.6,
+            "y": 0.6,
+            "z": 1
+          }
+        },
+        "image": "eye_=_r.png"
+      },
+      "v2": {
+        "schema": "animama/avatar-effect/2",
+        "region": "eyes",
+        "attachment": {
+          "kind": "face_landmark",
+          "landmark": "eyes",
+          "side": "right",
+          "mirror": true,
+          "scale": {
+            "x": 0.6,
+            "y": 0.6
+          }
+        },
+        "art": {
+          "image": "eye_=_r.png"
+        },
+        "faceOptions": {
+          "hideParts": ["eye_highlight"]
+        }
+      }
+    },
+    {
+      "name": "included/eye_0",
+      "v1": {
+        "schema": "animama/avatar-effect/1",
+        "kind": "hover",
+        "region": "eyes",
+        "hoverKind": "eye_hover",
+        "disableTargetRoles": ["eye_highlight"],
+        "side": "right",
+        "requiresMirror": true,
+        "transform": {
+          "scale": {
+            "x": 0.6,
+            "y": 0.6,
+            "z": 1
+          }
+        },
+        "image": "eye_0_r.png"
+      },
+      "v2": {
+        "schema": "animama/avatar-effect/2",
+        "region": "eyes",
+        "attachment": {
+          "kind": "face_landmark",
+          "landmark": "eyes",
+          "side": "right",
+          "mirror": true,
+          "scale": {
+            "x": 0.6,
+            "y": 0.6
+          }
+        },
+        "art": {
+          "image": "eye_0_r.png"
+        },
+        "faceOptions": {
+          "hideParts": ["eye_highlight"]
+        }
+      }
+    },
+    {
+      "name": "included/eye_confused_swirl",
+      "v1": {
+        "schema": "animama/avatar-effect/1",
+        "kind": "hover",
+        "region": "eyes",
+        "hoverKind": "eye_hover",
+        "disableTargetRoles": ["eye_highlight"],
+        "side": "right",
+        "requiresMirror": true,
+        "transform": {
+          "scale": {
+            "x": 0.6,
+            "y": 0.6,
+            "z": 1
+          }
+        },
+        "animationConfig": {
+          "rotationRadiansPerSecond": 3,
+          "rotationDirection": "clockwise"
+        },
+        "image": "eye_confused_swirl_r.png"
+      },
+      "v2": {
+        "schema": "animama/avatar-effect/2",
+        "region": "eyes",
+        "attachment": {
+          "kind": "face_landmark",
+          "landmark": "eyes",
+          "side": "right",
+          "mirror": true,
+          "scale": {
+            "x": 0.6,
+            "y": 0.6
+          }
+        },
+        "art": {
+          "image": "eye_confused_swirl_r.png"
+        },
+        "motion": {
+          "spin": {
+            "degreesPerSecond": 171.887339,
+            "direction": "clockwise"
+          }
+        },
+        "faceOptions": {
+          "hideParts": ["eye_highlight"]
+        }
+      }
+    },
+    {
+      "name": "included/eye_o",
+      "v1": {
+        "schema": "animama/avatar-effect/1",
+        "kind": "hover",
+        "region": "eyes",
+        "hoverKind": "eye_hover",
+        "disableTargetRoles": ["eye_highlight"],
+        "side": "right",
+        "requiresMirror": true,
+        "transform": {
+          "scale": {
+            "x": 0.6,
+            "y": 0.6,
+            "z": 1
+          }
+        },
+        "image": "eye_o_r.png"
+      },
+      "v2": {
+        "schema": "animama/avatar-effect/2",
+        "region": "eyes",
+        "attachment": {
+          "kind": "face_landmark",
+          "landmark": "eyes",
+          "side": "right",
+          "mirror": true,
+          "scale": {
+            "x": 0.6,
+            "y": 0.6
+          }
+        },
+        "art": {
+          "image": "eye_o_r.png"
+        },
+        "faceOptions": {
+          "hideParts": ["eye_highlight"]
+        }
+      }
+    },
+    {
+      "name": "included/eye_vv",
+      "v1": {
+        "schema": "animama/avatar-effect/1",
+        "kind": "hover",
+        "region": "eyes",
+        "hoverKind": "eye_hover",
+        "disableTargetRoles": ["eye_highlight"],
+        "side": "right",
+        "requiresMirror": true,
+        "image": "eye_vv_right.png"
+      },
+      "v2": {
+        "schema": "animama/avatar-effect/2",
+        "region": "eyes",
+        "attachment": {
+          "kind": "face_landmark",
+          "landmark": "eyes",
+          "side": "right",
+          "mirror": true
+        },
+        "art": {
+          "image": "eye_vv_right.png"
+        },
+        "faceOptions": {
+          "hideParts": ["eye_highlight"]
+        }
+      }
+    },
+    {
+      "name": "included/eye_vv_pair",
+      "v1": {
+        "schema": "animama/avatar-effect/1",
+        "kind": "hover",
+        "region": "eyes",
+        "hoverKind": "eye_hover",
+        "disableTargetRoles": ["eye_highlight"],
+        "image": "eye_vv.png"
+      },
+      "v2": {
+        "schema": "animama/avatar-effect/2",
+        "region": "eyes",
+        "attachment": {
+          "kind": "face_landmark",
+          "landmark": "eyes"
+        },
+        "art": {
+          "image": "eye_vv.png"
+        },
+        "faceOptions": {
+          "hideParts": ["eye_highlight"]
+        }
+      }
+    },
+    {
+      "name": "included/mouth_hover_w",
+      "v1": {
+        "schema": "animama/avatar-effect/1",
+        "kind": "hover",
+        "region": "mouth",
+        "hoverKind": "mouth_hover",
+        "skinBackdrop": true,
+        "image": "mouth_w.png"
+      },
+      "v2": {
+        "schema": "animama/avatar-effect/2",
+        "region": "mouth",
+        "attachment": {
+          "kind": "face_landmark",
+          "landmark": "mouth"
+        },
+        "art": {
+          "image": "mouth_w.png"
+        },
+        "faceOptions": {
+          "skinBackdrop": true
+        }
+      }
+    },
+    {
+      "name": "included/mouth_w",
+      "v1": {
+        "schema": "animama/avatar-effect/1",
+        "kind": "face_anchored",
+        "region": "mouth",
+        "anchor": "mouth",
+        "pivot": "center",
+        "image": "mouth_w.png"
+      },
+      "v2": {
+        "schema": "animama/avatar-effect/2",
+        "region": "mouth",
+        "attachment": {
+          "kind": "face_surface",
+          "part": "face_skin",
+          "area": "mouth",
+          "pivot": "center"
+        },
+        "art": {
+          "image": "mouth_w.png"
+        }
+      }
+    },
+    {
+      "name": "included/star",
+      "v1": {
+        "schema": "animama/avatar-effect/1",
+        "kind": "texture",
+        "region": "eyes",
+        "targetRole": "eye_iris",
+        "disableTargetRoles": ["eye_highlight"],
+        "assetShape": "single_eye",
+        "applyMode": "overlay",
+        "animationConfig": {
+          "pulseScaleMin": 0.8,
+          "pulseScaleMax": 1.2,
+          "pulseCyclesPerSecond": 1.6
+        },
+        "image": "star.png"
+      },
+      "v2": {
+        "schema": "animama/avatar-effect/2",
+        "region": "eyes",
+        "attachment": {
+          "kind": "face_surface",
+          "part": "eye_iris",
+          "area": "eyes",
+          "layout": "single"
+        },
+        "art": {
+          "image": "star.png"
+        },
+        "motion": {
+          "pulse": {
+            "scaleMin": 0.8,
+            "scaleMax": 1.2,
+            "cyclesPerSecond": 1.6
+          }
+        },
+        "faceOptions": {
+          "hideParts": ["eye_highlight"]
+        }
+      }
+    },
+    {
+      "name": "included/star3",
+      "v1": {
+        "schema": "animama/avatar-effect/1",
+        "kind": "texture",
+        "region": "eyes",
+        "targetRole": "eye_iris",
+        "disableTargetRoles": ["eye_highlight"],
+        "assetShape": "single_eye",
+        "applyMode": "overlay",
+        "animationConfig": {
+          "pulseScaleMin": 1.2,
+          "pulseScaleMax": 1.6,
+          "pulseCyclesPerSecond": 1.6
+        },
+        "image": "star3.png"
+      },
+      "v2": {
+        "schema": "animama/avatar-effect/2",
+        "region": "eyes",
+        "attachment": {
+          "kind": "face_surface",
+          "part": "eye_iris",
+          "area": "eyes",
+          "layout": "single"
+        },
+        "art": {
+          "image": "star3.png"
+        },
+        "motion": {
+          "pulse": {
+            "scaleMin": 1.2,
+            "scaleMax": 1.6,
+            "cyclesPerSecond": 1.6
+          }
+        },
+        "faceOptions": {
+          "hideParts": ["eye_highlight"]
+        }
+      }
+    },
+    {
+      "name": "included/texture_black_1",
+      "v1": {
+        "schema": "animama/avatar-effect/1",
+        "kind": "texture",
+        "region": "full_face",
+        "targetRole": "face_skin",
+        "assetShape": "full_face",
+        "applyMode": "overlay",
+        "image": "texture_black_1.png"
+      },
+      "v2": {
+        "schema": "animama/avatar-effect/2",
+        "region": "full_face",
+        "attachment": {
+          "kind": "face_surface",
+          "part": "face_skin",
+          "area": "full"
+        },
+        "art": {
+          "image": "texture_black_1.png"
+        }
+      }
+    },
+    {
+      "name": "included/texture_sick_1",
+      "v1": {
+        "schema": "animama/avatar-effect/1",
+        "kind": "texture",
+        "region": "full_face",
+        "targetRole": "face_skin",
+        "assetShape": "full_face",
+        "applyMode": "overlay",
+        "animationConfig": {
+          "driftPerSecond": {
+            "x": 0.03,
+            "y": 0
+          }
+        },
+        "image": "texture_sick_1.png"
+      },
+      "v2": {
+        "schema": "animama/avatar-effect/2",
+        "region": "full_face",
+        "attachment": {
+          "kind": "face_surface",
+          "part": "face_skin",
+          "area": "full"
+        },
+        "art": {
+          "image": "texture_sick_1.png"
+        },
+        "motion": {
+          "drift": {
+            "x": 0.03,
+            "y": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "included/texture_sick_2",
+      "v1": {
+        "schema": "animama/avatar-effect/1",
+        "kind": "texture",
+        "region": "full_face",
+        "targetRole": "face_skin",
+        "assetShape": "full_face",
+        "applyMode": "overlay",
+        "image": "texture_sick_2.png"
+      },
+      "v2": {
+        "schema": "animama/avatar-effect/2",
+        "region": "full_face",
+        "attachment": {
+          "kind": "face_surface",
+          "part": "face_skin",
+          "area": "full"
+        },
+        "art": {
+          "image": "texture_sick_2.png"
+        }
+      }
+    },
+    {
+      "name": "included/texture_sick_3",
+      "v1": {
+        "schema": "animama/avatar-effect/1",
+        "kind": "texture",
+        "region": "full_face",
+        "targetRole": "face_skin",
+        "assetShape": "full_face",
+        "applyMode": "overlay",
+        "transform": {
+          "offset": {
+            "x": 0,
+            "y": 0.1,
+            "z": 0
+          }
+        },
+        "image": "texture_sick_3.png"
+      },
+      "v2": {
+        "schema": "animama/avatar-effect/2",
+        "region": "full_face",
+        "attachment": {
+          "kind": "face_surface",
+          "part": "face_skin",
+          "area": "full",
+          "offset": {
+            "x": 0,
+            "y": 0.1
+          }
+        },
+        "art": {
+          "image": "texture_sick_3.png"
+        }
+      }
+    },
+    {
+      "name": "creator/Eye hover",
+      "v1": {
+        "schema": "animama/avatar-effect/1",
+        "kind": "hover",
+        "region": "eyes",
+        "transform": {
+          "offset": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "scale": {
+            "x": 0.6,
+            "y": 0.6,
+            "z": 1
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "hoverKind": "eye_hover",
+        "side": "right",
+        "requiresMirror": true,
+        "forceBlink": true,
+        "autoDisableEyeMaterials": true,
+        "disableTargetRoles": ["eye_highlight"],
+        "skinBackdrop": true,
+        "faceCleanup": true,
+        "image": "eye.png"
+      },
+      "v2": {
+        "schema": "animama/avatar-effect/2",
+        "region": "eyes",
+        "attachment": {
+          "kind": "face_landmark",
+          "landmark": "eyes",
+          "side": "right",
+          "mirror": true,
+          "scale": {
+            "x": 0.6,
+            "y": 0.6
+          }
+        },
+        "art": {
+          "image": "eye.png"
+        },
+        "faceOptions": {
+          "forceBlink": true,
+          "hideEyeDetails": true,
+          "faceCleanup": true,
+          "skinBackdrop": true,
+          "hideParts": ["eye_highlight"]
+        }
+      }
+    },
+    {
+      "name": "creator/Mouth hover",
+      "v1": {
+        "schema": "animama/avatar-effect/1",
+        "kind": "hover",
+        "region": "mouth",
+        "transform": {
+          "offset": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "hoverKind": "mouth_hover",
+        "skinBackdrop": true,
+        "faceCleanup": false,
+        "image": "mouth.png"
+      },
+      "v2": {
+        "schema": "animama/avatar-effect/2",
+        "region": "mouth",
+        "attachment": {
+          "kind": "face_landmark",
+          "landmark": "mouth"
+        },
+        "art": {
+          "image": "mouth.png"
+        },
+        "faceOptions": {
+          "faceCleanup": false,
+          "skinBackdrop": true
+        }
+      }
+    },
+    {
+      "name": "creator/Box hover",
+      "v1": {
+        "schema": "animama/avatar-effect/1",
+        "kind": "hover",
+        "region": "emote",
+        "transform": {
+          "offset": {
+            "x": 0,
+            "y": 0.02,
+            "z": 0
+          },
+          "scale": {
+            "x": 0.8,
+            "y": 0.8,
+            "z": 1
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "animationConfig": {
+          "pulseScaleMin": 0.5,
+          "pulseScaleMax": 0.8,
+          "rotationRadiansPerSecond": 1.2,
+          "rotationAmountTurns": 0.03,
+          "rotationDirection": "clockwise"
+        },
+        "hoverKind": "box_hover",
+        "placement": "forehead-left",
+        "image": "angry.png"
+      },
+      "v2": {
+        "schema": "animama/avatar-effect/2",
+        "region": "emote",
+        "attachment": {
+          "kind": "face_landmark",
+          "landmark": "forehead",
+          "position": "left",
+          "offset": {
+            "x": 0,
+            "y": 0.02,
+            "z": 0
+          },
+          "scale": {
+            "x": 0.8,
+            "y": 0.8
+          }
+        },
+        "art": {
+          "image": "angry.png"
+        },
+        "motion": {
+          "pulse": {
+            "scaleMin": 0.5,
+            "scaleMax": 0.8
+          },
+          "spin": {
+            "degreesPerSecond": 68.754935,
+            "amountTurns": 0.03,
+            "direction": "clockwise"
+          }
+        }
+      }
+    },
+    {
+      "name": "creator/Face decal single",
+      "v1": {
+        "schema": "animama/avatar-effect/1",
+        "kind": "face_anchored",
+        "region": "blush",
+        "transform": {
+          "offset": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "anchor": "blush",
+        "pivot": "center",
+        "layout": "single",
+        "side": "left",
+        "requiresMirror": true,
+        "image": "blush.png"
+      },
+      "v2": {
+        "schema": "animama/avatar-effect/2",
+        "region": "blush",
+        "attachment": {
+          "kind": "face_surface",
+          "part": "face_skin",
+          "area": "blush",
+          "layout": "single",
+          "side": "left",
+          "mirror": true,
+          "pivot": "center"
+        },
+        "art": {
+          "image": "blush.png"
+        }
+      }
+    },
+    {
+      "name": "creator/Face decal span",
+      "v1": {
+        "schema": "animama/avatar-effect/1",
+        "kind": "face_anchored",
+        "region": "undereye",
+        "transform": {
+          "offset": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 5
+          }
+        },
+        "animationConfig": {
+          "driftPerSecond": {
+            "x": 0,
+            "y": 0.08
+          }
+        },
+        "anchor": "undereye",
+        "pivot": "top-center",
+        "layout": "span",
+        "image": "undereye.png"
+      },
+      "v2": {
+        "schema": "animama/avatar-effect/2",
+        "region": "undereye",
+        "attachment": {
+          "kind": "face_surface",
+          "part": "face_skin",
+          "area": "undereye",
+          "layout": "span",
+          "pivot": "top-center",
+          "rotationDeg": 286.478898
+        },
+        "art": {
+          "image": "undereye.png"
+        },
+        "motion": {
+          "drift": {
+            "x": 0,
+            "y": 0.08
+          }
+        }
+      }
+    },
+    {
+      "name": "creator/Face decal mouth",
+      "v1": {
+        "schema": "animama/avatar-effect/1",
+        "kind": "face_anchored",
+        "region": "mouth",
+        "transform": {
+          "offset": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "anchor": "mouth",
+        "pivot": "center",
+        "faceCleanup": true,
+        "image": "mouth-decal.png"
+      },
+      "v2": {
+        "schema": "animama/avatar-effect/2",
+        "region": "mouth",
+        "attachment": {
+          "kind": "face_surface",
+          "part": "face_skin",
+          "area": "mouth",
+          "pivot": "center"
+        },
+        "art": {
+          "image": "mouth-decal.png"
+        },
+        "faceOptions": {
+          "faceCleanup": true
+        }
+      }
+    },
+    {
+      "name": "creator/Texture",
+      "v1": {
+        "schema": "animama/avatar-effect/1",
+        "kind": "texture",
+        "region": "eyes",
+        "transform": {
+          "offset": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "animationConfig": {
+          "pulseScaleMin": 0.8,
+          "pulseScaleMax": 1.2,
+          "pulseCyclesPerSecond": 1.6
+        },
+        "targetRole": "eye_iris",
+        "disableTargetRoles": ["eye_highlight"],
+        "assetShape": "single_eye",
+        "applyMode": "overlay",
+        "requiresMirror": false,
+        "image": "star.png"
+      },
+      "v2": {
+        "schema": "animama/avatar-effect/2",
+        "region": "eyes",
+        "attachment": {
+          "kind": "face_surface",
+          "part": "eye_iris",
+          "area": "eyes",
+          "layout": "single"
+        },
+        "art": {
+          "image": "star.png"
+        },
+        "motion": {
+          "pulse": {
+            "scaleMin": 0.8,
+            "scaleMax": 1.2,
+            "cyclesPerSecond": 1.6
+          }
+        },
+        "faceOptions": {
+          "hideParts": ["eye_highlight"]
+        }
+      }
+    },
+    {
+      "name": "edge/texture double eye replace",
+      "v1": {
+        "schema": "animama/avatar-effect/1",
+        "kind": "texture",
+        "region": "eyes",
+        "targetRole": "eye_iris",
+        "assetShape": "double_eye",
+        "applyMode": "replace",
+        "side": "left",
+        "requiresMirror": true,
+        "image": "eyes.png"
+      },
+      "v2": {
+        "schema": "animama/avatar-effect/2",
+        "region": "eyes",
+        "attachment": {
+          "kind": "face_surface",
+          "part": "eye_iris",
+          "area": "eyes",
+          "layout": "span",
+          "mode": "replace"
+        },
+        "art": {
+          "image": "eyes.png"
+        }
+      }
+    },
+    {
+      "name": "edge/eye hover offset rotation sound",
+      "v1": {
+        "schema": "animama/avatar-effect/1",
+        "kind": "hover",
+        "region": "eyes",
+        "hoverKind": "eye_hover",
+        "side": "left",
+        "transform": {
+          "offset": {
+            "x": 0,
+            "y": 0.01,
+            "z": 0.002
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0.5
+          }
+        },
+        "animationConfig": {
+          "driftPerSecond": {
+            "y": 0.1
+          }
+        },
+        "soundAlias": "pop",
+        "lifetime": {
+          "kind": "duration",
+          "runEndBufferSec": 1
+        },
+        "image": "eye.png"
+      },
+      "v2": {
+        "schema": "animama/avatar-effect/2",
+        "region": "eyes",
+        "attachment": {
+          "kind": "face_landmark",
+          "landmark": "eyes",
+          "side": "left",
+          "offset": {
+            "x": 0,
+            "y": 0.01,
+            "z": 0.002
+          },
+          "rotationDeg": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 28.64789
+          }
+        },
+        "art": {
+          "image": "eye.png"
+        },
+        "motion": {
+          "drift": {
+            "x": 0.03,
+            "y": 0.1
+          }
+        },
+        "soundAlias": "pop"
+      }
+    },
+    {
+      "name": "edge/top edge corner",
+      "v1": {
+        "schema": "animama/avatar-effect/1",
+        "kind": "hover",
+        "region": "emote",
+        "hoverKind": "box_hover",
+        "placement": "top-edge-left-corner",
+        "transform": {
+          "scale": {
+            "x": -1.2,
+            "y": 1.2,
+            "z": 1
+          }
+        },
+        "image": "mark.png"
+      },
+      "v2": {
+        "schema": "animama/avatar-effect/2",
+        "region": "emote",
+        "attachment": {
+          "kind": "face_landmark",
+          "landmark": "top_edge",
+          "position": "left_corner",
+          "scale": {
+            "x": 1.2,
+            "y": 1.2
+          }
+        },
+        "art": {
+          "image": "mark.png"
+        }
+      }
+    }
+  ]
+}

@@ -2,14 +2,13 @@
 
 import { useProductApiClient } from "@animama/product-ui";
 import type { Client } from "@animama/runtime-contracts/sdk";
-
 import { CreatorTimelineTransport } from "@/ui/content-creator/CreatorTimeline";
 
 import { SoundUploadButton } from "@/ui/sound-upload/SoundUploadButton";
 
 import { ContentEditorHydration } from "@/lib/content/contentEditorSource";
 
-import { useBlocker, useNavigate } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import {
   AlertTriangleIcon,
   ArrowDownIcon,
@@ -27,7 +26,9 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { previewCatalogItem } from "@/lib/content/catalogApi";
+import { listCatalogItems, previewCatalogItem } from "@/lib/content/catalogApi";
+import { createUniqueContentName } from "@/lib/content/uniqueContentName";
+import { isSceneEffectTemplateId } from "@/lib/effects/effectTemplates";
 import type {
   PyContentDependency,
   PyContentPreview,
@@ -42,13 +43,13 @@ import {
   buildSceneEffectEditorExport,
   canonicalSceneEffectImageName,
   createDefaultSceneEffectDocument,
-  clearSceneEffectRecovery,
   createSceneEffectDocumentFromDefinition,
   parseSceneEffectEditorExport,
   SCENE_EFFECT_TEMPLATE_OPTIONS,
-  sceneEffectDocumentFingerprint,
   sceneEffectEditorReducer,
+  sceneEffectTemplateLabel,
   sceneEffectImageMetadata,
+  sceneEffectRecoveryStore,
   sceneEffectRuntimeEntry,
   SCENE_EFFECT_IMAGE_TYPES,
   uniqueSceneEffectImageName,
@@ -81,10 +82,13 @@ import {
   CreatorField as Field,
   CreatorFloatingPanel as FloatingPanel,
   CreatorImportDialog,
+  CreatorInlineError,
   CreatorJsonDialog,
-  CreatorLoadingState,
+  CreatorLeaveDialog,
+  CreatorLoading,
   CreatorNumberField as NumberField,
-  CreatorSaveNotice,
+  CREATOR_STAGE_NOTICE_CLASS,
+  CreatorRecoveryNotice,
   CreatorToggleRow as ToggleRow,
   CreatorToolbar,
   CreatorUnavailableState,
@@ -96,15 +100,14 @@ import { ContentHealth } from "@/ui/content-health/ContentHealth";
 import type { ContentCreatorModelSource } from "@/ui/content-creator/contentCreatorModelPreview";
 import { useContentCreatorAvatar } from "@/ui/content-creator/useContentCreatorAvatar";
 import { useContentCreatorModelPreview } from "@/ui/content-creator/useContentCreatorModelPreview";
-import { Button } from "@/ui/components/button";
+import { CreatorTemplateDraftDialog } from "@/ui/content-creator/CreatorTemplateDraftDialog";
+import { useCreatorLeaveGuard } from "@/ui/content-creator/useCreatorLeaveGuard";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/ui/components/dialog";
+  creatorTemplateRecoveryKey,
+  useCreatorTemplateStart,
+} from "@/ui/content-creator/useCreatorTemplateStart";
+import { useCreatorDocumentHistory } from "@/ui/creator-history/useCreatorDocumentHistory";
+import { Button } from "@/ui/components/button";
 import { Input } from "@/ui/components/input";
 import { Label } from "@/ui/components/label";
 import { Switch } from "@/ui/components/switch";
@@ -118,12 +121,15 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/components/tabs";
 import { Textarea } from "@/ui/components/textarea";
 import {
+  createSceneEffectHistorySnapshot,
   createSceneEffectObjectUrlLease,
+  equalSceneEffectHistorySnapshots,
   sceneEffectCreatorKeyboardAction,
-  shouldBlockSceneEffectNavigation,
+  sceneEffectHistoryEdit,
+  sceneEffectSnapshotFingerprint,
+  type SceneEffectHistorySnapshot,
 } from "./sceneEffectCreatorBehavior";
 import { useSceneEffectSave } from "./useSceneEffectSave";
-import { useSceneEffectHistory } from "./useSceneEffectHistory";
 
 const MAX_SCENE_IMAGE_BYTES = 32 * 1024 * 1024;
 type PreviewStatus = {
@@ -133,24 +139,53 @@ type PreviewStatus = {
 
 type BackgroundLayer = "marquee" | "pattern" | "solid";
 
-/** Product Scene Effect creator backed by ordinary editable catalog files. */
-export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
-  const apiClient = useProductApiClient();
-
+/**
+ * Product Scene Effect creator backed by ordinary editable catalog files.
+ * `itemId` edits a saved item; `templateId` starts a new draft from one of the
+ * starting templates (`/scene-effects/new?template=<id>`).
+ */
+export function SceneEffectCreatorPage({
+  itemId,
+  templateId,
+}: {
+  itemId?: string;
+  templateId?: SceneEffectTemplateId;
+}) {
   const navigate = useNavigate();
   const userId = useRuntimeCacheKey();
+  const apiClient = useProductApiClient();
   const existingQuery = useSceneEffect(itemId ?? null);
   const {
-    document,
-    imageResources,
+    present: snapshot,
     history,
-    dispatch,
-    resetDocument,
+    update,
+    reset,
     getSnapshot,
-  } = useSceneEffectHistory();
+  } = useCreatorDocumentHistory({
+    initialValue: createSceneEffectHistorySnapshot,
+    equals: equalSceneEffectHistorySnapshots,
+  });
+  const { document, imageResources } = snapshot;
+  const dispatch = useCallback(
+    (
+      action: Parameters<typeof sceneEffectEditorReducer>[1],
+      nextImages?: SceneEffectEditorImageResource[],
+    ) => update(sceneEffectHistoryEdit(action, nextImages)),
+    [update],
+  );
+  const resetDocument = useCallback(
+    (
+      nextDocument: SceneEffectEditorDocument,
+      nextImages: SceneEffectEditorImageResource[],
+    ) => reset({ document: nextDocument, imageResources: nextImages }),
+    [reset],
+  );
   const [imageUrls, setImageUrls] = useState<ReadonlyMap<string, string>>(
     () => new Map(),
   );
+  /** The template this draft started from, shown in Setup; null for Custom. */
+  const [startingTemplate, setStartingTemplate] =
+    useState<SceneEffectTemplateId | null>(templateId ?? null);
   const [selectedLayer, setSelectedLayer] =
     useState<BackgroundLayer>("marquee");
   const [selectedModel, setSelectedModel] =
@@ -165,12 +200,16 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
     "full-body",
   );
   const [previewRevision, setPreviewRevision] = useState(0);
+  /** The document whose workspace has shown; see the loading screen below. */
+  const [shownDocument, setShownDocument] = useState<string | null>(null);
   const [hydration, setHydration] = useState<PreviewStatus>({
-    state: itemId ? "loading" : "ready",
+    state: itemId || templateId ? "loading" : "ready",
     message: null,
   });
+  /** A template route's recovered draft, held until the user chooses. */
+  const [templateDraft, setTemplateDraft] =
+    useState<SceneEffectHistorySnapshot | null>(null);
   const [imageBusy, setImageBusy] = useState(false);
-  const [discarding, setDiscarding] = useState(false);
   const [imageError, setImageError] = useState<string | null>(null);
   const [jsonOpen, setJsonOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
@@ -181,7 +220,7 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
   );
   const hydratedItemRef = useRef(new ContentEditorHydration());
   const initialFingerprintRef = useRef(
-    sceneSaveFingerprint(document, imageResources),
+    sceneEffectSnapshotFingerprint(snapshot),
   );
 
   const modelPreview = useContentCreatorModelPreview({
@@ -237,31 +276,34 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
     (issue) => issue.severity === "error",
   );
   const onRestore = useCallback(
-    (
-      recoveredDocument: SceneEffectEditorDocument,
-      recoveredImages: SceneEffectEditorImageResource[],
-    ) => {
-      resetDocument(recoveredDocument, recoveredImages);
+    (recovered: SceneEffectHistorySnapshot) => {
+      if (templateId) {
+        setTemplateDraft(recovered);
+        return;
+      }
+      resetDocument(recovered.document, recovered.imageResources);
       setHydration({ state: "ready", message: "Recovered local draft" });
       setPreviewRevision((value) => value + 1);
     },
-    [resetDocument],
+    [resetDocument, templateId],
   );
   const onSaved = useCallback(
-    (savedDocument: SceneEffectEditorDocument, savedItemId: string) => {
-      dispatch({ type: "patch", patch: { name: savedDocument.name } });
+    (saved: SceneEffectHistorySnapshot, savedItemId: string) => {
+      dispatch({ type: "patch", patch: { name: saved.document.name } });
       hydratedItemRef.current.preserve(savedItemId);
-      initialFingerprintRef.current = sceneSaveFingerprint(
-        savedDocument,
-        imageResources,
-      );
+      initialFingerprintRef.current = sceneEffectSnapshotFingerprint(saved);
     },
-    [dispatch, imageResources],
+    [dispatch],
   );
+  const isDirty =
+    sceneEffectSnapshotFingerprint(snapshot) !== initialFingerprintRef.current;
   const contentSave = useSceneEffectSave({
     itemId,
-    document,
-    imageResources,
+    recoveryKey: templateId
+      ? creatorTemplateRecoveryKey(templateId)
+      : undefined,
+    snapshot,
+    dirty: isDirty,
     initialized: hydration.state === "ready",
     ready: !hasBlockingIssues && !imageBusy && hydration.state === "ready",
     onRestore,
@@ -274,8 +316,6 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
     )
       setSelectedLayer("marquee");
   }, [contentSave.errorField, document.kind]);
-  const currentFingerprint = sceneSaveFingerprint(document, imageResources);
-  const isDirty = currentFingerprint !== initialFingerprintRef.current;
   const unavailableMessage = creatorItemUnavailableMessage({
     itemId,
     label: "Scene Effect",
@@ -288,17 +328,39 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
   });
   // The unavailable state has no leave dialog, so it must never block navigation.
   const guardLeave = !unavailableMessage;
-  const blocker = useBlocker({
-    shouldBlockFn: ({ current, next }) =>
-      shouldBlockSceneEffectNavigation({
-        dirty: guardLeave && isDirty,
-        busy: guardLeave && contentSave.isBusy,
-        currentPath: current.pathname,
-        nextPath: next.pathname,
-      }),
-    enableBeforeUnload: () => guardLeave && (isDirty || contentSave.isBusy),
-    withResolver: true,
+  const leaveGuard = useCreatorLeaveGuard({
+    dirty: guardLeave && isDirty,
+    busy: guardLeave && contentSave.isBusy,
+    discard: contentSave.discardChanges,
   });
+  const installTemplateStart = useCallback(
+    (next: SceneEffectHistorySnapshot) => {
+      resetDocument(next.document, next.imageResources);
+      setPreviewRevision((value) => value + 1);
+    },
+    [resetDocument],
+  );
+  const templateStart = useCreatorTemplateStart({
+    templateId,
+    loadSeed: (templateId, signal) =>
+      loadSceneEffectTemplate(apiClient, templateId, signal),
+    fingerprint: sceneEffectSnapshotFingerprint,
+    recoveryReady: contentSave.recoveryReady,
+    recoveredDraft: templateDraft,
+    resetSession: contentSave.resetSession,
+    install: installTemplateStart,
+    baselineRef: initialFingerprintRef,
+    setHydration,
+  });
+  const templateDraftDialog = (
+    <CreatorTemplateDraftDialog
+      start={templateStart}
+      contentLabel="Scene Effect"
+      templateName={
+        templateId ? sceneEffectTemplateLabel(templateId) : "a template"
+      }
+    />
+  );
 
   const discardCurrentDraft = useCallback(async () => {
     try {
@@ -312,21 +374,6 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
       return false;
     }
   }, [contentSave]);
-
-  // Explicit discard ends browser recovery too; ordinary unload still preserves it.
-  const leaveCreator = async () => {
-    if (discarding) return;
-    if (contentSave.isBusy) {
-      blocker.proceed?.();
-      return;
-    }
-    setDiscarding(true);
-    try {
-      if (await discardCurrentDraft()) blocker.proceed?.();
-    } finally {
-      setDiscarding(false);
-    }
-  };
 
   useEffect(() => {
     if (
@@ -356,7 +403,10 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
         initialFingerprintRef.current =
           item.origin === "builtin"
             ? "__included_copy__"
-            : sceneSaveFingerprint(loadedDocument, images);
+            : sceneEffectSnapshotFingerprint({
+                document: loadedDocument,
+                imageResources: images,
+              });
         setHydration({ state: "ready", message: null });
         setPreviewRevision((value) => value + 1);
       })
@@ -568,6 +618,47 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
     [document],
   );
 
+  /** Replace the document with a blank one on the plain `/new` route. */
+  const resetToBlank = useCallback(async () => {
+    const next = {
+      document: createDefaultSceneEffectDocument(),
+      imageResources: [],
+    };
+    if (!(await contentSave.resetSession(next))) return;
+    resetDocument(next.document, next.imageResources);
+    setStartingTemplate(null);
+    setSelectedLayer("marquee");
+    setImageBusy(false);
+    setImageError(null);
+    setPlaying(true);
+    setJsonOpen(false);
+    setImportOpen(false);
+    setImportText("");
+    setImportError(null);
+    setSoundPreview(null);
+    initialFingerprintRef.current = sceneEffectSnapshotFingerprint(next);
+    setHydration({ state: "ready", message: null });
+    setPreviewRevision((value) => value + 1);
+  }, [contentSave, resetDocument]);
+
+  /**
+   * Discard a restored draft, as the Particle creator does: a saved item
+   * drops the draft and reloads its saved version, a new one starts blank.
+   */
+  const discardRecoveredDraft = useCallback(async () => {
+    if (contentSave.isBusy || imageBusy) return;
+    try {
+      if (itemId) await contentSave.discardRecovery();
+      else await resetToBlank();
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "The draft could not be discarded.",
+      );
+    }
+  }, [contentSave, imageBusy, itemId, resetToBlank]);
+
   const startNewDocument = useCallback(async () => {
     if (contentSave.isBusy || imageBusy) return;
     if (
@@ -579,9 +670,12 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
       return;
 
     try {
-      if (itemId) {
+      // A saved item or a template draft starts over on the plain `/new` route.
+      if (itemId || templateId) {
         if (userId)
-          await clearSceneEffectRecovery(userId, "new", { strict: true });
+          await sceneEffectRecoveryStore.clear(userId, "new", {
+            strict: true,
+          });
         if (!(await discardCurrentDraft())) return;
         await navigate({
           to: "/scene-effects/new",
@@ -591,22 +685,7 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
         return;
       }
 
-      const nextDocument = createDefaultSceneEffectDocument();
-      const nextFingerprint = sceneSaveFingerprint(nextDocument, []);
-      if (!(await contentSave.resetSession(nextFingerprint))) return;
-      resetDocument(nextDocument, []);
-      setSelectedLayer("marquee");
-      setImageBusy(false);
-      setImageError(null);
-      setPlaying(true);
-      setJsonOpen(false);
-      setImportOpen(false);
-      setImportText("");
-      setImportError(null);
-      setSoundPreview(null);
-      initialFingerprintRef.current = nextFingerprint;
-      setHydration({ state: "ready", message: null });
-      setPreviewRevision((value) => value + 1);
+      await resetToBlank();
     } catch (error) {
       toast.error(
         error instanceof Error
@@ -621,7 +700,8 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
     isDirty,
     itemId,
     navigate,
-    resetDocument,
+    resetToBlank,
+    templateId,
     userId,
   ]);
   const sceneVFX = useMemo<SceneVFXRuntimeEntry | null>(() => {
@@ -635,6 +715,11 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
     }
   }, [document, imageUrls, playing, previewRevision]);
 
+  // Once this document has shown, a reload (Discard recovery on a saved item)
+  // keeps the workspace and its preview Canvas mounted.
+  const documentKey = itemId ?? templateId ?? "new";
+  if (hydration.state === "ready" && shownDocument !== documentKey)
+    setShownDocument(documentKey);
   if (unavailableMessage)
     return (
       <CreatorUnavailableState
@@ -642,11 +727,21 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
         message={unavailableMessage}
       />
     );
-  if (hydration.state === "loading" && itemId)
+  if (
+    hydration.state === "loading" &&
+    (itemId || templateId) &&
+    shownDocument !== documentKey
+  )
     return (
-      <CreatorLoadingState
-        message={hydration.message ?? "Loading Scene Effect…"}
-      />
+      <>
+        <CreatorLoading
+          message={
+            hydration.message ??
+            (templateId ? "Loading template…" : "Loading Scene Effect…")
+          }
+        />
+        {templateDraftDialog}
+      </>
     );
 
   return (
@@ -684,7 +779,7 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
             avatar={previewAvatar}
             sceneVFX={sceneVFX}
             status={
-              avatarStatus.state === "error"
+              hydration.state === "error" || avatarStatus.state === "error"
                 ? "error"
                 : hydration.state === "loading" ||
                     avatarStatus.state === "loading" ||
@@ -777,6 +872,8 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
           selectedLayer={selectedLayer}
           soundOptions={soundOptions}
           soundPending={soundQuery.isPending}
+          startingTemplate={startingTemplate}
+          onStartingTemplate={setStartingTemplate}
           onSelectedLayer={setSelectedLayer}
           onDispatch={(action) => {
             dispatch(action);
@@ -845,24 +942,22 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
       }
       overlays={
         <>
-          {contentSave.error || contentSave.recoveryWarning ? (
-            <CreatorSaveNotice
-              className="absolute top-[calc(var(--creator-header-height)+0.5rem)] right-4 left-4 z-[60] sm:left-auto sm:max-w-md lg:top-auto lg:bottom-28"
-              message={contentSave.error ?? contentSave.recoveryWarning}
-              tone={contentSave.error ? "error" : "warning"}
-              actions={
-                contentSave.error ? (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => void contentSave.discardRecovery()}
-                  >
-                    Discard preserved server draft
-                  </Button>
-                ) : null
-              }
+          {hydration.state === "error" ? (
+            <CreatorInlineError
+              message={hydration.message ?? "Unable to open effect."}
             />
           ) : null}
+          <CreatorRecoveryNotice
+            className={CREATOR_STAGE_NOTICE_CLASS}
+            error={contentSave.error}
+            recoveryWarning={contentSave.recoveryWarning}
+            // A template route asks about its draft in a dialog instead.
+            recovered={contentSave.recovered && !templateId}
+            busy={contentSave.isBusy || imageBusy}
+            contentLabel="Scene Effect"
+            onDiscardServerDraft={() => void contentSave.discardRecovery()}
+            onDiscardRecovery={() => void discardRecoveredDraft()}
+          />
           <CreatorJsonDialog
             open={jsonOpen}
             onOpenChange={setJsonOpen}
@@ -907,17 +1002,8 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
             onTextChange={setImportText}
             onImport={importDocument}
           />
-          <LeaveDialog
-            busy={contentSave.isBusy}
-            open={blocker.status === "blocked"}
-            onOpenChange={(open) => {
-              if (!open && !discarding && blocker.status === "blocked")
-                blocker.reset?.();
-            }}
-            onStay={() => blocker.reset?.()}
-            discarding={discarding}
-            onLeave={() => void leaveCreator()}
-          />
+          <CreatorLeaveDialog guard={leaveGuard} contentLabel="Scene Effect" />
+          {templateDraftDialog}
         </>
       }
     />
@@ -929,11 +1015,15 @@ function SceneSetupPanel({
   selectedLayer,
   soundOptions,
   soundPending,
+  startingTemplate,
+  onStartingTemplate,
   onSelectedLayer,
   onDispatch,
 }: {
   document: SceneEffectEditorDocument;
   selectedLayer: BackgroundLayer;
+  startingTemplate: SceneEffectTemplateId | null;
+  onStartingTemplate: (templateId: SceneEffectTemplateId) => void;
   soundOptions: Array<{
     item_id: string;
     name: string;
@@ -969,16 +1059,26 @@ function SceneSetupPanel({
       <div className="mt-3 space-y-3">
         <Field label="Starting template">
           <Select
-            value=""
-            onValueChange={(value) =>
+            // The template shows while the document is still of its kind.
+            value={
+              SCENE_EFFECT_TEMPLATE_OPTIONS.some(
+                (template) =>
+                  template.id === startingTemplate &&
+                  template.kind === document.kind,
+              )
+                ? (startingTemplate ?? "")
+                : ""
+            }
+            onValueChange={(value) => {
+              onStartingTemplate(value as SceneEffectTemplateId);
               onDispatch({
                 type: "replace",
                 document: applySceneEffectTemplate(
                   document,
                   value as SceneEffectTemplateId,
                 ),
-              })
-            }
+              });
+            }}
           >
             <SelectTrigger size="sm" className="w-full text-xs">
               <SelectValue placeholder="Custom" />
@@ -2049,53 +2149,6 @@ function ScenePreviewActor({
   return sceneObject ? <primitive object={sceneObject} dispose={null} /> : null;
 }
 
-function LeaveDialog({
-  busy,
-  discarding,
-  open,
-  onOpenChange,
-  onStay,
-  onLeave,
-}: {
-  busy: boolean;
-  discarding: boolean;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onStay: () => void;
-  onLeave: () => void;
-}) {
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>
-            {busy
-              ? "Leave while content is being saved?"
-              : "Discard authoring changes?"}
-          </DialogTitle>
-          <DialogDescription>
-            {busy
-              ? "This Scene Effect is still being saved. Local recovery remains available when you return."
-              : "This Scene Effect has local authoring changes. Discarding removes these changes and their browser recovery draft. Saved content is unchanged."}
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <Button variant="outline" disabled={discarding} onClick={onStay}>
-            Stay
-          </Button>
-          <Button disabled={discarding} onClick={onLeave}>
-            {discarding
-              ? "Discarding…"
-              : busy
-                ? "Leave and keep recovery"
-                : "Discard and continue"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 async function hydrateSceneEffect(
   apiClient: Client,
   args: {
@@ -2197,16 +2250,6 @@ function moveItem<T>(items: T[], from: number, to: number): T[] {
   return next;
 }
 
-function sceneSaveFingerprint(
-  document: SceneEffectEditorDocument,
-  resources: SceneEffectEditorImageResource[],
-) {
-  return `${sceneEffectDocumentFingerprint(document)}:${[...resources]
-    .sort((left, right) => left.logicalName.localeCompare(right.logicalName))
-    .map((resource) => `${resource.logicalName}:${resource.sha256}`)
-    .join("|")}`;
-}
-
 function soundSourceKey(source: PyExactContentSource | null): string {
   if (!source) return "none";
   return source.type === "builtin"
@@ -2225,4 +2268,31 @@ function object(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : null;
+}
+
+/**
+ * A new, unsaved Local draft from one of the code-shipped starting templates,
+ * named after the template with a name no catalog item uses.
+ */
+async function loadSceneEffectTemplate(
+  apiClient: Client,
+  templateId: string,
+  signal: AbortSignal,
+): Promise<SceneEffectHistorySnapshot> {
+  if (!isSceneEffectTemplateId(templateId))
+    throw new Error("This Scene Effect template is unavailable.");
+  const items = await listCatalogItems(apiClient, "scene_effect", signal);
+  return {
+    document: {
+      ...applySceneEffectTemplate(
+        createDefaultSceneEffectDocument(),
+        templateId,
+      ),
+      name: createUniqueContentName(
+        sceneEffectTemplateLabel(templateId),
+        items.map((item) => item.name),
+      ),
+    },
+    imageResources: [],
+  };
 }

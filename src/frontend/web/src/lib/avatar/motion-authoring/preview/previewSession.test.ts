@@ -1,10 +1,23 @@
-import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import type { AnimaPoseClip } from "../../poses/animaPoseClip";
+import type { PreviewMedia } from "./previewMedia";
 import { PreviewSession } from "./previewSession";
+import {
+  sourceVersion,
+  type PreviewMediaAdapter,
+  type PreviewRoots,
+} from "./sources";
 
 let dir: string;
 beforeEach(async () => {
@@ -188,5 +201,220 @@ describe("PreviewSession", () => {
     expect(state.review.sidecar?.versions.map(({ id }) => id)).toContain(
       state.rows[0].version,
     );
+  });
+
+  describe("with effects", () => {
+    const definition = (region = "eyes") => ({
+      schema: "animama/avatar-effect/2",
+      region,
+      attachment: { kind: "face_landmark", landmark: "eyes", side: "right" },
+      art: { image: "swirl.png" },
+    });
+    const media: PreviewMedia = {
+      avatarEffects: [],
+      particleEffects: [],
+      notices: ["resolved"],
+    };
+
+    /**
+     * Stands in for the CLI server's adapter: `effect:<folder>` names an
+     * effect whose version covers its descriptor and image.
+     */
+    function adapter(calls: unknown[] = []): PreviewMediaAdapter {
+      const folderOf = (spec: string, roots: PreviewRoots) =>
+        path.join(roots.cwd, spec.slice("effect:".length));
+      return {
+        async resolve(spec, roots) {
+          if (!spec.startsWith("effect:")) return null;
+          const folder = folderOf(spec, roots);
+          return {
+            spec,
+            kind: "file",
+            type: "effect",
+            path: path.join(folder, "swirl.json"),
+            name: "swirl",
+            label: "swirl",
+            notesDir: path.dirname(folder),
+          };
+        },
+        async load(source, roots) {
+          const folder = folderOf(source.spec, roots);
+          const text = await readFile(path.join(folder, "swirl.json"), "utf8");
+          const image = await readFile(path.join(folder, "swirl.png"), "utf8");
+          const descriptor = JSON.parse(text);
+          return {
+            version: sourceVersion(text + image),
+            text,
+            files: [
+              path.join(folder, "swirl.json"),
+              path.join(folder, "swirl.png"),
+            ],
+            effect: {
+              stem: "swirl",
+              contentId: "local:avatar-effect:swirl",
+              name: "Swirl",
+              description: "",
+              definition: descriptor.definition,
+              imageUrl: "/swirl.png",
+              otherImageUrl: null,
+              duration: null,
+            },
+          };
+        },
+        async media(dependencies) {
+          calls.push(dependencies);
+          return media;
+        },
+      };
+    }
+
+    async function writeEffect(
+      region = "eyes",
+      image: string | null = "png-1",
+      at = "swirl",
+    ) {
+      const folder = path.join(dir, at);
+      await mkdir(folder, { recursive: true });
+      await writeFile(
+        path.join(folder, "swirl.json"),
+        JSON.stringify({ definition: definition(region) }),
+      );
+      if (image !== null)
+        await writeFile(path.join(folder, "swirl.png"), image);
+    }
+
+    const openEffect = (at = "swirl") =>
+      PreviewSession.open({
+        sources: [`effect:${at}`],
+        roots: { cwd: dir, included: path.join(dir, "included") },
+        media: adapter(),
+      });
+
+    it("picks up an image that appears after the descriptor names it", async () => {
+      await writeEffect("eyes", null);
+      // Opening needs only the descriptor, so the folder can be watched.
+      const session = await openEffect();
+      expect(session.state().rows[0]).toMatchObject({
+        effect: null,
+        error: { message: expect.stringMatching(/swirl\.png/) },
+      });
+      expect(session.watchDirs).toEqual([path.join(dir, "swirl")]);
+      await writeFile(path.join(dir, "swirl/swirl.png"), "png-1");
+      expect(await session.reload()).toBe(true);
+      expect(session.state().rows[0]).toMatchObject({ error: null });
+      expect(session.state().rows[0].effect?.name).toBe("Swirl");
+    });
+
+    it("never writes notes inside Library content", async () => {
+      await writeEffect("eyes", "png-1", "included/vfx/avatar/swirl");
+      const session = await openEffect("included/vfx/avatar/swirl");
+      expect(session.reviewPaths.sidecar).toBe(
+        path.join(dir, "swirl.review.json"),
+      );
+      // A clip given by path inside a Library item folder, too.
+      const item = path.join(dir, "elsewhere/reactions/nod");
+      await mkdir(item, { recursive: true });
+      await writeFile(path.join(item, "nod.meta.json"), "{}");
+      await writeFile(path.join(item, "nod.json"), JSON.stringify(clip(1)));
+      const clipSession = await PreviewSession.open({
+        sources: ["elsewhere/reactions/nod/nod.json"],
+        roots: { cwd: dir, included: path.join(dir, "included") },
+      });
+      expect(clipSession.reviewPaths.sidecar).toBe(
+        path.join(dir, "nod.review.json"),
+      );
+    });
+
+    it("plays an effect source, watches its images and keeps notes beside its folder", async () => {
+      await writeEffect();
+      const session = await openEffect();
+      const row = session.state().rows[0];
+      expect(row).toMatchObject({ type: "effect", error: null });
+      expect(row.effect?.name).toBe("Swirl");
+      expect(session.watchPaths).toEqual(
+        expect.arrayContaining([
+          path.join(dir, "swirl/swirl.json"),
+          path.join(dir, "swirl/swirl.png"),
+        ]),
+      );
+      expect(session.reviewPaths.sidecar).toBe(
+        path.join(dir, "swirl.review.json"),
+      );
+      await expect(session.versionClip(row.version!)).rejects.toThrow(
+        /cannot be replayed/,
+      );
+    });
+
+    it("reloads when only an image changes", async () => {
+      await writeEffect();
+      const session = await openEffect();
+      const first = session.state().rows[0].version;
+      await writeEffect("eyes", "png-2");
+      expect(await session.reload()).toBe(true);
+      expect(session.state().rows[0].version).not.toBe(first);
+      expect(await session.reload()).toBe(false);
+    });
+
+    it("reports an invalid definition by field and keeps the last valid effect", async () => {
+      await writeEffect();
+      const session = await openEffect();
+      await writeEffect("nowhere");
+      await session.reload();
+      const row = session.state().rows[0];
+      expect(row.effect?.definition).toMatchObject({ region: "eyes" });
+      expect(row.error?.issues).toEqual([
+        expect.objectContaining({ path: "definition.region" }),
+      ]);
+    });
+
+    it("resolves a Library item's dependencies for its effect events", async () => {
+      const folder = path.join(dir, "included/reactions/confused");
+      await mkdir(folder, { recursive: true });
+      const dependencies = [
+        {
+          ref: "builtin:avatar-effect:swirl",
+          alias: "swirl",
+          content_type: "avatar_effect",
+        },
+      ];
+      await writeFile(
+        path.join(folder, "confused.meta.json"),
+        JSON.stringify({
+          name: "Confused",
+          dependencies,
+          files: [{ path: "confused.json", role: "sequence" }],
+        }),
+      );
+      await writeFile(
+        path.join(folder, "confused.json"),
+        JSON.stringify({
+          ...clip(1),
+          events: [{ id: "e", time: 0, kind: "avatar_vfx", effectId: "swirl" }],
+        }),
+      );
+      const calls: unknown[] = [];
+      const session = await PreviewSession.open({
+        sources: ["library:confused"],
+        roots: { cwd: dir, included: path.join(dir, "included") },
+        media: adapter(calls),
+      });
+      expect(calls).toEqual([dependencies]);
+      expect(session.state().rows[0].media).toEqual(media);
+    });
+
+    it("needs no media for a clip without effect events", async () => {
+      await writeFile(path.join(dir, "nod.clip.json"), JSON.stringify(clip(1)));
+      const calls: unknown[] = [];
+      const session = await PreviewSession.open({
+        sources: ["nod.clip.json"],
+        roots: { cwd: dir, included: path.join(dir, "included") },
+        media: adapter(calls),
+      });
+      expect(session.state().rows[0]).toMatchObject({
+        type: "clip",
+        media: null,
+      });
+      expect(calls).toEqual([]);
+    });
   });
 });

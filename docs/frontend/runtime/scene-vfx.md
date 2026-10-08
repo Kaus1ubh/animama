@@ -78,9 +78,10 @@ settings-owned media URL.
 - `src/frontend/web/src/lib/scene-vfx/editor/`
 - `src/frontend/web/src/lib/content/catalogApi.ts`
 
-The creator uses the neutral Effect creator presentation primitives in
-`ui/content-creator/`; the document, recovery, file collection, and catalog Save lifecycle
-remain Scene-specific.
+The creator uses the neutral Effect creator primitives in
+`ui/content-creator/`, including the shared Save, recovery and leave flow
+described in [local content runtime](../architecture/local-content-runtime.md).
+The document and private image collection are Scene-specific.
 
 ## 3) High-level model
 
@@ -136,6 +137,9 @@ Routes:
 - `/scene-effects/new`
 - `/scene-effects/:sceneEffectId/edit`
 
+New Scene Effects start from the Effects template picker (the sidebar Create
+menu's **Effects** item, the Create page's Scene FX card or `/effects/new`).
+
 Background Layers combines Solid, Pattern and Marquee layers. Marquee items can
 be reordered and use allowlisted Twemoji or private PNG/JPEG/WebP/SVG sources.
 SVG images must be UTF-8, self-contained static artwork: shapes, groups,
@@ -144,7 +148,9 @@ CSS styles, animation, embedded images and external references are rejected on
 Save. Included SVG artwork can be saved unchanged into a Local Scene Effect.
 Focus Lines exposes render placement, procedural geometry, Avatar-face or
 normalized manual-box targeting, flicker animation and style controls.
-Selecting a built-in template updates the editable draft.
+Selecting a built-in template updates the editable draft. The picker offers
+the same templates; `/scene-effects/new?template=<id>` starts a new, unsaved
+draft from one, named after it.
 
 The portable `animama/scene-effect-editor/1` JSON contains logical image names
 and exact Sound sources only. It never contains Blob URLs, download URLs, or
@@ -159,8 +165,8 @@ the catalog; there is no server draft or immutable-release finalization step.
 Recovery stores the document, operation identity, and bounded image Blobs in
 IndexedDB. A metadata-only localStorage fallback keeps the authored document
 and save identity but surfaces a repair state requiring the user to reselect
-private images. Retries preserve the operation identity. Reloads retain recovery;
-a successful Save or explicit discard clears it. Discarding never changes the
+private images. Retries preserve the operation identity. Reloads retain recovery
+while changes are unsaved; a successful Save or explicit discard clears it. Discarding never changes the
 saved Library item.
 
 The preview reuses the production pure scene renderers and an editor-owned

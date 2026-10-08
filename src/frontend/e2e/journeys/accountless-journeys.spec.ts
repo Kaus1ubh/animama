@@ -258,8 +258,11 @@ for (const creator of ["scene", "avatar", "particle"] as const) {
         context.fillRect(0, 0, 2, 2);
         return canvas.toDataURL("image/png").split(",")[1]!;
       });
+      // The main image; a mirrored eye effect also offers "Other side image".
       await page
-        .locator('input[type="file"][accept="image/png,image/jpeg,image/webp"]')
+        .locator(
+          'input[type="file"][accept="image/png,image/jpeg,image/webp"][aria-label="Image"]',
+        )
         .setInputFiles({
           name: "toolbar-layout.png",
           mimeType: "image/png",

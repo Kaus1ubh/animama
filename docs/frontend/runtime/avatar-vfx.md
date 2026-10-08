@@ -1,567 +1,572 @@
 # Avatar VFX Guide
 
-Every retained built-in or private Avatar Effect projects through the typed
-content catalog used by Gesture/Reaction closure Preview. An Avatar Effect's
-associated Sound is a second exact dependency in that closure, so users do not
-bind or repair the cue separately.
+An **Avatar Effect** (`avatar_effect` content) is reusable art drawn on or
+around an Anima's Avatar: painted onto the face, floating in front of it,
+following a body point, placed beside the Avatar as a sticker, or filling its
+silhouette. Effects are never equipped directly. A Gesture or Reaction plays
+one through an `avatar_vfx` clip event, which owns when it starts and ends and
+its fade; the effect owns its art, look and motion. An effect's optional Sound
+is a second exact dependency of that Action.
 
-See [VRM inspection](vrm-inspector-editor.md) for debug session ownership.
+Emitted sprites are [Particle Effects](avatar-particle-vfx.md); backgrounds
+and focus lines are [Scene Effects](scene-vfx.md). See
+[VRM inspection](vrm-inspector-editor.md) for the debug panel.
 
 ## 1) Main files
 
-- `src/frontend/web/src/lib/avatar/vfx/AvatarVFXController.ts`
-- `src/frontend/web/src/lib/avatar/vfx/catalog.ts`
-- `src/frontend/web/src/lib/avatar/vfx/types.ts`
-- `src/frontend/web/src/lib/avatar/vfx/profiles.ts`
-- `src/frontend/web/src/lib/avatar/vfx/AvatarFaceLandmarks.ts`
-- `src/frontend/web/src/lib/avatar/vfx/AvatarFaceTextureAnchors.ts`
-- `src/frontend/web/src/lib/avatar/vfx/editor/`
-- `src/frontend/web/src/ui/avatar-effect-creator/AvatarEffectCreatorPage.tsx`
-- `src/frontend/web/src/ui/debug/VRMEditorDebugModal.tsx`
+Frontend paths are relative to `src/frontend/web/src/`.
 
-Authoring-template source:
+| Area                   | Files                                                                                                                                                  |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Definition contract    | `src/backend/animama/app/contracts/avatar_effect.py` (the one source; generated into `@animama/runtime-contracts`)                                     |
+| Parser and limits      | `lib/avatar/vfx/definition.ts`, `effect-image-limits.ts`, `effect-image.ts`, `effectSource.ts`                                                         |
+| Runtime                | `lib/avatar/vfx/AvatarVFXController.ts`, `AvatarAttachmentEffects.ts`, `silhouetteOverlay.ts`, `animation.ts`, `types.ts`                              |
+| Face parts and anchors | `lib/avatar/vfx/faceParts.ts`, `profiles.ts` (name fallback), `AvatarFaceLandmarks.ts`, `AvatarFaceTextureAnchors.ts`, `lib/avatar/humanoidAnchors.ts` |
+| Creator                | `ui/avatar-effect-creator/`, editor document `lib/avatar/vfx/editor/`, shared creator code `ui/content-creator/`                                       |
+| Template picker        | `lib/effects/effectTemplates.ts`, `ui/create/EffectTemplatePickerDialog.tsx`, thumbnails `assets/effect-templates/`                                    |
+| Conversion             | `src/backend/animama/app/services/avatar_effect_conversion.py`, `scripts/content/convert_avatar_effects.py`                                            |
+| Tools                  | `web/scripts/effect-render.mjs`, `effect-thumbnails.mjs`, `effect-bench.mjs`, `animation-preview.mjs`                                                  |
 
-- `src/frontend/web/src/assets/effects/vfx/catalog.json`
+## 2) The `animama/avatar-effect/2` definition
 
-The catalog is imported into bundled frontend code through `vfx/catalog.ts`
-for creator templates and explicit debug tools. It is application-version
-coupled and is not a mounted typed-content source or package member.
+The strict Pydantic models in `app/contracts/avatar_effect.py` define every
+field, enum and bound. They type the Avatar Effect API projections, so
+`pnpm openapi-ts` generates the TypeScript type and the
+`zAvatarEffectDefinitionV2` validator that the runtime and creator use. Do not
+copy enums or bounds into frontend code; derive them from the generated types.
+Backend Save, typed preview, loadout and package import and export validate with
+the same models, and an error names a JSON path such as
+`definition.attachment.offset.x`.
 
-Live Anima routes do not query that global catalog by effect ID. Every Included
-and Local Avatar Effect descriptor contains its strict portable definition and
-registered image file. The mounted `AnimaRuntimeCatalog` consumes those
-handler-owned projections, fetches images through revision-scoped authorized
-file references, bounds them by media budgets, converts them to owned Blob
-URLs, and revokes them when the catalog is disposed. An absent or unknown
-runtime ID fails locally without a static/public fallback. Standalone editors
-and debug tools may construct the explicitly named authoring provider.
+```json
+{
+    "schema": "animama/avatar-effect/2",
+    "region": "eyes",
+    "attachment": {
+        "kind": "face_landmark",
+        "landmark": "eyes",
+        "side": "right",
+        "mirror": true
+    },
+    "art": {
+        "image": "swirl.png",
+        "flipbook": { "columns": 4, "rows": 2, "frames": 8, "fps": 12 }
+    },
+    "appearance": { "opacity": 0.9, "blend": "normal" },
+    "motion": { "spin": { "degreesPerSecond": 90 } },
+    "faceOptions": { "forceBlink": true }
+}
+```
 
-Avatar Effects use the closed `animama/avatar-effect/1` definition. The runtime
-rewrites its canonical logical image name and optional local Sound alias
-through the exact catalog revision's file and dependency maps before applying
-the effect. Avatar Effects are selected as dependencies inside Gestures and
-Reactions rather than independently equipped to an Anima.
+- **`attachment`**, by `kind`:
+    - `face_surface`: painted onto a face `part` (`face_skin`, `eye_iris`,
+      `eye_highlight`, `eyeline`, `eyelash`). `area` `full` or `eyes` covers the
+      part's texture layout; `undereye`, `blush` or `mouth` places a decal at a
+      face anchor on `face_skin`. Paired areas need `layout` (`single`: one side,
+      with `side` and optional `mirror`; `span`: one image across both sides).
+      `mode` is `overlay` or `replace` (decals are overlay only). `pivot` is the
+      image point placed on a decal's anchor. `offset` is in fractions of the
+      texture.
+    - `face_landmark`: a plane in front of the `eyes`, `mouth`, `forehead`, `top`
+      or `top_edge`, with `position` (`left`, `middle`, `right`, and the
+      `top_edge` corners) for the last three. `offset` is in metres in head
+      space; `rotationDeg` has x, y and z.
+    - `body`, `sticker` and `silhouette`: see [Attachments beyond the
+      face](#6-attachments-beyond-the-face).
 
-### Avatar Effect creator
+    Rotations are degrees. A mirrored copy (an eye or cheek drawn on the other
+    side) mirrors its horizontal offset.
 
-The protected `/avatar-effects/new` and
-`/avatar-effects/:avatarEffectId/edit` routes provide the typed Avatar Effect
-creator with an isolated portrait preview.
+- **`art`**: `image`; `otherEyeImage`, drawn unmirrored by the mirrored copy,
+  so asymmetric designs such as a wink need one effect (only with a mirrored
+  eye or paired face placement); and `flipbook`: frames left to right, top to
+  bottom on a `columns` × `rows` grid, with `fps` and `loop` (`loop`, `once`,
+  `pingpong`).
+- **`appearance`**: `opacity`, an optional `#rrggbb` multiplicative `tint` and
+  `blend` (`normal`, `additive`, `multiply`). A `replace` surface below full
+  opacity shows the original texture beneath it.
+- **`motion`**: the `pulse`, `spin` and `drift` presets (a preset is on when
+  present) and `keyframes`: `frames`, each with a time `t` and optional
+  `opacity`, `scale`, `rotationDeg` and `offset`, plus `loop`, on the effect's
+  own timeline. Keyframe scale and opacity multiply the presets; rotation and
+  offset add.
+- **`faceOptions`**, accepted only where the renderer honours them:
+  `forceBlink`, `hideEyeDetails`, `faceCleanup`, `skinBackdrop` and `hideParts`
+  on an eye landmark; `faceCleanup` and `skinBackdrop` on a mouth landmark;
+  `faceCleanup` on a mouth decal; `hideParts` on a `full` or `eyes` surface.
+  `forceBlink`, `hideEyeDetails` and `faceCleanup` default on where they apply;
+  `skinBackdrop` defaults off.
+- **`region`**: the replacement group (see [Coexistence](#coexistence)). Face
+  attachments use `eyes`, `undereye`, `blush`, `mouth`, `emote` or
+  `full_face`; the other attachments use their own kind.
+- **`soundAlias`**: an optional root-local Sound dependency alias.
 
-The author chooses the effect kind first:
+The runtime maps image names and the Sound alias through the exact catalog
+revision's file and dependency maps. There is no bundled Avatar Effect catalog:
+a `runtime_catalog` source reports `avatar_vfx_source_unsupported`, and an
+unknown runtime ID fails without a fallback.
 
-- **Hover** places eye, mouth, or face-box art on live face landmarks.
-- **Face decal** anchors a single or spanning image to under-eye, blush, or
-  mouth UV landmarks.
-- **Texture** overlays or replaces a classified live VRM material role.
+### Converting `/1`
 
-Each type exposes **Effect region**, which controls replacement rather than
-placement. Regions `eyes`, `undereye`, `blush`, and `mouth` replace earlier effects
-in that region; `emote` and `full_face` allow different instances to coexist.
-**Automatic** follows changes to type, subtype, decal anchor, or texture target.
-Choosing a region manually preserves it across those changes. New effects default
-to Automatic; existing definitions and older editor documents preserve their
-region as a manual choice. The editor stores this choice in `regionMode`; runtime
-definitions always contain the resolved region.
+Only `/2` is accepted. A `/1` definition is refused at Save, preview, loadout,
+package import and in the frontend parser with
+`avatar_effect_conversion_required` and a hint; API lists show such an item with
+`definition: null` and `definition_error`.
 
-Eye hover exposes **Force blink**, **Hide eye details**, **Clean up eye area**,
-and **Additional hidden materials**. Mouth hover and mouth decals expose **Clean
-up mouth area**. Texture exposes **Hidden materials**. These settings persist in
-the definition and editor document. The blink, automatic eye-detail hiding, and
-facial cleanup flags default to enabled when omitted by older content. Explicit
-hidden-material roles are additive to automatic eye-detail hiding; turning off
-Hide eye details does not clear those selections. **Skin backdrop** controls a
-separate hover backing plane and does not enable or disable facial cleanup.
+- **Local library:** `/1` effects convert in place at startup, on
+  `POST /v1/content:rescan`, or with
+  `uv run python -m animama.server.content_cli`. The folder, content ID and
+  files are kept, and the original bytes are retained in the transition
+  journal. An effect that cannot convert stays invalid with
+  `avatar_effect_conversion_failed` in Content Health.
+- **Descriptor folders** outside the Local library, such as Included content:
+  `uv run python scripts/content/convert_avatar_effects.py --write <folder>`
+  from the repository root. Without `--write` it is a dry run. It rewrites only
+  `definition` and leaves converted descriptors unchanged.
+- **Packages** cannot be converted: their manifest, sizes and digests cover the
+  original bytes. Convert the source content in the exporting installation and
+  export again.
 
-The creator accepts exactly one PNG, JPEG, or WebP image. Its serializable
-editor document stores only logical metadata and a digest; the browser-owned
-`File`, preview Blob URL, upload capability, and live `Avatar`/Three objects
-stay outside that document. The Blob URL is revoked whenever its image is
-replaced or the route unmounts.
+A Local `/1` eye effect with a mirrored placement and a nonzero
+`transform.offset.x` now mirrors that offset on the other eye; `/1` shifted
+both eyes the same way. The transition logs `avatar_effect_offset_mirrored` and
+the script prints a note. No Included effect is affected.
 
-An optional Sound Effect is stored as an exact typed dependency source. The
-portable definition refers to the root-local alias, so the runtime can rewrite
-it through the validated dependency map. Reopening an owned Avatar Effect
-hydrates the current Local descriptor, exact Sound source, and authorized image
-bytes into a new editor session. Save validates through the Avatar Effect
-handler and directly replaces the editable Local entry through
-`PUT /v1/avatar-effects/{entry_name}`; it creates no draft release or finalize
-step. Browser recovery remains authoring state only. It survives reloads and
-interrupted work, but is cleared after a successful Save or explicit discard.
-Discarding never changes the saved Library item.
+### Limits
 
-The live preview calls the production `AvatarVFXController` against the
-selected Anima's exact Avatar model. Diagnostics distinguish a malformed
-definition (blocks Save) from a model-specific missing binding or landmark
-(warning only). Play, stop, restart, camera framing, and placement guides are
-preview controls. Transform and animation settings define the reusable effect;
-its Gesture or Reaction event owns Start and End (with the Action, or after a
-specified duration). Selecting an event exposes these settings in the Action
-inspector; Reactions place that inspector above Expressions. Legacy avatar
-lifetime metadata is accepted when reading content but is not authored or used
-for conversation-turn/run-end expiry.
+Definitions and images are untrusted. They are bounded before decoding or GPU
+upload:
 
-The common Library previews Local and Included Avatar Effects through the typed
-preview route and links owned rows back to the stable edit route. After a ready
-Local item exists, the creator offers optional Gesture and Reaction handoffs
-containing only the stable catalog item ID and `avatar_effect` token. The
-action creator then resolves its current exact catalog revision.
+| What                                        | Limit                                                                                                                      |
+| ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Image                                       | 16 MiB; 4096 px per side and 16.7 M pixels, read from the PNG, JPEG or WebP header before decoding and checked again after |
+| Definition                                  | 64 KiB serialized                                                                                                          |
+| Flipbook                                    | grid at most 16 × 16, at most 256 frames, at most 60 fps                                                                   |
+| Keyframes                                   | at most 64, `t` at most 600 s                                                                                              |
+| Scale                                       | at most 20                                                                                                                 |
+| Rotation                                    | ±3600°                                                                                                                     |
+| Active body, sticker and silhouette effects | 4                                                                                                                          |
 
-### Placement guides
-
-The creator's **Guides** toggle follows the selected effect and Avatar. Open
-circles and faint reference lines mark the placement basis; solid pink outlines
-show the current image rectangle, including transparent padding. Left and right
-refer to the Avatar's sides. Eye/mouth hover guides follow their anchors; face-box
-hover also shows the face bounds and selected placement. Decals show only the
-selected under-eye, blush or mouth anchors. Estimated anchors are labeled.
-
-The **UV preview** icon opens the selected material's live texture and effect
-footprint independently of the Guides toggle.
-Choose a material/texture slot when more than one applies. Dashed reference boxes
-are placement bases, not clipping boundaries; the solid artwork outline includes
-pivot, offset, scale, rotation and animation. **Skin coverage** reveals relevant
-flattening regions and the sampled skin patch. Guides and UV controls affect only
-the preview, never the saved effect. Stopped effects retain available reference
-markers but have no live artwork outline.
-
-## 2) High-level model
-
-The runtime models VFX as a discriminated catalog union:
-
-1. `texture`
-2. `face_anchored`
-3. `hover`
-
-Rendering still happens through the same two surfaces:
-
-1. `texture`
-2. `hover_plane`
-
-At a high level:
-
-- `texture` effects stay attached to existing UVs on the avatar mesh
-- `hover_plane` effects are separate planes placed in front of the face
-
-This is all owned by `AvatarVFXController`, which is created by `Avatar` after a VRM loads successfully.
+The backend stores effect images unresized (it admits up to 16,384 px), so the
+creator refuses an oversized image when it is chosen, and an imported or
+hand-placed Local image over the limit fails when it loads: the effect is
+skipped with a diagnostic.
 
 ## 3) Runtime flow
 
-The VFX flow is:
-
-1. `Avatar` loads the VRM and creates:
-    - `AvatarFaceLandmarks`
-    - `AvatarFaceTextureAnchors`
-    - `AvatarVFXController`
-2. `AvatarVFXController` scans live primitive bindings from the rendered avatar scene.
-3. Material-name heuristics and per-model profile rules classify bindings into roles such as:
-    - `face_skin`
-    - `eye_iris`
-    - `eyeline`
-    - `eyelash`
-4. The mounted provider resolves the entry. Built-ins are immediate; private
-   entries are loaded asynchronously and stale results are discarded.
-5. The resolved entry is applied through one of the controller's kind-specific APIs:
-    - `applyTextureVFX(...)`
-    - `applyFaceAnchoredVFX(...)`
-    - `applyHoverVFX(...)`
-6. The controller either:
-    - contributes texture-backed layers to a binding-level composite texture
-    - or creates head-attached hover planes
-7. Active effects are animated at the controller's VFX tick rate when their `animationConfig` enables pulse, spin, or drift.
-
-A binding can hold multiple active effects at once.
-
-In practice that means:
-
-- multiple `texture` and `face_anchored` effects can stack on the same binding
-- multiple `hover` effects can coexist on the same binding
-- reapplying the same `effectId` replaces that logical effect instance rather than duplicating it
-
-The key design choice is that effects are applied to live primitive usages, not to abstract material definitions in isolation.
-
-### Face flatten prepass
-
-The VFX controller also owns a face-flatten system for the resolved `face_skin` binding.
-
-This is not a separate catalog VFX kind. It is a controller-generated texture prepass used to neutralize painted facial detail that would otherwise conflict with 2D VFX, especially:
-
-- painted eye shading under `eye_hover`
-- painted mouth detail under mouth decals
-- painted mouth detail under `mouth_hover`
-
-The flatten pass is driven by `AvatarFaceTextureAnchors`, which resolves dedicated UV regions for:
-
-- `flatten.sample.center`
-- `flatten.eyes.left`
-- `flatten.eyes.right`
-- `flatten.mouth.center`
-
-At runtime the controller:
-
-1. resolves the correct live `face_skin` binding
-2. samples an average face-skin color from the central sample patch
-3. keeps that sampled color in the VFX snapshot's `flatten` state
-4. draws soft elliptical fills into the face-skin composite before normal face-skin VFX layers are drawn
-
-Auto-activation requires an active effect with `faceCleanup !== false`:
-
-- `eye_hover` requests eye flattening
-- mouth `face_anchored` decals and `mouth_hover` request mouth flattening
-
-Disabling cleanup on one effect does not cancel another active effect's request.
-Omitting `faceCleanup` preserves automatic cleanup for existing content.
-
-The debug/editor layer can also enable eye or mouth flatten explicitly through `setFaceFlattenPreview({ previewEyes, previewMouth })`.
-
-Current implementation detail:
-
-- flattening is applied through the face binding's composite texture path, not by editing the source VRM asset
-- when both `map` and `shadeMultiplyTexture` are available on the face binding, the controller samples and flattens per slot
-- hover `skinBackdrop` uses the same sampled face color source as this flatten system
-
-## 4) VFX type 1: Anchored `face_skin` texture decals
-
-This is the mode for:
-
-- blush
-- under-eye effects
-- mouth decals
-
-These are `kind: "face_anchored"` entries.
-
-### How they work
-
-`AvatarFaceTextureAnchors` computes a small set of cached face anchors at avatar load:
-
-- `undereye.left`
-- `undereye.right`
-- `blush.left`
-- `blush.right`
-- `mouth.center`
-
-Those anchors are derived from 3D face landmarks and then projected onto the exact `face_skin` primitive to get UV coordinates.
-
-So the runtime does not guess placement from the face texture image alone. Instead it:
-
-1. finds a semantic 3D point on the face
-2. projects that point onto the `face_skin` mesh
-3. interpolates the UV at that point
-4. caches that UV for later use
-
-### Important property
-
-These anchors determine placement, not clipping.
-
-That means:
-
-- a tear asset can start under the eye and continue well below it
-- a mouth asset can be centered on the mouth anchor and extend outward
-
-The anchor box is only a placement basis for pivoting, offsets, and default scale.
-
-Mouth decals activate mouth flattening before the decal stack renders unless
-`faceCleanup` is `false`.
-
-### Main config fields
-
-- `anchor`: `undereye` | `blush` | `mouth`
-- `layout`: `single` | `span` for bilateral anchors
-- `pivot`
-- `side`
-- `requiresMirror`
-- `faceCleanup`: optional mouth cleanup flag, defaults to enabled
-- `transform.offset`
-- `transform.scale`
-
-### `single` vs `span`
-
-- `single` means one side-specific decal, optionally mirrored to the other side
-- `span` means one combined decal stretched once across both bilateral anchors
-
-In practice:
-
-- `single` is usually the better fit for authored left/right blush or under-eye assets
-- `span` is only appropriate for one wide image that is meant to cover both sides together
-
-## 5) VFX type 2: Full-surface `texture` effects
-
-The on-mesh texture path uses `kind: "texture"` entries.
-
-It is still the right choice for effects that should use the full texture dimensions of an existing surface.
-
-Typical targets:
-
-- `face_skin`
-- `eye_iris`
-
-Typical examples:
-
-- full-face sick/sweat overlays
-- full-face tinted overlays
-- iris replacements like stars or stylized pupils
-
-### How they work
-
-For texture-backed effects, the controller composites all effects at the binding level:
-
-1. clone the runtime material for the chosen primitive usage once
-2. resolve one or more placement rects for the effect inside each compatible slot
-3. store that effect as one active layer on the binding
-4. redraw one composite canvas per active slot
-5. assign one composite `CanvasTexture` per slot back to the cloned material
-
-The material still only sees one final texture per slot, but that final texture can represent a stack of active effects.
-
-The controller currently targets these slots:
-
-- `map`
-- `shadeMultiplyTexture`
-
-For stacked texture-backed effects, layer order is:
-
-1. full-surface `texture` effects
-2. anchored `face_anchored` decals
-3. within the same kind, later applies render above earlier applies
-
-The current implementation uses one logical active instance per `effectId`, so applying the same `effectId` again replaces the existing one.
-
-`AnimaPoseClip` playback can apply avatar VFX through timed clip events. The
-clip event stores the avatar VFX catalog `effectId`; `PoseController` schedules
-the event, and the runtime adapter applies it through the existing
-`AvatarVFXController`. Clip-owned applied ids are namespaced by clip/event
-context so cleanup can remove only the effects started by that clip. Baked pose
-clip export keeps avatar VFX events as catalog references rather than embedding
-VFX definitions.
-
-### `overlay` vs `replace`
-
-- `overlay` preserves the original texture and composites the VFX on top
-- `replace` draws only the effect result into the runtime texture slot
-
-Texture effects can also specify `disableTargetRoles` to hide recognized material
-bindings for the duration of the effect, independently of Overlay/Replace. The
-creator's Hidden materials selections round-trip this list; it is not restricted
-to eye highlights. Suppression skips the effect's source binding and depends on
-the model's material classification.
-
-Use full-surface textures only when the artwork matches the original UV layout.
-Localized cheek or mouth art uses anchored decals.
-
-## 6) VFX type 3: `hover_plane`
-
-This mode creates actual planes in front of the face rather than painting into the existing UV map, and is represented by `kind: "hover"` entries.
-
-It supports three placement kinds:
-
-1. `eye_hover`
-2. `mouth_hover`
-3. `box_hover`
-
-### 6.1) `eye_hover`
-
-This mode exists because the `face_skin` primitive usually does not contain usable eye geometry.
-
-So for some eye effects, painting onto `face_skin` is the wrong tool.
-
-Instead:
-
-- the runtime resolves iris landmarks from the `eye_iris` primitive
-- it builds a face-aligned placement slightly in front of the iris
-- it attaches a small transparent plane there
-
-Eye hover has three independent flags, all enabled when omitted:
-
-- `forceBlink` holds the blink expression at 1 while an enabled effect is active.
-- `autoDisableEyeMaterials` hides `eye_highlight`, `eyeline`, and `eyelash` bindings.
-- `faceCleanup` neutralizes painted eye shading on the resolved `face_skin`
-  binding through the face-flatten pass.
-
-`disableTargetRoles` adds explicit hidden roles to the automatic set. Disabling
-automatic hiding leaves those explicit roles in effect. These options let art
-replace the eyes or sit over the existing eyes without requiring a different
-rendering kind. Material suppression follows classified bindings rather than
-being limited to the effect's left/right placement.
-
-Good examples:
-
-- special closed-eye art
-- stylized eye plates
-- eye overlays that need to hover slightly above the eye
-
-### 6.2) `mouth_hover`
-
-This mode uses the resolved mouth anchor from `AvatarFaceTextureAnchors`.
-
-Instead of painting into the `face_skin` UV map, the runtime:
-
-- resolves the cached mouth anchor on the face skin binding
-- starts from that projected mouth surface point
-- moves slightly outward toward the face front plane instead of snapping to the box-hover plane
-- sizes that plane from the mouth anchor's reference size while preserving the asset's aspect ratio
-
-This is the hover-plane equivalent of a mouth decal.
-
-It is useful when the effect should sit over the mouth area, but should not be painted directly into the face texture.
-
-A `mouth_hover` effect enables mouth flattening on the resolved `face_skin`
-binding by default, neutralizing the painted mouth before the hover art renders.
-Set `faceCleanup: false` to preserve that painted detail.
-
-`eye_hover` and `mouth_hover` entries can also opt into a runtime-generated `skinBackdrop`.
-
-When enabled:
-
-- the controller reuses the sampled face-skin color from the flatten system
-- generates a soft elliptical backdrop at apply time
-- renders that backdrop as a second hover-plane layer behind the foreground art
-- uses a trimmed face-style material clone rather than a plain `MeshBasicMaterial`, so it follows the same `map` / `shadeMultiplyTexture` path while stripping normal, matcap, emissive, and similar face-only extras from the backdrop clone
-
-This is useful for stylized 2D hover effects that should mask some of the underlying 3D facial geometry without baking avatar-specific color into the PNG asset.
-
-Good examples:
-
-- stylized closed-mouth symbols
-- mouth overlays that should float just above the face
-- mouth art that conflicts with the painted mouth in the base face texture
-
-### 6.3) `box_hover`
-
-This mode uses a face bounding box and named positions derived from `AvatarFaceLandmarks`.
-
-Supported positions include:
-
-- `forehead-left`
-- `forehead-middle`
-- `forehead-right`
-- `top-left`
-- `top-middle`
-- `top-right`
-- `top-edge-left-corner`
-- `top-edge-left`
-- `top-edge-middle`
-- `top-edge-right`
-- `top-edge-right-corner`
-
-These positions are resolved in head-local space and then used to place a face-attached plane.
-
-Good examples:
-
-- anime anger mark
-- exclamation mark
-- forehead icons
-- symbols that should float around the top of the face rather than sit on the skin
-
-## 7) Animation model
-
-Both `texture` and `hover_plane` effects can use the same animation config system.
-
-Current supported channels are:
-
-- pulse
-- spin
-- drift
-
-The controller resolves animation from `animationConfig`, not from a shader-specific system.
-
-That means:
-
-- texture effects animate through draw-time transforms on their resolved placement rects
-- hover planes animate through local transform changes on the plane group
-
-Texture animation uses placement-local draw transforms:
-
-- eye and face placements are resolved once when the effect is applied
-- pulse/spin/drift are evaluated against those placements
-- the animated draw happens around each placement's own local center
-
-Placement-local transforms keep localized iris effects centered within their
-regions of the atlas.
-
-The controller also throttles VFX animation updates to 30 FPS.
-
-In practice:
-
-- hover transforms update on that VFX tick
-- animated texture composites redraw on that VFX tick
-- avatar skeletal animation and the main render loop can still run faster than that
-
-Common fields include:
-
-- `pulseScaleMin`
-- `pulseScaleMax`
-- `pulseCyclesPerSecond`
-- `rotationAmountTurns`
-- `rotationRadiansPerSecond`
-- `rotationDirection`
-- `driftPerSecond`
-
-## 8) Transform model
-
-Each `AvatarVFXCatalogEntry` has a `transform` object with:
-
-- `offset`
-- `scale`
-- `rotation`
-
-Each of those currently has `x`, `y`, and `z`.
-
-Current practical usage:
-
-- `texture`
-    - `offset.x/y` shift the effect in UV space
-    - `scale.x/y` change the effect rect size
-- `hover_plane`
-    - `offset.x/y/z` move the plane in head-local space
-    - `scale.x/y` change the plane size
-
-Not every axis is equally meaningful for every render mode.
-
-## 9) Choosing the right mode
-
-| Mode           | Use                                    | Asset guidance                                                            |
-| -------------- | -------------------------------------- | ------------------------------------------------------------------------- |
-| Anchored decal | Local art painted onto the face        | Author one side; use `side` and `requiresMirror` for bilateral placement. |
-| Texture        | Full-face overlays or iris replacement | Match the original UV layout.                                             |
-| Hover plane    | Art floating in front of the face      | Use transparent images framed around the intended landmark.               |
-
-## 11) Performance profile
-
-The runtime still keeps several expensive operations one-time:
-
-- face landmarks are resolved once at avatar load
-- face texture anchors are resolved once at avatar load
-- texture and hover placements are resolved once at effect application
-- material cloning happens once per active composite binding
-
-Each VFX tick performs this work:
-
-- hover effects update local transforms
-- animated texture effects redraw the binding's composite texture
-- the resulting composite `CanvasTexture` is marked dirty and re-uploaded
-- face flattening only forces a composite rebuild when its state changes, not on every frame by itself
-
-The controller caches the static parts of the texture stack:
-
-- original base texture content for `overlay`
-- face flatten fills for eye and mouth regions
-- all non-animated texture-backed layers
-- static segments between animated layers
-
-On an animation tick, the controller composites those cached static segments with the current animated layers instead of rebuilding the full static stack every render frame.
-
-Animated texture effects require canvas redraw and texture upload on animation
-ticks; account for that work when measuring VFX performance.
-
-There is no per-frame face landmark solve in the normal path.
-
-## 12) Current limitations
-
-- target matching is still heuristic-first unless a per-model profile override exists
-- anchored decal quality still depends on the quality of the cached anchors
-- `face_skin` usually does not include usable eye geometry
-- full-face overlay artwork may fit poorly when used as an anchored decal
-- `span` decals are easy to misuse if the art was not authored as one wide bilateral image
-- animated texture effects are still more expensive than hover effects because the final composite texture must be refreshed on animation ticks
-- texture slot targeting is still broad; the current runtime considers both `map` and `shadeMultiplyTexture` when they exist
-- flatten quality depends on both anchor quality and the sampled face-skin region; if those are poor, the neutralized area can still look off
+1. `Avatar.load` detects the face parts (`detectAvatarFaceParts`), applies the
+   Avatar's saved correction, then builds `AvatarFaceLandmarks`,
+   `AvatarFaceTextureAnchors` and `AvatarVFXController`.
+2. The controller scans the live primitive bindings
+   (`buildRuntimePrimitiveBindings`, keyed `node:mesh:primitive`) and assigns
+   them roles from the part map.
+3. `parseAvatarEffectDefinition` validates a definition with the generated zod
+   schema and normalizes it into an internal entry. Face attachments keep the
+   older internal names, which the controller and debug snapshots use:
+
+    | `/2` attachment                         | Internal entry                     | Surface                          |
+    | --------------------------------------- | ---------------------------------- | -------------------------------- |
+    | `face_landmark` eyes, mouth             | `hover` `eye_hover`, `mouth_hover` | plane in front of the face       |
+    | `face_landmark` forehead, top, top edge | `hover` `box_hover`                | plane in front of the face       |
+    | `face_surface` undereye, blush, mouth   | `face_anchored`                    | composite texture on `face_skin` |
+    | `face_surface` full, eyes               | `texture`                          | composite texture on the part    |
+    | `body`, `sticker`, `silhouette`         | attachment entry                   | `AvatarAttachmentEffects`        |
+
+4. The mounted catalog loads the images (one Blob URL per image, revoked when
+   the catalog is disposed) and the controller applies the entry through
+   `applyTextureVFX`, `applyFaceAnchoredVFX`, `applyHoverVFX` or
+   `applyAttachmentVFX`; `applyAvatarVFXEffectById` chooses one. Stale async
+   results are discarded.
+5. Animated effects update on the controller's 30 FPS tick: planes change their
+   transforms, and animated composites redraw and re-upload their texture.
+
+Effects apply to live primitive usages, not to shared material definitions.
+Clip-owned applied IDs are namespaced by clip and event, so cleanup removes
+only the effects that clip started. `presentation.disable_vfx` suppresses
+clip-owned effects.
+
+## 4) Face effects
+
+### Painted effects (`face_surface`)
+
+Composites clone the runtime material of each affected primitive once and draw
+one composite canvas per active slot (`map` and, when present,
+`shadeMultiplyTexture`). Full-surface layers draw first, then anchored decals;
+within a kind, later applies draw on top. Re-applying the same applied ID
+replaces that instance.
+
+- **`full` and `eyes`** use the part's texture layout, so full-face art must
+  match the Avatar's UV layout. `hideParts` hides other detected parts while
+  the effect is active.
+- **Decals** (`undereye`, `blush`, `mouth`) are placed at UV anchors that
+  `AvatarFaceTextureAnchors` computes at load: a 3D landmark is projected onto
+  the `face_skin` mesh and its UV is interpolated. The anchor sets position,
+  pivot and reference size; it does not clip the art, so a tear can run below
+  the eye. `span` stretches one image across both anchors; use it only for art
+  drawn that way.
+
+### Floating effects (`face_landmark`)
+
+Planes are parented to the normalized head bone (render order 950, depth tested,
+so hair can hide them). Eye planes sit just in front of the iris landmarks;
+mouth planes start at the projected mouth point, sized from its anchor; forehead
+and top planes use positions around the face bounds, clear of detected hair.
+
+Eye planes default to closing the eyes (`forceBlink` holds `blink` at 1 at full intensity; a fading event weights it, see the fades section),
+hiding eye highlights, lines and lashes (`hideEyeDetails`) and cleaning up the
+painted eye area (`faceCleanup`). `skinBackdrop`, off by default, adds a
+skin-coloured plane behind eye or mouth art (render order 949).
+
+### Face cleanup
+
+`faceCleanup` (eye planes, mouth planes and mouth decals) runs a flatten pass
+on the `face_skin` composite: the controller samples the average skin colour
+from a central patch and paints soft ellipses over the painted eyes or mouth
+before other layers draw. It never edits the VRM. One effect turning cleanup
+off does not cancel another's request. `skinBackdrop` uses the same sampled
+colour. `setFaceFlattenPreview` shows the pass in debug tools.
+
+### Coexistence
+
+Face effects with the same `region` replace each other for `eyes`, `undereye`,
+`blush` and `mouth`; `emote` and `full_face` effects stack. Region decides
+replacement only, not placement: a mark above the head saved with region `eyes`
+still replaces eye effects. Body, sticker and silhouette effects coexist with
+face effects and with each other (see below).
+
+## 5) Face parts
+
+Effects find the face from VRM signals rather than material names, which the
+VRM specification does not define. `detectAvatarFaceParts`
+(`lib/avatar/vfx/faceParts.ts`) reports these parts:
+
+| Part                             | Signal                                                                                                                                                                                                                                                                         |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `eye_left`, `eye_right` (irises) | Primitives with at least half their skin weight on the humanoid `leftEye`/`rightEye` bones (or whose material a look-at expression moves through a texture transform). Iris, white and highlight are told apart by projected area and depth. One primitive may hold both eyes. |
+| `face_skin`                      | The head-skinned primitive of the mesh that both `blink` and `aa` morph, with the most area around the eyes.                                                                                                                                                                   |
+| `eye_highlight`                  | Separated from the iris by size and depth.                                                                                                                                                                                                                                     |
+| `eyeline`, `eyelash`             | Small primitives of the face mesh that `blink` moves almost entirely; the larger is the eye line.                                                                                                                                                                              |
+| `hair`                           | Primitives in the head subtree with a real share of spring-joint weight (used to keep forehead and top planes clear).                                                                                                                                                          |
+
+Each part reports its `node:mesh:primitive` bindings, a source (`signals`,
+`names`, `corrected` or `missing`) and a confidence. Material and node names
+(`profiles.ts`) are a fallback per part; if detection itself fails, the Avatar
+still loads with name matching and logs `avatar_face_parts_detection_failed`.
+Detection takes a few milliseconds per Avatar and never writes world matrices.
+
+### Corrections
+
+A user corrects a part in the creator's [Face parts panel](#face-parts-panel).
+The correction is an `animama/avatar-face-parts/1` document
+(`app/contracts/avatar_face_parts.py`): primitive keys for `face_skin`,
+`eye_left` and `eye_right`, optional keys for the other parts (an empty list
+marks a part absent), and the VRM file's `vrm_sha256`.
+
+- **Local Avatars** store it as `face_parts` in their `.meta.json` sidecar, so
+  saving one creates a new Avatar revision.
+- **Included Avatars** are never written. Each owner's correction is a row in
+  the `avatar_face_part_overrides` table, bound to the Avatar revision it was
+  saved against and ignored once that revision changes.
+- `GET` and `PUT /v1/avatar-content/{item_id}/face-parts` read and save the
+  effective value with an expected revision. Typed Avatar responses and the
+  runtime snapshot's `avatar` carry it, and packages carry it with the Avatar.
+  See the backend's [face-part
+  corrections](../../backend/features/custom-animas-and-content.md#face-part-corrections).
+
+Primitive keys are stable only for identical VRM bytes. A correction whose
+`vrm_sha256` does not match the loaded file is ignored with a diagnostic, so it
+never applies to a different model; clearing it restores detection. The chat
+canvas passes the correction and the VRM digest to `Avatar.load`;
+`Avatar.setFacePartCorrections` rebuilds the parts, landmarks, anchors and
+bindings and re-applies the active effects.
+
+One mesh can hold several parts: Annie's eyelashes, for example, are drawn in
+her eye-line mesh. Each binding therefore serves every role whose part lists
+it, and an effect on any of those roles uses it. A part the user changed comes
+first, so it is the binding's primary role, and correcting Eyelashes to the
+eye-line mesh paints eyelash effects there while eye-line effects still work.
+Hiding eye details never hides a mesh that is also face skin or an iris.
+
+### Missing parts
+
+An effect whose part is missing (face skin for every face effect, the covered
+eye for an eye plane, the painted part for a surface effect) is not applied.
+The controller logs one `avatar_effect_face_part_unavailable` warning per
+effect and part and lists it in its snapshot warnings, which the VRM debug
+panel shows. In chat, the Gesture or Reaction continues without the effect. The
+creator names the missing part on its stage and toolbar.
+
+## 6) Attachments beyond the face
+
+Body, sticker and silhouette effects need no face part. They follow the Avatar
+through Gestures, Reactions and idle motion, and `AvatarVFXController`
+delegates them to `AvatarAttachmentEffects`.
+
+- **`body`**: a plane on a humanoid point (`root`, `hips`, `spine`, `chest`,
+  `neck`, `head`, hands or feet), parented to the normalized bone.
+  `resolveHumanoidAnchorObject` uses the same fallback chain as Particle Effect
+  anchors (for example `chest` → `upperChest` → `spine` → `hips`). `offset` is
+  in metres in the bone's frame (+x toward the viewer's right when facing the
+  Avatar, +y up, +z forward, on VRM 0 and 1); `size` is the plane height in
+  metres. It faces each camera (`facing: "camera"`) or keeps the bone's
+  orientation (`"bone"`).
+- **`sticker`**: a camera-facing image beside the head (`around: "head"`) or
+  the body centre (between the hips and head). `size` and the screen-plane
+  `offset` are fractions of the Avatar's height, measured at load from the bind
+  pose, so stickers stay readable on any model. They ignore depth (render order
+  960), so the Avatar never hides them.
+- **`silhouette`**: art drawn only over the Avatar's visible pixels. Each
+  depth-writing primitive gets an overlay mesh sharing its geometry, skeleton
+  and live morph weights (render order 940, `LessEqual` depth with a small
+  polygon offset). It honours the original material's alpha cutout and changes
+  no material or canvas option. MToon outlines and layers that write no depth
+  (irises, highlights, brows, eye lines, lashes) get no overlay.
+  `fill: "pattern"` tiles the art in screen space from the hips (at
+  `patternScale` 1 a tile is a quarter of the Avatar's on-screen height, so
+  tileable art works best) and `scroll` moves it in tiles per second;
+  `fill: "tint"` fills with the art's alpha-weighted average colour times
+  `appearance.tint`.
+
+Appearance, flipbooks, keyframes and event fades apply to all three. At most
+four are active (`MAX_ACTIVE_ATTACHMENT_EFFECTS`); applying a fifth removes the
+oldest and logs `avatar_effect_attachment_limit`. An attachment and a face
+effect with the same applied ID replace each other. Attachments survive a
+face-part correction and are disposed by `removeEffect`, `clearAllEffects`,
+clip cleanup and `presentation.disable_vfx`.
+
+## 7) Timing, fades and motion
+
+The effect owns its own motion: presets, keyframes and flipbook frames run on
+its own timeline from the moment it applies. Pulse multiplies scale; spin
+below one turn rocks back and forth and otherwise wraps; drift moves
+continuously, in fractions of the art's size per second, with no return.
+Planes animate their transforms; composites redraw around each placement's own
+centre. Flipbooks on planes move texture `repeat`/`offset` without a
+re-upload; composites draw one frame through a source rectangle.
+
+The Gesture or Reaction event owns start, end and fade. For an `avatar_vfx`
+event whose End is **After** a duration, the clip inspector's **Fade in** and
+**Fade out** (seconds) write `envelope.intensity`. `PoseController` and
+`ReactionClipPlayer` sample it each frame and pass it through the Avatar's clip
+sink (`setAvatarVFXIntensity`) to `AvatarVFXController.setEffectIntensity`,
+which multiplies the art's and the skin backing's opacity; a value that
+arrives while the effect is loading is held until it applies. The effect's face
+changes follow the same value: **Close the eyes** blinks by it, and hidden face
+parts and face cleanup switch on and off at half intensity, so a fading eye
+effect never shows bare eye sockets under faint art. The Gesture and Reaction
+creator's preview samples the envelope too, while playing and when paused. Events that end **With Action** do not fade. The event
+shape is the same in `animaPoseClip/1.0` and `2.0`, and parameter keyframes are
+not supported for Avatar Effects.
+
+## 8) Creator
+
+### Starting an effect
+
+The sidebar Create menu's **Effects** item, the Create page's effect cards and
+`/effects/new` open the Effects template picker. Step 1 chooses Particle FX,
+Avatar FX or Scene FX; step 2 offers **Start from scratch** and that kind's
+templates, with Back. Avatar FX templates are the Included Avatar Effects,
+grouped as Eyes, Whole face, Above the head and Mouth in
+`lib/effects/effectTemplates.ts`, with thumbnails captured on the Included
+Avatar Annie. Choosing one opens `/avatar-effects/new?template=<id>`, which
+copies the Included effect into a new, unsaved Local draft with an unused name;
+Save creates a separate Local item and never changes the Included one.
+`/avatar-effects/new` and `/avatar-effects/:avatarEffectId/edit` remain the
+creator routes, and Library Edit links open the second.
+
+Save, recovery, undo and the leave guard are shared with the Particle and Scene
+creators (see [local content runtime](../architecture/local-content-runtime.md)).
+Save replaces the Local entry through `PUT /v1/avatar-effects/{entry_name}`
+after backend validation. A rejected field opens the tab holding its control
+and outlines it. Drafts in the earlier editor format are dropped with a notice.
+
+### Controls
+
+The editor document (`animama/avatar-effect-editor/2`, the creator's JSON
+export) mirrors the `/2` definition and keeps images as metadata and digests;
+`File`s, Blob URLs and live `Avatar` objects stay outside it.
+
+- **Effect Setup** (left): **Attach to** (Floating on the face, Painted on the
+  face, On the body, Sticker beside the avatar, Fill the silhouette), then only
+  that attachment's fields in plain words: **Where**, **Position**, **Which
+  eyes** or **Which side**, **Art is drawn for the**, **Where on the face**,
+  **Paint on**, **Image point placed on the face**, **Keep the original
+  underneath**, **Body point**, **Always face the camera**, **Beside the** or
+  **Fill**. Below them are **Image**, **Other side image**, **Animated sprite
+  sheet**, the face options the attachment honours (**Close the eyes**, **Hide
+  eye details**, **Clean up the eye area** or **mouth area**, **Skin-coloured
+  backing**, **Hide other face parts**), **Sound when applied**,
+  **Description** and **Advanced → Replaces** (the region; Automatic follows
+  the attachment, and a manual choice is kept while it still suits it).
+- **Inspector** (right): **Placement** shows only the axes that apply, in
+  centimetres, percent of the texture or percent of the Avatar's height, with
+  size, **Rotation (°)** and, for floating art, tilt; **Look** has opacity,
+  tint and blend (Normal, Glow, Shade); **Motion** has Pulse, Spin (°/s),
+  Drift and a keyframe list.
+- **Preview controls**: **Model** (both Included Avatars and the active
+  Anima's model), **View** (Face, Three-quarter, Portrait, Full body), Play,
+  Stop, Restart, **Guides**, **UV preview** and **Face parts**. An effect
+  opens in a View that frames its art (`avatarEffectInitialView`: Portrait
+  for art above the head, on the forehead, on the body or beside the Avatar),
+  and Save keeps the Model and View. The header
+  holds the name, New, Import, JSON, Save and, once a Local item exists, **Use
+  in… → Use in a Gesture** or **Use in a Reaction**.
+
+### Direct manipulation
+
+Drag the art on the preview to place it: across the face for painted art (a
+`Raycaster` finds the UV under the pointer, `meshUvLocator.ts`), in the head or
+bone plane for floating and body art, and in the screen plane for stickers.
+Corner handles resize and the round handle turns; art drawn smaller than
+32 px gets its handles on a 32 px box, and a press up to 12 px outside the art
+still moves it rather than turning the camera. Each drag is one undo step,
+and with the preview focused the arrow keys nudge the art (Shift moves
+further). Placement edits reach the preview through
+`AvatarVFXController.updateEffectTransform` without reloading the image
+(composites redraw at most 30 times a second), and the Placement fields follow.
+Other edits re-apply the effect.
+
+**Guides** marks the placement basis with open circles and faint lines and
+outlines the whole image rectangle, including transparent padding, in pink.
+Left and right are the Avatar's sides. **UV preview** shows the selected part's
+live texture and the art's footprint; **Skin coverage** shows the cleanup
+regions and the sampled skin patch. Guides affect only the preview.
+
+### Face parts panel
+
+**Face parts** lists the selected Avatar's parts with their status: Detected
+with a confidence, uncertain (found by name or below 70%), Corrected (only a
+part the user changed; a saved correction also pins the required parts at
+their detected values) or Missing. **Edit** a part, then tick its mesh parts in
+the list or choose **Pick on the avatar** and click the Avatar. **Save correction** stores it with the
+Avatar through the face-parts route and rebuilds the preview, and **Use detected
+parts** removes it. A draft correction belongs to the Avatar it was made on and
+is discarded when the model changes.
+
+## 9) Tools
+
+Run these from `src/frontend/web`. They need no running stack.
+
+### Review renders
+
+`pnpm -s effects:render` renders effects on both Included Avatars in headless
+Chromium (SwiftShader) with the chat canvas settings (ACES Filmic, sRGB, the
+default scene lights), stepping fixed 60 Hz frames with automatic animation
+off, so renders are deterministic:
+
+```bash
+pnpm -s effects:render ./my-effect --out /tmp/my-effect.png
+pnpm -s effects:render --all-included --out /tmp/effect-sheets
+pnpm -s effects:render ./heart ./doki ./stripes --together --with-clip library:soldier-salute --out /tmp/follow
+pnpm -s effects:render ./my-effect --thumbnail /tmp/my-effect.webp
+pnpm -s effects:render --diff before.png after.png --out diff.png
+```
+
+- A source is an effect folder, a descriptor `.json` or
+  `library:[included/|local/]<stem|content_id|name>`; `library:local/…` needs
+  `--local-content <content root>`.
+- Rows are times after applying (`--times`, default 0.1, 0.5, 1 and 2 s);
+  each Avatar gets front, ¾ and face tiles (`--views`, `--tile`).
+  `--expression` holds a VRM expression, `--with-clip` samples a Gesture's
+  body and expressions at the same times, and `--together` applies every
+  source on one sheet.
+- The run exits 1 when an effect leaves a controller warning or no active
+  effect.
+- `--thumbnail` renders Annie with the portrait head framing, keeping the
+  effect's own expression state.
+- `--diff` counts a pixel when a channel changes by more than `--threshold`
+  (default 8 of 255) and writes a diff image. The same source and revision diff
+  to 0 pixels.
+
+`pnpm -s effects:thumbnails [template-id...]` regenerates the picker's Avatar FX
+thumbnails (320 px WebP, 1 s after applying) into `src/assets/effect-templates/`
+and removes files for templates that no longer exist. Run it after changing the
+template list or an Included effect it uses, review the images, and keep that
+folder's README provenance current.
+
+### Headed preview
+
+`pnpm -s animation:preview` reviews an effect live on both Included Avatars in
+the system browser, with the motion preview's camera presets, transport and
+review notes:
+
+```bash
+pnpm -s animation:preview ./my-effect                # folder or descriptor .json
+pnpm -s animation:preview library:avatar-effect/eye_confused_swirl --duration 2
+pnpm -s animation:preview library:included/confusion-2   # a Reaction with its effects
+```
+
+- An effect source is resolved like `effects:render`'s, parsed with the `/2`
+  parser and applied through `applyAvatarVFXEffectById`. A field-level problem
+  is shown while the last valid version keeps playing.
+- It re-applies every 4 s, on its own cycle beside a longer Compare row.
+  `--duration <s>` keeps it that long, removes it for 0.5 s and repeats.
+  Seeking re-applies it and steps its frames to the chosen time.
+- Keep each effect descriptor in its own `<stem>/` folder. The preview watches
+  that folder recursively, so a new or changed image reloads the effect at once,
+  and unrelated files in a shared folder would reload it too. The version covers
+  the image bytes, so a reload with no change does nothing.
+- Notes go beside the effect's folder (`my-effect.review.json`). For anything
+  inside Library content (under the Included or Local root, a `vfx/avatar/`
+  folder, or a `<stem>/` folder holding `<stem>.meta.json`) they go in the
+  working directory, because the content scanner would count them as item
+  files.
+- A Library Gesture or Reaction, or a project file, plays its Avatar and
+  Particle Effects with their fades, resolved from its dependencies. The
+  **Effect warnings** panel lists what it cannot play (Scene Effects, sounds,
+  unresolved aliases), controller warnings, failed clip events and skipped face
+  parts.
+
+### Frame-cost benchmark
+
+`pnpm -s effects:bench` measures frame cost on the development machine's GPU.
+It plays a looping Gesture on a chat-equivalent canvas (800 × 600 at DPR 2,
+antialiasing, ACES) and times `avatar.update` plus render on the CPU, and the
+render on the GPU (`EXT_disjoint_timer_query_webgl2`), per Included Avatar,
+with no effects and with a heavy combination (an animated full-face texture, an
+animated eye plane, a body effect and a silhouette). The scenarios alternate
+over `--rounds` passes, and GPU samples voided by a disjoint event are dropped
+and counted. The budget is a mean added frame time of at most 2 ms. A software
+WebGL renderer is refused. Options: `--frames`, `--warmup`, `--rounds`,
+`--clip`, `--effects`, `--headed`, `--json <file>`.
+
+## 10) Performance
+
+Landmarks, texture anchors and face parts are built at load (and again after a
+correction); placements are resolved when an effect applies. Per tick, planes
+update transforms and animated composites redraw and re-upload. The controller
+caches the original texture, cleanup fills, static layers and static segments
+between animated layers, so a tick redraws only what moves. An animated
+full-face texture is the most expensive effect; it dominates the heavy
+combination's GPU p95. Camera-facing planes and stickers compose one matrix
+per render; a silhouette adds one skinned draw per overlaid primitive (about
+11–13 on the Included Avatars).
+
+## 11) Troubleshooting
+
+| Symptom                                                                                                    | Check                                                                                                                                                                                                                      |
+| ---------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Save fails naming a field                                                                                  | The backend refused the definition (`avatar_effect_definition_invalid`); the creator opens and outlines the control. Fix that value.                                                                                       |
+| "Conversion required" at Save, preview, Equip or import                                                    | A `/1` definition. Rescan or run `content_cli` for Local content, the conversion script for a descriptor folder; re-export a package from a converted installation. A failed Local conversion is listed in Content Health. |
+| Effect never appears on one Avatar                                                                         | The snapshot or **Effect warnings** list `avatar_effect_face_part_unavailable`: open **Face parts**, correct the missing or uncertain part and save.                                                                       |
+| A saved correction has no effect                                                                           | The VRM bytes changed (`vrm_sha256` mismatch) or an Included Avatar's revision changed; correct the parts again.                                                                                                           |
+| Requests reading Avatars or starting chat fail with `relation "avatar_face_part_overrides" does not exist` | The development database predates the table. Reset it (see [development operations](../../backend/operations/development.md#database)).                                                                                    |
+| A body, sticker or silhouette effect vanished                                                              | A fifth attachment replaced the oldest (`avatar_effect_attachment_limit`).                                                                                                                                                 |
+| Blush or tears disappear when another effect starts                                                        | Both use the same replacing region; check **Advanced → Replaces**.                                                                                                                                                         |
+| Large outline, small visible art                                                                           | Transparent padding counts toward size and pivot; trim the image or adjust size.                                                                                                                                           |
+| Visible skin patch around eye or mouth art                                                                 | Compare **Clean up**, **Skin-coloured backing** and **Skin coverage**; the sampled colour or anchors may be poor on this model.                                                                                            |
+| Full-face art misaligned                                                                                   | It must match the Avatar's UV layout; use a decal for localized marks.                                                                                                                                                     |
+| Image refused or effect skipped on load                                                                    | It exceeds the image limits; resize it.                                                                                                                                                                                    |
+| A mirrored eye moved the wrong way after conversion                                                        | `avatar_effect_offset_mirrored`: `/2` mirrors x offsets on the mirrored copy. Adjust the offset.                                                                                                                           |
+| Works in the creator but not in chat                                                                       | The effect must be in a saved, selected Gesture or Reaction in the mounted catalog, and Disable VFX must be off.                                                                                                           |
+
+## 12) Limitations
+
+- Detection is tuned and tested on the two Included (VRoid) Avatars; other
+  models may need a correction. Without eye bones, side assignment may be wrong.
+- Hidden face parts and face cleanup cannot fade; they switch at half the
+  event's envelope.
+- Decal quality depends on the cached anchors, and cleanup quality on the
+  sampled skin region.
+- Surface effects target both `map` and `shadeMultiplyTexture` when present.
+- Floating planes are depth tested, so hair can cover eye art; stickers are not.

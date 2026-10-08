@@ -7,25 +7,29 @@
   "description": "Bright star pupils that emphasize adoration, delight, or being deeply impressed.",
   "dependencies": [],
   "definition": {
-    "schema": "animama/avatar-effect/1",
-    "kind": "texture",
+    "schema": "animama/avatar-effect/2",
     "region": "eyes",
-    "targetRole": "eye_iris",
-    "disableTargetRoles": [
-      "eye_highlight"
-    ],
-    "assetShape": "single_eye",
-    "applyMode": "overlay",
-    "animationConfig": {
-      "pulseScaleMin": 0.8,
-      "pulseScaleMax": 1.2,
-      "pulseCyclesPerSecond": 1.6
+    "attachment": {
+      "kind": "face_surface",
+      "part": "eye_iris",
+      "area": "eyes",
+      "layout": "single"
     },
-    "lifetime": {
-      "kind": "duration",
-      "runEndBufferSec": 5
+    "art": {
+      "image": "star.png"
     },
-    "image": "star.png"
+    "motion": {
+      "pulse": {
+        "scaleMin": 0.8,
+        "scaleMax": 1.2,
+        "cyclesPerSecond": 1.6
+      }
+    },
+    "faceOptions": {
+      "hideParts": [
+        "eye_highlight"
+      ]
+    }
   },
   "files": [
     {

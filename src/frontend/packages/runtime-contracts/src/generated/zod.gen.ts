@@ -112,6 +112,369 @@ export const zAnimaStarterResult = z.object({
 });
 
 /**
+ * AvatarEffectAppearance
+ *
+ * Opacity, an optional multiplicative tint and the blend mode.
+ */
+export const zAvatarEffectAppearance = z.object({
+    blend: z.optional(z.enum([
+        'normal',
+        'additive',
+        'multiply'
+    ])),
+    opacity: z.optional(z.number().gte(0).lte(1)).default(1),
+    tint: z.optional(z.union([
+        z.string().regex(/^#[0-9a-fA-F]{6}$/),
+        z.null()
+    ]))
+});
+
+/**
+ * AvatarEffectDrift
+ *
+ * Constant movement per second, in fractions of the art's size.
+ */
+export const zAvatarEffectDrift = z.object({
+    x: z.optional(z.union([
+        z.number().gte(-10).lte(10),
+        z.null()
+    ])),
+    y: z.optional(z.union([
+        z.number().gte(-10).lte(10),
+        z.null()
+    ]))
+});
+
+/**
+ * AvatarEffectFaceOptions
+ *
+ * Face cleanup options for eye and mouth effects.
+ *
+ * Where an option applies, ``forceBlink``, ``hideEyeDetails`` and ``faceCleanup`` default on and
+ * ``skinBackdrop`` defaults off.
+ */
+export const zAvatarEffectFaceOptions = z.object({
+    faceCleanup: z.optional(z.union([
+        z.boolean(),
+        z.null()
+    ])),
+    forceBlink: z.optional(z.union([
+        z.boolean(),
+        z.null()
+    ])),
+    hideEyeDetails: z.optional(z.union([
+        z.boolean(),
+        z.null()
+    ])),
+    hideParts: z.optional(z.union([
+        z.array(z.enum([
+            'face_skin',
+            'eye_iris',
+            'eye_highlight',
+            'eyeline',
+            'eyelash'
+        ])).max(5),
+        z.null()
+    ])),
+    skinBackdrop: z.optional(z.union([
+        z.boolean(),
+        z.null()
+    ]))
+});
+
+/**
+ * AvatarEffectFlipbook
+ *
+ * Frames laid out left to right, top to bottom on a grid in ``art.image``.
+ */
+export const zAvatarEffectFlipbook = z.object({
+    columns: z.int().gte(1).lte(16),
+    fps: z.number().gt(0).lte(60),
+    frames: z.int().gte(1).lte(256),
+    loop: z.optional(z.enum([
+        'loop',
+        'once',
+        'pingpong'
+    ])),
+    rows: z.int().gte(1).lte(16)
+});
+
+/**
+ * AvatarEffectArt
+ *
+ * Registered image names; ``otherEyeImage`` replaces the mirrored copy.
+ */
+export const zAvatarEffectArt = z.object({
+    flipbook: z.optional(z.union([
+        zAvatarEffectFlipbook,
+        z.null()
+    ])),
+    image: z.string().min(1).max(255),
+    otherEyeImage: z.optional(z.union([
+        z.string().min(1).max(255),
+        z.null()
+    ]))
+});
+
+/**
+ * AvatarEffectLandmarkOffset
+ *
+ * Offset in metres, in head space.
+ */
+export const zAvatarEffectLandmarkOffset = z.object({
+    x: z.optional(z.number().gte(-5).lte(5)).default(0),
+    y: z.optional(z.number().gte(-5).lte(5)).default(0),
+    z: z.optional(z.number().gte(-5).lte(5)).default(0)
+});
+
+/**
+ * AvatarEffectPulse
+ *
+ * Scale oscillation between ``scaleMin`` and ``scaleMax``.
+ */
+export const zAvatarEffectPulse = z.object({
+    cyclesPerSecond: z.optional(z.union([
+        z.number().gte(0).lte(30),
+        z.null()
+    ])),
+    scaleMax: z.optional(z.union([
+        z.number().gt(0).lte(20),
+        z.null()
+    ])),
+    scaleMin: z.optional(z.union([
+        z.number().gt(0).lte(20),
+        z.null()
+    ]))
+});
+
+/**
+ * AvatarEffectRotation3
+ *
+ * Euler rotation in degrees, applied X then Y then Z.
+ */
+export const zAvatarEffectRotation3 = z.object({
+    x: z.optional(z.number().gte(-3600).lte(3600)).default(0),
+    y: z.optional(z.number().gte(-3600).lte(3600)).default(0),
+    z: z.optional(z.number().gte(-3600).lte(3600)).default(0)
+});
+
+/**
+ * AvatarEffectScale2
+ *
+ * Positive scale factors; a mirrored placement mirrors the art itself.
+ */
+export const zAvatarEffectScale2 = z.object({
+    x: z.optional(z.number().gt(0).lte(20)).default(1),
+    y: z.optional(z.number().gt(0).lte(20)).default(1)
+});
+
+/**
+ * AvatarEffectSpin
+ *
+ * Rotation; below one turn it swings back and forth, otherwise it wraps.
+ */
+export const zAvatarEffectSpin = z.object({
+    amountTurns: z.optional(z.union([
+        z.number().gte(0).lte(100),
+        z.null()
+    ])),
+    degreesPerSecond: z.optional(z.union([
+        z.number().gte(-36000).lte(36000),
+        z.null()
+    ])),
+    direction: z.optional(z.union([
+        z.enum(['clockwise', 'counterclockwise']),
+        z.null()
+    ]))
+});
+
+/**
+ * AvatarEffectUvOffset
+ *
+ * Offset in fractions of the painted texture (UV space).
+ */
+export const zAvatarEffectUvOffset = z.object({
+    x: z.optional(z.number().gte(-2).lte(2)).default(0),
+    y: z.optional(z.number().gte(-2).lte(2)).default(0)
+});
+
+/**
+ * AvatarEffectVector2
+ *
+ * A 2D value; units depend on the attachment that owns it.
+ */
+export const zAvatarEffectVector2 = z.object({
+    x: z.optional(z.number().gte(-10).lte(10)).default(0),
+    y: z.optional(z.number().gte(-10).lte(10)).default(0)
+});
+
+/**
+ * AvatarEffectKeyframe
+ *
+ * One keyframe; omitted channels are interpolated from neighbouring frames.
+ */
+export const zAvatarEffectKeyframe = z.object({
+    offset: z.optional(z.union([
+        zAvatarEffectVector2,
+        z.null()
+    ])),
+    opacity: z.optional(z.union([
+        z.number().gte(0).lte(1),
+        z.null()
+    ])),
+    rotationDeg: z.optional(z.union([
+        z.number().gte(-3600).lte(3600),
+        z.null()
+    ])),
+    scale: z.optional(z.union([
+        z.number().gt(0).lte(20),
+        z.null()
+    ])),
+    t: z.number().gte(0).lte(600)
+});
+
+/**
+ * AvatarEffectKeyframes
+ *
+ * Keyframes on the effect's own timeline, combined with the presets.
+ *
+ * Scale and opacity multiply, rotation and offset add. ``loop`` repeats the
+ * timeline from its last keyframe time; otherwise the last values hold.
+ */
+export const zAvatarEffectKeyframes = z.object({
+    frames: z.array(zAvatarEffectKeyframe).min(1).max(64),
+    loop: z.optional(z.boolean()).default(false)
+});
+
+/**
+ * AvatarEffectMotion
+ *
+ * Intrinsic motion; a preset is enabled when its object is present.
+ */
+export const zAvatarEffectMotion = z.object({
+    drift: z.optional(z.union([
+        zAvatarEffectDrift,
+        z.null()
+    ])),
+    keyframes: z.optional(z.union([
+        zAvatarEffectKeyframes,
+        z.null()
+    ])),
+    pulse: z.optional(z.union([
+        zAvatarEffectPulse,
+        z.null()
+    ])),
+    spin: z.optional(z.union([
+        zAvatarEffectSpin,
+        z.null()
+    ]))
+});
+
+/**
+ * AvatarFacePartBindings
+ *
+ * Primitive keys per part. ``eye_left``/``eye_right`` hold the irises; one
+ * primitive may hold both eyes and then appears in both lists.
+ */
+export const zAvatarFacePartBindings = z.object({
+    eye_highlight: z.optional(z.union([
+        z.array(z.string().regex(/^\d{1,6}:\d{1,6}:\d{1,6}$/)).max(64),
+        z.null()
+    ])),
+    eye_left: z.array(z.string().regex(/^\d{1,6}:\d{1,6}:\d{1,6}$/)).min(1).max(64),
+    eye_right: z.array(z.string().regex(/^\d{1,6}:\d{1,6}:\d{1,6}$/)).min(1).max(64),
+    eyelash: z.optional(z.union([
+        z.array(z.string().regex(/^\d{1,6}:\d{1,6}:\d{1,6}$/)).max(64),
+        z.null()
+    ])),
+    eyeline: z.optional(z.union([
+        z.array(z.string().regex(/^\d{1,6}:\d{1,6}:\d{1,6}$/)).max(64),
+        z.null()
+    ])),
+    face_skin: z.array(z.string().regex(/^\d{1,6}:\d{1,6}:\d{1,6}$/)).min(1).max(64),
+    hair: z.optional(z.union([
+        z.array(z.string().regex(/^\d{1,6}:\d{1,6}:\d{1,6}$/)).max(64),
+        z.null()
+    ]))
+});
+
+/**
+ * AvatarFacePartCorrection
+ *
+ * A complete correction for one exact VRM file.
+ */
+export const zAvatarFacePartCorrection = z.object({
+    parts: zAvatarFacePartBindings,
+    schema: z.literal('animama/avatar-face-parts/1'),
+    vrm_sha256: z.string().regex(/^[0-9a-f]{64}$/)
+});
+
+/**
+ * AvatarFacePartsState
+ *
+ * The effective correction for one Avatar and the revision it applies to.
+ */
+export const zAvatarFacePartsState = z.object({
+    face_parts: z.optional(z.union([
+        zAvatarFacePartCorrection,
+        z.null()
+    ])),
+    item_id: z.string(),
+    revision: z.string(),
+    source: z.enum([
+        'local_metadata',
+        'included_override',
+        'none'
+    ])
+});
+
+/**
+ * AvatarFacePartsUpdate
+ *
+ * Replace (or with ``face_parts: null``, clear) an Avatar's correction.
+ *
+ * ``expected_revision`` fences the write against a concurrent change to the
+ * Avatar; a Local write produces a new Avatar revision.
+ */
+export const zAvatarFacePartsUpdate = z.object({
+    expected_revision: z.string().regex(/^[0-9a-f]{64}$/),
+    face_parts: z.union([
+        zAvatarFacePartCorrection,
+        z.null()
+    ])
+});
+
+/**
+ * BodyAttachment
+ *
+ * A plane on a humanoid body point that follows its normalized bone.
+ *
+ * ``offset`` is in metres in the bone's frame (+x toward the viewer's right
+ * when facing the avatar, +y up, +z forward), ``size`` is the plane height in
+ * metres and ``rotationDeg`` turns the plane in its own plane. ``facing``
+ * keeps it toward the camera or in the bone's orientation.
+ */
+export const zBodyAttachment = z.object({
+    bone: z.enum([
+        'root',
+        'hips',
+        'spine',
+        'chest',
+        'neck',
+        'head',
+        'leftHand',
+        'rightHand',
+        'leftFoot',
+        'rightFoot'
+    ]),
+    facing: z.optional(z.enum(['camera', 'bone'])),
+    kind: z.literal('body'),
+    offset: z.optional(zAvatarEffectLandmarkOffset),
+    rotationDeg: z.optional(z.number().gte(-3600).lte(3600)).default(0),
+    size: z.optional(z.number().gt(0).lte(5)).default(0.2)
+});
+
+/**
  * Body_audio_isolation_endpoint_v1_elevenlabs_audio_isolation_post
  */
 export const zBodyAudioIsolationEndpointV1ElevenlabsAudioIsolationPost = z.object({
@@ -589,6 +952,95 @@ export const zExportSelectionItem = z.object({
     name: z.string(),
     revision: z.string(),
     selected: z.boolean()
+});
+
+/**
+ * FaceLandmarkAttachment
+ *
+ * A plane in front of an eye, the mouth, the forehead or above the head.
+ */
+export const zFaceLandmarkAttachment = z.object({
+    kind: z.literal('face_landmark'),
+    landmark: z.enum([
+        'eyes',
+        'mouth',
+        'forehead',
+        'top',
+        'top_edge'
+    ]),
+    mirror: z.optional(z.boolean()).default(false),
+    offset: z.optional(zAvatarEffectLandmarkOffset),
+    position: z.optional(z.union([
+        z.enum([
+            'left',
+            'middle',
+            'right',
+            'left_corner',
+            'right_corner'
+        ]),
+        z.null()
+    ])),
+    rotationDeg: z.optional(zAvatarEffectRotation3),
+    scale: z.optional(zAvatarEffectScale2),
+    side: z.optional(z.union([
+        z.enum(['left', 'right']),
+        z.null()
+    ]))
+});
+
+/**
+ * FaceSurfaceAttachment
+ *
+ * Art painted onto a detected face part, as an overlay or a replacement.
+ *
+ * ``area`` chooses the placement: ``full`` and ``eyes`` cover the part's
+ * texture layout, while ``undereye``, ``blush`` and ``mouth`` place a decal at
+ * a face anchor on ``face_skin``. ``layout`` chooses one side (``single``) or
+ * one image across both sides (``span``) for the paired areas.
+ */
+export const zFaceSurfaceAttachment = z.object({
+    area: z.enum([
+        'full',
+        'eyes',
+        'undereye',
+        'blush',
+        'mouth'
+    ]),
+    kind: z.literal('face_surface'),
+    layout: z.optional(z.union([
+        z.enum(['single', 'span']),
+        z.null()
+    ])),
+    mirror: z.optional(z.boolean()).default(false),
+    mode: z.optional(z.enum(['overlay', 'replace'])),
+    offset: z.optional(zAvatarEffectUvOffset),
+    part: z.enum([
+        'face_skin',
+        'eye_iris',
+        'eye_highlight',
+        'eyeline',
+        'eyelash'
+    ]),
+    pivot: z.optional(z.union([
+        z.enum([
+            'top-left',
+            'top-center',
+            'top-right',
+            'center-left',
+            'center',
+            'center-right',
+            'bottom-left',
+            'bottom-center',
+            'bottom-right'
+        ]),
+        z.null()
+    ])),
+    rotationDeg: z.optional(z.number().gte(-3600).lte(3600)).default(0),
+    scale: z.optional(zAvatarEffectScale2),
+    side: z.optional(z.union([
+        z.enum(['left', 'right']),
+        z.null()
+    ]))
 });
 
 /**
@@ -4262,6 +4714,10 @@ export const zPyRuntimeAppearance = z.object({
  */
 export const zPyRuntimeAvatar = z.object({
     avatar_id: z.string(),
+    face_parts: z.optional(z.union([
+        zAvatarFacePartCorrection,
+        z.null()
+    ])),
     files: z.optional(z.array(zPyRuntimeFile)),
     revision: z.string(),
     runtime_root_id: z.optional(z.union([
@@ -4527,45 +4983,6 @@ export const zPyRuntimeWarning = z.object({
 });
 
 /**
- * PyAnimaRuntime
- *
- * Prepared catalog projection and exact descriptor for one mount.
- */
-export const zPyAnimaRuntime = z.object({
-    appearances: z.optional(z.array(zPyRuntimeAppearance)),
-    avatar: z.optional(z.union([
-        zPyRuntimeAvatar,
-        z.null()
-    ])),
-    avatar_effects: z.optional(z.array(zPyRuntimeSupport)),
-    can_chat: z.optional(z.boolean()).default(true),
-    catalog_version: z.optional(z.int()).default(4),
-    content_descriptor: zPyRuntimeContentDescriptor,
-    effective_revision: z.string(),
-    gestures: z.optional(z.array(zPyRuntimeAction)),
-    idle_style: z.optional(z.union([
-        zPyRuntimeIdleStyle,
-        z.null()
-    ])),
-    json_bundle: z.optional(z.union([
-        zPyRuntimeJsonBundle,
-        z.null()
-    ])),
-    lease_expires_at: z.iso.datetime(),
-    loadout_revision: z.int(),
-    particle_effects: z.optional(z.array(zPyRuntimeSupport)),
-    poses: z.optional(z.array(zPyRuntimeAction)),
-    reactions: z.optional(z.array(zPyRuntimeAction)),
-    scene_effects: z.optional(z.array(zPyRuntimeSupport)),
-    sound_effects: z.optional(z.array(zPyRuntimeSupport)),
-    voice: z.optional(z.union([
-        zPyRuntimeVoice,
-        z.null()
-    ])),
-    warnings: z.optional(z.array(zPyRuntimeWarning))
-});
-
-/**
  * PySearchMemoryFileDebugResult
  */
 export const zPySearchMemoryFileDebugResult = z.object({
@@ -4739,6 +5156,10 @@ export const zPyAvatarContent = z.object({
         z.null()
     ])),
     editable: z.boolean(),
+    face_parts: z.optional(z.union([
+        zAvatarFacePartCorrection,
+        z.null()
+    ])),
     files: z.optional(z.array(zPyTypedContentFile)),
     item_id: z.string(),
     kind: z.optional(z.literal('avatar')).default('avatar'),
@@ -4757,44 +5178,6 @@ export const zPyAvatarContent = z.object({
  */
 export const zPyAvatarContentPage = z.object({
     items: z.array(zPyAvatarContent)
-});
-
-/**
- * PyAvatarEffect
- */
-export const zPyAvatarEffect = z.object({
-    definition: z.optional(z.union([
-        z.record(z.string(), z.unknown()),
-        z.null()
-    ])),
-    dependencies: z.optional(z.array(zPyTypedDependency)),
-    description: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    editable: z.boolean(),
-    files: z.optional(z.array(zPyTypedContentFile)),
-    item_id: z.string(),
-    kind: z.optional(z.literal('avatar_effect')).default('avatar_effect'),
-    logical_key: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    name: z.string(),
-    revision_sha256: z.string().regex(/^[0-9a-f]{64}$/),
-    runtime_defaults: z.optional(z.record(z.string(), z.unknown())),
-    source: z.enum(['included', 'local']),
-    technical_source: z.optional(z.union([
-        z.record(z.string(), z.unknown()),
-        z.null()
-    ]))
-});
-
-/**
- * PyAvatarEffectPage
- */
-export const zPyAvatarEffectPage = z.object({
-    items: z.array(zPyAvatarEffect)
 });
 
 /**
@@ -5548,55 +5931,6 @@ export const zPyVoiceContent = z.object({
 });
 
 /**
- * PyContentPreviewsPrepareResponse
- */
-export const zPyContentPreviewsPrepareResponse = z.object({
-    complete: z.boolean(),
-    diagnostics: z.array(zPyTypedBatchDiagnostic),
-    items: z.array(z.union([
-        z.object({
-            kind: z.literal('gesture')
-        }).and(zPyGesture),
-        z.object({
-            kind: z.literal('reaction')
-        }).and(zPyReaction),
-        z.object({
-            kind: z.literal('pose')
-        }).and(zPyPose),
-        z.object({
-            kind: z.literal('particle_effect')
-        }).and(zPyParticleEffect),
-        z.object({
-            kind: z.literal('avatar_effect')
-        }).and(zPyAvatarEffect),
-        z.object({
-            kind: z.literal('scene_effect')
-        }).and(zPySceneEffect),
-        z.object({
-            kind: z.literal('sound_effect')
-        }).and(zPySoundEffect),
-        z.object({
-            kind: z.literal('idle_style')
-        }).and(zPyIdleStyle),
-        z.object({
-            kind: z.literal('avatar')
-        }).and(zPyAvatarContent),
-        z.object({
-            kind: z.literal('appearance')
-        }).and(zPyAppearance),
-        z.object({
-            kind: z.literal('voice')
-        }).and(zPyVoiceContent)
-    ])),
-    lease: z.union([
-        zPyPreparedPreviewLease,
-        z.null()
-    ]),
-    roots: z.array(zPyPreparedPreviewRoot),
-    schema_version: z.optional(z.literal(1)).default(1)
-});
-
-/**
  * PyVoiceContentPage
  */
 export const zPyVoiceContentPage = z.object({
@@ -5744,6 +6078,22 @@ export const zPackageStageStatus = z.object({
 });
 
 /**
+ * SilhouetteAttachment
+ *
+ * Art drawn only over the avatar's visible pixels, without changing its materials.
+ *
+ * ``pattern`` tiles the art in screen space (at ``patternScale`` 1 a tile is a
+ * quarter of the avatar's on-screen height); ``tint`` fills with the art's
+ * average colour. ``scroll`` moves the pattern in tiles per second.
+ */
+export const zSilhouetteAttachment = z.object({
+    fill: z.optional(z.enum(['pattern', 'tint'])),
+    kind: z.literal('silhouette'),
+    patternScale: z.optional(z.number().gt(0).lte(20)).default(1),
+    scroll: z.optional(zAvatarEffectVector2)
+});
+
+/**
  * SourceRevision
  */
 export const zSourceRevision = z.object({
@@ -5805,88 +6155,6 @@ export const zPyContentEvidenceResponse = z.object({
     diagnostics: z.array(zPyTypedBatchDiagnostic),
     roots: z.array(zPyContentEvidenceRoot),
     schema_version: z.optional(z.literal(1)).default(1)
-});
-
-/**
- * PyTypedContentPreview
- */
-export const zPyTypedContentPreview = z.object({
-    expected_source_revisions: z.optional(z.record(z.string(), zSourceRevision)),
-    expires_at: z.iso.datetime(),
-    files: z.array(zPyTypedPreviewFile),
-    idle_playback: z.optional(z.record(z.string(), zPyIdlePlayback)),
-    item: z.union([
-        z.object({
-            kind: z.literal('gesture')
-        }).and(zPyGesture),
-        z.object({
-            kind: z.literal('reaction')
-        }).and(zPyReaction),
-        z.object({
-            kind: z.literal('pose')
-        }).and(zPyPose),
-        z.object({
-            kind: z.literal('particle_effect')
-        }).and(zPyParticleEffect),
-        z.object({
-            kind: z.literal('avatar_effect')
-        }).and(zPyAvatarEffect),
-        z.object({
-            kind: z.literal('scene_effect')
-        }).and(zPySceneEffect),
-        z.object({
-            kind: z.literal('sound_effect')
-        }).and(zPySoundEffect),
-        z.object({
-            kind: z.literal('idle_style')
-        }).and(zPyIdleStyle),
-        z.object({
-            kind: z.literal('avatar')
-        }).and(zPyAvatarContent),
-        z.object({
-            kind: z.literal('appearance')
-        }).and(zPyAppearance),
-        z.object({
-            kind: z.literal('voice')
-        }).and(zPyVoiceContent)
-    ]),
-    preview_id: z.string(),
-    revision_sha256: z.string().regex(/^[0-9a-f]{64}$/),
-    supports: z.optional(z.array(z.union([
-        z.object({
-            kind: z.literal('gesture')
-        }).and(zPyGesture),
-        z.object({
-            kind: z.literal('reaction')
-        }).and(zPyReaction),
-        z.object({
-            kind: z.literal('pose')
-        }).and(zPyPose),
-        z.object({
-            kind: z.literal('particle_effect')
-        }).and(zPyParticleEffect),
-        z.object({
-            kind: z.literal('avatar_effect')
-        }).and(zPyAvatarEffect),
-        z.object({
-            kind: z.literal('scene_effect')
-        }).and(zPySceneEffect),
-        z.object({
-            kind: z.literal('sound_effect')
-        }).and(zPySoundEffect),
-        z.object({
-            kind: z.literal('idle_style')
-        }).and(zPyIdleStyle),
-        z.object({
-            kind: z.literal('avatar')
-        }).and(zPyAvatarContent),
-        z.object({
-            kind: z.literal('appearance')
-        }).and(zPyAppearance),
-        z.object({
-            kind: z.literal('voice')
-        }).and(zPyVoiceContent)
-    ])))
 });
 
 /**
@@ -6013,6 +6281,314 @@ export const zLegacyCreateAnimaRequest = z.object({
         zCreationVoiceInput,
         z.null()
     ]))
+});
+
+/**
+ * StickerAttachment
+ *
+ * A camera-facing image beside the head or body centre that follows the avatar.
+ *
+ * ``size`` (plane height) and ``offset`` (in the screen plane) are fractions
+ * of the avatar's height; stickers draw over the avatar.
+ */
+export const zStickerAttachment = z.object({
+    around: z.optional(z.enum(['head', 'body'])),
+    kind: z.literal('sticker'),
+    offset: z.optional(zAvatarEffectVector2),
+    rotationDeg: z.optional(z.number().gte(-3600).lte(3600)).default(0),
+    size: z.optional(z.number().gt(0).lte(2)).default(0.25)
+});
+
+/**
+ * AvatarEffectDefinitionV2
+ *
+ * A complete ``animama/avatar-effect/2`` definition.
+ */
+export const zAvatarEffectDefinitionV2 = z.object({
+    appearance: z.optional(zAvatarEffectAppearance),
+    art: zAvatarEffectArt,
+    attachment: z.union([
+        z.object({
+            kind: z.literal('face_surface')
+        }).and(zFaceSurfaceAttachment),
+        z.object({
+            kind: z.literal('face_landmark')
+        }).and(zFaceLandmarkAttachment),
+        z.object({
+            kind: z.literal('body')
+        }).and(zBodyAttachment),
+        z.object({
+            kind: z.literal('sticker')
+        }).and(zStickerAttachment),
+        z.object({
+            kind: z.literal('silhouette')
+        }).and(zSilhouetteAttachment)
+    ]),
+    faceOptions: z.optional(z.union([
+        zAvatarEffectFaceOptions,
+        z.null()
+    ])),
+    motion: z.optional(zAvatarEffectMotion),
+    region: z.enum([
+        'eyes',
+        'undereye',
+        'blush',
+        'mouth',
+        'emote',
+        'full_face',
+        'body',
+        'sticker',
+        'silhouette'
+    ]),
+    schema: z.literal('animama/avatar-effect/2'),
+    soundAlias: z.optional(z.union([
+        z.string().min(1).max(255),
+        z.null()
+    ]))
+});
+
+/**
+ * PyAvatarEffect
+ *
+ * An Avatar Effect; an unreadable stored definition is reported, not raised.
+ */
+export const zPyAvatarEffect = z.object({
+    definition: z.optional(z.union([
+        zAvatarEffectDefinitionV2,
+        z.null()
+    ])),
+    definition_error: z.optional(z.union([
+        z.enum(['avatar_effect_conversion_required', 'avatar_effect_definition_invalid']),
+        z.null()
+    ])),
+    dependencies: z.optional(z.array(zPyTypedDependency)),
+    description: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    editable: z.boolean(),
+    files: z.optional(z.array(zPyTypedContentFile)),
+    item_id: z.string(),
+    kind: z.optional(z.literal('avatar_effect')).default('avatar_effect'),
+    logical_key: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    name: z.string(),
+    revision_sha256: z.string().regex(/^[0-9a-f]{64}$/),
+    runtime_defaults: z.optional(z.record(z.string(), z.unknown())),
+    source: z.enum(['included', 'local']),
+    technical_source: z.optional(z.union([
+        z.record(z.string(), z.unknown()),
+        z.null()
+    ]))
+});
+
+/**
+ * PyAvatarEffectPage
+ */
+export const zPyAvatarEffectPage = z.object({
+    items: z.array(zPyAvatarEffect)
+});
+
+/**
+ * PyContentPreviewsPrepareResponse
+ */
+export const zPyContentPreviewsPrepareResponse = z.object({
+    complete: z.boolean(),
+    diagnostics: z.array(zPyTypedBatchDiagnostic),
+    items: z.array(z.union([
+        z.object({
+            kind: z.literal('gesture')
+        }).and(zPyGesture),
+        z.object({
+            kind: z.literal('reaction')
+        }).and(zPyReaction),
+        z.object({
+            kind: z.literal('pose')
+        }).and(zPyPose),
+        z.object({
+            kind: z.literal('particle_effect')
+        }).and(zPyParticleEffect),
+        z.object({
+            kind: z.literal('avatar_effect')
+        }).and(zPyAvatarEffect),
+        z.object({
+            kind: z.literal('scene_effect')
+        }).and(zPySceneEffect),
+        z.object({
+            kind: z.literal('sound_effect')
+        }).and(zPySoundEffect),
+        z.object({
+            kind: z.literal('idle_style')
+        }).and(zPyIdleStyle),
+        z.object({
+            kind: z.literal('avatar')
+        }).and(zPyAvatarContent),
+        z.object({
+            kind: z.literal('appearance')
+        }).and(zPyAppearance),
+        z.object({
+            kind: z.literal('voice')
+        }).and(zPyVoiceContent)
+    ])),
+    lease: z.union([
+        zPyPreparedPreviewLease,
+        z.null()
+    ]),
+    roots: z.array(zPyPreparedPreviewRoot),
+    schema_version: z.optional(z.literal(1)).default(1)
+});
+
+/**
+ * PyRuntimeAvatarEffect
+ *
+ * A mounted Avatar Effect with its typed ``/2`` definition.
+ *
+ * A definition that is not valid ``/2`` is projected as ``definition_error``
+ * so one unconverted Local effect cannot fail the whole runtime snapshot.
+ */
+export const zPyRuntimeAvatarEffect = z.object({
+    config: z.optional(z.record(z.string(), z.unknown())),
+    content_type: z.optional(z.literal('avatar_effect')).default('avatar_effect'),
+    definition: z.optional(z.union([
+        zAvatarEffectDefinitionV2,
+        z.null()
+    ])),
+    definition_error: z.optional(z.union([
+        z.enum(['avatar_effect_conversion_required', 'avatar_effect_definition_invalid']),
+        z.null()
+    ])),
+    files: z.optional(z.array(zPyRuntimeFile)),
+    logical_resource_files: z.optional(z.record(z.string(), z.record(z.string(), z.unknown()))),
+    logical_resource_urls: z.optional(z.record(z.string(), z.string())),
+    name: z.string(),
+    provenance: z.optional(z.array(z.string())),
+    reference_map: z.optional(z.record(z.string(), z.string())),
+    runtime_id: z.string(),
+    runtime_root_ids: z.optional(z.array(z.string())),
+    source: zPyRuntimeCatalogItemSource
+});
+
+/**
+ * PyAnimaRuntime
+ *
+ * Prepared catalog projection and exact descriptor for one mount.
+ */
+export const zPyAnimaRuntime = z.object({
+    appearances: z.optional(z.array(zPyRuntimeAppearance)),
+    avatar: z.optional(z.union([
+        zPyRuntimeAvatar,
+        z.null()
+    ])),
+    avatar_effects: z.optional(z.array(zPyRuntimeAvatarEffect)),
+    can_chat: z.optional(z.boolean()).default(true),
+    catalog_version: z.optional(z.int()).default(4),
+    content_descriptor: zPyRuntimeContentDescriptor,
+    effective_revision: z.string(),
+    gestures: z.optional(z.array(zPyRuntimeAction)),
+    idle_style: z.optional(z.union([
+        zPyRuntimeIdleStyle,
+        z.null()
+    ])),
+    json_bundle: z.optional(z.union([
+        zPyRuntimeJsonBundle,
+        z.null()
+    ])),
+    lease_expires_at: z.iso.datetime(),
+    loadout_revision: z.int(),
+    particle_effects: z.optional(z.array(zPyRuntimeSupport)),
+    poses: z.optional(z.array(zPyRuntimeAction)),
+    reactions: z.optional(z.array(zPyRuntimeAction)),
+    scene_effects: z.optional(z.array(zPyRuntimeSupport)),
+    sound_effects: z.optional(z.array(zPyRuntimeSupport)),
+    voice: z.optional(z.union([
+        zPyRuntimeVoice,
+        z.null()
+    ])),
+    warnings: z.optional(z.array(zPyRuntimeWarning))
+});
+
+/**
+ * PyTypedContentPreview
+ */
+export const zPyTypedContentPreview = z.object({
+    expected_source_revisions: z.optional(z.record(z.string(), zSourceRevision)),
+    expires_at: z.iso.datetime(),
+    files: z.array(zPyTypedPreviewFile),
+    idle_playback: z.optional(z.record(z.string(), zPyIdlePlayback)),
+    item: z.union([
+        z.object({
+            kind: z.literal('gesture')
+        }).and(zPyGesture),
+        z.object({
+            kind: z.literal('reaction')
+        }).and(zPyReaction),
+        z.object({
+            kind: z.literal('pose')
+        }).and(zPyPose),
+        z.object({
+            kind: z.literal('particle_effect')
+        }).and(zPyParticleEffect),
+        z.object({
+            kind: z.literal('avatar_effect')
+        }).and(zPyAvatarEffect),
+        z.object({
+            kind: z.literal('scene_effect')
+        }).and(zPySceneEffect),
+        z.object({
+            kind: z.literal('sound_effect')
+        }).and(zPySoundEffect),
+        z.object({
+            kind: z.literal('idle_style')
+        }).and(zPyIdleStyle),
+        z.object({
+            kind: z.literal('avatar')
+        }).and(zPyAvatarContent),
+        z.object({
+            kind: z.literal('appearance')
+        }).and(zPyAppearance),
+        z.object({
+            kind: z.literal('voice')
+        }).and(zPyVoiceContent)
+    ]),
+    preview_id: z.string(),
+    revision_sha256: z.string().regex(/^[0-9a-f]{64}$/),
+    supports: z.optional(z.array(z.union([
+        z.object({
+            kind: z.literal('gesture')
+        }).and(zPyGesture),
+        z.object({
+            kind: z.literal('reaction')
+        }).and(zPyReaction),
+        z.object({
+            kind: z.literal('pose')
+        }).and(zPyPose),
+        z.object({
+            kind: z.literal('particle_effect')
+        }).and(zPyParticleEffect),
+        z.object({
+            kind: z.literal('avatar_effect')
+        }).and(zPyAvatarEffect),
+        z.object({
+            kind: z.literal('scene_effect')
+        }).and(zPySceneEffect),
+        z.object({
+            kind: z.literal('sound_effect')
+        }).and(zPySoundEffect),
+        z.object({
+            kind: z.literal('idle_style')
+        }).and(zPyIdleStyle),
+        z.object({
+            kind: z.literal('avatar')
+        }).and(zPyAvatarContent),
+        z.object({
+            kind: z.literal('appearance')
+        }).and(zPyAppearance),
+        z.object({
+            kind: z.literal('voice')
+        }).and(zPyVoiceContent)
+    ])))
 });
 
 /**
@@ -6757,6 +7333,32 @@ export const zGetAvatarContentData = z.object({
  * Successful Response
  */
 export const zGetAvatarContentResponse = zPyAvatarContent;
+
+export const zGetAvatarFacePartsData = z.object({
+    body: z.optional(z.never()),
+    path: z.object({
+        item_id: z.string()
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zGetAvatarFacePartsResponse = zAvatarFacePartsState;
+
+export const zSaveAvatarFacePartsData = z.object({
+    body: zAvatarFacePartsUpdate,
+    path: z.object({
+        item_id: z.string()
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zSaveAvatarFacePartsResponse = zAvatarFacePartsState;
 
 export const zSaveAvatarPortraitData = z.object({
     body: zBodySaveAvatarPortrait,

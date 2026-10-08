@@ -38,6 +38,16 @@ export const SCENE_EFFECT_TEMPLATE_OPTIONS: Array<{
   { id: "light-streak", label: "Light Streak", kind: "focus_lines" },
 ];
 
+/** The display label of a starting template, for example "Dark Focus". */
+export function sceneEffectTemplateLabel(
+  templateId: SceneEffectTemplateId,
+): string {
+  return (
+    SCENE_EFFECT_TEMPLATE_OPTIONS.find((option) => option.id === templateId)
+      ?.label ?? templateId
+  );
+}
+
 /** Clone a code-shipped preset into a private, independently editable draft. */
 export function sceneEffectTemplate(
   templateId: SceneEffectTemplateId,

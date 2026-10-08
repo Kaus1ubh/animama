@@ -234,7 +234,7 @@ export function bindingSupportsCatalogEffect(
   binding: AvatarVFXTargetBindingSnapshot,
   effect: AvatarVFXCatalogEntry,
 ): boolean {
-  return binding.targetRole === getAvatarVFXTargetRole(effect);
+  return binding.targetRoles.includes(getAvatarVFXTargetRole(effect));
 }
 
 export function bindingSupportsCatalogApplyDefaults(

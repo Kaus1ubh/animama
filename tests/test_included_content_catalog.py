@@ -184,4 +184,3 @@ def test_avatar_effects_require_authored_definitions_and_preserve_support_images
     assert all(entry.status is ContentStatus.VALID and entry.metadata.get("definition") for entry in effects)
     eye = next(entry for entry in effects if entry.logical_key == "builtin:avatar-effect:eye")
     assert any(file.role == "image" for file in eye.files)
-    assert (included / "vfx/avatar/face/eyes/eye_=_r.png").is_file()

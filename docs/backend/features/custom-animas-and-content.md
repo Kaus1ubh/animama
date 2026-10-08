@@ -221,6 +221,24 @@ background controls; existing content and live bindings remain available.
 Confirmed Saves survive cancellation and failed creation, and neither Save nor
 creation calls a provider.
 
+### Face-part corrections
+
+An Avatar may carry an `animama/avatar-face-parts/1` correction of its detected
+face skin, irises and optional eye/hair parts. It names glTF primitives as
+`node:mesh:primitive` keys and records the model file's `vrm_sha256`, so it
+applies only to those exact VRM bytes; a value for other bytes is never
+effective. A Local Avatar stores it as `face_parts` in its `.meta.json`
+sidecar (an invalid value makes the Avatar invalid with
+`avatar_face_parts_invalid`), so saving one creates a new Avatar revision. An
+Included Avatar is never written: each owner's correction is a row in
+`avatar_face_part_overrides` bound to the Avatar revision it was saved against,
+and is ignored, not deleted, once that revision changes.
+`GET`/`PUT /v1/avatar-content/{item_id}/face-parts` read and save the effective
+value, which also appears as `face_parts` on typed Avatar responses (list, get,
+preview and prepared preview batches) and the runtime `avatar`. Packages carry it in the Avatar's portable sidecar; exporting
+an Included Avatar, including an Anima's, merges the exporter's current
+override, so the imported Local copy keeps it.
+
 ## Local creation boundary
 
 Create Anima creates a private live companion with editable dependencies.

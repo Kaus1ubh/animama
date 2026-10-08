@@ -12,7 +12,7 @@ from __future__ import annotations
 import math
 import re
 from decimal import ROUND_HALF_UP, Decimal
-from typing import Any, cast
+from typing import Any
 
 from animama.app.services.content_pose import HUMAN_BONE_NAMES
 from animama.domain.content_documents import ContentDocumentError
@@ -332,6 +332,12 @@ _V2_TICKS_PER_SECOND = 10_000
 _V2_MAX_TIME_MAGNITUDE = 1e9
 
 
+def _beat_name(value: Any, beat_ticks: dict[str, int], field: str) -> str:
+    """Return a key's beat after checking that it names a declared beat."""
+    _require(isinstance(value, str) and value in beat_ticks, field, "must name a beat")
+    return str(value)
+
+
 def _v2_ticks(seconds: float, field: str) -> int:
     """Whole 0.1 ms ticks, rounded as the frontend saves times (half away from zero)."""
     _require(abs(seconds) <= _V2_MAX_TIME_MAGNITUDE, field, "is out of range")
@@ -412,9 +418,7 @@ def validate_clip_v2_timeline(clip: dict[str, Any]) -> float:
         for index, raw_key in enumerate(items):
             key_field = f"{field}[{index}]"
             key = _record(raw_key, key_field)
-            owner = key.get("beat")
-            _require(isinstance(owner, str) and owner in beat_ticks, f"{key_field}.beat", "must name a beat")
-            owner = cast(str, owner)
+            owner = _beat_name(key.get("beat"), beat_ticks, f"{key_field}.beat")
             position = position_of[owner]
             dt = _v2_ticks(_number(key.get("dt", 0), f"{key_field}.dt"), f"{key_field}.dt")
             time = beat_ticks[owner] + dt
@@ -493,9 +497,7 @@ def validate_clip_v2_timeline(clip: dict[str, Any]) -> float:
             bone_name = contact.get(key)
             is_bone = isinstance(bone_name, str) and bone_name in HUMAN_BONE_NAMES
             _require(is_bone, f"{field}.{key}", "must be a humanoid bone")
-        owner = contact.get("beat")
-        _require(isinstance(owner, str) and owner in beat_ticks, f"{field}.beat", "must name a beat")
-        owner = cast(str, owner)
+        owner = _beat_name(contact.get("beat"), beat_ticks, f"{field}.beat")
         start = beat_ticks[owner] + _v2_ticks(_number(contact.get("from"), f"{field}.from"), f"{field}.from")
         stop = beat_ticks[owner] + _v2_ticks(_number(contact.get("to"), f"{field}.to"), f"{field}.to")
         _require(0 <= start <= stop <= end, field, "must lie within the clip")

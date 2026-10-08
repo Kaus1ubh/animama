@@ -7,12 +7,17 @@
   "description": "Small w-shaped mouth decal for cute, puckered, or bashfully playful expressions.",
   "dependencies": [],
   "definition": {
-    "schema": "animama/avatar-effect/1",
-    "kind": "face_anchored",
+    "schema": "animama/avatar-effect/2",
     "region": "mouth",
-    "anchor": "mouth",
-    "pivot": "center",
-    "image": "mouth_w.png"
+    "attachment": {
+      "kind": "face_surface",
+      "part": "face_skin",
+      "area": "mouth",
+      "pivot": "center"
+    },
+    "art": {
+      "image": "mouth_w.png"
+    }
   },
   "files": [
     {

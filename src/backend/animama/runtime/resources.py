@@ -18,7 +18,6 @@ RESOURCE_INPUTS = {
     "alembic.ini": "alembic.ini",
     "sql": "alembic/seeds",
     "animation-manifest.json": "src/frontend/web/src/assets/vrm/animations/manifest.json",
-    "vfx-catalog.json": "src/frontend/web/src/assets/effects/vfx/catalog.json",
 }
 
 
@@ -51,7 +50,6 @@ def audit_resources() -> dict[str, Any]:
 
     from alembic.script import ScriptDirectory
     from animama.app.services.starter_loadout_policy import starter_loadout_policy
-    from animama.domain.vfx import load_avatar_vfx_catalog
     from animama.prompts.avatar_animation_manifest import get_manifest_gesture_inventory
     from animama.server.app import app
     from animama.server.gruut_text import build_gruut_sse_text
@@ -73,9 +71,8 @@ def audit_resources() -> dict[str, Any]:
         raise ValueError("Packaged bootstrap SQL is missing or empty")
     policy = starter_loadout_policy()
     gestures = get_manifest_gesture_inventory()
-    effects = load_avatar_vfx_catalog()
-    if not policy["gestures"] or not policy["reactions"] or not gestures or not effects:
-        raise ValueError("Packaged starter or animation/effect resources are empty")
+    if not policy["gestures"] or not policy["reactions"] or not gestures:
+        raise ValueError("Packaged starter or animation resources are empty")
     if "/v1/animas/{anima_id}/chat:sse" not in {getattr(route, "path", "") for route in app.routes}:
         raise ValueError("Frozen FastAPI application is missing its chat route")
     # Avatar lip-sync depends on phonemes; gruut otherwise fails only per chat turn.
@@ -90,7 +87,6 @@ def audit_resources() -> dict[str, Any]:
         "migration_count": len(revisions),
         "sql_count": len(sql),
         "gesture_count": len(gestures),
-        "effect_count": len(effects),
         "starter_policy": policy["id"],
         "api_route_count": len(app.routes),
         "phoneme_word_count": len(phonemes),

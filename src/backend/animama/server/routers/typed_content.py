@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
@@ -9,14 +10,23 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from animama.adapters.repositories.sqlalchemy.avatar_face_part_override_repo import (
+    SQLAlchemyAvatarFacePartOverrideRepository,
+)
 from animama.adapters.repositories.sqlalchemy.content_catalog_repo import SQLAlchemyContentCatalog
+from animama.app.contracts.avatar_face_parts import (
+    AvatarFacePartCorrection,
+    AvatarFacePartsState,
+    AvatarFacePartsUpdate,
+)
+from animama.app.services.avatar_face_parts_service import AvatarFacePartsService
 from animama.app.services.content_image import MAX_APPEARANCE_SOURCE_BYTES
 from animama.app.services.typed_content_batch_service import (
     BuiltinTypedRoot,
     CatalogTypedRoot,
     TypedContentBatchResolver,
 )
-from animama.app.services.typed_content_service import TypedContentService
+from animama.app.services.typed_content_service import TypedCatalogItem, TypedContentService
 from animama.domain.content_catalog import ContentKind
 from animama.domain.request_principal import RequestPrincipal
 from animama.server.deps import get_async_session, get_current_principal
@@ -55,7 +65,7 @@ from animama.server.schemas.typed_content import (
     typed_content_response,
 )
 
-from .content import _bounded_upload, _raise_content_mutation, _save_service, _service, save_content_item
+from .content import _bounded_upload, _raise_content_mutation, _save_service, _service, _store, save_content_item
 
 router = APIRouter(tags=["typed-content"])
 
@@ -67,6 +77,53 @@ def _typed_service(request: Request, session: AsyncSession) -> TypedContentServi
         catalog=SQLAlchemyContentCatalog(session),
         content=_service(request, session),
     )
+
+
+def _face_parts_service(request: Request, session: AsyncSession) -> AvatarFacePartsService:
+    """Compose owner-scoped face-part reads and Local/Included saves."""
+
+    return AvatarFacePartsService(
+        catalog=SQLAlchemyContentCatalog(session),
+        overrides=SQLAlchemyAvatarFacePartOverrideRepository(session),
+        store=_store(request),
+        saves=_save_service(request, session),
+        commit=session.commit,
+    )
+
+
+async def _typed_responses(
+    request: Request, session: AsyncSession, *, user_id: str, values: tuple[TypedCatalogItem, ...]
+) -> list[Any]:
+    """Project typed items, adding each Avatar's effective owner-scoped face parts."""
+
+    responses = [typed_content_response(value) for value in values]
+    await _overlay_face_parts(request, session, user_id=user_id, values=values, responses=responses)
+    return responses
+
+
+async def _overlay_face_parts(
+    request: Request,
+    session: AsyncSession,
+    *,
+    user_id: str,
+    values: tuple[TypedCatalogItem, ...],
+    responses: Sequence[Any],
+) -> None:
+    """Set each Avatar response's effective face parts, including the caller's Included override.
+
+    ``typed_content_response`` alone knows only the Local sidecar; ``responses``
+    must correspond to ``values`` one to one.
+    """
+
+    if not any(value.item.kind is ContentKind.AVATAR for value in values):
+        return
+    effective = await _face_parts_service(request, session).effective_for_items(user_id=user_id, items=values)
+    for value, response in zip(values, responses, strict=True):
+        parts = effective.get(value.item.id)
+        if parts is not None and isinstance(response, PyAvatarContent):
+            response.face_parts = (
+                AvatarFacePartCorrection.model_validate(parts.face_parts) if parts.face_parts is not None else None
+            )
 
 
 @router.post(
@@ -140,7 +197,11 @@ async def prepare_content_previews(
                 entries=tuple(item.item for item in result.entries),
                 user_id=user.id,
             )
-        return PyContentPreviewsPrepareResponse.from_domain(result, preview)
+        prepared = PyContentPreviewsPrepareResponse.from_domain(result, preview)
+        await _overlay_face_parts(
+            request, session, user_id=user.id, values=tuple(result.entries), responses=prepared.items
+        )
+        return prepared
     except Exception as exc:
         _raise_content_mutation(exc)
 
@@ -181,7 +242,7 @@ def _install_family_routes(
     ) -> Any:
         try:
             values = await _typed_service(request, session).list_kind(user_id=user.id, kind=kind)
-            return page_model(items=[typed_content_response(value) for value in values])
+            return page_model(items=await _typed_responses(request, session, user_id=user.id, values=values))
         except Exception as exc:
             _raise_content_mutation(exc)
 
@@ -197,7 +258,8 @@ def _install_family_routes(
                 kind=kind,
                 item_id=item_id,
             )
-            return typed_content_response(value)
+            (response,) = await _typed_responses(request, session, user_id=user.id, values=(value,))
+            return response
         except Exception as exc:
             _raise_content_mutation(exc)
 
@@ -213,7 +275,15 @@ def _install_family_routes(
                 kind=kind,
                 item_id=item_id,
             )
-            return PyTypedContentPreview.from_domain(value)
+            response = PyTypedContentPreview.from_domain(value)
+            await _overlay_face_parts(
+                request,
+                session,
+                user_id=user.id,
+                values=(value.item, *value.supports),
+                responses=[response.item, *response.supports],
+            )
+            return response
         except Exception as exc:
             _raise_content_mutation(exc)
 
@@ -424,6 +494,56 @@ async def save_avatar_portrait(
         )
         value = TypedContentService.parse(saved.item)
         return typed_content_response(value)
+    except Exception as exc:
+        _raise_content_mutation(exc)
+
+
+@router.get(
+    "/v1/avatar-content/{item_id}/face-parts",
+    response_model=AvatarFacePartsState,
+    operation_id="get_avatar_face_parts",
+)
+async def get_avatar_face_parts(
+    item_id: str,
+    request: Request,
+    user: Annotated[RequestPrincipal, Depends(get_current_principal)],
+    session: Annotated[AsyncSession, Depends(get_async_session)],
+) -> AvatarFacePartsState:
+    """Return the effective face-part correction for a current admitted Avatar.
+
+    Local Avatars report their sidecar ``face_parts``; Included Avatars report
+    the caller's override only while it matches the current revision and VRM.
+    """
+
+    try:
+        return await _face_parts_service(request, session).get(user_id=user.id, item_id=item_id)
+    except Exception as exc:
+        _raise_content_mutation(exc)
+
+
+@router.put(
+    "/v1/avatar-content/{item_id}/face-parts",
+    response_model=AvatarFacePartsState,
+    operation_id="save_avatar_face_parts",
+)
+async def save_avatar_face_parts(
+    item_id: str,
+    body: AvatarFacePartsUpdate,
+    request: Request,
+    user: Annotated[RequestPrincipal, Depends(get_current_principal)],
+    session: Annotated[AsyncSession, Depends(get_async_session)],
+) -> AvatarFacePartsState:
+    """Replace or clear (``face_parts: null``) an Avatar's face-part correction.
+
+    ``expected_revision`` must be the Avatar's current revision (409
+    ``catalog_revision_conflict`` otherwise) and a correction must name this
+    Avatar's VRM sha256 (422 ``avatar_face_parts_digest_mismatch``). A Local save
+    rewrites the sidecar and returns the new revision; an Included save stores
+    the caller's override and never writes Included bytes.
+    """
+
+    try:
+        return await _face_parts_service(request, session).save(user_id=user.id, item_id=item_id, update=body)
     except Exception as exc:
         _raise_content_mutation(exc)
 

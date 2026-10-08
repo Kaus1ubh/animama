@@ -1,17 +1,21 @@
-import type {
-  AvatarEffectEditorDocument,
-  AvatarEffectEditorImageResource,
-} from "./types";
 import {
-  recoverySessionIsActive,
-  writeSessionRecovery,
-} from "@/lib/content/recovery-session";
+  createCreatorRecoveryStore,
+  creatorRecoveryTextBytes,
+} from "@/lib/content/creatorRecoveryStore";
+import { createDefaultAvatarEffectDocument } from "./defaults";
+import {
+  AVATAR_EFFECT_EDITOR_SCHEMA,
+  LEGACY_AVATAR_EFFECT_EDITOR_SCHEMA,
+  type AvatarEffectEditorDocument,
+  type AvatarEffectEditorImageResource,
+} from "./types";
 
 export const AVATAR_EFFECT_RECOVERY_SCHEMA =
   "animama/avatar-effect-recovery/1" as const;
-const DATABASE_NAME = "animama-avatar-effect-creator-recovery";
-const STORE_NAME = "drafts";
-const MAX_RECOVERY_BYTES = 18 * 1024 * 1024;
+
+/** Shown once when a draft in the pre-`/2` editor format is found and dropped. */
+export const AVATAR_EFFECT_OLD_DRAFT_NOTICE =
+  "An unsaved Avatar Effect draft from an earlier version of this creator could not be opened and was discarded.";
 
 export type AvatarEffectRecovery = {
   schema: typeof AVATAR_EFFECT_RECOVERY_SCHEMA;
@@ -20,245 +24,129 @@ export type AvatarEffectRecovery = {
   operationId: string;
   document: AvatarEffectEditorDocument;
   imageResource: AvatarEffectEditorImageResource | null;
+  /** Bytes for `art.otherEyeImage`; absent in records written before it existed. */
+  otherEyeImageResource?: AvatarEffectEditorImageResource | null;
   contentFingerprint: string;
   updatedAt: string;
+  /**
+   * Set when the stored draft used the pre-`/2` editor format. Its document
+   * cannot be opened; restoring it drops it with
+   * {@link AVATAR_EFFECT_OLD_DRAFT_NOTICE}.
+   */
+  dropped?: "old_editor_format";
 };
 
-export type AvatarEffectRecoveryWriteResult = {
-  stored: boolean;
-  metadataOnly: boolean;
-  warning: string | null;
-};
-
-export async function saveAvatarEffectRecovery(
-  recovery: AvatarEffectRecovery,
-): Promise<AvatarEffectRecoveryWriteResult> {
-  return writeSessionRecovery(
-    recovery.userId,
-    async () => {
-      if (typeof window === "undefined")
-        return { stored: false, metadataOnly: false, warning: null };
-      const metadataBytes = new Blob([JSON.stringify(metadata(recovery))]).size;
-      const totalBytes =
-        metadataBytes + (recovery.imageResource?.file.size ?? 0);
-      if (totalBytes > MAX_RECOVERY_BYTES) {
-        return {
-          stored: false,
-          metadataOnly: false,
-          warning:
-            "This image is too large for browser crash recovery. Keep this tab open until Save completes.",
-        };
-      }
-      try {
-        const database = await openDatabase();
-        await request(
-          database,
-          "readwrite",
-          (store) =>
-            store.put(
-              recovery,
-              recoveryKey(recovery.userId, recovery.documentKey),
-            ),
-          true,
-        );
-        database.close();
-        clearFallback(recovery.userId, recovery.documentKey);
-        return { stored: true, metadataOnly: false, warning: null };
-      } catch {
-        if (!recoverySessionIsActive(recovery.userId))
-          return { stored: false, metadataOnly: false, warning: null };
-        try {
-          window.localStorage.setItem(
-            fallbackKey(recovery.userId, recovery.documentKey),
-            JSON.stringify(metadata(recovery)),
-          );
-          return {
-            stored: true,
-            metadataOnly: true,
-            warning: recovery.document.image
-              ? "Image bytes could not be stored for crash recovery. Reselect the image after restoring this draft."
-              : null,
-          };
-        } catch {
-          return {
-            stored: false,
-            metadataOnly: false,
-            warning:
-              "Browser crash recovery is unavailable. Keep this tab open until Save completes.",
-          };
-        }
-      }
-    },
-    { stored: false, metadataOnly: false, warning: null },
-  );
-}
-
-export async function loadAvatarEffectRecovery(
-  userId: string,
-  documentKey: string,
-): Promise<AvatarEffectRecovery | null> {
-  if (typeof window === "undefined") return null;
-  try {
-    const database = await openDatabase();
-    const value = await request(database, "readonly", (store) =>
-      store.get(recoveryKey(userId, documentKey)),
-    );
-    database.close();
-    return parseRecovery(value, userId, documentKey);
-  } catch {
-    try {
-      const raw = window.localStorage.getItem(fallbackKey(userId, documentKey));
-      return raw
-        ? parseRecovery(JSON.parse(raw) as unknown, userId, documentKey)
-        : null;
-    } catch {
-      return null;
-    }
-  }
-}
-
-/** Strict deletion is for explicit Discard: report failures and await durable commit. */
-export async function clearAvatarEffectRecovery(
-  userId: string,
-  documentKey: string,
-  options: { strict?: boolean } = {},
-): Promise<void> {
-  if (typeof window === "undefined") return;
-  try {
-    clearFallback(userId, documentKey, options.strict);
-    // Without IndexedDB, recovery only uses localStorage metadata.
-    if (!window.indexedDB) return;
-    const database = await openDatabase();
-    try {
-      await request(
-        database,
-        "readwrite",
-        (store) => store.delete(recoveryKey(userId, documentKey)),
-        options.strict,
-      );
-    } finally {
-      database.close();
-    }
-  } catch (cause) {
-    if (options.strict) {
-      throw new Error(
-        "Browser recovery could not be discarded. Please retry.",
-        { cause },
-      );
-    }
-    // Save cleanup remains best-effort when browser storage is unavailable.
-  }
-}
-
+/** The localStorage fallback keeps everything except the image bytes. */
 function metadata(recovery: AvatarEffectRecovery): AvatarEffectRecovery {
-  return { ...recovery, imageResource: null };
+  return { ...recovery, imageResource: null, otherEyeImageResource: null };
 }
 
-function parseRecovery(
+/**
+ * Avatar Effect drafts, with their image Blobs, in IndexedDB. The storage names
+ * predate the shared store and must not change, or existing drafts are lost.
+ */
+export const avatarEffectRecoveryStore = createCreatorRecoveryStore({
+  databaseName: "animama-avatar-effect-creator-recovery",
+  storeName: "drafts",
+  fallbackKeyPrefix: "anima.avatarEffectCreator.recovery.v1",
+  maxBytes: 18 * 1024 * 1024,
+  messages: {
+    tooLarge:
+      "This image is too large for browser crash recovery. Keep this tab open until Save completes.",
+    unavailable:
+      "Browser crash recovery is unavailable. Keep this tab open until Save completes.",
+    metadataOnly: (recovery: AvatarEffectRecovery) =>
+      recovery.document.art.image
+        ? "Image bytes could not be stored for crash recovery. Reselect the image after restoring this draft."
+        : null,
+  },
+  codec: {
+    measure: (recovery: AvatarEffectRecovery) =>
+      creatorRecoveryTextBytes(JSON.stringify(metadata(recovery))) +
+      (recovery.imageResource?.file.size ?? 0) +
+      (recovery.otherEyeImageResource?.file.size ?? 0),
+    toDatabase: (recovery: AvatarEffectRecovery) => recovery,
+    toFallback: (recovery: AvatarEffectRecovery) => ({
+      text: JSON.stringify(metadata(recovery)),
+      metadataOnly: true,
+    }),
+    parse: parseAvatarEffectRecovery,
+  },
+});
+
+function parseResource(
   value: unknown,
-  userId: string,
-  documentKey: string,
+  fallbackName: string,
+): AvatarEffectEditorImageResource | null {
+  const resource = value as Partial<AvatarEffectEditorImageResource> | null;
+  if (
+    !resource ||
+    !(resource.file instanceof Blob) ||
+    typeof resource.sha256 !== "string"
+  )
+    return null;
+  return {
+    file:
+      typeof File !== "undefined" && resource.file instanceof File
+        ? resource.file
+        : new File([resource.file], fallbackName, {
+            type: resource.file.type,
+          }),
+    sha256: resource.sha256,
+  };
+}
+
+function parseAvatarEffectRecovery(
+  value: unknown,
+  identity: { userId: string; documentKey: string },
 ): AvatarEffectRecovery | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const record = value as Partial<AvatarEffectRecovery>;
   if (
     record.schema !== AVATAR_EFFECT_RECOVERY_SCHEMA ||
-    record.userId !== userId ||
-    record.documentKey !== documentKey ||
+    record.userId !== identity.userId ||
+    record.documentKey !== identity.documentKey ||
     typeof record.operationId !== "string" ||
     typeof record.contentFingerprint !== "string" ||
     typeof record.updatedAt !== "string" ||
     !record.document ||
-    record.document.schema !== "animama/avatar-effect-editor/1"
+    typeof record.document !== "object"
   ) {
     return null;
   }
-  const resource = record.imageResource;
-  let imageResource: AvatarEffectEditorImageResource | null = null;
-  if (
-    resource &&
-    resource.file instanceof Blob &&
-    typeof resource.sha256 === "string"
-  ) {
-    imageResource = {
-      file:
-        typeof File !== "undefined" && resource.file instanceof File
-          ? resource.file
-          : new File(
-              [resource.file],
-              record.document.image?.originalName ?? "effect.webp",
-              {
-                type: resource.file.type,
-              },
-            ),
-      sha256: resource.sha256,
+  const schema = (record.document as { schema?: unknown }).schema;
+  if (schema === LEGACY_AVATAR_EFFECT_EDITOR_SCHEMA) {
+    // Surface the draft so the creator can say it was dropped.
+    return {
+      schema: AVATAR_EFFECT_RECOVERY_SCHEMA,
+      userId: identity.userId,
+      documentKey: identity.documentKey,
+      operationId: record.operationId,
+      document: createDefaultAvatarEffectDocument(),
+      imageResource: null,
+      otherEyeImageResource: null,
+      contentFingerprint: record.contentFingerprint,
+      updatedAt: record.updatedAt,
+      dropped: "old_editor_format",
     };
   }
+  if (schema !== AVATAR_EFFECT_EDITOR_SCHEMA) return null;
+  const document = record.document;
   return {
     schema: AVATAR_EFFECT_RECOVERY_SCHEMA,
-    userId,
-    documentKey,
+    userId: identity.userId,
+    documentKey: identity.documentKey,
     operationId: record.operationId,
-    document: record.document,
-    imageResource,
+    document,
+    imageResource: parseResource(
+      record.imageResource,
+      document.art?.image?.originalName ?? "effect.webp",
+    ),
+    otherEyeImageResource: parseResource(
+      record.otherEyeImageResource,
+      document.art?.otherEyeImage?.originalName ?? "effect-other.webp",
+    ),
     contentFingerprint: record.contentFingerprint,
     updatedAt: record.updatedAt,
   };
-}
-
-function openDatabase(): Promise<IDBDatabase> {
-  if (!window.indexedDB)
-    return Promise.reject(new Error("IndexedDB unavailable"));
-  return new Promise((resolve, reject) => {
-    const opening = window.indexedDB.open(DATABASE_NAME, 1);
-    opening.onupgradeneeded = () => {
-      if (!opening.result.objectStoreNames.contains(STORE_NAME))
-        opening.result.createObjectStore(STORE_NAME);
-    };
-    opening.onsuccess = () => resolve(opening.result);
-    opening.onerror = () =>
-      reject(opening.error ?? new Error("IndexedDB unavailable"));
-    opening.onblocked = () => reject(new Error("IndexedDB blocked"));
-  });
-}
-
-function request(
-  database: IDBDatabase,
-  mode: IDBTransactionMode,
-  action: (store: IDBObjectStore) => IDBRequest,
-  waitForCommit = false,
-): Promise<unknown> {
-  return new Promise((resolve, reject) => {
-    const transaction = database.transaction(STORE_NAME, mode);
-    const operation = action(transaction.objectStore(STORE_NAME));
-    operation.onsuccess = () => {
-      if (!waitForCommit) resolve(operation.result);
-    };
-    if (waitForCommit) transaction.oncomplete = () => resolve(operation.result);
-    operation.onerror = () =>
-      reject(operation.error ?? new Error("IndexedDB request failed"));
-    transaction.onabort = () =>
-      reject(transaction.error ?? new Error("IndexedDB aborted"));
-  });
-}
-
-function recoveryKey(userId: string, documentKey: string): string {
-  return `${encodeURIComponent(userId)}:${encodeURIComponent(documentKey)}`;
-}
-
-function fallbackKey(userId: string, documentKey: string): string {
-  return `anima.avatarEffectCreator.recovery.v1:${recoveryKey(userId, documentKey)}`;
-}
-
-function clearFallback(
-  userId: string,
-  documentKey: string,
-  strict = false,
-): void {
-  try {
-    window.localStorage.removeItem(fallbackKey(userId, documentKey));
-  } catch (cause) {
-    if (strict) throw cause;
-    // Browser privacy settings may disable localStorage independently.
-  }
 }

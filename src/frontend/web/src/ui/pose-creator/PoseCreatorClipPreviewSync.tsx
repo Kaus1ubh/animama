@@ -7,6 +7,7 @@ import {
   collectAnimaPoseClipEventsBetween,
   isAnimaPoseClipVFXEvent,
   sampleAnimaPoseClipActiveEventsAtTime,
+  sampleAnimaPoseClipAvatarVFXIntensity,
   type AnyAnimaPoseClip,
   type AnimaPoseClipActiveVFXEvent,
   type AnimaPoseClipDueEvent,
@@ -292,6 +293,11 @@ export function PoseCreatorClipPreviewSync({
         activeAvatar,
         clipPlaybackAbsoluteTimeSec,
       );
+      syncPoseCreatorClipAvatarVFXIntensities(
+        runtimeState,
+        activeAvatar,
+        clipPlaybackAbsoluteTimeSec,
+      );
       resetEffectPreviewRuntimeState(
         runtimeState,
         true,
@@ -339,6 +345,11 @@ export function PoseCreatorClipPreviewSync({
       }
       runtimeState.lastScrubSignature = scrubSignature;
     }
+    syncPoseCreatorClipAvatarVFXIntensities(
+      runtimeState,
+      activeAvatar,
+      clipDraft.currentTimeSec,
+    );
 
     resetEffectPreviewRuntimeState(
       runtimeState,
@@ -807,6 +818,30 @@ function applyPoseCreatorSceneVFXEvent(
       await playApplySound?.(preset.sound.onApply);
     }
   })();
+}
+
+/**
+ * Send each fading Avatar Effect event's envelope to the preview Avatar, as
+ * the chat players do, so a paused or playing preview shows the fade. The
+ * controller holds a value for an effect that is still loading.
+ */
+function syncPoseCreatorClipAvatarVFXIntensities(
+  runtimeState: EffectPreviewRuntimeState,
+  activeAvatar: Avatar,
+  playbackTimeSec: number,
+) {
+  for (const { event, context } of runtimeState.activeEffects.values()) {
+    if (event.kind !== "avatar_vfx") continue;
+    const intensity = sampleAnimaPoseClipAvatarVFXIntensity(
+      event,
+      playbackTimeSec - context.playbackTime,
+    );
+    if (intensity === undefined) continue;
+    activeAvatar.vfxController?.setEffectIntensity(
+      context.appliedId,
+      intensity,
+    );
+  }
 }
 
 function clearExpiredPoseCreatorClipPlaybackEffects(

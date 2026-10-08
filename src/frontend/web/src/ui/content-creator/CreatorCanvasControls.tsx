@@ -63,6 +63,7 @@ export function CreatorCanvasControls({
     <div
       role="group"
       aria-label="Preview controls"
+      data-creator-preview-controls=""
       className={cn(
         "bg-background border-border/70 flex max-w-full flex-wrap items-center gap-2 rounded-xl border p-2 shadow-sm",
         className,

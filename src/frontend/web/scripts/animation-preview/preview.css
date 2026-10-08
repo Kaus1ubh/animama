@@ -91,6 +91,19 @@ button[aria-pressed="true"] {
   white-space: pre-wrap;
 }
 
+/* Effect warnings and what the preview does not play: visible, never silent. */
+.notices {
+  margin: 8px 16px 0;
+  padding: 8px 12px;
+  border: 1px solid var(--open);
+  border-radius: 6px;
+  background: #fff8ec;
+  color: var(--open);
+  white-space: pre-wrap;
+  max-height: 8em;
+  overflow-y: auto;
+}
+
 .stage {
   flex: 1;
   display: grid;

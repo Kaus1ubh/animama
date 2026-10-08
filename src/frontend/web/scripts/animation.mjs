@@ -2,6 +2,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createServer } from "vite";
 
+import { effectVersionForFile } from "./animation-preview-media.mjs";
+
 // Run the motion-authoring CLI (src/lib/avatar/motion-authoring/cli.ts)
 // through Vite's SSR loader so TypeScript and the `@` alias resolve as in the app.
 const webRoot = fileURLToPath(new URL("..", import.meta.url));
@@ -68,6 +70,7 @@ try {
       ),
       cwd,
       out,
+      fileVersion: effectVersionForFile,
     });
   }
 } finally {

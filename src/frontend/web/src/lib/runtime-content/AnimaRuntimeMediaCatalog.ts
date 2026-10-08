@@ -7,10 +7,19 @@ import type {
   ParticleVFXPreloadTier,
 } from "@/lib/avatar/particle-vfx/types";
 import {
-  AVATAR_VFX_CATALOG,
-  parseAvatarVFXCatalogEntry,
-} from "@/lib/avatar/vfx/catalog";
-import type { AvatarVFXCatalogEntry } from "@/lib/avatar/vfx/types";
+  AvatarEffectDefinitionError,
+  parseAvatarEffectDefinition,
+  validateAvatarEffectDefinition,
+} from "@/lib/avatar/vfx/definition";
+import {
+  assertAvatarEffectImageWithinLimits,
+  MAX_AVATAR_EFFECT_IMAGE_BYTES,
+} from "@/lib/avatar/vfx/effect-image-limits";
+import {
+  isAttachmentVFXEntry,
+  type AvatarVFXCatalogEntry,
+  type AvatarVFXParsedEntry,
+} from "@/lib/avatar/vfx/types";
 import {
   getSceneBackgroundLayerPresetById,
   getSceneFocusLinePresetById,
@@ -25,7 +34,6 @@ import {
 
 const MAX_PARTICLE_MANIFEST_BYTES = 5 * 1024 * 1024;
 const MAX_PARTICLE_PACKAGE_BYTES = 64 * 1024 * 1024;
-const MAX_AVATAR_EFFECT_BYTES = 16 * 1024 * 1024;
 const MAX_SCENE_EFFECT_BYTES = 32 * 1024 * 1024;
 const MAX_RESIDENT_PRIVATE_MEDIA_BYTES = 128 * 1024 * 1024;
 const MAX_EAGER_PRELOAD_BYTES = 64 * 1024 * 1024;
@@ -58,7 +66,8 @@ export interface AnimaRuntimeMediaProvider {
   ): Promise<ParticleVFXCatalogEntry | null>;
   listAvatarVFX(): readonly AvatarVFXCatalogEntry[];
   resolveAvatarVFX(runtimeId: string): AvatarVFXCatalogEntry | null;
-  loadAvatarVFX(runtimeId: string): Promise<AvatarVFXCatalogEntry | null>;
+  /** A deferred-attachment entry is returned so its consumer can report it. */
+  loadAvatarVFX(runtimeId: string): Promise<AvatarVFXParsedEntry | null>;
   listSceneVFX(kind: SceneVFXKind): readonly SceneVFXEntry[];
   resolveSceneVFX(kind: SceneVFXKind, runtimeId: string): SceneVFXEntry | null;
   loadSceneVFX(
@@ -113,7 +122,7 @@ export class AnimaRuntimeMediaCatalog implements AnimaRuntimeMediaProvider {
     string,
     ParticleVFXCatalogEntry
   >();
-  private readonly avatarVFXEntries = new Map<string, AvatarVFXCatalogEntry>();
+  private readonly avatarVFXEntries = new Map<string, AvatarVFXParsedEntry>();
   private readonly sceneVFXEntries = new Map<string, SceneVFXEntry>();
   private readonly avatarVFXSources = new Map<string, RuntimeCatalogEntry>();
   private readonly sceneVFXSources = new Map<string, RuntimeCatalogEntry>();
@@ -137,7 +146,7 @@ export class AnimaRuntimeMediaCatalog implements AnimaRuntimeMediaProvider {
   >();
   private readonly pendingAvatarVFX = new Map<
     string,
-    Promise<AvatarVFXCatalogEntry | null>
+    Promise<AvatarVFXParsedEntry | null>
   >();
   private readonly pendingSceneVFX = new Map<
     string,
@@ -209,9 +218,9 @@ export class AnimaRuntimeMediaCatalog implements AnimaRuntimeMediaProvider {
     for (const entry of uniqueRuntimeEntries(entries.avatarVfx)) {
       if (this.avatarVFXSources.has(entry.runtime_id)) continue;
       changed = true;
+      // Avatar Effects resolve only from registered files; a `runtime_catalog`
+      // source has no bundled registry and is reported by the runtime catalog.
       this.avatarVFXSources.set(entry.runtime_id, entry);
-      const effect = resolveAppAvatarVFX(entry);
-      if (effect) this.avatarVFXEntries.set(entry.runtime_id, effect);
     }
     for (const entry of uniqueRuntimeEntries(entries.sceneBackgroundVfx)) {
       if (
@@ -299,12 +308,13 @@ export class AnimaRuntimeMediaCatalog implements AnimaRuntimeMediaProvider {
   }
 
   resolveAvatarVFX(runtimeId: string): AvatarVFXCatalogEntry | null {
-    return this.avatarVFXEntries.get(runtimeId) ?? null;
+    const entry = this.avatarVFXEntries.get(runtimeId);
+    return entry && !isAttachmentVFXEntry(entry) ? entry : null;
   }
 
-  loadAvatarVFX(runtimeId: string): Promise<AvatarVFXCatalogEntry | null> {
+  loadAvatarVFX(runtimeId: string): Promise<AvatarVFXParsedEntry | null> {
     if (this.disposed) return Promise.resolve(null);
-    const resolved = this.resolveAvatarVFX(runtimeId);
+    const resolved = this.avatarVFXEntries.get(runtimeId);
     if (resolved) return Promise.resolve(resolved);
     const entry = this.avatarVFXSources.get(runtimeId);
     if (!entry || !runtimeSourceHasFiles(entry.source))
@@ -330,7 +340,9 @@ export class AnimaRuntimeMediaCatalog implements AnimaRuntimeMediaProvider {
   }
 
   listAvatarVFX(): readonly AvatarVFXCatalogEntry[] {
-    return Array.from(this.avatarVFXEntries.values());
+    return Array.from(this.avatarVFXEntries.values()).filter(
+      (entry): entry is AvatarVFXCatalogEntry => !isAttachmentVFXEntry(entry),
+    );
   }
 
   listSceneVFX(kind: SceneVFXKind): readonly SceneVFXEntry[] {
@@ -571,67 +583,104 @@ export class AnimaRuntimeMediaCatalog implements AnimaRuntimeMediaProvider {
     }
   }
 
+  /**
+   * Fetch an Avatar Effect's registered images and parse its `/2` definition.
+   * Each image's size and header dimensions are checked before an object URL
+   * is created, so the browser never decodes an over-budget image.
+   */
   private async loadPrivateAvatarVFX(
     entry: RuntimeCatalogEntry,
-  ): Promise<AvatarVFXCatalogEntry | null> {
+  ): Promise<AvatarVFXParsedEntry | null> {
     if (!runtimeSourceHasFiles(entry.source)) return null;
-    const definition = recordValue(entry.definition);
+    // The backend reports a stored `/1` (or otherwise unreadable) definition.
+    if (entry.definition_error) throw new Error(entry.definition_error);
+    let definition;
+    try {
+      definition = validateAvatarEffectDefinition(entry.definition);
+    } catch (error) {
+      throw new Error(
+        error instanceof AvatarEffectDefinitionError
+          ? error.code
+          : "avatar_vfx_definition_invalid",
+      );
+    }
     const logicalResourceUrls = entry.source.logical_resource_urls ?? {};
-    const logicalImage =
-      definition && typeof definition.image === "string"
-        ? definition.image
-        : null;
+    const logicalImages = [
+      definition.art.image,
+      ...(definition.art.otherEyeImage ? [definition.art.otherEyeImage] : []),
+    ];
     if (
-      !definition ||
-      !logicalImage ||
-      Object.keys(logicalResourceUrls).length !== 1
+      new Set(logicalImages).size !== logicalImages.length ||
+      Object.keys(logicalResourceUrls).length !== logicalImages.length
     ) {
       throw new Error("avatar_vfx_definition_invalid");
     }
-    const imageUrl = logicalResourceUrls[logicalImage];
-    const imageFile = imageUrl
-      ? entry.source.files.find((file) => file.url === imageUrl)
-      : null;
-    if (
-      !imageFile ||
-      imageFile.role !== "image" ||
-      imageFile.size_bytes > MAX_AVATAR_EFFECT_BYTES
-    ) {
-      throw new Error("avatar_vfx_resource_invalid");
-    }
-    this.reservePrivateBytes(imageFile.size_bytes);
+    const source = entry.source;
+    const imageFiles = logicalImages.map((logicalImage) => {
+      const imageUrl = logicalResourceUrls[logicalImage];
+      const imageFile = imageUrl
+        ? source.files.find((file) => file.url === imageUrl)
+        : null;
+      if (
+        !imageFile ||
+        imageFile.role !== "image" ||
+        imageFile.size_bytes > MAX_AVATAR_EFFECT_IMAGE_BYTES
+      ) {
+        throw new Error("avatar_vfx_resource_invalid");
+      }
+      return imageFile;
+    });
+    const reservedBytes = imageFiles.reduce(
+      (total, file) => total + file.size_bytes,
+      0,
+    );
+    this.reservePrivateBytes(reservedBytes);
     const createdUrls: string[] = [];
     try {
-      const imageBlob = await this.fetchPrivate(
-        {
-          entry,
-          url: imageFile.url,
-          expectedBytes: imageFile.size_bytes,
-          contentType: imageFile.content_type,
-        },
-        "effect",
-      );
-      const objectUrl = this.ownedObjectUrl(imageBlob);
-      createdUrls.push(objectUrl);
-      const soundAlias =
-        typeof definition.soundAlias === "string"
-          ? definition.soundAlias
-          : null;
+      const objectUrls: string[] = [];
+      for (const imageFile of imageFiles) {
+        const imageBlob = await this.fetchPrivate(
+          {
+            entry,
+            url: imageFile.url,
+            expectedBytes: imageFile.size_bytes,
+            contentType: imageFile.content_type,
+          },
+          "effect",
+        );
+        await assertAvatarEffectImageWithinLimits(imageBlob);
+        const objectUrl = this.ownedObjectUrl(imageBlob);
+        createdUrls.push(objectUrl);
+        objectUrls.push(objectUrl);
+      }
+      const soundAlias = definition.soundAlias ?? null;
       const references = recordValue(entry.config.runtime_reference_map) ?? {};
-      return parseAvatarVFXCatalogEntry({
-        ...definition,
-        id: entry.runtime_id,
-        label: entry.display_name,
-        description: entry.description ?? entry.display_name,
-        assetPath: objectUrl,
-        ...(soundAlias
-          ? { sound: { onApply: String(references[soundAlias] ?? soundAlias) } }
-          : {}),
-      });
+      try {
+        return parseAvatarEffectDefinition(definition, {
+          id: entry.runtime_id,
+          label: entry.display_name,
+          description: entry.description ?? entry.display_name,
+          assetPath: objectUrls[0]!,
+          ...(objectUrls[1] ? { otherEyeAssetPath: objectUrls[1] } : {}),
+          ...(soundAlias
+            ? {
+                sound: {
+                  onApply: String(references[soundAlias] ?? soundAlias),
+                },
+              }
+            : {}),
+        });
+      } catch (error) {
+        throw new Error(
+          error instanceof AvatarEffectDefinitionError
+            ? error.code
+            : "avatar_vfx_definition_invalid",
+        );
+      }
     } catch (error) {
       this.residentPrivateBytes = Math.max(
         0,
-        this.residentPrivateBytes - imageFile.size_bytes,
+        this.residentPrivateBytes - reservedBytes,
       );
       for (const url of createdUrls) {
         if (this.objectUrls.delete(url)) this.revokeObjectURL(url);
@@ -894,39 +943,6 @@ function resolveBuiltinParticleVFX(entry: RuntimeCatalogEntry) {
       (effect) => effect.assetPath === source.url,
     ) ?? null
   );
-}
-
-function resolveAppAvatarVFX(
-  entry: RuntimeCatalogEntry,
-): AvatarVFXCatalogEntry | null {
-  if (
-    entry.source.type !== "runtime_catalog" ||
-    entry.source.catalog !== "avatar_vfx"
-  )
-    return null;
-  const source = entry.source;
-  const effect = AVATAR_VFX_CATALOG.find(
-    (candidate) => candidate.id === source.key,
-  );
-  if (!effect) return null;
-  const references =
-    entry.config.runtime_reference_map &&
-    typeof entry.config.runtime_reference_map === "object"
-      ? (entry.config.runtime_reference_map as Record<string, unknown>)
-      : {};
-  const onApply = effect.sound?.onApply;
-  return {
-    ...effect,
-    id: entry.runtime_id,
-    ...(onApply
-      ? {
-          sound: {
-            ...effect.sound,
-            onApply: String(references[onApply] ?? onApply),
-          },
-        }
-      : {}),
-  };
 }
 
 function resolveAppSceneVFX(

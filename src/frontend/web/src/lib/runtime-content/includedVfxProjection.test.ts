@@ -3,7 +3,8 @@ import { resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { parseAvatarVFXCatalogEntry } from "@/lib/avatar/vfx/catalog";
+import { parseAvatarEffectDefinition } from "@/lib/avatar/vfx/definition";
+import { isAttachmentVFXEntry } from "@/lib/avatar/vfx/types";
 import { parseSceneVFXEntry } from "@/lib/scene-vfx/catalog";
 
 type JsonObject = Record<string, unknown>;
@@ -26,26 +27,32 @@ function object(value: unknown): JsonObject {
 }
 
 describe("Included typed VFX runtime projection", () => {
-  it("parses every Avatar Effect after replacing its registered image", () => {
+  it("parses every Avatar Effect as /2 with its registered images", () => {
     const documents = objectsAt(resolve(INCLUDED_VFX, "avatar"));
 
     for (const document of documents) {
       const definition = object(structuredClone(document.definition));
+      const art = object(definition.art);
       const files = (document.files as JsonObject[] | undefined) ?? [];
-      expect(files.map((file) => file.path)).toEqual([definition.image]);
+      expect(definition.schema).toBe("animama/avatar-effect/2");
+      expect(files.map((file) => file.path)).toEqual(
+        [art.image, art.otherEyeImage].filter(Boolean),
+      );
 
-      expect(() =>
-        parseAvatarVFXCatalogEntry({
-          ...definition,
-          id: document.content_id,
-          label: document.name,
-          description: document.description,
-          assetPath: "blob:registered-image",
-          ...(typeof definition.soundAlias === "string"
-            ? { sound: { onApply: "registered-sound" } }
-            : {}),
-        }),
-      ).not.toThrow();
+      const parsed = parseAvatarEffectDefinition(definition, {
+        id: String(document.content_id),
+        label: String(document.name),
+        description: String(document.description),
+        assetPath: "blob:registered-image",
+        ...(typeof art.otherEyeImage === "string"
+          ? { otherEyeAssetPath: "blob:registered-other-eye" }
+          : {}),
+        ...(typeof definition.soundAlias === "string"
+          ? { sound: { onApply: "registered-sound" } }
+          : {}),
+      });
+      // Every Included effect is a face effect.
+      expect(isAttachmentVFXEntry(parsed)).toBe(false);
     }
   });
 

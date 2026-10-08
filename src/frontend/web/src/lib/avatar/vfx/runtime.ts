@@ -1,32 +1,26 @@
 import type { Avatar } from "../Avatar";
-import { AVATAR_VFX_CATALOG } from "./catalog";
 import {
+  isAttachmentVFXEntry,
   isFaceAnchoredVFXEntry,
   isHoverVFXEntry,
   isTextureVFXEntry,
   type AvatarVFXCatalogEntry,
+  type AvatarVFXParsedEntry,
 } from "./types";
 
-const AVATAR_VFX_CATALOG_BY_ID = new Map<string, AvatarVFXCatalogEntry>(
-  AVATAR_VFX_CATALOG.map((entry) => [entry.id, entry]),
-);
-
-export function getAvatarVFXCatalogEntryById(
-  effectId: string,
-): AvatarVFXCatalogEntry | null {
-  return AVATAR_VFX_CATALOG_BY_ID.get(effectId) ?? null;
-}
-
+/**
+ * Apply one resolved Avatar Effect. Callers resolve `effectEntry` through the
+ * Anima's runtime catalog; there is no bundled fallback catalog. Returns false
+ * when nothing was applied, including an effect skipped because the Avatar
+ * lacks its face part (`findUnavailableFacePart` tells the cases apart).
+ */
 export async function applyAvatarVFXEffectById(args: {
   avatar: Avatar | null;
   effectId: string;
   appliedEffectId?: string;
-  effectEntry?: AvatarVFXCatalogEntry | null;
+  effectEntry: AvatarVFXParsedEntry | null;
 }): Promise<boolean> {
-  const effect =
-    args.effectEntry === undefined
-      ? getAvatarVFXCatalogEntryById(args.effectId)
-      : args.effectEntry;
+  const effect = args.effectEntry;
   const controller = args.avatar?.vfxController ?? null;
 
   if (!effect || !controller) {
@@ -34,6 +28,23 @@ export async function applyAvatarVFXEffectById(args: {
   }
 
   const runtimeEffectId = args.appliedEffectId ?? effect.id;
+
+  // An effect whose face part this Avatar lacks is not applied; the
+  // controller logs it once and lists it in its warnings.
+  const missingPart = controller.findUnavailableFacePart(effect);
+  if (missingPart) {
+    controller.reportUnavailableFacePart(effect, missingPart);
+    return false;
+  }
+
+  if (isAttachmentVFXEntry(effect)) {
+    await controller.applyAttachmentVFX({
+      effectId: runtimeEffectId,
+      effectEntry: { ...effect, id: runtimeEffectId },
+      logicalEffectId: effect.id,
+    });
+    return true;
+  }
 
   if (isHoverVFXEntry(effect)) {
     await controller.applyHoverVFX({

@@ -22,7 +22,10 @@ import type {
   ParticleVFXCatalogEntry,
   ParticleVFXPreloadTier,
 } from "@/lib/avatar/particle-vfx/types";
-import type { AvatarVFXCatalogEntry } from "@/lib/avatar/vfx/types";
+import type {
+  AvatarVFXCatalogEntry,
+  AvatarVFXParsedEntry,
+} from "@/lib/avatar/vfx/types";
 import type {
   AnimaRuntimeMediaProvider,
   ResolvedRuntimeAudio,
@@ -171,7 +174,7 @@ export class PreviewRuntimeCatalogSession
     return this.media.resolveAvatarVFX(runtimeId);
   }
 
-  loadAvatarVFX(runtimeId: string): Promise<AvatarVFXCatalogEntry | null> {
+  loadAvatarVFX(runtimeId: string): Promise<AvatarVFXParsedEntry | null> {
     return this.media.loadAvatarVFX(runtimeId);
   }
 

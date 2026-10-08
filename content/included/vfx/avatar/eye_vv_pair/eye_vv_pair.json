@@ -7,18 +7,20 @@
   "description": "Double-eye playful hover for broad giggly delight or flustered excitement.",
   "dependencies": [],
   "definition": {
-    "schema": "animama/avatar-effect/1",
-    "kind": "hover",
+    "schema": "animama/avatar-effect/2",
     "region": "eyes",
-    "hoverKind": "eye_hover",
-    "disableTargetRoles": [
-      "eye_highlight"
-    ],
-    "lifetime": {
-      "kind": "duration",
-      "runEndBufferSec": 5
+    "attachment": {
+      "kind": "face_landmark",
+      "landmark": "eyes"
     },
-    "image": "eye_vv.png"
+    "art": {
+      "image": "eye_vv.png"
+    },
+    "faceOptions": {
+      "hideParts": [
+        "eye_highlight"
+      ]
+    }
   },
   "files": [
     {

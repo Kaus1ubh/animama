@@ -3005,97 +3005,6 @@
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/avatar/face/eyes/eye_0_r.png",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "content/included/vfx/avatar/face/eyes/eye_=_r.png",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "content/included/vfx/avatar/face/eyes/eye_confused_swirl_r.png",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "content/included/vfx/avatar/face/eyes/eye_o_r.png",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "content/included/vfx/avatar/face/eyes/eye_vv.png",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "content/included/vfx/avatar/face/eyes/eye_vv_right.png",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "content/included/vfx/avatar/face/eyes/star.png",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "content/included/vfx/avatar/face/eyes/star3.png",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "content/included/vfx/avatar/face/full/texture_black_1.png",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "content/included/vfx/avatar/face/full/texture_sick_1.png",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "content/included/vfx/avatar/face/full/texture_sick_2.png",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "content/included/vfx/avatar/face/full/texture_sick_3.png",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "content/included/vfx/avatar/face/mouth/mouth_w.png",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
       "path": "content/included/vfx/avatar/mouth_hover_w/mouth_hover_w.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
@@ -7837,13 +7746,6 @@
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "src/backend/animama/domain/vfx.py",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
       "path": "src/backend/animama/hooks.py",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
@@ -8230,13 +8132,6 @@
     },
     {
       "path": "src/backend/animama/resources/starter-loadout.v1.json",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "src/backend/animama/resources/vfx-catalog.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
@@ -11638,14 +11533,359 @@
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "src/frontend/web/src/assets/effects/scene-vfx/catalog.json",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
+      "path": "src/frontend/web/src/assets/effect-templates/angry.webp",
+      "candidate_license": "LicenseRef-pixiv-VRoidPreset",
+      "basis": "Direct Animama renderer capture of Annie (owner-confirmed pixiv VRoid preset) wearing an owner-authored Included Avatar Effect; retained under the corresponding model terms like Annie's portrait",
+      "source": "https://vrm.dev/licenses/1.0/",
+      "revision": "Regenerated by pnpm -s effects:thumbnails; exact VRM hashes and embedded metadata in evidence",
+      "copyright": [
+        "pixiv VRoid Project",
+        "2026 Raymond Van (effect artwork)"
+      ],
+      "evidence": [
+        "licenses/third-party/art-vroid-review.json",
+        "src/frontend/web/src/assets/effect-templates/README.md"
+      ],
+      "notices": [
+        "licenses/third-party/art-NOTICES.md"
+      ],
+      "conditions": [
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+      ],
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "src/frontend/web/src/assets/effects/vfx/catalog.json",
+      "path": "src/frontend/web/src/assets/effect-templates/emote.webp",
+      "candidate_license": "LicenseRef-pixiv-VRoidPreset",
+      "basis": "Direct Animama renderer capture of Annie (owner-confirmed pixiv VRoid preset) wearing an owner-authored Included Avatar Effect; retained under the corresponding model terms like Annie's portrait",
+      "source": "https://vrm.dev/licenses/1.0/",
+      "revision": "Regenerated by pnpm -s effects:thumbnails; exact VRM hashes and embedded metadata in evidence",
+      "copyright": [
+        "pixiv VRoid Project",
+        "2026 Raymond Van (effect artwork)"
+      ],
+      "evidence": [
+        "licenses/third-party/art-vroid-review.json",
+        "src/frontend/web/src/assets/effect-templates/README.md"
+      ],
+      "notices": [
+        "licenses/third-party/art-NOTICES.md"
+      ],
+      "conditions": [
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+      ],
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/assets/effect-templates/eye.webp",
+      "candidate_license": "LicenseRef-pixiv-VRoidPreset",
+      "basis": "Direct Animama renderer capture of Annie (owner-confirmed pixiv VRoid preset) wearing an owner-authored Included Avatar Effect; retained under the corresponding model terms like Annie's portrait",
+      "source": "https://vrm.dev/licenses/1.0/",
+      "revision": "Regenerated by pnpm -s effects:thumbnails; exact VRM hashes and embedded metadata in evidence",
+      "copyright": [
+        "pixiv VRoid Project",
+        "2026 Raymond Van (effect artwork)"
+      ],
+      "evidence": [
+        "licenses/third-party/art-vroid-review.json",
+        "src/frontend/web/src/assets/effect-templates/README.md"
+      ],
+      "notices": [
+        "licenses/third-party/art-NOTICES.md"
+      ],
+      "conditions": [
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+      ],
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/assets/effect-templates/eye_0.webp",
+      "candidate_license": "LicenseRef-pixiv-VRoidPreset",
+      "basis": "Direct Animama renderer capture of Annie (owner-confirmed pixiv VRoid preset) wearing an owner-authored Included Avatar Effect; retained under the corresponding model terms like Annie's portrait",
+      "source": "https://vrm.dev/licenses/1.0/",
+      "revision": "Regenerated by pnpm -s effects:thumbnails; exact VRM hashes and embedded metadata in evidence",
+      "copyright": [
+        "pixiv VRoid Project",
+        "2026 Raymond Van (effect artwork)"
+      ],
+      "evidence": [
+        "licenses/third-party/art-vroid-review.json",
+        "src/frontend/web/src/assets/effect-templates/README.md"
+      ],
+      "notices": [
+        "licenses/third-party/art-NOTICES.md"
+      ],
+      "conditions": [
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+      ],
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/assets/effect-templates/eye_confused_swirl.webp",
+      "candidate_license": "LicenseRef-pixiv-VRoidPreset",
+      "basis": "Direct Animama renderer capture of Annie (owner-confirmed pixiv VRoid preset) wearing an owner-authored Included Avatar Effect; retained under the corresponding model terms like Annie's portrait",
+      "source": "https://vrm.dev/licenses/1.0/",
+      "revision": "Regenerated by pnpm -s effects:thumbnails; exact VRM hashes and embedded metadata in evidence",
+      "copyright": [
+        "pixiv VRoid Project",
+        "2026 Raymond Van (effect artwork)"
+      ],
+      "evidence": [
+        "licenses/third-party/art-vroid-review.json",
+        "src/frontend/web/src/assets/effect-templates/README.md"
+      ],
+      "notices": [
+        "licenses/third-party/art-NOTICES.md"
+      ],
+      "conditions": [
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+      ],
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/assets/effect-templates/eye_o.webp",
+      "candidate_license": "LicenseRef-pixiv-VRoidPreset",
+      "basis": "Direct Animama renderer capture of Annie (owner-confirmed pixiv VRoid preset) wearing an owner-authored Included Avatar Effect; retained under the corresponding model terms like Annie's portrait",
+      "source": "https://vrm.dev/licenses/1.0/",
+      "revision": "Regenerated by pnpm -s effects:thumbnails; exact VRM hashes and embedded metadata in evidence",
+      "copyright": [
+        "pixiv VRoid Project",
+        "2026 Raymond Van (effect artwork)"
+      ],
+      "evidence": [
+        "licenses/third-party/art-vroid-review.json",
+        "src/frontend/web/src/assets/effect-templates/README.md"
+      ],
+      "notices": [
+        "licenses/third-party/art-NOTICES.md"
+      ],
+      "conditions": [
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+      ],
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/assets/effect-templates/eye_vv.webp",
+      "candidate_license": "LicenseRef-pixiv-VRoidPreset",
+      "basis": "Direct Animama renderer capture of Annie (owner-confirmed pixiv VRoid preset) wearing an owner-authored Included Avatar Effect; retained under the corresponding model terms like Annie's portrait",
+      "source": "https://vrm.dev/licenses/1.0/",
+      "revision": "Regenerated by pnpm -s effects:thumbnails; exact VRM hashes and embedded metadata in evidence",
+      "copyright": [
+        "pixiv VRoid Project",
+        "2026 Raymond Van (effect artwork)"
+      ],
+      "evidence": [
+        "licenses/third-party/art-vroid-review.json",
+        "src/frontend/web/src/assets/effect-templates/README.md"
+      ],
+      "notices": [
+        "licenses/third-party/art-NOTICES.md"
+      ],
+      "conditions": [
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+      ],
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/assets/effect-templates/eye_vv_pair.webp",
+      "candidate_license": "LicenseRef-pixiv-VRoidPreset",
+      "basis": "Direct Animama renderer capture of Annie (owner-confirmed pixiv VRoid preset) wearing an owner-authored Included Avatar Effect; retained under the corresponding model terms like Annie's portrait",
+      "source": "https://vrm.dev/licenses/1.0/",
+      "revision": "Regenerated by pnpm -s effects:thumbnails; exact VRM hashes and embedded metadata in evidence",
+      "copyright": [
+        "pixiv VRoid Project",
+        "2026 Raymond Van (effect artwork)"
+      ],
+      "evidence": [
+        "licenses/third-party/art-vroid-review.json",
+        "src/frontend/web/src/assets/effect-templates/README.md"
+      ],
+      "notices": [
+        "licenses/third-party/art-NOTICES.md"
+      ],
+      "conditions": [
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+      ],
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/assets/effect-templates/mouth_hover_w.webp",
+      "candidate_license": "LicenseRef-pixiv-VRoidPreset",
+      "basis": "Direct Animama renderer capture of Annie (owner-confirmed pixiv VRoid preset) wearing an owner-authored Included Avatar Effect; retained under the corresponding model terms like Annie's portrait",
+      "source": "https://vrm.dev/licenses/1.0/",
+      "revision": "Regenerated by pnpm -s effects:thumbnails; exact VRM hashes and embedded metadata in evidence",
+      "copyright": [
+        "pixiv VRoid Project",
+        "2026 Raymond Van (effect artwork)"
+      ],
+      "evidence": [
+        "licenses/third-party/art-vroid-review.json",
+        "src/frontend/web/src/assets/effect-templates/README.md"
+      ],
+      "notices": [
+        "licenses/third-party/art-NOTICES.md"
+      ],
+      "conditions": [
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+      ],
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/assets/effect-templates/mouth_w.webp",
+      "candidate_license": "LicenseRef-pixiv-VRoidPreset",
+      "basis": "Direct Animama renderer capture of Annie (owner-confirmed pixiv VRoid preset) wearing an owner-authored Included Avatar Effect; retained under the corresponding model terms like Annie's portrait",
+      "source": "https://vrm.dev/licenses/1.0/",
+      "revision": "Regenerated by pnpm -s effects:thumbnails; exact VRM hashes and embedded metadata in evidence",
+      "copyright": [
+        "pixiv VRoid Project",
+        "2026 Raymond Van (effect artwork)"
+      ],
+      "evidence": [
+        "licenses/third-party/art-vroid-review.json",
+        "src/frontend/web/src/assets/effect-templates/README.md"
+      ],
+      "notices": [
+        "licenses/third-party/art-NOTICES.md"
+      ],
+      "conditions": [
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+      ],
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/assets/effect-templates/star.webp",
+      "candidate_license": "LicenseRef-pixiv-VRoidPreset",
+      "basis": "Direct Animama renderer capture of Annie (owner-confirmed pixiv VRoid preset) wearing an owner-authored Included Avatar Effect; retained under the corresponding model terms like Annie's portrait",
+      "source": "https://vrm.dev/licenses/1.0/",
+      "revision": "Regenerated by pnpm -s effects:thumbnails; exact VRM hashes and embedded metadata in evidence",
+      "copyright": [
+        "pixiv VRoid Project",
+        "2026 Raymond Van (effect artwork)"
+      ],
+      "evidence": [
+        "licenses/third-party/art-vroid-review.json",
+        "src/frontend/web/src/assets/effect-templates/README.md"
+      ],
+      "notices": [
+        "licenses/third-party/art-NOTICES.md"
+      ],
+      "conditions": [
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+      ],
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/assets/effect-templates/star3.webp",
+      "candidate_license": "LicenseRef-pixiv-VRoidPreset",
+      "basis": "Direct Animama renderer capture of Annie (owner-confirmed pixiv VRoid preset) wearing an owner-authored Included Avatar Effect; retained under the corresponding model terms like Annie's portrait",
+      "source": "https://vrm.dev/licenses/1.0/",
+      "revision": "Regenerated by pnpm -s effects:thumbnails; exact VRM hashes and embedded metadata in evidence",
+      "copyright": [
+        "pixiv VRoid Project",
+        "2026 Raymond Van (effect artwork)"
+      ],
+      "evidence": [
+        "licenses/third-party/art-vroid-review.json",
+        "src/frontend/web/src/assets/effect-templates/README.md"
+      ],
+      "notices": [
+        "licenses/third-party/art-NOTICES.md"
+      ],
+      "conditions": [
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+      ],
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/assets/effect-templates/texture_black_1.webp",
+      "candidate_license": "LicenseRef-pixiv-VRoidPreset",
+      "basis": "Direct Animama renderer capture of Annie (owner-confirmed pixiv VRoid preset) wearing an owner-authored Included Avatar Effect; retained under the corresponding model terms like Annie's portrait",
+      "source": "https://vrm.dev/licenses/1.0/",
+      "revision": "Regenerated by pnpm -s effects:thumbnails; exact VRM hashes and embedded metadata in evidence",
+      "copyright": [
+        "pixiv VRoid Project",
+        "2026 Raymond Van (effect artwork)"
+      ],
+      "evidence": [
+        "licenses/third-party/art-vroid-review.json",
+        "src/frontend/web/src/assets/effect-templates/README.md"
+      ],
+      "notices": [
+        "licenses/third-party/art-NOTICES.md"
+      ],
+      "conditions": [
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+      ],
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/assets/effect-templates/texture_sick_1.webp",
+      "candidate_license": "LicenseRef-pixiv-VRoidPreset",
+      "basis": "Direct Animama renderer capture of Annie (owner-confirmed pixiv VRoid preset) wearing an owner-authored Included Avatar Effect; retained under the corresponding model terms like Annie's portrait",
+      "source": "https://vrm.dev/licenses/1.0/",
+      "revision": "Regenerated by pnpm -s effects:thumbnails; exact VRM hashes and embedded metadata in evidence",
+      "copyright": [
+        "pixiv VRoid Project",
+        "2026 Raymond Van (effect artwork)"
+      ],
+      "evidence": [
+        "licenses/third-party/art-vroid-review.json",
+        "src/frontend/web/src/assets/effect-templates/README.md"
+      ],
+      "notices": [
+        "licenses/third-party/art-NOTICES.md"
+      ],
+      "conditions": [
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+      ],
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/assets/effect-templates/texture_sick_2.webp",
+      "candidate_license": "LicenseRef-pixiv-VRoidPreset",
+      "basis": "Direct Animama renderer capture of Annie (owner-confirmed pixiv VRoid preset) wearing an owner-authored Included Avatar Effect; retained under the corresponding model terms like Annie's portrait",
+      "source": "https://vrm.dev/licenses/1.0/",
+      "revision": "Regenerated by pnpm -s effects:thumbnails; exact VRM hashes and embedded metadata in evidence",
+      "copyright": [
+        "pixiv VRoid Project",
+        "2026 Raymond Van (effect artwork)"
+      ],
+      "evidence": [
+        "licenses/third-party/art-vroid-review.json",
+        "src/frontend/web/src/assets/effect-templates/README.md"
+      ],
+      "notices": [
+        "licenses/third-party/art-NOTICES.md"
+      ],
+      "conditions": [
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+      ],
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/assets/effect-templates/texture_sick_3.webp",
+      "candidate_license": "LicenseRef-pixiv-VRoidPreset",
+      "basis": "Direct Animama renderer capture of Annie (owner-confirmed pixiv VRoid preset) wearing an owner-authored Included Avatar Effect; retained under the corresponding model terms like Annie's portrait",
+      "source": "https://vrm.dev/licenses/1.0/",
+      "revision": "Regenerated by pnpm -s effects:thumbnails; exact VRM hashes and embedded metadata in evidence",
+      "copyright": [
+        "pixiv VRoid Project",
+        "2026 Raymond Van (effect artwork)"
+      ],
+      "evidence": [
+        "licenses/third-party/art-vroid-review.json",
+        "src/frontend/web/src/assets/effect-templates/README.md"
+      ],
+      "notices": [
+        "licenses/third-party/art-NOTICES.md"
+      ],
+      "conditions": [
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+      ],
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/assets/effects/scene-vfx/catalog.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",

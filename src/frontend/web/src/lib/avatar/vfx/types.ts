@@ -1,95 +1,94 @@
-import type { EmotionValue } from "@/lib/emotion";
+import type {
+  AvatarEffectAppearance,
+  AvatarEffectDefinitionV2,
+  AvatarEffectFlipbook,
+  AvatarEffectSpin,
+  BodyAttachment,
+  FaceLandmarkAttachment,
+  FaceSurfaceAttachment,
+  SilhouetteAttachment,
+  StickerAttachment,
+} from "@animama/runtime-contracts/api-types";
+import {
+  zAvatarEffectDefinitionV2,
+  zFaceSurfaceAttachment,
+} from "@animama/runtime-contracts/validators";
 
-export const AVATAR_VFX_TARGET_ROLES = [
-  "eye_iris",
-  "eye_highlight",
-  "eyeline",
-  "eyelash",
-  "face_skin",
-] as const;
-export type AvatarVFXTargetRole = (typeof AVATAR_VFX_TARGET_ROLES)[number];
+/*
+ * Definition enums come from the generated `animama/avatar-effect/2` contract
+ * (backend `app/contracts/avatar_effect.py`). The remaining kinds below
+ * (`hover`, `face_anchored`, `texture` and their variants) describe the
+ * controller's internal render entries, which the definition parser produces.
+ */
 
-export const AVATAR_VFX_ASSET_SHAPES = [
-  "single_eye",
-  "double_eye",
-  "full_face",
-] as const;
-export type AvatarVFXAssetShape = (typeof AVATAR_VFX_ASSET_SHAPES)[number];
+/** Detected face parts an effect can paint on or hide. */
+export const AVATAR_VFX_TARGET_ROLES =
+  zFaceSurfaceAttachment.shape.part.options;
+export type AvatarVFXTargetRole = FaceSurfaceAttachment["part"];
 
-export const AVATAR_VFX_APPLY_MODES = ["replace", "overlay"] as const;
-export type AvatarVFXApplyMode = (typeof AVATAR_VFX_APPLY_MODES)[number];
+export type AvatarVFXAssetShape = "single_eye" | "double_eye" | "full_face";
+
+export type AvatarVFXApplyMode = NonNullable<FaceSurfaceAttachment["mode"]>;
 
 export const AVATAR_VFX_RENDER_MODES = ["texture", "hover_plane"] as const;
 export type AvatarVFXRenderMode = (typeof AVATAR_VFX_RENDER_MODES)[number];
 
-export const AVATAR_VFX_KINDS = ["hover", "face_anchored", "texture"] as const;
-export type AvatarVFXKind = (typeof AVATAR_VFX_KINDS)[number];
+export type AvatarVFXKind = "hover" | "face_anchored" | "texture";
 
-export const AVATAR_VFX_HOVER_KINDS = [
-  "eye_hover",
-  "mouth_hover",
-  "box_hover",
-] as const;
-export type AvatarVFXHoverKind = (typeof AVATAR_VFX_HOVER_KINDS)[number];
+export type AvatarVFXHoverKind = "eye_hover" | "mouth_hover" | "box_hover";
 
-export const AVATAR_VFX_TEXTURE_ANCHORS = [
-  "undereye",
-  "blush",
-  "mouth",
-] as const;
-export type AvatarVFXTextureAnchor =
-  (typeof AVATAR_VFX_TEXTURE_ANCHORS)[number];
+export type AvatarVFXTextureAnchor = "undereye" | "blush" | "mouth";
 
-export const AVATAR_VFX_REGIONS = [
-  "eyes",
-  "undereye",
-  "blush",
-  "mouth",
-  "emote",
-  "full_face",
-] as const;
-export type AvatarVFXRegion = (typeof AVATAR_VFX_REGIONS)[number];
+/**
+ * Attachments beyond the face. Each uses the region of the same name, needs no
+ * face part, and coexists with face effects and with each other up to a cap.
+ */
+export type AvatarVFXAttachmentKind = Extract<
+  AvatarEffectDefinitionV2["attachment"]["kind"],
+  "body" | "sticker" | "silhouette"
+>;
+
+/** Face regions; body, sticker and silhouette have their own attachments. */
+export const AVATAR_VFX_REGIONS =
+  zAvatarEffectDefinitionV2.shape.region.options.filter(
+    (region): region is AvatarVFXRegion =>
+      region !== "body" && region !== "sticker" && region !== "silhouette",
+  );
+export type AvatarVFXRegion = Exclude<
+  AvatarEffectDefinitionV2["region"],
+  AvatarVFXAttachmentKind
+>;
 
 export const AVATAR_VFX_STACKABLE_REGIONS = [
   "emote",
   "full_face",
 ] as const satisfies readonly AvatarVFXRegion[];
 
-export const AVATAR_VFX_TEXTURE_LAYOUTS = ["single", "span"] as const;
-export type AvatarVFXTextureLayout =
-  (typeof AVATAR_VFX_TEXTURE_LAYOUTS)[number];
+export type AvatarVFXTextureLayout = NonNullable<
+  FaceSurfaceAttachment["layout"]
+>;
 
-export const AVATAR_VFX_TEXTURE_PIVOTS = [
-  "top-left",
-  "top-center",
-  "top-right",
-  "center-left",
-  "center",
-  "center-right",
-  "bottom-left",
-  "bottom-center",
-  "bottom-right",
-] as const;
-export type AvatarVFXTexturePivot = (typeof AVATAR_VFX_TEXTURE_PIVOTS)[number];
+export type AvatarVFXTexturePivot = NonNullable<FaceSurfaceAttachment["pivot"]>;
 
-export const AVATAR_VFX_SIDES = ["left", "right"] as const;
-export type AvatarVFXSide = (typeof AVATAR_VFX_SIDES)[number];
+export type AvatarVFXSide = NonNullable<FaceSurfaceAttachment["side"]>;
 
-export const AVATAR_VFX_HOVER_PLACEMENTS = [
-  "forehead-left",
-  "forehead-middle",
-  "forehead-right",
-  "top-left",
-  "top-middle",
-  "top-right",
-  "top-edge-left-corner",
-  "top-edge-left",
-  "top-edge-middle",
-  "top-edge-right",
-  "top-edge-right-corner",
-] as const;
+/** Internal names for the `/2` forehead, top and top-edge landmark positions. */
 export type AvatarVFXHoverPlacement =
-  (typeof AVATAR_VFX_HOVER_PLACEMENTS)[number];
+  | "forehead-left"
+  | "forehead-middle"
+  | "forehead-right"
+  | "top-left"
+  | "top-middle"
+  | "top-right"
+  | "top-edge-left-corner"
+  | "top-edge-left"
+  | "top-edge-middle"
+  | "top-edge-right"
+  | "top-edge-right-corner";
+
+export type AvatarVFXLandmarkPosition = NonNullable<
+  FaceLandmarkAttachment["position"]
+>;
 
 export const AVATAR_VFX_ANIMATION_PRESETS = [
   "none",
@@ -101,14 +100,42 @@ export const AVATAR_VFX_ANIMATION_PRESETS = [
 export type AvatarVFXAnimationPreset =
   (typeof AVATAR_VFX_ANIMATION_PRESETS)[number];
 
-export const AVATAR_VFX_ROTATION_DIRECTIONS = [
-  "counterclockwise",
-  "clockwise",
-] as const;
-export type AvatarVFXRotationDirection =
-  (typeof AVATAR_VFX_ROTATION_DIRECTIONS)[number];
+export type AvatarVFXRotationDirection = NonNullable<
+  AvatarEffectSpin["direction"]
+>;
 
-export const AVATAR_VFX_LIFETIME_KINDS = ["duration", "turns"] as const;
+export type AvatarVFXBlend = NonNullable<AvatarEffectAppearance["blend"]>;
+
+/** Resolved appearance; opacity is multiplied by keyframes and event fades. */
+export type AvatarVFXAppearance = {
+  opacity: number;
+  /** `#rrggbb` multiplied into the art, or null for none. */
+  tint: string | null;
+  blend: AvatarVFXBlend;
+};
+
+/** Frames laid out left to right, top to bottom on a grid in the image. */
+export type AvatarVFXFlipbook = {
+  columns: number;
+  rows: number;
+  frames: number;
+  fps: number;
+  loop: NonNullable<AvatarEffectFlipbook["loop"]>;
+};
+
+/** One keyframe; rotation is in radians internally. */
+export type AvatarVFXKeyframe = {
+  t: number;
+  opacity?: number;
+  scale?: number;
+  rotation?: number;
+  offset?: { x: number; y: number };
+};
+
+export type AvatarVFXKeyframes = {
+  loop: boolean;
+  frames: AvatarVFXKeyframe[];
+};
 
 export type AvatarVFXTransformAxisTriple = {
   x: number;
@@ -134,20 +161,6 @@ export type AvatarVFXAnimationConfig = {
     y?: number;
   };
 };
-
-export type AvatarVFXDurationLifetime = {
-  kind: "duration";
-  runEndBufferSec: number;
-};
-
-export type AvatarVFXTurnsLifetime = {
-  kind: "turns";
-  turns: number;
-};
-
-export type AvatarVFXLifetime =
-  | AvatarVFXDurationLifetime
-  | AvatarVFXTurnsLifetime;
 
 export type AvatarVFXResolvedAnimationConfig = {
   pulseEnabled: boolean;
@@ -200,9 +213,13 @@ type AvatarVFXBaseEntry = {
   region: AvatarVFXRegion;
   transform: AvatarVFXTransform;
   animationConfig?: AvatarVFXAnimationConfig;
-  emotions?: EmotionValue[];
-  lifetime?: AvatarVFXLifetime;
   sound?: AvatarVFXSoundConfig;
+  /** Opacity, tint and blend; absent means fully opaque, untinted and normal. */
+  appearance?: AvatarVFXAppearance;
+  /** Unmirrored art for the mirrored eye or side, when the effect has one. */
+  otherEyeAssetPath?: string;
+  flipbook?: AvatarVFXFlipbook;
+  keyframes?: AvatarVFXKeyframes;
 };
 
 type AvatarVFXCanDisableRoles = {
@@ -289,6 +306,135 @@ export type AvatarVFXCatalogEntry =
   | AvatarFaceAnchoredVFXEntry
   | AvatarTextureVFXEntry;
 
+/** Art, appearance and motion shared by body, sticker and silhouette entries. */
+type AvatarVFXAttachmentBaseEntry = {
+  id: string;
+  label: string;
+  description: string;
+  assetPath: string;
+  appearance: AvatarVFXAppearance;
+  animationConfig?: AvatarVFXAnimationConfig;
+  sound?: AvatarVFXSoundConfig;
+  flipbook?: AvatarVFXFlipbook;
+  keyframes?: AvatarVFXKeyframes;
+};
+
+export type AvatarVFXBodyBone = BodyAttachment["bone"];
+
+/**
+ * A plane on a humanoid body point. `offset` is in metres in the bone's frame
+ * (+x toward the viewer's right when facing the avatar, +y up, +z forward);
+ * `size` is the plane height in metres; `rotation` turns it in its own plane.
+ */
+export type AvatarBodyVFXEntry = AvatarVFXAttachmentBaseEntry & {
+  kind: "body";
+  region: "body";
+  bone: AvatarVFXBodyBone;
+  offset: AvatarVFXTransformAxisTriple;
+  size: number;
+  facing: NonNullable<BodyAttachment["facing"]>;
+  /** Radians. */
+  rotation: number;
+};
+
+/**
+ * A camera-facing image beside the avatar that follows it. `offset` and `size`
+ * are fractions of the avatar's height; `offset` is in the screen plane.
+ */
+export type AvatarStickerVFXEntry = AvatarVFXAttachmentBaseEntry & {
+  kind: "sticker";
+  region: "sticker";
+  around: NonNullable<StickerAttachment["around"]>;
+  offset: { x: number; y: number };
+  size: number;
+  /** Radians. */
+  rotation: number;
+};
+
+/**
+ * Art drawn only over the avatar's visible pixels. `pattern` tiles the art in
+ * screen space (one tile is `patternScale` quarters of the avatar's on-screen
+ * height); `tint` fills with the art's average colour. `scroll` is in tiles
+ * per second.
+ */
+export type AvatarSilhouetteVFXEntry = AvatarVFXAttachmentBaseEntry & {
+  kind: "silhouette";
+  region: "silhouette";
+  fill: NonNullable<SilhouetteAttachment["fill"]>;
+  patternScale: number;
+  scroll: { x: number; y: number };
+};
+
+export type AvatarVFXAttachmentEntry =
+  | AvatarBodyVFXEntry
+  | AvatarStickerVFXEntry
+  | AvatarSilhouetteVFXEntry;
+
+/** Everything the definition parser can produce. */
+export type AvatarVFXParsedEntry =
+  | AvatarVFXCatalogEntry
+  | AvatarVFXAttachmentEntry;
+
+/**
+ * Placement an applied effect can change in place, without reloading its art
+ * (`AvatarVFXController.updateEffectTransform`). Face effects carry their
+ * transform (rotations in radians); body and sticker effects their offset,
+ * size and in-plane rotation (radians). Silhouettes have no placement.
+ */
+export type AvatarVFXEffectTransform =
+  | { kind: "face"; transform: AvatarVFXTransform }
+  | {
+      kind: "body";
+      offset: AvatarVFXTransformAxisTriple;
+      size: number;
+      rotation: number;
+    }
+  | {
+      kind: "sticker";
+      offset: { x: number; y: number };
+      size: number;
+      rotation: number;
+    };
+
+/** The placement of a parsed entry, or null for a silhouette. */
+export function avatarVFXEffectTransformOf(
+  effect: AvatarVFXParsedEntry,
+): AvatarVFXEffectTransform | null {
+  if (effect.kind === "silhouette") return null;
+  if (effect.kind === "body")
+    return {
+      kind: "body",
+      offset: { ...effect.offset },
+      size: effect.size,
+      rotation: effect.rotation,
+    };
+  if (effect.kind === "sticker")
+    return {
+      kind: "sticker",
+      offset: { ...effect.offset },
+      size: effect.size,
+      rotation: effect.rotation,
+    };
+  return {
+    kind: "face",
+    transform: {
+      offset: { ...effect.transform.offset },
+      scale: { ...effect.transform.scale },
+      rotation: { ...effect.transform.rotation },
+    },
+  };
+}
+
+export function isAttachmentVFXEntry(
+  effect: AvatarVFXParsedEntry,
+): effect is AvatarVFXAttachmentEntry {
+  return (
+    effect.kind === "body" ||
+    effect.kind === "sticker" ||
+    effect.kind === "silhouette"
+  );
+}
+
 export type AvatarVFXNormalizedRect = {
   x: number;
   y: number;
@@ -324,7 +470,10 @@ export type AvatarVFXTargetBindingTextureSlot = {
 
 export type AvatarVFXTargetBindingSnapshot = {
   bindingKey: string;
+  /** Primary role; a corrected face part comes first. */
   targetRole: AvatarVFXTargetRole;
+  /** Every role the mesh serves, primary first. */
+  targetRoles: AvatarVFXTargetRole[];
   materialIndex: number | null;
   materialName: string | null;
   objectName: string | null;
@@ -354,10 +503,31 @@ export type AvatarVFXAppliedEffectSnapshot = {
   animationConfig: AvatarVFXResolvedAnimationConfig;
 };
 
+/** How an attachment effect is drawn. */
+export type AvatarVFXAttachmentRenderMode =
+  | "body_plane"
+  | "sticker_plane"
+  | "silhouette_overlay";
+
+/** One active body, sticker or silhouette effect, oldest first. */
+export type AvatarVFXAttachmentEffectSnapshot = {
+  appliedEffectId: string;
+  effectId: string;
+  effectLabel: string;
+  attachmentKind: AvatarVFXAttachmentKind;
+  renderMode: AvatarVFXAttachmentRenderMode;
+  animationPreset: AvatarVFXAnimationPreset | null;
+  /** The resolved body bone, sticker root or overlaid primitive count. */
+  target: string;
+};
+
 export type AvatarVFXSnapshot = {
   catalog: AvatarVFXCatalogEntry[];
   targetBindings: AvatarVFXTargetBindingSnapshot[];
+  /** Face effects, which live on face-part bindings. */
   activeEffects: AvatarVFXAppliedEffectSnapshot[];
+  /** Body, sticker and silhouette effects. */
+  attachmentEffects: AvatarVFXAttachmentEffectSnapshot[];
   flatten: AvatarVFXFaceFlattenSnapshot;
   warnings: string[];
 };
@@ -369,9 +539,10 @@ export type AvatarVFXSnapshot = {
 export type AvatarVFXObservationSnapshot = {
   activeEffects: Array<{
     effectId: string;
-    targetRole: AvatarVFXTargetRole;
+    /** The face part, or the attachment kind for body, sticker and silhouette. */
+    targetRole: AvatarVFXTargetRole | AvatarVFXAttachmentKind;
     animationPreset: AvatarVFXAnimationPreset | null;
-    renderMode: AvatarVFXRenderMode;
+    renderMode: AvatarVFXRenderMode | AvatarVFXAttachmentRenderMode;
   }>;
   warningCount: number;
 };
@@ -381,12 +552,6 @@ const AVATAR_VFX_REGION_SET = new Set<string>(AVATAR_VFX_REGIONS);
 const AVATAR_VFX_STACKABLE_REGION_SET = new Set<string>(
   AVATAR_VFX_STACKABLE_REGIONS,
 );
-
-export const DEFAULT_AVATAR_VFX_DURATION_LIFETIME =
-  Object.freeze<AvatarVFXDurationLifetime>({
-    kind: "duration",
-    runEndBufferSec: 5,
-  });
 
 export function isAvatarVFXRegion(value: unknown): value is AvatarVFXRegion {
   return typeof value === "string" && AVATAR_VFX_REGION_SET.has(value);
@@ -444,12 +609,6 @@ export function getAvatarVFXRegion(
   return effect.region;
 }
 
-export function getAvatarVFXLifetime(
-  effect: AvatarVFXCatalogEntry,
-): AvatarVFXLifetime | null {
-  return effect.lifetime ?? null;
-}
-
 export function getAvatarVFXTargetRole(
   effect: AvatarVFXCatalogEntry,
 ): AvatarVFXTargetRole {
@@ -472,17 +631,4 @@ export function getAvatarVFXApplyMode(
     return "overlay";
   }
   return null;
-}
-
-export function isEmotionSelectableVFXEntry(
-  effect: AvatarVFXCatalogEntry,
-): effect is AvatarVFXCatalogEntry & {
-  emotions: EmotionValue[];
-  lifetime: AvatarVFXLifetime;
-} {
-  return (
-    Array.isArray(effect.emotions) &&
-    effect.emotions.length > 0 &&
-    effect.lifetime !== undefined
-  );
 }

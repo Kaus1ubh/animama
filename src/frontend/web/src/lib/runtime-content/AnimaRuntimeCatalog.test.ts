@@ -766,6 +766,35 @@ describe("AnimaRuntimeCatalog", () => {
     );
   });
 
+  it("reports a bundled-catalog Avatar Effect source as unsupported", async () => {
+    const legacy: RuntimeCatalogEntry = {
+      slot: "avatar_vfx",
+      runtime_id: "star",
+      kind: "avatar_vfx",
+      display_name: "Star",
+      description: null,
+      config_schema_version: 1,
+      config: {},
+      content_revision: "builtin:star:1",
+      source: { type: "runtime_catalog", catalog: "avatar_vfx", key: "star" },
+    };
+    const snapshot = runtimeContent({ avatar_vfx: [legacy] });
+    const catalog = new AnimaRuntimeCatalog(snapshot);
+    catalog.admitPrepared(snapshot);
+
+    expect(catalog.resolveAvatarVFX("star")).toBeNull();
+    await expect(catalog.loadAvatarVFX("star")).resolves.toBeNull();
+    expect(catalog.listAvatarVFX()).toEqual([]);
+    expect(catalog.diagnostics).toEqual([
+      {
+        code: "avatar_vfx_source_unsupported",
+        slot: "avatar_vfx",
+        runtimeId: "star",
+        message: "Avatar Effect requires a registered definition file",
+      },
+    ]);
+  });
+
   it("omits colliding runtime IDs instead of choosing an ambiguous source", () => {
     const first = runtimeEntry({
       slot: "idle_animation",

@@ -1228,6 +1228,17 @@ It does not modify the Avatar or any Anima. Confirmed content survives cancelled
 or rejected creation. Typed previews expose `expected_source_revisions` for
 the creation-compatible root/support closure, independent of preview pins.
 
+`GET /v1/avatar-content/{item_id}/face-parts` returns the effective
+face-part correction as `{item_id, revision, source, face_parts}`, where
+`source` is `local_metadata`, `included_override` or `none`.
+`PUT` takes `{expected_revision, face_parts}`; `face_parts: null` clears it.
+A stale revision returns `409 catalog_revision_conflict` with
+`current_revision`, and a correction whose `vrm_sha256` is not the Avatar's
+model digest returns `422 content_invalid` with reason
+`avatar_face_parts_digest_mismatch`. A Local save rewrites the sidecar and
+returns the new revision; an Included save stores only the caller's override.
+See [face-part corrections](../features/custom-animas-and-content.md#face-part-corrections).
+
 Appearance and portrait images are typed `appearance` catalog items. Focused
 `/v1/animas/{anima_id}/appearance:plan` and `:commit` commands store
 profile/background selection plus crop/focal configuration.

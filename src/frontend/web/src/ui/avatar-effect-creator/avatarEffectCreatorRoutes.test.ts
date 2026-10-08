@@ -22,4 +22,28 @@ describe("Avatar Effect creator routes", () => {
     expect(source).toContain("ContentPreviewExclusiveCanvasGate");
     expect(source).toContain("AvatarEffectCreatorPage");
   });
+
+  it("seeds /new from a validated template and keys the page by it", async () => {
+    const source = await readFile(
+      new URL("routes/_app/avatar-effects.new.tsx", `file://${sourceRoot}/`),
+      "utf8",
+    );
+
+    expect(source).toContain("validateSearch: parseAvatarEffectTemplateSearch");
+    expect(source).toContain("templateId={template}");
+    expect(source).toContain('key={`new:${template ?? ""}`}');
+  });
+
+  it("keeps the saved-item route free of template search", async () => {
+    const source = await readFile(
+      new URL(
+        "routes/_app/avatar-effects.$avatarEffectId.edit.tsx",
+        `file://${sourceRoot}/`,
+      ),
+      "utf8",
+    );
+
+    expect(source).toContain("itemId={avatarEffectId}");
+    expect(source).not.toContain("template");
+  });
 });

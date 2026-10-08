@@ -249,7 +249,7 @@ Starting source: `339878dd81bea806359e4375732070e7745ec03d`. Implemented the
 [composition/resource contract](../../../contracts/hosted-web.md). The canonical
 capability schema is version 2; offline `local-http` is 3.0.0. TypeScript contracts
 and product UI are 0.3.0; the extracted chat capability is derived from generated
-HTTP types. ADR 0015 records the approved full-app reuse and catalog-role choice.
+HTTP types. ADR 0016 (originally numbered 0014, then 0015) records the approved full-app reuse and catalog-role choice.
 
 TDD: seven Python capability cases failed for absent fields/schema, then passed;
 the generated validator fixture failed on schema version 1, then passed on version 2. Documentation/type-only interface design uses schema, declaration, source-map

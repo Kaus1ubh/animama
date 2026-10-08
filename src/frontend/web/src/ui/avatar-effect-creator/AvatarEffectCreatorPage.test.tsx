@@ -39,6 +39,9 @@ vi.mock("@/query/hooks/useEffects", () => ({
   useAvatarEffect: () => fixture.query,
   useSoundEffects: () => ({ data: undefined }),
 }));
+vi.mock("@/query/hooks/useAvatarFaceParts", () => ({
+  useAvatarFaceParts: () => ({ data: undefined, isSuccess: false }),
+}));
 vi.mock("@/ui/content-preview/useContentPreviewAudio", () => ({
   useContentPreviewAudio: () => ({}),
 }));

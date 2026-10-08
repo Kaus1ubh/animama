@@ -86,6 +86,19 @@ prior binding facts under `data/internal/operations/transitions/` before
 converting Action references or removing Music bindings. A failed conversion
 retains its evidence and reports a diagnostic instead of discarding content.
 
+Local Avatar Effects with an `animama/avatar-effect/1` definition convert to
+`/2` in place in the same transition (`AvatarEffectTransitionService`): only
+`definition` changes, the folder, content ID and files stay, and the original
+bytes are retained first. A definition that cannot convert leaves the item
+invalid with `avatar_effect_conversion_failed`. Descriptor folders outside the
+Local library, such as Included content, convert with
+`uv run python scripts/content/convert_avatar_effects.py --write <folder>`;
+without `--write` it only reports. After conversion `/1` is refused at Save,
+preview, loadout and package import with `avatar_effect_conversion_required`.
+A `/1` package cannot be converted in place, because its manifest, sizes and
+digests cover the original bytes; the import hint asks for the source content
+to be converted and the package exported again.
+
 Standalone Poses use `poses/<entry>/<entry>.json`: a `pose` descriptor containing
 one resolved `animaPose/1.0` payload with matching identity and name. Admission
 rejects parent references, unknown bones, invalid transforms and expression
