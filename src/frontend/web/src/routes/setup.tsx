@@ -410,7 +410,7 @@ function LocalSetupForm({
   );
 }
 
-/** "Step 2 of 3" and the step list, with the current step marked. */
+/** "Step 2 of 3" and the step list, with the current step marked and the skippable steps labelled optional. */
 function SetupProgress({ step }: { step: SetupStep }) {
   const current = SETUP_STEPS.indexOf(step);
   return (
@@ -431,6 +431,11 @@ function SetupProgress({ step }: { step: SetupStep }) {
             )}
           >
             {SETUP_STEP_LABELS[item]}
+            {item === "welcome" ? null : (
+              <span className="text-muted-foreground text-2xs ml-1 font-normal">
+                (optional)
+              </span>
+            )}
           </li>
         ))}
       </ol>

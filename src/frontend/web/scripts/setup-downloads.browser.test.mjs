@@ -490,11 +490,11 @@ test("only Welcome gates; steps move focus to their headings and Skip finishes w
     await heading(page, "Choose your AI").waitFor();
     assert.equal(await focusedText(page), "Choose your AI");
     assert.equal(await page.getByText("Step 2 of 3").count(), 1);
-    assert.equal(await currentStep(page).innerText(), "AI");
+    assert.equal(await currentStep(page).innerText(), "AI(optional)");
     await button(page, "Skip for now").click();
     await heading(page, "Set up voice").waitFor();
     assert.equal(await focusedText(page), "Set up voice");
-    assert.equal(await currentStep(page).innerText(), "Voice");
+    assert.equal(await currentStep(page).innerText(), "Voice(optional)");
     await button(page, "Skip for now").click();
     await page.getByText("Setup complete", { exact: true }).waitFor();
 

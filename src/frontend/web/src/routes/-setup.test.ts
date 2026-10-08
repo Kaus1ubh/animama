@@ -266,7 +266,9 @@ describe("local first-run setup", () => {
       chatModelId: OPENAI_MODEL,
     });
     expect(html).toContain("Step 2 of 3");
-    expect(html).toMatch(/<li aria-current="step"[^>]*>AI<\/li>/u);
+    expect(html).toMatch(
+      /<li aria-current="step"[^>]*>AI<span[^>]*>\(optional\)<\/span><\/li>/u,
+    );
     // Cloud carries the Recommended tag; the step no longer lists models.
     expect(html).toMatch(
       /role="tab"[^>]*><span[^>]*>Cloud<span[^>]*>Recommended<\/span>/u,
@@ -319,12 +321,14 @@ describe("local first-run setup", () => {
       ttsProvider: "elevenlabs",
     });
     expect(html).toContain("Step 3 of 3");
-    expect(html).toMatch(/<li aria-current="step"[^>]*>Voice<\/li>/u);
+    expect(html).toMatch(
+      /<li aria-current="step"[^>]*>Voice<span[^>]*>\(optional\)<\/span><\/li>/u,
+    );
     expect(html).toContain("Parakeet (CPU");
     expect(html).toContain("Parakeet (GPU");
     // Text-to-Speech is on by default: provider tabs, no toggle.
     expect(html).not.toContain("Enable Text-to-Speech");
-    expect(html).not.toContain("optional");
+    expect(html).not.toContain("Everything here is optional");
     expect(html).not.toContain("attribution");
     expect(html).toContain("PocketTTS (built-in)");
     // Each local model links to its public source.
