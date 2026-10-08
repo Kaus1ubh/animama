@@ -1,0 +1,125 @@
+---
+name: animama-effect-assets
+description: Turn an art brief into clean, budgeted PNGs for Animama effects — single images and flipbook sheets with real transparency, fully opaque art, trimmed margins and sizes within budget — by generating images (optionally with the global image-gen skill) or taking supplied art, then checking, fixing and previewing them with `pnpm -s effects:assets`. Use when an Avatar Effect (or a Particle or Scene Effect texture, sprite sheet or tile) needs new or repaired artwork; placing art in an effect and saving it belong to the effect skills.
+---
+
+# Animama Effect Assets
+
+Produce the image files an effect uses. The output is one or more PNGs that
+pass `effects:assets check` and look right on dark and light backdrops; the
+effect skill (`animama-avatar-vfx`, or the particle and scene skills) then
+places them. The app and its tests never depend on how the art was made: an
+image generator, a hand-drawn file and an edited Included image all go through
+the same checks.
+
+Commands run from `src/frontend/web`. Relative paths resolve from the
+directory you run `pnpm` in. Work in `.animama-drafts/` (ignored by Git), one
+folder per effect; never write `content/included/` (promotion is a separate,
+owner-approved step of the effect skill).
+
+## Pipeline
+
+1. **Read the brief.** It states what the art shows, the attachment (which
+   sets the budget), whether it is a flipbook, colours, and how it should read
+   at a glance. Effects are small on screen and borrow from anime emphasis
+   marks: bold silhouettes, flat cel shading, a clear outline, two or three
+   colours. Fine detail and text disappear at chat size.
+2. **Get source images.** Use supplied art when there is any. Otherwise, if
+   the global `image-gen` skill is available, generate one image per asset
+   with the prompt template below (`gen.sh --out <draft folder>/<name>-src.png`,
+   a Bash timeout of at least 300000 ms). For variants of one design use
+   `--n`; for a revision of an image use `--edit`; to keep a set consistent
+   (flipbook frames, a left and right eye) pass the first image as `--ref`.
+   Without a generator, ask for art rather than drawing placeholder shapes in
+   code, unless the brief asks for simple geometric art.
+3. **Look at every image** with the Read tool before anything else. Reject
+   and regenerate (once, with one targeted prompt change) art with the wrong
+   subject, extra objects, text, cropped edges or a style that does not match
+   the set.
+4. **Check:** `pnpm -s effects:assets check <png...> --budget <name>`. FAIL
+   lines must be fixed; WARN lines need a look.
+5. **Fix:** `pnpm -s effects:assets fix <src.png> --out <name>.png --budget
+   <name> [options]`. Choose options from the check:
+   - `checkerboard` or `solid_background` → `--remove-background`;
+   - `near_opaque` or `faint_alpha` → nothing to add (fix raises alpha ≥ 250
+     to 255 and clears alpha below 4 by default);
+   - `interior_translucency` → `--solid-interior`, unless the brief wants
+     see-through art (glows, tears, shades); `--budget surface` never reports
+     it, since painted tints are see-through by design;
+   - `padding` → `--trim --pad 8 --square` for floating, body and sticker
+     art (`--pad` is in output pixels, after shrinking to the budget). Never trim, pad or square **face-surface** art (`--budget surface`
+     refuses): it is laid over the face texture's UV layout.
+   `fix` never overwrites its input and checks its output; it also bleeds edge
+   colour into transparent pixels so filtering shows no fringe. An unreadable
+   file is reported as `unreadable` and the rest of a batch is still checked.
+6. **Preview:** `pnpm -s effects:assets preview <name>.png --out
+   <name>-preview.png`, then Read the preview. It shows the art on a dark, a
+   light and a checkered backdrop. Halos, grey edges, dark smudges and holes
+   show here. `--solid-interior` fixes only alpha: a smudge painted into the
+   colour means regenerate or edit the source.
+7. **Flipbooks:** make each frame as its own image (same canvas and framing;
+   `--ref` the first frame), fix each frame with the same options, then
+   `pnpm -s effects:assets flipbook <frame...> --out <name>.png [--cell 256]
+   [--columns N] --fps <n> [--loop loop|once|pingpong]`. Frames read left to
+   right, top to bottom. It prints the `art.flipbook` fragment for the
+   definition. Frames fitted into `--cell` are resampled, then their alpha is
+   settled again (faint cleared, near-opaque raised) and their edges bled.
+   Preview the sheet and check frame-to-frame consistency.
+8. **Hand off** the final PNG paths, their sizes and check results, the
+   preview images, and what you rejected or could not fix. Delete rejected
+   source images you created unless asked to keep them.
+
+## Budgets
+
+`--budget` sets the longest side and file size and checks them:
+
+| Budget | Use | Longest side | File size |
+| --- | --- | --- | --- |
+| `landmark` | Floating face art: eyes, marks, emotes above the head | 512 px | 256 KiB |
+| `surface` | Painted on the face (keeps its layout) | 1024 px | 512 KiB |
+| `body` | Art on a body point | 512 px | 256 KiB |
+| `sticker` | Sticker beside the Avatar | 512 px | 256 KiB |
+| `silhouette` | Silhouette overlay art | 1024 px | 512 KiB |
+| `flipbook` | A whole flipbook sheet; frames near 256 px | 2048 px | 1024 KiB |
+
+Exceed a budget only when the brief justifies it; the app's hard limits
+(4096 px, 16 MiB) still apply. Particle and Scene textures, sprite sheets and
+tiles (#297) use the same commands with the budget their skill names.
+
+Face-surface art for a whole part (face skin, irises, lashes) must match that
+part's UV layout; generate it over the creator's UV guide or edit an existing
+Included image. Decal areas (under-eye, cheeks, mouth) take centred art like
+floating effects. See the `animama-avatar-vfx` references.
+
+## Prompt template
+
+Keep one subject per image. Use only the lines that help:
+
+```text
+Use case: game sprite
+Asset type: anime emphasis effect for a 3D avatar (<attachment, e.g. floating beside the head>)
+Subject: <one object, e.g. a single classic anime sweat drop>
+Style/medium: flat cel-shaded anime illustration, bold clean outline, 2–3 colours, no gradients unless asked
+Colour palette: <colours from the brief>
+Composition: the subject centred and filling most of a square canvas, nothing cropped
+Background: fully transparent (real alpha channel), no checkerboard, no backdrop, no shadow
+Text (verbatim): <exact text, or none>
+Avoid: faces, extra objects, frames, borders, watermarks
+```
+
+For a flipbook frame add "frame N of M: <what changes>", keep the canvas and
+framing identical, and pass the first frame as `--ref`. For an edit, state
+what changes and what stays the same.
+
+## Failures
+
+- The generator returns an image with no alpha: check reports `no_alpha`;
+  regenerate once with the transparency line, then try
+  `--remove-background` if the backdrop is flat or checkered. Never fake
+  transparency by hand.
+- Codex is not logged in, times out or refuses: follow the `image-gen` skill's
+  failure guidance and report it. The effect waits; do not substitute
+  code-drawn art for a brief that needs illustration.
+- `budget_bytes` after fixing: the art is too noisy (gradients, texture
+  grain). Regenerate with "flat colours, no texture" rather than raising the
+  budget.

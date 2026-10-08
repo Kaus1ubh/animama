@@ -447,6 +447,37 @@ is discarded when the model changes.
 
 Run these from `src/frontend/web`. They need no running stack.
 
+### Effect art
+
+`pnpm -s effects:assets` checks and repairs effect images, from any source:
+
+```bash
+pnpm -s effects:assets check art/*.png --budget landmark
+pnpm -s effects:assets fix art/drop-src.png --out art/drop.png --remove-background --trim --pad 8 --square --budget landmark
+pnpm -s effects:assets flipbook frames/*.png --out art/steam.png --cell 256 --fps 10
+pnpm -s effects:assets preview art/drop.png --out /tmp/drop-preview.png
+```
+
+- `check` fails art with no real transparency, a painted checkerboard, no
+  visible pixels, or sizes over the app's limits or the named budget. It warns
+  about a flat backdrop, near-opaque alpha (250–254, common in generated
+  images), faint alpha noise, see-through patches inside floating art and wide
+  margins. An unreadable file fails as `unreadable` without stopping a batch.
+- `fix` removes a painted backdrop, trims, shrinks to the budget, pads (in
+  output pixels), clears faint alpha, raises near-opaque alpha to 255 and bleeds
+  edge colour into transparent pixels so texture filtering shows no fringe. It
+  never overwrites its input. Face-surface art (`--budget surface`) keeps its size and margins,
+  because it lies over the face texture's UV layout.
+- `flipbook` lays frames out left to right, top to bottom, within the grid
+  limits, fitting them into `--cell` when sizes differ and settling their alpha
+  after resampling, and prints the `art.flipbook` fragment.
+- `preview` shows the art on dark, light and checkered backdrops.
+
+Budgets: `landmark`, `body` and `sticker` 512 px and 256 KiB; `surface` and
+`silhouette` 1024 px and 512 KiB; `flipbook` 2048 px and 1024 KiB per sheet.
+The `animama-effect-assets` skill wraps these steps around optional image
+generation.
+
 ### Review renders
 
 `pnpm -s effects:render` renders effects on both Included Avatars in headless

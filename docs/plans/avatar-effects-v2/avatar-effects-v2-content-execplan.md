@@ -11,8 +11,9 @@ G1–G4 below apply regardless.
 Starting revision: `fd1980fe` (`origin/main` after #328).
 Branch: `feat/avatar-effects-content`, in the existing task worktree
 `avatar-effects-v2`. One branch and one PR for this plan.
-Issues: parent #298 (stays open until this plan merges); phase issues are
-created at preparation. Related: #297 (Particle and Scene templates, reuses
+Issues: parent #298 (stays open until this plan merges); phases P1 #348,
+P2 #349, P3 #350, P4 #351, P5 #352, P6 #353, P7 #354 (also blocked by #337),
+P8 #355, linked as sub-issues with blocked-by dependencies. Related: #297 (Particle and Scene templates, reuses
 R12), #310 (Gesture promotion, merged), #282 and #291 (merged; their Reactions
 are the ones R15 edits), #337 (migrates every 1.0 clip, Reactions included, to
 `animaPoseClip/2.0`; merges before this plan completes).
@@ -51,7 +52,7 @@ Paths: frontend relative to `src/frontend/web/`, backend to
 
 | Area | Current state and significance |
 | --- | --- |
-| Gesture pipeline to mirror | `.claude/skills/animama-animation/SKILL.md` (steps 0–9) with `references/` (`interview.md`, `checks-and-review.md`, `batch.md`, `promote.md`, …). `.agents/skills/` holds an identical copy of every `animama-*` skill; both must change together. Commands: `pnpm -s animation validate|check|resolve|promote`, `animation:preview`, `animation:render`, `animation:save`. |
+| Gesture pipeline to mirror | `.claude/skills/animama-animation/SKILL.md` (steps 0–9) with `references/` (`interview.md`, `checks-and-review.md`, `batch.md`, `promote.md`, …). `.claude/skills` is a symlink to `.agents/skills`, so each skill has one tracked copy. Commands: `pnpm -s animation validate|check|resolve|promote`, `animation:preview`, `animation:render`, `animation:save`. |
 | Avatar Effect skill today | `.claude/skills/animama-avatar-vfx/` (`SKILL.md`, `references/what.md`, `references/how.md`): an operating manual for the creator, not a generation pipeline. `SKILL.md` :52–60 ("Planned rework") already outlines R12–R13. The owner's global `~/.codex/skills/animama-avatar-vfx` is an older v1 copy outside this repository and out of scope. |
 | Image generation | The owner's global `image-gen` skill (`gen.sh`) runs `codex exec` with the owner's ChatGPT login and copies the result to a chosen path. 30–90 s per image. Optional tool only. |
 | Image tooling | `sharp` 0.34.5 is a devDependency (`src/frontend/package.json` :81), used by `src/frontend/scripts/generate-particle-vfx-assets.mjs`. Pillow is a backend dependency; `app/services/content_image.py` :290–310 has an alpha-histogram check. |
@@ -68,8 +69,8 @@ Paths: frontend relative to `src/frontend/web/`, backend to
 
 ## Progress
 
-- [ ] Preparation: phase issues, dependencies, task stack.
-- [ ] P1 — Effect-asset scripts and skill (R12).
+- [x] Preparation (2026-10-08): phase issues #348–#355; worktree `avatar-effects-v2` on `feat/avatar-effects-content` from `fd1980fe`; task stack `animama-avatar-fx` at http://animama-avatar-fx.localhost:8600.
+- [x] P1 — Effect-asset scripts and skill (R12). Done 2026-10-08; review passed at round 3.
 - [ ] P2 — Authoring pipeline tools: check, save, promote (R13, R16 tooling).
 - [ ] P3 — Avatar Effect skill rewrite and fresh-agent dry run (R13). Gate G1 needed only before P4.
 - [ ] P4 — Effect batch A: upgrades and kept effects (R14). Gate G2.
@@ -168,8 +169,8 @@ Steps:
 2. Node tests (`scripts/effect-assets.test.mjs`, added to `test:source`) with
    synthetic PNGs: alpha absent, checkerboard, near-opaque fix, trim, resize to
    budget, flipbook grid and limit refusal.
-3. Skill `.claude/skills/animama-effect-assets/` (and the `.agents/skills/`
-   copy): brief → prompt template for effect art (flat anime emphasis style,
+3. Skill `.agents/skills/animama-effect-assets/` (reached through the
+   `.claude/skills` symlink): brief → prompt template for effect art (flat anime emphasis style,
    transparent background, single subject, no text unless the brief asks) →
    `gen.sh` → `effects:assets check/fix/flipbook` It states the
    default budgets (eye/emote art 512², face surface 1024², flipbook frames
@@ -181,6 +182,110 @@ Provider check: one real generated image passes `check` after `fix`
 (recorded with its alpha statistics; the image is not committed).
 
 Done when the commands and tests pass and the skill reads end to end.
+
+#### P1 record
+
+- Issue #348. Starting revision `dd58fadc`.
+- Added `src/frontend/web/scripts/effect-assets.mjs` (`pnpm -s effects:assets`)
+  with `check`, `fix`, `flipbook` and `preview`, its tests
+  (`scripts/effect-assets.test.mjs`, in `test:source`), the
+  `animama-effect-assets` skill and an "Effect art" section in
+  `docs/frontend/runtime/avatar-vfx.md`.
+- Beyond the planned steps, two checks came from the provider run below:
+  `interior_translucency` (with `fix --solid-interior`) and `preview` (art on
+  dark, light and checkered backdrops), because a generated image had a
+  see-through centre that a single backdrop hid. Face-surface art keeps its
+  layout: `--budget surface` skips the margin warning and refuses trimming.
+- Checks: `node --test scripts/effect-assets.test.mjs` 20/20; `pnpm web:lint`
+  pass; prettier on the changed scripts, `package.json` and the doc pass.
+- Included art survey (`check` over all 16 effects' PNGs): no FAIL. `angry`
+  (3%) and both Eye VV images (29%) carry near-opaque alpha; most floating art
+  has wide margins (expected for the existing placement scales).
+- Provider check (2026-10-08): one sweat drop generated through `image-gen`
+  (45 s, 1254×1254, 608 KiB, real alpha). `check`: near-opaque 92%,
+  see-through interior 6%, over the landmark budget. `fix --solid-interior
+  --trim --pad 8 --square --budget landmark` → 512×512, 140 KiB, PASS.
+  `preview` still showed a dark smudge painted into the colour, a regenerate
+  case the skill now names. The image was not committed.
+
+#### Code Review #1 Findings
+
+`sdlc-reviewer`, initial review of the staged P1 changes on baseline
+`dd58fadc`. Checks: the asset tests 20/20, prettier on the scripts and
+`package.json`, `web:lint` pass; CLI probes on grey+alpha, palette, 16-bit,
+JPEG, WebP, a 4096² image (fix in about 3.3 s), bad options and paths with
+spaces. Blocking:
+
+1. **P1-R1-01** — an unreadable file (not an image, a directory, over the
+   pixel limit) threw an uncaught sharp error: a stack trace, exit 1 (the FAIL
+   code), and the rest of a `check` batch skipped.
+2. **P1-R1-02** — `check` counted faint alpha that `fix` clears, so noise held
+   the bounds open (no `padding` warning) and read as see-through art; the
+   skill picks `fix` options from `check`.
+3. **P1-R1-03** — `flipbook --cell` resampled fixed frames and shipped
+   near-opaque and faint alpha again.
+
+Optional: P1-R1-04 overwrite guard bypassed by case-insensitive paths and
+symlinks; P1-R1-05 `preview` without the pixel limit and flipbook frames
+decoded all at once before the sheet-size check; P1-R1-06 the limits test
+skipped `fps` and loop literals; P1-R1-07 plan text still described the
+`--budget <px>,<KiB>` form and per-frame budget; P1-R1-08 `--opaque-from`
+help range; P1-R1-09 `flipbook` accepted a non-PNG `--out`; P1-R1-10 painted
+tints flagged as see-through; P1-R1-11 `--pad` applied before shrinking.
+
+#### Code Review #1 Revisions
+
+All accepted.
+
+- **01:** decode errors become `EffectAssetError` naming the file; `check`
+  reports `FAIL … [unreadable]` per file and continues; `fix`, `flipbook` and
+  `preview` exit 2. Test: a batch with a text file and a good image.
+- **02:** `measure` treats alpha below the clear threshold as transparent and
+  reports `faint_alpha`. Test: a disc on an alpha-2 backdrop warns `padding`
+  and `faint_alpha`, not `interior_translucency`.
+- **03:** every flipbook frame has its alpha settled and edges bled after
+  fitting. Test: three 300 px frames in 96 px cells leave no alpha 250–254.
+- **04:** the guard compares device and inode of an existing `--out` with the
+  inputs. Test: `--out` through a symlink to the input exits 2.
+- **05:** `preview` opens with the pixel limit; `flipbook` reads headers,
+  checks the sheet size, then decodes frames one at a time. The ×4 source
+  limit is commented.
+- **06:** the test also pins `MAX_FLIPBOOK_FPS` and the loop literals.
+- **07:** recorded here: budgets are named (`landmark`, `surface`, `body`,
+  `sticker`, `silhouette`, `flipbook` per sheet) rather than `<px>,<KiB>`;
+  flipbook frames are fitted with `--cell`.
+- **08, 09:** help text corrected; `flipbook --out` must be `.png`.
+- **10:** `--budget surface` skips `interior_translucency`. Test added.
+- **11:** `--pad` is applied after shrinking, in output pixels; a pad that
+  leaves no room is refused. Test added.
+
+Checks after revisions: `node --test scripts/effect-assets.test.mjs` 24/24.
+
+#### Code Review #2 (repair round 1)
+
+Findings: R1-02…11 confirmed fixed by probes; R1-01 fixed except `preview`.
+
+1. **P1-R2-01** (blocking) — `preview` of an unreadable file still crashed
+   with a stack trace and exit 1; errors from `fix`, `flipbook` and `preview`
+   said "the image" because the CLI passed buffers, so a bad flipbook frame
+   could not be identified.
+2. **P1-R2-02** (optional, regression) — `fix --trim` measured with the
+   default clear threshold, cropping faint alpha kept by `--clear-below`.
+
+Revisions (both accepted): `preview` reads the header first through the
+wrapped reader; the CLI passes file paths, so errors name the file; trim
+measures with the caller's `clearBelow`. Tests: `preview` of a text file exits
+2 naming it; a faint glow kept with `clearBelow: 1` survives the trim. Checks:
+asset tests 25/25, `web:lint` and prettier pass.
+
+#### Code Review #3 (repair round 2)
+
+Pass. P1-R2-01 and P1-R2-02 confirmed fixed (file-named exit-2 errors for
+not-an-image, missing, truncated and over-limit inputs; trim keeps a faint
+glow with `clearBelow` 1 or 0). Optional P1-R3-01: `preview` still crashed on
+a valid header with corrupt data. Accepted: its decode is wrapped like
+`readRgba`'s; a truncated PNG now exits 2 with "cannot decode". Asset tests
+25/25; prettier pass.
 
 ### P2 — Authoring pipeline tools: check, save, promote (R13, R16 tooling)
 
@@ -234,8 +339,7 @@ by following the skills alone.
 
 Steps:
 
-1. Rewrite `.claude/skills/animama-avatar-vfx/SKILL.md` (and the `.agents`
-   copy) as the pipeline, keeping `what.md`/`how.md` as references:
+1. Rewrite `.agents/skills/animama-avatar-vfx/SKILL.md` as the pipeline, keeping `what.md`/`how.md` as references:
    0. interview, skipped when the brief settles it;
    1. brief (template in `references/brief.md`: what it expresses, the comedic
       or emotional beat, attachment and placement, suited Reaction intensities
@@ -263,8 +367,7 @@ Steps:
    described (R11's pages) so they name the new tools.
 
 Checks: the dry-run record (commands, check output, render sheet, saved Local
-item reopened); skill files identical in `.claude/skills` and `.agents/skills`
-(`diff -rq`). This completes the R12–R13 acceptance item.
+item reopened). This completes the R12–R13 acceptance item.
 
 ### P4–P6 — Effect batches (R14). Gate G1 before P4; G2 at the end of each.
 
