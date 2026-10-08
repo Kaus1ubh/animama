@@ -116,7 +116,16 @@ Embedded desktop keeps this writable Local/private layout under Electron's
 user-data directory, but mounts Included separately from immutable application
 resources. `ANIMAMA_INCLUDED_CONTENT_SOURCES_JSON` supplies ordered
 `{id, version, root, pack_id}` records, core first, and
-`ANIMAMA_LOCAL_CONTENT_ROOT` supplies the writable Local root. The backend
+`ANIMAMA_LOCAL_CONTENT_ROOT` supplies the writable Local root. Non-core sources
+use `pack_id` `expanded-included-content` or `mixamo-motion`. Each source has
+its own `licenses/inventory.json`. An entry is non-portable when a rule in its
+own source's inventory sets `"distribution": "non-portable"` (any unrecognised
+value also counts), or when any of its files matches a hash in
+`animama/resources/mixamo-motion-manifest.json`, wherever it is stored. The
+scanner records the result in `provenance.distribution` after merging
+descriptor metadata, so descriptors cannot set or clear it, and catalog
+responses expose it as `portability`. Startup transitions never copy
+non-portable bytes into Local content. The backend
 never creates or write-probes an Included mount, rejects cross-source logical,
 file, case, and Unicode collisions, and watches only Local. Each catalog item
 and preview file retains its exact `source_mount_id`. Bytes are delivered only

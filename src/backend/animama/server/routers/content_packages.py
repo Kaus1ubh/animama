@@ -97,7 +97,9 @@ class PackageRoute(APIRoute):
                     "package_export_expired": 410,
                     "package_stage_disk_full": 507,
                 }.get(code, 409)
-                detail: dict[str, str] = {"code": code}
+                detail: dict[str, Any] = {"code": code}
+                if isinstance(exc, ContentConflictError) and exc.items:
+                    detail["items"] = list(exc.items)
                 if code == CONVERSION_REQUIRED:
                     # A fixed server hint naming the conversion steps, never submitted data.
                     detail["message"] = PACKAGE_CONVERSION_HINT

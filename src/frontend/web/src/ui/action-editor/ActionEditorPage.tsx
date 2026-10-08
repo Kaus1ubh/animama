@@ -4,6 +4,7 @@ import { useBlocker, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { isNonPortable, NON_PORTABLE_REASON } from "@/lib/content/portability";
 import type {
   PyCatalogViewItem,
   PyGesture,
@@ -341,6 +342,8 @@ export function ActionEditorPage({
         }
         if (!item.source)
           throw new Error("This saved action has no catalog source.");
+        // Non-portable motion never loads into a draft that could be saved.
+        if (isNonPortable(item)) throw new Error(NON_PORTABLE_REASON);
         const preview = await actions.starterPreview.mutateAsync({
           source: item.source,
         });

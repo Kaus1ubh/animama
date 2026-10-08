@@ -14,6 +14,8 @@ const UNKNOWN_SAVE_MESSAGE =
   "Animama encountered an unexpected error while saving. Your draft is preserved; retry or check the backend logs.";
 
 const CONTENT_SAVE_MESSAGES: Record<string, string> = {
+  content_non_portable:
+    "These files match motion included with this app for use here only, so they can't be saved as your own content.",
   catalog_revision_conflict:
     "This item changed since you opened it. Reload the latest version before saving. Your draft is preserved.",
   content_path_exists:

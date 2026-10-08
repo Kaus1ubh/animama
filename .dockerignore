@@ -111,6 +111,10 @@ cloud/cdk.out*/
 # sst
 .sst
 
+# Private build inputs, such as the non-portable Mixamo-motion pack, are fetched
+# from an owner-only store and never tracked or sent to a Docker build context.
+/build-inputs/
+
 # Mixamo-derived animations are private, user-supplied inputs.
 # See docs/frontend/runtime/mixamo-acquisition.md; conversion is deferred.
 /content/included/gestures/acknowledging/acknowledging.vrma

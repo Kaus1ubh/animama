@@ -1575,6 +1575,20 @@ export type EnsureAnimaStartersResult = {
 };
 
 /**
+ * ExportOmittedItem
+ */
+export type ExportOmittedItem = {
+    /**
+     * Kind
+     */
+    kind: string;
+    /**
+     * Name
+     */
+    name: string;
+};
+
+/**
  * ExportReview
  *
  * Public review metadata for one sealed, owner-scoped immutable archive.
@@ -1658,6 +1672,10 @@ export type ExportSummary = {
      * Items
      */
     items: Array<ExportSelectionItem>;
+    /**
+     * Omitted
+     */
+    omitted?: Array<ExportOmittedItem>;
     /**
      * Required Count
      */
@@ -2193,6 +2211,10 @@ export type PackageManifest = {
      */
     kind: 'content' | 'anima';
     /**
+     * Non Portable References
+     */
+    non_portable_references?: Array<PackageNonPortableReference>;
+    /**
      * Root Entry Ids
      */
     root_entry_ids?: Array<string>;
@@ -2200,6 +2222,61 @@ export type PackageManifest = {
      * Schema
      */
     schema: 'animama-content-package/3';
+};
+
+/**
+ * PackageNonPortableReference
+ *
+ * An item omitted from the archive because it is non-portable: identity only, no bytes.
+ */
+export type PackageNonPortableReference = {
+    /**
+     * Display Name
+     */
+    display_name: string;
+    kind: 'appearance' | 'avatar' | 'avatar_effect' | 'gesture' | 'idle_style' | 'particle_effect' | 'pose' | 'reaction' | 'scene_effect' | 'sound_effect' | 'voice';
+    /**
+     * Logical Key
+     */
+    logical_key: string;
+    /**
+     * Uses
+     */
+    uses: Array<PackageNonPortableUse>;
+};
+
+/**
+ * PackageNonPortableUse
+ *
+ * One place an omitted non-portable item was used, so import can rebind it.
+ *
+ * Exactly one target: an Anima slot (``gesture`` with its selector and
+ * binding config, or ``idle_style``) or a packaged Idle Style entry and the
+ * pools (``default`` or ``<emotion>.<1|2|3>``) it was removed from.
+ */
+export type PackageNonPortableUse = {
+    /**
+     * Anima Slot
+     */
+    anima_slot?: 'gesture' | 'idle_style' | null;
+    /**
+     * Config
+     */
+    config?: {
+        [key: string]: unknown;
+    };
+    /**
+     * Entry Id
+     */
+    entry_id?: string | null;
+    /**
+     * Pools
+     */
+    pools?: Array<string>;
+    /**
+     * Semantic Key
+     */
+    semantic_key?: string | null;
 };
 
 /**
@@ -3192,6 +3269,10 @@ export type PyAppearance = {
      */
     name: string;
     /**
+     * Portability
+     */
+    portability?: 'portable' | 'non-portable';
+    /**
      * Presentation
      */
     presentation?: {
@@ -3732,6 +3813,10 @@ export type PyAvatarContent = {
      */
     name: string;
     /**
+     * Portability
+     */
+    portability?: 'portable' | 'non-portable';
+    /**
      * Revision Sha256
      */
     revision_sha256: string;
@@ -3794,6 +3879,10 @@ export type PyAvatarEffect = {
      * Name
      */
     name: string;
+    /**
+     * Portability
+     */
+    portability?: 'portable' | 'non-portable';
     /**
      * Revision Sha256
      */
@@ -4561,6 +4650,10 @@ export type PyContentItem = {
      */
     origin: 'included' | 'local';
     /**
+     * Portability
+     */
+    portability?: 'portable' | 'non-portable';
+    /**
      * Provenance
      */
     provenance: {
@@ -5085,6 +5178,10 @@ export type PyGesture = {
      */
     name: string;
     /**
+     * Portability
+     */
+    portability?: 'portable' | 'non-portable';
+    /**
      * Revision Sha256
      */
     revision_sha256: string;
@@ -5410,6 +5507,10 @@ export type PyIdleStyle = {
      * Name
      */
     name: string;
+    /**
+     * Portability
+     */
+    portability?: 'portable' | 'non-portable';
     /**
      * Revision Sha256
      */
@@ -7360,6 +7461,10 @@ export type PyParticleEffect = {
      */
     name: string;
     /**
+     * Portability
+     */
+    portability?: 'portable' | 'non-portable';
+    /**
      * Revision Sha256
      */
     revision_sha256: string;
@@ -7423,6 +7528,10 @@ export type PyPose = {
      * Name
      */
     name: string;
+    /**
+     * Portability
+     */
+    portability?: 'portable' | 'non-portable';
     /**
      * Pose Id
      */
@@ -7550,6 +7659,10 @@ export type PyReaction = {
      * Name
      */
     name: string;
+    /**
+     * Portability
+     */
+    portability?: 'portable' | 'non-portable';
     /**
      * Revision Sha256
      */
@@ -8526,6 +8639,10 @@ export type PySceneEffect = {
      */
     name: string;
     /**
+     * Portability
+     */
+    portability?: 'portable' | 'non-portable';
+    /**
      * Revision Sha256
      */
     revision_sha256: string;
@@ -8696,6 +8813,10 @@ export type PySoundEffect = {
      * Name
      */
     name: string;
+    /**
+     * Portability
+     */
+    portability?: 'portable' | 'non-portable';
     /**
      * Revision Sha256
      */
@@ -9429,6 +9550,10 @@ export type PyVoiceContent = {
      */
     name: string;
     /**
+     * Portability
+     */
+    portability?: 'portable' | 'non-portable';
+    /**
      * Revision Sha256
      */
     revision_sha256: string;
@@ -9573,6 +9698,26 @@ export type ReviewedImportItem = {
 };
 
 /**
+ * ReviewedNonPortableItem
+ *
+ * A non-portable item the sender omitted, and what this installation does with it.
+ *
+ * ``rebound`` uses this installation's own matching item; ``unavailable`` falls
+ * back (no Gesture, the Default pool without it, or no Idle Style).
+ */
+export type ReviewedNonPortableItem = {
+    kind: 'appearance' | 'avatar' | 'avatar_effect' | 'gesture' | 'idle_style' | 'particle_effect' | 'pose' | 'reaction' | 'scene_effect' | 'sound_effect' | 'voice';
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Outcome
+     */
+    outcome: 'rebound' | 'unavailable';
+};
+
+/**
  * ReviewedPackageImport
  *
  * User-visible whole-package proposal; never exposes receiver paths or reserved IDs.
@@ -9595,6 +9740,10 @@ export type ReviewedPackageImport = {
      * Kind
      */
     kind: 'content' | 'anima';
+    /**
+     * Non Portable
+     */
+    non_portable?: Array<ReviewedNonPortableItem>;
     /**
      * Operation Id
      */

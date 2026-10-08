@@ -1,0 +1,362 @@
+{
+  "schema_version": 1,
+  "pack_id": "mixamo-motion",
+  "version": "v2",
+  "files": [
+    {
+      "path": "gestures/being_cocky/being_cocky.meta.json",
+      "size_bytes": 455,
+      "sha256": "1d8cb7130c69e6c66c35288ceaa12368f0c4ab3d94643c0db562c70ba6b39f98"
+    },
+    {
+      "path": "gestures/being_cocky/being_cocky.vrma",
+      "size_bytes": 86612,
+      "sha256": "74f05d568fb56a58b8384300d235082544fae64de3d42fc48d06f3b6d6f799a3"
+    },
+    {
+      "path": "gestures/crying/crying.meta.json",
+      "size_bytes": 423,
+      "sha256": "ad210ce98ffcc75f725e28284180679bfcb857a44223312e50b3ae8d6aa6bee3"
+    },
+    {
+      "path": "gestures/crying/crying.vrma",
+      "size_bytes": 155368,
+      "sha256": "2a7ef149e5fc5f35e5a53485a3865771999419843fcd82d0d14d50caf50478ed"
+    },
+    {
+      "path": "gestures/darn_it/darn_it.meta.json",
+      "size_bytes": 435,
+      "sha256": "ae37c2a52ee2b9779fcedb6a4bb8d963132d675e1c535dafd2064e711dbe53f7"
+    },
+    {
+      "path": "gestures/darn_it/darn_it.vrma",
+      "size_bytes": 112544,
+      "sha256": "e1ea88082f77fd5be60dbf78f2734241fedd4341db855695c508987e556dd91a"
+    },
+    {
+      "path": "gestures/excited_jump_1/excited_jump_1.meta.json",
+      "size_bytes": 436,
+      "sha256": "5a4488dfd58c8cc301c0edb907f5ed41f16d42ba283a59a9e84bdaa96fae38c5"
+    },
+    {
+      "path": "gestures/excited_jump_1/excited_jump_1.vrma",
+      "size_bytes": 64940,
+      "sha256": "7c62ddf7731a74723b495ee817c147fd4b0ec8e92fffdf1eceea3068b3ce184b"
+    },
+    {
+      "path": "gestures/excited_jump_2/excited_jump_2.meta.json",
+      "size_bytes": 499,
+      "sha256": "899221427a275159453cf3f1429c9fb5ce05aede361dff2b074a7b2d12adee06"
+    },
+    {
+      "path": "gestures/excited_jump_2/excited_jump_2.vrma",
+      "size_bytes": 116005,
+      "sha256": "b6833a23846248108c6d9054f74d6f18e6b76bfda56b26ed24a5ec6de9428073"
+    },
+    {
+      "path": "gestures/exclaim_frustrated/exclaim_frustrated.meta.json",
+      "size_bytes": 468,
+      "sha256": "25301ec47e09f0b53c68e3cebf1aa8e45b0ace844effbc796817018b6db7f33b"
+    },
+    {
+      "path": "gestures/exclaim_frustrated/exclaim_frustrated.vrma",
+      "size_bytes": 187192,
+      "sha256": "7fb95a832d18434f127f2f46f56fb40f379f539c5be37f0cd55401044c6ea7ba"
+    },
+    {
+      "path": "gestures/flattered/flattered.meta.json",
+      "size_bytes": 425,
+      "sha256": "d7871c3d27dd4174d51d36ed039f1cf7fd1b22a45038ca7a4081ac50a7b8112b"
+    },
+    {
+      "path": "gestures/flattered/flattered.vrma",
+      "size_bytes": 113392,
+      "sha256": "f53baf05ca2bc8dc23cdbbd6d4dcfe427cb24badc53154ac706851e2bd7118d4"
+    },
+    {
+      "path": "gestures/frustrated_explain/frustrated_explain.meta.json",
+      "size_bytes": 462,
+      "sha256": "db6030a34441eebe00503a837e7111ce1885662b1b8a1910e038cabee62b57e2"
+    },
+    {
+      "path": "gestures/frustrated_explain/frustrated_explain.vrma",
+      "size_bytes": 450052,
+      "sha256": "31d8248a43bda72010d588a31588c21ca0992d37924f74b5e240ed8ee33a78a0"
+    },
+    {
+      "path": "gestures/head_shake/head_shake.meta.json",
+      "size_bytes": 445,
+      "sha256": "5c2981e919d5494c27eaa8de773c5ee9995172aec4a20aee2fe581160a0d216f"
+    },
+    {
+      "path": "gestures/head_shake/head_shake.vrma",
+      "size_bytes": 79360,
+      "sha256": "0e050b00b46841ab1c9e9777f230585be48d8f690ca487ceb3b0c81bf423566a"
+    },
+    {
+      "path": "gestures/idle_fem/idle_fem.meta.json",
+      "size_bytes": 472,
+      "sha256": "a9a3ea4e0b203c5c35b0e28d7334c5a4a7077ef32ca40f2bddb3c92846d85032"
+    },
+    {
+      "path": "gestures/idle_fem/idle_fem.vrma",
+      "size_bytes": 143198,
+      "sha256": "9c3f8104ea52740856d163c9e3a5a74b11fc459bb915b7886d208da4bfc07c72"
+    },
+    {
+      "path": "gestures/idle_idle3/idle_idle3.meta.json",
+      "size_bytes": 522,
+      "sha256": "0659632337100192a5a4105d608ab26884484a16c0468e3da0851c251f93e0e8"
+    },
+    {
+      "path": "gestures/idle_idle3/idle_idle3.vrma",
+      "size_bytes": 118448,
+      "sha256": "a75e9f80e1513b5bd5624f45e16938168ad3daf7e75f75db52bb18aa093da23a"
+    },
+    {
+      "path": "gestures/idle_look_around/idle_look_around.meta.json",
+      "size_bytes": 502,
+      "sha256": "83b73d0414ed8d279ba4e7dfaea651732a041a4de2f29430c343aef007930472"
+    },
+    {
+      "path": "gestures/idle_look_around/idle_look_around.vrma",
+      "size_bytes": 215570,
+      "sha256": "791880c594771e783feea85bbef5a2a3ec9d6410f05f1e26481b1b9c53e12018"
+    },
+    {
+      "path": "gestures/idle_sexy_dance/idle_sexy_dance.meta.json",
+      "size_bytes": 504,
+      "sha256": "9e22715acb5c6673f0c2193fe1334c5f0e80ac09da3fa76db55ad35dfd02c439"
+    },
+    {
+      "path": "gestures/idle_sexy_dance/idle_sexy_dance.vrma",
+      "size_bytes": 466625,
+      "sha256": "e955facc598e08222ba41c07a615cf77775f94f58474c8bacf286cfe8d001025"
+    },
+    {
+      "path": "gestures/listening_head_nod/listening_head_nod.meta.json",
+      "size_bytes": 467,
+      "sha256": "42a6849e441e5d5be85eab1da3d7223bc0f0ba14c3d3980b746f8c6e54dea40e"
+    },
+    {
+      "path": "gestures/listening_head_nod/listening_head_nod.vrma",
+      "size_bytes": 66636,
+      "sha256": "3691dacf14f0be35ef89bc279e5f73a8239d424f062de15cfdeab4a3413e96dc"
+    },
+    {
+      "path": "gestures/lookaround/lookaround.meta.json",
+      "size_bytes": 433,
+      "sha256": "d332d0de1bcf9702f3e50c703f199571c1ae16f6914429881ad86acec588fa79"
+    },
+    {
+      "path": "gestures/lookaround/lookaround.vrma",
+      "size_bytes": 118468,
+      "sha256": "c27869caac0dbbdacbab79df69510458bfcb9d3dbc8f59eb8d3af1f646e6f290"
+    },
+    {
+      "path": "gestures/lookaround2/lookaround2.meta.json",
+      "size_bytes": 506,
+      "sha256": "b6c0fd6472dbaa5f78de8a6805f4d550004a3b64430d4e968bd2100e813f57de"
+    },
+    {
+      "path": "gestures/lookaround2/lookaround2.vrma",
+      "size_bytes": 118448,
+      "sha256": "caffcaa215e4d9fa283c16c297b62a62cf34a7b18598ad326f4b9bde394ef2b2"
+    },
+    {
+      "path": "gestures/mixamo-idle-angry/angry.vrma",
+      "size_bytes": 118468,
+      "sha256": "a18ffda5cbc53c8e98c5daf258fdcde1b486300cb47db015c31f183c54eecefd"
+    },
+    {
+      "path": "gestures/mixamo-idle-angry/mixamo-idle-angry.meta.json",
+      "size_bytes": 652,
+      "sha256": "05b55a9f7655abc38815df28d80080e982d91ff5c20681f148a1afd8e4e76070"
+    },
+    {
+      "path": "gestures/mixamo-idle-anxious_look_around/anxious_look_around.vrma",
+      "size_bytes": 256696,
+      "sha256": "242b520f733f7ed26fb3374af9d56f2b83f5fb6d649464a9ccc698208c767f95"
+    },
+    {
+      "path": "gestures/mixamo-idle-anxious_look_around/mixamo-idle-anxious_look_around.meta.json",
+      "size_bytes": 710,
+      "sha256": "d6cf9662b8b623b838e494d708078a3729ca38a216fea197c152856912779d7f"
+    },
+    {
+      "path": "gestures/mixamo-idle-bored/bored.vrma",
+      "size_bytes": 299144,
+      "sha256": "2f5936103abf62da03d8648f3b2bbf08a5703b46de7a9e71b274ba07af388e84"
+    },
+    {
+      "path": "gestures/mixamo-idle-bored/mixamo-idle-bored.meta.json",
+      "size_bytes": 664,
+      "sha256": "157195793bc31c18860324e75f9a5862c985210d7441b6d399500ef4f516aaa6"
+    },
+    {
+      "path": "gestures/mixamo-idle-happy/happy.vrma",
+      "size_bytes": 231696,
+      "sha256": "1203fa20a113a3126cf5d13c32372f046d61887a6f733ea070c013e24d79f66f"
+    },
+    {
+      "path": "gestures/mixamo-idle-happy/mixamo-idle-happy.meta.json",
+      "size_bytes": 643,
+      "sha256": "2d5e67291d64c120d3511e1b8cd2b1fe9ac0f9d839fc3a9adf57a89bc741eeaf"
+    },
+    {
+      "path": "gestures/mixamo-idle-sad/mixamo-idle-sad.meta.json",
+      "size_bytes": 636,
+      "sha256": "92274a80f3ad4fb7c60d074a035f5c4aadd76bb11cc29430595030b548e38138"
+    },
+    {
+      "path": "gestures/mixamo-idle-sad/sad.vrma",
+      "size_bytes": 118468,
+      "sha256": "408a8896f3aca52d08809d9a868d19d96b6912b913e065d2fe6ea26c189bf42b"
+    },
+    {
+      "path": "gestures/posture_jumphigh/posture_jumphigh.meta.json",
+      "size_bytes": 514,
+      "sha256": "133ffd952c8909c6394fcc1fdac4ef09ce39b3fb7d482012383af1f59949347e"
+    },
+    {
+      "path": "gestures/posture_jumphigh/posture_jumphigh.vrma",
+      "size_bytes": 118448,
+      "sha256": "44fdeac42249c28f4ff64393c8000e60f589ce9a90b178059e932f455d0f226d"
+    },
+    {
+      "path": "gestures/posture_sad/posture_sad.meta.json",
+      "size_bytes": 475,
+      "sha256": "8954abbc910c48146a1aa91cb767e371868b0feac8ed24a994e2593974ba28cf"
+    },
+    {
+      "path": "gestures/posture_sad/posture_sad.vrma",
+      "size_bytes": 109496,
+      "sha256": "8ff5b4698a4af24f6cbcd41b17575dd466246bb21d0ad4d9d52e6fdffc1ebc3a"
+    },
+    {
+      "path": "gestures/proud_of_self/proud_of_self.meta.json",
+      "size_bytes": 461,
+      "sha256": "fa96e3748d5ff17a7287a886c65a1bbddcb5e2f69a0a594ee15e5b1db6013d64"
+    },
+    {
+      "path": "gestures/proud_of_self/proud_of_self.vrma",
+      "size_bytes": 53528,
+      "sha256": "45506d89ce80323875c34a358322601b27e6697226ab475d923ae99ada33579c"
+    },
+    {
+      "path": "gestures/relax/relax.meta.json",
+      "size_bytes": 465,
+      "sha256": "d277dfd4d2ba0ffce8204d2361d902a8ba326b5896f47c5587444f942ba9d893"
+    },
+    {
+      "path": "gestures/relax/relax.vrma",
+      "size_bytes": 118448,
+      "sha256": "7de5b0a0e8099d0fa2b6dbdb9e04ee490a77543aa6b1be35bada146bdf43f289"
+    },
+    {
+      "path": "gestures/sarcastic_response/sarcastic_response.meta.json",
+      "size_bytes": 460,
+      "sha256": "cb270cc775bb6a059456f511ca8acb682ed40e1111b39af89cdd64ec2c90f9d7"
+    },
+    {
+      "path": "gestures/sarcastic_response/sarcastic_response.vrma",
+      "size_bytes": 103964,
+      "sha256": "d9ebcaf6abe13ad6b379ea65f81a033b6479691b6e512bba27f13a4394bc0db7"
+    },
+    {
+      "path": "gestures/shrug/shrug.meta.json",
+      "size_bytes": 430,
+      "sha256": "e5ace5130cecee5bd147212352106557245d2e926c68c2a56830d721f521814d"
+    },
+    {
+      "path": "gestures/shrug/shrug.vrma",
+      "size_bytes": 46264,
+      "sha256": "311f5b8bdf714c5af4119f08052b6070756f4d6f004398faab5e0cedaa5404e5"
+    },
+    {
+      "path": "gestures/silly_slap/silly_slap.meta.json",
+      "size_bytes": 464,
+      "sha256": "433080a26e9c124f63d09c8e88af0d566203e3a36c164007290e9ce506daa1fe"
+    },
+    {
+      "path": "gestures/silly_slap/silly_slap.vrma",
+      "size_bytes": 105708,
+      "sha256": "fe3c8cb529f39736a63e00238918d670bc55bccdf988eb970a0d1d9d9486d961"
+    },
+    {
+      "path": "gestures/sleepy/sleepy.meta.json",
+      "size_bytes": 465,
+      "sha256": "71af9f9fc9458fba103df504b3486a2b6d528866c96e7cfccdac44df270556b3"
+    },
+    {
+      "path": "gestures/sleepy/sleepy.vrma",
+      "size_bytes": 118448,
+      "sha256": "42b6c81721235d0697c97dbde62e15e7c3bf91d5267205920a9bb150cc19a51f"
+    },
+    {
+      "path": "gestures/surprised/surprised.meta.json",
+      "size_bytes": 435,
+      "sha256": "e479cadc06bac18086e34e4af75f9db4c5adc23b791eef81cc219588e775318a"
+    },
+    {
+      "path": "gestures/surprised/surprised.vrma",
+      "size_bytes": 118468,
+      "sha256": "127e22332f7d119fbf64fa2e171f24d10d28e41695364dc6f95e8b92186e9f00"
+    },
+    {
+      "path": "gestures/telling_secret/telling_secret.meta.json",
+      "size_bytes": 542,
+      "sha256": "688060382ccb492ba970903f38963c81725a54af296bf1806dca53b8affc1e27"
+    },
+    {
+      "path": "gestures/telling_secret/telling_secret.vrma",
+      "size_bytes": 1062595,
+      "sha256": "b68d254852a942f8ffad5461fc6747448226709f3c81602f208271f851c06843"
+    },
+    {
+      "path": "gestures/tired/tired.meta.json",
+      "size_bytes": 487,
+      "sha256": "a267eac6d5ed9b1e9bb9f400a4320ec06a7c2bd7c1dc44b38180c54acee62224"
+    },
+    {
+      "path": "gestures/tired/tired.vrma",
+      "size_bytes": 217728,
+      "sha256": "75c48fd2aea7fb3b52b096f97d8f2f58259bec216791bbc7f036693be3235bb0"
+    },
+    {
+      "path": "gestures/wave/wave.meta.json",
+      "size_bytes": 409,
+      "sha256": "3de4047860bad61e5077ab578d834bb6384f67c6dfbb42b0c946ce4e3e48e094"
+    },
+    {
+      "path": "gestures/wave/wave.vrma",
+      "size_bytes": 48076,
+      "sha256": "527e5562d2514b5b153642e1d8c8ab672cb38ff8294b88b805559e118022a66a"
+    },
+    {
+      "path": "gestures/whatever/whatever.meta.json",
+      "size_bytes": 481,
+      "sha256": "c784f5d3e8ecf7da89e48d8d5b090272cdf3cb707d69bd17becd9d84725fad99"
+    },
+    {
+      "path": "gestures/whatever/whatever.vrma",
+      "size_bytes": 46720,
+      "sha256": "a13a09c036c107e9248663cb66888dce79c16136d8272efd948099bf99189462"
+    },
+    {
+      "path": "gestures/youre_right/youre_right.meta.json",
+      "size_bytes": 511,
+      "sha256": "e278ac2b5193461c59cd9159682138a8ad0ddb2334e18333a494e7280371a568"
+    },
+    {
+      "path": "gestures/youre_right/youre_right.vrma",
+      "size_bytes": 179563,
+      "sha256": "ab98f5cc1fb155be2885c80e9ab4e7237751e7d4f5cea74769ff6a1f0e6202cb"
+    },
+    {
+      "path": "idle-styles/mixamo-emotive-idle/mixamo-emotive-idle.json",
+      "size_bytes": 5841,
+      "sha256": "317cd41ed9ea7ec833989a2fb983ccf622823abc84603d6a34a97a6e2111f328"
+    }
+  ]
+}

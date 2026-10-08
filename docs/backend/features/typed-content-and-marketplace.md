@@ -167,6 +167,30 @@ operation. A changed destination requires a fresh review; import never replaces
 an existing item or installs only part of the package. License and provenance
 facts accompany the independent editable copies.
 
+### Non-portable content
+
+[Non-portable](../architecture/local-content-storage.md) items never enter a
+package. Content export refuses a non-portable root, and any non-portable item
+reached other than through an Idle Style pool, with `package_non_portable` and
+the item names in `detail.items`. A portable Idle Style that pools non-portable
+Gestures exports without them: their references, and any pool they empty, are
+removed. An Anima export likewise omits non-portable Gesture and Idle Style
+bindings, explicit or implicit starter choices. Any other non-portable binding
+(for example an Avatar) blocks the export. The summary lists omitted items
+(`omitted`), and the manifest's `non_portable_references` record each one's kind,
+logical key, name and uses, with the `animama/non-portable-references/1`
+capability. Packages without references omit the field and stay readable by
+earlier versions.
+
+On import, the review lists each reference as `rebound` when this installation
+has a valid non-portable Included item with the same kind and logical key, or
+`unavailable` otherwise. Rebound items return to their Anima slot or Idle Style
+pools. Unavailable ones fall back: no Gesture, the Default pool without it, or
+no Idle Style. Import and typed save reject any file whose SHA-256 matches a
+non-portable payload (`package_non_portable`, `content_non_portable`) without
+echoing its contents. Matching files added to the Local folder by hand are
+scanned as non-portable instead.
+
 Resource filenames inside a content directory stay unchanged so embedded image
 and texture references remain valid when the containing item receives a collision
 suffix. Avatar imports also register the logical model used by Library and Anima

@@ -41,6 +41,12 @@ from animama.app.services.content_kind_registry import (
     validate_metadata_sidecar,
     validate_standalone_file,
 )
+from animama.app.services.content_portability import (
+    DISTRIBUTION_KEY,
+    effective_provenance,
+    resolve_rule_distribution,
+    restricted_sha256 as manifest_sha256,
+)
 from animama.domain.content_catalog import (
     CatalogContentEntry,
     ContentConflictError,
@@ -180,7 +186,11 @@ class FilesystemContentStore(ContentStore):
         local_root: Path,
         operations_root: Path,
         included_sources: tuple[IncludedContentSource, ...] = (),
+        restricted_sha256: frozenset[str] | None = None,
     ) -> None:
+        # Bytes that are non-portable wherever they are stored (see
+        # content_portability). Tests inject a set; services use the manifest.
+        self._restricted_sha256 = manifest_sha256() if restricted_sha256 is None else restricted_sha256
         self._roots = {
             ContentSource.INCLUDED: included_root.resolve(strict=False),
             ContentSource.LOCAL: local_root.resolve(strict=False),
@@ -192,10 +202,19 @@ class FilesystemContentStore(ContentStore):
         self._included_sources = included_sources
         self._included_stores = {
             source.mount_id: FilesystemContentStore(
-                included_root=source.root, local_root=local_root, operations_root=operations_root
+                included_root=source.root,
+                local_root=local_root,
+                operations_root=operations_root,
+                restricted_sha256=self._restricted_sha256,
             )
             for source in included_sources
         }
+
+    @property
+    def restricted_sha256(self) -> frozenset[str]:
+        """Hashes of non-portable bytes that must never enter Local content."""
+
+        return self._restricted_sha256
 
     @property
     def included_mount_ids(self) -> tuple[str, ...] | None:
@@ -648,11 +667,41 @@ class FilesystemContentStore(ContentStore):
                         license_rules=license_rules,
                     )
                 )
-        return entries
+        return [self._with_distribution(entry, license_rules) for entry in entries]
+
+    def _with_distribution(
+        self, entry: ScannedContentEntry, license_rules: list[dict[str, Any]]
+    ) -> ScannedContentEntry:
+        """Apply the trusted distribution after descriptor provenance was merged."""
+
+        rule_distribution = None
+        if entry.source is ContentSource.INCLUDED:
+            # Match the locator and every file, case-sensitively like staging.
+            paths = (entry.relative_locator, *(file.relative_path for file in entry.files))
+            rule_distribution = resolve_rule_distribution(
+                next(
+                    (rule.get(DISTRIBUTION_KEY) for rule in license_rules if fnmatch.fnmatchcase(path, rule["glob"])),
+                    None,
+                )
+                for path in paths
+            )
+        provenance = effective_provenance(
+            entry.provenance,
+            source=entry.source,
+            rule_distribution=rule_distribution,
+            file_sha256=(file.sha256 for file in entry.files),
+            restricted=self._restricted_sha256,
+        )
+        return entry if provenance == entry.provenance else replace(entry, provenance=provenance)
 
     def inspect_package_tree(self, root: Path) -> list[ScannedContentEntry]:
         """Reuse the canonical scanner with private roots and no publication or journals."""
-        inspector = FilesystemContentStore(included_root=root, local_root=root, operations_root=root / ".unused")
+        inspector = FilesystemContentStore(
+            included_root=root,
+            local_root=root,
+            operations_root=root / ".unused",
+            restricted_sha256=self._restricted_sha256,
+        )
         return inspector.scan(ContentSource.LOCAL)
 
     def open_verified_file(
@@ -1233,6 +1282,7 @@ class FilesystemContentStore(ContentStore):
                 local_root=stage_root,
                 operations_root=self._operations_root / f".{receipt_id}-validation",
                 included_sources=self._included_sources,
+                restricted_sha256=self._restricted_sha256,
             )
             scanned = staging_store.scan(ContentSource.LOCAL)
             scanned_by_locator = {item.relative_locator: item for item in scanned}

@@ -41,12 +41,15 @@ export function useSharingInventory(enabled: boolean) {
       ]);
       return pages
         .flatMap((page) =>
-          page.data.items.map(({ item_id, name, kind, description }) => ({
-            item_id,
-            name,
-            kind: kind ?? "pose",
-            description,
-          })),
+          page.data.items.map(
+            ({ item_id, name, kind, description, portability }) => ({
+              item_id,
+              name,
+              kind: kind ?? "pose",
+              description,
+              portability,
+            }),
+          ),
         )
         .sort((a, b) => a.name.localeCompare(b.name));
     },

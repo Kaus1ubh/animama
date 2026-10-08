@@ -22,10 +22,29 @@ def test_included_license_inventory_records_the_release_gate() -> None:
     by_glob = {rule["glob"]: rule for rule in rules}
     assert by_glob["poses/**/*.json"]["license_id"] == "LicenseRef-Animama-owner-authored"
     assert by_glob["gestures/**/*.json"]["license_id"] == "LicenseRef-Animama-owner-authored"
-    assert by_glob["gestures/**/*.vrma"]["license_id"] == "LicenseRef-Adobe-Mixamo-embedded-product"
-    assert by_glob["gestures/**/*.vrma"].get("distribution") != "excluded"
+    # Mixamo motion ships only as the separate non-portable pack (see below).
+    assert not any(rule["license_id"] == "LicenseRef-Adobe-Mixamo-embedded-product" for rule in rules)
     assert by_glob["vfx/scene/**/emoji-*.svg"]["license_id"] == "CC-BY-4.0-Twemoji-graphics"
     assert by_glob["vfx/particle/quark/**"]["license_id"] == "LicenseRef-Animama-generated-and-CC0-particle-VFX"
+
+
+def test_mixamo_motion_pack_inventory_is_public_safe_and_non_portable() -> None:
+    inventory = json.loads((ROOT / "scripts/mixamo-motion/inventory.json").read_text(encoding="utf-8"))
+    manifest = json.loads(
+        (ROOT / "src/backend/animama/resources/mixamo-motion-manifest.json").read_text(encoding="utf-8")
+    )
+
+    assert inventory["schema_version"] == 1
+    [rule] = inventory["rules"]
+    # One rule matching every locator and file, so runtime and staging agree.
+    assert rule["glob"] == "**"
+    assert rule["distribution"] == "non-portable"
+    assert rule["license_id"] == "LicenseRef-Adobe-Mixamo-embedded-product"
+    assert rule["redistribution_review"] == "pending"
+    text = json.dumps(inventory)
+    assert "@" not in text and "/Users/" not in text and "X-Amz" not in text
+    assert manifest["pack_id"] == "mixamo-motion"
+    assert all(set(item) == {"path", "size_bytes", "sha256"} for item in manifest["files"])
 
 
 def test_typed_media_moved_but_browser_engine_assets_remained_public(tmp_path: Path) -> None:

@@ -241,11 +241,14 @@ class ContentConflictError(ContentError):
         *,
         current_revision: str | int | None = None,
         field: str | None = None,
+        items: tuple[str, ...] = (),
     ) -> None:
         super().__init__(code)
         self.code = code
         self.current_revision = current_revision
         self.field = field
+        # Display names of the items that caused the conflict, safe to show.
+        self.items = items
 
 
 __all__ = [

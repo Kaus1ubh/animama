@@ -23,6 +23,23 @@ class ReviewedImportItem(ImportModel):
     selected: bool
 
 
+class ReviewedNonPortableItem(ImportModel):
+    """A non-portable item the sender omitted, and what this installation does with it.
+
+    ``rebound`` uses this installation's own matching item; ``unavailable`` falls
+    back (no Gesture, the Default pool without it, or no Idle Style).
+    """
+
+    kind: PackageContentKind
+    name: str
+    outcome: Literal["rebound", "unavailable"]
+
+
+class PlannedNonPortableItem(ReviewedNonPortableItem):
+    logical_key: str
+    item_id: str | None
+
+
 class ReviewedPackageImport(ImportModel):
     """User-visible whole-package proposal; never exposes receiver paths or reserved IDs."""
 
@@ -38,6 +55,7 @@ class ReviewedPackageImport(ImportModel):
     items: tuple[ReviewedImportItem, ...]
     anima: PortableAnima | None
     review_digest: str
+    non_portable: tuple[ReviewedNonPortableItem, ...] = ()
 
 
 class PlannedImportItem(ReviewedImportItem):
@@ -58,6 +76,7 @@ class ReviewedImportPlan(ImportModel):
     items: tuple[PlannedImportItem, ...]
     anima: PortableAnima | None
     default_model_provider_id: str | None
+    non_portable: tuple[PlannedNonPortableItem, ...] = ()
 
 
 class ImportedPackageItem(ImportModel):

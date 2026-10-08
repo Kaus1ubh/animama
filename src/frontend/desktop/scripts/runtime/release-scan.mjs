@@ -36,6 +36,7 @@ import {
   writeJson,
 } from "./common.mjs";
 import { releaseName, verifyArtifactIndex } from "./release-artifacts.mjs";
+import { STAGED_RELATIVE, scanForPackBytes } from "./mixamo-motion.mjs";
 
 /** Messages the CLI may print: they never contain paths, output or values. */
 export class ScanError extends Error {}
@@ -519,6 +520,25 @@ export async function scanCandidate({
         entries,
       ),
       ...(await privateTextFindings(expanded, needles, skip)),
+      // Non-portable pack bytes may appear only inside the app's own runtime.
+      ...scanForPackBytes([expanded], {
+        // Only the app's own runtime directory (macOS or Windows layout).
+        allow: [
+          new RegExp(
+            `/(Contents/)?[Rr]esources/runtime/${STAGED_RELATIVE}/`,
+            "u",
+          ),
+        ],
+        expandArchives: false,
+      }).map((found) => {
+        const [, artifact, ...rest] = found.split("/");
+        return {
+          source: "non-portable-pack",
+          rule: "mixamo-motion-outside-runtime",
+          artifact,
+          path: rest.join("/"),
+        };
+      }),
     ];
     const receipt = {
       schema: "animama-release-scan/1",

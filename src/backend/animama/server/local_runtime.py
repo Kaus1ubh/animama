@@ -8,6 +8,7 @@ import uuid
 from dataclasses import dataclass
 from pathlib import Path
 
+from animama.app.services.content_portability import MIXAMO_MOTION_PACK_ID
 from animama.domain.content_sources import IncludedContentSource
 from animama.server.config import Settings
 from animama.utils.files import is_directory, path_is_link
@@ -115,6 +116,11 @@ def resolve_local_runtime_paths(settings: Settings) -> LocalRuntimePaths:
     )
 
 
+# Read-only Included packs besides core. The Mixamo-motion pack is non-portable
+# content bundled only into desktop and hosted builds (see content_portability).
+_INCLUDED_PACK_IDS = frozenset({"expanded-included-content", MIXAMO_MOTION_PACK_ID})
+
+
 def _included_sources(settings: Settings, *, local_root: Path, data_root: Path) -> tuple[IncludedContentSource, ...]:
     """Validate trusted mount configuration before any directory is created."""
 
@@ -154,7 +160,7 @@ def _included_sources(settings: Settings, *, local_root: Path, data_root: Path) 
                     raise ValueError("Included, Local, and private roots must not overlap")
             pack_id = entry.get("pack_id")
             if (identifier == "core" and pack_id is not None) or (
-                identifier != "core" and pack_id != "expanded-included-content"
+                identifier != "core" and pack_id not in _INCLUDED_PACK_IDS
             ):
                 raise ValueError("Unknown Included pack identity")
             sources.append(IncludedContentSource(identifier, version, root, pack_id))

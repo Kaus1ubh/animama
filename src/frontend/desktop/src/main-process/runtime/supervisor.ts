@@ -1,4 +1,4 @@
-import { mkdirSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import { lstat, readdir, statfs } from "node:fs/promises";
 import path from "node:path";
 import { randomBytes, randomUUID } from "node:crypto";
@@ -186,6 +186,23 @@ export class RuntimeSupervisor {
                   this.activePacks["expanded-included-content"].manifest,
                 ),
                 root: this.activePacks["expanded-included-content"].root,
+              },
+            ]
+          : []),
+        // Non-portable Mixamo motion is bundled in the audited runtime when the
+        // build staged it; it is never a downloadable feature pack.
+        ...(existsSync(
+          path.join(this.options.runtimeRoot, "content/mixamo-motion"),
+        )
+          ? [
+              {
+                id: "mixamo-motion",
+                pack_id: "mixamo-motion",
+                version: this.manifest.build_id,
+                root: path.join(
+                  this.options.runtimeRoot,
+                  "content/mixamo-motion",
+                ),
               },
             ]
           : []),
