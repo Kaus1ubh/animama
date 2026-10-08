@@ -61,7 +61,11 @@ _NO_FALLBACK_PREFIXES = _PRIVATE_PREFIXES + (
     "/assets",
     "/content",
     "/background",
-    "/effects",
+    # Included effect assets (`includedContentAliases` in src/frontend/web/vite.config.ts);
+    # other /effects paths, such as /effects/new, are app routes.
+    "/effects/scene-vfx",
+    "/effects/vfx",
+    "/effects/resources",
 )
 
 
