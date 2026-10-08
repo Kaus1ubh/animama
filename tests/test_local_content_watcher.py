@@ -64,3 +64,33 @@ def test_watcher_ignores_reads_but_records_durable_file_changes(tmp_path: Path) 
         "gestures/point.vrma",
     )
     assert watcher._record_if_changed(str(created)) is None  # noqa: SLF001
+
+
+def test_watcher_ignores_hidden_paths_that_the_scanner_never_reads(tmp_path: Path) -> None:
+    included = tmp_path / "included"
+    local = tmp_path / "local"
+    included.mkdir()
+    local.mkdir()
+    watcher = ContentWatcher(included_root=included, local_root=local)
+    hidden = [
+        local / ".animama-mutations" / "journal" / "0.original",
+        local / ".animama-mutations",
+        local / ".animama-import-operation" / "gestures" / "wave.vrma",
+        local / "gestures" / ".animama-restore-0123",
+        local / "gestures" / ".DS_Store",
+    ]
+    for path in hidden:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if not path.exists():
+            path.write_bytes(b"journal bytes")
+        # Mutation journals, staging and restores change on every Local write.
+        assert watcher._record_if_changed(str(path)) is None  # noqa: SLF001
+
+    # An interrupted multi-file save marker is the one hidden name scans report.
+    marker = local / "scene-effects" / "scene" / ".animama-operation"
+    marker.parent.mkdir(parents=True)
+    marker.write_text("{}")
+    assert watcher._record_if_changed(str(marker)) == (  # noqa: SLF001
+        ContentSource.LOCAL,
+        "scene-effects/scene/.animama-operation",
+    )
