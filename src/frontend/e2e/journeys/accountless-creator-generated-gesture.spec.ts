@@ -424,6 +424,11 @@ test.describe("Generated Gesture creator round trip", () => {
           expect(saved.schema).toBe("animaPoseClip/2.0");
           expect(saved.beats).toHaveLength(keyframes);
           await animamaEvidence.attachJson(`${journeyKey}-saved`, saved);
+          // Save then moves to the saved item's edit route. Reloading before
+          // that lands reopens a blank new document instead.
+          await expect(page).toHaveURL(
+            new RegExp(`/${kind}s/${owned.itemId}/edit(?:[?#]|$)`),
+          );
           await page.reload();
           if (kind === "gesture")
             await page.getByRole("tab", { name: "Clip", exact: true }).click();
