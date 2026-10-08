@@ -752,6 +752,18 @@ Gloom lines, DOKI DOKI, Idea bulb, Despair shade. Changes:
 - All 20 pass `effects check` after the changes. Round 2 is the owner's look
   at the revised effects in the live preview.
 
+#### G2 round 2 (owner, 2026-10-08)
+
+- Eye = bars thicker; Eye O gets an eye-white fill; **Eye 0 removed**; Steam
+  puffs moved to the Avatar's left side of the head.
+- **New:** two more blushes — Blush Deep (`blush_deep`, a beet-red cheek
+  blush with bold hatch lines, mirrored single decal) and Blush Band
+  (`blush_band`, a shy band across both cheeks and the nose, span layout) —
+  and Red Face (`face_red`, a red flush over the whole face for anger or
+  embarrassment, made like the existing face textures: the Sick face 1
+  gradient's falloff recoloured red).
+- The library is now 22 effects; all pass `effects check`.
+
 ### P7 — Reaction wiring (R15). Gate G3.
 
 1. Starts after #337 merges and this branch has merged `main`: Included
