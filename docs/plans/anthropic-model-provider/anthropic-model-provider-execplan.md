@@ -7,7 +7,8 @@ Status: In progress. All phases authorized by the owner's `/implement` on
 - the Phase 2 owner decision;
 - the Phase 9 owner live smoke.
 
-Source agreement: [spec](anthropic-model-provider-spec.md).
+Source agreement: [spec](anthropic-model-provider-spec.md), published as parent
+issue [#364](https://github.com/raymond-van/animama/issues/364) on 2026-10-08.
 
 - **2026-10-08 acceptance:** the owner accepted the spec by invoking execution
   planning.
@@ -311,10 +312,11 @@ Backend paths are under `src/backend/animama/`; tests under `tests/`.
 
 When implementation is authorized:
 
-1. Use `workspace-setup` to publish the spec as the parent issue, with the body
-   linking #155 as absorbed. Create one issue per authorized phase. Read them
-   back and record the URLs here and in the spec. Update the branch from
-   `origin/main` first.
+1. Workspace setup is done (2026-10-08):
+   - parent #364, with phase issues #365–#373 as sub-issues and blocked-by
+     links;
+   - #155 is linked as absorbed;
+   - the branch was pushed at `ed3a1863` (spec and plan).
 2. Offline work uses a named task stack:
 
    ```bash
@@ -419,7 +421,7 @@ Checks: `uv lock --check`, `make check-test`, and both live files.
 Completion: live checks pass or each deviation is decided; the baseline is
 recorded; review leaves no blocker.
 
-Phase record: issue —; starting source —; commit —.
+Phase record: issue #365; starting source —; commit —.
 
 #### Code Review #1 Findings
 
@@ -495,7 +497,7 @@ those count against the Phase 1 budget.
 
 Completion: the doc is reviewed and the owner decision is recorded.
 
-Phase record: issue —; starting source —; commit —.
+Phase record: issue #366; starting source —; commit —.
 
 #### Code Review #1 Findings
 
@@ -591,7 +593,7 @@ Checks:
 
 Completion: tests and checks pass; review leaves no blocker.
 
-Phase record: issue —; starting source —; commit —.
+Phase record: issue #367; starting source —; commit —.
 
 #### Code Review #1 Findings
 
@@ -645,7 +647,7 @@ Completion: tests pass; the OpenAI share does not fall and rises where layout
 was the cause; review leaves no blocker. If a path regresses, revise the layout,
 or return to the owner when the fix needs a different placement.
 
-Phase record: issue —; starting source —; commit —.
+Phase record: issue #368; starting source —; commit —.
 
 #### Code Review #1 Findings
 
@@ -742,7 +744,7 @@ Checks:
 
 Completion: tests pass; review leaves no blocker.
 
-Phase record: issue —; starting source —; commit —.
+Phase record: issue #369; starting source —; commit —.
 
 #### Code Review #1 Findings
 
@@ -794,7 +796,7 @@ live contract test.
 
 Completion: tests pass; review leaves no blocker.
 
-Phase record: issue —; starting source —; commit —.
+Phase record: issue #370; starting source —; commit —.
 
 #### Code Review #1 Findings
 
@@ -885,7 +887,7 @@ Checks:
 
 Completion: tests pass; review leaves no blocker.
 
-Phase record: issue —; starting source —; commit —.
+Phase record: issue #371; starting source —; commit —.
 
 #### Code Review #1 Findings
 
@@ -933,7 +935,7 @@ Checks:
 Completion: checks pass; the visual check matches existing styling; review
 leaves no blocker.
 
-Phase record: issue —; starting source —; commit —.
+Phase record: issue #372; starting source —; commit —.
 
 #### Code Review #1 Findings
 
@@ -985,7 +987,7 @@ Checks: `docs-sync` review, the final checks below, and the measurement run.
 Completion: docs and ADRs reviewed; measurements and owner smoke recorded;
 failures become in-scope fixes or follow-up issues, per the owner.
 
-Phase record: issue —; starting source —; commit —.
+Phase record: issue #373; starting source —; commit —.
 
 #### Code Review #1 Findings
 

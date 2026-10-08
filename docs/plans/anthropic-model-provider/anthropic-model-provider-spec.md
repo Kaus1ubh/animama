@@ -1,7 +1,7 @@
 # Anthropic models and cache-friendly instruction assembly
 
 Status: Agreed, including the 2026-10-08 scope additions (R5 setting, R11, R12).
-Planning clarifications to R4, R6 and R8 await owner confirmation.
+Planning clarifications to R4, R6 and R8 are decided at the Phase 2 gate.
 Owner decision:
 
 - 2026-10-07: intent discovery agreed the motivation, owner-supplied key,
@@ -13,15 +13,18 @@ Owner decision:
   for the Memory Manager, decided the glossary question and accepted this draft
   by invoking execution planning.
 - 2026-10-08: execution planning proposed clarifications to R4, R6 and R8 to
-  match current behavior. They are marked *Planning clarification* and await
-  owner confirmation.
+  match current behavior. They are marked *Planning clarification*. The owner
+  deferred them to the Phase 2 gate's per-provider comparison.
 - 2026-10-08: the owner widened the scope:
   - native web search confirmed;
   - a per-model **Compact early** setting, on by default;
   - Anthropic-tuned instructions with per-role effort defaults;
   - cache-friendly instruction assembly for every provider, absorbing #155.
 
-Authoritative source: this draft until `workspace-setup` publishes it.
+Authoritative source: https://github.com/raymond-van/animama/issues/364 (this
+file is a snapshot).
+Snapshot captured: 2026-10-08T19:28:32Z, published from revision `ed3a1863`
+plus the status wording for the deferred clarifications.
 Source baseline: `1bf91d07`. Planning re-based on `2b546185`.
 
 ## Problem and intended users
@@ -485,7 +488,7 @@ Awaiting owner decision at the Phase 2 gate:
 
 ## Spec
 
-This document. After publication: the owning issue.
+https://github.com/raymond-van/animama/issues/364. This file is a snapshot.
 
 ## ExecPlan
 
@@ -496,4 +499,5 @@ credentials.
 
 ## Delivery links
 
-None yet.
+Phase issues (sub-issues of #364): #365, #366, #367, #368, #369, #370, #371,
+#372 and #373. Absorbs #155.
