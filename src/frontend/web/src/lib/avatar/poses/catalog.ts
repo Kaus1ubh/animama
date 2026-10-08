@@ -14,7 +14,6 @@ import {
   isAnimaPoseClipV2,
   parseAnimaPoseClip,
   parseAnimaPoseClipV2,
-  type AnimaPoseClip,
   type AnyAnimaPoseClip,
 } from "./animaPoseClip";
 
@@ -53,35 +52,20 @@ const rawReactionClipModules = import.meta.glob(
   { eager: true, import: "default" },
 ) as Record<string, unknown>;
 
-// Runtime-only dependencies resolve shipped Gesture refs without becoming Library content.
-const rawInternalPoseModules = import.meta.glob(
-  "./json/internal-poses/*.json",
-  {
-    eager: true,
-    import: "default",
-  },
-) as Record<string, unknown>;
-const internalPoses = Object.fromEntries(
-  Object.entries(rawInternalPoseModules).map(([source, pose]) => [
-    source.slice(source.lastIndexOf("/") + 1, -".json".length),
-    pose,
-  ]),
-);
-
 const loadedPoseCatalog = pruneUnresolvablePoseCatalog(
-  loadPoseCatalog({ ...internalPoses, ...generatedPoses.poses }),
+  loadPoseCatalog(generatedPoses.poses),
 );
 
 export const AVATAR_POSE_CATALOG: Readonly<Record<string, AnimaPose>> =
   Object.freeze(loadedPoseCatalog);
 
-/** Built-in Gesture clips; 1.0 clips may reference internal poses, 2.0 clips are self-contained. */
+/** Built-in Gesture clips. */
 export const AVATAR_POSE_CLIP_CATALOG: Readonly<
   Record<string, AnyAnimaPoseClip>
 > = Object.freeze(loadPoseClipCatalog(rawClipModules, AVATAR_POSE_CATALOG));
 
 export const AVATAR_REACTION_CLIP_CATALOG: Readonly<
-  Record<string, AnimaPoseClip>
+  Record<string, AnyAnimaPoseClip>
 > = Object.freeze(
   loadReactionClipCatalog(rawReactionClipModules, AVATAR_POSE_CATALOG),
 );
@@ -137,13 +121,13 @@ export function getAvatarPoseClip(clipId: string): AnyAnimaPoseClip {
   return parseCatalogClip(clip);
 }
 
-export function getAvatarReactionClip(clipId: string): AnimaPoseClip {
+export function getAvatarReactionClip(clipId: string): AnyAnimaPoseClip {
   const normalizedClipId = normalizeAvatarPoseClipId(clipId);
   const clip = AVATAR_REACTION_CLIP_CATALOG[normalizedClipId];
   if (!clip) {
     throw new Error(`Unknown avatar reaction clip id "${clipId}"`);
   }
-  return parseAnimaPoseClip(clip);
+  return parseCatalogClip(clip);
 }
 
 export function hasAvatarPoseClip(clipId: string): boolean {
@@ -233,8 +217,8 @@ function parseCatalogClip(value: unknown): AnyAnimaPoseClip {
 function loadReactionClipCatalog(
   rawModules: Readonly<Record<string, unknown>>,
   poseCatalog: Readonly<Record<string, AnimaPose>>,
-): Record<string, AnimaPoseClip> {
-  const catalog: Record<string, AnimaPoseClip> = {};
+): Record<string, AnyAnimaPoseClip> {
+  const catalog: Record<string, AnyAnimaPoseClip> = {};
   const sources = Object.keys(rawModules).sort();
 
   for (const source of sources) {
@@ -258,9 +242,9 @@ function loadReactionClipCatalog(
       continue;
     }
 
-    let clip: AnimaPoseClip;
+    let clip: AnyAnimaPoseClip;
     try {
-      clip = parseAnimaPoseClip(rawModules[source]);
+      clip = parseCatalogClip(rawModules[source]);
     } catch (error) {
       logger.warn(
         "ReactionClip",

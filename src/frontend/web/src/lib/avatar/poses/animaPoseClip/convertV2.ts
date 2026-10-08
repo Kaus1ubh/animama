@@ -1,10 +1,13 @@
 import type { VRMHumanBoneName } from "@pixiv/three-vrm";
+import { Quaternion, Vector3 } from "three";
 
+import { angularDistanceDegrees } from "../anatomy/anatomy";
 import { isVRMHumanBoneName } from "../animaPose";
 import {
   getAnimaPoseClipTimelineDuration,
   resolveAnimaPoseClipFadeTransition,
 } from "./playback";
+import { prepareAnimaPoseClipV2 } from "./prepareV2";
 import { sampleAnimaPoseClip } from "./sampling";
 import {
   DEFAULT_ANIMA_POSE_CLIP_TRANSITION,
@@ -205,6 +208,79 @@ export function convertAnimaPoseClipToV2(
     ...(Object.keys(positions).length > 0 ? { hipsPosition: positions } : {}),
     ...(Object.keys(expressions).length > 0 ? { expressions } : {}),
   } as AnimaPoseClipV2;
+}
+
+/** Largest playback differences between a 1.0 clip and a 2.0 clip. */
+export type AnimaPoseClipConversionError = {
+  degrees: number;
+  metres: number;
+  weight: number;
+  /**
+   * Bones and expressions the 2.0 clip drives at sample times where the 1.0
+   * clip leaves them undriven, with the number of such 120 Hz samples. A
+   * driven expression, even at 0, overrides auto-blink and emotion weights.
+   */
+  added: Record<string, number>;
+};
+
+/**
+ * Sample a 1.0 clip and a 2.0 clip at 120 Hz across one cycle (two for a
+ * loop, so the seam is crossed) and return the largest rotation, position and
+ * expression differences. A bone or expression the 1.0 clip samples but the
+ * 2.0 clip lacks counts as an infinite difference.
+ */
+export function measureAnimaPoseClipConversion(
+  clip: AnimaPoseClip,
+  converted: AnimaPoseClipV2,
+  resolvePose: AnimaPoseClipPoseResolver,
+): AnimaPoseClipConversionError {
+  const prepared = prepareAnimaPoseClipV2(converted, { resolvePose });
+  const duration = getAnimaPoseClipTimelineDuration(clip);
+  const error: AnimaPoseClipConversionError = {
+    degrees: 0,
+    metres: 0,
+    weight: 0,
+    added: {},
+  };
+  const countAdded = (channel: string) =>
+    (error.added[channel] = (error.added[channel] ?? 0) + 1);
+  const end = duration * (clip.loop ? 2 : 1);
+  for (let t = 0; t <= end + 1e-9; t += 1 / 120) {
+    const expected = sampleAnimaPoseClip(clip, t, resolvePose).sample;
+    const actual = prepared.sample(t);
+    for (const [bone, transform] of Object.entries(expected.humanoid ?? {})) {
+      const other = actual.humanoid?.[bone as VRMHumanBoneName];
+      if (transform?.rotation)
+        error.degrees = Math.max(
+          error.degrees,
+          other?.rotation
+            ? angularDistanceDegrees(
+                new Quaternion(...transform.rotation),
+                new Quaternion(...other.rotation),
+              )
+            : Infinity,
+        );
+      if (transform?.position)
+        error.metres = Math.max(
+          error.metres,
+          other?.position
+            ? new Vector3(...transform.position).distanceTo(
+                new Vector3(...other.position),
+              )
+            : Infinity,
+        );
+    }
+    for (const [name, value] of Object.entries(expected.expressions ?? {}))
+      error.weight = Math.max(
+        error.weight,
+        Math.abs(value - (actual.expressions?.[name] ?? Infinity)),
+      );
+    for (const bone of Object.keys(actual.humanoid ?? {}))
+      if (!expected.humanoid?.[bone as VRMHumanBoneName]) countAdded(bone);
+    for (const name of Object.keys(actual.expressions ?? {}))
+      if (expected.expressions?.[name] === undefined) countAdded(name);
+  }
+  return error;
 }
 
 /** Scalar interpolation as a key ease: `step` holds; linear keeps the beat's easing. */

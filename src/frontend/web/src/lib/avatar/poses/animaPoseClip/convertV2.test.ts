@@ -1,18 +1,11 @@
-import { Quaternion, Vector3 } from "three";
 import { describe, expect, it } from "vitest";
 
-import { angularDistanceDegrees } from "../anatomy/anatomy";
+import { getResolvedAvatarPose } from "../catalog";
 import {
-  AVATAR_POSE_CLIP_CATALOG,
-  AVATAR_REACTION_CLIP_CATALOG,
-  getResolvedAvatarPose,
-} from "../catalog";
-import { convertAnimaPoseClipToV2 } from "./convertV2";
-import { getAnimaPoseClipTimelineDuration } from "./playback";
-import { prepareAnimaPoseClipV2 } from "./prepareV2";
-import { sampleAnimaPoseClip } from "./sampling";
+  convertAnimaPoseClipToV2,
+  measureAnimaPoseClipConversion,
+} from "./convertV2";
 import type { AnimaPoseClip } from "./schema";
-import { isAnimaPoseClipV2 } from "./anyClip";
 import { validateAnimaPoseClipV2 } from "./schemaV2";
 
 const resolvePose = (id: string) => {
@@ -29,64 +22,15 @@ function conversionError(clip: AnimaPoseClip) {
   const validated = validateAnimaPoseClipV2(converted);
   if (!validated.ok)
     throw new Error(`${clip.id}: ${JSON.stringify(validated.issues)}`);
-  const prepared = prepareAnimaPoseClipV2(validated.clip, { resolvePose });
-  const duration = getAnimaPoseClipTimelineDuration(clip);
-  let degrees = 0;
-  let metres = 0;
-  let weight = 0;
-  // Loops also cross their seam into a second cycle.
-  const end = duration * (clip.loop ? 2 : 1);
-  for (let t = 0; t <= end + 1e-9; t += 1 / 120) {
-    const expected = sampleAnimaPoseClip(clip, t, resolvePose).sample;
-    const actual = prepared.sample(t);
-    for (const [bone, transform] of Object.entries(expected.humanoid ?? {})) {
-      const other = actual.humanoid?.[bone as keyof typeof actual.humanoid];
-      if (transform?.rotation)
-        degrees = Math.max(
-          degrees,
-          angularDistanceDegrees(
-            new Quaternion(...transform.rotation),
-            new Quaternion(...other!.rotation!),
-          ),
-        );
-      if (transform?.position)
-        metres = Math.max(
-          metres,
-          new Vector3(...transform.position).distanceTo(
-            new Vector3(...other!.position!),
-          ),
-        );
-    }
-    for (const [name, value] of Object.entries(expected.expressions ?? {}))
-      weight = Math.max(weight, Math.abs(value - actual.expressions![name]));
-  }
-  return { converted: validated.clip, degrees, metres, weight };
+  return {
+    converted: validated.clip,
+    ...measureAnimaPoseClipConversion(clip, validated.clip, resolvePose),
+  };
 }
 
 describe("convertAnimaPoseClipToV2", () => {
-  // 2.0 Included Gestures are authored as 2.0; only 1.0 ones convert.
-  const v1Gestures = Object.entries(AVATAR_POSE_CLIP_CATALOG).filter(
-    (entry): entry is [string, AnimaPoseClip] => !isAnimaPoseClipV2(entry[1]),
-  );
-
-  it.each(v1Gestures)("plays Included Gesture %s as before", (_id, clip) => {
-    const result = conversionError(clip);
-    expect(result.degrees).toBeLessThan(0.01);
-    expect(result.metres).toBeLessThan(0.0001);
-    expect(result.weight).toBeLessThan(0.001);
-    expect(result.converted.beats).toHaveLength(clip.poseKeyframes.length);
-  });
-
-  it.each(Object.entries(AVATAR_REACTION_CLIP_CATALOG))(
-    "plays Included Reaction %s as before",
-    (_id, clip) => {
-      const result = conversionError(clip);
-      expect(result.weight).toBeLessThan(0.001);
-      expect(result.converted.role).toBe(clip.role);
-      expect(result.converted.playback).toEqual(clip.playback);
-      expect(result.converted.events).toEqual(clip.events);
-    },
-  );
+  // Included clips were converted with this function (#337); the
+  // `convert-v1 --verify` run recorded in the plan pins their equivalence.
 
   const turned = (degrees: number): [number, number, number, number] => {
     const half = (degrees * Math.PI) / 360;

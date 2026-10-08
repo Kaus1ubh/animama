@@ -34,7 +34,15 @@ try {
   const [command, ...rest] = process.argv.slice(2);
   const cwd = process.env.INIT_CWD ?? process.cwd();
   const out = (text) => process.stdout.write(`${text}\n`);
-  if (command === "promote") {
+  if (command === "convert-v1") {
+    const { runClipFormatConvert } = await import("./clip-format-convert.mjs");
+    exitCode = await runClipFormatConvert(rest, {
+      load: (module) => server.ssrLoadModule(module),
+      repoRoot: path.resolve(webRoot, "../../.."),
+      cwd,
+      out,
+    });
+  } else if (command === "promote") {
     // Writes repository files, so it lives beside the other repo scripts and
     // only borrows the CLI's validation and saved-file serializer.
     const { runPromote } = await import("./animation-promote.mjs");

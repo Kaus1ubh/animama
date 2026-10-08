@@ -217,7 +217,7 @@ describe("Starter action customization", () => {
         },
       },
     ]);
-    expect(document.sequence.schema).toBe("animaPoseClip/1.0");
+    expect(document.sequence.schema).toBe("animaPoseClip/2.0");
     expect(document.sequence.id).toBe("admiration-reaction-2-custom");
     expect(document.sequence.name).toBe("Admiration Reaction 2 Custom");
     expect(document.notes).toContain("Customized from Starter");

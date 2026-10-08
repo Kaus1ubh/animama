@@ -1,5 +1,5 @@
 import { getAvatarReactionClip, hasAvatarReactionClip } from "./poses/catalog";
-import type { AnimaPoseClip } from "./poses/animaPoseClip";
+import type { AnyAnimaPoseClip } from "./poses/animaPoseClip";
 import { isTrackedEmotion, type TrackedEmotion } from "@/lib/emotion";
 
 export type EmotionReactionIntensity = 1 | 2 | 3;
@@ -10,7 +10,7 @@ export type EmotionReactionClipSelection = {
   tone: EmotionReactionTone;
   intensity: EmotionReactionIntensity;
   clipId: string;
-  clip: AnimaPoseClip;
+  clip: AnyAnimaPoseClip;
 };
 
 export function normalizeEmotionReactionIntensity(
