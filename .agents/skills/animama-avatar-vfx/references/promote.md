@@ -70,8 +70,12 @@ list before writing.
 2. Templates: a new effect becomes an Effects picker template only if the
    owner asks (`src/frontend/web/src/lib/effects/effectTemplates.ts`, then
    `pnpm -s effects:thumbnails <id>` and a source-review record for the
-   thumbnail). Regenerate thumbnails of replaced templates; remove a deleted
-   effect's template and thumbnail.
+   thumbnail in the existing thumbnail form). Give chest or side art
+   `thumbnail: { framing: "wide" }` and looping art that fades out at 1 s a
+   `time`, and check every image. Regenerate thumbnails of replaced
+   templates; remove a deleted effect's template, thumbnail and the
+   thumbnail's source-review record (`effects promote` drops records only
+   for effect files).
 3. Update pinned expectations deliberately (effect counts and mappings in
    frontend tests such as `tests/avatar/reactionClips.test.ts`).
 4. Run `uv run pytest -q tests/test_included_content_integrity.py

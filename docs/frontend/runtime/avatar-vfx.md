@@ -372,7 +372,7 @@ The sidebar Create menu's **Effects** item, the Create page's effect cards and
 `/effects/new` open the Effects template picker. Step 1 chooses Particle FX,
 Avatar FX or Scene FX; step 2 offers **Start from scratch** and that kind's
 templates, with Back. Avatar FX templates are the Included Avatar Effects,
-grouped as Eyes, Whole face, Above the head and Mouth in
+grouped as Eyes, Cheeks, Whole face, Around the head, Mouth and Body in
 `lib/effects/effectTemplates.ts`, with thumbnails captured on the Included
 Avatar Annie. Choosing one opens `/avatar-effects/new?template=<id>`, which
 copies the Included effect into a new, unsaved Local draft with an unused name;
@@ -572,7 +572,9 @@ pnpm -s effects:render --diff before.png after.png --out diff.png
   to 0 pixels.
 
 `pnpm -s effects:thumbnails [template-id...]` regenerates the picker's Avatar FX
-thumbnails (320 px WebP, 1 s after applying) into `src/assets/effect-templates/`
+thumbnails (320 px WebP, 1 s after applying, or at the template's
+`thumbnail.time`; a `thumbnail.framing: "wide"` template is framed wider to
+show chest or side art) into `src/assets/effect-templates/`
 and removes files for templates that no longer exist. Run it after changing the
 template list or an Included effect it uses, review the images, and keep that
 folder's README provenance current.

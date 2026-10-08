@@ -1133,6 +1133,63 @@ change).
   effect; all 24 emotions have a Reaction variant with an Avatar Effect.
 - Docs: the skill's `promote.md` example, the thumbnail README (wide
   framing and time).
+- Checks (commit `4dc26f8d`, then the review fixes below): full
+  `uv run pytest -q` (3267 passed; the two failures, stale fixtures in
+  `test_avatar_effect_conversion.py` and `test_local_content_scan.py`, fixed
+  and re-run green), `make check` (format, ruff, mypy 699 files), the
+  Included-content tests; from `src/frontend` `pnpm check`, `pnpm web:lint`,
+  `pnpm web:test` (415 files, 3113 tests), `pnpm build`,
+  `pnpm desktop:check`, desktop `runtime:stage` and `runtime:audit` (OK;
+  the release gate stays closed for its pending licence records, as before);
+  script browser tests 40/40; web `prettier:check`.
+- Full browser suite: `pnpm e2e:test` on a disposable built stack
+  (`animama-avfx-e2e`, http://animama-avfx-e2e.localhost:8700,
+  `ANIMAMA_LLM_SKIP=1`): 38 passed in 10.2 min, including the edited picker
+  and `shy-finger-poke` journeys.
+- App check (step 5) on that built stack's Library preview, on Annie: Grief
+  Reaction 3 darkens the whole body (Despair Shade) and Love Reaction 2
+  shows DOKI DOKI beside the head with the blush. Both Avatars were covered
+  by `effects check`, the render sheets and the owner's G3 preview; a live
+  chat with a model was not run (the built stack skips the LLM).
+- `effects:bench` with the heaviest face combination (Heart Eyes, Gloom
+  face, Streaming Tears, plus the bench's body and silhouette effects):
+  added GPU mean 1.72 ms (Y_0) and 1.35 ms (A_1_New) against the 2 ms
+  budget; CPU unchanged. The machine was not quiet (two stacks running), so
+  the quiet-machine re-run stays an owner check.
+
+#### Final integration Code Review #1 Findings
+
+`sdlc-reviewer` on `4dc26f8d`. It confirmed the Included content equals the
+approved sources byte for byte (a replace-mode dry run of every item
+planned 0 changes), the G4 decisions, the P7 mapping cell for cell, that
+only effect events and dependencies changed in the 30 Actions, one
+source-review record per tracked effect file and thumbnail, the template
+registry, the unchanged default portrait framing and the intent of every
+pinned-test edit. Blocking:
+
+1. **FIR-R1-01** — `make check` failed mypy: the new test helper returned a
+   bare `list[dict]`.
+2. **FIR-R1-02** — `effectTemplates.test.ts` failed `prettier:check`.
+3. **FIR-R1-03** — the runtime doc and skill still listed the old picker
+   groups, and the thumbnail README's example named the deleted `star`.
+
+Optional: FIR-R1-04 the skill's after-promotion steps did not mention wide
+or timed thumbnails or removing a deleted thumbnail's record; FIR-R1-05 the
+emotion guard counted a declared dependency rather than a played event;
+FIR-R1-06 the framing-scale error reuses `invalid_size`.
+
+#### Final integration Code Review #1 Revisions
+
+- **01–03 accepted:** typed helper (`make check` passes, mypy 0 errors);
+  formatted; docs list Eyes, Cheeks, Whole face, Around the head, Mouth and
+  Body, the README example uses `star3`, and the runtime doc mentions wide
+  and timed thumbnails.
+- **04 accepted:** `promote.md` step 2 covers wide and timed thumbnails and
+  removing a deleted thumbnail's record.
+- **05 accepted:** the guard requires an `avatar_vfx` event playing a
+  declared Avatar Effect.
+- **06 not changed:** the message names the problem; the code is only an
+  internal capture failure category.
 
 ## Final integration review
 

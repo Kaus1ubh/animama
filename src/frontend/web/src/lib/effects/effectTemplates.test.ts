@@ -123,9 +123,9 @@ describe("effect template thumbnails", () => {
   });
 
   it("loads thumbnails lazily and reports a missing one as absent", async () => {
-    await expect(
-      loadAvatarEffectTemplateThumbnail("eye_vv"),
-    ).resolves.toMatch(/eye_vv\.webp/);
+    await expect(loadAvatarEffectTemplateThumbnail("eye_vv")).resolves.toMatch(
+      /eye_vv\.webp/,
+    );
     expect(loadAvatarEffectTemplateThumbnail("missing")).toBeNull();
   });
 });

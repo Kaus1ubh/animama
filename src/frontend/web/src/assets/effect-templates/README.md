@@ -12,7 +12,7 @@ Effect it uses:
 
 ```bash
 pnpm -s effects:thumbnails              # every template; removes stale files
-pnpm -s effects:thumbnails eye_vv star  # only the named templates
+pnpm -s effects:thumbnails eye_vv star3  # only the named templates
 ```
 
 The command uses the `effects:render --thumbnail` renderer: headless Chromium

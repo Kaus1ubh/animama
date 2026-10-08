@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 from tests.anima_creation_service_support import copy_tracked_included
 
@@ -68,12 +69,15 @@ def test_included_tree_contains_no_symlinks_or_special_files() -> None:
         assert path.is_dir() or path.is_file()
 
 
-def _included_action_metas() -> list[dict]:
-    return [
-        json.loads(path.read_text())
-        for kind in ("reactions", "gestures")
-        for path in sorted((ROOT / "content/included" / kind).glob("*/*.meta.json"))
-    ]
+def _included_action_metas() -> list[tuple[dict[str, Any], dict[str, Any]]]:
+    """Each Included Reaction and Gesture as (meta, clip)."""
+    actions = []
+    for kind in ("reactions", "gestures"):
+        for path in sorted((ROOT / "content/included" / kind).glob("*/*.meta.json")):
+            meta = json.loads(path.read_text())
+            sequence = next(file["path"] for file in meta["files"] if file["role"] == "sequence")
+            actions.append((meta, json.loads((path.parent / sequence).read_text())))
+    return actions
 
 
 def test_no_included_action_plays_a_mouth_effect() -> None:
@@ -81,7 +85,7 @@ def test_no_included_action_plays_a_mouth_effect() -> None:
     mouth_effects = {"builtin:avatar-effect:mouth_w", "builtin:avatar-effect:mouth_hover_w"}
     users = [
         meta["content_id"]
-        for meta in _included_action_metas()
+        for meta, _clip in _included_action_metas()
         if mouth_effects & {dependency["ref"] for dependency in meta.get("dependencies", [])}
     ]
     assert users == []
@@ -89,11 +93,19 @@ def test_no_included_action_plays_a_mouth_effect() -> None:
 
 def test_every_reaction_emotion_has_a_variant_with_an_avatar_effect() -> None:
     emotions: dict[str, bool] = {}
-    for meta in _included_action_metas():
+    for meta, clip in _included_action_metas():
         if meta["content_type"] != "reaction":
             continue
         emotion = meta["placement_hint"]["emotion"]
-        has_effect = any(dependency["content_type"] == "avatar_effect" for dependency in meta.get("dependencies", []))
+        effect_aliases = {
+            dependency["alias"]
+            for dependency in meta.get("dependencies", [])
+            if dependency["content_type"] == "avatar_effect"
+        }
+        # An event must play the effect; a declared dependency alone does not count.
+        has_effect = any(
+            event["kind"] == "avatar_vfx" and event["effectId"] in effect_aliases for event in clip.get("events", [])
+        )
         emotions[emotion] = emotions.get(emotion, False) or has_effect
     assert len(emotions) == 24
     assert [emotion for emotion, has_effect in emotions.items() if not has_effect] == []

@@ -21,7 +21,7 @@ visual judgment; a DOM snapshot alone cannot verify a rendered effect.
 2. Open the Effects template picker: the sidebar Create menu's **Effects** item,
    the Create page's **Avatar FX** card (which opens straight at the second
    step), or `/effects/new`. Choose **Avatar FX**, then **Start from scratch**
-   or a template (grouped as Eyes, Whole face, Above the head and Mouth). A template opens `/avatar-effects/new?template=<id>` as a
+   or a template (grouped as Eyes, Cheeks, Whole face, Around the head, Mouth and Body). A template opens `/avatar-effects/new?template=<id>` as a
    new, unsaved Local copy with an unused name; it never changes the Included
    effect. Saved items reopen at `/avatar-effects/{avatarEffectId}/edit`, also
    reachable from their Library row.
