@@ -80,6 +80,14 @@ export function SetupVoiceStep({
               </TabsTrigger>
             ))}
           </TabsList>
+          {/* A disabled tab cannot take focus, so its reason is shown here. */}
+          {options
+            .filter((option) => option.disabled && option.reason)
+            .map((option) => (
+              <p key={option.id} className="text-muted-foreground mt-2 text-xs">
+                {option.label}: {option.reason}
+              </p>
+            ))}
           {/* Both panels stay mounted, so a typed key survives a tab switch. */}
           {options.map((option) => (
             <TabsContent
@@ -98,9 +106,6 @@ export function SetupVoiceStep({
                 ) : null}
                 {option.description}
               </p>
-              {option.disabled && option.reason ? (
-                <p className="text-warning text-sm">{option.reason}</p>
-              ) : null}
               {option.id === "elevenlabs" ? (
                 <DesktopCredentialsPanel
                   providers={["elevenlabs"]}
