@@ -21,6 +21,8 @@ for (const [entry, output, format] of [
     target: "es2023",
     format,
     external: ["electron"],
+    // The self-contained startup page embeds its font and logo.
+    loader: { ".png": "dataurl", ".woff2": "dataurl" },
     metafile: true,
     // Bundled CJS dependencies can still require Node builtins when main is ESM.
     banner:

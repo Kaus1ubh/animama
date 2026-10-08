@@ -47,6 +47,9 @@ importers:
       '@electron/asar':
         specifier: 3.4.1
         version: 3.4.1
+      '@fontsource-variable/dm-sans':
+        specifier: ^5.3.0
+        version: 5.3.0
       '@types/node':
         specifier: ^24.12.2
         version: 24.12.2
