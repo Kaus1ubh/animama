@@ -131,7 +131,8 @@ chat or URL.
   mounting their route Canvas. They preserve one typed draft identity and one
   `ActionDocument`; exact dependency IDs and local timeline preview state do not
   enter route search state. The public JSON interchange is `animaPoseClip/2.0`
-  (1.0 clips convert when opened); an optional versioned typed-project envelope retains exact
+  (the retired 1.0 format is rejected); an optional versioned typed-project
+  envelope retains exact
   dependency pins without placing draft IDs or save state in the URL.
 - Effect handoffs use only `component=<stable item id>` and
   `componentType=particle_effect|avatar_effect|scene_effect|sound_effect`.

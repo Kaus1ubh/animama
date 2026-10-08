@@ -354,9 +354,9 @@ arrives while the effect is loading is held until it applies. The effect's face
 changes follow the same value: **Close the eyes** blinks by it, and hidden face
 parts and face cleanup switch on and off at half intensity, so a fading eye
 effect never shows bare eye sockets under faint art. The Gesture and Reaction
-creator's preview samples the envelope too, while playing and when paused. Events that end **With Action** do not fade. The event
-shape is the same in `animaPoseClip/1.0` and `2.0`, and parameter keyframes are
-not supported for Avatar Effects.
+creator's preview samples the envelope too, while playing and when paused.
+Events that end **With Action** do not fade. Parameter
+keyframes are not supported for Avatar Effects.
 
 ## 8) Creator
 

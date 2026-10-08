@@ -32,8 +32,9 @@ silently substitutes a bundled neutral model.
 
 Standalone Pose targets first load their registered descriptor through
 `PreviewByteSession`, verifying size, digest and selected revision. Preparation
-converts its resolved values to a temporary static-hold clip with an item-based
-preview ID that cannot collide with an equipped Gesture. The existing Dock player
+converts its resolved values to a temporary one-beat `animaPoseClip/2.0` hold
+(bone rotations, hips position and expressions; other bone positions are not
+previewed) with an item-based preview ID that cannot collide with an equipped Gesture. The existing Dock player
 owns that clip and selected Anima runtime; no Pose loadout slot is introduced.
 Changing target or closing aborts pending reads and releases temporary byte URLs.
 

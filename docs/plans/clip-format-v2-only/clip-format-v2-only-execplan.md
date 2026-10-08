@@ -77,7 +77,7 @@ poses as `base_pose`, but nothing reads that field.
 - [x] Phase 2: Local migration tool (#357). G2 done (all dry runs found 0); reviews #1–#2 passed.
 - [x] Phase 3: Frontend 1.0 removal and rejection (#358). Reviews #1–#2 passed; fast journeys 36/36.
 - [x] Phase 4: Backend 1.0 removal and rejection (#359). Reviews #1–#3 passed.
-- [ ] Phase 5: Docs, skill and ADR.
+- [x] Phase 5: Docs, skill and ADR (#360). Reviews #1–#2 passed.
 - [ ] Final integration review, full journeys, live checks (G3), PR.
 
 ## Surprises & Discoveries
@@ -832,9 +832,62 @@ and historical plans.
 
 Completion: commit `docs(avatar)[p5]: describe animaPoseClip/2.0 as the only clip format`.
 
-#### Phase 5 record / Code Review #1 Findings / Revisions
+#### Phase 5 record
 
-<pending>
+Starting revision `ccf46664`. Issue #360.
+
+- Docs updated: the runtime animation, VFX, particle and emotion docs, content
+  previews, routing, Library, the backend content docs, `content/included/README.md`,
+  the `animama-animation`, `animama-vrm` and `animama-particle-vfx` skill
+  references, and `GLOSSARY.md` (Pose Clip).
+- New ADR 0016 "animaPoseClip/2.0 is the only clip format". It supersedes ADR
+  0014's coexistence consequence, and ADR 0014's status and the index say so.
+- Checks: Prettier on the changed Markdown is clean, and relative links resolve
+  (reviewer's link check). Historical plans are unchanged.
+
+#### Phase 5 Code Review #1 Findings
+
+Independent `sdlc-reviewer`, initial round.
+
+- **P5-CR1-F1 (blocking):** three docs still described Startup and Rescan
+  converting Pose Clip references into Action-owned files.
+- **P5-CR1-F2 (blocking):** `loadAndPlayClip` still said "(either schema)".
+- **P5-CR1-F3 (blocking):** the particle-VFX skill pointed to the renamed
+  `schema.ts`.
+- **P5-CR1-F4 (blocking):** three rejection statements were inaccurate:
+  - idle playback uses `idle_motion_invalid`;
+  - package import uses a fixed package message;
+  - Save refuses rather than lists invalid.
+- **P5-CR1-F5 (blocking):** ADR 0016 did not state its supersession of ADR
+  0014.
+- Optional findings:
+  - the emotion doc said "inline expression keyframes";
+  - Library implied only five Included Poses;
+  - a repeated sentence and vague wording in `avatar-animation.md`;
+  - the glossary placement;
+  - ADR evidence sources and "was run" wording (they were dry runs);
+  - the Pose preview's dropped bone positions were undocumented;
+  - seven added lines were not wrapped;
+  - `content/included/README.md` still described reusable `pose-clips/`.
+
+#### Phase 5 Code Review #1 Revisions
+
+- F1–F5 accepted and fixed as described.
+- All optional findings accepted: the emotion wording, Library, the
+  `avatar-animation.md` cleanup, the glossary move to Pose Clip, the ADR
+  evidence files and dry-run wording, the content-previews note, line wrapping
+  and the Included README line were fixed.
+
+Repair round 1 used.
+
+#### Phase 5 Code Review #2
+
+Targeted recheck: pass. F1–F5 and the optional items were verified, with the
+link check and Prettier clean. P5-CR2-F1 (optional, not taken): a few
+paragraphs are still wrapped unevenly. This is cosmetic, and Prettier
+preserves prose wrapping.
+
+Phase 5 complete.
 
 ## Final integration review
 
