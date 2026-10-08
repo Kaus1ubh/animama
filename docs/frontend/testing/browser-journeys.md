@@ -69,15 +69,35 @@ with deterministic model clients and its own Local content. These runner guards
 do not require a separate stack for ordinary manual testing: test chats and
 content may use an existing development stack when they will not disrupt another
 active task. Follow the [workspace selection rules](../../../AGENTS.md#workspace-selection).
-For the automated runner, start from the repository root:
+For the automated runner, start a built stack from the repository root:
 
 ```bash
-ANIMAMA_LLM_SKIP=1 ./reset.sh --name browser-a --base-port 8600
+ANIMAMA_LLM_SKIP=1 ANIMAMA_WEB_BUILD_MODE=production ./reset.sh --name browser-a --base-port 8600
 source .animama-stack.env
 export ANIMAMA_E2E_ALLOW_MUTATIONS=1
 cd src/frontend
-pnpm e2e:test
+pnpm e2e:test        # Full suite, about 11 minutes.
+pnpm e2e:test:fast   # Skips the two @complete-anima package journeys, about 5 minutes.
 ```
+
+Durations were measured on an Apple M5 Mac with OrbStack and one other idle
+stack. Run the fast subset routinely after frontend changes. Run the full
+suite before merging changes to content packages, imports, cleanup or Animas.
+
+Prefer a built stack for journeys and for agent live checks that do not need
+source edits to appear immediately. It has no reload watcher or Vite, so it
+starts warm and uses less memory and CPU per stack, which matters when several
+agents run stacks in parallel. The full suite takes about 25 minutes on a
+development stack. Use a development stack when you are editing and checking UI
+changes interactively. A built stack serves the image baked at reset, so rerun
+`./reset.sh` after source changes. When several stacks run at once, raising
+OrbStack's VM memory limit adds a safety margin. It does not replace built
+stacks and narrow watchers.
+
+On macOS, headless journeys render WebGL on the GPU through ANGLE Metal. Other
+hosts, such as Linux validation containers, use CPU-based SwiftShader, which is
+much slower for Avatar canvases. Set `ANIMAMA_E2E_WEBGL=swiftshader` or `metal`
+to override the choice.
 
 The runner requires an explicit loopback application origin, a named
 `animama-*` project and a non-default Local root from the selected stack record.
