@@ -153,6 +153,7 @@ async function runPromote(argv, cwd) {
       throw new EffectPromoteError(`${itemsFile}: ${error.message}`);
     }
     const items = parseEffectPromoteItems(raw, itemsFile);
+    const { default: prettier } = await import("prettier");
     const { validateAnimaPoseClipV2 } = await validator.load(
       "/src/lib/avatar/poses/animaPoseClip/schemaV2.ts",
     );
@@ -187,6 +188,8 @@ async function runPromote(argv, cwd) {
     changes = await planEffectPromotion(items, {
       repo: workingTreeRepo(repoRoot),
       validate: validator.module.validateAvatarEffectDefinition,
+      formatJson: (value) =>
+        prettier.format(JSON.stringify(value, null, 2), { parser: "json" }),
       validateClip: (clip) => {
         const result = validateAnimaPoseClipV2(clip);
         if (!result.ok)

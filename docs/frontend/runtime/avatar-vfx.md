@@ -527,7 +527,9 @@ pnpm -s effects promote ./promote.json --dry-run
   thumbnails and pinned tests are updated separately.
 - The same run can `replace` the Reactions and Gestures that use the
   effects (`"kind": "reaction" | "gesture"`), from a creator project file
-  (`animamaActionProject/1.0`): it keeps the Included meta and the clip's id,
+  (`animamaActionProject/1.0`) holding the Included clip with its effect
+  events changed and dependencies that each carry a `ref` (a creator export
+  renames the clip and has no `ref`). It keeps the Included meta and the clip's id,
   role and lifetime, keeps Reactions expression-only, re-points dependencies
   on Local effects promoted in the run to their Included IDs, and refuses a
   dependency that is not Included content of its declared type afterwards or

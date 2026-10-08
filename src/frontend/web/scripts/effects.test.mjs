@@ -407,14 +407,18 @@ async function fixtureRepo() {
   };
   await writeFile(
     path.join(root, "licenses/source-review.json"),
-    JSON.stringify({
-      files: [
-        "content/included/vfx/avatar/eye/eye.json",
-        "content/included/vfx/avatar/eye/eye_r.png",
-        "content/included/vfx/avatar/old_pair/old_pair.json",
-        "content/included/vfx/avatar/old_pair/pair.png",
-      ].map((file) => ({ path: file, ...record })),
-    }),
+    `${JSON.stringify(
+      {
+        files: [
+          "content/included/vfx/avatar/eye/eye.json",
+          "content/included/vfx/avatar/eye/eye_r.png",
+          "content/included/vfx/avatar/old_pair/old_pair.json",
+          "content/included/vfx/avatar/old_pair/pair.png",
+        ].map((file) => ({ path: file, ...record })),
+      },
+      null,
+      2,
+    )}\n`,
   );
   return root;
 }
@@ -726,7 +730,7 @@ async function addReaction(root) {
       path: `content/included/reactions/joy-2/${file}`,
       basis: "Reaction",
     });
-  await writeFile(reviewPath, JSON.stringify(review));
+  await writeFile(reviewPath, `${JSON.stringify(review, null, 2)}\n`);
   return { clip, meta };
 }
 
@@ -928,11 +932,13 @@ test("promotion replaces a Gesture's effects and keeps its file's form", async (
     rotations: { neck: [{ q: [0, 0, 0, 1], beat: "a" }] },
     events: [{ id: "e", time: 0.3, kind: "avatar_vfx", effectId: "pair" }],
   };
-  // A Prettier-formatted Gesture stays indented.
-  await writeFile(
-    path.join(folder, "wave.json"),
-    `${JSON.stringify(clip, null, 2)}\n`,
-  );
+  // An indented Gesture in its own style (here with inline arrays).
+  const styled = `${JSON.stringify(clip, null, 2).replace(
+    /\[\s+([-\d.,\s]+?)\s+\]/g,
+    (_, numbers) => `[${numbers.split(/,\s*/).join(", ")}]`,
+  )}\n`;
+  assert.ok(styled.includes('"q": [0, 0, 0, 1]'));
+  await writeFile(path.join(folder, "wave.json"), styled);
   const meta = {
     content_type: "gesture",
     content_id: "builtin:gesture:wave",
@@ -959,19 +965,25 @@ test("promotion replaces a Gesture's effects and keeps its file's form", async (
     alias: "eye",
     content_type: "avatar_effect",
   };
-  const plan = (sequence) =>
+  // Indented clips are written in the repository's JSON style.
+  const formatJson = async (value) => `FORMATTED ${JSON.stringify(value)}\n`;
+  const plan = (sequence, dependency = eyeDependency) =>
     planEffectPromotion(
       [
-        { kind: "avatar_effect", mode: "delete", stem: "old_pair" },
+        ...(dependency === eyeDependency
+          ? [{ kind: "avatar_effect", mode: "delete", stem: "old_pair" }]
+          : []),
         {
           kind: "gesture",
           mode: "replace",
           stem: "wave",
-          project: project(sequence, [eyeDependency], "gesture"),
+          project: project(sequence, [dependency], "gesture"),
         },
       ],
-      { repo: workingTreeRepo(root), validate, validateClip },
+      { repo: workingTreeRepo(root), validate, validateClip, formatJson },
     );
+  // An unchanged Gesture writes nothing, whatever its file's style.
+  assert.deepEqual(await plan(clip, meta.dependencies[0]), []);
   // A one-shot cannot become a loop, or the reverse.
   await assert.rejects(
     plan({ ...wired, loop: false }),
@@ -980,7 +992,7 @@ test("promotion replaces a Gesture's effects and keeps its file's form", async (
   await applyEffectPromotion(root, await plan(wired));
   assert.equal(
     await readFile(path.join(folder, "wave.json"), "utf8"),
-    `${JSON.stringify(wired, null, 2)}\n`,
+    `FORMATTED ${JSON.stringify(wired)}\n`,
   );
   assert.deepEqual(
     JSON.parse(await readFile(path.join(folder, "wave.meta.json"), "utf8"))

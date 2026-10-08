@@ -911,7 +911,7 @@ G3: the owner reviews the mapping table and plays the wired Reactions in
   and writes nothing for an unchanged item. Effect deletes check dependents
   after the run's replacements, so `star`, `eye_0` and `eye_vv_pair` can be
   deleted in the run that re-points their users. Tests added
-  (`effects.test.mjs`, 14 tests).
+  (`effects.test.mjs`).
 - Mapping (effects only; particles and scene effects unchanged; `-1`
   variants have no effect unless listed). **Bold** marks a change from the
   Included Reaction; every other listed Reaction keeps its effect, which
@@ -948,13 +948,15 @@ G3: the owner reviews the mapping table and plays the wired Reactions in
   embarrassment, gratitude and love gain their first. No Reaction uses
   Mouth w or Mouth Hover w. `shy-finger-poke` plays Eye VV in place of Eye
   VV Pair (same time and duration). New events follow the existing ones'
-  pattern: no duration (held for the Reaction), starting at 0.1 s or a little
-  later within the clip's short duration (0.12–0.22 s), so several start
-  together.
+  pattern: no duration (held for the Reaction), starting at 0.1, 0.12, 0.15
+  or 0.2 s within each clip's short duration, so several start together.
 - Departures from the effect briefs' suggested tiers, for G3: Steam puffs is
   on annoyance-3 (brief: annoyance 2), Blush also on desire-3 and love-3,
   Heart throb also on gratitude-3, Sweat drop also on fear-2; love-1 has no
-  effect (Heart throb's brief suggested it, but tier 1 stays quiet).
+  effect (Heart throb's brief suggested it, but tier 1 stays quiet). Brief
+  suggestions not used: Despair shade on fear-3, DOKI DOKI on
+  nervousness-2, Eye = on disgust-2, Eye O on curiosity-2, Eye VV on
+  amusement-1.
 - Dry run of the whole promotion (22 effects, 4 deletes, 48 Reactions, the
   Gesture): 115 changes, nothing written; 29 Reactions and the Gesture
   change, the other 19 listed Reactions are unchanged files.
@@ -1020,6 +1022,33 @@ P7-R1-11 two Vite loaders; P7-R1-12 the promote docs covered effects only.
 
 Checks after revisions: effects, asset and render-source tests 55/55,
 prettier and `web:lint` pass; the full dry run is unchanged (115 changes).
+
+#### P7 Code Review #2 (repair round 1)
+
+01–07 and 09–12 confirmed fixed (joints, scene and sound aliases, Gesture
+loop and dependency types refused; the real dry run unchanged; a scratch
+apply scanned VALID, 213 entries; re-planning the result writes nothing;
+the clip form round-trips for every Reaction and `shy-finger-poke`); the 08
+deferral accepted, with the note that G4 should ask about the edited Action
+records explicitly. Blocking:
+
+1. **P7-R2-01** — the new docs offered a creator export as a Reaction or
+   Gesture source, but the creator renames the clip and writes dependencies
+   without `ref`, so the tool refuses every export.
+
+Optional: P7-R2-02 an unchanged replace of a Prettier-styled Gesture (13
+Included Gestures) was rewritten with expanded arrays; `promote.md` lost a
+paragraph break; the record's event times, test count and unused brief
+suggestions.
+
+Revisions (all accepted): the docs describe the source the tool takes (the
+Included clip with its id and dependencies carrying `ref`) and say a creator
+export does not qualify; an unchanged clip keeps its file byte for byte, and
+a changed indented clip is written in the repository's Prettier JSON style
+(`formatJson`, as `animation promote` does). Tests: an unchanged styled
+Gesture plans nothing; a changed one goes through `formatJson`. Unchanged
+replaces of `arms-crossed`, `storytelling` and `shy-giggle` dry-run to 0
+changes; effects, asset and render-source tests 55/55.
 
 ### P8 — Promotion, documentation and acceptance (R16). Gate G4.
 

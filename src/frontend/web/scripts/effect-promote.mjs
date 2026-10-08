@@ -172,13 +172,20 @@ const jsonFile = (value) => `${JSON.stringify(value, null, 2)}\n`;
  * null), and `includedMetas()` every Included descriptor (a JSON file with a
  * `content_id` or `dependencies`) as `{ path, value }`. `validate(definition)`
  * throws for an invalid `/2` definition and `validateClip(clip)` for an
- * invalid `animaPoseClip/2.0` clip (the app's validators). Returns
+ * invalid `animaPoseClip/2.0` clip (the app's validators); `formatJson(value)`
+ * formats a changed indented clip file (the repository's Prettier JSON
+ * style; compact clip files stay compact). Returns
  * `[{ path, action, content? }]`, `action` being "create", "update" or
  * "delete".
  */
 export async function planEffectPromotion(
   items,
-  { repo, validate, validateClip },
+  {
+    repo,
+    validate,
+    validateClip,
+    formatJson = (value) => `${JSON.stringify(value, null, 2)}\n`,
+  },
 ) {
   const writes = new Map();
   const deletes = new Set();
@@ -236,8 +243,18 @@ export async function planEffectPromotion(
         includedTypes,
         promotedRefs,
       });
-      for (const [relative, content] of planned.writes)
-        writes.set(relative, content);
+      // An unchanged clip keeps its file as it is; a changed one keeps its
+      // form (compact, or indented in the repository's style).
+      const { clip, clipText } = planned;
+      writes.set(
+        planned.clipPath,
+        JSON.stringify(clip) === JSON.stringify(JSON.parse(clipText))
+          ? clipText
+          : clipText.trimEnd().includes("\n")
+            ? await formatJson(clip)
+            : `${JSON.stringify(clip)}\n`,
+      );
+      writes.set(planned.metaPath, jsonFile(planned.meta));
       plannedMetas.set(planned.metaPath, planned.meta);
     }
   const currentMetas = metas.map((meta) =>
@@ -413,8 +430,8 @@ function isSet(value) {
 }
 
 /**
- * Plan one Reaction or Gesture replace: its clip and meta writes, and the
- * meta as it will be (for dependents checks).
+ * Check one Reaction or Gesture replace and return its clip (with the
+ * Included clip file's path and text) and its meta as it will be.
  */
 function planAction(
   item,
@@ -501,16 +518,12 @@ function planAction(
       );
   }
 
-  const meta = { ...original, dependencies };
-  // Keep the clip file's form: compact (Reactions) or indented.
-  const indented = clipText.trimEnd().includes("\n");
   return {
+    clip,
+    clipPath,
+    clipText,
     metaPath,
-    meta,
-    writes: [
-      [clipPath, `${JSON.stringify(clip, null, indented ? 2 : undefined)}\n`],
-      [metaPath, jsonFile(meta)],
-    ],
+    meta: { ...original, dependencies },
   };
 }
 
