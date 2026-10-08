@@ -7,7 +7,8 @@ import {
   collectAnimaPoseClipEventsBetween,
   isAnimaPoseClipVFXEvent,
   sampleAnimaPoseClipActiveEventsAtTime,
-  type AnyAnimaPoseClip,
+  sampleAnimaPoseClipAvatarVFXIntensity,
+  type AnimaPoseClipV2,
   type AnimaPoseClipActiveVFXEvent,
   type AnimaPoseClipDueEvent,
   type AnimaPoseClipEventContext,
@@ -292,6 +293,11 @@ export function PoseCreatorClipPreviewSync({
         activeAvatar,
         clipPlaybackAbsoluteTimeSec,
       );
+      syncPoseCreatorClipAvatarVFXIntensities(
+        runtimeState,
+        activeAvatar,
+        clipPlaybackAbsoluteTimeSec,
+      );
       resetEffectPreviewRuntimeState(
         runtimeState,
         true,
@@ -339,6 +345,11 @@ export function PoseCreatorClipPreviewSync({
       }
       runtimeState.lastScrubSignature = scrubSignature;
     }
+    syncPoseCreatorClipAvatarVFXIntensities(
+      runtimeState,
+      activeAvatar,
+      clipDraft.currentTimeSec,
+    );
 
     resetEffectPreviewRuntimeState(
       runtimeState,
@@ -365,7 +376,7 @@ export function PoseCreatorClipPreviewSync({
 
 function buildPoseCreatorPreviewClip(
   draft: PoseCreatorClipDraft,
-): AnyAnimaPoseClip | null {
+): AnimaPoseClipV2 | null {
   return buildAnimaPoseClipFromPoseCreatorDraft(draft, {
     omittedBasePoseId: POSE_CREATOR_VRM_T_POSE_BASE_POSE_ID,
   });
@@ -461,7 +472,7 @@ function dispatchPoseCreatorClipDueEvents({
   soundController,
   catalog,
 }: {
-  clip: AnyAnimaPoseClip;
+  clip: AnimaPoseClipV2;
   fromPlaybackTimeSec: number;
   toPlaybackTimeSec: number;
   includeStart: boolean;
@@ -500,7 +511,7 @@ function dispatchPoseCreatorClipDueEvent({
   soundController,
   catalog,
 }: {
-  clip: AnyAnimaPoseClip;
+  clip: AnimaPoseClipV2;
   dueEvent: AnimaPoseClipDueEvent;
   runtimeState: EffectPreviewRuntimeState;
   activeAvatar: Avatar;
@@ -550,7 +561,7 @@ function applyPoseCreatorClipActiveVFXAtTime({
   catalog,
   excludeEventsStartingAtSample = false,
 }: {
-  clip: AnyAnimaPoseClip;
+  clip: AnimaPoseClipV2;
   playbackTimeSec: number;
   runtimeState: EffectPreviewRuntimeState;
   activeAvatar: Avatar;
@@ -583,7 +594,7 @@ function applyPoseCreatorClipActiveVFXEvent({
   mode,
   catalog,
 }: {
-  clip: AnyAnimaPoseClip;
+  clip: AnimaPoseClipV2;
   activeEvent: AnimaPoseClipActiveVFXEvent;
   runtimeState: EffectPreviewRuntimeState;
   activeAvatar: Avatar;
@@ -807,6 +818,30 @@ function applyPoseCreatorSceneVFXEvent(
       await playApplySound?.(preset.sound.onApply);
     }
   })();
+}
+
+/**
+ * Send each fading Avatar Effect event's envelope to the preview Avatar, as
+ * the chat players do, so a paused or playing preview shows the fade. The
+ * controller holds a value for an effect that is still loading.
+ */
+function syncPoseCreatorClipAvatarVFXIntensities(
+  runtimeState: EffectPreviewRuntimeState,
+  activeAvatar: Avatar,
+  playbackTimeSec: number,
+) {
+  for (const { event, context } of runtimeState.activeEffects.values()) {
+    if (event.kind !== "avatar_vfx") continue;
+    const intensity = sampleAnimaPoseClipAvatarVFXIntensity(
+      event,
+      playbackTimeSec - context.playbackTime,
+    );
+    if (intensity === undefined) continue;
+    activeAvatar.vfxController?.setEffectIntensity(
+      context.appliedId,
+      intensity,
+    );
+  }
 }
 
 function clearExpiredPoseCreatorClipPlaybackEffects(

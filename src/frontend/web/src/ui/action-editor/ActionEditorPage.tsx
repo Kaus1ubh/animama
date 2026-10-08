@@ -436,12 +436,23 @@ export function ActionEditorPage({
   useEffect(() => {
     if (!userId || hydrated.current || hydrating.current) return;
     const routeItemId = itemId ?? null;
-    const recovery = loadActionRecoveryForEditorRoute(
-      window.localStorage,
-      userId,
-      intent,
-      routeItemId,
-    );
+    let recovery: ReturnType<typeof loadActionRecoveryForEditorRoute> = null;
+    try {
+      recovery = loadActionRecoveryForEditorRoute(
+        window.localStorage,
+        userId,
+        intent,
+        routeItemId,
+      );
+    } catch (cause) {
+      // An unsupported recovery (such as a retired 1.0 clip) is discarded;
+      // the saved item opens instead.
+      toast.error(
+        cause instanceof Error
+          ? cause.message
+          : "Browser recovery could not be restored.",
+      );
+    }
     if (!recovery) {
       // `/new` is already initialized from createDocument(). Mark it hydrated
       // so no later recovery/query effect can replace that blank document.

@@ -37,4 +37,15 @@ describe("Scene Effect creator routes", () => {
     expect(source).not.toContain("scene-vfx-store");
     expect(source).not.toContain("useSceneVFXStore");
   });
+
+  it("seeds /new from a validated starting template", async () => {
+    const source = await readFile(
+      new URL("routes/_app/scene-effects.new.tsx", `file://${sourceRoot}/`),
+      "utf8",
+    );
+
+    expect(source).toContain("validateSearch: parseSceneEffectTemplateSearch");
+    expect(source).toContain("templateId={template}");
+    expect(source).toContain('key={`new:${template ?? ""}`}');
+  });
 });

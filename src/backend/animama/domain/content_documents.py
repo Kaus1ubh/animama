@@ -87,13 +87,15 @@ class PoseDocumentV1(ContentDocumentV1):
 
 @dataclass(frozen=True, slots=True)
 class PoseClipDocumentV1(ContentDocumentV1):
-    """A validated animaPoseClip document used by Actions and Idle Styles."""
+    """The identity of a retired standalone Pose Clip (``pose-clips/``).
+
+    The kind is never played, listed or transitioned; it is parsed only so
+    completed Save receipts replay. ``clip`` holds the stored JSON unread.
+    """
 
     clip_id: str = "pose"
     role: str | None = None
     playback: dict[str, Any] = field(default_factory=dict)
-    poses: dict[str, Any] = field(default_factory=dict)
-    pose_keyframes: tuple[dict[str, Any], ...] = ()
     clip: dict[str, Any] = field(default_factory=dict)
 
 
@@ -190,6 +192,8 @@ class AvatarDocumentV1(ContentDocumentV1):
 
     model_role: str = "model"
     compatibility: dict[str, Any] = field(default_factory=dict)
+    # A validated ``animama/avatar-face-parts/1`` correction (JSON form), or None.
+    face_parts: dict[str, Any] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -231,11 +235,16 @@ type TypedContentDocument = (
 
 
 class ContentDocumentError(ValueError):
-    """A product document cannot be admitted by its registered type handler."""
+    """A product document cannot be admitted by its registered type handler.
 
-    def __init__(self, code: str, message: str) -> None:
+    ``field`` is an optional JSON path to the offending value, such as
+    ``definition.transform.offset.x``, so callers can point at one control.
+    """
+
+    def __init__(self, code: str, message: str, field: str | None = None) -> None:
         super().__init__(message)
         self.code = code
+        self.field = field
 
 
 __all__ = [

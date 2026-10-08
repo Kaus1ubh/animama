@@ -47,6 +47,14 @@ const REFUSAL_TEXT: Record<string, string> = {
   model_asset_busy: "This model is still changing. Retry in a moment.",
 };
 
+/** Why a failed download stopped, from its stable failure code. */
+export function assetFailureText(asset: PyModelAssetState): string {
+  return (
+    (asset.reason && ASSET_FAILURE_TEXT[asset.reason]) ??
+    "The download did not finish. Retry when ready."
+  );
+}
+
 /** A readable message for a failed model change, never a raw payload. */
 export function modelChangeErrorText(error: unknown): string {
   if (error instanceof Error && error.message === PACK_WORK_BLOCKS_ASSET)
@@ -353,8 +361,7 @@ function ModelSetRow({
       ) : null}
       {asset?.status === "failed" ? (
         <p role="status" className="text-muted-foreground text-xs">
-          {(asset.reason && ASSET_FAILURE_TEXT[asset.reason]) ??
-            "The download did not finish. Retry when ready."}
+          {assetFailureText(asset)}
         </p>
       ) : null}
       {!installed && !downloading && installBlocked ? (
@@ -421,6 +428,23 @@ export function OfflineSpeechDownloads({
 }
 
 function OfflineSpeechDownloadsManager({ heading }: { heading: boolean }) {
+  return (
+    <OfflineSpeechDownloadsView
+      {...useOfflineSpeechDownloads()}
+      heading={heading}
+    />
+  );
+}
+
+/**
+ * The Parakeet sets' state and change actions, shared by Settings and the
+ * setup Voice step: the model-asset list, a WebGPU probe that reruns when the
+ * GPU set settles, and the last failed change.
+ */
+export function useOfflineSpeechDownloads(): Omit<
+  OfflineSpeechDownloadsViewProps,
+  "heading"
+> {
   const assets = useModelAssets({ enabled: true });
   const capabilities = useRuntimeCapabilities();
   const action = useModelAssetAction();
@@ -460,28 +484,23 @@ function OfflineSpeechDownloadsManager({ heading }: { heading: boolean }) {
     });
   };
 
-  return (
-    <OfflineSpeechDownloadsView
-      cpu={cpu}
-      gpu={gpu}
-      freeBytes={assets.data?.free_bytes}
-      gpuSupport={gpuSupport}
-      retryAssetIds={assets.retryAssetIds}
-      pending={action.isPending || action.busy}
-      blockedReason={action.blockedReason}
-      error={error}
-      gpuFellBack={
-        getLastClientParakeetBackendState()?.fellBackFromWebgpu ?? false
-      }
-      listUnavailable={assets.isError}
-      // Installed (a version is reported) yet disabled: the operator's flag.
-      // Stale data from before an install reports no version.
-      turnedOff={
-        capabilities.data?.offline_speech_enabled === false &&
-        Boolean(capabilities.data.offline_speech_asset_version)
-      }
-      heading={heading}
-      onChange={(operation, assetId) => void change(operation, assetId)}
-    />
-  );
+  return {
+    cpu,
+    gpu,
+    freeBytes: assets.data?.free_bytes,
+    gpuSupport,
+    retryAssetIds: assets.retryAssetIds,
+    pending: action.isPending || action.busy,
+    blockedReason: action.blockedReason,
+    error,
+    gpuFellBack:
+      getLastClientParakeetBackendState()?.fellBackFromWebgpu ?? false,
+    listUnavailable: assets.isError,
+    // Installed (a version is reported) yet disabled: the operator's flag.
+    // Stale data from before an install reports no version.
+    turnedOff:
+      capabilities.data?.offline_speech_enabled === false &&
+      Boolean(capabilities.data.offline_speech_asset_version),
+    onChange: (operation, assetId) => void change(operation, assetId),
+  };
 }

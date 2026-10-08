@@ -8,7 +8,7 @@ import {
   TooltipTrigger,
 } from "@/ui/components/tooltip";
 import { Link } from "@tanstack/react-router";
-import React, { useState, createContext, useContext } from "react";
+import React, { useCallback, useState, createContext, useContext } from "react";
 import { AnimatePresence, motion } from "motion/react";
 
 export interface SidebarLinkItem {
@@ -43,6 +43,18 @@ export const useSidebar = () => {
   }
   return context;
 };
+
+/**
+ * Close the sidebar when it is the mobile drawer (below the `md` breakpoint),
+ * which is drawn above dialogs; call it before opening a dialog from the
+ * sidebar. The desktop sidebar is left as it is.
+ */
+export function useCloseMobileSidebar(): () => void {
+  const { setOpen } = useSidebar();
+  return useCallback(() => {
+    if (!window.matchMedia("(min-width: 768px)").matches) setOpen(false);
+  }, [setOpen]);
+}
 
 export const SidebarProvider = ({
   children,

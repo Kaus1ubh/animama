@@ -2,9 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import { PerspectiveCamera } from "three";
 
 import { Avatar } from "../Avatar";
-import type { AnimaPoseClip } from "../poses/animaPoseClip";
-import { AVATAR_VFX_CATALOG } from "../vfx/catalog";
-import { isHoverVFXEntry } from "../vfx/types";
+import type { AnimaPoseClipV2 } from "../poses/animaPoseClip";
+import { TEST_HOVER_VFX_ENTRY } from "../vfx/avatarVFXTestFixtures";
 import { ReactionClipPlayer } from "./ReactionClipPlayer";
 
 function deferred<T>() {
@@ -22,7 +21,7 @@ describe("ReactionClipPlayer", () => {
     "keeps the %s loop occurrence owned after an older Avatar load rejects",
     async (replacement) => {
       const active = new Set(["unrelated-effect"]);
-      const effect = AVATAR_VFX_CATALOG.find(isHoverVFXEntry)!;
+      const effect = TEST_HOVER_VFX_ENTRY;
       const first = deferred<typeof effect>();
       const second = deferred<typeof effect>();
       const loadAvatarVFX = vi
@@ -40,6 +39,7 @@ describe("ReactionClipPlayer", () => {
         applyHoverVFX: async ({ effectId }: { effectId: string }) => {
           active.add(effectId);
         },
+        findUnavailableFacePart: () => null,
       } as unknown as NonNullable<Avatar["vfxController"]>;
       const player = new ReactionClipPlayer({
         setExpressionOverlay: () => true,
@@ -53,13 +53,12 @@ describe("ReactionClipPlayer", () => {
         sourceEventId: "source",
         emotionEventId: "emotion",
         clip: {
-          schema: "animaPoseClip/1.0",
+          schema: "animaPoseClip/2.0",
           id: "late-load",
           name: "Late load",
           duration: 2,
           loop: true,
-          poses: {},
-          poseKeyframes: [],
+          beats: [],
           events: [
             { id: "effect", time: 0, kind: "avatar_vfx", effectId: effect.id },
           ],
@@ -110,13 +109,12 @@ describe("ReactionClipPlayer", () => {
         sourceEventId: "source",
         emotionEventId: "emotion",
         clip: {
-          schema: "animaPoseClip/1.0",
+          schema: "animaPoseClip/2.0",
           id: "looping-effects",
           name: "Looping effects",
           duration: 2,
           loop: true,
-          poses: {},
-          poseKeyframes: [],
+          beats: [],
           // Separate timeline events can deliberately use the same catalog item.
           events: ["first", "second"].map((id) => ({
             id,
@@ -159,13 +157,12 @@ describe("ReactionClipPlayer", () => {
         },
       },
     );
-    const clip: AnimaPoseClip = {
-      schema: "animaPoseClip/1.0",
+    const clip: AnimaPoseClipV2 = {
+      schema: "animaPoseClip/2.0",
       id: "timing",
       name: "Timing",
       duration: 2,
-      poses: {},
-      poseKeyframes: [],
+      beats: [],
       events: [
         { id: "with-action", time: 0, kind: "avatar_vfx", effectId: "eyes" },
         {
@@ -194,7 +191,7 @@ describe("ReactionClipPlayer", () => {
     expect(cleared).toEqual(["timed", "with-action"]);
   });
 
-  it("plays a 2.0 Reaction's expression track", () => {
+  it("plays a Reaction's expression track", () => {
     const overlays: Record<string, number>[] = [];
     const player = new ReactionClipPlayer({
       setExpressionOverlay: (_ownerId, expressions) => {
@@ -231,7 +228,7 @@ describe("ReactionClipPlayer", () => {
     expect(overlays.at(-1)).toEqual({ happy: expect.closeTo(0.4) });
   });
 
-  it("times a 2.0 Reaction's events and clears them when it ends", () => {
+  it("times a Reaction's events and clears them when it ends", () => {
     const applied: string[] = [];
     const cleared: string[] = [];
     const player = new ReactionClipPlayer(
@@ -272,6 +269,101 @@ describe("ReactionClipPlayer", () => {
     expect(cleared).toEqual(["stars"]);
   });
 
+  it("sends an Avatar Effect event's fade in and fade out to the sink", () => {
+    const values: number[] = [];
+    const player = new ReactionClipPlayer(
+      { setExpressionOverlay: () => true, clearExpressionOverlay: () => true },
+      {
+        eventSink: {
+          applyAvatarVFX: () => undefined,
+          clearAvatarVFX: () => undefined,
+          setAvatarVFXIntensity: (_event, _context, intensity) => {
+            values.push(Number(intensity.toFixed(3)));
+          },
+        },
+      },
+    );
+    player.play({
+      ownerId: "owner",
+      runId: "run",
+      sourceEventId: "source",
+      emotionEventId: "emotion",
+      clip: {
+        schema: "animaPoseClip/2.0",
+        id: "fade",
+        name: "Fade",
+        duration: 4,
+        beats: [],
+        events: [
+          {
+            id: "blush",
+            time: 0,
+            duration: 2,
+            kind: "avatar_vfx",
+            effectId: "blush",
+            envelope: {
+              intensity: { fadeIn: 1, fadeOut: 0.5, easing: "linear" },
+            },
+          },
+        ],
+      },
+    });
+    // A zero-time event gets its first value at play, before any frame renders.
+    expect(values).toEqual([0]);
+    player.update(0.5);
+    player.update(0.5);
+    player.update(0.75);
+    expect(values).toEqual([0, 0.5, 1, 0.5]);
+  });
+
+  it("sends the Avatar Effect fade of a Reaction with expression tracks", () => {
+    const values: number[] = [];
+    const player = new ReactionClipPlayer(
+      { setExpressionOverlay: () => true, clearExpressionOverlay: () => true },
+      {
+        eventSink: {
+          applyAvatarVFX: () => undefined,
+          clearAvatarVFX: () => undefined,
+          setAvatarVFXIntensity: (_event, _context, intensity) => {
+            values.push(Number(intensity.toFixed(3)));
+          },
+        },
+      },
+    );
+    player.play({
+      ownerId: "owner",
+      runId: "run",
+      sourceEventId: "source",
+      emotionEventId: "emotion",
+      clip: {
+        schema: "animaPoseClip/2.0",
+        id: "fade-v2",
+        name: "Fade with expressions",
+        role: "reaction",
+        duration: 4,
+        beats: [{ id: "start", label: "Start", time: 0 }],
+        expressions: { happy: [{ beat: "start", v: 1 }] },
+        events: [
+          {
+            id: "blush",
+            time: 0,
+            duration: 2,
+            kind: "avatar_vfx",
+            effectId: "blush",
+            envelope: {
+              intensity: { fadeIn: 1, fadeOut: 0.5, easing: "linear" },
+            },
+          },
+        ],
+      },
+    });
+    expect(values).toEqual([0]);
+    player.update(0.5);
+    player.update(0.5);
+    player.update(0.75);
+    expect(values).toEqual([0, 0.5, 1, 0.5]);
+  });
+
   it("accepts a generic clip with body motion and applies only expressions", () => {
     const overlays: Record<string, number>[] = [];
     const player = new ReactionClipPlayer({
@@ -281,18 +373,17 @@ describe("ReactionClipPlayer", () => {
       },
       clearExpressionOverlay: () => true,
     });
-    const clip: AnimaPoseClip = {
-      schema: "animaPoseClip/1.0",
+    const clip: AnimaPoseClipV2 = {
+      schema: "animaPoseClip/2.0",
       id: "surprised-blink",
       name: "Surprised Blink",
       duration: 1,
-      poses: {
-        surprisedBlink: {
-          humanoid: { head: { rotation: [0, 0, 0, 1] } },
-          expressions: { surprised: 1, blink: 1 },
-        },
+      beats: [{ id: "blink", label: "Blink", time: 0 }],
+      rotations: { head: [{ beat: "blink", q: [0, 0, 0, 1] }] },
+      expressions: {
+        surprised: [{ beat: "blink", v: 1 }],
+        blink: [{ beat: "blink", v: 1 }],
       },
-      poseKeyframes: [{ time: 0, pose: "surprisedBlink" }],
     };
 
     expect(
@@ -316,13 +407,13 @@ describe("ReactionClipPlayer", () => {
       },
       { eventSink: { playSfx: () => undefined } },
     );
-    const clip: AnimaPoseClip = {
-      schema: "animaPoseClip/1.0",
+    const clip: AnimaPoseClipV2 = {
+      schema: "animaPoseClip/2.0",
       id: "admiration-3",
       name: "Admiration 3",
       duration: 1,
-      poses: { admiration: { expressions: { happy: 1 } } },
-      poseKeyframes: [{ time: 0, pose: "admiration" }],
+      beats: [{ id: "admiration", label: "Admiration", time: 0 }],
+      expressions: { happy: [{ beat: "admiration", v: 1 }] },
       events: [
         {
           id: "admiration-sparkle",

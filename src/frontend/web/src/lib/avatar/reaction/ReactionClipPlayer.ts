@@ -4,9 +4,10 @@ import {
   countAnimaPoseClipEventsByKind,
   getAnimaPoseClipTimelineDuration,
   isAnimaPoseClipVFXEvent,
-  parseAnyAnimaPoseClip,
+  parseAnimaPoseClip,
+  sampleAnimaPoseClipAvatarVFXIntensity,
   shouldAnimaPoseClipAutoComplete,
-  type AnyAnimaPoseClip,
+  type AnimaPoseClipV2,
   type AnimaPoseClipDueEvent,
   type AnimaPoseClipEventKindCounts,
   type AnimaPoseClipEvent,
@@ -45,7 +46,7 @@ export type ReactionClipPlayRequest = {
   runId: string;
   sourceEventId: string;
   emotionEventId: string | null;
-  clip: AnyAnimaPoseClip;
+  clip: AnimaPoseClipV2;
 };
 
 export type ReactionClipPlayerOptions = {
@@ -86,10 +87,12 @@ type ReactionClipActiveEffect = {
   event: AnimaPoseClipVFXEvent;
   context: AnimaPoseClipEventContext;
   clearAtPlaybackTime: number | null;
+  /** Last envelope value sent to the sink, to skip unchanged updates. */
+  intensity?: number;
 };
 
 type ReactionClipRuntimeState = {
-  clip: AnyAnimaPoseClip;
+  clip: AnimaPoseClipV2;
   /** Samples the clip's expression lane (2.0 clips are prepared once). */
   program: AnimaPoseClipProgram;
   ownerId: string;
@@ -168,7 +171,7 @@ export class ReactionClipPlayer {
   }
 
   play(request: ReactionClipPlayRequest): boolean {
-    const clip = parseAnyAnimaPoseClip(request.clip);
+    const clip = parseAnimaPoseClip(request.clip);
     const program = createAnimaPoseClipProgram(clip, {
       resolvePose: this._resolvePoseRef,
     });
@@ -201,6 +204,7 @@ export class ReactionClipPlayer {
 
     this._applyExpressionSampleAtTime(0);
     this._dispatchEventsBetween(0, 0, { includeStart: true });
+    this._sampleEventEnvelopes(0);
     return true;
   }
 
@@ -250,6 +254,7 @@ export class ReactionClipPlayer {
     this._clearExpiredEventEffects(nextElapsedSec);
 
     if (state.phase === "fadeOut") {
+      this._sampleEventEnvelopes(nextElapsedSec);
       if (this._isCurrentFadeComplete(state.fadeOutDurationSec)) {
         this.clear(state.ownerId, { immediate: true });
       }
@@ -257,6 +262,8 @@ export class ReactionClipPlayer {
     }
 
     this._dispatchEventsBetween(previousElapsedSec, nextElapsedSec);
+    // After dispatch, so an effect that starts this frame gets its first value.
+    this._sampleEventEnvelopes(nextElapsedSec);
 
     if (
       state.phase === "fadeIn" &&
@@ -308,10 +315,7 @@ export class ReactionClipPlayer {
     if (!state) return sample;
 
     if (state.phase === "fadeIn") {
-      const transition = resolveAnimaPoseClipFadeTransition(
-        state.clip,
-        state.clip.fadeIn,
-      );
+      const transition = resolveAnimaPoseClipFadeTransition(state.clip.fadeIn);
       const progress = this._getCurrentFadeProgress(state.fadeInDurationSec);
       const sourceSample =
         state.fadeInSourceSample &&
@@ -328,10 +332,7 @@ export class ReactionClipPlayer {
     }
 
     if (state.phase === "fadeOut") {
-      const transition = resolveAnimaPoseClipFadeTransition(
-        state.clip,
-        state.clip.fadeOut,
-      );
+      const transition = resolveAnimaPoseClipFadeTransition(state.clip.fadeOut);
       const progress = this._getCurrentFadeProgress(state.fadeOutDurationSec);
       const sourceSample = state.fadeOutSourceSample ?? sample;
       return interpolateSamples(
@@ -500,6 +501,26 @@ export class ReactionClipPlayer {
           ? null
           : context.playbackTime + event.duration,
     });
+  }
+
+  /** Send each fading Avatar Effect event's envelope value to the sink. */
+  private _sampleEventEnvelopes(playbackTimeSec: number): void {
+    const state = this._state;
+    const handler = this._eventSink?.setAvatarVFXIntensity;
+    if (!state || !handler) return;
+    for (const activeEffect of state.activeEventEffects.values()) {
+      const { event, context } = activeEffect;
+      if (event.kind !== "avatar_vfx") continue;
+      const intensity = sampleAnimaPoseClipAvatarVFXIntensity(
+        event,
+        playbackTimeSec - context.playbackTime,
+      );
+      if (intensity === undefined || intensity === activeEffect.intensity) {
+        continue;
+      }
+      activeEffect.intensity = intensity;
+      handler(event, context, intensity);
+    }
   }
 
   private _clearExpiredEventEffects(playbackTimeSec: number): void {

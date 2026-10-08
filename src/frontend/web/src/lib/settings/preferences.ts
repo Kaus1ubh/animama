@@ -177,8 +177,8 @@ export const DEFAULT_ANIMAMA_PREFERENCES: SettingsPreferences = {
   memory: { disable_influence: false, disable_updates: false },
   emotion: { disable_influence: false, disable_updates: false },
   speech: {
-    tts_enabled: false,
-    tts_provider: "elevenlabs",
+    tts_enabled: true,
+    tts_provider: "pocket_tts",
     tts_elevenlabs_model_id: DEFAULT_ELEVENLABS_TTS_MODEL_ID,
     tts_elevenlabs_v3_finalized_chunking:
       DEFAULT_ELEVENLABS_V3_FINALIZED_CHUNKING,

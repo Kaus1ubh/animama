@@ -495,39 +495,3 @@ def test_pose_huge_json_integer_is_a_validation_error_not_an_overflow() -> None:
             fallback_path=Path("poses/rest"),
             descriptor_backed=True,
         )
-
-
-@pytest.mark.parametrize("enabled", [None, False, True])
-def test_pose_clip_roundtrip_preserves_per_event_accompanying_audio(enabled: bool | None) -> None:
-    """Local scan/package projection must not strip a saved event's audio choice."""
-    handler = handler_for_kind(ContentKind.POSE_CLIP)
-    flag = {} if enabled is None else {"playAccompanyingSound": enabled}
-    events = [
-        {"id": "avatar", "kind": "avatar_vfx", "effectId": "stars", "time": 0, **flag},
-        {
-            "id": "scene",
-            "kind": "scene_vfx",
-            "sceneKind": "background_layers",
-            "presetId": "comic",
-            "time": 0,
-            **flag,
-        },
-        {"id": "independent", "kind": "sfx", "cueId": "chime", "time": 0},
-    ]
-    raw = {
-        "schema": "animaPoseClip/1.0",
-        "id": "audio-choices",
-        "name": "Audio choices",
-        "duration": 1,
-        "poses": {},
-        "poseKeyframes": [],
-        "events": events,
-    }
-    document = handler.parse_document(raw, fallback_path=Path("pose-clips/audio-choices.json"), descriptor_backed=False)
-    projected = handler.catalog_projection(document.document)
-    reopened = handler.parse_document(
-        json.loads(json.dumps(projected)),
-        fallback_path=Path("pose-clips/audio-choices.json"),
-        descriptor_backed=False,
-    )
-    assert handler.catalog_projection(reopened.document)["events"] == events

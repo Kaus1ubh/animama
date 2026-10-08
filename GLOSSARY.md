@@ -60,7 +60,9 @@ effective values; later source edits or deletion do not change that Gesture.
 A timed sequence of poses, expressions and optional effects or sounds, stored as
 an Action-owned implementation document. Gestures and Reactions can use Pose
 Clips; clips are not independently selectable catalog items. A standalone Pose
-has no timeline and is not Anima equipment.
+has no timeline and is not Anima equipment. `animaPoseClip/2.0` is the only
+clip format; the retired 1.0 format is rejected
+([ADR 0016](docs/adr/0016-anima-pose-clip-2-only.md)).
 
 ## Gesture
 
@@ -75,7 +77,7 @@ by emotion and intensity.
 A named moment in a Pose Clip's timeline, such as "Raise" or "Settle", shown as
 a keyframe on the creator's Pose lane. In `animaPoseClip/2.0` every key belongs
 to a beat, so retiming, re-posing or deleting the beat carries its keys with
-it. Each 1.0 keyframe becomes one beat.
+it.
 
 ## Generated detail
 
@@ -98,7 +100,36 @@ app as files: it cannot be customized into a Local copy, exported in a
 [Portable package](#portable-package) or imported. Its licence inventory rule
 sets `"distribution": "non-portable"`, and identical bytes stored anywhere are
 restricted too. The Mixamo-motion pack in desktop and hosted builds is
-non-portable. See [ADR 0015](docs/adr/0015-non-portable-included-content.md).
+non-portable. See [ADR 0018](docs/adr/0018-non-portable-included-content.md).
+
+## Avatar Effect
+
+Reusable art drawn on or around an Avatar during a Gesture or Reaction: painted
+on the face, floating in front of it, on a body point, as a sticker beside the
+Avatar or filling its silhouette. The effect owns its art, look and motion; the
+Action event that plays it owns when it starts, ends and fades. It is never
+equipped directly. One image moving as one piece is an Avatar Effect, not a
+Particle Effect.
+
+## Particle Effect
+
+A three.quarks emitter of many independently moving sprites, such as sparkles,
+hearts or bursts, attached to a point on the Avatar and played by a Gesture or
+Reaction.
+
+## Scene Effect
+
+Background layers, marquees or focus lines drawn in page layers behind or in
+front of the Avatar, outside its 3D scene, and played by a Gesture or Reaction.
+It never changes the Avatar itself.
+
+## Face part
+
+A part of an Avatar's face that Avatar Effects use: face skin, each eye's iris,
+eye highlights, eye lines, eyelashes or hair. The app detects parts from VRM
+signals, not material names. A user's correction is saved with that Avatar and
+applies only to the exact model file it was made on. "Face skin" is a detected
+part, not a glTF skin.
 
 ## Portable package
 

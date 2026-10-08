@@ -277,7 +277,7 @@ written confirmation, and records the outcome (R10).
 - **Terminology.** The glossary uses "built-in" for read-only Model templates and
   defines **Portable package**. The class is therefore named **non-portable**
   (D5): it names the restriction and does not overload "built-in".
-- **ADR required.** A new ADR (next number at landing, currently 0015) records the
+- **ADR required.** A new ADR (next number at landing; 0018) records the
   non-portable redistribution class: content admitted only through private build
   inputs, enforced by the backend, and never exportable or copyable. It reverses a
   deliberate exclusion, is costly to undo once shipped, and has real alternatives

@@ -9,9 +9,11 @@ those supports independently.
 A Gesture requires a stable semantic selector and AI-facing description because
 the chat model may choose it. A Reaction document may carry a suggested
 emotion/intensity placement, while the Anima loadout may assign that complete
-Reaction Action to any canonical cell. Both can use `animaPoseClip/1.0` or
-`animaPoseClip/2.0`; Gestures may also use VRMA. Event-only clips are valid, but
-a clip with neither a pose keyframe (2.0: a track key) nor an event is not.
+Reaction Action to any canonical cell. Both use `animaPoseClip/2.0` clips;
+Gestures may also use VRMA. Event-only clips
+are valid, but a clip with neither a track key nor an event is not. A Local
+scan lists a clip in another format, such as the retired `animaPoseClip/1.0`,
+as invalid with `clip_format_unsupported`, and Save refuses it.
 
 Creator Save writes the ordinary Local source through its typed product route,
 such as `PUT /v1/gestures/{entry_name}` or
@@ -220,6 +222,24 @@ the Create Anima flow. That flow does not offer capture, crop, upload or
 background controls; existing content and live bindings remain available.
 Confirmed Saves survive cancellation and failed creation, and neither Save nor
 creation calls a provider.
+
+### Face-part corrections
+
+An Avatar may carry an `animama/avatar-face-parts/1` correction of its detected
+face skin, irises and optional eye/hair parts. It names glTF primitives as
+`node:mesh:primitive` keys and records the model file's `vrm_sha256`, so it
+applies only to those exact VRM bytes; a value for other bytes is never
+effective. A Local Avatar stores it as `face_parts` in its `.meta.json`
+sidecar (an invalid value makes the Avatar invalid with
+`avatar_face_parts_invalid`), so saving one creates a new Avatar revision. An
+Included Avatar is never written: each owner's correction is a row in
+`avatar_face_part_overrides` bound to the Avatar revision it was saved against,
+and is ignored, not deleted, once that revision changes.
+`GET`/`PUT /v1/avatar-content/{item_id}/face-parts` read and save the effective
+value, which also appears as `face_parts` on typed Avatar responses (list, get,
+preview and prepared preview batches) and the runtime `avatar`. Packages carry it in the Avatar's portable sidecar; exporting
+an Included Avatar, including an Anima's, merges the exporter's current
+override, so the imported Local copy keeps it.
 
 ## Local creation boundary
 

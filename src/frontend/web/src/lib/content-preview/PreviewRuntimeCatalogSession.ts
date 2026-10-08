@@ -9,7 +9,7 @@ import type {
   AnimaPose,
   ResolvedAnimaPose,
 } from "@/lib/avatar/poses/animaPose";
-import type { AnyAnimaPoseClip } from "@/lib/avatar/poses/animaPoseClip";
+import type { AnimaPoseClipV2 } from "@/lib/avatar/poses/animaPoseClip";
 import type { NormalizedEmotionReactionIntensity } from "@/lib/avatar/reactionClips";
 import type { EmotionRuntimeState } from "@/lib/emotion";
 import type {
@@ -22,7 +22,10 @@ import type {
   ParticleVFXCatalogEntry,
   ParticleVFXPreloadTier,
 } from "@/lib/avatar/particle-vfx/types";
-import type { AvatarVFXCatalogEntry } from "@/lib/avatar/vfx/types";
+import type {
+  AvatarVFXCatalogEntry,
+  AvatarVFXParsedEntry,
+} from "@/lib/avatar/vfx/types";
 import type {
   AnimaRuntimeMediaProvider,
   ResolvedRuntimeAudio,
@@ -94,11 +97,11 @@ export class PreviewRuntimeCatalogSession
     return this.motion.listAnimations();
   }
 
-  getPoseClip(runtimeId: string): AnyAnimaPoseClip | null {
+  getPoseClip(runtimeId: string): AnimaPoseClipV2 | null {
     return this.motion.getPoseClip(runtimeId);
   }
 
-  loadPoseClip(runtimeId: string): Promise<AnyAnimaPoseClip | null> {
+  loadPoseClip(runtimeId: string): Promise<AnimaPoseClipV2 | null> {
     return this.motion.loadPoseClip(runtimeId);
   }
 
@@ -106,11 +109,11 @@ export class PreviewRuntimeCatalogSession
     return this.motion.listPoseClips();
   }
 
-  getReactionClip(runtimeId: string): AnyAnimaPoseClip | null {
+  getReactionClip(runtimeId: string): AnimaPoseClipV2 | null {
     return this.motion.getReactionClip(runtimeId);
   }
 
-  loadReactionClip(runtimeId: string): Promise<AnyAnimaPoseClip | null> {
+  loadReactionClip(runtimeId: string): Promise<AnimaPoseClipV2 | null> {
     return this.motion.loadReactionClip(runtimeId);
   }
 
@@ -171,7 +174,7 @@ export class PreviewRuntimeCatalogSession
     return this.media.resolveAvatarVFX(runtimeId);
   }
 
-  loadAvatarVFX(runtimeId: string): Promise<AvatarVFXCatalogEntry | null> {
+  loadAvatarVFX(runtimeId: string): Promise<AvatarVFXParsedEntry | null> {
     return this.media.loadAvatarVFX(runtimeId);
   }
 

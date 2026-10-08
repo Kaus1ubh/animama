@@ -52,6 +52,12 @@ export type CaptureAvatarPortraitInput = {
   scene: THREE.Scene;
   size?: number;
   signal?: AbortSignal;
+  /**
+   * `happy` (default) shows the Avatar's happy expression for a profile
+   * portrait. `live` keeps the current expression state, so a thumbnail shows
+   * what an effect does to the face (for example a forced blink).
+   */
+  expression?: "happy" | "live";
   dependencies?: AvatarPortraitCaptureDependencies;
 };
 
@@ -211,6 +217,7 @@ export async function captureAvatarPortrait({
   scene,
   size = DEFAULT_AVATAR_PORTRAIT_SIZE,
   signal,
+  expression = "happy",
   dependencies = {},
 }: CaptureAvatarPortraitInput): Promise<Blob> {
   if (!Number.isInteger(size) || size < 64 || size > 2048) {
@@ -232,9 +239,10 @@ export async function captureAvatarPortrait({
   const priorClearAlpha = renderer.getClearAlpha();
   const priorAutoClear = renderer.autoClear;
   const priorBackground = scene.background;
-  const happyExpression = resolveAvatarPortraitHappyExpression(
-    avatar.getAvailableExpressions(),
-  );
+  const happyExpression =
+    expression === "happy"
+      ? resolveAvatarPortraitHappyExpression(avatar.getAvailableExpressions())
+      : null;
   const hiddenObjects: Array<{ object: THREE.Object3D; visible: boolean }> = [];
   const avatarScene = avatar.scene;
   const isAvatarAncestor = (object: THREE.Object3D): boolean => {
@@ -277,7 +285,7 @@ export async function captureAvatarPortrait({
 
   let pixels: Uint8Array;
   try {
-    pixels = avatar.runWithPortraitCaptureState(happyExpression, () => {
+    const capture = () => {
       throwIfAborted(signal);
       const framing = resolveCaptureFraming(avatar);
       const captureCamera = createCaptureCamera(camera, framing);
@@ -308,6 +316,9 @@ export async function captureAvatarPortrait({
       );
       flipRowsInPlace(output, size);
       return output;
+    };
+    pixels = avatar.runWithPortraitCaptureState(happyExpression, capture, {
+      keepLiveExpressions: expression === "live",
     });
   } finally {
     scene.remove(ambientLight, keyLight, fillLight);

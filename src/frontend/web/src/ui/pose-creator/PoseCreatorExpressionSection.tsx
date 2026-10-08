@@ -151,7 +151,7 @@ function PoseCreatorExpressionSectionContent({
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
               <h2 className="text-sm font-semibold">Expressions</h2>
-              <p className="text-muted-foreground mt-0.5 text-[11px]">
+              <p className="text-muted-foreground text-2xs mt-0.5">
                 {expressionNames.length} available
               </p>
             </div>
@@ -227,7 +227,7 @@ function PoseCreatorExpressionSectionContent({
                 >
                   <span
                     className={cn(
-                      "truncate text-[11px] font-medium",
+                      "text-2xs truncate font-medium",
                       hasOverride ? "text-foreground" : "text-muted-foreground",
                     )}
                     title={expressionName}
@@ -258,7 +258,7 @@ function PoseCreatorExpressionSectionContent({
                   <button
                     type="button"
                     className={cn(
-                      "text-right font-mono text-[10px] tabular-nums",
+                      "text-2xs text-right font-mono tabular-nums",
                       hasOverride
                         ? "text-foreground hover:text-primary cursor-pointer"
                         : "text-muted-foreground cursor-default",
@@ -332,13 +332,13 @@ function PoseCreatorExpressionSectionContent({
               >
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <span
-                    className="min-w-0 truncate font-mono text-[11px]"
+                    className="text-2xs min-w-0 truncate font-mono"
                     title={expressionName}
                   >
                     {expressionName}
                   </span>
                   <div className="flex items-center gap-2">
-                    <span className="text-muted-foreground font-mono text-[10px] tabular-nums">
+                    <span className="text-muted-foreground text-2xs font-mono tabular-nums">
                       {formatExpressionWeight(currentValue)}
                     </span>
                     <Button
@@ -347,7 +347,7 @@ function PoseCreatorExpressionSectionContent({
                       variant="ghost"
                       onClick={() => handleClearExpression(expressionName)}
                       disabled={!hasOverride}
-                      className="h-6 px-1.5 text-[10px]"
+                      className="text-2xs h-6 px-1.5"
                     >
                       Clear
                     </Button>

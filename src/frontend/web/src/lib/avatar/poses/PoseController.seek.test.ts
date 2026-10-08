@@ -1,7 +1,7 @@
 import type { VRM } from "@pixiv/three-vrm";
 import { describe, expect, it } from "vitest";
 
-import type { AnimaPoseClip } from "./animaPoseClip";
+import type { AnimaPoseClipV2 } from "./animaPoseClip";
 import { PoseController } from "./PoseController";
 
 /** A VRM stub whose `happy` expression weight records what playback applies. */
@@ -27,20 +27,22 @@ function expressionVrm() {
 }
 
 /** `happy` rises linearly from 0 to 1 over one second. */
-function rampClip(overrides: Partial<AnimaPoseClip> = {}): AnimaPoseClip {
+function rampClip(overrides: Partial<AnimaPoseClipV2> = {}): AnimaPoseClipV2 {
   return {
-    schema: "animaPoseClip/1.0",
+    schema: "animaPoseClip/2.0",
     id: "ramp",
     name: "Ramp",
     duration: 1,
-    poses: {
-      start: { expressions: { happy: 0 } },
-      end: { expressions: { happy: 1 } },
-    },
-    poseKeyframes: [
-      { time: 0, pose: "start" },
-      { time: 1, pose: "end", transition: { easing: "linear" } },
+    beats: [
+      { id: "start", label: "Start", time: 0 },
+      { id: "end", label: "End", time: 1, ease: "linear" },
     ],
+    expressions: {
+      happy: [
+        { beat: "start", v: 0 },
+        { beat: "end", v: 1 },
+      ],
+    },
     ...overrides,
   };
 }

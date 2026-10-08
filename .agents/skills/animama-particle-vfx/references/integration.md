@@ -143,7 +143,7 @@ describe automatic preloading.
   `emitterAnchors.ts`, and `autoFit.ts` in that directory.
 - Saved-default decoding: `src/frontend/web/src/lib/avatar/particle-vfx/runtimeConfig.ts`.
 - Mounted resources: `src/frontend/web/src/lib/runtime-content/AnimaRuntimeMediaCatalog.ts`.
-- Clip contracts: `src/frontend/web/src/lib/avatar/poses/animaPoseClip/schema.ts`.
+- Clip contracts: `src/frontend/web/src/lib/avatar/poses/animaPoseClip/schemaV2.ts` (parser) and `clipVocabulary.ts` (events and fades).
 - Backend projection: `src/backend/animama/app/services/typed_runtime_projection.py`.
 - Backend validation boundary: `src/backend/animama/app/services/content_kind_registry.py`
   and `src/backend/animama/adapters/content_store/filesystem_store.py`.

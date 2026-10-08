@@ -7,24 +7,20 @@
   "description": "Offset uneasy face overlay for stronger sickness, dizziness, or disoriented discomfort.",
   "dependencies": [],
   "definition": {
-    "schema": "animama/avatar-effect/1",
-    "kind": "texture",
+    "schema": "animama/avatar-effect/2",
     "region": "full_face",
-    "targetRole": "face_skin",
-    "assetShape": "full_face",
-    "applyMode": "overlay",
-    "transform": {
+    "attachment": {
+      "kind": "face_surface",
+      "part": "face_skin",
+      "area": "full",
       "offset": {
         "x": 0,
-        "y": 0.1,
-        "z": 0
+        "y": 0.1
       }
     },
-    "lifetime": {
-      "kind": "turns",
-      "turns": 3
-    },
-    "image": "texture_sick_3.png"
+    "art": {
+      "image": "texture_sick_3.png"
+    }
   },
   "files": [
     {

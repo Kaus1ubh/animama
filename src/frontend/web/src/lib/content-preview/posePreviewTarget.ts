@@ -1,5 +1,10 @@
 import type { PyPose } from "@animama/runtime-contracts/api-types";
-import { parseAnimaPoseClip } from "@/lib/avatar/poses/animaPoseClip";
+import {
+  ANIMA_POSE_CLIP_V2_SCHEMA,
+  parseAnimaPoseClip,
+  type AnimaPoseClipRotationKey,
+  type AnimaPoseClipScalarKey,
+} from "@/lib/avatar/poses/animaPoseClip";
 import { loadPoseContent } from "@/lib/content/poseContent";
 import type { RuntimeCatalogEntry } from "@/lib/runtime-content/types";
 import type { ContentPreviewTarget } from "./types";
@@ -33,17 +38,39 @@ export async function resolvePosePreviewTarget(
 ): Promise<Extract<ContentPreviewTarget, { sourceType: "resolved_entry" }>> {
   const { pose } = await loadPoseContent(target.item, signal);
   signal?.throwIfAborted();
+  // One held beat. Bone positions other than the hips, which a 2.0 clip
+  // cannot key, do not preview.
+  const beat = "held";
+  const rotations: Record<string, AnimaPoseClipRotationKey[]> = {};
+  for (const [bone, transform] of Object.entries(pose.humanoid ?? {}))
+    if (transform?.rotation)
+      rotations[bone] = [{ beat, q: transform.rotation }];
+  const hips = pose.humanoid?.hips?.position;
+  const scalar = (v: number): AnimaPoseClipScalarKey[] => [{ beat, v }];
+  const expressions = Object.fromEntries(
+    Object.entries(pose.expressions ?? {}).map(([name, weight]) => [
+      name,
+      scalar(weight),
+    ]),
+  );
   const clip = parseAnimaPoseClip({
-    schema: "animaPoseClip/1.0",
+    schema: ANIMA_POSE_CLIP_V2_SCHEMA,
     id: target.runtimeId,
     name: target.displayName,
     duration: 1,
     loop: true,
-    poses: { held: { humanoid: pose.humanoid, expressions: pose.expressions } },
-    poseKeyframes: [
-      { time: 0, pose: "held" },
-      { time: 1, pose: "held" },
-    ],
+    beats: [{ id: beat, label: "Held", time: 0 }],
+    ...(Object.keys(rotations).length > 0 ? { rotations } : {}),
+    ...(hips
+      ? {
+          hipsPosition: {
+            x: scalar(hips[0]),
+            y: scalar(hips[1]),
+            z: scalar(hips[2]),
+          },
+        }
+      : {}),
+    ...(Object.keys(expressions).length > 0 ? { expressions } : {}),
   });
   const json = JSON.stringify(clip);
   const entry: RuntimeCatalogEntry = {

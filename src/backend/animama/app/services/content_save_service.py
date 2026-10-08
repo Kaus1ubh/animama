@@ -21,6 +21,7 @@ from animama.app.services.content_image import (
     validate_appearance_image_stream,
 )
 from animama.app.services.content_kind_registry import RETIRED_CONTENT_KINDS, definition_for_kind, handler_for_kind
+from animama.app.services.content_package_capabilities import validate_avatar_effect_document
 from animama.app.services.content_portability import reject_restricted_bytes
 from animama.app.services.local_content_mutations import mutation_digest
 from animama.app.services.typed_content_service import TypedContentService, validate_idle_style
@@ -34,7 +35,7 @@ from animama.domain.content_catalog import (
     ContentStatus,
     SavedContent,
 )
-from animama.domain.content_documents import IdleStyleDocumentV2
+from animama.domain.content_documents import AvatarEffectDocumentV1, ContentDocumentError, IdleStyleDocumentV2
 
 _ENTRY_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._ -]{0,119}$")
 
@@ -407,6 +408,14 @@ class ContentSaveService:
             )
             if any(dependency.kind in RETIRED_CONTENT_KINDS for dependency in document.dependencies):
                 raise ContentConflictError("content_dependency_retired")
+            if kind is ContentKind.AVATAR_EFFECT:
+                # Save admits exactly what package export accepts, so a saved
+                # effect can always be shared; the error names the JSON field.
+                if not isinstance(document, AvatarEffectDocumentV1):
+                    raise ContentDocumentError(
+                        "avatar_effect_definition_invalid", "Avatar Effect definition is missing", field="definition"
+                    )
+                validate_avatar_effect_document(document, code="avatar_effect_definition_invalid")
 
             definition = definition_for_kind(kind)
             if definition.descriptor_suffix is None:

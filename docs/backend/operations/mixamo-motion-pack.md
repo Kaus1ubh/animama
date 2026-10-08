@@ -3,7 +3,7 @@
 Desktop and hosted builds ship the pack's Mixamo-derived Gestures and idle loops
 (35 clips in pack `v2`), plus the "Emotive Idle" Idle Style, as **non-portable**
 Included content listed by the tracked manifest
-([ADR 0015](../../adr/0015-non-portable-included-content.md),
+([ADR 0018](../../adr/0018-non-portable-included-content.md),
 [issue #242](https://github.com/raymond-van/animama/issues/242)). The files
 never enter Git, Docker build contexts, self-host images or the public package
 set. This guide covers the owner workflow and the checks that keep that true.

@@ -12,20 +12,20 @@ import {
   getEmotionReactionClipId,
   getAvatarReactionClip,
   parseAnimaPoseClip,
-  sampleAnimaPoseClip,
   sampleAnimaPoseClipActiveEventsAtTime,
   selectEmotionReactionClip,
   validateAnimaPoseClipEventCatalogRefs,
-  type AnimaPoseClip,
   type AnimaPoseClipParticleVFXEvent,
+  type AnimaPoseClipV2,
 } from "@/lib/avatar";
+import { createAnimaPoseClipProgram } from "@/lib/avatar/poses/animaPoseClip/program";
 import { PoseController } from "@/lib/avatar";
 import { ReactionClipPlayer } from "@/lib/avatar/reaction/ReactionClipPlayer";
-import { AVATAR_VFX_CATALOG } from "@/lib/avatar/vfx/catalog";
 import { TRACKED_EMOTIONS } from "@/lib/emotion";
 import { getSceneBackgroundLayerPresetIds } from "@/lib/scene-vfx/catalog";
 
 const emotionReactionIntensities = [1, 2, 3] as const;
+const INCLUDED_AVATAR_EFFECT_ALIASES = readIncludedAvatarEffectAliases();
 const reactionParticleDurations = {
   hearts: 1.8,
   stars: 1.4,
@@ -65,6 +65,51 @@ const expectedReactionParticleEffects = new Map<string, string>([
   ),
 ]);
 
+/**
+ * The aliases Included reactions bind Included Avatar Effects by: each
+ * reaction's avatar_effect dependency whose ref is an Included effect's
+ * content ID. A dependency on a missing effect contributes no alias, so a clip
+ * event naming it fails the catalog check.
+ */
+function readIncludedAvatarEffectAliases(): string[] {
+  const included = join(process.cwd(), "../../../content/included");
+  const effectsRoot = join(included, "vfx/avatar");
+  const effectIds = new Set(
+    readdirSync(effectsRoot).flatMap((item) =>
+      readdirSync(join(effectsRoot, item))
+        .filter((file) => file.endsWith(".json"))
+        .map(
+          (file) =>
+            (
+              JSON.parse(
+                readFileSync(join(effectsRoot, item, file), "utf8"),
+              ) as { content_id: string }
+            ).content_id,
+        ),
+    ),
+  );
+  const reactionsRoot = join(included, "reactions");
+  const aliases = readdirSync(reactionsRoot).flatMap((item) => {
+    const meta = JSON.parse(
+      readFileSync(join(reactionsRoot, item, `${item}.meta.json`), "utf8"),
+    ) as {
+      dependencies?: Array<{
+        ref: string;
+        alias: string;
+        content_type: string;
+      }>;
+    };
+    return (meta.dependencies ?? [])
+      .filter(
+        (dependency) =>
+          dependency.content_type === "avatar_effect" &&
+          effectIds.has(dependency.ref),
+      )
+      .map((dependency) => dependency.alias);
+  });
+  return [...new Set(aliases)].sort();
+}
+
 function buildReactionParticleMappings(
   emotions: readonly string[],
   intensities: readonly number[],
@@ -76,48 +121,37 @@ function buildReactionParticleMappings(
 }
 
 function createExpressionOnlyClip(
-  overrides: Partial<AnimaPoseClip> = {},
-): AnimaPoseClip {
+  overrides: Partial<AnimaPoseClipV2> = {},
+): AnimaPoseClipV2 {
   return parseAnimaPoseClip({
-    schema: "animaPoseClip/1.0",
+    schema: "animaPoseClip/2.0",
     id: "test-reaction",
     name: "Test Reaction",
     role: "reaction",
     duration: 1,
-    poses: {
-      rest: {
-        expressions: {
-          happy: 0,
-        },
-      },
-      peak: {
-        expressions: {
-          happy: 1,
-        },
-      },
-    },
-    poseKeyframes: [
-      {
-        time: 0,
-        pose: "rest",
-      },
-      {
-        time: 1,
-        pose: "peak",
-      },
+    beats: [
+      { id: "rest", label: "Rest", time: 0 },
+      { id: "peak", label: "Peak", time: 1, ease: "easeInOutSine" },
     ],
+    expressions: {
+      happy: [
+        { beat: "rest", v: 0 },
+        { beat: "peak", v: 1 },
+      ],
+    },
     ...overrides,
   });
 }
 
 function createPlaybackScopedClip(
-  overrides: Partial<AnimaPoseClip> = {},
-): AnimaPoseClip {
+  overrides: Partial<AnimaPoseClipV2> = {},
+): AnimaPoseClipV2 {
   return parseAnimaPoseClip({
-    schema: "animaPoseClip/1.0",
+    schema: "animaPoseClip/2.0",
     id: "test-playback-reaction",
     name: "Test Playback Reaction",
     role: "reaction",
+    duration: 1,
     playback: {
       lifetime: {
         kind: "whileInteractionPhase",
@@ -125,43 +159,23 @@ function createPlaybackScopedClip(
         scope: "activeRun",
       },
     },
-    poses: {
-      peak: {
-        expressions: {
-          happy: 1,
-        },
-      },
-    },
-    poseKeyframes: [
-      {
-        time: 0,
-        pose: "peak",
-      },
-    ],
+    beats: [{ id: "peak", label: "Peak", time: 0 }],
+    expressions: { happy: [{ beat: "peak", v: 1 }] },
     ...overrides,
   });
 }
 
+const INVALID_PAYLOAD = "Invalid animaPoseClip/2.0 payload";
+
 describe("animaPoseClip legacy role metadata", () => {
   it("preserves omitted roles as absent and rejects unknown legacy roles", () => {
     const motionClip = parseAnimaPoseClip({
-      schema: "animaPoseClip/1.0",
+      schema: "animaPoseClip/2.0",
       id: "legacy-motion",
       name: "Legacy Motion",
       duration: 1,
-      poses: {
-        rest: {
-          expressions: {
-            happy: 0,
-          },
-        },
-      },
-      poseKeyframes: [
-        {
-          time: 0,
-          pose: "rest",
-        },
-      ],
+      beats: [{ id: "rest", label: "Rest", time: 0 }],
+      expressions: { happy: [{ beat: "rest", v: 0 }] },
     });
 
     expect(motionClip.role).toBeUndefined();
@@ -170,63 +184,26 @@ describe("animaPoseClip legacy role metadata", () => {
         ...motionClip,
         role: "ambient",
       }),
-    ).toThrowError("Invalid animaPoseClip/1.0 payload");
+    ).toThrowError(INVALID_PAYLOAD);
   });
 
-  it("allows playback-scoped clips to omit duration and hold the final sample", () => {
+  it("holds the final sample of a playback-scoped clip past its duration", () => {
     const clip = createPlaybackScopedClip();
 
-    expect(clip.duration).toBeUndefined();
-    expect(getAnimaPoseClipTimelineDuration(clip)).toBe(0);
-    expect(sampleAnimaPoseClip(clip, 10).sample.expressions).toEqual({
-      happy: 1,
+    expect(getAnimaPoseClipTimelineDuration(clip)).toBe(1);
+    const program = createAnimaPoseClipProgram(clip, {
+      resolvePose: () => null,
     });
-  });
-
-  it("interpolates sparse expression channels against neutral zero", () => {
-    const clip = parseAnimaPoseClip({
-      schema: "animaPoseClip/1.0",
-      id: "sparse-expression-reaction",
-      name: "Sparse Expression Reaction",
-      duration: 1,
-      defaultTransition: {
-        easing: "linear",
-        interpolation: { expression: "linear" },
-      },
-      poses: {
-        neutral: {},
-        angry: { expressions: { angry: 1 } },
-        sad: { expressions: { sad: 1 } },
-      },
-      poseKeyframes: [
-        { time: 0, pose: "neutral" },
-        { time: 0.5, pose: "angry" },
-        { time: 1, pose: "sad" },
-      ],
-    });
-
-    expect(sampleAnimaPoseClip(clip, 0.25).sample.expressions).toEqual({
-      angry: 0.5,
-    });
-    expect(sampleAnimaPoseClip(clip, 0.75).sample.expressions).toEqual({
-      angry: 0.5,
-      sad: 0.5,
-    });
+    expect(program.sample(10).sample.expressions).toEqual({ happy: 1 });
   });
 
   it("rejects invalid playback and duration combinations", () => {
     expect(() =>
       parseAnimaPoseClip({
-        schema: "animaPoseClip/1.0",
-        id: "missing-duration",
-        name: "Missing Duration",
-        role: "reaction",
-        poses: {
-          peak: { expressions: { happy: 1 } },
-        },
-        poseKeyframes: [{ time: 0, pose: "peak" }],
+        ...createPlaybackScopedClip(),
+        duration: undefined,
       }),
-    ).toThrowError("Invalid animaPoseClip/1.0 payload");
+    ).toThrowError(INVALID_PAYLOAD);
 
     expect(() =>
       parseAnimaPoseClip({
@@ -238,14 +215,7 @@ describe("animaPoseClip legacy role metadata", () => {
           },
         },
       }),
-    ).toThrowError("Invalid animaPoseClip/1.0 payload");
-
-    expect(() =>
-      parseAnimaPoseClip({
-        ...createPlaybackScopedClip(),
-        loop: true,
-      }),
-    ).toThrowError("Invalid animaPoseClip/1.0 payload");
+    ).toThrowError(INVALID_PAYLOAD);
   });
 
   it("dispatches held playback events once instead of replaying during hold", () => {
@@ -405,7 +375,7 @@ describe("animaPoseClip legacy role metadata", () => {
         createExpressionOnlyClip({
           events: [event as never],
         }),
-      ).toThrowError("Invalid animaPoseClip/1.0 payload");
+      ).toThrowError(INVALID_PAYLOAD);
     }
   });
 
@@ -474,13 +444,9 @@ describe("reaction clip catalog", () => {
 
   it("keeps every reaction clip composable and catalog-referenced", () => {
     const eventCatalogs = {
-      // Angry and Exclamation are descriptor-backed Included items. They
-      // deliberately do not live in the code-shipped fallback registry.
-      avatarVFXIds: [
-        ...AVATAR_VFX_CATALOG.map((entry) => entry.id),
-        "angry",
-        "emote_!",
-      ],
+      // Avatar Effects are descriptor-backed Included items; reactions bind
+      // them by these dependency aliases.
+      avatarVFXIds: INCLUDED_AVATAR_EFFECT_ALIASES,
       sceneBackgroundLayerPresetIds: getSceneBackgroundLayerPresetIds(),
       sceneFocusLinePresetIds: [],
       particleVFXIds: AVATAR_PARTICLE_VFX_CATALOG.map((entry) => entry.id),
@@ -995,7 +961,7 @@ describe("PoseController playback-scoped clips", () => {
     expect(poseController.isClipActive("motion-hold")).toBe(false);
   });
 
-  it("keeps no-duration motion clip VFX active through fade-out", () => {
+  it("keeps playback-scoped motion clip VFX active through fade-out", () => {
     const expressionManager = {
       values: new Map<string, number>(),
       getExpression: (name: string) => (name === "happy" ? {} : null),

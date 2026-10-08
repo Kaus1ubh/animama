@@ -11,6 +11,12 @@ import type { AvatarFaceDebugBox } from "./vfx/AvatarFaceDebugBox";
 import { DEBUG_ENABLED } from "@/platform/env";
 import { AvatarFaceLandmarks } from "./vfx/AvatarFaceLandmarks";
 import { AvatarFaceTextureAnchors } from "./vfx/AvatarFaceTextureAnchors";
+import {
+  detectAvatarFaceParts,
+  type AvatarFacePartCorrections,
+  type AvatarFacePartMap,
+} from "./vfx/faceParts";
+import type { AvatarVFXParsedEntry } from "./vfx/types";
 import { AvatarVFXController } from "./vfx/AvatarVFXController";
 import { ParticleVFXController } from "./particle-vfx/ParticleVFXController";
 import { ExpressionController } from "./ExpressionController";
@@ -80,8 +86,8 @@ import {
   DEFAULT_ANIMA_POSE_CLIP_TRANSITION,
   getAnimaPoseClipTimelineDuration,
   animaPoseClipHasPose,
-  parseAnyAnimaPoseClip,
-  type AnyAnimaPoseClip,
+  parseAnimaPoseClip,
+  type AnimaPoseClipV2,
   type AnimaPoseClipSample,
 } from "./poses/animaPoseClip";
 import {
@@ -336,6 +342,8 @@ export class Avatar {
   public sourceGltf: GLTF | null = null;
   public sourceUrl: string | null = null;
   public sourceKey: string | null = null;
+  /** Detected (or corrected) face and eye parts; read by landmarks and VFX. */
+  public facePartMap: AvatarFacePartMap | null = null;
   public faceLandmarks: AvatarFaceLandmarks | null = null;
   public faceTextureAnchors: AvatarFaceTextureAnchors | null = null;
   public faceDebugBox: AvatarFaceDebugBox | null = null;
@@ -390,6 +398,18 @@ export class Avatar {
   private _clipOwnedParticleVFXIds = new Set<string>();
   private _vrmaRestPoseTransition: VrmaRestPoseTransition | null = null;
   private _isVrm0: boolean = false;
+  private _vrmSha256: string | null = null;
+  private _facePartCorrections: AvatarFacePartCorrections | null = null;
+
+  /** sha256 of the loaded VRM bytes, when the load supplied it. */
+  get vrmSha256(): string | null {
+    return this._vrmSha256;
+  }
+
+  /** The face part correction last given at load or by `setFacePartCorrections`. */
+  get facePartCorrections(): AvatarFacePartCorrections | null {
+    return this._facePartCorrections;
+  }
 
   constructor(
     camera: THREE.Object3D,
@@ -492,6 +512,8 @@ export class Avatar {
       obj.frustumCulled = false;
     });
 
+    this._vrmSha256 = spec.vrmSha256?.trim().toLowerCase() || null;
+    this._detectFaceParts(spec.facePartCorrections ?? null);
     this.faceLandmarks = new AvatarFaceLandmarks(this);
     this.faceTextureAnchors = new AvatarFaceTextureAnchors(this);
     this.vfxController = new AvatarVFXController(this, this._mediaCatalog);
@@ -539,6 +561,9 @@ export class Avatar {
       this.sourceGltf = null;
       this.sourceUrl = null;
       this.sourceKey = null;
+      this.facePartMap = null;
+      this._vrmSha256 = null;
+      this._facePartCorrections = null;
       this.animationManager = null;
       this.expressionController = null;
     }
@@ -632,6 +657,69 @@ export class Avatar {
         this.faceDebugBox.setVisible(true);
       })
       .catch(() => logger.warn("Debug", "Unable to load face diagnostics"));
+  }
+
+  /**
+   * Apply a face part correction (or clear it with null). Rebuilds the part
+   * map, landmarks and texture anchors, then the VFX bindings, and re-applies
+   * active effects. A correction for different VRM bytes is ignored with a
+   * diagnostic, as at load.
+   */
+  async setFacePartCorrections(
+    corrections: AvatarFacePartCorrections | null,
+  ): Promise<void> {
+    if (!this.isReady) return;
+    this._detectFaceParts(corrections);
+    this.faceDebugBox?.dispose();
+    this.faceDebugBox = null;
+    this.faceTextureAnchors?.dispose();
+    this.faceLandmarks?.dispose();
+    this.faceLandmarks = new AvatarFaceLandmarks(this);
+    this.faceTextureAnchors = new AvatarFaceTextureAnchors(this);
+    this.setFaceDebugBoxVisible(this._faceDebugVisible);
+    await this.vfxController?.refreshFaceParts();
+  }
+
+  private _detectFaceParts(
+    corrections: AvatarFacePartCorrections | null,
+  ): void {
+    this._facePartCorrections = corrections;
+    if (!this.vrm || !this.sourceGltf) {
+      this.facePartMap = null;
+      return;
+    }
+    let map: AvatarFacePartMap;
+    try {
+      map = detectAvatarFaceParts(this.vrm, this.sourceGltf, {
+        corrections,
+        vrmSha256: this._vrmSha256,
+        sourceKey: this.sourceKey,
+        sourceUrl: this.sourceUrl,
+      });
+    } catch (error) {
+      // An unusual model must not fail the load: without a part map,
+      // landmarks and VFX bindings use material names as before.
+      this.facePartMap = null;
+      logger.warn("FaceParts", "Face part detection failed; using names", {
+        reason: "avatar_face_parts_detection_failed",
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return;
+    }
+    this.facePartMap = map;
+    logger.info("FaceParts", "Resolved face parts", {
+      parts: Object.fromEntries(
+        Object.values(map.parts).map((part) => [
+          part.role,
+          { source: part.source, bindings: part.bindings.length },
+        ]),
+      ),
+    });
+    if (map.diagnostics.length > 0) {
+      logger.warn("FaceParts", "Face part diagnostics", {
+        diagnostics: map.diagnostics,
+      });
+    }
   }
 
   getFaceLandmarksSnapshot(): AvatarFaceLandmarksSnapshot | null {
@@ -1035,7 +1123,7 @@ export class Avatar {
     return this._motionCatalog.listAnimations();
   }
 
-  getLoadedMotionPoseClip(clipId: string): AnyAnimaPoseClip | null {
+  getLoadedMotionPoseClip(clipId: string): AnimaPoseClipV2 | null {
     return this._motionCatalog.getPoseClip(clipId);
   }
 
@@ -1043,15 +1131,15 @@ export class Avatar {
     return this._motionCatalog.listReactionClips();
   }
 
-  getLoadedMotionReactionClip(clipId: string): AnyAnimaPoseClip | null {
+  getLoadedMotionReactionClip(clipId: string): AnimaPoseClipV2 | null {
     return this._motionCatalog.getReactionClip(clipId);
   }
 
   playAnimaPoseClip(
-    clip: AnyAnimaPoseClip,
+    clip: AnimaPoseClipV2,
     options?: PoseClipPlayOptions,
   ): AvatarPoseClipSnapshot {
-    const parsedClip = parseAnyAnimaPoseClip(clip);
+    const parsedClip = parseAnimaPoseClip(clip);
     // Effect-only clips share the event clock without replacing the pose base.
     if (!animaPoseClipHasPose(parsedClip)) {
       return this._playAnimaPoseClip(parsedClip, options);
@@ -1062,7 +1150,7 @@ export class Avatar {
   }
 
   private _playAnimaPoseClip(
-    clip: AnyAnimaPoseClip,
+    clip: AnimaPoseClipV2,
     options?: PoseClipPlayOptions,
   ): AvatarPoseClipSnapshot {
     const poseController = this.poseController;
@@ -1447,10 +1535,14 @@ export class Avatar {
    * The callback cannot yield, so animation and lip-sync clocks cannot advance
    * while WebGL reads this capture frame. Keeping the already-rendered pose also
    * avoids VRM 0.x raw/normalized rest-axis differences.
+   *
+   * `keepLiveExpressions` renders the current expression state unchanged;
+   * `expressionName` is then ignored, so callers pass null.
    */
   runWithPortraitCaptureState<T>(
     expressionName: string | null,
     callback: () => T,
+    options: { keepLiveExpressions?: boolean } = {},
   ): T {
     if (!this.vrm) {
       throw new Error("avatar_portrait_model_not_ready");
@@ -1462,7 +1554,7 @@ export class Avatar {
       return callback();
     };
 
-    return this.expressionController
+    return this.expressionController && !options.keepLiveExpressions
       ? this.expressionController.runWithTemporaryValues(values, run)
       : run();
   }
@@ -2288,6 +2380,7 @@ export class Avatar {
     this.poseController.setClipEventSink({
       applyAvatarVFX: this._applyPoseClipAvatarVFX,
       clearAvatarVFX: this._clearPoseClipAvatarVFX,
+      setAvatarVFXIntensity: this._setClipAvatarVFXIntensity,
       applyParticleVFX: this._applyPoseClipParticleVFX,
       clearParticleVFX: this._clearPoseClipParticleVFX,
       ...(externalSink?.applySceneVFX
@@ -2306,6 +2399,7 @@ export class Avatar {
     this.reactionClipPlayer.setEventSink({
       applyAvatarVFX: this._applyReactionClipAvatarVFX,
       clearAvatarVFX: this._clearReactionClipAvatarVFX,
+      setAvatarVFXIntensity: this._setClipAvatarVFXIntensity,
       applyParticleVFX: this._applyReactionClipParticleVFX,
       clearParticleVFX: this._clearReactionClipParticleVFX,
       ...(externalSink?.applySceneVFX
@@ -2317,6 +2411,18 @@ export class Avatar {
       ...(externalSink?.playSfx ? { playSfx: externalSink.playSfx } : {}),
     });
   }
+
+  /** Forward a clip event's fade to the effect it owns (held while it loads). */
+  private _setClipAvatarVFXIntensity = (
+    _event: Parameters<
+      NonNullable<AnimaPoseClipEventSink["setAvatarVFXIntensity"]>
+    >[0],
+    context: AnimaPoseClipEventContext,
+    intensity: number,
+  ): void => {
+    if (!this._clipOwnedAvatarVFXIds.has(context.appliedId)) return;
+    this.vfxController?.setEffectIntensity(context.appliedId, intensity);
+  };
 
   private _applyPoseClipAvatarVFX = async (
     event: Parameters<NonNullable<AnimaPoseClipEventSink["applyAvatarVFX"]>>[0],
@@ -2409,8 +2515,9 @@ export class Avatar {
 
     let didApply = false;
     let soundCueId: string | undefined;
+    let effect: AvatarVFXParsedEntry | null = null;
     try {
-      const effect = await this._mediaCatalog.loadAvatarVFX(event.effectId);
+      effect = await this._mediaCatalog.loadAvatarVFX(event.effectId);
       if (
         context.signal?.aborted ||
         this._wasClipOwnedAvatarVFXCancelled(context.appliedId)
@@ -2440,6 +2547,9 @@ export class Avatar {
       );
       this._clipOwnedAvatarVFXIds.delete(context.appliedId);
       if (wasCancelled) return;
+      // A missing face part is an expected model limit, already logged once
+      // by the controller; the clip continues without the effect.
+      if (effect && this.vfxController?.findUnavailableFacePart(effect)) return;
       throw new Error(`Avatar VFX "${event.effectId}" could not be applied.`);
     }
 

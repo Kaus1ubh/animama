@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseAnyAnimaPoseClip } from "@/lib/avatar/poses/animaPoseClip";
+import { parseAnimaPoseClip } from "@/lib/avatar/poses/animaPoseClip";
 import {
   DEFAULT_POSE_CREATOR_BASE_POSE,
   usePoseCreatorStore,
@@ -112,7 +112,7 @@ describe("actionDependencies", () => {
       );
       usePoseCreatorStore
         .getState()
-        .hydrateClipDocument(parseAnyAnimaPoseClip(inserted.sequence), {
+        .hydrateClipDocument(parseAnimaPoseClip(inserted.sequence), {
           fallbackBasePose: DEFAULT_POSE_CREATOR_BASE_POSE,
         });
       const sequence = actionSequenceFromTimelineDraft(
@@ -156,7 +156,8 @@ describe("actionDependencies", () => {
 
   it("retains invalid imported sequence data while adding a component for repair", () => {
     const initial = createActionDocument("gesture");
-    initial.sequence.poseKeyframes = [{ time: 0, pose: "missing" }];
+    // A key on a beat the clip does not have.
+    initial.sequence.expressions = { happy: [{ v: 1, beat: "missing" }] };
     const next = addActionComponentEvent(initial, {
       name: "Sparkles",
       contentType: "particle_effect",
@@ -164,7 +165,7 @@ describe("actionDependencies", () => {
       time: 0.6,
     });
     expect(canonicalizeActionComponentInsertion(next)).toBe(next);
-    expect(next.sequence.poseKeyframes).toEqual(initial.sequence.poseKeyframes);
+    expect(next.sequence.expressions).toEqual(initial.sequence.expressions);
     expect(next.sequence.events).toHaveLength(1);
     expect(next.dependencies).toHaveLength(1);
   });

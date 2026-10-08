@@ -1,10 +1,12 @@
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import type { VRM } from "@pixiv/three-vrm";
+import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 
 import {
   INCLUDED_AVATAR_FILES,
   loadHeadlessVrm,
+  loadHeadlessVrmWithGltf,
   type IncludedAvatarId,
 } from "../headlessVrm";
 
@@ -16,6 +18,22 @@ const cache = new Map<IncludedAvatarId, Promise<ArrayBuffer>>();
 
 /** Load a fresh headless copy of an Included Avatar for a test. */
 export async function loadTestAvatar(id: IncludedAvatarId): Promise<VRM> {
+  return loadHeadlessVrm(await readTestAvatarBytes(id));
+}
+
+/**
+ * Load an Included Avatar with its glTF and the app's mesh cleanup, for checks
+ * that read real primitives (face parts, landmarks).
+ */
+export async function loadTestAvatarWithGltf(
+  id: IncludedAvatarId,
+): Promise<{ vrm: VRM; gltf: GLTF }> {
+  return loadHeadlessVrmWithGltf(await readTestAvatarBytes(id), {
+    removeUnnecessaryVertices: true,
+  });
+}
+
+function readTestAvatarBytes(id: IncludedAvatarId): Promise<ArrayBuffer> {
   let bytes = cache.get(id);
   if (!bytes) {
     bytes = readFile(avatarDirectory + INCLUDED_AVATAR_FILES[id]).then(
@@ -27,5 +45,5 @@ export async function loadTestAvatar(id: IncludedAvatarId): Promise<VRM> {
     );
     cache.set(id, bytes);
   }
-  return loadHeadlessVrm(await bytes);
+  return bytes;
 }

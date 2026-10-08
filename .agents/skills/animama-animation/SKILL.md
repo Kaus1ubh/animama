@@ -47,9 +47,10 @@ first.
 4. **Check:** `pnpm -s animation check <file>.clip.json`. Fix every FAIL;
    treat WARN as a prompt to look. See [checks and review](references/checks-and-review.md).
 5. **Preview and look:** `pnpm -s animation:preview <file>.clip.json`
-   plays it live on both Avatars with live layers, beat markers and camera
-   presets, and reloads as you edit; its pickers switch to other clips and
-   Library items without a restart. Judge timing there; use
+   plays it live on both Avatars, lit like the chat canvas, with live layers,
+   beat markers and camera presets (a Library item or project file also plays
+   its Avatar and Particle Effects), and reloads as you edit; its pickers
+   switch to other clips and Library items without a restart. Judge timing there; use
    `pnpm -s animation:render <file>.clip.json --out <dir>` for still contact
    sheets (`--times` for beats, `--side left` for left-handed action). Revise
    and repeat from step 2 until it reads clearly and naturally. When the owner
@@ -83,9 +84,7 @@ save run.
 path. Copy that file to `.animama-drafts/`, edit it, then validate, check and
 preview with `--compare library:<selector>` to see old and new together.
 Save a Local Gesture with `animation:save` under the same Selector ID (or
-import it in the creator and Save); the item keeps its identity. A 1.0
-Gesture (older Included content) must first be opened and saved once in the
-creator, which converts it to 2.0; `validate` accepts only 2.0. Changing an
+import it in the creator and Save); the item keeps its identity. Changing an
 Included Gesture's bytes is a promotion (step 9) with `mode: "replace"`.
 
 ## Decision rules

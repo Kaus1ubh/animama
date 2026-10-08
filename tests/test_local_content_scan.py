@@ -41,12 +41,12 @@ def test_scan_admits_simple_sidecar_and_descriptor_entries_independently(tmp_pat
     (reaction / "happy.json").write_text(
         json.dumps(
             {
-                "schema": "animaPoseClip/1.0",
+                "schema": "animaPoseClip/2.0",
                 "id": "happy",
                 "name": "Happy",
                 "duration": 1,
-                "poses": {"expression": {"expressions": {"happy": 1}}},
-                "poseKeyframes": [{"time": 0, "pose": "expression"}],
+                "beats": [{"id": "expression", "label": "Expression", "time": 0}],
+                "expressions": {"happy": [{"beat": "expression", "v": 1}]},
             }
         ),
         encoding="utf-8",
@@ -92,6 +92,59 @@ def test_scan_admits_simple_sidecar_and_descriptor_entries_independently(tmp_pat
     assert by_locator["gestures/bad-id.vrma"].status is ContentStatus.INVALID
     assert by_locator["gestures/bad-id.vrma"].logical_key is None
     assert by_locator["gestures/bad-id.vrma"].diagnostics[0].code == "invalid_logical_key"
+
+
+@pytest.mark.parametrize(
+    ("kind", "schema", "message"),
+    [
+        ("gesture", "animaPoseClip/1.0", "retired animaPoseClip/1.0 format"),
+        ("reaction", "animaPoseClip/1.0", "retired animaPoseClip/1.0 format"),
+        ("reaction", "animaPoseClip/9.0", 'Unsupported clip format "animaPoseClip/9.0"'),
+    ],
+)
+def test_scan_rejects_clips_in_unsupported_formats(tmp_path: Path, kind: str, schema: str, message: str) -> None:
+    paths = initialize_local_runtime(
+        Settings(animama_content_root=tmp_path / "content", animama_data_root=tmp_path / "data")
+    )
+    entry = paths.local_root / f"{kind}s/old"
+    entry.mkdir(parents=True, exist_ok=True)
+    (entry / "old.json").write_text(
+        json.dumps(
+            {
+                "schema": schema,
+                "id": "old",
+                "name": "Old",
+                "poses": {"a": {"expressions": {"happy": 1}}},
+                "poseKeyframes": [{"time": 0, "pose": "a"}],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (entry / "old.meta.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "content_type": kind,
+                "id": f"local:{kind}:old",
+                "name": "Old",
+                "implementation": {"kind": "anima_clip", "file_role": "sequence"},
+                "files": [{"path": "old.json", "role": "sequence"}],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    entries = FilesystemContentStore(
+        included_root=paths.included_root,
+        local_root=paths.local_root,
+        operations_root=paths.operations_root,
+    ).scan(ContentSource.LOCAL)
+    scanned = {item.relative_locator: item for item in entries}[f"{kind}s/old"]
+
+    assert scanned.status is ContentStatus.INVALID
+    assert [diagnostic.code for diagnostic in scanned.diagnostics] == ["clip_format_unsupported"]
+    assert message in scanned.diagnostics[0].message
+    assert "animaPoseClip/2.0" in scanned.diagnostics[0].message
 
 
 @pytest.mark.parametrize("source", [ContentSource.INCLUDED, ContentSource.LOCAL])

@@ -1,6 +1,7 @@
 # 0014: Track-based Anima Pose Clips organised by beats
 
-- Status: accepted
+- Status: accepted; 1.0 coexistence superseded by
+  [ADR 0016](0016-anima-pose-clip-2-only.md)
 - Recorded: 2026-10-06
 - Retrospective: no
 - Original decision date: 2026-10-05 (owner intent decisions in

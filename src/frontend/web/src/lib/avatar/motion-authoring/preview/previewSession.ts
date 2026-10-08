@@ -13,13 +13,22 @@ import {
   type ReviewPaths,
   type ReviewSidecar,
 } from "./reviewNotes";
+import { AvatarEffectDefinitionError } from "../../vfx/definition";
+import { effectSourceEntry } from "../../vfx/effectSource";
+import {
+  clipUsesMedia,
+  type PreviewEffect,
+  type PreviewMedia,
+} from "./previewMedia";
 import {
   PreviewSourceError,
+  isInLibraryContent,
   previewClipFromText,
   resolvePreviewSource,
   sourceVersion,
   type PreviewClip,
   type PreviewIssue,
+  type PreviewMediaAdapter,
   type PreviewRoots,
   type PreviewSource,
 } from "./sources";
@@ -30,18 +39,26 @@ export type PreviewSessionOptions = {
   roots: PreviewRoots;
   /** Explicit review-notes file (`--notes`). */
   notes?: string;
+  /** Avatar Effect sources and clip dependencies; without it, clips only. */
+  media?: PreviewMediaAdapter;
   now?: () => Date;
 };
 
 export type PreviewRow = {
   role: "main" | "compare";
   spec: string;
+  /** A clip (Gesture, Reaction or project) or an Avatar Effect source. */
+  type: "clip" | "effect";
   label: string;
   path: string;
-  /** Version of the playing clip; null until the source first loads. */
+  /** Version of the playing source; null until it first loads. */
   version: string | null;
   /** The last valid clip (kept while the source is invalid). */
   clip: PreviewClip | null;
+  /** The last valid effect source (kept while it is invalid). */
+  effect: PreviewEffect | null;
+  /** Effects the clip's events play; null when it has no such events. */
+  media: PreviewMedia | null;
   error: { message: string; issues: PreviewIssue[] } | null;
 };
 
@@ -72,6 +89,8 @@ export class PreviewSession {
   private readonly sources: PreviewSource[];
   private readonly rows: PreviewRow[];
   private readonly paths: ReviewPaths;
+  /** Each effect source's descriptor and images, as last loaded. */
+  private readonly effectFiles = new Map<number, string[]>();
 
   private constructor(
     options: PreviewSessionOptions,
@@ -87,20 +106,32 @@ export class PreviewSession {
 
   static async open(options: PreviewSessionOptions): Promise<PreviewSession> {
     const sources = await Promise.all(
-      options.sources.map((spec) => resolvePreviewSource(spec, options.roots)),
+      options.sources.map(
+        async (spec) =>
+          (await options.media?.resolve(spec, options.roots)) ??
+          resolvePreviewSource(spec, options.roots),
+      ),
     );
     const rows = sources.map(
       (source, index): PreviewRow => ({
         role: index === 0 ? "main" : "compare",
         spec: source.spec,
+        type: source.type ?? "clip",
         label: source.label,
         path: source.path,
         version: null,
         clip: null,
+        effect: null,
+        media: null,
         error: null,
       }),
     );
-    const paths = reviewPathsFor(sources[0], {
+    // Notes never go inside Library content, even for a file given by path:
+    // the content scanner would take them for files of the item.
+    const reviewed = (await isInLibraryContent(sources[0].path, options.roots))
+      ? { ...sources[0], kind: "library" as const }
+      : sources[0];
+    const paths = reviewPathsFor(reviewed, {
       cwd: options.roots.cwd,
       notes: options.notes,
     });
@@ -120,9 +151,34 @@ export class PreviewSession {
     this.generation = Math.max(this.generation, generation + 1);
   }
 
-  /** Files whose changes should trigger `reload`. */
+  /**
+   * Files whose changes should trigger `reload`, including each effect
+   * source's images (which can change when its descriptor does).
+   */
   get watchPaths(): string[] {
-    return [...this.sources.map(({ path }) => path), this.paths.sidecar];
+    return [
+      ...new Set([
+        ...this.sources.map(({ path }) => path),
+        ...[...this.effectFiles.values()].flat(),
+        this.paths.sidecar,
+      ]),
+    ];
+  }
+
+  /**
+   * Folders whose every change should trigger `reload`: each effect source's
+   * folder, so an image the descriptor names but that is missing (or newly
+   * renamed) is picked up when it appears. The version hash makes a change
+   * that alters nothing a no-op.
+   */
+  get watchDirs(): string[] {
+    return [
+      ...new Set(
+        this.sources
+          .filter(({ type }) => type === "effect")
+          .map(({ path: file }) => path.dirname(file)),
+      ),
+    ];
   }
 
   get reviewPaths(): ReviewPaths {
@@ -139,6 +195,10 @@ export class PreviewSession {
       let changed = await this.reloadNotes();
       for (const [index, source] of this.sources.entries()) {
         const row = this.rows[index];
+        if (row.type === "effect") {
+          changed = (await this.reloadEffect(index)) || changed;
+          continue;
+        }
         let text: string;
         try {
           text = await readFile(source.path, "utf8");
@@ -163,7 +223,9 @@ export class PreviewSession {
           continue;
         }
         try {
-          row.clip = previewClipFromText(text);
+          const clip = previewClipFromText(text);
+          row.media = await this.mediaFor(source, clip);
+          row.clip = clip;
         } catch (error) {
           changed =
             setRowError(
@@ -181,6 +243,68 @@ export class PreviewSession {
       if (changed) this.generation += 1;
       return changed;
     });
+  }
+
+  /** Re-read an effect source; same contract as a clip row in `reload`. */
+  private async reloadEffect(index: number): Promise<boolean> {
+    const source = this.sources[index];
+    const row = this.rows[index];
+    let loaded: Awaited<ReturnType<PreviewMediaAdapter["load"]>>;
+    try {
+      loaded = await this.options.media!.load(source, this.options.roots);
+      this.effectFiles.set(index, loaded.files);
+      validatePreviewEffect(loaded.effect);
+    } catch (error) {
+      return setRowError(
+        row,
+        (error as Error).message,
+        error instanceof PreviewSourceError ? error.issues : [],
+      );
+    }
+    if (loaded.version === row.version && !row.error) {
+      if (
+        row.role === "main" &&
+        this.sidecar &&
+        !this.sidecar.versions.some(({ id }) => id === loaded.version)
+      )
+        await this.retain(loaded.version, loaded.text);
+      return false;
+    }
+    row.effect = loaded.effect;
+    row.version = loaded.version;
+    row.error = null;
+    if (row.role === "main") await this.retain(loaded.version, loaded.text);
+    return true;
+  }
+
+  /**
+   * The effects a clip's events play: resolved from a project envelope's
+   * dependencies or a Library item's meta file. Null when no event needs
+   * them; a dependency that cannot be read becomes a notice, not an error.
+   */
+  private async mediaFor(
+    source: PreviewSource,
+    clip: PreviewClip,
+  ): Promise<PreviewMedia | null> {
+    const adapter = this.options.media;
+    if (!adapter || !clipUsesMedia(clip.clip)) return null;
+    if (clip.dependencies)
+      return adapter.media(clip.dependencies, this.options.roots);
+    if (!source.metaPath) return null;
+    try {
+      const meta = JSON.parse(await readFile(source.metaPath, "utf8")) as {
+        dependencies?: unknown;
+      };
+      return await adapter.media(meta?.dependencies, this.options.roots);
+    } catch (error) {
+      return {
+        avatarEffects: [],
+        particleEffects: [],
+        notices: [
+          `Cannot read the dependencies in ${source.metaPath}: ${(error as Error).message}`,
+        ],
+      };
+    }
   }
 
   state(): PreviewState {
@@ -214,8 +338,11 @@ export class PreviewSession {
     });
   }
 
-  /** Replay a retained version of the reviewed source. */
+  /** Replay a retained version of the reviewed clip. */
   async versionClip(versionId: string): Promise<PreviewClip> {
+    // An effect's retained descriptor lacks its images, so it cannot replay.
+    if (this.rows[0].type === "effect")
+      throw new Error("Earlier effect versions cannot be replayed.");
     const text = await readRetainedVersion(this.paths, versionId);
     return previewClipFromText(text);
   }
@@ -283,6 +410,21 @@ export class PreviewSession {
       path.dirname(this.paths.sidecar),
       this.sources[0].path,
     );
+  }
+}
+
+/**
+ * Parse an effect source as runtime loading would, so a definition problem is
+ * reported by field like a clip's, before the page tries to apply it.
+ */
+function validatePreviewEffect(effect: PreviewEffect): void {
+  try {
+    effectSourceEntry(effect);
+  } catch (error) {
+    if (!(error instanceof AvatarEffectDefinitionError)) throw error;
+    throw new PreviewSourceError("The Avatar Effect cannot be played.", [
+      { path: error.field ?? "definition", message: error.message },
+    ]);
   }
 }
 

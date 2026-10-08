@@ -14,6 +14,7 @@ from animama.domain.content_catalog import ContentKind, ContentSource, ContentSt
 from animama.runtime.starter_content import _regular_path, catalog_from_scan, starter_inventory
 from tests.anima_creation_service_support import (
     EXPECTED_STARTER_GESTURE_IDS,
+    INCLUDED_POSE_IDS,
     copy_tracked_included,
     write_supplied_starter_fixture,
 )
@@ -30,15 +31,8 @@ def test_tracked_checkout_packages_both_starters_without_private_animations(tmp_
     assert [starter["name"] for starter in inventory["starters"]] == ["Annie", "Caitlyn"]
     assert not list(root.rglob("*.vrma"))
     poses = [entry for entry in inventory["entries"] if entry["kind"] == "pose"]
-    assert len(poses) == 5
     assert all(entry["partition"] == "core" for entry in poses)
-    assert {entry["logical_key"] for entry in poses} == {
-        "relaxedRest",
-        "shy-finger-poke-1",
-        "shy-finger-poke-2",
-        "thinking-head-scratch-1",
-        "thinking-head-scratch-2",
-    }
+    assert sorted(entry["logical_key"] for entry in poses) == sorted(INCLUDED_POSE_IDS)
     assert all(not starter["diagnostics"] for starter in inventory["starters"])
     assert not any("idle-style:starter" in root for starter in inventory["starters"] for root in starter["roots"])
 

@@ -123,11 +123,7 @@ export function MemoryManualPanel({
       <div className="border-border/40 shrink-0 space-y-2 border-b p-4">
         <div className="flex items-center justify-between gap-3">
           <Label htmlFor="memory-workspace-description">Description</Label>
-          {dirty ? (
-            <span className="text-xs text-amber-700 dark:text-amber-300">
-              Unsaved
-            </span>
-          ) : null}
+          {dirty ? <span className="text-warning text-xs">Unsaved</span> : null}
         </div>
         <Input
           id="memory-workspace-description"
@@ -137,7 +133,7 @@ export function MemoryManualPanel({
         />
       </div>
       {draft.conflict ? (
-        <div className="border-b border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-300">
+        <div className="border-warning/30 bg-warning/10 text-warning border-b px-4 py-3 text-sm">
           This file has a newer server version. Your draft is preserved.
         </div>
       ) : null}

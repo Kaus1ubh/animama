@@ -31,9 +31,9 @@ import type {
 } from "@/lib/avatar/poses/animaPose";
 import {
   MAX_ANIMA_POSE_CLIP_BYTES,
-  parseAnyAnimaPoseClip,
+  parseAnimaPoseClip,
   validateAnimaPoseClipEventCatalogRefs,
-  type AnyAnimaPoseClip,
+  type AnimaPoseClipV2,
   type AnimaPoseClipEventCatalogRefDiagnostics,
 } from "@/lib/avatar/poses/animaPoseClip";
 import type { NormalizedEmotionReactionIntensity } from "@/lib/avatar/reactionClips";
@@ -53,7 +53,10 @@ import type {
   ParticleVFXCatalogEntry,
   ParticleVFXPreloadTier,
 } from "@/lib/avatar/particle-vfx/types";
-import type { AvatarVFXCatalogEntry } from "@/lib/avatar/vfx/types";
+import type {
+  AvatarVFXCatalogEntry,
+  AvatarVFXParsedEntry,
+} from "@/lib/avatar/vfx/types";
 import type { SceneVFXEntry, SceneVFXKind } from "@/lib/scene-vfx/types";
 import {
   fetchPrivateRuntimeContentResponse,
@@ -81,7 +84,8 @@ export type AnimaRuntimeCatalogDiagnostic = {
     | "motion_resource_failed"
     | "invalid_motion_manifest"
     | "missing_event_reference"
-    | "runtime_resource_pending";
+    | "runtime_resource_pending"
+    | "avatar_vfx_source_unsupported";
   slot: RuntimeContentSlot;
   runtimeId: string;
   message: string;
@@ -103,6 +107,7 @@ export class AnimaRuntimeCatalog
   private readonly admittedEntries = new Map<string, RuntimeCatalogEntry>();
   private readonly issuedRoots = new Map<string, readonly string[]>();
   private readonly pendingWarnings = new Set<string>();
+  private readonly unsupportedAvatarVFX = new Set<string>();
   private readonly getRootReadiness?: RuntimePreparationSession["getRootReadiness"];
   private readonly listeners = new Set<() => void>();
   private availabilityVersion = 0;
@@ -123,19 +128,19 @@ export class AnimaRuntimeCatalog
     string,
     AvatarMotionClipDescriptor
   >();
-  private readonly poseClips = new Map<string, AnyAnimaPoseClip>();
-  private readonly reactionClips = new Map<string, AnyAnimaPoseClip>();
+  private readonly poseClips = new Map<string, AnimaPoseClipV2>();
+  private readonly reactionClips = new Map<string, AnimaPoseClipV2>();
   private readonly lazyPoseClips = new Map<string, LazyClipSource>();
   private readonly lazyReactionClips = new Map<string, LazyClipSource>();
   private readonly poseClipSources = new Map<string, RuntimeCatalogEntry>();
   private readonly rejectedPoseRuntimeIds = new Set<string>();
   private readonly pendingPoseClips = new Map<
     string,
-    Promise<AnyAnimaPoseClip | null>
+    Promise<AnimaPoseClipV2 | null>
   >();
   private readonly pendingReactionClips = new Map<
     string,
-    Promise<AnyAnimaPoseClip | null>
+    Promise<AnimaPoseClipV2 | null>
   >();
   private readonly vrmaResources = new Map<string, AvatarVrmaResource>();
   private readonly vrmaCache: NonNullable<AvatarVrmaResource["cache"]> =
@@ -209,6 +214,7 @@ export class AnimaRuntimeCatalog
     };
 
     this.addMotion(runtime);
+    this.recordUnsupportedAvatarVFX(runtime.avatar_vfx);
     this.mediaCatalog = new AnimaRuntimeMediaCatalog(
       this.mediaEntries(runtime),
       {
@@ -268,6 +274,7 @@ export class AnimaRuntimeCatalog
       this.effectiveEventIds.sfxCueIds.add(entry.runtime_id);
     const previousCount = this.admittedEntries.size;
     this.addMotion(runtime);
+    this.recordUnsupportedAvatarVFX(runtime.avatar_vfx);
     const mediaChanged = this.mediaCatalog.admitPrepared(
       this.mediaEntries(runtime),
     );
@@ -464,11 +471,11 @@ export class AnimaRuntimeCatalog
     ];
   }
 
-  getPoseClip(runtimeId: string): AnyAnimaPoseClip | null {
+  getPoseClip(runtimeId: string): AnimaPoseClipV2 | null {
     return this.poseClips.get(normalizeFile(runtimeId)) ?? null;
   }
 
-  loadPoseClip(runtimeId: string): Promise<AnyAnimaPoseClip | null> {
+  loadPoseClip(runtimeId: string): Promise<AnimaPoseClipV2 | null> {
     if (
       this.pending("pose", runtimeId) ||
       this.pending("gesture", runtimeId) ||
@@ -491,11 +498,11 @@ export class AnimaRuntimeCatalog
     }));
   }
 
-  getReactionClip(runtimeId: string): AnyAnimaPoseClip | null {
+  getReactionClip(runtimeId: string): AnimaPoseClipV2 | null {
     return this.reactionClips.get(normalizeFile(runtimeId)) ?? null;
   }
 
-  loadReactionClip(runtimeId: string): Promise<AnyAnimaPoseClip | null> {
+  loadReactionClip(runtimeId: string): Promise<AnimaPoseClipV2 | null> {
     if (this.pending("reaction", runtimeId)) return Promise.resolve(null);
     return this.loadClip(
       normalizeFile(runtimeId),
@@ -568,7 +575,7 @@ export class AnimaRuntimeCatalog
     return this.mediaCatalog.resolveAvatarVFX(runtimeId);
   }
 
-  loadAvatarVFX(runtimeId: string): Promise<AvatarVFXCatalogEntry | null> {
+  loadAvatarVFX(runtimeId: string): Promise<AvatarVFXParsedEntry | null> {
     if (this.pending("avatar_vfx", runtimeId)) return Promise.resolve(null);
     return this.mediaCatalog.loadAvatarVFX(runtimeId);
   }
@@ -926,7 +933,7 @@ export class AnimaRuntimeCatalog
 
   private resolveBuiltInClip(
     entry: RuntimeCatalogEntry,
-  ): AnyAnimaPoseClip | null {
+  ): AnimaPoseClipV2 | null {
     if (entry.source.type !== "runtime_catalog") return null;
     if (entry.source.catalog === "avatar_pose_clips") {
       return BUILT_IN_AVATAR_MOTION_CATALOG.getPoseClip(entry.source.key);
@@ -940,10 +947,10 @@ export class AnimaRuntimeCatalog
   private loadClip(
     runtimeId: string,
     slot: "pose" | "reaction",
-    loaded: Map<string, AnyAnimaPoseClip>,
+    loaded: Map<string, AnimaPoseClipV2>,
     lazy: Map<string, LazyClipSource>,
-    pending: Map<string, Promise<AnyAnimaPoseClip | null>>,
-  ): Promise<AnyAnimaPoseClip | null> {
+    pending: Map<string, Promise<AnimaPoseClipV2 | null>>,
+  ): Promise<AnimaPoseClipV2 | null> {
     if (!runtimeId || this.disposed) return Promise.resolve(null);
     const existing = loaded.get(runtimeId);
     if (existing) return Promise.resolve(existing);
@@ -978,7 +985,7 @@ export class AnimaRuntimeCatalog
 
   private async fetchClip(
     source: LazyClipSource,
-  ): Promise<AnyAnimaPoseClip | null> {
+  ): Promise<AnimaPoseClipV2 | null> {
     const controller = new AbortController();
     this.abortControllers.add(controller);
     try {
@@ -996,13 +1003,13 @@ export class AnimaRuntimeCatalog
           `Motion manifest fetch failed with HTTP ${response.status}`,
         );
       }
-      let parsed: AnyAnimaPoseClip;
+      let parsed: AnimaPoseClipV2;
       try {
         const payload = await readBoundedJsonResponse(
           response,
           MAX_ANIMA_POSE_CLIP_BYTES,
         );
-        parsed = parseAnyAnimaPoseClip(payload);
+        parsed = parseAnimaPoseClip(payload);
       } catch (error) {
         this.diagnostics.push({
           code: "invalid_motion_manifest",
@@ -1023,8 +1030,8 @@ export class AnimaRuntimeCatalog
 
   private normalizeLoadedClip(
     entry: RuntimeCatalogEntry,
-    clip: AnyAnimaPoseClip,
-  ): AnyAnimaPoseClip | null {
+    clip: AnimaPoseClipV2,
+  ): AnimaPoseClipV2 | null {
     const referenceMap =
       entry.config.runtime_reference_map &&
       typeof entry.config.runtime_reference_map === "object"
@@ -1048,7 +1055,7 @@ export class AnimaRuntimeCatalog
         effectId: String(referenceMap[event.effectId] ?? event.effectId),
       };
     });
-    const normalized = parseAnyAnimaPoseClip({
+    const normalized = parseAnimaPoseClip({
       ...clip,
       id: normalizeFile(entry.runtime_id),
       name: entry.display_name,
@@ -1077,6 +1084,27 @@ export class AnimaRuntimeCatalog
       }
     }
     return normalized;
+  }
+
+  /**
+   * Avatar Effects play only from registered definition files. The bundled
+   * fallback registry is retired, so a `runtime_catalog` source cannot resolve.
+   */
+  private recordUnsupportedAvatarVFX(
+    entries: readonly RuntimeCatalogEntry[],
+  ): void {
+    for (const entry of entries) {
+      if (entry.source.type !== "runtime_catalog") continue;
+      const key = this.entryKey(entry);
+      if (this.unsupportedAvatarVFX.has(key)) continue;
+      this.unsupportedAvatarVFX.add(key);
+      this.diagnostics.push({
+        code: "avatar_vfx_source_unsupported",
+        slot: entry.slot,
+        runtimeId: entry.runtime_id,
+        message: "Avatar Effect requires a registered definition file",
+      });
+    }
   }
 
   private recordDuplicate(entry: RuntimeCatalogEntry): void {

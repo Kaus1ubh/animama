@@ -268,6 +268,17 @@ Paths are relative to `src/backend/animama/` (backend) or `src/frontend/web/src/
   `posture_jumphigh`, `relax` (Yawn), `sleepy`, `telling_secret` and
   `youre_right`. Most added clips have no AI description and several keep raw
   legacy names; tidying them needs a later pack version (done in `v2`).
+- 2026-10-08, owner: **ADR accepted and renumbered to 0018.** Main took 0015
+  (Avatar Effect definition source) and 0016 (clip format), and open PR #284
+  adds another 0016 that will need 0017, so this plan's ADR is
+  `docs/adr/0018-non-portable-included-content.md`. If #284 lands with a
+  different number, recheck before merge.
+- 2026-10-08, agent: **merged `origin/main` (`843bb644`).** #375 removed the
+  1.0-to-2.0 Action transition services and their tests; their non-portable
+  guards went with them. The Idle Style transition guard in
+  `content_transition_service.py` remains. Export combines the non-portable
+  stripping with #328's Avatar face-part sidecars (stripping runs first), and
+  the package router returns both `items` and the conversion hints.
 - 2026-10-08, owner: **pack `v2` naming.** The agent watched each clip with a
   raw legacy name in the Library preview and gave it a descriptive name,
   Selector ID and AI description: Jump for Joy, Relaxed Stance, Hands Clasped,
@@ -792,7 +803,7 @@ Intended changes:
    the pack as an Included source, and serves bytes only through authenticated
    file routes (R6, R9). Cloud implements this in its own plan; record the
    follow-up there when hosted avatar playback exists.
-6. **Documentation.** Add ADR 0015 (the non-portable class, private build inputs,
+6. **Documentation.** Add ADR 0018 (the non-portable class, private build inputs,
    backend enforcement, alternatives considered) and a glossary entry for
    **Non-portable content**. Update `docs/frontend/desktop/redistribution-review.md`,
    `platforms.md`, `feature-packs.md` (this pack is not a feature pack),
@@ -842,7 +853,7 @@ Results (2026-10-07, starting revision `d3cf244e`):
   - removal of the two stale Mixamo rules from
     `content/included/licenses/inventory.json`.
 - **Docs:**
-  - ADR 0015 (proposed, for owner acceptance with the PR) and the glossary entry
+  - ADR 0018 (proposed, for owner acceptance with the PR) and the glossary entry
     **Non-portable content**;
   - new guide `docs/backend/operations/mixamo-motion-pack.md`, including the
     hosted contract and leak-check commands;
@@ -1160,7 +1171,7 @@ The spec's acceptance criteria are the contract. Evidence per criterion:
 - R7: P4 fixture tests, and P5 real-manifest leak checks and staging.
 - R8: `verify` on the real pack (P5), and review of the public inventory.
 - R1: owner gate G3.
-- Documentation: ADR 0015 accepted by the owner, and the glossary and guides
+- Documentation: ADR 0018 accepted by the owner, and the glossary and guides
   updated (P4).
 - R10: release gate G4. It is outside this PR and recorded in the release review.
 

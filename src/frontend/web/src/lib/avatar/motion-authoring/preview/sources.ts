@@ -6,45 +6,77 @@ import {
   ANIMA_POSE_CLIP_V2_SCHEMA,
   getAnimaPoseClipTimelineDuration,
   isAnimaPoseClipV2,
-  sanitizeAnimaPoseClip,
+  unsupportedAnimaPoseClipFormatMessage,
   validateAnimaPoseClipV2,
   type AnimaPoseClipV2Issue,
-  type AnyAnimaPoseClip,
+  type AnimaPoseClipV2,
 } from "../../poses/animaPoseClip";
 import { getAnimaPoseClipFadeDuration } from "../../poses/animaPoseClip/playback";
+import type { PreviewEffect, PreviewMedia } from "./previewMedia";
 
 /**
  * Sources the motion preview tool can play: clip files, creator project
  * envelopes and Library items (read from the Included and Local content
- * directories, never written).
+ * directories, never written), plus Avatar Effect sources through a
+ * `PreviewMediaAdapter`.
  */
 
 export type PreviewSource = {
   /** What the user passed, for example `laugh.clip.json` or `library:wave`. */
   spec: string;
+  /** A file the agent edits (notes beside it) or a read-only Library item. */
   kind: "file" | "library";
-  /** The file whose text is played and watched. */
+  /** What the source plays; a clip unless stated. */
+  type?: "clip" | "effect";
+  /** The file whose text is played and watched (an effect's descriptor). */
   path: string;
   /** Short name for review sidecars. */
   name: string;
   /** Display label. */
   label: string;
+  /** A Library item's meta file, whose dependencies its clip events use. */
+  metaPath?: string;
+  /** Folder for a file source's review notes, when not the file's own. */
+  notesDir?: string;
+};
+
+/**
+ * Avatar Effect sources and clip dependencies, which the CLI server resolves
+ * with `scripts/effect-render-sources.mjs` and serves to the page.
+ */
+export type PreviewMediaAdapter = {
+  /** The effect source `spec` names, or null when it names no Avatar Effect. */
+  resolve(spec: string, roots: PreviewRoots): Promise<PreviewSource | null>;
+  /**
+   * Read an effect source. `version` covers the descriptor and image bytes,
+   * `text` is the descriptor retained for review, and `files` are watched.
+   */
+  load(
+    source: PreviewSource,
+    roots: PreviewRoots,
+  ): Promise<{
+    version: string;
+    text: string;
+    files: string[];
+    effect: PreviewEffect;
+  }>;
+  /** Resolve a clip's typed dependencies to the effects its events play. */
+  media(dependencies: unknown, roots: PreviewRoots): Promise<PreviewMedia>;
 };
 
 export type PreviewMarker = { id: string; time: number; label: string };
 
 export type PreviewClip = {
-  format:
-    | "animaPoseClip/1.0"
-    | "animaPoseClip/2.0"
-    | "animamaActionProject/1.0";
-  clip: AnyAnimaPoseClip;
+  format: "animaPoseClip/2.0" | "animamaActionProject/1.0";
+  clip: AnimaPoseClipV2;
   markers: PreviewMarker[];
   /** Timeline length in seconds, excluding the fade-out. */
   duration: number;
   /** Fade-out after a one-shot's timeline, in seconds. */
   fadeOut: number;
   loop: boolean;
+  /** A project envelope's typed dependencies, which its events name. */
+  dependencies?: unknown[];
 };
 
 export type PreviewRoots = {
@@ -68,8 +100,6 @@ export class PreviewSourceError extends Error {
   }
 }
 
-/** Keyframe markers would only clutter the scrubber of a dense bake. */
-const MAX_KEYFRAME_MARKERS = 40;
 const PROJECT_SCHEMA = "animamaActionProject/1.0";
 /** The per-bone description format that 2.0 clips replaced. */
 export const RETIRED_DESCRIPTION_SCHEMA = "animamaMotion/1";
@@ -93,35 +123,38 @@ export function previewClipFromText(text: string): PreviewClip {
   if (schema === RETIRED_DESCRIPTION_SCHEMA)
     throw new PreviewSourceError(RETIRED_DESCRIPTION_MESSAGE);
   if (schema === PROJECT_SCHEMA && isRecord(value))
-    return describeClip(PROJECT_SCHEMA, parseClip(value.sequence));
-  if (schema === "animaPoseClip/1.0" || schema === ANIMA_POSE_CLIP_V2_SCHEMA)
+    return {
+      ...describeClip(PROJECT_SCHEMA, parseClip(value.sequence)),
+      dependencies: Array.isArray(value.dependencies) ? value.dependencies : [],
+    };
+  if (schema === ANIMA_POSE_CLIP_V2_SCHEMA)
     return describeClip(schema, parseClip(value));
   throw new PreviewSourceError(
-    `Unsupported schema ${JSON.stringify(schema ?? null)}. Expected ${ANIMA_POSE_CLIP_V2_SCHEMA}, animaPoseClip/1.0 or ${PROJECT_SCHEMA}.`,
+    `${unsupportedAnimaPoseClipFormatMessage(typeof schema === "string" ? schema : null)} A creator project (${PROJECT_SCHEMA}) also plays.`,
   );
 }
 
-function parseClip(value: unknown): AnyAnimaPoseClip {
-  if (isAnimaPoseClipV2(value)) {
-    const result = validateAnimaPoseClipV2(value);
-    if (!result.ok)
-      throw new PreviewSourceError(
-        `Invalid ${ANIMA_POSE_CLIP_V2_SCHEMA} (${result.issues.length} issue(s)).`,
-        result.issues,
-      );
-    return result.clip;
-  }
-  const clip = sanitizeAnimaPoseClip(value);
-  if (!clip)
+function parseClip(value: unknown): AnimaPoseClipV2 {
+  if (!isAnimaPoseClipV2(value))
     throw new PreviewSourceError(
-      "Invalid animaPoseClip/1.0: check the schema, id, name, poses and keyframe times.",
+      unsupportedAnimaPoseClipFormatMessage(
+        isRecord(value) && typeof value.schema === "string"
+          ? value.schema
+          : null,
+      ),
     );
-  return clip;
+  const result = validateAnimaPoseClipV2(value);
+  if (!result.ok)
+    throw new PreviewSourceError(
+      `Invalid ${ANIMA_POSE_CLIP_V2_SCHEMA} (${result.issues.length} issue(s)).`,
+      result.issues,
+    );
+  return result.clip;
 }
 
 function describeClip(
   format: PreviewClip["format"],
-  clip: AnyAnimaPoseClip,
+  clip: AnimaPoseClipV2,
 ): PreviewClip {
   const common = {
     format,
@@ -130,23 +163,10 @@ function describeClip(
     fadeOut: getAnimaPoseClipFadeDuration(clip.fadeOut),
     loop: clip.loop === true,
   };
-  // 2.0 beats are the markers: notes pin to their ids.
-  if (isAnimaPoseClipV2(clip))
-    return {
-      ...common,
-      markers: clip.beats.map(({ id, time, label }) => ({ id, time, label })),
-    };
-  const keyframes = clip.poseKeyframes;
+  // Beats are the markers: notes pin to their ids.
   return {
     ...common,
-    markers:
-      keyframes.length <= MAX_KEYFRAME_MARKERS
-        ? keyframes.map((keyframe, index) => ({
-            id: `k${index}`,
-            time: keyframe.time,
-            label: keyframe.pose,
-          }))
-        : [],
+    markers: clip.beats.map(({ id, time, label }) => ({ id, time, label })),
   };
 }
 
@@ -232,6 +252,7 @@ async function resolveLibrarySource(
     path: file,
     name: match.stem,
     label: `${match.origin === "included" ? "Included" : "Local"} · ${name}`,
+    metaPath: path.join(match.folder, `${match.stem}.meta.json`),
   };
 }
 
@@ -272,6 +293,31 @@ function sequenceFile({ meta }: LibraryCandidate) {
       file.role === "sequence" &&
       typeof file.path === "string",
   );
+}
+
+/**
+ * Whether a file lies in Library content: under the Included or Local content
+ * directory, in an Avatar Effect item folder (`…/vfx/avatar/<stem>/`) or in a
+ * Gesture or Reaction item folder (beside its `<stem>.meta.json`).
+ */
+export async function isInLibraryContent(
+  file: string,
+  roots: PreviewRoots,
+): Promise<boolean> {
+  const inside = (root: string) => {
+    const relative = path.relative(root, file);
+    return !relative.startsWith("..") && !path.isAbsolute(relative);
+  };
+  if ([roots.included, roots.local].some((root) => root && inside(root)))
+    return true;
+  const folder = path.dirname(file);
+  const kindFolder = path.dirname(folder);
+  if (
+    path.basename(kindFolder) === "avatar" &&
+    path.basename(path.dirname(kindFolder)) === "vfx"
+  )
+    return true;
+  return isFile(path.join(folder, `${path.basename(folder)}.meta.json`));
 }
 
 /** One entry of the preview page's source picker. */
@@ -355,7 +401,6 @@ function libraryKeys({ stem, meta }: LibraryCandidate): string[] {
 }
 
 const PLAYABLE_SCHEMAS = new Set<unknown>([
-  "animaPoseClip/1.0",
   ANIMA_POSE_CLIP_V2_SCHEMA,
   PROJECT_SCHEMA,
 ]);

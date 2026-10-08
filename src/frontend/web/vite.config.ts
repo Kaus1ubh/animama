@@ -1,3 +1,4 @@
+import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath, URL } from "node:url";
 import { defineConfig } from "vite";
@@ -42,7 +43,6 @@ export const includedContentAliases: readonly IncludedContentAlias[] = [
     route: "/effects/vfx/particle-vfx",
     source: "vfx/particle/particle-vfx",
   },
-  { route: "/effects/vfx/face", source: "vfx/avatar/face" },
   {
     route: "/effects/resources/scene-vfx/twemoji",
     source: "resources/scene-vfx/twemoji",
@@ -69,6 +69,12 @@ const parakeetModels = {
 // The GPU set's reviewed attribution is bundled for the settings panel.
 const parakeetWebgpuNoticesRoot = fileURLToPath(
   new URL("../../../models/parakeet-tdt-0.6b-v2-webgpu", import.meta.url),
+);
+// The self-hosted typeface resolves into the workspace package store, outside
+// the web root; allow only its package directory so dev can serve the files.
+const requireFromWeb = createRequire(import.meta.url);
+const fontPackageRoot = path.dirname(
+  requireFromWeb.resolve("@fontsource-variable/dm-sans/package.json"),
 );
 const rechartsEsToolkitCompat = fileURLToPath(
   new URL("./src/lib/recharts/es-toolkit-compat", import.meta.url),
@@ -275,6 +281,7 @@ export default defineConfig(({ mode, command, isPreview }) => {
           parakeetWebgpuNoticesRoot,
           // The built-in pose catalog bundles Included Gesture/Reaction clips.
           includedContentRoot,
+          fontPackageRoot,
         ],
       },
     },

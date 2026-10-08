@@ -28,7 +28,7 @@ distribution basis; changing it is a separate owner decision.
 
 Imported skills, removed artwork and Mixamo clips are excluded from the source
 candidate. Desktop and hosted builds may carry Mixamo clips only as the private,
-non-portable pack described in [ADR 0015](../docs/adr/0015-non-portable-included-content.md). Private ignored files and old Git/LFS history are not publication
+non-portable pack described in [ADR 0018](../docs/adr/0018-non-portable-included-content.md). Private ignored files and old Git/LFS history are not publication
 inputs. Retained replacement artwork uses PNG authoring assets; see
 [Included artwork](../content/included/README.md#retained-avatar-and-effect-artwork).
 Runtime/native appearance acceptance remains separate. Regenerate the candidate

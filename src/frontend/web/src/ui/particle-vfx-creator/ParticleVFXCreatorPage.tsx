@@ -12,7 +12,7 @@ import {
 } from "@/lib/avatar/particle-vfx/emitterAnchors";
 
 import { useFrame } from "@react-three/fiber";
-import { useBlocker, useNavigate } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import {
   CheckIcon,
   ClipboardIcon,
@@ -41,7 +41,7 @@ import {
   fetchContentPreviewFile,
   contentPreviewPrimaryFile,
 } from "@/lib/content/contentPreview";
-import { clearParticleVFXRecovery } from "@/lib/content/particleVFXRecovery";
+import { particleVFXRecoveryStore } from "@/lib/content/particleVFXRecovery";
 import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
 import type { RuntimeCatalogEntry } from "@/lib/runtime-content/types";
 import { Avatar } from "@/lib/avatar";
@@ -112,10 +112,13 @@ import {
   CreatorFloatingPanel,
   CreatorImportDialog,
   CreatorJsonDialog,
-  CreatorLoadingState,
+  CreatorLeaveDialog,
+  CreatorLoading,
   CreatorNumberField as NumberField,
   CreatorPreviewBar,
+  CreatorDiscardRecoveryButton,
   CreatorSaveNotice,
+  creatorRecoveredMessage,
   CreatorToolbar,
   CreatorUnavailableState,
   CreatorWorkspaceShell,
@@ -138,14 +141,6 @@ import {
 import { ContentHealth } from "@/ui/content-health/ContentHealth";
 import { Button } from "@/ui/components/button";
 import { Checkbox } from "@/ui/components/checkbox";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/ui/components/dialog";
 import { Input } from "@/ui/components/input";
 import { Label } from "@/ui/components/label";
 import {
@@ -166,8 +161,12 @@ import {
   JsonTreeNode,
   type JsonExpandMode,
 } from "@/ui/debug/vrm-editor/json-tree";
-import { useParticleVFXHistory } from "./useParticleVFXHistory";
-import { particleVFXDocumentFingerprint } from "./particleVFXDocument";
+import { useCreatorLeaveGuard } from "@/ui/content-creator/useCreatorLeaveGuard";
+import { useCreatorDocumentHistory } from "@/ui/creator-history/useCreatorDocumentHistory";
+import {
+  equalParticleVFXDrafts,
+  particleVFXDocumentFingerprint,
+} from "./particleVFXDocument";
 import { useParticleVFXSave } from "./useParticleVFXSave";
 import { type ContentCreatorModelSource } from "@/ui/content-creator/contentCreatorModelPreview";
 import { useContentCreatorAvatar } from "@/ui/content-creator/useContentCreatorAvatar";
@@ -225,9 +224,15 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
   const existing = existingQuery.data;
   const loadedItemRef = useRef(new ContentEditorHydration());
   const initialDraftRef = useRef(createParticleVFXEditorDraftFromBlank());
-  const { draft, history, updateDraft, resetDraft } = useParticleVFXHistory(
-    initialDraftRef.current,
-  );
+  const {
+    present: draft,
+    history,
+    update: updateDraft,
+    reset: resetDraft,
+  } = useCreatorDocumentHistory({
+    initialValue: initialDraftRef.current,
+    equals: equalParticleVFXDrafts,
+  });
   const { commit, replacePresent } = history;
   const [activeEmitterPath, setActiveEmitterPath] = useState<string | null>(
     null,
@@ -303,12 +308,41 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
     },
     [replacePresent],
   );
+  const currentFingerprint = useMemo(
+    () => particleVFXDocumentFingerprint(draft),
+    [draft],
+  );
+  const isDirty =
+    currentFingerprint !==
+    particleVFXDocumentFingerprint(initialDraftRef.current);
   const contentSave = useParticleVFXSave({
     itemId,
-    draft,
-    onRestoreDraft: hydrateDraft,
-    onSavedDraft: markSavedDraft,
+    snapshot: draft,
+    dirty: isDirty,
+    initialized: loadState.state === "ready",
+    ready: loadState.state === "ready",
+    onRestore: hydrateDraft,
+    onSaved: markSavedDraft,
   });
+  const unavailableMessage = creatorItemUnavailableMessage({
+    itemId,
+    label: "Particle Effect",
+    item: existing,
+    readFailed: existingQuery.isError,
+    loadError:
+      loadState.state === "error"
+        ? (loadState.message ?? "The Particle Effect could not be loaded.")
+        : null,
+  });
+  // The unavailable state has no leave dialog, so it must never block navigation.
+  const guardLeave = !unavailableMessage;
+  const leaveGuard = useCreatorLeaveGuard({
+    dirty: guardLeave && isDirty,
+    busy: guardLeave && contentSave.isBusy,
+    discard: contentSave.discardChanges,
+  });
+  // Leaving and starting over both disable editing until storage settles.
+  const discardPending = discarding || leaveGuard.discarding;
   const documentNameInputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     if (contentSave.errorField === "name")
@@ -509,37 +543,6 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
     setPreviewPlaying(false);
     setPreviewRevision((value) => value + 1);
   }, []);
-  const currentFingerprint = useMemo(
-    () => (draft ? particleVFXDocumentFingerprint(draft) : null),
-    [draft],
-  );
-  const cleanFingerprint = particleVFXDocumentFingerprint(
-    initialDraftRef.current,
-  );
-  const isDirty = Boolean(
-    currentFingerprint &&
-    cleanFingerprint &&
-    currentFingerprint !== cleanFingerprint,
-  );
-  const unavailableMessage = creatorItemUnavailableMessage({
-    itemId,
-    label: "Particle Effect",
-    item: existing,
-    readFailed: existingQuery.isError,
-    loadError:
-      loadState.state === "error"
-        ? (loadState.message ?? "The Particle Effect could not be loaded.")
-        : null,
-  });
-  // The unavailable state has no leave dialog, so it must never block navigation.
-  const guardLeave = !unavailableMessage && (isDirty || contentSave.isBusy);
-  const blocker = useBlocker({
-    shouldBlockFn: ({ current, next }) =>
-      guardLeave && current.pathname !== next.pathname,
-    enableBeforeUnload: () => guardLeave,
-    withResolver: true,
-  });
-
   /** Keep the draft visible and retryable if its browser recovery cannot be deleted. */
   const runDiscard = useCallback(
     async (discard: () => Promise<void | boolean>) => {
@@ -561,15 +564,21 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
     [discarding],
   );
 
-  const leaveCreator = async () => {
-    if (discarding) return;
-    if (
-      contentSave.isBusy ||
-      (await runDiscard(contentSave.discardBeforeLeave))
-    ) {
-      blocker.proceed?.();
+  /**
+   * A new effect's recovered draft is replaced with a blank one. On an edit
+   * route the recovered draft and its preserved Save operation are dropped and
+   * the saved item reloads, as in the Avatar and Scene creators, so a blank
+   * draft is never stored under the item.
+   */
+  const discardRecoveredDraft = useCallback(async () => {
+    if (itemId) {
+      await contentSave.discardRecovery();
+      return;
     }
-  };
+    const blank = createParticleVFXEditorDraftFromBlank();
+    if (!(await contentSave.resetSession(blank))) return false;
+    hydrateDraft(blank);
+  }, [contentSave, hydrateDraft, itemId]);
 
   const patchCatalog = useCallback(
     (patch: Parameters<typeof updateParticleVFXEditorCatalogDraft>[1]) => {
@@ -667,9 +676,11 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
 
     await runDiscard(async () => {
       if (itemId) {
-        if (!(await contentSave.discardBeforeLeave())) return false;
+        if (!(await contentSave.discardChanges())) return false;
         if (userId)
-          await clearParticleVFXRecovery(userId, null, { strict: true });
+          await particleVFXRecoveryStore.clear(userId, "new", {
+            strict: true,
+          });
         await navigate({
           to: "/particle-effects/new",
           replace: true,
@@ -736,14 +747,14 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
   // Never show the blank starter document in place of the saved item.
   if (itemId && loadState.state === "loading")
     return (
-      <CreatorLoadingState
+      <CreatorLoading
         message={loadState.message ?? "Loading Particle Effect…"}
       />
     );
 
   return (
     <CreatorWorkspaceShell
-      busy={contentSave.isBusy || discarding}
+      busy={contentSave.isBusy || discardPending}
       leftPanelLabel="Emitters"
       rightPanelLabel="Inspector"
       leftPanelWidth={340}
@@ -754,7 +765,7 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
           history={history}
           historyDisabled={
             contentSave.isBusy ||
-            discarding ||
+            discardPending ||
             !contentSave.recoveryReady ||
             loadState.state === "loading"
           }
@@ -770,7 +781,7 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
           documentName={draft?.catalog.label ?? ""}
           documentNameInputRef={documentNameInputRef}
           documentNameInvalid={contentSave.errorField === "name"}
-          documentNameDisabled={!draft || contentSave.isBusy || discarding}
+          documentNameDisabled={!draft || contentSave.isBusy || discardPending}
           onDocumentNameChange={(label) => {
             contentSave.clearSaveErrorField("name");
             patchCatalog({ label });
@@ -791,10 +802,10 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
           onImport={() => setImportDialogOpen(true)}
           onJson={() => setJsonViewerOpen(true)}
           onSave={() => void contentSave.save()}
-          newDisabled={contentSave.isBusy || discarding}
-          importDisabled={contentSave.isBusy || discarding}
+          newDisabled={contentSave.isBusy || discardPending}
+          importDisabled={contentSave.isBusy || discardPending}
           jsonDisabled={!exportBundle}
-          saveDisabled={!contentSave.canSave || discarding}
+          saveDisabled={!contentSave.canSave || discardPending}
           saveBusy={contentSave.isBusy}
           saveLabel={
             contentSave.isBusy
@@ -1287,7 +1298,7 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
                   : null) ??
                 (contentSave.isBusy
                   ? `${saveStageLabel(contentSave.stage)} private content…`
-                  : "Recovered unsaved Particle VFX changes.")
+                  : creatorRecoveredMessage("Particle VFX"))
               }
               actions={
                 contentSave.recovered && !contentSave.isBusy ? (
@@ -1296,23 +1307,16 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
                       <Button
                         type="button"
                         size="sm"
-                        disabled={discarding}
+                        disabled={discardPending}
                         onClick={() => void contentSave.save()}
                       >
                         Retry Save
                       </Button>
                     ) : null}
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      disabled={discarding}
-                      onClick={() =>
-                        void runDiscard(contentSave.discardRecovery)
-                      }
-                    >
-                      Discard recovery
-                    </Button>
+                    <CreatorDiscardRecoveryButton
+                      disabled={discardPending}
+                      onDiscard={() => void runDiscard(discardRecoveredDraft)}
+                    />
                   </div>
                 ) : null
               }
@@ -1344,44 +1348,10 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
             onCopy={(target, value) => void copyText(target, value)}
             onDownload={() => exportBundle && downloadJson(exportBundle)}
           />
-          <Dialog
-            open={blocker.status === "blocked"}
-            onOpenChange={(open) => !open && !discarding && blocker.reset?.()}
-          >
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>
-                  {contentSave.isBusy
-                    ? "Leave while Particle VFX Save is running?"
-                    : "Discard unsaved Particle VFX changes?"}
-                </DialogTitle>
-                <DialogDescription>
-                  {contentSave.isBusy
-                    ? "Leaving now pauses the active upload. Recovery keeps its creator-owned draft so Retry Save can continue later."
-                    : "Leaving clears this editor's unsaved changes and browser recovery."}
-                </DialogDescription>
-              </DialogHeader>
-              <DialogFooter>
-                <Button
-                  variant="outline"
-                  disabled={discarding}
-                  onClick={() => blocker.reset?.()}
-                >
-                  Stay
-                </Button>
-                <Button
-                  disabled={discarding}
-                  onClick={() => void leaveCreator()}
-                >
-                  {discarding
-                    ? "Discarding…"
-                    : contentSave.isBusy
-                      ? "Leave and keep recovery"
-                      : "Discard and continue"}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          <CreatorLeaveDialog
+            guard={leaveGuard}
+            contentLabel="Particle Effect"
+          />
         </>
       }
     />
@@ -1451,7 +1421,7 @@ function ParticleVFXPreviewTimeline({
           leading={
             <div className="min-w-0">
               <h2 className="text-sm font-semibold">Preview Timeline</h2>
-              <p className="text-muted-foreground text-[11px]">
+              <p className="text-muted-foreground text-2xs">
                 {emitters.length} emitter{emitters.length === 1 ? "" : "s"}
               </p>
             </div>
@@ -2322,19 +2292,19 @@ function EmitterAuthoringTabs({
         >
           <div className="border-border overflow-x-auto border-b px-3 py-2">
             <TabsList className="grid h-8 w-full grid-cols-5 p-0.5">
-              <TabsTrigger className="h-7 px-1 text-[10px]" value="appearance">
+              <TabsTrigger className="text-2xs h-7 px-1" value="appearance">
                 Appearance
               </TabsTrigger>
-              <TabsTrigger className="h-7 px-1 text-[10px]" value="position">
+              <TabsTrigger className="text-2xs h-7 px-1" value="position">
                 Position
               </TabsTrigger>
-              <TabsTrigger className="h-7 px-1 text-[10px]" value="emission">
+              <TabsTrigger className="text-2xs h-7 px-1" value="emission">
                 Emission
               </TabsTrigger>
-              <TabsTrigger className="h-7 px-1 text-[10px]" value="shape">
+              <TabsTrigger className="text-2xs h-7 px-1" value="shape">
                 Shape
               </TabsTrigger>
-              <TabsTrigger className="h-7 px-1 text-[10px]" value="behavior">
+              <TabsTrigger className="text-2xs h-7 px-1" value="behavior">
                 Behavior
               </TabsTrigger>
             </TabsList>
@@ -3531,7 +3501,7 @@ function EmitterColorPanel({
                   className="h-4 w-16"
                 />
               </div>
-              <p className="text-muted-foreground mt-1 line-clamp-2 text-[11px]">
+              <p className="text-muted-foreground text-2xs mt-1 line-clamp-2">
                 {preset.description}
               </p>
             </button>
@@ -3620,7 +3590,7 @@ function EmitterColorPanel({
                   className="h-4 w-16"
                 />
               </div>
-              <p className="text-muted-foreground mt-1 text-[11px]">
+              <p className="text-muted-foreground text-2xs mt-1">
                 Apply theme gradient
               </p>
             </button>
@@ -3898,7 +3868,7 @@ function ValueGeneratorField({
     return (
       <div className={cn(disabled && "opacity-60")}>
         <Label className="text-xs">{label}</Label>
-        <div className="mt-1 flex items-center justify-between gap-2 rounded-md border border-amber-500/40 p-2 text-xs text-amber-700 dark:text-amber-300">
+        <div className="border-warning/40 text-warning mt-1 flex items-center justify-between gap-2 rounded-md border p-2 text-xs">
           <span>Unsupported generator ({value.label})</span>
           <Button
             type="button"
@@ -4058,7 +4028,7 @@ function UnsupportedBehaviorNotice({
   onConvert: () => void;
 }) {
   return (
-    <div className="flex items-center justify-between gap-2 rounded-md border border-amber-500/40 p-2 text-xs text-amber-700 dark:text-amber-300">
+    <div className="border-warning/40 text-warning flex items-center justify-between gap-2 rounded-md border p-2 text-xs">
       <span>Unsupported behavior ({label}) is preserved until edited.</span>
       <Button type="button" size="sm" variant="outline" onClick={onConvert}>
         Convert
@@ -4091,7 +4061,7 @@ function UnsupportedColorNotice({
   onConvert: () => void;
 }) {
   return (
-    <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-md border border-amber-500/40 p-3 text-xs text-amber-700 dark:text-amber-300">
+    <div className="border-warning/40 text-warning mt-3 flex flex-wrap items-center justify-between gap-3 rounded-md border p-3 text-xs">
       <span>Unsupported generator ({label}) is preserved until edited.</span>
       <Button type="button" size="sm" variant="outline" onClick={onConvert}>
         Convert

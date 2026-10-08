@@ -18,8 +18,12 @@ make sync
 
 This uses
 `uv sync --extra server --extra voice --extra viz --extra realtime --extra encrypt --all-packages --group dev`.
-It intentionally excludes the file-worker parser stack. Run the worker with
-`--extra file-worker` when testing the parser directly on the host.
+It intentionally excludes the file-worker parser stack. The default `dev` group
+includes the `server` extra, so a plain `uv sync` also has the gruut phonemizer
+the backend tests require. The file-worker extra conflicts with it: run the
+worker with `--no-dev --extra file-worker` when testing the parser directly on
+the host; that replaces the development packages in `.venv` until the next
+plain `uv sync` or `uv run`.
 
 ## Shared Backend Package
 
@@ -33,11 +37,10 @@ uv run --no-sync python scripts/repository-boundary/check-python-imports.py
 uv build --wheel
 ```
 
-The animation manifest and VFX catalog keep their canonical sources at
-`src/frontend/web/src/assets/vrm/animations/manifest.json` and
-`src/frontend/web/src/assets/effects/vfx/catalog.json`. The generated copies in
-`src/backend/animama/resources/` are packaged into the wheel and frozen runtime;
-shared code accesses them through `importlib.resources`, without walking source
+The animation manifest keeps its canonical source at
+`src/frontend/web/src/assets/vrm/animations/manifest.json`. The generated copy in
+`src/backend/animama/resources/` is packaged into the wheel and frozen runtime;
+shared code accesses it through `importlib.resources`, without walking source
 directories or importing desktop helpers. After changing a canonical JSON file:
 
 ```bash
@@ -111,6 +114,13 @@ schema; change seeds or application defaults directly for data changes. The
 owner decides when to reset existing development data. Running bootstrap or
 `alembic upgrade head` against a database already at the baseline does not
 reapply changes to its SQL.
+
+Existing development databases must therefore be reset to gain the
+`avatar_face_part_overrides` table (Included Avatar face-part corrections); no
+migration adds it. Without it, Avatar requests and chat runtime preparation fail
+with `relation "avatar_face_part_overrides" does not exist`. Run
+`./reset.sh --purge` (with `--name` and `--base-port` for a named stack), or the
+database-only reset below when Local content and private data must survive.
 
 The local Alembic graph owns extension creation and the complete accountless
 schema and contains no hosted identity tables. Animama Cloud uses a separate
@@ -786,9 +796,9 @@ workflow does not configure them. Measure complete run costs, including local
 validation and weekly work, before claiming savings. Preserve owner review of
 coverage and detection-delay tradeoffs when changing validation policy.
 
-The development dependency group includes the PyYAML, jsonschema and ReportLab
-type stubs required by the existing mypy target. Install from `uv.lock` with
-`uv sync --frozen --extra server` before checking a clean checkout. Ruff lint
+The development dependency group includes the server extra and the PyYAML,
+jsonschema and ReportLab type stubs required by the existing mypy target.
+Install from `uv.lock` with `uv sync --frozen` before checking a clean checkout. Ruff lint
 checks its configured repository scope; formatting checks only
 `src/backend/animama` and `tests`, and mypy checks those same backend/test roots.
 Python 3.12 is the minimum supported backend interpreter, and Ruff and mypy use
@@ -826,7 +836,10 @@ uv run python -m animama.server.content_cli
 
 It resolves committed or interrupted journals before scanning readable
 Included/Local files through the one Content Kind registry, recomputes exact
-digests and dependencies, and marks malformed or missing entries inert. A
+digests and dependencies, and marks malformed or missing entries inert. It also
+runs the content transitions, including the in-place conversion of Local
+`animama/avatar-effect/1` effects to `/2` (see
+[local content storage](../architecture/local-content-storage.md)). A
 recovery conflict stops admission while retaining both versions. `reset.sh`
 invokes the containerized form after Alembic and
 principal setup. Runtime/preview leases are internal database state and are
@@ -842,7 +855,7 @@ uv run python -m animama.workers.avatar_upload_cleanup
 User-file processing:
 
 ```bash
-uv run --extra file-worker python -m animama.workers.user_file_processing
+uv run --no-dev --extra file-worker python -m animama.workers.user_file_processing
 ```
 
 Workers need the same database configuration as the API. The user-file worker
@@ -963,7 +976,7 @@ server extra and intentionally omits Docling/parser dependencies. The
 `animama-file-worker` target installs the full `docling` package and resolves
 PyTorch through uv's explicit CPU-only `pytorch-cpu` index, avoiding CUDA
 runtime packages in the worker image. Backend images copy the backend package,
-migrations/init SQL, and shared animation/VFX catalogs. The server image also
+migrations/init SQL, and the shared animation manifest. The server image also
 receives the React output from a frontend build stage. The Docker context admits
 those frontend build inputs while excluding desktop assets, installed dependencies
 and private local files. Plain `./reset.sh` can rebuild the backend image through

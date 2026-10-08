@@ -2,10 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createParticleVFXEditorDraftFromBlank } from "@/lib/avatar/particle-vfx";
 import {
-  clearParticleVFXRecovery,
-  loadParticleVFXRecovery,
   PARTICLE_VFX_RECOVERY_SCHEMA,
-  saveParticleVFXRecovery,
+  particleVFXRecoveryStore,
 } from "./particleVFXRecovery";
 
 describe("Particle Effect recovery", () => {
@@ -27,7 +25,7 @@ describe("Particle Effect recovery", () => {
 
   it("round-trips bounded authoring state for the current user", async () => {
     const draft = createParticleVFXEditorDraftFromBlank();
-    const saved = await saveParticleVFXRecovery({
+    const saved = await particleVFXRecoveryStore.save({
       schema: PARTICLE_VFX_RECOVERY_SCHEMA,
       userId: "user-a",
       documentKey: "new",
@@ -40,15 +38,19 @@ describe("Particle Effect recovery", () => {
       updatedAt: "2026-08-09T12:00:00.000Z",
     });
 
-    expect(saved).toEqual({ stored: true, warning: null });
-    expect(await loadParticleVFXRecovery("user-a", null)).toMatchObject({
+    expect(saved).toEqual({
+      stored: true,
+      metadataOnly: false,
+      warning: null,
+    });
+    expect(await particleVFXRecoveryStore.load("user-a", "new")).toMatchObject({
       operationId: "operation-a",
       fileOperationIds: ["operation-a-manifest", "operation-a-texture-1"],
     });
-    expect(await loadParticleVFXRecovery("user-b", null)).toBeNull();
+    expect(await particleVFXRecoveryStore.load("user-b", "new")).toBeNull();
 
-    await clearParticleVFXRecovery("user-a", null);
-    expect(await loadParticleVFXRecovery("user-a", null)).toBeNull();
+    await particleVFXRecoveryStore.clear("user-a", "new");
+    expect(await particleVFXRecoveryStore.load("user-a", "new")).toBeNull();
   });
 
   it("reports unavailable recovery without failing the ordinary save path", async () => {
@@ -64,7 +66,7 @@ describe("Particle Effect recovery", () => {
       },
     });
 
-    const result = await saveParticleVFXRecovery({
+    const result = await particleVFXRecoveryStore.save({
       schema: PARTICLE_VFX_RECOVERY_SCHEMA,
       userId: "user-a",
       documentKey: "new",

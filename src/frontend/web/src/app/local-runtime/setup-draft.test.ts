@@ -35,7 +35,6 @@ describe("unfinished installation setup draft", () => {
       adultConfirmed: true,
       modelLocation: "local",
       chatModelId: "OpenAIHTTPAgent:qwen3",
-      ttsEnabled: true,
       ttsProvider: "elevenlabs",
     });
     expect(writeSetupDraft("owner-a", saved, store)).toBe(true);

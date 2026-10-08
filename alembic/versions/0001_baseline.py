@@ -39,6 +39,7 @@ _BASELINE_TABLES = (
     "archive_passages",
     "archives",
     "avatar",
+    "avatar_face_part_overrides",
     "avatar_upload",
     "chat_compactions",
     "chat_messages",

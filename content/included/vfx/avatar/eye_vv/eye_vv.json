@@ -7,20 +7,22 @@
   "description": "Playful curved eye hover that reads as giggly, bashful, or teasing delight.",
   "dependencies": [],
   "definition": {
-    "schema": "animama/avatar-effect/1",
-    "kind": "hover",
+    "schema": "animama/avatar-effect/2",
     "region": "eyes",
-    "hoverKind": "eye_hover",
-    "disableTargetRoles": [
-      "eye_highlight"
-    ],
-    "side": "right",
-    "requiresMirror": true,
-    "lifetime": {
-      "kind": "duration",
-      "runEndBufferSec": 5
+    "attachment": {
+      "kind": "face_landmark",
+      "landmark": "eyes",
+      "side": "right",
+      "mirror": true
     },
-    "image": "eye_vv_right.png"
+    "art": {
+      "image": "eye_vv_right.png"
+    },
+    "faceOptions": {
+      "hideParts": [
+        "eye_highlight"
+      ]
+    }
   },
   "files": [
     {

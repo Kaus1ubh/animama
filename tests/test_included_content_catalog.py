@@ -10,7 +10,11 @@ import pytest
 from animama.adapters.content_store import FilesystemContentStore
 from animama.app.services.content_kind_registry import definition_for_kind, descriptor_filename
 from animama.domain.content_catalog import ContentKind, ContentSource, ContentStatus
-from tests.anima_creation_service_support import copy_tracked_included, write_supplied_animation_fixture
+from tests.anima_creation_service_support import (
+    INCLUDED_POSE_IDS,
+    copy_tracked_included,
+    write_supplied_animation_fixture,
+)
 
 ROOT = Path(__file__).parents[1]
 
@@ -147,14 +151,8 @@ def test_every_included_sound_dependency_resolves_to_a_shipped_sound(included: P
     assert unresolved == []
 
 
-def test_only_requested_pose_starters_are_registered_self_contained_content(included: Path) -> None:
-    expected_ids = {
-        "relaxedRest",
-        "shy-finger-poke-1",
-        "shy-finger-poke-2",
-        "thinking-head-scratch-1",
-        "thinking-head-scratch-2",
-    }
+def test_included_poses_are_registered_self_contained_content(included: Path) -> None:
+    expected_ids = INCLUDED_POSE_IDS
     poses = [entry for entry in _scan_included(included) if entry.kind is ContentKind.POSE]
     assert {entry.logical_key for entry in poses} == expected_ids
     for entry in poses:
@@ -184,4 +182,3 @@ def test_avatar_effects_require_authored_definitions_and_preserve_support_images
     assert all(entry.status is ContentStatus.VALID and entry.metadata.get("definition") for entry in effects)
     eye = next(entry for entry in effects if entry.logical_key == "builtin:avatar-effect:eye")
     assert any(file.role == "image" for file in eye.files)
-    assert (included / "vfx/avatar/face/eyes/eye_=_r.png").is_file()

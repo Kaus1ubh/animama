@@ -15,8 +15,12 @@ from sqlalchemy import delete, func, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from animama.adapters.repositories.sqlalchemy.avatar_face_part_override_repo import (
+    SQLAlchemyAvatarFacePartOverrideRepository,
+)
 from animama.adapters.repositories.sqlalchemy.content_catalog_repo import SQLAlchemyContentCatalog
 from animama.app.ports.content_store import ContentStore
+from animama.app.services.avatar_face_parts import override_face_parts
 from animama.app.services.content_access_policy import ContentAccessPolicy
 from animama.app.services.runtime_content_closure import RuntimeContentClosureCompiler
 from animama.app.services.starter_loadout_policy import starter_loadout_policy
@@ -182,6 +186,7 @@ class AnimaRuntimeService:
             descriptor=descriptor,
             visible=visible,
         )
+        await self._apply_included_avatar_face_parts(user_id=user_id, catalog_body=catalog_body)
         identity_body = {
             "projection_version": RUNTIME_PROJECTION_VERSION,
             "loadout_revision": loadout.revision,
@@ -538,6 +543,36 @@ class AnimaRuntimeService:
             descriptor=descriptor,
             visible=visible,
         )
+
+    async def _apply_included_avatar_face_parts(self, *, user_id: str, catalog_body: dict[str, Any]) -> None:
+        """Project the owner's current Included Avatar override into the snapshot body.
+
+        The projection already carries a Local sidecar correction. The override
+        becomes part of the effective revision, so saving one remounts the Avatar.
+        """
+
+        avatar = catalog_body.get("avatar")
+        source = avatar.get("source") if isinstance(avatar, dict) else None
+        if not isinstance(avatar, dict) or not isinstance(source, dict):
+            return
+        if source.get("source") != ContentSource.INCLUDED.value:
+            return
+        item_id = str(source.get("item_id"))
+        override = (
+            await SQLAlchemyAvatarFacePartOverrideRepository(self.session).list_for_items(
+                owner_user_id=user_id, avatar_item_ids=[item_id]
+            )
+        ).get(item_id)
+        if override is None:
+            return
+        face_parts = override_face_parts(
+            revision_sha256=avatar.get("revision"),
+            files=avatar.get("files", []),
+            override_revision_sha256=override.avatar_revision_sha256,
+            override_parts=override.parts,
+        )
+        if face_parts is not None:
+            avatar["face_parts"] = face_parts
 
     async def get_snapshot(
         self,

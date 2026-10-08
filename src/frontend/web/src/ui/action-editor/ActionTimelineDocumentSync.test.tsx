@@ -78,22 +78,18 @@ describe("ActionTimelineDocumentSync route handoff", () => {
     (intent) => {
       usePoseCreatorStore.getState().hydrateClipDocument(
         parseAnimaPoseClip({
-          schema: "animaPoseClip/1.0",
+          schema: "animaPoseClip/2.0",
           id: "previous-reaction",
           name: "Previous Reaction",
           duration: 1,
-          poses: { expression: { expressions: { happy: 1 } } },
-          poseKeyframes: [{ time: 0, pose: "expression" }],
+          beats: [{ id: "expression", label: "Expression", time: 0 }],
+          expressions: { happy: [{ v: 1, beat: "expression" }] },
         }),
       );
       const onChange = vi.fn();
       renderToString(
         <ActionTimelineDocumentSync
-          sequence={{
-            ...createActionDocument(intent).sequence,
-            poses: {},
-            poseKeyframes: [],
-          }}
+          sequence={createActionDocument(intent).sequence}
           session={0}
           reaction={intent === "reaction"}
           onChange={onChange}
@@ -117,12 +113,12 @@ describe("ActionTimelineDocumentSync history roundtrip", () => {
     const store = usePoseCreatorStore.getState();
     store.hydrateClipDocument(
       parseAnimaPoseClip({
-        schema: "animaPoseClip/1.0",
+        schema: "animaPoseClip/2.0",
         id: "new-gesture",
         name: "New Gesture",
         duration: 1.2,
-        poses: { initial: { expressions: { happy: 0.1 } } },
-        poseKeyframes: [{ time: 0, pose: "initial" }],
+        beats: [{ id: "initial", label: "Initial", time: 0 }],
+        expressions: { happy: [{ v: 0.1, beat: "initial" }] },
       }),
     );
     let document = createActionDocument("gesture");

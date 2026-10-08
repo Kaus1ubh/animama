@@ -1,25 +1,24 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { Avatar } from "../Avatar";
-import { AVATAR_VFX_CATALOG } from "./catalog";
+import { TEST_HOVER_VFX_ENTRY } from "./avatarVFXTestFixtures";
+import { parseAvatarEffectDefinition } from "./definition";
 import { applyAvatarVFXEffectById } from "./runtime";
-import { isHoverVFXEntry } from "./types";
 
 describe("applyAvatarVFXEffectById", () => {
-  it("does not fall back to the built-in catalog when live resolution returns null", async () => {
+  it("applies nothing when live runtime resolution returns null", async () => {
     const controller = {
       applyHoverVFX: vi.fn(),
       applyFaceAnchoredVFX: vi.fn(),
       applyTextureVFX: vi.fn(),
+      findUnavailableFacePart: vi.fn(() => null),
+      reportUnavailableFacePart: vi.fn(),
     };
     const avatar = { vfxController: controller } as unknown as Avatar;
-    const builtIn = AVATAR_VFX_CATALOG[0];
-    expect(builtIn).toBeDefined();
-
     await expect(
       applyAvatarVFXEffectById({
         avatar,
-        effectId: builtIn!.id,
+        effectId: "star",
         effectEntry: null,
       }),
     ).resolves.toBe(false);
@@ -33,10 +32,11 @@ describe("applyAvatarVFXEffectById", () => {
       applyHoverVFX: vi.fn(),
       applyFaceAnchoredVFX: vi.fn(),
       applyTextureVFX: vi.fn(),
+      findUnavailableFacePart: vi.fn(() => null),
+      reportUnavailableFacePart: vi.fn(),
     };
     const avatar = { vfxController: controller } as unknown as Avatar;
-    const effect = AVATAR_VFX_CATALOG.find(isHoverVFXEntry);
-    if (!effect) throw new Error("Missing hover VFX fixture");
+    const effect = TEST_HOVER_VFX_ENTRY;
 
     await expect(
       applyAvatarVFXEffectById({
@@ -56,5 +56,73 @@ describe("applyAvatarVFXEffectById", () => {
         logicalEffectId: effect.id,
       }),
     );
+  });
+
+  it("skips and reports an effect whose face part the Avatar lacks", async () => {
+    const controller = {
+      applyHoverVFX: vi.fn(),
+      applyFaceAnchoredVFX: vi.fn(),
+      applyTextureVFX: vi.fn(),
+      findUnavailableFacePart: vi.fn(() => "eye_left"),
+      reportUnavailableFacePart: vi.fn(),
+    };
+    const avatar = { vfxController: controller } as unknown as Avatar;
+    const effect = TEST_HOVER_VFX_ENTRY;
+
+    await expect(
+      applyAvatarVFXEffectById({
+        avatar,
+        effectId: effect.id,
+        appliedEffectId: "applied",
+        effectEntry: effect,
+      }),
+    ).resolves.toBe(false);
+    expect(controller.applyHoverVFX).not.toHaveBeenCalled();
+    expect(controller.reportUnavailableFacePart).toHaveBeenCalledWith(
+      effect,
+      "eye_left",
+    );
+  });
+
+  it("applies body, sticker and silhouette effects as attachments", async () => {
+    const controller = {
+      applyAttachmentVFX: vi.fn(),
+      applyHoverVFX: vi.fn(),
+      findUnavailableFacePart: vi.fn(() => null),
+      reportUnavailableFacePart: vi.fn(),
+    };
+    const avatar = { vfxController: controller } as unknown as Avatar;
+    const effect = parseAvatarEffectDefinition(
+      {
+        schema: "animama/avatar-effect/2",
+        region: "sticker",
+        attachment: { kind: "sticker", around: "head" },
+        art: { image: "doki.png" },
+      },
+      {
+        id: "doki",
+        label: "Doki",
+        description: "Doki",
+        assetPath: "blob:doki",
+      },
+    );
+
+    await expect(
+      applyAvatarVFXEffectById({
+        avatar,
+        effectId: "doki",
+        appliedEffectId: "clip:event",
+        effectEntry: effect,
+      }),
+    ).resolves.toBe(true);
+    expect(controller.applyAttachmentVFX).toHaveBeenCalledWith({
+      effectId: "clip:event",
+      effectEntry: expect.objectContaining({
+        kind: "sticker",
+        id: "clip:event",
+      }),
+      logicalEffectId: "doki",
+    });
+    expect(controller.applyHoverVFX).not.toHaveBeenCalled();
   });
 });

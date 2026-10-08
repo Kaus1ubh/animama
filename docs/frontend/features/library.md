@@ -54,7 +54,8 @@ Editing opens `/poses/$poseId/edit` with the
 existing Pose controls and an isolated Avatar, without creating a Gesture or
 replacing a suspended clip draft. Included customization creates a new Local
 identity; it never changes the starter. The five starter Poses are Relaxed Rest,
-Shy Finger Poke 1 and 2, and Thinking Head Scratch 1 and 2. Poses have no Add/Manage
+Shy Finger Poke 1 and 2, and Thinking Head Scratch 1 and 2; the other Included
+Poses are the hand-made poses the Included Gestures were built from. Poses have no Add/Manage
 equipment action; only Local poses offer deletion in the creator load panel.
 
 Avatar rows use `/v1/avatar-catalog`, which joins Avatar metadata to a valid
@@ -108,8 +109,11 @@ remain transitive dependencies of their owning Gesture or Reaction.
 
 ## Creation
 
-`/create` links to dedicated Anima, Gesture, Reaction, Particle VFX, Avatar
-VFX and Scene VFX creators. Sound uploads live in Gesture/Reaction SFX tabs and
+`/create` links to dedicated Anima, Gesture and Reaction creators. Its effect
+cards, the sidebar Create menu's **Effects** item and `/effects/new` open the
+Effects template picker: choose Particle, Avatar or Scene FX, then a template or
+Start from scratch. A template opens its creator with a new, unsaved Local draft;
+Included content is never changed. Sound uploads live in Gesture/Reaction SFX tabs and
 Avatar/Scene FX accompanying-sound pickers. Creator Save writes ordinary files through
 the matching typed family route, such as `/v1/gestures/{entry_name}` or
 `/v1/particle-effects/{entry_name}`. Editing a Local item updates that item
@@ -151,9 +155,9 @@ trigger repeated list fetches. Valid manual files become selectable but never
 auto-equip. Invalid or missing entries remain inert with discreet diagnostics and
 a Retry scan action.
 
-Music and standalone Pose Clips are not supported Library items. Existing Action
-clip references are converted to Action-owned sequences while preserving original
-files. Static Poses and Creator Clip/project JSON import/export remain available.
+Music and standalone Pose Clips are not supported Library items. An Action that
+still references a retired Pose Clip is listed with an unsupported-clip-format
+diagnostic. Static Poses and Creator Clip/project JSON import/export remain available.
 
 ## Import / Export
 

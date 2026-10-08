@@ -29,7 +29,7 @@ async function fixture() {
   const entryRoot = path.join(localRoot, "reactions", "react-0827123456");
   await mkdir(repositoryRoot, { recursive: true });
   await mkdir(entryRoot, { recursive: true });
-  const descriptor = Buffer.from('{"schema":"animaPoseClip/1.0"}\n');
+  const descriptor = Buffer.from('{"schema":"animaPoseClip/2.0"}\n');
   const metadata = Buffer.from('{"dependencies":[]}\n');
   await writeFile(path.join(entryRoot, "reaction.json"), descriptor);
   await writeFile(path.join(entryRoot, "meta.json"), metadata);
@@ -83,7 +83,7 @@ test("verifies isolated Local content and exact files", async () => {
     assert.equal(verified.fileCount, 2);
     assert.equal(
       verified.parsedJson["reactions/react-0827123456/reaction.json"].schema,
-      "animaPoseClip/1.0",
+      "animaPoseClip/2.0",
     );
     assert.match(verified.manifestSha256, /^[0-9a-f]{64}$/);
   });

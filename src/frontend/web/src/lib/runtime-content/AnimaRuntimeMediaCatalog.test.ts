@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { AVATAR_PARTICLE_VFX_CATALOG } from "@/lib/avatar/particle-vfx/catalog";
-import { AVATAR_VFX_CATALOG } from "@/lib/avatar/vfx/catalog";
 import { getSceneBackgroundLayerPresetIds } from "@/lib/scene-vfx/catalog";
 import type { RuntimeCatalogEntry, RuntimeContentSlot } from "./types";
 import { AnimaRuntimeMediaCatalog } from "./AnimaRuntimeMediaCatalog";
@@ -100,34 +99,56 @@ function mediaCatalog(args: {
   };
 }
 
-describe("AnimaRuntimeMediaCatalog", () => {
-  it("resolves shipped Avatar VFX without cues from the unlicensed sound pack", () => {
-    for (const fixture of AVATAR_VFX_CATALOG) {
-      const avatarVfx = builtInEntry({
-        kind: "avatar_vfx",
-        slot: "avatar_vfx",
-        runtimeId: "opaque-avatar-vfx",
-        source: {
-          type: "runtime_catalog",
-          catalog: "avatar_vfx",
-          key: fixture.id,
-        },
-      });
-      const catalog = new AnimaRuntimeMediaCatalog(
-        mediaCatalog({ avatarVfx: [avatarVfx] }),
-      );
+const PNG_HEADER_BYTES = 33;
 
-      const projected = catalog.resolveAvatarVFX("opaque-avatar-vfx");
-      expect(projected?.id).toBe("opaque-avatar-vfx");
-      expect(projected?.sound).toBeUndefined();
-    }
+/** A PNG signature and IHDR chunk: enough for the pre-decode header check. */
+function pngHeader(width: number, height: number): Uint8Array<ArrayBuffer> {
+  const bytes = new Uint8Array(new ArrayBuffer(PNG_HEADER_BYTES));
+  bytes.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], 0);
+  const view = new DataView(bytes.buffer);
+  view.setUint32(8, 13);
+  bytes.set([0x49, 0x48, 0x44, 0x52], 12);
+  view.setUint32(16, width);
+  view.setUint32(20, height);
+  return bytes;
+}
+
+function eyeDefinition(
+  image: string,
+  extra: Record<string, unknown> = {},
+): Record<string, unknown> {
+  return {
+    schema: "animama/avatar-effect/2",
+    region: "eyes",
+    attachment: { kind: "face_landmark", landmark: "eyes" },
+    art: { image },
+    ...extra,
+  };
+}
+
+describe("AnimaRuntimeMediaCatalog", () => {
+  it("has no bundled Avatar VFX registry for runtime_catalog sources", async () => {
+    const avatarVfx = builtInEntry({
+      kind: "avatar_vfx",
+      slot: "avatar_vfx",
+      runtimeId: "opaque-avatar-vfx",
+      source: { type: "runtime_catalog", catalog: "avatar_vfx", key: "star" },
+    });
+    const catalog = new AnimaRuntimeMediaCatalog(
+      mediaCatalog({ avatarVfx: [avatarVfx] }),
+    );
+
+    expect(catalog.resolveAvatarVFX("opaque-avatar-vfx")).toBeNull();
+    await expect(
+      catalog.loadAvatarVFX("opaque-avatar-vfx"),
+    ).resolves.toBeNull();
+    expect(catalog.listAvatarVFX()).toEqual([]);
   });
 
   it("resolves only exact mounted built-in entries for every media family", async () => {
     const particleFixture = AVATAR_PARTICLE_VFX_CATALOG[0];
-    const avatarVfxFixture = AVATAR_VFX_CATALOG[0];
     const sceneFixtureId = getSceneBackgroundLayerPresetIds()[0];
-    if (!particleFixture || !avatarVfxFixture || !sceneFixtureId) {
+    if (!particleFixture || !sceneFixtureId) {
       throw new Error("Missing built-in media fixtures");
     }
     const particle = builtInEntry({
@@ -135,16 +156,6 @@ describe("AnimaRuntimeMediaCatalog", () => {
       slot: "particle_vfx",
       runtimeId: "mounted-particle",
       source: { type: "public_url", url: particleFixture.assetPath },
-    });
-    const avatarVfx = builtInEntry({
-      kind: "avatar_vfx",
-      slot: "avatar_vfx",
-      runtimeId: "mounted-avatar-vfx",
-      source: {
-        type: "runtime_catalog",
-        catalog: "avatar_vfx",
-        key: avatarVfxFixture.id,
-      },
     });
     const sceneVfx = builtInEntry({
       kind: "scene_vfx",
@@ -166,7 +177,6 @@ describe("AnimaRuntimeMediaCatalog", () => {
     const catalog = new AnimaRuntimeMediaCatalog(
       mediaCatalog({
         particleVfx: [particle],
-        avatarVfx: [avatarVfx],
         sceneBackgroundVfx: [sceneVfx],
         sfx: [sfx],
       }),
@@ -178,10 +188,6 @@ describe("AnimaRuntimeMediaCatalog", () => {
       id: "mounted-particle",
     });
     await expect(catalog.resolveParticleVFX("hearts")).resolves.toBeNull();
-    expect(catalog.resolveAvatarVFX("mounted-avatar-vfx")?.id).toBe(
-      "mounted-avatar-vfx",
-    );
-    expect(catalog.resolveAvatarVFX(avatarVfxFixture.id)).toBeNull();
     expect(
       catalog.resolveSceneVFX("background_layers", "mounted-scene-vfx")?.id,
     ).toBe("mounted-scene-vfx");
@@ -377,7 +383,7 @@ describe("AnimaRuntimeMediaCatalog", () => {
   });
 
   it("loads a private Avatar VFX image once and rewrites its exact Sound alias", async () => {
-    const image = new Uint8Array([1, 2, 3]);
+    const image = pngHeader(8, 8);
     const entry = privateEntry({
       slot: "avatar_vfx",
       runtimeId: "private-avatar-effect",
@@ -394,19 +400,7 @@ describe("AnimaRuntimeMediaCatalog", () => {
       ],
       logicalResourceUrls: { "star.webp": "/runtime/avatar-image" },
       config: { runtime_reference_map: { cue: "opaque-sound" } },
-      definition: {
-        schema: "animama/avatar-effect/1",
-        kind: "hover",
-        region: "eyes",
-        image: "star.webp",
-        transform: {
-          offset: { x: 0, y: 0, z: 0 },
-          scale: { x: 1, y: 1, z: 1 },
-          rotation: { x: 0, y: 0, z: 0 },
-        },
-        hoverKind: "eye_hover",
-        soundAlias: "cue",
-      },
+      definition: eyeDefinition("star.webp", { soundAlias: "cue" }),
     });
     const fetcher = vi.fn(async (input: RequestInfo | URL) =>
       authorizedSource(input)
@@ -441,18 +435,7 @@ describe("AnimaRuntimeMediaCatalog", () => {
   });
 
   it("keeps identical private Avatar image names scoped to their exact catalog entries", async () => {
-    const definition = {
-      schema: "animama/avatar-effect/1",
-      kind: "hover",
-      region: "eyes",
-      image: "shared.webp",
-      transform: {
-        offset: { x: 0, y: 0, z: 0 },
-        scale: { x: 1, y: 1, z: 1 },
-        rotation: { x: 0, y: 0, z: 0 },
-      },
-      hoverKind: "eye_hover",
-    };
+    const definition = eyeDefinition("shared.webp");
     const effect = (runtimeId: string, url: string) =>
       privateEntry({
         slot: "avatar_vfx",
@@ -464,7 +447,7 @@ describe("AnimaRuntimeMediaCatalog", () => {
             ordinal: 1,
             filename: "shared.webp",
             contentType: "image/webp",
-            bytes: 1,
+            bytes: PNG_HEADER_BYTES,
             url,
           },
         ],
@@ -476,8 +459,8 @@ describe("AnimaRuntimeMediaCatalog", () => {
     let objectUrlOrdinal = 0;
     const fetcher = vi.fn(async (input: RequestInfo | URL) =>
       authorizedSource(input)
-        ? new Response(new Uint8Array([1]), {
-            headers: { "content-length": "1" },
+        ? new Response(pngHeader(4, 4), {
+            headers: { "content-length": String(PNG_HEADER_BYTES) },
           })
         : authorizedDownload(String(input)),
     );
@@ -507,24 +490,148 @@ describe("AnimaRuntimeMediaCatalog", () => {
     ]);
   });
 
+  it("loads an other-eye image beside the main image", async () => {
+    const entry = privateEntry({
+      slot: "avatar_vfx",
+      runtimeId: "private-wink",
+      kind: "avatar_vfx",
+      files: [
+        {
+          role: "image",
+          ordinal: 1,
+          filename: "right.png",
+          contentType: "image/png",
+          bytes: PNG_HEADER_BYTES,
+          url: "/runtime/wink-right",
+        },
+        {
+          role: "image",
+          ordinal: 2,
+          filename: "left.png",
+          contentType: "image/png",
+          bytes: PNG_HEADER_BYTES,
+          url: "/runtime/wink-left",
+        },
+      ],
+      logicalResourceUrls: {
+        "right.png": "/runtime/wink-right",
+        "left.png": "/runtime/wink-left",
+      },
+      definition: {
+        ...eyeDefinition("right.png"),
+        attachment: {
+          kind: "face_landmark",
+          landmark: "eyes",
+          side: "right",
+          mirror: true,
+        },
+        art: { image: "right.png", otherEyeImage: "left.png" },
+      },
+    });
+    const fetcher = vi.fn(async (input: RequestInfo | URL) =>
+      authorizedSource(input)
+        ? new Response(pngHeader(4, 4), {
+            headers: { "content-length": String(PNG_HEADER_BYTES) },
+          })
+        : authorizedDownload(String(input)),
+    );
+    let ordinal = 0;
+    const catalog = new AnimaRuntimeMediaCatalog(
+      mediaCatalog({ avatarVfx: [entry] }),
+      { fetcher, createObjectURL: () => `blob:wink-${++ordinal}` },
+    );
+
+    await expect(
+      catalog.loadAvatarVFX(entry.runtime_id),
+    ).resolves.toMatchObject({
+      assetPath: "blob:wink-1",
+      otherEyeAssetPath: "blob:wink-2",
+      requiresMirror: true,
+    });
+  });
+
+  it.each([
+    ["an image larger than the dimension limit", pngHeader(4097, 16)],
+    [
+      "bytes that are not a supported image",
+      new Uint8Array(new ArrayBuffer(PNG_HEADER_BYTES)),
+    ],
+  ])("refuses %s before decoding", async (_label, bytes) => {
+    const entry = privateEntry({
+      slot: "avatar_vfx",
+      runtimeId: "private-huge",
+      kind: "avatar_vfx",
+      files: [
+        {
+          role: "image",
+          ordinal: 1,
+          filename: "huge.png",
+          contentType: "image/png",
+          bytes: PNG_HEADER_BYTES,
+          url: "/runtime/huge",
+        },
+      ],
+      logicalResourceUrls: { "huge.png": "/runtime/huge" },
+      definition: eyeDefinition("huge.png"),
+    });
+    const createObjectURL = vi.fn(() => "blob:huge");
+    const fetcher = vi.fn(async (input: RequestInfo | URL) =>
+      authorizedSource(input)
+        ? new Response(bytes, {
+            headers: { "content-length": String(PNG_HEADER_BYTES) },
+          })
+        : authorizedDownload(String(input)),
+    );
+    const catalog = new AnimaRuntimeMediaCatalog(
+      mediaCatalog({ avatarVfx: [entry] }),
+      { fetcher, createObjectURL },
+    );
+
+    await expect(catalog.loadAvatarVFX(entry.runtime_id)).resolves.toBeNull();
+    expect(createObjectURL).not.toHaveBeenCalled();
+  });
+
+  it("refuses an unconverted /1 definition without fetching", async () => {
+    const entry = privateEntry({
+      slot: "avatar_vfx",
+      runtimeId: "private-legacy",
+      kind: "avatar_vfx",
+      files: [
+        {
+          role: "image",
+          ordinal: 1,
+          filename: "legacy.png",
+          contentType: "image/png",
+          bytes: PNG_HEADER_BYTES,
+          url: "/runtime/legacy",
+        },
+      ],
+      logicalResourceUrls: { "legacy.png": "/runtime/legacy" },
+      definition: {
+        schema: "animama/avatar-effect/1",
+        kind: "hover",
+        region: "eyes",
+        hoverKind: "eye_hover",
+        image: "legacy.png",
+      },
+    });
+    const fetcher = vi.fn();
+    const catalog = new AnimaRuntimeMediaCatalog(
+      mediaCatalog({ avatarVfx: [entry] }),
+      { fetcher },
+    );
+
+    await expect(catalog.loadAvatarVFX(entry.runtime_id)).resolves.toBeNull();
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
   it("fails closed when a private Avatar definition has no exact image mapping", async () => {
     const entry = privateEntry({
       slot: "avatar_vfx",
       runtimeId: "private-avatar-missing-image",
       kind: "avatar_vfx",
       files: [],
-      definition: {
-        schema: "animama/avatar-effect/1",
-        kind: "hover",
-        region: "eyes",
-        image: "missing.webp",
-        transform: {
-          offset: { x: 0, y: 0, z: 0 },
-          scale: { x: 1, y: 1, z: 1 },
-          rotation: { x: 0, y: 0, z: 0 },
-        },
-        hoverKind: "eye_hover",
-      },
+      definition: eyeDefinition("missing.webp"),
     });
     const fetcher = vi.fn();
     const catalog = new AnimaRuntimeMediaCatalog(

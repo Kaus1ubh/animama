@@ -1,16 +1,10 @@
-import { type VRMPose, type VRMPoseTransform } from "@pixiv/three-vrm";
-import {
-  isAnimaPoseClipV2,
-  parseAnyAnimaPoseClip,
-  type AnyAnimaPoseClip,
-} from "@/lib/avatar/poses/animaPoseClip/anyClip";
+import { parseAnimaPoseClip } from "@/lib/avatar/poses/animaPoseClip/parseClip";
 import {
   beatDetailSummary,
   fitContactsToClip,
   type BeatDetailSummary,
 } from "@/lib/avatar/poses/animaPoseClip/beatEditing";
-import { convertAnimaPoseClipToV2 } from "@/lib/avatar/poses/animaPoseClip/convertV2";
-import type { AnimaPoseClipMutableLayerId } from "@/lib/avatar/poses/animaPoseClip/schema";
+import type { AnimaPoseClipMutableLayerId } from "@/lib/avatar/poses/animaPoseClip/clipVocabulary";
 import { getResolvedAvatarPose } from "@/lib/avatar/poses/catalog";
 import {
   ANIMA_POSE_CLIP_V2_SCHEMA,
@@ -20,26 +14,15 @@ import {
 } from "@/lib/avatar/poses/animaPoseClip/schemaV2";
 
 import {
-  DEFAULT_ANIMA_POSE_CLIP_TRANSITION,
-  ANIMA_POSE_CLIP_SCHEMA,
-  cloneVRMPose,
-  cloneVRMPoseTransform,
   cloneParticleVFXTransform,
-  isAnimaPoseClipRef,
   isAnimaPoseClipVFXEvent,
-  isVRMHumanBoneName,
-  parseAnimaPoseClip,
-  type AnimaPose,
-  type AnimaPoseClip,
   type AnimaPoseClipAvatarVFXEvent,
   type AnimaPoseClipCatalogIdCollection,
   type AnimaPoseClipEasing,
   type AnimaPoseClipEvent,
   type AnimaPoseClipEventCatalogRefs,
   type AnimaPoseClipFade,
-  type AnimaPoseClipKeyframe,
   type AnimaPoseClipParticleVFXEvent,
-  type AnimaPoseClipPose,
   type AnimaPoseClipSceneVFXEvent,
   type AnimaPoseClipSceneVFXKind,
   type AnimaPoseClipSFXEvent,
@@ -54,27 +37,27 @@ import {
 
 export type PoseCreatorAuthoringMode = "pose" | "clip";
 
-export type PoseCreatorClipKeyframeDraft = AnimaPoseClipKeyframe & {
+/** The timeline view of one beat. */
+export type PoseCreatorClipKeyframeDraft = {
+  /** The beat's id. */
   id: string;
-  /** 2.0 drafts: the beat's readable name. */
-  label?: string;
-  /** 2.0 drafts: how motion arrives at the beat's keys. */
+  time: number;
+  /** The beat's id, as the timeline's pose alias for the keyframe. */
+  pose: string;
+  /** The beat's readable name. */
+  label: string;
+  /** How motion arrives at the beat's keys. */
   ease?: AnimaPoseClipEase;
-  /** 2.0 drafts: the beat's generated detail, null when it has none. */
+  /** The beat's generated detail, null when it has none. */
   detail?: BeatDetailSummary | null;
 };
 
 export type PoseCreatorClipEventDraft = AnimaPoseClipEvent;
 
-export type PoseCreatorClipExportMode = "referenced" | "baked";
-
-export type PoseCreatorClipKeyframeDraftPatch = Partial<
-  Pick<PoseCreatorClipKeyframeDraft, "time" | "pose">
-> & {
-  transition?: AnimaPoseClipTransition | null;
-  /** 2.0 drafts: the beat's arrival ease (null restores the defaults). */
+export type PoseCreatorClipKeyframeDraftPatch = {
+  time?: number;
+  /** The beat's arrival ease (null restores the defaults). */
   ease?: AnimaPoseClipEase | null;
-  /** 2.0 drafts: the beat's label. */
   label?: string;
 };
 
@@ -82,6 +65,9 @@ export type PoseCreatorClipEventDraftPatch = {
   playAccompanyingSound?: boolean;
   time?: number;
   duration?: number | null;
+  /** Avatar Effect fade in and out (seconds) for an event with a duration. */
+  fadeIn?: number;
+  fadeOut?: number;
   effectId?: string;
   sceneKind?: AnimaPoseClipSceneVFXKind;
   presetId?: string;
@@ -116,7 +102,6 @@ export type PoseCreatorClipDraft = {
   duration: number;
   loop: boolean;
   basePose: string;
-  defaultTransition: AnimaPoseClipTransition;
   fadeIn?: AnimaPoseClipFade;
   fadeOut?: AnimaPoseClipFade;
   /** Live procedural layers the clip mutes while it plays. */
@@ -126,14 +111,10 @@ export type PoseCreatorClipDraft = {
    * `playback`, `role` or newer metadata), written back unchanged on save.
    */
   extraFields: Record<string, unknown>;
-  poses: Record<string, AnimaPoseClipPose>;
+  /** The timeline view of `motion`'s beats (see poseCreatorClipMotion.ts). */
   keyframes: PoseCreatorClipKeyframeDraft[];
-  /**
-   * The beats and tracks of a draft opened from an `animaPoseClip/2.0` clip.
-   * When present it is the source of truth and `keyframes`/`poses` are its
-   * view (see poseCreatorClipMotion.ts).
-   */
-  motion?: PoseCreatorClipMotion;
+  /** The clip's beats and tracks: the source of truth for its motion. */
+  motion: PoseCreatorClipMotion;
   events: PoseCreatorClipEventDraft[];
   currentTimeSec: number;
   selectedKeyframeId: string | null;
@@ -146,7 +127,6 @@ export type PoseCreatorClipDraft = {
 export type PoseCreatorClipDraftPatch = Partial<
   Pick<PoseCreatorClipDraft, "id" | "name" | "duration" | "loop" | "basePose">
 > & {
-  defaultTransition?: AnimaPoseClipTransition;
   fadeIn?: AnimaPoseClipFade | null;
   fadeOut?: AnimaPoseClipFade | null;
   mutedProceduralLayers?: AnimaPoseClipMutableLayerId[];
@@ -156,17 +136,11 @@ export type PoseCreatorClipDraftPatch = Partial<
 export type PoseCreatorClipValidationOptions = {
   knownPoseIds?: readonly string[];
   omittedBasePoseId?: string;
-  availableBoneNames?: readonly string[];
   eventCatalogRefs?: AnimaPoseClipEventCatalogRefs;
 };
 
 export type PoseCreatorClipImportOptions = PoseCreatorClipValidationOptions & {
   fallbackBasePose: string;
-};
-
-export type PoseCreatorClipExportOptions = PoseCreatorClipValidationOptions & {
-  mode: PoseCreatorClipExportMode;
-  resolvePose?: (poseId: string) => AnimaPose | null | undefined;
 };
 
 export const POSE_CREATOR_CLIP_EASING_OPTIONS = [
@@ -189,8 +163,6 @@ const DEFAULT_CLIP_ID = "pose_creator_clip";
 export const DEFAULT_POSE_CREATOR_CLIP_NAME = "New Clip";
 const DEFAULT_CLIP_DURATION = 2;
 const KEYFRAME_TIME_EPSILON = 0.0005;
-const QUATERNION_ZERO_EPSILON = 0.000001;
-const QUATERNION_NORMALIZED_EPSILON = 0.001;
 const MIN_POSE_CREATOR_CLIP_EVENT_DURATION_SEC = 0.001;
 export const DEFAULT_POSE_CREATOR_CLIP_SNAP_INTERVAL_SEC = 0.05;
 export const POSE_CREATOR_CLIP_SNAP_INTERVAL_OPTIONS = [
@@ -218,10 +190,8 @@ export function createDefaultPoseCreatorClipDraft(
     duration: DEFAULT_CLIP_DURATION,
     loop: false,
     basePose,
-    defaultTransition: cloneDefaultTransition(),
     mutedProceduralLayers: [],
     extraFields: {},
-    poses: {},
     keyframes: [],
     motion: { beats: [] },
     events: [],
@@ -253,17 +223,12 @@ export function createUniquePoseCreatorClipName(
   return `${baseName} (${suffix})`;
 }
 
-/** Endpoint toggles follow actual base-reference landmarks, including loaded clips. */
+/** Whether a keyframe is a Base beat, which the endpoint toggles add and remove. */
 export function isPoseCreatorBaseKeyframe(
-  draft: PoseCreatorClipDraft,
   frame: PoseCreatorClipKeyframeDraft,
 ): boolean {
-  // 2.0 drafts mark base endpoints with beats labelled "Base".
-  if (draft.motion) return frame.label === POSE_CREATOR_BASE_BEAT_LABEL;
-  const pose = draft.poses[frame.pose];
-  return Boolean(
-    pose && isAnimaPoseClipRef(pose) && pose.ref === draft.basePose,
-  );
+  // Base endpoints are beats labelled "Base".
+  return frame.label === POSE_CREATOR_BASE_BEAT_LABEL;
 }
 
 export function patchPoseCreatorClipDraft(
@@ -288,7 +253,7 @@ export function patchPoseCreatorClipDraft(
           patch.duration !== undefined &&
           draft.duration > 0 &&
           Math.abs(frame.time - draft.duration) < 0.0005 &&
-          isPoseCreatorBaseKeyframe(draft, frame)
+          isPoseCreatorBaseKeyframe(frame)
             ? { ...frame, time: clampPoseCreatorClipDuration(patch.duration) }
             : frame,
         ),
@@ -297,9 +262,6 @@ export function patchPoseCreatorClipDraft(
         patch.duration === undefined
           ? draft.duration
           : clampPoseCreatorClipDuration(patch.duration),
-      defaultTransition: patch.defaultTransition
-        ? clonePoseCreatorClipTransition(patch.defaultTransition)
-        : draft.defaultTransition,
       fadeIn:
         patch.fadeIn === undefined
           ? clonePoseCreatorClipFade(draft.fadeIn)
@@ -321,67 +283,18 @@ export function patchPoseCreatorClipDraft(
 export function buildAnimaPoseClipFromPoseCreatorDraft(
   draft: PoseCreatorClipDraft,
   options: PoseCreatorClipValidationOptions = {},
-): AnyAnimaPoseClip | null {
-  if (draft.motion) {
-    // One 2.0 validation covers the beat and track rules.
-    if (
-      hasPoseCreatorClipValidationErrors(
-        validatePoseCreatorClipDraftFields(draft, options),
-      )
+): AnimaPoseClipV2 | null {
+  // One 2.0 validation covers the beat and track rules.
+  if (
+    hasPoseCreatorClipValidationErrors(
+      validatePoseCreatorClipDraftFields(draft, options),
     )
-      return null;
-    const result = validateAnimaPoseClipV2(
-      poseCreatorMotionClip(draft, draft.motion, options),
-    );
-    return result.ok ? result.clip : null;
-  }
-  const validationIssues = validatePoseCreatorClipDraft(draft, options);
-  if (hasPoseCreatorClipValidationErrors(validationIssues)) return null;
-
-  try {
-    return parseAnimaPoseClip({
-      ...structuredClone(draft.extraFields),
-      ...serializePoseCreatorClipLayerMutes(draft),
-      schema: ANIMA_POSE_CLIP_SCHEMA,
-      id: draft.id.trim(),
-      name: draft.name.trim() || DEFAULT_POSE_CREATOR_CLIP_NAME,
-      duration: draft.duration,
-      ...(draft.loop ? { loop: true } : {}),
-      ...(draft.basePose && draft.basePose !== options.omittedBasePoseId
-        ? { basePose: draft.basePose }
-        : {}),
-      defaultTransition: clonePoseCreatorClipTransition(
-        draft.defaultTransition,
-      ),
-      ...(draft.fadeIn && draft.fadeIn.duration > 0
-        ? { fadeIn: clonePoseCreatorClipFade(draft.fadeIn) }
-        : {}),
-      ...(draft.fadeOut && draft.fadeOut.duration > 0
-        ? { fadeOut: clonePoseCreatorClipFade(draft.fadeOut) }
-        : {}),
-      poses: draft.poses,
-      poseKeyframes: sortPoseCreatorClipKeyframes(draft.keyframes).map(
-        (keyframe) => ({
-          time: keyframe.time,
-          pose: keyframe.pose,
-          ...(keyframe.transition
-            ? {
-                transition: clonePoseCreatorClipTransition(keyframe.transition),
-              }
-            : {}),
-        }),
-      ),
-      ...(draft.events.length > 0
-        ? {
-            events: sortPoseCreatorClipEvents(draft.events).map(
-              clonePoseCreatorClipEvent,
-            ),
-          }
-        : {}),
-    });
-  } catch {
+  )
     return null;
-  }
+  const result = validateAnimaPoseClipV2(
+    poseCreatorMotionClip(draft, draft.motion, options),
+  );
+  return result.ok ? result.clip : null;
 }
 
 /** The beat and track fields of a 2.0 clip. */
@@ -410,7 +323,7 @@ const MOTION_FIELDS = [
   "plantFeet",
 ] as const;
 
-/** 2.0 fields a draft owns besides those 1.0 drafts own. */
+/** The clip fields a draft keeps as `motion`. */
 export const POSE_CREATOR_MOTION_FIELDS: ReadonlySet<string> = new Set(
   MOTION_FIELDS,
 );
@@ -483,11 +396,8 @@ const POSE_CREATOR_OWNED_CLIP_FIELDS = new Set([
   "duration",
   "loop",
   "basePose",
-  "defaultTransition",
   "fadeIn",
   "fadeOut",
-  "poses",
-  "poseKeyframes",
   "events",
   "mutedProceduralLayers",
 ]);
@@ -516,44 +426,16 @@ export function serializePoseCreatorClipLayerMutes(
     : {};
 }
 
+/**
+ * A clip as a draft whose motion is the clip's beats and tracks. Throws
+ * `UnsupportedAnimaPoseClipFormatError` for a clip that is not
+ * `animaPoseClip/2.0`, including the retired 1.0 format.
+ */
 export function createPoseCreatorClipDraftFromAnimaPoseClip(
   value: unknown,
   options: PoseCreatorClipImportOptions,
 ): PoseCreatorClipDraft {
-  const parsed = parseAnyAnimaPoseClip(value);
-  // Every draft edits as beats: 1.0 clips open converted, one beat per keyframe.
-  return createPoseCreatorClipDraftFromV2(
-    isAnimaPoseClipV2(parsed) ? parsed : convertPoseCreatorClipToV2(parsed),
-    options,
-  );
-}
-
-/** Resolves catalog poses the way creator playback does. */
-export function resolvePoseCreatorCatalogPose(id: string) {
-  try {
-    return getResolvedAvatarPose(id);
-  } catch {
-    return null;
-  }
-}
-
-/**
- * A 1.0 clip as 2.0, with pose references resolved from the catalog and base
- * endpoints labelled as Base beats.
- */
-export function convertPoseCreatorClipToV2(
-  clip: AnimaPoseClip,
-): AnimaPoseClipV2 {
-  return convertAnimaPoseClipToV2(clip, resolvePoseCreatorCatalogPose, {
-    baseBeatLabel: POSE_CREATOR_BASE_BEAT_LABEL,
-  });
-}
-
-/** A 2.0 clip as a draft whose motion is the clip's beats and tracks. */
-function createPoseCreatorClipDraftFromV2(
-  clip: AnimaPoseClipV2,
-  options: PoseCreatorClipImportOptions,
-): PoseCreatorClipDraft {
+  const clip = parseAnimaPoseClip(value);
   const keyframes = poseCreatorMotionKeyframes(clip);
   const first = keyframes[0] ?? null;
   return withPoseCreatorClipValidation(
@@ -563,14 +445,12 @@ function createPoseCreatorClipDraftFromV2(
       duration: clip.duration,
       loop: clip.loop === true,
       basePose: clip.basePose ?? "",
-      defaultTransition: cloneDefaultTransition(),
       ...(clip.fadeIn ? { fadeIn: clonePoseCreatorClipFade(clip.fadeIn) } : {}),
       ...(clip.fadeOut
         ? { fadeOut: clonePoseCreatorClipFade(clip.fadeOut) }
         : {}),
       mutedProceduralLayers: [...(clip.mutedProceduralLayers ?? [])],
       extraFields: getPoseCreatorClipExtraFields(clip),
-      poses: Object.fromEntries(keyframes.map(({ pose }) => [pose, {}])),
       keyframes,
       motion: motionFromClip(clip),
       events: sortPoseCreatorClipEvents(
@@ -587,85 +467,22 @@ function createPoseCreatorClipDraftFromV2(
   );
 }
 
-export function buildPoseCreatorClipForExport(
-  draft: PoseCreatorClipDraft,
-  options: PoseCreatorClipExportOptions,
-): AnyAnimaPoseClip | null {
-  const validationIssues = validatePoseCreatorClipDraft(draft, options);
-  if (hasPoseCreatorClipValidationErrors(validationIssues)) return null;
-
-  const clip = buildAnimaPoseClipFromPoseCreatorDraft(draft, options);
-  if (!clip) return null;
-
-  // 2.0 tracks hold values; only 1.0 pose references can be baked.
-  if (options.mode === "referenced" || isAnimaPoseClipV2(clip)) return clip;
-  return bakePoseCreatorClipReferences(clip, options);
+/** Resolves catalog poses the way creator playback does. */
+export function resolvePoseCreatorCatalogPose(id: string) {
+  try {
+    return getResolvedAvatarPose(id);
+  } catch {
+    return null;
+  }
 }
 
+/** The draft as formatted clip JSON, or null when it does not build. */
 export function formatPoseCreatorClipJsonForExport(
   draft: PoseCreatorClipDraft,
-  options: PoseCreatorClipExportOptions,
+  options: PoseCreatorClipValidationOptions = {},
 ): string | null {
-  const clip = buildPoseCreatorClipForExport(draft, options);
-  return clip ? JSON.stringify(parseAnyAnimaPoseClip(clip), null, 2) : null;
-}
-
-export function bakePoseCreatorClipReferences(
-  clip: AnimaPoseClip,
-  options: Pick<PoseCreatorClipExportOptions, "resolvePose"> = {},
-): AnimaPoseClip | null {
-  const sanitizedClip = parseAnimaPoseClip(clip);
-  const resolvePose = options.resolvePose ?? (() => null);
-  const baseSnapshot = sanitizedClip.basePose
-    ? resolvePoseSnapshot(sanitizedClip.basePose, resolvePose)
-    : {};
-  if (sanitizedClip.basePose && !baseSnapshot) return null;
-
-  const poses: Record<string, AnimaPoseClipPose> = {};
-  for (const [alias, pose] of Object.entries(sanitizedClip.poses)) {
-    const snapshot = isAnimaPoseClipRef(pose)
-      ? resolvePoseSnapshot(pose.ref, resolvePose)
-      : cloneAnimaPoseClipSnapshot(pose);
-    if (!snapshot) return null;
-
-    const bakedPose = mergePoseCreatorClipSnapshots(
-      baseSnapshot ?? {},
-      snapshot,
-    );
-    poses[alias] = bakedPose;
-  }
-
-  return parseAnimaPoseClip({
-    schema: ANIMA_POSE_CLIP_SCHEMA,
-    id: sanitizedClip.id,
-    name: sanitizedClip.name,
-    duration: sanitizedClip.duration,
-    ...(sanitizedClip.loop === true ? { loop: true } : {}),
-    ...(sanitizedClip.defaultTransition
-      ? {
-          defaultTransition: clonePoseCreatorClipTransition(
-            sanitizedClip.defaultTransition,
-          ),
-        }
-      : {}),
-    ...(sanitizedClip.fadeIn
-      ? { fadeIn: clonePoseCreatorClipFade(sanitizedClip.fadeIn) }
-      : {}),
-    ...(sanitizedClip.fadeOut
-      ? { fadeOut: clonePoseCreatorClipFade(sanitizedClip.fadeOut) }
-      : {}),
-    poses,
-    poseKeyframes: sanitizedClip.poseKeyframes.map((keyframe) => ({
-      time: keyframe.time,
-      pose: keyframe.pose,
-      ...(keyframe.transition
-        ? { transition: clonePoseCreatorClipTransition(keyframe.transition) }
-        : {}),
-    })),
-    ...(sanitizedClip.events && sanitizedClip.events.length > 0
-      ? { events: sanitizedClip.events.map(clonePoseCreatorClipEvent) }
-      : {}),
-  });
+  const clip = buildAnimaPoseClipFromPoseCreatorDraft(draft, options);
+  return clip ? JSON.stringify(clip, null, 2) : null;
 }
 
 export function validatePoseCreatorClipDraft(
@@ -673,8 +490,8 @@ export function validatePoseCreatorClipDraft(
   options: PoseCreatorClipValidationOptions = {},
 ): PoseCreatorClipValidationIssue[] {
   const issues = validatePoseCreatorClipDraftFields(draft, options);
-  // 2.0 drafts also follow the beat and track rules.
-  if (draft.motion && draft.keyframes.length > 0) {
+  // Drafts with beats also follow the beat and track rules.
+  if (draft.keyframes.length > 0) {
     const result = validateAnimaPoseClipV2(
       poseCreatorMotionClip(draft, draft.motion, options),
     );
@@ -690,16 +507,13 @@ export function validatePoseCreatorClipDraft(
   return issues;
 }
 
-/** The draft-level checks, without a 2.0 draft's beat and track rules. */
+/** The draft-level checks, without the beat and track rules. */
 function validatePoseCreatorClipDraftFields(
   draft: PoseCreatorClipDraft,
   options: PoseCreatorClipValidationOptions,
 ): PoseCreatorClipValidationIssue[] {
   const issues: PoseCreatorClipValidationIssue[] = [];
-  const localAliases = new Set(Object.keys(draft.poses));
-  const usedAliases = new Set<string>();
   const knownPoseIds = new Set(options.knownPoseIds ?? []);
-  const availableBoneNames = new Set(options.availableBoneNames ?? []);
   const eventIds = new Set<string>();
 
   if (!draft.id.trim()) {
@@ -734,16 +548,6 @@ function validatePoseCreatorClipDraftFields(
     });
   }
 
-  // Event-only Actions need no synthetic pose; validate their events below.
-  if (localAliases.size === 0 && draft.events.length === 0) {
-    issues.push({
-      severity: "error",
-      code: "empty-poses",
-      message: "Add at least one local pose before exporting a clip.",
-      target: "poses",
-    });
-  }
-
   if (draft.keyframes.length === 0 && draft.events.length === 0) {
     issues.push({
       severity: "error",
@@ -770,8 +574,6 @@ function validatePoseCreatorClipDraftFields(
   }
 
   for (const keyframe of draft.keyframes) {
-    usedAliases.add(keyframe.pose);
-
     if (!Number.isFinite(keyframe.time)) {
       issues.push({
         severity: "error",
@@ -784,15 +586,6 @@ function validatePoseCreatorClipDraftFields(
         severity: "error",
         code: "keyframe-outside-duration",
         message: `Keyframe "${keyframe.id}" is outside the clip duration.`,
-        target: keyframe.id,
-      });
-    }
-
-    if (!localAliases.has(keyframe.pose)) {
-      issues.push({
-        severity: "error",
-        code: "missing-local-pose",
-        message: `Keyframe "${keyframe.id}" references missing local pose "${keyframe.pose}".`,
         target: keyframe.id,
       });
     }
@@ -814,34 +607,6 @@ function validatePoseCreatorClipDraftFields(
       message: `Keyframes "${existing.id}" and "${keyframe.id}" share the same time.`,
       target: keyframe.id,
     });
-  }
-
-  for (const [alias, pose] of Object.entries(draft.poses)) {
-    if (!usedAliases.has(alias)) {
-      issues.push({
-        severity: "warning",
-        code: "unused-local-pose",
-        message: `Local pose "${alias}" is not used by any keyframe.`,
-        target: alias,
-      });
-    }
-
-    if (
-      isAnimaPoseClipRef(pose) &&
-      knownPoseIds.size > 0 &&
-      !knownPoseIds.has(pose.ref)
-    ) {
-      issues.push({
-        severity: "error",
-        code: "missing-external-pose-ref",
-        message: `Local pose "${alias}" references unavailable legacy pose "${pose.ref}".`,
-        target: alias,
-      });
-    }
-
-    if (!isAnimaPoseClipRef(pose)) {
-      validateInlineClipPose(alias, pose, availableBoneNames, issues);
-    }
   }
 
   for (const event of draft.events) {
@@ -1078,147 +843,6 @@ export function hasPoseCreatorClipValidationErrors(
   return issues.some((issue) => issue.severity === "error");
 }
 
-function validateInlineClipPose(
-  alias: string,
-  pose: Pick<AnimaPose, "humanoid" | "expressions">,
-  availableBoneNames: ReadonlySet<string>,
-  issues: PoseCreatorClipValidationIssue[],
-): void {
-  const humanoidEntries = Object.entries(pose.humanoid ?? {});
-  const expressionEntries = Object.entries(pose.expressions ?? {});
-
-  // Empty clip-local poses are valid neutral expression landmarks. They are
-  // distinct from standalone reusable poses, which still require a target.
-
-  for (const [boneName, transform] of humanoidEntries) {
-    if (!isVRMHumanBoneName(boneName)) {
-      issues.push({
-        severity: "error",
-        code: "invalid-pose-bone",
-        message: `Local pose "${alias}" contains invalid humanoid bone "${boneName}".`,
-        target: `${alias}:${boneName}`,
-      });
-      continue;
-    }
-
-    if (availableBoneNames.size > 0 && !availableBoneNames.has(boneName)) {
-      issues.push({
-        severity: "warning",
-        code: "pose-bone-unavailable",
-        message: `Local pose "${alias}" targets bone "${boneName}", which is unavailable on the current avatar.`,
-        target: `${alias}:${boneName}`,
-      });
-    }
-
-    if (!transform.position && !transform.rotation) {
-      issues.push({
-        severity: "error",
-        code: "empty-bone-transform",
-        message: `Local pose "${alias}" has no transform data for bone "${boneName}".`,
-        target: `${alias}:${boneName}`,
-      });
-    }
-
-    if (transform.position) {
-      validateVectorTuple(alias, boneName, transform.position, issues);
-    }
-    if (transform.rotation) {
-      validateQuaternionTuple(alias, boneName, transform.rotation, issues);
-    }
-  }
-
-  for (const [expressionName, weight] of expressionEntries) {
-    if (
-      !expressionName.trim() ||
-      typeof weight !== "number" ||
-      !Number.isFinite(weight)
-    ) {
-      issues.push({
-        severity: "error",
-        code: "invalid-expression-weight",
-        message: `Local pose "${alias}" contains an invalid expression weight.`,
-        target: `${alias}:${expressionName}`,
-      });
-      continue;
-    }
-
-    if (weight < 0 || weight > 1) {
-      issues.push({
-        severity: "error",
-        code: "expression-weight-out-of-range",
-        message: `Local pose "${alias}" expression "${expressionName}" is outside the 0..1 range.`,
-        target: `${alias}:${expressionName}`,
-      });
-    }
-  }
-}
-
-function validateVectorTuple(
-  alias: string,
-  boneName: string,
-  value: readonly unknown[],
-  issues: PoseCreatorClipValidationIssue[],
-): void {
-  if (
-    !Array.isArray(value) ||
-    value.length !== 3 ||
-    !value.every((entry) => typeof entry === "number" && Number.isFinite(entry))
-  ) {
-    issues.push({
-      severity: "error",
-      code: "invalid-position-data",
-      message: `Local pose "${alias}" bone "${boneName}" has invalid position data.`,
-      target: `${alias}:${boneName}`,
-    });
-  }
-}
-
-function validateQuaternionTuple(
-  alias: string,
-  boneName: string,
-  value: readonly unknown[],
-  issues: PoseCreatorClipValidationIssue[],
-): void {
-  if (
-    !Array.isArray(value) ||
-    value.length !== 4 ||
-    !value.every((entry) => typeof entry === "number" && Number.isFinite(entry))
-  ) {
-    issues.push({
-      severity: "error",
-      code: "invalid-quaternion-data",
-      message: `Local pose "${alias}" bone "${boneName}" has invalid quaternion data.`,
-      target: `${alias}:${boneName}`,
-    });
-    return;
-  }
-
-  const length = Math.hypot(
-    value[0] as number,
-    value[1] as number,
-    value[2] as number,
-    value[3] as number,
-  );
-  if (length <= QUATERNION_ZERO_EPSILON) {
-    issues.push({
-      severity: "error",
-      code: "invalid-quaternion-data",
-      message: `Local pose "${alias}" bone "${boneName}" has a zero-length quaternion.`,
-      target: `${alias}:${boneName}`,
-    });
-    return;
-  }
-
-  if (Math.abs(length - 1) > QUATERNION_NORMALIZED_EPSILON) {
-    issues.push({
-      severity: "warning",
-      code: "non-normalized-quaternion",
-      message: `Local pose "${alias}" bone "${boneName}" quaternion is not normalized.`,
-      target: `${alias}:${boneName}`,
-    });
-  }
-}
-
 export function clampPoseCreatorClipDuration(value: number): number {
   if (!Number.isFinite(value)) return 0;
   return Math.max(0, Number(value.toFixed(3)));
@@ -1257,43 +881,6 @@ export function normalizePoseCreatorClipPlaybackSpeed(value: number): number {
   return allowedSpeed?.value ?? DEFAULT_POSE_CREATOR_CLIP_PLAYBACK_SPEED;
 }
 
-export function generatePoseCreatorClipPoseAlias(
-  sourceId: string,
-  existingAliases: Iterable<string>,
-): string {
-  const baseAlias = camelCaseAlias(sourceId) || "pose";
-  const usedAliases = new Set(existingAliases);
-  if (!usedAliases.has(baseAlias)) return baseAlias;
-
-  let suffix = 2;
-  while (usedAliases.has(`${baseAlias}_${suffix}`)) {
-    suffix += 1;
-  }
-  return `${baseAlias}_${suffix}`;
-}
-
-export function generatePoseCreatorClipCapturedAlias(
-  existingAliases: Iterable<string>,
-): string {
-  const usedAliases = new Set(existingAliases);
-  let index = 1;
-  while (usedAliases.has(formatCapturedAlias(index))) {
-    index += 1;
-  }
-  return formatCapturedAlias(index);
-}
-
-export function generatePoseCreatorClipKeyframeId(
-  existingIds: Iterable<string>,
-): string {
-  const usedIds = new Set(existingIds);
-  let index = 1;
-  while (usedIds.has(formatKeyframeId(index))) {
-    index += 1;
-  }
-  return formatKeyframeId(index);
-}
-
 export function generatePoseCreatorClipEventId(
   existingIds: Iterable<string>,
 ): string {
@@ -1309,19 +896,6 @@ export function getPoseCreatorClipEventValidationTarget(
   eventId: string,
 ): string {
   return `event:${eventId}`;
-}
-
-export function clonePoseCreatorClipPose(
-  pose: AnimaPoseClipPose,
-): AnimaPoseClipPose {
-  if (isAnimaPoseClipRef(pose)) {
-    return { ref: pose.ref };
-  }
-
-  return {
-    ...(pose.humanoid ? { humanoid: cloneVRMPose(pose.humanoid) } : {}),
-    ...(pose.expressions ? { expressions: { ...pose.expressions } } : {}),
-  };
 }
 
 export function clonePoseCreatorClipEvent(
@@ -1459,106 +1033,6 @@ function clonePoseCreatorClipVFXParameterKeyframe(
   };
 }
 
-function resolvePoseSnapshot(
-  poseId: string,
-  resolvePose: (poseId: string) => AnimaPose | null | undefined,
-): Pick<AnimaPose, "humanoid" | "expressions"> | null {
-  const pose = resolvePose(poseId);
-  if (!pose) return null;
-  return {
-    ...(pose.humanoid ? { humanoid: cloneVRMPose(pose.humanoid) } : {}),
-    ...(pose.expressions ? { expressions: { ...pose.expressions } } : {}),
-  };
-}
-
-function cloneAnimaPoseClipSnapshot(
-  pose: Pick<AnimaPose, "humanoid" | "expressions">,
-): Pick<AnimaPose, "humanoid" | "expressions"> {
-  return {
-    ...(pose.humanoid ? { humanoid: cloneVRMPose(pose.humanoid) } : {}),
-    ...(pose.expressions ? { expressions: { ...pose.expressions } } : {}),
-  };
-}
-
-function mergePoseCreatorClipSnapshots(
-  baseSnapshot: Pick<AnimaPose, "humanoid" | "expressions">,
-  overlaySnapshot: Pick<AnimaPose, "humanoid" | "expressions">,
-): Pick<AnimaPose, "humanoid" | "expressions"> {
-  const humanoid = mergePoseCreatorClipHumanoidSnapshots(
-    baseSnapshot.humanoid,
-    overlaySnapshot.humanoid,
-  );
-  const expressions = mergePoseCreatorClipExpressions(
-    baseSnapshot.expressions,
-    overlaySnapshot.expressions,
-  );
-
-  return {
-    ...(humanoid ? { humanoid } : {}),
-    ...(expressions ? { expressions } : {}),
-  };
-}
-
-function mergePoseCreatorClipHumanoidSnapshots(
-  basePose: VRMPose | undefined,
-  overlayPose: VRMPose | undefined,
-): VRMPose | undefined {
-  if (!basePose && !overlayPose) return undefined;
-
-  const pose = basePose ? cloneVRMPose(basePose) : {};
-  for (const boneName of Object.keys(overlayPose ?? {}).filter(
-    isVRMHumanBoneName,
-  )) {
-    const overlayTransform = overlayPose?.[boneName];
-    if (!overlayTransform) continue;
-
-    const baseTransform = pose[boneName];
-    pose[boneName] = mergePoseCreatorClipTransforms(
-      baseTransform,
-      overlayTransform,
-    );
-  }
-
-  return Object.keys(pose).length > 0 ? pose : undefined;
-}
-
-function mergePoseCreatorClipTransforms(
-  baseTransform: VRMPoseTransform | undefined,
-  overlayTransform: VRMPoseTransform,
-): VRMPoseTransform {
-  const merged: VRMPoseTransform = {
-    ...(baseTransform ? cloneVRMPoseTransform(baseTransform) : {}),
-    ...cloneVRMPoseTransform(overlayTransform),
-  };
-  return merged;
-}
-
-function mergePoseCreatorClipExpressions(
-  baseExpressions: Record<string, number> | undefined,
-  overlayExpressions: Record<string, number> | undefined,
-): Record<string, number> | undefined {
-  const expressions = {
-    ...(baseExpressions ?? {}),
-    ...(overlayExpressions ?? {}),
-  };
-  return Object.keys(expressions).length > 0 ? expressions : undefined;
-}
-
-export function createPoseCreatorClipRefPose(
-  poseId: string,
-): AnimaPoseClipPose {
-  return { ref: poseId };
-}
-
-export function createPoseCreatorClipInlinePose(
-  pose: AnimaPose,
-): AnimaPoseClipPose {
-  return {
-    ...(pose.humanoid ? { humanoid: cloneVRMPose(pose.humanoid) } : {}),
-    ...(pose.expressions ? { expressions: { ...pose.expressions } } : {}),
-  };
-}
-
 export function clonePoseCreatorClipTransition(
   transition: AnimaPoseClipTransition,
 ): AnimaPoseClipTransition {
@@ -1658,20 +1132,6 @@ export function findPoseCreatorClipKeyframeAtTime(
   );
 }
 
-export function createPoseCreatorClipKeyframeDraft(
-  draft: PoseCreatorClipDraft,
-  poseAlias: string,
-  time: number,
-): PoseCreatorClipKeyframeDraft {
-  return {
-    id: generatePoseCreatorClipKeyframeId(
-      draft.keyframes.map((keyframe) => keyframe.id),
-    ),
-    time: clampPoseCreatorClipTime(time, draft.duration),
-    pose: poseAlias,
-  };
-}
-
 export function createPoseCreatorClipAvatarVFXEventDraft(
   draft: PoseCreatorClipDraft,
   effectId: string,
@@ -1737,33 +1197,6 @@ export function createPoseCreatorClipSFXEventDraft(
   };
 }
 
-export function patchPoseCreatorClipKeyframeDraft(
-  keyframe: PoseCreatorClipKeyframeDraft,
-  patch: PoseCreatorClipKeyframeDraftPatch,
-  duration: number,
-): PoseCreatorClipKeyframeDraft {
-  const transition =
-    patch.transition === undefined
-      ? keyframe.transition
-        ? clonePoseCreatorClipTransition(keyframe.transition)
-        : undefined
-      : normalizePoseCreatorClipTransition(patch.transition);
-
-  const nextKeyframe: PoseCreatorClipKeyframeDraft = {
-    ...keyframe,
-    ...(patch.pose !== undefined ? { pose: patch.pose } : {}),
-    ...(patch.time !== undefined
-      ? { time: clampPoseCreatorClipTime(patch.time, duration) }
-      : {}),
-  };
-  if (transition) {
-    nextKeyframe.transition = transition;
-  } else {
-    delete nextKeyframe.transition;
-  }
-  return nextKeyframe;
-}
-
 export function patchPoseCreatorClipEventDraft(
   event: PoseCreatorClipEventDraft,
   patch: PoseCreatorClipEventDraftPatch,
@@ -1783,6 +1216,7 @@ export function patchPoseCreatorClipEventDraft(
       nextEvent.playAccompanyingSound = patch.playAccompanyingSound;
     if (patch.effectId !== undefined) nextEvent.effectId = patch.effectId;
     applyPoseCreatorClipVFXDurationPatch(nextEvent, patch);
+    applyPoseCreatorClipAvatarVFXFadePatch(nextEvent, patch);
     return nextEvent;
   }
 
@@ -1832,6 +1266,33 @@ function applyPoseCreatorClipVFXDurationPatch(
     return;
   }
   event.duration = normalizePoseCreatorClipEventDuration(patch.duration);
+}
+
+/**
+ * Write Fade in and Fade out into `envelope.intensity`, and re-clamp existing
+ * fades when the duration changes. Fades need a duration (ending with the
+ * Action removes the envelope); the envelope is removed when both are zero.
+ */
+function applyPoseCreatorClipAvatarVFXFadePatch(
+  event: AnimaPoseClipAvatarVFXEvent,
+  patch: PoseCreatorClipEventDraftPatch,
+): void {
+  const fadePatched = patch.fadeIn !== undefined || patch.fadeOut !== undefined;
+  const reclamp =
+    typeof patch.duration === "number" &&
+    event.envelope?.intensity !== undefined;
+  if (!fadePatched && !reclamp) return;
+  if (event.duration === undefined) return;
+  const current = event.envelope?.intensity ?? {};
+  const clamp = (value: number) =>
+    Number.isFinite(value) ? Math.min(event.duration!, Math.max(0, value)) : 0;
+  const fadeIn = clamp(patch.fadeIn ?? current.fadeIn ?? 0);
+  const fadeOut = clamp(patch.fadeOut ?? current.fadeOut ?? 0);
+  if (fadeIn === 0 && fadeOut === 0) {
+    delete event.envelope;
+    return;
+  }
+  event.envelope = { intensity: { ...current, fadeIn, fadeOut } };
 }
 
 function applyPoseCreatorClipParticleVFXPatch(
@@ -1929,39 +1390,6 @@ export function withPoseCreatorClipValidation(
     ...draft,
     validationIssues: validatePoseCreatorClipDraft(draft, options),
   };
-}
-
-function cloneDefaultTransition(): AnimaPoseClipTransition {
-  return {
-    easing: DEFAULT_ANIMA_POSE_CLIP_TRANSITION.easing,
-    interpolation: {
-      ...DEFAULT_ANIMA_POSE_CLIP_TRANSITION.interpolation,
-    },
-  };
-}
-
-function camelCaseAlias(value: string): string {
-  const words = value
-    .trim()
-    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
-    .split(/[^a-zA-Z0-9]+/)
-    .filter(Boolean);
-
-  return words
-    .map((word, index) => {
-      const lower = word.toLowerCase();
-      if (index === 0) return lower;
-      return `${lower.charAt(0).toUpperCase()}${lower.slice(1)}`;
-    })
-    .join("");
-}
-
-function formatCapturedAlias(index: number): string {
-  return `captured_${String(index).padStart(3, "0")}`;
-}
-
-function formatKeyframeId(index: number): string {
-  return `kf_${String(index).padStart(3, "0")}`;
 }
 
 function formatEventId(index: number): string {

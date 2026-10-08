@@ -6,6 +6,14 @@ const sidebarSource = new URL(
   "../sidebar/SidebarCreateMenu.tsx",
   import.meta.url,
 );
+const pickerSource = new URL(
+  "./EffectTemplatePickerDialog.tsx",
+  import.meta.url,
+);
+const effectsRouteSource = new URL(
+  "../../routes/_app/effects.new.tsx",
+  import.meta.url,
+);
 
 describe("Effect creator entry points", () => {
   it("retires sound creation links and explains the inline upload flow", async () => {
@@ -17,28 +25,40 @@ describe("Effect creator entry points", () => {
     expect(sidebar).not.toContain("/sound-effects/new");
     expect(hub).toContain("Upload sounds");
   });
-  it.each([
-    ["Avatar VFX", "/avatar-effects/new"],
-    ["Scene VFX", "/scene-effects/new"],
-  ])("links %s from the creator hub and sidebar", async (label, route) => {
-    const [hub, sidebar] = await Promise.all([
+  it("opens one Effects template picker from the sidebar and the creator hub", async () => {
+    const [hub, sidebar, picker] = await Promise.all([
       readFile(hubSource, "utf8"),
       readFile(sidebarSource, "utf8"),
+      readFile(pickerSource, "utf8"),
     ]);
 
-    expect(hub).toContain(`title: "${label}"`);
-    expect(hub).toContain(`to: "${route}"`);
-    expect(sidebar).toContain(`label: "${label}"`);
-    expect(sidebar).toContain(`to: "${route}"`);
+    // The sidebar's three effect links became one Effects item.
+    expect(sidebar).not.toContain("EFFECT_CREATE_LINKS");
+    expect(sidebar).not.toContain("/particle-effects/new");
+    expect(sidebar).not.toContain("/avatar-effects/new");
+    expect(sidebar).not.toContain("/scene-effects/new");
+    expect(sidebar).toContain("<EffectTemplatePickerDialog");
+    expect(sidebar).toContain('aria-haspopup="dialog"');
+    expect(sidebar).toContain("Effects");
+
+    // Each Create page effect card opens the picker at its kind.
+    expect(hub).toContain("<EffectTemplatePickerDialog");
+    expect(hub).toContain("EFFECT_TEMPLATE_KINDS.map");
+    expect(hub).not.toContain("/avatar-effects/new");
+
+    // The picker reaches every creator route, with templates where they exist.
+    expect(picker).toContain('to="/avatar-effects/new"');
+    expect(picker).toContain('to="/scene-effects/new"');
+    expect(picker).toContain("search={{ template: template.id }}");
+    expect(picker).toContain("search={{ template: id }}");
+    expect(picker).toContain("Start from scratch");
   });
 
-  it("groups Effect destinations behind a second sidebar menu level", async () => {
-    const sidebar = await readFile(sidebarSource, "utf8");
+  it("renders the creator hub with the picker open at /effects/new", async () => {
+    const route = await readFile(effectsRouteSource, "utf8");
 
-    expect(sidebar).toContain("const PRIMARY_CREATE_LINKS");
-    expect(sidebar).toContain("const EFFECT_CREATE_LINKS");
-    expect(sidebar).toContain("setEffectsOpen(true)");
-    expect(sidebar).toContain('aria-label="Effects"');
+    expect(route).toContain('createFileRoute("/_app/effects/new")');
+    expect(route).toContain("<CreateHubPage effectPickerRoute />");
   });
 });
 

@@ -18,6 +18,9 @@ from starlette.types import Receive, Scope, Send
 
 from animama.adapters.repositories.sqlalchemy.anima_aggregate_uow import SQLAlchemyAnimaAggregateUnitOfWork
 from animama.adapters.repositories.sqlalchemy.anima_package_source_repo import SQLAlchemyAnimaPackageSourceRepository
+from animama.adapters.repositories.sqlalchemy.avatar_face_part_override_repo import (
+    SQLAlchemyAvatarFacePartOverrideRepository,
+)
 from animama.adapters.repositories.sqlalchemy.content_catalog_repo import SQLAlchemyContentCatalog
 from animama.adapters.repositories.sqlalchemy.user_profile_repo import SQLAlchemyUserProfileRepository
 from animama.app.contracts.content_package_import import (
@@ -26,6 +29,8 @@ from animama.app.contracts.content_package_import import (
     ReviewedPackageImport,
 )
 from animama.app.services.anima_package_source_service import AnimaPackageSourceService
+from animama.app.services.avatar_effect_conversion import CONVERSION_REQUIRED, PACKAGE_CONVERSION_HINT
+from animama.app.services.clip_format import CLIP_FORMAT_UNSUPPORTED, PACKAGE_CLIP_FORMAT_HINT
 from animama.app.services.content_catalog_service import ContentCatalogService
 from animama.app.services.content_package_export import (
     ContentPackageExportService,
@@ -95,6 +100,11 @@ class PackageRoute(APIRoute):
                 detail: dict[str, Any] = {"code": code}
                 if isinstance(exc, ContentConflictError) and exc.items:
                     detail["items"] = list(exc.items)
+                if code == CONVERSION_REQUIRED:
+                    # A fixed server hint naming the conversion steps, never submitted data.
+                    detail["message"] = PACKAGE_CONVERSION_HINT
+                elif code == CLIP_FORMAT_UNSUPPORTED:
+                    detail["message"] = PACKAGE_CLIP_FORMAT_HINT
                 return JSONResponse(status_code=status, content={"detail": detail})
             except (ContentIntegrityError, ContentPathError, ContentValidationError, ValueError):
                 return JSONResponse(status_code=422, content={"detail": {"code": "package_invalid"}})
@@ -132,6 +142,7 @@ def _exports(request: Request, session: AsyncSession) -> ContentPackageExportSer
         exports_root=_paths(request).exports_staging_root,
         stages=_stages(request),
         profiles=SQLAlchemyUserProfileRepository(session),
+        face_part_overrides=SQLAlchemyAvatarFacePartOverrideRepository(session),
         anima_sources=AnimaPackageSourceService(
             catalog=content.mutations.catalog,
             sources=SQLAlchemyAnimaPackageSourceRepository(session),

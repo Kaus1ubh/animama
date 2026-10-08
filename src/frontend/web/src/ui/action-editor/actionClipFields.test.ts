@@ -11,7 +11,7 @@ import { actionSequenceFromTimelineDraft } from "./actionPersistence";
 import { createActionProject, parseActionImport } from "./actionProject";
 
 const clip = {
-  schema: "animaPoseClip/1.0",
+  schema: "animaPoseClip/2.0",
   id: "wave",
   name: "Wave",
   role: "motion",
@@ -19,14 +19,16 @@ const clip = {
   basePose: "relaxedRest",
   mutedProceduralLayers: ["cursorLookAt", "sway", "futureLayer"],
   generator: { tool: "animama-animation", source: "wave.motion.json" },
-  poses: {
-    a: { expressions: { happy: 0 } },
-    b: { expressions: { happy: 1 } },
-  },
-  poseKeyframes: [
-    { time: 0, pose: "a" },
-    { time: 1, pose: "b" },
+  beats: [
+    { id: "a", label: "A", time: 0 },
+    { id: "b", label: "B", time: 1 },
   ],
+  expressions: {
+    happy: [
+      { v: 0, beat: "a" },
+      { v: 1, beat: "b" },
+    ],
+  },
 };
 
 const draftOf = (value: unknown) =>

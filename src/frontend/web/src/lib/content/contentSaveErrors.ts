@@ -1,7 +1,10 @@
 export type ContentApiErrorDetail = {
   code: string | null;
+  /** Creator control (`name`, `files`) or a definition JSON path. */
   field: string | null;
   reason: string | null;
+  /** Backend validator message, when the failure has one. */
+  message: string | null;
   details: Record<string, unknown>;
 };
 
@@ -88,6 +91,7 @@ export function parseContentApiErrorDetail(
     code: stringValue(detail.code),
     field: stringValue(detail.field),
     reason: stringValue(detail.reason),
+    message: stringValue(detail.message),
     details: objectValue(detail.details) ?? {},
   };
 }
@@ -96,10 +100,21 @@ function sentence(value: string): string {
   return /[.!?]$/.test(value) ? value : `${value}.`;
 }
 
+/** Name the definition setting by its path below `definition`, e.g. `transform.offset.x`. */
+function avatarEffectDefinitionMessage(detail: ContentApiErrorDetail): string {
+  const setting =
+    detail.field?.replace(/^definition\.(?=.)/, "") ?? "definition";
+  const cause = detail.message ? `: ${sentence(detail.message)}` : ".";
+  return `The Avatar Effect setting "${setting}" is invalid${cause} Correct it and retry. Your draft is preserved.`;
+}
+
 function contentSaveMessage(detail: ContentApiErrorDetail): string {
   if (detail.code === "content_invalid") {
-    const reason = detail.reason
-      ? `Content validation failed: ${sentence(detail.reason)}`
+    if (detail.reason === "avatar_effect_definition_invalid")
+      return avatarEffectDefinitionMessage(detail);
+    const explanation = detail.message ?? detail.reason;
+    const reason = explanation
+      ? `Content validation failed: ${sentence(explanation)}`
       : "The content did not pass validation.";
     return `${reason} Correct the source and retry. Your draft is preserved.`;
   }

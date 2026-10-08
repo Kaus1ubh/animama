@@ -27,7 +27,7 @@ import { Switch } from "@/ui/components/switch";
 import {
   ANIMA_POSE_CLIP_MUTABLE_LAYER_IDS,
   type AnimaPoseClipMutableLayerId,
-} from "@/lib/avatar/poses/animaPoseClip/schema";
+} from "@/lib/avatar/poses/animaPoseClip/clipVocabulary";
 import {
   findPoseCreatorClipKeyframeAtTime,
   isPoseCreatorBaseKeyframe,
@@ -125,7 +125,6 @@ export function PoseCreatorClipWorkspaceInspector({
           <KeyframeInspector
             embedded={embedded}
             keyframe={selectedKeyframe}
-            poseAliases={Object.keys(clipDraft.poses)}
             allowHumanoid={allowHumanoid}
             disabled={Boolean(clipInlineEdit)}
             onClose={() => selectClipKeyframe(null)}
@@ -191,7 +190,7 @@ export function PoseCreatorClipWorkspaceInspector({
                     endpoint === "start" ? 0 : clipDraft.duration,
                   );
                   const checked = Boolean(
-                    frame && isPoseCreatorBaseKeyframe(clipDraft, frame),
+                    frame && isPoseCreatorBaseKeyframe(frame),
                   );
                   const occupied = Boolean(frame && !checked);
                   const label =
@@ -340,8 +339,8 @@ function EventInspector({
         </InspectorRow>
 
         {isAnimaPoseClipVFXEvent(event) ? (
-          <InspectorRow label="End">
-            <div className="flex w-[176px] min-w-0 items-center gap-2">
+          <>
+            <InspectorRow label="End">
               <Select
                 value={event.duration === undefined ? "action" : "duration"}
                 disabled={disabled}
@@ -350,28 +349,51 @@ function EventInspector({
                 }
               >
                 <SelectTrigger
-                  className="h-9 min-w-0 flex-1 gap-1 px-2"
+                  className="h-9 w-[176px]"
                   aria-label="Selected event end"
                 >
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="action">With Action</SelectItem>
-                  <SelectItem value="duration">After</SelectItem>
+                  <SelectItem value="duration">After a duration</SelectItem>
                 </SelectContent>
               </Select>
-              {event.duration !== undefined ? (
+            </InspectorRow>
+            {/* Its own row, so the End choice is never truncated. */}
+            {event.duration !== undefined ? (
+              <InspectorRow label="Duration">
                 <DurationInput
                   value={event.duration}
                   label="Selected event duration"
                   disabled={disabled}
                   min={0.001}
-                  compact
                   onChange={(duration) => onUpdate({ duration })}
                 />
-              ) : null}
-            </div>
-          </InspectorRow>
+              </InspectorRow>
+            ) : null}
+          </>
+        ) : null}
+
+        {event.kind === "avatar_vfx" && event.duration !== undefined ? (
+          <>
+            <InspectorRow label="Fade in">
+              <DurationInput
+                value={event.envelope?.intensity?.fadeIn ?? 0}
+                label="Selected event fade in"
+                disabled={disabled}
+                onChange={(fadeIn) => onUpdate({ fadeIn })}
+              />
+            </InspectorRow>
+            <InspectorRow label="Fade out">
+              <DurationInput
+                value={event.envelope?.intensity?.fadeOut ?? 0}
+                label="Selected event fade out"
+                disabled={disabled}
+                onChange={(fadeOut) => onUpdate({ fadeOut })}
+              />
+            </InspectorRow>
+          </>
         ) : null}
 
         {accompanyingSound &&
@@ -463,7 +485,6 @@ function EventInspector({
 export function KeyframeInspector({
   embedded,
   keyframe,
-  poseAliases,
   allowHumanoid,
   disabled,
   onClose,
@@ -474,7 +495,6 @@ export function KeyframeInspector({
   keyframe: ReturnType<
     typeof usePoseCreatorStore.getState
   >["clipDraft"]["keyframes"][number];
-  poseAliases: string[];
   allowHumanoid: boolean;
   disabled: boolean;
   onClose: () => void;
@@ -483,13 +503,11 @@ export function KeyframeInspector({
   >["updateSelectedClipKeyframe"];
   onDelete: () => void;
 }) {
-  // A 2.0 draft's keyframes are beats: they carry a label and an arrival ease.
-  const beat = keyframe.label !== undefined;
   return (
     <WorkspaceCard embedded={embedded}>
       <InspectorHeading
         title={allowHumanoid ? "Keyframe" : "Expression keyframe"}
-        subtitle={keyframe.label ?? formatSourceLabel(keyframe.pose)}
+        subtitle={keyframe.label}
         onClose={embedded ? undefined : onClose}
         onDelete={onDelete}
         deleteLabel="Delete selected keyframe"
@@ -504,98 +522,40 @@ export function KeyframeInspector({
             onChange={(time) => onUpdate({ time })}
           />
         </InspectorRow>
-        {beat ? (
-          <InspectorRow label="Label">
-            <BeatLabelInput
-              key={keyframe.id}
-              value={keyframe.label ?? ""}
-              disabled={disabled}
-              onCommit={(label) => onUpdate({ label })}
-            />
-          </InspectorRow>
-        ) : allowHumanoid ? (
-          <InspectorRow label="Pose">
-            <Select
-              value={keyframe.pose}
-              disabled={disabled}
-              onValueChange={(pose) => onUpdate({ pose })}
-            >
-              <SelectTrigger
-                className="h-9 w-[176px]"
-                aria-label="Keyframe pose"
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {poseAliases.map((alias) => (
-                  <SelectItem key={alias} value={alias}>
-                    {formatSourceLabel(alias)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </InspectorRow>
-        ) : null}
+        <InspectorRow label="Label">
+          <BeatLabelInput
+            key={keyframe.id}
+            value={keyframe.label}
+            disabled={disabled}
+            onCommit={(label) => onUpdate({ label })}
+          />
+        </InspectorRow>
         <InspectorRow label="Easing">
-          {beat ? (
-            <Select
-              value={keyframe.ease ?? INHERIT_VALUE}
-              disabled={disabled}
-              onValueChange={(ease) =>
-                onUpdate({
-                  ease:
-                    ease === INHERIT_VALUE ? null : (ease as AnimaPoseClipEase),
-                })
-              }
+          <Select
+            value={keyframe.ease ?? INHERIT_VALUE}
+            disabled={disabled}
+            onValueChange={(ease) =>
+              onUpdate({
+                ease:
+                  ease === INHERIT_VALUE ? null : (ease as AnimaPoseClipEase),
+              })
+            }
+          >
+            <SelectTrigger
+              className="h-9 w-[176px]"
+              aria-label="Keyframe easing"
             >
-              <SelectTrigger
-                className="h-9 w-[176px]"
-                aria-label="Keyframe easing"
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={INHERIT_VALUE}>Clip default</SelectItem>
-                {BEAT_EASE_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ) : (
-            <Select
-              value={keyframe.transition?.easing ?? INHERIT_VALUE}
-              disabled={disabled}
-              onValueChange={(easing) =>
-                onUpdate({
-                  transition:
-                    easing === INHERIT_VALUE
-                      ? null
-                      : {
-                          ...(keyframe.transition ?? {}),
-                          easing:
-                            easing as (typeof POSE_CREATOR_CLIP_EASING_OPTIONS)[number]["value"],
-                        },
-                })
-              }
-            >
-              <SelectTrigger
-                className="h-9 w-[176px]"
-                aria-label="Keyframe easing"
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={INHERIT_VALUE}>Clip default</SelectItem>
-                {POSE_CREATOR_CLIP_EASING_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={INHERIT_VALUE}>Clip default</SelectItem>
+              {BEAT_EASE_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </InspectorRow>
         {keyframe.detail ? (
           <p className="text-muted-foreground text-xs leading-relaxed">
@@ -607,7 +567,7 @@ export function KeyframeInspector({
   );
 }
 
-/** 2.0 arrival eases: the smooth and hold choices, then the 1.0 easings. */
+/** Beat arrival eases: the smooth and hold choices, then the curve easings. */
 const BEAT_EASE_OPTIONS: readonly {
   value: AnimaPoseClipEase;
   label: string;
@@ -758,19 +718,17 @@ function DurationInput({
   label,
   disabled = false,
   min = 0,
-  compact = false,
   onChange,
 }: {
   value: number;
   label: string;
   disabled?: boolean;
   min?: number;
-  compact?: boolean;
   onChange: (value: number) => void;
 }) {
   const { beginUndoGroup, endUndoGroup } = usePoseCreatorClipUndoGrouping();
   return (
-    <div className={compact ? "relative w-20 shrink-0" : "relative w-[176px]"}>
+    <div className="relative w-[176px]">
       <Input
         type="number"
         min={min}
@@ -780,11 +738,7 @@ function DurationInput({
         onChange={(event) => onChange(Number(event.currentTarget.value))}
         onFocus={beginUndoGroup}
         onBlur={endUndoGroup}
-        className={
-          compact
-            ? "h-9 [appearance:textfield] pr-5 pl-2 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-            : "h-9 pr-8"
-        }
+        className="h-9 pr-8"
         aria-label={label}
       />
       <span className="text-muted-foreground pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-xs">
@@ -839,8 +793,4 @@ function formatIdentifier(value: string): string {
     .replace(/([a-z])([A-Z])/g, "$1 $2")
     .replace(/[_-]+/g, " ")
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
-}
-
-function formatSourceLabel(value: string): string {
-  return formatIdentifier(value);
 }

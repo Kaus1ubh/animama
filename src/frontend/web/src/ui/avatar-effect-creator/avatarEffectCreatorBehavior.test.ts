@@ -1,14 +1,48 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  avatarEffectEditorReducer,
+  createDefaultAvatarEffectDocument,
+  type AvatarEffectEditorAttachmentKind,
+} from "@/lib/avatar/vfx/editor";
+import {
   AVATAR_EFFECT_PREVIEW_MOTION_CLASS,
   avatarEffectCreatorKeyboardAction,
+  avatarEffectInitialView,
   avatarEffectPreviewCompatibility,
   createAvatarEffectObjectUrlLease,
-  shouldBlockAvatarEffectNavigation,
 } from "./avatarEffectCreatorBehavior";
 
 describe("Avatar Effect creator behavior", () => {
+  it("opens each attachment in a View that frames its art", () => {
+    const attached = (
+      kind: AvatarEffectEditorAttachmentKind,
+      landmark?: "eyes" | "mouth" | "forehead" | "top" | "top_edge",
+    ) => {
+      let document = avatarEffectEditorReducer(
+        createDefaultAvatarEffectDocument(),
+        { type: "set-attachment", kind },
+      );
+      if (landmark)
+        document = avatarEffectEditorReducer(document, {
+          type: "patch-attachment",
+          patch: { landmark },
+        });
+      return avatarEffectInitialView(document);
+    };
+    expect(avatarEffectInitialView(createDefaultAvatarEffectDocument())).toBe(
+      "portrait-close",
+    );
+    expect(attached("face_surface")).toBe("portrait-close");
+    expect(attached("face_landmark", "mouth")).toBe("portrait-close");
+    // Face crops art above the head or on the forehead, as in Emote !.
+    for (const landmark of ["forehead", "top", "top_edge"] as const)
+      expect(attached("face_landmark", landmark)).toBe("portrait");
+    expect(attached("body")).toBe("portrait");
+    expect(attached("sticker")).toBe("portrait");
+    expect(attached("silhouette")).toBe("full-body");
+  });
+
   it("maps save and preview keyboard shortcuts without stealing text input space", () => {
     expect(
       avatarEffectCreatorKeyboardAction({
@@ -37,25 +71,6 @@ describe("Avatar Effect creator behavior", () => {
         editing: false,
       }),
     ).toBe("toggle-preview");
-  });
-
-  it("blocks only cross-route navigation while dirty or saving", () => {
-    expect(
-      shouldBlockAvatarEffectNavigation({
-        dirty: true,
-        busy: false,
-        currentPath: "/avatar-effects/new",
-        nextPath: "/library",
-      }),
-    ).toBe(true);
-    expect(
-      shouldBlockAvatarEffectNavigation({
-        dirty: true,
-        busy: false,
-        currentPath: "/avatar-effects/new",
-        nextPath: "/avatar-effects/new",
-      }),
-    ).toBe(false);
   });
 
   it("cleans up editor-owned object URLs exactly once", () => {

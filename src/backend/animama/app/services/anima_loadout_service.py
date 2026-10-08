@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from animama.adapters.repositories.sqlalchemy.anima_repo import SQLAlchemyAnimaRepository
 from animama.adapters.repositories.sqlalchemy.avatar_repo import SQLAlchemyAvatarRepository
 from animama.adapters.repositories.sqlalchemy.content_catalog_repo import SQLAlchemyContentCatalog
+from animama.app.services.avatar_effect_conversion import is_unconverted_avatar_effect
 from animama.app.services.content_kind_registry import RETIRED_CONTENT_KINDS
 from animama.app.services.starter_loadout_policy import starter_loadout_policy
 from animama.app.services.typed_content_service import TypedCatalogItem, TypedContentService
@@ -571,6 +572,12 @@ class AnimaLoadoutService:
                 item = visible.get(item_id)
                 if item is None:
                     continue
+                if (
+                    item.kind is ContentKind.AVATAR_EFFECT
+                    and item.status is ContentStatus.VALID
+                    and is_unconverted_avatar_effect(TypedContentService.parse(item).document)
+                ):
+                    raise AnimaLoadoutError("avatar_effect_conversion_required")
                 counts[item.kind.value] = counts.get(item.kind.value, 0) + 1
                 pending.extend(item.dependency_item_ids)
         final_gesture_count = sum(row.kind == ContentKind.GESTURE.value for row in rows)

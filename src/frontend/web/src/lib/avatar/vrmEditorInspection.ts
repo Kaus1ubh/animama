@@ -261,7 +261,7 @@ function resolveBoneEntries(
 }
 
 function resolveNodeIndexForObject(
-  avatar: Avatar | null | undefined,
+  avatar: Pick<Avatar, "sourceGltf"> | null | undefined,
   object: THREE.Object3D | null,
 ): number | null {
   if (!avatar?.sourceGltf || !object) return null;
@@ -880,7 +880,19 @@ export function sanitizeJsonDocument(jsonDocument: JSONDocument): JSONDocument {
   };
 }
 
-export function buildRuntimePrimitiveBindings(avatar: Avatar): {
+/** The loaded scene and its glTF parser, which own glTF index associations. */
+export type RuntimePrimitiveBindingSource = Pick<
+  Avatar,
+  "scene" | "sourceGltf"
+>;
+
+/**
+ * List the live mesh primitives with stable `node:mesh:primitive` keys. The keys
+ * are glTF indices, so they are stable for identical file bytes.
+ */
+export function buildRuntimePrimitiveBindings(
+  avatar: RuntimePrimitiveBindingSource,
+): {
   entries: RuntimePrimitiveBindingEntry[];
   warnings: string[];
 } {

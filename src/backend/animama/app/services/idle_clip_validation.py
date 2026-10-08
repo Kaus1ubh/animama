@@ -1,7 +1,7 @@
-"""Structural admission for the animaPoseClip shapes consumed by idle playback.
+"""Structural admission for the animaPoseClip/2.0 clips consumed by idle playback.
 
-Keep this boundary aligned with frontend poses/animaPoseClip/schema.ts,
-schemaV2.ts and animaPose.ts. Shared JSON fixtures exercise these checks and the
+Keep this boundary aligned with frontend poses/animaPoseClip/schemaV2.ts and
+clipVocabulary.ts (fades and events). Shared JSON fixtures exercise these checks and the
 actual parsers; the 2.0 vocabulary below is compared with the shared
 ``fixtures/v2-vocabulary.json``. This validates playable shape, without
 rewriting authored poses or event values.
@@ -86,47 +86,6 @@ def _transition(value: Any, field: str) -> None:
         ):
             if key in interpolation:
                 _enum(interpolation[key], f"{field}.interpolation.{key}", allowed)
-
-
-def _pose(value: Any, field: str) -> None:
-    """Match clip snapshots, including empty landmarks and authoring transforms.
-
-    Static content's validate_resolved_pose is deliberately stricter: the clip
-    parser also supports Euler angles, quaternion normalization and weight clamps.
-    """
-    pose = _record(value, field)
-    if "ref" in pose:
-        _require(set(pose) == {"ref"}, field, "pose references must contain only ref")
-        _string(pose["ref"], f"{field}.ref")
-        return
-    _require("parent" not in pose, field, "snapshots cannot inherit a parent")
-    _require(pose.get("schema", "animaPose/1.0") == "animaPose/1.0", field, "has an unsupported Pose schema")
-    for key in ("id", "name"):
-        if key in pose:
-            _string(pose[key], f"{field}.{key}")
-    if "rotationOrder" in pose:
-        _enum(pose["rotationOrder"], f"{field}.rotationOrder", {"XYZ"})
-    if "humanoid" in pose:
-        for bone, raw_transform in _record(pose["humanoid"], f"{field}.humanoid").items():
-            _require(bone in HUMAN_BONE_NAMES, field, "contains an unknown humanoid bone")
-            transform = _record(raw_transform, f"{field}.humanoid.{bone}")
-            _require(
-                not ("rotation" in transform and "rotationEulerDegrees" in transform),
-                field,
-                "cannot specify both quaternion and Euler rotation",
-            )
-            for key, size in (("position", 3), ("rotation", 4), ("rotationEulerDegrees", 3)):
-                if key not in transform:
-                    continue
-                components = _array(transform[key], f"{field}.{bone}.{key}")
-                _require(len(components) == size, field, f"{key} requires {size} numbers")
-                numbers = [_number(component, f"{field}.{bone}.{key}") for component in components]
-                if key == "rotation":
-                    _require(math.hypot(*numbers) > 0.000001, field, "quaternion must have nonzero length")
-    if "expressions" in pose:
-        for key, weight in _record(pose["expressions"], f"{field}.expressions").items():
-            _string(key, f"{field}.expression name")
-            _number(weight, f"{field}.expressions.{key}")
 
 
 def _vfx_fields(event: dict[str, Any], field: str) -> None:
@@ -225,60 +184,6 @@ def _event(event: dict[str, Any], field: str) -> None:
     _vfx_fields(event, field)
 
 
-def validate_idle_clip_timeline(clip: dict[str, Any], duration: float | None) -> float:
-    """Admit the player's clip structure and return its authored timeline horizon.
-
-    Caller rejects lifetime playback and validates explicit duration/loop values.
-    External Pose and event dependencies remain owned by typed closure validation.
-    """
-    for key in ("id", "name"):
-        _string(clip.get(key), key)
-    _require("playback" not in clip, "playback", "must be absent for finite idle playback")
-    if "role" in clip:
-        _enum(clip["role"], "role", {"motion", "reaction"})
-    if "basePose" in clip:
-        _string(clip["basePose"], "basePose")
-    if "defaultTransition" in clip:
-        _transition(clip["defaultTransition"], "defaultTransition")
-    for key in ("fadeIn", "fadeOut"):
-        if key in clip:
-            fade = _record(clip[key], key)
-            _number(fade.get("duration"), f"{key}.duration", minimum=0)
-            _transition(fade, key)
-    aliases: set[str] = set()
-    for raw_alias, pose in _record(clip.get("poses"), "poses").items():
-        alias = _string(raw_alias, "pose alias")
-        _require(alias not in aliases, "poses", "contains duplicate aliases")
-        aliases.add(alias)
-        _pose(pose, f"poses.{alias}")
-    keyframes = _array(clip.get("poseKeyframes"), "poseKeyframes")
-    previous = None
-    horizon = 0.0
-    for raw_frame in keyframes:
-        frame = _record(raw_frame, "poseKeyframe")
-        time = _number(frame.get("time"), "poseKeyframe.time", minimum=0, maximum=duration)
-        _require(previous is None or time > previous, "poseKeyframes", "times must strictly increase")
-        pose_alias = _string(frame.get("pose"), "poseKeyframe.pose")
-        _require(pose_alias in aliases, "poseKeyframe.pose", "must reference a clip pose alias")
-        if "transition" in frame:
-            _transition(frame["transition"], "poseKeyframe.transition")
-        previous = time
-        horizon = max(horizon, time)
-    events = _array(clip.get("events", []), "events")
-    ids: set[str] = set()
-    for raw_event in events:
-        event = _record(raw_event, "event")
-        event_id = _string(event.get("id"), "event.id")
-        _require(event_id not in ids, "events", "must have unique ids")
-        ids.add(event_id)
-        time = _number(event.get("time"), f"event.{event_id}.time", minimum=0, maximum=duration)
-        _event(event, f"event.{event_id}")
-        horizon = max(horizon, time)
-    _require(bool(keyframes or events), "timeline", "requires a pose keyframe or event")
-    return duration if duration is not None else horizon
-
-
-ANIMA_POSE_CLIP_V2_SCHEMA = "animaPoseClip/2.0"
 V2_EASES = _EASINGS | {"smooth", "hold"}
 V2_HAND_PRESETS = frozenset({"fist", "open-spread", "open-together", "relaxed", "point", "peace", "thumbs-up"})
 V2_HAND_ADJUSTMENT_LIMITS = {"curl": 90, "spread": 30}
@@ -332,6 +237,12 @@ _V2_TICKS_PER_SECOND = 10_000
 _V2_MAX_TIME_MAGNITUDE = 1e9
 
 
+def _beat_name(value: Any, beat_ticks: dict[str, int], field: str) -> str:
+    """Return a key's beat after checking that it names a declared beat."""
+    _require(isinstance(value, str) and value in beat_ticks, field, "must name a beat")
+    return str(value)
+
+
 def _v2_ticks(seconds: float, field: str) -> int:
     """Whole 0.1 ms ticks, rounded as the frontend saves times (half away from zero)."""
     _require(abs(seconds) <= _V2_MAX_TIME_MAGNITUDE, field, "is out of range")
@@ -353,8 +264,8 @@ def validate_clip_v2_timeline(clip: dict[str, Any]) -> float:
     Mirrors the frontend ``validateAnimaPoseClipV2``: beats, key ownership and
     offsets within each beat's neighbours, track names, value types and bounds.
     Times are compared in the 0.1 ms ticks a saved file holds. Callers check
-    ``schema`` and ``loop`` as for 1.0 clips; package validation removes a
-    lifetime ``playback`` before calling.
+    ``schema`` and ``loop``; package validation removes a lifetime
+    ``playback`` before calling.
     """
     for key in ("id", "name"):
         _string(clip.get(key), key)
@@ -412,8 +323,7 @@ def validate_clip_v2_timeline(clip: dict[str, Any]) -> float:
         for index, raw_key in enumerate(items):
             key_field = f"{field}[{index}]"
             key = _record(raw_key, key_field)
-            owner = key.get("beat")
-            _require(isinstance(owner, str) and owner in beat_ticks, f"{key_field}.beat", "must name a beat")
+            owner = _beat_name(key.get("beat"), beat_ticks, f"{key_field}.beat")
             position = position_of[owner]
             dt = _v2_ticks(_number(key.get("dt", 0), f"{key_field}.dt"), f"{key_field}.dt")
             time = beat_ticks[owner] + dt
@@ -492,8 +402,7 @@ def validate_clip_v2_timeline(clip: dict[str, Any]) -> float:
             bone_name = contact.get(key)
             is_bone = isinstance(bone_name, str) and bone_name in HUMAN_BONE_NAMES
             _require(is_bone, f"{field}.{key}", "must be a humanoid bone")
-        owner = contact.get("beat")
-        _require(isinstance(owner, str) and owner in beat_ticks, f"{field}.beat", "must name a beat")
+        owner = _beat_name(contact.get("beat"), beat_ticks, f"{field}.beat")
         start = beat_ticks[owner] + _v2_ticks(_number(contact.get("from"), f"{field}.from"), f"{field}.from")
         stop = beat_ticks[owner] + _v2_ticks(_number(contact.get("to"), f"{field}.to"), f"{field}.to")
         _require(0 <= start <= stop <= end, field, "must lie within the clip")

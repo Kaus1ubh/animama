@@ -6,7 +6,10 @@ import type {
   PyActionPreview,
   PyReaction,
 } from "@/lib/content/catalogTypes";
-import { MAX_ANIMA_POSE_CLIP_BYTES } from "@/lib/avatar/poses/animaPoseClip";
+import {
+  MAX_ANIMA_POSE_CLIP_BYTES,
+  parseAnimaPoseClip,
+} from "@/lib/avatar/poses/animaPoseClip";
 import { BUILT_IN_AVATAR_MOTION_CATALOG } from "@/lib/avatar/motion/AvatarMotionCatalog";
 import { fetchContentPreviewFile } from "@/lib/content/contentPreview";
 import { actionClosure } from "@/lib/content-preview/ActionPreviewSession";
@@ -179,6 +182,8 @@ export function starterGestureSemanticKey(
 /**
  * Reconstruct editor state from an exact ready preview. Built-ins are returned
  * as unsaved private templates; owned items retain their logical identity.
+ * Throws for a sequence that is not a valid `animaPoseClip/2.0` clip
+ * (`UnsupportedAnimaPoseClipFormatError` for the retired 1.0 format).
  */
 export async function actionDocumentFromPreview(args: {
   intent: ActionIntent;
@@ -205,6 +210,9 @@ export async function actionDocumentFromPreview(args: {
         ? await ownedSequence(preview, root)
         : builtinSequence(intent, root)
       : base.sequence;
+  // Only `animaPoseClip/2.0` clips open: a retired 1.0 or invalid clip throws
+  // its reason instead of opening as an empty timeline.
+  if (implementationKind === "anima_clip") parseAnimaPoseClip(sequence);
   const placement = object(root.placement_hint);
   const customName = args.customizeStarter ? `${item.name} Custom` : item.name;
   const semanticKey =

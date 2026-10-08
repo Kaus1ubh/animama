@@ -23,6 +23,7 @@ import {
   countAnimaPoseClipEventsByKind,
   getAnimaPoseClipTimelineDuration,
   isAnimaPoseClipVFXEvent,
+  sampleAnimaPoseClipAvatarVFXIntensity,
   shouldAnimaPoseClipAutoComplete,
   type AnimaPoseClipAvatarVFXEvent,
   type AnimaPoseClipDueEvent,
@@ -43,9 +44,9 @@ import {
 } from "./animaPoseClip/interpolation";
 import type { AvatarPoseClipSnapshot, AvatarPoseSnapshot } from "./types";
 import {
-  parseAnyAnimaPoseClip,
-  type AnyAnimaPoseClip,
-} from "./animaPoseClip/anyClip";
+  parseAnimaPoseClip,
+  type AnimaPoseClipV2,
+} from "./animaPoseClip/parseClip";
 import {
   createAnimaPoseClipProgram,
   type AnimaPoseClipProgram,
@@ -53,7 +54,7 @@ import {
 import {
   ANIMA_POSE_CLIP_EPSILON,
   type AnimaPoseClipMutableLayerId,
-} from "./animaPoseClip/schema";
+} from "./animaPoseClip/clipVocabulary";
 import {
   retargetClipSampleForVrm0,
   retargetPoseForVrm0,
@@ -105,6 +106,12 @@ export type AnimaPoseClipEventSink = {
     event: AnimaPoseClipAvatarVFXEvent,
     context: AnimaPoseClipEventContext,
   ) => void | Promise<void>;
+  /** The event's envelope value (0–1) while an Avatar Effect fades in or out. */
+  setAvatarVFXIntensity?: (
+    event: AnimaPoseClipAvatarVFXEvent,
+    context: AnimaPoseClipEventContext,
+    intensity: number,
+  ) => void;
   applySceneVFX?: (
     event: AnimaPoseClipSceneVFXEvent,
     context: AnimaPoseClipEventContext,
@@ -144,6 +151,8 @@ type ClipActiveEventEffect = {
   event: AnimaPoseClipVFXEvent;
   context: AnimaPoseClipEventContext;
   clearAtPlaybackTime: number | null;
+  /** Last envelope value sent to the sink, to skip unchanged updates. */
+  intensity?: number;
 };
 
 type ClipPlaybackPhase = "fadeIn" | "playing" | "fadeOut";
@@ -159,7 +168,7 @@ export type AnimaPoseClipPresence = {
 };
 
 type ClipRuntimeState = {
-  clip: AnyAnimaPoseClip | null;
+  clip: AnimaPoseClipV2 | null;
   /** How the clip samples, prepared for this Avatar when it starts. */
   program: AnimaPoseClipProgram | null;
   playbackId: number;
@@ -257,13 +266,13 @@ export class PoseController {
     if (!clip || !state.playing || this._isDisposed) return null;
     let weight = 1;
     if (state.phase === "fadeIn") {
-      const transition = resolveClipFadeTransition(clip, clip.fadeIn);
+      const transition = resolveClipFadeTransition(clip.fadeIn);
       weight = easeProgress(
         this._getCurrentClipFadeProgress(state.fadeInDurationSec),
         transition.easing,
       );
     } else if (state.phase === "fadeOut") {
-      const transition = resolveClipFadeTransition(clip, clip.fadeOut);
+      const transition = resolveClipFadeTransition(clip.fadeOut);
       weight =
         1 -
         easeProgress(
@@ -364,13 +373,13 @@ export class PoseController {
   }
 
   playAnimaPoseClip(
-    clip: AnyAnimaPoseClip,
+    clip: AnimaPoseClipV2,
     options?: PoseControllerPlayClipOptions,
   ): AvatarPoseClipSnapshot {
     const finite = options?.finitePlayback;
     // Admission combines the raw clip and Gesture config; these repetitions
     // therefore override the raw loop flag for this idle occurrence only.
-    const sanitizedClip = parseAnyAnimaPoseClip(
+    const sanitizedClip = parseAnimaPoseClip(
       finite ? { ...clip, loop: finite.repetitions > 1 } : clip,
     );
     if (
@@ -430,6 +439,7 @@ export class PoseController {
     if (this._clipState.playing) {
       this._applyClipSampleAtTime(0);
       this._dispatchClipEventsBetween(0, 0, { includeStart: true });
+      this._sampleClipEventEnvelopes(0);
     }
 
     return this._getClipSnapshot(sanitizedClip.id);
@@ -478,6 +488,7 @@ export class PoseController {
 
     if (this._clipState.phase === "fadeOut") {
       this._clearExpiredClipEventEffects(nextElapsedSec);
+      this._sampleClipEventEnvelopes(nextElapsedSec);
       if (this._isCurrentClipFadeComplete(this._clipState.fadeOutDurationSec)) {
         this.stopClip({ immediate: true });
       }
@@ -486,6 +497,8 @@ export class PoseController {
 
     this._clearExpiredClipEventEffects(nextElapsedSec);
     this._dispatchClipEventsBetween(previousElapsedSec, nextElapsedSec);
+    // After dispatch, so an effect that starts this frame gets its first value.
+    this._sampleClipEventEnvelopes(nextElapsedSec);
 
     if (
       this._clipState.phase === "fadeIn" &&
@@ -760,6 +773,25 @@ export class PoseController {
     });
   }
 
+  /** Send each fading Avatar Effect event's envelope value to the sink. */
+  private _sampleClipEventEnvelopes(playbackTimeSec: number): void {
+    const handler = this._clipEventSink?.setAvatarVFXIntensity;
+    if (!handler) return;
+    for (const activeEffect of this._clipState.activeEventEffects.values()) {
+      const { event, context } = activeEffect;
+      if (event.kind !== "avatar_vfx") continue;
+      const intensity = sampleAnimaPoseClipAvatarVFXIntensity(
+        event,
+        playbackTimeSec - context.playbackTime,
+      );
+      if (intensity === undefined || intensity === activeEffect.intensity) {
+        continue;
+      }
+      activeEffect.intensity = intensity;
+      handler(event, context, intensity);
+    }
+  }
+
   private _clearExpiredClipEventEffects(playbackTimeSec: number): void {
     for (const activeEffect of Array.from(
       this._clipState.activeEventEffects.values(),
@@ -899,7 +931,7 @@ export class PoseController {
     if (!clip) return sample;
 
     if (this._clipState.phase === "fadeIn") {
-      const transition = resolveClipFadeTransition(clip, clip.fadeIn);
+      const transition = resolveClipFadeTransition(clip.fadeIn);
       const progress = this._getCurrentClipFadeProgress(
         this._clipState.fadeInDurationSec,
       );
@@ -913,7 +945,7 @@ export class PoseController {
     }
 
     if (this._clipState.phase === "fadeOut") {
-      const transition = resolveClipFadeTransition(clip, clip.fadeOut);
+      const transition = resolveClipFadeTransition(clip.fadeOut);
       const progress = this._getCurrentClipFadeProgress(
         this._clipState.fadeOutDurationSec,
       );

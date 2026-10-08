@@ -5,9 +5,9 @@ from __future__ import annotations
 from dataclasses import asdict, replace
 from datetime import datetime
 from pathlib import PurePosixPath
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from animama.app.anima_creation_contract import (
     ItemId,
@@ -17,6 +17,13 @@ from animama.app.anima_creation_contract import (
     SourceRevision,
     StrictCreationModel,
 )
+from animama.app.contracts.avatar_effect import (
+    AvatarEffectDefinitionError,
+    AvatarEffectDefinitionV2,
+    avatar_effect_projection_fields,
+)
+from animama.app.contracts.avatar_face_parts import AvatarFacePartCorrection
+from animama.app.services.avatar_face_parts import local_face_parts
 from animama.app.services.content_kind_registry import idle_cells_projection
 from animama.app.services.content_portability import Portability, portability
 from animama.app.services.runtime_budget_policy import MAX_RUNTIME_ENTRIES
@@ -182,10 +189,18 @@ class PyParticleEffect(PyTypedContentBase):
 
 
 class PyAvatarEffect(PyTypedContentBase):
+    """An Avatar Effect; an unreadable stored definition is reported, not raised."""
+
     kind: Literal["avatar_effect"] = "avatar_effect"
     runtime_defaults: dict[str, object] = Field(default_factory=dict)
     technical_source: dict[str, object] | None = None
-    definition: dict[str, object] | None = None
+    definition: AvatarEffectDefinitionV2 | None = None
+    definition_error: AvatarEffectDefinitionError | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _project_definition(cls, data: Any) -> Any:
+        return avatar_effect_projection_fields(data)
 
 
 class PySceneEffect(PyTypedContentBase):
@@ -237,6 +252,8 @@ class PyAvatarContent(PyTypedContentBase):
     kind: Literal["avatar"] = "avatar"
     model_role: Literal["model"] = "model"
     compatibility: dict[str, object] = Field(default_factory=dict)
+    # The effective face-part correction for this revision and VRM, if any.
+    face_parts: AvatarFacePartCorrection | None = None
 
 
 class PyAppearance(PyTypedContentBase):
@@ -432,7 +449,14 @@ def typed_content_response(value: TypedCatalogItem) -> PyTypedContent:
             compatibility=document.compatibility,
         )
     if isinstance(document, AvatarDocumentV1):
-        return PyAvatarContent(**base, compatibility=document.compatibility)
+        # Typed family routes overlay the caller's Included override; this is the Local sidecar.
+        return PyAvatarContent(
+            **base,
+            compatibility=document.compatibility,
+            face_parts=local_face_parts(
+                source=value.item.source, document_face_parts=document.face_parts, files=value.item.files
+            ),
+        )
     if isinstance(document, AppearanceDocumentV1):
         return PyAppearance(
             **base,

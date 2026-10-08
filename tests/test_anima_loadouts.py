@@ -138,3 +138,56 @@ async def test_reaction_can_be_assigned_to_any_loadout_cell(async_session, with_
         assert selected.source.catalog_item_id == reaction.id
     finally:
         await cleanup_loadout_fixture(async_session, fixture)
+
+
+@pytest.mark.asyncio
+async def test_gesture_using_an_unconverted_avatar_effect_is_refused(async_session) -> None:  # noqa: ANN001
+    from animama.orm.content_catalog import ORMContentCatalogDependency
+
+    fixture = await create_loadout_fixture(async_session)
+    effect = await add_typed_item(
+        async_session,
+        fixture,
+        kind="avatar_effect",
+        name="Legacy Mark",
+        metadata={
+            "definition": {
+                "schema": "animama/avatar-effect/1",
+                "kind": "hover",
+                "region": "emote",
+                "hoverKind": "box_hover",
+                "placement": "forehead-left",
+                "image": "mark.png",
+            }
+        },
+    )
+    gesture = await add_typed_item(
+        async_session,
+        fixture,
+        kind="gesture",
+        name="Marked Wave",
+        metadata={
+            "semantic_key": "marked-wave",
+            "implementation": {"kind": "vrma", "file_role": "animation"},
+            "config": {},
+            "dependencies": [{"ref": effect.logical_key, "content_type": "avatar_effect", "alias": "mark"}],
+        },
+    )
+    async_session.add(
+        ORMContentCatalogDependency(
+            item_id=gesture.id, ordinal=1, declared_ref=effect.logical_key, target_item_id=effect.id
+        )
+    )
+    await async_session.commit()
+    try:
+        with pytest.raises(AnimaLoadoutError) as raised:
+            await AnimaLoadoutService(async_session).plan(
+                user_id=fixture.user_id,
+                anima_id=fixture.anima_id,
+                family="gesture",
+                expected_revision=1,
+                intent={"operation": "add", "source": catalog_source(gesture)},
+            )
+        assert raised.value.code == "avatar_effect_conversion_required"
+    finally:
+        await cleanup_loadout_fixture(async_session, fixture)

@@ -6,8 +6,7 @@
 production sampler on `AvatarSample_Y_0` (VRM 0) and `AvatarSample_A_1_New`
 (VRM 1), each with its own fitted hands and solved legs, and exits 1 on any
 FAIL. A 2.0 clip supplies its `contacts`; feet are checked unless it keys its
-legs itself without `plantFeet`. 1.0 clips are checked with planted feet and
-no contacts.
+legs itself without `plantFeet`.
 
 | Category | Means | Typical fix |
 | --- | --- | --- |
@@ -55,12 +54,18 @@ forearm also rests on the body.
 
 `pnpm -s animation:preview <source> [--compare <source>]` opens the motion in
 the system browser on both Included Avatars, through the app's own `Avatar`
-playback: fades, live layers (toggle them off to see the clip alone), layer
-mutes and expression precedence look as they do in chat. A source is a clip
-(2.0 or 1.0), a creator project file, or a Library item
+playback with the chat canvas lighting: fades, live layers (toggle them off to
+see the clip alone), layer mutes and expression precedence look as they do in
+chat. A source is an `animaPoseClip/2.0` clip, a creator project file, or a
+Library item
 (`library:<folder | selector | name>`, prefixed `included/` or `local/` when
 ambiguous; Local items come from `--local-content <dir>` or the sourced stack
-record). Use it to judge timing, which still frames miss:
+record). A Library Gesture or Reaction, or a project file, plays its Avatar
+and Particle Effects from its dependencies, with their fades; Scene Effects and sounds are not played, and the
+page's **Effect warnings** panel lists them. The preview also takes an Avatar
+Effect source (an effect folder, its descriptor, or
+`library:avatar-effect/<name>`); see the `animama-avatar-vfx` skill. Use it to
+judge timing, which still frames miss:
 
 - play at 0.25–1× speed, loop, scrub, or click a beat marker;
 - switch camera presets (front, ¾, side, face);
@@ -68,15 +73,18 @@ record). Use it to judge timing, which still frames miss:
   for example next to its replacement;
 - switch sources in the page: the **Review** and **Compare** pickers list the
   example clips, the clips in each file source's folder, and the Included and
-  Local Gestures and Reactions. To hand the owner several Gestures, start one
+  Local Gestures, Reactions and Avatar Effects. To hand the owner several Gestures, start one
   preview and name the items to pick; there is no need for one run per item.
 
 Edits to the source reload the page. Notes the owner adds in the page are
 saved beside a file source as `<file name without .json>.review.json`
-(`laugh.clip.json` → `laugh.clip.review.json`), or in the working
-directory for a Library item (`--notes <file>` overrides this for the
-command-line source). After revising the
-source for a note:
+(`laugh.clip.json` → `laugh.clip.review.json`) or beside an effect's folder
+(`sparkle/` → `sparkle.review.json`). They go in the working directory instead
+for a Library item and for any file inside Library content: under the Included
+or Local root, in a `vfx/avatar/<stem>/` folder, or in a `<stem>/` folder that
+holds `<stem>.meta.json` (the content scanner would count a notes file there as
+one of the item's files). `--notes <file>` overrides this for the command-line
+source. After revising the source for a note:
 
 1. `pnpm -s animation review <notes.review.json>` lists notes with their ids.
 2. `pnpm -s animation resolve <notes.review.json> <id> <what you changed>`
@@ -85,8 +93,8 @@ source for a note:
    version the latest note was made against (or else the one before the
    current version) alongside the current one.
 
-Review sidecars and retained versions are ignored by Git; summarise the notes
-and resolutions in the hand-off instead.
+Review sidecars and retained versions are ignored by Git under
+`src/frontend/web`; summarise the notes and resolutions in the hand-off instead.
 
 ## Review renders
 

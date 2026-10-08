@@ -1,15 +1,6 @@
-import {
-  isAnimaPoseClipV2,
-  parseAnyAnimaPoseClip,
-  type AnyAnimaPoseClip,
-} from "./anyClip";
-import {
-  isAnimaPoseClipRef,
-  sanitizePoseSnapshot,
-  type AnimaPoseClipPose,
-  type AnimaPoseClipPoseResolver,
-  type AnimaPoseSnapshot,
-} from "./schema";
+import { parseAnimaPoseClip } from "./parseClip";
+import type { AnimaPoseClipPoseResolver } from "./clipVocabulary";
+import type { AnimaPoseClipV2 } from "./schemaV2";
 
 export type AnimaPoseClipChannelAnalysis = {
   humanoid: boolean;
@@ -21,10 +12,10 @@ export type AnimaPoseClipChannelAnalysis = {
 };
 
 export function analyzeAnimaPoseClipChannels(
-  clip: AnyAnimaPoseClip,
+  clip: AnimaPoseClipV2,
   resolvePoseRef: AnimaPoseClipPoseResolver = () => null,
 ): AnimaPoseClipChannelAnalysis {
-  const sanitizedClip = parseAnyAnimaPoseClip(clip);
+  const sanitizedClip = parseAnimaPoseClip(clip);
   const analysis: AnimaPoseClipChannelAnalysis = {
     humanoid: false,
     expressions: false,
@@ -35,28 +26,20 @@ export function analyzeAnimaPoseClipChannels(
   };
 
   if (sanitizedClip.basePose) {
-    applySnapshotChannels(
-      analysis,
-      resolvePoseSnapshot(sanitizedClip.basePose, resolvePoseRef),
-    );
+    const basePose = resolvePoseRef(sanitizedClip.basePose);
+    if (Object.keys(basePose?.humanoid ?? {}).length > 0)
+      analysis.humanoid = true;
+    if (Object.keys(basePose?.expressions ?? {}).length > 0)
+      analysis.expressions = true;
   }
 
-  if (isAnimaPoseClipV2(sanitizedClip)) {
-    analysis.humanoid ||= Boolean(
-      sanitizedClip.joints ??
-      sanitizedClip.rotations ??
-      sanitizedClip.hipsPosition ??
-      sanitizedClip.hands,
-    );
-    analysis.expressions ||= Boolean(sanitizedClip.expressions);
-  } else {
-    for (const pose of Object.values(sanitizedClip.poses)) {
-      applySnapshotChannels(
-        analysis,
-        resolveClipPoseSnapshot(pose, resolvePoseRef),
-      );
-    }
-  }
+  analysis.humanoid ||= Boolean(
+    sanitizedClip.joints ??
+    sanitizedClip.rotations ??
+    sanitizedClip.hipsPosition ??
+    sanitizedClip.hands,
+  );
+  analysis.expressions ||= Boolean(sanitizedClip.expressions);
 
   for (const event of sanitizedClip.events ?? []) {
     if (event.kind === "avatar_vfx") {
@@ -71,37 +54,4 @@ export function analyzeAnimaPoseClipChannels(
   }
 
   return analysis;
-}
-
-function resolveClipPoseSnapshot(
-  pose: AnimaPoseClipPose,
-  resolvePoseRef: AnimaPoseClipPoseResolver,
-): AnimaPoseSnapshot | null {
-  if (isAnimaPoseClipRef(pose)) {
-    return resolvePoseSnapshot(pose.ref, resolvePoseRef);
-  }
-  return pose;
-}
-
-function resolvePoseSnapshot(
-  poseId: string,
-  resolvePoseRef: AnimaPoseClipPoseResolver,
-): AnimaPoseSnapshot | null {
-  const resolvedPose = resolvePoseRef(poseId);
-  return resolvedPose
-    ? sanitizePoseSnapshot(resolvedPose, poseId, false)
-    : null;
-}
-
-function applySnapshotChannels(
-  analysis: AnimaPoseClipChannelAnalysis,
-  snapshot: AnimaPoseSnapshot | null,
-): void {
-  if (!snapshot) return;
-  if (Object.keys(snapshot.humanoid ?? {}).length > 0) {
-    analysis.humanoid = true;
-  }
-  if (Object.keys(snapshot.expressions ?? {}).length > 0) {
-    analysis.expressions = true;
-  }
 }

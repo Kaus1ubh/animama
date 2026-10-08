@@ -18,7 +18,7 @@ import {
   TooltipTrigger,
 } from "@/ui/components/tooltip";
 import { ApplicationSettingsModal } from "@/ui/sidebar/ApplicationSettingsModal";
-import { useSidebar } from "@/ui/sidebar/Sidebar";
+import { useCloseMobileSidebar, useSidebar } from "@/ui/sidebar/Sidebar";
 
 function initials(name: string): string {
   return name
@@ -33,7 +33,8 @@ function initials(name: string): string {
 
 /** Show private installation personalization and application controls. */
 export function SidebarUserMenu() {
-  const { open, setOpen } = useSidebar();
+  const { open } = useSidebar();
+  const closeMobileSidebar = useCloseMobileSidebar();
   const profile = useUserProfile();
   const [menuOpen, setMenuOpen] = useState(false);
   const [applicationSettingsOpen, setApplicationSettingsOpen] = useState(false);
@@ -93,10 +94,7 @@ export function SidebarUserMenu() {
             onSelect={(event) => {
               event.preventDefault();
               setMenuOpen(false);
-              // The mobile drawer sits above dialogs; close it first.
-              if (!window.matchMedia("(min-width: 768px)").matches) {
-                setOpen(false);
-              }
+              closeMobileSidebar();
               setApplicationSettingsOpen(true);
             }}
           >

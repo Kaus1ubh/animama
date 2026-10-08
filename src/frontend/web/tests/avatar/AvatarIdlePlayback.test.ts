@@ -2,7 +2,7 @@ import { Object3D } from "three";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Avatar } from "@/lib/avatar/Avatar";
 import { PoseController } from "@/lib/avatar/poses/PoseController";
-import type { AnimaPoseClip } from "@/lib/avatar/poses/animaPoseClip";
+import type { AnimaPoseClipV2 } from "@/lib/avatar/poses/animaPoseClip";
 import type { AvatarMotionCatalog } from "@/lib/avatar/motion/AvatarMotionCatalog";
 import { BUILT_IN_AVATAR_MOTION_CATALOG } from "@/lib/avatar/motion/AvatarMotionCatalog";
 import {
@@ -16,14 +16,13 @@ import {
 } from "@/lib/emotion";
 
 const emotion = buildEmotionRuntimeState(createEmptyEmotionStateMap());
-const clip: AnimaPoseClip = {
-  schema: "animaPoseClip/1.0",
+const clip: AnimaPoseClipV2 = {
+  schema: "animaPoseClip/2.0",
   id: "idle:test",
   name: "Idle",
   duration: 0.5,
   loop: true,
-  poses: {},
-  poseKeyframes: [],
+  beats: [],
   events: [{ id: "tap", kind: "sfx", cueId: "tap", time: 0.25 }],
 };
 

@@ -39,7 +39,7 @@ shared model clients, streams direct chat events, and persists side effects.
 - `local/`: installation principal, repository, and model; local HTTP admission,
   lifecycle and assets; local database engine/session ownership. Alembic and local app
   bootstrap register and compose these explicitly.
-- `resources/`: packaged animation/VFX catalogs usable without checkout paths.
+- `resources/`: packaged shared product catalogs usable without checkout paths.
 - `logging.py`: logger adapters with no configuration side effects. The local
   composition configures handlers through `logging_config.py`.
 - `workers/`: maintenance background processes such as staged upload cleanup.

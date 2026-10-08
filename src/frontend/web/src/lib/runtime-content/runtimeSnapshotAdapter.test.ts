@@ -212,10 +212,14 @@ describe("adaptRuntimeSnapshot", () => {
           name: "Angry",
           config: {},
           definition: {
-            schema: "animama/avatar-effect/1",
-            kind: "hover",
+            schema: "animama/avatar-effect/2",
             region: "emote",
-            image: "angry.png",
+            attachment: {
+              kind: "face_landmark",
+              landmark: "forehead",
+              position: "left",
+            },
+            art: { image: "angry.png" },
           },
           logical_resource_urls: {
             "angry.png": "/v1/content/files/included-avatar-effect-image",
@@ -304,10 +308,14 @@ describe("adaptRuntimeSnapshot", () => {
           name: "Emote !",
           config: {},
           definition: {
-            schema: "animama/avatar-effect/1",
-            kind: "hover",
+            schema: "animama/avatar-effect/2",
             region: "emote",
-            image: "emote.png",
+            attachment: {
+              kind: "face_landmark",
+              landmark: "forehead",
+              position: "left",
+            },
+            art: { image: "emote.png" },
           },
           logical_resource_urls: {
             "emote.png": "/runtime/avatar-emote-image",
@@ -371,12 +379,11 @@ describe("adaptRuntimeSnapshot", () => {
       fetcher: async () =>
         new Response(
           JSON.stringify({
-            schema: "animaPoseClip/1.0",
+            schema: "animaPoseClip/2.0",
             id: "joy-3",
             name: "Joy Reaction 3",
             duration: 1,
-            poses: { rest: { humanoid: {} } },
-            poseKeyframes: [{ time: 0, pose: "rest" }],
+            beats: [],
             events: [
               {
                 id: "avatar-emote",

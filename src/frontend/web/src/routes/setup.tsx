@@ -51,7 +51,7 @@ import { SetupVoiceStep } from "@/app/local-runtime/setup/SetupVoiceStep";
 import {
   adjacentSetupStep,
   onboardingInput,
-  resolveSetupTts,
+  resolveSetupTtsProvider,
   SETUP_STEP_LABELS,
   setupStepPosition,
   setupTtsPatch,
@@ -83,13 +83,12 @@ const STEP_HEADINGS: Record<SetupStep, string> = {
 const STEP_PURPOSE: Record<SetupStep, string | null> = {
   welcome: null,
   ai: "Pick the model your Animas chat with.",
-  voice:
-    "Talk to your Animas and hear them reply. Everything here is optional.",
+  voice: "Talk to your Animas and hear them reply.",
 };
 
 /**
  * Leaving AI or Voice: continue, go back, skip the step, or finish setup
- * (from Voice, with or without its Text-to-Speech choices).
+ * (from Voice, with or without its Text-to-Speech choice).
  */
 type LeaveAction = "back" | "continue" | "skip" | "finish";
 
@@ -128,9 +127,9 @@ function LocalSetupForm({
   const { modelConfiguration } = modelSettingsAvailability(capabilities.data);
   const userSettings = useUserSettings();
   const savedSpeech = userSettings.data?.preferences?.speech as
-    | Parameters<typeof resolveSetupTts>[1]
+    | Parameters<typeof resolveSetupTtsProvider>[1]
     | undefined;
-  const tts = resolveSetupTts(draft, savedSpeech);
+  const ttsProvider = resolveSetupTtsProvider(draft, savedSpeech);
   const mergePreferences = useMergeUserPreferences();
   const queryClient = useQueryClient();
 
@@ -169,7 +168,7 @@ function LocalSetupForm({
     setSubmitting(true);
     setError(null);
     try {
-      const patch = withVoice ? setupTtsPatch(draft, savedSpeech) : null;
+      const patch = withVoice ? setupTtsPatch(draft) : null;
       // Read-merge-write: other preferences are kept.
       if (patch) await mergePreferences.mutateAsync({ speech: patch });
     } catch {
@@ -319,12 +318,9 @@ function LocalSetupForm({
               />
             ) : (
               <SetupVoiceStep
-                tts={tts}
-                onTtsChange={(change) =>
-                  updateDraft({
-                    ttsEnabled: change.enabled ?? tts.enabled,
-                    ttsProvider: change.provider ?? tts.provider,
-                  })
+                provider={ttsProvider}
+                onProviderChange={(provider) =>
+                  updateDraft({ ttsProvider: provider })
                 }
                 {...keyCallbacks}
               />
@@ -414,7 +410,7 @@ function LocalSetupForm({
   );
 }
 
-/** "Step 2 of 3" and the step list, with the current step marked. */
+/** "Step 2 of 3" and the step list, with the current step marked and the skippable steps labelled optional. */
 function SetupProgress({ step }: { step: SetupStep }) {
   const current = SETUP_STEPS.indexOf(step);
   return (
@@ -435,6 +431,11 @@ function SetupProgress({ step }: { step: SetupStep }) {
             )}
           >
             {SETUP_STEP_LABELS[item]}
+            {item === "welcome" ? null : (
+              <span className="text-muted-foreground text-2xs ml-1 font-normal">
+                (optional)
+              </span>
+            )}
           </li>
         ))}
       </ol>

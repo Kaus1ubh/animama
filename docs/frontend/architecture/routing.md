@@ -26,8 +26,14 @@ Typed creators use stable product routes such as `/particle-effects/new`,
   Explicit chat and management URLs are unaffected.
 - `a.tsx` and `a/$.tsx`: redirect legacy `/a` and `/a/...` URLs to the same
   path without the prefix, preserving search and hash and staying on-origin.
-- `_app/create.tsx`: creator hub for Anima, Action, and Effects authoring,
-  including direct Particle, Avatar and Scene Effect entry points.
+- `_app/create.tsx`: creator hub for Anima, Action, and Effects authoring. Its
+  effect cards open the Effects template picker
+  (`ui/create/EffectTemplatePickerDialog.tsx`, registry
+  `lib/effects/effectTemplates.ts`) in place, as does the sidebar Create menu's
+  **Effects** item; closing it leaves the user where they were.
+- `_app/effects.new.tsx`: the Create page with the picker open; closing it
+  navigates to `/create`. A choice opens the kind's `/new` route, with
+  `?template=<id>` for a template.
 - Legacy Sound Effect new/edit routes redirect to `/library?section=fx&fx=sound`;
   sounds are uploaded in action/effect pickers and managed in Library.
 - `_app/animas.new.tsx`: the four-step `ui/create-anima/CreateAnimaPage` in the
@@ -58,6 +64,9 @@ Typed creators use stable product routes such as `/particle-effects/new`,
   [Avatar Effect authoring](../runtime/avatar-vfx.md).
 - `_app/scene-effects.new.tsx` and `_app/scene-effects.$sceneEffectId.edit.tsx`:
   [Scene Effect authoring](../runtime/scene-vfx.md).
+  Both `/new` routes accept an optional `?template=<id>` that `validateSearch`
+  restricts to the registry's IDs (unknown IDs are dropped); the creator is
+  keyed by template, so a different template starts a separate draft.
   Bare `/avatar-effects` and `/scene-effects` URLs redirect to their creators.
 - `_app/animas/index.tsx`: compatibility resolver. It replaces `/animas` with
   the first owned Anima's canonical management URL or redirects an empty
@@ -122,7 +131,8 @@ chat or URL.
   mounting their route Canvas. They preserve one typed draft identity and one
   `ActionDocument`; exact dependency IDs and local timeline preview state do not
   enter route search state. The public JSON interchange is `animaPoseClip/2.0`
-  (1.0 clips convert when opened); an optional versioned typed-project envelope retains exact
+  (the retired 1.0 format is rejected); an optional versioned typed-project
+  envelope retains exact
   dependency pins without placing draft IDs or save state in the URL.
 - Effect handoffs use only `component=<stable item id>` and
   `componentType=particle_effect|avatar_effect|scene_effect|sound_effect`.

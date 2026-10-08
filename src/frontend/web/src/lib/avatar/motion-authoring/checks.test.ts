@@ -74,28 +74,43 @@ const check = (clip: AnimaPoseClipV2) => checkMotion(clip, avatars());
 const failures = (findings: MotionCheckFinding[], category: string) =>
   findings.filter((f) => f.category === category && f.severity === "fail");
 
-const rawClip = (poses: Record<string, unknown>[], loop = false) => ({
-  schema: "animaPoseClip/1.0",
-  id: "raw",
-  name: "raw",
-  duration: 1,
-  ...(loop ? { loop: true } : {}),
-  basePose: "relaxedRest",
-  defaultTransition: { easing: "linear" },
-  poses: Object.fromEntries(poses.map((pose, index) => [`p${index}`, pose])),
-  poseKeyframes: poses.map((_, index) => ({
+/** A 2.0 clip that rotates bones through `poses`, one evenly spaced beat each. */
+const rotationClip = (
+  poses: Partial<Record<string, { rotation: number[] }>>[],
+  loop = false,
+): AnimaPoseClipV2 => {
+  const beats = poses.map((_, index) => ({
+    id: `b${index}`,
+    label: `Beat ${index}`,
     time: index / (poses.length - 1),
-    pose: `p${index}`,
-  })),
-});
+    ease: "linear" as const,
+  }));
+  const bones = [...new Set(poses.flatMap((pose) => Object.keys(pose)))];
+  return {
+    schema: "animaPoseClip/2.0",
+    id: "raw",
+    name: "raw",
+    duration: 1,
+    ...(loop ? { loop: true } : {}),
+    basePose: "relaxedRest",
+    beats,
+    rotations: Object.fromEntries(
+      bones.map((bone) => [
+        bone,
+        poses.map((pose, index) => ({
+          beat: beats[index].id,
+          q: pose[bone]!.rotation as [number, number, number, number],
+        })),
+      ]),
+    ),
+  };
+};
 
 const headTurn = (degrees: number) => ({
-  humanoid: {
-    head: {
-      rotation: new Quaternion()
-        .setFromAxisAngle(new Vector3(0, 1, 0), (degrees * Math.PI) / 180)
-        .toArray(),
-    },
+  head: {
+    rotation: new Quaternion()
+      .setFromAxisAngle(new Vector3(0, 1, 0), (degrees * Math.PI) / 180)
+      .toArray(),
   },
 });
 
@@ -107,7 +122,10 @@ describe("checkMotion", () => {
   });
 
   it("reports joints beyond their anatomical limit", () => {
-    const report = checkMotion(rawClip([headTurn(0), headTurn(60)]), avatars());
+    const report = checkMotion(
+      rotationClip([headTurn(0), headTurn(60)]),
+      avatars(),
+    );
     const [finding] = failures(report.findings, "range");
     expect(finding.subject).toBe("head.rotation");
     expect(finding.value).toBeGreaterThan(55);
@@ -334,9 +352,9 @@ describe("checkMotion", () => {
     expect(seam.value).toBeCloseTo(20, 0);
   });
 
-  it("reports a loop whose end does not meet its start", () => {
+  it("reports a rotation-track loop whose end does not meet its start", () => {
     const report = checkMotion(
-      rawClip([headTurn(0), headTurn(10), headTurn(20)], true),
+      rotationClip([headTurn(0), headTurn(10), headTurn(20)], true),
       avatars(),
     );
     const [seam] = failures(report.findings, "loopSeam");
@@ -345,8 +363,7 @@ describe("checkMotion", () => {
   });
 
   it("reports pose references missing from the catalog", () => {
-    const clip = rawClip([headTurn(0), headTurn(10)]);
-    clip.poses.p1 = { ref: "no-such-pose" };
+    const clip = { ...motion({}), basePose: "no-such-pose" };
     const report = checkMotion(clip, avatars());
     expect(failures(report.findings, "pose")).toMatchObject([
       { subject: "no-such-pose" },

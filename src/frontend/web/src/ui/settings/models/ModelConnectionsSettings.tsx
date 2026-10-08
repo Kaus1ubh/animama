@@ -82,7 +82,7 @@ const BASE_URL_PLACEHOLDER: Record<ModelLocation, string> = {
 };
 
 const TAG_CLASS =
-  "bg-muted text-muted-foreground shrink-0 rounded-sm px-1.5 py-0.5 text-[11px] font-medium";
+  "bg-muted text-muted-foreground shrink-0 rounded-sm px-1.5 py-0.5 text-2xs font-medium";
 
 /**
  * App Settings → Models connections: **Cloud** and **Local** tabs, each with
@@ -550,7 +550,7 @@ function ConnectionCard({
             >
               {connection.name}
               {entry.recommended ? (
-                <span className="bg-primary/10 text-primary rounded-sm px-1.5 py-0.5 text-[11px] font-medium">
+                <span className="bg-primary/10 text-primary text-2xs rounded-sm px-1.5 py-0.5 font-medium">
                   Recommended
                 </span>
               ) : null}

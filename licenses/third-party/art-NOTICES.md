@@ -64,6 +64,13 @@ Its embedded VRM 0 metadata declares [CC BY 4.0](art-CC-BY-4.0.txt) with commerc
 use allowed and violent or sexual use disallowed; its portrait follows the same
 terms. Do not edit its embedded permission flags.
 
+The Avatar FX template thumbnails in
+`src/frontend/web/src/assets/effect-templates/` are also direct Animama renderer
+captures of Annie, each wearing an owner-authored Included Avatar Effect and no
+other artwork. Like Annie's portrait, they follow Annie's model terms and retain
+pixiv VRoid Project credit. Their provenance and regeneration command are in
+that folder's README.
+
 Geometry, textures, non-metadata JSON and portrait bytes of both models are
 unchanged; current hashes and metadata are recorded in
 [art-vroid-review.json](art-vroid-review.json).

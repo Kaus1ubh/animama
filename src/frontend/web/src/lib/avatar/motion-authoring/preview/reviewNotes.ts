@@ -64,14 +64,19 @@ export type ReviewedSource = {
   path: string;
   /** Base name for the sidecar, without extension. */
   name: string;
+  /**
+   * Folder for a file source's notes when not the file's own: an Avatar
+   * Effect's notes sit beside its folder, never inside the content item.
+   */
+  notesDir?: string;
 };
 
 const VERSION_ID = /^[a-z0-9]{1,64}$/;
 
 /**
- * Where a source's review notes live: beside a file source, or in the working
- * directory for a Library item (the tool never writes into the Library), unless
- * an explicit notes file is given.
+ * Where a source's review notes live: beside a file source (or in its
+ * `notesDir`), or in the working directory for a Library item (the tool never
+ * writes into the Library), unless an explicit notes file is given.
  */
 export function reviewPathsFor(
   source: ReviewedSource,
@@ -80,7 +85,10 @@ export function reviewPathsFor(
   const sidecar = options.notes
     ? path.resolve(options.cwd, options.notes)
     : source.kind === "file"
-      ? path.join(path.dirname(source.path), `${source.name}.review.json`)
+      ? path.join(
+          source.notesDir ?? path.dirname(source.path),
+          `${source.name}.review.json`,
+        )
       : path.join(options.cwd, `${source.name}.review.json`);
   return {
     sidecar,

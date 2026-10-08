@@ -94,6 +94,7 @@ describe("captureAvatarPortrait", () => {
     expect(fixture.runWithPortraitCaptureState).toHaveBeenCalledWith(
       "Happy",
       expect.any(Function),
+      { keepLiveExpressions: false },
     );
     expect(fixture.unrelated.visible).toBe(true);
     expect(fixture.avatarScene.visible).toBe(true);
@@ -107,6 +108,29 @@ describe("captureAvatarPortrait", () => {
     expect(fixture.renderer.setClearColor).toHaveBeenCalledWith(0x000000, 0);
     expect(fixture.renderer.setScissorTest).toHaveBeenLastCalledWith(true);
     expect(fixture.renderer.autoClear).toBe(false);
+  });
+
+  it("keeps the live expression state when asked", async () => {
+    const fixture = createFixture();
+    await captureAvatarPortrait({
+      avatar: fixture.avatar,
+      renderer: fixture.renderer as unknown as THREE.WebGLRenderer,
+      camera: new THREE.PerspectiveCamera(50, 2, 0.1, 100),
+      scene: fixture.scene,
+      size: 64,
+      expression: "live",
+      dependencies: {
+        createRenderTarget: () => fixture.renderTarget as never,
+        encodePixels: async () => new Blob([], { type: "image/webp" }),
+      },
+    });
+
+    expect(fixture.runWithPortraitCaptureState).toHaveBeenCalledWith(
+      null,
+      expect.any(Function),
+      { keepLiveExpressions: true },
+    );
+    expect(fixture.renderer.render).toHaveBeenCalledOnce();
   });
 
   it("restores and disposes resources after a render error", async () => {

@@ -1,7 +1,7 @@
 import type { VRM } from "@pixiv/three-vrm";
 import { describe, expect, it } from "vitest";
 
-import { parseAnimaPoseClip, type AnimaPoseClip } from "./animaPoseClip";
+import { parseAnimaPoseClip, type AnimaPoseClipV2 } from "./animaPoseClip";
 import {
   PoseController,
   type AnimaPoseClipEventContext,
@@ -23,15 +23,13 @@ describe("PoseController playback observation", () => {
   it("reports the logical IDs of events fired by the active pose clip", () => {
     const controller = new PoseController(minimalVrm());
     controller.setClipEventSink({ playSfx: () => undefined });
-    const clip: AnimaPoseClip = {
-      schema: "animaPoseClip/1.0",
+    const clip: AnimaPoseClipV2 = {
+      schema: "animaPoseClip/2.0",
       id: "shy-finger-poke",
       name: "Shy Finger Poke",
       duration: 1,
-      poses: {
-        shy: { humanoid: { head: { rotation: [0, 0, 0, 1] } } },
-      },
-      poseKeyframes: [{ time: 0, pose: "shy" }],
+      beats: [{ id: "shy", label: "Shy", time: 0 }],
+      rotations: { head: [{ beat: "shy", q: [0, 0, 0, 1] }] },
       events: [
         {
           id: "shy-sparkle",
@@ -49,14 +47,13 @@ describe("PoseController playback observation", () => {
 });
 
 describe("finite idle playback", () => {
-  const clip: AnimaPoseClip = {
-    schema: "animaPoseClip/1.0",
+  const clip: AnimaPoseClipV2 = {
+    schema: "animaPoseClip/2.0",
     id: "idle-clip",
     name: "Idle",
     duration: 1,
     loop: true,
-    poses: {},
-    poseKeyframes: [],
+    beats: [],
     events: [
       { id: "start", time: 0, kind: "sfx", cueId: "tap" },
       { id: "end", time: 1, kind: "sfx", cueId: "tap" },
@@ -115,18 +112,20 @@ describe("finite idle playback", () => {
     const controller = new PoseController(vrm);
     controller.playAnimaPoseClip(
       {
-        schema: "animaPoseClip/1.0",
+        schema: "animaPoseClip/2.0",
         id: "expression",
         name: "Expression",
         duration: 1,
-        poses: {
-          start: { expressions: { happy: 0 } },
-          end: { expressions: { happy: 1 } },
-        },
-        poseKeyframes: [
-          { time: 0, pose: "start" },
-          { time: 1, pose: "end", transition: { easing: "linear" } },
+        beats: [
+          { id: "start", label: "Start", time: 0 },
+          { id: "end", label: "End", time: 1, ease: "linear" },
         ],
+        expressions: {
+          happy: [
+            { beat: "start", v: 0 },
+            { beat: "end", v: 1 },
+          ],
+        },
       },
       { finitePlayback: { timeScale: 2, repetitions: 1 } },
     );
@@ -156,13 +155,12 @@ describe("finite idle playback", () => {
 
 describe("finite authored timeline admission", () => {
   const base = {
-    schema: "animaPoseClip/1.0",
+    schema: "animaPoseClip/2.0",
     id: "extent",
     name: "Extent",
-    poses: {},
-    poseKeyframes: [],
+    beats: [],
   };
-  it("plays an inferred positive event extent without including effect duration", () => {
+  it("ends at the clip duration without including effect duration", () => {
     const controller = new PoseController(minimalVrm());
     const seen: string[] = [];
     controller.setClipEventSink({
@@ -172,6 +170,7 @@ describe("finite authored timeline admission", () => {
     });
     const clip = parseAnimaPoseClip({
       ...base,
+      duration: 0.5,
       events: [
         {
           id: "end",
@@ -189,11 +188,117 @@ describe("finite authored timeline admission", () => {
     expect(seen).toEqual(["end"]);
     expect(controller.isClipActive()).toBe(false);
   });
-  it("admits timed looping clips with only zero events and rejects an unknown horizon", () => {
+  it("admits timed looping clips with only zero events and rejects a missing duration", () => {
     const events = [{ id: "start", kind: "sfx", cueId: "tap", time: 0 }];
     expect(() =>
       parseAnimaPoseClip({ ...base, duration: 0.25, loop: true, events }),
     ).not.toThrow();
     expect(() => parseAnimaPoseClip({ ...base, events })).toThrow();
+  });
+});
+
+describe("Avatar Effect event envelopes", () => {
+  const fadingClip = (envelope: boolean): AnimaPoseClipV2 =>
+    parseAnimaPoseClip({
+      schema: "animaPoseClip/2.0",
+      id: "fade",
+      name: "Fade",
+      duration: 4,
+      beats: [],
+      events: [
+        {
+          id: "glow",
+          kind: "avatar_vfx",
+          effectId: "glow",
+          time: 0.5,
+          duration: 2,
+          ...(envelope
+            ? {
+                envelope: {
+                  intensity: { fadeIn: 0.5, fadeOut: 1, easing: "linear" },
+                },
+              }
+            : {}),
+        },
+      ],
+    });
+
+  it("sends the fade in and fade out on the event's own timeline", () => {
+    const controller = new PoseController(minimalVrm());
+    const values: Array<[string, number]> = [];
+    controller.setClipEventSink({
+      applyAvatarVFX: () => undefined,
+      clearAvatarVFX: () => undefined,
+      setAvatarVFXIntensity: (event, _context, intensity) => {
+        values.push([event.id, Number(intensity.toFixed(3))]);
+      },
+    });
+    controller.playAnimaPoseClip(fadingClip(true));
+    controller.update(0.5); // starts at 0.5 s: local 0
+    controller.update(0.25); // local 0.25: halfway through the fade in
+    controller.update(0.5); // local 0.75: full
+    controller.update(0.25); // local 1.0: still full, unchanged values are skipped
+    controller.update(0.75); // local 1.75: halfway through the fade out
+    expect(values).toEqual([
+      ["glow", 0],
+      ["glow", 0.5],
+      ["glow", 1],
+      ["glow", 0.25],
+    ]);
+  });
+
+  it("fades an Avatar Effect event alongside expression tracks", () => {
+    const controller = new PoseController(minimalVrm());
+    const values: number[] = [];
+    controller.setClipEventSink({
+      applyAvatarVFX: () => undefined,
+      clearAvatarVFX: () => undefined,
+      setAvatarVFXIntensity: (_event, _context, intensity) => {
+        values.push(Number(intensity.toFixed(3)));
+      },
+    });
+    controller.playAnimaPoseClip(
+      parseAnimaPoseClip({
+        schema: "animaPoseClip/2.0",
+        id: "fade-v2",
+        name: "Fade with expressions",
+        duration: 4,
+        beats: [{ id: "start", label: "Start", time: 0 }],
+        expressions: { happy: [{ beat: "start", v: 1 }] },
+        events: [
+          {
+            id: "glow",
+            kind: "avatar_vfx",
+            effectId: "glow",
+            time: 0.5,
+            duration: 2,
+            envelope: {
+              intensity: { fadeIn: 0.5, fadeOut: 1, easing: "linear" },
+            },
+          },
+        ],
+      }),
+    );
+    controller.update(0.5); // starts at 0.5 s: local 0
+    controller.update(0.25); // local 0.25: halfway through the fade in
+    controller.update(0.5); // local 0.75: full
+    controller.update(0.25); // local 1.0: still full, unchanged values are skipped
+    controller.update(0.75); // local 1.75: halfway through the fade out
+    expect(values).toEqual([0, 0.5, 1, 0.25]);
+  });
+
+  it("leaves events without an envelope at full intensity", () => {
+    const controller = new PoseController(minimalVrm());
+    const values: number[] = [];
+    controller.setClipEventSink({
+      applyAvatarVFX: () => undefined,
+      setAvatarVFXIntensity: (_event, _context, intensity) => {
+        values.push(intensity);
+      },
+    });
+    controller.playAnimaPoseClip(fadingClip(false));
+    controller.update(0.5);
+    controller.update(1);
+    expect(values).toEqual([]);
   });
 });

@@ -1,0 +1,66 @@
+import * as THREE from "three";
+
+import { DEFAULT_SCENE_LIGHTS } from "@/ui/main/canvas/sceneCameraPresets";
+
+/*
+ * Stage and effect parsing shared by the review renderer (`render.ts`), the
+ * frame-cost benchmark (`../effect-bench/bench.ts`) and the headed preview
+ * (`../animation-preview/preview.ts`).
+ */
+
+export {
+  effectSourceEntry as effectEntry,
+  type EffectSource,
+} from "@/lib/avatar/vfx/effectSource";
+
+/** Tone mapping and colour output of the chat canvas (React Three Fiber defaults in `Scene.tsx`). */
+export function applyChatColorPipeline(renderer: THREE.WebGLRenderer): void {
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+}
+
+/** Add the chat canvas's default scene lights to `scene`. */
+export function addChatLights(scene: THREE.Scene): void {
+  scene.add(
+    new THREE.AmbientLight(0xffffff, DEFAULT_SCENE_LIGHTS.ambientIntensity),
+  );
+  for (const light of DEFAULT_SCENE_LIGHTS.directional) {
+    const directional = new THREE.DirectionalLight(0xffffff, light.intensity);
+    directional.position.set(...light.position);
+    scene.add(directional);
+  }
+}
+
+/**
+ * A renderer, scene and camera configured like the chat canvas (`Scene.tsx`):
+ * antialiasing, ACES Filmic, sRGB output, the default scene lights, a
+ * transparent clear and no stencil buffer. `pixelRatio` 1 keeps review sheets
+ * at their tile size; the benchmark uses the chat's DPR.
+ */
+export function createStage(
+  width: number,
+  height: number,
+  options: {
+    pixelRatio?: number;
+    preserveDrawingBuffer?: boolean;
+    powerPreference?: WebGLPowerPreference;
+  } = {},
+) {
+  const renderer = new THREE.WebGLRenderer({
+    antialias: true,
+    alpha: true,
+    stencil: false,
+    preserveDrawingBuffer: options.preserveDrawingBuffer ?? true,
+    ...(options.powerPreference
+      ? { powerPreference: options.powerPreference }
+      : {}),
+  });
+  renderer.setPixelRatio(options.pixelRatio ?? 1);
+  renderer.setSize(width, height);
+  applyChatColorPipeline(renderer);
+  renderer.setClearColor(0x000000, 0);
+  const scene = new THREE.Scene();
+  addChatLights(scene);
+  const camera = new THREE.PerspectiveCamera(35, width / height, 0.01, 20);
+  return { renderer, scene, camera };
+}

@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any, Literal
 
-from animama.domain.content_catalog import ContentDiagnostic, ContentKind
+from animama.domain.content_catalog import ContentDiagnostic, ContentKind, ContentSource
 from animama.domain.content_documents import (
     ActionImplementationV1,
     AppearanceDocumentV1,
@@ -41,6 +41,8 @@ from animama.domain.content_documents import (
 )
 from animama.domain.emotions import TRACKED_EMOTION_SET
 
+from .avatar_face_parts import local_face_parts, normalize_face_parts
+from .clip_format import validate_action_clip_files
 from .content_file_validation import ContentFileInvalidError
 from .content_gltf import MAX_VRM_SOURCE_BYTES, validate_vrm_stream
 from .content_image import MAX_APPEARANCE_SOURCE_BYTES, validate_appearance_image_stream
@@ -156,25 +158,13 @@ _COMMON_FIELDS = frozenset(
 )
 
 _KIND_FIELDS: dict[ContentKind, frozenset[str]] = {
-    ContentKind.AVATAR: frozenset({"compatibility", "model_role"}),
+    ContentKind.AVATAR: frozenset({"compatibility", "model_role", "face_parts"}),
     ContentKind.GESTURE: frozenset(
         {"semantic_key", "implementation", "config", "runtime_defaults", "technical_source"}
     ),
     ContentKind.POSE: frozenset({"pose"}),
-    ContentKind.POSE_CLIP: frozenset(
-        {
-            "schema",
-            "role",
-            "playback",
-            "defaultTransition",
-            "fadeIn",
-            "fadeOut",
-            "poses",
-            "poseKeyframes",
-            "events",
-            "config",
-        }
-    ),
+    # Retired: parsed as an opaque identity record, so its fields are not checked.
+    ContentKind.POSE_CLIP: frozenset(),
     ContentKind.REACTION: frozenset(
         {"placement_hint", "implementation", "config", "runtime_defaults", "technical_source"}
     ),
@@ -771,7 +761,8 @@ class ContentTypeHandler:
         if descriptor_backed and discriminator is None:
             raise ContentDocumentError("content_type_required", "descriptor-backed content requires content_type")
         unexpected = sorted(set(value) - _COMMON_FIELDS - _KIND_FIELDS[self.kind])
-        if unexpected and not (self.kind is ContentKind.POSE_CLIP and value.get("schema") == "animaPoseClip/1.0"):
+        # A retired Pose Clip is kept as an opaque record for Save-receipt replay.
+        if unexpected and self.kind is not ContentKind.POSE_CLIP:
             raise ContentDocumentError(
                 "unexpected_document_fields",
                 f"Unexpected {self.kind.value} fields: {', '.join(unexpected)}",
@@ -840,22 +831,13 @@ class ContentTypeHandler:
                 pose=validate_resolved_pose(raw.get("pose"), content_id=base["content_id"], name=base["name"]),
             )
         if kind is ContentKind.POSE_CLIP:
-            schema = raw.get("schema")
-            if raw and schema != "animaPoseClip/1.0":
-                raise ContentDocumentError("pose_clip_schema_invalid", "Pose Clip schema must be animaPoseClip/1.0")
-            keyframes = raw.get("poseKeyframes", [])
-            poses = raw.get("poses", {})
-            if not isinstance(keyframes, list) or not all(isinstance(item, dict) for item in keyframes):
-                raise ContentDocumentError("pose_clip_keyframes_invalid", "poseKeyframes must be an object array")
-            if not isinstance(poses, dict):
-                raise ContentDocumentError("pose_clip_poses_invalid", "poses must be an object")
+            # Retired standalone clips are never played or exposed; only their
+            # identity is parsed, so completed Save receipts can still replay.
             return PoseClipDocumentV1(
                 **base,
                 clip_id=_string(raw.get("id"), field_name="id", fallback=str(base["name"])),
                 role=_optional_string(raw.get("role"), field_name="role", maximum=64),
                 playback=_object(raw.get("playback"), field_name="playback"),
-                poses=dict(poses),
-                pose_keyframes=tuple(dict(item) for item in keyframes),
                 clip=dict(raw),
             )
         if kind is ContentKind.PARTICLE_EFFECT:
@@ -960,10 +942,12 @@ class ContentTypeHandler:
                 autoplay=autoplay,
             )
         if kind is ContentKind.AVATAR:
+            face_parts = raw.get("face_parts")
             return AvatarDocumentV1(
                 **base,
                 model_role="model",
                 compatibility=_object(raw.get("compatibility"), field_name="compatibility"),
+                face_parts=normalize_face_parts(face_parts) if face_parts is not None else None,
             )
         if kind is ContentKind.APPEARANCE:
             return AppearanceDocumentV1(
@@ -1092,7 +1076,13 @@ class ContentTypeHandler:
                 }
             )
         elif isinstance(document, AvatarDocumentV1):
-            result.update({"model_role": document.model_role, "compatibility": document.compatibility})
+            result.update(
+                {
+                    "model_role": document.model_role,
+                    "compatibility": document.compatibility,
+                    "face_parts": document.face_parts,
+                }
+            )
         elif isinstance(document, AppearanceDocumentV1):
             result.update(
                 {
@@ -1172,6 +1162,8 @@ class ContentTypeHandler:
 
         if isinstance(document, VoiceDocumentV1):
             return validate_pocket_clone_files(document, files)
+        if isinstance(document, GestureDocumentV1 | ReactionDocumentV1):
+            return validate_action_clip_files(document, files)
         return ()
 
     def validate_resolved_dependencies(
@@ -1347,16 +1339,23 @@ class ContentTypeHandler:
                 },
             )
         if isinstance(document, AvatarDocumentV1):
-            return RuntimeProjection(
-                "avatar",
-                {
-                    "runtime_root_id": projection.runtime_root_id,
-                    "source": projection.source,
-                    "avatar_id": str(projection.context.get("avatar_id") or projection.item_id),
-                    "revision": projection.revision,
-                    "files": projection.files,
-                },
+            avatar: dict[str, Any] = {
+                "runtime_root_id": projection.runtime_root_id,
+                "source": projection.source,
+                "avatar_id": str(projection.context.get("avatar_id") or projection.item_id),
+                "revision": projection.revision,
+                "files": projection.files,
+            }
+            # Only a Local sidecar is projected here; an Included Avatar's
+            # owner-scoped override is applied by the runtime snapshot service.
+            face_parts = local_face_parts(
+                source=ContentSource(projection.source.get("source", ContentSource.LOCAL.value)),
+                document_face_parts=document.face_parts,
+                files=projection.files,
             )
+            if face_parts is not None:
+                avatar["face_parts"] = face_parts
+            return RuntimeProjection("avatar", avatar)
         if isinstance(document, VoiceDocumentV1):
             # Legacy standalone catalogs have the old audio role. New clones
             # expose only the encoded catalog; source recordings stay private

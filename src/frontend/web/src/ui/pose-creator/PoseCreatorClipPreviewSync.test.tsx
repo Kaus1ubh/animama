@@ -110,13 +110,12 @@ describe("looping timeline effect ownership", () => {
         clipPlaybackPlaying: true,
         clipDraft: createPoseCreatorClipDraftFromAnimaPoseClip(
           {
-            schema: "animaPoseClip/1.0",
+            schema: "animaPoseClip/2.0",
             id: "looping-effects",
             name: "Looping effects",
             duration: 2,
             loop: true,
-            poses: {},
-            poseKeyframes: [],
+            beats: [],
             // Distinct timeline events may intentionally share an effect.
             events: ["first", "second"].map((id) => ({
               id,
@@ -157,6 +156,73 @@ describe("looping timeline effect ownership", () => {
     },
   );
 });
+describe("fading Avatar Effect events", () => {
+  it("sends the event envelope to the preview Avatar while paused and playing", async () => {
+    harness.retainedRefs = [];
+    harness.catalog = {
+      loadAvatarVFX: vi.fn().mockResolvedValue({ id: "effect" }),
+    };
+    const setEffectIntensity = vi.fn();
+    const avatar = {
+      vfxController: { removeEffect: vi.fn(), setEffectIntensity },
+    } as unknown as NonNullable<
+      ReturnType<typeof usePoseCreatorStore.getState>["activeAvatar"]
+    >;
+    const clipDraft = createPoseCreatorClipDraftFromAnimaPoseClip(
+      {
+        schema: "animaPoseClip/2.0",
+        id: "fade",
+        name: "Fade",
+        duration: 4,
+        beats: [],
+        events: [
+          {
+            id: "swirl",
+            kind: "avatar_vfx",
+            time: 1,
+            duration: 2,
+            effectId: "effect",
+            envelope: {
+              intensity: { fadeIn: 1, fadeOut: 1, easing: "linear" },
+            },
+          },
+        ],
+      },
+      { fallbackBasePose: "relaxedRest" },
+    );
+    const frame = async (time: number, playing: boolean) => {
+      harness.effects = [];
+      harness.refIndex = 0;
+      setEffectIntensity.mockClear();
+      usePoseCreatorStore.setState({
+        authoringMode: "clip",
+        activeAvatar: avatar,
+        clipDraft: { ...clipDraft, currentTimeSec: time },
+        clipPlaybackPlaying: playing,
+        clipPlaybackAbsoluteTimeSec: time,
+      });
+      renderToString(<PoseCreatorClipPreviewSync />);
+      harness.effects.forEach((effect) => effect());
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      return setEffectIntensity.mock.calls.map(([id, value]) => [
+        String(id).split(":")[1],
+        value,
+      ]);
+    };
+
+    // Paused on the fade-in: the art is shown at the envelope value.
+    expect(await frame(1.25, false)).toEqual([["scrub", 0.25]]);
+    expect(await frame(2, false)).toEqual([["scrub", 1]]);
+    expect(await frame(2.5, false)).toEqual([["scrub", 0.5]]);
+    // Playback samples the same envelope from the event start.
+    await frame(0, true);
+    expect(await frame(1.5, true)).toEqual([["playback", 0.5]]);
+    expect(await frame(2.75, true)).toEqual([["playback", 0.25]]);
+    await frame(2.75, false);
+    usePoseCreatorStore.setState({ activeAvatar: null });
+  });
+});
+
 describe("timeline preview posture lifetime", () => {
   it.each(["relaxedRest", undefined])(
     "forwards %s through preview and cleanup without editing the draft",
@@ -218,12 +284,11 @@ describe.each(["avatar_vfx", "scene_vfx"] as const)(
         >;
         const clipDraft = createPoseCreatorClipDraftFromAnimaPoseClip(
           {
-            schema: "animaPoseClip/1.0",
+            schema: "animaPoseClip/2.0",
             id: "audio",
             name: "Audio",
             duration: 2,
-            poses: {},
-            poseKeyframes: [],
+            beats: [],
             events: [
               {
                 id: "effect",

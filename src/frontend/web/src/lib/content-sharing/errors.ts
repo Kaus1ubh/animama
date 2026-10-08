@@ -63,6 +63,8 @@ const messages: Record<string, string> = {
     "This package is still being processed. Check its progress again shortly.",
   package_name_exhausted:
     "An imported name cannot be suffixed safely. Rename the source content and export it again.",
+  clip_format_unsupported:
+    "This package contains a clip in an unsupported format, such as the retired animaPoseClip/1.0. Only animaPoseClip/2.0 clips can be imported or exported.",
   package_anima_import_unavailable:
     "Anima creation is not ready on this installation. Check the default model settings, then refresh the review.",
 };

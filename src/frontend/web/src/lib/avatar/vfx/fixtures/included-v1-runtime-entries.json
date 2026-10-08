@@ -1,0 +1,709 @@
+{
+  "included": {
+    "angry": {
+      "id": "builtin:avatar-effect:angry",
+      "label": "Angry",
+      "description": "Comic anger glyph that sharpens irritated, disapproving, or combative reactions.",
+      "assetPath": "registered:angry.png",
+      "region": "emote",
+      "transform": {
+        "offset": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "scale": {
+          "x": 0.8,
+          "y": 0.8,
+          "z": 1
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "animationConfig": {
+        "pulseScaleMin": 0.5,
+        "pulseScaleMax": 0.8,
+        "rotationAmountTurns": 0.03,
+        "rotationRadiansPerSecond": 1.2,
+        "rotationDirection": "clockwise"
+      },
+      "kind": "hover",
+      "hoverKind": "box_hover",
+      "placement": "forehead-left"
+    },
+    "emote": {
+      "id": "builtin:avatar-effect:emote",
+      "label": "Emote !",
+      "description": "Floating exclamation mark for sudden alarm, urgency, or alerted curiosity.",
+      "assetPath": "registered:emote.png",
+      "region": "emote",
+      "transform": {
+        "offset": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "scale": {
+          "x": 1.4,
+          "y": 1.4,
+          "z": 1
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "animationConfig": {
+        "rotationAmountTurns": 0.02,
+        "rotationRadiansPerSecond": 1.4
+      },
+      "kind": "hover",
+      "hoverKind": "box_hover",
+      "placement": "top-edge-right-corner"
+    },
+    "eye": {
+      "id": "builtin:avatar-effect:eye",
+      "label": "Eye =",
+      "description": "Flat eye hover for deadpan displeasure, disgust, or emotionally drained reactions.",
+      "assetPath": "registered:eye_=_r.png",
+      "region": "eyes",
+      "transform": {
+        "offset": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "scale": {
+          "x": 0.6,
+          "y": 0.6,
+          "z": 1
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "kind": "hover",
+      "hoverKind": "eye_hover",
+      "disableTargetRoles": ["eye_highlight"],
+      "side": "right",
+      "requiresMirror": true
+    },
+    "eye_0": {
+      "id": "builtin:avatar-effect:eye_0",
+      "label": "Eye 0",
+      "description": "Tense circular eye hover that suggests shock, dread, or overwhelmed gloom.",
+      "assetPath": "registered:eye_0_r.png",
+      "region": "eyes",
+      "transform": {
+        "offset": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "scale": {
+          "x": 0.6,
+          "y": 0.6,
+          "z": 1
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "kind": "hover",
+      "hoverKind": "eye_hover",
+      "disableTargetRoles": ["eye_highlight"],
+      "side": "right",
+      "requiresMirror": true
+    },
+    "eye_confused_swirl": {
+      "id": "builtin:avatar-effect:eye_confused_swirl",
+      "label": "Eye Confused Swirl",
+      "description": "Swirling eye hover for confusion, dizziness, or anxious uncertainty.",
+      "assetPath": "registered:eye_confused_swirl_r.png",
+      "region": "eyes",
+      "transform": {
+        "offset": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "scale": {
+          "x": 0.6,
+          "y": 0.6,
+          "z": 1
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "animationConfig": {
+        "rotationRadiansPerSecond": 3,
+        "rotationDirection": "clockwise"
+      },
+      "kind": "hover",
+      "hoverKind": "eye_hover",
+      "disableTargetRoles": ["eye_highlight"],
+      "side": "right",
+      "requiresMirror": true
+    },
+    "eye_o": {
+      "id": "builtin:avatar-effect:eye_o",
+      "label": "Eye O",
+      "description": "Wide open eye hover for alarm, startled curiosity, or sudden emotional intensity.",
+      "assetPath": "registered:eye_o_r.png",
+      "region": "eyes",
+      "transform": {
+        "offset": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "scale": {
+          "x": 0.6,
+          "y": 0.6,
+          "z": 1
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "kind": "hover",
+      "hoverKind": "eye_hover",
+      "disableTargetRoles": ["eye_highlight"],
+      "side": "right",
+      "requiresMirror": true
+    },
+    "eye_vv": {
+      "id": "builtin:avatar-effect:eye_vv",
+      "label": "Eye VV",
+      "description": "Playful curved eye hover that reads as giggly, bashful, or teasing delight.",
+      "assetPath": "registered:eye_vv_right.png",
+      "region": "eyes",
+      "transform": {
+        "offset": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "scale": {
+          "x": 1,
+          "y": 1,
+          "z": 1
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "kind": "hover",
+      "hoverKind": "eye_hover",
+      "disableTargetRoles": ["eye_highlight"],
+      "side": "right",
+      "requiresMirror": true
+    },
+    "eye_vv_pair": {
+      "id": "builtin:avatar-effect:eye_vv_pair",
+      "label": "Eye VV Pair",
+      "description": "Double-eye playful hover for broad giggly delight or flustered excitement.",
+      "assetPath": "registered:eye_vv.png",
+      "region": "eyes",
+      "transform": {
+        "offset": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "scale": {
+          "x": 1,
+          "y": 1,
+          "z": 1
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "kind": "hover",
+      "hoverKind": "eye_hover",
+      "disableTargetRoles": ["eye_highlight"]
+    },
+    "mouth_hover_w": {
+      "id": "builtin:avatar-effect:mouth_hover_w",
+      "label": "Mouth Hover w",
+      "description": "Floating w-mouth hover for bubbly amusement, squealing joy, or playful excitement.",
+      "assetPath": "registered:mouth_w.png",
+      "region": "mouth",
+      "transform": {
+        "offset": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "scale": {
+          "x": 1,
+          "y": 1,
+          "z": 1
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "kind": "hover",
+      "hoverKind": "mouth_hover",
+      "skinBackdrop": true
+    },
+    "mouth_w": {
+      "id": "builtin:avatar-effect:mouth_w",
+      "label": "Mouth w",
+      "description": "Small w-shaped mouth decal for cute, puckered, or bashfully playful expressions.",
+      "assetPath": "registered:mouth_w.png",
+      "region": "mouth",
+      "transform": {
+        "offset": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "scale": {
+          "x": 1,
+          "y": 1,
+          "z": 1
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "kind": "face_anchored",
+      "anchor": "mouth",
+      "pivot": "center"
+    },
+    "star": {
+      "id": "builtin:avatar-effect:star",
+      "label": "Star",
+      "description": "Bright star pupils that emphasize adoration, delight, or being deeply impressed.",
+      "assetPath": "registered:star.png",
+      "region": "eyes",
+      "transform": {
+        "offset": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "scale": {
+          "x": 1,
+          "y": 1,
+          "z": 1
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "animationConfig": {
+        "pulseScaleMin": 0.8,
+        "pulseScaleMax": 1.2,
+        "pulseCyclesPerSecond": 1.6
+      },
+      "kind": "texture",
+      "targetRole": "eye_iris",
+      "assetShape": "single_eye",
+      "applyMode": "overlay",
+      "disableTargetRoles": ["eye_highlight"]
+    },
+    "star3": {
+      "id": "builtin:avatar-effect:star3",
+      "label": "Star3",
+      "description": "Larger star pupils for stronger awe, delight, or energized admiration.",
+      "assetPath": "registered:star3.png",
+      "region": "eyes",
+      "transform": {
+        "offset": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "scale": {
+          "x": 1,
+          "y": 1,
+          "z": 1
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "animationConfig": {
+        "pulseScaleMin": 1.2,
+        "pulseScaleMax": 1.6,
+        "pulseCyclesPerSecond": 1.6
+      },
+      "kind": "texture",
+      "targetRole": "eye_iris",
+      "assetShape": "single_eye",
+      "applyMode": "overlay",
+      "disableTargetRoles": ["eye_highlight"]
+    },
+    "texture_black_1": {
+      "id": "builtin:avatar-effect:texture_black_1",
+      "label": "Texture Black 1",
+      "description": "Dark face overlay for heavy gloom, dread, or emotionally sinking moments.",
+      "assetPath": "registered:texture_black_1.png",
+      "region": "full_face",
+      "transform": {
+        "offset": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "scale": {
+          "x": 1,
+          "y": 1,
+          "z": 1
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "kind": "texture",
+      "targetRole": "face_skin",
+      "assetShape": "full_face",
+      "applyMode": "overlay"
+    },
+    "texture_sick_1": {
+      "id": "builtin:avatar-effect:texture_sick_1",
+      "label": "Texture Sick 1",
+      "description": "Uneasy face overlay with subtle drift for disgust, nausea, or anxious discomfort.",
+      "assetPath": "registered:texture_sick_1.png",
+      "region": "full_face",
+      "transform": {
+        "offset": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "scale": {
+          "x": 1,
+          "y": 1,
+          "z": 1
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "animationConfig": {
+        "driftPerSecond": {
+          "x": 0.03,
+          "y": 0
+        }
+      },
+      "kind": "texture",
+      "targetRole": "face_skin",
+      "assetShape": "full_face",
+      "applyMode": "overlay"
+    },
+    "texture_sick_2": {
+      "id": "builtin:avatar-effect:texture_sick_2",
+      "label": "Texture Sick 2",
+      "description": "Uneasy face overlay variant for lingering disgust or stressed discomfort.",
+      "assetPath": "registered:texture_sick_2.png",
+      "region": "full_face",
+      "transform": {
+        "offset": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "scale": {
+          "x": 1,
+          "y": 1,
+          "z": 1
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "kind": "texture",
+      "targetRole": "face_skin",
+      "assetShape": "full_face",
+      "applyMode": "overlay"
+    },
+    "texture_sick_3": {
+      "id": "builtin:avatar-effect:texture_sick_3",
+      "label": "Texture Sick 3",
+      "description": "Offset uneasy face overlay for stronger sickness, dizziness, or disoriented discomfort.",
+      "assetPath": "registered:texture_sick_3.png",
+      "region": "full_face",
+      "transform": {
+        "offset": {
+          "x": 0,
+          "y": 0.1,
+          "z": 0
+        },
+        "scale": {
+          "x": 1,
+          "y": 1,
+          "z": 1
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "kind": "texture",
+      "targetRole": "face_skin",
+      "assetShape": "full_face",
+      "applyMode": "overlay"
+    }
+  },
+  "creator": {
+    "Eye hover": {
+      "id": "fixture:Eye hover",
+      "label": "Eye hover",
+      "description": "Eye hover",
+      "assetPath": "registered:eye.png",
+      "region": "eyes",
+      "transform": {
+        "offset": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "scale": {
+          "x": 0.6,
+          "y": 0.6,
+          "z": 1
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "kind": "hover",
+      "hoverKind": "eye_hover",
+      "forceBlink": true,
+      "autoDisableEyeMaterials": true,
+      "faceCleanup": true,
+      "disableTargetRoles": ["eye_highlight"],
+      "side": "right",
+      "requiresMirror": true,
+      "skinBackdrop": true
+    },
+    "Mouth hover": {
+      "id": "fixture:Mouth hover",
+      "label": "Mouth hover",
+      "description": "Mouth hover",
+      "assetPath": "registered:mouth.png",
+      "region": "mouth",
+      "transform": {
+        "offset": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "scale": {
+          "x": 1,
+          "y": 1,
+          "z": 1
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "kind": "hover",
+      "hoverKind": "mouth_hover",
+      "faceCleanup": false,
+      "skinBackdrop": true
+    },
+    "Box hover": {
+      "id": "fixture:Box hover",
+      "label": "Box hover",
+      "description": "Box hover",
+      "assetPath": "registered:angry.png",
+      "region": "emote",
+      "transform": {
+        "offset": {
+          "x": 0,
+          "y": 0.02,
+          "z": 0
+        },
+        "scale": {
+          "x": 0.8,
+          "y": 0.8,
+          "z": 1
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "animationConfig": {
+        "pulseScaleMin": 0.5,
+        "pulseScaleMax": 0.8,
+        "rotationAmountTurns": 0.03,
+        "rotationRadiansPerSecond": 1.2,
+        "rotationDirection": "clockwise"
+      },
+      "kind": "hover",
+      "hoverKind": "box_hover",
+      "placement": "forehead-left"
+    },
+    "Face decal single": {
+      "id": "fixture:Face decal single",
+      "label": "Face decal single",
+      "description": "Face decal single",
+      "assetPath": "registered:blush.png",
+      "region": "blush",
+      "transform": {
+        "offset": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "scale": {
+          "x": 1,
+          "y": 1,
+          "z": 1
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "kind": "face_anchored",
+      "anchor": "blush",
+      "layout": "single",
+      "side": "left",
+      "requiresMirror": true,
+      "pivot": "center"
+    },
+    "Face decal span": {
+      "id": "fixture:Face decal span",
+      "label": "Face decal span",
+      "description": "Face decal span",
+      "assetPath": "registered:undereye.png",
+      "region": "undereye",
+      "transform": {
+        "offset": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "scale": {
+          "x": 1,
+          "y": 1,
+          "z": 1
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 5
+        }
+      },
+      "animationConfig": {
+        "driftPerSecond": {
+          "x": 0,
+          "y": 0.08
+        }
+      },
+      "kind": "face_anchored",
+      "anchor": "undereye",
+      "layout": "span",
+      "pivot": "top-center"
+    },
+    "Face decal mouth": {
+      "id": "fixture:Face decal mouth",
+      "label": "Face decal mouth",
+      "description": "Face decal mouth",
+      "assetPath": "registered:mouth-decal.png",
+      "region": "mouth",
+      "transform": {
+        "offset": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "scale": {
+          "x": 1,
+          "y": 1,
+          "z": 1
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "kind": "face_anchored",
+      "anchor": "mouth",
+      "faceCleanup": true,
+      "pivot": "center"
+    },
+    "Texture": {
+      "id": "fixture:Texture",
+      "label": "Texture",
+      "description": "Texture",
+      "assetPath": "registered:star.png",
+      "region": "eyes",
+      "transform": {
+        "offset": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "scale": {
+          "x": 1,
+          "y": 1,
+          "z": 1
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      "animationConfig": {
+        "pulseScaleMin": 0.8,
+        "pulseScaleMax": 1.2,
+        "pulseCyclesPerSecond": 1.6
+      },
+      "kind": "texture",
+      "targetRole": "eye_iris",
+      "assetShape": "single_eye",
+      "applyMode": "overlay",
+      "disableTargetRoles": ["eye_highlight"],
+      "requiresMirror": false
+    }
+  }
+}

@@ -6,6 +6,7 @@ import type {
   ResolvedEmotionGroup,
 } from "@/lib/emotion";
 import type { AvatarInteractionPhase } from "@/lib/types/voice-types";
+import type { AvatarFacePartCorrections } from "./vfx/faceParts";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Avatar Load / Lifecycle
@@ -19,6 +20,10 @@ export interface AvatarLoadSpec {
   sourceKey?: string | null;
   /** Verified model dependencies. Supplying this map forbids unissued network fetches. */
   resourceUrls?: Readonly<Record<string, string>>;
+  /** The Avatar's saved face part correction, if any. */
+  facePartCorrections?: AvatarFacePartCorrections | null;
+  /** sha256 of the VRM bytes; a correction applies only when it matches. */
+  vrmSha256?: string | null;
 }
 
 export type AvatarLoadPhase = "setup" | "vrm" | "animation";

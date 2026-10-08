@@ -18,7 +18,7 @@ Inspection and runtime editing use three cooperating components:
    A live runtime session bound to the currently rendered `Avatar`. It merges document inspection with live Three.js objects and owns runtime-only overrides.
 
 3. **`AvatarVFXController`**  
-   A live runtime VFX controller owned by `Avatar`. It applies mesh-bound eye/face VFX by cloning per-usage materials, compositing stacked texture layers into runtime textures, and creating hover planes for face-attached overlays.
+   A live runtime VFX controller owned by `Avatar`. It applies Avatar Effects by cloning per-usage materials, compositing stacked texture layers into runtime textures, creating planes in front of the face, on body points and beside the Avatar, and drawing silhouette overlays.
 
 ## 2) Main files
 
@@ -225,7 +225,7 @@ placement and animation.
 
 The debug modal includes an `Effects` section with:
 
-- the bundled effect catalog
+- the Anima runtime catalog effects that have been resolved
 - detected VFX target bindings
 - original runtime slot sizes
 - active effect counts and active effect lists per binding

@@ -7,17 +7,16 @@
   "description": "Uneasy face overlay variant for lingering disgust or stressed discomfort.",
   "dependencies": [],
   "definition": {
-    "schema": "animama/avatar-effect/1",
-    "kind": "texture",
+    "schema": "animama/avatar-effect/2",
     "region": "full_face",
-    "targetRole": "face_skin",
-    "assetShape": "full_face",
-    "applyMode": "overlay",
-    "lifetime": {
-      "kind": "turns",
-      "turns": 3
+    "attachment": {
+      "kind": "face_surface",
+      "part": "face_skin",
+      "area": "full"
     },
-    "image": "texture_sick_2.png"
+    "art": {
+      "image": "texture_sick_2.png"
+    }
   },
   "files": [
     {

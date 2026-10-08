@@ -52,6 +52,7 @@
   },
   "devDependencies": {
     "@electron/asar": "3.4.1",
+    "@fontsource-variable/dm-sans": "^5.3.0",
     "@types/node": "^24.12.2",
     "@types/tar-stream": "3.1.4",
     "aws4fetch": "1.0.20",
