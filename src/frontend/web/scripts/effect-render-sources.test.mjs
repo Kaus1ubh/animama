@@ -76,7 +76,7 @@ before(async () => {
     path.join(gesture, "wave.meta.json"),
     JSON.stringify({
       content_type: "gesture",
-      content_id: "local:gesture:wave",
+      id: "local:gesture:wave",
       name: "Wave",
       implementation: { kind: "anima_clip", file_role: "sequence" },
       files: [{ path: "wave.json", role: "sequence" }],

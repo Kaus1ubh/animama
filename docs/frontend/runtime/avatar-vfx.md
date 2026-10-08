@@ -474,7 +474,8 @@ pnpm -s effects:assets preview art/drop.png --out /tmp/drop-preview.png
   output pixels), clears faint alpha, raises near-opaque alpha to 255 and bleeds
   edge colour into transparent pixels so texture filtering shows no fringe. It
   never overwrites its input. Face-surface art (`--budget surface`) keeps its size and margins,
-  because it lies over the face texture's UV layout.
+  because it lies over the face texture's UV layout; only art placed by its
+  own framing (iris and decal art) is reframed, with `--canvas`.
 - `flipbook` lays frames out left to right, top to bottom, within the grid
   limits, fitting them into `--cell` when sizes differ and settling their alpha
   after resampling, and prints the `art.flipbook` fragment. `--trim` crops

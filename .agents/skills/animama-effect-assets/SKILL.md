@@ -74,8 +74,10 @@ effect skill).
    - Painted art placed by its framing (an iris pattern, a decal): `--canvas
      <px> --art-size <px>` trims the art, scales it to `art-size` and centres
      it on a `canvas` square, so redone art keeps the same framing (match the
-     effect it replaces, e.g. a 168 px star on a 512 canvas). Never trim, pad or square **face-surface** art (`--budget surface`
-     refuses): it is laid over the face texture's UV layout.
+     effect it replaces, e.g. a 168 px star on a 512 canvas). That is the
+     only reframing for **face-surface** art: never trim, pad or square art
+     laid over the face texture's UV layout (`area: full`, spans; `--budget
+     surface` refuses those options), and never use `--canvas` on it.
    `fix` never overwrites its input and checks its output; it also bleeds edge
    colour into transparent pixels so filtering shows no fringe. An unreadable
    file is reported as `unreadable` and the rest of a batch is still checked.

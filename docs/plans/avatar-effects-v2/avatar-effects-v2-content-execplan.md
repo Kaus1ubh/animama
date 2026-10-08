@@ -797,6 +797,45 @@ Gloom lines, DOKI DOKI, Idea bulb, Despair shade. Changes:
 - Checks: `effects.test.mjs` 11/11, `effect-render-sources.test.mjs` 11/11,
   `pnpm -s test:source` pass, prettier pass.
 
+#### P4–P6 Code Review #1 Findings
+
+`sdlc-reviewer`, initial review of the P4–P6 tooling and skill text
+(`e86d52e2`, `0a5d44d2`, `72a1f86a`, `691a8b57`). Checks: asset, effects and
+render-source tests 51/51 on an exact-source export, eslint and prettier
+pass; CLI probes of `--canvas`, `--trim` and `--cell`. Blocking:
+
+1. **P46-R1-01** — the save read-back fix walked only the creator-written
+   keys, so any value only the saved item had (a stray offset, pulse, tint or
+   flipbook) passed, not just the API's defaults.
+
+Optional: P46-R1-02 `flipbook --trim` leaves no gutter between cells, so
+linear filtering could blend a neighbour's edge (no artefact shown);
+P46-R1-03 the skill and runtime doc contradicted each other on `--canvas`
+for face-surface art; P46-R1-04 `--max` was silently ignored with
+`--canvas`; P46-R1-05 stale `assembleFlipbook` comments; P46-R1-06 the Local
+Gesture fixture still wrote `content_id`; P46-R1-07 commit `0a5d44d2` edits
+the plan without a `[p4]` marker (history is not rewritten).
+
+#### P4–P6 Code Review #1 Revisions
+
+- **01 accepted:** the walk compares both sides again; before it, both sides
+  lose only attachment fields equal to the API's default for their kind
+  (`API_ATTACHMENT_DEFAULTS`: body size and facing, sticker anchor and size,
+  silhouette fill, pattern scale and scroll). Tests: API defaults pass; a
+  non-default saved-only `scroll` and a saved-only `motion` are reported.
+  The 22 effects were saved again under the stricter check.
+- **02 deferred:** no visible artefact; the library's only flipbook was
+  replaced by keyframes. Revisit if a trimmed flipbook shows edge bleed.
+- **03–06 accepted:** the skill and doc state that `--canvas` is the only
+  reframing for face-surface art and only for art placed by its own framing;
+  `--max` with `--canvas` is refused; comments corrected; the Gesture fixture
+  writes `id` (and is found by it).
+- **07:** noted; later plan-record commits carry their phase marker.
+
+Checks after revisions: asset, effects and render-source tests 54/54,
+prettier and `web:lint` pass; `fix --canvas 128 --art-size 40 --max 64`
+exits 2.
+
 ### P7 — Reaction wiring (R15). Gate G3.
 
 1. Starts after #337 merges and this branch has merged `main`: Included

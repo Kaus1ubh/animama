@@ -140,12 +140,41 @@ function withoutNulls(value) {
 }
 
 /**
+ * Attachment fields the API fills with these defaults when the creator leaves
+ * them out (`app/contracts/avatar_effect.py`); the creator's round trip
+ * already drops default offsets, scales, rotations, mirror and mode.
+ */
+const API_ATTACHMENT_DEFAULTS = {
+  body: { size: 0.2, facing: "camera" },
+  sticker: { around: "head", size: 0.25 },
+  silhouette: { fill: "pattern", patternScale: 1, scroll: { x: 0, y: 0 } },
+};
+
+/** Drop attachment fields that hold the API's default for their kind. */
+function withoutApiDefaults(definition) {
+  const attachment = definition.attachment;
+  const defaults = API_ATTACHMENT_DEFAULTS[attachment?.kind];
+  if (!defaults) return definition;
+  return {
+    ...definition,
+    attachment: Object.fromEntries(
+      Object.entries(attachment).filter(
+        ([key, value]) =>
+          !(key in defaults) ||
+          JSON.stringify(value) !== JSON.stringify(defaults[key]),
+      ),
+    ),
+  };
+}
+
+/**
  * The first JSON path where a saved definition differs from the expected
  * one, or null when they match. Nulls are dropped (the API projects unset
  * fields as null), then both go through `normalize`, which should round-trip
- * a definition through the creator so defaults compare equal. Image names are
- * left out (the creator may rename a file to keep the two images distinct),
- * but an other-eye image must be present on both sides or neither.
+ * a definition through the creator so defaults compare equal, and lose the
+ * attachment defaults the API fills for fields the creator leaves out. Image
+ * names are left out (the creator may rename a file to keep the two images
+ * distinct), but an other-eye image must be present on both sides or neither.
  */
 export function definitionDifference(
   saved,
@@ -153,7 +182,9 @@ export function definitionDifference(
   normalize = (value) => value,
 ) {
   const prepare = (definition) => {
-    const normalized = withoutNulls(normalize(withoutNulls(definition)));
+    const normalized = withoutApiDefaults(
+      withoutNulls(normalize(withoutNulls(definition))),
+    );
     const {
       image: _image,
       otherEyeImage: _other,
@@ -172,17 +203,12 @@ export function definitionDifference(
       b &&
       typeof a === "object" &&
       typeof b === "object" &&
-      !Array.isArray(a) &&
-      !Array.isArray(b)
+      !Array.isArray(a)
     ) {
-      // Only the expected keys: a key the saved item alone has is a default
-      // the API filled for a field the creator leaves out (a silhouette's
-      // `scroll`, a sticker's `around`), not a setting that changed.
-      for (const key of Object.keys(b)) {
+      for (const key of new Set([...Object.keys(a), ...Object.keys(b)])) {
         const found = walk(a[key], b[key], `${at}.${key}`);
         if (found) return found;
       }
-      return null;
     }
     return `${at} (saved ${JSON.stringify(a)}, expected ${JSON.stringify(b)})`;
   };

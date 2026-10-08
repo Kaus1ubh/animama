@@ -240,7 +240,7 @@ test("saved definitions compare after normalizing, ignoring image names", () => 
     null,
   );
   // Defaults the API fills for fields the creator leaves out (a silhouette's
-  // scroll) are not differences; a field the creator set must still match.
+  // scroll and pattern scale, a sticker's anchor) are not differences.
   const silhouette = {
     ...expected,
     attachment: { kind: "silhouette", fill: "tint" },
@@ -249,18 +249,49 @@ test("saved definitions compare after normalizing, ignoring image names", () => 
     definitionDifference(
       {
         ...silhouette,
-        attachment: { ...silhouette.attachment, scroll: { x: 0, y: 0 } },
+        attachment: {
+          ...silhouette.attachment,
+          scroll: { x: 0, y: 0 },
+          patternScale: 1,
+        },
       },
       silhouette,
     ),
     null,
   );
+  const sticker = { ...expected, attachment: { kind: "sticker", size: 0.12 } };
+  assert.equal(
+    definitionDifference(
+      { ...sticker, attachment: { ...sticker.attachment, around: "head" } },
+      sticker,
+    ),
+    null,
+  );
+  // A field the creator set must still match, and a value only the saved
+  // item has is a change unless it is the API's default.
   assert.match(
     definitionDifference(
       { ...silhouette, attachment: { kind: "silhouette" } },
       silhouette,
     ),
     /^definition\.attachment\.fill \(saved undefined, expected "tint"\)$/,
+  );
+  assert.match(
+    definitionDifference(
+      {
+        ...silhouette,
+        attachment: { ...silhouette.attachment, scroll: { x: 0.5, y: 0 } },
+      },
+      silhouette,
+    ),
+    /^definition\.attachment\.scroll \(saved \{"x":0\.5,"y":0\}, expected undefined\)$/,
+  );
+  assert.match(
+    definitionDifference(
+      { ...expected, motion: { pulse: { scaleMax: 1.2 } } },
+      expected,
+    ),
+    /^definition\.motion \(saved/,
   );
 });
 

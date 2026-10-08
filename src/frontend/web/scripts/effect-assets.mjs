@@ -646,9 +646,10 @@ export async function fixImage(
 
 /**
  * Lay frames out left to right, top to bottom, as `art.flipbook` reads them.
- * Frames must share one size unless `cell` (px) is given; each frame is then
- * fitted inside a square cell and centred. Returns the sheet and the
- * definition fragment.
+ * Frames must share one size unless `cell` is given (px for a square, or
+ * `{ width, height }`); each frame is then fitted inside the cell and centred.
+ * `trim` crops every frame to one shared box first, so equal-size frames stay
+ * aligned. Returns the sheet and the definition fragment.
  */
 export async function assembleFlipbook(
   frames,
@@ -680,8 +681,9 @@ export async function assembleFlipbook(
     throw new EffectAssetError(
       `${count} frames need ${rows} rows; the grid allows ${FLIPBOOK_LIMITS.grid}, so add columns`,
     );
-  // Sizes come from the headers, so a sheet over the limit is refused before
-  // any frame is decoded; frames are then decoded one at a time.
+  // Sizes come from the headers, so without `trim` a sheet over the limit is
+  // refused before any frame is decoded (`trim` decodes each frame once to
+  // find the shared box); frames are then decoded one at a time.
   const headers = [];
   for (const frame of frames) headers.push(await readMetadata(frame));
   const sizes = new Set(
@@ -1075,11 +1077,13 @@ async function main(argv) {
         trim: flags.has("--trim"),
         square: flags.has("--square"),
         pad: integer(values, "--pad", 0, 1024) ?? 0,
+        // With a canvas only an explicit --max is passed, which fixImage
+        // refuses; the budget's size does not apply.
         maxDimension:
           canvasSize === undefined
             ? (integer(values, "--max", 1, RUNTIME_LIMITS.dimension) ??
               budget?.maxDimension)
-            : undefined,
+            : integer(values, "--max", 1, RUNTIME_LIMITS.dimension),
         canvas:
           canvasSize === undefined
             ? undefined
