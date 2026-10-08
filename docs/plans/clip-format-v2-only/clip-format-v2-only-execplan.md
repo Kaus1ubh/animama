@@ -72,13 +72,13 @@ poses as `base_pose`, but nothing reads that field.
 
 ## Progress
 
-- [ ] Preparation: workspace verified, plan drafted (this file).
+- [x] Preparation: workspace verified, plan drafted (this file).
 - [x] Phase 1: Included conversion (#356). G1 passed and reviews #1–#2 passed on 2026-10-08.
 - [x] Phase 2: Local migration tool (#357). G2 done (all dry runs found 0); reviews #1–#2 passed.
 - [x] Phase 3: Frontend 1.0 removal and rejection (#358). Reviews #1–#2 passed; fast journeys 36/36.
 - [x] Phase 4: Backend 1.0 removal and rejection (#359). Reviews #1–#3 passed.
 - [x] Phase 5: Docs, skill and ADR (#360). Reviews #1–#2 passed.
-- [ ] Final integration review, full journeys, live checks (G3), PR.
+- [ ] Final integration review passed, full journeys 38/38, agent live checks done; G3 owner acceptance and merge approval pending.
 
 ## Surprises & Discoveries
 
@@ -487,7 +487,8 @@ Order: rejection paths first, then deletions.
    - `animation-promote.mjs` and `promote.md`: the clip-samples maintenance goes.
    - Fixtures: `starter-clip-samples-before-reduction.json` and
      `animaPoseClip/fixtures/compatibility-valid.json` go. The backend test that
-     reads the latter moves to `compatibility-valid-v2.json` in this phase.
+     read the latter moved to `compatibility-valid-v2.json` in Phase 4 (see the
+     final record on intermediate commits).
 4. **Picker filter (D2).** In the Gesture creator's Poses tab picker, add a
    "Show Included" checkbox (default off) that hides Included Poses, reusing the
    existing picker/filter components. Component test plus a journey assertion
@@ -892,15 +893,87 @@ Phase 5 complete.
 ## Final integration review
 
 Independent review of combined acceptance on the final candidate, reusing phase
-evidence that is still valid. Then:
-
-- full `pnpm e2e:test` on the disposable built stack, compared against `main`;
-- `pnpm desktop:runtime:stage` and `pnpm desktop:runtime:audit` for darwin arm64.
+evidence that is still valid.
 
 **Gate G3 (owner):** live checks of chat playback of the converted Gestures
 (starter loadout), Reaction playback, Library previews, and the Gesture and
 Reaction creators. The agent performs these on its stack and records them; the
 owner accepts them.
+
+### Final Integration Review #1 Findings
+
+Independent `sdlc-reviewer` on candidate `066a0f6c` against `fd1980fe`. Its
+checks found no code defects:
+
+- 115/115 Included clips are 2.0.
+- The 26-id pose sets match across the backend, the frontend fixture, the
+  generated catalog and `content/included/poses`.
+- No 1.0 identifiers remain outside rejection code, tests, ADRs and history.
+- Commit scopes are coherent.
+- No Cloud, generated-client or Alembic changes.
+- The plan is public-safe.
+
+Findings:
+
+- **FIR1-F1 (required):** the final evidence and outcomes were missing from
+  this plan.
+- **FIR1-F2 (required):** the intermediate-commit note was incomplete.
+  `tests/test_content_package_capabilities.py` also fails at the Phase 3
+  commit, because it read the deleted 1.0 fixture until Phase 4.
+- FIR1-F3 (optional): `origin/main` had moved 8 commits, including #322's UI
+  theme work in files this branch changes.
+- FIR1-F4 (optional): no test pins backend/frontend message parity.
+
+### Final Integration Review #1 Revisions
+
+- FIR1-F1 accepted: the final record, the validation table and the outcomes
+  are below.
+- FIR1-F2 accepted. Two intermediate commits fail tests, and both are fixed
+  from the Phase 4 commit `ccf46664` on:
+  - `29e9bf62` (Phase 3) fails frontend `IdlePlaybackContract` (the shared idle
+    fixture lands in Phase 4) and backend `test_content_package_capabilities`
+    (it reads a fixture deleted in Phase 3).
+- FIR1-F3 accepted: `origin/main` was merged (`9a995ced`) and the checks below
+  were rerun on that candidate.
+- FIR1-F4 not taken. The two messages point to each other in their docstrings.
+  A cross-language parity test would need a shared fixture for two strings.
+
+### Final record
+
+Validated revision: `9a995ced` (the branch with `origin/main` merged) ·
+baseline: `fd1980fe`. Hosted CI is disabled, so all evidence is local
+(macOS, Apple silicon).
+
+- Backend:
+  - `uv run pytest -q -p no:cacheprovider`: 3248 passed, 10 skipped, 0 failed.
+    `make check-test` reported the same totals on `066a0f6c`.
+  - `uv run ruff check` clean, and `make format-check` clean.
+- Frontend (`src/frontend`):
+  - `pnpm check` 0, `pnpm web:lint` 0, `pnpm prettier:check` 0, `pnpm build` 0.
+  - `pnpm web:test`: 3095 of 3099 vitest tests passed. The 4 failures were
+    `tests/local-api-proxy.test.ts` "Port 5173 is already in use", because
+    another session's effect-render run held the port. Rerun once the port was
+    free: 8/8 passed, and the browser script tests then passed 38/38.
+- Journeys, on the disposable built stack `animama-clipv2` at base port 8700
+  (`ANIMAMA_LLM_SKIP=1 ANIMAMA_WEB_BUILD_MODE=production`):
+  - full `pnpm e2e:test`: 38 passed in 10.8 min (run-1008150737), on the
+    `ccf46664` source;
+  - `pnpm e2e:test:fast` after the main merge: 36 passed in 6.7 min
+    (run-1008153116).
+  - No failures, so no comparison with `main` was needed.
+- Desktop: `pnpm desktop:runtime:stage` and `pnpm desktop:runtime:audit` for
+  darwin arm64 both reported "runtime audit: OK". The release licence gate
+  remains closed, as before (743 pending records); that gate is separate.
+- Agent live checks on the stack (built browser):
+  - the Library preview of converted `meme-dab` holds the dab, and `Anger
+    Reaction 3` plays with its scene effect, with no console errors;
+  - the Reaction creator opens `anger-3` as beats (Peak, Angry);
+  - the Gesture creator opens converted `soldier-salute` as five labelled beats;
+  - the Poses tab hides Included Poses until "Show Included" is checked, then
+    lists the promoted Poses;
+  - the promoted Soldier Salute Poses appear in the Library.
+  - Not checked: chat playback, because the stack skips the LLM. This is part
+    of G3.
 
 ## Validation and acceptance
 
@@ -933,4 +1006,25 @@ Hosted CI is disabled (2026-10-07); local evidence only.
 
 ## Outcomes & Retrospective
 
-<pending>
+Delivered:
+
+- All 43 Included Gestures and 72 Reactions are `animaPoseClip/2.0`. They are
+  verified equivalent to their 1.0 originals, with one owner-accepted blink
+  deviation.
+- The 21 Gesture poses are now Included Poses, behind a "Show Included" picker
+  filter.
+- No 1.0 clip code remains in the frontend or backend. Every surface rejects a
+  1.0 clip with one clear message.
+- The docs, skills and ADR 0016 describe 2.0 as the only format.
+
+Remaining:
+
+- G3: owner acceptance of the live checks, including chat playback.
+- Owner merge approval of the exact candidate.
+
+Lessons:
+
+- The equivalence check had to be two-sided. Measuring only the 1.0 sample's
+  channels hid a 2.0 track that drives blink where 1.0 left it alone.
+- `git rm` stages deletions, so a later path-limited `git add` still commits
+  them. Check `git diff --cached` before each phase commit.
