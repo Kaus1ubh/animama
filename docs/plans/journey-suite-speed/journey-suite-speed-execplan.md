@@ -39,7 +39,7 @@ Relevant source, relative to the repository root:
 - [x] Phase 1: failing journeys fixed where they belong (review #2 pass).
 - [x] Phase 2: development watchers narrowed and measured (review #3 pass).
 - [x] Phase 3: serving mode and render path measured; routine command documented (review #2 pass).
-- [ ] Phase 4: full suite passes on a fresh disposable stack; final review.
+- [x] Phase 4: full suite passes on a fresh disposable stack (35 passed, 10.8 min); final review below.
 
 ## Baseline (2026-10-07)
 
@@ -113,7 +113,7 @@ Root causes, from the baseline run and trace evidence:
 | 1 | discard-local "reopens saved content" | Shared fixture state, plus a product bug. The guard was attached before Annie was selected, so Annie's preference write was blocked, and the hook then retried it in a tight loop. | Product: one attempt per visit (`lastActiveAnimaAttempts.ts`, unit-tested). Test: select Annie before attaching the guard. |
 | 2 | creator-discard (scene `:188`, avatar `:62`) and discard-local "storage failure" | Scene: same as #1 (order-dependent). Avatar and storage-failure: timing. The next sidebar click landed after the URL changed to `/library` but before the blocked navigation committed, and was absorbed. | Shared `discardToLibrary` waits for the Library heading; scene Local discard selects Annie before its guard. |
 | 3 | 1.0-to-2.0 Gesture reopen | Timing: `page.reload()` could run before Save's navigation to `/gestures/<id>/edit`. Passed in the baseline. | Wait for the saved item's edit URL before reloading (an added assertion). |
-| 4 | imported playback | Environment and timing: passed in the baseline (277 s); the earlier failures ran with five stacks up. | No change. Recheck in the final run. |
+| 4 | imported playback | Timing under load. Each observation sample took four browser calls, and each call queued behind SwiftShader rendering, so samples were about 1.2 s apart and a short particle burst could fall between them. It passed in the baseline (277 s); the issue's earlier runs had five stacks up. It reproduced during Phase 2 measurement. | Phase 3: read each observation in one browser call (same checks). With GPU WebGL on macOS, the main thread also stays free. |
 | 5–7 | pose content `:24/:134/:409` | Outdated expectation, already fixed by #321 (copy names derived from the catalog). Passed in the baseline. | None. |
 | 8 | vfx guides keep Eye = playing | Outdated expectation: the UV preview is a popover and dismisses on the outside Guides click. | Owner-approved test update: assert dismissal, then reopen with Guides off. |
 
@@ -250,8 +250,8 @@ Changes:
   snapshot comparison.
 - `readPlaybackObservation` reads count, schema version and text in one browser
   call instead of four. Under SwiftShader load each call queued behind rendering:
-  the baseline proof in failure 4 got 6 samples in 5 s, about 1.2 s apart, and
-  missed a short particle burst. The same proof under SwiftShader now samples
+  the failure 4 reproduction during Phase 2 measurement (run `run-1007200634`) got
+  6 samples in 5 s, about 1.2 s apart, and missed a short particle burst. The same proof under SwiftShader now samples
   every 0.4 to 0.7 s and passes. The checks are unchanged.
 - Pose content: Insert loads the saved Pose asynchronously. The journey now
   waits for the inserted non-Base beat on the timeline before reading Clip JSON.
@@ -330,13 +330,87 @@ repair round remains.
 
 ### Phase 4: Full run and final review
 
-Run the complete suite on a fresh disposable stack of the documented kind and
-record per-test durations next to the baseline. Then run the final integration
-review.
+Source: `a982924e` (Phases 1–3 plus a merge of `main` at `5f93876c`, which
+touched only `.gitignore` and the Included clip glob). Fresh named built stack
+`animama-e2efinal`:
+`ANIMAMA_LLM_SKIP=1 ANIMAMA_WEB_BUILD_MODE=production ./reset.sh --name e2efinal --base-port 8960`.
+Metal WebGL. Two other tasks' stacks were running during the run; this task's
+earlier stacks were stopped with their data retained.
+
+Result: `pnpm e2e:test`: 35 passed, 10.8 minutes (650 s wall; 644 s summed test
+time). Run `run-1007212158`. The backend averaged 49% CPU (maximum 111%).
+
+| Test | Baseline (s) | Final (s) |
+| --- | ---: | ---: |
+| installation setup | 1.6 | 1.4 |
+| content sharing: single and multiple export | 57.4 | 25.5 |
+| content sharing: complete Anima `@complete-anima` | 459.4 | 147.5 |
+| Local Gesture discard reopens saved content | 18.5 (failed) | 11.0 |
+| Local Gesture discard storage failure | 32.3 (failed) | 12.0 |
+| avatar creator discard existing / new / immediate | 17.3 / 23.1 / 19.9 | 5.0 / 5.1 / 3.7 |
+| scene creator discard existing / new / immediate | 14.9 / 22.0 / 14.0 | 4.6 / 5.2 / 3.8 |
+| gesture creator discard existing | 10.8 | 4.0 |
+| Local scene creator discard | 22.4 | 10.1 |
+| generated Gesture round trip | 33.2 | 11.1 |
+| 1.0 Gesture / Reaction saves as 2.0 | 24.5 / 23.7 | 10.8 / 10.2 |
+| imported playback: every content kind | 277.4 | 81.8 |
+| imported playback: complete Anima `@complete-anima` | 513.6 | 203.8 |
+| selection, Stop and persisted reply | 9.8 | 2.5 |
+| Scene JSON import, preview, save | 21.7 | 4.7 |
+| scene / avatar / particle Save reachable | 13.2 / 19.3 / 16.6 | 1.4 / 2.3 / 1.9 |
+| Library smoke | 1.7 | 0.7 |
+| built-in pose playback | 6.0 | 3.0 |
+| SFX volume numeric input | 25.3 | 7.6 |
+| pose content: Included discovery | 13.2 | 4.6 |
+| pose content: Local save, edit, reopen | 73.6 | 17.6 |
+| pose content: failed detail load recovery | 13.8 | 9.3 |
+| pose content: load panels and sidebars | 33.8 | 6.0 |
+| vfx guides keep Eye = playing | 29.0 (failed) | 14.2 |
+| vfx guides preserve authored JSON | 38.1 | 3.7 |
+| vfx guides Particle Avatar and Outline | 11.1 | 2.6 |
+| loadout scene fills viewport | 10.1 | 2.5 |
+| scene creator fills viewport | 16.7 | 2.7 |
+| **Summed test time** | **1,939** | **644** |
+
+Other checks at `3107c7d2` (Phase 3), before the merge of `main`:
+
+- From `src/frontend`: `pnpm check`, `pnpm web:lint`, `pnpm web:test` (395 files,
+  2,957 tests), `pnpm e2e:test:unit`, `node --test scripts/e2e/*.test.mjs` and
+  `pnpm e2e:check`. All pass.
+- From the root: `uv run ruff check` passes. `uv run pytest -q`: 3,159 passed,
+  10 skipped, with one test deselected. That test,
+  `tests/test_desktop_runtime_packaging.py::test_runtime_resource_audit_has_schema_and_starter_resources`
+  ("Packaged gruut phonemizer produced no lip-sync phonemes"), fails identically
+  on `main`.
+- `make check-test` fails at mypy on four errors in
+  `src/backend/animama/app/services/idle_clip_validation.py`, a file this branch does not touch. The
+  same errors occur on `main`.
 
 ## Final integration review
 
-Pending.
+Reviewed `a982924e` plus the Phase 4 plan update against the issue's full
+acceptance list and both scope comments, reusing the phase evidence.
+Cross-phase checks found no defects:
+
+- Every creator mutation guard is attached after Annie is selected.
+- The watcher default and the docs agree for built and development stacks.
+- The plan, the journey guide and the development guide give consistent numbers.
+- The merge of `main` touched nothing in scope.
+
+Findings (review #1):
+
+- F1 (required): Phase 1 row 4 still recorded failure 4 as "No change", while
+  Phase 3 fixed it.
+- F2 (optional): the optional OrbStack memory note was absent.
+- F3 (optional): the built-stack guidance was missing from the development
+  guide's parallel-stack section.
+- F4 (optional): one path in the plan was not repository-relative.
+
+Revisions: all accepted. Row 4 now records the cause and the Phase 3 fix, with
+the reproduction run named. The journey guide gained the memory-limit sentence.
+The development guide points to built stacks for journeys. The path is fixed.
+
+Review #2 (targeted): pass, including the anchor link. One repair round remains.
 
 ## Validation and acceptance
 
@@ -354,4 +428,19 @@ recreate the stack to restore polling on hosts without bind-mount file events.
 
 ## Outcomes & Retrospective
 
-Pending.
+- **Speed:** the suite went from 32.4 minutes with 3 failures to 10.8 minutes with
+  all 35 passing. The fast subset (`pnpm e2e:test:fast`) takes about 5 minutes.
+  The largest gains came from serving the built application (25.0 → 10.5
+  minutes, both with Metal) and from GPU WebGL on macOS. Narrowing the watchers
+  freed about one CPU core per idle development stack.
+- **Failures:** every one of the eight issue-listed failures has a recorded root
+  cause and a fix in its proper place. One further timing race (pose Insert)
+  surfaced only once the suite ran faster.
+- **Optional OrbStack memory note:** added to the journey guide as a safety
+  margin for several parallel stacks, not as the fix.
+- **Follow-ups:**
+  - #330: server-side content rescan and journal cost. It is now most of the full
+    suite, and development stacks pay about 3 times more than built ones.
+  - #332 (merged): Included clip globs no longer bundle review sidecars.
+- **Lesson:** speeding a suite up exposes hidden ordering and timing assumptions.
+  Rerun at the new speed before declaring a fix complete.

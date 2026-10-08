@@ -90,7 +90,9 @@ starts warm and uses less memory and CPU per stack, which matters when several
 agents run stacks in parallel. The full suite takes about 25 minutes on a
 development stack. Use a development stack when you are editing and checking UI
 changes interactively. A built stack serves the image baked at reset, so rerun
-`./reset.sh` after source changes.
+`./reset.sh` after source changes. When several stacks run at once, raising
+OrbStack's VM memory limit adds a safety margin. It does not replace built
+stacks and narrow watchers.
 
 On macOS, headless journeys render WebGL on the GPU through ANGLE Metal. Other
 hosts, such as Linux validation containers, use CPU-based SwiftShader, which is

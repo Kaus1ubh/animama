@@ -1166,6 +1166,10 @@ another stack's record into this checkout. Start or reset only the selected stac
 ./reset.sh --name abc --base-port 8200
 ```
 
+For browser journeys and live checks that do not need hot reload, prefer a built
+stack (`ANIMAMA_WEB_BUILD_MODE=production`); see
+[Browser Journeys](../../frontend/testing/browser-journeys.md#current-automation-status).
+
 `--base-port 8200` overrides file or inherited application-port settings; optional
 `dev-tools` ports become 8204 and 8220. It does not clear unrelated inherited
 configuration. The stack name becomes the Compose project `animama-abc`, so containers,
