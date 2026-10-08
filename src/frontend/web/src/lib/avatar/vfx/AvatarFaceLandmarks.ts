@@ -8,10 +8,7 @@ import type {
   AvatarFaceLandmarksSnapshot,
   AvatarFaceLandmarkVector,
 } from "./landmark-types";
-import {
-  resolveEyeIrisTargetBindings,
-  resolveFaceTargetBinding,
-} from "./avatarRuntimeTargeting";
+import { resolveAvatarFacePartEntries } from "./faceParts";
 import {
   collectPrimitiveData,
   readVertexPosition,
@@ -23,7 +20,6 @@ import { createLogger } from "@/lib/logger";
 
 const logger = createLogger("AvatarFaceLandmarks");
 const EPSILON = 1e-6;
-const HAIR_NAME_PATTERN = /hair|bang|fringe/i;
 const HAIR_SEARCH_X_PADDING_RATIO = 0.15;
 const HAIR_SEARCH_Y_PADDING_RATIO = 0.35;
 const HAIR_CLEARANCE_MARGIN_MIN = 0.003;
@@ -62,11 +58,6 @@ type HairFrontSearchWindow = {
 type HairFrontSample = {
   maxSignedFront: number;
   pointCount: number;
-};
-
-type HairBindingRoots = {
-  nodeIndices: Set<number>;
-  meshIndices: Set<number>;
 };
 
 class UnionFind {
@@ -304,16 +295,14 @@ export class AvatarFaceLandmarks {
     const runtimeResult = buildRuntimePrimitiveBindings(this._avatar);
     this._warnings = [...runtimeResult.warnings];
 
-    const faceBinding = resolveFaceTargetBinding({
-      sourceKey: this._avatar.sourceKey,
-      sourceUrl: this._avatar.sourceUrl,
-      entries: runtimeResult.entries,
-    });
-    const eyeBindings = resolveEyeIrisTargetBindings({
-      sourceKey: this._avatar.sourceKey,
-      sourceUrl: this._avatar.sourceUrl,
-      entries: runtimeResult.entries,
-    });
+    const parts = resolveAvatarFacePartEntries(
+      this._avatar,
+      runtimeResult.entries,
+    );
+    const faceBinding = parts.face;
+    const eyeBindings = Array.from(
+      new Set([...parts.leftEyes, ...parts.rightEyes]),
+    );
 
     const anchorObject = this._resolveAnchorObject(
       faceBinding?.object ?? eyeBindings[0]?.object ?? null,
@@ -322,9 +311,7 @@ export class AvatarFaceLandmarks {
 
     if (!faceBinding || !anchorObject) {
       if (!faceBinding) {
-        this._warnings.push(
-          "No face skin binding matched the current heuristics.",
-        );
+        this._warnings.push("No face skin part was detected on this avatar.");
       }
       if (!anchorObject) {
         this._warnings.push(
@@ -358,13 +345,21 @@ export class AvatarFaceLandmarks {
     this._boxHoverClearanceLocal = 0;
     this._boxHoverFrontZLocal = this._frontZLocal;
 
-    const eyeIslands = eyeBindings.flatMap((binding) =>
-      extractPrimitiveIslandsInAnchorSpace({
-        avatar: this._avatar,
-        binding,
-        anchorObject,
-      }),
+    // One primitive may hold both eyes, so islands are extracted once per
+    // binding and offered to the side(s) whose part lists that binding.
+    const islandsByBinding = new Map(
+      eyeBindings.map((binding) => [
+        binding.bindingKey,
+        extractPrimitiveIslandsInAnchorSpace({
+          avatar: this._avatar,
+          binding,
+          anchorObject,
+        }),
+      ]),
     );
+    const eyeIslands = Array.from(islandsByBinding.values()).flat();
+    const leftKeys = new Set(parts.leftEyes.map((entry) => entry.bindingKey));
+    const rightKeys = new Set(parts.rightEyes.map((entry) => entry.bindingKey));
 
     if (eyeIslands.length === 0) {
       this._warnings.push(
@@ -376,13 +371,15 @@ export class AvatarFaceLandmarks {
         faceBounds,
         frontZLocal: this._frontZLocal,
         islands: eyeIslands,
+        isLeft: (island) => leftKeys.has(island.bindingKey),
+        isRight: (island) => rightKeys.has(island.bindingKey),
       });
     }
 
     const boxHoverFront = resolveBoxHoverFrontClearance({
       avatar: this._avatar,
       anchorObject,
-      entries: runtimeResult.entries,
+      hairBindings: parts.hair,
       faceBounds,
       frontZLocal: this._frontZLocal,
       eyes: this._eyes,
@@ -402,11 +399,18 @@ export class AvatarFaceLandmarks {
     });
   }
 
+  /**
+   * Pick one iris island per side. `isLeft`/`isRight` restrict each side to
+   * islands of that side's part; when one primitive holds both eyes, both
+   * sides share the candidates and the eye bones decide.
+   */
   private _assignEyes(args: {
     anchorObject: THREE.Object3D;
     faceBounds: THREE.Box3;
     frontZLocal: number;
     islands: PrimitiveIsland[];
+    isLeft: (island: PrimitiveIsland) => boolean;
+    isRight: (island: PrimitiveIsland) => boolean;
   }): {
     left: InternalEyeLandmark | null;
     right: InternalEyeLandmark | null;
@@ -414,6 +418,8 @@ export class AvatarFaceLandmarks {
     const candidates = [...args.islands]
       .sort((a, b) => b.vertexCount - a.vertexCount)
       .slice(0, Math.max(2, Math.min(6, args.islands.length)));
+    const leftCandidates = candidates.filter(args.isLeft);
+    const rightCandidates = candidates.filter(args.isRight);
 
     const leftEyeNode =
       this._avatar.vrm?.humanoid?.getNormalizedBoneNode("leftEye") ?? null;
@@ -431,7 +437,12 @@ export class AvatarFaceLandmarks {
 
     if (candidates.length === 1) {
       const loneIsland = candidates[0];
-      if (leftEyePoint && rightEyePoint) {
+      const canBeLeft = args.isLeft(loneIsland);
+      const canBeRight = args.isRight(loneIsland);
+      if (canBeLeft !== canBeRight) {
+        leftIsland = canBeLeft ? loneIsland : null;
+        rightIsland = canBeRight ? loneIsland : null;
+      } else if (leftEyePoint && rightEyePoint) {
         const leftDistance = loneIsland.center.distanceToSquared(leftEyePoint);
         const rightDistance =
           loneIsland.center.distanceToSquared(rightEyePoint);
@@ -449,15 +460,9 @@ export class AvatarFaceLandmarks {
         right: PrimitiveIsland;
         score: number;
       } | null = null;
-      for (let leftIndex = 0; leftIndex < candidates.length; leftIndex += 1) {
-        for (
-          let rightIndex = 0;
-          rightIndex < candidates.length;
-          rightIndex += 1
-        ) {
-          if (leftIndex === rightIndex) continue;
-          const leftCandidate = candidates[leftIndex];
-          const rightCandidate = candidates[rightIndex];
+      for (const leftCandidate of leftCandidates) {
+        for (const rightCandidate of rightCandidates) {
+          if (leftCandidate === rightCandidate) continue;
           const score =
             leftCandidate.center.distanceToSquared(leftEyePoint) +
             rightCandidate.center.distanceToSquared(rightEyePoint);
@@ -473,10 +478,14 @@ export class AvatarFaceLandmarks {
       leftIsland = bestPair?.left ?? null;
       rightIsland = bestPair?.right ?? null;
     } else {
-      const ordered = [...candidates].sort((a, b) => a.center.x - b.center.x);
-      leftIsland = ordered[0] ?? null;
+      const byX = (a: PrimitiveIsland, b: PrimitiveIsland) =>
+        a.center.x - b.center.x;
+      leftIsland = [...leftCandidates].sort(byX)[0] ?? null;
       rightIsland =
-        ordered.length > 1 ? (ordered[ordered.length - 1] ?? null) : null;
+        [...rightCandidates]
+          .sort(byX)
+          .reverse()
+          .find((island) => island !== leftIsland) ?? null;
     }
 
     return {
@@ -567,55 +576,6 @@ function getObjectPositionInAnchorSpace(
   return point;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object";
-}
-
-function matchesHairName(value: string | null | undefined): boolean {
-  return Boolean(value && HAIR_NAME_PATTERN.test(value));
-}
-
-function buildNodeParentIndexMap(
-  rawNodes: readonly unknown[],
-): Map<number, number | null> {
-  const parentIndexMap = new Map<number, number | null>();
-  rawNodes.forEach((_node, index) => {
-    parentIndexMap.set(index, null);
-  });
-
-  rawNodes.forEach((rawNode, parentIndex) => {
-    if (!isRecord(rawNode) || !Array.isArray(rawNode.children)) return;
-    rawNode.children.forEach((childIndex) => {
-      if (typeof childIndex === "number") {
-        parentIndexMap.set(childIndex, parentIndex);
-      }
-    });
-  });
-
-  return parentIndexMap;
-}
-
-function getRawNodeName(rawNode: unknown): string | null {
-  return isRecord(rawNode) && typeof rawNode.name === "string"
-    ? rawNode.name.trim() || null
-    : null;
-}
-
-function getRawNodeMeshIndex(rawNode: unknown): number | null {
-  return isRecord(rawNode) && typeof rawNode.mesh === "number"
-    ? rawNode.mesh
-    : null;
-}
-
-function getRawNodeChildren(rawNode: unknown): number[] {
-  if (!isRecord(rawNode) || !Array.isArray(rawNode.children)) {
-    return [];
-  }
-  return rawNode.children.filter(
-    (value): value is number => typeof value === "number",
-  );
-}
-
 function resolveFrontAxisSign(args: {
   faceBounds: THREE.Box3;
   frontZLocal: number;
@@ -624,110 +584,6 @@ function resolveFrontAxisSign(args: {
   const distanceToMin = Math.abs(frontZLocal - faceBounds.min.z);
   const distanceToMax = Math.abs(frontZLocal - faceBounds.max.z);
   return distanceToMin <= distanceToMax ? -1 : 1;
-}
-
-function resolveTopLevelHairBindingRoots(
-  avatar: Avatar,
-): HairBindingRoots | null {
-  const rawNodes: readonly unknown[] = Array.isArray(
-    avatar.sourceGltf?.parser.json.nodes,
-  )
-    ? avatar.sourceGltf?.parser.json.nodes
-    : [];
-  if (rawNodes.length === 0) return null;
-
-  const parentIndexMap = buildNodeParentIndexMap(rawNodes);
-  const topLevelCandidates = rawNodes
-    .map((rawNode: unknown, index: number) => ({
-      index,
-      name: getRawNodeName(rawNode),
-      parentIndex: parentIndexMap.get(index) ?? null,
-    }))
-    .filter(
-      (candidate: {
-        index: number;
-        name: string | null;
-        parentIndex: number | null;
-      }) => candidate.parentIndex === null && matchesHairName(candidate.name),
-    );
-  if (topLevelCandidates.length === 0) {
-    return null;
-  }
-
-  const nodeIndices = new Set<number>();
-  const meshIndices = new Set<number>();
-  const stack = topLevelCandidates.map(
-    (root: {
-      index: number;
-      name: string | null;
-      parentIndex: number | null;
-    }) => root.index,
-  );
-
-  while (stack.length > 0) {
-    const nodeIndex = stack.pop() ?? -1;
-    if (nodeIndex < 0 || nodeIndices.has(nodeIndex)) continue;
-
-    nodeIndices.add(nodeIndex);
-    const rawNode = rawNodes[nodeIndex];
-    const meshIndex = getRawNodeMeshIndex(rawNode);
-    if (meshIndex !== null) {
-      meshIndices.add(meshIndex);
-    }
-    getRawNodeChildren(rawNode).forEach((childIndex) => {
-      if (childIndex >= 0 && childIndex < rawNodes.length) {
-        stack.push(childIndex);
-      }
-    });
-  }
-
-  return nodeIndices.size > 0 || meshIndices.size > 0
-    ? {
-        nodeIndices,
-        meshIndices,
-      }
-    : null;
-}
-
-function bindingMatchesHairFallback(
-  binding: RuntimePrimitiveBindingEntry,
-): boolean {
-  if (
-    matchesHairName(binding.materialName) ||
-    matchesHairName(binding.objectName)
-  ) {
-    return true;
-  }
-
-  let current: THREE.Object3D | null = binding.object.parent;
-  while (current) {
-    if (matchesHairName(current.name)) {
-      return true;
-    }
-    current = current.parent;
-  }
-
-  return false;
-}
-
-function resolveHairCandidateBindings(args: {
-  avatar: Avatar;
-  entries: RuntimePrimitiveBindingEntry[];
-}): RuntimePrimitiveBindingEntry[] {
-  const topLevelRoots = resolveTopLevelHairBindingRoots(args.avatar);
-  if (topLevelRoots) {
-    const rootedBindings = args.entries.filter(
-      (entry) =>
-        (entry.nodeIndex !== null &&
-          topLevelRoots.nodeIndices.has(entry.nodeIndex)) ||
-        topLevelRoots.meshIndices.has(entry.meshIndex),
-    );
-    if (rootedBindings.length > 0) {
-      return rootedBindings;
-    }
-  }
-
-  return args.entries.filter((entry) => bindingMatchesHairFallback(entry));
 }
 
 function resolveHairSearchWindow(args: {
@@ -945,7 +801,8 @@ function computePrimitiveMaxFrontInWindow(args: {
 function resolveBoxHoverFrontClearance(args: {
   avatar: Avatar;
   anchorObject: THREE.Object3D;
-  entries: RuntimePrimitiveBindingEntry[];
+  /** The hair part: box hovers clear the hair in front of the forehead. */
+  hairBindings: RuntimePrimitiveBindingEntry[];
   faceBounds: THREE.Box3;
   frontZLocal: number;
   eyes: {
@@ -965,10 +822,7 @@ function resolveBoxHoverFrontClearance(args: {
     faceBounds: args.faceBounds,
     eyes: args.eyes,
   });
-  const hairBindings = resolveHairCandidateBindings({
-    avatar: args.avatar,
-    entries: args.entries,
-  });
+  const hairBindings = args.hairBindings;
   if (hairBindings.length === 0) {
     return {
       offsetLocal: 0,

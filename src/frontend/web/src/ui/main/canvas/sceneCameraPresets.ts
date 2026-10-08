@@ -145,3 +145,35 @@ export function buildSceneCameraPreset(
       };
   }
 }
+
+/**
+ * Views creator previews add to the chat presets. Chat keeps
+ * {@link SCENE_CAMERA_PRESETS}; these are not offered there.
+ */
+export type CreatorCameraPreset = SceneCameraPreset | "portrait-three-quarter";
+
+/** Horizontal angle of the three-quarter view, toward the viewer's right. */
+const THREE_QUARTER_ANGLE = (40 * Math.PI) / 180;
+
+/** Chat presets, plus a close three-quarter view of the face for creators. */
+export function buildCreatorCameraPreset(
+  preset: CreatorCameraPreset,
+  options?: Parameters<typeof buildSceneCameraPreset>[1],
+): SceneCameraPresetState {
+  if (preset !== "portrait-three-quarter")
+    return buildSceneCameraPreset(preset, options);
+  const close = buildSceneCameraPreset("portrait-close", options);
+  const { position, orbitTarget } = close.settings;
+  const distance = position.z - orbitTarget.z;
+  return {
+    bindings: close.bindings,
+    settings: {
+      ...close.settings,
+      position: {
+        x: orbitTarget.x + Math.sin(THREE_QUARTER_ANGLE) * distance,
+        y: position.y,
+        z: orbitTarget.z + Math.cos(THREE_QUARTER_ANGLE) * distance,
+      },
+    },
+  };
+}

@@ -120,6 +120,17 @@ function AvailableUvPreview({
         className="max-h-[min(32rem,var(--radix-popover-content-available-height))] w-80 max-w-[calc(100vw-1rem)] space-y-3 overflow-y-auto p-3"
         aria-labelledby={headingId}
         aria-describedby={descriptionId}
+        // The UV view works independently of the other preview controls:
+        // toggling Guides or changing the view keeps it open. Another popover
+        // in the bar still takes its place.
+        onInteractOutside={(event) => {
+          const target = event.target as Element | null;
+          if (
+            target?.closest?.("[data-creator-preview-controls]") &&
+            !target.closest('[aria-haspopup="dialog"]')
+          )
+            event.preventDefault();
+        }}
       >
         <div>
           <p id={headingId} className="text-sm font-medium">

@@ -8,6 +8,7 @@ from pathlib import Path
 
 from animama.app.ports.content_catalog import ContentCatalog
 from animama.app.ports.content_store import ContentStore
+from animama.app.services.avatar_effect_conversion import require_converted_avatar_effect
 from animama.app.services.content_catalog_service import ContentCatalogService
 from animama.app.services.content_kind_registry import RETIRED_CONTENT_KINDS, handler_for_kind
 from animama.app.services.idle_playback import IdlePlaybackFacts, read_gesture_idle_playback
@@ -308,6 +309,9 @@ class TypedContentService:
         item = ordered[-1]
         if isinstance(item.document, IdleStyleDocumentV1):
             raise ContentNotFoundError("Idle Style requires local conversion")
+        for entry in ordered:
+            # A previewed Action must not hand the runtime an unconverted effect.
+            require_converted_avatar_effect(entry.document)
         idle_playback: dict[str, IdlePlaybackFacts] = {}
         if isinstance(item.document, IdleStyleDocumentV2):
             facts = await validate_idle_style(

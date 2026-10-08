@@ -21,6 +21,7 @@ describe("parseContentApiErrorDetail", () => {
       code: "content_invalid",
       field: "files",
       reason: "The sequence is malformed",
+      message: null,
       details: { filename: "wave.json" },
     });
   });
@@ -34,6 +35,7 @@ describe("parseContentApiErrorDetail", () => {
       code: "content_upload_retry_required",
       field: null,
       reason: null,
+      message: null,
       details: {},
     });
   });
@@ -109,6 +111,75 @@ describe("toContentSaveApiError", () => {
     );
     expect(error.reason).toBe("The sequence has no playable frames");
     expect(error.details).toEqual({ frame_count: 0 });
+  });
+
+  it.each([
+    [
+      "definition.placement",
+      'The Avatar Effect setting "placement" is invalid: Unsupported hover placement primitive. Correct it and retry. Your draft is preserved.',
+    ],
+    [
+      "definition.transform.offset.x",
+      'The Avatar Effect setting "transform.offset.x" is invalid: x must be finite. Correct it and retry. Your draft is preserved.',
+    ],
+  ])(
+    "names the invalid Avatar Effect definition field %s",
+    (field, message) => {
+      const error = toContentSaveApiError(
+        {
+          detail: {
+            code: "content_invalid",
+            reason: "avatar_effect_definition_invalid",
+            field,
+            message: field.endsWith(".x")
+              ? "x must be finite"
+              : "Unsupported hover placement primitive",
+          },
+        },
+        422,
+      );
+
+      expect(error).toMatchObject({
+        status: 422,
+        code: "content_invalid",
+        reason: "avatar_effect_definition_invalid",
+        field,
+        message,
+      });
+    },
+  );
+
+  it("names the definition when the backend reports no field path", () => {
+    expect(
+      toContentSaveApiError(
+        {
+          detail: {
+            code: "content_invalid",
+            reason: "avatar_effect_definition_invalid",
+          },
+        },
+        422,
+      ).message,
+    ).toBe(
+      'The Avatar Effect setting "definition" is invalid. Correct it and retry. Your draft is preserved.',
+    );
+  });
+
+  it("prefers the backend's human message over a document error code", () => {
+    expect(
+      toContentSaveApiError(
+        {
+          detail: {
+            code: "content_invalid",
+            reason: "package_definition_invalid",
+            message: "Resource reference must name a registered package file",
+          },
+        },
+        422,
+      ).message,
+    ).toBe(
+      "Content validation failed: Resource reference must name a registered package file. Correct the source and retry. Your draft is preserved.",
+    );
   });
 
   it.each([

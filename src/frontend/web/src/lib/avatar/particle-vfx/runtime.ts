@@ -1,6 +1,7 @@
 import * as THREE from "three";
 
 import type { Avatar } from "../Avatar";
+import { resolveHumanoidAnchorObject } from "../humanoidAnchors";
 import { AVATAR_PARTICLE_VFX_CATALOG } from "./catalog";
 import {
   PARTICLE_VFX_ANCHORS,
@@ -15,19 +16,6 @@ import {
 const PARTICLE_VFX_CATALOG_BY_ID = new Map<string, ParticleVFXCatalogEntry>(
   AVATAR_PARTICLE_VFX_CATALOG.map((entry) => [entry.id, entry]),
 );
-
-const ANCHOR_BONE_CANDIDATES = {
-  root: [],
-  hips: ["hips"],
-  spine: ["spine", "chest", "hips"],
-  chest: ["chest", "upperChest", "spine", "hips"],
-  neck: ["neck", "head", "chest", "upperChest", "spine"],
-  head: ["head", "neck", "chest", "upperChest", "spine"],
-  leftHand: ["leftHand", "leftLowerArm", "leftUpperArm", "chest"],
-  rightHand: ["rightHand", "rightLowerArm", "rightUpperArm", "chest"],
-  leftFoot: ["leftFoot", "leftLowerLeg", "leftUpperLeg", "hips"],
-  rightFoot: ["rightFoot", "rightLowerLeg", "rightUpperLeg", "hips"],
-} as const satisfies Record<ParticleVFXAnchor, readonly string[]>;
 
 export function getParticleVFXCatalogEntryById(
   effectId: string,
@@ -125,13 +113,9 @@ export function resolveParticleVFXAnchorLocalPosition(args: {
     };
   }
 
-  const boneCandidates = ANCHOR_BONE_CANDIDATES[args.anchor];
-  for (const boneName of boneCandidates) {
-    const boneNode = args.avatar.vrm?.humanoid.getNormalizedBoneNode(
-      boneName as never,
-    );
-    if (!boneNode) continue;
-
+  const resolved = resolveHumanoidAnchorObject(args.avatar, args.anchor);
+  if (resolved?.boneName) {
+    const boneNode = resolved.object;
     boneNode.updateMatrixWorld(true);
     const localPosition = scene.worldToLocal(
       boneNode.getWorldPosition(new THREE.Vector3()),
@@ -143,12 +127,11 @@ export function resolveParticleVFXAnchorLocalPosition(args: {
     return {
       requestedAnchor: args.anchor,
       resolvedAnchor: args.anchor,
-      boneName,
+      boneName: resolved.boneName,
       position: vectorToAxisTriple(localPosition),
-      warning:
-        boneName === boneCandidates[0]
-          ? null
-          : `Particle VFX anchor "${args.anchor}" fell back to VRM bone "${boneName}".`,
+      warning: resolved.fellBack
+        ? `Particle VFX anchor "${args.anchor}" fell back to VRM bone "${resolved.boneName}".`
+        : null,
     };
   }
 

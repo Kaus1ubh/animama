@@ -7,27 +7,26 @@
   "description": "Wide open eye hover for alarm, startled curiosity, or sudden emotional intensity.",
   "dependencies": [],
   "definition": {
-    "schema": "animama/avatar-effect/1",
-    "kind": "hover",
+    "schema": "animama/avatar-effect/2",
     "region": "eyes",
-    "hoverKind": "eye_hover",
-    "disableTargetRoles": [
-      "eye_highlight"
-    ],
-    "side": "right",
-    "requiresMirror": true,
-    "transform": {
+    "attachment": {
+      "kind": "face_landmark",
+      "landmark": "eyes",
+      "side": "right",
+      "mirror": true,
       "scale": {
         "x": 0.6,
-        "y": 0.6,
-        "z": 1
+        "y": 0.6
       }
     },
-    "lifetime": {
-      "kind": "duration",
-      "runEndBufferSec": 5
+    "art": {
+      "image": "eye_o_r.png"
     },
-    "image": "eye_o_r.png"
+    "faceOptions": {
+      "hideParts": [
+        "eye_highlight"
+      ]
+    }
   },
   "files": [
     {

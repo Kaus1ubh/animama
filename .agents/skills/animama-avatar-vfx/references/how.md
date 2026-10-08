@@ -1,11 +1,12 @@
 # How to use the Avatar Effect creator
 
-Use this reference to author content through Animama's UI. For why a mode behaves
-as it does, read [What an Avatar Effect is](what.md).
+Use this reference to author content through Animama's UI. For why an attachment
+behaves as it does, read [What an Avatar Effect is](what.md).
 
 Contents: [Open and prepare](#open-and-prepare) · [Choose placement](#choose-placement) ·
-[Fit the art](#fit-the-art) · [Motion and sound](#motion-and-sound) ·
-[Verify the region](#verify-the-region) · [Save and use](#save-and-use) ·
+[Check face parts](#check-face-parts) · [Fit the art](#fit-the-art) ·
+[Look, motion and sound](#look-motion-and-sound) · [Verify the region](#verify-the-region) ·
+[Save and use](#save-and-use) · [Review outside the app](#review-outside-the-app) ·
 [Recipes](#recipes) · [Troubleshooting](#troubleshooting)
 
 ## Open and prepare
@@ -15,276 +16,289 @@ facilities. Inspect the current page and locate controls by their visible labels
 or accessible names rather than assuming screen coordinates. Read screenshots for
 visual judgment; a DOM snapshot alone cannot verify a rendered effect.
 
-1. Find the existing app origin. `/avatar-effects/` redirects to
-   `/avatar-effects/new`. Saved items reopen at
-   `/avatar-effects/{avatarEffectId}/edit`. Do not hardcode a worktree's port or
-   start/reset services merely to author content in an already running app.
-2. Check whether the creator contains an unsaved or recovered draft. Continue it
-   only if it belongs to this task. Preserve unrelated work before opening a new
-   document; do not accept a discard prompt blindly.
-3. Select the intended avatar with **Model**. Use **View → Face** for fitting and
-   **Portrait** for normal-size readability. Preview selection is not an assignment
-   of the effect to that Anima.
-4. Choose **Hover**, **Face decal**, or **Texture** in **Effect Setup**. Use an
-   explicit name in the header so the eventual Library item is easy to identify.
-5. Use **Effect image → Browse** or drop one image. Accepted MIME types are PNG,
-   JPEG, and WebP; the creator's size limit is 16 MiB. PNG or alpha-bearing WebP
-   suits isolated symbols; JPEG cannot preserve transparency.
+1. Find the existing app origin. Do not hardcode a worktree's port or start/reset
+   services merely to author content in an already running app.
+2. Open the Effects template picker: the sidebar Create menu's **Effects** item,
+   the Create page's **Avatar FX** card (which opens straight at the second
+   step), or `/effects/new`. Choose **Avatar FX**, then **Start from scratch**
+   or a template (grouped as Eyes, Whole face, Above the head and Mouth). A template opens `/avatar-effects/new?template=<id>` as a
+   new, unsaved Local copy with an unused name; it never changes the Included
+   effect. Saved items reopen at `/avatar-effects/{avatarEffectId}/edit`, also
+   reachable from their Library row.
+3. Check whether the creator holds an unsaved or recovered draft. If a template's
+   earlier draft differs from the template, the creator asks to continue it or
+   discard it; continue only if it belongs to this task. Do not accept a discard
+   prompt blindly.
+4. Select the intended avatar with **Model** (Annie, Caitlyn or the active
+   Anima's model). Use **View → Face** for fitting, **Three-quarter** for depth
+   and **Portrait** for normal-size readability. Preview selection is not an
+   assignment of the effect to that Anima.
+5. Give the effect an explicit name in the header so the Library item is easy to
+   identify.
+6. In **Effect Setup**, use **Image → Browse** or drop one image. PNG, JPEG and
+   WebP are accepted, up to 16 MiB and 4096 px per side. PNG or alpha-bearing
+   WebP suits isolated symbols; JPEG cannot preserve transparency, and a
+   checkerboard painted into the image is not alpha.
 
-Wait for the image and avatar to finish loading before evaluating placement.
-The upload preserves image bytes and framing. It does not crop transparent borders,
+Wait for the image and avatar to finish loading before judging placement. The
+upload preserves image bytes and framing. It does not crop transparent borders,
 resize a sprite, remove its background, or split an atlas. If asset preparation is
 needed, preserve the original and prepare a separate derivative within the task's
-scope. Use the provided image-generation workflow when generating or editing art.
+scope.
 
-The fresh document defaults to Eye hover with mirroring, Skin backdrop, Force blink,
-Hide eye details, and Clean up eye area enabled; unit scale, zero offsets/rotation,
-no motion, and no sound. Set the requested subtype explicitly; a symbol above the
-head should not inherit eye-hover behavior.
+Start from scratch opens art floating in front of both eyes, mirrored, with Close
+the eyes, Hide eye details and Clean up the eye area on; unit size, no offset, no
+motion and no sound. Set the attachment explicitly; a symbol above the head
+should not inherit eye behaviour.
 
 ## Choose placement
 
-### Hover
+**Attach to** chooses one of five attachments; Effect Setup then shows only the
+fields that apply.
 
-**Hover type → Face box hover** exposes **Placement**:
+### Floating on the face
 
-- Forehead left / middle / right.
-- Top left / middle / right.
-- Top edge left corner / left / middle / right / right corner.
+**Where**: Eyes, Mouth, Forehead, Top of the head or Above the head. The last
+three add **Position** (Left, Middle, Right; Above the head adds Far left and Far
+right). These are positions around the face bounds, clear of detected hair.
 
-Choose the nearest semantic position, then adjust offsets. Forehead placement is
-useful for anger marks; top/edge placement is useful for floating punctuation,
-hearts, sweat drops, and steam. These are placements around the face bounds, not
-arbitrary body anchors.
+For Eyes, **Which eyes**:
 
-**Hover type → Eye hover** exposes **Side**, **Skin backdrop**, and **Mirror right
-eye**. The mirror label is shorthand: the runtime creates the selected primary
-side and a reflected copy on its opposite side.
+| Intended artwork                               | Choice                                         | Notes                                                                                               |
+| ---------------------------------------------- | ---------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| One-eye sprite shown on both eyes              | Both eyes, mirrored                            | **Art is drawn for the** names the eye the drawing was made for; the other eye gets a mirrored copy |
+| A different drawing for the other eye (a wink) | Both eyes, mirrored, plus **Other side image** | The other image is drawn unmirrored                                                                 |
+| One-eye sprite on one eye                      | Left only or Right only                        |                                                                                                     |
+| One image already containing both eyes         | One image between the eyes                     | One centred plane; fit the pair as a whole                                                          |
 
-Fit eye replacement behavior with these independent controls:
+Eye art offers **Close the eyes** (holds blink), **Hide eye details** (eye
+highlights, eye lines, lashes), **Clean up the eye area** (soft skin-coloured
+fills over the painted eyes), **Skin-coloured backing** (a sampled-skin plane
+behind the art, off by default) and **Hide other face parts**. Mouth art offers
+**Clean up the mouth area** and **Skin-coloured backing**. Hidden parts apply to
+detected parts on both eyes, not only the chosen side; inspect both.
 
-| Control | Enabled behavior |
-| --- | --- |
-| Force blink | Holds the avatar's blink expression at 1 while the effect is active. |
-| Hide eye details | Hides recognized Eye highlight, Eyeline, and Eyelash bindings. |
-| Clean up eye area | Covers painted eye detail on the face texture with sampled skin color. |
-| Additional hidden materials | Hides selected material roles in addition to Hide eye details. |
+### Painted on the face
 
-The first three default to enabled, including when reopening older effects that
-omit their fields. To keep the original eyes visible, disable the relevant
-controls and remove explicit hidden-material selections. Material hiding affects
-recognized bindings rather than only the chosen Side; inspect both eyes.
+**Where on the face**: Whole part, Eyes, Under the eyes, Cheeks or Mouth. Whole
+part and Eyes add **Paint on** (Face skin, Eyes (iris), Eye highlights, Eye
+lines, Eyelashes) and **Keep the original underneath** (overlay when on, replace
+when off). Under the eyes, Cheeks and Mouth paint a decal on face skin at a face
+anchor and add **Image point placed on the face** (the pivot: nine positions from
+Top left to Bottom right).
 
-| Intended artwork | Side | Mirroring |
-| --- | --- | --- |
-| One-eye sprite shown on both eyes | Select the side the drawing was authored for | On |
-| One-eye sprite on one eye only | Left or Right | Off |
-| One image already containing both eyes | Both | Off; runtime places one plane between the eyes |
+For Eyes, Under the eyes and Cheeks, **Which eyes** or **Which side** offers both
+sides mirrored, one side only, or **One image across both sides** (only for art
+drawn as one wide image); Eyes also offers **Both eyes** using the part's two eye
+areas. The other side image works as for floating art.
 
-With Side = Both and mirroring off, the runtime does **not** duplicate a single-eye
-sprite. With mirroring on, selecting one side does **not** limit rendering to that
-side. Inspect both eyes before saving.
+Use Centre for ordinary cheek stamps and Top for a tear that hangs below an eye.
+The pivot refers to the whole file rectangle, so transparent padding may still
+need an offset. Mouth decals offer **Clean up the mouth area**; whole-part and
+eye art offer **Hide other face parts** (for a star iris, hiding Eye highlights
+keeps the original highlight from competing). Use **UV preview** to see what the
+part's texture actually contains before relying on whole-part art.
 
-**Hover type → Mouth hover** uses one central mouth placement and exposes **Skin
-backdrop** and **Clean up mouth area**. Cleanup defaults to enabled and covers
-painted mouth detail on the face texture. Skin backdrop adds a separate backing
-plane; compare the controls independently if the original mouth or a sampled
-skin patch competes with the art.
+### On the body
 
-### Face decal
+**Body point**: Feet (whole avatar), Hips, Waist, Chest, Neck, Head, either hand
+or either foot. **Always face the camera** turns the plane toward each view; off,
+it keeps the bone's orientation. Position is in centimetres from the point and
+size is the plane height in centimetres.
 
-Select **Anchor → Under eye**, **Blush**, or **Mouth**.
+### Sticker beside the avatar
 
-For Under eye and Blush, use **Layout → Single side** for a one-side drawing.
-Choose **Side → Left/Right** and enable **Mirror opposite side** if a bilateral
-result is wanted. Use **Span face** only for artwork intentionally drawn as one
-wide image spanning both anchors. Mouth has no bilateral layout control; it offers
-**Clean up mouth area**, enabled by default, to cover the painted mouth beneath
-the decal.
+**Beside the** Head or Body. Position and size are percentages of the avatar's
+height in the screen plane, so the sticker stays readable on any model and is
+always drawn over the avatar.
 
-**Image pivot** offers the nine combinations of top/center/bottom and
-left/center/right. Use Center for ordinary cheek stamps; try Top center for a tear
-that hangs below an eye. Pivots refer to the whole file rectangle, so transparent
-padding may require an offset even with the correct pivot.
+### Fill the silhouette
 
-### Texture
+**Fill**: **Repeat the image as a pattern** (with **Tile size** and **Scroll X/Y**
+in tiles per second; use tileable art) or **Tint with the image's colour** (a
+flat fill in the art's average colour times the Look tint). It draws only over the
+avatar and changes none of its materials.
 
-Choose **Target material role**: Face skin, Eye iris, Eye highlight, Eyeline, or
-Eyelash. Choose **Asset shape**: Single eye, Double eye, or Full face. Then choose
-**Apply mode → Overlay/Replace**.
+## Check face parts
 
-For iris art, start with Eye iris + Single eye. An explicit Left/Right side with
-mirroring off affects that side; mirroring adds the reflected opposite side.
-Side = Both uses the profile's two iris rectangles and its mirroring convention.
-Combined eye artwork maps once across the combined eye layout. Do not treat these
-controls as independent landmarks on every material role.
+Open **Face parts** before fitting a face effect on a new model. Each part shows
+Detected with a confidence, an uncertain status (found by name or below 70%),
+Corrected or Missing. Face skin and both eyes are required.
 
-Use UV preview to verify what the selected material's texture actually contains.
-Start with Overlay when the original appearance should remain. Use Replace when
-the image is intended to supply the replacement texture; inspect transparent
-areas and every affected part of the material.
-
-Use **Hidden materials** to select Face skin, Eye iris, Eye highlight, Eyeline,
-or Eyelash roles to suppress while the effect is active. For a star iris, hiding
-Eye highlight can keep the original highlight from competing with the artwork.
-These selections use `disableTargetRoles` and persist through save/reopen, as do
-Eye hover's Additional hidden materials. Inspect the intended avatar because
-material classification and the geometry each binding covers vary between models.
+To correct a part, choose **Edit**, then tick its mesh parts in the list or
+choose **Pick on the avatar** and click the avatar. **Save correction** saves it
+with that Avatar and rebuilds the preview; **Use detected parts** removes a saved
+correction. A correction applies only to that exact model file. When the effect
+needs a part the model lacks, the stage and toolbar name it, and chat will skip
+the effect. A correction changes the Avatar, not the effect: save it only when
+the user wants that Avatar corrected.
 
 ## Fit the art
 
-1. Keep animation off while fitting. In **Inspector → Transform**, adjust **Scale**
-   to get the overall size, **Position Offset** to align it, and rotation to orient
-   it. Hover offers XYZ **Rotation (degrees)**; texture modes offer **Angle
-   (degrees)**. JSON rotations are radians.
-2. Enable **Guides**. Open circles and faint lines mark the placement basis; solid
-   pink outlines show the current artwork rectangle, including transparent margins.
-   Dashed/reference bounds are not clipping masks. Treat estimated anchors as
-   estimates, not proof of exact skin placement.
-3. For decals and texture art, open **UV preview**. Select the relevant material
-   and texture slot when several are available. Compare Reference, Artwork, and
-   Pivot markings. **Skin coverage**, when available, shows flattening regions and
-   the sampled patch. Face-box hover has no skin-texture footprint to inspect.
-4. Inspect the face from the front and an oblique view using the preview's camera
-   controls. Check hair occlusion and unwanted intersections for Hover, and seams
-   or deformation for decals. Verify the avatar's left/right, not the screen's.
-5. Return to Portrait to judge the actual silhouette and line weight. A good
-   close-up can still become unreadable at normal size.
+1. Keep motion off while fitting. Drag the art on the preview to move it: across
+   the face for painted art, in the head or bone plane for floating and body
+   art, in the screen plane for stickers. Drag a corner handle to resize and the
+   round handle to turn. With the preview focused, arrow keys nudge the art
+   (Shift moves further). Each drag is one undo step.
+2. **Inspector → Placement** shows the same values: position in the
+   attachment's units (cm, % of the texture or % of the avatar's height), size,
+   **Rotation (°)** and, for floating art, **Tilt forward** and **Turn
+   sideways**. Use it for exact values; do not copy numbers between attachments.
+3. Turn on **Guides**. Open circles and faint lines mark the placement basis;
+   pink outlines show the whole image rectangle, including transparent margins.
+   Reference bounds are not clipping masks; estimated anchors are labelled.
+4. For painted art, open **UV preview** and compare the reference, artwork and
+   pivot marks on the part's texture. **Skin coverage** shows the cleanup
+   regions and the sampled skin patch.
+5. Inspect the face from the front and three-quarter views on both Included
+   Avatars. Check hair covering floating art and seams or deformation under
+   painted art. Verify the avatar's left and right, not the screen's. A mirrored
+   copy mirrors its horizontal offset; inspect that side too.
+6. Return to Portrait to judge the silhouette and line weight at normal size.
 
-Make small changes and compare the result. Hover offsets are head-local 3D units;
-decal/texture offsets are normalized texture coordinates. Do not copy numerical
-offsets between those modes. Keep unused Z values neutral in texture modes.
-For a mirrored decal, the runtime also reflects horizontal placement/pivot on the
-opposite side; inspect that side after an asymmetric adjustment.
+Play applies the current effect; Stop clears it rather than freezing a frame;
+Restart re-applies from the first frame. Camera and guide settings are preview
+only.
 
-Play applies the current effect. Stop, and the current play toggle's inactive
-state, clear it rather than preserving a frozen visible frame. Restart reapplies
-from the initial animation state. Inactive guides may show placement references
-without a live artwork outline. Camera and guide settings are preview-only.
+## Look, motion and sound
 
-## Motion and sound
+**Inspector → Look**: **Opacity (%)**, **Tint** and **Blend** (Normal, Glow (add
+light), Shade (multiply)).
 
-In **Inspector → Animation**, enable only the motions the effect needs. Toggles
-are independent, so combinations are supported.
+**Inspector → Motion**: enable only what the effect needs; channels combine.
 
-| Motion | Controls | Practical use |
-| --- | --- | --- |
-| Pulse | Minimum/Maximum scale; Pulse speed (cycles/s) | A restrained emphasis or rhythmic anger mark |
-| Spin | Spin speed (turns/s); Rotation range (turns); direction | Continuous spiral rotation, or rocking when range is below one turn |
-| Drift | Drift X/Y per second | A slowly rising symbol or falling mark over a bounded Action event |
+| Motion    | Controls                                                                                          | Practical use                                                   |
+| --------- | ------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| Pulse     | **Smallest size (×)**, **Largest size (×)**, **Pulses per second**                                | Restrained emphasis, a throbbing anger mark                     |
+| Spin      | **Speed (°/s)**, **Range (turns)**, **Direction**                                                 | Continuous spirals, or rocking when the range is below one turn |
+| Drift     | **Sideways** (art widths/s), **Up/down** (art heights/s)                                          | A slowly rising symbol over a bounded event                     |
+| Keyframes | **Time (s)**, **Opacity (%)**, **Size (×)**, **Turn (°)**, **Move X/Y**; **Repeat the keyframes** | A pop-in, a wobble, a shake                                     |
 
-Pulse multiplies the authored scale. Drift accumulates continuously: test the
-whole intended event duration, not just its first moment. Texture drift scales
-with the full texture dimensions, while Hover drift scales with the plane's size.
-Start texture drift conservatively. Restart between comparisons.
+Drift accumulates with no return: test the whole intended event duration.
+**Animated sprite sheet** in Effect Setup plays frames from the image as a grid
+(**Columns**, **Rows**, **Frames**, **Frames per second**, **Playback**: Repeat,
+Play once, Back and forth).
 
-**Sound when applied** in Effect Setup selects a Sound Effect from the catalog;
-the adjacent upload control can add sound when requested. The saved effect refers
-to exact sound content. An Action event can disable the accompanying sound for
-one occurrence. Do not add audio merely because the control is available.
+**Sound when applied** selects a Sound Effect; the saved effect refers to exact
+sound content, and an Action event can disable it for one occurrence. Do not add
+audio merely because the control is available.
 
 ## Verify the region
 
-This is distinct from choosing where the art appears. Use the semantic region
-that should govern replacement: `eyes`, `undereye`, `blush`, `mouth`, `emote`, or
-`full_face`. Floating symbols normally use `emote`.
+**Advanced → Replaces** sets the region that governs replacement, separate from
+where the art appears. Automatic follows the attachment: `eyes` for eye art,
+`mouth` for mouth art, `emote` for forehead and above-head art, the area for
+cheek and under-eye decals, `full_face` for whole-part art, and the attachment's
+own region for body, sticker and silhouette effects. A manual choice is kept
+while it still suits the attachment.
 
-Use **Effect region** in the selected type's settings. **Automatic** follows the
-placement: `eyes` for Eye hover and eye-material Texture targets, `mouth` for Mouth hover,
-`emote` for Face box hover, the selected Face decal anchor for decals, and
-`full_face` for a Face skin Texture target.
-
-New effects use Automatic, which updates after changes to type, subtype, anchor,
-or texture target. Choosing one of the six regions preserves that manual value
-through subsequent placement changes. Existing saved effects and older imports
-reopen with their region preserved as a manual choice; select Automatic to opt
-into placement-based assignment. Recheck Effect region when combining effects:
-`eyes`, `undereye`, `blush`, and `mouth` replace earlier effects in the same region; `emote` and `full_face` allow
-different instances to coexist. Region does not move the image.
+`eyes`, `undereye`, `blush` and `mouth` replace an earlier effect in the same
+region; `emote` and `full_face` stack. Body, sticker and silhouette effects
+coexist, up to four at once. Region does not move the image.
 
 ## Save and use
 
-Save writes a Local catalog item with the image, definition, authoring data, and
-optional sound dependency. An owned item updates at its expected revision;
-editing an Included source creates a Local copy. It does not overwrite shipped
-Included files. Choose a distinct name for a new variant.
+Save writes a Local catalog item with the images, definition, authoring data and
+optional sound dependency. An owned item updates at its expected revision; a
+template or Included source becomes a new Local item. Choose a distinct name for
+a new variant.
 
-Wait for a successful save and the stable `/edit` route. Then reopen the saved
-item and check its image, placement, motion, region, facial cleanup, hidden
-materials, and sound selection. Recovery of an unsaved draft is not proof of
-persistence. Browser recovery can preserve
-work across interruptions, but missing image bytes require reselection. On a save
-failure, use the reported error and existing retry path; avoid repeatedly creating
-new items or discarding preserved work. An uncertain result should be checked in
-Library before retrying as a new effect.
+The backend validates the definition on Save. A rejected field opens the tab
+holding its control and outlines it; a missing image also blocks Save. A missing
+face part on the preview model does not block Save, but leaves that model
+unverified.
 
-Malformed definitions and missing image bytes block Save. A missing model binding
-or anchor is a compatibility warning and may not block it. Treat that warning as
-unfinished visual verification for that avatar. The frontend enforces its image
-and runtime-definition checks; do not describe a successful server response as
-proof of every renderer constraint. At the verified baseline, the backend content
-handler is more generic than the documentation's strict-definition wording.
+Wait for a successful save and the stable `/edit` route, then reopen the item and
+check its images, placement, look, motion, region, face options and sound.
+Recovery of an unsaved draft is not proof of persistence; recovered drafts may
+need images reselected. On a save failure, use the reported error and the existing
+retry path; check Library before retrying as a new effect.
 
-When the task includes playback integration, use **Use in… → Use in a Gesture**
-or **Use in a Reaction** after saving. The handoff supplies the saved catalog item
-ID and `avatar_effect` component type. In the Action creator, set the event's
-Start and End, preview it with the other components, and save the Action. An end
-may follow the Action or a specified duration; this is where timing belongs.
-Use the app's Anima content selection workflow when equipping is requested.
+When the task includes playback, use **Use in… → Use in a Gesture** or **Use in a
+Reaction** after saving. In the Action creator, set the event's Start and End;
+for an End after a duration, **Fade in** and **Fade out** set its fades. Preview
+it with the other components and save the Action. Use the app's Anima content
+selection workflow when equipping is requested. Test combinations there: the
+creator preview shows one effect at a time.
 
-An isolated creator preview shows one effect at a time. To verify combinations,
-preview them together in a Gesture/Reaction. Test that the expected regions
-coexist and that stopping or ending the Action clears its effects. Check the live
-Anima separately if the requested outcome includes chat-triggered playback.
+## Review outside the app
+
+From `src/frontend/web`, with no running stack:
+
+- `pnpm -s effects:render <folder|descriptor.json|library:<name>> --out <png>`
+  renders contact sheets on both Included Avatars (front, ¾ and face at several
+  times). `--with-clip library:<gesture>` checks that body, sticker and silhouette
+  art follows motion; `--together` combines sources. It exits 1 on a controller
+  warning, such as a missing face part.
+- `pnpm -s animation:preview <effect folder | library:avatar-effect/<name>>`
+  plays the effect live on both Avatars in the browser, with camera presets,
+  scrubbing and review notes; `--duration <s>` applies it for a set time. Keep a
+  descriptor in its own `<stem>/` folder, which the preview watches. A Library
+  Gesture or Reaction source plays its Avatar and Particle Effects as in chat.
+
+Renders and previews use the chat canvas lighting but not a live Anima; they do
+not replace checking the saved Action in chat when that is the outcome.
 
 ## Recipes
 
-These are starting configurations, not universal scale/offset values. Fit them
-to the chosen avatar and the image's actual framing.
+These are starting configurations, not universal values. Fit them to the chosen
+avatar and the image's actual framing.
 
-| Intended result | Setup | Region and useful checks |
-| --- | --- | --- |
-| Angry forehead vein | Hover → Face box hover → a forehead placement | `emote`; static fit, then restrained pulse; check hair occlusion |
-| Surprise/question mark, heart, steam puff | Hover → Face box hover → top/edge placement | `emote`; preserve silhouette; use Particle Effects for repeated emissions |
-| Nervous sweat drop | Hover → Face box hover near a temple, adjusted with offsets | `emote`; a short downward drift needs a bounded event |
-| Spiral eyes | Hover → Eye hover; explicit primary side + mirror | `eyes`; compare Skin backdrop, check both eyes and oblique view, then spin |
-| One image containing a complete eye pair | Hover → Eye hover → Side Both, mirror off | `eyes`; one centered plane, so fit the pair as a whole |
-| Cheek blush | Face decal → Blush → Single side + mirror; Center pivot | `blush`; verify fade/alpha against the actual skin and alongside tears |
-| Crying stream | Face decal → Under eye → Single side + mirror; Top center pivot | `undereye`; account for top padding; check the stream follows the cheek |
-| Cartoon mouth | Mouth hover, or Face decal → Mouth if it should follow skin | `mouth`; inspect flattening and mouth motion; backdrop applies only to Hover |
-| Star iris | Texture → Eye iris → Single eye → Overlay initially | `eyes`; inspect the model's iris UV layout and original highlights |
-| Sick/gloom face shading | Texture → Face skin → Full face → Overlay | `full_face`; use UV-matched art, check lips/eyes/seams and existing coloration |
+| Intended result           | Setup                                                               | Region and useful checks                                                        |
+| ------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| Angry forehead vein       | Floating → Forehead → Left or Right                                 | `emote`; static fit, then restrained pulse; check hair                          |
+| Surprise mark, steam puff | Floating → Above the head → a position                              | `emote`; preserve silhouette; use a Particle Effect for repeated emissions      |
+| Nervous sweat drop        | Floating → Forehead, moved to a temple                              | `emote`; a short downward drift needs a bounded event                           |
+| Spiral eyes               | Floating → Eyes → Both eyes, mirrored                               | `eyes`; check both eyes and the ¾ view, then spin or a sprite sheet             |
+| Wink                      | Floating → Eyes → Both eyes, mirrored + Other side image            | `eyes`; check which eye gets which image                                        |
+| Cheek blush               | Painted → Cheeks → Both sides, mirrored; Centre point               | `blush`; check alpha against the skin and alongside tears                       |
+| Crying stream             | Painted → Under the eyes → Both sides, mirrored; Top point          | `undereye`; account for top padding; check it follows the cheek                 |
+| Cartoon mouth             | Floating → Mouth, or Painted → Mouth to follow the skin             | `mouth`; inspect cleanup and mouth motion; backing applies only to floating art |
+| Star iris                 | Painted → Eyes → Paint on Eyes (iris), keep the original underneath | `eyes`; inspect the iris UV layout; hide Eye highlights if they compete         |
+| Sick or gloom face        | Painted → Whole part → Face skin                                    | `full_face`; needs UV-matched art; check lips, eyes and seams                   |
+| Heart on the chest        | On the body → Chest, facing the camera                              | `body`; check it follows a Gesture                                              |
+| Comic lettering           | Sticker → Head                                                      | `sticker`; check readability at Portrait size                                   |
+| Despair shade             | Fill the silhouette → pattern                                       | `silhouette`; use tileable art; check outlines and eyes                         |
 
 ## Troubleshooting
 
-| Symptom | Check and response |
-| --- | --- |
-| Blank preview | Confirm avatar and image loaded, Play is active, and diagnostics show a binding. Check scale, placement, depth, and transparency before changing the model. |
-| One centered spiral instead of two eyes | Eye hover with Side Both and mirror off is one centered plane. Enable mirroring for a one-eye sprite on both sides. |
-| Unexpected second eye | Mirroring creates the opposite eye even with an explicit primary side. Disable it for a one-sided effect. |
-| Tears/blush disappear when another effect starts | Inspect both effects' Effect region settings and the Action timing. Placement alone does not determine coexistence. |
-| Large image outline but tiny visible art | Transparent margins count toward sizing. Adjust scale or prepare a tighter derivative; do not mistake padding for an anchor error. |
-| Visible skin patch | Compare Skin backdrop and Clean up eye/mouth area independently; inspect Skin coverage and the sampled color, then examine the model/anchor assumptions. |
-| Decal looks correct in UV view but wrong on the head | Inspect seams, projection estimates, selected binding, and mesh deformation in 3D. |
-| Original eye detail remains | Check Hide eye details and Additional hidden materials for Eye hover, or Hidden materials for Texture. Confirm the avatar has recognized bindings. |
-| Texture affects unexpected facial areas | Verify the target material and UV layout; consider an anchored decal for localized art. |
-| Drift rapidly leaves the face | Texture drift is measured relative to the whole texture. Reduce it and retest over the intended duration. |
-| JSON imported but Save needs an image | Reselect the actual image; the editor export contains no bytes. |
-| Saved effect never appears during chat | Verify it is referenced by a saved, selected Gesture/Reaction, available in the mounted catalog, triggered at the intended time, and not suppressed by Disable VFX. |
+| Symptom                                               | Check and response                                                                                                                                                   |
+| ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Blank preview                                         | Confirm the avatar and image loaded and Play is active. Check **Face parts** for a missing part, then scale, position, opacity and transparency.                     |
+| Effect shows on one Avatar but not another            | A face part is missing or wrong on that model. Correct it in **Face parts**.                                                                                         |
+| A saved correction no longer applies                  | The model file or the Included Avatar's revision changed; correct the parts again.                                                                                   |
+| One centred image instead of two eyes                 | **Which eyes** is One image between the eyes. Choose Both eyes, mirrored for a one-eye sprite.                                                                       |
+| Unexpected second eye or cheek                        | A mirrored choice draws the other side. Choose Left only or Right only.                                                                                              |
+| Tears or blush disappear when another effect starts   | Both share a replacing region; check **Advanced → Replaces** and the Action timing.                                                                                  |
+| A body, sticker or silhouette effect vanished         | A fifth such effect replaced the oldest.                                                                                                                             |
+| Large outline, tiny visible art                       | Transparent margins count toward size. Adjust size or prepare a tighter derivative.                                                                                  |
+| Visible skin patch                                    | Compare **Skin-coloured backing** and **Clean up** independently; inspect **Skin coverage** and the sampled colour.                                                  |
+| Painted art right in UV preview but wrong on the head | Inspect seams, estimated anchors, the painted part and mesh deformation in 3D.                                                                                       |
+| Original eye detail remains                           | Check **Hide eye details** and **Hide other face parts**, and that the parts are detected.                                                                           |
+| Drift leaves the face quickly                         | Drift is per art width or height per second and never returns. Reduce it and test over the event duration.                                                           |
+| Save names a field                                    | Fix the outlined control; the value breaks a `/2` rule.                                                                                                              |
+| "Conversion required" on an older effect              | It is still `/1`. Local content converts on Rescan; a package must be re-exported from a converted installation.                                                     |
+| JSON imported but Save needs an image                 | Reselect the image; the editor export contains no bytes.                                                                                                             |
+| Saved effect never appears during chat                | It must be in a saved, selected Gesture or Reaction in the mounted catalog, triggered at the intended time, with Disable VFX off; a missing face part also skips it. |
 
 ## Source navigation
 
-- Route/UI, upload, type-specific controls, preview and JSON dialogs:
-  `src/frontend/web/src/ui/avatar-effect-creator/AvatarEffectCreatorPage.tsx`.
-- Initial values, region handling, export wrapper and validation:
+- Route, preview, toolbar and dialogs: `src/frontend/web/src/ui/avatar-effect-creator/AvatarEffectCreatorPage.tsx`.
+- Setup fields and labels: `AvatarEffectSetupFields.tsx`; attachment options,
+  side choices and units: `avatarEffectPlacement.ts`; Inspector tabs:
+  `AvatarEffectInspector.tsx`; motion: `AvatarEffectAnimationControls.tsx`.
+- Dragging and handles: `AvatarEffectManipulator.tsx`, `avatarEffectDrag.ts`,
+  `directManipulation.ts`.
+- Face parts: `AvatarEffectFacePartsPanel.tsx`, `facePartsPanel.ts`,
+  `useFacePartDraft.ts`.
+- Editor document, regions and validation:
   `src/frontend/web/src/lib/avatar/vfx/editor/{defaults,document,types}.ts`.
-- Save, reopen/recovery ownership: `useAvatarEffectSave.ts` in the creator folder;
-  `createAvatarEffectDocumentFromDefinition` in the editor document module.
-- Motion labels and conversions: `AvatarEffectAnimationControls.tsx` in the
-  creator folder.
-- UV controls: `AvatarEffectUvPreview.tsx` in the creator folder.
-- Post-save navigation: `src/frontend/web/src/ui/content-creator/CreatorEffectHandoffActions.tsx`.
+- Save and recovery: `useAvatarEffectSave.ts` and the shared
+  `src/frontend/web/src/ui/content-creator/useCreatorSave.ts`.
+- Templates: `src/frontend/web/src/lib/effects/effectTemplates.ts`.
+- Post-save handoff: `src/frontend/web/src/ui/content-creator/CreatorEffectHandoffActions.tsx`.
 
-Finish with a compact handoff: saved item names and edit URLs, preview model,
-chosen modes/regions, which of visual preview, reopen, combined Action playback,
-and live Anima playback were verified, and any unresolved warnings.
+Finish with a compact handoff: saved item names and edit URLs, preview models,
+chosen attachments and regions, any face-part corrections, which of visual
+preview, reopen, combined Action playback, and live Anima playback were
+verified, and any unresolved warnings.

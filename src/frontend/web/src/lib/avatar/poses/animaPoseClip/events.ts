@@ -176,6 +176,26 @@ export function sampleAnimaPoseClipVFXEventState(
 }
 
 /**
+ * Envelope intensity of an active Avatar Effect event at a local time. Only
+ * events with a duration and an intensity envelope fade; others return
+ * undefined and keep full intensity.
+ */
+export function sampleAnimaPoseClipAvatarVFXIntensity(
+  event: AnimaPoseClipVFXEvent,
+  localTimeSec: number,
+): number | undefined {
+  if (
+    event.kind !== "avatar_vfx" ||
+    event.duration === undefined ||
+    !event.envelope?.intensity
+  ) {
+    return undefined;
+  }
+  const state = sampleAnimaPoseClipVFXEventState(event, localTimeSec);
+  return state.active ? state.intensity : undefined;
+}
+
+/**
  * Checks event catalog ids without coupling the clip schema package to avatar
  * VFX, scene VFX, or sound runtime modules.
  */

@@ -12,6 +12,7 @@ from typing import Any
 
 from animama.app.ports.content_transition import ContentTransitionBindings, IdleTransitionBinding
 from animama.app.services.action_clip_transition import ActionClipTransitionService
+from animama.app.services.avatar_effect_transition import AvatarEffectTransitionService
 from animama.app.services.content_catalog_service import ContentCatalogService, ContentRescanResult
 from animama.app.services.content_kind_registry import handler_for_kind
 from animama.app.services.idle_playback import derive_idle_playback, read_gesture_idle_playback
@@ -75,6 +76,7 @@ class ContentTransitionService:
             if item.status is ContentStatus.INVALID and item.diagnostics
         ]
         failures.extend(await ActionClipTransitionService(content=self._content).convert(user_id=user_id))
+        failures.extend(await AvatarEffectTransitionService(content=self._content).convert(user_id=user_id))
         failures.extend(
             await IncludedActionTransitionService(content=self._content, bindings=self._bindings).convert(
                 user_id=user_id

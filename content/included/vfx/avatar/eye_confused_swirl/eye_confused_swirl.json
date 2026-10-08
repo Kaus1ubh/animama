@@ -7,31 +7,32 @@
   "description": "Swirling eye hover for confusion, dizziness, or anxious uncertainty.",
   "dependencies": [],
   "definition": {
-    "schema": "animama/avatar-effect/1",
-    "kind": "hover",
+    "schema": "animama/avatar-effect/2",
     "region": "eyes",
-    "hoverKind": "eye_hover",
-    "disableTargetRoles": [
-      "eye_highlight"
-    ],
-    "side": "right",
-    "requiresMirror": true,
-    "transform": {
+    "attachment": {
+      "kind": "face_landmark",
+      "landmark": "eyes",
+      "side": "right",
+      "mirror": true,
       "scale": {
         "x": 0.6,
-        "y": 0.6,
-        "z": 1
+        "y": 0.6
       }
     },
-    "animationConfig": {
-      "rotationRadiansPerSecond": 3,
-      "rotationDirection": "clockwise"
+    "art": {
+      "image": "eye_confused_swirl_r.png"
     },
-    "lifetime": {
-      "kind": "duration",
-      "runEndBufferSec": 5
+    "motion": {
+      "spin": {
+        "degreesPerSecond": 171.887339,
+        "direction": "clockwise"
+      }
     },
-    "image": "eye_confused_swirl_r.png"
+    "faceOptions": {
+      "hideParts": [
+        "eye_highlight"
+      ]
+    }
   },
   "files": [
     {

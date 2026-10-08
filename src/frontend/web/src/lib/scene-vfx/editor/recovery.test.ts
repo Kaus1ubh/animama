@@ -2,10 +2,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createDefaultSceneEffectDocument } from "./defaults";
 import {
-  clearSceneEffectRecovery,
-  loadSceneEffectRecovery,
-  saveSceneEffectRecovery,
   SCENE_EFFECT_RECOVERY_SCHEMA,
+  sceneEffectRecoveryStore,
 } from "./recovery";
 
 afterEach(() => vi.unstubAllGlobals());
@@ -35,7 +33,7 @@ describe("Scene Effect recovery", () => {
       },
     });
 
-    const result = await saveSceneEffectRecovery({
+    const result = await sceneEffectRecoveryStore.save({
       schema: SCENE_EFFECT_RECOVERY_SCHEMA,
       userId: "user-1",
       documentKey: "item-1",
@@ -51,7 +49,7 @@ describe("Scene Effect recovery", () => {
       contentFingerprint: "fingerprint",
       updatedAt: "2026-08-17T00:00:00.000Z",
     });
-    const restored = await loadSceneEffectRecovery("user-1", "item-1");
+    const restored = await sceneEffectRecoveryStore.load("user-1", "item-1");
 
     expect(result).toMatchObject({ stored: true, metadataOnly: true });
     expect(result.warning).toContain("Reselect private images");
@@ -60,7 +58,7 @@ describe("Scene Effect recovery", () => {
       imageResources: [],
     });
 
-    await clearSceneEffectRecovery("user-1", "item-1");
-    expect(await loadSceneEffectRecovery("user-1", "item-1")).toBeNull();
+    await sceneEffectRecoveryStore.clear("user-1", "item-1");
+    expect(await sceneEffectRecoveryStore.load("user-1", "item-1")).toBeNull();
   });
 });

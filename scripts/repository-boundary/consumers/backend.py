@@ -48,7 +48,6 @@ from animama.domain import (  # noqa: E402
     ModelProviderCapabilities,
     RequestPrincipal,
 )
-from animama.domain.vfx import load_avatar_vfx_catalog  # noqa: E402
 from animama.prompts.avatar_animation_manifest import get_manifest_gesture_inventory  # noqa: E402
 
 
@@ -256,13 +255,13 @@ async def exercise() -> dict:
         pass
     else:
         raise AssertionError("Cross-owner chat access was accepted")
-    assert load_avatar_vfx_catalog() and get_manifest_gesture_inventory()
+    assert get_manifest_gesture_inventory()
     return {
         "owners": len(owners),
         "chat_turns": len(client.requests),
         "events": event_count,
         "persisted_messages": len(messages.rows),
-        "catalogs": 2,
+        "catalogs": 1,
         "local_imports": 0,
     }
 

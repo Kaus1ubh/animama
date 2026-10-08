@@ -1,22 +1,24 @@
-import type { PyExactContentSource } from "@/lib/content/catalogTypes";
 import type {
-  AvatarVFXAnimationConfig,
-  AvatarVFXApplyMode,
-  AvatarVFXAssetShape,
-  AvatarVFXHoverKind,
-  AvatarVFXHoverPlacement,
-  AvatarVFXKind,
-  AvatarVFXLifetime,
-  AvatarVFXRegion,
-  AvatarVFXSide,
-  AvatarVFXTargetRole,
-  AvatarVFXTextureAnchor,
-  AvatarVFXTextureLayout,
-  AvatarVFXTexturePivot,
-  AvatarVFXTransform,
-} from "@/lib/avatar/vfx/types";
+  AvatarEffectDefinitionV2,
+  AvatarEffectFaceOptions,
+  AvatarEffectFlipbook,
+  AvatarEffectMotion,
+} from "@animama/runtime-contracts/api-types";
 
+import type { PyExactContentSource } from "@/lib/content/catalogTypes";
+import type { AvatarVFXBlend } from "@/lib/avatar/vfx/types";
+
+/**
+ * The Avatar Effect creator's document. It mirrors `animama/avatar-effect/2`
+ * (attachment, art, appearance, motion, face options, region and sound) and
+ * adds what a definition does not hold: the name, the description and the
+ * metadata of the image files the definition's art names.
+ */
 export const AVATAR_EFFECT_EDITOR_SCHEMA =
+  "animama/avatar-effect-editor/2" as const;
+
+/** The pre-`/2` editor format. Drafts in it are dropped with a notice. */
+export const LEGACY_AVATAR_EFFECT_EDITOR_SCHEMA =
   "animama/avatar-effect-editor/1" as const;
 
 export type AvatarEffectEditorImage = {
@@ -33,79 +35,120 @@ export type AvatarEffectEditorSound = {
   source: PyExactContentSource;
 };
 
-export type AvatarEffectHoverSettings = {
-  hoverKind: AvatarVFXHoverKind;
-  placement: AvatarVFXHoverPlacement;
-  side: AvatarVFXSide | null;
-  requiresMirror: boolean;
-  skinBackdrop: boolean;
-  forceBlink: boolean;
-  autoDisableEyeMaterials: boolean;
-  faceCleanup: boolean;
-  disableTargetRoles: AvatarVFXTargetRole[];
+/** Where the art goes; exactly the `/2` attachment union. */
+export type AvatarEffectEditorAttachment =
+  AvatarEffectDefinitionV2["attachment"];
+
+export type AvatarEffectEditorAttachmentKind =
+  AvatarEffectEditorAttachment["kind"];
+
+export type AvatarEffectEditorFaceSurface = Extract<
+  AvatarEffectEditorAttachment,
+  { kind: "face_surface" }
+>;
+export type AvatarEffectEditorFaceLandmark = Extract<
+  AvatarEffectEditorAttachment,
+  { kind: "face_landmark" }
+>;
+export type AvatarEffectEditorBody = Extract<
+  AvatarEffectEditorAttachment,
+  { kind: "body" }
+>;
+export type AvatarEffectEditorSticker = Extract<
+  AvatarEffectEditorAttachment,
+  { kind: "sticker" }
+>;
+export type AvatarEffectEditorSilhouette = Extract<
+  AvatarEffectEditorAttachment,
+  { kind: "silhouette" }
+>;
+
+/** The art resources: file metadata in place of the definition's file names. */
+export type AvatarEffectEditorArt = {
+  image: AvatarEffectEditorImage | null;
+  /** Unmirrored art for the mirrored eye or side; needs a mirrored placement. */
+  otherEyeImage: AvatarEffectEditorImage | null;
+  flipbook: AvatarEffectFlipbook | null;
 };
 
-export type AvatarEffectFaceSettings = {
-  anchor: AvatarVFXTextureAnchor;
-  faceCleanup: boolean;
-  layout: AvatarVFXTextureLayout;
-  pivot: AvatarVFXTexturePivot;
-  side: AvatarVFXSide;
-  requiresMirror: boolean;
-};
-
-export type AvatarEffectTextureSettings = {
-  targetRole: AvatarVFXTargetRole;
-  disableTargetRoles: AvatarVFXTargetRole[];
-  assetShape: AvatarVFXAssetShape;
-  applyMode: AvatarVFXApplyMode;
-  side: AvatarVFXSide | null;
-  requiresMirror: boolean;
+export type AvatarEffectEditorAppearance = {
+  opacity: number;
+  /** `#rrggbb` multiplied into the art, or null for none. */
+  tint: string | null;
+  blend: AvatarVFXBlend;
 };
 
 export type AvatarEffectEditorDocument = {
   schema: typeof AVATAR_EFFECT_EDITOR_SCHEMA;
   name: string;
   description: string;
-  kind: AvatarVFXKind;
-  region: AvatarVFXRegion;
+  /** Coexistence. `automatic` follows the attachment; `custom` keeps a choice. */
+  region: AvatarEffectDefinitionV2["region"];
   regionMode: "automatic" | "custom";
-  transform: AvatarVFXTransform;
-  animationConfig: AvatarVFXAnimationConfig | null;
-  lifetime: AvatarVFXLifetime | null;
-  image: AvatarEffectEditorImage | null;
+  attachment: AvatarEffectEditorAttachment;
+  art: AvatarEffectEditorArt;
+  appearance: AvatarEffectEditorAppearance;
+  /** A preset is enabled when its object is present, as in `/2`. */
+  motion: AvatarEffectMotion;
+  /**
+   * Authored face options, kept across attachment changes. Save writes only
+   * the options the chosen attachment honours.
+   */
+  faceOptions: AvatarEffectFaceOptions;
   sound: AvatarEffectEditorSound | null;
-  hover: AvatarEffectHoverSettings;
-  face: AvatarEffectFaceSettings;
-  texture: AvatarEffectTextureSettings;
 };
 
+/** The bytes for one of the document's images. */
 export type AvatarEffectEditorImageResource = {
   file: File;
   sha256: string;
 };
 
+/** Bytes for `art.image` and `art.otherEyeImage`. */
+export type AvatarEffectEditorImageResources = {
+  image: AvatarEffectEditorImageResource | null;
+  otherEyeImage: AvatarEffectEditorImageResource | null;
+};
+
+export type AvatarEffectEditorImageSlot =
+  keyof AvatarEffectEditorImageResources;
+
 export type AvatarEffectValidationIssue = {
+  /** A definition path such as `attachment.offset.x`, or `name`, `art.image`, `sound`. */
   field: string;
   severity: "error" | "warning";
   message: string;
 };
 
+/** A partial attachment of the current kind (the reducer ignores a mismatch). */
+export type AvatarEffectEditorAttachmentPatch = {
+  [Kind in AvatarEffectEditorAttachmentKind]: Partial<
+    Omit<Extract<AvatarEffectEditorAttachment, { kind: Kind }>, "kind">
+  >;
+}[AvatarEffectEditorAttachmentKind];
+
 export type AvatarEffectEditorAction =
   | { type: "replace"; document: AvatarEffectEditorDocument }
-  | { type: "set-kind"; kind: AvatarVFXKind }
+  /** Switch attachment kind, starting from that kind's defaults. */
+  | { type: "set-attachment"; kind: AvatarEffectEditorAttachmentKind }
+  /** Merge into the current attachment, then repair cross-field rules. */
+  | { type: "patch-attachment"; patch: AvatarEffectEditorAttachmentPatch }
   | {
       type: "patch";
       patch: Partial<
-        Omit<
+        Pick<
           AvatarEffectEditorDocument,
-          "schema" | "hover" | "face" | "texture"
+          "name" | "description" | "region" | "regionMode" | "sound"
         >
       >;
     }
-  | { type: "patch-hover"; patch: Partial<AvatarEffectHoverSettings> }
-  | { type: "patch-face"; patch: Partial<AvatarEffectFaceSettings> }
-  | { type: "patch-texture"; patch: Partial<AvatarEffectTextureSettings> };
+  | { type: "patch-art"; patch: Partial<AvatarEffectEditorArt> }
+  | {
+      type: "patch-appearance";
+      patch: Partial<AvatarEffectEditorAppearance>;
+    }
+  | { type: "set-motion"; motion: AvatarEffectMotion }
+  | { type: "patch-face-options"; patch: Partial<AvatarEffectFaceOptions> };
 
 export type AvatarEffectEditorExport = {
   schema: typeof AVATAR_EFFECT_EDITOR_SCHEMA;

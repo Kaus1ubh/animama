@@ -229,8 +229,8 @@ uv run --no-sync python scripts/repository-boundary/check-python-imports.py
 uv build --wheel
 ```
 
-Shared animation/VFX catalog bytes are generated from the canonical frontend
-JSON files. After editing those inputs, run
+Shared animation manifest bytes are generated from the canonical frontend
+JSON file. After editing that input, run
 `uv run --no-sync python src/backend/packaging/shared_catalogs.py --write`.
 Wheel/editable builds reject drift; shared resource reads use package resources
 and work without a source checkout. See `../../docs/backend/operations/development.md`.

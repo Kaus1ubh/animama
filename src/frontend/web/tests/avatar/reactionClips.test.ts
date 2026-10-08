@@ -21,11 +21,11 @@ import {
 } from "@/lib/avatar";
 import { PoseController } from "@/lib/avatar";
 import { ReactionClipPlayer } from "@/lib/avatar/reaction/ReactionClipPlayer";
-import { AVATAR_VFX_CATALOG } from "@/lib/avatar/vfx/catalog";
 import { TRACKED_EMOTIONS } from "@/lib/emotion";
 import { getSceneBackgroundLayerPresetIds } from "@/lib/scene-vfx/catalog";
 
 const emotionReactionIntensities = [1, 2, 3] as const;
+const INCLUDED_AVATAR_EFFECT_ALIASES = readIncludedAvatarEffectAliases();
 const reactionParticleDurations = {
   hearts: 1.8,
   stars: 1.4,
@@ -64,6 +64,51 @@ const expectedReactionParticleEffects = new Map<string, string>([
     "rain-cloud",
   ),
 ]);
+
+/**
+ * The aliases Included reactions bind Included Avatar Effects by: each
+ * reaction's avatar_effect dependency whose ref is an Included effect's
+ * content ID. A dependency on a missing effect contributes no alias, so a clip
+ * event naming it fails the catalog check.
+ */
+function readIncludedAvatarEffectAliases(): string[] {
+  const included = join(process.cwd(), "../../../content/included");
+  const effectsRoot = join(included, "vfx/avatar");
+  const effectIds = new Set(
+    readdirSync(effectsRoot).flatMap((item) =>
+      readdirSync(join(effectsRoot, item))
+        .filter((file) => file.endsWith(".json"))
+        .map(
+          (file) =>
+            (
+              JSON.parse(
+                readFileSync(join(effectsRoot, item, file), "utf8"),
+              ) as { content_id: string }
+            ).content_id,
+        ),
+    ),
+  );
+  const reactionsRoot = join(included, "reactions");
+  const aliases = readdirSync(reactionsRoot).flatMap((item) => {
+    const meta = JSON.parse(
+      readFileSync(join(reactionsRoot, item, `${item}.meta.json`), "utf8"),
+    ) as {
+      dependencies?: Array<{
+        ref: string;
+        alias: string;
+        content_type: string;
+      }>;
+    };
+    return (meta.dependencies ?? [])
+      .filter(
+        (dependency) =>
+          dependency.content_type === "avatar_effect" &&
+          effectIds.has(dependency.ref),
+      )
+      .map((dependency) => dependency.alias);
+  });
+  return [...new Set(aliases)].sort();
+}
 
 function buildReactionParticleMappings(
   emotions: readonly string[],
@@ -474,13 +519,9 @@ describe("reaction clip catalog", () => {
 
   it("keeps every reaction clip composable and catalog-referenced", () => {
     const eventCatalogs = {
-      // Angry and Exclamation are descriptor-backed Included items. They
-      // deliberately do not live in the code-shipped fallback registry.
-      avatarVFXIds: [
-        ...AVATAR_VFX_CATALOG.map((entry) => entry.id),
-        "angry",
-        "emote_!",
-      ],
+      // Avatar Effects are descriptor-backed Included items; reactions bind
+      // them by these dependency aliases.
+      avatarVFXIds: INCLUDED_AVATAR_EFFECT_ALIASES,
       sceneBackgroundLayerPresetIds: getSceneBackgroundLayerPresetIds(),
       sceneFocusLinePresetIds: [],
       particleVFXIds: AVATAR_PARTICLE_VFX_CATALOG.map((entry) => entry.id),

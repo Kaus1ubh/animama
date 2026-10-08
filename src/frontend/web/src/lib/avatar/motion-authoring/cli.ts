@@ -45,6 +45,11 @@ export type MotionCliContext = {
   /** Working directory for relative paths. */
   cwd: string;
   out: (text: string) => void;
+  /**
+   * The version of a reviewed file whose version is not its text hash (an
+   * Avatar Effect covers its images too, as the preview's does), or null.
+   */
+  fileVersion?: (file: string) => Promise<string | null>;
 };
 
 const USAGE = `Usage: pnpm animation <command>
@@ -261,7 +266,10 @@ async function resolve(
     context.out(`Cannot read the reviewed source: ${(error as Error).message}`);
     return 1;
   }
-  const version = sourceVersion(text);
+  // A broken effect falls back to its descriptor text, so it still resolves.
+  const version =
+    (await context.fileVersion?.(sourcePath).catch(() => null)) ??
+    sourceVersion(text);
   const note = sidecar.notes.find((candidate) => candidate.id === id);
   if (!note) {
     context.out(`No review note "${id}". Run review to list them.`);

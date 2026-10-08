@@ -4,7 +4,14 @@ import { isFaceAnchoredVFXEntry, type AvatarVFXCatalogEntry } from "./types";
 
 export type TexturePlacement = {
   label: string;
+  /** Draw the art flipped horizontally. */
   mirrorX: boolean;
+  /**
+   * The placement is the effect's own mirrored copy (`mirror` on a single-side
+   * placement), whose horizontal offsets are mirrored too. A placement that is
+   * flipped only by the model's UV layout keeps its offsets.
+   */
+  effectMirror?: boolean;
   rect: { x: number; y: number; width: number; height: number };
 };
 
@@ -19,16 +26,22 @@ export function resolveTexturePlacementTransform(
   const staticScale = (value: number) =>
     Number.isFinite(value) ? Math.max(0.0001, Math.abs(value)) : 1;
   const scale = Math.max(0.0001, animation.scale);
+  // The effect's own mirrored copy mirrors its horizontal offsets; anchored
+  // decals already place (and mirror) their static offset in the rectangle.
+  const mirrorSign = placement.effectMirror ? -1 : 1;
+  const staticOffsetX = anchored ? 0 : effect.transform.offset.x * mirrorSign;
   return {
     x:
       placement.rect.x +
       placement.rect.width * 0.5 +
-      ((anchored ? 0 : effect.transform.offset.x) + animation.driftX) *
+      (staticOffsetX + animation.driftX + animation.offsetX * mirrorSign) *
         Math.max(1, size.width),
     y:
       placement.rect.y +
       placement.rect.height * 0.5 +
-      ((anchored ? 0 : effect.transform.offset.y) + animation.driftY) *
+      ((anchored ? 0 : effect.transform.offset.y) +
+        animation.driftY +
+        animation.offsetY) *
         Math.max(1, size.height),
     rotation: effect.transform.rotation.z + animation.rotationRadians,
     scaleX:

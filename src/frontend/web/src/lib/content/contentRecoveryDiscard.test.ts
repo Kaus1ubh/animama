@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { clearAvatarEffectRecovery } from "@/lib/avatar/vfx/editor/recovery";
-import { clearSceneEffectRecovery } from "@/lib/scene-vfx/editor/recovery";
-import { clearParticleVFXRecovery } from "./particleVFXRecovery";
+import { avatarEffectRecoveryStore } from "@/lib/avatar/vfx/editor/recovery";
+import { sceneEffectRecoveryStore } from "@/lib/scene-vfx/editor/recovery";
+import { particleVFXRecoveryStore } from "./particleVFXRecovery";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -38,14 +38,17 @@ function indexedDbDelete() {
 describe.each([
   [
     "Avatar",
-    clearAvatarEffectRecovery,
+    avatarEffectRecoveryStore.clear,
     "anima.avatarEffectCreator.recovery.v1:",
   ],
-  ["Scene", clearSceneEffectRecovery, "anima.sceneEffectCreator.recovery.v1:"],
+  [
+    "Scene",
+    sceneEffectRecoveryStore.clear,
+    "anima.sceneEffectCreator.recovery.v1:",
+  ],
   [
     "Particle",
-    (userId: string, itemId: string, options?: { strict?: boolean }) =>
-      clearParticleVFXRecovery(userId, { itemId }, options),
+    particleVFXRecoveryStore.clear,
     "anima.particleVfxCreator.recovery.v1:",
   ],
 ] as const)("%s Effect explicit discard", (_name, clear, prefix) => {

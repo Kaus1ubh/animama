@@ -27,10 +27,10 @@ import { CONTINUOUS_CANVAS_RESIZE } from "@/ui/main/canvas/canvasResizeOptions";
 import { CanvasViewportProvider } from "@/ui/main/canvas/CanvasViewportContext";
 import { SceneRuntimeProvider } from "@/ui/main/canvas/SceneRuntimeContext";
 import {
-  buildSceneCameraPreset,
+  buildCreatorCameraPreset,
   DEFAULT_SCENE_LIGHTS,
   sceneVector3ToArray,
-  type SceneCameraPreset,
+  type CreatorCameraPreset,
   type SceneCameraSettings,
 } from "@/ui/main/canvas/sceneCameraPresets";
 import {
@@ -38,7 +38,7 @@ import {
   SceneVFXUnderlayLayers,
 } from "@/ui/main/scene-vfx/SceneVFXLayers";
 
-export type AvatarPreviewCameraProfile = SceneCameraPreset | "custom";
+export type AvatarPreviewCameraProfile = CreatorCameraPreset | "custom";
 
 export type AvatarPreviewSurfaceProps = {
   active?: boolean;
@@ -75,7 +75,7 @@ function resolveCameraSettings({
   "activeAvatar" | "cameraProfile" | "cameraSettings"
 >): SceneCameraSettings {
   if (cameraProfile === "custom" && cameraSettings) return cameraSettings;
-  return buildSceneCameraPreset(
+  return buildCreatorCameraPreset(
     cameraProfile === "custom" || !cameraProfile ? "full-body" : cameraProfile,
     { avatar: activeAvatar },
   ).settings;

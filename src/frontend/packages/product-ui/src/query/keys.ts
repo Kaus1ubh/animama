@@ -173,6 +173,12 @@ export const queryKeys = {
       [...queryKeys.avatars.all(userId), "list", includePrivate] as const,
     releases: (userId: string, avatarId: string) =>
       [...queryKeys.avatars.all(userId), "releases", avatarId] as const,
+    /** An Avatar's effective face part correction and revision. */
+    faceParts: (userId: string, itemId: string) =>
+      [...queryKeys.avatars.all(userId), "face-parts", itemId] as const,
+    /** An Avatar item's preview files, for creator model previews. */
+    preview: (userId: string, itemId: string) =>
+      [...queryKeys.avatars.all(userId), "preview", itemId] as const,
   },
   avatarCatalog: {
     all: (userId: string) => ["avatar-catalog", userId] as const,

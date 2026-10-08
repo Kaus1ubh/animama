@@ -1,120 +1,142 @@
 "use client";
 
-import { CreatorTimelineTransport } from "@/ui/content-creator/CreatorTimeline";
-
-import { AvatarEffectAnimationControls } from "./AvatarEffectAnimationControls";
-import { AvatarEffectGuideRenderer } from "./AvatarEffectGuideRenderer";
-import { AvatarEffectUvPreview } from "./AvatarEffectUvPreview";
-
-import { SoundUploadButton } from "@/ui/sound-upload/SoundUploadButton";
-
-import { ContentEditorHydration } from "@/lib/content/contentEditorSource";
-
+import type { AvatarFacePartCorrection } from "@animama/runtime-contracts/api-types";
+import type { ThreeEvent } from "@react-three/fiber";
 import { useFrame } from "@react-three/fiber";
-import { useBlocker, useNavigate } from "@tanstack/react-router";
-import {
-  Code2Icon,
-  FileImageIcon,
-  FolderOpenIcon,
-  LoaderCircleIcon,
-  SparklesIcon,
-} from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
+import { Code2Icon, FolderOpenIcon, SparklesIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import type { Object3D } from "three";
 
-import { previewCatalogItem } from "@/lib/content/catalogApi";
+import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { Avatar } from "@/lib/avatar";
+import {
+  avatarEffectRecoveryStore,
+  avatarEffectRuntimeEntry,
+  avatarEffectUsesOtherEyeImage,
+  buildAvatarEffectEditorExport,
+  cloneAvatarEffectDocument,
+  createAvatarEffectDocumentFromDefinition,
+  createDefaultAvatarEffectDocument,
+  distinctAvatarEffectImageName,
+  otherEyeAvatarEffectImageName,
+  parseAvatarEffectEditorExport,
+  validateAvatarEffectDocument,
+  type AvatarEffectEditorAction,
+  type AvatarEffectEditorAttachmentPatch,
+  type AvatarEffectEditorDocument,
+  type AvatarEffectEditorImageResources,
+  type AvatarEffectEditorImageSlot,
+} from "@/lib/avatar/vfx/editor";
+import {
+  assertAvatarEffectImageWithinLimits,
+  MAX_AVATAR_EFFECT_IMAGE_DIMENSION,
+} from "@/lib/avatar/vfx/effect-image-limits";
+import {
+  AVATAR_FACE_PART_LABELS,
+  type AvatarFacePartRole,
+} from "@/lib/avatar/vfx/faceParts";
+import {
+  isAttachmentVFXEntry,
+  type AvatarVFXParsedEntry,
+  type AvatarVFXSnapshot,
+} from "@/lib/avatar/vfx/types";
+import { buildRuntimePrimitiveBindings } from "@/lib/avatar/vrmEditorInspection";
+import { listCatalogItems, previewCatalogItem } from "@/lib/content/catalogApi";
 import type {
   PyContentDependency,
   PyContentPreview,
-  PyExactContentSource,
 } from "@/lib/content/catalogTypes";
-import { Avatar } from "@/lib/avatar";
-import {
-  avatarEffectDocumentFingerprint,
-  avatarEffectEditorReducer,
-  avatarEffectRuntimeEntry,
-  buildAvatarEffectEditorExport,
-  canonicalAvatarEffectImageName,
-  createAvatarEffectDocumentFromDefinition,
-  createDefaultAvatarEffectDocument,
-  clearAvatarEffectRecovery,
-  parseAvatarEffectEditorExport,
-  validateAvatarEffectDocument,
-  type AvatarEffectEditorDocument,
-  type AvatarEffectEditorImageResource,
-} from "@/lib/avatar/vfx/editor";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
-import type {
-  AvatarVFXCatalogEntry,
-  AvatarVFXSnapshot,
-  AvatarVFXTransform,
-  AvatarVFXTargetRole,
-} from "@/lib/avatar/vfx/types";
-import {
-  AVATAR_VFX_REGIONS,
-  AVATAR_VFX_TARGET_ROLES,
-} from "@/lib/avatar/vfx/types";
+import { ContentEditorHydration } from "@/lib/content/contentEditorSource";
 import {
   contentPreviewPrimaryFile,
   fetchContentPreviewFile,
 } from "@/lib/content/contentPreview";
 import { preflightContentFile, sha256File } from "@/lib/content/contentUploads";
+import { createUniqueContentName } from "@/lib/content/uniqueContentName";
+import { avatarEffectTemplate } from "@/lib/effects/effectTemplates";
+import { useAvatarFaceParts } from "@/query/hooks/useAvatarFaceParts";
 import { useAvatarEffect, useSoundEffects } from "@/query/hooks/useEffects";
 import { AvatarPreviewSurface } from "@/ui/avatar-preview/AvatarPreviewSurface";
 import { PlaybackObservationOutput } from "@/ui/avatar-preview/PlaybackObservationOutput";
-import { useContentPreviewAudio } from "@/ui/content-preview/useContentPreviewAudio";
-import type { ContentCreatorModelSource } from "@/ui/content-creator/contentCreatorModelPreview";
-import { useContentCreatorAvatar } from "@/ui/content-creator/useContentCreatorAvatar";
-import { useContentCreatorModelPreview } from "@/ui/content-creator/useContentCreatorModelPreview";
+import { Button } from "@/ui/components/button";
+import { Textarea } from "@/ui/components/textarea";
 import {
   CreatorCanvasControls,
   CreatorEffectHandoffActions,
-  CreatorField as Field,
   CreatorFloatingPanel as FloatingPanel,
   CreatorImportDialog,
+  CreatorInlineError,
   CreatorJsonDialog,
-  CreatorLoadingState,
-  CreatorNumberField as NumberField,
-  CreatorSaveNotice,
-  CreatorToggleRow as SwitchRow,
+  CreatorLeaveDialog,
+  CreatorLoading,
+  CREATOR_STAGE_NOTICE_CLASS,
+  CreatorRecoveryNotice,
   CreatorToolbar,
   CreatorUnavailableState,
   CreatorWorkspaceShell,
   creatorItemUnavailableMessage,
   isCreatorItemOpenable,
 } from "@/ui/content-creator";
+import {
+  contentCreatorModelCatalogItemId,
+  type ContentCreatorModelSource,
+} from "@/ui/content-creator/contentCreatorModelPreview";
+import { CreatorTemplateDraftDialog } from "@/ui/content-creator/CreatorTemplateDraftDialog";
+import { CreatorTimelineTransport } from "@/ui/content-creator/CreatorTimeline";
+import { useContentCreatorAvatar } from "@/ui/content-creator/useContentCreatorAvatar";
+import { useContentCreatorModelPreview } from "@/ui/content-creator/useContentCreatorModelPreview";
+import { useCreatorLeaveGuard } from "@/ui/content-creator/useCreatorLeaveGuard";
+import {
+  creatorTemplateRecoveryKey,
+  useCreatorTemplateStart,
+} from "@/ui/content-creator/useCreatorTemplateStart";
 import { ContentHealth } from "@/ui/content-health/ContentHealth";
-import { Button } from "@/ui/components/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/ui/components/dialog";
-import { Label } from "@/ui/components/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/ui/components/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/components/tabs";
-import { Textarea } from "@/ui/components/textarea";
-import { cn } from "@/lib/utils";
+import { useCreatorDocumentHistory } from "@/ui/creator-history/useCreatorDocumentHistory";
+import { useContentPreviewAudio } from "@/ui/content-preview/useContentPreviewAudio";
+import type { AvatarPreviewCameraProfile } from "@/ui/avatar-preview/AvatarPreviewSurface";
+
 import {
   avatarEffectCreatorKeyboardAction,
+  avatarEffectHistoryEdit,
+  avatarEffectInitialView,
+  avatarEffectPreviewApplyKey,
+  avatarEffectPreviewChange,
   avatarEffectPreviewCompatibility,
+  avatarEffectSnapshotFingerprint,
+  createAvatarEffectHistorySnapshot,
   createAvatarEffectObjectUrlLease,
-  shouldBlockAvatarEffectNavigation,
+  equalAvatarEffectHistorySnapshots,
+  NO_AVATAR_EFFECT_IMAGES,
+  type AvatarEffectHistorySnapshot,
 } from "./avatarEffectCreatorBehavior";
+import { AvatarEffectFacePartsPanel } from "./AvatarEffectFacePartsPanel";
+import { AvatarEffectGuideRenderer } from "./AvatarEffectGuideRenderer";
+import { AvatarEffectInspector } from "./AvatarEffectInspector";
+import {
+  AvatarEffectHandleRenderer,
+  createAvatarEffectManipulationState,
+  useAvatarEffectManipulation,
+} from "./AvatarEffectManipulator";
+import { AvatarEffectSetupFields } from "./AvatarEffectSetupFields";
+import { AvatarEffectUvPreview } from "./AvatarEffectUvPreview";
 import { useAvatarEffectSave } from "./useAvatarEffectSave";
-import { useAvatarEffectHistory } from "./useAvatarEffectHistory";
 
 const IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
 const MAX_IMAGE_BYTES = 16 * 1024 * 1024;
+/** The applied ID of the creator's own preview effect. */
+const PREVIEW_EFFECT_ID = "avatar-effect-editor-preview";
+
+/**
+ * The preview's Model and View, kept across the remount from `/new` to the
+ * saved item's edit route so Save does not reset them.
+ */
+let previewAfterSave: {
+  itemId: string;
+  model: ContentCreatorModelSource | null;
+  view: AvatarPreviewCameraProfile;
+} | null = null;
 
 type PreviewStatus = {
   state: "idle" | "loading" | "ready" | "error";
@@ -123,14 +145,68 @@ type PreviewStatus = {
 
 type HydrationState = PreviewStatus;
 
-export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
+const VIEW_OPTIONS: ReadonlyArray<{
+  value: AvatarPreviewCameraProfile;
+  label: string;
+}> = [
+  { value: "portrait-close", label: "Face" },
+  { value: "portrait-three-quarter", label: "Three-quarter" },
+  { value: "portrait", label: "Portrait" },
+  { value: "full-body", label: "Full body" },
+];
+
+/**
+ * Avatar Effect creator. `itemId` edits a saved item (an Included item is
+ * saved as a Local copy); `templateId` starts a new draft from an Included
+ * template (`/avatar-effects/new?template=<id>`); with neither it starts blank.
+ */
+export function AvatarEffectCreatorPage({
+  itemId,
+  templateId,
+}: {
+  itemId?: string;
+  templateId?: string;
+}) {
   const navigate = useNavigate();
   const userId = useRuntimeOwnerId();
   const existingQuery = useAvatarEffect(itemId ?? null);
-  const { document, imageResource, history, dispatch, resetDocument } =
-    useAvatarEffectHistory();
+  const {
+    present: snapshot,
+    history,
+    update,
+    reset,
+  } = useCreatorDocumentHistory({
+    initialValue: createAvatarEffectHistorySnapshot,
+    equals: equalAvatarEffectHistorySnapshots,
+  });
+  const { document, imageResources } = snapshot;
+  const dispatch = useCallback(
+    (
+      action: AvatarEffectEditorAction,
+      nextImages?: Partial<AvatarEffectEditorImageResources>,
+    ) => update(avatarEffectHistoryEdit(action, nextImages)),
+    [update],
+  );
+  const resetDocument = useCallback(
+    (
+      nextDocument: AvatarEffectEditorDocument,
+      nextImages: AvatarEffectEditorImageResources,
+    ) =>
+      reset({
+        document: cloneAvatarEffectDocument(nextDocument),
+        imageResources: nextImages,
+      }),
+    [reset],
+  );
+  // Read once: a preview kept by the Save that opened this edit route.
+  const [keptPreview] = useState(() =>
+    itemId && previewAfterSave?.itemId === itemId ? previewAfterSave : null,
+  );
+  useEffect(() => {
+    previewAfterSave = null;
+  }, []);
   const [selectedModel, setSelectedModel] =
-    useState<ContentCreatorModelSource | null>(null);
+    useState<ContentCreatorModelSource | null>(keptPreview?.model ?? null);
   const [previewAvatar, setPreviewAvatar] = useState<Avatar | null>(null);
   const [avatarStatus, setAvatarStatus] = useState<PreviewStatus>({
     state: "idle",
@@ -144,85 +220,142 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
   const [playing, setPlaying] = useState(true);
   const [showGuides, setShowGuides] = useState(true);
   const guideCanvasRef = useRef<HTMLCanvasElement>(null);
-  const [cameraProfile, setCameraProfile] = useState<
-    "portrait" | "portrait-close"
-  >("portrait-close");
+  const handleCanvasRef = useRef<HTMLCanvasElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const manipulationRef = useRef(createAvatarEffectManipulationState());
+  const [cameraProfile, setCameraProfile] =
+    useState<AvatarPreviewCameraProfile>(keptPreview?.view ?? "portrait-close");
+  const previewSettingsRef = useRef({
+    model: selectedModel,
+    view: cameraProfile,
+  });
+  useEffect(() => {
+    previewSettingsRef.current = { model: selectedModel, view: cameraProfile };
+  }, [cameraProfile, selectedModel]);
+  /** The document whose workspace has shown; see the loading screen below. */
+  const [shownDocument, setShownDocument] = useState<string | null>(null);
   const [hydration, setHydration] = useState<HydrationState>({
-    state: itemId ? "loading" : "ready",
+    state: itemId || templateId ? "loading" : "ready",
     message: null,
   });
-  const [imageBusy, setImageBusy] = useState(false);
-  const [discarding, setDiscarding] = useState(false);
+  /** A template route's recovered draft, held until the user chooses. */
+  const [templateDraft, setTemplateDraft] =
+    useState<AvatarEffectHistorySnapshot | null>(null);
+  const [imageBusy, setImageBusy] =
+    useState<AvatarEffectEditorImageSlot | null>(null);
   const [hasAttemptedSave, setHasAttemptedSave] = useState(false);
-  const [imageError, setImageError] = useState<string | null>(null);
+  const [imageError, setImageError] = useState<{
+    slot: AvatarEffectEditorImageSlot;
+    message: string;
+  } | null>(null);
   const [jsonOpen, setJsonOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [importText, setImportText] = useState("");
   const [importError, setImportError] = useState<string | null>(null);
-  const [dragActive, setDragActive] = useState(false);
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [imageUrls, setImageUrls] = useState<{
+    image: string | null;
+    otherEyeImage: string | null;
+  }>({ image: null, otherEyeImage: null });
+  /** Bumped when the preview Avatar's face part map is rebuilt. */
+  const [facePartsVersion, setFacePartsVersion] = useState(0);
+  const [pickingRole, setPickingRole] = useState<AvatarFacePartRole | null>(
+    null,
+  );
+  const [pickedKey, setPickedKey] = useState<{
+    key: string;
+    sequence: number;
+  } | null>(null);
+  const usesOtherEyeImage = avatarEffectUsesOtherEyeImage(document);
   // Snapshot updates must not recreate the definition and restart playback.
   const previewEffect = useMemo(
-    () => (imageUrl ? safeRuntimeEntry(document, imageUrl) : null),
-    [document, imageUrl],
+    () =>
+      imageUrls.image
+        ? safeRuntimeEntry(document, {
+            image: imageUrls.image,
+            otherEyeImage: usesOtherEyeImage ? imageUrls.otherEyeImage : null,
+          })
+        : null,
+    [document, imageUrls, usesOtherEyeImage],
   );
   // Reference guides are available before upload; this entry is never applied.
-  const guideEffect = useMemo(
-    () => previewEffect ?? safeRuntimeEntry(document, "effect.webp"),
-    [document, previewEffect],
-  );
+  const guideEffect = useMemo(() => {
+    const entry =
+      previewEffect ??
+      safeRuntimeEntry(document, {
+        image: "effect.webp",
+        otherEyeImage: "effect-other.webp",
+      });
+    return entry && !isAttachmentVFXEntry(entry) ? entry : null;
+  }, [document, previewEffect]);
   const [soundPreview, setSoundPreview] = useState<PyContentPreview | null>(
     null,
   );
   const hydratedItemRef = useRef(new ContentEditorHydration());
   const initialFingerprintRef = useRef(
-    `${avatarEffectDocumentFingerprint(document)}:missing`,
+    avatarEffectSnapshotFingerprint(snapshot),
   );
 
   const onRestore = useCallback(
-    (
-      recoveredDocument: AvatarEffectEditorDocument,
-      recoveredImage: AvatarEffectEditorImageResource | null,
-    ) => {
+    (recovered: AvatarEffectHistorySnapshot) => {
+      if (templateId) {
+        setTemplateDraft(recovered);
+        return;
+      }
       setHasAttemptedSave(false);
-      resetDocument(recoveredDocument, recoveredImage);
+      resetDocument(recovered.document, recovered.imageResources);
+      if (!keptPreview)
+        setCameraProfile(avatarEffectInitialView(recovered.document));
       setHydration({ state: "ready", message: "Recovered local draft" });
       setPreviewRevision((value) => value + 1);
     },
-    [resetDocument],
+    [keptPreview, resetDocument, templateId],
   );
   const onSaved = useCallback(
-    (savedDocument: AvatarEffectEditorDocument, savedItemId: string) => {
-      dispatch({ type: "patch", patch: { name: savedDocument.name } });
+    (saved: AvatarEffectHistorySnapshot, savedItemId: string) => {
+      // Only a first Save remounts the creator on the new edit route.
+      if (savedItemId !== itemId) {
+        previewAfterSave = {
+          itemId: savedItemId,
+          ...previewSettingsRef.current,
+        };
+      }
+      dispatch({ type: "patch", patch: { name: saved.document.name } });
       hydratedItemRef.current.preserve(savedItemId);
-      initialFingerprintRef.current = `${avatarEffectDocumentFingerprint(savedDocument)}:${imageResource?.sha256 ?? "missing"}`;
+      initialFingerprintRef.current = avatarEffectSnapshotFingerprint(saved);
     },
-    [dispatch, imageResource?.sha256],
+    [dispatch, itemId],
   );
 
   const validation = useMemo(
     () =>
       validateAvatarEffectDocument(document, {
-        imageBytesAvailable: Boolean(imageResource),
+        imageBytesAvailable: Boolean(imageResources.image),
+        otherEyeImageBytesAvailable: Boolean(imageResources.otherEyeImage),
         modelCompatible,
       }),
-    [document, imageResource, modelCompatible],
+    [document, imageResources, modelCompatible],
   );
   const hasBlockingIssues = validation.some(
     (issue) => issue.severity === "error",
   );
+  const isDirty =
+    avatarEffectSnapshotFingerprint(snapshot) !== initialFingerprintRef.current;
   const contentSave = useAvatarEffectSave({
     itemId,
-    document,
-    imageResource,
+    recoveryKey: templateId
+      ? creatorTemplateRecoveryKey(templateId)
+      : undefined,
+    snapshot,
+    dirty: isDirty,
     initialized: hydration.state === "ready",
-    ready: !hasBlockingIssues && !imageBusy && hydration.state === "ready",
+    ready:
+      !hasBlockingIssues &&
+      !imageBusy &&
+      hydration.state === "ready" &&
+      Boolean(imageResources.image),
     onRestore,
     onSaved,
   });
-
-  const currentFingerprint = `${avatarEffectDocumentFingerprint(document)}:${imageResource?.sha256 ?? "missing"}`;
-  const isDirty = currentFingerprint !== initialFingerprintRef.current;
   const unavailableMessage = creatorItemUnavailableMessage({
     itemId,
     label: "Avatar Effect",
@@ -235,17 +368,38 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
   });
   // The unavailable state has no leave dialog, so it must never block navigation.
   const guardLeave = !unavailableMessage;
-  const blocker = useBlocker({
-    shouldBlockFn: ({ current, next }) =>
-      shouldBlockAvatarEffectNavigation({
-        dirty: guardLeave && isDirty,
-        busy: guardLeave && contentSave.isBusy,
-        currentPath: current.pathname,
-        nextPath: next.pathname,
-      }),
-    enableBeforeUnload: () => guardLeave && (isDirty || contentSave.isBusy),
-    withResolver: true,
+  const leaveGuard = useCreatorLeaveGuard({
+    dirty: guardLeave && isDirty,
+    busy: guardLeave && contentSave.isBusy,
+    discard: contentSave.discardChanges,
   });
+  const installTemplateStart = useCallback(
+    (next: AvatarEffectHistorySnapshot) => {
+      setHasAttemptedSave(false);
+      resetDocument(next.document, next.imageResources);
+      setCameraProfile(avatarEffectInitialView(next.document));
+      setPreviewRevision((value) => value + 1);
+    },
+    [resetDocument],
+  );
+  const templateStart = useCreatorTemplateStart({
+    templateId,
+    loadSeed: loadAvatarEffectTemplate,
+    fingerprint: avatarEffectSnapshotFingerprint,
+    recoveryReady: contentSave.recoveryReady,
+    recoveredDraft: templateDraft,
+    resetSession: contentSave.resetSession,
+    install: installTemplateStart,
+    baselineRef: initialFingerprintRef,
+    setHydration,
+  });
+  const templateDraftDialog = (
+    <CreatorTemplateDraftDialog
+      start={templateStart}
+      contentLabel="Avatar Effect"
+      templateName={avatarEffectTemplate(templateId)?.name ?? "a template"}
+    />
+  );
 
   const discardCurrentDraft = useCallback(async () => {
     try {
@@ -260,26 +414,14 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
     }
   }, [contentSave]);
 
-  // Explicit discard ends browser recovery too; ordinary unload still preserves it.
-  const leaveCreator = async () => {
-    if (discarding) return;
-    if (contentSave.isBusy) {
-      blocker.proceed?.();
-      return;
-    }
-    setDiscarding(true);
-    try {
-      if (await discardCurrentDraft()) blocker.proceed?.();
-    } finally {
-      setDiscarding(false);
-    }
-  };
-
   const modelPreview = useContentCreatorModelPreview({
     ownerKey: `avatar-effect-creator:${itemId ?? "new"}`,
     selectedModel,
     onSelectModel: setSelectedModel,
+    includedAvatars: true,
   });
+  const facePartsItemId = contentCreatorModelCatalogItemId(selectedModel);
+  const facePartsQuery = useAvatarFaceParts(facePartsItemId);
 
   const soundQuery = useSoundEffects({ limit: 100, sort: "name" });
   const soundOptions = useMemo(
@@ -288,15 +430,24 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
   );
   const soundAudio = useContentPreviewAudio(soundPreview);
 
+  const imageFile = imageResources.image?.file ?? null;
+  const otherEyeFile = imageResources.otherEyeImage?.file ?? null;
   useEffect(() => {
-    if (!imageResource) {
-      setImageUrl(null);
-      return;
-    }
-    const lease = createAvatarEffectObjectUrlLease(imageResource.file);
-    setImageUrl(lease.url);
-    return lease.dispose;
-  }, [imageResource]);
+    const leases = {
+      image: imageFile ? createAvatarEffectObjectUrlLease(imageFile) : null,
+      otherEyeImage: otherEyeFile
+        ? createAvatarEffectObjectUrlLease(otherEyeFile)
+        : null,
+    };
+    setImageUrls({
+      image: leases.image?.url ?? null,
+      otherEyeImage: leases.otherEyeImage?.url ?? null,
+    });
+    return () => {
+      leases.image?.dispose();
+      leases.otherEyeImage?.dispose();
+    };
+  }, [imageFile, otherEyeFile]);
 
   useEffect(() => {
     if (!document.sound) {
@@ -345,15 +496,17 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
       description: item.description ?? "",
       signal: controller.signal,
     })
-      .then(({ document: loadedDocument, image }) => {
+      .then((loaded) => {
         if (controller.signal.aborted) return;
         load.complete();
         setHasAttemptedSave(false);
-        resetDocument(loadedDocument, image);
+        resetDocument(loaded.document, loaded.imageResources);
+        if (!keptPreview)
+          setCameraProfile(avatarEffectInitialView(loaded.document));
         initialFingerprintRef.current =
           item.origin === "builtin"
             ? "__included_copy__"
-            : `${avatarEffectDocumentFingerprint(loadedDocument)}:${image.sha256}`;
+            : avatarEffectSnapshotFingerprint(loaded);
         setHydration({ state: "ready", message: null });
         setPreviewRevision((value) => value + 1);
       })
@@ -376,6 +529,7 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
     contentSave.recoveryReady,
     existingQuery.data,
     itemId,
+    keptPreview,
     resetDocument,
   ]);
 
@@ -441,21 +595,42 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
   );
 
   const chooseImage = useCallback(
-    async (source: File) => {
+    async (slot: AvatarEffectEditorImageSlot, source: File) => {
       setImageError(null);
+      contentSave.clearSaveErrorField("files");
+      const fail = (message: string) => setImageError({ slot, message });
       if (!IMAGE_TYPES.has(source.type)) {
-        setImageError("Choose one PNG, JPEG, or WebP image.");
+        fail("Choose one PNG, JPEG, or WebP image.");
         return;
       }
       if (source.size > MAX_IMAGE_BYTES) {
-        setImageError("The effect image must be 16 MiB or smaller.");
+        fail("The effect image must be 16 MiB or smaller.");
         return;
       }
-      setImageBusy(true);
+      setImageBusy(slot);
       try {
+        // Size and dimensions come from the header, before the browser decodes it.
+        try {
+          await assertAvatarEffectImageWithinLimits(source);
+        } catch {
+          throw new Error(
+            `The effect image must be at most ${MAX_AVATAR_EFFECT_IMAGE_DIMENSION} px on each side.`,
+          );
+        }
         const preflight = await preflightContentFile("image", source);
         if (preflight.error) throw new Error(preflight.error);
-        const logicalName = canonicalAvatarEffectImageName(source.name);
+        // The two images are registered side by side, so their names differ.
+        const logicalName =
+          slot === "image"
+            ? distinctAvatarEffectImageName(
+                source.name,
+                document.art.otherEyeImage?.logicalName ?? null,
+                "main",
+              )
+            : otherEyeAvatarEffectImageName(
+                source.name,
+                document.art.image?.logicalName ?? null,
+              );
         const file = new File([source], logicalName, {
           type: source.type,
           lastModified: source.lastModified,
@@ -463,9 +638,9 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
         const sha256 = await sha256File(file);
         dispatch(
           {
-            type: "patch",
+            type: "patch-art",
             patch: {
-              image: {
+              [slot]: {
                 logicalName,
                 originalName: source.name,
                 contentType: source.type,
@@ -474,20 +649,26 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
               },
             },
           },
-          { file, sha256 },
+          { [slot]: { file, sha256 } },
         );
         restartPreview();
       } catch (error) {
-        setImageError(
+        fail(
           error instanceof Error
             ? error.message
             : "The image could not be read.",
         );
       } finally {
-        setImageBusy(false);
+        setImageBusy(null);
       }
     },
-    [dispatch, restartPreview],
+    [
+      contentSave,
+      dispatch,
+      document.art.image,
+      document.art.otherEyeImage,
+      restartPreview,
+    ],
   );
 
   const importDocument = useCallback(() => {
@@ -495,12 +676,12 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
       const parsed = parseAvatarEffectEditorExport(JSON.parse(importText));
       if (isDirty && !window.confirm("Replace the current unsaved document?"))
         return;
-      dispatch({ type: "replace", document: parsed }, null);
+      dispatch({ type: "replace", document: parsed }, NO_AVATAR_EFFECT_IMAGES);
       setImportError(null);
       setImportOpen(false);
       restartPreview();
-      if (parsed.image) {
-        toast.info("Reselect the imported document's image before saving.");
+      if (parsed.art.image) {
+        toast.info("Reselect the imported document's images before saving.");
       }
     } catch (error) {
       setImportError(
@@ -510,6 +691,47 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
       );
     }
   }, [dispatch, importText, isDirty, restartPreview]);
+
+  /** Replace the document with a blank one on the plain `/new` route. */
+  const resetToBlank = useCallback(async () => {
+    const next = {
+      document: createDefaultAvatarEffectDocument(),
+      imageResources: NO_AVATAR_EFFECT_IMAGES,
+    };
+    if (!(await contentSave.resetSession(next))) return;
+    setHasAttemptedSave(false);
+    resetDocument(next.document, next.imageResources);
+    setImageError(null);
+    setImageBusy(null);
+    setVfxSnapshot(null);
+    setModelCompatible(null);
+    setPlaying(true);
+    setJsonOpen(false);
+    setImportOpen(false);
+    setImportText("");
+    setImportError(null);
+    initialFingerprintRef.current = avatarEffectSnapshotFingerprint(next);
+    setHydration({ state: "ready", message: null });
+    setPreviewRevision((value) => value + 1);
+  }, [contentSave, resetDocument]);
+
+  /**
+   * Discard a restored draft, as the Particle creator does: a saved item
+   * drops the draft and reloads its saved version, a new one starts blank.
+   */
+  const discardRecoveredDraft = useCallback(async () => {
+    if (contentSave.isBusy || imageBusy) return;
+    try {
+      if (itemId) await contentSave.discardRecovery();
+      else await resetToBlank();
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "The draft could not be discarded.",
+      );
+    }
+  }, [contentSave, imageBusy, itemId, resetToBlank]);
 
   const startNewDocument = useCallback(async () => {
     if (contentSave.isBusy || imageBusy) return;
@@ -522,9 +744,12 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
       return;
 
     try {
-      if (itemId) {
+      // A saved item or a template draft starts over on the plain `/new` route.
+      if (itemId || templateId) {
         if (userId)
-          await clearAvatarEffectRecovery(userId, "new", { strict: true });
+          await avatarEffectRecoveryStore.clear(userId, "new", {
+            strict: true,
+          });
         if (!(await discardCurrentDraft())) return;
         await navigate({
           to: "/avatar-effects/new",
@@ -534,23 +759,7 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
         return;
       }
 
-      const nextDocument = createDefaultAvatarEffectDocument();
-      const nextFingerprint = `${avatarEffectDocumentFingerprint(nextDocument)}:missing`;
-      if (!(await contentSave.resetSession(nextFingerprint))) return;
-      setHasAttemptedSave(false);
-      resetDocument(nextDocument, null);
-      setImageError(null);
-      setImageBusy(false);
-      setVfxSnapshot(null);
-      setModelCompatible(null);
-      setPlaying(true);
-      setJsonOpen(false);
-      setImportOpen(false);
-      setImportText("");
-      setImportError(null);
-      initialFingerprintRef.current = nextFingerprint;
-      setHydration({ state: "ready", message: null });
-      setPreviewRevision((value) => value + 1);
+      await resetToBlank();
     } catch (error) {
       toast.error(
         error instanceof Error
@@ -565,7 +774,8 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
     isDirty,
     itemId,
     navigate,
-    resetDocument,
+    resetToBlank,
+    templateId,
     userId,
   ]);
 
@@ -574,22 +784,94 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
     [document],
   );
 
-  const patchTransform = useCallback(
-    (group: keyof AvatarVFXTransform, axis: "x" | "y" | "z", value: number) => {
-      dispatch({
-        type: "patch",
-        patch: {
-          transform: {
-            ...document.transform,
-            [group]: { ...document.transform[group], [axis]: value },
-          },
-        },
-      });
-      restartPreview();
-    },
-    [dispatch, document.transform, restartPreview],
+  // Direct manipulation: each drag is one undo group of attachment patches.
+  const manipulationTarget = useMemo(
+    () => ({
+      beginGroup: history.beginGroup,
+      endGroup: history.endGroup,
+      apply: (patch: AvatarEffectEditorAttachmentPatch) =>
+        dispatch({ type: "patch-attachment", patch }),
+    }),
+    [dispatch, history.beginGroup, history.endGroup],
   );
+  const manipulationEnabled =
+    Boolean(previewEffect) &&
+    playing &&
+    !pickingRole &&
+    document.attachment.kind !== "silhouette" &&
+    hydration.state === "ready";
+  const manipulation = useAvatarEffectManipulation({
+    containerRef: stageRef,
+    stateRef: manipulationRef,
+    enabled: manipulationEnabled,
+    attachment: document.attachment,
+    target: manipulationTarget,
+  });
 
+  // The selected Avatar lacks a face part the effect needs.
+  const missingPart = useMemo(() => {
+    void facePartsVersion;
+    return previewEffect && previewAvatar?.vfxController
+      ? previewAvatar.vfxController.findUnavailableFacePart(previewEffect)
+      : null;
+  }, [facePartsVersion, previewAvatar, previewEffect]);
+  const missingPartMessage = missingPart
+    ? `This Avatar has no detected ${AVATAR_FACE_PART_LABELS[missingPart]}, so the effect is not shown on it. Correct the part under Face parts, or preview another Avatar.`
+    : null;
+
+  /** Rebuild the preview Avatar's parts with a correction, then re-apply the effect. */
+  const applyFacePartCorrection = useCallback(
+    async (correction: AvatarFacePartCorrection | null) => {
+      if (!previewAvatar) return;
+      await previewAvatar.setFacePartCorrections(correction);
+      setFacePartsVersion((value) => value + 1);
+      // An effect skipped for a missing part is applied again with the new parts.
+      setPreviewRevision((value) => value + 1);
+    },
+    [previewAvatar],
+  );
+  // Apply the saved correction when the loaded Avatar does not have it yet
+  // (Included previews load without it).
+  const savedCorrection = facePartsQuery.data?.face_parts ?? null;
+  useEffect(() => {
+    if (!previewAvatar || !facePartsQuery.isSuccess) return;
+    if (
+      JSON.stringify(previewAvatar.facePartCorrections ?? null) ===
+      JSON.stringify(savedCorrection)
+    )
+      return;
+    void applyFacePartCorrection(savedCorrection);
+  }, [
+    applyFacePartCorrection,
+    facePartsQuery.isSuccess,
+    previewAvatar,
+    savedCorrection,
+  ]);
+  const handleAvatarChange = useCallback((avatar: Avatar | null) => {
+    setPreviewAvatar(avatar);
+    setFacePartsVersion((value) => value + 1);
+  }, []);
+  const handlePick = useCallback((key: string) => {
+    setPickedKey((current) => ({
+      key,
+      sequence: (current?.sequence ?? 0) + 1,
+    }));
+  }, []);
+
+  const saveErrorField = contentSave.errorField;
+  const firstIssueField = hasAttemptedSave
+    ? (validation.find((issue) => issue.severity === "error")?.field ?? null)
+    : null;
+  // A failed Save names its setting by definition path; validation by document
+  // path. Both highlight (or open) the matching control.
+  const invalidField =
+    (saveErrorField ?? firstIssueField)?.replace(/^definition\.?/, "") || null;
+
+  // Once this document has shown, a reload (Discard recovery on a saved item)
+  // keeps the workspace and its preview Canvas mounted.
+  const documentKey = itemId ?? templateId ?? "new";
+  if (hydration.state === "ready" && shownDocument !== documentKey)
+    setShownDocument(documentKey);
   if (unavailableMessage)
     return (
       <CreatorUnavailableState
@@ -597,19 +879,42 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
         message={unavailableMessage}
       />
     );
-  if (hydration.state === "loading" && itemId)
+  if (
+    hydration.state === "loading" &&
+    (itemId || templateId) &&
+    shownDocument !== documentKey
+  ) {
     return (
-      <CreatorLoadingState
-        message={hydration.message ?? "Loading Avatar Effect…"}
-      />
+      <>
+        <CreatorLoading
+          message={
+            hydration.message ??
+            (templateId ? "Loading template…" : "Loading Avatar Effect…")
+          }
+        />
+        {templateDraftDialog}
+      </>
     );
+  }
+
+  const stageBadge = !document.art.image
+    ? "Choose an image in Setup to preview the effect."
+    : (missingPartMessage ??
+      (pickingRole
+        ? "Click a part of the avatar to add it to or remove it from the selected face part."
+        : null));
 
   return (
     <CreatorWorkspaceShell
       canvas={
         <div
-          className="relative size-full"
+          ref={stageRef}
+          className="relative size-full outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70 focus-visible:ring-inset"
           data-playback-surface="creator-stage"
+          tabIndex={0}
+          role="group"
+          aria-label="Effect preview. Drag the art to move it, its corners to resize and its round handle to turn it. Arrow keys nudge it; Shift moves further."
+          onKeyDown={manipulation.onKeyDown}
         >
           <AvatarPreviewSurface
             activeAvatar={previewAvatar}
@@ -631,6 +936,24 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
                     data-testid="avatar-effect-placement-guides"
                   />
                 ) : null}
+                <canvas
+                  ref={handleCanvasRef}
+                  className="pointer-events-none absolute inset-0 z-30 size-full"
+                  aria-hidden="true"
+                  data-testid="avatar-effect-handles"
+                />
+                {stageBadge ? (
+                  // Centred on the stage between the desktop panels, so a
+                  // long message wraps instead of running under them.
+                  <div className="pointer-events-none absolute inset-x-0 top-[calc(var(--creator-header-height,3.5rem)+0.75rem)] z-40 flex justify-center px-4 lg:right-[calc(var(--creator-inset)+min(var(--creator-right-panel-width),27vw)+0.75rem)] lg:left-[calc(var(--app-shell-sidebar-inset)+var(--creator-inset)+min(var(--creator-left-panel-width),26vw)+0.75rem)] lg:px-0">
+                    <p
+                      role="status"
+                      className="bg-background/90 text-foreground max-w-[28rem] rounded-md px-3 py-1.5 text-center text-xs shadow-sm"
+                    >
+                      {stageBadge}
+                    </p>
+                  </div>
+                ) : null}
               </>
             }
           >
@@ -639,9 +962,12 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
                 entry={modelPreview.modelEntry}
                 entryKey={modelPreview.modelEntryKey}
                 effect={previewEffect}
+                skip={Boolean(missingPart)}
                 playing={playing}
                 revision={previewRevision}
-                onAvatarChange={setPreviewAvatar}
+                picking={Boolean(pickingRole)}
+                onPick={handlePick}
+                onAvatarChange={handleAvatarChange}
                 onStatusChange={setAvatarStatus}
                 onSnapshot={setVfxSnapshot}
                 onCompatibilityChange={setModelCompatible}
@@ -651,17 +977,24 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
               <AvatarEffectGuideRenderer
                 avatar={previewAvatar}
                 effect={guideEffect}
-                appliedId={guideEffect?.id ?? ""}
+                appliedId={PREVIEW_EFFECT_ID}
                 canvasRef={guideCanvasRef}
               />
             ) : null}
+            <AvatarEffectHandleRenderer
+              avatar={previewAvatar}
+              appliedId={previewEffect ? PREVIEW_EFFECT_ID : null}
+              enabled={manipulationEnabled}
+              canvasRef={handleCanvasRef}
+              stateRef={manipulationRef}
+            />
           </AvatarPreviewSurface>
           <PlaybackObservationOutput
             active
             avatar={previewAvatar}
             sceneVFX={null}
             status={
-              avatarStatus.state === "error"
+              hydration.state === "error" || avatarStatus.state === "error"
                 ? "error"
                 : hydration.state === "loading" ||
                     avatarStatus.state === "loading" ||
@@ -671,8 +1004,9 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
                   : !previewAvatar
                     ? "unavailable"
                     : playing &&
-                        imageUrl &&
-                        (vfxSnapshot?.activeEffects.length ?? 0) > 0
+                        imageUrls.image &&
+                        ((vfxSnapshot?.activeEffects.length ?? 0) > 0 ||
+                          (vfxSnapshot?.attachmentEffects.length ?? 0) > 0)
                       ? "playing"
                       : "stopped"
             }
@@ -691,20 +1025,25 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
             ...(hasAttemptedSave
               ? validation.map((issue) => issue.message)
               : []),
+            ...(missingPartMessage ? [missingPartMessage] : []),
             ...(vfxSnapshot?.warnings ?? []),
             ...[
               modelPreview.animaError,
               modelPreview.runtimeError,
               modelPreview.modelError,
+              modelPreview.modelCatalogError,
             ].filter((message): message is string => Boolean(message)),
             ...(avatarStatus.state === "error"
               ? [avatarStatus.message ?? "Unable to load the preview Avatar."]
+              : []),
+            ...(hydration.state === "error"
+              ? [hydration.message ?? "Unable to open effect."]
               : []),
           ]}
           history={history}
           historyDisabled={
             contentSave.isBusy ||
-            imageBusy ||
+            Boolean(imageBusy) ||
             hydration.state !== "ready" ||
             !contentSave.recoveryReady
           }
@@ -730,9 +1069,9 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
                   tone: isDirty ? "dirty" : "saved",
                 }
           }
-          newDisabled={contentSave.isBusy || imageBusy}
-          importDisabled={contentSave.isBusy || imageBusy}
-          libraryDisabled={contentSave.isBusy || imageBusy}
+          newDisabled={contentSave.isBusy || Boolean(imageBusy)}
+          importDisabled={contentSave.isBusy || Boolean(imageBusy)}
+          libraryDisabled={contentSave.isBusy || Boolean(imageBusy)}
           onNew={() => void startNewDocument()}
           onImport={() => {
             setImportText(exportText);
@@ -765,40 +1104,51 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
       leftPanelLabel="Setup"
       rightPanelLabel="Inspector"
       leftPanel={
-        <EffectSetupPanel
-          document={document}
-          imageResource={imageResource}
-          imageBusy={imageBusy}
-          imageError={imageError}
-          saveErrorField={contentSave.errorField}
-          dragActive={dragActive}
-          soundOptions={soundOptions}
-          soundPending={soundQuery.isPending}
-          onDispatch={(action) => {
-            dispatch(action);
-            restartPreview();
-          }}
-          onChooseImage={chooseImage}
-          onClearSaveErrorField={contentSave.clearSaveErrorField}
-          onDragActive={setDragActive}
-        />
+        <FloatingPanel title="Effect Setup" bodyClassName="overflow-y-auto">
+          <AvatarEffectSetupFields
+            document={document}
+            imageResources={imageResources}
+            imageBusy={imageBusy}
+            imageError={imageError}
+            invalidField={invalidField}
+            soundOptions={soundOptions}
+            soundPending={soundQuery.isPending}
+            onDispatch={(action) => {
+              if (action.type === "patch" && action.patch.sound !== undefined)
+                contentSave.clearSaveErrorField("sound");
+              dispatch(action);
+            }}
+            onChooseImage={(slot, file) => void chooseImage(slot, file)}
+            onClearOtherEyeImage={() =>
+              dispatch(
+                { type: "patch-art", patch: { otherEyeImage: null } },
+                { otherEyeImage: null },
+              )
+            }
+          />
+        </FloatingPanel>
       }
       rightPanel={
-        <InspectorPanel
-          document={document}
-          onDispatch={(action) => {
-            dispatch(action);
-            restartPreview();
-          }}
-          onPatchTransform={patchTransform}
-        />
+        <FloatingPanel
+          title="Inspector"
+          summary={attachmentSummary(document)}
+          bodyClassName="overflow-y-auto"
+        >
+          <AvatarEffectInspector
+            document={document}
+            invalidField={invalidField}
+            onDispatch={dispatch}
+          />
+        </FloatingPanel>
       }
       canvasControls={
         <CreatorCanvasControls
           model={{
             label: "Model",
             value: selectedModel?.key ?? "",
-            placeholder: "Avatar",
+            placeholder: modelPreview.isModelCatalogPending
+              ? "Loading…"
+              : "Avatar",
             options: modelPreview.modelOptions.map((source) => ({
               value: source.key,
               label: source.displayName,
@@ -807,29 +1157,47 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
               const source = modelPreview.modelOptions.find(
                 (item) => item.key === key,
               );
-              if (source) modelPreview.selectModel(source);
+              if (source) {
+                setPickingRole(null);
+                modelPreview.selectModel(source);
+              }
             },
-            triggerClassName: "w-[150px]",
+            triggerClassName: "w-[170px]",
           }}
           view={{
             label: "View",
             value: cameraProfile,
-            options: [
-              { value: "portrait-close", label: "Face" },
-              { value: "portrait", label: "Portrait" },
-            ],
+            options: VIEW_OPTIONS,
             onValueChange: (value) =>
-              setCameraProfile(value as typeof cameraProfile),
-            triggerClassName: "w-[105px]",
+              setCameraProfile(value as AvatarPreviewCameraProfile),
+            triggerClassName: "w-[120px]",
           }}
           guides={showGuides}
           onGuidesChange={setShowGuides}
           domainControl={
-            <AvatarEffectUvPreview
-              avatar={previewAvatar}
-              effect={guideEffect}
-              appliedId={guideEffect?.id ?? ""}
-            />
+            <>
+              <AvatarEffectUvPreview
+                avatar={previewAvatar}
+                effect={guideEffect}
+                appliedId={PREVIEW_EFFECT_ID}
+              />
+              <AvatarEffectFacePartsPanel
+                avatar={previewAvatar}
+                itemId={facePartsItemId}
+                modelName={
+                  modelPreview.modelOptions.find(
+                    (option) => option.key === selectedModel?.key,
+                  )?.displayName ??
+                  selectedModel?.displayName ??
+                  "this Avatar"
+                }
+                version={facePartsVersion}
+                pickingRole={pickingRole}
+                pickedKey={pickedKey}
+                onPickingRoleChange={setPickingRole}
+                onApplied={applyFacePartCorrection}
+              />
+            </>
           }
           playbackControl={
             <CreatorTimelineTransport
@@ -844,24 +1212,22 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
       }
       overlays={
         <>
-          {contentSave.error || contentSave.recoveryWarning ? (
-            <CreatorSaveNotice
-              className="absolute top-[calc(var(--creator-header-height)+0.5rem)] right-4 left-4 z-[60] sm:left-auto sm:max-w-md lg:top-auto lg:bottom-28"
-              message={contentSave.error ?? contentSave.recoveryWarning}
-              tone={contentSave.error ? "error" : "warning"}
-              actions={
-                contentSave.error ? (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => void contentSave.discardRecovery()}
-                  >
-                    Discard preserved server draft
-                  </Button>
-                ) : null
-              }
+          {hydration.state === "error" ? (
+            <CreatorInlineError
+              message={hydration.message ?? "Unable to open effect."}
             />
           ) : null}
+          <CreatorRecoveryNotice
+            className={CREATOR_STAGE_NOTICE_CLASS}
+            error={contentSave.error}
+            recoveryWarning={contentSave.recoveryWarning}
+            // A template route asks about its draft in a dialog instead.
+            recovered={contentSave.recovered && !templateId}
+            busy={contentSave.isBusy || Boolean(imageBusy)}
+            contentLabel="Avatar Effect"
+            onDiscardServerDraft={() => void contentSave.discardRecovery()}
+            onDiscardRecovery={() => void discardRecoveredDraft()}
+          />
 
           <CreatorJsonDialog
             open={jsonOpen}
@@ -907,764 +1273,67 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
             onTextChange={setImportText}
             onImport={importDocument}
           />
-          <AvatarEffectLeaveDialog
-            open={blocker.status === "blocked"}
-            onOpenChange={(open) => {
-              if (!open && !discarding && blocker.status === "blocked")
-                blocker.reset?.();
-            }}
-            busy={contentSave.isBusy}
-            onStay={() => blocker.reset?.()}
-            discarding={discarding}
-            onLeave={() => void leaveCreator()}
-          />
+          <CreatorLeaveDialog guard={leaveGuard} contentLabel="Avatar Effect" />
+          {templateDraftDialog}
         </>
       }
     />
   );
 }
 
-function EffectSetupPanel({
-  document,
-  imageResource,
-  imageBusy,
-  imageError,
-  saveErrorField,
-  dragActive,
-  soundOptions,
-  soundPending,
-  onDispatch,
-  onChooseImage,
-  onClearSaveErrorField,
-  onDragActive,
-}: {
-  document: AvatarEffectEditorDocument;
-  imageResource: AvatarEffectEditorImageResource | null;
-  imageBusy: boolean;
-  imageError: string | null;
-  saveErrorField: string | null;
-  dragActive: boolean;
-  soundOptions: Array<{
-    item_id: string;
-    name: string;
-    source: PyExactContentSource | null;
-  }>;
-  soundPending: boolean;
-  onDispatch: React.Dispatch<Parameters<typeof avatarEffectEditorReducer>[1]>;
-  onChooseImage: (file: File) => void;
-  onClearSaveErrorField: (field: string) => void;
-  onDragActive: (active: boolean) => void;
-}) {
-  return (
-    <FloatingPanel title="Effect Setup" bodyClassName="overflow-y-auto">
-      <Tabs
-        value={document.kind}
-        onValueChange={(kind) =>
-          onDispatch({
-            type: "set-kind",
-            kind: kind as AvatarEffectEditorDocument["kind"],
-          })
-        }
-      >
-        <TabsList className="grid h-9 w-full grid-cols-3">
-          <TabsTrigger value="hover" className="min-w-0 px-1 text-xs">
-            Hover
-          </TabsTrigger>
-          <TabsTrigger value="face_anchored" className="min-w-0 px-1 text-xs">
-            Face decal
-          </TabsTrigger>
-          <TabsTrigger value="texture" className="min-w-0 px-1 text-xs">
-            Texture
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
-
-      <div className="mt-3 space-y-3">
-        <Field label="Effect image" invalid={saveErrorField === "files"}>
-          <label
-            className={cn(
-              "border-border/70 bg-background/55 hover:bg-accent/50 flex cursor-pointer items-center gap-3 rounded-lg border border-dashed p-3 transition",
-              dragActive && "border-sky-400 bg-sky-100/50 dark:bg-sky-950/30",
-              saveErrorField === "files" && "border-destructive",
-            )}
-            onDragEnter={(event) => {
-              event.preventDefault();
-              onDragActive(true);
-            }}
-            onDragOver={(event) => event.preventDefault()}
-            onDragLeave={() => onDragActive(false)}
-            onDrop={(event) => {
-              event.preventDefault();
-              onDragActive(false);
-              const file = event.dataTransfer.files[0];
-              if (file) {
-                onClearSaveErrorField("files");
-                void onChooseImage(file);
-              }
-            }}
-          >
-            <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300">
-              {imageBusy ? (
-                <LoaderCircleIcon className="animate-spin" />
-              ) : (
-                <FileImageIcon />
-              )}
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-sm font-medium">
-                {imageResource?.file.name ??
-                  document.image?.originalName ??
-                  "Choose image"}
-              </div>
-              <div className="text-muted-foreground text-xs">
-                PNG, JPEG, or WebP · up to 16 MiB
-              </div>
-            </div>
-            <span className="border-border rounded-md border px-2 py-1 text-xs">
-              {document.image ? "Replace" : "Browse"}
-            </span>
-            <input
-              className="sr-only"
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              aria-invalid={saveErrorField === "files"}
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (file) {
-                  onClearSaveErrorField("files");
-                  void onChooseImage(file);
-                }
-                event.currentTarget.value = "";
-              }}
-            />
-          </label>
-          {imageError ? (
-            <p className="text-destructive mt-1 text-xs">{imageError}</p>
-          ) : null}
-        </Field>
-
-        {document.kind === "hover" ? (
-          <HoverFields document={document} onDispatch={onDispatch} />
-        ) : document.kind === "face_anchored" ? (
-          <FaceFields document={document} onDispatch={onDispatch} />
-        ) : (
-          <TextureFields document={document} onDispatch={onDispatch} />
-        )}
-
-        <RegionField document={document} onDispatch={onDispatch} />
-
-        <Field label="Sound when applied">
-          <SoundUploadButton />
-          <Select
-            value={soundSourceKey(document.sound?.source ?? null)}
-            onValueChange={(value) => {
-              if (value === "none") {
-                onDispatch({ type: "patch", patch: { sound: null } });
-                return;
-              }
-              const option = soundOptions.find(
-                (item) => soundSourceKey(item.source) === value,
-              );
-              if (!option?.source) return;
-              onDispatch({
-                type: "patch",
-                patch: {
-                  sound: {
-                    alias: "on-apply",
-                    label: option.name,
-                    source: option.source,
-                  },
-                },
-              });
-            }}
-          >
-            <SelectTrigger size="sm" className="w-full text-xs">
-              <SelectValue
-                placeholder={soundPending ? "Loading sounds…" : "No sound"}
-              />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">No sound</SelectItem>
-              {document.sound &&
-              !soundOptions.some(
-                (item) =>
-                  soundSourceKey(item.source) ===
-                  soundSourceKey(document.sound?.source ?? null),
-              ) ? (
-                <SelectItem value={soundSourceKey(document.sound.source)}>
-                  {document.sound.label} · exact content
-                </SelectItem>
-              ) : null}
-              {soundOptions.flatMap((item) =>
-                item.source ? (
-                  <SelectItem
-                    key={item.item_id}
-                    value={soundSourceKey(item.source)}
-                  >
-                    {item.name}
-                  </SelectItem>
-                ) : (
-                  []
-                ),
-              )}
-            </SelectContent>
-          </Select>
-        </Field>
-        <Field label="Description">
-          <Textarea
-            className="min-h-16 text-xs"
-            rows={2}
-            value={document.description}
-            onChange={(event) =>
-              onDispatch({
-                type: "patch",
-                patch: { description: event.target.value },
-              })
-            }
-          />
-        </Field>
-      </div>
-    </FloatingPanel>
-  );
+/** A short plain description of where the art goes, for the Inspector header. */
+function attachmentSummary(document: AvatarEffectEditorDocument): string {
+  const attachment = document.attachment;
+  switch (attachment.kind) {
+    case "face_landmark":
+      return "Floating on the face";
+    case "face_surface":
+      return "Painted on the face";
+    case "body":
+      return "On the body";
+    case "sticker":
+      return "Sticker";
+    case "silhouette":
+      return "Silhouette fill";
+  }
 }
 
-function HoverFields({ document, onDispatch }: EditorFieldsProps) {
-  return (
-    <>
-      <Field label="Hover type">
-        <Select
-          value={document.hover.hoverKind}
-          onValueChange={(hoverKind) =>
-            onDispatch({
-              type: "patch-hover",
-              patch: {
-                hoverKind: hoverKind as typeof document.hover.hoverKind,
-              },
-            })
-          }
-        >
-          <SelectTrigger size="sm" className="w-full text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="eye_hover">Eye hover</SelectItem>
-            <SelectItem value="mouth_hover">Mouth hover</SelectItem>
-            <SelectItem value="box_hover">Face box hover</SelectItem>
-          </SelectContent>
-        </Select>
-      </Field>
-      {document.hover.hoverKind === "box_hover" ? (
-        <Field label="Placement">
-          <Select
-            value={document.hover.placement}
-            onValueChange={(placement) =>
-              onDispatch({
-                type: "patch-hover",
-                patch: {
-                  placement: placement as typeof document.hover.placement,
-                },
-              })
-            }
-          >
-            <SelectTrigger size="sm" className="w-full text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {[
-                "forehead-left",
-                "forehead-middle",
-                "forehead-right",
-                "top-left",
-                "top-middle",
-                "top-right",
-                "top-edge-left-corner",
-                "top-edge-left",
-                "top-edge-middle",
-                "top-edge-right",
-                "top-edge-right-corner",
-              ].map((placement) => (
-                <SelectItem key={placement} value={placement}>
-                  {humanize(placement)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
-      ) : null}
-      {document.hover.hoverKind === "eye_hover" ? (
-        <SideField
-          value={document.hover.side}
-          onValue={(side) =>
-            onDispatch({ type: "patch-hover", patch: { side } })
-          }
-        />
-      ) : null}
-      {document.hover.hoverKind !== "box_hover" ? (
-        <SwitchRow
-          label="Skin backdrop"
-          description="Place a face-color backing below transparent art."
-          checked={document.hover.skinBackdrop}
-          onChecked={(skinBackdrop) =>
-            onDispatch({ type: "patch-hover", patch: { skinBackdrop } })
-          }
-        />
-      ) : null}
-      {document.hover.hoverKind === "eye_hover" ? (
-        <SwitchRow
-          label="Mirror right eye"
-          checked={document.hover.requiresMirror}
-          onChecked={(requiresMirror) =>
-            onDispatch({ type: "patch-hover", patch: { requiresMirror } })
-          }
-        />
-      ) : null}
-      {document.hover.hoverKind === "eye_hover" ? (
-        <>
-          <SwitchRow
-            label="Force blink"
-            description="Close the avatar's eyes behind the artwork."
-            checked={document.hover.forceBlink}
-            onChecked={(forceBlink) =>
-              onDispatch({ type: "patch-hover", patch: { forceBlink } })
-            }
-          />
-          <SwitchRow
-            label="Hide eye details"
-            description="Hide eye highlights, eyelines and eyelashes."
-            checked={document.hover.autoDisableEyeMaterials}
-            onChecked={(autoDisableEyeMaterials) =>
-              onDispatch({
-                type: "patch-hover",
-                patch: { autoDisableEyeMaterials },
-              })
-            }
-          />
-          <HiddenMaterialFields
-            label="Additional hidden materials"
-            roles={document.hover.disableTargetRoles}
-            automaticEyeDetails={document.hover.autoDisableEyeMaterials}
-            onChange={(disableTargetRoles) =>
-              onDispatch({ type: "patch-hover", patch: { disableTargetRoles } })
-            }
-          />
-        </>
-      ) : null}
-      {document.hover.hoverKind !== "box_hover" ? (
-        <SwitchRow
-          label={
-            document.hover.hoverKind === "eye_hover"
-              ? "Clean up eye area"
-              : "Clean up mouth area"
-          }
-          description="Cover painted facial detail with sampled skin color, independently of Skin backdrop."
-          checked={document.hover.faceCleanup}
-          onChecked={(faceCleanup) =>
-            onDispatch({ type: "patch-hover", patch: { faceCleanup } })
-          }
-        />
-      ) : null}
-    </>
-  );
-}
-
-function FaceFields({ document, onDispatch }: EditorFieldsProps) {
-  return (
-    <>
-      <Field label="Anchor">
-        <Select
-          value={document.face.anchor}
-          onValueChange={(anchor) =>
-            onDispatch({
-              type: "patch-face",
-              patch: { anchor: anchor as typeof document.face.anchor },
-            })
-          }
-        >
-          <SelectTrigger size="sm" className="w-full text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="undereye">Under eye</SelectItem>
-            <SelectItem value="blush">Blush</SelectItem>
-            <SelectItem value="mouth">Mouth</SelectItem>
-          </SelectContent>
-        </Select>
-      </Field>
-      {document.face.anchor !== "mouth" ? (
-        <>
-          <Field label="Layout">
-            <Select
-              value={document.face.layout}
-              onValueChange={(layout) =>
-                onDispatch({
-                  type: "patch-face",
-                  patch: { layout: layout as "single" | "span" },
-                })
-              }
-            >
-              <SelectTrigger size="sm" className="w-full text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="single">Single side</SelectItem>
-                <SelectItem value="span">Span face</SelectItem>
-              </SelectContent>
-            </Select>
-          </Field>
-          {document.face.layout === "single" ? (
-            <SideField
-              value={document.face.side}
-              allowBoth={false}
-              onValue={(side) =>
-                onDispatch({
-                  type: "patch-face",
-                  patch: { side: side ?? "left" },
-                })
-              }
-            />
-          ) : null}
-        </>
-      ) : null}
-      <Field label="Image pivot">
-        <Select
-          value={document.face.pivot}
-          onValueChange={(pivot) =>
-            onDispatch({
-              type: "patch-face",
-              patch: { pivot: pivot as typeof document.face.pivot },
-            })
-          }
-        >
-          <SelectTrigger size="sm" className="w-full text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {[
-              "top-left",
-              "top-center",
-              "top-right",
-              "center-left",
-              "center",
-              "center-right",
-              "bottom-left",
-              "bottom-center",
-              "bottom-right",
-            ].map((pivot) => (
-              <SelectItem key={pivot} value={pivot}>
-                {humanize(pivot)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </Field>
-      {document.face.layout === "single" && document.face.anchor !== "mouth" ? (
-        <SwitchRow
-          label="Mirror opposite side"
-          checked={document.face.requiresMirror}
-          onChecked={(requiresMirror) =>
-            onDispatch({ type: "patch-face", patch: { requiresMirror } })
-          }
-        />
-      ) : null}
-      {document.face.anchor === "mouth" ? (
-        <SwitchRow
-          label="Clean up mouth area"
-          description="Cover painted mouth detail with sampled skin color."
-          checked={document.face.faceCleanup}
-          onChecked={(faceCleanup) =>
-            onDispatch({ type: "patch-face", patch: { faceCleanup } })
-          }
-        />
-      ) : null}
-    </>
-  );
-}
-
-function TextureFields({ document, onDispatch }: EditorFieldsProps) {
-  return (
-    <>
-      <Field label="Target material role">
-        <Select
-          value={document.texture.targetRole}
-          onValueChange={(targetRole) =>
-            onDispatch({
-              type: "patch-texture",
-              patch: {
-                targetRole: targetRole as typeof document.texture.targetRole,
-              },
-            })
-          }
-        >
-          <SelectTrigger size="sm" className="w-full text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {[
-              "face_skin",
-              "eye_iris",
-              "eye_highlight",
-              "eyeline",
-              "eyelash",
-            ].map((role) => (
-              <SelectItem key={role} value={role}>
-                {humanize(role)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </Field>
-      <Field label="Asset shape">
-        <Select
-          value={document.texture.assetShape}
-          onValueChange={(assetShape) =>
-            onDispatch({
-              type: "patch-texture",
-              patch: {
-                assetShape: assetShape as typeof document.texture.assetShape,
-              },
-            })
-          }
-        >
-          <SelectTrigger size="sm" className="w-full text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="single_eye">Single eye</SelectItem>
-            <SelectItem value="double_eye">Double eye</SelectItem>
-            <SelectItem value="full_face">Full face</SelectItem>
-          </SelectContent>
-        </Select>
-      </Field>
-      <Field label="Apply mode">
-        <Select
-          value={document.texture.applyMode}
-          onValueChange={(applyMode) =>
-            onDispatch({
-              type: "patch-texture",
-              patch: { applyMode: applyMode as "overlay" | "replace" },
-            })
-          }
-        >
-          <SelectTrigger size="sm" className="w-full text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="overlay">Overlay</SelectItem>
-            <SelectItem value="replace">Replace</SelectItem>
-          </SelectContent>
-        </Select>
-      </Field>
-      <SideField
-        value={document.texture.side}
-        onValue={(side) =>
-          onDispatch({ type: "patch-texture", patch: { side } })
-        }
-      />
-      <SwitchRow
-        label="Mirror opposite side"
-        checked={document.texture.requiresMirror}
-        onChecked={(requiresMirror) =>
-          onDispatch({ type: "patch-texture", patch: { requiresMirror } })
-        }
-      />
-      <HiddenMaterialFields
-        label="Hidden materials"
-        roles={document.texture.disableTargetRoles}
-        onChange={(disableTargetRoles) =>
-          onDispatch({ type: "patch-texture", patch: { disableTargetRoles } })
-        }
-      />
-    </>
-  );
-}
-
-type EditorFieldsProps = {
-  document: AvatarEffectEditorDocument;
-  onDispatch: React.Dispatch<Parameters<typeof avatarEffectEditorReducer>[1]>;
-};
-
-/** Keep coexistence editable for every type without coupling it to placement. */
-function RegionField({ document, onDispatch }: EditorFieldsProps) {
-  return (
-    <Field label="Effect region">
-      <Select
-        value={
-          document.regionMode === "automatic" ? "automatic" : document.region
-        }
-        onValueChange={(value) =>
-          onDispatch({
-            type: "patch",
-            patch:
-              value === "automatic"
-                ? { regionMode: "automatic" }
-                : { region: value as AvatarEffectEditorDocument["region"] },
-          })
-        }
-      >
-        <SelectTrigger
-          size="sm"
-          className="w-full text-xs"
-          aria-label="Effect region"
-        >
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="automatic">
-            Automatic
-            {document.regionMode === "automatic"
-              ? ` (${humanize(document.region)})`
-              : ""}
-          </SelectItem>
-          {AVATAR_VFX_REGIONS.map((region) => (
-            <SelectItem key={region} value={region}>
-              {humanize(region)}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <p className="text-muted-foreground mt-1 text-xs">
-        Eyes, under eye, blush and mouth replace effects in the same region.
-        Emote and full face can coexist.
-      </p>
-    </Field>
-  );
-}
-
-/** Explicit roles add to eye-detail hiding; they remain selected when it is off. */
-function HiddenMaterialFields({
-  label,
-  roles,
-  automaticEyeDetails = false,
-  onChange,
-}: {
-  label: string;
-  roles: AvatarVFXTargetRole[];
-  automaticEyeDetails?: boolean;
-  onChange: (roles: AvatarVFXTargetRole[]) => void;
-}) {
-  return (
-    <details className="space-y-2">
-      <summary className="cursor-pointer text-xs font-medium">
-        {label} ({roles.length})
-      </summary>
-      <p className="text-muted-foreground text-xs">
-        Hide matching material parts while this effect plays. The effect's own
-        target part stays visible.
-      </p>
-      {AVATAR_VFX_TARGET_ROLES.map((role) => (
-        <SwitchRow
-          key={role}
-          label={`Hide ${humanize(role).toLowerCase()}`}
-          description={
-            automaticEyeDetails &&
-            ["eye_highlight", "eyeline", "eyelash"].includes(role)
-              ? "Also hidden by Hide eye details."
-              : undefined
-          }
-          checked={roles.includes(role)}
-          onChecked={(checked) =>
-            onChange(
-              checked
-                ? [...roles, role]
-                : roles.filter((item) => item !== role),
-            )
-          }
-        />
-      ))}
-    </details>
-  );
-}
-
-function InspectorPanel({
-  document,
-  onDispatch,
-  onPatchTransform,
-}: {
-  document: AvatarEffectEditorDocument;
-  onDispatch: React.Dispatch<Parameters<typeof avatarEffectEditorReducer>[1]>;
-  onPatchTransform: (
-    group: keyof AvatarVFXTransform,
-    axis: "x" | "y" | "z",
-    value: number,
-  ) => void;
-}) {
-  return (
-    <FloatingPanel
-      title="Inspector"
-      summary={humanize(document.kind)}
-      bodyClassName="overflow-y-auto"
-    >
-      <Tabs defaultValue="transform">
-        <TabsList className="grid h-9 w-full grid-cols-2">
-          <TabsTrigger value="transform" className="min-w-0 px-1 text-xs">
-            Transform
-          </TabsTrigger>
-          <TabsTrigger value="animation" className="min-w-0 px-1 text-xs">
-            Animation
-          </TabsTrigger>
-        </TabsList>
-        <TabsContent value="transform" className="mt-3 space-y-3">
-          {(["offset", "scale"] as const).map((group) => (
-            <div key={group}>
-              <Label className="mb-2 block">
-                {group === "offset" ? "Position Offset" : "Scale"}
-              </Label>
-              <AvatarEffectAxisFields
-                values={document.transform[group]}
-                step={0.01}
-                decimalPlaces={group === "scale" ? 3 : 2}
-                onValueChange={(axis, value) =>
-                  onPatchTransform(group, axis, value)
-                }
-              />
-            </div>
-          ))}
-          {document.kind === "hover" ? (
-            <div>
-              <Label className="mb-2 block">Rotation (degrees)</Label>
-              <AvatarEffectAxisFields
-                values={{
-                  x: (document.transform.rotation.x * 180) / Math.PI,
-                  y: (document.transform.rotation.y * 180) / Math.PI,
-                  z: (document.transform.rotation.z * 180) / Math.PI,
-                }}
-                step={1}
-                onValueChange={(axis, value) =>
-                  onPatchTransform("rotation", axis, (value * Math.PI) / 180)
-                }
-              />
-            </div>
-          ) : (
-            <NumberField
-              label="Angle (degrees)"
-              value={(document.transform.rotation.z * 180) / Math.PI}
-              step={1}
-              decimalPlaces={0}
-              onChange={(value) =>
-                onPatchTransform("rotation", "z", (value * Math.PI) / 180)
-              }
-            />
-          )}
-        </TabsContent>
-        <TabsContent value="animation" className="mt-3 space-y-3">
-          <AvatarEffectAnimationControls
-            config={document.animationConfig}
-            onChange={(animationConfig) =>
-              onDispatch({ type: "patch", patch: { animationConfig } })
-            }
-          />
-        </TabsContent>
-      </Tabs>
-    </FloatingPanel>
-  );
+/** Apply one parsed preview entry with the controller method for its kind. */
+function applyPreviewEffect(
+  controller: NonNullable<Avatar["vfxController"]>,
+  effect: AvatarVFXParsedEntry,
+): Promise<void> {
+  if (isAttachmentVFXEntry(effect))
+    return controller.applyAttachmentVFX({
+      effectId: effect.id,
+      effectEntry: effect,
+    });
+  if (effect.kind === "hover")
+    return controller.applyHoverVFX({
+      effectId: effect.id,
+      effectEntry: effect,
+    });
+  if (effect.kind === "face_anchored")
+    return controller.applyFaceAnchoredVFX({
+      effectId: effect.id,
+      effectEntry: effect,
+    });
+  return controller.applyTextureVFX({
+    effectId: effect.id,
+    effectEntry: effect,
+    applyMode: effect.applyMode,
+  });
 }
 
 function AvatarEffectPreviewActor({
   entry,
   entryKey,
   effect,
+  skip,
   playing,
   revision,
+  picking,
+  onPick,
   onAvatarChange,
   onStatusChange,
   onSnapshot,
@@ -1672,9 +1341,14 @@ function AvatarEffectPreviewActor({
 }: {
   entry: Parameters<typeof useContentCreatorAvatar>[0]["entry"];
   entryKey: string;
-  effect: AvatarVFXCatalogEntry | null;
+  effect: AvatarVFXParsedEntry | null;
+  /** The Avatar lacks a face part the effect needs; it is not applied. */
+  skip: boolean;
   playing: boolean;
   revision: number;
+  /** Clicks on the avatar pick face parts. */
+  picking: boolean;
+  onPick: (bindingKey: string) => void;
   onAvatarChange: (avatar: Avatar | null) => void;
   onStatusChange: (status: PreviewStatus) => void;
   onSnapshot: (snapshot: AvatarVFXSnapshot | null) => void;
@@ -1693,8 +1367,15 @@ function AvatarEffectPreviewActor({
 
   // The Avatar exists before its async model load creates the VFX controller.
   const controller = avatar?.vfxController;
+  // Placement edits update the applied effect in place; anything else re-applies.
+  const applyKey = effect ? avatarEffectPreviewApplyKey(effect) : null;
+  const effectRef = useRef(effect);
+  const appliedRef = useRef<AvatarVFXParsedEntry | null>(null);
+  effectRef.current = effect;
   useEffect(() => {
-    if (!controller || !effect || !playing) {
+    const current = effectRef.current;
+    appliedRef.current = null;
+    if (!controller || !current || !playing || skip) {
       controller?.clearAllEffects();
       onSnapshot(controller?.getSnapshot() ?? null);
       onCompatibilityChange(null);
@@ -1711,7 +1392,8 @@ function AvatarEffectPreviewActor({
           hasController: true,
           hasEffect: true,
           applySettled,
-          activeEffectCount: snapshot.activeEffects.length,
+          activeEffectCount:
+            snapshot.activeEffects.length + snapshot.attachmentEffects.length,
         }),
       );
     };
@@ -1719,148 +1401,134 @@ function AvatarEffectPreviewActor({
     onSnapshot(controller.getSnapshot());
     onCompatibilityChange(null);
     const unsubscribe = controller.subscribe(update);
-    const apply =
-      effect.kind === "hover"
-        ? controller.applyHoverVFX({
-            effectId: effect.id,
-            effectEntry: effect,
-          })
-        : effect.kind === "face_anchored"
-          ? controller.applyFaceAnchoredVFX({
-              effectId: effect.id,
-              effectEntry: effect,
-            })
-          : controller.applyTextureVFX({
-              effectId: effect.id,
-              effectEntry: effect,
-              applyMode: effect.applyMode,
-            });
-    void apply.finally(() => {
+    appliedRef.current = current;
+    void applyPreviewEffect(controller, current).finally(() => {
       applySettled = true;
-      if (!cancelled) update();
+      if (cancelled) return;
+      // Catch up with placement edits made while the art was loading.
+      const latest = effectRef.current;
+      const change = avatarEffectPreviewChange(appliedRef.current, latest);
+      if (change.kind === "transform") {
+        controller.updateEffectTransform(current.id, change.transform);
+        appliedRef.current = latest;
+      }
+      update();
     });
     return () => {
       cancelled = true;
       unsubscribe();
-      controller.removeEffect(effect.id);
+      controller.removeEffect(current.id);
+      appliedRef.current = null;
     };
+    // `effect` is read through the ref: only `applyKey` changes re-apply.
   }, [
+    applyKey,
     controller,
-    effect,
     onCompatibilityChange,
     onSnapshot,
     playing,
     revision,
+    skip,
   ]);
 
-  if (!sceneObject) return null;
-  return <primitive object={sceneObject} dispose={null} />;
-}
+  useEffect(() => {
+    const applied = appliedRef.current;
+    if (!controller || !applied || !effect) return;
+    const change = avatarEffectPreviewChange(applied, effect);
+    if (change.kind !== "transform") return;
+    if (controller.updateEffectTransform(effect.id, change.transform))
+      appliedRef.current = effect;
+  }, [controller, effect]);
 
-function SideField({
-  value,
-  onValue,
-  allowBoth = true,
-}: {
-  value: "left" | "right" | null;
-  onValue: (value: "left" | "right" | null) => void;
-  allowBoth?: boolean;
-}) {
-  return (
-    <Field label="Side">
-      <Select
-        value={value ?? "both"}
-        onValueChange={(side) =>
-          onValue(side === "both" ? null : (side as "left" | "right"))
+  const handleClick = useCallback(
+    (event: ThreeEvent<MouseEvent>) => {
+      if (!avatar) return;
+      const entries = buildRuntimePrimitiveBindings(avatar).entries;
+      // The nearest hit that is part of the avatar, not an effect plane.
+      for (const intersection of event.intersections) {
+        const hit = entries.find(
+          (candidate) => candidate.object === (intersection.object as Object3D),
+        );
+        if (hit) {
+          event.stopPropagation();
+          onPick(hit.bindingKey);
+          return;
         }
-      >
-        <SelectTrigger size="sm" className="w-full text-xs">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {allowBoth ? <SelectItem value="both">Both</SelectItem> : null}
-          <SelectItem value="left">Left</SelectItem>
-          <SelectItem value="right">Right</SelectItem>
-        </SelectContent>
-      </Select>
-    </Field>
+      }
+    },
+    [avatar, onPick],
+  );
+
+  if (!sceneObject) return null;
+  return (
+    <primitive
+      object={sceneObject}
+      dispose={null}
+      onClick={picking ? handleClick : undefined}
+    />
   );
 }
 
-function AvatarEffectAxisFields({
-  values,
-  labelPrefix = "",
-  step,
-  decimalPlaces = step === 1 ? 0 : 2,
-  onValueChange,
-}: {
-  values: Record<"x" | "y" | "z", number>;
-  labelPrefix?: string;
-  step: number;
-  decimalPlaces?: number;
-  onValueChange: (axis: "x" | "y" | "z", value: number) => void;
-}) {
-  return (
-    <div className="grid grid-cols-3 gap-2">
-      {(["x", "y", "z"] as const).map((axis) => (
-        <NumberField
-          key={axis}
-          label={`${labelPrefix}${axis.toUpperCase()}`}
-          value={values[axis]}
-          step={step}
-          decimalPlaces={decimalPlaces}
-          onChange={(value) => onValueChange(axis, value)}
-        />
-      ))}
-    </div>
+/**
+ * A new, unsaved Local draft copied from an Included template. It gets a name
+ * no catalog item uses, so its first Save creates a separate Local item.
+ */
+async function loadAvatarEffectTemplate(
+  templateId: string,
+  signal: AbortSignal,
+): Promise<AvatarEffectHistorySnapshot> {
+  const template = avatarEffectTemplate(templateId);
+  if (!template) throw new Error("This Avatar Effect template is unavailable.");
+  const items = await listCatalogItems("avatar_effect", signal);
+  const item = items.find(
+    (candidate) =>
+      candidate.source === "included" &&
+      candidate.logical_key === template.contentId,
   );
+  if (!item)
+    throw new Error(`${template.name} is not available in this installation.`);
+  return hydrateAvatarEffect({
+    itemId: item.item_id,
+    name: createUniqueContentName(
+      item.name,
+      items.map((candidate) => candidate.name),
+    ),
+    description: item.description ?? "",
+    signal,
+  });
 }
 
-function AvatarEffectLeaveDialog({
-  open,
-  onOpenChange,
-  busy,
-  discarding,
-  onStay,
-  onLeave,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  busy: boolean;
-  discarding: boolean;
-  onStay: () => void;
-  onLeave: () => void;
-}) {
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>
-            {busy
-              ? "Leave while content is being saved?"
-              : "Discard authoring changes?"}
-          </DialogTitle>
-          <DialogDescription>
-            {busy
-              ? "This Avatar Effect is still being saved. Local recovery remains available when you return."
-              : "This Avatar Effect has local authoring changes. Discarding removes these changes and their browser recovery draft. Saved content is unchanged."}
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <Button variant="outline" disabled={discarding} onClick={onStay}>
-            Stay
-          </Button>
-          <Button disabled={discarding} onClick={onLeave}>
-            {discarding
-              ? "Discarding…"
-              : busy
-                ? "Leave and keep recovery"
-                : "Discard and continue"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
+/** Download one of the item's registered images as an editable File. */
+async function previewImageResource(
+  preview: PyContentPreview,
+  logicalName: string | null,
+  signal: AbortSignal,
+) {
+  const file =
+    (logicalName
+      ? preview.files.find(
+          (candidate) =>
+            candidate.role === "image" && candidate.filename === logicalName,
+        )
+      : null) ??
+    (logicalName ? null : contentPreviewPrimaryFile(preview, "image"));
+  if (!file) throw new Error("The content item has no editable image file.");
+  const response = await fetchContentPreviewFile(preview, file, { signal });
+  if (!response.ok)
+    throw new Error("The content image could not be downloaded.");
+  const blob = await response.blob();
+  const imageFile = new File([blob], file.filename, { type: file.media_type });
+  const sha256 = file.sha256 || (await sha256File(imageFile, { signal }));
+  return {
+    image: {
+      logicalName: file.filename,
+      originalName: file.filename,
+      contentType: file.media_type,
+      sizeBytes: file.size_bytes,
+      sha256,
+    },
+    resource: { file: imageFile, sha256 },
+  };
 }
 
 async function hydrateAvatarEffect(args: {
@@ -1868,44 +1536,35 @@ async function hydrateAvatarEffect(args: {
   name: string;
   description: string;
   signal: AbortSignal;
-}): Promise<{
-  document: AvatarEffectEditorDocument;
-  image: AvatarEffectEditorImageResource;
-}> {
+}): Promise<AvatarEffectHistorySnapshot> {
   const preview = await previewCatalogItem(
     args.itemId,
     args.signal,
     "avatar_effect",
   );
-  const file = contentPreviewPrimaryFile(preview, "image");
-  if (!file) throw new Error("The content item has no editable image file.");
-  const response = await fetchContentPreviewFile(preview, file, {
-    signal: args.signal,
-  });
-  if (!response.ok)
-    throw new Error("The content image could not be downloaded.");
-  const blob = await response.blob();
-  const imageFile = new File([blob], file.filename, { type: file.media_type });
-  const sha256 =
-    file.sha256 || (await sha256File(imageFile, { signal: args.signal }));
-  const sound = exactSoundFromPreview(preview);
   const definition =
     preview.metadata.definition ?? object(preview.metadata.spec)?.definition;
+  const art = object(object(definition)?.art);
+  const imageName = typeof art?.image === "string" ? art.image : null;
+  const otherEyeName =
+    typeof art?.otherEyeImage === "string" ? art.otherEyeImage : null;
+  const main = await previewImageResource(preview, imageName, args.signal);
+  const otherEye = otherEyeName
+    ? await previewImageResource(preview, otherEyeName, args.signal)
+    : null;
   return {
     document: createAvatarEffectDocumentFromDefinition({
       name: args.name,
       description: args.description,
       definition,
-      image: {
-        logicalName: file.filename,
-        originalName: file.filename,
-        contentType: file.media_type,
-        sizeBytes: file.size_bytes,
-        sha256,
-      },
-      sound,
+      image: main.image,
+      otherEyeImage: otherEye?.image ?? null,
+      sound: exactSoundFromPreview(preview),
     }),
-    image: { file: imageFile, sha256 },
+    imageResources: {
+      image: main.resource,
+      otherEyeImage: otherEye?.resource ?? null,
+    },
   };
 }
 
@@ -1940,27 +1599,13 @@ function exactSoundFromPreview(
 
 function safeRuntimeEntry(
   document: AvatarEffectEditorDocument,
-  imageUrl: string,
-): AvatarVFXCatalogEntry | null {
+  urls: { image: string; otherEyeImage?: string | null },
+): AvatarVFXParsedEntry | null {
   try {
-    return avatarEffectRuntimeEntry(document, imageUrl);
+    return avatarEffectRuntimeEntry(document, urls);
   } catch {
     return null;
   }
-}
-
-function soundSourceKey(source: PyExactContentSource | null): string {
-  if (!source) return "none";
-  return source.type === "builtin"
-    ? `builtin:${source.content_id ?? ""}:${source.version ?? ""}`
-    : `catalog:${source.catalog_item_id}`;
-}
-
-function humanize(value: string): string {
-  return value
-    .replaceAll("_", " ")
-    .replaceAll("-", " ")
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 function object(value: unknown): Record<string, unknown> | null {

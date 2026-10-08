@@ -40,7 +40,10 @@ vi.mock("@/ui/components/popover", () => ({
   PopoverAnchor: ({ children }: { children: ReactNode }) => <>{children}</>,
   PopoverContent: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
-vi.mock("@/ui/sidebar/Sidebar", () => ({ SidebarLink: () => null }));
+vi.mock("@/ui/sidebar/Sidebar", () => ({
+  SidebarLink: () => null,
+  useCloseMobileSidebar: () => () => {},
+}));
 vi.mock("@/ui/app/AppShellPage", () => ({
   AppShellPage: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));

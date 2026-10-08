@@ -11,7 +11,6 @@ from animama.domain.emotions import (
     ordered_emotion_values,
     top_emotion_groups,
 )
-from animama.domain.vfx import normalize_avatar_vfx_ids, selectable_avatar_vfx_catalog
 
 
 def test_anima_create_defaults_to_canonical_emotional_state() -> None:
@@ -82,48 +81,3 @@ def test_top_emotion_groups_derive_group_average_and_peak() -> None:
     ]
     assert groups[0].peak is not None
     assert groups[0].peak.emotion == "joy"
-
-
-def test_selectable_avatar_vfx_catalog_contains_only_selectable_entries() -> None:
-    catalog = selectable_avatar_vfx_catalog()
-
-    assert catalog
-    assert all(entry.is_selectable for entry in catalog)
-    assert all(entry.emotions for entry in catalog)
-    assert all(entry.description for entry in catalog)
-
-
-def test_normalize_avatar_vfx_ids_dedupes_and_enforces_region_rules() -> None:
-    result = normalize_avatar_vfx_ids(
-        [
-            "star",
-            "eye_o",
-            "eyebag_1",
-            "mouth_w",
-            "angry",
-            "emote_!",
-            "texture_black_1",
-            "texture_sick_1",
-            "star",
-            "unknown",
-        ],
-        emotional_state={},
-    )
-
-    # Retired effects stay unknown; only the current packaged catalog is selectable.
-    assert list(result.accepted_ids) == [
-        "star",
-        "texture_black_1",
-        "texture_sick_1",
-    ]
-    assert "texture_black_1" in result.threshold_miss_ids
-    assert "texture_sick_1" in result.threshold_miss_ids
-    assert [(item.effect_id, item.reason) for item in result.dropped] == [
-        ("eye_o", "region_conflict"),
-        ("eyebag_1", "unknown"),
-        ("mouth_w", "manual_only"),
-        ("angry", "unknown"),
-        ("emote_!", "unknown"),
-        ("star", "duplicate"),
-        ("unknown", "unknown"),
-    ]

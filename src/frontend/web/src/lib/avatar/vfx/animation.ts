@@ -3,15 +3,28 @@
 import type {
   AvatarVFXAnimationConfig,
   AvatarVFXAnimationPreset,
+  AvatarVFXFlipbook,
+  AvatarVFXKeyframe,
+  AvatarVFXKeyframes,
   AvatarVFXRotationDirection,
   AvatarVFXResolvedAnimationConfig,
 } from "./types";
 
+/**
+ * Motion at one moment of an effect's own timeline. Presets and keyframes are
+ * combined: scale and opacity multiply, rotation and offsets add. `drift*` are
+ * fractions of the art's size; `offset*` use the attachment's offset units.
+ */
 export type AvatarVFXAnimationState = {
   scale: number;
   rotationRadians: number;
   driftX: number;
   driftY: number;
+  offsetX: number;
+  offsetY: number;
+  opacity: number;
+  /** Flipbook frame index, 0 without a flipbook. */
+  frame: number;
 };
 
 export const DEFAULT_AVATAR_VFX_ANIMATION_CONFIG: AvatarVFXResolvedAnimationConfig =
@@ -153,9 +166,92 @@ export function deriveAvatarVFXAnimationPreset(
   return null;
 }
 
+type KeyframeChannel = "opacity" | "scale" | "rotation" | "offsetX" | "offsetY";
+
+function keyframeChannel(
+  frame: AvatarVFXKeyframe,
+  channel: KeyframeChannel,
+): number | undefined {
+  if (channel === "offsetX") return frame.offset?.x;
+  if (channel === "offsetY") return frame.offset?.y;
+  return frame[channel];
+}
+
+/** Linear interpolation of one channel between the keyframes that define it. */
+function sampleKeyframeChannel(
+  frames: readonly AvatarVFXKeyframe[],
+  channel: KeyframeChannel,
+  time: number,
+  fallback: number,
+): number {
+  let previous: AvatarVFXKeyframe | null = null;
+  for (const frame of frames) {
+    const value = keyframeChannel(frame, channel);
+    if (value === undefined) continue;
+    if (frame.t >= time) {
+      if (!previous) return value;
+      const start = keyframeChannel(previous, channel)!;
+      const span = frame.t - previous.t;
+      const alpha = span > 0 ? (time - previous.t) / span : 1;
+      return start + (value - start) * alpha;
+    }
+    previous = frame;
+  }
+  return previous ? keyframeChannel(previous, channel)! : fallback;
+}
+
+/**
+ * Sample keyframes on the effect's own timeline. A looping timeline repeats
+ * every last-keyframe time; otherwise the last values hold.
+ */
+export function evaluateAvatarVFXKeyframes(
+  keyframes: AvatarVFXKeyframes,
+  elapsedSec: number,
+): {
+  opacity: number;
+  scale: number;
+  rotation: number;
+  offsetX: number;
+  offsetY: number;
+} {
+  const frames = keyframes.frames;
+  const end = frames[frames.length - 1]?.t ?? 0;
+  const time =
+    keyframes.loop && end > 0 ? wrap(elapsedSec, end) : Math.max(0, elapsedSec);
+  return {
+    opacity: Math.min(
+      1,
+      Math.max(0, sampleKeyframeChannel(frames, "opacity", time, 1)),
+    ),
+    scale: Math.max(0.0001, sampleKeyframeChannel(frames, "scale", time, 1)),
+    rotation: sampleKeyframeChannel(frames, "rotation", time, 0),
+    offsetX: sampleKeyframeChannel(frames, "offsetX", time, 0),
+    offsetY: sampleKeyframeChannel(frames, "offsetY", time, 0),
+  };
+}
+
+/** Flipbook frame index at a time; `once` holds the last frame. */
+export function resolveAvatarVFXFlipbookFrame(
+  flipbook: AvatarVFXFlipbook,
+  elapsedSec: number,
+): number {
+  const count = Math.max(1, Math.floor(flipbook.frames));
+  if (count === 1) return 0;
+  const step = Math.max(0, Math.floor(elapsedSec * flipbook.fps));
+  if (flipbook.loop === "once") return Math.min(step, count - 1);
+  if (flipbook.loop === "pingpong") {
+    const period = (count - 1) * 2;
+    const position = step % period;
+    return position < count ? position : period - position;
+  }
+  return step % count;
+}
+
 export function evaluateAvatarVFXAnimation(args: {
   elapsedSec: number;
   config: AvatarVFXResolvedAnimationConfig;
+  keyframes?: AvatarVFXKeyframes;
+  flipbook?: AvatarVFXFlipbook;
 }): AvatarVFXAnimationState {
   const { elapsedSec, config } = args;
 
@@ -193,10 +289,28 @@ export function evaluateAvatarVFXAnimation(args: {
     driftY = elapsedSec * config.driftPerSecond.y;
   }
 
+  let opacity = 1;
+  let offsetX = 0;
+  let offsetY = 0;
+  if (args.keyframes) {
+    const sampled = evaluateAvatarVFXKeyframes(args.keyframes, elapsedSec);
+    scale *= sampled.scale;
+    rotationRadians += sampled.rotation;
+    opacity = sampled.opacity;
+    offsetX = sampled.offsetX;
+    offsetY = sampled.offsetY;
+  }
+
   return {
     scale,
     rotationRadians,
     driftX,
     driftY,
+    offsetX,
+    offsetY,
+    opacity,
+    frame: args.flipbook
+      ? resolveAvatarVFXFlipbookFrame(args.flipbook, elapsedSec)
+      : 0,
   };
 }

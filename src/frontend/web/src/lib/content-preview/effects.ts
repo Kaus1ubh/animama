@@ -4,7 +4,10 @@ import type {
   Avatar,
 } from "@/lib/avatar";
 import type { ParticleVFXPlayRequest } from "@/lib/avatar/particle-vfx/types";
-import type { AvatarVFXCatalogEntry } from "@/lib/avatar/vfx/types";
+import type {
+  AvatarVFXCatalogEntry,
+  AvatarVFXParsedEntry,
+} from "@/lib/avatar/vfx/types";
 import { applyAvatarVFXEffectById } from "@/lib/avatar/vfx/runtime";
 import { buildSceneVFXRuntimeEntry } from "@/lib/scene-vfx/runtime-state";
 import type {
@@ -27,7 +30,7 @@ type PreviewEffectCatalog = {
     runtimeId: string,
   ): Promise<ParticleVFXCatalogEntry | null>;
   resolveAvatarVFX(runtimeId: string): AvatarVFXCatalogEntry | null;
-  loadAvatarVFX(runtimeId: string): Promise<AvatarVFXCatalogEntry | null>;
+  loadAvatarVFX(runtimeId: string): Promise<AvatarVFXParsedEntry | null>;
   resolveSceneVFX(kind: SceneVFXKind, runtimeId: string): SceneVFXEntry | null;
   loadSceneVFX(
     kind: SceneVFXKind,

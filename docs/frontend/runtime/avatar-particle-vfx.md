@@ -75,13 +75,17 @@ animation.
 
 The protected `/particle-effects/new` and
 `/particle-effects/:particleEffectId/edit` routes provide the
-Animama-owned authoring surface. The editor creates a direct Particle Effect
+Animama-owned authoring surface. New Particle Effects start from the Effects
+template picker (the sidebar Create menu's **Effects** item, the Create page's
+Particle FX card or `/effects/new`), which offers Start from scratch until
+Particle templates exist. The editor creates a direct Particle Effect
 document, selects its bounded resources, previews it in its isolated Canvas,
 and saves one editable Local entry.
 
 Included sources are read-only. Editing an Included template starts a new Local
-typed item rather than modifying shipped files. Unsaved recovery stays browser
-authoring state; the stable editor route carries only the catalog item ID.
+typed item rather than modifying shipped files. Unsaved changes autosave to
+browser recovery, as in the other effect creators; the stable editor route
+carries only the catalog item ID.
 
 The editor preserves the existing curated texture manifest, particle-budget
 validation, import/export tools, and Three.quarks preview lifecycle. Save uses

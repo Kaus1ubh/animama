@@ -5,6 +5,7 @@ import {
   getAnimaPoseClipTimelineDuration,
   isAnimaPoseClipVFXEvent,
   parseAnyAnimaPoseClip,
+  sampleAnimaPoseClipAvatarVFXIntensity,
   shouldAnimaPoseClipAutoComplete,
   type AnyAnimaPoseClip,
   type AnimaPoseClipDueEvent,
@@ -86,6 +87,8 @@ type ReactionClipActiveEffect = {
   event: AnimaPoseClipVFXEvent;
   context: AnimaPoseClipEventContext;
   clearAtPlaybackTime: number | null;
+  /** Last envelope value sent to the sink, to skip unchanged updates. */
+  intensity?: number;
 };
 
 type ReactionClipRuntimeState = {
@@ -201,6 +204,7 @@ export class ReactionClipPlayer {
 
     this._applyExpressionSampleAtTime(0);
     this._dispatchEventsBetween(0, 0, { includeStart: true });
+    this._sampleEventEnvelopes(0);
     return true;
   }
 
@@ -250,6 +254,7 @@ export class ReactionClipPlayer {
     this._clearExpiredEventEffects(nextElapsedSec);
 
     if (state.phase === "fadeOut") {
+      this._sampleEventEnvelopes(nextElapsedSec);
       if (this._isCurrentFadeComplete(state.fadeOutDurationSec)) {
         this.clear(state.ownerId, { immediate: true });
       }
@@ -257,6 +262,8 @@ export class ReactionClipPlayer {
     }
 
     this._dispatchEventsBetween(previousElapsedSec, nextElapsedSec);
+    // After dispatch, so an effect that starts this frame gets its first value.
+    this._sampleEventEnvelopes(nextElapsedSec);
 
     if (
       state.phase === "fadeIn" &&
@@ -500,6 +507,26 @@ export class ReactionClipPlayer {
           ? null
           : context.playbackTime + event.duration,
     });
+  }
+
+  /** Send each fading Avatar Effect event's envelope value to the sink. */
+  private _sampleEventEnvelopes(playbackTimeSec: number): void {
+    const state = this._state;
+    const handler = this._eventSink?.setAvatarVFXIntensity;
+    if (!state || !handler) return;
+    for (const activeEffect of state.activeEventEffects.values()) {
+      const { event, context } = activeEffect;
+      if (event.kind !== "avatar_vfx") continue;
+      const intensity = sampleAnimaPoseClipAvatarVFXIntensity(
+        event,
+        playbackTimeSec - context.playbackTime,
+      );
+      if (intensity === undefined || intensity === activeEffect.intensity) {
+        continue;
+      }
+      activeEffect.intensity = intensity;
+      handler(event, context, intensity);
+    }
   }
 
   private _clearExpiredEventEffects(playbackTimeSec: number): void {

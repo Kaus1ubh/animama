@@ -56,6 +56,9 @@ function privateEntry(
       runtime_reference_map: object(node.reference_map),
     },
     definition: object(node.definition),
+    ...(typeof node.definition_error === "string"
+      ? { definition_error: node.definition_error }
+      : {}),
     content_revision: `${revision}:${runtimeId}`,
     source: {
       type: prepared ? "prepared_files" : "authorized_files",
@@ -182,6 +185,8 @@ export function adaptRuntimeSnapshot(
           name: "Avatar",
           config: {
             avatar_catalog_item_id: String(object(avatar.source).item_id ?? ""),
+            // The effective face part correction; validated where it is read.
+            face_parts: avatar.face_parts ?? null,
           },
         },
         "primary_model",

@@ -155,7 +155,11 @@ async def _bounded_upload(upload: UploadFile, *, limit: int) -> tuple[BinaryIO, 
 
 def _raise_content_mutation(exc: Exception) -> NoReturn:
     if isinstance(exc, ContentDocumentError):
-        raise HTTPException(status_code=422, detail={"code": "content_invalid", "reason": exc.code}) from exc
+        # The validator message may quote a submitted key; ``field`` is a JSON path when known.
+        document_detail: dict[str, object] = {"code": "content_invalid", "reason": exc.code, "message": str(exc)}
+        if exc.field is not None:
+            document_detail["field"] = exc.field
+        raise HTTPException(status_code=422, detail=document_detail) from exc
     if isinstance(exc, ContentFileInvalidError):
         raise HTTPException(
             status_code=422, detail={"code": "content_invalid", "reason": exc.reason, "field": exc.field}

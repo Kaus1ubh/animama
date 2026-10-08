@@ -10,6 +10,7 @@ import { BUILT_IN_AVATAR_MOTION_CATALOG } from "@/lib/avatar/motion/AvatarMotion
 import { createLogger } from "@/lib/logger";
 import { EMPTY_RUNTIME_MEDIA_PROVIDER } from "@/lib/runtime-content/AnimaRuntimeMediaCatalog";
 import type { AnimaRuntimeCatalog } from "@/lib/runtime-content/AnimaRuntimeCatalog";
+import { resolveRuntimeAvatarFaceParts } from "@/lib/runtime-content/runtimeAvatarFaceParts";
 import {
   runtimeContentDeliveryUrl,
   runtimeContentDownloadUrl,
@@ -45,8 +46,14 @@ export function useContentCreatorAvatar({
   const viewportElement = gl.domElement;
   const avatarRef = useRef<Avatar | null>(null);
   const [sceneObject, setSceneObject] = useState<Object3D | null>(null);
+  // `entryKey` is the model's identity. A new entry object for the same key
+  // (for example a renewed file grant) is read at the next load instead of
+  // reloading the Avatar.
+  const entryRef = useRef(entry);
+  entryRef.current = entry;
 
   useEffect(() => {
+    const entry = entryRef.current;
     let cancelled = false;
     const controller = new AbortController();
     const avatar = new Avatar(camera, viewportElement, {
@@ -77,6 +84,8 @@ export function useContentCreatorAvatar({
             filePath: download.url,
             sourceUrl: logicalUrl,
             sourceKey: entry.content_revision,
+            // A saved face part correction applies in creator previews too.
+            ...resolveRuntimeAvatarFaceParts(entry),
           },
           (progress) => {
             if (!cancelled) {
@@ -136,7 +145,6 @@ export function useContentCreatorAvatar({
   }, [
     camera,
     catalog,
-    entry,
     entryKey,
     logger,
     onAvatarChange,

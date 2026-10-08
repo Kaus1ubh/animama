@@ -1,20 +1,28 @@
 import { spawn } from "node:child_process";
-import { watch } from "node:fs";
+import { createReadStream, watch } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createServer } from "vite";
 
+import {
+  MAX_PREVIEW_DURATION_SEC,
+  MEDIA_ROUTE,
+  PreviewMediaFiles,
+  createPreviewMediaAdapter,
+} from "./animation-preview-media.mjs";
+
 /**
- * Live motion preview with review notes.
+ * Live motion and Avatar Effect preview with review notes.
  *
  *   pnpm -s animation:preview [<source>] [--compare <source>] [--notes <file>]
- *     [--local-content <dir>] [--port <n>] [--no-open]
+ *     [--duration <s>] [--local-content <dir>] [--port <n>] [--no-open]
  *
- * Plays a clip, project envelope or Library item on both
- * Included Avatars through the app's own Avatar playback, in the system
- * browser. The page's pickers switch to any clip beside a file source and
- * any Library Gesture or Reaction without a restart. Serves
- * on 127.0.0.1 only; writes only review notes and retained versions (see
+ * Plays a clip, project envelope, Library Gesture or Reaction (with its
+ * Avatar and Particle Effects), or an Avatar Effect source on both Included
+ * Avatars through the app's own Avatar playback, in the system browser. The
+ * page's pickers switch to any clip beside a file source, any Library Gesture
+ * or Reaction and any Library Avatar Effect without a restart. Serves on
+ * 127.0.0.1 only; writes only review notes and retained versions (see
  * src/lib/avatar/motion-authoring/preview/).
  */
 const webRoot = fileURLToPath(new URL("..", import.meta.url));
@@ -35,6 +43,7 @@ export async function startPreviewServer({
   notes,
   localContent,
   cwd,
+  duration = null,
   port = 0,
 }) {
   const clients = new Set();
@@ -42,12 +51,19 @@ export async function startPreviewServer({
   let current;
   let origin = "";
   const roots = { cwd, included: includedDir, local: localContent ?? null };
-  // Picker folders: the folders of file sources named here (Library items
-  // are listed from the content roots).
+  const files = new PreviewMediaFiles();
+  const media = createPreviewMediaAdapter({ files, duration });
+  const effectSpecs = [];
+  for (const spec of sources)
+    if (await media.resolve(spec, roots).catch(() => null))
+      effectSpecs.push(spec);
+  // Picker folders: the folders of clip files named here (Library items and
+  // effect sources are listed separately).
   const choiceDirs = [
     ...new Set(
       sources
         .filter((spec) => !spec.startsWith("library:"))
+        .filter((spec) => !effectSpecs.includes(spec))
         .map((spec) => path.dirname(path.resolve(cwd, spec))),
     ),
   ];
@@ -134,6 +150,11 @@ export async function startPreviewServer({
       response.write(`data: ${current.session.state().generation}\n\n`);
       clients.add(response);
       request.on("close", () => clients.delete(response));
+    } else if (
+      request.method === "GET" &&
+      url.pathname.startsWith(MEDIA_ROUTE)
+    ) {
+      await sendMediaFile(response, url);
     } else if (request.method === "GET" && route.startsWith("versions/")) {
       sendJson(
         response,
@@ -169,6 +190,23 @@ export async function startPreviewServer({
     })),
   });
 
+  /** Stream an effect file the session offered to the page. */
+  async function sendMediaFile(response, url) {
+    const file = await files.lookup(url.pathname.slice(MEDIA_ROUTE.length));
+    if (!file) {
+      sendJson(response, 404, { error: "Not found" });
+      return;
+    }
+    response.writeHead(200, {
+      "content-type": PreviewMediaFiles.contentType(file),
+      // Files change while reviewed (and may change back), so never cache.
+      "cache-control": "no-store",
+    });
+    createReadStream(file)
+      .on("error", () => response.destroy())
+      .pipe(response);
+  }
+
   const broadcast = () => {
     for (const client of clients)
       client.write(`data: ${current.session.state().generation}\n\n`);
@@ -180,7 +218,10 @@ export async function startPreviewServer({
   const { listPreviewChoices } = await server.ssrLoadModule(
     `${PREVIEW_MODULES}/sources.ts`,
   );
-  const listChoices = () => listPreviewChoices(roots, choiceDirs);
+  const listChoices = async () => [
+    ...(await listPreviewChoices(roots, choiceDirs)),
+    ...(await media.choices(roots, effectSpecs)),
+  ];
 
   /** Open a session for `specs` and watch its files. */
   async function openSession(specs, notesFile) {
@@ -188,35 +229,64 @@ export async function startPreviewServer({
       sources: specs,
       notes: notesFile,
       roots,
+      media,
     });
     // Watch directories, not files: editors often replace files on save.
     let timer = null;
-    const reload = () => {
-      clearTimeout(timer);
-      timer = setTimeout(() => {
-        session.reload().then(
-          (changed) => changed && broadcast(),
-          (error) => console.error(`Reload failed: ${error.message}`),
-        );
-      }, 120);
-    };
-    const watched = new Set(session.watchPaths);
-    const watchers = [
-      ...new Set([...watched].map((file) => path.dirname(file))),
-    ]
-      .map((dir) => {
+    let closed = false;
+    let watched = new Set();
+    let watchedKey = null;
+    let watchers = [];
+    /**
+     * Watch the session's files (which change when a descriptor names other
+     * images) and, recursively, each effect source's folder, so an image that
+     * is missing when named reloads the source once it appears.
+     */
+    const syncWatchers = () => {
+      const files = new Set(session.watchPaths);
+      const folders = new Set(session.watchDirs);
+      const next = [...files, "", ...folders].join("\n");
+      if (closed || next === watchedKey) return;
+      watchers.forEach((watcher) => watcher.close());
+      watchedKey = next;
+      watched = files;
+      const watchOne = (dir, options, matches) => {
         try {
-          return watch(dir, (_event, name) => {
-            if (name && watched.has(path.join(dir, name.toString()))) reload();
+          return watch(dir, options, (_event, name) => {
+            if (name && matches(name.toString())) reload();
           });
         } catch {
           return null;
         }
-      })
-      .filter(Boolean);
+      };
+      watchers = [
+        ...[...folders].map((dir) =>
+          watchOne(dir, { recursive: true }, () => true),
+        ),
+        ...[...new Set([...watched].map((file) => path.dirname(file)))]
+          .filter((dir) => !folders.has(dir))
+          .map((dir) =>
+            watchOne(dir, {}, (name) => watched.has(path.join(dir, name))),
+          ),
+      ].filter(Boolean);
+    };
+    const reload = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        session.reload().then(
+          (changed) => {
+            syncWatchers();
+            if (changed) broadcast();
+          },
+          (error) => console.error(`Reload failed: ${error.message}`),
+        );
+      }, 120);
+    };
+    syncWatchers();
     return {
       session,
       close() {
+        closed = true;
         clearTimeout(timer);
         watchers.forEach((watcher) => watcher.close());
       },
@@ -344,21 +414,34 @@ function openBrowser(url) {
 }
 
 const USAGE = `Usage: pnpm -s animation:preview [<source>] [--compare <source>] [--notes <file>]
-                                [--local-content <dir>] [--port <n>] [--no-open]
+                                [--duration <s>] [--local-content <dir>] [--port <n>] [--no-open]
 
 A source is a clip file (animaPoseClip/2.0 or 1.0), a creator project
-envelope, or a Library item:
-library:<folder | selector | name>, optionally prefixed included/ or local/.
+envelope, a Library Gesture or Reaction, or an Avatar Effect:
+  library:<folder | selector | name>, optionally prefixed included/ or local/
+  an effect folder or descriptor .json
+  library:avatar-effect/<stem | content_id | name>, optionally prefixed
+    included/ or local/
 Local items come from --local-content or the sourced stack's
 ANIMAMA_LOCAL_CONTENT_HOST_PATH.
 
+A Gesture or Reaction plays its Avatar and Particle Effects as in chat. An
+effect source loops; --duration applies it for that many seconds (up to
+${MAX_PREVIEW_DURATION_SEC}) and then removes it. Changing a descriptor or its images reloads it.
+Keep each effect descriptor in its own <stem>/ folder: that folder is watched
+recursively, so unrelated files beside it would also reload the effect.
+
 The page's Review and Compare pickers list the clips in the folder of each
-file source named here and the Library's Gestures and Reactions. Without a
-source, the first listed item plays.
+file source named here, the Library's Gestures, Reactions and Avatar Effects,
+and the effect sources named here. Without a source, the first listed item
+plays.
 
 Review notes are saved beside a file source as <file name without .json>.review.json
-(laugh.clip.json -> laugh.clip.review.json), or in the working directory for a
-Library item, unless --notes names a file (for the sources named here).`;
+(laugh.clip.json -> laugh.clip.review.json) or beside an effect's folder
+(sparkle/ -> sparkle.review.json). They go in the working directory instead for
+a Library item and for any file inside Library content: under the Included or
+Local root, in a vfx/avatar/<stem>/ folder, or in a <stem>/ folder that holds
+<stem>.meta.json. --notes names another file (for the sources named here).`;
 
 async function main(argv) {
   const values = {};
@@ -372,7 +455,13 @@ async function main(argv) {
     }
     if (argument === "--no-open") open = false;
     else if (
-      ["--compare", "--notes", "--local-content", "--port"].includes(argument)
+      [
+        "--compare",
+        "--notes",
+        "--duration",
+        "--local-content",
+        "--port",
+      ].includes(argument)
     ) {
       const value = argv[index + 1];
       if (value === undefined || value.startsWith("--")) {
@@ -387,11 +476,15 @@ async function main(argv) {
     } else positional.push(argument);
   }
   const port = Number(values["--port"] ?? 0);
+  const duration =
+    values["--duration"] === undefined ? null : Number(values["--duration"]);
   if (
     positional.length > 1 ||
     (positional.length === 0 && values["--compare"]) ||
     !Number.isInteger(port) ||
-    port < 0
+    port < 0 ||
+    (duration !== null &&
+      !(duration > 0 && duration <= MAX_PREVIEW_DURATION_SEC))
   ) {
     console.log(USAGE);
     return 2;
@@ -406,6 +499,7 @@ async function main(argv) {
       notes: values["--notes"],
       localContent: localContent ? path.resolve(cwd, localContent) : null,
       cwd,
+      duration,
       port,
     });
   } catch (error) {
