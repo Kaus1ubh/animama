@@ -6,8 +6,12 @@ new companions have an empty Idle selection. Required selected content still
 passes the normal strict revision, dependency and file checks, including the
 tracked-only native staging gate.
 
-Mixamo motions are optional, editable Local content. They are never automatically
-equipped or included in source, Docker build contexts or desktop packages.
+Motions installed this way are optional, editable Local content. They are never
+automatically equipped or included in source, Docker build contexts or
+self-host images. Desktop and hosted builds ship a separate, owner-acquired set
+as the non-portable [Mixamo-motion pack](../../backend/operations/mixamo-motion-pack.md);
+its files are restricted wherever they appear, so a Local copy with identical
+bytes is non-portable too.
 The acquisition inventory and control-document templates live in
 `scripts/mixamo-assets.json`.
 Existing companions referencing those old Included IDs need explicit replacement

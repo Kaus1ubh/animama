@@ -12,6 +12,8 @@ export type SharingItem = {
   name: string;
   kind: string;
   description?: string | null;
+  /** Non-portable items are listed but cannot be selected for export. */
+  portability?: "portable" | "non-portable" | null;
 };
 
 export type SharingScreen =

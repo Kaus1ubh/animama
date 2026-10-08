@@ -227,6 +227,60 @@ describe("Library sharing", () => {
     expect(page).toContain("won’t be equipped");
     expect(buttons.get("Change file")?.disabled).toBe(false);
   });
+  it("lists non-portable content without offering it for export", () => {
+    const page = html({
+      screen: "export-selection",
+      items: [
+        {
+          item_id: "sway",
+          name: "Sway",
+          kind: "gesture",
+          portability: "non-portable",
+        },
+        { item_id: "wave", name: "Wave", kind: "gesture" },
+      ],
+    });
+    expect(page).toContain("Sway");
+    expect(page).toContain("use here only");
+    expect(page).toMatch(
+      /<button[^>]*disabled=""[^>]*aria-label="Sway" aria-describedby="non-portable-sway"/,
+    );
+    expect(page).not.toMatch(/<button[^>]*disabled=""[^>]*aria-label="Wave"/);
+  });
+  it("explains omitted non-portable items and their import outcome", () => {
+    const page = html({
+      screen: "import-review",
+      importReview: {
+        anima: null,
+        expires_at: "2030-01-01",
+        filename: "hello.zip",
+        items: [
+          {
+            entry_id: "one",
+            kind: "idle_style",
+            name: "Mixed",
+            original_name: "Mixed",
+            selected: true,
+          },
+        ],
+        kind: "content",
+        operation_id: "o",
+        package_sha256: "s",
+        required_count: 0,
+        review_digest: "d",
+        selected_count: 1,
+        size_bytes: 100,
+        stage_id: "stage",
+        non_portable: [
+          { kind: "gesture", name: "Sway", outcome: "rebound" },
+          { kind: "gesture", name: "Bow", outcome: "unavailable" },
+        ],
+      },
+    });
+    expect(page).toContain("Not included in the file (2)");
+    expect(page).toContain("Uses this app&#x27;s copy");
+    expect(page).toContain("Not available here");
+  });
   it("does not offer replacement or discard for an unconfirmed commit", () => {
     const page = html({
       screen: "import-recovery",
@@ -497,6 +551,38 @@ describe("complete package review", () => {
     expect(page).not.toContain("PocketTTS voice: </span>");
     expect(page).toContain("Export Anima");
     expect(page).not.toMatch(/Edit export copy|Music/);
+  });
+  it("lists non-portable items the export leaves out", () => {
+    const page = html({
+      screen: "export-review",
+      exportReview: {
+        digest: "d",
+        expires_at: "2030-01-01",
+        export_id: "e",
+        filename: "hello.zip",
+        manifest: {
+          ...manifest,
+          kind: "content",
+          anima: null,
+          root_entry_ids: ["wave"],
+          non_portable_references: [
+            {
+              kind: "gesture",
+              logical_key: "builtin:gesture:sway",
+              display_name: "Sway",
+              uses: [{ entry_id: "wave", pools: ["default"] }],
+            },
+          ],
+        },
+        package_sha256: "s",
+        required_count: 0,
+        selected_count: 1,
+        size_bytes: 1000,
+      },
+    });
+    expect(page).toContain("Not included in the file (1)");
+    expect(page).toContain("Sway");
+    expect(page).toContain("uses their own copy");
   });
   it("uses prepared content names and only reports that a download started", () => {
     const page = html({

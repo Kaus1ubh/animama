@@ -106,6 +106,45 @@ def test_excluded_optional_audio_never_enters_either_pack(staged_core: Path, tmp
     assert not any(file["path"].startswith("voices/") for file in inventory["files"])
 
 
+def test_non_portable_content_never_enters_either_staged_partition(staged_core: Path, tmp_path: Path) -> None:
+    """Non-portable content ships only as its own private Included source."""
+
+    root = tmp_path / "included"
+    shutil.copytree(staged_core, root)
+    (root / "voices").mkdir()
+    with wave.open(str(root / "voices/non-portable-fixture.wav"), "wb") as audio:
+        audio.setparams((1, 2, 8_000, 0, "NONE", "not compressed"))
+        audio.writeframes(b"\0\0" * 800)
+    license_path = root / "licenses/inventory.json"
+    policy = json.loads(license_path.read_text())
+    policy["rules"].insert(
+        0,
+        {
+            "glob": "voices/non-portable-*",
+            "license_id": "test-non-portable",
+            "provenance": "Non-portable test input",
+            "distribution": "non-portable",
+        },
+    )
+    license_path.write_text(json.dumps(policy))
+
+    inventory = starter_inventory(root)
+
+    assert {"locator": "voices/non-portable-fixture.wav", "reason": "non_portable"} in inventory["excluded"]
+    assert not any(file["path"].startswith("voices/") for file in inventory["files"])
+
+
+def test_unknown_distribution_policy_is_rejected(staged_core: Path, tmp_path: Path) -> None:
+    root = tmp_path / "included"
+    shutil.copytree(staged_core, root)
+    license_path = root / "licenses/inventory.json"
+    policy = json.loads(license_path.read_text())
+    policy["rules"].insert(0, {**policy["rules"][-1], "glob": "**", "distribution": "shareable"})
+    license_path.write_text(json.dumps(policy))
+    with pytest.raises(ValueError, match="Invalid distribution policy"):
+        starter_inventory(root)
+
+
 def test_logical_identity_collisions_are_not_resolved_by_filename_order() -> None:
     first = ScannedContentEntry(
         ContentSource.INCLUDED,

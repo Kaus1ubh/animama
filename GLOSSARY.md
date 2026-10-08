@@ -93,6 +93,15 @@ pool and optional emotion/intensity pools. An omitted cell inherits Default;
 explicit None suppresses idle playback for that cell. Selecting an Idle Style
 does not equip its Gestures for AI invocation.
 
+## Non-portable content
+
+Included content that plays, previews and can be equipped but never leaves the
+app as files: it cannot be customized into a Local copy, exported in a
+[Portable package](#portable-package) or imported. Its licence inventory rule
+sets `"distribution": "non-portable"`, and identical bytes stored anywhere are
+restricted too. The Mixamo-motion pack in desktop and hosted builds is
+non-portable. See [ADR 0018](docs/adr/0018-non-portable-included-content.md).
+
 ## Avatar Effect
 
 Reusable art drawn on or around an Avatar during a Gesture or Reaction: painted

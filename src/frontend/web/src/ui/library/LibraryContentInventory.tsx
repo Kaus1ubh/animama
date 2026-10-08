@@ -8,6 +8,7 @@ import {
   LayoutGrid,
   List,
   Loader2,
+  Lock,
   Pause,
   Pencil,
   Play,
@@ -261,6 +262,32 @@ function ProductRow({
                 {layout === "list" ? " Manage" : null}
               </Button>
             </ActionTooltip>
+          ) : policy.editUnavailableReason ? (
+            // Opens the preview-only page, which explains the restriction to
+            // every user; the tooltip (on hover or focus, in both layouts)
+            // and the description repeat the reason here.
+            <Tooltip delayDuration={300}>
+              <TooltipTrigger asChild>
+                <Button
+                  size={layout === "grid" ? "icon-sm" : "sm"}
+                  variant="outline"
+                  asChild
+                >
+                  <Link
+                    to={editPath}
+                    aria-label="Not editable"
+                    aria-describedby={`not-editable-${card.key}`}
+                  >
+                    <Lock />
+                    {layout === "list" ? " Not editable" : null}
+                    <span id={`not-editable-${card.key}`} className="sr-only">
+                      {policy.editUnavailableReason}
+                    </span>
+                  </Link>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{policy.editUnavailableReason}</TooltipContent>
+            </Tooltip>
           ) : policy.edit ? (
             <ActionTooltip label="Edit" layout={layout}>
               <Button

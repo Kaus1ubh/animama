@@ -89,6 +89,34 @@ describe("Library product presentation", () => {
     },
   );
 
+  it("explains why a non-portable Action cannot be edited, but keeps Idle Style copies", () => {
+    const gesture = libraryProductActionPolicy({
+      ...card("gesture"),
+      nonPortable: true,
+    });
+    expect(gesture).toMatchObject({ preview: true, manage: true, edit: false });
+    expect(gesture.editUnavailableReason).toMatch(/use here only/);
+    const style = libraryProductActionPolicy({
+      ...card("idle-style"),
+      nonPortable: true,
+    });
+    expect(style).toMatchObject({ preview: true, edit: true });
+    expect(style.editUnavailableReason).toBeUndefined();
+    expect(
+      actionLibraryCard("gesture", {
+        item_id: "sway",
+        name: "Sway",
+        description: null,
+        origin: "builtin",
+        source: null,
+        state: "ready",
+        created_at: null,
+        updated_at: null,
+        portability: "non-portable",
+      } as never).nonPortable,
+    ).toBe(true);
+  });
+
   it.each(["particle", "avatar-effect", "scene", "sound"] as const)(
     "keeps %s reusable component actions",
     (family) => {

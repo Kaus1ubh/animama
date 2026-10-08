@@ -19,6 +19,7 @@ from animama.app.services.clip_format import (
 )
 from animama.app.services.content_catalog_service import ContentCatalogService, ContentRescanResult
 from animama.app.services.content_kind_registry import handler_for_kind
+from animama.app.services.content_portability import is_non_portable
 from animama.app.services.idle_playback import derive_idle_playback, read_gesture_idle_playback
 from animama.app.services.local_content_mutations import mutation_digest
 from animama.app.services.music_retirement_service import MusicRetirementService
@@ -93,7 +94,12 @@ class ContentTransitionService:
         catalog = self._content.mutations.catalog
         failures: list[tuple[CatalogContentEntry, str]] = []
         for item in await catalog.list_visible(user_id=user_id):
-            if item.kind is not ContentKind.IDLE_STYLE or item.status is not ContentStatus.VALID:
+            # Non-portable Styles are never copied into Local content.
+            if (
+                item.kind is not ContentKind.IDLE_STYLE
+                or item.status is not ContentStatus.VALID
+                or is_non_portable(item)
+            ):
                 continue
             document = TypedContentService.parse(item).document
             if not isinstance(document, IdleStyleDocumentV1):
@@ -352,6 +358,9 @@ class ContentTransitionService:
                 "idle_transition_motion_ambiguous", "Legacy idle lane needs one registered motion file"
             )
         motion = motion_files[0]
+        if is_non_portable(owner):
+            # Never copy non-portable motion bytes into Local content.
+            raise ContentDocumentError("content_non_portable", "Non-portable motion cannot be copied")
         # Clone runtime resources; the canonical descriptor replaces control
         # metadata (including a standalone VRMA sidecar). Original controls stay
         # untouched. A clip dependency becomes the Action's owned sequence.

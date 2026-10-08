@@ -7,6 +7,7 @@ from typing import Any
 
 from pydantic import ValidationError
 
+from animama.app.contracts.content_package import NonPortableAnimaSlot
 from animama.app.contracts.portable_anima import PortableAnima
 from animama.app.ports.anima_package_source import AnimaPackageSourceRepository, SavedAnimaPackageSource
 from animama.app.ports.content_catalog import ContentCatalog
@@ -22,6 +23,7 @@ from animama.domain.content_catalog import (
 from animama.domain.content_documents import AppearanceDocumentV1, GestureDocumentV1, VoiceDocumentV1
 from animama.domain.emotions import TRACKED_EMOTIONS
 
+from .content_portability import is_non_portable
 from .content_voice import POCKET_CLONE_CODEC
 from .portable_anima_service import resolve_portable_anima
 from .starter_loadout_policy import starter_loadout_policy
@@ -35,10 +37,21 @@ class AnimaPackageSnapshot:
 
 
 @dataclass(frozen=True, slots=True)
+class OmittedAnimaBinding:
+    """A non-portable Gesture or Idle Style binding left out of an Anima export."""
+
+    item: CatalogContentEntry
+    slot: NonPortableAnimaSlot
+    semantic_key: str | None = None
+    config: dict[str, Any] | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class AnimaExportProjection:
     definition: PortableAnima
     selected_item_ids: tuple[str, ...]
     snapshot: AnimaPackageSnapshot
+    omitted: tuple[OmittedAnimaBinding, ...] = ()
 
 
 class AnimaPackageSourceService:
@@ -110,6 +123,16 @@ class AnimaPackageSourceService:
         avatar: str | None = None
         idle: str | None = None
         pocket_voice: str | None = None
+        omitted: list[OmittedAnimaBinding] = []
+
+        def portable(item: CatalogContentEntry) -> bool:
+            """Only Gesture and Idle Style bindings may be omitted; others block export."""
+            if not is_non_portable(item):
+                return True
+            if item.kind not in {ContentKind.GESTURE, ContentKind.IDLE_STYLE}:
+                raise ContentConflictError("package_non_portable", items=(item.display_name,))
+            return False
+
         for row in source.bindings:
             if row.kind == "music_track" or row.kind == "voice" and source.effective_tts_provider != "pocket_tts":
                 continue
@@ -119,10 +142,15 @@ class AnimaPackageSourceService:
                 document = TypedContentService.parse(item).document
             except (ValueError, ContentNotFoundError) as exc:
                 raise ContentConflictError("package_anima_source_invalid") from exc
+            if kind not in {ContentKind.GESTURE, ContentKind.IDLE_STYLE}:
+                portable(item)  # Raises for any other non-portable binding.
             if kind is ContentKind.GESTURE and isinstance(document, GestureDocumentV1):
                 if row.slot_key != f"gesture:{document.semantic_key}":
                     raise ContentConflictError("package_anima_gesture_key_mismatch")
-                gestures.append({"semantic_key": document.semantic_key, "entry_id": item.id, "config": row.config})
+                if portable(item):
+                    gestures.append({"semantic_key": document.semantic_key, "entry_id": item.id, "config": row.config})
+                else:
+                    omitted.append(OmittedAnimaBinding(item, "gesture", document.semantic_key, dict(row.config)))
             elif kind is ContentKind.REACTION and row.slot_key.startswith("reaction:"):
                 emotion, _, level = row.slot_key.removeprefix("reaction:").rpartition("-")
                 if emotion not in reactions or level not in reactions[emotion]:
@@ -131,7 +159,10 @@ class AnimaPackageSourceService:
             elif kind is ContentKind.AVATAR and row.slot_key == "avatar" and not row.config:
                 avatar = item.id
             elif kind is ContentKind.IDLE_STYLE and row.slot_key == "idle-style" and not row.config:
-                idle = item.id
+                if portable(item):
+                    idle = item.id
+                else:
+                    omitted.append(OmittedAnimaBinding(item, "idle_style"))
             elif (
                 kind is ContentKind.VOICE
                 and row.slot_key == "voice"
@@ -159,14 +190,22 @@ class AnimaPackageSourceService:
             key = starter["content_id"].rsplit(":", 1)[-1]
             if f"gesture:{key}" not in rows and ("gesture", key) not in exclusions:
                 item = included(starter["content_id"], ContentKind.GESTURE)
-                gestures.append({"semantic_key": key, "entry_id": item.id, "config": {}})
+                if portable(item):
+                    gestures.append({"semantic_key": key, "entry_id": item.id, "config": {}})
+                else:
+                    omitted.append(OmittedAnimaBinding(item, "gesture", key, {}))
         for starter in policy["reactions"]:
             emotion, level = starter["emotion"], str(starter["intensity"])
             if f"reaction:{emotion}-{level}" not in rows and ("reaction", f"{emotion}-{level}") not in exclusions:
                 item = included(starter["content_id"], ContentKind.REACTION)
+                portable(item)
                 reactions[emotion][level] = {"entry_id": item.id, "config": {}}
         if "idle-style" not in rows and not source.idle_style_empty:
-            idle = included("builtin:idle-style:starter", ContentKind.IDLE_STYLE).id
+            starter_idle = included("builtin:idle-style:starter", ContentKind.IDLE_STYLE)
+            if portable(starter_idle):
+                idle = starter_idle.id
+            else:
+                omitted.append(OmittedAnimaBinding(starter_idle, "idle_style"))
         if avatar is None:
             if source.avatar_catalog_item_id is not None:
                 avatar = select_item(source.avatar_catalog_item_id, ContentKind.AVATAR).id
@@ -182,6 +221,7 @@ class AnimaPackageSourceService:
                 if len(candidates) != 1:
                     raise ContentConflictError("package_anima_avatar_unavailable")
                 avatar = select_item(candidates[0].id, ContentKind.AVATAR).id
+            portable(selected[avatar])
         try:
             definition = PortableAnima.model_validate(
                 {
@@ -202,7 +242,7 @@ class AnimaPackageSourceService:
             source, tuple(sorted((item.id, item.revision_sha256 or "") for item in selected.values()))
         )
         return AnimaExportProjection(
-            definition, tuple(item_id for item_id, _ in definition.entry_references()), snapshot
+            definition, tuple(item_id for item_id, _ in definition.entry_references()), snapshot, tuple(omitted)
         )
 
     async def recheck(self, *, user_id: str, snapshot: AnimaPackageSnapshot) -> None:

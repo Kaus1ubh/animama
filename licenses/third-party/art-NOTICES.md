@@ -90,4 +90,6 @@ LeLu's Noise Pack is ignored and has no tracked files or identified retained
 texture derivatives. No LeLu bytes or license grant are being included here.
 Its old inventory entry is historical acquisition information, not permission
 for future reintroduction. Mixamo raw/converted clips are likewise outside this
-art inventory and remain user-supplied inputs under their separate terms.
+art inventory. Desktop and hosted builds carry the owner's converted clips only
+in the private, non-portable Mixamo-motion pack, under its own licence
+inventory and Adobe's terms.

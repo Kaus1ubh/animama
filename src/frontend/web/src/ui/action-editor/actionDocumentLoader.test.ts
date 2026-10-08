@@ -184,6 +184,22 @@ describe("Starter action customization", () => {
     ).toBe(false);
   });
 
+  it("never offers a non-portable Starter for customization", () => {
+    expect(
+      isCustomizableStarterAction(
+        {
+          ...item({
+            intent: "gesture",
+            id: "builtin:gesture:shy-finger-poke",
+            name: "Shy Finger Poke",
+          }),
+          portability: "non-portable",
+        },
+        "gesture",
+      ),
+    ).toBe(false);
+  });
+
   it("hydrates a Starter Reaction as a new document with exact dependencies", async () => {
     const starter = item({
       intent: "reaction",

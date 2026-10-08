@@ -23,6 +23,7 @@ from animama.app.contracts.content_package import (
     MAX_PACKAGE_BYTES,
     MAX_PACKAGE_FILES,
     MAX_PACKAGE_METADATA_BYTES,
+    NON_PORTABLE_REFERENCES_CAPABILITY,
     PACKAGE_SCHEMA,
     PackageEntry,
     PackageFile,
@@ -370,6 +371,9 @@ class ContentPackageArchive:
         if len(scanned) != 1 or scanned[0].relative_locator != locator:
             raise ContentConflictError("package_entry_members_mismatch")
         item = scanned[0]
+        if any(file.sha256 in self._store.restricted_sha256 for file in item.files):
+            # Non-portable bytes never enter Local content, whoever built the package.
+            raise ContentConflictError("package_non_portable", items=(entry.display_name,))
         if any(diagnostic.code == CLIP_FORMAT_UNSUPPORTED for diagnostic in item.diagnostics):
             # Name the retired clip format rather than a generic invalid entry.
             raise ContentConflictError(CLIP_FORMAT_UNSUPPORTED)
@@ -465,6 +469,8 @@ class ContentPackageArchive:
                 metadata=item.metadata,
                 provenance=item.provenance,
             )
+        if manifest.non_portable_references:
+            required.add(NON_PORTABLE_REFERENCES_CAPABILITY)
         validate_capabilities(manifest.capabilities, required)
         context = TypedContentResolutionContext(catalog)
         for entry_id, result in inspected.items():

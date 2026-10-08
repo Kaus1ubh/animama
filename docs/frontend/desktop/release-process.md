@@ -62,10 +62,18 @@ Ordinary web builds do not need optional voices or the cloning encoder.
 From `src/frontend`, the candidate sequence is:
 
 ```sh
-pnpm desktop:runtime:stage -- --platform darwin --arch arm64
+pnpm desktop:mixamo-motion fetch
+ANIMAMA_REQUIRE_MIXAMO_MOTION=1 pnpm desktop:runtime:stage -- --platform darwin --arch arm64
 pnpm desktop:runtime:audit -- --platform darwin --arch arm64
 pnpm desktop:dist:mac
 ```
+
+`fetch` needs the read-only [Mixamo-motion pack](../../backend/operations/mixamo-motion-pack.md)
+credentials in the environment; the release workflow reads
+`ANIMAMA_R2_ACCOUNT_ID` and the `ANIMAMA_MIXAMO_R2_*` read secrets from the
+`desktop-macos-signing` environment. `ANIMAMA_REQUIRE_MIXAMO_MOTION=1` makes the
+stage fail without the verified pack, so a candidate cannot silently ship
+without it.
 
 The signed helper and reviewed pack/core inputs must already be configured.
 Public visibility and release-repository API availability are not candidate build
@@ -165,7 +173,9 @@ unapproved template and must never be filled automatically from test success.
 On the Windows 11 x64 build host, from `src/frontend` in a clone checked out at
 the exact commit, with the same `ANIMAMA_RELEASE_DISTRIBUTION` throughout:
 
-```sh
+```powershell
+pnpm desktop:mixamo-motion fetch
+$env:ANIMAMA_REQUIRE_MIXAMO_MOTION = "1"
 pnpm desktop:runtime:stage -- --platform win32 --arch x64
 pnpm desktop:runtime:audit -- --platform win32 --arch x64
 pnpm desktop:dist:windows
