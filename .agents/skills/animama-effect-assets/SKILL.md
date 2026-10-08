@@ -36,12 +36,15 @@ effect skill).
    Without a generator, ask for art rather than drawing placeholder shapes in
    code, unless the brief asks for simple geometric art.
    **Several images at once:** generation is the slow step (30–90 s each),
-   so start independent images together: run each `gen.sh` as a background
-   command and wait for all of them, a few at a time (two to four; on a
-   rate-limit or busy error, wait and retry once). Flipbook frames that
+   so start independent images together, a few at a time (two to four): put
+   the `gen.sh` calls in one shell command joined with `&` and ending in
+   `wait` (a job left running when its shell exits dies silently). On a
+   rate-limit or busy error, wait and retry once. The Read tool shows
+   transparency as black; judge alpha with `effects:assets preview`. Flipbook frames that
    `--ref` the first frame start after the first frame exists. Give every
-   image of a library the same style reference with `--ref` and say in the
-   prompt that it sets the line weight and shading, not the subject.
+   image of a library the same style reference with `--ref` (edits too:
+   `--edit <file> --ref <style>`) and say in the prompt that it sets the line
+   weight and shading, not the subject.
 3. **Look at every image** with the Read tool before anything else. Reject
    and regenerate (once, with one targeted prompt change) art with the wrong
    subject, extra objects, text, cropped edges or a style that does not match
@@ -59,7 +62,11 @@ effect skill).
      see-through art (glows, tears, shades); `--budget surface` never reports
      it, since painted tints are see-through by design;
    - `padding` → `--trim --pad 8 --square` for floating, body and sticker
-     art (`--pad` is in output pixels, after shrinking to the budget). Never trim, pad or square **face-surface** art (`--budget surface`
+     art (`--pad` is in output pixels, after shrinking to the budget).
+   - Painted art placed by its framing (an iris pattern, a decal): `--canvas
+     <px> --art-size <px>` trims the art, scales it to `art-size` and centres
+     it on a `canvas` square, so redone art keeps the same framing (match the
+     effect it replaces, e.g. a 168 px star on a 512 canvas). Never trim, pad or square **face-surface** art (`--budget surface`
      refuses): it is laid over the face texture's UV layout.
    `fix` never overwrites its input and checks its output; it also bleeds edge
    colour into transparent pixels so filtering shows no fringe. An unreadable
@@ -71,8 +78,11 @@ effect skill).
    colour means regenerate or edit the source.
 7. **Flipbooks:** make each frame as its own image (same canvas and framing;
    `--ref` the first frame), fix each frame with the same options, then
-   `pnpm -s effects:assets flipbook <frame...> --out <name>.png [--cell 256]
-   [--columns N] --fps <n> [--loop loop|once|pingpong]`. Frames read left to
+   `pnpm -s effects:assets flipbook <frame...> --out <name>.png [--trim]
+   [--cell 256] [--columns N] --fps <n> [--loop loop|once|pingpong]`. Leave
+   frames untrimmed in `fix` and pass `--trim` here: it crops every frame to
+   one shared box, so the frames keep their positions relative to each
+   other. Frames read left to
    right, top to bottom. It prints the `art.flipbook` fragment for the
    definition. Frames fitted into `--cell` are resampled, then their alpha is
    settled again (faint cleared, near-opaque raised) and their edges bled.

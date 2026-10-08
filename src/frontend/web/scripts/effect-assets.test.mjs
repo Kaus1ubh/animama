@@ -369,6 +369,53 @@ test("a preview shows the art on three backdrops", async () => {
   assert.equal(preview.data[(16 * 192 + 144) * 4], 220);
 });
 
+test("art is framed at a set size on a fixed canvas", async () => {
+  const input = await png(300, 200, disc(220, 60, 30, clear));
+  const { buffer } = await fixImage(input, { canvas: { size: 128, art: 40 } });
+  const framed = await readRgba(buffer);
+  assert.equal(framed.width, 128);
+  assert.equal(framed.height, 128);
+  assert.equal(alphaAt(framed, 64, 64), 255);
+  assert.equal(alphaAt(framed, 64, 40), 0);
+  assert.equal(alphaAt(framed, 64, 45), 255);
+  await assert.rejects(
+    fixImage(input, { canvas: { size: 128, art: 40 }, pad: 4 }),
+    /canvas sets the size/,
+  );
+});
+
+test("flipbook cells can be taller than wide", async () => {
+  const frames = [
+    await png(100, 100, disc(50, 50, 40, clear)),
+    await png(100, 100, disc(50, 50, 40, clear)),
+  ];
+  const { buffer } = await assembleFlipbook(frames, {
+    cell: { width: 32, height: 64 },
+  });
+  const sheet = await readRgba(buffer);
+  assert.equal(sheet.width, 64);
+  assert.equal(sheet.height, 64);
+  assert.equal(alphaAt(sheet, 16, 32), 255);
+  assert.equal(alphaAt(sheet, 16, 2), 0);
+});
+
+test("flipbook trim crops every frame to one shared box", async () => {
+  const frames = [
+    await png(100, 100, disc(30, 50, 10, clear)),
+    await png(100, 100, disc(70, 50, 10, clear)),
+  ];
+  const { buffer, flipbook } = await assembleFlipbook(frames, { trim: true });
+  assert.equal(flipbook.columns, 2);
+  const sheet = await readRgba(buffer);
+  // Shared box: x 20–80, y 40–60 → 61×21 cells; each disc keeps its side.
+  assert.equal(sheet.width, 122);
+  assert.equal(sheet.height, 21);
+  assert.equal(alphaAt(sheet, 10, 10), 255);
+  assert.equal(alphaAt(sheet, 50, 10), 0);
+  assert.equal(alphaAt(sheet, 61 + 50, 10), 255);
+  assert.equal(alphaAt(sheet, 61 + 10, 10), 0);
+});
+
 test("frames are assembled on a grid with a flipbook fragment", async () => {
   const frames = await Promise.all(
     [0, 1, 2, 3, 4].map((index) =>

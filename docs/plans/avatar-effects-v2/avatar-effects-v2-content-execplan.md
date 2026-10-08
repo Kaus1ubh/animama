@@ -73,9 +73,9 @@ Paths: frontend relative to `src/frontend/web/`, backend to
 - [x] P1 — Effect-asset scripts and skill (R12). Done 2026-10-08; review passed at round 3.
 - [x] P2 — Authoring pipeline tools: check, save, promote (R13, R16 tooling). Done 2026-10-08; review rounds used (last fix verified by tests, rechecked at final integration).
 - [x] P3 — Avatar Effect skill rewrite and fresh-agent dry run (R13). Done 2026-10-08: two dry runs, review passed at round 2. Next: gate G1 (owner's effect list) and the floating-offset runtime fix before P4.
-- [ ] P4 — Effect batch A: upgrades and kept effects (R14). Gate G2.
-- [ ] P5 — Effect batch B: new face effects (R14). Gate G2.
-- [ ] P6 — Effect batch C: flipbooks, body, sticker and silhouette effects (R14). Gate G2.
+- [ ] P4 — Effect batch A: upgrades and kept effects (R14). Produced 2026-10-08; awaiting G2.
+- [ ] P5 — Effect batch B: new face effects (R14). Produced 2026-10-08; awaiting G2.
+- [ ] P6 — Effect batch C: flipbooks, body, sticker and silhouette effects (R14). Produced 2026-10-08; awaiting G2.
 - [ ] P7 — Reaction wiring (R15). Gate G3.
 - [ ] P8 — Promotion, documentation and acceptance (R16). Gate G4.
 
@@ -690,6 +690,38 @@ checks: `effects check` on every folder; render sheets with no controller
 warnings; `effects:bench` once with the heaviest new combination (budget 2 ms
 added, quiet machine). Done when every effect is approved, revised and
 re-approved, or dropped by the owner.
+
+#### P4–P6 record
+
+- Issues #351–#353. Starting revision `be0fc0a1`.
+- 2026-10-08: six parallel subagents produced all 24 effect folders in
+  `.animama-drafts/effects/<stem>/` (briefs, sources and renders in
+  `<stem>-work/`), each passing `effects check` on both Included Avatars.
+  About 10–16 minutes per group; no image-generation rate limits; one Codex
+  run returned no image and succeeded on retry.
+- Notable choices (for G2): Eye VV redrawn as a "^ ^" happy squint (the old
+  art was "> <"); Anger mark and Exclamation lose their spin wobble for a
+  pop-in and throb or jolt; Steam puffs is a 4-frame flipbook; DOKI DOKI is
+  stacked on two lines (a one-line version is kept); Despair shade uses the
+  multiply blend at 0.8 so it darkens rather than tints; Mouth w and Mouth
+  Hover w are 1.2× larger (at the old size they fail the visible-art floor,
+  as the Included originals do); the three face textures are edits of the
+  Included textures, placed with a calibration grid of the face layout.
+- Consistency pass (agent): one overview of all 24 at 1 s, front and face
+  views, on both Avatars. Eye 0 enlarged (scale 0.5 → 0.65) to match the
+  other eye effects; Gloom lines lowered and shortened so they hang from the
+  brow instead of above the head. Both re-checked.
+- Tooling from the agents' reports: `effects:assets fix --canvas <px>
+  --art-size <px>` (fixed framing for painted art), `flipbook --trim` (one
+  shared crop) and `--cell <W>x<H>` (non-square frames), with tests; skill
+  notes on concurrent generation (`&` + `wait`), `--ref` on edits, judging
+  alpha with `preview`, placement sizes, decal aspect, and spin swing.
+  Open tooling notes: generated face textures carry grain that pushes them
+  over budget (an agent flattened it with a median filter and colour
+  quantisation outside the repository tools); follow-up edits of translucent
+  overlays tend to lose their transparency, so redraws start from the
+  Included texture.
+- Next: the owner's live review of all 24 (G2).
 
 ### P7 — Reaction wiring (R15). Gate G3.
 

@@ -471,7 +471,10 @@ pnpm -s effects:assets preview art/drop.png --out /tmp/drop-preview.png
   because it lies over the face texture's UV layout.
 - `flipbook` lays frames out left to right, top to bottom, within the grid
   limits, fitting them into `--cell` when sizes differ and settling their alpha
-  after resampling, and prints the `art.flipbook` fragment.
+  after resampling, and prints the `art.flipbook` fragment. `--trim` crops
+  every frame to one shared box so the frames stay aligned.
+- `fix --canvas <px> --art-size <px>` trims the art, scales it and centres it
+  on a fixed canvas, the framing painted iris and decal art is placed by.
 - `preview` shows the art on dark, light and checkered backdrops.
 
 Budgets: `landmark`, `body` and `sticker` 512 px and 256 KiB; `surface` and

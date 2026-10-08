@@ -50,6 +50,11 @@ is not needed in a draft.
     anchor (`pivot` picks the image point placed there). `eyes`, `undereye`
     and `blush` need `layout` `single` (one side, `side` required for
     decals, optional `mirror`) or `span` (one image across both sides).
+    A decal's size follows its image's aspect against the anchor: a taller
+    canvas gives a longer mark, a wider one a broader mark. Generate decal
+    art at the aspect you want rather than stretching it, which thickens the
+    outline unevenly; `effects:assets flipbook --cell <W>x<H>` keeps
+    non-square frames.
     `mode` `overlay` or `replace` (decals overlay only); `offset` (UV),
     `scale`, `rotationDeg`.
   - `body` — `bone` (`root`, `hips`, `spine`, `chest`, `neck`, `head`,
@@ -72,7 +77,9 @@ is not needed in a draft.
   `normal`, `additive` or `multiply`.
 - `motion` (all optional, combined): `pulse { scaleMin, scaleMax,
   cyclesPerSecond }`, `spin { degreesPerSecond, amountTurns, direction }`
-  (under one turn it swings), `drift { x, y }` (art sizes per second),
+  (under one turn it swings from 0 to `amountTurns` and back, not around 0:
+  for a centred wobble offset the attachment's `rotationDeg` by half the
+  swing), `drift { x, y }` (art sizes per second),
   `keyframes { loop, frames: [{ t, opacity?, scale?, rotationDeg?, offset? }] }`
   on the effect's own timeline in seconds: times increase; omitted channels
   interpolate from neighbouring frames; keyframe `scale` is one number
@@ -95,7 +102,12 @@ frames at up to 60 fps; up to 64 keyframes; scale up to 20.
 
 ## Recipes
 
-Start here, then fit to the art with renders.
+Start here, then fit to the art with renders. Sizes that read well on the
+Included Avatars, for trimmed square art: floating eye art `scale` 0.45–0.6;
+forehead marks about 0.55; a mark on `top_edge` 1.4–1.6; a column rising
+from `top` about 2.0 with `offset.y` 0.06 (metres up); stickers `size`
+0.1–0.15. Several effects on one Avatar look crowded when they share a
+side: spread emotes and stickers across both sides of the head.
 
 | Effect | Attachment | Notes |
 | --- | --- | --- |

@@ -511,6 +511,9 @@ async function toRgba(pipeline) {
 
 /**
  * Repair one image and return `{ buffer, report }`, a PNG and what changed.
+ * With `canvas: { size, art }` the art is trimmed, scaled so its longest
+ * side is `art` px and centred on a `size` px transparent square instead of
+ * squaring, padding and shrinking.
  * Steps run in a fixed order: remove the backdrop, trim, square, resize so
  * the result including `pad` fits `maxDimension` (never enlarging), pad in
  * output pixels, clear faint alpha, raise near-opaque alpha, make the
@@ -526,6 +529,7 @@ export async function fixImage(
     square = false,
     pad = 0,
     maxDimension,
+    canvas,
     clearBelow = DEFAULT_CLEAR_BELOW,
     opaqueFrom = DEFAULT_OPAQUE_FROM,
   } = {},
@@ -539,7 +543,11 @@ export async function fixImage(
   if (remove) report.background = removeBackground(image);
   // Faint noise must not hold the trim box open.
   applyAlphaThresholds(image, clearBelow, 256);
-  if (trim) {
+  if (canvas && (square || pad || maxDimension))
+    throw new EffectAssetError(
+      "a canvas sets the size and margins itself; leave out square, pad and max",
+    );
+  if (trim || canvas) {
     const { bounds } = measure(image, { clearBelow });
     if (!bounds) throw new EffectAssetError("no visible pixels to keep");
     image = await toRgba(
@@ -548,6 +556,29 @@ export async function fixImage(
         top: bounds.y,
         width: bounds.width,
         height: bounds.height,
+      }),
+    );
+  }
+  if (canvas) {
+    // Trimmed art at a set size, centred on a fixed canvas: the framing that
+    // painted face art (an iris pattern, a decal) is placed by.
+    image = await toRgba(
+      rawImage(image).resize({
+        width: canvas.art,
+        height: canvas.art,
+        fit: "inside",
+        kernel: "lanczos3",
+      }),
+    );
+    const extraX = canvas.size - image.width;
+    const extraY = canvas.size - image.height;
+    image = await toRgba(
+      rawImage(image).extend({
+        left: Math.floor(extraX / 2),
+        right: Math.ceil(extraX / 2),
+        top: Math.floor(extraY / 2),
+        bottom: Math.ceil(extraY / 2),
+        background: { r: 0, g: 0, b: 0, alpha: 0 },
       }),
     );
   }
@@ -621,8 +652,14 @@ export async function fixImage(
  */
 export async function assembleFlipbook(
   frames,
-  { columns, cell, fps = 12, loop = "loop" } = {},
+  { columns, cell: cellOption, fps = 12, loop = "loop", trim = false } = {},
 ) {
+  // A cell is one size (square) or `{ width, height }`; frames are fitted
+  // inside it and centred.
+  const cell =
+    typeof cellOption === "number"
+      ? { width: cellOption, height: cellOption }
+      : cellOption;
   if (!frames.length) throw new EffectAssetError("a flipbook needs frames");
   if (frames.length > FLIPBOOK_LIMITS.frames)
     throw new EffectAssetError(
@@ -647,18 +684,47 @@ export async function assembleFlipbook(
   // any frame is decoded; frames are then decoded one at a time.
   const headers = [];
   for (const frame of frames) headers.push(await readMetadata(frame));
+  const sizes = new Set(
+    headers.map((header) => `${header.width}×${header.height}`),
+  );
+  if (sizes.size > 1 && (!cell || trim))
+    throw new EffectAssetError(
+      `frames must be the same size (found ${[...sizes].join(", ")}); ${trim ? "--trim crops every frame to one shared box" : "pass --cell <px|WxH> to fit them"}`,
+    );
+  // `trim`: one crop box around the art of every frame, so frames keep their
+  // positions relative to each other.
+  let box = null;
+  if (trim) {
+    for (const frame of frames) {
+      const image = await readRgba(frame);
+      applyAlphaThresholds(image, DEFAULT_CLEAR_BELOW, 256);
+      const { bounds } = measure(image);
+      if (!bounds) continue;
+      box = box
+        ? {
+            left: Math.min(box.left, bounds.x),
+            top: Math.min(box.top, bounds.y),
+            right: Math.max(box.right, bounds.x + bounds.width),
+            bottom: Math.max(box.bottom, bounds.y + bounds.height),
+          }
+        : {
+            left: bounds.x,
+            top: bounds.y,
+            right: bounds.x + bounds.width,
+            bottom: bounds.y + bounds.height,
+          };
+    }
+    if (!box) throw new EffectAssetError("no visible pixels in any frame");
+  }
   let cellWidth;
   let cellHeight;
   if (cell) {
-    cellWidth = cellHeight = cell;
+    cellWidth = cell.width;
+    cellHeight = cell.height;
+  } else if (box) {
+    cellWidth = box.right - box.left;
+    cellHeight = box.bottom - box.top;
   } else {
-    const sizes = new Set(
-      headers.map((header) => `${header.width}×${header.height}`),
-    );
-    if (sizes.size > 1)
-      throw new EffectAssetError(
-        `frames must be the same size (found ${[...sizes].join(", ")}); pass --cell <px> to fit them`,
-      );
     cellWidth = headers[0].width;
     cellHeight = headers[0].height;
   }
@@ -671,11 +737,20 @@ export async function assembleFlipbook(
   const composites = [];
   for (const [index, frame] of frames.entries()) {
     let image = await readRgba(frame);
+    if (box)
+      image = await toRgba(
+        rawImage(image).extract({
+          left: box.left,
+          top: box.top,
+          width: box.right - box.left,
+          height: box.bottom - box.top,
+        }),
+      );
     if (cell)
       image = await toRgba(
         rawImage(image).resize({
-          width: cell,
-          height: cell,
+          width: cell.width,
+          height: cell.height,
           fit: "inside",
           withoutEnlargement: true,
           kernel: "lanczos3",
@@ -782,7 +857,8 @@ const USAGE = [
   "Usage:",
   "  pnpm -s effects:assets check <png...> [--budget <name>] [--json]",
   "  pnpm -s effects:assets fix <in.png> --out <out.png> [options]",
-  "  pnpm -s effects:assets flipbook <frame.png...> --out <sheet.png> [--columns N] [--cell px] [--fps 12] [--loop loop|once|pingpong]",
+  "  pnpm -s effects:assets flipbook <frame.png...> --out <sheet.png> [--trim] [--columns N] [--cell px|WxH] [--fps 12] [--loop loop|once|pingpong]",
+  "      --trim crops every frame to one shared box around all the art",
   "  pnpm -s effects:assets preview <png> --out <preview.png>    art on dark, light and checkered backdrops",
   "",
   `Budgets: ${Object.entries(BUDGETS)
@@ -797,6 +873,8 @@ const USAGE = [
   "  --pad <px>             transparent margin on every side, in output pixels",
   "  --max <px>             shrink so the longest side fits (never enlarges)",
   "  --budget <name>        --max from the budget, then check against it",
+  "  --canvas <px> --art-size <px>  trim, scale to art-size and centre on a",
+  "                         canvas-size square (fixed framing for painted art)",
   `  --opaque-from <1-256>  raise alpha at or above this to 255; 256 turns it off (default ${DEFAULT_OPAQUE_FROM})`,
   `  --clear-below <0-255>  clear alpha below this (default ${DEFAULT_CLEAR_BELOW})`,
   "",
@@ -811,6 +889,8 @@ const VALUE_OPTIONS = new Set([
   "--max",
   "--opaque-from",
   "--clear-below",
+  "--canvas",
+  "--art-size",
   "--columns",
   "--cell",
   "--fps",
@@ -854,6 +934,21 @@ function integer(values, name, min, max) {
       `${name} must be an integer from ${min} to ${max}.`,
     );
   return value;
+}
+
+/** `--cell`: one size for square cells, or `WxH`. */
+function parseCell(value) {
+  if (value === undefined) return undefined;
+  const match = /^([1-9]\d{0,3})(?:x([1-9]\d{0,3}))?$/.exec(value);
+  if (!match)
+    throw new EffectAssetError("--cell takes <px> or <width>x<height>.");
+  const width = Number(match[1]);
+  const height = Number(match[2] ?? match[1]);
+  if (Math.max(width, height) > RUNTIME_LIMITS.dimension)
+    throw new EffectAssetError(
+      `--cell must fit in ${RUNTIME_LIMITS.dimension} px.`,
+    );
+  return { width, height };
 }
 
 function budgetFor(values) {
@@ -951,6 +1046,22 @@ async function main(argv) {
         throw new EffectAssetError(
           "fix never overwrites its input; choose another --out.",
         );
+      const canvasSize = integer(
+        values,
+        "--canvas",
+        1,
+        RUNTIME_LIMITS.dimension,
+      );
+      const artSize = integer(
+        values,
+        "--art-size",
+        1,
+        RUNTIME_LIMITS.dimension,
+      );
+      if ((canvasSize === undefined) !== (artSize === undefined))
+        throw new EffectAssetError("--canvas and --art-size go together.");
+      if (canvasSize !== undefined && artSize > canvasSize)
+        throw new EffectAssetError("--art-size must fit inside --canvas.");
       if (
         budget?.keepsLayout &&
         (flags.has("--trim") || flags.has("--square") || values["--pad"])
@@ -965,8 +1076,14 @@ async function main(argv) {
         square: flags.has("--square"),
         pad: integer(values, "--pad", 0, 1024) ?? 0,
         maxDimension:
-          integer(values, "--max", 1, RUNTIME_LIMITS.dimension) ??
-          budget?.maxDimension,
+          canvasSize === undefined
+            ? (integer(values, "--max", 1, RUNTIME_LIMITS.dimension) ??
+              budget?.maxDimension)
+            : undefined,
+        canvas:
+          canvasSize === undefined
+            ? undefined
+            : { size: canvasSize, art: artSize },
         opaqueFrom:
           integer(values, "--opaque-from", 1, 256) ?? DEFAULT_OPAQUE_FROM,
         clearBelow:
@@ -998,9 +1115,10 @@ async function main(argv) {
         values["--fps"] === undefined ? undefined : Number(values["--fps"]);
       const { buffer, flipbook } = await assembleFlipbook(inputs, {
         columns: integer(values, "--columns", 1, FLIPBOOK_LIMITS.grid),
-        cell: integer(values, "--cell", 1, RUNTIME_LIMITS.dimension),
+        cell: parseCell(values["--cell"]),
         fps,
         loop: values["--loop"],
+        trim: flags.has("--trim"),
       });
       await writeFile(out, buffer);
       const sheet = await checkImage(out, {
