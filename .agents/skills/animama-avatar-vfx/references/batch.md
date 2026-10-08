@@ -23,8 +23,9 @@ time. Each receives its confirmed brief, this skill, `animama-effect-assets`,
 its folder (`.animama-drafts/effects/<stem>/` at the repository root) and
 these instructions:
 
-- make the art, write the effect folder, run `effects check` (fix every
-  FAIL) and render sheets to a scratch directory;
+- make the art (generating its images concurrently, with the batch's shared
+  style guide and style reference image), write the effect folder, run
+  `effects check` (fix every FAIL) and render sheets to its work folder;
 - read its own sheets and revise until the effect reads as the brief;
 - do not save, start a preview for the owner, or touch other items;
 - return the folder, the check summary with accepted WARNs, the sheet paths

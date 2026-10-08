@@ -103,6 +103,13 @@ Paths: frontend relative to `src/frontend/web/`, backend to
     check requires is written mechanically in the same form as the existing
     effect files.
   - P1–P3 authorized; report the list needed for G1 afterwards.
+- 2026-10-08, owner, G1: the agent's recommended list (24 effects): keep the
+  spec's table minus Star eyes, Sick face 3, Sparkle eyes and Respect shine
+  (Star eyes and Sick face 3 are removed from Included content in P8, after
+  P7 re-points their Reactions). Every upgraded effect is fully redrawn in one
+  library style. "DOKI DOKI!" is written in English letters. Assets and
+  effects are produced in parallel batches, not one by one; P4–P8 proceed
+  under the plan's gates.
 - 2026-10-08, agent (planning), within the spec:
   - New effects become picker templates only if the owner asks at G4; upgraded
     templates get fresh thumbnails.
@@ -627,35 +634,62 @@ sibling effect folder and skipped folders without an effect). Optional:
 Checks: preview, effects and asset tests 45/45 (8/8 preview media after the
 P3-R2-01 change), `web:lint` and prettier pass.
 
-### P4–P6 — Effect batches (R14). Gate G1 before P4; G2 at the end of each.
+### P4–P6 — Effect batches (R14). G1 passed 2026-10-08; G2 per batch.
 
-Batch contents follow the owner's final list from G1. The proposed split, by
-risk and shared technique:
+The owner's list (G1) has 24 effects. P4, P5 and P6 are produced **in
+parallel** (owner, 2026-10-08): six subagents follow the skill's batch mode,
+each owning a group of related effects and generating its images
+concurrently (at most two image jobs at a time each). All work from the same
+style guide and style reference image, then one consistency pass across the
+whole library precedes a single live preview in which the owner reviews all
+three batches (G2, recorded per batch). Effects are saved as Local content
+only after G2 approval.
 
-- **P4, batch A — upgrades and kept effects:** Eye =, Eye 0, Eye Confused
-  Swirl, Eye O, Mouth w, Star3 (confirmed upgrades); review-only passes for
-  Anger mark, Exclamation, Eye VV, Mouth Hover w, Star eyes, Gloom face, Sick
-  faces 1–3. Upgrades keep their stems and content IDs.
-- **P5, batch B — new face effects:** Blush, Sweat drop, Gloom lines, Heart
-  eyes, Sparkle eyes, Streaming tears.
-- **P6, batch C — motion and new attachments:** Steam puffs, Respect shine
-  (flipbooks), Heart throb (body), Comic "DOKI DOKI", Idea light bulb, Music
-  notes (stickers), Despair shade (silhouette).
+**Library style:** flat cel shading, one clean dark outline (about 3–4% of
+the art's height), two or three flat colours plus white highlights, no
+gradients or texture grain, bold readable silhouettes; anime emphasis marks,
+comedic rather than realistic. The fixed dry-run sweat drop is the style
+reference (`--ref`), for line weight and shading only.
 
-For each effect: brief → assets → source folder → `effects check` → renders →
-`effects:save` to the task stack. Record each brief as one row in this plan
-(name, stem, beat, attachment, intensities, motion and duration, budget, files
-and sizes). At batch end, the owner reviews briefs and effects together in
-`animation:preview` on both Avatars (G2), alongside each effect's render sheet.
-Revise from review notes; at most two revision rounds per effect.
+**Briefs** (expresses · beat · attachment · Reaction tiers · motion and
+duration · art). "Replace" keeps the Included stem and content ID.
 
-Per batch checks: `effects check` on every folder; `effects:render` sheets with
-no controller warnings; `effects:bench` once in P6 with the heaviest new
-combination (budget 2 ms added, quiet machine); `definition.test.ts` still
-passes with Local fixtures.
+| # | Effect (stem) | Batch, mode | Expresses · beat | Attachment | Tiers | Motion · duration | Art |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | Anger mark (`angry`) | A, replace | anger, annoyance · the classic popping vein | forehead, left | anger 2–3, annoyance 3 | pulse throb; held | red four-arm cross-popping vein mark |
+| 2 | Exclamation (`emote`) | A, replace | surprise, alarm · "!" pops over the head | top_edge, right corner | curiosity 2–3, fear 3 | pop-in overshoot, small jolt; held | red "!" with three short motion ticks |
+| 3 | Eye = (`eye`) | A, replace | flat unimpressed stare · deadpan | eyes, mirrored | disapproval 2, disgust 2 | still | thick horizontal "=" bars over each eye |
+| 4 | Eye 0 (`eye_0`) | A, replace | blank shock, soul leaving · hollow eyes | eyes, mirrored | fear 2, grief 3 | slight tremble keyframes | empty white oval eyes with dark outline |
+| 5 | Eye Confused Swirl (`eye_confused_swirl`) | A, replace | dizzy confusion · spiral eyes | eyes, mirrored | confusion 2–3 | spin | black spiral on white |
+| 6 | Eye O (`eye_o`) | A, replace | startled · wide round eyes | eyes, mirrored | curiosity 2, fear 2, nervousness 3 | pop-in | large white circles, tiny dot pupils |
+| 7 | Eye VV (`eye_vv`) | A, replace | giggly, bashful delight · happy squint | eyes, mirrored | amusement 1–3, embarrassment 2 | still | thick "^" / "v" happy-squint arcs |
+| 8 | Mouth Hover w (`mouth_hover_w`) | A, replace | cat-mouth smugness · preview only | mouth landmark | preview only | still | "w" cat mouth line |
+| 9 | Mouth w (`mouth_w`) | A, replace | cat-mouth smugness · preview only | painted, mouth decal | preview only | still | "w" cat mouth line |
+| 10 | Star3 (`star3`) | A, replace | starry-eyed admiration · sparkling pupils | painted on irises (eyes, single) | admiration, excitement, joy, optimism, respect 2–3 | pulse | four-point yellow star with white glint |
+| 11 | Gloom face (`texture_black_1`) | A, replace | gloom washing over · dark shade on the upper face | painted, face skin full | grief, remorse, sadness, disappointment 2–3 | still | dark indigo shade with vertical lines, UV-aligned (edit of the current texture) |
+| 12 | Sick face 1 (`texture_sick_1`) | A, replace | queasy · green-tinged face | painted, face skin full | disgust 2 | drift | pale green wash, UV-aligned |
+| 13 | Sick face 2 (`texture_sick_2`) | A, replace | about to be sick · strong green with lines | painted, face skin full | disgust 3 | still | stronger green, blue vertical lines under the eyes, UV-aligned |
+| 14 | Blush (`blush`) | B, add | embarrassed or smitten · cheeks flush | painted, blush span | embarrassment 1–3, love 2 | fade-in via event | soft pink ovals with three diagonal hatch lines |
+| 15 | Streaming tears (`streaming_tears`) | B, add | overwhelmed crying · comic tear streams | painted, undereye single mirrored, flipbook | sadness 3, grief 3, gratitude 3 | flipbook 6–8 frames at 10 fps, loop | light-blue stream with highlight |
+| 16 | Sweat drop (`sweat_drop`) | B, add | caught out · big sweat drop | forehead, right | nervousness 2–3, embarrassment 3 | pop-in, slow slide down; held | light-blue drop, white highlight (dry-run art as a start) |
+| 17 | Gloom lines (`gloom_lines`) | B, add | deflated · vertical shadow lines over the brow | forehead, middle | disappointment 2–3, remorse 2 | fade/slide in from above | dark blue-purple vertical lines |
+| 18 | Heart eyes (`heart_eyes`) | B, add | smitten · hearts for eyes | eyes, mirrored | love 3, desire 2–3 | pulse | red hearts with white glint |
+| 19 | Steam puffs (`steam_puffs`) | C, add | fuming · steam blasting off the head | top, left or right, flipbook | anger 3, annoyance 2 | flipbook puffs, loop | white puffs with grey outline |
+| 20 | Heart throb (`heart_throb`) | C, add | warm caring · a beating heart on the chest | body, chest | caring 2–3, love 1, gratitude 2 | pulse about 1.5 Hz | red heart with outline and glint |
+| 21 | DOKI DOKI (`doki_doki`) | C, add | heart racing · comic sound effect | sticker beside the head | love 2, nervousness 2 | pop-in, small shake | pink comic letters "DOKI DOKI!" |
+| 22 | Idea bulb (`idea_bulb`) | C, add | sudden idea · bulb pops on | sticker beside the head | curiosity 3, confidence 2–3, optimism 2 | pop-in, gentle pulse | yellow bulb with rays (dry-run art as a start) |
+| 23 | Music notes (`music_notes`) | C, add | carefree joy · notes bobbing up | sticker beside the head | joy 2, amusement 2 | keyframe bob or drift up, loop | two black eighth notes with colour accents |
+| 24 | Despair shade (`despair_shade`) | C, add | crushing despair · the whole body darkens | silhouette, tint | grief 3, fear 3 | fade in via event | dark indigo tint art (average colour drives the fill) |
 
-Done when every effect in the batch is approved, revised and re-approved, or
-dropped by the owner.
+Reaction tiers are the brief's intent; P7 makes the final mapping.
+
+For each effect: art → effect folder → `effects check` → renders, by the
+subagents; then the consistency pass, the owner's preview (G2), revisions
+(at most two rounds per effect) and one `effects save` run. Per batch
+checks: `effects check` on every folder; render sheets with no controller
+warnings; `effects:bench` once with the heaviest new combination (budget 2 ms
+added, quiet machine). Done when every effect is approved, revised and
+re-approved, or dropped by the owner.
 
 ### P7 — Reaction wiring (R15). Gate G3.
 

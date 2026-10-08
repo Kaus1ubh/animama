@@ -35,6 +35,13 @@ effect skill).
    (flipbook frames, a left and right eye) pass the first image as `--ref`.
    Without a generator, ask for art rather than drawing placeholder shapes in
    code, unless the brief asks for simple geometric art.
+   **Several images at once:** generation is the slow step (30–90 s each),
+   so start independent images together: run each `gen.sh` as a background
+   command and wait for all of them, a few at a time (two to four; on a
+   rate-limit or busy error, wait and retry once). Flipbook frames that
+   `--ref` the first frame start after the first frame exists. Give every
+   image of a library the same style reference with `--ref` and say in the
+   prompt that it sets the line weight and shading, not the subject.
 3. **Look at every image** with the Read tool before anything else. Reject
    and regenerate (once, with one targeted prompt change) art with the wrong
    subject, extra objects, text, cropped edges or a style that does not match
