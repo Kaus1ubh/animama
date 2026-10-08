@@ -4,7 +4,7 @@
   "content_id": "builtin:avatar-effect:eye_vv",
   "version": 1,
   "name": "Eye VV",
-  "description": "Playful curved eye hover that reads as giggly, bashful, or teasing delight.",
+  "description": "Squeezed-shut \"> <\" eyes for flustered, giggly, or bashful delight.",
   "dependencies": [],
   "definition": {
     "schema": "animama/avatar-effect/2",
@@ -12,11 +12,15 @@
     "attachment": {
       "kind": "face_landmark",
       "landmark": "eyes",
-      "side": "right",
-      "mirror": true
+      "mirror": true,
+      "scale": {
+        "x": 0.6,
+        "y": 0.6
+      },
+      "side": "right"
     },
     "art": {
-      "image": "eye_vv_right.png"
+      "image": "eye_vv_r.png"
     },
     "faceOptions": {
       "hideParts": [
@@ -26,7 +30,7 @@
   },
   "files": [
     {
-      "path": "eye_vv_right.png",
+      "path": "eye_vv_r.png",
       "role": "image"
     }
   ]

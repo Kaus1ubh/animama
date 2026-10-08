@@ -94,8 +94,8 @@ describe("effect template registry", () => {
       template: "dark",
     });
     expect(parseSceneEffectTemplateSearch({ template: "eye_vv" })).toEqual({});
-    expect(avatarEffectTemplate("star")?.contentId).toBe(
-      "builtin:avatar-effect:star",
+    expect(avatarEffectTemplate("star3")?.contentId).toBe(
+      "builtin:avatar-effect:star3",
     );
     expect(avatarEffectTemplate(undefined)).toBeNull();
   });
@@ -124,8 +124,8 @@ describe("effect template thumbnails", () => {
 
   it("loads thumbnails lazily and reports a missing one as absent", async () => {
     await expect(
-      loadAvatarEffectTemplateThumbnail("eye_vv_pair"),
-    ).resolves.toMatch(/eye_vv_pair\.webp/);
+      loadAvatarEffectTemplateThumbnail("eye_vv"),
+    ).resolves.toMatch(/eye_vv\.webp/);
     expect(loadAvatarEffectTemplateThumbnail("missing")).toBeNull();
   });
 });

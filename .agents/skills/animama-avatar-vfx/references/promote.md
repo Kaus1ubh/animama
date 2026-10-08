@@ -32,7 +32,7 @@ pnpm -s effects promote promote.json
 [
   { "source": "library:local/Sweat Drop", "stem": "sweat_drop", "mode": "add" },
   { "source": "library:local/Eye O v2", "stem": "eye_o", "mode": "replace" },
-  { "stem": "eye_vv_pair", "mode": "delete" }
+  { "stem": "old_effect", "mode": "delete" }
 ]
 ```
 

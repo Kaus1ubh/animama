@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:steam_puffs",
+  "version": 1,
+  "name": "Steam Puffs",
+  "description": "Cartoon steam puffs burst from the side of the head again and again like a boiling kettle, for fuming, about-to-blow-a-fuse anger.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "emote",
+    "attachment": {
+      "kind": "face_landmark",
+      "landmark": "top",
+      "offset": {
+        "x": 0.1,
+        "y": -0.03,
+        "z": 0
+      },
+      "position": "left",
+      "rotationDeg": {
+        "x": 0,
+        "y": 0,
+        "z": -20
+      },
+      "scale": {
+        "x": 1.9,
+        "y": 1.9
+      }
+    },
+    "art": {
+      "image": "steam_puff.png"
+    },
+    "motion": {
+      "keyframes": {
+        "loop": true,
+        "frames": [
+          {
+            "offset": {
+              "x": 0,
+              "y": 0
+            },
+            "opacity": 0,
+            "scale": 0.5,
+            "t": 0
+          },
+          {
+            "opacity": 1,
+            "scale": 0.95,
+            "t": 0.15
+          },
+          {
+            "offset": {
+              "x": 0.015,
+              "y": 0.035
+            },
+            "opacity": 0.95,
+            "scale": 1.2,
+            "t": 0.7
+          },
+          {
+            "offset": {
+              "x": 0.022,
+              "y": 0.055
+            },
+            "opacity": 0,
+            "scale": 1.35,
+            "t": 1
+          }
+        ]
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "steam_puff.png",
+      "role": "image"
+    }
+  ]
+}

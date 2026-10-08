@@ -52,6 +52,8 @@ type ThumbnailRequest = CommonRequest & {
   avatar: { id: string; url: string };
   time: number;
   size: number;
+  /** Camera distance relative to the head framing (default 1). */
+  framingScale?: number;
 };
 
 type CheckRequest = CommonRequest & {
@@ -477,6 +479,7 @@ async function renderThumbnail(
       scene,
       size: request.size,
       expression: "live",
+      framingScale: request.framingScale ?? 1,
     });
     return {
       dataUrl: await blobToDataUrl(blob),

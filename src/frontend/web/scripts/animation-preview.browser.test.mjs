@@ -362,7 +362,7 @@ test("previews an effect source and reloads it when its image changes", async ()
       () => window.animationPreview.generation,
     );
     await copyFile(
-      path.join(INCLUDED_EFFECT_ROOT, "eye_vv_pair/eye_vv.png"),
+      path.join(INCLUDED_EFFECT_ROOT, "eye_vv/eye_vv_r.png"),
       path.join(folder, "eye_confused_swirl_r.png"),
     );
     await page.waitForFunction(

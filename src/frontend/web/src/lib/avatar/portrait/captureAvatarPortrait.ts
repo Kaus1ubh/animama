@@ -58,6 +58,12 @@ export type CaptureAvatarPortraitInput = {
    * what an effect does to the face (for example a forced blink).
    */
   expression?: "happy" | "live";
+  /**
+   * Camera distance relative to the head framing (default 1). A larger value
+   * keeps the same target and shows more around the head, for example art
+   * on the chest or beside the head in an effect thumbnail.
+   */
+  framingScale?: number;
   dependencies?: AvatarPortraitCaptureDependencies;
 };
 
@@ -120,7 +126,9 @@ function resolveCaptureFraming(avatar: Avatar): AvatarPortraitFraming {
 function createCaptureCamera(
   source: THREE.PerspectiveCamera,
   framing: AvatarPortraitFraming,
+  framingScale: number,
 ): THREE.PerspectiveCamera {
+  const distance = framing.distance * framingScale;
   const camera = source.clone();
   const target = new THREE.Vector3(
     framing.target.x,
@@ -129,15 +137,13 @@ function createCaptureCamera(
   );
   camera.aspect = 1;
   camera.fov = PORTRAIT_FOV_DEGREES;
-  camera.near = Math.min(0.01, framing.distance / 10);
-  camera.far = Math.max(source.far, framing.distance + 10);
+  camera.near = Math.min(0.01, distance / 10);
+  camera.far = Math.max(source.far, distance + 10);
   source.updateMatrixWorld(true);
   const viewDirection = source
     .getWorldDirection(new THREE.Vector3())
     .normalize();
-  camera.position
-    .copy(target)
-    .addScaledVector(viewDirection, -framing.distance);
+  camera.position.copy(target).addScaledVector(viewDirection, -distance);
   camera.up.copy(source.up);
   camera.lookAt(target);
   camera.clearViewOffset();
@@ -218,12 +224,19 @@ export async function captureAvatarPortrait({
   size = DEFAULT_AVATAR_PORTRAIT_SIZE,
   signal,
   expression = "happy",
+  framingScale = 1,
   dependencies = {},
 }: CaptureAvatarPortraitInput): Promise<Blob> {
   if (!Number.isInteger(size) || size < 64 || size > 2048) {
     throw new AvatarPortraitCaptureError(
       "invalid_size",
       "Avatar portrait size must be an integer between 64 and 2048 pixels.",
+    );
+  }
+  if (!(framingScale >= 1 && framingScale <= 4)) {
+    throw new AvatarPortraitCaptureError(
+      "invalid_size",
+      "Avatar portrait framing scale must be between 1 and 4.",
     );
   }
   throwIfAborted(signal);
@@ -288,7 +301,7 @@ export async function captureAvatarPortrait({
     const capture = () => {
       throwIfAborted(signal);
       const framing = resolveCaptureFraming(avatar);
-      const captureCamera = createCaptureCamera(camera, framing);
+      const captureCamera = createCaptureCamera(camera, framing, framingScale);
       const pixelRatio = Math.max(1, renderer.getPixelRatio());
       const logicalTargetSize = size / pixelRatio;
       scene.background = null;

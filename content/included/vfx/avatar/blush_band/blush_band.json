@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:blush_band",
+  "version": 1,
+  "name": "Blush Band",
+  "description": "A shy pink blush band across both cheeks and the nose for sheepish embarrassment.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "blush",
+    "attachment": {
+      "kind": "face_surface",
+      "area": "blush",
+      "layout": "span",
+      "offset": {
+        "x": 0,
+        "y": -0.012
+      },
+      "part": "face_skin",
+      "pivot": "center",
+      "scale": {
+        "x": 0.9,
+        "y": 0.55
+      }
+    },
+    "art": {
+      "image": "blush_band.png"
+    },
+    "appearance": {
+      "opacity": 0.75
+    }
+  },
+  "files": [
+    {
+      "path": "blush_band.png",
+      "role": "image"
+    }
+  ]
+}

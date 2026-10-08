@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:face_red",
+  "version": 1,
+  "name": "Red Face",
+  "description": "A red flush across the face for heated anger or overwhelming embarrassment.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "full_face",
+    "attachment": {
+      "kind": "face_surface",
+      "area": "full",
+      "part": "face_skin"
+    },
+    "art": {
+      "image": "face_red.png"
+    }
+  },
+  "files": [
+    {
+      "path": "face_red.png",
+      "role": "image"
+    }
+  ]
+}

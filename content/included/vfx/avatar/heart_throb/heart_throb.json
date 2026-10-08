@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:heart_throb",
+  "version": 1,
+  "name": "Heart Throb",
+  "description": "A big cartoon heart beating on the chest with a lub-dub throb, for warm caring, gratitude and gentle affection.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "body",
+    "attachment": {
+      "kind": "body",
+      "bone": "chest",
+      "offset": {
+        "x": 0.05,
+        "y": 0.16,
+        "z": 0.16
+      },
+      "size": 0.1
+    },
+    "art": {
+      "image": "heart_throb.png"
+    },
+    "motion": {
+      "keyframes": {
+        "loop": true,
+        "frames": [
+          {
+            "scale": 1,
+            "t": 0
+          },
+          {
+            "scale": 1.2,
+            "t": 0.08
+          },
+          {
+            "scale": 0.98,
+            "t": 0.17
+          },
+          {
+            "scale": 1.12,
+            "t": 0.25
+          },
+          {
+            "scale": 1,
+            "t": 0.38
+          },
+          {
+            "scale": 1,
+            "t": 0.667
+          }
+        ]
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "heart_throb.png",
+      "role": "image"
+    }
+  ]
+}

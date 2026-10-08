@@ -66,3 +66,34 @@ def test_included_tree_contains_no_symlinks_or_special_files() -> None:
     for path in (ROOT / "content/included").rglob("*"):
         assert not path.is_symlink()
         assert path.is_dir() or path.is_file()
+
+
+def _included_action_metas() -> list[dict]:
+    return [
+        json.loads(path.read_text())
+        for kind in ("reactions", "gestures")
+        for path in sorted((ROOT / "content/included" / kind).glob("*/*.meta.json"))
+    ]
+
+
+def test_no_included_action_plays_a_mouth_effect() -> None:
+    """Mouth effects sit on the lip-synced mouth, so no Reaction or Gesture uses them."""
+    mouth_effects = {"builtin:avatar-effect:mouth_w", "builtin:avatar-effect:mouth_hover_w"}
+    users = [
+        meta["content_id"]
+        for meta in _included_action_metas()
+        if mouth_effects & {dependency["ref"] for dependency in meta.get("dependencies", [])}
+    ]
+    assert users == []
+
+
+def test_every_reaction_emotion_has_a_variant_with_an_avatar_effect() -> None:
+    emotions: dict[str, bool] = {}
+    for meta in _included_action_metas():
+        if meta["content_type"] != "reaction":
+            continue
+        emotion = meta["placement_hint"]["emotion"]
+        has_effect = any(dependency["content_type"] == "avatar_effect" for dependency in meta.get("dependencies", []))
+        emotions[emotion] = emotions.get(emotion, False) or has_effect
+    assert len(emotions) == 24
+    assert [emotion for emotion, has_effect in emotions.items() if not has_effect] == []

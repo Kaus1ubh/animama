@@ -76,7 +76,7 @@ Paths: frontend relative to `src/frontend/web/`, backend to
 - [x] P4 — Effect batch A: upgrades and kept effects (R14). G2 passed 2026-10-08; saved as Local content.
 - [x] P5 — Effect batch B: new face effects (R14). G2 passed 2026-10-08; saved as Local content.
 - [x] P6 — Effect batch C: flipbooks, body, sticker and silhouette effects (R14). G2 passed 2026-10-08; saved as Local content.
-- [ ] P7 — Reaction wiring (R15). Wired 2026-10-08; review passed at round 3; awaiting G3.
+- [x] P7 — Reaction wiring (R15). Review passed at round 3; G3 passed 2026-10-08.
 - [ ] P8 — Promotion, documentation and acceptance (R16). Gate G4.
 
 ## Surprises & Discoveries
@@ -110,6 +110,14 @@ Paths: frontend relative to `src/frontend/web/`, backend to
   library style. "DOKI DOKI!" is written in English letters. Assets and
   effects are produced in parallel batches, not one by one; P4–P8 proceed
   under the plan's gates.
+- 2026-10-08, owner, G3: the wired Reactions, reviewed in the live preview,
+  "look fine for now"; the P7 mapping is approved.
+- 2026-10-08, owner, G4: promote the list (9 replaced effects, 13 added, 3
+  deleted, 29 Reactions and `shy-finger-poke`), except that **Eye 0 stays
+  Included as it is** (not deleted; no Reaction uses it after P7). The 13
+  new effects become Effects-picker templates with thumbnails. The edited
+  Reactions and Gesture keep their licence and source-review records
+  unchanged (only effect events and dependencies change, no motion).
 - 2026-10-08, agent (planning), within the spec:
   - New effects become picker templates only if the owner asks at G4; upgraded
     templates get fresh thumbnails.
@@ -1085,6 +1093,46 @@ scripts/public-release/test_prepare_source.py`, the full `uv run pytest -q`,
 `pnpm web:test`, `pnpm build`, `pnpm desktop:check`, the desktop stage audit
 from `references/promote.md`, and the full `pnpm e2e:test` (content packages
 change).
+
+
+#### P8 record
+
+- Issue #355. Starting revision `a4788cf5`.
+- G4 (owner, 2026-10-08, see the Decision Log): one `effects promote` run
+  (`.animama-drafts/promote-work/items.json`, dry run first): 113 changes.
+  Replaced with new art, keeping folder, content ID, version and name:
+  `angry`, `emote`, `eye`, `eye_confused_swirl`, `eye_o`, `eye_vv`,
+  `mouth_hover_w`, `mouth_w`, `star3` (new descriptions for Eye VV and
+  Star3). Added: `blush`, `blush_band`, `blush_deep`, `face_red`,
+  `streaming_tears`, `sweat_drop`, `gloom_lines`, `heart_eyes`,
+  `steam_puffs`, `heart_throb`, `doki_doki`, `idea_bulb`, `despair_shade`.
+  Deleted: `eye_vv_pair`, `star`, `texture_sick_3`. Kept as they are:
+  `eye_0`, `texture_black_1`, `texture_sick_1`, `texture_sick_2`. 29
+  Reactions and `shy-finger-poke` rewired; the other 19 mapped Reactions
+  were unchanged files. Included Avatar Effects: 16 → 26.
+- Templates: all 26 Included effects are Effects-picker templates, in six
+  groups (Eyes, Cheeks, Whole face, Around the head, Mouth, Body; "Above the
+  head" became "Around the head"). Thumbnails regenerated
+  (`effects:thumbnails`): unchanged effects reproduced byte for byte; three
+  removed with their templates; 13 added with source-review records in the
+  existing thumbnail form. The head framing cropped or missed chest and
+  side art, so a template can ask for a `wide` thumbnail (2.2× the head
+  framing, through a new optional `framingScale` on the portrait capture,
+  default unchanged) and a capture `time` (Steam Puffs loops to nothing at
+  1 s). Heart Throb, DOKI DOKI, Idea Bulb and Steam Puffs use them.
+- Pinned tests updated deliberately: template counts and groups (also the
+  picker journey: 26 images, Eye VV as the seeded template), the
+  `shy-finger-poke` journeys (Eye VV image and event), preview and render
+  tool tests that used `star` or `eye_vv_pair` as fixtures (now `star3`,
+  `heart_eyes`, `eye_vv`), the `/1` conversion snapshot test (now reads the
+  converted definitions from its fixture instead of live content), the
+  backend golden test (only effects not redrawn must still equal their
+  converted definition), the projection test (body, sticker and silhouette
+  effects are attachment entries) and a scan test's fixture image. New
+  backend guards (P7 step 5): no Included Reaction or Gesture uses a mouth
+  effect; all 24 emotions have a Reaction variant with an Avatar Effect.
+- Docs: the skill's `promote.md` example, the thumbnail README (wide
+  framing and time).
 
 ## Final integration review
 

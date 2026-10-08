@@ -95,7 +95,7 @@ const JOURNEYS: readonly LibraryJourney[] = [
     proof: "pose",
     target: { kind: "anima_pose_clip", runtimeId: "shy-finger-poke" },
     requiredFiles: [
-      "eye_vv.png",
+      "eye_vv_r.png",
       "emoji-sparkles-2728.svg",
       "emoji-sparkling-heart-1f496.svg",
     ],
@@ -202,10 +202,10 @@ for (const journey of JOURNEYS) {
               return provePoseClipPlayback({
                 evidence: animamaEvidence,
                 evidenceName: journey.key,
-                expectedAvatarEffects: ["eye_vv_pair"],
+                expectedAvatarEffects: ["eye_vv"],
                 expectedEventIds: [
                   "scene-kawaii-sparkles",
-                  "avatar-eye-vv-pair",
+                  "avatar-eye-vv",
                   "sfx-cute-slide",
                   "scene-focus-light-streak",
                 ],

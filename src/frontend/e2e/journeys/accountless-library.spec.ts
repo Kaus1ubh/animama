@@ -115,10 +115,10 @@ test("accountless built-in pose playback @surface-library @channel-pose-clip @re
       evidence: animamaEvidence,
       evidenceName: name,
       expectedTarget: { kind: "anima_pose_clip", runtimeId: "shy-finger-poke" },
-      expectedAvatarEffects: ["eye_vv_pair"],
+      expectedAvatarEffects: ["eye_vv"],
       expectedEventIds: [
         "scene-kawaii-sparkles",
-        "avatar-eye-vv-pair",
+        "avatar-eye-vv",
         "scene-focus-light-streak",
       ],
       // The 0.35-second light-streak event must fire, but this pose-motion
@@ -129,7 +129,7 @@ test("accountless built-in pose playback @surface-library @channel-pose-clip @re
     });
     await network.waitForPreview("shy-finger-poke");
     await network.requireResources([
-      "eye_vv.png",
+      "eye_vv_r.png",
       "emoji-sparkles-2728.svg",
       "emoji-sparkling-heart-1f496.svg",
     ]);

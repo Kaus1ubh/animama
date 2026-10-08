@@ -133,6 +133,29 @@ describe("captureAvatarPortrait", () => {
     expect(fixture.renderer.render).toHaveBeenCalledOnce();
   });
 
+  it("widens the head framing by a scale, keeping its target", async () => {
+    const cameraDistance = async (framingScale?: number) => {
+      const fixture = createFixture();
+      await captureAvatarPortrait({
+        avatar: fixture.avatar,
+        renderer: fixture.renderer as unknown as THREE.WebGLRenderer,
+        camera: new THREE.PerspectiveCamera(50, 2, 0.1, 100),
+        scene: fixture.scene,
+        size: 64,
+        framingScale,
+        dependencies: {
+          createRenderTarget: () => fixture.renderTarget as never,
+          encodePixels: async () => new Blob([], { type: "image/webp" }),
+        },
+      });
+      const camera = fixture.renderer.render.mock
+        .calls[0][1] as THREE.PerspectiveCamera;
+      return camera.position.distanceTo(new THREE.Vector3(0, 1.6, 0));
+    };
+    const head = await cameraDistance();
+    expect(await cameraDistance(2)).toBeCloseTo(head * 2, 5);
+  });
+
   it("restores and disposes resources after a render error", async () => {
     const fixture = createFixture({ renderThrows: true });
 

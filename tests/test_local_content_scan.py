@@ -163,7 +163,7 @@ def test_avatar_effect_scan_keeps_authored_effects_without_listing_loose_artwork
         shutil.copytree(shipped_eye.parents[2] / "licenses", root / "licenses", dirs_exist_ok=True)
     for extension in ("png", "jpg", "jpeg", "webp", "svg"):
         # Artwork is not a playable entry, regardless of its image format.
-        (effect_root / f"loose.{extension}").write_bytes((shipped_eye / "eye_=_r.png").read_bytes())
+        (effect_root / f"loose.{extension}").write_bytes(next(shipped_eye.glob("*.png")).read_bytes())
 
     entries = FilesystemContentStore(
         included_root=paths.included_root,

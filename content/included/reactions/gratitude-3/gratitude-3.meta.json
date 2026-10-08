@@ -25,6 +25,18 @@
       "alias": "sparkles",
       "content_type": "particle_effect",
       "config": {}
+    },
+    {
+      "ref": "builtin:avatar-effect:heart_throb",
+      "alias": "heart_throb",
+      "content_type": "avatar_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:avatar-effect:streaming_tears",
+      "alias": "streaming_tears",
+      "content_type": "avatar_effect",
+      "config": {}
     }
   ],
   "files": [

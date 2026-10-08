@@ -95,7 +95,7 @@ after(async () => {
 
 test("lists every Included effect descriptor and skips asset folders", async () => {
   const effects = await listIncludedEffects();
-  assert.equal(effects.length, 16);
+  assert.equal(effects.length, 26);
   assert.ok(!effects.some((effect) => effect.stem === "face"));
   for (const effect of effects) {
     assert.ok(effect.imagePath.startsWith(INCLUDED_EFFECT_ROOT));
@@ -103,28 +103,28 @@ test("lists every Included effect descriptor and skips asset folders", async () 
 });
 
 test("resolves Included effects by stem, content id, name and path", async () => {
-  const byStem = await resolveEffectSource("library:eye_vv_pair");
-  assert.equal(byStem.stem, "eye_vv_pair");
+  const byStem = await resolveEffectSource("library:heart_eyes");
+  assert.equal(byStem.stem, "heart_eyes");
   assert.equal(
     byStem.imagePath,
-    path.join(INCLUDED_EFFECT_ROOT, "eye_vv_pair/eye_vv.png"),
+    path.join(INCLUDED_EFFECT_ROOT, "heart_eyes/heart_eyes_r.png"),
   );
   const byId = await resolveEffectSource(
     "library:included/builtin:avatar-effect:angry",
   );
   assert.equal(byId.stem, "angry");
-  const byName = await resolveEffectSource("library:eye vv PAIR");
-  assert.equal(byName.stem, "eye_vv_pair");
+  const byName = await resolveEffectSource("library:heart EYES");
+  assert.equal(byName.stem, "heart_eyes");
   const byFolder = await resolveEffectSource(
-    path.join(INCLUDED_EFFECT_ROOT, "star"),
+    path.join(INCLUDED_EFFECT_ROOT, "star3"),
   );
-  assert.equal(byFolder.name, "Star");
-  const byFile = await resolveEffectSource("star/star.json", {
+  assert.equal(byFolder.name, "Star3");
+  const byFile = await resolveEffectSource("star3/star3.json", {
     cwd: INCLUDED_EFFECT_ROOT,
   });
   assert.equal(
     byFile.descriptorPath,
-    path.join(INCLUDED_EFFECT_ROOT, "star/star.json"),
+    path.join(INCLUDED_EFFECT_ROOT, "star3/star3.json"),
   );
 });
 
