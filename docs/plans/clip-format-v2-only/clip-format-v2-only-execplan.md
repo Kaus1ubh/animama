@@ -74,7 +74,7 @@ poses as `base_pose`, but nothing reads that field.
 
 - [ ] Preparation: workspace verified, plan drafted (this file).
 - [x] Phase 1: Included conversion (#356). G1 passed and reviews #1–#2 passed on 2026-10-08.
-- [ ] Phase 2: Local migration tool. Gate G2 (migration roots) pending.
+- [x] Phase 2: Local migration tool (#357). G2 done (all dry runs found 0); reviews #1–#2 passed.
 - [ ] Phase 3: Frontend 1.0 removal and rejection.
 - [ ] Phase 4: Backend 1.0 removal and rejection.
 - [ ] Phase 5: Docs, skill and ADR.
@@ -99,7 +99,9 @@ poses as `base_pose`, but nothing reads that field.
 - 2026-10-08: no `animaPoseClip/1.0` file exists in any Local content root on the
   owner's development machine: the main checkout, six named-stack roots under
   `.animama-stacks/*/content/local`, and the desktop app's data directory and its
-  four backups (`grep -rlE 'animaPoseClip/1\.0'` returned 0 for each).
+  four backups (`grep -rlE 'animaPoseClip/1\.0'` returned 0 for each). One of
+  the stacks (`animama-flake336`) was removed by its own task before Phase 2, so
+  the Phase 2 dry runs cover five stack roots.
 
 ## Decision Log
 
@@ -369,9 +371,77 @@ something. The owner may add the installed desktop app's root or others.
 Completion: dry-run results recorded per root.
 Commit `refactor(content)[p2]: add the one-off Local clip migration`.
 
-#### Phase 2 record / Code Review #1 Findings / Revisions
+#### Phase 2 record
 
-<pending>
+Starting revision `a45ee6c6` (Phase 1 plus a merge of `origin/main` at
+`1348dd4b`). Issue #357.
+
+- `scripts/clip-format-convert.test.mjs`, run in `test:source` until Phase 3,
+  covers four cases. A Local dry run lists the 1.0 clips and writes nothing. A
+  run converts the 1.0 Gesture and Reaction in place, writes `.v1.bak` copies,
+  leaves `.meta.json` and 2.0 files alone, and finds nothing on rerun. The real
+  CLI converts an inline 1.0 Gesture, and a failed conversion writes nothing and
+  exits 1. 4 passed.
+- **G2 (owner default, 2026-10-08):** dry runs of
+  `pnpm -s animation convert-v1 --local-root <root> --dry-run` on every Local
+  root found on the development machine all reported
+  `0 clip(s) to convert, 0 failed`, so no write run was needed:
+
+  | Local root (placeholders for machine paths) | JSON files (`find`) | 1.0 clips |
+  | --- | --- | --- |
+  | Main checkout `content/local` | 0 | 0 |
+  | Main checkout `.animama-stacks/animama-runtime-p3-built` | 0 | 0 |
+  | Main checkout `.animama-stacks/animama-runtime-p3-dev` | 0 | 0 |
+  | `animama-ui-skill` worktree stack `animama-ui-foundations` | 0 | 0 |
+  | `avatar-effects-v2` worktree stack `animama-avatar-fx` | 14 | 0 |
+  | `mixamo-built-in-motion` worktree stack `animama-mixamo` | 1 | 0 |
+  | Desktop app data `<app-data>/Animama/content/local` | 0 | 0 |
+  | Four desktop app data backups (2026-09-20, 09-25, 09-30, 10-06) | 0 | 0 |
+
+  The main checkout's `content/local` was recreated outside this task at 13:37
+  on 2026-10-08, between the planning scan and the dry run. The earlier scan
+  also found no 1.0 files there.
+
+#### Phase 2 Code Review #1 Findings
+
+Independent `sdlc-reviewer`, initial round. Its checks: the new test (3 passed),
+prettier, eslint, the CI checkout depth, and read-only `find`/`grep` over every
+recorded root, whose counts matched the table.
+
+- **P2-CR1-F1 (blocking):** the CLI test read its 1.0 input with
+  `git show fd1980fe:…`, which a shallow CI checkout (`fetch-depth: 2`) cannot
+  resolve.
+- P2-CR1-F2: no test covered the failure path.
+- P2-CR1-F3: an unreadable file stops the run; reruns are idempotent.
+- P2-CR1-F4: symlinks and non-JSON files are skipped silently.
+- P2-CR1-F5: argument edge cases in the one-off tool.
+- P2-CR1-F6: the planning scan's "six" stack roots against five in the table,
+  and the source of the JSON count.
+- P2-CR1-F7: the plan file is not Prettier-formatted (pre-existing, outside the
+  check scope).
+
+#### Phase 2 Code Review #1 Revisions
+
+- F1 accepted: the CLI test writes an inline 1.0 Gesture (inline pose,
+  `relaxedRest` base) and needs no git history.
+- F2 accepted: a failure-path test was added (4 passed).
+- F3–F5 rejected for a one-off tool that is deleted in Phase 3. Its failures
+  are loud and reruns are safe.
+- F6 accepted: the Surprises entry notes the removed stack, and the table names
+  `find` as the source of the count.
+- F7: no action.
+- Phase 3 deletes the test and its `test:source` entry together with the
+  script.
+
+Repair round 1 used.
+
+#### Phase 2 Code Review #2
+
+Targeted recheck: pass. F1, F2 and F6 are resolved (4 passed, prettier and
+eslint clean). P2-CR2-F1 (optional) noted that the record said "three cases";
+it now says four.
+
+Phase 2 complete.
 
 ### Phase 3: Frontend 1.0 removal and rejection
 
