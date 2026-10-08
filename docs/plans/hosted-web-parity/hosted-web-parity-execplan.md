@@ -1771,6 +1771,16 @@ Actual Electron39/Compose acceptance passes against the current source: the real
 
 Source-check findings are resolved. The clean-source checkpoint remains an in-progress phase commit: deterministic successor/repeat, all eight installed/emitted consumers, genuine retained-generation upgrade/open-tab/rollback and independent Cloud acceptance still precede A7 completion. Ordinary main adoption, actual CI and release approvals retain their separate gates.
 
+#### Artifact acceptance checkpoint — A7 compatibility decision pending
+
+Reviewed source is committed at11c18a896aac4737db4c81dcde6fab83dedca043. Two actual clean producer builds agree byte-for-byte on manifest202a6653ee3c701585fc2d4b57159de552a8cebd3891a1833e699fa7772dee28 and all nine payloads. Independent repeat log SHAdcd8c4bdfa852a75acc885200b9f4d1cac9b20ca8425eb35f2c397821b3fc844. The initial repeat attempt was blocked by sandbox cache access before building; a fresh output with required cache access passes. Reproducibility alone is not consumer acceptance.
+
+The first installed/emitted consumer fails its1.0-only clip assertion: incoming main ADR0014 requires every new save/export to use2.0. Preserve failure log SHA50567d30e50867d4699bb2bc5fc89d2c6b25358c454e88d5b02d095f81f6aae3. A separate temporary diagnostic changes only version-specific fixture expectations, leaving the two immutable apps unchanged. Actual normal and effect-only clips survive genuine C creation, A7 opening/conversion, saving and reload with metadata and dependency pins intact. Selecting genuine C again cannot reopen/export the persisted2.0 clip; preserve diagnostic log SHA5d3cac9212c20852f285d50415d8c6655a37fbb836566a6e54e366d085188b15 and all four successful precursor receipts. This is a real format boundary declared by ADR0014, not a timeout or an otherwise-passing fixture repair. No all-eight-consumer or edited-data rollback PASS is claimed.
+
+The concrete proposed amendment preserves main2.0 behavior, genuine C forward/old-tab/unchanged1.0 rollback evidence and the actual incompatible edge, then requires genuine independently produced/reviewed2.0-capable generations for edited-data rollback before release. C would be excluded from approved post2.0 activation/rollback recipes; current Cloud selection does not automatically infer tenant clip compatibility. A7 has exhausted2/2; one additional narrowly bounded compatibility repair3/3 and the amendment are pending owner decision. Existing gates and counters remain unchanged until that decision.
+
+Actual historical native reproduction is now available: the separately built unmodified genuine C shows “Unavailable here” in both real Electron PiP/Quick Chat windows, with correct preload roles and real self-hosted capabilities. This is explicitly retrospective baseline RED, alongside the current-source actual GREEN above. The old native stack is stopped through exact ownership checks with volumes/images/evidence retained. Current native teardown refused before mutation because the guard treated a distinct similarly prefixed project as owned; C6H owns the focused exact-namespace correction. No unrelated resources were stopped.
+
 ## Final integration review
 
 A6's review closes integration of A1–A6; do not reopen those reviews. A7 has the new scope's separately bounded review above, reusing valid inherited evidence.
