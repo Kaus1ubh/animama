@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { parseAnimaPoseClip } from "@/lib/avatar/poses/animaPoseClip";
+import { parseAnyAnimaPoseClip } from "@/lib/avatar/poses/animaPoseClip";
 import { POSE_CREATOR_CLIP_VALIDATION_OPTIONS } from "@/stores/pose-creator-store";
 import { createPoseCreatorClipDraftFromAnimaPoseClip } from "@/ui/pose-creator/poseCreatorClipAuthoring";
 import { createActionDocument } from "./actionDocument";
@@ -74,9 +74,10 @@ describe("hosted artifact clip round-trip compatibility", () => {
     );
     if (reopened.kind !== "project")
       throw new Error("Expected a project import");
-    expect(parseAnimaPoseClip(reopened.project.sequence)).toMatchObject(
+    expect(parseAnyAnimaPoseClip(reopened.project.sequence)).toMatchObject(
       metadata,
     );
+    expect(reopened.project.sequence?.schema).toBe("animaPoseClip/2.0");
     // A draft must not retain references to mutable imported metadata.
     const future = clip.futureMetadata;
     future.tags.push("later");

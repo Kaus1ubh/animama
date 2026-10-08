@@ -4,7 +4,10 @@ import { AppRouter } from "@/app/router";
 import { createHostedComposition } from "@/app/hosted-runtime/hosted-composition";
 import { RuntimeController } from "@/app/runtime/runtime-controller";
 import { installBrowserSessionResources } from "@/app/runtime/browser-session-resources";
-import { saveContentEditRecovery } from "@/lib/content/contentEditRecovery";
+import {
+  saveContentEditRecovery,
+  loadContentEditRecovery,
+} from "@/lib/content/contentEditRecovery";
 import {
   creatorRecoveryRecords,
   writeCreatorRecovery,
@@ -48,12 +51,31 @@ Object.assign(window, {
     writeCreatorRecovery,
     creatorRecoveryRecords,
     queueCreatorRecovery,
+    persistDraft: (operationId: string, form: Record<string, unknown>) =>
+      saveContentEditRecovery({
+        schema: "animama/content-edit-recovery/1",
+        userId: controller.getSnapshot().scope!.key,
+        family: "fixture",
+        documentKey: "draft",
+        operationId,
+        form,
+        updatedAt: new Date().toISOString(),
+      }),
+    draft: () =>
+      loadContentEditRecovery(
+        controller.getSnapshot().scope!.key,
+        "fixture",
+        "draft",
+      ),
+    mutate: () =>
+      controller.getSnapshot().scope!.fetch("/v1/chats", { method: "POST" }),
     reauthenticate: async () => {
       composition.accountActions!.signIn();
       await controller.refresh();
     },
     current: () => ({
       status: controller.getSnapshot().admission.status,
+      reconnecting: controller.getSnapshot().reconnecting,
       key: controller.getSnapshot().scope?.key,
       privateData: controller
         .getSnapshot()

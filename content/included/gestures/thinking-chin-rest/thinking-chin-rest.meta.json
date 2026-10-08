@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:thinking-chin-rest",
+  "version": 1,
+  "semantic_key": "thinking_chin_rest",
+  "name": "Thinking Chin Rest",
+  "ai_description": "A held thinking pose: a hand rests on the chin while the eyes drift. Use while pondering a question.",
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [],
+  "files": [
+    {
+      "path": "thinking-chin-rest.json",
+      "role": "sequence"
+    }
+  ]
+}

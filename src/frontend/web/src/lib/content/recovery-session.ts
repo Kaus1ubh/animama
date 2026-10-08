@@ -35,7 +35,7 @@ export async function writeSessionRecovery<T>(
   }
 }
 
-/** Fence immediately, drain started writes, then durably remove only this hosted namespace. */
+/** Fence writes, drain them, then remove every tab's drafts in the retired hosted generation. */
 export function endHostedRecoverySession(key: string): Promise<void> {
   const session: RecoverySession = hostedSessions.get(key) ?? {
     stopped: false,
@@ -43,37 +43,90 @@ export function endHostedRecoverySession(key: string): Promise<void> {
   };
   hostedSessions.set(key, session);
   session.stopped = true;
+  const generation = /^hosted:([A-Za-z0-9_-]{16,128}):/.exec(key)?.[1];
+  const namespace = generation ? `hosted:${generation}:` : key;
+  // An older tab retiring must not delete a replacement session's newer drafts.
+  for (const [otherKey, other] of hostedSessions)
+    if (otherKey === key || (generation && otherKey.startsWith(namespace)))
+      other.stopped = true;
   if (session.cleanup) return session.cleanup;
-  session.cleanup = (async () => {
-    await Promise.allSettled([...session.pending]);
-    if (typeof window === "undefined") return;
-    const prefix = `${encodeURIComponent(key)}:`;
-    const results = await Promise.allSettled([
-      purgeStore("animama-content-creator-recovery", "particle-vfx", prefix),
-      purgeStore("animama-avatar-effect-creator-recovery", "drafts", prefix),
-      purgeStore("animama-scene-effect-creator-recovery", "drafts", prefix),
-      Promise.resolve().then(() => purgeRecoveryFallbacks(prefix)),
-    ]);
-    const errors = results.flatMap((result) =>
-      result.status === "rejected" ? [result.reason] : [],
-    );
-    if (errors.length)
-      throw new AggregateError(
-        errors,
-        "Hosted recovery could not all be removed",
-      );
-  })();
+  session.cleanup = purgeHostedRecovery(
+    [
+      generation
+        ? encodeURIComponent(namespace)
+        : `${encodeURIComponent(key)}:`,
+    ],
+    key,
+  );
   return session.cleanup;
 }
 
-function purgeRecoveryFallbacks(prefix: string): void {
+/** Explicit account sign-out/denial removes history from every hosted generation. */
+export function purgeHostedRecoverySessions(): Promise<void> {
+  for (const session of hostedSessions.values()) session.stopped = true;
+  return purgeHostedRecovery([
+    "hosted%3A",
+    ...[...hostedSessions.keys()].map((key) => `${encodeURIComponent(key)}:`),
+  ]);
+}
+
+async function purgeHostedRecovery(
+  prefixes: string[],
+  key?: string,
+): Promise<void> {
+  await Promise.allSettled(
+    [...hostedSessions.values()]
+      .filter((other) => other.stopped)
+      .flatMap((other) => [...other.pending]),
+  );
+  if (typeof window === "undefined") return;
+  const results = await Promise.allSettled([
+    purgeStore("animama-content-creator-recovery", "particle-vfx", prefixes),
+    purgeStore("animama-avatar-effect-creator-recovery", "drafts", prefixes),
+    purgeStore("animama-scene-effect-creator-recovery", "drafts", prefixes),
+    Promise.resolve().then(() => purgeRecoveryFallbacks(prefixes)),
+    Promise.resolve().then(() => {
+      const raw = window.sessionStorage?.getItem("animama.hosted-recovery.v1");
+      if (raw && raw.length <= 2048) {
+        const identity = JSON.parse(raw) as { key?: string; owner?: string };
+        if (!key || identity.key === key) {
+          if (
+            typeof identity.owner === "string" &&
+            identity.owner.length <= 128
+          )
+            window.localStorage.removeItem(
+              `animama.package-import.v1.${identity.owner}`,
+            );
+          window.sessionStorage.removeItem("animama.hosted-recovery.v1");
+        }
+      }
+    }),
+  ]);
+  const errors = results.flatMap((result) =>
+    result.status === "rejected" ? [result.reason] : [],
+  );
+  if (errors.length)
+    throw new AggregateError(
+      errors,
+      "Hosted recovery could not all be removed",
+    );
+}
+
+function purgeRecoveryFallbacks(namespaces: string[]): void {
   const prefixes = [
     "animama:content-edit:",
     "animama:action-editor:",
     "anima.particleVfxCreator.recovery.v1:",
     "anima.avatarEffectCreator.recovery.v1:",
     "anima.sceneEffectCreator.recovery.v1:",
-  ].map((family) => `${family}${prefix}`);
+  ].flatMap((family) => namespaces.map((prefix) => `${family}${prefix}`));
+  prefixes.push(
+    ...namespaces
+      .filter((prefix) => prefix.startsWith("hosted%3A"))
+      .map(
+        (prefix) => `animama.package-import.v1.${decodeURIComponent(prefix)}`,
+      ),
+  );
   const keys = Array.from({ length: window.localStorage.length }, (_, index) =>
     window.localStorage.key(index),
   );
@@ -83,7 +136,7 @@ function purgeRecoveryFallbacks(prefix: string): void {
 }
 
 /** Opening an absent database must not create empty recovery stores during logout. */
-async function purgeStore(name: string, storeName: string, prefix: string) {
+async function purgeStore(name: string, storeName: string, prefixes: string[]) {
   if (!window.indexedDB) return;
   const database = await new Promise<IDBDatabase | null>((resolve, reject) => {
     const opening = window.indexedDB.open(name);
@@ -102,15 +155,17 @@ async function purgeStore(name: string, storeName: string, prefix: string) {
     await new Promise<void>((resolve, reject) => {
       const transaction = database.transaction(storeName, "readwrite");
       const store = transaction.objectStore(storeName);
-      const cursor = store.openKeyCursor(
-        IDBKeyRange.bound(prefix, `${prefix}\uffff`),
-      );
-      cursor.onsuccess = () => {
-        const entry = cursor.result;
-        if (!entry) return;
-        store.delete(entry.primaryKey);
-        entry.continue();
-      };
+      for (const prefix of new Set(prefixes)) {
+        const cursor = store.openKeyCursor(
+          IDBKeyRange.bound(prefix, `${prefix}\uffff`),
+        );
+        cursor.onsuccess = () => {
+          const entry = cursor.result;
+          if (!entry) return;
+          store.delete(entry.primaryKey);
+          entry.continue();
+        };
+      }
       transaction.oncomplete = () => resolve();
       transaction.onabort = () => reject(transaction.error);
       transaction.onerror = () => reject(transaction.error);

@@ -145,6 +145,17 @@ cannot be substituted globally.
 
 ## Anima loadout and runtime
 
+`AnimaLoadoutService` and `AnimaRuntimeService` are transactional SQL aggregates,
+with direct joins across catalog, binding, receipt and snapshot tables. They
+receive the composition's session; the internal SQL catalog supplies visible
+item reads and runtime invalidation, not the account mutation/locator boundary
+described above. An account composition must bind the entire transaction to the
+authenticated owner and enforce row security on every joined table, preserve
+Included immutability during invalidation, and retain the outer transaction's
+commit/rollback authority. Injecting only a catalog or private byte store does
+not isolate those joins. Runtime file authorization also rechecks item ownership
+and the issued revision before returning a canonical byte descriptor.
+
 `GET /v1/animas/{anima_id}/loadout` returns the typed aggregate. Each family
 changes through `POST /v1/animas/{anima_id}/{family}:plan` and its matching
 `:commit`, with an expected revision, reviewed plan digest, and idempotency
@@ -189,6 +200,10 @@ bundled without the original recording, installed as an independent Local Voice
 and selected with fresh PocketTTS preferences. Presets, inactive clones and
 ElevenLabs IDs do not travel. The `animama/pocket-voice/1` capability requires
 validated binary contents; standalone Voice entries and raw recordings reject.
+A Gesture or Reaction clip requires the capability named by its schema,
+`animaPoseClip/1.0` or `animaPoseClip/2.0`, plus each built-in Pose it
+references (a 2.0 clip references only its base pose). A reader without a
+required capability rejects the package.
 Effective provider changes invalidate a pending export review.
 
 Export summary resolves source revisions and saved facts; preparation requires

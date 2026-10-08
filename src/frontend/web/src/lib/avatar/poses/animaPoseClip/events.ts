@@ -1,11 +1,11 @@
 import { MathUtils } from "three";
 
 import { easeProgress } from "./interpolation";
+import { parseAnyAnimaPoseClip, type AnyAnimaPoseClip } from "./anyClip";
 import { getAnimaPoseClipTimelineDuration } from "./playback";
 import {
   ANIMA_POSE_CLIP_EPSILON,
   DEFAULT_ANIMA_POSE_CLIP_TRANSITION,
-  parseAnimaPoseClip,
   type AnimaPoseClip,
   type AnimaPoseClipEvent,
   type AnimaPoseClipScalarInterpolation,
@@ -83,12 +83,12 @@ type IndexedActiveVFXEvent = AnimaPoseClipActiveVFXEvent & {
  * so a caller can poll frame-to-frame without re-firing boundary events.
  */
 export function collectAnimaPoseClipEventsBetween(
-  clip: AnimaPoseClip,
+  clip: AnyAnimaPoseClip,
   fromPlaybackTimeSec: number,
   toPlaybackTimeSec: number,
   options: AnimaPoseClipEventCollectionOptions = {},
 ): AnimaPoseClipDueEvent[] {
-  const sanitizedClip = parseAnimaPoseClip(clip);
+  const sanitizedClip = parseAnyAnimaPoseClip(clip);
   const events = sanitizedClip.events ?? [];
   if (events.length === 0) return [];
 
@@ -121,10 +121,10 @@ export function collectAnimaPoseClipEventsBetween(
  * preview/scrubbing state and intentionally never returns one-shot SFX events.
  */
 export function sampleAnimaPoseClipActiveEventsAtTime(
-  clip: AnimaPoseClip,
+  clip: AnyAnimaPoseClip,
   playbackTimeSec: number,
 ): AnimaPoseClipActiveVFXEvent[] {
-  const sanitizedClip = parseAnimaPoseClip(clip);
+  const sanitizedClip = parseAnyAnimaPoseClip(clip);
   const events = sanitizedClip.events ?? [];
   if (events.length === 0) return [];
 
@@ -180,10 +180,10 @@ export function sampleAnimaPoseClipVFXEventState(
  * VFX, scene VFX, or sound runtime modules.
  */
 export function validateAnimaPoseClipEventCatalogRefs(
-  clip: AnimaPoseClip,
+  clip: AnyAnimaPoseClip,
   catalogs: AnimaPoseClipEventCatalogRefs,
 ): AnimaPoseClipEventCatalogRefDiagnostics {
-  const sanitizedClip = parseAnimaPoseClip(clip);
+  const sanitizedClip = parseAnyAnimaPoseClip(clip);
   const diagnostics: AnimaPoseClipEventCatalogRefDiagnostics = {
     missingAvatarVFXIds: [],
     missingSceneBackgroundLayerPresetIds: [],
@@ -282,7 +282,7 @@ export function isAnimaPoseClipVFXEvent(
  * is preserved for multiple events at the same timestamp.
  */
 function collectNonLoopingEventsBetween(
-  clip: AnimaPoseClip,
+  clip: AnyAnimaPoseClip,
   fromTime: number,
   toTime: number,
   options: AnimaPoseClipEventCollectionOptions,
@@ -312,7 +312,7 @@ function collectNonLoopingEventsBetween(
  * absolute playback occurrence, then sorting by time and original array order.
  */
 function collectLoopingEventsBetween(
-  clip: AnimaPoseClip,
+  clip: AnyAnimaPoseClip,
   fromTime: number,
   toTime: number,
   options: AnimaPoseClipEventCollectionOptions,
@@ -359,7 +359,7 @@ function collectLoopingEventsBetween(
  * active after their trigger, matching runtime clip-owned VFX lifecycle.
  */
 function sampleNonLoopingActiveVFXEventsAtTime(
-  clip: AnimaPoseClip,
+  clip: AnyAnimaPoseClip,
   playbackTime: number,
 ): IndexedActiveVFXEvent[] {
   const clipTime = MathUtils.clamp(
@@ -392,7 +392,7 @@ function sampleNonLoopingActiveVFXEventsAtTime(
  * occurrence that could overlap the sampled absolute playback time.
  */
 function sampleLoopingActiveVFXEventsAtTime(
-  clip: AnimaPoseClip,
+  clip: AnyAnimaPoseClip,
   playbackTime: number,
 ): IndexedActiveVFXEvent[] {
   const activeEvents: IndexedActiveVFXEvent[] = [];

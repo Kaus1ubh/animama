@@ -1,7 +1,7 @@
 import { QueryClient } from "@tanstack/react-query";
 import type { RuntimeAdmission } from "@animama/runtime-contracts";
 import { queryClientOptions } from "@/query/queryClientOptions";
-import type { AppComposition } from "./composition";
+import type { AdmissionRefresh, AppComposition } from "./composition";
 import { SessionRequestScope } from "./session-requests";
 import { clearPrivateSessionState } from "./private-session-state";
 import { beginHostedRecoverySession } from "@/lib/content/recovery-session";
@@ -10,6 +10,7 @@ export type RuntimeSnapshot = {
   admission: RuntimeAdmission;
   queryClient: QueryClient;
   scope: SessionRequestScope | null;
+  reconnecting: boolean;
 };
 
 /** Owns a composition's caches and invalidates requests before exposing a new admission. */
@@ -18,10 +19,13 @@ export class RuntimeController {
   private pending: AbortController | null = null;
   private generation = 0;
   private cleanup: Promise<void> = Promise.resolve();
+  private retry: ReturnType<typeof setTimeout> | null = null;
+  private retryDelay = 1_000;
   private snapshot: RuntimeSnapshot = {
     admission: { status: "loading" },
     queryClient: new QueryClient({ defaultOptions: queryClientOptions }),
     scope: null,
+    reconnecting: false,
   };
 
   readonly composition: AppComposition;
@@ -40,9 +44,11 @@ export class RuntimeController {
     if (
       admission.status === "ready" &&
       previous.admission.status === "ready" &&
-      admission.session.key === previous.admission.session.key
+      admission.session.key === previous.admission.session.key &&
+      admission.session.owner.id === previous.admission.session.owner.id
     ) {
-      this.snapshot = { ...previous, admission };
+      previous.scope?.resume();
+      this.snapshot = { ...previous, admission, reconnecting: false };
       this.listeners.forEach((listener) => listener());
       return;
     }
@@ -81,6 +87,7 @@ export class RuntimeController {
       admission,
       queryClient: new QueryClient({ defaultOptions: queryClientOptions }),
       scope,
+      reconnecting: false,
     };
     this.composition.bindSession?.(scope);
     this.listeners.forEach((listener) => listener());
@@ -88,13 +95,21 @@ export class RuntimeController {
 
   readonly refresh = async (
     repair = false,
-    invalidate = false,
+    invalidate: AdmissionRefresh = false,
   ): Promise<void> => {
+    if (invalidate === "uncertain") {
+      this.suspend();
+      // Events can fail repeatedly while a context read or its backoff is still
+      // pending. Preserve that read's chance to finish and its bounded retry.
+      if (this.pending || this.retry) return;
+    }
+    if (this.retry) clearTimeout(this.retry);
+    this.retry = null;
     this.pending?.abort();
     const pending = new AbortController();
     this.pending = pending;
     const generation = ++this.generation;
-    if (invalidate || this.snapshot.admission.status !== "ready")
+    if (invalidate === true || this.snapshot.admission.status !== "ready")
       this.publish({ status: "loading" });
     try {
       const admission = await (
@@ -104,23 +119,42 @@ export class RuntimeController {
       if (
         admission.status === "ready" &&
         this.snapshot.admission.status === "ready" &&
-        admission.session.key !== this.snapshot.admission.session.key
+        (admission.session.key !== this.snapshot.admission.session.key ||
+          admission.session.owner.id !==
+            this.snapshot.admission.session.owner.id)
       )
         this.publish({ status: "loading" });
       if (admission.status === "ready") await this.cleanup;
       if (generation === this.generation && !pending.signal.aborted)
         this.publish(admission);
+      this.retryDelay = 1_000;
     } catch {
       if (generation === this.generation && !pending.signal.aborted) {
+        if (
+          this.composition.kind === "hosted" &&
+          this.snapshot.scope &&
+          !this.snapshot.scope.controller.signal.aborted
+        ) {
+          this.suspend();
+          this.retry = setTimeout(() => {
+            void this.refresh();
+          }, this.retryDelay);
+          this.retryDelay = Math.min(this.retryDelay * 2, 30_000);
+          return;
+        }
         this.publish({
           status: "unavailable",
           message: "Animama could not reach the runtime. Please try again.",
         });
       }
+    } finally {
+      if (this.pending === pending) this.pending = null;
     }
   };
 
   readonly signOut = async (): Promise<void> => {
+    if (this.retry) clearTimeout(this.retry);
+    this.retry = null;
     this.pending?.abort();
     const generation = ++this.generation;
     // Private work ends immediately, even when the logout request fails.
@@ -156,8 +190,17 @@ export class RuntimeController {
   };
 
   dispose(): void {
+    if (this.retry) clearTimeout(this.retry);
+    this.retry = null;
     this.pending?.abort();
     ++this.generation;
     this.publish({ status: "loading" });
+  }
+
+  private suspend(): void {
+    if (!this.snapshot.scope) return;
+    this.snapshot.scope.suspend();
+    this.snapshot = { ...this.snapshot, reconnecting: true };
+    this.listeners.forEach((listener) => listener());
   }
 }

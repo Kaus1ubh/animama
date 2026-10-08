@@ -199,6 +199,11 @@ finite cleanup deadlines. It returns no browser provider token. The
 composition must select a provider that does not retry internally; every paid
 retry needs a fresh admission.
 
+Each provider pull uses the same absolute deadline. Consumer work between
+yielded chunks runs outside its cancellation scope; the next pull fails if
+the deadline expired while the consumer was busy. Closing still disposes the
+provider and input streams and records one cancellation outcome.
+
 `SpeechCallOutcome` separates observed transport units from optional measured
 provider units. Legacy speech providers expose no billing receipt, so the shared
 adapter leaves `provider_usage` unknown, including on successful completion.

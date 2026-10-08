@@ -26,7 +26,7 @@ import {
   getResolvedAvatarPose,
 } from "../poses/catalog";
 import type { AnimaPose, ResolvedAnimaPose } from "../poses/animaPose";
-import type { AnimaPoseClip } from "../poses/animaPoseClip";
+import type { AnyAnimaPoseClip } from "../poses/animaPoseClip";
 import {
   getEmotionReactionClipId,
   type NormalizedEmotionReactionIntensity,
@@ -78,12 +78,12 @@ export interface AvatarMotionCatalog {
   isGesturePending?(runtimeId: string): boolean;
   listAnimations(): readonly ManifestAnimation[];
 
-  getPoseClip(runtimeId: string): AnimaPoseClip | null;
-  loadPoseClip(runtimeId: string): Promise<AnimaPoseClip | null>;
+  getPoseClip(runtimeId: string): AnyAnimaPoseClip | null;
+  loadPoseClip(runtimeId: string): Promise<AnyAnimaPoseClip | null>;
   listPoseClips(): readonly AvatarMotionClipDescriptor[];
 
-  getReactionClip(runtimeId: string): AnimaPoseClip | null;
-  loadReactionClip(runtimeId: string): Promise<AnimaPoseClip | null>;
+  getReactionClip(runtimeId: string): AnyAnimaPoseClip | null;
+  loadReactionClip(runtimeId: string): Promise<AnyAnimaPoseClip | null>;
   listReactionClips(): readonly AvatarMotionClipDescriptor[];
   getReactionRuntimeId(args: {
     emotionalTone: string | null | undefined;
@@ -154,7 +154,7 @@ class BuiltInAvatarMotionCatalog implements AvatarMotionCatalog {
     return getAllAnimations();
   }
 
-  getPoseClip(runtimeId: string): AnimaPoseClip | null {
+  getPoseClip(runtimeId: string): AnyAnimaPoseClip | null {
     try {
       return getAvatarPoseClip(runtimeId);
     } catch {
@@ -162,7 +162,7 @@ class BuiltInAvatarMotionCatalog implements AvatarMotionCatalog {
     }
   }
 
-  async loadPoseClip(runtimeId: string): Promise<AnimaPoseClip | null> {
+  async loadPoseClip(runtimeId: string): Promise<AnyAnimaPoseClip | null> {
     return this.getPoseClip(runtimeId);
   }
 
@@ -178,7 +178,7 @@ class BuiltInAvatarMotionCatalog implements AvatarMotionCatalog {
     });
   }
 
-  getReactionClip(runtimeId: string): AnimaPoseClip | null {
+  getReactionClip(runtimeId: string): AnyAnimaPoseClip | null {
     try {
       return getAvatarReactionClip(runtimeId);
     } catch {
@@ -186,7 +186,7 @@ class BuiltInAvatarMotionCatalog implements AvatarMotionCatalog {
     }
   }
 
-  async loadReactionClip(runtimeId: string): Promise<AnimaPoseClip | null> {
+  async loadReactionClip(runtimeId: string): Promise<AnyAnimaPoseClip | null> {
     return this.getReactionClip(runtimeId);
   }
 

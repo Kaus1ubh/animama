@@ -98,7 +98,7 @@ contract instead of maintaining a second truth.
 - [x] 2026-10-06 [A5 / #277](https://github.com/raymond-van/animama/issues/277): engineering/artifact gate PASS after independent final analysis/checks. Clean A `8b09e7ff` and reviewed main-integrated B `e4e0661b` pass independent producer/installed-and-emitted consumer, same-source A production observations and genuine A/B/open-tab/rollback/clip gates. Repair rounds remain 1 of 2; measurement and inherited descriptive-field limits are recorded below. C6/A6 are ready; main adoption, provider/device/deployment and exact-candidate owner merge remain separate.
 - [x] 2026-10-08 [A6 / #278](https://github.com/raymond-van/animama/issues/278): engineering/artifact handoff complete at public `df0faae1` / manifest `4ee249ed`. Approved repair6/6, independent all79/79 browser checks, producer/compatibility/all eight installed-emitted consumers and genuine retained-C rollback pass. Consumer C6 final common24/admin8/lifecycle8 and independent evidence applicability pass. Native CI run37563677832 executed zero steps and remains explicitly owner-waived; no CI success, owner merge, main adoption, real-provider/device or deployment acceptance is claimed.
 
-- [ ] 2026-10-08 [A7 / #333](https://github.com/raymond-van/animama/issues/333): requested post-C6 recovery, stream deadline, resource lifetime and delivery hardening has entered implementation; independent review unstarted, repairs0/2. A1–A6 history and CI waiver remain intact.
+- [ ] 2026-10-08 [A7 / #333](https://github.com/raymond-van/animama/issues/333): shared recovery, deadlines, resource lifetimes and actual Electron/Compose checks pass. Independent source review/check findings are resolved, repairs2/2; clean successor/consumer/rollback and Cloud handoff remain pending. A1–A6 history and CI waiver remain intact.
 
 ## Surprises & Discoveries
 
@@ -249,7 +249,7 @@ Starting source: `339878dd81bea806359e4375732070e7745ec03d`. Implemented the
 [composition/resource contract](../../../contracts/hosted-web.md). The canonical
 capability schema is version 2; offline `local-http` is 3.0.0. TypeScript contracts
 and product UI are 0.3.0; the extracted chat capability is derived from generated
-HTTP types. ADR 0014 records the approved full-app reuse and catalog-role choice.
+HTTP types. ADR 0015 records the approved full-app reuse and catalog-role choice.
 
 TDD: seven Python capability cases failed for absent fields/schema, then passed;
 the generated validator fixture failed on schema version 1, then passed on version 2. Documentation/type-only interface design uses schema, declaration, source-map
@@ -1745,7 +1745,31 @@ Use the existing hosted-composition/runtime-controller/resource/recovery browser
 
 Review this new scope once comprehensively with at most two targeted repair rounds; inherited findings keep their original counters/extensions. CI waiver is not CI success. Completion hands reviewed public source/artifacts to C6H independently of a future main pin. Exact-candidate owner merge, validated main adoption, promotion and actual provider/device/deployment acceptance remain separate gates.
 
-Progress: implementation authorized and entered on 2026-10-08; issue https://github.com/raymond-van/animama/issues/333; starting source `df0faae10578072241d15d956b88cf9f8fb23897` (runtime source; completion/phase-entry documentation follows separately); review repairs 0/2. Findings/revisions and actual validation remain pending until performed.
+Progress: implementation authorized and entered on 2026-10-08; issue https://github.com/raymond-van/animama/issues/333; starting runtime source `df0faae10578072241d15d956b88cf9f8fb23897`, documentation checkpoint `0d57b606aa7035d33cc8df2d325e30f06d68fab9`. Exact incoming main `5f93876ca5f04f5483e164d1252b4cd5dcb70fcc` is integrated locally without replacing the task checkout or authored changes. Preserve main's track-based clips/Included Gestures and creator states; common-web ADR is renumbered0015 to preserve main0014.
+
+#### Code Review #1 Findings — A7
+
+Independent analysis and checks bind all3,419 source paths, including untracked files and literal contributor-link target, to the initial freeze. Required findings: AN1 repeated uncertain event notifications abort a healthy slow admission read and bypass its backoff; AN2 an unknown/missing initial context purges persisted ambiguous-operation recovery before authoritative denial; CHECK1 incomplete test provider protocols/optional tasks and CHECK2 incoming-main validator index types produce14 mypy errors; CHECK3 three common-web ADR display references retain the old number. No optional redesign is assigned. Initial repair count0/2; this review does not reopen A1–A6.
+
+#### Code Review #1 Revisions — A7 repair1/2
+
+Accept all five findings. Repeated uncertainty immediately suspends dispatch but coalesces behind the current admission read or backoff; definitive revoke/sign-out still preempts. Clear the completed pending read in `finally`. Unknown/missing and setup/repair context states retain reload recovery while withholding admission; only recognized account/session denials purge it. Seven integrated fake-timer/storage regressions fail before repair, then pass; seven recognized-denial controls remain positive. Existing reload-original-operation and browser authority controls are retained.
+
+Complete provider test protocols through the existing fake, narrow current tasks explicitly, and preserve exact validated beat IDs with type-only casts. Correct ADR0015 labels. Focused author result:50 runtime/admission cases,48 affected Python cases, Ruff/format and mypy717 source files pass. Initial integrated baseline already passed3,232 backend tests (10 baseline skips),3,038 frontend tests,85 browser cases, SDK freshness, local/hosted builds, package/desktop and E2E static checks. Affected final checks and independent targeted review#2 remain pending; repairs used1/2.
+
+The genuine retained C producer repeat matches original manifest `25bc4ce3a46b49714b3bff036a3974611dd7bbad74ee9054c33565fb7def41a9` and every payload. Current successor production/repeat, all eight installed/emitted consumers, genuine upgrade/open-tab/rollback, actual Electron/Compose and Cloud successor acceptance remain pending. No A7 completion, CI pass, main adoption or release authority is inferred.
+
+#### Code Review #2 Findings — A7
+
+Targeted independent analysis resolves AN1/AN2 without induced findings; receipt SHA9ab119f03aaac58d10dd4374dcddfd88d2e1eddf78c470456e88d65b79353fab. Independent checks resolve CHECK1/2/3 and pass refreshed type/lint,3,052 source tests across404 files,85 browser cases, local build and hosted build, zero skips. One remaining required finding CHECK4 is a one-line Prettier correction in the new denial-control table. Preserve the original formatting failure and preceding wrong-workspace tool error. No broad review is restarted.
+
+#### Code Review #2 Revisions — A7 repair2/2
+
+Accept CHECK4 and apply only the declared one-line formatting correction. Independent final format/source readback reconstructs the original frozen file by reversing exactly that correction, verifies the other3,418 paths/modes unchanged, and passes configured Prettier and staged/unstaged whitespace checks; receipt SHA5b8f2c30aa64a3239656151f7468db265fd4f74e0c66d09a391debcf8e6c93a0. Reuse unchanged passing expensive checks. Repairs used2/2; no additional automatic review repair is authorized. Artifact/runtime gates remain open, including the already identified emitted-consumer compatibility observation.
+
+Actual Electron39/Compose acceptance passes against the current source: the real API reports `self_hosted_web` with `native_features=false`, yet PiP and Quick Chat load their exact native child routes, render their canvas/close control and input, and have visible native windows with opacity1. Actual preload roles, sandbox, context isolation, web security and disabled Node integration are verified. Both windows close through their real bridges. This uses a fresh desktop profile and isolated task stack with private PostgreSQL, no provider requests. Earlier temporary runner failures used a wrong capabilities URL and an unsupported Electron diagnostic property; preserve them as runner failures, not product regressions. This is actual current-source GREEN, with focused unit RED already retained; no actual historical Electron RED is claimed at this checkpoint.
+
+Source-check findings are resolved. The clean-source checkpoint remains an in-progress phase commit: deterministic successor/repeat, all eight installed/emitted consumers, genuine retained-generation upgrade/open-tab/rollback and independent Cloud acceptance still precede A7 completion. Ordinary main adoption, actual CI and release approvals retain their separate gates.
 
 ## Final integration review
 

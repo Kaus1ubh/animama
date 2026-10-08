@@ -682,6 +682,9 @@ failed settlement leaves recovery responsible for the existing reservation.
 Cleanup and settlement each have a finite cleanup deadline; a stalled provider
 close cannot hold the request forever. A rejected admitted request reports
 `not_dispatched` before any provider call, allowing a composition to release it.
+Provider pulls share one absolute deadline. A slow consumer does not receive
+task cancellation while handling a yielded delta; its next pull checks the
+same deadline and times out before reading more provider data if it has expired.
 `unmeasured_native_tools` remains explicit even with known token counts: these
 adapters do not provide authoritative non-token billing receipts. A composition
 must reserve/reconcile those units separately. Counting streamed tool events is

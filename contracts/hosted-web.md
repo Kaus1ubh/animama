@@ -31,14 +31,43 @@ rejects embedded credentials, and shows an account-access error when it is absen
 or invalid. This field does not authorize API calls or alter the immutable entry
 document. The consumer supplies its configured central account URL.
 
-`RuntimeSession.key` changes on every admitted browser session lifetime, including
-sign-out/reauthentication to the same owner. It is an opaque browser partition key,
+An active hosted context may also supply `recovery_session_id`, a URL-safe opaque
+string of 16–128 characters (`A–Z`, `a–z`, digits, `_`, `-`). It is noncredential
+metadata, stable across token/CSRF refresh for one authenticated browser session
+and changed on sign-in/session replacement. It never authorizes a request. The
+browser stores only this generation, owner ID and a random per-tab draft namespace
+(`hosted:<generation>:<tab UUID>`) in session storage. A same-tab reload can recover the original operation ID only
+after fresh cookie admission confirms the same owner and generation. New tabs
+get independent namespaces, including tabs that inherit opener session storage.
+An absent/invalid generation withholds durable reload recovery without granting
+additional permissions. Session retirement removes all tabs' marked namespaces
+for that generation, preserving a newer replacement generation. Explicit account
+sign-out removes marked hosted history and import receipts, including records
+left by older tabs/pages; local installation drafts and device preferences remain
+separate. Older unmarked UUID namespaces cannot be classified as hosted or local
+and are never admitted through this recovery identity.
+
+`RuntimeSession.key` identifies the admitted per-tab recovery lifetime and changes
+on sign-out/reauthentication to the same owner. A confirmed same-session reload
+reuses it with fresh requests and caches. It is an opaque browser partition key,
 not a bearer token, account ID or server owner selector. Owner changes, revoked
 admission and sign-out abort active browser requests/streams and dispose query
 caches, creator drafts, object URLs, runtime mounts/leases, workers, microphone,
 playback, audio graphs and avatar state before a later session mounts. Durable
 server operations keep authoritative receipts: disconnect/sign-out does not prove
 rollback. A pending or ambiguous commit is recovered by its operation identity.
+
+A lost events connection, context transport error or temporary Identity outage
+does not establish revocation. An already admitted view retains its draft and
+resources, suspends new product requests, and retries admission with bounded
+backoff. Fresh same-session admission resumes dispatch. Repeated uncertain events
+preserve a pending admission read and its backoff.
+Unknown initial contexts and setup/repair states withhold admission without
+erasing persisted recovery. Explicit revoked events,
+context 401/403, recognized account/session denials, sign-out and owner/session
+replacement still retire private work immediately. A draft key never substitutes
+for those checks; a recovered uncertain save reconciles its existing operation
+instead of allocating another commit.
 
 Account actions provide sign-in, Cloud-scoped sign-out, account access and usage.
 `RuntimeUsage` contains named user-facing used/limit/reset units; provider prices,

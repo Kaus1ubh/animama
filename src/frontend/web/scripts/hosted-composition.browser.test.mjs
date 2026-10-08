@@ -89,6 +89,8 @@ async function mount(
   page.on("pageerror", (error) => errors.push(error.message));
   const calls = [];
   let csrf = "fixture-session-one";
+  let generation = "fixture-session-generation-one";
+  let offline = false;
   await page.addInitScript(() => {
     window.microphoneStops = 0;
     Object.defineProperty(navigator, "mediaDevices", {
@@ -133,14 +135,17 @@ async function mount(
     });
     let data;
     if (url.pathname === "/v1/hosted/runtime-context")
-      data = {
-        schema_version: 1,
-        state,
-        user_id: state === "active" ? "fixture-owner" : null,
-        csrf_token: csrf,
-        capabilities,
-        account_url: `${origin}/central-account`,
-      };
+      if (offline) return requestRoute.abort("internetdisconnected");
+      else
+        data = {
+          schema_version: 1,
+          state,
+          user_id: state === "active" ? "fixture-owner" : null,
+          csrf_token: csrf,
+          recovery_session_id: generation,
+          capabilities,
+          account_url: `${origin}/central-account`,
+        };
     else if (url.pathname === "/v1/runtime-capabilities") data = capabilities;
     else if (url.pathname === "/v1/hosted/events")
       return requestRoute.fulfill({
@@ -210,9 +215,108 @@ async function mount(
     calls,
     reauthenticate: () => {
       csrf = "fixture-session-two";
+      generation = "fixture-session-generation-two";
+    },
+    offline: (value) => {
+      offline = value;
     },
   };
 }
+
+test("transient context failure preserves the original draft and fences dispatch until a successful refresh", async () => {
+  const fixture = await mount();
+  const { page, calls } = fixture;
+  try {
+    await page.getByText("Your Animas will appear here").waitFor();
+    await page.evaluate(() => window.hostedFixture.startPrivateWork());
+    const first = await page.evaluate(() => window.hostedFixture.current().key);
+    fixture.offline(true);
+    await page.evaluate(() => window.hostedFixture.refresh());
+    await page
+      .getByRole("status")
+      .filter({ hasText: "Reconnecting to Animama" })
+      .waitFor();
+    const before = calls.filter((call) => call.method === "POST").length;
+    const fault = await page.evaluate(async () => {
+      try {
+        await window.hostedFixture.mutate();
+      } catch (error) {
+        return error.message;
+      }
+    });
+    assert.match(fault, /reconnecting/);
+    assert.equal(calls.filter((call) => call.method === "POST").length, before);
+    assert.equal(
+      await page.evaluate(() => window.hostedFixture.draft().operationId),
+      "fixture-operation",
+    );
+    assert.equal(
+      await page.evaluate(() => window.hostedFixture.current().key),
+      first,
+    );
+    fixture.offline(false);
+    await page.evaluate(() => window.hostedFixture.refresh());
+    assert.equal(
+      await page.evaluate(() => window.hostedFixture.current().reconnecting),
+      false,
+    );
+    assert.equal(
+      await page.evaluate(() => window.hostedFixture.draft().operationId),
+      "fixture-operation",
+    );
+  } finally {
+    await page.close();
+  }
+});
+
+test("a real same-tab reload recovers the original ambiguous operation and sign-out purges older hosted namespaces", async () => {
+  const { page } = await mount();
+  try {
+    await page.getByText("Your Animas will appear here").waitFor();
+    await page.evaluate(() => window.hostedFixture.startPrivateWork());
+    const first = await page.evaluate(() => window.hostedFixture.current().key);
+    // Serve the existing Vite-transformed fixture at its history URL on reload.
+    await page.route(`${origin}/`, async (route) => {
+      if (!route.request().isNavigationRequest()) return route.fallback();
+      const response = await route.fetch({
+        url: `${origin}/${fixture}/index.html`,
+      });
+      const html = (await response.text()).replace(
+        'src="./main.tsx"',
+        `src="/${fixture}/main.tsx"`,
+      );
+      await route.fulfill({ response, body: html });
+    });
+    await page.reload();
+    await page.getByText("Your Animas will appear here").waitFor();
+    assert.equal(
+      await page.evaluate(() => window.hostedFixture.current().key),
+      first,
+    );
+    const recovered = await page.evaluate(() => window.hostedFixture.draft());
+    assert.equal(recovered.operationId, "fixture-operation");
+    assert.deepEqual(recovered.form, { text: "private-draft" });
+    await page.evaluate(() => {
+      localStorage.setItem(
+        "animama:content-edit:hosted%3Aold-tab:fixture:draft",
+        "private",
+      );
+      localStorage.setItem(
+        "animama.package-import.v1.hosted:old-tab",
+        "private receipt",
+      );
+    });
+    await page.evaluate(() => window.hostedFixture.signOut());
+    assert.deepEqual(
+      await page.evaluate(() =>
+        Object.keys(localStorage).filter((key) => key.includes("hosted")),
+      ),
+      [],
+    );
+  } finally {
+    await page.close();
+  }
+});
 
 test("leaving the companion route closes a late browser PiP window without moving private DOM", async () => {
   const { page } = await mount("/", "active", undefined, { utilities: true });
@@ -458,11 +562,11 @@ test("sign-out disposes private work and same-owner reauthentication has an empt
   await page.close();
 });
 
-test("awaited hosted sign-out purges only its three creator stores and private image bytes", async () => {
+test("awaited hosted sign-out purges all hosted creator stores and retains local installation drafts", async () => {
   const { page, reauthenticate } = await mount();
   await page.getByText("Your Animas will appear here").waitFor();
   const first = await page.evaluate(() => window.hostedFixture.current().key);
-  const others = ["installation-fixture", `${first}-unrelated`];
+  const others = ["installation-fixture", "hosted:previous-tab"];
   const before = await page.evaluate(
     async ({ first, others }) => {
       const writes = await Promise.all(
@@ -500,10 +604,9 @@ test("awaited hosted sign-out purges only its three creator stores and private i
     ),
   }));
   for (const records of after.records)
-    assert.deepEqual(
-      records.map(({ userId }) => userId).sort(),
-      [...others].sort(),
-    );
+    assert.deepEqual(records.map(({ userId }) => userId).sort(), [
+      "installation-fixture",
+    ]);
   assert.equal(after.preferences.length, 2);
   const late = await page.evaluate(
     (key) => window.hostedFixture.writeCreatorRecovery(key, "late"),
@@ -561,15 +664,20 @@ test("hosted sign-out waits for already-running recovery writes and fences queue
       window.retiredRecoveryKey = key;
     });
     await page.waitForFunction(() => window.heldRecoveryOpens.length === 3);
+    const remoteLogout = page.waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname === "/api/cloud/auth/logout" &&
+        response.request().method() === "POST",
+    );
     await page.evaluate(() => {
       window.signOutSettled = false;
       window.pendingSignOut = window.hostedFixture.signOut().then(() => {
         window.signOutSettled = true;
       });
     });
-    await page.waitForFunction(
-      () => window.hostedFixture.observations.remoteSignOutCompleted,
-    );
+    const logoutResponse = await remoteLogout;
+    assert.equal(logoutResponse.status(), 200);
+    assert.deepEqual(await logoutResponse.json(), { ok: true });
     await page.evaluate(
       () => new Promise((resolve) => requestAnimationFrame(() => resolve())),
     );

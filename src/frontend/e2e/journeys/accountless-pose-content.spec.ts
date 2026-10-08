@@ -8,6 +8,7 @@ import {
 import { attachPlaybackCheckpoint } from "../helpers/checkpoints";
 import { provePoseClipPlayback } from "../helpers/playback-assertions";
 import {
+  expectedPoseCopyName,
   readPoseJson,
   roundTripPosePackage,
   saveTrackedPose,
@@ -84,12 +85,13 @@ test("pose content Included discovery and rendered preview @read-only", async ({
     const customize = page
       .getByRole("article", { name: includedName, exact: true })
       .getByRole("link", { name: "Edit", exact: true });
+    const copyName = await expectedPoseCopyName(page, includedName);
     await customize.focus();
     await expect(customize).toBeFocused();
     await page.keyboard.press("Enter");
     await expect(
       page.getByRole("textbox", { name: "Pose name", exact: true }),
-    ).toHaveValue(`${includedName} copy`, { timeout: 30_000 });
+    ).toHaveValue(copyName, { timeout: 30_000 });
     await expect(
       page.getByTestId("pose-editor-canvas").locator("canvas"),
     ).toBeVisible();
@@ -141,6 +143,7 @@ test("pose content Local save edit reopen and browser storage independence", asy
   const before = await creatorContent.snapshotLocalCatalog();
   await page.goto(posesUrl);
   await page.getByPlaceholder("Search the Library").fill(includedName);
+  const copyName = await expectedPoseCopyName(page, includedName);
   await page
     .getByRole("article", { name: includedName, exact: true })
     .getByRole("link", { name: "Edit", exact: true })
@@ -149,7 +152,7 @@ test("pose content Local save edit reopen and browser storage independence", asy
     name: "Pose name",
     exact: true,
   });
-  await expect(nameInput).toHaveValue(`${includedName} copy`, {
+  await expect(nameInput).toHaveValue(copyName, {
     timeout: 30_000,
   });
   await nameInput.fill(name);
@@ -194,6 +197,7 @@ test("pose content Local save edit reopen and browser storage independence", asy
     page: clipPage,
     selectAnnie: false,
   });
+  await clipPage.getByRole("tab", { name: "Clip", exact: true }).click();
   await clipPage
     .getByRole("button", {
       name: `Insert ${name} at current playhead`,
@@ -221,25 +225,34 @@ test("pose content Local save edit reopen and browser storage independence", asy
     return clip;
   };
   const copiedClip = await readClip();
-  const copiedPoses = Object.entries(
-    copiedClip.poses as Record<
-      string,
-      {
-        humanoid?: Record<string, { rotation?: number[] }>;
-        expressions?: Record<string, number>;
-      }
-    >,
-  ).filter(([key]) => key !== "base");
-  expect(copiedPoses).toHaveLength(1);
-  const copiedPose = copiedPoses[0]![1];
-  expect(copiedPose.expressions).toEqual(original.expressions);
+  // Clip JSON is the 2.0 form Save writes: the copy is a beat whose keys hold
+  // the Pose's values (base endpoints are separate "Base" beats).
+  const copiedBeats = (
+    copiedClip.beats as Array<{ id: string; label: string }>
+  ).filter((beat) => beat.label !== "Base");
+  expect(copiedBeats).toHaveLength(1);
+  const copiedBeat = copiedBeats[0]!.id;
+  const keyAt = <K extends { beat: string }>(keys: K[] | undefined) =>
+    keys?.find((key) => key.beat === copiedBeat);
+  const expressions = (copiedClip.expressions ?? {}) as Record<
+    string,
+    Array<{ beat: string; v: number }>
+  >;
+  for (const [expression, value] of Object.entries(
+    (original.expressions ?? {}) as Record<string, number>,
+  ))
+    expect(keyAt(expressions[expression])?.v).toBeCloseTo(value, 4);
+  const rotations = (copiedClip.rotations ?? {}) as Record<
+    string,
+    Array<{ beat: string; q: number[] }>
+  >;
   for (const [bone, transform] of Object.entries(
     original.humanoid as Record<string, { rotation?: number[] }>,
   )) {
     transform.rotation?.forEach((value, index) =>
-      expect(copiedPose.humanoid?.[bone]?.rotation?.[index]).toBeCloseTo(
-        value,
-        12,
+      expect(Math.abs(keyAt(rotations[bone])?.q[index] ?? NaN)).toBeCloseTo(
+        Math.abs(value),
+        5,
       ),
     );
   }
@@ -427,10 +440,11 @@ test("pose content editor recovers a failed detail load without creating content
     page.getByRole("button", { name: "Save pose", exact: true }),
   ).toBeDisabled();
   await page.unroute(detailUrl);
+  const copyName = await expectedPoseCopyName(page, includedName);
   await page.getByRole("button", { name: "Retry pose", exact: true }).click();
   await expect(
     page.getByRole("textbox", { name: "Pose name", exact: true }),
-  ).toHaveValue(`${includedName} copy`, { timeout: 30_000 });
+  ).toHaveValue(copyName, { timeout: 30_000 });
   await expect(page.getByRole("alert")).toHaveCount(0);
   await creatorContent.assertLocalCatalogUnchanged(before, animamaEvidence);
 });

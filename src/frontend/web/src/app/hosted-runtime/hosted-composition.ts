@@ -3,15 +3,21 @@ import type {
   RuntimeUsage,
 } from "@animama/runtime-contracts";
 import { zRuntimeCapabilities } from "@animama/runtime-contracts/validators";
-import type { AppComposition } from "../runtime/composition";
+import type { AdmissionRefresh, AppComposition } from "../runtime/composition";
 import type { SessionRequestScope } from "../runtime/session-requests";
 import { traceProductRequest } from "../runtime/product-request-tracing";
+import {
+  hostedRecoveryIdentity,
+  forgetHostedRecoveryIdentity,
+} from "./recovery-identity";
+import { purgeHostedRecoverySessions } from "@/lib/content/recovery-session";
 
 type HostedContext = {
   schema_version: number;
   state: string;
   user_id: string | null;
   csrf_token: string | null;
+  recovery_session_id?: string;
   capabilities: unknown;
   account_url?: string | null;
 };
@@ -29,7 +35,7 @@ export function createHostedComposition(
   const origin = new URL(options.baseUrl).origin;
   let csrf: string | null = null;
   let scope: SessionRequestScope | null = null;
-  let session: { owner: string; csrf: string; key: string } | null = null;
+  let session: { owner: string; generation: string; key: string } | null = null;
   let accountUrl: string | null = null;
   let signedOut = false;
   let signInError = false;
@@ -37,9 +43,9 @@ export function createHostedComposition(
   let events: AbortController | null = null;
   let bootstrapTimer: ReturnType<typeof setTimeout> | null = null;
   let retryTimer: ReturnType<typeof setTimeout> | null = null;
-  const listeners = new Set<(invalidate?: boolean) => void>();
+  const listeners = new Set<(invalidate?: AdmissionRefresh) => void>();
   let channel: BroadcastChannel | null = null;
-  const notify = (invalidate = false) =>
+  const notify = (invalidate: AdmissionRefresh = false) =>
     listeners.forEach((listener) => listener(invalidate));
   const stopEvents = () => {
     events?.abort();
@@ -83,12 +89,17 @@ export function createHostedComposition(
     return response.json() as Promise<T>;
   }
 
-  function contextAdmission(context: HostedContext): RuntimeAdmission {
-    if (context.schema_version !== 1)
+  async function contextAdmission(
+    context: HostedContext,
+    signal?: AbortSignal,
+  ): Promise<RuntimeAdmission> {
+    if (context.schema_version !== 1) {
+      if (session) throw new Error("Hosted context has an incompatible format");
       return {
         status: "unavailable",
         message: "This hosted runtime needs an application update.",
       };
+    }
     if (context.state !== "bootstrapping" && bootstrapTimer) {
       clearTimeout(bootstrapTimer);
       bootstrapTimer = null;
@@ -127,7 +138,24 @@ export function createHostedComposition(
       deletion_pending: "restricted",
     };
     if (context.state !== "active") {
+      const authoritativeDenial = [
+        "session_required",
+        "ineligible",
+        "paused",
+        "restricted",
+        "deletion_pending",
+      ].includes(context.state);
+      if (session && !authoritativeDenial)
+        throw new Error("Hosted admission could not currently be confirmed");
       session = null;
+      // Initial reloads have no in-memory session yet. Unknown/repair states
+      // withhold admission but cannot revoke that tab's persisted operation.
+      if (authoritativeDenial) {
+        void scope?.end();
+        await purgeHostedRecoverySessions();
+        forgetHostedRecoveryIdentity();
+        signal?.throwIfAborted();
+      }
       if (
         context.state === "bootstrapping" &&
         listeners.size &&
@@ -152,6 +180,8 @@ export function createHostedComposition(
       /[\r\n]/.test(csrf) ||
       result.data.runtime_kind !== "hosted"
     ) {
+      if (session)
+        throw new Error("Hosted context has incompatible capabilities");
       return {
         status: "unavailable",
         message: "This hosted runtime needs an application update.",
@@ -168,14 +198,35 @@ export function createHostedComposition(
       capabilities.native_features ||
       capabilities.web_search?.configuration
     ) {
+      if (session)
+        throw new Error("Hosted context has incompatible capabilities");
       return {
         status: "unavailable",
         message:
           "This hosted runtime has incompatible application capabilities.",
       };
     }
-    if (session?.owner !== context.user_id || session.csrf !== csrf)
-      session = { owner: context.user_id, csrf, key: key() };
+    const recoveryGeneration =
+      typeof context.recovery_session_id === "string" &&
+      /^[A-Za-z0-9_-]{16,128}$/.test(context.recovery_session_id)
+        ? context.recovery_session_id
+        : undefined;
+    const generation = recoveryGeneration ?? csrf;
+    if (
+      session?.owner !== context.user_id ||
+      session.generation !== generation
+    ) {
+      if (session) await scope?.end();
+      const recoveryKey = options.sessionKey
+        ? key()
+        : await hostedRecoveryIdentity(
+            context.user_id,
+            recoveryGeneration,
+            signal,
+          );
+      signal?.throwIfAborted();
+      session = { owner: context.user_id, generation, key: recoveryKey };
+    }
     return {
       status: "ready",
       session: { key: session.key, owner: { id: context.user_id } },
@@ -195,11 +246,26 @@ export function createHostedComposition(
         message: "Sign-in could not be started. Please try again.",
       };
     }
-    const context = await json<HostedContext>("/v1/hosted/runtime-context", {
+    const response = await authorizedFetch("/v1/hosted/runtime-context", {
       signal,
     });
     signal?.throwIfAborted();
-    return contextAdmission(context);
+    if (response.status === 401 || response.status === 403) {
+      session = null;
+      csrf = null;
+      void scope?.end();
+      await purgeHostedRecoverySessions();
+      forgetHostedRecoveryIdentity();
+      signal?.throwIfAborted();
+      return { status: "sign-in-required" };
+    }
+    if (!response.ok)
+      throw new Error("Hosted context is temporarily unavailable");
+    const context = (await response.json()) as HostedContext;
+    signal?.throwIfAborted();
+    if (context.state === "identity_unavailable" && session)
+      throw new Error("Hosted identity is temporarily unavailable");
+    return contextAdmission(context, signal);
   }
 
   async function repair(signal?: AbortSignal): Promise<RuntimeAdmission> {
@@ -208,7 +274,7 @@ export function createHostedComposition(
       signal,
     });
     signal?.throwIfAborted();
-    const admission = contextAdmission(context);
+    const admission = await contextAdmission(context, signal);
     if (!["bootstrap_required", "recovery"].includes(context.state))
       return admission;
     if (!csrf) return { status: "sign-in-required" };
@@ -249,8 +315,10 @@ export function createHostedComposition(
           signal: controller.signal,
         });
         if (!response.ok || !response.body) {
-          session = null;
-          notify(true);
+          if (response.status === 401 || response.status === 403) {
+            session = null;
+            notify(true);
+          } else notify("uncertain");
           return;
         }
         reader = response.body.getReader();
@@ -274,10 +342,10 @@ export function createHostedComposition(
             }
           }
         }
+        if (!controller.signal.aborted) notify("uncertain");
       } catch {
         if (!controller.signal.aborted) {
-          session = null;
-          notify(true);
+          notify("uncertain");
         }
       } finally {
         void reader?.cancel().catch(() => {});
@@ -306,6 +374,7 @@ export function createHostedComposition(
       signIn: () => {
         signedOut = false;
         session = null;
+        forgetHostedRecoveryIdentity();
         loginRequest?.abort();
         const controller = new AbortController();
         loginRequest = controller;
@@ -344,10 +413,23 @@ export function createHostedComposition(
         loginRequest?.abort();
         signedOut = true;
         session = null;
+        const recoveryCleanup = purgeHostedRecoverySessions();
         channel?.postMessage({ type: "signed-out" });
         try {
-          await json("/api/cloud/auth/logout", { method: "POST" });
+          const results = await Promise.allSettled([
+            json("/api/cloud/auth/logout", { method: "POST" }),
+            recoveryCleanup,
+          ]);
+          const errors = results.flatMap((result) =>
+            result.status === "rejected" ? [result.reason] : [],
+          );
+          if (errors.length)
+            throw new AggregateError(
+              errors,
+              "Hosted sign-out could not fully complete",
+            );
         } finally {
+          forgetHostedRecoveryIdentity();
           csrf = null;
           accountUrl = null;
         }

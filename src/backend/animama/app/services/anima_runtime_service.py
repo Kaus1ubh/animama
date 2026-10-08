@@ -132,7 +132,12 @@ def _runtime_response(
 
 
 class AnimaRuntimeService:
-    """Compile a loadout into an exact local closure and durable lease."""
+    """Compile a loadout into an exact SQL closure and durable lease.
+
+    The composition owns the supplied session and transaction. Multi-owner
+    compositions must isolate catalog, binding and snapshot joins together;
+    passing a private byte store alone does not authorize their SQL projections.
+    """
 
     def __init__(self, session: AsyncSession, *, store: ContentStore | None = None) -> None:
         self.session = session

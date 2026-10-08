@@ -74,11 +74,42 @@ export function installBrowserSessionResources(
       construct: (constructor, args) => {
         const scope = admitted();
         const audio = Reflect.construct(constructor, args) as HTMLAudioElement;
-        scope.register(() => {
-          audio.pause();
-          audio.removeAttribute("src");
-          audio.load();
-        });
+        const pause = audio.pause.bind(audio);
+        const play = audio.play.bind(audio);
+        let playback = 0;
+        let unregister: (() => void) | null = null;
+        const release = () => {
+          unregister?.();
+          unregister = null;
+          audio.removeEventListener("ended", release);
+          audio.removeEventListener("error", release);
+        };
+        const own = () => {
+          if (unregister) return;
+          unregister = scope.register(() => {
+            pause();
+            audio.removeAttribute("src");
+            audio.load();
+            release();
+          });
+          audio.addEventListener("ended", release);
+          audio.addEventListener("error", release);
+        };
+        audio.pause = () => {
+          pause();
+          release();
+        };
+        audio.play = () => {
+          scope.controller.signal.throwIfAborted();
+          own();
+          const generation = ++playback;
+          const playing = play();
+          void playing.catch(() => {
+            if (playback === generation) release();
+          });
+          return playing;
+        };
+        own();
         return audio;
       },
     });
@@ -89,8 +120,29 @@ export function installBrowserSessionResources(
     devices.getUserMedia = async (constraints) => {
       const scope = admitted();
       const stream = await getUserMedia(constraints);
-      const stop = () => stream.getTracks().forEach((track) => track.stop());
-      scope.register(stop);
+      const tracks = stream.getTracks();
+      let unregister = () => {};
+      const release = () => {
+        if (tracks.some((track) => track.readyState !== "ended")) return;
+        unregister();
+        for (const track of tracks)
+          track.removeEventListener?.("ended", release);
+      };
+      // MediaStreamTrack.stop() deliberately emits no ended event; observe both paths.
+      for (const track of tracks) {
+        const stop = track.stop.bind(track);
+        track.stop = () => {
+          stop();
+          release();
+        };
+        track.addEventListener?.("ended", release);
+      }
+      unregister = scope.register(() => {
+        for (const track of tracks) track.stop();
+        for (const track of tracks)
+          track.removeEventListener?.("ended", release);
+      });
+      release();
       if (scope.controller.signal.aborted)
         throw new DOMException("This browser session has ended", "AbortError");
       return stream;
@@ -124,10 +176,16 @@ export function installBrowserSessionResources(
     video.requestPictureInPicture = async function () {
       const scope = admitted();
       const result = await requestPictureInPicture.call(this);
-      scope.register(() => {
+      let unregister = () => {};
+      unregister = scope.register(() => {
+        this.removeEventListener("leavepictureinpicture", unregister);
         if (target.document.pictureInPictureElement)
           void target.document.exitPictureInPicture().catch(() => {});
       });
+      if (!scope.controller.signal.aborted)
+        this.addEventListener("leavepictureinpicture", unregister, {
+          once: true,
+        });
       if (scope.controller.signal.aborted)
         throw new DOMException("This browser session has ended", "AbortError");
       return result;

@@ -1,4 +1,5 @@
 import { expect, type Page, type Route } from "playwright/test";
+import { createUniqueContentBranchName } from "../../web/src/lib/content/uniqueContentName.ts";
 import type {
   CreatorContentFixture,
   CreatorContentPlan,
@@ -9,6 +10,22 @@ export type OwnedPose = {
   itemId: string;
   revisionSha256: string;
 };
+
+/** Derive the editor's default copy name from the current Pose catalog, as the app does. */
+export async function expectedPoseCopyName(
+  page: Page,
+  sourceName: string,
+): Promise<string> {
+  const response = await page.request.get("/v1/poses");
+  expect(response.ok()).toBe(true);
+  const { items } = (await response.json()) as {
+    items: Array<{ name: string }>;
+  };
+  return createUniqueContentBranchName(
+    sourceName,
+    items.map((item) => item.name),
+  );
+}
 
 /** Fsync a plan before the real browser request and bind ownership before the test proceeds. */
 export async function saveTrackedPose(args: {

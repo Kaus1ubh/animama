@@ -4,7 +4,7 @@ import idlePlaybackCases from "../../../../../tests/fixtures/idle-playback-cases
 import { PoseController } from "@/lib/avatar/poses/PoseController";
 import {
   getAnimaPoseClipTimelineDuration,
-  parseAnimaPoseClip,
+  parseAnyAnimaPoseClip,
 } from "@/lib/avatar/poses/animaPoseClip";
 
 /** The backend admission facts must describe a timeline the actual player can finish. */
@@ -13,10 +13,10 @@ describe("shared finite idle clip contract", () => {
     "$name matches actual parser admission",
     ({ clip, parser_valid }) => {
       if (parser_valid) {
-        expect(() => parseAnimaPoseClip(clip)).not.toThrow();
+        expect(() => parseAnyAnimaPoseClip(clip)).not.toThrow();
       } else {
-        expect(() => parseAnimaPoseClip(clip)).toThrow(
-          "Invalid animaPoseClip/1.0 payload",
+        expect(() => parseAnyAnimaPoseClip(clip)).toThrow(
+          /Invalid animaPoseClip\/(1\.0|2\.0) payload/,
         );
       }
     },
@@ -28,7 +28,7 @@ describe("shared finite idle clip contract", () => {
     ),
   )("$name completes at the admitted horizon", ({ clip: raw, expected }) => {
     const facts = expected!;
-    const clip = parseAnimaPoseClip(raw);
+    const clip = parseAnyAnimaPoseClip(raw);
     expect(getAnimaPoseClipTimelineDuration(clip)).toBe(facts.cycle_seconds);
     const vrm = {
       humanoid: {

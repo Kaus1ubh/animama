@@ -5,6 +5,7 @@ export class SessionRequestScope {
   readonly controller = new AbortController();
   private readonly resources = new Set<() => void | Promise<void>>();
   private completion: Promise<void> | null = null;
+  private suspended = false;
 
   readonly key: string;
   readonly transport: ProductApiTransport;
@@ -15,6 +16,10 @@ export class SessionRequestScope {
 
   readonly fetch: typeof globalThis.fetch = async (input, init) => {
     this.assertActive();
+    if (this.suspended)
+      throw new Error(
+        "Animama is reconnecting. This request has not been sent.",
+      );
     const target =
       typeof input === "string"
         ? new URL(input, this.transport.baseUrl)
@@ -45,6 +50,16 @@ export class SessionRequestScope {
     }
     this.resources.add(dispose);
     return () => this.resources.delete(dispose);
+  }
+
+  /** Connection uncertainty fences new work without deleting the current draft or resources. */
+  suspend(): void {
+    this.suspended = true;
+  }
+
+  resume(): void {
+    this.assertActive();
+    this.suspended = false;
   }
 
   /** Abort synchronously; callers can await durable cleanup without delaying loss of admission. */

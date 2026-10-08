@@ -11,15 +11,19 @@ export function useRuntimeCapabilities() {
 
   const ownerId = useRuntimeCacheKey();
   const runtime = useProductRuntime();
+  const admitted =
+    "schema_version" in runtime.capabilities
+      ? (runtime.capabilities as Awaited<
+          ReturnType<typeof fetchRuntimeCapabilities>
+        >)
+      : undefined;
   return useQuery({
     queryKey: queryKeys.runtimeCapabilities(ownerId ?? "__anon__"),
     enabled: Boolean(ownerId),
-    initialData:
-      "schema_version" in runtime.capabilities
-        ? (runtime.capabilities as Awaited<
-            ReturnType<typeof fetchRuntimeCapabilities>
-          >)
-        : undefined,
+    initialData: admitted,
+    // Hosted permissions belong to current admission. Polling must never widen
+    // them independently; local worker heartbeat state retains its existing query.
+    select: (data) => (admitted?.runtime_kind === "hosted" ? admitted : data),
     queryFn: ({ signal }) => fetchRuntimeCapabilities(apiClient, signal),
     staleTime: 5000,
     refetchInterval: (query) =>

@@ -20,10 +20,15 @@ class PackedArtifactTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.path = Path(self.temp.name) / "package.tgz"
-        self.metadata = {"name": "@animama/runtime-contracts", "version": "0.1.0",
-                         "exports": {".": {"import": "./dist/index.js", "types": "./dist/index.d.ts"}}}
-        self.files = {"dist/index.js": "export const answer = 42;",
-                      "dist/index.d.ts": "export declare const answer: 42;"}
+        self.metadata = {
+            "name": "@animama/runtime-contracts",
+            "version": "0.1.0",
+            "exports": {".": {"import": "./dist/index.js", "types": "./dist/index.d.ts"}},
+        }
+        self.files = {
+            "dist/index.js": "export const answer = 42;",
+            "dist/index.d.ts": "export declare const answer: 42;",
+        }
 
     def pack(self):
         """Write the same package envelope emitted by npm/pnpm pack."""

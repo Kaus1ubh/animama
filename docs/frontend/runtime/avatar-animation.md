@@ -134,8 +134,8 @@ Important behavior:
   invocation. Pose clips remember the flag so default-pose restoration on stop
   or non-looping completion uses the same preservation path.
 - `playClip(...)` is synchronous for an already loaded catalog entry.
-  `loadAndPlayClip(...)` lazily decodes a prepared private `animaPoseClip/1.0`
-  manifest before playback. Planner-owned pose, reaction, and VRMA actions
+  `loadAndPlayClip(...)` lazily decodes a prepared private Anima Pose Clip
+  manifest (either schema) before playback. Planner-owned pose, reaction, and VRMA actions
   verify that the requesting owner/run/plan is still current after asynchronous
   work. Pending resources are skipped, never fetched around the preparation
   session. A disposed animation manager cannot cache or play a late decode.
@@ -144,7 +144,7 @@ Important behavior:
   2. update `AnimationManager` so authored VRMA clips establish the base pose
   3. blend any automatic idle VRMA exit back to the default `relaxedRest` base
      pose
-  4. update `PoseController` so active `animaPoseClip/1.0` samples can layer
+  4. update `PoseController` so active Anima Pose Clip samples can layer
      on top of mixer output, then pass the clip's presence (fade weight,
      `mutedProceduralLayers` and sampled expressions) to the procedural and
      expression controllers
@@ -220,7 +220,7 @@ File: `src/frontend/web/src/lib/avatar/poses/PoseController.ts`
 
 Responsibilities:
 
-- Resolve `animaPose/1.0` poses and Action-owned `animaPoseClip/1.0` sequences
+- Resolve `animaPose/1.0` poses and Action-owned Anima Pose Clip sequences
   through the injected motion catalog for the loaded VRM model.
 - Own active clip playback state; the app catalog remains the fallback for
   authoring/debug surfaces outside an Anima runtime.
@@ -300,7 +300,13 @@ Important behavior:
 
 ### Pose and clip JSON artifacts
 
-`AnimaPose` and `AnimaPoseClip` are separate `1.0` JSON artifacts:
+`AnimaPose` and `AnimaPoseClip` are separate JSON artifacts. Clips use one of
+two schemas: `animaPoseClip/1.0` (pose keyframes) and `animaPoseClip/2.0`
+(beats and tracks; see
+[ADR 0014](../../adr/0014-track-based-anima-pose-clips.md)). Gesture, Reaction
+and Idle Style playback, the runtime catalog, the creator, the preview and
+render tools and package import accept both; the creator saves 2.0. The
+built-in App catalog still reads 1.0.
 
 - `animaPose/1.0` is a single absolute pose snapshot. It can contain partial
   normalized humanoid bone transforms, expression weights, and an optional
@@ -366,6 +372,48 @@ Important behavior:
   poses. Sampling precedence is `clip.basePose`, then
   `resolved pose parent chain`, then `keyframe child overrides`.
 
+`animaPoseClip/2.0` keeps the 1.0 metadata (`id`, `name`, `role`, `loop`,
+`playback`, `basePose`, `fadeIn`/`fadeOut`, `mutedProceduralLayers`, `events`)
+with the same meaning, and replaces poses and keyframes with beats and tracks:
+
+- `duration` is required. `beats` lists `{ id, label, time, ease? }` between 0
+  and the duration, at least 0.5 ms apart in increasing time. Labels are the
+  readable names the creator shows.
+- Every key names its `beat` and an offset `dt` from it (default 0), and holds
+  an absolute value. A key lies between its beat's neighbouring beats, so
+  retiming a beat moves its keys, and deleting a beat removes them. Keys on one
+  channel are also at least 0.5 ms apart. Times are validated in 0.1 ms ticks, the
+  precision the serializer writes.
+- Track kinds: `joints` (anatomical components in degrees, keyed per joint and
+  component, for example `joints.leftUpperArm.elevation`; `v: "base"` means the base
+  pose's value), `rotations` (normalized bone quaternions `q`, used by
+  hand-made poses and converted 1.0 clips), `hipsPosition` (`x`/`y`/`z` in
+  metres), `hands` (a Hands-tool `preset` with optional relative `curl` and
+  `spread`) and `expressions` (weights from 0 to 1). A track that is absent
+  leaves its bones to the base pose.
+- A key's `ease` describes how motion arrives at it. It falls back to the
+  beat's `ease`, then to the track default: `smooth` (monotone cubic; motion
+  carries through keys without overshoot) for scalar tracks and
+  `easeInOutSine` for rotation and hand tracks. `linear`, `hold` and the 1.0
+  easings are also available; `tangent: "flat"` stops motion at a smooth key.
+  A loop whose tracks key both 0 and the duration closes smoothly across the
+  seam.
+- `plantFeet: true` solves the legs during playback so both feet stay at
+  rest. `contacts` record intended touches (`bone`, `target`, beat-relative
+  `from`/`to`) for the motion checks; playback ignores them.
+- Clips are prepared once per Avatar when playback starts
+  (`createAnimaPoseClipProgram`): hand presets are fitted to its fingers and
+  planted legs are solved on its rig. Sampling a frame then costs about
+  0.01 ms.
+- Parsing rejects a duration over 3,600 s, more than 1,000 beats, 400 tracks
+  or 50,000 keys, beat ids over 64 characters and labels over 80, and
+  preserves unknown top-level fields. A clip needs at least one track key or
+  event. Validation errors name the field path, for example
+  `expressions.happy[0].beat`.
+- `convertAnimaPoseClipToV2` turns a 1.0 clip into a 2.0 clip with one beat per
+  keyframe; it matches 1.0 playback within 0.01°. Included 1.0 files stay
+  unchanged.
+
 ### Mounted motion catalog
 
 `src/frontend/web/src/lib/avatar/motion/AvatarMotionCatalog.ts` defines the
@@ -409,12 +457,13 @@ as self-contained, parent-free content descriptors. The synchronous App provider
 uses a generated projection; run `pnpm poses:generate` from `src/frontend` after
 changing these descriptors. The web build and source check reject projection drift.
 
-Built-in runtime inputs behind the App provider live under:
+Built-in runtime inputs behind the App provider are:
 
-- `src/frontend/web/src/lib/avatar/poses/pose_catalog.json` (defaults and clip manifest)
 - `src/frontend/web/src/lib/avatar/poses/pose_catalog.generated.json` (generated poses)
-- `src/frontend/web/src/lib/avatar/poses/json/clips/*.json`
-- `src/frontend/web/src/lib/avatar/poses/json/clips/reactions/*.json`
+- `src/frontend/web/src/lib/avatar/poses/json/internal-poses/*.json` (runtime-only poses)
+- the Included Gesture and Reaction clips, bundled straight from
+  `content/included/gestures/<id>/<id>.json` and
+  `content/included/reactions/<id>/<id>.json` (metadata files excluded)
 
 `catalog.ts` validates these files on load and exposes raw and resolved pose
 helpers. Missing, invalid, duplicate, or id-mismatched pose/clip entries are
@@ -423,15 +472,19 @@ parent chain cannot resolve are also skipped, so UI lists only usable catalog
 poses. `getAvatarPose(...)` returns the raw catalog artifact, while
 `getResolvedAvatarPose(...)` returns a parent-free clone from a cached resolved
 catalog path so per-frame clip playback does not repeatedly walk parent
-chains. To register an exported clip for runtime debug playback, add the clip
-JSON under `poses/json/clips/` and add its id/path metadata to
-`pose_catalog.json`.
+chains. Gesture clips may be `animaPoseClip/1.0` or `/2.0`; `getAvatarPoseClip(...)`
+returns a fresh copy of either. The clip id is the Included folder name; the
+default pose is `relaxedRest`. There is no frontend copy of Included clips:
+the Vite dev server allows `content/included` (`server.fs.allow`), the
+development web container mounts it at `/content/included`, and the
+production image copies it before the web build. Internal poses of Gestures
+replaced by 2.0 clips stay in `json/internal-poses/` for imported 1.0 packages.
 
-Reaction clips are loaded separately from `poses/json/clips/reactions/` by file
+Reaction clips are loaded separately from `content/included/reactions/` by file
 name. The canonical catalog contains 72 files: each `TRACKED_EMOTIONS` value
 from `src/frontend/web/src/lib/emotion` at intensities `1`, `2`, and `3`, using
-`<emotion>-<intensity>.json` ids. Reaction clips are not added to
-`pose_catalog.json`, do not run through `Avatar.playClip(...)`, and are skipped
+`<emotion>-<intensity>.json` ids. Reaction clips are not in the Gesture clip
+catalog, do not run through `Avatar.playClip(...)`, and are skipped
 if channel analysis finds any humanoid transforms. This strict authoring rule
 applies to Included and Local Reaction entries. Playback projects Reaction
 sequences to expressions/events and defensively ignores humanoid samples.
@@ -461,8 +514,8 @@ runtime application boundary, treating the built-in JSON pose catalog as VRM
 `setNormalizedPose(...)`. The conversion flips authored position X/Z values and
 conjugates quaternion rotations with the equivalent `[-x, y, -z, w]` component
 mapping. The conversion is centralized in
-`poses/poseRetargeting.ts` without changing the `animaPose/1.0` or
-`animaPoseClip/1.0` schemas.
+`poses/poseRetargeting.ts` without changing the `animaPose/1.0` or Anima Pose
+Clip schemas.
 
 Procedural layers that write authored bone offsets (breathing, sway, bounce,
 head nod, head side tilt, talking hands and emotion posture) are also
@@ -498,32 +551,84 @@ Both adjusts each hand from its own current values independently of the
 single-bone mirror option. Selection and tool visibility are transient; Save and
 inline keyframe completion use the existing pose contract without helper metadata.
 
+Gesture and Reaction clips open as beats, shown as keyframes on the Pose (or
+Expression) lane and named by their labels; the draft keeps the clip's tracks
+as their source (`poseCreatorClipMotion.ts`, operations in
+`lib/avatar/poses/animaPoseClip/beatEditing.ts`). A new document starts with
+no beats. A 1.0 clip (an Included Gesture or Reaction, or an imported file) is
+converted when opened (`convertPoseCreatorClipToV2`): one beat per keyframe,
+labelled from its pose alias, with keyframes that reference the base pose
+becoming Base beats; Included files are not changed. A beat that owns generated
+detail (keys away from its own time) shows a dot in its diamond, and the
+keyframe inspector shows a read-only note on how far that detail reaches. The
+inspector's Label field renames the beat; its Easing sets how motion arrives
+at all of the beat's keys. Editing follows the beat:
+
+- moving a beat (drag or Time) moves its keys with it; the facing detail of
+  neighbouring beats stretches or compresses with the gap, a beat with detail
+  stops before it would pass a neighbour, and beats without detail may pass
+  other beats without detail;
+- a Pose tab edit applies to the beat: a changed joint's keys owned by the beat
+  shift by the change (so overshoots ride along), untouched joints keep their
+  keys, bones the edit resets return to the base pose and cleared expressions
+  to 0, and bones without tracks gain a track keyed at every beat; editing a
+  finger of a hand driven by Hands-tool presets first turns that hand's presets
+  into equivalent finger keys;
+- deleting a beat removes all of its keys; capturing at the playhead adds a
+  beat holding the current motion, and inserting a Library Pose adds (or
+  re-poses) a beat with the pose by value, its omitted bones at the base pose,
+  then freezes the base pose into the tracks and removes the reference
+  (`detachBasePose`) in the same undoable edit;
+- Start and End base add Base beats holding the base pose, which follow a Base
+  pose change (an authored beat already at that end is kept).
+
+Save, Clip JSON and project export write `animaPoseClip/2.0`
+(`savedActionSequence`, which also converts a 1.0 document that was never
+opened in the timeline). A timeline whose beats hold no keys, such as Base
+beats alone, cannot be saved, because a 2.0 clip needs a track key or event.
+
 `CreatorTimeline` supplies controlled transport and track presentation to Gesture,
 Reaction and all three VFX creators. Each editor retains its own playback owner:
 Particle exposes its elapsed preview clock, while Avatar/Scene rulers show saved
 lifetime configuration without seeking or an elapsed playhead. Avatar's run-end
 buffer starts after a conversation run; it is not a standalone preview deadline.
 
-Agent-authored Gestures start from a per-bone motion description
-(`animamaMotion/1`). Commands run from `src/frontend/web`:
+Agents author Gestures directly as `animaPoseClip/2.0` clips. Commands run
+from `src/frontend/web`:
 
 - `pnpm -s animation joints` lists joints, components and ranges.
-- `pnpm -s animation generate <motion.json>` bakes a dense
-  `animaPoseClip/1.0` sequence, within 1° / 5 mm of the described curves.
-- `pnpm -s animation check <motion|clip>` runs motion checks on both
-  Included Avatars.
+- `pnpm -s animation validate <clip.json> [--out <compact.json>]` reports
+  structural problems and values beyond anatomical limits by JSON path and the
+  saved size; `--out` writes the compact saved form only when valid.
+- `pnpm -s animation check <clip.json>` runs motion checks on both Included
+  Avatars, each with its own prepared clip; a 2.0 clip supplies its contacts
+  and `plantFeet`.
 - `pnpm -s animation:render <clip.json> --out <dir>` draws review sheets.
+- `pnpm -s animation:save <items.json>` saves clips as Local Gestures through
+  the Gesture creator in a headless browser, revising an existing Local
+  Gesture with the same Selector ID.
+- `pnpm -s animation:preview [<source>]` plays a clip, project file or Library
+  item live on both Included Avatars through `Avatar`/`PoseController`. Its
+  Review and Compare pickers switch to any clip beside a file source and any
+  Library Gesture or Reaction without a restart. Review
+  notes are saved beside a file source (in the working directory for a Library
+  item); `animation review` and `animation resolve` manage them.
 
 The workflow, conventions and review guidance live in the
 `animama-animation` agent skill. The code is in
-`src/lib/avatar/motion-authoring/`. Import a generated clip through the
-Gesture creator and edit its description, not the dense keyframes.
+`src/lib/avatar/motion-authoring/`. Clips live only as content: drafts in the
+ignored `.animama-drafts/` folder until saved, then Local items in
+`content/local/`, and owner-approved Gestures in `content/included/` (through
+`pnpm -s animation promote`). The earlier `animamaMotion/1` description format and its bake step are
+retired; the tools explain this when given a description.
 
 There is no separate generic Pose Creator route or raw package save provider.
-Clip JSON remains `animaPoseClip/1.0`; a separate versioned project envelope is
-available when typed effect/sound dependencies must round-trip with the sequence.
+Clip JSON is `animaPoseClip/2.0`; a separate versioned project envelope
+(`animamaActionProject/1.0`) carries the name, AI description, Selector ID and
+typed effect/sound dependencies with the sequence. Import accepts either
+format, with a 1.0 or 2.0 sequence.
 
-For an Action implemented by `animaPoseClip/1.0`, the Action display name is
+For an Action implemented by an Anima Pose Clip, the Action display name is
 the authoritative authoring name. The embedded clip `name` matches it, and the
 clip `id` is its normalized lowercase ASCII kebab-case form. Creator rename,
 load, import, JSON export, and Save boundaries all reapply this invariant, so

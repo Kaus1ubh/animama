@@ -83,6 +83,7 @@ import {
   actionJsonFilename,
   unresolvedActionReferences,
 } from "./actionProject";
+import { savedActionSequence } from "./actionPersistence";
 import { useActionEditorWorkspace } from "./ActionEditorWorkspaceContext";
 import type { ActionEditorMode } from "./actionEditorCapabilities";
 
@@ -942,8 +943,8 @@ function ActionImportDialog({
         <DialogHeader className="border-border border-b px-5 py-4 pr-12">
           <DialogTitle>Import</DialogTitle>
           <DialogDescription>
-            Open an animaPoseClip/1.0 file directly or restore an Animama typed
-            project with exact dependency pins.
+            Open an animaPoseClip/2.0 or 1.0 file directly or restore an Animama
+            typed project with exact dependency pins.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 overflow-y-auto p-4 sm:p-5">
@@ -990,7 +991,7 @@ function ActionImportDialog({
           <Textarea
             value={text}
             onChange={(event) => setText(event.target.value)}
-            placeholder='{"schema":"animaPoseClip/1.0",…}'
+            placeholder='{"schema":"animaPoseClip/2.0",…}'
             className="min-h-48 font-mono text-xs"
             aria-label="Creator JSON import"
           />
@@ -1111,7 +1112,13 @@ function ActionJsonDialog({
     try {
       return JSON.stringify(
         kind === "clip"
-          ? workspace.document.sequence
+          ? workspace.document.implementation === "anima_clip"
+            ? // The clip as Save writes it (2.0).
+              savedActionSequence(
+                workspace.document.sequence,
+                workspace.document.intent,
+              )
+            : workspace.document.sequence
           : createActionProject(workspace.document),
         null,
         2,
@@ -1140,7 +1147,7 @@ function ActionJsonDialog({
         <DialogHeader className="border-border border-b px-5 py-4 pr-12">
           <DialogTitle>Creator JSON</DialogTitle>
           <DialogDescription>
-            Clip JSON is portable animaPoseClip/1.0. Typed project JSON also
+            Clip JSON is portable animaPoseClip/2.0. Typed project JSON also
             retains exact effect and sound references.
           </DialogDescription>
         </DialogHeader>

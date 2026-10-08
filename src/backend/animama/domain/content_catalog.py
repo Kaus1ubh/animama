@@ -17,6 +17,13 @@ class ContentSource(str, Enum):
     LOCAL = "local"
 
 
+# A full rescan reconciles, and row-locks, every Included entry before any Local
+# entry in one transaction. Any path that locks entries from both sources must
+# follow the same order (then entry ID) or it can deadlock against that rescan.
+# Such locks must also stay at FOR NO KEY UPDATE; see SQLAlchemyContentCatalog.lock_items.
+CONTENT_SOURCE_LOCK_ORDER: tuple[ContentSource, ...] = (ContentSource.INCLUDED, ContentSource.LOCAL)
+
+
 class ContentScope(str, Enum):
     """Authorization scope attached by the catalog, never inferred from a path."""
 

@@ -34,6 +34,8 @@ deprecated/
 cache/
 artifacts/synthetic-user-files/
 .animama-stacks/
+# Animation skill drafts before their first save (saved clips live in content/).
+.animama-drafts/
 backups/
 
 # Durable self-hosted files are operator data. Keep only their guides tracked.
@@ -51,7 +53,6 @@ src/legacy/
 src/motion/gesture/translate/models
 src/motion/gesture/app/emage_evaltools
 src/motion/gesture/datasets
-src/webui/public/effects/sfx/kenney_ui-audio
 
 .codex
 /cloud/
@@ -66,6 +67,9 @@ src/webui/public/effects/sfx/kenney_ui-audio
 # pack-ignore patterns above.
 !content/included/**
 content/included/**/.DS_Store
+# Motion preview review notes and retained versions beside Included clips.
+content/included/**/*.review.json
+content/included/**/*.review/
 
 # Do not ship the current third-party SFX or raw particle source packs.
 /content/included/sfx/

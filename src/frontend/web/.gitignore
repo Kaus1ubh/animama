@@ -23,3 +23,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Motion preview review notes and retained versions
+*.review.json
+*.review/

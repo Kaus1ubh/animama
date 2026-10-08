@@ -29,6 +29,8 @@ class BoundedSpeechService:
     and admission. The composition owns provider selection/lifetime. Legacy
     providers expose no billing receipt, so these outcomes retain unknown
     provider usage even after a successful stream. No client token is returned.
+    Provider pulls share one absolute deadline. Consumer work between chunks
+    runs outside that timer; a late next pull fails before reading more bytes.
     """
 
     def __init__(
@@ -53,13 +55,24 @@ class BoundedSpeechService:
         stream = None
         try:
             stream = self._tts.synthesize(text, voice_id=call.voice_id, lang=call.language, speed=call.speed)
-            async with asyncio.timeout(call.limits.timeout_seconds):
-                async for chunk in stream:
-                    output_bytes += len(chunk.data)
-                    if output_bytes > call.limits.max_output_bytes:
-                        raise ValueError("Speech output exceeds the admitted byte limit")
-                    yield chunk
-                status = "completed"
+            iterator = aiter(stream)
+            loop = asyncio.get_running_loop()
+            deadline = loop.time() + call.limits.timeout_seconds
+            while True:
+                # The provider deadline is absolute; consumer work between
+                # chunks must never run inside its cancellation scope.
+                if loop.time() >= deadline:
+                    raise TimeoutError("Speech provider deadline exceeded")
+                try:
+                    async with asyncio.timeout_at(deadline):
+                        chunk = await anext(iterator)
+                except StopAsyncIteration:
+                    break
+                output_bytes += len(chunk.data)
+                if output_bytes > call.limits.max_output_bytes:
+                    raise ValueError("Speech output exceeds the admitted byte limit")
+                yield chunk
+            status = "completed"
         except (asyncio.CancelledError, GeneratorExit):
             status = "cancelled"
             raise
@@ -104,13 +117,22 @@ class BoundedSpeechService:
         stream = None
         try:
             stream = self._stt.stream(source)
-            async with asyncio.timeout(call.limits.timeout_seconds):
-                async for segment in stream:
-                    output_bytes += len(segment.text.encode("utf-8"))
-                    if output_bytes > call.limits.max_output_bytes:
-                        raise ValueError("Speech output exceeds the admitted byte limit")
-                    yield segment
-                status = "completed"
+            iterator = aiter(stream)
+            loop = asyncio.get_running_loop()
+            deadline = loop.time() + call.limits.timeout_seconds
+            while True:
+                if loop.time() >= deadline:
+                    raise TimeoutError("Speech provider deadline exceeded")
+                try:
+                    async with asyncio.timeout_at(deadline):
+                        segment = await anext(iterator)
+                except StopAsyncIteration:
+                    break
+                output_bytes += len(segment.text.encode("utf-8"))
+                if output_bytes > call.limits.max_output_bytes:
+                    raise ValueError("Speech output exceeds the admitted byte limit")
+                yield segment
+            status = "completed"
         except (asyncio.CancelledError, GeneratorExit):
             status = "cancelled"
             raise

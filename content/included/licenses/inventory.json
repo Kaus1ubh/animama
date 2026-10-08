@@ -101,6 +101,195 @@
       "redistribution_review": "pending"
     },
     {
+      "glob": "gestures/arms-crossed/*.json",
+      "creator": "Animama project; authored by an AI coding agent under the owner's direction",
+      "provenance": "Agent-authored animaPoseClip/2.0 Gesture definition and metadata, written from text prompts with the animama-animation skill (#282) under the owner's direction. Contains no third-party animation, motion-capture or VRMA data. The owner reviewed the motion and approved inclusion on 2026-10-07 (gates G1-G4). The owner-authorship attestation for gestures/**/*.json does not cover these files; copyright status of AI-generated material must be reviewed before public release.",
+      "license_id": "LicenseRef-Animama-agent-authored",
+      "redistribution_review": "pending"
+    },
+    {
+      "glob": "gestures/cat-monster-rawr/*.json",
+      "creator": "Animama project; authored by an AI coding agent under the owner's direction",
+      "provenance": "Agent-authored animaPoseClip/2.0 Gesture definition and metadata, written from text prompts with the animama-animation skill (#282) under the owner's direction. Contains no third-party animation, motion-capture or VRMA data. The owner reviewed the motion and approved inclusion on 2026-10-07 (gates G1-G4). The owner-authorship attestation for gestures/**/*.json does not cover these files; copyright status of AI-generated material must be reviewed before public release.",
+      "license_id": "LicenseRef-Animama-agent-authored",
+      "redistribution_review": "pending"
+    },
+    {
+      "glob": "gestures/cheeky-finger-guns/*.json",
+      "creator": "Animama project; authored by an AI coding agent under the owner's direction",
+      "provenance": "Agent-authored animaPoseClip/2.0 Gesture definition and metadata, written from text prompts with the animama-animation skill (#282) under the owner's direction. Contains no third-party animation, motion-capture or VRMA data. The owner reviewed the motion and approved inclusion on 2026-10-07 (gates G1-G4). The owner-authorship attestation for gestures/**/*.json does not cover these files; copyright status of AI-generated material must be reviewed before public release.",
+      "license_id": "LicenseRef-Animama-agent-authored",
+      "redistribution_review": "pending"
+    },
+    {
+      "glob": "gestures/hands-on-hips/*.json",
+      "creator": "Animama project; authored by an AI coding agent under the owner's direction",
+      "provenance": "Agent-authored animaPoseClip/2.0 Gesture definition and metadata, written from text prompts with the animama-animation skill (#282) under the owner's direction. Contains no third-party animation, motion-capture or VRMA data. The owner reviewed the motion and approved inclusion on 2026-10-07 (gates G1-G4). The owner-authorship attestation for gestures/**/*.json does not cover these files; copyright status of AI-generated material must be reviewed before public release.",
+      "license_id": "LicenseRef-Animama-agent-authored",
+      "redistribution_review": "pending"
+    },
+    {
+      "glob": "gestures/right-face-palm/*.json",
+      "creator": "Animama project; authored by an AI coding agent under the owner's direction",
+      "provenance": "Agent-authored animaPoseClip/2.0 Gesture definition and metadata, written from text prompts with the animama-animation skill (#282) under the owner's direction. Contains no third-party animation, motion-capture or VRMA data. The owner reviewed the motion and approved inclusion on 2026-10-07 (gates G1-G4). The owner-authorship attestation for gestures/**/*.json does not cover these files; copyright status of AI-generated material must be reviewed before public release.",
+      "license_id": "LicenseRef-Animama-agent-authored",
+      "redistribution_review": "pending"
+    },
+    {
+      "glob": "gestures/thinking-head-scratch/*.json",
+      "creator": "Animama project; authored by an AI coding agent under the owner's direction",
+      "provenance": "Agent-authored animaPoseClip/2.0 Gesture definition and metadata, written from text prompts with the animama-animation skill (#282) under the owner's direction. Contains no third-party animation, motion-capture or VRMA data. The owner reviewed the motion and approved inclusion on 2026-10-07 (gates G1-G4). The owner-authorship attestation for gestures/**/*.json does not cover these files; copyright status of AI-generated material must be reviewed before public release.",
+      "license_id": "LicenseRef-Animama-agent-authored",
+      "redistribution_review": "pending"
+    },
+    {
+      "glob": "gestures/attentive-lean-in/*.json",
+      "creator": "Animama project; authored by an AI coding agent under the owner's direction",
+      "provenance": "Agent-authored animaPoseClip/2.0 Gesture definition and metadata, written from text prompts with the animama-animation skill (#282) under the owner's direction. Contains no third-party animation, motion-capture or VRMA data. The owner reviewed the motion and approved inclusion on 2026-10-07 (gates G1-G4). The owner-authorship attestation for gestures/**/*.json does not cover these files; copyright status of AI-generated material must be reviewed before public release.",
+      "license_id": "LicenseRef-Animama-agent-authored",
+      "redistribution_review": "pending"
+    },
+    {
+      "glob": "gestures/blow-a-kiss/*.json",
+      "creator": "Animama project; authored by an AI coding agent under the owner's direction",
+      "provenance": "Agent-authored animaPoseClip/2.0 Gesture definition and metadata, written from text prompts with the animama-animation skill (#282) under the owner's direction. Contains no third-party animation, motion-capture or VRMA data. The owner reviewed the motion and approved inclusion on 2026-10-07 (gates G1-G4). The owner-authorship attestation for gestures/**/*.json does not cover these files; copyright status of AI-generated material must be reviewed before public release.",
+      "license_id": "LicenseRef-Animama-agent-authored",
+      "redistribution_review": "pending"
+    },
+    {
+      "glob": "gestures/celebration/*.json",
+      "creator": "Animama project; authored by an AI coding agent under the owner's direction",
+      "provenance": "Agent-authored animaPoseClip/2.0 Gesture definition and metadata, written from text prompts with the animama-animation skill (#282) under the owner's direction. Contains no third-party animation, motion-capture or VRMA data. The owner reviewed the motion and approved inclusion on 2026-10-07 (gates G1-G4). The owner-authorship attestation for gestures/**/*.json does not cover these files; copyright status of AI-generated material must be reviewed before public release.",
+      "license_id": "LicenseRef-Animama-agent-authored",
+      "redistribution_review": "pending"
+    },
+    {
+      "glob": "gestures/deflated-sigh/*.json",
+      "creator": "Animama project; authored by an AI coding agent under the owner's direction",
+      "provenance": "Agent-authored animaPoseClip/2.0 Gesture definition and metadata, written from text prompts with the animama-animation skill (#282) under the owner's direction. Contains no third-party animation, motion-capture or VRMA data. The owner reviewed the motion and approved inclusion on 2026-10-07 (gates G1-G4). The owner-authorship attestation for gestures/**/*.json does not cover these files; copyright status of AI-generated material must be reviewed before public release.",
+      "license_id": "LicenseRef-Animama-agent-authored",
+      "redistribution_review": "pending"
+    },
+    {
+      "glob": "gestures/enthusiastic-yes/*.json",
+      "creator": "Animama project; authored by an AI coding agent under the owner's direction",
+      "provenance": "Agent-authored animaPoseClip/2.0 Gesture definition and metadata, written from text prompts with the animama-animation skill (#282) under the owner's direction. Contains no third-party animation, motion-capture or VRMA data. The owner reviewed the motion and approved inclusion on 2026-10-07 (gates G1-G4). The owner-authorship attestation for gestures/**/*.json does not cover these files; copyright status of AI-generated material must be reviewed before public release.",
+      "license_id": "LicenseRef-Animama-agent-authored",
+      "redistribution_review": "pending"
+    },
+    {
+      "glob": "gestures/gentle-head-shake/*.json",
+      "creator": "Animama project; authored by an AI coding agent under the owner's direction",
+      "provenance": "Agent-authored animaPoseClip/2.0 Gesture definition and metadata, written from text prompts with the animama-animation skill (#282) under the owner's direction. Contains no third-party animation, motion-capture or VRMA data. The owner reviewed the motion and approved inclusion on 2026-10-07 (gates G1-G4). The owner-authorship attestation for gestures/**/*.json does not cover these files; copyright status of AI-generated material must be reviewed before public release.",
+      "license_id": "LicenseRef-Animama-agent-authored",
+      "redistribution_review": "pending"
+    },
+    {
+      "glob": "gestures/hysterical-laughter/*.json",
+      "creator": "Animama project; authored by an AI coding agent under the owner's direction",
+      "provenance": "Agent-authored animaPoseClip/2.0 Gesture definition and metadata, written from text prompts with the animama-animation skill (#282) under the owner's direction. Contains no third-party animation, motion-capture or VRMA data. The owner reviewed the motion and approved inclusion on 2026-10-07 (gates G1-G4). The owner-authorship attestation for gestures/**/*.json does not cover these files; copyright status of AI-generated material must be reviewed before public release.",
+      "license_id": "LicenseRef-Animama-agent-authored",
+      "redistribution_review": "pending"
+    },
+    {
+      "glob": "gestures/medium-laugh/*.json",
+      "creator": "Animama project; authored by an AI coding agent under the owner's direction",
+      "provenance": "Agent-authored animaPoseClip/2.0 Gesture definition and metadata, written from text prompts with the animama-animation skill (#282) under the owner's direction. Contains no third-party animation, motion-capture or VRMA data. The owner reviewed the motion and approved inclusion on 2026-10-07 (gates G1-G4). The owner-authorship attestation for gestures/**/*.json does not cover these files; copyright status of AI-generated material must be reviewed before public release.",
+      "license_id": "LicenseRef-Animama-agent-authored",
+      "redistribution_review": "pending"
+    },
+    {
+      "glob": "gestures/mild-laugh/*.json",
+      "creator": "Animama project; authored by an AI coding agent under the owner's direction",
+      "provenance": "Agent-authored animaPoseClip/2.0 Gesture definition and metadata, written from text prompts with the animama-animation skill (#282) under the owner's direction. Contains no third-party animation, motion-capture or VRMA data. The owner reviewed the motion and approved inclusion on 2026-10-07 (gates G1-G4). The owner-authorship attestation for gestures/**/*.json does not cover these files; copyright status of AI-generated material must be reviewed before public release.",
+      "license_id": "LicenseRef-Animama-agent-authored",
+      "redistribution_review": "pending"
+    },
+    {
+      "glob": "gestures/polite-bow/*.json",
+      "creator": "Animama project; authored by an AI coding agent under the owner's direction",
+      "provenance": "Agent-authored animaPoseClip/2.0 Gesture definition and metadata, written from text prompts with the animama-animation skill (#282) under the owner's direction. Contains no third-party animation, motion-capture or VRMA data. The owner reviewed the motion and approved inclusion on 2026-10-07 (gates G1-G4). The owner-authorship attestation for gestures/**/*.json does not cover these files; copyright status of AI-generated material must be reviewed before public release.",
+      "license_id": "LicenseRef-Animama-agent-authored",
+      "redistribution_review": "pending"
+    },
+    {
+      "glob": "gestures/pout-huff/*.json",
+      "creator": "Animama project; authored by an AI coding agent under the owner's direction",
+      "provenance": "Agent-authored animaPoseClip/2.0 Gesture definition and metadata, written from text prompts with the animama-animation skill (#282) under the owner's direction. Contains no third-party animation, motion-capture or VRMA data. The owner reviewed the motion and approved inclusion on 2026-10-07 (gates G1-G4). The owner-authorship attestation for gestures/**/*.json does not cover these files; copyright status of AI-generated material must be reviewed before public release.",
+      "license_id": "LicenseRef-Animama-agent-authored",
+      "redistribution_review": "pending"
+    },
+    {
+      "glob": "gestures/shy-giggle/*.json",
+      "creator": "Animama project; authored by an AI coding agent under the owner's direction",
+      "provenance": "Agent-authored animaPoseClip/2.0 Gesture definition and metadata, written from text prompts with the animama-animation skill (#282) under the owner's direction. Contains no third-party animation, motion-capture or VRMA data. The owner reviewed the motion and approved inclusion on 2026-10-07 (gates G1-G4). The owner-authorship attestation for gestures/**/*.json does not cover these files; copyright status of AI-generated material must be reviewed before public release.",
+      "license_id": "LicenseRef-Animama-agent-authored",
+      "redistribution_review": "pending"
+    },
+    {
+      "glob": "gestures/small-shy-wave/*.json",
+      "creator": "Animama project; authored by an AI coding agent under the owner's direction",
+      "provenance": "Agent-authored animaPoseClip/2.0 Gesture definition and metadata, written from text prompts with the animama-animation skill (#282) under the owner's direction. Contains no third-party animation, motion-capture or VRMA data. The owner reviewed the motion and approved inclusion on 2026-10-07 (gates G1-G4). The owner-authorship attestation for gestures/**/*.json does not cover these files; copyright status of AI-generated material must be reviewed before public release.",
+      "license_id": "LicenseRef-Animama-agent-authored",
+      "redistribution_review": "pending"
+    },
+    {
+      "glob": "gestures/storytelling/*.json",
+      "creator": "Animama project; authored by an AI coding agent under the owner's direction",
+      "provenance": "Agent-authored animaPoseClip/2.0 Gesture definition and metadata, written from text prompts with the animama-animation skill (#282) under the owner's direction. Contains no third-party animation, motion-capture or VRMA data. The owner reviewed the motion and approved inclusion on 2026-10-07 (gates G1-G4). The owner-authorship attestation for gestures/**/*.json does not cover these files; copyright status of AI-generated material must be reviewed before public release.",
+      "license_id": "LicenseRef-Animama-agent-authored",
+      "redistribution_review": "pending"
+    },
+    {
+      "glob": "gestures/surprise-gasp/*.json",
+      "creator": "Animama project; authored by an AI coding agent under the owner's direction",
+      "provenance": "Agent-authored animaPoseClip/2.0 Gesture definition and metadata, written from text prompts with the animama-animation skill (#282) under the owner's direction. Contains no third-party animation, motion-capture or VRMA data. The owner reviewed the motion and approved inclusion on 2026-10-07 (gates G1-G4). The owner-authorship attestation for gestures/**/*.json does not cover these files; copyright status of AI-generated material must be reviewed before public release.",
+      "license_id": "LicenseRef-Animama-agent-authored",
+      "redistribution_review": "pending"
+    },
+    {
+      "glob": "gestures/excited-triple-clap/*.json",
+      "creator": "Animama project; authored by an AI coding agent under the owner's direction",
+      "provenance": "Agent-authored animaPoseClip/2.0 Gesture definition and metadata, written from text prompts with the animama-animation skill in #267 and migrated to 2.0 in #282, under the owner's direction. Contains no third-party animation, motion-capture or VRMA data. The owner accepted the migrated motion at gate G1 and approved inclusion on 2026-10-07. The owner-authorship attestation for gestures/**/*.json does not cover these files; copyright status of AI-generated material must be reviewed before public release.",
+      "license_id": "LicenseRef-Animama-agent-authored",
+      "redistribution_review": "pending"
+    },
+    {
+      "glob": "gestures/gentle-double-nod/*.json",
+      "creator": "Animama project; authored by an AI coding agent under the owner's direction",
+      "provenance": "Agent-authored animaPoseClip/2.0 Gesture definition and metadata, written from text prompts with the animama-animation skill in #267 and migrated to 2.0 in #282, under the owner's direction. Contains no third-party animation, motion-capture or VRMA data. The owner accepted the migrated motion at gate G1 and approved inclusion on 2026-10-07. The owner-authorship attestation for gestures/**/*.json does not cover these files; copyright status of AI-generated material must be reviewed before public release.",
+      "license_id": "LicenseRef-Animama-agent-authored",
+      "redistribution_review": "pending"
+    },
+    {
+      "glob": "gestures/hearty-laugh/*.json",
+      "creator": "Animama project; authored by an AI coding agent under the owner's direction",
+      "provenance": "Agent-authored animaPoseClip/2.0 Gesture definition and metadata, written from text prompts with the animama-animation skill in #267 and migrated to 2.0 in #282, under the owner's direction. Contains no third-party animation, motion-capture or VRMA data. The owner accepted the migrated motion at gate G1 and approved inclusion on 2026-10-07. The owner-authorship attestation for gestures/**/*.json does not cover these files; copyright status of AI-generated material must be reviewed before public release.",
+      "license_id": "LicenseRef-Animama-agent-authored",
+      "redistribution_review": "pending"
+    },
+    {
+      "glob": "gestures/palms-up-shrug/*.json",
+      "creator": "Animama project; authored by an AI coding agent under the owner's direction",
+      "provenance": "Agent-authored animaPoseClip/2.0 Gesture definition and metadata, written from text prompts with the animama-animation skill in #267 and migrated to 2.0 in #282, under the owner's direction. Contains no third-party animation, motion-capture or VRMA data. The owner accepted the migrated motion at gate G1 and approved inclusion on 2026-10-07. The owner-authorship attestation for gestures/**/*.json does not cover these files; copyright status of AI-generated material must be reviewed before public release.",
+      "license_id": "LicenseRef-Animama-agent-authored",
+      "redistribution_review": "pending"
+    },
+    {
+      "glob": "gestures/thinking-chin-rest/*.json",
+      "creator": "Animama project; authored by an AI coding agent under the owner's direction",
+      "provenance": "Agent-authored animaPoseClip/2.0 Gesture definition and metadata, written from text prompts with the animama-animation skill in #267 and migrated to 2.0 in #282, under the owner's direction. Contains no third-party animation, motion-capture or VRMA data. The owner accepted the migrated motion at gate G1 and approved inclusion on 2026-10-07. The owner-authorship attestation for gestures/**/*.json does not cover these files; copyright status of AI-generated material must be reviewed before public release.",
+      "license_id": "LicenseRef-Animama-agent-authored",
+      "redistribution_review": "pending"
+    },
+    {
+      "glob": "gestures/wave-hello/*.json",
+      "creator": "Animama project; authored by an AI coding agent under the owner's direction",
+      "provenance": "Agent-authored animaPoseClip/2.0 Gesture definition and metadata, written from text prompts with the animama-animation skill in #267 and migrated to 2.0 in #282, under the owner's direction. Contains no third-party animation, motion-capture or VRMA data. The owner accepted the migrated motion at gate G1 and approved inclusion on 2026-10-07. The owner-authorship attestation for gestures/**/*.json does not cover these files; copyright status of AI-generated material must be reviewed before public release.",
+      "license_id": "LicenseRef-Animama-agent-authored",
+      "redistribution_review": "pending"
+    },
+    {
       "glob": "gestures/**/*.json",
       "creator": "Animama project owner",
       "provenance": "The owner confirms they authored the JSON gesture and pose definitions and their metadata (2026-09-03). Any referenced VRMA animation retains its separate Adobe Mixamo provenance and product-use terms.",

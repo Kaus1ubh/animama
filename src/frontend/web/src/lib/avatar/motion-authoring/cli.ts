@@ -1,10 +1,15 @@
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { Quaternion } from "three";
 
 import {
+  ANIMA_POSE_CLIP_V2_SCHEMA,
   MAX_ANIMA_POSE_CLIP_BYTES,
-  parseAnimaPoseClip,
+  parseAnyAnimaPoseClip,
   serializeAnimaPoseClipFile,
+  validateAnimaPoseClipV2,
+  type AnimaPoseClipV2,
+  type AnimaPoseClipV2Issue,
 } from "../poses/animaPoseClip";
 import { RELAXED_REST_POSE_ID, getResolvedAvatarPose } from "../poses/catalog";
 import {
@@ -12,26 +17,27 @@ import {
   JOINT_IDS,
   decomposeJointRotation,
   resolveJoint,
-} from "./anatomy";
-import {
-  BAKE_TOLERANCE_DEGREES,
-  BAKE_TOLERANCE_METRES,
-  bakeMotion,
-} from "./bake";
+  type JointComponentDefinition,
+} from "../poses/anatomy/anatomy";
 import { checkMotion, formatMotionCheckReport } from "./checks";
 import {
-  MOTION_DESCRIPTION_SCHEMA,
-  formatMotionDescriptionIssues,
-  parseMotionDescription,
-  type MotionDescription,
-} from "./description";
-import {
   INCLUDED_AVATAR_FILES,
-  REFERENCE_AVATAR_ID,
   loadHeadlessVrm,
   type IncludedAvatarId,
 } from "./headlessVrm";
-import { Quaternion } from "three";
+import {
+  loadReviewSidecar,
+  resolveReviewNote,
+  retainReviewVersion,
+  reviewPathsFor,
+  saveReviewSidecar,
+  type ReviewSidecar,
+} from "./preview/reviewNotes";
+import {
+  RETIRED_DESCRIPTION_MESSAGE,
+  RETIRED_DESCRIPTION_SCHEMA,
+  sourceVersion,
+} from "./preview/sources";
 
 export type MotionCliContext = {
   /** Directory holding the Included `.vrm` files. */
@@ -46,11 +52,19 @@ const USAGE = `Usage: pnpm animation <command>
 Commands:
   joints                      List joints, components, meanings and ranges.
   base                        Print the base pose (Relaxed Rest) as joint values.
-  generate <motion.json> [--out <clip.json>]
-                              Validate a motion description and bake a Gesture clip.
-  check <motion.json | clip.json> [--description <motion.json>] [--json]
-                              Run the motion checks on both Included Avatars.
-                              A description supplies contacts and plantFeet.`;
+  validate <clip.json> [--out <compact.json>]
+                              Validate an animaPoseClip/2.0 clip: structure,
+                              anatomical limits and saved size. --out writes
+                              the compact file the creator saves, only when valid.
+  check <clip.json> [--json]  Run the motion checks on both Included Avatars.
+                              A 2.0 clip supplies its contacts and plantFeet.
+  review <notes.review.json>  List preview review notes with their ids and status.
+  resolve <notes.review.json> <note id> <resolution>
+                              Mark a note resolved by the reviewed source's
+                              current version (run after changing the source).
+  promote <items.json> [--dry-run]
+                              Promote owner-approved Gestures to Included
+                              content (owner approval and a PR required).`;
 
 /** Run a motion-authoring command. Returns the process exit code. */
 export async function runMotionCli(
@@ -65,90 +79,246 @@ export async function runMotionCli(
     case "base":
       context.out(JSON.stringify(baseJointValues(), null, 2));
       return 0;
-    case "generate":
-      return generate(rest, context);
+    case "validate":
+      return validate(rest, context);
     case "check":
       return check(rest, context);
+    case "review":
+      return review(rest, context);
+    case "resolve":
+      return resolve(rest, context);
     default:
       context.out(USAGE);
       return command === undefined || command === "help" ? 0 : 2;
   }
 }
 
-async function generate(
+async function validate(
   args: readonly string[],
   context: MotionCliContext,
 ): Promise<number> {
   const input = args[0];
-  if (!input) {
-    context.out(USAGE);
-    return 2;
-  }
   const options = parseOptions(args.slice(1), ["--out"]);
-  if ("error" in options) {
-    context.out(`${options.error}\n\n${USAGE}`);
+  if (!input || "error" in options) {
+    context.out(`${"error" in options ? `${options.error}\n\n` : ""}${USAGE}`);
     return 2;
   }
-  const inputPath = path.resolve(context.cwd, input);
+  const read = await readJson(input, context);
+  if ("error" in read) {
+    context.out(read.error);
+    return 1;
+  }
+  const compacted = compactClipFile(read.value);
+  if (!compacted.ok) {
+    context.out(compacted.message);
+    return 1;
+  }
+  const { clip, saved, savedBytes } = compacted;
   const outputPath = options.values["--out"]
     ? path.resolve(context.cwd, options.values["--out"])
-    : inputPath.replace(/(\.motion)?\.json$/, "") + ".clip.json";
-
-  let raw: unknown;
-  try {
-    raw = JSON.parse(await readFile(inputPath, "utf8"));
-  } catch (error) {
-    context.out(`Cannot read ${input}: ${(error as Error).message}`);
-    return 1;
-  }
-  const parsed = parseMotionDescription(raw);
-  if (!parsed.ok) {
-    context.out(
-      `Invalid motion description (${parsed.issues.length} issue(s)):\n` +
-        formatMotionDescriptionIssues(parsed.issues),
-    );
-    return 1;
-  }
-  const reference = await loadAvatar(REFERENCE_AVATAR_ID, context);
-  const { clip, report } = bakeMotion(parsed.description, reference);
-  if (!report.withinTolerance) {
-    context.out(
-      `Not written: baked playback strays ${report.maxBakeErrorDegrees}° / ${report.maxBakePositionError} m from the curves ` +
-        `(limits ${BAKE_TOLERANCE_DEGREES}° / ${BAKE_TOLERANCE_METRES} m). Spread keys that change faster than the sample spacing allows.`,
-    );
-    return 1;
-  }
-  // Measure the file the creator will save, after its own sanitization.
-  let savedBytes: number;
-  try {
-    savedBytes = Buffer.byteLength(
-      serializeAnimaPoseClipFile(parseAnimaPoseClip(clip)),
-    );
-  } catch (error) {
-    context.out(
-      `Not written: the baked clip is not a valid animaPoseClip (${(error as Error).message}).`,
-    );
-    return 1;
-  }
-  if (savedBytes > MAX_ANIMA_POSE_CLIP_BYTES) {
-    context.out(
-      `Not written: the clip saves as ${formatKilobytes(savedBytes)}, over the ${formatKilobytes(MAX_ANIMA_POSE_CLIP_BYTES)} the app will load. ` +
-        `Shorten the clip, or remove keys that add little visible motion.`,
-    );
-    return 1;
-  }
-  await writeFile(outputPath, `${JSON.stringify(clip, null, 2)}\n`);
+    : null;
+  if (outputPath) await writeFile(outputPath, saved);
+  const tracks = countTracks(clip);
   context.out(
     [
-      `Wrote ${displayPath(outputPath, context.cwd)}`,
-      `  id ${clip.id}, ${clip.duration}s, ${clip.loop ? "loop" : "one-shot"}, ${report.keyframes} keyframes`,
-      `  animated bones: ${report.animatedBones.length}; expressions: ${report.expressions.join(", ") || "none"}`,
-      `  max bake error: ${report.maxBakeErrorDegrees}°, ${report.maxBakePositionError} m`,
+      `Valid ${input}${outputPath ? `; wrote ${displayPath(outputPath, context.cwd)}` : ""}`,
+      `  id ${clip.id}, ${clip.duration}s, ${clip.loop ? "loop" : "one-shot"}, ${clip.beats.length} beats: ${clip.beats.map(({ label }) => label).join(", ")}`,
+      `  ${tracks.tracks} tracks, ${tracks.keys} keys; expressions: ${Object.keys(clip.expressions ?? {}).join(", ") || "none"}`,
+      `  planted feet: ${clip.plantFeet ? "yes" : "no"}; contacts: ${clip.contacts?.length ?? 0}`,
       `  saved size: ${formatKilobytes(savedBytes)} of ${formatKilobytes(MAX_ANIMA_POSE_CLIP_BYTES)}`,
-      `  muted layers: ${clip.mutedProceduralLayers.join(", ") || "none"}`,
+      `  muted layers: ${clip.mutedProceduralLayers?.join(", ") || "none"}`,
     ].join("\n"),
   );
   return 0;
+}
+
+/** A valid clip and the compact file the creator saves for it. */
+export type CompactClipFile =
+  | { ok: true; clip: AnimaPoseClipV2; saved: string; savedBytes: number }
+  | { ok: false; message: string };
+
+/**
+ * Validate a 2.0 clip (structure, anatomical limits and saved size) and
+ * serialize the file the creator saves. Shared by `validate --out` and the
+ * Included promotion tool, so both write the same bytes.
+ */
+export function compactClipFile(value: unknown): CompactClipFile {
+  if (schemaOf(value) === RETIRED_DESCRIPTION_SCHEMA)
+    return { ok: false, message: RETIRED_DESCRIPTION_MESSAGE };
+  const result = validateAnimaPoseClipV2(value);
+  // Both kinds of problem at once, so one run lists everything to fix.
+  const issues = [
+    ...(result.ok ? [] : result.issues),
+    ...anatomicalLimitIssues(value),
+  ];
+  if (!result.ok || issues.length > 0)
+    return {
+      ok: false,
+      message:
+        `Invalid ${ANIMA_POSE_CLIP_V2_SCHEMA} (${issues.length} issue(s)):\n` +
+        issues.map(({ path, message }) => `  ${path}: ${message}`).join("\n"),
+    };
+  const saved = serializeAnimaPoseClipFile(result.clip);
+  const savedBytes = Buffer.byteLength(saved);
+  if (savedBytes > MAX_ANIMA_POSE_CLIP_BYTES)
+    return {
+      ok: false,
+      message: `Too large: the clip saves as ${formatKilobytes(savedBytes)}, over the ${formatKilobytes(MAX_ANIMA_POSE_CLIP_BYTES)} the app will load.`,
+    };
+  return { ok: true, clip: result.clip, saved, savedBytes };
+}
+
+/**
+ * Joint values beyond each component's hard (anatomical) limit. Reads the
+ * raw clip, so it also reports clips with structural problems.
+ */
+function anatomicalLimitIssues(value: unknown): AnimaPoseClipV2Issue[] {
+  const issues: AnimaPoseClipV2Issue[] = [];
+  const joints = isRecord(value) && isRecord(value.joints) ? value.joints : {};
+  for (const [jointId, components] of Object.entries(joints)) {
+    const joint = resolveJoint(jointId);
+    if (!joint || !isRecord(components)) continue;
+    const definitions = JOINT_DEFINITIONS[joint.type].components as Record<
+      string,
+      JointComponentDefinition
+    >;
+    for (const [name, keys] of Object.entries(components)) {
+      if (!Object.hasOwn(definitions, name) || !Array.isArray(keys)) continue;
+      const [min, max] = definitions[name].hard;
+      keys.forEach((key: unknown, index) => {
+        const v = isRecord(key) ? key.v : undefined;
+        if (typeof v === "number" && (v < min || v > max))
+          issues.push({
+            path: `joints.${jointId}.${name}[${index}].v`,
+            message: `${v}° is beyond the anatomical limit ${min}..${max}.`,
+          });
+      });
+    }
+  }
+  return issues;
+}
+
+function countTracks(clip: AnimaPoseClipV2): { tracks: number; keys: number } {
+  const groups = [
+    ...Object.values(clip.joints ?? {}),
+    clip.rotations ?? {},
+    clip.hipsPosition ?? {},
+    clip.hands ?? {},
+    clip.expressions ?? {},
+  ];
+  let tracks = 0;
+  let keys = 0;
+  for (const group of groups)
+    for (const track of Object.values(group) as unknown[][]) {
+      tracks += 1;
+      keys += track.length;
+    }
+  return { tracks, keys };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function schemaOf(value: unknown): unknown {
+  return typeof value === "object" && value !== null
+    ? (value as { schema?: unknown }).schema
+    : undefined;
+}
+
+async function review(
+  args: readonly string[],
+  context: MotionCliContext,
+): Promise<number> {
+  if (args.length !== 1) {
+    context.out(USAGE);
+    return 2;
+  }
+  const loaded = await loadExistingSidecar(args[0], context);
+  if (!loaded) return 1;
+  context.out(formatReviewNotes(loaded.sidecar));
+  return 0;
+}
+
+async function resolve(
+  args: readonly string[],
+  context: MotionCliContext,
+): Promise<number> {
+  const [file, id, ...words] = args;
+  const resolution = words.join(" ").trim();
+  if (!file || !id || !resolution) {
+    context.out(USAGE);
+    return 2;
+  }
+  const loaded = await loadExistingSidecar(file, context);
+  if (!loaded) return 1;
+  const { sidecar, sidecarPath } = loaded;
+  const sourcePath = path.resolve(path.dirname(sidecarPath), sidecar.source);
+  let text: string;
+  try {
+    text = await readFile(sourcePath, "utf8");
+  } catch (error) {
+    context.out(`Cannot read the reviewed source: ${(error as Error).message}`);
+    return 1;
+  }
+  const version = sourceVersion(text);
+  const note = sidecar.notes.find((candidate) => candidate.id === id);
+  if (!note) {
+    context.out(`No review note "${id}". Run review to list them.`);
+    return 1;
+  }
+  if (note.version === version)
+    context.out(
+      `Note: ${displayPath(sourcePath, context.cwd)} has not changed since this note was made.`,
+    );
+  const paths = reviewPathsFor(
+    { kind: "file", path: sourcePath, name: "" },
+    { cwd: context.cwd, notes: sidecarPath },
+  );
+  // Retain the resolving version so the preview can compare it.
+  const next = resolveReviewNote(
+    await retainReviewVersion(sidecar, paths, version, text),
+    id,
+    resolution,
+    { version },
+  );
+  await saveReviewSidecar(sidecarPath, next);
+  context.out(`Resolved ${id} with source version ${version}.`);
+  return 0;
+}
+
+async function loadExistingSidecar(
+  file: string,
+  context: MotionCliContext,
+): Promise<{ sidecar: ReviewSidecar; sidecarPath: string } | null> {
+  const sidecarPath = path.resolve(context.cwd, file);
+  try {
+    await readFile(sidecarPath);
+    return {
+      sidecar: await loadReviewSidecar(sidecarPath, ""),
+      sidecarPath,
+    };
+  } catch (error) {
+    context.out(
+      (error as NodeJS.ErrnoException).code === "ENOENT"
+        ? `No review notes at ${file}.`
+        : (error as Error).message,
+    );
+    return null;
+  }
+}
+
+function formatReviewNotes(sidecar: ReviewSidecar): string {
+  const open = sidecar.notes.filter(({ status }) => status === "open").length;
+  return [
+    `${sidecar.source}: ${open} open, ${sidecar.notes.length - open} resolved`,
+    ...[...sidecar.notes]
+      .sort((a, b) => a.time - b.time)
+      .flatMap((note) => [
+        `  ${note.id}  ${note.status.padEnd(8)} ${note.time.toFixed(2)}s${note.beat ? ` · ${note.beat}` : ""}${note.region ? ` · ${note.region}` : ""}  ${note.text}`,
+        ...(note.resolution ? [`      → ${note.resolution}`] : []),
+      ]),
+  ].join("\n");
 }
 
 /** Accept only the named `--flag value` options; anything else is an error. */
@@ -188,31 +358,14 @@ async function readJson(
   }
 }
 
-function describe(
-  value: unknown,
-  context: MotionCliContext,
-): MotionDescription | null {
-  const parsed = parseMotionDescription(value);
-  if (parsed.ok) return parsed.description;
-  context.out(
-    `Invalid motion description (${parsed.issues.length} issue(s)):\n` +
-      formatMotionDescriptionIssues(parsed.issues),
-  );
-  return null;
-}
-
 async function check(
   args: readonly string[],
   context: MotionCliContext,
 ): Promise<number> {
   const input = args[0];
-  const json = args.includes("--json");
-  const options = parseOptions(
-    args.slice(1).filter((arg) => arg !== "--json"),
-    ["--description"],
-  );
-  if (!input || "error" in options) {
-    context.out(`${"error" in options ? `${options.error}\n\n` : ""}${USAGE}`);
+  const unknown = args.slice(1).find((arg) => arg !== "--json");
+  if (!input || unknown) {
+    context.out(`${unknown ? `Unknown option ${unknown}.\n\n` : ""}${USAGE}`);
     return 2;
   }
   const read = await readJson(input, context);
@@ -220,47 +373,29 @@ async function check(
     context.out(read.error);
     return 1;
   }
+  if (schemaOf(read.value) === RETIRED_DESCRIPTION_SCHEMA) {
+    context.out(RETIRED_DESCRIPTION_MESSAGE);
+    return 1;
+  }
+  let clip;
+  try {
+    clip = parseAnyAnimaPoseClip(read.value);
+  } catch (error) {
+    context.out(
+      `Cannot check ${input}: ${(error as Error).message}.${schemaOf(read.value) === ANIMA_POSE_CLIP_V2_SCHEMA ? " Run validate for details." : ""}`,
+    );
+    return 1;
+  }
   const avatars = await Promise.all(
     (Object.keys(INCLUDED_AVATAR_FILES) as IncludedAvatarId[]).map(
       async (id) => ({ id, vrm: await loadAvatar(id, context) }),
     ),
   );
-  let clip = read.value;
-  let description: MotionDescription | null = null;
-  const isDescription =
-    typeof read.value === "object" &&
-    read.value !== null &&
-    (read.value as { schema?: unknown }).schema === MOTION_DESCRIPTION_SCHEMA;
-  if (isDescription) {
-    description = describe(read.value, context);
-    if (!description) return 1;
-    if (options.values["--description"])
-      context.out(
-        "Ignoring --description: the input is already a description.",
-      );
-    const reference = avatars.find(({ id }) => id === REFERENCE_AVATAR_ID)!;
-    clip = bakeMotion(description, reference.vrm).clip;
-  } else if (options.values["--description"]) {
-    const extra = await readJson(options.values["--description"], context);
-    if ("error" in extra) {
-      context.out(extra.error);
-      return 1;
-    }
-    description = describe(extra.value, context);
-    if (!description) return 1;
-  }
-  let report;
-  try {
-    report = checkMotion(clip, avatars, {
-      contacts: description?.contacts,
-      plantFeet: description?.plantFeet !== false,
-    });
-  } catch (error) {
-    context.out(`Cannot check ${input}: ${(error as Error).message}`);
-    return 1;
-  }
+  const report = checkMotion(clip, avatars);
   context.out(
-    json ? JSON.stringify(report, null, 2) : formatMotionCheckReport(report),
+    args.includes("--json")
+      ? JSON.stringify(report, null, 2)
+      : formatMotionCheckReport(report),
   );
   return report.ok ? 0 : 1;
 }
@@ -308,9 +443,14 @@ function formatJointTable(): string {
   for (const [type, definition] of Object.entries(JOINT_DEFINITIONS)) {
     const ids = JOINT_IDS.filter((id) => resolveJoint(id)!.type === type);
     lines.push(`${ids.join(", ")}`);
-    for (const [name, component] of Object.entries(definition.components))
+    for (const [name, component] of Object.entries(definition.components) as [
+      string,
+      JointComponentDefinition,
+    ][])
       lines.push(
-        `  ${name}: ${component.description} Natural ${component.soft[0]}..${component.soft[1]}, limit ${component.hard[0]}..${component.hard[1]}.`,
+        component.auxiliary
+          ? `  ${name} (auxiliary, leave at base): ${component.description}`
+          : `  ${name}: ${component.description} Natural ${component.soft[0]}..${component.soft[1]}, limit ${component.hard[0]}..${component.hard[1]}.`,
       );
   }
   return lines.join("\n");

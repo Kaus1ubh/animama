@@ -55,6 +55,8 @@ class AccountedModelClient:
     the upstream generator and reports uncertainty; completion is recorded
     before the final delta is exposed. Closing this wrapper does not close the
     underlying shared registry client, whose composition owns its lifetime.
+    One absolute deadline bounds provider pulls. It is checked again after a
+    slow consumer resumes; no provider timer may cancel the consumer's work.
     """
 
     def __init__(self, client: ModelClient, boundary: ModelCallBoundary) -> None:
@@ -78,20 +80,30 @@ class AccountedModelClient:
             dispatched = True
             outcome = ModelCallOutcome("incomplete", unmeasured_native_tools=native_tools)
             stream = self._client.stream(call.request)
-            async with asyncio.timeout(limits.timeout_seconds):
-                async for delta in stream:
-                    if delta.kind == "final" and delta.final is not None:
-                        final = delta.final
-                        outcome = ModelCallOutcome(
-                            "completed", final.usage if final.usage_reported else None, native_tools
-                        )
-                        finished = True
+            iterator = aiter(stream)
+            loop = asyncio.get_running_loop()
+            deadline = loop.time() + limits.timeout_seconds
+            while True:
+                # Keep the absolute provider budget, but never leave its task
+                # cancellation active while the consumer handles a yielded delta.
+                if loop.time() >= deadline:
+                    raise TimeoutError("Model provider deadline exceeded")
+                try:
+                    async with asyncio.timeout_at(deadline):
+                        delta = await anext(iterator)
+                except StopAsyncIteration:
+                    break
+                if delta.kind == "final" and delta.final is not None:
+                    final = delta.final
+                    outcome = ModelCallOutcome("completed", final.usage if final.usage_reported else None, native_tools)
+                    finished = True
+                    async with asyncio.timeout(cleanup_seconds):
                         await self._boundary.finish(call, outcome)
-                        yield delta
-                        return
-                    if delta.kind == "error":
-                        outcome = ModelCallOutcome("failed", unmeasured_native_tools=native_tools)
                     yield delta
+                    return
+                if delta.kind == "error":
+                    outcome = ModelCallOutcome("failed", unmeasured_native_tools=native_tools)
+                yield delta
         except (asyncio.CancelledError, GeneratorExit):
             if dispatched:
                 outcome = ModelCallOutcome("cancelled", unmeasured_native_tools=native_tools)

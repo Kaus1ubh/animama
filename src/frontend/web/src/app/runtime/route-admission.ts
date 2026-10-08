@@ -41,7 +41,12 @@ export function unavailableRouteReason(
     !capabilities.local_filesystem_administration
   )
     return hostedExclusionReasons.local_filesystem_administration;
-  if (pathname.startsWith("/desktop/") && !capabilities.native_features)
+  // Local Compose does not advertise a supervised renderer capability. Its
+  // auxiliary routes still enforce the actual preload bridge and window role.
+  if (
+    pathname.startsWith("/desktop/") &&
+    capabilities.runtime_kind === "hosted"
+  )
     return hostedExclusionReasons.native_features;
   if (pathname === "/setup" && capabilities.runtime_kind === "hosted")
     return "Installation setup belongs to the local application. Your hosted account is prepared by the runtime.";

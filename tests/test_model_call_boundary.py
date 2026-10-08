@@ -25,10 +25,11 @@ def request():
 
 
 class Boundary:
-    def __init__(self, denied=False):
+    def __init__(self, denied=False, timeout_seconds=1):
         self.calls = []
         self.outcomes = []
         self.denied = denied
+        self.timeout_seconds = timeout_seconds
 
     async def admit(self, value):
         if self.denied:
@@ -37,7 +38,7 @@ class Boundary:
             owner_id="owner",
             operation_id="root",
             call_id=str(len(self.calls)),
-            request=replace(value, limits=ModelCallLimits(max_output_tokens=100, timeout_seconds=1)),
+            request=replace(value, limits=ModelCallLimits(max_output_tokens=100, timeout_seconds=self.timeout_seconds)),
         )
         self.calls.append(call)
         return call
@@ -120,6 +121,97 @@ async def test_consumer_close_closes_upstream_and_records_cancelled():
     await stream.aclose()
     assert boundary.outcomes[0][1].status == "cancelled"
     assert client.closed == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("resume", ["pull", "close"])
+async def test_provider_deadline_never_cancels_slow_model_consumers(resume):
+    boundary, client = Boundary(timeout_seconds=0.02), Client()
+    stream = AccountedModelClient(client, boundary).stream(request())
+    task = asyncio.current_task()
+    assert task is not None
+    cancellations_before = task.cancelling()
+    try:
+        assert (await anext(stream)).text == "hello"
+        try:
+            await asyncio.sleep(0.05)
+        except asyncio.CancelledError:
+            pytest.fail("The provider deadline cancelled unrelated consumer work")
+        if resume == "pull":
+            with pytest.raises(TimeoutError):
+                await anext(stream)
+        else:
+            await stream.aclose()
+    finally:
+        await stream.aclose()
+    assert task.cancelling() == cancellations_before
+    assert client.closed == 1 and len(boundary.outcomes) == 1
+    assert boundary.outcomes[0][1].status == ("failed" if resume == "pull" else "cancelled")
+    assert boundary.outcomes[0][1].usage is None
+
+
+@pytest.mark.asyncio
+async def test_completed_model_outcome_is_not_revised_while_consumer_handles_final_delta():
+    boundary = Boundary(timeout_seconds=0.02)
+    client = Client(final=ModelClientFinal(text="hello", usage=Usage(input_tokens=4), usage_reported=True))
+    stream = AccountedModelClient(client, boundary).stream(request())
+    task = asyncio.current_task()
+    assert task is not None
+    cancellations_before = task.cancelling()
+    try:
+        await anext(stream)
+        assert (await anext(stream)).kind == "final"
+        assert len(boundary.outcomes) == 1 and boundary.outcomes[0][1].status == "completed"
+        try:
+            await asyncio.sleep(0.05)
+        except asyncio.CancelledError:
+            pytest.fail("The provider deadline remained active after its final delta")
+    finally:
+        await stream.aclose()
+    assert task.cancelling() == cancellations_before
+    assert client.closed == 1 and len(boundary.outcomes) == 1
+    assert boundary.outcomes[0][1].usage.input_tokens == 4
+
+
+@pytest.mark.asyncio
+async def test_model_provider_pull_timeout_closes_once_and_retains_unknown_usage():
+    class StalledClient(Client):
+        async def stream(self, value):
+            self.requests.append(value)
+            try:
+                await asyncio.Event().wait()
+                yield ModelClientDelta(kind="text_delta", text="unreachable")
+            finally:
+                self.closed += 1
+
+    boundary, client = Boundary(timeout_seconds=0.02), StalledClient()
+    with pytest.raises(TimeoutError):
+        _ = [delta async for delta in AccountedModelClient(client, boundary).stream(request())]
+    assert client.closed == 1 and len(boundary.outcomes) == 1
+    assert boundary.outcomes[0][1].status == "failed" and boundary.outcomes[0][1].usage is None
+
+
+@pytest.mark.asyncio
+async def test_final_outcome_persistence_has_its_own_deadline_and_one_attempt():
+    attempts = []
+
+    class StalledBoundary(Boundary):
+        async def admit(self, value):
+            call = await super().admit(value)
+            bounded = replace(call.request, limits=replace(call.request.limits, cleanup_timeout_seconds=0.02))
+            return replace(call, request=bounded)
+
+        async def finish(self, call, outcome):
+            attempts.append(outcome)
+            await asyncio.Event().wait()
+
+    boundary = StalledBoundary()
+    client = Client(final=ModelClientFinal(text="hello", usage=Usage(input_tokens=4), usage_reported=True))
+    async with asyncio.timeout(0.5):
+        with pytest.raises(TimeoutError):
+            _ = [delta async for delta in AccountedModelClient(client, boundary).stream(request())]
+    assert client.closed == 1 and len(attempts) == 1
+    assert attempts[0].status == "completed" and not boundary.outcomes
 
 
 def test_limits_fail_closed_for_invalid_bounds():

@@ -770,6 +770,8 @@ function KeyframeMarker({
   mobile: boolean;
 }) {
   const percent = getTimelinePercent(keyframe.time, duration);
+  // 2.0 beats show their label; 1.0 keyframes their pose name.
+  const label = keyframe.label ?? formatTimelinePoseLabel(keyframe.pose);
 
   return (
     <button
@@ -786,18 +788,26 @@ function KeyframeMarker({
           getKeyframeLaneCenterPx() - (mobile ? 20 : EVENT_MARKER_SIZE_PX) / 2,
         left: getTimelineLeftStyle(percent),
       }}
-      aria-label={`${keyframe.pose} keyframe at ${formatTimelineTime(
-        keyframe.time,
-      )}`}
-      title={`${keyframe.pose} / ${formatTimelineTime(keyframe.time)}`}
+      aria-label={`${label} keyframe at ${formatTimelineTime(keyframe.time)}${
+        keyframe.detail ? " with generated detail" : ""
+      }`}
+      title={`${label} / ${formatTimelineTime(keyframe.time)}`}
+      data-detail={keyframe.detail ? "true" : undefined}
       onFocus={onFocus}
       onPointerDown={(event) => onPointerDown(event, keyframe)}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
     >
+      {keyframe.detail ? (
+        // Generated detail rides with this beat.
+        <span
+          aria-hidden="true"
+          className="bg-primary pointer-events-none absolute top-1/2 left-1/2 size-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full"
+        />
+      ) : null}
       <span className="text-muted-foreground pointer-events-none absolute top-4 left-1/2 w-28 -translate-x-1/2 -rotate-45 truncate text-center text-[10px]">
-        {formatTimelinePoseLabel(keyframe.pose)}
+        {label}
       </span>
     </button>
   );

@@ -62,6 +62,28 @@ an Action-owned implementation document. Gestures and Reactions can use Pose
 Clips; clips are not independently selectable catalog items. A standalone Pose
 has no timeline and is not Anima equipment.
 
+## Gesture
+
+An equippable Action in which an Anima moves its body, usually with facial
+expressions, to accompany what it says. It is implemented as a Pose Clip or a
+VRMA animation. Agents can author Gesture motion; people adjust it by beats in
+the Gesture creator. A Reaction is the separate, expression-led Action chosen
+by emotion and intensity.
+
+## Beat
+
+A named moment in a Pose Clip's timeline, such as "Raise" or "Settle", shown as
+a keyframe on the creator's Pose lane. In `animaPoseClip/2.0` every key belongs
+to a beat, so retiming, re-posing or deleting the beat carries its keys with
+it. Each 1.0 keyframe becomes one beat.
+
+## Generated detail
+
+A beat's keys besides its pose at the beat's own time: lead and lag between
+body parts, overshoots, bounces and finger motion, usually authored by an
+agent. Detail follows its beat when the beat is retimed or re-posed and is
+removed with it; people do not edit it key by key.
+
 ## Idle Style
 
 Reusable content that selects finite Gestures for idle playback through a Default

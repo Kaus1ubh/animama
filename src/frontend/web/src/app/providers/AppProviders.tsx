@@ -29,7 +29,7 @@ export function AppProviders({ children, controller }: AppProvidersProps) {
 }
 
 function ApplicationSession({ children }: { children: ReactNode }) {
-  const { admission, scope, queryClient } = useRuntimeAdmission();
+  const { admission, scope, queryClient, reconnecting } = useRuntimeAdmission();
   return (
     <QueryClientProvider client={queryClient}>
       {admission.status === "ready" && scope ? (
@@ -40,6 +40,15 @@ function ApplicationSession({ children }: { children: ReactNode }) {
           capabilities={admission.capabilities}
           transport={{ baseUrl: scope.transport.baseUrl, fetch: scope.fetch }}
         >
+          {reconnecting && (
+            <div
+              role="status"
+              className="bg-background text-foreground border-b px-4 py-2 text-sm"
+            >
+              Reconnecting to Animama. Your draft is retained; requests are
+              paused.
+            </div>
+          )}
           {children}
           <Toaster />
         </RuntimeOwnerProvider>

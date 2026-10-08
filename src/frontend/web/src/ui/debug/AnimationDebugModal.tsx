@@ -6,7 +6,7 @@ import { Eraser, Play, RefreshCw, RotateCcw, Square } from "lucide-react";
 
 import type {
   AnimaPose,
-  AnimaPoseClip,
+  AnyAnimaPoseClip,
   AvatarPoseClipSnapshot,
   AvatarPoseSnapshot,
   BounceProceduralAnimationParams,
@@ -45,6 +45,7 @@ import {
   SUPPORTED_EMOTION_POSTURE_GROUPS,
   countAnimaPoseClipEventsByKind,
   getAnimaPoseClipTimelineDuration,
+  isAnimaPoseClipV2,
   getParticleVFXCatalogEntryById,
   getResolvedAvatarPose,
   type AnimaPoseClipChannelAnalysis,
@@ -1564,15 +1565,18 @@ function parseReactionClipCatalogMetadata(
 function createPoseClipCatalogOption(
   id: string,
   fallbackName: string,
-  clip: AnimaPoseClip | null,
+  clip: AnyAnimaPoseClip | null,
 ): PoseClipCatalogOption {
+  // 2.0 clips have beats instead of keyframes and no local pose table.
+  const v2 = isAnimaPoseClipV2(clip) ? clip : null;
+  const v1 = clip && !isAnimaPoseClipV2(clip) ? clip : null;
   return {
     id,
     name: clip?.name ?? fallbackName,
     durationSec: clip ? getAnimaPoseClipTimelineDuration(clip) : 0,
     loop: clip?.loop === true,
-    localPoseCount: clip ? Object.keys(clip.poses).length : 0,
-    keyframeCount: clip?.poseKeyframes.length ?? 0,
+    localPoseCount: v1 ? Object.keys(v1.poses).length : 0,
+    keyframeCount: v2?.beats.length ?? v1?.poseKeyframes.length ?? 0,
     eventKindCounts: countAnimaPoseClipEventsByKind(clip),
   };
 }
@@ -1581,7 +1585,7 @@ function createReactionClipCatalogOption(
   id: string,
   fallbackName: string,
   metadata: Pick<ReactionClipCatalogOption, "emotion" | "group" | "intensity">,
-  clip: AnimaPoseClip | null,
+  clip: AnyAnimaPoseClip | null,
 ): ReactionClipCatalogOption {
   const channelAnalysis = clip
     ? analyzeAnimaPoseClipChannels(clip, (poseId) => {
@@ -3189,7 +3193,7 @@ export function AnimationDebugModal({ animaLabel }: { animaLabel?: string }) {
             ) : (
               <EmptyState
                 title="No reaction clips"
-                description="Add reaction clips under poses/json/clips/reactions to invoke them from debug."
+                description="Add Reactions under content/included/reactions to invoke them from debug."
               />
             )}
           </Panel>
@@ -3273,7 +3277,7 @@ export function AnimationDebugModal({ animaLabel }: { animaLabel?: string }) {
             ) : (
               <EmptyState
                 title="No reaction clips"
-                description="Add reaction clips under poses/json/clips/reactions to invoke them from debug."
+                description="Add Reactions under content/included/reactions to invoke them from debug."
               />
             )}
           </Panel>

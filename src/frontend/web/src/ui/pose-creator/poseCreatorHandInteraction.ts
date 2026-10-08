@@ -16,7 +16,7 @@ import {
   type HandBone,
   type HandPreset,
   type HandTarget,
-} from "./poseCreatorHandAuthoring";
+} from "@/lib/avatar/poses/anatomy/handPresets";
 
 type Store = ReturnType<typeof usePoseCreatorStore.getState>;
 type Capture = {

@@ -180,17 +180,21 @@ export function useActionComponentPreviews(
         })
       ).data,
   });
-  const rootByKey = new Map(
-    (query.data?.roots ?? []).map((root) => [root.root_key, root]),
-  );
-  const currentPreviews = dependencies.flatMap((dependency) => {
-    const root = rootByKey.get(
-      exactSourceKey(dependency.content_type, dependency.source),
+  // Keep the list's identity while its inputs are unchanged: the creator
+  // rebuilds its runtime catalog, and so reloads the Avatar, when it changes.
+  const data = query.data;
+  const currentPreviews = useMemo(() => {
+    const rootByKey = new Map(
+      (data?.roots ?? []).map((root) => [root.root_key, root]),
     );
-    const preview =
-      root && query.data ? previewFromBundle(query.data, root) : null;
-    return preview ? [{ dependency, preview }] : [];
-  });
+    return dependencies.flatMap((dependency) => {
+      const root = rootByKey.get(
+        exactSourceKey(dependency.content_type, dependency.source),
+      );
+      const preview = root && data ? previewFromBundle(data, root) : null;
+      return preview ? [{ dependency, preview }] : [];
+    });
+  }, [data, dependencies]);
   if (!enabled) prepared.current = [];
   else if (query.data && !query.isPlaceholderData)
     prepared.current = currentPreviews;

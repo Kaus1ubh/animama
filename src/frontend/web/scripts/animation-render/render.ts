@@ -2,7 +2,8 @@ import { VRMLoaderPlugin, VRMUtils, type VRM } from "@pixiv/three-vrm";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
-import { sampleAnimaPoseClip } from "@/lib/avatar/poses/animaPoseClip";
+import { parseAnyAnimaPoseClip } from "@/lib/avatar/poses/animaPoseClip";
+import { createAnimaPoseClipProgram } from "@/lib/avatar/poses/animaPoseClip/program";
 import { getResolvedAvatarPose } from "@/lib/avatar/poses/catalog";
 import { canonicalizeCustomPresetExpressions } from "@/lib/avatar/vrmExpressionPresets";
 import { applyCanonicalPose } from "@/lib/avatar/motion-authoring/kinematics";
@@ -12,7 +13,8 @@ import { applyCanonicalPose } from "@/lib/avatar/motion-authoring/kinematics";
  * `scripts/animation-render.mjs`). It plays a clip through the production
  * sampler and VRM 0 conversion on textured Avatars and draws a labelled grid:
  * one row per sampled time, one column per Avatar × view. Live procedural
- * layers are not applied, matching the Gesture creator preview.
+ * layers are not applied, matching the Gesture creator preview. Both clip
+ * schemas are supported.
  */
 
 type RenderRequest = {
@@ -103,6 +105,11 @@ async function render(
   for (const avatar of request.avatars) {
     const vrm = await loadVrm(avatar.url);
     scene.add(vrm.scene);
+    // 2.0 clips are prepared per Avatar (hand presets, planted legs).
+    const program = createAnimaPoseClipProgram(
+      parseAnyAnimaPoseClip(request.clip),
+      { vrm, resolvePose },
+    );
     applyCanonicalPose(vrm, {});
     const head = vrm.humanoid
       .getRawBoneNode("head")!
@@ -117,11 +124,7 @@ async function render(
       );
     });
     request.times.forEach((time, row) => {
-      const result = sampleAnimaPoseClip(
-        request.clip as never,
-        time,
-        resolvePose,
-      );
+      const result = program.sample(time);
       result.diagnostics.missingPoseRefs.forEach((id) =>
         missingPoseRefs.add(id),
       );

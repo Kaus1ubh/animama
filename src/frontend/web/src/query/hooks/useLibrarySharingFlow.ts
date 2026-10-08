@@ -73,7 +73,8 @@ export function useLibrarySharingFlow(): LibrarySharingFlow {
     [apiClient],
   );
   const owner = useRuntimeCacheKey() ?? "__anon__";
-  const recoveryOwner = useRuntimeOwnerId() ?? "__anon__";
+  const installationOwner = useRuntimeOwnerId() ?? "__anon__";
+  const recoveryOwner = owner.startsWith("hosted:") ? owner : installationOwner;
   const client = useQueryClient();
   const navigate = useNavigate();
   const session = useMemo(

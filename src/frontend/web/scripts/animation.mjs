@@ -26,14 +26,50 @@ const server = await createServer({
 });
 let exitCode = 1;
 try {
-  const { runMotionCli } = await server.ssrLoadModule(
+  const { runMotionCli, compactClipFile } = await server.ssrLoadModule(
     "/src/lib/avatar/motion-authoring/cli.ts",
   );
-  exitCode = await runMotionCli(process.argv.slice(2), {
-    avatarDirectory: path.resolve(webRoot, "../../../content/included/avatars"),
-    cwd: process.env.INIT_CWD ?? process.cwd(),
-    out: (text) => process.stdout.write(`${text}\n`),
-  });
+  const [command, ...rest] = process.argv.slice(2);
+  const cwd = process.env.INIT_CWD ?? process.cwd();
+  const out = (text) => process.stdout.write(`${text}\n`);
+  if (command === "promote") {
+    // Writes repository files, so it lives beside the other repo scripts and
+    // only borrows the CLI's validation and saved-file serializer.
+    const { runPromote } = await import("./animation-promote.mjs");
+    exitCode = await runPromote(rest, {
+      repoRoot: path.resolve(webRoot, "../../.."),
+      cwd,
+      compactClip: compactClipFile,
+      maxClipBytes: (
+        await server.ssrLoadModule(
+          "/src/lib/avatar/poses/animaPoseClip/index.ts",
+        )
+      ).MAX_ANIMA_POSE_CLIP_BYTES,
+      // File paths and `library:` sources resolve exactly as in the preview.
+      resolveClip: async (spec, directory) => {
+        const { resolvePreviewSource } = await server.ssrLoadModule(
+          "/src/lib/avatar/motion-authoring/preview/sources.ts",
+        );
+        const localContent = process.env.ANIMAMA_LOCAL_CONTENT_HOST_PATH;
+        const source = await resolvePreviewSource(spec, {
+          cwd: directory,
+          included: path.resolve(webRoot, "../../../content/included"),
+          local: localContent ? path.resolve(cwd, localContent) : null,
+        });
+        return source.path;
+      },
+      out,
+    });
+  } else {
+    exitCode = await runMotionCli(process.argv.slice(2), {
+      avatarDirectory: path.resolve(
+        webRoot,
+        "../../../content/included/avatars",
+      ),
+      cwd,
+      out,
+    });
+  }
 } finally {
   await server.close();
 }

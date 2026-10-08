@@ -114,11 +114,15 @@ import {
   CreatorFloatingPanel,
   CreatorImportDialog,
   CreatorJsonDialog,
+  CreatorLoadingState,
   CreatorNumberField as NumberField,
   CreatorPreviewBar,
   CreatorSaveNotice,
   CreatorToolbar,
+  CreatorUnavailableState,
   CreatorWorkspaceShell,
+  creatorItemUnavailableMessage,
+  isCreatorItemOpenable,
 } from "@/ui/content-creator";
 import {
   CreatorTimelineLane,
@@ -221,7 +225,8 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
 
   const navigate = useNavigate();
   const userId = useRuntimeCacheKey();
-  const existing = useParticleEffect(itemId ?? null).data;
+  const existingQuery = useParticleEffect(itemId ?? null);
+  const existing = existingQuery.data;
   const loadedItemRef = useRef(new ContentEditorHydration());
   const initialDraftRef = useRef(createParticleVFXEditorDraftFromBlank());
   const { draft, history, updateDraft, resetDraft } = useParticleVFXHistory(
@@ -235,7 +240,7 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
   const [loadState, setLoadState] = useState<{
     state: "loading" | "ready" | "error";
     message: string | null;
-  }>({ state: "ready", message: null });
+  }>({ state: itemId ? "loading" : "ready", message: null });
   const [importText, setImportText] = useState(
     () => `${JSON.stringify(initialDraftRef.current.quarksJson, null, 2)}\n`,
   );
@@ -321,6 +326,7 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
       !source ||
       source.type !== "catalog" ||
       !source.catalog_item_id ||
+      !isCreatorItemOpenable(existing) ||
       !contentSave.recoveryReady ||
       contentSave.recovered
     ) {
@@ -521,10 +527,22 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
     cleanFingerprint &&
     currentFingerprint !== cleanFingerprint,
   );
+  const unavailableMessage = creatorItemUnavailableMessage({
+    itemId,
+    label: "Particle Effect",
+    item: existing,
+    readFailed: existingQuery.isError,
+    loadError:
+      loadState.state === "error"
+        ? (loadState.message ?? "The Particle Effect could not be loaded.")
+        : null,
+  });
+  // The unavailable state has no leave dialog, so it must never block navigation.
+  const guardLeave = !unavailableMessage && (isDirty || contentSave.isBusy);
   const blocker = useBlocker({
     shouldBlockFn: ({ current, next }) =>
-      (isDirty || contentSave.isBusy) && current.pathname !== next.pathname,
-    enableBeforeUnload: () => isDirty || contentSave.isBusy,
+      guardLeave && current.pathname !== next.pathname,
+    enableBeforeUnload: () => guardLeave,
     withResolver: true,
   });
 
@@ -713,6 +731,22 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
     setJsonExpandMode(nextMode);
     setJsonResetToken((value) => value + 1);
   }, []);
+
+  if (unavailableMessage)
+    return (
+      <CreatorUnavailableState
+        label="Particle Effect"
+        message={unavailableMessage}
+      />
+    );
+  // Never show the blank starter document in place of the saved item.
+  if (itemId && loadState.state === "loading")
+    return (
+      <CreatorLoadingState
+        message={loadState.message ?? "Loading Particle Effect…"}
+      />
+    );
+
   return (
     <CreatorWorkspaceShell
       busy={contentSave.isBusy || discarding}
@@ -732,12 +766,9 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
           }
           contentHealth={<ContentHealth compact />}
           validationMessages={Array.from(
-            new Set([
-              ...particleVFXValidationMessages(issues, draft?.emitters ?? []),
-              ...(loadState.state === "error" && loadState.message
-                ? [loadState.message]
-                : []),
-            ]),
+            new Set(
+              particleVFXValidationMessages(issues, draft?.emitters ?? []),
+            ),
           )}
           typeLabel="Particle FX"
           contentType="particle_effect"

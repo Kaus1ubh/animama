@@ -2,15 +2,18 @@ import type { VRM } from "@pixiv/three-vrm";
 import { Quaternion, Vector3 } from "three";
 import { beforeAll, describe, expect, it } from "vitest";
 
-import { bakeMotion } from "./bake";
+import type {
+  AnimaPoseClipEase,
+  AnimaPoseClipV2,
+} from "../poses/animaPoseClip";
 import {
   checkMotion,
   checkParity,
   segmentDistance,
+  type MotionCheckContact,
   type MotionCheckFinding,
 } from "./checks";
-import { parseMotionDescription, type MotionDescription } from "./description";
-import wave from "./examples/wave-hello.motion.json";
+import wave from "../../../../../../../content/included/gestures/wave-hello/wave-hello.json";
 import { getAvatarPoseClip } from "../poses/catalog";
 import { loadTestAvatar } from "./testing/includedAvatars";
 
@@ -26,23 +29,47 @@ beforeAll(async () => {
   vrm1 = await loadTestAvatar("AvatarSample_A_1_New");
 });
 
-const describeMotion = (value: Record<string, unknown>): MotionDescription => {
-  const result = parseMotionDescription({
-    schema: "animamaMotion/1",
-    name: "Probe",
-    kind: "oneShot",
-    duration: 1,
-    ...value,
-  });
-  if (!result.ok) throw new Error(JSON.stringify(result.issues));
-  return result.description;
+type Key = {
+  t: number;
+  v: number | "base";
+  ease?: AnimaPoseClipEase;
+  tangent?: "flat";
 };
 
-const check = (description: MotionDescription) =>
-  checkMotion(bakeMotion(description, vrm1).clip, avatars(), {
-    contacts: description.contacts,
-    plantFeet: description.plantFeet !== false,
-  });
+/** A one-beat 2.0 clip whose keys sit at `t` seconds; feet planted by default. */
+const motion = ({
+  joints = { head: { flexion: [{ t: 0, v: "base" }] } },
+  contacts,
+  plantFeet = true,
+}: {
+  joints?: Record<string, Record<string, Key[]>>;
+  contacts?: MotionCheckContact[];
+  plantFeet?: boolean;
+}): AnimaPoseClipV2 => ({
+  schema: "animaPoseClip/2.0",
+  id: "probe",
+  name: "Probe",
+  duration: 1,
+  basePose: "relaxedRest",
+  ...(plantFeet ? { plantFeet } : {}),
+  beats: [{ id: "start", label: "Start", time: 0 }],
+  joints: Object.fromEntries(
+    Object.entries(joints).map(([joint, components]) => [
+      joint,
+      Object.fromEntries(
+        Object.entries(components).map(([name, keys]) => [
+          name,
+          keys.map(({ t, ...key }) => ({ beat: "start", dt: t, ...key })),
+        ]),
+      ),
+    ]),
+  ),
+  ...(contacts
+    ? { contacts: contacts.map((contact) => ({ ...contact, beat: "start" })) }
+    : {}),
+});
+
+const check = (clip: AnimaPoseClipV2) => checkMotion(clip, avatars());
 
 const failures = (findings: MotionCheckFinding[], category: string) =>
   findings.filter((f) => f.category === category && f.severity === "fail");
@@ -73,8 +100,8 @@ const headTurn = (degrees: number) => ({
 });
 
 describe("checkMotion", () => {
-  it("passes the shipped example on both Avatars", () => {
-    const report = check(describeMotion(wave as Record<string, unknown>));
+  it("passes an Included Gesture on both Avatars", () => {
+    const report = checkMotion(wave, avatars());
     expect(report.findings.filter((f) => f.severity === "fail")).toEqual([]);
     expect(report.ok).toBe(true);
   });
@@ -89,12 +116,12 @@ describe("checkMotion", () => {
 
   it("reports a pop as a discontinuity on the stepped bone", () => {
     const report = check(
-      describeMotion({
+      motion({
         joints: {
           rightLowerArm: {
             flexion: [
-              { t: 0, v: 10, interp: "step" },
-              { t: 0.5, v: 100 },
+              { t: 0, v: 10 },
+              { t: 0.5, v: 100, ease: "hold" },
             ],
           },
         },
@@ -110,13 +137,13 @@ describe("checkMotion", () => {
 
   it("reports a direction reversal as an acceleration spike", () => {
     const report = check(
-      describeMotion({
+      motion({
         joints: {
           rightLowerArm: {
             flexion: [
-              { t: 0, v: 10, interp: "linear" },
-              { t: 0.3, v: 100, interp: "linear" },
-              { t: 0.6, v: 10 },
+              { t: 0, v: 10 },
+              { t: 0.3, v: 100, ease: "linear" },
+              { t: 0.6, v: 10, ease: "linear" },
             ],
           },
         },
@@ -131,7 +158,7 @@ describe("checkMotion", () => {
 
   it("warns about a stall in the middle of a motion", () => {
     const report = check(
-      describeMotion({
+      motion({
         joints: {
           rightUpperArm: {
             elevation: [
@@ -154,7 +181,7 @@ describe("checkMotion", () => {
 
   it("reports a hand passing into the body on each Avatar", () => {
     const report = check(
-      describeMotion({
+      motion({
         joints: {
           rightUpperArm: {
             elevation: [
@@ -200,7 +227,7 @@ describe("checkMotion", () => {
 
   it("reports a declared contact that is never reached", () => {
     const report = check(
-      describeMotion({
+      motion({
         contacts: [
           { bone: "rightIndexDistal", target: "head", from: 0.4, to: 0.8 },
         ],
@@ -216,7 +243,7 @@ describe("checkMotion", () => {
     expect(contacts[0].actualOffset![1]).toBeLessThan(-0.5);
     // Feeding the reported offset back as the contact's offset satisfies it.
     const fixed = check(
-      describeMotion({
+      motion({
         contacts: [
           {
             bone: "rightIndexDistal",
@@ -242,7 +269,7 @@ describe("checkMotion", () => {
   });
 
   it("reports feet that leave their planted positions on each Avatar", () => {
-    const description = describeMotion({
+    const clip = motion({
       plantFeet: false,
       joints: {
         leftUpperLeg: {
@@ -253,7 +280,8 @@ describe("checkMotion", () => {
         },
       },
     });
-    const report = checkMotion(bakeMotion(description, vrm1).clip, avatars());
+    // The clip moves its legs itself; ask for the feet checks anyway.
+    const report = checkMotion(clip, avatars(), { plantFeet: true });
     const feet = failures(report.findings, "feet");
     for (const avatar of ["AvatarSample_Y_0", "AvatarSample_A_1_New"]) {
       const lifted = feet.find(
@@ -264,6 +292,46 @@ describe("checkMotion", () => {
       expect(lifted!.to).toBe(1);
     }
     expect(feet.every((f) => !f.subject.startsWith("right"))).toBe(true);
+  });
+
+  it("checks feet of a 2.0 clip that neither plants them nor keys the legs", () => {
+    const clip = {
+      ...motion({ plantFeet: false }),
+      hipsPosition: {
+        x: [
+          { beat: "start", v: 0 },
+          { beat: "start", dt: 0.8, v: 0.06 },
+        ],
+      },
+    };
+    const slides = failures(checkMotion(clip, avatars()).findings, "feet");
+    expect(slides.map((f) => f.avatar)).toEqual(
+      expect.arrayContaining(["AvatarSample_Y_0", "AvatarSample_A_1_New"]),
+    );
+    // Planted, the same shift keeps the feet still.
+    const planted = { ...clip, plantFeet: true };
+    expect(failures(checkMotion(planted, avatars()).findings, "feet")).toEqual(
+      [],
+    );
+  });
+
+  it("reports a 2.0 loop whose end does not meet its start", () => {
+    const clip = {
+      ...motion({
+        joints: {
+          head: {
+            rotation: [
+              { t: 0, v: 0 },
+              { t: 1, v: 20 },
+            ],
+          },
+        },
+      }),
+      loop: true,
+    };
+    const [seam] = failures(checkMotion(clip, avatars()).findings, "loopSeam");
+    expect(seam.subject).toBe("head");
+    expect(seam.value).toBeCloseTo(20, 0);
   });
 
   it("reports a loop whose end does not meet its start", () => {

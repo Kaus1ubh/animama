@@ -676,6 +676,80 @@ test("saved voice clone hooks preserve original bytes at quota, rename through a
   await page.close();
 });
 
+test("a lost creator save reply survives an actual reload and reconciles the same operation", async () => {
+  const { page, state } = await mount();
+  try {
+    state.lostSave = true;
+    const original = await page.evaluate(async () => {
+      const operationId = crypto.randomUUID();
+      const form = {
+        kind: "pose",
+        entryName: "Reload recovered pose",
+        fileName: "pose.json",
+        text: "original draft bytes",
+      };
+      window.hostedFixture.persistDraft(operationId, form);
+      try {
+        const f = window.workflowFixture;
+        await f.saveCatalogItem(f.client, {
+          kind: form.kind,
+          entryName: form.entryName,
+          operationId,
+          files: [new File([form.text], form.fileName)],
+        });
+      } catch (cause) {
+        return {
+          operationId,
+          status: cause.status,
+          key: window.hostedFixture.current().key,
+        };
+      }
+      throw new Error("The fixture must lose the first committed reply");
+    });
+    assert.equal(original.status, 502);
+    assert.equal(state.saves.size, 1);
+    const committed = state.saves.get(original.operationId);
+    await page.route(`${origin}/`, async (route) => {
+      if (!route.request().isNavigationRequest()) return route.fallback();
+      const response = await route.fetch({ url: fixtureUrl() });
+      const html = (await response.text())
+        .replace('src="./main.tsx"', `src="/${fixture}/main.tsx"`)
+        .replace(
+          "<head>",
+          '<head><script>history.replaceState(null, "", "/?workflows=1")</script>',
+        );
+      await route.fulfill({ response, body: html });
+    });
+    await page.reload();
+    await page.waitForFunction(
+      () =>
+        window.workflowFixture && !window.workflowFixture.settings.isLoading,
+    );
+    const recovered = await page.evaluate(async () => {
+      const draft = window.hostedFixture.draft();
+      const f = window.workflowFixture;
+      const result = await f.saveCatalogItem(f.client, {
+        kind: draft.form.kind,
+        entryName: draft.form.entryName,
+        operationId: draft.operationId,
+        files: [new File([draft.form.text], draft.form.fileName)],
+      });
+      return {
+        key: window.hostedFixture.current().key,
+        operationId: draft.operationId,
+        result,
+      };
+    });
+    assert.equal(recovered.key, original.key);
+    assert.equal(recovered.operationId, original.operationId);
+    assert.equal(recovered.result.item_id, committed.item_id);
+    assert.equal(state.saves.size, 1);
+    assert.equal(state.items.size, 1);
+  } finally {
+    await page.close();
+  }
+});
+
 test("all typed content families save through admitted HTTP, preserve drafts at quota, replay a lost reply and verify private preview bytes", async () => {
   const { page, state, owner, errors } = await mount();
   const kinds = [
@@ -791,7 +865,7 @@ test("all typed content families save through admitted HTTP, preserve drafts at 
   await page.close();
 });
 
-test("a Library import resolves its lost commit receipt after a fresh hosted entry without repeating installation", async () => {
+test("a Library import resolves its lost commit receipt after a real same-tab reload without repeating installation", async () => {
   const { page, state, owner, errors } = await mount("/library");
   state.lostCommit = true;
   await page.getByRole("button", { name: "Import", exact: true }).click();
@@ -812,7 +886,29 @@ test("a Library import resolves its lost commit receipt after a fresh hosted ent
   const before = api.calls.filter(
     (call) => call.owner === owner && call.path.endsWith("/commit"),
   ).length;
-  await page.goto(fixtureUrl("/library"));
+  const originalKey = await page.evaluate(
+    () => window.hostedFixture.current().key,
+  );
+  // A reload restores this tab's receipt; ordinary navigation starts a fresh namespace.
+  await page.route(`${origin}/library`, async (route) => {
+    if (!route.request().isNavigationRequest()) return route.fallback();
+    const response = await route.fetch({ url: fixtureUrl("/library") });
+    const html = (await response.text())
+      .replace('src="./main.tsx"', `src="/${fixture}/main.tsx"`)
+      .replace(
+        "<head>",
+        '<head><script>history.replaceState(null, "", "/library?workflows=1&route=%2Flibrary")</script>',
+      );
+    await route.fulfill({ response, body: html });
+  });
+  await page.reload();
+  await page.waitForFunction(
+    () => window.workflowFixture && !window.workflowFixture.settings.isLoading,
+  );
+  assert.equal(
+    await page.evaluate(() => window.hostedFixture.current().key),
+    originalKey,
+  );
   await page.getByRole("button", { name: "Import", exact: true }).click();
   await page
     .getByRole("heading", { name: "Import complete", exact: true })

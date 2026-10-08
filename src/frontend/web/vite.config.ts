@@ -267,6 +267,8 @@ export default defineConfig(({ mode, command, isPreview }) => {
           publicPackagesRoot,
           safetyDocsRoot,
           parakeetWebgpuNoticesRoot,
+          // The built-in pose catalog bundles Included Gesture/Reaction clips.
+          includedContentRoot,
         ],
       },
     },

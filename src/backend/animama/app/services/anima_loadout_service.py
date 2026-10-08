@@ -83,7 +83,12 @@ def _implementation_kind(document: GestureDocumentV1) -> Literal["anima_clip", "
 
 
 class AnimaLoadoutService:
-    """Typed aggregate over the neutral catalog and logical binding table."""
+    """Typed SQL aggregate over the catalog, loadout and logical bindings.
+
+    The composition owns the supplied session and transaction. Multi-owner
+    compositions must isolate every joined table at that boundary, including
+    catalog invalidation; the internal catalog is not account mutation authority.
+    """
 
     def __init__(self, session: AsyncSession) -> None:
         self._session = session

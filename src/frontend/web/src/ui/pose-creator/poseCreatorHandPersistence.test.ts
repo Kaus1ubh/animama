@@ -1,17 +1,23 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Object3D, Quaternion } from "three";
 import { parseAnimaPose, parseAnimaPoseClip, type Avatar } from "@/lib/avatar";
+import { createAnimaPoseClipProgram } from "@/lib/avatar/poses/animaPoseClip/program";
 import { retargetPoseForVrm0 } from "@/lib/avatar/poses/poseRetargeting";
 import {
+  POSE_CREATOR_CLIP_VALIDATION_OPTIONS,
   POSE_CREATOR_VRM_T_POSE_BASE_POSE_ID,
   usePoseCreatorStore,
 } from "@/stores/pose-creator-store";
+import {
+  buildAnimaPoseClipFromPoseCreatorDraft,
+  resolvePoseCreatorCatalogPose,
+} from "./poseCreatorClipAuthoring";
 import {
   buildPoseCreatorAnimaPose,
   createPoseCreatorDraftsFromAnimaPose,
   formatPoseCreatorAnimaPoseJson,
 } from "./poseCreatorAuthoring";
-import { HAND_SEGMENTS } from "./poseCreatorHandAuthoring";
+import { HAND_SEGMENTS } from "@/lib/avatar/poses/anatomy/handPresets";
 import { createHandInteractionController } from "./poseCreatorHandInteraction";
 
 function fixture(version: "0" | "1" = "1") {
@@ -48,6 +54,25 @@ function exportCurrent() {
     parentPose: null,
   })!;
 }
+/** The current clip draft as its saved `animaPoseClip/2.0` clip. */
+function builtClip() {
+  const clip = buildAnimaPoseClipFromPoseCreatorDraft(
+    usePoseCreatorStore.getState().clipDraft,
+    POSE_CREATOR_CLIP_VALIDATION_OPTIONS,
+  );
+  if (clip?.schema !== "animaPoseClip/2.0")
+    throw new Error("Expected a 2.0 clip");
+  return clip;
+}
+/** The saved clip's humanoid pose at the beat a keyframe shows. */
+function sampledHumanoidAtKeyframe(keyframeId: string) {
+  const clip = builtClip();
+  const beat = clip.beats.find(({ id }) => id === keyframeId);
+  if (!beat) throw new Error(`Expected beat ${keyframeId}`);
+  return createAnimaPoseClipProgram(clip, {
+    resolvePose: resolvePoseCreatorCatalogPose,
+  }).sample(beat.time).sample.humanoid!;
+}
 let controller: ReturnType<typeof createHandInteractionController>;
 beforeEach(() => {
   usePoseCreatorStore.getState().resetWorkspace();
@@ -71,11 +96,12 @@ describe("hand edits through existing pose content paths", () => {
     const alias = usePoseCreatorStore
       .getState()
       .addPoseToClip(saved, "straightened", { timeSec: 0 })!;
-    const inserted = usePoseCreatorStore.getState().clipDraft.poses[alias];
-    if (!("humanoid" in inserted)) throw new Error("Expected inline pose");
-    const rotation = inserted.humanoid!.rightIndexIntermediate!.rotation!;
+    // The straightened joint is keyed at the new beat instead of falling
+    // back to the clip's (curled) base pose.
+    const rotation =
+      sampledHumanoidAtKeyframe(alias).rightIndexIntermediate!.rotation!;
     expect(new Quaternion(...rotation).angleTo(new Quaternion())).toBeLessThan(
-      1e-7,
+      1e-6,
     );
     expect(saved.humanoid!.rightIndexIntermediate!.rotation).toBeDefined();
   });
@@ -95,13 +121,11 @@ describe("hand edits through existing pose content paths", () => {
         .getState()
         .addPoseToClip(saved, "open-hand", { timeSec: 0 });
       expect(alias).not.toBeNull();
-      const inserted = usePoseCreatorStore.getState().clipDraft.poses[alias!];
-      expect(inserted).toHaveProperty("humanoid");
-      if (!("humanoid" in inserted)) throw new Error("Expected inline pose");
-      const rotation = inserted.humanoid!.rightIndexIntermediate!.rotation!;
+      const rotation = sampledHumanoidAtKeyframe(alias!).rightIndexIntermediate!
+        .rotation!;
       expect(
         new Quaternion().fromArray(rotation).angleTo(new Quaternion()),
-      ).toBeLessThan(1e-7);
+      ).toBeLessThan(1e-6);
     },
   );
 
@@ -168,12 +192,14 @@ describe("hand edits through existing pose content paths", () => {
         poseKeyframes: [{ time: 0, pose: "hand" }],
       }),
     );
-    const original = usePoseCreatorStore.getState().clipDraft.poses.hand!;
+    const keyframeId =
+      usePoseCreatorStore.getState().clipDraft.keyframes[0]!.id;
+    const original = builtClip();
     const begin = () =>
       usePoseCreatorStore.getState().beginClipInlinePoseEdit({
-        alias: "hand",
-        keyframeId: usePoseCreatorStore.getState().clipDraft.keyframes[0]!.id,
-        originalPose: original,
+        alias: keyframeId,
+        keyframeId,
+        originalPose: { humanoid: sampledHumanoidAtKeyframe(keyframeId) },
         boneDrafts: {},
         expressionDrafts: {},
         draftName: "Hand",
@@ -185,36 +211,30 @@ describe("hand edits through existing pose content paths", () => {
     expect(controller.preset("both", "fist")).toBe(true);
     const edited = exportCurrent();
     usePoseCreatorStore.getState().commitClipInlinePoseEdit(edited);
-    const committed = usePoseCreatorStore.getState().clipDraft.poses.hand;
-    expect(committed).toHaveProperty("humanoid");
-    if (!("humanoid" in committed)) throw new Error("Expected inline pose");
-    expect(Object.keys(committed.humanoid!)).toHaveLength(28);
+    const committed = builtClip();
+    expect(committed).not.toEqual(original);
+    const committedPose = sampledHumanoidAtKeyframe(keyframeId);
     for (const name of Object.keys(edited.humanoid!) as Array<
       keyof NonNullable<typeof edited.humanoid>
     >) {
       expect(
         new Quaternion()
-          .fromArray(committed.humanoid![name]!.rotation!)
+          .fromArray(committedPose[name]!.rotation!)
           .angleTo(
             new Quaternion().fromArray(edited.humanoid![name]!.rotation!),
           ),
-      ).toBeLessThan(1e-7);
+        // Keys are stored at the saved precision (5 decimals).
+      ).toBeLessThan(1e-4);
     }
     usePoseCreatorStore.getState().undoClip();
-    expect(usePoseCreatorStore.getState().clipDraft.poses.hand).toEqual(
-      original,
-    );
+    expect(builtClip()).toEqual(original);
     usePoseCreatorStore.getState().redoClip();
-    expect(usePoseCreatorStore.getState().clipDraft.poses.hand).toEqual(
-      committed,
-    );
+    expect(builtClip()).toEqual(committed);
     usePoseCreatorStore.getState().undoClip();
     begin();
     expect(controller.preset("left", "fist")).toBe(true);
     usePoseCreatorStore.getState().cancelClipInlinePoseEdit();
-    expect(usePoseCreatorStore.getState().clipDraft.poses.hand).toEqual(
-      original,
-    );
+    expect(builtClip()).toEqual(original);
     expect(usePoseCreatorStore.getState().boneDrafts).toEqual({});
   });
 

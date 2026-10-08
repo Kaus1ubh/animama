@@ -688,13 +688,7 @@ export function ActionEditorPage({
         description:
           currentDocument.description.trim() ||
           currentDocument.aiDescription.trim(),
-        source: {
-          type: "catalog",
-          catalog_item_id: ready.item_id,
-          logical_key:
-            ready.logical_key ??
-            `local:${intent}:${currentDocument.semanticKey || ready.item_id}`,
-        },
+        source: ready.source,
         semanticKey: currentDocument.semanticKey,
         ...(intent === "reaction" && currentDocument.suggestedEmotion.trim()
           ? {

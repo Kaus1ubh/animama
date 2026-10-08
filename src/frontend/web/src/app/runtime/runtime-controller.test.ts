@@ -36,6 +36,78 @@ function fixture() {
 }
 
 describe("composition lifetime boundary", () => {
+  it("bounds automatic reconnect backoff and cancels it on sign-out", async () => {
+    vi.useFakeTimers();
+    const { controller, composition } = fixture();
+    try {
+      await controller.refresh();
+      vi.mocked(composition.readAdmission).mockRejectedValue(
+        new TypeError("Offline"),
+      );
+      await controller.refresh();
+      let calls = 2;
+      for (const delay of [
+        1_000, 2_000, 4_000, 8_000, 16_000, 30_000, 30_000,
+      ]) {
+        await vi.advanceTimersByTimeAsync(delay - 1);
+        expect(composition.readAdmission).toHaveBeenCalledTimes(calls);
+        await vi.advanceTimersByTimeAsync(1);
+        expect(composition.readAdmission).toHaveBeenCalledTimes(++calls);
+      }
+      await controller.signOut();
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(composition.readAdmission).toHaveBeenCalledTimes(calls);
+    } finally {
+      controller.dispose();
+      vi.useRealTimers();
+    }
+  });
+  it("retains drafts and resources during a transient hosted context failure, suspending dispatch until readmission", async () => {
+    const { controller, composition } = fixture();
+    await controller.refresh();
+    const previous = controller.getSnapshot();
+    previous.queryClient.setQueryData(["draft"], {
+      operationId: "original-save",
+    });
+    const dispose = vi.fn();
+    previous.scope!.register(dispose);
+    vi.mocked(composition.readAdmission).mockRejectedValueOnce(
+      new TypeError("Failed to fetch"),
+    );
+    await controller.refresh();
+    expect(controller.getSnapshot().scope).toBe(previous.scope);
+    expect(previous.scope!.controller.signal.aborted).toBe(false);
+    expect(previous.queryClient.getQueryData(["draft"])).toEqual({
+      operationId: "original-save",
+    });
+    expect(dispose).not.toHaveBeenCalled();
+    await expect(
+      previous.scope!.fetch("/v1/chats", { method: "POST" }),
+    ).rejects.toThrow("reconnecting");
+    expect(composition.transport.fetch).not.toHaveBeenCalled();
+    await controller.refresh();
+    expect(controller.getSnapshot().scope).toBe(previous.scope);
+    vi.mocked(composition.transport.fetch).mockResolvedValueOnce(
+      Response.json({ ok: true }),
+    );
+    expect((await previous.scope!.fetch("/v1/chats")).ok).toBe(true);
+    controller.dispose();
+  });
+
+  it("retires an uncertain lifetime immediately on an authoritative revoke even when context is unreachable", async () => {
+    const { controller, composition } = fixture();
+    await controller.refresh();
+    const old = controller.getSnapshot().scope!;
+    vi.mocked(composition.readAdmission).mockRejectedValue(
+      new TypeError("Offline"),
+    );
+    await controller.refresh();
+    await controller.refresh(false, true);
+    expect(old.controller.signal.aborted).toBe(true);
+    expect(controller.getSnapshot().scope).toBeNull();
+    controller.dispose();
+  });
+
   it("clears queries and ends registered work before same-owner reauthentication mounts", async () => {
     const { controller, set } = fixture();
     await controller.refresh();

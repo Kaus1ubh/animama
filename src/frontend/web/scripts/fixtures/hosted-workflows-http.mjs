@@ -153,6 +153,7 @@ export async function createHostedWorkflowHttp({ workletSource } = {}) {
         state: session ? "active" : "unauthenticated",
         user_id: session?.owner ?? null,
         csrf_token: session?.csrf ?? null,
+        recovery_session_id: session?.recovery ?? null,
         capabilities: hostedCapabilities,
         account_url: `${origin}/central-account`,
       });
@@ -177,7 +178,8 @@ export async function createHostedWorkflowHttp({ workletSource } = {}) {
         return json(response, hostedCapabilities);
       if (path === "/v1/hosted/events") {
         response.writeHead(200, { "content-type": "text/event-stream" });
-        return response.end("event: ready\ndata: {}\n\n");
+        response.write("event: ready\ndata: {}\n\n");
+        return; // Match the product's live event connection; EOF is a transport fault.
       }
       if (path === "/v1/hosted/quotas")
         return json(response, { turns: { used: 1, limit: 10 } });
@@ -873,7 +875,11 @@ export async function createHostedWorkflowHttp({ workletSource } = {}) {
     admit: (owner = randomUUID()) => {
       if (!owners.has(owner)) owners.set(owner, ownerState(owner));
       const cookie = randomUUID();
-      sessions.set(cookie, { owner, csrf: randomUUID() });
+      sessions.set(cookie, {
+        owner,
+        csrf: randomUUID(),
+        recovery: randomUUID(),
+      });
       return { cookie, state: owners.get(owner), owner };
     },
     /** Hold one actual HTTP read, including its original snapshot, until released. */
