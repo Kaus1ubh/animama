@@ -64,8 +64,9 @@ Ownership and boundaries:
 
 ## Progress
 
-- [ ] Phase 1: Live contract verification, SDK and cache baseline. Not
-      started. Provider gate.
+- [x] Phase 1: Live contract verification, SDK and cache baseline. Done
+      2026-10-08. Live checks and isolated baseline recorded; Review #3
+      passed.
 - [ ] Phase 2: Caching findings and layout recommendation. Not started.
       Owner decision gate.
 - [ ] Phase 3: Provider identity, connection, credentials and catalog. Not
@@ -167,11 +168,13 @@ stated:
   `xhigh` and `max`.
   - `none` sends `thinking: {type: "disabled"}`.
   - Any other effort omits `thinking` and sets `output_config.effort`.
-  - Phase 1 must confirm that real `tool_use` blocks still appear with thinking
-    disabled. If they do not, `none` is withheld.
-- **D7 (2026-10-08, owner):** Anthropic rows use Anthropic's native `web_search`
-  server tool, never the application Brave or SearXNG tool. Phase 1 picks the
-  version.
+  - Phase 1 confirmed that real `tool_use` blocks still appear with thinking
+    disabled, so `none` is offered.
+- **D7 (2026-10-08, owner; version chosen in Phase 1):** Anthropic rows use
+  Anthropic's native `web_search` server tool, never the application Brave or
+  SearXNG tool. Phase 1 measured the two versions; the result is basic
+  `web_search_20250305` with `allowed_callers: ["direct"]`. The selection rule
+  that Phase 1 applied was:
   - Prefer `web_search_20260318` (dynamic filtering, with
     `response_inclusion: "excluded"`).
   - Use basic `web_search_20250305` with `allowed_callers: ["direct"]` if
@@ -181,11 +184,11 @@ stated:
   blocks are resent exactly. Completed turns replay visible text, memory-tool
   exchanges and the latest compaction block, without thinking or raw search
   blocks.
-- **D9 (planning, superseded by the Phase 2 layout decision):** the interim
-  Anthropic placement of per-turn context is:
-  - a mid-conversation `system` message as the last entry, if Phase 1 confirms
-    Haiku 5.5 accepts it;
-  - otherwise a leading text block in the latest user message.
+- **D9 (planning, confirmed in Phase 1; superseded by the Phase 2 layout
+  decision):** until Phase 2 decides otherwise, Anthropic places per-turn
+  context in a mid-conversation `system` message as the last entry. Phase 1
+  confirmed Haiku 5.5 accepts it. The fallback, a leading text block in the
+  latest user message, is not needed.
 - **D10 (planning):** identifiers.
   - Provider type `AnthropicMessagesHTTPAgent`.
   - API standard and model client `anthropic_messages`.
@@ -409,8 +412,8 @@ That includes at most six web searches and one compaction request of about
      - OpenAI Chat Completions, using the built-in model with the developer
        role and again with developer text folded;
      - Anthropic, through a minimal direct mapping of the current layout.
-   - When `ANIMAMA_LOCAL_CHAT_BASE_URL` is set, it also covers a local Chat
-     Completions server.
+   - When `ANIMAMA_TEST_LOCAL_CHAT_BASE_URL` and `ANIMAMA_TEST_LOCAL_CHAT_MODEL`
+     are set, it also covers a local Chat Completions server.
    - It reports cached-input share per turn, model, revision and method, and
      records no content.
 4. Record the results under this phase. Finalize D6, D7 and D9, and record the
@@ -421,11 +424,273 @@ Checks: `uv lock --check`, `make check-test`, and both live files.
 Completion: live checks pass or each deviation is decided; the baseline is
 recorded; review leaves no blocker.
 
-Phase record: issue #365; starting source —; commit —.
+Phase record: issue #365; starting source `b37abfa5`; commit —.
+
+Results (2026-10-08). Source: `b37abfa5` plus this phase's working tree. Model
+`claude-haiku-5-5`; SDK `anthropic` 1.12.1. Live spend was well under budget:
+six web searches, compaction requests of about 81,000 and 57,000 tokens, and
+small requests.
+
+Commands:
+
+- Live checks:
+  `ANIMAMA_RUN_LIVE_TESTS=1 uv run --env-file "$HOME/.config/animama/dev-secrets.env" pytest -q -s tests/live/test_anthropic_messages_contract.py tests/live/test_prompt_cache_layout.py`.
+  After the review repairs, checks 3, 5 and 7 and the harness were rerun.
+- `uv lock --check`: "Resolved 272 packages", passes.
+- `make check-test` (before the review repairs):
+  - audit, format, lint and mypy pass;
+  - 3,265 passed, 20 skipped (live tests skip without keys).
+- mypy accepts the new modules and tests. The live files deliberately pass raw
+  JSON-shaped request parameters through an untyped client view, because they
+  test the wire shape the adapter will build.
+
+Findings:
+
+- **Dependencies.** `anthropic>=1.12,<2` is locked.
+  - New packages: `anthropic`, `httpx2` 2.13.1, `httpcore2`, `httpx2-jsfetch`
+    (marker only), `truststore` and `docstring-parser`. `jiter` was already
+    present through `openai`. `idna` moves from 3.11 to 3.20.
+  - `httpx2` sits beside `httpx` 0.28.1, which `openai` uses.
+  - `httpx2` uses the operating-system trust store through `truststore`, not
+    certifi. Phases 3 and 9 must confirm TLS in Docker and the frozen desktop
+    runtime.
+  - The Phase 9 license-inventory gate covers all of these packages.
+- **Strict schemas.** Anthropic rejects:
+  - `maxItems` in a strict tool (`memory_read_files`);
+  - integer `minimum`/`maximum` in the response schema
+    (`emotional_intensity`).
+
+  The SDK's `transform_schema` rejects `type` lists (`["string", "null"]`).
+  `adapters/model_clients/anthropic_messages/schema.py::anthropic_strict_schema`
+  handles all three:
+  - type lists become `anyOf`, with each branch's `enum` filtered;
+  - a branch the enum gives no value for is dropped (an Anima with no
+    Gestures gets a plain `null` gesture);
+  - a single branch collapses;
+  - the SDK transform then moves unsupported bounds into descriptions.
+
+  Tests in `tests/test_anthropic_messages_schema.py` cover every app tool schema
+  and the main response schema with and without Gestures. Local validation keeps
+  the original bounds; check 3 validates the live reply with the app's own model.
+- **Check 1/9:** text streamed in 9 deltas. A 16,732-token system block was
+  written to cache, then fully read on repeat. Anthropic documents a 512-token
+  minimum cacheable prefix for Haiku 5.5 (prompt-caching guide,
+  platform.claude.com, read 2026-10-08). This check did not isolate it.
+- **Check 2 (D6):** with thinking disabled, strict tools returned real
+  `tool_use` blocks (`text`, `tool_use`; stop reason `tool_use`).
+- **Check 3:** the converted main response schema and strict memory tools work
+  together. The JSON streamed in 14 deltas and validates against the app's
+  response model.
+- **Check 4 (D9):** a mid-conversation `system` message as the last entry is
+  accepted.
+- **Check 5 (D8):**
+  - The first response held a signed `thinking` block and a `tool_use` block.
+  - Resending both unchanged with the tool result and `tool_choice: none` (the
+    forced-final shape) ended `end_turn`.
+  - The next turn, replayed as text without thinking, was accepted; the model
+    chose a tool.
+- **Check 6 (D7):** three fixed prompts with structured output.
+
+  | Version | Median latency | Median input tokens | Pauses | Searches |
+  | --- | --- | --- | --- | --- |
+  | basic `web_search_20250305` (direct) | 7.38 s | 14,982 | 0/0/0 | 1/1/1 |
+  | dynamic `web_search_20260318` (`excluded`) | 10.35 s | 20,127 | 0/0/0 | 0/1/1 |
+
+  One sample per prompt.
+- **Check 7 (D4):** a history of about 57,000 tokens with the 50,000-token
+  trigger.
+  - Stream: one compaction block start, then exactly one `compaction_delta`
+    carrying the whole summary, then a signed `thinking` block (even at effort
+    `low`), then text in 18 deltas.
+  - `usage.iterations`: `compaction` (56,828 input), then `message` (346).
+  - Resending with the compaction block cost 981 input tokens and ended
+    `end_turn`. The API drops everything before the block.
+  - An earlier run of about 81,000 tokens behaved the same way.
+- **Check 8:** the memory tool ran `view /memories`, then `view` of the
+  profile, then `str_replace` on it. Under the manager instruction it created no
+  extra file.
+- **Check 10:** an invalid key raised `AuthenticationError` (401); an unknown
+  model raised `NotFoundError` (404).
+
+Cache baseline (`tests/live/test_prompt_cache_layout.py`):
+
+- Method: six scripted turns, a synthetic Anima, a memory map changing each
+  turn, effort `low`, and a fresh nonce per path and run, so no run reads
+  another's cache.
+- Source: `b37abfa5-dirty`, the Phase 1 working tree. Models: OpenAI
+  `gpt-6-luna` and Anthropic `claude-haiku-5-5`.
+
+| Path | Cached share by turn | Mean, turns 2–6 |
+| --- | --- | --- |
+| Responses without cursor | 0, 0, 0, 0, 0, 0 | 0.00 |
+| Responses with cursor | 0, 0, 0, 0, 0, 0 | 0.00 |
+| Chat Completions, developer role | 0, 0, 0.838, 0.827, 0.811, 0.795 | 0.65 |
+| Chat Completions, folded | 0, 0, 0, 0, 0, 0 | 0.00 |
+| Anthropic, folded layout with auto cache | 0, 0, 0, 0, 0, 0 | 0.00 |
+
+The first unisolated run reported 0.94 for the cursor path. That number came
+from the stateless run's cache entries, which carried identical instructions,
+and is withdrawn (finding P1-R1-F1).
+
+Observations for Phase 2. These are inferences from the data, checked against
+OpenAI's prompt-caching guide (developers.openai.com, read 2026-10-08). That
+guide says:
+
+- on GPT-5.6 and later, implicit cache writes land at the end of the latest
+  eligible message: user messages, the last tool result, and the end of the
+  initial developer-message block;
+- top-level `instructions` cannot carry a breakpoint.
+
+Inferences:
+
+- **Responses, with or without a cursor:** the per-turn memory map is inside
+  `instructions`, which render first, so nothing is reused.
+- **Chat Completions with a developer role:** the leading system message is the
+  initial block. It is written and reused (about 4,055 tokens). The other write
+  lands at the end of the latest user message. Today the per-turn developer
+  message sits before that user message and moves every turn, so no later
+  request repeats that prefix and history is never reused.
+- **Folded layouts (Chat Completions and Anthropic):** nothing is reused,
+  because the system message changes each turn.
+- **Token counts:** Anthropic counted about 1.8× OpenAI's input tokens for the
+  same prompt, including its structured-output schema.
+- **Worst case:** in production the memory map lists files and descriptions
+  only, so it changes when files change, not every turn. The harness models the
+  worst case.
+
+No local Chat Completions server was available, so that path was not measured.
 
 #### Code Review #1 Findings
 
+Reviewer: independent `sdlc-reviewer`, full initial review of `b37abfa5` plus
+the Phase 1 working tree.
+
+- **Checks the reviewer ran:**
+  - `uv lock --check`;
+  - ruff, format and mypy on the changed files;
+  - the focused tests (4 passed, 10 live skipped);
+  - the import-boundary check (no forbidden edges);
+  - a read-only script running the schema conversion over every app schema.
+- **Blocking findings:**
+  - **P1-R1-F1 (blocking):** the cursor baseline was contaminated by the
+    stateless run's cache, because both runs used identical per-turn
+    instructions.
+  - **P1-R1-F2 (blocking):** `anthropic_strict_schema` emitted an empty `enum`
+    for an Anima with no Gestures.
+  - **P1-R1-F3 (blocking):** check 5 asserted neither the presence of thinking
+    nor the follow-up stop reasons.
+- **Optional findings:**
+  - **P1-R1-F4:** the D6 and D9 log entries still read as conditional.
+  - **P1-R1-F5:** the compaction delta count was not observable, and the
+    81,000-token trigger was misleadingly worded.
+  - **P1-R1-F6:** the Haiku 5.5 minimum cacheable prefix was not recorded.
+  - **P1-R1-F7:** the commands and results were not recorded.
+  - **P1-R1-F8:** the test environment scrub omitted the Anthropic variables.
+  - **P1-R1-F9:** the live README did not describe the new paid tests.
+  - **P1-R1-F10:** the dependency list was incomplete, and the `truststore` TLS
+    note was missing.
+  - **P1-R1-F11:** the harness revision hid uncommitted changes.
+  - **P1-R1-F12:** a null branch broadened enums that exclude null; check 3
+    validated only `speech`.
+
 #### Code Review #1 Revisions
+
+All verified before fixing.
+
+- **F1 (accepted):** each path and run now starts its prompt with a fresh nonce.
+  The rerun shows the cursor path at 0.00, and the plan's table and
+  observations are corrected.
+- **F2 (accepted):** gesture-less schemas now collapse to `null`. Test added and
+  passing.
+- **F3 (accepted):** check 5 asserts a signed thinking block, `end_turn` on the
+  follow-up and acceptance of the next turn. The follow-up uses `tool_choice:
+  none`, which also covers the forced-final shape. The rerun passed. The next
+  turn's assertion accepts `tool_use`, because the contract is acceptance, not
+  the model's choice.
+- **F4 (accepted):** D6 and D9 are updated in the Decision Log.
+- **F5 (accepted):** deltas are run-length counted, and history is resized to
+  about 57,000 tokens. The rerun recorded exactly one `compaction_delta`.
+- **F6 (accepted):** the documented 512-token minimum is recorded with its
+  source.
+- **F7 (accepted):** commands and results are recorded above.
+- **F8 (accepted):** `ANTHROPIC_API_KEY` and `ANTHROPIC_BASE_URL` are scrubbed
+  in `tests/conftest.py`, and the key is kept only for live runs.
+- **F9 (accepted):** a README paragraph covers purpose, keys, budget and `-s`.
+- **F10 (accepted):** the full dependency list and the TLS note are recorded.
+- **F11 (accepted):** the harness records `git describe --always --dirty`.
+- **F12:**
+  - **Accepted:** the enum-excluding-null case is fixed (test added), and check
+    3 validates with the response model.
+  - **Rejected:** moving a `default` into the description is the SDK's
+    documented behaviour, and no app schema uses `default`.
+
+Verification after the repairs:
+
+- schema tests: 6 passed;
+- ruff, format and mypy on the changed files pass;
+- live reruns of checks 3, 5 and 7 and the harness pass.
+
+Repair budget: one of two rounds used. A targeted recheck (Review #2) followed.
+
+#### Code Review #2 Findings
+
+Targeted recheck by the same reviewer. It confirmed the fixes for F1–F12 and
+accepted the F12 rejection. Checks: ruff, format and mypy on the changed files;
+146 focused tests passed (schema, credentials, desktop credentials route), with
+the live tests skipped as intended.
+
+- **P1-R2-F1 (blocking):** the harness's local-server variables
+  (`ANIMAMA_LOCAL_CHAT_*`) are deleted by the root conftest's `ANIMAMA_*` scrub,
+  so the documented local path could never run.
+- **P1-R2-F2:** the nonce leads the identity, not the whole prompt, and the
+  isolation claim needed qualifying.
+- **P1-R2-F3:** the Phase 2 observations stated mechanisms as fact without a
+  source.
+- **P1-R2-F4:** `jiter` was wrongly listed as a new dependency.
+- **P1-R2-F5:** an unsatisfiable type list produced `{"anyOf": []}`.
+
+#### Code Review #2 Revisions
+
+- **R2-F1 (accepted):** renamed the variables to
+  `ANIMAMA_TEST_LOCAL_CHAT_BASE_URL` and `ANIMAMA_TEST_LOCAL_CHAT_MODEL`, which
+  conftest preserves, in the harness and the README.
+- **R2-F2 (accepted):**
+  - The docstring and README now state that the tag follows about 265 tokens of
+    core instructions, below OpenAI's minimum.
+  - Phase 4 must move the tag ahead of any newly shared prefix.
+- **R2-F3 (accepted):** the observations are labelled as inferences and cite
+  OpenAI's prompt-caching guide. The guide's initial-developer-block write also
+  explains the system-message reuse.
+- **R2-F4 (accepted):** the dependency list is corrected.
+- **R2-F5 (accepted):** an unsatisfiable type list now raises `ValueError`
+  ("Fail clearly"), and a test was added.
+
+Verification:
+
+- schema tests: 7 passed;
+- ruff, format and mypy on the changed files pass;
+- the post-repair `make check-test` on the repair-1 tree: audit, format, lint
+  and mypy pass; 3,267 passed and 20 skipped (live tests). The repair-2 edits
+  touch only the schema module, its tests, the live tests, the README and the
+  plan, and their focused checks pass.
+
+Repair budget: two of two rounds used.
+
+#### Code Review #3 Findings
+
+Final targeted recheck: **pass**. The reviewer confirmed the fixes for R2-F1
+to R2-F5 with no regressions. For R2-F1, it imported conftest with the
+`ANIMAMA_TEST_LOCAL_CHAT_*` variables set and confirmed they survive. Focused
+checks passed: ruff, format, mypy, and 7 tests passed with 1 skipped.
+
+- **P1-R3-F1 (optional):** Phase 1 step 3 named the old variables.
+- **P1-R3-F2 (optional):** the post-repair `make check-test` result was not yet
+  recorded.
+
+#### Code Review #3 Revisions
+
+- **R3-F1 (accepted):** step 3 now names `ANIMAMA_TEST_LOCAL_CHAT_*`.
+- **R3-F2 (accepted):** the result is recorded above.
 
 ### Phase 2: Caching findings and layout recommendation
 

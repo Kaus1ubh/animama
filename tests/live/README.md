@@ -60,6 +60,27 @@ The test uses `ANIMAMA_LIVE_OPENAI_API_KEY` when set, otherwise
 `OPENAI_API_KEY`. It skips when live tests are disabled or the test-suite
 placeholder key is active.
 
+`test_anthropic_messages_contract.py` records the Anthropic Messages behaviour
+the Anthropic adapter and Memory Manager runtime rely on: strict tools and
+structured output, thinking resend, mid-conversation system messages, native web
+search, threshold compaction, the memory tool, prompt caching and error shapes.
+`test_prompt_cache_layout.py` measures the share of input each provider path
+serves from its prompt cache over a scripted six-turn chat. Every run tags its
+synthetic identity with a fresh nonce, so reruns do not read an earlier run's
+cache while the shared text before the identity stays under the provider minimum. Set
+`ANIMAMA_TEST_LOCAL_CHAT_BASE_URL` and `ANIMAMA_TEST_LOCAL_CHAT_MODEL` to include a local
+Chat Completions server.
+
+Both make paid requests. They need `ANTHROPIC_API_KEY`, and the harness also
+needs `OPENAI_API_KEY`. A full run of both costs well under US$0.50: it includes
+six web searches and one compaction request of about 57,000 tokens. Use `-s` to
+see the recorded measurements, which contain no request or response content.
+With the owner-only secrets file:
+
+```bash
+ANIMAMA_RUN_LIVE_TESTS=1 uv run --env-file "$HOME/.config/animama/dev-secrets.env" pytest -q -s tests/live/test_anthropic_messages_contract.py tests/live/test_prompt_cache_layout.py
+```
+
 ## Manual OpenAI Stream Metadata Smoke
 
 Use this checklist only when validating a real OpenAI-backed local or staging

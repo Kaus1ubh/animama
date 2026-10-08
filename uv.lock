@@ -208,6 +208,7 @@ source = { editable = "." }
 dependencies = [
     { name = "aiofiles" },
     { name = "alembic" },
+    { name = "anthropic" },
     { name = "asyncpg" },
     { name = "debugpy" },
     { name = "elevenlabs" },
@@ -299,6 +300,7 @@ examples = [
 requires-dist = [
     { name = "aiofiles", specifier = ">=23.0.0" },
     { name = "alembic", specifier = ">=1.13.0" },
+    { name = "anthropic", specifier = ">=1.12,<2" },
     { name = "asyncpg", specifier = ">=0.29.0" },
     { name = "cryptography", marker = "extra == 'encrypt'", specifier = ">=45.0,<46" },
     { name = "debugpy", specifier = ">=1.8.17" },
@@ -386,6 +388,24 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/ee/67/531ea369ba64dcff5ec9c3402f9f51bf748cec26dde048a2f973a4eea7f5/annotated_types-0.7.0.tar.gz", hash = "sha256:aff07c09a53a08bc8cfccb9c85b05f1aa9a2a6f23728d790723543408344ce89", size = 16081, upload-time = "2024-05-20T21:33:25.928Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/78/b6/6307fbef88d9b5ee7421e68d78a9f162e0da4900bc5f5793f6d3d0e34fb8/annotated_types-0.7.0-py3-none-any.whl", hash = "sha256:1f02e8b43a8fbbc3f3e0d4f0f4bfc8131bcb4eebe8849b8e5c773f3a1c582a53", size = 13643, upload-time = "2024-05-20T21:33:24.1Z" },
+]
+
+[[package]]
+name = "anthropic"
+version = "1.12.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "anyio" },
+    { name = "docstring-parser" },
+    { name = "httpx2" },
+    { name = "jiter" },
+    { name = "pydantic" },
+    { name = "sniffio" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/bd/cc/0da23e94020c62c0077c17648252f32d575b187710faaf3b85145e8e555d/anthropic-1.12.1.tar.gz", hash = "sha256:10f720ab6ddf40ef12e0e5743412c3a6dfac1109c244e633c9a2dbd36778ad30", size = 1555908, upload-time = "2026-10-08T03:42:00.588Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/8b/35/1ccdc3e950dd869b66de15035e15d9614607fcef9664dec403fe639f01df/anthropic-1.12.1-py3-none-any.whl", hash = "sha256:1c1469bb3f4118291756816b7850cc839f17b2be5cdc99c8fde3890a61a49ca2", size = 1919752, upload-time = "2026-10-08T03:41:58.596Z" },
 ]
 
 [[package]]
@@ -1096,6 +1116,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/a2/55/8f8cab2afd404cf578136ef2cc5dfb50baa1761b68c9da1fb1e4eed343c9/docopt-0.6.2.tar.gz", hash = "sha256:49b3a825280bd66b3aa83585ef59c4a8c82f2c8a522dbe754a8bc8d08c85c491", size = 25901, upload-time = "2014-06-16T11:18:57.406Z" }
 
 [[package]]
+name = "docstring-parser"
+version = "0.18.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/e0/4d/f332313098c1de1b2d2ff91cf2674415cc7cddab2ca1b01ae29774bd5fdf/docstring_parser-0.18.0.tar.gz", hash = "sha256:292510982205c12b1248696f44959db3cdd1740237a968ea1e2e7a900eeb2015", size = 29341, upload-time = "2026-04-14T04:09:19.867Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a7/5f/ed01f9a3cdffbd5a008556fc7b2a08ddb1cc6ace7effa7340604b1d16699/docstring_parser-0.18.0-py3-none-any.whl", hash = "sha256:b3fcbed555c47d8479be0796ef7e19c2670d428d72e96da63f3a40122860374b", size = 22484, upload-time = "2026-04-14T04:09:18.638Z" },
+]
+
+[[package]]
 name = "elevenlabs"
 version = "2.39.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1745,6 +1774,19 @@ wheels = [
 ]
 
 [[package]]
+name = "httpcore2"
+version = "2.13.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "h11", marker = "python_full_version >= '3.13' or (python_full_version < '3.13' and extra != 'extra-15-animama-backend-file-worker') or (python_full_version < '3.13' and extra == 'extra-15-animama-backend-file-worker' and extra == 'extra-15-animama-backend-server') or (python_full_version < '3.13' and extra == 'extra-15-animama-backend-file-worker' and extra == 'group-15-animama-backend-dev') or sys_platform != 'emscripten'" },
+    { name = "truststore", marker = "python_full_version >= '3.13' or (python_full_version < '3.13' and extra != 'extra-15-animama-backend-file-worker') or (python_full_version < '3.13' and extra == 'extra-15-animama-backend-file-worker' and extra == 'extra-15-animama-backend-server') or (python_full_version < '3.13' and extra == 'extra-15-animama-backend-file-worker' and extra == 'group-15-animama-backend-dev') or sys_platform != 'emscripten'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/cb/f3/1db7aa2bc2524062192bb0e0323969492d1883152a232fe36eea65f4e35c/httpcore2-2.13.1.tar.gz", hash = "sha256:e0aa977abe17e69a3b820a24542a6fa88702676d83880b8d194dcd18408e5103", size = 68071, upload-time = "2026-09-23T07:47:22.372Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/09/ba/a4568248771ce81957bfb7cc600264a40fbcda092391ee1c415c50be4bea/httpcore2-2.13.1-py3-none-any.whl", hash = "sha256:e1e05d4f25f7d7d496bfb96748f6f4b67657b03da069b3a68c36069f3db73d0a", size = 83423, upload-time = "2026-09-23T07:47:19.365Z" },
+]
+
+[[package]]
 name = "httptools"
 version = "0.7.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1798,6 +1840,32 @@ wheels = [
 ]
 
 [[package]]
+name = "httpx2"
+version = "2.13.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "anyio", marker = "sys_platform != 'emscripten' or (extra == 'extra-15-animama-backend-file-worker' and extra == 'extra-15-animama-backend-server') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'group-15-animama-backend-dev')" },
+    { name = "httpcore2", marker = "sys_platform != 'emscripten' or (extra == 'extra-15-animama-backend-file-worker' and extra == 'extra-15-animama-backend-server') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'group-15-animama-backend-dev')" },
+    { name = "httpx2-jsfetch", marker = "sys_platform == 'emscripten' or (extra == 'extra-15-animama-backend-file-worker' and extra == 'extra-15-animama-backend-server') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'group-15-animama-backend-dev')" },
+    { name = "idna" },
+    { name = "truststore", marker = "sys_platform != 'emscripten' or (extra == 'extra-15-animama-backend-file-worker' and extra == 'extra-15-animama-backend-server') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'group-15-animama-backend-dev')" },
+    { name = "typing-extensions", marker = "python_full_version < '3.13' or (extra == 'extra-15-animama-backend-file-worker' and extra == 'extra-15-animama-backend-server') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'group-15-animama-backend-dev')" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/d5/44/474bef2a0e9d90f1715d32cb98b0738695ca17ba324095fb2497ed7fbd59/httpx2-2.13.1.tar.gz", hash = "sha256:e48744a19e3af5ee48313d0ce5fe941d5422fae5705ea922a4aabf94d7800dfa", size = 100405, upload-time = "2026-09-23T07:47:23.052Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d8/9c/6fe8931fd9f381042a9e4c7d5a7b4cbf7016b252bec0c99a49fce42c3326/httpx2-2.13.1-py3-none-any.whl", hash = "sha256:6dff50fabc270ee5fd25d845d0b078ed20564579744d6d962850975996d2f9a4", size = 95597, upload-time = "2026-09-23T07:47:20.995Z" },
+]
+
+[[package]]
+name = "httpx2-jsfetch"
+version = "1.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/cd/c4/0e5636363151a2a1795e0a77617168b9ca438e1748ec05fc9b5687f93d64/httpx2_jsfetch-1.0.tar.gz", hash = "sha256:70a0e3eabfef7cce5ad9c629f7d01ca05e418f586646f4ddf14782e4c1454c60", size = 6872, upload-time = "2026-08-07T00:13:07.492Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/9b/43/832f631d32e4f1211caa2ba368317739fe71f0b8530e4c9d15dc454bac2a/httpx2_jsfetch-1.0-py3-none-any.whl", hash = "sha256:cb916b707601e69a07721aabc8f3f6659be3a6893bc1ff5c6f9e02241df2da32", size = 6382, upload-time = "2026-08-07T00:13:06.567Z" },
+]
+
+[[package]]
 name = "huggingface-hub"
 version = "1.16.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1819,11 +1887,11 @@ wheels = [
 
 [[package]]
 name = "idna"
-version = "3.11"
+version = "3.20"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/6f/6d/0703ccc57f3a7233505399edb88de3cbd678da106337b9fcde432b65ed60/idna-3.11.tar.gz", hash = "sha256:795dafcc9c04ed0c1fb032c2aa73654d8e8c5023a7df64a53f39190ada629902", size = 194582, upload-time = "2025-10-12T14:55:20.501Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f5/08/8eea9d4b8302028f3abb2c0813953f7aec26d33b7a8960ed760e65ff29fa/idna-3.20.tar.gz", hash = "sha256:a7db850025b95ded1eae8a46181a1a6c56c92c96f0e2b005d9ff8dc0210cab44", size = 216463, upload-time = "2026-09-17T14:11:04.752Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/0e/61/66938bbb5fc52dbdf84594873d5b51fb1f7c7794e9c0f5bd885f30bc507b/idna-3.11-py3-none-any.whl", hash = "sha256:771a87f49d9defaf64091e6e6fe9c18d4833f140bd19464795bc32d966ca37ea", size = 71008, upload-time = "2025-10-12T14:55:18.883Z" },
+    { url = "https://files.pythonhosted.org/packages/58/a2/bb081bab032533a855d44de1d56f8e8426114ff1ba5d1f07a438a0a654f8/idna-3.20-py3-none-any.whl", hash = "sha256:ab7ae7122974553370f0bdb919e1a960b2cd1bc1ef0276416d896db81c14582c", size = 69583, upload-time = "2026-09-17T14:11:03.168Z" },
 ]
 
 [[package]]
@@ -2221,7 +2289,7 @@ name = "macholib"
 version = "1.16.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "altgraph" },
+    { name = "altgraph", marker = "(python_full_version < '3.13' and extra != 'extra-15-animama-backend-file-worker') or sys_platform == 'darwin' or (sys_platform != 'win32' and extra != 'extra-15-animama-backend-file-worker') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'extra-15-animama-backend-server') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'group-15-animama-backend-dev')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/10/2f/97589876ea967487978071c9042518d28b958d87b17dceb7cdc1d881f963/macholib-1.16.4.tar.gz", hash = "sha256:f408c93ab2e995cd2c46e34fe328b130404be143469e41bc366c807448979362", size = 59427, upload-time = "2025-11-22T08:28:38.373Z" }
 wheels = [
@@ -3715,10 +3783,10 @@ name = "pyobjc-framework-applicationservices"
 version = "12.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "pyobjc-core", marker = "sys_platform == 'darwin' or extra != 'extra-15-animama-backend-file-worker' or (extra == 'extra-15-animama-backend-file-worker' and extra == 'extra-15-animama-backend-server') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'group-15-animama-backend-dev')" },
-    { name = "pyobjc-framework-cocoa", marker = "sys_platform == 'darwin' or extra != 'extra-15-animama-backend-file-worker' or (extra == 'extra-15-animama-backend-file-worker' and extra == 'extra-15-animama-backend-server') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'group-15-animama-backend-dev')" },
-    { name = "pyobjc-framework-coretext", marker = "sys_platform == 'darwin' or extra != 'extra-15-animama-backend-file-worker' or (extra == 'extra-15-animama-backend-file-worker' and extra == 'extra-15-animama-backend-server') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'group-15-animama-backend-dev')" },
-    { name = "pyobjc-framework-quartz", marker = "sys_platform == 'darwin' or extra != 'extra-15-animama-backend-file-worker' or (extra == 'extra-15-animama-backend-file-worker' and extra == 'extra-15-animama-backend-server') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'group-15-animama-backend-dev')" },
+    { name = "pyobjc-core", marker = "(python_full_version < '3.13' and extra != 'extra-15-animama-backend-file-worker') or sys_platform == 'darwin' or (sys_platform != 'win32' and extra != 'extra-15-animama-backend-file-worker') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'extra-15-animama-backend-server') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'group-15-animama-backend-dev')" },
+    { name = "pyobjc-framework-cocoa", marker = "(python_full_version < '3.13' and extra != 'extra-15-animama-backend-file-worker') or sys_platform == 'darwin' or (sys_platform != 'win32' and extra != 'extra-15-animama-backend-file-worker') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'extra-15-animama-backend-server') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'group-15-animama-backend-dev')" },
+    { name = "pyobjc-framework-coretext", marker = "(python_full_version < '3.13' and extra != 'extra-15-animama-backend-file-worker') or sys_platform == 'darwin' or (sys_platform != 'win32' and extra != 'extra-15-animama-backend-file-worker') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'extra-15-animama-backend-server') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'group-15-animama-backend-dev')" },
+    { name = "pyobjc-framework-quartz", marker = "(python_full_version < '3.13' and extra != 'extra-15-animama-backend-file-worker') or sys_platform == 'darwin' or (sys_platform != 'win32' and extra != 'extra-15-animama-backend-file-worker') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'extra-15-animama-backend-server') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'group-15-animama-backend-dev')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/8c/79/0b7a00bcc7561c816281382c933a46aa7a90acca48b942054b7d32d0caf7/pyobjc_framework_applicationservices-12.0.tar.gz", hash = "sha256:eabbf6c57573158714aa656e5d0112330a87692db336aae7e94e216db89e93be", size = 103595, upload-time = "2025-10-21T08:26:32.651Z" }
 wheels = [
@@ -3734,7 +3802,7 @@ name = "pyobjc-framework-cocoa"
 version = "12.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "pyobjc-core", marker = "sys_platform == 'darwin' or extra != 'extra-15-animama-backend-file-worker' or (extra == 'extra-15-animama-backend-file-worker' and extra == 'extra-15-animama-backend-server') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'group-15-animama-backend-dev')" },
+    { name = "pyobjc-core", marker = "(python_full_version < '3.13' and extra != 'extra-15-animama-backend-file-worker') or sys_platform == 'darwin' or (sys_platform != 'win32' and extra != 'extra-15-animama-backend-file-worker') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'extra-15-animama-backend-server') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'group-15-animama-backend-dev')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/37/6f/89837da349fe7de6476c426f118096b147de923139556d98af1832c64b97/pyobjc_framework_cocoa-12.0.tar.gz", hash = "sha256:02d69305b698015a20fcc8e1296e1528e413d8cf9fdcd590478d359386d76e8a", size = 2771906, upload-time = "2025-10-21T08:30:51.765Z" }
 wheels = [
@@ -3750,9 +3818,9 @@ name = "pyobjc-framework-coretext"
 version = "12.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "pyobjc-core", marker = "sys_platform == 'darwin' or extra != 'extra-15-animama-backend-file-worker' or (extra == 'extra-15-animama-backend-file-worker' and extra == 'extra-15-animama-backend-server') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'group-15-animama-backend-dev')" },
-    { name = "pyobjc-framework-cocoa", marker = "sys_platform == 'darwin' or extra != 'extra-15-animama-backend-file-worker' or (extra == 'extra-15-animama-backend-file-worker' and extra == 'extra-15-animama-backend-server') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'group-15-animama-backend-dev')" },
-    { name = "pyobjc-framework-quartz", marker = "sys_platform == 'darwin' or extra != 'extra-15-animama-backend-file-worker' or (extra == 'extra-15-animama-backend-file-worker' and extra == 'extra-15-animama-backend-server') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'group-15-animama-backend-dev')" },
+    { name = "pyobjc-core", marker = "(python_full_version < '3.13' and extra != 'extra-15-animama-backend-file-worker') or sys_platform == 'darwin' or (sys_platform != 'win32' and extra != 'extra-15-animama-backend-file-worker') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'extra-15-animama-backend-server') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'group-15-animama-backend-dev')" },
+    { name = "pyobjc-framework-cocoa", marker = "(python_full_version < '3.13' and extra != 'extra-15-animama-backend-file-worker') or sys_platform == 'darwin' or (sys_platform != 'win32' and extra != 'extra-15-animama-backend-file-worker') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'extra-15-animama-backend-server') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'group-15-animama-backend-dev')" },
+    { name = "pyobjc-framework-quartz", marker = "(python_full_version < '3.13' and extra != 'extra-15-animama-backend-file-worker') or sys_platform == 'darwin' or (sys_platform != 'win32' and extra != 'extra-15-animama-backend-file-worker') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'extra-15-animama-backend-server') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'group-15-animama-backend-dev')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/b1/36/32ec183e555b73152d7813f6f7c277fd018440f70a1f142bd75b04946089/pyobjc_framework_coretext-12.0.tar.gz", hash = "sha256:8cc0c7dd2b7e68ad1c760784e422722550c77cbdbd60eb455170ec444ca1cfd2", size = 90546, upload-time = "2025-10-21T08:32:31.291Z" }
 wheels = [
@@ -3768,8 +3836,8 @@ name = "pyobjc-framework-quartz"
 version = "12.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "pyobjc-core", marker = "sys_platform == 'darwin' or extra != 'extra-15-animama-backend-file-worker' or (extra == 'extra-15-animama-backend-file-worker' and extra == 'extra-15-animama-backend-server') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'group-15-animama-backend-dev')" },
-    { name = "pyobjc-framework-cocoa", marker = "sys_platform == 'darwin' or extra != 'extra-15-animama-backend-file-worker' or (extra == 'extra-15-animama-backend-file-worker' and extra == 'extra-15-animama-backend-server') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'group-15-animama-backend-dev')" },
+    { name = "pyobjc-core", marker = "(python_full_version < '3.13' and extra != 'extra-15-animama-backend-file-worker') or sys_platform == 'darwin' or (sys_platform != 'win32' and extra != 'extra-15-animama-backend-file-worker') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'extra-15-animama-backend-server') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'group-15-animama-backend-dev')" },
+    { name = "pyobjc-framework-cocoa", marker = "(python_full_version < '3.13' and extra != 'extra-15-animama-backend-file-worker') or sys_platform == 'darwin' or (sys_platform != 'win32' and extra != 'extra-15-animama-backend-file-worker') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'extra-15-animama-backend-server') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'group-15-animama-backend-dev')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/91/0b/3c34fc9de790daff5ca49d1f36cb8dcc353ac10e4e29b4759e397a3831f4/pyobjc_framework_quartz-12.0.tar.gz", hash = "sha256:5bcb9e78d671447e04d89e2e3c39f3135157892243facc5f8468aa333e40d67f", size = 3159509, upload-time = "2025-10-21T08:40:01.918Z" }
 wheels = [
@@ -5169,6 +5237,15 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/7f/cb/f57b149d7beed1a85b8266d0c60ebe4c46e79c9ba56bc17b898e17daf88e/tree_sitter_typescript-0.23.2-cp39-abi3-musllinux_1_2_x86_64.whl", hash = "sha256:8d4f0f9bcb61ad7b7509d49a1565ff2cc363863644a234e1e0fe10960e55aea0", size = 340245, upload-time = "2024-11-11T02:36:06.473Z" },
     { url = "https://files.pythonhosted.org/packages/8b/ab/dd84f0e2337296a5f09749f7b5483215d75c8fa9e33738522e5ed81f7254/tree_sitter_typescript-0.23.2-cp39-abi3-win_amd64.whl", hash = "sha256:3f730b66396bc3e11811e4465c41ee45d9e9edd6de355a58bbbc49fa770da8f9", size = 278015, upload-time = "2024-11-11T02:36:07.631Z" },
     { url = "https://files.pythonhosted.org/packages/9f/e4/81f9a935789233cf412a0ed5fe04c883841d2c8fb0b7e075958a35c65032/tree_sitter_typescript-0.23.2-cp39-abi3-win_arm64.whl", hash = "sha256:05db58f70b95ef0ea126db5560f3775692f609589ed6f8dd0af84b7f19f1cbb7", size = 274052, upload-time = "2024-11-11T02:36:09.514Z" },
+]
+
+[[package]]
+name = "truststore"
+version = "0.10.4"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/53/a3/1585216310e344e8102c22482f6060c7a6ea0322b63e026372e6dcefcfd6/truststore-0.10.4.tar.gz", hash = "sha256:9d91bd436463ad5e4ee4aba766628dd6cd7010cf3e2461756b3303710eebc301", size = 26169, upload-time = "2025-08-12T18:49:02.73Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/19/97/56608b2249fe206a67cd573bc93cd9896e1efb9e98bce9c163bcdc704b88/truststore-0.10.4-py3-none-any.whl", hash = "sha256:adaeaecf1cbb5f4de3b1959b42d41f6fab57b2b1666adb59e89cb0b53361d981", size = 18660, upload-time = "2025-08-12T18:49:01.46Z" },
 ]
 
 [[package]]

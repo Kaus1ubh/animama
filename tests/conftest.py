@@ -35,9 +35,11 @@ _PROVIDER_ENVIRONMENT = (
     "HF_TOKEN",
     "OPENROUTER_API_KEY",
     "ELEVENLABS_API_KEY",
+    "ANTHROPIC_API_KEY",
+    "ANTHROPIC_BASE_URL",
 )
 for _name in _PROVIDER_ENVIRONMENT:
-    if not (_live_tests_enabled and _name == "OPENAI_API_KEY"):
+    if not (_live_tests_enabled and _name in {"OPENAI_API_KEY", "ANTHROPIC_API_KEY"}):
         _test_environment.delenv(_name, raising=False)
 if not _live_tests_enabled:
     _test_environment.setenv("OPENAI_API_KEY", "test-key")
