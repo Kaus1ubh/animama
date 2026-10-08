@@ -773,7 +773,7 @@ Gloom lines, DOKI DOKI, Idea bulb, Despair shade. Changes:
   cheek marks, raised (`offset.y` −0.03) to cross the cheeks and the nose
   just under the eyes. All three pass `effects check`.
 - Blush Band made more minimal (owner): thinner (scale 0.9 × 0.55) and
-  lighter (opacity 0.75), `offset.y` −0.028.
+  lighter (opacity 0.75), then lowered to `offset.y` −0.012 (owner).
 
 ### P7 — Reaction wiring (R15). Gate G3.
 
