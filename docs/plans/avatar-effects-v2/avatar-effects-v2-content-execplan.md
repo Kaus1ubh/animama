@@ -764,6 +764,15 @@ Gloom lines, DOKI DOKI, Idea bulb, Despair shade. Changes:
   gradient's falloff recoloured red).
 - The library is now 22 effects; all pass `effects check`.
 
+#### G2 round 3 (owner, 2026-10-08)
+
+- Eye O: the centre dot removed (a plain filled ring).
+- Blush Deep and Blush Band redone (two candidates each, the agent picked
+  one): Blush Deep now follows the owner's blush construction with three
+  bold strokes on a stronger red glow; Blush Band is a plain band with no
+  cheek marks, raised (`offset.y` −0.03) to cross the cheeks and the nose
+  just under the eyes. All three pass `effects check`.
+
 ### P7 — Reaction wiring (R15). Gate G3.
 
 1. Starts after #337 merges and this branch has merged `main`: Included
