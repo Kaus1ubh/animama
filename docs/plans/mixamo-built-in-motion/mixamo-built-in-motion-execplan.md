@@ -79,9 +79,11 @@ Paths are relative to `src/backend/animama/` (backend) or `src/frontend/web/src/
         plus the Idle Style verified against a candidate manifest
         (`review-2026-10-08`, 143 files) and mounted on the task stack for the
         owner's selection review (2026-10-08).
-  - [ ] Owner selection: which of the 71 clips ship.
-  - [ ] Publish the selected pack, commit its manifest, release procedure.
-  - [ ] Build verification (step 5) and G3 playback.
+  - [x] Owner selection: 35 clips (2026-10-08).
+  - [x] Pack `v1` published, manifest committed, release procedure and
+        workflow updated (2026-10-08).
+  - [x] Build verification (step 5).
+  - [ ] G3 playback (owner) and Phase 5 review.
 - [x] Final integration review for Phases 1–4 (pass; Phase 5 pending owner gates).
 - [x] PR opened: [#329](https://github.com/raymond-van/animama/pull/329) (Phases 1–4,
       candidate `55b86bb2`). Hosted CI is disabled; local checks are the evidence.
@@ -249,6 +251,21 @@ Paths are relative to `src/backend/animama/` (backend) or `src/frontend/web/src/
   - The selection review happens before publishing, so rejected clips never
     enter the private store or the tracked manifest. A candidate manifest is
     used locally (uncommitted) for the review only.
+- 2026-10-08, owner: **pack `v1` selection.** 35 clips ship: 30 Gestures and
+  five idle loops. Idle Sway is not kept, so Idle Happy replaces it in the Idle
+  Style's default pool and its joy and optimism pools. Renamed: `idle_sexy_dance`
+  to "Dance" (Selector ID `dance`), `relax` to "Yawn" (`yawn`), `youre_right` to
+  "You're Right", and `whatever` to "Quick Shrug" (Selector ID unchanged, so two
+  Gestures share that display name: `quick_shrug` and `whatever`). The other
+  kept non-starter clips keep their legacy names. **R1 deviation, accepted by
+  the owner:** R1 named the 29 former starter clips; the pack instead ships 24
+  of them plus 11 others. Not shipped from the 29: Blush Head scratch, Explain,
+  Slight Bow, Talk and Idle Sway. Added: `excited_jump_2`, `idle_fem`,
+  `idle_idle3`, `idle_look_around`, `idle_sexy_dance` (Dance), `lookaround2`,
+  `posture_jumphigh`, `relax` (Yawn), `sleepy`, `telling_secret` and
+  `youre_right`. Most added clips have no AI description and several keep raw
+  legacy names; tidying them needs a later pack version. The Idle Style is "Emotive
+  Idle" (`builtin:idle-style:mixamo-emotive-idle`), not a default.
 
 ## Phased implementation
 
@@ -962,7 +979,9 @@ on P2, P3 and P4. Contains owner gates.
    conversion tool, version and steps, and resulting hash. Use the existing
    `acquire-mixamo.py --prepare` checklist workspace and `validate_vrma` checks. The agent may run conversion and
    descriptor generation on the owner's machine, but nothing private enters Git.
-3. **Pack assembly** (agent, private workspace). Generate the 29 Gesture
+3. **Pack assembly** (agent, private workspace). *Revised 2026-10-08: the
+   owner-selected 35 clips (30 Gestures, five idle loops) and the "Emotive Idle"
+   style pooling the five loops; see the Decision Log.* Original text: Generate the 29 Gesture
    descriptors from the `document` templates in `scripts/mixamo-assets.json`, with
    `builtin:` content IDs (idle loops keep their loop config). Check that no
    content ID or Selector ID collides with core Included content or with #310's
@@ -977,7 +996,8 @@ on P2, P3 and P4. Contains owner gates.
    `ANIMAMA_REQUIRE_MIXAMO_MOTION=1`; audit it; run every leak check from P4 on the real
    manifest; confirm self-host `./reset.sh` still creates both starters without
    the store, and that the Local installer still installs Local content.
-6. **Gate G3 (owner): playback.** In the desktop app, play all 29 clips and the
+6. **Gate G3 (owner): playback.** *Revised 2026-10-08: the 35 shipped clips.*
+   In the desktop app, play all 29 clips and the
    Included Idle Style on `AvatarSample_Y_0` (VRM 0) and `AvatarSample_A_1_New`
    (VRM 1). Retargeting and foot contact must look correct. Repeat the export,
    import and creator restrictions with real items. The hosted check is
@@ -988,12 +1008,82 @@ Recovery: a bad clip is fixed by re-converting it and republishing the pack unde
 a new pack version, then updating the tracked manifest. Removing the pack from a
 build only unmounts it (P2 step 6 covers Animas that referenced it).
 
-Completion: G1–G3 recorded; the R1, R7 and R8 acceptance criteria hold with real
+Completion (revised 2026-10-08: R1 and R8 as amended by the owner's decisions of
+that date): G1–G3 recorded; the R1, R7 and R8 acceptance criteria hold with real
 content; review passes.
+
+#### Results
+
+- **Store (G1):** see the Decision Log, 2026-10-08. The read token authenticates
+  (a fetch of the empty prefix returned 404, not 403).
+- **Assembly:** a scratch script outside the repository copied the selected
+  legacy files into `build-inputs/mixamo-motion/` as `gestures/<folder>/` with a
+  `<folder>.meta.json` from the `scripts/mixamo-assets.json` templates
+  (`local:` IDs become `builtin:`; the idle loops keep their loop `config`), plus
+  `idle-styles/mixamo-emotive-idle/mixamo-emotive-idle.json` from
+  `idle_style_document`. It wrote the private inventory beside it.
+- **Review:** all 71 legacy clips were mounted on the task stack as a second
+  Included source for the owner's selection, then the selected pack. The catalog
+  shows 35 valid non-portable Gestures and one valid non-portable Idle Style with
+  no diagnostics; a text-glTF clip and a binary clip play in the Library
+  preview.
+- **Publish:** `manifest … v1` (71 files) committed as the tracked manifest;
+  `verify` and `scan --git` pass; `publish --confirm` uploaded 72 objects (the
+  files plus the private inventory). `fetch` with the read token re-downloads
+  and verifies all 71 files.
+- **Release procedure:** `release-process.md` adds `fetch` and
+  `ANIMAMA_REQUIRE_MIXAMO_MOTION=1` to the macOS and Windows sequences. The
+  macOS release workflow fetches with `ANIMAMA_R2_ACCOUNT_ID` and the new
+  `ANIMAMA_MIXAMO_R2_*` read secrets (owner action: add them to the
+  `desktop-macos-signing` environment) and stages with the pack required.
+- **Build verification:**
+  - `ANIMAMA_REQUIRE_MIXAMO_MOTION=1 pnpm desktop:runtime:stage -- --platform
+    darwin --arch arm64` stages the pack (71 files); `desktop:runtime:audit`
+    passes.
+  - Leak scans find no pack bytes in: tracked files (`scan --git`), the Docker
+    build context (83 MB tar honouring `.dockerignore`), the package set (wheel,
+    three npm tarballs, schemas), `content/included`, the exported self-host
+    `animama-server` image (1.2 GB) and the 28 stage entries outside
+    `runtime/content/mixamo-motion`. Scanning that directory itself finds the
+    bytes (positive control).
+  - Self-host: the task stack (`reset.sh`, no store credentials) starts with the
+    real manifest and core content unchanged; only the review override mounts
+    the pack. The Local installer tests pass.
+  - Targeted tests: 26 + 41 backend (portability, non-portable packages,
+    integrity, starter closure, Local installer, desktop packaging, transitions,
+    package HTTP) and 11 desktop pack tests pass, except the known gruut
+    environment failure.
 
 #### Code Review #1 Findings
 
+Independent `sdlc-reviewer`, 2026-10-08, source `0a4080f2` plus the working
+tree. Three blocking findings:
+
+- **P5-F1:** an unsorted import (ruff I001) in `content_package_export.py`.
+- **P5-F2:** the docs disagreed on where the workflow's pack secrets live, and
+  the `build` job's environment (`desktop-macos-signing`) did not list
+  `ANIMAMA_R2_ACCOUNT_ID`, so fetch would fail.
+- **P5-F3:** steps 3 and 6 and the Completion line still described the 29-clip
+  set; the R1 set change was not recorded as a deviation.
+
+Non-blocking: a PowerShell line in an `sh` fence, a "prefix" token comment in
+the workflow, the stricter gesture-use validation without its own test, legacy
+names and missing AI descriptions in the pack, and the Decision Log order.
+
 #### Code Review #1 Revisions
+
+- P5-F1: imports sorted; `ruff check` passes.
+- P5-F2: `releases.md` lists the account ID, bucket, prefix and read-token
+  secrets under `desktop-macos-signing`; the pack guide and release process say
+  the same.
+- P5-F3: steps 3 and 6 and the Completion line carry the 2026-10-08 revision;
+  the selection entry records the R1 deviation and the set difference.
+- Non-blocking: the Windows block is a `powershell` fence, the workflow comment
+  says "bucket-scoped", the Decision Log is reordered, and the hostile-manifest
+  test covers a gesture use without a Selector ID. That case was already
+  rejected by `PackageNonPortableUse`'s own validator, so the new check only
+  narrows the type. Pack naming is left to a later
+  pack version (owner decision).
 
 ## Final integration review
 

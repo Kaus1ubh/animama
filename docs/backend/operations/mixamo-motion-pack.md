@@ -1,8 +1,8 @@
 # Mixamo-motion pack
 
-Desktop and hosted builds ship the pack's 29 Mixamo-derived Gestures and idle
-loops, plus one Idle Style, as **non-portable** Included content once the tracked
-manifest lists them (until then no build includes the pack)
+Desktop and hosted builds ship the pack's Mixamo-derived Gestures and idle loops
+(35 clips in pack `v1`), plus the "Emotive Idle" Idle Style, as **non-portable**
+Included content listed by the tracked manifest
 ([ADR 0015](../../adr/0015-non-portable-included-content.md),
 [issue #242](https://github.com/raymond-van/animama/issues/242)). The files
 never enter Git, Docker build contexts, self-host images or the public package
@@ -48,9 +48,11 @@ ANIMAMA_MIXAMO_R2_READ_ACCESS_KEY_ID / ANIMAMA_MIXAMO_R2_READ_SECRET_ACCESS_KEY 
 ANIMAMA_MIXAMO_R2_WRITE_ACCESS_KEY_ID / ANIMAMA_MIXAMO_R2_WRITE_SECRET_ACCESS_KEY  (publish)
 ```
 
-Create both as R2 Account API tokens limited to the bucket: **Object Read
-only** for fetch and **Object Read & Write** for publish. R2 cannot limit a token
-to a prefix, so use the write token only to publish.
+The desktop release workflow reads `ANIMAMA_R2_ACCOUNT_ID`, the bucket, the
+prefix and the read token from secrets of the `desktop-macos-signing`
+environment. Create both as R2 Account API tokens limited to the bucket:
+**Object Read only** for fetch and **Object Read & Write** for publish. R2
+cannot limit a token to a prefix, so use the write token only to publish.
 
 ## Commands
 

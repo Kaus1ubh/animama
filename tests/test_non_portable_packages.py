@@ -6,6 +6,7 @@ import hashlib
 import json
 import shutil
 from pathlib import Path
+from typing import Any
 from zipfile import ZipFile
 
 import pytest
@@ -64,12 +65,12 @@ def _gesture(root: Path, name: str, payload: bytes) -> None:
     )
 
 
-def _style(root: Path, pools: dict[str, object]) -> None:
+def _style(root: Path, pools: dict[str, Any]) -> None:
     refs = sorted(
-        set(pools.get("default_pool", []))  # type: ignore[arg-type]
+        set(pools.get("default_pool", []))
         | {
             ref
-            for levels in pools.get("cells", {}).values()  # type: ignore[union-attr]
+            for levels in pools.get("cells", {}).values()
             for cell in levels.values()
             for ref in cell.get("gestures", [])
         }
@@ -89,7 +90,7 @@ def _style(root: Path, pools: dict[str, object]) -> None:
 
 
 def test_idle_refs_strip_and_restore_round_trip() -> None:
-    projection = {
+    projection: dict[str, Any] = {
         "default_pool": ["builtin:gesture:sway", "local:gesture:own"],
         "cells": {"joy": {"2": {"mode": "pool", "gestures": ["builtin:gesture:sway"]}, "3": {"mode": "none"}}},
         "dependencies": [
@@ -168,6 +169,7 @@ async def test_content_export_and_import_handle_non_portable_items(async_session
             uses({"entry_id": own_entry, "pools": ["default"]}),
             uses({"entry_id": style_entry, "pools": ["bogus.9"]}),
             uses({"anima_slot": "gesture", "semantic_key": "sway"}),
+            uses({"anima_slot": "gesture"}),
             {**manifest, "non_portable_references": [{**reference, "kind": "avatar"}]},
         ]
         for value in hostile:

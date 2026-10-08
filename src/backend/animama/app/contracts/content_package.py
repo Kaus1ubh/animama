@@ -179,6 +179,8 @@ class PackageEntry(_PackageModel):
 NON_PORTABLE_REFERENCES_CAPABILITY = "animama/non-portable-references/1"
 NON_PORTABLE_REFERENCE_KINDS = frozenset({ContentKind.GESTURE, ContentKind.IDLE_STYLE})
 IdlePoolName = Annotated[StrictStr, Field(min_length=1, max_length=64)]
+# Anima slots a non-portable item can be omitted from.
+NonPortableAnimaSlot = Literal["gesture", "idle_style"]
 
 
 class PackageNonPortableUse(_PackageModel):
@@ -189,7 +191,7 @@ class PackageNonPortableUse(_PackageModel):
     pools (``default`` or ``<emotion>.<1|2|3>``) it was removed from.
     """
 
-    anima_slot: Literal["gesture", "idle_style"] | None = None
+    anima_slot: NonPortableAnimaSlot | None = None
     semantic_key: SemanticKey | None = None
     config: dict[str, object] = Field(default_factory=dict)
     entry_id: PortableId | None = None
@@ -346,7 +348,7 @@ class PackageManifest(_PackageModel):
                 if self.anima is None or use.anima_slot != reference.kind.value:
                     raise ValueError("package_non_portable_use_invalid")
                 if use.anima_slot == "gesture":
-                    if use.semantic_key in gesture_keys:
+                    if use.semantic_key is None or use.semantic_key in gesture_keys:
                         raise ValueError("package_non_portable_use_invalid")
                     gesture_keys.add(use.semantic_key)
                 else:

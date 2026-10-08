@@ -10,8 +10,8 @@
 
 ## Context
 
-The owner wants the desktop app and the hosted service to ship 29 Mixamo-derived
-Gestures and idle loops. Adobe's terms allow Mixamo animation inside a product
+The owner wants the desktop app and the hosted service to ship Mixamo-derived
+Gestures and idle loops (35 owner-selected clips in the first pack). Adobe's terms allow Mixamo animation inside a product
 but forbid handing the files out as reusable assets, standalone or in packs.
 Until now every Included item could be customized into a Local copy and exported
 in a portable package, and Mixamo-derived files were excluded from Git, Docker

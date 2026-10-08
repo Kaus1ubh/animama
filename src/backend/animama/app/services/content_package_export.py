@@ -25,6 +25,7 @@ from animama.app.contracts.content_package import (
     PACKAGE_ENTRY_KINDS,
     PACKAGE_ROOT_KINDS,
     PACKAGE_SCHEMA,
+    NonPortableAnimaSlot,
     PackageAvatarPortrait,
     PackageDependency,
     PackageEntry,
@@ -276,7 +277,7 @@ class _ReservedWriter:
 class _NonPortableUse:
     """Catalog-identity form of PackageNonPortableUse, mapped to entry ids on write."""
 
-    anima_slot: str | None = None
+    anima_slot: NonPortableAnimaSlot | None = None
     semantic_key: str | None = None
     config: dict[str, Any] | None = None
     entry_item_id: str | None = None

@@ -7,6 +7,7 @@ from typing import Any
 
 from pydantic import ValidationError
 
+from animama.app.contracts.content_package import NonPortableAnimaSlot
 from animama.app.contracts.portable_anima import PortableAnima
 from animama.app.ports.anima_package_source import AnimaPackageSourceRepository, SavedAnimaPackageSource
 from animama.app.ports.content_catalog import ContentCatalog
@@ -40,7 +41,7 @@ class OmittedAnimaBinding:
     """A non-portable Gesture or Idle Style binding left out of an Anima export."""
 
     item: CatalogContentEntry
-    slot: str  # "gesture" or "idle_style"
+    slot: NonPortableAnimaSlot
     semantic_key: str | None = None
     config: dict[str, Any] | None = None
 
