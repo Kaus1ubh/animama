@@ -163,44 +163,34 @@ export function onboardingInput(
   };
 }
 
-/** Text-to-Speech settings as the Voice step shows them. */
-export type SetupTtsChoice = {
-  enabled: boolean;
-  provider: SetupTtsProvider;
-};
-
 /**
- * The Voice step's Text-to-Speech values: the owner's changes in this setup,
- * else the saved preferences, else off with built-in voices.
+ * The Voice step's Text-to-Speech provider: the owner's choice in this setup,
+ * else the saved preference, else built-in voices.
  */
-export function resolveSetupTts(
-  draft: Pick<SetupDraft, "ttsEnabled" | "ttsProvider">,
+export function resolveSetupTtsProvider(
+  draft: Pick<SetupDraft, "ttsProvider">,
   saved: SpeechPreferences | null | undefined,
-): SetupTtsChoice {
+): SetupTtsProvider {
   const savedProvider =
     saved?.tts_provider === "elevenlabs" || saved?.tts_provider === "pocket_tts"
       ? saved.tts_provider
       : null;
-  return {
-    enabled: draft.ttsEnabled ?? saved?.tts_enabled === true,
-    provider: draft.ttsProvider ?? savedProvider ?? "pocket_tts",
-  };
+  return draft.ttsProvider ?? savedProvider ?? "pocket_tts";
 }
 
 /**
  * The speech preferences Finish merges into the saved ones, or null when the
- * owner changed nothing in the Voice step.
+ * owner kept the default provider. Text-to-Speech is on by default, so a
+ * choice always keeps it on.
  */
 export function setupTtsPatch(
-  draft: Pick<SetupDraft, "ttsEnabled" | "ttsProvider">,
-  saved: SpeechPreferences | null | undefined,
+  draft: Pick<SetupDraft, "ttsProvider">,
 ): Pick<SpeechPreferences, "tts_enabled" | "tts_provider"> | null {
-  if (draft.ttsEnabled === null && draft.ttsProvider === null) return null;
-  const { enabled, provider } = resolveSetupTts(draft, saved);
-  return { tts_enabled: enabled, tts_provider: provider };
+  if (draft.ttsProvider === null) return null;
+  return { tts_enabled: true, tts_provider: draft.ttsProvider };
 }
 
-/** Setup's two default provider choices, with availability from App Settings' options. */
+/** Setup's two provider tabs, with availability from App Settings' options. */
 export function setupTtsOptions(options: readonly TtsProviderOption[]): Array<{
   id: SetupTtsProvider;
   label: string;
@@ -215,15 +205,16 @@ export function setupTtsOptions(options: readonly TtsProviderOption[]): Array<{
   return [
     {
       id: "pocket_tts",
-      label: "Built-in voices",
-      description: "Runs on this computer; no key needed.",
+      label: "PocketTTS (built-in)",
+      description:
+        "Kyutai's Pocket TTS speaks replies on this computer, with no key or account needed.",
       disabled: pocket?.disabled ?? true,
       reason: pocket?.reason,
     },
     {
       id: "elevenlabs",
       label: "ElevenLabs",
-      description: "Cloud voices; needs an ElevenLabs API key.",
+      description: "Cloud voices with your ElevenLabs API key.",
       disabled: elevenlabs?.disabled ?? true,
       reason: elevenlabs?.reason,
     },

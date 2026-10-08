@@ -20,7 +20,7 @@ import {
   onboardingInput,
   openAiDefaultModel,
   ownerModelChoices,
-  resolveSetupTts,
+  resolveSetupTtsProvider,
   setupStepPosition,
   setupTtsOptions,
   setupTtsPatch,
@@ -84,10 +84,26 @@ vi.mock("@/query/hooks/useModelConfiguration", () => {
       ok({ roles: [{ role: "chat", model_provider_id: OPENAI_MODEL }] }),
   };
 });
-vi.mock("@/ui/settings/OfflineSpeechDownloads", () => ({
-  OfflineSpeechDownloads: () =>
-    createElement("button", { type: "button" }, "Download CPU model"),
-}));
+vi.mock("@/ui/settings/OfflineSpeechDownloads", () => {
+  const asset = (id: string, size: number) => ({
+    id,
+    status: "not_installed",
+    size_bytes: size,
+    required_free_bytes: size,
+  });
+  return {
+    assetFailureText: () => "",
+    OfflineSpeechDownloads: () => null,
+    useOfflineSpeechDownloads: () => ({
+      cpu: asset("parakeet-stt", 631_000_000),
+      gpu: asset("parakeet-stt-webgpu", 1_200_000_000),
+      freeBytes: null,
+      gpuSupport: "available",
+      pending: false,
+      onChange: () => {},
+    }),
+  };
+});
 vi.mock("@/ui/settings/DesktopCredentialsPanel", () => ({
   DesktopCredentialsPanel: ({ providers }: { providers: string[] }) =>
     createElement("div", { "data-key-panel": providers.join(",") }),
@@ -251,9 +267,13 @@ describe("local first-run setup", () => {
     });
     expect(html).toContain("Step 2 of 3");
     expect(html).toMatch(/<li aria-current="step"[^>]*>AI<\/li>/u);
-    expect(html).toMatch(/role="tab"[^>]*>Cloud</u);
+    // Cloud carries the Recommended tag; the step no longer lists models.
+    expect(html).toMatch(
+      /role="tab"[^>]*><span[^>]*>Cloud<span[^>]*>Recommended<\/span>/u,
+    );
     expect(html).toMatch(/role="tab"[^>]*>Local</u);
-    expect(html).toContain("Recommended");
+    expect(html).not.toContain("Model for new Animas");
+    expect(html).not.toContain("App Settings → Models");
     expect(html).toContain('data-key-panel="openai"');
     expect(html).toContain('aria-label="Cloud providers"');
     expect(html).toContain('aria-label="Local providers"');
@@ -265,8 +285,6 @@ describe("local first-run setup", () => {
     expect(html).toMatch(
       /role="tab" aria-selected="true"[^>]*><span[^>]*>OpenAI<span aria-hidden="true"[^>]*><\/span><span class="sr-only"> \(connected\)/u,
     );
-    expect(html).toContain("New Animas will chat with OpenAI (GPT-6 Luna).");
-    expect(html).toContain("App Settings → Models");
     expect(html).toMatch(/<button[^>]*>Back<\/button>/u);
     expect(html).toMatch(/<button[^>]*>Skip for now<\/button>/u);
     expect(html).toMatch(/<button[^>]*>Continue<\/button>/u);
@@ -298,17 +316,27 @@ describe("local first-run setup", () => {
     const html = renderSetup({
       ...welcomeDone,
       step: "voice",
-      ttsEnabled: true,
       ttsProvider: "elevenlabs",
     });
     expect(html).toContain("Step 3 of 3");
     expect(html).toMatch(/<li aria-current="step"[^>]*>Voice<\/li>/u);
-    expect(html).toContain("Download CPU model");
-    expect(html).toContain("Enable Text-to-Speech");
-    expect(html).toContain("Built-in voices");
+    expect(html).toContain("Parakeet (CPU");
+    expect(html).toContain("Parakeet (GPU");
+    // Text-to-Speech is on by default: provider tabs, no toggle.
+    expect(html).not.toContain("Enable Text-to-Speech");
+    expect(html).not.toContain("optional");
+    expect(html).not.toContain("attribution");
+    expect(html).toContain("PocketTTS (built-in)");
+    // Each local model links to its public source.
+    expect(html).toContain(
+      'href="https://huggingface.co/nvidia/parakeet-tdt-0.6b-v2"',
+    );
+    expect(html).toContain('href="https://github.com/kyutai-labs/pocket-tts"');
+    expect(html).toContain("Works on any computer.");
+    expect(html).toMatch(
+      /<button[^>]*aria-selected="true"[^>]*>ElevenLabs<\/button>/u,
+    );
     expect(html).toContain('data-key-panel="elevenlabs"');
-    // ElevenLabs is selected but its key is not saved.
-    expect(html).toContain("ElevenLabs needs an API key.");
     expect(html).toMatch(/<button[^>]*>Finish<\/button>/u);
     expect(html).toMatch(/<button[^>]*>Skip for now<\/button>/u);
     expect(html).not.toMatch(/reload/iu);
@@ -339,25 +367,22 @@ describe("setup step logic", () => {
     });
   });
 
-  it("writes Text-to-Speech only when changed, keeping saved values otherwise", () => {
+  it("writes the Text-to-Speech provider only when chosen, keeping it on", () => {
     const saved = { tts_enabled: true, tts_provider: "elevenlabs" as const };
+    expect(setupTtsPatch({ ttsProvider: null })).toBeNull();
+    expect(resolveSetupTtsProvider({ ttsProvider: null }, saved)).toBe(
+      "elevenlabs",
+    );
     expect(
-      setupTtsPatch({ ttsEnabled: null, ttsProvider: null }, saved),
-    ).toBeNull();
-    expect(
-      resolveSetupTts({ ttsEnabled: null, ttsProvider: null }, saved),
-    ).toEqual({ enabled: true, provider: "elevenlabs" });
-    expect(
-      resolveSetupTts(
-        { ttsEnabled: null, ttsProvider: null },
-        {
-          tts_provider: "browser",
-        },
+      resolveSetupTtsProvider(
+        { ttsProvider: null },
+        { tts_provider: "browser" },
       ),
-    ).toEqual({ enabled: false, provider: "pocket_tts" });
-    expect(
-      setupTtsPatch({ ttsEnabled: false, ttsProvider: null }, saved),
-    ).toEqual({ tts_enabled: false, tts_provider: "elevenlabs" });
+    ).toBe("pocket_tts");
+    expect(setupTtsPatch({ ttsProvider: "pocket_tts" })).toEqual({
+      tts_enabled: true,
+      tts_provider: "pocket_tts",
+    });
   });
 
   it("offers built-in voices and ElevenLabs with App Settings' availability", () => {
@@ -379,7 +404,7 @@ describe("setup step logic", () => {
     expect(
       options.map((option) => [option.id, option.label, option.disabled]),
     ).toEqual([
-      ["pocket_tts", "Built-in voices", false],
+      ["pocket_tts", "PocketTTS (built-in)", false],
       ["elevenlabs", "ElevenLabs", true],
     ]);
     expect(options[1].reason).toContain("WebSocket");
