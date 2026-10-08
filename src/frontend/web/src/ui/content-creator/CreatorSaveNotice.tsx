@@ -51,8 +51,8 @@ export function CreatorSaveNotice({
           "size-4 shrink-0",
           busy && "animate-spin motion-reduce:animate-none",
           isError && "text-destructive",
-          tone === "warning" && "text-amber-600",
-          tone === "success" && "text-emerald-600",
+          tone === "warning" && "text-warning",
+          tone === "success" && "text-success",
           tone === "neutral" && "text-muted-foreground",
         )}
         aria-hidden="true"

@@ -65,7 +65,7 @@ import {
 } from "./setup-state";
 
 const TAG_CLASS =
-  "bg-primary/10 text-primary rounded-sm px-1.5 py-0.5 text-[11px] font-medium";
+  "bg-primary/10 text-primary rounded-sm px-1.5 py-0.5 text-2xs font-medium";
 
 /** A model being added in the add-model dialog, optionally prefilled. */
 type ModelAdder = { connection: PyModelConnection; initialModelId?: string };

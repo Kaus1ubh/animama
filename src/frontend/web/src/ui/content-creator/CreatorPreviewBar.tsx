@@ -138,7 +138,7 @@ function CompactPreviewContent(props: CompactPreviewProps) {
             <CreatorTimelineRuler durationSec={duration.value} />
           ) : (
             <span
-              className="text-muted-foreground absolute top-2 text-[10px]"
+              className="text-muted-foreground text-2xs absolute top-2"
               style={{ left: TRACK_LABEL_RAIL_PX }}
             >
               {duration.indefiniteLabel ?? "Until stopped"}
@@ -147,7 +147,7 @@ function CompactPreviewContent(props: CompactPreviewProps) {
           <CreatorTimelineLane index={0} label={title}>
             <div
               className={cn(
-                "bg-primary/15 text-foreground absolute top-1 bottom-1 truncate rounded px-2 text-[10px] leading-[18px]",
+                "bg-primary/15 text-foreground text-2xs absolute top-1 bottom-1 truncate rounded px-2 leading-[18px]",
                 playing && progressClassName,
               )}
               style={{ left: TRACK_LABEL_RAIL_PX, right: TRACK_RIGHT_INSET_PX }}

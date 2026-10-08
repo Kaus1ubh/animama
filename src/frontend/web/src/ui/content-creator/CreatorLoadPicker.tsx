@@ -196,7 +196,7 @@ function CreatorLoadContents({
             >
               <span className="min-w-0">
                 <span className="block truncate text-sm">{item.name}</span>
-                <span className="text-muted-foreground block text-[11px]">
+                <span className="text-muted-foreground text-2xs block">
                   {loadingItemId === item.item_id
                     ? "Opening…"
                     : "Editable Local content"}

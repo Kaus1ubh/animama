@@ -28,6 +28,38 @@ export function chatRunMessageId(
   return ordinal > 0 ? `${base}-${ordinal}` : base;
 }
 
+/** An explicit UTC designator or numeric offset ends the timestamp. */
+const TIMEZONE_SUFFIX = /(?:Z|[+-]\d{2}:?\d{2})$/i;
+
+/**
+ * Epoch milliseconds for a message timestamp, or 0 when it is missing or
+ * invalid.
+ *
+ * The backend stores UTC in `timestamp without time zone` columns, so persisted
+ * rows arrive without an offset. `Date.parse` would read those as local time
+ * and misorder them against client timestamps from `toISOString()`, so a
+ * date-time without an offset is treated as UTC.
+ */
+export function messageTimestampMs(value: string | undefined): number {
+  if (!value) return 0;
+  const isDateTime = value.includes("T");
+  const utcValue =
+    isDateTime && !TIMEZONE_SUFFIX.test(value) ? `${value}Z` : value;
+  return Date.parse(utcValue) || 0;
+}
+
+/**
+ * Order display messages chronologically. The sort is stable, so messages
+ * with equal or missing timestamps keep their incoming order.
+ */
+export function sortDisplayMessagesByCreatedAt<T extends ChatDisplayMessage>(
+  messages: T[],
+): T[] {
+  return messages.sort(
+    (a, b) => messageTimestampMs(a.createdAt) - messageTimestampMs(b.createdAt),
+  );
+}
+
 export function mapServerMessagesForDisplay(
   messages: PyChatMessage[],
 ): ChatDisplayMessage[] {

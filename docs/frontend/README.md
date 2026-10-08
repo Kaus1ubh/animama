@@ -18,6 +18,11 @@ Start here:
   delivery, ephemeral prepared mounts, degraded playback, no-hot-swap, and the
   shared web/Electron boundary.
 
+Design:
+
+- `design-system.md`: visual principles, theme tokens, type scale, component
+  usage and motion.
+
 Feature guides:
 
 - `features/custom-anima-creation.md`: five-step live creator, exact sources,

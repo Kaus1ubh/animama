@@ -92,7 +92,7 @@ export function SceneFocusLinesPanel({
             <span>Enabled</span>
           </label>
           <label className="space-y-1">
-            <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+            <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
               Preset
             </span>
             <SelectControl value={presetId} onChange={handlePresetSelect}>
@@ -107,7 +107,7 @@ export function SceneFocusLinesPanel({
             </SelectControl>
           </label>
           <label className="space-y-1">
-            <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+            <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
               Duration
             </span>
             <NumberInputControl
@@ -169,7 +169,7 @@ export function SceneFocusLinesPanel({
             <span>Dismiss on input</span>
           </label>
           <label className="space-y-1">
-            <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+            <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
               Render placement
             </span>
             <SelectControl
@@ -189,7 +189,7 @@ export function SceneFocusLinesPanel({
             </SelectControl>
           </label>
           <label className="space-y-1">
-            <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+            <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
               Target kind
             </span>
             <SelectControl
@@ -237,7 +237,7 @@ export function SceneFocusLinesPanel({
         {draft.target.kind === "avatar_face" ? (
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             <label className="space-y-1">
-              <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+              <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
                 Face padding X px
               </span>
               <NumberInputControl
@@ -260,7 +260,7 @@ export function SceneFocusLinesPanel({
               />
             </label>
             <label className="space-y-1">
-              <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+              <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
                 Face padding Y px
               </span>
               <NumberInputControl
@@ -287,12 +287,12 @@ export function SceneFocusLinesPanel({
 
         {manualFocusRect ? (
           <div className="space-y-2">
-            <p className="text-muted-foreground text-[11px] font-semibold tracking-wide uppercase">
+            <p className="text-muted-foreground text-2xs font-semibold tracking-wide uppercase">
               Manual box
             </p>
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
               <label className="space-y-1">
-                <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+                <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
                   X
                 </span>
                 <NumberInputControl
@@ -316,7 +316,7 @@ export function SceneFocusLinesPanel({
                 />
               </label>
               <label className="space-y-1">
-                <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+                <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
                   Y
                 </span>
                 <NumberInputControl
@@ -340,7 +340,7 @@ export function SceneFocusLinesPanel({
                 />
               </label>
               <label className="space-y-1">
-                <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+                <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
                   Width
                 </span>
                 <NumberInputControl
@@ -364,7 +364,7 @@ export function SceneFocusLinesPanel({
                 />
               </label>
               <label className="space-y-1">
-                <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+                <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
                   Height
                 </span>
                 <NumberInputControl
@@ -393,7 +393,7 @@ export function SceneFocusLinesPanel({
 
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           <label className="space-y-1">
-            <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+            <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
               Line count
             </span>
             <NumberInputControl
@@ -408,7 +408,7 @@ export function SceneFocusLinesPanel({
             />
           </label>
           <label className="space-y-1">
-            <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+            <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
               Color
             </span>
             <ColorInputControl
@@ -422,7 +422,7 @@ export function SceneFocusLinesPanel({
             />
           </label>
           <label className="space-y-1">
-            <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+            <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
               Opacity
             </span>
             <NumberInputControl
@@ -437,7 +437,7 @@ export function SceneFocusLinesPanel({
             />
           </label>
           <label className="space-y-1">
-            <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+            <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
               Base thickness px
             </span>
             <NumberInputControl
@@ -452,7 +452,7 @@ export function SceneFocusLinesPanel({
             />
           </label>
           <label className="space-y-1">
-            <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+            <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
               Thickness variation
             </span>
             <NumberInputControl
@@ -467,7 +467,7 @@ export function SceneFocusLinesPanel({
             />
           </label>
           <label className="space-y-1">
-            <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+            <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
               Length variation
             </span>
             <NumberInputControl
@@ -482,7 +482,7 @@ export function SceneFocusLinesPanel({
             />
           </label>
           <label className="space-y-1">
-            <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+            <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
               Overscan px
             </span>
             <NumberInputControl
@@ -497,7 +497,7 @@ export function SceneFocusLinesPanel({
             />
           </label>
           <label className="space-y-1">
-            <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+            <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
               Seed
             </span>
             <NumberInputControl
@@ -512,7 +512,7 @@ export function SceneFocusLinesPanel({
             />
           </label>
           <label className="space-y-1">
-            <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+            <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
               Min visible ms
             </span>
             <NumberInputControl
@@ -530,7 +530,7 @@ export function SceneFocusLinesPanel({
             />
           </label>
           <label className="space-y-1">
-            <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+            <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
               Max visible ms
             </span>
             <NumberInputControl
@@ -548,7 +548,7 @@ export function SceneFocusLinesPanel({
             />
           </label>
           <label className="space-y-1">
-            <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+            <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
               Min hidden ms
             </span>
             <NumberInputControl
@@ -566,7 +566,7 @@ export function SceneFocusLinesPanel({
             />
           </label>
           <label className="space-y-1">
-            <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+            <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
               Max hidden ms
             </span>
             <NumberInputControl
@@ -584,7 +584,7 @@ export function SceneFocusLinesPanel({
             />
           </label>
           <label className="space-y-1">
-            <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+            <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
               Opacity jitter
             </span>
             <NumberInputControl
