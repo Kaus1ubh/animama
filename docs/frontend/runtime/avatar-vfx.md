@@ -503,7 +503,9 @@ pnpm -s effects promote ./promote.json --dry-run
   through the Avatar Effect creator in headless Chromium: it imports the
   editor document, chooses the images, saves, reads the item back and checks
   the definition, then reopens it. A Local effect with the same name is
-  revised. Effects with a sound are saved by hand.
+  revised. Names must be valid Local names (letters, digits, spaces, `.`,
+  `_`, `-`); it prints the Local folder each name saves to. Effects with a
+  sound are saved by hand.
 - `promote` writes owner-approved items into `content/included/vfx/avatar/`:
   `add` (new stem), `replace` (keeps the folder, content ID, version and name)
   or `delete` (refused while Included content depends on it). Sources are
@@ -576,6 +578,8 @@ pnpm -s animation:preview library:included/confusion-2   # a Reaction with its e
   that folder recursively, so a new or changed image reloads the effect at once,
   and unrelated files in a shared folder would reload it too. The version covers
   the image bytes, so a reload with no change does nothing.
+- The picker's **Effect sources** list the named effect folders and every
+  other effect folder beside them, so one preview reviews a batch of drafts.
 - Notes go beside the effect's folder (`my-effect.review.json`). For anything
   inside Library content (under the Included or Local root, a `vfx/avatar/`
   folder, or a `<stem>/` folder holding `<stem>.meta.json`) they go in the

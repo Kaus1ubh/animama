@@ -116,11 +116,18 @@ export function summarizeCheck({ assets, page, times, views, tile }) {
       const hidden = times.filter(
         (time) => !visible.some((frame) => frame.time === time),
       );
+      const missed = frames
+        .filter((frame) => frame.pixels < floor)
+        .map((frame) => `${frame.view} ${frame.time}s`);
       lines.push({
         level: hidden.length ? "WARN" : "PASS",
         message:
           `${label}: visible in ${visible.length} of ${frames.length} frames, up to ${most.pixels} px (${most.view}, ${most.time}s)` +
-          (hidden.length ? `; nothing shows at ${hidden.join("s, ")}s` : ""),
+          (hidden.length
+            ? `; nothing shows at ${hidden.join("s, ")}s`
+            : missed.length && missed.length <= 4
+              ? ` (not in ${missed.join(", ")})`
+              : ""),
       });
     }
   }

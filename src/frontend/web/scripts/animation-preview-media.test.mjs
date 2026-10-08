@@ -197,6 +197,22 @@ test("offers Library Avatar Effects and named effect sources as choices", async 
   );
 });
 
+test("offers the other effect folders beside a named one", async () => {
+  const adapter = createPreviewMediaAdapter({ files: new PreviewMediaFiles() });
+  const batch = path.join(dir, "batch");
+  for (const name of ["one", "two"])
+    await cp(path.join(dir, "star"), path.join(batch, name), {
+      recursive: true,
+    });
+  await mkdir(path.join(batch, "one-work"));
+  await writeFile(path.join(batch, "one-work", "notes.md"), "brief");
+  await writeFile(path.join(batch, "one-work", "items.json"), '{"x":1}');
+  const sources = (await adapter.choices(roots(), ["batch/one"]))
+    .filter(({ group }) => group === "Effect sources")
+    .map(({ label }) => label);
+  assert.deepEqual(sources, ["one", "two"]);
+});
+
 test("watches an effect whose image is missing until the image appears", async () => {
   const adapter = createPreviewMediaAdapter({ files: new PreviewMediaFiles() });
   const folder = path.join(dir, "late");

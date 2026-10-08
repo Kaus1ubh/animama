@@ -17,6 +17,32 @@ import path from "node:path";
 
 export class EffectSaveError extends Error {}
 
+/**
+ * The names Local content accepts, as the backend's `readable_entry_name`
+ * (`content_save_service.py`): letters, digits, spaces, ".", "_" and "-",
+ * starting with a letter or digit, at most 120 characters.
+ */
+const ENTRY_NAME = /^[A-Za-z0-9][A-Za-z0-9._ -]{0,119}$/;
+
+/**
+ * The Local folder a name saves to (the backend's `readable_entry_name`), or
+ * a thrown `EffectSaveError` naming the rule.
+ */
+export function localEntryName(name) {
+  const trimmed = name.trim();
+  const folder = ENTRY_NAME.test(trimmed)
+    ? trimmed
+        .replace(/[ _]+/g, "-")
+        .replace(/^[-.]+|[-.]+$/g, "")
+        .toLowerCase()
+    : "";
+  if (!folder || folder === "." || folder === "..")
+    throw new EffectSaveError(
+      `"${name}" is not a valid Local name: use letters, digits, spaces, ".", "_" and "-", starting with a letter or digit (at most 120 characters).`,
+    );
+  return folder;
+}
+
 /** Parse and validate `items.json`; paths resolve from the items file. */
 export function parseEffectSaveItems(value, itemsFile) {
   if (!Array.isArray(value) || value.length === 0)

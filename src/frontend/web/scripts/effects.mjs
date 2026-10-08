@@ -18,6 +18,7 @@ import {
 import {
   EffectSaveError,
   importDocumentFor,
+  localEntryName,
   parseEffectSaveItems,
   saveEffects,
 } from "./effect-save.mjs";
@@ -221,11 +222,12 @@ async function runSave(argv, cwd) {
         throw new EffectSaveError(`${item.source}: ${error.message}`);
       }
       const name = item.name ?? effect.name;
-      if (names.has(name))
+      const folder = localEntryName(name);
+      if (names.has(folder))
         throw new EffectSaveError(
-          `two items would save as "${name}"; give one a "name".`,
+          `two items would save to vfx/avatar/${folder}/; give one another "name".`,
         );
-      names.add(name);
+      names.add(folder);
       jobs.push({
         item,
         effect,
@@ -242,6 +244,10 @@ async function runSave(argv, cwd) {
   } finally {
     await editor.close();
   }
+  for (const { exportDocument } of jobs)
+    console.log(
+      `${exportDocument.document.name} → Local folder vfx/avatar/${localEntryName(exportDocument.document.name)}/`,
+    );
   await saveEffects(jobs, origin, {
     // The creator's own document round trip, so defaults it omits and
     // defaults the API fills in compare equal.

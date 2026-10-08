@@ -95,7 +95,9 @@ Placement uses the image's full rectangle, including transparent padding. A tall
 narrow tear inside a square PNG is still a square for sizing and pivots.
 
 Left and right are the **avatar's** sides. Units depend on the attachment, so do
-not copy numbers between attachments:
+not copy numbers between attachments. The creator shows these units; the
+stored definition uses metres where the creator shows cm, and fractions where
+it shows %:
 
 | Attachment           | Position                                                   | Size                     | Rotation                                     |
 | -------------------- | ---------------------------------------------------------- | ------------------------ | -------------------------------------------- |

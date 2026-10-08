@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { execFile } from "node:child_process";
 import {
   mkdir,
   mkdtemp,
@@ -9,6 +10,8 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
 import { after, before, test } from "node:test";
 import sharp from "sharp";
 
@@ -23,6 +26,7 @@ import {
 import {
   definitionDifference,
   editorImage,
+  localEntryName,
   parseEffectSaveItems,
   planEffectSave,
 } from "./effect-save.mjs";
@@ -115,7 +119,7 @@ test("check results become pass, warn and fail lines", () => {
   assert.match(lines[0].message, /^art art\.png: wide margins \[padding\]$/);
   assert.match(
     lines[1].message,
-    /^Y_0: visible in 2 of 4 frames, up to 80 px \(front, 1s\)$/,
+    /^Y_0: visible in 2 of 4 frames, up to 80 px \(front, 1s\) \(not in face 0\.25s, face 1s\)$/,
   );
   assert.match(lines[2].message, /nothing shows at 0\.25s/);
 
@@ -183,6 +187,18 @@ test("save items resolve from the items file and need a source", () => {
       ),
     /repeats/,
   );
+});
+
+test("Local names follow the backend's entry-name rule", () => {
+  assert.equal(localEntryName("Sweat Drop - dry run"), "sweat-drop---dry-run");
+  assert.equal(localEntryName(" Eye_O v2 "), "eye-o-v2");
+  for (const bad of [
+    "Sweat Drop (dry run)",
+    "-dash first",
+    "",
+    "x".repeat(121),
+  ])
+    assert.throws(() => localEntryName(bad), /not a valid Local name/, bad);
 });
 
 test("a save revises the one Local effect with that name", () => {
@@ -529,4 +545,30 @@ test("promotion refuses unsafe changes", async () => {
     plan([{ mode: "add", stem: "solid", effect: opaque }]),
     /fails the art check/,
   );
+});
+
+test("render refuses two sources with one stem for directory output", async () => {
+  const script = path.join(
+    path.dirname(fileURLToPath(import.meta.url)),
+    "effect-render.mjs",
+  );
+  const sources = [];
+  for (const parent of ["a", "b"]) {
+    const folder = path.join(dir, "same-stem", parent, "drop");
+    await mkdir(folder, { recursive: true });
+    await writeFile(path.join(folder, "art.png"), await disc());
+    await writeFile(
+      path.join(folder, "drop.json"),
+      JSON.stringify({ content_type: "avatar_effect", definition: floating() }),
+    );
+    sources.push(folder);
+  }
+  const result = await promisify(execFile)(process.execPath, [
+    script,
+    ...sources,
+    "--out",
+    path.join(dir, "same-stem", "out"),
+  ]).catch((error) => error);
+  assert.equal(result.code, 2);
+  assert.match(result.stdout, /share the stem "drop"/);
 });

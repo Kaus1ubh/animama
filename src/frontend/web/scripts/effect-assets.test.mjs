@@ -204,6 +204,17 @@ test("face-surface art keeps its margins", async () => {
   );
 });
 
+test("tall art squared to fit is not flagged for padding", async () => {
+  const tall = await png(80, 200, (x, y) =>
+    Math.abs(x - 40) < 30 && Math.abs(y - 100) < 95
+      ? [40, 120, 220, 255]
+      : [0, 0, 0, 0],
+  );
+  const { buffer } = await fixImage(tall, { trim: true, pad: 8, square: true });
+  const found = codes(await checkImage(buffer));
+  assert.ok(!found.includes("WARN:padding"), found);
+});
+
 test("oversized art fails its budget and is resized to fit", async () => {
   const input = await png(1024, 768, disc(512, 384, 300, clear));
   const result = await checkImage(input, { budget: BUDGETS.landmark });

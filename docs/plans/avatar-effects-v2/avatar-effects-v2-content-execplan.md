@@ -72,7 +72,7 @@ Paths: frontend relative to `src/frontend/web/`, backend to
 - [x] Preparation (2026-10-08): phase issues #348–#355; worktree `avatar-effects-v2` on `feat/avatar-effects-content` from `fd1980fe`; task stack `animama-avatar-fx` at http://animama-avatar-fx.localhost:8600.
 - [x] P1 — Effect-asset scripts and skill (R12). Done 2026-10-08; review passed at round 3.
 - [x] P2 — Authoring pipeline tools: check, save, promote (R13, R16 tooling). Done 2026-10-08; review rounds used (last fix verified by tests, rechecked at final integration).
-- [ ] P3 — Avatar Effect skill rewrite and fresh-agent dry run (R13). Gate G1 needed only before P4.
+- [x] P3 — Avatar Effect skill rewrite and fresh-agent dry run (R13). Done 2026-10-08: two dry runs, review passed at round 2. Next: gate G1 (owner's effect list) and the floating-offset runtime fix before P4.
 - [ ] P4 — Effect batch A: upgrades and kept effects (R14). Gate G2.
 - [ ] P5 — Effect batch B: new face effects (R14). Gate G2.
 - [ ] P6 — Effect batch C: flipbooks, body, sticker and silhouette effects (R14). Gate G2.
@@ -506,6 +506,126 @@ Steps:
 
 Checks: the dry-run record (commands, check output, render sheet, saved Local
 item reopened). This completes the R12–R13 acceptance item.
+
+#### P3 record
+
+- Issue #350. Starting revision `77401852` (P2 commit).
+- Rewrote `.agents/skills/animama-avatar-vfx/SKILL.md` as the pipeline
+  (interview, brief, art, effect folder, check, renders and the owner's live
+  preview, save, use, hand-off, gated promote) and added references
+  `brief.md`, `effect-folder.md` (every `/2` field, rules and recipes),
+  `batch.md` and `promote.md`; `how.md` and `what.md` stay as the creator
+  manual and concepts.
+- **Dry run 1** (fresh `general-purpose` agent, no conversation context; brief
+  "Sweat Drop (dry run)", floating face art on the forehead): it generated the
+  art through Codex (one `--edit` to remove a painted blotch), fixed it to
+  512 px / 107 KiB, wrote the folder with pop-in and slide keyframes, passed
+  `effects check` on both Avatars (5 of 6 frames; the miss is the pop-in
+  frame), rendered and read sheets, and saved Local "Sweat Drop - dry run"
+  through `effects save` (read back and reopened). The headed preview was
+  left for the owner. Its log:
+  - **Runtime bug (out of P3 scope):** a floating face effect's `offset.x`
+    points opposite ways on the VRM 0 and VRM 1 Included Avatars. Cause:
+    face-landmark offsets are applied in the normalized head bone's frame,
+    which faces −Z on VRM 0; body attachments correct this with `frontYaw`
+    (stickers sit in the camera plane), face landmarks do not. The creator's drag writes the same
+    model-dependent offsets. Split out as a separate fix task (offered to
+    the owner 2026-10-08); until it lands the skill tells authors to keep
+    floating `offset.x`/`offset.z` at 0. It should land before P4.
+  - Name rule undocumented: the app refused "Sweat Drop (dry run)" (409
+    `invalid_entry_name`). Fixed: `effects save` checks names before saving
+    (`localEntryName`, mirroring the backend's `readable_entry_name`) and
+    prints each Local folder; the skill states the rule and that the Local
+    folder comes from the name.
+  - `padding` warned even after `--trim --pad 8 --square` on tall art. Fixed:
+    the warning needs slack on both axes.
+  - Repeated stems overwrote render sheets silently. Fixed: `effects:render`
+    refuses two sources with one stem when writing to a directory.
+  - `check` did not say which frames missed. Fixed: up to four missed frames
+    are listed; the skill explains pop-in misses and `--times`.
+  - Skill gaps fixed: where Included effects live and which fields a draft
+    omits; keyframe semantics (units, uniform scale, held last frame);
+    creator units (cm, %) versus stored units (metres, fractions);
+    `--times` covering an effect's life; the ¾ view (corrected in review:
+    it looks from the Avatar's right); when setup is needed; sources and previews in a `<stem>-work/`
+    folder; `--budget` implies `--max`; a sweat-drop recipe.
+- **Dry run 2** (fresh agent, after the fixes; brief "Idea Bulb dry run", a
+  sticker beside the head): one Codex image, no rejects; 512 px / 131 KiB;
+  `effects check` visible in 6 of 6 frames on both Avatars; saved Local
+  "Idea Bulb dry run" (image digest matches the draft). No command failed
+  and every step ran as documented on the first try; it read no source code.
+  Its log had only documentation gaps, now fixed: the budget follows the
+  attachment; the sticker offset frame (+x viewer's right, +y up) and prop
+  size (0.1–0.15); face-view misses for stickers are expected; check's
+  default views and times; keyframe `loop` restarts the whole timeline, so
+  an ongoing beat is a `pulse` beside a one-off pop-in; where briefs, renders
+  and fixed images go; render times that catch keyframe peaks; a prop
+  recipe. A third run was not needed.
+- Checks: `effects.test.mjs` 10/10, `effect-assets.test.mjs` 25/25; a
+  repeated-stem render exits 2.
+
+#### Code Review #1 Findings
+
+`sdlc-reviewer`, initial review of the staged P3 changes on `77401852`.
+Checks: unit tests 35/35, `web:lint` and prettier pass; all 12 recipes
+validated against the backend model; five recipes passed `effects check`;
+render probes of left and right forehead art; a preview's picker choices.
+Verified: contract fields and face options, keyframe semantics, body and
+sticker frames, the Local name rule, commands and flags, promote, the brief
+template's R14 fields, and the workflow mirroring `animama-animation`.
+Blocking:
+
+1. **P3-R1-01** — the ¾-view statement was backwards: the view looks from the
+   Avatar's right, so its left side turns away.
+2. **P3-R1-02** — the skill said effects in one face region replace each
+   other; `emote` and `full_face` stack (runtime, runtime doc, `what.md`).
+3. **P3-R1-03** — batch review in one preview was unsupported: the picker
+   listed only the effect sources named on the command line.
+
+Optional: P3-R1-04 check message wording for late fade-ins; P3-R1-05 the
+sweat-drop recipe's `scale` must be `{x, y}`; P3-R1-06 the `otherEyeImage`
+rule; P3-R1-07 draft paths in commands run from `src/frontend/web`;
+P3-R1-08 no regression tests for the padding rule and repeated stems;
+P3-R1-09 save's duplicate guard compared raw names, not Local folders;
+P3-R1-10 `library:local` needs only the record; P3-R1-11 the plan record
+said stickers use `frontYaw`.
+
+#### Code Review #1 Revisions
+
+All accepted.
+
+- **01, 02:** corrected in `SKILL.md`, `effect-folder.md` and this record.
+- **03:** fixed in the tool: `animation:preview`'s picker lists every other
+  effect folder beside a named one (`animation-preview-media.mjs`
+  `choices`), so a batch kept side by side in `.animama-drafts/effects/` is
+  reviewed in one preview; work folders without a descriptor are skipped.
+  Test added; `batch.md` and the runtime doc describe it.
+- **04–07, 10, 11:** wording, recipe and path fixes (draft paths are written
+  `../../../.animama-drafts/...` in commands).
+- **08:** tests: tall art squared to fit is not flagged for padding; render
+  refuses two sources with one stem for directory output (exit 2).
+- **09:** save refuses two items that map to one Local folder.
+
+Checks after revisions: `effects.test.mjs` and `effect-assets.test.mjs`
+37/37, `animation-preview-media.test.mjs` 8/8, prettier pass.
+
+#### Code Review #2 (repair round 1)
+
+Pass. All round-1 fixes confirmed (a preview probe listed and played a
+sibling effect folder and skipped folders without an effect). Optional:
+
+1. **P3-R2-01** — the sibling scan listed any folder with exactly one JSON
+   file, such as a work folder holding `items.json`, which failed when picked.
+   Accepted: a folder is listed only when its descriptor's `content_type` is
+   `avatar_effect`; the test's work folder now holds a non-effect JSON.
+2. **P3-R2-02** — save's duplicate guard does not cover a name that maps to
+   an existing Local effect's folder under a different name, and the printed
+   folder can differ for a revision (the backend keeps the existing folder).
+   Deferred: low impact; the backend still refuses the clash with a clear
+   409, and the skill tells authors to keep one name per effect.
+
+Checks: preview, effects and asset tests 45/45 (8/8 preview media after the
+P3-R2-01 change), `web:lint` and prettier pass.
 
 ### P4–P6 — Effect batches (R14). Gate G1 before P4; G2 at the end of each.
 

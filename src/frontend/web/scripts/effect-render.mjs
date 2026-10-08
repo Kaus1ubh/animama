@@ -615,6 +615,17 @@ async function main(argv) {
     const out = resolveOut(values["--out"]);
     const together = flags.has("--together");
     const single = (together || effects.length === 1) && out.endsWith(".png");
+    if (!single && !together) {
+      // One sheet per stem: a repeated stem would overwrite an earlier sheet.
+      const stems = effects.map((effect) => effect.stem);
+      const repeated = stems.find(
+        (stem, index) => stems.indexOf(stem) !== index,
+      );
+      if (repeated)
+        throw new EffectSourceError(
+          `Two sources share the stem "${repeated}"; render them separately or give each its own --out file.`,
+        );
+    }
     await renderEffectSheets({
       effects,
       together,

@@ -375,18 +375,11 @@ export async function checkImage(input, { budget } = {}) {
       code: "interior_translucency",
       message: `${Math.round((stats.interiorTranslucent / stats.visible) * 100)}% of the art's inside is see-through; unless the brief wants that (glows, tears), fix --solid-interior`,
     });
+  // Wide margins on every side waste texture space. Art that reaches two
+  // opposite edges (a tall drop squared with `--square`) is already tight.
   if (stats.bounds && background.kind === "none" && !budget?.keepsLayout) {
     const { bounds } = stats;
-    const margins = [
-      bounds.x / width,
-      bounds.y / height,
-      (width - bounds.x - bounds.width) / width,
-      (height - bounds.y - bounds.height) / height,
-    ];
-    if (
-      (bounds.width * bounds.height) / (width * height) < 0.5 &&
-      Math.max(...margins) > 0.15
-    )
+    if (Math.max(bounds.width / width, bounds.height / height) < 0.85)
       issues.push({
         level: "WARN",
         code: "padding",

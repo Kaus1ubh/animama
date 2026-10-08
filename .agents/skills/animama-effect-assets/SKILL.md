@@ -12,10 +12,13 @@ places them. The app and its tests never depend on how the art was made: an
 image generator, a hand-drawn file and an edited Included image all go through
 the same checks.
 
-Commands run from `src/frontend/web`. Relative paths resolve from the
-directory you run `pnpm` in. Work in `.animama-drafts/` (ignored by Git), one
-folder per effect; never write `content/included/` (promotion is a separate,
-owner-approved step of the effect skill).
+Commands run from `src/frontend/web`, and relative paths resolve from the
+directory you run `pnpm` in. Work in the repository root's `.animama-drafts/`
+(ignored by Git; `../../../.animama-drafts/` from `src/frontend/web`):
+sources and previews in `.animama-drafts/effects/<stem>-work/`, final images
+in the effect folder `.animama-drafts/effects/<stem>/`. Never write
+`content/included/` (promotion is a separate, owner-approved step of the
+effect skill).
 
 ## Pipeline
 
@@ -38,8 +41,10 @@ owner-approved step of the effect skill).
    the set.
 4. **Check:** `pnpm -s effects:assets check <png...> --budget <name>`. FAIL
    lines must be fixed; WARN lines need a look.
-5. **Fix:** `pnpm -s effects:assets fix <src.png> --out <name>.png --budget
-   <name> [options]`. Choose options from the check:
+5. **Fix:** `pnpm -s effects:assets fix <src.png> --out <effect
+   folder>/<name>.png --budget <name> [options]`. `--budget` also shrinks the
+   art to the budget (check's "fix --max N" hint is the same thing). Choose
+   options from the check:
    - `checkerboard` or `solid_background` → `--remove-background`;
    - `near_opaque` or `faint_alpha` → nothing to add (fix raises alpha ≥ 250
      to 255 and clears alpha below 4 by default);

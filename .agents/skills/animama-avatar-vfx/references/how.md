@@ -225,6 +225,9 @@ creator preview shows one effect at a time.
 
 From `src/frontend/web`, with no running stack:
 
+- `pnpm -s effects check <folder|library:<name>>` checks the art budget, the
+  definition, the attachment on both Included Avatars and that the art is
+  visible; see the skill's workflow.
 - `pnpm -s effects:render <folder|descriptor.json|library:<name>> --out <png>`
   renders contact sheets on both Included Avatars (front, ¾ and face at several
   times). `--with-clip library:<gesture>` checks that body, sticker and silhouette
@@ -248,7 +251,7 @@ avatar and the image's actual framing.
 | ------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
 | Angry forehead vein       | Floating → Forehead → Left or Right                                 | `emote`; static fit, then restrained pulse; check hair                          |
 | Surprise mark, steam puff | Floating → Above the head → a position                              | `emote`; preserve silhouette; use a Particle Effect for repeated emissions      |
-| Nervous sweat drop        | Floating → Forehead, moved to a temple                              | `emote`; a short downward drift needs a bounded event                           |
+| Nervous sweat drop        | Floating → Forehead, right or left position, nudged up or down      | `emote`; a short downward drift needs a bounded event                           |
 | Spiral eyes               | Floating → Eyes → Both eyes, mirrored                               | `eyes`; check both eyes and the ¾ view, then spin or a sprite sheet             |
 | Wink                      | Floating → Eyes → Both eyes, mirrored + Other side image            | `eyes`; check which eye gets which image                                        |
 | Cheek blush               | Painted → Cheeks → Both sides, mirrored; Centre point               | `blush`; check alpha against the skin and alongside tears                       |
