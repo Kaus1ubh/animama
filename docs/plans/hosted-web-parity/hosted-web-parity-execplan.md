@@ -1829,6 +1829,51 @@ The actual2.0 pair with retained11c passes six edited-data receipts and reports 
 
 Cloud's owning binder independently verifies the four actual producer directories and binds this current/retained pair while preserving all six ordinary dependency inputs. The binding is test-only premerge authority; full selected-source Cloud checks and fresh journeys remain the next gate before coordinated A7/C6H completion. Ordinary pin promotion, exact-candidate merge and live/device acceptance remain separate.
 
+### Takeover and merge verification (2026-10-08)
+
+The owner moved this task from Codex to Claude Code on 2026-10-08 after an
+independent review. Records from here stay short: what changed, why, and the
+evidence. Public follow-ups from that review are tracked in
+[A8 / #338](https://github.com/raymond-van/animama/issues/338). The hosted
+consumer's repairs are its C6R phase.
+
+Main moved three times before merge; each merge keeps both sides.
+
+- The Avatar Effects v2 merge (#328) needed resolution:
+  - Main's Avatar Effect v2 contract fields are ported into the shared
+    `app/contracts` models. `server/schemas` remain re-exports and add
+    `PyRuntimeAvatarEffect`.
+  - Main's shared creator recovery store carries the hosted session write
+    fence once, and waits for the IndexedDB commit.
+  - Main's refactored creators and new face-part hooks use the session cache
+    key and the admitted composition's API client.
+  - `useCreatorTemplateStart` reads its loader through an effect event, so a
+    re-render cannot restart a template load.
+  - The hosted ADR is renumbered 0016 after main's 0015.
+  - Main's Avatar Effect conversion casts to the local content store, like the
+    other installation transitions.
+- The journey-speed and check-fix merges (#334, #335, #347) were clean.
+
+Main also adds an owner-scoped `avatar_face_part_override` table, face-part
+endpoints, and the `/effects/new` picker page. The hosted consumer must admit
+the table and endpoints and allow the page before it adopts a main containing
+them.
+
+Evidence at `8687fd66`, all local (CI is disabled for lack of Actions minutes):
+
+- `make check-test` (Python 3.12.13, PostgreSQL) passes audit, format, Ruff and
+  mypy: 3,333 passed, 10 skipped.
+- Full `pnpm e2e:test` on a purged built stack: 37 of 38 passed. The other,
+  the template picker's focus-return step, then passed 3 of 3 in isolation; it
+  overlapped another task's journey suite.
+- `pnpm check`, `pnpm web:lint` (no errors) and `pnpm openapi-ts:check` pass at
+  the resolved merge. Linux `local_validate.py --profile web` result: see the PR.
+- The full Linux profile was blocked by a `griffe`/`griffelib` lock conflict that
+  was already on main; #345 fixes it.
+
+Not run: hosted CI, a physical microphone and heard speech, and the Electron
+main window after the merges (owner manual checks).
+
 ## Final integration review
 
 A6's review closes integration of A1–A6; do not reopen those reviews. A7 has the new scope's separately bounded review above, reusing valid inherited evidence.
