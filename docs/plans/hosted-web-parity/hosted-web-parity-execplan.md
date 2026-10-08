@@ -1859,17 +1859,25 @@ endpoints, and the `/effects/new` picker page. The hosted consumer must admit
 the table and endpoints and allow the page before it adopts a main containing
 them.
 
-Evidence at `8687fd66`, all local (CI is disabled for lack of Actions minutes):
+Evidence, all local (CI is disabled for lack of Actions minutes):
 
-- `make check-test` (Python 3.12.13, PostgreSQL) passes audit, format, Ruff and
-  mypy: 3,333 passed, 10 skipped.
-- Full `pnpm e2e:test` on a purged built stack: 37 of 38 passed. The other,
-  the template picker's focus-return step, then passed 3 of 3 in isolation; it
-  overlapped another task's journey suite.
-- `pnpm check`, `pnpm web:lint` (no errors) and `pnpm openapi-ts:check` pass at
-  the resolved merge. Linux `local_validate.py --profile web` result: see the PR.
-- The full Linux profile was blocked by a `griffe`/`griffelib` lock conflict that
-  was already on main; #345 fixes it.
+- `make check-test` at `8687fd66` (Python 3.12.13, PostgreSQL): audit, format,
+  Ruff and mypy pass; 3,333 passed, 10 skipped. Later commits change only docs
+  and a browser test fixture.
+- Linux `scripts/ci/local_validate.py --profile web` at `20fb5c2d` passes:
+  - frozen installs;
+  - frontend source checks, including 3,300 Vitest cases and 90 browser
+    fixtures;
+  - builds;
+  - browser smoke.
+  The first run at `8687fd66` failed because a hosted test fixture still
+  imported the creator recovery functions main had replaced; `20fb5c2d` fixes
+  the fixture.
+- Full `pnpm e2e:test` on a purged built stack with the same product code:
+  38/38 passed.
+- `pnpm openapi-ts:check` passes; the generated SDK is current.
+- The full Linux profile was blocked by a `griffe`/`griffelib` lock conflict
+  that was already on main; #345 fixes it.
 
 Not run: hosted CI, a physical microphone and heard speech, and the Electron
 main window after the merges (owner manual checks).
