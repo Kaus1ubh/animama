@@ -1,9 +1,18 @@
 import { createParticleVFXEditorDraftFromBlank } from "@/lib/avatar/particle-vfx";
 import { createDefaultAvatarEffectDocument } from "@/lib/avatar/vfx/editor/defaults";
-import { saveAvatarEffectRecovery } from "@/lib/avatar/vfx/editor/recovery";
+import {
+  AVATAR_EFFECT_RECOVERY_SCHEMA,
+  avatarEffectRecoveryStore,
+} from "@/lib/avatar/vfx/editor/recovery";
 import { createDefaultSceneEffectDocument } from "@/lib/scene-vfx/editor/defaults";
-import { saveSceneEffectRecovery } from "@/lib/scene-vfx/editor/recovery";
-import { saveParticleVFXRecovery } from "@/lib/content/particleVFXRecovery";
+import {
+  SCENE_EFFECT_RECOVERY_SCHEMA,
+  sceneEffectRecoveryStore,
+} from "@/lib/scene-vfx/editor/recovery";
+import {
+  PARTICLE_VFX_RECOVERY_SCHEMA,
+  particleVFXRecoveryStore,
+} from "@/lib/content/particleVFXRecovery";
 import { ContentRecoveryLifecycle } from "@/lib/content/contentRecoveryLifecycle";
 
 /** A queued debounce write must also be rejected after the first write's lifetime ends. */
@@ -26,9 +35,9 @@ export function writeCreatorRecovery(userId: string, suffix = "draft") {
     updatedAt: "2026-10-05T00:00:00Z",
   };
   return Promise.all([
-    saveParticleVFXRecovery({
+    particleVFXRecoveryStore.save({
       ...common,
-      schema: "animama/particle-effect-recovery/2",
+      schema: PARTICLE_VFX_RECOVERY_SCHEMA,
       documentKey: "new",
       source: null,
       fileOperationIds: [],
@@ -36,9 +45,9 @@ export function writeCreatorRecovery(userId: string, suffix = "draft") {
       catalog: particle.catalog,
       quarksJson: particle.quarksJson,
     }),
-    saveAvatarEffectRecovery({
+    avatarEffectRecoveryStore.save({
       ...common,
-      schema: "animama/avatar-effect-recovery/1",
+      schema: AVATAR_EFFECT_RECOVERY_SCHEMA,
       contentFingerprint: "fixture",
       document: createDefaultAvatarEffectDocument(),
       imageResource: {
@@ -46,9 +55,9 @@ export function writeCreatorRecovery(userId: string, suffix = "draft") {
         sha256: "a".repeat(64),
       },
     }),
-    saveSceneEffectRecovery({
+    sceneEffectRecoveryStore.save({
       ...common,
-      schema: "animama/scene-effect-recovery/1",
+      schema: SCENE_EFFECT_RECOVERY_SCHEMA,
       contentFingerprint: "fixture",
       document: createDefaultSceneEffectDocument(),
       imageResources: [
