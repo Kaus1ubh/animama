@@ -93,10 +93,12 @@ contract instead of maintaining a second truth.
 
 - [x] 2026-10-06 [A1 / #273](https://github.com/raymond-van/animama/issues/273): engineering/source gate PASS; canonical metadata, SDK freshness and independent targeted review pass. Owning repair2/2 supplies runtime-contracts0.3.1. Clean220c6581 passes the unchanged declaration/installed-consumer guard and rollback; A6 refreshes the new R7 source artifact and actual CI. Original C1 handoff remains valid.
 - [x] 2026-10-05 [A2 / #274](https://github.com/raymond-van/animama/issues/274): corrected portable preference merger committed at `6a150fd45d5e215e7f134010b53b9c62e4316ede`; targeted independent review #3 and clean installed-wheel gate pass. Repair rounds used: 2 of 2. Neutral services are ready for isolated consumer C2 repair and A4.
-- [ ] 2026-10-06 [A3 / #275](https://github.com/raymond-van/animama/issues/275): original session/cache and R5/R6 source review pass; earlier hosted durable preferences/desktop Usage pass. Approved owning repair3/3 resolves A6-R7 with four actual Library local/hosted Escape/Close regressions and independent source review. Clean5d95 producer/guard/installed-emitted consumer/genuine rollback pass. Native CI fails two initial10s load waits before behavior assertions; fresh hosted fixture7 stops at the first Settings body read after six checks. Full account-switch/hosted acceptance remains pending; causes are not proved product regressions.
+- [x] 2026-10-08 [A3 / #275](https://github.com/raymond-van/animama/issues/275): engineering handoff complete at public `df0faae1` / immutable manifest `4ee249ed`; final consumer common journey passes all24 checks, including same-browser owner change and desktop/narrow Usage dismissal. Owning repair3/3 and its earlier failed evidence remain. CI is owner-waived, not passed; A7 addresses the separately requested review packet, and final live acceptance remains C7.
 - [x] 2026-10-06 [A4 / #276](https://github.com/raymond-van/animama/issues/276): original phase review passed0/2; A6 returned model-role/Library-upload defects. Targeted independent analysis/checks #2 resolve both after owning A4 repair1/2. Corrected immutable binding remains A6; physical/heard voice and hosted/provider/device acceptance remain C5/C7 gates.
 - [x] 2026-10-06 [A5 / #277](https://github.com/raymond-van/animama/issues/277): engineering/artifact gate PASS after independent final analysis/checks. Clean A `8b09e7ff` and reviewed main-integrated B `e4e0661b` pass independent producer/installed-and-emitted consumer, same-source A production observations and genuine A/B/open-tab/rollback/clip gates. Repair rounds remain 1 of 2; measurement and inherited descriptive-field limits are recorded below. C6/A6 are ready; main adoption, provider/device/deployment and exact-candidate owner merge remain separate.
-- [ ] 2026-10-06 [A6 / #278](https://github.com/raymond-van/animama/issues/278): clean de6108c2 producer/guard/all eight installed-emitted consumer/genuine retained-C rollback checks pass. Native ci:full37550197183 fails two initial10s page loads,77/79 browser cases; diagnostics retain completed HTML and unfinished module entry. Serial scheduling's author79/79 and independent78/79 cancellation-marker failure remain retained. Approved A6 repair6/6 applies the prepared test-only settlement fix with original deadlines/assertions. Author5/5, independent source review and independent cold all79/79 pass, zero skips; fresh clean artifact and actual native CI remain next. Hosted fixture7 FAIL6, zero paid roots, cleanup and all earlier failures remain. Full common, retirement/final C6 review0/2 and C7/owner/main/provider/device/deployment gates remain; owning A3 stays3/3 and all other counts are unchanged.
+- [x] 2026-10-08 [A6 / #278](https://github.com/raymond-van/animama/issues/278): engineering/artifact handoff complete at public `df0faae1` / manifest `4ee249ed`. Approved repair6/6, independent all79/79 browser checks, producer/compatibility/all eight installed-emitted consumers and genuine retained-C rollback pass. Consumer C6 final common24/admin8/lifecycle8 and independent evidence applicability pass. Native CI run37563677832 executed zero steps and remains explicitly owner-waived; no CI success, owner merge, main adoption, real-provider/device or deployment acceptance is claimed.
+
+- [ ] 2026-10-08 [A7 / #333](https://github.com/raymond-van/animama/issues/333): requested post-C6 recovery, stream deadline, resource lifetime and delivery hardening has entered implementation; independent review unstarted, repairs0/2. A1–A6 history and CI waiver remain intact.
 
 ## Surprises & Discoveries
 
@@ -145,7 +147,7 @@ Setup completed on 2026-10-05 against public base
 worktree and `feat/hosted-web-parity`; its absolute path is supplied by the task
 handoff, not stored in public records. Both reviewed spec/plan commits are pushed.
 No dependency installation or stack startup was needed for tracker preparation.
-No implementation PR exists yet. Do not change the primary checkout or another
+[PR #284](https://github.com/raymond-van/animama/pull/284) carries the implementation; current completion and remaining gates are recorded above. Do not change the primary checkout or another
 agent's deployment worktree.
 
 | Order | Work and handoff                                                                                                                                                                                                                       |
@@ -154,7 +156,8 @@ agent's deployment worktree.
 | 2     | [A2 / #274](https://github.com/raymond-van/animama/issues/274) and [A3 / #275](https://github.com/raymond-van/animama/issues/275) may proceed in parallel.                                                                             |
 | 3     | [A4 / #276](https://github.com/raymond-van/animama/issues/276) → [A5 / #277](https://github.com/raymond-van/animama/issues/277) alongside consumer C2 → (C3, C4) → C5. Hosted service work uses isolated candidate artifacts after A2. |
 | 4     | Common-app consumer cutover C6 alongside [A6 / #278](https://github.com/raymond-van/animama/issues/278); public readiness remains independent of a future main pin.                                                                    |
-| 5     | Exact-candidate approved Animama merge → validated main package set → authorized promotion/readback → C7 actual hosted acceptance.                                                                                                     |
+| 5     | [A7 / #333](https://github.com/raymond-van/animama/issues/333) and consumer C6H address the requested review packet. Independent fixes may proceed together; Cloud successor acceptance follows A7's verified immutable artifact. |
+| 6     | Exact-candidate approved Animama merge → validated main package set → authorized promotion/readback → unchanged C7 actual hosted acceptance. |
 
 The native phase relationships and public-safe combined progress table are in
 [#272](https://github.com/raymond-van/animama/issues/272). C phases have private implementation assignments;
@@ -1727,9 +1730,26 @@ producer/comparison/all eight installed-emitted consumer/genuine-C rollback and
 actual native ci:full remain required. No passing native CI, Cloud replacement,
 retirement or phase completion is inferred from this local source release.
 
+### Phase 7: Harden shared recovery and runtime lifetimes (A7)
+
+This public work package and consumer C6H form the human-requested phase after the common-application C6 cutover and before C7. Enter only after C6's existing gates actually complete. Reuse this plan's branch/PR; record the new child under #272 and exact starting/reviewed/committed source. Preserve A1–A6 identifiers, review histories, A6 approved 6/6, A3 3/3 and the six hosted exceptions. The consumer phase introduces no public dependency on private code or operational files.
+
+1. Reproduce transient events/context failures and reload during an ambiguous creator save. Preserve same-owner drafts while authority is uncertain, suspend writes requiring admission, and reconnect within existing bounds. Retire private work only for authoritative revoke/sign-out/owner/session replacement. Define the smallest noncredential recovery namespace/lifetime needed to reconcile the original operation ID after reload, isolate tabs and purge all relevant hosted recovery on session end. Never persist authentication secrets or treat recovery identity as authorization.
+2. Add model/speech slow-consumer RED cases where the consumer awaits between deltas. Bound provider pulls by one absolute deadline without cancelling unrelated consumer work; preserve structured timeout, cancellation, close and exactly-once outcomes.
+3. Test repeated audio/microphone completion/manual-stop/track-ended cycles and late acquisition after scope retirement. Completed registrations return to baseline; live resources still terminate on revoke. Reproduce Electron/Compose PiP/quick-chat before a focused native-route repair, preserving hosted native exclusion and renderer-bridge checks.
+4. Resolve the runtime/loadout catalog boundary with minimal owner-bound injection or a precise tested contract clarification. Dispose advisory capability/route/consumer-fake/diagnostic observations through demonstrated behavior; avoid blanket cache rewrites or unrestricted producer-derived admission.
+
+Acceptance: transient event/context faults retain the exact draft and recover without stale writes; same-owner reload reconciles the same operation rather than resubmitting it; authoritative revoke/sign-out/replacement blocks access and removes hosted recovery. Slow-consumer tests leave no cancellation debt and finish/close exactly once. Resource registrations return to baseline over repeated cycles, with active-resource cleanup intact. Any native/catalog change has focused local, owner/Included/foreign-mutation coverage. Record all 16 advisory dispositions through the coordinated handoff without redoing addressed C6 repairs.
+
+Use the existing hosted-composition/runtime-controller/resource/recovery browser and unit fixtures, test_model_call_boundary.py and test_bounded_speech.py. Run affected static/unit/build checks, desktop-first then narrow browser checks, generated-client freshness only if the HTTP contract changes, and independent installed/emitted consumer checks. Produce one clean immutable successor after the fixes, proving reproducibility, genuine retained-generation upgrade/old-tab/rollback and no private build inputs.
+
+Review this new scope once comprehensively with at most two targeted repair rounds; inherited findings keep their original counters/extensions. CI waiver is not CI success. Completion hands reviewed public source/artifacts to C6H independently of a future main pin. Exact-candidate owner merge, validated main adoption, promotion and actual provider/device/deployment acceptance remain separate gates.
+
+Progress: implementation authorized and entered on 2026-10-08; issue https://github.com/raymond-van/animama/issues/333; starting source `df0faae10578072241d15d956b88cf9f8fb23897` (runtime source; completion/phase-entry documentation follows separately); review repairs 0/2. Findings/revisions and actual validation remain pending until performed.
+
 ## Final integration review
 
-Use A6's review as the final integration review, not a second unrestricted pass.
+A6's review closes integration of A1–A6; do not reopen those reviews. A7 has the new scope's separately bounded review above, reusing valid inherited evidence.
 Each scope receives one comprehensive independent review and at most two repair
 rounds. Record later findings/revisions with matching numbers; rechecks target
 accepted fixes and their regressions. Supported blockers remaining at the limit
