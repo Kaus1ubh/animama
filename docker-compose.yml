@@ -91,7 +91,8 @@ services:
       ANIMAMA_DEFAULT_MODEL_PROVIDER_ID: ${ANIMAMA_DEFAULT_MODEL_PROVIDER_ID:-OpenAIResponsesHTTPAgent:gpt-6-luna}
       ANIMAMA_LOCAL_MODEL_HOST: ${ANIMAMA_LOCAL_MODEL_HOST:-host.docker.internal}
       ANIMAMA_LLM_SKIP: ${ANIMAMA_LLM_SKIP:-}
-      WATCHFILES_FORCE_POLLING: "true"
+      # Empty lets watchfiles choose: native file events, or polling on WSL.
+      WATCHFILES_FORCE_POLLING: ${ANIMAMA_FILE_WATCH_POLLING:-}
       ANIMAMA_LOG_TZ: America/New_York
       ANIMAMA_LOG_DIR: /var/log/animama
       # Operator defaults for model roles (catalog row ids). App Settings

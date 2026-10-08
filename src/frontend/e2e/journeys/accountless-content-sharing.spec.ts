@@ -260,7 +260,7 @@ test("local content sharing single and multiple content export, suffix import an
   );
 });
 
-test("local content sharing complete Anima export, reviewed install and persistence", async ({
+test("local content sharing complete Anima export, reviewed install and persistence @complete-anima", async ({
   page,
   creatorContent,
   animamaEvidence,

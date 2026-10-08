@@ -137,16 +137,17 @@ test("accountless avatar effect vfx guides keep Eye = playing through creator re
           .getByRole("checkbox", { name: "Skin coverage", exact: true })
           .check();
       } else if (phase === "guides-off") {
+        // The UV popover dismisses on the outside Guides click, like any
+        // popover; it must stay available and reopen while Guides is off.
         await guidesToggle.click();
         await expect(guidesToggle).not.toBeChecked();
         await expect(guides).toBeHidden();
-        await expect(uvPanel).toBeVisible();
-        await expect(uvButton).toBeVisible();
-        await page.keyboard.press("Escape");
         await expect(uvPanel).toBeHidden();
+        await expect(uvButton).toBeVisible();
         await uvButton.click();
         await expect(uvPanel.getByRole("img")).toBeVisible();
         await page.keyboard.press("Escape");
+        await expect(uvPanel).toBeHidden();
       } else if (phase === "guides-on") {
         await guidesToggle.click();
         await expect(guidesToggle).toBeChecked();

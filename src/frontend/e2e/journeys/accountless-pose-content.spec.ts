@@ -204,6 +204,11 @@ test("pose content Local save edit reopen and browser storage independence", asy
       exact: true,
     })
     .click();
+  // Insert loads the saved Pose before adding its beat. Read the JSON only
+  // once that beat is on the timeline.
+  await expect(
+    clipPage.getByRole("button", { name: new RegExp(`^${name} keyframe at `) }),
+  ).toHaveCount(1);
   const readClip = async () => {
     await clipPage.bringToFront();
     const viewJson = clipPage.getByRole("button", {

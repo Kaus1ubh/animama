@@ -23,6 +23,25 @@ const playwrightDirectory = requiredEnvironmentPath(
   "ANIMAMA_E2E_PLAYWRIGHT_DIR",
 );
 const headed = process.env.ANIMAMA_E2E_HEADED === "1";
+// Headless WebGL renderer. macOS hosts render through the GPU with ANGLE Metal.
+// Other hosts, such as Linux validation containers, have no usable GPU and use
+// SwiftShader, which renders on the CPU and slows every Avatar canvas.
+const webgl =
+  process.env.ANIMAMA_E2E_WEBGL?.trim() ||
+  (process.platform === "darwin" ? "metal" : "swiftshader");
+const webglArgs: Record<string, string[]> = {
+  metal: ["--use-angle=metal"],
+  swiftshader: [
+    "--use-gl=angle",
+    "--use-angle=swiftshader-webgl",
+    "--enable-unsafe-swiftshader",
+  ],
+};
+if (!Object.hasOwn(webglArgs, webgl)) {
+  throw new Error(
+    `ANIMAMA_E2E_WEBGL must be one of ${Object.keys(webglArgs).join(", ")}.`,
+  );
+}
 
 export default defineConfig({
   testDir: "./e2e",
@@ -85,16 +104,9 @@ export default defineConfig({
       use: {
         browserName: "chromium",
         launchOptions: {
-          // Headed verification should use Chromium's normal hardware path,
-          // matching a manual browser session. Trusted local headless runs opt
-          // into SwiftShader when no usable GPU is available.
-          args: headed
-            ? []
-            : [
-                "--use-gl=angle",
-                "--use-angle=swiftshader-webgl",
-                "--enable-unsafe-swiftshader",
-              ],
+          // Headed verification uses Chromium's normal hardware path, matching
+          // a manual browser session.
+          args: headed ? [] : webglArgs[webgl],
         },
       },
     },

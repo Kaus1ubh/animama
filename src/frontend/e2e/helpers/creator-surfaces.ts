@@ -214,6 +214,38 @@ export function effectTemplatePicker(page: Page): Locator {
   return page.getByTestId("effect-template-picker");
 }
 
+/** Read the creator's portable JSON through its visible View JSON dialog. */
+export async function readPortableJson(
+  page: Page,
+  title: string,
+): Promise<string> {
+  await page.getByRole("button", { name: "View JSON", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: title, exact: true });
+  const value = await dialog.getByRole("textbox").inputValue();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+  return value;
+}
+
+/** Exercise the actual navigation blocker, without clearing browser storage. */
+export async function discardToLibrary(page: Page): Promise<void> {
+  await page.getByRole("link", { name: "Library", exact: true }).click();
+  const dialog = page.getByRole("dialog", {
+    name: "Discard authoring changes?",
+    exact: true,
+  });
+  await expect(dialog).toBeVisible();
+  await dialog
+    .getByRole("button", { name: "Discard and continue", exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/library(?:[/?#]|$)/);
+  // The URL changes before the blocked navigation commits. Wait for the
+  // Library itself so the next sidebar navigation is not absorbed by it.
+  await expect(
+    page.getByRole("heading", { name: "Library", exact: true }),
+  ).toBeVisible();
+}
+
 /** Wait until the selected Annie Avatar and creator lifecycle settle. */
 async function waitForCreatorStageReady(args: {
   expectedKind: PlaybackTargetKind;
