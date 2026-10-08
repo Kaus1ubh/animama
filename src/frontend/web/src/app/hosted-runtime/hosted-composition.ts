@@ -43,6 +43,8 @@ export function createHostedComposition(
   let events: AbortController | null = null;
   let bootstrapTimer: ReturnType<typeof setTimeout> | null = null;
   let retryTimer: ReturnType<typeof setTimeout> | null = null;
+  let eventsDelay = 1_000;
+  let eventsDoubted = false;
   const listeners = new Set<(invalidate?: AdmissionRefresh) => void>();
   let channel: BroadcastChannel | null = null;
   const notify = (invalidate: AdmissionRefresh = false) =>
@@ -52,6 +54,8 @@ export function createHostedComposition(
     events = null;
     if (retryTimer) clearTimeout(retryTimer);
     retryTimer = null;
+    eventsDelay = 1_000;
+    eventsDoubted = false;
   };
 
   const key = options.sessionKey ?? (() => crypto.randomUUID());
@@ -315,10 +319,14 @@ export function createHostedComposition(
           signal: controller.signal,
         });
         if (!response.ok || !response.body) {
-          if (response.status === 401 || response.status === 403) {
-            session = null;
-            notify(true);
-          } else notify("uncertain");
+          if (controller.signal.aborted) return;
+          eventsDoubted = true;
+          // The runtime context, not the events stream, decides whether admission ended.
+          notify(
+            response.status === 401 || response.status === 403
+              ? "recheck"
+              : "uncertain",
+          );
           return;
         }
         reader = response.body.getReader();
@@ -336,25 +344,44 @@ export function createHostedComposition(
             const event = buffer.slice(0, end);
             buffer = buffer.slice(end + 2);
             if (/^event:\s*revoked\s*$/m.test(event)) {
-              session = null;
-              notify(true);
+              eventsDoubted = true;
+              notify("recheck");
               return;
+            }
+            if (/^event:\s*ready\s*$/m.test(event)) {
+              eventsDelay = 1_000;
+              // A restored stream lets paused requests resume without waiting for
+              // backoff; a plain refresh resumes the same session without pausing again.
+              if (eventsDoubted) notify();
+              eventsDoubted = false;
             }
           }
         }
-        if (!controller.signal.aborted) notify("uncertain");
+        if (!controller.signal.aborted) {
+          eventsDoubted = true;
+          notify("uncertain");
+        }
       } catch {
         if (!controller.signal.aborted) {
+          eventsDoubted = true;
           notify("uncertain");
         }
       } finally {
         void reader?.cancel().catch(() => {});
         if (events === controller) events = null;
-        if (!controller.signal.aborted && scope && listeners.size)
+        if (!controller.signal.aborted && scope && listeners.size) {
+          // Bounded exponential backoff with jitter keeps an outage from
+          // turning every open tab into a once-per-second poller.
+          const delay = Math.min(
+            eventsDelay * (0.8 + Math.random() * 0.4),
+            30_000,
+          );
+          eventsDelay = Math.min(eventsDelay * 2, 30_000);
           retryTimer = setTimeout(() => {
             retryTimer = null;
             startEvents();
-          }, 1_000);
+          }, delay);
+        }
       }
     })();
   }

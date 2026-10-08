@@ -187,6 +187,73 @@ describe("hosted admission and transport", () => {
     }
   });
 
+  it.each([
+    ["a revoked event", "event"],
+    ["an events 403", "forbidden"],
+  ] as const)(
+    "keeps private work when %s is not confirmed by the runtime context",
+    async (_label, signal) => {
+      let streams = 0;
+      let contextReads = 0;
+      let events!: ReadableStreamDefaultController<Uint8Array>;
+      const fetch: typeof globalThis.fetch = async (input) => {
+        const path = new URL((input as Request).url).pathname;
+        if (path === "/v1/hosted/runtime-context") {
+          contextReads += 1;
+          return Response.json(active);
+        }
+        if (path !== "/v1/hosted/events") return Response.json({ ok: true });
+        streams += 1;
+        if (signal === "forbidden" && streams === 1)
+          return new Response(null, { status: 403 });
+        return new Response(
+          new ReadableStream<Uint8Array>({
+            start(controller) {
+              events = controller;
+            },
+          }),
+        );
+      };
+      const composition = createHostedComposition({
+        baseUrl: "https://app.example.test",
+        fetch,
+        navigate: vi.fn(),
+      });
+      const controller = new RuntimeController(composition);
+      const unsubscribe = composition.subscribe!((invalidate) => {
+        void controller.refresh(false, invalidate);
+      });
+      try {
+        await controller.refresh();
+        const original = controller.getSnapshot();
+        original.queryClient.setQueryData(["draft"], "retain");
+        const readsBefore = contextReads;
+        if (signal === "event") {
+          await vi.waitFor(() => expect(events).toBeDefined());
+          events.enqueue(new TextEncoder().encode("event: revoked\n\n"));
+        }
+        // The signal prompts a fresh context read, which keeps the session.
+        await vi.waitFor(() =>
+          expect(contextReads).toBeGreaterThan(readsBefore),
+        );
+        await vi.waitFor(() =>
+          expect(controller.getSnapshot().reconnecting).toBe(false),
+        );
+        const current = controller.getSnapshot();
+        const resumed = await current.scope!.fetch(
+          new Request("https://app.example.test/v1/chats"),
+        );
+        expect(resumed.ok).toBe(true);
+        expect(original.scope!.controller.signal.aborted).toBe(false);
+        expect(current.scope).toBe(original.scope);
+        expect(current.queryClient.getQueryData(["draft"])).toBe("retain");
+      } finally {
+        unsubscribe();
+        controller.dispose();
+      }
+    },
+  );
+
   it.each(["network", "server", "eof"])(
     "retains private work through an events %s fault and failed context refresh",
     async (failure) => {

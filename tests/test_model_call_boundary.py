@@ -11,6 +11,7 @@ from animama.app.model_clients import (
     ModelClientError,
     ModelClientFinal,
     ModelClientRequest,
+    ModelClientTimeoutError,
 )
 from animama.app.model_clients.call_boundary import AccountedModelClient, AdmittedModelCall, ModelCallLimits
 from animama.domain import ModelProvider
@@ -138,8 +139,9 @@ async def test_provider_deadline_never_cancels_slow_model_consumers(resume):
         except asyncio.CancelledError:
             pytest.fail("The provider deadline cancelled unrelated consumer work")
         if resume == "pull":
-            with pytest.raises(TimeoutError):
+            with pytest.raises(ModelClientTimeoutError) as deadline:
                 await anext(stream)
+            assert deadline.value.code == "model_deadline_exceeded"
         else:
             await stream.aclose()
     finally:
@@ -185,8 +187,9 @@ async def test_model_provider_pull_timeout_closes_once_and_retains_unknown_usage
                 self.closed += 1
 
     boundary, client = Boundary(timeout_seconds=0.02), StalledClient()
-    with pytest.raises(TimeoutError):
+    with pytest.raises(ModelClientTimeoutError) as deadline:
         _ = [delta async for delta in AccountedModelClient(client, boundary).stream(request())]
+    assert deadline.value.code == "model_deadline_exceeded"
     assert client.closed == 1 and len(boundary.outcomes) == 1
     assert boundary.outcomes[0][1].status == "failed" and boundary.outcomes[0][1].usage is None
 

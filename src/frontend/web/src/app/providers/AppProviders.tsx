@@ -45,8 +45,15 @@ function ApplicationSession({ children }: { children: ReactNode }) {
               role="status"
               className="bg-background text-foreground border-b px-4 py-2 text-sm"
             >
-              Reconnecting to Animama. Your draft is retained; requests are
-              paused.
+              Reconnecting to Animama. Requests are paused; saved creator drafts
+              are kept if you reload, unsent chat text is not.{" "}
+              <button
+                type="button"
+                className="underline underline-offset-2"
+                onClick={() => window.location.reload()}
+              >
+                Reload
+              </button>
             </div>
           )}
           {children}

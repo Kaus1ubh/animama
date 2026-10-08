@@ -10,7 +10,10 @@ from typing import Literal, Protocol
 from animama.domain.usage import Usage
 
 from .limits import ModelCallLimits
-from .types import ModelClient, ModelClientDelta, ModelClientRequest
+from .types import ModelClient, ModelClientDelta, ModelClientRequest, ModelClientTimeoutError
+
+# Error code for an admitted call that exceeded its absolute provider deadline.
+DEADLINE_CODE = "model_deadline_exceeded"
 
 
 @dataclass(frozen=True, slots=True)
@@ -87,12 +90,15 @@ class AccountedModelClient:
                 # Keep the absolute provider budget, but never leave its task
                 # cancellation active while the consumer handles a yielded delta.
                 if loop.time() >= deadline:
-                    raise TimeoutError("Model provider deadline exceeded")
+                    raise ModelClientTimeoutError("Model provider deadline exceeded", code=DEADLINE_CODE)
                 try:
                     async with asyncio.timeout_at(deadline):
                         delta = await anext(iterator)
                 except StopAsyncIteration:
                     break
+                except TimeoutError as error:
+                    # Report the admitted deadline as a model error the chat runtime renders.
+                    raise ModelClientTimeoutError("Model provider deadline exceeded", code=DEADLINE_CODE) from error
                 if delta.kind == "final" and delta.final is not None:
                     final = delta.final
                     outcome = ModelCallOutcome("completed", final.usage if final.usage_reported else None, native_tools)

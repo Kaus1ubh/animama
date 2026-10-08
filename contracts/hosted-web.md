@@ -21,7 +21,8 @@ contains `RuntimeSession`, complete `RuntimeCapabilities` and onboarding state.
 The adapter maps its service's existing wire states into this view; the view does
 not create a new identity/session HTTP authority. Local `/v1/runtime-context`
 remains local. Hosted admission uses `/v1/hosted/runtime-context`, repair uses
-`POST /v1/hosted/bootstrap:ensure`, and `/v1/hosted/events` signals revoked authority.
+`POST /v1/hosted/bootstrap:ensure`, and `/v1/hosted/events` signals possible revocation,
+which prompts an immediate context read.
 Hosted login/callback/logout, session cookies, CSRF and central account URLs remain
 consumer-owned HTTP behavior.
 
@@ -39,6 +40,9 @@ browser stores only this generation, owner ID and a random per-tab draft namespa
 (`hosted:<generation>:<tab UUID>`) in session storage. A same-tab reload can recover the original operation ID only
 after fresh cookie admission confirms the same owner and generation. New tabs
 get independent namespaces, including tabs that inherit opener session storage.
+A browser's "Duplicate tab" copies session storage and reports a back/forward
+navigation, so the duplicate shares its source tab's namespace (last write wins),
+as two local tabs share local drafts.
 An absent/invalid generation withholds durable reload recovery without granting
 additional permissions. Session retirement removes all tabs' marked namespaces
 for that generation, preserving a newer replacement generation. Explicit account
@@ -60,12 +64,16 @@ rollback. A pending or ambiguous commit is recovered by its operation identity.
 A lost events connection, context transport error or temporary Identity outage
 does not establish revocation. An already admitted view retains its draft and
 resources, suspends new product requests, and retries admission with bounded
-backoff. Fresh same-session admission resumes dispatch. Repeated uncertain events
-preserve a pending admission read and its backoff.
+backoff, offering a reload that keeps saved creator drafts (unsent chat text is
+not kept). Fresh same-session admission
+resumes dispatch, including as soon as the reconnected events stream sends `event: ready`. Repeated
+uncertain events preserve a pending admission read and its backoff. A revoked
+event or an events 401/403 suspends requests and reads the runtime context at
+once; that context alone decides whether admission ended.
 Unknown initial contexts and setup/repair states withhold admission without
-erasing persisted recovery. Explicit revoked events,
-context 401/403, recognized account/session denials, sign-out and owner/session
-replacement still retire private work immediately. A draft key never substitutes
+erasing persisted recovery. Context 401/403, recognized account/session denials
+(including those a revoked event prompts), sign-out and owner/session replacement
+still retire private work immediately. A draft key never substitutes
 for those checks; a recovered uncertain save reconciles its existing operation
 instead of allocating another commit.
 

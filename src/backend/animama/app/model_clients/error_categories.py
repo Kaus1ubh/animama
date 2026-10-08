@@ -31,6 +31,7 @@ _CATEGORY_BY_CODE = {
     "connection_unavailable": ERROR_UNREACHABLE,
     "connection_base_url_missing": ERROR_UNREACHABLE,
     "openai_timeout": ERROR_TIMEOUT,
+    "model_deadline_exceeded": ERROR_TIMEOUT,
     "missing_api_key": ERROR_CREDENTIAL_MISSING,
     "openai_authentication_error": ERROR_CREDENTIAL_REJECTED,
     "openai_permission_denied": ERROR_CREDENTIAL_REJECTED,

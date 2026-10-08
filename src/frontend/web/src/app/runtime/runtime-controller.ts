@@ -97,11 +97,12 @@ export class RuntimeController {
     repair = false,
     invalidate: AdmissionRefresh = false,
   ): Promise<void> => {
-    if (invalidate === "uncertain") {
+    if (invalidate === "uncertain" || invalidate === "recheck") {
       this.suspend();
       // Events can fail repeatedly while a context read or its backoff is still
-      // pending. Preserve that read's chance to finish and its bounded retry.
-      if (this.pending || this.retry) return;
+      // pending. Preserve that read's chance to finish and its bounded retry; a
+      // recheck reads the context immediately instead.
+      if (invalidate === "uncertain" && (this.pending || this.retry)) return;
     }
     if (this.retry) clearTimeout(this.retry);
     this.retry = null;
