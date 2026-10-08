@@ -18,8 +18,12 @@ make sync
 
 This uses
 `uv sync --extra server --extra voice --extra viz --extra realtime --extra encrypt --all-packages --group dev`.
-It intentionally excludes the file-worker parser stack. Run the worker with
-`--extra file-worker` when testing the parser directly on the host.
+It intentionally excludes the file-worker parser stack. The default `dev` group
+includes the `server` extra, so a plain `uv sync` also has the gruut phonemizer
+the backend tests require. The file-worker extra conflicts with it: run the
+worker with `--no-dev --extra file-worker` when testing the parser directly on
+the host; that replaces the development packages in `.venv` until the next
+plain `uv sync` or `uv run`.
 
 ## Shared Backend Package
 
@@ -792,9 +796,9 @@ workflow does not configure them. Measure complete run costs, including local
 validation and weekly work, before claiming savings. Preserve owner review of
 coverage and detection-delay tradeoffs when changing validation policy.
 
-The development dependency group includes the PyYAML, jsonschema and ReportLab
-type stubs required by the existing mypy target. Install from `uv.lock` with
-`uv sync --frozen --extra server` before checking a clean checkout. Ruff lint
+The development dependency group includes the server extra and the PyYAML,
+jsonschema and ReportLab type stubs required by the existing mypy target.
+Install from `uv.lock` with `uv sync --frozen` before checking a clean checkout. Ruff lint
 checks its configured repository scope; formatting checks only
 `src/backend/animama` and `tests`, and mypy checks those same backend/test roots.
 Python 3.12 is the minimum supported backend interpreter, and Ruff and mypy use
@@ -851,7 +855,7 @@ uv run python -m animama.workers.avatar_upload_cleanup
 User-file processing:
 
 ```bash
-uv run --extra file-worker python -m animama.workers.user_file_processing
+uv run --no-dev --extra file-worker python -m animama.workers.user_file_processing
 ```
 
 Workers need the same database configuration as the API. The user-file worker

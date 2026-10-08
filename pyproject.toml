@@ -77,6 +77,10 @@ conflicts = [
         { extra = "server" },
         { extra = "file-worker" },
     ],
+    [
+        { group = "dev" },
+        { extra = "file-worker" },
+    ],
 ]
 
 [[tool.uv.index]]
@@ -88,7 +92,10 @@ explicit = true
 desktop-build = [
     "pyinstaller==6.22.2",
 ]
+# Backend tests exercise the server runtime (gruut lip-sync phonemes), so the
+# default development sync includes the server extra.
 dev = [
+    "animama-backend[server]",
     "pytest>=8.0.0",
     "pytest-asyncio>=0.23.0",
     "pytest-cov>=5.0.0",
@@ -166,8 +173,8 @@ explicit_package_bases = true
 exclude = ["^src/backend/animama/proposed_changes", "^src/backend/animama/examples"]
 plugins = ["pydantic.mypy"]
 
-# Optional worker/server extras are checked at their adapter boundary without
-# installing those heavyweight runtime packs into the core development environment.
+# The file-worker extra is checked at its adapter boundary without installing
+# that heavyweight runtime pack into the development environment; gruut is untyped.
 [[tool.mypy.overrides]]
 module = ["docling.*", "docling_core.*", "gruut"]
 ignore_missing_imports = true

@@ -901,7 +901,11 @@ describe("feature-pack catalog bounds and retired packs", () => {
     expect(Object.keys(restarted.instance.activePacks())).toEqual([
       "expanded-included-content",
     ]);
-    for (const relative of ["packs/parakeet-stt", "packs/parakeet-stt-webgpu", ...retired.slice(2)])
+    for (const relative of [
+      "packs/parakeet-stt",
+      "packs/parakeet-stt-webgpu",
+      ...retired.slice(2),
+    ])
       await expect(stat(path.join(first.root, relative))).rejects.toThrow();
     for (const relative of kept)
       expect(
