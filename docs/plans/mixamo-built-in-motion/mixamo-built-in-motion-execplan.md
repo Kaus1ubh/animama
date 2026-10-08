@@ -75,7 +75,10 @@ Paths are relative to `src/backend/animama/` (backend) or `src/frontend/web/src/
       Review #2 passed.
 - [ ] Phase 5: Content acquisition and integration (owner gates G1–G3).
 - [x] Final integration review for Phases 1–4 (pass; Phase 5 pending owner gates).
-- [ ] PR opened. Hosted CI is disabled; local checks are the evidence.
+- [x] PR opened: [#329](https://github.com/raymond-van/animama/pull/329) (Phases 1–4,
+      candidate `55b86bb2`). Hosted CI is disabled; local checks are the evidence.
+      Task stack `animama-mixamo` (`http://animama-mixamo.localhost:8300`) retained
+      for owner review; it mounts a scratch Included copy with synthetic fixtures.
 - [ ] Merge approval.
 - [ ] Release gate G4 (R10), recorded in the release review before the first
       release containing the pack. This gate is not part of the PR.
