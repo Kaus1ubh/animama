@@ -6,15 +6,16 @@ R12–R16. The owner accepted the spec on 2026-10-06 and on 2026-10-07 asked tha
 the Avatar Effect skill follow the `animama-animation` pipeline with a gated
 Promote to Included step like #310's. On 2026-10-08 the owner approved Plan 1's
 merge (PR #328, merge commit `fd1980fe`) and asked to proceed with Plan 2.
-Authorized scope: planning. Implementation starts when the owner authorizes the
-phase range; G1–G4 below apply regardless.
+Authorized scope: P1–P3 (owner, 2026-10-08). P4–P8 need a later request;
+G1–G4 below apply regardless.
 Starting revision: `fd1980fe` (`origin/main` after #328).
 Branch: `feat/avatar-effects-content`, in the existing task worktree
 `avatar-effects-v2`. One branch and one PR for this plan.
 Issues: parent #298 (stays open until this plan merges); phase issues are
 created at preparation. Related: #297 (Particle and Scene templates, reuses
 R12), #310 (Gesture promotion, merged), #282 and #291 (merged; their Reactions
-are the ones R15 edits).
+are the ones R15 edits), #337 (migrates every 1.0 clip, Reactions included, to
+`animaPoseClip/2.0`; merges before this plan completes).
 
 ## Purpose and context
 
@@ -23,7 +24,7 @@ parts, event fades, the Effects picker, the reworked Avatar Effect creator and
 the review tools. Plan 2 uses it to make content:
 
 - **R12:** an effect-asset skill and scripts that turn an art brief into clean,
-  budgeted PNGs (single images and flipbook grids), with provenance.
+  budgeted PNGs (single images and flipbook grids).
 - **R13:** the `animama-avatar-vfx` skill becomes a generation pipeline shaped
   like `animama-animation`: brief → assets → `/2` definition → checks →
   headless renders → owner review in the headed preview → save as Local content
@@ -58,7 +59,7 @@ Paths: frontend relative to `src/frontend/web/`, backend to
 | Review tools | `scripts/effect-render.mjs` (`effects:render <source…>|--all-included --out`, `--times`, `--views front,three-quarter,face`, `--with-clip`, `--together`, `--diff a b`, `--thumbnail`; exits 1 on a controller warning). `effect-thumbnails.mjs` (`effects:thumbnails [id…]` → `src/assets/effect-templates/<id>.webp`). `effect-bench.mjs`. `animation-preview.mjs` (headed; effect source folders and Library Reactions; notes in `<stem>.review.json`). |
 | Effect source folder | `<stem>/` with `<stem>.json` (`content_type: "avatar_effect"`, `/2` definition) and its images; resolved by `effect-render-sources.mjs` :197–300. This is the R13 draft unit. Drafts live under the ignored `.animama-drafts/`. |
 | Saving | `scripts/animation-save.mjs` drives the Gesture creator headlessly (import a project file, save, read the Library item back). Nothing equivalent exists for effects; the Avatar Effect creator has Import (`ui/avatar-effect-creator/AvatarEffectCreatorPage.tsx`). |
-| Promotion | `scripts/animation-promote.mjs` (+ `.test.mjs`) is Gesture-only: it writes `gestures/<slug>/<slug>.json` and `.meta.json`, inserts an inventory rule before `gestures/**/*.json`, adds `licenses/source-review.json` records and supports `--dry-run`. Effects need binary copies, `/2` validation and a rule before `vfx/avatar/**/*`; Reactions need a `reactions/<id>` replace mode. |
+| Promotion | `scripts/animation-promote.mjs` (+ `.test.mjs`) is Gesture-only: it writes `gestures/<slug>/<slug>.json` and `.meta.json`, inserts an inventory rule before `gestures/**/*.json`, adds `licenses/source-review.json` records and supports `--dry-run`. Effects need binary copies and `/2` validation (the existing `vfx/avatar/**/*` rule covers their files); Reactions need a `reactions/<id>` replace mode. |
 | Included effects | 16 under `vfx/avatar/<stem>/<stem>.json` (`/2` definitions, IDs `builtin:avatar-effect:<stem>`): `angry`, `emote`, `eye` (Eye =), `eye_0`, `eye_confused_swirl`, `eye_o`, `eye_vv`, `eye_vv_pair`, `mouth_hover_w`, `mouth_w`, `star`, `star3`, `texture_black_1` (Gloom face), `texture_sick_1`–`3`. All are picker templates (`src/lib/effects/effectTemplates.ts` :97–114). |
 | Included Reactions | 72 under `reactions/<emotion>-<1..3>/`, all `animaPoseClip/1.0`, expression-only, lifetime `whileInteractionPhase: talking`. An effect is an `avatar_vfx` event whose `effectId` is an alias declared in the meta's dependencies (`builtin:avatar-effect:<stem>`). 19 emotions use an effect today; caring, desire, embarrassment, gratitude and love do not; no `-1` variant does. |
 | Reaction 2.0 gap | The Reaction creator saves `animaPoseClip/2.0` (`src/ui/action-editor/actionPersistence.ts` ~:156). The bundled Included catalog parses Reactions with the 1.0-only `parseAnimaPoseClip` (`src/lib/avatar/poses/catalog.ts` :47–55, :233–290) and skips other files, although Gestures already use an either-schema parser (:223). A promoted 2.0 Reaction would vanish. |
@@ -81,30 +82,29 @@ Paths: frontend relative to `src/frontend/web/`, backend to
 
 - 2026-10-08 (planning): Included Reactions are all `animaPoseClip/1.0`, and the
   bundled catalog skips non-1.0 Reaction files, while the creator always saves
-  2.0. R15's "use the clip format current when Plan 2 runs" therefore needs the
-  Included Reaction loader to accept 2.0 before any promoted Reaction lands
-  (P7).
+  2.0. The owner pointed to #337, which moves every clip to 2.0 and merges
+  before this plan completes, so P7 builds on it instead of changing the loader.
 - 2026-10-08 (planning): `animation promote` is Gesture-only; effect and
   Reaction promotion is new work (P2, P7).
 
 ## Decision Log
 
 - 2026-10-08, owner: proceed with Plan 2 after merging #328.
-- 2026-10-08, agent proposal (planning), within the spec:
-  - Reactions edited for R15 are saved by the Reaction creator as 2.0 and
-    promoted as 2.0. P7 first extends the Included Reaction loader to accept
-    2.0 (reusing the Gesture either-schema parser) and checks that a 2.0 save
-    of an unchanged Reaction renders the same as its 1.0 source.
-  - Eye VV Pair stays an Included item, so Local content that depends on it
-    keeps working, but it leaves the templates and every Included Action. Eye
-    VV takes its place ("merges into").
+- 2026-10-08, owner, on review of this plan (amends R12, R15 and R16 as noted):
+  - #337 migrates all clips, Reactions included, to 2.0 before this plan
+    completes. P7 depends on it and does not change the Reaction loader.
+  - Eye VV Pair is removed entirely: `shy-finger-poke` uses Eye VV, and the
+    `eye_vv_pair` item and template are deleted (P7, P8).
+  - No statement that art was generated and no per-effect licence wording. New
+    files fall under the existing inventory rules (`vfx/avatar/**/*`,
+    `reactions/**/*`); R12's provenance recording and R16's provenance wording
+    are dropped. The source-review record per tracked file that the release
+    check requires is written mechanically in the same form as the existing
+    effect files.
+  - P1–P3 authorized; report the list needed for G1 afterwards.
+- 2026-10-08, agent (planning), within the spec:
   - New effects become picker templates only if the owner asks at G4; upgraded
     templates get fresh thumbnails.
-  - Generated art uses a per-effect inventory rule with the owner-ai-generated
-    licence and provenance naming the tool (Codex `image_gen` via the
-    `image-gen` skill), the issue and the approval date. Definitions written by
-    the agent use the agent-authored wording, like promoted Gestures. The owner
-    sees the exact wording before promotion (G4).
   - Drafts, briefs and review notes stay under the ignored `.animama-drafts/`;
     the committed record of each brief is a short entry in this plan.
 
@@ -115,7 +115,7 @@ Paths: frontend relative to `src/frontend/web/`, backend to
 | G1 | Before P4 | Owner trims and edits the R14 table (spec "Open: final effect list") | Fixes the effect list and batch contents; P1–P3 do not wait for it |
 | G2 | End of P4, P5 and P6 | Owner reviews each batch's briefs and the effects in the headed preview on both Included Avatars | Approved effects proceed; others are revised (up to two revision rounds per effect, then dropped or deferred by the owner) |
 | G3 | End of P7 | Owner reviews the Reaction mapping and the wired Reactions in the headed preview | Approved Reactions proceed to promotion |
-| G4 | P8, before any write to `content/included/` | Owner approves each promoted item and the exact licence wording, on this PR | The only point where an agent writes Included content |
+| G4 | P8, before any write to `content/included/` | Owner approves each promoted, replaced or deleted item, on this PR | The only point where an agent writes Included content |
 
 Image generation needs the owner's Codex login; a failed or quota-limited
 generation pauses the affected effects, not the plan. Merge approval stays
@@ -148,7 +148,7 @@ remaining gates.
 ### P1 — Effect-asset scripts and skill (R12)
 
 Outcome: any PNG, generated or hand-made, can be checked and fixed into a
-ready-to-use effect image or flipbook, with provenance, by one command.
+ready-to-use effect image or flipbook by one command.
 
 Steps:
 
@@ -165,16 +165,13 @@ Steps:
    - `flipbook <frame…> --out <png> [--columns N]`: assemble equal-size frames
      on a grid within the contract limits and print the `flipbook` definition
      fragment (`columns`, `rows`, `frames`).
-   - `provenance <png…> --tool <name> --by <who> [--prompt-file <f>]`: write or
-     update `provenance.json` beside the images (file, sha256, tool, generated
-     by, date, prompt reference). Promotion (P2) reads it.
 2. Node tests (`scripts/effect-assets.test.mjs`, added to `test:source`) with
    synthetic PNGs: alpha absent, checkerboard, near-opaque fix, trim, resize to
-   budget, flipbook grid and limit refusal, provenance round-trip.
+   budget, flipbook grid and limit refusal.
 3. Skill `.claude/skills/animama-effect-assets/` (and the `.agents/skills/`
    copy): brief → prompt template for effect art (flat anime emphasis style,
    transparent background, single subject, no text unless the brief asks) →
-   `gen.sh` → `effects:assets check/fix/flipbook` → `provenance`. It states the
+   `gen.sh` → `effects:assets check/fix/flipbook` It states the
    default budgets (eye/emote art 512², face surface 1024², flipbook frames
    256², ≤ 256 KiB per file unless the brief justifies more) and that it serves
    #297 for particle textures, sprite sheets and scene tiles.
@@ -213,13 +210,13 @@ Steps:
    - `kind: "avatar_effect"`, from `library:local/<name>`: copy the definition
      and images to `vfx/avatar/<stem>/` (`add` for new stems, `replace` for
      upgrades, keeping the content ID `builtin:avatar-effect:<stem>`); validate
-     `/2`; insert a per-effect inventory rule before `vfx/avatar/**/*` using
-     `provenance.json`; add source-review records for every file;
+     `/2`; rely on the existing `vfx/avatar/**/*` inventory rule; add
+     source-review records for every new file in the existing effect form;
    - `kind: "reaction"`, `mode: "replace"`, target `reactions/<emotion>-<n>`:
      write the Local Reaction's clip and meta (dependencies included), keeping
      the Included ID, role, placement hint and lifetime; refuse humanoid tracks
      and unresolved effect aliases;
-   - `--dry-run` prints every file, rule and record it would write.
+   - `--dry-run` prints every file and record it would write.
 4. Tests: `scripts/effects.test.mjs` (check outcomes on fixture folders,
    including a missing face part and invisible art), save item parsing, promote
    dry-run and write into a temporary content root for both kinds, and the
@@ -253,7 +250,7 @@ Steps:
    7. chat check on a test Anima when Reaction use matters;
    8. hand-off;
    9. Promote to Included, never by default: only with the owner's explicit
-      approval of each item and its licence wording, on a task branch with a
+      approval of each item, on a task branch with a
       PR (`references/promote.md`).
    Add `references/batch.md` for briefs and assets in parallel with one review
    preview per batch.
@@ -301,11 +298,8 @@ dropped by the owner.
 
 ### P7 — Reaction wiring (R15). Gate G3.
 
-1. Extend the Included Reaction loader (`src/lib/avatar/poses/catalog.ts`) to
-   accept 2.0 Reactions with the either-schema parser, keeping the
-   expression-only and lifetime rules. Tests: a 2.0 Reaction fixture loads; a
-   creator re-save of an unchanged 1.0 Reaction renders the same
-   (`animation:render` diff) before any wiring change.
+1. Starts after #337 merges and this branch has merged `main`: Included
+   Reactions are then 2.0 and load as such.
 2. Mapping: one table, emotion × intensity → effect (or none), derived from the
    effect briefs, with a one-line beat for each assignment. Every emotion gets
    at least one variant; caring, desire, embarrassment, gratitude and love gain
@@ -324,12 +318,13 @@ G3: the owner reviews the mapping table and plays the wired Reactions in
 
 ### P8 — Promotion, documentation and acceptance (R16). Gate G4.
 
-1. Present the promotion list (effects and Reactions, add or replace) and the
-   exact inventory and source-review wording; wait for the owner's approval on
-   this PR (G4).
+1. Present the promotion list (effects and Reactions, add, replace or
+   delete); wait for the owner's approval on this PR (G4).
 2. `pnpm -s effects promote <items.json> --dry-run`, then without it. Regenerate
-   thumbnails for upgraded templates (`effects:thumbnails <id…>`); remove
-   `eye_vv_pair` from the templates; add new templates only if the owner asked.
+   thumbnails for upgraded templates (`effects:thumbnails <id…>`); delete
+   `vfx/avatar/eye_vv_pair/`, its template, thumbnail and source-review
+   records (owner decision 2026-10-08); add new templates only if the owner
+   asked.
 3. Update pinned counts and tests; run the content checks below.
 4. Docs: the R11 pages for the new commands and skill steps; the content
    inventory notes; `effect-templates/README.md` if templates change.
