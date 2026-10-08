@@ -30,7 +30,8 @@ type PoseCatalogEntry = {
 /**
  * Included Gesture and Reaction clips, bundled straight from the canonical
  * `content/included` tree (each entry's sequence file is
- * `<folder>/<folder>.json`; metadata files are excluded). The backend serves
+ * `<folder>/<folder>.json`; metadata files and motion-preview review notes
+ * are excluded so neither is bundled). The backend serves
  * the same files at runtime; this synchronous copy backs the creators,
  * previews and runtime-catalog fallbacks.
  */
@@ -38,6 +39,7 @@ const rawClipModules = import.meta.glob(
   [
     "../../../../../../../content/included/gestures/*/*.json",
     "!../../../../../../../content/included/gestures/*/*.meta.json",
+    "!../../../../../../../content/included/gestures/*/*.review.json",
   ],
   { eager: true, import: "default" },
 ) as Record<string, unknown>;
@@ -46,6 +48,7 @@ const rawReactionClipModules = import.meta.glob(
   [
     "../../../../../../../content/included/reactions/*/*.json",
     "!../../../../../../../content/included/reactions/*/*.meta.json",
+    "!../../../../../../../content/included/reactions/*/*.review.json",
   ],
   { eager: true, import: "default" },
 ) as Record<string, unknown>;
