@@ -1,10 +1,10 @@
 # Ship Mixamo-derived motion as built-in content in desktop and hosted builds only
 
 Status: Agreed
-Owner decision: intent discovery with the owner on 2026-10-07 (D1–D7 under
-Open questions and decisions).
+Owner decision: intent discovery with the owner on 2026-10-07 (D1–D7) and the
+owner's 2026-10-08 decisions (D8–D10) under Open questions and decisions.
 Authoritative source: [issue #242](https://github.com/raymond-van/animama/issues/242).
-This file is an issue snapshot, published and read back at `2026-10-07T21:54:47Z`.
+This file is an issue snapshot, published and read back at `2026-10-08`, after the D8–D10 update.
 Source baseline: `d4f7028f` (`origin/main`, 2026-10-07).
 
 ## Problem and intended users
@@ -25,8 +25,8 @@ than the owner's development installation. The agent-authored
 `animaPoseClip/2.0` Gestures from #282 (promotion to Included in #310) narrow
 this gap only partly: none of them is an idle loop, and the format keeps the feet
 planted, so it cannot replace motion such as the excited jump. The owner wants
-the desktop (Electron) app and the hosted Animama Cloud app to ship the 29 former
-Mixamo starter clips as Included avatar motion. They must not leave the app as
+the desktop (Electron) app and the hosted Animama Cloud app to ship
+owner-selected Mixamo clips as Included avatar motion. They must not leave the app as
 reusable assets, and the self-hosted web app and the source repository must never
 contain or distribute them.
 
@@ -41,7 +41,7 @@ In scope:
 
 - A **non-portable** redistribution class for Included content, marked in the
   public license inventory and enforced by the backend.
-- Shipping the 29 former Mixamo starter clips (23 Gestures and 6 idle loops) and
+- Shipping 35 owner-selected Mixamo clips (30 Gestures and 5 idle loops; D8) and
   one Included Idle Style that pools the idle loops, all as non-portable content
   in the desktop and hosted builds.
 - Closing every route by which such an item could leave the app as a reusable
@@ -65,16 +65,17 @@ Non-goals:
   public contract defined here.
 - Replacing or retiring agent-authored 2.0 Gestures. Where the two sets overlap
   (for example a wave or a bow), both stay in Library; #310 proceeds independently.
-- Recovering the original Adobe IDs for the existing private converted files by
-  guesswork. Provenance must be recorded from the actual download (R8).
+- Recovering the original Adobe IDs for the existing converted files by
+  guesswork. Unrecorded provenance fields stay marked as not recorded (R8, D9).
 
 ## Required behavior
 
 ### R1 Mixamo motion as Included content in desktop and hosted builds
 
-The desktop app and the hosted composition include the 29 former starter clips
-(the `starter_target` entries in `scripts/mixamo-assets.json`: 23 Gestures and
-6 idle loops) and one Included Idle Style that pools the idle loops by emotion,
+The desktop app and the hosted composition include the 35 clips the owner
+selected on 2026-10-08 (D8: 30 Gestures and 5 idle loops, drawn from the 71
+legacy conversions listed in `scripts/mixamo-assets.json`) and one Included Idle
+Style that pools the idle loops by emotion,
 as the former starter Idle Style did. All are non-portable. Users can select them
 in Anima loadouts and Idle Styles, the companion can invoke them, and Library
 previews them. They are not starter defaults in any build, and the Idle Style is
@@ -196,8 +197,11 @@ decision. These files are:
 - **Private inventory** (kept in the private store, never in Git): for each clip,
   the Mixamo animation name and ID, character, export settings, download date,
   licensee (the owner's Adobe ID), the conversion tool, version and steps, and the
-  resulting SHA-256. All 29 clips are downloaded afresh, because the original
-  Adobe IDs and export settings were never recovered.
+  resulting SHA-256. Per D9, the pack ships the existing legacy conversions:
+  fields that were never recorded (animation ID, character, export settings,
+  download date, conversion version) are marked "not recorded", and the record
+  carries the converter each file reports and the date it entered the legacy
+  repository.
 - **Public-safe entry** in `content/included/licenses/inventory.json`: the
   non-portable rule, creator, license reference, the provenance summary and the
   link to this decision. It contains no Adobe ID, account data or private path.
@@ -331,9 +335,9 @@ written confirmation, and records the outcome (R10).
       existing starter checks without the private store. Starter loadouts are
       unchanged in desktop and hosted builds. The optional installer still
       installs Local content.
-- [ ] R8: all 29 shipped clips have a complete private-inventory record, verified
+- [ ] R8: all 35 shipped clips have a complete private-inventory record (D9), verified
       by the build check. The public inventory entry contains no personal data.
-- [ ] R1: owner playback check in the desktop app and the hosted app of all 29
+- [ ] R1: owner playback check in the desktop app and the hosted app of all 35
       clips and the Included Idle Style on both Included Avatars,
       `AvatarSample_Y_0` (VRM 0) and `AvatarSample_A_1_New` (VRM 1). Retargeting
       and foot contact must look correct, not merely play. Owner-only check,
@@ -367,7 +371,8 @@ Decisions (2026-10-07):
   and rebind on import, with fallback and review notices (R3).
 - **D4 Q3 private store:** a dedicated owner-only prefix in the existing private
   R2 bucket that hosted deploy already reads, with no public access on the bucket
-  and prefix-scoped, read-only build credentials (R7). Not the public desktop
+  and bucket-scoped, read-only build credentials (R7; R2 tokens cannot be
+  limited to a prefix). Not the public desktop
   release bucket.
 - **D5 Q4 and Q5:** no visible Library label; unavailable actions explain the
   restriction. The class is named `non-portable` (inventory value and glossary
@@ -378,6 +383,20 @@ Decisions (2026-10-07):
 - **D7 Hosted Cloud:** assume parity with this codebase. The hosted composition
   ships and plays these items like desktop, inheriting enforcement through the
   public package set and fetching bytes from the same private store (R9).
+
+Decisions (2026-10-08):
+
+- **D8 Clip selection (revises D1 and D2):** after a playback review of all 71
+  legacy conversions, the owner selected 35 clips: 24 of the former starter
+  clips (not Blush Head scratch, Explain, Slight Bow, Talk or Idle Sway) plus 11
+  others. Idle Happy replaces Idle Sway in the Idle Style's pools. Raw legacy
+  names are replaced with descriptive names and descriptions.
+- **D9 Legacy conversions (revises R8's fresh downloads):** ship the existing
+  legacy VRMA conversions instead of downloading afresh, with the provenance
+  that exists.
+- **D10 Private store:** the bucket has no public access (no `r2.dev` URL,
+  custom domain or CORS rules); separate read-only and read-write tokens are
+  scoped to it and kept in owner-only files.
 
 No blocking questions remain. The ExecPlan inventories the creator sampling paths
 (R4) and decides how pre-existing Local matches are surfaced (Constraints).

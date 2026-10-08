@@ -83,7 +83,10 @@ Paths are relative to `src/backend/animama/` (backend) or `src/frontend/web/src/
   - [x] Pack `v1` published, manifest committed, release procedure and
         workflow updated (2026-10-08).
   - [x] Build verification (step 5).
-  - [ ] G3 playback (owner) and Phase 5 review.
+  - [x] Phase 5 review (pass, round 2).
+  - [x] Pack `v2` (2026-10-08): descriptive names, Selector IDs and AI
+        descriptions; published, manifest committed.
+  - [ ] G3 playback (owner).
 - [x] Final integration review for Phases 1–4 (pass; Phase 5 pending owner gates).
 - [x] PR opened: [#329](https://github.com/raymond-van/animama/pull/329) (Phases 1–4,
       candidate `55b86bb2`). Hosted CI is disabled; local checks are the evidence.
@@ -264,7 +267,17 @@ Paths are relative to `src/backend/animama/` (backend) or `src/frontend/web/src/
   `idle_idle3`, `idle_look_around`, `idle_sexy_dance` (Dance), `lookaround2`,
   `posture_jumphigh`, `relax` (Yawn), `sleepy`, `telling_secret` and
   `youre_right`. Most added clips have no AI description and several keep raw
-  legacy names; tidying them needs a later pack version. The Idle Style is "Emotive
+  legacy names; tidying them needs a later pack version (done in `v2`).
+- 2026-10-08, owner: **pack `v2` naming.** The agent watched each clip with a
+  raw legacy name in the Library preview and gave it a descriptive name,
+  Selector ID and AI description: Jump for Joy, Relaxed Stance, Hands Clasped,
+  Glance Around, Search Around, Cheer Jump, Sleepy Eye Rub, Whisper a Secret,
+  Exhausted Slump, plus Sad Posture (was Pose Sad) and Quick Excited Jump (was
+  Quick Excited Jump 1). The idle loops' Selector IDs drop the `mixamo-idle-`
+  prefix (`idle_angry`, …); their content IDs are unchanged, so the Idle Style
+  is unaffected. Every shipped Gesture now has an AI description. The private
+  inventory keeps each clip's legacy name as `animation_name`. `v1` stays in the
+  private store unused. The Idle Style is "Emotive
   Idle" (`builtin:idle-style:mixamo-emotive-idle`), not a default.
 
 ## Phased implementation
@@ -1053,6 +1066,13 @@ content; review passes.
     integrity, starter closure, Local installer, desktop packaging, transitions,
     package HTTP) and 11 desktop pack tests pass, except the known gruut
     environment failure.
+
+- **Pack `v2`:** `manifest … v2` (71 files) replaced the tracked manifest;
+  `verify`, `scan --git`, a review restage (catalog: 35 valid Gestures, all
+  with descriptions, and the Idle Style, no diagnostics), `publish --confirm`
+  (72 objects) and a read-token `fetch` + `verify` pass. Only descriptors
+  changed; the motion payloads, and so the stage and leak results above, are
+  the same bytes.
 
 #### Code Review #1 Findings
 

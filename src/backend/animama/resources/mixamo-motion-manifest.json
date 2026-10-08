@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "pack_id": "mixamo-motion",
-  "version": "v1",
+  "version": "v2",
   "files": [
     {
       "path": "gestures/being_cocky/being_cocky.meta.json",
@@ -35,8 +35,8 @@
     },
     {
       "path": "gestures/excited_jump_1/excited_jump_1.meta.json",
-      "size_bytes": 438,
-      "sha256": "5b93967541681ad6f75f69e571b4ae24c49439854d255ace0adba771cc9f6e2c"
+      "size_bytes": 436,
+      "sha256": "5a4488dfd58c8cc301c0edb907f5ed41f16d42ba283a59a9e84bdaa96fae38c5"
     },
     {
       "path": "gestures/excited_jump_1/excited_jump_1.vrma",
@@ -45,8 +45,8 @@
     },
     {
       "path": "gestures/excited_jump_2/excited_jump_2.meta.json",
-      "size_bytes": 376,
-      "sha256": "224beeca8e104959a8e37360d474e12315ebd3eaf0b49e14c45e548d983ee2e4"
+      "size_bytes": 499,
+      "sha256": "899221427a275159453cf3f1429c9fb5ce05aede361dff2b074a7b2d12adee06"
     },
     {
       "path": "gestures/excited_jump_2/excited_jump_2.vrma",
@@ -95,8 +95,8 @@
     },
     {
       "path": "gestures/idle_fem/idle_fem.meta.json",
-      "size_bytes": 352,
-      "sha256": "92cc73a80e11247afb6fa485d6dab6bd5e06b4e22fb647741fc0ebc84dd422bd"
+      "size_bytes": 472,
+      "sha256": "a9a3ea4e0b203c5c35b0e28d7334c5a4a7077ef32ca40f2bddb3c92846d85032"
     },
     {
       "path": "gestures/idle_fem/idle_fem.vrma",
@@ -105,8 +105,8 @@
     },
     {
       "path": "gestures/idle_idle3/idle_idle3.meta.json",
-      "size_bytes": 360,
-      "sha256": "c48a83f85b9c2a793da4cdcb518aa92ea3fb9f36ed371dac32622b8a58aaf3b6"
+      "size_bytes": 522,
+      "sha256": "0659632337100192a5a4105d608ab26884484a16c0468e3da0851c251f93e0e8"
     },
     {
       "path": "gestures/idle_idle3/idle_idle3.vrma",
@@ -115,8 +115,8 @@
     },
     {
       "path": "gestures/idle_look_around/idle_look_around.meta.json",
-      "size_bytes": 384,
-      "sha256": "1652f3f76b09c9830c0a9bfbd008c6bda065b59a801072e315ec46cf0e8e340b"
+      "size_bytes": 502,
+      "sha256": "83b73d0414ed8d279ba4e7dfaea651732a041a4de2f29430c343aef007930472"
     },
     {
       "path": "gestures/idle_look_around/idle_look_around.vrma",
@@ -125,8 +125,8 @@
     },
     {
       "path": "gestures/idle_sexy_dance/idle_sexy_dance.meta.json",
-      "size_bytes": 360,
-      "sha256": "fc728a9a04a076787bcbd210e086ad0aa25b63e37c65b13b85380f6424cdd751"
+      "size_bytes": 504,
+      "sha256": "9e22715acb5c6673f0c2193fe1334c5f0e80ac09da3fa76db55ad35dfd02c439"
     },
     {
       "path": "gestures/idle_sexy_dance/idle_sexy_dance.vrma",
@@ -155,8 +155,8 @@
     },
     {
       "path": "gestures/lookaround2/lookaround2.meta.json",
-      "size_bytes": 364,
-      "sha256": "041d04a1745774d8ca87fb647757b4acebf15a36e896562f5aa0d1b0ed2272b4"
+      "size_bytes": 506,
+      "sha256": "b6c0fd6472dbaa5f78de8a6805f4d550004a3b64430d4e968bd2100e813f57de"
     },
     {
       "path": "gestures/lookaround2/lookaround2.vrma",
@@ -170,8 +170,8 @@
     },
     {
       "path": "gestures/mixamo-idle-angry/mixamo-idle-angry.meta.json",
-      "size_bytes": 630,
-      "sha256": "b5f2b577206f7949c99e65df6bcca39dbaed7fab2b9e54623bfb479f90050a63"
+      "size_bytes": 652,
+      "sha256": "05b55a9f7655abc38815df28d80080e982d91ff5c20681f148a1afd8e4e76070"
     },
     {
       "path": "gestures/mixamo-idle-anxious_look_around/anxious_look_around.vrma",
@@ -180,8 +180,8 @@
     },
     {
       "path": "gestures/mixamo-idle-anxious_look_around/mixamo-idle-anxious_look_around.meta.json",
-      "size_bytes": 687,
-      "sha256": "bd779355fb2c1749d1792b43b4a029cd9f285aa23a5632e915e534f3f8fd5ec1"
+      "size_bytes": 710,
+      "sha256": "d6cf9662b8b623b838e494d708078a3729ca38a216fea197c152856912779d7f"
     },
     {
       "path": "gestures/mixamo-idle-bored/bored.vrma",
@@ -190,8 +190,8 @@
     },
     {
       "path": "gestures/mixamo-idle-bored/mixamo-idle-bored.meta.json",
-      "size_bytes": 606,
-      "sha256": "7d41f22fdb957b65128abc8983de063f2f193a10950ab7f0053eaf7578758216"
+      "size_bytes": 664,
+      "sha256": "157195793bc31c18860324e75f9a5862c985210d7441b6d399500ef4f516aaa6"
     },
     {
       "path": "gestures/mixamo-idle-happy/happy.vrma",
@@ -200,13 +200,13 @@
     },
     {
       "path": "gestures/mixamo-idle-happy/mixamo-idle-happy.meta.json",
-      "size_bytes": 596,
-      "sha256": "928ab81b57f8a7a4005c483116b96de54bab2927c19eef04a85fa377e90a8107"
+      "size_bytes": 643,
+      "sha256": "2d5e67291d64c120d3511e1b8cd2b1fe9ac0f9d839fc3a9adf57a89bc741eeaf"
     },
     {
       "path": "gestures/mixamo-idle-sad/mixamo-idle-sad.meta.json",
-      "size_bytes": 617,
-      "sha256": "6c49fc1c2f94556b743e34b2875cb3700c8bcf7e4518158d8292316d7c584431"
+      "size_bytes": 636,
+      "sha256": "92274a80f3ad4fb7c60d074a035f5c4aadd76bb11cc29430595030b548e38138"
     },
     {
       "path": "gestures/mixamo-idle-sad/sad.vrma",
@@ -215,8 +215,8 @@
     },
     {
       "path": "gestures/posture_jumphigh/posture_jumphigh.meta.json",
-      "size_bytes": 384,
-      "sha256": "85f89bcf98df12ba99fd9d5db63668508cbec08aec5314d28fd83f1f640587cc"
+      "size_bytes": 514,
+      "sha256": "133ffd952c8909c6394fcc1fdac4ef09ce39b3fb7d482012383af1f59949347e"
     },
     {
       "path": "gestures/posture_jumphigh/posture_jumphigh.vrma",
@@ -225,8 +225,8 @@
     },
     {
       "path": "gestures/posture_sad/posture_sad.meta.json",
-      "size_bytes": 396,
-      "sha256": "4d0a271fe4acef0a59e9ea013e311f0993c2041da4dec02d85e667135119ffc5"
+      "size_bytes": 475,
+      "sha256": "8954abbc910c48146a1aa91cb767e371868b0feac8ed24a994e2593974ba28cf"
     },
     {
       "path": "gestures/posture_sad/posture_sad.vrma",
@@ -245,8 +245,8 @@
     },
     {
       "path": "gestures/relax/relax.meta.json",
-      "size_bytes": 338,
-      "sha256": "2a08e25b9476df99c55d40dbea17ccfcff52acf4230909712fa3021996e19c82"
+      "size_bytes": 465,
+      "sha256": "d277dfd4d2ba0ffce8204d2361d902a8ba326b5896f47c5587444f942ba9d893"
     },
     {
       "path": "gestures/relax/relax.vrma",
@@ -275,8 +275,8 @@
     },
     {
       "path": "gestures/silly_slap/silly_slap.meta.json",
-      "size_bytes": 450,
-      "sha256": "cb42c7a1438e1525b5a887eff0230eb359399a3e5ac6a701d144bdcab1a96933"
+      "size_bytes": 464,
+      "sha256": "433080a26e9c124f63d09c8e88af0d566203e3a36c164007290e9ce506daa1fe"
     },
     {
       "path": "gestures/silly_slap/silly_slap.vrma",
@@ -285,8 +285,8 @@
     },
     {
       "path": "gestures/sleepy/sleepy.meta.json",
-      "size_bytes": 344,
-      "sha256": "5cb30881f0d18235adc7599e8867ddf0fcb6bbdda898ab93a711c1c582d0a7d8"
+      "size_bytes": 465,
+      "sha256": "71af9f9fc9458fba103df504b3486a2b6d528866c96e7cfccdac44df270556b3"
     },
     {
       "path": "gestures/sleepy/sleepy.vrma",
@@ -305,8 +305,8 @@
     },
     {
       "path": "gestures/telling_secret/telling_secret.meta.json",
-      "size_bytes": 376,
-      "sha256": "52b8a288a3701675fda2d11b4dd47c321fd34f68dfb0e44f919b684bac13e0a5"
+      "size_bytes": 542,
+      "sha256": "688060382ccb492ba970903f38963c81725a54af296bf1806dca53b8affc1e27"
     },
     {
       "path": "gestures/telling_secret/telling_secret.vrma",
@@ -315,8 +315,8 @@
     },
     {
       "path": "gestures/tired/tired.meta.json",
-      "size_bytes": 391,
-      "sha256": "f10b4a3fd36348dc6e26acf6f04828aad28b1ee8127e5e465c24622ae0a92c4c"
+      "size_bytes": 487,
+      "sha256": "a267eac6d5ed9b1e9bb9f400a4320ec06a7c2bd7c1dc44b38180c54acee62224"
     },
     {
       "path": "gestures/tired/tired.vrma",
@@ -335,8 +335,8 @@
     },
     {
       "path": "gestures/whatever/whatever.meta.json",
-      "size_bytes": 477,
-      "sha256": "58bafe70f2a045322b520ef393598d99ba83df903b6c439a2b59650288c014a6"
+      "size_bytes": 481,
+      "sha256": "c784f5d3e8ecf7da89e48d8d5b090272cdf3cb707d69bd17becd9d84725fad99"
     },
     {
       "path": "gestures/whatever/whatever.vrma",
@@ -345,8 +345,8 @@
     },
     {
       "path": "gestures/youre_right/youre_right.meta.json",
-      "size_bytes": 365,
-      "sha256": "d05d54ab8a70588a93022bbc43d9863a57aed52355c564003600d764fdd71c0b"
+      "size_bytes": 511,
+      "sha256": "e278ac2b5193461c59cd9159682138a8ad0ddb2334e18333a494e7280371a568"
     },
     {
       "path": "gestures/youre_right/youre_right.vrma",
