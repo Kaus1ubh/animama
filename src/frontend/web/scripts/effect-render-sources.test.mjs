@@ -35,7 +35,8 @@ async function writeEffect(root, stem, { name = stem, image = `${stem}.png` }) {
     path.join(folder, `${stem}.json`),
     JSON.stringify({
       content_type: "avatar_effect",
-      content_id: `local:avatar-effect:${stem}`,
+      // Local descriptors carry `id`, as the app writes them.
+      id: `local:avatar-effect:${stem}`,
       name,
       definition: {
         schema: "animama/avatar-effect/2",
@@ -305,7 +306,7 @@ test("keeps a Particle Effect's files inside its folder", async () => {
     path.join(folder, "glow.json"),
     JSON.stringify({
       content_type: "particle_effect",
-      content_id: "local:particle-effect:glow",
+      id: "local:particle-effect:glow",
       files: [
         { path: "particle.json", role: "manifest" },
         { path: "t.png", role: "texture" },

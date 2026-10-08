@@ -172,12 +172,17 @@ export function definitionDifference(
       b &&
       typeof a === "object" &&
       typeof b === "object" &&
-      !Array.isArray(a)
+      !Array.isArray(a) &&
+      !Array.isArray(b)
     ) {
-      for (const key of new Set([...Object.keys(a), ...Object.keys(b)])) {
+      // Only the expected keys: a key the saved item alone has is a default
+      // the API filled for a field the creator leaves out (a silhouette's
+      // `scroll`, a sticker's `around`), not a setting that changed.
+      for (const key of Object.keys(b)) {
         const found = walk(a[key], b[key], `${at}.${key}`);
         if (found) return found;
       }
+      return null;
     }
     return `${at} (saved ${JSON.stringify(a)}, expected ${JSON.stringify(b)})`;
   };

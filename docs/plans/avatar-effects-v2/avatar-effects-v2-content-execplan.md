@@ -6,8 +6,8 @@ R12–R16. The owner accepted the spec on 2026-10-06 and on 2026-10-07 asked tha
 the Avatar Effect skill follow the `animama-animation` pipeline with a gated
 Promote to Included step like #310's. On 2026-10-08 the owner approved Plan 1's
 merge (PR #328, merge commit `fd1980fe`) and asked to proceed with Plan 2.
-Authorized scope: P1–P3 (owner, 2026-10-08). P4–P8 need a later request;
-G1–G4 below apply regardless.
+Authorized scope: P1–P3 (owner, 2026-10-08), then P4–P8 (owner, 2026-10-08,
+with the G2 approval); G1–G4 below apply regardless.
 Starting revision: `fd1980fe` (`origin/main` after #328).
 Branch: `feat/avatar-effects-content`, in the existing task worktree
 `avatar-effects-v2`. One branch and one PR for this plan.
@@ -73,9 +73,9 @@ Paths: frontend relative to `src/frontend/web/`, backend to
 - [x] P1 — Effect-asset scripts and skill (R12). Done 2026-10-08; review passed at round 3.
 - [x] P2 — Authoring pipeline tools: check, save, promote (R13, R16 tooling). Done 2026-10-08; review rounds used (last fix verified by tests, rechecked at final integration).
 - [x] P3 — Avatar Effect skill rewrite and fresh-agent dry run (R13). Done 2026-10-08: two dry runs, review passed at round 2. Next: gate G1 (owner's effect list) and the floating-offset runtime fix before P4.
-- [ ] P4 — Effect batch A: upgrades and kept effects (R14). Produced 2026-10-08; awaiting G2.
-- [ ] P5 — Effect batch B: new face effects (R14). Produced 2026-10-08; awaiting G2.
-- [ ] P6 — Effect batch C: flipbooks, body, sticker and silhouette effects (R14). Produced 2026-10-08; awaiting G2.
+- [x] P4 — Effect batch A: upgrades and kept effects (R14). G2 passed 2026-10-08; saved as Local content.
+- [x] P5 — Effect batch B: new face effects (R14). G2 passed 2026-10-08; saved as Local content.
+- [x] P6 — Effect batch C: flipbooks, body, sticker and silhouette effects (R14). G2 passed 2026-10-08; saved as Local content.
 - [ ] P7 — Reaction wiring (R15). Gate G3.
 - [ ] P8 — Promotion, documentation and acceptance (R16). Gate G4.
 
@@ -774,6 +774,28 @@ Gloom lines, DOKI DOKI, Idea bulb, Despair shade. Changes:
   just under the eyes. All three pass `effects check`.
 - Blush Band made more minimal (owner): thinner (scale 0.9 × 0.55) and
   lighter (opacity 0.75), then lowered to `offset.y` −0.012 (owner).
+
+#### G2 approval and save (2026-10-08)
+
+- The owner approved all 22 effects. Stale descriptions (Exclamation, Eye
+  Equals, Eye O, Eye VV, Star3, Steam Puffs) were rewritten to match the
+  final art, then one `pnpm -s effects save` run saved all 22 as Local
+  content on the task stack (`batch-work/items.json`); each was read back
+  and reopened.
+- The first run stopped at the silhouette effect: the API fills a
+  silhouette's default `scroll`, which the creator leaves out, and the
+  read-back counted it as a change. Fixed: the comparison checks only the
+  fields the creator wrote (a field the saved item alone has is an API
+  default). Test added (`effects.test.mjs`).
+- Found while planning P7: the render and preview tools matched effect and
+  particle dependencies by `content_id`, but the app writes Local
+  descriptors with `id`, so a Local Reaction's Local effect did not play.
+  Fixed (`descriptorContentId` in `effect-render-sources.mjs`); the test
+  fixtures now write `id` as the app does.
+- Main merged again (`#329`); its new font dependency needed `pnpm install`
+  and a task-stack restart (`reset.sh`) before the creator would load.
+- Checks: `effects.test.mjs` 11/11, `effect-render-sources.test.mjs` 11/11,
+  `pnpm -s test:source` pass, prettier pass.
 
 ### P7 — Reaction wiring (R15). Gate G3.
 

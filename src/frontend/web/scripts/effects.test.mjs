@@ -239,6 +239,29 @@ test("saved definitions compare after normalizing, ignoring image names", () => 
     ),
     null,
   );
+  // Defaults the API fills for fields the creator leaves out (a silhouette's
+  // scroll) are not differences; a field the creator set must still match.
+  const silhouette = {
+    ...expected,
+    attachment: { kind: "silhouette", fill: "tint" },
+  };
+  assert.equal(
+    definitionDifference(
+      {
+        ...silhouette,
+        attachment: { ...silhouette.attachment, scroll: { x: 0, y: 0 } },
+      },
+      silhouette,
+    ),
+    null,
+  );
+  assert.match(
+    definitionDifference(
+      { ...silhouette, attachment: { kind: "silhouette" } },
+      silhouette,
+    ),
+    /^definition\.attachment\.fill \(saved undefined, expected "tint"\)$/,
+  );
 });
 
 test("editor image records carry type, size and digest", async () => {
