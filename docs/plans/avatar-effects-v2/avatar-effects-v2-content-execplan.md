@@ -855,6 +855,16 @@ so a default against another value is reported as both values. Tests added.
 Checks: asset, effects and render-source tests 54/54, prettier and
 `web:lint` pass.
 
+#### P4–P6 Code Review #3 (repair round 2)
+
+Pass. P46-R2-01 fixed (the documented flipbook without `loop` matches
+through the creator's real normalizer; all round-2 probes still match) and
+the wording item resolved; no regressions (defaults on both sides, saved-only
+non-default values, missing objects, kind mismatches, order independence,
+inputs unchanged). Optional P46-R3-01, not changed: a whole object present
+on one side is shown without its default fields; the difference is still
+reported at the right path. The P4–P6 review is complete.
+
 ### P7 — Reaction wiring (R15). Gate G3.
 
 1. Starts after #337 merges and this branch has merged `main`: Included
