@@ -47,7 +47,7 @@ from animama.orm.model_provider import ORMModelProvider
 from animama.server.config import Settings
 from animama.server.local_runtime import LocalRuntimePaths, initialize_local_runtime
 from tests.anima_creation_service_support import anima_creation_fixture, vrm, write_file, write_json
-from tests.content_package_helpers import reviewed_import
+from tests.content_package_helpers import anima_clip, reviewed_import
 from tests.migration_database_helpers import migrated_database, migration_postgres  # noqa: F401
 from tests.test_content_gltf import _fixture_document, _glb_source
 
@@ -103,15 +103,9 @@ async def _sender(session: AsyncSession, root: Path) -> AsyncIterator[_Installat
         write_file(local / "avatars/local-avatar.vrm", vrm("Original cross-installation avatar"))
         gltf, binary = _fixture_document(buffer_uri=None)
         write_file(local / "gestures/wave/motion.vrma", _glb_source(gltf, binary))
-        clip = {
-            "schema": "animaPoseClip/1.0",
-            "id": "nod",
-            "name": "Nod",
-            "duration": 1,
-            "poses": {"turn": {"humanoid": {"head": {"rotationEulerDegrees": [0, 15, 0]}}}},
-            "poseKeyframes": [{"time": 0, "pose": "turn"}],
-            "events": [{"id": "tone", "time": 0, "kind": "sfx", "cueId": "chime"}],
-        }
+        clip = anima_clip(
+            clip_id="nod", name="Nod", events=[{"id": "tone", "time": 0, "kind": "sfx", "cueId": "chime"}]
+        )
         for kind, name in (("gesture", "nod"), ("reaction", "joy-2")):
             directory = local / f"{kind}s/{name}"
             (directory / "motion.vrma").unlink(missing_ok=True)

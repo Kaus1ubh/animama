@@ -26,7 +26,18 @@ export function unsupportedAnimaPoseClipFormatMessage(
 ): string {
   return schema === RETIRED_ANIMA_POSE_CLIP_SCHEMA
     ? `This clip uses the retired ${RETIRED_ANIMA_POSE_CLIP_SCHEMA} format, which is no longer supported. Only ${ANIMA_POSE_CLIP_V2_SCHEMA} clips can be played, edited or imported.`
-    : `Unsupported clip format${schema ? ` "${schema}"` : ""}. Only ${ANIMA_POSE_CLIP_V2_SCHEMA} clips can be played, edited or imported.`;
+    : `Unsupported clip format${nameable(schema) ? ` "${schema}"` : ""}. Only ${ANIMA_POSE_CLIP_V2_SCHEMA} clips can be played, edited or imported.`;
+}
+
+/** Name only a short, printable schema, as the backend does. */
+function nameable(schema: string | null): schema is string {
+  return (
+    schema !== null &&
+    schema.length > 0 &&
+    schema.length <= 64 &&
+    // eslint-disable-next-line no-control-regex
+    !/[\u0000-\u001f\u007f-\u009f]/.test(schema)
+  );
 }
 
 function schemaOf(value: unknown): string | null {

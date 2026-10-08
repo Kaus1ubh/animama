@@ -76,7 +76,7 @@ poses as `base_pose`, but nothing reads that field.
 - [x] Phase 1: Included conversion (#356). G1 passed and reviews #1–#2 passed on 2026-10-08.
 - [x] Phase 2: Local migration tool (#357). G2 done (all dry runs found 0); reviews #1–#2 passed.
 - [x] Phase 3: Frontend 1.0 removal and rejection (#358). Reviews #1–#2 passed; fast journeys 36/36.
-- [ ] Phase 4: Backend 1.0 removal and rejection (#359). Review pending.
+- [x] Phase 4: Backend 1.0 removal and rejection (#359). Reviews #1–#3 passed.
 - [ ] Phase 5: Docs, skill and ADR.
 - [ ] Final integration review, full journeys, live checks (G3), PR.
 
@@ -708,12 +708,108 @@ delegated to a subagent that owned `tests/` only.
     `clip_format_unsupported` diagnostic;
   - the retired pose-clip per-event-audio round trip was deleted.
 - Checks: full `uv run pytest -q -p no:cacheprovider`: 3239 passed, 10 skipped,
-  0 failed. `uv run ruff check` and `ruff format --check` are clean. No API
+  0 failed before review; 3248 passed, 10 skipped, 0 failed after the repairs. `uv run ruff check` and `ruff format --check` are clean. No API
   schema changed, so the SDK was not regenerated.
 
-#### Phase 4 Code Review #1 Findings / Revisions
+#### Phase 4 Code Review #1 Findings
 
-<pending>
+Independent `sdlc-reviewer`, initial round. Its checks: ruff, the 13 changed
+backend test files (380 passed), the frontend errors test, and read-only probe
+scripts that confirmed F1–F3.
+
+- **P4-CR1-F1 (blocking):** a package with an undeclared 1.0 clip in the normal
+  layout was refused with the generic `package_entry_invalid`, because the
+  scan diagnostic made the entry invalid before `_clip` ran.
+- **P4-CR1-F2 (blocking):** Actions without `file_role`, a supported implicit
+  `sequence` layout, skipped the format check, so scan and Save admitted a 1.0
+  clip.
+- **P4-CR1-F3 (blocking):** a legacy Action whose motion is a retired pose clip
+  stayed VALID with no diagnostic after the transitions were deleted.
+- **P4-CR1-F4 (blocking):** the Phase 3 commit contained the Phase 4 backend
+  deletions, which `git rm` had staged, and could not import.
+- **P4-CR1-F5 (blocking):** the planned Save, router, end-to-end undeclared
+  import, legacy pose-clip and no-`file_role` rejection tests were missing.
+- **P4-CR1-F6 (blocking):** a source-review record of a deleted test file
+  remained.
+- Optional findings:
+  - a duplicate 2.0 schema constant;
+  - a stale "as for 1.0" docstring;
+  - a dead `_KIND_FIELDS[POSE_CLIP]` list;
+  - an unreachable `"pose_clip"` file role in the idle transition;
+  - an unbounded schema echo in diagnostics;
+  - hint wording that covered import only.
+- Confirmed by the reviewer: the shared idle-fixture conversion kept each
+  case's intent. The deleted transition services did nothing for shipped
+  content: there are no Included pose clips or content-dependency Actions.
+
+#### Phase 4 Code Review #1 Revisions
+
+- F1 accepted: `ContentPackageArchive` raises `clip_format_unsupported` when
+  the inspected entry carries that diagnostic.
+- F2 accepted: `validate_action_clip_files` uses `file_role or "sequence"` and
+  reads any declared clip file.
+- F3 accepted: an `anima_clip` Action whose `content_dependency_ref` names a
+  `pose_clip` dependency gets the retired-format diagnostic.
+- F4 accepted: the Phase 3 commit was rebuilt locally (it had not been pushed)
+  with only `src/frontend` and the plan. It is now `29e9bf62`. The shared idle
+  fixture lands with Phase 4, so frontend `IdlePlaybackContract` passes from the
+  Phase 4 commit on.
+- F5 accepted. New tests:
+  - `tests/test_clip_format_rejection.py`: scan with an implied role, a legacy
+    pose-clip Action, Save for both layouts, and a `PackageRoute` returning the
+    fixed hint without echoing data;
+  - `test_undeclared_retired_clip_is_refused_with_its_reason` in the v3
+    archive tests, for both layouts.
+  - The v3 package builder is shared by the inferred-role tests.
+- F6 accepted: the record was removed.
+- Optional findings accepted:
+  - one schema constant (`clip_format.ANIMA_POSE_CLIP_SCHEMA`);
+  - the docstring fix;
+  - an empty `_KIND_FIELDS[POSE_CLIP]` with a comment;
+  - a schema is named in messages only when it is short and printable;
+  - the hint says "imported or exported", in both the backend and the
+    frontend map.
+- Optional finding not taken: the `"pose_clip"` role in the idle transition
+  stays. Older owned clip files may still carry that role, and removing it
+  gains nothing.
+
+Repair round 1 used.
+
+#### Phase 4 Code Review #2 Findings
+
+Targeted recheck. F1, F3, F4, F6 and the optional items were verified (293
+tests passed, ruff clean).
+
+- **P4-CR2-F1 (blocking):** the rest of CR1-F2. An Action whose descriptor
+  lists no `files` (the scanner infers the `sequence` role) still passed scan
+  and Save with a 1.0 clip.
+- Optional: the frontend message named any schema, while the backend bounds it.
+
+#### Phase 4 Code Review #2 Revisions
+
+- P4-CR2-F1 accepted: when a descriptor lists no files, every companion is a
+  candidate clip. New tests cover scan and Save for that layout. 303 tests
+  passed across the affected backend files.
+- Optional accepted: `unsupportedAnimaPoseClipFormatMessage` names only a short
+  (64 characters or fewer), printable schema, matching the backend. 370
+  frontend tests passed.
+
+Repair round 2 used (the budget limit).
+
+#### Phase 4 Code Review #3
+
+Final targeted recheck: pass. P4-CR2-F1 is closed, and no Included Action uses
+a descriptor without files. Two optional findings were not taken:
+
+- P4-CR3-F1: in a no-files Action, an extra non-clip JSON companion is reported
+  as an unsupported clip. The scanner already gives such companions the
+  `sequence` role, so the entry was ambiguous before and was rejected by idle
+  playback and packaging. Only the wording differs.
+- P4-CR3-F2: the frontend and backend schema-name bounds differ for rare
+  Unicode format characters and for UTF-16 against code-point length. The 1.0
+  wording and ordinary schemas match.
+
+Phase 4 complete.
 
 ### Phase 5: Docs, skill and ADR
 

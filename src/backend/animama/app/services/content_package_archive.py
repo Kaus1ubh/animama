@@ -30,6 +30,7 @@ from animama.app.contracts.content_package import (
     safe_package_path,
 )
 from animama.app.ports.content_store import ContentStore
+from animama.app.services.clip_format import CLIP_FORMAT_UNSUPPORTED
 from animama.app.services.content_kind_registry import (
     MAX_JSON_BYTES,
     _validate_bounded_json,
@@ -369,6 +370,9 @@ class ContentPackageArchive:
         if len(scanned) != 1 or scanned[0].relative_locator != locator:
             raise ContentConflictError("package_entry_members_mismatch")
         item = scanned[0]
+        if any(diagnostic.code == CLIP_FORMAT_UNSUPPORTED for diagnostic in item.diagnostics):
+            # Name the retired clip format rather than a generic invalid entry.
+            raise ContentConflictError(CLIP_FORMAT_UNSUPPORTED)
         if item.kind is not entry.kind or item.status is not ContentStatus.VALID:
             raise ContentConflictError("package_entry_invalid")
         if item.logical_key != entry.package_entry_id or item.display_name != entry.display_name:

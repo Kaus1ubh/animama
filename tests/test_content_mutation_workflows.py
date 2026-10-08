@@ -23,7 +23,7 @@ from animama.domain.content_catalog import CatalogContentEntry, ContentConflictE
 from animama.orm.content_catalog import ORMContentCatalogItem
 from animama.orm.content_mutation import ORMContentMutationReceipt
 from animama.server.local_runtime import LocalRuntimePaths
-from tests.content_package_helpers import package_services, reviewed_export, reviewed_import, vrma
+from tests.content_package_helpers import anima_clip, package_services, reviewed_export, reviewed_import, vrma
 
 
 @dataclass
@@ -294,17 +294,7 @@ async def test_gesture_candidate_preview_carries_only_exact_finite_idle_facts(
         filename, role, payload = "motion.vrma", "animation", _glb_source(gltf, binary)
     else:
         filename, role = "motion.json", "sequence"
-        payload = json.dumps(
-            {
-                "schema": "animaPoseClip/1.0",
-                "id": "candidate",
-                "name": "Candidate",
-                "poses": {"rest": {}},
-                "poseKeyframes": [{"time": 0, "pose": "rest"}],
-                "duration": 1,
-                "loop": True,
-            }
-        ).encode()
+        payload = json.dumps(anima_clip(clip_id="candidate", name="Candidate", loop=True)).encode()
     config = {"time_scale": 0.5, "loop_type": "repeat", **({"loop_count": 3} if finite else {})}
     saved = await workflow.saves.save_descriptor(
         user_id=workflow.owner,
@@ -473,16 +463,12 @@ async def test_gesture_save_and_package_keep_layer_mutes_and_unknown_clip_fields
     """Optional clip metadata is stored and packaged verbatim; the backend does not strip it."""
 
     sequence = json.dumps(
-        {
-            "schema": "animaPoseClip/1.0",
-            "id": "wave-hello",
-            "name": "Wave Hello",
-            "poses": {"rest": {}},
-            "poseKeyframes": [{"time": 0, "pose": "rest"}],
-            "duration": 1,
-            "mutedProceduralLayers": ["sway", "cursorLookAt"],
-            "generator": {"tool": "animama-animation"},
-        }
+        anima_clip(
+            clip_id="wave-hello",
+            name="Wave Hello",
+            mutedProceduralLayers=["sway", "cursorLookAt"],
+            generator={"tool": "animama-animation"},
+        )
     ).encode()
     saved = await workflow.saves.save_descriptor(
         user_id=workflow.owner,
