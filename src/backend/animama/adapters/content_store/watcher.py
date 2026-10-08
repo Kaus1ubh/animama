@@ -14,6 +14,20 @@ from animama.utils.files import path_is_link
 
 type _PathSignature = tuple[int, int, int, int, int]
 _NOT_TRACKED = object()
+# The scanner skips hidden names except this interrupted multi-file Save marker.
+_SCANNED_HIDDEN_NAME = ".animama-operation"
+
+
+def _scanner_ignores(relative_parts: tuple[str, ...]) -> bool:
+    """Mirror the scanner's hidden-name rule for one root-relative path.
+
+    Mutation journals stage, back up and restore bytes under hidden names on
+    every Local write. Forwarding those events would schedule scans that can
+    never observe them.
+    """
+
+    *directories, name = relative_parts
+    return any(part.startswith(".") for part in directories) or (name.startswith(".") and name != _SCANNED_HIDDEN_NAME)
 
 
 class ContentWatcher:
@@ -60,6 +74,8 @@ class ContentWatcher:
                 continue
             for directory, directory_names, file_names in os.walk(root, followlinks=False):
                 parent = Path(directory)
+                # Hidden trees are never classified, so their signatures are unused.
+                directory_names[:] = [name for name in directory_names if not name.startswith(".")]
                 for name in (*directory_names, *file_names):
                     path = (parent / name).absolute()
                     signature = self._signature(path)
@@ -78,6 +94,8 @@ class ContentWatcher:
             except ValueError:
                 continue
             if relative.parts and all(part not in {"", ".", ".."} for part in relative.parts):
+                if _scanner_ignores(relative.parts):
+                    return None
                 return source, relative.as_posix()
         return None
 
