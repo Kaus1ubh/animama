@@ -1781,6 +1781,8 @@ The concrete proposed amendment preserves main2.0 behavior, genuine C forward/ol
 
 Actual historical native reproduction is now available: the separately built unmodified genuine C shows “Unavailable here” in both real Electron PiP/Quick Chat windows, with correct preload roles and real self-hosted capabilities. This is explicitly retrospective baseline RED, alongside the current-source actual GREEN above. The old native stack is stopped through exact ownership checks with volumes/images/evidence retained. Current native teardown refused before mutation because the guard treated a distinct similarly prefixed project as owned; C6H owns the focused exact-namespace correction. No unrelated resources were stopped.
 
+C6H's final bounded repair2/2 corrects that exact-namespace guard and passes independent analysis plus31 independently rerun affected cases, retaining all44 foreign-resource mismatch controls. Actual current native teardown then passes with zero owned containers; log SHA0b7f9d1107c8f2ee39258dadd6703470974b9b051a4a0cddb2946266939e4d48. The completed Cloud author database is also stopped through its checked-in guarded wrapper. Task data/images/evidence and unrelated stacks remain. Both repositories have verified source checkpoints; A7's unchanged artifact gate and its explicitly proposed extension are still pending owner decision. Parent/child trackers record the blocker and next phase order.
+
 ## Final integration review
 
 A6's review closes integration of A1–A6; do not reopen those reviews. A7 has the new scope's separately bounded review above, reusing valid inherited evidence.
