@@ -11,23 +11,8 @@ import {
   type AppearanceColorToken,
   type AppearanceMode,
 } from "@/lib/theme/appearance-overrides";
-import {
-  BODY_WEIGHT_OPTIONS,
-  FONT_PREVIEW_OPTIONS,
-  readFontPreview,
-  writeFontPreview,
-  type BodyWeight,
-  type FontPreview,
-} from "@/lib/theme/font-preview";
 import { Button } from "@/ui/components/button";
 import { Input } from "@/ui/components/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/ui/components/select";
 import { SettingsRow } from "@/ui/settings/SettingsLayout";
 import { useSettings } from "@/ui/settings/SettingsProvider";
 import { THEME_MODES, type ThemeMode } from "@/ui/theme/theme-provider";
@@ -389,73 +374,6 @@ export function ResetColorsSetting() {
         >
           Reset all
         </Button>
-      }
-    />
-  );
-}
-
-const BODY_WEIGHT_LABELS: Record<BodyWeight, string> = {
-  400: "Regular",
-  500: "Medium",
-  600: "Semibold",
-};
-
-/**
- * TEMPORARY typeface and body-weight picker for choosing the app typeface
- * (issue #320). Remove with `lib/theme/font-preview.ts`.
- */
-export function FontPreviewSetting() {
-  const [preview, setPreview] = useState<FontPreview>(readFontPreview);
-  const update = (next: FontPreview) => {
-    setPreview(next);
-    writeFontPreview(next);
-  };
-
-  return (
-    <SettingsRow
-      label="Typeface preview"
-      description="Temporary: compare candidate typefaces and body weights. Saved on this device."
-      control={
-        <div className="flex flex-wrap items-center gap-2">
-          <Select
-            value={preview.font}
-            onValueChange={(font) => update({ ...preview, font })}
-          >
-            <SelectTrigger className="w-48" aria-label="Typeface">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {FONT_PREVIEW_OPTIONS.map((option) => (
-                <SelectItem
-                  key={option.key}
-                  value={option.key}
-                  style={
-                    option.family ? { fontFamily: option.family } : undefined
-                  }
-                >
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select
-            value={String(preview.weight)}
-            onValueChange={(weight) =>
-              update({ ...preview, weight: Number(weight) as BodyWeight })
-            }
-          >
-            <SelectTrigger className="w-32" aria-label="Body text weight">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {BODY_WEIGHT_OPTIONS.map((weight) => (
-                <SelectItem key={weight} value={String(weight)}>
-                  {BODY_WEIGHT_LABELS[weight]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
       }
     />
   );

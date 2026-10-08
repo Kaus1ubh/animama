@@ -69,8 +69,7 @@ icons.
   the root.
 - Weight: body text is regular (400). Use `font-medium` for labels and controls,
   `font-semibold` for headings and emphasis, and `font-bold` sparingly.
-- The typeface is under evaluation through a temporary Settings > Appearance >
-  Typeface preview control; Nunito is the default.
+- The typeface is DM Sans, self-hosted through `@fontsource-variable/dm-sans`.
 
 ## Spacing, shape and elevation
 

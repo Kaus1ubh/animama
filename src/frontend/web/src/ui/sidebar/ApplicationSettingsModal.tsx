@@ -83,7 +83,6 @@ import {
   AppearanceColorSetting,
   ResetColorsSetting,
   AppearanceModeSetting,
-  FontPreviewSetting,
 } from "@/ui/settings/AppearanceSettings";
 import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
 import {
@@ -1260,14 +1259,6 @@ export function ApplicationSettingsModal({
       label: "Theme",
       keywords: ["theme", "mode", "dark", "light", "system", "dark mode"],
       render: () => <AppearanceModeSetting />,
-    },
-    {
-      id: "appearance-font-preview",
-      section: "Appearance",
-      group: "Theme",
-      label: "Typeface preview",
-      keywords: ["font", "typeface", "text", "weight", "typography"],
-      render: () => <FontPreviewSetting />,
     },
     ...APPEARANCE_COLOR_TOKENS.filter((token) => token.group === "basic").map(
       (token): SettingEntry => ({
