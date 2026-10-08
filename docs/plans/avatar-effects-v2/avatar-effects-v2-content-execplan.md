@@ -539,6 +539,9 @@ item reopened). This completes the R12–R13 acceptance item.
     model-dependent offsets. Split out as a separate fix task (offered to
     the owner 2026-10-08); until it lands the skill tells authors to keep
     floating `offset.x`/`offset.z` at 0. It should land before P4.
+    Resolved 2026-10-08 by #376 (issue #363): floating offsets use the
+    Avatar's front frame on both models, and the skill's note is removed.
+    This branch needs `main` merged in to carry the runtime fix.
   - Name rule undocumented: the app refused "Sweat Drop (dry run)" (409
     `invalid_entry_name`). Fixed: `effects save` checks names before saving
     (`localEntryName`, mirroring the backend's `readable_entry_name`) and

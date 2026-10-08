@@ -37,12 +37,9 @@ is not needed in a draft.
     `top` or `top_edge`. `position` (`left`, `middle`, `right`, plus
     `left_corner`/`right_corner` on `top_edge`) is required for forehead,
     top and top_edge and not allowed otherwise. Eyes take `side` and
-    `mirror` (draw the right eye and mirror it). `offset` (metres; +y up),
-    `scale` `{x,y}`, `rotationDeg` `{x,y,z}`. **Known issue:** `offset.x` and
-    `offset.z` currently point opposite ways on the VRM 0 and VRM 1 Included
-    Avatars. Until it is fixed, place floating art with `landmark` and
-    `position` plus `offset.y` and `scale`, and keep `offset.x`/`offset.z` at
-    0 (mirrored eye effects mirror their x offset, so eyes are affected too).
+    `mirror` (draw the right eye and mirror it). `offset` (metres; +x toward
+    the viewer's right, +y up, +z forward, the same on VRM 0 and VRM 1),
+    `scale` `{x,y}`, `rotationDeg` `{x,y,z}`.
   - `face_surface` — painted art: `part` (`face_skin`, `eye_iris`,
     `eye_highlight`, `eyeline`, `eyelash`) and `area`. `full` and `eyes`
     cover the part's texture layout (art drawn to that UV layout);
