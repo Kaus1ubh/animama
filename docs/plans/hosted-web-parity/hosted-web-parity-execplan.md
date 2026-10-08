@@ -1820,6 +1820,15 @@ The corrected genuine-C legacy diagnostic passes12 receipts, including actual un
 
 Final narrow independent checks pass four affected Node cases, zero skips, formatting, syntax and whitespace, reusing unchanged checker/Ruff evidence (receipt SHAe1d3c41aa0d8df03c5e3b1b24c279db6dc703e9e35ae5210ec10fbc02ce4680c). Four source hashes match freeze61ac40d0821458a576b6c16b458e11c4032d1fea9c9d02bee17c3ad6c2a7479c; all3,420 source paths/modes are unchanged except the authorized plan record. A checker-only receipt-shape assertion is retained separately from the corrected readback. Accept source repair6 for a clean artifact checkpoint. Actual repeated production/all-eight/full legacy browser and Cloud acceptance remain required; do not infer phase completion from this source pass.
 
+
+#### Clean successor artifact acceptance — 2026-10-08
+
+Actual clean successor8b1ec935e93f85d85d3ec72ace7efa2dfd77557a (treea018299c53d83303194e52e75333eafe3eff53d8) passes two independent producer builds with equal manifestb5e5487b2def83da6c30974a1365214aed4c4dcd4ee08e25a4d4b7ce3b9c1bc1 and all nine payloads. All eight installed/emitted consumer gates and retained compatibility pass; producer receipt SHAef3cf30323d641a2e9509ea7077e65d56ee0b803a3c103f928f4f2eb7826e8ee, consumer log SHAb8ff5ebc353818da586b9a841c1b33a8649470d4f355170cacb285dfa9842123.
+
+The actual2.0 pair with retained11c passes six edited-data receipts and reports shared runtime bytes honestly (browser receipt SHA1d2ddd64ff7e873149eb43e6ce4539c79928ab744a55e533a32fa94d58d5442c). A separate full genuine-C journey passes different resource generations, old-tab late workers, rollback entry and12 legacy clip receipts, including unchanged1.0 bytes and explicit unsupported edited2.0 refusal (browser receipt SHA6b6a975de2ab522eafda64f35558f6ca05597702c5d5ce8e01f70feccb432534). No previous failure evidence is overwritten. Physical microphone/heard audio and final local-production comparison remain explicitly unperformed by these artifact consumers.
+
+Cloud's owning binder independently verifies the four actual producer directories and binds this current/retained pair while preserving all six ordinary dependency inputs. The binding is test-only premerge authority; full selected-source Cloud checks and fresh journeys remain the next gate before coordinated A7/C6H completion. Ordinary pin promotion, exact-candidate merge and live/device acceptance remain separate.
+
 ## Final integration review
 
 A6's review closes integration of A1–A6; do not reopen those reviews. A7 has the new scope's separately bounded review above, reusing valid inherited evidence.
