@@ -98,7 +98,7 @@ contract instead of maintaining a second truth.
 - [x] 2026-10-06 [A5 / #277](https://github.com/raymond-van/animama/issues/277): engineering/artifact gate PASS after independent final analysis/checks. Clean A `8b09e7ff` and reviewed main-integrated B `e4e0661b` pass independent producer/installed-and-emitted consumer, same-source A production observations and genuine A/B/open-tab/rollback/clip gates. Repair rounds remain 1 of 2; measurement and inherited descriptive-field limits are recorded below. C6/A6 are ready; main adoption, provider/device/deployment and exact-candidate owner merge remain separate.
 - [x] 2026-10-08 [A6 / #278](https://github.com/raymond-van/animama/issues/278): engineering/artifact handoff complete at public `df0faae1` / manifest `4ee249ed`. Approved repair6/6, independent all79/79 browser checks, producer/compatibility/all eight installed-emitted consumers and genuine retained-C rollback pass. Consumer C6 final common24/admin8/lifecycle8 and independent evidence applicability pass. Native CI run37563677832 executed zero steps and remains explicitly owner-waived; no CI success, owner merge, main adoption, real-provider/device or deployment acceptance is claimed.
 
-- [ ] 2026-10-08 [A7 / #333](https://github.com/raymond-van/animama/issues/333): shared recovery, deadlines, resource lifetimes and actual Electron/Compose checks pass. Independent source review/check findings are resolved; six repairs are recorded under the approved extension. Successor8b1ec935 passes two matching builds, all eight consumers, compatible2.0 edited-data rollback and separate legacy acceptance. Final consumer handoff remains pending. A1–A6 history and CI waiver remain intact.
+- [x] 2026-10-08 [A7 / #333](https://github.com/raymond-van/animama/issues/333): engineering handoff complete after `coordinated consumer acceptance SHA-256 23d38210f4357a0cb24cbe409e4dd634b475779321b6648de4b009f2291eea53`. Shared recovery, provider deadlines, resource lifetimes, native Electron/Compose checks, repeated successor8b1ec935 production, all eight consumers, compatible2.0 rollback and separate genuine-C legacy acceptance pass. Coordinated exact-artifact full/common24/admin8/lifecycle8/eight-screen fan-out acceptance and final applicability pass. A7 consumed six repairs under the standing extension; A1–A6 histories and CI waiver remain intact. Exact-candidate merge, validated-main adoption, promotion/readback and C7 live gates remain separate.
 
 ## Surprises & Discoveries
 
@@ -1899,25 +1899,19 @@ contracts; the coverage map tracks acceptance rather than duplicating the spec.
 
 ## Outcomes & Retrospective
 
-A1–A5 and C1–C5 engineering gates have passed, including clean package production,
-installed/emitted consumers and genuine upgrade/rollback. Final integration and
-the actual Cloud common-app journey exposed seven public findings. R1–R3 passed
-their targeted review; the owner-authorized extra repair resolves R4–R6 in source
-after independent analysis/checks and matching full frontend validation. Clean220
-producer/installed-consumer/rollback passes; actual native CI attempts1/2 fail.
-The actual hosted journey confirms mobile Library finding R7. Its approved A6
-repair4of4/owning A3 3of3 passes four author browser regressions and independent
-targeted analysis/checks. Cleanf646 successor validation passes; bounded incoming
-main integration passes analysis and17 packaging tests after declared environment
-preparation. Clean5d95 producer/guard/all eight installed-emitted consumer and
-genuine retained-C rollback checks pass. Actual native CI then fails two initial
-load waits before behavior assertions; hosted fixture7 stops at the first Settings
-body read after six checks and zero paid roots. Causes remain unconfirmed and the
-owner approves one additional bounded A6 validation repair round5/5; all other
-counts remain. Full hosted
-replacement, passing actual CI and owner/main/provider/device/deployment gates
-precede overall parity acceptance. Existing failures, resource limits and phase repair counts remain
-recorded above. The agreed interleaved order remains authoritative.
+
+Final A7 completion, 2026-10-08: coordinated consumer acceptance includes eight
+cold/warm screen phases under four seconds each, all original native reads
+consumed, and independent source/ledger/custody applicability. Companion readiness
+waits for the current mount's actual first frame and optional resource completion
+within the original deadline. Earlier failed measurements remain retained;
+engineering acceptance does not substitute for C7 live/provider/device checks.
+
+A1–A7 engineering gates are complete. The reviewed immutable successor8b1ec935 passes repeated production, all eight installed/emitted consumers, compatible2.0 edited-data rollback and separate genuine-C legacy acceptance. Source-applicable native PiP/Quick Chat and recovery/deadline/resource checks pass. Coordinated consumer full validation and fresh controlled common24/admin8/lifecycle8/eight-screen fan-out acceptance pass (`coordinated consumer acceptance SHA-256 23d38210f4357a0cb24cbe409e4dd634b475779321b6648de4b009f2291eea53`).
+
+A7 retains six consumed repairs under the approved extension; A3 retains3/3 and A6 approved6/6. Historical failures and their source-bound corrections remain above. The clip2.0 rollback floor is a verified2.0-capable generation; genuine C is not valid after2.0 edits. CI is owner-waived, not passed.
+
+Public #272 remains open for C7 implementation and actual provider/device/audio, recovery/deletion, resource and matched local/Cloud acceptance. Present the exact final candidate for owner merge approval, then require successful-main artifact adoption and separately authorized promotion/readback before C7 live integration. No merge, promotion or deployment authority is implied.
 
 Revision note, 2026-10-05: initial plan separates reusable public implementation
 from hosted operations and prevents a circular public-merge/consumer-pin gate.
