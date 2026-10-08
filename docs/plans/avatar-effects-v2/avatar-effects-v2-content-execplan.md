@@ -938,8 +938,13 @@ G3: the owner reviews the mapping table and plays the wired Reactions in
   embarrassment, gratitude and love gain their first. No Reaction uses
   Mouth w or Mouth Hover w. `shy-finger-poke` plays Eye VV in place of Eye
   VV Pair (same time and duration). New events follow the existing ones'
-  pattern: no duration (held for the Reaction), starting at 0.1 s, 0.05 s
-  apart within the clip.
+  pattern: no duration (held for the Reaction), starting at 0.1 s or a little
+  later within the clip's short duration (0.12–0.22 s), so several start
+  together.
+- Departures from the effect briefs' suggested tiers, for G3: Steam puffs is
+  on annoyance-3 (brief: annoyance 2), Blush also on desire-3 and love-3,
+  Heart throb also on gratitude-3, Sweat drop also on fear-2; love-1 has no
+  effect (Heart throb's brief suggested it, but tier 1 stays quiet).
 - Dry run of the whole promotion (22 effects, 4 deletes, 48 Reactions, the
   Gesture): 115 changes, nothing written; 29 Reactions and the Gesture
   change, the other 19 listed Reactions are unchanged files.
@@ -947,6 +952,64 @@ G3: the owner reviews the mapping table and plays the wired Reactions in
   embarrassment-2 and -3, gratitude-3, fear-2; `effects:render --together`)
   and anger-3 in the live preview on both Avatars: every effect reads and
   none hides another.
+- Step 5 (tests pinning the mapping, and a test that no Included Action
+  uses a mouth effect) moves to P8: it can only pass once the promotion
+  lands.
+
+#### P7 Code Review #1 Findings
+
+`sdlc-reviewer`, initial review of `c5c32532` on `691a8b57`. Checks:
+effects tests 14/14 (also on an exact-source copy), prettier and `web:lint`
+pass; the dry run reproduced byte for byte; a scratch apply of all 115
+changes scanned VALID by the backend store (213 entries, 25 effects); a
+re-plan of the applied result wrote nothing. The drafts implement the table
+exactly and keep the region rules. Blocking:
+
+1. **P7-R1-01** — the Reaction body check missed `joints` (and `basePose`,
+   `contacts`, `plantFeet`, `mutedProceduralLayers`); a Reaction with joint
+   tracks would be promoted and then skipped by the runtime.
+2. **P7-R1-02** — only `avatar_vfx` and `particle_vfx` events were checked;
+   a `scene_vfx` preset or `sfx` cue without its dependency passed.
+3. **P7-R1-03** — the kept lifetime was `playback` only; a Gesture's
+   lifetime is `loop`, which could flip.
+
+Optional: P7-R1-04 a dependency's `content_type` was not checked against the
+item it names; P7-R1-05 the record misstated new event times; P7-R1-06
+departures from the briefs' tiers were not recorded; P7-R1-07 step 5 had no
+recorded outcome; P7-R1-08 licence and provenance records of rewired
+Actions (P8 decision); P7-R1-09 an indented Gesture clip would be rewritten
+compact; P7-R1-10 the record test proved nothing and no Gesture test;
+P7-R1-11 two Vite loaders; P7-R1-12 the promote docs covered effects only.
+
+#### P7 Code Review #1 Revisions
+
+- **01 accepted:** Reactions are refused when they set any of the creator's
+  Reaction body fields (`joints`, `rotations`, `hipsPosition`, `hands`,
+  `contacts`, `plantFeet`, `basePose`, `mutedProceduralLayers`). Tests for
+  joints, rotations, basePose and plantFeet.
+- **02 accepted:** every event that plays content is checked by its alias
+  field (`effectId`, `presetId`, `cueId`) against a dependency of the right
+  type. Tests for a scene preset and a sound cue. Every Included Action
+  already declares all its events' aliases.
+- **03 accepted:** `loop` is kept with id, role and playback. Test: a Gesture
+  replace that would stop looping is refused.
+- **04 accepted:** a dependency must name Included content of its declared
+  type after the run. Test added.
+- **05–07 accepted:** record corrected and extended above.
+- **08 deferred to P8:** the owner's 2026-10-08 decision keeps existing
+  licence rules and records for edited files; rewiring a Reaction's effect
+  events changes no motion (the Gesture's "without motion changes" note
+  stays true). P8 confirms this when presenting G4.
+- **09 accepted:** a replaced clip keeps its file's form (compact or
+  indented). Test with an indented Gesture.
+- **10 accepted:** the fixture Reaction has source-review records and the
+  test asserts they are kept; a Gesture replace test was added.
+- **11 accepted:** one Vite loader serves both validators (`load`).
+- **12 accepted:** `avatar-vfx.md` and the skill's `promote.md` describe
+  Reaction and Gesture items and deletes checked after the run.
+
+Checks after revisions: effects, asset and render-source tests 55/55,
+prettier and `web:lint` pass; the full dry run is unchanged (115 changes).
 
 ### P8 — Promotion, documentation and acceptance (R16). Gate G4.
 

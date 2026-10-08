@@ -38,6 +38,20 @@ pnpm -s effects promote promote.json
 
 `name` and `description` may override the source's for an add;
 `description` for a replace. Effects with a sound cannot be promoted yet.
+
+Reactions and Gestures that use the effects are replaced in the same run,
+from creator project files (export from the Action creator, or the Included
+clip and meta with only effect events and dependencies changed):
+
+```json
+{ "kind": "reaction", "stem": "anger-3", "source": "anger-3.json", "mode": "replace" }
+```
+
+Their dependencies may point at the Local effects the owner reviewed; each
+one promoted in the run is re-pointed at its Included ID. The Included meta
+(ID, version, name, placement hint) and the clip's id, role and lifetime are
+kept, and Reactions stay expression-only. Deleting an effect is allowed once
+the same run re-points every Reaction or Gesture that used it.
 The tool validates each definition, its image names and its art, writes
 `content/included/vfx/avatar/<stem>/`, removes files a replacement no longer
 uses, and keeps `licenses/source-review.json` in step (the existing

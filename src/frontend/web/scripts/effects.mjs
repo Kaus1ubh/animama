@@ -55,7 +55,8 @@ function parseArgs(argv) {
 
 /**
  * Load a web module through Vite's SSR loader, so TypeScript and the `@`
- * alias resolve as in the app; `close` stops the loader.
+ * alias resolve as in the app; `load` loads another module through the same
+ * loader and `close` stops it.
  */
 async function loadWebModule(file) {
   const { createServer } = await import("vite");
@@ -81,6 +82,7 @@ async function loadWebModule(file) {
   try {
     return {
       module: await server.ssrLoadModule(file),
+      load: (other) => server.ssrLoadModule(other),
       close: () => server.close(),
     };
   } catch (error) {
@@ -142,12 +144,6 @@ async function runPromote(argv, cwd) {
     ? path.resolve(cwd, values["--local-content"])
     : defaultLocalContent();
   const validator = await loadWebModule("/src/lib/avatar/vfx/definition.ts");
-  const clipValidator = await loadWebModule(
-    "/src/lib/avatar/poses/animaPoseClip/schemaV2.ts",
-  ).catch(async (error) => {
-    await validator.close();
-    throw error;
-  });
   let changes;
   try {
     let raw;
@@ -157,6 +153,9 @@ async function runPromote(argv, cwd) {
       throw new EffectPromoteError(`${itemsFile}: ${error.message}`);
     }
     const items = parseEffectPromoteItems(raw, itemsFile);
+    const { validateAnimaPoseClipV2 } = await validator.load(
+      "/src/lib/avatar/poses/animaPoseClip/schemaV2.ts",
+    );
     for (const item of items) {
       if (item.mode === "delete") continue;
       if (item.kind !== "avatar_effect") {
@@ -189,7 +188,7 @@ async function runPromote(argv, cwd) {
       repo: workingTreeRepo(repoRoot),
       validate: validator.module.validateAvatarEffectDefinition,
       validateClip: (clip) => {
-        const result = clipValidator.module.validateAnimaPoseClipV2(clip);
+        const result = validateAnimaPoseClipV2(clip);
         if (!result.ok)
           throw new Error(
             `invalid animaPoseClip/2.0: ${result.issues
@@ -205,7 +204,6 @@ async function runPromote(argv, cwd) {
     return 1;
   } finally {
     await validator.close();
-    await clipValidator.close();
   }
   const dryRun = flags.has("--dry-run");
   for (const { path: relative, action, notes = [] } of changes) {

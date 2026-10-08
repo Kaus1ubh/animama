@@ -719,6 +719,14 @@ async function addReaction(root) {
     path.join(folder, "joy-2.meta.json"),
     `${JSON.stringify(meta, null, 2)}\n`,
   );
+  const reviewPath = path.join(root, "licenses/source-review.json");
+  const review = JSON.parse(await readFile(reviewPath, "utf8"));
+  for (const file of ["joy-2.json", "joy-2.meta.json"])
+    review.files.push({
+      path: `content/included/reactions/joy-2/${file}`,
+      basis: "Reaction",
+    });
+  await writeFile(reviewPath, JSON.stringify(review));
   return { clip, meta };
 }
 
@@ -800,8 +808,14 @@ test("promotion replaces a Reaction and points it at the promoted effects", asyn
   // Reaction files keep their existing source-review records.
   const records = JSON.parse(
     await readFile(path.join(root, "licenses/source-review.json"), "utf8"),
-  ).files.map((record) => record.path);
-  assert.ok(!records.some((record) => record.includes("reactions/")));
+  ).files.filter((record) => record.path.includes("reactions/"));
+  assert.deepEqual(records, [
+    { path: "content/included/reactions/joy-2/joy-2.json", basis: "Reaction" },
+    {
+      path: "content/included/reactions/joy-2/joy-2.meta.json",
+      basis: "Reaction",
+    },
+  ]);
 
   // A project equal to the Included Reaction changes nothing.
   const again = await planEffectPromotion(
@@ -853,10 +867,33 @@ test("promotion refuses Reactions it cannot keep consistent", async () => {
       /still used by .*joy-2\.meta\.json/,
     ],
     [[replace(clip, [meta.dependencies[1]])], /no dependency declares/],
+    ...[
+      { kind: "scene_vfx", presetId: "glow-bg" },
+      { kind: "sfx", cueId: "tap" },
+    ].map((event) => [
+      [
+        replace({
+          ...clip,
+          events: [...clip.events, { id: "x", time: 0, ...event }],
+        }),
+      ],
+      /no dependency declares/,
+    ]),
     [
-      [replace({ ...clip, rotations: { neck: [{ q: [0, 0, 0, 1] }] } })],
-      /expression-only/,
+      [
+        replace(clip, [
+          meta.dependencies[0],
+          { ...meta.dependencies[1], content_type: "avatar_effect" },
+        ]),
+      ],
+      /is a particle_effect/,
     ],
+    ...[
+      { rotations: { neck: [{ q: [0, 0, 0, 1] }] } },
+      { joints: { rightShoulder: { elevation: [{ v: 10, beat: "peak" }] } } },
+      { basePose: "relaxedRest" },
+      { plantFeet: true },
+    ].map((body) => [[replace({ ...clip, ...body })], /expression-only/]),
     [[replace({ ...clip, id: "joy-9" })], /keeps the Included clip's id/],
     [[replace({ ...clip, role: "gesture" })], /keeps the Included clip's role/],
     [[replace({ ...clip, schema: "animaPoseClip/1.0" })], /not 2\.0/],
@@ -875,6 +912,81 @@ test("promotion refuses Reactions it cannot keep consistent", async () => {
     ],
   ])
     await assert.rejects(plan(items), message);
+});
+
+test("promotion replaces a Gesture's effects and keeps its file's form", async () => {
+  const root = await fixtureRepo();
+  const folder = path.join(root, "content/included/gestures/wave");
+  await mkdir(folder, { recursive: true });
+  const clip = {
+    schema: "animaPoseClip/2.0",
+    id: "wave",
+    name: "wave",
+    duration: 1,
+    loop: true,
+    beats: [{ id: "a", time: 0 }],
+    rotations: { neck: [{ q: [0, 0, 0, 1], beat: "a" }] },
+    events: [{ id: "e", time: 0.3, kind: "avatar_vfx", effectId: "pair" }],
+  };
+  // A Prettier-formatted Gesture stays indented.
+  await writeFile(
+    path.join(folder, "wave.json"),
+    `${JSON.stringify(clip, null, 2)}\n`,
+  );
+  const meta = {
+    content_type: "gesture",
+    content_id: "builtin:gesture:wave",
+    dependencies: [
+      {
+        ref: "builtin:avatar-effect:old_pair",
+        alias: "pair",
+        content_type: "avatar_effect",
+        config: {},
+      },
+    ],
+    files: [{ path: "wave.json", role: "sequence" }],
+  };
+  await writeFile(
+    path.join(folder, "wave.meta.json"),
+    `${JSON.stringify(meta, null, 2)}\n`,
+  );
+  const wired = {
+    ...clip,
+    events: [{ id: "e", time: 0.3, kind: "avatar_vfx", effectId: "eye" }],
+  };
+  const eyeDependency = {
+    ref: "builtin:avatar-effect:eye",
+    alias: "eye",
+    content_type: "avatar_effect",
+  };
+  const plan = (sequence) =>
+    planEffectPromotion(
+      [
+        { kind: "avatar_effect", mode: "delete", stem: "old_pair" },
+        {
+          kind: "gesture",
+          mode: "replace",
+          stem: "wave",
+          project: project(sequence, [eyeDependency], "gesture"),
+        },
+      ],
+      { repo: workingTreeRepo(root), validate, validateClip },
+    );
+  // A one-shot cannot become a loop, or the reverse.
+  await assert.rejects(
+    plan({ ...wired, loop: false }),
+    /keeps the Included clip's loop/,
+  );
+  await applyEffectPromotion(root, await plan(wired));
+  assert.equal(
+    await readFile(path.join(folder, "wave.json"), "utf8"),
+    `${JSON.stringify(wired, null, 2)}\n`,
+  );
+  assert.deepEqual(
+    JSON.parse(await readFile(path.join(folder, "wave.meta.json"), "utf8"))
+      .dependencies,
+    [{ ...eyeDependency, config: {} }],
+  );
 });
 
 test("render refuses two sources with one stem for directory output", async () => {

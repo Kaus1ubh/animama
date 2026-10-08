@@ -62,13 +62,30 @@ const ACTION_ROOTS = {
   gesture: "content/included/gestures",
 };
 const ACTION_PROJECT_SCHEMA = "animamaActionProject/1.0";
-/** Clip tracks that move the body, which an Included Reaction never has. */
-const HUMANOID_TRACKS = ["rotations", "hipsPosition", "hands"];
-/** The dependency type each effect event plays. */
-const EVENT_CONTENT_TYPES = {
-  avatar_vfx: "avatar_effect",
-  particle_vfx: "particle_effect",
+/**
+ * Clip fields that move the body, which a Reaction never carries (the
+ * creator's `sanitizeReactionSequence`; the runtime skips a Reaction with
+ * humanoid channels).
+ */
+const REACTION_BODY_FIELDS = [
+  "joints",
+  "rotations",
+  "hipsPosition",
+  "hands",
+  "contacts",
+  "plantFeet",
+  "basePose",
+  "mutedProceduralLayers",
+];
+/** The alias field and dependency type of each event that plays content. */
+const EVENT_DEPENDENCIES = {
+  avatar_vfx: ["effectId", "avatar_effect"],
+  particle_vfx: ["effectId", "particle_effect"],
+  scene_vfx: ["presetId", "scene_effect"],
+  sfx: ["cueId", "sound_effect"],
 };
+/** What a replace keeps from the Included clip: identity and lifetime. */
+const KEPT_CLIP_FIELDS = ["id", "role", "playback", "loop"];
 
 /** Repository paths the tool reads or writes, relative to the repository root. */
 export const EFFECT_PROMOTE_PATHS = {
@@ -191,19 +208,20 @@ export async function planEffectPromotion(
   const effectItems = items.filter((item) => kindOf(item) === "avatar_effect");
   const metas = await repo.includedMetas();
 
-  // Content IDs that are Included after this run, and the Included ID each
-  // promoted effect source becomes.
+  // The content type of each content ID Included after this run, and the
+  // Included ID each promoted effect source becomes.
   const effectContentId = (stem) => `builtin:avatar-effect:${stem}`;
-  const includedIds = new Set(
+  const includedTypes = new Map(
     metas
-      .map(({ value }) => value.content_id)
-      .filter((id) => typeof id === "string"),
+      .filter(({ value }) => typeof value.content_id === "string")
+      .map(({ value }) => [value.content_id, value.content_type]),
   );
   const promotedRefs = new Map();
   for (const item of effectItems)
-    if (item.mode === "delete") includedIds.delete(effectContentId(item.stem));
+    if (item.mode === "delete")
+      includedTypes.delete(effectContentId(item.stem));
     else {
-      includedIds.add(effectContentId(item.stem));
+      includedTypes.set(effectContentId(item.stem), "avatar_effect");
       if (item.effect?.contentId)
         promotedRefs.set(item.effect.contentId, effectContentId(item.stem));
     }
@@ -215,7 +233,7 @@ export async function planEffectPromotion(
       const planned = planAction(item, kindOf(item), {
         repo,
         validateClip,
-        includedIds,
+        includedTypes,
         promotedRefs,
       });
       for (const [relative, content] of planned.writes)
@@ -386,14 +404,12 @@ export async function planEffectPromotion(
   return changes;
 }
 
-function hasTracks(value) {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    Object.values(value).some((track) =>
-      Array.isArray(track) ? track.length > 0 : hasTracks(track),
-    )
-  );
+/** Whether a clip field holds anything (an empty object or list does not). */
+function isSet(value) {
+  if (value === undefined || value === null) return false;
+  if (Array.isArray(value)) return value.length > 0;
+  if (typeof value === "object") return Object.keys(value).length > 0;
+  return true;
 }
 
 /**
@@ -403,7 +419,7 @@ function hasTracks(value) {
 function planAction(
   item,
   kind,
-  { repo, validateClip, includedIds, promotedRefs },
+  { repo, validateClip, includedTypes, promotedRefs },
 ) {
   const fail = (message) => {
     throw new EffectPromoteError(`${item.stem}: ${message}`);
@@ -437,15 +453,15 @@ function planAction(
   } catch (error) {
     fail(error.message);
   }
-  for (const key of ["id", "role", "playback"])
+  for (const key of KEPT_CLIP_FIELDS)
     if (JSON.stringify(clip[key]) !== JSON.stringify(originalClip[key]))
       fail(
-        `a replace keeps the Included clip's ${key} (${JSON.stringify(originalClip[key])}).`,
+        `a replace keeps the Included clip's ${key} (${JSON.stringify(originalClip[key]) ?? "unset"}).`,
       );
   if (kind === "reaction")
-    for (const track of HUMANOID_TRACKS)
-      if (hasTracks(clip[track]))
-        fail(`Reactions are expression-only; the clip has ${track} tracks.`);
+    for (const field of REACTION_BODY_FIELDS)
+      if (isSet(clip[field]))
+        fail(`Reactions are expression-only; the clip sets ${field}.`);
 
   const dependencies = [];
   const declared = new Map();
@@ -461,9 +477,13 @@ function planAction(
       fail('each dependency needs "alias", "ref" and "content_type".');
     if (declared.has(alias)) fail(`dependency alias "${alias}" repeats.`);
     const included = promotedRefs.get(ref) ?? ref;
-    if (!includedIds.has(included))
+    if (!includedTypes.has(included))
       fail(
         `dependency "${alias}" (${ref}) is not Included content after this promotion; promote it in the same run.`,
+      );
+    if (includedTypes.get(included) !== contentType)
+      fail(
+        `dependency "${alias}" is declared as a ${contentType}, but ${included} is a ${includedTypes.get(included)}.`,
       );
     declared.set(alias, contentType);
     dependencies.push({
@@ -474,20 +494,21 @@ function planAction(
     });
   }
   for (const event of Array.isArray(clip.events) ? clip.events : []) {
-    const contentType = EVENT_CONTENT_TYPES[event?.kind];
-    if (contentType && declared.get(event.effectId) !== contentType)
+    const [field, contentType] = EVENT_DEPENDENCIES[event?.kind] ?? [];
+    if (field && declared.get(event[field]) !== contentType)
       fail(
-        `event "${event.id}" plays "${event.effectId}", which no dependency declares as a ${contentType.replace("_", " ")}.`,
+        `event "${event.id}" plays "${event[field]}", which no dependency declares as a ${contentType.replace("_", " ")}.`,
       );
   }
 
   const meta = { ...original, dependencies };
+  // Keep the clip file's form: compact (Reactions) or indented.
+  const indented = clipText.trimEnd().includes("\n");
   return {
     metaPath,
     meta,
     writes: [
-      // Included clips are stored compact, metas indented.
-      [clipPath, `${JSON.stringify(clip)}\n`],
+      [clipPath, `${JSON.stringify(clip, null, indented ? 2 : undefined)}\n`],
       [metaPath, jsonFile(meta)],
     ],
   };

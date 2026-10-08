@@ -525,6 +525,15 @@ pnpm -s effects promote ./promote.json --dry-run
   file in the existing effect form and drops deleted files' records; the
   `vfx/avatar/**/*` licence rule already covers the files. Templates,
   thumbnails and pinned tests are updated separately.
+- The same run can `replace` the Reactions and Gestures that use the
+  effects (`"kind": "reaction" | "gesture"`), from a creator project file
+  (`animamaActionProject/1.0`): it keeps the Included meta and the clip's id,
+  role and lifetime, keeps Reactions expression-only, re-points dependencies
+  on Local effects promoted in the run to their Included IDs, and refuses a
+  dependency that is not Included content of its declared type afterwards or
+  an event whose effect, scene or sound no dependency declares. A delete is
+  checked against dependents after the run's replacements, so an effect and
+  its last users can change together.
 
 `library:local/...` sources read `ANIMAMA_LOCAL_CONTENT_HOST_PATH`, set by
 sourcing the stack record, unless `--local-content` is given.
