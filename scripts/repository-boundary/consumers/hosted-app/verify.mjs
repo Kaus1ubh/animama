@@ -60,11 +60,15 @@ const prefix = (app) =>
             file.path.endsWith("/resource-manifests/browser-runtime.json"),
         )
         .path.split("resource-manifests/")[0];
-if (other)
-    assert.notEqual(
-        prefix(initial),
-        prefix(upgraded),
-        "Two selections must have distinct verified resource bytes",
+// Consumer-only source revisions can legitimately emit identical runtime bytes.
+// The server rejects any shared immutable URL whose verified payload differs.
+const distinctResourceRevisions =
+    Boolean(other) && prefix(initial) !== prefix(upgraded);
+if (clipMode === "legacy-format-boundary")
+    assert.equal(
+        distinctResourceRevisions,
+        true,
+        "The separate legacy journey must exercise distinct resource generations",
     );
 const server = await createApplicationServer(apps, {
     vrmFile: path.join(initial.directory, "catalog-seed/included", avatar),
@@ -575,7 +579,7 @@ try {
             "No forced GC; Runtime.getHeapUsage; 100ms page heap samples; 1s summed browser-process RSS; page CDP encoded bytes plus server static body bytes including workers. Warm cases reuse the browser HTTP cache.",
         selection: {
             kind: process.argv[4] ?? "single-revision",
-            distinct_resource_revisions: Boolean(other),
+            distinct_resource_revisions: distinctResourceRevisions,
             initial_source: initial.manifest.source_commit,
             selected_source: upgraded.manifest.source_commit,
             initial_prefix: prefix(initial),

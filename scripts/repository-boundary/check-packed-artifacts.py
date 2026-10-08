@@ -375,7 +375,10 @@ def main() -> int:
             legacy_receipt = json.loads((legacy_tooling / "whole-app-receipt.json").read_text())
             legacy_clip = legacy_receipt["clip_compatibility"]
             if (
-                legacy_clip["mode"] != "legacy-format-boundary"
+                not legacy_receipt["selection"]["distinct_resource_revisions"]
+                or not legacy_receipt["selection"]["old_tab_late_worker"]
+                or not legacy_receipt["selection"]["rollback_entry"]
+                or legacy_clip["mode"] != "legacy-format-boundary"
                 or not legacy_clip["legacy_forward_conversion"]
                 or not legacy_clip["legacy_untouched_data_rollback"]
                 or legacy_clip["legacy_edited_data_rollback_supported"] is not False

@@ -450,6 +450,8 @@ export async function exerciseClipCompatibility(
                 await page
                     .getByLabel("AI selection description", { exact: true })
                     .fill("Use this controlled clip for compatibility checks.");
+                const saveStart = server.clipRecords.length;
+                const saveDeadline = Date.now() + 15000;
                 const pending = page.waitForResponse(
                     (response) =>
                         response.request().method() === "PUT" &&
@@ -463,7 +465,31 @@ export async function exerciseClipCompatibility(
                     .click();
                 const response = await pending;
                 assert.equal(response.status(), 200);
-                const saved = await response.json();
+                assert.ok(
+                    Date.now() < saveDeadline,
+                    "Save exceeded its 15-second deadline",
+                );
+                // Bind the browser's response status to the exact completed
+                // HTTP reply, without relying on retained DevTools body buffers.
+                const saves = server.clipRecords
+                    .slice(saveStart)
+                    .filter(
+                        (record) =>
+                            record.action === "save" && record.owner === owner,
+                    );
+                assert.equal(
+                    saves.length,
+                    1,
+                    "One completed HTTP save emits one owned result",
+                );
+                assert.equal(
+                    saves[0].request_path,
+                    new URL(response.url()).pathname,
+                );
+                assert.equal(saves[0].response_finished, true);
+                const saved = saves[0].response_body;
+                assert.equal(saved.item_id, saves[0].item_id);
+                assert.equal(saved.revision_sha256, saves[0].sequence_sha256);
                 ids.set(key, saved.item_id);
                 await page.waitForURL(
                     (url) => url.pathname === `/gestures/${saved.item_id}/edit`,

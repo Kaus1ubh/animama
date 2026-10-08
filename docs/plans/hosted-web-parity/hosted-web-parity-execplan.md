@@ -1796,13 +1796,37 @@ Exclude C from approved activation/rollback recipes after2.0 editing. Cloud arti
 
 Targeted independent analysis passes with no findings (receipt SHA7b5ee35bdc30d5cefb439ddccce481b20e1013a26b6eec84ff4171a4d656e7ab). Independent checks pass29 producer/archive Python cases and2 Node format controls, zero skips, Ruff/format, configured Prettier, syntax, whitespace and fail-closed CLI validation (receipt SHA7526e8411e05a948d9aae80be89d8227fd979bbf46ee0c3f5357731d2f0eec0d). Seven amended source hashes match freeze0586778870abb0477883708ae7f074d77719ed3ac4b8a3f74093c9d59aa6f52b; all3,420 source paths remain unchanged during checks. A checker-only Node output-parser failure is retained separately from the subsequent explicit-TAP pass. Accept this targeted source result; no further source revision is required. Actual clean builds/all-eight emitted consumers remain the next gate. This is approved repair3 with historical rounds preserved, not phase completion.
 
+#### Emitted acceptance finding — A7 repair4
+
+The genuine consumer-only successor411fadf371160f660a45b189f927c0b8b8704b77 builds twice with identical manifest and all nine payloads. Its first installed-consumer run stops before the whole-app browser: the retained11c and current runtime correctly share identical content-addressed resource bytes, while an inherited assertion requires distinct prefixes. Preserve failed receipt/log SHA0bd2427b9c258bf1b028bade6fb32066cc9354647b79610e80bd1f246dbf42a2.
+
+Accept this fixture defect under the standing repair extension. The primary2.0 pair may reuse identical verified runtime bytes; the independent server still refuses a shared immutable URL with different payloads. Report the actual distinct-resource boolean. The separate genuine-C legacy journey must still prove different resource generations, old-tab late workers and rollback entry, alongside all clip-format checks. This does not fabricate a runtime difference or replace the distinct-generation evidence with a shared-prefix run. Targeted repair4 verification and actual final artifact acceptance remain pending.
+
+#### Code Review #5 findings and revisions — A7 repair5
+
+Repair4's targeted source analysis/checks passed (analysis SHAf2fb48f840d56c41bda966cad178ffb9c887ce859df4a66877ef2cd17bd98ed6; checks SHAb59e3925a5db90fd2d08d45fb811f17e5b05ad83aff0513983b4377cf357408c), but actual browser acceptance remained failed. Both deferred and immediate DevTools body capture failed on the sixth completed server save (logs SHAf2dcc2b35a5542bb01d8b425ae0de3528bc22ab85fb5babfc846cf1d49c9f7f9 and6d9349d18c383ebf425fb3a996031e44c9734e025a227c42ba31cb8453b49cb6). An initial inspector-completion diagnostic stalled; stop only its verified process and retain the failed log2ac951523607f1138a139d411fc281802b0706b8ca1d80b41514cb6671451ac8. Source review did not substitute for runtime acceptance.
+
+The final fixture records the exact HTTP reply and server transport finish, requires the browser's200 response within the existing15-second deadline, asserts exactly one new owner save before matching its request path, then retains all UI/export/reload/private-byte checks. Server finish alone is not browser EOF; the joint UI and byte assertions establish the controlled fixture's semantics. There is no response-body fallback, retry or timeout extension. Targeted analysis identified two intermediate deadline/count issues; both are resolved in the simplified final approach (analysis SHAe8a52ce3dce25eea6c1f2208e8961c6747821a28c3297e903ce4c7b58ac19cc6).
+
+The final exact-fixture primary browser diagnostic passes all six clip receipts and actual emitted workers/voice/old-tab checks (log SHA4c5f68338ef976450ac50becfdb3ba455dc8c49bb0b30061e0cc2253b08e81bf). It uses genuine11c/411 immutable apps and reports identical runtime resource bytes honestly. A legacy-only preparation first omitted its required starter avatar and failed before the first clip; retain that setup failure without treating it as a product regression. Corrected legacy input, final source checks, clean successor builds and all-eight acceptance remain pending. Repairs consumed5; standing owner extension remains effective.
+
+
+#### Final correction and author evidence — A7 repair6
+
+Count the two corrections requested by repair5's targeted analysis as the next repair,6, preserving both prior source-pass/runtime-fail batches. The final source has an explicit already-expired deadline refusal, counts every new owner save before asserting its request path, and avoids the stalled inspector completion primitive. Source analysis binds this final implementation (receipt e8a52ce3dce25eea6c1f2208e8961c6747821a28c3297e903ce4c7b58ac19cc6); external preparation filenames retain their original repair5 labels rather than rewriting history.
+
+The corrected genuine-C legacy diagnostic passes12 receipts, including actual untouched1.0 byte retention/reload and edited2.0 export refusal (log SHAbdcf0b0a65b69b7def4d2af7dba2d5f825374de736b1642e8f6182205e9fdd86). The primary whole-app author diagnostic passes six edited-data receipts. These author checks use actual11c/411 apps with the final consumer fixture; they are not yet the next clean successor's all-eight acceptance. No paid requests or product parser changes were made.
+
+
+Final narrow independent checks pass four affected Node cases, zero skips, formatting, syntax and whitespace, reusing unchanged checker/Ruff evidence (receipt SHAe1d3c41aa0d8df03c5e3b1b24c279db6dc703e9e35ae5210ec10fbc02ce4680c). Four source hashes match freeze61ac40d0821458a576b6c16b458e11c4032d1fea9c9d02bee17c3ad6c2a7479c; all3,420 source paths/modes are unchanged except the authorized plan record. A checker-only receipt-shape assertion is retained separately from the corrected readback. Accept source repair6 for a clean artifact checkpoint. Actual repeated production/all-eight/full legacy browser and Cloud acceptance remain required; do not infer phase completion from this source pass.
+
 ## Final integration review
 
 A6's review closes integration of A1–A6; do not reopen those reviews. A7 has the new scope's separately bounded review above, reusing valid inherited evidence.
-Each scope receives one comprehensive independent review and at most two repair
-rounds. Record later findings/revisions with matching numbers; rechecks target
-accepted fixes and their regressions. Supported blockers remaining at the limit
-stop dependent work. Advisory preferences do not block completion. Record exact
+Each scope receives one comprehensive independent review. The owner-approved
+extension permits further necessary targeted repair rounds; preserve consumed counts
+and continue numbering. Rechecks target accepted fixes and their regressions.
+Unresolved blockers keep dependent acceptance pending. Advisory preferences do not block completion. Record exact
 reviewed source, check results and remaining gates in the PR.
 
 ## Validation and acceptance

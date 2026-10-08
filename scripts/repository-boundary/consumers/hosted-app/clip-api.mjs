@@ -231,7 +231,8 @@ export function createClipApi(reply, applicationDirectory, expectedSchema) {
                 session.state.files.set(fileRef, { ...file, bytes });
                 session.state.items.set(itemId, item);
                 operations.set(operation, item);
-                records.push({
+                const responseBody = typed(item);
+                const savedRecord = {
                     owner: session.owner,
                     action: "save",
                     item_id: itemId,
@@ -240,8 +241,15 @@ export function createClipApi(reply, applicationDirectory, expectedSchema) {
                     bytes: bytes.length,
                     sequence_sha256: revision,
                     descriptor_sha256: sha(descriptorBytes),
+                    request_path: raw,
+                    response_body: responseBody,
+                    response_finished: false,
+                };
+                records.push(savedRecord);
+                res.once("finish", () => {
+                    savedRecord.response_finished = true;
                 });
-                reply(res, typed(item));
+                reply(res, responseBody);
                 return true;
             }
         }
