@@ -120,6 +120,9 @@ const USAGE = [
   'branch and PR. Items: { "source", "stem", "mode": "add" | "replace",',
   '"name"?, "description"? } or { "stem", "mode": "delete" }. "source" is',
   "library:local/<name> (the sourced stack's Local content) or an effect folder.",
+  'Reactions and Gestures: { "kind": "reaction" | "gesture", "stem", "source":',
+  '"<creator project .json>", "mode": "replace" }; their dependencies on Local',
+  "effects promoted in the same run become the Included effects.",
   "--dry-run lists every change and writes nothing.",
   "",
   "library:local/... sources read ANIMAMA_LOCAL_CONTENT_HOST_PATH unless",
@@ -139,6 +142,12 @@ async function runPromote(argv, cwd) {
     ? path.resolve(cwd, values["--local-content"])
     : defaultLocalContent();
   const validator = await loadWebModule("/src/lib/avatar/vfx/definition.ts");
+  const clipValidator = await loadWebModule(
+    "/src/lib/avatar/poses/animaPoseClip/schemaV2.ts",
+  ).catch(async (error) => {
+    await validator.close();
+    throw error;
+  });
   let changes;
   try {
     let raw;
@@ -150,6 +159,19 @@ async function runPromote(argv, cwd) {
     const items = parseEffectPromoteItems(raw, itemsFile);
     for (const item of items) {
       if (item.mode === "delete") continue;
+      if (item.kind !== "avatar_effect") {
+        if (item.source.startsWith("library:"))
+          throw new EffectPromoteError(
+            `${item.stem}: a ${item.kind} source is a creator project file.`,
+          );
+        const file = path.resolve(path.dirname(itemsFile), item.source);
+        try {
+          item.project = JSON.parse(await readFile(file, "utf8"));
+        } catch (error) {
+          throw new EffectPromoteError(`${item.stem}: ${error.message}`);
+        }
+        continue;
+      }
       try {
         item.effect = await resolveEffectSource(item.source, {
           cwd: path.dirname(itemsFile),
@@ -166,6 +188,16 @@ async function runPromote(argv, cwd) {
     changes = await planEffectPromotion(items, {
       repo: workingTreeRepo(repoRoot),
       validate: validator.module.validateAvatarEffectDefinition,
+      validateClip: (clip) => {
+        const result = clipValidator.module.validateAnimaPoseClipV2(clip);
+        if (!result.ok)
+          throw new Error(
+            `invalid animaPoseClip/2.0: ${result.issues
+              .slice(0, 3)
+              .map((issue) => `${issue.path}: ${issue.message}`)
+              .join("; ")}`,
+          );
+      },
     });
   } catch (error) {
     if (!(error instanceof EffectPromoteError)) throw error;
@@ -173,6 +205,7 @@ async function runPromote(argv, cwd) {
     return 1;
   } finally {
     await validator.close();
+    await clipValidator.close();
   }
   const dryRun = flags.has("--dry-run");
   for (const { path: relative, action, notes = [] } of changes) {

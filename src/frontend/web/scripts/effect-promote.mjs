@@ -14,7 +14,8 @@ import { budgetForDefinition } from "./effect-check.mjs";
 
 /**
  * `pnpm -s effects promote <items.json> [--dry-run]`: write owner-approved
- * Avatar Effects into Included content.
+ * Avatar Effects, and the Reactions and Gestures that use them, into
+ * Included content.
  *
  * Run only when the owner has explicitly approved each item, on a task branch
  * that goes through a PR (the `animama-avatar-vfx` skill's Promote to
@@ -26,7 +27,16 @@ import { budgetForDefinition } from "./effect-check.mjs";
  *   existing Included effect, keeping its folder, content ID, version and
  *   name; files it no longer uses are removed;
  * - `{ "stem", "mode": "delete" }`: remove an Included effect that no
- *   Included content depends on.
+ *   Included content depends on (after this run's replacements);
+ * - `{ "kind": "reaction" | "gesture", "stem", "source", "mode": "replace" }`:
+ *   the clip and dependencies of `reactions/<stem>/` or `gestures/<stem>/`
+ *   from a creator project file (`animamaActionProject/1.0`, relative to the
+ *   items file). The Included meta (content ID, version, name, placement
+ *   hint) is kept, and the clip must keep its id, role and lifetime;
+ *   Reactions stay expression-only. A dependency on a Local effect promoted
+ *   in the same run is re-pointed at its Included ID; every other dependency
+ *   must be Included content after the run, and every effect event must
+ *   name a declared dependency. An unchanged item writes nothing.
  *
  * `source` is the reviewed effect: `library:local/<name>` (the saved Local
  * item, read from the sourced stack's `ANIMAMA_LOCAL_CONTENT_HOST_PATH`) or
@@ -45,6 +55,20 @@ export class EffectPromoteError extends Error {}
 const STEM = /^[a-z0-9]+(?:[_-][a-z0-9]+)*$/;
 const EFFECT_ROOT = "content/included/vfx/avatar";
 const INVENTORY_RULE = "vfx/avatar/**/*";
+const KINDS = ["avatar_effect", "reaction", "gesture"];
+/** Where each kind of Action lives in Included content. */
+const ACTION_ROOTS = {
+  reaction: "content/included/reactions",
+  gesture: "content/included/gestures",
+};
+const ACTION_PROJECT_SCHEMA = "animamaActionProject/1.0";
+/** Clip tracks that move the body, which an Included Reaction never has. */
+const HUMANOID_TRACKS = ["rotations", "hipsPosition", "hands"];
+/** The dependency type each effect event plays. */
+const EVENT_CONTENT_TYPES = {
+  avatar_vfx: "avatar_effect",
+  particle_vfx: "particle_effect",
+};
 
 /** Repository paths the tool reads or writes, relative to the repository root. */
 export const EFFECT_PROMOTE_PATHS = {
@@ -62,6 +86,15 @@ export function parseEffectPromoteItems(value, itemsFile) {
   const stems = new Set();
   return value.map((item, index) => {
     const where = `${itemsFile} item ${index + 1}`;
+    const kind = item?.kind ?? "avatar_effect";
+    if (!KINDS.includes(kind))
+      throw new EffectPromoteError(
+        `${where}: "kind" must be "avatar_effect", "reaction" or "gesture".`,
+      );
+    if (kind !== "avatar_effect" && item.mode !== "replace")
+      throw new EffectPromoteError(
+        `${where}: a ${kind} item replaces an Included ${kind} ("mode": "replace").`,
+      );
     if (!["add", "replace", "delete"].includes(item?.mode))
       throw new EffectPromoteError(
         `${where}: "mode" must be "add", "replace" or "delete".`,
@@ -70,9 +103,11 @@ export function parseEffectPromoteItems(value, itemsFile) {
       throw new EffectPromoteError(
         `${where}: "stem" must be lowercase letters and digits joined by "_" or "-".`,
       );
-    if (stems.has(item.stem))
-      throw new EffectPromoteError(`${where}: stem "${item.stem}" repeats.`);
-    stems.add(item.stem);
+    if (stems.has(`${kind}:${item.stem}`))
+      throw new EffectPromoteError(
+        `${where}: ${kind} stem "${item.stem}" repeats.`,
+      );
+    stems.add(`${kind}:${item.stem}`);
     if (item.mode === "delete") {
       if (item.source !== undefined)
         throw new EffectPromoteError(`${where}: a delete takes no "source".`);
@@ -92,7 +127,12 @@ export function parseEffectPromoteItems(value, itemsFile) {
       throw new EffectPromoteError(
         `${where}: only an add sets "name"; a ${item.mode} keeps it.`,
       );
+    if (kind !== "avatar_effect" && item.description !== undefined)
+      throw new EffectPromoteError(
+        `${where}: a ${kind} replace keeps the Included description.`,
+      );
     return {
+      kind,
       mode: item.mode,
       stem: item.stem,
       source: item.source?.trim(),
@@ -106,16 +146,23 @@ const jsonFile = (value) => `${JSON.stringify(value, null, 2)}\n`;
 
 /**
  * Plan every change without touching the disk. `item.effect` is the resolved
- * source (`resolveEffectSource`'s result) for adds and replaces.
+ * effect source (`resolveEffectSource`'s result, whose `contentId` a
+ * Reaction may depend on) for adds and replaces; `item.project` the parsed
+ * creator project for a Reaction or Gesture.
  *
  * `repo` reads the working tree: `read(relative)` returns text or null,
  * `readBytes(relative)` a Buffer, `list(relative)` file names in a folder (or
- * null), and `includedMetas()` every Included descriptor as
- * `{ path, value }`. `validate(definition)` throws for an invalid `/2`
- * definition (the app's validator). Returns `[{ path, action, content? }]`,
- * `action` being "create", "update" or "delete".
+ * null), and `includedMetas()` every Included descriptor (a JSON file with a
+ * `content_id` or `dependencies`) as `{ path, value }`. `validate(definition)`
+ * throws for an invalid `/2` definition and `validateClip(clip)` for an
+ * invalid `animaPoseClip/2.0` clip (the app's validators). Returns
+ * `[{ path, action, content? }]`, `action` being "create", "update" or
+ * "delete".
  */
-export async function planEffectPromotion(items, { repo, validate }) {
+export async function planEffectPromotion(
+  items,
+  { repo, validate, validateClip },
+) {
   const writes = new Map();
   const deletes = new Set();
   const readJson = (relative) => {
@@ -140,20 +187,60 @@ export async function planEffectPromotion(items, { repo, validate }) {
     );
   const { path: _path, ...recordFields } = template;
 
+  const kindOf = (item) => item.kind ?? "avatar_effect";
+  const effectItems = items.filter((item) => kindOf(item) === "avatar_effect");
   const metas = await repo.includedMetas();
-  for (const item of items) {
+
+  // Content IDs that are Included after this run, and the Included ID each
+  // promoted effect source becomes.
+  const effectContentId = (stem) => `builtin:avatar-effect:${stem}`;
+  const includedIds = new Set(
+    metas
+      .map(({ value }) => value.content_id)
+      .filter((id) => typeof id === "string"),
+  );
+  const promotedRefs = new Map();
+  for (const item of effectItems)
+    if (item.mode === "delete") includedIds.delete(effectContentId(item.stem));
+    else {
+      includedIds.add(effectContentId(item.stem));
+      if (item.effect?.contentId)
+        promotedRefs.set(item.effect.contentId, effectContentId(item.stem));
+    }
+
+  // Reactions and Gestures first, so a delete sees their new dependencies.
+  const plannedMetas = new Map();
+  for (const item of items)
+    if (kindOf(item) !== "avatar_effect") {
+      const planned = planAction(item, kindOf(item), {
+        repo,
+        validateClip,
+        includedIds,
+        promotedRefs,
+      });
+      for (const [relative, content] of planned.writes)
+        writes.set(relative, content);
+      plannedMetas.set(planned.metaPath, planned.meta);
+    }
+  const currentMetas = metas.map((meta) =>
+    plannedMetas.has(meta.path)
+      ? { path: meta.path, value: plannedMetas.get(meta.path) }
+      : meta,
+  );
+
+  for (const item of effectItems) {
     const folder = `${EFFECT_ROOT}/${item.stem}`;
     const descriptorPath = `${folder}/${item.stem}.json`;
     const existingFiles = repo.list(folder);
     const original = existingFiles ? readJson(descriptorPath) : null;
-    const contentId = `builtin:avatar-effect:${item.stem}`;
+    const contentId = effectContentId(item.stem);
 
     if (item.mode === "delete") {
       if (!original)
         throw new EffectPromoteError(
           `${item.stem}: no Included effect to delete.`,
         );
-      const dependents = metas
+      const dependents = currentMetas
         .filter(
           ({ path: metaPath, value }) =>
             !metaPath.startsWith(`${folder}/`) &&
@@ -299,6 +386,113 @@ export async function planEffectPromotion(items, { repo, validate }) {
   return changes;
 }
 
+function hasTracks(value) {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    Object.values(value).some((track) =>
+      Array.isArray(track) ? track.length > 0 : hasTracks(track),
+    )
+  );
+}
+
+/**
+ * Plan one Reaction or Gesture replace: its clip and meta writes, and the
+ * meta as it will be (for dependents checks).
+ */
+function planAction(
+  item,
+  kind,
+  { repo, validateClip, includedIds, promotedRefs },
+) {
+  const fail = (message) => {
+    throw new EffectPromoteError(`${item.stem}: ${message}`);
+  };
+  const folder = `${ACTION_ROOTS[kind]}/${item.stem}`;
+  const metaPath = `${folder}/${item.stem}.meta.json`;
+  const metaText = repo.read(metaPath);
+  if (metaText === null) fail(`no Included ${kind} to replace.`);
+  const original = JSON.parse(metaText);
+  const sequence = (original.files ?? []).find(
+    (file) => file?.role === "sequence",
+  );
+  if (
+    typeof sequence?.path !== "string" ||
+    path.posix.basename(sequence.path) !== sequence.path
+  )
+    fail(`the Included ${kind} names no clip file in its folder.`);
+  const clipPath = `${folder}/${sequence.path}`;
+  const clipText = repo.read(clipPath);
+  if (clipText === null) fail(`${clipPath} is missing.`);
+  const originalClip = JSON.parse(clipText);
+
+  const { project } = item;
+  if (project?.schema !== ACTION_PROJECT_SCHEMA)
+    fail(`the source must be a creator project (${ACTION_PROJECT_SCHEMA}).`);
+  if (project.intent !== kind)
+    fail(`the source is a ${project.intent} project, not a ${kind}.`);
+  const clip = project.sequence;
+  try {
+    validateClip(clip);
+  } catch (error) {
+    fail(error.message);
+  }
+  for (const key of ["id", "role", "playback"])
+    if (JSON.stringify(clip[key]) !== JSON.stringify(originalClip[key]))
+      fail(
+        `a replace keeps the Included clip's ${key} (${JSON.stringify(originalClip[key])}).`,
+      );
+  if (kind === "reaction")
+    for (const track of HUMANOID_TRACKS)
+      if (hasTracks(clip[track]))
+        fail(`Reactions are expression-only; the clip has ${track} tracks.`);
+
+  const dependencies = [];
+  const declared = new Map();
+  for (const dependency of Array.isArray(project.dependencies)
+    ? project.dependencies
+    : []) {
+    const { alias, ref, content_type: contentType } = dependency ?? {};
+    if (
+      typeof alias !== "string" ||
+      typeof ref !== "string" ||
+      typeof contentType !== "string"
+    )
+      fail('each dependency needs "alias", "ref" and "content_type".');
+    if (declared.has(alias)) fail(`dependency alias "${alias}" repeats.`);
+    const included = promotedRefs.get(ref) ?? ref;
+    if (!includedIds.has(included))
+      fail(
+        `dependency "${alias}" (${ref}) is not Included content after this promotion; promote it in the same run.`,
+      );
+    declared.set(alias, contentType);
+    dependencies.push({
+      ref: included,
+      alias,
+      content_type: contentType,
+      config: dependency.config ?? {},
+    });
+  }
+  for (const event of Array.isArray(clip.events) ? clip.events : []) {
+    const contentType = EVENT_CONTENT_TYPES[event?.kind];
+    if (contentType && declared.get(event.effectId) !== contentType)
+      fail(
+        `event "${event.id}" plays "${event.effectId}", which no dependency declares as a ${contentType.replace("_", " ")}.`,
+      );
+  }
+
+  const meta = { ...original, dependencies };
+  return {
+    metaPath,
+    meta,
+    writes: [
+      // Included clips are stored compact, metas indented.
+      [clipPath, `${JSON.stringify(clip)}\n`],
+      [metaPath, jsonFile(meta)],
+    ],
+  };
+}
+
 /** A repository reader over the working tree at `root`. */
 export function workingTreeRepo(root) {
   return {
@@ -341,7 +535,10 @@ export function workingTreeRepo(root) {
               const value = JSON.parse(
                 await readFile(path.join(root, child), "utf8"),
               );
-              if (Array.isArray(value?.dependencies))
+              if (
+                typeof value?.content_id === "string" ||
+                Array.isArray(value?.dependencies)
+              )
                 metas.push({ path: child, value });
             } catch {
               // Not a descriptor.

@@ -76,7 +76,7 @@ Paths: frontend relative to `src/frontend/web/`, backend to
 - [x] P4 — Effect batch A: upgrades and kept effects (R14). G2 passed 2026-10-08; saved as Local content.
 - [x] P5 — Effect batch B: new face effects (R14). G2 passed 2026-10-08; saved as Local content.
 - [x] P6 — Effect batch C: flipbooks, body, sticker and silhouette effects (R14). G2 passed 2026-10-08; saved as Local content.
-- [ ] P7 — Reaction wiring (R15). Gate G3.
+- [ ] P7 — Reaction wiring (R15). Wired 2026-10-08; awaiting review and G3.
 - [ ] P8 — Promotion, documentation and acceptance (R16). Gate G4.
 
 ## Surprises & Discoveries
@@ -820,6 +820,75 @@ Gloom lines, DOKI DOKI, Idea bulb, Despair shade. Changes:
 
 G3: the owner reviews the mapping table and plays the wired Reactions in
 `animation:preview` on both Avatars.
+
+#### P7 record
+
+- Issue #354. Starting revision `691a8b57`; `main` merged at `ff78a75d`
+  (Included Reactions are `animaPoseClip/2.0` since #375).
+- **Deviation from step 3 (agent, 2026-10-08):** the wired Reactions are
+  creator project files (`animamaActionProject/1.0`) in the ignored
+  `.animama-drafts/actions/`, not Local Reactions saved through the creator.
+  No tool saves Reactions with effect dependencies, and each draft is the
+  Included clip and meta with only its effect events and dependencies
+  changed. The files import into the Reaction creator, play in
+  `animation:preview` with their dependencies (one picker lists all of
+  them), and are what `effects promote` reads. Their effect dependencies
+  point at the saved Local effects, so the preview shows the new art.
+- `effects promote` gained `{ "kind": "reaction" | "gesture", "stem",
+  "source": "<project>", "mode": "replace" }`: it keeps the Included meta,
+  requires the clip's id, role and lifetime unchanged and Reactions
+  expression-only, re-points dependencies on Local effects promoted in the
+  same run to their Included IDs, refuses any other dependency that is not
+  Included after the run and any effect event without a declared dependency,
+  and writes nothing for an unchanged item. Effect deletes check dependents
+  after the run's replacements, so `star`, `eye_0` and `eye_vv_pair` can be
+  deleted in the run that re-points their users. Tests added
+  (`effects.test.mjs`, 14 tests).
+- Mapping (effects only; particles and scene effects unchanged; `-1`
+  variants have no effect unless listed). **Bold** marks a change from the
+  Included Reaction; every other listed Reaction keeps its effect, which
+  shows the new art through the effect's replacement.
+
+  | Emotion | 1 | 2 | 3 | Beat |
+  | --- | --- | --- | --- | --- |
+  | admiration | — | **Star3** (was Star) | Star3 | starry-eyed awe |
+  | amusement | — | **Eye VV** (was Mouth w) | **Eye VV** (was Mouth Hover w) | "> <" giggle |
+  | anger | — | Anger mark | Anger mark, **Steam puffs, Red face** | vein, then boiling over |
+  | annoyance | — | Eye = | Anger mark, **Steam puffs** | deadpan, then fuming |
+  | caring | — | **Heart throb** | **Heart throb** | warm beating heart |
+  | confidence | — | **Idea bulb** (was Star) | Star3 | "I've got it" |
+  | confusion | — | Swirl eyes | Swirl eyes, Exclamation | dizzy, then "huh?!" |
+  | curiosity | — | Exclamation | **Idea bulb** (was Exclamation) | "oh?", then the light comes on |
+  | desire | — | **Heart eyes** | **Heart eyes, Blush** | smitten |
+  | disappointment | — | **Gloom lines** | Gloom face | deflated, then shaded |
+  | disapproval | — | Eye = | Anger mark | unimpressed |
+  | disgust | — | Sick face 1 | Sick face 2 | queasy |
+  | embarrassment | **Blush band** | **Blush, Eye VV** | **Blush deep, Sweat drop** | flush deepens; caught out |
+  | excitement | — | **Star3** (was Star) | Star3 | sparkling |
+  | fear | — | Eye O, **Sweat drop** | Eye O, Exclamation | gulp; alarm |
+  | gratitude | — | **Heart throb** | **Heart throb, Streaming tears** | touched, then tears of thanks |
+  | grief | — | Gloom face | Gloom face, **Streaming tears, Despair shade** (was Eye 0) | waterfall tears as the lights go out |
+  | joy | — | **Star3** (was Star) | Star3 | sparkling |
+  | love | — | **Blush, DOKI DOKI** | **Heart eyes, Blush** | heart racing; smitten |
+  | nervousness | — | **Sweat drop** | Eye O, **Sweat drop** | nervous sweat |
+  | optimism | — | **Idea bulb** (was Star) | Star3 | bright idea |
+  | remorse | — | **Gloom lines** (was Gloom face) | Gloom face | sinking feeling |
+  | respect | — | **Star3** (was Star) | Star3 | admiring |
+  | sadness | — | — | Gloom face, **Streaming tears** | crying |
+
+  Every emotion has at least one variant with an effect; caring, desire,
+  embarrassment, gratitude and love gain their first. No Reaction uses
+  Mouth w or Mouth Hover w. `shy-finger-poke` plays Eye VV in place of Eye
+  VV Pair (same time and duration). New events follow the existing ones'
+  pattern: no duration (held for the Reaction), starting at 0.1 s, 0.05 s
+  apart within the clip.
+- Dry run of the whole promotion (22 effects, 4 deletes, 48 Reactions, the
+  Gesture): 115 changes, nothing written; 29 Reactions and the Gesture
+  change, the other 19 listed Reactions are unchanged files.
+- Renders of the busiest combinations (anger-3, grief-3, love-2 and -3,
+  embarrassment-2 and -3, gratitude-3, fear-2; `effects:render --together`)
+  and anger-3 in the live preview on both Avatars: every effect reads and
+  none hides another.
 
 ### P8 — Promotion, documentation and acceptance (R16). Gate G4.
 

@@ -570,6 +570,262 @@ test("promotion refuses unsafe changes", async () => {
   );
 });
 
+test("Reaction and Gesture items replace one Included item from a project", () => {
+  const [reaction, gesture] = parseEffectPromoteItems(
+    [
+      {
+        kind: "reaction",
+        stem: "joy-2",
+        source: "../actions/joy-2.json",
+        mode: "replace",
+      },
+      { kind: "gesture", stem: "poke", source: "poke.json", mode: "replace" },
+    ],
+    "items.json",
+  );
+  assert.equal(reaction.kind, "reaction");
+  assert.equal(gesture.kind, "gesture");
+  // Effects keep their kind by default, and stems repeat only across kinds.
+  assert.equal(
+    parseEffectPromoteItems(
+      [
+        { stem: "joy-2", mode: "delete" },
+        { kind: "reaction", stem: "joy-2", source: "j.json", mode: "replace" },
+      ],
+      "items.json",
+    )[0].kind,
+    "avatar_effect",
+  );
+  for (const [item, message] of [
+    [{ kind: "pose", stem: "a", source: "a.json", mode: "replace" }, /"kind"/],
+    [{ kind: "reaction", stem: "a", source: "a.json", mode: "add" }, /replace/],
+    [{ kind: "reaction", stem: "a", mode: "replace" }, /"source"/],
+    [
+      {
+        kind: "reaction",
+        stem: "a",
+        source: "a.json",
+        mode: "replace",
+        description: "new",
+      },
+      /keeps/,
+    ],
+  ])
+    assert.throws(() => parseEffectPromoteItems([item], "items.json"), message);
+});
+
+/** Add a Reaction using `old_pair` and an Included particle to a fixture repo. */
+async function addReaction(root) {
+  const particle = path.join(root, "content/included/vfx/particle/sparkle");
+  await mkdir(particle, { recursive: true });
+  await writeFile(
+    path.join(particle, "sparkle.json"),
+    JSON.stringify({
+      content_type: "particle_effect",
+      content_id: "builtin:particle-effect:sparkle",
+    }),
+  );
+  const folder = path.join(root, "content/included/reactions/joy-2");
+  await mkdir(folder, { recursive: true });
+  const clip = {
+    schema: "animaPoseClip/2.0",
+    id: "joy-2",
+    name: "Joy Reaction 2",
+    role: "reaction",
+    duration: 0.2,
+    playback: { lifetime: { kind: "whileInteractionPhase" } },
+    beats: [{ id: "peak", time: 0 }],
+    expressions: { happy: [{ v: 0.8, beat: "peak" }] },
+    events: [
+      { id: "pair", time: 0.1, kind: "avatar_vfx", effectId: "pair" },
+      { id: "spark", time: 0, kind: "particle_vfx", effectId: "sparkle" },
+    ],
+  };
+  await writeFile(path.join(folder, "joy-2.json"), `${JSON.stringify(clip)}\n`);
+  const meta = {
+    content_type: "reaction",
+    content_id: "builtin:reaction:joy-2",
+    version: 1,
+    name: "Joy Reaction 2",
+    placement_hint: { emotion: "joy", intensity: 2 },
+    dependencies: [
+      {
+        ref: "builtin:avatar-effect:old_pair",
+        alias: "pair",
+        content_type: "avatar_effect",
+        config: {},
+      },
+      {
+        ref: "builtin:particle-effect:sparkle",
+        alias: "sparkle",
+        content_type: "particle_effect",
+        config: {},
+      },
+    ],
+    files: [{ path: "joy-2.json", role: "sequence" }],
+  };
+  await writeFile(
+    path.join(folder, "joy-2.meta.json"),
+    `${JSON.stringify(meta, null, 2)}\n`,
+  );
+  return { clip, meta };
+}
+
+/** A creator project for `clip`, with dependencies as the creator writes them. */
+const project = (clip, dependencies, intent = "reaction") => ({
+  schema: "animamaActionProject/1.0",
+  intent,
+  name: clip.name,
+  sequence: clip,
+  dependencies: dependencies.map((dependency) => ({
+    ...dependency,
+    source: { type: "catalog", catalog_item_id: "item", source: "local" },
+  })),
+});
+
+const validateClip = (clip) => {
+  if (clip?.schema !== "animaPoseClip/2.0") throw new Error("not 2.0");
+};
+
+test("promotion replaces a Reaction and points it at the promoted effects", async () => {
+  const root = await fixtureRepo();
+  const { clip, meta } = await addReaction(root);
+  const blush = await source("blush", "blush.png");
+  blush.contentId = "local:avatar-effect:blush";
+  const wired = {
+    ...clip,
+    events: [
+      { id: "blush", time: 0.1, kind: "avatar_vfx", effectId: "blush" },
+      clip.events[1],
+    ],
+  };
+  const changes = await planEffectPromotion(
+    [
+      { kind: "avatar_effect", mode: "add", stem: "blush", effect: blush },
+      { kind: "avatar_effect", mode: "delete", stem: "old_pair" },
+      {
+        kind: "reaction",
+        mode: "replace",
+        stem: "joy-2",
+        project: project(wired, [
+          {
+            ref: "local:avatar-effect:blush",
+            alias: "blush",
+            content_type: "avatar_effect",
+          },
+          meta.dependencies[1],
+        ]),
+      },
+    ],
+    { repo: workingTreeRepo(root), validate, validateClip },
+  );
+  assert.ok(
+    changes.some(
+      (change) =>
+        change.action === "delete" &&
+        change.path === "content/included/vfx/avatar/old_pair/old_pair.json",
+    ),
+  );
+  await applyEffectPromotion(root, changes);
+  const folder = path.join(root, "content/included/reactions/joy-2");
+  const clipText = await readFile(path.join(folder, "joy-2.json"), "utf8");
+  assert.equal(clipText, `${JSON.stringify(wired)}\n`);
+  const written = JSON.parse(
+    await readFile(path.join(folder, "joy-2.meta.json"), "utf8"),
+  );
+  // The Included meta is kept; only its dependencies change, to Included refs.
+  assert.deepEqual(written, {
+    ...meta,
+    dependencies: [
+      {
+        ref: "builtin:avatar-effect:blush",
+        alias: "blush",
+        content_type: "avatar_effect",
+        config: {},
+      },
+      meta.dependencies[1],
+    ],
+  });
+  // Reaction files keep their existing source-review records.
+  const records = JSON.parse(
+    await readFile(path.join(root, "licenses/source-review.json"), "utf8"),
+  ).files.map((record) => record.path);
+  assert.ok(!records.some((record) => record.includes("reactions/")));
+
+  // A project equal to the Included Reaction changes nothing.
+  const again = await planEffectPromotion(
+    [
+      {
+        kind: "reaction",
+        mode: "replace",
+        stem: "joy-2",
+        project: project(wired, written.dependencies),
+      },
+    ],
+    { repo: workingTreeRepo(root), validate, validateClip },
+  );
+  assert.deepEqual(
+    again.map((change) => change.path),
+    [],
+  );
+});
+
+test("promotion refuses Reactions it cannot keep consistent", async () => {
+  const root = await fixtureRepo();
+  const { clip, meta } = await addReaction(root);
+  const repo = workingTreeRepo(root);
+  const plan = (items) =>
+    planEffectPromotion(items, { repo, validate, validateClip });
+  const replace = (sequence, dependencies = meta.dependencies, extra = {}) => ({
+    kind: "reaction",
+    mode: "replace",
+    stem: "joy-2",
+    project: project(sequence, dependencies),
+    ...extra,
+  });
+  const local = {
+    ref: "local:avatar-effect:blush",
+    alias: "pair",
+    content_type: "avatar_effect",
+  };
+  for (const [items, message] of [
+    [[replace(clip, [local, meta.dependencies[1]])], /not Included content/],
+    [
+      [
+        { kind: "avatar_effect", mode: "delete", stem: "old_pair" },
+        replace(clip),
+      ],
+      /not Included content/,
+    ],
+    [
+      [{ kind: "avatar_effect", mode: "delete", stem: "old_pair" }],
+      /still used by .*joy-2\.meta\.json/,
+    ],
+    [[replace(clip, [meta.dependencies[1]])], /no dependency declares/],
+    [
+      [replace({ ...clip, rotations: { neck: [{ q: [0, 0, 0, 1] }] } })],
+      /expression-only/,
+    ],
+    [[replace({ ...clip, id: "joy-9" })], /keeps the Included clip's id/],
+    [[replace({ ...clip, role: "gesture" })], /keeps the Included clip's role/],
+    [[replace({ ...clip, schema: "animaPoseClip/1.0" })], /not 2\.0/],
+    [
+      [replace(clip, meta.dependencies, { stem: "joy-3" })],
+      /no Included reaction/,
+    ],
+    [
+      [
+        {
+          ...replace(clip),
+          project: project(clip, meta.dependencies, "gesture"),
+        },
+      ],
+      /gesture project/,
+    ],
+  ])
+    await assert.rejects(plan(items), message);
+});
+
 test("render refuses two sources with one stem for directory output", async () => {
   const script = path.join(
     path.dirname(fileURLToPath(import.meta.url)),
