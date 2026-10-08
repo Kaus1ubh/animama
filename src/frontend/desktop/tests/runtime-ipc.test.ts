@@ -1,8 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { BrowserWindow, IpcMainInvokeEvent } from "electron";
+import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 import type { RuntimeStatus } from "../../shared/desktop-runtime.js";
-import { createRuntimePage } from "../src/main-process/runtime/recovery.js";
+import {
+  createRuntimePage,
+  STARTUP_THEME,
+} from "../src/main-process/runtime/recovery.js";
 import {
   RuntimeIpcCallers,
   installRuntimeIpc,
@@ -361,8 +365,11 @@ async function loadRuntimePage(url: string, windowRole: string) {
     return elements.get(selector)!;
   };
   const reload = vi.fn();
+  const timers = new Map<number, () => void>();
+  let nextTimer = 0;
   let render: ((status: RuntimeStatus) => void) | undefined;
   const location = new URL(url);
+  element("body").dataset = {};
   const script = createRuntimePage().match(
     /<script nonce="[^"]+">([\s\S]*?)<\/script>/u,
   )![1]!;
@@ -373,9 +380,15 @@ async function loadRuntimePage(url: string, windowRole: string) {
       reload,
     },
     document: {
+      body: element("body"),
       querySelector: element,
       getElementById: (id: string) => element(`#${id}`),
     },
+    setTimeout: (callback: () => void) => {
+      timers.set(++nextTimer, callback);
+      return nextTimer;
+    },
+    clearTimeout: (id: number) => timers.delete(id),
     window: {
       animamaDesktop: {
         windowRole,
@@ -390,7 +403,16 @@ async function loadRuntimePage(url: string, windowRole: string) {
   });
   // Include the page's initial status query.
   await Promise.resolve();
-  return { element, reload, render: render! };
+  return {
+    element,
+    reload,
+    render: render!,
+    elapse: () => {
+      const due = [...timers.values()];
+      timers.clear();
+      due.forEach((callback) => callback());
+    },
+  };
 }
 
 describe("independent runtime recovery page", () => {
@@ -429,4 +451,46 @@ describe("independent runtime recovery page", () => {
       expect(page.element("#retry").hidden).toBe(retryHidden);
     },
   );
+
+  it("shows progress while starting, then actions once startup stalls", async () => {
+    const page = await loadRuntimePage("data:text/html,recovery", "recovery");
+    expect(page.element("#title").textContent).toBe("Animama");
+    expect(page.element("#bar").hidden).toBe(false);
+    expect(page.element("#actions").hidden).toBe(true);
+    page.elapse();
+    expect(page.element("#actions").hidden).toBe(false);
+    expect(page.element("#retry").hidden).toBe(true);
+    // Retrying starts a fresh stall window.
+    page.render({ state: "error", code: "vault_unreadable" });
+    page.render({ state: "starting", stage: "vault" });
+    expect(page.element("#actions").hidden).toBe(true);
+    page.elapse();
+    expect(page.element("#actions").hidden).toBe(false);
+  });
+
+  it("replaces the progress bar with the advice and actions on error", async () => {
+    const page = await loadRuntimePage("data:text/html,recovery", "recovery");
+    page.render({ state: "error", code: "vault_unreadable" });
+    expect(page.element("body").dataset).toEqual({ state: "error" });
+    expect(page.element("#title").textContent).toBe("Animama needs attention");
+    expect(page.element("#bar").hidden).toBe(true);
+    expect(page.element("#detail").hidden).toBe(false);
+    expect(page.element("#actions").hidden).toBe(false);
+    expect(page.element("#retry").hidden).toBe(false);
+  });
+
+  it("mirrors the app theme tokens it uses", () => {
+    const theme = readFileSync(
+      new URL("../../packages/product-ui/src/theme.css", import.meta.url),
+      "utf8",
+    );
+    const block = (selector: string) =>
+      theme.slice(theme.indexOf(`${selector} {`)).split("}")[0]!;
+    for (const [selector, tokens] of [
+      [":root", STARTUP_THEME.light],
+      [".dark", STARTUP_THEME.dark],
+    ] as const)
+      for (const [name, value] of Object.entries(tokens))
+        expect(block(selector)).toContain(`--${name}: ${value};`);
+  });
 });

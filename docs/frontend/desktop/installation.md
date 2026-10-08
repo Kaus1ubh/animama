@@ -45,11 +45,13 @@ require Docker, Python, Node.js, PostgreSQL, Homebrew or a source checkout.
 5. **AI** chooses the model your Animas chat with: **Cloud** (OpenAI with your
    key, or another provider) or **Local** (a running Ollama, LM Studio,
    llama.cpp or vLLM server, or a custom one), each with a tab per provider.
-   A local server's tab looks for it when opened. The model you pick becomes the default Chat model, and
-   the starter Animas switch to it. **Skip for now** keeps the default.
-6. **Voice** offers offline speech recognition downloads and Text-to-Speech
-   (built-in voices or ElevenLabs with its key). Nothing downloads unless you
-   choose it, and downloads keep going after you finish. Choose **Finish** to
+   A local server's tab looks for it when opened. The model you set up last
+   (saving the OpenAI key, or adding a model) becomes the default Chat model,
+   and the starter Animas switch to it. **Skip for now** keeps the default.
+6. **Voice** offers Parakeet speech recognition downloads (CPU, and GPU
+   acceleration) and the Text-to-Speech provider: built-in PocketTTS, on by
+   default, or ElevenLabs with its key. Nothing downloads unless you choose it,
+   and downloads keep going after you finish. Choose **Finish** to
    open Annie's chat. Later launches open the last Anima you visited, or the
    first available Anima if that Anima has been deleted.
 

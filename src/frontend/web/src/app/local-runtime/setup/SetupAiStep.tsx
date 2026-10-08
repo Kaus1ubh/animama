@@ -30,8 +30,6 @@ import {
   useDetectModelServer,
 } from "@/query/mutations/useModelConfiguration";
 import { Button } from "@/ui/components/button";
-import { Label } from "@/ui/components/label";
-import { RadioGroup, RadioGroupItem } from "@/ui/components/radio-group";
 import { Tabs, TabsContent } from "@/ui/components/tabs";
 import {
   DesktopCredentialsPanel,
@@ -64,9 +62,6 @@ import {
   type SetupModelChoice,
 } from "./setup-state";
 
-const TAG_CLASS =
-  "bg-primary/10 text-primary rounded-sm px-1.5 py-0.5 text-2xs font-medium";
-
 /** A model being added in the add-model dialog, optionally prefilled. */
 type ModelAdder = { connection: PyModelConnection; initialModelId?: string };
 
@@ -80,12 +75,13 @@ function canChat(model: PyConfiguredModel): boolean {
 }
 
 /**
- * Setup's AI step: where models run (Cloud | Local), a tab per provider, and
- * the model new Animas chat with. Cloud recommends OpenAI with its key; other
- * providers connect with the same form as App Settings → Models. Each local
- * server tab looks for that server at its default address and adds one of
- * its models. A runtime that does not let the owner configure models shows
- * no choice.
+ * Setup's AI step: where models run (Cloud, recommended, | Local) and a tab
+ * per provider. OpenAI takes its key; other providers connect with the same
+ * form as App Settings → Models. Each local server tab looks for that server
+ * at its default address and adds one of its models. The model new Animas
+ * chat with is whichever was set up last (saving the OpenAI key or adding a
+ * chat model); with none, the system default applies. A runtime that does
+ * not let the owner configure models shows no choice.
  */
 export function SetupAiStep({
   location,
@@ -307,23 +303,16 @@ function ModelChooser({
     (model) => model.source === "builtin" && model.model_kind === "chat",
   );
 
-  // Saving the OpenAI key here completes the choice with OpenAI's default
-  // model. A key that was already set chooses nothing: only explicit choices
-  // in this setup become the Chat default.
+  // Saving the OpenAI key here chooses OpenAI's default model, replacing an
+  // earlier choice: the model set up last wins. A key that was already set
+  // chooses nothing, so only explicit actions in this setup pick the default.
   const openAiId = openAiReady ? (openAi?.id ?? null) : null;
   const wasReady = useRef<boolean | null>(null);
   useEffect(() => {
     if (!connections.isSuccess) return;
-    if (wasReady.current === false && openAiId && chatModelId === null)
-      onChatModelChange(openAiId);
+    if (wasReady.current === false && openAiId) onChatModelChange(openAiId);
     wasReady.current = openAiReady;
-  }, [
-    chatModelId,
-    connections.isSuccess,
-    onChatModelChange,
-    openAiId,
-    openAiReady,
-  ]);
+  }, [connections.isSuccess, onChatModelChange, openAiId, openAiReady]);
 
   // A choice that is no longer offered (removed, or its key removed) is dropped.
   const offered =
@@ -336,35 +325,9 @@ function ModelChooser({
     if (settled && !offered) onChatModelChange(null);
   }, [offered, onChatModelChange, settled]);
 
-  const defaultItem = items.find((item) => item.id === systemDefaultId);
-  const systemDefault = defaultItem
-    ? (defaultItem.model_label ?? defaultItem.model)
-    : null;
-  const chosenLabel =
-    chatModelId === null
-      ? null
-      : chatModelId === openAiId && openAi
-        ? `OpenAI (${openAi.model_label ?? openAi.model})`
-        : [...choices.cloud, ...choices.local]
-            .filter((item) => item.id === chatModelId)
-            .map((item) => `${item.label} on ${item.connectionName}`)[0];
-
   const presetById = (id: string) =>
     presets.data?.find((preset) => preset.id === id);
   const openAdder = (next: ModelAdder) => setAdder(next);
-  const radioChoices: Array<SetupModelChoice & { disabled?: boolean }> = [
-    ...(location === "cloud" && openAi
-      ? [
-          {
-            id: openAi.id,
-            label: "Use OpenAI",
-            connectionName: openAi.model_label ?? openAi.model,
-            disabled: !openAiReady,
-          },
-        ]
-      : []),
-    ...choices[location],
-  ];
 
   const groups = {
     cloud: locationProviderGroups(allConnections, "cloud"),
@@ -409,9 +372,9 @@ function ModelChooser({
         >
           <h3
             id={`${choiceHeadingId}-openai`}
-            className="flex flex-wrap items-center gap-2 text-sm font-semibold"
+            className="text-sm font-semibold"
           >
-            OpenAI <span className={TAG_CLASS}>Recommended</span>
+            OpenAI
           </h3>
           <p className="text-muted-foreground text-xs">{entry.purpose}</p>
           {managedKeys ? (
@@ -458,7 +421,7 @@ function ModelChooser({
         value={location}
         onValueChange={(value) => onLocationChange(value as SetupModelLocation)}
       >
-        <ModelLocationTabsList active={location} />
+        <ModelLocationTabsList active={location} recommended="cloud" />
         {/* Every location and provider panel stays mounted, so a typed key
             or open form survives a tab switch. */}
         {MODEL_LOCATION_TABS.map(({ id: where, label }) => (
@@ -493,53 +456,6 @@ function ModelChooser({
           </TabsContent>
         ))}
       </Tabs>
-      {radioChoices.length ? (
-        <section aria-labelledby={choiceHeadingId} className="space-y-2">
-          <h3 id={choiceHeadingId} className="text-sm font-semibold">
-            Model for new Animas
-          </h3>
-          <RadioGroup
-            aria-labelledby={choiceHeadingId}
-            value={chatModelId ?? ""}
-            onValueChange={(value) => onChatModelChange(value || null)}
-            className="gap-1"
-          >
-            {radioChoices.map((choice) => (
-              <div key={choice.id} className="flex items-center gap-2 py-1">
-                <RadioGroupItem
-                  id={`${choiceHeadingId}-${choice.id}`}
-                  value={choice.id}
-                  disabled={choice.disabled}
-                />
-                <Label
-                  htmlFor={`${choiceHeadingId}-${choice.id}`}
-                  className="min-w-0 flex-1 font-normal"
-                >
-                  <span className="text-sm">{choice.label}</span>{" "}
-                  <span className="text-muted-foreground text-xs">
-                    {choice.connectionName}
-                  </span>
-                </Label>
-              </div>
-            ))}
-          </RadioGroup>
-          {location === "cloud" && openAi && !openAiReady ? (
-            <p className="text-muted-foreground text-xs">
-              Save your OpenAI key to use OpenAI.
-            </p>
-          ) : null}
-        </section>
-      ) : null}
-      <p className="text-sm" role="status">
-        {chosenLabel
-          ? `New Animas will chat with ${chosenLabel}.`
-          : systemDefault
-            ? `No model chosen; new Animas use the system default (${systemDefault}).`
-            : "No model chosen yet. You can skip this step and set one up later."}
-      </p>
-      <p className="text-muted-foreground text-xs">
-        You can change models later in App Settings → Models.
-      </p>
       {adder ? (
         <OwnerModelDialog
           open
