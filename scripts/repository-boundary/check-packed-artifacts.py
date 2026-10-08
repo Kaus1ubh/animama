@@ -138,7 +138,17 @@ def main() -> int:
     parser.add_argument(
         "--previous-app-set", type=Path, help="Verified clean format-2 predecessor for actual app upgrade/rollback"
     )
+    parser.add_argument(
+        "--legacy-app-set",
+        type=Path,
+        help=(
+            "Optional genuine C set for additional legacy forward/untouched rollback checks; "
+            "never the edited-data predecessor"
+        ),
+    )
     args = parser.parse_args()
+    if args.legacy_app_set and not args.previous_app_set:
+        parser.error("--legacy-app-set requires --previous-app-set")
     artifact_dir = args.artifacts.resolve()
     # Verification tooling is reviewed public code; runtime consumers below
     # receive only copied fixtures, installed artifacts and verified app bytes.
@@ -147,6 +157,17 @@ def main() -> int:
     from package_set import compare, verify
 
     manifest = verify(artifact_dir)
+    legacy = None
+    if args.legacy_app_set:
+        legacy = verify(args.legacy_app_set.resolve())
+        if (
+            legacy["schema_version"] != 2
+            or legacy["source"]["dirty"]
+            or legacy["source"]["commit"] != "c10218aeca1c4c68b37028bd0e5f56372fdfe98a"
+            or legacy["source"]["tree"] != "5c0a64bf61358d867f337f2b42c324fa76fffed6"
+        ):
+            raise ValueError("The optional legacy set must be genuine clean C, with closed archive verification")
+        compare(args.legacy_app_set.resolve(), artifact_dir)
     artifacts = {}
     reports = []
     for path in sorted(artifact_dir.glob("*.tgz")):
@@ -240,6 +261,16 @@ def main() -> int:
             previous = verify(previous_directory)
             if previous["schema_version"] != 2 or previous["source"]["dirty"] or manifest["source"]["dirty"]:
                 raise ValueError("Actual app upgrade/rollback requires two clean format-2 sets")
+            if (
+                previous["source"]["commit"] == manifest["source"]["commit"]
+                or previous["source"]["tree"] == manifest["source"]["tree"]
+            ):
+                raise ValueError("Actual edited-data rollback requires two genuine distinct source generations")
+            if legacy and (
+                legacy["source"]["commit"] in {previous["source"]["commit"], manifest["source"]["commit"]}
+                or legacy["source"]["tree"] in {previous["source"]["tree"], manifest["source"]["tree"]}
+            ):
+                raise ValueError("Legacy compatibility is a separate third source generation")
             compare(previous_directory, artifact_dir)
             previous_record = previous["applications"][0]
             previous_application = work / "previous-application"
@@ -268,12 +299,34 @@ def main() -> int:
             name="whole-application-browser",
             env=env,
         )
+        browser_receipt = json.loads((tooling / "whole-app-receipt.json").read_text())
+        clip_receipt = browser_receipt["clip_compatibility"]
+        if (
+            clip_receipt["mode"] != "v2-edited-data"
+            or clip_receipt["minimum_edited_data_rollback_format"] != "animaPoseClip/2.0"
+            or any(row["emitted_schema"] != "animaPoseClip/2.0" for row in clip_receipt["format_generations"])
+        ):
+            raise ValueError("The primary pair must prove the explicit 2.0 clip format")
+        if args.previous_app_set and not clip_receipt["exact_edited_data_rollback"]:
+            raise ValueError("The genuine predecessor must pass edited-data rollback")
         whole_app = {
             "artifact": record,
             "manifest_sha256": digest(application / "app-manifest.json"),
             "catalog_seed": app_manifest["catalog_seed"],
             "selection_kind": selection_kind,
-            "exact_clean_upgrade_rollback": selection_kind == "verified-clean-package-set-pair",
+            "exact_clean_upgrade_rollback": (
+                selection_kind == "verified-clean-package-set-pair" and clip_receipt["exact_edited_data_rollback"]
+            ),
+            "minimum_edited_data_rollback": {
+                "clip_format": "animaPoseClip/2.0",
+                "predecessor_source": previous["source"] if args.previous_app_set else None,
+                "predecessor_manifest_sha256": digest(previous_directory / "manifest.json")
+                if args.previous_app_set
+                else None,
+                "current_source": manifest["source"],
+                "current_manifest_sha256": digest(artifact_dir / "manifest.json"),
+                "product_runtime_difference_asserted": False,
+            },
             "browser_receipt": {
                 "path": str((tooling / "whole-app-receipt.json").relative_to(work)),
                 "sha256": digest(tooling / "whole-app-receipt.json"),
@@ -284,6 +337,62 @@ def main() -> int:
                 if path.is_file()
             },
         }
+
+        if legacy:
+            legacy_record = legacy["applications"][0]
+            legacy_application = work / "legacy-application"
+            unpack_application(
+                args.legacy_app_set.resolve() / legacy_record["file"],
+                legacy_application,
+                legacy["source"]["commit"],
+                legacy_record["version"],
+                legacy["contracts"],
+                archive_sha256=legacy_record["sha256"],
+                source_tree=legacy["source"]["tree"],
+            )
+            # Run all existing emitted asset/old-tab checks again. Never overwrite
+            # the primary v2 pair's receipt or failure evidence.
+            legacy_tooling = frontend / "hosted-app-legacy"
+            shutil.copytree(
+                tooling,
+                legacy_tooling,
+                ignore=shutil.ignore_patterns("*-receipt.json", "*-failure.json", "*-failure.png"),
+            )
+            run(
+                [
+                    "node",
+                    "verify.mjs",
+                    str(application),
+                    str(legacy_application),
+                    "verified-clean-legacy-format-pair",
+                    "legacy-format-boundary",
+                ],
+                cwd=legacy_tooling,
+                logs=logs,
+                name="legacy-application-browser",
+                env=env,
+            )
+            legacy_receipt = json.loads((legacy_tooling / "whole-app-receipt.json").read_text())
+            legacy_clip = legacy_receipt["clip_compatibility"]
+            if (
+                legacy_clip["mode"] != "legacy-format-boundary"
+                or not legacy_clip["legacy_forward_conversion"]
+                or not legacy_clip["legacy_untouched_data_rollback"]
+                or legacy_clip["legacy_edited_data_rollback_supported"] is not False
+                or legacy_clip["exact_edited_data_rollback"] is not False
+            ):
+                raise ValueError("Legacy checks must report the real unsupported edited-data boundary")
+            whole_app["legacy_compatibility"] = {
+                "source": legacy["source"],
+                "manifest_sha256": digest(args.legacy_app_set.resolve() / "manifest.json"),
+                "clip_format": "animaPoseClip/1.0",
+                "eligible_edited_data_rollback_target": False,
+                "cloud_activation_enforcement_claimed": False,
+                "browser_receipt": {
+                    "path": str((legacy_tooling / "whole-app-receipt.json").relative_to(work)),
+                    "sha256": digest(legacy_tooling / "whole-app-receipt.json"),
+                },
+            }
 
     backend = work / "backend"
     backend.mkdir()

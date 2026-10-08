@@ -41,7 +41,10 @@ export function applicationRoute(raw) {
     );
 }
 
-export async function createApplicationServer(applications, { vrmFile } = {}) {
+export async function createApplicationServer(
+    applications,
+    { vrmFile, clipSchemaFor = () => "animaPoseClip/2.0" } = {},
+) {
     let selected = applications[0];
     const inventory = new Map();
     for (const app of applications)
@@ -55,7 +58,9 @@ export async function createApplicationServer(applications, { vrmFile } = {}) {
     const { createHostedWorkflowHttp } =
         await import("./hosted-workflows-http.mjs");
     const api = await createHostedWorkflowHttp();
-    const clips = createClipApi(json, applications[0].directory);
+    const clips = createClipApi(json, applications[0].directory, () =>
+        clipSchemaFor(selected),
+    );
     const sessions = new Map(),
         calls = [];
     const vrm = vrmFile ? readFileSync(vrmFile) : null;

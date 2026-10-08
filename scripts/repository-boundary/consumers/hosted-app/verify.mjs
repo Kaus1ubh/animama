@@ -16,6 +16,32 @@ const load = (directory) => ({
 const candidate = load(process.argv[2]);
 const other = process.argv[3] ? load(process.argv[3]) : null;
 const apps = other ? [other, candidate] : [candidate];
+const clipMode = process.argv[5] ?? "v2-edited-data";
+assert.ok(["v2-edited-data", "legacy-format-boundary"].includes(clipMode));
+if (clipMode === "legacy-format-boundary") {
+    assert.equal(process.argv[4], "verified-clean-legacy-format-pair");
+    assert.equal(
+        other?.manifest.source_commit,
+        "c10218aeca1c4c68b37028bd0e5f56372fdfe98a",
+    );
+    assert.notEqual(
+        other.manifest.source_commit,
+        candidate.manifest.source_commit,
+    );
+}
+if (process.argv[4] === "verified-clean-package-set-pair")
+    assert.notEqual(
+        other?.manifest.source_commit,
+        candidate.manifest.source_commit,
+    );
+const clipSchemas = new Map(
+    apps.map((app, index) => [
+        app.directory,
+        clipMode === "legacy-format-boundary" && index === 0
+            ? "animaPoseClip/1.0"
+            : "animaPoseClip/2.0",
+    ]),
+);
 const initial = apps[0],
     upgraded = apps.at(-1);
 const seed = JSON.parse(
@@ -42,6 +68,7 @@ if (other)
     );
 const server = await createApplicationServer(apps, {
     vrmFile: path.join(initial.directory, "catalog-seed/included", avatar),
+    clipSchemaFor: (app) => clipSchemas.get(app.directory),
 });
 const browserArgs = [
     "--use-gl=angle",
@@ -517,6 +544,7 @@ try {
         server,
         apps,
         process.argv[4] ?? "single-revision",
+        clipMode,
     );
     assert.deepEqual(errors, []);
     assert.deepEqual(

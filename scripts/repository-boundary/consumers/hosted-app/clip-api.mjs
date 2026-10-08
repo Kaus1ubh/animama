@@ -29,7 +29,7 @@ const typed = (item) =>
     );
 
 /** No product modules: retain the actual uploaded sequence and descriptor bytes. */
-export function createClipApi(reply, applicationDirectory) {
+export function createClipApi(reply, applicationDirectory, expectedSchema) {
     const records = [],
         operations = new Map();
     const initialize = (admission) => {
@@ -157,9 +157,13 @@ export function createClipApi(reply, applicationDirectory) {
                 )
                     throw new Error("Expected one actual clip companion");
                 const bytes = Buffer.from(await uploaded[0].arrayBuffer());
+                const selectedSchema = expectedSchema();
                 if (
                     bytes.length > MAX_CLIP ||
-                    JSON.parse(bytes).schema !== "animaPoseClip/1.0"
+                    !["animaPoseClip/1.0", "animaPoseClip/2.0"].includes(
+                        selectedSchema,
+                    ) ||
+                    JSON.parse(bytes).schema !== selectedSchema
                 )
                     throw new Error("Invalid or oversized clip companion");
                 const old = session.state.items.get(
@@ -294,6 +298,9 @@ export function createClipApi(reply, applicationDirectory) {
                 item_id: file[1],
                 revision: file[2],
                 status: res.statusCode,
+                sequence_sha256:
+                    res.statusCode === 200 ? sha(payload.bytes) : null,
+                bytes: res.statusCode === 200 ? payload.bytes.length : null,
             });
             return true;
         }

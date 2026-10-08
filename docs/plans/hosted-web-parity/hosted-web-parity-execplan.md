@@ -1783,6 +1783,19 @@ Actual historical native reproduction is now available: the separately built unm
 
 C6H's final bounded repair2/2 corrects that exact-namespace guard and passes independent analysis plus31 independently rerun affected cases, retaining all44 foreign-resource mismatch controls. Actual current native teardown then passes with zero owned containers; log SHA0b7f9d1107c8f2ee39258dadd6703470974b9b051a4a0cddb2946266939e4d48. The completed Cloud author database is also stopped through its checked-in guarded wrapper. Task data/images/evidence and unrelated stacks remain. Both repositories have verified source checkpoints; A7's unchanged artifact gate and its explicitly proposed extension are still pending owner decision. Parent/child trackers record the blocker and next phase order.
 
+
+#### Approved compatibility amendment — A7 repair 3
+
+The owner approved the compatibility amendment and further necessary repair rounds for the remaining ExecPlans on 2026-10-08. Preserve the two consumed A7 rounds and all inherited counters; this is repair 3, not a restarted review. Subsequent necessary rounds are authorized and must still record findings, revisions and targeted independent evidence.
+
+Keep ADR0014's 2.0 saves/exports. The primary edited-data upgrade/old-tab/rollback gate now requires two genuine clean, independently built 2.0-capable source generations: retained runtime11c18a896aac4737db4c81dcde6fab83dedca043 and the reviewed consumer-only successor. No product runtime difference between those generations is asserted. Keep the genuine C generation as a separate legacy check: actual1.0 forward conversion, unchanged1.0 rollback, and observed refusal to export edited2.0 data. That expected refusal must not satisfy the primary edited-data rollback gate. Preserve the earlier failed evidence.
+
+Exclude C from approved activation/rollback recipes after2.0 editing. Cloud artifact verification does not infer tenant content compatibility; operators must select a proven2.0-capable rollback target. The seven-path consumer/tooling amendment checks exact expected formats, actual uploaded/read-back bytes, metadata, normal motion endpoints, effect-only events and cleanup. All eight existing consumer gates remain; pure fixture controls alone do not complete them. Actual successor builds, all-eight acceptance and paired Cloud acceptance remain pending. Ordinary pin adoption, exact-candidate merge, physical device and live infrastructure gates are unchanged.
+
+#### Code Review #4 Findings and Revisions — A7 repair3
+
+Targeted independent analysis passes with no findings (receipt SHA7b5ee35bdc30d5cefb439ddccce481b20e1013a26b6eec84ff4171a4d656e7ab). Independent checks pass29 producer/archive Python cases and2 Node format controls, zero skips, Ruff/format, configured Prettier, syntax, whitespace and fail-closed CLI validation (receipt SHA7526e8411e05a948d9aae80be89d8227fd979bbf46ee0c3f5357731d2f0eec0d). Seven amended source hashes match freeze0586778870abb0477883708ae7f074d77719ed3ac4b8a3f74093c9d59aa6f52b; all3,420 source paths remain unchanged during checks. A checker-only Node output-parser failure is retained separately from the subsequent explicit-TAP pass. Accept this targeted source result; no further source revision is required. Actual clean builds/all-eight emitted consumers remain the next gate. This is approved repair3 with historical rounds preserved, not phase completion.
+
 ## Final integration review
 
 A6's review closes integration of A1–A6; do not reopen those reviews. A7 has the new scope's separately bounded review above, reusing valid inherited evidence.

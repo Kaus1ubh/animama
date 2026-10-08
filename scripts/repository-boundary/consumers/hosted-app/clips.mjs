@@ -75,17 +75,77 @@ const project = (sequence) => ({
         : [],
 });
 
-function assertMetadata(sequence) {
-    assert.equal(sequence.schema, "animaPoseClip/1.0");
+export function assertClip(sequence, expectedSchema, kind) {
+    assert.ok(["normal", "effect-only"].includes(kind));
+    assert.ok(
+        ["animaPoseClip/1.0", "animaPoseClip/2.0"].includes(expectedSchema),
+    );
+    assert.equal(
+        sequence.schema,
+        expectedSchema,
+        "The selected source must emit its declared clip format",
+    );
     for (const [key, value] of Object.entries(metadata))
         assert.deepEqual(
             sequence[key],
             value,
             `Retain ${key} across emitted app selections`,
         );
+    assert.equal(sequence.role, "motion");
+    assert.equal(sequence.duration, 1);
+    const effect = kind === "effect-only";
+    if (expectedSchema === "animaPoseClip/1.0") {
+        assert.deepEqual(
+            sequence.poseKeyframes.map(({ time }) => time),
+            effect ? [] : [0, 1],
+        );
+        if (!effect)
+            assert.deepEqual(
+                sequence.poseKeyframes.map(
+                    ({ pose }) => sequence.poses[pose].expressions.happy,
+                ),
+                [0, 0.75],
+            );
+    } else {
+        assert.deepEqual(
+            sequence.beats.map(({ time }) => time),
+            effect ? [] : [0, 1],
+        );
+        assert.equal(Object.hasOwn(sequence, "poseKeyframes"), false);
+        assert.equal(Object.hasOwn(sequence, "poses"), false);
+        if (effect) {
+            for (const track of [
+                "joints",
+                "rotations",
+                "hipsPosition",
+                "hands",
+                "expressions",
+            ])
+                assert.deepEqual(
+                    Object.keys(sequence[track] ?? {}),
+                    [],
+                    "An effect-only clip retains no motion tracks",
+                );
+        } else {
+            const keys = sequence.expressions.happy;
+            assert.deepEqual(
+                keys.map(({ v }) => v),
+                [0, 0.75],
+            );
+            assert.deepEqual(
+                keys.map(
+                    ({ beat }) =>
+                        sequence.beats.find((row) => row.id === beat).time,
+                ),
+                [0, 1],
+            );
+            assert.ok(keys.every(({ dt = 0 }) => dt === 0));
+        }
+    }
+    if (effect) assert.deepEqual(sequence.events, effectOnly.events);
 }
 
-async function exportProject(page) {
+async function exportProject(page, expectedSchema, kind) {
     await page.getByRole("button", { name: "View JSON", exact: true }).click();
     await page.getByRole("combobox", { name: "JSON format" }).click();
     await page
@@ -121,7 +181,7 @@ async function exportProject(page) {
         preview,
         "Downloaded bytes match the creator's project export",
     );
-    assertMetadata(exported.sequence);
+    assertClip(exported.sequence, expectedSchema, kind);
     await page.keyboard.press("Escape");
     return { project: exported, sha256: sha(bytes), bytes: bytes.length };
 }
@@ -132,12 +192,15 @@ export async function exerciseClipCompatibility(
     server,
     applications,
     selectionKind,
+    mode = "v2-edited-data",
 ) {
     const context = await browser.newContext({
         viewport: { width: 1440, height: 900 },
         acceptDownloads: true,
     });
-    const owner = "artifact-clip-owner",
+    assert.ok(["v2-edited-data", "legacy-format-boundary"].includes(mode));
+    const legacy = mode === "legacy-format-boundary";
+    const owner = legacy ? "artifact-legacy-clip-owner" : "artifact-clip-owner",
         admission = await server.admit(owner, true);
     server.initializeClipFixtures(admission);
     await context.addCookies([
@@ -148,6 +211,7 @@ export async function exerciseClipCompatibility(
         },
     ]);
     const ids = new Map(),
+        untouched = new Map(),
         receipts = [];
     const errors = [],
         external = [],
@@ -172,10 +236,22 @@ export async function exerciseClipCompatibility(
     try {
         for (const [index, app] of selections.entries()) {
             server.select(app);
-            for (const [kind, sequence] of [
+            const expectedSchema =
+                legacy && index !== 1
+                    ? "animaPoseClip/1.0"
+                    : "animaPoseClip/2.0";
+            const definitions = [
                 ["normal", normal],
                 ["effect-only", effectOnly],
-            ]) {
+            ];
+            if (legacy)
+                definitions.push(
+                    ["untouched-normal", normal],
+                    ["untouched-effect-only", effectOnly],
+                );
+            for (const [key, sequence] of definitions) {
+                const isUntouched = key.startsWith("untouched-");
+                const kind = key.replace(/^untouched-/, "");
                 page = await context.newPage();
                 page.setDefaultTimeout(15000);
                 page.on("pageerror", (error) => errors.push(error.message));
@@ -184,10 +260,11 @@ export async function exerciseClipCompatibility(
                         consoleErrors.push(message.text());
                 });
                 page.on("dialog", (dialog) => dialog.accept());
+                const readStart = server.clipRecords.length;
                 await page.goto(
                     server.origin +
-                        (ids.has(kind)
-                            ? `/gestures/${ids.get(kind)}/edit`
+                        (ids.has(key)
+                            ? `/gestures/${ids.get(key)}/edit`
                             : "/gestures/new"),
                 );
                 await page
@@ -196,7 +273,144 @@ export async function exerciseClipCompatibility(
                 await page
                     .getByRole("button", { name: "Import", exact: true })
                     .waitFor();
-                if (!ids.has(kind)) {
+                if (legacy && index === 2 && !isUntouched) {
+                    const item = admission.state.items.get(ids.get(key));
+                    const revision = item.revision_sha256;
+                    await page
+                        .getByRole("button", { name: "View JSON", exact: true })
+                        .click();
+                    await page
+                        .getByRole("combobox", { name: "JSON format" })
+                        .click();
+                    await page
+                        .getByRole("option", {
+                            name: "Typed project JSON",
+                            exact: true,
+                        })
+                        .click();
+                    await page
+                        .getByText(
+                            "This implementation does not have Anima Pose Clip JSON.",
+                            { exact: true },
+                        )
+                        .waitFor();
+                    assert.equal(
+                        await page
+                            .getByLabel("Creator JSON preview")
+                            .inputValue(),
+                        "",
+                    );
+                    assert.equal(
+                        await page
+                            .getByRole("button", {
+                                name: "Download",
+                                exact: true,
+                            })
+                            .isDisabled(),
+                        true,
+                    );
+                    assert.equal(
+                        admission.state.items.get(ids.get(key)).revision_sha256,
+                        revision,
+                    );
+                    assert.equal(
+                        JSON.parse(
+                            admission.state.files.get(item.files[0].file_ref)
+                                .bytes,
+                        ).schema,
+                        "animaPoseClip/2.0",
+                    );
+                    assert.ok(
+                        server.clipRecords
+                            .slice(readStart)
+                            .some(
+                                (record) =>
+                                    record.action === "read" &&
+                                    record.item_id === ids.get(key) &&
+                                    record.revision === revision &&
+                                    record.status === 200 &&
+                                    record.sequence_sha256 === revision,
+                            ),
+                        "C actually received the persisted 2.0 bytes before refusing export",
+                    );
+                    receipts.push({
+                        selection: "legacy-edited-data-refusal",
+                        source_commit: app.manifest.source_commit,
+                        kind,
+                        item_id: ids.get(key),
+                        persisted_schema: "animaPoseClip/2.0",
+                        compatible_edited_data_rollback: false,
+                        unsupported_export_observed: true,
+                        unchanged_revision: revision,
+                    });
+                    await page.close();
+                    continue;
+                }
+                if (legacy && isUntouched && index > 0) {
+                    const before = untouched.get(key);
+                    const reopened = await exportProject(
+                        page,
+                        expectedSchema,
+                        kind,
+                    );
+                    await page.reload();
+                    await page
+                        .getByLabel("gesture name", { exact: true })
+                        .waitFor();
+                    const reloaded = await exportProject(
+                        page,
+                        expectedSchema,
+                        kind,
+                    );
+                    assert.equal(
+                        admission.state.items.get(ids.get(key)).revision_sha256,
+                        before.revision,
+                    );
+                    assert.equal(
+                        server.clipRecords.filter(
+                            (record) =>
+                                record.action === "save" &&
+                                record.item_id === ids.get(key),
+                        ).length,
+                        1,
+                    );
+                    const payload = admission.state.files.get(before.file_ref);
+                    assert.equal(sha(payload.bytes), before.sha256);
+                    assert.equal(payload.bytes.length, before.bytes);
+                    assert.equal(
+                        JSON.parse(payload.bytes).schema,
+                        "animaPoseClip/1.0",
+                    );
+                    assert.ok(
+                        server.clipRecords.some(
+                            (record) =>
+                                record.action === "read" &&
+                                record.item_id === ids.get(key) &&
+                                record.revision === before.revision &&
+                                record.status === 200,
+                        ),
+                    );
+                    receipts.push({
+                        selection:
+                            index === 1
+                                ? "legacy-read-only-forward"
+                                : "legacy-untouched-rollback",
+                        source_commit: app.manifest.source_commit,
+                        kind,
+                        item_id: ids.get(key),
+                        persisted_schema: "animaPoseClip/1.0",
+                        exported_schema: expectedSchema,
+                        uploaded_sha256: before.sha256,
+                        uploaded_bytes: before.bytes,
+                        reopen_export_sha256: reopened.sha256,
+                        reload_export_sha256: reloaded.sha256,
+                        metadata_preserved: true,
+                        persisted_bytes_unchanged: true,
+                    });
+                    await page.close();
+                    continue;
+                }
+                if (!ids.has(key)) {
                     await page
                         .getByRole("button", { name: "Import", exact: true })
                         .click();
@@ -219,11 +433,17 @@ export async function exerciseClipCompatibility(
                         .waitFor();
                     await page.keyboard.press("Escape");
                 } else {
-                    const reopened = await exportProject(page);
-                    assertMetadata(reopened.project.sequence);
+                    const reopened = await exportProject(
+                        page,
+                        expectedSchema,
+                        kind,
+                    );
+                    assertClip(reopened.project.sequence, expectedSchema, kind);
                 }
                 const name =
-                    (kind === "normal" ? "Normal" : "Effect") + labels[index];
+                    (isUntouched ? "LegacyUntouched" : "") +
+                    (kind === "normal" ? "Normal" : "Effect") +
+                    labels[index];
                 await page
                     .getByLabel("gesture name", { exact: true })
                     .fill(name);
@@ -244,7 +464,7 @@ export async function exerciseClipCompatibility(
                 const response = await pending;
                 assert.equal(response.status(), 200);
                 const saved = await response.json();
-                ids.set(kind, saved.item_id);
+                ids.set(key, saved.item_id);
                 await page.waitForURL(
                     (url) => url.pathname === `/gestures/${saved.item_id}/edit`,
                 );
@@ -258,30 +478,46 @@ export async function exerciseClipCompatibility(
                     recorded,
                     "Capture actual server-side multipart sequence bytes",
                 );
-                assertMetadata(recorded.sequence);
-                const exported = await exportProject(page);
-                assertMetadata(exported.project.sequence);
+                assertClip(recorded.sequence, expectedSchema, kind);
+                const exported = await exportProject(
+                    page,
+                    expectedSchema,
+                    kind,
+                );
+                assertClip(exported.project.sequence, expectedSchema, kind);
                 await page.reload();
                 await page
                     .getByLabel("gesture name", { exact: true })
                     .waitFor();
-                const reopened = await exportProject(page);
-                assertMetadata(reopened.project.sequence);
+                const reopened = await exportProject(
+                    page,
+                    expectedSchema,
+                    kind,
+                );
+                assertClip(reopened.project.sequence, expectedSchema, kind);
                 assert.ok(
                     server.clipRecords.some(
                         (record) =>
                             record.action === "read" &&
                             record.item_id === saved.item_id &&
                             record.revision === saved.revision_sha256 &&
-                            record.status === 200,
+                            record.status === 200 &&
+                            record.sequence_sha256 ===
+                                recorded.sequence_sha256 &&
+                            record.bytes === recorded.bytes,
                     ),
                     "Reopen actual private persisted HTTP bytes",
                 );
+                if (legacy && isUntouched && index === 0) {
+                    const item = admission.state.items.get(saved.item_id);
+                    untouched.set(key, {
+                        revision: saved.revision_sha256,
+                        file_ref: item.files[0].file_ref,
+                        sha256: recorded.sequence_sha256,
+                        bytes: recorded.bytes,
+                    });
+                }
                 if (kind === "effect-only") {
-                    assert.deepEqual(
-                        reopened.project.sequence.poseKeyframes,
-                        [],
-                    );
                     assert.equal(
                         reopened.project.sequence.events[0].kind,
                         "particle_vfx",
@@ -289,7 +525,10 @@ export async function exerciseClipCompatibility(
                     assert.equal(reopened.project.dependencies.length, 1);
                 }
                 receipts.push({
-                    selection: labels[index],
+                    selection: isUntouched
+                        ? "legacy-untouched-create"
+                        : labels[index],
+                    clip_schema: expectedSchema,
                     source_commit: app.manifest.source_commit,
                     kind,
                     item_id: saved.item_id,
@@ -302,7 +541,26 @@ export async function exerciseClipCompatibility(
                 await page.close();
             }
         }
-        // Delete only the two exact items this disposable owner journey created.
+        assert.equal(receipts.length, legacy ? 12 : selections.length * 2);
+        if (legacy) {
+            assert.equal(
+                receipts.filter(
+                    (row) =>
+                        row.selection === "legacy-untouched-rollback" &&
+                        row.persisted_bytes_unchanged,
+                ).length,
+                2,
+            );
+            assert.equal(
+                receipts.filter(
+                    (row) =>
+                        row.selection === "legacy-edited-data-refusal" &&
+                        row.unsupported_export_observed,
+                ).length,
+                2,
+            );
+        }
+        // Delete only the exact items created by this disposable owner journey.
         const csrf = (
             await (
                 await context.request.get(
@@ -345,12 +603,28 @@ export async function exerciseClipCompatibility(
         assert.deepEqual(external, []);
         return {
             selection_kind: selectionKind,
+            mode,
+            minimum_edited_data_rollback_format: legacy
+                ? null
+                : "animaPoseClip/2.0",
+            exact_edited_data_rollback: !legacy && applications.length === 2,
+            legacy_forward_conversion: legacy,
+            legacy_untouched_data_rollback: legacy,
+            legacy_edited_data_rollback_supported: legacy ? false : null,
+            format_generations: applications.map((app, index) => ({
+                source_commit: app.manifest.source_commit,
+                emitted_schema:
+                    legacy && index === 0
+                        ? "animaPoseClip/1.0"
+                        : "animaPoseClip/2.0",
+            })),
             receipts,
             cleanup: [...ids.values()],
             remaining_owned_clips: 0,
             signed_out: true,
-            first_point_playback_limit:
-                "The pre-sync app preserves layer-mute metadata as opaque data; it does not implement newer procedural layer muting.",
+            first_point_playback_limit: legacy
+                ? "Legacy C preserves layer-mute metadata as opaque data; it does not implement newer procedural layer muting."
+                : "This fixture checks clip data semantics and emitted workers; it does not establish physical avatar/audio fidelity.",
             future_id_semantics_verified: false,
         };
     } catch (error) {
