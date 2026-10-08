@@ -1,7 +1,8 @@
 # Mixamo-motion pack
 
-Desktop and hosted builds ship 29 Mixamo-derived Gestures and idle loops, plus
-one Idle Style, as **non-portable** Included content
+Desktop and hosted builds ship the pack's 29 Mixamo-derived Gestures and idle
+loops, plus one Idle Style, as **non-portable** Included content once the tracked
+manifest lists them (until then no build includes the pack)
 ([ADR 0015](../../adr/0015-non-portable-included-content.md),
 [issue #242](https://github.com/raymond-van/animama/issues/242)). The files
 never enter Git, Docker build contexts, self-host images or the public package
@@ -72,7 +73,10 @@ pnpm desktop:mixamo-motion manifest <pack-dir> <version>
   interrupted publish: publish again under a new version; the partial objects
   stay unused.
 - `manifest` prints a manifest for a locally assembled pack, for review before
-  the tracked file changes.
+  the tracked file changes. Assemble the pack without a `licenses/` directory
+  (staging adds the tracked inventory), and run `scan --git` against the new
+  manifest before committing it: every listed file becomes restricted
+  everywhere, so no pack file may be byte-identical to a tracked file.
 
 ## Desktop staging
 

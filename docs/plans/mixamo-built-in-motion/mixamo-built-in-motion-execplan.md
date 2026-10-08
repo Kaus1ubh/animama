@@ -74,7 +74,7 @@ Paths are relative to `src/backend/animama/` (backend) or `src/frontend/web/src/
 - [x] Phase 4: Private build inputs, staging allowlist and leak checks (#326).
       Review #2 passed.
 - [ ] Phase 5: Content acquisition and integration (owner gates G1–G3).
-- [ ] Final integration review.
+- [x] Final integration review for Phases 1–4 (pass; Phase 5 pending owner gates).
 - [ ] PR opened. Hosted CI is disabled; local checks are the evidence.
 - [ ] Merge approval.
 - [ ] Release gate G4 (R10), recorded in the release review before the first
@@ -159,7 +159,8 @@ Paths are relative to `src/backend/animama/` (backend) or `src/frontend/web/src/
     "public-safe entry in the public licence inventory" in the pack's own
     tracked inventory, not in `content/included/licenses/inventory.json`. The
     two stale Mixamo rules in `content/included/licenses/inventory.json` are
-    removed with a pointer to the new inventory and the ADR. The two inventories
+    removed; `content/included/README.md` points to the new inventory and the
+    ADR (JSON has no comments). The two inventories
     have the same rule format and licence wording.
   - **Restricted-hash deny list everywhere.** The tracked, public-safe manifest
     of pack file SHA-256 hashes ships as a backend resource. Save and import
@@ -943,9 +944,37 @@ content; review passes.
 
 ## Final integration review
 
-Combined acceptance across R1–R9 using still-valid phase evidence, the leak
-checks on the final candidate, and documentation consistency. It ends with one
-review and at most two repair rounds.
+Phases 1–4 (partial delivery; Phase 5 is blocked on owner gates G1–G2), source
+`d9fc7f91..7bbc0ee4`, reviewed 2026-10-07 by an independent `sdlc-reviewer`.
+**Pass**, no blocking findings. The reviewer found:
+
+- the phases consistent with each other: the single manifest serves both
+  readers, the `**` rule, the source identity, staging and audit, release-scan
+  allow, error codes vs UI, capability only when references exist, and docs;
+- the PR safe to merge with the empty manifest (no restriction, no pack staged
+  or mounted, `fetch` refuses);
+- the tracked files public-safe.
+
+Spec status: R2–R5 and R4 met; the R3 import fallback is met by backend
+round-trip tests; R1, R7 (real content) and R8 depend on Phase 5; R10 is the
+release gate.
+
+- **FI-F1:** the R8 deviation (the public-safe entry in
+  `scripts/mixamo-motion/inventory.json`) needs explicit owner sign-off.
+  Disposition: called out in the PR body; the plan's pointer statement was
+  corrected.
+- **FI-F2:** the R6 evidence was narrower than recorded. Disposition: the two
+  routes are recorded as verified by code reading.
+- **FI-F3:** every manifest file is restricted, not only payloads.
+  Disposition: the guide now requires assembling without `licenses/` and
+  running `scan --git` before committing a manifest.
+- **FI-F4:** the guide used present tense before content exists. Disposition:
+  reworded.
+- **FI-F5:** observation only; ignored legacy files in a development checkout
+  now fall under the catch-all licence rule. Never staged; no action.
+
+Checks rerun by the reviewer: 51 targeted backend tests, ruff, format-check,
+65 desktop tests, `openapi-ts:check` and prettier all pass.
 
 ## Validation and acceptance
 
@@ -953,7 +982,10 @@ The spec's acceptance criteria are the contract. Evidence per criterion:
 
 - R2–R5: backend tests from P1–P2 (`uv run pytest -q`).
 - R4 and R3 UI: frontend tests and the P3 desktop-viewport browser check.
-- R6: byte-route header tests (P2) and the documentation review (P4).
+- R6: a header test for `/v1/content/files/…` (P2); the preview-file and
+  runtime-bundle routes verified by code reading (the only
+  `Content-Disposition` in `server/` is the package download); the
+  documentation review (P4).
 - R7: P4 fixture tests, and P5 real-manifest leak checks and staging.
 - R8: `verify` on the real pack (P5), and review of the public inventory.
 - R1: owner gate G3.
