@@ -268,6 +268,9 @@ Paths are relative to `src/backend/animama/` (backend) or `src/frontend/web/src/
   `posture_jumphigh`, `relax` (Yawn), `sleepy`, `telling_secret` and
   `youre_right`. Most added clips have no AI description and several keep raw
   legacy names; tidying them needs a later pack version (done in `v2`).
+- 2026-10-08, owner: **R8 licence-entry deviation accepted** (FI-F1). The
+  pack's public-safe licence entry lives in `scripts/mixamo-motion/inventory.json`,
+  not `content/included/licenses/inventory.json`.
 - 2026-10-08, owner: **ADR accepted and renumbered to 0018.** Main took 0015
   (Avatar Effect definition source) and 0016 (clip format), and open PR #284
   adds another 0016 that will need 0017, so this plan's ADR is
