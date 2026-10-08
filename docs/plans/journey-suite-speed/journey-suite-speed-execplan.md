@@ -38,7 +38,7 @@ Relevant source, relative to the repository root:
 - [x] Baseline: full suite on a fresh disposable development stack (below).
 - [x] Phase 1: failing journeys fixed where they belong (review #2 pass).
 - [x] Phase 2: development watchers narrowed and measured (review #3 pass).
-- [ ] Phase 3: serving mode and render path measured; routine command documented.
+- [x] Phase 3: serving mode and render path measured; routine command documented (review #2 pass).
 - [ ] Phase 4: full suite passes on a fresh disposable stack; final review.
 
 ## Baseline (2026-10-07)
@@ -240,14 +240,93 @@ Targeted recheck: no findings. Result: pass. Repair budget exhausted for this ph
 
 ### Phase 3: Serving mode, render path and routine command
 
-- Run the suite on a built stack (`ANIMAMA_WEB_BUILD_MODE=production`) and
-  compare it with the development baseline.
-- Measure GPU-backed headless Chromium against SwiftShader on the heaviest render
-  journey, and adopt it only if it is reliable.
-- Document the routine full-suite command, its expected duration, and when agents
-  should choose built or development stacks, in
-  `docs/frontend/testing/browser-journeys.md`. Add a fast subset only if it fits
-  existing tags.
+Changes:
+
+- `playwright.config.ts` selects the headless WebGL renderer with
+  `ANIMAMA_E2E_WEBGL`. The default is `metal` on macOS: headless Chromium reports
+  "ANGLE Metal Renderer: Apple M5" with `--use-angle=metal`, while plain headless
+  reports no WebGL. Other platforms keep SwiftShader. Headed runs are unchanged.
+  The suite has no screenshot baselines, so the renderer change affects no
+  snapshot comparison.
+- `readPlaybackObservation` reads count, schema version and text in one browser
+  call instead of four. Under SwiftShader load each call queued behind rendering:
+  the baseline proof in failure 4 got 6 samples in 5 s, about 1.2 s apart, and
+  missed a short particle burst. The same proof under SwiftShader now samples
+  every 0.4 to 0.7 s and passes. The checks are unchanged.
+- Pose content: Insert loads the saved Pose asynchronously. The journey now
+  waits for the inserted non-Base beat on the timeline before reading Clip JSON.
+  On the faster built stack it had read the empty document (`Unexpected end of
+  JSON input`). This is another timing fix that adds an assertion.
+- The two complete-Anima package journeys carry an `@complete-anima` title tag.
+  `pnpm e2e:test:fast` runs everything else.
+- `docs/frontend/testing/browser-journeys.md` documents built stacks for journeys
+  and agent live checks, the full and fast commands with durations, when to use a
+  development stack, and the WebGL override.
+
+Measurements (Apple M5, OrbStack, one other stack idle):
+
+| Run | Stack | WebGL | Result | Duration |
+| --- | --- | --- | --- | --- |
+| Baseline | development, polling | SwiftShader | 32 passed, 3 failed | 32.4 min |
+| Imported playback (`:632`) only | development, narrowed | SwiftShader | passed | 4.3 min (baseline 4.6) |
+| Imported playback (`:632`) only | development, narrowed | Metal | passed | 2.9 min |
+| Full suite | development, narrowed | Metal | 35 passed | 25.0 min |
+| Full suite | built (fresh) | Metal | 34 passed, 1 failed (pose timing, fixed above) | 10.5 min |
+| Fast subset | built | Metal | 33 passed | 4.7 min |
+
+Attribution, by summed test time: baseline 1,939 s; development with Metal and
+narrowed watchers 1,494 s; built with Metal 627 s. Metal mostly helps
+render-heavy journeys (imported playback content kinds 277 → 162 s on
+development). The built application helps everything, and the complete-Anima
+journeys most: 529 → 203 s and 458 → 143 s against development with Metal.
+Their remaining cost is server-side and is tracked in #330.
+
+Per-test durations on the built stack with Metal, compared with the baseline:
+complete-Anima imported playback 513.6 → 202.6 s, complete-Anima sharing
+459.4 → 143.1 s, imported playback content kinds 277.4 → 82.9 s, content sharing
+57.4 → 22.0 s, and pose content Local save 73.6 → 14.9–16.2 s (from the
+pose-content rerun after its fix). Creator journeys
+dropped from 10–38 s to about 5–14 s.
+
+Parallel workers remain at one. Several journeys assert that the whole Local
+catalog is unchanged, and the server serializes content writes behind one
+advisory lock. Concurrent workers would therefore need a stack each or weaker
+catalog assertions. Neither is justified now that the full suite takes about
+11 minutes.
+
+#### Code Review #1 Findings
+
+Independent reviewer, uncommitted Phase 3 tree on `e9a7681b`. It confirmed the
+single-call read keeps every check (count, version, non-empty, parse), and that
+the beat wait cannot pass early: a new Gesture draft has only Base beats until
+the insert commits. It also confirmed the WebGL config validation, the
+docs/reset behaviour and that no ledger key depends on test titles. Checks:
+`pnpm e2e:check`, `pnpm e2e:test:unit` (19 pass), Prettier, and `e2e:list`
+filters (35, 33, and 2 plus setup).
+
+- R1-F1 (required): the built-stack guidance said it has "no file watchers"; the
+  Local content watcher still runs there.
+- R1-F2 (required): the docs said "no other stacks running", while the plan says
+  one other idle stack.
+- R1-F3 (optional): the 32-minute development figure was history in durable docs.
+- R1-F4 (optional): `webglArgs[webgl]` accepted inherited keys such as
+  `constructor`.
+- R1-F5 (optional): match the inserted Pose's name instead of a negative
+  lookahead.
+
+#### Code Review #1 Revisions
+
+All accepted. Docs now say "no reload watcher or Vite" and "one other idle
+stack", and state the current development-stack duration (25 minutes, measured)
+instead of the baseline. The config uses `Object.hasOwn`. The beat wait matches
+`^${name} keyframe at ` (`name` is `pose-e2e-<hex>`). `pnpm e2e:check` passes.
+
+#### Code Review #2 Findings
+
+Targeted recheck of all five revisions: no blocking findings (one cosmetic
+wrapping note, applied). `e2e:check`, `e2e:list` filters, the
+`ANIMAMA_E2E_WEBGL=constructor` rejection and Prettier pass. Result: pass. One
+repair round remains.
 
 ### Phase 4: Full run and final review
 
