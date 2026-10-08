@@ -83,7 +83,7 @@ before(async () => {
   );
   await writeFile(
     path.join(gesture, "wave.json"),
-    JSON.stringify({ schema: "animaPoseClip/1.0", id: "wave" }),
+    JSON.stringify({ schema: "animaPoseClip/2.0", id: "wave" }),
   );
 });
 

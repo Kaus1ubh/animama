@@ -48,11 +48,7 @@ export function ActionEventList({ onSelect }: { onSelect?: () => void }) {
     ...draft.keyframes.map((frame) => ({
       id: `keyframe:${frame.id}`,
       time: frame.time,
-      label:
-        frame.label ??
-        (workspace.document.intent === "reaction"
-          ? "Expression"
-          : labelFor(frame.pose)),
+      label: frame.label,
       remove: () => {
         selectKeyframe(frame.id);
         deleteKeyframe();

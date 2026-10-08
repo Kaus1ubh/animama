@@ -194,9 +194,7 @@ describe("pose creator store with an animaPoseClip/2.0 draft", () => {
 
   it("captures a beat at the playhead and adds a Library Pose as a beat", () => {
     state().setClipCurrentTime(1.0);
-    state().captureClipPoseAtPlayhead(
-      parseAnimaPose({ schema: "animaPose/1.0", id: "c", name: "C" }),
-    );
+    state().captureClipPoseAtPlayhead();
     expect(built().beats.find(({ time }) => time === 1)).toMatchObject({
       label: "Captured",
     });

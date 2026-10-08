@@ -16,19 +16,21 @@ import { startPreviewServer } from "./animation-preview.mjs";
 import { INCLUDED_EFFECT_ROOT } from "./effect-render-sources.mjs";
 
 const clip = (headTurn) => ({
-  schema: "animaPoseClip/1.0",
+  schema: "animaPoseClip/2.0",
   id: "preview-probe",
   name: "Preview Probe",
   duration: 1,
   basePose: "relaxedRest",
-  poses: {
-    a: { humanoid: { head: { rotation: [0, 0, 0, 1] } } },
-    b: { humanoid: { head: { rotation: [0, headTurn, 0, 0.9659] } } },
-  },
-  poseKeyframes: [
-    { time: 0, pose: "a" },
-    { time: 1, pose: "b" },
+  beats: [
+    { id: "a", label: "A", time: 0 },
+    { id: "b", label: "B", time: 1 },
   ],
+  rotations: {
+    head: [
+      { beat: "a", q: [0, 0, 0, 1] },
+      { beat: "b", q: [0, headTurn, 0, 0.9659] },
+    ],
+  },
 });
 
 // Real Avatars and WebGL: notes, live reload and the previous version.

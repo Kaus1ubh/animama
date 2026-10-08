@@ -5,7 +5,7 @@ import { Quaternion } from "three";
 import {
   ANIMA_POSE_CLIP_V2_SCHEMA,
   MAX_ANIMA_POSE_CLIP_BYTES,
-  parseAnyAnimaPoseClip,
+  parseAnimaPoseClip,
   serializeAnimaPoseClipFile,
   validateAnimaPoseClipV2,
   type AnimaPoseClipV2,
@@ -387,7 +387,7 @@ async function check(
   }
   let clip;
   try {
-    clip = parseAnyAnimaPoseClip(read.value);
+    clip = parseAnimaPoseClip(read.value);
   } catch (error) {
     context.out(
       `Cannot check ${input}: ${(error as Error).message}.${schemaOf(read.value) === ANIMA_POSE_CLIP_V2_SCHEMA ? " Run validate for details." : ""}`,

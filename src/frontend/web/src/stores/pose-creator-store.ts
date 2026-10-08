@@ -6,13 +6,11 @@ import { create } from "zustand";
 import { convertPoseQuaternionBasis } from "@/lib/avatar/poses/poseRetargeting";
 
 import {
-  parseAnimaPoseClip,
-  isAnimaPoseClipRef,
   isAnimaPoseClipVFXEvent,
-  type AnyAnimaPoseClip,
+  type AnimaPoseClipV2,
   type AnimaPoseClipEvent,
-  type AnimaPoseClipPose,
   type AnimaPoseClipSceneVFXKind,
+  type AnimaPoseSnapshot,
   type Avatar,
   type AvatarLoadProgress,
   type ParticleVFXCatalogEntry,
@@ -29,31 +27,19 @@ import {
   getResolvedAvatarPose,
 } from "@/lib/avatar/poses/catalog";
 import {
-  bakePoseCreatorClipReferences,
-  isPoseCreatorBaseKeyframe,
-  clonePoseCreatorClipPose,
-  clonePoseCreatorClipTransition,
-  clampPoseCreatorClipDuration,
   clampPoseCreatorClipTime,
   clonePoseCreatorClipEvent,
   createDefaultPoseCreatorClipDraft,
   createPoseCreatorClipAvatarVFXEventDraft,
   createPoseCreatorClipDraftFromAnimaPoseClip,
-  createPoseCreatorClipInlinePose,
-  createPoseCreatorClipKeyframeDraft,
   createPoseCreatorClipParticleVFXEventDraft,
-  createPoseCreatorClipRefPose,
   createPoseCreatorClipSceneVFXEventDraft,
   createPoseCreatorClipSFXEventDraft,
-  findPoseCreatorClipKeyframeAtTime,
-  generatePoseCreatorClipCapturedAlias,
   generatePoseCreatorClipEventId,
-  generatePoseCreatorClipPoseAlias,
   normalizePoseCreatorClipPlaybackSpeed,
   normalizePoseCreatorClipSnapInterval,
   patchPoseCreatorClipDraft,
   patchPoseCreatorClipEventDraft,
-  patchPoseCreatorClipKeyframeDraft,
   snapPoseCreatorClipTime,
   sortPoseCreatorClipEvents,
   sortPoseCreatorClipKeyframes,
@@ -154,7 +140,7 @@ export type PoseCreatorDraftReplacement = {
 export type PoseCreatorClipInlineEditState = {
   alias: string;
   keyframeId: string | null;
-  originalPose: AnimaPoseClipPose;
+  originalPose: AnimaPoseSnapshot;
   previousBoneDrafts: PoseCreatorBoneDrafts;
   previousExpressionDrafts: PoseCreatorExpressionDrafts;
   previousDraftName: string;
@@ -170,9 +156,8 @@ type PoseCreatorPoseUndoSnapshot = {
 
 type PoseCreatorClipUndoSnapshot = {
   basePose: string;
-  /** 2.0 drafts' beats and tracks (edits replace them, so no copy is needed). */
+  /** The beats and tracks (edits replace them, so no copy is needed). */
   motion: PoseCreatorClipDraft["motion"];
-  poses: PoseCreatorClipDraft["poses"];
   keyframes: PoseCreatorClipDraft["keyframes"];
   events: PoseCreatorClipDraft["events"];
   selectedKeyframeId: string | null;
@@ -319,7 +304,7 @@ type PoseCreatorStoreState = {
   updateClipDraft: (patch: PoseCreatorClipDraftPatch) => void;
   resetClipDraft: (name?: string) => void;
   hydrateClipDocument: (
-    clip: AnyAnimaPoseClip,
+    clip: AnimaPoseClipV2,
     options?: {
       fallbackBasePose?: PoseCreatorBasePose;
       /** Preserve the authoring playhead during in-place document updates. */
@@ -344,7 +329,6 @@ type PoseCreatorStoreState = {
   stepClipKeyframe: (direction: -1 | 1) => void;
   /** Select one keyframe and clear event selection; null only clears keyframes. */
   selectClipKeyframe: (keyframeId: string | null) => void;
-  selectClipPoseAlias: (alias: string | null) => void;
   /** Select one event and clear keyframe selection; null only clears events. */
   selectClipEvent: (eventId: string | null) => void;
   insertClipAvatarVFXEventAtPlayhead: (
@@ -363,27 +347,30 @@ type PoseCreatorStoreState = {
     > | null,
   ) => void;
   insertClipSFXEventAtPlayhead: (cueId: string) => void;
-  convertSelectedClipPoseRefToInline: () => string | null;
-  duplicateSelectedClipPoseAliasForEdit: () => string | null;
   beginClipInlinePoseEdit: (input: {
     alias: string;
     keyframeId: string | null;
-    originalPose: AnimaPoseClipPose;
+    originalPose: AnimaPoseSnapshot;
     boneDrafts: PoseCreatorBoneDrafts;
     expressionDrafts: PoseCreatorExpressionDrafts;
     draftName: string;
   }) => void;
   commitClipInlinePoseEdit: (pose: AnimaPose) => void;
   cancelClipInlinePoseEdit: () => void;
-  captureClipPoseAtPlayhead: (pose: AnimaPose) => void;
+  /** Add a beat at the playhead that pins the motion where it is. */
+  captureClipPoseAtPlayhead: () => void;
+  /**
+   * Add a Library Pose by value as a beat (labelled `label`) at `timeSec`,
+   * or at the playhead. Returns the beat id, null when the pose or the base
+   * pose does not resolve.
+   */
   addPoseToClip: (
     pose: AnimaPose,
-    preferredAlias: string,
-    options?: { atPlayhead?: boolean; timeSec?: number },
+    label: string,
+    options?: { timeSec?: number },
   ) => string | null;
   /** Create or update the sparse expression landmark at the playhead. */
   setClipExpressionsAtPlayhead: (expressions: Record<string, number>) => void;
-  addClipKeyframeForAliasAtPlayhead: (alias: string) => void;
   updateSelectedClipKeyframe: (
     patch: PoseCreatorClipKeyframeDraftPatch,
   ) => void;
@@ -400,18 +387,9 @@ type PoseCreatorStoreState = {
   ) => void;
   deleteSelectedClipKeyframe: () => void;
   deleteSelectedClipEvent: () => void;
-  duplicateSelectedClipKeyframe: () => void;
   duplicateSelectedClipEvent: () => void;
-  nudgeSelectedClipKeyframe: (direction: -1 | 1) => void;
   nudgeSelectedClipEvent: (direction: -1 | 1) => void;
   clearClipEvents: (kind?: AnimaPoseClipEvent["kind"]) => void;
-  setClipDurationToFinalKeyframe: () => void;
-  retimeClipDuration: (
-    duration: number,
-    options: { scaleKeyframes: boolean },
-  ) => void;
-  copyFirstClipKeyframeToEnd: () => void;
-  setFinalClipKeyframeToFirstPose: () => void;
   setClipBaseEndpoint: (endpoint: "start" | "end", enabled: boolean) => void;
   setModelSource: (source: PoseCreatorModelSource | null) => void;
   setBasePose: (basePose: PoseCreatorBasePose) => void;
@@ -607,17 +585,6 @@ function clonePoseCreatorExpressionDrafts(
   );
 }
 
-function clonePoseCreatorClipPoses(
-  poses: PoseCreatorClipDraft["poses"],
-): PoseCreatorClipDraft["poses"] {
-  return Object.fromEntries(
-    Object.entries(poses).map(([alias, pose]) => [
-      alias,
-      clonePoseCreatorClipPose(pose),
-    ]),
-  );
-}
-
 function createPoseUndoSnapshot(
   state: PoseCreatorStoreState,
 ): PoseCreatorPoseUndoSnapshot {
@@ -634,13 +601,7 @@ function createClipUndoSnapshot(
   return {
     basePose: state.clipDraft.basePose,
     motion: state.clipDraft.motion,
-    poses: clonePoseCreatorClipPoses(state.clipDraft.poses),
-    keyframes: state.clipDraft.keyframes.map((keyframe) => ({
-      ...keyframe,
-      ...(keyframe.transition
-        ? { transition: clonePoseCreatorClipTransition(keyframe.transition) }
-        : {}),
-    })),
+    keyframes: state.clipDraft.keyframes.map((keyframe) => ({ ...keyframe })),
     events: state.clipDraft.events.map(clonePoseCreatorClipEvent),
     selectedKeyframeId: state.clipDraft.selectedKeyframeId,
     selectedPoseAlias: state.clipDraft.selectedPoseAlias,
@@ -732,10 +693,9 @@ function areClipUndoSnapshotsEqual(
 ): boolean {
   return (
     left.basePose === right.basePose &&
-    JSON.stringify(left.poses) === JSON.stringify(right.poses) &&
     JSON.stringify(left.keyframes) === JSON.stringify(right.keyframes) &&
     JSON.stringify(left.events) === JSON.stringify(right.events) &&
-    // 2.0 pose edits can change the motion and leave the keyframe view as is.
+    // Pose edits can change the motion and leave the keyframe view as is.
     (left.motion === right.motion ||
       JSON.stringify(left.motion) === JSON.stringify(right.motion))
   );
@@ -832,13 +792,7 @@ function restoreClipUndoSnapshot(
   snapshot: PoseCreatorClipUndoSnapshot,
 ): PoseCreatorClipDraft {
   const keyframes = sortPoseCreatorClipKeyframes(
-    snapshot.keyframes.map((keyframe) =>
-      patchPoseCreatorClipKeyframeDraft(
-        keyframe,
-        { time: keyframe.time },
-        draft.duration,
-      ),
-    ),
+    snapshot.keyframes.map((keyframe) => ({ ...keyframe })),
   );
   const events = sortPoseCreatorClipEvents(
     snapshot.events.map((event) =>
@@ -864,21 +818,18 @@ function restoreClipUndoSnapshot(
   )
     ? snapshot.selectedEventId
     : null;
-  const poses = clonePoseCreatorClipPoses(snapshot.poses);
   const selectedPoseAlias =
-    snapshot.selectedPoseAlias && poses[snapshot.selectedPoseAlias]
+    snapshot.selectedPoseAlias &&
+    keyframes.some((keyframe) => keyframe.pose === snapshot.selectedPoseAlias)
       ? snapshot.selectedPoseAlias
-      : selectedKeyframeId
-        ? (keyframes.find((keyframe) => keyframe.id === selectedKeyframeId)
-            ?.pose ?? null)
-        : null;
+      : (keyframes.find((keyframe) => keyframe.id === selectedKeyframeId)
+          ?.pose ?? null);
 
   return withPoseCreatorClipValidation(
     {
       ...draft,
       basePose: snapshot.basePose,
       motion: snapshot.motion,
-      poses,
       keyframes,
       events,
       selectedKeyframeId,
@@ -980,204 +931,6 @@ function createDuplicatedClipEvent(
   };
 }
 
-function insertClipPoseAtTime(
-  draft: PoseCreatorClipDraft,
-  pose: AnimaPoseClipPose,
-  alias: string,
-  time: number,
-): PoseCreatorClipDraft {
-  const clampedTime = clampPoseCreatorClipTime(time, draft.duration);
-  const existingKeyframe = findPoseCreatorClipKeyframeAtTime(
-    draft.keyframes,
-    clampedTime,
-  );
-  const poses = {
-    ...draft.poses,
-    [alias]: clonePoseCreatorClipPose(pose),
-  };
-  const selectedKeyframeId =
-    existingKeyframe?.id ??
-    createPoseCreatorClipKeyframeDraft(draft, alias, clampedTime).id;
-  const keyframes = existingKeyframe
-    ? draft.keyframes.map((keyframe) =>
-        keyframe.id === existingKeyframe.id
-          ? {
-              ...keyframe,
-              time: clampedTime,
-              pose: alias,
-            }
-          : keyframe,
-      )
-    : [
-        ...draft.keyframes,
-        {
-          id: selectedKeyframeId,
-          time: clampedTime,
-          pose: alias,
-        },
-      ];
-
-  return withDirtyClipValidation({
-    ...draft,
-    poses,
-    keyframes: sortPoseCreatorClipKeyframes(keyframes),
-    currentTimeSec: clampedTime,
-    selectedKeyframeId,
-    selectedPoseAlias: alias,
-  });
-}
-
-function setClipExpressionsAtTime(
-  draft: PoseCreatorClipDraft,
-  expressions: Record<string, number>,
-): PoseCreatorClipDraft {
-  const clampedTime = clampPoseCreatorClipTime(
-    draft.currentTimeSec,
-    draft.duration,
-  );
-  const existingKeyframe = findPoseCreatorClipKeyframeAtTime(
-    draft.keyframes,
-    clampedTime,
-  );
-  const existingAlias = existingKeyframe?.pose ?? null;
-  const existingPose = existingAlias ? draft.poses[existingAlias] : null;
-  const existingAliasUseCount = existingAlias
-    ? draft.keyframes.filter((keyframe) => keyframe.pose === existingAlias)
-        .length
-    : 0;
-  const alias =
-    existingAlias &&
-    existingPose &&
-    !isAnimaPoseClipRef(existingPose) &&
-    existingAliasUseCount === 1
-      ? existingAlias
-      : generatePoseCreatorClipPoseAlias(
-          "expression",
-          Object.keys(draft.poses),
-        );
-  const sparseExpressions: Record<string, number> = {};
-  for (const [expressionName, value] of Object.entries(expressions)) {
-    if (!Number.isFinite(value)) continue;
-    const normalized =
-      Math.round(MathUtils.clamp(value, 0, 1) * 10_000) / 10_000;
-    if (Math.abs(normalized) > 1e-6) {
-      sparseExpressions[expressionName] = normalized;
-    }
-  }
-  const pose: AnimaPoseClipPose =
-    Object.keys(sparseExpressions).length > 0
-      ? { expressions: sparseExpressions }
-      : {};
-  const inserted = insertClipPoseAtTime(draft, pose, alias, clampedTime);
-  const usedAliases = new Set(
-    inserted.keyframes.map((keyframe) => keyframe.pose),
-  );
-  return withDirtyClipValidation({
-    ...inserted,
-    poses: Object.fromEntries(
-      Object.entries(inserted.poses).filter(([poseAlias]) =>
-        usedAliases.has(poseAlias),
-      ),
-    ),
-  });
-}
-
-function addClipKeyframeForAlias(
-  draft: PoseCreatorClipDraft,
-  alias: string,
-): PoseCreatorClipDraft {
-  if (!draft.poses[alias]) return draft;
-  const clampedTime = clampPoseCreatorClipTime(
-    draft.currentTimeSec,
-    draft.duration,
-  );
-  const existingKeyframe = findPoseCreatorClipKeyframeAtTime(
-    draft.keyframes,
-    clampedTime,
-  );
-  const selectedKeyframeId =
-    existingKeyframe?.id ??
-    createPoseCreatorClipKeyframeDraft(draft, alias, clampedTime).id;
-  const keyframes = existingKeyframe
-    ? draft.keyframes.map((keyframe) =>
-        keyframe.id === existingKeyframe.id
-          ? { ...keyframe, pose: alias }
-          : keyframe,
-      )
-    : [
-        ...draft.keyframes,
-        {
-          id: selectedKeyframeId,
-          time: clampedTime,
-          pose: alias,
-        },
-      ];
-
-  return withDirtyClipValidation({
-    ...draft,
-    keyframes: sortPoseCreatorClipKeyframes(keyframes),
-    currentTimeSec: clampedTime,
-    selectedKeyframeId,
-    selectedPoseAlias: alias,
-  });
-}
-
-function findAvailableClipKeyframeTime(
-  draft: PoseCreatorClipDraft,
-  selectedTime: number,
-): number {
-  const step = 0.05;
-  const duration = Math.max(0, draft.duration);
-  const usedTimes = new Set(
-    draft.keyframes.map((keyframe) => keyframe.time.toFixed(3)),
-  );
-
-  for (let index = 1; index <= 200; index += 1) {
-    const later = clampPoseCreatorClipTime(
-      selectedTime + step * index,
-      duration,
-    );
-    if (!usedTimes.has(later.toFixed(3))) return later;
-
-    const earlier = clampPoseCreatorClipTime(
-      selectedTime - step * index,
-      duration,
-    );
-    if (!usedTimes.has(earlier.toFixed(3))) return earlier;
-  }
-
-  return clampPoseCreatorClipTime(selectedTime, duration);
-}
-
-function getReusableBaseAlias(draft: PoseCreatorClipDraft): string | null {
-  if (
-    !draft.basePose ||
-    draft.basePose === POSE_CREATOR_VRM_T_POSE_BASE_POSE_ID
-  )
-    return null;
-
-  for (const [alias, pose] of Object.entries(draft.poses)) {
-    if (isAnimaPoseClipRef(pose) && pose.ref === draft.basePose) {
-      return alias;
-    }
-  }
-
-  return null;
-}
-
-function getFirstClipKeyframe(
-  draft: PoseCreatorClipDraft,
-): PoseCreatorClipKeyframeDraft | null {
-  return sortPoseCreatorClipKeyframes(draft.keyframes)[0] ?? null;
-}
-
-function getFinalClipKeyframe(
-  draft: PoseCreatorClipDraft,
-): PoseCreatorClipKeyframeDraft | null {
-  const keyframes = sortPoseCreatorClipKeyframes(draft.keyframes);
-  return keyframes[keyframes.length - 1] ?? null;
-}
-
 function findClipKeyframeStepTarget(
   draft: PoseCreatorClipDraft,
   direction: -1 | 1,
@@ -1197,194 +950,6 @@ function findClipKeyframeStepTarget(
       .reverse()
       .find((keyframe) => keyframe.time < draft.currentTimeSec) ?? keyframes[0]
   );
-}
-
-function retimePoseCreatorClipDraft(
-  draft: PoseCreatorClipDraft,
-  duration: number,
-  scaleKeyframes: boolean,
-): PoseCreatorClipDraft {
-  const nextDuration = clampPoseCreatorClipDuration(duration);
-  const previousDuration = Math.max(0, draft.duration);
-  const scale =
-    scaleKeyframes && previousDuration > 0
-      ? nextDuration / previousDuration
-      : 1;
-  const keyframes = draft.keyframes.map((keyframe) =>
-    patchPoseCreatorClipKeyframeDraft(
-      keyframe,
-      {
-        time: scaleKeyframes ? keyframe.time * scale : keyframe.time,
-      },
-      nextDuration,
-    ),
-  );
-  const events = draft.events.map((event) =>
-    patchPoseCreatorClipEventDraft(
-      event,
-      {
-        time: scaleKeyframes ? event.time * scale : event.time,
-        ...(scaleKeyframes &&
-        isAnimaPoseClipVFXEvent(event) &&
-        event.duration !== undefined
-          ? { duration: event.duration * scale }
-          : {}),
-      },
-      nextDuration,
-    ),
-  );
-  const nextSelectedKeyframe =
-    keyframes.find((keyframe) => keyframe.id === draft.selectedKeyframeId) ??
-    null;
-
-  return withDirtyClipValidation({
-    ...draft,
-    duration: nextDuration,
-    keyframes: sortPoseCreatorClipKeyframes(keyframes),
-    events: sortPoseCreatorClipEvents(events),
-    currentTimeSec: clampPoseCreatorClipTime(
-      scaleKeyframes ? draft.currentTimeSec * scale : draft.currentTimeSec,
-      nextDuration,
-    ),
-    selectedPoseAlias: nextSelectedKeyframe?.pose ?? draft.selectedPoseAlias,
-  });
-}
-
-function copyFirstClipKeyframeToEnd(
-  draft: PoseCreatorClipDraft,
-): PoseCreatorClipDraft {
-  const firstKeyframe = getFirstClipKeyframe(draft);
-  if (!firstKeyframe) return draft;
-
-  const endTime = clampPoseCreatorClipTime(draft.duration, draft.duration);
-  const existingKeyframe = findPoseCreatorClipKeyframeAtTime(
-    draft.keyframes,
-    endTime,
-  );
-  const selectedKeyframeId =
-    existingKeyframe?.id ??
-    createPoseCreatorClipKeyframeDraft(draft, firstKeyframe.pose, endTime).id;
-  const keyframes = existingKeyframe
-    ? draft.keyframes.map((keyframe) =>
-        keyframe.id === existingKeyframe.id
-          ? patchPoseCreatorClipKeyframeDraft(
-              keyframe,
-              {
-                time: endTime,
-                pose: firstKeyframe.pose,
-              },
-              draft.duration,
-            )
-          : keyframe,
-      )
-    : [
-        ...draft.keyframes,
-        {
-          id: selectedKeyframeId,
-          time: endTime,
-          pose: firstKeyframe.pose,
-        },
-      ];
-
-  return withDirtyClipValidation({
-    ...draft,
-    keyframes: sortPoseCreatorClipKeyframes(keyframes),
-    selectedKeyframeId,
-    selectedPoseAlias: firstKeyframe.pose,
-    currentTimeSec: endTime,
-  });
-}
-
-function setFinalClipKeyframeToFirstPose(
-  draft: PoseCreatorClipDraft,
-): PoseCreatorClipDraft {
-  const firstKeyframe = getFirstClipKeyframe(draft);
-  const finalKeyframe = getFinalClipKeyframe(draft);
-  if (!firstKeyframe || !finalKeyframe) return draft;
-
-  return withDirtyClipValidation({
-    ...draft,
-    keyframes: sortPoseCreatorClipKeyframes(
-      draft.keyframes.map((keyframe) =>
-        keyframe.id === finalKeyframe.id
-          ? patchPoseCreatorClipKeyframeDraft(
-              keyframe,
-              { pose: firstKeyframe.pose },
-              draft.duration,
-            )
-          : keyframe,
-      ),
-    ),
-    selectedKeyframeId: finalKeyframe.id,
-    selectedPoseAlias: firstKeyframe.pose,
-    currentTimeSec: finalKeyframe.time,
-  });
-}
-
-function convertSelectedClipPoseRefToInline(
-  draft: PoseCreatorClipDraft,
-): { draft: PoseCreatorClipDraft; alias: string } | null {
-  const selectedKeyframe = getSelectedClipKeyframe(draft);
-  if (!selectedKeyframe) return null;
-
-  const pose = draft.poses[selectedKeyframe.pose];
-  if (!isAnimaPoseClipRef(pose)) {
-    return { draft, alias: selectedKeyframe.pose };
-  }
-
-  const resolvedPose = getResolvedAvatarPose(pose.ref);
-  return {
-    alias: selectedKeyframe.pose,
-    draft: withDirtyClipValidation({
-      ...draft,
-      poses: {
-        ...draft.poses,
-        [selectedKeyframe.pose]: createPoseCreatorClipInlinePose(resolvedPose),
-      },
-      selectedPoseAlias: selectedKeyframe.pose,
-    }),
-  };
-}
-
-function duplicateSelectedClipPoseAliasForEdit(
-  draft: PoseCreatorClipDraft,
-): { draft: PoseCreatorClipDraft; alias: string } | null {
-  const selectedKeyframe = getSelectedClipKeyframe(draft);
-  if (!selectedKeyframe) return null;
-
-  const sourcePose = draft.poses[selectedKeyframe.pose];
-  if (!sourcePose) return null;
-  const alias = generatePoseCreatorClipPoseAlias(
-    `${selectedKeyframe.pose}Copy`,
-    Object.keys(draft.poses),
-  );
-  const pose = isAnimaPoseClipRef(sourcePose)
-    ? createPoseCreatorClipInlinePose(getResolvedAvatarPose(sourcePose.ref))
-    : clonePoseCreatorClipPose(sourcePose);
-
-  return {
-    alias,
-    draft: withDirtyClipValidation({
-      ...draft,
-      poses: {
-        ...draft.poses,
-        [alias]: pose,
-      },
-      keyframes: sortPoseCreatorClipKeyframes(
-        draft.keyframes.map((keyframe) =>
-          keyframe.id === selectedKeyframe.id
-            ? patchPoseCreatorClipKeyframeDraft(
-                keyframe,
-                { pose: alias },
-                draft.duration,
-              )
-            : keyframe,
-        ),
-      ),
-      selectedKeyframeId: selectedKeyframe.id,
-      selectedPoseAlias: alias,
-    }),
-  };
 }
 
 export const usePoseCreatorStore = create<PoseCreatorStoreState>(
@@ -1672,79 +1237,37 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
     updateClipDraft: (patch) =>
       set((state) => {
         const applySettings = (draft: PoseCreatorClipDraft) => {
-          let source = draft;
-          if (draft.motion) {
-            // An end Base beat follows the duration, and Base beats take the
-            // new base pose when it changes.
-            const endBase = findPoseCreatorBaseBeat(draft, "end");
-            let patched = patchPoseCreatorClipDraft(
-              draft,
-              patch,
-              POSE_CREATOR_CLIP_VALIDATION_OPTIONS,
-            );
-            if (endBase && patched.duration !== draft.duration) {
-              const retimed = retimePoseCreatorBeat(
-                patched,
-                endBase.id,
-                patched.duration,
-                POSE_CREATOR_CLIP_VALIDATION_OPTIONS,
-              );
-              // A duration edit keeps the selection and playhead.
-              patched = {
-                ...retimed,
-                selectedKeyframeId: patched.selectedKeyframeId,
-                selectedPoseAlias: patched.selectedPoseAlias,
-                selectedEventId: patched.selectedEventId,
-                currentTimeSec: patched.currentTimeSec,
-              };
-            }
-            return patched.basePose !== draft.basePose
-              ? reposePoseCreatorBaseBeats(
-                  patched,
-                  state.activeAvatar?.vrm ?? null,
-                  POSE_CREATOR_CLIP_VALIDATION_OPTIONS,
-                )
-              : patched;
-          }
-          if (patch.basePose && patch.basePose !== source.basePose) {
-            const endpointIds = new Set(
-              source.keyframes
-                .filter(
-                  (frame) =>
-                    (frame.time === 0 ||
-                      Math.abs(frame.time - source.duration) < 0.0005) &&
-                    isPoseCreatorBaseKeyframe(source, frame),
-                )
-                .map((frame) => frame.id),
-            );
-            if (endpointIds.size) {
-              const alias = generatePoseCreatorClipPoseAlias(
-                "base",
-                Object.keys(source.poses),
-              );
-              source = {
-                ...source,
-                basePose: patch.basePose,
-                poses: { ...source.poses },
-                keyframes: source.keyframes.flatMap((frame) => {
-                  if (!endpointIds.has(frame.id)) return [frame];
-                  // The VRM T-pose is not a runtime pose reference.
-                  return patch.basePose === POSE_CREATOR_VRM_T_POSE_BASE_POSE_ID
-                    ? []
-                    : [{ ...frame, pose: alias }];
-                }),
-              };
-              if (patch.basePose !== POSE_CREATOR_VRM_T_POSE_BASE_POSE_ID)
-                source.poses[alias] = createPoseCreatorClipRefPose(
-                  patch.basePose,
-                );
-            }
-          }
-          return patchPoseCreatorClipDraft(
-            source,
+          // An end Base beat follows the duration, and Base beats take the
+          // new base pose when it changes.
+          const endBase = findPoseCreatorBaseBeat(draft, "end");
+          let patched = patchPoseCreatorClipDraft(
+            draft,
             patch,
             POSE_CREATOR_CLIP_VALIDATION_OPTIONS,
           );
+          if (endBase && patched.duration !== draft.duration) {
+            const retimed = retimePoseCreatorBeat(
+              patched,
+              endBase.id,
+              patched.duration,
+              POSE_CREATOR_CLIP_VALIDATION_OPTIONS,
+            );
+            // A duration edit keeps the selection and playhead.
+            patched = {
+              ...retimed,
+              selectedKeyframeId: patched.selectedKeyframeId,
+              selectedPoseAlias: patched.selectedPoseAlias,
+              selectedEventId: patched.selectedEventId,
+              currentTimeSec: patched.currentTimeSec,
+            };
+          }
+          return patched.basePose !== draft.basePose
+            ? reposePoseCreatorBaseBeats(
+                patched,
+                state.activeAvatar?.vrm ?? null,
+                POSE_CREATOR_CLIP_VALIDATION_OPTIONS,
+              )
+            : patched;
         };
         const clipDraft = applySettings(state.clipDraft);
         return {
@@ -2095,16 +1618,6 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
           clipPlaybackAbsoluteTimeSec: nextTime,
         };
       }),
-    selectClipPoseAlias: (selectedPoseAlias) =>
-      set((state) => ({
-        clipDraft: {
-          ...state.clipDraft,
-          selectedPoseAlias:
-            selectedPoseAlias && state.clipDraft.poses[selectedPoseAlias]
-              ? selectedPoseAlias
-              : null,
-        },
-      })),
     selectClipEvent: (selectedEventId) =>
       set((state) => {
         const selectedEvent =
@@ -2221,55 +1734,12 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
           clipPlaybackPlaying: false,
         };
       }),
-    convertSelectedClipPoseRefToInline: () => {
-      // 2.0 beats hold values, never references.
-      if (get().clipDraft.motion) return get().clipDraft.selectedPoseAlias;
-      let alias: string | null = null;
-      set((state) => {
-        try {
-          const result = convertSelectedClipPoseRefToInline(state.clipDraft);
-          if (!result) return state;
-          alias = result.alias;
-          return {
-            ...recordClipDraftUndo(state, result.draft),
-            clipDraft: result.draft,
-            clipInlineEdit:
-              state.clipInlineEdit?.alias === result.alias
-                ? null
-                : state.clipInlineEdit,
-            clipPlaybackPlaying: false,
-          };
-        } catch {
-          return state;
-        }
-      });
-      return alias;
-    },
-    duplicateSelectedClipPoseAliasForEdit: () => {
-      let alias: string | null = null;
-      set((state) => {
-        try {
-          const result = duplicateSelectedClipPoseAliasForEdit(state.clipDraft);
-          if (!result) return state;
-          alias = result.alias;
-          return {
-            ...recordClipDraftUndo(state, result.draft),
-            clipDraft: result.draft,
-            clipInlineEdit: null,
-            clipPlaybackPlaying: false,
-          };
-        } catch {
-          return state;
-        }
-      });
-      return alias;
-    },
     beginClipInlinePoseEdit: (input) =>
       set((state) => ({
         clipInlineEdit: {
           alias: input.alias,
           keyframeId: input.keyframeId,
-          originalPose: clonePoseCreatorClipPose(input.originalPose),
+          originalPose: structuredClone(input.originalPose),
           previousBoneDrafts: clonePoseCreatorBoneDrafts(state.boneDrafts),
           previousExpressionDrafts: clonePoseCreatorExpressionDrafts(
             state.expressionDrafts,
@@ -2296,27 +1766,19 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
         const edit = state.clipInlineEdit;
         if (!edit) return state;
         const parsed = parseAnimaPose(pose);
-        const clipDraft =
-          state.clipDraft.motion && edit.keyframeId
-            ? setPoseCreatorBeatPose(
-                state.clipDraft,
-                edit.keyframeId,
-                {
-                  humanoid: parsed.humanoid,
-                  expressions: parsed.expressions,
-                  complete: true,
-                },
-                state.activeAvatar?.vrm ?? null,
-                POSE_CREATOR_CLIP_VALIDATION_OPTIONS,
-              )
-            : withDirtyClipValidation({
-                ...state.clipDraft,
-                poses: {
-                  ...state.clipDraft.poses,
-                  [edit.alias]: createPoseCreatorClipInlinePose(parsed),
-                },
-                selectedPoseAlias: edit.alias,
-              });
+        const clipDraft = edit.keyframeId
+          ? setPoseCreatorBeatPose(
+              state.clipDraft,
+              edit.keyframeId,
+              {
+                humanoid: parsed.humanoid,
+                expressions: parsed.expressions,
+                complete: true,
+              },
+              state.activeAvatar?.vrm ?? null,
+              POSE_CREATOR_CLIP_VALIDATION_OPTIONS,
+            )
+          : state.clipDraft;
         const historyState = recordClipDraftUndo(
           { ...state, undoGroup: null },
           clipDraft,
@@ -2346,20 +1808,7 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
         if (!edit) return state;
 
         return {
-          // A 2.0 beat was never changed during the edit; nothing to restore.
-          clipDraft: state.clipDraft.motion
-            ? state.clipDraft
-            : withPoseCreatorClipValidation(
-                {
-                  ...state.clipDraft,
-                  poses: {
-                    ...state.clipDraft.poses,
-                    [edit.alias]: clonePoseCreatorClipPose(edit.originalPose),
-                  },
-                  selectedPoseAlias: edit.alias,
-                },
-                POSE_CREATOR_CLIP_VALIDATION_OPTIONS,
-              ),
+          // The beat was never changed during the edit; nothing to restore.
           clipInlineEdit: null,
           inlinePoseUndoHistory: [],
           inlinePoseRedoHistory: [],
@@ -2376,118 +1825,54 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
           clipPlaybackPlaying: false,
         };
       }),
-    captureClipPoseAtPlayhead: (pose) =>
+    captureClipPoseAtPlayhead: () =>
       set((state) => {
-        const alias = generatePoseCreatorClipCapturedAlias(
-          Object.keys(state.clipDraft.poses),
-        );
         // A captured beat pins the motion where it is.
-        const clipDraft = state.clipDraft.motion
-          ? insertPoseCreatorBeat(
-              state.clipDraft,
-              { timeSec: state.clipDraft.currentTimeSec, label: "Captured" },
-              state.activeAvatar?.vrm ?? null,
-              POSE_CREATOR_CLIP_VALIDATION_OPTIONS,
-            )
-          : insertClipPoseAtTime(
-              state.clipDraft,
-              createPoseCreatorClipInlinePose(pose),
-              alias,
-              state.clipDraft.currentTimeSec,
-            );
+        const clipDraft = insertPoseCreatorBeat(
+          state.clipDraft,
+          { timeSec: state.clipDraft.currentTimeSec, label: "Captured" },
+          state.activeAvatar?.vrm ?? null,
+          POSE_CREATOR_CLIP_VALIDATION_OPTIONS,
+        );
         return {
           ...recordClipDraftUndo(state, clipDraft),
           clipDraft,
           clipPlaybackPlaying: false,
         };
       }),
-    addPoseToClip: (pose, preferredAlias, options = {}) => {
+    addPoseToClip: (pose, label, options = {}) => {
       const state = get();
-      const alias = generatePoseCreatorClipPoseAlias(
-        preferredAlias,
-        Object.keys(state.clipDraft.poses),
-      );
       try {
         const resolved = resolveAnimaPose(
           parseAnimaPose(pose),
           getResolvedAvatarPose,
         );
-        if (state.clipDraft.motion) {
-          const clipDraft = insertPoseCreatorLibraryPose(
-            state.clipDraft,
-            {
-              timeSec: options.timeSec ?? state.clipDraft.currentTimeSec,
-              label: preferredAlias,
-              // By value: the Pose's bones and expressions are keyed, and
-              // those it omits take the base pose and 0.
-              pose: {
-                humanoid: resolved.humanoid,
-                expressions: resolved.expressions,
-                complete: true,
-                keyAll: true,
-              },
+        const clipDraft = insertPoseCreatorLibraryPose(
+          state.clipDraft,
+          {
+            timeSec: options.timeSec ?? state.clipDraft.currentTimeSec,
+            label,
+            // By value: the Pose's bones and expressions are keyed, and
+            // those it omits take the base pose and 0.
+            pose: {
+              humanoid: resolved.humanoid,
+              expressions: resolved.expressions,
+              complete: true,
+              keyAll: true,
             },
-            state.activeAvatar?.vrm ?? null,
-            POSE_CREATOR_CLIP_VALIDATION_OPTIONS,
-          );
-          // An unresolvable base pose rejects the whole insertion.
-          if (!clipDraft) return null;
-          set({
-            ...recordClipDraftUndo(state, clipDraft),
-            clipDraft,
-            clipPlaybackPlaying: false,
-            clipPlaybackAbsoluteTimeSec: clipDraft.currentTimeSec,
-          });
-          return clipDraft.selectedPoseAlias;
-        }
-        const inline = createPoseCreatorClipInlinePose(resolved);
-        const candidate =
-          options.timeSec !== undefined || options.atPlayhead
-            ? insertClipPoseAtTime(
-                state.clipDraft,
-                inline,
-                alias,
-                options.timeSec ?? state.clipDraft.currentTimeSec,
-              )
-            : withDirtyClipValidation({
-                ...state.clipDraft,
-                poses: { ...state.clipDraft.poses, [alias]: inline },
-                selectedPoseAlias: alias,
-              });
-        // Bake the candidate pose inventory independently of timeline validity:
-        // authoring may still have no keyframes or unfinished loop endpoints.
-        // Keep all actual timing, event and selection fields in the draft below.
-        const clip = parseAnimaPoseClip({
-          schema: "animaPoseClip/1.0",
-          id: candidate.id,
-          name: candidate.name || "New Clip",
-          duration: candidate.duration,
-          ...(candidate.basePose &&
-          candidate.basePose !== POSE_CREATOR_VRM_T_POSE_BASE_POSE_ID
-            ? { basePose: candidate.basePose }
-            : {}),
-          poses: candidate.poses,
-          poseKeyframes: [{ time: 0, pose: alias }],
-        });
-        const baked = bakePoseCreatorClipReferences(clip, {
-          resolvePose: getResolvedAvatarPose,
-        });
-        if (!baked) return null;
-        const clipDraft = withDirtyClipValidation({
-          ...candidate,
-          basePose: "",
-          poses: baked.poses,
-          ...(options.timeSec !== undefined ? { selectedEventId: null } : {}),
-        });
+          },
+          state.activeAvatar?.vrm ?? null,
+          POSE_CREATOR_CLIP_VALIDATION_OPTIONS,
+        );
+        // An unresolvable base pose rejects the whole insertion.
+        if (!clipDraft) return null;
         set({
           ...recordClipDraftUndo(state, clipDraft),
           clipDraft,
           clipPlaybackPlaying: false,
-          ...(options.timeSec !== undefined
-            ? { clipPlaybackAbsoluteTimeSec: clipDraft.currentTimeSec }
-            : {}),
+          clipPlaybackAbsoluteTimeSec: clipDraft.currentTimeSec,
         });
-        return alias;
+        return clipDraft.selectedPoseAlias;
       } catch {
         // Missing/malformed parents reject the whole insertion, including history.
         return null;
@@ -2496,23 +1881,12 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
     setClipExpressionsAtPlayhead: (expressions) =>
       set((state) => {
         if (state.clipInlineEdit) return state;
-        const clipDraft = state.clipDraft.motion
-          ? setPoseCreatorBeatExpressionsAtTime(
-              state.clipDraft,
-              expressions,
-              state.activeAvatar?.vrm ?? null,
-              POSE_CREATOR_CLIP_VALIDATION_OPTIONS,
-            )
-          : setClipExpressionsAtTime(state.clipDraft, expressions);
-        return {
-          ...recordClipDraftUndo(state, clipDraft),
-          clipDraft,
-          clipPlaybackPlaying: false,
-        };
-      }),
-    addClipKeyframeForAliasAtPlayhead: (alias) =>
-      set((state) => {
-        const clipDraft = addClipKeyframeForAlias(state.clipDraft, alias);
+        const clipDraft = setPoseCreatorBeatExpressionsAtTime(
+          state.clipDraft,
+          expressions,
+          state.activeAvatar?.vrm ?? null,
+          POSE_CREATOR_CLIP_VALIDATION_OPTIONS,
+        );
         return {
           ...recordClipDraftUndo(state, clipDraft),
           clipDraft,
@@ -2524,63 +1898,35 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
         const selectedKeyframe = getSelectedClipKeyframe(state.clipDraft);
         if (!selectedKeyframe) return state;
 
-        if (state.clipDraft.motion) {
-          const options = POSE_CREATOR_CLIP_VALIDATION_OPTIONS;
-          let clipDraft = state.clipDraft;
-          if (patch.label !== undefined)
-            clipDraft = setPoseCreatorBeatLabel(
-              clipDraft,
-              selectedKeyframe.id,
-              patch.label,
-              options,
-            );
-          if (patch.ease !== undefined)
-            clipDraft = setPoseCreatorBeatEase(
-              clipDraft,
-              selectedKeyframe.id,
-              patch.ease ?? undefined,
-              options,
-            );
-          if (patch.time !== undefined)
-            clipDraft = retimePoseCreatorBeat(
-              clipDraft,
-              selectedKeyframe.id,
-              patch.time,
-              options,
-            );
-          if (clipDraft === state.clipDraft) return state;
-          return {
-            ...recordClipDraftUndo(state, clipDraft),
+        const options = POSE_CREATOR_CLIP_VALIDATION_OPTIONS;
+        let clipDraft = state.clipDraft;
+        if (patch.label !== undefined)
+          clipDraft = setPoseCreatorBeatLabel(
             clipDraft,
-            clipPlaybackPlaying: false,
-            clipPlaybackAbsoluteTimeSec: clipDraft.currentTimeSec,
-          };
-        }
-
-        const keyframes = state.clipDraft.keyframes.map((keyframe) =>
-          keyframe.id === selectedKeyframe.id
-            ? patchPoseCreatorClipKeyframeDraft(
-                keyframe,
-                patch,
-                state.clipDraft.duration,
-              )
-            : keyframe,
-        );
-        const nextSelectedKeyframe =
-          keyframes.find((keyframe) => keyframe.id === selectedKeyframe.id) ??
-          selectedKeyframe;
-
-        const clipDraft = withDirtyClipValidation({
-          ...state.clipDraft,
-          keyframes: sortPoseCreatorClipKeyframes(keyframes),
-          currentTimeSec: nextSelectedKeyframe.time,
-          selectedPoseAlias: nextSelectedKeyframe.pose,
-        });
+            selectedKeyframe.id,
+            patch.label,
+            options,
+          );
+        if (patch.ease !== undefined)
+          clipDraft = setPoseCreatorBeatEase(
+            clipDraft,
+            selectedKeyframe.id,
+            patch.ease ?? undefined,
+            options,
+          );
+        if (patch.time !== undefined)
+          clipDraft = retimePoseCreatorBeat(
+            clipDraft,
+            selectedKeyframe.id,
+            patch.time,
+            options,
+          );
+        if (clipDraft === state.clipDraft) return state;
         return {
           ...recordClipDraftUndo(state, clipDraft),
           clipDraft,
           clipPlaybackPlaying: false,
-          clipPlaybackAbsoluteTimeSec: nextSelectedKeyframe.time,
+          clipPlaybackAbsoluteTimeSec: clipDraft.currentTimeSec,
         };
       }),
     updateSelectedClipEvent: (patch) =>
@@ -2627,42 +1973,17 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
           options?.snap === true && state.clipSnapEnabled,
           state.clipSnapIntervalSec,
         );
-        if (state.clipDraft.motion) {
-          const clipDraft = retimePoseCreatorBeat(
-            state.clipDraft,
-            keyframe.id,
-            nextTime,
-            POSE_CREATOR_CLIP_VALIDATION_OPTIONS,
-          );
-          return {
-            ...recordClipDraftUndo(state, clipDraft),
-            clipDraft,
-            clipPlaybackPlaying: false,
-            clipPlaybackAbsoluteTimeSec: clipDraft.currentTimeSec,
-          };
-        }
-        const clipDraft = withDirtyClipValidation({
-          ...state.clipDraft,
-          keyframes: sortPoseCreatorClipKeyframes(
-            state.clipDraft.keyframes.map((candidate) =>
-              candidate.id === keyframe.id
-                ? patchPoseCreatorClipKeyframeDraft(
-                    candidate,
-                    { time: nextTime },
-                    state.clipDraft.duration,
-                  )
-                : candidate,
-            ),
-          ),
-          selectedKeyframeId: keyframe.id,
-          selectedPoseAlias: keyframe.pose,
-          currentTimeSec: nextTime,
-        });
+        const clipDraft = retimePoseCreatorBeat(
+          state.clipDraft,
+          keyframe.id,
+          nextTime,
+          POSE_CREATOR_CLIP_VALIDATION_OPTIONS,
+        );
         return {
           ...recordClipDraftUndo(state, clipDraft),
           clipDraft,
           clipPlaybackPlaying: false,
-          clipPlaybackAbsoluteTimeSec: nextTime,
+          clipPlaybackAbsoluteTimeSec: clipDraft.currentTimeSec,
         };
       }),
     moveClipEvent: (eventId, time, options) =>
@@ -2706,44 +2027,14 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
       set((state) => {
         const selectedKeyframe = getSelectedClipKeyframe(state.clipDraft);
         if (!selectedKeyframe) return state;
-        if (state.clipDraft.motion) {
-          const clipDraft = deletePoseCreatorBeat(
-            state.clipDraft,
-            selectedKeyframe.id,
-            POSE_CREATOR_CLIP_VALIDATION_OPTIONS,
-          );
-          return {
-            ...recordClipDraftUndo(state, clipDraft),
-            clipPlaybackAbsoluteTimeSec: clipDraft.currentTimeSec,
-            clipDraft,
-            clipPlaybackPlaying: false,
-          };
-        }
-
-        const selectedIndex = state.clipDraft.keyframes.findIndex(
-          (keyframe) => keyframe.id === selectedKeyframe.id,
+        const clipDraft = deletePoseCreatorBeat(
+          state.clipDraft,
+          selectedKeyframe.id,
+          POSE_CREATOR_CLIP_VALIDATION_OPTIONS,
         );
-        const keyframes = state.clipDraft.keyframes.filter(
-          (keyframe) => keyframe.id !== selectedKeyframe.id,
-        );
-        const nextSelectedKeyframe =
-          keyframes[Math.min(selectedIndex, keyframes.length - 1)] ??
-          keyframes[selectedIndex - 1] ??
-          null;
-
-        const clipDraft = withDirtyClipValidation({
-          ...state.clipDraft,
-          keyframes,
-          selectedKeyframeId: nextSelectedKeyframe?.id ?? null,
-          selectedPoseAlias:
-            nextSelectedKeyframe?.pose ?? state.clipDraft.selectedPoseAlias,
-          currentTimeSec:
-            nextSelectedKeyframe?.time ?? state.clipDraft.currentTimeSec,
-        });
         return {
           ...recordClipDraftUndo(state, clipDraft),
-          clipPlaybackAbsoluteTimeSec:
-            nextSelectedKeyframe?.time ?? state.clipDraft.currentTimeSec,
+          clipPlaybackAbsoluteTimeSec: clipDraft.currentTimeSec,
           clipDraft,
           clipPlaybackPlaying: false,
         };
@@ -2780,49 +2071,6 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
           clipPlaybackPlaying: false,
         };
       }),
-    duplicateSelectedClipKeyframe: () =>
-      set((state) => {
-        const selectedKeyframe = getSelectedClipKeyframe(state.clipDraft);
-        if (!selectedKeyframe) return state;
-
-        const nextTime = findAvailableClipKeyframeTime(
-          state.clipDraft,
-          selectedKeyframe.time,
-        );
-        const keyframe: PoseCreatorClipKeyframeDraft = {
-          id: createPoseCreatorClipKeyframeDraft(
-            state.clipDraft,
-            selectedKeyframe.pose,
-            nextTime,
-          ).id,
-          time: nextTime,
-          pose: selectedKeyframe.pose,
-          ...(selectedKeyframe.transition
-            ? {
-                transition: clonePoseCreatorClipTransition(
-                  selectedKeyframe.transition,
-                ),
-              }
-            : {}),
-        };
-
-        const clipDraft = withDirtyClipValidation({
-          ...state.clipDraft,
-          keyframes: sortPoseCreatorClipKeyframes([
-            ...state.clipDraft.keyframes,
-            keyframe,
-          ]),
-          selectedKeyframeId: keyframe.id,
-          selectedPoseAlias: keyframe.pose,
-          currentTimeSec: keyframe.time,
-        });
-        return {
-          ...recordClipDraftUndo(state, clipDraft),
-          clipDraft,
-          clipPlaybackPlaying: false,
-          clipPlaybackAbsoluteTimeSec: keyframe.time,
-        };
-      }),
     duplicateSelectedClipEvent: () =>
       set((state) => {
         if (state.clipInlineEdit) return state;
@@ -2839,39 +2087,6 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
           ...recordClipDraftUndo(state, clipDraft),
           clipDraft,
           clipPlaybackPlaying: false,
-        };
-      }),
-    nudgeSelectedClipKeyframe: (direction) =>
-      set((state) => {
-        const selectedKeyframe = getSelectedClipKeyframe(state.clipDraft);
-        if (!selectedKeyframe) return { clipPlaybackPlaying: false };
-        const nextTime = clampPoseCreatorClipTime(
-          selectedKeyframe.time + state.clipSnapIntervalSec * direction,
-          state.clipDraft.duration,
-        );
-
-        const clipDraft = withDirtyClipValidation({
-          ...state.clipDraft,
-          keyframes: sortPoseCreatorClipKeyframes(
-            state.clipDraft.keyframes.map((keyframe) =>
-              keyframe.id === selectedKeyframe.id
-                ? patchPoseCreatorClipKeyframeDraft(
-                    keyframe,
-                    { time: nextTime },
-                    state.clipDraft.duration,
-                  )
-                : keyframe,
-            ),
-          ),
-          selectedKeyframeId: selectedKeyframe.id,
-          selectedPoseAlias: selectedKeyframe.pose,
-          currentTimeSec: nextTime,
-        });
-        return {
-          ...recordClipDraftUndo(state, clipDraft),
-          clipDraft,
-          clipPlaybackPlaying: false,
-          clipPlaybackAbsoluteTimeSec: nextTime,
         };
       }),
     nudgeSelectedClipEvent: (direction) =>
@@ -2931,120 +2146,17 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
           clipPlaybackPlaying: false,
         };
       }),
-    setClipDurationToFinalKeyframe: () =>
-      set((state) => {
-        const finalKeyframe = getFinalClipKeyframe(state.clipDraft);
-        if (!finalKeyframe) return { clipPlaybackPlaying: false };
-        const clipDraft = retimePoseCreatorClipDraft(
-          state.clipDraft,
-          finalKeyframe.time,
-          false,
-        );
-        return {
-          clipDraft,
-          clipUndoHistory: state.clipUndoHistory.map((snapshot) => ({
-            ...snapshot,
-            isDirty: true,
-          })),
-          clipRedoHistory: state.clipRedoHistory.map((snapshot) => ({
-            ...snapshot,
-            isDirty: true,
-          })),
-          clipPlaybackPlaying: false,
-        };
-      }),
-    retimeClipDuration: (duration, options) =>
-      set((state) => {
-        const clipDraft = retimePoseCreatorClipDraft(
-          state.clipDraft,
-          duration,
-          options.scaleKeyframes,
-        );
-        return {
-          clipDraft,
-          clipUndoHistory: state.clipUndoHistory.map((snapshot) => ({
-            ...snapshot,
-            isDirty: true,
-          })),
-          clipRedoHistory: state.clipRedoHistory.map((snapshot) => ({
-            ...snapshot,
-            isDirty: true,
-          })),
-          clipPlaybackPlaying: false,
-        };
-      }),
-    copyFirstClipKeyframeToEnd: () =>
-      set((state) => {
-        const clipDraft = copyFirstClipKeyframeToEnd(state.clipDraft);
-        return {
-          ...recordClipDraftUndo(state, clipDraft),
-          clipDraft,
-          clipPlaybackPlaying: false,
-        };
-      }),
-    setFinalClipKeyframeToFirstPose: () =>
-      set((state) => {
-        const clipDraft = setFinalClipKeyframeToFirstPose(state.clipDraft);
-        return {
-          ...recordClipDraftUndo(state, clipDraft),
-          clipDraft,
-          clipPlaybackPlaying: false,
-        };
-      }),
     setClipBaseEndpoint: (endpoint, enabled) =>
       set((state) => {
         if (state.clipInlineEdit || state.clipDraft.duration <= 0) return state;
-        if (state.clipDraft.motion) {
-          const clipDraft = setPoseCreatorBaseBeat(
-            state.clipDraft,
-            endpoint,
-            enabled,
-            state.activeAvatar?.vrm ?? null,
-            POSE_CREATOR_CLIP_VALIDATION_OPTIONS,
-          );
-          if (clipDraft === state.clipDraft) return state;
-          return {
-            ...recordClipDraftUndo(state, clipDraft),
-            clipDraft,
-            clipPlaybackPlaying: false,
-          };
-        }
-        const draft = state.clipDraft;
-        const time = endpoint === "start" ? 0 : draft.duration;
-        const existing = findPoseCreatorClipKeyframeAtTime(
-          draft.keyframes,
-          time,
+        const clipDraft = setPoseCreatorBaseBeat(
+          state.clipDraft,
+          endpoint,
+          enabled,
+          state.activeAvatar?.vrm ?? null,
+          POSE_CREATOR_CLIP_VALIDATION_OPTIONS,
         );
-        const baseFrame =
-          existing && isPoseCreatorBaseKeyframe(draft, existing);
-        if (
-          enabled
-            ? existing ||
-              !draft.basePose ||
-              draft.basePose === POSE_CREATOR_VRM_T_POSE_BASE_POSE_ID
-            : !baseFrame
-        )
-          return state;
-        const alias =
-          getReusableBaseAlias(draft) ??
-          generatePoseCreatorClipPoseAlias("base", Object.keys(draft.poses));
-        const clipDraft = enabled
-          ? insertClipPoseAtTime(
-              draft,
-              createPoseCreatorClipRefPose(draft.basePose),
-              alias,
-              time,
-            )
-          : withDirtyClipValidation({
-              ...draft,
-              keyframes: draft.keyframes.filter(
-                (frame) => frame.id !== existing!.id,
-              ),
-              selectedKeyframeId:
-                draft.selectedKeyframeId === existing!.id
-                  ? null
-                  : draft.selectedKeyframeId,
-            });
+        if (clipDraft === state.clipDraft) return state;
         return {
           ...recordClipDraftUndo(state, clipDraft),
           clipDraft,

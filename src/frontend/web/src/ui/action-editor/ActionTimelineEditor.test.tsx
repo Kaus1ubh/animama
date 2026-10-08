@@ -93,14 +93,12 @@ describe("ActionTimelineEditor", () => {
 
   it("keeps the active pose, selected bone, and gizmo when a document is renamed", () => {
     const sequence = {
-      schema: "animaPoseClip/1.0",
+      schema: "animaPoseClip/2.0",
       id: "original",
       name: "Original",
       duration: 1,
-      poses: {
-        start: { humanoid: { leftUpperArm: { rotation: [0, 0, 0, 1] } } },
-      },
-      poseKeyframes: [{ time: 0, pose: "start" }],
+      beats: [{ id: "start", label: "Start", time: 0 }],
+      rotations: { leftUpperArm: [{ q: [0, 0, 0, 1], beat: "start" }] },
     };
     const store = usePoseCreatorStore.getState();
     store.resetWorkspace();
@@ -109,7 +107,9 @@ describe("ActionTimelineEditor", () => {
     store.beginClipInlinePoseEdit({
       alias: "start",
       keyframeId: hydrated.clipDraft.keyframes[0]!.id,
-      originalPose: hydrated.clipDraft.poses.start!,
+      originalPose: {
+        humanoid: { leftUpperArm: { rotation: [0, 0, 0, 1] } },
+      },
       boneDrafts: {},
       expressionDrafts: {},
       draftName: "Editing start",
@@ -154,17 +154,25 @@ describe("ActionTimelineEditor", () => {
   });
 
   it("recognizes a deliberately blank action timeline as a store reset", () => {
-    expect(isEmptyActionTimeline({ poses: {}, poseKeyframes: [] })).toBe(true);
+    const empty = { schema: "animaPoseClip/2.0", beats: [] };
+    expect(isEmptyActionTimeline(empty)).toBe(true);
     expect(
       isEmptyActionTimeline({
-        poses: { expression: {} },
-        poseKeyframes: [{ time: 0, pose: "expression" }],
+        ...empty,
+        beats: [{ id: "expression", label: "Expression", time: 0 }],
+      }),
+    ).toBe(false);
+    // A retired 1.0 timeline is not a blank document.
+    expect(
+      isEmptyActionTimeline({
+        schema: "animaPoseClip/1.0",
+        poses: {},
+        poseKeyframes: [],
       }),
     ).toBe(false);
     expect(
       isEmptyActionTimeline({
-        poses: {},
-        poseKeyframes: [],
+        ...empty,
         events: [
           {
             id: "sparkles",
@@ -184,12 +192,12 @@ describe("ActionTimelineEditor", () => {
   });
 
   it("does not overwrite a store-only keyframe edit with an unchanged document", () => {
-    const serialized = JSON.stringify({ poses: { expression: 0.65 } });
+    const serialized = JSON.stringify({ expressions: { happy: 0.65 } });
 
     expect(shouldHydrateActionTimeline(serialized, serialized)).toBe(false);
     expect(
       shouldHydrateActionTimeline(
-        JSON.stringify({ poses: { expression: 0.2 } }),
+        JSON.stringify({ expressions: { happy: 0.2 } }),
         serialized,
       ),
     ).toBe(true);
@@ -231,7 +239,7 @@ describe("ActionTimelineEditor", () => {
     expect(() =>
       renderToString(
         <ActionTimelineDocumentSync
-          sequence={{ schema: "animaPoseClip/1.0" }}
+          sequence={{ schema: "animaPoseClip/2.0" }}
           session={0}
           reaction
           onChange={() => undefined}

@@ -34,7 +34,7 @@ before(async () => {
   });
   await writeFile(
     path.join(dir, "wave.clip.json"),
-    JSON.stringify({ schema: "animaPoseClip/1.0", id: "wave" }),
+    JSON.stringify({ schema: "animaPoseClip/2.0", id: "wave" }),
   );
 });
 

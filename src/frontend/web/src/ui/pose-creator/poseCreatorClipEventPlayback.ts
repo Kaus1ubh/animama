@@ -1,6 +1,6 @@
 import {
   sampleAnimaPoseClipActiveEventsAtTime,
-  type AnyAnimaPoseClip,
+  type AnimaPoseClipV2,
   type AnimaPoseClipActiveVFXEvent,
 } from "@/lib/avatar";
 
@@ -11,7 +11,7 @@ const PLAYBACK_BOUNDARY_EPSILON_SEC = 1e-6;
  * the playhead are owned by due-event dispatch so async VFX never starts twice.
  */
 export function activeVFXEventsBeforePlaybackStart(
-  clip: AnyAnimaPoseClip,
+  clip: AnimaPoseClipV2,
   playbackTimeSec: number,
 ): AnimaPoseClipActiveVFXEvent[] {
   return sampleAnimaPoseClipActiveEventsAtTime(clip, playbackTimeSec).filter(
@@ -28,7 +28,7 @@ export function activeVFXEventsBeforePlaybackStart(
  * local-time snapshot, so replaying it on every scrub movement is misleading.
  */
 export function samplePoseCreatorScrubVFXEvents(
-  clip: AnyAnimaPoseClip,
+  clip: AnimaPoseClipV2,
   playbackTimeSec: number,
 ): AnimaPoseClipActiveVFXEvent[] {
   return sampleAnimaPoseClipActiveEventsAtTime(clip, playbackTimeSec).filter(
@@ -38,7 +38,7 @@ export function samplePoseCreatorScrubVFXEvents(
 
 /** Stable identity for deciding whether a scrubbed VFX state needs remounting. */
 export function poseCreatorScrubVFXSignature(
-  clip: AnyAnimaPoseClip,
+  clip: AnimaPoseClipV2,
   activeEvents: readonly AnimaPoseClipActiveVFXEvent[],
   catalogRevision: string | null,
 ): string {

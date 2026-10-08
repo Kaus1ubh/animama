@@ -75,8 +75,8 @@ poses as `base_pose`, but nothing reads that field.
 - [ ] Preparation: workspace verified, plan drafted (this file).
 - [x] Phase 1: Included conversion (#356). G1 passed and reviews #1–#2 passed on 2026-10-08.
 - [x] Phase 2: Local migration tool (#357). G2 done (all dry runs found 0); reviews #1–#2 passed.
-- [ ] Phase 3: Frontend 1.0 removal and rejection.
-- [ ] Phase 4: Backend 1.0 removal and rejection.
+- [x] Phase 3: Frontend 1.0 removal and rejection (#358). Reviews #1–#2 passed; fast journeys 36/36.
+- [ ] Phase 4: Backend 1.0 removal and rejection (#359). Review pending.
 - [ ] Phase 5: Docs, skill and ADR.
 - [ ] Final integration review, full journeys, live checks (G3), PR.
 
@@ -506,9 +506,120 @@ built stack, comparing any failure with `main`.
 
 Completion: commit `refactor(avatar)[p3]: remove animaPoseClip/1.0 from the frontend`.
 
-#### Phase 3 record / Code Review #1 Findings / Revisions
+#### Phase 3 record
 
-<pending>
+Starting revision `9d32b5e4`. Issue #358. The creator and Action-editor removal
+and the lib/avatar test migration were delegated to two subagents with
+disjoint file ownership, then integrated and checked together.
+
+- Modules: `schema.ts` became `clipVocabulary.ts`, holding the shared
+  vocabulary with the 1.0 parts deleted. It is one module rather than the
+  planned vocabulary/events split, which would only have added import churn.
+  `anyClip.ts` became `parseClip.ts`, with a single 2.0 `parseAnimaPoseClip`
+  plus `UnsupportedAnimaPoseClipFormatError` and
+  `unsupportedAnimaPoseClipFormatMessage`. `AnyAnimaPoseClip` was renamed to
+  `AnimaPoseClipV2` and `parseAnyAnimaPoseClip` to `parseAnimaPoseClip` across
+  the codebase. `resolveAnimaPoseClipFadeTransition` now takes only the fade.
+- Rejection with the D3 message happens on every surface:
+  - runtime catalog (an `invalid_motion_manifest` diagnostic);
+  - built-in catalog (a warning, then the item is skipped);
+  - creator open (`actionDocumentLoader` throws, and the page shows its failure
+    message);
+  - import (`actionProject`);
+  - recovery drafts (the stored recovery is deleted and a toast is shown);
+  - `preview/sources.ts`;
+  - package errors (`clip_format_unsupported` in
+    `lib/content-sharing/errors.ts`, the same text as the backend's fixed hint).
+- Creator:
+  - `draft.motion` is required. The 1.0 draft fields (`poses`,
+    `defaultTransition`, keyframe `transition`), the build, bake and convert
+    paths, the ref validation codes and the 1.0 store branches were removed.
+  - Ten keyframe-view store actions with no callers were removed, after the
+    reviewer confirmed there are no callers or shortcuts.
+  - Export modes are gone, because 2.0 has nothing to bake.
+  - A new document defaults to a well-formed empty 2.0 sequence, which
+    `isEmptyActionTimeline` treats as blank. Save still requires a playable
+    clip, as before.
+- Pose preview builds a looping one-beat 2.0 held clip. Non-hips bone positions
+  are not previewed.
+- `effect-render` now plays a 2.0 program.
+- `animation-promote` no longer maintains clip samples.
+- The temporary convert script, its test and the 1.0 fixtures were deleted.
+- D2 picker: a "Show Included" checkbox (off by default) on the Gesture
+  creator's Poses tab. The empty states point to it. It is covered by a
+  happy-dom component test and an assertion in the pose-content journey.
+- e2e:
+  - the imported-playback helper and the numeric-input journey use 2.0;
+  - `creator-1-0-{gesture,reaction}-import-is-rejected` replaces the "1.0 opens
+    as beats" journey.
+- Checks (`src/frontend`):
+  - `pnpm check` 0, `pnpm web:lint` 0, `pnpm prettier:check` clean,
+    `pnpm build` 0;
+  - `pnpm web:test`: 413 vitest files and 3096 tests passed, plus the node and
+    browser script tests (38 passed);
+  - `pnpm e2e:check:source` 0.
+- Journeys: `pnpm e2e:test:fast` on the disposable built stack
+  `animama-clipv2` (`ANIMAMA_LLM_SKIP=1 ANIMAMA_WEB_BUILD_MODE=production`,
+  base port 8700) passed 36/36 in 5.2 min (run-1008143617). After the F4
+  journey edit, `pose content Local save edit reopen…` passed again
+  (run-1008144231).
+
+#### Phase 3 Code Review #1 Findings
+
+Independent `sdlc-reviewer`, initial round, on the `src/frontend/**` working
+tree against `9d32b5e4`.
+
+- **P3-CR1-F1 (blocking):** Prettier failed in three edited files
+  (`beatEditing.ts`, `playback.ts`, `ReactionClipPlayer.ts`).
+- **P3-CR1-F2 (blocking):** the `animation:preview` usage text still listed
+  1.0 sources.
+- **P3-CR1-F3 (blocking):** a 2.0 events validation message pointed to "the 1.0
+  event rules". Related comments in `schemaV2.ts` and `curves.ts` also
+  mentioned 1.0.
+- **P3-CR1-F4 (blocking):** the planned journey assertion for "Show Included"
+  was missing. `pnpm build` and the fast journeys had not been recorded yet.
+- Optional findings:
+  - `selectedPoseAlias` and keyframe `pose` are leftovers of the alias model;
+  - capture samples the whole draft to check refs;
+  - no tests cover the built-in catalog warning or the recovery toast;
+  - the module-split deviation was not recorded, and the vocabulary header had
+    change narration;
+  - Pose preview uses one beat, not two, and a completely empty Pose no longer
+    previews;
+  - a search that matches only hidden Included Poses gives no hint.
+
+#### Phase 3 Code Review #1 Revisions
+
+- F1 accepted: the files were formatted, and `pnpm prettier:check` is clean.
+- F2 accepted: the usage text says 2.0 only.
+- F3 accepted: the message now reads "Invalid events: check each event's kind,
+  time and fields." The 1.0 comments were reworded.
+- F4 accepted:
+  - `accountless-pose-content` now asserts that Relaxed Rest is hidden, then
+    shown after checking the box and hidden again after unchecking it. It
+    passed on the stack.
+  - `pnpm build` and the fast-journey results are recorded above.
+- Optional findings accepted:
+  - the hint for a search that matches only hidden Included Poses;
+  - the vocabulary header narration was removed, and the module-split
+    deviation is recorded above.
+- Optional findings not taken:
+  - the alias-state cleanup (behaviour-neutral churn in undo snapshots);
+  - the capture sampling simplification;
+  - tests for the warning and toast paths (the shared parser that drives them
+    is covered);
+  - previewing an empty Pose (it has nothing to show).
+
+Repair round 1 used.
+
+#### Phase 3 Code Review #2
+
+Targeted recheck: pass. F1–F4 and the accepted optional items were verified
+with prettier, eslint, vitest (261 tests) and `e2e:check:source`. The
+optional P3-CR2-F1 noted that the search hint appeared even when no hidden
+Included Pose matched the search. It now appears only when one does.
+
+Phase 3 complete.
 
 ### Phase 4: Backend 1.0 removal and rejection
 
@@ -550,7 +661,57 @@ SDK offline with `pnpm openapi-ts`.
 
 Completion: commit `refactor(content)[p4]: reject animaPoseClip/1.0 in the backend`.
 
-#### Phase 4 record / Code Review #1 Findings / Revisions
+#### Phase 4 record
+
+Starting revision `9d32b5e4`. Issue #359. The backend test migration was
+delegated to a subagent that owned `tests/` only.
+
+- New module `app/services/clip_format.py` provides the schema constants,
+  `CLIP_FORMAT_UNSUPPORTED`, `unsupported_clip_format_message`, a fixed
+  `PACKAGE_CLIP_FORMAT_HINT` (the HTTP boundary never echoes submitted data)
+  and `validate_action_clip_files`.
+- Rejection happens on these paths, all tested first:
+  - Local scan, Save and `inspect_package_tree`, through
+    `ContentTypeHandler.validate_companion_files`;
+  - package capabilities: declaring `animaPoseClip/1.0` raises
+    `clip_format_unsupported`, and `_clip` accepts only 2.0, whose requirements
+    are `animaPoseClip/2.0` plus the base pose;
+  - the package router returns the hint as `message`;
+  - idle playback reports `idle_motion_invalid` with the unsupported-format
+    message.
+- Deletions: the 1.0 validator (`_pose`, `validate_idle_clip_timeline`), the
+  1.0 branches in `idle_playback.py` and `_clip`, and the `animaPoseClip/1.0`
+  capability.
+- `BUILTIN_POSES` keeps 26 ids (D2), and its comment was updated.
+- D1:
+  - `action_clip_transition.py`, `included_action_transition.py` and their
+    tests were deleted. Both transitions only ever converted retired pose-clip
+    Actions.
+  - The retired `pose_clip` kind now parses only an identity record
+    (`PoseClipDocumentV1` without poses or keyframes), so Save receipts still
+    replay.
+  - A legacy idle lane on a pose clip fails with `clip_format_unsupported`.
+  - Discovery: retired kinds are filtered out of every visible listing, so D1's
+    "listed INVALID" part has no visible surface.
+- `tests/fixtures/idle-playback-cases.json` (shared with the frontend): 27
+  generic cases were converted to 2.0, 17 1.0-only cases were dropped, and
+  `clip-retired-format` was added. `zero-timeline` now expects
+  `idle_motion_invalid`, because 2.0 rejects a zero duration structurally.
+- `golden-action-closure.v1.json` (an orphan) was deleted. Source-review
+  records of deleted tracked files were removed (4).
+- Tests:
+  - new rejection tests in `test_local_content_scan.py` (3 cases) and
+    `test_content_package_capabilities.py` (4);
+  - vehicle tests were converted to 2.0 through a shared
+    `anima_clip(...)` helper in `tests/content_package_helpers.py`;
+  - the direct pose-clip idle transition test now asserts the
+    `clip_format_unsupported` diagnostic;
+  - the retired pose-clip per-event-audio round trip was deleted.
+- Checks: full `uv run pytest -q -p no:cacheprovider`: 3239 passed, 10 skipped,
+  0 failed. `uv run ruff check` and `ruff format --check` are clean. No API
+  schema changed, so the SDK was not regenerated.
+
+#### Phase 4 Code Review #1 Findings / Revisions
 
 <pending>
 

@@ -25,7 +25,6 @@ export type ActionAuthoringSnapshot = Pick<
   "sequence" | "dependencies"
 >;
 
-const EXPRESSION_WEIGHT_EPSILON = 0.000001;
 const ACTION_SLUG_MAX_LENGTH = 120;
 
 /** Convert a display name into the stable ASCII slug used by Action files and clips. */
@@ -86,29 +85,15 @@ export function gestureSemanticKey(name: string): string {
   return value || "new_gesture";
 }
 
+/** An empty `animaPoseClip/2.0` clip: no beats or events yet. */
 function defaultSequence(intent: ActionIntent): Record<string, unknown> {
-  const reaction = intent === "reaction";
   return {
-    schema: "animaPoseClip/1.0",
+    schema: ANIMA_POSE_CLIP_V2_SCHEMA,
     id: actionClipId("", intent),
     name: `New ${intent === "gesture" ? "Gesture" : "Reaction"}`,
     duration: 2,
-    loop: false,
-    defaultTransition: {
-      easing: "easeInOutSine",
-      interpolation: {
-        ...(!reaction
-          ? {
-              humanoidRotation: "slerp",
-              humanoidPosition: "linear",
-            }
-          : {}),
-        expression: "linear",
-      },
-    },
-    ...(!reaction ? { basePose: RELAXED_REST_POSE_ID } : {}),
-    poses: {},
-    poseKeyframes: [],
+    ...(intent === "gesture" ? { basePose: RELAXED_REST_POSE_ID } : {}),
+    beats: [],
     events: [],
   };
 }
@@ -171,63 +156,8 @@ export function sanitizeReactionSequence(
   // Reactions never run body layers through the Gesture lane; mutes are
   // Gesture-only and would otherwise be stored with no control to change them.
   delete sanitized.mutedProceduralLayers;
-  if (sanitized.schema === ANIMA_POSE_CLIP_V2_SCHEMA) {
-    // 2.0 Reactions keep their beats, expression tracks and events.
-    for (const field of REACTION_V2_BODY_FIELDS) delete sanitized[field];
-    return sanitized;
-  }
-
-  const poses = isRecord(sanitized.poses) ? sanitized.poses : {};
-  const retainedPoses: Record<string, unknown> = {};
-  for (const [alias, rawPose] of Object.entries(poses)) {
-    if (!isRecord(rawPose) || typeof rawPose.ref === "string") continue;
-    const hadHumanoid = isRecord(rawPose.humanoid);
-    const pose = { ...rawPose };
-    delete pose.humanoid;
-    if (!isRecord(pose.expressions)) {
-      // Preserve an explicitly empty, expression-neutral landmark, but do not
-      // turn a stripped humanoid-only pose into a valid Reaction keyframe.
-      if (!hadHumanoid && Object.keys(pose).length === 0) {
-        retainedPoses[alias] = {};
-      }
-      continue;
-    }
-
-    const expressions = Object.fromEntries(
-      Object.entries(pose.expressions).filter(
-        ([, value]) =>
-          typeof value === "number" &&
-          Number.isFinite(value) &&
-          Math.abs(value) > EXPRESSION_WEIGHT_EPSILON,
-      ),
-    );
-    // Retain an empty pose as an explicit neutral landmark. The clip sampler
-    // treats omitted expression channels as zero, so serialized documents do
-    // not need noisy `{ happy: 0 }` entries to fade back to neutral.
-    retainedPoses[alias] =
-      Object.keys(expressions).length > 0 ? { ...pose, expressions } : {};
-  }
-  sanitized.poses = retainedPoses;
-
-  if (Array.isArray(sanitized.poseKeyframes)) {
-    sanitized.poseKeyframes = sanitized.poseKeyframes.filter(
-      (rawKeyframe) =>
-        isRecord(rawKeyframe) &&
-        typeof rawKeyframe.pose === "string" &&
-        rawKeyframe.pose in retainedPoses,
-    );
-  }
-
-  const transition = isRecord(sanitized.defaultTransition)
-    ? { ...sanitized.defaultTransition }
-    : null;
-  if (transition && isRecord(transition.interpolation)) {
-    const interpolation = { ...transition.interpolation };
-    delete interpolation.humanoidRotation;
-    delete interpolation.humanoidPosition;
-    transition.interpolation = interpolation;
-    sanitized.defaultTransition = transition;
-  }
+  // Reactions keep their beats, expression tracks and events.
+  for (const field of REACTION_BODY_FIELDS) delete sanitized[field];
   return sanitized;
 }
 
@@ -304,27 +234,15 @@ export function referencedAliases(sequence: Record<string, unknown>): string[] {
 }
 
 export function hasHumanoidTracks(sequence: Record<string, unknown>): boolean {
-  if (sequence.schema === ANIMA_POSE_CLIP_V2_SCHEMA)
-    return ["joints", "rotations", "hipsPosition", "hands"].some(
-      (field) =>
-        isRecord(sequence[field]) &&
-        Object.keys(sequence[field] as Record<string, unknown>).length > 0,
-    );
-  const poses = sequence.poses;
-  return Boolean(
-    poses &&
-    typeof poses === "object" &&
-    Object.values(poses).some(
-      (pose) =>
-        pose &&
-        typeof pose === "object" &&
-        Object.keys((pose as Record<string, unknown>).humanoid ?? {}).length,
-    ),
+  return ["joints", "rotations", "hipsPosition", "hands"].some(
+    (field) =>
+      isRecord(sequence[field]) &&
+      Object.keys(sequence[field] as Record<string, unknown>).length > 0,
   );
 }
 
-/** 2.0 fields that move the body, which Reactions never carry. */
-const REACTION_V2_BODY_FIELDS = [
+/** Clip fields that move the body, which Reactions never carry. */
+const REACTION_BODY_FIELDS = [
   "joints",
   "rotations",
   "hipsPosition",

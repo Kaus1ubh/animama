@@ -4,7 +4,11 @@ import { Avatar } from "@/lib/avatar";
 import { applyCanonicalPose } from "@/lib/avatar/motion-authoring/kinematics";
 import { BUILT_IN_AVATAR_MOTION_CATALOG } from "@/lib/avatar/motion/AvatarMotionCatalog";
 import { captureAvatarPortrait } from "@/lib/avatar/portrait";
-import { sampleAnimaPoseClip } from "@/lib/avatar/poses/animaPoseClip";
+import { parseAnimaPoseClip } from "@/lib/avatar/poses/animaPoseClip";
+import {
+  createAnimaPoseClipProgram,
+  type AnimaPoseClipProgram,
+} from "@/lib/avatar/poses/animaPoseClip/program";
 import { getResolvedAvatarPose } from "@/lib/avatar/poses/catalog";
 import { applyAvatarVFXEffectById } from "@/lib/avatar/vfx/runtime";
 import { EMPTY_RUNTIME_MEDIA_PROVIDER } from "@/lib/runtime-content/AnimaRuntimeMediaCatalog";
@@ -98,6 +102,8 @@ class EffectSession {
   readonly avatar: Avatar;
   private readonly clip: unknown;
   private readonly missingPoseRefs = new Set<string>();
+  /** The clip prepared for this Avatar (hand presets, planted legs). */
+  private program: AnimaPoseClipProgram | null = null;
   private frame = 0;
   applied = false;
 
@@ -158,11 +164,11 @@ class EffectSession {
   private poseAt(time: number): void {
     const vrm = this.avatar.vrm;
     if (!this.clip || !vrm) return;
-    const { sample, diagnostics } = sampleAnimaPoseClip(
-      this.clip as never,
-      time,
+    this.program ??= createAnimaPoseClipProgram(parseAnimaPoseClip(this.clip), {
+      vrm,
       resolvePose,
-    );
+    });
+    const { sample, diagnostics } = this.program.sample(time);
     diagnostics.missingPoseRefs.forEach((id) => this.missingPoseRefs.add(id));
     applyCanonicalPose(vrm, sample.humanoid ?? {});
     for (const [name, weight] of Object.entries(sample.expressions ?? {})) {

@@ -1,12 +1,7 @@
 import type { VRMPose } from "@pixiv/three-vrm";
 import type { AvatarInteractionPhase } from "@/lib/types/voice-types";
 
-import {
-  ANIMA_POSE_SCHEMA,
-  cloneVRMPose,
-  sanitizeAnimaPose,
-  type AnimaPose,
-} from "../animaPose";
+import type { AnimaPose } from "../animaPose";
 import type { AvatarAnimationState } from "../../types";
 import type { ProceduralAnimationLayerId } from "../../proc-animation/types";
 import {
@@ -16,7 +11,11 @@ import {
   type ParticleVFXTransformInput,
 } from "../../particle-vfx/types";
 
-export const ANIMA_POSE_CLIP_SCHEMA = "animaPoseClip/1.0" as const;
+/**
+ * Vocabulary shared by `animaPoseClip/2.0` (`schemaV2.ts`) and clip playback:
+ * file limits and serialization, roles, playback lifetimes, fades, layer
+ * mutes, events and sample types.
+ */
 
 /**
  * Largest clip file the runtime and the creator will read. Clips are saved as
@@ -58,10 +57,9 @@ export function roundAnimaPoseClipNumber(
 }
 
 /**
- * Serialize a 1.0 or 2.0 clip as a saved file: compact JSON with fractions
- * rounded to {@link ANIMA_POSE_CLIP_DECIMALS}. Generated clips repeat every animated bone
- * in each keyframe, so indentation and 17-digit renormalized quaternions would
- * roughly quadruple the file.
+ * Serialize a clip as a saved file: compact JSON with fractions rounded to
+ * {@link ANIMA_POSE_CLIP_DECIMALS}, so 17-digit renormalized quaternions do
+ * not bloat the file.
  */
 export function serializeAnimaPoseClipFile(clip: unknown): string {
   const round = (value: unknown, decimals: number): unknown =>
@@ -173,18 +171,6 @@ export type AnimaPoseSnapshot = {
   expressions?: Record<string, number>;
 };
 
-export type AnimaPoseRef = {
-  ref: string;
-};
-
-export type AnimaPoseClipPose = AnimaPoseSnapshot | AnimaPoseRef;
-
-export type AnimaPoseClipKeyframe = {
-  time: number;
-  pose: string;
-  transition?: AnimaPoseClipTransition;
-};
-
 export type AnimaPoseClipSceneVFXKind = "background_layers" | "focus_lines";
 
 export type AnimaPoseClipVFXIntensityEnvelope = {
@@ -261,51 +247,6 @@ export type AnimaPoseClipEvent =
   | AnimaPoseClipSceneVFXEvent
   | AnimaPoseClipParticleVFXEvent
   | AnimaPoseClipSFXEvent;
-
-export type AnimaPoseClip = {
-  schema: typeof ANIMA_POSE_CLIP_SCHEMA;
-  id: string;
-  name: string;
-  /**
-   * Legacy authoring metadata retained for payload compatibility. Runtime
-   * behavior is determined by the loadout slot that mounts the clip.
-   */
-  role?: AnimaPoseClipRole;
-  duration?: number;
-  loop?: boolean;
-  playback?: AnimaPoseClipPlayback;
-  basePose?: string;
-  defaultTransition?: AnimaPoseClipTransition;
-  fadeIn?: AnimaPoseClipFade;
-  fadeOut?: AnimaPoseClipFade;
-  poses: Record<string, AnimaPoseClipPose>;
-  poseKeyframes: AnimaPoseClipKeyframe[];
-  events?: AnimaPoseClipEvent[];
-  /** Live procedural layers muted while this clip plays (absent: none). */
-  mutedProceduralLayers?: AnimaPoseClipMutableLayerId[];
-  // Parsing also preserves top-level fields this version does not know, so
-  // newer or tool-specific metadata survives import, edit and save. They are
-  // deliberately untyped; read them through `Record<string, unknown>`.
-};
-
-/** Top-level fields the parser validates; every other field is preserved. */
-const KNOWN_CLIP_FIELDS = new Set([
-  "schema",
-  "id",
-  "name",
-  "role",
-  "duration",
-  "loop",
-  "playback",
-  "basePose",
-  "defaultTransition",
-  "fadeIn",
-  "fadeOut",
-  "poses",
-  "poseKeyframes",
-  "events",
-  "mutedProceduralLayers",
-]);
 
 export type AnimaPoseClipSample = AnimaPoseSnapshot;
 
@@ -397,14 +338,6 @@ const KNOWN_AVATAR_STATES: ReadonlySet<string> = new Set<AvatarAnimationState>([
   "talking",
 ]);
 
-export function parseAnimaPoseClip(value: unknown): AnimaPoseClip {
-  const clip = sanitizeAnimaPoseClip(value);
-  if (!clip) {
-    throw new Error("Invalid animaPoseClip/1.0 payload");
-  }
-  return clip;
-}
-
 /**
  * Validate a layer-mute list: null unless it is an array; known ids in
  * canonical order. Unknown ids (for example from a newer version) are ignored.
@@ -415,226 +348,6 @@ export function sanitizeAnimaPoseClipLayerMutes(
   if (!Array.isArray(value)) return null;
   const requested = new Set(value);
   return ANIMA_POSE_CLIP_MUTABLE_LAYER_IDS.filter((id) => requested.has(id));
-}
-
-export function sanitizeAnimaPoseClip(value: unknown): AnimaPoseClip | null {
-  if (!isRecord(value)) return null;
-  if (value.schema !== ANIMA_POSE_CLIP_SCHEMA) return null;
-
-  const id = sanitizeRequiredString(value.id);
-  const name = sanitizeRequiredString(value.name);
-  if (!id || !name) return null;
-
-  const role =
-    value.role === undefined ? undefined : sanitizeClipRole(value.role);
-  if (value.role !== undefined && !role) return null;
-
-  const playback =
-    value.playback === undefined ? undefined : sanitizePlayback(value.playback);
-  if (value.playback !== undefined && !playback) return null;
-
-  let duration: number | undefined;
-  if (value.duration !== undefined) {
-    const sanitizedDuration = sanitizePositiveNumber(value.duration);
-    if (sanitizedDuration === null) return null;
-    duration = sanitizedDuration;
-  }
-
-  if (value.loop !== undefined && typeof value.loop !== "boolean") {
-    return null;
-  }
-
-  const basePose =
-    value.basePose === undefined
-      ? undefined
-      : sanitizeRequiredString(value.basePose);
-  if (value.basePose !== undefined && !basePose) return null;
-
-  const defaultTransition =
-    value.defaultTransition === undefined
-      ? undefined
-      : sanitizeTransition(value.defaultTransition);
-  if (value.defaultTransition !== undefined && !defaultTransition) return null;
-
-  const fadeIn =
-    value.fadeIn === undefined ? undefined : sanitizeFade(value.fadeIn);
-  if (value.fadeIn !== undefined && !fadeIn) return null;
-
-  const fadeOut =
-    value.fadeOut === undefined ? undefined : sanitizeFade(value.fadeOut);
-  if (value.fadeOut !== undefined && !fadeOut) return null;
-
-  const poses = sanitizeClipPoses(value.poses);
-  if (!poses) return null;
-
-  const poseKeyframes = sanitizeClipKeyframes(
-    value.poseKeyframes,
-    duration,
-    new Set(Object.keys(poses)),
-  );
-  if (!poseKeyframes) return null;
-
-  const events =
-    value.events === undefined
-      ? undefined
-      : sanitizeClipEvents(value.events, duration);
-  if (value.events !== undefined && !events) return null;
-  if (poseKeyframes.length === 0 && (!events || events.length === 0)) {
-    return null;
-  }
-
-  let mutedProceduralLayers: AnimaPoseClipMutableLayerId[] | undefined;
-  if (value.mutedProceduralLayers !== undefined) {
-    const sanitized = sanitizeAnimaPoseClipLayerMutes(
-      value.mutedProceduralLayers,
-    );
-    if (!sanitized) return null;
-    mutedProceduralLayers = sanitized;
-  }
-
-  // Finite clips may omit duration when their authored timeline has an end.
-  // Effect duration is deliberately excluded: it cannot extend the clip clock.
-  const timelineDuration =
-    duration ?? getAuthoredTimelineDuration(poseKeyframes, events ?? undefined);
-  if ((value.loop === true || !playback) && timelineDuration <= 0) {
-    return null;
-  }
-
-  const unknownFields = Object.fromEntries(
-    Object.entries(value)
-      .filter(([key]) => !KNOWN_CLIP_FIELDS.has(key))
-      .map(([key, field]) => [key, structuredClone(field)]),
-  );
-
-  return {
-    ...unknownFields,
-    schema: ANIMA_POSE_CLIP_SCHEMA,
-    id,
-    name,
-    ...(role ? { role } : {}),
-    ...(duration !== undefined ? { duration } : {}),
-    ...(value.loop === true ? { loop: true } : {}),
-    ...(playback ? { playback } : {}),
-    ...(basePose ? { basePose } : {}),
-    ...(defaultTransition ? { defaultTransition } : {}),
-    ...(fadeIn ? { fadeIn } : {}),
-    ...(fadeOut ? { fadeOut } : {}),
-    poses,
-    poseKeyframes,
-    ...(events && events.length > 0 ? { events } : {}),
-    ...(mutedProceduralLayers && mutedProceduralLayers.length > 0
-      ? { mutedProceduralLayers }
-      : {}),
-  };
-}
-
-export function isAnimaPoseClipRef(value: unknown): value is AnimaPoseRef {
-  if (!isRecord(value)) return false;
-  return (
-    Object.keys(value).length === 1 &&
-    Boolean(sanitizeRequiredString(value.ref))
-  );
-}
-
-export function isAnimaPoseSnapshot(
-  value: unknown,
-): value is AnimaPoseSnapshot {
-  return sanitizePoseSnapshot(value, "snapshot", true) !== null;
-}
-
-export function sanitizePoseSnapshot(
-  value: unknown,
-  fallbackId: string,
-  requireTargets: boolean,
-): AnimaPoseSnapshot | null {
-  if (!isRecord(value)) return null;
-  if ("parent" in value) return null;
-
-  const pose = sanitizeAnimaPose({
-    schema: ANIMA_POSE_SCHEMA,
-    id: fallbackId,
-    name: fallbackId,
-    ...value,
-  });
-  if (!pose) return null;
-
-  const snapshot = extractPoseSnapshot(pose);
-  if (requireTargets && !hasSampleTargets(snapshot)) return null;
-  return snapshot;
-}
-
-function sanitizeClipPoses(
-  value: unknown,
-): Record<string, AnimaPoseClipPose> | null {
-  if (!isRecord(value)) return null;
-
-  const poses = Object.create(null) as Record<string, AnimaPoseClipPose>;
-  const aliases = new Set<string>();
-  for (const [rawAlias, rawPose] of Object.entries(value)) {
-    const alias = sanitizeRequiredString(rawAlias);
-    if (!alias || aliases.has(alias)) return null;
-
-    const pose = sanitizeClipPose(rawPose, alias);
-    if (!pose) return null;
-    poses[alias] = pose;
-    aliases.add(alias);
-  }
-
-  return poses;
-}
-
-function sanitizeClipPose(
-  value: unknown,
-  alias: string,
-): AnimaPoseClipPose | null {
-  if (isAnimaPoseClipRef(value)) {
-    return {
-      ref: value.ref.trim(),
-    };
-  }
-  if (isRecord(value) && "ref" in value) return null;
-  // A sparse expression timeline may need an empty landmark to mean "all
-  // expressions are neutral here". Standalone poses still require a target,
-  // but clip-local snapshots are allowed to be empty for that purpose.
-  return sanitizePoseSnapshot(value, alias, false);
-}
-
-function sanitizeClipKeyframes(
-  value: unknown,
-  duration: number | undefined,
-  aliases: Set<string>,
-): AnimaPoseClipKeyframe[] | null {
-  if (!Array.isArray(value)) return null;
-
-  const keyframes: AnimaPoseClipKeyframe[] = [];
-  let previousTime: number | null = null;
-
-  for (const rawKeyframe of value) {
-    if (!isRecord(rawKeyframe)) return null;
-    const time = rawKeyframe.time;
-    if (typeof time !== "number" || !Number.isFinite(time)) return null;
-    if (time < 0) return null;
-    if (duration !== undefined && time > duration) return null;
-    if (previousTime !== null && time <= previousTime) return null;
-
-    const pose = sanitizeRequiredString(rawKeyframe.pose);
-    if (!pose || !aliases.has(pose)) return null;
-
-    const transition =
-      rawKeyframe.transition === undefined
-        ? undefined
-        : sanitizeTransition(rawKeyframe.transition);
-    if (rawKeyframe.transition !== undefined && !transition) return null;
-
-    keyframes.push({
-      time,
-      pose,
-      ...(transition ? { transition } : {}),
-    });
-    previousTime = time;
-  }
-
-  return keyframes;
 }
 
 function sanitizeClipEvents(
@@ -1218,20 +931,6 @@ function sanitizeScalarInterpolation(
     : null;
 }
 
-function extractPoseSnapshot(pose: AnimaPose): AnimaPoseSnapshot {
-  return {
-    ...(pose.humanoid ? { humanoid: cloneVRMPose(pose.humanoid) } : {}),
-    ...(pose.expressions ? { expressions: { ...pose.expressions } } : {}),
-  };
-}
-
-function hasSampleTargets(sample: AnimaPoseClipSample): boolean {
-  return (
-    Object.keys(sample.humanoid ?? {}).length > 0 ||
-    Object.keys(sample.expressions ?? {}).length > 0
-  );
-}
-
 function sanitizeRequiredString(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
@@ -1262,26 +961,11 @@ function areStringArraysEqual(left: string[], right: string[]): boolean {
   return left.every((value, index) => value === right[index]);
 }
 
-function getAuthoredTimelineDuration(
-  keyframes: readonly AnimaPoseClipKeyframe[],
-  events: readonly AnimaPoseClipEvent[] | undefined,
-): number {
-  let maxTime = 0;
-  for (const keyframe of keyframes) {
-    maxTime = Math.max(maxTime, keyframe.time);
-  }
-  for (const event of events ?? []) {
-    maxTime = Math.max(maxTime, event.time);
-  }
-  return maxTime;
-}
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
-// The 2.0 parser keeps 1.0's easing names and its fade, playback, role and
-// event rules.
+// Shared with the 2.0 parser under clip-specific names.
 export {
   KNOWN_EASINGS as KNOWN_ANIMA_POSE_CLIP_EASINGS,
   sanitizeClipEvents as sanitizeAnimaPoseClipEvents,

@@ -16,12 +16,6 @@ import type { Page } from "playwright/test";
  * reopens with the detail intact.
  */
 const JOURNEY_KEY = "creator-generated-gesture-round-trip";
-const V1_GESTURE = fileURLToPath(
-  new URL(
-    "../../../../content/included/gestures/double-thumbs-up/double-thumbs-up.json",
-    import.meta.url,
-  ),
-);
 const EXAMPLE = fileURLToPath(
   new URL(
     "../../../../content/included/gestures/hearty-laugh/hearty-laugh.json",
@@ -307,56 +301,24 @@ test.describe("Generated Gesture creator round trip", () => {
   });
 
   for (const kind of ["gesture", "reaction"] as const) {
-    test(`creator-1-0-${kind}-saves-as-2-0 @creator @surface-creator @channel-${kind} @writes-local`, async ({
+    test(`creator-1-0-${kind}-import-is-rejected @creator @surface-creator @channel-${kind}`, async ({
       animamaEvidence,
       creatorContent,
       page,
     }) => {
-      const journeyKey = `creator-1-0-${kind}-saves-as-2-0`;
       const runId = requiredEnvironment("ANIMAMA_E2E_RUN_ID");
       const name = `${kind}-v1-${runId.replace(/^run-/, "")}`;
-      const logicalKey = `local:${kind}:${name}`;
       const catalogBefore = await creatorContent.snapshotLocalCatalog();
-      const animaId = await selectAnnieFromSidebar(page);
-      const loadoutBefore = await creatorContent.snapshotAnimaLoadout(animaId);
-      const plan = await creatorContent.planContent({
-        journeyKey,
-        kind,
-        entryName: name,
-        logicalKey,
-      });
       const mutationGuard = await CreatorMutationGuard.attach(
         page,
         requiredEnvironment("ANIMAMA_E2E_API_URL"),
       );
-      let owned: CreatorOwnedResponse | null = null;
       let failure: unknown = null;
-      // An Included 1.0 Gesture, or a 1.0 Happy-to-Angry Reaction.
-      const sequence =
-        kind === "gesture"
-          ? JSON.parse(readFileSync(V1_GESTURE, "utf8"))
-          : {
-              schema: "animaPoseClip/1.0",
-              id: name,
-              name,
-              duration: 1.2,
-              poses: {
-                happy: { expressions: { happy: 1 } },
-                angry: { expressions: { angry: 1 } },
-              },
-              poseKeyframes: [
-                { time: 0, pose: "happy" },
-                { time: 0.3, pose: "angry" },
-              ],
-            };
-      const keyframes = sequence.poseKeyframes.length as number;
-
       try {
-        await test.step("Open the 1.0 clip as beats without detail", async () => {
+        await test.step("Reject a retired 1.0 clip on import", async () => {
           await openCreatorStage({
             creator: kind === "gesture" ? "Gesture" : "Reaction",
             page,
-            selectAnnie: false,
           });
           if (kind === "gesture")
             await page.getByRole("tab", { name: "Clip", exact: true }).click();
@@ -377,90 +339,37 @@ test.describe("Generated Gesture creator round trip", () => {
                   schema: "animamaActionProject/1.0",
                   intent: kind,
                   name,
-                  aiDescription: "A test of opening 1.0 content.",
+                  aiDescription: "A retired 1.0 clip.",
                   semanticKey: name.replaceAll("-", "_"),
-                  sequence,
+                  sequence: {
+                    schema: "animaPoseClip/1.0",
+                    id: name,
+                    name,
+                    duration: 1,
+                    poses: { happy: { expressions: { happy: 1 } } },
+                    poseKeyframes: [{ time: 0, pose: "happy" }],
+                  },
                   dependencies: [],
                 }),
               ),
             });
           await expect(
+            dialog.getByText(/retired animaPoseClip\/1\.0 format/),
+          ).toBeVisible();
+          await expect(
             dialog.getByText(
               "Typed project imported with exact dependency pins.",
             ),
-          ).toBeVisible();
-          await page.keyboard.press("Escape");
-          await expect(
-            page.getByRole("button", { name: / keyframe at 0\.00s$/ }).first(),
-          ).toBeVisible();
-          await expect(
-            page.getByRole("button", { name: /with generated detail$/ }),
           ).toHaveCount(0);
-          // Opening converts it: the timeline is already 2.0 beats.
-          const opened = await readClipJson(page);
-          expect(opened.schema).toBe("animaPoseClip/2.0");
-          expect(opened.beats).toHaveLength(keyframes);
-        });
-
-        await test.step("Save as 2.0 and reopen", async () => {
-          mutationGuard.armSave({
-            family: kind === "gesture" ? "gestures" : "reactions",
-            entryName: name,
-            logicalKey,
-            recordOwned: (identity) =>
-              creatorContent.recordOwnedContent(plan, identity),
-          });
-          await page
-            .getByRole("button", { name: "Save content", exact: true })
-            .click();
-          owned = await mutationGuard.waitForOwned();
-          const verified = await creatorContent.verifyOwnedContent(plan, owned);
-          const files = verified.files as unknown as {
-            parsedJson: Record<string, unknown>;
-          };
-          const saved = Object.entries(files.parsedJson).find(
-            ([path]) => path.endsWith(".json") && !path.endsWith(".meta.json"),
-          )?.[1] as Clip;
-          expect(saved.schema).toBe("animaPoseClip/2.0");
-          expect(saved.beats).toHaveLength(keyframes);
-          await animamaEvidence.attachJson(`${journeyKey}-saved`, saved);
-          // Save then moves to the saved item's edit route. Reloading before
-          // that lands reopens a blank new document instead.
-          await expect(page).toHaveURL(
-            new RegExp(`/${kind}s/${owned.itemId}/edit(?:[?#]|$)`),
-          );
-          await page.reload();
-          if (kind === "gesture")
-            await page.getByRole("tab", { name: "Clip", exact: true }).click();
-          // The saved document has loaded once its beats are on the timeline.
-          await expect(
-            page.getByRole("button", { name: / keyframe at 0\.00s$/ }).first(),
-          ).toBeVisible();
-          expect(await readClipJson(page)).toEqual(saved);
         });
       } catch (error) {
         failure = error;
       } finally {
         try {
-          if (owned) mutationGuard.armDelete(owned);
-          const cleanup = await creatorContent.cleanupOwnedContent();
-          if (owned) {
-            mutationGuard.recordExternalDelete(owned);
-            expect(cleanup).toMatchObject({
-              attempted: 1,
-              deleted: 1,
-              failed: 0,
-            });
-            await creatorContent.assertDeletedContent(plan, owned);
-          }
           await creatorContent.assertLocalCatalogUnchanged(
             catalogBefore,
             animamaEvidence,
-            journeyKey,
-          );
-          await creatorContent.assertAnimaLoadoutUnchanged(
-            loadoutBefore,
-            animamaEvidence,
+            `creator-1-0-${kind}-import-is-rejected`,
           );
           await mutationGuard.assertPolicy(animamaEvidence);
         } catch (error) {

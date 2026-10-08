@@ -416,7 +416,7 @@ function openBrowser(url) {
 const USAGE = `Usage: pnpm -s animation:preview [<source>] [--compare <source>] [--notes <file>]
                                 [--duration <s>] [--local-content <dir>] [--port <n>] [--no-open]
 
-A source is a clip file (animaPoseClip/2.0 or 1.0), a creator project
+A source is an animaPoseClip/2.0 clip file, a creator project
 envelope, a Library Gesture or Reaction, or an Avatar Effect:
   library:<folder | selector | name>, optionally prefixed included/ or local/
   an effect folder or descriptor .json

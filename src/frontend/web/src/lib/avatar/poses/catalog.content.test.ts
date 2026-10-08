@@ -3,7 +3,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-import { isAnimaPoseClipV2, parseAnyAnimaPoseClip } from "./animaPoseClip";
+import { isAnimaPoseClipV2, parseAnimaPoseClip } from "./animaPoseClip";
 import originalInventory from "./fixtures/starter-inventory-before-content.json";
 import { parseAnimaPose, resolveAnimaPose } from "./animaPose";
 import {
@@ -148,7 +148,7 @@ describe("Included Pose starter collection", () => {
     expect(clipGestures).toEqual(Object.keys(AVATAR_POSE_CLIP_CATALOG).sort());
     const v2Ids: string[] = [];
     for (const slug of clipGestures) {
-      const included = parseAnyAnimaPoseClip(
+      const included = parseAnimaPoseClip(
         JSON.parse(
           readFileSync(`${gesturesRoot}/${slug}/${slug}.json`, "utf8"),
         ),

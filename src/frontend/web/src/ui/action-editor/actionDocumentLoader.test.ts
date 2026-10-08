@@ -7,6 +7,7 @@ import type {
 } from "@/lib/content/catalogTypes";
 import { createGestureDocument } from "@/ui/gesture-editor/gestureDocument";
 import { createReactionDocument } from "@/ui/reaction-editor/reactionDocument";
+import { unsupportedAnimaPoseClipFormatMessage } from "@/lib/avatar/poses/animaPoseClip";
 import {
   isCustomizableStarterAction,
   actionDocumentFromPreview,
@@ -364,12 +365,11 @@ describe("owned action reopening", () => {
         technical_source: { type: "file", file_ref: "sequence-ref" },
       };
       const sequence = {
-        schema: "animaPoseClip/1.0",
+        schema: "animaPoseClip/2.0",
         id: "converted",
         name: "Converted",
         duration: 1,
-        poses: {},
-        poseKeyframes: [],
+        beats: [],
         events: [
           {
             id: "sparkle",
@@ -409,12 +409,12 @@ describe("owned action reopening", () => {
       vi.fn().mockResolvedValue(
         new Response(
           JSON.stringify({
-            schema: "animaPoseClip/1.0",
+            schema: "animaPoseClip/2.0",
             id: "unassigned",
             name: "Unassigned",
             duration: 1,
-            poses: { neutral: {} },
-            poseKeyframes: [{ time: 0, pose: "neutral" }],
+            beats: [{ id: "neutral", label: "Neutral", time: 0 }],
+            expressions: { happy: [{ v: 0, beat: "neutral" }] },
           }),
         ),
       ),
@@ -429,18 +429,24 @@ describe("owned action reopening", () => {
   });
   it("restores expression and effect keyframes plus exact dependencies", async () => {
     const sequence = {
-      schema: "animaPoseClip/1.0",
+      schema: "animaPoseClip/2.0",
       id: "saved-reaction",
       name: "Saved Reaction",
       duration: 1.2,
-      poses: {
-        happy: { expressions: { happy: 0.8 } },
-        surprised: { expressions: { surprised: 1 } },
-      },
-      poseKeyframes: [
-        { time: 0.2, pose: "happy" },
-        { time: 0.8, pose: "surprised" },
+      beats: [
+        { id: "happy", label: "Happy", time: 0.2 },
+        { id: "surprised", label: "Surprised", time: 0.8 },
       ],
+      expressions: {
+        happy: [
+          { v: 0.8, beat: "happy" },
+          { v: 0, beat: "surprised" },
+        ],
+        surprised: [
+          { v: 0, beat: "happy" },
+          { v: 1, beat: "surprised" },
+        ],
+      },
       events: [
         {
           id: "sparkle-event",
@@ -495,4 +501,40 @@ describe("owned action reopening", () => {
       },
     ]);
   });
+
+  it.each([
+    [
+      "the retired 1.0 format",
+      {
+        schema: "animaPoseClip/1.0",
+        id: "legacy",
+        name: "Legacy",
+        duration: 1,
+        poses: { neutral: {} },
+        poseKeyframes: [{ time: 0, pose: "neutral" }],
+      },
+      unsupportedAnimaPoseClipFormatMessage("animaPoseClip/1.0"),
+    ],
+    [
+      "an unknown format",
+      { schema: "animaPoseClip/9.0", id: "future", name: "Future" },
+      unsupportedAnimaPoseClipFormatMessage("animaPoseClip/9.0"),
+    ],
+  ])(
+    "rejects an owned sequence in %s instead of opening it",
+    async (_label, sequence, message) => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () => new Response(JSON.stringify(sequence))),
+      );
+      await expect(
+        actionDocumentFromPreview({
+          intent: "reaction",
+          item: ownedReaction(),
+          preview: privateReactionPreview(),
+          base: createReactionDocument(),
+        }),
+      ).rejects.toThrow(message);
+    },
+  );
 });

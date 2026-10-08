@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { serializeAnimaPoseClipFile } from "./schema";
+import { serializeAnimaPoseClipFile } from "./clipVocabulary";
 import {
   ANIMA_POSE_CLIP_V2_LIMITS,
   ANIMA_POSE_CLIP_V2_MIN_SPACING,

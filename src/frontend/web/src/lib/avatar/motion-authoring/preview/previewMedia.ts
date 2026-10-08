@@ -1,4 +1,4 @@
-import type { AnyAnimaPoseClip } from "@/lib/avatar/poses/animaPoseClip";
+import type { AnimaPoseClipV2 } from "@/lib/avatar/poses/animaPoseClip";
 import { parseParticleVFXRuntimeConfig } from "@/lib/avatar/particle-vfx/runtimeConfig";
 import type { ParticleVFXCatalogEntry } from "@/lib/avatar/particle-vfx/types";
 import { AvatarEffectDefinitionError } from "@/lib/avatar/vfx/definition";
@@ -153,7 +153,7 @@ export class PreviewMediaProvider implements AnimaRuntimeMediaProvider {
  * played by the chat scene), plus the media's own resolution notices.
  */
 export function previewMediaNotices(
-  clip: AnyAnimaPoseClip,
+  clip: AnimaPoseClipV2,
   media: PreviewMedia | null,
 ): string[] {
   const notices = new Set(media?.notices ?? []);
@@ -186,7 +186,7 @@ export function previewMediaNotices(
 }
 
 /** Whether a clip has events that need runtime media. */
-export function clipUsesMedia(clip: AnyAnimaPoseClip): boolean {
+export function clipUsesMedia(clip: AnimaPoseClipV2): boolean {
   return (clip.events ?? []).some(
     ({ kind }) => kind === "avatar_vfx" || kind === "particle_vfx",
   );

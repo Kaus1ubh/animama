@@ -13,7 +13,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { TimelineIcon } from "@/ui/components/TimelineIcon";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 
 import type {
   PyContentDependency,
@@ -23,6 +23,7 @@ import type {
 import { cn } from "@/lib/utils";
 import type { PyPose } from "@animama/runtime-contracts/api-types";
 import { Button } from "@/ui/components/button";
+import { Checkbox } from "@/ui/components/checkbox";
 import { Input } from "@/ui/components/input";
 import { PencilSparklesIcon } from "@/ui/components/PencilSparklesIcon";
 import { Tabs, TabsList, TabsTrigger } from "@/ui/components/tabs";
@@ -156,6 +157,9 @@ export function ActionEditorEffectsPanel({
     preview.stop();
   }, [panelTab, preview]);
   const [poseQuery, setPoseQuery] = useState("");
+  // Local Poses are the user's own ingredients; Included ones are opt-in.
+  const [showIncludedPoses, setShowIncludedPoses] = useState(false);
+  const showIncludedId = useId();
   const activeTab =
     EFFECT_TABS.find((tab) => tab.contentType === activeType) ?? EFFECT_TABS[0];
   const activeSection = sections.find(
@@ -163,11 +167,12 @@ export function ActionEditorEffectsPanel({
   );
   const filteredPoses = useMemo(() => {
     const normalizedQuery = poseQuery.trim().toLocaleLowerCase();
-    if (!normalizedQuery) return poses ?? [];
-    return (poses ?? []).filter((pose) =>
-      pose.name.toLocaleLowerCase().includes(normalizedQuery),
+    return (poses ?? []).filter(
+      (pose) =>
+        (showIncludedPoses || pose.source !== "included") &&
+        pose.name.toLocaleLowerCase().includes(normalizedQuery),
     );
-  }, [poseQuery, poses]);
+  }, [poseQuery, poses, showIncludedPoses]);
   const panelLabel = showsPoses ? "Poses & Effects" : "Effects";
 
   return (
@@ -297,6 +302,21 @@ export function ActionEditorEffectsPanel({
               <SoundUploadButton className="contents [&>ul]:col-span-full" />
             ) : null}
           </div>
+          {panelTab === "poses" ? (
+            <label
+              htmlFor={showIncludedId}
+              className="mt-2 flex shrink-0 items-center gap-2 text-xs"
+            >
+              <Checkbox
+                id={showIncludedId}
+                checked={showIncludedPoses}
+                onCheckedChange={(checked) =>
+                  setShowIncludedPoses(checked === true)
+                }
+              />
+              Show Included
+            </label>
+          ) : null}
           {previewState.error ? (
             <p role="alert" className="text-destructive mt-2 text-xs">
               {previewState.error}
@@ -311,6 +331,16 @@ export function ActionEditorEffectsPanel({
                 error={posesError}
                 onRetry={onRetryPoses}
                 hasQuery={Boolean(poseQuery.trim())}
+                includedHidden={
+                  !showIncludedPoses &&
+                  (poses ?? []).some(
+                    (pose) =>
+                      pose.source === "included" &&
+                      pose.name
+                        .toLocaleLowerCase()
+                        .includes(poseQuery.trim().toLocaleLowerCase()),
+                  )
+                }
                 onAddPose={onAddPose}
                 onEditPose={onEditPose}
                 onCreatePose={onCreatePose}
@@ -420,6 +450,7 @@ function PoseCatalog({
   mobile,
   poses,
   hasQuery,
+  includedHidden,
   pending,
   error,
   onRetry,
@@ -430,6 +461,8 @@ function PoseCatalog({
   mobile: boolean;
   poses: PyPose[];
   hasQuery: boolean;
+  /** Included Poses that match the search are filtered out. */
+  includedHidden: boolean;
   pending?: boolean;
   error?: string | null;
   onRetry?: () => void;
@@ -513,8 +546,12 @@ function PoseCatalog({
           </p>
           <p className="text-muted-foreground mt-1 text-xs">
             {hasQuery
-              ? "Try a different search."
-              : "Create and save a Pose to reuse it as a Gesture keyframe."}
+              ? includedHidden
+                ? "Try a different search, or show Included Poses."
+                : "Try a different search."
+              : includedHidden
+                ? "Create and save a Pose to reuse it as a Gesture keyframe, or show Included Poses."
+                : "Create and save a Pose to reuse it as a Gesture keyframe."}
           </p>
           {!hasQuery ? (
             <Button

@@ -83,12 +83,11 @@ function createPlaybackHarness(lane: "gesture" | "reaction") {
   avatar.setPoseClipExternalEventSink(null);
   avatar.setReactionClipExternalEventSink(null);
   const clip = parseAnimaPoseClip({
-    schema: "animaPoseClip/1.0",
+    schema: "animaPoseClip/2.0",
     id: "anchored-clip",
     name: "Anchored clip",
     duration: 2,
-    poses: {},
-    poseKeyframes: [],
+    beats: [],
     events: [
       {
         id: "particles",
