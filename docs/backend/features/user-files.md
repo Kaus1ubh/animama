@@ -321,7 +321,7 @@ Run a host worker with the same database and private storage configuration as
 the backend:
 
 ```bash
-uv run --extra file-worker python -m animama.workers.user_file_processing
+uv run --no-dev --extra file-worker python -m animama.workers.user_file_processing
 ```
 
 The Compose worker service is commented out. Configure it explicitly before
