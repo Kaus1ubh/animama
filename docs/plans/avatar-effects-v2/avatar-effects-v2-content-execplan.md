@@ -71,7 +71,7 @@ Paths: frontend relative to `src/frontend/web/`, backend to
 
 - [x] Preparation (2026-10-08): phase issues #348–#355; worktree `avatar-effects-v2` on `feat/avatar-effects-content` from `fd1980fe`; task stack `animama-avatar-fx` at http://animama-avatar-fx.localhost:8600.
 - [x] P1 — Effect-asset scripts and skill (R12). Done 2026-10-08; review passed at round 3.
-- [ ] P2 — Authoring pipeline tools: check, save, promote (R13, R16 tooling).
+- [x] P2 — Authoring pipeline tools: check, save, promote (R13, R16 tooling). Done 2026-10-08; review rounds used (last fix verified by tests, rechecked at final integration).
 - [ ] P3 — Avatar Effect skill rewrite and fresh-agent dry run (R13). Gate G1 needed only before P4.
 - [ ] P4 — Effect batch A: upgrades and kept effects (R14). Gate G2.
 - [ ] P5 — Effect batch B: new face effects (R14). Gate G2.
@@ -332,6 +332,144 @@ Steps:
 Checks: `test:source`, focused vitest, `pnpm check`, `web:lint`, `pnpm build`;
 `effects:save` of a fixture effect to the task stack and reopen in the creator.
 
+#### P2 record
+
+- Issue #349. Starting revision `043a8d27` (P1 commit).
+- One CLI, `pnpm -s effects` (`scripts/effects.mjs`), with `check`, `save`
+  and `promote`, instead of a separate `effects:save` script:
+  - `check` (`effect-check.mjs`, plus `window.checkEffect` in
+    `effect-render/render.ts`): art against the attachment's budget, the `/2`
+    definition through the runtime parser (field named), the attachment on
+    both Included Avatars (controller warnings fail) and visible art (each
+    Avatar renders with and without the effect at each time and view; at least
+    0.1% of a tile must change somewhere).
+  - `save` (`effect-save.mjs`): builds the creator's editor document with the
+    creator's own `createAvatarEffectDocumentFromDefinition` (loaded through
+    Vite SSR), imports it in headless Chromium, chooses the images, saves,
+    reads the item back and compares definitions after a round trip through
+    the creator's document model (the API fills defaults the creator omits),
+    then reopens the item. A Local effect with the same name is revised.
+  - `promote` (`effect-promote.mjs`): `add`, `replace` and `delete` for
+    Avatar Effects; validates definition and art; source-review records copy
+    the existing effect records' fields; the inventory is unchanged (owner
+    decision 2026-10-08). The Gesture `animation promote` is untouched.
+- Deviation: Reaction promotion moves to P7. Included Reactions change format
+  with #337, so writing them now would target a format about to be replaced.
+- Checks: `node --test scripts/effects.test.mjs` 9/9;
+  `node --test scripts/*.browser.test.mjs` 39/39 (includes the new
+  `effect-check.browser.test.mjs`: a visible effect passes; art at alpha 5
+  fails "no visible art"; opacity 3 fails at `appearance.opacity`);
+  `pnpm check`, `pnpm web:lint`, prettier pass.
+- Manual runs on the task stack (`animama-avatar-fx`):
+  - `effects check library:included/eye_vv library:included/star
+    library:included/texture_sick_3`: all pass (25 s), with the art warnings
+    P1 recorded for Eye VV.
+  - `effects save` of a copy of Eye VV: a new item ("P2 save new", with a
+    changed offset and appearance, read back exactly) and a revision
+    ("P2 save test").
+  - `effects promote --dry-run`: an add from `library:local/P2 save new`, a
+    replace of `eye_vv` and the source-review update listed; a delete of
+    `eye_vv_pair` refused because `shy-finger-poke` depends on it. Nothing was
+    written.
+
+#### Code Review #1 Findings
+
+`sdlc-reviewer`, initial review of the staged P2 changes on `043a8d27`.
+Checks: `effects.test.mjs` 9/9, the check and render browser tests 3/3,
+prettier and `web:lint` pass; probes with scratch effect folders and
+promotion dry runs (nothing written). `effects save` was not run live: the
+task stack had been stopped from outside the session. Blocking:
+
+1. **P2-R1-01** — the visible-art baseline was the Avatar without the effect,
+   so an eye effect's default face options (closed, cleaned eyes) counted as
+   visible art: an eye effect at alpha 5 passed on both Avatars.
+2. **P2-R1-02** — promotion took image names from the source unchecked:
+   `sub/../x.png` wrote and then deleted the same file and left a mismatched
+   source-review record; `sub/x.png` created nested files later replaces and
+   deletes would miss; `image === otherEyeImage` duplicated a `files` entry.
+3. **P2-R1-03** — a folder source with `soundAlias` and no dependency passed
+   promotion, which the backend catalog would scan as invalid.
+
+Optional: P2-R1-04 save crashed with a raw stack trace when the app was
+unreachable, and a source error during save printed usage with exit 2;
+P2-R1-05 repeated resolved names were not caught; P2-R1-06 the read-back
+ignored whether an other-eye image survived; P2-R1-07 a late fade-in failed
+without a hint, and `renderFrames` leaked a session if apply threw;
+P2-R1-08 the docs said the tools need no stack and sourced the record after
+using `library:local`; P2-R1-09 promote and the CLI re-implement helpers
+from `animation-promote.mjs` and `animation.mjs` instead of the planned
+shared core; P2-R1-10 the dry run did not list record changes.
+
+#### Code Review #1 Revisions
+
+- **01 accepted:** the baseline applies the same effect with fully
+  transparent stand-in images of the same size, so face options and cleanup
+  are in both renders and only the art differs. Test: an eye-landmark effect
+  at alpha 5 fails "no visible art" on both Avatars. Included `eye_vv`,
+  `eye`, `star3` and `texture_black_1` still pass.
+- **02 accepted:** image names must be plain file names, distinct, and not
+  the descriptor's name. Tests for `sub/x.png`, `sub/../x.png`, `..`,
+  `<stem>.json` and a shared image.
+- **03 accepted:** `soundAlias` is refused with dependencies. Test added.
+- **04 accepted:** an unreachable app is reported as "could not reach the app
+  at <origin>" (exit 1); source errors during save are save failures (exit 1).
+- **05 accepted:** two items resolving to one name are refused before saving.
+- **06 accepted in part:** the read-back compares whether an other-eye image
+  is present; image bytes are not compared (the reviewer's round trip of all
+  16 Included and 10 Local definitions was lossless).
+- **07 accepted:** the message suggests `--times`; `renderFrames` closes its
+  session when apply throws.
+- **08 accepted:** docs corrected.
+- **09 deferred, recorded:** the effect tools keep their own small helpers
+  (repository reader, JSON writer, Vite SSR loader). Sharing them would mean
+  restructuring the Gesture promotion and motion CLI that #310 just shipped;
+  the duplication is about 60 lines and covered by each tool's tests.
+- **10 accepted:** the dry run lists each source-review record added or
+  dropped under the `licenses/source-review.json` line. Test added.
+
+Checks after revisions: `effects.test.mjs` 9/9 (extended),
+`effect-check.browser.test.mjs` 1/1 (with the eye case), prettier pass.
+
+#### Code Review #2 (repair round 1)
+
+Findings: R1-01…08 and R1-10 confirmed fixed by probes (faint eye effect
+fails; Included eye effects pass; unsafe image names and sound refused;
+unreachable app and repeated names reported; record notes listed; live save
+and re-save of unchanged content on the task stack pass). R1-09 deferral
+accepted.
+
+1. **P2-R2-01** (blocking, regression from R1-01) — a silhouette
+   `fill: "tint"` effect with white art failed "no visible art": the tint fill
+   is opaque and a transparent stand-in's average colour falls back to white,
+   so the baseline already matched white art.
+2. Optional — the docs said `library:local/...` sources need a running stack;
+   they need only the record sourced.
+
+Revisions (both accepted): the transparent stand-in baseline applies only to
+face attachments (face landmark and face surface), which carry face options;
+body, sticker and silhouette effects compare against the bare Avatar. Test:
+a white-art tinted silhouette passes. Docs reworded. Checks:
+`effect-check.browser.test.mjs` 1/1 (now five cases), `effects.test.mjs` 9/9,
+prettier pass.
+
+#### Code Review #3 (repair round 2)
+
+P2-R2-01 confirmed fixed with no regressions (tinted silhouettes with red or
+white art pass; the faint eye effect still fails; Included `eye_vv`, a body
+heart and a sticker pass; diagnostics come only from the applied session).
+
+1. **P2-R3-01** (blocking, present since round 1, missed by reviews #1 and
+   #2) — frames were read over a transparent canvas, where faint art beside
+   the Avatar reads back at nearly full colour: a sticker at alpha 5 passed
+   on both Avatars.
+
+Revision (accepted): `checkEffect` reads each frame over the opaque tile
+backdrop the contact sheets use. Test: a faint sticker beside the head now
+fails "no visible art" on both Avatars. `effect-check.browser.test.mjs` and
+`effect-render.browser.test.mjs` pass; Included `eye_vv`, `emote` and
+`texture_sick_1` pass. The review budget is spent, so this last fix has test
+evidence but no independent recheck; the final integration review covers it.
+
 ### P3 — Avatar Effect skill rewrite and fresh-agent dry run (R13)
 
 Outcome: a fresh agent can produce one new effect from a brief to Local content
@@ -412,7 +550,11 @@ dropped by the owner.
 3. Apply each change in the Reaction (or Gesture) creator as Local content,
    checking timing against the expression in the headed preview; save without
    equipping.
-4. Update the tests that pin the mapping (`reactionClips.test.ts` alias
+4. Add Reaction support to `effects promote` (`replace` of
+   `reactions/<emotion>-<n>` from the Local Reaction, keeping its ID, role,
+   placement hint and lifetime; refusing humanoid tracks and unresolved effect
+   aliases), in the format #337 settles; moved here from P2.
+5. Update the tests that pin the mapping (`reactionClips.test.ts` alias
    resolution; a test that no Included Action references `mouth_w` or
    `mouth_hover_w`).
 

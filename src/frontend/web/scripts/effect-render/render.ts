@@ -50,6 +50,26 @@ type ThumbnailRequest = CommonRequest & {
   size: number;
 };
 
+type CheckRequest = CommonRequest & {
+  avatars: { id: string; url: string }[];
+  times: number[];
+  tile: { width: number; height: number };
+  views: ViewName[];
+  /** A pixel differs when any RGBA channel differs by more than this. */
+  threshold: number;
+  /**
+   * What the baseline frames apply: for face effects the same effects with
+   * fully transparent images of the same size (face options and cleanup stay,
+   * so only the art differs), otherwise nothing.
+   */
+  baselineEffects: EffectSource[];
+};
+
+type AvatarCheck = AvatarDiagnostics & {
+  /** Pixels that differ from the same frame without the effect, `[time][view]`. */
+  differingPixels: number[][];
+};
+
 type AvatarDiagnostics = {
   id: string;
   applied: boolean;
@@ -308,6 +328,113 @@ async function renderSheet(
   return { dataUrl: sheet.toDataURL("image/png"), avatars: diagnostics };
 }
 
+/**
+ * `effects check`: parse each effect like the runtime, then render every
+ * Avatar at each time and view twice, against `baselineEffects` and with the
+ * real effects, and count the pixels the effects' art changes. Rendering is deterministic (fixed frames, no
+ * automatic animation), so unchanged pixels match exactly.
+ */
+async function checkEffect(
+  request: CheckRequest,
+): Promise<{ parseError: string | null; avatars: AvatarCheck[] }> {
+  try {
+    request.effects.forEach((effect) => effectEntry(effect));
+  } catch (error) {
+    const field = (error as { field?: unknown }).field;
+    const message = error instanceof Error ? error.message : String(error);
+    return {
+      parseError: typeof field === "string" ? `${field}: ${message}` : message,
+      avatars: [],
+    };
+  }
+  const { width, height } = request.tile;
+  const { renderer, scene, camera } = createStage(width, height);
+  const reader = document.createElement("canvas");
+  reader.width = width;
+  reader.height = height;
+  const context = reader.getContext("2d", { willReadFrequently: true })!;
+  // Read frames over the opaque tile backdrop, as contact sheets show them:
+  // over a transparent canvas, faint art beside the Avatar would read back
+  // at nearly full colour and count as visible.
+  const capture = (): Uint8ClampedArray => {
+    context.fillStyle = TILE_BACKDROP;
+    context.fillRect(0, 0, width, height);
+    context.drawImage(renderer.domElement, 0, 0);
+    return context.getImageData(0, 0, width, height).data;
+  };
+  const close = (session: EffectSession) => {
+    if (session.avatar.scene) scene.remove(session.avatar.scene);
+    session.avatar.dispose();
+  };
+  /** Frames as `[time][view]` for one Avatar with the given effects applied. */
+  const renderFrames = async (
+    url: string,
+    effects: EffectSource[],
+  ): Promise<{ frames: Uint8ClampedArray[][]; session: EffectSession }> => {
+    const session = await EffectSession.open(
+      url,
+      camera,
+      renderer.domElement,
+      request,
+    );
+    try {
+      const { avatar } = session;
+      scene.add(avatar.scene!);
+      const framing = portraitFraming(avatar);
+      await session.apply(effects);
+      const frames = request.times.map((time) => {
+        session.advanceTo(time);
+        return request.views.map((view) => {
+          placeCamera(camera, view, avatar, framing);
+          renderer.render(scene, camera);
+          return capture();
+        });
+      });
+      return { frames, session };
+    } catch (error) {
+      close(session);
+      throw error;
+    }
+  };
+  const avatars: AvatarCheck[] = [];
+  try {
+    for (const source of request.avatars) {
+      const baseline = await renderFrames(source.url, request.baselineEffects);
+      close(baseline.session);
+      const applied = await renderFrames(source.url, request.effects);
+      try {
+        const differingPixels = applied.frames.map((views, time) =>
+          views.map((pixels, view) => {
+            const before = baseline.frames[time]![view]!;
+            let count = 0;
+            for (let offset = 0; offset < pixels.length; offset += 4) {
+              for (let channel = 0; channel < 4; channel += 1)
+                if (
+                  Math.abs(
+                    pixels[offset + channel]! - before[offset + channel]!,
+                  ) > request.threshold
+                ) {
+                  count += 1;
+                  break;
+                }
+            }
+            return count;
+          }),
+        );
+        avatars.push({
+          ...applied.session.diagnostics(source.id),
+          differingPixels,
+        });
+      } finally {
+        close(applied.session);
+      }
+    }
+  } finally {
+    renderer.dispose();
+  }
+  return { parseError: null, avatars };
+}
+
 function blobToDataUrl(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -361,10 +488,12 @@ declare global {
   interface Window {
     renderEffectSheet: typeof renderSheet;
     renderEffectThumbnail: typeof renderThumbnail;
+    checkEffect: typeof checkEffect;
     effectRendererReady: boolean;
   }
 }
 
 window.renderEffectSheet = renderSheet;
 window.renderEffectThumbnail = renderThumbnail;
+window.checkEffect = checkEffect;
 window.effectRendererReady = true;

@@ -445,7 +445,8 @@ is discarded when the model changes.
 
 ## 9) Tools
 
-Run these from `src/frontend/web`. They need no running stack.
+Run these from `src/frontend/web`. Only `effects save` needs a running stack;
+`library:local/...` sources need its record sourced (or `--local-content`).
 
 ### Effect art
 
@@ -477,6 +478,44 @@ Budgets: `landmark`, `body` and `sticker` 512 px and 256 KiB; `surface` and
 `silhouette` 1024 px and 512 KiB; `flipbook` 2048 px and 1024 KiB per sheet.
 The `animama-effect-assets` skill wraps these steps around optional image
 generation.
+
+### Check, save and promote
+
+`pnpm -s effects` carries an effect source from a draft folder to Local and
+Included content, like `pnpm -s animation` for Gestures:
+
+```bash
+source ../../../.animama-stack.env   # for library:local/... and save
+pnpm -s effects check ./sweat-drop library:local/Blush
+pnpm -s effects save ./items.json
+pnpm -s effects promote ./promote.json --dry-run
+```
+
+- `check` runs the art through `effects:assets check` with its attachment's
+  budget, parses the `/2` definition as the runtime does (naming the field),
+  applies it on both Included Avatars (a controller warning, such as a missing
+  face part, fails) and renders each time and view with the effect and
+  against a baseline (for face effects, the same effect with transparent
+  stand-in images, so closed eyes and face cleanup are in both): the art must
+  show on every Avatar in some frame. `--times` defaults to
+  0.25 s and 1 s. It exits 1 on any FAIL.
+- `save` takes `[{ "source", "name"?, "description"? }]` and saves each source
+  through the Avatar Effect creator in headless Chromium: it imports the
+  editor document, chooses the images, saves, reads the item back and checks
+  the definition, then reopens it. A Local effect with the same name is
+  revised. Effects with a sound are saved by hand.
+- `promote` writes owner-approved items into `content/included/vfx/avatar/`:
+  `add` (new stem), `replace` (keeps the folder, content ID, version and name)
+  or `delete` (refused while Included content depends on it). Sources are
+  `library:local/<name>` from the sourced stack or a folder; image names must
+  be plain file names, and effects with a sound are refused. It validates the
+  definition and art, adds a `licenses/source-review.json` record per written
+  file in the existing effect form and drops deleted files' records; the
+  `vfx/avatar/**/*` licence rule already covers the files. Templates,
+  thumbnails and pinned tests are updated separately.
+
+`library:local/...` sources read `ANIMAMA_LOCAL_CONTENT_HOST_PATH`, set by
+sourcing the stack record, unless `--local-content` is given.
 
 ### Review renders
 
