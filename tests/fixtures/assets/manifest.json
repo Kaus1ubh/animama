@@ -167,9 +167,9 @@
       "id": "pose-valid",
       "phase": 4,
       "kind": "anima_pose_clip",
-      "source_representation": "animaPoseClip_1_0_json",
+      "source_representation": "animaPoseClip_2_0_json",
       "expected_outcome": "accept",
-      "canonical_representation": "animaPoseClip_1_0_json",
+      "canonical_representation": "animaPoseClip_2_0_json",
       "runtime_consumer": "frontend pose parser"
     },
     {

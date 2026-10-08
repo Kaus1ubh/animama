@@ -184,12 +184,12 @@ describe("hand edits through existing pose content paths", () => {
     fixture();
     usePoseCreatorStore.getState().hydrateClipDocument(
       parseAnimaPoseClip({
-        schema: "animaPoseClip/1.0",
+        schema: "animaPoseClip/2.0",
         id: "hand-clip",
         name: "Hand clip",
         duration: 1,
-        poses: { hand: { humanoid: { leftHand: { rotation: [0, 0, 0, 1] } } } },
-        poseKeyframes: [{ time: 0, pose: "hand" }],
+        beats: [{ id: "hand", label: "Hand", time: 0 }],
+        rotations: { leftHand: [{ q: [0, 0, 0, 1], beat: "hand" }] },
       }),
     );
     const keyframeId =

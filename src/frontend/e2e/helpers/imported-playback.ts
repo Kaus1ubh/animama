@@ -157,30 +157,34 @@ export async function createPlaybackFixtures(args: {
   for (const kind of ["gesture", "reaction"] as const) {
     const name = `import-playback-${token}-${kind}`;
     const sequence = {
-      schema: "animaPoseClip/1.0",
+      schema: "animaPoseClip/2.0",
       role: kind === "reaction" ? "reaction" : "motion",
       id: name,
       name,
       duration: 4,
-      poses: {
-        center: {
-          ...(kind === "gesture"
-            ? { humanoid: { head: { rotation: [0, 0, 0, 1] } } }
-            : {}),
-          expressions: { happy: 0 },
-        },
-        smile: {
-          ...(kind === "gesture"
-            ? { humanoid: { head: { rotation: [0, 0.258819, 0, 0.965926] } } }
-            : {}),
-          expressions: { happy: 1 },
-        },
-      },
-      poseKeyframes: [
-        { time: 0, pose: "center" },
-        { time: 1, pose: "smile" },
-        { time: 4, pose: "center" },
+      beats: [
+        { id: "center", label: "Center", time: 0 },
+        { id: "smile", label: "Smile", time: 1 },
+        { id: "end", label: "Center", time: 4 },
       ],
+      ...(kind === "gesture"
+        ? {
+            rotations: {
+              head: [
+                { beat: "center", q: [0, 0, 0, 1] },
+                { beat: "smile", q: [0, 0.258819, 0, 0.965926] },
+                { beat: "end", q: [0, 0, 0, 1] },
+              ],
+            },
+          }
+        : {}),
+      expressions: {
+        happy: [
+          { beat: "center", v: 0 },
+          { beat: "smile", v: 1 },
+          { beat: "end", v: 0 },
+        ],
+      },
       events: [
         {
           id: "avatar",

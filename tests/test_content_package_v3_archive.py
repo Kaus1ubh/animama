@@ -19,6 +19,7 @@ from animama.adapters.content_store import FilesystemContentStore
 from animama.app.contracts.content_package import portable_revision
 from animama.app.services.content_package_archive import ContentPackageArchive
 from animama.domain.content_catalog import ContentConflictError
+from tests.content_package_helpers import anima_clip
 
 
 def sound_package() -> tuple[dict[str, Any], dict[str, bytes]]:
@@ -299,16 +300,7 @@ def test_idle_style_requires_its_actual_owned_motion_to_finish(
     tmp_path: Path, loop_count: int | None, accepted: bool, implementation: str
 ) -> None:
     """An otherwise valid looping Action needs a finite bound when used for idle."""
-    clip = {
-        "schema": "animaPoseClip/1.0",
-        "id": "motion",
-        "name": "Motion",
-        "duration": 1,
-        "loop": True,
-        "poses": {"turn": {"humanoid": {"head": {"rotationEulerDegrees": [0, 15, 0]}}}},
-        "poseKeyframes": [{"time": 0, "pose": "turn"}],
-        "events": [],
-    }
+    clip = anima_clip(clip_id="motion", name="Motion", loop=True)
     gesture = {
         "schema_version": 1,
         "content_type": "gesture",
@@ -346,9 +338,7 @@ def test_idle_style_requires_its_actual_owned_motion_to_finish(
         "root_entry_ids": ["style"],
         "entries": [],
         "avatar_portraits": [],
-        "capabilities": ["VRMC_vrm_animation/1.0"]
-        if implementation == "vrma"
-        else ["animaPose/1.0", "animaPoseClip/1.0"],
+        "capabilities": ["VRMC_vrm_animation/1.0"] if implementation == "vrma" else ["animaPoseClip/2.0"],
     }
     payloads = {}
     for document, documents in (
@@ -537,31 +527,19 @@ def test_actual_central_record_count_is_bounded_before_parser_allocation(
         inspector(tmp_path).inspect(archive, destination=tmp_path / "inspection")
 
 
-@pytest.mark.parametrize("valid_motion", [False, True])
-def test_inferred_sequence_role_still_requires_real_clip_validation(tmp_path: Path, valid_motion: bool) -> None:
+def _single_gesture_package(
+    archive: Path, implementation: dict[str, Any], clip: dict[str, Any], capabilities: list[str]
+) -> None:
+    """Write a one-Gesture package whose clip is ``motion.json``."""
     descriptor = {
         "schema_version": 1,
         "content_type": "gesture",
         "content_id": "motion",
         "name": "Motion",
-        "implementation": {"kind": "anima_clip"},
+        "implementation": implementation,
         "semantic_key": "motion",
         "dependencies": [],
     }
-    clip = (
-        {
-            "schema": "animaPoseClip/1.0",
-            "id": "motion",
-            "name": "Motion",
-            "duration": 1,
-            "loop": False,
-            "poses": {"turn": {"humanoid": {"head": {"rotationEulerDegrees": [0, 15, 0]}}}},
-            "poseKeyframes": [{"time": 0, "pose": "turn"}],
-            "events": [],
-        }
-        if valid_motion
-        else {"not": "an animation"}
-    )
     payloads = {
         "entries/motion/motion.meta.json": json.dumps(descriptor).encode(),
         "entries/motion/motion.json": json.dumps(clip).encode(),
@@ -594,13 +572,37 @@ def test_inferred_sequence_role_still_requires_real_clip_validation(tmp_path: Pa
             }
         ],
         "avatar_portraits": [],
-        "capabilities": ["animaPose/1.0", "animaPoseClip/1.0"] if valid_motion else [],
+        "capabilities": capabilities,
     }
-    archive = tmp_path / "inferred.zip"
     write_package(archive, manifest, payloads)
+
+
+@pytest.mark.parametrize("valid_motion", [False, True])
+def test_inferred_sequence_role_still_requires_real_clip_validation(tmp_path: Path, valid_motion: bool) -> None:
+    clip = anima_clip(clip_id="motion", name="Motion", loop=False) if valid_motion else {"not": "an animation"}
+    archive = tmp_path / "inferred.zip"
+    _single_gesture_package(archive, {"kind": "anima_clip"}, clip, ["animaPoseClip/2.0"] if valid_motion else [])
     if valid_motion:
         assert set(inspector(tmp_path).inspect(archive, destination=tmp_path / "inspection").entries) == {"motion"}
     else:
         with pytest.raises(ContentConflictError):
             inspector(tmp_path).inspect(archive, destination=tmp_path / "inspection")
         assert not (tmp_path / "inspection").exists()
+
+
+@pytest.mark.parametrize("implementation", [{"kind": "anima_clip", "file_role": "sequence"}, {"kind": "anima_clip"}])
+def test_undeclared_retired_clip_is_refused_with_its_reason(tmp_path: Path, implementation: dict[str, Any]) -> None:
+    retired = {
+        "schema": "animaPoseClip/1.0",
+        "id": "motion",
+        "name": "Motion",
+        "duration": 1,
+        "poses": {"rest": {"expressions": {"happy": 1}}},
+        "poseKeyframes": [{"time": 0, "pose": "rest"}],
+    }
+    archive = tmp_path / "retired.zip"
+    _single_gesture_package(archive, implementation, retired, [])
+    with pytest.raises(ContentConflictError) as raised:
+        inspector(tmp_path).inspect(archive, destination=tmp_path / "inspection")
+    assert raised.value.code == "clip_format_unsupported"
+    assert not (tmp_path / "inspection").exists()

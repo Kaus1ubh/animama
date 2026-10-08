@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { unsupportedAnimaPoseClipFormatMessage } from "@/lib/avatar/poses/animaPoseClip";
 import { createActionDocument } from "./actionDocument";
 import {
   createActionProject,
@@ -9,11 +10,20 @@ import {
 } from "./actionProject";
 
 function addNeutralKeyframe(document: ReturnType<typeof createActionDocument>) {
-  // 2.0 (what export writes) needs a key: a light smile.
-  document.sequence.poses = { neutral: { expressions: { happy: 0.2 } } };
-  document.sequence.poseKeyframes = [{ time: 0, pose: "neutral" }];
+  // A clip needs a key: a light smile.
+  document.sequence.beats = [{ id: "neutral", label: "Neutral", time: 0 }];
+  document.sequence.expressions = { happy: [{ v: 0.2, beat: "neutral" }] };
   return document;
 }
+
+const LEGACY_SEQUENCE = {
+  schema: "animaPoseClip/1.0",
+  id: "legacy",
+  name: "Legacy",
+  duration: 1,
+  poses: { neutral: { expressions: { happy: 0.2 } } },
+  poseKeyframes: [{ time: 0, pose: "neutral" }],
+};
 
 describe("typed action project JSON", () => {
   it("round-trips a reaction without inventing a placement suggestion", () => {
@@ -32,8 +42,21 @@ describe("typed action project JSON", () => {
     const imported = parseActionImport(document.sequence, "gesture");
     expect(imported.kind).toBe("clip");
     if (imported.kind === "clip") {
-      expect(imported.sequence.schema).toBe("animaPoseClip/1.0");
+      expect(imported.sequence.schema).toBe("animaPoseClip/2.0");
     }
+  });
+
+  it("rejects a retired animaPoseClip/1.0 clip or project", () => {
+    const message = unsupportedAnimaPoseClipFormatMessage("animaPoseClip/1.0");
+    expect(() => parseActionImport(LEGACY_SEQUENCE, "gesture")).toThrow(
+      message,
+    );
+    const document = addNeutralKeyframe(createActionDocument("gesture"));
+    document.name = "Legacy Gesture";
+    const project = createActionProject(document);
+    expect(() =>
+      parseActionImport({ ...project, sequence: LEGACY_SEQUENCE }, "gesture"),
+    ).toThrow(message);
   });
 
   it("round-trips exact dependencies without exposing editor workflow state", () => {

@@ -5,20 +5,19 @@ import { describe, expect, it, vi } from "vitest";
 import {
   PoseController,
   parseAnimaPoseClip,
-  sampleAnimaPoseClip,
   type AnimaPoseClipEventSink,
   type AnimaPoseClipVFXEvent,
   type AnimaPoseClipEventContext,
 } from "@/lib/avatar";
+import { createAnimaPoseClipProgram } from "@/lib/avatar/poses/animaPoseClip/program";
 import { ReactionClipPlayer } from "@/lib/avatar/reaction/ReactionClipPlayer";
 
 const clip = parseAnimaPoseClip({
-  schema: "animaPoseClip/1.0",
+  schema: "animaPoseClip/2.0",
   id: "effect-only",
   name: "Effect only",
   duration: 1,
-  poses: {},
-  poseKeyframes: [],
+  beats: [],
   events: [
     { id: "avatar", kind: "avatar_vfx", effectId: "star", time: 0 },
     { id: "particle", kind: "particle_vfx", effectId: "sparkles", time: 0 },
@@ -64,13 +63,17 @@ function effectsSink() {
 
 describe("event-only clip sampling", () => {
   it("has no authored pose or expression sample at any playback time", () => {
+    const program = createAnimaPoseClipProgram(clip, {
+      resolvePose: () => null,
+    });
+    expect(program.hasPose).toBe(false);
+    expect(program.expressionNames).toEqual([]);
     for (const time of [0, 0.5, 1, 2]) {
-      expect(sampleAnimaPoseClip(clip, time)).toEqual({
+      expect(program.sample(time)).toEqual({
         sample: {},
         diagnostics: { missingPoseRefs: [] },
       });
     }
-    expect(clip.poseKeyframes).toEqual([]);
   });
 });
 

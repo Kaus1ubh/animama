@@ -7,8 +7,8 @@ Simple leaf content stays simple: a `.vrm`, supported image/audio file, or
 self-describing JSON file can be an entry by itself. Shipped Gestures and
 Reactions always use a product folder. Their `<stem>.meta.json` file describes
 the Action, while `<stem>.vrma` or `<stem>.json` is the playable payload.
-Action-owned Pose Clips are colocated instead of being registered again under
-`pose-clips/`; only deliberately reusable clips belong there. Idle-only VRMAs
+Action-owned Pose Clips are colocated; the retired `pose-clips/` folder is not
+used. Idle-only VRMAs
 belong inside their Idle Style.
 
 `licenses/inventory.json` supplies the current provenance and redistribution

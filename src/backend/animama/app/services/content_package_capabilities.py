@@ -44,12 +44,20 @@ from .avatar_effect_conversion import (
     PACKAGE_CONVERSION_HINT,
     avatar_effect_validation_error,
 )
+from .clip_format import (
+    ANIMA_POSE_CLIP_SCHEMA,
+    CLIP_FORMAT_UNSUPPORTED,
+    RETIRED_ANIMA_POSE_CLIP_SCHEMA,
+    unsupported_clip_format_message,
+)
 from .content_voice import POCKET_CLONE_CODEC, validate_pocket_clone_document
-from .idle_clip_validation import ANIMA_POSE_CLIP_V2_SCHEMA, validate_clip_v2_timeline, validate_idle_clip_timeline
+from .idle_clip_validation import validate_clip_v2_timeline
 from .pocket_voice_catalog import MAX_POCKET_VOICE_CATALOG_BYTES, validate_pocket_voice_catalog_bytes
 
 MAX_DEFINITION_BYTES = 16 * 1024 * 1024
-# Runtime-only poses remain app primitives, not independent package/catalog roots.
+# Included Poses a clip's ``basePose`` may name. Packages reference them as app
+# primitives rather than bundling them; the frontend's package-capabilities
+# fixture (``builtinPoses``) mirrors this set.
 BUILTIN_POSES = frozenset(
     "arms-crossed cat-monster-rawr cat-monster-rawr-2 cheeky-finger-guns cheeky-finger-guns-2 "
     "double-peace-sign double-thumbs-down double-thumbs-up hands-on-hips heart-hands left-ok-sign "
@@ -64,8 +72,7 @@ BUILTIN_EMOJI = frozenset(
 SUPPORTED_CAPABILITIES = frozenset(
     {
         "animaPose/1.0",
-        "animaPoseClip/1.0",
-        "animaPoseClip/2.0",
+        ANIMA_POSE_CLIP_SCHEMA,
         "VRM/0.0",
         "VRMC_vrm/1.0",
         "VRMC_vrm_animation/1.0",
@@ -229,6 +236,8 @@ def validate_declared_capabilities(capabilities: Iterable[str]) -> None:
         if capability == AVATAR_EFFECT_SCHEMA_V1:
             # Name the conversion instead of a generic unavailable capability.
             raise ContentDocumentError(AVATAR_EFFECT_CONVERSION_REQUIRED, PACKAGE_CONVERSION_HINT)
+        if capability == RETIRED_ANIMA_POSE_CLIP_SCHEMA:
+            raise ContentDocumentError(CLIP_FORMAT_UNSUPPORTED, unsupported_clip_format_message(capability))
         if not isinstance(capability, str) or capability not in SUPPORTED_CAPABILITIES:
             raise ContentDocumentError("package_capability_unsupported", "Package requires an unavailable capability")
         if capability in seen:
@@ -501,7 +510,8 @@ def _clip(
     value: dict[str, Any], document: TypedContentDocument, documents: Mapping[str, TypedContentDocument] | None
 ) -> set[str]:
     schema = value.get("schema")
-    _require(schema in {"animaPoseClip/1.0", ANIMA_POSE_CLIP_V2_SCHEMA}, "Unsupported Action clip schema")
+    if schema != ANIMA_POSE_CLIP_SCHEMA:
+        raise ContentDocumentError(CLIP_FORMAT_UNSUPPORTED, unsupported_clip_format_message(schema))
     _booleans(value, "loop")
     duration = None if "duration" not in value else _number(value["duration"], "Clip duration")
     _require(duration is None or duration > 0, "Clip duration must be positive")
@@ -537,27 +547,16 @@ def _clip(
     # finite-idle policy excludes lifetime, already checked above for general Actions.
     timeline = {key: item for key, item in value.items() if key != "playback"}
     try:
-        if schema == ANIMA_POSE_CLIP_V2_SCHEMA:
-            validate_clip_v2_timeline(timeline)
-        else:
-            validate_idle_clip_timeline(timeline, duration)
+        validate_clip_v2_timeline(timeline)
     except ContentDocumentError as exc:
         raise ContentDocumentError(
             "package_definition_invalid", str(exc).replace("Gesture clip", "Action clip")
         ) from exc
     _clip_event_dependencies(value, document, documents)
-    if schema == ANIMA_POSE_CLIP_V2_SCHEMA:
-        # 2.0 tracks hold values; only the base pose names a built-in Pose.
-        requirements = {ANIMA_POSE_CLIP_V2_SCHEMA}
-        if "basePose" in value:
-            requirements.add(_builtin_pose(value["basePose"]))
-        return requirements
-    requirements = {"animaPoseClip/1.0", "animaPose/1.0"}
+    # Tracks hold values; only the base pose names a built-in Pose.
+    requirements = {ANIMA_POSE_CLIP_SCHEMA}
     if "basePose" in value:
         requirements.add(_builtin_pose(value["basePose"]))
-    for pose in value["poses"].values():
-        if "ref" in pose:
-            requirements.add(_builtin_pose(pose["ref"]))
     return requirements
 
 

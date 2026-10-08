@@ -770,8 +770,7 @@ function KeyframeMarker({
   mobile: boolean;
 }) {
   const percent = getTimelinePercent(keyframe.time, duration);
-  // 2.0 beats show their label; 1.0 keyframes their pose name.
-  const label = keyframe.label ?? formatTimelinePoseLabel(keyframe.pose);
+  const label = keyframe.label;
 
   return (
     <button
@@ -976,12 +975,6 @@ function formatEventMarkerTitle(event: PoseCreatorClipEventDraft): string {
     parts.push("until Action ends");
   }
   return parts.join(" / ");
-}
-
-function formatTimelinePoseLabel(value: string): string {
-  return value
-    .replace(/[_-]+/g, " ")
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 function releasePointerCapture(

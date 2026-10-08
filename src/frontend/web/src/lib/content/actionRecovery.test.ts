@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { unsupportedAnimaPoseClipFormatMessage } from "@/lib/avatar/poses/animaPoseClip";
 import { createGestureDocument } from "@/ui/gesture-editor/gestureDocument";
 import {
   clearActionRecoveryForNewDocument,
@@ -147,6 +148,54 @@ describe("actionRecovery", () => {
     expect(loadActionRecovery(storage, "user-1", "gesture", null)).toBeNull();
     expect(
       loadActionRecovery(storage, "user-1", "gesture", "gesture-1"),
+    ).toBeNull();
+  });
+
+  it("discards a recovery holding a retired animaPoseClip/1.0 sequence", () => {
+    const values = new Map<string, string>();
+    const storage = {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => values.set(key, value),
+      removeItem: (key: string) => values.delete(key),
+    };
+    const document = {
+      ...createGestureDocument("Legacy Gesture"),
+      sequence: {
+        schema: "animaPoseClip/1.0",
+        id: "legacy-gesture",
+        name: "Legacy Gesture",
+        duration: 1,
+        poses: { neutral: {} },
+        poseKeyframes: [{ time: 0, pose: "neutral" }],
+      },
+    };
+    saveActionRecovery(storage, {
+      userId: "user-1",
+      itemId: "gesture-1",
+      itemRevision: null,
+      sessionId: null,
+      sessionRevision: null,
+      document,
+      rootDigest: actionDocumentDigest(document),
+    });
+
+    expect(() =>
+      loadActionRecoveryForEditorRoute(
+        storage,
+        "user-1",
+        "gesture",
+        "gesture-1",
+      ),
+    ).toThrow(unsupportedAnimaPoseClipFormatMessage("animaPoseClip/1.0"));
+    // The stale recovery is gone, so the next open is not blocked by it.
+    expect(values.size).toBe(0);
+    expect(
+      loadActionRecoveryForEditorRoute(
+        storage,
+        "user-1",
+        "gesture",
+        "gesture-1",
+      ),
     ).toBeNull();
   });
 });

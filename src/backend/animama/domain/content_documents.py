@@ -87,13 +87,15 @@ class PoseDocumentV1(ContentDocumentV1):
 
 @dataclass(frozen=True, slots=True)
 class PoseClipDocumentV1(ContentDocumentV1):
-    """A validated animaPoseClip document used by Actions and Idle Styles."""
+    """The identity of a retired standalone Pose Clip (``pose-clips/``).
+
+    The kind is never played, listed or transitioned; it is parsed only so
+    completed Save receipts replay. ``clip`` holds the stored JSON unread.
+    """
 
     clip_id: str = "pose"
     role: str | None = None
     playback: dict[str, Any] = field(default_factory=dict)
-    poses: dict[str, Any] = field(default_factory=dict)
-    pose_keyframes: tuple[dict[str, Any], ...] = ()
     clip: dict[str, Any] = field(default_factory=dict)
 
 

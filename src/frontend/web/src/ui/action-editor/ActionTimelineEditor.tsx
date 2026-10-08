@@ -3,9 +3,9 @@
 import { useEffect, useMemo, useRef } from "react";
 
 import { usePoseCreatorStore } from "@/stores/pose-creator-store";
-import { parseAnyAnimaPoseClip } from "@/lib/avatar/poses/animaPoseClip";
+import { parseAnimaPoseClip } from "@/lib/avatar/poses/animaPoseClip";
 import { ANIMA_POSE_CLIP_V2_SCHEMA } from "@/lib/avatar/poses/animaPoseClip/schemaV2";
-import { sanitizeAnimaPoseClipLayerMutes } from "@/lib/avatar/poses/animaPoseClip/schema";
+import { sanitizeAnimaPoseClipLayerMutes } from "@/lib/avatar/poses/animaPoseClip/clipVocabulary";
 import { PoseCreatorClipTimeline } from "@/ui/pose-creator/PoseCreatorClipTimeline";
 import { cn } from "@/lib/utils";
 import {
@@ -47,24 +47,11 @@ export function syncActionTimelineMetadata(
 export function isEmptyActionTimeline(
   sequence: Record<string, unknown>,
 ): boolean {
-  if (sequence.schema === ANIMA_POSE_CLIP_V2_SCHEMA)
-    return (
-      Array.isArray(sequence.beats) &&
-      sequence.beats.length === 0 &&
-      (!Array.isArray(sequence.events) || sequence.events.length === 0)
-    );
-  const poses = sequence.poses;
-  const keyframes = sequence.poseKeyframes;
-  const events = sequence.events;
   return (
-    poses !== null &&
-    poses !== undefined &&
-    typeof poses === "object" &&
-    !Array.isArray(poses) &&
-    Object.keys(poses).length === 0 &&
-    Array.isArray(keyframes) &&
-    keyframes.length === 0 &&
-    (!Array.isArray(events) || events.length === 0)
+    sequence.schema === ANIMA_POSE_CLIP_V2_SCHEMA &&
+    Array.isArray(sequence.beats) &&
+    sequence.beats.length === 0 &&
+    (!Array.isArray(sequence.events) || sequence.events.length === 0)
   );
 }
 
@@ -204,12 +191,6 @@ export function ActionTimelineDocumentSync({
       if (typeof editorSequence.duration === "number")
         settings.duration = editorSequence.duration;
       settings.loop = editorSequence.loop === true;
-      if (
-        editorSequence.defaultTransition &&
-        typeof editorSequence.defaultTransition === "object"
-      )
-        settings.defaultTransition =
-          editorSequence.defaultTransition as PoseCreatorClipDraftPatch["defaultTransition"];
       for (const key of ["fadeIn", "fadeOut"] as const) {
         const value = editorSequence[key];
         if (value && typeof value === "object")
@@ -228,7 +209,7 @@ export function ActionTimelineDocumentSync({
     }
     try {
       if (
-        hydrate(parseAnyAnimaPoseClip(editorSequence), {
+        hydrate(parseAnimaPoseClip(editorSequence), {
           ...(preservePlayhead ? { currentTimeSec } : {}),
         })
       ) {

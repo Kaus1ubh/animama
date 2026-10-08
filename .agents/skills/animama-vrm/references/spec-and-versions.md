@@ -44,4 +44,4 @@ VRM 1 thumb roles are `ThumbMetacarpal`, `ThumbProximal`, and `ThumbDistal` for 
 
 VRM avatar assets are not an embedded glTF animation library. VRM Animation (`.vrma`, `VRMC_vrm_animation`) defines portable humanoid, expression, and look-at animation. Its humanoid tracks use rotation, hips translation, and no scale animation. Ordinary FBX/glTF animation clips need a suitable retargeting path; a filename change does not produce VRMA. [VRM Animation specification](https://github.com/vrm-c/vrm-specification/blob/master/specification/VRMC_vrm_animation-1.0/README.md)
 
-Animama's `animaPose/1.0` and `animaPoseClip/1.0`/`animaPoseClip/2.0` are app schemas, separate from VRM/VRMA. They can also reference app effect/sound events. Check the app schema before applying a VRMA restriction to these documents.
+Animama's `animaPose/1.0` and `animaPoseClip/2.0` are app schemas, separate from VRM/VRMA. They can also reference app effect/sound events. Check the app schema before applying a VRMA restriction to these documents.
