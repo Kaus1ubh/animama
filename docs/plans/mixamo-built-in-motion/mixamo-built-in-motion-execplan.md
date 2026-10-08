@@ -74,6 +74,14 @@ Paths are relative to `src/backend/animama/` (backend) or `src/frontend/web/src/
 - [x] Phase 4: Private build inputs, staging allowlist and leak checks (#326).
       Review #2 passed.
 - [ ] Phase 5: Content acquisition and integration (owner gates G1–G3).
+  - [x] G1: private store and tokens (2026-10-08).
+  - [x] G2 (revised): pack assembled from the legacy conversions; all 71 clips
+        plus the Idle Style verified against a candidate manifest
+        (`review-2026-10-08`, 143 files) and mounted on the task stack for the
+        owner's selection review (2026-10-08).
+  - [ ] Owner selection: which of the 71 clips ship.
+  - [ ] Publish the selected pack, commit its manifest, release procedure.
+  - [ ] Build verification (step 5) and G3 playback.
 - [x] Final integration review for Phases 1–4 (pass; Phase 5 pending owner gates).
 - [x] PR opened: [#329](https://github.com/raymond-van/animama/pull/329) (Phases 1–4,
       candidate `55b86bb2`). Hosted CI is disabled; local checks are the evidence.
@@ -142,6 +150,26 @@ Paths are relative to `src/backend/animama/` (backend) or `src/frontend/web/src/
   runtime bind mount of `./content/included`. This is pre-existing. The pack never
   lives there (it uses `build-inputs/`), but the P4 leak checks also scan the
   self-host Included mount source.
+- **A quarter of the legacy VRMA files are text glTF** (2026-10-08). 25 of the
+  71 legacy files (none of the 29 former starter clips) are JSON glTF written by
+  FBX2glTF 0.9.7, not binary GLB. All 71 declare `VRMC_vrm_animation` and embed
+  their buffers. The catalog, package checks and the web loader accept both
+  forms (a text-glTF clip, `rumba_dancing`, plays in the Library preview), but
+  `acquire-mixamo.py validate_vrma` accepts only GLB, so the pack assembly checks
+  the extension and buffers itself.
+- **One Selector ID collision** (2026-10-08). The legacy `shrug` clip's
+  `semantic_key` equals core `palms-up-shrug`'s Selector ID `shrug`. The pack
+  uses `quick_shrug` (its name is already "Quick Shrug"). No content ID collides.
+- **Switching an installation from one Included root to a source list changes
+  Included identities** (2026-10-08, pre-existing). Catalog rows from the
+  single-root configuration have no mount ID, while source-list rows are keyed
+  `core@<version>` and get mount-scoped item IDs, so the first rescan after the
+  switch fails on the `(source, relative_locator)` unique key. Desktop always
+  uses a source list and self-host never does, and Cloud mounts no Included
+  content yet, so no supported deployment switches. The review stack's database
+  was repaired by tagging its existing Included rows `core`. The hosted deploy
+  guidance now says to configure the source list, with `core`, from the first
+  deploy.
 - **The orientation reports were partly inaccurate.** Several frontend file paths
   and a backend module path they gave do not exist. Every path in this plan was
   checked against the starting revision.
@@ -202,6 +230,25 @@ Paths are relative to `src/backend/animama/` (backend) or `src/frontend/web/src/
     distribution on any path restricts the entry.
   - **`portability` defaults to `"portable"` in the response schema** so the
     many existing frontend fixtures stay valid; the server always sets it.
+- 2026-10-08, owner: G1 passed. The `animama-cloud-packages` bucket has public
+  access through `r2.dev` disabled, no custom domain and no CORS rules (checked
+  with Wrangler). Two Account API tokens scoped to that bucket exist, one Object
+  Read only and one Object Read & Write, each in its own owner-only env file
+  outside every repository. R2 tokens cannot be scoped to a prefix. The prefix
+  is `built-in/mixamo-motion`.
+- 2026-10-08, owner: **ship the legacy conversions instead of fresh downloads**
+  (revises G2), and review all 71 legacy clips in playback before choosing which
+  ship. Consequences:
+  - The private inventory records what is known: the animation name, the
+    licensee (the owner's account, not recorded in Git), the converter as
+    reported by each file and the date the converted file first entered the
+    legacy repository. Animation IDs, character, export settings and download
+    dates were never recorded and are marked "not recorded". This is a
+    deviation from R8's per-download provenance, accepted by the owner; the
+    fields remain non-empty, so `verify` still requires a record per clip.
+  - The selection review happens before publishing, so rejected clips never
+    enter the private store or the tracked manifest. A candidate manifest is
+    used locally (uncommitted) for the review only.
 
 ## Phased implementation
 
@@ -906,7 +953,10 @@ on P2, P3 and P4. Contains owner gates.
    publishing and a read-only token for build and deploy, scoped to the bucket
    (and the prefix, where R2 supports it). Store both only in owner-only env
    files. Record a dated, credential-free note in this plan.
-2. **Gate G2 (owner): fresh downloads.** With the owner's Adobe account, download
+2. **Gate G2 (owner): fresh downloads.** *Revised 2026-10-08: the owner chose
+   the legacy conversions instead (see the Decision Log), assembled by the agent
+   with the provenance that exists, then reviewed in playback on the task stack
+   to select the shipped clips before step 4.* Original text: With the owner's Adobe account, download
    the 29 `starter_target` clips afresh and record each download in the private
    inventory: animation name and ID, character, export settings, date, licensee,
    conversion tool, version and steps, and resulting hash. Use the existing

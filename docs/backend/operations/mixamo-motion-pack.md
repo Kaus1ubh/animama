@@ -35,8 +35,10 @@ payload's manifest hash. It stays
 in the private store and in the ignored `build-inputs/` directory, and is never
 staged.
 
-Keep credentials in an owner-only file, never in the repository or a worktree
-`.env`, and export them only for these commands:
+Keep credentials in owner-only files, never in the repository or a worktree
+`.env`: one file for the read token and one for the write token, so builds never
+load write access. Export them only for these commands, for example
+`(set -a; . <read-token file>; set +a; pnpm desktop:mixamo-motion fetch)`:
 
 ```text
 ANIMAMA_R2_ACCOUNT_ID
@@ -46,8 +48,9 @@ ANIMAMA_MIXAMO_R2_READ_ACCESS_KEY_ID / ANIMAMA_MIXAMO_R2_READ_SECRET_ACCESS_KEY 
 ANIMAMA_MIXAMO_R2_WRITE_ACCESS_KEY_ID / ANIMAMA_MIXAMO_R2_WRITE_SECRET_ACCESS_KEY  (publish)
 ```
 
-Scope the read token to read-only access, and both tokens to the bucket (and
-prefix, where R2 supports it).
+Create both as R2 Account API tokens limited to the bucket: **Object Read
+only** for fetch and **Object Read & Write** for publish. R2 cannot limit a token
+to a prefix, so use the write token only to publish.
 
 ## Commands
 
@@ -97,6 +100,9 @@ the deployed backend package, and mounts it read-only as an Included source
 (`ANIMAMA_INCLUDED_CONTENT_SOURCES_JSON` entry with `pack_id: "mixamo-motion"`)
 beside `core`. Bytes are served only through the authenticated content file
 routes, never from a public asset location. Cloud owns its deploy steps.
+Configure the source list, with `core` first, from an installation's first
+deploy: switching an existing catalog from a single Included root to a source
+list changes Included item identities and fails the next rescan.
 
 ## Leak checks
 
