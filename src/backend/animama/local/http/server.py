@@ -2,10 +2,16 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import uvicorn
 from fastapi import FastAPI
 
 from animama.local.http.protocol import LocalH11Protocol
+
+# Development reload follows backend Python only. Watching the whole checkout
+# also scans frontend dependencies, content roots and journey output.
+BACKEND_RELOAD_DIRS = (str(Path(__file__).resolve().parents[2]),)
 
 
 def serve(application: FastAPI | str, *, host: str, port: int, reload: bool = False) -> None:
@@ -15,6 +21,7 @@ def serve(application: FastAPI | str, *, host: str, port: int, reload: bool = Fa
         host=host,
         port=port,
         reload=reload,
+        reload_dirs=list(BACKEND_RELOAD_DIRS) if reload else None,
         http=LocalH11Protocol,
         ws="websockets",
         proxy_headers=False,

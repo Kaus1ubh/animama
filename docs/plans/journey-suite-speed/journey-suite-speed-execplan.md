@@ -37,7 +37,7 @@ Relevant source, relative to the repository root:
 
 - [x] Baseline: full suite on a fresh disposable development stack (below).
 - [x] Phase 1: failing journeys fixed where they belong (review #2 pass).
-- [ ] Phase 2: development watchers narrowed and measured.
+- [x] Phase 2: development watchers narrowed and measured (review #3 pass).
 - [ ] Phase 3: serving mode and render path measured; routine command documented.
 - [ ] Phase 4: full suite passes on a fresh disposable stack; final review.
 
@@ -152,16 +152,91 @@ Repair budget remaining: one round.
 
 ### Phase 2: Development watchers narrowed and measured
 
-- Pass `reload_dirs` for the backend package and reload excludes through
-  `serve()`, used by both the Compose and native development entrypoints. Keep
-  `tests/test_local_http_wiring.py` and `tests/test_compose_network_boundaries.py`
-  passing.
-- Make polling opt-in (`ANIMAMA_FILE_WATCH_POLLING`, default off) for both the
-  backend reloader and Vite, since OrbStack, Docker Desktop's VirtioFS and Linux
-  deliver file events. Keep an explicit opt-in for hosts that do not.
-- Add Vite `server.watch.ignored` entries for generated and review-output folders.
-- Measure backend and web container CPU and memory, idle and during a journey,
-  before and after.
+Changes:
+
+- `serve()` passes `reload_dirs=[src/backend/animama]` whenever reload is on, so
+  both the Compose and native development launchers watch only backend Python.
+  Uvicorn's default reload excludes (dot files, compiled Python, editor swap
+  files) already cover that package, so no extra excludes are needed. The launcher
+  wiring test asserts the directory for reloading launchers and its absence
+  otherwise.
+- `WATCHFILES_FORCE_POLLING` now defaults to empty, which lets watchfiles choose:
+  native events, or polling under WSL. `CHOKIDAR_USEPOLLING` defaults to false.
+  `ANIMAMA_FILE_WATCH_POLLING=true` turns polling back on for both. This also
+  covers the Local content watcher, which reads the same variable.
+- The base image no longer sets `WATCHFILES_FORCE_POLLING=true`, so Compose is
+  the single owner of the default.
+- Vite ignores coverage and motion review notes (`*.review.json`, `*.review/`),
+  which are written to the working directory or beside the globbed Included
+  clips. Vite already ignores `node_modules`, `test-results` and its cache, and
+  watches only `web/` and imported files, so journey output under
+  `.animama-e2e/` never reaches it.
+
+Measurements on `animama-e2edev`, with the imported playback content-kind journey
+as the load (SwiftShader both times; `docker stats` every 3 s):
+
+| | Backend CPU | Backend memory | Web CPU | Web memory |
+| --- | --- | --- | --- | --- |
+| Idle, before | 73–105% | 404–423 MiB | 2.5–3.8% | 1.54–1.68 GiB |
+| Idle, `reload_dirs` only (still polling) | 3.7–7.2% | 301 MiB | — | — |
+| Idle, after | 0.1–3.3% | 307–311 MiB | 0.0% | 339–363 MiB |
+| Journey, before (mean / max) | 116.6% / 199% | 1,212 / 1,228 MiB | 9.2% / 54.6% | 1,356 / 1,392 MiB |
+| Journey, after (mean / max) | 13.2% / 81.2% | 1,051 / 1,059 MiB | 5.1% / 75.1% | 510 / 528 MiB |
+
+The web memory drop partly reflects the recreated container (fresh Vite process).
+Native events were verified on the recreated stack: a Python edit logged
+"WatchFiles detected changes ... Reloading", and a web source edit produced a Vite
+HMR update.
+
+Checks: `uv run pytest -q tests/test_local_http_wiring.py tests/test_compose_network_boundaries.py`
+(144 passed); `ruff check` and `ruff format --check` on the changed Python;
+both Compose `config --quiet` commands; `bash -n reset.sh`; Prettier and ESLint on
+`vite.config.ts`.
+
+#### Code Review #1 Findings
+
+Independent reviewer, uncommitted Phase 2 tree on `72638ce9`. It confirmed the
+reload directory in the container (editable install under `/app`) and natively,
+Uvicorn 0.38's `*.py`-only filter and default excludes, watchfiles 1.1.1's
+empty-means-auto rule, and chokidar's `CHOKIDAR_USEPOLLING` parsing. Same checks
+pass.
+
+- R1-F1 (required): the plan's recovery note said watcher changes affect
+  development reload only. The base Compose default also governs the Local content
+  watcher in built stacks.
+- R1-F2 (optional): the Dockerfile base image still set
+  `WATCHFILES_FORCE_POLLING=true`, a second owner of the default.
+- R1-F3 (optional): values other than empty, `true` and `false` are parsed
+  differently by watchfiles and chokidar (for example `0`).
+- R1-F4 (optional): two Vite ignore globs (`playwright-report`, `.animama-e2e`)
+  can never match, because Vite watches only `web/` and imported files.
+- R1-F5 (optional, pre-existing): the Included clip glob in
+  `web/src/lib/avatar/poses/catalog.ts` would bundle a `*.review.json` sidecar.
+
+#### Code Review #1 Revisions
+
+- R1-F1 accepted: recovery note corrected.
+- R1-F2 accepted: Dockerfile ENV removed; no test, script or Cloud reference
+  depended on it.
+- R1-F3 accepted: `.env.example` and the development guide say "true, or leave
+  empty".
+- R1-F4 accepted: the two globs removed.
+- R1-F5 deferred: outside this plan; offered as a separate task.
+
+#### Code Review #2 Findings
+
+- R2-F1 (required): the plan's Phase 2 change list still named the removed Vite
+  globs and omitted the Dockerfile change.
+- R2-F2 (optional): uneven wrapping and a repeated "otherwise" in the
+  development guide.
+
+#### Code Review #2 Revisions
+
+Both accepted and fixed.
+
+#### Code Review #3 Findings
+
+Targeted recheck: no findings. Result: pass. Repair budget exhausted for this phase.
 
 ### Phase 3: Serving mode, render path and routine command
 
@@ -193,9 +268,10 @@ records the summaries.
 ## Idempotence and recovery
 
 Journeys run only on disposable named stacks. The runner's exact content ledger
-owns cleanup; `pnpm e2e:cleanup -- RUN_ID` recovers an interrupted run. Watcher
-changes affect development reload only; set `ANIMAMA_FILE_WATCH_POLLING=1` to
-restore polling on hosts without file events.
+owns cleanup; `pnpm e2e:cleanup -- RUN_ID` recovers an interrupted run. The
+watcher default covers development reload, Vite and the Local content watcher in
+both development and built Compose. Set `ANIMAMA_FILE_WATCH_POLLING=true` and
+recreate the stack to restore polling on hosts without bind-mount file events.
 
 ## Outcomes & Retrospective
 

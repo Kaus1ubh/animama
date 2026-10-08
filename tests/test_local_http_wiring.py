@@ -8,6 +8,7 @@ from typing import Any
 import httpx
 import pytest
 
+import animama
 from animama.local.http.protocol import LocalH11Protocol
 from animama.runtime import cli
 from animama.server import compose_entrypoint, native_entrypoint
@@ -102,7 +103,11 @@ def test_all_launchers_select_the_reviewed_transport(
     assert len(calls) == 1
     _, options = calls[0]
     assert options["host"] == ("0.0.0.0" if entrypoint.startswith("compose") else "127.0.0.1")
-    assert options["reload"] is (entrypoint in {"native", "compose-development"})
+    reloads = entrypoint in {"native", "compose-development"}
+    assert options["reload"] is reloads
+    # Reload watches only backend Python, never the frontend, content or test output.
+    backend_package = str(Path(animama.__file__).resolve().parent)
+    assert options.get("reload_dirs") == ([backend_package] if reloads else None)
     assert options["port"] == (3000 if entrypoint == "frozen" else 8000)
     assert options["http"] is LocalH11Protocol
     assert options["ws"] == "websockets"
