@@ -31,8 +31,7 @@ WORKDIR /app
 ENV UV_PROJECT_ENVIRONMENT=/opt/venv \
     UV_LINK_MODE=copy \
     PATH="/opt/venv/bin:/root/.local/bin:$PATH" \
-    PYTHONPATH=/app/src:/app/src/agents/src \
-    WATCHFILES_FORCE_POLLING=true
+    PYTHONPATH=/app/src:/app/src/agents/src
 RUN apt-get update -y \
     && apt-get install -y --no-install-recommends curl build-essential \
     && rm -rf /var/lib/apt/lists/*

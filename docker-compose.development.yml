@@ -66,7 +66,7 @@ services:
       - ANIMAMA_WEB_BUILD_MODE=development
       - ANIMAMA_PUBLIC_ORIGIN=${ANIMAMA_PUBLIC_ORIGIN:-http://localhost:8000}
       - ANIMAMA_API_PROXY_TARGET=http://animama-server:8000
-      - CHOKIDAR_USEPOLLING=true
+      - CHOKIDAR_USEPOLLING=${ANIMAMA_FILE_WATCH_POLLING:-false}
       - COREPACK_ENABLE_DOWNLOAD_PROMPT=0
       - COREPACK_HOME=/tmp/corepack
       - HOME=/tmp/animama-web-home

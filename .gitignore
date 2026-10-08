@@ -67,6 +67,9 @@ src/motion/gesture/datasets
 # pack-ignore patterns above.
 !content/included/**
 content/included/**/.DS_Store
+# Motion preview review notes and retained versions beside Included clips.
+content/included/**/*.review.json
+content/included/**/*.review/
 
 # Do not ship the current third-party SFX or raw particle source packs.
 /content/included/sfx/

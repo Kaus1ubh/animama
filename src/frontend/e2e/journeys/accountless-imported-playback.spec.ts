@@ -1097,7 +1097,7 @@ test("imported playback covers every supported content kind in Library and appli
   );
 });
 
-test("imported playback complete Anima retains imported Avatar, appearance and playable loadout", async ({
+test("imported playback complete Anima retains imported Avatar, appearance and playable loadout @complete-anima", async ({
   page,
   creatorContent,
   animamaEvidence,

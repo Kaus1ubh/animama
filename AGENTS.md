@@ -379,6 +379,14 @@ docker compose -f docker-compose.yml -f docker-compose.development.yml config --
 For user-facing web, avatar, audio, voice, and desktop changes, manual testing
 may be required because automated UI coverage is not yet mature.
 
+Browser journeys run only when requested or chosen; CI does not run them. For
+user-facing web changes, run `pnpm e2e:test:fast` from `src/frontend` against a
+disposable built stack (about 5 minutes). Run the full `pnpm e2e:test` (about
+11 minutes) for changes to content packages, import/export, content cleanup,
+Animas or loadouts, and before merging them. See
+[Browser Journeys](docs/frontend/testing/browser-journeys.md#current-automation-status)
+for stack setup.
+
 ## Reporting Work
 
 When finishing, summarize the behavior change, list important files touched,

@@ -362,7 +362,7 @@ class FilesystemContentStore(ContentStore):
         definition: ContentKindDefinition,
         type_root: Path,
         descriptor: Path,
-        all_files: list[Path],
+        entry_paths: list[Path],
         unsafe: dict[str, ContentDiagnostic],
         license_rules: list[dict[str, Any]],
         nested_descriptor: bool,
@@ -392,7 +392,6 @@ class FilesystemContentStore(ContentStore):
                 )
             )
 
-        entry_paths = [path for path in all_files if path == entry_root or entry_root in path.parents]
         for relative, diagnostic in unsafe.items():
             unsafe_path = type_root / relative
             if unsafe_path == entry_root or entry_root in unsafe_path.parents:
@@ -625,8 +624,17 @@ class FilesystemContentStore(ContentStore):
             all_files, unsafe = self._walk_definition(type_root)
             descriptors = sorted(path for path in all_files if is_descriptor_path(definition, path, type_root))
             descriptor_roots = {path.parent for path in descriptors}
+            # Index each file under every enclosing descriptor root in one pass.
+            # Comparing every file with every root is quadratic in library size.
+            files_by_root: dict[Path, list[Path]] = {root: [] for root in descriptor_roots}
+            for path in all_files:
+                for parent in path.parents:
+                    if parent in descriptor_roots:
+                        files_by_root[parent].append(path)
+                    if parent == type_root:
+                        break
             for descriptor in descriptors:
-                nested = any(parent in descriptor.parent.parents for parent in descriptor_roots)
+                nested = any(parent in descriptor_roots for parent in descriptor.parent.parents)
                 entries.append(
                     self._descriptor_entry(
                         source=source,
@@ -634,7 +642,7 @@ class FilesystemContentStore(ContentStore):
                         definition=definition,
                         type_root=type_root,
                         descriptor=descriptor,
-                        all_files=all_files,
+                        entry_paths=files_by_root[descriptor.parent],
                         unsafe=unsafe,
                         license_rules=license_rules,
                         nested_descriptor=nested,
@@ -644,7 +652,7 @@ class FilesystemContentStore(ContentStore):
             for path in sorted(all_files):
                 if is_descriptor_path(definition, path, type_root) or path.name.endswith(".meta.json"):
                     continue
-                if any(root == path.parent or root in path.parents for root in descriptor_roots):
+                if any(parent in descriptor_roots for parent in path.parents):
                     continue
                 if path.suffix.lower() not in definition.standalone_extensions:
                     continue
