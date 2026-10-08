@@ -22,12 +22,20 @@ effect skill).
 
 ## Pipeline
 
-1. **Read the brief.** It states what the art shows, the attachment (which
-   sets the budget), whether it is a flipbook, colours, and how it should read
-   at a glance. Effects are small on screen and borrow from anime emphasis
-   marks: bold silhouettes, flat cel shading, a clear outline, two or three
-   colours. Fine detail and text disappear at chat size.
-2. **Get source images.** Use supplied art when there is any. Otherwise, if
+1. **Read the brief.** It states the gag (the comedic or emotional beat and
+   the anime trope it borrows), what the art shows, the attachment (which
+   sets the budget), whether it is a flipbook, colours, and how it should
+   read at a glance. Animama's Avatar and Scene Effects exist to make an
+   interaction funny the way anime is: they are the symbols (manpu) an anime
+   or manga artist draws on a character for a gag — the anger vein, the
+   sweat drop, swirl eyes, "> <" squeezed eyes, the deadpan bar eyes of a
+   Frieren reaction face — not decorative illustrations. Name the trope and
+   a well-known example in every prompt; the art should read as that joke
+   instantly at chat size. Keep shapes iconic and exaggerated (like the
+   symbol itself, or its emoji), with bold silhouettes, flat colour and few
+   details; fine detail and text disappear at chat size.
+2. **Get source images.** Use supplied art when there is any (owner art
+   wins over generated art). Otherwise, if
    the global `image-gen` skill is available, generate one image per asset
    with the prompt template below (`gen.sh --out <draft folder>/<name>-src.png`,
    a Bash timeout of at least 300000 ms). For variants of one design use
@@ -118,10 +126,11 @@ floating effects. See the `animama-avatar-vfx` references.
 Keep one subject per image. Use only the lines that help:
 
 ```text
-Use case: game sprite
-Asset type: anime emphasis effect for a 3D avatar (<attachment, e.g. floating beside the head>)
-Subject: <one object, e.g. a single classic anime sweat drop>
-Style/medium: flat cel-shaded anime illustration, bold clean outline, 2–3 colours, no gradients unless asked
+Use case: anime comedy symbol (manpu) drawn over a 3D anime avatar (<attachment, e.g. floating beside the head>)
+Gag: <the beat it lands and the trope it borrows, e.g. "caught out and embarrassed: the classic anime sweat drop on the temple">
+Reference: <a well-known example of the trope, e.g. "the deadpan bar eyes of Frieren's reaction face", or the matching emoji>
+Subject: <one symbol, e.g. a single big sweat drop>
+Style/medium: the symbol as an anime artist draws it for a gag: iconic, exaggerated, flat colour (cel shading only where the trope has it), bold clean shape, 2–3 colours, no gradients unless asked
 Colour palette: <colours from the brief>
 Composition: the subject centred and filling most of a square canvas, nothing cropped
 Background: fully transparent (real alpha channel), no checkerboard, no backdrop, no shadow

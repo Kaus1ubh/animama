@@ -101,6 +101,13 @@ promotion with `"mode": "replace"`.
 
 ## Decision rules
 
+- Design for the gag. Avatar (and Scene) Effects borrow anime's visual
+  comedy: each is a symbol an anime artist would draw on a character for a
+  joke or a beat. Name the trope and a known example in the brief and in
+  every art prompt, keep the shape iconic and exaggerated, and judge the
+  result by whether the joke reads, not by how polished it looks. Art the
+  owner supplies takes precedence.
+
 - The brief decides the attachment: floating face art for emotes and eye
   shapes, painted face art for blush, tears and skin tints, body art for
   things on the chest or hands, stickers for comic text and props beside the

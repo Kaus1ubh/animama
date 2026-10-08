@@ -26,6 +26,8 @@ to use your judgement; state the choices you made in the brief.
 
 - **Expresses:** <emotion or situation, one line>
 - **Beat:** <the comedic or emotional moment it lands; comedy preferred>
+- **Anime reference:** <the trope it borrows and a well-known example, e.g.
+  "Frieren's deadpan bar eyes", "the anger vein", "> < flustered eyes">
 - **Attachment:** <face_landmark eyes | face_surface blush | sticker around
   head | body chest | silhouette tint …> — <placement detail>
 - **Reactions:** <emotions and intensity tiers 1–3 it suits, or "preview only">

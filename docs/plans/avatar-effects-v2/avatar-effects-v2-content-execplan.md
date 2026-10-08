@@ -726,6 +726,32 @@ re-approved, or dropped by the owner.
   Included texture.
 - Next: the owner's live review of all 24 (G2).
 
+#### G2 round 1 (owner, 2026-10-08)
+
+Kept as produced: Anger mark, Mouth Hover w, Streaming tears, Sweat drop,
+Gloom lines, DOKI DOKI, Idea bulb, Despair shade. Changes:
+
+- **Removed:** Music notes. **Reverted:** Gloom face, Sick face 1 and Sick
+  face 2 keep their current Included textures (the redraws are dropped; no
+  promotion for them). The library is now 20 effects.
+- **Owner-supplied art:** Exclamation (a yellow-orange "!" without motion
+  ticks), Eye Confused Swirl (a navy spiral like the swirl emoji, no white
+  disc), Steam puffs (one puff, now animated with looping keyframes instead
+  of a flipbook) and Blush (one soft cheek oval with hatch lines, now a
+  mirrored single decal on each cheek).
+- **Redrawn by the agent:** Eye = as Frieren's deadpan bar eyes (one thick
+  dark bar per eye); Eye VV back to the "> <" shape; Eye O and Eye 0 without
+  the white fill; Heart eyes lighter red with clear cel shading (Heart throb
+  uses the same heart); Star3 as one big star with two small ones.
+- **Placement:** Heart throb on the upper left chest (the heart) on both
+  Avatars; Steam puffs bigger and beside the head; Mouth w larger (scale
+  1.6); Exclamation and Eye O slightly larger.
+- **Direction for all effect art:** effects borrow anime's visual comedy; the
+  agent's prompts under-stated it. The skills now lead every brief and art
+  prompt with the gag, the anime trope and a known example.
+- All 20 pass `effects check` after the changes. Round 2 is the owner's look
+  at the revised effects in the live preview.
+
 ### P7 — Reaction wiring (R15). Gate G3.
 
 1. Starts after #337 merges and this branch has merged `main`: Included
