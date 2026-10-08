@@ -76,7 +76,7 @@ Paths: frontend relative to `src/frontend/web/`, backend to
 - [x] P4 — Effect batch A: upgrades and kept effects (R14). G2 passed 2026-10-08; saved as Local content.
 - [x] P5 — Effect batch B: new face effects (R14). G2 passed 2026-10-08; saved as Local content.
 - [x] P6 — Effect batch C: flipbooks, body, sticker and silhouette effects (R14). G2 passed 2026-10-08; saved as Local content.
-- [ ] P7 — Reaction wiring (R15). Wired 2026-10-08; awaiting review and G3.
+- [ ] P7 — Reaction wiring (R15). Wired 2026-10-08; review passed at round 3; awaiting G3.
 - [ ] P8 — Promotion, documentation and acceptance (R16). Gate G4.
 
 ## Surprises & Discoveries
@@ -953,10 +953,11 @@ G3: the owner reviews the mapping table and plays the wired Reactions in
 - Departures from the effect briefs' suggested tiers, for G3: Steam puffs is
   on annoyance-3 (brief: annoyance 2), Blush also on desire-3 and love-3,
   Heart throb also on gratitude-3, Sweat drop also on fear-2; love-1 has no
-  effect (Heart throb's brief suggested it, but tier 1 stays quiet). Brief
-  suggestions not used: Despair shade on fear-3, DOKI DOKI on
-  nervousness-2, Eye = on disgust-2, Eye O on curiosity-2, Eye VV on
-  amusement-1.
+  effect (Heart throb's brief suggested it, but tier 1 stays quiet). Some
+  brief suggestions are not used, among them Despair shade on fear-3, DOKI
+  DOKI on nervousness-2, Eye = on disgust-2, Eye O on curiosity-2, Eye VV on
+  amusement-1 and Gloom lines on disappointment-3; the table is the
+  complete mapping.
 - Dry run of the whole promotion (22 effects, 4 deletes, 48 Reactions, the
   Gesture): 115 changes, nothing written; 29 Reactions and the Gesture
   change, the other 19 listed Reactions are unchanged files.
@@ -1049,6 +1050,16 @@ a changed indented clip is written in the repository's Prettier JSON style
 Gesture plans nothing; a changed one goes through `formatJson`. Unchanged
 replaces of `arms-crossed`, `storytelling` and `shy-giggle` dry-run to 0
 changes; effects, asset and render-source tests 55/55.
+
+#### P7 Code Review #3 (repair round 2)
+
+Pass. P7-R2-01 and -02 confirmed fixed: unchanged replaces of all 115
+Included Actions (72 Reactions, 43 Gestures in three file styles) dry-run to
+0 changes; changed indented Gestures match Prettier's output byte for byte;
+the real dry run is unchanged (115 changes). Optional P7-R3-01 (the list of
+unused brief suggestions was a selection) taken: the record now says so.
+Two style notes (a default that repeats `jsonFile`, a re-parse) not changed.
+The P7 review is complete; G3 remains.
 
 ### P8 — Promotion, documentation and acceptance (R16). Gate G4.
 
