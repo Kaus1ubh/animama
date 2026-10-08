@@ -303,23 +303,16 @@ function ModelChooser({
     (model) => model.source === "builtin" && model.model_kind === "chat",
   );
 
-  // Saving the OpenAI key here completes the choice with OpenAI's default
-  // model. A key that was already set chooses nothing: only explicit choices
-  // in this setup become the Chat default.
+  // Saving the OpenAI key here chooses OpenAI's default model, replacing an
+  // earlier choice: the model set up last wins. A key that was already set
+  // chooses nothing, so only explicit actions in this setup pick the default.
   const openAiId = openAiReady ? (openAi?.id ?? null) : null;
   const wasReady = useRef<boolean | null>(null);
   useEffect(() => {
     if (!connections.isSuccess) return;
-    if (wasReady.current === false && openAiId && chatModelId === null)
-      onChatModelChange(openAiId);
+    if (wasReady.current === false && openAiId) onChatModelChange(openAiId);
     wasReady.current = openAiReady;
-  }, [
-    chatModelId,
-    connections.isSuccess,
-    onChatModelChange,
-    openAiId,
-    openAiReady,
-  ]);
+  }, [connections.isSuccess, onChatModelChange, openAiId, openAiReady]);
 
   // A choice that is no longer offered (removed, or its key removed) is dropped.
   const offered =

@@ -888,6 +888,34 @@ test("a local server's model is added and becomes the setup model", async () => 
   }
 });
 
+test("saving the OpenAI key after adding a local model makes OpenAI the setup model", async () => {
+  const { page, bodies } = await mount({ detect: { ollama: ["qwen3:8b"] } });
+  try {
+    await welcome(page);
+    await page.getByRole("tab", { name: "Local" }).click();
+    await button(page, "Add qwen3:8b").click();
+    const dialog = page.getByRole("dialog", { name: "Add a model to Ollama" });
+    await dialog
+      .getByLabel("Context window (tokens)", { exact: true })
+      .fill("8192");
+    await dialog
+      .getByRole("button", { name: "Add model", exact: true })
+      .click();
+    await dialog.waitFor({ state: "hidden" });
+    // The model set up last wins.
+    await page.getByRole("tab", { name: /^Cloud/u }).click();
+    await openAiKey(page).fill("fixture-key");
+    await button(page, "Save").click();
+    await page.getByText("Saved.", { exact: true }).waitFor();
+    await button(page, "Continue").click();
+    await button(page, "Finish").click();
+    await page.getByText("Setup complete", { exact: true }).waitFor();
+    assert.equal(bodies.onboarding.chat_model_provider_id, OPENAI_MODEL);
+  } finally {
+    await page.close();
+  }
+});
+
 test("with no local server, Set up later moves on without a model", async () => {
   const { page, bodies } = await mount();
   try {

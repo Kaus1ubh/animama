@@ -332,7 +332,8 @@ describe("local first-run setup", () => {
       'href="https://huggingface.co/nvidia/parakeet-tdt-0.6b-v2"',
     );
     expect(html).toContain('href="https://github.com/kyutai-labs/pocket-tts"');
-    expect(html).toContain("Works on any computer.");
+    // Downloads show a ✓/✗ state, not a bare status.
+    expect(html).toContain("Not downloaded");
     expect(html).toMatch(
       /<button[^>]*aria-selected="true"[^>]*>ElevenLabs<\/button>/u,
     );

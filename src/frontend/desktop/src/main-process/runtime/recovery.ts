@@ -79,7 +79,7 @@ button.primary{background:var(--primary);color:var(--primary-foreground)}
 button.primary:hover{background:color-mix(in oklab,var(--primary) 90%,transparent)}
 button.outline{border-color:var(--border);background:var(--background)}
 button.outline:hover,button.ghost:hover{background:var(--accent);color:var(--accent-foreground)}
-button:focus-visible{outline:none;box-shadow:0 0 0 3px color-mix(in oklab,var(--ring) 50%,transparent)}
+button:focus-visible{outline:2px solid var(--foreground);outline-offset:2px}
 button:disabled{opacity:.5;pointer-events:none}
 [hidden]{display:none!important}`;
 
@@ -103,9 +103,11 @@ Object.assign(advice,{runtime_busy:'Animama is still finishing local work. The p
 const noRetry=['update_install_timeout','owned_services_stop_failed','database_schema_mismatch','data_path_too_long','administrator_launch_unsupported'];
 // Startup normally finishes well within this; past it, offer Logs and Quit.
 const STALL_MS=20000;
-let state='starting',stalled=false;
-setTimeout(()=>{stalled=true;if(state==='starting')$('actions').hidden=false;},STALL_MS);
-function render(value){state=value.state;const error=value.state==='error';document.body.dataset.state=value.state;$('title').textContent=error?'Animama needs attention':value.state==='updating'?'Installing update':value.state==='stopping'?'Closing Animama':'Animama';$('message').textContent=error?(advice[value.code]||'Startup could not finish. Open Logs for details, fix the problem, and retry. Your local data has been preserved.'):value.state==='starting'?stages[value.stage]:value.state==='ready'?'Opening your app…':value.state==='updating'?'Local services are stopped. Verifying the downloaded app and restarting…':value.state==='stopping'?'Finishing work and stopping owned services…':'Preparing your private local runtime…';$('bar').hidden=error;$('code').textContent=error?value.code:'';$('backup').textContent=error&&value.backup?'Snapshot: '+value.backup:'';$('detail').hidden=!error;$('backups').hidden=!(error&&value.backup);$('retry').hidden=!error||noRetry.includes(value.code);$('actions').hidden=!(error||(stalled&&value.state==='starting'));}
+let state='starting',stalled=false,stallTimer;
+// Each start (first launch, a restart or Retry) gets its own stall window.
+function watchStall(){clearTimeout(stallTimer);stalled=false;stallTimer=setTimeout(()=>{stalled=true;if(state==='starting')$('actions').hidden=false;},STALL_MS);}
+watchStall();
+function render(value){if(value.state==='starting'&&state!=='starting')watchStall();state=value.state;const error=value.state==='error';document.body.dataset.state=value.state;$('title').textContent=error?'Animama needs attention':value.state==='updating'?'Installing update':value.state==='stopping'?'Closing Animama':'Animama';$('message').textContent=error?(advice[value.code]||'Startup could not finish. Open Logs for details, fix the problem, and retry. Your local data has been preserved.'):value.state==='starting'?stages[value.stage]:value.state==='ready'?'Opening your app…':value.state==='updating'?'Local services are stopped. Verifying the downloaded app and restarting…':value.state==='stopping'?'Finishing work and stopping owned services…':'Preparing your private local runtime…';$('bar').hidden=error;$('code').textContent=error?value.code:'';$('backup').textContent=error&&value.backup?'Snapshot: '+value.backup:'';$('detail').hidden=!error;$('backups').hidden=!(error&&value.backup);$('retry').hidden=!error||noRetry.includes(value.code);$('actions').hidden=!(error||(stalled&&value.state==='starting'));}
 async function invoke(action){try{await runtime[action]();}catch{$('message').textContent='The action could not finish. Open Logs, or quit and reopen Animama after fixing the problem.';$('actions').hidden=false;}}
 for(const [id,action] of [['retry','retry'],['logs','openLogs'],['backups','openBackups'],['quit','quit']])$(id).onclick=()=>invoke(action);
 if(runtime){runtime.onStatus(render);runtime.status().then(render).catch(()=>{});}

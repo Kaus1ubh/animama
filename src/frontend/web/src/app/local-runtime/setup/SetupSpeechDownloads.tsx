@@ -19,6 +19,8 @@ import {
   type OfflineSpeechDownloadsViewProps,
 } from "@/ui/settings/OfflineSpeechDownloads";
 
+import { ModelLink } from "./ModelLink";
+
 type SpeechSet = "cpu" | "gpu";
 
 /**
@@ -36,8 +38,8 @@ function SetupSpeechDownloadsManager() {
   return <SetupSpeechDownloadsView {...useOfflineSpeechDownloads()} />;
 }
 
-/** The tabbed view, separate from its data so it can be tested directly. */
-export function SetupSpeechDownloadsView({
+/** The tabbed view, separate from the download state it renders. */
+function SetupSpeechDownloadsView({
   cpu,
   gpu,
   freeBytes,
@@ -99,7 +101,13 @@ export function SetupSpeechDownloadsView({
         </p>
       ) : null}
       <TabsContent value="cpu" className="mt-4 space-y-3">
-        <p className="text-muted-foreground text-sm">Works on any computer.</p>
+        <p className="text-muted-foreground text-sm">
+          <ModelLink href="https://huggingface.co/nvidia/parakeet-tdt-0.6b-v2">
+            NVIDIA&apos;s Parakeet TDT 0.6B v2
+          </ModelLink>{" "}
+          transcribes English speech on this device, so your voice never leaves
+          it.
+        </p>
         <SetupModelSet
           label="Parakeet (CPU)"
           asset={cpu}
@@ -125,8 +133,12 @@ export function SetupSpeechDownloadsView({
           asset={gpu}
           freeBytes={freeBytes}
           retry={gpu ? (retryAssetIds?.has(gpu.id) ?? false) : false}
+          // Wait for the WebGPU check, so an unusable set is never fetched.
           disabled={
-            pending || Boolean(blockedReason) || gpuSupport === "unsupported"
+            pending ||
+            Boolean(blockedReason) ||
+            gpuSupport === null ||
+            gpuSupport === "unsupported"
           }
           note={
             needsCpu && !cpuInstalled
@@ -147,7 +159,21 @@ export function SetupSpeechDownloadsView({
   );
 }
 
-/** A ✓/✗ line for whether this device can run the GPU set. */
+/** A ✓ or ✗ status line, such as "Downloaded" or "WebGPU available". */
+function StatusCheck({ ok, children }: { ok: boolean; children: ReactNode }) {
+  return (
+    <p role="status" className="flex items-center gap-1.5 text-sm">
+      {ok ? (
+        <Check className="text-success size-4" aria-hidden />
+      ) : (
+        <X className="text-muted-foreground size-4" aria-hidden />
+      )}
+      {children}
+    </p>
+  );
+}
+
+/** Whether this device can run the GPU set. */
 function WebgpuCheck({
   support,
 }: {
@@ -162,14 +188,9 @@ function WebgpuCheck({
   // "model_missing" means WebGPU works; only the set is not installed yet.
   const available = support !== "unsupported";
   return (
-    <p role="status" className="flex items-center gap-1.5 text-sm">
-      {available ? (
-        <Check className="text-success size-4" aria-hidden />
-      ) : (
-        <X className="text-destructive size-4" aria-hidden />
-      )}
+    <StatusCheck ok={available}>
       {available ? "WebGPU available" : "WebGPU unavailable on this device"}
-    </p>
+    </StatusCheck>
   );
 }
 
@@ -224,13 +245,7 @@ function SetupModelSet({
         <div className="space-y-1">
           {children}
           {installed ? (
-            <p
-              role="status"
-              className="flex items-center gap-1.5 text-sm font-medium"
-            >
-              <Check className="text-success size-4" aria-hidden />
-              Downloaded
-            </p>
+            <StatusCheck ok>Downloaded</StatusCheck>
           ) : downloading ? (
             <p role="status" className="text-muted-foreground text-sm">
               {progress === 1
@@ -238,9 +253,7 @@ function SetupModelSet({
                 : `Downloading ${Math.round((progress ?? 0) * 100)}%`}
             </p>
           ) : (
-            <p role="status" className="text-muted-foreground text-sm">
-              Not downloaded
-            </p>
+            <StatusCheck ok={false}>Not downloaded</StatusCheck>
           )}
         </div>
         {downloading ? (

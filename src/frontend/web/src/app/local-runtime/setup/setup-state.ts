@@ -190,10 +190,15 @@ export function setupTtsPatch(
   return { tts_enabled: true, tts_provider: draft.ttsProvider };
 }
 
-/** Setup's two provider tabs, with availability from App Settings' options. */
+/**
+ * Setup's two provider tabs, with availability from App Settings' options.
+ * A `source` names the model, linked to its public page, ahead of the
+ * description.
+ */
 export function setupTtsOptions(options: readonly TtsProviderOption[]): Array<{
   id: SetupTtsProvider;
   label: string;
+  source?: { name: string; href: string };
   description: string;
   disabled: boolean;
   reason?: string;
@@ -206,8 +211,12 @@ export function setupTtsOptions(options: readonly TtsProviderOption[]): Array<{
     {
       id: "pocket_tts",
       label: "PocketTTS (built-in)",
+      source: {
+        name: "Kyutai's Pocket TTS",
+        href: "https://github.com/kyutai-labs/pocket-tts",
+      },
       description:
-        "Kyutai's Pocket TTS speaks replies on this computer, with no key or account needed.",
+        "speaks replies on this computer, with no key or account needed.",
       disabled: pocket?.disabled ?? true,
       reason: pocket?.reason,
     },

@@ -91,7 +91,7 @@ export function gpuInstallBlockedReason({
   return null;
 }
 
-export type Change = "install" | "cancel" | "remove";
+type Change = "install" | "cancel" | "remove";
 
 export type OfflineSpeechDownloadsViewProps = {
   cpu: PyModelAssetState | undefined;

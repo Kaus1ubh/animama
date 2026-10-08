@@ -15,7 +15,7 @@ import {
   type DesktopCredentialsController,
 } from "@/ui/settings/DesktopCredentialsPanel";
 
-import { ModelSourceLink } from "./ModelSourceLink";
+import { ModelLink } from "./ModelLink";
 import { SetupSpeechDownloads } from "./SetupSpeechDownloads";
 import { setupTtsOptions } from "./setup-state";
 
@@ -51,16 +51,6 @@ export function SetupVoiceStep({
         <h2 id={`${id}-stt`} className="text-base font-semibold">
           Speech-to-Text
         </h2>
-        <div className="space-y-1">
-          <p className="text-muted-foreground text-sm">
-            NVIDIA&apos;s Parakeet TDT 0.6B v2 transcribes English speech on
-            this device, so your voice never leaves it.
-          </p>
-          <ModelSourceLink
-            href="https://huggingface.co/nvidia/parakeet-tdt-0.6b-v2"
-            label="Hugging Face"
-          />
-        </div>
         <SetupSpeechDownloads />
       </section>
       <section aria-labelledby={`${id}-tts`} className="space-y-3">
@@ -81,6 +71,9 @@ export function SetupVoiceStep({
                 key={option.id}
                 value={option.id}
                 variant="underline"
+                // A provider this device cannot run is not offered.
+                disabled={option.disabled}
+                title={option.disabled ? option.reason : undefined}
                 className={underlineTabClassName(provider === option.id)}
               >
                 {option.label}
@@ -95,17 +88,16 @@ export function SetupVoiceStep({
               forceMount
               className="mt-4 space-y-3 data-[state=inactive]:hidden"
             >
-              <div className="space-y-1">
-                <p className="text-muted-foreground text-sm">
-                  {option.description}
-                </p>
-                {option.id === "pocket_tts" ? (
-                  <ModelSourceLink
-                    href="https://github.com/kyutai-labs/pocket-tts"
-                    label="GitHub"
-                  />
+              <p className="text-muted-foreground text-sm">
+                {option.source ? (
+                  <>
+                    <ModelLink href={option.source.href}>
+                      {option.source.name}
+                    </ModelLink>{" "}
+                  </>
                 ) : null}
-              </div>
+                {option.description}
+              </p>
               {option.disabled && option.reason ? (
                 <p className="text-warning text-sm">{option.reason}</p>
               ) : null}

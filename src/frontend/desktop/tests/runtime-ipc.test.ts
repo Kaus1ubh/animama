@@ -365,7 +365,8 @@ async function loadRuntimePage(url: string, windowRole: string) {
     return elements.get(selector)!;
   };
   const reload = vi.fn();
-  const timers: Array<() => void> = [];
+  const timers = new Map<number, () => void>();
+  let nextTimer = 0;
   let render: ((status: RuntimeStatus) => void) | undefined;
   const location = new URL(url);
   element("body").dataset = {};
@@ -383,7 +384,11 @@ async function loadRuntimePage(url: string, windowRole: string) {
       querySelector: element,
       getElementById: (id: string) => element(`#${id}`),
     },
-    setTimeout: (callback: () => void) => timers.push(callback),
+    setTimeout: (callback: () => void) => {
+      timers.set(++nextTimer, callback);
+      return nextTimer;
+    },
+    clearTimeout: (id: number) => timers.delete(id),
     window: {
       animamaDesktop: {
         windowRole,
@@ -402,7 +407,11 @@ async function loadRuntimePage(url: string, windowRole: string) {
     element,
     reload,
     render: render!,
-    elapse: () => timers.splice(0).forEach((callback) => callback()),
+    elapse: () => {
+      const due = [...timers.values()];
+      timers.clear();
+      due.forEach((callback) => callback());
+    },
   };
 }
 
@@ -451,6 +460,12 @@ describe("independent runtime recovery page", () => {
     page.elapse();
     expect(page.element("#actions").hidden).toBe(false);
     expect(page.element("#retry").hidden).toBe(true);
+    // Retrying starts a fresh stall window.
+    page.render({ state: "error", code: "vault_unreadable" });
+    page.render({ state: "starting", stage: "vault" });
+    expect(page.element("#actions").hidden).toBe(true);
+    page.elapse();
+    expect(page.element("#actions").hidden).toBe(false);
   });
 
   it("replaces the progress bar with the advice and actions on error", async () => {
