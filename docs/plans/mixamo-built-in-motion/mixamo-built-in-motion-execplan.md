@@ -997,7 +997,7 @@ on P2, P3 and P4. Contains owner gates.
    manifest; confirm self-host `./reset.sh` still creates both starters without
    the store, and that the Local installer still installs Local content.
 6. **Gate G3 (owner): playback.** *Revised 2026-10-08: the 35 shipped clips.*
-   In the desktop app, play all 29 clips and the
+   Original text: In the desktop app, play all 29 clips and the
    Included Idle Style on `AvatarSample_Y_0` (VRM 0) and `AvatarSample_A_1_New`
    (VRM 1). Retargeting and foot contact must look correct. Repeat the export,
    import and creator restrictions with real items. The hosted check is
@@ -1084,6 +1084,14 @@ names and missing AI descriptions in the pack, and the Decision Log order.
   rejected by `PackageNonPortableUse`'s own validator, so the new check only
   narrows the type. Pack naming is left to a later
   pack version (owner decision).
+
+#### Code Review #2
+
+Repair verification, 2026-10-08, source `04080189`: **pass**. P5-F1 to P5-F3
+are fixed, and nothing new is blocking. ruff, format and mypy are clean, except
+for the known `idle_clip_validation.py` errors from main, and 32 targeted tests
+pass, as do `verify` and `scan --git`. Optional: label step 6's original text
+(done).
 
 ## Final integration review
 
