@@ -100,17 +100,17 @@ export function LibraryProductRow({
                   {row.name}
                 </span>
                 {row.family === "pose" && row.origin === "Mine" ? (
-                  <span className="bg-muted rounded-full px-2 py-0.5 text-[11px]">
+                  <span className="bg-muted text-2xs rounded-full px-2 py-0.5">
                     Local
                   </span>
                 ) : null}
                 {row.updateAvailable ? (
-                  <span className="border-primary/35 bg-primary/10 text-primary rounded-full border px-2 py-0.5 text-[11px] font-medium">
+                  <span className="border-primary/35 bg-primary/10 text-primary text-2xs rounded-full border px-2 py-0.5 font-medium">
                     Update available
                   </span>
                 ) : null}
                 {row.equippedCount ? (
-                  <span className="bg-muted rounded-full px-2 py-0.5 text-[11px]">
+                  <span className="bg-muted text-2xs rounded-full px-2 py-0.5">
                     Added to {row.equippedCount}
                   </span>
                 ) : null}

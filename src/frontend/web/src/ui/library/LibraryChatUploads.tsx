@@ -23,13 +23,11 @@ import { LibraryFilterMenu } from "@/ui/library/LibraryFilterMenu";
 const UPLOAD_SEARCH_DEBOUNCE_MS = 300;
 
 const STATUS_STYLES: Record<LibraryUploadStatusTone, string> = {
-  active:
-    "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300",
+  active: "border-warning/30 bg-warning/10 text-warning",
   destructive: "border-destructive/30 bg-destructive/10 text-destructive",
   muted: "border-border bg-muted/40 text-muted-foreground",
-  success:
-    "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-  warning: "border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300",
+  success: "border-success/30 bg-success/10 text-success",
+  warning: "border-info/30 bg-info/10 text-info",
 };
 
 function UploadStatus({

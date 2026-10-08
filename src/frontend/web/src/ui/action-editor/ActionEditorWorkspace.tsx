@@ -785,7 +785,7 @@ function ReactionExpressionPanel({
       >
         <div className="min-w-0 flex-1">
           <h2 className="truncate text-sm font-semibold">Expressions</h2>
-          <p className="text-muted-foreground truncate text-[11px]">
+          <p className="text-muted-foreground text-2xs truncate">
             {hasKeyframe
               ? `Keyframe at ${currentTimeSec.toFixed(2)}s`
               : `Interpolated at ${currentTimeSec.toFixed(2)}s`}

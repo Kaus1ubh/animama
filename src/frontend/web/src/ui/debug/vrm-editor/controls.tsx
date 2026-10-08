@@ -44,7 +44,7 @@ export function KeyValueGrid({
           key={row.label}
           className="border-border/60 bg-background/70 rounded-lg border p-3"
         >
-          <p className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+          <p className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
             {row.label}
           </p>
           <div className="text-foreground mt-1 min-w-0 text-sm break-words">
@@ -74,7 +74,7 @@ export function EmptyState({
 export function WarningList({ warnings }: { warnings: string[] }) {
   if (warnings.length === 0) return null;
   return (
-    <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
+    <div className="border-warning/30 bg-warning/10 rounded-xl border p-4">
       <p className="text-foreground text-sm font-medium">Warnings</p>
       <ul className="text-foreground/85 mt-2 space-y-1 text-sm">
         {warnings.map((warning, index) => (
@@ -105,7 +105,7 @@ export function HeaderCell({
   return (
     <th
       className={cn(
-        "bg-muted/40 text-muted-foreground px-3 py-2 text-[11px] font-semibold tracking-wide uppercase",
+        "bg-muted/40 text-muted-foreground text-2xs px-3 py-2 font-semibold tracking-wide uppercase",
         className,
       )}
       scope="col"

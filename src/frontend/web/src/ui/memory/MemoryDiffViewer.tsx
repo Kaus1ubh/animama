@@ -125,7 +125,7 @@ function DescriptionValue({
 }) {
   return (
     <div className="border-border/70 bg-muted/20 min-w-0 rounded-md border px-3 py-2">
-      <div className="text-muted-foreground mb-1 text-[11px] font-medium tracking-wide uppercase">
+      <div className="text-muted-foreground text-2xs mb-1 font-medium tracking-wide uppercase">
         {label}
       </div>
       <p

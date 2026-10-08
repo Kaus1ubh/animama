@@ -254,7 +254,7 @@ export function MemoryVersionsDialog({
                                 Version {version.version}
                               </span>
                               {version.version === entry?.version ? (
-                                <span className="bg-primary/10 text-primary rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase">
+                                <span className="bg-primary/10 text-primary text-2xs rounded px-1.5 py-0.5 font-semibold uppercase">
                                   Current
                                 </span>
                               ) : null}
@@ -361,7 +361,7 @@ export function MemoryVersionsDialog({
                 ) : (
                   <div className="space-y-4">
                     {discardPromptOpen ? (
-                      <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4">
+                      <div className="border-warning/30 bg-warning/5 rounded-lg border p-4">
                         <p className="text-foreground text-sm font-semibold">
                           Discard the Manual draft first?
                         </p>

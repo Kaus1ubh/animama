@@ -1,0 +1,4 @@
+interface:
+  display_name: "Animama UI"
+  short_description: "Design and visually verify Animama UI screens"
+  default_prompt: "Use $animama-ui to design, build, and visually verify this Animama UI change."

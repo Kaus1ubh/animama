@@ -62,12 +62,12 @@ function isForceProcessStatus(status: string) {
 function statusClassName(status: string | null | undefined) {
   switch (status) {
     case "ready":
-      return "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300";
+      return "border-success/30 bg-success/10 text-success";
     case "ready_keyword_only":
-      return "border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300";
+      return "border-info/30 bg-info/10 text-info";
     case "processing":
     case "uploaded":
-      return "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300";
+      return "border-warning/30 bg-warning/10 text-warning";
     case "failed":
       return "border-destructive/30 bg-destructive/10 text-destructive";
     default:
@@ -95,8 +95,8 @@ const uploadStatusIconClassName: Record<
   active: "bg-primary/10 text-primary",
   destructive: "bg-destructive/10 text-destructive",
   muted: "bg-muted text-muted-foreground",
-  success: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-  warning: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+  success: "bg-success/10 text-success",
+  warning: "bg-warning/10 text-warning",
 };
 
 function UploadStatusGlyph({ status }: { status: UserFileUploadCardStatus }) {

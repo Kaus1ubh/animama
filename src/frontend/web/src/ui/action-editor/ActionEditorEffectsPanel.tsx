@@ -250,7 +250,7 @@ export function ActionEditorEffectsPanel({
             {showsPoses ? (
               <TabsTrigger
                 value="poses"
-                className="h-8 min-w-0 rounded-md px-1 text-[10px] tracking-tight data-[state=active]:shadow-sm 2xl:text-[11px]"
+                className="text-2xs h-8 min-w-0 rounded-md px-1 tracking-tight data-[state=active]:shadow-sm"
               >
                 <span className="truncate">Poses</span>
               </TabsTrigger>
@@ -259,7 +259,7 @@ export function ActionEditorEffectsPanel({
               <TabsTrigger
                 key={tab.contentType}
                 value={tab.contentType}
-                className="h-8 min-w-0 rounded-md px-1 text-[10px] tracking-tight data-[state=active]:shadow-sm 2xl:text-[11px]"
+                className="text-2xs h-8 min-w-0 rounded-md px-1 tracking-tight data-[state=active]:shadow-sm"
               >
                 <span className="truncate">{tab.label}</span>
               </TabsTrigger>
@@ -332,7 +332,7 @@ export function ActionEditorEffectsPanel({
                     <p className="text-destructive text-xs font-medium">
                       Could not load {activeTab.catalogLabel.toLowerCase()}
                     </p>
-                    <p className="text-muted-foreground mt-1 line-clamp-2 text-[11px]">
+                    <p className="text-muted-foreground text-2xs mt-1 line-clamp-2">
                       {activeSection.errorMessage}
                     </p>
                     <Button
@@ -466,7 +466,7 @@ function PoseCatalog({
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-xs font-medium">{pose.name}</p>
-                  <p className="text-muted-foreground text-[10px]">
+                  <p className="text-muted-foreground text-2xs">
                     {pose.source === "included" ? "Included" : "Local"}
                   </p>
                 </div>
@@ -562,7 +562,7 @@ function EffectCatalogRow({
         </span>
         <div className="min-w-0 flex-1">
           <p className="truncate text-xs font-medium">{item.name}</p>
-          <div className="text-muted-foreground flex items-center gap-1.5 text-[10px]">
+          <div className="text-muted-foreground text-2xs flex items-center gap-1.5">
             {item.origin !== "builtin" ? <span>Mine</span> : null}
             {addedCount ? (
               <span className="bg-primary/10 text-primary rounded-full px-1.5 py-0.5 font-medium">

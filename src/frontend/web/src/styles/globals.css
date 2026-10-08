@@ -1,5 +1,9 @@
 @custom-variant dark (&:is(.dark *));
 
+@theme {
+  --font-sans: "DM Sans Variable", ui-sans-serif, system-ui, sans-serif;
+}
+
 .pointer-events-none-deep,
 .pointer-events-none-deep * {
   pointer-events: none !important;
@@ -140,7 +144,7 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-weight: 600;
+    font-weight: 400;
   }
 
   :where(button, [role="button"], a[href], summary, select):not(:disabled):not(

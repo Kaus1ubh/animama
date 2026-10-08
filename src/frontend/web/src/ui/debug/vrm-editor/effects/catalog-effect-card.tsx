@@ -188,7 +188,7 @@ export function CatalogEffectCard({
           </summary>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
             <label className="space-y-1 sm:col-span-2">
-              <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+              <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
                 Asset path
               </span>
               <TextInputControl
@@ -204,7 +204,7 @@ export function CatalogEffectCard({
             {isTextureVFXEntry(draftEffect) ? (
               <>
                 <label className="space-y-1">
-                  <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+                  <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
                     Target role
                   </span>
                   <SelectControl
@@ -228,7 +228,7 @@ export function CatalogEffectCard({
                   </SelectControl>
                 </label>
                 <label className="space-y-1">
-                  <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+                  <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
                     Asset shape
                   </span>
                   <SelectControl
@@ -252,7 +252,7 @@ export function CatalogEffectCard({
                   </SelectControl>
                 </label>
                 <label className="space-y-1">
-                  <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+                  <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
                     Apply mode
                   </span>
                   <SelectControl
@@ -279,7 +279,7 @@ export function CatalogEffectCard({
                 draftEffect.assetShape === "single_eye" ? (
                   <>
                     <label className="space-y-1">
-                      <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+                      <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
                         Side
                       </span>
                       <SelectControl
@@ -330,7 +330,7 @@ export function CatalogEffectCard({
             {isFaceAnchoredVFXEntry(draftEffect) ? (
               <>
                 <label className="space-y-1">
-                  <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+                  <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
                     Pivot
                   </span>
                   <SelectControl
@@ -356,7 +356,7 @@ export function CatalogEffectCard({
                 {draftEffect.anchor !== "mouth" ? (
                   <>
                     <label className="space-y-1">
-                      <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+                      <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
                         Texture layout
                       </span>
                       <SelectControl
@@ -396,7 +396,7 @@ export function CatalogEffectCard({
                     {draftEffect.layout === "single" ? (
                       <>
                         <label className="space-y-1">
-                          <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+                          <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
                             Side
                           </span>
                           <SelectControl
@@ -454,7 +454,7 @@ export function CatalogEffectCard({
               <>
                 {isBoxHoverVFXEntry(draftEffect) ? (
                   <label className="space-y-1">
-                    <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+                    <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
                       Hover placement
                     </span>
                     <SelectControl
@@ -480,7 +480,7 @@ export function CatalogEffectCard({
                 ) : isEyeHoverVFXEntry(draftEffect) ? (
                   <>
                     <label className="space-y-1">
-                      <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+                      <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
                         Side
                       </span>
                       <SelectControl
@@ -555,7 +555,7 @@ export function CatalogEffectCard({
               </>
             ) : null}
             <label className="space-y-1">
-              <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+              <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
                 Offset x
               </span>
               <NumberInputControl
@@ -575,7 +575,7 @@ export function CatalogEffectCard({
               />
             </label>
             <label className="space-y-1">
-              <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+              <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
                 Offset y
               </span>
               <NumberInputControl
@@ -595,7 +595,7 @@ export function CatalogEffectCard({
               />
             </label>
             <label className="space-y-1">
-              <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+              <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
                 Offset z
               </span>
               <NumberInputControl
@@ -615,7 +615,7 @@ export function CatalogEffectCard({
               />
             </label>
             <label className="space-y-1">
-              <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+              <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
                 Scale x
               </span>
               <NumberInputControl
@@ -635,7 +635,7 @@ export function CatalogEffectCard({
               />
             </label>
             <label className="space-y-1">
-              <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+              <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
                 Scale y
               </span>
               <NumberInputControl
@@ -655,7 +655,7 @@ export function CatalogEffectCard({
               />
             </label>
             <label className="space-y-1">
-              <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+              <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
                 Scale z
               </span>
               <NumberInputControl
@@ -675,7 +675,7 @@ export function CatalogEffectCard({
               />
             </label>
             <label className="space-y-1">
-              <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+              <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
                 Pulse min
               </span>
               <NumberInputControl
@@ -692,7 +692,7 @@ export function CatalogEffectCard({
               />
             </label>
             <label className="space-y-1">
-              <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+              <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
                 Pulse max
               </span>
               <NumberInputControl
@@ -709,7 +709,7 @@ export function CatalogEffectCard({
               />
             </label>
             <label className="space-y-1">
-              <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+              <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
                 Pulse speed
               </span>
               <NumberInputControl
@@ -726,7 +726,7 @@ export function CatalogEffectCard({
               />
             </label>
             <label className="space-y-1">
-              <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+              <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
                 Rotation amount
               </span>
               <NumberInputControl
@@ -743,7 +743,7 @@ export function CatalogEffectCard({
               />
             </label>
             <label className="space-y-1">
-              <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+              <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
                 Rotation speed
               </span>
               <NumberInputControl
@@ -760,7 +760,7 @@ export function CatalogEffectCard({
               />
             </label>
             <label className="space-y-1">
-              <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+              <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
                 Rotation direction
               </span>
               <SelectControl
@@ -790,7 +790,7 @@ export function CatalogEffectCard({
               </SelectControl>
             </label>
             <label className="space-y-1">
-              <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+              <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
                 Drift x
               </span>
               <NumberInputControl
@@ -810,7 +810,7 @@ export function CatalogEffectCard({
               />
             </label>
             <label className="space-y-1">
-              <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+              <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
                 Drift y
               </span>
               <NumberInputControl
