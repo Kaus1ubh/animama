@@ -69,8 +69,10 @@ the same models, and an error names a JSON path such as
       texture.
     - `face_landmark`: a plane in front of the `eyes`, `mouth`, `forehead`, `top`
       or `top_edge`, with `position` (`left`, `middle`, `right`, and the
-      `top_edge` corners) for the last three. `offset` is in metres in head
-      space; `rotationDeg` has x, y and z.
+      `top_edge` corners) for the last three. `offset` is in metres in the
+      Avatar's front frame at the head (+x toward the viewer's right when
+      facing the Avatar, +y up, +z forward, on VRM 0 and 1); `rotationDeg` has
+      x, y and z, and keyframe offsets use the same frame.
     - `body`, `sticker` and `silhouette`: see [Attachments beyond the
       face](#6-attachments-beyond-the-face).
 
@@ -208,9 +210,13 @@ replaces that instance.
 ### Floating effects (`face_landmark`)
 
 Planes are parented to the normalized head bone (render order 950, depth tested,
-so hair can hide them). Eye planes sit just in front of the iris landmarks;
-mouth planes start at the projected mouth point, sized from its anchor; forehead
-and top planes use positions around the face bounds, clear of detected hair.
+so hair can hide them). Normalized bones keep the model's axes (VRM 1 faces +Z,
+VRM 0 faces −Z), so each placement turns to face the front, and its offset,
+rotation and motion apply in that turned frame. The creator measures drags in
+the same frame, so a drag stores the same value on either Avatar. Eye planes
+sit just in front of the iris landmarks; mouth planes start at the projected
+mouth point, sized from its anchor; forehead and top planes use positions around
+the face bounds, clear of detected hair.
 
 Eye planes default to closing the eyes (`forceBlink` holds `blink` at 1 at full intensity; a fading event weights it, see the fades section),
 hiding eye highlights, lines and lashes (`hideEyeDetails`) and cleaning up the
@@ -557,6 +563,7 @@ per render; a silhouette adds one skinned draw per overlaid primitive (about
 | Visible skin patch around eye or mouth art                                                                 | Compare **Clean up**, **Skin-coloured backing** and **Skin coverage**; the sampled colour or anchors may be poor on this model.                                                                                            |
 | Full-face art misaligned                                                                                   | It must match the Avatar's UV layout; use a decal for localized marks.                                                                                                                                                     |
 | Image refused or effect skipped on load                                                                    | It exceeds the image limits; resize it.                                                                                                                                                                                    |
+| Floating art saved with a sideways or forward offset sits mirrored on a VRM 0 Avatar                       | It was saved when floating offsets followed the head's model axes. Floating offsets use the Avatar's front frame on every model; drag it back or flip the sign of `offset.x`/`offset.z`.                                   |
 | A mirrored eye moved the wrong way after conversion                                                        | `avatar_effect_offset_mirrored`: `/2` mirrors x offsets on the mirrored copy. Adjust the offset.                                                                                                                           |
 | Works in the creator but not in chat                                                                       | The effect must be in a saved, selected Gesture or Reaction in the mounted catalog, and Disable VFX must be off.                                                                                                           |
 

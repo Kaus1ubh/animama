@@ -283,7 +283,7 @@ test("accountless vfx guides preserve authored JSON with replacement artwork and
     // Positions are shown in centimetres and stored in metres.
     const positionX = page
       .getByRole("group", { name: "Position (cm)", exact: true })
-      .getByRole("spinbutton", { name: "Sideways", exact: true });
+      .getByRole("spinbutton", { name: "Right", exact: true });
     await positionX.fill("");
     await expect(positionX).toHaveValue("");
     await positionX.pressSequentially("-0.25");
