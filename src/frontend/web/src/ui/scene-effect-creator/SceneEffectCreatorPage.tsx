@@ -340,10 +340,15 @@ export function SceneEffectCreatorPage({
     },
     [resetDocument],
   );
+  // The template loader must stay stable, or each render restarts the load.
+  const loadTemplateSeed = useCallback(
+    (id: string, signal: AbortSignal) =>
+      loadSceneEffectTemplate(apiClient, id, signal),
+    [apiClient],
+  );
   const templateStart = useCreatorTemplateStart({
     templateId,
-    loadSeed: (templateId, signal) =>
-      loadSceneEffectTemplate(apiClient, templateId, signal),
+    loadSeed: loadTemplateSeed,
     fingerprint: sceneEffectSnapshotFingerprint,
     recoveryReady: contentSave.recoveryReady,
     recoveredDraft: templateDraft,

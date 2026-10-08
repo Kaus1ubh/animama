@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState, type RefObject } from "react";
+import {
+  type RefObject,
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  useState,
+} from "react";
 import { toast } from "sonner";
 
 /**
@@ -67,7 +73,7 @@ export function useCreatorTemplateStart<TSnapshot>({
   setHydration,
 }: {
   templateId: string | undefined;
-  /** Build the template's starting document; a stable (module-level) function. */
+  /** Build the template's starting document. A new identity does not restart a load. */
   loadSeed: (templateId: string, signal: AbortSignal) => Promise<TSnapshot>;
   fingerprint: (snapshot: TSnapshot) => string;
   recoveryReady: boolean;
@@ -100,10 +106,15 @@ export function useCreatorTemplateStart<TSnapshot>({
   );
   const [starting, setStarting] = useState(false);
 
+  // Read the latest loader without restarting the load when its identity changes.
+  const loadTemplateSeed = useEffectEvent((id: string, signal: AbortSignal) =>
+    loadSeed(id, signal),
+  );
+
   useEffect(() => {
     if (!templateId) return;
     const controller = new AbortController();
-    void loadSeed(templateId, controller.signal).then(
+    void loadTemplateSeed(templateId, controller.signal).then(
       (snapshot) => {
         if (!controller.signal.aborted) setSeed({ status: "ready", snapshot });
       },
@@ -119,7 +130,7 @@ export function useCreatorTemplateStart<TSnapshot>({
       },
     );
     return () => controller.abort();
-  }, [loadSeed, templateId]);
+  }, [templateId]);
 
   useEffect(() => {
     if (!templateId || decision !== "pending" || !recoveryReady) return;

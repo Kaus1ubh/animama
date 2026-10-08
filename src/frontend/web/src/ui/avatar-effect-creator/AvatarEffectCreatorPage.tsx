@@ -385,10 +385,15 @@ export function AvatarEffectCreatorPage({
     },
     [resetDocument],
   );
+  // The template loader must stay stable, or each render restarts the load.
+  const loadTemplateSeed = useCallback(
+    (id: string, signal: AbortSignal) =>
+      loadAvatarEffectTemplate(apiClient, id, signal),
+    [apiClient],
+  );
   const templateStart = useCreatorTemplateStart({
     templateId,
-    loadSeed: (templateId, signal) =>
-      loadAvatarEffectTemplate(apiClient, templateId, signal),
+    loadSeed: loadTemplateSeed,
     fingerprint: avatarEffectSnapshotFingerprint,
     recoveryReady: contentSave.recoveryReady,
     recoveredDraft: templateDraft,

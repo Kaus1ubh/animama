@@ -148,6 +148,8 @@ export function createCreatorRecoveryStore<
               codec.toDatabase(record),
               creatorRecoveryKey(record.userId, record.documentKey),
             ),
+          // Report stored only once the write commits, so an aborted commit falls back.
+          true,
         );
       } finally {
         database.close();
