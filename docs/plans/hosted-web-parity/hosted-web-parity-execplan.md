@@ -1931,11 +1931,44 @@ Code Review #1 Findings (public):
   speech service; P3-05, P4-08 stale docs; P4-07 extraction digests; P4-09
   build-context exclusions; P4-10 receipt recipe coverage.
 
-Code Review #1 Revisions: repair round 1 is in progress (accepted findings are
-being fixed with tests). Deferred: P3-01 and P3-04 move to the shared HTTP
-layer work in #379, which reshapes those ports and services. Rejected: P4-10,
-because the consumer's promotion check pins the recipe keys and the source
-commit already binds all tooling.
+Code Review #1 Revisions (repair round 1, merged at `17cd61cb`, followed by
+`897bb7b5` and `4d317e59`): all accepted findings are fixed with tests that fail
+first. Highlights:
+
+- Hosted first use runs account setup automatically, replays its idempotency key
+  after a lost reply and bounds bootstrapping polls (P1-01). A failed remote
+  sign-out keeps a retry view across reloads and tabs (P1-02, P1-03). Cleanup
+  failures no longer block admission (P1-04); `paused` is transient (P1-05).
+  Sign-in keeps deep links and reports `sign_in=failed` (P1-07). Account
+  controls hide without a URL (P1-06); the hosted entry loads DM Sans (P1-08).
+- Session teardown terminates the Parakeet and Smart Turn workers synchronously
+  (P2-01) and resets module-level drafts and download hints (P2-05). Hosted
+  E1–E3 entry points stay visible but disabled with their reason (P2-02, spec
+  R2). Lost replies stay transport errors (P2-03). Hosted denial codes and
+  display-name refusals have their own copy (C5-03). Search is offered from the
+  runtime `configured` state (C5-05), and operator-managed speech models show no
+  install actions (C5-10).
+- The executor fits Responses prompts when native compaction is off (C2-01) and
+  cancels its model call when a reader closes the turn stream (found by the
+  consumer review). The embedder reports deadlines as model errors (P3-02).
+- Format-2 builds pass `ANIMAMA_MODEL_ROOT` and build each snapshot with its own
+  speech models (P4-02, P4-03). The whole-app harness checks the candidate and
+  labels each app (P4-04), rejects byte-identical pairs (P4-05), runs its unit
+  tests in CI (P4-06) and verifies extraction digests (P4-07). The validation
+  receipt schema is documented (P4-01).
+
+Deferred: P3-01 and P3-04 move to the shared HTTP layer work in #379, which
+reshapes those ports and services. Rejected: P4-10, because the consumer's
+promotion check pins the recipe keys and the source commit already binds all
+tooling.
+
+Code Review #2 (targeted, two reviewers at `17cd61cb`) verified the backend and
+tooling repairs (two nits, fixed in `70f13b1f`) and the frontend repairs except
+the sign-out guard: pressing Sign in on the incomplete sign-out view cleared the
+readmission guard before the old session ended (R2-PF-01), and a tab's stale
+in-memory flag could outlive the shared marker (R2-PF-02). Repair round 2 keeps
+the guard until the consumer has ended the session; the consumer now ends a
+browser's current session whenever a sign-in starts.
 
 ## Final integration review
 
