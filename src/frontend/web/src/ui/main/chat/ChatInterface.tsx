@@ -56,6 +56,7 @@ import {
 } from "@/lib/user-files/chat-attachments";
 import { queryKeys } from "@/query/keys";
 import { useUserFiles } from "@/query/hooks/useUserFiles";
+import { useOperatorManagedModelAssets } from "@/query/hooks/useModelAssets";
 import { useRuntimeCapabilities } from "@/query/hooks/useRuntimeCapabilities";
 import {
   useRuntimeFeatureEnabled,
@@ -238,6 +239,8 @@ export function ChatInterfaceView({
   const speechAvailable =
     capabilities.data?.offline_speech_enabled === true ||
     isWebSpeechSupported(platform);
+  // Operator-provided speech models cannot be installed from the composer.
+  const operatorManagedModels = useOperatorManagedModelAssets();
   const { data: anima } = useAnima(animaId);
   const { data: modelCatalog } = useModelProviders();
   const activeModel = modelCatalog?.find(
@@ -454,8 +457,9 @@ export function ChatInterfaceView({
             {!speechAvailable ? (
               <details className="text-muted-foreground mt-2 text-xs">
                 <summary>
-                  Install offline speech recognition to use dictation and Voice
-                  Mode
+                  {operatorManagedModels
+                    ? "Offline speech recognition for dictation and Voice Mode is not available here"
+                    : "Install offline speech recognition to use dictation and Voice Mode"}
                 </summary>
                 {quickChatSurface ? (
                   <p>
