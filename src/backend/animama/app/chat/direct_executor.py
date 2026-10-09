@@ -669,11 +669,6 @@ class DirectChatTurnExecutor:
                     break
                 yield event
             final, internal_tool_messages = await collector_task
-        except asyncio.CancelledError:
-            collector_task.cancel()
-            with suppress(asyncio.CancelledError):
-                await collector_task
-            raise
         except DirectChatTurnStreamError as exc:
             _log.warning(
                 "Direct chat model stream failed",
@@ -691,6 +686,13 @@ class DirectChatTurnExecutor:
                 details=model_error_details(exc.error, prepared.model_request.model_provider),
             )
             return
+        finally:
+            # A cancelled or closed stream (its reader stopped) must not leave the
+            # collector's provider call running and billing in the background.
+            if not collector_task.done():
+                collector_task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await collector_task
         if final is not None and prepared.model_request.provider_options.moderation_model is not None:
             # Provider moderation arrives with the completed response, after the
             # reply text. It can only add a crisis card; it never alters the turn.
