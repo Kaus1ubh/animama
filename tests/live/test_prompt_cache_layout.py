@@ -6,14 +6,20 @@ each provider served from its prompt cache on every turn. Rerun it after a
 layout change to compare against the recorded baseline in
 ``docs/plans/anthropic-model-provider``.
 
-``test_measure_prompt_cache_share_per_provider_path`` measures today's layout:
-OpenAI Responses without and with a continuation cursor, OpenAI Chat Completions
-with a developer role and with developer text folded into the system message,
-Anthropic Messages, and optionally a local Chat Completions server
+``test_measure_prompt_cache_share_per_provider_path`` measures the current
+assembly through the real adapters: OpenAI Responses with full history
+(``store: false``) and with a continuation cursor, OpenAI Chat Completions with a
+developer role and without one (the ``<turn_context>`` block), a naive
+Anthropic Messages mapping, and optionally a local Chat Completions server
 (``ANIMAMA_TEST_LOCAL_CHAT_BASE_URL`` plus ``ANIMAMA_TEST_LOCAL_CHAT_MODEL``).
-``test_measure_candidate_layouts`` and ``test_measure_owner_layout`` measure the
-alternatives compared in Phase 2 of the plan; once the real assembly implements
-the decided layout, the baseline test measures it directly.
+Rows match production: developer-role rows use the built-in OpenAI connection
+and carry its explicit cache breakpoints; the row without a developer role and
+the local row (a loaded owner connection with the local-server options) carry
+none.
+``test_measure_candidate_layouts`` and ``test_measure_owner_layout`` are the
+Phase 2 comparisons. They rebuild their layouts from the current assembly, whose
+system text now ends with the guardrails, so their numbers are not an exact
+rerun of the Phase 2 record.
 
 Requires ``ANIMAMA_RUN_LIVE_TESTS=1`` with ``OPENAI_API_KEY`` and
 ``ANTHROPIC_API_KEY``. Run with ``-s`` to see the table; no content is printed.
@@ -55,8 +61,10 @@ from animama.app.model_clients import (
     ModelClientRequest,
 )
 from animama.app.model_clients.prompt import scoped_prompt_cache_key
+from animama.app.model_connection_presets import MODEL_CONNECTION_PRESETS, PRESET_CUSTOM, PRESET_OLLAMA
 from animama.app.safety.prompts import COMPANION_GUARDRAILS
 from animama.domain import ModelProvider, ModelProviderCapabilities
+from animama.domain.model_connection import BUILTIN_OPENAI_CONNECTION_ID, ModelConnection
 
 OPENAI_MODEL = "gpt-6-luna"
 ANTHROPIC_MODEL = "claude-haiku-5-5"
@@ -172,16 +180,33 @@ class _TurnUsage:
         return round(self.cached_tokens / self.input_tokens, 3) if self.input_tokens else 0.0
 
 
-def _openai_provider(provider_type: str, model: str) -> ModelProvider:
+def _openai_provider(
+    provider_type: str,
+    model: str,
+    *,
+    developer_role: bool = True,
+    connection: ModelConnection | None = None,
+) -> ModelProvider:
+    """A row as production builds it, so the adapter sends the same request shape.
+
+    ``developer_role=False`` models servers without a developer role (the
+    tagged-block path, with no cache breakpoints). ``connection`` is a loaded
+    owner connection (for a local server); without one the row uses the
+    built-in ``openai`` connection.
+    """
+
     return ModelProvider(
         id=f"{provider_type}:{model}",
         provider_type=provider_type,
         model=model,
         model_label=model,
         provider_label="OpenAI",
+        connection_id=connection.id if connection is not None else BUILTIN_OPENAI_CONNECTION_ID,
+        connection=connection,
         capabilities=ModelProviderCapabilities(
             supports_streaming=True,
             supports_tools=True,
+            supports_developer_role=developer_role,
             structured_kinds=["main_structured_response"],
             structured_output_transport="json_schema",
         ),
@@ -206,8 +231,9 @@ async def _run_openai_path(
     supports_developer_role: bool,
     use_cursor: bool,
     model: str = OPENAI_MODEL,
+    connection: ModelConnection | None = None,
 ) -> list[_TurnUsage]:
-    provider = _openai_provider(provider_type, model)
+    provider = _openai_provider(provider_type, model, developer_role=supports_developer_role, connection=connection)
     run_tag = uuid4().hex
     history: list[dict[str, str]] = []
     cursor: str | None = None
@@ -364,6 +390,13 @@ async def test_measure_prompt_cache_share_per_provider_path() -> None:
                     supports_developer_role=False,
                     use_cursor=False,
                     model=local_model,
+                    connection=ModelConnection(
+                        id="local-harness",
+                        name="Local harness",
+                        preset=PRESET_CUSTOM,
+                        base_url=local_base_url,
+                        compatibility=MODEL_CONNECTION_PRESETS[PRESET_OLLAMA].compatibility,
+                    ),
                 ),
                 local_model,
             )

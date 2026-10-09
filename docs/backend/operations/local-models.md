@@ -31,9 +31,9 @@ it yourself. A window recorded larger than the server serves makes the server
 reject long prompts; Animama then retries once with less history.
 
 Animama keeps every request within the recorded window. It compacts after a
-response once the conversation passes 75% of the available window (the window
-minus room for the reply; or
-`ANIMAMA_CHAT_COMPACTION_THRESHOLD_TOKENS`, 6,000 by default, if lower). A
+response once the conversation passes 70% of the window (or 75% of the window
+minus room for the reply, or `ANIMAMA_CHAT_COMPACTION_THRESHOLD_TOKENS`, 90,000
+by default, if either is lower). A
 turn that still nears the window shows "Summarizing earlier conversation…"
 while the Compaction model summarizes, and the oldest messages are left out of
 the request if needed. A turn fails with "The conversation is too long for …"

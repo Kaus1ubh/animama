@@ -740,11 +740,12 @@ it starts with a `# List of memory files` section. The list includes only
 user-scope file entries (`anima_id IS NULL`), uses cached paths such as
 `PROFILE.md`, and omits anima-scoped files and tree formatting. Any attached-file
 list follows, and the Companion Guardrails always end the
-message. `disable_memory_influence` suppresses the list and `MEMORIES.md` while keeping
-required anima identity active. Rows that do not support OpenAI's `developer`
-message role, including every row on a connection with the
-`fold_developer_role` compatibility option, receive all developer text folded
-in order into the end of the system instruction instead.
+message, as they end the system instructions. `disable_memory_influence`
+suppresses the list and `MEMORIES.md` while keeping required anima identity
+active. Rows that do not support OpenAI's `developer` message role, including
+every row on a connection with the `fold_developer_role` compatibility option,
+receive the same text in a `<turn_context>` block at the start of the user
+message instead.
 
 ## Installation Events
 

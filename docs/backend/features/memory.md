@@ -372,9 +372,9 @@ When the upload tools are equipped, the prompt includes a request-local list of
 the validated attached filenames and their persisted chunk counts. A count is
 backend-derived navigation metadata that helps the model plan bounded reads; it
 is not document-content evidence. The list follows the memory map in the
-trailing `developer` message; providers without developer-role support receive
-all developer text folded into the end of the system instruction, still ending
-with the Companion Guardrails. Distinct attachments with the same filename stay
+`developer` message before the user's message; providers without developer-role
+support receive it in the `<turn_context>` block that starts the user message.
+Both still end with the Companion Guardrails. Distinct attachments with the same filename stay
 as separate map entries because filename-based upload tools operate on every
 matching attachment.
 

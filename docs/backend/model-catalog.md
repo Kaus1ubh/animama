@@ -295,8 +295,8 @@ owner adds a connection from the `deepseek`, `huggingface` or `openrouter`
 preset and adds models under it. On self-hosted web the connection names the
 environment variable that holds its key (conventionally `DEEPSEEK_API_KEY`,
 `HF_TOKEN` or `OPENROUTER_API_KEY`); on desktop the key is kept in the
-encrypted vault. These presets fold `developer` messages into the system
-message and omit OpenAI request extensions; the
+encrypted vault. These presets send no `developer` messages
+(`fold_developer_role`) and omit OpenAI request extensions; the
 [preset table](runtime/model-client-providers.md#connection-presets) lists the
 remaining differences. Their rows use `OpenAIHTTPAgent`, so they share the
 `chat_completions` API standard and are blocked from Responses-backed chats by

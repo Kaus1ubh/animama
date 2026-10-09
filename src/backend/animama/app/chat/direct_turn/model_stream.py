@@ -64,7 +64,7 @@ from .provider_state import (
     openai_responses_continuation_from_final,
     should_retry_without_previous_response_id,
 )
-from .response_format import main_structured_response_guidance
+from .response_format import gesture_response_guidance, main_structured_response_guidance
 from .types import DirectChatTurnRequest, DirectChatTurnStreamError, PreparedDirectChatTurn
 
 _USAGE_REQUIRED_PROVIDER_TYPES = frozenset({OPENAI_CHAT_COMPLETIONS_PROVIDER, OPENAI_RESPONSES_PROVIDER})
@@ -872,9 +872,9 @@ class DirectTurnModelStreamCollector:
             memory_tool_specs=prepared.memory_tool_specs,
             visible_history=compiled_context_history(chat_context),
             response_format=response_format,
-            response_format_guidance=main_structured_response_guidance(
-                model_request.model_provider,
-                prepared.output_type,
+            response_format_guidance=gesture_response_guidance(
+                main_structured_response_guidance(model_request.model_provider, prepared.output_type),
+                prepared.request.runtime_gesture_descriptors,
             ),
             memory_tools_active=(
                 bool(prepared.memory_tool_specs) or model_request.provider_options.memory_apply_patch_enabled
@@ -1120,9 +1120,11 @@ def _model_request_without_tools(
     """Build a request for the final answer with tools removed.
 
     Used for the structured round of a split turn and for the forced final after
-    the tool round limit. A ``final_instruction`` is followed by the Companion
-    Guardrails so they remain the final instruction text (ADR 0008). Moderation
-    is only requested on round 0.
+    the tool round limit. A ``final_instruction`` is a developer message after
+    everything else, followed by the Companion Guardrails so they remain the
+    final instruction text (ADR 0008). Responses sends it as a developer item
+    after the tool outputs; rows without a developer role fold it into the
+    end of the system message. Moderation is only requested on round 0.
     """
 
     prompt = model_request.prompt
@@ -1218,9 +1220,9 @@ def _structured_repair_request(
     message. Rows that fold developer messages into the system message would
     end on that assistant message, which local servers continue as a prefill,
     so they get the instruction alone. Responses keeps the round's own
-    continuation and also gets the instruction alone, because its input after
-    a cursor is the trailing user message or tool outputs. Near a context
-    window the invalid reply is also left out when it would not fit.
+    continuation and also gets the instruction alone, as a developer item
+    after the round's new input (the user message or tool outputs). Near a
+    context window the invalid reply is also left out when it would not fit.
     """
 
     model_provider = final_request.model_provider

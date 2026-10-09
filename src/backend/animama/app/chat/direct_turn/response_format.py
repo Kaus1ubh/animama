@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Any
 
 from pydantic import BaseModel
@@ -15,6 +16,7 @@ from animama.app.model_catalog import STRUCTURED_OUTPUT_TRANSPORT_JSON_OBJECT
 from animama.domain import ModelProvider
 
 from ..options import DirectChatOptions
+from .types import RuntimeGestureDescriptor
 
 
 def build_main_structured_response_format(
@@ -81,6 +83,19 @@ def main_structured_response_guidance(
     ):
         return "\n\n".join((guidance, build_main_structured_prompt(output_type).strip()))
     return guidance
+
+
+def gesture_response_guidance(guidance: str, descriptors: Sequence[RuntimeGestureDescriptor]) -> str:
+    """Append the Anima's AI-selectable Gestures to the response guidance.
+
+    Every request of a turn, including a stale-cursor replay, uses this so the
+    stable instructions stay byte-identical.
+    """
+
+    if not descriptors:
+        return guidance
+    rows = "\n".join(f"- {row.selector}: {row.name} — {row.description}" for row in descriptors)
+    return f"{guidance}\n\nAvailable Gestures for this Anima:\n{rows}"
 
 
 def response_model_agent_id(node_id: str) -> str:

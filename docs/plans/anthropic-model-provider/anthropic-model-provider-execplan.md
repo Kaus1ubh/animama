@@ -74,8 +74,9 @@ Ownership and boundaries:
       the owner.
 - [x] Phase 3: Provider identity, connection, credentials and catalog. Done
       2026-10-09; Review #3 passed.
-- [ ] Phase 4: Cache-friendly instruction assembly for every provider. Not
-      started. Waits for the Phase 2 gate.
+- [x] Phase 4: Cache-friendly instruction assembly for every provider. Done
+      2026-10-09; Review #3 passed. After-shares: Responses cursor 0.90,
+      Chat Completions developer 0.87, tagged block 0.84.
 - [ ] Phase 5: Chat turns on Anthropic models. Not started.
 - [ ] Phase 6: Native web search and compaction. Not started.
 - [ ] Phase 7: Utility role and the Anthropic Memory Manager runtime. Not
@@ -995,6 +996,16 @@ mid-conversation system message and prompt-caching guides, read 2026-10-08/09):
       metadata.
   - **Chat Completions app-compaction trigger:** 70% of the model's context
     window, capped at 90,000 tokens.
+    - Phase 4 refinement (planning, recorded at Phase 4 review): the code
+      keeps the existing bound of 75% of the window minus the reply reserve,
+      so the trigger is `min(cap, 0.7 × window, 0.75 × (window − reply
+      reserve))`.
+    - For small windows with the default reserve (a quarter of the window),
+      0.7 × window would sit above the 90% pre-send trigger, so post-response
+      compaction would never run first. For example, at 8,192 tokens it would
+      be 5,734 against a pre-send trigger of 5,529.
+    - The extra bound only makes the trigger earlier, so it stays within the
+      owner's intent.
   - **Phase 2:** the owner accepted closing Phase 2 at the review limit, after
     the mechanical record fix that a diff verified.
 
@@ -1436,11 +1447,154 @@ Completion: tests pass; the OpenAI share does not fall and rises where layout
 was the cause; review leaves no blocker. If a path regresses, revise the layout,
 or return to the owner when the fix needs a different placement.
 
-Phase record: issue #368; starting source —; commit —.
+Phase record: issue #368; starting source `a94b820b`; commit —.
+
+Implementation (delegated agent, reviewed independently):
+
+- **Assembler:** `app/chat/openai_prompt.py` implements the D20 layout, and
+  `_fold_developer_messages_into_system` is gone.
+- **Chat Completions adapter:** explicit breakpoints on the built-in OpenAI
+  connection with a developer role.
+- **Responses adapter:** `instructions` holds only the stable system text; a
+  developer item goes before the user item every turn; with a cursor only new
+  items are sent; full-history requests get breakpoints on the last two
+  history user items.
+- **Compaction:** the Responses default is 90,000. The app-compaction trigger
+  is in `context_budget.py`, with a config cap of 90,000.
+- **Docs:** `prompt-caching.md` rewritten (Turn layout section); placement and
+  defaults updated in `model-client-providers.md`, `chat.md`, `http-api.md`,
+  `features/memory.md`, `model-catalog.md`, `local-models.md` and
+  `development.md`.
+- **Tests:** new `tests/test_turn_instruction_layout.py` (22) and
+  `test_context_budget.py` additions; the layout tests are updated.
+
+Live after-measurement (real assembly through the real adapters, source
+`a94b820b-dirty`, 2026-10-09, after the review fixes), mean cached share for
+turns 2–6:
+
+| Path | Phase 1 baseline | After |
+| --- | --- | --- |
+| Responses with a cursor | 0.00 | 0.90 |
+| Responses without a cursor (`store: false`) | 0.00 | 0.68 (the second request always misses) |
+| Chat Completions, developer role | 0.65 | 0.87 |
+| Chat Completions, no developer role (tagged block) | 0.00 | 0.84 (system prompt only on OpenAI) |
+
+No OpenAI path fell. The Anthropic line in this harness is still the naive
+mapping; Phase 5 replaces it.
+
+Command:
+`ANIMAMA_RUN_LIVE_TESTS=1 uv run --env-file "$HOME/.config/animama/dev-secrets.env" pytest -q -s tests/live/test_prompt_cache_layout.py::test_measure_prompt_cache_share_per_provider_path`.
 
 #### Code Review #1 Findings
 
+Independent `sdlc-reviewer`, full initial review of the working tree on
+`a94b820b`.
+
+It verified:
+
+- guardrails last on every path, including forced-final and repair;
+- nothing persisted beyond today's user text and tool rows;
+- the Responses cursor, tool-continuation and stale-cursor flows;
+- breakpoint gating;
+- the compaction wiring;
+- unchanged user text on developer-role paths.
+
+Checks: 252 focused tests passed; ruff, format and mypy passed; the import
+boundary was clean; the compose config was valid.
+
+- **P4-R1-F1 (blocking):** the harness's no-developer-role row still declared a
+  developer role on the built-in connection. The adapter therefore sent
+  breakpoints, and the published 0.87 for the tagged path measured a shape
+  production never sends. The local row would also have sent breakpoint fields.
+- **P4-R1-F2 (blocking, record only):** the app-compaction trigger adds a third
+  bound beyond D21's formula without a recorded decision.
+- **Optional findings:**
+  - **F3:** config-default tests read the import-time environment.
+  - **F4:** `prompt_instruction_text` has no production caller.
+  - **F5:** the fold option's UI label now overstates what it does.
+  - **F6:** pre-existing: the stale-cursor rebuild omitted the Gesture list.
+  - **F7:** the tag escape misses format-character variants.
+  - **F8:** ADR 0008 is stale until Phase 9.
+  - **F9:** breakpoints follow the built-in connection, even when
+    `OPENAI_BASE_URL` points it elsewhere.
+  - **F10:** a dangling sentence in `chat.md`.
+
 #### Code Review #1 Revisions
+
+- **F1 (accepted):**
+  - The harness rows now declare `supports_developer_role` as production does,
+    and the local row uses a non-built-in connection.
+  - Live re-measure: the tagged path is 0.84, reusing the system prompt only on
+    OpenAI.
+  - The doc and plan numbers and text are corrected.
+- **F2 (accepted, recorded):** the bound is recorded under D21 with its
+  rationale. It only makes the trigger earlier.
+- **F3 (rejected):** the root conftest deletes inherited `ANIMAMA_*` variables
+  before `animama.server.config` is imported, so operator values cannot reach
+  these tests.
+- **F4 (deferred, optional):** the cleanup is left for later, because tests
+  still use the helper.
+- **F5 (accepted):** added as Phase 8 step 6.
+- **F6 (accepted, fixed):**
+  - A new shared `gesture_response_guidance` is used by the executor and the
+    stale-cursor rebuild.
+  - A failing test was written first: the stale retry now keeps the Gesture
+    list, and the system prompt is byte-identical.
+- **F7 (deferred, optional):** a literal-tag escape meets D20.
+- **F8:** Phase 9, as planned.
+- **F9 (accepted):** an operations note added to `prompt-caching.md`.
+- **F10 (accepted):** the sentence is fixed.
+
+Verification: executor and layout tests (112) passed; ruff, format and mypy
+passed; full `make check-test` follows with Review #2.
+
+Repair budget: one of two rounds used.
+
+#### Code Review #2 Findings
+
+Targeted recheck. It verified F1, F2, F3 (the rejection holds), F5, F6, F9 and
+F10. Checks: 150 focused tests passed; ruff, format and mypy passed; the import
+boundary was clean.
+
+- **P4-R2-F1 (blocking, regression from F1):** the local row named
+  `local-harness` without a loaded connection, so
+  `connection_for_model_provider` raised `connection_unavailable` before any
+  request.
+- **P4-R2-F2:** the Responses-without-cursor mean was double-rounded to 0.69;
+  it is 0.68.
+- **P4-R2-F3:** the harness docstring still said every row names the built-in
+  connection.
+
+#### Code Review #2 Revisions
+
+- **R2-F1 (accepted):** the local row carries a loaded owner `ModelConnection`
+  (`local-harness`, preset `custom`, the Ollama preset's options: folded
+  developer role, no OpenAI extensions). An offline check resolves its
+  connection, with `accepts_developer_role` false.
+- **R2-F2 (accepted):** 0.68 in the doc and the plan.
+- **R2-F3 (accepted):** the docstring is corrected.
+
+Repair budget: two of two rounds used. Review #3 is the final targeted recheck.
+
+#### Code Review #3 Findings
+
+Final targeted recheck: **pass**, with no findings.
+
+- An offline run showed the local row now resolves its connection and fails
+  only at the network.
+- Request shapes are confirmed:
+  - built-in developer row: breakpoints and `prompt_cache_key`;
+  - built-in row without a developer role: `prompt_cache_key`, no
+    breakpoints;
+  - local row: neither.
+- 0.68 and the docstring are verified.
+
+#### Code Review #3 Revisions
+
+None needed. Full `make check-test` on the final tree passes audit, format,
+lint and mypy, with 3,352 passed and 22 skipped (live tests). The run started
+before the harness-only Review #2 edits; those files pass ruff, format and mypy
+and skip without keys.
 
 ### Phase 5: Chat turns on Anthropic models
 
@@ -1716,6 +1870,11 @@ Outcome:
 4. **`chat-failure.ts`** gets copy for `model_refused` ("The model declined to
    respond to this message. Try rephrasing it.") and the `anthropic_*` codes.
 5. Update the frontend provider-type constants.
+6. Correct the "Merge developer instructions into the system message" label and
+   help text (`ModelConnectionDialog.tsx`; `fold_developer_role` docstring in
+   `domain/model_connection.py`). Since Phase 4 that option sends the turn
+   context as a tagged block in the user message, and merges only the
+   compaction summary and within-turn instructions.
 
 Checks:
 

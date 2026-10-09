@@ -486,13 +486,19 @@ def _responses_output_item_done_event(
 
 
 def _messages_with_instructions() -> tuple[dict[str, str], ...]:
+    """Stable system text, history, then the turn context before the new user message."""
+
     return (
         {"role": "system", "content": "Core instruction"},
-        {"role": "developer", "content": _expected_memory_map_text()},
         {"role": "user", "content": "Compacted history"},
         {"role": "assistant", "content": "previous"},
+        {"role": "developer", "content": _expected_memory_map_text()},
         {"role": "user", "content": "hello"},
     )
+
+
+def _breakpoint_part(text: str, part_type: str = "text") -> dict[str, Any]:
+    return {"type": part_type, "text": text, "prompt_cache_breakpoint": {"mode": "explicit"}}
 
 
 def _memory_read_tool() -> ChatCompletionFunctionToolParam:
@@ -663,11 +669,12 @@ async def test_openai_chat_completions_client_streams_sdk_chunks_and_usage() -> 
     ]
     payload = fake_openai.create_calls[0]
     assert payload["model"] == "gpt-test"
+    # The built-in OpenAI connection marks the system message and the history replies.
     assert payload["messages"] == [
-        {"role": "system", "content": "Core instruction"},
-        {"role": "developer", "content": _expected_memory_map_text()},
+        {"role": "system", "content": [_breakpoint_part("Core instruction")]},
         {"role": "user", "content": "Compacted history"},
-        {"role": "assistant", "content": "previous"},
+        {"role": "assistant", "content": [_breakpoint_part("previous")]},
+        {"role": "developer", "content": _expected_memory_map_text()},
         {"role": "user", "content": "hello"},
     ]
     assert payload["stream"] is True
@@ -1297,8 +1304,12 @@ async def test_openai_responses_client_uses_sdk_stream_and_scoped_cursor() -> No
     assert fake_openai.with_options_calls == [{"base_url": "https://api.openai.example/v1", "timeout": 12.0}]
     payload = fake_openai.response_create_calls[0]
     assert payload["model"] == "gpt-test"
-    assert payload["input"] == [{"role": "user", "content": "hello"}]
-    assert payload["instructions"] == _expected_instruction_text()
+    # The stored response holds the history; the turn context and user message are new.
+    assert payload["input"] == [
+        {"role": "developer", "content": _expected_memory_map_text()},
+        {"role": "user", "content": "hello"},
+    ]
+    assert payload["instructions"] == "Core instruction"
     assert payload["previous_response_id"] == "resp_1"
     assert (
         payload["prompt_cache_key"] == sha256(b"user-1\x1fanima-1\x1fOpenAIResponsesHTTPAgent\x1fgpt-test").hexdigest()
@@ -1307,7 +1318,7 @@ async def test_openai_responses_client_uses_sdk_stream_and_scoped_cursor() -> No
     assert payload["store"] is True
     assert payload["text"]["format"]["type"] == "json_schema"
     assert payload["reasoning"] == {"effort": "low"}
-    assert payload["context_management"] == [{"type": "compaction", "compact_threshold": 200000}]
+    assert payload["context_management"] == [{"type": "compaction", "compact_threshold": 90_000}]
     assert payload["tools"] == [{"type": "web_search", "search_context_size": "low"}]
     final = public_deltas[2].final
     assert final is not None
@@ -1463,13 +1474,16 @@ async def test_openai_responses_client_sends_only_native_patch_output_with_curso
 
     payload = fake_openai.response_create_calls[0]
     assert payload["previous_response_id"] == "resp_patch"
+    # The forced-final instruction follows the tool output as a developer item, not in `instructions`.
+    assert payload["instructions"] == "Core instruction"
     assert payload["input"] == [
         {
             "type": "apply_patch_call_output",
             "call_id": "call_patch_1",
             "status": "failed",
             "output": '{"ok":false,"code":"conflict"}',
-        }
+        },
+        {"role": "developer", "content": "Produce the final response without more tools."},
     ]
 
 
@@ -1512,7 +1526,7 @@ async def test_openai_responses_client_explicitly_replays_native_patch_call_and_
     )
 
     assert fake_openai.response_create_calls[0]["input"] == [
-        {"role": "user", "content": "Remember this."},
+        {"role": "user", "content": [_breakpoint_part("Remember this.", "input_text")]},
         {
             "type": "apply_patch_call",
             "call_id": "call_patch_1",
@@ -1853,10 +1867,12 @@ async def test_openai_responses_client_replays_context_without_cursor() -> None:
 
     payload = fake_openai.response_create_calls[0]
     assert "previous_response_id" not in payload
-    assert payload["instructions"] == _expected_instruction_text()
+    assert payload["instructions"] == "Core instruction"
+    # Full history in the same order, with the history user message marked as a cache breakpoint.
     assert payload["input"] == [
-        {"role": "user", "content": "Compacted history"},
+        {"role": "user", "content": [_breakpoint_part("Compacted history", "input_text")]},
         {"role": "assistant", "content": "previous"},
+        {"role": "developer", "content": _expected_memory_map_text()},
         {"role": "user", "content": "hello"},
     ]
     assert deltas[-1].kind == "done"

@@ -86,14 +86,16 @@ influence enabled it also opens the Anima's `MEMORIES.md` and places it as
 unreadable file is omitted without failing the turn. When
 `disable_memory_influence` is true, direct chat still keeps anima identity
 active; `MEMORIES.md` and the memory file list are omitted.
-That message, placed just before the user message, holds the memory file list,
+The turn context, placed just before the user message, holds the memory file list,
 the attached-file list and, always last, the
-[Companion Guardrails](../../adr/0008-non-overridable-companion-guardrail.md).
+[Companion Guardrails](../../adr/0008-non-overridable-companion-guardrail.md),
+which also end the stable system instructions.
 Provider rows that expose `supports_developer_role: false`, such as rows on
 connections with the `fold_developer_role` option (the default for non-OpenAI
-presets), receive every `developer` message folded in order into the
-end of the system instruction, so the guardrail remains the final instruction
-text.
+presets), receive the same text in a `<turn_context>` block at the start of
+the user message instead, so the guardrail remains the final instruction text
+before the user's words. See the
+[turn layout](prompt-caching.md#turn-layout).
 Memory tools also depend on the selected row. A row without tool calling runs
 the turn without memory tools or attached-file search instead of failing
 setup, and a row whose owner turned off memory writes (`allow_memory_writes`)
@@ -429,17 +431,20 @@ Responses turns skip it and rely on provider-side compaction; Chat Completions
 models also compact before sending when a prompt nears their window (see the
 [context window budget](model-client-providers.md#context-window-budget)). If
 `chats.active_context_tokens` is at or above
-`ANIMAMA_CHAT_COMPACTION_THRESHOLD_TOKENS` (default 6000, lowered to 75% of the
-model's available window),
+the smallest of `ANIMAMA_CHAT_COMPACTION_THRESHOLD_TOKENS` (default 90000), 70%
+of the model's context window and 75% of the window left after the reply
+reserve,
 `ChatCompactionService` calls a separate backend-owned direct model prompt and
 stores the resulting summary in `chat_compactions`. Compaction summaries are not
 streamed as `user.response` events and are not inserted into `chat_messages`.
 Compaction model usage stays on the `chat_compactions` row rather than the
 chat's `cum_*` counters. Active compaction summaries record `start_turn` and
 `end_turn`; the next prompt uses the summary as a `developer` continuity
-message ahead of the exact visible messages with `turn > end_turn` when the
-selected provider serializes local context. If an OpenAI Responses turn
-continues from a chat-row `openai_previous_response_id`, the request sends only
+message directly after the system message and ahead of the exact visible
+messages with `turn > end_turn` when the selected provider serializes local
+context. Rows without a developer role get it at the end of the system message,
+before the closing guardrails. If an OpenAI Responses turn continues from a
+chat-row `openai_previous_response_id`, the request sends only the turn context,
 the new user input and the cursor, so the active summary is not physically
 included in that provider payload.
 

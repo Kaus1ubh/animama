@@ -86,6 +86,7 @@ from .direct_turn.provider_state import (
 )
 from .direct_turn.response_format import (
     build_main_structured_response_format,
+    gesture_response_guidance,
     main_structured_response_format_for_model,
     main_structured_response_guidance,
     response_model_agent_id,
@@ -1142,10 +1143,7 @@ class DirectChatTurnExecutor:
         guidance: str,
         descriptors: tuple[RuntimeGestureDescriptor, ...],
     ) -> str:
-        if not descriptors:
-            return guidance
-        rows = "\n".join(f"- {row.selector}: {row.name} — {row.description}" for row in descriptors)
-        return f"{guidance}\n\nAvailable Gestures for this Anima:\n{rows}"
+        return gesture_response_guidance(guidance, descriptors)
 
     def _build_prompt(
         self,

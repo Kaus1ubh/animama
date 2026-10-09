@@ -4,8 +4,8 @@ Providers bill and serve repeated prompt prefixes from a cache. A cached input
 token costs about a tenth of an uncached one, and it also cuts time to first
 token. Whether a chat turn reuses the cache depends on where its instructions,
 tools and history sit in the request, and on what changes between turns. This
-page describes each provider path's caching rules, how often each part of a
-turn's prompt changes, and how to measure reuse.
+page describes each provider path's caching rules, the turn layout each path
+sends, how often each part of a turn's prompt changes, and how to measure reuse.
 
 ## Measuring
 
@@ -15,8 +15,15 @@ and reports the share of input tokens each provider path served from cache on
 every turn.
 
 Each run tags its synthetic identity with a fresh nonce. Runs stay isolated
-while the shared text before the identity is shorter than the provider's minimum
-cacheable length. The harness sends no tools.
+while the shared text before the identity (the core instructions, about 265
+tokens) is shorter than the provider's minimum cacheable length. The harness
+sends no tools.
+
+Its rows match what production sends:
+
+- Developer-role rows name the built-in OpenAI connection, so they carry the
+  explicit breakpoints described below.
+- The row without a developer role, and the optional local row, carry none.
 
 See [tests/live/README.md](../../../tests/live/README.md) for keys, cost and the
 local-server option. Rerun it after any change to instruction assembly, tool
@@ -58,48 +65,134 @@ model. Chat Completions sends it only on connections with
 `send_openai_extensions`; see
 [model clients and providers](model-client-providers.md).
 
+## Turn layout
+
+`DirectChatPromptAssembler` (`app/chat/openai_prompt.py`) builds every turn
+from three parts:
+
+- **Stable instructions:** core instructions, Anima identity, `MEMORIES.md`,
+  memory guidance, response guidance with the Gesture list, and then the
+  Companion Guardrails.
+- **History**, replayed exactly as stored.
+- **Turn context:** the memory map, then the attachment list, then the
+  guardrails again, immediately before the user's new message.
+
+The last instruction text the model reads before the user's words is therefore
+always the guardrails, word for word
+([ADR 0008](../../adr/0008-non-overridable-companion-guardrail.md)).
+
+| Path | Request order |
+| --- | --- |
+| Chat Completions with a developer role | system (stable instructions); developer (app compaction summary, when there is one); history; developer (turn context); user |
+| Chat Completions without a developer role (the row lacks the role, or its connection sets `fold_developer_role`) | system (stable instructions, a `# Turn Context` description of the block, the compaction summary, then the guardrails); history; user (a `<turn_context>` block holding the turn context, then the user's words) |
+| OpenAI Responses | `instructions` (stable instructions); input: developer item (turn context), user item |
+
+On Responses the chain lives in OpenAI server state (`previous_response_id`,
+`store: true`). With a cursor, a request sends only the new items. Each turn's
+context item stays in the stored chain until native compaction runs at
+`ANIMAMA_OPENAI_RESPONSES_COMPACTION_THRESHOLD_TOKENS` (default 90,000).
+Requests without a cursor send history before the new items. These are the
+first turn, incognito turns (`store: false`) and the stale-cursor replay.
+
+### Explicit breakpoints
+
+Only requests on the built-in OpenAI connection carry breakpoints. Other servers
+never receive the field.
+
+- **Chat Completions with a developer role:** the system message and the last
+  two assistant replies before the turn's user message. Those are three
+  explicit writes, plus the implicit one at the user message. The previous
+  reply reads the entry the last request wrote, and the latest reply writes the
+  next one.
+- **Responses without a cursor:** the last two history user messages, as
+  `input_text` parts. `instructions` and assistant `output_text` cannot carry
+  one. Cursor requests need none, because the stored chain is the prefix.
+- **Rows without a developer role:** none. Local servers reuse the longest
+  identical token prefix by themselves.
+
+### Within a turn
+
+- Tool rounds append each call and its outputs after the user message. On
+  Responses with a cursor, a continuation sends only the outputs.
+- The forced-final instruction (at the tool or context limit) and the
+  structured repair instruction each end with the guardrails. They go where
+  they are added:
+  - a developer message on Chat Completions;
+  - a developer item after the round's new input on Responses;
+  - on rows without a developer role, the end of the system message for that
+    one request.
+
+### Tag escaping
+
+On rows without a developer role, every `<turn_context` or `</turn_context`
+is escaped as `&lt;`, in any case and with any spacing around the slash. This
+covers the user's text, replayed user messages, memory-map descriptions and
+attachment names, descriptions and outlines. Nothing can open, close or forge
+the block.
+
 ## What changes, and how often
 
 Each part's volatility class is how often it can change: per installation, per
 Anima, per chat, or per turn.
 
-| Part | Class | Where it is today | Changes when |
+| Part | Class | Where it is | Changes when |
 | --- | --- | --- | --- |
-| Tool definitions | per turn | before all instructions (OpenAI and Anthropic render tools first) | uploaded-file tools are added only on turns with attachments; write tools follow incognito and memory options; native web search follows the shared control. Any change misses the whole cache. |
-| Core instructions | per Anima | system, first | the Anima's name changes |
-| Anima identity (`IDENTITY.md`) | per Anima | system | the owner edits the identity |
-| Anima memories (`MEMORIES.md`) | per Anima | system | a chat memory tool or a Memory Manager Reflection edits it |
-| Memory and response guidance | per Anima | system | memory-write flags or the response format change |
-| Gesture list and response schema | per Anima | system (response guidance) and `response_format` | the Anima's loadout changes; the schema's `gesture` enum changes with it |
-| Compaction summary | per chat | developer message before history | app compaction runs, when the whole prompt reaches `ANIMAMA_CHAT_COMPACTION_THRESHOLD_TOKENS` (default 6,000). Not used on native-compaction paths. |
-| History | per turn | messages | every turn (append) |
-| Memory map (file paths and descriptions) | per installation | trailing developer message | a memory file is added, removed, moved or re-described |
-| Attachment list | per turn | trailing developer message | each turn that attaches files. The uploaded-file tools change with it. |
-| Companion Guardrails | per installation | trailing developer message, last | never ([ADR 0008](../../adr/0008-non-overridable-companion-guardrail.md)) |
-| Forced-final instruction | per turn | appended after tool results | within one turn only |
-| Repair instruction | per turn | appended after the invalid reply | within one turn only |
-
-On rows without a developer role, all developer text is folded into the system
-message, in order. On OpenAI Responses, system and developer text are sent
-together as `instructions`.
+| Tool definitions | per turn | before all instructions (OpenAI and Anthropic render tools first) | uploaded-file tools are added only on turns with attachments; write tools follow incognito and memory options; native web search follows the shared control. Any change misses the whole cache, so a turn with attachments and the turn after it miss. |
+| Core instructions | per Anima | stable instructions, first | the Anima's name changes |
+| Anima identity (`IDENTITY.md`) | per Anima | stable instructions | the owner edits the identity |
+| Anima memories (`MEMORIES.md`) | per Anima | stable instructions | a chat memory tool or a Memory Manager Reflection edits it. On Responses this also misses the stored chain's prefix; edits are rare. |
+| Memory and response guidance | per Anima | stable instructions | memory-write flags or the response format change |
+| Gesture list and response schema | per Anima | stable instructions (response guidance) and `response_format` | the Anima's loadout changes; the schema's `gesture` enum changes with it |
+| Companion Guardrails | per installation | end of the stable instructions, and end of the turn context | never ([ADR 0008](../../adr/0008-non-overridable-companion-guardrail.md)) |
+| Compaction summary | per chat | developer message after the system message, or the end of the system message before the guardrails | app compaction runs (Chat Completions only). The trigger is the smallest of `ANIMAMA_CHAT_COMPACTION_THRESHOLD_TOKENS` (default 90,000), 70% of the context window, and 75% of the window left after the reply reserve. Each run misses the history cache once. |
+| History | per turn | after the stable instructions | every turn (append) |
+| Memory map (file paths and descriptions) | per installation | turn context | a memory file is added, removed, moved or re-described |
+| Attachment list | per turn | turn context | each turn that attaches files. The uploaded-file tools change with it. |
+| Forced-final instruction | per turn | after the tool results | within one turn only |
+| Repair instruction | per turn | after the invalid reply's request | within one turn only |
 
 ## Current reuse
 
-Baseline from `tests/live/test_prompt_cache_layout.py`:
+Measured with `tests/live/test_prompt_cache_layout.py`:
 
 - Method: six scripted turns, a memory map that changes every turn, effort
   `low`.
-- Source: `b37abfa5-dirty`, 2026-10-08.
-- Models: OpenAI `gpt-6-luna` and Anthropic `claude-haiku-5-5`.
+- Source: `a94b820b-dirty`, 2026-10-09, after the Phase 4 review fixes.
+- Model: OpenAI `gpt-6-luna`.
 
-| Path | Mean cached share, turns 2–6 | Why |
-| --- | --- | --- |
-| Responses, with or without a cursor | 0.00 | The per-turn memory map is inside `instructions`, which render first. |
-| Chat Completions, developer role | 0.65 | Only the leading system message is reused. The per-turn developer message sits before the latest user message, where the implicit write lands, and it moves every turn. |
-| Chat Completions, developer text folded into system | 0.00 | The system message changes every turn. |
-| Anthropic Messages (folded layout, automatic caching) | 0.00 | The system message changes every turn. |
+| Path | Cached share by turn | Mean, turns 2–6 | Input tokens, turn 6 |
+| --- | --- | --- | --- |
+| Responses with a cursor | 0, 0.881, 0.892, 0.897, 0.911, 0.913 | 0.90 | 8,424 |
+| Responses without a cursor (`store: false`) | 0, 0, 0.854, 0.857, 0.856, 0.856 | 0.68 | 5,378 |
+| Chat Completions, developer role | 0, 0.864, 0.866, 0.872, 0.868, 0.872 | 0.87 | 5,406 |
+| Chat Completions, `<turn_context>` block | 0, 0.866, 0.851, 0.841, 0.823, 0.808 | 0.84 | 5,442 |
+
+- **Responses with a cursor:** input grows faster, because each turn's context
+  item stays in the stored chain until native compaction.
+- **Responses without a cursor:** the second request always misses. On the
+  first request the turn-context item directly follows `instructions` and joins
+  the initial block, so the only implicit write includes it. From the second
+  request on, a history user message follows `instructions`, and
+  `instructions` cannot carry a breakpoint. The marked history user messages
+  hit from the third request on. This path serves incognito chats and
+  stale-cursor replays; ordinary chats use the cursor after their first turn.
+- **Chat Completions without a developer role:** no breakpoints are sent. On
+  OpenAI only the stable system prompt is reused, through the implicit write at
+  the end of the initial block, so the share falls slowly as history grows. The
+  previous user message was sent with its block and is replayed without it, so
+  no later request repeats that prefix. Local servers reuse their token prefix
+  through the history before the previous user message. That was not
+  measured; no local server was available.
+
+Breakpoints are gated by the built-in `openai` connection, not by the host it
+targets. If `OPENAI_BASE_URL` points that connection at another endpoint, that
+endpoint receives the content-part arrays and must accept them.
 
 The harness changes the memory map every turn, which is the worst case. In
-production the map changes only when memory files change. The default app
-compaction trigger (6,000 tokens) can also rewrite the summary every few turns
-on Chat Completions; the harness's six turns stay below it.
+production the map changes only when memory files change.
+
+Before this layout (Phase 1 baseline, source `b37abfa5-dirty`, 2026-10-08), the
+per-turn memory map sat in Responses `instructions` and in the system message
+of rows without a developer role. Responses and those rows reused nothing
+(0.00). Chat Completions with a developer role reused only the system prompt
+(0.65).

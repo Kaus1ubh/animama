@@ -56,7 +56,7 @@ from .events import (
     responses_stream_event_delta,
 )
 from .final import response_final_parts
-from .request import create_response_kwargs, previous_response_id
+from .request import DEFAULT_RESPONSES_COMPACTION_THRESHOLD_TOKENS, create_response_kwargs, previous_response_id
 from .support import (
     OPENAI_API,
     OPENAI_MISSING_FINAL_ANSWER_PHASE_CODE,
@@ -112,7 +112,7 @@ class OpenAIResponsesModelClient:
         base_url: str | None = None,
         client: AsyncOpenAI | None = None,
         timeout: float | None = 60.0,
-        compaction_threshold_tokens: int | None = 200_000,
+        compaction_threshold_tokens: int | None = DEFAULT_RESPONSES_COMPACTION_THRESHOLD_TOKENS,
         close_client: bool | None = None,
     ) -> None:
         """``credential_resolver`` supplies the built-in OpenAI key per request;

@@ -107,7 +107,7 @@ persisted.
 
 `ANIMAMA_OPENAI_RESPONSES_COMPACTION_THRESHOLD_TOKENS` controls native
 server-side auto-compaction for `OpenAIResponsesHTTPAgent` Responses create
-requests. It defaults to `10000`. Values less than or equal to zero disable
+requests. It defaults to `90000`. Values less than or equal to zero disable
 the `context_management` payload. When enabled, the adapter sends
 `context_management: [{"type": "compaction", "compact_threshold": ...}]`; the
 OpenAI server decides whether to compact based on the rendered token count.
@@ -291,12 +291,16 @@ guidelines plus the dumped schema and example object because nothing enforces
 schema adherence. The identity section
 contains only file content rather than file path, status, revision, or
 fingerprint details. Anima profile columns, `metadata.direct_chat`, and pinned
-user profile content are not prompt sources. One request-local `developer`
-message always sits immediately before the latest user message: the user-scope
-memory file map (when memory influence is enabled), the attached-file list and
-finally the server-owned
+user profile content are not prompt sources. The system message ends with the
+server-owned
 [Companion Guardrails](../../adr/0008-non-overridable-companion-guardrail.md).
-The guardrail is always the last instruction text of the request.
+One request-local `developer` message always sits immediately before the latest
+user message: the user-scope memory file map (when memory influence is
+enabled), the attached-file list and finally the guardrails again, so they are
+the last instruction text before the user's words. An app compaction summary is
+a `developer` message directly after the system message. The
+[turn layout](prompt-caching.md#turn-layout) describes each provider path and
+its cache breakpoints.
 
 Model clients receive the same prompt contract. Chat Completions requests are
 shaped by the row's connection compatibility options
@@ -304,12 +308,14 @@ shaped by the row's connection compatibility options
 and edited under Advanced in App Settings). The built-in OpenAI connection uses
 the defaults: no folding, every field sent and `openai_effort`.
 
-- `fold_developer_role`: merge `developer` messages into the system message.
-  The row's `supports_developer_role` is then false, so the prompt assembler
-  folds every `developer` message, in order, into the end of the system
-  message and the guardrail stays last; the adapter also folds any remaining
-  `developer` messages into the first `system` message before dispatch. On by
-  default for every non-OpenAI preset.
+- `fold_developer_role`: send no `developer` messages. The row's
+  `supports_developer_role` is then false, so the prompt assembler puts the
+  turn context and the guardrails in a `<turn_context>` block at the start of
+  the user message, which the system message describes, and folds a compaction
+  summary into the system message before its closing guardrails. The adapter
+  folds within-turn `developer` instructions (forced final, repair) into the
+  end of the system message before dispatch. On by default for every
+  non-OpenAI preset.
 - `send_openai_extensions`: send `prompt_cache_key` and `parallel_tool_calls`,
   which some servers reject as unknown fields.
 - `send_stream_usage`: send `stream_options` (`include_usage`).
@@ -358,22 +364,23 @@ and lengths, never message text. A reply with no speakable text fails with
 `main_structured_response_parse_failed`. Memory changes made by the turn's
 tool calls stay in every case.
 
-`OpenAIResponsesHTTPAgent` moves all
-system/developer instruction text into the Responses `instructions` parameter
-every turn. Request-local guidance such as the memory map stays in
-`instructions` so Responses continuation via `previous_response_id` does not
-carry stale map copies forward in provider-managed input history. If the chat
-row has an `openai_previous_response_id`, its `input` contains only the current
-user message or current turn's function-call outputs, and the executor skips
-fetching local chat history for that normal cursor-backed request.
-Without a cursor, Responses input contains the remaining conversation messages:
-user and assistant content become normal Responses input messages, assistant
-function calls become Responses `function_call` items, and tool rows become
-Responses `function_call_output` items. Persisted provider-neutral native patch
-exchanges become typed SDK `ApplyPatchCall` and `ApplyPatchCallOutput` items.
-This is the manual-context path used for new Responses chats and for
-stale-cursor fallback. With a cursor, a tool follow-up sends only the trailing
-call outputs required by the previous response.
+`OpenAIResponsesHTTPAgent` sends only the stable system message as the
+Responses `instructions` parameter, which ends with the guardrails. The turn
+context travels as a `developer` input item before the user item. If the chat
+row has an `openai_previous_response_id`, its `input` contains only that
+developer item and the current user message, or the current turn's
+function-call outputs, followed by any forced-final or repair instruction as a
+`developer` item. The executor skips fetching local chat history for that
+normal cursor-backed request. Each turn's context item stays in the stored
+chain until native compaction.
+Without a cursor, Responses input contains the remaining conversation messages
+in the same order: user and assistant content become normal Responses input
+messages, assistant function calls become Responses `function_call` items, and
+tool rows become Responses `function_call_output` items. Persisted
+provider-neutral native patch exchanges become typed SDK `ApplyPatchCall` and
+`ApplyPatchCallOutput` items. This is the manual-context path used for new
+Responses chats, incognito turns (`store: false`) and stale-cursor fallback; it
+marks the last two history user messages as explicit cache breakpoints.
 OpenAI SDK clients and provider
 response objects stay inside adapter modules; application services persist only
 domain data and JSON-safe metadata.
@@ -433,8 +440,8 @@ message instead of splitting speech and display into separate durable rows.
 replays local visible history instead of sending `previous_response_id`. Active
 compaction summaries are part of that replayed local context. They are not
 fetched or sent as Responses `input` on cursor-backed turns because the provider
-request carries only current instructions, current user input or function-call
-outputs, and `previous_response_id`. If OpenAI reports that the previous
+request carries only the stable instructions, the turn context and user input
+or function-call outputs, and `previous_response_id`. If OpenAI reports that the previous
 response cannot be resolved, the executor fetches local history lazily and
 retries the same provider call once with continuation removed. The retry uses
 the manual-context serialization above, and a successful non-incognito final
@@ -527,8 +534,11 @@ service owns durable state, such as `chat_compactions`.
 
 After a successful non-incognito Chat Completions turn, the local
 post-response compaction pass runs when `chats.active_context_tokens` reaches
-`ANIMAMA_CHAT_COMPACTION_THRESHOLD_TOKENS` (default 6000), or 75% of the
-model's available window if that is lower. Primary `chat:sse` turns that use
+the smallest of `ANIMAMA_CHAT_COMPACTION_THRESHOLD_TOKENS` (default 90000), 70%
+of the model's context window, and 75% of the window left after the reply
+reserve. The last bound matters only for rows with a large reply reserve; it
+keeps this pass ahead of the 90% pre-send trigger. Each compaction rewrites
+the summary that heads the cached history, so the trigger is set high. Primary `chat:sse` turns that use
 `OpenAIResponsesHTTPAgent` skip the local pass and rely on Responses
 server-side compaction instead.
 

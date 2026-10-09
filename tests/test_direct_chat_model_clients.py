@@ -370,15 +370,20 @@ def test_direct_chat_prompt_assembler_lists_attached_upload_overviews_in_request
         supports_developer_role=False,
     )
     assert [message["role"] for message in folded_prompt.messages] == ["system", "user"]
-    folded_content = folded_prompt.messages[0]["content"]
-    assert isinstance(folded_content, str)
-    assert "Do not default to reading `PROFILE.md`" in folded_content
-    assert folded_content.endswith(COMPANION_GUARDRAILS.strip())
-    assert folded_content.index('title: "Milestones"') < folded_content.index("# Companion Guardrails")
-    assert 'filename: "first-notes.md"' in folded_content
-    assert "chunk_count: 12" in folded_content
-    assert 'description: "Project notes and milestones."' in folded_content
-    assert 'title: "Milestones"' in folded_content
+    folded_system = folded_prompt.messages[0]["content"]
+    assert isinstance(folded_system, str)
+    assert "Do not default to reading `PROFILE.md`" in folded_system
+    assert folded_system.endswith(COMPANION_GUARDRAILS.strip())
+    assert 'filename: "first-notes.md"' not in folded_system
+    # Without a developer role the attachment list travels in the user message's turn-context block.
+    folded_user = folded_prompt.messages[1]["content"]
+    assert isinstance(folded_user, str)
+    assert folded_user.startswith("<turn_context>\n# List of attached user-uploaded files")
+    assert folded_user.endswith("</turn_context>\n\nCompare the attached files")
+    assert folded_user.index('title: "Milestones"') < folded_user.index("# Companion Guardrails")
+    assert 'filename: "first-notes.md"' in folded_user
+    assert "chunk_count: 12" in folded_user
+    assert 'description: "Project notes and milestones."' in folded_user
 
 
 def test_direct_chat_prompt_assembler_bounds_attachment_context_deterministically() -> None:
