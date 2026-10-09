@@ -77,7 +77,7 @@ Paths: frontend relative to `src/frontend/web/`, backend to
       `animama-particle-scene-effects` on `feat/particle-scene-effects`. No task
       stack yet.
 - [ ] P1 — Scene family designs (R2 input). Briefs, mocks and capability list ready (2026-10-09); waiting for G1.
-- [ ] P2 — Art budgets and shared import limits (R6).
+- [x] P2 — Art budgets and shared import limits (R6). Review passed at round 3.
 - [ ] P3 — Particle texture import (R1).
 - [ ] P4 — Check, render and bench for Particle and Scene Effects (R3).
 - [ ] P5 — Scene layer capabilities (R2). Waits for G1.
@@ -337,9 +337,93 @@ one copy changes.
 
 #### P2 record
 
+Starting source and issue: `050265ef`, #387.
+
+Delivered:
+
+- `effects:assets` budgets `particle-texture` (512 px, 256 KiB),
+  `particle-sheet` (2048 px, 1 MiB), `scene-sticker` (512 px, 256 KiB),
+  `scene-tile` (512 px, 256 KiB) and `scene-background` (2048 px, 1 MiB).
+  Each names its kind's hard limits, and `check` reports those limits. Tiles
+  and backgrounds may be opaque (no `no_alpha`, `solid_background` or
+  `opaque_border`; a painted checkerboard still fails) and keep their framing
+  (`fix` refuses `--trim`, `--square` and `--pad`, as for face-surface art).
+- Hard limits in one record,
+  `src/frontend/web/src/lib/content/fixtures/effect-art-limits.json`, read by
+  the script and compared with `lib/effects/effectArtLimits.ts` (vitest) and
+  `app/contracts/effect_art_limits.py` (pytest): Particle textures 4 MiB,
+  2048 px, grid 16, 16 per effect, 32 MiB in total; Scene images 8 MiB,
+  4096 px, 16 per effect, 32 MiB in total. `inspectEffectArt` checks bytes,
+  format and header dimensions without decoding and names the limit it broke.
+  Applying the limits in the creators, backend validators and runtime loaders
+  is P3 and P5.
+- `animama-effect-assets` lists the new budgets and limits.
+- Values checked against the P1 designs: every family uses stickers and
+  tiles within 512 px, gradients and screens are procedural, and no design
+  needs a full background image; `scene-background` exists for user art and
+  R6.
+
+Checks (agent, 2026-10-09): `node --test scripts/effect-assets.test.mjs`
+(33 pass), `pnpm exec vitest run src/lib/effects/effectArtLimits.test.ts`
+(6 pass), `uv run pytest -q tests/test_effect_art_limits.py` (2 pass),
+`pnpm check`, `pnpm web:lint`, Prettier on the changed files, `uv run ruff
+check` and `ruff format --check` on the new Python files.
+
 #### Code Review #1 Findings
 
+Reviewed source: working tree on `050265ef`; full initial review
+(`sdlc-reviewer`).
+
+- **P2-R1-F1 (required):** opaque-allowed budgets skipped the checkerboard
+  FAIL as well as the three checks the plan names, so a tile with a painted
+  checkerboard passed.
+- P2-R1-F2 (optional): reusing `keepsLayout` for tiles also suppresses the
+  `interior_translucency` warning.
+- P2-R1-F3 (optional): `fix --canvas` was not refused for budgets that keep
+  their framing.
+- P2-R1-F4 (optional): the backend parity test compared fields one by one, so
+  a new fixture key would not fail it.
+- P2-R1-F5 (optional): nothing ties the Particle grid limit to the flipbook
+  grid that `flipbook` uses for sheets.
+- P2-R1-F6 (optional): `inspectEffectArt` repeats container signature checks
+  (the Particle package builder has a third copy).
+- P2-R1-F7, F8 (notes for P5): SVG Scene images need a path besides
+  `inspectEffectArt`; `SCENE_IMAGE_LIMITS` duplicates the Scene editor's
+  private count and byte limits.
+- P2-R1-F9 (note for P9): `avatar-vfx.md` lists only Avatar budgets.
+- P2-R1-F10 (record): this record was empty.
+
 #### Code Review #1 Revisions
+
+- F1 accepted: `detectBackground` always runs; opaque budgets skip only
+  `no_alpha`, `solid_background` and `opaque_border`. Test: a checkered tile
+  fails with `checkerboard` and without `no_alpha`.
+- F2 rejected: Scene tiles are often see-through by design (soft bokeh,
+  glows), the same reason face tints skip the warning.
+- F3 accepted, then reverted after Code Review #2: refusing `--canvas` for
+  every budget that keeps its layout also blocked the documented
+  `--budget surface --canvas` reframing of iris and decal art.
+- F4 accepted: the pytest compares the whole mapping with the fixture.
+- F5 accepted as a sync test: the Particle grid limit equals the flipbook
+  grid.
+- F6 deferred to P3, which replaces the package builder's signature check
+  with the shared one so one detector remains.
+- F7 and F8 recorded for P5; F9 for P9; F10 done above.
+- Checks after revisions: `node --test scripts/effect-assets.test.mjs`
+  (33 pass), the P2 pytest (2 pass), Prettier and ruff on the changed files.
+
+#### Code Review #2 (repair round 1)
+
+- F1, F4 and F5 verified fixed; dispositions consistent.
+- **P2-R2-F1 (required):** the F3 change refused `fix --budget surface
+  --canvas`, which the Avatar Effect skill and guide document for iris and
+  decal art. Fixed by reverting F3 (message and skill restored); `fix
+  --budget surface --canvas 512 --art-size 168` is accepted again.
+
+#### Code Review #3 (repair round 2)
+
+Pass: the revert restores the surface `--canvas` workflow; the other guards
+and the F1 fix hold; tests 33 and 2 pass. No findings.
 
 ### P3 — Particle texture import (R1). #388
 

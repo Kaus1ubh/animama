@@ -113,10 +113,20 @@ effect skill).
 | `sticker` | Sticker beside the Avatar | 512 px | 256 KiB |
 | `silhouette` | Silhouette overlay art | 1024 px | 512 KiB |
 | `flipbook` | A whole flipbook sheet; frames near 256 px | 2048 px | 1024 KiB |
+| `particle-texture` | One Particle sprite | 512 px | 256 KiB |
+| `particle-sheet` | A Particle sprite sheet; tiles near 256 px | 2048 px | 1024 KiB |
+| `scene-sticker` | A Scene marquee item | 512 px | 256 KiB |
+| `scene-tile` | A repeating Scene pattern tile (may be opaque; keeps its margins) | 512 px | 256 KiB |
+| `scene-background` | A full Scene background (may be opaque; keeps its framing) | 2048 px | 1024 KiB |
 
-Exceed a budget only when the brief justifies it; the app's hard limits
-(4096 px, 16 MiB) still apply. Particle and Scene textures, sprite sheets and
-tiles (#297) use the same commands with the budget their skill names.
+Exceed a budget only when the brief justifies it; the app's hard limits still
+apply: 4096 px and 16 MiB for Avatar Effect images, 2048 px and 4 MiB for
+Particle textures (sheets up to 16 × 16 tiles), 4096 px and 8 MiB for Scene
+images. `check` reports the hard limit of the budget's kind. Particle sheets
+are assembled with `flipbook` like Avatar Effect flipbooks; its grid becomes
+the emitter's tile counts. `scene-tile` and `scene-background` art may be
+fully opaque (a painted checkerboard still fails), and like face-surface art
+it keeps its size and margins (no `--trim`, `--square` or `--pad`).
 
 Face-surface art for a whole part (face skin, irises, lashes) must match that
 part's UV layout; generate it over the creator's UV guide or edit an existing
