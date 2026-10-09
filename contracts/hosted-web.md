@@ -44,7 +44,8 @@ and the sidebar menu) while the URL is absent or invalid. This field does not
 authorize API calls or alter the immutable entry document. The consumer supplies
 its configured central account URL in every context response.
 
-An active hosted context may also supply `recovery_session_id`, a URL-safe opaque
+A hosted context with a verified session (in any state, including first-use
+setup) may also supply `recovery_session_id`, a URL-safe opaque
 string of 16–128 characters (`A–Z`, `a–z`, digits, `_`, `-`). It is noncredential
 metadata, stable across token/CSRF refresh for one authenticated browser session
 and changed on sign-in/session replacement. It never authorizes a request. The
