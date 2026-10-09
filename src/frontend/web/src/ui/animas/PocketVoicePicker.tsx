@@ -31,6 +31,7 @@ import {
 } from "@/ui/components/popover";
 import { Checkbox } from "@/ui/components/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/components/tabs";
+import { OPERATOR_MANAGED_MODELS_NOTE } from "@/ui/settings/operator-managed-models";
 
 type VoiceFilter = {
   gender: "any" | PocketVoiceGender;
@@ -68,7 +69,26 @@ type PocketVoicePickerProps = {
   downloadBlockedReason?: string | null;
   downloadError?: string | null;
   retryAssetIds?: ReadonlySet<string>;
+  /** The runtime's operator provides voices; none is downloaded here. */
+  operatorManaged?: boolean;
 };
+
+/**
+ * Whether an operator-provided voice is unavailable: the operator did not
+ * provide it and this app never downloads it. A state that is still loading
+ * (`unknown`) is not treated as unavailable.
+ */
+export function pocketVoiceNotProvided(
+  availability: PocketVoiceAvailability | null,
+  operatorManaged: boolean,
+): boolean {
+  return (
+    operatorManaged &&
+    availability !== null &&
+    availability.status !== "installed" &&
+    availability.status !== "unknown"
+  );
+}
 
 type VoiceSamplePlayback = {
   sample: VoiceSampleState;
@@ -167,6 +187,7 @@ export function PocketVoiceList({
   downloadBlockedReason,
   downloadError,
   retryAssetIds,
+  operatorManaged = false,
   onDeleteClone,
   onSelected,
   sample,
@@ -194,6 +215,14 @@ export function PocketVoiceList({
       )
     : [];
   const count = voices.length + matchingClones.length + Number(showUploaded);
+  const notProvided = (voiceId: string) =>
+    pocketVoiceNotProvided(availability(voiceId), operatorManaged);
+  const footer =
+    downloadBlockedReason ||
+    downloadError ||
+    (voices.some((voice) => notProvided(voice.id))
+      ? OPERATOR_MANAGED_MODELS_NOTE
+      : null);
   const choose = async (id: string) => {
     try {
       await onSelect(id);
@@ -354,8 +383,11 @@ export function PocketVoiceList({
           ) : null}
           {voices.map((voice) => {
             const download = availability(voice.id);
+            const unavailable = notProvided(voice.id);
             const downloading = download?.status === "downloading";
-            const needsDownload = download && download.status !== "installed";
+            // Operator-provided voices are never downloaded here.
+            const needsDownload =
+              !operatorManaged && download && download.status !== "installed";
             const retry =
               download?.status === "failed" ||
               Boolean(download && retryAssetIds?.has(download.assetId));
@@ -372,7 +404,7 @@ export function PocketVoiceList({
               >
                 <button
                   type="button"
-                  disabled={disabled}
+                  disabled={disabled || unavailable}
                   onClick={() => void choose(voice.id)}
                   aria-label={`Select ${voice.name}`}
                   aria-pressed={value === voice.id}
@@ -381,7 +413,11 @@ export function PocketVoiceList({
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">{voice.name}</p>
                     <p className="text-muted-foreground text-xs">
-                      {[voice.accent, voice.recommended ? "Recommended" : null]
+                      {[
+                        voice.accent,
+                        voice.recommended ? "Recommended" : null,
+                        unavailable ? "Not available" : null,
+                      ]
                         .filter(Boolean)
                         .join(" · ")}
                     </p>
@@ -441,8 +477,14 @@ export function PocketVoiceList({
                   ) : !voice.assetId || download?.status === "installed" ? (
                     <span
                       role="img"
-                      aria-label={`${voice.name} ${voice.assetId ? "downloaded" : "included"}`}
-                      title={voice.assetId ? "Downloaded" : "Included"}
+                      aria-label={`${voice.name} ${!voice.assetId ? "included" : operatorManaged ? "available" : "downloaded"}`}
+                      title={
+                        !voice.assetId
+                          ? "Included"
+                          : operatorManaged
+                            ? "Available"
+                            : "Downloaded"
+                      }
                       className="text-muted-foreground flex size-8 items-center justify-center"
                     >
                       <Check className="size-4" aria-hidden="true" />
@@ -469,12 +511,12 @@ export function PocketVoiceList({
           ) : null}
         </div>
       </TabsContent>
-      {downloadBlockedReason || downloadError ? (
+      {footer ? (
         <p
           role="status"
           className="text-muted-foreground shrink-0 border-t px-4 py-3 text-xs"
         >
-          {downloadBlockedReason || downloadError}
+          {footer}
         </p>
       ) : null}
       {sample.error ? (

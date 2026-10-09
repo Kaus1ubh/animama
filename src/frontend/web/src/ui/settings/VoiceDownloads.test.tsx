@@ -43,7 +43,9 @@ vi.mock("@/hooks/use-pocket-voice-downloads", () => ({
     remove: manager.mutate,
   }),
 }));
-vi.mock("@/query/hooks/useModelAssets", () => ({
+vi.mock("@/query/hooks/useModelAssets", async (importOriginal) => ({
+  // The real operator-managed check reads the mocked runtime capabilities.
+  ...(await importOriginal<typeof import("@/query/hooks/useModelAssets")>()),
   useModelAssets: () => ({
     data: { assets: manager.assets, free_bytes: 40 * 1024 ** 3 },
     retryAssetIds: manager.retryAssetIds,

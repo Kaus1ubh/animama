@@ -170,6 +170,7 @@ export function CreateAnimaVoiceStep({
               downloadBlockedReason={downloads.blockedReason}
               downloadError={downloads.error}
               retryAssetIds={downloads.retryAssetIds}
+              operatorManaged={downloads.operatorManaged}
             />
             {selectedId &&
             !library.isPending &&
