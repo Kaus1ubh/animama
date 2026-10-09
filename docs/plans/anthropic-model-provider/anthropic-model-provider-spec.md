@@ -1,7 +1,7 @@
 # Anthropic models and cache-friendly instruction assembly
 
 Status: Agreed, including the 2026-10-08 scope additions (R5 setting, R11, R12).
-Planning clarifications to R4, R6 and R8 are decided at the Phase 2 gate.
+Planning clarifications to R4, R6 and R8 were confirmed on 2026-10-09.
 Owner decision:
 
 - 2026-10-07: intent discovery agreed the motivation, owner-supplied key,
@@ -177,9 +177,9 @@ Exclude:
   100,000 prompt tokens.
   - The setting is on by default, and the owner can turn it off per model.
     The choice survives catalog re-seeding.
-  - When on, compaction triggers before the step: at 80% of the step, and
+  - When on, compaction triggers before the step: at 90% of the step, and
     never below Anthropic's 50,000-token minimum. For Haiku 5.5 that is
-    80,000 tokens.
+    90,000 tokens (owner, 2026-10-09).
   - When off, compaction triggers at Anthropic's default of 150,000 tokens.
     This keeps more history word for word at the higher price.
   - Models without a price step, including unpriced owner-added rows, always
@@ -379,7 +379,7 @@ transport. These tests cannot establish real model, audio or avatar fidelity.
       compaction, and the summarized indication appears. Evidence: owner smoke
       at the 50,000-token minimum trigger, and a test that persists and resends
       the compaction block.
-- [ ] Haiku 5.5 shows **Compact early**, on by default. Requests use an 80,000
+- [ ] Haiku 5.5 shows **Compact early**, on by default. Requests use a 90,000
       trigger when it is on and 150,000 when it is off. The choice survives a
       re-seed. Unpriced owner-added rows show no setting. Evidence: backend
       request-shape and seed tests; owner smoke of the setting.
@@ -480,11 +480,31 @@ Decided on 2026-10-08:
   - Instruction assembly optimized for prefix caching on every provider path,
     absorbing #155 (R11).
 
-Awaiting owner decision at the Phase 2 gate:
+Decided 2026-10-09 (owner), at the Phase 2 presentation:
 
-- The R4, R6 and R8 planning clarifications above. The owner asked for a clear
-  per-provider comparison of today's behavior against the best strategy before
-  deciding R4 and the R11 layout.
+- **R4, R6 and R8:** the planning clarifications are confirmed.
+  - R4: Anthropic drops thinking across turns.
+  - R6: sources are stored, not displayed.
+  - R8: the Claude Memory Manager refuses delete and rename.
+- **Compaction thresholds:** 90,000 tokens for OpenAI Responses native
+  compaction (today 10,000) and for Anthropic **Compact early**.
+- **OpenAI Responses:** keeps OpenAI-native server state
+  (`previous_response_id`, `store`) and native compaction.
+- **Turn context and Companion Guardrails:** they go before the user's new
+  message.
+  - They use a `developer` role, or a mid-conversation `system` role, where the
+    provider supports that position.
+  - Otherwise they go in a tagged block inside the user's new message, and the
+    top-level system instructions describe that format.
+  - Cached history must keep being reused. Execution planning verifies this
+    with live measurements.
+- **Other choices:** the planning recommendations are adopted. That includes
+  per-provider tool-call and reasoning handling.
+- **Anthropic placement:** the turn context and guardrails go in a
+  mid-conversation `system` message after the user turn, with no tagged block,
+  because Anthropic accepts system messages only after a user turn.
+- **Chat Completions app compaction:** triggers at 70% of the model's context
+  window, capped at 90,000 tokens (today a fixed 6,000).
 
 ## Spec
 

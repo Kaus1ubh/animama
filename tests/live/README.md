@@ -72,8 +72,10 @@ cache while the shared text before the identity stays under the provider minimum
 Chat Completions server.
 
 Both make paid requests. They need `ANTHROPIC_API_KEY`, and the harness also
-needs `OPENAI_API_KEY`. A full run of both costs well under US$0.50: it includes
-six web searches and one compaction request of about 57,000 tokens. Use `-s` to
+needs `OPENAI_API_KEY`. A full run of both costs well under US$0.50. It includes
+six web searches, one compaction request of about 57,000 tokens, and 16
+six-turn harness passes across today's layout, the candidates and the owner
+layout. Run a single harness test with `::test_name` to spend less. Use `-s` to
 see the recorded measurements, which contain no request or response content.
 With the owner-only secrets file:
 

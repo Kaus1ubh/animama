@@ -4,7 +4,7 @@ Status: In progress. All phases authorized by the owner's `/implement` on
 2026-10-08. The explicit gates remain:
 
 - Phase 1 live spend, already authorized;
-- the Phase 2 owner decision;
+- the Phase 2 owner decision, made 2026-10-09 (D19);
 - the Phase 9 owner live smoke.
 
 Source agreement: [spec](anthropic-model-provider-spec.md), published as parent
@@ -18,8 +18,10 @@ issue [#364](https://github.com/raymond-van/animama/issues/364) on 2026-10-08.
   - instruction assembly for prefix caching on every provider, absorbing #155
     (R11);
   - Anthropic-tuned instructions and effort defaults (R12).
-- **Decided at the Phase 2 gate, not yet:** the R4, R6 and R8 planning
-  clarifications, marked in the spec.
+- **2026-10-09 owner decisions at the Phase 2 presentation (D19):**
+  - R4, R6 and R8 confirmed;
+  - OpenAI Responses keeps server state, with compaction at 90,000 tokens;
+  - turn context and guardrails go before the user's new message.
 
 Authorized scope: phases 1–9, by the owner's `/implement` on 2026-10-08.
 Exact-candidate merge approval stays separate.
@@ -67,10 +69,11 @@ Ownership and boundaries:
 - [x] Phase 1: Live contract verification, SDK and cache baseline. Done
       2026-10-08. Live checks and isolated baseline recorded; Review #3
       passed.
-- [ ] Phase 2: Caching findings and layout recommendation. Not started.
-      Owner decision gate.
+- [x] Phase 2: Caching findings and layout recommendation. Done 2026-10-09.
+      Owner decisions D19 and D21, strategy D20; Review #3 limit acknowledged by
+      the owner.
 - [ ] Phase 3: Provider identity, connection, credentials and catalog. Not
-      started. May run while the Phase 2 gate is pending.
+      started. Proceeds after Phase 2 completes.
 - [ ] Phase 4: Cache-friendly instruction assembly for every provider. Not
       started. Waits for the Phase 2 gate.
 - [ ] Phase 5: Chat turns on Anthropic models. Not started.
@@ -151,16 +154,18 @@ stated:
   the native memory tool. The Claude Agent SDK was rejected.
 - **D3 (planning):** ordinary chat memory tools on Anthropic rows keep their
   strict function-tool form.
-- **D4 (2026-10-08, owner; replaces the earlier proposal):** compaction uses
-  threshold `compact_20260112`.
+- **D4 (2026-10-08, owner; trigger revised 2026-10-09 by owner):** compaction
+  uses threshold `compact_20260112`.
   - `pause_after_compaction` is false, and turns are never re-inserted.
   - The trigger comes from the row:
     - with **Compact early** on (the default, offered only on rows with a
       long-context price threshold), the trigger is
-      `max(50_000, floor(0.8 × threshold))`, which is 80,000 for Haiku 5.5;
+      `max(50_000, floor(0.9 × threshold))`, which is 90,000 for Haiku 5.5;
     - otherwise it is 150,000.
-  - There is no environment setting. The OpenAI Responses threshold is not
-    reused.
+  - There is no environment setting.
+  - The OpenAI Responses native compaction default also becomes 90,000
+    (`ANIMAMA_OPENAI_RESPONSES_COMPACTION_THRESHOLD_TOKENS`, today 10,000).
+    This is done in Phase 4.
 - **D5 (planning):** Haiku's tiered pricing populates the existing long-context
   fields (threshold 100,000; $0.50 input, $0.05 cached, $2.50 output). The
   estimator's tier gap is recorded, not fixed.
@@ -229,6 +234,22 @@ stated:
     the layout.
   - Until then, D8 is the working assumption, and only phases independent of it
     proceed.
+- **D19 (2026-10-09, owner, at the Phase 2 presentation):**
+  - R4, R6 and R8 follow the recommendations (D8; sources stored and not
+    displayed; delete and rename refused).
+  - OpenAI Responses keeps OpenAI server state (`previous_response_id`,
+    `store: true`) and native compaction, with the threshold raised to 90,000
+    (L2 and L3).
+  - Turn context and guardrails go **before** the user's new message:
+    - as a `developer` message, or a mid-conversation `system` message, where
+      the provider supports that position;
+    - otherwise as a tagged block inside the user's message, which the
+      top-level instructions describe (L1 and L4, the owner's variant).
+  - Tool-call and reasoning handling per provider follows the planning
+    recommendation.
+  - The owner authorized live API runs against the real endpoints for
+    evaluation during this plan, and asked that decisions use the providers'
+    current documentation.
 
 ## Implementation orientation
 
@@ -351,8 +372,8 @@ When implementation is authorized:
      `prompts`, `memory` or `settings`.
 
    Stop and report blockers left after the repair budget.
-7. Phases run in order. The exception: Phase 3 may proceed while Phase 2's owner
-   gate is pending, and Phase 4 waits for that gate.
+7. Phases run in order. Phase 4 needs the Phase 2 owner decision, recorded
+   2026-10-09 as D19.
 
 ## Phased implementation
 
@@ -696,13 +717,14 @@ checks passed: ruff, format, mypy, and 7 tests passed with 1 skipped.
 
 Requirements: R11 (findings and recommendation), closing #155's investigation.
 
-Outcome: a backend runtime doc describes, for every provider path:
+Outcome:
 
-- its caching rules;
-- a volatility map of every instruction part;
-- the recommended layout.
-
-The owner approves the layout before Phase 4.
+- `docs/backend/runtime/prompt-caching.md` describes each provider path's
+  caching rules, a volatility map of every prompt part, and the measured
+  baseline.
+- The owner decides the layout before Phase 4.
+- The decided per-provider strategy is recorded in D20. It reaches the doc in
+  Phase 4, which implements it, because docs describe current behavior.
 
 1. Write `docs/backend/runtime/prompt-caching.md`.
    - **Per-path rules:**
@@ -762,11 +784,368 @@ those count against the Phase 1 budget.
 
 Completion: the doc is reviewed and the owner decision is recorded.
 
-Phase record: issue #366; starting source —; commit —.
+Phase record: issue #366; starting source `93387454`; commit —.
+
+Candidate measurements (2026-10-08, `test_measure_candidate_layouts` in
+`tests/live/test_prompt_cache_layout.py`, source `93387454-dirty`, same method
+and isolation as the baseline). Every candidate keeps the system or
+`instructions` text stable and sends the per-turn context and guardrails after
+the latest user message.
+
+| Candidate | Cached share by turn | Mean, turns 2–6 | Input tokens, turn 6 |
+| --- | --- | --- | --- |
+| Responses without cursor (full history, trailing developer item) | 0, 0.86, 0.86, 0.866, 0.863, 0.866 | 0.86 | 5,082 |
+| Responses with cursor (new user + developer item per turn) | 0, 0.766, 0.79, 0.813, 0.827, 0.843 | 0.81 | 7,970 |
+| Chat Completions, trailing developer message | 0, 0.858, 0.859, 0.865, 0.862, 0.867 | 0.86 | 5,130 |
+| Chat Completions, trailing system message | 0, 0.858, 0.859, 0.865, 0.864, 0.868 | 0.86 | 5,119 |
+| Chat Completions, context appended to the user message | 0, 0.855, 0.839, 0.825, 0.808, 0.792 | 0.82 | 5,120 |
+| Anthropic, breakpoints on system and latest user text, trailing system message | 0, 0.875, 0.874, 0.876, 0.868, 0.882 | 0.88 | 9,032 |
+
+- **Cursor candidate:** history grows faster because each turn's context and
+  guardrails stay in OpenAI's stored state.
+- **Appended-to-user candidate:** on OpenAI it reuses only the system prompt,
+  because the stored user message differs from the one sent. On local servers,
+  token-prefix caching reuses up to the user's text. No local server was
+  available to confirm this.
+
+Owner presentation: a private page compares today's and the recommended
+strategy for each provider. It asks for decisions L1–L4, R4, R6 and R8 and
+recommends:
+
+- **L1:** the common order (fixed instructions, history, user message, then
+  turn context and guardrails).
+- **L2:** app-owned Responses history with `store: false`.
+- **L3:** a Responses compaction threshold of 64,000 tokens (today 10,000).
+- **L4:** for rows without a developer role, a tagged block at the end of the
+  user message (amends ADR 0008).
+- **R4:** option A (drop thinking across turns).
+- **R6:** option A (store sources; don't display them).
+- **R8:** option A (refuse delete and rename).
+
+Phase 2 live runs, all with the owner's keys:
+
+- 2026-10-08, candidates:
+  `ANIMAMA_RUN_LIVE_TESTS=1 uv run --env-file "$HOME/.config/animama/dev-secrets.env" pytest -q -s tests/live/test_prompt_cache_layout.py::test_measure_candidate_layouts`.
+- 2026-10-09, owner layout (live evaluation authorized by the owner that day):
+  - the same command with `::test_measure_owner_layout`;
+  - two Chat Completions reruns through an inline `python` driver of
+    `_run_chat_owner_layout`, after the breakpoint fixes.
+- Spend: 6 candidate and 9 owner-layout six-turn runs. That is about 470,000
+  OpenAI input tokens at `gpt-6-luna`'s $0.10 per million (under US$0.05) and
+  about 160,000 Anthropic input tokens at Haiku 5.5's $0.10 per million (under
+  US$0.02), plus small outputs.
+- Two intermediate findings came from harness versions since changed: the 0.65
+  result with one breakpoint, and the turn-2 miss without a system marker.
+  Reproduce them by removing the extra markers in `_with_openai_breakpoint` and
+  `_openai_system_with_breakpoint`.
+
+Owner decisions (2026-10-09, D19), then a measurement of the owner's layout:
+turn context and guardrails before the user message (`test_measure_owner_layout`,
+same method, source `93387454-dirty`, live runs authorized by the owner).
+
+| Owner layout | Cached share by turn | Mean, turns 2–6 | Input tokens, turn 6 |
+| --- | --- | --- | --- |
+| Chat Completions, developer message before user; explicit breakpoints on system and the last two assistant replies | 0, 0.857, 0.857, 0.862, 0.853, 0.864 | 0.86 | 5,168 |
+| Chat Completions, tagged block in the user message; same breakpoints | 0, 0.856, 0.858, 0.863, 0.861, 0.866 | 0.86 | 5,161 |
+| Responses with server state; stable instructions ending in the guardrails; context sent only when it changes (map changes once) | 0, 0.785, 0.971, 0.856, 0.842, 0.829 | 0.86 | 5,995 |
+| Responses with server state; worst case, map changes every turn | 0, 0.703, 0.791, 0.864, 0.787, 0.847 | 0.80 | 8,284 |
+| Anthropic, tagged block in the user message; breakpoints on system and the last history message | 0, 0.871, 0.869, 0.869, 0.861, 0.878 | 0.87 | 9,330 |
+
+Findings from these runs, checked against the providers' current documentation
+(OpenAI prompt-caching, compaction and conversation-state guides; Anthropic's
+mid-conversation system message and prompt-caching guides, read 2026-10-08/09):
+
+- **OpenAI breakpoint lookup.** A request looks up only breakpoints it marks
+  itself, plus eligible message endings (user messages, the last tool output,
+  and the end of the initial developer block).
+  - One breakpoint on the last history message never hit: 0.65, system only.
+  - Marking the previous reply as well reads the last request's entry, while
+    the latest reply writes the next one.
+  - A developer message right after the system prompt joins the initial block,
+    so the system prompt needs its own marker. Without it, turn 2 misses.
+  - The markers are `prompt_cache_breakpoint: {"mode": "explicit"}` on a text
+    content part. This uses 3 explicit writes plus the implicit one, within the
+    limit of 4.
+  - openai-python 2.41 does not type the field, but passes it through.
+- **Responses caching.** With server state, the cached prefix grew in
+  1,024-token steps. The share therefore dips between steps but is not lost.
+  Sending the context only when it changes keeps stored history small.
+- **Anthropic.** A mid-conversation `system` message may follow only a user
+  turn (or a server-tool result), so it cannot precede the new user message.
+  The owner's rule then selects the tagged user block. The docs also say Haiku
+  5.5 may ignore a system message placed right after tool results, so
+  forced-final and repair instructions go in the user turn.
+
+- **D20 (planning, applying D19 with the measurements above; revised after
+  Phase 2 Review #1): per-provider strategy for Phases 4 and 5.**
+  - **Shared:**
+    - **Stable instructions.** The system or `instructions` text is stable:
+      core instructions, identity, `MEMORIES.md`, memory and response guidance,
+      Gestures, then the Companion Guardrails.
+      - `MEMORIES.md` stays there. Only a chat memory write or a Reflection
+        edits it. On Responses an edit also invalidates the stored chain's
+        cached prefix. That trade is accepted, because edits are rare.
+    - **App compaction summary** (Chat Completions only):
+      - With a developer role, it is a developer message directly after the
+        stable instructions.
+      - Without one, it is folded into the system prompt just before the
+        closing guardrails, so the system prompt still ends with them.
+      - In both cases each app compaction costs one miss of the history
+        cache. Each app compaction therefore costs one miss of
+      the history cache. How often that happens depends on the app-compaction
+      trigger, which is an open owner question (see below).
+    - **History** is replayed byte-for-byte.
+    - **Turn context.** On every turn, the turn context (memory map, then
+      attachments) and the guardrails go immediately before the new user
+      message.
+    - **Tag escaping** (tagged-block paths only). Every occurrence of
+      `<turn_context` or `</turn_context` is escaped before it goes into a
+      request (any case).
+      That covers user text and the untrusted text inside the block: memory-map
+      descriptions, attachment names, descriptions and outlines. Nothing can
+      close or forge the block.
+    - **Tool list.** It is unchanged from today, because offering tools on more
+      turns would change what the model sees.
+      - Uploaded-file tools appear only on turns with attachments.
+      - Write tools follow chat options; native web search follows the shared
+        control.
+      - Changing the tool list misses the whole cache on OpenAI and Anthropic,
+        so a turn with attachments, and the turn after it, miss. This is
+        accepted and documented.
+  - **OpenAI Chat Completions with a developer role:**
+    - A developer message carries the context and guardrails.
+    - On the built-in OpenAI connection only, explicit breakpoints go on the
+      system prompt and the last two assistant replies. Other servers never
+      receive content-part breakpoints.
+    - Measured: 0.86.
+  - **Chat Completions without a developer role** (local servers and similar):
+    - A tagged `<turn_context>` block at the start of the user message carries
+      the context and guardrails.
+    - The system prompt describes the block and ends with the guardrails.
+    - No breakpoint fields are sent. Local servers reuse the token prefix by
+      themselves; this is not measured, because no local server was available.
+  - **OpenAI Responses:**
+    - Uses server state: `previous_response_id`, `store: true`, and native
+      compaction with the threshold default raised to 90,000 tokens.
+    - `instructions` stays stable and ends with the guardrails.
+    - On every turn a developer item (context, then guardrails) goes before the
+      user item. Sending it every turn follows D19 literally:
+      - after a native compaction the model still sees the current context;
+      - on a `disable_memory_influence` turn the newest context item has no
+        map;
+      - no fingerprint state is needed.
+
+      The cost is that earlier copies accumulate in the stored chain until
+      compaction. Measured 0.80, using as a stand-in the harness run that sends
+      a developer item on every turn because the map changes every turn.
+    - On continuation after tool calls, only tool outputs are sent, as today.
+      The forced-final instruction goes in a developer item after the tool
+      outputs, with the guardrails restated, not in `instructions`.
+    - Reasoning items and function calls continue through
+      `previous_response_id`.
+    - **Full history** (a stale-cursor replay, or incognito turns with
+      `store: false`) uses the same order, with explicit breakpoints on the
+      last two history user items (Responses `output_text` parts cannot carry
+      one). This share is not yet measured; Phase 4 measures it.
+  - **Anthropic Messages** (D21):
+    - A mid-conversation `system` message right after the new user turn carries
+      the turn context (memory map, then attachments) and the guardrails.
+      Anthropic accepts a system message only after a user turn, so it follows
+      the user's words rather than preceding them.
+    - No tagged block and no tag escaping are used on this path.
+    - The stable system prompt ends with the guardrails.
+    - `cache_control` goes on the system prompt and the last history block.
+    - Within a turn, tool rounds follow the system message with the assistant's
+      `tool_use`, which is valid. Thinking and `tool_use` blocks are resent
+      exactly.
+    - Across turns, history replays visible text, memory-tool exchanges as
+      `tool_use`/`tool_result` blocks without thinking, and the latest
+      compaction block (R4/D8). Earlier turns' context messages are not
+      replayed.
+    - Forced-final instructions go in the user turn after tool results, since
+      Haiku 5.5 may ignore a system message placed there. Repair instructions
+      follow the invalid reply in a user turn.
+    - Measured: 0.875 (candidate run, 2026-10-08).
+  - **ADR 0008 amendment** (recorded in Phase 9):
+    - The guardrails are part of the stable instructions, last.
+    - They are repeated with the turn context immediately before the user's new
+      message, word for word.
+    - On every path, the last instruction text the model reads before the
+      user's words is the guardrails.
+  - **Tool calls and reasoning:**
+    - Chat Completions replays stored tool exchanges and no reasoning, as
+      today.
+    - Responses and Anthropic follow the bullets above.
+  - **App-compaction trigger** (D21): `min(90_000, floor(0.7 × the row's
+    context window))`. `ANIMAMA_CHAT_COMPACTION_THRESHOLD_TOKENS` becomes the
+    cap, with a new default of 90,000 (today a fixed 6,000).
+- **D21 (2026-10-09, owner):**
+  - **Anthropic:** turn context and guardrails go in a mid-conversation `system`
+    message after the user turn, with no tagged block. The owner chose this over
+    the tagged block and a split.
+    - Measured reuse: no block 0.875, tagged block 0.871, split 0.878 (data in
+      a tagged block, guardrails in a system message).
+    - The no-block layout keeps the guardrails at operator authority and uses
+      one mechanism.
+    - Attachment metadata gains system authority, as it already has in the
+      OpenAI developer message, and stays labelled as untrusted document
+      metadata.
+  - **Chat Completions app-compaction trigger:** 70% of the model's context
+    window, capped at 90,000 tokens.
+  - **Phase 2:** the owner accepted closing Phase 2 at the review limit, after
+    the mechanical record fix that a diff verified.
 
 #### Code Review #1 Findings
 
+Reviewer: independent `sdlc-reviewer`, full initial review of the working tree
+on `93387454`. It treated D19 as fixed.
+
+Checks run by the reviewer:
+
+- ruff, format and mypy on the harness;
+- the harness skipped without keys;
+- the doc's links resolved;
+- every table mean recomputed and matched;
+- `gh issue view 364` (read-only).
+
+Blocking findings:
+
+- **P2-R1-F1:** Responses "context only when it changes" contradicted D19 and
+  the rest of D20, and nothing reset it after native compaction.
+- **P2-R1-F2:** the Responses full-history case claimed "the same layout"
+  without breakpoints or a measurement.
+- **P2-R1-F3:** tag escaping covered only user text. Attachment and
+  memory-map text could close the block.
+- **P2-R1-F4:** D20 did not place the compaction summary, and the doc did not
+  state the 6,000-token app-compaction trigger.
+- **P2-R1-F5:** the volatility map omitted tool definitions, so attachment
+  turns change the tool list.
+- **P2-R1-F6:** the doc omitted `prompt_cache_key` and the OpenAI lookup rule.
+- **P2-R1-F7:** issue #364 still carried the 2026-10-08 spec.
+- **P2-R1-F8:** stale plan text (header, progress, validation row, Phase 4
+  step 1, Phase 5 step 2, recovery, Phase 4 missing the 90,000 change).
+- **P2-R1-F9:** the Phase 2 outcome promised the recommended layout in the doc.
+- **P2-R1-F10:** the Phase 2 live commands and spend were not recorded.
+
+Optional findings:
+
+- stale harness comments and method string;
+- the README budget;
+- the harness system prompt not ending with guardrails;
+- two different statements of the breakpoint gating rule;
+- unmeasured local reuse;
+- no evidence for keeping `MEMORIES.md` in place;
+- the app-compaction owner question;
+- Responses forced-final placement;
+- doc details (revision, nonce wording, SDK field, index links, class names,
+  repair placement);
+- unreproducible intermediate findings.
+
 #### Code Review #1 Revisions
+
+All verified against code, docs or data before fixing.
+
+- **F1 (accepted):** Responses now sends the developer item before the user item
+  on every turn, following D19 literally. Measured 0.80. No fingerprint state is
+  needed, and context survives native compaction.
+- **F2 (accepted):** full-history Responses requests use explicit breakpoints on
+  the last two history user items. Phase 4 measures the share.
+- **F3 (accepted):** escaping covers user text and all block contents.
+- **F4 (accepted):** D20 keeps the summary directly after the stable
+  instructions, and the doc states the trigger. The trigger itself is an open
+  owner question, asked in Phase 4.
+- **F5 (accepted):** the doc gains a Tools row and a corrected Attachment row.
+  D20 first kept the tool list stable; Review #2 F2 showed that changes what
+  the model sees, so D20 now accepts the misses instead.
+- **F6 (accepted):** the doc gains an "OpenAI lookups" section and the
+  `prompt_cache_key` scope, linked to the providers doc.
+- **F7 (accepted):** the issue is republished from the spec right after the
+  Phase 2 commit, so its ExecPlan link can point at that revision. The read-back
+  and the snapshot metadata are recorded in a follow-up docs commit.
+- **F8 (accepted):** every listed passage is updated. Phase 4 now covers the
+  90,000 default, escaping, the stable tool list, breakpoints and the
+  forced-final placement, with tests.
+- **F9 (accepted):** the outcome now records the layout in D20, reaching the doc
+  in Phase 4.
+- **F10 (accepted):** commands, spend and the reproduction note are recorded.
+- **Optional, accepted:**
+  - harness comments, method string and docstring;
+  - the README budget;
+  - one gating rule (built-in OpenAI connection only);
+  - local reuse marked unmeasured;
+  - the `MEMORIES.md` rationale;
+  - forced-final placement on Responses and Anthropic;
+  - all doc details.
+- **Optional, rejected:** ending the harness system prompt with the guardrails.
+  The measured numbers are conservative, and the baseline test will measure the
+  real assembly after Phase 4.
+
+Repair budget: one of two rounds used.
+
+#### Code Review #2 Findings
+
+Targeted recheck. It verified F1–F3, F6–F10 and the optional fixes, and found
+F4 and F5 only partly fixed.
+
+- **P2-R2-F1 (blocking):** the Phase 2 review record had landed in the Phase 3
+  section, and Phase 3's slots were lost.
+- **P2-R2-F2 (blocking):** the stable tool list offered uploaded-file tools on
+  turns without attachments. That changes model-facing content, which the spec
+  excludes without an owner decision. Phase 4 step 3's "same text, new
+  positions" was also no longer accurate.
+- **P2-R2-F3 (blocking):** D20 did not place the compaction summary for rows
+  without a developer role. Today's fold would put it after the closing
+  guardrails.
+- **Optional findings:**
+  - stale gate status lines;
+  - the Responses 0.80 run is a stand-in;
+  - the harness docstring pointer.
+
+#### Code Review #2 Revisions
+
+- **R2-F1 (accepted):** moved the record to the end of Phase 2 and restored
+  Phase 3's empty slots.
+- **R2-F2 (accepted):** D20 leaves the tool list as today and accepts the misses
+  on attachment turns. Phase 4 step 2 and its test were removed. Step 3 now
+  names the three deliberate additions: the guardrails repeated in the stable
+  instructions, the block description, and tag escaping.
+- **R2-F3 (accepted):** without a developer role, the summary is folded into the
+  system prompt just before the closing guardrails. Phase 4 has a test for it.
+- **Optional, accepted:**
+  - the status lines;
+  - the D20 stand-in wording;
+  - the `disable_memory_influence` wording (no map is sent; an empty map would
+    have been new text).
+- **Optional, rejected:** the harness docstring pointer. The plan remains the
+  authoritative baseline record until Phase 4 rewrites the doc.
+
+Repair budget: two of two rounds used. Review #3 is the final targeted recheck.
+
+#### Code Review #3 Findings
+
+Final targeted recheck. It verified R2-F2, R2-F3 and the optional items; ruff,
+format and mypy passed and the harness skipped without keys.
+
+- **P2-R3-F1 (blocking, record placement only):** moving the Review #2 record
+  matched Phase 1's identical "Repair budget" line. That put Phase 2's Review #2
+  record inside Phase 1 and altered one line of Phase 1's committed record.
+- **Optional findings:**
+  - the summary bullet's wrap and indentation;
+  - an F8 note that the stable tool list was later reverted;
+  - D20's wording about how the model reads a superseded map.
+
+#### Code Review #3 Revisions
+
+- **R3-F1 (fixed mechanically):** Phase 1 was restored and the record moved to
+  the end of Phase 2. `diff` of the Phase 1 section against `HEAD` reports no
+  differences, and the heading map shows each phase's own reviews.
+- **Optional, accepted:** the summary bullet and the map wording.
+- **Optional, rejected:** the F8 note. F5 and R2-F2 already record the
+  reversal.
+
+The repair budget was exhausted at Review #3. The only blocker it found was a
+misplaced record, fixed and checked by a deterministic diff rather than a
+further review. Per SDLC.md, Phase 2 completion awaits owner acknowledgement.
 
 ### Phase 3: Provider identity, connection, credentials and catalog
 
@@ -875,19 +1254,35 @@ unchanged. The guardrails are still last, with unchanged wording, on every path.
 
 1. Tag instruction parts by volatility class, so each provider strategy can
    order and place them as approved (D18).
-   - Responses: `instructions` and trailing developer input, plus its approved
-     cursor and storage behavior.
+   - Responses: stable `instructions`, plus a developer item before the user
+     item on every turn (D20).
    - Chat Completions: system and developer roles, or the approved fallback for
      rows without a developer role.
 
    Keep shared assembly code where strategies coincide. Do not add a layer that
    no strategy needs.
-2. Apply the approved placement for `MEMORIES.md`, gesture descriptors, the
+2. Apply the D20 placement for `MEMORIES.md`, Gesture descriptors, the
    compaction summary, the memory map and attachments.
-   - The forced-final and repair rounds restate the guardrails last.
-   - Keep `prompt_cache_key` scoping per the recommendation.
-3. Keep instruction content unchanged: same text, new positions. Update the
-   exact-prompt tests to the new layout, and add stability tests.
+   - Escape `<turn_context` and `</turn_context` in user text and in block
+     contents.
+   - Add explicit breakpoints on the built-in OpenAI connection: on the system
+     prompt and the last two assistant replies for Chat Completions, and on the
+     last two history user items for Responses full-history requests.
+   - Restate the guardrails at the end of forced-final and repair rounds.
+   - Keep the current `prompt_cache_key` scoping.
+   - Raise the Responses compaction default to 90,000 in `server/config.py`,
+     `docker-compose.yml` and `docs/backend/operations/development.md`.
+   - Make the app-compaction trigger `min(90_000, floor(0.7 × context
+     window))`, with `ANIMAMA_CHAT_COMPACTION_THRESHOLD_TOKENS` as the cap
+     (default 90,000), in config, compose and the development docs (D21).
+3. Keep instruction content unchanged apart from three deliberate additions:
+   - the guardrails repeated at the end of the stable instructions;
+   - the short description of the `<turn_context>` block in the system prompt,
+     on tagged paths;
+   - escaping of forged tags.
+
+   Everything else is the same text in new positions. Update the exact-prompt
+   tests to the new layout, and add stability tests.
 4. Rerun the Phase 1 harness for the OpenAI paths and record the **after**
    numbers.
 
@@ -899,6 +1294,13 @@ Tests:
   - the system and cacheable prefix are identical across two turns with a
     changed memory map;
   - a `MEMORIES.md` edit changes only what the recommendation says it may.
+  - `<turn_context` tags are escaped in user text and block contents;
+  - on rows without a developer role, the compaction summary sits in the system
+    prompt before the closing guardrails;
+  - breakpoints appear only on built-in OpenAI connection requests;
+  - Responses sends a developer item before the user item on every turn, and
+    the forced-final developer item after tool outputs;
+  - the Responses compaction default is 90,000.
 - Forced-final and repair rounds end with the guardrails.
 - Rows without a developer role follow the approved fallback.
 - Every existing safety, structured-recovery and executor test passes.
@@ -938,7 +1340,8 @@ refusals and errors. App pre-send fitting still applies until Phase 6.
 2. **Request mapping.**
    - Layout parts map to Anthropic positions per the Phase 2 decision: stable
      system blocks with `cache_control`, a breakpoint on the last replayed
-     history message, and turn-scoped text plus guardrails last.
+     history message, and a mid-conversation `system` message after the latest
+     user turn carrying the turn context and guardrails (D20, D21).
    - Memory tools: `{name, description, input_schema, strict: true}`, with
      `tool_choice: auto` and `disable_parallel_tool_use: true`.
    - Structured output goes in `output_config.format`.
@@ -1050,7 +1453,7 @@ Tests:
 - `pause_turn`.
 - Search error results.
 - Citations recorded.
-- Trigger of 80,000 for Haiku with **Compact early** on, 150,000 with it off,
+- Trigger of 90,000 for Haiku with **Compact early** on, 150,000 with it off,
   and 150,000 for an unpriced owner row.
 - Compaction events.
 - Compaction block persistence and replay.
@@ -1284,7 +1687,7 @@ revisions, with at most two repair rounds.
 | Fence mismatch both ways | backend test | 5 |
 | Web search grounded and recorded; absent when off | request-shape test; smoke | 6, 9 |
 | Compaction continues with indicator | event and replay tests; smoke at minimum trigger | 6, 9 |
-| **Compact early** default on, 80k/150k, survives re-seed, hidden for unpriced rows | seed and request tests; smoke | 3, 6, 8, 9 |
+| **Compact early** default on, 90k/150k, survives re-seed, hidden for unpriced rows | seed and request tests; smoke | 3, 6, 8, 9 |
 | Utility title on Haiku | test; smoke | 7, 9 |
 | Memory Manager approvals, restart resume, reject, fence, scope | runtime tests; smoke | 7, 9 |
 | Refusal error, no reply persisted | fake-refusal test | 5 |
@@ -1320,8 +1723,9 @@ establish real avatar or audio fidelity.
 - **Live runs:** they can be rerun but cost money. Keep each to its budget and
   never loop them in automation.
 - **Layout changes:** these change every provider's prompt. If Phase 4
-  regresses quality or caching, revert its commit. The Anthropic adapter's
-  placement then falls back to D9.
+  regresses quality or caching, revert its commit. The Anthropic adapter then
+  uses today's order: a folded system prompt, history, then the user message.
+  That keeps working at lower cache reuse until the layout is fixed.
 - **Reverting a phase:** revert its commits on the task branch. Development
   chats fenced to `anthropic_messages` show the unsupported-standard error until
   the task stack is reset.

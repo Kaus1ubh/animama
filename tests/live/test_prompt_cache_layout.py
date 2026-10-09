@@ -6,10 +6,14 @@ each provider served from its prompt cache on every turn. Rerun it after a
 layout change to compare against the recorded baseline in
 ``docs/plans/anthropic-model-provider``.
 
-Paths: OpenAI Responses without and with a continuation cursor, OpenAI Chat
-Completions with a developer role and with developer text folded into the system
-message, Anthropic Messages, and optionally a local Chat Completions server
+``test_measure_prompt_cache_share_per_provider_path`` measures today's layout:
+OpenAI Responses without and with a continuation cursor, OpenAI Chat Completions
+with a developer role and with developer text folded into the system message,
+Anthropic Messages, and optionally a local Chat Completions server
 (``ANIMAMA_TEST_LOCAL_CHAT_BASE_URL`` plus ``ANIMAMA_TEST_LOCAL_CHAT_MODEL``).
+``test_measure_candidate_layouts`` and ``test_measure_owner_layout`` measure the
+alternatives compared in Phase 2 of the plan; once the real assembly implements
+the decided layout, the baseline test measures it directly.
 
 Requires ``ANIMAMA_RUN_LIVE_TESTS=1`` with ``OPENAI_API_KEY`` and
 ``ANTHROPIC_API_KEY``. Run with ``-s`` to see the table; no content is printed.
@@ -28,10 +32,12 @@ from uuid import uuid4
 
 import anthropic
 import pytest
+from openai import AsyncOpenAI
 
 from animama.adapters.model_clients.anthropic_messages.schema import anthropic_strict_schema
 from animama.adapters.model_clients.openai_chat_completions import OpenAIChatCompletionsModelClient
 from animama.adapters.model_clients.openai_responses import OpenAIResponsesModelClient
+from animama.adapters.model_clients.openai_responses.request import responses_text_format
 from animama.app.chat.direct_turn.response_format import build_main_structured_response_format
 from animama.app.chat.direct_turn.types import DirectChatAttachmentContext
 from animama.app.chat.memory_context import MAIN_STRUCTURED_OUTPUT_GUIDANCE
@@ -49,6 +55,7 @@ from animama.app.model_clients import (
     ModelClientRequest,
 )
 from animama.app.model_clients.prompt import scoped_prompt_cache_key
+from animama.app.safety.prompts import COMPANION_GUARDRAILS
 from animama.domain import ModelProvider, ModelProviderCapabilities
 
 OPENAI_MODEL = "gpt-6-luna"
@@ -370,3 +377,373 @@ async def test_measure_prompt_cache_share_per_provider_path() -> None:
         await chat_client.aclose()
         if local_client is not None:
             await local_client.aclose()
+
+
+# Candidate layouts (Phase 2). Each keeps the system text stable and moves the
+# per-turn context (memory map, attachments) and the Companion Guardrails after
+# the latest user message, so the guardrails stay the final instruction text.
+
+
+@dataclass(frozen=True)
+class _Parts:
+    system: str
+    history: list[dict[str, str]]
+    trailing: str
+    user: str
+
+
+def _parts(*, turn: int, history: list[dict[str, str]], provider_type: str, model: str, run_tag: str) -> _Parts:
+    prompt = _prompt(
+        turn=turn,
+        history=history,
+        supports_developer_role=True,
+        provider_type=provider_type,
+        model=model,
+        run_tag=run_tag,
+    )
+    messages = [dict(message) for message in prompt.messages]
+    assert messages[0]["role"] == "system" and messages[-2]["role"] == "developer" and messages[-1]["role"] == "user"
+    return _Parts(
+        system=str(messages[0]["content"]),
+        history=[{"role": str(m["role"]), "content": str(m["content"])} for m in messages[1:-2]],
+        trailing=str(messages[-2]["content"]),
+        user=str(messages[-1]["content"]),
+    )
+
+
+def _response_format() -> dict[str, Any]:
+    return build_main_structured_response_format(_output_type(), name="main_structured_json")
+
+
+async def _run_responses_candidate(*, use_cursor: bool) -> list[_TurnUsage]:
+    provider_type = "OpenAIResponsesHTTPAgent"
+    run_tag = uuid4().hex
+    history: list[dict[str, str]] = []
+    usages: list[_TurnUsage] = []
+    previous_response_id: str | None = None
+    async with AsyncOpenAI(api_key=os.environ["OPENAI_API_KEY"], timeout=120.0) as client:
+        for turn in range(len(USER_TURNS)):
+            parts = _parts(turn=turn, history=history, provider_type=provider_type, model=OPENAI_MODEL, run_tag=run_tag)
+            new_items: list[dict[str, Any]] = [
+                {"role": "user", "content": parts.user},
+                {"role": "developer", "content": parts.trailing},
+            ]
+            request: dict[str, Any] = {
+                "model": OPENAI_MODEL,
+                "instructions": parts.system,
+                "input": new_items if use_cursor else [*parts.history, *new_items],
+                "store": use_cursor,
+                "reasoning": {"effort": "low"},
+                "text": responses_text_format(_response_format()),
+                "prompt_cache_key": scoped_prompt_cache_key(
+                    user_id="live-cache-harness",
+                    anima_id=f"candidate-{run_tag}",
+                    provider_type=provider_type,
+                    model=OPENAI_MODEL,
+                ),
+            }
+            if use_cursor and previous_response_id:
+                request["previous_response_id"] = previous_response_id
+            response = await cast(Any, client).responses.create(**request)
+            details = response.usage.input_tokens_details
+            usages.append(_TurnUsage(response.usage.input_tokens, details.cached_tokens if details else 0))
+            previous_response_id = response.id
+            history += [
+                {"role": "user", "content": USER_TURNS[turn]},
+                {"role": "assistant", "content": response.output_text},
+            ]
+    return usages
+
+
+async def _run_chat_candidate(*, trailing_role: str) -> list[_TurnUsage]:
+    """``trailing_role`` is ``developer``, ``system`` or ``user_tail`` (context appended to the user message)."""
+
+    provider_type = "OpenAIHTTPAgent"
+    run_tag = uuid4().hex
+    history: list[dict[str, str]] = []
+    usages: list[_TurnUsage] = []
+    async with AsyncOpenAI(api_key=os.environ["OPENAI_API_KEY"], timeout=120.0) as client:
+        for turn in range(len(USER_TURNS)):
+            parts = _parts(turn=turn, history=history, provider_type=provider_type, model=OPENAI_MODEL, run_tag=run_tag)
+            if trailing_role == "user_tail":
+                tail = [
+                    {"role": "user", "content": f"{parts.user}\n\n<turn_context>\n{parts.trailing}\n</turn_context>"}
+                ]
+            else:
+                tail = [{"role": "user", "content": parts.user}, {"role": trailing_role, "content": parts.trailing}]
+            completion = await cast(Any, client).chat.completions.create(
+                model=OPENAI_MODEL,
+                messages=[{"role": "system", "content": parts.system}, *parts.history, *tail],
+                reasoning_effort="low",
+                response_format=_response_format(),
+                prompt_cache_key=scoped_prompt_cache_key(
+                    user_id="live-cache-harness",
+                    anima_id=f"candidate-{run_tag}",
+                    provider_type=provider_type,
+                    model=OPENAI_MODEL,
+                ),
+            )
+            details = completion.usage.prompt_tokens_details
+            usages.append(_TurnUsage(completion.usage.prompt_tokens, details.cached_tokens if details else 0))
+            text = completion.choices[0].message.content or ""
+            history += [{"role": "user", "content": USER_TURNS[turn]}, {"role": "assistant", "content": text}]
+    return usages
+
+
+async def _run_anthropic_candidate() -> list[_TurnUsage]:
+    """Stable cached system, breakpoint on the latest user text, then a trailing system message."""
+
+    output_format = {
+        "type": "json_schema",
+        "schema": anthropic_strict_schema(build_main_structured_response_json_schema(_output_type())),
+    }
+    run_tag = uuid4().hex
+    history: list[dict[str, str]] = []
+    usages: list[_TurnUsage] = []
+    async with anthropic.AsyncAnthropic(api_key=os.environ["ANTHROPIC_API_KEY"], timeout=120.0) as client:
+        for turn in range(len(USER_TURNS)):
+            parts = _parts(
+                turn=turn,
+                history=history,
+                provider_type="AnthropicMessagesHTTPAgent",
+                model=ANTHROPIC_MODEL,
+                run_tag=run_tag,
+            )
+            messages: list[dict[str, Any]] = [*parts.history]
+            messages.append(
+                {
+                    "role": "user",
+                    "content": [{"type": "text", "text": parts.user, "cache_control": {"type": "ephemeral"}}],
+                }
+            )
+            messages.append({"role": "system", "content": parts.trailing})
+            message = await cast(Any, client).messages.create(
+                model=ANTHROPIC_MODEL,
+                max_tokens=1024,
+                system=[{"type": "text", "text": parts.system, "cache_control": {"type": "ephemeral"}}],
+                messages=messages,
+                output_config={"effort": "low", "format": output_format},
+            )
+            usage = message.usage
+            cached = usage.cache_read_input_tokens or 0
+            total = usage.input_tokens + cached + (usage.cache_creation_input_tokens or 0)
+            usages.append(_TurnUsage(total, cached))
+            text = "".join(getattr(block, "text", "") for block in message.content if block.type == "text")
+            history += [{"role": "user", "content": USER_TURNS[turn]}, {"role": "assistant", "content": text}]
+    return usages
+
+
+async def test_measure_candidate_layouts() -> None:
+    method = "candidate: stable system, per-turn context and guardrails after the latest user message"
+    runs: list[tuple[str, Callable[[], Awaitable[list[_TurnUsage]]], str]] = [
+        ("candidate_responses_stateless", partial(_run_responses_candidate, use_cursor=False), OPENAI_MODEL),
+        ("candidate_responses_cursor", partial(_run_responses_candidate, use_cursor=True), OPENAI_MODEL),
+        ("candidate_chat_trailing_developer", partial(_run_chat_candidate, trailing_role="developer"), OPENAI_MODEL),
+        ("candidate_chat_trailing_system", partial(_run_chat_candidate, trailing_role="system"), OPENAI_MODEL),
+        ("candidate_chat_user_tail", partial(_run_chat_candidate, trailing_role="user_tail"), OPENAI_MODEL),
+        ("candidate_anthropic_trailing_system", _run_anthropic_candidate, ANTHROPIC_MODEL),
+    ]
+    for path, run, model in runs:
+        _report(path, await run(), model=model, method=method)
+
+
+# Owner-proposed layout (2026-10-09): per-turn context and guardrails go before
+# the user's new message, as a developer message where the position is supported
+# and otherwise as a tagged block inside the user message. OpenAI Chat Completions
+# marks explicit cache breakpoints on the system prompt and the last two assistant
+# replies; Anthropic marks the system prompt and the last history message;
+# Responses with server state needs no markers.
+
+TURN_CONTEXT_NOTE = (
+    "\n\n# Turn Context\n\nThe application may begin the user's message with a <turn_context> block. "
+    "The application writes it, not the user. It carries request context and the Companion Guardrails; follow it."
+)
+
+
+def _stable_memory_map(turn: int) -> str:
+    """A memory map that changes once (before turn 3), as it does when a memory file is added."""
+
+    return _memory_map(0 if turn < 3 else 3)
+
+
+def _tagged(trailing: str, user: str) -> str:
+    return f"<turn_context>\n{trailing}\n</turn_context>\n\n{user}"
+
+
+def _with_openai_breakpoint(history: list[dict[str, str]]) -> list[dict[str, Any]]:
+    """Mark the last two assistant replies with explicit cache breakpoints.
+
+    A request only looks up breakpoints it marks itself (plus eligible message
+    endings), so the reply that ended the previous request's history is marked to
+    read that request's cache entry, and the latest reply is marked to write the
+    next one.
+    """
+
+    messages: list[dict[str, Any]] = [dict(message) for message in history]
+    assistant_indexes = [index for index, message in enumerate(messages) if message["role"] == "assistant"]
+    for index in assistant_indexes[-2:]:
+        message = messages[index]
+        messages[index] = {
+            "role": message["role"],
+            "content": [{"type": "text", "text": message["content"], "prompt_cache_breakpoint": {"mode": "explicit"}}],
+        }
+    return messages
+
+
+def _openai_system_with_breakpoint(system: str) -> dict[str, Any]:
+    """Mark the stable system prompt, so a developer message right after it does not end the cached block."""
+
+    return {
+        "role": "system",
+        "content": [{"type": "text", "text": system, "prompt_cache_breakpoint": {"mode": "explicit"}}],
+    }
+
+
+async def _run_chat_owner_layout(*, developer_role: bool) -> list[_TurnUsage]:
+    provider_type = "OpenAIHTTPAgent"
+    run_tag = uuid4().hex
+    history: list[dict[str, str]] = []
+    usages: list[_TurnUsage] = []
+    async with AsyncOpenAI(api_key=os.environ["OPENAI_API_KEY"], timeout=120.0) as client:
+        for turn in range(len(USER_TURNS)):
+            parts = _parts(turn=turn, history=history, provider_type=provider_type, model=OPENAI_MODEL, run_tag=run_tag)
+            if developer_role:
+                system = parts.system
+                tail = [{"role": "developer", "content": parts.trailing}, {"role": "user", "content": parts.user}]
+            else:
+                system = parts.system + TURN_CONTEXT_NOTE
+                tail = [{"role": "user", "content": _tagged(parts.trailing, parts.user)}]
+            completion = await cast(Any, client).chat.completions.create(
+                model=OPENAI_MODEL,
+                messages=[_openai_system_with_breakpoint(system), *_with_openai_breakpoint(parts.history), *tail],
+                reasoning_effort="low",
+                response_format=_response_format(),
+                prompt_cache_key=scoped_prompt_cache_key(
+                    user_id="live-cache-harness",
+                    anima_id=f"owner-{run_tag}",
+                    provider_type=provider_type,
+                    model=OPENAI_MODEL,
+                ),
+            )
+            details = completion.usage.prompt_tokens_details
+            usages.append(_TurnUsage(completion.usage.prompt_tokens, details.cached_tokens if details else 0))
+            text = completion.choices[0].message.content or ""
+            history += [{"role": "user", "content": USER_TURNS[turn]}, {"role": "assistant", "content": text}]
+    return usages
+
+
+async def _run_responses_server_state_owner_layout(*, map_changes_every_turn: bool) -> list[_TurnUsage]:
+    """Server state: stable instructions ending with the guardrails; context sent only when it changes.
+
+    When the turn context changes it is sent as a developer item before the user
+    message, followed again by the guardrails so they stay the last instruction.
+    """
+
+    provider_type = "OpenAIResponsesHTTPAgent"
+    run_tag = uuid4().hex
+    usages: list[_TurnUsage] = []
+    previous_response_id: str | None = None
+    last_context: str | None = None
+    guardrails = COMPANION_GUARDRAILS.strip()
+    async with AsyncOpenAI(api_key=os.environ["OPENAI_API_KEY"], timeout=120.0) as client:
+        for turn in range(len(USER_TURNS)):
+            parts = _parts(turn=turn, history=[], provider_type=provider_type, model=OPENAI_MODEL, run_tag=run_tag)
+            memory_map = _memory_map(turn) if map_changes_every_turn else _stable_memory_map(turn)
+            context = parts.trailing.replace(_memory_map(turn), memory_map).removesuffix(guardrails).strip()
+            items: list[dict[str, Any]] = []
+            if context != last_context:
+                items.append({"role": "developer", "content": f"{context}\n\n{guardrails}"})
+                last_context = context
+            items.append({"role": "user", "content": parts.user})
+            request: dict[str, Any] = {
+                "model": OPENAI_MODEL,
+                "instructions": f"{parts.system}\n\n{guardrails}",
+                "input": items,
+                "store": True,
+                "reasoning": {"effort": "low"},
+                "text": responses_text_format(_response_format()),
+                "context_management": [{"type": "compaction", "compact_threshold": 90_000}],
+                "prompt_cache_key": scoped_prompt_cache_key(
+                    user_id="live-cache-harness",
+                    anima_id=f"owner-{run_tag}",
+                    provider_type=provider_type,
+                    model=OPENAI_MODEL,
+                ),
+            }
+            if previous_response_id:
+                request["previous_response_id"] = previous_response_id
+            response = await cast(Any, client).responses.create(**request)
+            details = response.usage.input_tokens_details
+            usages.append(_TurnUsage(response.usage.input_tokens, details.cached_tokens if details else 0))
+            previous_response_id = response.id
+    return usages
+
+
+async def _run_anthropic_owner_layout() -> list[_TurnUsage]:
+    """Anthropic rejects a system message before the user turn, so the context is a tagged user block."""
+
+    output_format = {
+        "type": "json_schema",
+        "schema": anthropic_strict_schema(build_main_structured_response_json_schema(_output_type())),
+    }
+    run_tag = uuid4().hex
+    history: list[dict[str, str]] = []
+    usages: list[_TurnUsage] = []
+    async with anthropic.AsyncAnthropic(api_key=os.environ["ANTHROPIC_API_KEY"], timeout=120.0) as client:
+        for turn in range(len(USER_TURNS)):
+            parts = _parts(
+                turn=turn,
+                history=history,
+                provider_type="AnthropicMessagesHTTPAgent",
+                model=ANTHROPIC_MODEL,
+                run_tag=run_tag,
+            )
+            messages: list[dict[str, Any]] = [dict(message) for message in parts.history]
+            if messages:
+                last = messages[-1]
+                messages[-1] = {
+                    "role": last["role"],
+                    "content": [{"type": "text", "text": last["content"], "cache_control": {"type": "ephemeral"}}],
+                }
+            messages.append({"role": "user", "content": _tagged(parts.trailing, parts.user)})
+            message = await cast(Any, client).messages.create(
+                model=ANTHROPIC_MODEL,
+                max_tokens=1024,
+                system=[
+                    {
+                        "type": "text",
+                        "text": parts.system + TURN_CONTEXT_NOTE,
+                        "cache_control": {"type": "ephemeral"},
+                    }
+                ],
+                messages=messages,
+                output_config={"effort": "low", "format": output_format},
+            )
+            usage = message.usage
+            cached = usage.cache_read_input_tokens or 0
+            total = usage.input_tokens + cached + (usage.cache_creation_input_tokens or 0)
+            usages.append(_TurnUsage(total, cached))
+            text = "".join(getattr(block, "text", "") for block in message.content if block.type == "text")
+            history += [{"role": "user", "content": USER_TURNS[turn]}, {"role": "assistant", "content": text}]
+    return usages
+
+
+async def test_measure_owner_layout() -> None:
+    method = "owner layout: context and guardrails before the user message; provider-specific cache breakpoints"
+    runs: list[tuple[str, Callable[[], Awaitable[list[_TurnUsage]]], str]] = [
+        ("owner_chat_developer_before_user", partial(_run_chat_owner_layout, developer_role=True), OPENAI_MODEL),
+        ("owner_chat_tagged_user_block", partial(_run_chat_owner_layout, developer_role=False), OPENAI_MODEL),
+        (
+            "owner_responses_server_state_map_every_turn",
+            partial(_run_responses_server_state_owner_layout, map_changes_every_turn=True),
+            OPENAI_MODEL,
+        ),
+        (
+            "owner_responses_server_state_map_changes_once",
+            partial(_run_responses_server_state_owner_layout, map_changes_every_turn=False),
+            OPENAI_MODEL,
+        ),
+        ("owner_anthropic_tagged_user_block", _run_anthropic_owner_layout, ANTHROPIC_MODEL),
+    ]
+    for path, run, model in runs:
+        _report(path, await run(), model=model, method=method)

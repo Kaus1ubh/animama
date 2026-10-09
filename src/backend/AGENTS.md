@@ -66,6 +66,7 @@ a separate API contract.
 - `../../docs/backend/architecture/data-model.md`
 - `../../docs/backend/runtime/chat.md`
 - `../../docs/backend/runtime/model-client-providers.md`
+- `../../docs/backend/runtime/prompt-caching.md`
 - `../../docs/backend/model-catalog.md`
 - `../../docs/backend/features/memory.md`
 - `../../docs/backend/features/custom-animas-and-content.md`
