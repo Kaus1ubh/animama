@@ -251,6 +251,26 @@ describe("composition lifetime boundary", () => {
     expect(controller.getSnapshot().scope!.key).toBe("next-sign-in");
   });
 
+  it("publishes the account affordances the composition reports with each admission", async () => {
+    const { controller, composition } = fixture();
+    expect(controller.getSnapshot().account).toEqual({
+      canOpenAccount: false,
+      signOutIncomplete: false,
+    });
+    let canOpenAccount = true;
+    Object.assign(composition, {
+      accountAffordances: () => ({ canOpenAccount, signOutIncomplete: false }),
+    });
+    await controller.refresh();
+    expect(controller.getSnapshot().account.canOpenAccount).toBe(true);
+    // An unchanged session keeps its lifetime but still follows the newest read.
+    const scope = controller.getSnapshot().scope;
+    canOpenAccount = false;
+    await controller.refresh();
+    expect(controller.getSnapshot().scope).toBe(scope);
+    expect(controller.getSnapshot().account.canOpenAccount).toBe(false);
+  });
+
   it("does not retire a newer ready lifetime when an older admission read finishes late", async () => {
     const { controller, composition } = fixture();
     await controller.refresh();

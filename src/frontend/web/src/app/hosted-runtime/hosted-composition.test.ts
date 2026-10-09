@@ -606,19 +606,32 @@ describe("hosted admission and transport", () => {
     expect(calls[2].headers.get("X-Animama-CSRF")).toBe("fixture-csrf");
   });
 
-  it("binds account navigation to a validated admission URL and gives useful absence feedback", async () => {
+  it("offers account navigation only for a validated admission URL", async () => {
     const { composition, navigate } = fixture();
+    expect(composition.accountAffordances!().canOpenAccount).toBe(false);
     await composition.readAdmission();
+    expect(composition.accountAffordances!().canOpenAccount).toBe(true);
     composition.accountActions!.openAccount();
     expect(navigate).toHaveBeenCalledWith("https://accounts.example.test/");
-    const missing = fixture({
-      ...active,
-      account_url: undefined,
-    } as unknown as typeof active);
-    await missing.composition.readAdmission();
-    expect(() => missing.composition.accountActions!.openAccount()).toThrow(
-      "Account access is unavailable",
-    );
+    for (const accountUrl of [
+      undefined,
+      null,
+      "javascript:alert(1)",
+      "http://accounts.example.test/",
+      "https://user:secret@accounts.example.test/",
+    ]) {
+      const missing = fixture({
+        ...active,
+        account_url: accountUrl,
+      } as unknown as typeof active);
+      await missing.composition.readAdmission();
+      expect(missing.composition.accountAffordances!().canOpenAccount).toBe(
+        false,
+      );
+      expect(() => missing.composition.accountActions!.openAccount()).toThrow(
+        "Account access is unavailable",
+      );
+    }
   });
 });
 

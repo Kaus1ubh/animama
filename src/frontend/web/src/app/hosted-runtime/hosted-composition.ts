@@ -460,6 +460,11 @@ export function createHostedComposition(
       scope = next;
       if (next) startEvents();
     },
+    accountAffordances: () => ({
+      // Without a validated URL the Account controls are hidden, not broken.
+      canOpenAccount: accountUrl !== null,
+      signOutIncomplete: false,
+    }),
     accountActions: {
       signIn: () => {
         signedOut = false;

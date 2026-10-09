@@ -2,18 +2,28 @@ import { QueryClient } from "@tanstack/react-query";
 import type { RuntimeAdmission } from "@animama/runtime-contracts";
 import { createLogger } from "@/lib/logger";
 import { queryClientOptions } from "@/query/queryClientOptions";
-import type { AdmissionRefresh, AppComposition } from "./composition";
+import type {
+  AccountAffordances,
+  AdmissionRefresh,
+  AppComposition,
+} from "./composition";
 import { SessionRequestScope } from "./session-requests";
 import { clearPrivateSessionState } from "./private-session-state";
 import { beginHostedRecoverySession } from "@/lib/content/recovery-session";
 
 const logger = createLogger("RuntimeController");
+const NO_ACCOUNT: AccountAffordances = {
+  canOpenAccount: false,
+  signOutIncomplete: false,
+};
 
 export type RuntimeSnapshot = {
   admission: RuntimeAdmission;
   queryClient: QueryClient;
   scope: SessionRequestScope | null;
   reconnecting: boolean;
+  /** The composition's account controls as of this admission. */
+  account: AccountAffordances;
 };
 
 /** Owns a composition's caches and invalidates requests before exposing a new admission. */
@@ -32,6 +42,7 @@ export class RuntimeController {
     queryClient: new QueryClient({ defaultOptions: queryClientOptions }),
     scope: null,
     reconnecting: false,
+    account: NO_ACCOUNT,
   };
 
   readonly composition: AppComposition;
@@ -47,6 +58,7 @@ export class RuntimeController {
 
   private publish(admission: RuntimeAdmission): void {
     const previous = this.snapshot;
+    const account = this.composition.accountAffordances?.() ?? NO_ACCOUNT;
     if (
       admission.status === "ready" &&
       previous.admission.status === "ready" &&
@@ -54,7 +66,7 @@ export class RuntimeController {
       admission.session.owner.id === previous.admission.session.owner.id
     ) {
       previous.scope?.resume();
-      this.snapshot = { ...previous, admission, reconnecting: false };
+      this.snapshot = { ...previous, admission, reconnecting: false, account };
       this.listeners.forEach((listener) => listener());
       return;
     }
@@ -89,6 +101,7 @@ export class RuntimeController {
       queryClient: new QueryClient({ defaultOptions: queryClientOptions }),
       scope,
       reconnecting: false,
+      account,
     };
     this.composition.bindSession?.(scope);
     this.listeners.forEach((listener) => listener());

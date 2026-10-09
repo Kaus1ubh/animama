@@ -82,7 +82,7 @@ async function mount(
   route = "/",
   state = "active",
   viewport = { width: 1280, height: 800 },
-  { utilities = false, loseFirstSetupReply = false } = {},
+  { utilities = false, loseFirstSetupReply = false, accountUrl = true } = {},
 ) {
   const page = await browser.newPage({ viewport });
   const errors = [];
@@ -145,7 +145,7 @@ async function mount(
           csrf_token: csrf,
           recovery_session_id: generation,
           capabilities,
-          account_url: `${origin}/central-account`,
+          ...(accountUrl ? { account_url: `${origin}/central-account` } : {}),
         };
     else if (url.pathname === "/v1/runtime-capabilities") data = capabilities;
     else if (url.pathname === "/v1/hosted/bootstrap:ensure") {
@@ -583,6 +583,46 @@ test("common rejected admission states withhold the private shell", async () => 
       );
     }
     await page.close();
+  }
+});
+
+test("account controls stay hidden without a central account URL", async () => {
+  const restricted = await mount("/library", "paused", undefined, {
+    accountUrl: false,
+  });
+  try {
+    await restricted.page
+      .getByRole("heading", { name: "Account access is restricted" })
+      .waitFor();
+    await restricted.page
+      .getByRole("button", { name: "Sign out", exact: true })
+      .waitFor();
+    assert.equal(
+      await restricted.page
+        .getByRole("button", { name: "Account", exact: true })
+        .count(),
+      0,
+    );
+  } finally {
+    await restricted.page.close();
+  }
+  const admitted = await mount("/", "active", undefined, { accountUrl: false });
+  try {
+    await admitted.page.getByText("Your Animas will appear here").waitFor();
+    await admitted.page
+      .getByRole("button", { name: "Fixture account" })
+      .click();
+    await admitted.page
+      .getByRole("menuitem", { name: "Usage and limits" })
+      .waitFor();
+    assert.equal(
+      await admitted.page
+        .getByRole("menuitem", { name: "Account", exact: true })
+        .count(),
+      0,
+    );
+  } finally {
+    await admitted.page.close();
   }
 });
 

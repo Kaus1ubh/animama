@@ -34,7 +34,7 @@ export function AppRouter() {
     () => subscribeToAppFileErrors(window, () => setAppFileError(true)),
     [],
   );
-  const { admission, controller, composition } = useRuntimeAdmission();
+  const { admission, controller, composition, account } = useRuntimeAdmission();
   const platform = useRuntimePlatform();
   const queryClient = useQueryClient();
   const capabilities =
@@ -56,7 +56,11 @@ export function AppRouter() {
           void controller.refresh(admission.status === "recovery");
         }}
         signIn={composition.accountActions?.signIn}
-        openAccount={composition.accountActions?.openAccount}
+        openAccount={
+          account.canOpenAccount
+            ? composition.accountActions?.openAccount
+            : undefined
+        }
         signOut={
           composition.accountActions
             ? () => {

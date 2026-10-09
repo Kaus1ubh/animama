@@ -39,9 +39,10 @@ and repeats setup at a bounded pace until the context is active again.
 
 The hosted context may additionally return `account_url`, an optional central
 account navigation URL. The browser accepts HTTPS or its own application origin,
-rejects embedded credentials, and shows an account-access error when it is absent
-or invalid. This field does not authorize API calls or alter the immutable entry
-document. The consumer supplies its configured central account URL.
+rejects embedded credentials, and hides its Account controls (admission screens
+and the sidebar menu) while the URL is absent or invalid. This field does not
+authorize API calls or alter the immutable entry document. The consumer supplies
+its configured central account URL in every context response.
 
 An active hosted context may also supply `recovery_session_id`, a URL-safe opaque
 string of 16–128 characters (`A–Z`, `a–z`, digits, `_`, `-`). It is noncredential
