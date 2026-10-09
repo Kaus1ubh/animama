@@ -984,12 +984,16 @@ function hostedService() {
     /** Overrides replies, for example to hold or lose them. */
     logoutReply: null as null | (() => Promise<Response>),
     loginReply: null as null | (() => Promise<Response>),
+    /** Fails runtime-context reads, as during a brief outage. */
+    contextFails: false,
     calls: [] as Request[],
     paths: () => service.calls.map((call) => new URL(call.url).pathname),
     fetch: (async (input) => {
       const request = input as Request;
       service.calls.push(request);
       const path = new URL(request.url).pathname;
+      if (path === "/v1/hosted/runtime-context" && service.contextFails)
+        throw new TypeError("Failed to fetch");
       if (path === "/v1/hosted/runtime-context")
         return Response.json(
           service.session
@@ -1261,6 +1265,42 @@ describe("hosted sign-in and sign-out", () => {
       await stale.controller.signOut();
       expect(service.session).toBeNull();
       expect(stale.incomplete()).toBe(false);
+    } finally {
+      stale.close();
+      other.close();
+    }
+  });
+
+  it("lets a later sign-out end a newer session after a sign-in from a stale tab could not start", async () => {
+    installBrowserPage();
+    const service = hostedService();
+    service.logoutStatus = 503;
+    const stale = hostedTab(service);
+    const other = hostedTab(service);
+    try {
+      await stale.controller.refresh();
+      await stale.controller.signOut();
+      expect(stale.incomplete()).toBe(true);
+      // Another tab signs in from its retry view; the callback creates S2.
+      await other.controller.refresh();
+      other.composition.accountActions!.signIn();
+      await vi.waitFor(() => expect(other.navigate).toHaveBeenCalled());
+      service.session = "fixture-session-generation-two";
+      service.logoutStatus = 200;
+      // A brief outage fails both the stale tab's read and its login start.
+      service.contextFails = true;
+      service.loginStatus = 503;
+      stale.composition.accountActions!.signIn();
+      await vi.waitFor(() =>
+        expect(stale.controller.getSnapshot().admission).toEqual({
+          status: "unavailable",
+          message: "Sign-in could not be started. Please try again.",
+        }),
+      );
+      service.contextFails = false;
+      // A deliberate sign-out from that view ends the live session S2.
+      await stale.controller.signOut();
+      expect(service.session).toBeNull();
     } finally {
       stale.close();
       other.close();

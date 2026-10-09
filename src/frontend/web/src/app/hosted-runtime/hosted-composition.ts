@@ -644,6 +644,9 @@ export function createHostedComposition(
         const signingOut = signOutAttempt !== null;
         signedOut = false;
         signedOutElsewhere = false;
+        // A later sign-out from this tab targets whatever session is live then;
+        // a remaining shared record still names the failed sign-out's target.
+        failedSignOutTarget = null;
         automaticSetup = true;
         session = null;
         forgetHostedRecoveryIdentity();
