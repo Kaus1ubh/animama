@@ -18,6 +18,7 @@ import {
 } from "@/lib/speech/pocket/voice-clones";
 import { queryKeys } from "@/query/keys";
 import { invalidateVoiceCloneConsumers } from "@/query/animaLoadoutInvalidation";
+import { sdkResultError } from "@/query/sdkResultError";
 
 /** Save captured bytes and identity unchanged; callers retain the prepared value for retries. */
 export async function savePreparedVoiceClone(
@@ -43,7 +44,9 @@ export async function savePreparedVoiceClone(
       throwOnError: false,
     });
     if (result.error !== undefined || !result.data) {
-      throw toVoiceCloneError(result.error, result.response.status);
+      throw sdkResultError(result, (status, error) =>
+        toVoiceCloneError(error, status),
+      );
     }
     return result.data;
   } catch (error) {
@@ -147,7 +150,9 @@ export async function deleteSavedVoiceClone(
       throwOnError: false,
     });
     if (result.error !== undefined) {
-      throw toVoiceCloneError(result.error, result.response.status);
+      throw sdkResultError(result, (status, error) =>
+        toVoiceCloneError(error, status),
+      );
     }
   } catch (error) {
     throw toVoiceCloneError(error);

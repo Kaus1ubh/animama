@@ -12,6 +12,7 @@ import type {
 import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { MemoryEntryApiError } from "@/lib/memory-entries/errors";
 import { queryKeys } from "@/query/keys";
+import { sdkResultError } from "@/query/sdkResultError";
 import { invalidateAnimaDefinition } from "@/query/animaDefinitionInvalidation";
 
 export type CreateMemoryEntryArgs = {
@@ -34,7 +35,10 @@ export function useCreateMemoryEntry() {
         throwOnError: false,
       });
       if (result.error !== undefined) {
-        throw new MemoryEntryApiError(result.response.status, result.error);
+        throw sdkResultError(
+          result,
+          (status, error) => new MemoryEntryApiError(status, error),
+        );
       }
       return result.data;
     },

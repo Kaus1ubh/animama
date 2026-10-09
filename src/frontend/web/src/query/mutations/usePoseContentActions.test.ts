@@ -61,4 +61,15 @@ describe("Pose saves", () => {
       code: "catalog_revision_conflict",
     });
   });
+  it("keeps a draft recoverable when the reply never arrives", async () => {
+    // A lost connection or paused runtime scope yields no HTTP response.
+    mocks.save.mockResolvedValue({ error: new TypeError("Failed to fetch") });
+    const attempt = preparePoseSaveAttempt({ name: "Rest", pose });
+    const failure = savePoseContent(testApiClient, attempt.input);
+    await expect(failure).rejects.toMatchObject({
+      status: null,
+      message: expect.stringContaining("Your draft is preserved"),
+    });
+    await expect(failure).rejects.not.toThrow(/Cannot read properties/);
+  });
 });

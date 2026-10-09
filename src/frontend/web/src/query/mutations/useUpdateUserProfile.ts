@@ -11,6 +11,7 @@ import {
 } from "@animama/runtime-contracts/sdk";
 import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { UserProfileApiError } from "@/lib/user-profile/errors";
+import { sdkResultError } from "@/query/sdkResultError";
 import { publishUserProfile } from "@/query/mutations/userProfileMutationCache";
 
 /** Update the installation owner's private display-name personalization. */
@@ -20,7 +21,9 @@ export function useUpdateUserProfile() {
   const queryClient = useQueryClient();
   const userId = useRuntimeCacheKey();
 
-  return useMutation<PyUserProfile, UserProfileApiError, PyUserProfileUpdate>({
+  // Rejects with UserProfileApiError for a server refusal, or a transport error
+  // when the reply never arrived.
+  return useMutation<PyUserProfile, Error, PyUserProfileUpdate>({
     mutationFn: async (body) => {
       const result = await updateUserProfileV1UsersMeProfilePatch({
         client: apiClient,
@@ -29,7 +32,10 @@ export function useUpdateUserProfile() {
         throwOnError: false,
       });
       if (result.error !== undefined) {
-        throw new UserProfileApiError(result.response.status, result.error);
+        throw sdkResultError(
+          result,
+          (status, error) => new UserProfileApiError(status, error),
+        );
       }
       return result.data;
     },
