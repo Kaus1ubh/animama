@@ -4,6 +4,7 @@
  * licenses/third-party/code-and-models.md (repository root).
  */
 import { EventEmitter } from "../pocket/core/EventEmitter.js";
+import { publicResourceUrl } from "@/lib/resource-urls";
 
 const DEFAULT_GAIN = 2;
 const MAX_GAIN = 4;
@@ -63,7 +64,8 @@ export class PCMPlayerWorklet extends EventEmitter {
     const minBufferMs = this.options.minBufferBeforePlaybackMs || 300;
     const bufferSizeSamples = this.options.bufferSizeSamples || sampleRate * 60;
     const workletModuleUrl =
-      this.options.workletModuleUrl || "/tts/audio/pcm-processor.worklet.js";
+      this.options.workletModuleUrl ||
+      publicResourceUrl("tts/audio/pcm-processor.worklet.js");
 
     await this.audioContext.audioWorklet.addModule(workletModuleUrl);
 

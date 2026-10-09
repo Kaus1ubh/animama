@@ -1,15 +1,19 @@
 "use client";
 
+import type { Client } from "@animama/runtime-contracts/sdk";
+
 import { abortAnimaVoiceCatalogUploadV1AnimasVoiceCatalogsUploadsUploadIdDelete } from "@animama/runtime-contracts/sdk";
 
 export const MAX_POCKET_VOICE_CATALOG_UPLOAD_SIZE_BYTES = 25 * 1024 * 1024;
 
 export async function abortAnimaVoiceCatalogUploadBestEffort(
+  apiClient: Client,
   uploadId: string,
 ): Promise<void> {
   try {
     await abortAnimaVoiceCatalogUploadV1AnimasVoiceCatalogsUploadsUploadIdDelete(
       {
+        client: apiClient,
         path: {
           upload_id: uploadId,
         },

@@ -1,3 +1,5 @@
+import type { Client } from "@animama/runtime-contracts/sdk";
+import { useProductApiClient } from "@animama/product-ui";
 import {
   useMutation,
   useQuery,
@@ -22,7 +24,7 @@ import {
   type ItemRevisionRef,
   type PyTypedContentPreview,
 } from "@animama/runtime-contracts/sdk";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { zAnimaCreationResult } from "@animama/runtime-contracts/validators";
 import { previewTypedCatalogItem } from "@/lib/content/catalogApi";
 import { toContentSaveApiError } from "@/lib/content/contentSaveErrors";
@@ -94,6 +96,7 @@ export function creationEvidence(
 
 /** Typed reads never replace the reference the user selected. */
 export function loadCreationPreview(
+  apiClient: Client,
   queryClient: QueryClient,
   owner: string,
   kind: CreationSourceKind,
@@ -119,6 +122,7 @@ export function loadCreationPreview(
       // A StrictMode cleanup must not poison another consumer with its aborted
       // signal. Each consumer still cancels its own byte loader/playback.
       const preview = await previewTypedCatalogItem(
+        apiClient,
         kind,
         source.item_id,
         creationReadSignal(signal),
@@ -143,6 +147,7 @@ export function loadCreationPreview(
 
 /** Bounded, read-only closure refresh; stale support evidence remains a visible error. */
 export async function resolveCreationEvidence(
+  apiClient: Client,
   _queryClient: QueryClient,
   _owner: string,
   draft: CreateAnimaDraft,
@@ -169,6 +174,7 @@ export async function resolveCreationEvidence(
   ];
   const result = (
     await resolveContentEvidence({
+      client: apiClient,
       body: {
         schema_version: 1,
         roots: unique.map((root) => ({
@@ -258,7 +264,9 @@ export async function resolveCreationEvidence(
 
 /** Options and each family keep independent loading, failure, and retry states. */
 export function useAnimaCreationSources(enabled: boolean) {
-  const userId = useRuntimeOwnerId();
+  const apiClient = useProductApiClient();
+
+  const userId = useRuntimeCacheKey();
   const owner = userId ?? "__anon__";
   const common = {
     enabled: Boolean(userId && enabled),
@@ -272,6 +280,7 @@ export function useAnimaCreationSources(enabled: boolean) {
     queryFn: async ({ signal }) =>
       (
         await getAnimaCreationOptionsV1AnimasCreationOptionsGet({
+          client: apiClient,
           signal: creationReadSignal(signal),
           throwOnError: true,
           responseValidator: undefined,
@@ -284,6 +293,7 @@ export function useAnimaCreationSources(enabled: boolean) {
     queryFn: async ({ signal }) =>
       (
         await listAvatarContents({
+          client: apiClient,
           signal: creationReadSignal(signal),
           throwOnError: true,
           responseValidator: undefined,
@@ -296,6 +306,7 @@ export function useAnimaCreationSources(enabled: boolean) {
     queryFn: async ({ signal }) =>
       (
         await listGestures({
+          client: apiClient,
           signal: creationReadSignal(signal),
           throwOnError: true,
           responseValidator: undefined,
@@ -308,6 +319,7 @@ export function useAnimaCreationSources(enabled: boolean) {
     queryFn: async ({ signal }) =>
       (
         await listReactions({
+          client: apiClient,
           signal: creationReadSignal(signal),
           throwOnError: true,
           responseValidator: undefined,
@@ -319,14 +331,22 @@ export function useAnimaCreationSources(enabled: boolean) {
 export type AnimaCreationSources = ReturnType<typeof useAnimaCreationSources>;
 
 export function useAnimaCreationOperations() {
-  const owner = useRuntimeOwnerId() ?? "__anon__";
+  const apiClient = useProductApiClient();
+
+  const owner = useRuntimeCacheKey() ?? "__anon__";
   const queryClient = useQueryClient();
   const validate = useMutation({
     mutationFn: async (
       draft: CreateAnimaDraft,
     ): Promise<{ draft: CreateAnimaDraft; result: AnimaValidationResult }> => {
-      const resolved = await resolveCreationEvidence(queryClient, owner, draft);
+      const resolved = await resolveCreationEvidence(
+        apiClient,
+        queryClient,
+        owner,
+        draft,
+      );
       const response = await validateAnimaV1AnimasValidatePost({
+        client: apiClient,
         body: buildAnimaSpec(resolved),
         signal: AbortSignal.timeout(60_000),
         requestValidator: undefined,
@@ -347,6 +367,7 @@ export function useAnimaCreationOperations() {
     ): Promise<AnimaCreationResult> => {
       try {
         const response = await createAnimaV1AnimasPost({
+          client: apiClient,
           // Saved commands can contain retired source kinds. The private backend
           // compatibility decoder permits exact receipt replay only; a miss rejects.
           // New commands have already passed creationRequestSchema.
@@ -387,6 +408,7 @@ export function useAnimaCreationOperations() {
       replace?: ItemRevisionRef;
     }) => {
       const response = await saveAvatarContent({
+        client: apiClient,
         path: { entry_name: input.name },
         signal: AbortSignal.timeout(120_000),
         body: {
@@ -419,9 +441,10 @@ export function useAnimaCreationOperations() {
     (
       kind: CreationSourceKind,
       source: ItemRevisionRef,
-      options?: Parameters<typeof loadCreationPreview>[4],
-    ) => loadCreationPreview(queryClient, owner, kind, source, options),
-    [queryClient, owner],
+      options?: Parameters<typeof loadCreationPreview>[5],
+    ) =>
+      loadCreationPreview(apiClient, queryClient, owner, kind, source, options),
+    [apiClient, queryClient, owner],
   );
   return { validate, create, saveAvatar, resolve };
 }

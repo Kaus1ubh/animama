@@ -1,3 +1,4 @@
+import type { Client } from "@animama/runtime-contracts/sdk";
 import {
   deleteContentItemV1ContentItemsItemIdDelete,
   getContentItemV1ContentItemsItemIdGet,
@@ -75,7 +76,7 @@ export type CatalogSaveInput = {
 type ContentSaveResponse<T> = {
   data: T | undefined;
   error: unknown;
-  response: Response;
+  response?: Response;
 };
 
 /** Preserve generated-client HTTP context while exposing one real Save error. */
@@ -87,6 +88,13 @@ async function contentSaveData<T>(
     result = await request;
   } catch (cause) {
     throw toContentSaveApiError(cause);
+  }
+  // A lost reply is uncertain: keep the operation ID and draft for receipt-based retry.
+  // The generated client returns fetch failures without an HTTP response.
+  if (!result.response) {
+    throw toContentSaveApiError(
+      result.error ?? new TypeError("Failed to fetch"),
+    );
   }
   if (result.error !== undefined) {
     throw toContentSaveApiError(result.error, result.response.status);
@@ -239,6 +247,7 @@ export function typedCatalogTransportItem(
 
 /** Save ordinary editable files through the one neutral Content endpoint. */
 export async function saveCatalogItem(
+  apiClient: Client,
   input: CatalogSaveInput,
 ): Promise<PyContentItem> {
   const body = {
@@ -265,67 +274,89 @@ export async function saveCatalogItem(
   switch (input.kind) {
     case "gesture":
       item = {
-        ...(await contentSaveData(saveGesture(typedOptions))),
+        ...(await contentSaveData(
+          saveGesture({ ...typedOptions, client: apiClient }),
+        )),
         kind: "gesture",
       };
       break;
     case "reaction":
       item = {
-        ...(await contentSaveData(saveReaction(typedOptions))),
+        ...(await contentSaveData(
+          saveReaction({ ...typedOptions, client: apiClient }),
+        )),
         kind: "reaction",
       };
       break;
     case "pose":
       item = {
-        ...(await contentSaveData(savePose(typedOptions))),
+        ...(await contentSaveData(
+          savePose({ ...typedOptions, client: apiClient }),
+        )),
         kind: "pose",
       };
       break;
     case "particle_effect":
       item = {
-        ...(await contentSaveData(saveParticleEffect(typedOptions))),
+        ...(await contentSaveData(
+          saveParticleEffect({ ...typedOptions, client: apiClient }),
+        )),
         kind: "particle_effect",
       };
       break;
     case "avatar_effect":
       item = {
-        ...(await contentSaveData(saveAvatarEffect(typedOptions))),
+        ...(await contentSaveData(
+          saveAvatarEffect({ ...typedOptions, client: apiClient }),
+        )),
         kind: "avatar_effect",
       };
       break;
     case "scene_effect":
       item = {
-        ...(await contentSaveData(saveSceneEffect(typedOptions))),
+        ...(await contentSaveData(
+          saveSceneEffect({ ...typedOptions, client: apiClient }),
+        )),
         kind: "scene_effect",
       };
       break;
     case "sound_effect":
       item = {
-        ...(await contentSaveData(saveSoundEffect(typedOptions))),
+        ...(await contentSaveData(
+          saveSoundEffect({ ...typedOptions, client: apiClient }),
+        )),
         kind: "sound_effect",
       };
       break;
     case "idle_style":
       item = {
-        ...(await contentSaveData(saveIdleStyle(typedOptions))),
+        ...(await contentSaveData(
+          saveIdleStyle({ ...typedOptions, client: apiClient }),
+        )),
         kind: "idle_style",
       };
       break;
     case "avatar":
       item = {
-        ...(await contentSaveData(saveAvatarContent(typedOptions))),
+        ...(await contentSaveData(
+          saveAvatarContent({ ...typedOptions, client: apiClient }),
+        )),
         kind: "avatar",
       };
       break;
     case "appearance":
       item = {
-        ...(await contentSaveData(saveAppearanceContent(typedOptions))),
+        ...(await contentSaveData(
+          saveAppearanceContent({ ...typedOptions, client: apiClient }),
+        )),
         kind: "appearance",
       };
       break;
     case "voice":
       item = {
-        ...(await contentSaveData(saveVoiceContent(typedOptions))),
+        ...(await contentSaveData(
+          saveVoiceContent({ ...typedOptions, client: apiClient }),
+        )),
         kind: "voice",
       };
       break;
@@ -339,6 +370,7 @@ export async function saveCatalogItem(
 
 /** Preview one known family without falling back to generic metadata routes. */
 export async function previewTypedCatalogItem(
+  apiClient: Client,
   kind: Exclude<ContentKind, "anima">,
   itemId: string,
   signal?: AbortSignal,
@@ -351,27 +383,32 @@ export async function previewTypedCatalogItem(
   };
   switch (kind) {
     case "gesture":
-      return (await previewGesture(options)).data;
+      return (await previewGesture({ ...options, client: apiClient })).data;
     case "reaction":
-      return (await previewReaction(options)).data;
+      return (await previewReaction({ ...options, client: apiClient })).data;
     case "pose":
-      return (await previewPose(options)).data;
+      return (await previewPose({ ...options, client: apiClient })).data;
     case "particle_effect":
-      return (await previewParticleEffect(options)).data;
+      return (await previewParticleEffect({ ...options, client: apiClient }))
+        .data;
     case "avatar_effect":
-      return (await previewAvatarEffect(options)).data;
+      return (await previewAvatarEffect({ ...options, client: apiClient }))
+        .data;
     case "scene_effect":
-      return (await previewSceneEffect(options)).data;
+      return (await previewSceneEffect({ ...options, client: apiClient })).data;
     case "sound_effect":
-      return (await previewSoundEffect(options)).data;
+      return (await previewSoundEffect({ ...options, client: apiClient })).data;
     case "idle_style":
-      return (await previewIdleStyle(options)).data;
+      return (await previewIdleStyle({ ...options, client: apiClient })).data;
     case "avatar":
-      return (await previewAvatarContent(options)).data;
+      return (await previewAvatarContent({ ...options, client: apiClient }))
+        .data;
     case "appearance":
-      return (await previewAppearanceContent(options)).data;
+      return (await previewAppearanceContent({ ...options, client: apiClient }))
+        .data;
     case "voice":
-      return (await previewVoiceContent(options)).data;
+      return (await previewVoiceContent({ ...options, client: apiClient }))
+        .data;
   }
 }
 
@@ -395,16 +432,18 @@ export function typedPreviewTransport(
 }
 
 export async function previewCatalogItem(
+  apiClient: Client,
   itemId: string,
   signal?: AbortSignal,
   knownKind?: Exclude<ContentKind, "anima">,
 ): Promise<PyContentPreview> {
-  const kind = knownKind ?? (await getCatalogItem(itemId)).kind;
+  const kind = knownKind ?? (await getCatalogItem(apiClient, itemId)).kind;
   if (kind === "anima") {
     throw new Error("Portable Anima previews are not available yet.");
   }
   return typedPreviewTransport(
     await previewTypedCatalogItem(
+      apiClient,
       kind as Exclude<ContentKind, "anima">,
       itemId,
       signal,
@@ -412,9 +451,13 @@ export async function previewCatalogItem(
   );
 }
 
-export async function getCatalogItem(itemId: string): Promise<PyContentItem> {
+export async function getCatalogItem(
+  apiClient: Client,
+  itemId: string,
+): Promise<PyContentItem> {
   return (
     await getContentItemV1ContentItemsItemIdGet({
+      client: apiClient,
       path: { item_id: itemId },
       responseValidator: undefined,
       throwOnError: true,
@@ -424,6 +467,7 @@ export async function getCatalogItem(itemId: string): Promise<PyContentItem> {
 
 /** Read an editable Action through its exact typed product contract. */
 export async function getTypedActionCatalogItem(
+  apiClient: Client,
   kind: "gesture" | "reaction",
   itemId: string,
 ): Promise<PyContentItem> {
@@ -434,17 +478,25 @@ export async function getTypedActionCatalogItem(
   };
   const item =
     kind === "gesture"
-      ? { ...(await getGesture(options)).data, kind: "gesture" as const }
-      : { ...(await getReaction(options)).data, kind: "reaction" as const };
+      ? {
+          ...(await getGesture({ ...options, client: apiClient })).data,
+          kind: "gesture" as const,
+        }
+      : {
+          ...(await getReaction({ ...options, client: apiClient })).data,
+          kind: "reaction" as const,
+        };
   return typedCatalogTransportItem(item);
 }
 
 export async function listCatalogItems(
+  apiClient: Client,
   kind?: ContentKind,
   signal?: AbortSignal,
 ) {
   const catalog = (
     await listContentCatalogV1ContentCatalogGet({
+      client: apiClient,
       signal,
       responseValidator: undefined,
       throwOnError: true,
@@ -456,10 +508,12 @@ export async function listCatalogItems(
 }
 
 export async function deleteCatalogItem(
+  apiClient: Client,
   itemId: string,
   expectedRevision: string,
 ): Promise<void> {
   await deleteContentItemV1ContentItemsItemIdDelete({
+    client: apiClient,
     path: { item_id: itemId },
     query: { expected_revision: expectedRevision },
     responseValidator: undefined,

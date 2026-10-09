@@ -32,6 +32,7 @@ from animama.app.model_clients import (
     ModelClientRequest,
     model_client_preview_log_context,
     model_client_request_log_context,
+    uses_native_context_compaction,
 )
 from animama.app.model_clients.context_budget import (
     ContextBudget,
@@ -52,7 +53,6 @@ from animama.logging import get_logger
 from .api_standard import chat_api_standard_for_provider
 from .direct_turn.constants import (
     DIRECT_MEMORY_TOOL_SUPPORT_BY_PROVIDER,
-    OPENAI_RESPONSES_PROVIDER,
     STRUCTURED_REPAIR_METADATA_KEY,
 )
 from .direct_turn.context_fit import drop_oldest_history, fit_history
@@ -669,11 +669,6 @@ class DirectChatTurnExecutor:
                     break
                 yield event
             final, internal_tool_messages = await collector_task
-        except asyncio.CancelledError:
-            collector_task.cancel()
-            with suppress(asyncio.CancelledError):
-                await collector_task
-            raise
         except DirectChatTurnStreamError as exc:
             _log.warning(
                 "Direct chat model stream failed",
@@ -691,6 +686,13 @@ class DirectChatTurnExecutor:
                 details=model_error_details(exc.error, prepared.model_request.model_provider),
             )
             return
+        finally:
+            # A cancelled or closed stream (its reader stopped) must not leave the
+            # collector's provider call running and billing in the background.
+            if not collector_task.done():
+                collector_task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await collector_task
         if final is not None and prepared.model_request.provider_options.moderation_model is not None:
             # Provider moderation arrives with the completed response, after the
             # reply text. It can only add a crisis card; it never alters the turn.
@@ -961,11 +963,18 @@ class DirectChatTurnExecutor:
     def _context_budget(self, prepared: PreparedDirectChatTurn) -> ContextBudget | None:
         """Return the window budget for models the application must keep within it.
 
-        OpenAI Responses compacts natively; rows without a window are not bounded.
+        A turn continuing from a provider cursor sends no local history, and a
+        client that asks its provider to compact (OpenAI Responses with a
+        compaction threshold) keeps prompts within the window itself. Every
+        other row with a window is fitted here, including Responses rows whose
+        composition turns native compaction off. Rows without a window are not
+        bounded.
         """
 
         model_provider = prepared.model_request.model_provider
-        if model_provider.provider_type == OPENAI_RESPONSES_PROVIDER or not prepared.context_loaded:
+        if not prepared.context_loaded or uses_native_context_compaction(
+            self._registry.get(model_provider.provider_type)
+        ):
             return None
         return context_budget_for_model(model_provider)
 

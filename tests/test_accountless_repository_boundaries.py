@@ -11,6 +11,7 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[1]
 # Locust needs an absolute target; React must continue to derive its own origin.
 LOAD_TOOL_APPLICATION_DEFAULT = '_env("ANIMAMA_PUBLIC_ORIGIN", "http://localhost:8000")'
+HOSTED_ADMISSION_ADAPTER = Path("src/frontend/web/src/app/hosted-runtime/hosted-composition.ts")
 CALLER_PATTERNS = {
     "hard-coded local API origin": re.compile(r"https?://(?:localhost|127\.0\.0\.1):8000"),
     "browser API-origin configuration": re.compile(r"VITE_ANIMAMA_API|NEXT_PUBLIC_ANIMAMA_API|ANIMAMA_SERVER_BASE_URL"),
@@ -100,6 +101,11 @@ def test_browser_and_load_tools_have_no_separate_api_origin_or_bearer_path() -> 
     ]
     for path in authored_browser_files:
         for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+            # The hosted consumer returns one validated identity-navigation URL.
+            # This named wire field is not an Authorization header or stored credential;
+            # all other authorization text, including headers in this adapter, stays guarded.
+            if path.relative_to(REPO_ROOT) == HOSTED_ADMISSION_ADAPTER:
+                line = re.sub(r"\bauthorization_url\b", "", line)
             if "authorization" not in line.lower():
                 continue
             if re.search(r"\.delete\(\s*[\"']authorization[\"']\s*\)", line, re.IGNORECASE):

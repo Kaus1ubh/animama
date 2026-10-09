@@ -1,5 +1,7 @@
 "use client";
 
+import { useProductApiClient } from "@animama/product-ui";
+
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { createEpisodeProcessingMemoryManagerRunV1MemoryManagerRunsProcessEpisodesPost } from "@animama/runtime-contracts/sdk";
@@ -7,9 +9,10 @@ import type {
   PyMemoryManagerEpisodeProcessingRunCreateRequest,
   PyMemoryManagerRunResponse,
 } from "@/lib/content/catalogTypes";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { MemoryManagerApiError } from "@/lib/memory-manager/errors";
 import { queryKeys } from "@/query/keys";
+import { sdkResultError } from "@/query/sdkResultError";
 import { publishMemoryManagerSnapshot } from "@/query/mutations/memoryManagerMutationCache";
 
 export type CreateEpisodeProcessingMemoryManagerRunArgs = {
@@ -18,8 +21,10 @@ export type CreateEpisodeProcessingMemoryManagerRunArgs = {
 
 /** Starts one backend-owned fixed episodic-memory review batch. */
 export function useCreateEpisodeProcessingMemoryManagerRun() {
+  const apiClient = useProductApiClient();
+
   const queryClient = useQueryClient();
-  const userId = useRuntimeOwnerId();
+  const userId = useRuntimeCacheKey();
   const userKey = userId ?? "__anon__";
 
   return useMutation<
@@ -31,13 +36,17 @@ export function useCreateEpisodeProcessingMemoryManagerRun() {
       const result =
         await createEpisodeProcessingMemoryManagerRunV1MemoryManagerRunsProcessEpisodesPost(
           {
+            client: apiClient,
             body,
             responseValidator: undefined,
             throwOnError: false,
           },
         );
       if (result.error !== undefined) {
-        throw new MemoryManagerApiError(result.response.status, result.error);
+        throw sdkResultError(
+          result,
+          (status, error) => new MemoryManagerApiError(status, error),
+        );
       }
       return result.data;
     },

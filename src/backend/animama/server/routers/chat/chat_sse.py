@@ -9,6 +9,7 @@ from typing import Any
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 
+from animama.app.chat.completion import complete_successful_turn
 from animama.app.model_clients import ModelClientRegistry
 from animama.app.services.chat_title_generation_service import ChatTitleGenerationResult
 from animama.domain.events import EventType
@@ -319,74 +320,61 @@ async def stream_direct_chat_sse(
             )
             finalized_tts.start_if_ready(state)
 
-            async for frame in drain_pending_events(
-                bridge,
-                run_id=run_id,
-                anima_id=anima_id,
-                session_factory=session_factory,
-                state=state,
-                build_gruut_sse_text=build_gruut_sse_text,
-                stream_user_response=False,
-                stream_emotion_update=True,
-            ):
-                yield frame
-
-            tts_frame = await tts_bootstrap.finish_frame()
-            if tts_frame is not None:
-                yield tts_frame
-
-            async for frame in finalized_tts.finish_frames(state):
-                yield frame
-
-            title_frame = await _chat_title_updated_frame(
-                title_task=title_task,
-                session_factory=session_factory,
-                anima_id=anima_id,
-                user_id=user.id,
-                chat_id=chat_id,
-                run_id=run_id,
-            )
-            title_task = None
-            if title_frame is not None:
-                yield title_frame
-
-            await _compact_chat_after_success(
-                session_factory=session_factory,
-                model_client_registry=model_client_registry,
-                chat_id=chat_id,
-                user_id=user.id,
-                anima_id=anima_id,
-                run_id=run_id,
-                chat_options=turn.chat_options,
-                model_roles=model_roles,
-                model_provider=turn.prepared_turn.model_request.model_provider,
-            )
-            _log.info(
-                "Direct chat post-model side effects completed",
-                anima_id=anima_id,
-                chat_id=chat_id,
-                run_id=run_id,
-            )
-
-            # `run.completed` is emitted by the route after all successful
-            # post-turn work that can affect streamed state has had a chance to
-            # finish. Error paths emit a separate completion/fallback frame.
-            frame = direct_run_completed_frame(
-                anima_id=anima_id,
-                chat_id=chat_id,
-                user_id=user.id,
-                run_id=run_id,
-                state=state,
-                build_gruut_sse_text=build_gruut_sse_text,
-            )
-            if frame is not None:
-                completed_emitted = True
-                _log.info(
-                    "Direct chat run.completed emitted",
+            async def finish_title() -> str | None:
+                nonlocal title_task
+                frame = await _chat_title_updated_frame(
+                    title_task=title_task,
+                    session_factory=session_factory,
                     anima_id=anima_id,
+                    user_id=user.id,
                     chat_id=chat_id,
                     run_id=run_id,
                 )
+                title_task = None
+                return frame
+
+            def completed_frame() -> str | None:
+                nonlocal completed_emitted
+                frame = direct_run_completed_frame(
+                    anima_id=anima_id,
+                    chat_id=chat_id,
+                    user_id=user.id,
+                    run_id=run_id,
+                    state=state,
+                    build_gruut_sse_text=build_gruut_sse_text,
+                )
+                if frame is not None:
+                    completed_emitted = True
+                return frame
+
+            async for frame in complete_successful_turn(
+                options=turn.chat_options,
+                pending_events=drain_pending_events(
+                    bridge,
+                    run_id=run_id,
+                    anima_id=anima_id,
+                    session_factory=session_factory,
+                    state=state,
+                    build_gruut_sse_text=build_gruut_sse_text,
+                    stream_user_response=False,
+                    stream_emotion_update=True,
+                ),
+                finish_session=tts_bootstrap.finish_frame,
+                speech_events=finalized_tts.finish_frames(state),
+                finish_title=finish_title,
+                compact=lambda: _compact_chat_after_success(
+                    session_factory=session_factory,
+                    model_client_registry=model_client_registry,
+                    chat_id=chat_id,
+                    user_id=user.id,
+                    anima_id=anima_id,
+                    run_id=run_id,
+                    chat_options=turn.chat_options,
+                    model_roles=model_roles,
+                    model_provider=turn.prepared_turn.model_request.model_provider,
+                ),
+                completed=completed_frame,
+            ):
                 yield frame
         except asyncio.CancelledError:
             await _cancel_chat_title_task(title_task)

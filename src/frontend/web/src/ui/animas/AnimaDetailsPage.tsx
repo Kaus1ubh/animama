@@ -91,6 +91,8 @@ export type AnimaDetailsPageProps = {
   onSelectAnima: (animaId: string, tab: AnimaManagementTab) => void;
   /** Omit when the runtime does not offer Anima creation. */
   onCreateAnima?: () => void;
+  /** Shown on a disabled New Anima action when the runtime withholds creation. */
+  createAnimaUnavailableReason?: string;
 };
 
 const TAB_LABELS: Record<AnimaManagementTab, string> = {
@@ -340,6 +342,7 @@ export function AnimaDetailsPage({
   onTabChange,
   onSelectAnima,
   onCreateAnima,
+  createAnimaUnavailableReason,
 }: AnimaDetailsPageProps) {
   const [stagePreview, dispatchStagePreview] = useReducer(
     reduceAnimaStagePreview,
@@ -703,6 +706,7 @@ export function AnimaDetailsPage({
               onPrevious={() => selectAdjacent(-1)}
               onNext={() => selectAdjacent(1)}
               onCreate={onCreateAnima}
+              createUnavailableReason={createAnimaUnavailableReason}
               compact={rosterLayout === "phone"}
               showNavigationButtons={false}
             />

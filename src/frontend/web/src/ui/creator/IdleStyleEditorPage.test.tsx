@@ -1,4 +1,4 @@
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToStaticMarkup } from "@/test/runtime-markup";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { PropsWithChildren } from "react";
 import type { PyGesture, PyIdleStyle } from "@/lib/content/catalogTypes";
@@ -18,7 +18,7 @@ vi.mock("@tanstack/react-query", () => ({
   useQueryClient: () => ({ invalidateQueries: vi.fn() }),
 }));
 vi.mock("@/app/runtime/RuntimeOwnerContext", () => ({
-  useRuntimeOwnerId: () => "owner",
+  useRuntimeCacheKey: () => "owner",
 }));
 vi.mock("@/query/hooks/useIdleStyles", () => ({
   useIdleStyle: () => ({

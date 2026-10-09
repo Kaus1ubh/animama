@@ -1,11 +1,7 @@
 import type { QueryClient } from "@tanstack/react-query";
-
-import { queryClient } from "@web/app/query-client";
+import type { RuntimeCapabilities } from "@animama/runtime-contracts";
 
 export type AppRouterContext = {
   queryClient: QueryClient;
-};
-
-export const defaultRouterContext: AppRouterContext = {
-  queryClient,
+  capabilities?: RuntimeCapabilities;
 };

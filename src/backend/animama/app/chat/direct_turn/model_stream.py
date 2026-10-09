@@ -886,6 +886,7 @@ class DirectTurnModelStreamCollector:
             prompt = _prompt_with_appended_messages(prompt, extra_messages)
         return ModelClientRequest(
             model_provider=model_request.model_provider,
+            limits=model_request.limits,
             prompt=prompt,
             provider_options=model_request.provider_options,
             continuation=None,
@@ -1086,6 +1087,7 @@ def _model_request_with_appended_messages(
     prompt = model_request.prompt
     return ModelClientRequest(
         model_provider=model_request.model_provider,
+        limits=model_request.limits,
         prompt=copy_direct_chat_prompt(prompt, messages=(*prompt_messages(prompt), *messages)),
         # Moderation is requested only on round 0, whose input is the user's message.
         provider_options=replace(model_request.provider_options, moderation_model=None),
@@ -1134,6 +1136,7 @@ def _model_request_without_tools(
         ]
     return ModelClientRequest(
         model_provider=model_request.model_provider,
+        limits=model_request.limits,
         prompt=copy_direct_chat_prompt(
             prompt,
             messages=messages,

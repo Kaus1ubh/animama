@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
+
+import { renderToStaticMarkup } from "@/test/runtime-markup";
 
 const action = vi.hoisted(() => ({
   current: { isPending: false, data: undefined as unknown },

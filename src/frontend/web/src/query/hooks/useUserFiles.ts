@@ -1,11 +1,13 @@
 "use client";
 
+import { useProductApiClient } from "@animama/product-ui";
+
 import { useQuery } from "@tanstack/react-query";
 
 import { listUserFilesV1FilesGet } from "@animama/runtime-contracts/sdk";
 import type { PyUserFileResponse } from "@/lib/content/catalogTypes";
 import { libraryUploadRefetchInterval } from "@/lib/uploads/libraryUploads";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { queryKeys } from "@/query/keys";
 
 export type UseUserFilesOptions = {
@@ -14,7 +16,9 @@ export type UseUserFilesOptions = {
 };
 
 export function useUserFiles(opts?: UseUserFilesOptions) {
-  const userId = useRuntimeOwnerId();
+  const apiClient = useProductApiClient();
+
+  const userId = useRuntimeCacheKey();
   const userKey = userId ?? "__anon__";
   const enabled = (opts?.enabled ?? true) && Boolean(userId);
 
@@ -23,6 +27,7 @@ export function useUserFiles(opts?: UseUserFilesOptions) {
     enabled,
     queryFn: async () => {
       const { data } = await listUserFilesV1FilesGet({
+        client: apiClient,
         responseValidator: undefined,
         throwOnError: true,
       });

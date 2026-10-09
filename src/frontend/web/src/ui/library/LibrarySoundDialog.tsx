@@ -1,6 +1,7 @@
+import { useProductApiClient } from "@animama/product-ui";
 import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { useContentEditorSaveSource } from "@/hooks/useContentEditorSaveSource";
 import { useContentSaveFailure } from "@/hooks/useContentSaveFailure";
 import {
@@ -32,6 +33,8 @@ export function LibrarySoundDialog({
   item: PyCatalogViewItem;
   onClose: () => void;
 }) {
+  const apiClient = useProductApiClient();
+
   const [name, setName] = useState(item.name);
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
@@ -39,7 +42,7 @@ export function LibrarySoundDialog({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const request = useRef<CatalogSaveInput | null>(null);
   const mounted = useRef(true);
-  const owner = useRuntimeOwnerId();
+  const owner = useRuntimeCacheKey();
   const queryClient = useQueryClient();
   const { saved: recordSaved } = useContentEditorSaveSource(
     "sound_effect",
@@ -63,7 +66,7 @@ export function LibrarySoundDialog({
       if (!request.current) {
         // Typed rows omit sidecar provenance and other hidden fields. Read the
         // original metadata without advancing this dialog's revision authority.
-        const stored = await getCatalogItem(item.item_id);
+        const stored = await getCatalogItem(apiClient, item.item_id);
         if (stored.revision_sha256 !== item.revision_sha256)
           throw new Error(
             "This sound changed. Close and reopen it before saving.",
@@ -71,7 +74,12 @@ export function LibrarySoundDialog({
         const audio =
           file ??
           (await loadCreatorPreviewFile(
-            await previewCatalogItem(item.item_id, undefined, "sound_effect"),
+            await previewCatalogItem(
+              apiClient,
+              item.item_id,
+              undefined,
+              "sound_effect",
+            ),
             "audio",
           ));
         if (!mounted.current) return;
@@ -82,7 +90,7 @@ export function LibrarySoundDialog({
           crypto.randomUUID(),
         );
       }
-      const result = await saveCatalogItem(request.current);
+      const result = await saveCatalogItem(apiClient, request.current);
       // A successful write must never be retried because cache refresh failed.
       setSaved(true);
       await recordSaved(result);
@@ -98,7 +106,7 @@ export function LibrarySoundDialog({
     setBusy(true);
     clear();
     try {
-      await deleteCatalogItem(item.item_id, item.revision_sha256);
+      await deleteCatalogItem(apiClient, item.item_id, item.revision_sha256);
       if (owner)
         void queryClient.invalidateQueries({
           queryKey: queryKeys.soundEffects.all(owner),

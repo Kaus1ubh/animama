@@ -42,7 +42,14 @@ def fixture(root):
             "snapshot_sha256": "c" * 64,
             "source_date_epoch": 1,
         },
-        "build": {},
+        "build": {
+            "inputs": {name: "d" * 64 for name in ("uv.lock", "src/frontend/pnpm-lock.yaml", "pyproject.toml")},
+            "recipe": {"scripts/package-sets/build.py": "e" * 64},
+            "python": "3.12.13",
+            "uv": "uv 0.11.0",
+            "node": "v24.15.0",
+            "pnpm": "10.33.0",
+        },
         "packages": [
             file_record(root, p.name, **metadata(p)) for p in sorted(root.iterdir()) if p.suffix in {".whl", ".tgz"}
         ],
@@ -59,7 +66,8 @@ def write_manifest(root, m):
     (root / "manifest.json").write_bytes(canonical(m))
     (root / "SHA256SUMS").write_text(
         "".join(
-            f"{r['sha256']}  {r['file']}\n" for r in sorted(m["packages"] + m["contracts"], key=lambda x: x["file"])
+            f"{r['sha256']}  {r['file']}\n"
+            for r in sorted(m["packages"] + m["contracts"] + m.get("applications", []), key=lambda x: x["file"])
         )
     )
 
@@ -78,6 +86,26 @@ class PackageSetTests(unittest.TestCase):
         changed = copy.deepcopy(self.m)
         changed["source"]["snapshot_sha256"] = "e" * 64
         self.assertNotEqual(identity(changed), identity(self.m))
+
+    def test_format_one_does_not_accept_unverified_build_fields(self):
+        m = copy.deepcopy(self.m)
+        m["build"]["private_source"] = "../unverified-source"
+        write_manifest(self.old, m)
+        with self.assertRaisesRegex(ValueError, "build"):
+            verify(self.old)
+
+    def test_build_hashes_require_safe_recipe_paths_and_exact_lock_inputs(self):
+        for mutate in (
+            lambda m: m["build"]["recipe"].update({"../source.py": "e" * 64}),
+            lambda m: m["build"]["inputs"].update({"private.lock": "d" * 64}),
+            lambda m: m["build"]["recipe"].update({"scripts/build.py": "not-a-digest"}),
+        ):
+            with self.subTest(mutate=mutate):
+                m = copy.deepcopy(self.m)
+                mutate(m)
+                write_manifest(self.old, m)
+                with self.assertRaises(ValueError):
+                    verify(self.old)
 
     def test_corrupt_digest_floating_commit_missing_version_and_path(self):
         for mutate in (
@@ -114,6 +142,50 @@ class PackageSetTests(unittest.TestCase):
         m["contracts"][0]["version"] = "2.0.0"
         write_manifest(new, m)
         compare(self.old, new)
+
+    def test_build_environment_forwards_the_model_store_but_no_credentials_or_fixed_model_set(self):
+        inherited = {
+            "PATH": "/usr/bin",
+            "HOME": "/home/builder",
+            "ANIMAMA_MODEL_ROOT": "/verified/models",
+            "XDG_CACHE_HOME": "/home/builder/.cache",
+            # One resolved set would make a baseline snapshot build with the candidate's models.
+            "ANIMAMA_BROWSER_MODEL_DIR": "/verified/models/browser-speech/candidate",
+            "OPENAI_API_KEY": "sk-never-forwarded",
+            "GITHUB_TOKEN": "never-forwarded",
+            "R2_SECRET_ACCESS_KEY": "never-forwarded",
+        }
+        with patch.dict(os.environ, inherited, clear=True):
+            env = build.clean_env()
+        self.assertEqual(env["ANIMAMA_MODEL_ROOT"], "/verified/models")
+        self.assertEqual(env["XDG_CACHE_HOME"], "/home/builder/.cache")
+        self.assertEqual(env["HOME"], "/home/builder")
+        for name in ("ANIMAMA_BROWSER_MODEL_DIR", "OPENAI_API_KEY", "GITHUB_TOKEN", "R2_SECRET_ACCESS_KEY"):
+            self.assertNotIn(name, env)
+
+    def test_models_acquires_only_an_application_sources_own_speech_set(self):
+        source = self.root / "source"
+        (source / "scripts/models").mkdir(parents=True)
+        commands = []
+
+        def record(command, cwd, env):
+            commands.append((command, cwd, env))
+
+        with (
+            patch("build.run", side_effect=record),
+            patch.dict(os.environ, {"ANIMAMA_MODEL_ROOT": "/verified/models", "OPENAI_API_KEY": "sk"}, clear=True),
+        ):
+            build.models(source)  # A library-only (format 1) source builds no application.
+            self.assertEqual(commands, [])
+            (source / "src/frontend/scripts").mkdir(parents=True)
+            (source / "src/frontend/scripts/hosted-build-resources.mjs").write_text("// fixture\n")
+            build.models(source)
+        script = str(source.resolve() / "scripts/models/browser_speech.py")
+        self.assertEqual([command[1:] for command, _, _ in commands], [[script, "acquire"], [script, "verify"]])
+        for _, cwd, env in commands:
+            self.assertEqual(cwd, source.resolve())
+            self.assertEqual(env["ANIMAMA_MODEL_ROOT"], "/verified/models")
+            self.assertNotIn("OPENAI_API_KEY", env)
 
     def test_snapshot_rejects_dirty_and_override_in_ci_and_excludes_ignored_secrets(self):
         repo = self.root / "repo"

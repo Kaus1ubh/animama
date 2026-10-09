@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { renderToString } from "react-dom/server";
+import { renderToString } from "@/test/runtime-markup";
 import { describe, expect, it, vi } from "vitest";
 import type { PyCatalogViewItem } from "@/lib/content/catalogTypes";
 import { LibrarySoundDialog } from "./LibrarySoundDialog";
@@ -8,7 +8,7 @@ vi.mock("@/hooks/useContentEditorSaveSource", () => ({
   useContentEditorSaveSource: () => ({ saved: vi.fn() }),
 }));
 vi.mock("@/app/runtime/RuntimeOwnerContext", () => ({
-  useRuntimeOwnerId: () => "owner",
+  useRuntimeCacheKey: () => "owner",
 }));
 vi.mock("@tanstack/react-query", () => ({
   useQueryClient: () => ({ invalidateQueries: vi.fn() }),

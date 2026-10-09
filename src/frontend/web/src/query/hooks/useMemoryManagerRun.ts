@@ -1,5 +1,7 @@
 "use client";
 
+import { useProductApiClient } from "@animama/product-ui";
+
 import { useQuery } from "@tanstack/react-query";
 
 import {
@@ -7,7 +9,7 @@ import {
   getMemoryManagerRunV1MemoryManagerRunsRunIdGet,
 } from "@animama/runtime-contracts/sdk";
 import type { PyMemoryManagerRunResponse } from "@/lib/content/catalogTypes";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { queryKeys } from "@/query/keys";
 
 export type UseMemoryManagerRunOptions = {
@@ -15,7 +17,9 @@ export type UseMemoryManagerRunOptions = {
 };
 
 export function useCurrentMemoryManagerRun(opts?: UseMemoryManagerRunOptions) {
-  const userId = useRuntimeOwnerId();
+  const apiClient = useProductApiClient();
+
+  const userId = useRuntimeCacheKey();
   const userKey = userId ?? "__anon__";
   const enabled = (opts?.enabled ?? true) && Boolean(userId);
 
@@ -25,6 +29,7 @@ export function useCurrentMemoryManagerRun(opts?: UseMemoryManagerRunOptions) {
     queryFn: async () => {
       const { data } =
         await getCurrentMemoryManagerRunV1MemoryManagerRunsCurrentGet({
+          client: apiClient,
           responseValidator: undefined,
           throwOnError: true,
         });
@@ -37,7 +42,9 @@ export function useMemoryManagerRun(
   runId: string | null | undefined,
   opts?: UseMemoryManagerRunOptions,
 ) {
-  const userId = useRuntimeOwnerId();
+  const apiClient = useProductApiClient();
+
+  const userId = useRuntimeCacheKey();
   const userKey = userId ?? "__anon__";
   const keyId = runId ?? "__none__";
   const enabled = (opts?.enabled ?? true) && Boolean(userId) && Boolean(runId);
@@ -48,6 +55,7 @@ export function useMemoryManagerRun(
     queryFn: async () => {
       if (!runId) return null;
       const { data } = await getMemoryManagerRunV1MemoryManagerRunsRunIdGet({
+        client: apiClient,
         path: { run_id: runId },
         responseValidator: undefined,
         throwOnError: true,

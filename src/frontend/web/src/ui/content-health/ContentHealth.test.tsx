@@ -25,6 +25,12 @@ const state = vi.hoisted(() => ({
     isFetching: boolean;
   },
   rescan: { isError: false, isPending: false, mutate: vi.fn() },
+  hostAdministration: true,
+}));
+vi.mock("@/query/hooks/useRuntimeCapabilities", () => ({
+  useRuntimeCapabilities: () => ({
+    data: { local_filesystem_administration: state.hostAdministration },
+  }),
 }));
 
 vi.mock("@/query/hooks/useContentCatalog", () => ({
@@ -49,6 +55,7 @@ beforeEach(() => {
   };
   state.rescan.isError = false;
   state.rescan.isPending = false;
+  state.hostAdministration = true;
 });
 
 describe("content attention indicator", () => {
@@ -82,6 +89,16 @@ describe("content attention indicator", () => {
     const html = renderToStaticMarkup(<ContentHealth compact />);
     expect(html).toContain('aria-label="Content library unavailable"');
     expect(html).toContain("Retry scan");
+  });
+
+  it("keeps catalog retry and diagnostics while withholding hosted host scan", () => {
+    state.catalog.isError = true;
+    state.hostAdministration = false;
+    const html = renderToStaticMarkup(<ContentHealth />);
+    expect(html).toContain("Content library unavailable");
+    expect(html).toContain("Retry Library");
+    expect(html).toContain("Host file scanning is managed by the operator.");
+    expect(html).not.toContain("Retry scan");
   });
 
   it("lists only affected items and their validation details", () => {

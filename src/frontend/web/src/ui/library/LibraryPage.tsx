@@ -2,18 +2,26 @@
 
 import { useLibrarySharingFlow } from "@/query/hooks/useLibrarySharingFlow";
 import { LibrarySharingDialog } from "./LibrarySharingDialog";
-import { LibraryBig } from "lucide-react";
+import { LibraryBig, Menu } from "lucide-react";
 
+import { hostedExclusionReasons } from "@/app/runtime/route-admission";
 import type { ContentLibrarySearch } from "@/lib/content/librarySearch";
+import { useRuntimeCapabilities } from "@/query/hooks/useRuntimeCapabilities";
 import { AppShellPage } from "@/ui/app/AppShellPage";
+import { useOptionalAppShell } from "@/ui/app/AppShell";
 import { cn } from "@/lib/utils";
 import { Button } from "@/ui/components/button";
 import {
   UNDERLINE_TAB_LIST_CLASS,
   underlineTabClassName,
 } from "@/ui/components/tabs";
+import { UnavailableAction } from "@/ui/components/unavailable-action";
 import { LibraryChatUploads } from "@/ui/library/LibraryChatUploads";
 import { LibraryContentInventory } from "@/ui/library/LibraryContentInventory";
+import {
+  useRuntimeFeatureEnabled,
+  useRuntimeFeatureUnavailableReason,
+} from "@/ui/app/RuntimeFeatureGate";
 import { ContentHealth } from "@/ui/content-health/ContentHealth";
 
 const SECTIONS = [
@@ -32,12 +40,33 @@ export function LibraryPage({
   search: ContentLibrarySearch;
   onSearchChange: (update: Partial<ContentLibrarySearch>) => void;
 }) {
+  const appShell = useOptionalAppShell();
   const sharing = useLibrarySharingFlow();
+  const uploadsEnabled = useRuntimeFeatureEnabled("chat_file_uploads");
+  const uploadsUnavailable =
+    useRuntimeFeatureUnavailableReason("chat_file_uploads");
+  // Chat Uploads also manages document processing. Where uploads are withheld,
+  // the section names a withheld processor too; a local runtime without the
+  // document worker still offers uploads and never shows this reason.
+  const documentsUnavailable =
+    useRuntimeCapabilities().data?.user_file_processing?.enabled === false
+      ? hostedExclusionReasons.document_processing
+      : null;
   return (
     <AppShellPage contentClassName="gap-0">
       <header className="pb-4">
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-3">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="md:hidden"
+              aria-label="Open sidebar"
+              onClick={appShell?.openSidebar}
+            >
+              <Menu aria-hidden="true" />
+            </Button>
             <div className="bg-primary/10 text-primary flex size-10 items-center justify-center rounded-xl">
               <LibraryBig className="size-5" />
             </div>
@@ -56,16 +85,32 @@ export function LibraryPage({
           UNDERLINE_TAB_LIST_CLASS,
         )}
       >
-        {SECTIONS.map(([value, label]) => (
-          <button
-            key={value}
-            type="button"
-            className={underlineTabClassName(search.section === value)}
-            onClick={() => onSearchChange({ section: value })}
-          >
-            {label}
-          </button>
-        ))}
+        {SECTIONS.filter(
+          ([value]) =>
+            value !== "chat-uploads" ||
+            uploadsEnabled ||
+            uploadsUnavailable !== null,
+        ).map(([value, label]) =>
+          value === "chat-uploads" && uploadsUnavailable ? (
+            <UnavailableAction key={value} reason={uploadsUnavailable}>
+              <button
+                type="button"
+                className={underlineTabClassName(search.section === value)}
+              >
+                {label}
+              </button>
+            </UnavailableAction>
+          ) : (
+            <button
+              key={value}
+              type="button"
+              className={underlineTabClassName(search.section === value)}
+              onClick={() => onSearchChange({ section: value })}
+            >
+              {label}
+            </button>
+          ),
+        )}
       </nav>
       {search.section === "actions" ? (
         <div className="flex flex-wrap items-center gap-2 pt-4">
@@ -107,7 +152,39 @@ export function LibraryPage({
       ) : null}
       <div className="pt-5">
         {search.section === "chat-uploads" ? (
-          <LibraryChatUploads search={search} onSearchChange={onSearchChange} />
+          uploadsEnabled ? (
+            <LibraryChatUploads
+              search={search}
+              onSearchChange={onSearchChange}
+            />
+          ) : (
+            <section
+              className="space-y-3"
+              aria-labelledby="library-uploads-unavailable"
+            >
+              <h2
+                id="library-uploads-unavailable"
+                className="text-lg font-semibold"
+              >
+                Chat Uploads unavailable
+              </h2>
+              <p className="text-muted-foreground">
+                {[
+                  uploadsUnavailable,
+                  documentsUnavailable,
+                  "You can still import, create and share Library content.",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+              </p>
+              <Button
+                variant="outline"
+                onClick={() => onSearchChange({ section: "all" })}
+              >
+                Back to Library
+              </Button>
+            </section>
+          )
         ) : (
           <LibraryContentInventory
             search={search}

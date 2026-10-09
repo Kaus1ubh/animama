@@ -4,15 +4,16 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import shutil
 import stat
 import struct
 import unicodedata
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
-from typing import Any
+from typing import Any, BinaryIO, Protocol, cast
 from zipfile import ZIP_DEFLATED, ZIP_STORED, BadZipFile, ZipFile, ZipInfo
 
 from pydantic import ValidationError
@@ -30,7 +31,7 @@ from animama.app.contracts.content_package import (
     PackageManifest,
     safe_package_path,
 )
-from animama.app.ports.content_store import ContentStore
+from animama.app.ports.content_store import LocalContentStore
 from animama.app.services.clip_format import CLIP_FORMAT_UNSUPPORTED
 from animama.app.services.content_kind_registry import (
     MAX_JSON_BYTES,
@@ -46,6 +47,7 @@ from animama.domain.content_catalog import (
     CatalogContentEntry,
     CatalogContentFile,
     ContentConflictError,
+    ContentPathError,
     ContentScope,
     ContentSource,
     ContentStatus,
@@ -59,7 +61,7 @@ from animama.domain.content_documents import (
     ReactionDocumentV1,
     TypedContentDocument,
 )
-from animama.utils.files import path_is_link
+from animama.utils.files import open_no_follow, path_is_link
 
 _CHUNK_BYTES = 1024 * 1024
 MAX_ZIP_DIRECTORY_BYTES = 16 * 1024 * 1024
@@ -78,14 +80,31 @@ def _reject_constant(value: str) -> None:
     raise ValueError("package_json_nonfinite")
 
 
+class PackageFileResource(Protocol):
+    """Reopen immutable verified bytes during the inspection lifetime."""
+
+    def open(self) -> BinaryIO: ...
+
+
 @dataclass(frozen=True, slots=True)
 class InspectedPackageEntry:
-    """Validated document and verified private file paths, with no open handles."""
+    """Validated document and verified reopenable resources, with no open handles."""
 
     document: TypedContentDocument
     scanned: ScannedContentEntry
-    files: dict[str, Path]
-    root: Path
+    files: Mapping[str, Path | PackageFileResource]
+    root: Path | None = None
+
+    def open_file(self, relative_path: str) -> BinaryIO:
+        """Paths are local-inspector compatibility, never object-store locators."""
+        resource = self.files[relative_path]
+        if not isinstance(resource, Path):
+            return resource.open()
+        # Preserve the local installer's no-follow/regular-file fence when a
+        # verified member is reopened after asynchronous catalog work.
+        if not stat.S_ISREG(resource.lstat().st_mode):
+            raise ContentPathError("package member is not a regular private file")
+        return os.fdopen(open_no_follow(resource, os.O_RDONLY), "rb")
 
 
 @dataclass(frozen=True, slots=True)
@@ -97,7 +116,7 @@ class InspectedPackage:
 class ContentPackageArchive:
     """Inspect exact archive bytes without accessing installed catalog state."""
 
-    def __init__(self, *, store: ContentStore) -> None:
+    def __init__(self, *, store: LocalContentStore) -> None:
         self._store = store
 
     @classmethod
@@ -434,7 +453,7 @@ class ContentPackageArchive:
                 derive_capabilities(
                     entry.kind,
                     result.document,
-                    result.files,
+                    cast(Mapping[str, Path], result.files),
                     roles={member.relative_path: member.role for member in entry.files},
                     documents=documents,
                 )
@@ -496,6 +515,7 @@ class ContentPackageArchive:
                     motion = [file for file in gesture.scanned.files if file.role == role]
                     if len(motion) != 1:
                         raise ContentConflictError("package_idle_motion_invalid")
+                    assert gesture.root is not None  # This validator created the private local inspection tree.
                     with (gesture.root / motion[0].relative_path).open("rb") as stream:
                         derive_idle_playback(gesture.document, stream)
         if manifest.anima is not None:

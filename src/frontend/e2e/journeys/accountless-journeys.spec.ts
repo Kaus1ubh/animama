@@ -60,8 +60,25 @@ test("accountless selection, Stop and subsequent persisted reply", async ({
   await expect(
     page.getByRole("button", { name: "Stop", exact: true }),
   ).toHaveCount(0);
+  // The companion stays mounted while chat routes change; this is the live
+  // scene, distinct from creator stages and Library/loadout preview surfaces.
+  const liveCanvas = page.locator("canvas:visible");
+  await expect(liveCanvas).toHaveCount(1);
+  await expect(liveCanvas).toBeVisible();
+  await animamaEvidence.attachBuffer(
+    "live-companion-after-real-reply",
+    await page.screenshot({ animations: "allow" }),
+    "image/png",
+  );
+  const canvasElement = await liveCanvas.elementHandle();
   await page.locator('a[href*="/c/"]').first().click();
   await expect(page).toHaveURL(/\/[^/]+\/c\/[^/?]+/);
+  expect(
+    await liveCanvas.evaluate(
+      (canvas, previous) => canvas === previous,
+      canvasElement,
+    ),
+  ).toBe(true);
   await page.reload();
   await expect(
     page.getByText(`Mock response to ${prompt}`, { exact: true }),
@@ -154,6 +171,11 @@ test("accountless Scene JSON import, preview, save and owned cleanup", async ({
           (await readPlaybackObservation(stage.surface)).target.status,
       )
       .toBe("playing");
+    await animamaEvidence.attachBuffer(
+      "scene-creator-import-playing",
+      await page.screenshot({ animations: "allow" }),
+      "image/png",
+    );
     await creatorContent.assertLocalCatalogUnchanged(
       before,
       animamaEvidence,

@@ -1,7 +1,9 @@
+import { useProductApiClient } from "@animama/product-ui";
 import { useEffect, useMemo, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCapabilities } from "@/query/hooks/useRuntimeCapabilities";
 import { queryKeys } from "@/query/keys";
 import {
   assetAttemptKey,
@@ -14,9 +16,24 @@ import {
 
 const DOWNLOAD_POLL_MS = 1000;
 
+/**
+ * Whether the runtime's operator provisions model assets (speech sets, Pocket
+ * voices and the voice-cloning encoder). Installing or removing them is server
+ * model installation, which belongs to local filesystem administration;
+ * without that permission (hosted) the model-asset service refuses both, so
+ * callers show each asset's state and never request a change.
+ */
+export function useOperatorManagedModelAssets(): boolean {
+  return (
+    useRuntimeCapabilities().data?.local_filesystem_administration !== true
+  );
+}
+
 /** Manager state owns progress; attempts only distinguish Retry after a service restart. */
 export function useModelAssets({ enabled = true }: { enabled?: boolean } = {}) {
-  const ownerId = useRuntimeOwnerId();
+  const apiClient = useProductApiClient();
+
+  const ownerId = useRuntimeCacheKey();
   const owner = ownerId ?? "__anon__";
   const client = useQueryClient();
   const attempts = useQuery({
@@ -45,7 +62,7 @@ export function useModelAssets({ enabled = true }: { enabled?: boolean } = {}) {
   const query = useQuery({
     queryKey: queryKeys.modelAssets(owner),
     enabled: enabled && Boolean(ownerId),
-    queryFn: ({ signal }) => loadModelAssets(client, owner, signal),
+    queryFn: ({ signal }) => loadModelAssets(apiClient, client, owner, signal),
     // A new view/recreated renderer must reconcile with the surviving manager.
     refetchOnMount: "always",
     refetchInterval: (query) =>

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { describeChatFailure } from "@animama/product-ui/chat";
+import { ChatSseHttpError } from "@animama/product-ui/query";
 
 const ollama = {
   category: "unreachable",
@@ -63,5 +64,164 @@ describe("provider-neutral chat failures", () => {
     expect(
       describeChatFailure({ code: "connection_unavailable" }, "hello").title,
     ).toBe("The selected model's connection was removed.");
+  });
+});
+
+describe("hosted denials", () => {
+  /** A hosted denial body as chat creation rejects with it. */
+  const denial = (code: string, fields: Record<string, unknown> = {}) => ({
+    error: code,
+    code,
+    ...fields,
+  });
+  const failureFor = (error: unknown, partialText?: string) =>
+    describeChatFailure(error, "hello", partialText);
+  const expectHostedCopy = (failure: { title: string; guidance: string }) => {
+    const copy = `${failure.title} ${failure.guidance}`;
+    expect(copy).not.toMatch(/installation|owner|restart/i);
+  };
+
+  it.each([
+    "account_daily_turns",
+    "account_daily_spend",
+    "account_monthly_spend",
+    "operation_requests",
+  ])("explains the %s usage limit and when it resets", (limit) => {
+    const failure = failureFor(
+      denial("quota_exceeded", { limit, retry_after_seconds: 7200 }),
+    );
+    expect(failure).toMatchObject({
+      code: "quota_exceeded",
+      title: "You've reached this account's hosted usage limit.",
+      guidance: "It resets in about 2 hours.",
+    });
+    expect(failure.retryAfterSeconds).toBeUndefined();
+    expectHostedCopy(failure);
+  });
+
+  it("omits the reset time when the denial does not state one", () => {
+    const failure = failureFor(
+      denial("quota_exceeded", { limit: "account_monthly_spend" }),
+    );
+    expect(failure.title).toBe(
+      "You've reached this account's hosted usage limit.",
+    );
+    expect(failure.guidance).toBe("Try again after it resets.");
+    expectHostedCopy(failure);
+  });
+
+  it("asks for a shorter conversation when one turn's input is too large", () => {
+    const failure = failureFor(
+      denial("quota_exceeded", { limit: "model_input_tokens" }),
+    );
+    expect(failure.title).toBe(
+      "This conversation is too long for one hosted turn.",
+    );
+    expect(failure.guidance).toBe("Start a new chat or shorten your message.");
+    expectHostedCopy(failure);
+  });
+
+  it.each(["capacity_busy", "budget_paused"])(
+    "asks to retry %s with the stream response's Retry-After time",
+    (code) => {
+      const failure = failureFor(
+        new ChatSseHttpError(
+          503,
+          "Service Unavailable",
+          { error: code },
+          new Headers({ "Retry-After": "30" }),
+        ),
+      );
+      expect(failure).toMatchObject({
+        code,
+        title: "Animama is busy right now.",
+        guidance: "Try again in about 30 seconds.",
+      });
+      expectHostedCopy(failure);
+    },
+  );
+
+  it("asks to retry in a moment when busy without a stated time", () => {
+    const failure = failureFor(
+      new ChatSseHttpError(503, "Service Unavailable", {
+        error: "capacity_busy",
+      }),
+    );
+    expect(failure.guidance).toBe("Try again in a moment.");
+  });
+
+  it("prefers the body's retry time and reads an HTTP-date Retry-After", () => {
+    const body = failureFor(
+      new ChatSseHttpError(
+        429,
+        "Too Many Requests",
+        denial("quota_exceeded", {
+          limit: "account_daily_turns",
+          retry_after_seconds: 90,
+        }),
+        new Headers({ "Retry-After": "7200" }),
+      ),
+    );
+    expect(body.guidance).toBe("It resets in about 2 minutes.");
+    const date = failureFor(
+      new ChatSseHttpError(
+        429,
+        "Too Many Requests",
+        denial("quota_exceeded", { limit: "account_daily_spend" }),
+        new Headers({
+          "Retry-After": new Date(Date.now() + 3 * 86_400_000).toUTCString(),
+        }),
+      ),
+    );
+    expect(date.guidance).toBe("It resets in about 3 days.");
+  });
+
+  it("states the message length limit, including a detail-wrapped code", () => {
+    const failure = failureFor({
+      detail: { code: "message_too_long", max_characters: 8000 },
+    });
+    expect(failure).toMatchObject({
+      code: "message_too_long",
+      title: "This message is too long.",
+      guidance: "Messages can be up to 8,000 characters.",
+    });
+    expectHostedCopy(failure);
+  });
+
+  it.each([500, "500"])("states the chat limit (%s chats)", (limit) => {
+    const failure = failureFor(denial("chat_limit_reached", { limit }));
+    expect(failure.code).toBe("chat_limit_reached");
+    expect(failure.title).toBe(
+      "This account has reached its chat limit (500 chats).",
+    );
+    expect(failure.guidance).toBe("Continue one of your existing chats.");
+    expectHostedCopy(failure);
+  });
+
+  it("names a hosted denial frame that ends a started reply", () => {
+    const failure = failureFor(
+      {
+        run_id: "run-1",
+        error: "quota_exceeded",
+        code: "quota_exceeded",
+        details: { limit: "account_daily_turns", retry_after_seconds: 1800 },
+      },
+      "Partial reply",
+    );
+    expect(failure).toMatchObject({
+      code: "quota_exceeded",
+      guidance: "It resets in about 30 minutes.",
+      partialText: "Partial reply",
+    });
+  });
+
+  it("keeps self-hosted provider quota copy for an existing code", () => {
+    const failure = failureFor({
+      code: "openai_quota_exceeded",
+      error: "Quota exceeded",
+      details: { category: "quota_exceeded", connection_name: "OpenAI" },
+    });
+    expect(failure.code).toBe("openai_quota_exceeded");
+    expect(failure.title).toBe("OpenAI's account has reached its usage limit.");
   });
 });

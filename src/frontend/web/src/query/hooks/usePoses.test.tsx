@@ -88,11 +88,9 @@ function observe<T>(
   mocks.options.length = 0;
   renderToStaticMarkup(
     <QueryClientProvider client={client}>
-      {owner === null ? (
-        children
-      ) : (
-        <RuntimeOwnerProvider ownerId={owner}>{children}</RuntimeOwnerProvider>
-      )}
+      <RuntimeOwnerProvider ownerId={owner ?? ""}>
+        {children}
+      </RuntimeOwnerProvider>
     </QueryClientProvider>,
   );
   expect(mocks.options).toHaveLength(1);

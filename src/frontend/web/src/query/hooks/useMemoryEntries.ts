@@ -1,5 +1,7 @@
 "use client";
 
+import { useProductApiClient } from "@animama/product-ui";
+
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 
@@ -18,7 +20,7 @@ import type {
   PyMemoryEntryVersionDetail,
   PyMemoryEntryVersionListResponse,
 } from "@/lib/content/catalogTypes";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { buildMemoryAnimaFolders } from "@/lib/memory-entries/anima-folders";
 import { queryKeys } from "@/query/keys";
 
@@ -30,7 +32,9 @@ export type UseMemoryEntriesOptions = {
 };
 
 export function useMemoryEntries(opts?: UseMemoryEntriesOptions) {
-  const userId = useRuntimeOwnerId();
+  const apiClient = useProductApiClient();
+
+  const userId = useRuntimeCacheKey();
   const userKey = userId ?? "__anon__";
   const enabled = (opts?.enabled ?? true) && Boolean(userId);
 
@@ -43,6 +47,7 @@ export function useMemoryEntries(opts?: UseMemoryEntriesOptions) {
     enabled,
     queryFn: async () => {
       const { data } = await listMemoryEntriesV1MemoryEntriesGet({
+        client: apiClient,
         query: {
           anima_id: opts?.animaId ?? undefined,
           parent_id: opts?.parentId ?? undefined,
@@ -70,7 +75,9 @@ export function useMemoryAnimaFolders() {
  * `MEMORIES.md` headers.
  */
 export function useAnimaIdentities(opts?: { enabled?: boolean }) {
-  const userId = useRuntimeOwnerId();
+  const apiClient = useProductApiClient();
+
+  const userId = useRuntimeCacheKey();
   const userKey = userId ?? "__anon__";
   const enabled = (opts?.enabled ?? true) && Boolean(userId);
 
@@ -79,6 +86,7 @@ export function useAnimaIdentities(opts?: { enabled?: boolean }) {
     enabled,
     queryFn: async () => {
       const { data } = await listAnimaIdentitiesV1MemoryAnimaIdentitiesGet({
+        client: apiClient,
         responseValidator: undefined,
         throwOnError: true,
       });
@@ -109,7 +117,9 @@ export function useMemoryEntry(
   entryId: string | null | undefined,
   opts?: UseMemoryEntryOptions,
 ) {
-  const userId = useRuntimeOwnerId();
+  const apiClient = useProductApiClient();
+
+  const userId = useRuntimeCacheKey();
   const userKey = userId ?? "__anon__";
   const keyId = entryId ?? "__none__";
   const enabled =
@@ -121,6 +131,7 @@ export function useMemoryEntry(
     queryFn: async () => {
       if (!entryId) return null;
       const { data } = await getMemoryEntryV1MemoryEntriesEntryIdGet({
+        client: apiClient,
         path: { entry_id: entryId },
         responseValidator: undefined,
         throwOnError: true,
@@ -138,7 +149,9 @@ export type UseMemoryEntryByPathOptions = {
 };
 
 export function useMemoryEntryByPath(opts: UseMemoryEntryByPathOptions) {
-  const userId = useRuntimeOwnerId();
+  const apiClient = useProductApiClient();
+
+  const userId = useRuntimeCacheKey();
   const userKey = userId ?? "__anon__";
   const path = opts.path?.trim() ?? "";
   const enabled = (opts.enabled ?? true) && Boolean(userId) && Boolean(path);
@@ -153,6 +166,7 @@ export function useMemoryEntryByPath(opts: UseMemoryEntryByPathOptions) {
     queryFn: async () => {
       if (!path) return null;
       const { data } = await getMemoryEntryByPathV1MemoryEntriesByPathGet({
+        client: apiClient,
         query: {
           anima_id: opts.animaId ?? undefined,
           path,
@@ -176,7 +190,9 @@ export function useMemoryEntryVersions(
   entryId: string | null | undefined,
   opts?: UseMemoryEntryVersionsOptions,
 ) {
-  const userId = useRuntimeOwnerId();
+  const apiClient = useProductApiClient();
+
+  const userId = useRuntimeCacheKey();
   const userKey = userId ?? "__anon__";
   const keyId = entryId ?? "__none__";
   const enabled =
@@ -192,6 +208,7 @@ export function useMemoryEntryVersions(
       }
       const { data } =
         await listMemoryEntryVersionsV1MemoryEntriesEntryIdVersionsGet({
+          client: apiClient,
           path: { entry_id: entryId },
           query: {
             before_version: pageParam as number | undefined,
@@ -216,7 +233,9 @@ export function useMemoryEntryVersion(
   version: number | null | undefined,
   opts?: UseMemoryEntryVersionOptions,
 ) {
-  const userId = useRuntimeOwnerId();
+  const apiClient = useProductApiClient();
+
+  const userId = useRuntimeCacheKey();
   const userKey = userId ?? "__anon__";
   const keyId = entryId ?? "__none__";
   const keyVersion = version ?? 0;
@@ -233,6 +252,7 @@ export function useMemoryEntryVersion(
       if (!entryId || keyVersion < 1) return null;
       const { data } =
         await getMemoryEntryVersionV1MemoryEntriesEntryIdVersionsVersionGet({
+          client: apiClient,
           path: { entry_id: entryId, version: keyVersion },
           responseValidator: undefined,
           throwOnError: true,

@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import asdict, dataclass
+from typing import cast
 
+from animama.app.ports.content_store import LocalContentStore
 from animama.app.ports.content_transition import ContentTransitionBindings, MusicTransitionAnima
 from animama.app.services.content_catalog_service import ContentCatalogService
 from animama.app.services.local_content_mutations import mutation_digest
@@ -47,7 +49,7 @@ class MusicRetirementService:
                 original: MusicTransitionAnima = before, preservation_id: str = operation_id
             ) -> MusicRetirementResult:
                 await asyncio.to_thread(
-                    mutations.store.retain_transition_originals,
+                    cast(LocalContentStore, mutations.store).retain_transition_originals,
                     operation_id=preservation_id,
                     entry=None,
                     binding_facts=[asdict(original)],

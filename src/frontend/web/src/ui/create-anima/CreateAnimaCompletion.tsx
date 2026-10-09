@@ -1,3 +1,4 @@
+import { useProductApiClient } from "@animama/product-ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
@@ -22,6 +23,8 @@ export function CreateAnimaCompletion({
   animaId: string;
   onConsumed: (animaId: string) => void;
 }) {
+  const apiClient = useProductApiClient();
+
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [attempt, setAttempt] = useState(0);
@@ -45,7 +48,11 @@ export function CreateAnimaCompletion({
     setMessage("");
     void (async () => {
       try {
-        const typed = await fetchAnimaRuntimeCatalog(animaId, signal);
+        const typed = await fetchAnimaRuntimeCatalog(
+          apiClient,
+          animaId,
+          signal,
+        );
         mount = await new RuntimeMountPreparer().prepare(typed, {
           signal,
           onProgress: (next) => {
@@ -86,7 +93,7 @@ export function CreateAnimaCompletion({
       controller.abort();
       if (!transferred) mount?.dispose();
     };
-  }, [animaId, attempt, navigate, onConsumed, owner, queryClient]);
+  }, [apiClient, animaId, attempt, navigate, onConsumed, owner, queryClient]);
   return (
     <section
       className="mx-auto max-w-xl space-y-5 p-6 sm:p-10"

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { importRecoveryStore } from "./recoveryStore";
+import {
+  beginHostedRecoverySession,
+  endHostedRecoverySession,
+} from "@/lib/content/recovery-session";
 const record = {
   operation_id: "op",
   stage_id: "stage",
@@ -24,6 +28,15 @@ function memory(): Storage {
   };
 }
 describe("package recovery storage", () => {
+  it("fences stale hosted import callbacks after their session ends", async () => {
+    const owner = "hosted:retired-import-test";
+    beginHostedRecoverySession(owner);
+    const store = importRecoveryStore(owner, memory());
+    store.write(record);
+    await endHostedRecoverySession(owner);
+    expect(store.read()).toBeNull();
+    expect(() => store.write(record)).toThrow("browser session has ended");
+  });
   it("survives reload with only operation identifiers and commit uncertainty", () => {
     const local = memory();
     const store = importRecoveryStore("owner", local);

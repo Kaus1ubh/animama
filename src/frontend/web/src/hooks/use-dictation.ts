@@ -1,8 +1,11 @@
 "use client";
 
+import { useProductApiClient } from "@animama/product-ui";
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { createLogger } from "@/lib/logger";
+import { publicResourceUrl } from "@/lib/resource-urls";
 import { fetchRuntimeCapabilities } from "@/query/runtime-capabilities";
 import {
   getSpeechRecognitionConstructor,
@@ -139,14 +142,16 @@ type ClosedRealSpeechWindow = {
 
 const DEFAULT_SAMPLE_RATE = 16000;
 const RUN_ID_GRACE_MS = 2000;
-const VAD_BASE_ASSET_PATH = "/onnx/models/vad/";
-const VAD_ONNX_WASM_BASE_PATH = "/onnx/ort/1.24.2/";
+const VAD_BASE_ASSET_PATH = publicResourceUrl("onnx/models/vad/");
+const VAD_ONNX_WASM_BASE_PATH = publicResourceUrl("onnx/ort/1.24.2/");
 const VAD_FRAME_DEBUG_INTERVAL_MS = 120;
 const LATE_FINAL_TRANSCRIPT_GRACE_MS = 1000;
 const SMART_TURN_END_TURN_WAIT_MS = 1000;
 const VOICE_SILENCE_RESET_MS = 6000;
 const VOICE_SILENCE_RESET_DEFER_MS = 250;
-const SMART_TURN_MODEL_URL = "/onnx/models/smart-turn/smart-turn-v3.2-cpu.onnx";
+const SMART_TURN_MODEL_URL = publicResourceUrl(
+  "onnx/models/smart-turn/smart-turn-v3.2-cpu.onnx",
+);
 const SMART_TURN_THRESHOLD = 0.2;
 const PTT_RELEASE_SMART_TURN_THRESHOLD = 0.05;
 const SMART_TURN_SAMPLE_RATE = 16000;
@@ -240,6 +245,8 @@ function normalizeSmartTurnOverrideText(value: string): string {
 }
 
 export function useDictation(options: UseDictationOptions = {}) {
+  const apiClient = useProductApiClient();
+
   const logger = useMemo(() => createLogger("Dictation"), []);
   const [isDictating, setIsDictating] = useState(false);
   const [activeMode, setActiveMode] = useState<DictationMode | null>(null);
@@ -1890,7 +1897,7 @@ export function useDictation(options: UseDictationOptions = {}) {
           runIdRef.current === runId &&
           turnIdRef.current === turnId;
 
-        const parakeetLoadPromise = loadClientParakeetWorker({
+        const parakeetLoadPromise = loadClientParakeetWorker(apiClient, {
           preferWebgpu: parakeetWebgpuPreferredRef.current,
           sampleRateHz: DEFAULT_SAMPLE_RATE,
         });
@@ -2251,6 +2258,7 @@ export function useDictation(options: UseDictationOptions = {}) {
       }
     },
     [
+      apiClient,
       armVoiceSilenceResetTimer,
       clearParakeetPreview,
       clearTranscriptPreview,
@@ -2829,7 +2837,7 @@ export function useDictation(options: UseDictationOptions = {}) {
           effectivePreferences.speech?.stt_provider,
         );
 
-        const capabilities = await fetchRuntimeCapabilities();
+        const capabilities = await fetchRuntimeCapabilities(apiClient);
         const resolved = resolvePreferredSttProvider({
           savedProvider: preferredProvider,
           platform,
@@ -2895,6 +2903,7 @@ export function useDictation(options: UseDictationOptions = {}) {
       }
     },
     [
+      apiClient,
       effectivePreferences.speech?.stt_provider,
       clearBrowserStopReason,
       clearTranscriptPreview,

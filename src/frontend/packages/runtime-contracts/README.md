@@ -5,6 +5,15 @@ and HTTP transport types plus the backend-generated SDK. It contains no local
 origin, installation startup, Electron, service credentials or hosted identity
 composition.
 
+`RuntimeCapabilities` is the generated backend HTTP schema. The extracted chat
+provider's `ProductRuntimeCapabilities` is a derived view of it. Composition
+adapters report permission separately from browser support or transient failures;
+model/role choices do not grant connection or key administration. `RuntimeAdmission`
+supplies an owner only after admission, with a distinct `RuntimeSession.key` for
+private resource teardown even when the same owner signs in again. The common
+composition/resource handoff is described in
+[`contracts/hosted-web.md`](../../../../contracts/hosted-web.md).
+
 Use `@animama/runtime-contracts` for runtime contracts,
 `@animama/runtime-contracts/sdk` for generated operations and `createClient`,
 `@animama/runtime-contracts/api-types` for DTOs, and

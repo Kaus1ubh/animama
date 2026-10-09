@@ -5,7 +5,6 @@ import type {
   PyModelProviderCatalogItem,
 } from "@animama/runtime-contracts/api-types";
 
-import { availableSettingsSections } from "@/ui/settings/settings-search";
 import {
   DEFAULT_CAPABILITIES_DRAFT,
   MODEL_LOCATION_PROVIDERS,
@@ -659,39 +658,39 @@ describe("model row chips", () => {
 });
 
 describe("Models in App Settings by composition", () => {
-  const entries = (caps: Parameters<typeof modelSettingsAvailability>[0]) => {
-    const visible = modelSettingsAvailability(caps);
-    return [
-      { section: "General" as const },
-      ...(visible.modelConfiguration ? [{ section: "Models" as const }] : []),
-      ...(visible.webSearchConfiguration
-        ? [{ section: "Models" as const }]
-        : []),
-    ];
-  };
-
-  it("hides Models in the hosted composition and shows it locally", () => {
-    const sections = ["General", "Models"] as const;
+  it("retains hosted role choices independently of administration", () => {
     expect(
-      availableSettingsSections(
-        sections,
-        entries({ model_configuration: false }),
-      ),
-    ).toEqual(["General"]);
-    expect(availableSettingsSections(sections, entries({}))).toEqual([
-      "General",
-    ]);
-    expect(availableSettingsSections(sections, entries(undefined))).toEqual([
-      "General",
-    ]);
+      modelSettingsAvailability({
+        model_configuration: false,
+        model_role_selection: true,
+        web_search: { configuration: false },
+      }),
+    ).toEqual({
+      modelConfiguration: false,
+      modelRoleSelection: true,
+      webSearchConfiguration: false,
+    });
     expect(
-      availableSettingsSections(
-        sections,
-        entries({
-          model_configuration: true,
-          web_search: { configuration: true },
-        }),
-      ),
-    ).toEqual(["General", "Models"]);
+      modelSettingsAvailability({
+        model_configuration: true,
+        model_role_selection: true,
+        web_search: { configuration: true },
+      }),
+    ).toEqual({
+      modelConfiguration: true,
+      modelRoleSelection: true,
+      webSearchConfiguration: true,
+    });
+  });
+  it("withholds role choices when the permission is false or unreadable", () => {
+    for (const capabilities of [
+      undefined,
+      {},
+      { model_configuration: true, model_role_selection: false },
+    ]) {
+      expect(modelSettingsAvailability(capabilities).modelRoleSelection).toBe(
+        false,
+      );
+    }
   });
 });

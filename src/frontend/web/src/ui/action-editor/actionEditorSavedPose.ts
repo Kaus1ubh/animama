@@ -1,3 +1,4 @@
+import type { Client } from "@animama/runtime-contracts/sdk";
 import { toast } from "sonner";
 import type { PyPose } from "@animama/runtime-contracts/api-types";
 import { loadPoseContent, poseSavedIdentity } from "@/lib/content/poseContent";
@@ -19,6 +20,7 @@ type CurrentGuard = { isCurrent?: () => boolean };
 
 /** Load Local content for editing; Included and explicit copies start unsaved Local drafts. */
 export async function editActionEditorSavedPose(
+  apiClient: Client,
   item: PyPose,
   options: CurrentGuard & { customize?: boolean } = {},
 ): Promise<boolean> {
@@ -37,8 +39,8 @@ export async function editActionEditorSavedPose(
   try {
     const copy = options.customize || item.source === "included";
     const [document, existingNames] = await Promise.all([
-      loadPoseContent(item),
-      copy ? fetchPoseNames() : Promise.resolve([]),
+      loadPoseContent(apiClient, item),
+      copy ? fetchPoseNames(apiClient) : Promise.resolve([]),
     ]);
     const current = usePoseCreatorStore.getState();
     if (
@@ -105,6 +107,7 @@ function clipContentFingerprint(
 
 /** Click and drag share one checked fetch followed by the store's atomic copy operation. */
 export async function insertActionEditorSavedPose(
+  apiClient: Client,
   item: PyPose,
   options: CurrentGuard & { timeSec?: number } = {},
 ): Promise<boolean> {
@@ -116,7 +119,7 @@ export async function insertActionEditorSavedPose(
   const fingerprint = clipContentFingerprint(captured);
   const timeSec = options.timeSec ?? captured.clipDraft.currentTimeSec;
   try {
-    const { pose } = await loadPoseContent(item);
+    const { pose } = await loadPoseContent(apiClient, item);
     const current = usePoseCreatorStore.getState();
     if (
       options.isCurrent?.() === false ||
