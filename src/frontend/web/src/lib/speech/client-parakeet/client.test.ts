@@ -5,6 +5,9 @@ import type { ClientParakeetWorkerRequest } from "./worker-protocol";
 
 const fixture = vi.hoisted(() => ({
   events: [] as string[],
+  workers: [] as { terminated: boolean; terminate(): void }[],
+  /** Requests stay unanswered, as when the worker is about to be terminated. */
+  holdReplies: false,
   failLoads: false,
   webgpu: "unsupported" as string,
   releaseDelayMs: 0,
@@ -43,7 +46,12 @@ vi.mock("@/lib/speech/client-parakeet/webgpu", async (importOriginal) => ({
 
 /** Answers worker requests like the real worker, recording their order. */
 class FakeWorker {
+  /** A terminated worker never answers again, like a real one. */
+  terminated = false;
   private listeners = new Map<string, ((event: unknown) => void)[]>();
+  constructor() {
+    fixture.workers.push(this);
+  }
   addEventListener(type: string, listener: (event: unknown) => void) {
     this.listeners.set(type, [...(this.listeners.get(type) ?? []), listener]);
   }
@@ -53,6 +61,7 @@ class FakeWorker {
         ? `load:${request.backend}`
         : request.type,
     );
+    if (this.terminated || fixture.holdReplies) return;
     const failed =
       request.type === "client_parakeet/load" &&
       (fixture.failLoads || request.backend === "webgpu");
@@ -76,7 +85,9 @@ class FakeWorker {
       this.listeners.get("message")?.forEach((listener) => listener({ data })),
     );
   }
-  terminate() {}
+  terminate() {
+    this.terminated = true;
+  }
 }
 
 async function client() {
@@ -87,6 +98,8 @@ beforeEach(() => {
   vi.resetModules();
   vi.stubGlobal("Worker", FakeWorker);
   fixture.events = [];
+  fixture.workers = [];
+  fixture.holdReplies = false;
   fixture.failLoads = false;
   fixture.webgpu = "unsupported";
   fixture.releaseDelayMs = 0;
@@ -184,5 +197,58 @@ describe("disposing an idle worker before removal", () => {
     await vi.advanceTimersByTimeAsync(parakeet.LEASE_RELEASE_WAIT_MS);
     await expect(disposed).resolves.toBe(true);
     expect(fixture.events).not.toContain("release:parakeet-stt");
+  });
+});
+
+describe("ending a session", () => {
+  it("terminates the worker at once so the next session loads a new one", async () => {
+    const parakeet = await client();
+    await parakeet.loadClientParakeetWorker(testApiClient);
+    parakeet.terminateClientParakeetWorker();
+    expect(fixture.workers[0].terminated).toBe(true);
+    await vi.waitFor(() =>
+      expect(fixture.events).toContain("release:parakeet-stt"),
+    );
+    await parakeet.loadClientParakeetWorker(testApiClient);
+    expect(fixture.workers).toHaveLength(2);
+    expect(fixture.workers[1].terminated).toBe(false);
+  });
+
+  it("settles work a terminated worker can no longer answer", async () => {
+    const parakeet = await client();
+    await parakeet.loadClientParakeetWorker(testApiClient);
+    fixture.holdReplies = true;
+    const transcribing = parakeet.transcribeClientParakeetWindow({
+      jobId: "job",
+      runId: "run",
+      turnId: "turn",
+      windowId: "window",
+      audio: new Float32Array(16),
+    });
+    const disposing = parakeet.disposeClientParakeetWorker();
+    // The session's resource scope stops the browser worker before any reply.
+    fixture.workers[0].terminate();
+    parakeet.terminateClientParakeetWorker();
+    await expect(transcribing).rejects.toThrow("terminated");
+    await expect(disposing).resolves.toEqual({ disposed: true });
+    fixture.holdReplies = false;
+    await expect(
+      parakeet.loadClientParakeetWorker(testApiClient),
+    ).resolves.toMatchObject({ backend: "wasm" });
+    expect(fixture.workers).toHaveLength(2);
+  });
+
+  it("cancels the idle timer so it cannot stall the next session's load", async () => {
+    vi.useFakeTimers();
+    const parakeet = await client();
+    await parakeet.loadClientParakeetWorker(testApiClient);
+    parakeet.armClientParakeetIdleDispose("test");
+    fixture.workers[0].terminate();
+    parakeet.terminateClientParakeetWorker();
+    await vi.advanceTimersByTimeAsync(300_000);
+    await expect(
+      parakeet.loadClientParakeetWorker(testApiClient),
+    ).resolves.toMatchObject({ backend: "wasm" });
+    expect(fixture.events).not.toContain("client_parakeet/dispose");
   });
 });

@@ -200,22 +200,30 @@ function rejectPendingRequests(error: Error): void {
   }
 }
 
+/**
+ * Forget the current `worker` synchronously: reject its requests, stop it and
+ * release the sets it loaded. A worker that was already replaced is left alone.
+ */
+function endWorker(worker: Worker, error: Error): boolean {
+  if (workerInstance !== worker) return false;
+  rejectPendingRequests(error);
+  worker.terminate();
+  workerInstance = null;
+  workerBackend = null;
+  releaseSetLeases();
+  return true;
+}
+
 function terminateFailedWorker(
   worker: Worker,
   error: Error,
   reason: string,
 ): void {
-  rejectPendingRequests(error);
-  if (workerInstance === worker) {
-    worker.terminate();
-    workerInstance = null;
-    workerBackend = null;
-    releaseSetLeases();
-    logger.warn("Worker", "Terminated failed client Parakeet worker", {
-      reason,
-      error: error.message,
-    });
-  }
+  if (!endWorker(worker, error)) return;
+  logger.warn("Worker", "Terminated failed client Parakeet worker", {
+    reason,
+    error: error.message,
+  });
 }
 
 function clearClientParakeetIdleDisposeTimer(reason: string): void {
@@ -604,7 +612,8 @@ export async function transcribeClientParakeetWindow({
 }
 
 export async function disposeClientParakeetWorker(): Promise<ClientParakeetDisposeResult> {
-  if (!workerInstance) {
+  const worker = workerInstance;
+  if (!worker) {
     return { disposed: true };
   }
 
@@ -625,17 +634,21 @@ export async function disposeClientParakeetWorker(): Promise<ClientParakeetDispo
     );
     return { disposed: true };
   } finally {
-    for (const [requestId, entry] of pending.entries()) {
-      pending.delete(requestId);
-      entry.reject(new Error("Client Parakeet worker terminated"));
-    }
-
-    if (workerInstance) {
-      workerInstance.terminate();
-      workerInstance = null;
-      workerBackend = null;
+    if (endWorker(worker, new Error("Client Parakeet worker terminated")))
       logger.info("Worker", "Terminated client Parakeet worker instance");
-    }
-    releaseSetLeases();
   }
+}
+
+/**
+ * Session teardown: stop this page's worker now instead of asking it to
+ * dispose. A session end also terminates the browser worker, so a dispose
+ * reply may never arrive; the next session must start a new worker rather
+ * than wait on a dead one.
+ */
+export function terminateClientParakeetWorker(): void {
+  clearClientParakeetIdleDisposeTimer("session_end");
+  if (workerInstance)
+    endWorker(workerInstance, new Error("Client Parakeet worker terminated"));
+  // Also releases sets leased by a load that has not started its worker.
+  releaseSetLeases();
 }

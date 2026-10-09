@@ -1,8 +1,8 @@
 import { disposePocketTtsRuntime } from "@/hooks/use-pocket-tts-runtime";
 import { clearVrmaCache } from "@/lib/avatar";
 import { terminateVisemeWorker } from "@/lib/avatar/viseme-worker-client";
-import { disposeClientParakeetWorker } from "@/lib/speech/client-parakeet/client";
-import { disposeSmartTurnWorker } from "@/lib/voice/smart-turn-worker-client";
+import { terminateClientParakeetWorker } from "@/lib/speech/client-parakeet/client";
+import { terminateSmartTurnWorker } from "@/lib/voice/smart-turn-worker-client";
 import { useAvatarRuntimeStore } from "@/stores/avatar-runtime-store";
 import { useAvatarLipSyncBridgeStore } from "@/stores/avatar-lipsync-bridge-store";
 import { usePoseCreatorStore } from "@/stores/pose-creator-store";
@@ -27,10 +27,10 @@ export async function clearPrivateSessionState(
   const disposals = [
     disposePocketTtsRuntime,
     terminateVisemeWorker,
-    () => {
-      void disposeClientParakeetWorker().catch(() => {});
-    },
-    disposeSmartTurnWorker,
+    // Synchronous: the session also terminates these workers, so an awaited
+    // dispose reply could never arrive and would leave a dead worker behind.
+    terminateClientParakeetWorker,
+    terminateSmartTurnWorker,
     clearVrmaCache,
     () => useAvatarRuntimeStore.getState().resetForAnima(null),
     () =>

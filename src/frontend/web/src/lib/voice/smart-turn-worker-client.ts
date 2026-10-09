@@ -198,8 +198,24 @@ export async function predictSmartTurn(args: {
   return await postRequest<SmartTurnPredictResult>(request, [audioCopy.buffer]);
 }
 
+/**
+ * Forget the current `worker` synchronously: reject its requests and stop it.
+ * A worker that was already replaced is left alone.
+ */
+function endWorker(worker: Worker): boolean {
+  if (workerInstance !== worker) return false;
+  for (const [requestId, entry] of pending.entries()) {
+    pending.delete(requestId);
+    entry.reject(new Error("Smart-turn worker terminated"));
+  }
+  worker.terminate();
+  workerInstance = null;
+  return true;
+}
+
 export async function disposeSmartTurnWorker(): Promise<SmartTurnDisposeResult> {
-  if (!workerInstance) {
+  const worker = workerInstance;
+  if (!worker) {
     return { disposed: true };
   }
 
@@ -221,15 +237,17 @@ export async function disposeSmartTurnWorker(): Promise<SmartTurnDisposeResult> 
     );
     return { disposed: true };
   } finally {
-    for (const [requestId, entry] of pending.entries()) {
-      pending.delete(requestId);
-      entry.reject(new Error("Smart-turn worker terminated"));
-    }
-
-    if (workerInstance) {
-      workerInstance.terminate();
-      workerInstance = null;
+    if (endWorker(worker))
       logger.info("Worker", "Terminated smart-turn worker instance");
-    }
   }
+}
+
+/**
+ * Session teardown: stop this page's worker now instead of asking it to
+ * dispose. A session end also terminates the browser worker, so a dispose
+ * reply may never arrive; the next session must start a new worker rather
+ * than wait on a dead one.
+ */
+export function terminateSmartTurnWorker(): void {
+  if (workerInstance) endWorker(workerInstance);
 }

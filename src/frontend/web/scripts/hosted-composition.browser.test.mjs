@@ -937,3 +937,25 @@ test("a failed sign-in callback shows an alert and sign-in returns to the same p
     await page.close();
   }
 });
+
+test("speech workers answer again after a same-page sign-out and reauthentication", async () => {
+  const { page, reauthenticate } = await mount();
+  try {
+    await page.getByText("Your Animas will appear here").waitFor();
+    const before = await page.evaluate(() =>
+      window.hostedFixture.speechProbe(),
+    );
+    assert.match(before.parakeet, /not been loaded/);
+    assert.match(before.smartTurn, /not been loaded/);
+    await page.evaluate(() => window.hostedFixture.signOut());
+    reauthenticate();
+    await page.evaluate(() => window.hostedFixture.reauthenticate());
+    await page.getByText("Your Animas will appear here").waitFor();
+    // The ended session's workers were terminated; new ones must answer.
+    const after = await page.evaluate(() => window.hostedFixture.speechProbe());
+    assert.match(after.parakeet, /not been loaded/);
+    assert.match(after.smartTurn, /not been loaded/);
+  } finally {
+    await page.close();
+  }
+});
