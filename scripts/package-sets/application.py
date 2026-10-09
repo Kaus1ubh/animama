@@ -423,3 +423,28 @@ def unpack_application(path, destination, source, version, contracts, *, archive
             raise ValueError("Application archive changed during installation")
         shutil.move(stage, destination)
     return app
+
+
+def resource_prefix(app):
+    """Return the one digest-bound static prefix of a verified application manifest."""
+    prefixes = {
+        match[1]
+        for entry in app["files"]
+        if (match := re.fullmatch(r"(_animama/static/[a-f0-9]{64}/).+", entry["path"]))
+    }
+    if len(prefixes) != 1:
+        raise ValueError("Application requires exactly one digest-bound resource prefix")
+    return prefixes.pop()
+
+
+def require_distinct_resources(previous, current):
+    """Reject an upgrade pair whose applications emit the same resource generation.
+
+    Byte-identical emitted applications share every immutable URL, so selecting
+    one after the other exercises no upgrade, old-tab worker or rollback.
+    """
+    if resource_prefix(previous) == resource_prefix(current):
+        raise ValueError(
+            "Actual upgrade/rollback requires distinct application resources, but both sets emit "
+            f"/{resource_prefix(current)}; validate without --previous-app-set to use the controlled fixture"
+        )

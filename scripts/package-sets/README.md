@@ -68,12 +68,15 @@ exact catalogs and remain lazy.
 
 Pass `validate --previous-app-set /tmp/previous-whole-app` to run actual
 upgrade/rollback against a verified compatible clean format-2 predecessor.
-Both sets must have distinct resource bytes/prefixes. Without that argument,
-validation uses a labelled worker-comment byte-change fixture to exercise old-tab
-late worker creation, new selection and rollback. Its receipt explicitly leaves
-the two-exact-source revision gate unperformed. Format-1 compatibility, that
-controlled fixture, local production comparison and physical heard-audio
-acceptance are separate evidence; none is inferred from a version bump.
+Both sets must emit distinct resources (different static prefixes): a
+byte-identical pair is rejected before any browser work, so source revisions
+that emit identical bytes use the controlled fixture instead. Without that
+argument, validation uses a labelled worker-comment byte-change fixture to
+exercise old-tab late worker creation, new selection and rollback. Its receipt
+explicitly leaves the two-exact-source revision gate unperformed. Format-1
+compatibility, that controlled fixture, local production comparison and
+physical heard-audio acceptance are separate evidence; none is inferred from a
+version bump.
 
 In both modes the route, static, shell, avatar and voice checks and their
 measurements run on the candidate. Only the open-tab late worker and rollback

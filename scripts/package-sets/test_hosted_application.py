@@ -372,6 +372,21 @@ class HostedApplicationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "prefix does not bind"):
             verify(self.old)
 
+    def test_an_upgrade_pair_requires_distinct_resource_generations(self):
+        # Byte-identical applications share every immutable URL, so an upgrade
+        # between them exercises no selection change, old-tab worker or rollback.
+        archive = self.old / "animama-hosted-web-0.1.0.tar.gz"
+        current = unpack_application(archive, self.root / "current", "a" * 40, "0.1.0", self.m["contracts"])
+        identical = unpack_application(archive, self.root / "identical", "a" * 40, "0.1.0", self.m["contracts"])
+        with self.assertRaisesRegex(ValueError, "distinct application resources"):
+            application.require_distinct_resources(identical, current)
+        prefix = application.resource_prefix(current)
+        self.assertRegex(prefix, r"^_animama/static/[a-f0-9]{64}/$")
+        changed = copy.deepcopy(current)
+        for entry in changed["files"]:
+            entry["path"] = entry["path"].replace(prefix, "_animama/static/" + "f" * 64 + "/")
+        application.require_distinct_resources(changed, current)
+
     def test_controlled_selection_retains_bytes_under_a_distinct_verified_prefix(self):
         archive = self.old / "animama-hosted-web-0.1.0.tar.gz"
         selected = self.root / "selected"

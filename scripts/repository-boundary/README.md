@@ -70,10 +70,12 @@ starters without local-server imports. Included content is not exposed
 through the static allowlist.
 
 Use `--previous-app-set /tmp/previous-whole-app` for a verified compatible clean
-format-2 predecessor with distinct resource bytes. This exercises an already-open
-tab's late worker, the new selection, and rollback. Without a predecessor, the
-labelled controlled byte-change fixture leaves the genuine two-source gate
-unperformed. See [package-set tooling](../package-sets/README.md) and the
+format-2 predecessor with distinct resource bytes; a byte-identical pair is
+rejected. This exercises an already-open tab's late worker, the new selection,
+and rollback, while every route, static and measurement check runs on the
+candidate. Without a predecessor, the labelled controlled byte-change fixture
+leaves the genuine two-source gate unperformed. See
+[package-set tooling](../package-sets/README.md) and the
 [hosted contract](../../contracts/hosted-web.md) for exact identities and grammar.
 
 To check wheel reproducibility within one build environment, build twice from

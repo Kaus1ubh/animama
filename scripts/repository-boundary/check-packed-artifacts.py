@@ -143,7 +143,7 @@ def main() -> int:
     # Verification tooling is reviewed public code; runtime consumers below
     # receive only copied fixtures, installed artifacts and verified app bytes.
     sys.path.insert(0, str(ROOT / "scripts/package-sets"))
-    from application import unpack_application
+    from application import require_distinct_resources, unpack_application
     from package_set import compare, verify
 
     manifest = verify(artifact_dir)
@@ -248,7 +248,7 @@ def main() -> int:
             compare(previous_directory, artifact_dir)
             previous_record = previous["applications"][0]
             previous_application = work / "previous-application"
-            unpack_application(
+            previous_app = unpack_application(
                 previous_directory / previous_record["file"],
                 previous_application,
                 previous["source"]["commit"],
@@ -257,6 +257,8 @@ def main() -> int:
                 archive_sha256=previous_record["sha256"],
                 source_tree=previous["source"]["tree"],
             )
+            # Before any browser work: byte-identical apps cannot claim an upgrade.
+            require_distinct_resources(previous_app, app_manifest)
             selection_kind = "verified-clean-package-set-pair"
         else:
             spec = importlib.util.spec_from_file_location("selection_fixture", tooling / "selection_fixture.py")
@@ -311,7 +313,6 @@ def main() -> int:
                 if path.is_file()
             },
         }
-
 
     backend = work / "backend"
     backend.mkdir()
