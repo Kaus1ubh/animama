@@ -19,6 +19,12 @@
       "alias": "angry",
       "content_type": "avatar_effect",
       "config": {}
+    },
+    {
+      "ref": "builtin:avatar-effect:steam_puffs",
+      "alias": "steam_puffs",
+      "content_type": "avatar_effect",
+      "config": {}
     }
   ],
   "files": [

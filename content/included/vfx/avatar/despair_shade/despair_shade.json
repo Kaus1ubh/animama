@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:despair_shade",
+  "version": 1,
+  "name": "Despair Shade",
+  "description": "The whole Avatar drains into a dark indigo shade as if the lights went out on them, for crushing despair, grief and dread.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "silhouette",
+    "attachment": {
+      "kind": "silhouette",
+      "fill": "tint",
+      "patternScale": 1
+    },
+    "art": {
+      "image": "despair_shade.png"
+    },
+    "appearance": {
+      "opacity": 0.8,
+      "blend": "multiply"
+    },
+    "motion": {
+      "keyframes": {
+        "frames": [
+          {
+            "opacity": 0,
+            "t": 0
+          },
+          {
+            "opacity": 1,
+            "t": 0.8
+          }
+        ]
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "despair_shade.png",
+      "role": "image"
+    }
+  ]
+}

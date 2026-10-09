@@ -12,12 +12,12 @@
     "attachment": {
       "kind": "face_landmark",
       "landmark": "eyes",
-      "side": "right",
       "mirror": true,
       "scale": {
         "x": 0.6,
         "y": 0.6
-      }
+      },
+      "side": "right"
     },
     "art": {
       "image": "eye_confused_swirl_r.png"

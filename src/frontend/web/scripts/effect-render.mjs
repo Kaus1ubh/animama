@@ -271,7 +271,7 @@ export async function renderEffectSheets({
  */
 async function writeThumbnailOnPage(
   { page, fsUrl, imageUrl },
-  { effect, outFile, time, size, expression, clip },
+  { effect, outFile, time, size, expression, clip, framingScale = 1 },
 ) {
   const rendered = await page.evaluate(
     (request) => window.renderEffectThumbnail(request),
@@ -285,6 +285,7 @@ async function writeThumbnailOnPage(
       size,
       expression,
       clip,
+      framingScale,
     },
   );
   await mkdir(path.dirname(outFile), { recursive: true });
@@ -323,7 +324,8 @@ export async function renderEffectThumbnail({
 
 /**
  * Render several thumbnails on one renderer page (one Vite server and browser
- * for the whole batch). `jobs` are `{ effect, outFile }`. Every job is
+ * for the whole batch). `jobs` are `{ effect, outFile, framingScale?, time? }`
+ * (`time` overrides the batch's). Every job is
  * attempted; `EffectRenderFailure` is thrown afterwards if any failed.
  */
 export async function renderEffectThumbnails({
@@ -334,16 +336,17 @@ export async function renderEffectThumbnails({
 }) {
   const results = await withRendererPage({}, async (context) => {
     const results = [];
-    for (const { effect, outFile } of jobs) {
+    for (const { effect, outFile, framingScale, time: jobTime } of jobs) {
       let result;
       try {
         result = await writeThumbnailOnPage(context, {
           effect,
           outFile,
-          time,
+          time: jobTime ?? time,
           size,
           expression: null,
           clip: null,
+          framingScale,
         });
       } catch (error) {
         result = {
@@ -615,6 +618,17 @@ async function main(argv) {
     const out = resolveOut(values["--out"]);
     const together = flags.has("--together");
     const single = (together || effects.length === 1) && out.endsWith(".png");
+    if (!single && !together) {
+      // One sheet per stem: a repeated stem would overwrite an earlier sheet.
+      const stems = effects.map((effect) => effect.stem);
+      const repeated = stems.find(
+        (stem, index) => stems.indexOf(stem) !== index,
+      );
+      if (repeated)
+        throw new EffectSourceError(
+          `Two sources share the stem "${repeated}"; render them separately or give each its own --out file.`,
+        );
+    }
     await renderEffectSheets({
       effects,
       together,

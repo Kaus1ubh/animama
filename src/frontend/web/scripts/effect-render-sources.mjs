@@ -148,11 +148,19 @@ export function parseLibrarySpec(spec) {
   return { scope, key };
 }
 
+/**
+ * A descriptor's content ID: Included descriptors carry `content_id`, Local
+ * ones (as the app writes them) `id`.
+ */
+function descriptorContentId(descriptor) {
+  return descriptor?.content_id ?? descriptor?.id;
+}
+
 /** A key matches an item's stem, content id or (case-insensitively) name. */
 function matchesKey(item, key) {
   return (
     item.stem === key ||
-    item.descriptor.content_id === key ||
+    descriptorContentId(item.descriptor) === key ||
     (typeof item.descriptor.name === "string" &&
       item.descriptor.name.toLowerCase() === key.toLowerCase())
   );
@@ -293,7 +301,7 @@ async function loadEffectDescriptor(descriptorPath, descriptor) {
   return {
     stem,
     descriptorPath,
-    contentId: descriptor.content_id ?? stem,
+    contentId: descriptorContentId(descriptor) ?? stem,
     name: typeof descriptor.name === "string" ? descriptor.name : stem,
     description:
       typeof descriptor.description === "string" ? descriptor.description : "",
@@ -387,7 +395,7 @@ async function findContentRef(ref, kind, { localContent, onSkip }) {
       }
       if (
         descriptor?.content_type === contentType &&
-        descriptor.content_id === ref
+        descriptorContentId(descriptor) === ref
       )
         return { descriptorPath, descriptor };
     }

@@ -19,6 +19,12 @@
       "alias": "rain-cloud",
       "content_type": "particle_effect",
       "config": {}
+    },
+    {
+      "ref": "builtin:avatar-effect:gloom_lines",
+      "alias": "gloom_lines",
+      "content_type": "avatar_effect",
+      "config": {}
     }
   ],
   "files": [

@@ -162,12 +162,19 @@ test("accountless effect templates seed unsaved drafts and Start from scratch op
   try {
     await test.step("Avatar FX templates show loaded Annie thumbnails", async () => {
       const picker = await openKindFromRoute(page, "Avatar FX");
-      for (const group of ["Eyes", "Whole face", "Above the head", "Mouth"])
+      for (const group of [
+        "Eyes",
+        "Cheeks",
+        "Whole face",
+        "Around the head",
+        "Mouth",
+        "Body",
+      ])
         await expect(
           picker.getByRole("heading", { name: group, exact: true }),
         ).toBeVisible();
       const images = picker.locator("img");
-      await expect(images).toHaveCount(16);
+      await expect(images).toHaveCount(26);
       await expect
         .poll(
           () =>
@@ -190,20 +197,18 @@ test("accountless effect templates seed unsaved drafts and Start from scratch op
 
     await test.step("An Avatar template opens a seeded, unsaved draft", async () => {
       const picker = effectTemplatePicker(page);
-      await picker
-        .getByRole("link", { name: "Eye VV Pair", exact: true })
-        .click();
+      await picker.getByRole("link", { name: "Eye VV", exact: true }).click();
       await expect(picker).toBeHidden();
-      await expect(page).toHaveURL(
-        /\/avatar-effects\/new\?template=eye_vv_pair$/,
-      );
+      await expect(page).toHaveURL(/\/avatar-effects\/new\?template=eye_vv$/);
       await expect(
         page.locator('[data-testid="avatar-effect-creator-canvas"]:visible'),
       ).toBeVisible({ timeout: 30_000 });
       await expect(
         page.getByRole("textbox", { name: "Avatar FX name", exact: true }),
-      ).toHaveValue(/^Eye VV Pair \d+$/);
-      await expect(page.getByText("eye_vv.png", { exact: true })).toBeVisible();
+      ).toHaveValue(/^Eye VV \d+$/);
+      await expect(
+        page.getByText("eye_vv_r.png", { exact: true }),
+      ).toBeVisible();
       await expect(
         page.getByRole("button", { name: "Unsaved", exact: true }),
       ).toBeVisible();
@@ -239,7 +244,7 @@ test("accountless effect templates seed unsaved drafts and Start from scratch op
         .getByRole("button", { name: "Discard and use template", exact: true })
         .click();
       await expect(choice).toBeHidden();
-      await expect(name).toHaveValue(/^Eye VV Pair \d+$/);
+      await expect(name).toHaveValue(/^Eye VV \d+$/);
       await discardToLibrary(page);
     });
 

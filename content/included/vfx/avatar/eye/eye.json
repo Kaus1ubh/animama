@@ -12,15 +12,15 @@
     "attachment": {
       "kind": "face_landmark",
       "landmark": "eyes",
-      "side": "right",
       "mirror": true,
       "scale": {
-        "x": 0.6,
-        "y": 0.6
-      }
+        "x": 0.55,
+        "y": 0.55
+      },
+      "side": "right"
     },
     "art": {
-      "image": "eye_=_r.png"
+      "image": "eye_bar_r.png"
     },
     "faceOptions": {
       "hideParts": [
@@ -30,7 +30,7 @@
   },
   "files": [
     {
-      "path": "eye_=_r.png",
+      "path": "eye_bar_r.png",
       "role": "image"
     }
   ]

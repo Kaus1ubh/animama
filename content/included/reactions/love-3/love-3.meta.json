@@ -25,6 +25,18 @@
       "alias": "scene-vfx-emotion-love",
       "content_type": "scene_effect",
       "config": {}
+    },
+    {
+      "ref": "builtin:avatar-effect:heart_eyes",
+      "alias": "heart_eyes",
+      "content_type": "avatar_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:avatar-effect:blush",
+      "alias": "blush",
+      "content_type": "avatar_effect",
+      "config": {}
     }
   ],
   "files": [

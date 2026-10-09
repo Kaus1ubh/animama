@@ -29,7 +29,7 @@ let dir;
 
 before(async () => {
   dir = await realpath(await mkdtemp(path.join(tmpdir(), "animama-media-")));
-  await cp(path.join(INCLUDED_EFFECT_ROOT, "star"), path.join(dir, "star"), {
+  await cp(path.join(INCLUDED_EFFECT_ROOT, "star3"), path.join(dir, "star3"), {
     recursive: true,
   });
   await writeFile(
@@ -49,14 +49,14 @@ const roots = () => ({
 });
 
 test("tells effect sources from clips", async () => {
-  assert.equal(await effectSpecFor("star", dir), path.join(dir, "star"));
+  assert.equal(await effectSpecFor("star3", dir), path.join(dir, "star3"));
   assert.equal(
-    await effectSpecFor("star/star.json", dir),
-    path.join(dir, "star/star.json"),
+    await effectSpecFor("star3/star3.json", dir),
+    path.join(dir, "star3/star3.json"),
   );
   assert.equal(
-    await effectSpecFor("library:avatar-effect/included/star", dir),
-    "library:included/star",
+    await effectSpecFor("library:avatar-effect/included/star3", dir),
+    "library:included/star3",
   );
   assert.equal(await effectSpecFor("wave.clip.json", dir), null);
   assert.equal(await effectSpecFor("library:included/confusion-2", dir), null);
@@ -65,15 +65,15 @@ test("tells effect sources from clips", async () => {
 
 test("serves only offered files, each inside its folder", async () => {
   const files = new PreviewMediaFiles();
-  const folder = path.join(dir, "star");
-  const url = files.url(folder, path.join(folder, "star.png"), "abc");
-  assert.match(url, /^\/__preview\/media\/[a-f0-9]{16}\/star\.png\?v=abc$/);
+  const folder = path.join(dir, "star3");
+  const url = files.url(folder, path.join(folder, "star3.png"), "abc");
+  assert.match(url, /^\/__preview\/media\/[a-f0-9]{16}\/star3\.png\?v=abc$/);
   const route = url.slice("/__preview/media/".length).split("?")[0];
-  assert.equal(await files.lookup(route), path.join(folder, "star.png"));
+  assert.equal(await files.lookup(route), path.join(folder, "star3.png"));
   const token = route.split("/")[0];
-  assert.equal(await files.lookup(`${token}/star.json`), null);
+  assert.equal(await files.lookup(`${token}/star3.json`), null);
   assert.equal(await files.lookup(`${token}/..%2Fwave.clip.json`), null);
-  assert.equal(await files.lookup("unknown/star.png"), null);
+  assert.equal(await files.lookup("unknown/star3.png"), null);
   assert.throws(() => files.url(folder, path.join(dir, "wave.clip.json")));
   // A file swapped for a link that leaves the folder is no longer served.
   const linked = path.join(dir, "linked");
@@ -90,27 +90,27 @@ test("serves only offered files, each inside its folder", async () => {
 test("loads an effect source with served, versioned images and notes beside its folder", async () => {
   const files = new PreviewMediaFiles();
   const adapter = createPreviewMediaAdapter({ files, duration: 2 });
-  const source = await adapter.resolve("star", roots());
+  const source = await adapter.resolve("star3", roots());
   assert.deepEqual(source, {
-    spec: "star",
+    spec: "star3",
     type: "effect",
-    path: path.join(dir, "star/star.json"),
-    name: "star",
+    path: path.join(dir, "star3/star3.json"),
+    name: "star3",
     kind: "file",
-    label: "star",
+    label: "star3",
     notesDir: dir,
   });
   const loaded = await adapter.load(source, roots());
   assert.match(loaded.version, /^[a-f0-9]{12}$/);
   assert.deepEqual(loaded.files, [
-    path.join(dir, "star/star.json"),
-    path.join(dir, "star/star.png"),
+    path.join(dir, "star3/star3.json"),
+    path.join(dir, "star3/star3.png"),
   ]);
-  assert.equal(loaded.effect.name, "Star");
+  assert.equal(loaded.effect.name, "Star3");
   assert.equal(loaded.effect.duration, 2);
-  assert.ok(loaded.effect.imageUrl.endsWith(`star.png?v=${loaded.version}`));
+  assert.ok(loaded.effect.imageUrl.endsWith(`star3.png?v=${loaded.version}`));
   assert.equal(
-    await effectVersionForFile(path.join(dir, "star/star.json")),
+    await effectVersionForFile(path.join(dir, "star3/star3.json")),
     loaded.version,
   );
   assert.equal(
@@ -178,17 +178,17 @@ test("resolves a Reaction's dependencies to served effects", async () => {
 
 test("offers Library Avatar Effects and named effect sources as choices", async () => {
   const adapter = createPreviewMediaAdapter({ files: new PreviewMediaFiles() });
-  const choices = await adapter.choices(roots(), ["star", "wave.clip.json"]);
+  const choices = await adapter.choices(roots(), ["star3", "wave.clip.json"]);
   assert.deepEqual(choices[0], {
-    spec: path.join(dir, "star/star.json"),
-    label: "star",
+    spec: path.join(dir, "star3/star3.json"),
+    label: "star3",
     group: "Effect sources",
-    path: path.join(dir, "star/star.json"),
+    path: path.join(dir, "star3/star3.json"),
   });
   const included = choices.filter(
     ({ group }) => group === "Included Avatar Effects",
   );
-  assert.equal(included.length, 16);
+  assert.equal(included.length, 26);
   assert.ok(
     included.some(
       ({ spec }) =>
@@ -197,12 +197,28 @@ test("offers Library Avatar Effects and named effect sources as choices", async 
   );
 });
 
+test("offers the other effect folders beside a named one", async () => {
+  const adapter = createPreviewMediaAdapter({ files: new PreviewMediaFiles() });
+  const batch = path.join(dir, "batch");
+  for (const name of ["one", "two"])
+    await cp(path.join(dir, "star3"), path.join(batch, name), {
+      recursive: true,
+    });
+  await mkdir(path.join(batch, "one-work"));
+  await writeFile(path.join(batch, "one-work", "notes.md"), "brief");
+  await writeFile(path.join(batch, "one-work", "items.json"), '{"x":1}');
+  const sources = (await adapter.choices(roots(), ["batch/one"]))
+    .filter(({ group }) => group === "Effect sources")
+    .map(({ label }) => label);
+  assert.deepEqual(sources, ["one", "two"]);
+});
+
 test("watches an effect whose image is missing until the image appears", async () => {
   const adapter = createPreviewMediaAdapter({ files: new PreviewMediaFiles() });
   const folder = path.join(dir, "late");
   await mkdir(folder);
   const descriptor = JSON.parse(
-    await readFile(path.join(dir, "star/star.json"), "utf8"),
+    await readFile(path.join(dir, "star3/star3.json"), "utf8"),
   );
   descriptor.definition.art.image = "new.png";
   await writeFile(path.join(folder, "late.json"), JSON.stringify(descriptor));
@@ -213,7 +229,10 @@ test("watches an effect whose image is missing until the image appears", async (
     adapter.load(source, roots()),
     /"new.png" does not exist/,
   );
-  await copyFile(path.join(dir, "star/star.png"), path.join(folder, "new.png"));
+  await copyFile(
+    path.join(dir, "star3/star3.png"),
+    path.join(folder, "new.png"),
+  );
   const loaded = await adapter.load(source, roots());
   assert.ok(loaded.effect.imageUrl.includes("/new.png?v="));
 });
