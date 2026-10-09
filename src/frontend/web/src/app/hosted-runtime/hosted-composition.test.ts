@@ -980,6 +980,10 @@ function hostedService() {
   const service = {
     session: "fixture-session-generation-one" as string | null,
     logoutStatus: 200,
+    loginStatus: 200,
+    /** Overrides replies, for example to hold or lose them. */
+    logoutReply: null as null | (() => Promise<Response>),
+    loginReply: null as null | (() => Promise<Response>),
     calls: [] as Request[],
     paths: () => service.calls.map((call) => new URL(call.url).pathname),
     fetch: (async (input) => {
@@ -998,13 +1002,23 @@ function hostedService() {
               },
         );
       if (path === "/api/cloud/auth/logout") {
+        if (service.logoutReply) return service.logoutReply();
         if (service.logoutStatus === 200) service.session = null;
         return Response.json({}, { status: service.logoutStatus });
       }
-      if (path === "/api/cloud/auth/login")
+      if (path === "/api/cloud/auth/login") {
+        if (service.loginReply) return service.loginReply();
+        // Login first ends the browser's current session, or starts nothing.
+        if (service.loginStatus !== 200)
+          return Response.json(
+            { error: "identity_unavailable" },
+            { status: service.loginStatus },
+          );
+        service.session = null;
         return Response.json({
           authorization_url: "https://identity.example.test/sign-in",
         });
+      }
       if (path === "/v1/hosted/events")
         return new Response(new ReadableStream<Uint8Array>());
       return Response.json({ ok: true });
@@ -1081,7 +1095,7 @@ describe("hosted sign-in and sign-out", () => {
     }
   });
 
-  it("replaces the session a failed sign-out left live with a new sign-in", async () => {
+  it("replaces the session a failed sign-out left live once the login request has ended it", async () => {
     installBrowserPage();
     const service = hostedService();
     service.logoutStatus = 503;
@@ -1090,7 +1104,27 @@ describe("hosted sign-in and sign-out", () => {
       await tab.controller.refresh();
       await tab.controller.signOut();
       expect(tab.incomplete()).toBe(true);
+      let reply!: () => void;
+      service.loginReply = () =>
+        new Promise<Response>((resolve) => {
+          reply = () => {
+            service.session = null;
+            resolve(
+              Response.json({
+                authorization_url: "https://identity.example.test/sign-in",
+              }),
+            );
+          };
+        });
       tab.composition.accountActions!.signIn();
+      await vi.waitFor(() =>
+        expect(service.paths()).toContain("/api/cloud/auth/login"),
+      );
+      // Until the login request has ended the old session, the guard stays.
+      expect(tab.composition.accountAffordances!().signOutIncomplete).toBe(
+        true,
+      );
+      reply();
       await vi.waitFor(() =>
         expect(tab.navigate).toHaveBeenCalledWith(
           "https://identity.example.test/sign-in",
@@ -1101,6 +1135,207 @@ describe("hosted sign-in and sign-out", () => {
       );
     } finally {
       tab.close();
+    }
+  });
+
+  it("keeps the retry view when a sign-in from it cannot end the live session", async () => {
+    installBrowserPage();
+    const service = hostedService();
+    service.logoutStatus = 503;
+    service.loginStatus = 503;
+    const tab = hostedTab(service);
+    const reloaded = hostedTab(service);
+    try {
+      await tab.controller.refresh();
+      await tab.controller.signOut();
+      tab.composition.accountActions!.signIn();
+      await vi.waitFor(() =>
+        expect(tab.controller.getSnapshot().admission).toEqual({
+          status: "sign-in-required",
+          message: "Sign-in could not be started. Please try again.",
+        }),
+      );
+      expect(tab.incomplete()).toBe(true);
+      expect(tab.navigate).not.toHaveBeenCalled();
+      // A focus or Try again read never readmits the session left live,
+      await tab.controller.refresh();
+      expect(tab.status()).toBe("sign-in-required");
+      expect(tab.controller.getSnapshot().scope).toBeNull();
+      expect(tab.incomplete()).toBe(true);
+      // and neither does a reload.
+      await reloaded.controller.refresh();
+      expect(reloaded.status()).toBe("sign-in-required");
+      expect(reloaded.incomplete()).toBe(true);
+    } finally {
+      tab.close();
+      reloaded.close();
+    }
+  });
+
+  it("returns from a failed identity sign-in to the sign-in alert, not the old session", async () => {
+    const page = installBrowserPage();
+    const service = hostedService();
+    service.logoutStatus = 503;
+    const tab = hostedTab(service);
+    try {
+      await tab.controller.refresh();
+      await tab.controller.signOut();
+      tab.composition.accountActions!.signIn();
+      await vi.waitFor(() => expect(tab.navigate).toHaveBeenCalled());
+    } finally {
+      tab.close();
+    }
+    // The identity provider refuses and returns to the app.
+    page.location.href = "https://app.example.test/library?sign_in=failed";
+    const returned = hostedTab(service);
+    try {
+      await returned.controller.refresh();
+      expect(returned.controller.getSnapshot().admission).toEqual({
+        status: "sign-in-required",
+        message: "Sign-in did not finish. Please try again.",
+      });
+      expect(returned.controller.getSnapshot().scope).toBeNull();
+      expect(returned.incomplete()).toBe(false);
+    } finally {
+      returned.close();
+    }
+  });
+
+  it("does not readmit the old session when the person comes back before the login reply", async () => {
+    const page = installBrowserPage();
+    const service = hostedService();
+    service.logoutStatus = 503;
+    const tab = hostedTab(service);
+    const reloaded = hostedTab(service);
+    try {
+      await tab.controller.refresh();
+      await tab.controller.signOut();
+      // Back from the identity page leaves the login request unanswered.
+      service.loginReply = () => new Promise<Response>(() => {});
+      tab.composition.accountActions!.signIn();
+      await vi.waitFor(() =>
+        expect(service.paths()).toContain("/api/cloud/auth/login"),
+      );
+      page.focus();
+      await tab.controller.refresh();
+      expect(tab.status()).toBe("sign-in-required");
+      expect(tab.controller.getSnapshot().scope).toBeNull();
+      expect(tab.incomplete()).toBe(true);
+      await reloaded.controller.refresh();
+      expect(reloaded.status()).toBe("sign-in-required");
+      expect(reloaded.incomplete()).toBe(true);
+    } finally {
+      tab.close();
+      reloaded.close();
+    }
+  });
+
+  it("lets a tab whose sign-out failed defer to a newer sign-in made in another tab", async () => {
+    installBrowserPage();
+    const service = hostedService();
+    service.logoutStatus = 503;
+    const stale = hostedTab(service);
+    const other = hostedTab(service);
+    try {
+      await stale.controller.refresh();
+      await stale.controller.signOut();
+      expect(stale.incomplete()).toBe(true);
+      // Another tab signs in from its retry view; the callback creates S2.
+      await other.controller.refresh();
+      other.composition.accountActions!.signIn();
+      await vi.waitFor(() => expect(other.navigate).toHaveBeenCalled());
+      service.session = "fixture-session-generation-two";
+      service.logoutStatus = 200;
+      // The stale tab no longer offers to retry against S2.
+      await stale.controller.refresh();
+      expect(stale.incomplete()).toBe(false);
+      expect(stale.status()).toBe("sign-in-required");
+      // A Try again racing that read does not sign S2 out,
+      await stale.controller.signOut();
+      expect(service.session).toBe("fixture-session-generation-two");
+      // and its Sign in adopts S2 instead of replacing it.
+      stale.composition.accountActions!.signIn();
+      await vi.waitFor(() => expect(stale.status()).toBe("ready"));
+      expect(stale.navigate).not.toHaveBeenCalled();
+      // Signing out of S2 there ends S2.
+      await stale.controller.signOut();
+      expect(service.session).toBeNull();
+      expect(stale.incomplete()).toBe(false);
+    } finally {
+      stale.close();
+      other.close();
+    }
+  });
+
+  it("does not hold a newer session to a logout that fails after that session began", async () => {
+    installBrowserPage();
+    const service = hostedService();
+    const tab = hostedTab(service);
+    const other = hostedTab(service);
+    try {
+      await tab.controller.refresh();
+      let fail!: () => void;
+      service.logoutReply = () =>
+        new Promise<Response>((resolve) => {
+          fail = () => resolve(Response.json({}, { status: 503 }));
+        });
+      const signingOut = tab.controller.signOut();
+      await vi.waitFor(() =>
+        expect(service.paths()).toContain("/api/cloud/auth/logout"),
+      );
+      // Another tab's sign-in completes before the failed reply arrives.
+      service.session = "fixture-session-generation-two";
+      fail();
+      await signingOut;
+      await other.controller.refresh();
+      expect(other.status()).toBe("ready");
+      expect(other.incomplete()).toBe(false);
+      await tab.controller.refresh();
+      expect(tab.incomplete()).toBe(false);
+      expect(tab.status()).toBe("sign-in-required");
+    } finally {
+      tab.close();
+      other.close();
+    }
+  });
+
+  it("does not record a failed logout that this tab's sign-in already overtook", async () => {
+    installBrowserPage();
+    const service = hostedService();
+    // Without a recovery generation the record cannot name its session.
+    service.session = "unbound";
+    const tab = hostedTab(service);
+    try {
+      await tab.controller.refresh();
+      expect(tab.status()).toBe("ready");
+      let fail!: () => void;
+      service.logoutReply = () =>
+        new Promise<Response>((resolve) => {
+          fail = () => resolve(Response.json({}, { status: 503 }));
+        });
+      const signingOut = tab.controller.signOut();
+      await vi.waitFor(() =>
+        expect(service.paths()).toContain("/api/cloud/auth/logout"),
+      );
+      // Sign in while the logout is unanswered; login ends the session.
+      tab.composition.accountActions!.signIn();
+      await vi.waitFor(() => expect(tab.navigate).toHaveBeenCalled());
+      fail();
+      await signingOut;
+      expect(tab.composition.accountAffordances!().signOutIncomplete).toBe(
+        false,
+      );
+    } finally {
+      tab.close();
+    }
+    // The callback's new session opens normally.
+    service.session = "unbound-two";
+    const returned = hostedTab(service);
+    try {
+      await returned.controller.refresh();
+      expect(returned.status()).toBe("ready");
+    } finally {
+      returned.close();
     }
   });
 

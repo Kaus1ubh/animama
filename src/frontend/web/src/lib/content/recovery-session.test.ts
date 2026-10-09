@@ -88,4 +88,34 @@ describe("hosted recovery retirement", () => {
     await purgeHostedRecoverySessions();
     expect([...rows.keys()]).toEqual([assetAttemptStorageKey(local)]);
   });
+
+  it("removes an ephemeral lifetime's own hint and import receipt when it ends", async () => {
+    const rows = new Map<string, string>();
+    vi.stubGlobal("window", {
+      localStorage: {
+        get length() {
+          return rows.size;
+        },
+        key: (index: number) => [...rows.keys()][index] ?? null,
+        getItem: (key: string) => rows.get(key) ?? null,
+        removeItem: (key: string) => rows.delete(key),
+      },
+    });
+    // Without a valid recovery generation, a lifetime has its own namespace.
+    const ended = "hosted:ephemeral:0f8fad5b-d9cb-469f-a165-70867728950e";
+    const other = "hosted:ephemeral:7c9e6679-7425-40de-944b-e07fc1f90ae7";
+    for (const key of [ended, other]) {
+      rows.set(assetAttemptStorageKey(key), '{"ids":[]}');
+      rows.set(`animama.package-import.v1.${key}`, "receipt");
+    }
+    beginHostedRecoverySession(ended);
+    beginHostedRecoverySession(other);
+    await endHostedRecoverySession(ended);
+    expect([...rows.keys()].sort()).toEqual(
+      [
+        assetAttemptStorageKey(other),
+        `animama.package-import.v1.${other}`,
+      ].sort(),
+    );
+  });
 });

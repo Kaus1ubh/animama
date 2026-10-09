@@ -1,25 +1,55 @@
 const SIGN_OUT_INCOMPLETE_KEY = "animama.hosted-sign-out-incomplete.v1";
 const SIGN_IN_PARAM = "sign_in";
+const GENERATION_PATTERN = /^[A-Za-z0-9_-]{16,128}$/;
 
 /**
- * A failed remote logout leaves the Cloud session live. This browser-wide
- * marker keeps every tab, and a reload, on the sign-out retry view until a
- * sign-out finishes or someone signs in again. It holds no account data.
+ * A failed remote logout, recorded browser-wide: the Cloud session it targeted
+ * is still live, so every tab and reload keeps the sign-out retry view instead
+ * of readmitting it. `generation` is that session's noncredential recovery
+ * generation when it was known, so a newer session is never held to the
+ * record. It holds no account data or credential.
  */
-export function signOutMarkedIncomplete(): boolean {
+export type IncompleteSignOut = { readonly generation: string | null };
+
+/** A valid recovery generation, or null. */
+export function recoveryGeneration(value: unknown): string | null {
+  return typeof value === "string" && GENERATION_PATTERN.test(value)
+    ? value
+    : null;
+}
+
+/** The recorded failed sign-out, null without one, or undefined when storage is unavailable. */
+export function readIncompleteSignOut(): IncompleteSignOut | null | undefined {
+  let raw: string | null;
   try {
-    return window.localStorage.getItem(SIGN_OUT_INCOMPLETE_KEY) !== null;
+    raw = window.localStorage.getItem(SIGN_OUT_INCOMPLETE_KEY);
   } catch {
-    return false;
+    return undefined;
+  }
+  if (raw === null) return null;
+  try {
+    const value = JSON.parse(raw) as { generation?: unknown } | null;
+    return { generation: recoveryGeneration(value?.generation) };
+  } catch {
+    // An unreadable record still guards whichever session is live.
+    return { generation: null };
   }
 }
 
-export function markSignOutIncomplete(incomplete: boolean): void {
+/** Records, or with null clears, a failed sign-out; false when storage is unavailable. */
+export function writeIncompleteSignOut(
+  record: IncompleteSignOut | null,
+): boolean {
   try {
-    if (incomplete) window.localStorage.setItem(SIGN_OUT_INCOMPLETE_KEY, "1");
+    if (record)
+      window.localStorage.setItem(
+        SIGN_OUT_INCOMPLETE_KEY,
+        JSON.stringify(record),
+      );
     else window.localStorage.removeItem(SIGN_OUT_INCOMPLETE_KEY);
+    return true;
   } catch {
-    /* Without storage, the current page still keeps its own state. */
+    return false;
   }
 }
 

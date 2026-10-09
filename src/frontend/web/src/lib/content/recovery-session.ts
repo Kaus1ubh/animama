@@ -123,19 +123,26 @@ function purgeRecoveryFallbacks(namespaces: string[]): void {
   // These families key by the raw session key. Model download Retry hints
   // (query/model-download-coordination) hold only public asset IDs, but each
   // hosted tab writes its own key, so they end with the hosted session too.
-  prefixes.push(
-    ...namespaces
-      .filter((prefix) => prefix.startsWith("hosted%3A"))
-      .flatMap((prefix) => [
-        `animama.package-import.v1.${decodeURIComponent(prefix)}`,
-        `animama:model-download-attempts:${decodeURIComponent(prefix)}`,
-      ]),
-  );
+  // A namespace (`hosted:<generation>:` or `<key>:`) covers the keys inside
+  // it and the session key it ends with, such as an ephemeral lifetime's own.
+  const rawKeys = namespaces
+    .filter((prefix) => prefix.startsWith("hosted%3A"))
+    .flatMap((prefix) =>
+      ["animama.package-import.v1.", "animama:model-download-attempts:"].map(
+        (family) => `${family}${decodeURIComponent(prefix)}`,
+      ),
+    );
   const keys = Array.from({ length: window.localStorage.length }, (_, index) =>
     window.localStorage.key(index),
   );
   for (const key of keys)
-    if (key && prefixes.some((family) => key.startsWith(family)))
+    if (
+      key &&
+      (prefixes.some((family) => key.startsWith(family)) ||
+        rawKeys.some(
+          (namespace) => key.startsWith(namespace) || `${key}:` === namespace,
+        ))
+    )
       window.localStorage.removeItem(key);
 }
 

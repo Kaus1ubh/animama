@@ -101,6 +101,7 @@ async function mount(
   let generation = "fixture-session-generation-one";
   let offline = false;
   let logoutStatus = 200;
+  let loginStatus = 200;
   await page.addInitScript(() => {
     window.microphoneStops = 0;
     Object.defineProperty(navigator, "mediaDevices", {
@@ -204,15 +205,19 @@ async function mount(
       body: request.postData(),
     });
     const login = request.url().endsWith("/login");
-    // A successful logout ends the fixture's Cloud session.
-    if (!login && logoutStatus === 200) state = "session_required";
+    const status = login ? loginStatus : logoutStatus;
+    // A successful logout ends the fixture's Cloud session, and so does a
+    // successful login start; a failed login start leaves it live.
+    if (status === 200) state = "session_required";
     await requestRoute.fulfill({
-      status: login ? 200 : logoutStatus,
+      status,
       contentType: "application/json",
       body: JSON.stringify(
-        login
-          ? { authorization_url: "https://identity.example.test/sign-in" }
-          : { ok: logoutStatus === 200 },
+        status !== 200
+          ? { error: "identity_unavailable" }
+          : login
+            ? { authorization_url: "https://identity.example.test/sign-in" }
+            : { ok: true },
       ),
     });
   });
@@ -249,6 +254,9 @@ async function mount(
     },
     setLogoutStatus: (value) => {
       logoutStatus = value;
+    },
+    setLoginStatus: (value) => {
+      loginStatus = value;
     },
   };
 }
@@ -877,6 +885,41 @@ test("a failed remote sign-out stays retryable across focus and reload until it 
     const logouts = calls.filter((call) => call.path.endsWith("/logout"));
     assert.equal(logouts.length, 2);
     assert.equal(logouts[1].headers["x-animama-csrf"], "fixture-session-one");
+  } finally {
+    await page.close();
+  }
+});
+
+test("a sign-in that cannot start from the sign-out retry view keeps that view across reload", async () => {
+  const fixture = await mount();
+  const { page } = fixture;
+  try {
+    await page.getByText("Your Animas will appear here").waitFor();
+    fixture.setLogoutStatus(503);
+    await page.evaluate(() => window.hostedFixture.signOut());
+    const heading = page.getByRole("heading", {
+      name: "Sign-out did not complete",
+    });
+    await heading.waitFor();
+    // Login cannot end the live session, so it starts no sign-in.
+    fixture.setLoginStatus(503);
+    await page.getByRole("button", { name: "Sign in", exact: true }).click();
+    await page
+      .getByRole("alert")
+      .filter({ hasText: "Sign-in could not be started" })
+      .waitFor();
+    await heading.waitFor();
+    assert.deepEqual(
+      await page.evaluate(() => window.hostedFixture.observations.navigations),
+      [],
+    );
+    await serveFixtureOnReload(page);
+    await page.reload();
+    await heading.waitFor();
+    assert.equal(
+      await page.evaluate(() => window.hostedFixture.current().status),
+      "sign-in-required",
+    );
   } finally {
     await page.close();
   }

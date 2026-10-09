@@ -103,14 +103,23 @@ Sign-in sends the current path and query, without the callback marker, as
 `?sign_in=failed` shows an alert on the sign-in view, and the marker is removed
 from the URL before the router reads it. A signed-out tab first adopts a session
 that another tab has established instead of starting a sign-in that would replace
-it. Sign-out ends private browser work at once and tells other tabs, which end
+it. `POST /api/cloud/auth/login` first ends this browser's current hosted session
+(server-side logout and a cleared session cookie); if that session cannot be
+ended it returns 503 `{"error":"identity_unavailable"}` and starts no sign-in.
+The callback still replaces any previous session on success.
+
+Sign-out ends private browser work at once and tells other tabs, which end
 theirs and read the runtime context again when next focused; only the tab that
 signed out stays signed out until a sign-in there. If the remote logout fails,
-the Cloud session is still live: every tab and reload in that browser shows a
-retryable "Sign-out did not complete" view instead of readmitting it, until a
-retry (with a freshly read CSRF token) finishes, the context shows no session,
-or someone signs in again, which starts a new sign-in rather than adopting the
-live session.
+the Cloud session is still live: the browser records the failure, with that
+session's `recovery_session_id` when known, and every tab and reload shows a
+retryable "Sign-out did not complete" view instead of readmitting it. The record
+ends when a retry (with a freshly read CSRF token) finishes, when the context
+shows no session or a session with another `recovery_session_id`, or when a
+sign-in from that view gets a successful login response; a failed login start
+keeps the view and reports the failure. Such a sign-in never adopts the live
+session, and a retry leaves alone a live session whose `recovery_session_id`
+shows that a newer sign-in replaced the one it targeted.
 
 ## Capabilities and requests
 
