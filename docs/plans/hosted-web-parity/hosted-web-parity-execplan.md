@@ -1849,7 +1849,8 @@ Main moved three times before merge; each merge keeps both sides.
     key and the admitted composition's API client.
   - `useCreatorTemplateStart` reads its loader through an effect event, so a
     re-render cannot restart a template load.
-  - The hosted ADR is renumbered 0016 after main's 0015.
+  - The hosted ADR is renumbered after main's ADRs; it is now 0017 (main
+    took 0016 for the clip format and 0018 for non-portable content).
   - Main's Avatar Effect conversion casts to the local content store, like the
     other installation transitions.
 - The journey-speed and check-fix merges (#334, #335, #347) were clean.
@@ -1881,6 +1882,54 @@ Evidence, all local (CI is disabled for lack of Actions minutes):
 
 Not run: hosted CI, a physical microphone and heard speech, and the Electron
 main window after the merges (owner manual checks).
+
+### Pre-merge comprehensive review (2026-10-09)
+
+Because most of this branch was written by another agent, the owner asked for a
+comprehensive independent review of both PRs before either merges. Before the
+review the branch absorbed main again (#329 non-portable Included content, #375
+clip format 2.0 only, #376, #377, #378 and the #345 lock fix) and A8 (#338) was
+folded in. Main's 2.0-only clips retire the consumer harness's optional 1.0
+legacy-rollback journey (`--legacy-app-set`); its fixtures are now 2.0.
+
+Code Review #1 used nine read-only reviewers: four public slices (runtime and
+session, product surfaces, backend, packaging and CI) and five on the hosted
+consumer, including cross-repository behavioural parity. Reviewed source:
+public `f8a1a3fe..729ffdc8`. Consumer findings are tracked in its own plan.
+
+Code Review #1 Findings (public):
+
+- Major: P1-01 first hosted sign-in needs a manual recovery step (no automatic
+  bootstrap, no idempotency-key replay); P2-01 a same-page session change
+  leaves dead Parakeet and Smart Turn workers, so dictation and Voice Mode hang;
+  P4-01 the format-2 validation receipt and the consumer's promotion check
+  disagree; P4-02 local full validation cannot build a format-2 set
+  (`ANIMAMA_MODEL_ROOT` is dropped); P4-04 genuine-pair whole-app checks run
+  against the predecessor but are recorded for the candidate. From the parity
+  slice, the shared executor never fits prompts for Responses rows when
+  native compaction is off (C2-01), hosted search availability keys on the
+  admin capability (C5-05), and hosted denial codes have no UI copy (C5-03).
+- Minor: P1-02 failed remote sign-out shows signed out; P1-03 a broadcast
+  signed-out tab can replace another tab's session; P1-04 one failed cleanup
+  blocks later admission; P1-05 `paused` purges drafts; P1-06 Account
+  controls without a URL; P1-07 sign-in drops deep links and failure notices;
+  P2-02 hosted exceptions are hidden instead of disabled with a reason (spec
+  R2); P2-03 lost requests become TypeErrors in several mutations; P2-04 stale
+  frontend docs; P3-01 shared package services call synchronous stage ports on
+  the event loop; P3-02 the embedder leaks `TimeoutError`; P4-03 the baseline
+  build reuses the candidate's speech models; P4-05 genuine pairs may be
+  byte-identical; P4-06 harness unit tests never run; C5-10 hosted download
+  buttons call refused operations.
+- Nits: P1-08 hosted entry lacks the DM Sans font; P1-09 dead code; P2-05
+  session-scoped hygiene; P3-03 re-export `__all__`; P3-04 unused bounded
+  speech service; P3-05, P4-08 stale docs; P4-07 extraction digests; P4-09
+  build-context exclusions; P4-10 receipt recipe coverage.
+
+Code Review #1 Revisions: repair round 1 is in progress (accepted findings are
+being fixed with tests). Deferred: P3-01 and P3-04 move to the shared HTTP
+layer work in #379, which reshapes those ports and services. Rejected: P4-10,
+because the consumer's promotion check pins the recipe keys and the source
+commit already binds all tooling.
 
 ## Final integration review
 
