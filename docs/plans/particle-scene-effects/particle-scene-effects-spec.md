@@ -4,8 +4,10 @@ Status: Proposal
 Owner decision: Intent discovery on 2026-10-09 settled the problem, scope, the
 three-plan delivery order and the decisions listed under
 [Open questions and decisions](#open-questions-and-decisions). The owner then
-asked for this draft. Items marked **Proposal** in this document await the
-owner's review.
+asked for this draft and, on review the same day, resolved its open questions
+(see the dated spec-review decisions). Items still marked **Proposal** are
+fixed by the named plan or gate: the R2 capability list and R6 budget values by
+Plan 1, the R9 and R10 lists before Plan 2 starts.
 Authoritative source: this draft until it is published in
 [#297](https://github.com/raymond-van/animama/issues/297).
 Related: [#298](https://github.com/raymond-van/animama/issues/298) (Avatar
@@ -160,7 +162,9 @@ Non-goals:
   radiating rays), per-item size, rotation and opacity variation in the
   marquee, and frame-animated items.
 - The final list is fixed when the R10 designs are agreed and is recorded in
-  the plan. Capabilities no approved design uses are not built.
+  the plan. Plan 1 drafts the eight family briefs and mock renders for owner
+  approval before it builds them (owner decision, 2026-10-09). Capabilities no
+  approved design uses are not built.
 - Each capability:
   - renders the same in chat, in the creator, in the Library preview dock and
     in desktop picture-in-picture where scene layers show today;
@@ -323,8 +327,10 @@ better than revulsion.
 - Twemoji files, the bundled emoji catalog entries and the backend emoji
   allowlist are removed. Its licence records and attribution notices are
   removed with them.
-- A Local Scene Effect that still contains an emoji item is handled as stated
-  under [Open questions and decisions](#open-questions-and-decisions).
+- A Local Scene Effect that still contains an emoji item opens in the creator
+  with that item marked missing and asks for a replacement. Chat skips the item
+  without errors. There is no automatic conversion (owner decision,
+  2026-10-09).
 
 #### R12 — Reactions on an escalating ladder
 
@@ -419,10 +425,10 @@ use `animaPoseClip/2.0`.
   - Effects make no network requests.
 - **Performance:**
   - Stay within the runtime limits unless a runtime change is agreed.
-  - **Proposal:** for the heaviest intensity-3 Reaction, playing its Particle
-    and Scene Effects adds no more than 2 ms of frame time on the owner's
-    development Mac, compared with the same Reaction without them. This is the
-    same bar #298 set for Avatar Effects.
+  - For the heaviest intensity-3 Reaction, playing its Particle and Scene
+    Effects adds no more than 4 ms of frame time on the owner's development
+    Mac, compared with the same Reaction without them (owner decision,
+    2026-10-09; #298 set 2 ms for Avatar Effects alone).
 - **Accessibility:** the `presentation.disable_vfx` preference continues to
   suppress clip-owned effects. Simple controls are keyboard-operable and
   labelled.
@@ -431,10 +437,10 @@ use `animaPoseClip/2.0`.
     any skill.
   - Asset scripts work on any PNG.
   - No Cloud dependencies.
-- **Creator UI:** **Proposal:** following #298's later decision for the Avatar
-  Effect creator, the Particle and Scene creators keep the existing shell,
-  layout, styling and shared components. Simple mode is a new default view,
-  not a visual redesign.
+- **Creator UI:** following #298's later decision for the Avatar Effect
+  creator, the Particle and Scene creators keep the existing shell, layout,
+  styling and shared components. Simple mode is a new default view, not a
+  visual redesign (owner decision, 2026-10-09).
 - **Desktop first:** UI work is verified at desktop sizes, then at narrower
   widths.
 
@@ -524,32 +530,37 @@ Decisions (owner, 2026-10-09, intent discovery):
 - Art direction is chosen per effect. Scene art will generally differ from
   Particle art.
 - Focus Lines redesign is out of scope. Sounds, more Gesture use and particle
-  runtime changes are not excluded. This spec treats them as allowed when an
-  approved design needs them (agent interpretation; confirm).
+  runtime changes are not excluded.
 
-Open (owner review of this draft):
+Decisions (owner, 2026-10-09, review of this draft):
 
-- **Glossary tension.** The glossary says one image moving as one piece is an
-  Avatar Effect, not a Particle Effect. The owner wants Particle Effects that
-  can emit a single long-lived particle. **Proposal:** a single long-lived
-  particle is a valid layer of a Particle Effect when it uses particle
-  behaviour (emission, life curves, burst into other particles), usually
-  alongside other layers. Art that only sits on the Avatar and moves as one
-  piece stays an Avatar Effect. The glossary entry is clarified accordingly.
-- **Final lists.** The owner trims the R9 candidates and confirms the R10
-  families and directions before Plan 2 starts.
-- **Local emoji items.** **Proposal:** pre-launch, a Local Scene Effect with an
-  emoji item opens in the creator with that item marked missing and asks for a
-  replacement. Chat skips the item without errors. No automatic conversion.
-- **Performance budget.** Confirm the 2 ms proposal and the measurement
-  machine.
-- **Creator UI.** Confirm that Plan 3 keeps the existing creator layout and
-  styling (Simple mode as a new default view), as #298 decided for the Avatar
-  Effect creator.
-- **Scene capability list.** Fixed when the R10 designs are agreed (R2). Plan 1
-  can build them only once the designs exist. **Proposal:** Plan 1 includes an
-  early design step that drafts the eight family briefs and mock renders for
-  owner approval, and implements the capabilities they need.
+- **Glossary.** A single long-lived particle is a valid layer of a Particle
+  Effect when it uses particle behaviour (emission, life curves, bursting into
+  other particles), usually alongside other layers. Art that only sits on the
+  Avatar and moves as one piece stays an Avatar Effect. Plan 1 clarifies the
+  glossary entry (R8).
+- **Scene capability list.** Plan 1 includes an early design step: it drafts
+  the eight family briefs and mock renders for owner approval, then implements
+  only the capabilities the approved designs need (R2). Final art is Plan 2
+  content.
+- **Performance budget.** 4 ms of added frame time for the heaviest
+  intensity-3 Reaction's Particle and Scene Effects, measured on the owner's
+  development Mac (see Constraints). The proposed 2 ms was not adopted.
+- **Local emoji items.** Marked missing in the creator, skipped in chat, no
+  automatic conversion (R11).
+- **Creator UI.** Plan 3 keeps the existing creator shell, layout and styling;
+  Simple mode is a new default view (see Constraints).
+- **Allowed extras.** Sounds, more Gesture use and particle runtime or limit
+  changes are allowed when an approved design needs them, with the reason
+  recorded. None is required.
+- **Final lists.** Trimming the R9 candidates and confirming the R10 families
+  are deferred until before Plan 2 starts. Plan 1's design step may propose
+  family changes.
+
+Open:
+
+- **Final lists** (before Plan 2): the owner trims the R9 candidates and
+  confirms the R10 families and directions.
 
 ## Spec
 
@@ -559,8 +570,9 @@ is authorized.
 
 ## ExecPlan
 
-Not yet written. Plan 1 (R1–R8) is the next step:
-`docs/plans/particle-scene-effects/particle-scene-effects-execplan.md`.
+Plan 1 (R1–R8):
+[particle-scene-effects-execplan.md](particle-scene-effects-execplan.md).
+Plans 2 (R9–R14) and 3 (R15–R17) are written after their predecessors merge.
 
 ## Delivery links
 
