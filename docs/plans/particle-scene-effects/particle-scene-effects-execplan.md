@@ -76,7 +76,7 @@ Paths: frontend relative to `src/frontend/web/`, backend to
       issues #386–#394 created as sub-issues with dependencies; worktree
       `animama-particle-scene-effects` on `feat/particle-scene-effects`. No task
       stack yet.
-- [ ] P1 — Scene family designs (R2 input). Gate G1.
+- [ ] P1 — Scene family designs (R2 input). Briefs, mocks and capability list ready (2026-10-09); waiting for G1.
 - [ ] P2 — Art budgets and shared import limits (R6).
 - [ ] P3 — Particle texture import (R1).
 - [ ] P4 — Check, render and bench for Particle and Scene Effects (R3).
@@ -239,10 +239,54 @@ design uses are not built.
 
 #### P1 record
 
+Starting source and issue: `ab21768f` (this branch after merging `main`
+`42d38faf`), #386.
+
+Delivered (drafts under `.animama-drafts/scene-families/`, not committed):
+
+- Eight briefs (`<family>/brief.md`) and one live review page with an animated
+  mock per family over an Included Avatar (both Avatars alternate), plus two
+  still frames per family (0.12 s and 2.5 s). Mocks are plain CSS/SVG layers
+  in the order the chat underlay draws them; sample art is one generated
+  sticker per family (draft direction only), each passing
+  `effects:assets check --budget sticker` after `fix`.
+- Art direction proposed for Scene art: flat anime background motifs (bold
+  silhouettes, flat colour with at most one cel-shade step, thin tinted
+  outlines), distinct from Particle art's glossy glow polish.
+
+| Family | Direction (lead emotion shown) | Layers |
+| --- | --- | --- |
+| Affection | Shoujo bloom (love) | radial glow, drifting bokeh tile, tumbling petals with twinkling sparkles |
+| Esteem | Radiance (confidence) | radial back-light, rotating rays, rising twinkling glints |
+| Delight | Festive pop (joy) | diagonal pop gradient, halftone dots, bouncing stars and confetti |
+| Drive | Anticipation (optimism) | sky gradient, drifting star-field tile, rising twinkles |
+| Alarm | Shock (fear) | entry flash, dark gradient, shock lines, flickering lightning |
+| Rejection | Rage (anger) | hot radial vignette, throbbing spiky rays, popping anger marks |
+| Revulsion | Queasy (disgust) | sickly gradient, spinning spirals, rising bubbles |
+| Gloom | Gloom (sadness) | overcast gradient, swaying gloom lines, falling drops |
+
+Proposed capability list for G1 (all additive to `animama/scene-effect/1`):
+
+- **C1 gradient fill** (linear or radial, 2–4 stops): all families.
+- **C2 image pattern tile with drift**: Affection, Drive.
+- **C3 procedural screen** (rays: count, centre, rotation, spiky, throb;
+  lines: count, lengths, width, sway): Esteem, Alarm, Rejection, Gloom.
+- **C4 scatter layout and per-item variation** (size, rotation, opacity
+  ranges, seed): all families.
+- **C5 per-item motion** (spin; twinkle, pop or flicker pulse; still items
+  among drifting ones): seven families.
+- **C6 entry flash**: Alarm (and Delight's excitement).
+- Not built: frame-animated items; no design needs them.
+
+Recommendation for G1: move embarrassment from Revulsion to Affection (its
+blush-and-steam fluster trope fits Affection's layers, not a nausea swirl).
+
+Remaining: **G1** (owner approval of the families and the capability list).
+
 #### Code Review #1 Findings
 
-Not applicable unless P1 commits code; the review covers any committed scratch
-tooling.
+Not applicable: P1 commits only this record; the mock page and briefs are
+drafts.
 
 ### P2 — Art budgets and shared import limits (R6). #387
 
