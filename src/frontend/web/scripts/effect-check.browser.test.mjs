@@ -1,12 +1,16 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import sharp from "sharp";
 
 import { checkEffects } from "./effect-check.mjs";
-import { resolveEffectSource } from "./effect-render-sources.mjs";
+import {
+  INCLUDED_CONTENT_ROOT,
+  resolveAnyEffectSource,
+  resolveEffectSource,
+} from "./effect-render-sources.mjs";
 
 /** A 128 px PNG: a disc of `alpha`, or nothing visible at all. */
 async function disc(alpha, rgb = [230, 40, 60]) {
@@ -140,6 +144,133 @@ test("effects check passes visible art and fails invisible or invalid effects", 
 
     assert.deepEqual(levels(invalid), ["FAIL"]);
     assert.match(invalid.lines[0].message, /^definition: .*opacity/);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+/** A copy of an Included Particle or Scene Effect folder, adjusted by `edit`. */
+async function copyIncluded(dir, from, stem, edit = async () => {}) {
+  const folder = path.join(dir, stem);
+  await cp(path.join(INCLUDED_CONTENT_ROOT, from), folder, { recursive: true });
+  const original = path.join(folder, `${path.basename(from)}.json`);
+  const descriptor = JSON.parse(await readFile(original, "utf8"));
+  await rm(original);
+  await edit(descriptor, folder);
+  await writeFile(
+    path.join(folder, `${stem}.json`),
+    JSON.stringify(descriptor),
+  );
+  return folder;
+}
+
+// Particle and Scene Effects: art budgets, particle counts and visibility,
+// with Scene layers captured from the page as the chat draws them.
+test("effects check reviews Particle and Scene Effect folders", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "animama-effect-check-kinds-"));
+  try {
+    const sources = [
+      await copyIncluded(dir, "vfx/particle/quark/hearts-v1", "hearts"),
+      // Declares fewer particles than its emitters produce.
+      await copyIncluded(
+        dir,
+        "vfx/particle/quark/hearts-v1",
+        "crowded",
+        async (descriptor) => {
+          descriptor.runtime_defaults.slots.particle_vfx.max_particles = 4;
+        },
+      ),
+      // A fully transparent texture: particles play but nothing shows.
+      await copyIncluded(
+        dir,
+        "vfx/particle/quark/hearts-v1",
+        "clear",
+        async (_descriptor, folder) => {
+          await writeFile(
+            path.join(folder, "textures/heart.png"),
+            await disc(0),
+          );
+        },
+      ),
+      await copyIncluded(
+        dir,
+        "vfx/scene/scene-vfx-emotion-joy",
+        "joy_background",
+      ),
+      // The manifest draws a texture the descriptor does not list.
+      await copyIncluded(
+        dir,
+        "vfx/particle/quark/hearts-v1",
+        "unlisted",
+        async (descriptor) => {
+          descriptor.files = descriptor.files.filter(
+            (file) => file.role !== "texture",
+          );
+        },
+      ),
+      // Lists an image that no item shows.
+      await copyIncluded(
+        dir,
+        "vfx/scene/scene-vfx-emotion-joy",
+        "joy_extra",
+        async (descriptor, folder) => {
+          await writeFile(path.join(folder, "extra.png"), await disc(255));
+          descriptor.files.push({ path: "extra.png", role: "image" });
+        },
+      ),
+    ];
+    const effects = await Promise.all(
+      sources.map((source) => resolveAnyEffectSource(source)),
+    );
+    const [hearts, crowded, clear, joy, unlisted, joyExtra] =
+      await checkEffects({
+        effects,
+        times: [0.5, 1],
+        views: ["front"],
+        tile: { width: 96, height: 120 },
+      });
+    const fails = (result) =>
+      result.lines.filter((line) => line.level === "FAIL");
+
+    assert.deepEqual(fails(hearts), [], JSON.stringify(hearts.lines));
+    assert.ok(
+      hearts.lines.some((line) =>
+        /^particles: up to \d+ live \(declared budget 64/.test(line.message),
+      ),
+      JSON.stringify(hearts.lines),
+    );
+    assert.ok(
+      fails(crowded).some((line) =>
+        /^particles: .*budget 4/.test(line.message),
+      ),
+      JSON.stringify(crowded.lines),
+    );
+    assert.equal(
+      fails(clear).filter((line) => /no visible art/.test(line.message)).length,
+      2,
+      JSON.stringify(clear.lines),
+    );
+    assert.deepEqual(fails(joy), [], JSON.stringify(joy.lines));
+    assert.equal(
+      joy.lines.filter((line) => /visible in 2 of 2 frames/.test(line.message))
+        .length,
+      2,
+      JSON.stringify(joy.lines),
+    );
+    assert.ok(
+      fails(unlisted).some(
+        (line) =>
+          /^particles: /.test(line.message) &&
+          /textures\/heart\.png/.test(line.message),
+      ),
+      JSON.stringify(unlisted.lines),
+    );
+    assert.deepEqual(
+      joyExtra.lines
+        .filter((line) => /^scene: /.test(line.message))
+        .map(({ level, message }) => `${level} ${message}`),
+      ["WARN scene: extra.png is listed but no item shows it"],
+    );
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

@@ -79,7 +79,8 @@ Paths: frontend relative to `src/frontend/web/`, backend to
 - [ ] P1 — Scene family designs (R2 input). Briefs, mocks and capability list ready (2026-10-09); waiting for G1.
 - [x] P2 — Art budgets and shared import limits (R6). Review passed at round 3.
 - [x] P3 — Particle texture import (R1). Review passed at round 2.
-- [ ] P4 — Check, render and bench for Particle and Scene Effects (R3).
+- [x] P4 — Check, render and bench for Particle and Scene Effects (R3). Review
+      passed at an owner-authorized extra round 4.
 - [ ] P5 — Scene layer capabilities (R2). Waits for G1.
 - [ ] P6 — Headed preview for Particle and Scene Effects (R4).
 - [ ] P7 — Save and promote (R5). Gate G3.
@@ -106,6 +107,20 @@ Paths: frontend relative to `src/frontend/web/`, backend to
   images with a `.webp` logical name whatever their format, and picture-in-picture
   receives Scene state as JSON that may carry window-local blob URLs. P5 checks
   both before relying on image capabilities there.
+- 2026-10-09 (P4): there are two particle estimates. The creator's Save
+  gating (`estimateParticleVFXContentParticles`, matching the backend) counts
+  a looping system's emission over the longest system's duration and puts
+  `flame-loop` at 79 against its declared 64, the figure the spec quotes; the
+  editor's display and warning (`estimateParticleVFXDraftParticles`) say 52.
+  `effects check` uses Save's estimate, so it fails the Included `flame-loop`,
+  which the creator would refuse to save as it is. Plan 1 writes no Included
+  content (G3); its budget is fixed with the Plan 2 library. The creator
+  showing a different estimate from the one Save enforces is a separate fix.
+- 2026-10-09 (P4): every current intensity-3 Reaction's effects add at most
+  about 2 ms of frame time on the owner's Mac at DPR 2 (up to 2.3 ms in a
+  run beside other work; see the P4 record), so the 4 ms budget leaves room
+  for richer Plan 2 effects. The Scene background is most of it: Reactions
+  without one add 0.2–1.2 ms.
 - 2026-10-09 (planning): `effects:assets check` fails any PNG without alpha, so
   an opaque full Scene background cannot pass today; the background budget needs
   an opaque-allowed mode.
@@ -135,6 +150,10 @@ Paths: frontend relative to `src/frontend/web/`, backend to
     a hard limit.
   - Dry-run effects (P8) stay Local drafts. They may become Plan 2 candidates
     but are not promoted in Plan 1.
+- **2026-10-09, agent (implementation order):** while G1 is open, P6 (headed
+  preview) runs before P5. P6 draws Scene Effects through the shared layer
+  hosts, so P5's capabilities appear in it without further work; P5 still
+  waits for G1, and P7 follows P5.
 - **2026-10-09, owner (plan review):** the spec is agreed (Status: Agreed).
 - **2026-10-09, owner:** all phases, P1–P9, are authorized. The proposed P2
   budget and limit values were not changed at review; P2 fixes them against
@@ -677,9 +696,238 @@ bench reports the Reaction-mode baseline.
 
 #### P4 record
 
+Starting source and issue: `ea59aa5f`, #389.
+
+Delivered:
+
+- **Sources** (`scripts/effect-render-sources.mjs`): `library:` specs name a
+  kind (`avatar-effect/`, `particle-effect/`, `scene-effect/`, `gesture/`,
+  `reaction/`; none means an Avatar Effect, as before). `resolveAnyEffectSource`
+  returns an Avatar, Particle or Scene source from a folder, descriptor or
+  spec, with every file contained in its folder; Included Particle Effects are
+  found one folder deeper. `resolveClipSource` returns a Gesture's or
+  Reaction's dependencies, and `resolveDependencies` resolves them by alias.
+- **Stage** (`scripts/effect-render/render.ts`, `reviewStage.tsx`): sheets and
+  checks now open one stage session per Avatar (`openReviewStage`,
+  `showReviewFrame`, `closeReviewStage`). The chat's Scene underlay and overlay
+  hosts sit around the Avatar canvas; Scene CSS animations are paused and
+  seeked to the frame time; Particle Effects play through the Avatar's
+  particle controller with a preview media provider; `Math.random` is seeded.
+  Node captures each tile from the page and composes the sheet with `sharp`,
+  for Avatar Effects too. A clip with effect events plays through the Avatar's
+  clip player, so a Reaction starts its effects when chat would; each frame
+  waits until the effect loads its events started have finished, so a
+  Reaction renders the same on every run. Each Scene Effect is seeked to the
+  time since it started and removed when its duration ends; layers aimed at
+  the Avatar (focus lines on the face) follow each view's camera.
+- **Check** (`scripts/effect-check.mjs`): Particle textures are held to
+  `particle-texture` or `particle-sheet` (by whether an emitter tiles them),
+  Scene PNGs to `scene-sticker`; a Particle Effect gets the creator's content
+  readiness errors (limits, and image references that must name a listed
+  texture) and Save's estimate of live particles against the declared budget
+  and the 512 limit; a Scene image an item shows must be listed, and a
+  listed image no item shows is a warning; visibility is proven against the
+  bare Avatar.
+- **Render** (`scripts/effect-render.mjs`): any mix of kinds, `--together`,
+  and `--with-clip <Gesture or Reaction>` with or without sources.
+- **Shared Scene projection:** `lib/scene-vfx/sceneDefinition.ts`
+  (`sceneEntryFromDefinition`) is now used by the runtime catalog's private
+  Scene loader and by the review tools.
+- **Bench** (`effects:bench --reaction <spec>`): measures a Reaction replayed
+  with and without its effect events, with the Scene bands around the canvas
+  at DPR 2 and the frame rate uncapped, so the interval between animation
+  frames includes the DOM layers' style, layout and compositing; the CPU time
+  of update plus render and the GPU time of the render are reported too. The
+  budget is 4 ms (added mean frame interval and GPU time).
+
+Baseline (agent, 2026-10-09, the owner's development Mac: Apple M5, ANGLE
+Metal, headless, DPR 2 for the canvas and the DOM layers, 1600×1200 drawing
+buffer, 360 frames per scenario in two alternating rounds, all 24
+intensity-3 Reactions on both Included Avatars, after the review #3 fix, on
+an otherwise idle machine): each adds at most 2.0 ms of mean frame interval
+and at most 0.8 ms of GPU time (negative GPU differences are noise). The
+heaviest is `grief-3` (Gloom face, streaming tears, despair shade,
+`rain-cloud`, the grief background): +1.72/+2.01 ms frame and +0.57/+0.63 ms
+GPU (Y_0/A_1_New). `joy-3`: +1.20/+1.38 ms frame, +0.73/+0.61 ms GPU.
+Reactions with no Scene Effect add 0.2–1.2 ms. An earlier sweep that ran
+beside other renders measured up to +2.3 ms (`grief-3` +2.07/+2.29 ms), so
+runs vary by about 0.5 ms; repeat a borderline measurement on an idle
+machine. The Plan 2 acceptance measurement repeats this on the new library.
+
+Checks (agent, 2026-10-09): node tests `effect-render-sources`, `effect-assets`,
+`effects`, `animation-preview-media` (72 pass); browser tests `effect-render` and
+`effect-check` (5 pass, including the new Particle, Scene, together and
+Reaction cases) and `animation-preview` (6 pass); vitest over `lib/scene-vfx`
+and `lib/runtime-content` (137 pass); `pnpm check`; `pnpm web:lint`; Prettier.
+Sample runs: `effects check` on `hearts-v1`, `scene-vfx-emotion-joy` and
+`star3` (pass) and `flame-loop` (FAIL: up to 79 live particles against 64, see
+Surprises); `effects:render` sheets for `hearts-v1`, `scene-vfx-emotion-joy`
+and `joy-3` played as a Reaction.
+
+After the review repairs (agent, 2026-10-09): browser tests `effect-render` and
+`effect-check` 5 pass (the joy-3 Reaction rendered twice is byte-identical; an
+unlisted texture and an unshown Scene image are reported); node tests
+`effect-render-sources`, `effect-assets`, `effects`, `animation-preview-media`
+72 pass; vitest over `lib/avatar/particle-vfx`, `lib/scene-vfx`,
+`lib/runtime-content` 164 pass; `pnpm check`; `pnpm web:lint`; Prettier.
+
 #### Code Review #1 Findings
 
+Reviewer: independent `sdlc-reviewer`, full initial review of the P4 working
+tree on `ea59aa5f`. Result: blocked on F1–F7.
+
+- **F1** (`effect-render/render.ts`, `advanceTo`): event-playing frames wait a
+  fixed 16 ms of wall-clock time for effect loads, so a slow load starts its
+  effect on a later frame and the same Reaction can render differently between
+  runs (R3 reproducible review). Required.
+- **F2** (`reviewStage.tsx`, `seek`): every Scene is seeked by the earliest
+  start time, so a Scene a clip event starts later is drawn ahead of its own
+  timeline. Required.
+- **F3** (`render.ts`, `showReviewFrame`; `reviewStage.tsx`): focus lines with
+  an `avatar_face` target resolve the face against the camera before it is
+  placed for the view, so the face view frames the wrong area. Required.
+- **F4** (`effect-check.mjs`): a Particle manifest image URL is not checked
+  against the descriptor's listed textures, so a folder the backend refuses
+  (unlisted texture) passes the check; the declared budget is not clamped to
+  the runtime limit. Required.
+- **F5** (`effect-render.mjs`, CLI): a clip-only render with `--out x.png`
+  treats the file as a folder. Required.
+- **F6** (`render.ts`, thumbnails): a thumbnail of a clip with effect events
+  plays it through the clip player without its media and fails. Required.
+- **F7** (`effect-bench.mjs`): the page runs at DPR 1, so the DOM Scene layers
+  are measured at a quarter of the pixels the 2× canvas uses, understating the
+  Reaction baseline. Required; re-record the baseline.
+- Optional: label Particle source errors `particles:`, not `render:`; Scene
+  `durationMs` forced to null on the stage; clip-started Particle Effects
+  missing from `activeEffectIds`; stale comments (`summarizeCheck`, "seeded on
+  load"); the bench ignores `INIT_CWD` for sources and has no
+  `--local-content`; tests for seek, an unlisted texture and an unshown Scene
+  image.
+
 #### Code Review #1 Revisions
+
+- **F1 accepted.** `PendingLoads` counts each stage of an effect load a clip
+  event starts (the media provider's `loadAvatarVFX`/`resolveParticleVFX`, the
+  Avatar Effect controller's apply methods and the particle controller's
+  `playEffect`); stages are chained by microtasks, so after each event frame
+  the session yields in macrotasks until the count is zero (10 s limit, then a
+  clear error). The 16 ms pause is gone. Test: the joy-3 Reaction rendered
+  twice gives byte-identical sheets.
+- **F2 accepted.** `ReviewStage.seek` seeks the animations under each
+  `[data-scene-vfx-id]` by that Scene's own start time.
+- **F3 accepted.** `showReviewFrame` places the camera and renders before
+  `seek`, which re-renders the Scene layers and lets their effects commit, so
+  focus lines re-resolve the face for each view. Verified on `light-streak`
+  (front and face views on both Avatars).
+- **F4 accepted.** The check runs `validateParticleVFXContentReadiness` with
+  the listed textures as the resolvable references and reports each error as a
+  `particles:` FAIL with its target; the estimate FAILs above the lower of the
+  declared budget and 512. Scene images shown but not listed FAIL; listed but
+  not shown WARN. Tests: an unlisted `textures/heart.png` and a listed
+  `extra.png` no item shows.
+- **F5 accepted.** One source or none (a clip-only sheet) may be written to a
+  named `.png`. Verified: `effects:render --with-clip library:reaction/joy-3
+  --out <file>.png` writes that file.
+- **F6 accepted.** A clip plays through the clip player only when its effects
+  are supplied; a thumbnail samples it like a Gesture.
+- **F7 accepted.** `withRendererPage` takes a `deviceScaleFactor`; the bench
+  runs at DPR 2 for the canvas and the DOM layers, and the baseline above is
+  re-recorded.
+- Optional items: all taken (labels, Scene durations end on the stage,
+  clip-started Particle Effects listed by effect id, comments, bench
+  `--local-content` and `INIT_CWD`-relative sources, tests).
+
+#### Code Review #2 Findings
+
+Reviewer: the same `sdlc-reviewer`, targeted recheck (repair round 1) of the
+revised working tree. F1, F2, F3, F5 and F6 are verified fixed (joy-3 renders
+twice with 0 differing pixels; a later Scene is seeked by its own start; focus
+lines are the same whatever the view order; a clip-only `.png` is a file; a
+Reaction thumbnail renders), and the F7 code is fixed. Result: blocked on:
+
+- **P4-R2-F1** (`effect-check.mjs`, `particleSourceLines`): readiness judges
+  the budget with Save's estimator while the next line prints the editor's,
+  so `flame-loop` reports both a budget FAIL and "about 52 … PASS". Report one
+  estimate (Save's) and record the `flame-loop` outcome. Required.
+- **P4-R2-F2** (this record): the baseline was described as re-measured at
+  DPR 2 while that run was still in progress. Required.
+- Optional: a bare clip file with effect events renders without them and says
+  nothing; the declared budget is shown above the runtime cap.
+
+#### Code Review #2 Revisions
+
+- **P4-R2-F1 accepted.** `estimateParticleVFXContentParticles` (Save's
+  estimator) is exported from the particle editor; the check prints only its
+  figure ("up to N live", or "unbounded") and FAILs above the declared budget
+  or when the budget exceeds 512, so the readiness budget issue is not
+  repeated. `flame-loop` now FAILs once, at 79 against 64; the outcome is in
+  Surprises (Included content is unchanged under G3). The browser test
+  expects the new line.
+- **P4-R2-F2 accepted.** The DPR 2 run of all 24 intensity-3 Reactions
+  finished and replaced the baseline above.
+- Optional: a bare clip with effect events now prints a warning that its
+  events are not played. The budget display is revised under review #3.
+- Found while revising: a Reaction's Scene took its definition's duration on
+  the stage, but chat keeps a clip's Scene until the clip clears it. The
+  stage now applies clip Scenes with chat's `resolveClipOwnedSceneVFXEntry`,
+  and a clear removes only the Scene its own event started.
+
+#### Code Review #3 Findings
+
+Reviewer: the same `sdlc-reviewer`, final targeted recheck (repair round 2,
+the last in the budget). P4-R2-F1 and P4-R2-F2 are verified fixed
+(`flame-loop` prints one FAIL at 79 against 64, `hearts-v1` one PASS; the
+baseline matches its logs, and was measured before the regression below), and
+the clip-Scene revision works in the render tool (`shy-finger-poke`'s focus
+lines show at 0.8 s and are cleared at 1.1 s). Result: blocked on:
+
+- **P4-R3-F1** (`scripts/effect-bench/bench.ts`): the bench still called
+  `clearScene(kind)` after the revision added an `entryId` argument, so
+  `replay` cleared no Scene and the second round's "without effects" pass
+  kept the previous pass's Scene layers, understating a Reaction's added
+  frame time in later runs. `pnpm check` does not type-check `scripts/**/*.ts`,
+  so the missing argument went unreported. Required.
+- Optional: "a budget above 512 FAILs" cannot happen, since the runtime config
+  caps the parsed budget at 512; a clip Scene's clear does not bring back the
+  Scene of its kind shown before the clip, as chat does.
+
+#### Code Review #3 Revisions
+
+- **P4-R3-F1 accepted.** The clip Scene handling now lives in one place,
+  `ReviewStage.clipSceneSink`, which both the render page and the bench use:
+  a clip's Scene lasts until the clip clears it, a clear removes only the
+  Scene its own event started and brings back the one shown before the clip
+  (as chat's clip-owned Scene records do), and an unresolved alias is
+  reported. The bench's `replay` calls `clearScenes()`. `tsconfig.scripts.json`
+  (referenced from `tsconfig.json`, so `pnpm check` runs it) now type-checks
+  the review, bench and preview pages; it also caught a bench import of a
+  clip type that no longer exists and a parameter property the app's
+  `erasableSyntaxOnly` refuses, both fixed.
+- Optional, taken: the particle line reports the budget the folder declares
+  and FAILs when it exceeds 512; the clear restores the earlier Scene (above).
+- Evidence: `pnpm check` (now including the scripts pages), `pnpm web:lint`,
+  browser tests `effect-render` and `effect-check` 5 pass; the full DPR 2
+  sweep re-run after the fix replaced the baseline above.
+- The repair budget was spent; the owner authorized one more targeted
+  recheck (2026-10-09).
+
+#### Code Review #4 Findings
+
+Reviewer: the same `sdlc-reviewer`, owner-authorized extra targeted recheck.
+Result: pass. P4-R3-F1 is fixed (no caller clears with the removed signature;
+the post-fix sweep ran after the last edits, with 0 warnings and lower
+"without effects" means); the clip Scene sink mirrors chat (a sadness source
+under `shy-finger-poke` is replaced by the clip's background at 0.5 s and
+shown again after the clip's clear at 1.2 s); `tsconfig.scripts.json` is part
+of `tsc -b`; the particle line matches its description.
+
+- Optional: a non-positive declared `max_particles` (which the runtime treats
+  as 512) was displayed as "declared budget 0".
+
+#### Code Review #4 Revisions
+
+- Optional, taken: only a positive integer is shown as the declared budget;
+  otherwise the line shows the budget the runtime uses.
 
 ### P5 — Scene layer capabilities (R2). Waits for G1. #390
 

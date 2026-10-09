@@ -6,6 +6,7 @@ import { DEFAULT_CHECK_TIMES, checkEffects } from "./effect-check.mjs";
 import { parseTimes } from "./effect-render.mjs";
 import {
   EffectSourceError,
+  resolveAnyEffectSource,
   resolveEffectSource,
 } from "./effect-render-sources.mjs";
 import {
@@ -109,9 +110,13 @@ const USAGE = [
   "  pnpm -s effects save <items.json> [--url <app origin>]",
   "  pnpm -s effects promote <items.json> [--dry-run]",
   "",
-  "check: the art against its attachment's budget, the /2 definition, the",
-  "attachment on both Included Avatars, and visible art (each Avatar must show",
-  "the effect in some frame). Exits 1 when any effect has a FAIL.",
+  "check: an Avatar, Particle or Scene effect folder or library: spec",
+  "(library:particle-effect/…, library:scene-effect/…). Checks the art against",
+  "its budget, the definition as the runtime parses it, a Particle Effect's",
+  "particle count against its declared budget and the 512-particle limit, the",
+  "effect on both Included Avatars, and visible art (each Avatar must show the",
+  "effect in some frame; Scene layers are captured as the chat draws them).",
+  "Exits 1 when any effect has a FAIL.",
   "",
   'save: items.json is [{ "source": "<effect folder>", "name"?, "description"? }].',
   "Each source is saved as a Local Avatar Effect through the creator (a Local",
@@ -325,7 +330,7 @@ async function runCheck(argv, cwd) {
   let ok = true;
   for (const spec of positional) {
     try {
-      effects.push(await resolveEffectSource(spec, { cwd, localContent }));
+      effects.push(await resolveAnyEffectSource(spec, { cwd, localContent }));
     } catch (error) {
       if (!(error instanceof EffectSourceError)) throw error;
       console.log(`FAIL ${spec}: ${error.message}`);

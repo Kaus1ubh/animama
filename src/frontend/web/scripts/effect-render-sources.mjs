@@ -4,11 +4,12 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 /**
- * Source resolution for `effect-render.mjs` and the headed preview
- * (`animation-preview.mjs`): Avatar Effect descriptors and Gesture clips named
- * by path or by `library:[included/|local/]<key>`, and the Avatar and Particle
- * Effects a Gesture or Reaction depends on. Everything here runs in Node; only
- * resolved descriptors, clip JSON and file locations reach the browser page.
+ * Source resolution for `effect-render.mjs`, `effects check` and the headed
+ * preview (`animation-preview.mjs`): Avatar, Particle and Scene Effect
+ * descriptors and Gesture or Reaction clips named by path or by
+ * `library:[<kind>/][included/|local/]<key>`, and the effects a Gesture or
+ * Reaction depends on. Everything here runs in Node; only resolved
+ * descriptors, clip JSON and file locations reach the browser page.
  */
 const webRoot = fileURLToPath(new URL("..", import.meta.url));
 export const REPO_ROOT = path.resolve(webRoot, "../../..");
@@ -23,6 +24,8 @@ export const MAX_EFFECT_IMAGE_BYTES = 16 * 1024 * 1024;
 /** Same limits as runtime loading of a private Particle Effect. */
 const MAX_PARTICLE_MANIFEST_BYTES = 5 * 1024 * 1024;
 const MAX_PARTICLE_PACKAGE_BYTES = 64 * 1024 * 1024;
+/** Same limit as runtime loading of a private Scene Effect's images. */
+const MAX_SCENE_EFFECT_BYTES = 32 * 1024 * 1024;
 /** Folder levels searched below a kind's folder (Included particles nest one). */
 const MAX_DESCRIPTOR_DEPTH = 4;
 
@@ -44,7 +47,28 @@ const KINDS = {
     folder: "vfx/particle",
     suffix: ".json",
     contentType: "particle_effect",
+    // Included Particle Effects sit one folder deeper (`quark/<stem>`).
+    nested: true,
   },
+  scene: {
+    folder: "vfx/scene",
+    suffix: ".json",
+    contentType: "scene_effect",
+  },
+  reaction: {
+    folder: "reactions",
+    suffix: ".meta.json",
+    contentType: "reaction",
+  },
+};
+
+/** `library:<segment>/…` names a kind; without one it is an Avatar Effect. */
+const LIBRARY_KINDS = {
+  "avatar-effect": "effect",
+  "particle-effect": "particle",
+  "scene-effect": "scene",
+  gesture: "gesture",
+  reaction: "reaction",
 };
 
 export class EffectSourceError extends Error {
@@ -107,16 +131,22 @@ export async function containedFile(folder, relative, label) {
  * folders and top-level `<stem><suffix>` files whose `content_type` matches.
  */
 export async function scanLibrary(contentRoot, kind) {
-  const { folder, suffix, contentType } = KINDS[kind];
+  const { folder, suffix, contentType, nested } = KINDS[kind];
   const root = path.join(contentRoot, folder);
   const entries = await readdir(root, { withFileTypes: true }).catch(() => []);
+  const candidates = nested
+    ? await descriptorsBelow(root, suffix)
+    : entries
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map((entry) =>
+          entry.isDirectory()
+            ? path.join(root, entry.name, `${entry.name}${suffix}`)
+            : entry.name.endsWith(suffix)
+              ? path.join(root, entry.name)
+              : null,
+        );
   const items = [];
-  for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
-    const descriptorPath = entry.isDirectory()
-      ? path.join(root, entry.name, `${entry.name}${suffix}`)
-      : entry.name.endsWith(suffix)
-        ? path.join(root, entry.name)
-        : null;
+  for (const descriptorPath of candidates) {
     if (!descriptorPath || !(await isFile(descriptorPath))) continue;
     // Rejects a descriptor symlinked from outside the library root.
     await containedFile(
@@ -136,16 +166,23 @@ export async function scanLibrary(contentRoot, kind) {
 }
 
 /**
- * Split `library:[included/|local/]<key>`. Returns null for a plain path.
+ * Split `library:[<kind>/][included/|local/]<key>`, where `<kind>` is one of
+ * `LIBRARY_KINDS` (null when absent). Returns null for a plain path.
  */
 export function parseLibrarySpec(spec) {
   if (!spec.startsWith(LIBRARY_PREFIX)) return null;
-  const rest = spec.slice(LIBRARY_PREFIX.length);
+  let rest = spec.slice(LIBRARY_PREFIX.length);
+  let kind = null;
+  const kindMatch = /^([a-z-]+)\/(.*)$/.exec(rest);
+  if (kindMatch && LIBRARY_KINDS[kindMatch[1]]) {
+    kind = LIBRARY_KINDS[kindMatch[1]];
+    rest = kindMatch[2];
+  }
   const match = /^(included|local)\/(.+)$/.exec(rest);
   const scope = match ? match[1] : null;
   const key = (match ? match[2] : rest).trim();
   if (!key) throw new EffectSourceError(`"${spec}" names no item.`);
-  return { scope, key };
+  return { kind, scope, key };
 }
 
 /**
@@ -166,8 +203,9 @@ function matchesKey(item, key) {
   );
 }
 
-async function resolveLibraryItem(spec, kind, { localContent }) {
-  const { scope, key } = parseLibrarySpec(spec);
+async function resolveLibraryItem(spec, defaultKind, { localContent }) {
+  const { kind: named, scope, key } = parseLibrarySpec(spec);
+  const kind = named ?? defaultKind;
   if (scope === "local" && !localContent) {
     throw new EffectSourceError(
       `"${spec}" needs --local-content <dir> (a content root such as content/local).`,
@@ -321,8 +359,15 @@ export async function listIncludedEffects() {
   );
 }
 
-/** The files an effect source plays: its descriptor, then its images. */
+/**
+ * The files an effect source plays: its descriptor, then its manifest and
+ * textures (Particle), images (Scene) or image and other-eye image (Avatar).
+ */
 export function effectSourceFiles(effect) {
+  if (effect.kind === "particle")
+    return [effect.descriptorPath, effect.manifestPath, ...effect.texturePaths];
+  if (effect.kind === "scene")
+    return [effect.descriptorPath, ...Object.values(effect.imagePaths)];
   return [
     effect.descriptorPath,
     effect.imagePath,
@@ -419,8 +464,7 @@ export async function resolveEffectRef(
 
 /**
  * Resolve a Particle Effect dependency to its manifest, textures and stored
- * runtime defaults. Every file must lie inside the descriptor's folder; the
- * manifest's relative image URLs resolve against it.
+ * runtime defaults (see `loadParticleDescriptor`).
  */
 export async function resolveParticleRef(
   ref,
@@ -430,6 +474,15 @@ export async function resolveParticleRef(
     localContent,
     onSkip,
   });
+  return loadParticleDescriptor(descriptorPath, descriptor, ref);
+}
+
+/**
+ * A Particle Effect descriptor's manifest, textures and stored runtime
+ * defaults. Every file must lie inside the descriptor's folder; the
+ * manifest's relative image URLs resolve against it.
+ */
+async function loadParticleDescriptor(descriptorPath, descriptor, contentId) {
   const folder = await realpath(path.dirname(descriptorPath));
   const files = Array.isArray(descriptor.files) ? descriptor.files : [];
   const named = (role) =>
@@ -462,10 +515,13 @@ export async function resolveParticleRef(
       `${descriptorPath} exceeds the Particle Effect size limits.`,
     );
   const defaults = descriptor.runtime_defaults?.slots?.particle_vfx;
+  const stem = path.basename(descriptorPath, KINDS.particle.suffix);
   return {
+    kind: "particle",
+    stem,
     descriptorPath,
     folder,
-    contentId: ref,
+    contentId,
     name:
       typeof descriptor.name === "string"
         ? descriptor.name
@@ -479,9 +535,155 @@ export async function resolveParticleRef(
 }
 
 /**
- * Resolve a Gesture clip: a clip `.json`, a Gesture folder or `.meta.json`,
- * or `library:[included/|local/]<key>`. Only Anima Pose Clip Gestures can be
- * sampled; VRMA Gestures are rejected.
+ * A Scene Effect descriptor's `animama/scene-effect/1` definition and the
+ * image files its items name, each inside the descriptor's folder.
+ */
+async function loadSceneDescriptor(descriptorPath, descriptor) {
+  const definition = descriptor?.definition;
+  if (definition?.schema !== "animama/scene-effect/1")
+    throw new EffectSourceError(
+      `${descriptorPath} has no animama/scene-effect/1 definition.`,
+    );
+  const folder = await realpath(path.dirname(descriptorPath));
+  const items = Array.isArray(definition.marquee?.items)
+    ? definition.marquee.items
+    : [];
+  const imagePaths = {};
+  let bytes = 0;
+  for (const item of items) {
+    if (item?.kind !== "image" || typeof item.image !== "string") continue;
+    if (imagePaths[item.image]) continue;
+    const file = await containedFile(folder, item.image, "Scene image");
+    bytes += (await stat(file)).size;
+    imagePaths[item.image] = file;
+  }
+  if (bytes > MAX_SCENE_EFFECT_BYTES)
+    throw new EffectSourceError(
+      `${descriptorPath} exceeds the Scene Effect size limit.`,
+    );
+  const stem = path.basename(descriptorPath, KINDS.scene.suffix);
+  return {
+    kind: "scene",
+    stem,
+    descriptorPath,
+    contentId: descriptorContentId(descriptor) ?? stem,
+    name: typeof descriptor.name === "string" ? descriptor.name : stem,
+    description:
+      typeof descriptor.description === "string" ? descriptor.description : "",
+    definition,
+    imagePaths,
+    listedImages: (Array.isArray(descriptor.files) ? descriptor.files : [])
+      .filter((file) => file?.role === "image" && typeof file.path === "string")
+      .map((file) => file.path),
+  };
+}
+
+/** Resolve a Scene Effect dependency by content id. */
+export async function resolveSceneRef(
+  ref,
+  { localContent = null, onSkip } = {},
+) {
+  const { descriptorPath, descriptor } = await findContentRef(ref, "scene", {
+    localContent,
+    onSkip,
+  });
+  return loadSceneDescriptor(descriptorPath, descriptor);
+}
+
+/**
+ * Resolve any effect source (a folder, a descriptor `.json` or a `library:`
+ * spec) to its kind and files: `kind` is `avatar`, `particle` or `scene`.
+ * A `library:` spec without a kind names an Avatar Effect.
+ */
+export async function resolveAnyEffectSource(
+  spec,
+  { cwd = process.cwd(), localContent = null } = {},
+) {
+  let descriptorPath;
+  let descriptor;
+  if (parseLibrarySpec(spec)) {
+    ({ descriptorPath, descriptor } = await resolveLibraryItem(spec, "effect", {
+      localContent,
+    }));
+  } else {
+    const { target, isDirectory } = await resolvePath(spec, cwd);
+    descriptorPath = isDirectory
+      ? await descriptorInFolder(target, ".json")
+      : target;
+    descriptor = await readJson(descriptorPath);
+  }
+  if (descriptor?.content_type === "particle_effect")
+    return loadParticleDescriptor(
+      descriptorPath,
+      descriptor,
+      descriptorContentId(descriptor) ?? path.basename(descriptorPath, ".json"),
+    );
+  if (descriptor?.content_type === "scene_effect")
+    return loadSceneDescriptor(descriptorPath, descriptor);
+  return {
+    kind: "avatar",
+    ...(await loadEffectDescriptor(descriptorPath, descriptor)),
+  };
+}
+
+/**
+ * Resolve a clip's typed dependencies to the effects its events play, by
+ * alias. A dependency that cannot be resolved becomes a notice, so one bad
+ * item does not stop the others.
+ */
+export async function resolveDependencies(
+  dependencies,
+  { localContent = null } = {},
+) {
+  const media = {
+    avatarEffects: [],
+    particleEffects: [],
+    sceneEffects: [],
+    notices: [],
+  };
+  const notice = (text) => {
+    if (!media.notices.includes(text)) media.notices.push(text);
+  };
+  const options = { localContent, onSkip: notice };
+  for (const dependency of Array.isArray(dependencies) ? dependencies : []) {
+    const alias = dependency?.alias;
+    const ref = dependency?.ref;
+    if (typeof alias !== "string" || typeof ref !== "string") continue;
+    const config =
+      dependency.config && typeof dependency.config === "object"
+        ? dependency.config
+        : {};
+    try {
+      if (dependency.content_type === "avatar_effect")
+        media.avatarEffects.push({
+          alias,
+          effect: await resolveEffectRef(ref, options),
+        });
+      else if (dependency.content_type === "particle_effect")
+        media.particleEffects.push({
+          alias,
+          particle: await resolveParticleRef(ref, options),
+          config,
+        });
+      else if (dependency.content_type === "scene_effect")
+        media.sceneEffects.push({
+          alias,
+          scene: await resolveSceneRef(ref, options),
+        });
+    } catch (error) {
+      if (!(error instanceof EffectSourceError)) throw error;
+      notice(`${alias} (${ref}) does not play: ${error.message}`);
+    }
+  }
+  return media;
+}
+
+/**
+ * Resolve a Gesture or Reaction clip: a clip `.json`, a folder or `.meta.json`,
+ * or `library:[gesture/|reaction/][included/|local/]<key>` (a Gesture when no
+ * kind is named). Only Anima Pose Clip Actions can be sampled; VRMA Gestures
+ * are rejected. `dependencies` are the meta's typed dependencies (none for a
+ * bare clip file).
  */
 export async function resolveClipSource(
   spec,
@@ -502,7 +704,11 @@ export async function resolveClipSource(
     } else if (target.endsWith(KINDS.gesture.suffix)) {
       metaPath = target;
     } else {
-      return { clipPath: target, clip: await readJson(target) };
+      return {
+        clipPath: target,
+        clip: await readJson(target),
+        dependencies: [],
+      };
     }
     meta = await readJson(metaPath);
   }
@@ -525,5 +731,9 @@ export async function resolveClipSource(
     file.path,
     "Gesture clip",
   );
-  return { clipPath, clip: await readJson(clipPath) };
+  return {
+    clipPath,
+    clip: await readJson(clipPath),
+    dependencies: Array.isArray(meta.dependencies) ? meta.dependencies : [],
+  };
 }

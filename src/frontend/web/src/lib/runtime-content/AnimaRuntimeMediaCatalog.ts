@@ -23,8 +23,8 @@ import {
 import {
   getSceneBackgroundLayerPresetById,
   getSceneFocusLinePresetById,
-  parseSceneVFXEntry,
 } from "@/lib/scene-vfx/catalog";
+import { sceneEntryFromDefinition } from "@/lib/scene-vfx/sceneDefinition";
 import type { SceneVFXEntry, SceneVFXKind } from "@/lib/scene-vfx/types";
 import {
   PARTICLE_TEXTURE_LIMITS,
@@ -745,48 +745,32 @@ export class AnimaRuntimeMediaCatalog implements AnimaRuntimeMediaProvider {
         createdUrls.push(objectUrl);
         objectUrlByLogicalName.set(logicalName, objectUrl);
       }
-      const projected = structuredClone(definition);
-      const marquee = recordValue(projected.marquee);
-      if (expectedKind === "background_layers") {
-        if (!marquee || !Array.isArray(marquee.items))
-          throw new Error("scene_vfx_definition_invalid");
-        const items = marquee.items;
-        const referenced = new Set<string>();
-        const projectedMarquee = marquee;
-        projectedMarquee.items = items.map((rawItem) => {
-          const item = recordValue(rawItem);
-          if (!item) throw new Error("scene_vfx_definition_invalid");
-          if (item.kind !== "image") return item;
-          const logicalName =
-            typeof item.image === "string" ? item.image : null;
-          const src = logicalName
-            ? objectUrlByLogicalName.get(logicalName)
-            : null;
-          if (!logicalName || !src)
-            throw new Error("scene_vfx_resource_invalid");
-          referenced.add(logicalName);
-          return { id: item.id, kind: "png", label: item.label, src };
-        });
-        if (referenced.size !== Object.keys(logicalResourceUrls).length)
-          throw new Error("scene_vfx_resource_invalid");
-      } else if (
-        entry.source.files.length > 0 ||
-        Object.keys(logicalResourceUrls).length > 0
+      if (
+        expectedKind !== "background_layers" &&
+        (entry.source.files.length > 0 ||
+          Object.keys(logicalResourceUrls).length > 0)
       ) {
         throw new Error("scene_vfx_resource_invalid");
       }
       const soundAlias =
-        typeof projected.soundAlias === "string" ? projected.soundAlias : null;
+        typeof definition.soundAlias === "string"
+          ? definition.soundAlias
+          : null;
       const references = recordValue(entry.config.runtime_reference_map) ?? {};
-      return parseSceneVFXEntry({
-        ...projected,
-        id: entry.runtime_id,
-        label: entry.display_name,
-        enabled: true,
-        ...(soundAlias
+      const { entry: sceneEntry, referencedImages } = sceneEntryFromDefinition(
+        definition,
+        { id: entry.runtime_id, label: entry.display_name },
+        (logicalName) => objectUrlByLogicalName.get(logicalName),
+        soundAlias
           ? { sound: { onApply: String(references[soundAlias] ?? soundAlias) } }
-          : {}),
-      });
+          : {},
+      );
+      if (
+        expectedKind === "background_layers" &&
+        referencedImages.size !== Object.keys(logicalResourceUrls).length
+      )
+        throw new Error("scene_vfx_resource_invalid");
+      return sceneEntry;
     } catch (error) {
       this.residentPrivateBytes = Math.max(
         0,

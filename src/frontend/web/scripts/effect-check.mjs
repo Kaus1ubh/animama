@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 import sharp from "sharp";
 
@@ -8,32 +9,43 @@ import {
   DEFAULT_TILE,
   VIEW_NAMES,
   avatarFileUrl,
+  captureStage,
   pageEffect,
+  pageSources,
+  sourceRoots,
   withRendererPage,
 } from "./effect-render.mjs";
 
 /**
- * `pnpm -s effects check`: the checks an Avatar Effect source must pass before
- * it is saved or reviewed.
+ * `pnpm -s effects check`: the checks an Avatar, Particle or Scene Effect
+ * source must pass before it is saved or reviewed.
  *
- * - **Art:** every image passes `effects:assets check` against the budget of
- *   its attachment (a flipbook sheet uses the flipbook budget).
- * - **Definition:** the `/2` definition parses as the runtime parses it,
- *   with the offending field named.
+ * - **Art:** every image passes `effects:assets check` against its budget: an
+ *   Avatar Effect's attachment budget (a flipbook sheet uses the flipbook
+ *   budget), `particle-texture` or `particle-sheet` for a Particle texture
+ *   (by whether an emitter tiles it), `scene-sticker` for a Scene PNG.
+ * - **Definition:** it parses as the runtime parses it, with the offending
+ *   field named.
+ * - **Particles:** the estimated peak particle count fits the effect's
+ *   declared budget and the runtime's 512-particle limit.
  * - **Attachment:** applied on both Included Avatars, the effect is active and
- *   the controller reports no warning (a missing face part or bone warns).
+ *   no controller reports a warning (a missing face part, bone or texture).
  * - **Visible art:** at each time and view, the frame is rendered with the
  *   effect and against a baseline: for face effects the same effect with
  *   fully transparent stand-in images (so face options such as closed eyes
- *   are in both), otherwise the bare Avatar. Somewhere on each Avatar the
- *   effect must change at least `VISIBLE_SHARE` of a tile.
+ *   are in both), otherwise the bare Avatar. Scene layers are captured from
+ *   the page as the chat draws them. Somewhere on each Avatar the effect must
+ *   change at least `VISIBLE_SHARE` of a tile.
  */
 
 export const DEFAULT_CHECK_TIMES = [0.25, 1];
 /** Share of a tile's pixels the effect must change on each Avatar. */
 export const VISIBLE_SHARE = 0.001;
 
-/** The `effects:assets` budget an effect's images are held to. */
+/** Particles a Particle Effect may declare, as the runtime caps them. */
+export const RUNTIME_PARTICLE_LIMIT = 512;
+
+/** The `effects:assets` budget an Avatar Effect's images are held to. */
 export function budgetForDefinition(definition) {
   if (definition?.art?.flipbook)
     return { name: "flipbook", ...BUDGETS.flipbook };
@@ -68,9 +80,195 @@ async function transparentStandIn(file) {
 }
 
 /**
+ * Each texture URL of a Quarks manifest, mapped to `particle-sheet` when an
+ * emitter that draws it uses more than one tile, else `particle-texture`.
+ */
+export function particleTextureBudgets(manifest) {
+  const byUuid = (key) =>
+    new Map(
+      (Array.isArray(manifest?.[key]) ? manifest[key] : []).map((item) => [
+        item?.uuid,
+        item,
+      ]),
+    );
+  const materials = byUuid("materials");
+  const textures = byUuid("textures");
+  const images = byUuid("images");
+  const budgets = new Map();
+  for (const image of images.values())
+    if (typeof image?.url === "string")
+      budgets.set(image.url, "particle-texture");
+  const pending = [manifest?.object];
+  while (pending.length) {
+    const node = pending.pop();
+    if (!node || typeof node !== "object") continue;
+    if (Array.isArray(node.children)) pending.push(...node.children);
+    const ps = node.ps;
+    if (!ps || (ps.uTileCount ?? 1) * (ps.vTileCount ?? 1) <= 1) continue;
+    const texture = textures.get(materials.get(ps.material)?.map);
+    const url = images.get(texture?.image)?.url;
+    if (typeof url === "string") budgets.set(url, "particle-sheet");
+  }
+  return budgets;
+}
+
+/** Check each file against its budget; an unreadable file is a FAIL. */
+async function checkFiles(entries) {
+  const assets = [];
+  for (const { file, budget } of entries) {
+    try {
+      const { issues } = await checkImage(file, { budget });
+      assets.push({ file, issues });
+    } catch (error) {
+      assets.push({
+        file,
+        issues: [{ level: "FAIL", code: "unreadable", message: error.message }],
+      });
+    }
+  }
+  return assets;
+}
+
+/** Art checks for one source of any kind. */
+async function sourceAssets(effect) {
+  if (effect.kind === "particle") {
+    const manifest = JSON.parse(await readFile(effect.manifestPath, "utf8"));
+    const budgets = particleTextureBudgets(manifest);
+    const folder = path.dirname(effect.manifestPath);
+    return checkFiles(
+      effect.texturePaths.map((file) => {
+        const name =
+          budgets.get(path.relative(folder, file).split(path.sep).join("/")) ??
+          "particle-texture";
+        return { file, budget: { name, ...BUDGETS[name] } };
+      }),
+    );
+  }
+  if (effect.kind === "scene")
+    return checkFiles(
+      Object.values(effect.imagePaths)
+        // The restricted SVG art is checked by the backend, not the scripts.
+        .filter((file) => file.toLowerCase().endsWith(".png"))
+        .map((file) => ({
+          file,
+          budget: { name: "scene-sticker", ...BUDGETS["scene-sticker"] },
+        })),
+    );
+  const budget = budgetForDefinition(effect.definition);
+  return checkFiles(
+    [effect.imagePath, effect.otherImagePath]
+      .filter(Boolean)
+      .map((file) => ({ file, budget })),
+  );
+}
+
+/**
+ * Report lines on a Particle Effect as the creator's Save would judge it:
+ * the content readiness errors (limits, and image references that must name
+ * a listed texture) and Save's conservative estimate of live particles
+ * against the declared budget and the runtime limit.
+ */
+async function particleSourceLines(effect, server) {
+  const manifest = JSON.parse(await readFile(effect.manifestPath, "utf8"));
+  const editor = await server.ssrLoadModule(
+    "/src/lib/avatar/particle-vfx/editor/index.ts",
+  );
+  const { parseParticleVFXRuntimeConfig } = await server.ssrLoadModule(
+    "/src/lib/avatar/particle-vfx/runtimeConfig.ts",
+  );
+  const draft = editor.createParticleVFXEditorDraftFromImport(
+    manifest,
+    parseParticleVFXRuntimeConfig(effect.defaults),
+  );
+  const folder = path.dirname(effect.manifestPath);
+  const listed = new Set(
+    effect.texturePaths.map((file) =>
+      path.relative(folder, file).split(path.sep).join("/"),
+    ),
+  );
+  const { issues } = editor.validateParticleVFXContentReadiness(draft, {
+    resolvableTextureReferences: listed,
+  });
+  const lines = issues
+    // The estimate line below states the budget check with its numbers.
+    .filter(
+      (issue) =>
+        issue.severity === "error" && issue.code !== "particle-budget-exceeded",
+    )
+    .map((issue) => ({
+      level: "FAIL",
+      message: `particles: ${issue.message} (${issue.target})`,
+    }));
+  const estimate = editor.estimateParticleVFXContentParticles(draft.quarksJson);
+  // The runtime caps the budget at the limit; report what the folder declares.
+  const budget = draft.catalog.performanceBudget.maxParticles;
+  const raw = effect.defaults.max_particles;
+  const declared = Number.isInteger(raw) && raw > 0 ? raw : budget;
+  lines.push({
+    level:
+      estimate > budget || declared > RUNTIME_PARTICLE_LIMIT ? "FAIL" : "PASS",
+    message: `particles: ${Number.isFinite(estimate) ? `up to ${estimate}` : "unbounded"} live (declared budget ${declared}, runtime limit ${RUNTIME_PARTICLE_LIMIT})`,
+  });
+  return lines;
+}
+
+/**
+ * Report lines on a Scene Effect's image list: every image an item shows
+ * must be listed in the descriptor, and a listed image no item shows is
+ * carried for nothing.
+ */
+export function sceneImageLines(effect) {
+  const listed = new Set(effect.listedImages);
+  const shown = Object.keys(effect.imagePaths);
+  return [
+    ...shown
+      .filter((image) => !listed.has(image))
+      .map((image) => ({
+        level: "FAIL",
+        message: `scene: ${image} is shown by an item but not listed as an image file`,
+      })),
+    ...[...listed]
+      .filter((image) => !shown.includes(image))
+      .map((image) => ({
+        level: "WARN",
+        message: `scene: ${image} is listed but no item shows it`,
+      })),
+  ];
+}
+
+/** Pixels of each tile in `applied` that differ from `baseline`. */
+async function differingPixels(applied, baseline, threshold) {
+  const raw = (png) => sharp(png).ensureAlpha().raw().toBuffer();
+  const counts = [];
+  for (const [time, views] of applied.entries()) {
+    const row = [];
+    for (const [view, png] of views.entries()) {
+      const [after, before] = await Promise.all([
+        raw(png),
+        raw(baseline[time][view]),
+      ]);
+      let count = 0;
+      for (let offset = 0; offset < after.length; offset += 4) {
+        for (let channel = 0; channel < 4; channel += 1)
+          if (
+            Math.abs(after[offset + channel] - before[offset + channel]) >
+            threshold
+          ) {
+            count += 1;
+            break;
+          }
+      }
+      row.push(count);
+    }
+    counts.push(row);
+  }
+  return counts;
+}
+
+/**
  * Turn one effect's results into report lines `{ level, message }`.
- * `assets` are `{ file, issues }` per image; `page` is the renderer's
- * `checkEffect` result.
+ * `assets` are `{ file, issues }` per image; `page` holds the parse error,
+ * or each Avatar's diagnostics and differing pixels per frame.
  */
 export function summarizeCheck({ assets, page, times, views, tile }) {
   const lines = [];
@@ -147,28 +345,10 @@ export async function checkEffects({
   localContent = null,
 }) {
   const assetResults = [];
-  for (const effect of effects) {
-    const budget = budgetForDefinition(effect.definition);
-    const images = [effect.imagePath, effect.otherImagePath].filter(Boolean);
-    const assets = [];
-    for (const file of images) {
-      try {
-        const { issues } = await checkImage(file, { budget });
-        assets.push({ file, issues });
-      } catch (error) {
-        assets.push({
-          file,
-          issues: [
-            { level: "FAIL", code: "unreadable", message: error.message },
-          ],
-        });
-      }
-    }
-    assetResults.push(assets);
-  }
+  for (const effect of effects) assetResults.push(await sourceAssets(effect));
   return withRendererPage(
-    { localContent },
-    async ({ page, fsUrl, imageUrl }) => {
+    { localContent, extraRoots: await sourceRoots(effects) },
+    async ({ page, fsUrl, imageUrl, server }) => {
       const avatars = AVATARS.map((id) => ({
         id,
         url: avatarFileUrl(fsUrl, id),
@@ -176,18 +356,27 @@ export async function checkEffects({
       const results = [];
       for (const [index, effect] of effects.entries()) {
         let pageResult;
+        const extraLines = [];
         try {
-          const real = await pageEffect(effect, imageUrl);
+          if (effect.kind === "particle")
+            extraLines.push(
+              ...(await particleSourceLines(effect, server).catch((error) => [
+                { level: "FAIL", message: `particles: ${error.message}` },
+              ])),
+            );
+          if (effect.kind === "scene")
+            extraLines.push(...sceneImageLines(effect));
+          const applied = await pageSources([effect], { fsUrl, imageUrl });
           // Face effects change the face (closed eyes, cleanup) whatever the
-          // art: compare against transparent stand-ins. Other attachments have
-          // no face options, and a tinted silhouette fills even with
-          // transparent art, so they compare against the bare Avatar.
+          // art: compare against transparent stand-ins. Other attachments,
+          // Particle and Scene Effects compare against the bare Avatar (a
+          // tinted silhouette fills even with transparent art).
           const kind = effect.definition?.attachment?.kind;
           const baselineEffects =
             kind === "face_landmark" || kind === "face_surface"
               ? [
                   {
-                    ...real,
+                    ...applied.effects[0],
                     imageUrl: await transparentStandIn(effect.imagePath),
                     otherImageUrl: effect.otherImagePath
                       ? await transparentStandIn(effect.otherImagePath)
@@ -195,20 +384,45 @@ export async function checkEffects({
                   },
                 ]
               : [];
-          pageResult = await page.evaluate(
-            (request) => window.checkEffect(request),
-            {
-              effects: [real],
-              baselineEffects,
+          const common = {
+            tile,
+            expression: null,
+            clip: null,
+            clipMedia: null,
+          };
+          const after = await captureStage(page, {
+            request: { ...common, ...applied },
+            avatars,
+            times,
+            views,
+          });
+          if (after.parseError) pageResult = { parseError: after.parseError };
+          else {
+            const before = await captureStage(page, {
+              request: {
+                ...common,
+                effects: baselineEffects,
+                particles: [],
+                scenes: [],
+              },
               avatars,
               times,
-              tile,
               views,
-              threshold,
-              expression: null,
-              clip: null,
-            },
-          );
+            });
+            const checked = [];
+            for (const [avatarIndex, avatar] of after.avatars.entries()) {
+              const { frames, ...diagnostics } = avatar;
+              checked.push({
+                ...diagnostics,
+                differingPixels: await differingPixels(
+                  frames,
+                  before.avatars[avatarIndex].frames,
+                  threshold,
+                ),
+              });
+            }
+            pageResult = { parseError: null, avatars: checked };
+          }
         } catch (error) {
           pageResult = {
             parseError: null,
@@ -216,13 +430,16 @@ export async function checkEffects({
             renderError: error instanceof Error ? error.message : String(error),
           };
         }
-        const lines = summarizeCheck({
-          assets: assetResults[index],
-          page: pageResult,
-          times,
-          views,
-          tile,
-        });
+        const lines = [
+          ...summarizeCheck({
+            assets: assetResults[index],
+            page: pageResult,
+            times,
+            views,
+            tile,
+          }),
+          ...extraLines,
+        ];
         if (pageResult.renderError)
           lines.push({
             level: "FAIL",

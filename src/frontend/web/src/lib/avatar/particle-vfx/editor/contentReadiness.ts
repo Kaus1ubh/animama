@@ -198,7 +198,9 @@ export function validateParticleVFXContentReadiness(
       "catalog.performanceBudget.loopingAllowed",
     );
   }
-  const estimatedParticles = estimateParticles(draft.quarksJson);
+  const estimatedParticles = estimateParticleVFXContentParticles(
+    draft.quarksJson,
+  );
   if (
     estimatedParticles > MAX_PARTICLES ||
     draft.catalog.performanceBudget.maxParticles > MAX_PARTICLES ||
@@ -245,8 +247,14 @@ export function validateParticleVFXContentReadiness(
   };
 }
 
-/** Match the backend's conservative live-particle estimate for Save gating. */
-function estimateParticles(quarksJson: JsonObject): number {
+/**
+ * Match the backend's conservative live-particle estimate for Save gating: a
+ * looping system emits for the longest system's duration. Infinite when an
+ * emission value is unbounded.
+ */
+export function estimateParticleVFXContentParticles(
+  quarksJson: JsonObject,
+): number {
   const systems: JsonObject[] = [];
   const visit = (rawNode: unknown) => {
     const node = readJsonObject(rawNode);

@@ -52,6 +52,7 @@ export {
 } from "./validation";
 export {
   collectParticleVFXContentReferences,
+  estimateParticleVFXContentParticles,
   validateParticleVFXContentReadiness,
 } from "./contentReadiness";
 export type { ParticleVFXContentReadinessOptions } from "./contentReadiness";

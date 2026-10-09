@@ -15,7 +15,11 @@ import { promisify } from "node:util";
 import { after, before, test } from "node:test";
 import sharp from "sharp";
 
-import { budgetForDefinition, summarizeCheck } from "./effect-check.mjs";
+import {
+  budgetForDefinition,
+  particleTextureBudgets,
+  summarizeCheck,
+} from "./effect-check.mjs";
 import {
   EffectPromoteError,
   applyEffectPromotion,
@@ -1025,4 +1029,33 @@ test("render refuses two sources with one stem for directory output", async () =
   ]).catch((error) => error);
   assert.equal(result.code, 2);
   assert.match(result.stdout, /share the stem "drop"/);
+});
+
+test("holds a Particle texture to the sheet budget when an emitter tiles it", () => {
+  const emitter = (material, uTileCount) => ({
+    type: "ParticleEmitter",
+    ps: { material, uTileCount, vTileCount: 1 },
+  });
+  const manifest = {
+    materials: [
+      { uuid: "m1", map: "t1" },
+      { uuid: "m2", map: "t2" },
+    ],
+    textures: [
+      { uuid: "t1", image: "i1" },
+      { uuid: "t2", image: "i2" },
+    ],
+    images: [
+      { uuid: "i1", url: "textures/glyph.png" },
+      { uuid: "i2", url: "textures/sheet.png" },
+    ],
+    object: {
+      type: "Group",
+      children: [emitter("m1", 1), emitter("m2", 4)],
+    },
+  };
+  assert.deepEqual(Object.fromEntries(particleTextureBudgets(manifest)), {
+    "textures/glyph.png": "particle-texture",
+    "textures/sheet.png": "particle-sheet",
+  });
 });
