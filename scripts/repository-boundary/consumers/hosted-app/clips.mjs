@@ -225,7 +225,8 @@ export async function exerciseClipCompatibility(
             ];
             for (const [kind, sequence] of definitions) {
                 page = await context.newPage();
-                page.setDefaultTimeout(15000);
+                // Generous for two-core CI runners, like the main journey.
+                page.setDefaultTimeout(45000);
                 page.on("pageerror", (error) => errors.push(error.message));
                 page.on("console", (message) => {
                     if (message.type() === "error")
@@ -284,7 +285,7 @@ export async function exerciseClipCompatibility(
                     .getByLabel("AI selection description", { exact: true })
                     .fill("Use this controlled clip for compatibility checks.");
                 const saveStart = server.clipRecords.length;
-                const saveDeadline = Date.now() + 15000;
+                const saveDeadline = Date.now() + 45000;
                 const pending = page.waitForResponse(
                     (response) =>
                         response.request().method() === "PUT" &&

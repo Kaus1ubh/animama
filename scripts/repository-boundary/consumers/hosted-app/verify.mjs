@@ -77,7 +77,8 @@ const context = await browser.newContext({
 });
 const observation = await observeBrowser(context, browser);
 const page = await context.newPage();
-page.setDefaultTimeout(15000);
+// Generous for two-core CI runners; wall times are measured separately.
+page.setDefaultTimeout(45000);
 const errors = [],
     consoleErrors = [],
     externalRequests = [],
