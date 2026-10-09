@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { serializeAnimaPoseClipFile } from "./clipVocabulary";
+import {
+  ANIMA_POSE_CLIP_DECIMALS,
+  serializeAnimaPoseClipFile,
+} from "./clipVocabulary";
+import compatibilityClip from "./fixtures/compatibility-valid-v2.json";
+import handKeys from "./fixtures/hand-keys-v2.json";
 import {
   ANIMA_POSE_CLIP_V2_LIMITS,
   ANIMA_POSE_CLIP_V2_MIN_SPACING,
@@ -206,5 +211,107 @@ describe("animaPoseClip/2.0 validation", () => {
     expect(validateAnimaPoseClipV2(value).ok).toBe(true);
     const saved = JSON.parse(serializeAnimaPoseClipFile(value));
     expect(validateAnimaPoseClipV2(saved).ok).toBe(true);
+  });
+});
+
+// The backend validator reads the same fixtures (tests/test_pose_clip_v2.py).
+describe("animaPoseClip/2.0 shared fixtures", () => {
+  it("accepts the shared compatibility clip", () => {
+    expect(validateAnimaPoseClipV2(compatibilityClip).ok).toBe(true);
+  });
+
+  const withHands = (hands: unknown) => ({ ...handKeys.clip, hands });
+
+  it.each(handKeys.valid.map((entry) => [entry.name, entry] as const))(
+    "accepts hand keys: %s",
+    (_, { hands, parsed }) => {
+      const result = validateAnimaPoseClipV2(withHands(hands));
+      expect(result.ok && result.clip.hands).toEqual(parsed);
+    },
+  );
+
+  it.each(handKeys.invalid.map((entry) => [entry.name, entry] as const))(
+    "rejects hand keys: %s",
+    (_, { hands, path }) => {
+      expect(issuesOf(withHands(hands))).toEqual([path]);
+    },
+  );
+});
+
+describe("animaPoseClip/2.0 per-finger offsets", () => {
+  const withFingers = (fingers: unknown) => ({
+    ...handKeys.clip,
+    hands: { right: [{ beat: "start", preset: "pinch", fingers }] },
+  });
+
+  it("rejects offsets that are not finite", () => {
+    expect(
+      issuesOf(
+        withFingers({
+          index: { curl: [1, Number.NaN, 2] },
+          thumb: { twist: Number.POSITIVE_INFINITY },
+        }),
+      ),
+    ).toEqual([
+      "hands.right[0].fingers.index.curl",
+      "hands.right[0].fingers.thumb.twist",
+    ]);
+  });
+
+  it("reports every problem of a hand key in one run", () => {
+    const value = withFingers({
+      pinky: { curl: 1 },
+      thumb: { splay: 1, curl: [1, 2, 3] },
+    });
+    value.hands.right[0].preset = "claw";
+    const result = validateAnimaPoseClipV2(value);
+    expect(!result.ok && result.issues).toEqual([
+      {
+        path: "hands.right[0].preset",
+        message: expect.stringMatching(/^Unknown preset. Use one of: .*\bok\b/),
+      },
+      {
+        path: "hands.right[0].fingers.pinky",
+        message:
+          "Unknown digit. Use one of: thumb, index, middle, ring, little.",
+      },
+      {
+        path: "hands.right[0].fingers.thumb.splay",
+        message: "Unknown offset. thumb accepts: curl, palmarAbduction, twist.",
+      },
+      {
+        path: "hands.right[0].fingers.thumb.curl",
+        message:
+          "Expected degrees from −90 to 90, or one value per segment (proximal, distal).",
+      },
+    ]);
+  });
+
+  it("copies per-segment curls instead of sharing the input arrays", () => {
+    const curl = [10, 20, 30];
+    const result = validateAnimaPoseClipV2(withFingers({ index: { curl } }));
+    curl[0] = 0;
+    expect(result.ok && result.clip.hands?.right?.[0].fingers).toEqual({
+      index: { curl: [10, 20, 30] },
+    });
+  });
+
+  it("saves offsets at the precision of joint degrees and reads them back", () => {
+    expect(ANIMA_POSE_CLIP_DECIMALS.other).toBe(5);
+    const result = validateAnimaPoseClipV2(
+      withFingers({
+        thumb: { curl: [4.123456789, -6], twist: 0.333333333 },
+        index: { splay: -2.000004 },
+      }),
+    );
+    if (!result.ok) throw new Error("expected a valid clip");
+    const saved = JSON.parse(serializeAnimaPoseClipFile(result.clip));
+    const fingers = {
+      thumb: { curl: [4.12346, -6], twist: 0.33333 },
+      index: { splay: -2 },
+    };
+    expect(saved.hands.right[0].fingers).toEqual(fingers);
+    const reread = validateAnimaPoseClipV2(saved);
+    expect(reread.ok && reread.clip.hands?.right?.[0].fingers).toEqual(fingers);
   });
 });

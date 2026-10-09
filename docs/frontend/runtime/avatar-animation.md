@@ -336,11 +336,18 @@ uses a fixed package-level message).
   component, for example `joints.leftUpperArm.elevation`; `v: "base"` means the base
   pose's value), `rotations` (normalized bone quaternions `q`, used by
   hand-made poses and the Gestures converted from 1.0), `hipsPosition`
-  (`x`/`y`/`z` in metres), `hands` (a Hands-tool `preset` with optional
-  relative `curl` and `spread`) and `expressions` (weights from 0 to 1). A
-  track that is absent leaves its bones to the base pose. A track drives its
-  channel for the whole clip, so a keyed expression (even at 0) holds while the
-  clip plays.
+  (`x`/`y`/`z` in metres), `hands` (hand-shape keys, below) and `expressions`
+  (weights from 0 to 1). A track that is absent leaves its bones to the base
+  pose. A track drives its channel for the whole clip, so a keyed expression
+  (even at 0) holds while the clip plays.
+- A hand key names one of the twelve Hands-tool presets (`HAND_PRESETS`), then
+  optional relative `curl` and `spread`, then optional `fingers.<digit>`
+  offsets in joint-model degrees: `curl` (one value, or one per segment) and
+  proximal `splay` for fingers; `curl`, `palmarAbduction` and `twist` for the
+  thumb (`HAND_DIGIT_OFFSETS`, at most ±90°). They apply in that order
+  (`handShapeRotations`), and the whole shape blends between keys. A keyed
+  finger joint or rotation replaces the hand key on that segment for the whole
+  clip. See [ADR 0019](../../adr/0019-hand-keys-with-fitted-presets-and-finger-offsets.md).
 - A key's `ease` describes how motion arrives at it. It falls back to the
   beat's `ease`, then to the track default: `smooth` (monotone cubic; motion
   carries through keys without overshoot) for scalar tracks and
@@ -354,8 +361,9 @@ uses a fixed package-level message).
   rest. `contacts` record intended touches (`bone`, `target`, beat-relative
   `from`/`to`) for the motion checks; playback ignores them.
 - Clips are prepared once per Avatar when playback starts
-  (`createAnimaPoseClipProgram`): hand presets are fitted to its fingers and
-  planted legs are solved on its rig. Sampling a frame then costs about
+  (`createAnimaPoseClipProgram`): hand presets are fitted to its fingers (the
+  thumb, and for `pinch` and `ok` also the index so the pads meet) and planted
+  legs are solved on its rig. Sampling a frame then costs about
   0.01 ms.
 - Parsing rejects a duration over 3,600 s, more than 1,000 beats, 400 tracks
   or 50,000 keys, beat ids over 64 characters and labels over 80, and
@@ -524,8 +532,21 @@ Gesture Pose mode's Hands tool edits ordinary finger-bone drafts. Presets replac
 the chosen whole hand(s); Curl and Spread apply relative deltas to selected
 segments. Returning a control to zero after release leaves the pose unchanged.
 Both adjusts each hand from its own current values independently of the
-single-bone mirror option. Selection and tool visibility are transient; Save and
-inline keyframe completion use the existing pose contract without helper metadata.
+single-bone mirror option. Selection and tool visibility are transient; Save
+uses the existing pose contract without helper metadata.
+
+While a clip beat is edited, the Hands tool works on hand shapes instead
+(`poseCreatorHandInteraction.ts`, `lib/avatar/poses/anatomy/handOffsets.ts`).
+A preset records that side's shape for the edit (Undo includes it); Curl and
+Spread adjust the recorded shape, or else the beat's hand key, with offsets
+refitted to the fingers as shown so earlier bone edits are kept. Over every
+eligible segment of a hand they change the shape's relative `curl` or
+`spread`; over some segments, those segments' `fingers` offsets. Only selected
+segments move, and they show exactly what the shape plays. Selected bones the
+shape does not drive (their own tracks, or an earlier edit offsets cannot
+carry, such as a twisted finger) turn as bones, as they do on a hand without
+hand keys and no preset chosen. Applying the edit writes the shape as the
+beat's hand key (below).
 
 Gesture and Reaction clips open as beats, shown as keyframes on the Pose (or
 Expression) lane and named by their labels; the draft keeps the clip's tracks
@@ -546,9 +567,24 @@ at all of the beat's keys. Editing follows the beat:
 - a Pose tab edit applies to the beat: a changed joint's keys owned by the beat
   shift by the change (so overshoots ride along), untouched joints keep their
   keys, bones the edit resets return to the base pose and cleared expressions
-  to 0, and bones without tracks gain a track keyed at every beat; editing a
-  finger of a hand driven by Hands-tool presets first turns that hand's presets
-  into equivalent finger keys;
+  to 0, and bones without tracks gain a track keyed at every beat;
+- hands keep their hand keys (`setBeatHand` in `beatEditing.ts`). A Hands-tool
+  shape replaces the beat's own key (`dt` 0), or adds one; on a hand without
+  keys, every other beat first gets a key holding its current hand (the
+  simplest preset with offsets that fits). Finger-bone edits of a hand with
+  keys become `fingers` offsets on the beat's key, read against its preset,
+  Curl and Spread as fitted on the editing Avatar; a beat without its own key
+  gets one with the nearest key's preset, Curl and Spread (across a loop's
+  seam) and offsets for the whole hand as shown. Between two different keys
+  the shown hand is a blend that offsets only approximate, so its fingers
+  there can move by a few degrees. Keys at other beats are untouched. An edit
+  is judged by the change it makes, not by that approximation: one that turns
+  what offsets do not carry by more than 0.5° (finger twist, splay or
+  abduction past the proximal segment) or needs offsets beyond ±90° gets a
+  joint track for that bone, and a thumb metacarpal edit a rotation
+  track, keyed at every hand key of that side with the values played there
+  now, so the hand elsewhere is unchanged; the key keeps the closest offsets
+  for such a bone. Bones that already have tracks are edited as tracks;
 - deleting a beat removes all of its keys; capturing at the playhead adds a
   beat holding the current motion, and inserting a Library Pose adds (or
   re-poses) a beat with the pose by value, its omitted bones at the base pose,

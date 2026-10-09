@@ -185,8 +185,33 @@ def _event(event: dict[str, Any], field: str) -> None:
 
 
 V2_EASES = _EASINGS | {"smooth", "hold"}
-V2_HAND_PRESETS = frozenset({"fist", "open-spread", "open-together", "relaxed", "point", "peace", "thumbs-up"})
+V2_HAND_PRESETS = frozenset(
+    {
+        "fist",
+        "open-spread",
+        "open-together",
+        "relaxed",
+        "point",
+        "peace",
+        "thumbs-up",
+        "cupped",
+        "soft-claw",
+        "palm-flat",
+        "pinch",
+        "ok",
+    }
+)
 V2_HAND_ADJUSTMENT_LIMITS = {"curl": 90, "spread": 30}
+# Per-finger offsets a hand key accepts (frontend anatomy/handPresetIds.ts): the
+# joint components each digit may offset, and the segments a per-segment curl lists.
+V2_HAND_DIGIT_OFFSETS: dict[str, dict[str, tuple[str, ...]]] = {
+    "thumb": {"fields": ("curl", "palmarAbduction", "twist"), "segments": ("proximal", "distal")},
+    **{
+        digit: {"fields": ("curl", "splay"), "segments": ("proximal", "intermediate", "distal")}
+        for digit in ("index", "middle", "ring", "little")
+    },
+}
+V2_HAND_FINGER_OFFSET_LIMIT = 90
 V2_MIN_SPACING_SECONDS = 0.0005
 V2_LIMITS = {
     "durationSeconds": 3600,
@@ -247,6 +272,33 @@ def _v2_ticks(seconds: float, field: str) -> int:
     """Whole 0.1 ms ticks, rounded as the frontend saves times (half away from zero)."""
     _require(abs(seconds) <= _V2_MAX_TIME_MAGNITUDE, field, "is out of range")
     return int(Decimal(seconds).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP) * _V2_TICKS_PER_SECOND)
+
+
+def _v2_hand_fingers(value: Any, field: str) -> None:
+    """Admit a hand key's per-finger offsets, as the frontend ``parseHandFingers`` does.
+
+    Each known digit takes only its own offset fields, in degrees within the
+    offset limit; a per-segment ``curl`` lists exactly one value per segment.
+    """
+    limit = V2_HAND_FINGER_OFFSET_LIMIT
+    for digit, raw_offsets in _record(value, field).items():
+        digit_field = f"{field}.{digit}"
+        _require(digit in V2_HAND_DIGIT_OFFSETS, digit_field, "is not a known digit")
+        accepted = V2_HAND_DIGIT_OFFSETS[digit]
+        for name, amount in _record(raw_offsets, digit_field).items():
+            offset_field = f"{digit_field}.{name}"
+            _require(name in accepted["fields"], offset_field, "is not an offset this digit accepts")
+            values = [amount]
+            if name == "curl" and isinstance(amount, list):
+                segments = accepted["segments"]
+                _require(
+                    len(amount) == len(segments),
+                    offset_field,
+                    f"must list one value per segment ({', '.join(segments)})",
+                )
+                values = amount
+            for number in values:
+                _number(number, offset_field, minimum=-limit, maximum=limit)
 
 
 def _utf16_length(value: str) -> int:
@@ -386,6 +438,8 @@ def validate_clip_v2_timeline(clip: dict[str, Any]) -> float:
         for adjustment, limit in V2_HAND_ADJUSTMENT_LIMITS.items():
             if adjustment in key:
                 _number(key[adjustment], f"{field}.{adjustment}", minimum=-limit, maximum=limit)
+        if "fingers" in key:
+            _v2_hand_fingers(key["fingers"], f"{field}.fingers")
 
     for side, raw in _record(clip.get("hands", {}), "hands").items():
         _enum(side, "hands side", {"left", "right"})

@@ -4,7 +4,12 @@ import { isVRMHumanBoneName } from "../animaPose";
 import { JOINT_DEFINITIONS, resolveJoint, type Side } from "../anatomy/anatomy";
 import {
   HAND_ADJUSTMENT_LIMITS,
+  HAND_DIGIT_OFFSETS,
+  HAND_DIGITS,
+  HAND_FINGER_OFFSET_LIMIT,
   HAND_PRESETS,
+  type HandDigit,
+  type HandDigitOffset,
   type HandPreset,
 } from "../anatomy/handPresetIds";
 import {
@@ -75,6 +80,11 @@ export type AnimaPoseClipHandKey = BeatOwned & {
   curl?: number;
   /** Relative base-segment spread after the preset, degrees. */
   spread?: number;
+  /**
+   * Per-finger offsets after the preset, Curl and Spread. They belong to the
+   * key's beat and blend between keys with the preset; a missing offset is 0.
+   */
+  fingers?: Partial<Record<HandDigit, HandDigitOffset>>;
 };
 
 /** An intended touch, for the motion checks; playback ignores it. */
@@ -537,33 +547,7 @@ export function validateAnimaPoseClipV2(
         const track = keys<AnimaPoseClipHandKey>(
           `hands.${side}`,
           raw,
-          (key, keyPath) => {
-            if (
-              typeof key.preset !== "string" ||
-              !HAND_PRESET_IDS.has(key.preset)
-            )
-              return fail(
-                `${keyPath}.preset`,
-                `Unknown preset. Use one of: ${[...HAND_PRESET_IDS].join(", ")}.`,
-              );
-            const adjustments: { curl?: number; spread?: number } = {};
-            for (const field of ["curl", "spread"] as const) {
-              const amount = key[field];
-              if (amount === undefined) continue;
-              const limit = HAND_ADJUSTMENT_LIMITS[field];
-              if (
-                typeof amount !== "number" ||
-                !Number.isFinite(amount) ||
-                Math.abs(amount) > limit
-              )
-                return fail(
-                  `${keyPath}.${field}`,
-                  `Expected degrees from −${limit} to ${limit}.`,
-                );
-              if (amount !== 0) adjustments[field] = amount;
-            }
-            return { preset: key.preset as HandPreset, ...adjustments };
-          },
+          (key, keyPath) => parseHandKey(key, keyPath, fail),
         );
         if (track) hands[side] = track;
       }
@@ -758,6 +742,124 @@ function optionalEase(
     `Unknown ease. Use one of: ${[...ANIMA_POSE_CLIP_EASES].join(", ")}.`,
   );
   return undefined;
+}
+
+/**
+ * A hand key's shape: a known preset, Curl and Spread within their limits,
+ * and per-finger offsets. Every problem is reported at its JSON path. Zero
+ * adjustments and offsets are dropped, since a missing one changes nothing.
+ */
+function parseHandKey(
+  key: Record<string, unknown>,
+  keyPath: string,
+  fail: (path: string, message: string) => null,
+): Omit<AnimaPoseClipHandKey, keyof BeatOwned> | null {
+  let valid = true;
+  const reject = (path: string, message: string) => {
+    valid = false;
+    fail(path, message);
+  };
+  if (typeof key.preset !== "string" || !HAND_PRESET_IDS.has(key.preset))
+    reject(
+      `${keyPath}.preset`,
+      `Unknown preset. Use one of: ${[...HAND_PRESET_IDS].join(", ")}.`,
+    );
+  const adjustments: { curl?: number; spread?: number } = {};
+  for (const field of ["curl", "spread"] as const) {
+    const amount = key[field];
+    if (amount === undefined) continue;
+    const limit = HAND_ADJUSTMENT_LIMITS[field];
+    if (!isDegrees(amount, limit))
+      reject(
+        `${keyPath}.${field}`,
+        `Expected degrees from −${limit} to ${limit}.`,
+      );
+    else if (amount !== 0) adjustments[field] = amount;
+  }
+  const fingers =
+    key.fingers === undefined
+      ? {}
+      : parseHandFingers(key.fingers, `${keyPath}.fingers`, reject);
+  if (!valid) return null;
+  return {
+    preset: key.preset as HandPreset,
+    ...adjustments,
+    ...nonEmpty("fingers", fingers),
+  };
+}
+
+/**
+ * A hand key's `fingers`: known digits, each with only its own offset fields
+ * (`HAND_DIGIT_OFFSETS`), in degrees within `HAND_FINGER_OFFSET_LIMIT`; a
+ * per-segment `curl` lists exactly one value per segment.
+ */
+function parseHandFingers(
+  value: unknown,
+  path: string,
+  reject: (path: string, message: string) => void,
+): NonNullable<AnimaPoseClipHandKey["fingers"]> {
+  const fingers: NonNullable<AnimaPoseClipHandKey["fingers"]> = {};
+  if (!isRecord(value)) {
+    reject(path, `Expected { ${HAND_DIGITS.map((d) => `${d}?`).join(", ")} }.`);
+    return fingers;
+  }
+  const limit = HAND_FINGER_OFFSET_LIMIT;
+  for (const [digit, raw] of Object.entries(value)) {
+    const digitPath = `${path}.${digit}`;
+    // Own properties only: "constructor" is not a digit.
+    if (!Object.hasOwn(HAND_DIGIT_OFFSETS, digit)) {
+      reject(
+        digitPath,
+        `Unknown digit. Use one of: ${HAND_DIGITS.join(", ")}.`,
+      );
+      continue;
+    }
+    const { fields, segments } = HAND_DIGIT_OFFSETS[digit as HandDigit];
+    if (!isRecord(raw)) {
+      reject(
+        digitPath,
+        `Expected { ${fields.map((f) => `${f}?`).join(", ")} }.`,
+      );
+      continue;
+    }
+    const offset: Record<string, number | number[]> = {};
+    for (const [field, amount] of Object.entries(raw)) {
+      const fieldPath = `${digitPath}.${field}`;
+      if (!(fields as readonly string[]).includes(field)) {
+        reject(
+          fieldPath,
+          `Unknown offset. ${digit} accepts: ${fields.join(", ")}.`,
+        );
+        continue;
+      }
+      const perSegment = field === "curl" && Array.isArray(amount);
+      // A copy, so the parsed clip shares no arrays with its input.
+      const values: unknown[] = perSegment ? [...amount] : [amount];
+      if (
+        (perSegment && values.length !== segments.length) ||
+        !values.every((v) => isDegrees(v, limit))
+      ) {
+        reject(
+          fieldPath,
+          `Expected degrees from −${limit} to ${limit}${field === "curl" ? `, or one value per segment (${segments.join(", ")})` : ""}.`,
+        );
+        continue;
+      }
+      if (values.some((v) => v !== 0))
+        offset[field] = perSegment ? (values as number[]) : (amount as number);
+    }
+    if (Object.keys(offset).length > 0) fingers[digit as HandDigit] = offset;
+  }
+  return fingers;
+}
+
+/** A finite number of degrees no further than `limit` from zero. */
+function isDegrees(value: unknown, limit: number): value is number {
+  return (
+    typeof value === "number" &&
+    Number.isFinite(value) &&
+    Math.abs(value) <= limit
+  );
 }
 
 function nonEmpty<K extends string, V extends object>(key: K, value: V) {

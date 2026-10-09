@@ -47,7 +47,7 @@ under `.agents/skills/animama-animation/references/`.
       worktree; their results are summarized in the Decision Log and the Phase 1
       pinch test reproduces the fit evidence.
 - [x] G1: owner agreed spec, plan and D0–D6 (2026-10-09).
-- [ ] Phase 1: hand model (R1–R3).
+- [x] Phase 1: hand model (R1–R3); review #3 passed 2026-10-09.
 - [ ] Phase 2: contact solver, schema and checks (R4, R5, R6 retiming, R7, R8).
 - [x] Owner decisions D1–D6 (2026-10-09; D3 re-animate now).
 - [ ] Phase 3: drafts and owner preview review (R10, R11, R13; gate G2).
@@ -99,6 +99,12 @@ under `.agents/skills/animama-animation/references/`.
 - Proposed, agent: bulb is a new body-attached Avatar Effect on `rightHand` reusing
   `idea_bulb.png`; `idea_bulb` stays for its three Reactions.
 - Proposed, agent: `animation:save` is not used; drafts promote from files.
+- 2026-10-09, agent (within approved outcome): the `thumbs-up` preset's fitted
+  thumb exceeded the thumb joint's hard limit (−69° to −70° vs −60°) on both
+  Included Avatars, so every clip using it failed `check`. The thumbs-up thumb is
+  now held in the natural range with its tip bent back; other fitted thumbs are
+  held within the hard limits, which changes only fits that were past them. No
+  Included clip used `thumbs-up` (baseline unchanged). Reported to the owner.
 - 2026-10-09, owner: approve spec, plan and D0–D6 with recommendations, except
   D3: re-animate the unlisted legacy clips in this issue. Each animation is drafted
   by its own sub-agent in parallel, from scratch with the `animama-animation`
@@ -162,7 +168,137 @@ passed.
 
 #### Code Review #1 Findings
 
+Reviewed 2026-10-09: uncommitted working tree on `ba23f02d` (baseline `bfc0de4f`),
+excluding `anatomy/arms.ts`/`arms.test.ts` (Phase 2) and `.animama-drafts/`.
+Independent `sdlc-reviewer` analysis with scratch probes; lead finding P1-R1-11
+from draft `check` evidence.
+
+- **P1-R1-01 (required):** `poseCreatorHandInteraction.ts:122-123` with
+  `setBoneDraft` (`pose-creator-store.ts:2325`): a shape recorded for the inline
+  edit is reused unchanged after a later Bones/gizmo finger edit, so the next
+  Curl/Spread silently discards that edit (probe: preset fist → index distal +40°
+  → Curl +5 ends 35° from the bend). Violates R3.
+- **P1-R1-02 (required):** `poseCreatorHandInteraction.ts:297-371`,
+  `beatEditing.ts:1121-1140`: Curl/Spread on a keyed hand places every finger of
+  the side at the shape, including bones with their own tracks, bones offsets
+  cannot express (twist) and unselected bones; probes lose a tracked twist and a
+  gizmo twist. Violates R3 ("affected bones only"); regression from `bfc0de4f`.
+- **P1-R1-03 (required):** `scripts/animation-render/render.ts:179` fails
+  `pnpm -s prettier:check`.
+- **P1-R1-04 (optional):** a beat without its own key gets offsets fitted only for
+  edited bones; untouched fingers shift up to 3.9° at mid-key beats; docs say
+  "offsets for the whole hand as shown".
+- **P1-R1-05 (optional):** `scripts/animation-render.mjs:114-116` usage text lists
+  side close-ups; actual views are front, ¾, below and palm.
+- **P1-R1-06 (optional):** `handPresets.ts:353-368` runs `fitPinch` four times
+  per side; ADR 0019 says once per hand key.
+- **P1-R1-07 (optional):** ADR 0019:75-77 claims offsets give the same rotation on
+  every Avatar; false for the fitted pinch/ok index.
+- **P1-R1-08 (optional):** `HandDigitOffset` duplicates
+  `AnimaPoseClipHandDigitOffset`.
+- **P1-R1-09 (optional, Phase 4):** `SKILL.md:102-103` still says finger joints
+  only for shapes presets cannot make.
+- **P1-R1-10 (optional):** no tests for the `--view hands` render path or nearest
+  key across a loop seam; baseline failures report hashes only.
+- **P1-R1-11 (required, lead):** the existing `thumbs-up` preset fits
+  `ThumbProximal.curl` to −68.9° (right) / −70.1° (left) on Y_0, beyond the −60°
+  hard limit, so any clip using it FAILs `check` (reproduced with a bare key by
+  three draft authors).
+
 #### Code Review #1 Revisions
+
+2026-10-09, repair round #1 (one of two allowed):
+
+- **P1-R1-01 accepted, fixed:** a recorded shape is refit to the shown fingers
+  before each Curl/Spread (`beatHandShape` takes the recorded shape and returns
+  `{shape, unshaped}`). Probe now ends 5.00° from the bend. Test "keeps a bone edit
+  through a later Curl".
+- **P1-R1-02 accepted, fixed:** Curl/Spread moves only selected bones; the shape
+  drives a selected bone only when it reproduces it within 0.5° and it has no own
+  track; others turn per bone as in Pose editing (shared `fitShownHand`). Tests
+  cover tracked bones, gizmo twist (fallback track keyed at every hand key) and
+  partial selection.
+- **P1-R1-03 accepted, fixed:** `render.ts` formatted; `pnpm -s prettier:check` clean.
+- **P1-R1-04 accepted as documentation:** the nearest-fit approximation for
+  untouched fingers at a keyless mid-key beat is documented in `setBeatHand` and
+  `avatar-animation.md` (holding them would add tracks for unedited fingers).
+- **P1-R1-05 accepted, fixed:** usage text lists front, ¾, below and palm.
+- **P1-R1-06 accepted, fixed:** pinch is fitted once per hand shape
+  (`HandShapeFits`); ADR wording now accurate.
+- **P1-R1-07 accepted, fixed:** ADR 0019 says offsets add the same component
+  change to each Avatar's fitted preset.
+- **P1-R1-08 accepted, fixed:** `HandDigitOffset` defined once in `handPresetIds.ts`.
+- **P1-R1-09 deferred to Phase 4** (skill `SKILL.md` decision rules), as planned.
+- **P1-R1-10 partly accepted:** loop-seam nearest-key test added; the `--view
+  hands` path is exercised by the checks run (render of `wave-hello`), a browser
+  test is not added; baseline hash failures stay hash-only (the clip and Avatar
+  are named, which suffices to reproduce).
+- **P1-R1-11 accepted, fixed:** fitted thumbs are kept inside the thumb's natural
+  range (`withinNaturalRange`); the thumbs-up thumb tip bends back 25°. Thumbs-up
+  ThumbProximal.curl is now −50.0° on both Avatars and sides; renders still read
+  upright. Only the three thumbs-up digests changed (deliberate, commented); a new
+  test keeps every joint of all 12 presets within hard limits on both Avatars.
+  This deviates from R1's "existing seven keep their exact shapes" for
+  `thumbs-up` only, because its old fit violated joint limits (Decision Log).
+
+Evidence after repairs: `tsc -b` clean; full web vitest 418 files / 3298 passed;
+`pnpm -s prettier:check` clean; `pnpm web:lint` clean; included-clip baseline
+unchanged. Earlier checks run (before repairs): `pnpm check`, `make check-test`
+(3413 passed), script and browser tests, both render paths.
+
+
+
+#### Code Review #2 Findings
+
+Targeted recheck 2026-10-09 (`sdlc-reviewer`, probes in the session scratchpad).
+Resolved: P1-R1-01, 03, 05, 06, 07, 08, 10; P1-R1-04 documentation accurate;
+P1-R1-02 resolved for the reported cases; P1-R1-11 resolved for `thumbs-up`.
+
+- **P1-R2-01 (required):** `withinNaturalRange` clamps every fitted thumb, so
+  `fist`, `point`, `peace` and `open-together` change (1.5–9.3°) whenever the thumb
+  metacarpal differs from Relaxed Rest's; 46 of 126 changed thumbs were within hard
+  limits before. Records claimed only `thumbs-up` changes. Included content is
+  unaffected (baseline passes).
+- **P1-R2-02 (required):** at a beat without its own hand key the blend error
+  alone exceeds the 0.5° rule, so whole-hand Curl/Spread, partial Curl and plain
+  Bones curls create fallback finger tracks with zero offsets (key and tracks
+  disagree); a regression from the P1-R1-02 fix.
+- Optional: `avatar-animation.md` cites "up to about 4° in tests" without a test.
+
+#### Code Review #2 Revisions
+
+Repair round #2 (last allowed), 2026-10-09:
+
+- **P1-R2-01 accepted, fixed:** fitted thumbs are held within the thumb joint's
+  hard limits (`withinJointRange(…, "hard")`), so a fit inside them is bit-for-bit
+  unchanged; only `thumbs-up` uses the natural range (curl −50°, tip −25°). Probe
+  over 7 presets × 27 metacarpal sets × both Avatars, sides and Curl variants:
+  differences are only `thumbs-up` and 80 fits whose `bfc0de4f` value was past
+  the hard limit; all 12 presets stay within hard limits for every set. New tests
+  pin a within-limit fit to its `bfc0de4f` quaternion and clamp an unreachable
+  one; ADR 0019 decision 2 and consequences updated.
+- **P1-R2-02 accepted, fixed:** a bone falls back only when the edit itself is
+  not expressible (`isOffsetExpressible` on the change, or offsets past ±90°),
+  not because of the blend approximation; missed bones still get their closest
+  offsets so the key and track agree. Probes: whole-hand Curl/Spread, partial
+  Curl and Bones curl at a keyless beat create 0 tracks; a twist creates only its
+  own fallback track; earlier probes unchanged. Tests on both Avatars and through
+  the real Hands tool on A_1.
+- Optional nit fixed: `avatar-animation.md` now says "a few degrees"; the code
+  comment cites the asserted 4.5° bound.
+
+Evidence: `tsc -b` clean; vitest poses/pose-creator/stores/action-editor/
+motion-authoring 74 files, 919 passed; anatomy/animaPoseClip/motion-authoring
+394 passed; included-clip baseline unchanged; prettier and eslint clean.
+
+#### Code Review #3 Findings
+
+Final targeted recheck 2026-10-09: **pass.** P1-R2-01 resolved (31,752 bones
+compared with `bfc0de4f`: only `thumbs-up` and fits past the hard limit differ;
+all 12 presets within hard limits for every metacarpal set). P1-R2-02 resolved
+(keyless whole/partial Curl, Spread and Bones curls create 0 tracks; twists only
+their own track). No regressions. Non-blocking: one long ADR line (wrapped);
+the P1-R1-11 revision entry is superseded by Revision #2.
 
 ### Phase 2 — Contact solver, schema and checks (R4, R5, R6 retiming, R7, R8)
 

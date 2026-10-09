@@ -11,7 +11,19 @@ import {
   type Side,
 } from "../anatomy/anatomy";
 import { ScalarTrack } from "../anatomy/curves";
-import { handShapeRotations } from "../anatomy/handPresets";
+import {
+  fitHandShape,
+  fitHandShapeOffsets,
+  isOffsetExpressible,
+  normalizeHandShape,
+} from "../anatomy/handOffsets";
+import {
+  handBoneOf,
+  handBones,
+  handShapeRotations,
+  resolveHandBones,
+  type HandShape,
+} from "../anatomy/handPresets";
 import {
   easedProgress,
   findSegment,
@@ -33,6 +45,7 @@ import {
   toAnimaPoseClipTicks,
   type AnimaPoseClipBeat,
   type AnimaPoseClipEase,
+  type AnimaPoseClipHandKey,
   type AnimaPoseClipRotationKey,
   type AnimaPoseClipScalarKey,
   type AnimaPoseClipV2,
@@ -67,6 +80,12 @@ export type BeatPose = {
    * joints keep their keys and detail.
    */
   keyAll?: boolean;
+  /**
+   * Hand shapes the Hands tool chose for the beat (a preset with Curl,
+   * Spread and offsets). Each becomes the beat's hand key on that side, and
+   * the pose's finger rotations on that side are read as offsets on it.
+   */
+  hands?: Partial<Record<Side, HandShape>>;
 };
 
 export type BeatDetailSummary = {
@@ -434,6 +453,14 @@ export function setBeatLabel(
 
 // ── Sampling helpers ─────────────────────────────────────────────────────
 
+/** A bone's sampled rotation (rest when the sample leaves it out). */
+function rotationOf(
+  sample: AnimaPoseClipSample,
+  bone: VRMHumanBoneName,
+): Quaternion {
+  return new Quaternion(...(sample.humanoid?.[bone]?.rotation ?? [0, 0, 0, 1]));
+}
+
 /** The full sampled pose at a beat, as the creator Avatar plays it. */
 export function beatKeyPose(
   clip: AnimaPoseClipV2,
@@ -625,9 +652,10 @@ function uniqueBeatId(clip: AnimaPoseClipV2, label: string): string {
  * owns shifts by the change, so its detail is re-targeted; components the
  * beat does not key get a key at the beat. Bones with rotation tracks take
  * the new rotation at the beat (offset keys turn with it), and untracked
- * bones get a rotation track keyed at every beat. Editing a finger of a hand
- * driven by Hands-tool presets first turns that hand into finger keys.
- * Legs solved by `plantFeet` are not edited.
+ * bones get a rotation track keyed at every beat. Hands driven by hand keys
+ * stay hand keys (`setBeatHand`): a Hands-tool shape or finger edits become
+ * the beat's hand key and its offsets. Legs solved by `plantFeet` are not
+ * edited.
  */
 export function setBeatPose(
   clip: AnimaPoseClipV2,
@@ -639,8 +667,6 @@ export function setBeatPose(
   if (!beat) return clip;
   const time = beat.time;
   const before = prepareAnimaPoseClipV2(clip, context).sample(time);
-  const rotationOf = (sample: AnimaPoseClipSample, bone: VRMHumanBoneName) =>
-    new Quaternion(...(sample.humanoid?.[bone]?.rotation ?? [0, 0, 0, 1]));
   const pose = input.complete
     ? completeBeatPose(input, before, clip, context)
     : input;
@@ -653,7 +679,7 @@ export function setBeatPose(
       : [],
   );
 
-  const changed: [VRMHumanBoneName, Quaternion][] = [];
+  let changed: [VRMHumanBoneName, Quaternion][] = [];
   for (const [bone, transform] of Object.entries(pose.humanoid ?? {})) {
     if (!isVRMHumanBoneName(bone) || !transform?.rotation) continue;
     if (clip.plantFeet && LEG_BONE.test(bone)) continue;
@@ -665,13 +691,22 @@ export function setBeatPose(
       changed.push([bone, next]);
   }
 
+  // Hands first: bones they take over leave the generic edits below.
   let working = clip;
-  for (const side of ["left", "right"] as const)
-    if (
-      working.hands?.[side] &&
-      changed.some(([bone]) => bone.startsWith(side) && FINGER_BONE.test(bone))
-    )
-      working = flattenHandToFingerTracks(working, side, context);
+  const edits = new Map(changed);
+  for (const side of ["left", "right"] as const) {
+    const hand = setBeatHand(
+      working,
+      beat,
+      side,
+      input.hands?.[side],
+      edits,
+      before,
+      context,
+    );
+    working = hand.clip;
+    changed = changed.filter(([bone]) => !hand.handled.has(bone));
+  }
 
   const evaluate = trackEvaluator(working, context);
   const samples = new Map<string, AnimaPoseClipSample>();
@@ -969,54 +1004,426 @@ export function detachBasePose(
 // ── Hands ────────────────────────────────────────────────────────────────
 
 /**
- * Replace a hand's Hands-tool preset keys with equivalent finger rotation
- * keys (fitted to the context Avatar), keeping each key's beat, offset and
- * ease. Fingers that already have tracks keep them.
+ * How far (degrees) offsets may fall short. A finger edit that changes joint
+ * components offsets do not carry by no more than this stays offsets on the
+ * hand key, and larger ones (a finger twist, say) fall back to tracks; a key
+ * anchoring a beat must play its hand within it. Far below a visible change
+ * of a finger.
  */
-export function flattenHandToFingerTracks(
-  clip: AnimaPoseClipV2,
-  side: Side,
-  context: BeatEditContext,
-): AnimaPoseClipV2 {
-  const keys = clip.hands?.[side];
-  if (!keys) return clip;
-  const times = beatTimes(clip);
-  const evaluate = trackEvaluator(clip, context);
-  const covered = new Set<string>(Object.keys(clip.rotations ?? {}));
+const HAND_OFFSET_TOLERANCE_DEGREES = 0.5;
+
+type HandEdit = {
+  clip: AnimaPoseClipV2;
+  /** Bones the hand edit has written; the generic pose edit skips them. */
+  handled: ReadonlySet<VRMHumanBoneName>;
+};
+
+/** Bones a joint or rotation track drives; tracks override hand shapes. */
+function trackedBones(clip: AnimaPoseClipV2): Set<string> {
+  const tracked = new Set<string>(Object.keys(clip.rotations ?? {}));
   for (const jointId of Object.keys(clip.joints ?? {}))
-    for (const bone of resolveJoint(jointId)?.bones ?? []) covered.add(bone);
-  const metacarpal = `${side}ThumbMetacarpal` as VRMHumanBoneName;
-  const rotations: Record<string, AnimaPoseClipRotationKey[]> = {};
+    for (const bone of resolveJoint(jointId)?.bones ?? []) tracked.add(bone);
+  return tracked;
+}
+
+/** The finger bones a hand shape plays on this Avatar (all without one). */
+function handShapeBones(vrm: VRM | null, side: Side): VRMHumanBoneName[] {
+  return (
+    vrm ? resolveHandBones({ vrm }, side).available : handBones(side)
+  ).map(({ boneName }) => boneName as VRMHumanBoneName);
+}
+
+/** A hand key's shape, without its beat, offset and ease. */
+function handKeyShape(key: AnimaPoseClipHandKey, offsets = true): HandShape {
+  return normalizeHandShape({
+    preset: key.preset,
+    curl: key.curl,
+    spread: key.spread,
+    ...(offsets ? { fingers: key.fingers } : {}),
+  });
+}
+
+/** A hand key holding a shape, owned by a beat. */
+function handKey(
+  shape: HandShape,
+  owner: { beat: string; ease?: AnimaPoseClipEase },
+): AnimaPoseClipHandKey {
+  return {
+    ...shape,
+    beat: owner.beat,
+    ...(owner.ease ? { ease: owner.ease } : {}),
+  };
+}
+
+/**
+ * Where a beat's hand key starts from: the key it owns at its own time, or
+ * else the preset, Curl and Spread of the key nearest in time (across a
+ * loop's seam). Null when the side has no hand keys.
+ */
+function beatHandKeyStart(
+  clip: AnimaPoseClipV2,
+  beat: AnimaPoseClipBeat,
+  side: Side,
+): { own: AnimaPoseClipHandKey | undefined; shape: HandShape } | null {
+  const keys = clip.hands?.[side];
+  if (!keys?.length) return null;
+  const own = keys.find((key) => key.beat === beat.id && !key.dt);
+  if (own) return { own, shape: handKeyShape(own) };
+  const times = beatTimes(clip);
+  let nearest = keys[0];
+  let distance = Number.POSITIVE_INFINITY;
   for (const key of keys) {
-    const at = keyTime(times, key);
-    const metacarpalTrack = clip.rotations?.[metacarpal];
-    const shape = handShapeRotations(
-      context.vrm ?? null,
-      side,
-      key,
-      metacarpalTrack
-        ? (evaluate.rotation(metacarpalTrack, at).toArray() as QuaternionTuple)
-        : evaluate.basePose[metacarpal]?.rotation,
-    );
-    for (const [bone, rotation] of shape) {
-      if (covered.has(bone)) continue;
-      (rotations[bone] ??= []).push({
-        beat: key.beat,
-        ...(key.dt ? { dt: key.dt } : {}),
-        ...(key.ease ? { ease: key.ease } : {}),
-        q: quaternionKey(rotation),
-      });
+    const gap = Math.abs(keyTime(times, key) - beat.time);
+    const span = clip.loop ? Math.min(gap, clip.duration - gap) : gap;
+    if (span < distance) {
+      nearest = key;
+      distance = span;
     }
   }
-  const hands = { ...clip.hands };
-  delete hands[side];
-  const next: AnimaPoseClipV2 = {
-    ...clip,
-    rotations: { ...clip.rotations, ...rotations },
+  return { own: undefined, shape: handKeyShape(nearest, false) };
+}
+
+/**
+ * Fit `shape`'s offsets to the hand as shown: every given bone when `all`
+ * (a key taken from a neighbour must hold the whole hand), otherwise only
+ * bones the shape does not already play, so a key's existing offsets stay
+ * exactly as they were. Every target is fitted as closely as offsets allow.
+ *
+ * Bones that may miss (`canMiss`) are `missed` when offsets cannot carry
+ * their edit: the change to their shown rotation, from what the shape plays
+ * and from the hand before the edit (`before`), turns components offsets do
+ * not carry (`isOffsetExpressible`), or their offsets would pass the limit.
+ * Judging the edit rather than the fit keeps a hand between two keys, which
+ * offsets only approximate, editable as offsets.
+ */
+function fitShownHand(
+  vrm: VRM | null,
+  side: Side,
+  shape: HandShape,
+  shown: ReadonlyMap<VRMHumanBoneName, Quaternion>,
+  metacarpal: QuaternionTuple | undefined,
+  all: boolean,
+  judge: {
+    canMiss?: (bone: VRMHumanBoneName) => boolean;
+    before?: ReadonlyMap<VRMHumanBoneName, Quaternion>;
+  } = {},
+): { shape: HandShape; missed: Map<VRMHumanBoneName, Quaternion> } {
+  const played = handShapeRotations(vrm, side, shape, metacarpal);
+  const targets = new Map(
+    [...shown].filter(([bone, rotation]) => {
+      const current = played.get(bone);
+      return (
+        current &&
+        (all || angularDistanceDegrees(current, rotation) > CHANGE_DEGREES)
+      );
+    }),
+  );
+  const fit = fitHandShapeOffsets(vrm, side, shape, targets, metacarpal);
+  const missed = new Map<VRMHumanBoneName, Quaternion>();
+  for (const [bone, rotation] of targets) {
+    if (judge.canMiss && !judge.canMiss(bone)) continue;
+    const origins = [played.get(bone), judge.before?.get(bone)].filter(
+      (origin): origin is Quaternion => Boolean(origin),
+    );
+    if (
+      fit.limited.has(bone) ||
+      !origins.some((origin) =>
+        isOffsetExpressible(
+          bone,
+          origin,
+          rotation,
+          HAND_OFFSET_TOLERANCE_DEGREES,
+        ),
+      )
+    )
+      missed.set(bone, rotation);
+  }
+  return { shape: fit.shape, missed };
+}
+
+/** The shape the Hands tool adjusts at a beat, and the bones it leaves alone. */
+export type BeatHandShape = {
+  shape: HandShape;
+  /**
+   * Shown bones the shape does not drive: bones with their own tracks, and
+   * bones whose edits offsets cannot carry (a twisted finger, say). The Hands
+   * tool turns these as bones, as in Pose editing, so their edits keep their
+   * tracks or get fallback tracks on commit.
+   */
+  unshaped: Set<VRMHumanBoneName>;
+};
+
+/**
+ * The hand shape the Hands tool adjusts at a beat: the shape it recorded
+ * earlier in this edit (`recorded`), else, for a hand driven by hand keys,
+ * the beat's own key (dt 0) or the nearest key's preset, Curl and Spread.
+ * Offsets are fitted to `rotations` (the finger rotations shown, canonical
+ * basis; the thumb metacarpal at `metacarpal`) where they differ from that
+ * shape, so earlier finger edits are kept. `original` holds the rotations
+ * the beat had when the edit began; edits are judged against them. Null when
+ * nothing is recorded and the side has no hand keys.
+ */
+export function beatHandShape(
+  clip: AnimaPoseClipV2,
+  beatId: string,
+  side: Side,
+  rotations: ReadonlyMap<VRMHumanBoneName, Quaternion>,
+  original: ReadonlyMap<VRMHumanBoneName, Quaternion>,
+  metacarpal: QuaternionTuple | undefined,
+  context: Pick<BeatEditContext, "vrm">,
+  recorded?: HandShape | null,
+): BeatHandShape | null {
+  let start: { shape: HandShape; all: boolean } | null = null;
+  if (recorded) start = { shape: recorded, all: false };
+  else {
+    const beat = clip.beats.find(({ id }) => id === beatId);
+    const key = beat ? beatHandKeyStart(clip, beat, side) : null;
+    if (key) start = { shape: key.shape, all: !key.own };
+  }
+  if (!start) return null;
+  const tracked = trackedBones(clip);
+  const fit = fitShownHand(
+    context.vrm ?? null,
+    side,
+    start.shape,
+    new Map([...rotations].filter(([bone]) => !tracked.has(bone))),
+    metacarpal,
+    start.all,
+    { before: original },
+  );
+  return {
+    shape: fit.shape,
+    unshaped: new Set([
+      ...[...rotations.keys()].filter((bone) => tracked.has(bone)),
+      ...fit.missed.keys(),
+    ]),
   };
-  if (Object.keys(hands).length > 0) next.hands = hands;
-  else delete next.hands;
-  return next;
+}
+
+/**
+ * A pose edit of one hand, kept as hand keys where the hand has them.
+ *
+ * With a Hands-tool shape (`intent`), the beat's hand key (dt 0) becomes that
+ * shape; a hand without keys first gets a key at every other beat holding
+ * what it plays there now (`anchorHandTrack`), or stays a generic finger edit
+ * when no preset expresses that. Without one, finger edits of a hand driven
+ * by hand keys become offsets on the beat's key, read against its preset,
+ * Curl and Spread as fitted on the editing Avatar; a beat without a key gets
+ * one from the nearest key's preset, Curl and Spread, with offsets for the
+ * whole hand as shown. Between two different keys the shown hand is a blend
+ * that offsets only approximate, so fingers there can move by a few degrees
+ * (tests hold them within 4.5° halfway between `fist` and `open-spread`).
+ * Keys at other beats are untouched.
+ *
+ * Finger edits that offsets cannot carry (a change of finger twist, of splay
+ * or abduction past the proximal segment, or offsets beyond ±90°) and thumb
+ * metacarpal edits also get tracks (`addHandFallbackTracks`); the key still
+ * holds the closest offsets, so key and track agree as far as offsets can.
+ * Bones with their own tracks are left to the generic edit.
+ */
+function setBeatHand(
+  clip: AnimaPoseClipV2,
+  beat: AnimaPoseClipBeat,
+  side: Side,
+  intent: HandShape | undefined,
+  edits: ReadonlyMap<VRMHumanBoneName, Quaternion>,
+  before: AnimaPoseClipSample,
+  context: BeatEditContext,
+): HandEdit {
+  const unchanged: HandEdit = { clip, handled: new Set() };
+  const metacarpal: VRMHumanBoneName = `${side}ThumbMetacarpal`;
+  // Without a shape, only edits of a hand with hand keys concern hand keys.
+  if (
+    !intent &&
+    (!clip.hands?.[side]?.length ||
+      ![...edits.keys()].some(
+        (bone) => bone === metacarpal || handBoneOf(bone)?.side === side,
+      ))
+  )
+    return unchanged;
+  const vrm = context.vrm ?? null;
+  const tracked = trackedBones(clip);
+  const free = handShapeBones(vrm, side).filter((bone) => !tracked.has(bone));
+  const metacarpalEdit = tracked.has(metacarpal)
+    ? undefined
+    : edits.get(metacarpal);
+  if (
+    free.length === 0 ||
+    (!intent && !metacarpalEdit && !free.some((bone) => edits.has(bone)))
+  )
+    return unchanged;
+
+  let working = clip;
+  if (!working.hands?.[side]?.length) {
+    if (!intent) return unchanged;
+    const anchored = anchorHandTrack(working, beat.id, side, free, context);
+    if (!anchored) return unchanged;
+    working = anchored;
+  }
+  const start = beatHandKeyStart(working, beat, side);
+  const own = start?.own;
+  const shape = intent ? normalizeHandShape(intent) : start!.shape;
+  const metacarpalRotation = (
+    edits.get(metacarpal) ?? rotationOf(before, metacarpal)
+  ).toArray() as QuaternionTuple;
+  const shown = new Map(
+    free.map((bone) => [bone, edits.get(bone) ?? rotationOf(before, bone)]),
+  );
+  // A key taken from a neighbour holds the whole hand as shown, as closely
+  // as offsets allow (see above); only edits offsets cannot carry miss.
+  const fit = fitShownHand(
+    vrm,
+    side,
+    shape,
+    shown,
+    metacarpalRotation,
+    !intent && !own,
+    {
+      canMiss: (bone) => edits.has(bone),
+      before: new Map(free.map((bone) => [bone, rotationOf(before, bone)])),
+    },
+  );
+  const fallback = fit.missed;
+  if (metacarpalEdit) fallback.set(metacarpal, metacarpalEdit);
+
+  const times = beatTimes(working);
+  const beatTicks = toAnimaPoseClipTicks(beat.time);
+  const key = handKey(fit.shape, { beat: beat.id, ease: own?.ease });
+  // The new key replaces the beat's own key and any key too close to it.
+  const others = (working.hands?.[side] ?? []).filter(
+    (other) =>
+      other !== own &&
+      Math.abs(toAnimaPoseClipTicks(keyTime(times, other)) - beatTicks) >=
+        ANIMA_POSE_CLIP_V2_MIN_SPACING_TICKS,
+  );
+  working = {
+    ...working,
+    hands: {
+      ...working.hands,
+      [side]: sortKeys(times, [...others, key]) as AnimaPoseClipHandKey[],
+    },
+  };
+  if (fallback.size > 0)
+    working = addHandFallbackTracks(
+      working,
+      clip,
+      beat.id,
+      side,
+      fallback,
+      context,
+    );
+  return {
+    clip: working,
+    handled: new Set([...free, ...(metacarpalEdit ? [metacarpal] : [])]),
+  };
+}
+
+/**
+ * Start a hand track on a side without one: every beat but `beatId` gets a
+ * key holding the hand it plays now, as the simplest preset with offsets that
+ * fits (`fitHandShape`), so a new key at `beatId` leaves the other beats as
+ * they were. Null when some beat's hand fits no preset.
+ */
+function anchorHandTrack(
+  clip: AnimaPoseClipV2,
+  beatId: string,
+  side: Side,
+  bones: readonly VRMHumanBoneName[],
+  context: BeatEditContext,
+): AnimaPoseClipV2 | null {
+  const vrm = context.vrm ?? null;
+  const prepared = prepareAnimaPoseClipV2(clip, context);
+  const metacarpal: VRMHumanBoneName = `${side}ThumbMetacarpal`;
+  // Untracked fingers hold the base pose, so beats mostly share one fit.
+  const fits = new Map<string, HandShape | null>();
+  const keys: AnimaPoseClipHandKey[] = [];
+  for (const other of clip.beats) {
+    if (other.id === beatId) continue;
+    const sample = prepared.sample(other.time);
+    const rotations = new Map(
+      bones.map((bone) => [bone, rotationOf(sample, bone)]),
+    );
+    const metacarpalRotation = sample.humanoid?.[metacarpal]?.rotation;
+    const cacheKey = JSON.stringify([
+      metacarpalRotation ?? null,
+      [...rotations.values()].map((rotation) => rotation.toArray()),
+    ]);
+    let shape = fits.get(cacheKey);
+    if (shape === undefined) {
+      shape = fitHandShape(
+        vrm,
+        side,
+        rotations,
+        metacarpalRotation,
+        HAND_OFFSET_TOLERANCE_DEGREES,
+      );
+      fits.set(cacheKey, shape);
+    }
+    if (!shape) return null;
+    keys.push(handKey(shape, { beat: other.id }));
+  }
+  return { ...clip, hands: { ...clip.hands, [side]: keys } };
+}
+
+/**
+ * Give bones that hand-key offsets cannot carry tracks keyed at every hand
+ * key of their side: the beat's own key (dt 0) takes the edited rotation and
+ * every other key the rotation `original` plays there now, so the hand at
+ * other keys is unchanged. Finger segments get joint tracks, which override
+ * hand shapes for the whole clip; the thumb metacarpal gets a rotation
+ * track, since thumbs are fitted around it at every key.
+ */
+function addHandFallbackTracks(
+  clip: AnimaPoseClipV2,
+  original: AnimaPoseClipV2,
+  beatId: string,
+  side: Side,
+  bones: ReadonlyMap<VRMHumanBoneName, Quaternion>,
+  context: BeatEditContext,
+): AnimaPoseClipV2 {
+  const keys = clip.hands?.[side] ?? [];
+  const times = beatTimes(clip);
+  const prepared = prepareAnimaPoseClipV2(original, context);
+  const samples = keys.map((key) =>
+    key.beat === beatId && !key.dt
+      ? null
+      : prepared.sample(keyTime(times, key)),
+  );
+  const owned = (key: AnimaPoseClipHandKey): OwnedKey => ({
+    beat: key.beat,
+    ...(key.dt ? { dt: key.dt } : {}),
+    ...(key.ease ? { ease: key.ease } : {}),
+  });
+  const joints = { ...clip.joints };
+  const rotations = { ...clip.rotations };
+  for (const [bone, edited] of bones) {
+    const at = (index: number) => {
+      const sample = samples[index];
+      return sample ? rotationOf(sample, bone) : edited;
+    };
+    const joint = resolveJoint(bone);
+    if (!joint) {
+      rotations[bone] = keys.map((key, index) => ({
+        ...owned(key),
+        q: quaternionKey(at(index)),
+      }));
+      continue;
+    }
+    const components: Record<string, AnimaPoseClipScalarKey[]> = {};
+    let near: Record<string, number> | undefined;
+    keys.forEach((key, index) => {
+      const values = decomposeJointRotation(joint, at(index), near);
+      near = values;
+      for (const [name, value] of Object.entries(values))
+        (components[name] ??= []).push({ ...owned(key), v: round(value) });
+    });
+    joints[joint.id] = components;
+  }
+  return {
+    ...clip,
+    ...(Object.keys(joints).length > 0 ? { joints } : {}),
+    ...(Object.keys(rotations).length > 0 ? { rotations } : {}),
+  };
 }
 
 function axisIndex(axis: string): 0 | 1 | 2 {

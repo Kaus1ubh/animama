@@ -26,6 +26,10 @@ import {
   getAvatarPose,
   getResolvedAvatarPose,
 } from "@/lib/avatar/poses/catalog";
+import type {
+  HandShape,
+  HandSide,
+} from "@/lib/avatar/poses/anatomy/handPresets";
 import {
   clampPoseCreatorClipTime,
   clonePoseCreatorClipEvent,
@@ -137,6 +141,12 @@ export type PoseCreatorDraftReplacement = {
   importError?: string | null;
 };
 
+/**
+ * Hand shapes the Hands tool chose while editing a clip beat, per side. They
+ * become the beat's hand keys on commit; the bone drafts show them.
+ */
+export type PoseCreatorHandShapes = Partial<Record<HandSide, HandShape>>;
+
 export type PoseCreatorClipInlineEditState = {
   alias: string;
   keyframeId: string | null;
@@ -146,6 +156,8 @@ export type PoseCreatorClipInlineEditState = {
   previousDraftName: string;
   previousIsDirty: boolean;
   isDirty: boolean;
+  /** Hand shapes chosen in this edit; absent until the Hands tool sets one. */
+  handShapes?: PoseCreatorHandShapes;
 };
 
 type PoseCreatorPoseUndoSnapshot = {
@@ -171,6 +183,7 @@ type PoseCreatorInlinePoseUndoSnapshot = {
   boneDrafts: PoseCreatorBoneDrafts;
   expressionDrafts: PoseCreatorExpressionDrafts;
   isDirty: boolean;
+  handShapes?: PoseCreatorHandShapes;
 };
 
 type PoseCreatorUndoGroup =
@@ -400,8 +413,14 @@ type PoseCreatorStoreState = {
   focusBone: (boneName: string) => void;
   setBoneHelperNodesVisible: (visible: boolean) => void;
   setMirrorOppositeBone: (enabled: boolean) => void;
+  /**
+   * Replace several bone drafts as one edit. While editing a clip beat,
+   * `handShapes` also sets (or, with null, clears) the Hands tool's shape for
+   * a side in the same history step; it is ignored otherwise.
+   */
   setBoneDraftBatch: (
     updates: Record<string, PoseCreatorBoneDraft | null>,
+    handShapes?: Partial<Record<HandSide, HandShape | null>>,
   ) => boolean;
   setBoneDraft: (boneName: string, draft: PoseCreatorBoneDraft) => void;
   removeBoneDraft: (boneName: string) => void;
@@ -618,6 +637,10 @@ function createInlinePoseUndoSnapshot(
     boneDrafts: clonePoseCreatorBoneDrafts(state.boneDrafts),
     expressionDrafts: clonePoseCreatorExpressionDrafts(state.expressionDrafts),
     isDirty: state.clipInlineEdit?.isDirty ?? false,
+    // Shapes are replaced, never mutated, so the snapshot can share them.
+    ...(state.clipInlineEdit?.handShapes
+      ? { handShapes: state.clipInlineEdit.handShapes }
+      : {}),
   };
 }
 
@@ -708,8 +731,23 @@ function areInlinePoseUndoSnapshotsEqual(
   return (
     JSON.stringify(left.boneDrafts) === JSON.stringify(right.boneDrafts) &&
     JSON.stringify(left.expressionDrafts) ===
-      JSON.stringify(right.expressionDrafts)
+      JSON.stringify(right.expressionDrafts) &&
+    JSON.stringify(left.handShapes ?? {}) ===
+      JSON.stringify(right.handShapes ?? {})
   );
+}
+
+/** An inline edit carrying a snapshot's hand shapes (none when it has none). */
+function withInlineHandShapes(
+  edit: PoseCreatorClipInlineEditState,
+  handShapes: PoseCreatorHandShapes | undefined,
+): PoseCreatorClipInlineEditState {
+  if (edit.handShapes === handShapes) return edit;
+  const next = { ...edit };
+  if (handShapes && Object.keys(handShapes).length > 0)
+    next.handShapes = handShapes;
+  else delete next.handShapes;
+  return next;
 }
 
 function appendUndoSnapshot<T>(history: T[], snapshot: T): T[] {
@@ -740,6 +778,9 @@ function recordPoseDraftUndo(
   state: PoseCreatorStoreState,
   boneDrafts: PoseCreatorBoneDrafts,
   expressionDrafts: PoseCreatorExpressionDrafts,
+  /** The inline edit's next hand shapes (null: none); defaults to the current ones. */
+  handShapes: PoseCreatorHandShapes | null = state.clipInlineEdit?.handShapes ??
+    null,
 ): Partial<PoseCreatorStoreState> {
   // The outer interaction already owns the before-snapshot and compares it
   // once on commit. Avoid cloning/serializing every intermediate pointer move.
@@ -749,7 +790,12 @@ function recordPoseDraftUndo(
   const current = state.clipInlineEdit
     ? createInlinePoseUndoSnapshot(state)
     : createPoseUndoSnapshot(state);
-  const next = { boneDrafts, expressionDrafts, isDirty: true };
+  const next = {
+    boneDrafts,
+    expressionDrafts,
+    isDirty: true,
+    ...(handShapes ? { handShapes } : {}),
+  };
   const unchanged = state.clipInlineEdit
     ? areInlinePoseUndoSnapshotsEqual(current, next)
     : arePoseUndoSnapshotsEqual(current, next);
@@ -1144,10 +1190,10 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
           expressionDrafts: clonePoseCreatorExpressionDrafts(
             snapshot.expressionDrafts,
           ),
-          clipInlineEdit: {
-            ...state.clipInlineEdit,
-            isDirty: snapshot.isDirty,
-          },
+          clipInlineEdit: withInlineHandShapes(
+            { ...state.clipInlineEdit, isDirty: snapshot.isDirty },
+            snapshot.handShapes,
+          ),
           clipPlaybackPlaying: false,
           clipPreviewClearRevision: state.clipPreviewClearRevision + 1,
         });
@@ -1187,10 +1233,10 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
           expressionDrafts: clonePoseCreatorExpressionDrafts(
             snapshot.expressionDrafts,
           ),
-          clipInlineEdit: {
-            ...state.clipInlineEdit,
-            isDirty: snapshot.isDirty,
-          },
+          clipInlineEdit: withInlineHandShapes(
+            { ...state.clipInlineEdit, isDirty: snapshot.isDirty },
+            snapshot.handShapes,
+          ),
           clipPlaybackPlaying: false,
           clipPreviewClearRevision: state.clipPreviewClearRevision + 1,
         });
@@ -1774,6 +1820,7 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
                 humanoid: parsed.humanoid,
                 expressions: parsed.expressions,
                 complete: true,
+                ...(edit.handShapes ? { hands: edit.handShapes } : {}),
               },
               state.activeAvatar?.vrm ?? null,
               POSE_CREATOR_CLIP_VALIDATION_OPTIONS,
@@ -2204,7 +2251,7 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
       set({ boneHelperNodesVisible }),
     setMirrorOppositeBone: (mirrorOppositeBone) => set({ mirrorOppositeBone }),
     /** Validate the whole operation before publishing one draft/history transition. */
-    setBoneDraftBatch: (updates) => {
+    setBoneDraftBatch: (updates, handShapes) => {
       for (const [name, draft] of Object.entries(updates)) {
         if (!(VRMHumanBoneList as string[]).includes(name)) return false;
         if (!draft) continue;
@@ -2233,12 +2280,36 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
             ];
           else delete boneDrafts[name];
         }
-        if (JSON.stringify(boneDrafts) === JSON.stringify(state.boneDrafts))
+        const edit = state.clipInlineEdit;
+        let nextHandShapes = edit?.handShapes;
+        if (edit && handShapes) {
+          const shapes: PoseCreatorHandShapes = { ...edit.handShapes };
+          for (const [side, shape] of Object.entries(handShapes)) {
+            if (shape) shapes[side as HandSide] = shape;
+            else delete shapes[side as HandSide];
+          }
+          nextHandShapes = Object.keys(shapes).length > 0 ? shapes : undefined;
+        }
+        const handShapesChanged =
+          JSON.stringify(nextHandShapes ?? {}) !==
+          JSON.stringify(edit?.handShapes ?? {});
+        if (
+          JSON.stringify(boneDrafts) === JSON.stringify(state.boneDrafts) &&
+          !handShapesChanged
+        )
           return state;
         return {
-          ...recordPoseDraftUndo(state, boneDrafts, state.expressionDrafts),
+          ...recordPoseDraftUndo(
+            state,
+            boneDrafts,
+            state.expressionDrafts,
+            nextHandShapes ?? null,
+          ),
           boneDrafts,
-          clipInlineEdit: markClipInlineEditDirty(state.clipInlineEdit),
+          clipInlineEdit:
+            edit && handShapesChanged
+              ? withInlineHandShapes({ ...edit, isDirty: true }, nextHandShapes)
+              : markClipInlineEditDirty(edit),
           clipPlaybackPlaying: false,
           isDirty: state.clipInlineEdit
             ? state.isDirty
@@ -2292,9 +2363,15 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
       }),
     clearBoneDrafts: () =>
       set((state) => ({
-        ...recordPoseDraftUndo(state, {}, state.expressionDrafts),
+        // Resetting every bone also forgets the Hands tool's shapes.
+        ...recordPoseDraftUndo(state, {}, state.expressionDrafts, null),
         boneDrafts: {},
-        clipInlineEdit: markClipInlineEditDirty(state.clipInlineEdit),
+        clipInlineEdit: state.clipInlineEdit?.handShapes
+          ? withInlineHandShapes(
+              { ...state.clipInlineEdit, isDirty: true },
+              undefined,
+            )
+          : markClipInlineEditDirty(state.clipInlineEdit),
         clipPlaybackPlaying: false,
         isDirty: state.clipInlineEdit
           ? state.isDirty

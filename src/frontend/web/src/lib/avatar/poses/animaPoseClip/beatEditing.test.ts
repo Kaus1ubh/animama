@@ -5,7 +5,13 @@ import { Quaternion, Vector3 } from "three";
 import { beforeAll, describe, expect, it } from "vitest";
 
 import { loadTestAvatar } from "../../motion-authoring/testing/includedAvatars";
-import { angularDistanceDegrees } from "../anatomy/anatomy";
+import {
+  angularDistanceDegrees,
+  composeJointRotation,
+  decomposeJointRotation,
+  resolveJoint,
+} from "../anatomy/anatomy";
+import { handShapeRotations, type HandShape } from "../anatomy/handPresets";
 import { RELAXED_REST_POSE_ID, getResolvedAvatarPose } from "../catalog";
 import {
   beatDetailSummary,
@@ -14,7 +20,6 @@ import {
   deleteBeat,
   detachBasePose,
   fitContactsToClip,
-  flattenHandToFingerTracks,
   insertBeat,
   retimeBeat,
   setBeatEase,
@@ -258,53 +263,441 @@ describe("setBeatPose", () => {
     expect(at(edited).angry).toBeCloseTo(0.4);
     expect(at(edited).happy).toBeCloseTo(0);
   });
-
-  it("turns a preset hand into finger keys before editing a finger", () => {
-    const wave = example("wave-hello");
-    const pose = beatKeyPose(wave, "wave", context);
-    const curled = new Quaternion(
-      ...pose.humanoid!.rightIndexProximal!.rotation!,
-    )
-      .multiply(new Quaternion().setFromAxisAngle(new Vector3(0, 0, 1), 0.4))
-      .toArray() as [number, number, number, number];
-    const edited = valid(
-      setBeatPose(
-        wave,
-        "wave",
-        {
-          ...pose,
-          humanoid: {
-            ...pose.humanoid,
-            rightIndexProximal: { rotation: curled },
-          },
-        },
-        context,
-      ),
-    );
-    expect(edited.hands?.right).toBeUndefined();
-    expect(edited.rotations?.rightIndexProximal).toBeDefined();
-    expect(
-      angularDistanceDegrees(
-        rotation(edited, "rightIndexProximal", beat(wave, "wave").time),
-        new Quaternion(...curled),
-      ),
-    ).toBeLessThan(0.01);
-  });
 });
 
-describe("flattenHandToFingerTracks", () => {
-  it("plays the same hand motion from finger keys", () => {
-    const wave = example("wave-hello");
-    const flat = valid(flattenHandToFingerTracks(wave, "right", context));
-    expect(flat.hands?.right).toBeUndefined();
-    for (let time = 0; time <= wave.duration; time += 0.1)
-      for (const bone of ["rightIndexProximal", "rightThumbDistal"] as const)
+describe.each(["AvatarSample_A_1_New", "AvatarSample_Y_0"] as const)(
+  "hand keys on %s",
+  (avatarId) => {
+    let avatar: BeatEditContext;
+    beforeAll(async () => {
+      avatar = { vrm: await loadTestAvatar(avatarId), resolvePose };
+    });
+    type Tuple = [number, number, number, number];
+    const sampled = (
+      clip: AnimaPoseClipV2,
+      bone: VRMHumanBoneName,
+      time: number,
+    ) =>
+      new Quaternion(
+        ...(prepareAnimaPoseClipV2(clip, avatar).sample(time).humanoid![bone]
+          ?.rotation ?? [0, 0, 0, 1]),
+      );
+    const fingers = (side: "left" | "right") =>
+      [...handShapeRotations(avatar.vrm!, side, { preset: "fist" }, undefined)]
+        .map(([bone]) => bone)
+        .concat(`${side}ThumbMetacarpal`);
+    /** Whether `edited` plays these bones as `clip` does at these times. */
+    const expectSameHand = (
+      edited: AnimaPoseClipV2,
+      clip: AnimaPoseClipV2,
+      times: number[],
+      side: "left" | "right" = "right",
+    ) => {
+      for (const time of times)
+        for (const bone of fingers(side))
+          expect(
+            angularDistanceDegrees(
+              sampled(edited, bone, time),
+              sampled(clip, bone, time),
+            ),
+            `${bone} at ${time}`,
+          ).toBeLessThan(0.01);
+    };
+    /** A beat's key pose with joint-model changes (degrees) to some bones. */
+    const changedPose = (
+      clip: AnimaPoseClipV2,
+      beatId: string,
+      changes: Partial<Record<VRMHumanBoneName, Record<string, number>>>,
+    ) => {
+      const pose = beatKeyPose(clip, beatId, avatar);
+      const humanoid = { ...pose.humanoid };
+      for (const [bone, change] of Object.entries(changes)) {
+        const joint = resolveJoint(bone)!;
+        const values = decomposeJointRotation(
+          joint,
+          new Quaternion(
+            ...(humanoid[bone as VRMHumanBoneName]?.rotation ?? [0, 0, 0, 1]),
+          ),
+        );
+        for (const [name, value] of Object.entries(change!))
+          values[name] += value;
+        humanoid[bone as VRMHumanBoneName] = {
+          rotation: composeJointRotation(joint, values).toArray() as Tuple,
+        };
+      }
+      return { ...pose, humanoid };
+    };
+    const expectPlays = (
+      clip: AnimaPoseClipV2,
+      humanoid: NonNullable<ReturnType<typeof changedPose>["humanoid"]>,
+      bones: VRMHumanBoneName[],
+      time: number,
+      tolerance = 0.05,
+    ) => {
+      for (const bone of bones)
         expect(
           angularDistanceDegrees(
-            rotation(flat, bone, time),
-            rotation(wave, bone, time),
+            sampled(clip, bone, time),
+            new Quaternion(...humanoid[bone]!.rotation!),
           ),
-        ).toBeLessThan(0.01);
+          bone,
+        ).toBeLessThan(tolerance);
+    };
+    /** Right-hand keys at each of three beats, the middle one a pinch. */
+    const handClip = (): AnimaPoseClipV2 =>
+      valid({
+        ...plain(),
+        hands: {
+          right: [
+            { beat: "a", preset: "relaxed" },
+            { beat: "b", preset: "pinch", curl: 5 },
+            { beat: "c", preset: "open-together", spread: 8 },
+          ],
+        },
+      });
+
+    it("writes finger edits at a beat's hand key as offsets on that key", () => {
+      const clip = handClip();
+      const pose = changedPose(clip, "b", {
+        rightIndexIntermediate: { curl: 15 },
+        rightThumbDistal: { curl: -10 },
+        rightLittleProximal: { splay: 6 },
+      });
+      const edited = valid(setBeatPose(clip, "b", pose, avatar));
+      expect(edited.hands!.right).toEqual([
+        clip.hands!.right![0],
+        {
+          beat: "b",
+          preset: "pinch",
+          curl: 5,
+          fingers: {
+            thumb: { curl: [0, -10] },
+            index: { curl: [0, 15, 0] },
+            little: { splay: 6 },
+          },
+        },
+        clip.hands!.right![2],
+      ]);
+      expect(edited.rotations).toBeUndefined();
+      expect(Object.keys(edited.joints!)).toEqual(["head"]);
+      expectPlays(
+        edited,
+        pose.humanoid,
+        [
+          "rightIndexIntermediate",
+          "rightThumbDistal",
+          "rightLittleProximal",
+          "rightThumbProximal",
+        ],
+        1,
+      );
+      expectSameHand(edited, clip, [0, 2]);
+    });
+
+    it("adds a key from the nearest key's preset at a beat without one", () => {
+      const wave = example("wave-hello");
+      const pose = changedPose(wave, "wave", {
+        rightIndexProximal: { curl: 20 },
+        rightMiddleIntermediate: { curl: -10 },
+      });
+      const edited = valid(setBeatPose(wave, "wave", pose, avatar));
+      const own = edited.hands!.right!.filter(({ beat }) => beat === "wave");
+      expect(own).toEqual([
+        {
+          beat: "wave",
+          preset: "open-together",
+          spread: 8,
+          fingers: {
+            index: { curl: [20, 0, 0] },
+            middle: { curl: [0, -10, 0] },
+          },
+        },
+      ]);
+      expect(
+        edited.hands!.right!.filter(({ beat }) => beat !== "wave"),
+      ).toEqual(wave.hands!.right);
+      expect(edited.rotations).toEqual(wave.rotations);
+      expectPlays(
+        edited,
+        pose.humanoid,
+        fingers("right").filter((bone) => !bone.endsWith("Metacarpal")),
+        beat(wave, "wave").time,
+      );
+      expectSameHand(edited, wave, [0, 0.45, 1.85, 2.35]);
+    });
+
+    it("gives edits offsets cannot express joint tracks at every hand key", () => {
+      const clip = handClip();
+      const pose = changedPose(clip, "b", {
+        rightIndexIntermediate: { twist: 12 },
+        rightRingProximal: { curl: 10 },
+      });
+      const edited = valid(setBeatPose(clip, "b", pose, avatar));
+      expect(edited.hands!.right![1]).toEqual({
+        beat: "b",
+        preset: "pinch",
+        curl: 5,
+        fingers: { ring: { curl: [10, 0, 0] } },
+      });
+      const track = edited.joints!.rightIndexIntermediate;
+      expect(Object.keys(track).sort()).toEqual(["curl", "splay", "twist"]);
+      for (const keys of Object.values(track))
+        expect(keys.map((key) => key.beat)).toEqual(["a", "b", "c"]);
+      expectPlays(
+        edited,
+        pose.humanoid,
+        ["rightIndexIntermediate", "rightRingProximal"],
+        1,
+      );
+      expectSameHand(edited, clip, [0, 2]);
+    });
+
+    it("keys a thumb metacarpal edit at every hand key", () => {
+      const clip = handClip();
+      const pose = beatKeyPose(clip, "b", avatar);
+      const turned = new Quaternion(
+        ...(pose.humanoid!.rightThumbMetacarpal?.rotation ?? [0, 0, 0, 1]),
+      )
+        .multiply(new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), 0.2))
+        .toArray() as Tuple;
+      const humanoid = {
+        ...pose.humanoid,
+        rightThumbMetacarpal: { rotation: turned },
+      };
+      const edited = valid(
+        setBeatPose(clip, "b", { ...pose, humanoid }, avatar),
+      );
+      expect(
+        edited.rotations!.rightThumbMetacarpal!.map((key) => key.beat),
+      ).toEqual(["a", "b", "c"]);
+      // The thumb keeps its turn relative to the metacarpal, as shown.
+      expectPlays(
+        edited,
+        humanoid,
+        ["rightThumbMetacarpal", "rightThumbProximal", "rightThumbDistal"],
+        1,
+      );
+      expectSameHand(edited, clip, [0, 2]);
+    });
+
+    it("writes a Hands-tool shape as the beat's key, playing as shown", () => {
+      const clip = handClip();
+      const shape: HandShape = {
+        preset: "fist",
+        curl: 10,
+        fingers: { index: { curl: [-20, 0, 0] } },
+      };
+      const pose = beatKeyPose(clip, "b", avatar);
+      const humanoid = { ...pose.humanoid };
+      for (const [bone, rotation] of handShapeRotations(
+        avatar.vrm!,
+        "right",
+        shape,
+        pose.humanoid!.rightThumbMetacarpal?.rotation,
+      ))
+        humanoid[bone] = { rotation: rotation.toArray() as Tuple };
+      const edited = valid(
+        setBeatPose(
+          clip,
+          "b",
+          { ...pose, humanoid, hands: { right: shape } },
+          avatar,
+        ),
+      );
+      expect(edited.hands!.right![1]).toEqual({ beat: "b", ...shape });
+      expect(edited.rotations).toBeUndefined();
+      expectPlays(
+        edited,
+        humanoid,
+        fingers("right").filter((bone) => !bone.endsWith("Metacarpal")),
+        1,
+        0.01,
+      );
+      expectSameHand(edited, clip, [0, 2]);
+    });
+
+    it("starts a hand track when a shape is chosen for a hand without keys", () => {
+      const clip = plain();
+      const shape: HandShape = { preset: "point" };
+      const pose = beatKeyPose(clip, "b", avatar);
+      const humanoid = { ...pose.humanoid };
+      for (const [bone, rotation] of handShapeRotations(
+        avatar.vrm!,
+        "left",
+        shape,
+        pose.humanoid!.leftThumbMetacarpal?.rotation,
+      ))
+        humanoid[bone] = { rotation: rotation.toArray() as Tuple };
+      const edited = valid(
+        setBeatPose(
+          clip,
+          "b",
+          { ...pose, humanoid, hands: { left: shape } },
+          avatar,
+        ),
+      );
+      // The other beats hold the base pose's relaxed fingers as before.
+      expect(edited.hands).toEqual({
+        left: [
+          { beat: "a", preset: "relaxed" },
+          { beat: "b", preset: "point" },
+          { beat: "c", preset: "relaxed" },
+        ],
+      });
+      expect(edited.rotations).toBeUndefined();
+      expectSameHand(edited, clip, [0, 2], "left");
+    });
+
+    it("keeps finger edits of a hand without keys as rotation tracks", () => {
+      const clip = plain();
+      const pose = changedPose(clip, "b", { leftIndexProximal: { curl: 30 } });
+      const edited = valid(setBeatPose(clip, "b", pose, avatar));
+      expect(edited.hands).toBeUndefined();
+      expect(
+        edited.rotations!.leftIndexProximal!.map((key) => key.beat),
+      ).toEqual(["a", "b", "c"]);
+    });
+
+    /** Keys `fist` at a and `open-spread` at c: beat b shows a blend. */
+    const blendClip = (): AnimaPoseClipV2 =>
+      valid({
+        ...plain(),
+        hands: {
+          right: [
+            { beat: "a", preset: "fist" },
+            { beat: "c", preset: "open-spread" },
+          ],
+        },
+      });
+    const fingerTracks = (clip: AnimaPoseClipV2) =>
+      [
+        ...Object.keys(clip.joints ?? {}),
+        ...Object.keys(clip.rotations ?? {}),
+      ].filter((bone) =>
+        /^(left|right)(Thumb|Index|Middle|Ring|Little)/.test(bone),
+      );
+
+    it("keeps an expressible edit between two different keys as offsets", () => {
+      const clip = blendClip();
+      const pose = changedPose(clip, "b", {
+        rightIndexProximal: { curl: 10 },
+        rightMiddleIntermediate: { curl: -15 },
+      });
+      const edited = valid(setBeatPose(clip, "b", pose, avatar));
+      expect(fingerTracks(edited)).toEqual([]);
+      const key = edited.hands!.right!.find(({ beat }) => beat === "b")!;
+      expect(key.preset).toBe("fist");
+      // Offsets approximate the blend: every finger plays within a few
+      // degrees of the hand as shown, the edited ones included.
+      expectPlays(
+        edited,
+        pose.humanoid,
+        fingers("right").filter((bone) => !bone.endsWith("Metacarpal")),
+        1,
+        4.5,
+      );
+      expectSameHand(edited, clip, [0, 2]);
+    });
+
+    it("gives a twist between two different keys a fallback track", () => {
+      const clip = blendClip();
+      const pose = changedPose(clip, "b", {
+        rightIndexIntermediate: { twist: 15 },
+        rightRingProximal: { curl: 10 },
+      });
+      const edited = valid(setBeatPose(clip, "b", pose, avatar));
+      expect(fingerTracks(edited)).toEqual(["rightIndexIntermediate"]);
+      for (const keys of Object.values(edited.joints!.rightIndexIntermediate))
+        expect(keys.map((key) => key.beat)).toEqual(["a", "b", "c"]);
+      expectPlays(edited, pose.humanoid, ["rightIndexIntermediate"], 1);
+      expectSameHand(edited, clip, [0, 2]);
+    });
+  },
+);
+
+describe("hand keys follow their beats", () => {
+  it("takes a new key's preset from the nearest key, across a loop's seam", () => {
+    const clip = (loop: boolean) =>
+      valid({
+        schema: "animaPoseClip/2.0",
+        id: "seam",
+        name: "Seam",
+        duration: 3,
+        ...(loop ? { loop: true } : {}),
+        basePose: RELAXED_REST_POSE_ID,
+        beats: [
+          { id: "a", label: "A", time: 0.1 },
+          { id: "c", label: "C", time: 2 },
+          { id: "d", label: "D", time: 2.9 },
+        ],
+        hands: {
+          right: [
+            { beat: "a", preset: "fist" },
+            { beat: "c", preset: "open-spread" },
+          ],
+        },
+      });
+    // Beat d is 0.2 s from a across the seam and 0.9 s from c.
+    for (const [loop, preset] of [
+      [true, "fist"],
+      [false, "open-spread"],
+    ] as const) {
+      const source = clip(loop);
+      const pose = beatKeyPose(source, "d", context);
+      const joint = resolveJoint("rightIndexProximal")!;
+      const values = decomposeJointRotation(
+        joint,
+        new Quaternion(...pose.humanoid!.rightIndexProximal!.rotation!),
+      );
+      const edited = valid(
+        setBeatPose(
+          source,
+          "d",
+          {
+            ...pose,
+            humanoid: {
+              ...pose.humanoid,
+              rightIndexProximal: {
+                rotation: composeJointRotation(joint, {
+                  ...values,
+                  curl: values.curl + 5,
+                }).toArray() as [number, number, number, number],
+              },
+            },
+          },
+          context,
+        ),
+      );
+      expect(
+        edited.hands!.right!.find(({ beat }) => beat === "d")?.preset,
+        `loop: ${loop}`,
+      ).toBe(preset);
+    }
+  });
+
+  it("moves a retimed beat's hand keys and removes a deleted beat's", () => {
+    const wave = example("wave-hello");
+    const moved = valid(retimeBeat(wave, "lower", 2.2));
+    const keys = (clip: AnimaPoseClipV2) =>
+      clip.hands!.right!.map((key) => ({
+        beat: key.beat,
+        time: Number((beat(clip, key.beat).time + (key.dt ?? 0)).toFixed(4)),
+      }));
+    // Its own key moves rigidly; the facing detail of the beat after it
+    // compresses with the smaller gap (0.5 s to 0.3 s).
+    expect(keys(moved)).toEqual([
+      { beat: "start", time: 0 },
+      { beat: "raise", time: 0.45 },
+      { beat: "lower", time: 2.05 },
+      { beat: "settle", time: 2.41 },
+    ]);
+    expect(moved.hands!.right!.map(({ preset }) => preset)).toEqual(
+      wave.hands!.right!.map(({ preset }) => preset),
+    );
+    const deleted = valid(deleteBeat(wave, "raise"));
+    expect(deleted.hands!.right).toEqual(
+      wave.hands!.right!.filter((key) => key.beat !== "raise"),
+    );
   });
 });
 

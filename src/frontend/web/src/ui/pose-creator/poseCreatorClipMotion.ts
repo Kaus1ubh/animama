@@ -1,6 +1,10 @@
-import type { VRM } from "@pixiv/three-vrm";
+import type { VRM, VRMHumanBoneName } from "@pixiv/three-vrm";
+import type { Quaternion } from "three";
 
+import type { Side } from "@/lib/avatar/poses/anatomy/anatomy";
+import type { HandShape } from "@/lib/avatar/poses/anatomy/handPresets";
 import {
+  beatHandShape,
   deleteBeat,
   detachBasePose,
   insertBeat,
@@ -9,13 +13,17 @@ import {
   setBeatLabel,
   setBeatPose,
   type BeatEditContext,
+  type BeatHandShape,
   type BeatPose,
 } from "@/lib/avatar/poses/animaPoseClip/beatEditing";
 import {
   createAnimaPoseClipProgram,
   type AnimaPoseClipProgram,
 } from "@/lib/avatar/poses/animaPoseClip/program";
-import type { AnimaPoseClipSampleResult } from "@/lib/avatar/poses/animaPoseClip/clipVocabulary";
+import type {
+  AnimaPoseClipSampleResult,
+  QuaternionTuple,
+} from "@/lib/avatar/poses/animaPoseClip/clipVocabulary";
 import type {
   AnimaPoseClipEase,
   AnimaPoseClipV2,
@@ -225,6 +233,34 @@ export function setPoseCreatorBeatPose(
     clip: setBeatPose(clip, beatId, pose, context),
     selectedKeyframeId: beatId,
   }));
+}
+
+/**
+ * The hand shape the Hands tool adjusts at a beat and the bones it leaves to
+ * bone turns (`beatHandShape`), or null when no shape is recorded and that
+ * side has no hand keys.
+ */
+export function poseCreatorBeatHandShape(
+  draft: PoseCreatorClipDraft,
+  beatId: string,
+  side: Side,
+  rotations: ReadonlyMap<VRMHumanBoneName, Quaternion>,
+  original: ReadonlyMap<VRMHumanBoneName, Quaternion>,
+  metacarpal: QuaternionTuple | undefined,
+  recorded: HandShape | null,
+  vrm: VRM | null,
+  options: PoseCreatorClipValidationOptions = {},
+): BeatHandShape | null {
+  return beatHandShape(
+    poseCreatorMotionClip(draft, draft.motion, options),
+    beatId,
+    side,
+    rotations,
+    original,
+    metacarpal,
+    { vrm },
+    recorded,
+  );
 }
 
 /** Reaction expressions at the playhead: a beat there takes exactly these. */

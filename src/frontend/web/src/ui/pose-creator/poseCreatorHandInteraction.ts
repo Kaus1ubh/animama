@@ -1,6 +1,9 @@
+import type { VRMHumanBoneName } from "@pixiv/three-vrm";
 import { Euler, MathUtils, Quaternion } from "three";
 import { convertPoseQuaternionBasis } from "@/lib/avatar/poses/poseRetargeting";
+import type { QuaternionTuple } from "@/lib/avatar/poses/animaPoseClip/clipVocabulary";
 import {
+  POSE_CREATOR_CLIP_VALIDATION_OPTIONS,
   usePoseCreatorStore,
   type PoseCreatorBoneDraft,
 } from "@/stores/pose-creator-store";
@@ -8,13 +11,18 @@ import {
   createBoneDraft,
   getPoseCreatorNormalizedBoneNode,
 } from "./poseCreatorAuthoring";
+import { poseCreatorBeatHandShape } from "./poseCreatorClipMotion";
+import { adjustHandShape } from "@/lib/avatar/poses/anatomy/handOffsets";
 import {
   adjustHandQuaternion,
   handPresetQuaternion,
+  handShapeRotations,
   resolveHandBones,
   type HandAdjustment,
   type HandBone,
   type HandPreset,
+  type HandShape,
+  type HandSide,
   type HandTarget,
 } from "@/lib/avatar/poses/anatomy/handPresets";
 
@@ -25,12 +33,35 @@ type Capture = {
   draft: PoseCreatorBoneDraft;
   originalDraft: PoseCreatorBoneDraft | null;
 };
+/**
+ * A hand edited as a hand shape while a clip beat is edited: a Curl or
+ * Spread changes the shape (the beat's hand key on commit) and the selected
+ * fingers it drives show what that shape plays.
+ */
+type ShapeEdit = {
+  side: HandSide;
+  /** The side's shape recorded before this interaction, if any. */
+  previous: HandShape | null;
+  /** The shape the adjustment starts from. */
+  start: HandShape;
+  /** The selected bones the adjustment reaches, or the whole hand. */
+  reach: HandBone[] | "hand";
+  /** Selected bones the shape drives; they show what it plays. */
+  shaped: Capture[];
+};
 type Interaction = {
   state: Store;
   group: Store["undoGroup"];
+  /**
+   * Bones turned directly: in Pose editing, on hands without hand keys, and
+   * selected bones a hand shape does not drive (own tracks, or a pose offsets
+   * cannot express).
+   */
   captures: Capture[];
+  shapes: ShapeEdit[];
   adjustment: HandAdjustment;
 };
+type Placement = { capture: Capture; quaternion: Quaternion };
 function sameSession(left: Store, right: Store) {
   return (
     left.poseSessionToken === right.poseSessionToken &&
@@ -50,6 +81,79 @@ function degrees(quaternion: Quaternion) {
     y: MathUtils.radToDeg(euler.y),
     z: MathUtils.radToDeg(euler.z),
   };
+}
+/** A bone's canonical rotation as the editor shows it: its draft, else the Avatar's. */
+function shownRotation(state: Store, boneName: string): Quaternion | null {
+  const draft = state.boneDrafts[boneName];
+  if (draft)
+    return new Quaternion().setFromEuler(
+      new Euler(
+        MathUtils.degToRad(draft.rotationDegrees.x),
+        MathUtils.degToRad(draft.rotationDegrees.y),
+        MathUtils.degToRad(draft.rotationDegrees.z),
+        "XYZ",
+      ),
+    );
+  const node = getPoseCreatorNormalizedBoneNode(state.activeAvatar, boneName);
+  return node
+    ? convertPoseQuaternionBasis(state.activeAvatar?.vrm, node.quaternion)
+    : null;
+}
+/** The finger rotations a hand shape plays, fitted around the shown metacarpal. */
+function shapeRotations(state: Store, side: HandSide, shape: HandShape) {
+  return handShapeRotations(
+    state.activeAvatar?.vrm ?? null,
+    side,
+    shape,
+    shownRotation(state, `${side}ThumbMetacarpal`)?.toArray() as
+      | QuaternionTuple
+      | undefined,
+  );
+}
+/**
+ * The hand shape a Curl or Spread adjusts while a clip beat is edited, and
+ * the bones it does not drive: the shape chosen earlier in this edit, else
+ * the beat's hand key read from the clip, its offsets fitted to the hand as
+ * shown (so earlier bone edits are kept). Null outside a clip beat, or when
+ * nothing is recorded and the hand has no hand keys; the adjustment then
+ * turns bones as in a Pose.
+ */
+function startShape(
+  state: Store,
+  side: HandSide,
+  captures: readonly Capture[],
+) {
+  const edit = state.clipInlineEdit;
+  if (!edit?.keyframeId) return null;
+  // The beat's pose when the edit began: bone edits are judged against it.
+  const original = new Map<VRMHumanBoneName, Quaternion>();
+  for (const { bone } of captures) {
+    const rotation =
+      edit.originalPose.humanoid?.[bone.boneName as VRMHumanBoneName]?.rotation;
+    if (rotation)
+      original.set(
+        bone.boneName as VRMHumanBoneName,
+        new Quaternion(...rotation),
+      );
+  }
+  return poseCreatorBeatHandShape(
+    state.clipDraft,
+    edit.keyframeId,
+    side,
+    new Map(
+      captures.map(({ bone, quaternion }) => [
+        bone.boneName as VRMHumanBoneName,
+        quaternion,
+      ]),
+    ),
+    original,
+    shownRotation(state, `${side}ThumbMetacarpal`)?.toArray() as
+      | QuaternionTuple
+      | undefined,
+    edit.handShapes?.[side] ?? null,
+    state.activeAvatar?.vrm ?? null,
+    POSE_CREATOR_CLIP_VALIDATION_OPTIONS,
+  );
 }
 /** Own one live edit group. Dispose on unmount; end before target/selection changes. */
 export function createHandInteractionController() {
@@ -97,24 +201,9 @@ export function createHandInteractionController() {
       throw new Error("Wait for the Avatar to load before editing hands.");
     return resolveHandBones(state.activeAvatar, target, ids).available.map(
       (bone) => {
-        const node = getPoseCreatorNormalizedBoneNode(
-          state.activeAvatar,
-          bone.boneName,
-        )!;
         const existing = state.boneDrafts[bone.boneName];
-        const quaternion = existing
-          ? new Quaternion().setFromEuler(
-              new Euler(
-                MathUtils.degToRad(existing.rotationDegrees.x),
-                MathUtils.degToRad(existing.rotationDegrees.y),
-                MathUtils.degToRad(existing.rotationDegrees.z),
-                "XYZ",
-              ),
-            )
-          : convertPoseQuaternionBasis(
-              state.activeAvatar?.vrm,
-              node.quaternion,
-            );
+        // Available bones have a node, so the shown rotation always exists.
+        const quaternion = shownRotation(state, bone.boneName)!;
         const draft = createBoneDraft(
           state.activeAvatar,
           bone.boneName,
@@ -133,14 +222,17 @@ export function createHandInteractionController() {
       },
     );
   };
+  /**
+   * Show new rotations for captured bones as one draft edit; `handShapes`
+   * records (or clears) a side's hand shape in the same history step.
+   */
   const apply = (
-    captures: Capture[],
-    calculate: (capture: Capture) => Quaternion,
+    placements: Placement[],
     retainExplicit = false,
+    handShapes?: Partial<Record<HandSide, HandShape | null>>,
   ) => {
     const state = usePoseCreatorStore.getState();
-    const prepared = captures.map((entry) => {
-      const quaternion = calculate(entry);
+    const prepared = placements.map(({ capture: entry, quaternion }) => {
       const node = getPoseCreatorNormalizedBoneNode(
         state.activeAvatar,
         entry.bone.boneName,
@@ -179,7 +271,7 @@ export function createHandInteractionController() {
     );
     ownWrite = true;
     try {
-      if (!state.setBoneDraftBatch(updates))
+      if (!state.setBoneDraftBatch(updates, handShapes))
         throw new Error("Invalid hand rotation. The pose was left unchanged.");
       for (const entry of prepared)
         entry.node.quaternion.copy(
@@ -197,6 +289,8 @@ export function createHandInteractionController() {
     end();
     return false;
   };
+  const sidesOf = (target: HandTarget): HandSide[] =>
+    target === "both" ? ["left", "right"] : [target];
   return {
     get lastError() {
       return lastError;
@@ -205,22 +299,51 @@ export function createHandInteractionController() {
       end();
       lastError = null;
       try {
-        const captures = capture(target, ids).filter(
-          (entry) => adjustment !== "spread" || entry.bone.segment.spread,
-        );
-        if (!captures.length)
+        const eligible = (entry: Capture) =>
+          adjustment !== "spread" || entry.bone.segment.spread;
+        const selected = capture(target, ids).filter(eligible);
+        if (!selected.length)
           throw new Error("Select available finger bones for this adjustment.");
         const state = usePoseCreatorStore.getState();
         if (state.undoGroup)
           throw new Error(
             "Finish the current pose edit before adjusting hands.",
           );
+        // At a clip beat, a hand with a shape (recorded, or its hand keys)
+        // keeps it: the adjustment changes the shape instead of turning the
+        // bones the shape drives. Only selected bones move.
+        const shapes: ShapeEdit[] = [];
+        for (const side of sidesOf(target)) {
+          const chosen = selected.filter((entry) => entry.bone.side === side);
+          if (!chosen.length) continue;
+          const captures = capture(side);
+          const start = startShape(state, side, captures);
+          if (!start) continue;
+          const shaped = chosen.filter(
+            (entry) =>
+              !start.unshaped.has(entry.bone.boneName as VRMHumanBoneName),
+          );
+          shapes.push({
+            side,
+            previous: state.clipInlineEdit?.handShapes?.[side] ?? null,
+            start: start.shape,
+            reach:
+              chosen.length === captures.filter(eligible).length
+                ? "hand"
+                : shaped.map((entry) => entry.bone),
+            shaped,
+          });
+        }
+        const shaped = new Set(
+          shapes.flatMap((edit) => edit.shaped.map((entry) => entry.bone)),
+        );
         if (state.clipInlineEdit) state.beginClipUndoGroup();
         else state.beginPoseUndoGroup();
         interaction = {
           state,
           group: usePoseCreatorStore.getState().undoGroup,
-          captures,
+          captures: selected.filter((entry) => !shaped.has(entry.bone)),
+          shapes,
           adjustment,
         };
         return true;
@@ -236,15 +359,46 @@ export function createHandInteractionController() {
       )
         return false;
       try {
-        return apply(current.captures, ({ bone, quaternion }) =>
-          adjustHandQuaternion(
-            quaternion,
-            bone.side,
-            bone.segment.digit,
+        const placements: Placement[] = current.captures.map((entry) => ({
+          capture: entry,
+          quaternion: adjustHandQuaternion(
+            entry.quaternion,
+            entry.bone.side,
+            entry.bone.segment.digit,
             current.adjustment,
             value,
           ),
-        );
+        }));
+        const handShapes: Partial<Record<HandSide, HandShape | null>> = {};
+        for (const edit of current.shapes) {
+          // Zero returns to where the interaction started, shape included.
+          const shape =
+            value === 0
+              ? null
+              : adjustHandShape(
+                  edit.start,
+                  edit.side,
+                  current.adjustment,
+                  value,
+                  edit.reach,
+                );
+          const rotations = shape
+            ? shapeRotations(usePoseCreatorStore.getState(), edit.side, shape)
+            : null;
+          for (const entry of edit.shaped)
+            placements.push({
+              capture: entry,
+              quaternion:
+                rotations?.get(entry.bone.boneName as VRMHumanBoneName) ??
+                entry.quaternion,
+            });
+          // A shape the adjustment left as it was is not a new choice.
+          handShapes[edit.side] =
+            shape && JSON.stringify(shape) !== JSON.stringify(edit.start)
+              ? shape
+              : edit.previous;
+        }
+        return apply(placements, false, handShapes);
       } catch (error) {
         return fail(error);
       }
@@ -259,22 +413,46 @@ export function createHandInteractionController() {
           throw new Error(
             "No finger bones are available on the selected hand.",
           );
-        if (usePoseCreatorStore.getState().undoGroup)
+        const state = usePoseCreatorStore.getState();
+        if (state.undoGroup)
           throw new Error(
             "Finish the current pose edit before applying a hand preset.",
           );
         // Presets explicitly replace all available finger channels, including
         // identity rotations needed to override a later clip's inherited base.
-        return apply(
-          captures,
-          ({ bone }) =>
-            handPresetQuaternion(
-              bone,
-              preset,
-              usePoseCreatorStore.getState().activeAvatar,
-            ),
-          true,
-        );
+        if (!state.clipInlineEdit?.keyframeId)
+          return apply(
+            captures.map((entry) => ({
+              capture: entry,
+              quaternion: handPresetQuaternion(
+                entry.bone,
+                preset,
+                state.activeAvatar,
+              ),
+            })),
+            true,
+          );
+        // At a clip beat the preset becomes the beat's hand key; the fingers
+        // show exactly what that key plays.
+        const handShapes: Partial<Record<HandSide, HandShape>> = {};
+        const placements: Placement[] = [];
+        for (const side of sidesOf(target)) {
+          const sideCaptures = captures.filter(
+            (entry) => entry.bone.side === side,
+          );
+          if (!sideCaptures.length) continue;
+          const shape: HandShape = { preset };
+          const rotations = shapeRotations(state, side, shape);
+          for (const entry of sideCaptures)
+            placements.push({
+              capture: entry,
+              quaternion:
+                rotations.get(entry.bone.boneName as VRMHumanBoneName) ??
+                handPresetQuaternion(entry.bone, preset, state.activeAvatar),
+            });
+          handShapes[side] = shape;
+        }
+        return apply(placements, true, handShapes);
       } catch (error) {
         return fail(error);
       }
