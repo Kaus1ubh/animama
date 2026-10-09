@@ -349,23 +349,13 @@ export async function createApplicationServer(applications, { vrmFile } = {}) {
                 },
             );
             const context = await response.json();
-            // Owners start with Text-to-Speech off, so only the journeys that
-            // turn on voice warm Pocket TTS. Its warm-up on every Anima page
-            // otherwise saturates a two-core CI runner.
-            const settings = await fetch(api.url + "/v1/users/me/settings", {
-                method: "PATCH",
-                headers: {
-                    cookie: `fixture_session=${admission.cookie}`,
-                    "content-type": "application/json",
-                    origin,
-                    "x-animama-csrf": context.csrf_token,
-                },
-                body: JSON.stringify({
-                    preferences: { speech: { tts_enabled: false } },
-                }),
-            });
-            if (!settings.ok)
-                throw new Error(`Owner settings failed: ${settings.status}`);
+            // New owners start with Text-to-Speech off, so only the journeys
+            // that turn on voice warm Pocket TTS; its warm-up on every Anima
+            // page otherwise saturates a two-core CI runner. A returning owner
+            // keeps the settings it saved.
+            admission.state.settings.preferences.speech ??= {
+                tts_enabled: false,
+            };
             sessions.set(admission.cookie, {
                 ...admission,
                 roster,

@@ -79,6 +79,11 @@ compatibility, that controlled fixture, local production comparison and
 physical heard-audio acceptance are separate evidence; none is inferred from a
 version bump.
 
+The whole-application harness admits each new fixture owner with Text-to-Speech
+off, so only its voice journeys load Pocket TTS and its first-avatar measurements
+exclude the warm-up that the product default adds. Each browser step may take 45
+seconds, enough for a two-core CI runner; wall times are measured separately.
+
 In both modes the route, static, shell, avatar and voice checks and their
 measurements run on the candidate. Only the open-tab late worker and rollback
 steps (and the clip journey's first and rollback selections) select the previous

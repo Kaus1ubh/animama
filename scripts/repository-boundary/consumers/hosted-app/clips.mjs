@@ -3,6 +3,10 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { writeFileSync } from "node:fs";
 
+// Each browser step's bound, generous for two-core CI runners; wall times are
+// measured separately.
+export const STEP_TIMEOUT_MS = 45000;
+
 const sha = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const metadata = {
     mutedProceduralLayers: [
@@ -183,6 +187,7 @@ export async function exerciseClipCompatibility(
         viewport: { width: 1440, height: 900 },
         acceptDownloads: true,
     });
+    context.setDefaultTimeout(STEP_TIMEOUT_MS);
     const owner = "artifact-clip-owner",
         admission = await server.admit(owner, true);
     server.initializeClipFixtures(admission);
@@ -225,8 +230,6 @@ export async function exerciseClipCompatibility(
             ];
             for (const [kind, sequence] of definitions) {
                 page = await context.newPage();
-                // Generous for two-core CI runners, like the main journey.
-                page.setDefaultTimeout(45000);
                 page.on("pageerror", (error) => errors.push(error.message));
                 page.on("console", (message) => {
                     if (message.type() === "error")
@@ -285,7 +288,7 @@ export async function exerciseClipCompatibility(
                     .getByLabel("AI selection description", { exact: true })
                     .fill("Use this controlled clip for compatibility checks.");
                 const saveStart = server.clipRecords.length;
-                const saveDeadline = Date.now() + 45000;
+                const saveDeadline = Date.now() + STEP_TIMEOUT_MS;
                 const pending = page.waitForResponse(
                     (response) =>
                         response.request().method() === "PUT" &&
@@ -301,7 +304,7 @@ export async function exerciseClipCompatibility(
                 assert.equal(response.status(), 200);
                 assert.ok(
                     Date.now() < saveDeadline,
-                    "Save exceeded its 15-second deadline",
+                    `Save exceeded its ${STEP_TIMEOUT_MS / 1000}-second deadline`,
                 );
                 // Bind the browser's response status to the exact completed
                 // HTTP reply, without relying on retained DevTools body buffers.
