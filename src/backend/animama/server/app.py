@@ -63,7 +63,8 @@ def create_local_app(
     application.include_router(router)
     # The installation owner may add model connections and models. These routes
     # reach owner-supplied endpoints, so only the local composition mounts them.
-    application.state.model_catalog_policy = ModelCatalogPolicy(owner_models_enabled=True)
+    # Anthropic built-ins are local-only as well (spec constraint "Local only").
+    application.state.model_catalog_policy = ModelCatalogPolicy.local()
     application.include_router(model_configuration_router)
     # Application web search sends queries to an owner-configured backend
     # (a SearXNG URL may be a loopback or LAN host), so only this composition

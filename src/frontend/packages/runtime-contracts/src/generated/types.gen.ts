@@ -4300,6 +4300,9 @@ export type PyChatUpdate = {
  * PyConfiguredModel
  *
  * A catalog row as the owner manages it, including capabilities and probe results.
+ *
+ * ``early_compaction`` is the **Compact early** setting. It is ``None`` when
+ * the model has no long-context price step, so the setting does not apply.
  */
 export type PyConfiguredModel = {
     /**
@@ -4315,6 +4318,10 @@ export type PyConfiguredModel = {
      * Context Window Tokens
      */
     context_window_tokens?: number | null;
+    /**
+     * Early Compaction
+     */
+    early_compaction?: boolean | null;
     /**
      * Hidden
      */
@@ -6873,6 +6880,10 @@ export type PyModelConnectionUpdate = {
  * PyModelProbeReport
  *
  * Suggested capabilities; ``None`` means the probe could not determine a value.
+ *
+ * ``max_output_tokens``, ``supported_reasoning_efforts`` and
+ * ``native_tool_support`` come only from servers that publish them
+ * (Anthropic's Models API).
  */
 export type PyModelProbeReport = {
     /**
@@ -6884,9 +6895,17 @@ export type PyModelProbeReport = {
      */
     embedding_dimensions?: number | null;
     /**
+     * Max Output Tokens
+     */
+    max_output_tokens?: number | null;
+    /**
      * Model
      */
     model: string;
+    /**
+     * Native Tool Support
+     */
+    native_tool_support?: Array<string> | null;
     /**
      * Notes
      */
@@ -6899,6 +6918,10 @@ export type PyModelProbeReport = {
      * Structured Output Transport
      */
     structured_output_transport?: string | null;
+    /**
+     * Supported Reasoning Efforts
+     */
+    supported_reasoning_efforts?: Array<string> | null;
     /**
      * Supports Streaming
      */
@@ -6915,6 +6938,9 @@ export type PyModelProbeReport = {
 
 /**
  * PyModelProbeRequest
+ *
+ * ``provider_type`` defaults to the connection's API family: Anthropic Messages
+ * on the built-in Anthropic connection, Chat Completions elsewhere.
  */
 export type PyModelProbeRequest = {
     /**
@@ -6928,7 +6954,7 @@ export type PyModelProbeRequest = {
     /**
      * Provider Type
      */
-    provider_type?: 'OpenAIHTTPAgent' | 'OpenAIResponsesHTTPAgent';
+    provider_type?: 'OpenAIHTTPAgent' | 'OpenAIResponsesHTTPAgent' | 'AnthropicMessagesHTTPAgent' | null;
 };
 
 /**
@@ -7241,7 +7267,10 @@ export type PyOwnerModelCapabilities = {
 /**
  * PyOwnerModelPatch
  *
- * Built-in models accept only ``hidden``.
+ * Built-in models accept only ``hidden`` and ``early_compaction``.
+ *
+ * ``early_compaction`` is accepted only on models with a long-context price
+ * step (code ``early_compaction_unavailable`` otherwise).
  */
 export type PyOwnerModelPatch = {
     /**
@@ -7257,6 +7286,10 @@ export type PyOwnerModelPatch = {
      * Context Window Tokens
      */
     context_window_tokens?: number | null;
+    /**
+     * Early Compaction
+     */
+    early_compaction?: boolean | null;
     /**
      * Hidden
      */
@@ -7307,7 +7340,7 @@ export type PyOwnerModelRequest = {
     /**
      * Provider Type
      */
-    provider_type?: 'OpenAIHTTPAgent' | 'OpenAIResponsesHTTPAgent' | null;
+    provider_type?: 'OpenAIHTTPAgent' | 'OpenAIResponsesHTTPAgent' | 'AnthropicMessagesHTTPAgent' | null;
     /**
      * Template Id
      */

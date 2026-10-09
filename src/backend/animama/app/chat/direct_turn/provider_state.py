@@ -19,10 +19,16 @@ from animama.app.safety.moderation import RESPONSES_MODERATION_MODEL
 from animama.app.util.json_values import json_safe_copy
 from animama.domain import ModelProvider
 from animama.domain.chat import Chat
-from animama.domain.model_connection import BUILTIN_OPENAI_CONNECTION_ID, MODEL_KIND_CHAT, MODEL_SOURCE_OWNER
+from animama.domain.model_connection import (
+    BUILTIN_ANTHROPIC_CONNECTION_ID,
+    BUILTIN_OPENAI_CONNECTION_ID,
+    MODEL_KIND_CHAT,
+    MODEL_SOURCE_OWNER,
+)
 
 from ..options import DirectChatOptions
 from .constants import (
+    ANTHROPIC_MESSAGES_PROVIDER,
     DIRECT_MEMORY_TOOL_SUPPORT_BY_PROVIDER,
     OPENAI_CHAT_COMPLETIONS_PROVIDER,
     OPENAI_RESPONSES_PREVIOUS_RESPONSE_UNRESOLVABLE_CODE,
@@ -105,6 +111,14 @@ def validate_model_provider_for_direct_turn(
         raise DirectChatTurnSetupError(
             f"OpenAI Responses is only available on the built-in OpenAI connection: {model_provider.id}"
         )
+    if (model_provider.provider_type == ANTHROPIC_MESSAGES_PROVIDER) != (
+        model_provider.connection_id == BUILTIN_ANTHROPIC_CONNECTION_ID
+    ):
+        # Messages requests carry the Anthropic key, and the Anthropic connection
+        # serves nothing else.
+        raise DirectChatTurnSetupError(
+            f"Anthropic Messages is only available on the built-in Anthropic connection: {model_provider.id}"
+        )
     if not capabilities.supports_streaming:
         raise DirectChatTurnSetupError(f"Model provider does not support streaming chat turns: {model_provider.id}")
     # Structured output is not required: rows without a schema or JSON mode
@@ -142,7 +156,7 @@ def validate_model_provider_for_direct_turn(
 
 
 def hosted_native_tools(model_provider: ModelProvider, request_options: DirectChatOptions) -> tuple[str, ...]:
-    """Return the requested native tools the provider hosts (OpenAI Responses web search)."""
+    """Return the requested native tools the provider hosts (OpenAI Responses or Anthropic web search)."""
 
     requestable = set(
         requestable_native_tool_support(model_provider.provider_type, model_provider.capabilities.native_tool_support)

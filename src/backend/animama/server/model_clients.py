@@ -13,6 +13,7 @@ from animama.adapters.model_clients import (
     OpenAIResponsesModelClient,
 )
 from animama.adapters.model_clients.openai_chat_completions.support import resolve_openai_base_url
+from animama.app.chat.api_standard import ANTHROPIC_MESSAGES_PROVIDER_TYPE
 from animama.app.model_clients import StaticModelClientRegistry
 from animama.app.model_clients.credentials import ModelCredentialResolver, StoreModelCredentialResolver
 from animama.server.config import Settings, settings
@@ -43,12 +44,21 @@ def build_model_client_registry(
     openai_client: AsyncOpenAI | None = None,
     credential_resolver: ModelCredentialResolver | None = None,
 ) -> StaticModelClientRegistry:
-    """Build shared model clients for app startup without request-local state."""
+    """Build shared model clients for app startup without request-local state.
+
+    No Anthropic Messages client is registered outside ``ANIMAMA_LLM_SKIP`` yet,
+    so a turn on an Anthropic row fails at setup instead of reaching another
+    provider.
+    """
 
     registry = StaticModelClientRegistry()
     if _truthy_env(os.getenv("ANIMAMA_LLM_SKIP")):
         mock_client = MockModelClient()
-        for provider_type in (OPENAI_HTTP_PROVIDER_TYPE, OPENAI_RESPONSES_HTTP_PROVIDER_TYPE):
+        for provider_type in (
+            OPENAI_HTTP_PROVIDER_TYPE,
+            OPENAI_RESPONSES_HTTP_PROVIDER_TYPE,
+            ANTHROPIC_MESSAGES_PROVIDER_TYPE,
+        ):
             registry.register(provider_type, mock_client)
         registry.register(MockModelClient.PROVIDER_TYPE, mock_client)
         return registry

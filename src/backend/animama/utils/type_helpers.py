@@ -115,6 +115,7 @@ def coerce_provider_type(value: str | None) -> str | None:
     Recognises common aliases and class names:
     - OpenAI HTTP:  "OpenAIHTTPAgent", "openai_http", "openai", "http_openai", etc.
     - OpenAI Responses HTTP: "OpenAIResponsesHTTPAgent", "openai_responses_http", etc.
+    - Anthropic Messages HTTP: "AnthropicMessagesHTTPAgent", "anthropic_messages_http", etc.
     Returns input value when not recognized to keep forward compatibility.
     """
 
@@ -123,7 +124,7 @@ def coerce_provider_type(value: str | None) -> str | None:
     tok = value.strip()
     if not tok:
         return tok
-    if tok in ("OpenAIHTTPAgent", "OpenAIResponsesHTTPAgent"):
+    if tok in ("OpenAIHTTPAgent", "OpenAIResponsesHTTPAgent", "AnthropicMessagesHTTPAgent"):
         return tok
     norm = tok.lower().replace("-", "_")
     if norm in {"openaihttpagent", "openai_http", "openai", "oai_http", "http_openai"}:
@@ -138,4 +139,6 @@ def coerce_provider_type(value: str | None) -> str | None:
         "responses_http_openai",
     }:
         return "OpenAIResponsesHTTPAgent"
+    if norm in {"anthropicmessageshttpagent", "anthropic_messages_http", "anthropic_messages"}:
+        return "AnthropicMessagesHTTPAgent"
     return value

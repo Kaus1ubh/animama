@@ -1,8 +1,9 @@
 """Owner model configuration routes: mounted only by the local composition.
 
 These routes accept owner-supplied endpoints and send requests to them (model
-listing and the capability probe), and read OpenRouter's public model list. The
-hosted composition never mounts them; see ``create_local_app``.
+listing and the capability probe), and read OpenRouter's public model list. On
+the built-in Anthropic connection, listing and the probe read Anthropic's Models
+API instead. The hosted composition never mounts them; see ``create_local_app``.
 """
 
 from __future__ import annotations
@@ -12,6 +13,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from animama.adapters.model_clients.anthropic_messages.probe import AnthropicConnectionProbe
 from animama.adapters.model_clients.openai_chat_completions.probe import OpenAICompatibleConnectionProbe
 from animama.adapters.model_clients.openrouter_models import OpenRouterModelCatalog, OpenRouterModelListError
 from animama.adapters.repositories.sqlalchemy.anima_chat_profile_repo import SQLAlchemyAnimaChatProfileRepository
@@ -19,7 +21,8 @@ from animama.adapters.repositories.sqlalchemy.model_connection_repo import SQLAl
 from animama.adapters.repositories.sqlalchemy.model_provider_repo import SQLAlchemyModelProviderRepository
 from animama.adapters.repositories.sqlalchemy.settings_repo import SQLAlchemyUserSettingsRepository
 from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
-from animama.app.chat.api_standard import OPENAI_RESPONSES_PROVIDER_TYPE
+from animama.app.chat.api_standard import ANTHROPIC_MESSAGES_PROVIDER_TYPE, OPENAI_RESPONSES_PROVIDER_TYPE
+from animama.app.model_catalog import early_compaction_available
 from animama.app.model_clients.credentials import ModelCredentialResolver
 from animama.app.model_clients.error_categories import ERROR_CREDENTIAL_MISSING, ERROR_INVALID_BASE_URL
 from animama.app.model_clients.probe import ModelConnectionProbe, ModelConnectionProbeError, ModelProbeReport
@@ -92,6 +95,32 @@ def get_model_connection_probe(
         credential_resolver=credentials,
         default_timeout=runtime_settings.anima_model_client_timeout_seconds,
     )
+
+
+def get_anthropic_connection_probe(
+    runtime_settings: Annotated[Settings, Depends(get_runtime_settings)],
+    credentials: Annotated[ModelCredentialResolver, Depends(get_model_credential_resolver)],
+) -> ModelConnectionProbe:
+    """Return the Models API probe for the built-in Anthropic connection."""
+
+    return AnthropicConnectionProbe(
+        credential_resolver=credentials,
+        default_timeout=runtime_settings.anima_model_client_timeout_seconds,
+    )
+
+
+def _probe_for(
+    connection: ModelConnection,
+    probe: ModelConnectionProbe,
+    anthropic_probe: ModelConnectionProbe,
+) -> ModelConnectionProbe:
+    """The Anthropic connection is described by Anthropic's Models API; every other one by request probes."""
+
+    return anthropic_probe if connection.is_builtin_anthropic else probe
+
+
+def _invalid_probe_request(code: str, message: str) -> HTTPException:
+    return HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail={"code": code, "message": message})
 
 
 def get_openrouter_model_catalog(request: Request) -> OpenRouterModelCatalog:
@@ -302,10 +331,11 @@ async def list_available_models(
     session: Annotated[AsyncSession, Depends(get_async_session)],
     _principal: Annotated[RequestPrincipal, Depends(get_current_principal)],
     probe: Annotated[ModelConnectionProbe, Depends(get_model_connection_probe)],
+    anthropic_probe: Annotated[ModelConnectionProbe, Depends(get_anthropic_connection_probe)],
 ) -> PyAvailableModels:
     connection = await _connection_or_404(session, connection_id)
     try:
-        return PyAvailableModels(models=await probe.list_models(connection))
+        return PyAvailableModels(models=await _probe_for(connection, probe, anthropic_probe).list_models(connection))
     except ModelConnectionProbeError as exc:
         raise _probe_http_error(exc) from exc
 
@@ -317,19 +347,31 @@ async def probe_model(
     session: Annotated[AsyncSession, Depends(get_async_session)],
     _principal: Annotated[RequestPrincipal, Depends(get_current_principal)],
     probe: Annotated[ModelConnectionProbe, Depends(get_model_connection_probe)],
+    anthropic_probe: Annotated[ModelConnectionProbe, Depends(get_anthropic_connection_probe)],
 ) -> PyModelProbeReport:
-    """Send a few small requests to the model and suggest its capabilities."""
+    """Suggest the model's capabilities.
+
+    Other connections answer a few small requests; the built-in Anthropic
+    connection reports what Anthropic's Models API publishes for the model.
+    """
 
     connection = await _connection_or_404(session, connection_id)
     try:
-        if body.kind == MODEL_KIND_EMBEDDING:
+        if connection.is_builtin_anthropic:
+            if body.kind == MODEL_KIND_EMBEDDING:
+                raise _invalid_probe_request("invalid_model_kind", "Anthropic offers no embedding models")
+            if body.provider_type not in {None, ANTHROPIC_MESSAGES_PROVIDER_TYPE}:
+                raise _invalid_probe_request(
+                    "invalid_provider_type", "The Anthropic connection uses the Anthropic Messages API"
+                )
+            report = await anthropic_probe.probe_chat_model(connection, model=body.model)
+        elif body.provider_type == ANTHROPIC_MESSAGES_PROVIDER_TYPE:
+            raise _invalid_probe_request("invalid_provider_type", "Anthropic Messages needs the Anthropic connection")
+        elif body.kind == MODEL_KIND_EMBEDDING:
             report = await probe.probe_embedding_model(connection, model=body.model)
         elif body.provider_type == OPENAI_RESPONSES_PROVIDER_TYPE:
             if not connection.is_builtin_openai:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail={"code": "invalid_provider_type", "message": "Responses needs the OpenAI connection"},
-                )
+                raise _invalid_probe_request("invalid_provider_type", "Responses needs the OpenAI connection")
             report = await probe.probe_responses_model(connection, model=body.model)
         else:
             report = await probe.probe_chat_model(connection, model=body.model)
@@ -383,6 +425,7 @@ async def update_model(
         allow_memory_writes=body.allow_memory_writes,
         probe_result=body.probe_result,
         hidden=body.hidden,
+        early_compaction=body.early_compaction,
     )
     try:
         row = await _service(session).update_model(model_provider_id, patch)
@@ -495,7 +538,7 @@ def _connection_view(
         id=connection.id,
         name=connection.name,
         preset=connection.preset,
-        source="builtin" if connection.is_builtin_openai else "owner",
+        source="builtin" if connection.is_builtin else "owner",
         logo_provider=model_connection_preset(connection.preset).logo_provider,
         base_url=connection.base_url,
         credential_env=connection.credential_env,
@@ -517,6 +560,8 @@ def _model_view(row: ModelProvider) -> PyConfiguredModel:
         source=row.source,
         model_kind=row.model_kind,
         hidden=row.hidden,
+        # Only rows with a long-context price step offer Compact early.
+        early_compaction=row.early_compaction if early_compaction_available(row) else None,
         connection_id=row.connection_id,
         context_window_tokens=row.context_window_tokens,
         allow_memory_writes=row.allow_memory_writes,
@@ -562,8 +607,19 @@ def _probe_view(report: ModelProbeReport) -> PyModelProbeReport:
         tools_with_structured_output=report.tools_with_structured_output,
         context_window_tokens=report.context_window_tokens,
         embedding_dimensions=report.embedding_dimensions,
+        max_output_tokens=report.max_output_tokens,
+        supported_reasoning_efforts=(
+            list(report.supported_reasoning_efforts) if report.supported_reasoning_efforts is not None else None
+        ),
+        native_tool_support=list(report.native_tool_support) if report.native_tool_support is not None else None,
         notes=list(report.notes),
     )
 
 
-__all__ = ["get_model_connection_probe", "get_model_credential_resolver", "get_openrouter_model_catalog", "router"]
+__all__ = [
+    "get_anthropic_connection_probe",
+    "get_model_connection_probe",
+    "get_model_credential_resolver",
+    "get_openrouter_model_catalog",
+    "router",
+]

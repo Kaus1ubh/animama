@@ -72,8 +72,8 @@ Ownership and boundaries:
 - [x] Phase 2: Caching findings and layout recommendation. Done 2026-10-09.
       Owner decisions D19 and D21, strategy D20; Review #3 limit acknowledged by
       the owner.
-- [ ] Phase 3: Provider identity, connection, credentials and catalog. Not
-      started. Proceeds after Phase 2 completes.
+- [x] Phase 3: Provider identity, connection, credentials and catalog. Done
+      2026-10-09; Review #3 passed.
 - [ ] Phase 4: Cache-friendly instruction assembly for every provider. Not
       started. Waits for the Phase 2 gate.
 - [ ] Phase 5: Chat turns on Anthropic models. Not started.
@@ -1240,11 +1240,130 @@ Checks:
 
 Completion: tests and checks pass; review leaves no blocker.
 
-Phase record: issue #367; starting source —; commit —.
+Phase record: issue #367; starting source `e7fd83e9`; commit: this phase's commit (see git log for `[p3]`).
 
 #### Code Review #1 Findings
 
+Implementation by a delegated agent; review by an independent `sdlc-reviewer`
+(full initial review of the working tree on `e7fd83e9`).
+
+Checks run by the reviewer:
+
+- focused tests: 138 passed;
+- ruff, format, and mypy (706 files);
+- the import-boundary check;
+- `pnpm openapi-ts:check`;
+- both compose configs and `bash -n reset.sh`.
+
+It confirmed:
+
+- every Phase 3 acceptance item;
+- no Phase 4+ behaviour;
+- clear failure with no OpenAI fallback (turn, Utility and Memory Manager
+  paths);
+- credential isolation;
+- that the implementer's deviations are acceptable.
+
+- **P3-R1-F1 (blocking):** a test depended on built-in flags left by earlier
+  tests. Running two tests in order failed.
+- **P3-R1-F2:** Anthropic owner rows accepted the `minimal` effort and
+  `json_object` structured output.
+- **P3-R1-F3:** `data-model.md` and `http-api.md` are now stale, and Phase 9 did
+  not list them.
+- **P3-R1-F4:** a malformed Models reply could raise outside the probe's error
+  guard.
+- **P3-R1-F5:** the SDK still merges `ANTHROPIC_CUSTOM_HEADERS`; the docstring
+  overstated the isolation.
+- **P3-R1-F6:** the `anthropic` preset carried misleading Chat Completions
+  compatibility values.
+- **P3-R1-F7:** an inline import duplicated a constant already available.
+- **P3-R1-F8:** Anthropic rows could reach the application web-search tool in
+  Phase 6 (D7).
+- **P3-R1-F9:** Cloud adoption needs a hosted migration for `early_compaction`.
+- **P3-R1-F10:** expected interim UI states until Phases 5 and 8
+  (informational).
+
 #### Code Review #1 Revisions
+
+- **F1 (accepted):** the dependent test now clears rows first. The failing pair
+  passes in order.
+- **F2 (accepted):** `invalid_capabilities` for `json_object` and for efforts
+  outside `ANTHROPIC_REASONING_EFFORTS`, with two new test cases.
+- **F3 (accepted):** both docs added to Phase 9's list.
+- **F4 (accepted):** report building is guarded, and returns a failed
+  `available` step.
+- **F5 (accepted):** the docstring is corrected. Animama never sets
+  `ANTHROPIC_CUSTOM_HEADERS`.
+- **F6 (accepted):** neutral compatibility values (no OpenAI extensions, no
+  stream usage, reasoning `omit`). The first attempt landed on the OpenAI preset
+  (see R2-F2); it was corrected in repair round 2.
+- **F7 (accepted):** imports the constant from `model_provider_native_tools`.
+- **F8 (accepted):** Phase 6 step 1 now forbids the application search tool on
+  Anthropic rows.
+- **F9 (accepted):** recorded under Final integration review for the PR.
+- **F10:** no change.
+
+Verification: focused tests (140) passed; the isolation pair passed; ruff,
+format and mypy passed on the changed files. A full `make check-test` rerun
+follows.
+
+Repair budget: one of two rounds used.
+
+#### Code Review #2 Findings
+
+Targeted recheck. F1, F3, F4, F5 and F7–F9 were verified; 117 focused tests
+passed. Two accepted fixes were wrong:
+
+- **P3-R2-F1 (blocking):** the F2 check ran only when adding a model. An edit
+  through `PATCH /v1/model-providers/{id}` skipped it. A scratch test stored
+  `json_object` and `["minimal"]` with HTTP 200.
+- **P3-R2-F2 (blocking):** the F6 edit matched the identical OpenAI preset entry
+  first. That gave the built-in OpenAI preset neutral values, while the
+  Anthropic preset and its seed row stayed unchanged: the seed reads the
+  built-in connection, not the preset.
+- **Optional findings:**
+  - no test of the guarded probe path;
+  - a stale `_owner_capabilities` docstring.
+
+#### Code Review #2 Revisions
+
+- **R2-F1 (accepted):**
+  - `update_model` passes the row's provider type.
+  - `provider_type` is now a required argument, so no call site can skip it.
+  - Two PATCH test cases were added.
+- **R2-F2 (accepted):**
+  - The OpenAI preset was restored to defaults.
+  - A new `ANTHROPIC_CONNECTION_COMPATIBILITY` is used by both the Anthropic
+    preset and `builtin_anthropic_connection()`.
+  - The seed was regenerated; its `anthropic` row now carries `reasoning_mode:
+    omit` and no OpenAI extensions.
+  - A test pins both connections' values.
+- **Optional, accepted:** a probe test for a reply in an unexpected shape, and
+  the corrected docstring.
+
+Verification:
+
+- 144 focused tests passed;
+- ruff, format and mypy passed (181 files);
+- a full `make check-test` on this tree runs alongside Review #3.
+
+Repair budget: two of two rounds used. Review #3 is the final targeted recheck.
+
+#### Code Review #3 Findings
+
+Final targeted recheck: **pass**, with no findings.
+
+- R2-F1 is verified: the Review #2 scratch PATCH now returns 400
+  `invalid_capabilities`.
+- R2-F2 is verified: the OpenAI preset and seed row are unchanged from the
+  baseline, and the Anthropic preset and seed row carry the neutral values.
+- Checks: 144 focused tests passed; ruff, format and mypy passed (274 files);
+  the import-boundary check passed; `git diff --check` was clean.
+
+#### Code Review #3 Revisions
+
+None needed. Full `make check-test` on the final tree: audit, format, lint and
+mypy pass; 3,327 passed and 22 skipped (live tests).
 
 ### Phase 4: Cache-friendly instruction assembly for every provider
 
@@ -1437,6 +1556,9 @@ the summarizing indicator. App compaction no longer runs for them.
    - Emit `run.status searching_web` around server search blocks.
    - A search error result does not fail the turn.
    - Record queries, titles, URLs and citations in `data.anthropic`.
+   - Never offer the application Brave/SearXNG tool on an Anthropic row (D7),
+     including owner rows without native web search. Phase 3 added Anthropic
+     to `DIRECT_MEMORY_TOOL_SUPPORT_BY_PROVIDER`, which otherwise enables it.
 2. **Compaction.**
    - Beta `compact-2026-01-12`, with a `compact_20260112` trigger from D4 and
      the row's `early_compaction`.
@@ -1628,6 +1750,11 @@ owner's live smoke establishes acceptance.
      - `prompt-caching.md` (final layout and measurements)
      - `docs/backend/model-catalog.md`
      - the Memory Manager feature doc
+     - `docs/backend/architecture/data-model.md` (`api_standard` and
+       `last_model_client` values, both built-in connections,
+       `early_compaction`)
+     - `docs/backend/architecture/http-api.md` (the Anthropic probe, the
+       `early_compaction` update, the default catalog policy)
    - Frontend: `docs/frontend/features/model-settings.md`.
    - `docs/backend/operations/development.md`: `ANTHROPIC_API_KEY` in the
      secrets file and compose.
@@ -1679,6 +1806,11 @@ and the boundaries between phases:
 
 Reuse still-valid phase evidence. Record Final Integration Review findings and
 revisions, with at most two repair rounds.
+
+Cloud follow-up: Animama Cloud copies `model_providers` from this repository's
+ORM. When it adopts this release, it needs a hosted migration for the new
+`early_compaction` column (Phase 3). Record that in the PR. No change is needed
+here.
 
 ## Validation and acceptance
 

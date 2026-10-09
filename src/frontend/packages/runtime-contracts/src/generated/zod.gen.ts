@@ -3898,6 +3898,9 @@ export const zPyModelCapabilitiesView = z.object({
  * PyConfiguredModel
  *
  * A catalog row as the owner manages it, including capabilities and probe results.
+ *
+ * ``early_compaction`` is the **Compact early** setting. It is ``None`` when
+ * the model has no long-context price step, so the setting does not apply.
  */
 export const zPyConfiguredModel = z.object({
     allow_memory_writes: z.boolean(),
@@ -3905,6 +3908,10 @@ export const zPyConfiguredModel = z.object({
     connection_id: z.string(),
     context_window_tokens: z.optional(z.union([
         z.int(),
+        z.null()
+    ])),
+    early_compaction: z.optional(z.union([
+        z.boolean(),
         z.null()
     ])),
     hidden: z.boolean(),
@@ -4083,11 +4090,21 @@ export const zPyModelConnectionUpdate = z.object({
 
 /**
  * PyModelProbeRequest
+ *
+ * ``provider_type`` defaults to the connection's API family: Anthropic Messages
+ * on the built-in Anthropic connection, Chat Completions elsewhere.
  */
 export const zPyModelProbeRequest = z.object({
     kind: z.optional(z.enum(['chat', 'embedding'])),
     model: z.string().min(1).max(256),
-    provider_type: z.optional(z.enum(['OpenAIHTTPAgent', 'OpenAIResponsesHTTPAgent']))
+    provider_type: z.optional(z.union([
+        z.enum([
+            'OpenAIHTTPAgent',
+            'OpenAIResponsesHTTPAgent',
+            'AnthropicMessagesHTTPAgent'
+        ]),
+        z.null()
+    ]))
 });
 
 /**
@@ -4110,6 +4127,10 @@ export const zPyModelProbeStep = z.object({
  * PyModelProbeReport
  *
  * Suggested capabilities; ``None`` means the probe could not determine a value.
+ *
+ * ``max_output_tokens``, ``supported_reasoning_efforts`` and
+ * ``native_tool_support`` come only from servers that publish them
+ * (Anthropic's Models API).
  */
 export const zPyModelProbeReport = z.object({
     context_window_tokens: z.optional(z.union([
@@ -4120,11 +4141,23 @@ export const zPyModelProbeReport = z.object({
         z.int(),
         z.null()
     ])),
+    max_output_tokens: z.optional(z.union([
+        z.int(),
+        z.null()
+    ])),
     model: z.string(),
+    native_tool_support: z.optional(z.union([
+        z.array(z.string()),
+        z.null()
+    ])),
     notes: z.optional(z.array(z.string())),
     steps: z.array(zPyModelProbeStep),
     structured_output_transport: z.optional(z.union([
         z.string(),
+        z.null()
+    ])),
+    supported_reasoning_efforts: z.optional(z.union([
+        z.array(z.string()),
         z.null()
     ])),
     supports_streaming: z.optional(z.union([
@@ -4333,7 +4366,10 @@ export const zPyOwnerModelCapabilities = z.object({
 /**
  * PyOwnerModelPatch
  *
- * Built-in models accept only ``hidden``.
+ * Built-in models accept only ``hidden`` and ``early_compaction``.
+ *
+ * ``early_compaction`` is accepted only on models with a long-context price
+ * step (code ``early_compaction_unavailable`` otherwise).
  */
 export const zPyOwnerModelPatch = z.object({
     allow_memory_writes: z.optional(z.union([
@@ -4347,6 +4383,10 @@ export const zPyOwnerModelPatch = z.object({
     clear_context_window: z.optional(z.boolean()).default(false),
     context_window_tokens: z.optional(z.union([
         z.int(),
+        z.null()
+    ])),
+    early_compaction: z.optional(z.union([
+        z.boolean(),
         z.null()
     ])),
     hidden: z.optional(z.union([
@@ -4387,7 +4427,11 @@ export const zPyOwnerModelRequest = z.object({
         z.null()
     ])),
     provider_type: z.optional(z.union([
-        z.enum(['OpenAIHTTPAgent', 'OpenAIResponsesHTTPAgent']),
+        z.enum([
+            'OpenAIHTTPAgent',
+            'OpenAIResponsesHTTPAgent',
+            'AnthropicMessagesHTTPAgent'
+        ]),
         z.null()
     ])),
     template_id: z.optional(z.union([

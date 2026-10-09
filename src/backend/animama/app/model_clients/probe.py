@@ -1,8 +1,10 @@
 """Capability probe contracts for model connections.
 
 A probe sends a few small, bounded requests to one model on one connection and
-reports what worked. The owner applies the suggested capabilities when adding
-or editing the model; the probe never saves anything itself.
+reports what worked. The built-in Anthropic connection instead reads the
+model's published capabilities from Anthropic's Models API. The owner applies
+the suggested capabilities when adding or editing the model; the probe never
+saves anything itself.
 """
 
 from __future__ import annotations
@@ -36,7 +38,9 @@ class ModelProbeReport:
     """Probe results and the capabilities they suggest.
 
     ``None`` means the probe did not determine a value (for example because an
-    earlier step failed or the server does not report it).
+    earlier step failed or the server does not report it). Only servers that
+    publish them (Anthropic's Models API) report ``max_output_tokens``,
+    ``supported_reasoning_efforts`` and ``native_tool_support``.
     """
 
     model: str
@@ -47,6 +51,9 @@ class ModelProbeReport:
     tools_with_structured_output: bool | None = None
     context_window_tokens: int | None = None
     embedding_dimensions: int | None = None
+    max_output_tokens: int | None = None
+    supported_reasoning_efforts: tuple[str, ...] | None = None
+    native_tool_support: tuple[str, ...] | None = None
     notes: tuple[str, ...] = field(default_factory=tuple)
 
 

@@ -1,9 +1,10 @@
 """Defaults for common OpenAI-compatible model servers.
 
-Presets only fill defaults when the owner adds a connection. Every connection
-uses the same Chat Completions protocol behavior; the preset records the usual
-endpoint, whether a key is expected and the request-shape options that server
-family needs. The owner can change any value afterwards, except a preset's
+Presets only fill defaults when the owner adds a connection. Every owner
+connection uses the same Chat Completions protocol behavior; the preset records
+the usual endpoint, whether a key is expected and the request-shape options that
+server family needs. The ``openai`` and ``anthropic`` presets describe the
+built-in connections and are never owner-selectable. The owner can change any value afterwards, except a preset's
 fixed request headers, which every request to a connection with that preset
 carries.
 """
@@ -30,6 +31,7 @@ DEEPSEEK_REASONING_EFFORTS = frozenset({"none", "high", "max"})
 """Values DeepSeek accepts; ``none`` disables thinking."""
 
 PRESET_OPENAI = "openai"
+PRESET_ANTHROPIC = "anthropic"
 PRESET_OLLAMA = "ollama"
 PRESET_LM_STUDIO = "lmstudio"
 PRESET_LLAMA_CPP = "llamacpp"
@@ -43,6 +45,17 @@ _NON_OPENAI_COMPATIBILITY = ModelConnectionCompatibility(
     fold_developer_role=True,
     send_openai_extensions=False,
 )
+
+ANTHROPIC_CONNECTION_COMPATIBILITY = ModelConnectionCompatibility(
+    send_openai_extensions=False,
+    send_stream_usage=False,
+    reasoning_mode=REASONING_MODE_OMIT,
+)
+"""Neutral options for the built-in Anthropic connection.
+
+It speaks the Messages API, so none of the Chat Completions request-shape
+options apply; these values only keep it from advertising OpenAI behaviour.
+"""
 
 OPENROUTER_ATTRIBUTION_HEADERS: Mapping[str, str] = MappingProxyType(
     {"X-Title": "Animama", "HTTP-Referer": "https://animama.ai"}
@@ -91,6 +104,16 @@ MODEL_CONNECTION_PRESETS: dict[str, ModelConnectionPreset] = {
             local=False,
             expects_key=True,
             compatibility=ModelConnectionCompatibility(),
+            timeout_seconds=CLOUD_TIMEOUT_SECONDS,
+            owner_selectable=False,
+        ),
+        ModelConnectionPreset(
+            id=PRESET_ANTHROPIC,
+            label="Anthropic",
+            logo_provider="anthropic",
+            local=False,
+            expects_key=True,
+            compatibility=ANTHROPIC_CONNECTION_COMPATIBILITY,
             timeout_seconds=CLOUD_TIMEOUT_SECONDS,
             owner_selectable=False,
         ),
@@ -212,6 +235,7 @@ __all__ = [
     "DEEPSEEK_REASONING_EFFORTS",
     "LOCAL_SERVER_TIMEOUT_SECONDS",
     "MODEL_CONNECTION_PRESETS",
+    "PRESET_ANTHROPIC",
     "PRESET_CUSTOM",
     "PRESET_DEEPSEEK",
     "PRESET_HUGGINGFACE",

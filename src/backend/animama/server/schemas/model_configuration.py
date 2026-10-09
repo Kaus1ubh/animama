@@ -10,6 +10,10 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+OwnerModelProviderType = Literal["OpenAIHTTPAgent", "OpenAIResponsesHTTPAgent", "AnthropicMessagesHTTPAgent"]
+"""API families an owner model may use. Responses needs the built-in OpenAI
+connection and Anthropic Messages the built-in Anthropic connection."""
+
 
 class PyModelConnectionCompatibility(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -89,7 +93,11 @@ class PyModelCapabilitiesView(BaseModel):
 
 
 class PyConfiguredModel(BaseModel):
-    """A catalog row as the owner manages it, including capabilities and probe results."""
+    """A catalog row as the owner manages it, including capabilities and probe results.
+
+    ``early_compaction`` is the **Compact early** setting. It is ``None`` when
+    the model has no long-context price step, so the setting does not apply.
+    """
 
     id: str
     model: str
@@ -98,6 +106,7 @@ class PyConfiguredModel(BaseModel):
     source: Literal["builtin", "owner"]
     model_kind: Literal["chat", "embedding"]
     hidden: bool
+    early_compaction: bool | None = None
     connection_id: str
     context_window_tokens: int | None = None
     allow_memory_writes: bool
@@ -126,7 +135,7 @@ class PyOwnerModelRequest(BaseModel):
     model: str = Field(min_length=1, max_length=256)
     label: str | None = Field(default=None, max_length=120)
     kind: Literal["chat", "embedding"] = "chat"
-    provider_type: Literal["OpenAIHTTPAgent", "OpenAIResponsesHTTPAgent"] | None = None
+    provider_type: OwnerModelProviderType | None = None
     template_id: str | None = None
     capabilities: PyOwnerModelCapabilities | None = None
     context_window_tokens: int | None = None
@@ -135,7 +144,11 @@ class PyOwnerModelRequest(BaseModel):
 
 
 class PyOwnerModelPatch(BaseModel):
-    """Built-in models accept only ``hidden``."""
+    """Built-in models accept only ``hidden`` and ``early_compaction``.
+
+    ``early_compaction`` is accepted only on models with a long-context price
+    step (code ``early_compaction_unavailable`` otherwise).
+    """
 
     model_config = ConfigDict(extra="forbid")
 
@@ -146,6 +159,7 @@ class PyOwnerModelPatch(BaseModel):
     allow_memory_writes: bool | None = None
     probe_result: dict[str, Any] | None = None
     hidden: bool | None = None
+    early_compaction: bool | None = None
 
 
 class PyModelUsageAnima(BaseModel):
@@ -200,11 +214,14 @@ class PyModelConnectionDetection(BaseModel):
 
 
 class PyModelProbeRequest(BaseModel):
+    """``provider_type`` defaults to the connection's API family: Anthropic Messages
+    on the built-in Anthropic connection, Chat Completions elsewhere."""
+
     model_config = ConfigDict(extra="forbid")
 
     model: str = Field(min_length=1, max_length=256)
     kind: Literal["chat", "embedding"] = "chat"
-    provider_type: Literal["OpenAIHTTPAgent", "OpenAIResponsesHTTPAgent"] = "OpenAIHTTPAgent"
+    provider_type: OwnerModelProviderType | None = None
 
 
 class PyModelProbeStep(BaseModel):
@@ -215,7 +232,12 @@ class PyModelProbeStep(BaseModel):
 
 
 class PyModelProbeReport(BaseModel):
-    """Suggested capabilities; ``None`` means the probe could not determine a value."""
+    """Suggested capabilities; ``None`` means the probe could not determine a value.
+
+    ``max_output_tokens``, ``supported_reasoning_efforts`` and
+    ``native_tool_support`` come only from servers that publish them
+    (Anthropic's Models API).
+    """
 
     model: str
     steps: list[PyModelProbeStep]
@@ -225,6 +247,9 @@ class PyModelProbeReport(BaseModel):
     tools_with_structured_output: bool | None = None
     context_window_tokens: int | None = None
     embedding_dimensions: int | None = None
+    max_output_tokens: int | None = None
+    supported_reasoning_efforts: list[str] | None = None
+    native_tool_support: list[str] | None = None
     notes: list[str] = Field(default_factory=list)
 
 

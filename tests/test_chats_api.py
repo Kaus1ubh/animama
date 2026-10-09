@@ -114,10 +114,13 @@ def test_fresh_metadata_uses_chat_tables_without_legacy_session_tables() -> None
         str(constraint.sqltext) for constraint in chats.constraints if isinstance(constraint, CheckConstraint)
     }
     assert (
-        "last_model_client IS NULL OR last_model_client IN ('openai_chat_completions', 'openai_responses')"
+        "last_model_client IS NULL OR last_model_client IN "
+        "('openai_chat_completions', 'openai_responses', 'anthropic_messages')" in chat_check_sql
+    )
+    assert (
+        "api_standard IS NULL OR api_standard IN ('chat_completions', 'responses', 'anthropic_messages')"
         in chat_check_sql
     )
-    assert "api_standard IS NULL OR api_standard IN ('chat_completions', 'responses')" in chat_check_sql
     index_columns = {str(index.name): [column.name for column in index.columns] for index in chat_messages.indexes}
     assert index_columns["idx_chat_messages_model_provider"] == ["model_provider", "model"]
     assert index_columns["idx_chat_messages_chat_model_provider"] == ["chat_id", "model_provider", "model"]

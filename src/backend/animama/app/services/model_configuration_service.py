@@ -1,9 +1,14 @@
 """Owner configuration of model connections and owner-added models.
 
-Only the local composition exposes this service. Built-in rows are
-release-managed: the owner may hide them but not edit them. Owner-added rows
-and connections are retired, never deleted, because chat profiles reference
-them and history keeps their snapshot.
+Only the local composition exposes this service. Built-in connections and
+rows are release-managed: the owner may hide built-in rows and change their
+**Compact early** setting, but not edit them. Owner-added rows and connections
+are retired, never deleted, because chat profiles reference them and history
+keeps their snapshot.
+
+The built-in Anthropic connection serves only Anthropic Messages rows, and
+Anthropic Messages rows live only there. OpenAI Responses rows live only on the
+built-in OpenAI connection.
 """
 
 from __future__ import annotations
@@ -15,17 +20,24 @@ from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import urlsplit
 
-from animama.app.chat.api_standard import OPENAI_CHAT_COMPLETIONS_PROVIDER_TYPE, OPENAI_RESPONSES_PROVIDER_TYPE
+from animama.app.chat.api_standard import (
+    ANTHROPIC_MESSAGES_PROVIDER_TYPE,
+    OPENAI_CHAT_COMPLETIONS_PROVIDER_TYPE,
+    OPENAI_RESPONSES_PROVIDER_TYPE,
+)
 from animama.app.main_structured_response import MAIN_STRUCTURED_RESPONSE_KIND
 from animama.app.model_catalog import (
+    ANTHROPIC_REASONING_EFFORTS,
     REASONING_EFFORT_ORDER,
     STRUCTURED_OUTPUT_TRANSPORT_JSON_OBJECT,
     STRUCTURED_OUTPUT_TRANSPORT_JSON_SCHEMA,
+    early_compaction_available,
 )
 from animama.app.model_clients.credential_store import KNOWN_PROVIDER_CREDENTIAL_ENVS
 from animama.app.model_clients.credentials import is_allowed_credential_env, managed_credential_env
 from animama.app.model_clients.probe import ModelConnectionProbe, ModelConnectionProbeError
 from animama.app.model_connection_presets import MODEL_CONNECTION_PRESETS, model_connection_preset
+from animama.app.model_provider_native_tools import requestable_native_tool_support
 from animama.domain import ModelProvider, ModelProviderCapabilities, ModelProviderPricing
 from animama.domain.model_connection import (
     BUILTIN_OPENAI_CONNECTION_ID,
@@ -55,6 +67,9 @@ CREDENTIAL_MODES = frozenset({CREDENTIAL_MODE_NONE, CREDENTIAL_MODE_ENV, CREDENT
 
 CHAT_COMPLETIONS_PROVIDER_TYPE = OPENAI_CHAT_COMPLETIONS_PROVIDER_TYPE
 RESPONSES_PROVIDER_TYPE = OPENAI_RESPONSES_PROVIDER_TYPE
+OWNER_MODEL_PROVIDER_TYPES = frozenset(
+    {CHAT_COMPLETIONS_PROVIDER_TYPE, RESPONSES_PROVIDER_TYPE, ANTHROPIC_MESSAGES_PROVIDER_TYPE}
+)
 
 MODEL_ROLE_PREFERENCE_PATHS: tuple[tuple[str, str], ...] = tuple(ROLE_PREFERENCE_PATHS.values())
 """Preference keys that hold a catalog row id for an installation-wide model role."""
@@ -70,6 +85,7 @@ _MAX_MODEL_LENGTH = 256
 _MAX_BASE_URL_LENGTH = 2048
 _MIN_TIMEOUT_SECONDS = 1.0
 _MAX_TIMEOUT_SECONDS = 1800.0
+_MAX_OUTPUT_TOKENS = 10_000_000
 
 
 class ModelConfigurationError(Exception):
@@ -158,7 +174,10 @@ class OwnerModelDraft:
 
 @dataclass(frozen=True, slots=True)
 class OwnerModelPatch:
-    """Changes to a row. Built-in rows accept only ``hidden``."""
+    """Changes to a row. Built-in rows accept only ``hidden`` and ``early_compaction``.
+
+    ``early_compaction`` applies only to rows with a long-context price step.
+    """
 
     label: str | None = None
     capabilities: OwnerModelCapabilities | None = None
@@ -167,6 +186,7 @@ class OwnerModelPatch:
     allow_memory_writes: bool | None = None
     probe_result: dict[str, Any] | None = None
     hidden: bool | None = None
+    early_compaction: bool | None = None
 
 
 def normalize_base_url(value: str | None) -> str:
@@ -235,7 +255,8 @@ class ModelConfigurationService:
         current = await self.get_connection(connection_id)
         if current.source == MODEL_SOURCE_BUILTIN:
             raise ModelConfigurationError(
-                "The built-in OpenAI connection is configured by the environment", code="connection_read_only"
+                f"The built-in {current.name} connection is configured by the environment",
+                code="connection_read_only",
             )
         draft = ModelConnectionDraft(
             name=patch.name if patch.name is not None else current.name,
@@ -254,7 +275,7 @@ class ModelConfigurationService:
         connection = await self.get_connection(connection_id)
         if connection.source == MODEL_SOURCE_BUILTIN:
             raise ModelConfigurationError(
-                "The built-in OpenAI connection cannot be removed", code="connection_read_only"
+                f"The built-in {connection.name} connection cannot be removed", code="connection_read_only"
             )
         rows = await self._model_providers.list_for_connection(connection_id)
         usage = await self._usage(owner_id, tuple(row.id for row in rows))
@@ -304,7 +325,9 @@ class ModelConfigurationService:
         template = await self._template(draft.template_id)
         if template is not None and draft.kind != MODEL_KIND_CHAT:
             raise ModelConfigurationError("Templates describe chat models only", code="invalid_template")
+        _check_template_connection(connection, template)
         provider_type = _provider_type(connection, draft, template)
+        probe_summary = probe_result_summary(draft.probe_result)
         existing = await self._model_providers.get_owner_row(connection.id, provider_type, model)
         # A removed model comes back under its old id; an active one must not be overwritten.
         if existing is not None and existing.active:
@@ -320,17 +343,15 @@ class ModelConfigurationService:
             logo_provider=model_connection_preset(connection.preset).logo_provider,
             model_type=template.model_type if template is not None else None,
             context_window_tokens=_context_window(draft.context_window_tokens, template, connection=connection),
-            max_output_tokens=(
-                template.max_output_tokens if template is not None and connection.is_builtin_openai else None
-            ),
+            max_output_tokens=_max_output_tokens(template, probe_summary, connection=connection),
             connection_id=connection.id,
             source=MODEL_SOURCE_OWNER,
             model_kind=draft.kind,
             hidden=False,
             allow_memory_writes=draft.allow_memory_writes,
-            probe_result=probe_result_summary(draft.probe_result),
+            probe_result=probe_summary,
             active=True,
-            capabilities=_capabilities(draft, template, provider_type=provider_type),
+            capabilities=_capabilities(draft, template, provider_type=provider_type, probe_summary=probe_summary),
             pricing=ModelProviderPricing(pricing_status="unpriced", pricing_source_provider=connection.preset),
             metadata={"template_id": template.id} if template is not None else {},
             created_at=existing.created_at if existing is not None else None,
@@ -347,8 +368,13 @@ class ModelConfigurationService:
 
     async def update_model(self, model_provider_id: str, patch: OwnerModelPatch) -> ModelProvider:
         row = await self._active_row(model_provider_id)
+        if patch.early_compaction is not None and not early_compaction_available(row):
+            raise ModelConfigurationError(
+                "Compact early applies only to models with a long-context price step",
+                code="early_compaction_unavailable",
+            )
         if row.source == MODEL_SOURCE_BUILTIN:
-            if patch.hidden is None or any(
+            if (patch.hidden is None and patch.early_compaction is None) or any(
                 value is not None
                 for value in (
                     patch.label,
@@ -358,8 +384,17 @@ class ModelConfigurationService:
                     patch.probe_result,
                 )
             ):
-                raise ModelConfigurationError("Built-in models can only be hidden or shown", code="model_read_only")
-            stored_builtin = await self._model_providers.set_hidden(row.id, hidden=patch.hidden)
+                raise ModelConfigurationError(
+                    "Built-in models can only be hidden or shown, or have Compact early changed",
+                    code="model_read_only",
+                )
+            stored_builtin: ModelProvider | None = row
+            if patch.hidden is not None:
+                stored_builtin = await self._model_providers.set_hidden(row.id, hidden=patch.hidden)
+            if patch.early_compaction is not None:
+                stored_builtin = await self._model_providers.set_early_compaction(
+                    row.id, enabled=patch.early_compaction
+                )
             await self._uow.commit()
             return stored_builtin or row
         updated = replace(
@@ -370,6 +405,7 @@ class ModelConfigurationService:
                     patch.capabilities,
                     kind=row.model_kind,
                     native_tool_support=row.capabilities.native_tool_support,
+                    provider_type=row.provider_type,
                 )
                 if patch.capabilities is not None
                 else row.capabilities
@@ -386,6 +422,7 @@ class ModelConfigurationService:
                 probe_result_summary(patch.probe_result) if patch.probe_result is not None else row.probe_result
             ),
             hidden=patch.hidden if patch.hidden is not None else row.hidden,
+            early_compaction=patch.early_compaction if patch.early_compaction is not None else row.early_compaction,
         )
         (stored,) = await self._model_providers.upsert_many([updated])
         await self._uow.commit()
@@ -482,11 +519,46 @@ def _credential_env(connection_id: str, credential: CredentialSetting) -> str | 
     return name
 
 
+def _check_template_connection(connection: ModelConnection, template: ModelProvider | None) -> None:
+    """Anthropic templates describe models on the Anthropic connection, and only they do.
+
+    The Anthropic connection serves only the Messages API, and other servers
+    reach Claude models through their own APIs with their own capabilities.
+    """
+
+    if template is None:
+        return
+    anthropic_template = template.provider_type == ANTHROPIC_MESSAGES_PROVIDER_TYPE
+    if anthropic_template and not connection.is_builtin_anthropic:
+        raise ModelConfigurationError(
+            "Anthropic templates describe models on the built-in Anthropic connection only", code="invalid_template"
+        )
+    if connection.is_builtin_anthropic and not anthropic_template:
+        raise ModelConfigurationError(
+            "Models on the Anthropic connection use Anthropic templates", code="invalid_template"
+        )
+
+
 def _provider_type(connection: ModelConnection, draft: OwnerModelDraft, template: ModelProvider | None) -> str:
     requested = draft.provider_type or (template.provider_type if template is not None else None)
+    if requested is not None and requested not in OWNER_MODEL_PROVIDER_TYPES:
+        raise ModelConfigurationError(f"Unknown provider type: {requested}", code="invalid_provider_type")
+    if connection.is_builtin_anthropic:
+        # Anthropic offers chat models only, and this connection speaks only the Messages API.
+        if draft.kind != MODEL_KIND_CHAT:
+            raise ModelConfigurationError("Anthropic offers no embedding models", code="invalid_model_kind")
+        if requested not in {None, ANTHROPIC_MESSAGES_PROVIDER_TYPE}:
+            raise ModelConfigurationError(
+                "Models on the Anthropic connection use the Anthropic Messages API", code="invalid_provider_type"
+            )
+        return ANTHROPIC_MESSAGES_PROVIDER_TYPE
+    if requested == ANTHROPIC_MESSAGES_PROVIDER_TYPE:
+        # Messages requests carry the Anthropic key; no other connection may send them.
+        raise ModelConfigurationError(
+            "Anthropic Messages models are only available on the built-in Anthropic connection",
+            code="invalid_provider_type",
+        )
     provider_type = requested or CHAT_COMPLETIONS_PROVIDER_TYPE
-    if provider_type not in {CHAT_COMPLETIONS_PROVIDER_TYPE, RESPONSES_PROVIDER_TYPE}:
-        raise ModelConfigurationError(f"Unknown provider type: {provider_type}", code="invalid_provider_type")
     if provider_type == RESPONSES_PROVIDER_TYPE and connection.id != BUILTIN_OPENAI_CONNECTION_ID:
         if draft.provider_type == RESPONSES_PROVIDER_TYPE:
             raise ModelConfigurationError(
@@ -506,21 +578,41 @@ def _capabilities(
     template: ModelProvider | None,
     *,
     provider_type: str,
+    probe_summary: dict[str, Any] | None = None,
 ) -> ModelProviderCapabilities:
+    hosts_native_tools = provider_type in {RESPONSES_PROVIDER_TYPE, ANTHROPIC_MESSAGES_PROVIDER_TYPE}
     if draft.capabilities is not None or template is None:
-        native_tools = (
-            template.capabilities.native_tool_support
-            if template is not None and provider_type == RESPONSES_PROVIDER_TYPE
-            else None
-        )
+        native_tools = _native_tool_support(template, probe_summary, provider_type=provider_type)
         return _owner_capabilities(
-            draft.capabilities or OwnerModelCapabilities(), kind=draft.kind, native_tool_support=native_tools
+            draft.capabilities or OwnerModelCapabilities(),
+            kind=draft.kind,
+            native_tool_support=native_tools,
+            provider_type=provider_type,
         )
     copied = replace(template.capabilities)
-    if provider_type != RESPONSES_PROVIDER_TYPE:
-        # Native tools are Responses features; Chat Completions rows never advertise them.
+    if not hosts_native_tools:
+        # Native tools are Responses and Anthropic features; Chat Completions rows never advertise them.
         copied.native_tool_support = None
     return copied
+
+
+def _native_tool_support(
+    template: ModelProvider | None,
+    probe_summary: dict[str, Any] | None,
+    *,
+    provider_type: str,
+) -> list[str] | None:
+    """Native tools come from a same-API template, or for Anthropic rows from the Models API probe.
+
+    Only tools the provider lets a chat request (for example ``web_search``)
+    are taken from a probe result.
+    """
+
+    if template is not None:
+        return template.capabilities.native_tool_support if template.provider_type == provider_type else None
+    if provider_type != ANTHROPIC_MESSAGES_PROVIDER_TYPE or probe_summary is None:
+        return None
+    return requestable_native_tool_support(provider_type, probe_summary.get("native_tool_support")) or None
 
 
 def _owner_capabilities(
@@ -528,11 +620,13 @@ def _owner_capabilities(
     *,
     kind: str,
     native_tool_support: list[str] | None = None,
+    provider_type: str,
 ) -> ModelProviderCapabilities:
     """Build capabilities from owner-confirmed values.
 
-    Native tools are not owner-editable: they come from a Responses template and
-    are kept when the owner edits other capabilities.
+    Native tools are not owner-editable: they come from a same-API template (or,
+    for Anthropic rows, the Models API probe) and are kept when the owner edits
+    other capabilities. ``provider_type`` applies that API's limits.
     """
 
     if kind != MODEL_KIND_CHAT:
@@ -546,6 +640,19 @@ def _owner_capabilities(
         raise ModelConfigurationError(
             f"Unknown reasoning efforts: {', '.join(sorted(unknown))}", code="invalid_capabilities"
         )
+    if provider_type == ANTHROPIC_MESSAGES_PROVIDER_TYPE:
+        # Anthropic structured output is a strict JSON schema, and its effort
+        # levels have no ``minimal``.
+        if transport == STRUCTURED_OUTPUT_TRANSPORT_JSON_OBJECT:
+            raise ModelConfigurationError(
+                "Anthropic models use JSON schema structured output, not JSON mode", code="invalid_capabilities"
+            )
+        unsupported = set(efforts).difference(ANTHROPIC_REASONING_EFFORTS)
+        if unsupported:
+            raise ModelConfigurationError(
+                f"Anthropic models do not accept reasoning efforts: {', '.join(sorted(unsupported))}",
+                code="invalid_capabilities",
+            )
     return ModelProviderCapabilities(
         accepts=["image", "text"] if capabilities.accepts_images else ["text"],
         produces=["text"],
@@ -562,7 +669,7 @@ def _owner_capabilities(
 
 
 def _context_window(value: int | None, template: ModelProvider | None, *, connection: ModelConnection) -> int | None:
-    """Use the owner's value; a template's window applies only to the same OpenAI model family.
+    """Use the owner's value; a template's window applies only on the template's own built-in connection.
 
     Another server serves its own window, so the probe or the owner supplies it.
     """
@@ -570,8 +677,24 @@ def _context_window(value: int | None, template: ModelProvider | None, *, connec
     validated = _validated_context_window(value)
     if validated is not None:
         return validated
-    if template is not None and connection.is_builtin_openai:
+    if template is not None and template.connection_id == connection.id:
         return template.context_window_tokens
+    return None
+
+
+def _max_output_tokens(
+    template: ModelProvider | None,
+    probe_summary: dict[str, Any] | None,
+    *,
+    connection: ModelConnection,
+) -> int | None:
+    """Use a template's output limit on its own connection, else one the Models API reported."""
+
+    if template is not None:
+        return template.max_output_tokens if template.connection_id == connection.id else None
+    value = probe_summary.get("max_output_tokens") if probe_summary is not None else None
+    if connection.is_builtin_anthropic and type(value) is int and 0 < value <= _MAX_OUTPUT_TOKENS:
+        return value
     return None
 
 
@@ -593,7 +716,10 @@ _PROBE_SUMMARY_FIELDS = (
     "tools_with_structured_output",
     "context_window_tokens",
     "embedding_dimensions",
+    "max_output_tokens",
 )
+_PROBE_SUMMARY_LIST_FIELDS = ("supported_reasoning_efforts", "native_tool_support")
+_MAX_PROBE_SUMMARY_LIST_ITEMS = 16
 
 
 def probe_result_summary(report: dict[str, Any] | None) -> dict[str, Any] | None:
@@ -610,6 +736,12 @@ def probe_result_summary(report: dict[str, Any] | None) -> dict[str, Any] | None
         value = report.get(name)
         if isinstance(value, bool | int) or (isinstance(value, str) and len(value) <= 256):
             summary[name] = value
+    for name in _PROBE_SUMMARY_LIST_FIELDS:
+        values = report.get(name)
+        if isinstance(values, list | tuple):
+            summary[name] = [
+                str(item)[:64] for item in list(values)[:_MAX_PROBE_SUMMARY_LIST_ITEMS] if isinstance(item, str)
+            ]
     steps = report.get("steps")
     if isinstance(steps, list):
         summary["steps"] = [

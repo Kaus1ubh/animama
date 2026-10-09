@@ -11,7 +11,7 @@ from animama.adapters.mappers.model_provider_map import (
 from animama.app.model_catalog import serialize_model_provider_catalog
 from animama.app.model_provider_native_tools import requestable_native_tool_support
 from animama.domain import ModelProvider
-from animama.domain.model_connection import MODEL_SOURCE_OWNER
+from animama.domain.model_connection import BUILTIN_CONNECTION_IDS, BUILTIN_OPENAI_CONNECTION_ID, MODEL_SOURCE_OWNER
 from animama.logging import get_logger
 
 from ..ports import ModelProviderRepository, UnitOfWork
@@ -21,18 +21,29 @@ from ..ports import ModelProviderRepository, UnitOfWork
 class ModelCatalogPolicy:
     """Which catalog rows a composition exposes.
 
-    The local composition enables owner-added models. A hosted composition
-    keeps the default (built-in rows only) and may restrict them further with
-    ``builtin_allowlist``.
+    The local composition (:meth:`local`) enables owner-added models and the
+    built-in rows of every built-in connection. Any other composition keeps the
+    default: built-in rows of the OpenAI connection only, optionally restricted
+    further with ``builtin_allowlist``. An allowlist names exact rows, so it can
+    also admit rows of another built-in connection.
     """
 
     owner_models_enabled: bool = False
     builtin_allowlist: frozenset[str] | None = None
+    builtin_connection_ids: frozenset[str] = frozenset({BUILTIN_OPENAI_CONNECTION_ID})
+
+    @classmethod
+    def local(cls) -> ModelCatalogPolicy:
+        """The local installation's policy: owner models and every built-in connection."""
+
+        return cls(owner_models_enabled=True, builtin_connection_ids=BUILTIN_CONNECTION_IDS)
 
     def allows(self, model_provider: ModelProvider) -> bool:
         if model_provider.source == MODEL_SOURCE_OWNER:
             return self.owner_models_enabled
-        return self.builtin_allowlist is None or model_provider.id in self.builtin_allowlist
+        if self.builtin_allowlist is not None:
+            return model_provider.id in self.builtin_allowlist
+        return model_provider.connection_id in self.builtin_connection_ids
 
 
 class ModelProviderCatalogService:
