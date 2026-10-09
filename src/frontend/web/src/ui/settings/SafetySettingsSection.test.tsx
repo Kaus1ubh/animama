@@ -1,4 +1,4 @@
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToStaticMarkup } from "@/test/runtime-markup";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { SafetySettingsSection } from "@/ui/settings/SafetySettingsSection";
@@ -13,7 +13,7 @@ const fixture = vi.hoisted(() => ({
 }));
 
 vi.mock("@/app/runtime/RuntimeOwnerContext", () => ({
-  useRuntimeOwnerId: () => "owner-1",
+  useRuntimeCacheKey: () => "owner-1",
 }));
 vi.mock("@/query/hooks/useRuntimeCapabilities", () => ({
   useRuntimeCapabilities: () => ({

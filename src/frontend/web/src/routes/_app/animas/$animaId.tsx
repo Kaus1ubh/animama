@@ -11,7 +11,10 @@ import {
   type AnimaDetailsSearchInput,
 } from "@/lib/animas/anima-management-search";
 import { AnimaDetailsPage } from "@/ui/animas/AnimaDetailsPage";
-import { useRuntimeFeatureEnabled } from "@/ui/app/RuntimeFeatureGate";
+import {
+  useRuntimeFeatureEnabled,
+  useRuntimeFeatureUnavailableReason,
+} from "@/ui/app/RuntimeFeatureGate";
 import { ContentPreviewExclusiveCanvasGate } from "@/ui/content-preview/ContentPreviewDockProvider";
 
 export const Route = createFileRoute("/_app/animas/$animaId")({
@@ -32,6 +35,8 @@ function AnimaDetailsRoute() {
   const { tab } = Route.useSearch();
   const navigate = useNavigate({ from: "/animas/$animaId" });
   const animaCreation = useRuntimeFeatureEnabled("anima_creation");
+  const animaCreationUnavailable =
+    useRuntimeFeatureUnavailableReason("anima_creation");
 
   return (
     <ContentPreviewExclusiveCanvasGate
@@ -60,6 +65,7 @@ function AnimaDetailsRoute() {
               }
             : undefined
         }
+        createAnimaUnavailableReason={animaCreationUnavailable ?? undefined}
       />
       <Outlet />
     </ContentPreviewExclusiveCanvasGate>

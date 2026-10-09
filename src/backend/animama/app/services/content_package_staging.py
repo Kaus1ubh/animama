@@ -16,80 +16,27 @@ import sys
 import uuid
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
-from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any, BinaryIO, Literal
+from typing import Any, BinaryIO
 
-from pydantic import BaseModel, ConfigDict, Field
-
+# Reexports preserve existing local staging callers.
+from animama.app.contracts.content_package_staging import (
+    PartAck as PartAck,
+    PartReceipt as PartReceipt,
+    StageKind as StageKind,
+    StageLimits as StageLimits,
+    StageRecord as StageRecord,
+    StageState as StageState,
+)
 from animama.domain.content_catalog import ContentConflictError
 from animama.utils.files import path_is_link, replace, sync_directory
 
-StageKind = Literal["import", "export"]
-StageState = Literal[
-    "uploading", "uploaded", "preparing", "reviewed", "committing", "recovery_needed", "completed", "failed"
-]
 _ID = re.compile(r"^[0-9a-f]{32}$")
 _OWNER = re.compile(r"^[0-9a-f]{64}$")
 _TEMP_RECORD = re.compile(r"^\.record-[0-9a-f]{32}\.tmp$")
 _RECORD_LIMIT = 16 * 1024 * 1024
 _PROTECTED = {"committing", "recovery_needed"}
-
-
-@dataclass(frozen=True)
-class StageLimits:
-    """Aggregate reservations concern archives; expansion has its own disk bound."""
-
-    max_stages: int = 2
-    max_total_bytes: int = 8 * 1024**3
-    max_archive_bytes: int = 4 * 1024**3
-    max_expanded_bytes: int = 4 * 1024**3
-    part_bytes: int = 8 * 1024**2
-    ttl_seconds: int = 1800
-
-
-class _RecordModel(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
-
-class PartReceipt(_RecordModel):
-    index: int
-    offset: int
-    size_bytes: int
-    sha256: str
-
-
-class PartAck(_RecordModel):
-    stage_id: str
-    index: int
-    size_bytes: int
-    sha256: str
-    received_bytes: int
-    next_part_index: int
-    complete: bool
-
-
-class StageRecord(_RecordModel):
-    """Private durable facts. HTTP must project these rather than expose review plans."""
-
-    version: Literal[1] = 1
-    stage_id: str
-    user_id: str
-    kind: StageKind
-    state: StageState
-    operation_id: str | None = None
-    filename: str
-    expected_bytes: int = Field(ge=0)
-    reserved_bytes: int = Field(ge=0)
-    actual_bytes: int = Field(default=0, ge=0)
-    received_bytes: int = Field(default=0, ge=0)
-    parts: tuple[PartReceipt, ...] = ()
-    archive_sha256: str | None = None
-    review_digest: str | None = None
-    review: dict[str, Any] | None = None
-    created_at: datetime
-    expires_at: datetime
 
 
 def _write_record(path: Path, record: StageRecord) -> None:
@@ -404,6 +351,21 @@ class StageLease:
 
     def close(self) -> None:
         self._lock.close()
+
+    def open_archive(self) -> BinaryIO:
+        """Open leased bytes; the caller closes its handle before this lease."""
+        self._assert_open()
+        return self.archive_path.open("rb")
+
+    @contextmanager
+    def write_archive(self) -> Iterator[BinaryIO]:
+        """Publish archive bytes durably before the caller seals a review."""
+        self._assert_open()
+        with self.archive_path.open("xb") as handle:
+            os.chmod(self.archive_path, 0o600)
+            yield handle
+            handle.flush()
+            os.fsync(handle.fileno())
 
     def _update(self, **changes: Any) -> StageRecord:
         if self._lock._fd < 0:

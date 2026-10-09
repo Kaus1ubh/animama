@@ -4,7 +4,9 @@ import { resolveSelectedAnimaId } from "@/lib/animas/anima-management-search";
 import { useAnimas } from "@/query/hooks/useAnimas";
 import { useUserSettings } from "@/query/hooks/useUserSettings";
 import { AppShellPage } from "@/ui/app/AppShellPage";
+import { useRuntimeAdmission } from "@web/app/runtime/RuntimeAdmissionProvider";
 import { Button } from "@/ui/components/button";
+import { EmptyAnimaRoster } from "@/ui/animas/EmptyAnimaRoster";
 
 export const Route = createFileRoute("/_app/")({
   component: ChatLaunchRoute,
@@ -12,6 +14,7 @@ export const Route = createFileRoute("/_app/")({
 
 /** Open the last opened owned Anima only after both startup reads settle. */
 function ChatLaunchRoute() {
+  const { admission } = useRuntimeAdmission();
   const animas = useAnimas();
   const settings = useUserSettings();
 
@@ -55,6 +58,12 @@ function ChatLaunchRoute() {
   );
   // Continue the accepted entry navigation without reopening a departing
   // creator's blocker before its passive-effect cleanup has run.
+  if (
+    !animaId &&
+    admission.status === "ready" &&
+    !admission.capabilities.anima_creation
+  )
+    return <EmptyAnimaRoster />;
   return animaId ? (
     <Navigate to="/$animaId" params={{ animaId }} replace ignoreBlocker />
   ) : (

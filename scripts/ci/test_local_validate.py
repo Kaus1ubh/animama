@@ -29,20 +29,28 @@ class LocalValidationTests(unittest.TestCase):
             [row[0] for row in full],
             [
                 "backend-full",
+                "tooling-tests",
                 "frontend-source",
                 "browser-smoke",
                 "package-build",
                 "isolated-consumers",
                 "release-completed-environments",
+                "baseline-models",
                 "baseline-build",
                 "compatibility",
                 "source-integrity",
             ],
         )
         self.assertEqual(sum("ci:source" in row[2] for row in full), 1)
+        # The hosted tooling step's runner, including the whole-app harness unit tests.
+        tooling = next(row[2] for row in full if row[0] == "tooling-tests")
+        self.assertEqual(tooling[-1], "scripts/ci/tooling_tests.py")
         baseline_command = next(row[2] for row in full if row[0] == "baseline-build")
         self.assertIn(str(output / "baseline"), baseline_command)
         self.assertIn(baseline, baseline_command)
+        # The baseline's own pinned speech set, not the candidate's, feeds its build.
+        baseline_models = next(row[2] for row in full if row[0] == "baseline-models")
+        self.assertEqual(baseline_models[-3:], ["models", "--source", str(output / "baseline")])
         identifiers = [row[0] for row in full]
         self.assertLess(identifiers.index("isolated-consumers"), identifiers.index("release-completed-environments"))
         self.assertLess(identifiers.index("release-completed-environments"), identifiers.index("baseline-build"))

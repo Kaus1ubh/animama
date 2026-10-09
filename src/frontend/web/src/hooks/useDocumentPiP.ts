@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 
 import type { CanvasMode } from "@/ui/main/canvas/CanvasControls";
 
@@ -91,6 +92,8 @@ export function useDocumentPiP({
   const canvasHostPlaceholderRef = useRef<Comment | null>(null);
   const pipWindowRef = useRef<Window | null>(null);
   const pipActiveRef = useRef(false);
+  const lifetimeRef = useRef(0);
+  const pendingRef = useRef<number | null>(null);
   const [isPipActive, setIsPipActive] = useState(false);
   const [isPipSupported] = useState(() => Boolean(getDocumentPiP()));
 
@@ -128,13 +131,38 @@ export function useDocumentPiP({
 
   const openPip = useCallback(async () => {
     const docPip = getDocumentPiP();
-    if (!docPip || pipActiveRef.current) return;
+    if (!docPip || pipActiveRef.current || pendingRef.current !== null) return;
 
     const host = canvasHostRef.current;
     if (!host || !host.parentElement) return;
 
     const pipWindowSize = getPipWindowSize(host);
-    const pip = await docPip.requestWindow(pipWindowSize);
+    const lifetime = lifetimeRef.current;
+    pendingRef.current = lifetime;
+    let pip: Window;
+    try {
+      pip = await docPip.requestWindow(pipWindowSize);
+    } catch (error) {
+      if (
+        lifetime === lifetimeRef.current &&
+        !(error instanceof DOMException && error.name === "AbortError")
+      )
+        toast.error(
+          "Picture-in-picture is unavailable. Keep using the companion in this window.",
+        );
+      return;
+    } finally {
+      if (pendingRef.current === lifetime) pendingRef.current = null;
+    }
+    // Browser permission/window creation can settle after navigation or sign-out.
+    if (
+      lifetime !== lifetimeRef.current ||
+      canvasHostRef.current !== host ||
+      !host.isConnected
+    ) {
+      pip.close();
+      return;
+    }
     pipWindowRef.current = pip;
     pipActiveRef.current = true;
     setIsPipActive(true);
@@ -155,6 +183,8 @@ export function useDocumentPiP({
   }, [handlePipClosed]);
 
   const closePip = useCallback(() => {
+    lifetimeRef.current++;
+    pendingRef.current = null;
     const pip = pipWindowRef.current;
     if (!pip) return;
     pipActiveRef.current = false;

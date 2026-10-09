@@ -1,8 +1,9 @@
+import { useProductApiClient } from "@animama/product-ui";
 import { listCatalogItems } from "@/lib/content/catalogApi";
 import { createUniqueContentName } from "@/lib/content/uniqueContentName";
 import { useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { queryKeys } from "@/query/keys";
 import {
   catalogViewItem,
@@ -31,8 +32,10 @@ export function useContentEditorSaveSource(
   itemId: string | undefined,
   existing: PyCatalogViewItem | undefined,
 ) {
+  const apiClient = useProductApiClient();
+
   const queryClient = useQueryClient();
-  const owner = useRuntimeOwnerId();
+  const owner = useRuntimeCacheKey();
   const sessionRef = useRef<EditSession | null>(null);
   let session = sessionRef.current;
   if (
@@ -61,7 +64,7 @@ export function useContentEditorSaveSource(
     /** Allocate blank names from the full catalog, excluding the edited item. */
     async resolveName(name: string, fallback: string) {
       if (name.trim()) return name.trim();
-      const items = await listCatalogItems(kind);
+      const items = await listCatalogItems(apiClient, kind);
       return createUniqueContentName(
         fallback,
         items

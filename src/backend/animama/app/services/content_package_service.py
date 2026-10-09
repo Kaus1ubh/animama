@@ -7,6 +7,7 @@ from pathlib import Path
 
 from animama.app.ports.anima_aggregate_port import AnimaAggregateUnitOfWork
 from animama.app.ports.avatar_face_parts import AvatarFacePartOverrideRepository
+from animama.app.ports.content_package_staging import PackageInspector, PackageStages
 from animama.app.ports.user_profile_port import UserProfileRepository
 from animama.app.services.anima_package_source_service import AnimaPackageSourceService
 from animama.app.services.content_catalog_service import ContentCatalogService
@@ -43,7 +44,10 @@ class ContentPackageService:
         self,
         *,
         content: ContentCatalogService,
-        exports_root: Path,
+        exports_root: Path | None = None,
+        stages: PackageStages | None = None,
+        inspector: PackageInspector | None = None,
+        allow_anima_import: bool = True,
         imports_root: Path | None = None,
         anima_sources: AnimaPackageSourceService | None = None,
         profiles: UserProfileRepository | None = None,
@@ -52,15 +56,22 @@ class ContentPackageService:
         max_identity_bytes: int = ANIMA_IDENTITY_MAX_BYTES,
         face_part_overrides: AvatarFacePartOverrideRepository | None = None,
     ) -> None:
-        self.stages = PackageStageService(
-            imports_root=imports_root or exports_root.parent / "imports",
-            exports_root=exports_root,
-        )
+        if stages is None and exports_root is None:
+            raise ValueError("package stages or a local export root are required")
+        if content.owner_id is not None and getattr(stages, "owner_id", None) != content.owner_id:
+            raise ValueError("package stages must bind the same content owner")
+        if stages is None:
+            assert exports_root is not None
+            stages = PackageStageService(
+                imports_root=imports_root or exports_root.parent / "imports", exports_root=exports_root
+            )
+        self.stages = stages
         self.exports = ContentPackageExportService(
             content=content,
             exports_root=exports_root,
             anima_sources=anima_sources,
             stages=self.stages,
+            inspector=inspector,
             profiles=profiles,
             face_part_overrides=face_part_overrides,
         )
@@ -68,6 +79,8 @@ class ContentPackageService:
             content=content,
             mutations=content.mutations,
             stages=self.stages,
+            inspector=inspector,
+            allow_anima_import=allow_anima_import,
             uow=uow,
             default_model_provider_id=default_model_provider_id,
             max_identity_bytes=max_identity_bytes,

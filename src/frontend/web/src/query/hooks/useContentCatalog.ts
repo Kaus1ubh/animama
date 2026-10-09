@@ -1,5 +1,7 @@
 "use client";
 
+import { useProductApiClient } from "@animama/product-ui";
+
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
@@ -7,13 +9,16 @@ import {
   rescanContentCatalogV1ContentRescanPost,
 } from "@animama/runtime-contracts/sdk";
 import type { PyContentCatalog } from "@/lib/content/catalogTypes";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { refreshContentCatalogViews } from "@/query/contentCatalogInvalidation";
 import { queryKeys } from "@/query/keys";
+import { useRuntimeCapabilities } from "./useRuntimeCapabilities";
 
 /** Read the operator-inspectable Included/Local catalog for the signed-in user. */
 export function useContentCatalog() {
-  const userId = useRuntimeOwnerId();
+  const apiClient = useProductApiClient();
+
+  const userId = useRuntimeCacheKey();
   const queryClient = useQueryClient();
   return useQuery<PyContentCatalog>({
     queryKey: queryKeys.content.catalog(userId ?? "__anon__"),
@@ -24,6 +29,7 @@ export function useContentCatalog() {
     queryFn: async ({ signal }) => {
       const catalog = (
         await listContentCatalogV1ContentCatalogGet({
+          client: apiClient,
           signal,
           responseValidator: undefined,
           throwOnError: true,
@@ -44,8 +50,11 @@ export function useContentCatalog() {
 
 /** Ask Animama to reconcile manual host edits, then replace the cached catalog. */
 export function useRescanContent() {
-  const userId = useRuntimeOwnerId();
+  const apiClient = useProductApiClient();
+
+  const userId = useRuntimeCacheKey();
   const queryClient = useQueryClient();
+  const { data: capabilities } = useRuntimeCapabilities();
   return useMutation({
     onMutate: async () => {
       if (userId) {
@@ -54,13 +63,17 @@ export function useRescanContent() {
         });
       }
     },
-    mutationFn: async () =>
-      (
+    mutationFn: async () => {
+      if (capabilities?.local_filesystem_administration !== true)
+        throw new Error("Host file scanning is managed by the operator.");
+      return (
         await rescanContentCatalogV1ContentRescanPost({
+          client: apiClient,
           responseValidator: undefined,
           throwOnError: true,
         })
-      ).data,
+      ).data;
+    },
     onSuccess: async (result) => {
       if (!userId) return;
       const previous = queryClient.getQueryData<PyContentCatalog>(

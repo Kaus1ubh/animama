@@ -6,6 +6,7 @@ import asyncio
 import re
 from dataclasses import dataclass
 
+from animama.app.model_clients import ModelClientTimeoutError
 from animama.domain import ModelProvider
 from animama.domain.usage import Usage
 from animama.logging import get_logger
@@ -102,7 +103,7 @@ class ChatTitleGenerationService:
                 ),
                 timeout=max(0.1, float(settings.timeout_seconds)),
             )
-        except TimeoutError:
+        except (TimeoutError, ModelClientTimeoutError):
             self._log.warning(
                 "Chat title generation timed out",
                 chat_id=chat_id,

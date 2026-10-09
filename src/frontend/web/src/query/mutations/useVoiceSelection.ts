@@ -1,10 +1,12 @@
+import { useProductApiClient } from "@animama/product-ui";
+import type { Client } from "@animama/runtime-contracts/sdk";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { commitVoice, planVoice } from "@animama/runtime-contracts/sdk";
 import type {
   PySingleSelectionIntent,
   PyVoiceContent,
 } from "@animama/runtime-contracts/api-types";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { invalidateAnimaLoadoutAndRuntime } from "@/query/animaLoadoutInvalidation";
 
 export type VoiceSelectionInput = {
@@ -15,6 +17,7 @@ export type VoiceSelectionInput = {
 
 /** The plan digest fences the entire resolved content closure before committing its binding. */
 export async function selectVoiceClone(
+  apiClient: Client,
   animaId: string,
   input: VoiceSelectionInput,
 ) {
@@ -36,11 +39,13 @@ export async function selectVoiceClone(
     throwOnError: true as const,
   };
   const { data: plan } = await planVoice({
+    client: apiClient,
     ...options,
     body: { expected_revision: input.expectedRevision, intent },
   });
   return (
     await commitVoice({
+      client: apiClient,
       ...options,
       body: {
         expected_revision: input.expectedRevision,
@@ -54,13 +59,15 @@ export async function selectVoiceClone(
 
 /** Management-route selection; the next chat mount reads the invalidated runtime projection. */
 export function useVoiceSelection(animaId: string | null) {
-  const owner = useRuntimeOwnerId();
+  const apiClient = useProductApiClient();
+
+  const owner = useRuntimeCacheKey();
   const client = useQueryClient();
   return useMutation({
     mutationFn: (input: VoiceSelectionInput) => {
       if (!animaId || !owner)
         throw new Error("Choose an Anima before changing its voice.");
-      return selectVoiceClone(animaId, input);
+      return selectVoiceClone(apiClient, animaId, input);
     },
     onSuccess: async () => {
       if (owner && animaId)

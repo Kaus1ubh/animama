@@ -1,4 +1,5 @@
 import type { PyModelAssetState } from "@animama/runtime-contracts/api-types";
+import { optionalModelResourceUrl } from "@/lib/resource-urls";
 
 import { POCKET_VOICES } from "@/lib/speech/pocket/voice-catalog";
 import type { PocketVoiceAvailability } from "@/lib/speech/pocket/voice-preferences";
@@ -8,7 +9,11 @@ export function pocketVoiceWorkerUrls(): Record<string, string> {
   return Object.fromEntries(
     POCKET_VOICES.filter((voice) => voice.assetId).map((voice) => [
       voice.id,
-      `/v1/model-assets/${voice.assetId}/content`,
+      optionalModelResourceUrl(
+        "pocket-tts-voices",
+        `${voice.id}.safetensors`,
+        `/v1/model-assets/${voice.assetId}/content`,
+      ),
     ]),
   );
 }

@@ -1,5 +1,5 @@
 import type { PropsWithChildren } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToStaticMarkup } from "@/test/runtime-markup";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { SceneEffectCreatorPage } from "./SceneEffectCreatorPage";
@@ -33,6 +33,7 @@ vi.mock("@tanstack/react-router", () => ({
 }));
 vi.mock("@/app/runtime/RuntimeOwnerContext", () => ({
   useRuntimeOwnerId: () => "owner",
+  useRuntimeCacheKey: () => "fixture-session",
 }));
 vi.mock("@/query/hooks/useEffects", () => ({
   useSceneEffect: () => fixture.query,

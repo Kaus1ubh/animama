@@ -97,7 +97,11 @@ class AnimaCreationRoute(APIRoute):
 router = APIRouter(
     tags=["anima-creation"],
     route_class=AnimaCreationRoute,
-    responses={code: {"model": AnimaCreationErrorResponse} for code in (401, 403, 404, 409, 410, 422, 503)},
+    responses={
+        **{code: {"model": AnimaCreationErrorResponse} for code in (401, 403, 404, 409, 410, 503)},
+        # Python 3.14 changed the default 422 phrase; keep the public schema stable.
+        422: {"model": AnimaCreationErrorResponse, "description": "Unprocessable Entity"},
+    },
 )
 
 

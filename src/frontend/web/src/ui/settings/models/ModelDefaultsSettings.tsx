@@ -2,7 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import type { PyModelRoleAssignment } from "@animama/runtime-contracts/api-types";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import {
   modelRolePatch,
   readModelRoleId,
@@ -95,7 +95,7 @@ export function ModelDefaultSetting({
   const providers = useModelProviders();
   const roles = useModelRoles(true);
   const queryClient = useQueryClient();
-  const ownerKey = useRuntimeOwnerId() ?? "__anon__";
+  const ownerKey = useRuntimeCacheKey() ?? "__anon__";
   const { label, description, defaultLabel } = MODEL_DEFAULTS[role];
 
   const stored = readModelRoleId(userPreferences, role);

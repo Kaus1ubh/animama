@@ -4,7 +4,8 @@ import { useNavigate, type NavigateOptions } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useProductApiClient } from "@animama/product-ui";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { useContentEditorSaveSource } from "@/hooks/useContentEditorSaveSource";
 import { useContentSaveFailure } from "@/hooks/useContentSaveFailure";
 import {
@@ -165,7 +166,8 @@ export async function runCreatorSave<
   saveTarget: (name: string) => CreatorSaveTarget;
   progress: (stage: CreatorSaveStage, percent?: number) => void;
   persist: (session: CreatorSaveSession, snapshot: TSnapshot) => Promise<void>;
-  save?: (input: CatalogSaveInput) => Promise<PyContentItem>;
+  /** The admitted composition's catalog Save. */
+  save: (input: CatalogSaveInput) => Promise<PyContentItem>;
   clearRecovery: () => Promise<void>;
   onSaved: (snapshot: TSnapshot, item: PyContentItem) => Promise<void>;
   navigate: (options: NavigateOptions) => Promise<void>;
@@ -192,7 +194,7 @@ export async function runCreatorSave<
   await args.persist(session, named);
   args.signal.throwIfAborted();
   args.progress("validating");
-  const item = await (args.save ?? saveCatalogItem)({
+  const item = await args.save({
     kind: adapter.kind,
     entryName: name,
     files: payload.files,
@@ -260,7 +262,8 @@ export function useCreatorSave<
   onRestore: (snapshot: TSnapshot) => void;
   onSaved: (snapshot: TSnapshot, savedItemId: string) => void;
 }) {
-  const userId = useRuntimeOwnerId();
+  const userId = useRuntimeCacheKey();
+  const apiClient = useProductApiClient();
   const {
     target: saveTarget,
     saved: recordSaved,
@@ -451,6 +454,7 @@ export function useCreatorSave<
           if (percent !== undefined) setUploadProgress(percent);
         },
         persist,
+        save: (input) => saveCatalogItem(apiClient, input),
         clearRecovery: async () => {
           await recoveryLifecycle.discard(() =>
             store.clear(userId, documentKey),
@@ -490,6 +494,7 @@ export function useCreatorSave<
       controllerRef.current = null;
     }
   }, [
+    apiClient,
     adapter,
     canSave,
     captureSaveFailure,

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
@@ -140,7 +141,7 @@ class CatalogContentEntry:
 
 @dataclass(slots=True)
 class VerifiedContentFile:
-    """Open verified file descriptor owned by the caller until response completion."""
+    """Verified byte stream owned by the caller until response completion."""
 
     handle: BinaryIO
     size_bytes: int
@@ -201,11 +202,14 @@ class PreparedPackageFile:
     handle: BinaryIO | None
     size_bytes: int
     source_path: Path | None = None
+    # Reopen exactly one verified resource at consumption time. The consumer owns
+    # the returned handle; this avoids one open descriptor per archive member.
+    open_source: Callable[[], BinaryIO] | None = None
 
 
 @dataclass(frozen=True, slots=True)
 class PreparedPackageEntry:
-    """One typed entry in a closure-wide atomic filesystem installation."""
+    """One typed entry in a closure-wide atomic publication."""
 
     kind: ContentKind
     relative_locator: str

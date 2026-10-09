@@ -1,4 +1,6 @@
+import { client as testApiClient } from "@animama/runtime-contracts/default-client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createElement } from "react";
 
 const { core } = vi.hoisted(() => ({
   core: {
@@ -10,6 +12,7 @@ const { core } = vi.hoisted(() => ({
     getVoices: () => ["eve", "azelma"],
     addEventListener: vi.fn(),
     removeEventListener: vi.fn(),
+    stop: vi.fn(),
     preloadAnimaVoices:
       vi.fn<
         (reference: string) => Promise<{ available: boolean; voices: string[] }>
@@ -33,6 +36,29 @@ describe("mounted Pocket voice generation", () => {
     });
   });
 
+  it("does not restore private voice state from an ended core callback", async () => {
+    const runtime = await import("./use-pocket-tts-runtime");
+    const { renderToStaticMarkup } = await import("@/test/runtime-markup");
+    await runtime.generatePocketTtsText(testApiClient, "Hello", {
+      voice: "eve",
+    });
+    const encoded = core.addEventListener.mock.calls.find(
+      ([event]) => event === "voice_encoded",
+    )![1];
+    runtime.disposePocketTtsRuntime();
+    encoded({ detail: { voiceName: "private-ended-voice" } });
+    function Probe() {
+      return createElement(
+        "span",
+        null,
+        runtime.usePocketTtsRuntime().currentVoice,
+      );
+    }
+    expect(renderToStaticMarkup(createElement(Probe))).not.toContain(
+      "private-ended-voice",
+    );
+  });
+
   it.each([
     { available: false, voices: [] },
     { available: true, voices: ["happy_1"] },
@@ -43,7 +69,7 @@ describe("mounted Pocket voice generation", () => {
       const { generatePocketTtsText } =
         await import("./use-pocket-tts-runtime");
       await expect(
-        generatePocketTtsText("Hello", {
+        generatePocketTtsText(testApiClient, "Hello", {
           animaId: "clone-a-reference",
           assertAnimaCatalogActive: () => undefined,
         }),
@@ -60,7 +86,7 @@ describe("mounted Pocket voice generation", () => {
     });
     const { generatePocketTtsText } = await import("./use-pocket-tts-runtime");
     await expect(
-      generatePocketTtsText("Hello", {
+      generatePocketTtsText(testApiClient, "Hello", {
         animaId: "clone-a-reference",
         assertAnimaCatalogActive: () => {
           if (!active) throw new Error("Voice mount ended.");
@@ -73,13 +99,13 @@ describe("mounted Pocket voice generation", () => {
   it("loads each selected clone reference and leaves a subsequent preset free of catalog state", async () => {
     const { generatePocketTtsText } = await import("./use-pocket-tts-runtime");
     for (const animaId of ["clone-a-reference", "clone-b-reference"]) {
-      await generatePocketTtsText("Hello", {
+      await generatePocketTtsText(testApiClient, "Hello", {
         animaId,
         animaVoiceKey: "neutral",
         assertAnimaCatalogActive: () => undefined,
       });
     }
-    await generatePocketTtsText("Hello again", { voice: "eve" });
+    await generatePocketTtsText(testApiClient, "Hello again", { voice: "eve" });
     expect(core.preloadAnimaVoices.mock.calls).toEqual([
       ["clone-a-reference"],
       ["clone-b-reference"],

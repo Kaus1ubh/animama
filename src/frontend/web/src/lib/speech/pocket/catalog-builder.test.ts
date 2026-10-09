@@ -1,3 +1,4 @@
+import { client as testApiClient } from "@animama/runtime-contracts/default-client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const fixture = vi.hoisted(() => ({
@@ -82,13 +83,15 @@ describe("catalog encoding prerequisite", () => {
   it("checks optional model availability before creating an encoding worker", async () => {
     fixture.ensure.mockRejectedValue(new Error("Download voice cloning"));
     await expect(
-      buildPocketVoiceCatalogFile({ sources: sources() }),
+      buildPocketVoiceCatalogFile(testApiClient, { sources: sources() }),
     ).rejects.toThrow("Download voice cloning");
     expect(fixture.created).not.toHaveBeenCalled();
   });
 
   it("passes only the fixed verified encoder URL to the worker", async () => {
-    const file = await buildPocketVoiceCatalogFile({ sources: sources() });
+    const file = await buildPocketVoiceCatalogFile(testApiClient, {
+      sources: sources(),
+    });
     expect(file.size).toBeGreaterThan(0);
     expect(fixture.messages[0]).toMatchObject({
       type: "load",
@@ -114,7 +117,7 @@ describe("catalog encoding prerequisite", () => {
       };
     });
     await expect(
-      buildPocketVoiceCatalogFile({
+      buildPocketVoiceCatalogFile(testApiClient, {
         sources: sources(),
         encoder: { signal: abort.signal },
       }),

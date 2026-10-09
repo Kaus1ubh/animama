@@ -1,3 +1,4 @@
+import type { Client } from "@animama/runtime-contracts/sdk";
 import type { PyPose } from "@animama/runtime-contracts/api-types";
 import {
   ANIMA_POSE_CLIP_V2_SCHEMA,
@@ -33,10 +34,11 @@ export function posePreviewTarget(item: PyPose): PosePreviewTarget {
 
 /** Adapt a verified, parent-free Pose to the existing disposable clip preview player. */
 export async function resolvePosePreviewTarget(
+  apiClient: Client,
   target: PosePreviewTarget,
   signal?: AbortSignal,
 ): Promise<Extract<ContentPreviewTarget, { sourceType: "resolved_entry" }>> {
-  const { pose } = await loadPoseContent(target.item, signal);
+  const { pose } = await loadPoseContent(apiClient, target.item, signal);
   signal?.throwIfAborted();
   // One held beat. Bone positions other than the hips, which a 2.0 clip
   // cannot key, do not preview.

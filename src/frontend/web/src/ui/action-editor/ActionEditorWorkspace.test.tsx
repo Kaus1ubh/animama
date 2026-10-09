@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { renderToString } from "react-dom/server";
+import { renderToString } from "@/test/runtime-markup";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createAnimaPoseClipProgram } from "@/lib/avatar/poses/animaPoseClip/program";

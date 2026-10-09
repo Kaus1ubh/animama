@@ -16,7 +16,7 @@ import type {
   PyModelConnectionDetection,
   PyModelConnectionPreset,
 } from "@animama/runtime-contracts/api-types";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
 import {
   useCreateModelConnection,
@@ -205,7 +205,7 @@ function ModelConnectionFields({
   const formId = useId();
   const platform = useRuntimePlatform();
   const queryClient = useQueryClient();
-  const ownerId = useRuntimeOwnerId();
+  const ownerId = useRuntimeCacheKey();
   const bridge =
     platform.kind === "desktop"
       ? platform.desktopBridge.credentials

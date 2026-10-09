@@ -1,10 +1,14 @@
+import { client as testApiClient } from "@animama/runtime-contracts/default-client";
 import { describe, expect, it, vi } from "vitest";
-import { packageImportApi } from "./packageSharingApi";
+import { createPackageImportApi } from "./packageSharingApi";
 
 const { operation } = vi.hoisted(() => ({ operation: vi.fn() }));
-vi.mock("@animama/runtime-contracts/sdk", () => ({
+vi.mock("@animama/runtime-contracts/sdk", async (original) => ({
+  ...(await original<typeof import("@animama/runtime-contracts/sdk")>()),
   getPackageOperationV1ContentPackageOperationsOperationIdGet: operation,
 }));
+
+const packageImportApi = createPackageImportApi(testApiClient);
 
 describe("package transport failures", () => {
   it("reports a safe connection error when the SDK has no HTTP response", async () => {

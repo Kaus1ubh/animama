@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import json
 from contextlib import asynccontextmanager
+from io import BytesIO
 from pathlib import Path
+from typing import cast
 from uuid import uuid4
 
 import pytest
@@ -14,13 +16,14 @@ from animama.adapters.repositories.sqlalchemy.anima_aggregate_uow import SQLAlch
 from animama.adapters.repositories.sqlalchemy.anima_package_source_repo import SQLAlchemyAnimaPackageSourceRepository
 from animama.adapters.repositories.sqlalchemy.content_catalog_repo import SQLAlchemyContentCatalog
 from animama.app.anima_creation_contract import CreateAnimaRequest
+from animama.app.ports.content_store import LocalContentStore
 from animama.app.services.anima_aggregate_materializer import AnimaAggregateMaterializer
 from animama.app.services.anima_package_source_service import AnimaPackageSourceService
 from animama.app.services.content_catalog_service import ContentCatalogService
 from animama.app.services.content_package_service import ContentPackageService
 from animama.app.services.portable_anima_service import rewrite_portable_anima
 from animama.domain.anima_definition import DEFAULT_ANIMA_VOICE_ID
-from animama.domain.content_catalog import ContentConflictError, ContentKind
+from animama.domain.content_catalog import ContentConflictError, ContentKind, ContentSource
 from animama.orm import ORMAnima, ORMModelProvider
 from animama.orm.anima_chat_profile import ORMAnimaChatProfile
 from animama.orm.content_catalog import ORMAnimaContentBinding
@@ -232,3 +235,146 @@ async def test_anima_children_and_files_rollback_together_and_unknown_commit_rep
         result = await packages.imports.commit(**command)
         assert result.anima_id is not None
         assert len(set(await async_session.scalars(select(ORMAnima.id).where(ORMAnima.user_id == fixture.owner)))) == 2
+
+
+@pytest.mark.parametrize("attempt", ["fresh-review", "cached-review", "commit", "stale-committing", "stale-recovery"])
+async def test_composition_denial_removes_staging_and_keeps_catalog_unchanged(
+    async_session, tmp_path: Path, attempt: str
+) -> None:  # noqa: ANN001
+    from animama.app.services.content_package_import import ContentPackageImportService
+
+    async with complete_package(async_session, tmp_path) as (
+        fixture,
+        catalog,
+        content,
+        _sources,
+        packages,
+        command,
+        _original_id,
+        receiver_model,
+    ):
+        imports = ContentPackageImportService(
+            content=content,
+            mutations=content.mutations,
+            stages=packages.stages,
+            uow=SQLAlchemyAnimaAggregateUnitOfWork(async_session),
+            default_model_provider_id=receiver_model,
+            allow_anima_import=False,
+        )
+        before_items = await catalog.list_visible(user_id=fixture.owner)
+        before_files = {
+            path.relative_to(fixture.paths.local_root): path.read_bytes()
+            for path in fixture.paths.local_root.rglob("*")
+            if path.is_file()
+        }
+        stage_id = command["stage_id"]
+        if attempt == "fresh-review":
+            with packages.stages.acquire(fixture.owner, stage_id) as lease:
+                with lease.open_archive() as archive:
+                    payload = archive.read()
+            packages.stages.discard(fixture.owner, stage_id)
+            stage = packages.stages.create_import(fixture.owner, "fresh-denied", "anima.zip", len(payload))
+            stage_id = stage.stage_id
+            for index, offset in enumerate(range(0, len(payload), packages.stages.limits.part_bytes)):
+                packages.stages.append_part(
+                    fixture.owner,
+                    stage_id,
+                    index,
+                    BytesIO(payload[offset : offset + packages.stages.limits.part_bytes]),
+                )
+        with packages.stages.acquire(fixture.owner, stage_id) as lease:
+            stage_directory = lease.directory
+            operation_id = lease.record.operation_id
+            assert operation_id is not None
+            expected_bytes = lease.record.expected_bytes
+            if attempt.startswith("stale-"):
+                lease.set_state("committing" if attempt == "stale-committing" else "recovery_needed")
+        with pytest.raises(ContentConflictError, match="package_anima_import_unavailable"):
+            if attempt in {"fresh-review", "cached-review"}:
+                await imports.review(user_id=fixture.owner, stage_id=stage_id)
+            else:
+                await imports.commit(**command)
+        assert not stage_directory.exists()  # archive, metadata, expansion and reservation are gone
+        assert packages.stages.find_import(fixture.owner, operation_id) is None
+        assert await catalog.list_visible(user_id=fixture.owner) == before_items
+        assert {
+            path.relative_to(fixture.paths.local_root): path.read_bytes()
+            for path in fixture.paths.local_root.rglob("*")
+            if path.is_file()
+        } == before_files
+        assert await catalog.get_mutation_receipt(user_id=fixture.owner, operation_id=operation_id) is None
+        # The existing export occupies the other slot; denial must release this
+        # reservation immediately, without waiting for TTL or quota reclamation.
+        replacement = packages.stages.create_import(fixture.owner, "after-denial", "next.zip", expected_bytes)
+        packages.stages.discard(fixture.owner, replacement.stage_id)
+
+
+@pytest.mark.parametrize("attempt", ["review", "commit"])
+async def test_denial_retains_a_real_unresolved_publication_journal(
+    async_session, tmp_path: Path, attempt: str
+) -> None:  # noqa: ANN001
+    from animama.app.services.content_package_import import ContentPackageImportService, import_request_digest
+
+    async with complete_package(async_session, tmp_path) as (
+        fixture,
+        catalog,
+        content,
+        _sources,
+        packages,
+        command,
+        _original_id,
+        receiver_model,
+    ):
+        store = cast(LocalContentStore, content.mutations.store)
+        request_digest = import_request_digest(command["review_digest"])
+        async with catalog.mutation_transaction():
+            await catalog.lock_source(source=ContentSource.LOCAL)
+            journal_id = store.begin_mutation(
+                user_id=fixture.owner, operation_id=command["operation_id"], request_digest=request_digest
+            )
+        imports = ContentPackageImportService(
+            content=content,
+            mutations=content.mutations,
+            stages=packages.stages,
+            uow=SQLAlchemyAnimaAggregateUnitOfWork(async_session),
+            default_model_provider_id=receiver_model,
+            allow_anima_import=False,
+        )
+        try:
+            with pytest.raises(ContentConflictError, match="package_anima_import_unavailable"):
+                if attempt == "review":
+                    await imports.review(user_id=fixture.owner, stage_id=command["stage_id"])
+                else:
+                    await imports.commit(**command)
+            with packages.stages.acquire(fixture.owner, command["stage_id"]) as lease:
+                assert lease.record.state == "recovery_needed"
+                assert lease.archive_path.is_file()
+            assert any(journal.journal_id == journal_id for journal in store.pending_mutations())
+        finally:
+            store.finalize_mutation(journal_id=journal_id, commit=False, expected_request_digest=request_digest)
+
+
+async def test_completed_anima_import_replays_before_policy_and_missing_stage(async_session, tmp_path: Path) -> None:  # noqa: ANN001
+    from animama.app.services.content_package_import import ContentPackageImportService
+
+    async with complete_package(async_session, tmp_path) as (
+        fixture,
+        _catalog,
+        content,
+        _sources,
+        packages,
+        command,
+        _original_id,
+        receiver_model,
+    ):
+        result = await packages.imports.commit(**command)
+        packages.stages.discard(fixture.owner, command["stage_id"])
+        imports = ContentPackageImportService(
+            content=content,
+            mutations=content.mutations,
+            stages=packages.stages,
+            uow=SQLAlchemyAnimaAggregateUnitOfWork(async_session),
+            default_model_provider_id=receiver_model,
+            allow_anima_import=False,
+        )
+        assert await imports.commit(**command) == result

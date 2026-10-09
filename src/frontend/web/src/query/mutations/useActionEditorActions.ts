@@ -1,5 +1,7 @@
 "use client";
 
+import { useProductApiClient } from "@animama/product-ui";
+
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import {
@@ -26,7 +28,8 @@ import {
 } from "@/lib/content/catalogApi";
 import { contentSaveFieldError } from "@/lib/content/contentSaveErrors";
 import { createUniqueContentName } from "@/lib/content/uniqueContentName";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
+import { registerPrivateStateReset } from "@/app/runtime/private-module-state";
 import { queryKeys } from "@/query/keys";
 import type {
   ActionDocument,
@@ -50,6 +53,8 @@ type PendingAction = {
 };
 
 const pendingActions = new Map<string, PendingAction>();
+// Staged VRMA files and pending saves belong to the session that made them.
+registerPrivateStateReset(() => pendingActions.clear());
 
 function slug(value: string): string {
   return (
@@ -120,8 +125,10 @@ export function actionDescriptorFor(
 
 /** Direct editable-catalog operations used by the Gesture and Reaction studio. */
 export function useActionEditorActions(intent: ActionIntent) {
+  const apiClient = useProductApiClient();
+
   const queryClient = useQueryClient();
-  const userId = useRuntimeOwnerId() ?? "__anon__";
+  const userId = useRuntimeCacheKey() ?? "__anon__";
   const invalidate = async () => {
     await Promise.all([
       queryClient.invalidateQueries({
@@ -146,8 +153,8 @@ export function useActionEditorActions(intent: ActionIntent) {
     };
     return typedActionPreview(
       intent === "gesture"
-        ? (await previewGesture(options)).data
-        : (await previewReaction(options)).data,
+        ? (await previewGesture({ ...options, client: apiClient })).data
+        : (await previewReaction({ ...options, client: apiClient })).data,
     );
   };
 
@@ -160,7 +167,7 @@ export function useActionEditorActions(intent: ActionIntent) {
     const candidateId = pending.itemId ?? identity.itemId;
     const existingId = candidateId.startsWith("new:") ? undefined : candidateId;
     const existing = existingId
-      ? await getTypedActionCatalogItem(intent, existingId)
+      ? await getTypedActionCatalogItem(apiClient, intent, existingId)
       : null;
     const logicalKey =
       existing?.logical_key ?? `local:${intent}:${slug(document.name)}`;
@@ -187,7 +194,7 @@ export function useActionEditorActions(intent: ActionIntent) {
         : new File([sequenceText], companionName, { type: "application/json" });
     if (!file)
       throw contentSaveFieldError("Choose a VRMA file before saving.", "files");
-    const saved = await saveCatalogItem({
+    const saved = await saveCatalogItem(apiClient, {
       kind: intent,
       entryName: document.name,
       files: [file],
@@ -213,7 +220,7 @@ export function useActionEditorActions(intent: ActionIntent) {
   >({
     mutationFn: async ({ document, operationId, itemId }) => {
       const existing = itemId
-        ? await getTypedActionCatalogItem(intent, itemId)
+        ? await getTypedActionCatalogItem(apiClient, intent, itemId)
         : null;
       const identity = {
         itemId: itemId ?? `new:${operationId}`,
@@ -258,7 +265,7 @@ export function useActionEditorActions(intent: ActionIntent) {
       let itemId: string | null = null;
       if (source.type === "catalog") itemId = source.catalog_item_id;
       else {
-        const items = await listCatalogItems(intent);
+        const items = await listCatalogItems(apiClient, intent);
         itemId =
           items.find((item) => item.logical_key === source.content_id)
             ?.item_id ?? null;
@@ -308,7 +315,11 @@ export function useActionEditorActions(intent: ActionIntent) {
       if (!pending) throw new Error("The editable content session expired.");
       const saved =
         pending.savedItemId && pending.savedRevision
-          ? await getTypedActionCatalogItem(intent, pending.savedItemId)
+          ? await getTypedActionCatalogItem(
+              apiClient,
+              intent,
+              pending.savedItemId,
+            )
           : await persist(identity, pending.document);
       return catalogViewItem(saved) as PyGesture | PyReaction;
     },
@@ -318,7 +329,7 @@ export function useActionEditorActions(intent: ActionIntent) {
   return {
     /** Read the full current catalog so default names also avoid unloaded items. */
     allocateDefaultName: async (baseName: string) => {
-      const items = await listCatalogItems(intent);
+      const items = await listCatalogItems(apiClient, intent);
       return createUniqueContentName(
         baseName,
         items.map((item) => item.name),

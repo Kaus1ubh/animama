@@ -19,11 +19,17 @@ initialization succeeds.
   processing status, supports upload, selected deletion, process/reprocess
   actions, and debug search.
 
-The chat composer offers the attach button, drop overlay and upload tray only
-while `GET /v1/runtime-capabilities` does not report `chat_file_uploads: false`
-(`useRuntimeFeatureEnabled` in `ui/app/RuntimeFeatureGate.tsx`). They stay
-visible while capabilities load, so local runtimes, which always report `true`,
-never flash them in; the backend still rejects uploads it does not mount.
+The chat composer offers the attach button, drop overlay and upload tray, and
+the Library its Chat Uploads section, only when the admitted runtime
+capabilities report `chat_file_uploads: true` (`useRuntimeFeatureEnabled` in
+`ui/app/RuntimeFeatureGate.tsx`). Local runtimes always do, and admission
+supplies the capabilities before the composer mounts. When they report `false`,
+as hosted runtimes do, the attach button and the Chat Uploads tab stay visible but
+disabled with the shared hosted exclusion reason, and a direct
+`/library?section=chat-uploads` link explains that chat uploads and, when
+withheld, document processing are unavailable. The disabled attach button opens
+no picker, and no drop target or tray is rendered. The backend still rejects
+uploads it does not mount.
 
 Both surfaces use `src/frontend/web/src/hooks/useUserFileUpload.ts` for new
 browser files, so private local upload, finalize, and processing enqueue

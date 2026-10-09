@@ -28,8 +28,8 @@ without browser bearer tokens.
 Main browser code lives under `src/frontend/web/src`:
 
 - `routes/`: TanStack Router file routes and route guards.
-- `app/`: router setup, global providers, local runtime readiness, neutral owner
-  context, and query client.
+- `app/`: shared router/providers, local and hosted admission adapters, explicit
+  owner/transport contexts and session-owned query clients.
 - `ui/`: feature UI, shell layout, sidebar, chat, canvas, settings and debug surfaces.
 - `query/`: TanStack Query keys, options, read hooks, and mutations.
 - Generated OpenAPI methods and types live in the sibling
@@ -53,15 +53,17 @@ Browser-engine assets use the verified inputs described in
 Global startup:
 
 - `src/frontend/web/src/main.local.tsx` mounts the local React composition.
-- `src/frontend/web/src/app/providers/AppProviders.tsx` configures the Anima
-  API client and wraps theme, TanStack Query, local runtime, and toaster
-  providers.
-- `src/frontend/web/src/app/local-runtime/LocalRuntimeProvider.tsx` reads runtime
-  readiness, repairs only when needed, shares concurrent initialization, exposes
-  loading/ready/recoverable-error states, and supplies the principal through
-  `RuntimeOwnerContext`.
-- `src/frontend/web/src/app/router.tsx` creates the TanStack Router and gates
-  route rendering on local runtime readiness.
+- `src/frontend/web/src/main.hosted.tsx` installs hosted cookie/CSRF transport
+  and mounts the same application. `pnpm web:build:hosted` emits `web/dist-hosted`;
+  `pnpm build` retains the local build. Neither uses a runtime product-mode flag.
+- `src/frontend/web/src/app/providers/AppProviders.tsx` wraps theme, admission,
+  session-owned TanStack Query, explicit product runtime and toaster providers.
+- `src/frontend/web/src/app/local-runtime/local-composition.ts` reads installation
+  readiness through the local API adapter and repairs only reported bootstrap.
+  `RuntimeController` supplies common admission states; `RuntimeOwnerContext`
+  exposes the admitted principal and explicit client to shared features.
+- `src/frontend/web/src/app/router.tsx` creates a composition-owned TanStack
+  Router and gates private routes on admitted readiness.
 - `src/frontend/web/src/routes/__root.tsx` owns root document head, scroll
   restoration, scripts, and not-found rendering.
 
@@ -86,9 +88,11 @@ App Settings opens over the active route without remounting the chat runtime.
 
 - Generated SDK methods come from `@animama/runtime-contracts/sdk`; their
   generated source lives under `src/frontend/packages/runtime-contracts/src/generated`.
-- API base URLs and browser flags come from `src/frontend/web/src/platform/env.ts`.
-- `configureAnimaApiClient.ts` uses `window.location.origin`; the local
-  request interceptor adds only the CSRF marker to mutating `/v1` requests.
+- Browser flags come from `src/frontend/web/src/platform/env.ts`.
+- API requests use the admitted session's client from `useProductApiClient()`,
+  built on the entrypoint's same-origin transport; there is no global default
+  client. The local request interceptor adds only the CSRF marker to mutating
+  `/v1` requests.
 - TanStack Query state uses `src/frontend/web/src/query/keys.ts` and the hooks
   under `query/hooks` and `query/mutations`.
 - Runtime-local state that is not server state lives in Zustand stores under

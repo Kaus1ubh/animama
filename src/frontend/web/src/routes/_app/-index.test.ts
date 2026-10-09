@@ -1,5 +1,5 @@
 import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToStaticMarkup } from "@/test/runtime-markup";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Route } from "@/routes/_app/index";
@@ -13,6 +13,7 @@ const fixture = vi.hoisted(() => ({
     isFetching: false,
     refetch: vi.fn(),
   },
+  hosted: false,
   settings: {
     data: { last_active_anima_id: null as string | null },
     isSuccess: true,
@@ -24,6 +25,8 @@ const fixture = vi.hoisted(() => ({
 
 vi.mock("@tanstack/react-router", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@tanstack/react-router")>()),
+  Link: ({ children }: { children: import("react").ReactNode }) =>
+    createElement("a", { href: "/library" }, children),
   Navigate: (props: unknown) => {
     fixture.navigate(props);
     return null;
@@ -34,12 +37,22 @@ vi.mock("@/query/hooks/useUserSettings", () => ({
   useUserSettings: () => fixture.settings,
 }));
 
+vi.mock("@web/app/runtime/RuntimeAdmissionProvider", () => ({
+  useRuntimeAdmission: () => ({
+    admission: {
+      status: "ready",
+      capabilities: { anima_creation: !fixture.hosted },
+    },
+  }),
+}));
+
 function renderLaunch() {
   return renderToStaticMarkup(createElement(Route.options.component!));
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
+  fixture.hosted = false;
   fixture.animas.data = [{ id: "annie" }, { id: "caitlyn" }];
   fixture.settings.data = { last_active_anima_id: null };
   for (const query of [fixture.animas, fixture.settings]) {
@@ -107,4 +120,13 @@ describe("chat launch", () => {
       ignoreBlocker: true,
     });
   });
+});
+
+it("keeps an empty hosted roster useful without navigating to excluded creation", () => {
+  fixture.hosted = true;
+  fixture.animas.data = [];
+  const html = renderLaunch();
+  expect(html).toContain("Your Animas will appear here");
+  expect(html).toContain("Open Library");
+  expect(fixture.navigate).not.toHaveBeenCalled();
 });

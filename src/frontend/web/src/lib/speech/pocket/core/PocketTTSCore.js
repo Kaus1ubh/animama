@@ -8,6 +8,7 @@ import { PCMPlayerWorklet } from "../audio/PCMPlayerWorklet.js";
 import { PocketTTSDebugTracker } from "./PocketTTSDebugTracker.js";
 import { clampPocketGain } from "../audio/volume.js";
 import { createLogger } from "@/lib/logger";
+import { publicResourceUrl } from "@/lib/resource-urls";
 
 const DEFAULT_SAMPLE_RATE = 24000;
 const FADE_SAMPLES = 480;
@@ -40,7 +41,7 @@ export class PocketTTSCore extends EventEmitter {
   constructor(options = {}) {
     super();
 
-    const assetBaseUrl = options.assetBaseUrl || "/tts";
+    const assetBaseUrl = options.assetBaseUrl || publicResourceUrl("tts");
 
     this.options = {
       assetBaseUrl,
@@ -71,8 +72,11 @@ export class PocketTTSCore extends EventEmitter {
       workletModuleUrl:
         options.workletModuleUrl ||
         resolveAssetUrl(assetBaseUrl, "audio/pcm-processor.worklet.js"),
-      ortModuleUrl: options.ortModuleUrl || "/onnx/ort/1.24.2/ort.min.mjs",
-      ortWasmBaseUrl: options.ortWasmBaseUrl || "/onnx/ort/1.24.2/",
+      ortModuleUrl:
+        options.ortModuleUrl ||
+        publicResourceUrl("onnx/ort/1.24.2/ort.min.mjs"),
+      ortWasmBaseUrl:
+        options.ortWasmBaseUrl || publicResourceUrl("onnx/ort/1.24.2/"),
       sentencepieceModuleUrl:
         options.sentencepieceModuleUrl ||
         resolveAssetUrl(assetBaseUrl, "vendor/sentencepiece.js"),

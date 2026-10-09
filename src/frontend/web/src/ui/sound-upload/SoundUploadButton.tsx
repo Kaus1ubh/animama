@@ -1,7 +1,8 @@
+import { useProductApiClient } from "@animama/product-ui";
 import { useEffect, useReducer, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { UploadIcon } from "lucide-react";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { listCatalogItems, saveCatalogItem } from "@/lib/content/catalogApi";
 import type { PyContentItem } from "@/lib/content/catalogTypes";
 import { queryKeys } from "@/query/keys";
@@ -18,8 +19,10 @@ export function SoundUploadButton({
   onUploaded?: (item: PyContentItem) => void;
   className?: string;
 }) {
+  const apiClient = useProductApiClient();
+
   const client = useQueryClient();
-  const owner = useRuntimeOwnerId();
+  const owner = useRuntimeCacheKey();
   const input = useRef<HTMLInputElement>(null);
   const mounted = useRef(true);
   const callback = useRef(onUploaded);
@@ -30,10 +33,10 @@ export function SoundUploadButton({
       new SoundUploadQueue(
         {
           listNames: async () =>
-            (await listCatalogItems("sound_effect")).map(
+            (await listCatalogItems(apiClient, "sound_effect")).map(
               (item) => item.display_name,
             ),
-          save: saveCatalogItem,
+          save: saveCatalogItem.bind(null, apiClient),
           onSaved: async (item) => {
             if (owner) {
               await Promise.all([

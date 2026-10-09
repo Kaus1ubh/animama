@@ -7,7 +7,7 @@ import type {
   PyAnimaChatProfileUpdateRequest,
   PyAnimaResponse,
 } from "@animama/runtime-contracts/api-types";
-import { useRuntimeOwnerId } from "../../runtime/ProductRuntimeProvider";
+import { useRuntimeCacheKey } from "../../runtime/ProductRuntimeProvider";
 import { queryKeys } from "../keys";
 
 export type UpdateAnimaChatProfileArgs = {
@@ -44,7 +44,7 @@ function patchAnimaChatProfileInCache(
 export function useUpdateAnimaChatProfile() {
   const queryClient = useQueryClient();
   const client = useProductApiClient();
-  const userId = useRuntimeOwnerId();
+  const userId = useRuntimeCacheKey();
   const userKey = userId ?? "__anon__";
 
   return useMutation<PyAnimaResponse, Error, UpdateAnimaChatProfileArgs>({

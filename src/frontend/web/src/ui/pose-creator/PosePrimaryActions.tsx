@@ -2,14 +2,14 @@
 
 import { SaveIcon, WandSparklesIcon } from "lucide-react";
 import { useIsMutating } from "@tanstack/react-query";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { queryKeys } from "@/query/keys";
 import { usePoseCreatorStore } from "@/stores/pose-creator-store";
 import { Button } from "@/ui/components/button";
 
 /** Shared pose Save actions; no Gesture/Reaction document provider is required. */
 export function PosePrimaryActions({ busy = false }: { busy?: boolean }) {
-  const owner = useRuntimeOwnerId();
+  const owner = useRuntimeCacheKey();
   const saving =
     useIsMutating({ mutationKey: queryKeys.poses.save(owner ?? "__anon__") }) >
     0;

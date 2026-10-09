@@ -1,3 +1,4 @@
+import type { Client } from "@animama/runtime-contracts/sdk";
 import type { PyPose } from "@animama/runtime-contracts/api-types";
 import { previewPose } from "@animama/runtime-contracts/sdk";
 import {
@@ -13,10 +14,12 @@ export type PoseContentDocument = { item: PyPose; pose: ResolvedAnimaPose };
 
 /** Read the registered descriptor bytes for a selected Pose. */
 export async function loadPoseContent(
+  apiClient: Client,
   item: PyPose,
   signal?: AbortSignal,
 ): Promise<PoseContentDocument> {
   const { data: preview } = await previewPose({
+    client: apiClient,
     path: { item_id: item.item_id },
     signal,
     responseValidator: undefined,

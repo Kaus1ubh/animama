@@ -16,19 +16,19 @@ The route accepts `PyAnimaChatRequest`:
 
 ```json
 {
-  "message": "Hello",
-  "chat_id": "optional-existing-or-client-id",
-  "run_id": "optional-client-run-id",
-  "model_provider_id": "optional-model-providers-id",
-  "runtime_revision": "mounted-runtime-revision",
-  "dispatch_options": {
-    "main_structured_response": true,
-    "incognito": false
-  },
-  "client_context": {
-    "time_zone": "America/Toronto",
-    "locale": "en-US"
-  }
+    "message": "Hello",
+    "chat_id": "optional-existing-or-client-id",
+    "run_id": "optional-client-run-id",
+    "model_provider_id": "optional-model-providers-id",
+    "runtime_revision": "mounted-runtime-revision",
+    "dispatch_options": {
+        "main_structured_response": true,
+        "incognito": false
+    },
+    "client_context": {
+        "time_zone": "America/Toronto",
+        "locale": "en-US"
+    }
 }
 ```
 
@@ -79,7 +79,13 @@ has no direct-chat standard fail setup with `chat_api_standard_unsupported`.
 `dispatch_options` reuses `PyAnimaDispatchOptions`, so the direct path
 receives the same request-level controls used by chat settings: memory
 influence, memory updates, emotion influence, emotion updates, incognito,
-main-structured response, native tools, and reasoning effort. Direct chat always
+main-structured response, native tools, and reasoning effort. Direct chat
+resolves boolean controls through the neutral
+`app.chat.options.merge_chat_request_options`: explicit request values take
+precedence over per-Anima settings and then owner defaults. Disabling memory
+influence also disables memory updates, including across preference layers. Each
+composition loads its owned settings before calling this shared policy.
+Direct chat always
 opens the anima identity file because it is anima configuration. With memory
 influence enabled it also opens the Anima's `MEMORIES.md` and places it as
 `# Anima Memories` directly after `# Anima Identity`; a missing, blank or
@@ -425,8 +431,9 @@ generation.
 
 After a successful non-incognito response and before the normal
 `run.completed` frame, the route runs a hidden compaction check. OpenAI
-Responses turns skip it and rely on provider-side compaction; Chat Completions
-models also compact before sending when a prompt nears their window (see the
+Responses turns skip it and rely on provider-side compaction; models without
+provider-side compaction also compact before sending when a prompt nears their
+window (see the
 [context window budget](model-client-providers.md#context-window-budget)). If
 `chats.active_context_tokens` is at or above
 `ANIMAMA_CHAT_COMPACTION_THRESHOLD_TOKENS` (default 6000, lowered to 75% of the

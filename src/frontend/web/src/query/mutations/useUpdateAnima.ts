@@ -1,5 +1,7 @@
 "use client";
 
+import { useProductApiClient } from "@animama/product-ui";
+
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { patchAnimaV1AnimasAnimaIdPatch } from "@animama/runtime-contracts/sdk";
 import type {
@@ -7,7 +9,7 @@ import type {
   PyAnimaUpdateRequest,
 } from "@/lib/content/catalogTypes";
 import { queryKeys } from "../keys";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { invalidateAnimaDefinition } from "@/query/animaDefinitionInvalidation";
 import { invalidateAnimaLoadoutAndRuntime } from "@/query/animaLoadoutInvalidation";
 
@@ -17,13 +19,16 @@ export type UpdateAnimaArgs = {
 };
 
 export function useUpdateAnima() {
+  const apiClient = useProductApiClient();
+
   const queryClient = useQueryClient();
-  const userId = useRuntimeOwnerId();
+  const userId = useRuntimeCacheKey();
   const userKey = userId ?? "__anon__";
 
   return useMutation<PyAnimaResponse, Error, UpdateAnimaArgs>({
     mutationFn: async (args) => {
       const { data: updated } = await patchAnimaV1AnimasAnimaIdPatch({
+        client: apiClient,
         path: { anima_id: args.animaId },
         body: args.body,
         responseValidator: undefined,

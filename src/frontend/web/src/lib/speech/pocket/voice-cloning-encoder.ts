@@ -1,9 +1,15 @@
+import type { Client } from "@animama/runtime-contracts/sdk";
+import { optionalModelResourceUrl } from "@/lib/resource-urls";
 import type { PyModelAssetState } from "@animama/runtime-contracts/api-types";
 import { getModelAssetV1ModelAssetsAssetIdGet } from "@animama/runtime-contracts/sdk";
 
 export const POCKET_VOICE_ENCODER_ASSET_ID = "pocket-tts-voice-cloning-encoder";
 /** Only the verified backend content route is given to an encoding worker. */
-export const POCKET_VOICE_ENCODER_CONTENT_URL = `/v1/model-assets/${POCKET_VOICE_ENCODER_ASSET_ID}/content`;
+export const POCKET_VOICE_ENCODER_CONTENT_URL = optionalModelResourceUrl(
+  "pocket-tts-voice-cloning",
+  "mimi_encoder.onnx",
+  `/v1/model-assets/${POCKET_VOICE_ENCODER_ASSET_ID}/content`,
+);
 
 export type PocketVoiceEncoderOptions = {
   signal?: AbortSignal;
@@ -65,10 +71,10 @@ function waitForPoll(signal?: AbortSignal): Promise<void> {
  * The existing model-asset mutation owns explicit Download actions and query
  * invalidation. Each caller only joins that install; abort never removes it.
  */
-export async function ensurePocketVoiceCloningEncoder({
-  signal,
-  onState,
-}: PocketVoiceEncoderOptions = {}): Promise<string> {
+export async function ensurePocketVoiceCloningEncoder(
+  apiClient: Client,
+  { signal, onState }: PocketVoiceEncoderOptions = {},
+): Promise<string> {
   const options = {
     path: { asset_id: POCKET_VOICE_ENCODER_ASSET_ID },
     signal,
@@ -85,14 +91,26 @@ export async function ensurePocketVoiceCloningEncoder({
   };
   signal?.throwIfAborted();
   let asset = report(
-    (await getModelAssetV1ModelAssetsAssetIdGet(options)).data,
+    (
+      await getModelAssetV1ModelAssetsAssetIdGet({
+        ...options,
+        client: apiClient,
+      })
+    ).data,
   );
   if (asset.status !== "installed" && asset.status !== "downloading") {
     throw new PocketVoiceEncoderDownloadRequired(asset);
   }
   while (asset.status === "downloading") {
     await waitForPoll(signal);
-    asset = report((await getModelAssetV1ModelAssetsAssetIdGet(options)).data);
+    asset = report(
+      (
+        await getModelAssetV1ModelAssetsAssetIdGet({
+          ...options,
+          client: apiClient,
+        })
+      ).data,
+    );
   }
   if (asset.status === "failed")
     throw new Error(FAILURE_MESSAGES[asset.reason ?? "asset_download_failed"]);

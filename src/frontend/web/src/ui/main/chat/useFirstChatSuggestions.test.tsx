@@ -11,7 +11,7 @@ const fixture = vi.hoisted(() => ({
 }));
 
 vi.mock("@/app/runtime/RuntimeOwnerContext", () => ({
-  useRuntimeOwnerId: () => "owner",
+  useRuntimeCacheKey: () => "owner",
 }));
 vi.mock("@/query/hooks/useChats", () => ({
   useChats: () => ({ data: fixture.chats, isSuccess: fixture.historyReady }),

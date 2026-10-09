@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
-import os
 import re
 import stat
 from dataclasses import asdict, dataclass, field
@@ -17,6 +16,7 @@ from zipfile import ZIP_STORED, ZipFile, ZipInfo
 
 from pydantic import BaseModel, ConfigDict
 
+from animama.adapters.package_inspection import LocalPackageInspector
 from animama.app.contracts.content_package import (
     MAX_MANIFEST_BYTES,
     MAX_PACKAGE_BYTES,
@@ -38,15 +38,17 @@ from animama.app.contracts.content_package import (
 )
 from animama.app.contracts.portable_anima import PortableAnima
 from animama.app.ports.avatar_face_parts import AvatarFacePartOverrideRepository
+from animama.app.ports.content_package_staging import PackageInspector, PackageStageLease, PackageStages
 from animama.app.ports.user_profile_port import UserProfileRepository
 from animama.app.services.anima_package_source_service import AnimaPackageSnapshot, AnimaPackageSourceService
 from animama.app.services.avatar_face_parts import effective_face_parts
 from animama.app.services.content_catalog_service import ContentCatalogService
 from animama.app.services.content_kind_registry import MAX_JSON_BYTES, handler_for_kind
-from animama.app.services.content_package_staging import PackageStageService, StageLease
+from animama.app.services.content_package_staging import PackageStageService
 from animama.app.services.content_portability import is_non_portable
 from animama.app.services.local_content_mutations import _finish_owned_work, mutation_digest
 from animama.app.services.non_portable_packages import idle_pools_using, strip_idle_refs
+from animama.app.services.package_inspection import inspect_package
 from animama.app.services.typed_content_service import TypedCatalogItem, TypedContentResolutionContext
 from animama.domain.content_catalog import (
     CatalogContentEntry,
@@ -248,7 +250,7 @@ class DownloadLease:
 
     handle: BinaryIO
     review: ExportReview
-    _lease: StageLease
+    _lease: PackageStageLease
 
     def close(self, *, reclaimable: bool = False) -> None:
         """Keep retry bytes, but allow quota pressure to reclaim a finished HTTP attempt."""
@@ -265,7 +267,7 @@ class DownloadLease:
 class _ReservedWriter:
     """Apply quota checks to ZIP headers and directory bytes as well as payload chunks."""
 
-    def __init__(self, handle: BinaryIO, lease: StageLease) -> None:
+    def __init__(self, handle: BinaryIO, lease: PackageStageLease) -> None:
         self._handle, self._lease = handle, lease
 
     def write(self, payload: bytes) -> int:
@@ -334,9 +336,10 @@ class ContentPackageExportService:
         self,
         *,
         content: ContentCatalogService,
-        exports_root: Path,
+        exports_root: Path | None = None,
         anima_sources: AnimaPackageSourceService | None = None,
-        stages: PackageStageService | None = None,
+        stages: PackageStages | None = None,
+        inspector: PackageInspector | None = None,
         profiles: UserProfileRepository | None = None,
         face_part_overrides: AvatarFacePartOverrideRepository | None = None,
     ) -> None:
@@ -344,11 +347,23 @@ class ContentPackageExportService:
         self._face_part_overrides = face_part_overrides
         self._catalog = content.mutations.catalog
         self._store = content.mutations.store
-        self._stages = stages or PackageStageService(exports_root.parent / "imports", exports_root)
+        if stages is None and exports_root is None:
+            raise ValueError("package stages or a local export root are required")
+        if content.owner_id is not None:
+            if getattr(stages, "owner_id", None) != content.owner_id:
+                raise ValueError("package stages must bind the same content owner")
+            if inspector is None:
+                raise ValueError("an owner-bound package composition requires an explicit inspector")
+        if stages is None:
+            assert exports_root is not None
+            stages = PackageStageService(exports_root.parent / "imports", exports_root)
+        self._stages = stages
+        self._inspector = inspector or LocalPackageInspector(store=self._store)
         self._animas = anima_sources
         self._profiles = profiles
 
     async def _selection(self, *, user_id: str, item_ids: tuple[str, ...], anima_id: str | None) -> _Selection:
+        self._content.require_owner(user_id)
         if bool(item_ids) == bool(anima_id) or len(item_ids) != len(set(item_ids)):
             raise ContentConflictError("package_selection_invalid")
         visible = {item.id: item for item in await self._catalog.list_visible(user_id=user_id)}
@@ -516,6 +531,7 @@ class ContentPackageExportService:
         self, *, user_id: str, expected_digest: str, item_ids: tuple[str, ...] = (), anima_id: str | None = None
     ) -> ExportReview:
         """Own capture through cleanup even when its requesting connection disappears."""
+        self._content.require_owner(user_id)
         return await _finish_owned_work(
             self._prepare(user_id=user_id, expected_digest=expected_digest, item_ids=item_ids, anima_id=anima_id)
         )
@@ -552,12 +568,8 @@ class ContentPackageExportService:
         try:
             manifest = await asyncio.to_thread(self._write_reserved, selected, lease)
             # Inspect exactly the produced bytes through the import boundary.
-            from animama.app.services.content_package_archive import ContentPackageArchive
-
-            with lease.expansion() as destination:
-                await asyncio.to_thread(
-                    ContentPackageArchive(store=self._store).inspect, lease.archive_path, destination=destination
-                )
+            async with inspect_package(self._inspector, lease):
+                pass
             await asyncio.to_thread(self._verify_sources, selected)
             await self._content.rescan(user_id=user_id)
             if selected.anima_snapshot is not None:
@@ -589,21 +601,24 @@ class ContentPackageExportService:
         finally:
             lease.close()
 
-    def _write_reserved(self, selected: _Selection, lease: StageLease) -> PackageManifest:
-        with lease.archive_path.open("xb") as handle:
-            os.chmod(lease.archive_path, 0o600)
+    def _write_reserved(self, selected: _Selection, lease: PackageStageLease) -> PackageManifest:
+        with lease.write_archive() as handle:
             return self._write(selected, cast(BinaryIO, _ReservedWriter(handle, lease)))
 
     async def cached(self, *, user_id: str, export_id: str) -> CachedExport:
         """Compatibility helper for service callers; HTTP must keep a download lease."""
         download = await self.download(user_id=user_id, export_id=export_id)
         try:
-            return CachedExport(download._lease.archive_path, download.review)
+            local_path = getattr(download._lease, "archive_path", None)
+            if not isinstance(local_path, Path):
+                raise ContentConflictError("package_local_path_unavailable")
+            return CachedExport(local_path, download.review)
         finally:
             download.close()
 
     async def download(self, *, user_id: str, export_id: str) -> DownloadLease:
         """Open the exact sealed archive while retaining its cleanup exclusion lease."""
+        self._content.require_owner(user_id)
         opened: list[DownloadLease] = []
 
         async def own_open() -> DownloadLease:
@@ -621,7 +636,7 @@ class ContentPackageExportService:
             raise
 
     def _open_download(self, user_id: str, export_id: str) -> DownloadLease:
-        lease: StageLease | None = None
+        lease: PackageStageLease | None = None
         try:
             lease = self._stages.acquire(user_id, export_id, "export")
             if lease.record.state not in {"reviewed", "completed"} or lease.record.review is None:
@@ -631,7 +646,7 @@ class ContentPackageExportService:
             if review.size_bytes != size or review.package_sha256 != digest:
                 raise ContentConflictError("package_export_changed")
             review.expires_at = lease.record.expires_at
-            return DownloadLease(lease.archive_path.open("rb"), review, lease)
+            return DownloadLease(lease.open_archive(), review, lease)
         except BaseException as exc:
             if lease is not None:
                 lease.close()
@@ -879,5 +894,4 @@ class ContentPackageExportService:
             info.external_attr = (stat.S_IFREG | 0o600) << 16
             archive.writestr(info, payload)
         destination.flush()
-        os.fsync(destination.fileno())
         return manifest

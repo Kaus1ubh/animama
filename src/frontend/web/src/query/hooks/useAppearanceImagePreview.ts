@@ -1,10 +1,12 @@
 "use client";
 
+import { useProductApiClient } from "@animama/product-ui";
+
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { createAnimaPresentationObjectUrl } from "@/lib/anima/animaPresentationImage";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { previewCatalogItem } from "@/lib/content/catalogApi";
 import {
   contentPreviewPrimaryFile,
@@ -18,7 +20,9 @@ export function useAppearanceImagePreview(
   use: "profile" | "background",
   options: { enabled?: boolean } = {},
 ) {
-  const userId = useRuntimeOwnerId();
+  const apiClient = useProductApiClient();
+
+  const userId = useRuntimeCacheKey();
   const previewQuery = useQuery<Blob>({
     queryKey: queryKeys.appearanceImages.preview(
       userId ?? "__anon__",
@@ -30,7 +34,12 @@ export function useAppearanceImagePreview(
     staleTime: Number.POSITIVE_INFINITY,
     queryFn: async () => {
       if (!itemId) throw new Error("An Appearance item is required.");
-      const preview = await previewCatalogItem(itemId, undefined, "appearance");
+      const preview = await previewCatalogItem(
+        apiClient,
+        itemId,
+        undefined,
+        "appearance",
+      );
       const file = contentPreviewPrimaryFile(preview, "image");
       if (!file) throw new Error("The Appearance preview has no image file.");
       const response = await fetchContentPreviewFile(preview, file);

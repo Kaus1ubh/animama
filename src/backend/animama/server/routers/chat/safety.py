@@ -8,10 +8,9 @@ as a `CRISIS_SUPPORT` domain event. No message text is logged or stored.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from datetime import UTC, date, datetime
+from datetime import UTC, datetime
 from typing import Any
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+from zoneinfo import ZoneInfo
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,8 +20,9 @@ from animama.adapters.repositories.sqlalchemy.companion_safety_repo import (
     apply_ai_notice_state,
 )
 from animama.app.safety.ai_notice import AiNoticeKind, decide_ai_notice
-from animama.app.safety.config import EffectiveCompanionSafety, SafetyPreferences, resolve_companion_safety
-from animama.app.safety.crisis_resources import CrisisResourceRegion, resolve_crisis_region
+from animama.app.safety.config import SafetyPreferences, resolve_companion_safety
+from animama.app.safety.crisis_resources import resolve_crisis_region
+from animama.app.safety.turn import TurnSafety, resolve_turn_time_zone
 from animama.logging_config import get_logger
 from animama.server.companion_safety import load_safety_preferences, runtime_crisis_resources
 from animama.server.config import Settings
@@ -34,30 +34,8 @@ from .session_services import with_short_lived_session
 _log = get_logger("server.routers.chat.safety")
 
 
-@dataclass(frozen=True, slots=True)
-class TurnSafety:
-    """Route-owned safety state for one turn; carries no message text."""
-
-    effective: EffectiveCompanionSafety
-    crisis_region: CrisisResourceRegion
-    time_zone: ZoneInfo | None
-
-    @property
-    def provider_moderation(self) -> bool:
-        return self.effective.crisis_detection_enabled
-
-    def local_date(self, now: datetime) -> date:
-        return now.astimezone(self.time_zone or UTC).date()
-
-
 def _time_zone(client_context: PyChatClientContext | None) -> ZoneInfo | None:
-    name = client_context.time_zone if client_context is not None else None
-    if not name:
-        return None
-    try:
-        return ZoneInfo(name)
-    except (ZoneInfoNotFoundError, ValueError):
-        return None
+    return resolve_turn_time_zone(client_context.time_zone if client_context is not None else None)
 
 
 async def prepare_turn_safety(

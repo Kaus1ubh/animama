@@ -11,10 +11,25 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from tempfile import SpooledTemporaryFile
-from typing import BinaryIO, cast
+from typing import BinaryIO, Protocol, cast
 
-from animama.server.local_runtime import LocalRuntimePaths
 from animama.utils.files import is_directory, is_link, open_no_follow, replace
+
+
+class PrivateFileRoots(Protocol):
+    """Explicit roots supplied by the composition, without importing its startup."""
+
+    @property
+    def user_files_root(self) -> Path: ...
+
+    @property
+    def derivatives_root(self) -> Path: ...
+
+    @property
+    def uploads_staging_root(self) -> Path: ...
+
+    @property
+    def reconciliation_root(self) -> Path: ...
 
 
 class PrivateFilePathError(ValueError):
@@ -50,7 +65,7 @@ class VerifiedPrivateFile:
 class FilesystemPrivateFileStorage:
     """Resolve opaque locators into allowlisted private-data roots only."""
 
-    def __init__(self, paths: LocalRuntimePaths) -> None:
+    def __init__(self, paths: PrivateFileRoots) -> None:
         self._paths = paths
         self._areas = {
             "user-files": paths.user_files_root.resolve(strict=False),

@@ -68,7 +68,11 @@ async def get_runtime_capabilities(
             credential_state=web_search_credential_state(search_settings) if search_settings is not None else None,
         )
     return RuntimeCapabilities(
+        chat=True,
+        model_selection=True,
+        model_role_selection=True,
         model_configuration=get_model_catalog_policy(request).owner_models_enabled,
+        provider_credentials=True,
         web_search=web_search,
         companion_safety=CompanionSafetyCapability(
             enabled=safety.enabled,
@@ -80,6 +84,8 @@ async def get_runtime_capabilities(
         # The local composition mounts upload and Anima-creation routes.
         chat_file_uploads=True,
         anima_creation=True,
+        local_filesystem_administration=True,
+        native_features=desktop,
         offline_speech_enabled=speech.enabled,
         offline_speech_asset_version=speech.asset_version,
         offline_speech_gpu_asset_version=speech.gpu_asset_version,

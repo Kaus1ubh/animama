@@ -330,6 +330,7 @@ class ContentSaveService:
                 invalid_field="files",
             )
 
+        self._content.require_owner(user_id)
         return await self._content.mutations.run(
             user_id=user_id,
             operation_id=operation_id,
@@ -490,6 +491,7 @@ class ContentSaveService:
                 invalid_field=None,
             )
 
+        self._content.require_owner(user_id)
         return await self._content.mutations.run(
             user_id=user_id,
             operation_id=operation_id,

@@ -1,5 +1,7 @@
 "use client";
 
+import { useProductApiClient } from "@animama/product-ui";
+
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useMemo, useRef, useState } from "react";
@@ -11,7 +13,7 @@ import {
   previewIdleStyle,
 } from "@animama/runtime-contracts/sdk";
 import type { PyGesture, PyIdleStyle } from "@/lib/content/catalogTypes";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { useContentSaveFailure } from "@/hooks/useContentSaveFailure";
 import {
   localContentLogicalKey,
@@ -115,7 +117,9 @@ function IdleStyleEditor({
   existing?: PyIdleStyle;
   duplicate: boolean;
 }) {
-  const userId = useRuntimeOwnerId();
+  const apiClient = useProductApiClient();
+
+  const userId = useRuntimeCacheKey();
   const documentKey = `${existing?.item_id ?? "new"}${duplicate ? ":copy" : ""}`;
   const recovery = useMemo(
     () =>
@@ -249,6 +253,7 @@ function IdleStyleEditor({
     try {
       setPreviewBusy(true);
       const response = await previewGesture({
+        client: apiClient,
         path: { item_id: gesture.item_id },
         responseValidator: undefined,
         throwOnError: true,
@@ -272,6 +277,7 @@ function IdleStyleEditor({
     try {
       setPreviewBusy(true);
       const response = await previewIdleStyle({
+        client: apiClient,
         path: { item_id: existing.item_id },
         responseValidator: undefined,
         throwOnError: true,
@@ -323,7 +329,7 @@ function IdleStyleEditor({
     try {
       setBusy(true);
       clear();
-      const item = await saveCatalogItem({
+      const item = await saveCatalogItem(apiClient, {
         kind: "idle_style",
         entryName: name.trim(),
         files: [],

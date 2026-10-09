@@ -1,9 +1,10 @@
 "use client";
 
+import { useProductApiClient } from "@animama/product-ui";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo } from "react";
 
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { avatarPreviewTarget } from "@/lib/content/avatarPreviewTarget";
 import { previewCatalogItem } from "@/lib/content/catalogApi";
 import type {
@@ -73,7 +74,8 @@ export function useContentCreatorModelPreview({
   /** Also offer every Included Avatar. */
   includedAvatars?: boolean;
 }): ContentCreatorModelPreview {
-  const userId = useRuntimeOwnerId();
+  const userId = useRuntimeCacheKey();
+  const apiClient = useProductApiClient();
   const { userSettings, isLoading: settingsLoading } = useSettings();
   const animasQuery = useAnimas();
   const animaSelection = useMemo(
@@ -191,7 +193,7 @@ export function useContentCreatorModelPreview({
       query.state.data ? previewGrantRefreshMs(query.state.data) : false,
     refetchOnWindowFocus: false,
     queryFn: ({ signal }) =>
-      previewCatalogItem(includedItemId!, signal, "avatar"),
+      previewCatalogItem(apiClient, includedItemId!, signal, "avatar"),
   });
 
   const target = useMemo(() => {

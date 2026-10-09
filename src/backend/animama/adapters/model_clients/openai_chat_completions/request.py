@@ -31,6 +31,8 @@ def create_chat_completion_kwargs(spec: ModelClientRequest, *, timeout: float | 
         "model": spec.model_provider.model,
         "stream": True,
     }
+    if spec.limits is not None:
+        payload["max_completion_tokens"] = spec.limits.max_output_tokens
     if compatibility.send_stream_usage:
         payload["stream_options"] = jsonable(spec.prompt.stream_options or {"include_usage": True})
     payload["messages"] = _messages_for_spec(spec)

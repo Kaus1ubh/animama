@@ -44,7 +44,11 @@ export function loadContentEditRecovery(
 
 /** Persist idempotency identity without file bytes or delivery capabilities. */
 export function saveContentEditRecovery(recovery: ContentEditRecovery): void {
-  if (typeof window === "undefined") return;
+  if (
+    typeof window === "undefined" ||
+    !recoverySessionIsActive(recovery.userId)
+  )
+    return;
   try {
     window.localStorage.setItem(
       key(recovery.userId, recovery.family, recovery.documentKey),
@@ -67,3 +71,4 @@ export function clearContentEditRecovery(
     // A missing recovery record is already the requested result.
   }
 }
+import { recoverySessionIsActive } from "./recovery-session";

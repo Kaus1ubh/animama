@@ -8,8 +8,9 @@ import json
 from contextlib import ExitStack
 from dataclasses import asdict, dataclass
 from pathlib import PurePosixPath
-from typing import Any
+from typing import Any, cast
 
+from animama.app.ports.content_store import LocalContentStore
 from animama.app.ports.content_transition import ContentTransitionBindings, IdleTransitionBinding
 from animama.app.services.avatar_effect_transition import AvatarEffectTransitionService
 from animama.app.services.clip_format import (
@@ -128,7 +129,7 @@ class ContentTransitionService:
                 visible = {value.id: value for value in await catalog.list_visible(user_id=user_id)}
                 TypedContentResolutionContext(visible, allow_retired=True).resolve(source.id)
                 await asyncio.to_thread(
-                    self._content.mutations.store.retain_transition_originals,
+                    cast(LocalContentStore, self._content.mutations.store).retain_transition_originals,
                     operation_id=originals_id,
                     entry=source,
                     binding_facts=[asdict(value) for value in consumers],

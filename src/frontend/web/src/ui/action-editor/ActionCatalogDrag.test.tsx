@@ -3,7 +3,7 @@ import type {
   DragEndEvent,
   DragStartEvent,
 } from "@dnd-kit/core";
-import { renderToString } from "react-dom/server";
+import { renderToString } from "@/test/runtime-markup";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { parseAnimaPose, type Avatar } from "@/lib/avatar";

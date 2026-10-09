@@ -1,14 +1,18 @@
 "use client";
 
+import type { Client } from "@animama/runtime-contracts/sdk";
+import { useProductApiClient } from "@animama/product-ui";
+
 import { useQuery } from "@tanstack/react-query";
 import { getPose, listPoses } from "@animama/runtime-contracts/sdk";
 import type { PyPose, PyPosePage } from "@animama/runtime-contracts/api-types";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { queryKeys } from "@/query/keys";
 
 /** Naming must use the current complete catalog; this endpoint is not paginated. */
-export async function fetchPoseNames(): Promise<string[]> {
+export async function fetchPoseNames(apiClient: Client): Promise<string[]> {
   const { data } = await listPoses({
+    client: apiClient,
     responseValidator: undefined,
     throwOnError: true,
   });
@@ -23,7 +27,9 @@ export function usePoses(
     enabled?: boolean;
   } = {},
 ) {
-  const owner = useRuntimeOwnerId();
+  const apiClient = useProductApiClient();
+
+  const owner = useRuntimeCacheKey();
   const query = input.query?.trim().toLocaleLowerCase() ?? "";
   const origin = input.origin ?? "all";
   return useQuery<PyPosePage>({
@@ -31,6 +37,7 @@ export function usePoses(
     enabled: Boolean(owner) && input.enabled !== false,
     queryFn: async ({ signal }) => {
       const { data } = await listPoses({
+        client: apiClient,
         signal,
         responseValidator: undefined,
         throwOnError: true,
@@ -55,13 +62,16 @@ export function usePoses(
 
 /** Read a single owner-admitted Pose without duplicating its payload in client state. */
 export function usePose(itemId: string | null) {
-  const owner = useRuntimeOwnerId();
+  const apiClient = useProductApiClient();
+
+  const owner = useRuntimeCacheKey();
   return useQuery<PyPose>({
     queryKey: queryKeys.poses.detail(owner ?? "__anon__", itemId ?? "__none__"),
     enabled: Boolean(owner && itemId),
     queryFn: async ({ signal }) =>
       (
         await getPose({
+          client: apiClient,
           path: { item_id: itemId! },
           signal,
           responseValidator: undefined,

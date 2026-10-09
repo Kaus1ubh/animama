@@ -5,31 +5,60 @@ import {
   ScrollRestoration,
   Scripts,
   createRootRouteWithContext,
+  useRouterState,
+  notFound,
 } from "@tanstack/react-router";
 import { RouteView } from "@web/app/components/RouteView";
 import type { AppRouterContext } from "@web/app/router-context";
+import { useRuntimeAdmission } from "@web/app/runtime/RuntimeAdmissionProvider";
+import { unavailableRouteReason } from "@web/app/runtime/route-admission";
 
 function RootLayout() {
+  const { admission } = useRuntimeAdmission();
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname,
+  });
+  const reason =
+    admission.status === "ready"
+      ? unavailableRouteReason(pathname, admission.capabilities)
+      : null;
   return (
     <>
       <HeadContent />
       <ScrollRestoration />
-      <Outlet />
+      {reason ? (
+        <RouteView
+          eyebrow="Unavailable"
+          title="Unavailable here"
+          description={reason}
+          actions={
+            <Link to="/" className="action-link">
+              Return home
+            </Link>
+          }
+        />
+      ) : (
+        <Outlet />
+      )}
       <Scripts />
     </>
   );
 }
 
 function NotFoundView() {
+  const { admission } = useRuntimeAdmission();
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname,
+  });
+  const reason =
+    admission.status === "ready"
+      ? unavailableRouteReason(pathname, admission.capabilities)
+      : null;
   return (
     <RouteView
       eyebrow="Not found"
-      title="This route has not been migrated."
-      description="The root shell is in place, but this path does not map to one of the first migration placeholders."
-      items={[
-        "Keep the route URLs stable as features move over from Next.js.",
-        "Add migrated routes under src/routes in small vertical slices.",
-      ]}
+      title={reason ? "Unavailable here" : "Page not found"}
+      description={reason ?? "This address does not lead to an Animama page."}
       actions={
         <Link to="/" className="action-link">
           Return home
@@ -40,6 +69,14 @@ function NotFoundView() {
 }
 
 export const Route = createRootRouteWithContext<AppRouterContext>()({
+  beforeLoad: ({ context, location }) => {
+    // Stop child admission (including local desktop redirects) before feature work starts.
+    if (
+      context.capabilities &&
+      unavailableRouteReason(location.pathname, context.capabilities)
+    )
+      throw notFound({ routeId: "__root__" });
+  },
   head: () => ({
     meta: [
       { title: "Animama" },

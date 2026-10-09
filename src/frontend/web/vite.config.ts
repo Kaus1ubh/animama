@@ -161,7 +161,7 @@ export default defineConfig(({ mode, command, isPreview }) => {
       includedContentCompatibilityPlugin({
         includedRoot: includedContentRoot,
         aliases: includedContentAliases,
-        copyBuildAliases: !embeddedDesktop,
+        copyBuildAliases: !embeddedDesktop && mode !== "hosted",
       }),
       tanstackRouter(routerConfig),
       react(),

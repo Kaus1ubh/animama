@@ -1,11 +1,13 @@
 "use client";
 
+import { useProductApiClient } from "@animama/product-ui";
+
 import { useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { getAnimaSettingsV1AnimasAnimaIdSettingsGet } from "@animama/runtime-contracts/sdk";
 import type { PyAnimaSettings } from "@/lib/content/catalogTypes";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { createLogger } from "@/lib/logger";
 import { queryKeys } from "@/query/keys";
 
@@ -17,7 +19,9 @@ export function useAnimaSettings(
   animaId: string | null | undefined,
   opts?: UseAnimaSettingsOptions,
 ) {
-  const userId = useRuntimeOwnerId();
+  const apiClient = useProductApiClient();
+
+  const userId = useRuntimeCacheKey();
   const userKey = userId ?? "__anon__";
   const keyId = animaId ?? "__none__";
   const enabled =
@@ -32,6 +36,7 @@ export function useAnimaSettings(
         throw new Error("Missing anima id.");
       }
       const { data } = await getAnimaSettingsV1AnimasAnimaIdSettingsGet({
+        client: apiClient,
         path: { anima_id: animaId },
         responseValidator: undefined,
         throwOnError: true,

@@ -62,6 +62,7 @@ import { useAnimas } from "@/query/hooks/useAnimas";
 import { Button } from "@/ui/components/button";
 import { DIALOG_BACKDROP_CLASS_NAME } from "@/ui/components/dialog";
 import { Switch } from "@/ui/components/switch";
+import { UnavailableAction } from "@/ui/components/unavailable-action";
 import { TransformPanel } from "@/ui/main/canvas/TransformPanel";
 import { PlaybackObservationOutput } from "@/ui/avatar-preview/PlaybackObservationOutput";
 import {
@@ -89,6 +90,29 @@ function statusLabel(status: ContentPreviewLoadStatus): string {
     default:
       return "Preview";
   }
+}
+
+/**
+ * Recovery for a preview that needs an Anima: open the creator, or, when the
+ * runtime withholds Anima creation, keep the action disabled with its reason.
+ */
+export function PreviewCreateAnimaAction() {
+  return (
+    <RuntimeFeatureGate
+      capability="anima_creation"
+      unavailable={(reason) => (
+        <UnavailableAction reason={reason}>
+          <Button type="button" size="sm" variant="outline">
+            Create Anima
+          </Button>
+        </UnavailableAction>
+      )}
+    >
+      <Button asChild type="button" size="sm" variant="outline">
+        <Link to="/animas/new">Create Anima</Link>
+      </Button>
+    </RuntimeFeatureGate>
+  );
 }
 
 type PreviewDragSession = {
@@ -816,11 +840,7 @@ export function ContentPreviewHost() {
                   {visibleError}
                 </p>
                 {animaContextState === "anima_required" ? (
-                  <RuntimeFeatureGate capability="anima_creation">
-                    <Button asChild type="button" size="sm" variant="outline">
-                      <Link to="/animas/new">Create Anima</Link>
-                    </Button>
-                  </RuntimeFeatureGate>
+                  <PreviewCreateAnimaAction />
                 ) : (
                   <Button
                     type="button"
