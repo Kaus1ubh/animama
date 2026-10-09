@@ -12,7 +12,10 @@ Run the tooling tests from the repository root:
 
 ```bash
 uv run --no-sync python -m unittest discover -s scripts/repository-boundary -p 'test_*.py'
+node --test scripts/repository-boundary/consumers/hosted-app/*.test.mjs
 ```
+
+Full validation runs both through `scripts/ci/tooling_tests.py`.
 
 ## Shared import and artifact checks
 
@@ -67,11 +70,14 @@ starters without local-server imports. Included content is not exposed
 through the static allowlist.
 
 Use `--previous-app-set /tmp/previous-whole-app` for a verified compatible clean
-format-2 predecessor with distinct resource bytes. This exercises an already-open
-tab's late worker, the new selection, and rollback. Without a predecessor, the
-labelled controlled byte-change fixture leaves the genuine two-source gate
-unperformed. See [package-set tooling](../package-sets/README.md) and the
-[hosted contract](../../contracts/hosted-web.md) for exact identities and grammar.
+format-2 predecessor with distinct resource bytes; a byte-identical pair is
+rejected. This exercises an already-open tab's late worker, the new selection,
+and rollback, while every route, static and measurement check runs on the
+candidate. Without a predecessor, the labelled controlled byte-change fixture
+leaves the genuine two-source gate unperformed. See
+[package-set tooling](../package-sets/README.md#validation-receipt) for the
+receipt schema and the [hosted contract](../../contracts/hosted-web.md) for exact
+identities and grammar.
 
 To check wheel reproducibility within one build environment, build twice from
 unchanged inputs and compare SHA-256 digests. This does not establish universal

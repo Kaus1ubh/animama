@@ -376,6 +376,7 @@ export async function exerciseClipCompatibility(
                 }
                 receipts.push({
                     selection: labels[index],
+                    app: app.role,
                     clip_schema: expectedSchema,
                     source_commit: app.manifest.source_commit,
                     kind,
@@ -437,6 +438,7 @@ export async function exerciseClipCompatibility(
             minimum_edited_data_rollback_format: "animaPoseClip/2.0",
             exact_edited_data_rollback: applications.length === 2,
             format_generations: applications.map((app) => ({
+                app: app.role,
                 source_commit: app.manifest.source_commit,
                 emitted_schema: "animaPoseClip/2.0",
             })),

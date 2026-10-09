@@ -238,6 +238,11 @@ def inspect_archive(path, *, destination=None):
 
 def verify_application(path, source, version, contracts, *, source_tree=None):
     """Verify before selection, including immutable URL identity and backend bounds."""
+    return verified_application_inventory(path, source, version, contracts, source_tree=source_tree)[0]
+
+
+def verified_application_inventory(path, source, version, contracts, *, source_tree=None):
+    """Verify the archive; return its manifest and the member digests that were verified."""
     files, texts = inspect_archive(path)
     payload = texts.get("app-manifest.json", b"")
     app = read_json(payload)
@@ -396,7 +401,7 @@ def verify_application(path, source, version, contracts, *, source_tree=None):
             if name in names or not positive_int(entry["size"], MAX_TOTAL) or not matches(HEX64, entry["sha256"]):
                 raise ValueError("Unsafe lazy model file inventory")
             names.add(name)
-    return app
+    return app, files
 
 
 def unpack_application(path, destination, source, version, contracts, *, archive_sha256=None, source_tree=None):
@@ -404,15 +409,42 @@ def unpack_application(path, destination, source, version, contracts, *, archive
     before = file_sha(path)
     if archive_sha256 is not None and before != archive_sha256:
         raise ValueError("Application archive differs from selected package-set digest")
-    app = verify_application(path, source, version, contracts, source_tree=source_tree)
+    app, verified = verified_application_inventory(path, source, version, contracts, source_tree=source_tree)
     if destination.exists():
         raise ValueError("Application destination must be new")
     destination.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="app-verified-", dir=destination.parent) as temp:
         stage = Path(temp) / "application"
         stage.mkdir()
-        inspect_archive(path, destination=stage)
-        if file_sha(path) != before:
+        extracted, _ = inspect_archive(path, destination=stage)
+        # Bind the installed bytes to the verified pass itself: an archive that
+        # changes and changes back between the two reads keeps its file digest.
+        if extracted != verified or file_sha(path) != before:
             raise ValueError("Application archive changed during installation")
         shutil.move(stage, destination)
     return app
+
+
+def resource_prefix(app):
+    """Return the one digest-bound static prefix of a verified application manifest."""
+    prefixes = {
+        match[1]
+        for entry in app["files"]
+        if (match := re.fullmatch(r"(_animama/static/[a-f0-9]{64}/).+", entry["path"]))
+    }
+    if len(prefixes) != 1:
+        raise ValueError("Application requires exactly one digest-bound resource prefix")
+    return prefixes.pop()
+
+
+def require_distinct_resources(previous, current):
+    """Reject an upgrade pair whose applications emit the same resource generation.
+
+    Byte-identical emitted applications share every immutable URL, so selecting
+    one after the other exercises no upgrade, old-tab worker or rollback.
+    """
+    if resource_prefix(previous) == resource_prefix(current):
+        raise ValueError(
+            "Actual upgrade/rollback requires distinct application resources, but both sets emit "
+            f"/{resource_prefix(current)}; validate without --previous-app-set to use the controlled fixture"
+        )

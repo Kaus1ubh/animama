@@ -10,7 +10,8 @@ from typing import Any
 import httpx
 from openai import OpenAIError
 
-from animama.app.model_clients import ModelClientProviderError, ModelClientTimeoutError
+from animama.app.model_clients import ModelClientError, ModelClientProviderError, ModelClientTimeoutError
+from animama.app.model_clients.call_boundary import DEADLINE_CODE, INPUT_LIMIT_CODE
 from animama.app.model_clients.credentials import ModelCredentialResolver
 from animama.app.model_clients.error_categories import model_error_category
 from animama.app.ports.text_embedder import EmbeddingLimits, EmbeddingResult
@@ -64,7 +65,9 @@ class ConnectionEmbedder:
         limits = self._limits
         payload = list(islice(texts, limits.max_texts + 1)) if limits is not None else list(texts)
         if limits is not None and (len(payload) > limits.max_texts or sum(map(len, payload)) > limits.max_characters):
-            raise ValueError("Embedding input exceeds the admitted limit")
+            # A model error with the context-exceeded category: callers split the
+            # batch or record a single text as too long instead of failing.
+            raise ModelClientError("Embedding input exceeds the admitted limit", code=INPUT_LIMIT_CODE)
         if not payload:
             return EmbeddingResult([], Usage())
         connection = connection_for_request(self._model_provider)
@@ -105,6 +108,11 @@ class ConnectionEmbedder:
         except httpx.HTTPError as exc:
             raise ModelClientProviderError(
                 _failure_message(connection.name, "openai_connection_error", None), code="openai_connection_error"
+            ) from exc
+        except TimeoutError as exc:
+            # The admitted absolute deadline, reported like the chat call boundary's.
+            raise ModelClientTimeoutError(
+                _failure_message(connection.name, DEADLINE_CODE, None), code=DEADLINE_CODE
             ) from exc
         reported = getattr(response, "usage", None)
         usage = (

@@ -431,8 +431,9 @@ generation.
 
 After a successful non-incognito response and before the normal
 `run.completed` frame, the route runs a hidden compaction check. OpenAI
-Responses turns skip it and rely on provider-side compaction; Chat Completions
-models also compact before sending when a prompt nears their window (see the
+Responses turns skip it and rely on provider-side compaction; models without
+provider-side compaction also compact before sending when a prompt nears their
+window (see the
 [context window budget](model-client-providers.md#context-window-budget)). If
 `chats.active_context_tokens` is at or above
 `ANIMAMA_CHAT_COMPACTION_THRESHOLD_TOKENS` (default 6000, lowered to 75% of the

@@ -317,7 +317,7 @@ class HostedApplicationTests(unittest.TestCase):
         header = tarfile.TarInfo("././@PaxHeader")
         header.type, header.size = tarfile.XHDTYPE, 8 * 1024 * 1024
         hostile = gzip.compress(raw[:end] + header.tobuf() + b"\0" * 1024, mtime=0)
-        verify_before_mutation = application.verify_application
+        verify_before_mutation = application.verified_application_inventory
 
         def replace_after_verification(*args, **kwargs):
             result = verify_before_mutation(*args, **kwargs)
@@ -325,7 +325,40 @@ class HostedApplicationTests(unittest.TestCase):
             return result
 
         destination = self.root / "unselected-after-mutation"
-        with patch("application.verify_application", replace_after_verification), self.assertRaises(ValueError):
+        with (
+            patch("application.verified_application_inventory", replace_after_verification),
+            self.assertRaises(ValueError),
+        ):
+            unpack_application(archive, destination, "a" * 40, "0.1.0", self.m["contracts"])
+        self.assertFalse(destination.exists())
+        self.assertEqual(list(self.root.glob("app-verified-*")), [])
+
+    def test_installed_bytes_must_be_the_bytes_that_were_verified(self):
+        # A-B-A: other bytes appear only while the archive is extracted, then the
+        # verified bytes return, so the archive digest alone cannot notice.
+        archive = self.old / "animama-hosted-web-0.1.0.tar.gz"
+        verified_bytes = archive.read_bytes()
+        name = next(name for name in self.files if name.endswith("/app.js"))
+        self.files[name] = b"console.log('substituted between verification and extraction')"
+        self.write_app()
+        substituted = archive.read_bytes()
+        archive.write_bytes(verified_bytes)
+        inspect = application.inspect_archive
+
+        def substitute_during_extraction(path, *, destination=None):
+            if destination is None:
+                return inspect(path)
+            path.write_bytes(substituted)
+            try:
+                return inspect(path, destination=destination)
+            finally:
+                path.write_bytes(verified_bytes)
+
+        destination = self.root / "unselected-after-substitution"
+        with (
+            patch("application.inspect_archive", substitute_during_extraction),
+            self.assertRaisesRegex(ValueError, "changed during installation"),
+        ):
             unpack_application(archive, destination, "a" * 40, "0.1.0", self.m["contracts"])
         self.assertFalse(destination.exists())
         self.assertEqual(list(self.root.glob("app-verified-*")), [])
@@ -338,6 +371,21 @@ class HostedApplicationTests(unittest.TestCase):
         self.write_app()
         with self.assertRaisesRegex(ValueError, "prefix does not bind"):
             verify(self.old)
+
+    def test_an_upgrade_pair_requires_distinct_resource_generations(self):
+        # Byte-identical applications share every immutable URL, so an upgrade
+        # between them exercises no selection change, old-tab worker or rollback.
+        archive = self.old / "animama-hosted-web-0.1.0.tar.gz"
+        current = unpack_application(archive, self.root / "current", "a" * 40, "0.1.0", self.m["contracts"])
+        identical = unpack_application(archive, self.root / "identical", "a" * 40, "0.1.0", self.m["contracts"])
+        with self.assertRaisesRegex(ValueError, "distinct application resources"):
+            application.require_distinct_resources(identical, current)
+        prefix = application.resource_prefix(current)
+        self.assertRegex(prefix, r"^_animama/static/[a-f0-9]{64}/$")
+        changed = copy.deepcopy(current)
+        for entry in changed["files"]:
+            entry["path"] = entry["path"].replace(prefix, "_animama/static/" + "f" * 64 + "/")
+        application.require_distinct_resources(changed, current)
 
     def test_controlled_selection_retains_bytes_under_a_distinct_verified_prefix(self):
         archive = self.old / "animama-hosted-web-0.1.0.tar.gz"

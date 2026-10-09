@@ -143,6 +143,50 @@ class PackageSetTests(unittest.TestCase):
         write_manifest(new, m)
         compare(self.old, new)
 
+    def test_build_environment_forwards_the_model_store_but_no_credentials_or_fixed_model_set(self):
+        inherited = {
+            "PATH": "/usr/bin",
+            "HOME": "/home/builder",
+            "ANIMAMA_MODEL_ROOT": "/verified/models",
+            "XDG_CACHE_HOME": "/home/builder/.cache",
+            # One resolved set would make a baseline snapshot build with the candidate's models.
+            "ANIMAMA_BROWSER_MODEL_DIR": "/verified/models/browser-speech/candidate",
+            "OPENAI_API_KEY": "sk-never-forwarded",
+            "GITHUB_TOKEN": "never-forwarded",
+            "R2_SECRET_ACCESS_KEY": "never-forwarded",
+        }
+        with patch.dict(os.environ, inherited, clear=True):
+            env = build.clean_env()
+        self.assertEqual(env["ANIMAMA_MODEL_ROOT"], "/verified/models")
+        self.assertEqual(env["XDG_CACHE_HOME"], "/home/builder/.cache")
+        self.assertEqual(env["HOME"], "/home/builder")
+        for name in ("ANIMAMA_BROWSER_MODEL_DIR", "OPENAI_API_KEY", "GITHUB_TOKEN", "R2_SECRET_ACCESS_KEY"):
+            self.assertNotIn(name, env)
+
+    def test_models_acquires_only_an_application_sources_own_speech_set(self):
+        source = self.root / "source"
+        (source / "scripts/models").mkdir(parents=True)
+        commands = []
+
+        def record(command, cwd, env):
+            commands.append((command, cwd, env))
+
+        with (
+            patch("build.run", side_effect=record),
+            patch.dict(os.environ, {"ANIMAMA_MODEL_ROOT": "/verified/models", "OPENAI_API_KEY": "sk"}, clear=True),
+        ):
+            build.models(source)  # A library-only (format 1) source builds no application.
+            self.assertEqual(commands, [])
+            (source / "src/frontend/scripts").mkdir(parents=True)
+            (source / "src/frontend/scripts/hosted-build-resources.mjs").write_text("// fixture\n")
+            build.models(source)
+        script = str(source.resolve() / "scripts/models/browser_speech.py")
+        self.assertEqual([command[1:] for command, _, _ in commands], [[script, "acquire"], [script, "verify"]])
+        for _, cwd, env in commands:
+            self.assertEqual(cwd, source.resolve())
+            self.assertEqual(env["ANIMAMA_MODEL_ROOT"], "/verified/models")
+            self.assertNotIn("OPENAI_API_KEY", env)
+
     def test_snapshot_rejects_dirty_and_override_in_ci_and_excludes_ignored_secrets(self):
         repo = self.root / "repo"
         repo.mkdir()

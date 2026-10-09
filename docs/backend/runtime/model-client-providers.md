@@ -112,9 +112,10 @@ requests. It defaults to `10000`. Values less than or equal to zero disable
 the `context_management` payload. When enabled, the adapter sends
 `context_management: [{"type": "compaction", "compact_threshold": ...}]`; the
 OpenAI server decides whether to compact based on the rendered token count.
-Chat Completions rows have no provider-side compaction; they use the local
-post-response pass described under
-[prompt-only maintenance calls](#prompt-only-maintenance-calls).
+Without that payload, the executor fits Responses prompts to the row's
+[context window budget](#context-window-budget). Chat Completions rows have no
+provider-side compaction; they use that budget and the local post-response pass
+described under [prompt-only maintenance calls](#prompt-only-maintenance-calls).
 
 When `ANIMAMA_LLM_SKIP=1`, startup registers `MockModelClient` for all direct
 provider families so local chat can run without upstream API keys. Mock mode is
@@ -535,8 +536,13 @@ server-side compaction instead.
 
 ### Context window budget
 
-Chat Completions rows with a context window never receive a prompt larger than
-it (`app/chat/direct_turn/context_fit.py`, `app/model_clients/context_budget.py`):
+Rows with a context window never receive a prompt larger than it
+(`app/chat/direct_turn/context_fit.py`, `app/model_clients/context_budget.py`).
+The only exception is a client that asks its provider to compact: a Responses
+client with a positive compaction threshold reports `native_context_compaction`,
+and those turns rely on server-side compaction. A Responses client without one
+(threshold `0`, or a composition that omits it) is bounded like Chat
+Completions:
 
 - **Budget.** Available tokens are the window minus the row's
   `max_output_tokens`, or minus a quarter of the window (at most 4096) when
@@ -692,6 +698,9 @@ not proof of a provider invoice.
 
 `ConnectionEmbedder.embed_texts_with_usage` exposes vectors and optional measured
 usage; `EmbeddingLimits` bounds batch input/deadline and disables SDK retries.
+Input over the bound fails before dispatch with `model_input_limit_exceeded`
+(category `context_exceeded`), and the deadline with `model_deadline_exceeded`
+(`timeout`), both as model-client errors.
 Compositions wrap **each** embed call, including tool-driven retrieval, with
 admission. `WebSearchBackend.search` is already an injectable per-search boundary;
 its result list contains no provider billing receipt, so a paid implementation

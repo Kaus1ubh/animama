@@ -259,7 +259,8 @@ while an old page creates its worker, then loads the new page and rolls back.
 Controlled byte-change fixtures prove the selection mechanism and are labelled
 separately from compatibility between two exact clean source revisions. Format
 1 has no application and cannot serve as that rollback predecessor.
-Both selections must retain additive clip metadata through import, edit and
-save, and share the runtime's 2 MiB clip read/save bound. Preserving a newer
-layer-mute descriptor as data does not implement its playback behavior; verify
-that semantic limit explicitly alongside common clips in the selected pair.
+Both selections must retain additive clip metadata (such as the
+`mutedProceduralLayers` layer-mute list) through import, edit and save, and
+share the runtime's 2 MiB clip read/save bound. The fixture checks that data,
+not its playback: retaining a layer-mute list does not show that a selection
+mutes those procedural layers.

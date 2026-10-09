@@ -1883,6 +1883,12 @@ Evidence, all local (CI is disabled for lack of Actions minutes):
 Not run: hosted CI, a physical microphone and heard speech, and the Electron
 main window after the merges (owner manual checks).
 
+Review repair note (2026-10-09): a genuine `--previous-app-set` pair must now
+emit distinct application resources; a byte-identical pair is rejected instead
+of recording `exact_clean_upgrade_rollback: true`. The whole-app harness runs
+its route, static and measurement checks on the candidate and labels each with
+the app that served it. Receipts recorded above predate both changes.
+
 ### Pre-merge comprehensive review (2026-10-09)
 
 Because most of this branch was written by another agent, the owner asked for a

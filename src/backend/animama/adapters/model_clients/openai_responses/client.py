@@ -56,7 +56,7 @@ from .events import (
     responses_stream_event_delta,
 )
 from .final import response_final_parts
-from .request import create_response_kwargs, previous_response_id
+from .request import create_response_kwargs, previous_response_id, responses_context_management
 from .support import (
     OPENAI_API,
     OPENAI_MISSING_FINAL_ANSWER_PHASE_CODE,
@@ -129,6 +129,16 @@ class OpenAIResponsesModelClient:
         self._timeout = timeout
         self._compaction_threshold_tokens = compaction_threshold_tokens
         self._close_client = (client is None) if close_client is None else close_client
+
+    @property
+    def native_context_compaction(self) -> bool:
+        """Whether every request asks OpenAI to compact a prompt above the threshold.
+
+        Read through ``uses_native_context_compaction``: without it, the
+        direct-chat executor fits prompts to the row's context window itself.
+        """
+
+        return bool(responses_context_management(self._compaction_threshold_tokens))
 
     async def stream(self, spec: ModelClientRequest) -> AsyncIterator[ModelClientDelta]:
         """Stream typed Responses events as provider-neutral deltas.

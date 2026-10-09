@@ -12,6 +12,7 @@ from animama.app.model_clients import (
     ModelClientFinal,
     ModelClientRequest,
     ModelClientTimeoutError,
+    uses_native_context_compaction,
 )
 from animama.app.model_clients.call_boundary import AccountedModelClient, AdmittedModelCall, ModelCallLimits
 from animama.domain import ModelProvider
@@ -81,6 +82,15 @@ async def test_admission_is_before_dispatch_and_every_nested_invocation_has_a_re
     assert all(value.limits.max_output_tokens == 100 for value in client.requests)
     assert all(outcome.status == "completed" and outcome.usage.input_tokens == 4 for _, outcome in boundary.outcomes)
     assert client.closed == 2
+
+
+def test_accounting_reports_the_wrapped_clients_native_compaction():
+    # Accounting never compacts; the executor fits prompts unless the wrapped provider does.
+    class NativeCompactionClient(Client):
+        native_context_compaction = True
+
+    assert uses_native_context_compaction(AccountedModelClient(NativeCompactionClient(), Boundary())) is True
+    assert uses_native_context_compaction(AccountedModelClient(Client(), Boundary())) is False
 
 
 @pytest.mark.asyncio
