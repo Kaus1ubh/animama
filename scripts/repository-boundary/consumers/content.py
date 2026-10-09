@@ -55,6 +55,7 @@ from animama.app.services.content_kind_registry import handler_for_kind
 from animama.app.services.content_package_archive import InspectedPackage, InspectedPackageEntry
 from animama.app.services.content_package_capabilities import derive_file_capabilities, validate_capabilities
 from animama.app.services.content_package_service import ContentPackageService
+from animama.app.services.content_portability import restricted_sha256 as tracked_restricted_sha256
 from animama.app.services.content_save_service import ContentSaveService
 from animama.app.services.local_content_mutations import _finish_owned_work
 from animama.domain.content_catalog import (
@@ -116,6 +117,11 @@ class MemoryStore:
         partitions.setdefault(owner_id, {})
         self.pending = None
         self.fail_install = False
+
+    @property
+    def restricted_sha256(self):
+        """Account stores refuse the same non-portable bytes as Local content."""
+        return tracked_restricted_sha256()
 
     @property
     def values(self):
