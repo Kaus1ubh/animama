@@ -1,12 +1,15 @@
 import type { ReactNode } from "react";
 import { renderToString } from "@/test/runtime-markup";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { hostedExclusionReasons } from "@/app/runtime/route-admission";
 import { normalizeContentLibrarySearch } from "@/lib/content/librarySearch";
 import { LibraryContentInventory } from "./LibraryContentInventory";
 const mocks = vi.hoisted(() => ({
   poseInput: vi.fn(),
   layoutActions: {} as Record<string, () => void>,
   otherRows: [] as Array<Record<string, unknown>>,
+  avatars: [] as Array<Record<string, unknown>>,
+  capabilities: undefined as Record<string, unknown> | undefined,
   open: vi.fn(),
   preview: null as (() => void) | null,
 }));
@@ -80,7 +83,17 @@ vi.mock("@/query/hooks/useEffects", () => ({
     ),
 }));
 vi.mock("@/query/hooks/useAvatarCatalog", () => ({
-  useAvatarCatalog: () => ({}),
+  useAvatarCatalog: () =>
+    mocks.avatars.length
+      ? {
+          data: { pages: [{ items: mocks.avatars }] },
+          isPending: false,
+          error: null,
+        }
+      : {},
+}));
+vi.mock("@/query/hooks/useRuntimeCapabilities", () => ({
+  useRuntimeCapabilities: () => ({ data: mocks.capabilities }),
 }));
 vi.mock("@/ui/content-preview/ContentPreviewDockProvider", () => ({
   useContentPreviewDock: () => ({ openPreview: mocks.open }),
@@ -124,6 +137,8 @@ beforeEach(() => {
   vi.unstubAllGlobals();
   mocks.layoutActions = {};
   mocks.otherRows = [];
+  mocks.avatars = [];
+  mocks.capabilities = undefined;
   mocks.poseInput.mockClear();
   mocks.open.mockClear();
   mocks.preview = null;
@@ -293,5 +308,53 @@ describe("Library layout", () => {
     );
     expect(() => mocks.layoutActions["List view"]!()).not.toThrow();
     expect(warning).toHaveBeenCalled();
+  });
+});
+
+describe("Library avatar Create Anima action", () => {
+  const avatar = {
+    avatar_id: "avatar-1",
+    catalog_item_id: "catalog-avatar-1",
+    name: "Aiko",
+    description: "",
+    origin: "included",
+    preview_url: null,
+  };
+  const renderAvatarRow = () => {
+    vi.stubGlobal("window", { localStorage: { getItem: () => "list" } });
+    mocks.avatars = [avatar];
+    const html = renderToString(
+      <LibraryContentInventory
+        search={normalizeContentLibrarySearch({ section: "avatars" })}
+        onSearchChange={() => {}}
+      />,
+    );
+    return html.split('aria-label="Aiko"')[1]!.split("</article>")[0]!;
+  };
+
+  it("opens the creator with the avatar while creation is offered", () => {
+    mocks.capabilities = { anima_creation: true };
+    const row = renderAvatarRow();
+    expect(row).toContain('href="/animas/new"');
+    expect(row).not.toContain("aria-disabled");
+  });
+
+  it("stays visible but disabled with the shared reason when creation is withheld", () => {
+    mocks.capabilities = { anima_creation: false };
+    const row = renderAvatarRow();
+    expect(row).not.toContain("/animas/new");
+    const action = row.match(
+      /<button[^>]*aria-label="Create Anima"[^>]*>/,
+    )?.[0];
+    expect(action).toContain('aria-disabled="true"');
+    const reasonId = action?.match(/aria-describedby="([^"]+)"/)?.[1];
+    expect(row).toContain(
+      `id="${reasonId}" class="sr-only">${hostedExclusionReasons.anima_creation}<`,
+    );
+  });
+
+  it("offers no create action before capabilities are known", () => {
+    const row = renderAvatarRow();
+    expect(row).not.toContain("Create Anima");
   });
 });

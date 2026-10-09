@@ -1,13 +1,16 @@
-import { readFile } from "node:fs/promises";
 import { createElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "@/test/runtime-markup";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { hostedExclusionReasons } from "@/app/runtime/route-admission";
 import { AnimaCarousel } from "@/ui/animas/AnimaCarousel";
+import { PreviewCreateAnimaAction } from "@/ui/content-preview/ContentPreviewHost";
 import { CreateHubPage } from "@/ui/create/CreateHubPage";
 import { SidebarCreateMenu } from "@/ui/sidebar/SidebarCreateMenu";
 import { Route as CreateAnimaRoute } from "@/routes/_app/animas.new";
 import { Route as AnimaDetailsRoute } from "@/routes/_app/animas/$animaId";
+
+const REASON = hostedExclusionReasons.anima_creation;
 
 const fixture = vi.hoisted(() => ({
   capabilities: undefined as { anima_creation: boolean } | undefined,
@@ -73,7 +76,10 @@ function renderRoute(route: { options: { component?: unknown } }) {
   );
 }
 
-function renderCarousel(onCreate?: () => void) {
+function renderCarousel(
+  onCreate?: () => void,
+  createUnavailableReason?: string,
+) {
   return renderToStaticMarkup(
     <AnimaCarousel
       animas={[]}
@@ -82,8 +88,27 @@ function renderCarousel(onCreate?: () => void) {
       onPrevious={vi.fn()}
       onNext={vi.fn()}
       onCreate={onCreate}
+      createUnavailableReason={createUnavailableReason}
     />,
   );
+}
+
+/** The opening tag of the element whose markup contains `marker`. */
+function elementWith(html: string, marker: string): string {
+  const at = html.indexOf(marker);
+  expect(at).toBeGreaterThanOrEqual(0);
+  return html.slice(html.lastIndexOf("<", at), html.indexOf(">", at) + 1);
+}
+
+/** An entry point that stays visible but inert, described by the shared reason. */
+function expectUnavailable(html: string, marker: string) {
+  const control = elementWith(html, marker);
+  expect(control).toMatch(/aria-disabled="true"|disabled=""/);
+  expect(control).not.toContain("href=");
+  const describedBy = control.match(/aria-describedby="([^"]+)"/)?.[1];
+  expect(describedBy).toBeTruthy();
+  expect(elementWith(html, `id="${describedBy}"`)).toBeTruthy();
+  expect(html).toContain(REASON);
 }
 
 describe.each([["reported", { anima_creation: true }, false]])(
@@ -95,14 +120,20 @@ describe.each([["reported", { anima_creation: true }, false]])(
     });
 
     it("offers every create-Anima entry point", () => {
-      expect(renderToStaticMarkup(<SidebarCreateMenu />)).toContain(
-        'href="/animas/new"',
-      );
-      expect(renderToStaticMarkup(<CreateHubPage />)).toContain(
-        'href="/animas/new"',
-      );
+      const sidebar = renderToStaticMarkup(<SidebarCreateMenu />);
+      expect(sidebar).toContain('href="/animas/new"');
+      expect(sidebar).not.toContain(REASON);
+      const hub = renderToStaticMarkup(<CreateHubPage />);
+      expect(hub).toContain('href="/animas/new"');
+      expect(hub).not.toContain(REASON);
       renderRoute(AnimaDetailsRoute);
       expect(fixture.detailsProps?.onCreateAnima).toBeTypeOf("function");
+      expect(
+        fixture.detailsProps?.createAnimaUnavailableReason,
+      ).toBeUndefined();
+      const preview = renderToStaticMarkup(<PreviewCreateAnimaAction />);
+      expect(preview).toContain('href="/animas/new"');
+      expect(preview).not.toContain(REASON);
     });
   },
 );
@@ -121,19 +152,52 @@ describe("the creator route", () => {
   });
 });
 
+describe("Anima creation while capabilities are unknown", () => {
+  beforeEach(() => {
+    fixture.capabilities = undefined;
+    fixture.loading = false;
+  });
+
+  it("withholds create entry points without claiming a reason", () => {
+    for (const html of [
+      renderToStaticMarkup(<SidebarCreateMenu />),
+      renderToStaticMarkup(<CreateHubPage />),
+      renderToStaticMarkup(<PreviewCreateAnimaAction />),
+    ]) {
+      expect(html).not.toContain("/animas/new");
+      expect(html).not.toContain(REASON);
+    }
+    expect(renderToStaticMarkup(<CreateHubPage />)).not.toContain(
+      "Create Anima",
+    );
+    renderRoute(AnimaDetailsRoute);
+    expect(fixture.detailsProps?.onCreateAnima).toBeUndefined();
+    expect(fixture.detailsProps?.createAnimaUnavailableReason).toBeUndefined();
+  });
+});
+
 describe("Anima creation when the capability is disabled", () => {
   beforeEach(() => {
     fixture.capabilities = { anima_creation: false };
     fixture.loading = false;
   });
 
-  it("hides the sidebar and creator hub entry points", () => {
+  it("keeps the sidebar's Anima item, disabled with the shared reason", () => {
     const sidebar = renderToStaticMarkup(<SidebarCreateMenu />);
     expect(sidebar).not.toContain('href="/animas/new"');
     expect(sidebar).toContain('href="/gestures/new"');
+    expectUnavailable(sidebar, 'role="menuitem"');
+    expect(elementWith(sidebar, 'role="menuitem"')).toContain(
+      'aria-disabled="true"',
+    );
+  });
+
+  it("keeps the creator hub's Anima card with a disabled action and its reason", () => {
     const hub = renderToStaticMarkup(<CreateHubPage />);
     expect(hub).not.toContain('href="/animas/new"');
     expect(hub).toContain('href="/gestures/new"');
+    expect(hub).toContain('id="anima-creator-title"');
+    expectUnavailable(hub, "Create Anima");
   });
 
   it("makes the creator route unavailable instead of mounting it", () => {
@@ -142,20 +206,20 @@ describe("Anima creation when the capability is disabled", () => {
     expect(html).toContain("Anima creation is not available");
   });
 
-  it("removes the management carousel's New Anima action", () => {
+  it("keeps the management carousel's New Anima action, disabled with the reason", () => {
     renderRoute(AnimaDetailsRoute);
     expect(fixture.detailsProps?.onCreateAnima).toBeUndefined();
+    expect(fixture.detailsProps?.createAnimaUnavailableReason).toBe(REASON);
     expect(renderCarousel()).not.toContain("New Anima");
     expect(renderCarousel(vi.fn())).toContain("New Anima");
+    const carousel = renderCarousel(undefined, REASON);
+    expect(carousel).toContain("New Anima");
+    expectUnavailable(carousel, 'aria-label="Create Anima"');
   });
 
-  it.each([
-    "../library/LibraryContentInventory.tsx",
-    "../content-preview/ContentPreviewHost.tsx",
-  ])("gates the deep create link in %s", async (path) => {
-    const source = await readFile(new URL(path, import.meta.url), "utf8");
-    expect(source).toMatch(
-      /<RuntimeFeatureGate capability="anima_creation">\s*(<ActionTooltip label="Create Anima"|<Button asChild[^>]*>\s*<Link to="\/animas\/new">)/,
-    );
+  it("keeps the preview's Create Anima recovery action, disabled with the reason", () => {
+    const preview = renderToStaticMarkup(<PreviewCreateAnimaAction />);
+    expect(preview).toContain("Create Anima");
+    expectUnavailable(preview, "Create Anima");
   });
 });
