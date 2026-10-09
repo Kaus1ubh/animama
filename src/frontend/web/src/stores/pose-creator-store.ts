@@ -1820,6 +1820,9 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
                 humanoid: parsed.humanoid,
                 expressions: parsed.expressions,
                 complete: true,
+                // The edit started from the pose the Avatar plays, solved
+                // arms included; solved arms keep only the edit's change.
+                relativeToPlayback: true,
                 ...(edit.handShapes ? { hands: edit.handShapes } : {}),
               },
               state.activeAvatar?.vrm ?? null,

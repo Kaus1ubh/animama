@@ -307,7 +307,11 @@ function isAtPoseCreatorEndpoint(
   return Math.abs(frame.time - time) < 0.0005;
 }
 
-/** The base pose as a whole key pose for a Base beat. */
+/**
+ * The base pose as a whole key pose for a Base beat, by value: an arm a
+ * solved contact places there is authored at the base pose and solved again
+ * from it.
+ */
 function basePoseForBeat(draft: PoseCreatorClipDraft): BeatPose {
   const base = draft.basePose
     ? resolvePoseCreatorCatalogPose(draft.basePose)

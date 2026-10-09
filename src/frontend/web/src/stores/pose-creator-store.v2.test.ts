@@ -20,12 +20,14 @@ import {
 import { createHandInteractionController } from "@/ui/pose-creator/poseCreatorHandInteraction";
 import {
   validateAnimaPoseClipV2,
+  type AnimaPoseClipScalarKey,
   type AnimaPoseClipV2,
 } from "@/lib/avatar/poses/animaPoseClip/schemaV2";
 import {
   buildAnimaPoseClipFromPoseCreatorDraft,
   resolvePoseCreatorCatalogPose,
 } from "@/ui/pose-creator/poseCreatorClipAuthoring";
+import { samplePoseCreatorDraft } from "@/ui/pose-creator/poseCreatorClipMotion";
 import {
   POSE_CREATOR_CLIP_VALIDATION_OPTIONS,
   usePoseCreatorStore,
@@ -61,6 +63,40 @@ const built = () => {
 };
 const beat = (clip: AnimaPoseClipV2, id: string) =>
   clip.beats.find((candidate) => candidate.id === id)!;
+
+/** Bone drafts hold Euler degrees, as the Bones panel shows them. */
+const toQuaternion = (degrees: { x: number; y: number; z: number }) =>
+  new Quaternion().setFromEuler(
+    new Euler(
+      MathUtils.degToRad(degrees.x),
+      MathUtils.degToRad(degrees.y),
+      MathUtils.degToRad(degrees.z),
+      "XYZ",
+    ),
+  );
+const toDegrees = (rotation: Quaternion) => {
+  const euler = new Euler().setFromQuaternion(rotation, "XYZ");
+  return {
+    x: MathUtils.radToDeg(euler.x),
+    y: MathUtils.radToDeg(euler.y),
+    z: MathUtils.radToDeg(euler.z),
+  };
+};
+/** A bone's drafted rotation. */
+const shownOf = (bone: VRMHumanBoneName) =>
+  toQuaternion(state().boneDrafts[bone].rotationDegrees);
+/** A Bones-panel or gizmo edit: turn a drafted bone by joint-model degrees. */
+const turnBone = (bone: VRMHumanBoneName, change: Record<string, number>) => {
+  const joint = resolveJoint(bone)!;
+  const values = decomposeJointRotation(joint, shownOf(bone));
+  for (const [name, value] of Object.entries(change)) values[name] += value;
+  const turned = composeJointRotation(joint, values);
+  state().setBoneDraft(bone, {
+    ...state().boneDrafts[bone],
+    rotationDegrees: toDegrees(turned),
+  });
+  return turned;
+};
 
 describe("pose creator store with an animaPoseClip/2.0 draft", () => {
   beforeEach(() => {
@@ -329,23 +365,6 @@ describe("pose creator store with hand keys", () => {
       vrm,
       resolvePose: resolvePoseCreatorCatalogPose,
     });
-  const toQuaternion = (degrees: { x: number; y: number; z: number }) =>
-    new Quaternion().setFromEuler(
-      new Euler(
-        MathUtils.degToRad(degrees.x),
-        MathUtils.degToRad(degrees.y),
-        MathUtils.degToRad(degrees.z),
-        "XYZ",
-      ),
-    );
-  const toDegrees = (rotation: Quaternion) => {
-    const euler = new Euler().setFromQuaternion(rotation, "XYZ");
-    return {
-      x: MathUtils.radToDeg(euler.x),
-      y: MathUtils.radToDeg(euler.y),
-      z: MathUtils.radToDeg(euler.z),
-    };
-  };
   const fingerBone = /^(left|right)(Thumb|Index|Middle|Ring|Little)/;
   /** Open the beat's key pose for editing, its fingers as drafts. */
   const editBeat = (beatId: string) => {
@@ -427,21 +446,6 @@ describe("pose creator store with hand keys", () => {
       ...Object.keys(built().rotations ?? {}),
     ].filter((bone) => fingerBone.test(bone));
   const allSegments = HAND_SEGMENTS.map(({ id }) => id);
-  /** A bone's drafted rotation. */
-  const shownOf = (bone: VRMHumanBoneName) =>
-    toQuaternion(state().boneDrafts[bone].rotationDegrees);
-  /** A Bones-panel or gizmo edit: turn a drafted bone by joint-model degrees. */
-  const turnBone = (bone: VRMHumanBoneName, change: Record<string, number>) => {
-    const joint = resolveJoint(bone)!;
-    const values = decomposeJointRotation(joint, shownOf(bone));
-    for (const [name, value] of Object.entries(change)) values[name] += value;
-    const turned = composeJointRotation(joint, values);
-    state().setBoneDraft(bone, {
-      ...state().boneDrafts[bone],
-      rotationDegrees: toDegrees(turned),
-    });
-    return turned;
-  };
   const open = (clip: AnimaPoseClipV2) => {
     state().resetWorkspace();
     expect(state().hydrateClipDocument(clip)).toBe(true);
@@ -751,3 +755,204 @@ describe("pose creator store with hand keys", () => {
     ]);
   });
 });
+
+describe.each(["AvatarSample_A_1_New", "AvatarSample_Y_0"] as const)(
+  "pose creator store with a solved contact on %s",
+  (avatarId) => {
+    let vrm: VRM;
+    beforeAll(async () => {
+      vrm = await loadTestAvatar(avatarId);
+    });
+    /**
+     * The right palm raised near the chin from "hold" to "release", where a
+     * solved contact lands it: "hold", "mid" and "release" are solved beats.
+     */
+    const chinClip = (): AnimaPoseClipV2 => {
+      const arm = (v: number) =>
+        [
+          { beat: "start", v: "base" },
+          { beat: "hold", v },
+          { beat: "mid", v },
+          { beat: "release", v },
+          { beat: "end", v: "base" },
+        ] as AnimaPoseClipScalarKey[];
+      return {
+        schema: "animaPoseClip/2.0",
+        id: "chin",
+        name: "Chin",
+        duration: 2.4,
+        basePose: "relaxedRest",
+        beats: [
+          { id: "start", label: "Start", time: 0 },
+          { id: "hold", label: "Hold", time: 0.6 },
+          { id: "mid", label: "Mid", time: 1.2 },
+          { id: "release", label: "Release", time: 1.8 },
+          { id: "end", label: "End", time: 2.4 },
+        ],
+        joints: {
+          rightUpperArm: {
+            elevation: arm(65),
+            planeOfElevation: arm(90),
+            rotation: arm(60),
+          },
+          rightLowerArm: { flexion: arm(140) },
+        },
+        contacts: [
+          {
+            bone: "rightHand",
+            point: "palm",
+            target: "head",
+            offset: [0, -0.02, 0.1],
+            beat: "hold",
+            from: 0,
+            to: 1.2,
+            solve: {},
+          },
+        ],
+        generator: { tool: "test" },
+      } as AnimaPoseClipV2;
+    };
+    const authoredAt = (clip: AnimaPoseClipV2, time: number) =>
+      createAnimaPoseClipProgram(clip, {
+        vrm,
+        resolvePose: resolvePoseCreatorCatalogPose,
+        solveContacts: false,
+      }).sample(time).sample.humanoid!;
+    const valuesAt = (
+      clip: AnimaPoseClipV2,
+      time: number,
+      bone: VRMHumanBoneName,
+    ) =>
+      decomposeJointRotation(
+        resolveJoint(bone)!,
+        new Quaternion(...authoredAt(clip, time)[bone]!.rotation!),
+      );
+    /**
+     * Open a beat for inline editing as the Gesture creator does: every bone
+     * drafted from the pose the creator Avatar plays there (solved).
+     */
+    const editBeat = (beatId: string) => {
+      const draft = state().clipDraft;
+      const time = draft.keyframes.find(({ id }) => id === beatId)!.time;
+      const sample = samplePoseCreatorDraft(
+        draft,
+        time,
+        vrm,
+        POSE_CREATOR_CLIP_VALIDATION_OPTIONS,
+      )!.sample;
+      state().selectClipKeyframe(beatId);
+      state().beginClipInlinePoseEdit({
+        alias: beatId,
+        keyframeId: beatId,
+        originalPose: { humanoid: sample.humanoid },
+        boneDrafts: Object.fromEntries(
+          Object.entries(sample.humanoid!).map(([bone, transform]) => [
+            bone,
+            {
+              baseQuaternion: [0, 0, 0, 1] as [number, number, number, number],
+              rotationDegrees: toDegrees(
+                new Quaternion(...transform!.rotation!),
+              ),
+            },
+          ]),
+        ),
+        expressionDrafts: {},
+        draftName: "",
+      });
+    };
+    /** Apply the inline edit: the drafted bones as the beat's key pose. */
+    const commit = () => {
+      const humanoid: VRMPose = {};
+      for (const [bone, draft] of Object.entries(state().boneDrafts))
+        humanoid[bone as VRMHumanBoneName] = {
+          rotation: toQuaternion(draft.rotationDegrees).toArray() as [
+            number,
+            number,
+            number,
+            number,
+          ],
+        };
+      state().commitClipInlinePoseEdit(
+        parseAnimaPose({
+          schema: "animaPose/1.0",
+          id: "edit",
+          name: "Edit",
+          humanoid,
+        }),
+      );
+    };
+
+    beforeEach(() => {
+      state().resetWorkspace();
+      expect(state().hydrateClipDocument(chinClip())).toBe(true);
+      usePoseCreatorStore.setState({
+        activeAvatar: { vrm } as unknown as Avatar,
+        loadStatus: "ready",
+      });
+    });
+
+    it("leaves the clip unchanged when the shown pose is applied unchanged", () => {
+      const original = JSON.stringify(built());
+      for (const beatId of ["hold", "mid", "release"]) {
+        editBeat(beatId);
+        commit();
+        expect(JSON.stringify(built()), beatId).toBe(original);
+      }
+    });
+
+    it("applies an edit of a solved arm as a change of its authored arm", () => {
+      const clip = built();
+      editBeat("mid");
+      turnBone("rightUpperArm", { rotation: 10 });
+      turnBone("rightLowerArm", { supination: 20 });
+      commit();
+      const edited = built();
+      const upper = valuesAt(clip, 1.2, "rightUpperArm");
+      const lower = valuesAt(clip, 1.2, "rightLowerArm");
+      expect(valuesAt(edited, 1.2, "rightUpperArm")).toEqual({
+        elevation: expect.closeTo(upper.elevation, 3),
+        planeOfElevation: expect.closeTo(upper.planeOfElevation, 3),
+        rotation: expect.closeTo(upper.rotation + 10, 3),
+      });
+      expect(valuesAt(edited, 1.2, "rightLowerArm")).toMatchObject({
+        flexion: expect.closeTo(lower.flexion, 3),
+        supination: expect.closeTo(lower.supination + 20, 3),
+      });
+      // Keys at the other beats are untouched.
+      for (const [name, keys] of Object.entries(clip.joints!.rightUpperArm))
+        expect(
+          edited.joints!.rightUpperArm[name].filter(
+            (key) => key.beat !== "mid",
+          ),
+        ).toEqual(keys.filter((key) => key.beat !== "mid"));
+      expect(edited.joints!.rightLowerArm.flexion).toEqual(
+        clip.joints!.rightLowerArm.flexion,
+      );
+    });
+
+    it("adds a Library Pose at a solved time by value", () => {
+      const library = resolvePoseCreatorCatalogPose("hands-on-hips")!.humanoid!;
+      const alias = state().addPoseToClip(
+        parseAnimaPose({
+          schema: "animaPose/1.0",
+          id: "hips",
+          name: "Hands on hips",
+          humanoid: library,
+        }),
+        "Hips",
+        { timeSec: 1 },
+      );
+      const clip = built();
+      expect(beat(clip, alias!).time).toBe(1);
+      const authored = authoredAt(clip, 1);
+      for (const bone of ["rightUpperArm", "rightLowerArm"] as const)
+        expect(
+          angularDistanceDegrees(
+            new Quaternion(...authored[bone]!.rotation!),
+            new Quaternion(...library[bone]!.rotation!),
+          ),
+          bone,
+        ).toBeLessThan(0.01);
+    });
+  },
+);

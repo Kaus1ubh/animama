@@ -508,7 +508,10 @@ pnpm -s effects promote ./promote.json --dry-run
   against a baseline (for face effects, the same effect with transparent
   stand-in images, so closed eyes and face cleanup are in both): the art must
   show on every Avatar in some frame. `--times` defaults to
-  0.25 s and 1 s. It exits 1 on any FAIL.
+  0.25 s and 1 s. `--with-clip <clip.json|Gesture folder|library:<gesture>>`
+  poses both Avatars with that Gesture at each time (resolved as for
+  `effects:render`), so art on a hand or other moving bone is checked where
+  the Gesture puts it. It exits 1 on any FAIL.
 - `save` takes `[{ "source", "name"?, "description"? }]` and saves each source
   through the Avatar Effect creator in headless Chromium: it imports the
   editor document, chooses the images, saves, reads the item back and checks

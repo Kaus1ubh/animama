@@ -170,11 +170,13 @@ a ¾ and a side view from the Avatar's own `--side` (default right) and a face
 close-up, without live layers. The front view faces the Avatar, so its right
 hand appears on the viewer's left. Use `--side left` when the left arm acts,
 and larger tiles (`--tile 440x660`) with a few `--times` to judge small
-motions, palms or hand shapes. Render the beats (keys of the main action) and a
-few in-between times. Look for: readable silhouette at each beat, staggered
-arrival, arcs, hand shapes, facial expression, odd forearm directions, wrist
-breaks, intersections the capsules miss, and agreement between the Avatars.
-Write output to a scratch directory, never the repository.
+motions, palms or hand shapes; `--view hands` renders close-ups of one hand
+instead (see hands-and-face.md, Hand close-ups). Render the beats (keys of
+the main action) and a few in-between times. Look for: readable silhouette at
+each beat, staggered arrival, arcs, hand shapes, facial expression, odd
+forearm directions, wrist breaks, intersections the capsules miss, and
+agreement between the Avatars. Write output to a scratch directory, never the
+repository.
 
 ## Creator confirmation and save
 

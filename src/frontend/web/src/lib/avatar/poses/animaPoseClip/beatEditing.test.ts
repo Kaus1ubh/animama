@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import type { VRM, VRMHumanBoneName } from "@pixiv/three-vrm";
+import type { VRM, VRMHumanBoneName, VRMPose } from "@pixiv/three-vrm";
 import { Quaternion, Vector3 } from "three";
 import { beforeAll, describe, expect, it } from "vitest";
 
@@ -11,6 +11,12 @@ import {
   decomposeJointRotation,
   resolveJoint,
 } from "../anatomy/anatomy";
+import {
+  CanonicalSkeleton,
+  SkeletonPose,
+  avatarScale,
+  contactTargetPosition,
+} from "../anatomy/arms";
 import { handShapeRotations, type HandShape } from "../anatomy/handPresets";
 import { RELAXED_REST_POSE_ID, getResolvedAvatarPose } from "../catalog";
 import {
@@ -26,11 +32,14 @@ import {
   setBeatLabel,
   setBeatPose,
   type BeatEditContext,
+  type BeatPose,
 } from "./beatEditing";
+import type { AnimaPoseClipSample } from "./clipVocabulary";
 import { prepareAnimaPoseClipV2 } from "./prepareV2";
 import {
   validateAnimaPoseClipV2,
   type AnimaPoseClipContact,
+  type AnimaPoseClipScalarKey,
   type AnimaPoseClipV2,
 } from "./schemaV2";
 
@@ -81,6 +90,28 @@ const rotation = (
     ...prepareAnimaPoseClipV2(clip, context).sample(time).humanoid![bone]!
       .rotation!,
   );
+
+type Tuple = [number, number, number, number];
+type JointChanges = Partial<Record<VRMHumanBoneName, Record<string, number>>>;
+
+/** A pose with joint-model changes (degrees) to some of its bones. */
+const turnBones = (pose: AnimaPoseClipSample, changes: JointChanges) => {
+  const humanoid = { ...pose.humanoid };
+  for (const [bone, change] of Object.entries(changes)) {
+    const joint = resolveJoint(bone)!;
+    const values = decomposeJointRotation(
+      joint,
+      new Quaternion(
+        ...(humanoid[bone as VRMHumanBoneName]?.rotation ?? [0, 0, 0, 1]),
+      ),
+    );
+    for (const [name, value] of Object.entries(change!)) values[name] += value;
+    humanoid[bone as VRMHumanBoneName] = {
+      rotation: composeJointRotation(joint, values).toArray() as Tuple,
+    };
+  }
+  return { ...pose, humanoid };
+};
 
 /** Three beats without detail, keyed on the head and an expression. */
 const plain = (): AnimaPoseClipV2 =>
@@ -276,7 +307,6 @@ describe.each(["AvatarSample_A_1_New", "AvatarSample_Y_0"] as const)(
     beforeAll(async () => {
       avatar = { vrm: await loadTestAvatar(avatarId), resolvePose };
     });
-    type Tuple = [number, number, number, number];
     const sampled = (
       clip: AnimaPoseClipV2,
       bone: VRMHumanBoneName,
@@ -311,26 +341,8 @@ describe.each(["AvatarSample_A_1_New", "AvatarSample_Y_0"] as const)(
     const changedPose = (
       clip: AnimaPoseClipV2,
       beatId: string,
-      changes: Partial<Record<VRMHumanBoneName, Record<string, number>>>,
-    ) => {
-      const pose = beatKeyPose(clip, beatId, avatar);
-      const humanoid = { ...pose.humanoid };
-      for (const [bone, change] of Object.entries(changes)) {
-        const joint = resolveJoint(bone)!;
-        const values = decomposeJointRotation(
-          joint,
-          new Quaternion(
-            ...(humanoid[bone as VRMHumanBoneName]?.rotation ?? [0, 0, 0, 1]),
-          ),
-        );
-        for (const [name, value] of Object.entries(change!))
-          values[name] += value;
-        humanoid[bone as VRMHumanBoneName] = {
-          rotation: composeJointRotation(joint, values).toArray() as Tuple,
-        };
-      }
-      return { ...pose, humanoid };
-    };
+      changes: JointChanges,
+    ) => turnBones(beatKeyPose(clip, beatId, avatar), changes);
     const expectPlays = (
       clip: AnimaPoseClipV2,
       humanoid: NonNullable<ReturnType<typeof changedPose>["humanoid"]>,
@@ -938,3 +950,314 @@ describe("contacts follow the clip", () => {
     expect(beyond.contacts).toBeUndefined();
   });
 });
+
+describe.each(["AvatarSample_A_1_New", "AvatarSample_Y_0"] as const)(
+  "pose edits at solved beats on %s",
+  (avatarId) => {
+    let avatar: BeatEditContext;
+    beforeAll(async () => {
+      avatar = { vrm: await loadTestAvatar(avatarId), resolvePose };
+    });
+    const MID = 1.2;
+    const RELEASE = 1.8;
+    /**
+     * The right palm raised to the chin (about 2–3 cm off it on the Included
+     * Avatars) from "hold" to "release", where a solved contact lands it:
+     * "hold", "mid" and "release" are solved beats.
+     */
+    const chinClip = (): AnimaPoseClipV2 => {
+      const arm = (v: number): AnimaPoseClipScalarKey[] => [
+        { beat: "start", v: "base" },
+        { beat: "hold", v },
+        { beat: "mid", v },
+        { beat: "release", v },
+        { beat: "end", v: "base" },
+      ];
+      return valid({
+        schema: "animaPoseClip/2.0",
+        id: "chin",
+        name: "Chin",
+        duration: 2.4,
+        basePose: RELAXED_REST_POSE_ID,
+        beats: [
+          { id: "start", label: "Start", time: 0 },
+          { id: "hold", label: "Hold", time: 0.6 },
+          { id: "mid", label: "Mid", time: MID },
+          { id: "release", label: "Release", time: RELEASE },
+          { id: "end", label: "End", time: 2.4 },
+        ],
+        joints: {
+          rightUpperArm: {
+            elevation: arm(65),
+            planeOfElevation: arm(90),
+            rotation: arm(60),
+          },
+          rightLowerArm: { flexion: arm(140) },
+        },
+        contacts: [
+          {
+            bone: "rightHand",
+            point: "palm",
+            target: "head",
+            offset: [0, -0.02, 0.1],
+            beat: "hold",
+            from: 0,
+            to: 1.2,
+            solve: {},
+          },
+        ],
+      });
+    };
+    /** The pose the tracks play (contacts unsolved). */
+    const authoredAt = (clip: AnimaPoseClipV2, time: number) =>
+      prepareAnimaPoseClipV2(clip, { ...avatar, solveContacts: false }).sample(
+        time,
+      ).humanoid!;
+    /** The pose the Avatar plays (contacts solved). */
+    const playedAt = (clip: AnimaPoseClipV2, time: number) =>
+      prepareAnimaPoseClipV2(clip, avatar).sample(time).humanoid!;
+    const rotationIn = (pose: VRMPose, bone: VRMHumanBoneName) =>
+      new Quaternion(...pose[bone]!.rotation!);
+    const valuesIn = (pose: VRMPose, bone: VRMHumanBoneName) =>
+      decomposeJointRotation(resolveJoint(bone)!, rotationIn(pose, bone));
+    /** How far the played palm is from its chin target, in metres. */
+    const miss = (clip: AnimaPoseClipV2, time: number) => {
+      const skeleton = new CanonicalSkeleton(avatar.vrm!);
+      const pose = new SkeletonPose(skeleton).setPose(playedAt(clip, time));
+      const contact = clip.contacts![0];
+      const palm = pose.contactPoint("rightHand", "palm", new Vector3())!;
+      const chin = contactTargetPosition(
+        pose,
+        { target: "head", offset: contact.offset },
+        avatarScale(skeleton),
+        new Vector3(),
+      )!;
+      return palm.distanceTo(chin);
+    };
+    /** A Pose-tab edit of the beat as shown, as the creator commits it. */
+    const shownEdit = (
+      clip: AnimaPoseClipV2,
+      beatId: string,
+      changes: JointChanges = {},
+    ): BeatPose & { humanoid: VRMPose } => ({
+      ...(turnBones(beatKeyPose(clip, beatId, avatar), changes) as {
+        humanoid: VRMPose;
+      }),
+      complete: true,
+      relativeToPlayback: true,
+    });
+    /** A joint's keys at beats other than `beatId`. */
+    const othersOf = (clip: AnimaPoseClipV2, joint: string, beatId: string) =>
+      Object.fromEntries(
+        Object.entries(clip.joints![joint]).map(([name, keys]) => [
+          name,
+          keys.filter((key) => key.beat !== beatId),
+        ]),
+      );
+
+    it("shows the solved arm, which the creator Avatar plays", () => {
+      const clip = chinClip();
+      const shown = beatKeyPose(clip, "mid", avatar).humanoid!;
+      const authored = authoredAt(clip, MID);
+      expect(
+        angularDistanceDegrees(
+          rotationIn(shown, "rightUpperArm"),
+          rotationIn(authored, "rightUpperArm"),
+        ),
+      ).toBeGreaterThan(1);
+      expect(shown.rightUpperArm).toEqual(playedAt(clip, MID).rightUpperArm);
+      expect(miss(clip, MID)).toBeLessThan(0.015);
+    });
+
+    it("keeps forearm and wrist edits at a solved beat; the palm still lands", () => {
+      const clip = chinClip();
+      const pose = shownEdit(clip, "mid", {
+        rightLowerArm: { supination: 20 },
+        rightHand: { flexion: 15 },
+      });
+      const edited = valid(setBeatPose(clip, "mid", pose, avatar));
+      // The authored forearm turns by the edit; its elbow keeps its flexion
+      // (the solved one is never written).
+      const was = valuesIn(authoredAt(clip, MID), "rightLowerArm");
+      const now = valuesIn(authoredAt(edited, MID), "rightLowerArm");
+      expect(now.supination).toBeCloseTo(was.supination + 20, 3);
+      expect(now.flexion).toBeCloseTo(140, 3);
+      expect(edited.joints!.rightUpperArm).toEqual(clip.joints!.rightUpperArm);
+      expect(edited.joints!.rightLowerArm.flexion).toEqual(
+        clip.joints!.rightLowerArm.flexion,
+      );
+      // Solved again, the forearm and wrist play as edited and the palm lands.
+      const played = playedAt(edited, MID);
+      expect(valuesIn(played, "rightLowerArm").supination).toBeCloseTo(
+        valuesIn(pose.humanoid, "rightLowerArm").supination,
+        3,
+      );
+      expect(
+        angularDistanceDegrees(
+          rotationIn(played, "rightHand"),
+          rotationIn(pose.humanoid, "rightHand"),
+        ),
+      ).toBeLessThan(0.01);
+      expect(miss(edited, MID)).toBeLessThan(0.015);
+    });
+
+    it("changes the authored upper arm by an edit's local change", () => {
+      const clip = chinClip();
+      const pose = shownEdit(clip, "mid", { rightUpperArm: { rotation: 15 } });
+      const edited = valid(setBeatPose(clip, "mid", pose, avatar));
+      const was = valuesIn(authoredAt(clip, MID), "rightUpperArm");
+      const now = valuesIn(authoredAt(edited, MID), "rightUpperArm");
+      expect(now.rotation).toBeCloseTo(was.rotation + 15, 3);
+      expect(now.elevation).toBeCloseTo(was.elevation, 3);
+      expect(now.planeOfElevation).toBeCloseTo(was.planeOfElevation, 3);
+      // Not the shown (solved) arm with the edit.
+      expect(
+        angularDistanceDegrees(
+          rotationIn(authoredAt(edited, MID), "rightUpperArm"),
+          rotationIn(pose.humanoid, "rightUpperArm"),
+        ),
+      ).toBeGreaterThan(1);
+      // Other beats' keys and the elbow are untouched.
+      expect(othersOf(edited, "rightUpperArm", "mid")).toEqual(
+        othersOf(clip, "rightUpperArm", "mid"),
+      );
+      expect(edited.joints!.rightLowerArm).toEqual(clip.joints!.rightLowerArm);
+      expect(edited.rotations).toBeUndefined();
+      // Solved again with the new swivel, the palm still lands.
+      expect(
+        angularDistanceDegrees(
+          rotationIn(playedAt(edited, MID), "rightUpperArm"),
+          rotationIn(playedAt(clip, MID), "rightUpperArm"),
+        ),
+      ).toBeGreaterThan(1);
+      expect(miss(edited, MID)).toBeLessThan(0.015);
+    });
+
+    it("keys an untracked arm bone at other beats with its authored rotation", () => {
+      // The chin arm held by the base pose instead of tracks.
+      const baseId = "chin-base";
+      const base = { humanoid: authoredAt(chinClip(), MID) };
+      const context: BeatEditContext = {
+        vrm: avatar.vrm,
+        resolvePose: (id) => (id === baseId ? base : resolvePose(id)),
+      };
+      const clip = valid({
+        ...chinClip(),
+        basePose: baseId,
+        joints: {
+          head: {
+            flexion: chinClip().beats.map(({ id }) => ({ beat: id, v: 0 })),
+          },
+        },
+      });
+      const shown = beatKeyPose(clip, "mid", context);
+      const released = beatKeyPose(clip, "release", context).humanoid!;
+      // At "release" the Avatar plays a solved arm, not the base pose's.
+      expect(
+        angularDistanceDegrees(
+          rotationIn(released, "rightUpperArm"),
+          rotationIn(base.humanoid, "rightUpperArm"),
+        ),
+      ).toBeGreaterThan(1);
+      const edited = valid(
+        setBeatPose(
+          clip,
+          "mid",
+          {
+            ...turnBones(shown, { rightUpperArm: { rotation: 15 } }),
+            complete: true,
+            relativeToPlayback: true,
+          },
+          context,
+        ),
+      );
+      const keys = edited.rotations!.rightUpperArm!;
+      expect(keys.map((key) => key.beat)).toEqual(
+        clip.beats.map(({ id }) => id),
+      );
+      for (const key of keys) {
+        const turned = decomposeJointRotation(
+          resolveJoint("rightUpperArm")!,
+          new Quaternion(...key.q),
+        );
+        const authored = valuesIn(base.humanoid, "rightUpperArm");
+        expect(turned.rotation, key.beat).toBeCloseTo(
+          authored.rotation + (key.beat === "mid" ? 15 : 0),
+          2,
+        );
+        expect(turned.elevation, key.beat).toBeCloseTo(authored.elevation, 2);
+      }
+      expect(Object.keys(edited.rotations!)).toEqual(["rightUpperArm"]);
+    });
+
+    it("leaves the clip unchanged when the shown pose is applied unchanged", () => {
+      const clip = chinClip();
+      for (const beatId of ["hold", "mid", "release"])
+        expect(
+          JSON.stringify(
+            setBeatPose(clip, beatId, shownEdit(clip, beatId), avatar),
+          ),
+          beatId,
+        ).toBe(JSON.stringify(clip));
+      // Editing another bone there writes only that bone.
+      const nodded = valid(
+        setBeatPose(
+          clip,
+          "mid",
+          shownEdit(clip, "mid", { head: { flexion: 5 } }),
+          avatar,
+        ),
+      );
+      expect(nodded.joints).toEqual(clip.joints);
+      expect(Object.keys(nodded.rotations!)).toEqual(["head"]);
+    });
+
+    it("keys a pose given by value at a solved beat as given", () => {
+      const clip = chinClip();
+      const library = getResolvedAvatarPose("hands-on-hips");
+      const edited = valid(
+        setBeatPose(
+          clip,
+          "mid",
+          { humanoid: library.humanoid, complete: true, keyAll: true },
+          avatar,
+        ),
+      );
+      const authored = authoredAt(edited, MID);
+      for (const bone of ["rightUpperArm", "rightLowerArm"] as const)
+        expect(
+          angularDistanceDegrees(
+            rotationIn(authored, bone),
+            rotationIn(library.humanoid!, bone),
+          ),
+          bone,
+        ).toBeLessThan(0.01);
+      expect(othersOf(edited, "rightUpperArm", "mid")).toEqual(
+        othersOf(clip, "rightUpperArm", "mid"),
+      );
+    });
+
+    it("writes a Hands-tool shape at a solved beat without touching the arm", () => {
+      const clip = chinClip();
+      const shape: HandShape = { preset: "fist" };
+      const pose = shownEdit(clip, "mid");
+      for (const [bone, rotation] of handShapeRotations(
+        avatar.vrm!,
+        "right",
+        shape,
+        pose.humanoid.rightThumbMetacarpal?.rotation,
+      ))
+        pose.humanoid[bone] = { rotation: rotation.toArray() as Tuple };
+      const edited = valid(
+        setBeatPose(clip, "mid", { ...pose, hands: { right: shape } }, avatar),
+      );
+      expect(edited.hands!.right!.find(({ beat }) => beat === "mid")).toEqual({
+        beat: "mid",
+        preset: "fist",
+      });
+      expect(edited.joints).toEqual(clip.joints);
+      expect(edited.rotations).toBeUndefined();
+      expect(miss(edited, MID)).toBeLessThan(0.015);
+    });
+  },
+);

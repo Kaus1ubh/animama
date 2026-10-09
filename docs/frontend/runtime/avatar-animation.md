@@ -593,7 +593,16 @@ at all of the beat's keys. Editing follows the beat:
 - a Pose tab edit applies to the beat: a changed joint's keys owned by the beat
   shift by the change (so overshoots ride along), untouched joints keep their
   keys, bones the edit resets return to the base pose and cleared expressions
-  to 0, and bones without tracks gain a track keyed at every beat;
+  to 0, and bones without tracks gain a track keyed at every beat (other
+  beats hold the rotation the clip authors there);
+- the edit starts from the beat as the creator Avatar plays it, solved
+  contacts included. An arm a solved contact places takes the edit as the
+  same local change of its authored rotation (`relativeToPlayback` in
+  `setBeatPose`), so forearm, wrist and upper-arm swivel changes persist when
+  playback solves again, while the solve still decides how far the arm
+  reaches. One Avatar's solve is never written into the clip or other beats.
+  The inline editor does not solve live: dragging a solved arm moves the hand
+  off its target until the edit is applied;
 - hands keep their hand keys (`setBeatHand` in `beatEditing.ts`). A Hands-tool
   shape replaces the beat's own key (`dt` 0), or adds one; on a hand without
   keys, every other beat first gets a key holding its current hand (the

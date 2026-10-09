@@ -50,8 +50,8 @@ under `.agents/skills/animama-animation/references/`.
 - [x] Phase 1: hand model (R1–R3); review #3 passed 2026-10-09; commit `4939106c`.
 - [x] Phase 2: contact solver, schema and checks (R4, R5, R6 retiming, R7, R8); review #3 passed 2026-10-09.
 - [x] Owner decisions D1–D6 (2026-10-09; D3 re-animate now).
-- [ ] Phase 3: drafts and owner preview review (R10, R11, R13; gate G2).
-- [ ] Phase 4: creator write-back for solved arms and promotion tooling (R6 edits, R9).
+- [ ] Phase 3: drafts and owner preview review (R10, R11, R13; gate G2) — 26 drafts done, validate/check clean, consistency passes done (2026-10-09); preview session open; awaiting owner review.
+- [x] Phase 4: creator write-back for solved arms and promotion tooling (R6 edits, R9); review #2 passed 2026-10-09.
 - [ ] Phase 5: promotion, registries and final validation (R12, R13; gate G3).
 - [ ] Final integration review; PR; owner merge approval.
 
@@ -506,7 +506,52 @@ Checks: store, `beatEditing`, `node --test scripts/*.test.mjs`. Review as above.
 
 #### Code Review #1 Findings
 
+Reviewed 2026-10-09: uncommitted tree on `b600b6a4`; independent `sdlc-reviewer`
+with probes (local-change conversion verified on both arms, joint and rotation
+tracks, near-gimbal and partial-solve beats; promote dry runs wrote nothing).
+
+- **P4-R1-01 (required):** the duplicate display-name refusal compares items only
+  with the pre-run metas, so two items in one run can share a name, and a valid
+  swap is refused (`animation-promote.mjs:271-282`).
+- **P4-R1-02 (optional):** `rename`/`loopChange` with no such change pass silently.
+- **P4-R1-03 (optional):** `animation promote` now loads playwright, vite and sharp
+  through `effect-promote.mjs`; `workingTreeRepo` ignores the injected fs.
+- **P4-R1-04 (optional, docs):** `avatar-vfx.md` lacks `--with-clip`; vfx
+  `promote.md` lacks the Gesture-with-new-effect order; animation `promote.md`
+  rename-only section omits the manifest name; two long lines.
+- **P4-R1-05 (optional):** `effects check --with-clip` ignores missing pose refs.
+
 #### Code Review #1 Revisions
+
+2026-10-09, repair round #1:
+
+- **P4-R1-01 accepted, fixed:** names are checked against the end state of the
+  run (existing metas with every item applied), case-insensitive; swaps allowed;
+  within-run tests.
+- **P4-R1-02 accepted, fixed:** `rename`/`loopChange` without such a change are
+  refused; tests.
+- **P4-R1-03 accepted, fixed:** shared dependency rules and the Included meta walk
+  live in dependency-free `scripts/included-dependencies.mjs`; `animation promote`
+  no longer loads the render stack; injected fs honoured (test).
+- **P4-R1-04 accepted, fixed:** `avatar-vfx.md` `--with-clip`; vfx promote order;
+  manifest name step for rename-only items; long lines wrapped.
+- **P4-R1-05 accepted, fixed:** `effects check` warns about clip poses missing from
+  the catalog.
+
+Evidence: script tests 69/69; effect-check browser test 2/2; eslint and prettier
+clean; real-repo dry runs wrote nothing (`git status` unchanged).
+
+
+#### Code Review #2 Findings
+
+Targeted recheck 2026-10-09: **pass.** P4-R1-01..05 resolved (within-run
+duplicate and swap probes; flags without changes refused; `animation promote`
+loads no render stack; docs; missing-pose WARN). No regressions; dry runs wrote
+nothing.
+
+Evidence before commit: `tsc -b` clean; full web vitest 417 of 418 files pass —
+`tests/local-api-proxy.test.ts` fails only while the owner's preview server holds
+port 5173 (passes 8/8 with the port free); prettier and web lint clean.
 
 ### Phase 5 — Promotion, registries and final validation (R12, R13; gate G3)
 

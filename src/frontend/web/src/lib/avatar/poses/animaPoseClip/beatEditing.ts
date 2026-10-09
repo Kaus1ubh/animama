@@ -86,6 +86,16 @@ export type BeatPose = {
    * the pose's finger rotations on that side are read as offsets on it.
    */
   hands?: Partial<Record<Side, HandShape>>;
+  /**
+   * The pose is the beat as the editing Avatar plays it, solved contacts
+   * included (a Pose-tab edit of the shown pose). Bones it names that
+   * playback moves away from their authored rotation (an arm a solved
+   * contact places) take the edit as the same local change of the authored
+   * rotation (`authored · shown⁻¹ · next`), so the solve, which fits only
+   * that Avatar, is never written into the clip; playback solves again from
+   * the result. Otherwise the pose is taken by value, as a Library Pose is.
+   */
+  relativeToPlayback?: boolean;
 };
 
 export type BeatDetailSummary = {
@@ -533,7 +543,12 @@ function rotationOf(
   return new Quaternion(...(sample.humanoid?.[bone]?.rotation ?? [0, 0, 0, 1]));
 }
 
-/** The full sampled pose at a beat, as the creator Avatar plays it. */
+/**
+ * The full sampled pose at a beat, as the creator Avatar plays it (solved
+ * contacts included). It is what the creator shows, not what the clip
+ * authors: edits of it go back through `setBeatPose` with
+ * `relativeToPlayback`.
+ */
 export function beatKeyPose(
   clip: AnimaPoseClipV2,
   beatId: string,
@@ -541,6 +556,25 @@ export function beatKeyPose(
 ): AnimaPoseClipSample {
   const beat = clip.beats.find(({ id }) => id === beatId);
   return prepareAnimaPoseClipV2(clip, context).sample(beat?.time ?? 0);
+}
+
+/**
+ * The clip prepared to play its authored motion: contacts are not solved.
+ * Every value read to write keys comes from it, so one Avatar's solve never
+ * becomes part of the clip (ADR 0020).
+ */
+function prepareAuthored(clip: AnimaPoseClipV2, context: BeatEditContext) {
+  return prepareAnimaPoseClipV2(clip, { ...context, solveContacts: false });
+}
+
+/** Whether playing the clip on the context's Avatar solves any contact. */
+function solvesContacts(
+  clip: AnimaPoseClipV2,
+  context: BeatEditContext,
+): boolean {
+  return Boolean(
+    context.vrm && clip.contacts?.some((contact) => contact.solve),
+  );
 }
 
 /** Evaluates individual tracks of a clip at a time. */
@@ -728,6 +762,11 @@ function uniqueBeatId(clip: AnimaPoseClipV2, label: string): string {
  * stay hand keys (`setBeatHand`): a Hands-tool shape or finger edits become
  * the beat's hand key and its offsets. Legs solved by `plantFeet` are not
  * edited.
+ *
+ * Keys are written from the authored motion, never from solved contacts: a
+ * pose given `relativeToPlayback` changes a solved arm's authored rotation by
+ * the edit's local change, and untracked bones are keyed at other beats with
+ * their authored rotations.
  */
 export function setBeatPose(
   clip: AnimaPoseClipV2,
@@ -738,7 +777,12 @@ export function setBeatPose(
   const beat = clip.beats.find(({ id }) => id === beatId);
   if (!beat) return clip;
   const time = beat.time;
-  const before = prepareAnimaPoseClipV2(clip, context).sample(time);
+  // What the tracks play at the beat, and what the editing Avatar shows there
+  // (the same unless a solved contact moves an arm).
+  const authored = prepareAuthored(clip, context).sample(time);
+  const before = solvesContacts(clip, context)
+    ? prepareAnimaPoseClipV2(clip, context).sample(time)
+    : authored;
   const pose = input.complete
     ? completeBeatPose(input, before, clip, context)
     : input;
@@ -750,17 +794,32 @@ export function setBeatPose(
         ]
       : [],
   );
+  // Bones edited as shown; those `complete` fills in are taken by value.
+  const shownBones = new Set(
+    input.relativeToPlayback ? Object.keys(input.humanoid ?? {}) : [],
+  );
 
   let changed: [VRMHumanBoneName, Quaternion][] = [];
   for (const [bone, transform] of Object.entries(pose.humanoid ?? {})) {
     if (!isVRMHumanBoneName(bone) || !transform?.rotation) continue;
     if (clip.plantFeet && LEG_BONE.test(bone)) continue;
     const next = new Quaternion(...transform.rotation).normalize();
+    // A value is judged against the tracks; an edit of the shown pose against
+    // what was shown and, where that differs from the tracks (a solved arm),
+    // applied to them as the same local change.
+    const current = rotationOf(authored, bone);
+    const shown = shownBones.has(bone) ? rotationOf(before, bone) : current;
     if (
-      keyed.has(bone) ||
-      angularDistanceDegrees(rotationOf(before, bone), next) > CHANGE_DEGREES
+      !keyed.has(bone) &&
+      angularDistanceDegrees(shown, next) <= CHANGE_DEGREES
     )
-      changed.push([bone, next]);
+      continue;
+    changed.push([
+      bone,
+      angularDistanceDegrees(shown, current) > CHANGE_DEGREES
+        ? current.multiply(shown.clone().invert().multiply(next))
+        : next,
+    ]);
   }
 
   // Hands first: bones they take over leave the generic edits below.
@@ -782,10 +841,11 @@ export function setBeatPose(
 
   const evaluate = trackEvaluator(working, context);
   const samples = new Map<string, AnimaPoseClipSample>();
+  // The authored pose at another beat, for keying a newly tracked bone there.
   const sampleAt = (other: AnimaPoseClipBeat) => {
     let sample = samples.get(other.id);
     if (!sample) {
-      sample = prepareAnimaPoseClipV2(working, context).sample(other.time);
+      sample = prepareAuthored(working, context).sample(other.time);
       samples.set(other.id, sample);
     }
     return sample;
@@ -821,7 +881,7 @@ export function setBeatPose(
       continue;
     }
     const keys = working.rotations?.[bone];
-    const old = rotationOf(before, bone);
+    const old = rotationOf(authored, bone);
     const rotations = { ...working.rotations };
     if (keys) {
       // Offset keys turn by the same local change as the beat's pose.
@@ -1404,7 +1464,7 @@ function anchorHandTrack(
   context: BeatEditContext,
 ): AnimaPoseClipV2 | null {
   const vrm = context.vrm ?? null;
-  const prepared = prepareAnimaPoseClipV2(clip, context);
+  const prepared = prepareAuthored(clip, context);
   const metacarpal: VRMHumanBoneName = `${side}ThumbMetacarpal`;
   // Untracked fingers hold the base pose, so beats mostly share one fit.
   const fits = new Map<string, HandShape | null>();
@@ -1455,7 +1515,7 @@ function addHandFallbackTracks(
 ): AnimaPoseClipV2 {
   const keys = clip.hands?.[side] ?? [];
   const times = beatTimes(clip);
-  const prepared = prepareAnimaPoseClipV2(original, context);
+  const prepared = prepareAuthored(original, context);
   const samples = keys.map((key) =>
     key.beat === beatId && !key.dt
       ? null
