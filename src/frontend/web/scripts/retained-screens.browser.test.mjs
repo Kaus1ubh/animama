@@ -377,12 +377,13 @@ test("actual Library blocks denied upload permission on direct and legacy URLs a
       await f.page
         .getByRole("heading", { name: "Chat Uploads unavailable", exact: true })
         .waitFor();
-      assert.equal(
-        await f.page
-          .getByRole("button", { name: "Chat Uploads", exact: true })
-          .count(),
-        0,
-      );
+      // Spec R2: the familiar tab stays visible but disabled with its reason.
+      const tab = f.page.getByRole("button", {
+        name: "Chat Uploads",
+        exact: true,
+      });
+      assert.equal(await tab.count(), 1);
+      assert.equal(await tab.getAttribute("aria-disabled"), "true");
       assert.equal(
         await f.page
           .getByRole("button", { name: "Upload", exact: true })

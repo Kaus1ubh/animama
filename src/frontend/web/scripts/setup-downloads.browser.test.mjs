@@ -4,6 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
 import { createServer } from "vite";
+import { selfHostedRuntimeCapabilities } from "./fixtures/runtime-capabilities.mjs";
 
 // Real interaction coverage for the stepped first-run setup: step navigation,
 // focus, the unsaved-key prompt, model choice, voice choices, downloads and
@@ -258,35 +259,9 @@ async function mount(options = {}) {
     }
     if (pathname === "/v1/runtime-capabilities")
       return route.fulfill({
-        json: {
-          schema_version: 2,
-          runtime_kind: "desktop",
-          chat: true,
-          provider_credentials: true,
-          local_filesystem_administration: true,
-          native_features: true,
-          model_selection: true,
-          model_role_selection: true,
-          offline_speech_enabled: false,
-          offline_speech_asset_version: null,
+        json: selfHostedRuntimeCapabilities({
           model_configuration: options.modelConfiguration ?? true,
-          chat_file_uploads: true,
-          anima_creation: true,
-          companion_safety: {
-            ai_notice_enabled: true,
-            crisis_detection_enabled: true,
-            enabled: true,
-            operator_reminder_hours: 3,
-          },
-          user_file_processing: {
-            enabled: false,
-            last_heartbeat_at: null,
-            pack_id: null,
-            supported_extensions: [],
-            worker_state: "disabled",
-          },
-          web_search: { configuration: false },
-        },
+        }),
       });
     if (pathname === "/v1/model-connection-presets")
       return route.fulfill({ json: PRESETS });
