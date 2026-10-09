@@ -29,7 +29,7 @@ from animama.orm.anima_chat_profile import ORMAnimaChatProfile
 from animama.orm.content_catalog import ORMAnimaContentBinding
 from animama.orm.settings import ORMAnimaSettings
 from tests.anima_creation_service_support import anima_creation_fixture, write_json
-from tests.content_package_helpers import reviewed_import
+from tests.content_package_helpers import anima_clip, reviewed_import
 
 
 @asynccontextmanager
@@ -42,23 +42,7 @@ async def complete_package(session, tmp_path: Path):  # noqa: ANN001, ANN201
             (reaction_root / "motion.vrma").unlink()
             write_json(
                 reaction_root / "joy-2.json",
-                {
-                    "schema": "animaPoseClip/1.0",
-                    "id": "joy-2",
-                    "name": "joy-2",
-                    "duration": 1,
-                    "poses": {
-                        "turn": {
-                            "schema": "animaPose/1.0",
-                            "id": "turn",
-                            "name": "Turn",
-                            "humanoid": {"hips": {"rotation": [0, 0, 0, 1]}},
-                            "expressions": {},
-                        }
-                    },
-                    "poseKeyframes": [{"time": 0, "pose": "turn"}],
-                    "events": [],
-                },
+                anima_clip(clip_id="joy-2", name="joy-2"),
             )
             reaction = json.loads((reaction_root / "joy-2.meta.json").read_bytes())
             reaction["implementation"] = {"kind": "anima_clip", "file_role": "sequence"}

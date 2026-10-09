@@ -53,10 +53,10 @@ async function readHandles(page: Page): Promise<ScreenHandles> {
   ) as ScreenHandles;
 }
 
-function sidewaysField(page: Page): Locator {
+function rightField(page: Page): Locator {
   return page
     .getByRole("group", { name: "Position (cm)", exact: true })
-    .getByRole("spinbutton", { name: "Sideways", exact: true });
+    .getByRole("spinbutton", { name: "Right", exact: true });
 }
 
 test(`${JOURNEY_KEY} @creator @surface-creator @writes-local`, async ({
@@ -106,7 +106,7 @@ test(`${JOURNEY_KEY} @creator @surface-creator @writes-local`, async ({
       await expect(
         page.getByText("drag-art.png", { exact: true }),
       ).toBeVisible();
-      await expect(sidewaysField(page)).toHaveValue("0");
+      await expect(rightField(page)).toHaveValue("0");
     });
 
     await test.step("Drag the art across the face; it moves its mirrored copy too", async () => {
@@ -126,9 +126,11 @@ test(`${JOURNEY_KEY} @creator @surface-creator @writes-local`, async ({
         { steps: 6 },
       );
       await page.mouse.up();
-      await expect(sidewaysField(page)).not.toHaveValue("0");
-      dragged = Number(await sidewaysField(page).inputValue());
-      expect(Math.abs(dragged)).toBeGreaterThan(0.1);
+      await expect(rightField(page)).not.toHaveValue("0");
+      dragged = Number(await rightField(page).inputValue());
+      // Offsets are in the viewer's frame on VRM 0 and VRM 1, so dragging the
+      // unmirrored art to the right always stores a positive x.
+      expect(dragged).toBeGreaterThan(0.1);
       // The art follows the pointer; its mirrored copy moves the other way
       // sideways and the same way up.
       await expect
@@ -157,9 +159,9 @@ test(`${JOURNEY_KEY} @creator @surface-creator @writes-local`, async ({
 
     await test.step("Undo removes the whole drag in one step; Redo restores it", async () => {
       await page.getByRole("button", { name: /^Undo ·/ }).click();
-      await expect(sidewaysField(page)).toHaveValue("0");
+      await expect(rightField(page)).toHaveValue("0");
       await page.getByRole("button", { name: /^Redo ·/ }).click();
-      await expect(sidewaysField(page)).toHaveValue(String(dragged));
+      await expect(rightField(page)).toHaveValue(String(dragged));
     });
 
     await test.step("Save the dragged effect as new Local content", async () => {
@@ -197,7 +199,7 @@ test(`${JOURNEY_KEY} @creator @surface-creator @writes-local`, async ({
       await expect(
         page.getByRole("textbox", { name: "Avatar FX name", exact: true }),
       ).toHaveValue(name);
-      await expect(sidewaysField(page)).toHaveValue(String(dragged));
+      await expect(rightField(page)).toHaveValue(String(dragged));
       const json = await (async () => {
         await page
           .getByRole("button", { name: "View JSON", exact: true })

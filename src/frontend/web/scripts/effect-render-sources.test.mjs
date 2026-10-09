@@ -35,7 +35,8 @@ async function writeEffect(root, stem, { name = stem, image = `${stem}.png` }) {
     path.join(folder, `${stem}.json`),
     JSON.stringify({
       content_type: "avatar_effect",
-      content_id: `local:avatar-effect:${stem}`,
+      // Local descriptors carry `id`, as the app writes them.
+      id: `local:avatar-effect:${stem}`,
       name,
       definition: {
         schema: "animama/avatar-effect/2",
@@ -75,7 +76,7 @@ before(async () => {
     path.join(gesture, "wave.meta.json"),
     JSON.stringify({
       content_type: "gesture",
-      content_id: "local:gesture:wave",
+      id: "local:gesture:wave",
       name: "Wave",
       implementation: { kind: "anima_clip", file_role: "sequence" },
       files: [{ path: "wave.json", role: "sequence" }],
@@ -83,7 +84,7 @@ before(async () => {
   );
   await writeFile(
     path.join(gesture, "wave.json"),
-    JSON.stringify({ schema: "animaPoseClip/1.0", id: "wave" }),
+    JSON.stringify({ schema: "animaPoseClip/2.0", id: "wave" }),
   );
 });
 
@@ -94,7 +95,7 @@ after(async () => {
 
 test("lists every Included effect descriptor and skips asset folders", async () => {
   const effects = await listIncludedEffects();
-  assert.equal(effects.length, 16);
+  assert.equal(effects.length, 26);
   assert.ok(!effects.some((effect) => effect.stem === "face"));
   for (const effect of effects) {
     assert.ok(effect.imagePath.startsWith(INCLUDED_EFFECT_ROOT));
@@ -102,28 +103,28 @@ test("lists every Included effect descriptor and skips asset folders", async () 
 });
 
 test("resolves Included effects by stem, content id, name and path", async () => {
-  const byStem = await resolveEffectSource("library:eye_vv_pair");
-  assert.equal(byStem.stem, "eye_vv_pair");
+  const byStem = await resolveEffectSource("library:heart_eyes");
+  assert.equal(byStem.stem, "heart_eyes");
   assert.equal(
     byStem.imagePath,
-    path.join(INCLUDED_EFFECT_ROOT, "eye_vv_pair/eye_vv.png"),
+    path.join(INCLUDED_EFFECT_ROOT, "heart_eyes/heart_eyes_r.png"),
   );
   const byId = await resolveEffectSource(
     "library:included/builtin:avatar-effect:angry",
   );
   assert.equal(byId.stem, "angry");
-  const byName = await resolveEffectSource("library:eye vv PAIR");
-  assert.equal(byName.stem, "eye_vv_pair");
+  const byName = await resolveEffectSource("library:heart EYES");
+  assert.equal(byName.stem, "heart_eyes");
   const byFolder = await resolveEffectSource(
-    path.join(INCLUDED_EFFECT_ROOT, "star"),
+    path.join(INCLUDED_EFFECT_ROOT, "star3"),
   );
-  assert.equal(byFolder.name, "Star");
-  const byFile = await resolveEffectSource("star/star.json", {
+  assert.equal(byFolder.name, "Star3");
+  const byFile = await resolveEffectSource("star3/star3.json", {
     cwd: INCLUDED_EFFECT_ROOT,
   });
   assert.equal(
     byFile.descriptorPath,
-    path.join(INCLUDED_EFFECT_ROOT, "star/star.json"),
+    path.join(INCLUDED_EFFECT_ROOT, "star3/star3.json"),
   );
 });
 
@@ -305,7 +306,7 @@ test("keeps a Particle Effect's files inside its folder", async () => {
     path.join(folder, "glow.json"),
     JSON.stringify({
       content_type: "particle_effect",
-      content_id: "local:particle-effect:glow",
+      id: "local:particle-effect:glow",
       files: [
         { path: "particle.json", role: "manifest" },
         { path: "t.png", role: "texture" },

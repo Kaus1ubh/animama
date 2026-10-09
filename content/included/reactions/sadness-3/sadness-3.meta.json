@@ -31,6 +31,12 @@
       "alias": "texture_black_1",
       "content_type": "avatar_effect",
       "config": {}
+    },
+    {
+      "ref": "builtin:avatar-effect:streaming_tears",
+      "alias": "streaming_tears",
+      "content_type": "avatar_effect",
+      "config": {}
     }
   ],
   "files": [

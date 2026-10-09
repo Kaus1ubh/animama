@@ -27,18 +27,16 @@ beforeEach(() => {
   store.resetWorkspace();
   store.hydrateClipDocument(
     parseAnimaPoseClip({
-      schema: "animaPoseClip/1.0",
+      schema: "animaPoseClip/2.0",
       id: "keyboard",
       name: "Keyboard",
       duration: 2,
-      poses: {
-        pose: { humanoid: { head: { rotation: [0, 0, 0, 1] } } },
-        expression: { expressions: { happy: 0.6 } },
-      },
-      poseKeyframes: [
-        { time: 0, pose: "pose" },
-        { time: 1, pose: "expression" },
+      beats: [
+        { id: "pose", label: "Pose", time: 0 },
+        { id: "expression", label: "Expression", time: 1 },
       ],
+      rotations: { head: [{ q: [0, 0, 0, 1], beat: "pose" }] },
+      expressions: { happy: [{ v: 0.6, beat: "expression" }] },
       events: [
         { id: "avatar", kind: "avatar_vfx", time: 0.2, effectId: "sparkles" },
         {

@@ -18,7 +18,7 @@ import type {
   AnimaPoseClipPoseResolver,
   AnimaPoseClipSample,
   QuaternionTuple,
-} from "./schema";
+} from "./clipVocabulary";
 import {
   type AnimaPoseClipEase,
   type AnimaPoseClipScalarKey,

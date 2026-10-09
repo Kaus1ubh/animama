@@ -63,19 +63,24 @@ describe("actionDocument", () => {
   it("starts a new Reaction with an empty authoring timeline", () => {
     const reaction = createActionDocument("reaction");
 
-    expect(reaction.sequence.duration).toBe(2);
-    expect(reaction.sequence.poses).toEqual({});
-    expect(reaction.sequence.poseKeyframes).toEqual([]);
-    expect(reaction.sequence.events).toEqual([]);
+    expect(reaction.sequence).toMatchObject({
+      schema: "animaPoseClip/2.0",
+      duration: 2,
+      beats: [],
+      events: [],
+    });
+    expect(reaction.sequence).not.toHaveProperty("basePose");
   });
 
   it("starts a two-second Gesture without base endpoints", () => {
     const gesture = createActionDocument("gesture");
 
-    expect(gesture.sequence.duration).toBe(2);
-    expect(gesture.sequence.basePose).toBe("relaxedRest");
-    expect(gesture.sequence.poses).toEqual({});
-    expect(gesture.sequence.poseKeyframes).toEqual([]);
+    expect(gesture.sequence).toMatchObject({
+      schema: "animaPoseClip/2.0",
+      duration: 2,
+      basePose: "relaxedRest",
+      beats: [],
+    });
     expect(JSON.stringify(gesture.sequence)).not.toContain("happy");
   });
 
@@ -99,7 +104,8 @@ describe("actionDocument", () => {
     const document = createActionDocument("reaction");
     document.sequence = {
       ...document.sequence,
-      poses: { bad: { humanoid: { head: { rotation: [0, 0, 0, 1] } } } },
+      beats: [{ id: "bad", label: "Bad", time: 0 }],
+      rotations: { head: [{ q: [0, 0, 0, 1], beat: "bad" }] },
       events: [{ id: "unknown", time: 0, kind: "sfx", cueId: "missing" }],
     };
     const messages = validateActionDocument(document).map(
@@ -112,74 +118,28 @@ describe("actionDocument", () => {
   });
 
   it("removes automatically captured motion while preserving Reaction expressions", () => {
+    const expressions = { happy: [{ v: 0.8, beat: "captured" }] };
     const sequence = sanitizeReactionSequence({
-      schema: "animaPoseClip/1.0",
+      schema: "animaPoseClip/2.0",
       basePose: "vrm-t-pose",
-      defaultTransition: {
-        interpolation: {
-          humanoidRotation: "slerp",
-          humanoidPosition: "linear",
-          expression: "linear",
-        },
-      },
-      poses: {
-        captured_001: {
-          humanoid: {
-            hips: { rotation: [0, 0, 0, 1] },
-          },
-          expressions: { happy: 0.8 },
-        },
-        body_only: {
-          humanoid: {
-            spine: { rotation: [0, 0, 0, 1] },
-          },
-        },
-      },
-      poseKeyframes: [
-        { time: 0, pose: "captured_001" },
-        { time: 0.5, pose: "body_only" },
-      ],
+      mutedProceduralLayers: ["sway"],
+      beats: [{ id: "captured", label: "Captured", time: 0 }],
+      joints: { spine: { flexion: [{ v: 4, beat: "captured" }] } },
+      rotations: { hips: [{ q: [0, 0, 0, 1], beat: "captured" }] },
+      hipsPosition: { y: [{ v: 0.01, beat: "captured" }] },
+      hands: { left: [{ preset: "relaxed", beat: "captured" }] },
+      contacts: [],
+      plantFeet: true,
+      expressions,
       events: [{ id: "sparkle", kind: "particle_vfx", effectId: "stars" }],
     });
 
-    expect(sequence.basePose).toBeUndefined();
-    expect(sequence.poses).toEqual({
-      captured_001: { expressions: { happy: 0.8 } },
+    expect(sequence).toEqual({
+      schema: "animaPoseClip/2.0",
+      beats: [{ id: "captured", label: "Captured", time: 0 }],
+      expressions,
+      events: [{ id: "sparkle", kind: "particle_vfx", effectId: "stars" }],
     });
-    expect(sequence.poseKeyframes).toEqual([{ time: 0, pose: "captured_001" }]);
-    expect(sequence.events).toEqual([
-      { id: "sparkle", kind: "particle_vfx", effectId: "stars" },
-    ]);
-    expect(
-      (sequence.defaultTransition as Record<string, unknown>).interpolation,
-    ).toEqual({ expression: "linear" });
-  });
-
-  it("omits neutral expression weights but keeps their timeline landmarks", () => {
-    const sequence = sanitizeReactionSequence({
-      schema: "animaPoseClip/1.0",
-      poses: {
-        neutral: { expressions: { happy: 0, angry: 0 } },
-        empty: {},
-        angry: { expressions: { happy: 0, angry: 1 } },
-      },
-      poseKeyframes: [
-        { time: 0, pose: "neutral" },
-        { time: 0.25, pose: "empty" },
-        { time: 0.5, pose: "angry" },
-      ],
-    });
-
-    expect(sequence.poses).toEqual({
-      neutral: {},
-      empty: {},
-      angry: { expressions: { angry: 1 } },
-    });
-    expect(sequence.poseKeyframes).toEqual([
-      { time: 0, pose: "neutral" },
-      { time: 0.25, pose: "empty" },
-      { time: 0.5, pose: "angry" },
-    ]);
   });
 
   it("snapshots authoring content without metadata or server workflow state", () => {

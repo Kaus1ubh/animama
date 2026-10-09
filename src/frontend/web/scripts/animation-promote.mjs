@@ -30,9 +30,7 @@ import { pathToFileURL } from "node:url";
  * For each item it writes `content/included/gestures/<slug>/<slug>.json` and
  * `<slug>.meta.json` (the frontend's built-in catalog bundles these files
  * directly), a licence rule ahead of the generic `gestures/**\/*.json` rule,
- * and source-review records. A
- * replacement also drops the replaced 1.0 clip's pinned samples from
- * `starter-clip-samples-before-reduction.json`. `--dry-run` lists every file
+ * and source-review records. `--dry-run` lists every file
  * it would write and writes nothing. New files must be `git add`ed before the
  * backend Included-content tests, which read tracked files only.
  */
@@ -58,8 +56,6 @@ export const PROMOTE_PATHS = {
   included: "content/included",
   inventory: "content/included/licenses/inventory.json",
   sourceReview: "licenses/source-review.json",
-  clipSamples:
-    "src/frontend/web/src/lib/avatar/poses/fixtures/starter-clip-samples-before-reduction.json",
 };
 
 function requireText(value, where) {
@@ -188,7 +184,6 @@ export async function planPromotion(
 
   const inventory = readJson(PROMOTE_PATHS.inventory);
   const sourceReview = readJson(PROMOTE_PATHS.sourceReview);
-  const clipSamples = readJson(PROMOTE_PATHS.clipSamples);
 
   for (const item of items) {
     const folder = `${PROMOTE_PATHS.included}/gestures/${item.slug}`;
@@ -292,12 +287,6 @@ export async function planPromotion(
       );
       sourceReview.files.push({ path: file, ...item.sourceReview });
     }
-
-    // Pinned samples describe the replaced 1.0 clip; a 2.0 clip samples
-    // against an Avatar and is pinned by its bytes instead.
-    clipSamples.clips = clipSamples.clips.filter(
-      (entry) => entry.id !== item.slug,
-    );
   }
 
   sourceReview.files.sort((a, b) =>
@@ -305,7 +294,6 @@ export async function planPromotion(
   );
   put(PROMOTE_PATHS.inventory, jsonFile(inventory));
   put(PROMOTE_PATHS.sourceReview, jsonFile(sourceReview));
-  put(PROMOTE_PATHS.clipSamples, jsonFile(clipSamples));
 
   return [...writes]
     .filter(([relative, content]) => repo.read(relative) !== content)

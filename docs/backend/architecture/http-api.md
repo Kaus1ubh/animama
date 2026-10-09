@@ -304,7 +304,7 @@ are under `/v1/content`:
 
 | Method and path | Behavior |
 | --- | --- |
-| `POST /package-exports:summary` | Resolve selected content or one Anima and all required content; return counts, size estimate and saved-source digest. |
+| `POST /package-exports:summary` | Resolve selected content or one Anima and all required content; return counts, size estimate, saved-source digest and any omitted non-portable items. A non-portable root returns 409 `package_non_portable` with `detail.items` (see [non-portable content](../features/typed-content-and-marketplace.md#non-portable-content)). |
 | `POST /package-exports` | Require that digest, prepare and validate exact immutable archive bytes, then return the review and export ID. |
 | `GET /package-exports/{export_id}/file` | Stream those reviewed bytes with attachment filename and SHA-256; hold the cache lease through response completion. |
 | `DELETE /package-exports/{export_id}` | Discard an inactive owned cache. |

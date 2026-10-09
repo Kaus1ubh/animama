@@ -31,9 +31,13 @@ renderer-captured portraits do not make all underlying material AGPL or CC0.
 Keep notices and exact file mappings with each candidate.
 
 Mixamo-derived VRMA files are ignored and excluded from source tracking and
-Docker contexts. The [optional Local installer](../runtime/mixamo-acquisition.md)
-can install manually converted motions as ordinary Local content. The shipped
-starter does not require them. Ignored copies cannot become release inputs.
+Docker contexts. Desktop and hosted builds may include them only as the
+non-portable [Mixamo-motion pack](../../backend/operations/mixamo-motion-pack.md),
+staged from a verified private build input that exactly matches the tracked
+manifest; its own licence inventory joins the redistribution inventory. The
+[optional Local installer](../runtime/mixamo-acquisition.md) can install
+manually converted motions as ordinary Local content. The shipped starter does
+not require any of them. Ignored copies elsewhere cannot become release inputs.
 
 ## Pack and native dependencies
 

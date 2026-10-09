@@ -35,6 +35,7 @@ import { runtimeRemountRecovery } from "../lib/chat/runtimeRemountRecovery";
 import {
   chatRunMessageId,
   mapServerMessagesForDisplay,
+  sortDisplayMessagesByCreatedAt,
   type ChatDisplayMessage,
 } from "../lib/chat/display-message-mapping";
 import type { ChatMemoryCue } from "../lib/chat/memory-cue";
@@ -641,11 +642,7 @@ export function useProductChatSession({
     const combined = base.concat(
       localMessages.filter((message) => !persistedIds.has(message.id)),
     );
-    combined.sort(
-      (a, b) =>
-        (Date.parse(a.createdAt ?? "") || 0) -
-        (Date.parse(b.createdAt ?? "") || 0),
-    );
+    sortDisplayMessagesByCreatedAt(combined);
     if (streamingRunId) {
       const streamed: ChatMessage[] = [
         {

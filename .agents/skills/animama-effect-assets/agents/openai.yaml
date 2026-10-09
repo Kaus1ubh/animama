@@ -1,0 +1,4 @@
+interface:
+  display_name: "Animama Effect Assets"
+  short_description: "Turn an art brief into clean, budgeted effect PNGs"
+  default_prompt: "Use $animama-effect-assets to make the art for: <describe the effect art and its attachment>. Generate or take the source images, check and fix them, preview them on dark and light backdrops, and hand off the final PNGs."

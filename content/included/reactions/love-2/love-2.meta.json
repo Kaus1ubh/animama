@@ -19,6 +19,18 @@
       "alias": "hearts",
       "content_type": "particle_effect",
       "config": {}
+    },
+    {
+      "ref": "builtin:avatar-effect:blush",
+      "alias": "blush",
+      "content_type": "avatar_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:avatar-effect:doki_doki",
+      "alias": "doki_doki",
+      "content_type": "avatar_effect",
+      "config": {}
     }
   ],
   "files": [

@@ -9,7 +9,14 @@ from sqlalchemy import delete
 
 from animama.domain.content_catalog import ContentConflictError, ContentKind, ContentSource, ContentStatus
 from animama.orm.content_catalog import ORMContentCatalogItem
-from tests.content_package_helpers import package_services, reviewed_export, reviewed_import, save_wave, vrma
+from tests.content_package_helpers import (
+    anima_clip,
+    package_services,
+    reviewed_export,
+    reviewed_import,
+    save_wave,
+    vrma,
+)
 
 
 def _happy_reaction_descriptor() -> bytes:
@@ -28,17 +35,7 @@ def _happy_reaction_descriptor() -> bytes:
 
 
 def _happy_pose_clip() -> bytes:
-    return json.dumps(
-        {
-            "schema": "animaPoseClip/1.0",
-            "id": "happy",
-            "name": "Happy",
-            "role": "reaction",
-            "duration": 1,
-            "poses": {"rest": {"ref": "relaxedRest"}},
-            "poseKeyframes": [{"time": 0, "pose": "rest"}],
-        }
-    ).encode()
+    return json.dumps(anima_clip(clip_id="happy", name="Happy", role="reaction", basePose="relaxedRest")).encode()
 
 
 async def test_import_reviews_automatic_suffix_and_installs_an_editable_copy(async_session, tmp_path: Path) -> None:  # noqa: ANN001

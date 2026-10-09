@@ -61,9 +61,11 @@ export const EFFECT_TEMPLATE_KIND_INFO: Record<
 
 export type AvatarEffectTemplateGroup =
   | "eyes"
+  | "cheeks"
   | "whole-face"
-  | "above-head"
-  | "mouth";
+  | "around-head"
+  | "mouth"
+  | "body";
 
 /** Avatar template groups, by what the effect changes, in picker order. */
 export const AVATAR_EFFECT_TEMPLATE_GROUPS: ReadonlyArray<{
@@ -71,9 +73,11 @@ export const AVATAR_EFFECT_TEMPLATE_GROUPS: ReadonlyArray<{
   label: string;
 }> = [
   { id: "eyes", label: "Eyes" },
+  { id: "cheeks", label: "Cheeks" },
   { id: "whole-face", label: "Whole face" },
-  { id: "above-head", label: "Above the head" },
+  { id: "around-head", label: "Around the head" },
   { id: "mouth", label: "Mouth" },
+  { id: "body", label: "Body" },
 ];
 
 export type AvatarEffectTemplate = {
@@ -84,33 +88,60 @@ export type AvatarEffectTemplate = {
   /** The Included effect's name, shown before its content is loaded. */
   name: string;
   group: AvatarEffectTemplateGroup;
+  /**
+   * Thumbnail capture: `framing` is the head (default) or `wide` for art on
+   * the chest or beside the head that a head framing would crop; `time`
+   * (seconds after applying, default 1) for looping art that is faded out at
+   * 1 s.
+   */
+  thumbnail?: { framing?: "wide"; time?: number };
 };
 
 function included(
   id: string,
   name: string,
   group: AvatarEffectTemplateGroup,
+  thumbnail?: AvatarEffectTemplate["thumbnail"],
 ): AvatarEffectTemplate {
-  return { id, contentId: `builtin:avatar-effect:${id}`, name, group };
+  return {
+    id,
+    contentId: `builtin:avatar-effect:${id}`,
+    name,
+    group,
+    ...(thumbnail ? { thumbnail } : {}),
+  };
 }
 
 export const AVATAR_EFFECT_TEMPLATES: readonly AvatarEffectTemplate[] = [
-  included("eye_vv_pair", "Eye VV Pair", "eyes"),
   included("eye_vv", "Eye VV", "eyes"),
   included("eye_o", "Eye O", "eyes"),
   included("eye_0", "Eye 0", "eyes"),
   included("eye", "Eye =", "eyes"),
   included("eye_confused_swirl", "Eye Confused Swirl", "eyes"),
-  included("star", "Star", "eyes"),
   included("star3", "Star3", "eyes"),
+  included("heart_eyes", "Heart Eyes", "eyes"),
+  included("blush", "Blush", "cheeks"),
+  included("blush_band", "Blush Band", "cheeks"),
+  included("blush_deep", "Blush Deep", "cheeks"),
+  included("streaming_tears", "Streaming Tears", "cheeks"),
   included("texture_sick_1", "Texture Sick 1", "whole-face"),
   included("texture_sick_2", "Texture Sick 2", "whole-face"),
-  included("texture_sick_3", "Texture Sick 3", "whole-face"),
   included("texture_black_1", "Texture Black 1", "whole-face"),
-  included("angry", "Angry", "above-head"),
-  included("emote", "Emote !", "above-head"),
+  included("face_red", "Red Face", "whole-face"),
+  included("angry", "Angry", "around-head"),
+  included("emote", "Emote !", "around-head"),
+  included("sweat_drop", "Sweat Drop", "around-head"),
+  included("gloom_lines", "Gloom Lines", "around-head"),
+  included("steam_puffs", "Steam Puffs", "around-head", {
+    framing: "wide",
+    time: 1.5,
+  }),
+  included("doki_doki", "Doki Doki", "around-head", { framing: "wide" }),
+  included("idea_bulb", "Idea Bulb", "around-head", { framing: "wide" }),
   included("mouth_w", "Mouth w", "mouth"),
   included("mouth_hover_w", "Mouth Hover w", "mouth"),
+  included("heart_throb", "Heart Throb", "body", { framing: "wide" }),
+  included("despair_shade", "Despair Shade", "body"),
 ];
 
 /** The Scene creator's starting templates, in its own order. */

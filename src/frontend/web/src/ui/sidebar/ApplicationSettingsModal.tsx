@@ -1391,9 +1391,7 @@ export function ApplicationSettingsModal({
           }
         >
           {currentSttOption?.reason ? (
-            <p className="text-xs text-amber-600 dark:text-amber-500">
-              {currentSttOption.reason}
-            </p>
+            <p className="text-warning text-xs">{currentSttOption.reason}</p>
           ) : null}
           {isInitializing ? (
             <p className="text-muted-foreground text-xs">
@@ -1503,9 +1501,7 @@ export function ApplicationSettingsModal({
           }
         >
           {currentTtsOption?.reason && ttsEnabled ? (
-            <p className="text-xs text-amber-600 dark:text-amber-500">
-              {currentTtsOption.reason}
-            </p>
+            <p className="text-warning text-xs">{currentTtsOption.reason}</p>
           ) : null}
           <p className="text-muted-foreground text-xs">
             Used by Animas without their own provider. Choose providers and

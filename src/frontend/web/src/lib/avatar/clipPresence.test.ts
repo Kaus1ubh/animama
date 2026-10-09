@@ -9,7 +9,7 @@ import { ExpressionController } from "./ExpressionController";
 import { ProceduralAnimationController } from "./ProceduralAnimationController";
 import { loadTestAvatar } from "./motion-authoring/testing/includedAvatars";
 import { PoseController } from "./poses/PoseController";
-import type { AnimaPoseClip } from "./poses/animaPoseClip";
+import type { AnimaPoseClipV2 } from "./poses/animaPoseClip";
 import { SwayProceduralAnimationLayer } from "./proc-animation/SwayProceduralAnimationLayer";
 import { BreathingProceduralAnimationLayer } from "./proc-animation/BreathingProceduralAnimationLayer";
 
@@ -85,22 +85,24 @@ describe("clip layer mutes", () => {
   });
 });
 
-const clip: AnimaPoseClip = {
-  schema: "animaPoseClip/1.0",
+const clip: AnimaPoseClipV2 = {
+  schema: "animaPoseClip/2.0",
   id: "smile",
   name: "Smile",
   duration: 1,
   mutedProceduralLayers: ["sway", "cursorLookAt"],
   fadeIn: { duration: 0.2, easing: "linear" },
   fadeOut: { duration: 0.2, easing: "linear" },
-  poses: {
-    a: { expressions: { happy: 0.4 } },
-    b: { expressions: { happy: 1 } },
-  },
-  poseKeyframes: [
-    { time: 0, pose: "a" },
-    { time: 1, pose: "b" },
+  beats: [
+    { id: "a", label: "A", time: 0 },
+    { id: "b", label: "B", time: 1, ease: "easeInOutSine" },
   ],
+  expressions: {
+    happy: [
+      { beat: "a", v: 0.4 },
+      { beat: "b", v: 1 },
+    ],
+  },
 };
 
 describe("PoseController.getClipPresence", () => {

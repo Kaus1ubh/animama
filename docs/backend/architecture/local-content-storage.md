@@ -74,17 +74,19 @@ reactions/happy/
 ```
 
 The `.meta.json` file is the typed Action control document; the `.json` file is
-the actual `animaPoseClip/1.0` or `animaPoseClip/2.0` sequence owned by that
+the actual `animaPoseClip/2.0` sequence owned by that
 Action. Idle Styles reference Gestures whose Action files contain their clip or
 VRMA. Independently reusable VFX and
 SFX remain typed dependencies and are included through the runtime/package
 closure.
 
 Old `pose-clips/` and `music/` files remain on disk for recovery and do not
-appear as supported Library content. Startup and Rescan preserve originals and
-prior binding facts under `data/internal/operations/transitions/` before
-converting Action references or removing Music bindings. A failed conversion
-retains its evidence and reports a diagnostic instead of discarding content.
+appear as supported Library content. Retired Pose Clips were `animaPoseClip/1.0`,
+so a Local Action whose motion still references one is listed invalid with
+`clip_format_unsupported` rather than converted. Startup and Rescan preserve
+originals and prior binding facts under `data/internal/operations/transitions/`
+before removing Music bindings. A failed transition retains its evidence and
+reports a diagnostic instead of discarding content.
 
 Local Avatar Effects with an `animama/avatar-effect/1` definition convert to
 `/2` in place in the same transition (`AvatarEffectTransitionService`): only
@@ -114,7 +116,16 @@ Embedded desktop keeps this writable Local/private layout under Electron's
 user-data directory, but mounts Included separately from immutable application
 resources. `ANIMAMA_INCLUDED_CONTENT_SOURCES_JSON` supplies ordered
 `{id, version, root, pack_id}` records, core first, and
-`ANIMAMA_LOCAL_CONTENT_ROOT` supplies the writable Local root. The backend
+`ANIMAMA_LOCAL_CONTENT_ROOT` supplies the writable Local root. Non-core sources
+use `pack_id` `expanded-included-content` or `mixamo-motion`. Each source has
+its own `licenses/inventory.json`. An entry is non-portable when a rule in its
+own source's inventory sets `"distribution": "non-portable"` (any unrecognised
+value also counts), or when any of its files matches a hash in
+`animama/resources/mixamo-motion-manifest.json`, wherever it is stored. The
+scanner records the result in `provenance.distribution` after merging
+descriptor metadata, so descriptors cannot set or clear it, and catalog
+responses expose it as `portability`. Startup transitions never copy
+non-portable bytes into Local content. The backend
 never creates or write-probes an Included mount, rejects cross-source logical,
 file, case, and Unicode collisions, and watches only Local. Each catalog item
 and preview file retains its exact `source_mount_id`. Bytes are delivered only

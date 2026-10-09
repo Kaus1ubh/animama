@@ -9,9 +9,11 @@ those supports independently.
 A Gesture requires a stable semantic selector and AI-facing description because
 the chat model may choose it. A Reaction document may carry a suggested
 emotion/intensity placement, while the Anima loadout may assign that complete
-Reaction Action to any canonical cell. Both can use `animaPoseClip/1.0` or
-`animaPoseClip/2.0`; Gestures may also use VRMA. Event-only clips are valid, but
-a clip with neither a pose keyframe (2.0: a track key) nor an event is not.
+Reaction Action to any canonical cell. Both use `animaPoseClip/2.0` clips;
+Gestures may also use VRMA. Event-only clips
+are valid, but a clip with neither a track key nor an event is not. A Local
+scan lists a clip in another format, such as the retired `animaPoseClip/1.0`,
+as invalid with `clip_format_unsupported`, and Save refuses it.
 
 Creator Save writes the ordinary Local source through its typed product route,
 such as `PUT /v1/gestures/{entry_name}` or

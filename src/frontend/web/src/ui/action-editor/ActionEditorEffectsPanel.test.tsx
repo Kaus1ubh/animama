@@ -104,7 +104,7 @@ describe("ActionEditorEffectsPanel", () => {
     expect(html).toContain('aria-label="Play Pop"');
     expect(html).toContain('aria-label="Add Pop to timeline"');
   });
-  it("shows Included and Local Poses before Effects for Gesture authoring", () => {
+  it("shows Local Poses before Effects for Gesture authoring, hiding Included ones", () => {
     const html = renderToString(
       <ActionEditorEffectsPanel
         query=""
@@ -133,9 +133,10 @@ describe("ActionEditorEffectsPanel", () => {
     expect(html.indexOf(">Poses<")).toBeLessThan(html.indexOf(">Particle FX<"));
     expect(html).toContain('placeholder="Search poses"');
     expect(html).toContain("Friendly Wave");
-    expect(html).toContain("Included");
     expect(html).toContain("Local");
-    expect(html).toContain('aria-label="Edit Starter"');
+    // Included Poses stay hidden until "Show Included" is checked.
+    expect(html).toContain("Show Included");
+    expect(html).not.toContain('aria-label="Edit Starter"');
     expect(html).toContain('aria-label="Edit Friendly Wave"');
     expect(html.indexOf('aria-label="Edit Friendly Wave"')).toBeLessThan(
       html.indexOf('aria-label="Insert Friendly Wave at current playhead"'),

@@ -21,8 +21,10 @@ from pydantic import (
     model_validator,
 )
 
-from animama.app.contracts.portable_anima import PortableAnima
+from animama.app.anima_creation_contract import SemanticKey
+from animama.app.contracts.portable_anima import PortableActionSelection, PortableAnima
 from animama.domain.content_catalog import ContentKind
+from animama.domain.emotions import TRACKED_EMOTION_SET
 
 PACKAGE_SCHEMA: Literal["animama-content-package/3"] = "animama-content-package/3"
 MAX_PACKAGE_FILES = 2_048
@@ -174,6 +176,65 @@ class PackageEntry(_PackageModel):
         return self
 
 
+NON_PORTABLE_REFERENCES_CAPABILITY = "animama/non-portable-references/1"
+NON_PORTABLE_REFERENCE_KINDS = frozenset({ContentKind.GESTURE, ContentKind.IDLE_STYLE})
+IdlePoolName = Annotated[StrictStr, Field(min_length=1, max_length=64)]
+# Anima slots a non-portable item can be omitted from.
+NonPortableAnimaSlot = Literal["gesture", "idle_style"]
+
+
+class PackageNonPortableUse(_PackageModel):
+    """One place an omitted non-portable item was used, so import can rebind it.
+
+    Exactly one target: an Anima slot (``gesture`` with its selector and
+    binding config, or ``idle_style``) or a packaged Idle Style entry and the
+    pools (``default`` or ``<emotion>.<1|2|3>``) it was removed from.
+    """
+
+    anima_slot: NonPortableAnimaSlot | None = None
+    semantic_key: SemanticKey | None = None
+    config: dict[str, object] = Field(default_factory=dict)
+    entry_id: PortableId | None = None
+    pools: Annotated[list[IdlePoolName], Field(max_length=64)] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def one_target(self) -> Self:
+        if (self.anima_slot is None) == (self.entry_id is None):
+            raise ValueError("package_non_portable_use_invalid")
+        if self.anima_slot is not None and (
+            self.pools or (self.anima_slot == "gesture") != (self.semantic_key is not None)
+        ):
+            raise ValueError("package_non_portable_use_invalid")
+        if self.anima_slot == "gesture":
+            PortableActionSelection(entry_id="non-portable", config=self.config)
+        elif self.config:
+            raise ValueError("package_non_portable_use_invalid")
+        if self.entry_id is not None:
+            if self.semantic_key is not None or not self.pools or len(set(self.pools)) != len(self.pools):
+                raise ValueError("package_non_portable_use_invalid")
+            for pool in self.pools:
+                emotion, _, intensity = pool.partition(".")
+                if pool != "default" and (emotion not in TRACKED_EMOTION_SET or intensity not in {"1", "2", "3"}):
+                    raise ValueError("package_non_portable_pool_invalid")
+        return self
+
+
+class PackageNonPortableReference(_PackageModel):
+    """An item omitted from the archive because it is non-portable: identity only, no bytes."""
+
+    kind: PackageContentKind
+    logical_key: PortableId
+    display_name: Annotated[StrictStr, Field(min_length=1, max_length=120)]
+    uses: Annotated[list[PackageNonPortableUse], Field(min_length=1, max_length=MAX_PACKAGE_FILES)]
+
+    @field_validator("kind")
+    @classmethod
+    def supported_kind(cls, value: ContentKind) -> ContentKind:
+        if value not in NON_PORTABLE_REFERENCE_KINDS:
+            raise ValueError("package_non_portable_kind_invalid")
+        return value
+
+
 class PackageAvatarPortrait(_PackageModel):
     avatar_entry_id: PortableId
     appearance_entry_id: PortableId
@@ -189,6 +250,11 @@ class PackageManifest(_PackageModel):
     entries: Annotated[list[PackageEntry], Field(min_length=1, max_length=MAX_PACKAGE_FILES)]
     avatar_portraits: Annotated[list[PackageAvatarPortrait], Field(max_length=MAX_PACKAGE_FILES)]
     capabilities: Annotated[list[Annotated[StrictStr, Field(min_length=1, max_length=128)]], Field(max_length=128)]
+    # Omitted from the serialized manifest when empty, so packages without
+    # non-portable references stay readable by earlier versions.
+    non_portable_references: Annotated[list[PackageNonPortableReference], Field(max_length=MAX_PACKAGE_FILES)] = Field(
+        default_factory=list
+    )
 
     @model_validator(mode="after")
     def complete_graph(self) -> Self:
@@ -255,7 +321,40 @@ class PackageManifest(_PackageModel):
             raise ValueError("package_member_duplicate")
         if len(files) > MAX_PACKAGE_FILES or sum(member.size_bytes for member in files) > MAX_PACKAGE_BYTES:
             raise ValueError("package_size_invalid")
+        self._non_portable_references_valid(entries)
         return self
+
+    def _non_portable_references_valid(self, entries: Mapping[str, PackageEntry]) -> None:
+        if not self.non_portable_references:
+            return
+        if NON_PORTABLE_REFERENCES_CAPABILITY not in self.capabilities:
+            raise ValueError("package_non_portable_capability_missing")
+        identities = [(reference.kind, reference.logical_key) for reference in self.non_portable_references]
+        if len(set(identities)) != len(identities):
+            raise ValueError("package_non_portable_duplicate")
+        gesture_keys = {selection.semantic_key for selection in self.anima.gestures} if self.anima else set()
+        idle_slots = 0
+        for reference in self.non_portable_references:
+            for use in reference.uses:
+                if use.entry_id is not None:
+                    target = entries.get(use.entry_id)
+                    if (
+                        reference.kind is not ContentKind.GESTURE
+                        or target is None
+                        or target.kind is not ContentKind.IDLE_STYLE
+                    ):
+                        raise ValueError("package_non_portable_use_invalid")
+                    continue
+                if self.anima is None or use.anima_slot != reference.kind.value:
+                    raise ValueError("package_non_portable_use_invalid")
+                if use.anima_slot == "gesture":
+                    if use.semantic_key is None or use.semantic_key in gesture_keys:
+                        raise ValueError("package_non_portable_use_invalid")
+                    gesture_keys.add(use.semantic_key)
+                else:
+                    idle_slots += 1
+        if idle_slots > 1 or (idle_slots and self.anima is not None and self.anima.idle_style is not None):
+            raise ValueError("package_non_portable_use_invalid")
 
 
 __all__ = [

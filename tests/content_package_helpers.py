@@ -5,7 +5,7 @@ import json
 import struct
 from pathlib import Path
 from tempfile import TemporaryFile
-from typing import BinaryIO, TypedDict, cast
+from typing import Any, BinaryIO, TypedDict, cast
 
 from animama.adapters.content_store import FilesystemContentStore
 from animama.adapters.repositories.sqlalchemy.content_catalog_repo import SQLAlchemyContentCatalog
@@ -88,6 +88,32 @@ def vrma(label: str) -> bytes:
     return (
         struct.pack("<4sII", b"glTF", 2, 20 + len(document)) + struct.pack("<II", len(document), 0x4E4F534A) + document
     )
+
+
+def anima_clip(
+    *,
+    clip_id: str = "clip",
+    name: str = "Clip",
+    duration: float = 1,
+    events: list[dict[str, Any]] | None = None,
+    **fields: Any,
+) -> dict[str, Any]:
+    """Build a minimal valid ``animaPoseClip/2.0`` clip: one beat, one head key, optional events.
+
+    Extra keyword fields (for example ``basePose`` or ``playback``) are merged in
+    so tests can vary only what they exercise.
+    """
+
+    return {
+        "schema": "animaPoseClip/2.0",
+        "id": clip_id,
+        "name": name,
+        "duration": duration,
+        "beats": [{"id": "start", "label": "Start", "time": 0}],
+        "rotations": {"head": [{"beat": "start", "q": [0, 0.13, 0, 0.99]}]},
+        "events": list(events or []),
+        **fields,
+    }
 
 
 def package_services(async_session, tmp_path: Path):  # noqa: ANN001, ANN202

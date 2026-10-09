@@ -35,6 +35,12 @@ class ContentStore(Protocol):
     injected ContentMutations transaction and must not expose partial closures.
     """
 
+    @property
+    def restricted_sha256(self) -> frozenset[str]:
+        """Hashes of non-portable bytes that must never enter Local or account content."""
+
+        raise NotImplementedError
+
     def open_verified_file(
         self,
         *,

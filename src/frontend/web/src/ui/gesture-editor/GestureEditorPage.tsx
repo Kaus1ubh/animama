@@ -1,3 +1,4 @@
+import { ActionEditorGate } from "@/ui/action-editor/ActionEditorGate";
 import { ActionEditorPage } from "@/ui/action-editor/ActionEditorPage";
 import type { ActionComponentType } from "@/query/hooks/useEffects";
 
@@ -11,12 +12,14 @@ export function GestureEditorPage({
   initialComponentType?: ActionComponentType;
 }) {
   return (
-    <ActionEditorPage
-      key={gestureId ?? "new"}
-      intent="gesture"
-      itemId={gestureId}
-      initialComponent={initialComponent}
-      initialComponentType={initialComponentType}
-    />
+    <ActionEditorGate intent="gesture" itemId={gestureId}>
+      <ActionEditorPage
+        key={gestureId ?? "new"}
+        intent="gesture"
+        itemId={gestureId}
+        initialComponent={initialComponent}
+        initialComponentType={initialComponentType}
+      />
+    </ActionEditorGate>
   );
 }

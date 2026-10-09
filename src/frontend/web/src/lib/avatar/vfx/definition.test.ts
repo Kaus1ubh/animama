@@ -1,6 +1,3 @@
-import { existsSync, readFileSync, readdirSync } from "node:fs";
-import { resolve } from "node:path";
-
 import { describe, expect, it } from "vitest";
 
 import conversion from "@/lib/content/fixtures/avatar-effect-conversion.json";
@@ -12,18 +9,32 @@ import {
 import v1Snapshot from "./fixtures/included-v1-runtime-entries.json";
 import { isAttachmentVFXEntry, type AvatarVFXParsedEntry } from "./types";
 
-const INCLUDED = resolve(process.cwd(), "../../../content/included/vfx/avatar");
-
 type JsonObject = Record<string, unknown>;
 
+/**
+ * The Included effects as first converted to `/2` (the conversion fixture's
+ * `included/*` pairs), which the `/1` snapshot describes. Later redrawn
+ * Included content is checked by `includedVfxProjection.test.ts`.
+ */
 function includedDefinitions(): Map<string, JsonObject> {
-  const result = new Map<string, JsonObject>();
-  for (const entry of readdirSync(INCLUDED, { withFileTypes: true })) {
-    const path = resolve(INCLUDED, entry.name, `${entry.name}.json`);
-    if (!entry.isDirectory() || !existsSync(path)) continue;
-    result.set(entry.name, JSON.parse(readFileSync(path, "utf8")));
-  }
-  return result;
+  const snapshot = v1Snapshot.included as Record<string, JsonObject>;
+  return new Map(
+    conversion.pairs
+      .filter((pair) => pair.name.startsWith("included/"))
+      .map((pair) => {
+        const name = pair.name.slice("included/".length);
+        const entry = snapshot[name] ?? {};
+        return [
+          name,
+          {
+            content_id: entry.id,
+            name: entry.label,
+            description: entry.description,
+            definition: pair.v2,
+          },
+        ];
+      }),
+  );
 }
 
 /**
@@ -205,7 +216,8 @@ describe("parseAvatarEffectDefinition", () => {
   });
 
   it("reads the API projection, which writes defaults and nulls", () => {
-    // `AvatarEffectDefinitionV2.model_dump(mode="json")` of Included "eye".
+    // `AvatarEffectDefinitionV2.model_dump(mode="json")` of the converted
+    // Included "eye".
     const projected = {
       schema: "animama/avatar-effect/2",
       region: "eyes",

@@ -14,6 +14,7 @@ import {
   buildEmotionRuntimeState,
   createEmptyEmotionStateMap,
 } from "@/lib/emotion";
+import { unsupportedAnimaPoseClipFormatMessage } from "@/lib/avatar/poses/animaPoseClip";
 import { AnimaRuntimeCatalog } from "./AnimaRuntimeCatalog";
 
 const MANIFEST_URL = "https://api.example.test/runtime/manifest";
@@ -105,19 +106,13 @@ function poseClip(
   } = {},
 ) {
   return {
-    schema: "animaPoseClip/1.0",
+    schema: "animaPoseClip/2.0",
     id: args.id ?? "authored-id",
     name: "Authored clip",
     ...(args.role ? { role: args.role } : {}),
     duration: 1,
-    poses: {
-      rest: {
-        humanoid: {
-          head: { rotation: [0, 0, 0, 1] },
-        },
-      },
-    },
-    poseKeyframes: [{ time: 0, pose: "rest" }],
+    beats: [{ id: "rest", label: "Rest", time: 0 }],
+    rotations: { head: [{ beat: "rest", q: [0, 0, 0, 1] }] },
     ...(args.events ? { events: args.events } : {}),
   };
 }
@@ -909,7 +904,7 @@ describe("AnimaRuntimeCatalog", () => {
     );
   });
 
-  it("loads a 2.0 clip and names it for this runtime", async () => {
+  it("loads a clip and names it for this runtime", async () => {
     const entry = runtimeEntry({
       slot: "pose",
       runtimeId: "beat-pose",
@@ -941,7 +936,46 @@ describe("AnimaRuntimeCatalog", () => {
     });
   });
 
-  it("skips an invalid 2.0 clip with a diagnostic", async () => {
+  it("skips a retired 1.0 clip with the unsupported-format diagnostic", async () => {
+    const entry = runtimeEntry({
+      slot: "pose",
+      runtimeId: "retired-pose",
+      kind: "anima_pose_clip",
+    });
+    const catalog = new AnimaRuntimeCatalog(
+      runtimeContent({ poses: [entry] }),
+      {
+        fetcher: async (input) =>
+          authorizedSource(input)
+            ? new Response(
+                JSON.stringify({
+                  schema: "animaPoseClip/1.0",
+                  id: "retired",
+                  name: "Retired",
+                  duration: 1,
+                  poses: { rest: { expressions: { happy: 1 } } },
+                  poseKeyframes: [{ time: 0, pose: "rest" }],
+                }),
+                { status: 200 },
+              )
+            : authorizedDownload(String(input)),
+      },
+    );
+
+    await expect(catalog.loadPoseClip("retired-pose")).resolves.toBeNull();
+    expect(catalog.getPoseClip("retired-pose")).toBeNull();
+    expect(catalog.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "invalid_motion_manifest",
+          runtimeId: "retired-pose",
+          message: unsupportedAnimaPoseClipFormatMessage("animaPoseClip/1.0"),
+        }),
+      ]),
+    );
+  });
+
+  it("skips an invalid clip with a diagnostic", async () => {
     const entry = runtimeEntry({
       slot: "pose",
       runtimeId: "broken-pose",

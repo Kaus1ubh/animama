@@ -1,73 +1,140 @@
 ---
 name: animama-avatar-vfx
-description: Understand, create, preview, and tune Animama Avatar Effects (animama/avatar-effect/2) through the Effects template picker and the Avatar Effect creator, including attachments (painted or floating on the face, body, sticker, silhouette), direct placement, face parts, look, motion, sound, review renders, and Gesture or Reaction integration. Use for avatar-attached visual effects and their authoring workflow; general VRM import/spec questions, particle emitters, and scene backgrounds are separate topics.
+description: Create, revise and tune Animama Avatar Effects (animama/avatar-effect/2) from a written brief — art through the effect-asset skill, a /2 effect folder, `pnpm -s effects check`, review renders and the owner's live preview on both Included Avatars, Save as Local content through the creator, and an owner-gated Promote to Included step — and operate the Effects picker and Avatar Effect creator by hand (attachments painted or floating on the face, body, sticker, silhouette; placement, face parts, look, motion, sound; Gesture or Reaction use). Use for avatar-attached visual effects; general VRM questions, particle emitters and scene backgrounds have their own skills.
 ---
 
 # Animama Avatar VFX
 
-Turn artwork into reusable Avatar Effect content that looks correct on the intended
-Anima's VRM avatar. Use the in-app creator for authoring and the actual avatar for
-visual acceptance.
+Turn an idea into an Avatar Effect that lands its beat in chat. You write a
+**brief**, make its art with the `animama-effect-assets` skill, write an
+**effect folder** (`<stem>/<stem>.json` with a `/2` definition, plus its
+images), check and render it, show it to the owner live, and save it as
+Local content through the creator. Never write `content/included/` except
+through the gated **Promote to Included** step (step 9).
 
-## Read for the task
+Repository paths are relative to the Animama Git root; drafts live in its
+`.animama-drafts/` (ignored by Git). Commands run from `src/frontend/web`,
+and relative paths in them resolve from there, so write draft paths as
+`../../../.animama-drafts/...` (or absolute). When `src/frontend/node_modules`
+is missing or a command cannot import `@animama/runtime-contracts`, run
+`pnpm install` and `pnpm packages:build` in `src/frontend` first.
+`effects save` needs the running stack; `library:local/...` sources need only
+its record sourced (`source ../../../.animama-stack.env`).
 
-- For terminology, attachments, face parts, compatibility, or choosing how art
-  attaches, read [What an Avatar Effect is](references/what.md).
-- For creating, editing, importing, previewing, or saving content, read
-  [How to use the creator](references/how.md). It includes the control reference,
-  recipes, region assignment, review tools, and troubleshooting.
-- For first-time authoring, read both. For a focused adjustment, read the relevant
-  section rather than rediscovering the entire subsystem.
-- The maintained runtime guide is `docs/frontend/runtime/avatar-vfx.md`.
+## Workflow
 
-## Working approach
+0. **Interview.** Ask the owner only what would change the effect (what it
+   expresses, the moment it plays, how loud it should be), with your
+   recommended option first; skip it when the request settles these or the
+   owner says to use your judgement. See [brief](references/brief.md).
+1. **Write the brief** before any art, in
+   `.animama-drafts/effects/<stem>-work/brief.md`: what it expresses, the
+   comedic or emotional beat, attachment and placement, the Reaction
+   intensities (1–3) it suits, motion and duration, the art, and its budget.
+   Comedic uses are preferred. Confirm it with the owner when a batch or new
+   library item depends on it. Template in [brief](references/brief.md).
+2. **Make the art** with `animama-effect-assets`. Keep generated sources and
+   previews in `.animama-drafts/effects/<stem>-work/` and put only the final
+   images in the effect folder `.animama-drafts/effects/<stem>/` (ignored by
+   Git), one folder per effect. Its budget follows the attachment.
+3. **Write the effect folder:** `<stem>/<stem>.json` beside its images, with
+   `content_type: "avatar_effect"`, a name, a description and a `/2`
+   definition. Start from the closest Included effect
+   (`content/included/vfx/avatar/<stem>/<stem>.json`; its `content_id`,
+   `version`, `dependencies` and `files` are Library metadata a draft leaves
+   out) or a recipe in [effect folder](references/effect-folder.md), which
+   lists every field and its rules. For attachments and face parts read
+   [what an Avatar Effect is](references/what.md). Choose the **name** now:
+   Local names use letters, digits, spaces, `.`, `_` and `-` only (no
+   brackets), and the saved Local folder is the lowercased name with spaces
+   and `_` as `-` (`Sweat Drop` → `vfx/avatar/sweat-drop/`), not the draft
+   stem.
+4. **Check:** `pnpm -s effects check <folder>`. It checks the art against its
+   budget, parses the definition as the runtime does (naming a bad field),
+   applies it on both Included Avatars (a missing face part or bone fails)
+   and renders each Avatar with the art and against a baseline without it
+   to prove the art is visible, in the front, ¾ and face views at 0.25 s
+   and 1 s. Fix every FAIL; read every WARN. Each Avatar must show the art
+   in some frame. A time where nothing shows yet (before a late fade-in) is
+   a WARN "nothing shows at …"; single missed views are listed as "not in
+   …", expected for the face view's tight crop with stickers and body art.
+   Use `--times` for effects that appear late.
+5. **Look:** `pnpm -s effects:render <folder> --out
+   ../../../.animama-drafts/effects/<stem>-work/renders/<stem>.png` for
+   contact sheets (front, ¾ and face on both Avatars). Pick `--times` that
+   cover the effect's whole life and its keyframe peaks (for a 0.12 s
+   overshoot held 4 s: `--times 0.06,0.14,0.3,1.5,4`). The ¾ view looks from
+   the Avatar's right, so art on its left side turns away there; judge it in
+   the front and face views. Use `--with-clip library:<gesture>` when it must follow
+   motion and `--together` with the effects it will share a Reaction with.
+   Read the sheets yourself and revise until the effect reads as the brief.
+   Then start the live preview for the owner:
+   `pnpm -s animation:preview <folder>` (`--duration <s>` for an effect held
+   that long). Apply the owner's review notes and resolve each with
+   `pnpm -s animation resolve <notes.review.json> <id> <what changed>`.
+6. **Save through the creator:** `pnpm -s effects save <items.json>` with
+   `[{ "source": "<stem>", "name": "...", "description": "..." }]` (paths
+   relative to the items file). It imports the document into the Avatar
+   Effect creator, chooses the images, saves, reads the item back and
+   reopens it; a Local effect with the same name is revised. It prints the
+   Local folder each name saves to and refuses names the app would refuse.
+   Or do the same by hand ([creator](references/how.md)). Never equip unless
+   asked. An effect with a sound is saved by hand.
+7. **Use it** when the brief names a Gesture or Reaction: add the effect in
+   the Action creator, set Start/End and fades, preview it there, and check
+   it on a test Anima in chat when timing against speech matters.
+8. **Hand off** with the brief, the saved item and edit URL, the check
+   summary, the render sheets, preview notes and what was not reviewed.
+9. **Promote to Included** (never by default): only when the owner
+   explicitly approves each item, on a task branch with a PR. Promote the
+   saved Local item the owner reviewed. See [promote](references/promote.md).
 
-1. Establish the intended visual behavior: art painted onto the face, floating in
-   front of it, on a body point, a sticker beside the avatar, or a silhouette fill.
-   Identify the source image and the intended preview avatar. Infer routine
-   settings from the artwork and request.
-2. Use the existing app instance and supported browser tools. Inspect its current
-   UI before acting; derive its origin from the running app or task context. Keep
-   unrelated drafts and tasks intact.
-3. Start from the Effects template picker, choose the attachment, check the
-   Avatar's face parts, and fit static artwork first; then add look, motion and
-   sound. Verify the effect's region as well as its visible placement.
-4. Save Local content when creation is authorized, reopen it, and verify that the
-   image and settings persisted. A successful save is not visual acceptance.
-5. When requested, use the saved effect in a Gesture or Reaction and verify its
-   timing, fades and coexistence there. Saving an Avatar Effect alone does not
-   equip it to an Anima or make it trigger during chat.
+**Several effects at once:** follow [batch](references/batch.md): briefs
+confirmed together, art and folders in parallel, one review preview, one
+save run.
 
-Use the visible creator, including its JSON Import when appropriate. Do not
-substitute direct database/filesystem writes, hidden React-state changes, or API
-saves for a requested UI workflow. If file selection or another required control
-cannot be operated with the available tools, explain the specific limitation and
-preserve the draft. Never write `content/included/`.
+**Revising an effect:** start from its Library item
+(`pnpm -s animation:preview library:avatar-effect/<name>` prints its folder).
+Copy the folder to `.animama-drafts/effects/`, edit, check and preview, then
+save a Local effect under the same name. Changing an Included effect is a
+promotion with `"mode": "replace"`.
 
-General VRM specification and three-vrm mechanics belong in the `animama-vrm`
-skill. This skill explains Animama's composition on top of them; it does not
-require that other skill to create an effect. Use image-generation guidance when
-the task includes creating artwork, not merely uploading existing art.
+## Decision rules
 
-## Planned rework
+- Design for the gag. Avatar (and Scene) Effects borrow anime's visual
+  comedy: each is a symbol an anime artist would draw on a character for a
+  joke or a beat. Name the trope and a known example in the brief and in
+  every art prompt, keep the shape iconic and exaggerated, and judge the
+  result by whether the joke reads, not by how polished it looks. Art the
+  owner supplies takes precedence.
 
-This skill is an operating manual for the creator. Plan 2 of
-[#298](https://github.com/raymond-van/animama/issues/298) (R12 and R13) reworks
-it into a generation pipeline modelled on the `animama-animation` skill: brief,
-generated and checked assets (a shared effect-asset skill), a `/2` definition,
-checks, headless renders, the owner's review in the headed preview, Save as
-Local content, reopen, and an explicit owner-approved **Promote to Included**
-step like the one #310 adds for Gestures. Until then, follow the workflow above.
+- The brief decides the attachment: floating face art for emotes and eye
+  shapes, painted face art for blush, tears and skin tints, body art for
+  things on the chest or hands, stickers for comic text and props beside the
+  head, the silhouette for a whole-body mood. Read the attachment table in
+  [what](references/what.md).
+- An effect owns its own motion (pulse, spin, drift, keyframes, flipbook);
+  the Gesture or Reaction event owns when it plays and its fades. Keep the
+  effect's motion short and loop-friendly.
+- Eye effects usually hide the real eyes (`forceBlink`, `hideEyeDetails`,
+  `faceCleanup` default on). Keep highlights or lashes only when the art is
+  drawn to sit on them.
+- Effects on the lip-synced mouth are previewed and saved but not used in
+  Reactions or Gestures.
+- Effects in the `eyes`, `undereye`, `blush` or `mouth` region replace each
+  other (a new eye effect replaces the old one); `emote` and `full_face`
+  effects stack. Body, sticker and silhouette effects coexist, up to four at
+  once.
+- Prefer the smallest art that reads at chat size; budgets in
+  `animama-effect-assets` are the default ceiling.
+- Checks prove the effect is valid, attached and visible; they cannot judge
+  whether it is funny or fits the expression. Look at the renders and the
+  preview, and report what was not reviewed.
 
 ## Verification and currency
 
-The references describe the creator and runtime controls of Avatar Effects v2,
-checked against source on 2026-10-07. Their browser procedures are
-source-derived, not evidence of an executed UI pilot. Use current UI labels and
-recheck the named source symbols when behavior differs. Repository paths in the
-references are relative to the active Animama checkout; they are navigation aids,
-not a dependency on a particular machine or worktree.
-
-Report saved names and edit URLs, the avatar used, meaningful settings, checks
-performed, and remaining limitations. Distinguish creator preview, save/reopen,
-Action playback, and live Anima playback. Stop at the outcome the user requested.
+Commands and references match Avatar Effects v2 as of 2026-10-08. Browser
+procedures in [how](references/how.md) are source-derived. Recheck named
+source symbols when behavior differs. Distinguish check output, render
+sheets, the owner's live preview, save/reopen, Action playback and live chat
+playback in the hand-off.

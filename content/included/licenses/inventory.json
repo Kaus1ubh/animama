@@ -297,20 +297,6 @@
       "redistribution_review": "pending"
     },
     {
-      "glob": "gestures/**/*.vrma",
-      "creator": "Adobe Mixamo; converted to VRMA by the Animama project owner",
-      "provenance": "The owner confirms these VRMA files were converted from free FBX animations supplied by Adobe Mixamo and explicitly decided on 2026-09-03 to ship the converted VRMA files as embedded Animama runtime content, not as a standalone animation library. Adobe's Mixamo FAQ permits royalty-free use of characters and animations in personal, commercial, and non-profit projects, including video games: https://helpx.adobe.com/creative-cloud/faq/mixamo-faq.html . The applicable terms prohibit redistributing content as a standalone asset and prohibit using Mixamo content to create, train, test, or improve machine-learning systems: https://wwwimages2.adobe.com/content/dam/cc/en/legal/servicetou/Mixamo-Addl-Terms-en_US-20210623.pdf . Animama uses these converted animations only for avatar playback. Preserve this product-use limitation and re-review if the files are ever offered separately.",
-      "license_id": "LicenseRef-Adobe-Mixamo-embedded-product",
-      "redistribution_review": "pending"
-    },
-    {
-      "glob": "idle-styles/starter/animations/*.vrma",
-      "creator": "Adobe Mixamo; converted to VRMA by the Animama project owner",
-      "provenance": "The owner confirms these VRMA files were converted from free FBX animations supplied by Adobe Mixamo and explicitly decided on 2026-09-03 to ship the converted VRMA files as embedded Animama runtime content, not as a standalone animation library. Adobe's Mixamo FAQ permits royalty-free use of characters and animations in personal, commercial, and non-profit projects, including video games: https://helpx.adobe.com/creative-cloud/faq/mixamo-faq.html . The applicable terms prohibit redistributing content as a standalone asset and prohibit using Mixamo content to create, train, test, or improve machine-learning systems: https://wwwimages2.adobe.com/content/dam/cc/en/legal/servicetou/Mixamo-Addl-Terms-en_US-20210623.pdf . Animama uses these converted animations only for avatar playback. Preserve this product-use limitation and re-review if the files are ever offered separately.",
-      "license_id": "LicenseRef-Adobe-Mixamo-embedded-product",
-      "redistribution_review": "pending"
-    },
-    {
       "glob": "reactions/**/*",
       "creator": "Animama project owner",
       "provenance": "The owner confirms they authored the reaction JSON and metadata. Referenced gesture and visual-effect assets retain their own separate provenance and terms.",

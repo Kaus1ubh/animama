@@ -29,7 +29,7 @@ from animama.domain.content_catalog import ContentConflictError
 from animama.orm.anima import ORMAnima
 from animama.orm.content_catalog import ORMContentCatalogItem
 from tests.anima_creation_service_support import anima_creation_fixture, image_bytes, vrm, write_file, write_json
-from tests.content_package_helpers import package_services, save_wave, vrma
+from tests.content_package_helpers import anima_clip, package_services, save_wave, vrma
 from tests.test_content_package_v3_archive import sound_package, write_package
 
 
@@ -239,15 +239,11 @@ async def test_export_rewrites_normalized_clip_event_selectors(
     )
     write_json(
         paths.local_root / "gestures/wave/wave.json",
-        {
-            "schema": "animaPoseClip/1.0",
-            "id": "wave",
-            "name": "Wave",
-            "duration": 1,
-            "poses": {},
-            "poseKeyframes": [],
-            "events": [{"id": "sound", "kind": "sfx", "time": 0, "cueId": f"\ufeff {alias or dependency['ref']} "}],
-        },
+        anima_clip(
+            clip_id="wave",
+            name="Wave",
+            events=[{"id": "sound", "kind": "sfx", "time": 0, "cueId": f"\ufeff {alias or dependency['ref']} "}],
+        ),
     )
     try:
         scanned = await content.rescan(user_id="package-owner")

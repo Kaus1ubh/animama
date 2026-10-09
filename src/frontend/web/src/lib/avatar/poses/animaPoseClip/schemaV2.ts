@@ -23,7 +23,7 @@ import {
   type AnimaPoseClipPlayback,
   type AnimaPoseClipRole,
   type QuaternionTuple,
-} from "./schema";
+} from "./clipVocabulary";
 
 /**
  * `animaPoseClip/2.0`: motion stored as keyed tracks grouped by beats.
@@ -32,14 +32,14 @@ import {
  * so retiming a beat moves its keys, editing its pose shifts them and deleting
  * it removes them. Values stay absolute. Anatomical tracks (`joints`) carry
  * authored motion in the joint model's degrees; rotation tracks (`rotations`)
- * carry hand-made poses and converted 1.0 clips as canonical quaternions.
+ * carry hand-made poses as canonical quaternions.
  */
 export const ANIMA_POSE_CLIP_V2_SCHEMA = "animaPoseClip/2.0" as const;
 
 /**
  * How motion arrives at a key: `smooth` (monotone cubic, velocity carries
  * through keys), `linear`, `hold` (keep the previous value, then change at the
- * key) or one of the 1.0 easings.
+ * key) or one of the shared clip easings.
  */
 export type AnimaPoseClipEase = "smooth" | "hold" | AnimaPoseClipEasing;
 
@@ -668,13 +668,16 @@ export function validateAnimaPoseClipV2(
     value.events === undefined
       ? undefined
       : (sanitizeAnimaPoseClipEvents(value.events, duration ?? undefined) ??
-        fail("events", "Invalid events (see the 1.0 event rules)."));
+        fail(
+          "events",
+          "Invalid events: check each event's kind, time and fields.",
+        ));
 
   if (trackCount > ANIMA_POSE_CLIP_V2_LIMITS.tracks)
     fail("$", `At most ${ANIMA_POSE_CLIP_V2_LIMITS.tracks} tracks.`);
   if (keyCount > ANIMA_POSE_CLIP_V2_LIMITS.keys)
     fail("$", `At most ${ANIMA_POSE_CLIP_V2_LIMITS.keys} keys.`);
-  // Like 1.0, a clip must move something or trigger something.
+  // A clip must move something or trigger something.
   if (keyCount === 0 && (!events || events.length === 0))
     fail("$", "A clip needs at least one track key or event.");
 

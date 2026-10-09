@@ -15,12 +15,6 @@
   },
   "dependencies": [
     {
-      "ref": "builtin:avatar-effect:eye_0",
-      "alias": "eye_0",
-      "content_type": "avatar_effect",
-      "config": {}
-    },
-    {
       "ref": "builtin:particle-effect:rain-cloud",
       "alias": "rain-cloud",
       "content_type": "particle_effect",
@@ -35,6 +29,18 @@
     {
       "ref": "builtin:avatar-effect:texture_black_1",
       "alias": "texture_black_1",
+      "content_type": "avatar_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:avatar-effect:streaming_tears",
+      "alias": "streaming_tears",
+      "content_type": "avatar_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:avatar-effect:despair_shade",
+      "alias": "despair_shade",
       "content_type": "avatar_effect",
       "config": {}
     }

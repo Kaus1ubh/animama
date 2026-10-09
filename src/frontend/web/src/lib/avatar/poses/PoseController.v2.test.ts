@@ -3,7 +3,10 @@ import { Quaternion } from "three";
 import { describe, expect, it } from "vitest";
 
 import { angularDistanceDegrees } from "./anatomy/anatomy";
-import type { AnimaPoseClipV2 } from "./animaPoseClip";
+import {
+  UnsupportedAnimaPoseClipFormatError,
+  type AnimaPoseClipV2,
+} from "./animaPoseClip";
 import { PoseController } from "./PoseController";
 
 /** A VRM stub recording the normalized pose and expression weights applied. */
@@ -76,7 +79,7 @@ describe("PoseController with animaPoseClip/2.0", () => {
     });
   });
 
-  it("fades in and out, then finishes like a 1.0 clip", () => {
+  it("fades in and out, then finishes", () => {
     const { vrm } = stubVrm();
     const controller = new PoseController(vrm);
     controller.playAnimaPoseClip(
@@ -136,17 +139,18 @@ describe("PoseController with animaPoseClip/2.0", () => {
     expect(applied.weights.happy).toBe(0);
   });
 
-  it("replaces a playing 1.0 clip and reports only its own expressions", () => {
+  it("replaces a playing clip and reports only its own expressions", () => {
     const { vrm } = stubVrm();
     const controller = new PoseController(vrm);
-    controller.playAnimaPoseClip({
-      schema: "animaPoseClip/1.0",
-      id: "frown",
-      name: "Frown",
-      duration: 1,
-      poses: { frown: { expressions: { angry: 1 } } },
-      poseKeyframes: [{ time: 0, pose: "frown" }],
-    });
+    controller.playAnimaPoseClip(
+      clip({
+        id: "frown",
+        name: "Frown",
+        beats: [{ id: "frown", label: "Frown", time: 0 }],
+        joints: undefined,
+        expressions: { angry: [{ beat: "frown", v: 1 }] },
+      }),
+    );
     controller.update(0.2);
     controller.playAnimaPoseClip(clip());
     controller.update(0.5);
@@ -154,6 +158,24 @@ describe("PoseController with animaPoseClip/2.0", () => {
     expect(
       Object.keys(controller.getClipPresence()?.expressions ?? {}),
     ).toEqual(["happy"]);
+  });
+
+  it("refuses a retired 1.0 clip and keeps the playing clip", () => {
+    const { vrm } = stubVrm();
+    const controller = new PoseController(vrm);
+    controller.playAnimaPoseClip(clip());
+    const retired = {
+      schema: "animaPoseClip/1.0",
+      id: "frown",
+      name: "Frown",
+      duration: 1,
+      poses: { frown: { expressions: { angry: 1 } } },
+      poseKeyframes: [{ time: 0, pose: "frown" }],
+    } as unknown as AnimaPoseClipV2;
+    expect(() => controller.playAnimaPoseClip(retired)).toThrow(
+      UnsupportedAnimaPoseClipFormatError,
+    );
+    expect(controller.isClipActive("nod")).toBe(true);
   });
 
   it("times an effect-only clip without replacing the pose", () => {

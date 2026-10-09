@@ -1,7 +1,7 @@
 # 0011: Application-owned companion features and composition catalog policy
 
 The restriction of hosted owner role choices below is superseded by
-[ADR 0016](0016-common-web-application-and-hosted-artifact.md). The admitted
+[ADR 0017](0017-common-web-application-and-hosted-artifact.md). The admitted
 catalog, provider custody and companion design remain applicable.
 
 - Status: accepted

@@ -58,8 +58,8 @@ It is a license document, not a license change to the working repository.
 ## Remaining release gates
 
 The result is explicitly `preparation-only-not-release-approved`. Further
-codebase refinement, owner review of terms and the exact final source, Mixamo
-conversion/setup, a monitored private security-reporting route, independent
+codebase refinement, owner review of terms and the exact final source, the
+private Mixamo-motion pack and its terms review (desktop and hosted builds only), a monitored private security-reporting route, independent
 builds, secret/license scans and native acceptance remain required. A fresh
 candidate currently lacks user-supplied animations; see
 [manual acquisition](../../docs/frontend/runtime/mixamo-acquisition.md).

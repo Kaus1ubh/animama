@@ -4,7 +4,10 @@ import idlePlaybackCases from "../../../../../tests/fixtures/idle-playback-cases
 import { PoseController } from "@/lib/avatar/poses/PoseController";
 import {
   getAnimaPoseClipTimelineDuration,
-  parseAnyAnimaPoseClip,
+  parseAnimaPoseClip,
+  RETIRED_ANIMA_POSE_CLIP_SCHEMA,
+  UnsupportedAnimaPoseClipFormatError,
+  unsupportedAnimaPoseClipFormatMessage,
 } from "@/lib/avatar/poses/animaPoseClip";
 
 /** The backend admission facts must describe a timeline the actual player can finish. */
@@ -12,11 +15,24 @@ describe("shared finite idle clip contract", () => {
   it.each(idlePlaybackCases.filter((row) => row.kind === "anima_clip"))(
     "$name matches actual parser admission",
     ({ clip, parser_valid }) => {
+      const schema = (clip as { schema?: unknown } | null)?.schema;
       if (parser_valid) {
-        expect(() => parseAnyAnimaPoseClip(clip)).not.toThrow();
+        expect(() => parseAnimaPoseClip(clip)).not.toThrow();
+      } else if (schema === RETIRED_ANIMA_POSE_CLIP_SCHEMA) {
+        // The retired format is rejected by schema, before validation.
+        expect(() => parseAnimaPoseClip(clip)).toThrow(
+          UnsupportedAnimaPoseClipFormatError,
+        );
+        expect(() => parseAnimaPoseClip(clip)).toThrow(
+          unsupportedAnimaPoseClipFormatMessage(RETIRED_ANIMA_POSE_CLIP_SCHEMA),
+        );
+      } else if (schema === "animaPoseClip/2.0") {
+        expect(() => parseAnimaPoseClip(clip)).toThrow(
+          /Invalid animaPoseClip\/2\.0 payload/,
+        );
       } else {
-        expect(() => parseAnyAnimaPoseClip(clip)).toThrow(
-          /Invalid animaPoseClip\/(1\.0|2\.0) payload/,
+        expect(() => parseAnimaPoseClip(clip)).toThrow(
+          UnsupportedAnimaPoseClipFormatError,
         );
       }
     },
@@ -28,7 +44,7 @@ describe("shared finite idle clip contract", () => {
     ),
   )("$name completes at the admitted horizon", ({ clip: raw, expected }) => {
     const facts = expected!;
-    const clip = parseAnyAnimaPoseClip(raw);
+    const clip = parseAnimaPoseClip(raw);
     expect(getAnimaPoseClipTimelineDuration(clip)).toBe(facts.cycle_seconds);
     const vrm = {
       humanoid: {

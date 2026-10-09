@@ -12,12 +12,16 @@ from typing import Any, cast
 
 from animama.app.ports.content_store import LocalContentStore
 from animama.app.ports.content_transition import ContentTransitionBindings, IdleTransitionBinding
-from animama.app.services.action_clip_transition import ActionClipTransitionService
 from animama.app.services.avatar_effect_transition import AvatarEffectTransitionService
+from animama.app.services.clip_format import (
+    CLIP_FORMAT_UNSUPPORTED,
+    RETIRED_ANIMA_POSE_CLIP_SCHEMA,
+    unsupported_clip_format_message,
+)
 from animama.app.services.content_catalog_service import ContentCatalogService, ContentRescanResult
 from animama.app.services.content_kind_registry import handler_for_kind
+from animama.app.services.content_portability import is_non_portable
 from animama.app.services.idle_playback import derive_idle_playback, read_gesture_idle_playback
-from animama.app.services.included_action_transition import IncludedActionTransitionService
 from animama.app.services.local_content_mutations import mutation_digest
 from animama.app.services.music_retirement_service import MusicRetirementService
 from animama.app.services.typed_content_service import (
@@ -76,13 +80,7 @@ class ContentTransitionService:
             for item in scanned.items
             if item.status is ContentStatus.INVALID and item.diagnostics
         ]
-        failures.extend(await ActionClipTransitionService(content=self._content).convert(user_id=user_id))
         failures.extend(await AvatarEffectTransitionService(content=self._content).convert(user_id=user_id))
-        failures.extend(
-            await IncludedActionTransitionService(content=self._content, bindings=self._bindings).convert(
-                user_id=user_id
-            )
-        )
         await MusicRetirementService(content=self._content, bindings=self._bindings).retire(user_id=user_id)
         catalog = self._content.mutations.catalog
         for item, code in failures:
@@ -97,7 +95,12 @@ class ContentTransitionService:
         catalog = self._content.mutations.catalog
         failures: list[tuple[CatalogContentEntry, str]] = []
         for item in await catalog.list_visible(user_id=user_id):
-            if item.kind is not ContentKind.IDLE_STYLE or item.status is not ContentStatus.VALID:
+            # Non-portable Styles are never copied into Local content.
+            if (
+                item.kind is not ContentKind.IDLE_STYLE
+                or item.status is not ContentStatus.VALID
+                or is_non_portable(item)
+            ):
                 continue
             document = TypedContentService.parse(item).document
             if not isinstance(document, IdleStyleDocumentV1):
@@ -330,12 +333,11 @@ class ContentTransitionService:
                 else:
                     document = original_gesture
             if isinstance(document, PoseClipDocumentV1):
-                owner = target if original_gesture is None else owner
-                dependencies = (*dependencies, *document.dependencies)
-                implementation = ActionImplementationV1(kind="anima_clip", file_role="sequence")
-                if original_gesture is None:
-                    config = {**document.playback, **lane.playback}
-            elif not isinstance(document, GestureDocumentV1):
+                # Retired standalone clips were animaPoseClip/1.0, which is rejected.
+                raise ContentDocumentError(
+                    CLIP_FORMAT_UNSUPPORTED, unsupported_clip_format_message(RETIRED_ANIMA_POSE_CLIP_SCHEMA)
+                )
+            if not isinstance(document, GestureDocumentV1):
                 raise ContentDocumentError(
                     "idle_transition_dependency_invalid", "Legacy idle dependency is not an Action or clip"
                 )
@@ -357,6 +359,9 @@ class ContentTransitionService:
                 "idle_transition_motion_ambiguous", "Legacy idle lane needs one registered motion file"
             )
         motion = motion_files[0]
+        if is_non_portable(owner):
+            # Never copy non-portable motion bytes into Local content.
+            raise ContentDocumentError("content_non_portable", "Non-portable motion cannot be copied")
         # Clone runtime resources; the canonical descriptor replaces control
         # metadata (including a standalone VRMA sidecar). Original controls stay
         # untouched. A clip dependency becomes the Action's owned sequence.

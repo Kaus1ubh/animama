@@ -5,7 +5,8 @@ import {
 } from "react-dom/server";
 import { ProductRuntimeProvider } from "@animama/product-ui";
 
-function withRuntime(node: ReactNode) {
+/** Wraps a feature fixture in the explicit API boundary the application provides. */
+export function withRuntime(node: ReactNode) {
   return (
     <ProductRuntimeProvider
       owner={{ id: "owner" }}

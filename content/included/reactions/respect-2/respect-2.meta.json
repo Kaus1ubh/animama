@@ -21,8 +21,8 @@
       "config": {}
     },
     {
-      "ref": "builtin:avatar-effect:star",
-      "alias": "star",
+      "ref": "builtin:avatar-effect:star3",
+      "alias": "star3",
       "content_type": "avatar_effect",
       "config": {}
     }

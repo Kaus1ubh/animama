@@ -1425,7 +1425,7 @@ function ParticleVFXPreviewTimeline({
           leading={
             <div className="min-w-0">
               <h2 className="text-sm font-semibold">Preview Timeline</h2>
-              <p className="text-muted-foreground text-[11px]">
+              <p className="text-muted-foreground text-2xs">
                 {emitters.length} emitter{emitters.length === 1 ? "" : "s"}
               </p>
             </div>
@@ -2296,19 +2296,19 @@ function EmitterAuthoringTabs({
         >
           <div className="border-border overflow-x-auto border-b px-3 py-2">
             <TabsList className="grid h-8 w-full grid-cols-5 p-0.5">
-              <TabsTrigger className="h-7 px-1 text-[10px]" value="appearance">
+              <TabsTrigger className="text-2xs h-7 px-1" value="appearance">
                 Appearance
               </TabsTrigger>
-              <TabsTrigger className="h-7 px-1 text-[10px]" value="position">
+              <TabsTrigger className="text-2xs h-7 px-1" value="position">
                 Position
               </TabsTrigger>
-              <TabsTrigger className="h-7 px-1 text-[10px]" value="emission">
+              <TabsTrigger className="text-2xs h-7 px-1" value="emission">
                 Emission
               </TabsTrigger>
-              <TabsTrigger className="h-7 px-1 text-[10px]" value="shape">
+              <TabsTrigger className="text-2xs h-7 px-1" value="shape">
                 Shape
               </TabsTrigger>
-              <TabsTrigger className="h-7 px-1 text-[10px]" value="behavior">
+              <TabsTrigger className="text-2xs h-7 px-1" value="behavior">
                 Behavior
               </TabsTrigger>
             </TabsList>
@@ -3505,7 +3505,7 @@ function EmitterColorPanel({
                   className="h-4 w-16"
                 />
               </div>
-              <p className="text-muted-foreground mt-1 line-clamp-2 text-[11px]">
+              <p className="text-muted-foreground text-2xs mt-1 line-clamp-2">
                 {preset.description}
               </p>
             </button>
@@ -3594,7 +3594,7 @@ function EmitterColorPanel({
                   className="h-4 w-16"
                 />
               </div>
-              <p className="text-muted-foreground mt-1 text-[11px]">
+              <p className="text-muted-foreground text-2xs mt-1">
                 Apply theme gradient
               </p>
             </button>
@@ -3872,7 +3872,7 @@ function ValueGeneratorField({
     return (
       <div className={cn(disabled && "opacity-60")}>
         <Label className="text-xs">{label}</Label>
-        <div className="mt-1 flex items-center justify-between gap-2 rounded-md border border-amber-500/40 p-2 text-xs text-amber-700 dark:text-amber-300">
+        <div className="border-warning/40 text-warning mt-1 flex items-center justify-between gap-2 rounded-md border p-2 text-xs">
           <span>Unsupported generator ({value.label})</span>
           <Button
             type="button"
@@ -4032,7 +4032,7 @@ function UnsupportedBehaviorNotice({
   onConvert: () => void;
 }) {
   return (
-    <div className="flex items-center justify-between gap-2 rounded-md border border-amber-500/40 p-2 text-xs text-amber-700 dark:text-amber-300">
+    <div className="border-warning/40 text-warning flex items-center justify-between gap-2 rounded-md border p-2 text-xs">
       <span>Unsupported behavior ({label}) is preserved until edited.</span>
       <Button type="button" size="sm" variant="outline" onClick={onConvert}>
         Convert
@@ -4065,7 +4065,7 @@ function UnsupportedColorNotice({
   onConvert: () => void;
 }) {
   return (
-    <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-md border border-amber-500/40 p-3 text-xs text-amber-700 dark:text-amber-300">
+    <div className="border-warning/40 text-warning mt-3 flex flex-wrap items-center justify-between gap-3 rounded-md border p-3 text-xs">
       <span>Unsupported generator ({label}) is preserved until edited.</span>
       <Button type="button" size="sm" variant="outline" onClick={onConvert}>
         Convert

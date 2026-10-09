@@ -26,11 +26,9 @@ import { handPanelLayout } from "./handPanelLayout";
 
 import {
   ANIMA_POSE_SCHEMA,
-  getResolvedAvatarPose,
-  isAnimaPoseClipRef,
   parseAnimaPose,
   type AnimaPose,
-  type AnimaPoseClipPose,
+  type AnimaPoseSnapshot,
 } from "@/lib/avatar";
 import { usePoses } from "@/query/hooks/usePoses";
 import { cn } from "@/lib/utils";
@@ -100,21 +98,7 @@ export function captureActionEditorPoseAtPlayhead(): boolean {
     const sample = samplePoseCreatorDraft(draft, draft.currentTimeSec, null);
     if (sample?.diagnostics.missingPoseRefs.length)
       throw new Error("Some clip poses are unavailable.");
-    const pose = sample
-      ? parseAnimaPose({
-          schema: ANIMA_POSE_SCHEMA,
-          id: `${draft.id}.capture`,
-          name: "Captured pose",
-          ...sample.sample,
-        })
-      : draft.basePose
-        ? getResolvedAvatarPose(draft.basePose)
-        : parseAnimaPose({
-            schema: ANIMA_POSE_SCHEMA,
-            id: `${draft.id}.capture`,
-            name: "Captured pose",
-          });
-    state.captureClipPoseAtPlayhead(pose);
+    state.captureClipPoseAtPlayhead();
     return true;
   } catch (error) {
     state.setImportError(
@@ -295,19 +279,8 @@ function ActionEditorWorkspaceContent() {
     [clipDraft],
   );
   const observationExpressionNames = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          clipDraft.motion
-            ? Object.keys(clipDraft.motion.expressions ?? {})
-            : Object.values(clipDraft.poses).flatMap((pose) =>
-                isAnimaPoseClipRef(pose) || !pose.expressions
-                  ? []
-                  : Object.keys(pose.expressions),
-              ),
-        ),
-      ).sort(),
-    [clipDraft.motion, clipDraft.poses],
+    () => Object.keys(clipDraft.motion.expressions ?? {}).sort(),
+    [clipDraft.motion],
   );
   const expressionKeyframeAtPlayhead = useMemo(
     () =>
@@ -354,35 +327,20 @@ function ActionEditorWorkspaceContent() {
       );
     }
     if (!keyframe) return false;
-    let next = usePoseCreatorStore.getState();
-    let alias = keyframe.pose;
-    let pose: AnimaPoseClipPose | undefined = next.clipDraft.poses[alias];
-    if (next.clipDraft.motion) {
-      // A 2.0 beat's key pose is what the creator Avatar plays at its time.
-      const sampled = samplePoseCreatorDraft(
-        next.clipDraft,
-        keyframe.time,
-        next.activeAvatar?.vrm ?? null,
-        { omittedBasePoseId: POSE_CREATOR_VRM_T_POSE_BASE_POSE_ID },
-      )?.sample;
-      pose = sampled
-        ? {
-            ...(sampled.humanoid ? { humanoid: sampled.humanoid } : {}),
-            ...(sampled.expressions
-              ? { expressions: sampled.expressions }
-              : {}),
-          }
-        : undefined;
-    }
-    if (!pose) return false;
-    if (isAnimaPoseClipRef(pose)) {
-      const converted = next.convertSelectedClipPoseRefToInline();
-      if (!converted) return false;
-      alias = converted;
-      next = usePoseCreatorStore.getState();
-      pose = next.clipDraft.poses[alias];
-    }
-    if (!pose) return false;
+    const next = usePoseCreatorStore.getState();
+    const alias = keyframe.pose;
+    // A beat's key pose is what the creator Avatar plays at its time.
+    const sampled = samplePoseCreatorDraft(
+      next.clipDraft,
+      keyframe.time,
+      next.activeAvatar?.vrm ?? null,
+      { omittedBasePoseId: POSE_CREATOR_VRM_T_POSE_BASE_POSE_ID },
+    )?.sample;
+    if (!sampled) return false;
+    const pose: AnimaPoseSnapshot = {
+      ...(sampled.humanoid ? { humanoid: sampled.humanoid } : {}),
+      ...(sampled.expressions ? { expressions: sampled.expressions } : {}),
+    };
     const animaPose = clipPoseToAnimaPose(alias, pose);
     const drafts = replaceActionEditorPose(
       next.activeAvatar,
@@ -787,7 +745,7 @@ function ReactionExpressionPanel({
       >
         <div className="min-w-0 flex-1">
           <h2 className="truncate text-sm font-semibold">Expressions</h2>
-          <p className="text-muted-foreground truncate text-[11px]">
+          <p className="text-muted-foreground text-2xs truncate">
             {hasKeyframe
               ? `Keyframe at ${currentTimeSec.toFixed(2)}s`
               : `Interpolated at ${currentTimeSec.toFixed(2)}s`}
@@ -876,9 +834,8 @@ export function useActionHistoryController(
 
 function clipPoseToAnimaPose(
   alias: string,
-  pose: AnimaPoseClipPose,
+  pose: AnimaPoseSnapshot,
 ): AnimaPose {
-  if (isAnimaPoseClipRef(pose)) return getResolvedAvatarPose(pose.ref);
   return parseAnimaPose({
     schema: ANIMA_POSE_SCHEMA,
     id: alias,

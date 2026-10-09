@@ -40,9 +40,10 @@ retains an internal missing tombstone for stable identity but does not expose it
 as a user-repairable Library item or content-health issue.
 
 Music and standalone catalog Pose Clips are retained only for local recovery.
-Startup and Rescan convert referenced clips into Action-owned files and remove
-active Music bindings, retaining source originals and prior binding evidence
-under private operation storage. Retired rows cannot be selected, previewed,
+Startup and Rescan remove active Music bindings, retaining prior binding
+evidence under private operation storage. An Action that still references a
+retired Pose Clip (always `animaPoseClip/1.0`) is listed invalid with
+`clip_format_unsupported`. Retired rows cannot be selected, previewed,
 newly saved, packaged or admitted to runtime. Exact completed Save/import and Music equipment-commit retries
 replay their stored result; no legacy package migration is supported. Static
 Poses, Action clip JSON and TTS/SFX remain supported.
@@ -207,10 +208,11 @@ bundled without the original recording, installed as an independent Local Voice
 and selected with fresh PocketTTS preferences. Presets, inactive clones and
 ElevenLabs IDs do not travel. The `animama/pocket-voice/1` capability requires
 validated binary contents; standalone Voice entries and raw recordings reject.
-A Gesture or Reaction clip requires the capability named by its schema,
-`animaPoseClip/1.0` or `animaPoseClip/2.0`, plus each built-in Pose it
-references (a 2.0 clip references only its base pose). A reader without a
-required capability rejects the package.
+A Gesture or Reaction clip requires `animaPoseClip/2.0`, plus
+`animama/builtin-pose/1/<id>` for its base pose, if any. A reader without a
+required capability rejects the package. A package that declares `animaPoseClip/1.0`, or
+contains a clip in any format other than 2.0, is refused with
+`clip_format_unsupported` and a fixed message naming the retired format.
 Effective provider changes invalidate a pending export review.
 
 Export summary resolves source revisions and saved facts; preparation requires
@@ -227,6 +229,30 @@ then installs all files, catalog rows and any Anima aggregate in one recoverable
 operation. A changed destination requires a fresh review; import never replaces
 an existing item or installs only part of the package. License and provenance
 facts accompany the independent editable copies.
+
+### Non-portable content
+
+[Non-portable](../architecture/local-content-storage.md) items never enter a
+package. Content export refuses a non-portable root, and any non-portable item
+reached other than through an Idle Style pool, with `package_non_portable` and
+the item names in `detail.items`. A portable Idle Style that pools non-portable
+Gestures exports without them: their references, and any pool they empty, are
+removed. An Anima export likewise omits non-portable Gesture and Idle Style
+bindings, explicit or implicit starter choices. Any other non-portable binding
+(for example an Avatar) blocks the export. The summary lists omitted items
+(`omitted`), and the manifest's `non_portable_references` record each one's kind,
+logical key, name and uses, with the `animama/non-portable-references/1`
+capability. Packages without references omit the field and stay readable by
+earlier versions.
+
+On import, the review lists each reference as `rebound` when this installation
+has a valid non-portable Included item with the same kind and logical key, or
+`unavailable` otherwise. Rebound items return to their Anima slot or Idle Style
+pools. Unavailable ones fall back: no Gesture, the Default pool without it, or
+no Idle Style. Import and typed save reject any file whose SHA-256 matches a
+non-portable payload (`package_non_portable`, `content_non_portable`) without
+echoing its contents. Matching files added to the Local folder by hand are
+scanned as non-portable instead.
 
 Resource filenames inside a content directory stay unchanged so embedded image
 and texture references remain valid when the containing item receives a collision

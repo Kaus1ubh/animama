@@ -87,7 +87,7 @@ describe("editing durable poses", () => {
     expect(usePoseCreatorStore.getState().authoringMode).toBe("pose");
     expect(usePoseCreatorStore.getState().clipDraft).toBe(clip);
     expect(clip.keyframes).toEqual([]);
-    expect(clip.poses).toEqual({});
+    expect(clip.motion).toEqual({ beats: [] });
   });
 
   it("loads Local identity/revision independently of the clip and resumes the draft", async () => {

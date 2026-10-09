@@ -110,13 +110,12 @@ describe("looping timeline effect ownership", () => {
         clipPlaybackPlaying: true,
         clipDraft: createPoseCreatorClipDraftFromAnimaPoseClip(
           {
-            schema: "animaPoseClip/1.0",
+            schema: "animaPoseClip/2.0",
             id: "looping-effects",
             name: "Looping effects",
             duration: 2,
             loop: true,
-            poses: {},
-            poseKeyframes: [],
+            beats: [],
             // Distinct timeline events may intentionally share an effect.
             events: ["first", "second"].map((id) => ({
               id,
@@ -171,12 +170,11 @@ describe("fading Avatar Effect events", () => {
     >;
     const clipDraft = createPoseCreatorClipDraftFromAnimaPoseClip(
       {
-        schema: "animaPoseClip/1.0",
+        schema: "animaPoseClip/2.0",
         id: "fade",
         name: "Fade",
         duration: 4,
-        poses: {},
-        poseKeyframes: [],
+        beats: [],
         events: [
           {
             id: "swirl",
@@ -286,12 +284,11 @@ describe.each(["avatar_vfx", "scene_vfx"] as const)(
         >;
         const clipDraft = createPoseCreatorClipDraftFromAnimaPoseClip(
           {
-            schema: "animaPoseClip/1.0",
+            schema: "animaPoseClip/2.0",
             id: "audio",
             name: "Audio",
             duration: 2,
-            poses: {},
-            poseKeyframes: [],
+            beats: [],
             events: [
               {
                 id: "effect",

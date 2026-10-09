@@ -15,8 +15,8 @@
   },
   "dependencies": [
     {
-      "ref": "builtin:avatar-effect:texture_black_1",
-      "alias": "texture_black_1",
+      "ref": "builtin:avatar-effect:gloom_lines",
+      "alias": "gloom_lines",
       "content_type": "avatar_effect",
       "config": {}
     }

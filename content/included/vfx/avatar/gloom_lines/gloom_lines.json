@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:gloom_lines",
+  "version": 1,
+  "name": "Gloom Lines",
+  "description": "Dark blue-purple vertical gloom lines that slide down over the brow like a curtain, for deflated, disappointed or remorseful moments.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "emote",
+    "attachment": {
+      "kind": "face_landmark",
+      "landmark": "forehead",
+      "offset": {
+        "x": 0,
+        "y": -0.025,
+        "z": 0
+      },
+      "position": "middle",
+      "scale": {
+        "x": 1.1,
+        "y": 0.95
+      }
+    },
+    "art": {
+      "image": "gloom_lines.png"
+    },
+    "motion": {
+      "keyframes": {
+        "frames": [
+          {
+            "offset": {
+              "x": 0,
+              "y": 0.03
+            },
+            "opacity": 0,
+            "t": 0
+          },
+          {
+            "offset": {
+              "x": 0,
+              "y": 0
+            },
+            "opacity": 1,
+            "t": 0.5
+          }
+        ]
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "gloom_lines.png",
+      "role": "image"
+    }
+  ]
+}

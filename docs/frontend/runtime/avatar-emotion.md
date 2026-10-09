@@ -332,7 +332,7 @@ consumed without a reaction.
 
 Reaction clips live under
 `content/included/reactions/<id>/<id>.json`. They can include
-inline expression keyframes plus timed avatar VFX, scene VFX, and SFX events,
+expression tracks keyed at beats plus timed avatar VFX, scene VFX, and SFX events,
 and the built-in catalog skips files that include humanoid transforms. Reaction
 definitions are expression/effect actions and cannot declare humanoid motion;
 `ReactionClipPlayer` projects their samples to expressions before

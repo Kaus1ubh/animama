@@ -27,9 +27,11 @@ production readiness or publication rights.
 | 0011 | [Application-owned companion features and composition catalog policy](0011-application-owned-companion-features-and-composition-catalog-policy.md) | accepted                              |
 | 0012 | [Parakeet speech models as backend model assets](0012-backend-parakeet-model-assets.md)                                                            | accepted                              |
 | 0013 | [Native Windows desktop packaging](0013-native-windows-desktop-packaging.md)                                                                       | accepted                              |
-| 0014 | [Track-based Anima Pose Clips organised by beats](0014-track-based-anima-pose-clips.md)                                                            | accepted                              |
+| 0014 | [Track-based Anima Pose Clips organised by beats](0014-track-based-anima-pose-clips.md)                                                            | accepted; partly superseded by 0016   |
 | 0015 | [One Avatar Effect definition source and model-agnostic face parts](0015-avatar-effect-definition-source-and-face-parts.md)                        | accepted                              |
-| 0016 | [Common web application and hosted artifact](0016-common-web-application-and-hosted-artifact.md)                                                   | accepted                              |
+| 0016 | [animaPoseClip/2.0 is the only clip format](0016-anima-pose-clip-2-only.md)                                                                        | accepted                              |
+| 0017 | [Common web application and hosted artifact](0017-common-web-application-and-hosted-artifact.md)                                                   | accepted                              |
+| 0018 | [Non-portable Included content for licensed built-in motion](0018-non-portable-included-content.md)                                                | accepted                              |
 
 ## When and how to record a decision
 

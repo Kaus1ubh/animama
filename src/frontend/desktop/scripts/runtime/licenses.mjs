@@ -23,6 +23,7 @@ import {
   sha256,
   writeJson,
 } from "./common.mjs";
+import { STAGED_RELATIVE } from "./mixamo-motion.mjs";
 import { PROCESS_GUARD } from "./process-guard.mjs";
 import { VC_RUNTIME_DLL } from "./windows-platform.mjs";
 
@@ -209,7 +210,26 @@ export function writeLicenses(target, contentInventory) {
       source: file.license.provenance,
       review: file.license.redistribution_review,
     });
-  records.push(...contentRecords.values());
+  // The non-portable Mixamo-motion pack carries its own licence inventory.
+  const packInventory = path.join(
+    target.runtime,
+    STAGED_RELATIVE,
+    "licenses/inventory.json",
+  );
+  const packRules = existsSync(packInventory)
+    ? JSON.parse(readFileSync(packInventory, "utf8")).rules
+    : [];
+  // A separate map, so core content files never reference the pack licence.
+  const packRecords = new Map();
+  for (const rule of packRules)
+    packRecords.set(rule.license_id, {
+      id: rule.license_id,
+      name: rule.creator,
+      license: rule.license_id,
+      source: rule.provenance,
+      review: rule.redistribution_review,
+    });
+  records.push(...contentRecords.values(), ...packRecords.values());
   records.sort((a, b) => a.id.localeCompare(b.id));
   const assignments = filesIn(target.runtime)
     .filter((name) => !name.startsWith("licenses/") && name !== "manifest.json")
@@ -226,6 +246,8 @@ export function writeLicenses(target, contentInventory) {
         refs = ["animama", "python-runtime-dependencies"];
       else if (name.startsWith("postgres/"))
         refs = ["postgresql", ...(name.includes("vector") ? ["pgvector"] : [])];
+      else if (name.startsWith(`${STAGED_RELATIVE}/`))
+        refs = packRules.map((rule) => rule.license_id);
       else if (name.startsWith("content/")) refs = [...contentRecords.keys()];
       else if (staticGroup) refs = [staticGroup.id];
       else if (name.startsWith("web/"))

@@ -174,8 +174,10 @@ The app layout sends `/` to `/setup` until the backend's `first_run_complete`
 boolean is true, which also requires the owner's recorded 18+ confirmation.
 Setup's Welcome step requires a nonblank private name and the 18+ checkbox;
 Finish calls `POST /v1/runtime/onboarding:complete` with `adult_confirmed:
-true` and any model chosen in the AI step. `/setup` sits outside
-`SettingsProvider`, so it saves Text-to-Speech choices with
+true` and the model set up last in the AI step (saving the OpenAI key or
+adding a chat model), if any. Text-to-Speech is on by default with built-in
+voices (`DEFAULT_ANIMAMA_PREFERENCES`); `/setup` sits outside
+`SettingsProvider`, so a provider chosen in the Voice step is saved with
 `useMergeUserPreferences` (fresh read, merge, write). The step and nonsecret
 choices persist in a per-owner localStorage draft (`setup-draft.ts`), never
 keys. Repeating the request after a lost response returns the completed

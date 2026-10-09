@@ -3,9 +3,9 @@ import { describe, expect, it, vi } from "vitest";
 import type { PyPose } from "@animama/runtime-contracts/api-types";
 import {
   parseAnimaPoseClip,
-  sampleAnimaPoseClip,
   shouldAnimaPoseClipAutoComplete,
 } from "@/lib/avatar/poses/animaPoseClip";
+import { createAnimaPoseClipProgram } from "@/lib/avatar/poses/animaPoseClip/program";
 import { AnimaRuntimeCatalog } from "@/lib/runtime-content/AnimaRuntimeCatalog";
 import { prepareContentPreview } from "./preparation";
 import { contentPreviewRequiresAnimaContext } from "./types";
@@ -54,10 +54,11 @@ describe("static Pose preview", () => {
     const clip = parseAnimaPoseClip(await (await fetch(file.url)).json());
     expect(clip.basePose).toBeUndefined();
     expect(clip.loop).toBe(true);
-    expect(sampleAnimaPoseClip(clip, 0).sample).toEqual(
-      sampleAnimaPoseClip(clip, 200).sample,
-    );
-    expect(sampleAnimaPoseClip(clip, 0).sample).toEqual({
+    const program = createAnimaPoseClipProgram(clip, {
+      resolvePose: () => null,
+    });
+    expect(program.sample(0).sample).toEqual(program.sample(200).sample);
+    expect(program.sample(0).sample).toEqual({
       humanoid: pose.humanoid,
       expressions: pose.expressions,
     });

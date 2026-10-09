@@ -409,13 +409,21 @@ do not authorize restoring excluded bytes or silently changing an Anima.
 The source checkout excludes Mixamo-derived `.vrma` files from tracking and
 Docker contexts. The [optional Local installer](../runtime/mixamo-acquisition.md)
 adds manually converted motions to the Local library, outside staged content.
+`stage.mjs` stages the non-portable [Mixamo-motion pack](../../backend/operations/mixamo-motion-pack.md)
+as `runtime/content/mixamo-motion` only when `build-inputs/mixamo-motion/`
+exactly matches the tracked manifest with complete private provenance. Without
+the input the stage proceeds without the pack; set
+`ANIMAMA_REQUIRE_MIXAMO_MOTION=1` for release candidates so a missing pack
+fails. The supervisor mounts a staged pack as its own Included source.
 The starter closure contains 21 authored gestures, 72 reactions and no required
 Idle Style. The tracked-only staging gate still fails on an unavailable selected
 dependency, even if an ignored local copy exists. Full native stage and packaged
 acceptance remain separate checks; do not infer them from a passing content test.
 
-Content with `distribution: excluded` is omitted from core and expanded inputs.
-An excluded required dependency fails closure resolution. Local Appearance,
+Content with `distribution: excluded` or `distribution: non-portable` is
+omitted from core and expanded inputs (reasons `redistribution_excluded` and
+`non_portable`). An omitted required dependency fails closure resolution.
+Non-portable content ships only as its own private Included source. Local Appearance,
 voice content and Sound Effects remain supported. Speech-engine models and
 built-in voices are separate from imported example recordings. Music and
 standalone catalog Clips are outside the active content closure; preserved

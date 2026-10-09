@@ -57,10 +57,31 @@ def test_v1_avatar_effect_package_is_refused_with_the_conversion_hint() -> None:
 
 def test_declarations_must_match_actual_requirements() -> None:
     with pytest.raises(ContentDocumentError):
-        validate_capabilities([], ["animaPoseClip/1.0"])
+        validate_capabilities([], ["animaPoseClip/2.0"])
     with pytest.raises(ContentDocumentError):
-        validate_declared_capabilities(["animaPoseClip/1.0", "animaPoseClip/1.0"])
-    validate_capabilities(["animaPoseClip/1.0"], ["animaPoseClip/1.0"])
+        validate_declared_capabilities(["animaPoseClip/2.0", "animaPoseClip/2.0"])
+    validate_capabilities(["animaPoseClip/2.0"], ["animaPoseClip/2.0"])
+
+
+def test_retired_clip_format_package_is_refused_with_its_reason() -> None:
+    with pytest.raises(ContentDocumentError) as raised:
+        validate_declared_capabilities(["animaPoseClip/1.0"])
+    assert raised.value.code == "clip_format_unsupported"
+    assert "retired animaPoseClip/1.0 format" in str(raised.value)
+
+
+@pytest.mark.parametrize("schema", ["animaPoseClip/1.0", "animaPoseClip/3.0", None])
+def test_clip_files_in_other_formats_are_refused(schema: str | None) -> None:
+    document = _document(
+        "gesture",
+        implementation={"kind": "anima_clip", "file_role": "sequence"},
+        files=[{"path": "action.json", "role": "sequence"}],
+    )
+    data = {"id": "a", "name": "A", "poses": {}, "poseKeyframes": [], **({"schema": schema} if schema else {})}
+    with pytest.raises(ContentDocumentError) as raised:
+        derive_file_capabilities(document.kind, document, "action.json", io.BytesIO(json.dumps(data).encode()))
+    assert raised.value.code == "clip_format_unsupported"
+    assert "Only animaPoseClip/2.0 clips" in str(raised.value)
 
 
 @pytest.mark.parametrize("fixture", FIXTURES["effects"])
@@ -259,7 +280,35 @@ def test_registered_particle_texture_required_even_for_local_looking_paths() -> 
 
 
 def test_clip_timeline_and_lifetime_use_renderer_grammar(tmp_path: Path) -> None:
-    data = json.loads((FRONTEND / "avatar/poses/animaPoseClip/fixtures/compatibility-valid.json").read_text())
+    data = json.loads((FRONTEND / "avatar/poses/animaPoseClip/fixtures/compatibility-valid-v2.json").read_text())
+    data["playback"] = {"lifetime": {"kind": "whileAvatarState", "states": ["gesture"], "scope": "activeRun"}}
+    data["events"] = [
+        {
+            "id": "avatar-vfx",
+            "time": 0.1,
+            "kind": "avatar_vfx",
+            "effectId": "star",
+            "duration": 0.4,
+            "envelope": {"intensity": {"from": 0, "to": 1, "fadeIn": 0.1, "fadeOut": 0.1, "easing": "linear"}},
+            "parameterKeyframes": [{"time": 0, "values": {"intensity": 0}}, {"time": 0.4, "values": {"intensity": 1}}],
+        },
+        {"id": "scene-vfx", "time": 0.2, "kind": "scene_vfx", "sceneKind": "focus_lines", "presetId": "light-streak"},
+        {
+            "id": "particle-vfx",
+            "time": 0.3,
+            "kind": "particle_vfx",
+            "effectId": "sparkles",
+            "anchor": "head",
+            "followAnchor": True,
+            "transform": {
+                "offset": {"y": 0.2},
+                "depthOffset": 0.1,
+                "rotation": {"z": 0.25},
+                "scale": {"x": 1, "y": 1, "z": 1},
+            },
+        },
+        {"id": "sfx", "time": 0.4, "kind": "sfx", "cueId": "bright_idea_01", "volume": 0.8},
+    ]
     dependencies = []
     for event in data["events"]:
         key, kind = {
@@ -270,33 +319,32 @@ def test_clip_timeline_and_lifetime_use_renderer_grammar(tmp_path: Path) -> None
         }[event["kind"]]
         dependencies.append({"ref": f"fixture-{event['kind']}", "alias": event[key], "content_type": kind})
     document = _document("reaction", files=[{"path": "action.json", "role": "sequence"}], dependencies=dependencies)
-    # The parser fixture uses an unmounted example Pose; packages require an actual app Pose.
-    data["basePose"] = "relaxedRest"
     path = tmp_path / "action.json"
     path.write_text(json.dumps(data))
     scene_fixture = next(item for item in FIXTURES["effects"] if item["definition"].get("kind") == "focus_lines")
     documents = {"fixture-scene_vfx": _document("scene_effect", definition=scene_fixture["definition"])}
     requirements = derive_capabilities(document.kind, document, {"action.json": path}, documents=documents)
-    assert set(requirements) == {"animaPose/1.0", "animaPoseClip/1.0", "animama/builtin-pose/1/relaxedRest"}
+    assert set(requirements) == {"animaPoseClip/2.0", "animama/builtin-pose/1/relaxedRest"}
     data["events"][0]["kind"] = "custom-script-event"
     path.write_text(json.dumps(data))
     with pytest.raises(ContentDocumentError):
         derive_capabilities(document.kind, document, {"action.json": path})
 
 
-def test_unavailable_pose_reference_rejected() -> None:
+def test_unavailable_base_pose_rejected() -> None:
     document = _document(
         "gesture",
         implementation={"kind": "anima_clip", "file_role": "sequence"},
         files=[{"path": "action.json", "role": "sequence"}],
     )
     data = {
-        "schema": "animaPoseClip/1.0",
+        "schema": "animaPoseClip/2.0",
         "id": "a",
         "name": "A",
         "duration": 1,
-        "poses": {"rest": {"ref": "some-other-installation-only-pose"}},
-        "poseKeyframes": [{"time": 0, "pose": "rest"}],
+        "basePose": "some-other-installation-only-pose",
+        "beats": [{"id": "rest", "label": "Rest", "time": 0}],
+        "expressions": {"happy": [{"beat": "rest", "v": 1}]},
     }
     with pytest.raises(ContentDocumentError, match="Unknown app Pose"):
         derive_file_capabilities(document.kind, document, "action.json", io.BytesIO(json.dumps(data).encode()))

@@ -75,15 +75,10 @@ function fakeRepo() {
         { path: "z.txt" },
       ],
     }),
-    [PROMOTE_PATHS.clipSamples]: `${JSON.stringify(
-      { precision: 12, clips: [{ id: "arms-crossed" }, { id: "meme-dab" }] },
-      null,
-      2,
-    )}\n`,
     "content/included/gestures/arms-crossed/arms-crossed.meta.json":
       JSON.stringify(existingMeta),
     "content/included/gestures/arms-crossed/arms-crossed.json": JSON.stringify({
-      schema: "animaPoseClip/1.0",
+      schema: "animaPoseClip/2.0",
       loop: true,
     }),
   };
@@ -223,8 +218,6 @@ test("adds a new Gesture with metadata, licence rule and records", async () => {
       PROMOTE_PATHS.sourceReview,
     ].sort(),
   );
-  // Nothing replaced, so the pinned 1.0 samples are untouched.
-  assert.equal(writes[PROMOTE_PATHS.clipSamples], undefined);
 });
 
 test("replaces an Included Gesture in place, keeping its identity and kind", async () => {
@@ -257,11 +250,6 @@ test("replaces an Included Gesture in place, keeping its identity and kind", asy
     ai_description: "New.",
     description: "Crosses both arms.",
   });
-  // The replaced 1.0 clip's pinned samples are dropped.
-  assert.deepEqual(
-    JSON.parse(writes[PROMOTE_PATHS.clipSamples].content).clips,
-    [{ id: "meme-dab" }],
-  );
   const plan = async (overrides) =>
     planPromotion(
       await parsePromoteItems([{ ...replace, ...overrides }], itemsFile),

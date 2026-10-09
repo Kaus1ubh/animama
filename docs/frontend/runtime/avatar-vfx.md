@@ -69,8 +69,10 @@ the same models, and an error names a JSON path such as
       texture.
     - `face_landmark`: a plane in front of the `eyes`, `mouth`, `forehead`, `top`
       or `top_edge`, with `position` (`left`, `middle`, `right`, and the
-      `top_edge` corners) for the last three. `offset` is in metres in head
-      space; `rotationDeg` has x, y and z.
+      `top_edge` corners) for the last three. `offset` is in metres in the
+      Avatar's front frame at the head (+x toward the viewer's right when
+      facing the Avatar, +y up, +z forward, on VRM 0 and 1); `rotationDeg` has
+      x, y and z, and keyframe offsets use the same frame.
     - `body`, `sticker` and `silhouette`: see [Attachments beyond the
       face](#6-attachments-beyond-the-face).
 
@@ -208,9 +210,13 @@ replaces that instance.
 ### Floating effects (`face_landmark`)
 
 Planes are parented to the normalized head bone (render order 950, depth tested,
-so hair can hide them). Eye planes sit just in front of the iris landmarks;
-mouth planes start at the projected mouth point, sized from its anchor; forehead
-and top planes use positions around the face bounds, clear of detected hair.
+so hair can hide them). Normalized bones keep the model's axes (VRM 1 faces +Z,
+VRM 0 faces −Z), so each placement turns to face the front, and its offset,
+rotation and motion apply in that turned frame. The creator measures drags in
+the same frame, so a drag stores the same value on either Avatar. Eye planes
+sit just in front of the iris landmarks; mouth planes start at the projected
+mouth point, sized from its anchor; forehead and top planes use positions around
+the face bounds, clear of detected hair.
 
 Eye planes default to closing the eyes (`forceBlink` holds `blink` at 1 at full intensity; a fading event weights it, see the fades section),
 hiding eye highlights, lines and lashes (`hideEyeDetails`) and cleaning up the
@@ -354,9 +360,9 @@ arrives while the effect is loading is held until it applies. The effect's face
 changes follow the same value: **Close the eyes** blinks by it, and hidden face
 parts and face cleanup switch on and off at half intensity, so a fading eye
 effect never shows bare eye sockets under faint art. The Gesture and Reaction
-creator's preview samples the envelope too, while playing and when paused. Events that end **With Action** do not fade. The event
-shape is the same in `animaPoseClip/1.0` and `2.0`, and parameter keyframes are
-not supported for Avatar Effects.
+creator's preview samples the envelope too, while playing and when paused.
+Events that end **With Action** do not fade. Parameter
+keyframes are not supported for Avatar Effects.
 
 ## 8) Creator
 
@@ -366,7 +372,7 @@ The sidebar Create menu's **Effects** item, the Create page's effect cards and
 `/effects/new` open the Effects template picker. Step 1 chooses Particle FX,
 Avatar FX or Scene FX; step 2 offers **Start from scratch** and that kind's
 templates, with Back. Avatar FX templates are the Included Avatar Effects,
-grouped as Eyes, Whole face, Above the head and Mouth in
+grouped as Eyes, Cheeks, Whole face, Around the head, Mouth and Body in
 `lib/effects/effectTemplates.ts`, with thumbnails captured on the Included
 Avatar Annie. Choosing one opens `/avatar-effects/new?template=<id>`, which
 copies the Included effect into a new, unsaved Local draft with an unused name;
@@ -445,7 +451,94 @@ is discarded when the model changes.
 
 ## 9) Tools
 
-Run these from `src/frontend/web`. They need no running stack.
+Run these from `src/frontend/web`. Only `effects save` needs a running stack;
+`library:local/...` sources need its record sourced (or `--local-content`).
+
+### Effect art
+
+`pnpm -s effects:assets` checks and repairs effect images, from any source:
+
+```bash
+pnpm -s effects:assets check art/*.png --budget landmark
+pnpm -s effects:assets fix art/drop-src.png --out art/drop.png --remove-background --trim --pad 8 --square --budget landmark
+pnpm -s effects:assets flipbook frames/*.png --out art/steam.png --cell 256 --fps 10
+pnpm -s effects:assets preview art/drop.png --out /tmp/drop-preview.png
+```
+
+- `check` fails art with no real transparency, a painted checkerboard, no
+  visible pixels, or sizes over the app's limits or the named budget. It warns
+  about a flat backdrop, near-opaque alpha (250–254, common in generated
+  images), faint alpha noise, see-through patches inside floating art and wide
+  margins. An unreadable file fails as `unreadable` without stopping a batch.
+- `fix` removes a painted backdrop, trims, shrinks to the budget, pads (in
+  output pixels), clears faint alpha, raises near-opaque alpha to 255 and bleeds
+  edge colour into transparent pixels so texture filtering shows no fringe. It
+  never overwrites its input. Face-surface art (`--budget surface`) keeps its size and margins,
+  because it lies over the face texture's UV layout; only art placed by its
+  own framing (iris and decal art) is reframed, with `--canvas`.
+- `flipbook` lays frames out left to right, top to bottom, within the grid
+  limits, fitting them into `--cell` when sizes differ and settling their alpha
+  after resampling, and prints the `art.flipbook` fragment. `--trim` crops
+  every frame to one shared box so the frames stay aligned.
+- `fix --canvas <px> --art-size <px>` trims the art, scales it and centres it
+  on a fixed canvas, the framing painted iris and decal art is placed by.
+- `preview` shows the art on dark, light and checkered backdrops.
+
+Budgets: `landmark`, `body` and `sticker` 512 px and 256 KiB; `surface` and
+`silhouette` 1024 px and 512 KiB; `flipbook` 2048 px and 1024 KiB per sheet.
+The `animama-effect-assets` skill wraps these steps around optional image
+generation.
+
+### Check, save and promote
+
+`pnpm -s effects` carries an effect source from a draft folder to Local and
+Included content, like `pnpm -s animation` for Gestures:
+
+```bash
+source ../../../.animama-stack.env   # for library:local/... and save
+pnpm -s effects check ./sweat-drop library:local/Blush
+pnpm -s effects save ./items.json
+pnpm -s effects promote ./promote.json --dry-run
+```
+
+- `check` runs the art through `effects:assets check` with its attachment's
+  budget, parses the `/2` definition as the runtime does (naming the field),
+  applies it on both Included Avatars (a controller warning, such as a missing
+  face part, fails) and renders each time and view with the effect and
+  against a baseline (for face effects, the same effect with transparent
+  stand-in images, so closed eyes and face cleanup are in both): the art must
+  show on every Avatar in some frame. `--times` defaults to
+  0.25 s and 1 s. It exits 1 on any FAIL.
+- `save` takes `[{ "source", "name"?, "description"? }]` and saves each source
+  through the Avatar Effect creator in headless Chromium: it imports the
+  editor document, chooses the images, saves, reads the item back and checks
+  the definition, then reopens it. A Local effect with the same name is
+  revised. Names must be valid Local names (letters, digits, spaces, `.`,
+  `_`, `-`); it prints the Local folder each name saves to. Effects with a
+  sound are saved by hand.
+- `promote` writes owner-approved items into `content/included/vfx/avatar/`:
+  `add` (new stem), `replace` (keeps the folder, content ID, version and name)
+  or `delete` (refused while Included content depends on it). Sources are
+  `library:local/<name>` from the sourced stack or a folder; image names must
+  be plain file names, and effects with a sound are refused. It validates the
+  definition and art, adds a `licenses/source-review.json` record per written
+  file in the existing effect form and drops deleted files' records; the
+  `vfx/avatar/**/*` licence rule already covers the files. Templates,
+  thumbnails and pinned tests are updated separately.
+- The same run can `replace` the Reactions and Gestures that use the
+  effects (`"kind": "reaction" | "gesture"`), from a creator project file
+  (`animamaActionProject/1.0`) holding the Included clip with its effect
+  events changed and dependencies that each carry a `ref` (a creator export
+  renames the clip and has no `ref`). It keeps the Included meta and the clip's id,
+  role and lifetime, keeps Reactions expression-only, re-points dependencies
+  on Local effects promoted in the run to their Included IDs, and refuses a
+  dependency that is not Included content of its declared type afterwards or
+  an event whose effect, scene or sound no dependency declares. A delete is
+  checked against dependents after the run's replacements, so an effect and
+  its last users can change together.
+
+`library:local/...` sources read `ANIMAMA_LOCAL_CONTENT_HOST_PATH`, set by
+sourcing the stack record, unless `--local-content` is given.
 
 ### Review renders
 
@@ -479,7 +572,9 @@ pnpm -s effects:render --diff before.png after.png --out diff.png
   to 0 pixels.
 
 `pnpm -s effects:thumbnails [template-id...]` regenerates the picker's Avatar FX
-thumbnails (320 px WebP, 1 s after applying) into `src/assets/effect-templates/`
+thumbnails (320 px WebP, 1 s after applying, or at the template's
+`thumbnail.time`; a `thumbnail.framing: "wide"` template is framed wider to
+show chest or side art) into `src/assets/effect-templates/`
 and removes files for templates that no longer exist. Run it after changing the
 template list or an Included effect it uses, review the images, and keep that
 folder's README provenance current.
@@ -506,6 +601,8 @@ pnpm -s animation:preview library:included/confusion-2   # a Reaction with its e
   that folder recursively, so a new or changed image reloads the effect at once,
   and unrelated files in a shared folder would reload it too. The version covers
   the image bytes, so a reload with no change does nothing.
+- The picker's **Effect sources** list the named effect folders and every
+  other effect folder beside them, so one preview reviews a batch of drafts.
 - Notes go beside the effect's folder (`my-effect.review.json`). For anything
   inside Library content (under the Included or Local root, a `vfx/avatar/`
   folder, or a `<stem>/` folder holding `<stem>.meta.json`) they go in the
@@ -557,6 +654,7 @@ per render; a silhouette adds one skinned draw per overlaid primitive (about
 | Visible skin patch around eye or mouth art                                                                 | Compare **Clean up**, **Skin-coloured backing** and **Skin coverage**; the sampled colour or anchors may be poor on this model.                                                                                            |
 | Full-face art misaligned                                                                                   | It must match the Avatar's UV layout; use a decal for localized marks.                                                                                                                                                     |
 | Image refused or effect skipped on load                                                                    | It exceeds the image limits; resize it.                                                                                                                                                                                    |
+| Floating art saved with a sideways or forward offset sits mirrored on a VRM 0 Avatar                       | It was saved when floating offsets followed the head's model axes. Floating offsets use the Avatar's front frame on every model; drag it back or flip the sign of `offset.x`/`offset.z`.                                   |
 | A mirrored eye moved the wrong way after conversion                                                        | `avatar_effect_offset_mirrored`: `/2` mirrors x offsets on the mirrored copy. Adjust the offset.                                                                                                                           |
 | Works in the creator but not in chat                                                                       | The effect must be in a saved, selected Gesture or Reaction in the mounted catalog, and Disable VFX must be off.                                                                                                           |
 

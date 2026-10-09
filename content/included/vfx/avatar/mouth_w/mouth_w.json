@@ -11,9 +11,13 @@
     "region": "mouth",
     "attachment": {
       "kind": "face_surface",
-      "part": "face_skin",
       "area": "mouth",
-      "pivot": "center"
+      "part": "face_skin",
+      "pivot": "center",
+      "scale": {
+        "x": 1.6,
+        "y": 1.6
+      }
     },
     "art": {
       "image": "mouth_w.png"

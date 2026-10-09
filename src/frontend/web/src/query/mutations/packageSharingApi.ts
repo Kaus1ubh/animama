@@ -39,8 +39,16 @@ async function value<T>(
       parseContentApiErrorDetail(result.error)?.code ??
         "package_operation_unknown",
       result.response.status,
+      errorItems(result.error),
     );
   return result.data as T;
+}
+/** Item display names in `detail.items`, ignoring anything that is not a string. */
+function errorItems(error: unknown): string[] {
+  const detail = (error as { detail?: { items?: unknown } } | null)?.detail;
+  return Array.isArray(detail?.items)
+    ? detail.items.filter((item): item is string => typeof item === "string")
+    : [];
 }
 const timeout = () => AbortSignal.timeout(120_000);
 export function createPackageImportApi(client: Client): ImportApi {

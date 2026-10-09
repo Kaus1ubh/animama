@@ -122,13 +122,13 @@ function VectorControl({
 }) {
   return (
     <div className="space-y-2">
-      <FieldLabel className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+      <FieldLabel className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
         {label}
       </FieldLabel>
       <div className="grid grid-cols-3 gap-2">
         {AXES.map((axis) => (
           <div key={axis} className="space-y-1">
-            <FieldLabel className="text-muted-foreground text-[10px] font-semibold uppercase">
+            <FieldLabel className="text-muted-foreground text-2xs font-semibold uppercase">
               {axis}
             </FieldLabel>
             <NumericInput
@@ -160,7 +160,7 @@ export function SceneCameraPanel({
     <div className={cn("space-y-3", className)}>
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-3">
-          <FieldLabel className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+          <FieldLabel className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
             Camera Y Source
           </FieldLabel>
           <Button
@@ -204,7 +204,7 @@ export function SceneCameraPanel({
       />
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-3">
-          <FieldLabel className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+          <FieldLabel className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
             Field Of View
           </FieldLabel>
           <NumericInput
@@ -226,7 +226,7 @@ export function SceneCameraPanel({
         />
       </div>
       <div className="space-y-2">
-        <FieldLabel className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+        <FieldLabel className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
           Orbit Target Y Source
         </FieldLabel>
         <div className="relative">

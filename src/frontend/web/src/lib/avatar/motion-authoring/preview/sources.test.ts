@@ -3,7 +3,10 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import type { AnimaPoseClip } from "../../poses/animaPoseClip";
+import {
+  unsupportedAnimaPoseClipFormatMessage,
+  type AnimaPoseClipV2,
+} from "../../poses/animaPoseClip";
 import {
   PreviewSourceError,
   listPreviewChoices,
@@ -20,23 +23,36 @@ afterEach(async () => {
   await rm(dir, { recursive: true, force: true });
 });
 
-const clip = (overrides: Partial<AnimaPoseClip> = {}): AnimaPoseClip => ({
-  schema: "animaPoseClip/1.0",
+const clip = (overrides: Partial<AnimaPoseClipV2> = {}): AnimaPoseClipV2 => ({
+  schema: "animaPoseClip/2.0",
   id: "nod",
   name: "Nod",
   duration: 1.5,
   fadeOut: { duration: 0.4 },
-  poses: {
-    rest: { humanoid: { head: { rotation: [0, 0, 0, 1] } } },
-    down: { humanoid: { head: { rotation: [0.1305, 0, 0, 0.9914] } } },
-  },
-  poseKeyframes: [
-    { time: 0, pose: "rest" },
-    { time: 0.5, pose: "down" },
-    { time: 1.5, pose: "rest" },
+  beats: [
+    { id: "rest", label: "Rest", time: 0 },
+    { id: "down", label: "Down", time: 0.5 },
+    { id: "back", label: "Back", time: 1.5 },
   ],
+  rotations: {
+    head: [
+      { beat: "rest", q: [0, 0, 0, 1] },
+      { beat: "down", q: [0.1305, 0, 0, 0.9914] },
+      { beat: "back", q: [0, 0, 0, 1] },
+    ],
+  },
   ...overrides,
 });
+
+/** A retired `animaPoseClip/1.0` clip, which preview must reject. */
+const retiredClip = {
+  schema: "animaPoseClip/1.0",
+  id: "nod",
+  name: "Nod",
+  duration: 1.5,
+  poses: { rest: { humanoid: { head: { rotation: [0, 0, 0, 1] } } } },
+  poseKeyframes: [{ time: 0, pose: "rest" }],
+};
 
 /** A Library item folder as the content store lays it out. */
 async function libraryItem(
@@ -59,17 +75,37 @@ async function libraryItem(
 }
 
 describe("previewClipFromText", () => {
-  it("plays a 1.0 clip with its keyframes as markers and its fade-out tail", () => {
+  it("plays a clip with its duration, fade-out tail and loop flag", () => {
     const result = previewClipFromText(JSON.stringify(clip()));
-    expect(result.format).toBe("animaPoseClip/1.0");
+    expect(result.format).toBe("animaPoseClip/2.0");
     expect(result.duration).toBe(1.5);
     expect(result.fadeOut).toBe(0.4);
     expect(result.loop).toBe(false);
     expect(result.markers).toEqual([
-      { id: "k0", time: 0, label: "rest" },
-      { id: "k1", time: 0.5, label: "down" },
-      { id: "k2", time: 1.5, label: "rest" },
+      { id: "rest", time: 0, label: "Rest" },
+      { id: "down", time: 0.5, label: "Down" },
+      { id: "back", time: 1.5, label: "Back" },
     ]);
+    expect(previewClipFromText(JSON.stringify(clip({ loop: true }))).loop).toBe(
+      true,
+    );
+  });
+
+  it("rejects a retired 1.0 clip, alone or inside a project", () => {
+    const message = unsupportedAnimaPoseClipFormatMessage("animaPoseClip/1.0");
+    const plain = () => previewClipFromText(JSON.stringify(retiredClip));
+    expect(plain).toThrow(PreviewSourceError);
+    expect(plain).toThrow(message);
+    expect(() =>
+      previewClipFromText(
+        JSON.stringify({
+          schema: "animamaActionProject/1.0",
+          intent: "gesture",
+          sequence: retiredClip,
+          dependencies: [],
+        }),
+      ),
+    ).toThrow(message);
   });
 
   it("plays a 2.0 clip with its beats as markers", () => {
@@ -118,15 +154,6 @@ describe("previewClipFromText", () => {
     }
   });
 
-  it("omits markers for densely baked clips", () => {
-    const poseKeyframes = Array.from({ length: 60 }, (_, index) => ({
-      time: index / 40,
-      pose: "rest",
-    }));
-    const result = previewClipFromText(JSON.stringify(clip({ poseKeyframes })));
-    expect(result.markers).toEqual([]);
-  });
-
   it("unwraps a project envelope with the dependencies its events name", () => {
     const dependencies = [
       {
@@ -169,9 +196,6 @@ describe("previewClipFromText", () => {
     };
     expect(failure("{").message).toMatch(/JSON/);
     expect(failure('{"schema":"other/1"}').message).toMatch(/other\/1/);
-    expect(
-      failure(JSON.stringify(clip({ poseKeyframes: [] }))).message,
-    ).toMatch(/animaPoseClip\/1\.0/);
     const issues = failure(
       JSON.stringify({ schema: "animaPoseClip/2.0", name: "", beats: [] }),
     ).issues;

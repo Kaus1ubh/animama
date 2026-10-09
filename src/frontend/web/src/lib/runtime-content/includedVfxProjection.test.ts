@@ -51,8 +51,12 @@ describe("Included typed VFX runtime projection", () => {
           ? { sound: { onApply: "registered-sound" } }
           : {}),
       });
-      // Every Included effect is a face effect.
-      expect(isAttachmentVFXEntry(parsed)).toBe(false);
+      // Body, sticker and silhouette effects are attachment entries; the
+      // rest are face effects.
+      const attachment = object(definition.attachment);
+      expect(isAttachmentVFXEntry(parsed)).toBe(
+        ["body", "sticker", "silhouette"].includes(String(attachment.kind)),
+      );
     }
   });
 

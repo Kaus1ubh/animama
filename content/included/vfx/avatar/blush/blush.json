@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:blush",
+  "version": 1,
+  "name": "Blush",
+  "description": "Soft pink blush ovals with diagonal hatch lines painted across both cheeks, for embarrassed, flustered or smitten moments.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "blush",
+    "attachment": {
+      "kind": "face_surface",
+      "area": "blush",
+      "layout": "single",
+      "mirror": true,
+      "part": "face_skin",
+      "pivot": "center",
+      "scale": {
+        "x": 1.8,
+        "y": 1.8
+      },
+      "side": "right"
+    },
+    "art": {
+      "image": "blush.png"
+    }
+  },
+  "files": [
+    {
+      "path": "blush.png",
+      "role": "image"
+    }
+  ]
+}

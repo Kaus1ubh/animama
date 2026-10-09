@@ -34,6 +34,7 @@ import { writeRedistributionReview } from "./review-packet.mjs";
 import { importBundledTool } from "./bundled-tool.mjs";
 import { sealReleaseModelManifests } from "./release-models.mjs";
 import { buildProcessGuard } from "./process-guard.mjs";
+import { stagePack } from "./mixamo-motion.mjs";
 
 const target = parseTarget();
 const sources = readJson(path.join(sourceRoot, "source-manifest.json"));
@@ -68,6 +69,17 @@ try {
   );
   const content = readJson(
     path.join(target.output, "starter-content-inventory.json"),
+  );
+  // Only a verified private build input is staged; release candidates set
+  // ANIMAMA_REQUIRE_MIXAMO_MOTION=1 so a missing pack fails the build.
+  const pack = stagePack({
+    runtime: target.runtime,
+    required: process.env.ANIMAMA_REQUIRE_MIXAMO_MOTION === "1",
+  });
+  console.log(
+    pack.staged
+      ? `Staged the Mixamo-motion pack (${pack.files} files)`
+      : "No Mixamo-motion build input; staging without it",
   );
   logged("postgresql-build", process.execPath, [
     path.join(desktopRoot, "scripts/runtime/native-build.mjs"),
