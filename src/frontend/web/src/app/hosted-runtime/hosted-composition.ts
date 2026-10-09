@@ -28,6 +28,18 @@ type Options = {
   sessionKey?: () => string;
 };
 
+/**
+ * Context states that end the account's access, so they retire private work and
+ * purge hosted recovery. `paused` (enrollment, capacity, rate and cooldown
+ * limits) is transient: it withholds admission without revoking anything.
+ */
+const REVOKING_STATES = new Set([
+  "session_required",
+  "ineligible",
+  "restricted",
+  "deletion_pending",
+]);
+
 /** Cookie authority and CSRF are installed before React; browser headers cannot choose an owner. */
 export function createHostedComposition(
   options: Options,
@@ -142,13 +154,7 @@ export function createHostedComposition(
       deletion_pending: "restricted",
     };
     if (context.state !== "active") {
-      const authoritativeDenial = [
-        "session_required",
-        "ineligible",
-        "paused",
-        "restricted",
-        "deletion_pending",
-      ].includes(context.state);
+      const authoritativeDenial = REVOKING_STATES.has(context.state);
       if (session && !authoritativeDenial)
         throw new Error("Hosted admission could not currently be confirmed");
       session = null;

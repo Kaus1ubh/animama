@@ -173,7 +173,7 @@ describe("hosted admission and transport", () => {
     try {
       await controller.refresh();
       const old = controller.getSnapshot().scope!;
-      state = "paused";
+      state = "restricted";
       events.enqueue(
         new TextEncoder().encode("event: revoked\r\ndata: {}\r\n\r\n"),
       );
@@ -392,7 +392,7 @@ describe("hosted admission and transport", () => {
     }
   });
 
-  it.each(["unknown", undefined, "recovery", "bootstrap_required"])(
+  it.each(["unknown", undefined, "recovery", "bootstrap_required", "paused"])(
     "preserves persisted ambiguous recovery through an initial %s context after reload",
     async (state) => {
       const { sessionRows, draftRows } = installReloadStorage();
@@ -429,7 +429,6 @@ describe("hosted admission and transport", () => {
   it.each([
     ["session_required", 200],
     ["ineligible", 200],
-    ["paused", 200],
     ["restricted", 200],
     ["deletion_pending", 200],
     ["unauthorized", 401],
@@ -456,6 +455,29 @@ describe("hosted admission and transport", () => {
       expect(sessionRows.has("animama.hosted-recovery.v1")).toBe(false);
     },
   );
+
+  it("keeps an open session and its drafts through a transient paused context", async () => {
+    const context = { ...active };
+    const { composition } = fixture(context);
+    const controller = new RuntimeController(composition);
+    await controller.refresh();
+    const original = controller.getSnapshot();
+    original.queryClient.setQueryData(["draft"], "retain");
+    context.state = "paused";
+    await controller.refresh();
+    try {
+      expect(controller.getSnapshot().scope).toBe(original.scope);
+      expect(original.scope!.controller.signal.aborted).toBe(false);
+      expect(controller.getSnapshot().reconnecting).toBe(true);
+      context.state = "active";
+      await controller.refresh();
+      expect(controller.getSnapshot().scope).toBe(original.scope);
+      expect(controller.getSnapshot().reconnecting).toBe(false);
+      expect(original.queryClient.getQueryData(["draft"])).toBe("retain");
+    } finally {
+      controller.dispose();
+    }
+  });
 
   it.each([401, 403])(
     "retires ready admission on authoritative context HTTP %s",

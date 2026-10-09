@@ -70,10 +70,13 @@ resumes dispatch, including as soon as the reconnected events stream sends `even
 uncertain events preserve a pending admission read and its backoff. A revoked
 event or an events 401/403 suspends requests and reads the runtime context at
 once; that context alone decides whether admission ended.
-Unknown initial contexts and setup/repair states withhold admission without
-erasing persisted recovery. Context 401/403, recognized account/session denials
-(including those a revoked event prompts), sign-out and owner/session replacement
-still retire private work immediately. A draft key never substitutes
+Unknown initial contexts, setup/repair states and `paused` withhold admission
+without erasing persisted recovery; `paused` covers transient enrollment,
+capacity, rate and cooldown limits, so an open view suspends requests until it
+clears. Context 401/403, the revoking states `session_required`, `ineligible`,
+`restricted` and `deletion_pending` (including when a revoked event prompts the
+read), sign-out and owner/session replacement still retire private work and
+purge hosted recovery immediately. A draft key never substitutes
 for those checks; a recovered uncertain save reconciles its existing operation
 instead of allocating another commit.
 
