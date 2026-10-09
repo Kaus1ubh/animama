@@ -194,10 +194,11 @@ export class RuntimeController {
     // A sign-in that finished meanwhile owns the view now.
     if (this.snapshot.admission.status === "ready") return;
     const cleanupFailed = this.takeCleanupFailures();
+    // An unfinished sign-out shows its own retry view, which also purges again.
     const incomplete =
       this.composition.accountAffordances?.().signOutIncomplete ?? false;
     this.publish(
-      cleanupFailed || (remote.status === "rejected" && !incomplete)
+      !incomplete && (cleanupFailed || remote.status === "rejected")
         ? {
             status: "sign-in-required",
             message:

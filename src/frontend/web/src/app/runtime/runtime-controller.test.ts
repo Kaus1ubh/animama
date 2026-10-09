@@ -285,6 +285,28 @@ describe("composition lifetime boundary", () => {
     expect(controller.getSnapshot().account.signOutIncomplete).toBe(true);
   });
 
+  it("shows only the retry view when a sign-out is unfinished, even after a cleanup failure", async () => {
+    const { controller, composition } = fixture();
+    await controller.refresh();
+    controller.getSnapshot().scope!.register(() => {
+      throw new Error("Recovery storage is blocked");
+    });
+    Object.assign(composition, {
+      accountAffordances: () => ({
+        canOpenAccount: false,
+        signOutIncomplete: true,
+      }),
+    });
+    vi.mocked(composition.accountActions!.signOut).mockRejectedValue(
+      new Error("Logout failed"),
+    );
+    await controller.signOut();
+    expect(controller.getSnapshot().admission).toEqual({
+      status: "sign-in-required",
+    });
+    expect(controller.getSnapshot().account.signOutIncomplete).toBe(true);
+  });
+
   it("publishes the account affordances the composition reports with each admission", async () => {
     const { controller, composition } = fixture();
     expect(controller.getSnapshot().account).toEqual({
