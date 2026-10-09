@@ -1,5 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import type { RuntimeAccountActions } from "@animama/runtime-contracts";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
+import { queryKeys } from "@/query/keys";
 import {
   Dialog,
   DialogContent,
@@ -8,6 +10,7 @@ import {
   DialogTitle,
 } from "@/ui/components/dialog";
 
+/** The admitted account's usage and limits, loaded while the dialog is open. */
 export function AccountUsage({
   actions,
   open,
@@ -17,10 +20,11 @@ export function AccountUsage({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const sessionKey = useRuntimeCacheKey();
   const usage = useQuery({
-    queryKey: ["account-usage"],
+    queryKey: queryKeys.accountUsage(sessionKey ?? "__anon__"),
     queryFn: ({ signal }) => actions.loadUsage(signal),
-    enabled: open,
+    enabled: open && Boolean(sessionKey),
     staleTime: 5_000,
   });
   return (

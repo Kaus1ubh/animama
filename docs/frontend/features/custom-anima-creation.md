@@ -13,13 +13,15 @@ remains editable throughout the journey.
 Creator-hub, sidebar, carousel, Library, preview-recovery and empty-roster
 entry points open the same creator. The optional `avatar` search parameter
 accepts only a bounded logical catalog item ID; URLs, paths, and unknown search
-fields do not become creation input. Every entry point is withheld, and
-`/animas/new` shows a static "not available" notice instead of the creator,
-when `GET /v1/runtime-capabilities` reports `anima_creation: false`
-(`RuntimeFeatureGate`); while capabilities load they remain available. The
-creator resolves the current admitted
-Avatar and revision. An existing saved draft wins over a new URL hint; an
-unavailable handoff leaves a visible error and the source picker usable.
+fields do not become creation input. The entry points appear only when the
+admitted runtime capabilities report `anima_creation: true`
+(`RuntimeFeatureGate`). When they report `false`, as hosted runtimes do, each
+entry point stays visible but disabled with the shared hosted exclusion reason,
+and direct navigation to `/animas/new` shows that reason with a way home instead
+of the creator; while capabilities are unknown the entry points stay hidden. The
+creator resolves the current admitted Avatar and revision. An existing saved
+draft wins over a new URL hint; an unavailable handoff leaves a visible error and
+the source picker usable.
 
 Untouched Cancel exits to Creator hub (`/create`), not `/animas`, whose
 empty-roster resolver returns to this route. Shared local VRM preview primitives

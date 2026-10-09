@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { hostedExclusionReasons } from "@/app/runtime/route-admission";
 import { useRuntimeCapabilities } from "@/query/hooks/useRuntimeCapabilities";
 
 /** Backend-reported features whose UI entry points the composition can withhold. */
@@ -18,13 +19,36 @@ export function useRuntimeFeatureEnabled(
   return useRuntimeCapabilities().data?.[capability] === true;
 }
 
-/** Render children only while `capability` is offered; see `useRuntimeFeatureEnabled`. */
+/**
+ * The shared reason to show on a feature's familiar entry points when the
+ * runtime explicitly withholds it, or `null` while it is offered or its
+ * capability is still unknown (entry points then stay hidden). It is the same
+ * text that direct navigation to the excluded route shows.
+ */
+export function useRuntimeFeatureUnavailableReason(
+  capability: RuntimeFeatureCapability,
+): string | null {
+  return useRuntimeCapabilities().data?.[capability] === false
+    ? hostedExclusionReasons[capability]
+    : null;
+}
+
+/**
+ * Render children only while `capability` is offered; see
+ * `useRuntimeFeatureEnabled`. When the runtime withholds it, `unavailable`
+ * renders the disabled entry point with the shared reason instead.
+ */
 export function RuntimeFeatureGate({
   capability,
+  unavailable,
   children,
 }: {
   capability: RuntimeFeatureCapability;
+  unavailable?: (reason: string) => ReactNode;
   children: ReactNode;
 }) {
-  return useRuntimeFeatureEnabled(capability) ? children : null;
+  const enabled = useRuntimeFeatureEnabled(capability);
+  const reason = useRuntimeFeatureUnavailableReason(capability);
+  if (enabled) return children;
+  return reason && unavailable ? unavailable(reason) : null;
 }

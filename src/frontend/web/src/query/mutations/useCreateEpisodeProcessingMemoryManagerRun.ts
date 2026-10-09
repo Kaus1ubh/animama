@@ -12,6 +12,7 @@ import type {
 import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { MemoryManagerApiError } from "@/lib/memory-manager/errors";
 import { queryKeys } from "@/query/keys";
+import { sdkResultError } from "@/query/sdkResultError";
 import { publishMemoryManagerSnapshot } from "@/query/mutations/memoryManagerMutationCache";
 
 export type CreateEpisodeProcessingMemoryManagerRunArgs = {
@@ -42,7 +43,10 @@ export function useCreateEpisodeProcessingMemoryManagerRun() {
           },
         );
       if (result.error !== undefined) {
-        throw new MemoryManagerApiError(result.response.status, result.error);
+        throw sdkResultError(
+          result,
+          (status, error) => new MemoryManagerApiError(status, error),
+        );
       }
       return result.data;
     },

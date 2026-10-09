@@ -251,6 +251,28 @@ describe("voice clone library writes", () => {
     );
   });
 
+  it("reports a lost save or delete reply as a connection failure", async () => {
+    // A lost connection or paused runtime scope yields no HTTP response.
+    const lost = { error: new TypeError("Failed to fetch") };
+    api.save.mockResolvedValueOnce(lost);
+    api.remove.mockResolvedValueOnce(lost);
+    const prepared = await prepareVoiceClone(testApiClient, {
+      name: "New voice",
+      file: new File(["original"], "source.wav"),
+      operationId: "create-operation",
+    });
+    for (const failure of [
+      savePreparedVoiceClone(testApiClient, prepared),
+      deleteSavedVoiceClone(testApiClient, clone),
+    ]) {
+      await expect(failure).rejects.toMatchObject({
+        status: null,
+        message: expect.stringContaining("could not be reached"),
+      });
+      await expect(failure).rejects.not.toThrow(/Cannot read properties/);
+    }
+  });
+
   it("refuses mutations to Included content", async () => {
     const included = { ...clone, source: "included" as const, editable: false };
     await expect(

@@ -13,6 +13,7 @@ import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { MemoryEntryApiError } from "@/lib/memory-entries/errors";
 import { memoryMovePaths } from "@/lib/memory-entries/workspace-moves";
 import { queryKeys } from "@/query/keys";
+import { sdkResultError } from "@/query/sdkResultError";
 
 export type MoveMemoryEntryArgs = {
   source: PyMemoryEntryHeader;
@@ -48,7 +49,10 @@ export function useMoveMemoryEntry() {
         throwOnError: false,
       });
       if (result.error !== undefined) {
-        throw new MemoryEntryApiError(result.response.status, result.error);
+        throw sdkResultError(
+          result,
+          (status, error) => new MemoryEntryApiError(status, error),
+        );
       }
       return result.data;
     },

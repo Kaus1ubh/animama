@@ -102,12 +102,26 @@ management stage own the existing Canvas; dialogs pass targets and callbacks
 rather than mounting another WebGL renderer. Preview state never mutates the
 Anima loadout or the live runtime catalog.
 
-## API Configuration
+## API client and capabilities
 
-`src/frontend/web/src/lib/api/configureAnimaApiClient.ts` configures the
-generated client once during provider startup. It uses the current application origin
-and trace context only. A browser-wide interceptor adds `X-Animama-CSRF: 1` to
-same-origin mutating `/v1` fetches and never adds identity or desktop secrets.
+There is no global API client: compositions and feature code never configure or
+use `@animama/runtime-contracts/default-client`. Query hooks and mutations take
+the admitted session's client from `useProductApiClient()` (see
+[Packed product boundary](#packed-product-boundary)) and pass it as `client` to
+each SDK call. The local entrypoint's browser-wide interceptor
+(`lib/local-gateway/fetch-interceptor.ts`) adds only `X-Animama-CSRF: 1` to
+same-origin mutating `/v1` fetches; the hosted transport sends its session CSRF
+token. Owner-scoped query keys use the session cache key from
+`useRuntimeCacheKey()`, never the server owner ID, and wait for it.
+
+`useRuntimeCapabilities()` starts from the admitted capabilities. A hosted
+runtime keeps the permissions of its current admission; a local runtime
+refreshes them from `GET /v1/runtime-capabilities` (worker heartbeats and speech
+model changes). Product entry points are offered only for a capability that is
+`true`. An entry point whose capability the runtime reports `false` stays
+visible but disabled with the shared hosted exclusion reason
+(`RuntimeFeatureGate`, `UnavailableAction`); while capabilities are unknown it
+stays hidden.
 
 Frontend env access should go through `src/frontend/web/src/platform/env.ts`.
 

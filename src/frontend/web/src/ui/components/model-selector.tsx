@@ -15,6 +15,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/ui/components/dialog";
+import { publicResourceUrl } from "@/lib/resource-urls";
 import { cn } from "@/lib/utils";
 
 import type { ComponentProps, ReactNode } from "react";
@@ -254,4 +255,3 @@ export const ModelSelectorName = ({
 }: ModelSelectorNameProps) => (
   <span className={cn("flex-1 truncate text-left", className)} {...props} />
 );
-import { publicResourceUrl } from "@/lib/resource-urls";

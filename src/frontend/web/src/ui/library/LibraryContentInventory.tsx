@@ -67,6 +67,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/ui/components/tooltip";
+import { UnavailableAction } from "@/ui/components/unavailable-action";
 import { SoundPickerPreview } from "@/ui/sound-preview/SoundPickerPreview";
 import {
   ActionManageDialog,
@@ -765,7 +766,22 @@ export function LibraryContentInventory({
                         </Button>
                       </ActionTooltip>
                       {avatar.catalog_item_id ? (
-                        <RuntimeFeatureGate capability="anima_creation">
+                        <RuntimeFeatureGate
+                          capability="anima_creation"
+                          unavailable={(reason) => (
+                            // The reason shows in both layouts, unlike the label tooltip.
+                            <UnavailableAction reason={reason}>
+                              <Button
+                                type="button"
+                                size={layout === "grid" ? "icon-sm" : "sm"}
+                                aria-label="Create Anima"
+                              >
+                                <Plus />
+                                {layout === "list" ? " Create Anima" : null}
+                              </Button>
+                            </UnavailableAction>
+                          )}
+                        >
                           <ActionTooltip label="Create Anima" layout={layout}>
                             <Button
                               size={layout === "grid" ? "icon-sm" : "sm"}

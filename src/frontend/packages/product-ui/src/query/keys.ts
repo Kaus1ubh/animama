@@ -1,6 +1,8 @@
 export const queryKeys = {
   runtimeCapabilities: (ownerId: string) =>
     ["runtime-capabilities", ownerId] as const,
+  /** Hosted account usage and limits, from the composition's account actions. */
+  accountUsage: (ownerId: string) => ["account-usage", ownerId] as const,
   crisisResources: (ownerId: string, locale: string) =>
     ["crisis-resources", ownerId, locale] as const,
   modelAssets: (ownerId: string) => ["model-assets", ownerId] as const,

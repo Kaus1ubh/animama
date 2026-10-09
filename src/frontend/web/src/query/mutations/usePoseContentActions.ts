@@ -10,6 +10,7 @@ import { deleteCatalogItem } from "@/lib/content/catalogApi";
 import { toContentSaveApiError } from "@/lib/content/contentSaveErrors";
 import type { PoseSaveInput } from "@/lib/content/poseContent";
 import { queryKeys } from "@/query/keys";
+import { sdkResultError } from "@/query/sdkResultError";
 
 /** Submit the captured revision and operation unchanged, including retries. */
 export async function savePoseContent(
@@ -41,7 +42,9 @@ export async function savePoseContent(
       throwOnError: false,
     });
     if (response.error !== undefined || !response.data)
-      throw toContentSaveApiError(response.error, response.response.status);
+      throw sdkResultError(response, (status, error) =>
+        toContentSaveApiError(error, status),
+      );
     return response.data;
   } catch (error) {
     throw toContentSaveApiError(error);

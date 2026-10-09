@@ -4,7 +4,9 @@ import { useLibrarySharingFlow } from "@/query/hooks/useLibrarySharingFlow";
 import { LibrarySharingDialog } from "./LibrarySharingDialog";
 import { LibraryBig, Menu } from "lucide-react";
 
+import { hostedExclusionReasons } from "@/app/runtime/route-admission";
 import type { ContentLibrarySearch } from "@/lib/content/librarySearch";
+import { useRuntimeCapabilities } from "@/query/hooks/useRuntimeCapabilities";
 import { AppShellPage } from "@/ui/app/AppShellPage";
 import { useOptionalAppShell } from "@/ui/app/AppShell";
 import { cn } from "@/lib/utils";
@@ -13,9 +15,13 @@ import {
   UNDERLINE_TAB_LIST_CLASS,
   underlineTabClassName,
 } from "@/ui/components/tabs";
+import { UnavailableAction } from "@/ui/components/unavailable-action";
 import { LibraryChatUploads } from "@/ui/library/LibraryChatUploads";
 import { LibraryContentInventory } from "@/ui/library/LibraryContentInventory";
-import { useRuntimeFeatureEnabled } from "@/ui/app/RuntimeFeatureGate";
+import {
+  useRuntimeFeatureEnabled,
+  useRuntimeFeatureUnavailableReason,
+} from "@/ui/app/RuntimeFeatureGate";
 import { ContentHealth } from "@/ui/content-health/ContentHealth";
 
 const SECTIONS = [
@@ -37,6 +43,15 @@ export function LibraryPage({
   const appShell = useOptionalAppShell();
   const sharing = useLibrarySharingFlow();
   const uploadsEnabled = useRuntimeFeatureEnabled("chat_file_uploads");
+  const uploadsUnavailable =
+    useRuntimeFeatureUnavailableReason("chat_file_uploads");
+  // Chat Uploads also manages document processing. Where uploads are withheld,
+  // the section names a withheld processor too; a local runtime without the
+  // document worker still offers uploads and never shows this reason.
+  const documentsUnavailable =
+    useRuntimeCapabilities().data?.user_file_processing?.enabled === false
+      ? hostedExclusionReasons.document_processing
+      : null;
   return (
     <AppShellPage contentClassName="gap-0">
       <header className="pb-4">
@@ -71,17 +86,31 @@ export function LibraryPage({
         )}
       >
         {SECTIONS.filter(
-          ([value]) => value !== "chat-uploads" || uploadsEnabled,
-        ).map(([value, label]) => (
-          <button
-            key={value}
-            type="button"
-            className={underlineTabClassName(search.section === value)}
-            onClick={() => onSearchChange({ section: value })}
-          >
-            {label}
-          </button>
-        ))}
+          ([value]) =>
+            value !== "chat-uploads" ||
+            uploadsEnabled ||
+            uploadsUnavailable !== null,
+        ).map(([value, label]) =>
+          value === "chat-uploads" && uploadsUnavailable ? (
+            <UnavailableAction key={value} reason={uploadsUnavailable}>
+              <button
+                type="button"
+                className={underlineTabClassName(search.section === value)}
+              >
+                {label}
+              </button>
+            </UnavailableAction>
+          ) : (
+            <button
+              key={value}
+              type="button"
+              className={underlineTabClassName(search.section === value)}
+              onClick={() => onSearchChange({ section: value })}
+            >
+              {label}
+            </button>
+          ),
+        )}
       </nav>
       {search.section === "actions" ? (
         <div className="flex flex-wrap items-center gap-2 pt-4">
@@ -140,8 +169,13 @@ export function LibraryPage({
                 Chat Uploads unavailable
               </h2>
               <p className="text-muted-foreground">
-                Chat attachments and document uploads are unavailable here. You
-                can still import, create and share Library content.
+                {[
+                  uploadsUnavailable,
+                  documentsUnavailable,
+                  "You can still import, create and share Library content.",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
               </p>
               <Button
                 variant="outline"

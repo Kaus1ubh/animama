@@ -9,6 +9,7 @@ import type { PyMemoryManagerRunResponse } from "@/lib/content/catalogTypes";
 import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { MemoryManagerApiError } from "@/lib/memory-manager/errors";
 import { queryKeys } from "@/query/keys";
+import { sdkResultError } from "@/query/sdkResultError";
 
 export type CompleteMemoryManagerRunArgs = {
   runId: string;
@@ -36,7 +37,10 @@ export function useCompleteMemoryManagerRun() {
           throwOnError: false,
         });
       if (result.error !== undefined) {
-        throw new MemoryManagerApiError(result.response.status, result.error);
+        throw sdkResultError(
+          result,
+          (status, error) => new MemoryManagerApiError(status, error),
+        );
       }
       return result.data;
     },

@@ -12,6 +12,7 @@ import {
   ChatInput,
   ChatInputDictation,
   ChatInputFileUploadButton,
+  ChatInputFileUploadUnavailable,
   ChatInputModelSelector,
   ChatInputSubmit,
   ChatInputTextArea,
@@ -56,7 +57,10 @@ import {
 import { queryKeys } from "@/query/keys";
 import { useUserFiles } from "@/query/hooks/useUserFiles";
 import { useRuntimeCapabilities } from "@/query/hooks/useRuntimeCapabilities";
-import { useRuntimeFeatureEnabled } from "@/ui/app/RuntimeFeatureGate";
+import {
+  useRuntimeFeatureEnabled,
+  useRuntimeFeatureUnavailableReason,
+} from "@/ui/app/RuntimeFeatureGate";
 import { OfflineSpeechDownloads } from "@/ui/settings/OfflineSpeechDownloads";
 import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
 import { isWebSpeechSupported } from "@/lib/speech/stt-provider";
@@ -222,10 +226,14 @@ export function ChatInterfaceView({
     crisisSlot !== null,
   );
   const capabilities = useRuntimeCapabilities();
-  // Withholding the uploader hides the attach button, drop overlay and tray.
+  // Withholding the uploader removes the live attach button, drop overlay and
+  // tray; a runtime that reports uploads withheld keeps a disabled attach
+  // button with the shared reason instead.
   const fileUploadUppy = useRuntimeFeatureEnabled("chat_file_uploads")
     ? suppliedFileUploadUppy
     : undefined;
+  const attachUnavailableReason =
+    useRuntimeFeatureUnavailableReason("chat_file_uploads");
   const platform = useRuntimePlatform();
   const speechAvailable =
     capabilities.data?.offline_speech_enabled === true ||
@@ -397,6 +405,10 @@ export function ChatInterfaceView({
                       onToggleExistingFile?.(file)
                     }
                     disabled={!canChat || isStreaming}
+                  />
+                ) : attachUnavailableReason ? (
+                  <ChatInputFileUploadUnavailable
+                    reason={attachUnavailableReason}
                   />
                 ) : null
               }
