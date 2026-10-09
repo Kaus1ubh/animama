@@ -1,5 +1,6 @@
 """Compatibility exports for the shared product contracts."""
 
+from animama.app.contracts.idle_style import PyIdleCell as PyIdleCell, PyIdlePlayback as PyIdlePlayback
 from animama.app.contracts.runtime_content import (
     PyAnimaRuntime as PyAnimaRuntime,
     PyRuntimeAction as PyRuntimeAction,

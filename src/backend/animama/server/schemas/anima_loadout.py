@@ -31,3 +31,4 @@ from animama.app.contracts.anima_loadout import (
     PySingleSelectionPlanRequest as PySingleSelectionPlanRequest,
     __all__ as __all__,
 )
+from animama.app.contracts.idle_style import PyIdleCell as PyIdleCell
