@@ -59,6 +59,27 @@ export function toTtsProvider(value: unknown): TtsProvider | null {
   return null;
 }
 
+/**
+ * Whether to warm up and preload Pocket TTS from the effective preferences.
+ *
+ * Until the owner's settings load, preferences resolve from the defaults, which
+ * turn Pocket TTS on. Preparing it then would download and run Pocket TTS for
+ * owners who turned speech off or chose another provider.
+ */
+export function shouldPreparePocketTts(
+  settingsLoading: boolean,
+  ttsEnabled: boolean | undefined,
+  ttsProvider: unknown,
+  supported: () => boolean = isPocketTtsSupported,
+): boolean {
+  return (
+    !settingsLoading &&
+    ttsEnabled === true &&
+    toTtsProvider(ttsProvider) === "pocket_tts" &&
+    supported()
+  );
+}
+
 export function isBrowserSpeechSynthesisSupported(
   platform: RuntimePlatform = getRuntimePlatformSnapshot(),
 ): boolean {
