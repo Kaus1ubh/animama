@@ -10,6 +10,7 @@ import {
   purgeHostedRecoverySessions,
   recoverySessionIsActive,
 } from "./recovery-session";
+import { assetAttemptStorageKey } from "@/query/model-download-coordination";
 
 describe("hosted recovery retirement", () => {
   afterEach(() => vi.unstubAllGlobals());
@@ -58,5 +59,33 @@ describe("hosted recovery retirement", () => {
       loadContentEditRecovery("installation-owner", "pose", "new"),
     ).not.toBeNull();
     expect(recoverySessionIsActive(current)).toBe(false);
+  });
+
+  it("removes hosted model download hints with their generation and on sign-out", async () => {
+    const rows = new Map<string, string>();
+    vi.stubGlobal("window", {
+      localStorage: {
+        get length() {
+          return rows.size;
+        },
+        key: (index: number) => [...rows.keys()][index] ?? null,
+        getItem: (key: string) => rows.get(key) ?? null,
+        removeItem: (key: string) => rows.delete(key),
+      },
+    });
+    const old = "hosted:hint-generation-123:first-tab";
+    const orphan = "hosted:hint-generation-123:closed-tab";
+    const current = "hosted:next-generation-456:second-tab";
+    const local = "installation-owner";
+    for (const key of [old, orphan, current, local])
+      rows.set(assetAttemptStorageKey(key), '{"ids":[]}');
+    beginHostedRecoverySession(old);
+    beginHostedRecoverySession(current);
+    await endHostedRecoverySession(old);
+    expect([...rows.keys()].sort()).toEqual(
+      [assetAttemptStorageKey(current), assetAttemptStorageKey(local)].sort(),
+    );
+    await purgeHostedRecoverySessions();
+    expect([...rows.keys()]).toEqual([assetAttemptStorageKey(local)]);
   });
 });

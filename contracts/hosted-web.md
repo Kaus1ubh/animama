@@ -58,8 +58,9 @@ as two local tabs share local drafts.
 An absent/invalid generation withholds durable reload recovery without granting
 additional permissions. Session retirement removes all tabs' marked namespaces
 for that generation, preserving a newer replacement generation. Explicit account
-sign-out removes marked hosted history and import receipts, including records
-left by older tabs/pages; local installation drafts and device preferences remain
+sign-out removes marked hosted history, import receipts and model download Retry
+hints, including records left by older tabs/pages; retirement also removes that
+generation's hints. Local installation drafts and device preferences remain
 separate. Older unmarked UUID namespaces cannot be classified as hosted or local
 and are never admitted through this recovery identity.
 

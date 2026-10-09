@@ -12,6 +12,7 @@ import { useAnimaAnimationDebugStore } from "@/stores/anima-animation-debug-stor
 import { useAnimationDebugStore } from "@/stores/animation-debug-store";
 import { useSceneVFXStore } from "@/stores/scene-vfx-store";
 import { endHostedRecoverySession } from "@/lib/content/recovery-session";
+import { privateStateResets } from "./private-module-state";
 
 /** Private module state ends with admission; browser device preferences and model stores survive. */
 export async function clearPrivateSessionState(
@@ -45,6 +46,8 @@ export async function clearPrivateSessionState(
     () => useAnimaAnimationDebugStore.getState().clearSnapshot(),
     () => useVoiceVadDebugStore.getState().reset(),
     () => useSceneVFXStore.getState().clearAllSceneVFX(),
+    // Module-level drafts of lazily loaded features (pending saves, staged files).
+    ...privateStateResets(),
   ];
   for (const dispose of disposals) {
     try {

@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import type { Object3D } from "three";
 
 import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
+import { registerPrivateStateReset } from "@/app/runtime/private-module-state";
 import { Avatar } from "@/lib/avatar";
 import {
   avatarEffectRecoveryStore,
@@ -139,6 +140,10 @@ let previewAfterSave: {
   model: ContentCreatorModelSource | null;
   view: AvatarPreviewCameraProfile;
 } | null = null;
+// The kept preview (which may name a private model) ends with its session.
+registerPrivateStateReset(() => {
+  previewAfterSave = null;
+});
 
 type PreviewStatus = {
   state: "idle" | "loading" | "ready" | "error";

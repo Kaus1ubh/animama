@@ -29,6 +29,7 @@ import {
 import { contentSaveFieldError } from "@/lib/content/contentSaveErrors";
 import { createUniqueContentName } from "@/lib/content/uniqueContentName";
 import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
+import { registerPrivateStateReset } from "@/app/runtime/private-module-state";
 import { queryKeys } from "@/query/keys";
 import type {
   ActionDocument,
@@ -52,6 +53,8 @@ type PendingAction = {
 };
 
 const pendingActions = new Map<string, PendingAction>();
+// Staged VRMA files and pending saves belong to the session that made them.
+registerPrivateStateReset(() => pendingActions.clear());
 
 function slug(value: string): string {
   return (

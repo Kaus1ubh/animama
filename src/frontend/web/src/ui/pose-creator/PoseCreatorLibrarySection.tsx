@@ -41,6 +41,7 @@ import type { PyPose } from "@animama/runtime-contracts/api-types";
 import { ContentSaveApiError } from "@/lib/content/contentSaveErrors";
 import { fetchPoseNames, usePoses } from "@/query/hooks/usePoses";
 import { createUniqueContentName } from "@/lib/content/uniqueContentName";
+import { registerPrivateStateReset } from "@/app/runtime/private-module-state";
 import { usePoseContentActions } from "@/query/mutations/usePoseContentActions";
 import {
   preparePoseSaveAttempt,
@@ -108,6 +109,10 @@ let poseSaveAttempt: {
   attempt: PoseSaveAttempt;
   submittedDraft: ReturnType<typeof capturePoseCreatorSubmittedDraft>;
 } | null = null;
+// Ending a browser session discards its pending Save with its other drafts.
+registerPrivateStateReset(() => {
+  poseSaveAttempt = null;
+});
 
 // These domain errors confirm that the attempted mutation did not commit.
 // Unknown operations/timeouts retain their receipt even when delivered as 4xx.
