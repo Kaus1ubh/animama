@@ -32,6 +32,7 @@ production readiness or publication rights.
 | 0016 | [animaPoseClip/2.0 is the only clip format](0016-anima-pose-clip-2-only.md)                                                                        | accepted                                     |
 | 0018 | [Non-portable Included content for licensed built-in motion](0018-non-portable-included-content.md)                                                | accepted                                     |
 | 0019 | [Hand keys with fitted presets and per-finger offsets](0019-hand-keys-with-fitted-presets-and-finger-offsets.md)                                   | accepted                                     |
+| 0020 | [Solved hand contacts](0020-solved-hand-contacts.md)                                                                                               | accepted                                     |
 
 ## When and how to record a decision
 

@@ -47,8 +47,8 @@ under `.agents/skills/animama-animation/references/`.
       worktree; their results are summarized in the Decision Log and the Phase 1
       pinch test reproduces the fit evidence.
 - [x] G1: owner agreed spec, plan and D0–D6 (2026-10-09).
-- [x] Phase 1: hand model (R1–R3); review #3 passed 2026-10-09.
-- [ ] Phase 2: contact solver, schema and checks (R4, R5, R6 retiming, R7, R8).
+- [x] Phase 1: hand model (R1–R3); review #3 passed 2026-10-09; commit `4939106c`.
+- [x] Phase 2: contact solver, schema and checks (R4, R5, R6 retiming, R7, R8); review #3 passed 2026-10-09.
 - [x] Owner decisions D1–D6 (2026-10-09; D3 re-animate now).
 - [ ] Phase 3: drafts and owner preview review (R10, R11, R13; gate G2).
 - [ ] Phase 4: creator write-back for solved arms and promotion tooling (R6 edits, R9).
@@ -342,7 +342,97 @@ Completion: tests pass, review passed.
 
 #### Code Review #1 Findings
 
+Reviewed 2026-10-09: uncommitted tree on `4939106c` (Phase 1 commit), excluding
+`.animama-drafts/`; independent `sdlc-reviewer` with scratch probes. Lead checks:
+`tsc -b` clean; full web vitest 418 files / 3371 passed; prettier and web lint
+clean; backend 360 passed; ruff clean.
+
+- **P2-R1-01 (required):** oscillation WARN fires after 3 swings (~1.5–2 cycles),
+  not three cycles as R8 says (`checks.ts:155, :753`); no boundary test.
+- **P2-R1-02 (required):** the solved-head-contact WARN omits `bounce`, which
+  rotates the neck and head (`checks.ts:923-929`).
+- **P2-R1-03 (optional):** unreachable targets clamp hard at full reach (√Δw
+  steps; 24–51°/frame at 60 Hz for targets 25 cm out); ADR names only straight
+  arms.
+- **P2-R1-04 (optional; lead: required):** mutual palm-to-palm solves are
+  degenerate (non-monotonic); docs, fixture and a test model a clap as two
+  solved palms while `clip-format.md` says one.
+- **P2-R1-05 (optional):** touching windows with different targets get zero
+  ramps and pop (19–22°).
+- **P2-R1-06 (optional):** no `joint`-point landing test though ADR 0020 says so.
+- **P2-R1-07 (optional, docs):** `[canonical]` scope for solved arms, facing
+  target for limbs, wave palm angle numbers.
+- Optional: duplicated hand/finger regexes, test-only `frames()`, schema importing
+  the solver for `CONTACT_POINTS`; laugh fixtures need classifying at source review.
+
 #### Code Review #1 Revisions
+
+2026-10-09, repair round #1 (one of two allowed):
+
+- **P2-R1-01 accepted, fixed:** the oscillation WARN needs three full cycles (six
+  reversals, mean rate > 4 Hz, ≥ 1.5° each); boundary tests (2–2.5 cycles pass, 3
+  warn); pre-revision laughs still warn.
+- **P2-R1-02 accepted, fixed:** `bounce` added to the head-moving layers; tests
+  and docs updated.
+- **P2-R1-03 accepted, fixed:** soft reach saturates the pinned distance over the
+  last 3 cm (targets at full reach miss by ~1.1 cm); bounded-speed tests on both
+  Avatars; ADR 0020 names the fast-motion causes.
+- **P2-R1-04 accepted (lead decision), fixed:** hand-to-hand solves are one-sided;
+  both validators reject mutual hand↔hand solves whose blended windows overlap
+  (loop-wrapped); crossed arms onto the other arm stay mutual; fixture, tests and
+  docs use the one-sided clap.
+- **P2-R1-05 accepted as documentation:** a touching window must continue the same
+  contact or leave a gap (smoothness catches pops); no schema rule.
+- **P2-R1-06 accepted, fixed:** `joint`-point landing scenarios added; the rig
+  cross-check now honours `targetPoint`.
+- **P2-R1-07 accepted:** docs corrected; `facing` for limb targets now aims at the
+  nearest point of the target segment (code and test), which also flags the
+  current Arms Crossed and Pout Huff (to be revised).
+- Optional code quality done: shared bone patterns and contact points in
+  import-free `contactPoints.ts`; `frames()` kept (used by two test files).
+
+Evidence: `tsc -b` clean; full web vitest 418 files, 3409 passed, 4 failed in
+`tests/local-api-proxy.test.ts` under load (file passes 8/8 alone; untouched by
+this branch); prettier and lint clean; backend 366 passed.
+
+
+#### Code Review #2 Findings
+
+Targeted recheck 2026-10-09: **pass.** P2-R1-01..07 resolved (oscillation boundary
+probe; bounce; soft reach makes steps proportional to the weight step; 4000-clip
+randomized parity probe with 0 front/back disagreements; docs). Optional:
+
+- **P2-R2-01 (optional):** a mixed mutual pair (one hand onto the other hand while
+  that hand is solved onto the first arm) is accepted and diverges in the solver;
+  checks FAIL it, but an imported package would play it.
+- **P2-R2-02 (optional, wording):** lopsided pulses are rated up to ~25% above
+  their cycle rate (odd interval count), unlike the docs' wording.
+- Nits: a backend comment cites `arms.ts` for contact points; mutual crossed arms
+  cost ~17.6 µs per sample.
+
+#### Code Review #2 Revisions
+
+Repair round #2 (last allowed), 2026-10-09:
+
+- **P2-R2-01 accepted, fixed:** both validators reject two overlapping solved
+  contacts on opposite sides whose targets each lie on the other arm when either
+  target is the other hand or fingers; crossed arms onto upper arms/forearms stay
+  mutual. Shared fixture cases (mixed pairs invalid; crossed arms and hand onto
+  chest valid); ADR 0020 decision 5 and docs updated.
+- **P2-R2-02 accepted, fixed in code:** oscillation is timed over whole cycles
+  (peak to peak and trough to trough), so lopsided pulses count at their true
+  rate; new uneven-pulse test; sub-frame timing test rewritten.
+- Nit fixed: backend comment cites `anatomy/contactPoints.ts`.
+
+Evidence: `tsc -b` clean; vitest poses + motion-authoring 537 passed; backend
+287 passed; ruff, mypy, eslint and prettier clean; baseline unchanged.
+
+#### Code Review #3 Findings
+
+Final targeted recheck 2026-10-09: **pass.** P2-R2-01 resolved (4000-clip
+randomized parity plus an independent oracle: 0 disagreements); P2-R2-02 resolved
+(lopsided 3.7 Hz pulse no longer warns; 3-cycle boundary unchanged). No
+regressions; one long doc line wrapped.
 
 ### Phase 3 — Drafts and owner preview review (R10, R11, R13; gate G2)
 
@@ -407,7 +497,10 @@ with Phase 3). Gate: G1. Completion: tests pass; review passed.
    changes only with an explicit `rename`/`loopChange` field; tests in
    `scripts/animation-promote.test.mjs`. Rename-only legacy items are edited by
    hand (meta and clip `name`) so their owner-authored licence rule stays.
-3. Skill: `promote.md`, `SKILL.md` decision rules; document `--view hands`.
+3. `effects check` gains `--with-clip <clip> [--times …]` so body-attached art
+   on a hand (the fingertip bulb) is checked in the pose it is used in; today it
+   renders arms down and reports "no visible art" (found 2026-10-09).
+4. Skill: `promote.md`, `SKILL.md` decision rules; document `--view hands`.
 
 Checks: store, `beatEditing`, `node --test scripts/*.test.mjs`. Review as above.
 

@@ -5,12 +5,14 @@ import {
   serializeAnimaPoseClipFile,
 } from "./clipVocabulary";
 import compatibilityClip from "./fixtures/compatibility-valid-v2.json";
+import contactCases from "./fixtures/contacts-v2.json";
 import handKeys from "./fixtures/hand-keys-v2.json";
 import {
   ANIMA_POSE_CLIP_V2_LIMITS,
   ANIMA_POSE_CLIP_V2_MIN_SPACING,
   parseAnimaPoseClipV2,
   validateAnimaPoseClipV2,
+  type AnimaPoseClipContact,
   type AnimaPoseClipV2,
 } from "./schemaV2";
 
@@ -236,6 +238,154 @@ describe("animaPoseClip/2.0 shared fixtures", () => {
       expect(issuesOf(withHands(hands))).toEqual([path]);
     },
   );
+
+  const withContacts = (contacts: unknown) => ({
+    ...contactCases.clip,
+    contacts,
+  });
+
+  it.each(contactCases.valid.map((entry) => [entry.name, entry] as const))(
+    "accepts contacts: %s",
+    (_, { contacts, parsed }) => {
+      const result = validateAnimaPoseClipV2(withContacts(contacts));
+      expect(result.ok && result.clip.contacts).toEqual(parsed);
+    },
+  );
+
+  it.each(contactCases.invalid.map((entry) => [entry.name, entry] as const))(
+    "rejects contacts: %s",
+    (_, { contacts, path, loop }) => {
+      const value = withContacts(contacts);
+      expect(issuesOf(loop ? { ...value, loop } : value)).toEqual([path]);
+    },
+  );
+});
+
+describe("animaPoseClip/2.0 contact fields", () => {
+  const withContacts = (contacts: unknown) => ({
+    ...contactCases.clip,
+    contacts,
+  });
+  /** A solved palm-to-chin contact with the given blends. */
+  const chin = (
+    solve: AnimaPoseClipContact["solve"] = { blendIn: 0.25 },
+  ): AnimaPoseClipContact => ({
+    bone: "rightHand",
+    point: "palm",
+    target: "head",
+    offset: [0, -0.06, 0.09],
+    beat: "touch",
+    from: 0,
+    to: 0.4,
+    facing: true,
+    solve,
+  });
+
+  it("keeps the new fields through a saved file and adds no defaults", () => {
+    const result = validateAnimaPoseClipV2(withContacts([chin()]));
+    if (!result.ok) throw new Error(JSON.stringify(result.issues));
+    const saved = JSON.parse(serializeAnimaPoseClipFile(result.clip));
+    expect(saved.contacts).toEqual([chin()]);
+    const reread = validateAnimaPoseClipV2(saved);
+    expect(reread.ok && reread.clip.contacts).toEqual([chin()]);
+    // An older contact stays exactly as written.
+    const plain = validateAnimaPoseClipV2(clip());
+    expect(plain.ok && plain.clip.contacts).toEqual(clip().contacts);
+  });
+
+  it("saves blends at time precision", () => {
+    const result = validateAnimaPoseClipV2(
+      withContacts([chin({ blendIn: 0.123456, blendOut: 1.99996 })]),
+    );
+    if (!result.ok) throw new Error(JSON.stringify(result.issues));
+    const rounded = { blendIn: 0.1235, blendOut: 2 };
+    expect(result.clip.contacts![0].solve).toEqual(rounded);
+    expect(
+      JSON.parse(serializeAnimaPoseClipFile(result.clip)).contacts[0].solve,
+    ).toEqual(rounded);
+  });
+
+  it("reports every problem of a contact in one run", () => {
+    const result = validateAnimaPoseClipV2(
+      withContacts([
+        {
+          bone: "head",
+          point: "palm",
+          target: "leftHand",
+          targetPoint: "tip",
+          beat: "touch",
+          from: 0,
+          to: 0.1,
+          facing: true,
+          solve: { blendIn: 3, mode: "offset" },
+        },
+      ]),
+    );
+    expect(!result.ok && result.issues).toEqual([
+      {
+        path: "contacts[0].point",
+        message: '"palm" applies only to a hand bone, not head.',
+      },
+      {
+        path: "contacts[0].targetPoint",
+        message: '"tip" applies only to a finger bone, not leftHand.',
+      },
+      {
+        path: "contacts[0].facing",
+        message: "Palm facing applies only to a hand or finger bone, not head.",
+      },
+      {
+        path: "contacts[0].solve.blendIn",
+        message: "Expected seconds from 0 to 2.",
+      },
+      {
+        path: "contacts[0].solve.mode",
+        message: "Unknown field. solve accepts: blendIn, blendOut.",
+      },
+      {
+        path: "contacts[0].bone",
+        message: "A solved contact moves a hand or finger bone, not head.",
+      },
+    ]);
+  });
+
+  it("names the window a solved contact overlaps", () => {
+    const value = withContacts([
+      {
+        bone: "leftHand",
+        target: "head",
+        beat: "touch",
+        from: 0,
+        to: 0.6,
+        solve: {},
+      },
+      {
+        bone: "rightHand",
+        target: "head",
+        beat: "touch",
+        from: 0,
+        to: 0.6,
+        solve: {},
+      },
+      {
+        bone: "leftThumbDistal",
+        point: "tip",
+        target: "head",
+        beat: "clap",
+        from: 0,
+        to: 0.1,
+        solve: {},
+      },
+    ]);
+    const result = validateAnimaPoseClipV2(value);
+    expect(!result.ok && result.issues).toEqual([
+      {
+        path: "contacts[2].solve",
+        message:
+          "Overlaps the solved window of contacts[0]; solved contacts on the left arm must not overlap in time.",
+      },
+    ]);
+  });
 });
 
 describe("animaPoseClip/2.0 per-finger offsets", () => {

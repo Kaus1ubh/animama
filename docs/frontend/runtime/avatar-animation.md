@@ -358,13 +358,39 @@ uses a fixed package-level message).
   for playful motion. A loop whose tracks key both 0 and the duration closes
   smoothly across the seam.
 - `plantFeet: true` solves the legs during playback so both feet stay at
-  rest. `contacts` record intended touches (`bone`, `target`, beat-relative
-  `from`/`to`) for the motion checks; playback ignores them.
+  rest.
+- `contacts` declare intended touches: `bone` touches `target` from `from` to
+  `to` seconds after `beat`, with optional `tolerance` and `offset` (metres for
+  a 1.25 m rest head height, in the target's rest-aligned frame, scaled by each
+  Avatar's height). `point` and `targetPoint` measure at the joint origin
+  (`joint`, the default), the palm surface (`palm`, hand bones) or a finger
+  segment's far end (`tip`, finger bones). `facing: true` (hand or finger
+  bones) asks the checks to verify that the palm turns toward the target. The
+  motion checks measure every contact.
+- A contact with `solve` (`{}` or `{ blendIn?, blendOut? }`, 0–2 s, default
+  0.15 s) also plays: during its window that arm's upper arm and elbow are
+  re-solved on each Avatar so the point lands on the target, keeping the
+  authored collarbone, elbow swivel, forearm rotation, wrist and fingers, and
+  easing in and out (ramps of consecutive windows on one side shorten to meet
+  midway, so claps chain). Within 3 cm of full reach the arm saturates softly
+  instead of snapping straight, so a target at full reach misses by about
+  1.1 cm. A solved contact moves a hand or finger bone, does not target its
+  own arm, and solved windows on one side do not overlap. Two solved contacts
+  whose targets each lie on the other arm are rejected when their windows
+  with blends overlap, unless both target an upper arm or forearm (crossed
+  arms): a hand target would make each hand chase the other, so a clap
+  solves one palm onto the other. Retiming a beat maps solved windows through
+  the beat times; unsolved contacts keep their offsets from their beat. Live
+  layers applied after the clip (breathing, unmuted head or torso layers) can
+  still move a solved contact by millimetres, so clips with solved head
+  contacts mute the head and torso layers. See
+  [ADR 0020](../../adr/0020-solved-hand-contacts.md).
 - Clips are prepared once per Avatar when playback starts
   (`createAnimaPoseClipProgram`): hand presets are fitted to its fingers (the
-  thumb, and for `pinch` and `ok` also the index so the pads meet) and planted
-  legs are solved on its rig. Sampling a frame then costs about
-  0.01 ms.
+  thumb, and for `pinch` and `ok` also the index so the pads meet), and planted
+  legs and solved contacts are solved on its rig after the rest of the pose
+  (`solveContacts: false` plays the authored arms). Sampling a frame then costs
+  about 0.01 ms.
 - Parsing rejects a duration over 3,600 s, more than 1,000 beats, 400 tracks
   or 50,000 keys, beat ids over 64 characters and labels over 80, and
   preserves unknown top-level fields verbatim. A clip needs at least one track

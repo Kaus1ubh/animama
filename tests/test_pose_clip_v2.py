@@ -13,6 +13,8 @@ import pytest
 
 from animama.app.services.content_package_capabilities import derive_capabilities
 from animama.app.services.idle_clip_validation import (
+    V2_CONTACT_POINTS,
+    V2_CONTACT_SOLVE,
     V2_EASES,
     V2_HAND_ADJUSTMENT_LIMITS,
     V2_HAND_DIGIT_OFFSETS,
@@ -30,6 +32,7 @@ from tests.test_content_package_capabilities import _document
 REPOSITORY = Path(__file__).parents[1]
 CLIP_FIXTURES = REPOSITORY / "src/frontend/web/src/lib/avatar/poses/animaPoseClip/fixtures"
 HAND_KEYS = json.loads((CLIP_FIXTURES / "hand-keys-v2.json").read_text())
+CONTACTS = json.loads((CLIP_FIXTURES / "contacts-v2.json").read_text())
 
 
 def test_vocabulary_matches_the_frontend_joint_model() -> None:
@@ -43,6 +46,8 @@ def test_vocabulary_matches_the_frontend_joint_model() -> None:
     } == vocabulary["handDigitOffsets"]
     assert list(V2_HAND_DIGIT_OFFSETS) == list(vocabulary["handDigitOffsets"])
     assert V2_HAND_FINGER_OFFSET_LIMIT == vocabulary["handFingerOffsetLimit"]
+    assert list(V2_CONTACT_POINTS) == vocabulary["contactPoints"]
+    assert V2_CONTACT_SOLVE == vocabulary["contactSolve"]
     assert V2_EASES == set(vocabulary["eases"])
     assert V2_MIN_SPACING_SECONDS == vocabulary["minSpacingSeconds"]
     assert V2_LIMITS == vocabulary["limits"]
@@ -105,6 +110,8 @@ _FINGERS = "hands.right[0].fingers"
         # Python's JSON reader admits NaN and integers too large for a float.
         ({"hands": {"right": [_hand_key(fingers={"index": {"curl": [1, math.nan, 2]}})]}}, _FINGERS + ".index.curl"),
         ({"hands": {"right": [_hand_key(fingers={"thumb": {"twist": 10**400}})]}}, _FINGERS + ".thumb.twist"),
+        ({"contacts": [_contact(solve={"blendIn": math.nan})]}, "contacts[0].solve.blendIn"),
+        ({"contacts": [_contact(point=["palm"])]}, "contacts[0].point"),
     ],
 )
 def test_hostile_values_are_rejected_not_raised(clip_patch: dict[str, object], field: str) -> None:
@@ -137,6 +144,17 @@ def test_shared_hand_keys_are_admitted(case: dict[str, Any]) -> None:
 def test_shared_invalid_hand_keys_are_rejected_at_their_path(case: dict[str, Any]) -> None:
     with pytest.raises(ContentDocumentError, match=rf"Gesture clip {re.escape(case['path'])} "):
         validate_clip_v2_timeline(HAND_KEYS["clip"] | {"hands": case["hands"]})
+
+
+@pytest.mark.parametrize("case", CONTACTS["valid"], ids=lambda case: case["name"])
+def test_shared_contacts_are_admitted(case: dict[str, Any]) -> None:
+    assert validate_clip_v2_timeline(CONTACTS["clip"] | {"contacts": case["contacts"]}) == 2
+
+
+@pytest.mark.parametrize("case", CONTACTS["invalid"], ids=lambda case: case["name"])
+def test_shared_invalid_contacts_are_rejected_at_their_path(case: dict[str, Any]) -> None:
+    with pytest.raises(ContentDocumentError, match=rf"Gesture clip {re.escape(case['path'])} "):
+        validate_clip_v2_timeline(CONTACTS["clip"] | {"contacts": case["contacts"], "loop": case.get("loop", False)})
 
 
 def _tracked_included_clips() -> list[str]:

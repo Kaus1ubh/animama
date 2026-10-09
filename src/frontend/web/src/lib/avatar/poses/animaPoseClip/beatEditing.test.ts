@@ -28,7 +28,11 @@ import {
   type BeatEditContext,
 } from "./beatEditing";
 import { prepareAnimaPoseClipV2 } from "./prepareV2";
-import { validateAnimaPoseClipV2, type AnimaPoseClipV2 } from "./schemaV2";
+import {
+  validateAnimaPoseClipV2,
+  type AnimaPoseClipContact,
+  type AnimaPoseClipV2,
+} from "./schemaV2";
 
 const resolvePose = (id: string) => getResolvedAvatarPose(id);
 const example = (name: string): AnimaPoseClipV2 => {
@@ -799,6 +803,128 @@ describe("contacts follow the clip", () => {
     for (const beat of clip.beats)
       for (let time = 0; time <= clip.duration; time += clip.duration / 12)
         valid(retimeBeat(clip, beat.id, time));
+  });
+
+  /** Absolute window of a contact. */
+  const windowOf = (clip: AnimaPoseClipV2, index: number) => {
+    const contact = clip.contacts![index];
+    const time = beat(clip, contact.beat).time;
+    return [time + contact.from, time + contact.to].map(
+      (value) => Math.round(value * 1e4) / 1e4,
+    );
+  };
+  /**
+   * Four beats with a solved palm held on the head from "b" to "c", its
+   * unsolved twin, and a solved left contact inside the gap after "c".
+   */
+  const touching = (): AnimaPoseClipV2 =>
+    valid({
+      ...plain(),
+      beats: [
+        { id: "a", label: "A", time: 0 },
+        { id: "b", label: "B", time: 1 },
+        { id: "c", label: "C", time: 2 },
+        { id: "d", label: "D", time: 2.5 },
+      ],
+      contacts: [
+        {
+          bone: "rightHand",
+          point: "palm",
+          target: "head",
+          beat: "b",
+          from: 0,
+          to: 1,
+          solve: {},
+        },
+        { bone: "rightHand", target: "head", beat: "b", from: 0, to: 1 },
+        {
+          bone: "leftHand",
+          target: "rightHand",
+          beat: "c",
+          from: 0.25,
+          to: 0.4,
+          solve: { blendIn: 0.05 },
+        },
+      ],
+    });
+
+  it("maps solved windows through retimed beats; unsolved ones move with their beat", () => {
+    const later = valid(retimeBeat(touching(), "c", 2.2));
+    // The solved window still ends on "c"; the one after "c" stretches with
+    // its gap (2.25 and 2.4 of 2–2.5 become 2.35 and 2.44 of 2.2–2.5).
+    expect(windowOf(later, 0)).toEqual([1, 2.2]);
+    expect(windowOf(later, 1)).toEqual([1, 2]);
+    expect(windowOf(later, 2)).toEqual([2.35, 2.44]);
+    expect(later.contacts![2]).toMatchObject({ from: 0.15, to: 0.24 });
+    expect(later.contacts![0].solve).toEqual({});
+    expect(later.contacts![2].solve).toEqual({ blendIn: 0.05 });
+
+    const earlier = valid(retimeBeat(touching(), "b", 0.6));
+    expect(earlier.contacts![0]).toMatchObject({ from: 0, to: 1.4 });
+    expect(windowOf(earlier, 0)).toEqual([0.6, 2]);
+    // Unsolved: the same offsets from its moved beat.
+    expect(earlier.contacts![1]).toMatchObject({ from: 0, to: 1 });
+    expect(windowOf(earlier, 1)).toEqual([0.6, 1.6]);
+    expect(windowOf(earlier, 2)).toEqual([2.25, 2.4]);
+  });
+
+  it("keeps chained solved windows apart when a retime squeezes them", () => {
+    const palms = (from: number, to: number): AnimaPoseClipContact => ({
+      bone: "rightHand",
+      point: "palm",
+      target: "leftHand",
+      targetPoint: "palm",
+      beat: "b",
+      from,
+      to,
+      solve: {},
+    });
+    const claps = valid({
+      ...plain(),
+      contacts: [palms(0, 0.05), palms(0.25, 0.3), palms(0.5, 0.55)],
+    });
+    const squeezed = valid(retimeBeat(claps, "c", 1.2));
+    expect(
+      squeezed.contacts!.map((_, index) => windowOf(squeezed, index)),
+    ).toEqual([
+      [1, 1.01],
+      [1.05, 1.06],
+      [1.1, 1.11],
+    ]);
+    const stretched = valid(retimeBeat(claps, "b", 0.5));
+    expect(
+      stretched.contacts!.map((_, index) => windowOf(stretched, index)),
+    ).toEqual([
+      [0.5, 0.575],
+      [0.875, 0.95],
+      [1.25, 1.325],
+    ]);
+  });
+
+  it("stops a beat before a solved window would fold over it", () => {
+    const solved = valid({
+      ...plain(),
+      contacts: [
+        {
+          bone: "rightHand",
+          target: "head",
+          beat: "c",
+          from: -0.5,
+          to: -0.2,
+          solve: {},
+        },
+      ],
+    });
+    const moved = valid(retimeBeat(solved, "b", 2.5));
+    expect(moved.beats.map(({ id }) => id)).toEqual(["a", "b", "c"]);
+    expect(beat(moved, "b").time).toBeGreaterThan(1.99);
+    expect(beat(moved, "b").time).toBeLessThan(2);
+    // Without solve the contact does not hold the beat back.
+    const unsolved = { ...solved, contacts: [{ ...solved.contacts![0] }] };
+    delete unsolved.contacts[0].solve;
+    expect(
+      valid(retimeBeat(unsolved, "b", 2.5)).beats.map(({ id }) => id),
+    ).toEqual(["a", "c", "b"]);
   });
 
   it("clamps a window to the duration and drops one that collapses", () => {

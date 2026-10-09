@@ -12,7 +12,7 @@ from __future__ import annotations
 import math
 import re
 from decimal import ROUND_HALF_UP, Decimal
-from typing import Any
+from typing import Any, NamedTuple
 
 from animama.app.services.content_pose import HUMAN_BONE_NAMES
 from animama.domain.content_documents import ContentDocumentError
@@ -212,6 +212,9 @@ V2_HAND_DIGIT_OFFSETS: dict[str, dict[str, tuple[str, ...]]] = {
     },
 }
 V2_HAND_FINGER_OFFSET_LIMIT = 90
+# Contact points and solved-contact blends (frontend anatomy/contactPoints.ts and schemaV2.ts).
+V2_CONTACT_POINTS = ("joint", "tip", "palm")
+V2_CONTACT_SOLVE = {"defaultBlendSeconds": 0.15, "maxBlendSeconds": 2}
 V2_MIN_SPACING_SECONDS = 0.0005
 V2_LIMITS = {
     "durationSeconds": 3600,
@@ -254,6 +257,12 @@ def _v2_joint_components() -> dict[str, tuple[str, ...]]:
 # Anatomical components each joint accepts (frontend poses/anatomy/anatomy.ts).
 V2_JOINT_COMPONENTS = _v2_joint_components()
 _V2_LEG = re.compile(r"^(left|right)(UpperLeg|LowerLeg|Foot)$")
+# A hand or finger bone: what a solved contact moves and ``facing`` turns.
+_V2_HAND_OR_FINGER = re.compile(r"^(left|right)(Hand|Thumb|Index|Middle|Ring|Little)")
+# Bones a solved contact's arm moves, which its target must not ride on.
+_V2_ARM_BONE = re.compile(r"^(left|right)(UpperArm|LowerArm|Hand|Thumb|Index|Middle|Ring|Little)")
+_V2_HAND = re.compile(r"^(left|right)Hand$")
+_V2_FINGER = re.compile(r"^(left|right)(Thumb|Index|Middle|Ring|Little)(Metacarpal|Proximal|Intermediate|Distal)$")
 _V2_TICKS_PER_SECOND = 10_000
 
 
@@ -299,6 +308,119 @@ def _v2_hand_fingers(value: Any, field: str) -> None:
                 values = amount
             for number in values:
                 _number(number, offset_field, minimum=-limit, maximum=limit)
+
+
+def _v2_contact_point(value: Any, bone: str, field: str) -> None:
+    """Admit a contact ``point`` or ``targetPoint``: ``palm`` on a hand, ``tip`` on a finger."""
+    _enum(value, field, set(V2_CONTACT_POINTS))
+    _require(value != "palm" or bool(_V2_HAND.match(bone)), field, "palm applies only to a hand bone")
+    _require(value != "tip" or bool(_V2_FINGER.match(bone)), field, "tip applies only to a finger bone")
+
+
+class _SolvedWindow(NamedTuple):
+    """A solved contact's window in ticks, as the frontend ``SolvedWindow``."""
+
+    side: str
+    start: int
+    end: int
+    # Position of the contact in ``contacts``.
+    contact: int
+    # Where on the other side's arm the target is: "hand" (its hand or fingers),
+    # "arm" (its upper arm or forearm), or None.
+    cross_target: str | None
+    # Blend ticks before and after the window, defaults applied.
+    blend_in: int
+    blend_out: int
+
+
+_OTHER_SIDE = {"left": "right", "right": "left"}
+
+
+def _v2_contact_solve(
+    contact: dict[str, Any], bone: str, target: str, field: str, start: int, end: int, index: int
+) -> _SolvedWindow:
+    """Admit a contact's ``solve`` and return its window.
+
+    ``solve`` is ``{}`` or holds ``blendIn``/``blendOut`` seconds; the moved bone is a
+    hand or finger, and the target must not ride on that arm.
+    """
+    maximum = V2_CONTACT_SOLVE["maxBlendSeconds"]
+    solve = _record(contact["solve"], f"{field}.solve")
+    for name, seconds in solve.items():
+        _require(name in ("blendIn", "blendOut"), f"{field}.solve.{name}", "is not a solve field")
+        _number(seconds, f"{field}.solve.{name}", minimum=0, maximum=maximum)
+    effector = _V2_HAND_OR_FINGER.match(bone)
+    _require(effector is not None, f"{field}.bone", "must be a hand or finger bone to be solved")
+    side = effector.group(1) if effector else ""
+    arm = _V2_ARM_BONE.match(target)
+    _require(arm is None or arm.group(1) != side, f"{field}.target", "must not be on the arm the solve moves")
+    cross = None
+    if arm is not None and arm.group(1) == _OTHER_SIDE.get(side):
+        cross = "hand" if _V2_HAND_OR_FINGER.match(target) else "arm"
+    default = V2_CONTACT_SOLVE["defaultBlendSeconds"]
+    return _SolvedWindow(
+        side,
+        start,
+        end,
+        index,
+        cross,
+        _v2_ticks(solve.get("blendIn", default), f"{field}.solve.blendIn"),
+        _v2_ticks(solve.get("blendOut", default), f"{field}.solve.blendOut"),
+    )
+
+
+def _v2_solved_windows(windows: list[_SolvedWindow]) -> None:
+    """Reject solved windows that overlap on one side, as the frontend ``checkSolvedWindows``.
+
+    Windows may touch; the first one that starts before an earlier-starting window on
+    its side has ended is reported at its ``solve``.
+    """
+    for side in ("left", "right"):
+        reach: int | None = None
+        for window in sorted((window for window in windows if window.side == side), key=lambda w: (w.start, w.contact)):
+            _require(
+                reach is None or window.start >= reach,
+                f"contacts[{window.contact}].solve",
+                "overlaps another solved window",
+            )
+            reach = window.end if reach is None else max(reach, window.end)
+
+
+def _v2_mutual_windows(windows: list[_SolvedWindow], end: int, loop: bool) -> None:
+    """Limit mutual solves to crossed arms, as the frontend ``checkMutualWindows``.
+
+    Two solved contacts on opposite sides whose targets each lie on the other side's
+    arm must not be active together (windows with blends, wrapped across a loop's
+    seam) unless both targets are an upper arm or forearm: when either targets the
+    other hand or its fingers, each hand chases the other.
+    """
+    spans: list[tuple[int, int, int, str, str]] = []
+    for window in windows:
+        kind = window.cross_target
+        if kind is None:
+            continue
+        start, stop = window.start - window.blend_in, window.end + window.blend_out
+        if loop and stop - start >= end:
+            spans.append((0, end, window.contact, window.side, kind))
+            continue
+        spans.append((max(start, 0), min(stop, end), window.contact, window.side, kind))
+        if loop and start < 0:
+            spans.append((start + end, end, window.contact, window.side, kind))
+        if loop and stop > end:
+            spans.append((0, stop - end, window.contact, window.side, kind))
+    # Per side and kind: the latest end so far.
+    reach = {side: {"hand": -math.inf, "arm": -math.inf} for side in ("left", "right")}
+    for start, stop, index, side, kind in sorted(spans, key=lambda span: (span[0], span[2])):
+        other = reach[_OTHER_SIDE[side]]
+        # Two arm targets (crossed arms) may be mutual; a hand target may not.
+        latest = other["hand"] if kind == "arm" else max(other["hand"], other["arm"])
+        _require(
+            start >= latest,
+            f"contacts[{index}].solve",
+            "is solved toward the other arm while that arm is solved toward this one; only crossed arms onto"
+            " the upper arm or forearm may be solved both ways",
+        )
+        reach[side][kind] = max(reach[side][kind], stop)
 
 
 def _utf16_length(value: str) -> int:
@@ -449,6 +571,7 @@ def validate_clip_v2_timeline(clip: dict[str, Any]) -> float:
         _require(bool(name.strip()) and name != "__proto__", f"expressions.{name}", "must be an expression name")
         keys(raw, f"expressions.{name}", scalar(0, 1, False))
 
+    solved_windows: list[_SolvedWindow] = []
     for index, raw_contact in enumerate(_array(clip.get("contacts", []), "contacts")):
         field = f"contacts[{index}]"
         contact = _record(raw_contact, field)
@@ -456,6 +579,7 @@ def validate_clip_v2_timeline(clip: dict[str, Any]) -> float:
             bone_name = contact.get(key)
             is_bone = isinstance(bone_name, str) and bone_name in HUMAN_BONE_NAMES
             _require(is_bone, f"{field}.{key}", "must be a humanoid bone")
+        bone, target = str(contact["bone"]), str(contact["target"])
         owner = _beat_name(contact.get("beat"), beat_ticks, f"{field}.beat")
         start = beat_ticks[owner] + _v2_ticks(_number(contact.get("from"), f"{field}.from"), f"{field}.from")
         stop = beat_ticks[owner] + _v2_ticks(_number(contact.get("to"), f"{field}.to"), f"{field}.to")
@@ -467,6 +591,17 @@ def validate_clip_v2_timeline(clip: dict[str, Any]) -> float:
                 _number(value, f"{field}.offset")
         if "tolerance" in contact:
             _require(_number(contact["tolerance"], f"{field}.tolerance") > 0, f"{field}.tolerance", "must be positive")
+        if "point" in contact:
+            _v2_contact_point(contact["point"], bone, f"{field}.point")
+        if "targetPoint" in contact:
+            _v2_contact_point(contact["targetPoint"], target, f"{field}.targetPoint")
+        if "facing" in contact:
+            _require(isinstance(contact["facing"], bool), f"{field}.facing", "must be boolean")
+            _require(bool(_V2_HAND_OR_FINGER.match(bone)), f"{field}.facing", "applies only to a hand or finger bone")
+        if "solve" in contact:
+            solved_windows.append(_v2_contact_solve(contact, bone, target, field, start, stop, index))
+    _v2_solved_windows(solved_windows)
+    _v2_mutual_windows(solved_windows, end, clip.get("loop") is True)
 
     ids: set[str] = set()
     events = _array(clip.get("events", []), "events")

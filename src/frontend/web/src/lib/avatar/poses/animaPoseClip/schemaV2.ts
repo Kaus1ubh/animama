@@ -3,6 +3,14 @@ import type { VRMHumanBoneName } from "@pixiv/three-vrm";
 import { isVRMHumanBoneName } from "../animaPose";
 import { JOINT_DEFINITIONS, resolveJoint, type Side } from "../anatomy/anatomy";
 import {
+  ARM_BONE,
+  CONTACT_POINTS,
+  FINGER_BONE,
+  HAND_BONE,
+  HAND_OR_FINGER_BONE,
+  type ContactPoint,
+} from "../anatomy/contactPoints";
+import {
   HAND_ADJUSTMENT_LIMITS,
   HAND_DIGIT_OFFSETS,
   HAND_DIGITS,
@@ -87,17 +95,36 @@ export type AnimaPoseClipHandKey = BeatOwned & {
   fingers?: Partial<Record<HandDigit, HandDigitOffset>>;
 };
 
-/** An intended touch, for the motion checks; playback ignores it. */
+/**
+ * An intended touch between `bone` and `target` from `from` to `to` seconds
+ * after its beat. The motion checks measure every contact; playback moves the
+ * arm only for a contact with `solve`.
+ */
 export type AnimaPoseClipContact = {
   bone: string;
   target: string;
+  /** Metres at the reference height, in the target's rest-aligned frame. */
   offset?: [number, number, number];
   beat: string;
   /** Seconds from the beat. */
   from: number;
   to: number;
   tolerance?: number;
+  /** Where on `bone` the contact is measured (default `joint`, its origin). */
+  point?: ContactPoint;
+  /** Where on `target` the contact lands (default `joint`). */
+  targetPoint?: ContactPoint;
+  /** The checks also verify that the palm of `bone`'s hand faces the target. */
+  facing?: boolean;
+  /**
+   * Playback moves the arm on each Avatar so `point` lands on the target during
+   * the window, blending in and out over `blendIn`/`blendOut` seconds
+   * (default {@link ANIMA_POSE_CLIP_V2_CONTACT_SOLVE}`.defaultBlendSeconds`).
+   */
+  solve?: AnimaPoseClipContactSolve;
 };
+
+export type AnimaPoseClipContactSolve = { blendIn?: number; blendOut?: number };
 
 export type AnimaPoseClipV2 = {
   schema: typeof ANIMA_POSE_CLIP_V2_SCHEMA;
@@ -148,6 +175,14 @@ export const ANIMA_POSE_CLIP_V2_VALUE_BOUNDS = {
   hipsMetres: 1,
   /** Smallest accepted quaternion length. */
   minQuaternionLength: 1e-6,
+} as const;
+
+/** Solved-contact blends, shared with the backend validator. */
+export const ANIMA_POSE_CLIP_V2_CONTACT_SOLVE = {
+  /** Seconds a missing `blendIn` or `blendOut` lasts (applied at playback). */
+  defaultBlendSeconds: 0.15,
+  /** Longest accepted `blendIn` or `blendOut`, seconds. */
+  maxBlendSeconds: 2,
 } as const;
 
 const KNOWN_FIELDS = new Set([
@@ -573,6 +608,7 @@ export function validateAnimaPoseClipV2(
   }
 
   const contacts: AnimaPoseClipContact[] = [];
+  const solvedWindows: SolvedWindow[] = [];
   if (value.contacts !== undefined) {
     if (!Array.isArray(value.contacts))
       fail("contacts", "Expected an array of contacts.");
@@ -636,6 +672,26 @@ export function validateAnimaPoseClipV2(
             `${path}.tolerance`,
             "Expected a positive distance in metres.",
           );
+        const fields = parseContactFields(contact, bone, target, path, fail);
+        if (!fields) return;
+        if (fields.solve) {
+          const blend = ANIMA_POSE_CLIP_V2_CONTACT_SOLVE.defaultBlendSeconds;
+          const side: Side = bone.startsWith("left") ? "left" : "right";
+          solvedWindows.push({
+            index,
+            side,
+            start: beatTicks + toTicks(contact.from),
+            end: beatTicks + toTicks(contact.to),
+            crossTarget:
+              ARM_BONE.exec(target)?.[1] !== otherSide(side)
+                ? null
+                : HAND_OR_FINGER_BONE.test(target)
+                  ? "hand"
+                  : "arm",
+            blendIn: toTicks(fields.solve.blendIn ?? blend),
+            blendOut: toTicks(fields.solve.blendOut ?? blend),
+          });
+        }
         contacts.push({
           bone,
           target,
@@ -644,9 +700,12 @@ export function validateAnimaPoseClipV2(
           to: fromTicks(toTicks(contact.to)),
           ...(offset ? { offset: offset as [number, number, number] } : {}),
           ...(tolerance !== undefined ? { tolerance } : {}),
+          ...fields,
         });
       });
   }
+  checkSolvedWindows(solvedWindows, fail);
+  checkMutualWindows(solvedWindows, endTicks, value.loop === true, fail);
 
   const events =
     value.events === undefined
@@ -852,6 +911,244 @@ function parseHandFingers(
   }
   return fingers;
 }
+
+const SOLVE_FIELDS = ["blendIn", "blendOut"] as const;
+
+type ContactFields = Pick<
+  AnimaPoseClipContact,
+  "point" | "targetPoint" | "facing" | "solve"
+>;
+/** A solved contact's window on its effector's side, in ticks. */
+type SolvedWindow = {
+  index: number;
+  side: Side;
+  start: number;
+  end: number;
+  /**
+   * Where on the other side's arm the target is: its hand or fingers
+   * (`hand`), its upper arm or forearm (`arm`), or neither (null).
+   */
+  crossTarget: "hand" | "arm" | null;
+  /** Blend ticks before and after the window, defaults applied. */
+  blendIn: number;
+  blendOut: number;
+};
+
+/**
+ * A contact's optional `point`, `targetPoint`, `facing` and `solve`, kept only
+ * when present (defaults are applied at playback, not written). Every problem
+ * is reported at its JSON path; null when any field is invalid.
+ */
+function parseContactFields(
+  contact: Record<string, unknown>,
+  bone: VRMHumanBoneName,
+  target: VRMHumanBoneName,
+  path: string,
+  fail: (path: string, message: string) => null,
+): ContactFields | null {
+  let valid = true;
+  const reject = (fieldPath: string, message: string) => {
+    valid = false;
+    fail(fieldPath, message);
+  };
+  const fields: ContactFields = {};
+  const point = (field: "point" | "targetPoint", on: VRMHumanBoneName) => {
+    const value = contact[field];
+    if (value === undefined) return;
+    if (!CONTACT_POINTS.includes(value as ContactPoint))
+      reject(
+        `${path}.${field}`,
+        `Expected one of: ${CONTACT_POINTS.join(", ")}.`,
+      );
+    else if (value === "palm" && !HAND_BONE.test(on))
+      reject(
+        `${path}.${field}`,
+        `"palm" applies only to a hand bone, not ${on}.`,
+      );
+    else if (value === "tip" && !FINGER_BONE.test(on))
+      reject(
+        `${path}.${field}`,
+        `"tip" applies only to a finger bone, not ${on}.`,
+      );
+    else fields[field] = value as ContactPoint;
+  };
+  point("point", bone);
+  point("targetPoint", target);
+  if (contact.facing !== undefined) {
+    if (typeof contact.facing !== "boolean")
+      reject(`${path}.facing`, "Expected true or false.");
+    else if (!HAND_OR_FINGER_BONE.test(bone))
+      reject(
+        `${path}.facing`,
+        `Palm facing applies only to a hand or finger bone, not ${bone}.`,
+      );
+    else fields.facing = contact.facing;
+  }
+  if (contact.solve !== undefined) {
+    const solve = parseContactSolve(contact.solve, `${path}.solve`, reject);
+    const side = HAND_OR_FINGER_BONE.exec(bone)?.[1];
+    if (!side)
+      reject(
+        `${path}.bone`,
+        `A solved contact moves a hand or finger bone, not ${bone}.`,
+      );
+    else if (ARM_BONE.exec(target)?.[1] === side)
+      reject(
+        `${path}.target`,
+        `A solved contact cannot target ${target}: it is on the arm the solve moves.`,
+      );
+    if (solve) fields.solve = solve;
+  }
+  return valid ? fields : null;
+}
+
+/** `solve`: `{}` or `{ blendIn?, blendOut? }` in seconds, kept at time precision. */
+function parseContactSolve(
+  value: unknown,
+  path: string,
+  reject: (path: string, message: string) => void,
+): AnimaPoseClipContactSolve | null {
+  const max = ANIMA_POSE_CLIP_V2_CONTACT_SOLVE.maxBlendSeconds;
+  if (!isRecord(value)) {
+    reject(path, "Expected { blendIn?, blendOut? } in seconds.");
+    return null;
+  }
+  const solve: AnimaPoseClipContactSolve = {};
+  for (const [field, seconds] of Object.entries(value)) {
+    if (!(SOLVE_FIELDS as readonly string[]).includes(field)) {
+      reject(
+        `${path}.${field}`,
+        `Unknown field. solve accepts: ${SOLVE_FIELDS.join(", ")}.`,
+      );
+      continue;
+    }
+    if (
+      typeof seconds !== "number" ||
+      !Number.isFinite(seconds) ||
+      seconds < 0 ||
+      seconds > max
+    ) {
+      reject(`${path}.${field}`, `Expected seconds from 0 to ${max}.`);
+      continue;
+    }
+    solve[field as (typeof SOLVE_FIELDS)[number]] = fromTicks(toTicks(seconds));
+  }
+  return solve;
+}
+
+/**
+ * One solved contact per side at a time: solved windows on one side must not
+ * overlap, though one may start where another ends. Their blend ramps may
+ * overlap; playback shortens them to meet midway. Each window that starts
+ * before an earlier-starting one on its side has ended is reported at its
+ * `solve`.
+ */
+function checkSolvedWindows(
+  windows: readonly SolvedWindow[],
+  fail: (path: string, message: string) => null,
+) {
+  for (const side of ["left", "right"] as const) {
+    let reach = Number.NEGATIVE_INFINITY;
+    let owner = -1;
+    for (const span of windows
+      .filter((candidate) => candidate.side === side)
+      .sort((a, b) => a.start - b.start || a.index - b.index)) {
+      if (span.start < reach)
+        fail(
+          `contacts[${span.index}].solve`,
+          `Overlaps the solved window of contacts[${owner}]; solved contacts on the ${side} arm must not overlap in time.`,
+        );
+      if (span.end > reach) {
+        reach = span.end;
+        owner = span.index;
+      }
+    }
+  }
+}
+
+/**
+ * Mutual solves are limited to crossed arms. Two solved contacts on opposite
+ * sides whose targets each lie on the other side's arm must not be active at
+ * the same time (windows with their blends, wrapped across a loop's seam),
+ * unless both targets are an upper arm or forearm: when either targets the
+ * other hand or its fingers, each hand chases the other and the solve
+ * diverges. A clap therefore solves one palm onto the other. Reported at the
+ * `solve` of the contact whose active span starts first inside the other's.
+ */
+function checkMutualWindows(
+  windows: readonly SolvedWindow[],
+  end: number,
+  loop: boolean,
+  fail: (path: string, message: string) => null,
+) {
+  type Kind = "hand" | "arm";
+  type Span = {
+    index: number;
+    side: Side;
+    kind: Kind;
+    start: number;
+    end: number;
+  };
+  const spans: Span[] = [];
+  for (const window of windows) {
+    const kind = window.crossTarget;
+    if (!kind) continue;
+    const from = window.start - window.blendIn;
+    const to = window.end + window.blendOut;
+    const span = (start: number, stop: number) =>
+      spans.push({
+        index: window.index,
+        side: window.side,
+        kind,
+        start,
+        end: stop,
+      });
+    if (loop && to - from >= end) span(0, end);
+    else {
+      span(Math.max(from, 0), Math.min(to, end));
+      if (loop && from < 0) span(from + end, end);
+      if (loop && to > end) span(0, to - end);
+    }
+  }
+  // Per side and kind: the latest end so far and the contact it belongs to.
+  const reach: Record<Side, Record<Kind, { end: number; index: number }>> = {
+    left: {
+      hand: { end: Number.NEGATIVE_INFINITY, index: -1 },
+      arm: { end: Number.NEGATIVE_INFINITY, index: -1 },
+    },
+    right: {
+      hand: { end: Number.NEGATIVE_INFINITY, index: -1 },
+      arm: { end: Number.NEGATIVE_INFINITY, index: -1 },
+    },
+  };
+  // A pair can meet twice across a loop's seam; it is reported once.
+  const reported = new Set<string>();
+  for (const span of spans.sort(
+    (a, b) => a.start - b.start || a.index - b.index,
+  )) {
+    const other = reach[otherSide(span.side)];
+    // Two arm targets (crossed arms) may be mutual; a hand target may not.
+    const latest =
+      span.kind === "arm" || other.hand.end >= other.arm.end
+        ? other.hand
+        : other.arm;
+    const pair = [span.index, latest.index].sort((a, b) => a - b).join();
+    if (span.start < latest.end && !reported.has(pair)) {
+      reported.add(pair);
+      fail(
+        `contacts[${span.index}].solve`,
+        `contacts[${latest.index}] solves the other arm toward this one at the same time (windows with their blends overlap), and one of them targets a hand: only crossed arms onto the upper arm or forearm may be solved both ways. Solve only one of them.`,
+      );
+    }
+    const own = reach[span.side][span.kind];
+    if (span.end > own.end) {
+      own.end = span.end;
+      own.index = span.index;
+    }
+  }
+}
+
+const otherSide = (side: Side): Side => (side === "left" ? "right" : "left");
 
 /** A finite number of degrees no further than `limit` from zero. */
 function isDegrees(value: unknown, limit: number): value is number {

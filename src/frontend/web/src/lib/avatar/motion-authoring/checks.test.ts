@@ -2,20 +2,35 @@ import type { VRM } from "@pixiv/three-vrm";
 import { Quaternion, Vector3 } from "three";
 import { beforeAll, describe, expect, it } from "vitest";
 
-import type {
-  AnimaPoseClipEase,
-  AnimaPoseClipV2,
-} from "../poses/animaPoseClip";
 import {
+  parseAnimaPoseClip,
+  type AnimaPoseClipContact,
+  type AnimaPoseClipEase,
+  type AnimaPoseClipV2,
+} from "../poses/animaPoseClip";
+import { createAnimaPoseClipProgram } from "../poses/animaPoseClip/program";
+import {
+  angularDistanceDegrees,
+  composeJointRotation,
+  resolveJoint,
+} from "../poses/anatomy/anatomy";
+import { CanonicalSkeleton, avatarScale } from "../poses/anatomy/arms";
+import { HAND_PRESETS } from "../poses/anatomy/handPresetIds";
+import {
+  MOTION_CHECK_THRESHOLDS,
   checkMotion,
+  checkOscillation,
   checkParity,
   segmentDistance,
   type MotionCheckContact,
   type MotionCheckFinding,
 } from "./checks";
 import wave from "../../../../../../../content/included/gestures/wave-hello/wave-hello.json";
-import { getAvatarPoseClip } from "../poses/catalog";
+import { getAvatarPoseClip, getResolvedAvatarPose } from "../poses/catalog";
 import { loadTestAvatar } from "./testing/includedAvatars";
+// The laughs as Included on main at bfc0de4f, before their #314 revision.
+import heartyLaugh from "./testing/laughs-bfc0de4f/hearty-laugh.json";
+import mediumLaugh from "./testing/laughs-bfc0de4f/medium-laugh.json";
 
 let vrm0: VRM;
 let vrm1: VRM;
@@ -413,5 +428,620 @@ describe("segmentDistance", () => {
     expect(
       segmentDistance(v(0, 0, 0), v(0, 0, 0), v(0, 2, 0), v(0, 2, 0)),
     ).toBeCloseTo(2);
+  });
+});
+
+const AVATAR_IDS = ["AvatarSample_Y_0", "AvatarSample_A_1_New"];
+const LIVE_HEAD_LAYERS = [
+  "sway",
+  "bounce",
+  "headNod",
+  "headSideTilt",
+  "cursorLookAt",
+  "emotionPosture",
+] as const;
+
+type ClipContact = Omit<AnimaPoseClipContact, "beat" | "from" | "to"> &
+  Partial<Pick<AnimaPoseClipContact, "from" | "to">>;
+
+/**
+ * A one-second 2.0 clip holding joint values (degrees) and hand presets, with
+ * live head layers muted and contacts over the whole clip unless they say
+ * otherwise.
+ */
+const held = ({
+  joints = { head: { flexion: 0 } },
+  contacts,
+  hands,
+  muted = LIVE_HEAD_LAYERS,
+}: {
+  joints?: Record<string, Record<string, number>>;
+  contacts?: ClipContact[];
+  hands?: Partial<Record<"left" | "right", Record<string, unknown>>>;
+  muted?: readonly string[];
+}) => ({
+  schema: "animaPoseClip/2.0",
+  id: "held",
+  name: "Held",
+  duration: 1,
+  basePose: "relaxedRest",
+  plantFeet: true,
+  ...(muted.length > 0 ? { mutedProceduralLayers: muted } : {}),
+  beats: [{ id: "start", label: "Start", time: 0 }],
+  joints: Object.fromEntries(
+    Object.entries(joints).map(([joint, values]) => [
+      joint,
+      Object.fromEntries(
+        Object.entries(values).map(([name, v]) => [
+          name,
+          [{ beat: "start", v }],
+        ]),
+      ),
+    ]),
+  ),
+  ...(hands
+    ? {
+        hands: Object.fromEntries(
+          Object.entries(hands).map(([side, key]) => [
+            side,
+            [{ beat: "start", ...key }],
+          ]),
+        ),
+      }
+    : {}),
+  ...(contacts
+    ? {
+        contacts: contacts.map((contact) => ({
+          beat: "start",
+          from: 0,
+          to: 1,
+          ...contact,
+        })),
+      }
+    : {}),
+});
+
+const ofCategory = (findings: MotionCheckFinding[], category: string) =>
+  findings.filter((f) => f.category === category);
+
+/** The right palm held under the chin, 2–3 cm from it on both Avatars. */
+const CHIN = {
+  rightUpperArm: { elevation: 65, planeOfElevation: 90, rotation: 60 },
+  rightLowerArm: { flexion: 140 },
+};
+const PALM_ON_CHIN: ClipContact = {
+  bone: "rightHand",
+  point: "palm",
+  target: "head",
+  offset: [0, 0, 0.08],
+};
+
+describe("contacts", () => {
+  it("measures a contact at its point and reports offsets at the reference height", () => {
+    // The hanging right palm, about 55 cm below the head.
+    const clip = held({});
+    const report = checkMotion(clip, avatars(), {
+      contacts: [
+        {
+          bone: "rightHand",
+          point: "palm",
+          target: "head",
+          from: 0,
+          to: 1,
+          tolerance: 0.001,
+        },
+      ],
+    });
+    for (const { id, vrm } of avatars()) {
+      // Expected from canonical forward kinematics: the palm point relative
+      // to the head in its rest-aligned frame, over the Avatar's scale.
+      const skeleton = new CanonicalSkeleton(vrm);
+      const pose = createAnimaPoseClipProgram(parseAnimaPoseClip(clip), {
+        vrm,
+        resolvePose: getResolvedAvatarPose,
+      }).sample(0.5).sample.humanoid!;
+      const frames = skeleton.frames(pose, ["rightHand", "head"]);
+      const hand = frames.get("rightHand")!;
+      const head = frames.get("head")!;
+      const expected = skeleton
+        .pointOffset("rightHand", "palm")!
+        .clone()
+        .applyQuaternion(hand.rotation)
+        .add(hand.position)
+        .sub(head.position)
+        .applyQuaternion(head.rotation.clone().invert())
+        .divideScalar(avatarScale(skeleton));
+      const finding = ofCategory(report.findings, "contact").find(
+        (f) => f.avatar === id,
+      );
+      expect(finding, id).toBeDefined();
+      expect(finding!.actualOffset![1], id).toBeLessThan(-0.4);
+      finding!.actualOffset!.forEach((value, axis) =>
+        expect(
+          Math.abs(value - expected.getComponent(axis)),
+          `${id} axis ${axis}`,
+        ).toBeLessThanOrEqual(0.0011),
+      );
+    }
+  });
+
+  it("holds a solved contact to 1.5 cm and lands it on both Avatars", () => {
+    const unsolved = checkMotion(
+      held({ joints: CHIN, contacts: [{ ...PALM_ON_CHIN, tolerance: 0.015 }] }),
+      avatars(),
+    );
+    expect(
+      failures(unsolved.findings, "contact")
+        .map((f) => f.avatar)
+        .sort(),
+    ).toEqual([...AVATAR_IDS].sort());
+    const solved = checkMotion(
+      held({ joints: CHIN, contacts: [{ ...PALM_ON_CHIN, solve: {} }] }),
+      avatars(),
+    );
+    expect(ofCategory(solved.findings, "contact")).toEqual([]);
+    // The canonical pass covers the first Avatar's solve; the others report
+    // their own solved arms (A_1's longer forearm folds past 140°).
+    expect(
+      solved.findings.filter(
+        (f) => f.category === "range" && f.avatar === "AvatarSample_A_1_New",
+      ),
+    ).toMatchObject([{ subject: "rightLowerArm.flexion", severity: "warn" }]);
+  });
+
+  it("reports a solved contact that an Avatar cannot reach", () => {
+    const report = checkMotion(
+      held({
+        joints: {
+          rightUpperArm: { elevation: 80, planeOfElevation: 90 },
+          rightLowerArm: { flexion: 30 },
+        },
+        contacts: [
+          {
+            bone: "rightHand",
+            point: "palm",
+            target: "chest",
+            offset: [-0.15, 0.1, 0.45],
+            solve: {},
+          },
+        ],
+      }),
+      avatars(),
+    );
+    // A_1's arm is 6 cm longer and reaches the target.
+    expect(failures(report.findings, "contact")).toMatchObject([
+      {
+        avatar: "AvatarSample_Y_0",
+        subject: "rightHand→chest",
+        detail: expect.stringContaining("unreachable on this Avatar"),
+        limit: 0.015,
+      },
+    ]);
+  });
+
+  it("warns when a solved contact's authored arm is far from its target", () => {
+    const report = checkMotion(
+      held({ contacts: [{ ...PALM_ON_CHIN, from: 0.3, to: 0.7, solve: {} }] }),
+      avatars(),
+    );
+    const warnings = ofCategory(report.findings, "contact").filter((f) =>
+      f.detail.startsWith("the authored arm is far"),
+    );
+    expect(warnings.map((f) => f.avatar).sort()).toEqual(
+      [...AVATAR_IDS].sort(),
+    );
+    for (const warning of warnings) {
+      expect(warning.severity).toBe("warn");
+      // The hanging hand is about 55 cm below the chin.
+      expect(warning.value).toBeGreaterThan(0.5);
+      expect(warning.actualOffset![1]).toBeLessThan(-0.4);
+    }
+    // Near the target (the chin pose), the solver only corrects: no warning.
+    const near = checkMotion(
+      held({ joints: CHIN, contacts: [{ ...PALM_ON_CHIN, solve: {} }] }),
+      avatars(),
+    );
+    expect(ofCategory(near.findings, "contact")).toEqual([]);
+  });
+
+  it("checks the smoothness of solved arms on every Avatar", () => {
+    // A hanging arm solved onto the chin: the 0.15 s ramps swing it fast.
+    const reach = held({
+      contacts: [{ ...PALM_ON_CHIN, from: 0.3, to: 0.7, solve: {} }],
+    });
+    // The canonical pass plays the first Avatar's solve; each later Avatar
+    // reports its own solved arms.
+    for (const order of [avatars(), [...avatars()].reverse()]) {
+      const later = order[1].id;
+      const jumps = failures(
+        checkMotion(reach, order).findings,
+        "smoothness",
+      ).filter((f) => f.avatar === later);
+      expect(new Set(jumps.map((f) => f.subject)), later).toEqual(
+        new Set(["rightUpperArm", "rightLowerArm"]),
+      );
+    }
+  });
+
+  it("measures parity on the authored arms, before each Avatar's solve", () => {
+    // A target near the full reach of Y_0's shorter arm: A_1 bends its elbow.
+    const clip = held({
+      joints: {
+        rightUpperArm: { elevation: 80, planeOfElevation: 90 },
+        rightLowerArm: { flexion: 30 },
+      },
+      contacts: [
+        {
+          bone: "rightHand",
+          point: "palm",
+          target: "chest",
+          offset: [-0.15, 0.1, 0.4],
+          solve: {},
+        },
+      ],
+    });
+    // The solved forearms turn differently on the two rigs…
+    const [solved0, solved1] = avatars().map(({ vrm }) => {
+      const pose = createAnimaPoseClipProgram(parseAnimaPoseClip(clip), {
+        vrm,
+        resolvePose: getResolvedAvatarPose,
+      }).sample(0.5).sample.humanoid!;
+      return new CanonicalSkeleton(vrm)
+        .frames(pose, ["rightLowerArm"])
+        .get("rightLowerArm")!.rotation;
+    });
+    expect(angularDistanceDegrees(solved0, solved1)).toBeGreaterThan(
+      MOTION_CHECK_THRESHOLDS.parityDegrees,
+    );
+    // …which is not a conversion error.
+    const report = checkMotion(clip, avatars());
+    expect(ofCategory(report.findings, "parity")).toEqual([]);
+    expect(report.ok).toBe(true);
+  });
+
+  it("warns about a palm that does not face its target, on either hand", () => {
+    // Arms forward, elbows nearly straight; supination turns the palms.
+    const arms = (supination: number) =>
+      Object.fromEntries(
+        (["left", "right"] as const).flatMap((side) => [
+          [`${side}UpperArm`, { elevation: 80, planeOfElevation: 80 }],
+          [`${side}LowerArm`, { flexion: 10, supination }],
+        ]),
+      );
+    const facing: ClipContact[] = [
+      {
+        bone: "leftHand",
+        point: "palm",
+        target: "rightHand",
+        targetPoint: "palm",
+        facing: true,
+        tolerance: 1,
+      },
+      {
+        bone: "rightHand",
+        point: "palm",
+        target: "leftHand",
+        targetPoint: "palm",
+        facing: true,
+        tolerance: 1,
+      },
+    ];
+    const toward = checkMotion(
+      held({ joints: arms(80), contacts: facing }),
+      avatars(),
+    );
+    expect(ofCategory(toward.findings, "contact")).toEqual([]);
+    const away = checkMotion(
+      held({ joints: arms(-75), contacts: facing }),
+      avatars(),
+    );
+    const turned = ofCategory(away.findings, "contact");
+    expect(turned.map((f) => `${f.avatar} ${f.subject}`).sort()).toEqual(
+      AVATAR_IDS.flatMap((id) => [
+        `${id} leftHand→rightHand`,
+        `${id} rightHand→leftHand`,
+      ]).sort(),
+    );
+    for (const finding of turned) {
+      expect(finding).toMatchObject({ severity: "warn", limit: 45 });
+      expect(finding.value).toBeGreaterThan(135);
+    }
+  });
+
+  it("aims a palm resting on a forearm at the forearm, not at its elbow", () => {
+    // The left palm solved onto the middle of the right forearm.
+    const resting = (supination: number) =>
+      held({
+        joints: {
+          rightUpperArm: {
+            elevation: 25,
+            planeOfElevation: 100,
+            rotation: -70,
+          },
+          rightLowerArm: { flexion: 115 },
+          leftUpperArm: { elevation: 45, planeOfElevation: 70, rotation: -60 },
+          leftLowerArm: { flexion: 125, supination },
+          leftHand: { flexion: -50, deviation: 20 },
+        },
+        contacts: [
+          {
+            bone: "leftHand",
+            point: "palm",
+            target: "rightLowerArm",
+            offset: [-0.12, 0.03, 0],
+            facing: true,
+            solve: {},
+          },
+        ],
+      });
+    const facingFindings = (clip: object) =>
+      ofCategory(checkMotion(clip, avatars()).findings, "contact").filter(
+        (f) => f.detail === "the palm does not face the target",
+      );
+    // Toward the elbow this palm is 80–90° off; toward the forearm 25–40°.
+    expect(facingFindings(resting(-75))).toEqual([]);
+    expect(
+      facingFindings(resting(40))
+        .map((f) => f.avatar)
+        .sort(),
+    ).toEqual([...AVATAR_IDS].sort());
+  });
+
+  it("warns about a solved head contact while live head layers run", () => {
+    const solved = { ...PALM_ON_CHIN, solve: {} };
+    const live = checkMotion(
+      held({ joints: CHIN, contacts: [solved], muted: ["breathing"] }),
+      avatars(),
+    );
+    expect(ofCategory(live.findings, "contact")).toMatchObject([
+      {
+        severity: "warn",
+        avatar: null,
+        subject: "rightHand→head",
+        detail: expect.stringMatching(
+          /; mute sway, bounce, headNod, headSideTilt, cursorLookAt, emotionPosture$/,
+        ),
+      },
+    ]);
+    // Bounce nods the head and neck too.
+    const bouncing = checkMotion(
+      held({
+        joints: CHIN,
+        contacts: [solved],
+        muted: LIVE_HEAD_LAYERS.filter((layer) => layer !== "bounce"),
+      }),
+      avatars(),
+    );
+    expect(ofCategory(bouncing.findings, "contact")).toMatchObject([
+      { detail: expect.stringMatching(/; mute bounce$/) },
+    ]);
+    // Muted, or unsolved, there is nothing to drift.
+    for (const clip of [
+      held({ joints: CHIN, contacts: [solved] }),
+      held({ joints: CHIN, contacts: [PALM_ON_CHIN], muted: [] }),
+    ])
+      expect(
+        ofCategory(checkMotion(clip, avatars()).findings, "contact"),
+      ).toEqual([]);
+  });
+});
+
+describe("oscillation", () => {
+  /** Chest flexion pulsing between `low` and `high` at `hertz` for a second. */
+  const pulse = (hertz: number, low: number, high: number) =>
+    motion({
+      joints: {
+        chest: {
+          flexion: [
+            { t: 0, v: 0 },
+            ...Array.from({ length: Math.floor(2 * hertz) }, (_, index) => ({
+              t: Math.round(((index + 1) / (2 * hertz)) * 1e4) / 1e4,
+              v: index % 2 === 0 ? high : low,
+            })),
+          ],
+        },
+      },
+    });
+
+  it("does not warn about a 3 Hz bounce or the wave", () => {
+    expect(ofCategory(check(pulse(3, -2, 4)).findings, "oscillation")).toEqual(
+      [],
+    );
+    expect(
+      ofCategory(checkMotion(wave, avatars()).findings, "oscillation"),
+    ).toEqual([]);
+  });
+
+  it("warns about swings faster than 4 Hz above a small amplitude", () => {
+    const [shake] = ofCategory(check(pulse(5, -2, 4)).findings, "oscillation");
+    expect(shake).toMatchObject({
+      severity: "warn",
+      avatar: null,
+      subject: "chest.flexion",
+      limit: 4,
+    });
+    expect(shake.value).toBeCloseTo(5, 0);
+    expect(shake.to - shake.from).toBeGreaterThan(0.5);
+    // A 1° tremor is below the amplitude floor.
+    expect(
+      ofCategory(check(pulse(5, -0.5, 0.5)).findings, "oscillation"),
+    ).toEqual([]);
+  });
+
+  /** 60 Hz samples of chest flexion `degrees(t)` over `seconds`. */
+  const chestSamples = (seconds: number, degrees: (time: number) => number) => {
+    const chest = resolveJoint("chest")!;
+    const times = Array.from(
+      { length: Math.round(seconds * 60) + 1 },
+      (_, index) => index / 60,
+    );
+    const poses = times.map((time) => ({
+      chest: {
+        rotation: composeJointRotation(chest, {
+          flexion: degrees(time),
+        }).toArray() as [number, number, number, number],
+      },
+    }));
+    return { times, poses };
+  };
+
+  it("warns from three cycles, not two", () => {
+    for (const hertz of [4.5, 5])
+      for (const cycles of [2, 2.5, 3]) {
+        // A burst of `cycles` cycles from rest, starting at 0.2 s.
+        const { times, poses } = chestSamples(2, (time) => {
+          const phase = time - 0.2;
+          return phase > 0 && phase < cycles / hertz
+            ? 3 * Math.sin(2 * Math.PI * hertz * phase)
+            : 0;
+        });
+        const findings = checkOscillation(times, poses);
+        if (cycles < 3) expect(findings, `${hertz} Hz × ${cycles}`).toEqual([]);
+        else
+          expect(findings, `${hertz} Hz × ${cycles}`).toMatchObject([
+            {
+              subject: "chest.flexion",
+              detail:
+                "3 cycles back and forth (6 reversals) faster than 4 Hz (rapid oscillation)",
+            },
+          ]);
+      }
+  });
+
+  it("rates an uneven pulse at its cycle rate", () => {
+    /** Four pulses from rest: an eased `rise` to 4° and an eased `fall` back. */
+    const pulses = (rise: number, fall: number) =>
+      chestSamples(2, (time) => {
+        const phase = time - 0.2;
+        if (phase <= 0 || phase >= 4 * (rise + fall)) return 0;
+        const into = phase % (rise + fall);
+        return into < rise
+          ? 2 * (1 - Math.cos((Math.PI * into) / rise))
+          : 2 * (1 + Math.cos((Math.PI * (into - rise)) / fall));
+      });
+    // A 0.04 s rise and a 0.23 s fall: 3.7 Hz, though half its swings are fast.
+    const calm = pulses(0.04, 0.23);
+    expect(checkOscillation(calm.times, calm.poses)).toEqual([]);
+    const quick = pulses(0.04, 1 / 4.5 - 0.04);
+    const [finding] = checkOscillation(quick.times, quick.poses);
+    expect(finding).toMatchObject({ subject: "chest.flexion", value: 4.5 });
+  });
+
+  it("times reversals between frames", () => {
+    // A 4.5 Hz swing whose first peak falls `offset` frames after a sample:
+    // the finding starts at that peak to the millisecond, not at a frame.
+    for (let offset = 0.1; offset < 1; offset += 0.2) {
+      const peak = (4 + offset) / 60;
+      const { times, poses } = chestSamples(
+        1.2,
+        (time) => 3 * Math.cos(2 * Math.PI * 4.5 * (time - peak)),
+      );
+      const [swing] = checkOscillation(times, poses);
+      expect(swing, `offset ${offset.toFixed(1)} frames`).toMatchObject({
+        subject: "chest.flexion",
+        value: 4.5,
+      });
+      expect(swing.from, `offset ${offset.toFixed(1)} frames`).toBeCloseTo(
+        peak,
+        3,
+      );
+    }
+  });
+
+  it("warns about the laughs' 4.5–5.5 Hz pulses before their revision", () => {
+    for (const laugh of [heartyLaugh, mediumLaugh]) {
+      const pulses = ofCategory(
+        checkMotion(laugh, avatars()).findings,
+        "oscillation",
+      );
+      expect(pulses.length, laugh.id).toBeGreaterThan(0);
+      expect(pulses.map((f) => f.subject)).toEqual(
+        expect.arrayContaining(["chest.flexion", "rightShoulder.elevation"]),
+      );
+      for (const finding of pulses) {
+        expect(finding.severity).toBe("warn");
+        expect(finding.value).toBeGreaterThan(4);
+      }
+    }
+  });
+});
+
+describe("finger collisions", () => {
+  const bothHands = (key: Record<string, unknown>) => ({
+    left: key,
+    right: key,
+  });
+
+  it("passes every hand preset on both Avatars", () => {
+    for (const { id } of HAND_PRESETS) {
+      const report = checkMotion(
+        held({ hands: bothHands({ preset: id }) }),
+        avatars(),
+      );
+      expect(ofCategory(report.findings, "fingers"), id).toEqual([]);
+    }
+  });
+
+  it("fails fingers squeezed through each other unless a contact declares it", () => {
+    const squeezed = { right: { preset: "open-together", spread: -30 } };
+    const report = checkMotion(held({ hands: squeezed }), avatars());
+    for (const avatar of AVATAR_IDS)
+      expect(
+        failures(report.findings, "fingers").find(
+          (f) => f.avatar === avatar && f.subject === "rightMiddle/rightRing",
+        ),
+        avatar,
+      ).toMatchObject({
+        detail: "fingers pass through each other (finger capsules)",
+      });
+    const declared = checkMotion(
+      held({
+        hands: squeezed,
+        contacts: [
+          {
+            bone: "rightMiddleDistal",
+            target: "rightRingDistal",
+            tolerance: 1,
+          },
+        ],
+      }),
+      avatars(),
+    );
+    expect(
+      ofCategory(declared.findings, "fingers").filter(
+        (f) => f.subject === "rightMiddle/rightRing",
+      ),
+    ).toEqual([]);
+  });
+
+  it("warns about fingers through the other hand unless the hands touch by contact", () => {
+    // Arms forward and crossing inward, palms toward each other: the open
+    // hands pass into each other.
+    const joints = Object.fromEntries(
+      (["left", "right"] as const).flatMap((side) => [
+        [`${side}UpperArm`, { elevation: 75, planeOfElevation: 95 }],
+        [`${side}LowerArm`, { flexion: 10, supination: 80 }],
+      ]),
+    );
+    const hands = bothHands({ preset: "open-together" });
+    const crossed = ofCategory(
+      checkMotion(held({ joints, hands }), avatars()).findings,
+      "fingers",
+    );
+    expect(crossed.length).toBeGreaterThan(0);
+    for (const finding of crossed)
+      expect(finding).toMatchObject({
+        severity: "warn",
+        detail: "a finger passes through the other hand (finger capsules)",
+      });
+    const clasped = checkMotion(
+      held({
+        joints,
+        hands,
+        contacts: [{ bone: "leftHand", target: "rightHand", tolerance: 1 }],
+      }),
+      avatars(),
+    );
+    expect(ofCategory(clasped.findings, "fingers")).toEqual([]);
   });
 });

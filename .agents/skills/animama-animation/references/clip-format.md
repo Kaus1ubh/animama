@@ -64,7 +64,7 @@ the laugh tiers `mild-laugh`, `medium-laugh` and `hysterical-laughter`, and the
 | `hipsPosition` | `{ x, y, z }` metres from rest: x toward the Avatar's left, y up, z forward. |
 | `hands` | `{ left, right }` hand-shape keys (see hands-and-face.md). |
 | `expressions` | `{ vrmPreset: keys[] }`, weights 0–1. |
-| `contacts` | Intended touches, used by the checks (see checks-and-review.md). |
+| `contacts` | Intended touches: the checks measure them, and `solve` makes playback land them (see Contacts below). |
 | `rotations` | Raw quaternion tracks used by hand-made and converted clips; do not author them. |
 
 ## Beats and keys
@@ -96,6 +96,54 @@ the laugh tiers `mild-laugh`, `medium-laugh` and `hysterical-laughter`, and the
 - A joint you never mention stays at the base pose; a component you omit
   holds its base value. A joint must name at least one component.
 - Values beyond a component's anatomical limit fail `validate`.
+
+## Contacts
+
+```json
+"contacts": [
+  { "bone": "rightHand", "point": "palm", "target": "head", "offset": [0, -0.07, 0.09],
+    "beat": "rest", "from": 0, "to": 1.2, "facing": true, "solve": {} },
+  { "bone": "leftHand", "point": "palm", "target": "rightLowerArm", "offset": [-0.12, 0, 0.03],
+    "beat": "fold", "from": 0.1, "to": 2, "solve": { "blendIn": 0.3 } },
+  { "bone": "rightThumbDistal", "point": "tip", "target": "rightIndexDistal", "targetPoint": "tip",
+    "beat": "pinch", "from": 0, "to": 0.4, "tolerance": 0.01 }
+]
+```
+
+| Field | Meaning |
+| --- | --- |
+| `bone`, `target` | Humanoid bones that touch. |
+| `beat`, `from`, `to` | The window, in seconds from the beat (`from` ≤ `to`, inside the clip). |
+| `point`, `targetPoint` | Where each bone touches: `joint` (default, the bone's origin), `palm` (hand bones: the palm surface) or `tip` (finger bones: the next joint, or the pad of a last segment). |
+| `offset` | Metres from the target point in the target bone's frame (at rest x toward the Avatar's left, y up, z forward; it turns with the bone), for a 1.25 m Avatar; each Avatar scales it by its height. |
+| `tolerance` | Metres the checks accept. |
+| `facing` | `true`: the checks also verify that the palm turns toward the target (hand or finger bones). |
+| `solve` | `{}` or `{ "blendIn": s, "blendOut": s }` (0–2 s, default 0.15): playback lands the touch on every Avatar. |
+
+- A solved contact re-solves only the upper arm and elbow of `bone`'s side,
+  easing in before the window and out after it. The collarbone, forearm
+  rotation, wrist, fingers and palm direction stay as you key them, so pose
+  the arm within a few centimetres of the touch and turn the palm yourself
+  (`facing` checks it). Keep the elbow bent near the touch.
+- A solved contact's `bone` is a hand or finger bone and its `target` is not
+  on the same arm. One solved window per side at a time: windows on one side
+  may touch but not overlap. Ramps of consecutive windows shorten to meet
+  midway, so claps 0.2 s apart chain. A window that starts where another ends
+  gets no ramps: continue the same contact there, or leave a gap so the arm
+  can travel between two different targets; otherwise it jumps.
+- Only crossed arms solve both ways. A clap solves one palm onto the other
+  (that arm meets the other hand). Two solved contacts whose targets each lie
+  on the other arm, at overlapping times (windows with blends), fail
+  `validate` unless both target an upper arm or forearm: when each hand rests
+  on the other upper arm or forearm, solve both; they are solved together.
+- A target at or beyond full reach stops short (about 1 cm at full reach), and
+  a large correction in a short ramp moves fast: pose the arm close to the
+  touch.
+- Mute the head and torso layers when a solved touch is on the head: live
+  layers run after the clip and would move it.
+- Unsolved contacts are only measured. Retiming a beat in the creator moves an
+  unsolved contact with its beat and stretches solved windows with the beats
+  around them.
 
 ## Joint ids
 

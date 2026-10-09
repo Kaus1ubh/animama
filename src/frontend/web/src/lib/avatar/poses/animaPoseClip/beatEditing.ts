@@ -280,9 +280,12 @@ function isOrdered(clip: AnimaPoseClipV2): boolean {
 /**
  * Move a beat. Its own keys move with it rigidly; the facing detail of the
  * beats around its old and new place stretches or compresses with their gap.
- * A beat with detail cannot pass a neighbour, and a beat without detail can
- * pass only beats without detail. When the request would break ordering, the
- * beat stops at the nearest time that keeps it.
+ * Solved contact windows stretch the same way across beats (unsolved contacts
+ * keep their offsets and move with their beat). A beat with detail cannot
+ * pass a neighbour, and a beat without detail can pass only beats without
+ * detail, and only when no solved window ends between its neighbours. When
+ * the request would break ordering, the beat stops at the nearest time that
+ * keeps it.
  */
 export function retimeBeat(
   clip: AnimaPoseClipV2,
@@ -328,6 +331,12 @@ function moveBeat(
     const passed =
       from < to ? old.slice(from + 1, to + 1) : old.slice(to, from);
     if (passed.some(({ id }) => beatHasDetail(clip, id))) return null;
+    // A solved window ending between the beat's old neighbours would fold
+    // over it once the beat passes one of them.
+    const lower = toAnimaPoseClipTicks(old[from - 1]?.time ?? 0);
+    const upper = toAnimaPoseClipTicks(old[from + 1]?.time ?? clip.duration);
+    if (solvedContactEnds(clip).some((end) => end > lower && end < upper))
+      return null;
   }
 
   // Facing detail scales with the gap on its side.
@@ -361,7 +370,70 @@ function moveBeat(
       }),
     ),
   );
-  return fitContactsToClip(retimed);
+  return fitContactsToClip(retimeSolvedContacts(retimed, old));
+}
+
+/** Absolute ends of every solved contact window, in ticks. */
+function solvedContactEnds(clip: AnimaPoseClipV2): number[] {
+  const times = beatTimes(clip);
+  return (clip.contacts ?? []).flatMap((contact) => {
+    const beat = times.get(contact.beat);
+    if (!contact.solve || beat === undefined) return [];
+    const at = toAnimaPoseClipTicks(beat);
+    return [
+      at + toAnimaPoseClipTicks(contact.from),
+      at + toAnimaPoseClipTicks(contact.to),
+    ];
+  });
+}
+
+/**
+ * Map solved contact windows through a retime, as facing detail is mapped but
+ * across beats: each window end moves piecewise linearly between the beats
+ * around it, from their old times (`oldBeats`) to their new ones in `clip`,
+ * with 0 and the duration fixed, and is stored again relative to its beat's
+ * new time. An end on a beat stays on it. Unsolved contacts are unchanged.
+ * Expects the beats in the same order before and after (or no solved end
+ * between the moved beat's old neighbours).
+ */
+function retimeSolvedContacts(
+  clip: AnimaPoseClipV2,
+  oldBeats: readonly AnimaPoseClipBeat[],
+): AnimaPoseClipV2 {
+  if (!clip.contacts?.some((contact) => contact.solve)) return clip;
+  const ticks = toAnimaPoseClipTicks;
+  const newTimes = beatTimes(clip);
+  const end = ticks(clip.duration);
+  // [old, new] tick pairs in old time order.
+  const knots: [number, number][] = oldBeats.map((beat) => [
+    ticks(beat.time),
+    ticks(newTimes.get(beat.id)!),
+  ]);
+  if (knots[0][0] > 0) knots.unshift([0, 0]);
+  if (knots[knots.length - 1][0] < end) knots.push([end, end]);
+  const retime = (time: number) => {
+    let index = 0;
+    while (index < knots.length - 2 && time > knots[index + 1][0]) index += 1;
+    const [oldFrom, newFrom] = knots[index];
+    const [oldTo, newTo] = knots[Math.min(index + 1, knots.length - 1)];
+    return oldTo === oldFrom
+      ? newFrom
+      : newFrom + ((newTo - newFrom) * (time - oldFrom)) / (oldTo - oldFrom);
+  };
+  const oldTimes = new Map(oldBeats.map((beat) => [beat.id, beat.time]));
+  const contacts = clip.contacts.map((contact) => {
+    if (!contact.solve) return contact;
+    const was = ticks(oldTimes.get(contact.beat)!);
+    const now = newTimes.get(contact.beat)!;
+    const offset = (seconds: number) =>
+      roundTime(fromAnimaPoseClipTicks(retime(was + ticks(seconds))) - now);
+    const from = offset(contact.from);
+    const to = offset(contact.to);
+    return from === contact.from && to === contact.to
+      ? contact
+      : { ...contact, from, to };
+  });
+  return { ...clip, contacts };
 }
 
 /**

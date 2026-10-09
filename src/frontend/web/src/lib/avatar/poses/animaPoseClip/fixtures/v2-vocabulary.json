@@ -94,6 +94,11 @@
     }
   },
   "handFingerOffsetLimit": 90,
+  "contactPoints": ["joint", "tip", "palm"],
+  "contactSolve": {
+    "defaultBlendSeconds": 0.15,
+    "maxBlendSeconds": 2
+  },
   "eases": [
     "smooth",
     "hold",
