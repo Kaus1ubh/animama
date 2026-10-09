@@ -368,6 +368,7 @@ jobs:
           BASE_COMMIT: ${{ steps.select.outputs.baseline }}
         run: |
           python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" package-compat -- bash -e -o pipefail -c '
+          uv run --no-sync python scripts/package-sets/build.py models --source "$GITHUB_WORKSPACE/.compatibility-base"
           uv run --no-sync python scripts/package-sets/build.py build --source "$GITHUB_WORKSPACE/.compatibility-base" --commit "$BASE_COMMIT" --output "$RUNNER_TEMP/base-artifacts"
           uv run --no-sync python scripts/package-sets/build.py compare "$RUNNER_TEMP/base-artifacts" "$RUNNER_TEMP/public-artifacts"
           '

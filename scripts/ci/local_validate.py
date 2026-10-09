@@ -163,6 +163,9 @@ def commands(profile: str, source: Path, output: Path, commit: str, baseline: st
                     str(output / "consumers/backend/.venv"),
                 ],
             ),
+            # The baseline builds with the speech set its own manifest pins,
+            # acquired into the same isolated store as the candidate's.
+            ("baseline-models", source, package + ["models", "--source", str(output / "baseline")]),
             (
                 "baseline-build",
                 source,

@@ -50,11 +50,21 @@ The receipt is test evidence, not a signature or an automatic publication grant.
 
 The closed app archive, versioned URLs, MIME/cache/range policy, worker CSP and
 non-static seed layout are specified in [the hosted contract](../../contracts/hosted-web.md#static-application-format-a5-producer--consumer-contract).
-The verified baseline speech runtime is a required offline build input; set
-`ANIMAMA_BROWSER_MODEL_DIR` to the existing directory returned by
-`scripts/models/browser_speech.py path`. The producer never downloads runtime
-models or substitutes missing files. Optional manifests/notices are shipped;
-optional weights stay in separately provisioned exact catalogs and remain lazy.
+The verified baseline speech runtime is a required offline build input. Each
+source snapshot resolves the content-addressed set its own
+`models/browser-speech/manifest.json` names in the shared model store
+(`ANIMAMA_MODEL_ROOT`, else the platform default), so a baseline never builds
+with a candidate's models; `ANIMAMA_BROWSER_MODEL_DIR` is not forwarded to the
+build. Acquire a checkout's set first:
+
+    uv run --no-sync python scripts/package-sets/build.py models \
+      --source /path/to/animama
+
+This runs that checkout's own `scripts/models/browser_speech.py acquire` and
+`verify`; library-only (format 1) sources need no models. `build` never
+downloads runtime models or substitutes missing files. Optional
+manifests/notices are shipped; optional weights stay in separately provisioned
+exact catalogs and remain lazy.
 
 Pass `validate --previous-app-set /tmp/previous-whole-app` to run actual
 upgrade/rollback against a verified compatible clean format-2 predecessor.

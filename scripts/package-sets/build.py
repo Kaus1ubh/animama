@@ -26,7 +26,15 @@ def git(root, *args):
 
 
 def clean_env():
-    """Build processes never inherit app, Cloud, R2 or GitHub credentials."""
+    """Build processes never inherit app, Cloud, R2 or GitHub credentials.
+
+    They inherit the shared model store selection: ``ANIMAMA_MODEL_ROOT`` or the
+    platform cache default (``XDG_CACHE_HOME``/``LOCALAPPDATA``) that
+    ``scripts/models`` resolves without it. Each source snapshot then resolves
+    the content-addressed browser speech set its own manifest names.
+    ``ANIMAMA_BROWSER_MODEL_DIR`` names one resolved set, so it is not forwarded:
+    a baseline must never build with a candidate's models.
+    """
     allowed = {
         "PATH",
         "HOME",
@@ -34,7 +42,9 @@ def clean_env():
         "UV_CACHE_DIR",
         "PLAYWRIGHT_BROWSERS_PATH",
         "SYSTEMROOT",
-        "ANIMAMA_BROWSER_MODEL_DIR",
+        "ANIMAMA_MODEL_ROOT",
+        "XDG_CACHE_HOME",
+        "LOCALAPPDATA",
     }
     env = {k: v for k, v in os.environ.items() if k in allowed}
     env.update(
@@ -118,6 +128,28 @@ def snapshot(source, commit, destination, allow_dirty=False):
 
 def run(command, cwd, env):
     subprocess.run(command, cwd=cwd, env=env, check=True)
+
+
+def builds_application(root):
+    """Format-2 sources emit the whole hosted application; older ones are library-only."""
+    return (root / "src/frontend/scripts/hosted-build-resources.mjs").is_file()
+
+
+def models(source):
+    """Acquire and verify a checkout's own browser speech set in the shared model store.
+
+    This explicit step is the only one that may download models: ``build``
+    stays offline and resolves the exact set its snapshot's manifest names. The
+    checkout's own script runs, so a baseline gets the set that it pins.
+    Library-only sources build no application and need none.
+    """
+    source = source.resolve()
+    if not builds_application(source):
+        print("Library-only source: no browser speech models are required", flush=True)
+        return
+    script = source / "scripts/models/browser_speech.py"
+    for operation in ("acquire", "verify"):
+        run([sys.executable, str(script), operation], source, clean_env())
 
 
 def pack_application(built, stage, source, app_version, contracts, catalog_seed):
@@ -256,7 +288,7 @@ def build(source, commit, output, allow_dirty=False):
         applications = []
         # Pre-format-2 baselines retain their original library-only format. Their
         # source is never silently patched with the current application's code.
-        if (root / "src/frontend/scripts/hosted-build-resources.mjs").is_file():
+        if builds_application(root):
             run(["pnpm", "web:build:hosted"], root / "src/frontend", env)
             seed_record = Path(temp) / "source-record.json"
             seed_record.write_bytes(canonical(source_record))
@@ -395,6 +427,8 @@ def main():
     b.add_argument("--commit", required=True)
     b.add_argument("--output", type=Path, required=True)
     b.add_argument("--allow-dirty", action="store_true")
+    mo = sub.add_parser("models", help="acquire and verify a checkout's own browser speech set before build")
+    mo.add_argument("--source", type=Path, required=True)
     v = sub.add_parser("validate")
     v.add_argument("directory", type=Path)
     v.add_argument("--work-dir", type=Path, required=True)
@@ -408,12 +442,10 @@ def main():
     try:
         if a.command == "build":
             build(a.source, a.commit, a.output, a.allow_dirty)
+        elif a.command == "models":
+            models(a.source)
         elif a.command == "validate":
-            print(
-                json.dumps(
-                    validate(a.directory, a.work_dir, a.previous_app_set, a.offline, a.pnpm_store)
-                )
-            )
+            print(json.dumps(validate(a.directory, a.work_dir, a.previous_app_set, a.offline, a.pnpm_store)))
         else:
             compare(a.old, a.new)
             print("Compatibility policy passed")

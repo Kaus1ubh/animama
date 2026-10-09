@@ -34,6 +34,7 @@ class LocalValidationTests(unittest.TestCase):
                 "package-build",
                 "isolated-consumers",
                 "release-completed-environments",
+                "baseline-models",
                 "baseline-build",
                 "compatibility",
                 "source-integrity",
@@ -43,6 +44,9 @@ class LocalValidationTests(unittest.TestCase):
         baseline_command = next(row[2] for row in full if row[0] == "baseline-build")
         self.assertIn(str(output / "baseline"), baseline_command)
         self.assertIn(baseline, baseline_command)
+        # The baseline's own pinned speech set, not the candidate's, feeds its build.
+        baseline_models = next(row[2] for row in full if row[0] == "baseline-models")
+        self.assertEqual(baseline_models[-3:], ["models", "--source", str(output / "baseline")])
         identifiers = [row[0] for row in full]
         self.assertLess(identifiers.index("isolated-consumers"), identifiers.index("release-completed-environments"))
         self.assertLess(identifiers.index("release-completed-environments"), identifiers.index("baseline-build"))
