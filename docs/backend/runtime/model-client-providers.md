@@ -698,6 +698,9 @@ not proof of a provider invoice.
 
 `ConnectionEmbedder.embed_texts_with_usage` exposes vectors and optional measured
 usage; `EmbeddingLimits` bounds batch input/deadline and disables SDK retries.
+Input over the bound fails before dispatch with `model_input_limit_exceeded`
+(category `context_exceeded`), and the deadline with `model_deadline_exceeded`
+(`timeout`), both as model-client errors.
 Compositions wrap **each** embed call, including tool-driven retrieval, with
 admission. `WebSearchBackend.search` is already an injectable per-search boundary;
 its result list contains no provider billing receipt, so a paid implementation

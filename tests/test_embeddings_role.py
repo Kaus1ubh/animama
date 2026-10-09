@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -16,7 +17,7 @@ from animama.adapters.model_clients.openai_chat_completions.embedder import Conn
 from animama.adapters.repositories.sqlalchemy.archive_repo import SQLAlchemyArchiveRepository
 from animama.adapters.repositories.sqlalchemy.embedding_refresh_repo import SQLAlchemyEmbeddingRefreshRepository
 from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
-from animama.app.model_clients import ModelClientProviderError
+from animama.app.model_clients import ModelClientError, ModelClientProviderError, ModelClientTimeoutError
 from animama.app.model_clients.credentials import static_credential_resolver
 from animama.app.model_clients.error_categories import ERROR_UNREACHABLE, model_error_category
 from animama.app.services.archive_service import ArchiveService
@@ -622,6 +623,40 @@ async def test_bounded_embedder_reports_unknown_usage_and_rejects_oversize_befor
     )
     result = await embedder.embed_texts_with_usage(["ab"])
     assert result.vectors == [[0.5, 0.0]] and result.usage is None
-    with pytest.raises(ValueError, match="limit"):
+    # A model error, so the refresh service splits the batch or records a too-long text.
+    with pytest.raises(ModelClientError, match="limit") as oversized:
         await embedder.embed_texts_with_usage(["abcde"])
+    assert model_error_category(oversized.value.code, oversized.value.raw_metadata) == "context_exceeded"
     assert len(requests) == 1
+
+
+async def test_bounded_embedder_reports_its_deadline_as_a_model_timeout(monkeypatch):
+    from animama.app.ports.text_embedder import EmbeddingLimits
+
+    async def stalled(request: httpx.Request) -> httpx.Response:
+        await asyncio.sleep(5)
+        return httpx.Response(500)
+
+    original_init = AsyncOpenAI.__init__
+
+    def _init(self, *args, **kwargs):  # noqa: ANN001, ANN002, ANN003
+        kwargs["http_client"] = httpx.AsyncClient(transport=httpx.MockTransport(stalled))
+        original_init(self, *args, **kwargs)
+
+    monkeypatch.setattr(AsyncOpenAI, "__init__", _init)
+    local = ModelConnection(id="conn-ollama", name="Ollama", preset="ollama", base_url="http://127.0.0.1:11434/v1")
+    embedder = ConnectionEmbedder(
+        _embedding_row(local),
+        credential_resolver=static_credential_resolver(),
+        openai_base_url="http://127.0.0.1:9/v1",
+        default_timeout_seconds=5,
+        limits=EmbeddingLimits(max_texts=2, max_characters=8, timeout_seconds=0.05),
+    )
+
+    # EmbeddingRefreshService handles only model errors; a bare TimeoutError would escape it.
+    with pytest.raises(ModelClientTimeoutError) as deadline:
+        await embedder.embed_texts_with_usage(["ab"])
+
+    assert deadline.value.code == "model_deadline_exceeded"
+    assert model_error_category(deadline.value.code, deadline.value.raw_metadata) == "timeout"
+    assert str(deadline.value) == "The embeddings request to Ollama failed (timeout)"

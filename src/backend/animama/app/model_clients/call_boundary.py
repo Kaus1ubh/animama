@@ -20,6 +20,8 @@ from .types import (
 
 # Error code for an admitted call that exceeded its absolute provider deadline.
 DEADLINE_CODE = "model_deadline_exceeded"
+# Error code for input above a composition's admitted bound, rejected before dispatch.
+INPUT_LIMIT_CODE = "model_input_limit_exceeded"
 
 
 @dataclass(frozen=True, slots=True)
