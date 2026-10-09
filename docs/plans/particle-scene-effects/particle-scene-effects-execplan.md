@@ -1,20 +1,19 @@
 # Particle and Scene Effect platform and pipelines (Plan 1, platform)
 
-Source agreement: the spec
-[particle-scene-effects-spec.md](particle-scene-effects-spec.md), requirements
-R1–R8, agreed by the owner on 2026-10-09.
-Until the spec is published to
-[#297](https://github.com/raymond-van/animama/issues/297), the draft is the
-authority.
-Authorized scope: none yet. The owner reviews this plan; `workspace-setup`
-publishes the spec and creates phase issues only when implementation is
-authorized. Gates G1–G4 apply regardless.
+Source agreement: [#297](https://github.com/raymond-van/animama/issues/297)
+(snapshot: [particle-scene-effects-spec.md](particle-scene-effects-spec.md)),
+requirements R1–R8. The owner agreed the spec on 2026-10-09; it was published
+to #297 the same day.
+Authorized scope: all phases, P1–P9 (owner, 2026-10-09). Gates G1–G4 still
+apply.
 Starting revision: `4c9ab2c` (`feat/particle-scene-effects`, based on `main`
 `bfc0de4`).
 Branch: `feat/particle-scene-effects`, in a dedicated task worktree. One branch
 and one PR for this plan.
-Issues: parent #297; phase issues are created at authorization. Related: #298
-(Avatar Effects v2, whose tooling, skills and promotion this plan extends).
+Issues: parent #297; phases P1 #386, P2 #387, P3 #388, P4 #389, P5 #390,
+P6 #391, P7 #392, P8 #393, P9 #394, linked as sub-issues, each blocked by its
+predecessor and P5 also by P1. Related: #298 (Avatar Effects v2, whose tooling,
+skills and promotion this plan extends).
 
 ## Purpose and context
 
@@ -72,8 +71,11 @@ Paths: frontend relative to `src/frontend/web/`, backend to
 
 - [x] Spec drafted; owner review decisions recorded; spec agreed (2026-10-09);
       repository surveyed; plan drafted; D1 decided.
-- [ ] Owner review of this plan and authorization of phases.
-- [ ] Workspace: publish the spec to #297, read it back, create phase issues.
+- [x] Owner review of this plan; P1–P9 authorized (2026-10-09).
+- [x] Workspace (2026-10-09): spec published to #297 and read back; phase
+      issues #386–#394 created as sub-issues with dependencies; worktree
+      `animama-particle-scene-effects` on `feat/particle-scene-effects`. No task
+      stack yet.
 - [ ] P1 — Scene family designs (R2 input). Gate G1.
 - [ ] P2 — Art budgets and shared import limits (R6).
 - [ ] P3 — Particle texture import (R1).
@@ -134,6 +136,9 @@ Paths: frontend relative to `src/frontend/web/`, backend to
   - Dry-run effects (P8) stay Local drafts. They may become Plan 2 candidates
     but are not promoted in Plan 1.
 - **2026-10-09, owner (plan review):** the spec is agreed (Status: Agreed).
+- **2026-10-09, owner:** all phases, P1–P9, are authorized. The proposed P2
+  budget and limit values were not changed at review; P2 fixes them against
+  the P1 designs.
 - **2026-10-09, owner — D1, licence rules for new art** (amends the spec's R14
   wording). #298 had promoted files follow existing inventory rules without
   per-effect wording, but for Particle Effects the existing rule misstates new
@@ -170,9 +175,10 @@ not the plan.
 2. `workspace-setup`, once implementation is authorized:
    - publish the spec to #297 and read it back; record the snapshot time in the
      spec;
-   - create phase issues P1–P9 as sub-issues of #297 with dependencies (P5 is
-     blocked by P1 and P4; P7 by P3 and P5; P8 by P4, P6 and P7; P9 by P8);
+   - create phase issues P1–P9 as sub-issues of #297, each blocked by its
+     predecessor and P5 also by P1 (G1);
    - record the issue numbers here. Do not create gate-only issues.
+   Done 2026-10-09: #386–#394.
 3. Dependencies: from `src/frontend`, `pnpm install --frozen-lockfile`,
    `pnpm packages:build`, `pnpm e2e:install`; backend `uv sync --python 3.12.13`
    (check `uv run python -V`). Backend tests need the container runtime that
@@ -195,7 +201,7 @@ commits (`<type>(<scope>)[p#]: …`, scopes such as `vfx`, `scene`, `particle`,
 `creator`, `effects`, `skills`, `docs`), commands and results, review records
 and remaining gates.
 
-### P1 — Scene family designs (R2 input). Gate G1.
+### P1 — Scene family designs (R2 input). Gate G1. #386
 
 Outcome: the owner has approved a design direction per emotion family, and the
 Scene capability list R2 builds is fixed.
@@ -238,7 +244,7 @@ design uses are not built.
 Not applicable unless P1 commits code; the review covers any committed scratch
 tooling.
 
-### P2 — Art budgets and shared import limits (R6)
+### P2 — Art budgets and shared import limits (R6). #387
 
 Outcome: named budgets for Particle and Scene art exist in one place that the
 asset scripts, the app's import checks and the backend validators agree on.
@@ -291,7 +297,7 @@ one copy changes.
 
 #### Code Review #1 Revisions
 
-### P3 — Particle texture import (R1)
+### P3 — Particle texture import (R1). #388
 
 Outcome: a user can add their own PNG or sprite sheet to an emitter, and every
 texture an effect carries survives open, Save, reopen, recovery and Portable
@@ -354,7 +360,7 @@ Particle Effects that use built-in textures still open and play.
 
 #### Code Review #1 Revisions
 
-### P4 — Check, render and bench for Particle and Scene Effects (R3)
+### P4 — Check, render and bench for Particle and Scene Effects (R3). #389
 
 Outcome: `effects check` and `effects:render` give verdicts and contact sheets
 for Particle and Scene effect folders and Library items on both Included
@@ -408,7 +414,7 @@ bench reports the Reaction-mode baseline.
 
 #### Code Review #1 Revisions
 
-### P5 — Scene layer capabilities (R2). Waits for G1.
+### P5 — Scene layer capabilities (R2). Waits for G1. #390
 
 Outcome: each capability on the G1 list works in chat, the creator, the Library
 preview dock and desktop picture-in-picture, and survives Save and Portable
@@ -454,7 +460,7 @@ Completion: the R2 acceptance items pass for every capability on the G1 list.
 
 #### Code Review #1 Revisions
 
-### P6 — Headed preview for Particle and Scene Effects (R4)
+### P6 — Headed preview for Particle and Scene Effects (R4). #391
 
 Outcome: the owner can review a Particle or Scene effect source, or a Reaction
 with all its effects, live on both Included Avatars, with review notes.
@@ -486,7 +492,7 @@ Completion: the R4 acceptance items pass.
 
 #### Code Review #1 Revisions
 
-### P7 — Save and promote (R5). Gate G3.
+### P7 — Save and promote (R5). Gate G3. #392
 
 Outcome: Particle and Scene effect folders can be saved as Local content
 through their creators and, after owner approval, promoted to Included content.
@@ -531,7 +537,7 @@ task branch.
 
 #### Code Review #1 Revisions
 
-### P8 — Pipeline skills and fresh-agent dry runs (R7). Gate G2.
+### P8 — Pipeline skills and fresh-agent dry runs (R7). Gate G2. #393
 
 Outcome: a fresh agent can make one new Particle Effect and one new Scene Effect
 from a brief to Local content by following the skills alone.
@@ -566,7 +572,7 @@ Completion: the R6/R7 acceptance items pass.
 
 #### Code Review #1 Revisions
 
-### P9 — Documentation and acceptance (R8). Gate G4.
+### P9 — Documentation and acceptance (R8). Gate G4. #394
 
 1. **Documentation:**
    - `docs/frontend/runtime/avatar-particle-vfx.md`: texture import, the

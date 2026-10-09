@@ -9,8 +9,10 @@ asked for this draft and, on review the same day, resolved its open questions
 **Proposal** are
 fixed by the named plan or gate: the R2 capability list and R6 budget values by
 Plan 1, the R9 and R10 lists before Plan 2 starts.
-Authoritative source: this draft until it is published in
-[#297](https://github.com/raymond-van/animama/issues/297).
+Authoritative source: [#297](https://github.com/raymond-van/animama/issues/297),
+published 2026-10-09 (read back at 2026-10-09T20:29:45Z). This file is a
+snapshot of the published spec at `71ac3316`; refresh it from the issue before
+resuming and do not edit it as a competing source.
 Related: [#298](https://github.com/raymond-van/animama/issues/298) (Avatar
 Effects v2: unified effects creator, effect preview, shared effect-asset skill
 and the Avatar Effect pipeline this work mirrors).
@@ -566,7 +568,8 @@ Decisions (owner, 2026-10-09, review of this draft):
   `vfx/particle/quark/**` rule describes generated CC0 derivatives and new
   Scene PNGs would fall to the catch-all rule, so promotion uses owner-authored
   rules instead (R14).
-- **Agreement.** The owner accepted this spec on 2026-10-09.
+- **Agreement.** The owner accepted this spec on 2026-10-09 and authorized
+  Plan 1 (phases P1–P9) the same day.
 
 Open:
 
@@ -575,9 +578,8 @@ Open:
 
 ## Spec
 
-This document (draft). It is published to
-[#297](https://github.com/raymond-van/animama/issues/297) when implementation
-is authorized.
+Published in [#297](https://github.com/raymond-van/animama/issues/297); this
+file is its snapshot.
 
 ## ExecPlan
 
@@ -587,5 +589,6 @@ Plans 2 (R9–R14) and 3 (R15–R17) are written after their predecessors merge.
 
 ## Delivery links
 
-Parent: [#297](https://github.com/raymond-van/animama/issues/297). Related:
+Parent: [#297](https://github.com/raymond-van/animama/issues/297). Plan 1
+phases: #386–#394. Related:
 [#298](https://github.com/raymond-van/animama/issues/298).
