@@ -214,6 +214,119 @@ describe("composition lifetime boundary", () => {
     );
   });
 
+  it("reports a failed session cleanup once, then readmits and reports only newer failures", async () => {
+    const { controller, set } = fixture();
+    await controller.refresh();
+    controller.getSnapshot().scope!.register(() => {
+      throw new Error("Recovery storage is blocked");
+    });
+    set(ready("after-failed-cleanup"));
+    await controller.refresh();
+    const reported = controller.getSnapshot().admission;
+    expect(reported.status).toBe("unavailable");
+    expect(reported.status !== "ready" && reported.message).toMatch(
+      /previous session/,
+    );
+    await controller.refresh();
+    expect(controller.getSnapshot().scope!.key).toBe("after-failed-cleanup");
+    set(ready("after-clean-cleanup"));
+    await controller.refresh();
+    expect(controller.getSnapshot().scope!.key).toBe("after-clean-cleanup");
+  });
+
+  it("reports a cleanup failure from sign-out once without blocking the next sign-in", async () => {
+    const { controller, set } = fixture();
+    await controller.refresh();
+    controller.getSnapshot().scope!.register(() => {
+      throw new Error("Recovery storage is blocked");
+    });
+    await controller.signOut();
+    const signedOut = controller.getSnapshot().admission;
+    expect(signedOut.status).toBe("sign-in-required");
+    expect(signedOut.status !== "ready" && signedOut.message).toMatch(
+      /could not be removed/,
+    );
+    set(ready("next-sign-in"));
+    await controller.refresh();
+    expect(controller.getSnapshot().scope!.key).toBe("next-sign-in");
+  });
+
+  it("keeps a failed sign-out visible when admission is re-read while it runs", async () => {
+    const { controller, composition } = fixture();
+    await controller.refresh();
+    let incomplete = false;
+    Object.assign(composition, {
+      accountAffordances: () => ({
+        canOpenAccount: false,
+        signOutIncomplete: incomplete,
+      }),
+    });
+    let fail!: () => void;
+    vi.mocked(composition.accountActions!.signOut).mockImplementation(
+      () =>
+        new Promise<void>((_resolve, reject) => {
+          fail = () => {
+            incomplete = true;
+            reject(new Error("Logout failed"));
+          };
+        }),
+    );
+    const pending = controller.signOut();
+    // A focus while the logout runs re-reads admission.
+    vi.mocked(composition.readAdmission).mockResolvedValue({
+      status: "sign-in-required",
+    });
+    await controller.refresh();
+    fail();
+    await pending;
+    expect(controller.getSnapshot().admission).toEqual({
+      status: "sign-in-required",
+    });
+    expect(controller.getSnapshot().account.signOutIncomplete).toBe(true);
+  });
+
+  it("shows only the retry view when a sign-out is unfinished, even after a cleanup failure", async () => {
+    const { controller, composition } = fixture();
+    await controller.refresh();
+    controller.getSnapshot().scope!.register(() => {
+      throw new Error("Recovery storage is blocked");
+    });
+    Object.assign(composition, {
+      accountAffordances: () => ({
+        canOpenAccount: false,
+        signOutIncomplete: true,
+      }),
+    });
+    vi.mocked(composition.accountActions!.signOut).mockRejectedValue(
+      new Error("Logout failed"),
+    );
+    await controller.signOut();
+    expect(controller.getSnapshot().admission).toEqual({
+      status: "sign-in-required",
+    });
+    expect(controller.getSnapshot().account.signOutIncomplete).toBe(true);
+  });
+
+  it("publishes the account affordances the composition reports with each admission", async () => {
+    const { controller, composition } = fixture();
+    expect(controller.getSnapshot().account).toEqual({
+      canOpenAccount: false,
+      signOutIncomplete: false,
+    });
+    let canOpenAccount = true;
+    Object.assign(composition, {
+      accountAffordances: () => ({ canOpenAccount, signOutIncomplete: false }),
+    });
+    await controller.refresh();
+    expect(controller.getSnapshot().account.canOpenAccount).toBe(true);
+    // An unchanged session keeps its lifetime but still follows the newest read.
+    const scope = controller.getSnapshot().scope;
+    canOpenAccount = false;
+    await controller.refresh();
+    expect(controller.getSnapshot().scope).toBe(scope);
+    expect(controller.getSnapshot().account.canOpenAccount).toBe(false);
+  });
+
   it("does not retire a newer ready lifetime when an older admission read finishes late", async () => {
     const { controller, composition } = fixture();
     await controller.refresh();

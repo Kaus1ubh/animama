@@ -26,11 +26,23 @@ which prompts an immediate context read.
 Hosted login/callback/logout, session cookies, CSRF and central account URLs remain
 consumer-owned HTTP behavior.
 
+A signed-in `bootstrap_required` context starts that server-owned setup without
+a click, one attempt at a time, behind a setup view; the context read afterwards
+decides the next view. A network failure, or a 5xx reply without a hosted
+`state`, is retried with the same idempotency key, and an unanswered key is
+replayed by the next attempt; once the server answers, a later attempt uses a
+new key. `bootstrapping` is re-read with backoff for about two minutes before
+recovery is offered. `recovery` and a failed first attempt show recovery, whose
+retry starts one new attempt. An admitted view whose context later requires
+setup (for example after a policy update) keeps its session and drafts suspended
+and repeats setup at a bounded pace until the context is active again.
+
 The hosted context may additionally return `account_url`, an optional central
 account navigation URL. The browser accepts HTTPS or its own application origin,
-rejects embedded credentials, and shows an account-access error when it is absent
-or invalid. This field does not authorize API calls or alter the immutable entry
-document. The consumer supplies its configured central account URL.
+rejects embedded credentials, and hides its Account controls (admission screens
+and the sidebar menu) while the URL is absent or invalid. This field does not
+authorize API calls or alter the immutable entry document. The consumer supplies
+its configured central account URL in every context response.
 
 An active hosted context may also supply `recovery_session_id`, a URL-safe opaque
 string of 16–128 characters (`A–Z`, `a–z`, digits, `_`, `-`). It is noncredential
@@ -46,8 +58,9 @@ as two local tabs share local drafts.
 An absent/invalid generation withholds durable reload recovery without granting
 additional permissions. Session retirement removes all tabs' marked namespaces
 for that generation, preserving a newer replacement generation. Explicit account
-sign-out removes marked hosted history and import receipts, including records
-left by older tabs/pages; local installation drafts and device preferences remain
+sign-out removes marked hosted history, import receipts and model download Retry
+hints, including records left by older tabs/pages; retirement also removes that
+generation's hints. Local installation drafts and device preferences remain
 separate. Older unmarked UUID namespaces cannot be classified as hosted or local
 and are never admitted through this recovery identity.
 
@@ -70,10 +83,13 @@ resumes dispatch, including as soon as the reconnected events stream sends `even
 uncertain events preserve a pending admission read and its backoff. A revoked
 event or an events 401/403 suspends requests and reads the runtime context at
 once; that context alone decides whether admission ended.
-Unknown initial contexts and setup/repair states withhold admission without
-erasing persisted recovery. Context 401/403, recognized account/session denials
-(including those a revoked event prompts), sign-out and owner/session replacement
-still retire private work immediately. A draft key never substitutes
+Unknown initial contexts, setup/repair states and `paused` withhold admission
+without erasing persisted recovery; `paused` covers transient enrollment,
+capacity, rate and cooldown limits, so an open view suspends requests until it
+clears. Context 401/403, the revoking states `session_required`, `ineligible`,
+`restricted` and `deletion_pending` (including when a revoked event prompts the
+read), sign-out and owner/session replacement still retire private work and
+purge hosted recovery immediately. A draft key never substitutes
 for those checks; a recovered uncertain save reconciles its existing operation
 instead of allocating another commit.
 
@@ -81,6 +97,20 @@ Account actions provide sign-in, Cloud-scoped sign-out, account access and usage
 `RuntimeUsage` contains named user-facing used/limit/reset units; provider prices,
 credentials, arbitrary endpoints and dispatch permission are never browser inputs.
 Restriction/outage state and quota request errors preserve private saved data.
+
+Sign-in sends the current path and query, without the callback marker, as
+`return_path`; the consumer validates it again. A callback that returns with
+`?sign_in=failed` shows an alert on the sign-in view, and the marker is removed
+from the URL before the router reads it. A signed-out tab first adopts a session
+that another tab has established instead of starting a sign-in that would replace
+it. Sign-out ends private browser work at once and tells other tabs, which end
+theirs and read the runtime context again when next focused; only the tab that
+signed out stays signed out until a sign-in there. If the remote logout fails,
+the Cloud session is still live: every tab and reload in that browser shows a
+retryable "Sign-out did not complete" view instead of readmitting it, until a
+retry (with a freshly read CSRF token) finishes, the context shows no session,
+or someone signs in again, which starts a new sign-in rather than adopting the
+live session.
 
 ## Capabilities and requests
 
@@ -103,6 +133,12 @@ Permissions are separate from browser support and temporary errors:
 | Model connections/catalog administration and keys          | `model_configuration`, `provider_credentials`, `web_search.configuration` | False; catalog/role reads and selections remain retained.                                |
 | Host paths, scans, file logs and server model installation | `local_filesystem_administration`                                         | False; virtual memory paths, creator assets and browser model downloads remain retained. |
 | Electron/native controls                                   | `native_features`                                                         | False; browser fullscreen/PiP use browser feature detection.                             |
+
+Web search use follows the runtime fields `web_search.configured`, `backend` and
+`credential_state`, not `web_search.configuration`: a hosted operator who
+provisions search reports `configured: true` with its backend, and tool-capable
+models then offer and request `native_tools: ["web_search"]`, while owner search
+settings stay unavailable.
 
 `offline_speech_enabled` and its versions describe current Parakeet availability,
 not permission to use voice. An absent optional set does not remove browser voice,

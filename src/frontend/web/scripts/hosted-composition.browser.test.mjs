@@ -82,15 +82,25 @@ async function mount(
   route = "/",
   state = "active",
   viewport = { width: 1280, height: 800 },
-  { utilities = false } = {},
+  {
+    utilities = false,
+    loseFirstSetupReply = false,
+    accountUrl = true,
+    // Tabs opened in one browser context share storage and tab broadcasts.
+    context = null,
+  } = {},
 ) {
-  const page = await browser.newPage({ viewport });
+  const page = context
+    ? await context.newPage()
+    : await browser.newPage({ viewport });
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
   const calls = [];
+  const setupKeys = [];
   let csrf = "fixture-session-one";
   let generation = "fixture-session-generation-one";
   let offline = false;
+  let logoutStatus = 200;
   await page.addInitScript(() => {
     window.microphoneStops = 0;
     Object.defineProperty(navigator, "mediaDevices", {
@@ -144,10 +154,17 @@ async function mount(
           csrf_token: csrf,
           recovery_session_id: generation,
           capabilities,
-          account_url: `${origin}/central-account`,
+          ...(accountUrl ? { account_url: `${origin}/central-account` } : {}),
         };
     else if (url.pathname === "/v1/runtime-capabilities") data = capabilities;
-    else if (url.pathname === "/v1/hosted/events")
+    else if (url.pathname === "/v1/hosted/bootstrap:ensure") {
+      setupKeys.push(JSON.parse(request.postData() ?? "{}").idempotency_key);
+      if (loseFirstSetupReply && setupKeys.length === 1)
+        return requestRoute.abort("connectionreset");
+      // The server-owned setup completes the account.
+      state = "active";
+      data = { state: "active", ready: true, failed_steps: [] };
+    } else if (url.pathname === "/v1/hosted/events")
       return requestRoute.fulfill({
         contentType: "text/event-stream",
         body: "event: ready\ndata: {}\n\n",
@@ -184,13 +201,18 @@ async function mount(
       path: new URL(request.url()).pathname,
       method: request.method(),
       headers: request.headers(),
+      body: request.postData(),
     });
+    const login = request.url().endsWith("/login");
+    // A successful logout ends the fixture's Cloud session.
+    if (!login && logoutStatus === 200) state = "session_required";
     await requestRoute.fulfill({
+      status: login ? 200 : logoutStatus,
       contentType: "application/json",
       body: JSON.stringify(
-        request.url().endsWith("/login")
+        login
           ? { authorization_url: "https://identity.example.test/sign-in" }
-          : { ok: true },
+          : { ok: logoutStatus === 200 },
       ),
     });
   });
@@ -213,15 +235,83 @@ async function mount(
   return {
     page,
     calls,
+    setupKeys,
     reauthenticate: () => {
+      state = "active";
       csrf = "fixture-session-two";
       generation = "fixture-session-generation-two";
     },
     offline: (value) => {
       offline = value;
     },
+    setState: (value) => {
+      state = value;
+    },
+    setLogoutStatus: (value) => {
+      logoutStatus = value;
+    },
   };
 }
+
+/** Reloads serve the already-transformed fixture at its history URL. */
+async function serveFixtureOnReload(page) {
+  await page.route(`${origin}/`, async (route) => {
+    if (!route.request().isNavigationRequest()) return route.fallback();
+    const response = await route.fetch({
+      url: `${origin}/${fixture}/index.html`,
+    });
+    const html = (await response.text()).replace(
+      'src="./main.tsx"',
+      `src="/${fixture}/main.tsx"`,
+    );
+    await route.fulfill({ response, body: html });
+  });
+}
+
+test("a signed-in first use sets up its account automatically, replaying the key after a lost reply", async () => {
+  const { page, setupKeys } = await mount(
+    "/",
+    "bootstrap_required",
+    undefined,
+    {
+      loseFirstSetupReply: true,
+    },
+  );
+  try {
+    await page.getByText("Your Animas will appear here").waitFor();
+    assert.equal(setupKeys.length, 2);
+    assert.equal(setupKeys[1], setupKeys[0]);
+  } finally {
+    await page.close();
+  }
+});
+
+test("an open view repairs a newly required account setup and keeps its session", async () => {
+  const fixture = await mount();
+  const { page, setupKeys } = fixture;
+  try {
+    await page.getByText("Your Animas will appear here").waitFor();
+    await page.evaluate(() => window.hostedFixture.startPrivateWork());
+    const first = await page.evaluate(() => window.hostedFixture.current());
+    fixture.setState("bootstrap_required");
+    await page.evaluate(() => window.hostedFixture.refresh());
+    await page.waitForFunction(
+      () =>
+        window.hostedFixture.current().status === "ready" &&
+        !window.hostedFixture.current().reconnecting,
+    );
+    assert.equal(setupKeys.length, 1);
+    const current = await page.evaluate(() => window.hostedFixture.current());
+    assert.equal(current.key, first.key);
+    assert.equal(current.privateData, "old-private-data");
+    assert.equal(
+      await page.evaluate(() => window.hostedFixture.draft().operationId),
+      "fixture-operation",
+    );
+  } finally {
+    await page.close();
+  }
+});
 
 test("transient context failure preserves the original draft and fences dispatch until a successful refresh", async () => {
   const fixture = await mount();
@@ -275,18 +365,7 @@ test("a real same-tab reload recovers the original ambiguous operation and sign-
     await page.getByText("Your Animas will appear here").waitFor();
     await page.evaluate(() => window.hostedFixture.startPrivateWork());
     const first = await page.evaluate(() => window.hostedFixture.current().key);
-    // Serve the existing Vite-transformed fixture at its history URL on reload.
-    await page.route(`${origin}/`, async (route) => {
-      if (!route.request().isNavigationRequest()) return route.fallback();
-      const response = await route.fetch({
-        url: `${origin}/${fixture}/index.html`,
-      });
-      const html = (await response.text()).replace(
-        'src="./main.tsx"',
-        `src="/${fixture}/main.tsx"`,
-      );
-      await route.fulfill({ response, body: html });
-    });
+    await serveFixtureOnReload(page);
     await page.reload();
     await page.getByText("Your Animas will appear here").waitFor();
     assert.equal(
@@ -529,6 +608,46 @@ test("common rejected admission states withhold the private shell", async () => 
   }
 });
 
+test("account controls stay hidden without a central account URL", async () => {
+  const restricted = await mount("/library", "paused", undefined, {
+    accountUrl: false,
+  });
+  try {
+    await restricted.page
+      .getByRole("heading", { name: "Account access is restricted" })
+      .waitFor();
+    await restricted.page
+      .getByRole("button", { name: "Sign out", exact: true })
+      .waitFor();
+    assert.equal(
+      await restricted.page
+        .getByRole("button", { name: "Account", exact: true })
+        .count(),
+      0,
+    );
+  } finally {
+    await restricted.page.close();
+  }
+  const admitted = await mount("/", "active", undefined, { accountUrl: false });
+  try {
+    await admitted.page.getByText("Your Animas will appear here").waitFor();
+    await admitted.page
+      .getByRole("button", { name: "Fixture account" })
+      .click();
+    await admitted.page
+      .getByRole("menuitem", { name: "Usage and limits" })
+      .waitFor();
+    assert.equal(
+      await admitted.page
+        .getByRole("menuitem", { name: "Account", exact: true })
+        .count(),
+      0,
+    );
+  } finally {
+    await admitted.page.close();
+  }
+});
+
 test("sign-out disposes private work and same-owner reauthentication has an empty new lifetime", async () => {
   const { page, calls, reauthenticate } = await mount();
   await page.getByText("Your Animas will appear here").waitFor();
@@ -726,6 +845,117 @@ test("hosted sign-out waits for already-running recovery writes and fences queue
       window.hostedFixture.creatorRecoveryRecords(),
     );
     assert.deepEqual(records, [[], [], []]);
+    await page.close();
+  }
+});
+
+test("a failed remote sign-out stays retryable across focus and reload until it finishes", async () => {
+  const fixture = await mount();
+  const { page, calls } = fixture;
+  try {
+    await page.getByText("Your Animas will appear here").waitFor();
+    fixture.setLogoutStatus(503);
+    await page.evaluate(() => window.hostedFixture.signOut());
+    const heading = page.getByRole("heading", {
+      name: "Sign-out did not complete",
+    });
+    await heading.waitFor();
+    await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+    await page.evaluate(() => window.hostedFixture.refresh());
+    await heading.waitFor();
+    // The Cloud session is still live, so a reload must not readmit it.
+    await serveFixtureOnReload(page);
+    await page.reload();
+    await heading.waitFor();
+    assert.equal(
+      await page.evaluate(() => window.hostedFixture.current().status),
+      "sign-in-required",
+    );
+    fixture.setLogoutStatus(200);
+    await page.getByRole("button", { name: "Try again", exact: true }).click();
+    await page.getByRole("heading", { name: "Sign in to Animama" }).waitFor();
+    const logouts = calls.filter((call) => call.path.endsWith("/logout"));
+    assert.equal(logouts.length, 2);
+    assert.equal(logouts[1].headers["x-animama-csrf"], "fixture-session-one");
+  } finally {
+    await page.close();
+  }
+});
+
+test("a tab signed out by another tab adopts a newer session when it is focused", async () => {
+  const context = await browser.newContext({
+    viewport: { width: 1280, height: 800 },
+  });
+  try {
+    const first = await mount("/", "active", undefined, { context });
+    const second = await mount("/", "active", undefined, { context });
+    await second.page.getByText("Your Animas will appear here").waitFor();
+    const before = await second.page.evaluate(
+      () => window.hostedFixture.current().key,
+    );
+    await first.page.evaluate(() => window.hostedFixture.signOut());
+    await second.page
+      .getByRole("heading", { name: "Sign in to Animama" })
+      .waitFor();
+    // Someone signs in again in another tab before this one is used.
+    second.reauthenticate();
+    await second.page.bringToFront();
+    await second.page.evaluate(() => window.dispatchEvent(new Event("focus")));
+    await second.page.getByText("Your Animas will appear here").waitFor();
+    assert.notEqual(
+      await second.page.evaluate(() => window.hostedFixture.current().key),
+      before,
+    );
+    assert.equal(
+      second.calls.some((call) => call.path.endsWith("/login")),
+      false,
+    );
+  } finally {
+    await context.close();
+  }
+});
+
+test("a failed sign-in callback shows an alert and sign-in returns to the same page", async () => {
+  const { page, calls } = await mount(
+    "/library?sign_in=failed",
+    "session_required",
+  );
+  try {
+    await page
+      .getByRole("alert")
+      .filter({ hasText: "Sign-in did not finish" })
+      .waitFor();
+    assert.equal(new URL(page.url()).search, "");
+    assert.equal(new URL(page.url()).pathname, "/library");
+    await page.getByRole("button", { name: "Sign in", exact: true }).click();
+    await page.waitForFunction(
+      () => window.hostedFixture.observations.navigations.length === 1,
+    );
+    const login = calls.find((call) => call.path.endsWith("/login"));
+    assert.deepEqual(JSON.parse(login.body), { return_path: "/library" });
+  } finally {
+    await page.close();
+  }
+});
+
+test("speech workers answer again after a same-page sign-out and reauthentication", async () => {
+  const { page, reauthenticate } = await mount();
+  try {
+    await page.getByText("Your Animas will appear here").waitFor();
+    const before = await page.evaluate(() =>
+      window.hostedFixture.speechProbe(),
+    );
+    assert.match(before.parakeet, /not been loaded/);
+    assert.match(before.smartTurn, /not been loaded/);
+    await page.evaluate(() => window.hostedFixture.signOut());
+    reauthenticate();
+    await page.evaluate(() => window.hostedFixture.reauthenticate());
+    await page.getByText("Your Animas will appear here").waitFor();
+    // The ended session's workers were terminated; new ones must answer.
+    const after = await page.evaluate(() => window.hostedFixture.speechProbe());
+    assert.match(after.parakeet, /not been loaded/);
+    assert.match(after.smartTurn, /not been loaded/);
+  } finally {
     await page.close();
   }
 });

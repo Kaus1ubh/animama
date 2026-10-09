@@ -1,8 +1,8 @@
 import { disposePocketTtsRuntime } from "@/hooks/use-pocket-tts-runtime";
 import { clearVrmaCache } from "@/lib/avatar";
 import { terminateVisemeWorker } from "@/lib/avatar/viseme-worker-client";
-import { disposeClientParakeetWorker } from "@/lib/speech/client-parakeet/client";
-import { disposeSmartTurnWorker } from "@/lib/voice/smart-turn-worker-client";
+import { terminateClientParakeetWorker } from "@/lib/speech/client-parakeet/client";
+import { terminateSmartTurnWorker } from "@/lib/voice/smart-turn-worker-client";
 import { useAvatarRuntimeStore } from "@/stores/avatar-runtime-store";
 import { useAvatarLipSyncBridgeStore } from "@/stores/avatar-lipsync-bridge-store";
 import { usePoseCreatorStore } from "@/stores/pose-creator-store";
@@ -12,6 +12,7 @@ import { useAnimaAnimationDebugStore } from "@/stores/anima-animation-debug-stor
 import { useAnimationDebugStore } from "@/stores/animation-debug-store";
 import { useSceneVFXStore } from "@/stores/scene-vfx-store";
 import { endHostedRecoverySession } from "@/lib/content/recovery-session";
+import { privateStateResets } from "./private-module-state";
 
 /** Private module state ends with admission; browser device preferences and model stores survive. */
 export async function clearPrivateSessionState(
@@ -27,10 +28,10 @@ export async function clearPrivateSessionState(
   const disposals = [
     disposePocketTtsRuntime,
     terminateVisemeWorker,
-    () => {
-      void disposeClientParakeetWorker().catch(() => {});
-    },
-    disposeSmartTurnWorker,
+    // Synchronous: the session also terminates these workers, so an awaited
+    // dispose reply could never arrive and would leave a dead worker behind.
+    terminateClientParakeetWorker,
+    terminateSmartTurnWorker,
     clearVrmaCache,
     () => useAvatarRuntimeStore.getState().resetForAnima(null),
     () =>
@@ -45,6 +46,8 @@ export async function clearPrivateSessionState(
     () => useAnimaAnimationDebugStore.getState().clearSnapshot(),
     () => useVoiceVadDebugStore.getState().reset(),
     () => useSceneVFXStore.getState().clearAllSceneVFX(),
+    // Module-level drafts of lazily loaded features (pending saves, staged files).
+    ...privateStateResets(),
   ];
   for (const dispose of disposals) {
     try {

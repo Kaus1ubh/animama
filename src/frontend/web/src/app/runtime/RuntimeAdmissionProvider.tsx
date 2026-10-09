@@ -5,6 +5,7 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from "react";
+import type { AccountAffordances } from "./composition";
 import { RuntimeController } from "./runtime-controller";
 
 const RuntimeAdmissionContext = createContext<RuntimeController | null>(null);
@@ -48,4 +49,19 @@ export function useRuntimeAdmission() {
 /** Optional shell affordances may also render in isolated component previews. */
 export function useOptionalRuntimeController() {
   return useContext(RuntimeAdmissionContext);
+}
+
+const withoutController = () => () => {};
+
+/** Account controls that follow admission; isolated previews have none. */
+export function useOptionalAccountAffordances(): AccountAffordances | null {
+  const controller = useContext(RuntimeAdmissionContext);
+  const snapshot = () => controller?.getSnapshot() ?? null;
+  return (
+    useSyncExternalStore(
+      controller?.subscribe ?? withoutController,
+      snapshot,
+      snapshot,
+    )?.account ?? null
+  );
 }

@@ -173,7 +173,7 @@ describe("hosted admission and transport", () => {
     try {
       await controller.refresh();
       const old = controller.getSnapshot().scope!;
-      state = "paused";
+      state = "restricted";
       events.enqueue(
         new TextEncoder().encode("event: revoked\r\ndata: {}\r\n\r\n"),
       );
@@ -392,7 +392,7 @@ describe("hosted admission and transport", () => {
     }
   });
 
-  it.each(["unknown", undefined, "recovery", "bootstrap_required"])(
+  it.each(["unknown", undefined, "recovery", "bootstrap_required", "paused"])(
     "preserves persisted ambiguous recovery through an initial %s context after reload",
     async (state) => {
       const { sessionRows, draftRows } = installReloadStorage();
@@ -429,7 +429,6 @@ describe("hosted admission and transport", () => {
   it.each([
     ["session_required", 200],
     ["ineligible", 200],
-    ["paused", 200],
     ["restricted", 200],
     ["deletion_pending", 200],
     ["unauthorized", 401],
@@ -456,6 +455,29 @@ describe("hosted admission and transport", () => {
       expect(sessionRows.has("animama.hosted-recovery.v1")).toBe(false);
     },
   );
+
+  it("keeps an open session and its drafts through a transient paused context", async () => {
+    const context = { ...active };
+    const { composition } = fixture(context);
+    const controller = new RuntimeController(composition);
+    await controller.refresh();
+    const original = controller.getSnapshot();
+    original.queryClient.setQueryData(["draft"], "retain");
+    context.state = "paused";
+    await controller.refresh();
+    try {
+      expect(controller.getSnapshot().scope).toBe(original.scope);
+      expect(original.scope!.controller.signal.aborted).toBe(false);
+      expect(controller.getSnapshot().reconnecting).toBe(true);
+      context.state = "active";
+      await controller.refresh();
+      expect(controller.getSnapshot().scope).toBe(original.scope);
+      expect(controller.getSnapshot().reconnecting).toBe(false);
+      expect(original.queryClient.getQueryData(["draft"])).toBe("retain");
+    } finally {
+      controller.dispose();
+    }
+  });
 
   it.each([401, 403])(
     "retires ready admission on authoritative context HTTP %s",
@@ -547,6 +569,30 @@ describe("hosted admission and transport", () => {
     }
   });
 
+  it("admits operator-provisioned web search but never owner search settings", async () => {
+    const operatorSearch = {
+      configuration: false,
+      configured: true,
+      backend: "brave",
+      credential_state: "configured",
+    };
+    const admitted = await fixture({
+      ...active,
+      capabilities: { ...capabilities, web_search: operatorSearch },
+    } as typeof active).composition.readAdmission();
+    expect(
+      admitted.status === "ready" && admitted.capabilities.web_search,
+    ).toEqual(operatorSearch);
+    const administered = await fixture({
+      ...active,
+      capabilities: {
+        ...capabilities,
+        web_search: { ...operatorSearch, configuration: true },
+      },
+    } as typeof active).composition.readAdmission();
+    expect(administered.status).toBe("unavailable");
+  });
+
   it("uses cookie and current CSRF authority for explicit SDK, byte and streaming requests", async () => {
     const { composition, calls } = fixture();
     const controller = new RuntimeController(composition);
@@ -569,28 +615,596 @@ describe("hosted admission and transport", () => {
 
   it("repairs only reported hosted bootstrap/recovery, never installation bootstrap", async () => {
     const { composition, calls } = fixture({ ...active, state: "recovery" });
+    expect((await composition.readAdmission()).status).toBe("recovery");
+    expect(calls).toHaveLength(1);
     await composition.repair();
-    expect(calls.map((call) => new URL(call.url).pathname)).toEqual([
-      "/v1/hosted/runtime-context",
-      "/v1/hosted/bootstrap:ensure",
-      "/v1/hosted/runtime-context",
-    ]);
-    const body = (await calls[1].json()) as Record<string, unknown>;
+    await vi.waitFor(() =>
+      expect(calls.map((call) => new URL(call.url).pathname)).toEqual([
+        "/v1/hosted/runtime-context",
+        "/v1/hosted/runtime-context",
+        "/v1/hosted/bootstrap:ensure",
+      ]),
+    );
+    const body = (await calls[2].json()) as Record<string, unknown>;
     expect(Object.keys(body)).toEqual(["idempotency_key"]);
+    expect(calls[2].headers.get("X-Animama-CSRF")).toBe("fixture-csrf");
   });
 
-  it("binds account navigation to a validated admission URL and gives useful absence feedback", async () => {
+  it("offers account navigation only for a validated admission URL", async () => {
     const { composition, navigate } = fixture();
+    expect(composition.accountAffordances!().canOpenAccount).toBe(false);
     await composition.readAdmission();
+    expect(composition.accountAffordances!().canOpenAccount).toBe(true);
     composition.accountActions!.openAccount();
     expect(navigate).toHaveBeenCalledWith("https://accounts.example.test/");
-    const missing = fixture({
-      ...active,
-      account_url: undefined,
-    } as unknown as typeof active);
-    await missing.composition.readAdmission();
-    expect(() => missing.composition.accountActions!.openAccount()).toThrow(
-      "Account access is unavailable",
+    for (const accountUrl of [
+      undefined,
+      null,
+      "javascript:alert(1)",
+      "http://accounts.example.test/",
+      "https://user:secret@accounts.example.test/",
+    ]) {
+      const missing = fixture({
+        ...active,
+        account_url: accountUrl,
+      } as unknown as typeof active);
+      await missing.composition.readAdmission();
+      expect(missing.composition.accountAffordances!().canOpenAccount).toBe(
+        false,
+      );
+      expect(() => missing.composition.accountActions!.openAccount()).toThrow(
+        "Account access is unavailable",
+      );
+    }
+  });
+});
+
+/** A signed-in account whose server-owned setup the test controls. */
+function setupFlow(
+  initial: string,
+  ensure: (key: string, sent: number) => Response | Promise<Response>,
+) {
+  const state = { value: initial };
+  const keys: string[] = [];
+  let contextReads = 0;
+  const fetch: typeof globalThis.fetch = async (input) => {
+    const request = input as Request;
+    const path = new URL(request.url).pathname;
+    if (path === "/v1/hosted/runtime-context") {
+      contextReads += 1;
+      return Response.json({ ...active, state: state.value });
+    }
+    if (path === "/v1/hosted/bootstrap:ensure") {
+      const body = (await request.json()) as { idempotency_key: string };
+      keys.push(body.idempotency_key);
+      return ensure(body.idempotency_key, keys.length);
+    }
+    if (path === "/v1/hosted/events")
+      return new Response(new ReadableStream<Uint8Array>());
+    return Response.json({ ok: true });
+  };
+  const composition = createHostedComposition({
+    baseUrl: "https://app.example.test",
+    fetch,
+    navigate: vi.fn(),
+  });
+  const controller = new RuntimeController(composition);
+  const views: string[] = [];
+  controller.subscribe(() => {
+    const admission = controller.getSnapshot().admission;
+    views.push(
+      admission.status === "loading" && admission.message
+        ? `loading: ${admission.message}`
+        : admission.status,
     );
+  });
+  const unsubscribe = composition.subscribe!((invalidate) => {
+    void controller.refresh(false, invalidate);
+  });
+  return {
+    state,
+    keys,
+    views,
+    controller,
+    contextReads: () => contextReads,
+    status: () => controller.getSnapshot().admission.status,
+    close: () => {
+      unsubscribe();
+      controller.dispose();
+    },
+  };
+}
+const setupAnswer = () => Response.json({ state: "active", ready: true });
+
+describe("hosted account setup", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("sets up a signed-in first-use account automatically, then admits it", async () => {
+    const flow = setupFlow("bootstrap_required", () => {
+      flow.state.value = "active";
+      return setupAnswer();
+    });
+    try {
+      await flow.controller.refresh();
+      await vi.waitFor(() => expect(flow.status()).toBe("ready"));
+      expect(flow.views).toContain("loading: Setting up your account…");
+      expect(flow.views).not.toContain("recovery");
+      expect(flow.keys).toHaveLength(1);
+    } finally {
+      flow.close();
+    }
+  });
+
+  it("replays the same idempotency key after a lost reply", async () => {
+    vi.useFakeTimers();
+    const flow = setupFlow("bootstrap_required", (_key, sent) => {
+      if (sent === 1) throw new TypeError("Failed to fetch");
+      flow.state.value = "active";
+      return setupAnswer();
+    });
+    try {
+      await flow.controller.refresh();
+      await vi.advanceTimersByTimeAsync(500);
+      await vi.waitFor(() => expect(flow.status()).toBe("ready"));
+      expect(flow.keys).toHaveLength(2);
+      expect(flow.keys[1]).toBe(flow.keys[0]);
+    } finally {
+      flow.close();
+    }
+  });
+
+  it("offers recovery after an unanswered attempt and replays its key on retry", async () => {
+    vi.useFakeTimers();
+    let online = false;
+    const flow = setupFlow("bootstrap_required", () => {
+      if (!online) throw new TypeError("Failed to fetch");
+      flow.state.value = "active";
+      return setupAnswer();
+    });
+    try {
+      await flow.controller.refresh();
+      await vi.advanceTimersByTimeAsync(1_500);
+      await vi.waitFor(() => expect(flow.status()).toBe("recovery"));
+      expect(flow.keys).toHaveLength(3);
+      // Ordinary reads do not repeat an automatic attempt that already failed.
+      await flow.controller.refresh();
+      expect(flow.status()).toBe("recovery");
+      expect(flow.keys).toHaveLength(3);
+      online = true;
+      await flow.controller.refresh(true);
+      await vi.waitFor(() => expect(flow.status()).toBe("ready"));
+      expect(flow.keys).toHaveLength(4);
+      expect(flow.keys[3]).toBe(flow.keys[0]);
+    } finally {
+      flow.close();
+    }
+  });
+
+  it("starts a person's retry with a new key once the server answered", async () => {
+    const flow = setupFlow("bootstrap_required", (_key, sent) => {
+      if (sent === 1)
+        return Response.json(
+          { state: "identity_unavailable" },
+          { status: 503 },
+        );
+      flow.state.value = "active";
+      return setupAnswer();
+    });
+    try {
+      await flow.controller.refresh();
+      await vi.waitFor(() => expect(flow.status()).toBe("recovery"));
+      expect(flow.keys).toHaveLength(1);
+      await flow.controller.refresh(true);
+      await vi.waitFor(() => expect(flow.status()).toBe("ready"));
+      expect(flow.keys).toHaveLength(2);
+      expect(flow.keys[1]).not.toBe(flow.keys[0]);
+    } finally {
+      flow.close();
+    }
+  });
+
+  it("runs one setup attempt at a time", async () => {
+    let finish!: () => void;
+    const flow = setupFlow(
+      "bootstrap_required",
+      () =>
+        new Promise<Response>((resolve) => {
+          finish = () => {
+            flow.state.value = "active";
+            resolve(setupAnswer());
+          };
+        }),
+    );
+    try {
+      await flow.controller.refresh();
+      await flow.controller.refresh();
+      await flow.controller.refresh(true);
+      await vi.waitFor(() => expect(flow.keys).toHaveLength(1));
+      expect(flow.status()).toBe("loading");
+      finish();
+      await vi.waitFor(() => expect(flow.status()).toBe("ready"));
+      expect(flow.keys).toHaveLength(1);
+    } finally {
+      flow.close();
+    }
+  });
+
+  it("bounds setup progress polling, then offers recovery that polls again", async () => {
+    vi.useFakeTimers();
+    const flow = setupFlow("bootstrapping", () => setupAnswer());
+    try {
+      await flow.controller.refresh();
+      expect(flow.views.at(-1)).toMatch(/^loading: /);
+      await vi.advanceTimersByTimeAsync(10 * 60_000);
+      expect(flow.status()).toBe("recovery");
+      const reads = flow.contextReads();
+      expect(reads).toBeGreaterThan(10);
+      expect(reads).toBeLessThan(40);
+      await vi.advanceTimersByTimeAsync(10 * 60_000);
+      expect(flow.contextReads()).toBe(reads);
+      await flow.controller.refresh(true);
+      expect(flow.status()).toBe("loading");
+      flow.state.value = "active";
+      await vi.advanceTimersByTimeAsync(5_000);
+      expect(flow.status()).toBe("ready");
+      expect(flow.keys).toHaveLength(0);
+    } finally {
+      flow.close();
+    }
+  });
+
+  it("repairs an open view's bootstrap requirement without ending its session", async () => {
+    const flow = setupFlow("active", () => {
+      flow.state.value = "active";
+      return setupAnswer();
+    });
+    try {
+      await flow.controller.refresh();
+      const original = flow.controller.getSnapshot();
+      original.queryClient.setQueryData(["draft"], "retain");
+      // A newer release requires the idempotent bootstrap again.
+      flow.state.value = "bootstrap_required";
+      await flow.controller.refresh();
+      await vi.waitFor(() => expect(flow.keys).toHaveLength(1));
+      await vi.waitFor(() =>
+        expect(flow.controller.getSnapshot().reconnecting).toBe(false),
+      );
+      expect(flow.controller.getSnapshot().scope).toBe(original.scope);
+      expect(original.scope!.controller.signal.aborted).toBe(false);
+      expect(original.queryClient.getQueryData(["draft"])).toBe("retain");
+    } finally {
+      flow.close();
+    }
+  });
+
+  it("keeps repairing an open view at a bounded pace while setup fails", async () => {
+    vi.useFakeTimers();
+    let healthy = false;
+    const flow = setupFlow("active", () => {
+      if (!healthy)
+        return Response.json(
+          { state: "identity_unavailable" },
+          { status: 503 },
+        );
+      flow.state.value = "active";
+      return setupAnswer();
+    });
+    try {
+      await flow.controller.refresh();
+      const original = flow.controller.getSnapshot().scope;
+      flow.state.value = "recovery";
+      await flow.controller.refresh();
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(flow.keys.length).toBeGreaterThan(1);
+      expect(flow.keys.length).toBeLessThanOrEqual(6);
+      expect(flow.controller.getSnapshot().reconnecting).toBe(true);
+      expect(flow.controller.getSnapshot().scope).toBe(original);
+      healthy = true;
+      await vi.advanceTimersByTimeAsync(120_000);
+      expect(flow.controller.getSnapshot().reconnecting).toBe(false);
+      expect(flow.controller.getSnapshot().scope).toBe(original);
+    } finally {
+      flow.close();
+    }
+  });
+});
+
+/** One browser profile: shared storage, focus and tab broadcasts. */
+function installBrowserPage(href = "https://app.example.test/") {
+  const rows = new Map<string, string>();
+  const storage = {
+    get length() {
+      return rows.size;
+    },
+    key: (index: number) => [...rows.keys()][index] ?? null,
+    getItem: (key: string) => rows.get(key) ?? null,
+    setItem: (key: string, value: string) => void rows.set(key, value),
+    removeItem: (key: string) => void rows.delete(key),
+  };
+  const focusListeners = new Set<() => void>();
+  const location = new URL(href);
+  const history = {
+    state: null,
+    replaceState: vi.fn((_state: unknown, _title: string, url: string) => {
+      location.href = new URL(url, location).href;
+    }),
+  };
+  const channels: { onmessage: ((event: MessageEvent) => void) | null }[] = [];
+  vi.stubGlobal("window", {
+    localStorage: storage,
+    sessionStorage: storage,
+    location,
+    history,
+    document: { pictureInPictureElement: null },
+    addEventListener: (type: string, listener: () => void) => {
+      if (type === "focus") focusListeners.add(listener);
+    },
+    removeEventListener: (_type: string, listener: () => void) =>
+      focusListeners.delete(listener),
+  });
+  vi.stubGlobal("document", {
+    hidden: false,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  });
+  vi.stubGlobal(
+    "BroadcastChannel",
+    class {
+      onmessage: ((event: MessageEvent) => void) | null = null;
+      postMessage = vi.fn();
+      close = vi.fn();
+      constructor() {
+        channels.push(this);
+      }
+    },
+  );
+  return {
+    rows,
+    location,
+    history,
+    focus: () => focusListeners.forEach((listener) => listener()),
+    /** Another tab's sign-out message. */
+    signedOutElsewhere: () =>
+      channels.forEach((channel) =>
+        channel.onmessage?.({
+          data: { type: "signed-out" },
+        } as MessageEvent),
+      ),
+  };
+}
+
+/** The hosted service as the browser's tabs see it. */
+function hostedService() {
+  const service = {
+    session: "fixture-session-generation-one" as string | null,
+    logoutStatus: 200,
+    calls: [] as Request[],
+    paths: () => service.calls.map((call) => new URL(call.url).pathname),
+    fetch: (async (input) => {
+      const request = input as Request;
+      service.calls.push(request);
+      const path = new URL(request.url).pathname;
+      if (path === "/v1/hosted/runtime-context")
+        return Response.json(
+          service.session
+            ? { ...active, recovery_session_id: service.session }
+            : {
+                ...active,
+                state: "session_required",
+                user_id: null,
+                csrf_token: null,
+              },
+        );
+      if (path === "/api/cloud/auth/logout") {
+        if (service.logoutStatus === 200) service.session = null;
+        return Response.json({}, { status: service.logoutStatus });
+      }
+      if (path === "/api/cloud/auth/login")
+        return Response.json({
+          authorization_url: "https://identity.example.test/sign-in",
+        });
+      if (path === "/v1/hosted/events")
+        return new Response(new ReadableStream<Uint8Array>());
+      return Response.json({ ok: true });
+    }) as typeof globalThis.fetch,
+  };
+  return service;
+}
+
+/** One tab of the hosted app, mounted like the entrypoint mounts it. */
+function hostedTab(service: ReturnType<typeof hostedService>) {
+  const navigate = vi.fn();
+  const composition = createHostedComposition({
+    baseUrl: "https://app.example.test",
+    fetch: service.fetch,
+    navigate,
+  });
+  const controller = new RuntimeController(composition);
+  const unsubscribe = composition.subscribe!((invalidate) => {
+    void controller.refresh(false, invalidate);
+  });
+  return {
+    composition,
+    controller,
+    navigate,
+    status: () => controller.getSnapshot().admission.status,
+    incomplete: () => controller.getSnapshot().account.signOutIncomplete,
+    close: () => {
+      unsubscribe();
+      controller.dispose();
+    },
+  };
+}
+
+describe("hosted sign-in and sign-out", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("keeps a failed remote sign-out retryable across reads and reloads until it finishes", async () => {
+    installBrowserPage();
+    const service = hostedService();
+    service.logoutStatus = 503;
+    const tab = hostedTab(service);
+    const reloaded = hostedTab(service);
+    try {
+      await tab.controller.refresh();
+      expect(tab.status()).toBe("ready");
+      await tab.controller.signOut();
+      expect(tab.status()).toBe("sign-in-required");
+      expect(tab.controller.getSnapshot().scope).toBeNull();
+      expect(tab.incomplete()).toBe(true);
+      // A focus or other read neither erases the failure nor readmits the
+      // session it left live.
+      await tab.controller.refresh();
+      expect(tab.status()).toBe("sign-in-required");
+      expect(tab.incomplete()).toBe(true);
+      // Neither does a reload of the page.
+      await reloaded.controller.refresh();
+      expect(reloaded.status()).toBe("sign-in-required");
+      expect(reloaded.incomplete()).toBe(true);
+      service.logoutStatus = 200;
+      await reloaded.controller.signOut();
+      expect(reloaded.incomplete()).toBe(false);
+      const logouts = service.calls.filter(
+        (call) => new URL(call.url).pathname === "/api/cloud/auth/logout",
+      );
+      expect(logouts).toHaveLength(2);
+      expect(logouts[1].headers.get("X-Animama-CSRF")).toBe("fixture-csrf");
+      // The original page sees the finished sign-out on its next read.
+      await tab.controller.refresh();
+      expect(tab.incomplete()).toBe(false);
+      expect(tab.status()).toBe("sign-in-required");
+    } finally {
+      tab.close();
+      reloaded.close();
+    }
+  });
+
+  it("replaces the session a failed sign-out left live with a new sign-in", async () => {
+    installBrowserPage();
+    const service = hostedService();
+    service.logoutStatus = 503;
+    const tab = hostedTab(service);
+    try {
+      await tab.controller.refresh();
+      await tab.controller.signOut();
+      expect(tab.incomplete()).toBe(true);
+      tab.composition.accountActions!.signIn();
+      await vi.waitFor(() =>
+        expect(tab.navigate).toHaveBeenCalledWith(
+          "https://identity.example.test/sign-in",
+        ),
+      );
+      expect(tab.composition.accountAffordances!().signOutIncomplete).toBe(
+        false,
+      );
+    } finally {
+      tab.close();
+    }
+  });
+
+  it("lets a tab signed out by another tab adopt a newer session when it is focused", async () => {
+    const page = installBrowserPage();
+    const service = hostedService();
+    const tab = hostedTab(service);
+    try {
+      await tab.controller.refresh();
+      const first = tab.controller.getSnapshot().scope!;
+      page.signedOutElsewhere();
+      await vi.waitFor(() => expect(tab.status()).toBe("sign-in-required"));
+      expect(first.controller.signal.aborted).toBe(true);
+      // The other tab signs in again.
+      service.session = "fixture-session-generation-two";
+      page.focus();
+      await vi.waitFor(() => expect(tab.status()).toBe("ready"));
+      expect(tab.controller.getSnapshot().scope!.key).not.toBe(first.key);
+      expect(tab.navigate).not.toHaveBeenCalled();
+    } finally {
+      tab.close();
+    }
+  });
+
+  it("adopts another tab's active session instead of starting a new sign-in", async () => {
+    const page = installBrowserPage();
+    const service = hostedService();
+    const tab = hostedTab(service);
+    try {
+      await tab.controller.refresh();
+      page.signedOutElsewhere();
+      await vi.waitFor(() => expect(tab.status()).toBe("sign-in-required"));
+      service.session = "fixture-session-generation-two";
+      tab.composition.accountActions!.signIn();
+      await vi.waitFor(() => expect(tab.status()).toBe("ready"));
+      expect(service.paths()).not.toContain("/api/cloud/auth/login");
+      expect(tab.navigate).not.toHaveBeenCalled();
+    } finally {
+      tab.close();
+    }
+  });
+
+  it("keeps the tab that signed out signed out when it is focused again", async () => {
+    const page = installBrowserPage();
+    const service = hostedService();
+    const tab = hostedTab(service);
+    try {
+      await tab.controller.refresh();
+      await tab.controller.signOut();
+      expect(tab.incomplete()).toBe(false);
+      service.session = "fixture-session-generation-two";
+      page.focus();
+      await tab.controller.refresh();
+      expect(tab.status()).toBe("sign-in-required");
+    } finally {
+      tab.close();
+    }
+  });
+
+  it("returns to the current page after sign-in", async () => {
+    installBrowserPage("https://app.example.test/library?tab=effects#top");
+    const service = hostedService();
+    service.session = null;
+    const tab = hostedTab(service);
+    try {
+      await tab.controller.refresh();
+      tab.composition.accountActions!.signIn();
+      await vi.waitFor(() => expect(tab.navigate).toHaveBeenCalled());
+      const login = service.calls.find(
+        (call) => new URL(call.url).pathname === "/api/cloud/auth/login",
+      )!;
+      expect(await login.json()).toEqual({
+        return_path: "/library?tab=effects",
+      });
+    } finally {
+      tab.close();
+    }
+  });
+
+  it("reports a failed sign-in callback on the sign-in view and removes its marker", async () => {
+    const page = installBrowserPage(
+      "https://app.example.test/library?sign_in=failed&tab=1",
+    );
+    const service = hostedService();
+    service.session = null;
+    const tab = hostedTab(service);
+    try {
+      expect(page.location.href).toBe("https://app.example.test/library?tab=1");
+      await tab.controller.refresh();
+      expect(tab.controller.getSnapshot().admission).toEqual({
+        status: "sign-in-required",
+        message: "Sign-in did not finish. Please try again.",
+      });
+      tab.composition.accountActions!.signIn();
+      await vi.waitFor(() => expect(tab.navigate).toHaveBeenCalled());
+      const login = service.calls.find(
+        (call) => new URL(call.url).pathname === "/api/cloud/auth/login",
+      )!;
+      expect(await login.json()).toEqual({ return_path: "/library?tab=1" });
+      expect(await tab.composition.readAdmission()).toEqual({
+        status: "sign-in-required",
+      });
+    } finally {
+      tab.close();
+    }
   });
 });

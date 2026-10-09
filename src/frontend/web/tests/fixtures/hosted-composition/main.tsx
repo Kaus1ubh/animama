@@ -8,6 +8,8 @@ import {
   saveContentEditRecovery,
   loadContentEditRecovery,
 } from "@/lib/content/contentEditRecovery";
+import { transcribeClientParakeetWindow } from "@/lib/speech/client-parakeet/client";
+import { predictSmartTurn } from "@/lib/voice/smart-turn-worker-client";
 import {
   creatorRecoveryRecords,
   writeCreatorRecovery,
@@ -72,6 +74,41 @@ Object.assign(window, {
     reauthenticate: async () => {
       composition.accountActions!.signIn();
       await controller.refresh();
+    },
+    /** Asks both speech workers for work they cannot do before loading; a live worker answers. */
+    speechProbe: async () => {
+      const answer = (work: Promise<unknown>) =>
+        Promise.race([
+          work.then(
+            () => "answered",
+            (error: unknown) =>
+              error instanceof Error ? error.message : String(error),
+          ),
+          new Promise<string>((resolve) =>
+            setTimeout(() => resolve("no reply"), 20_000),
+          ),
+        ]);
+      const audio = () => new Float32Array(1_600);
+      return {
+        parakeet: await answer(
+          transcribeClientParakeetWindow({
+            jobId: "probe",
+            runId: "probe",
+            turnId: "probe",
+            windowId: "probe",
+            audio: audio(),
+          }),
+        ),
+        smartTurn: await answer(
+          predictSmartTurn({
+            jobId: "probe",
+            turnId: "probe",
+            audio: audio(),
+            sampleRateHz: 16_000,
+            threshold: 0.5,
+          }),
+        ),
+      };
     },
     current: () => ({
       status: controller.getSnapshot().admission.status,

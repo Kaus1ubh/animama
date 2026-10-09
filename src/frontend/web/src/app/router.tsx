@@ -34,7 +34,7 @@ export function AppRouter() {
     () => subscribeToAppFileErrors(window, () => setAppFileError(true)),
     [],
   );
-  const { admission, controller, composition } = useRuntimeAdmission();
+  const { admission, controller, composition, account } = useRuntimeAdmission();
   const platform = useRuntimePlatform();
   const queryClient = useQueryClient();
   const capabilities =
@@ -52,11 +52,19 @@ export function AppRouter() {
       <AdmissionScreen
         admission={admission}
         hosted={composition.kind === "hosted"}
+        signOutIncomplete={account.signOutIncomplete}
         retry={() => {
-          void controller.refresh(admission.status === "recovery");
+          // An unfinished sign-out is retried, never replaced by readmission.
+          void (account.signOutIncomplete
+            ? controller.signOut()
+            : controller.refresh(admission.status === "recovery"));
         }}
         signIn={composition.accountActions?.signIn}
-        openAccount={composition.accountActions?.openAccount}
+        openAccount={
+          account.canOpenAccount
+            ? composition.accountActions?.openAccount
+            : undefined
+        }
         signOut={
           composition.accountActions
             ? () => {

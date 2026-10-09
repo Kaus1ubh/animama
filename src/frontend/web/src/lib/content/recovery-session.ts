@@ -120,12 +120,16 @@ function purgeRecoveryFallbacks(namespaces: string[]): void {
     "anima.avatarEffectCreator.recovery.v1:",
     "anima.sceneEffectCreator.recovery.v1:",
   ].flatMap((family) => namespaces.map((prefix) => `${family}${prefix}`));
+  // These families key by the raw session key. Model download Retry hints
+  // (query/model-download-coordination) hold only public asset IDs, but each
+  // hosted tab writes its own key, so they end with the hosted session too.
   prefixes.push(
     ...namespaces
       .filter((prefix) => prefix.startsWith("hosted%3A"))
-      .map(
-        (prefix) => `animama.package-import.v1.${decodeURIComponent(prefix)}`,
-      ),
+      .flatMap((prefix) => [
+        `animama.package-import.v1.${decodeURIComponent(prefix)}`,
+        `animama:model-download-attempts:${decodeURIComponent(prefix)}`,
+      ]),
   );
   const keys = Array.from({ length: window.localStorage.length }, (_, index) =>
     window.localStorage.key(index),

@@ -163,7 +163,10 @@ cookie and CSRF authority without a browser credential store or owner header.
 and styles. `RuntimeController` owns each query cache and request/body lifetime.
 Sign-out, revoked admission and a changed session key abort old work, clear private
 module state and dispose workers, microphone tracks, playback, audio graphs and
-object URLs before the next session mounts. Hosted recovery drafts use a fresh
+object URLs before the next session mounts. A feature that keeps a private draft
+in a module-level variable registers its reset with `registerPrivateStateReset`
+(`app/runtime/private-module-state.ts`); worker clients end synchronously, since
+the session also terminates their workers. Hosted recovery drafts use a fresh
 session namespace, including same-owner reauthentication; local recovery retains
 its installation namespace. Hosted teardown fences new recovery writes, waits
 for started writes, then removes that lifetime's creator IndexedDB records,

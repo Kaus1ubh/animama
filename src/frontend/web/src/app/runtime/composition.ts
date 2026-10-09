@@ -13,6 +13,14 @@ import type { SessionRequestScope } from "./session-requests";
  */
 export type AdmissionRefresh = boolean | "uncertain" | "recheck";
 
+/** Account controls a composition can offer now; they follow each admission read. */
+export type AccountAffordances = {
+  /** A validated central account URL is available for the Account controls. */
+  readonly canOpenAccount: boolean;
+  /** A requested sign-out has not finished; retrying it is the way forward. */
+  readonly signOutIncomplete: boolean;
+};
+
 /** Entrypoint-owned lifecycle hooks. Feature modules consume admission, never installation policy. */
 export interface AppComposition extends ProductRuntimeComposition {
   readonly kind: "local" | "hosted";
@@ -23,4 +31,6 @@ export interface AppComposition extends ProductRuntimeComposition {
   readonly completeOnboarding?: (
     input: LocalOnboardingInput,
   ) => Promise<RuntimeAdmission>;
+  /** Read whenever admission is published; compositions without accounts omit it. */
+  readonly accountAffordances?: () => AccountAffordances;
 }

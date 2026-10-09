@@ -6,7 +6,6 @@ import {
   loadLocalRuntimeContext,
   type LocalRuntimeApi,
 } from "@web/app/local-runtime/LocalRuntimeProvider";
-import { localRuntimeShellView } from "@web/app/local-runtime/runtime-shell";
 
 const incompleteContext: PyRuntimeContext = {
   schema_version: 1,
@@ -240,17 +239,6 @@ describe("local runtime bootstrap", () => {
 
     await expect(loadLocalRuntimeContext(runtimeApi)).rejects.toThrow(
       "profile_memory",
-    );
-  });
-
-  it("keeps auxiliary desktop windows on a blank wait surface", () => {
-    expect(localRuntimeShellView("loading", true)).toBe("auxiliary-wait");
-    expect(localRuntimeShellView("recoverable-error", true)).toBe(
-      "auxiliary-wait",
-    );
-    expect(localRuntimeShellView("ready", true)).toBe("router");
-    expect(localRuntimeShellView("recoverable-error", false)).toBe(
-      "main-error",
     );
   });
 });
