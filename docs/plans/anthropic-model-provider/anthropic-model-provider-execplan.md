@@ -81,8 +81,8 @@ Ownership and boundaries:
       passed. Anthropic cache share 0.88 through the real adapter.
 - [x] Phase 6: Native web search and compaction. Done 2026-10-09; Review #2
       passed.
-- [ ] Phase 7: Utility role and the Anthropic Memory Manager runtime. Not
-      started.
+- [x] Phase 7: Utility role and the Anthropic Memory Manager runtime. Done
+      2026-10-09; Review #2 passed; D23 and D24 implemented.
 - [ ] Phase 8: Desktop key, App Settings and chat UI. Not started.
 - [ ] Phase 9: Documentation, ADR, measurements and owner live smoke. Not
       started. Owner acceptance gate.
@@ -262,6 +262,21 @@ stated:
     in only 1 of 5 attempts (plus 1 of 3 earlier), against 5 of 5 at `medium`.
     That held even with Anthropic's recommended JSON-plus-tools prompt line.
   - Utility stays `low`; the Memory Manager stays `medium`.
+
+- **D23 (2026-10-09, planning, resolves P6-R1-F4):** Anthropic Utility
+  requests (chat titles, app compaction summaries for other chats) omit
+  `context_management` and the compaction beta. A summarization input is
+  already bounded by its source chat's trigger. Server compaction of that input
+  would summarize a summary and bill an extra step. Utility effort is `low`
+  unless set; the title prompt's `minimal` is not offered by Anthropic, so
+  `low` applies.
+
+- **D24 (2026-10-09, owner):** the Memory Manager turn budget resets on each
+  approval resume, for both runtimes. Each start and each resume gets the full
+  budget: 8 turns, plus one per Reflection page. An automatic chain of
+  approvals therefore no longer ends a run at the budget. A single step that
+  exceeds the budget still ends blocked. This changes the OpenAI runtime too,
+  where the Agents SDK previously carried the turn count across resumes.
 
 ## Implementation orientation
 
@@ -2145,11 +2160,183 @@ Checks:
 
 Completion: tests pass; review leaves no blocker.
 
-Phase record: issue #371; starting source —; commit —.
+Phase record: issue #371; starting source `4eb9b0a9`; commit —.
+
+Implementation (delegated agent, reviewed independently):
+
+- **Utility:** a `utility_task` provider option marks Utility prompts; on
+  Anthropic they use effort `low` and no compaction (D23).
+- **Selector:** `runtime_selector.py` (`MemoryManagerRuntimeSelector`) chooses
+  by provider type, and `for_run` resolves the pinned row's own runtime. The
+  OpenAI runtime refuses Anthropic rows.
+- **Memory tool handler:** `anthropic_memory_tool.py` (`AnthropicMemoryToolHandler`):
+  - maps `/memories` paths and refuses traversal variants;
+  - applies the existing normalization, `ManagerFileAccess` scope and
+    protected paths;
+  - `view` gives a listing or a line-numbered file, with `view_range` and a
+    16,000-character cut;
+  - `create`, `str_replace` and `insert` become approvals through the new
+    `workspace.plan_target_content`, fenced by the version the edit was
+    computed from;
+  - `delete` and `rename` are refused.
+- **Runtime:** `anthropic_runtime.py` (`AnthropicMemoryManagerRuntime`) is a
+  Client SDK loop:
+  - effort `medium`, adaptive thinking, no compaction, cached system prompt;
+  - instructions that forbid progress and scratch notes;
+  - refusals and errors end the run `failed` with category metadata;
+  - one transient retry.
+- **Shared code:** `runtime_support.py` holds the turn budget and rejection
+  text for both runtimes. The Reflection and episode wording gains a
+  memory-tool variant; the OpenAI text is byte-identical.
+
+Deviations:
+
+- **Stored state includes the system prompt.** `serialized_agent_state` also
+  stores `system`, because Haiku 5.5 rejects stored thinking if anything before
+  it changes, and the memory map in the prompt changes after an approved
+  create.
+- **Turn budget across resumes.** The first pass counted turns across resumes,
+  matching the OpenAI Agents SDK (`RunState._current_turn`). The owner then
+  decided D24: the budget resets on each resume, for both runtimes. This is
+  implemented in the Review #1 repair.
+- **One tool call per response** was first used, then removed in repair (see
+  Review #1).
+
+Tests (first pass):
+
+- `tests/test_anthropic_utility.py` (4);
+- `tests/test_anthropic_memory_tool.py` (29);
+- `tests/test_anthropic_memory_manager.py` (18);
+- the router test parametrized for both runtimes.
+
+Checks: `make check-test` (implementer) passed audit, format, lint and mypy,
+with 3,490 passed and 27 skipped.
+
+Live (owner-authorized, 2026-10-09): `tests/live/test_anthropic_memory_manager.py`
+passed.
+
+- Start took 3 requests (view, view, insert) and produced one update approval.
+- Approval from a fresh service committed, then resumed to completion in 1
+  request.
+- No progress or scratch paths; about 13,600 input and 400 output tokens.
+
+Quality note for the Phase 9 smoke: Haiku recorded a new preference in
+`notes/preferences.md` and left a contradicting older `PROFILE.md` line in
+place. Prompt review was deferred to Phase 9.
 
 #### Code Review #1 Findings
 
+Independent `sdlc-reviewer`, full initial review of the working tree on
+`4eb9b0a9`.
+
+It verified:
+
+- path handling, including probed encodings;
+- scope and the version fence;
+- no writes without approval;
+- the persisted state and resume;
+- rejection;
+- Reflection coverage;
+- the selector and the OpenAI refactor;
+- Utility;
+- credentials and logging.
+
+Checks: 468 focused tests passed; ruff, format and mypy passed; the import
+boundary was clean.
+
+- **P7-R1-F1 (blocking, record):** the plan was not updated, and the
+  Utility decision and three deviations were unrecorded.
+- **P7-R1-F2 (blocking, R8 parity):** one tool call per response spends the
+  shared 8-request budget on single reads. A general "update four files"
+  request, or episode batches with searches, can end blocked or failed where
+  the OpenAI runtime completes. The OpenAI runtime batches reads and does not
+  disable parallel calls.
+- **Optional findings:**
+  - the automatic chain ending failed at the budget (doc wording, owner
+    question);
+  - directory `view` lists `episodes/**`;
+  - file views load the whole tree;
+  - failure metadata names the selector's runtime;
+  - small duplication;
+  - mixed path spellings in error text;
+  - doc wording on empty segments;
+  - no undo or episode end-to-end test for the Anthropic runtime.
+
 #### Code Review #1 Revisions
+
+- **F1 (accepted):** this record, D23 and the deviations above.
+- **F2 (accepted):** parallel tool use is allowed. Only one edit may be pending
+  per response; later edits in the same response are refused with a reason.
+  Sibling results are merged in order on resume. Tests were added (see repair
+  results below).
+- **Optional items:** sent to the implementer with F2: protected entries out of
+  directory listings, the tree built only for directory views, the runtime
+  named in failure metadata, the doc wording, and undo and episode tests.
+
+Repair results, including D24 (all behaviour changes test-first):
+
+- **F2:**
+  - `tool_choice: auto` without `disable_parallel_tool_use`.
+  - A later edit in the same response is refused; on resume the pending
+    result is placed in call order.
+  - Tests: parallel view, edit, view resuming in call order; a second edit
+    refused.
+- **Optional items:**
+  - directory listings omit protected entries;
+  - file views skip the listing queries;
+  - failure metadata names the runtime that ran the resume (tested);
+  - doc wording;
+  - an Anthropic-created approval can be undone (tested);
+  - an episode batch is curated through the memory tool and processed (tested).
+- **D24 on Anthropic:** each start or resume counts turns from 0;
+  `turns_used` is kept only as a diagnostic. An 8-change automatic chain
+  completes in 9 requests, and a single step over the budget still blocks.
+- **D24 on OpenAI:**
+  - In openai-agents 0.18, `Runner.run` on a `RunState` ignores the
+    `max_turns` argument and uses the state's own limit and current turn, so
+    the `max_turns` passed on resume had never taken effect.
+  - `OpenAIAgentsRunner.load_state(turn_budget=...)` writes
+    `max_turns = current_turn + budget` into the snapshot that
+    `RunState.from_json` reads. That is the public snapshot path; no private
+    attributes are used.
+  - A real-SDK test with a fake model shows a turn-8-of-8 state completes with
+    the fresh budget and fails without it.
+  - An end-to-end test applies 8 automatic changes and the run completes after
+    9 model calls.
+
+Checks: `make check-test` passed audit, format, lint and mypy, with 3,499
+passed and 27 skipped.
+
+Live: `tests/live/test_anthropic_memory_manager.py` passed.
+
+- Start took 2 requests (parallel `view`, `view`, then `insert`) instead of 3,
+  and produced one update approval.
+- Resume from a fresh service took 1 request.
+- No progress paths; about 10,400 input and 414 output tokens.
+
+Repair budget: one of two rounds used.
+
+#### Code Review #2 Findings
+
+Targeted recheck: **pass**.
+
+- It verified F1, F2 and all the optional items.
+- It verified D24 on both runtimes against the openai-agents 0.18.0 source:
+  the snapshot fields, approve and reject running after load, no turn spent on
+  resume, and no unbounded loop.
+- Checks: 283 focused tests passed; ruff, format and mypy passed; the import
+  boundary was clean.
+- Optional notes:
+  - path wording around `/memories//x.md`;
+  - `view /memories/episodes` reports "does not exist", matching OpenAI's
+    hidden list;
+  - the `max_turns` argument on OpenAI resume is now inert.
+
+#### Code Review #2 Revisions
+
+- The path wording is corrected in the docstring and the feature doc.
+- The other notes are left as they are: the episodes behaviour matches OpenAI,
+  and the inert argument is documented in the runner.
 
 ### Phase 8: Desktop key, App Settings and chat UI
 

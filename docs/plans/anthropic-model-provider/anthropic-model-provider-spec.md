@@ -506,6 +506,9 @@ Decided 2026-10-09 (owner), at the Phase 2 presentation:
   because Anthropic accepts system messages only after a user turn.
 - **Chat Completions app compaction:** triggers at 70% of the model's context
   window, capped at 90,000 tokens (today a fixed 6,000).
+- **Memory Manager turn budget (both runtimes):** resets on each approval
+  resume, so an automatic chain of approvals can complete. Each start or resume
+  gets the full budget.
 
 ## Spec
 

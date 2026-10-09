@@ -398,7 +398,8 @@ path index:
   catalog row that ran their latest step in `model_provider_id`, which
   approval resumes use. Runs also
   store the internal nullable `openai_previous_response_id` Responses cursor
-  and serialized Agents SDK state while an approval is paused. Visible
+  and serialized runtime state while an approval is paused (Agents SDK state,
+  or the Anthropic runtime's stored conversation). Visible
   messages form the UI/audit transcript. Approval rows contain target path,
   operation, expected version, old/new content, nullable old/new description,
   unified diff preview, decision status, optional rejection-only
@@ -523,7 +524,7 @@ file entries and read/edit the active Anima's own `MEMORIES.md` through the
 files.
 
 The Memory Manager commits an approved create or update through
-`MemoryEntryService` and resumes the paused Agents SDK state. Specialized
+`MemoryEntryService` and resumes the paused runtime state. Specialized
 episode-processing runs bind at most 50 pending rows to one private task. A
 successful terminal runtime result with no pending approval atomically marks
 that exact batch processed, regenerates every affected daily episode file,

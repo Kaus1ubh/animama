@@ -27,9 +27,12 @@ This module maps it to Anthropic's positions (D20, D21):
   instructions, which already end with the guardrails, are text in a user turn
   after the tool results or the invalid reply.
 
-Every request uses the beta Messages API with server-side compaction
-(``compact_20260112``, D4). When the turn asked for web search and the row
-hosts it, Anthropic's ``web_search`` server tool is offered (D7).
+Chat requests use the beta Messages API with server-side compaction
+(``compact_20260112``, D4). Utility prompts (``utility_task``) send no
+``context_management``: their input is already bounded by the source chat,
+and a summary of a server-compacted transcript would summarize a summary.
+When the turn asked for web search and the row hosts it, Anthropic's
+``web_search`` server tool is offered (D7).
 
 Requests never carry sampling parameters or an assistant prefill.
 """
@@ -62,6 +65,10 @@ DEFAULT_ANTHROPIC_CHAT_EFFORT = "medium"
 """Effort when neither the owner nor the Anima chose one (D22).
 
 At ``low``, Haiku 5.5 often skipped needed memory-tool calls in live tests."""
+DEFAULT_ANTHROPIC_UTILITY_EFFORT = "low"
+"""Effort for Utility prompts (titles, other chats' summaries) without a choice (D16)."""
+DEFAULT_ANTHROPIC_MEMORY_MANAGER_EFFORT = "medium"
+"""Effort for Memory Manager runs without a choice (D16)."""
 EFFORT_NONE = "none"
 CACHE_CONTROL: dict[str, str] = {"type": "ephemeral"}
 _THINKING_BLOCK_TYPES = frozenset({"thinking", "redacted_thinking"})
@@ -91,14 +98,17 @@ def messages_request_params(spec: ModelClientRequest) -> dict[str, Any]:
     """Return JSON-shaped keyword arguments for ``client.beta.messages.stream``, including ``betas``."""
 
     prompt = spec.prompt
+    utility = spec.provider_options.utility_task
     layout = _prompt_layout(prompt_messages(prompt))
     params: dict[str, Any] = {
         "model": spec.model_provider.model,
         "max_tokens": request_max_tokens(spec.model_provider),
         "messages": _request_messages(layout, continuation_rounds(spec.continuation)),
-        "betas": [COMPACTION_BETA],
-        "context_management": compaction_context_management(spec.model_provider),
     }
+    if not utility:
+        # A Utility prompt is summarized as a whole, never compacted first (P6-R1-F4).
+        params["betas"] = [COMPACTION_BETA]
+        params["context_management"] = compaction_context_management(spec.model_provider)
     if layout.system_text:
         params["system"] = [{"type": "text", "text": layout.system_text, "cache_control": dict(CACHE_CONTROL)}]
     tools = anthropic_tools(prompt_tools(prompt))
@@ -112,7 +122,11 @@ def messages_request_params(spec: ModelClientRequest) -> dict[str, Any]:
     output_format = anthropic_output_format(prompt.response_format)
     if output_format is not None:
         output_config["format"] = output_format
-    effort, thinking = effort_and_thinking(prompt.reasoning_effort, spec.model_provider)
+    effort, thinking = effort_and_thinking(
+        prompt.reasoning_effort,
+        spec.model_provider,
+        default=DEFAULT_ANTHROPIC_UTILITY_EFFORT if utility else DEFAULT_ANTHROPIC_CHAT_EFFORT,
+    )
     if effort is not None:
         output_config["effort"] = effort
     if thinking is not None:
@@ -178,18 +192,21 @@ def request_max_tokens(model_provider: ModelProvider) -> int:
 def effort_and_thinking(
     requested: str | None,
     model_provider: ModelProvider,
+    *,
+    default: str = DEFAULT_ANTHROPIC_CHAT_EFFORT,
 ) -> tuple[str | None, dict[str, str] | None]:
-    """Map the turn's reasoning effort to ``output_config.effort`` and ``thinking`` (D6, D22).
+    """Map a request's reasoning effort to ``output_config.effort`` and ``thinking`` (D6, D16, D22).
 
     ``none`` disables thinking and sends no effort. Any other effort leaves
     thinking at the model's adaptive default and sets the effort. Without a
-    choice, chat requests use ``medium`` when the row offers it.
+    choice, the role's ``default`` applies when the row offers it: ``medium``
+    for chat turns and Memory Manager runs, ``low`` for Utility prompts.
     """
 
     effort = requested.strip() if isinstance(requested, str) and requested.strip() else None
     if effort is None:
         supported = {str(value).strip() for value in model_provider.capabilities.supported_reasoning_efforts or ()}
-        effort = DEFAULT_ANTHROPIC_CHAT_EFFORT if DEFAULT_ANTHROPIC_CHAT_EFFORT in supported else None
+        effort = default if default in supported else None
     if effort is None:
         return None, None
     if effort == EFFORT_NONE:
@@ -500,6 +517,8 @@ __all__ = [
     "COMPACTION_DEFAULT_TRIGGER_TOKENS",
     "COMPACTION_MIN_TRIGGER_TOKENS",
     "DEFAULT_ANTHROPIC_CHAT_EFFORT",
+    "DEFAULT_ANTHROPIC_MEMORY_MANAGER_EFFORT",
+    "DEFAULT_ANTHROPIC_UTILITY_EFFORT",
     "WEB_SEARCH_SERVER_TOOL",
     "anthropic_output_format",
     "anthropic_tools",

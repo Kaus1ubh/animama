@@ -251,9 +251,15 @@ class ModelClientProviderOptions:
     memory_apply_patch_enabled: bool = False
     moderation_model: str | None = None
     """Request provider-side moderation scores with this model, when the adapter supports it."""
+    utility_task: bool = False
+    """A backend Utility prompt (a chat title or another chat's summary), not a chat turn.
+
+    Adapters apply their provider's Utility defaults; Anthropic uses effort
+    ``low`` and no server-side compaction of the prompt."""
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "native_tools", _string_tuple(self.native_tools))
+        object.__setattr__(self, "utility_task", self.utility_task is True)
         object.__setattr__(
             self,
             "moderation_model",
@@ -281,6 +287,7 @@ class ModelClientProviderOptions:
             store=store if isinstance(store, bool) else None,
             memory_apply_patch_enabled=value.get("memory_apply_patch_enabled") is True,
             moderation_model=value.get("moderation_model") if isinstance(value.get("moderation_model"), str) else None,
+            utility_task=value.get("utility_task") is True,
         )
 
     def get(self, key: str, default: object = None) -> object:
@@ -292,6 +299,8 @@ class ModelClientProviderOptions:
             return self.store
         if key == "memory_apply_patch_enabled":
             return self.memory_apply_patch_enabled
+        if key == "utility_task":
+            return self.utility_task
         return default
 
     def __getitem__(self, key: str) -> object:
@@ -303,6 +312,8 @@ class ModelClientProviderOptions:
             return self.store
         if key == "memory_apply_patch_enabled":
             return self.memory_apply_patch_enabled
+        if key == "utility_task":
+            return self.utility_task
         raise KeyError(key)
 
 

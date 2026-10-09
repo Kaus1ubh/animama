@@ -1050,12 +1050,13 @@ automatically) marks the run's turns covered in the same transaction; Undo of
 that approval uncovers them again. Rejection, a superseded run, failure or a
 `409` version conflict leave the file and coverage unchanged.
 
-Manager messages normally run a live OpenAI Agents SDK workflow on the Memory
-Manager role's model, with an approval-gated Apply Patch tool (hosted on
-Responses rows, a function tool on Chat Completions rows) over a constrained
-virtual memory workspace; `ANIMAMA_LLM_SKIP=1` switches this to the
+Manager messages normally run a live workflow on the Memory Manager role's
+model over a constrained virtual memory workspace: the OpenAI Agents SDK with an
+approval-gated Apply Patch tool (hosted on Responses rows, a function tool on
+Chat Completions rows), or, on Anthropic rows, Anthropic's memory tool whose
+edits become the same approvals. `ANIMAMA_LLM_SKIP=1` switches this to the
 deterministic local test runtime. See
-[Memory Manager and episodic memory](../features/memory-manager-and-episodic-memory.md#live-openai-agents-runtime).
+[Memory Manager and episodic memory](../features/memory-manager-and-episodic-memory.md#runtime-implementations).
 Approval decisions are real commits for valid create/update patches: approved
 patches write through `MemoryEntryService` and atomically store the target entry
 ID and resulting `applied_version`; public previews carry separate nullable
@@ -1065,8 +1066,8 @@ memory, and stale version/path conflicts return `409 Conflict` while leaving
 the approval pending. Reject requests may include normalized
 `feedback` of at most 2,000 characters; nonblank feedback is invalid with
 `decision = "approve"`. Persisted feedback is returned on the approval and is
-included in the Agents SDK rejection message so the same processing run can
-propose a corrected patch. Manager create and append bodies accept
+included in the rejection message the model receives so the same processing run
+can propose a corrected patch. Manager create and append bodies accept
 `auto_approve_diffs` (default false). When enabled, the backend follows only the
 durable approval chain attributed to that submitted message, committing and
 resuming sequentially up to eight times; the frontend does not orchestrate

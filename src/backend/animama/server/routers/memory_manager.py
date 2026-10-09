@@ -8,7 +8,12 @@ from typing import Annotated, Literal, NoReturn
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from animama.adapters.memory_manager import DeterministicMemoryManagerRuntime, OpenAIAgentsMemoryManagerRuntime
+from animama.adapters.memory_manager import (
+    AnthropicMemoryManagerRuntime,
+    DeterministicMemoryManagerRuntime,
+    MemoryManagerRuntimeSelector,
+    OpenAIAgentsMemoryManagerRuntime,
+)
 from animama.adapters.repositories.sqlalchemy.anima_memory_reflection_repo import (
     SQLAlchemyAnimaMemoryReflectionRepository,
 )
@@ -20,6 +25,7 @@ from animama.adapters.repositories.sqlalchemy.memory_manager_repo import SQLAlch
 from animama.adapters.repositories.sqlalchemy.model_provider_repo import SQLAlchemyModelProviderRepository
 from animama.adapters.repositories.sqlalchemy.settings_repo import SQLAlchemyUserSettingsRepository
 from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
+from animama.app.ports.memory_manager_runtime import MemoryManagerRuntime
 from animama.app.services.memory_entry_service import MemoryEntryService
 from animama.app.services.memory_episode_service import (
     MemoryEpisodeError,
@@ -118,28 +124,47 @@ async def _manager_service(session: AsyncSession, user_id: str, roles: ModelRole
         uow=uow,
         commit_on_write=False,
     )
-    runtime = (
-        DeterministicMemoryManagerRuntime(
+    runtime: MemoryManagerRuntime
+    if _truthy_env(os.getenv("ANIMAMA_LLM_SKIP")):
+        runtime = DeterministicMemoryManagerRuntime(
             user_id=user_id,
             memory_entries=memory_entries,
             memory_episodes=memory_episode_repository,
             animas=anima_repository,
             chat_messages=chat_message_repository,
         )
-        if _truthy_env(os.getenv("ANIMAMA_LLM_SKIP"))
-        else OpenAIAgentsMemoryManagerRuntime(
-            user_id=user_id,
-            memory_entries=memory_entries,
-            memory_episodes=memory_episode_repository,
-            animas=anima_repository,
-            chat_messages=chat_message_repository,
+    else:
+        model_providers = SQLAlchemyModelProviderRepository(session)
+        credential_resolver = build_model_credential_resolver()
+        timeout_seconds = settings.anima_model_client_timeout_seconds
+        # Each step runs on the runtime of its row's provider type; approvals resume on the pinned row's.
+        runtime = MemoryManagerRuntimeSelector(
             model_provider=(await roles.resolver(session).resolve(user_id, ROLE_MEMORY_MANAGER)).model_provider,
-            model_providers=SQLAlchemyModelProviderRepository(session),
-            credential_resolver=build_model_credential_resolver(),
-            openai_base_url=openai_base_url(),
-            timeout_seconds=settings.anima_model_client_timeout_seconds,
+            model_providers=model_providers,
+            openai_agents=lambda row: OpenAIAgentsMemoryManagerRuntime(
+                user_id=user_id,
+                memory_entries=memory_entries,
+                memory_episodes=memory_episode_repository,
+                animas=anima_repository,
+                chat_messages=chat_message_repository,
+                model_provider=row,
+                model_providers=model_providers,
+                credential_resolver=credential_resolver,
+                openai_base_url=openai_base_url(),
+                timeout_seconds=timeout_seconds,
+            ),
+            anthropic=lambda row: AnthropicMemoryManagerRuntime(
+                user_id=user_id,
+                memory_entries=memory_entries,
+                memory_episodes=memory_episode_repository,
+                animas=anima_repository,
+                chat_messages=chat_message_repository,
+                model_provider=row,
+                model_providers=model_providers,
+                credential_resolver=credential_resolver,
+                timeout_seconds=timeout_seconds,
+            ),
         )
-    )
     return MemoryManagerService(
         memory_manager=SQLAlchemyMemoryManagerRepository(session),
         memory_entries=memory_entries,

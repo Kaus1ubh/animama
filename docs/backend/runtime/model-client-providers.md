@@ -313,7 +313,7 @@ parameters built in `anthropic_messages/request.py`:
   assistant message, at most three times. The round's content, text and
   summed usage span every resumed response; after the third resend the round
   ends with what it has.
-- **Compaction.** Every request sends `context_management.edits`
+- **Compaction.** Every chat request sends `context_management.edits`
   `[{type: compact_20260112, trigger: {type: input_tokens, value: T},
   pause_after_compaction: false}]`. `T` is 150,000 (Anthropic's default),
   except on rows with a long-context price threshold whose owner left
@@ -324,11 +324,14 @@ parameters built in `anthropic_messages/request.py`:
   billing includes the compaction step. The provider metadata's
   `context_tokens` is the last iteration's footprint, which becomes
   `chats.active_context_tokens`. Application pre-send fitting and
-  post-response compaction never run for Anthropic chats.
+  post-response compaction never run for Anthropic chats. Utility prompts
+  (`provider_options.utility_task`) send no `context_management`: a title or
+  summary prompt is read whole, never server-compacted first.
 - **Effort.** `none` sends `thinking: {type: disabled}` and no effort. Any
   other effort leaves adaptive thinking on and sets `output_config.effort`.
   Without a choice, chat requests use `medium` when the row offers it
-  (`low` skipped needed memory-tool calls in live tests).
+  (`low` skipped needed memory-tool calls in live tests) and Utility prompts
+  use `low`.
 - **Limits.** `max_tokens` is the row's output limit, capped at 64,000 per
   request (thinking included). Requests never carry sampling parameters or an
   assistant prefill.
@@ -620,7 +623,9 @@ resolves the Utility [model role](../../frontend/features/model-settings.md#defa
 (the App Settings choice, then `ANIMAMA_DEFAULT_UTILITY_MODEL_PROVIDER_ID`,
 then the default chat model) and invokes the same shared model-client registry.
 It sends a requested `request_options` reasoning effort only when the row
-supports that effort. These prompt-only calls are separate from the primary
+supports that effort, and marks the request `utility_task`, so adapters apply
+their Utility defaults (on Anthropic rows: effort `low` and no server-side
+compaction). These prompt-only calls are separate from the primary
 anima turn, do not stream to the frontend, and persist usage only where their
 service owns durable state, such as `chat_compactions`.
 
