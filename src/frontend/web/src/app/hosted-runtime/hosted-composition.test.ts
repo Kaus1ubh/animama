@@ -569,6 +569,30 @@ describe("hosted admission and transport", () => {
     }
   });
 
+  it("admits operator-provisioned web search but never owner search settings", async () => {
+    const operatorSearch = {
+      configuration: false,
+      configured: true,
+      backend: "brave",
+      credential_state: "configured",
+    };
+    const admitted = await fixture({
+      ...active,
+      capabilities: { ...capabilities, web_search: operatorSearch },
+    } as typeof active).composition.readAdmission();
+    expect(
+      admitted.status === "ready" && admitted.capabilities.web_search,
+    ).toEqual(operatorSearch);
+    const administered = await fixture({
+      ...active,
+      capabilities: {
+        ...capabilities,
+        web_search: { ...operatorSearch, configuration: true },
+      },
+    } as typeof active).composition.readAdmission();
+    expect(administered.status).toBe("unavailable");
+  });
+
   it("uses cookie and current CSRF authority for explicit SDK, byte and streaming requests", async () => {
     const { composition, calls } = fixture();
     const controller = new RuntimeController(composition);

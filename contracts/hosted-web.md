@@ -134,6 +134,12 @@ Permissions are separate from browser support and temporary errors:
 | Host paths, scans, file logs and server model installation | `local_filesystem_administration`                                         | False; virtual memory paths, creator assets and browser model downloads remain retained. |
 | Electron/native controls                                   | `native_features`                                                         | False; browser fullscreen/PiP use browser feature detection.                             |
 
+Web search use follows the runtime fields `web_search.configured`, `backend` and
+`credential_state`, not `web_search.configuration`: a hosted operator who
+provisions search reports `configured: true` with its backend, and tool-capable
+models then offer and request `native_tools: ["web_search"]`, while owner search
+settings stay unavailable.
+
 `offline_speech_enabled` and its versions describe current Parakeet availability,
 not permission to use voice. An absent optional set does not remove browser voice,
 Pocket TTS, supported server speech, or the workflow to download a permitted set.
