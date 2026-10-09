@@ -131,6 +131,31 @@ enters a shared CDN/service-worker cache. Content-only package import/export,
 Anima export, stale revisions, drafts and ambiguous-commit recovery retain their
 existing receipts and error semantics. Anima import is denied regardless of UI.
 
+## Hosted denials
+
+Hosted account and service limits refuse a request with a stable JSON body. Its
+code is in `code`, repeated in `error` for compatibility; a FastAPI-style body may
+instead nest it as `detail.code`. Optional fields sit beside the code: `limit`
+names the exhausted limit (a string, except the count described below),
+`retry_after_seconds` (number) is the wait before a retry can succeed and
+`max_characters` (number) is the longest accepted message. A 429 or 503 denial
+with a known wait also sends `Retry-After`, which the browser reads when the body
+omits `retry_after_seconds`.
+
+| Code                 | Status | Meaning and browser copy                                                                                                                                                                                                                |
+| -------------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `quota_exceeded`     | 429    | An account limit such as `account_daily_turns`, `account_daily_spend`, `account_monthly_spend` or `operation_requests`: the usage limit and, when known, its reset time. `model_input_tokens` asks for a new chat or a shorter message. |
+| `capacity_busy`      | 503    | Hosted capacity is temporarily full: busy, try again after the wait or in a moment.                                                                                                                                                     |
+| `budget_paused`      | 503    | The hosted service budget is paused: the same busy copy.                                                                                                                                                                                |
+| `message_too_long`   | 400    | The message exceeds `max_characters`, which the copy states.                                                                                                                                                                            |
+| `chat_limit_reached` | 409    | The account reached its chat allowance; `limit` is that count, as a JSON integer or decimal string, and the copy states it.                                                                                                             |
+
+Chat creation rejects with the denial body and the `chat:sse` request returns it
+as an HTTP error. A denial after a turn has started ends it with an error frame that
+keeps a string `error` and carries the same code; its fields may also arrive in the
+frame's `details`. Denial copy never refers the user to an installation owner or
+its service. Other codes keep their existing failure copy.
+
 ## Realtime speech session descriptor
 
 An SSE `tts.session` may additionally declare `transport: "server"` and

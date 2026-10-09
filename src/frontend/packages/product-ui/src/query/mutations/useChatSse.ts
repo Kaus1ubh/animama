@@ -18,6 +18,7 @@ import {
   type ChatMemoryCue,
   type ChatMemoryUpdated,
 } from "../../lib/chat/memory-cue";
+import { withRetryAfter } from "../../lib/chat/retry-after";
 import { isChatRunStatus, type ChatRunStatus } from "../../lib/chat/run-status";
 import {
   useProductLogger,
@@ -252,11 +253,17 @@ export class ChatSseHttpError extends Error {
   readonly body: unknown;
   readonly detail: unknown;
 
-  constructor(status: number, statusText: string, body: unknown) {
+  /** `headers` add a `Retry-After` delay that a JSON body does not state. */
+  constructor(
+    status: number,
+    statusText: string,
+    body: unknown,
+    headers?: Headers,
+  ) {
     super(`SSE failed: ${status} ${statusText}`);
     this.name = "ChatSseHttpError";
     this.status = status;
-    this.body = body;
+    this.body = withRetryAfter(body, headers);
     this.detail = isObject(body) ? body.detail : undefined;
   }
 }
@@ -340,6 +347,7 @@ export function useChatSse() {
               response.status,
               response.statusText,
               await parseErrorBody(response),
+              response.headers,
             );
           }
           return response;

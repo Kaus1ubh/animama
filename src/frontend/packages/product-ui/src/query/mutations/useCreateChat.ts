@@ -8,7 +8,13 @@ import type {
 } from "@animama/runtime-contracts/api-types";
 import { queryKeys } from "../keys";
 import { useRuntimeCacheKey } from "../../runtime/ProductRuntimeProvider";
+import { withRetryAfter } from "../../lib/chat/retry-after";
 
+/**
+ * Create the chat for a first message. A failure rejects with the parsed error
+ * body (or the transport error when no response arrived), which chat failure
+ * copy classifies, including hosted denials with their `Retry-After` wait.
+ */
 export function useCreateChat() {
   const queryClient = useQueryClient();
   const client = useProductApiClient();
@@ -24,14 +30,16 @@ export function useCreateChat() {
       body: PyChatCreate;
       headers?: Record<string, string>;
     }) => {
-      const { data: created } = await createChatV1ChatsPost({
+      const result = await createChatV1ChatsPost({
         client,
         body,
         headers,
         responseValidator: undefined,
-        throwOnError: true,
+        throwOnError: false,
       });
-      return created;
+      if (result.error !== undefined)
+        throw withRetryAfter(result.error, result.response?.headers);
+      return result.data;
     },
     onSuccess: (created) => {
       if (!userId) return;
