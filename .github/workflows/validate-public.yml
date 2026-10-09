@@ -404,6 +404,7 @@ jobs:
             ${{ runner.temp }}/public-consumer/frontend/*.png
             ${{ runner.temp }}/public-consumer/frontend/hosted-app/*.png
             ${{ runner.temp }}/public-consumer/frontend/hosted-app/whole-app-*.json
+            ${{ runner.temp }}/public-consumer/frontend/hosted-app/clip-compatibility-failure.json
           retention-days: ${{ job.status != 'success' && 14 || steps.select.outputs.retention || 14 }}
       - name: Retain compact source-bound acceptance receipts
         id: receipts

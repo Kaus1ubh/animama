@@ -5,6 +5,8 @@ import path from "node:path";
 
 const sha = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const MAX_CLIP = 2 * 1024 * 1024;
+// Every emitted selection saves this format; the runtime refuses 1.0 clips.
+const CLIP_SCHEMA = "animaPoseClip/2.0";
 const typed = (item) =>
     Object.fromEntries(
         Object.entries(item).filter(([key]) =>
@@ -29,7 +31,7 @@ const typed = (item) =>
     );
 
 /** No product modules: retain the actual uploaded sequence and descriptor bytes. */
-export function createClipApi(reply, applicationDirectory, expectedSchema) {
+export function createClipApi(reply, applicationDirectory) {
     const records = [],
         operations = new Map();
     const initialize = (admission) => {
@@ -157,11 +159,9 @@ export function createClipApi(reply, applicationDirectory, expectedSchema) {
                 )
                     throw new Error("Expected one actual clip companion");
                 const bytes = Buffer.from(await uploaded[0].arrayBuffer());
-                const selectedSchema = expectedSchema();
                 if (
                     bytes.length > MAX_CLIP ||
-                    selectedSchema !== "animaPoseClip/2.0" ||
-                    JSON.parse(bytes).schema !== selectedSchema
+                    JSON.parse(bytes).schema !== CLIP_SCHEMA
                 )
                     throw new Error("Invalid or oversized clip companion");
                 const old = session.state.items.get(
